@@ -6,11 +6,11 @@ public class Main {
 	{
 		Style dantel = new Style(new ArrayList<RawMaterials>(
 			Arrays.asList(
-			new RawMaterials(430, "Coton",
-                CutType.KG, new Consumption(CutType.GM, 100)),
-            new RawMaterials(400, "Elastic",
+			new RawMaterials(400, "Cotton",
+                CutType.KG, new Consumption(CutType.GM, 40)),
+            new RawMaterials(500, "Elastic",
                 CutType.KG, new Consumption(CutType.GM, 6)),
-            new RawMaterials(500, "Dantel",
+            new RawMaterials(200, "Dantel",
                 CutType.KG, new Consumption(CutType.GM, 20)),
             new RawMaterials(5, "Packaging",
                 CutType.PU, new Consumption(CutType.PU, 1)))), 101);
