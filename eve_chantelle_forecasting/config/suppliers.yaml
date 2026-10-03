@@ -1,0 +1,36 @@
+# Supplier master.
+# Lead times, MOQs and pack sizes below are PLACEHOLDERS until Assal confirms them.
+# Every supplier with confirmed: false is flagged on every purchase order.
+
+defaults:
+  pack_size: 6            # default pack of 6, flagged on the PO when used
+  moq_units: 6
+  lead_time_days: 30
+  currency: EGP
+  confirmed: false
+
+suppliers:
+  Elassal:
+    lead_time_days: 21
+    pack_size: 6
+    moq_units: 6
+    currency: EGP
+    confirmed: false
+  BOBO:
+    lead_time_days: 45
+    pack_size: 6
+    moq_units: 6
+    currency: EGP
+    confirmed: false
+
+# First matching rule wins. match can be: vendor, product_type, sku_prefix, title_contains, tag, collection
+rules:
+  - {match: vendor, value: Elassal, supplier: Elassal}
+  - {match: vendor, value: BOBO, supplier: BOBO}
+
+# Per SKU overrides, example:
+# sku_overrides:
+#   EC_BRA_001_BLK_34B: {supplier: BOBO, pack_size: 12, moq_units: 24, lead_time_days: 60}
+sku_overrides: {}
+
+fallback_supplier: UNASSIGNED
