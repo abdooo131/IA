@@ -1,0 +1,432 @@
+// Shiply data model. Money is always Int piastres (1 EGP = 100 piastres).
+// Row level security, append only triggers and grants live in hand written SQL migrations.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("MIGRATE_DATABASE_URL")
+}
+
+enum Role {
+  SUPER_ADMIN
+  OPERATIONS_MANAGER
+  DRIVER_MANAGER
+  DISPATCH
+  FINANCE
+  QC_AGENT
+  HUB_STAFF
+  FRANCHISE_MANAGER
+  MERCHANT_OWNER
+  MERCHANT_TEAM_MEMBER
+  PICKUP_DRIVER
+  DELIVERY_DRIVER
+}
+
+enum Language {
+  en
+  ar
+}
+
+enum MerchantTier {
+  BRONZE
+  SILVER
+  GOLD
+}
+
+enum CashoutFrequency {
+  DAILY
+  EVERY_2_DAYS
+  WEEKLY
+}
+
+enum PricingZone {
+  CAIRO_GIZA
+  ALEX_BEHIRA
+  DELTA_CANAL
+  NEAR_UPPER_EGYPT
+  FAR_UPPER_MATROUH
+  NORTH_COAST
+  SINAI_NEW_VALLEY
+}
+
+enum OrderType {
+  DELIVER
+  EXCHANGE
+  RETURN
+}
+
+enum PackageSize {
+  SMALL_MEDIUM
+  LARGE
+  XLARGE
+  XXL_WHITE_BAG
+  LIGHT_BULKY
+  HEAVY_BULKY
+}
+
+enum OrderStatus {
+  NEW
+  PENDING_PICKUP
+  PICKED_UP
+  AT_SORTING_FACILITY
+  IN_TRANSFER
+  AT_LAST_MILE_HUB
+  ASSIGNED_TO_DRIVER
+  HEADING_TO_CUSTOMER
+  RETURNS_ON_WAY
+  HEADING_TO_MERCHANT
+  AWAITING_MERCHANT_ACTION
+  REJECTED_RETURN
+  DELIVERED
+  RETURNED
+  UNSUCCESSFUL
+  ARCHIVED
+  TERMINATED
+}
+
+enum OrderSource {
+  MANUAL
+  CSV
+  API
+  SHOPIFY
+}
+
+model Franchise {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  archived  Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  hubs      Hub[]
+  users     User[]
+
+  @@map("franchises")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  phone        String?
+  passwordHash String    @map("password_hash")
+  fullName     String    @map("full_name")
+  role         Role
+  language     Language  @default(en)
+  merchantId   String?   @map("merchant_id") @db.Uuid
+  franchiseId  String?   @map("franchise_id") @db.Uuid
+  hubId        String?   @map("hub_id") @db.Uuid
+  permissions  Json      @default("[]")
+  archived     Boolean   @default(false)
+  lastLoginAt  DateTime? @map("last_login_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  merchant      Merchant?      @relation(fields: [merchantId], references: [id])
+  franchise     Franchise?     @relation(fields: [franchiseId], references: [id])
+  hub           Hub?           @relation(fields: [hubId], references: [id])
+  refreshTokens RefreshToken[]
+
+  @@index([merchantId])
+  @@map("users")
+}
+
+model RefreshToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  userId     String    @map("user_id") @db.Uuid
+  tokenHash  String    @unique @map("token_hash")
+  app        String
+  expiresAt  DateTime  @map("expires_at")
+  revokedAt  DateTime? @map("revoked_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+  user       User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@map("refresh_tokens")
+}
+
+model Merchant {
+  id               String           @id @default(uuid()) @db.Uuid
+  code             String           @unique
+  nameEn           String           @map("name_en")
+  nameAr           String           @map("name_ar")
+  logoUrl          String?          @map("logo_url")
+  tier             MerchantTier     @default(BRONZE)
+  vatEnabled       Boolean          @default(true) @map("vat_enabled")
+  cashoutFrequency CashoutFrequency @default(WEEKLY) @map("cashout_frequency")
+  parentMerchantId String?          @map("parent_merchant_id") @db.Uuid
+  defaultOpenPackage Boolean        @default(false) @map("default_open_package")
+  defaultSize      PackageSize      @default(SMALL_MEDIUM) @map("default_size")
+  archived         Boolean          @default(false)
+  createdAt        DateTime         @default(now()) @map("created_at")
+  updatedAt        DateTime         @updatedAt @map("updated_at")
+
+  parent          Merchant?            @relation("SubAccounts", fields: [parentMerchantId], references: [id])
+  subAccounts     Merchant[]           @relation("SubAccounts")
+  users           User[]
+  pickupLocations PickupLocation[]
+  orders          Order[]
+  bankDetails     MerchantBankDetails?
+  importBatches   ImportBatch[]
+
+  @@map("merchants")
+}
+
+model MerchantBankDetails {
+  merchantId    String   @id @map("merchant_id") @db.Uuid
+  bankName      String   @map("bank_name")
+  accountName   String   @map("account_name")
+  iban          String
+  lastChangedAt DateTime @default(now()) @map("last_changed_at")
+  merchant      Merchant @relation(fields: [merchantId], references: [id])
+
+  @@map("merchant_bank_details")
+}
+
+model PickupLocation {
+  id              String   @id @default(uuid()) @db.Uuid
+  merchantId      String   @map("merchant_id") @db.Uuid
+  name            String
+  governorateCode String   @map("governorate_code")
+  area            String
+  addressLine     String   @map("address_line")
+  lat             Float?
+  lng             Float?
+  contactPhone    String?  @map("contact_phone")
+  isDefault       Boolean  @default(false) @map("is_default")
+  archived        Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  merchant    Merchant    @relation(fields: [merchantId], references: [id])
+  governorate Governorate @relation(fields: [governorateCode], references: [code])
+  orders      Order[]
+
+  @@index([merchantId])
+  @@map("pickup_locations")
+}
+
+model Governorate {
+  code        String      @id
+  nameEn      String      @map("name_en")
+  nameAr      String      @map("name_ar")
+  pricingZone PricingZone @map("pricing_zone")
+  lat         Float
+  lng         Float
+
+  areas           Area[]
+  hubs            Hub[]
+  pickupLocations PickupLocation[]
+  orders          Order[]
+
+  @@map("governorates")
+}
+
+/// Known areas used by the mock geocoder. pricingZone overrides the governorate zone (e.g. North Coast).
+model Area {
+  id              String       @id @default(uuid()) @db.Uuid
+  governorateCode String       @map("governorate_code")
+  nameEn          String       @map("name_en")
+  nameAr          String       @map("name_ar")
+  keywords        String[]
+  lat             Float
+  lng             Float
+  pricingZone     PricingZone? @map("pricing_zone")
+  governorate     Governorate  @relation(fields: [governorateCode], references: [code])
+
+  @@map("areas")
+}
+
+model Hub {
+  id                 String   @id @default(uuid()) @db.Uuid
+  code               String   @unique
+  nameEn             String   @map("name_en")
+  nameAr             String   @map("name_ar")
+  governorateCode    String   @map("governorate_code")
+  addressLine        String   @map("address_line")
+  lat                Float
+  lng                Float
+  receivesPickups    Boolean  @default(false) @map("receives_pickups")
+  dispatchesLastMile Boolean  @default(false) @map("dispatches_last_mile")
+  franchiseId        String?  @map("franchise_id") @db.Uuid
+  archived           Boolean  @default(false)
+  createdAt          DateTime @default(now()) @map("created_at")
+
+  governorate Governorate @relation(fields: [governorateCode], references: [code])
+  franchise   Franchise?  @relation(fields: [franchiseId], references: [id])
+  users       User[]
+  orders      Order[]     @relation("DestinationHub")
+
+  @@map("hubs")
+}
+
+model SystemConfig {
+  key          String   @id
+  value        Json
+  defaultValue Json     @map("default_value")
+  valueType    String   @map("value_type")
+  category     String
+  description  String
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  updatedById  String?  @map("updated_by_id") @db.Uuid
+
+  @@map("system_config")
+}
+
+model PricingZonePrice {
+  id                String      @id @default(uuid()) @db.Uuid
+  pickupZone        PricingZone @map("pickup_zone")
+  destZone          PricingZone @map("dest_zone")
+  basePricePiastres Int         @map("base_price_piastres")
+
+  @@unique([pickupZone, destZone])
+  @@map("pricing_zone_prices")
+}
+
+model PricingSizeAdjustment {
+  size        PackageSize @id
+  addPiastres Int         @map("add_piastres")
+
+  @@map("pricing_size_adjustments")
+}
+
+model PricingTierAdjustment {
+  tier         MerchantTier @id
+  /// basis points: 10000 = 100% (no change), 9500 = 5% discount
+  multiplierBp Int          @map("multiplier_bp")
+
+  @@map("pricing_tier_adjustments")
+}
+
+/// Exact matrix cell override. When a row matches, it wins over the computed price.
+model PricingOverride {
+  id            String       @id @default(uuid()) @db.Uuid
+  pickupZone    PricingZone  @map("pickup_zone")
+  destZone      PricingZone  @map("dest_zone")
+  size          PackageSize
+  orderType     OrderType    @map("order_type")
+  tier          MerchantTier
+  pricePiastres Int          @map("price_piastres")
+
+  @@unique([pickupZone, destZone, size, orderType, tier])
+  @@map("pricing_overrides")
+}
+
+model Order {
+  id                String      @id @default(uuid()) @db.Uuid
+  merchantId        String      @map("merchant_id") @db.Uuid
+  trackingNumber    String      @unique @map("tracking_number")
+  merchantReference String?     @map("merchant_reference")
+  type              OrderType   @default(DELIVER)
+  status            OrderStatus @default(NEW)
+  size              PackageSize @default(SMALL_MEDIUM)
+  source            OrderSource @default(MANUAL)
+
+  customerName     String  @map("customer_name")
+  customerPhone    String  @map("customer_phone")
+  customerPhoneAlt String? @map("customer_phone_alt")
+  governorateCode  String  @map("governorate_code")
+  area             String
+  addressLine      String  @map("address_line")
+  lat              Float?
+  lng              Float?
+  geocodeSource    String? @map("geocode_source")
+
+  pickupLocationId String?     @map("pickup_location_id") @db.Uuid
+  pickupZone       PricingZone @map("pickup_zone")
+  destZone         PricingZone @map("dest_zone")
+  destinationHubId String?     @map("destination_hub_id") @db.Uuid
+  needsManualHub   Boolean     @default(false) @map("needs_manual_hub")
+
+  codAmount            Int     @default(0) @map("cod_amount")
+  allowOpenPackage     Boolean @default(false) @map("allow_open_package")
+  itemsDescription     String? @map("items_description")
+  returnItemsDescription String? @map("return_items_description")
+  notes                String?
+
+  // Frozen pricing (piastres). Never recalculated after creation.
+  shippingFee       Int  @map("shipping_fee")
+  codFee            Int  @map("cod_fee")
+  openPackageFee    Int  @map("open_package_fee")
+  vatAmount         Int  @map("vat_amount")
+  totalFees         Int  @map("total_fees")
+  failedDeliveryFee Int  @map("failed_delivery_fee")
+  pricingSnapshot   Json @map("pricing_snapshot")
+
+  printCount     Int       @default(0) @map("print_count")
+  labelPrintedAt DateTime? @map("label_printed_at")
+  importBatchId  String?   @map("import_batch_id") @db.Uuid
+  archived       Boolean   @default(false)
+  createdById    String?   @map("created_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  merchant       Merchant        @relation(fields: [merchantId], references: [id])
+  governorate    Governorate     @relation(fields: [governorateCode], references: [code])
+  pickupLocation PickupLocation? @relation(fields: [pickupLocationId], references: [id])
+  destinationHub Hub?            @relation("DestinationHub", fields: [destinationHubId], references: [id])
+  importBatch    ImportBatch?    @relation(fields: [importBatchId], references: [id])
+  events         OrderEvent[]
+
+  @@index([merchantId, status])
+  @@index([merchantId, createdAt])
+  @@index([customerPhone])
+  @@map("orders")
+}
+
+/// Append only (trigger + grants).
+model OrderEvent {
+  id         BigInt       @id @default(autoincrement())
+  orderId    String       @map("order_id") @db.Uuid
+  merchantId String       @map("merchant_id") @db.Uuid
+  eventType  String       @map("event_type")
+  fromStatus OrderStatus? @map("from_status")
+  toStatus   OrderStatus? @map("to_status")
+  note       String?
+  actorId    String?      @map("actor_id") @db.Uuid
+  actorRole  String?      @map("actor_role")
+  hubId      String?      @map("hub_id") @db.Uuid
+  metadata   Json         @default("{}")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  order      Order        @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+/// Append only (trigger + grants).
+model AuditLog {
+  id         BigInt   @id @default(autoincrement())
+  actorId    String?  @map("actor_id") @db.Uuid
+  actorRole  String?  @map("actor_role")
+  action     String
+  entityType String   @map("entity_type")
+  entityId   String?  @map("entity_id")
+  merchantId String?  @map("merchant_id") @db.Uuid
+  before     Json?
+  after      Json?
+  reason     String?
+  ip         String?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model ImportBatch {
+  id          String   @id @default(uuid()) @db.Uuid
+  merchantId  String   @map("merchant_id") @db.Uuid
+  fileName    String   @map("file_name")
+  totalRows   Int      @map("total_rows")
+  successRows Int      @map("success_rows")
+  errorRows   Int      @map("error_rows")
+  errors      Json     @default("[]")
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+  orders      Order[]
+
+  @@index([merchantId])
+  @@map("import_batches")
+}
