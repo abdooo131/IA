@@ -126,9 +126,9 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
             ))}
           </select>
         )}
-        <div className="flex gap-2">
-          <input className={inputClass} type="date" value={draft.from ?? ''} onChange={(e) => setDraft({ ...draft, from: e.target.value })} aria-label={t.from} title={t.from} />
-          <input className={inputClass} type="date" value={draft.to ?? ''} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-label={t.to} title={t.to} />
+        <div className="flex min-w-0 gap-2">
+          <input className={`${inputClass} min-w-0`} type="date" value={draft.from ?? ''} onChange={(e) => setDraft({ ...draft, from: e.target.value })} aria-label={t.from} title={t.from} />
+          <input className={`${inputClass} min-w-0`} type="date" value={draft.to ?? ''} onChange={(e) => setDraft({ ...draft, to: e.target.value })} aria-label={t.to} title={t.to} />
         </div>
         <div className="flex gap-2">
           <Button type="submit">{t.filter}</Button>
