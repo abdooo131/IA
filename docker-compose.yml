@@ -1,0 +1,54 @@
+# Local stack: Postgres 16 + PostGIS, Redis, API, merchant portal, ops dashboard.
+# First run:  docker compose up -d --build  then  docker compose exec api pnpm db:seed
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: shiply
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d shiply"]
+      interval: 3s
+      retries: 30
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  api:
+    build: { context: ., dockerfile: docker/api.Dockerfile }
+    depends_on:
+      postgres: { condition: service_healthy }
+      redis: { condition: service_started }
+    environment:
+      # Migrations run as the owner; the app connects as shiply_app so row level security applies.
+      MIGRATE_DATABASE_URL: postgresql://postgres:postgres@postgres:5432/shiply
+      DATABASE_URL: postgresql://shiply_app:shiply_app@postgres:5432/shiply
+      REDIS_URL: redis://redis:6379
+      JWT_ACCESS_SECRET: change-me-access
+      JWT_REFRESH_SECRET: change-me-refresh
+      PORT: "4000"
+      CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002
+    ports: ["4000:4000"]
+
+  merchant:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args: { APP: merchant, PORT: "3000", NEXT_PUBLIC_API_URL: "http://localhost:4000/api" }
+    depends_on: [api]
+    ports: ["3000:3000"]
+
+  ops:
+    build:
+      context: .
+      dockerfile: docker/web.Dockerfile
+      args: { APP: ops, PORT: "3001", NEXT_PUBLIC_API_URL: "http://localhost:4000/api" }
+    depends_on: [api]
+    ports: ["3001:3001"]
+
+volumes:
+  pgdata:

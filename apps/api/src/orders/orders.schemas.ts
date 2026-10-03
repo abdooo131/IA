@@ -4,7 +4,7 @@ import { z } from 'zod';
 export const CreateOrderSchema = z.object({
   merchantId: z.string().uuid().optional(),
   customerName: z.string().trim().min(2).max(120),
-  customerPhone: z.string().trim().min(8).max(20),
+  customerPhone: z.string().trim().min(1).max(20),
   customerPhoneAlt: z.string().trim().max(20).optional().nullable(),
   governorateCode: z.string().trim().min(2).max(5),
   area: z.string().trim().min(2).max(120),

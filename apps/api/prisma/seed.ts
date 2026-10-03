@@ -1,4 +1,5 @@
 /* Idempotent seed: reference data, config defaults, hubs, merchants, users and demo orders. */
+import 'dotenv/config';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { Prisma } from '@prisma/client';

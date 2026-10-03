@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": { "jsx": "preserve", "noEmit": true, "module": "esnext", "moduleResolution": "bundler", "lib": ["dom", "es2022"] },
+  "include": ["src"]
+}

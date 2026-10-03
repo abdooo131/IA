@@ -1,0 +1,11 @@
+customer_name,customer_phone,customer_phone_alt,governorate,area,address,cod_amount,size,type,allow_open_package,items_description,return_items_description,merchant_reference,notes,pickup_location
+Mona Adel,01012345678,,CAI,Maadi,"12 Road 9, Maadi",450,Small/Medium,Deliver,yes,Black satin dress (M),,EC-2001,Call before arrival,
+Sara Hassan,01112345679,,Giza,Dokki,"5 Tahrir St, Dokki",1200,Large,Deliver,no,Two piece set,,EC-2002,,
+Nour Khaled,01212345670,01012340000,CAI,Heliopolis,"33 Baghdad St, Korba",0,Small/Medium,Exchange,no,Linen shirt (L),Linen shirt (M),EC-2003,Exchange size,
+منى عادل,01512345671,,القاهرة,المعادي,"١٢ شارع ٩، المعادي",650,Small/Medium,Deliver,yes,فستان أسود مقاس M,,EC-2004,,
+Yasmin Fathy,01098765432,,CAI,New Cairo,"Building 14, Fifth Settlement",3500,Small/Medium,Deliver,no,Evening gown,,EC-2005,Fragile,
+Omar Samir,01198765433,,GIZ,6th of October,"District 7, 6th of October",899.90,XLarge,Deliver,no,Winter coat,,EC-2006,,
+Laila Mostafa,01298765434,,CAI,Nasr City,"Abbas El Akkad St, Nasr City",275.50,Small/Medium,Deliver,yes,Scarf set,,EC-2007,,
+Hana Ibrahim,01598765435,,GIZ,Sheikh Zayed,"Beverly Hills, Sheikh Zayed",0,Small/Medium,Return,no,,Blouse (wrong size),EC-2008,Collect return,Zamalek Store
+Dina Youssef,01011122233,,CAI,Zamalek,"26 July St, Zamalek",1850,Large,Deliver,no,Bridal accessories,,EC-2009,,
+Rana Ali,01122233344,,GIZ,Mohandessin,"Shehab St, Mohandessin",720,Small/Medium,Deliver,yes,Kaftan,,EC-2010,After 5pm,
