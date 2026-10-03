@@ -1,0 +1,16 @@
+.env
+data/raw/*
+!data/raw/.gitkeep
+data/inputs/*
+!data/inputs/.gitkeep
+data/*.duckdb
+data/*.duckdb.wal
+data/demo/
+outputs/*
+!outputs/.gitkeep
+outputs_demo/
+logs/*
+!logs/.gitkeep
+__pycache__/
+*.pyc
+.pytest_cache/

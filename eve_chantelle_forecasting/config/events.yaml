@@ -1,0 +1,46 @@
+# Egypt holiday and event calendar. Dates are written yyyy_mm_dd.
+# Lunar dates are best estimates. Assal: please confirm and add brand campaigns at the bottom.
+# promo: true means sales on those days count as promo days so the baseline is not inflated.
+
+dated:
+  # Ramadan (start and end are the first and last fasting days)
+  - {name: Ramadan 2024, type: ramadan, start: "2024_03_11", end: "2024_04_09"}
+  - {name: Ramadan 2025, type: ramadan, start: "2025_03_01", end: "2025_03_29"}
+  - {name: Ramadan 2026, type: ramadan, start: "2026_02_18", end: "2026_03_19"}
+  - {name: Ramadan 2027, type: ramadan, start: "2027_02_08", end: "2027_03_09"}
+
+  # Eid al Fitr, pre_days marks the shopping days before Eid
+  - {name: Eid al Fitr 2024, type: eid_fitr, start: "2024_04_10", end: "2024_04_12", pre_days: 10}
+  - {name: Eid al Fitr 2025, type: eid_fitr, start: "2025_03_30", end: "2025_04_01", pre_days: 10}
+  - {name: Eid al Fitr 2026, type: eid_fitr, start: "2026_03_20", end: "2026_03_22", pre_days: 10}
+  - {name: Eid al Fitr 2027, type: eid_fitr, start: "2027_03_10", end: "2027_03_12", pre_days: 10}
+
+  # Eid al Adha
+  - {name: Eid al Adha 2024, type: eid_adha, start: "2024_06_16", end: "2024_06_19", pre_days: 7}
+  - {name: Eid al Adha 2025, type: eid_adha, start: "2025_06_06", end: "2025_06_09", pre_days: 7}
+  - {name: Eid al Adha 2026, type: eid_adha, start: "2026_05_27", end: "2026_05_30", pre_days: 7}
+  - {name: Eid al Adha 2027, type: eid_adha, start: "2027_05_16", end: "2027_05_19", pre_days: 7}
+
+  # White Friday sale weeks (last Friday of November plus the sale week around it)
+  - {name: White Friday 2024, type: white_friday, start: "2024_11_25", end: "2024_12_02", promo: true}
+  - {name: White Friday 2025, type: white_friday, start: "2025_11_24", end: "2025_12_01", promo: true}
+  - {name: White Friday 2026, type: white_friday, start: "2026_11_23", end: "2026_11_30", promo: true}
+  - {name: White Friday 2027, type: white_friday, start: "2027_11_22", end: "2027_11_29", promo: true}
+
+  # Back to school (approximate, Egyptian school year start)
+  - {name: Back to school 2024, type: back_to_school, start: "2024_09_21", end: "2024_10_05"}
+  - {name: Back to school 2025, type: back_to_school, start: "2025_09_13", end: "2025_09_27"}
+  - {name: Back to school 2026, type: back_to_school, start: "2026_09_12", end: "2026_09_26"}
+  - {name: Back to school 2027, type: back_to_school, start: "2027_09_11", end: "2027_09_25"}
+
+# Same calendar date every year. pre_days marks the run up.
+recurring:
+  - {name: Valentines Day, type: valentines, month: 2, day: 14, duration_days: 1, pre_days: 7}
+  - {name: Egyptian Mothers Day, type: mothers_day, month: 3, day: 21, duration_days: 1, pre_days: 7}
+  - {name: Eid el Hob, type: eid_el_hob, month: 11, day: 4, duration_days: 1, pre_days: 5}
+  - {name: Wedding season, type: wedding_season, month: 6, day: 1, duration_days: 107, pre_days: 0}
+
+# Brand campaigns and launches. Add rows here, example:
+#  - {name: Bridal capsule launch, type: campaign, start: "2026_06_10", end: "2026_06_20", promo: false}
+#  - {name: Summer sale, type: campaign, start: "2026_08_01", end: "2026_08_10", promo: true}
+campaigns: []

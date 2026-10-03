@@ -1,0 +1,116 @@
+# Eve Chantelle forecasting system settings.
+# The system never edits this file. It writes proposals to the accuracy report instead.
+
+store:
+  name: Eve Chantelle
+  timezone: Africa/Cairo
+  currency: EGP
+  api_version: "2025_07"        # Shopify Admin API version, written with an underscore, converted on use
+
+paths:
+  database: data/warehouse.duckdb
+  raw_dir: data/raw
+  inputs_dir: data/inputs
+  outputs_dir: outputs
+  logs_dir: logs
+
+shopify:
+  strict_scopes: true            # stop the sync when a required scope is missing
+  required_scopes:
+    - read_orders
+    - read_all_orders
+    - read_products
+    - read_inventory
+    - read_locations
+    - read_price_rules
+    - read_discounts
+    - read_returns
+    - read_fulfillments
+  bulk_poll_seconds: 5
+  max_retries: 6
+  incremental_overlap_minutes: 60
+  refund_batch_size: 50
+
+cleaning:
+  exclude_order_tags: [test, internal]
+  exclude_zero_value_orders: true
+  promo_discount_threshold: 0.15     # discount depth that marks a promo day
+  store_promo_min_units: 10          # store wide promo day needs at least this many units sold
+  outlier_k: 5                       # cap above median plus k times scaled MAD
+  outlier_min_cap_units: 5           # never cap below this many units per day
+  stockout:
+    min_zero_run_days: 7             # inferred stockout needs a zero sales run at least this long
+    zero_run_probability: 0.01       # and a chance of that run under normal selling below this
+    velocity_window_days: 56         # window for recent in stock velocity
+    min_in_stock_days: 28            # in stock days needed to trust the variant own velocity
+    snapshot_forward_fill_days: 7
+    max_impute_days: 90              # stop filling demand after this many days in one stockout run
+  size_curve_window_days: 180
+
+calendar:
+  payday_days_end_of_month: 3        # last N days of the month
+  payday_days_start_of_month: 5      # first N days of the month
+  event_distance_cap_days: 60
+
+forecast:
+  as_of: auto                        # auto means the last full day before the latest sync
+  horizon_weeks: 16
+  min_history_days: 56               # below this a SKU is treated as new
+  backtest_folds: 4
+  fold_step_days: 28
+  min_train_days: 56
+  sb_adi_cutoff: 1.32
+  sb_cv2_cutoff: 0.49
+  ensemble_top_n: 2
+  dispersion_cap: 10
+  bias_cap: 0.5
+  confidence:
+    history_days_high: 365
+    history_days_medium: 120
+    wape_high: 0.35
+    wape_medium: 0.6
+  lightgbm:
+    training_weeks: 104
+    origin_step_days: 14
+    n_estimators: 300
+    learning_rate: 0.05
+    num_leaves: 31
+    min_child_samples: 20
+    tweedie_variance_power: 1.2
+    seed: 42
+    num_threads: 4
+  hierarchy_divergence_flag: 0.25
+
+replenishment:
+  review_period_days: 14
+  cycle_cover_days: 30
+  abc_cutoffs: [0.8, 0.95]          # cumulative revenue share for A and B
+  abc_window_days: 365
+  xyz_wape_cutoffs: [0.4, 0.7]      # backtest WAPE limits for X and Y
+  service_levels:
+    A: {X: 0.95, Y: 0.95, Z: 0.93}
+    B: {X: 0.90, Y: 0.90, Z: 0.88}
+    C: {X: 0.85, Y: 0.85, Z: 0.80}
+
+health:
+  low_stock_days: 14
+  slow_window_days: 90
+  slow_sell_through_target: 0.30
+  dead_days: 90
+  dead_max_units: 0                  # units sold in the dead window that still counts as dead
+  dead_min_value: 500                # stock value in store currency that makes dead stock worth reporting
+  overstock_cover_days: 120
+
+pricing:
+  markdown_ladder: [10, 15, 20, 25, 30, 40, 50]
+  max_markdown_pct: 50
+  min_margin: 0.20                   # price after markdown stays above cost times (1 plus this)
+  clearance_days: 60
+  default_elasticity: -1.5
+  elasticity_bounds: [-4.0, -0.2]
+  min_discount_weeks: 3              # discounted weeks needed to estimate elasticity
+  discount_week_ratio: 0.95          # realized over regular price below this counts as discounted
+  markup_steps: [5, 10]
+  markup_min_stockout_share: 0.20    # share of the last 90 days out of stock
+  markup_min_episodes: 2            # markup needs at least this many stockout episodes in 90 days
+                                     # and at least markup_min_stockout_share of those days out of stock

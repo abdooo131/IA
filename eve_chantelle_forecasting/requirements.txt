@@ -1,0 +1,14 @@
+duckdb>=1.0
+pandas>=2.1
+polars>=1.0
+numpy>=1.26
+scipy>=1.11
+statsforecast>=1.7
+lightgbm>=4.0
+statsmodels>=0.14
+openpyxl>=3.1
+streamlit>=1.50
+pytest>=8.0
+python-dotenv>=1.0
+PyYAML>=6.0
+requests>=2.31
