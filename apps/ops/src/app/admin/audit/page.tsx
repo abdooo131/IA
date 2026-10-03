@@ -56,7 +56,7 @@ export default function AuditPage() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-slate-900">{t.auditLog}</h1>
+      <h1 className="text-2xl font-semibold text-text">{t.auditLog}</h1>
       <form onSubmit={submit} className="flex flex-wrap gap-2">
         <input className={`${inputClass} max-w-[12rem]`} placeholder={t.entity} value={filters.entityType} onChange={(e) => setFilters({ ...filters, entityType: e.target.value })} />
         <input className={`${inputClass} max-w-[14rem]`} placeholder="Entity id" value={filters.entityId} onChange={(e) => setFilters({ ...filters, entityId: e.target.value })} />
@@ -64,9 +64,9 @@ export default function AuditPage() {
         <Button type="submit">{t.filter}</Button>
       </form>
       <ErrorBox error={error} />
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="min-w-full divide-y divide-slate-200 text-sm">
-          <thead className="bg-slate-50 text-xs text-slate-600">
+      <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
+        <table className="min-w-full divide-y divide-line text-sm">
+          <thead className="bg-paper text-xs text-muted">
             <tr>
               <th className="px-3 py-2 text-start">{t.when}</th>
               <th className="px-3 py-2 text-start">{t.who}</th>
@@ -77,18 +77,18 @@ export default function AuditPage() {
               <th className="px-3 py-2 text-start">{t.reason}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100 align-top">
+          <tbody className="divide-y divide-line align-top">
             {rows.map((r) => (
               <tr key={r.id}>
-                <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">{formatDateTime(r.createdAt, lang)}</td>
+                <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">{formatDateTime(r.createdAt, lang)}</td>
                 <td className="px-3 py-2 text-xs">
                   {r.actorRole}
-                  <div className="font-mono text-[10px] text-slate-400">{r.actorId?.slice(0, 8)}</div>
+                  <div className="font-mono text-[10px] text-muted">{r.actorId?.slice(0, 8)}</div>
                 </td>
                 <td className="px-3 py-2 font-mono text-xs">{r.action}</td>
                 <td className="px-3 py-2 text-xs">
                   {r.entityType}
-                  <div className="font-mono text-[10px] text-slate-400">{r.entityId}</div>
+                  <div className="font-mono text-[10px] text-muted">{r.entityId}</div>
                 </td>
                 <td className="max-w-xs px-3 py-2"><Json v={r.before} /></td>
                 <td className="max-w-xs px-3 py-2"><Json v={r.after} /></td>
@@ -107,6 +107,6 @@ export default function AuditPage() {
 }
 
 function Json({ v }: { v: unknown }) {
-  if (v === null || v === undefined) return <span className="text-slate-300">-</span>;
-  return <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] text-slate-700">{JSON.stringify(v, null, 1)}</pre>;
+  if (v === null || v === undefined) return <span className="text-muted">-</span>;
+  return <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-all font-mono text-[11px] text-text">{JSON.stringify(v, null, 1)}</pre>;
 }

@@ -93,8 +93,8 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="font-mono text-2xl font-semibold text-slate-900" data-testid="tracking-number">{o.trackingNumber}</h1>
-          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-slate-600">
+          <h1 className="font-mono text-2xl font-semibold text-text" data-testid="tracking-number">{o.trackingNumber}</h1>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted">
             <StatusBadge status={o.status} />
             <span>{TYPE_LABELS[lang][o.type]}</span>
             <span>·</span>
@@ -134,22 +134,22 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
           </Card>
 
           <Card title={t.timeline}>
-            <ol className="relative space-y-4 border-s border-slate-200 ps-5" data-testid="timeline">
+            <ol className="relative space-y-4 border-s border-line ps-5" data-testid="timeline">
               {o.events.map((e) => (
                 <li key={e.id} className="relative">
-                  <span className="absolute -start-[1.65rem] top-1.5 h-2.5 w-2.5 rounded-full bg-teal-600 ring-4 ring-white" />
+                  <span className="absolute -start-[1.65rem] top-1.5 h-2.5 w-2.5 rounded-full bg-accent ring-4 ring-surface" />
                   <div className="flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-medium text-slate-900">{EVENT_LABELS[lang][e.eventType] ?? e.eventType}</span>
+                    <span className="font-medium text-text">{EVENT_LABELS[lang][e.eventType] ?? e.eventType}</span>
                     {e.toStatus && e.eventType === 'STATUS_CHANGED' && (
-                      <span className="text-slate-600">
+                      <span className="text-muted">
                         {e.fromStatus ? STATUS_LABELS[lang][e.fromStatus] : ''} → {STATUS_LABELS[lang][e.toStatus]}
                       </span>
                     )}
                   </div>
-                  <div className="text-xs text-slate-500">
+                  <div className="text-xs text-muted">
                     {formatDateTime(e.createdAt, lang)} {e.actorRole && `· ${e.actorRole}`}
                   </div>
-                  {e.note && <div className="mt-1 text-sm text-slate-700">{e.note}</div>}
+                  {e.note && <div className="mt-1 text-sm text-text">{e.note}</div>}
                 </li>
               ))}
             </ol>
@@ -160,7 +160,7 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
           <Card title={t.fees}>
             <dl className="space-y-2 text-sm" data-testid="fees">
               <Row label={t.cod} value={<Money value={o.codAmount} className="font-semibold" />} />
-              <hr className="border-slate-100" />
+              <hr className="border-line" />
               <Row label={t.shippingFee} value={<Money value={o.shippingFee} />} />
               {o.codFee > 0 && <Row label={t.codFee} value={<Money value={o.codFee} />} />}
               {o.openPackageFee > 0 && <Row label={t.openFee} value={<Money value={o.openPackageFee} />} />}
@@ -168,16 +168,16 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
               <Row label={t.total} value={<Money value={o.totalFees} className="font-semibold" />} />
               <Row label={t.failedFee} value={<Money value={o.failedDeliveryFee} />} />
             </dl>
-            <p className="mt-3 text-xs text-slate-500">{t.priceFrozen}</p>
+            <p className="mt-3 text-xs text-muted">{t.priceFrozen}</p>
           </Card>
 
           <Card title={t.customerScore}>
             {score.percent === null ? (
-              <p className="text-sm text-slate-500">{t.noHistory}</p>
+              <p className="text-sm text-muted">{t.noHistory}</p>
             ) : (
               <div>
                 <div className={`text-3xl font-semibold ${score.percent >= 70 ? 'text-emerald-700' : score.percent >= 40 ? 'text-amber-700' : 'text-rose-700'}`}>{score.percent}%</div>
-                <p className="text-sm text-slate-600">
+                <p className="text-sm text-muted">
                   {score.delivered} {t.delivered_of} {score.finished} {t.finished}
                 </p>
               </div>
@@ -207,8 +207,8 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
 function Item({ label, value, wide }: { label: string; value: React.ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? 'sm:col-span-2' : ''}>
-      <dt className="text-xs text-slate-500">{label}</dt>
-      <dd className="text-slate-900">{value}</dd>
+      <dt className="text-xs text-muted">{label}</dt>
+      <dd className="text-text">{value}</dd>
     </div>
   );
 }
@@ -216,7 +216,7 @@ function Item({ label, value, wide }: { label: string; value: React.ReactNode; w
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between">
-      <dt className="text-slate-600">{label}</dt>
+      <dt className="text-muted">{label}</dt>
       <dd>{value}</dd>
     </div>
   );

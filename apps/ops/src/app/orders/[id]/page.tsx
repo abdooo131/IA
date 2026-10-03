@@ -9,7 +9,7 @@ export default function OrderPage({ params }: { params: Promise<{ id: string }> 
   const { t, lang } = useApp();
   return (
     <div className="space-y-4">
-      <Link href="/orders" className="text-sm text-teal-800 hover:underline">{lang === 'ar' ? '→' : '←'} {t.orders}</Link>
+      <Link href="/orders" className="text-sm text-accent-strong hover:underline">{lang === 'ar' ? '→' : '←'} {t.orders}</Link>
       <OrderDetail id={id} showMerchant />
     </div>
   );

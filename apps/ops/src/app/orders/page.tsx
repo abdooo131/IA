@@ -12,7 +12,7 @@ function OrdersInner() {
   const merchants = useAsync(() => api.get<{ id: string; nameEn: string; nameAr: string }[]>('/admin/merchants'), []);
   return (
     <div className="space-y-4">
-      <h1 className="text-2xl font-semibold text-slate-900">{t.orders}</h1>
+      <h1 className="text-2xl font-semibold text-text">{t.orders}</h1>
       <OrdersTable
         Link={Link}
         showMerchant

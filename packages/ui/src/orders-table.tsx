@@ -3,8 +3,9 @@
 import { ORDER_STATUSES, OrderStatus, STATUS_GROUPS } from '@shiply/shared';
 import { useEffect, useMemo, useState } from 'react';
 import { useApp } from './app-context';
-import { Button, ErrorBox, inputClass, Money, Spinner, StatusBadge, useAsync, formatDateTime } from './components';
+import { Button, ErrorBox, inputClass, Money, Spinner, StatusBadge, useAsync } from './components';
 import { GROUP_LABELS, STATUS_LABELS } from './i18n';
+import { IconPrinter } from './icons';
 
 export interface OrderRow {
   id: string;
@@ -88,7 +89,7 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
   return (
     <div className="space-y-4">
       <form
-        className="grid grid-cols-1 gap-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
+        className="grid grid-cols-1 gap-3 rounded-xl border border-line bg-surface p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-4"
         onSubmit={(e) => {
           e.preventDefault();
           apply({ ...draft, page: '' });
@@ -137,10 +138,11 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
       </form>
 
       <div className="flex flex-wrap items-center gap-3">
-        <Button variant="secondary" disabled={selected.size === 0} onClick={() => print([...selected])} data-testid="print-selected">
+        <Button variant={selected.size ? 'dark' : 'secondary'} disabled={selected.size === 0} onClick={() => print([...selected])} data-testid="print-selected">
+          <IconPrinter width={16} height={16} />
           {t.printSelected} ({selected.size})
         </Button>
-        {data && <span className="text-sm text-slate-500">{data.total} {t.orders}</span>}
+        {data && <span className="text-sm text-muted">{data.total} {t.orders}</span>}
       </div>
       <ErrorBox error={printError} />
 
@@ -149,9 +151,9 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
       ) : error ? (
         <ErrorBox error={error} />
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-          <table className="min-w-full divide-y divide-slate-200 text-sm" data-testid="orders-table">
-            <thead className="bg-slate-50 text-xs text-slate-600">
+        <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-sm">
+          <table className="min-w-full divide-y divide-line text-sm" data-testid="orders-table">
+            <thead className="bg-paper text-[11px] uppercase tracking-wider text-muted">
               <tr>
                 <th className="px-3 py-2">
                   <input type="checkbox" aria-label="select all" checked={allSelected} onChange={() => setSelected(allSelected ? new Set() : new Set(items.map((o) => o.id)))} />
@@ -163,19 +165,18 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
                 <th className="px-3 py-2 text-start">{t.status}</th>
                 <th className="px-3 py-2 text-end">{t.cod}</th>
                 <th className="px-3 py-2 text-end">{t.fees}</th>
-                <th className="px-3 py-2 text-start">{t.hub}</th>
                 <th className="px-3 py-2 text-start">{t.created}</th>
-                <th className="px-3 py-2 text-start">{t.actions}</th>
+                <th className="px-3 py-2 text-start"><span className="sr-only">{t.actions}</span></th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-line">
               {items.length === 0 && (
                 <tr>
-                  <td colSpan={11} className="px-3 py-8 text-center text-slate-500">{t.noOrders}</td>
+                  <td colSpan={10} className="px-3 py-8 text-center text-muted">{t.noOrders}</td>
                 </tr>
               )}
               {items.map((o) => (
-                <tr key={o.id} className="hover:bg-slate-50" data-tracking={o.trackingNumber}>
+                <tr key={o.id} className="hover:bg-paper" data-tracking={o.trackingNumber}>
                   <td className="px-3 py-2">
                     <input
                       type="checkbox"
@@ -189,29 +190,36 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
                       }}
                     />
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 font-mono">
-                    <Link href={`/orders/${o.id}`} className="text-teal-800 hover:underline">{o.trackingNumber}</Link>
-                    {o.merchantReference && <div className="text-xs text-slate-500">{o.merchantReference}</div>}
+                  <td className="whitespace-nowrap px-3 py-2 font-mono text-[13px]">
+                    <Link href={`/orders/${o.id}`} className="text-accent-strong hover:underline">{o.trackingNumber}</Link>
+                    {o.merchantReference && <div className="text-xs text-muted">{o.merchantReference}</div>}
                   </td>
                   {showMerchant && <td className="px-3 py-2">{lang === 'ar' ? o.merchant?.nameAr : o.merchant?.nameEn}</td>}
                   <td className="px-3 py-2">
                     <div>{o.customerName}</div>
-                    <div className="text-xs text-slate-500" dir="ltr">{o.customerPhone}</div>
+                    <div className="text-xs text-muted" dir="ltr">{o.customerPhone}</div>
                   </td>
                   <td className="px-3 py-2">
-                    {o.area} <span className="text-xs text-slate-500">({o.governorateCode})</span>
+                    <div>{o.area} <span className="text-xs text-muted">{o.governorateCode}</span></div>
+                    <div className="mt-0.5 text-xs">
+                      {o.destinationHub ? (
+                        <span className="rounded bg-ink px-1.5 py-0.5 font-mono text-[10px] font-medium text-white">{o.destinationHub.code}</span>
+                      ) : o.needsManualHub ? (
+                        <span className="text-orange-700">{t.manualHub}</span>
+                      ) : null}
+                    </div>
                   </td>
                   <td className="px-3 py-2"><StatusBadge status={o.status} /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-end"><Money value={o.codAmount} /></td>
                   <td className="whitespace-nowrap px-3 py-2 text-end"><Money value={o.totalFees} /></td>
-                  <td className="px-3 py-2">
-                    {o.destinationHub?.code ?? (o.needsManualHub ? <span className="text-xs text-orange-700">{t.manualHub}</span> : '-')}
+                  <td className="whitespace-nowrap px-3 py-2 text-xs text-muted">
+                    <div>{new Date(o.createdAt).toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { day: 'numeric', month: 'short' })}</div>
+                    <div>{new Date(o.createdAt).toLocaleTimeString(lang === 'ar' ? 'ar-EG' : 'en-GB', { hour: '2-digit', minute: '2-digit' })}</div>
                   </td>
-                  <td className="whitespace-nowrap px-3 py-2 text-xs text-slate-600">{formatDateTime(o.createdAt, lang)}</td>
                   <td className="whitespace-nowrap px-3 py-2">
-                    <Button variant="ghost" onClick={() => print([o.id])}>
-                      {t.printLabel}
-                      {o.printCount > 0 && <span className="text-xs text-slate-500">({o.printCount})</span>}
+                    <Button variant="ghost" className="px-2" onClick={() => print([o.id])} title={t.printLabel} aria-label={`${t.printLabel} ${o.trackingNumber}`}>
+                      <IconPrinter width={16} height={16} />
+                      {o.printCount > 0 && <span className="tabular text-xs text-muted">{o.printCount}</span>}
                     </Button>
                   </td>
                 </tr>

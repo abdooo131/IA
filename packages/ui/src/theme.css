@@ -1,0 +1,21 @@
+/* Shiply palette. Layout concept: dispatch board, navy rail on the start side, paper ground, signal orange for actions. */
+:root {
+  --ink: 17 28 51;          /* deep navy rail */
+  --ink-soft: 32 46 77;     /* rail hover */
+  --ink-line: 48 64 99;     /* rail dividers */
+  --paper: 244 246 249;     /* page ground, blue biased neutral */
+  --surface: 255 255 255;   /* panels */
+  --line: 223 228 236;      /* hairlines */
+  --text: 15 23 41;         /* body text */
+  --muted: 92 102 122;      /* secondary text */
+  --accent: 234 98 18;      /* signal orange, parcel tape */
+  --accent-strong: 196 76 6;
+  --accent-soft: 255 241 230;
+}
+
+html { font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', system-ui, Tahoma, sans-serif; -webkit-font-smoothing: antialiased; }
+body { background: rgb(var(--paper)); color: rgb(var(--text)); }
+h1, h2, h3 { font-family: 'Readex Pro', 'IBM Plex Sans Arabic', system-ui, sans-serif; text-wrap: balance; }
+.tabular { font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid rgb(var(--accent)); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

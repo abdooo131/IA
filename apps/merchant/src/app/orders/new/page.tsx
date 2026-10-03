@@ -80,7 +80,7 @@ export default function NewOrderPage() {
 
   return (
     <form onSubmit={submit} className="mx-auto max-w-3xl space-y-6">
-      <h1 className="text-2xl font-semibold text-slate-900">{t.newOrder}</h1>
+      <h1 className="text-2xl font-semibold text-text">{t.newOrder}</h1>
       <Card title={t.customer}>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field label={t.customerName} error={fieldErrors.customerName}>
@@ -160,7 +160,7 @@ export default function NewOrderPage() {
             <input className={inputClass} name="notes" value={form.notes} onChange={set('notes')} />
           </Field>
         </div>
-        <p className="mt-4 text-xs text-slate-500">{t.priceFrozen}</p>
+        <p className="mt-4 text-xs text-muted">{t.priceFrozen}</p>
       </Card>
 
       <ErrorBox error={error} />

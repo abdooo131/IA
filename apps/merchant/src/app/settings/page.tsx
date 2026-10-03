@@ -40,15 +40,15 @@ export default function SettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <h1 className="text-2xl font-semibold text-slate-900">{t.settings}</h1>
+      <h1 className="text-2xl font-semibold text-text">{t.settings}</h1>
 
       {merchant.data && (
         <Card title={lang === 'ar' ? merchant.data.nameAr : merchant.data.nameEn}>
           <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-            <div><dt className="text-xs text-slate-500">Code</dt><dd>{merchant.data.code}</dd></div>
-            <div><dt className="text-xs text-slate-500">Tier</dt><dd>{merchant.data.tier}</dd></div>
-            <div><dt className="text-xs text-slate-500">{t.vat}</dt><dd>{merchant.data.vatEnabled ? t.yes : t.no}</dd></div>
-            <div><dt className="text-xs text-slate-500">{t.nextCashout}</dt><dd>{merchant.data.cashoutFrequency}</dd></div>
+            <div><dt className="text-xs text-muted">Code</dt><dd>{merchant.data.code}</dd></div>
+            <div><dt className="text-xs text-muted">Tier</dt><dd>{merchant.data.tier}</dd></div>
+            <div><dt className="text-xs text-muted">{t.vat}</dt><dd>{merchant.data.vatEnabled ? t.yes : t.no}</dd></div>
+            <div><dt className="text-xs text-muted">{t.nextCashout}</dt><dd>{merchant.data.cashoutFrequency}</dd></div>
           </dl>
         </Card>
       )}
@@ -62,14 +62,14 @@ export default function SettingsPage() {
 
       <Card title={t.pickupLocations}>
         <ErrorBox error={error} />
-        <ul className="divide-y divide-slate-100">
+        <ul className="divide-y divide-line">
           {(pickups.data ?? []).map((p) => (
             <li key={p.id} className="flex flex-wrap items-center justify-between gap-2 py-3 text-sm">
               <div>
                 <div className="font-medium">
-                  {p.name} {p.isDefault && <span className="ms-2 rounded bg-teal-50 px-1.5 py-0.5 text-xs text-teal-800">{t.default}</span>}
+                  {p.name} {p.isDefault && <span className="ms-2 rounded bg-accent-soft px-1.5 py-0.5 text-xs text-accent-strong">{t.default}</span>}
                 </div>
-                <div className="text-slate-600">{p.addressLine}, {p.area} ({p.governorateCode})</div>
+                <div className="text-muted">{p.addressLine}, {p.area} ({p.governorateCode})</div>
               </div>
               {isOwner && (
                 <div className="flex gap-2">
@@ -81,7 +81,7 @@ export default function SettingsPage() {
           ))}
         </ul>
         {isOwner && (
-          <form onSubmit={add} className="mt-4 grid grid-cols-1 gap-3 border-t border-slate-100 pt-4 sm:grid-cols-2">
+          <form onSubmit={add} className="mt-4 grid grid-cols-1 gap-3 border-t border-line pt-4 sm:grid-cols-2">
             <Field label={t.name}><input className={inputClass} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></Field>
             <Field label={t.governorate}>
               <select className={inputClass} value={form.governorateCode} onChange={(e) => setForm({ ...form, governorateCode: e.target.value })}>

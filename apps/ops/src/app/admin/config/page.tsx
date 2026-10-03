@@ -32,15 +32,15 @@ export default function ConfigPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-slate-900">{t.systemConfig}</h1>
+        <h1 className="text-2xl font-semibold text-text">{t.systemConfig}</h1>
         <input className={`${inputClass} max-w-xs`} placeholder="Filter keys" value={filter} onChange={(e) => setFilter(e.target.value)} />
       </div>
-      <p className="text-sm text-slate-600">
+      <p className="text-sm text-muted">
         Money values are integer piastres (100 = 1 EGP). Rates are basis points (10000 = 100%). Every change is written to the audit log.
       </p>
       {groups.map(([cat, rows]) => (
         <Card key={cat} title={cat}>
-          <div className="divide-y divide-slate-100">
+          <div className="divide-y divide-line">
             {rows.map((r) => (
               <ConfigEditor key={r.key} row={r} onSaved={reload} />
             ))}
@@ -77,10 +77,10 @@ function ConfigEditor({ row, onSaved }: { row: ConfigRow; onSaved: () => void })
   return (
     <div className="grid grid-cols-1 gap-2 py-3 md:grid-cols-12 md:items-center" data-config-key={row.key}>
       <div className="md:col-span-5">
-        <div className="font-mono text-xs text-slate-900">
+        <div className="font-mono text-xs text-text">
           {row.key} {modified && <span className="ms-1 rounded bg-amber-100 px-1 text-[10px] text-amber-800">modified</span>}
         </div>
-        <div className="text-xs text-slate-500">{row.description}</div>
+        <div className="text-xs text-muted">{row.description}</div>
       </div>
       <div className="md:col-span-5">
         {editing ? (
@@ -100,7 +100,7 @@ function ConfigEditor({ row, onSaved }: { row: ConfigRow; onSaved: () => void })
           </div>
         ) : (
           <div className="font-mono text-sm">
-            {stringify(row.value)} <span className="text-xs text-slate-400">({t.defaultValue}: {stringify(row.defaultValue)})</span>
+            {stringify(row.value)} <span className="text-xs text-muted">({t.defaultValue}: {stringify(row.defaultValue)})</span>
           </div>
         )}
       </div>

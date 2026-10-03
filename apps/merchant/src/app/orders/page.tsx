@@ -12,10 +12,10 @@ function OrdersInner() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-semibold text-slate-900">{t.orders}</h1>
+        <h1 className="text-2xl font-semibold text-text">{t.orders}</h1>
         <div className="flex gap-2">
-          <Link href="/orders/import" className="rounded-lg px-3 py-2 text-sm font-medium text-teal-800 ring-1 ring-inset ring-teal-300 hover:bg-teal-50">{t.importCsv}</Link>
-          <Link href="/orders/new" className="rounded-lg bg-teal-700 px-3 py-2 text-sm font-medium text-white hover:bg-teal-800">{t.newOrder}</Link>
+          <Link href="/orders/import" className="rounded-lg px-3 py-2 text-sm font-medium text-accent-strong ring-1 ring-inset ring-line hover:bg-accent-soft">{t.importCsv}</Link>
+          <Link href="/orders/new" className="rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-strong">{t.newOrder}</Link>
         </div>
       </div>
       <OrdersTable

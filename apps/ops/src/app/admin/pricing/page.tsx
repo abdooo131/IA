@@ -20,7 +20,7 @@ export default function PricingPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-slate-900">{t.pricing}</h1>
+      <h1 className="text-2xl font-semibold text-text">{t.pricing}</h1>
       <Card title={t.zonePrices}>
         <div className="overflow-x-auto">
           <table className="min-w-full text-xs">
@@ -28,14 +28,14 @@ export default function PricingPage() {
               <tr>
                 <th className="p-2" />
                 {PRICING_ZONES.map((z) => (
-                  <th key={z} className="p-2 text-start font-medium text-slate-600">{z}</th>
+                  <th key={z} className="p-2 text-start font-medium text-muted">{z}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {PRICING_ZONES.map((a) => (
-                <tr key={a} className="border-t border-slate-100">
-                  <th className="p-2 text-start font-medium text-slate-600">{a}</th>
+                <tr key={a} className="border-t border-line">
+                  <th className="p-2 text-start font-medium text-muted">{a}</th>
                   {PRICING_ZONES.map((b) => {
                     const p = price(a, b);
                     return <td key={b} className="p-2">{p === undefined ? '-' : <Money value={p} />}</td>;

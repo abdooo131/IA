@@ -8,7 +8,7 @@ async function login(page: Page, email = 'owner@evechantelle.com') {
   await page.fill('input[name=email]', email);
   await page.fill('input[name=password]', 'Shiply@2026');
   await page.click('button[type=submit]');
-  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Good to see you/ })).toBeVisible();
 }
 
 test.beforeEach(async ({ page }) => {
@@ -75,7 +75,7 @@ test('Arabic switches the layout to RTL and is remembered for the user', async (
   await login(page, 'owner@nabta.com');
   await page.getByRole('button', { name: 'Switch language' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'rtl');
-  await expect(page.getByRole('heading', { name: 'لوحة التحكم' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /أهلًا بك/ })).toBeVisible();
   await page.getByRole('button', { name: 'Switch language' }).click();
   await expect(page.locator('html')).toHaveAttribute('dir', 'ltr');
 });
