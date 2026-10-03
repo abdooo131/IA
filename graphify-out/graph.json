@@ -1,0 +1,2441 @@
+{
+  "directed": false,
+  "multigraph": false,
+  "graph": {},
+  "nodes": [
+    {
+      "id": "src_consumption_consumption",
+      "label": "Consumption",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "consumption",
+      "source_file": "src/Consumption.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_consumption_cuttype",
+      "label": "CutType",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "cuttype",
+      "source_file": "src/Consumption.java",
+      "source_location": "L18"
+    },
+    {
+      "id": "src_rawmaterials_rawmaterials",
+      "label": "RawMaterials",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "rawmaterials",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_style_style",
+      "label": "Style",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "style",
+      "source_file": "src/Style.java",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_addrm_addrm",
+      "label": "AddRm",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "norm_label": "addrm",
+      "source_file": "src/AddRm.java",
+      "source_location": "L17"
+    },
+    {
+      "id": "src_logingui_logingui",
+      "label": "LoginGui",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "norm_label": "logingui",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L15"
+    },
+    {
+      "id": "src_mainapp_mainapp",
+      "label": "MainApp",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "norm_label": "mainapp",
+      "source_file": "src/MainApp.java",
+      "source_location": "L22"
+    },
+    {
+      "id": "src_stylepanel_stylepanel",
+      "label": "StylePanel",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "norm_label": "stylepanel",
+      "source_file": "src/StylePanel.java",
+      "source_location": "L3"
+    },
+    {
+      "id": "src_viewrmgui_viewrmgui",
+      "label": "ViewRmGUI",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "norm_label": "viewrmgui",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L13"
+    },
+    {
+      "id": "src_main_main",
+      "label": "Main",
+      "_callable": true,
+      "_callable_class": true,
+      "_origin": "ast",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "file_type": "code",
+      "norm_label": "main",
+      "source_file": "src/Main.java",
+      "source_location": "L4"
+    },
+    {
+      "id": "src_consumption_consumption_consume",
+      "label": ".Consume()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": ".consume()",
+      "source_file": "src/Consumption.java",
+      "source_location": "L12"
+    },
+    {
+      "id": "src_consumption_consumption_consumption",
+      "label": ".Consumption()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": ".consumption()",
+      "source_file": "src/Consumption.java",
+      "source_location": "L6"
+    },
+    {
+      "id": "src_rawmaterials_rawmaterials_price",
+      "label": ".Price()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": ".price()",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L26"
+    },
+    {
+      "id": "src_rawmaterials_rawmaterials_rawmaterials",
+      "label": ".RawMaterials()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": ".rawmaterials()",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L9"
+    },
+    {
+      "id": "src_style_style_style",
+      "label": ".Style()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": ".style()",
+      "source_file": "src/Style.java",
+      "source_location": "L9"
+    },
+    {
+      "id": "src_addrm_addrm_addrm",
+      "label": ".AddRm()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "setBorder",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L47"
+          },
+          {
+            "callee": "setLayout",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L50"
+          },
+          {
+            "callee": "setBackground",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L53"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L54"
+          },
+          {
+            "callee": "add",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L55"
+          },
+          {
+            "callee": "setFont",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L59"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L60"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JButton",
+            "lang": "java",
+            "line": "L79"
+          },
+          {
+            "callee": "addActionListener",
+            "receiver_type": "JButton",
+            "lang": "java",
+            "line": "L83"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JSeparator",
+            "lang": "java",
+            "line": "L100"
+          },
+          {
+            "callee": "setToolTipText",
+            "receiver_type": "JComboBox",
+            "lang": "java",
+            "line": "L108"
+          },
+          {
+            "callee": "setModel",
+            "receiver_type": "JComboBox",
+            "lang": "java",
+            "line": "L109"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JComboBox",
+            "lang": "java",
+            "line": "L110"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JTextField",
+            "lang": "java",
+            "line": "L114"
+          },
+          {
+            "callee": "setColumns",
+            "receiver_type": "JTextField",
+            "lang": "java",
+            "line": "L116"
+          }
+        ]
+      },
+      "norm_label": ".addrm()",
+      "source_file": "src/AddRm.java",
+      "source_location": "L43"
+    },
+    {
+      "id": "src_addrm_addrm_main",
+      "label": ".main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "invokeLater",
+            "receiver_type": "EventQueue",
+            "lang": "java",
+            "line": "L28"
+          }
+        ]
+      },
+      "norm_label": ".main()",
+      "source_file": "src/AddRm.java",
+      "source_location": "L27"
+    },
+    {
+      "id": "src_logingui_logingui_logingui",
+      "label": ".LoginGui()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "setBorder",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L44"
+          },
+          {
+            "callee": "setLayout",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L47"
+          },
+          {
+            "callee": "setFont",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L50"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L51"
+          },
+          {
+            "callee": "add",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L52"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JPasswordField",
+            "lang": "java",
+            "line": "L55"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JTextField",
+            "lang": "java",
+            "line": "L59"
+          },
+          {
+            "callee": "setColumns",
+            "receiver_type": "JTextField",
+            "lang": "java",
+            "line": "L61"
+          },
+          {
+            "callee": "addActionListener",
+            "receiver_type": "JButton",
+            "lang": "java",
+            "line": "L72"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JButton",
+            "lang": "java",
+            "line": "L76"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JSeparator",
+            "lang": "java",
+            "line": "L92"
+          }
+        ]
+      },
+      "norm_label": ".logingui()",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L40"
+    },
+    {
+      "id": "src_logingui_logingui_main",
+      "label": ".main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "invokeLater",
+            "receiver_type": "EventQueue",
+            "lang": "java",
+            "line": "L25"
+          }
+        ]
+      },
+      "norm_label": ".main()",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L24"
+    },
+    {
+      "id": "src_mainapp_mainapp_main",
+      "label": ".main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "invokeLater",
+            "receiver_type": "EventQueue",
+            "lang": "java",
+            "line": "L31"
+          }
+        ]
+      },
+      "norm_label": ".main()",
+      "source_file": "src/MainApp.java",
+      "source_location": "L30"
+    },
+    {
+      "id": "src_mainapp_mainapp_mainapp",
+      "label": ".MainApp()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "add",
+            "receiver_type": "JMenuBar",
+            "lang": "java",
+            "line": "L54"
+          },
+          {
+            "callee": "add",
+            "receiver_type": "JMenu",
+            "lang": "java",
+            "line": "L57"
+          },
+          {
+            "callee": "setColumns",
+            "receiver_type": "JTextField",
+            "lang": "java",
+            "line": "L91"
+          },
+          {
+            "callee": "setForeground",
+            "receiver_type": "JSeparator",
+            "lang": "java",
+            "line": "L94"
+          },
+          {
+            "callee": "setBorder",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L103"
+          },
+          {
+            "callee": "setLayout",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L106"
+          },
+          {
+            "callee": "setAlignmentX",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L109"
+          },
+          {
+            "callee": "setIcon",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L110"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L111"
+          },
+          {
+            "callee": "add",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L112"
+          }
+        ]
+      },
+      "norm_label": ".mainapp()",
+      "source_file": "src/MainApp.java",
+      "source_location": "L46"
+    },
+    {
+      "id": "src_stylepanel_stylepanel_stylepanel",
+      "label": ".StylePanel()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "norm_label": ".stylepanel()",
+      "source_file": "src/StylePanel.java",
+      "source_location": "L8"
+    },
+    {
+      "id": "src_viewrmgui_viewrmgui_main",
+      "label": ".main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "invokeLater",
+            "receiver_type": "EventQueue",
+            "lang": "java",
+            "line": "L22"
+          }
+        ]
+      },
+      "norm_label": ".main()",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L21"
+    },
+    {
+      "id": "src_viewrmgui_viewrmgui_viewrmgui",
+      "label": ".ViewRmGUI()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "setBorder",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L41"
+          },
+          {
+            "callee": "setLayout",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L44"
+          },
+          {
+            "callee": "setBackground",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L47"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L48"
+          },
+          {
+            "callee": "add",
+            "receiver_type": "JPanel",
+            "lang": "java",
+            "line": "L49"
+          },
+          {
+            "callee": "setBackground",
+            "receiver_type": "JScrollPane",
+            "lang": "java",
+            "line": "L53"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JScrollPane",
+            "lang": "java",
+            "line": "L54"
+          },
+          {
+            "callee": "setViewportView",
+            "receiver_type": "JScrollPane",
+            "lang": "java",
+            "line": "L58"
+          },
+          {
+            "callee": "setFont",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L61"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JLabel",
+            "lang": "java",
+            "line": "L62"
+          },
+          {
+            "callee": "setBounds",
+            "receiver_type": "JSeparator",
+            "lang": "java",
+            "line": "L66"
+          }
+        ]
+      },
+      "norm_label": ".viewrmgui()",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L37"
+    },
+    {
+      "id": "src_main_main_main",
+      "label": ".main()",
+      "_callable": true,
+      "_origin": "ast",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "file_type": "code",
+      "metadata": {
+        "unresolved_calls": [
+          {
+            "callee": "asList",
+            "receiver_type": "Arrays",
+            "lang": "java",
+            "line": "L8"
+          }
+        ]
+      },
+      "norm_label": ".main()",
+      "source_file": "src/Main.java",
+      "source_location": "L5"
+    },
+    {
+      "id": "src_addrm",
+      "label": "AddRm.java",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "file_type": "code",
+      "norm_label": "addrm.java",
+      "source_file": "src/AddRm.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_logingui",
+      "label": "LoginGui.java",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "file_type": "code",
+      "norm_label": "logingui.java",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_viewrmgui",
+      "label": "ViewRmGUI.java",
+      "_origin": "ast",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "file_type": "code",
+      "norm_label": "viewrmgui.java",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_consumption",
+      "label": "Consumption.java",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "consumption.java",
+      "source_file": "src/Consumption.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_consumption_cuttype_cm",
+      "label": "CM",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "cm",
+      "source_file": "src/Consumption.java",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_consumption_cuttype_gm",
+      "label": "GM",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "gm",
+      "source_file": "src/Consumption.java",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_consumption_cuttype_kg",
+      "label": "KG",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "kg",
+      "source_file": "src/Consumption.java",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_consumption_cuttype_pu",
+      "label": "PU",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "pu",
+      "source_file": "src/Consumption.java",
+      "source_location": "L20"
+    },
+    {
+      "id": "src_rawmaterials",
+      "label": "RawMaterials.java",
+      "_origin": "ast",
+      "community": 1,
+      "community_name": "Raw Material Costing",
+      "file_type": "code",
+      "norm_label": "rawmaterials.java",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "javax_swing_jframe",
+      "label": "javax.swing.JFrame",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "norm_label": "javax.swing.jframe",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "javax_swing_jpasswordfield",
+      "label": "javax.swing.JPasswordField",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "norm_label": "javax.swing.jpasswordfield",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "javax_swing_jtextfield",
+      "label": "javax.swing.JTextField",
+      "_origin": "ast",
+      "community": 2,
+      "community_name": "Login and Entry Forms",
+      "file_type": "code",
+      "norm_label": "javax.swing.jtextfield",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "src_mainapp",
+      "label": "MainApp.java",
+      "_origin": "ast",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "file_type": "code",
+      "norm_label": "mainapp.java",
+      "source_file": "src/MainApp.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "javax_swing_jpanel",
+      "label": "javax.swing.JPanel",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "norm_label": "javax.swing.jpanel",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "javax_swing_jtable",
+      "label": "javax.swing.JTable",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "norm_label": "javax.swing.jtable",
+      "source_file": "",
+      "source_location": ""
+    },
+    {
+      "id": "src_stylepanel",
+      "label": "StylePanel.java",
+      "_origin": "ast",
+      "community": 4,
+      "community_name": "Style and Material Tables",
+      "file_type": "code",
+      "norm_label": "stylepanel.java",
+      "source_file": "src/StylePanel.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_main",
+      "label": "Main.java",
+      "_origin": "ast",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "file_type": "code",
+      "norm_label": "main.java",
+      "source_file": "src/Main.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "src_style",
+      "label": "Style.java",
+      "_origin": "ast",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "file_type": "code",
+      "norm_label": "style.java",
+      "source_file": "src/Style.java",
+      "source_location": "L1"
+    },
+    {
+      "id": "actionevent",
+      "label": "actionevent",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "actionevent",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "actionlistener",
+      "label": "actionlistener",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "actionlistener",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "color",
+      "label": "color",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "color",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "defaultcomboboxmodel",
+      "label": "defaultcomboboxmodel",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "defaultcomboboxmodel",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "emptyborder",
+      "label": "emptyborder",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "emptyborder",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "eventqueue",
+      "label": "eventqueue",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "eventqueue",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "font",
+      "label": "font",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "font",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jbutton",
+      "label": "jbutton",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jbutton",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jcombobox",
+      "label": "jcombobox",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jcombobox",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jlabel",
+      "label": "jlabel",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jlabel",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jscrollpane",
+      "label": "jscrollpane",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jscrollpane",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jseparator",
+      "label": "jseparator",
+      "community": 0,
+      "community_name": "Swing UI Widgets",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jseparator",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "component",
+      "label": "component",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "component",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "imageicon",
+      "label": "imageicon",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "imageicon",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jmenu",
+      "label": "jmenu",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jmenu",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jmenubar",
+      "label": "jmenubar",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jmenubar",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jmenuitem",
+      "label": "jmenuitem",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jmenuitem",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jprogressbar",
+      "label": "jprogressbar",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jprogressbar",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jradiobutton",
+      "label": "jradiobutton",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jradiobutton",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "jspinner",
+      "label": "jspinner",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "jspinner",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "swingconstants",
+      "label": "swingconstants",
+      "community": 3,
+      "community_name": "Main App Menus",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "swingconstants",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "arraylist",
+      "label": "arraylist",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "arraylist",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "arrays",
+      "label": "arrays",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "arrays",
+      "source_file": "",
+      "type": "external"
+    },
+    {
+      "id": "list",
+      "label": "list",
+      "community": 5,
+      "community_name": "Console Entry Point",
+      "external": true,
+      "file_type": "concept",
+      "norm_label": "list",
+      "source_file": "",
+      "type": "external"
+    }
+  ],
+  "links": [
+    {
+      "source": "src_consumption_consumption_consume",
+      "target": "src_consumption_consumption_consumption",
+      "relation": "calls",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "call",
+      "source_file": "src/Consumption.java",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm_addrm",
+      "target": "javax_swing_jpanel",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/AddRm.java",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm_addrm",
+      "target": "javax_swing_jtextfield",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/AddRm.java",
+      "source_location": "L22",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_consumption",
+      "target": "src_consumption_cuttype",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/Consumption.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui_logingui",
+      "target": "javax_swing_jpanel",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui_logingui",
+      "target": "javax_swing_jpasswordfield",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui_logingui",
+      "target": "javax_swing_jtextfield",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp_mainapp",
+      "target": "javax_swing_jpanel",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/MainApp.java",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp_mainapp",
+      "target": "javax_swing_jtextfield",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/MainApp.java",
+      "source_location": "L25",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials_rawmaterials",
+      "target": "src_consumption_cuttype",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials_rawmaterials",
+      "target": "src_consumption_consumption",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui_viewrmgui",
+      "target": "javax_swing_jpanel",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui_viewrmgui",
+      "target": "javax_swing_jtable",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "field",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "src_style_style",
+      "target": "src_rawmaterials_rawmaterials",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "generic_arg",
+      "source_file": "src/Style.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_style_style_style",
+      "target": "src_rawmaterials_rawmaterials",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "generic_arg",
+      "source_file": "src/Style.java",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "eventqueue",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "actionlistener",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "actionevent",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "jseparator",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "jcombobox",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "defaultcomboboxmodel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "javax_swing_jtextfield",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "javax_swing_jframe",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "javax_swing_jpanel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "emptyborder",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "color",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "jlabel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "font",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "jbutton",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/AddRm.java",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "eventqueue",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "actionlistener",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "actionevent",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "font",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "jseparator",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "javax_swing_jframe",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "javax_swing_jpanel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "emptyborder",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "jlabel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "javax_swing_jpasswordfield",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "javax_swing_jtextfield",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "jbutton",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/LoginGui.java",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main",
+      "target": "arraylist",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/Main.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main",
+      "target": "arrays",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/Main.java",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "eventqueue",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jseparator",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "swingconstants",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jspinner",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jlabel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "imageicon",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L14",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "component",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "javax_swing_jtextfield",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L16",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "javax_swing_jtable",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jprogressbar",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "color",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L19",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jradiobutton",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "javax_swing_jframe",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "javax_swing_jpanel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "emptyborder",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jmenubar",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jmenuitem",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jmenu",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "jbutton",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/MainApp.java",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "src_style",
+      "target": "arraylist",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/Style.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_style",
+      "target": "list",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/Style.java",
+      "source_location": "L2",
+      "weight": 1.0
+    },
+    {
+      "source": "src_stylepanel",
+      "target": "javax_swing_jpanel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/StylePanel.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "eventqueue",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "font",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L10",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "jseparator",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L11",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "javax_swing_jframe",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "javax_swing_jpanel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "emptyborder",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "color",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "javax_swing_jtable",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L7",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "jscrollpane",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "jlabel",
+      "relation": "imports",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "import",
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_consumption_consumption",
+      "target": "src_consumption_cuttype",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "parameter_type",
+      "source_file": "src/Consumption.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials_rawmaterials_rawmaterials",
+      "target": "src_consumption_consumption",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "parameter_type",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials_rawmaterials_rawmaterials",
+      "target": "src_consumption_cuttype",
+      "relation": "references",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "context": "parameter_type",
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_cuttype",
+      "target": "src_consumption_cuttype_cm",
+      "relation": "case_of",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_cuttype",
+      "target": "src_consumption_cuttype_gm",
+      "relation": "case_of",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_cuttype",
+      "target": "src_consumption_cuttype_kg",
+      "relation": "case_of",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_cuttype",
+      "target": "src_consumption_cuttype_pu",
+      "relation": "case_of",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L20",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm",
+      "target": "src_addrm_addrm",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/AddRm.java",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption",
+      "target": "src_consumption_consumption",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption",
+      "target": "src_consumption_cuttype",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui",
+      "target": "src_logingui_logingui",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/LoginGui.java",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main",
+      "target": "src_main_main",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Main.java",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp",
+      "target": "src_mainapp_mainapp",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/MainApp.java",
+      "source_location": "L22",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials",
+      "target": "src_rawmaterials_rawmaterials",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L1",
+      "weight": 1.0
+    },
+    {
+      "source": "src_style",
+      "target": "src_style_style",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Style.java",
+      "source_location": "L4",
+      "weight": 1.0
+    },
+    {
+      "source": "src_stylepanel",
+      "target": "src_stylepanel_stylepanel",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/StylePanel.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui",
+      "target": "src_viewrmgui_viewrmgui",
+      "relation": "contains",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm_addrm",
+      "target": "javax_swing_jframe",
+      "relation": "inherits",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/AddRm.java",
+      "source_location": "L17",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui_logingui",
+      "target": "javax_swing_jframe",
+      "relation": "inherits",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/LoginGui.java",
+      "source_location": "L15",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp_mainapp",
+      "target": "javax_swing_jframe",
+      "relation": "inherits",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/MainApp.java",
+      "source_location": "L22",
+      "weight": 1.0
+    },
+    {
+      "source": "src_stylepanel_stylepanel",
+      "target": "javax_swing_jpanel",
+      "relation": "inherits",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/StylePanel.java",
+      "source_location": "L3",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui_viewrmgui",
+      "target": "javax_swing_jframe",
+      "relation": "inherits",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L13",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm_addrm",
+      "target": "src_addrm_addrm_main",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/AddRm.java",
+      "source_location": "L27",
+      "weight": 1.0
+    },
+    {
+      "source": "src_addrm_addrm",
+      "target": "src_addrm_addrm_addrm",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/AddRm.java",
+      "source_location": "L43",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_consumption",
+      "target": "src_consumption_consumption_consume",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L12",
+      "weight": 1.0
+    },
+    {
+      "source": "src_consumption_consumption",
+      "target": "src_consumption_consumption_consumption",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Consumption.java",
+      "source_location": "L6",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui_logingui",
+      "target": "src_logingui_logingui_main",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/LoginGui.java",
+      "source_location": "L24",
+      "weight": 1.0
+    },
+    {
+      "source": "src_logingui_logingui",
+      "target": "src_logingui_logingui_logingui",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/LoginGui.java",
+      "source_location": "L40",
+      "weight": 1.0
+    },
+    {
+      "source": "src_main_main",
+      "target": "src_main_main_main",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Main.java",
+      "source_location": "L5",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp_mainapp",
+      "target": "src_mainapp_mainapp_main",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/MainApp.java",
+      "source_location": "L30",
+      "weight": 1.0
+    },
+    {
+      "source": "src_mainapp_mainapp",
+      "target": "src_mainapp_mainapp_mainapp",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/MainApp.java",
+      "source_location": "L46",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials_rawmaterials",
+      "target": "src_rawmaterials_rawmaterials_rawmaterials",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L18",
+      "weight": 1.0
+    },
+    {
+      "source": "src_rawmaterials_rawmaterials",
+      "target": "src_rawmaterials_rawmaterials_price",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/RawMaterials.java",
+      "source_location": "L26",
+      "weight": 1.0
+    },
+    {
+      "source": "src_style_style",
+      "target": "src_style_style_style",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/Style.java",
+      "source_location": "L9",
+      "weight": 1.0
+    },
+    {
+      "source": "src_stylepanel_stylepanel",
+      "target": "src_stylepanel_stylepanel_stylepanel",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/StylePanel.java",
+      "source_location": "L8",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui_viewrmgui",
+      "target": "src_viewrmgui_viewrmgui_main",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L21",
+      "weight": 1.0
+    },
+    {
+      "source": "src_viewrmgui_viewrmgui",
+      "target": "src_viewrmgui_viewrmgui_viewrmgui",
+      "relation": "method",
+      "_origin": "ast",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "src/ViewRmGUI.java",
+      "source_location": "L37",
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "built_at_commit": "615657da2163bef58547df35925fdd1cb0ddaa2c"
+}
