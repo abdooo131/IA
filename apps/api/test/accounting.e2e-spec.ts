@@ -131,10 +131,19 @@ describe('cashouts', () => {
 });
 
 describe('deposits, adjustments and reversals', () => {
-  it('records a Fawry deposit and refuses the same reference twice', async () => {
-    const r = await fin.post('/finance/deposits', { kind: 'DRIVER_TO_FAWRY', amount: 20000, reference: 'FWR-778899' });
+  it('records a driver deposit against that driver and refuses the same reference twice', async () => {
+    const drivers = (await ops.get('/ops/drivers?type=DELIVERY')).body;
+    const karim = drivers.find((d: { fullName: string }) => d.fullName === 'Karim Mostafa');
+    const o = (await eve.post('/orders', sampleOrder)).body;
+    for (const s of ['PENDING_PICKUP', 'PICKED_UP', 'AT_SORTING_FACILITY', 'AT_LAST_MILE_HUB']) await ops.post(`/orders/${o.id}/transition`, { to: s });
+    expect((await ops.post('/ops/deliveries/assign', { ids: [o.id], driverId: karim.id })).body.ok).toHaveLength(1);
+    expect((await ops.post('/ops/deliveries/delivered', { ids: [o.id] })).body.ok).toHaveLength(1);
+
+    expect((await fin.post('/finance/deposits', { kind: 'DRIVER_TO_FAWRY', amount: 20000, reference: 'FWR-NODRIVER' })).status).toBe(400);
+    expect((await fin.post('/finance/deposits', { kind: 'DRIVER_TO_FAWRY', amount: 99999999, reference: 'FWR-TOOMUCH', driverId: karim.id })).status).toBe(400);
+    const r = await fin.post('/finance/deposits', { kind: 'DRIVER_TO_FAWRY', amount: 20000, reference: 'FWR-778899', driverId: karim.id });
     expect(r.status).toBe(201);
-    const dup = await fin.post('/finance/deposits', { kind: 'DRIVER_TO_FAWRY', amount: 20000, reference: 'fwr-778899' });
+    const dup = await fin.post('/finance/deposits', { kind: 'DRIVER_TO_FAWRY', amount: 20000, reference: 'fwr-778899', driverId: karim.id });
     expect(dup.status).toBe(409);
   });
 

@@ -140,11 +140,12 @@ export class FinanceController {
   recordDeposit(@Ctx() ctx: RequestContext, @Body() body: unknown) {
     const b = parse(
       z.object({
-        kind: z.enum(['DRIVER_TO_FAWRY', 'DRIVER_TO_BANK', 'FAWRY_SETTLEMENT']),
+        kind: z.enum(['DRIVER_TO_FAWRY', 'DRIVER_TO_BANK', 'FAWRY_SETTLEMENT', 'HUB_TO_BANK', 'HUB_TO_FAWRY']),
         amount: z.number().int().positive(),
         reference: z.string().trim().min(4).max(60),
         depositedAt: z.string().datetime().optional(),
         note: z.string().trim().max(300).optional(),
+        driverId: z.string().uuid().optional().nullable(),
       }),
       body,
     );

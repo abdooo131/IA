@@ -11,6 +11,7 @@ import { AuthGuard } from './common/guards';
 import { PrismaExceptionFilter } from './common/prisma-exception.filter';
 import { HealthController } from './health/health.controller';
 import { MerchantsModule } from './merchants/merchants.module';
+import { OperationsModule } from './operations/operations.module';
 import { OrdersModule } from './orders/orders.module';
 import { PrismaModule } from './prisma/prisma.module';
 
@@ -26,6 +27,7 @@ import { PrismaModule } from './prisma/prisma.module';
     MerchantsModule,
     AdminModule,
     AccountingModule,
+    OperationsModule,
   ],
   controllers: [HealthController],
   providers: [

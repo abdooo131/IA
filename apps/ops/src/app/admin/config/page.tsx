@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Card, ErrorBox, inputClass, Spinner, useApp, useAsync } from '@shiply/ui';
+import { Button, Card, ErrorBox, inputBase, inputClass, Spinner, useApp, useAsync } from '@shiply/ui';
 import { useMemo, useState } from 'react';
 
 interface ConfigRow {
@@ -33,7 +33,7 @@ export default function ConfigPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-2xl font-semibold text-text">{t.systemConfig}</h1>
-        <input className={`${inputClass} max-w-xs`} placeholder="Filter keys" value={filter} onChange={(e) => setFilter(e.target.value)} />
+        <input className={`${inputBase} max-w-xs w-full`} placeholder="Filter keys" value={filter} onChange={(e) => setFilter(e.target.value)} />
       </div>
       <p className="text-sm text-muted">
         Money values are integer piastres (100 = 1 EGP). Rates are basis points (10000 = 100%). Every change is written to the audit log.

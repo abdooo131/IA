@@ -12,9 +12,13 @@ import { FinanceService } from '../src/accounting/finance.service';
 import { CashoutService } from '../src/accounting/cashout.service';
 import { SettlementService } from '../src/accounting/settlement.service';
 import { OrdersService } from '../src/orders/orders.service';
+import { DriverCashService } from '../src/operations/cash.service';
+import { DispatchService } from '../src/operations/dispatch.service';
+import { DriversService } from '../src/operations/drivers.service';
+import { HubService } from '../src/operations/hub.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
-  AREAS, CHART_OF_ACCOUNTS, DEMO_ORDERS, DEMO_PASSWORD, HUBS, MERCHANTS, SIZE_ADD, STAFF, TIER_BP, ZONE_LEVEL, ZONE_LEVEL_STEP,
+  AREAS, CHART_OF_ACCOUNTS, DEMO_ORDERS, DRIVERS, DEMO_PASSWORD, HUBS, MERCHANTS, SIZE_ADD, STAFF, TIER_BP, ZONE_LEVEL, ZONE_LEVEL_STEP,
 } from './seed-data';
 
 export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
@@ -144,7 +148,23 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
   }, { timeout: 120000 });
 
   let seededOrders = false;
+  const ops = await prisma.user.findUniqueOrThrow({ where: { email: 'ops@shiply.eg' } });
+  const opsCtx: RequestContext = { userId: ops.id, role: 'OPERATIONS_MANAGER', merchantId: null, franchiseId: null, bypassRls: true, language: 'en' };
+  const hubsByCode = Object.fromEntries((await prisma.hub.findMany()).map((h) => [h.code, h]));
+  const driverIds: Record<string, string> = {};
+  for (const d of DRIVERS) {
+    const existing = await prisma.asSystem((tx) => tx.driver.findFirst({ where: { fullName: d.fullName } }));
+    driverIds[d.fullName] = existing
+      ? existing.id
+      : (await app.get(DriversService).create(opsCtx, { type: d.type, fullName: d.fullName, phone: d.phone, email: d.email ?? null, vehicle: d.vehicle, hubId: hubsByCode[d.hub].id, password: DEMO_PASSWORD })).id;
+  }
+  log(`drivers: ${DRIVERS.length}`);
+
   if (opts.demoOrders !== false) {
+    const dispatch = app.get(DispatchService);
+    const hubs = app.get(HubService);
+    const sf = hubsByCode['CAI-SF'];
+    const deliveryDriverFor: Record<string, string> = { MAADI: 'Karim Mostafa', NASR: 'Youssef Ali', MOHN: 'Hany Fathy', OCT: 'Tarek Nabil' };
     const merchants = await prisma.asSystem((tx) => tx.merchant.findMany({ include: { users: true } }));
     for (const m of merchants) {
       const existing = await prisma.asSystem((tx) => tx.order.count({ where: { merchantId: m.id } }));
@@ -161,21 +181,23 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
           }),
         );
       }
-      // Walk two orders forward so timelines have history.
-      const ops = await prisma.user.findUniqueOrThrow({ where: { email: 'ops@shiply.eg' } });
-      const opsCtx: RequestContext = { userId: ops.id, role: 'OPERATIONS_MANAGER', merchantId: null, franchiseId: null, bypassRls: true, language: 'en' };
-      await orders.transition(ctx, created[0].id, 'PENDING_PICKUP', 'Ready for pickup');
-      const path: OrderStatus[] = ['PICKED_UP', 'AT_SORTING_FACILITY', 'IN_TRANSFER', 'AT_LAST_MILE_HUB', 'ASSIGNED_TO_DRIVER', 'HEADING_TO_CUSTOMER', 'DELIVERED'];
-      for (const s of path) await orders.transition(opsCtx, created[0].id, s);
-      await orders.transition(ctx, created[1].id, 'PENDING_PICKUP');
-      for (const s of ['PICKED_UP', 'AT_SORTING_FACILITY', 'IN_TRANSFER', 'AT_LAST_MILE_HUB', 'ASSIGNED_TO_DRIVER', 'HEADING_TO_CUSTOMER', 'AWAITING_MERCHANT_ACTION'] as OrderStatus[]) {
-        await orders.transition(opsCtx, created[1].id, s, s === 'AWAITING_MERCHANT_ACTION' ? 'Failed attempt: Customer is not answering the phone' : undefined);
+      // Real operations flow: pickup → sorting facility → transfer → last mile hub → delivery driver.
+      const flow = [created[0], created[1], created[4]];
+      await dispatch.assignPickup(opsCtx, [...flow.map((o) => o.id), created[2].id], driverIds['Mahmoud Hassan']);
+      await dispatch.markPickedUp(opsCtx, flow.map((o) => o.id));
+      for (const o of flow) await hubs.receive(opsCtx, sf.id, o.trackingNumber);
+      for (const o of flow) {
+        const dest = await prisma.asSystem((tx) => tx.hub.findUniqueOrThrow({ where: { id: o.destinationHubId! } }));
+        const t = await hubs.createTransfer(opsCtx, { originHubId: sf.id, destinationHubId: dest.id, vehicle: 'Van' });
+        await hubs.scanOut(opsCtx, t.id, o.trackingNumber);
+        await hubs.dispatch(opsCtx, t.id);
+        await hubs.scanIn(opsCtx, t.id, o.trackingNumber);
+        await dispatch.assignDelivery(opsCtx, [o.id], driverIds[deliveryDriverFor[dest.code]]);
       }
-      // A failed order so the failed delivery charge shows up in the wallet.
-      await orders.transition(ctx, created[4].id, 'PENDING_PICKUP');
-      for (const s of ['PICKED_UP', 'AT_SORTING_FACILITY', 'IN_TRANSFER', 'AT_LAST_MILE_HUB', 'ASSIGNED_TO_DRIVER', 'HEADING_TO_CUSTOMER', 'AWAITING_MERCHANT_ACTION', 'UNSUCCESSFUL'] as OrderStatus[]) {
-        await orders.transition(opsCtx, created[4].id, s, s === 'UNSUCCESSFUL' ? 'Customer refused to receive the order' : undefined);
-      }
+      await dispatch.markDelivered(opsCtx, [created[0].id]);
+      await dispatch.markFailed(opsCtx, [created[1].id], 'NOT_ANSWERING_PHONE');
+      await dispatch.markFailed(opsCtx, [created[4].id], 'CUSTOMER_REFUSED');
+      await orders.transition(opsCtx, created[4].id, 'UNSUCCESSFUL', 'Customer refused, merchant chose not to retry');
       log(`orders: ${created.length} demo orders for ${m.nameEn}`);
       seededOrders = true;
     }
@@ -186,8 +208,17 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
     const finance = await prisma.user.findUniqueOrThrow({ where: { email: 'finance@shiply.eg' } });
     const finCtx: RequestContext = { userId: finance.id, role: 'FINANCE', merchantId: null, franchiseId: null, bypassRls: true, language: 'en' };
     await app.get(SettlementService).run({ triggeredBy: 'seed', ctx: finCtx });
-    await app.get(FinanceService).recordDeposit(finCtx, { kind: 'DRIVER_TO_FAWRY', amount: 90000, reference: 'FWR-DEMO-0001', note: 'Demo driver deposit' });
-    await app.get(FinanceService).recordDeposit(finCtx, { kind: 'FAWRY_SETTLEMENT', amount: 90000, reference: 'FWR-SETTLE-0001', note: 'Fawry paid the bank' });
+    // End of day: every delivery driver hands in their cash; Karim is 10 EGP short to show a shortage.
+    const cash = app.get(DriverCashService);
+    for (const d of DRIVERS.filter((x) => x.type === 'DELIVERY')) {
+      const id = driverIds[d.fullName];
+      const held = await prisma.asSystem(async (tx) => {
+        const r = await tx.ledgerEntry.aggregate({ where: { driverId: id, accountCode: '1020' }, _sum: { debit: true, credit: true } });
+        return (r._sum.debit ?? 0) - (r._sum.credit ?? 0);
+      });
+      if (held > 0) await cash.handover(finCtx, { driverId: id, receivedAmount: d.fullName === 'Karim Mostafa' ? held - 1000 : held, note: 'End of day' });
+    }
+    await app.get(FinanceService).recordDeposit(finCtx, { kind: 'HUB_TO_BANK', amount: 90000, reference: 'BANK-DEMO-0001', note: 'Hub safe deposited at the bank' });
     const eve = await prisma.asSystem((tx) => tx.merchant.findUniqueOrThrow({ where: { code: 'EVE' }, include: { users: true } }));
     const eveOwner = eve.users.find((u) => u.role === 'MERCHANT_OWNER')!;
     const eveCtx: RequestContext = { userId: eveOwner.id, role: 'MERCHANT_OWNER', merchantId: eve.id, franchiseId: null, bypassRls: false, language: 'en' };
@@ -199,7 +230,7 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
       }),
     );
     await app.get(CashoutService).request(eveCtx, eve.id, { amount: 20000, method: 'BANK' });
-    log('finance: cash cycle run, demo deposits, pending cashout for Eve Chantelle');
+    log('finance: cash cycle, driver handovers (one short), bank deposit, pending cashout for Eve Chantelle');
   }
   await app.close();
 }

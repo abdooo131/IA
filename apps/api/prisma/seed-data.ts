@@ -131,8 +131,6 @@ export const STAFF = [
   { email: 'qc@shiply.eg', name: 'QC Agent', role: 'QC_AGENT' as const },
   { email: 'drivers@shiply.eg', name: 'Driver Manager', role: 'DRIVER_MANAGER' as const },
   { email: 'hub.maadi@shiply.eg', name: 'Maadi Hub Staff', role: 'HUB_STAFF' as const, hub: 'MAADI' },
-  { email: 'pickup.driver@shiply.eg', name: 'Pickup Driver Demo', role: 'PICKUP_DRIVER' as const },
-  { email: 'delivery.driver@shiply.eg', name: 'Delivery Driver Demo', role: 'DELIVERY_DRIVER' as const },
 ];
 
 /** A few demo orders per merchant so dashboards are not empty. */
@@ -149,6 +147,8 @@ export const CHART_OF_ACCOUNTS = [
   { code: '1010', type: 'ASSET', en: 'Bank account', ar: 'الحساب البنكي', d: 'Company bank balance' },
   { code: '1020', type: 'ASSET', en: 'Cash with drivers', ar: 'نقدية مع المناديب', d: 'COD collected by drivers and not yet deposited' },
   { code: '1030', type: 'ASSET', en: 'Fawry receivable', ar: 'مستحقات فوري', d: 'Cash deposited at Fawry, not yet settled to the bank' },
+  { code: '1040', type: 'ASSET', en: 'Cash in hub safes', ar: 'نقدية في خزائن المراكز', d: 'Cash handed in by drivers, waiting to be deposited' },
+  { code: '1050', type: 'ASSET', en: 'Driver shortages receivable', ar: 'عجز المناديب المستحق', d: 'Cash a driver did not hand in; owed by that driver' },
   { code: '2010', type: 'LIABILITY', en: 'Merchant wallets (COD payable)', ar: 'محافظ التجار (مستحقات التحصيل)', d: 'What Shiply owes merchants; one sub ledger per merchant' },
   { code: '2015', type: 'LIABILITY', en: 'COD awaiting settlement', ar: 'تحصيل في انتظار التسوية', d: 'COD collected today, moved to merchant wallets by the midnight cash cycle' },
   { code: '2020', type: 'LIABILITY', en: 'VAT payable', ar: 'ضريبة القيمة المضافة المستحقة', d: 'VAT charged to merchants, owed to the tax authority' },
@@ -166,3 +166,13 @@ export const CHART_OF_ACCOUNTS = [
   { code: '5030', type: 'EXPENSE', en: 'Merchant compensation', ar: 'تعويضات التجار', d: 'Compensation for lost or damaged parcels' },
   { code: '5040', type: 'EXPENSE', en: 'Payment processing fees', ar: 'رسوم معالجة المدفوعات', d: 'Bank and Fawry charges' },
 ] as const;
+
+/** Demo drivers. Pickup drivers work from the sorting facility; delivery drivers from each last mile hub. */
+export const DRIVERS = [
+  { type: 'PICKUP' as const, fullName: 'Mahmoud Hassan', phone: '01000000101', email: 'pickup.driver@shiply.eg', hub: 'CAI-SF', vehicle: 'VAN' },
+  { type: 'PICKUP' as const, fullName: 'Ahmed Saeed', phone: '01000000102', hub: 'CAI-SF', vehicle: 'VAN' },
+  { type: 'DELIVERY' as const, fullName: 'Karim Mostafa', phone: '01000000201', email: 'delivery.driver@shiply.eg', hub: 'MAADI', vehicle: 'MOTORCYCLE' },
+  { type: 'DELIVERY' as const, fullName: 'Youssef Ali', phone: '01000000202', hub: 'NASR', vehicle: 'MOTORCYCLE' },
+  { type: 'DELIVERY' as const, fullName: 'Hany Fathy', phone: '01000000203', hub: 'MOHN', vehicle: 'MOTORCYCLE' },
+  { type: 'DELIVERY' as const, fullName: 'Tarek Nabil', phone: '01000000204', hub: 'OCT', vehicle: 'MOTORCYCLE' },
+];

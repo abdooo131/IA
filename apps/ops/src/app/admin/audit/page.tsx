@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, ErrorBox, formatDateTime, inputClass, Spinner, useApp } from '@shiply/ui';
+import { Button, ErrorBox, formatDateTime, inputBase, inputClass, Spinner, useApp } from '@shiply/ui';
 import { FormEvent, useCallback, useEffect, useState } from 'react';
 
 interface AuditRow {
@@ -58,9 +58,9 @@ export default function AuditPage() {
     <div className="space-y-4">
       <h1 className="text-2xl font-semibold text-text">{t.auditLog}</h1>
       <form onSubmit={submit} className="flex flex-wrap gap-2">
-        <input className={`${inputClass} max-w-[12rem]`} placeholder={t.entity} value={filters.entityType} onChange={(e) => setFilters({ ...filters, entityType: e.target.value })} />
-        <input className={`${inputClass} max-w-[14rem]`} placeholder="Entity id" value={filters.entityId} onChange={(e) => setFilters({ ...filters, entityId: e.target.value })} />
-        <input className={`${inputClass} max-w-[12rem]`} placeholder={t.action} value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })} />
+        <input className={`${inputBase} max-w-[12rem] w-full`} placeholder={t.entity} value={filters.entityType} onChange={(e) => setFilters({ ...filters, entityType: e.target.value })} />
+        <input className={`${inputBase} max-w-[14rem] w-full`} placeholder="Entity id" value={filters.entityId} onChange={(e) => setFilters({ ...filters, entityId: e.target.value })} />
+        <input className={`${inputBase} max-w-[12rem] w-full`} placeholder={t.action} value={filters.action} onChange={(e) => setFilters({ ...filters, action: e.target.value })} />
         <Button type="submit">{t.filter}</Button>
       </form>
       <ErrorBox error={error} />

@@ -52,9 +52,16 @@ export class FinanceService {
     });
   }
 
-  async recordDeposit(ctx: RequestContext, input: { kind: DepositKind; amount: number; reference: string; depositedAt?: Date; note?: string }) {
+  async recordDeposit(ctx: RequestContext, input: { kind: DepositKind; amount: number; reference: string; depositedAt?: Date; note?: string; driverId?: string | null }) {
     return this.prisma.withContext(ctx, async (tx) => {
       const ref = input.reference.trim().toUpperCase();
+      const driverKind = input.kind === 'DRIVER_TO_FAWRY' || input.kind === 'DRIVER_TO_BANK';
+      if (driverKind && !input.driverId) throw new BadRequestException('Choose the driver who made this deposit');
+      if (driverKind) {
+        const held = await tx.ledgerEntry.aggregate({ where: { driverId: input.driverId!, accountCode: ACC.CASH_WITH_DRIVERS }, _sum: { debit: true, credit: true } });
+        const cash = (held._sum.debit ?? 0) - (held._sum.credit ?? 0);
+        if (input.amount > cash) throw new BadRequestException(`This driver only holds ${(cash / 100).toFixed(2)} EGP`);
+      }
       const dup = await tx.cashDeposit.findUnique({ where: { reference: ref } });
       // Fraud rule 11.2: the same Fawry / bank reference can never be used twice.
       if (dup) throw new ConflictException(`Reference ${ref} was already recorded on ${dup.createdAt.toISOString().slice(0, 10)}`);
@@ -63,7 +70,7 @@ export class FinanceService {
         type: 'CASH_DEPOSIT',
         description: input.note ? `${memo}: ${input.note}` : memo,
         idempotencyKey: `deposit:${ref}`,
-        lines: deposit(input.kind, input.amount, memo),
+        lines: deposit(input.kind, input.amount, memo, driverKind ? input.driverId : null),
         referenceType: 'deposit',
         referenceId: ref,
         occurredAt: input.depositedAt ?? new Date(),

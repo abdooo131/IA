@@ -258,6 +258,10 @@ model Hub {
   franchise   Franchise?  @relation(fields: [franchiseId], references: [id])
   users       User[]
   orders      Order[]     @relation("DestinationHub")
+  ordersHere  Order[]     @relation("CurrentHub")
+  drivers     Driver[]
+  transfersOut Transfer[] @relation("TransferOrigin")
+  transfersIn  Transfer[] @relation("TransferDestination")
 
   @@map("hubs")
 }
@@ -355,6 +359,13 @@ model Order {
   failedDeliveryFee Int  @map("failed_delivery_fee")
   pricingSnapshot   Json @map("pricing_snapshot")
 
+  pickupDriverId   String?   @map("pickup_driver_id") @db.Uuid
+  deliveryDriverId String?   @map("delivery_driver_id") @db.Uuid
+  currentHubId     String?   @map("current_hub_id") @db.Uuid
+  isReturning      Boolean   @default(false) @map("is_returning")
+  attempts         Int       @default(0)
+  lastFailedReason String?   @map("last_failed_reason")
+  cashHandoverId   String?   @map("cash_handover_id") @db.Uuid
   finalizedAt    DateTime? @map("finalized_at")
   settledAt      DateTime? @map("settled_at")
   printCount     Int       @default(0) @map("print_count")
@@ -370,11 +381,19 @@ model Order {
   pickupLocation PickupLocation? @relation(fields: [pickupLocationId], references: [id])
   destinationHub Hub?            @relation("DestinationHub", fields: [destinationHubId], references: [id])
   importBatch    ImportBatch?    @relation(fields: [importBatchId], references: [id])
+  pickupDriver   Driver?         @relation("PickupDriver", fields: [pickupDriverId], references: [id])
+  deliveryDriver Driver?         @relation("DeliveryDriver", fields: [deliveryDriverId], references: [id])
+  currentHub     Hub?            @relation("CurrentHub", fields: [currentHubId], references: [id])
+  cashHandover   CashHandover?   @relation(fields: [cashHandoverId], references: [id])
+  transferItems  TransferItem[]
   events         OrderEvent[]
 
   @@index([merchantId, status])
   @@index([merchantId, createdAt])
   @@index([customerPhone])
+  @@index([status, currentHubId])
+  @@index([deliveryDriverId, status])
+  @@index([pickupDriverId, status])
   @@map("orders")
 }
 
@@ -453,6 +472,10 @@ enum JournalType {
   MERCHANT_CASHOUT
   MERCHANT_ADJUSTMENT
   REVERSAL
+  DRIVER_HANDOVER
+  EXPENSE
+  MANUAL
+  OPENING_BALANCE
 }
 
 enum CashoutMethod {
@@ -507,6 +530,7 @@ model LedgerEntry {
   accountCode String       @map("account_code")
   merchantId  String?      @map("merchant_id") @db.Uuid
   orderId     String?      @map("order_id") @db.Uuid
+  driverId    String?      @map("driver_id") @db.Uuid
   debit       Int          @default(0)
   credit      Int          @default(0)
   memo        String?
@@ -515,6 +539,7 @@ model LedgerEntry {
 
   @@index([accountCode, occurredAt])
   @@index([merchantId, accountCode])
+  @@index([driverId, accountCode])
   @@map("ledger_entries")
 }
 
@@ -585,4 +610,122 @@ model ReportExport {
   finishedAt    DateTime? @map("finished_at")
 
   @@map("report_exports")
+}
+
+// ───────────────────────── Operations ─────────────────────────
+
+enum DriverType {
+  PICKUP
+  DELIVERY
+}
+
+enum DriverStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum TransferStatus {
+  OPEN
+  IN_TRANSIT
+  RECEIVED
+}
+
+/// Pickup and delivery drivers. Each has a login user (role PICKUP_DRIVER / DELIVERY_DRIVER) for the future apps.
+model Driver {
+  id          String       @id @default(uuid()) @db.Uuid
+  userId      String       @unique @map("user_id") @db.Uuid
+  type        DriverType
+  fullName    String       @map("full_name")
+  phone       String
+  nationalId  String?      @map("national_id")
+  vehicle     String       @default("MOTORCYCLE")
+  hubId       String?      @map("hub_id") @db.Uuid
+  franchiseId String?      @map("franchise_id") @db.Uuid
+  status      DriverStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  hub             Hub?           @relation(fields: [hubId], references: [id])
+  pickupOrders    Order[]        @relation("PickupDriver")
+  deliveryOrders  Order[]        @relation("DeliveryDriver")
+  handovers       CashHandover[]
+  transfers       Transfer[]
+
+  @@map("drivers")
+}
+
+/// Manifest of parcels moving between two hubs. Scan OUT at origin, scan IN at destination.
+model Transfer {
+  id                String         @id @default(uuid()) @db.Uuid
+  code              String         @unique
+  originHubId       String         @map("origin_hub_id") @db.Uuid
+  destinationHubId  String         @map("destination_hub_id") @db.Uuid
+  driverId          String?        @map("driver_id") @db.Uuid
+  vehicle           String?
+  status            TransferStatus @default(OPEN)
+  createdById       String?        @map("created_by_id") @db.Uuid
+  createdAt         DateTime       @default(now()) @map("created_at")
+  dispatchedAt      DateTime?      @map("dispatched_at")
+  receivedAt        DateTime?      @map("received_at")
+
+  originHub      Hub            @relation("TransferOrigin", fields: [originHubId], references: [id])
+  destinationHub Hub            @relation("TransferDestination", fields: [destinationHubId], references: [id])
+  driver         Driver?        @relation(fields: [driverId], references: [id])
+  items          TransferItem[]
+
+  @@index([status])
+  @@map("transfers")
+}
+
+model TransferItem {
+  id          String    @id @default(uuid()) @db.Uuid
+  transferId  String    @map("transfer_id") @db.Uuid
+  orderId     String    @map("order_id") @db.Uuid
+  scannedOutAt DateTime @default(now()) @map("scanned_out_at")
+  scannedInAt DateTime? @map("scanned_in_at")
+  transfer    Transfer  @relation(fields: [transferId], references: [id])
+  order       Order     @relation(fields: [orderId], references: [id])
+
+  @@unique([transferId, orderId])
+  @@map("transfer_items")
+}
+
+/// End of day: a driver hands in the COD collected. Shortages stay on the driver as a receivable.
+model CashHandover {
+  id             String   @id @default(uuid()) @db.Uuid
+  driverId       String   @map("driver_id") @db.Uuid
+  hubId          String?  @map("hub_id") @db.Uuid
+  expectedAmount Int      @map("expected_amount")
+  receivedAmount Int      @map("received_amount")
+  difference     Int
+  status         String
+  note           String?
+  journalId      BigInt?  @map("journal_id")
+  receivedById   String?  @map("received_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at")
+  driver         Driver   @relation(fields: [driverId], references: [id])
+  orders         Order[]
+
+  @@index([driverId])
+  @@map("cash_handovers")
+}
+
+/// Fraud and operational alerts (spec 7 and 11.2).
+model Alert {
+  id          String    @id @default(uuid()) @db.Uuid
+  kind        String
+  severity    String
+  message     String
+  entityType  String?   @map("entity_type")
+  entityId    String?   @map("entity_id")
+  data        Json      @default("{}")
+  status      String    @default("OPEN")
+  resolvedById String?  @map("resolved_by_id") @db.Uuid
+  resolvedAt  DateTime? @map("resolved_at")
+  resolution  String?
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([status, createdAt])
+  @@map("alerts")
 }

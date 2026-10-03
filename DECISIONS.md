@@ -69,3 +69,16 @@ Choices made where the spec left room, newest phase last. Each one is easy to re
 * **Jobs:** BullMQ on Redis. Without `REDIS_URL`, jobs run in process. The tests use that mode and set `REDIS_URL` to an empty string, because Prisma loads `.env` by itself and would otherwise connect the tests to the developer's queue.
 * **Financial endpoints** send `Cache-Control: no-store`.
 * **Driver earnings and franchise payouts** are not posted yet. Accounts 2030, 2040, 5010 and 5020 exist for Phase 5.
+
+## Operations from the portal (driver apps postponed on request)
+
+* **One place for status changes.** Every status change, including bulk actions, goes through `OrdersService.transitionInTx`. It checks the transitions table, applies operational fields (driver, current hub, attempts, failure reason) in the same update, and writes the order event, money postings and audit row. Bulk actions run one transaction per order and report which orders failed and why, so one bad parcel never blocks a batch.
+* **Drivers** are a `drivers` profile plus a login user with the PICKUP_DRIVER or DELIVERY_DRIVER role, ready for the apps later. New drivers get a random password; only the seed sets the demo password.
+* **Order location** is tracked in `current_hub_id`. Receiving a scan decides the next status from the current status and the hub's two toggles. Parcels coming back from a driver after a failed attempt keep their Awaiting Merchant Action status and only update their location.
+* **Transfers** are manifests (`transfers`, `transfer_items`). Scan out requires the parcel to be at the origin hub. Dispatch moves parcels to In Transfer, or to Returns On Way for returns going to the sorting facility. The last scan in completes the transfer automatically. Closing it early raises a MISSING_SCAN_IN alert per missing parcel. A job every 15 minutes flags transfers still in transit after 3 hours plus `hubs.missing_scan_alert_minutes`.
+* **Run sheets** use the in house routing: nearest neighbour from the driver's hub, straight line distance times `routing.road_factor_bp`, `routing.average_speed_kmh`, plus `routing.stop_buffer_minutes` per stop. ETAs assume a 09:00 start. Google Directions stays a later fallback.
+* **COD per driver:** the ledger now has a `driver_id` dimension. Delivered COD is debited to Cash with drivers against the assigned driver, so each driver's expected handover always comes from the books.
+* **End of day handover:** Dr Cash in hub safes (1040, received), Dr Driver shortages receivable (1050, any shortage, on that driver), Cr Cash with drivers (expected); an overage is credited to other income. Any difference raises an alert, HIGH above `fraud.deposit_tolerance_bp` (5%). A shortage repayment is Dr 1040 / Cr 1050.
+* **Deposits:** new kinds move hub safe cash to the bank or Fawry. Driver deposit kinds now require a driver and cannot exceed what that driver holds.
+* **Alerts table** is shared by operations and fraud checks. There is one open alert per kind and entity, resolved with a note that is audited.
+* **Maintenance note:** `prisma migrate diff` does not know about hand written constraints (for example `ledger_account_fk`). Generated migrations must be checked and those DROP lines removed, as was done in the operations migration.

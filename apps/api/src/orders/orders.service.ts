@@ -24,6 +24,14 @@ import { PrismaService, Tx } from '../prisma/prisma.service';
 import { PricingError, PricingService } from '../pricing/pricing.service';
 import { CreateOrderInput, ListOrdersQuery } from './orders.schemas';
 
+export interface TransitionOptions {
+  note?: string;
+  /** Extra order fields set together with the status (driver, hub, attempts...). */
+  data?: Prisma.OrderUncheckedUpdateManyInput;
+  hubId?: string | null;
+  metadata?: Record<string, unknown>;
+}
+
 export class OrderInputError extends Error {
   constructor(public readonly field: string, message: string) {
     super(message);
@@ -292,41 +300,53 @@ export class OrdersService {
   }
 
   async transition(ctx: RequestContext, id: string, to: OrderStatus, note?: string) {
-    return this.prisma.withContext(ctx, async (tx) => {
-      const order = await tx.order.findUnique({ where: { id } });
-      if (!order) throw new NotFoundException('Order not found');
-      const from = order.status as OrderStatus;
-      if (!canTransition(from, to)) throw new BadRequestException(`Transition ${from} → ${to} is not allowed`);
-      if (isMerchantRole(ctx.role as Role) && !isMerchantTransition(from, to)) {
-        throw new ForbiddenException(`Merchants cannot move an order from ${from} to ${to}`);
-      }
-      // Optimistic concurrency: only succeeds if nobody moved the order meanwhile.
-      const res = await tx.order.updateMany({ where: { id, status: from }, data: { status: to } });
-      if (res.count !== 1) throw new BadRequestException('Order status changed concurrently, reload and retry');
-      await tx.orderEvent.create({
-        data: {
-          orderId: id,
-          merchantId: order.merchantId,
-          eventType: 'STATUS_CHANGED',
-          fromStatus: from,
-          toStatus: to,
-          note: note ?? null,
-          actorId: ctx.userId,
-          actorRole: ctx.role,
-        },
-      });
-      await this.onFinalStatus(tx, ctx, order, to);
-      await this.audit.record(tx, ctx, {
-        action: 'order.transition',
-        entityType: 'order',
-        entityId: id,
+    return this.prisma.withContext(ctx, (tx) => this.transitionInTx(tx, ctx, id, to, { note }));
+  }
+
+  /**
+   * The single place an order changes status. Checks the transitions table and merchant rules,
+   * applies optional operational fields (driver, hub, failure reason) in the same update,
+   * and writes the order event, money side effects and audit row in the caller's transaction.
+   */
+  async transitionInTx(tx: Tx, ctx: RequestContext, id: string, to: OrderStatus, opts: TransitionOptions = {}) {
+    const order = await tx.order.findUnique({ where: { id } });
+    if (!order) throw new NotFoundException('Order not found');
+    const from = order.status as OrderStatus;
+    if (!canTransition(from, to)) throw new BadRequestException(`Transition ${from} → ${to} is not allowed`);
+    if (isMerchantRole(ctx.role as Role) && !isMerchantTransition(from, to)) {
+      throw new ForbiddenException(`Merchants cannot move an order from ${from} to ${to}`);
+    }
+    const data: Prisma.OrderUncheckedUpdateManyInput = { status: to, ...(opts.data ?? {}) };
+    if (to === 'RETURNS_ON_WAY' || to === 'HEADING_TO_MERCHANT') data.isReturning = true;
+    // Optimistic concurrency: only succeeds if nobody moved the order meanwhile.
+    const res = await tx.order.updateMany({ where: { id, status: from }, data });
+    if (res.count !== 1) throw new BadRequestException('Order status changed concurrently, reload and retry');
+    await tx.orderEvent.create({
+      data: {
+        orderId: id,
         merchantId: order.merchantId,
-        before: { status: from },
-        after: { status: to },
-        reason: note,
-      });
-      return { id, from, to };
+        eventType: 'STATUS_CHANGED',
+        fromStatus: from,
+        toStatus: to,
+        note: opts.note ?? null,
+        actorId: ctx.userId,
+        actorRole: ctx.role,
+        hubId: opts.hubId ?? null,
+        metadata: (opts.metadata ?? {}) as Prisma.InputJsonValue,
+      },
     });
+    const updated = { ...order, ...(opts.data as object) } as typeof order;
+    await this.onFinalStatus(tx, ctx, updated, to);
+    await this.audit.record(tx, ctx, {
+      action: 'order.transition',
+      entityType: 'order',
+      entityId: id,
+      merchantId: order.merchantId,
+      before: { status: from },
+      after: { status: to, ...(opts.metadata ?? {}) },
+      reason: opts.note,
+    });
+    return { id, from, to, trackingNumber: order.trackingNumber };
   }
 
   /**
@@ -334,7 +354,7 @@ export class OrdersService {
    * Delivered records the COD as cash with the driver; every final status is stamped so the
    * midnight cash cycle settles it into the merchant wallet.
    */
-  private async onFinalStatus(tx: Tx, ctx: RequestContext, order: { id: string } & Parameters<typeof codCollected>[0], to: OrderStatus) {
+  private async onFinalStatus(tx: Tx, ctx: RequestContext, order: { id: string; deliveryDriverId: string | null } & Parameters<typeof codCollected>[0], to: OrderStatus) {
     if (!['DELIVERED', 'RETURNED', 'UNSUCCESSFUL'].includes(to)) return;
     const now = new Date();
     await tx.order.update({ where: { id: order.id }, data: { finalizedAt: now } });
@@ -343,7 +363,7 @@ export class OrdersService {
         type: 'COD_COLLECTED',
         description: `COD collected for ${order.trackingNumber}`,
         idempotencyKey: `cod:${order.id}`,
-        lines: codCollected(order),
+        lines: codCollected(order, order.deliveryDriverId),
         merchantId: order.merchantId,
         orderId: order.id,
         occurredAt: now,

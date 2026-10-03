@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Card, ErrorBox, formatDateTime, inputClass, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
+import { Button, Card, ErrorBox, formatDateTime, inputBase, inputClass, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
 import { useEffect, useState } from 'react';
 
 type Kind = 'trial_balance' | 'income_statement' | 'balance_sheet' | 'cash_flow' | 'daily_cod' | 'merchant_profitability';
@@ -71,11 +71,11 @@ export default function ReportsPage() {
         actions={
           <>
             {meta.pointInTime ? (
-              <input type="date" className={`${inputClass} w-auto py-1.5`} value={range.asOf} onChange={(e) => setRange({ ...range, asOf: e.target.value })} aria-label={t.asOf} />
+              <input type="date" className={`${inputBase} w-auto py-1.5`} value={range.asOf} onChange={(e) => setRange({ ...range, asOf: e.target.value })} aria-label={t.asOf} />
             ) : (
               <>
-                <input type="date" className={`${inputClass} w-auto py-1.5`} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label={t.from} />
-                <input type="date" className={`${inputClass} w-auto py-1.5`} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} aria-label={t.to} />
+                <input type="date" className={`${inputBase} w-auto py-1.5`} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label={t.from} />
+                <input type="date" className={`${inputBase} w-auto py-1.5`} value={range.to} onChange={(e) => setRange({ ...range, to: e.target.value })} aria-label={t.to} />
               </>
             )}
             <Button variant="secondary" onClick={() => requestExport('xlsx')}>{t.exportExcel}</Button>

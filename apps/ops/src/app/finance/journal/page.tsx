@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, ErrorBox, formatDateTime, inputClass, memoLabel, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
+import { Button, ErrorBox, formatDateTime, inputBase, inputClass, memoLabel, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
 import { Fragment, useState } from 'react';
 
 interface Line { id: string; accountCode: string; debit: number; credit: number; memo: string | null; merchantId: string | null }
@@ -63,12 +63,12 @@ export default function JournalPage() {
           setApplied(filters);
         }}
       >
-        <select className={`${inputClass} w-auto`} value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })} aria-label={t.type}>
+        <select className={`${inputBase} w-auto`} value={filters.type} onChange={(e) => setFilters({ ...filters, type: e.target.value })} aria-label={t.type}>
           <option value="">{t.type}: {t.any}</option>
           {TYPES.map((x) => <option key={x} value={x}>{human(x)}</option>)}
         </select>
-        <input className={`${inputClass} w-auto`} type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} aria-label={t.from} />
-        <input className={`${inputClass} w-auto`} type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} aria-label={t.to} />
+        <input className={`${inputBase} w-auto`} type="date" value={filters.from} onChange={(e) => setFilters({ ...filters, from: e.target.value })} aria-label={t.from} />
+        <input className={`${inputBase} w-auto`} type="date" value={filters.to} onChange={(e) => setFilters({ ...filters, to: e.target.value })} aria-label={t.to} />
         <Button type="submit">{t.filter}</Button>
       </form>
       <ErrorBox error={actionError} />
@@ -134,7 +134,7 @@ export default function JournalPage() {
                           {canWrite && j.reversible && !j.reversed && (
                             reversing === j.id ? (
                               <div className="mt-3 flex flex-wrap items-center gap-2" onClick={(e) => e.stopPropagation()}>
-                                <input className={`${inputClass} max-w-xs`} placeholder={t.reason} value={reason} onChange={(e) => setReason(e.target.value)} />
+                                <input className={`${inputBase} max-w-xs w-full`} placeholder={t.reason} value={reason} onChange={(e) => setReason(e.target.value)} />
                                 <Button variant="danger" disabled={reason.trim().length < 3} onClick={() => reverse(j.id)}>{t.reverse}</Button>
                                 <Button variant="secondary" onClick={() => setReversing(null)}>{t.cancel}</Button>
                               </div>

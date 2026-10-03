@@ -73,6 +73,26 @@ Driver accounts (pickup.driver@shiply.eg, delivery.driver@shiply.eg) exist for l
 9. Click **العربية** in the header: the whole portal switches to Arabic RTL and the choice is saved for this user.
 10. Open http://localhost:3001 as `ops@shiply.eg`: all merchants' orders, any allowed transition on an order (for example walk an order to Delivered), **System config** (edit a value, for example `pricing.open_package_fee`, new orders use it while existing orders keep their frozen price), **Pricing** tables and **Audit log** showing who changed what, with before and after.
 
+## Operations from the portal (no driver apps needed)
+
+Operations staff run the whole parcel journey from http://localhost:3001 (sign in as `ops@shiply.eg`). Under **Operations**:
+* **Pickups:** orders waiting for collection, grouped by merchant location. Assign a pickup driver, print the run sheet, then mark parcels picked up.
+* **Hub scan:** choose your hub and scan (or type) tracking numbers. A USB or Bluetooth barcode scanner works out of the box. The status is chosen automatically: sorting facility, last mile hub, back from a driver, or return.
+* **Transfers:** create a manifest between two hubs, scan parcels out, press Dispatch, then scan them in at the destination. Closing a transfer raises an alert for anything not scanned in.
+* **Deliveries:** choose a last mile hub, then:
+  * Assign drivers and print run sheets, which list stops in route order with ETAs.
+  * Mark parcels out for delivery.
+  * Record results in bulk: Delivered, or Failed with one of the 7 reasons.
+  * Reassign orders after the merchant decides, or start a return.
+* **Returns:** returns travel back to the sorting facility and are handed to a driver for the merchant, then marked Returned.
+* **Drivers:** add pickup and delivery drivers, suspend or reactivate them, and see each driver's open work, cash held and shortage owed.
+* **Driver cash:** at the end of the day, record what each driver handed in. Shortages stay on the driver (with an alert) until repaid. Cash goes into the hub safe; record **Hub safe deposited at the bank** under Finance → Cash deposits.
+* **Alerts:** missing scans, misroutes, overdue transfers, cash shortages and repeated failures.
+
+Demo drivers (password `Shiply@2026` for their future app logins):
+* **Pickup:** Mahmoud Hassan and Ahmed Saeed, at the sorting facility.
+* **Delivery:** Karim Mostafa (Maadi), Youssef Ali (Nasr City), Hany Fathy (Mohandessin) and Tarek Nabil (6th of October).
+
 ## Accounting module (built ahead of Phase 5 on request)
 
 ### What it does
@@ -113,4 +133,4 @@ pnpm build && pnpm test:e2e   # Playwright smoke tests; reuses running servers o
 
 API integration tests create a fresh throwaway database (`shiply_test_<timestamp>`) per run, apply migrations, seed, and drop it afterwards. Set `TEST_OWNER_DB_BASE` / `TEST_APP_DB_BASE` if your Postgres is not on localhost with the default credentials.
 
-Current status: 21 shared tests, 74 API tests (unit + integration, including every posting rule and the full money flow) and 9 Playwright smoke tests pass.
+Current status: 21 shared tests, 85 API tests (unit + integration, including every posting rule, the full money flow and the full operations flow) and 11 Playwright browser tests pass.

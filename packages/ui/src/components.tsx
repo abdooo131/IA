@@ -84,8 +84,10 @@ export function Button({
   );
 }
 
-export const inputClass =
-  'block w-full min-w-0 rounded-lg border-0 bg-surface px-3 py-2 text-sm text-text ring-1 ring-inset ring-line placeholder:text-muted/70 focus:ring-2 focus:ring-inset focus:ring-accent disabled:bg-paper disabled:text-muted';
+/** Input style without a width; combine with w-full, w-auto or a fixed width. */
+export const inputBase =
+  'block min-w-0 rounded-lg border-0 bg-surface px-3 py-2 text-sm text-text ring-1 ring-inset ring-line placeholder:text-muted/70 focus:ring-2 focus:ring-inset focus:ring-accent disabled:bg-paper disabled:text-muted';
+export const inputClass = `${inputBase} w-full`;
 
 export function Field({ label, children, error, hint }: { label: string; children: ReactNode; error?: string; hint?: string }) {
   return (
@@ -263,10 +265,10 @@ export function Shell({
   return (
     <div className="min-h-screen">
       <aside className="flex flex-col bg-ink text-white lg:fixed lg:inset-y-0 lg:start-0 lg:z-20 lg:w-60">
-        <div className="flex items-center justify-between px-5 py-5">
+        <div className="flex items-center justify-between px-5 py-4">
           <Brand product={brand} light />
         </div>
-        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-1 lg:flex-col lg:overflow-visible">
+        <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:min-h-0 lg:flex-1 lg:flex-col lg:overflow-y-auto lg:overflow-x-visible">
           {nav.map((n, i) => {
             const active = n.href === activeHref;
             const Icon = n.icon;
@@ -277,7 +279,7 @@ export function Shell({
               <Link
                 key={n.href}
                 href={n.href}
-                className={`flex shrink-0 items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                className={`flex shrink-0 items-center gap-3 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                   active ? 'bg-white/10 text-white shadow-[inset_3px_0_0_rgb(var(--accent))] rtl:shadow-[inset_-3px_0_0_rgb(var(--accent))]' : 'text-white/65 hover:bg-ink-soft hover:text-white'
                 }`}
               >

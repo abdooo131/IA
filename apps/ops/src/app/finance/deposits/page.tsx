@@ -10,12 +10,16 @@ interface Deposit { id: string; kind: string; reference: string; amount: number;
 export default function DepositsPage() {
   const { api, t, lang, session } = useApp();
   const KINDS = [
+    { value: 'HUB_TO_BANK', label: t.depHubToBank, hint: t.depHubToBankHint },
+    { value: 'HUB_TO_FAWRY', label: t.depHubToFawry, hint: t.depHubToFawryHint },
     { value: 'DRIVER_TO_FAWRY', label: t.depDriverToFawry, hint: t.depDriverToFawryHint },
     { value: 'DRIVER_TO_BANK', label: t.depDriverToBank, hint: t.depDriverToBankHint },
     { value: 'FAWRY_SETTLEMENT', label: t.depFawrySettlement, hint: t.depFawrySettlementHint },
   ];
+  const drivers = useAsync(() => api.get<{ id: string; fullName: string; cashHeld: number; status: string }[]>('/ops/drivers?type=DELIVERY'), []);
   const { data, error, loading, reload } = useAsync(() => api.get<Deposit[]>('/finance/deposits'), []);
-  const [form, setForm] = useState({ kind: 'DRIVER_TO_FAWRY', amount: '', reference: '', note: '' });
+  const [form, setForm] = useState({ kind: 'HUB_TO_BANK', amount: '', reference: '', note: '', driverId: '' });
+  const driverKind = form.kind === 'DRIVER_TO_FAWRY' || form.kind === 'DRIVER_TO_BANK';
   const [formError, setFormError] = useState<unknown>(null);
   const canWrite = ['SUPER_ADMIN', 'FINANCE'].includes(session?.user.role ?? '');
 
@@ -25,7 +29,7 @@ export default function DepositsPage() {
     const amount = egpToPiastres(form.amount);
     if (!amount) return setFormError(new Error('Enter an amount like 1500 or 1500.50'));
     try {
-      await api.post('/finance/deposits', { kind: form.kind, amount, reference: form.reference, note: form.note || undefined });
+      await api.post('/finance/deposits', { kind: form.kind, amount, reference: form.reference, note: form.note || undefined, driverId: driverKind ? form.driverId || null : null });
       setForm({ ...form, amount: '', reference: '', note: '' });
       reload();
     } catch (err) {
@@ -79,6 +83,16 @@ export default function DepositsPage() {
                   {KINDS.map((k) => <option key={k.value} value={k.value}>{k.label}</option>)}
                 </select>
               </Field>
+              {driverKind && (
+                <Field label={t.driver}>
+                  <select className={inputClass} value={form.driverId} onChange={(e) => setForm({ ...form, driverId: e.target.value })} required>
+                    <option value="">{t.selectDriver}</option>
+                    {(drivers.data ?? []).filter((d) => d.cashHeld > 0).map((d) => (
+                      <option key={d.id} value={d.id}>{d.fullName} · {(d.cashHeld / 100).toFixed(2)}</option>
+                    ))}
+                  </select>
+                </Field>
+              )}
               <Field label={t.amountEgp}>
                 <input className={inputClass} dir="ltr" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
               </Field>

@@ -1,6 +1,6 @@
 'use client';
 
-import { AppProvider, PdfViewerProvider, IconBank, IconBox, IconChart, IconHistory, IconLedger, IconSliders, IconTag, IconTransfer, IconWallet, LoginScreen, Shell, Spinner, useApp } from '@shiply/ui';
+import { AppProvider, PdfViewerProvider, IconAlert, IconBank, IconPickup, IconReturn, IconScan, IconTruck, IconUsers, IconBox, IconChart, IconHistory, IconLedger, IconSliders, IconTag, IconTransfer, IconWallet, LoginScreen, Shell, Spinner, useApp } from '@shiply/ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
@@ -11,7 +11,15 @@ function Gate({ children }: { children: ReactNode }) {
   if (!ready) return <Spinner />;
   if (!session) return <LoginScreen title={t.opsPortal} hint={<>Demo account: <span dir="ltr" className="font-mono">ops@shiply.eg</span> · <span className="font-mono">Shiply@2026</span></>} />;
   const nav = [
-    { href: '/orders', label: t.orders, icon: IconBox, group: t.orders },
+    { href: '/orders', label: t.orders, icon: IconBox, group: t.operations },
+    { href: '/operations/pickups', label: t.pickups, icon: IconPickup, group: t.operations },
+    { href: '/operations/scan', label: t.hubScan, icon: IconScan, group: t.operations },
+    { href: '/operations/transfers', label: t.transfers, icon: IconTransfer, group: t.operations },
+    { href: '/operations/deliveries', label: t.deliveries, icon: IconTruck, group: t.operations },
+    { href: '/operations/returns', label: t.returns, icon: IconReturn, group: t.operations },
+    { href: '/operations/drivers', label: t.drivers, icon: IconUsers, group: t.operations },
+    { href: '/operations/cash', label: t.driverCash, icon: IconWallet, group: t.operations },
+    { href: '/operations/alerts', label: t.alerts, icon: IconAlert, group: t.operations },
     { href: '/finance', label: t.financeOverview, icon: IconBank, group: t.finance },
     { href: '/finance/cashouts', label: t.cashouts, icon: IconTransfer, group: t.finance },
     { href: '/finance/wallets', label: t.merchantWallets, icon: IconWallet, group: t.finance },

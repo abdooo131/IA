@@ -48,6 +48,7 @@ export class LedgerService {
         accountCode: l.account,
         merchantId: l.merchantId ?? null,
         orderId: l.orderId ?? null,
+        driverId: l.driverId ?? null,
         debit: l.debit ?? 0,
         credit: l.credit ?? 0,
         memo: l.memo ?? null,
