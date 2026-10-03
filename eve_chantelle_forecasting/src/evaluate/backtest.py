@@ -36,7 +36,7 @@ def run_models(data, origin: int, H: int, eligible: np.ndarray) -> dict:
             out[m][cls_rows] = F[cls_rows]
     ml_classes = [c for c, models in CLASS_MODELS.items() if "lightgbm" in models]
     ml_rows = rows[np.isin(data.classes[rows], ml_classes)]
-    if len(ml_rows):
+    if len(ml_rows) and ml.available():
         out["lightgbm"] = ml.train_predict(data.ml_inputs, origin, H, ml_rows, s["forecast"]["lightgbm"])
     ps = statistical.product_share(
         data.Y, data.valid, data.start_idx, data.product_idx, origin, H,

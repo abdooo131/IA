@@ -9,13 +9,26 @@ from __future__ import annotations
 
 import warnings
 
-import lightgbm as lgb
 import numpy as np
 import pandas as pd
 
 from src.features.calendar import EVENT_TYPES
 
 WEEKS = 16
+
+# LightGBM needs the OpenMP library (libomp). On a Mac without it the import fails; the system then
+# runs every other model and says so, instead of stopping.
+try:
+    import lightgbm as lgb
+
+    IMPORT_ERROR = None
+except Exception as exc:  # OSError when libomp is missing, ImportError when the package is missing
+    lgb = None
+    IMPORT_ERROR = str(exc).splitlines()[0]
+
+
+def available() -> bool:
+    return lgb is not None
 
 
 class Inputs:

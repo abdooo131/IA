@@ -129,6 +129,11 @@ def confidence(hist, wape, cls, cfg) -> tuple[str, str]:
 def run_forecast(con, settings, ctx, as_of: dt.date) -> dict:
     fcfg = settings["forecast"]
     configure(settings)
+    if not ml.available():
+        ctx.warn(
+            "LightGBM could not load, so it is left out of this run and the other models carry on. "
+            "On a Mac install the OpenMP library: brew install libomp. Detail: " + ml.IMPORT_ERROR
+        )
     data = load_data(con, settings, as_of)
     V, T = data.Y.shape
     H_final = int(fcfg["horizon_weeks"]) * 7

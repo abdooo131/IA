@@ -125,3 +125,23 @@ def test_idempotent_forecast(run):
     b = con.execute("SELECT variant_id, date, mean, p90 FROM forecasts WHERE run_id = ? ORDER BY 1, 2", [second]).df()
     pd.testing.assert_frame_equal(a, b)
     run["con"] = con
+
+
+def test_runs_without_lightgbm(tmp_path, monkeypatch):
+    """A Mac without libomp cannot load LightGBM. The forecast must still finish with the other models."""
+    from src.models import ml
+
+    monkeypatch.setattr(ml, "lgb", None)
+    monkeypatch.setattr(ml, "IMPORT_ERROR", "Library not loaded: libomp.dylib")
+    settings = load_settings()
+    app = App(settings, db_path=tmp_path / "w.duckdb", outputs_dir=tmp_path / "outputs", logs_dir=tmp_path / "logs")
+    con = app.connect()
+    fx = synthetic.generate(settings, tmp_path / "raw", start=dt.date(2025, 6, 1), end=dt.date(2026, 10, 2), n_products=5, seed=5)
+    synthetic.load_into(con, settings, fx)
+    con.close()
+    out = cmd_forecast(app)
+    assert out["skus"] > 0
+    con = db.connect(app.db_path)
+    winners = set(con.execute("SELECT winner FROM model_selection").df()["winner"])
+    assert not any("lightgbm" in w for w in winners)
+    assert "LightGBM could not load" in next((app.logs_dir).glob("*.log")).read_text()
