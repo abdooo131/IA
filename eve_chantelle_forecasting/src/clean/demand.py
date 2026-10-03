@@ -300,9 +300,13 @@ def build_clean_layer(con, settings, ctx) -> dict:
             "type": "long stockout", "variant_id": long_out["variant_id"], "sku": long_out["sku"],
             "detail": [f"Active but out of stock for {d} days. Demand is no longer imputed. Archive it or restock it"
                        for d in long_out["days_out"]],
-            "problem_kind": discrepancies.PROCESS, "severity": "medium", "units": None,
+            "problem_kind": discrepancies.PROCESS, "severity": "medium", "units": np.nan,
         })
-        disc = pd.concat([d for d in (disc, extra) if len(d)], ignore_index=True)
+        if disc.empty:
+            disc = extra
+        else:
+            disc["units"] = pd.to_numeric(disc["units"], errors="coerce").astype(float)
+            disc = pd.concat([disc, extra[disc.columns]], ignore_index=True)
     dstats["long_stockout_skus"] = int(len(long_out))
     disc.insert(0, "run_id", ctx.run_id)
 

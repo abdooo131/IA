@@ -81,7 +81,7 @@ if page == "Overview":
     st.subheader("Total forecast units per week")
     st.altair_chart(alt.Chart(w).mark_bar(color=BLUE, cornerRadiusTopLeft=4, cornerRadiusTopRight=4).encode(
         x=alt.X("monthdate(week_start):O", title="Week starting"), y=alt.Y("units:Q", title="Units"),
-        tooltip=[alt.Tooltip("week_start:T", title="Week"), alt.Tooltip("units:Q", format=",.0f")]), use_container_width=True)
+        tooltip=[alt.Tooltip("week_start:T", title="Week"), alt.Tooltip("units:Q", format=",.0f")]), width="stretch")
 
 elif page == "SKU explorer":
     st.title("SKU explorer")
@@ -112,7 +112,7 @@ elif page == "SKU explorer":
                                                                  tooltip=["week:T", alt.Tooltip("p10:Q", format=".1f"), alt.Tooltip("p90:Q", format=".1f")])
     mean = alt.Chart(fc).mark_line(color=BLUE, strokeWidth=2, strokeDash=[4, 3]).encode(
         x="week:T", y="mean:Q", tooltip=["week:T", alt.Tooltip("mean:Q", format=".1f", title="Forecast")])
-    st.altair_chart((band + lines + mean).interactive(), use_container_width=True)
+    st.altair_chart((band + lines + mean).interactive(), width="stretch")
     st.caption("Shaded band is the p10 to p90 forecast range, the dashed line is the forecast mean.")
     so = hist[hist["stockout_days"] > 0][["week", "stockout_days"]].copy()
     so["week"] = pd.to_datetime(so["week"]).dt.strftime("%d %b %Y")
@@ -175,7 +175,7 @@ elif page == "Accuracy":
         x=alt.X("as_of:T", title="Data as of"), y=alt.Y("wape:Q", title="WAPE"),
         color=alt.Color("label:N", legend=alt.Legend(orient="top", title=None),
                         scale=alt.Scale(range=[BLUE, ORANGE, "#1baf7a", "#eda100"])),
-        tooltip=["as_of:T", "label:N", alt.Tooltip("wape:Q", format=".3f")]), use_container_width=True)
+        tooltip=["as_of:T", "label:N", alt.Tooltip("wape:Q", format=".3f")]), width="stretch")
     sel = q("SELECT * FROM model_selection WHERE run_id = ?", (run_id,))
     st.subheader("Winning models")
     st.dataframe(pd.crosstab(sel["demand_class"], sel["winner"]))
