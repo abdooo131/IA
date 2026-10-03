@@ -165,6 +165,10 @@ export const CHART_OF_ACCOUNTS = [
   { code: '5020', type: 'EXPENSE', en: 'Franchise commission', ar: 'عمولة الامتياز', d: 'Franchise share (Phase 5)' },
   { code: '5030', type: 'EXPENSE', en: 'Merchant compensation', ar: 'تعويضات التجار', d: 'Compensation for lost or damaged parcels' },
   { code: '5040', type: 'EXPENSE', en: 'Payment processing fees', ar: 'رسوم معالجة المدفوعات', d: 'Bank and Fawry charges' },
+  { code: '5050', type: 'EXPENSE', en: 'Staff salaries', ar: 'رواتب الموظفين', d: 'Operations, finance and support staff' },
+  { code: '5060', type: 'EXPENSE', en: 'Rent and utilities', ar: 'الإيجارات والمرافق', d: 'Hub rent, electricity, internet, water' },
+  { code: '5070', type: 'EXPENSE', en: 'Fuel and vehicles', ar: 'الوقود والمركبات', d: 'Fuel and vehicle maintenance' },
+  { code: '5080', type: 'EXPENSE', en: 'Supplies', ar: 'المستلزمات', d: 'Packaging, labels and printer supplies' },
 ] as const;
 
 /** Demo drivers. Pickup drivers work from the sorting facility; delivery drivers from each last mile hub. */

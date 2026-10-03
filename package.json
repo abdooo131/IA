@@ -11,6 +11,7 @@
     "dev:merchant": "pnpm --filter @shiply/merchant dev",
     "dev:ops": "pnpm --filter @shiply/ops dev",
     "db:migrate": "pnpm --filter @shiply/api db:migrate",
-    "db:seed": "pnpm --filter @shiply/api db:seed"
+    "db:seed": "pnpm --filter @shiply/api db:seed",
+    "db:demo": "pnpm --filter @shiply/api db:demo"
   }
 }

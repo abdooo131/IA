@@ -9,6 +9,7 @@
     "db:migrate": "prisma migrate deploy",
     "db:migrate:dev": "prisma migrate dev",
     "db:seed": "ts-node --transpile-only prisma/seed.ts",
+    "db:demo": "ts-node --transpile-only prisma/demo.ts",
     "db:reset": "prisma migrate reset --force --skip-seed && ts-node --transpile-only prisma/seed.ts",
     "test": "jest --runInBand",
     "test:unit": "jest --selectProjects unit",

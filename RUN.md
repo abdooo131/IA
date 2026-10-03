@@ -124,6 +124,25 @@ Demo drivers (password `Shiply@2026` for their future app logins):
 
 Finance roles: `finance@shiply.eg` and `admin@shiply.eg` can act. `ops@shiply.eg` can view finance but not move money.
 
+## Demo data: 100 merchants and 2,000 orders
+
+To see the system full of realistic activity, run this once after the seed:
+
+```bash
+docker compose exec api pnpm db:demo     # Docker
+pnpm db:demo                             # local services
+```
+
+It takes about 30 seconds and adds:
+* 96 more merchants (100 in total) across fashion, beauty, electronics, home, kids, sports, food and books, each with an owner login `owner@<brand>.eg` (for example `owner@bloomskincare.eg`), pickup locations and, for most, bank details
+* About 2,000 orders over the last 60 days, most from Cairo and Giza and the rest from Alexandria, the Delta and Upper Egypt, which now have their own hubs (ALX, TANTA, MANS, ASYUT) and 18 more drivers
+* Each order follows a real journey with a full timeline: pickup, sorting, hub transfers, delivery attempts, failed reasons, returns. Today's orders are still in progress
+* Money that matches the orders: COD collected, nightly settlements, driver handovers (a few short), daily hub deposits to the bank, merchant cashouts, compensations and deductions
+* Company expenses: weekly driver pay, salaries, rent, utilities, fuel and supplies, so the profit and loss looks like a real business
+* Alerts, transfers and CSV import batches
+
+The ledger is checked at the end and always balances. Everything is written in one transaction, so if anything fails nothing is saved and you can run it again. Running it a second time does nothing.
+
 ### Tests
 
 ```bash
