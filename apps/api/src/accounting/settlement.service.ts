@@ -11,6 +11,8 @@ import { deliveredSettlement, failedSettlement } from './posting';
 
 const FREQUENCY_DAYS: Record<string, number> = { DAILY: 1, EVERY_2_DAYS: 2, WEEKLY: 7 };
 const STALE_RUN_MS = 60 * 60 * 1000;
+const DEFAULT_CRON = '5 0 * * *';
+const DEFAULT_TZ = 'Africa/Cairo';
 
 /**
  * Midnight cash cycle (spec 11.1): settles every finalized, unsettled order into its merchant wallet,
@@ -34,9 +36,19 @@ export class SettlementService implements OnModuleInit {
   async onModuleInit() {
     this.jobs.register('settlement', async () => this.run({ triggeredBy: 'schedule' }));
     if (process.env.REDIS_URL) {
+      // On a fresh database the config rows may not exist yet (seed runs after the API starts),
+      // so fall back to the documented defaults instead of leaving the cash cycle unscheduled.
+      let cron = DEFAULT_CRON;
+      let tz = DEFAULT_TZ;
       try {
         const cfg = await this.config.getMany(['finance.settlement_cron', 'finance.timezone']);
-        await this.jobs.schedule('settlement', String(cfg['finance.settlement_cron']), String(cfg['finance.timezone']));
+        cron = String(cfg['finance.settlement_cron']);
+        tz = String(cfg['finance.timezone']);
+      } catch {
+        this.log.log(`Cash cycle config not found yet, using defaults (${DEFAULT_CRON}, ${DEFAULT_TZ})`);
+      }
+      try {
+        await this.jobs.schedule('settlement', cron, tz);
       } catch (e) {
         this.log.warn(`Cash cycle not scheduled: ${(e as Error).message}`);
       }
