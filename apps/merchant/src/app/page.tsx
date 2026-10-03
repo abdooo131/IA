@@ -24,8 +24,11 @@ interface Dashboard {
   today: Record<OrderStatus, number>;
   groups: Record<string, number>;
   awaitingAction: number;
-  expectedCod: number;
-  collectedCod: number;
+  codAwaitingPickup: { amount: number; orders: number };
+  codInTransit: { amount: number; orders: number };
+  deliveredToday: { amount: number; orders: number };
+  walletBalance: number | null;
+  arrivingTonight: number | null;
   nextCashoutDate: string | null;
 }
 
@@ -81,10 +84,22 @@ export default function DashboardPage() {
       )}
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Kpi label={t.todayCreated} value={<span className="tabular">{todayTotal}</span>} />
-        <Kpi label={t.inFlightCod} value={<Money value={data.expectedCod} />} />
-        <Kpi label={t.collectedCod} value={<Money value={data.collectedCod} />} tone="text-emerald-700" />
-        <Kpi label={t.nextCashout} value={nextCashout} />
+        <Kpi label={t.todayCreated} value={<span className="tabular">{todayTotal}</span>} hint={`${t.deliveredTodayCod}: ${data.deliveredToday.orders}`} />
+        <Kpi
+          label={t.codInTransit}
+          value={<Money value={data.codInTransit.amount} />}
+          hint={`${data.codInTransit.orders} ${t.ordersWord} · ${t.codInTransitHint}`}
+        />
+        <Link href="/wallet" className="rounded-xl border border-line bg-surface px-5 py-4 shadow-card hover:border-accent">
+          <div className="text-xs font-medium uppercase tracking-wider text-muted">{t.walletBalance}</div>
+          <div className={`mt-2 font-display text-xl font-semibold sm:text-2xl ${(data.walletBalance ?? 0) < 0 ? 'text-rose-700' : 'text-emerald-700'}`}>
+            <Money value={data.walletBalance ?? 0} />
+          </div>
+          <div className="mt-1 text-xs text-muted">
+            + <Money value={data.arrivingTonight ?? 0} /> {t.arrivingTonightShort}
+          </div>
+        </Link>
+        <Kpi label={t.nextCashout} value={nextCashout} hint={`${t.codAwaitingPickup}: ${(data.codAwaitingPickup.amount / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`} />
       </div>
 
       <Card title={t.pipeline}>
@@ -134,11 +149,12 @@ export default function DashboardPage() {
   );
 }
 
-function Kpi({ label, value, tone }: { label: string; value: React.ReactNode; tone?: string }) {
+function Kpi({ label, value, tone, hint }: { label: string; value: React.ReactNode; tone?: string; hint?: string }) {
   return (
     <div className="rounded-xl border border-line bg-surface px-5 py-4 shadow-card">
       <div className="text-xs font-medium uppercase tracking-wider text-muted">{label}</div>
       <div className={`mt-2 font-display text-xl font-semibold sm:text-2xl ${tone ?? 'text-text'}`}>{value}</div>
+      {hint && <div className="mt-1 text-xs text-muted">{hint}</div>}
     </div>
   );
 }

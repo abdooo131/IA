@@ -6,14 +6,14 @@ import { FormEvent, useState } from 'react';
 
 interface Deposit { id: string; kind: string; reference: string; amount: number; depositedAt: string; note: string | null; journalId: string }
 
-const KINDS = [
-  { value: 'DRIVER_TO_FAWRY', label: 'Driver deposited cash at Fawry', hint: 'Cash with drivers → Fawry receivable' },
-  { value: 'DRIVER_TO_BANK', label: 'Driver deposited cash at the bank', hint: 'Cash with drivers → Bank' },
-  { value: 'FAWRY_SETTLEMENT', label: 'Fawry paid the bank', hint: 'Fawry receivable → Bank' },
-];
 
 export default function DepositsPage() {
   const { api, t, lang, session } = useApp();
+  const KINDS = [
+    { value: 'DRIVER_TO_FAWRY', label: t.depDriverToFawry, hint: t.depDriverToFawryHint },
+    { value: 'DRIVER_TO_BANK', label: t.depDriverToBank, hint: t.depDriverToBankHint },
+    { value: 'FAWRY_SETTLEMENT', label: t.depFawrySettlement, hint: t.depFawrySettlementHint },
+  ];
   const { data, error, loading, reload } = useAsync(() => api.get<Deposit[]>('/finance/deposits'), []);
   const [form, setForm] = useState({ kind: 'DRIVER_TO_FAWRY', amount: '', reference: '', note: '' });
   const [formError, setFormError] = useState<unknown>(null);
@@ -35,7 +35,7 @@ export default function DepositsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t.deposits} subtitle="Until the delivery app scans Fawry receipts (Phase 5), finance records deposits here. A reference can only be used once." />
+      <PageHeader title={t.deposits} subtitle={t.depositsSubtitle} />
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1fr_22rem]">
         <Card title={t.deposits} flush>
           {loading && !data ? (
@@ -82,7 +82,7 @@ export default function DepositsPage() {
               <Field label={t.amountEgp}>
                 <input className={inputClass} dir="ltr" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} required />
               </Field>
-              <Field label={t.paymentReference} hint="Fawry or bank receipt number">
+              <Field label={t.paymentReference} hint={t.receiptHint}>
                 <input className={`${inputClass} font-mono`} dir="ltr" value={form.reference} onChange={(e) => setForm({ ...form, reference: e.target.value })} required minLength={4} />
               </Field>
               <Field label={t.note}>

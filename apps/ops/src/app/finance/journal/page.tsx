@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, ErrorBox, formatDateTime, inputClass, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
+import { Button, ErrorBox, formatDateTime, inputClass, memoLabel, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
 import { Fragment, useState } from 'react';
 
 interface Line { id: string; accountCode: string; debit: number; credit: number; memo: string | null; merchantId: string | null }
@@ -18,10 +18,10 @@ interface Journal {
 interface Account { code: string; nameEn: string; nameAr: string }
 
 const TYPES = ['COD_COLLECTED', 'ORDER_SETTLEMENT', 'FAILED_DELIVERY_FEE', 'CASH_DEPOSIT', 'MERCHANT_CASHOUT', 'MERCHANT_ADJUSTMENT', 'REVERSAL'];
-const human = (s: string) => s.charAt(0) + s.slice(1).toLowerCase().replace(/_/g, ' ');
 
 export default function JournalPage() {
   const { api, t, lang, session } = useApp();
+  const human = (s: string) => (t as unknown as Record<string, string>)[`j${s}`] ?? s;
   const [filters, setFilters] = useState({ type: '', from: '', to: '' });
   const [applied, setApplied] = useState(filters);
   const [page, setPage] = useState(1);
@@ -54,7 +54,7 @@ export default function JournalPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t.journal} subtitle="Every money movement, double entry. Rows are append only; corrections are posted as reversals." />
+      <PageHeader title={t.journal} subtitle={t.journalSubtitle} />
       <form
         className="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
@@ -102,7 +102,7 @@ export default function JournalPage() {
                       <td className="px-3 py-2.5"><span className="rounded-md bg-paper px-2 py-0.5 text-xs">{human(j.type)}</span></td>
                       <td className="px-3 py-2.5">
                         {j.description}
-                        {j.reversed && <span className="ms-2 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] text-rose-700">reversed</span>}
+                        {j.reversed && <span className="ms-2 rounded bg-rose-50 px-1.5 py-0.5 text-[10px] text-rose-700">{t.reversed}</span>}
                       </td>
                       <td className="px-3 py-2.5 text-end font-medium"><Money value={total} /></td>
                       <td className="px-4 py-2.5 text-end text-xs text-muted">{isOpen ? '▴' : '▾'}</td>
@@ -114,17 +114,17 @@ export default function JournalPage() {
                           <table className="w-full text-xs">
                             <thead className="text-muted">
                               <tr>
-                                <th className="py-1 text-start font-medium">Account</th>
+                                <th className="py-1 text-start font-medium">{t.account}</th>
                                 <th className="py-1 text-start font-medium">{t.note}</th>
-                                <th className="py-1 text-end font-medium">Debit</th>
-                                <th className="py-1 text-end font-medium">Credit</th>
+                                <th className="py-1 text-end font-medium">{t.debit}</th>
+                                <th className="py-1 text-end font-medium">{t.credit}</th>
                               </tr>
                             </thead>
                             <tbody>
                               {j.lines.map((l) => (
                                 <tr key={l.id}>
                                   <td className="py-1"><span className="font-mono text-muted">{l.accountCode}</span> {accName(l.accountCode)}</td>
-                                  <td className="py-1 text-muted">{l.memo}</td>
+                                  <td className="py-1 text-muted">{l.memo ? memoLabel(l.memo, t) : ''}</td>
                                   <td className="py-1 text-end">{l.debit ? <Money value={l.debit} /> : ''}</td>
                                   <td className="py-1 text-end">{l.credit ? <Money value={l.credit} /> : ''}</td>
                                 </tr>

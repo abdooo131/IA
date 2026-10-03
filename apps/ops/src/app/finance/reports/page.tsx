@@ -8,23 +8,23 @@ interface Column { key: string; label: string; type: 'text' | 'money' | 'int' }
 interface Report { title: string; period: string; columns: Column[]; rows: ({ style?: string } & Record<string, string | number | null>)[]; checks: { label: string; ok: boolean }[] }
 interface ExportRow { id: string; kind: string; format: string; status: string; fileName: string | null; createdAt: string; error: string | null }
 
-const KINDS: { kind: Kind; label: string; pointInTime: boolean }[] = [
-  { kind: 'trial_balance', label: 'Trial balance', pointInTime: true },
-  { kind: 'income_statement', label: 'Profit and loss', pointInTime: false },
-  { kind: 'balance_sheet', label: 'Balance sheet', pointInTime: true },
-  { kind: 'cash_flow', label: 'Cash flow', pointInTime: false },
-  { kind: 'daily_cod', label: 'Daily COD', pointInTime: false },
-  { kind: 'merchant_profitability', label: 'Merchant profitability', pointInTime: false },
-];
 
 const today = () => new Date().toISOString().slice(0, 10);
 
 export default function ReportsPage() {
   const { api, t, lang } = useApp();
+  const KINDS: { kind: Kind; label: string; pointInTime: boolean }[] = [
+    { kind: 'trial_balance', label: t.rTrialBalance, pointInTime: true },
+    { kind: 'income_statement', label: t.rIncome, pointInTime: false },
+    { kind: 'balance_sheet', label: t.rBalanceSheet, pointInTime: true },
+    { kind: 'cash_flow', label: t.rCashFlow, pointInTime: false },
+    { kind: 'daily_cod', label: t.rDailyCod, pointInTime: false },
+    { kind: 'merchant_profitability', label: t.rProfitability, pointInTime: false },
+  ];
   const [kind, setKind] = useState<Kind>('trial_balance');
   const [range, setRange] = useState({ from: today().slice(0, 8) + '01', to: today(), asOf: today() });
   const meta = KINDS.find((k) => k.kind === kind)!;
-  const params: Record<string, string> = meta.pointInTime ? { asOf: range.asOf } : { from: range.from, to: range.to };
+  const params: Record<string, string> = meta.pointInTime ? { asOf: range.asOf, lang } : { from: range.from, to: range.to, lang };
   const qs = new URLSearchParams(params).toString();
   const report = useAsync(() => api.get<Report>(`/finance/reports/${kind}?${qs}`), [kind, qs]);
   const exportsList = useAsync(() => api.get<ExportRow[]>('/finance/exports'), []);
@@ -51,7 +51,7 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t.reports} subtitle="Built live from the ledger. Exports are generated in the background." />
+      <PageHeader title={t.reports} subtitle={t.reportsSubtitle} />
       <div className="flex flex-wrap gap-2" role="tablist">
         {KINDS.map((k) => (
           <button
@@ -71,7 +71,7 @@ export default function ReportsPage() {
         actions={
           <>
             {meta.pointInTime ? (
-              <input type="date" className={`${inputClass} w-auto py-1.5`} value={range.asOf} onChange={(e) => setRange({ ...range, asOf: e.target.value })} aria-label="As of" />
+              <input type="date" className={`${inputClass} w-auto py-1.5`} value={range.asOf} onChange={(e) => setRange({ ...range, asOf: e.target.value })} aria-label={t.asOf} />
             ) : (
               <>
                 <input type="date" className={`${inputClass} w-auto py-1.5`} value={range.from} onChange={(e) => setRange({ ...range, from: e.target.value })} aria-label={t.from} />

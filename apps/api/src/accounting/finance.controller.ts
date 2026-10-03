@@ -155,18 +155,22 @@ export class FinanceController {
   @Roles(...READ)
   report(@Ctx() ctx: RequestContext, @Param('kind') kind: string, @Query() q: unknown) {
     const k = parse(z.enum(REPORT_KINDS), kind);
-    const p = parse(z.object({ from: day, to: day, asOf: day }), q);
-    return this.prisma.withContext(ctx, (tx) => this.reports.build(tx, k, p), { timeout: 60000 });
+    const p = parse(z.object({ from: day, to: day, asOf: day, lang: z.enum(['en', 'ar']).optional() }), q);
+    return this.prisma.withContext(ctx, (tx) => this.reports.build(tx, k, { ...p, lang: p.lang ?? ctx.language }), { timeout: 60000 });
   }
 
   @Post('exports')
   @Roles(...READ)
   requestExport(@Ctx() ctx: RequestContext, @Body() body: unknown) {
     const b = parse(
-      z.object({ kind: z.enum(REPORT_KINDS), format: z.enum(['xlsx', 'pdf']), params: z.object({ from: day, to: day, asOf: day }).default({}) }),
+      z.object({
+        kind: z.enum(REPORT_KINDS),
+        format: z.enum(['xlsx', 'pdf']),
+        params: z.object({ from: day, to: day, asOf: day, lang: z.enum(['en', 'ar']).optional() }).default({}),
+      }),
       body,
     );
-    return this.exports.request(ctx, b.kind, b.format, b.params);
+    return this.exports.request(ctx, b.kind, b.format, { ...b.params, lang: b.params.lang ?? ctx.language });
   }
 
   @Get('exports')

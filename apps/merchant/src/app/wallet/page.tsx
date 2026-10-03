@@ -1,7 +1,7 @@
 'use client';
 
 import { egpToPiastres } from '@shiply/shared';
-import { ApiError, Button, Card, ErrorBox, Field, formatDateTime, inputClass, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
+import { ApiError, Button, Card, ErrorBox, Field, formatDateTime, inputClass, memoLabel, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
 import Link from 'next/link';
 import { FormEvent, useState } from 'react';
 
@@ -105,7 +105,7 @@ export default function WalletPage() {
                     <tr key={l.id} className="hover:bg-paper">
                       <td className="whitespace-nowrap px-5 py-2.5 text-xs text-muted">{formatDateTime(l.occurredAt, lang)}</td>
                       <td className="px-3 py-2.5">
-                        <div>{l.description}</div>
+                        <div>{memoLabel(l.description, t)}</div>
                         {l.trackingNumber && (
                           <Link href={`/orders/${l.orderId}`} className="font-mono text-xs text-accent-strong hover:underline">
                             {l.trackingNumber}
@@ -212,7 +212,7 @@ function CashoutForm({ summary, onDone }: { summary: WalletSummary; onDone: () =
           <div className="flex gap-2">
             <input id="cashout-amount" className={inputClass} inputMode="decimal" dir="ltr" value={amount} onChange={(e) => { setAmount(e.target.value); setOk(false); }} disabled={!isOwner} placeholder="0.00" />
             <Button type="button" variant="secondary" onClick={() => setAmount((summary.available / 100).toFixed(2))} disabled={!isOwner || summary.available <= 0}>
-              Max
+              {t.max}
             </Button>
           </div>
         </Field>

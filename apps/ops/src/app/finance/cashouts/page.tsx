@@ -49,7 +49,7 @@ export default function CashoutsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t.cashouts} subtitle="Approving pays the merchant through the payout provider (mock until credentials are added) and posts the ledger." />
+      <PageHeader title={t.cashouts} subtitle={t.cashoutsSubtitle} />
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map((s) => (
           <button key={s} onClick={() => setTab(s)} className={`rounded-lg px-3 py-1.5 text-sm font-medium ${tab === s ? 'bg-ink text-white' : 'text-muted ring-1 ring-inset ring-line hover:bg-surface'}`}>
@@ -71,7 +71,7 @@ export default function CashoutsPage() {
                 <th className="px-4 py-2 text-start font-medium">{t.merchant}</th>
                 <th className="px-3 py-2 text-end font-medium">{t.amount}</th>
                 <th className="px-3 py-2 text-end font-medium">{t.fee}</th>
-                <th className="px-3 py-2 text-end font-medium">Net paid</th>
+                <th className="px-3 py-2 text-end font-medium">{t.netPaid}</th>
                 <th className="px-3 py-2 text-start font-medium">{t.method}</th>
                 <th className="px-3 py-2 text-start font-medium">{t.created}</th>
                 <th className="px-4 py-2 text-end font-medium">{tab === 'PENDING' ? t.actions : t.status}</th>

@@ -6,6 +6,7 @@ import { AuditService } from '../audit/audit.service';
 import { RequestContext } from '../common/context';
 import { JobsService } from '../jobs/jobs.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { drawBidiLine, hasArabic } from '../labels/bidi';
 import { ReportData, ReportKind, ReportParams, ReportsService } from './reports.service';
 
 const FONT_DIR = join(__dirname, '..', '..', 'assets', 'fonts');
@@ -77,9 +78,10 @@ const egp = (p: number) => p / 100;
 export async function toExcel(data: ReportData): Promise<Buffer> {
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Shiply';
-  const ws = wb.addWorksheet(data.title.slice(0, 31));
+  const ar = data.lang === 'ar';
+  const ws = wb.addWorksheet(data.title.slice(0, 31), { views: [{ rightToLeft: ar }] });
   ws.addRow([data.title]).font = { bold: true, size: 14 };
-  ws.addRow([data.period, '', 'Amounts in EGP']);
+  ws.addRow([data.period, '', ar ? 'المبالغ بالجنيه المصري' : 'Amounts in EGP']);
   ws.addRow([]);
   const header = ws.addRow(data.columns.map((c) => c.label));
   header.font = { bold: true };
@@ -103,12 +105,13 @@ export async function toExcel(data: ReportData): Promise<Buffer> {
   ws.getColumn(data.columns.findIndex((c) => c.type === 'text') + 1).width = 42;
   if (data.checks.length) {
     ws.addRow([]);
-    for (const ch of data.checks) ws.addRow([`${ch.ok ? 'OK' : 'FAILED'}: ${ch.label}`]);
+    for (const ch of data.checks) ws.addRow([`${ch.ok ? '✓' : '✕'} ${ch.label}`]);
   }
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
 export async function toPdf(data: ReportData): Promise<Buffer> {
+  const ar = data.lang === 'ar';
   const landscape = data.columns.length > 5;
   const doc = new PDFDocument({ size: 'A4', layout: landscape ? 'landscape' : 'portrait', margin: 36 });
   doc.registerFont('r', join(FONT_DIR, 'DejaVuSans.ttf'));
@@ -118,14 +121,25 @@ export async function toPdf(data: ReportData): Promise<Buffer> {
   const done = new Promise<Buffer>((res) => doc.on('end', () => res(Buffer.concat(chunks))));
 
   const width = doc.page.width - 72;
-  doc.font('b').fontSize(16).text('Shiply · ' + data.title);
-  doc.font('r').fontSize(9).fillColor('#5c667a').text(`${data.period} · amounts in EGP · generated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`);
-  doc.moveDown(0.8).fillColor('#000');
+  /** Draws one line of text; Arabic goes through the bidi helper so it reads right to left. */
+  const line = (text: string, x: number, y: number, w: number, align: 'left' | 'right' | 'center') => {
+    if (hasArabic(text)) drawBidiLine(doc, text, x, y, w, align);
+    else doc.text(text, x, y, { width: w, align, lineBreak: false, ellipsis: true });
+  };
+  const dir = ar ? 'right' : 'left';
+  doc.font('b').fontSize(16);
+  line(`${ar ? 'شيبلي' : 'Shiply'} · ${data.title}`, 36, 36, width, dir);
+  doc.font('r').fontSize(9).fillColor('#5c667a');
+  line(`${data.period} · ${ar ? 'المبالغ بالجنيه المصري' : 'amounts in EGP'} · ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC`, 36, 58, width, dir);
+  doc.fillColor('#000');
+  doc.y = 80;
 
-  const textCols = data.columns.filter((c) => c.type === 'text').length;
+  // Arabic reports mirror the column order so the first column sits on the right.
+  const cols = ar ? [...data.columns].reverse() : data.columns;
+  const textCols = cols.filter((c) => c.type === 'text').length;
   const numW = 78;
-  const textW = (width - numW * (data.columns.length - textCols)) / Math.max(1, textCols);
-  const widths = data.columns.map((c) => (c.type === 'text' ? textW : numW));
+  const textW = (width - numW * (cols.length - textCols)) / Math.max(1, textCols);
+  const widths = cols.map((c) => (c.type === 'text' ? textW : numW));
   const fmt = (c: { type: string }, v: unknown) => {
     if (v === null || v === undefined || v === '') return '';
     if (c.type === 'money') return (Number(v) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -138,23 +152,27 @@ export async function toPdf(data: ReportData): Promise<Buffer> {
     let x = 36;
     doc.font(bold ? 'b' : 'r').fontSize(8);
     cells.forEach((cell, i) => {
-      const num = data.columns[i].type !== 'text';
-      doc.text(cell, x + 2, y, { width: widths[i] - 4, align: num ? 'right' : 'left', lineBreak: false, ellipsis: true });
+      const num = cols[i].type !== 'text';
+      line(cell, x + 2, y, widths[i] - 4, num ? 'right' : dir);
       x += widths[i];
     });
     doc.y = y + 15;
   };
-  drawRow(data.columns.map((c) => c.label), true, '#e8ecf2');
+  drawRow(cols.map((c) => c.label), true, '#e8ecf2');
   for (const r of data.rows) {
     drawRow(
-      data.columns.map((c) => fmt(c, r[c.key])),
+      cols.map((c) => fmt(c, r[c.key])),
       !!r.style,
       r.style === 'total' ? '#f4f6f9' : undefined,
     );
   }
   if (data.checks.length) {
-    doc.moveDown(0.5);
-    for (const ch of data.checks) doc.font('r').fontSize(8).fillColor(ch.ok ? '#047857' : '#b91c1c').text(`${ch.ok ? 'OK' : 'FAILED'}: ${ch.label}`, 36);
+    doc.y += 8;
+    for (const ch of data.checks) {
+      doc.font('r').fontSize(8).fillColor(ch.ok ? '#047857' : '#b91c1c');
+      line(`${ch.ok ? '✓' : '✕'} ${ch.label}`, 36, doc.y, width, dir);
+      doc.y += 12;
+    }
   }
   doc.end();
   return done;

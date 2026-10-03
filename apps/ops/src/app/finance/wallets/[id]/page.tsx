@@ -1,7 +1,7 @@
 'use client';
 
 import { egpToPiastres } from '@shiply/shared';
-import { Button, Card, ErrorBox, Field, formatDateTime, inputClass, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
+import { Button, Card, ErrorBox, Field, formatDateTime, inputClass, memoLabel, Money, PageHeader, Spinner, useApp, useAsync } from '@shiply/ui';
 import Link from 'next/link';
 import { FormEvent, use, useState } from 'react';
 
@@ -76,7 +76,7 @@ export default function MerchantWalletPage({ params }: { params: Promise<{ id: s
                     <tr key={l.id}>
                       <td className="whitespace-nowrap px-5 py-2.5 text-xs text-muted">{formatDateTime(l.occurredAt, lang)}</td>
                       <td className="px-3 py-2.5">
-                        <div>{l.description}</div>
+                        <div>{memoLabel(l.description, t)}</div>
                         {l.trackingNumber && <Link className="font-mono text-xs text-accent-strong hover:underline" href={`/orders/${l.orderId}`}>{l.trackingNumber}</Link>}
                       </td>
                       <td className="px-3 py-2.5 font-mono text-xs text-muted">{l.journalId}</td>
@@ -115,7 +115,7 @@ export default function MerchantWalletPage({ params }: { params: Promise<{ id: s
                 <input className={inputClass} value={form.reason} onChange={(e) => setForm({ ...form, reason: e.target.value })} required minLength={3} />
               </Field>
               <p className="text-xs text-muted">
-                {form.kind === 'COMPENSATION' ? 'Credits the wallet, booked as a compensation expense.' : 'Debits the wallet, booked as other income.'} Mistakes can be reversed from the journal.
+                {form.kind === 'COMPENSATION' ? t.compensationHint : t.deductionHint} {t.reverseHint}
               </p>
               <ErrorBox error={error} />
               <Button type="submit" className="w-full">{t.adjust}</Button>

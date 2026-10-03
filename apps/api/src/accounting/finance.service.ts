@@ -3,6 +3,7 @@ import { JournalType, Prisma } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { RequestContext } from '../common/context';
+import { ConfigService } from '../config/config.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { CashoutService } from './cashout.service';
 import { LedgerService } from './ledger.service';
@@ -17,15 +18,16 @@ export class FinanceService {
     private readonly ledger: LedgerService,
     private readonly cashouts: CashoutService,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   async overview(ctx: RequestContext) {
     return this.prisma.withContext(ctx, async (tx) => {
       const balances = await this.ledger.accountBalances(tx);
       const by = (code: string) => balances.find((b) => b.code === code)?.balance ?? 0;
-      const monthStart = new Date();
-      monthStart.setUTCDate(1);
-      monthStart.setUTCHours(0, 0, 0, 0);
+      const tz = await this.config.getString('finance.timezone', tx);
+      const [{ monthStart }] = await tx.$queryRaw<{ monthStart: Date }[]>`
+        SELECT (date_trunc('month', now() AT TIME ZONE ${tz}) AT TIME ZONE ${tz}) AS "monthStart"`;
       const month = await this.ledger.accountBalances(tx, undefined, monthStart);
       const revenueMtd = month.filter((a) => a.type === 'REVENUE').reduce((s, a) => s + a.balance, 0);
       const expensesMtd = month.filter((a) => a.type === 'EXPENSE').reduce((s, a) => s + a.balance, 0);

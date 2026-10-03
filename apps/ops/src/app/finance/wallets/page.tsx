@@ -24,7 +24,7 @@ export default function WalletsPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title={t.merchantWallets} subtitle={<>Total owed to merchants: <Money value={total} className="font-medium text-text" /></>} />
+      <PageHeader title={t.merchantWallets} subtitle={<>{t.totalOwed}: <Money value={total} className="font-medium text-text" /></>} />
       <div className="overflow-x-auto rounded-xl border border-line bg-surface shadow-card">
         <table className="min-w-full text-sm" data-testid="wallets-table">
           <thead className="bg-paper text-[11px] uppercase tracking-wider text-muted">

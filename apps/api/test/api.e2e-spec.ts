@@ -240,7 +240,8 @@ describe('merchant settings', () => {
   it('dashboard returns counts and cash', async () => {
     const d = (await eve.get('/orders/dashboard')).body;
     expect(d.counts.NEW).toBeGreaterThan(0);
-    expect(typeof d.expectedCod).toBe('number');
+    expect(typeof d.codInTransit.amount).toBe('number');
+    expect(typeof d.walletBalance).toBe('number');
     expect(d.nextCashoutDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

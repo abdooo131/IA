@@ -47,25 +47,25 @@ export default function FinanceOverviewPage() {
       <PageHeader title={t.finance} subtitle={new Date().toLocaleDateString(lang === 'ar' ? 'ar-EG' : 'en-GB', { dateStyle: 'full' })} />
 
       <section>
-        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-muted">Cash position</h2>
+        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-muted">{t.cashPosition}</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Tile label="Cash with drivers" value={data.cashWithDrivers} hint="Collected, not yet deposited" />
-          <Tile label="Fawry receivable" value={data.fawryReceivable} hint="Deposited at Fawry" />
-          <Tile label="Bank" value={data.bank} />
-          <Tile label="Owed to merchants" value={data.merchantWallets + data.codAwaitingSettlement} hint="Wallets plus COD awaiting tonight's cycle" />
+          <Tile label={t.cashWithDrivers} value={data.cashWithDrivers} hint={t.cashWithDriversHint} />
+          <Tile label={t.fawryReceivable} value={data.fawryReceivable} hint={t.fawryReceivableHint} />
+          <Tile label={t.bank} value={data.bank} />
+          <Tile label={t.owedToMerchants} value={data.merchantWallets + data.codAwaitingSettlement} hint={t.owedToMerchantsHint} />
         </div>
       </section>
 
       <section>
-        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-muted">This month</h2>
+        <h2 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-muted">{t.thisMonth}</h2>
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          <Tile label="Revenue (excl. VAT)" value={data.revenueMtd} tone="text-emerald-700" />
-          <Tile label="Profit" value={data.profitMtd} tone={data.profitMtd < 0 ? 'text-rose-700' : 'text-emerald-700'} />
-          <Tile label="VAT payable" value={data.vatPayable} />
+          <Tile label={t.revenueExVat} value={data.revenueMtd} tone="text-emerald-700" />
+          <Tile label={t.profit} value={data.profitMtd} tone={data.profitMtd < 0 ? 'text-rose-700' : 'text-emerald-700'} />
+          <Tile label={t.vatPayable} value={data.vatPayable} />
           <Link href="/finance/cashouts" className="rounded-xl border border-line bg-surface px-5 py-4 shadow-card hover:border-accent">
             <div className="text-xs font-medium uppercase tracking-wider text-muted">{t.pendingCashouts}</div>
             <div className="mt-2 font-display text-xl font-semibold"><Money value={data.pendingCashouts.amount} /></div>
-            <div className="mt-1 text-xs text-accent-strong">{data.pendingCashouts.count} waiting for approval</div>
+            <div className="mt-1 text-xs text-accent-strong">{data.pendingCashouts.count} {t.waitingApproval}</div>
           </Link>
         </div>
       </section>
@@ -75,8 +75,7 @@ export default function FinanceOverviewPage() {
         actions={<Button onClick={runCycle} disabled={running}>{running ? t.loading : t.runCashCycle}</Button>}
       >
         <p className="mb-4 text-sm text-muted">
-          Every night the cycle moves delivered COD into merchant wallets, takes Shiply's frozen fees, charges failed deliveries and opens automatic cashouts.{' '}
-          <span className="font-medium text-text">{data.unsettledOrders}</span> finished orders are waiting for the next run.
+          {t.cycleExplain} <span className="font-medium text-text">{data.unsettledOrders}</span> {t.ordersWaitingRun}
         </p>
         <ErrorBox error={runError} />
         <div className="overflow-x-auto">
@@ -85,10 +84,10 @@ export default function FinanceOverviewPage() {
               <tr className="border-b border-line">
                 <th className="py-2 pe-3 text-start font-medium">{t.when}</th>
                 <th className="px-3 py-2 text-start font-medium">{t.status}</th>
-                <th className="px-3 py-2 text-end font-medium">Delivered settled</th>
-                <th className="px-3 py-2 text-end font-medium">Failed charged</th>
-                <th className="px-3 py-2 text-end font-medium">Auto cashouts</th>
-                <th className="py-2 ps-3 text-start font-medium">Triggered by</th>
+                <th className="px-3 py-2 text-end font-medium">{t.deliveredSettled}</th>
+                <th className="px-3 py-2 text-end font-medium">{t.failedCharged}</th>
+                <th className="px-3 py-2 text-end font-medium">{t.autoCashouts}</th>
+                <th className="py-2 ps-3 text-start font-medium">{t.triggeredBy}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-line">
@@ -106,7 +105,7 @@ export default function FinanceOverviewPage() {
                   <td className="tabular px-3 py-2 text-end">{r.ordersSettled}</td>
                   <td className="tabular px-3 py-2 text-end">{r.ordersCharged}</td>
                   <td className="tabular px-3 py-2 text-end">{r.cashoutsCreated}</td>
-                  <td className="py-2 ps-3 text-xs text-muted">{r.triggeredBy.startsWith('manual') ? 'Manual' : r.triggeredBy === 'schedule' ? 'Schedule' : r.triggeredBy}</td>
+                  <td className="py-2 ps-3 text-xs text-muted">{r.triggeredBy.startsWith('manual') ? t.manual : r.triggeredBy === 'schedule' ? t.schedule : r.triggeredBy}</td>
                 </tr>
               ))}
             </tbody>

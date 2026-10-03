@@ -377,39 +377,51 @@ export class OrdersService {
     });
   }
 
+  /**
+   * Dashboard numbers. COD is split by where the parcel physically is:
+   * awaiting pickup (still with the merchant) vs in transit (picked up, not yet delivered).
+   * Wallet figures come from the ledger so they always match the Wallet page.
+   */
   async dashboard(ctx: RequestContext, merchantId?: string) {
     return this.prisma.withContext(ctx, async (tx) => {
       const where: Prisma.OrderWhereInput = { archived: false, ...(merchantId ? { merchantId } : {}) };
-      const startOfDay = new Date();
-      startOfDay.setHours(0, 0, 0, 0);
-      const [byStatus, todayByStatus, expected, collected] = await Promise.all([
+      const tz = await this.config.getString('finance.timezone', tx);
+      const [{ start }] = await tx.$queryRaw<{ start: Date }[]>`
+        SELECT (date_trunc('day', now() AT TIME ZONE ${tz}) AT TIME ZONE ${tz}) AS start`;
+      const inTransit: OrderStatus[] = ORDER_STATUSES.filter((st) => ['PROCESSING', 'PAUSED'].includes(STATUS_GROUP_OF[st]));
+      const [byStatus, todayByStatus, awaitingPickup, transit, deliveredToday] = await Promise.all([
         tx.order.groupBy({ by: ['status'], where, _count: { _all: true } }),
-        tx.order.groupBy({ by: ['status'], where: { ...where, createdAt: { gte: startOfDay } }, _count: { _all: true } }),
-        tx.order.aggregate({
-          where: { ...where, status: { notIn: ['DELIVERED', 'RETURNED', 'UNSUCCESSFUL', 'ARCHIVED', 'TERMINATED'] } },
-          _sum: { codAmount: true },
-        }),
-        tx.order.aggregate({ where: { ...where, status: 'DELIVERED' }, _sum: { codAmount: true } }),
+        tx.order.groupBy({ by: ['status'], where: { ...where, createdAt: { gte: start } }, _count: { _all: true } }),
+        tx.order.aggregate({ where: { ...where, status: { in: ['NEW', 'PENDING_PICKUP'] } }, _sum: { codAmount: true }, _count: true }),
+        tx.order.aggregate({ where: { ...where, status: { in: inTransit } }, _sum: { codAmount: true }, _count: true }),
+        tx.order.aggregate({ where: { ...where, status: 'DELIVERED', finalizedAt: { gte: start } }, _sum: { codAmount: true }, _count: true }),
       ]);
-      const counts = Object.fromEntries(ORDER_STATUSES.map((s) => [s, 0])) as Record<OrderStatus, number>;
+      const counts = Object.fromEntries(ORDER_STATUSES.map((st) => [st, 0])) as Record<OrderStatus, number>;
       for (const r of byStatus) counts[r.status as OrderStatus] = r._count._all;
-      const today = Object.fromEntries(ORDER_STATUSES.map((s) => [s, 0])) as Record<OrderStatus, number>;
+      const today = Object.fromEntries(ORDER_STATUSES.map((st) => [st, 0])) as Record<OrderStatus, number>;
       for (const r of todayByStatus) today[r.status as OrderStatus] = r._count._all;
       const groups: Record<string, number> = {};
-      for (const s of ORDER_STATUSES) groups[STATUS_GROUP_OF[s]] = (groups[STATUS_GROUP_OF[s]] ?? 0) + counts[s];
+      for (const st of ORDER_STATUSES) groups[STATUS_GROUP_OF[st]] = (groups[STATUS_GROUP_OF[st]] ?? 0) + counts[st];
 
       let nextCashoutDate: string | null = null;
+      let walletBalance: number | null = null;
+      let arrivingTonight: number | null = null;
       if (merchantId) {
         const m = await tx.merchant.findUnique({ where: { id: merchantId } });
         if (m) nextCashoutDate = nextCashout(m.cashoutFrequency, new Date()).toISOString().slice(0, 10);
+        walletBalance = await this.ledger.merchantBalance(tx, merchantId);
+        arrivingTonight = (await this.ledger.pendingSettlement(tx, merchantId)).amount;
       }
       return {
         counts,
         today,
         groups,
         awaitingAction: counts.AWAITING_MERCHANT_ACTION,
-        expectedCod: expected._sum.codAmount ?? 0,
-        collectedCod: collected._sum.codAmount ?? 0,
+        codAwaitingPickup: { amount: awaitingPickup._sum.codAmount ?? 0, orders: awaitingPickup._count },
+        codInTransit: { amount: transit._sum.codAmount ?? 0, orders: transit._count },
+        deliveredToday: { amount: deliveredToday._sum.codAmount ?? 0, orders: deliveredToday._count },
+        walletBalance,
+        arrivingTonight,
         nextCashoutDate,
       };
     });
