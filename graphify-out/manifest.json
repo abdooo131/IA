@@ -1,0 +1,56 @@
+{
+  "src/AddRm.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.9312463,
+    "ast_hash": "2fa5ad63fcc1a0a9d06558a366fc8c70",
+    "semantic_hash": "2fa5ad63fcc1a0a9d06558a366fc8c70"
+  },
+  "src/Consumption.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.9312491,
+    "ast_hash": "eef2ed0a4c3adbc943fa68ff9d0e2c6a",
+    "semantic_hash": "eef2ed0a4c3adbc943fa68ff9d0e2c6a"
+  },
+  "src/LoginGui.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.931251,
+    "ast_hash": "def59e7d643741b47ae43f9679ea5bf7",
+    "semantic_hash": "def59e7d643741b47ae43f9679ea5bf7"
+  },
+  "src/Main.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.9312522,
+    "ast_hash": "949f014840a9da98bd25d24ead771868",
+    "semantic_hash": "949f014840a9da98bd25d24ead771868"
+  },
+  "src/MainApp.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.9312534,
+    "ast_hash": "a8e8d07d4b8c51d8b79ba1b260c20e04",
+    "semantic_hash": "a8e8d07d4b8c51d8b79ba1b260c20e04"
+  },
+  "src/RawMaterials.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.9312546,
+    "ast_hash": "834a9333aaa0aeeff48d4f14c8f68d09",
+    "semantic_hash": "834a9333aaa0aeeff48d4f14c8f68d09"
+  },
+  "src/Style.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.931256,
+    "ast_hash": "72a558f510bee47bc2798bf1c8511ee8",
+    "semantic_hash": "72a558f510bee47bc2798bf1c8511ee8"
+  },
+  "src/StylePanel.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.931264,
+    "ast_hash": "d1b0453205dee36f47ec21958cfd2b7d",
+    "semantic_hash": "d1b0453205dee36f47ec21958cfd2b7d"
+  },
+  "src/ViewRmGUI.java": {
+    "mtime": 1791012937.8131504,
+    "seen": 1791013031.9312656,
+    "ast_hash": "1e17c09cc445195ba9881727f25ef8f8",
+    "semantic_hash": "1e17c09cc445195ba9881727f25ef8f8"
+  }
+}
