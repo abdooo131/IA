@@ -82,6 +82,21 @@ export function createClient(app: AppName, onLogout: () => void) {
     return body as T;
   }
 
+  /** Fetches a binary response (PDF, Excel) as a Blob. */
+  async function blob(path: string, init: RequestInit = {}): Promise<Blob> {
+    const res = await raw(path, init);
+    if (!res.ok) {
+      let msg = 'Download failed';
+      try {
+        msg = (await res.json())?.message ?? msg;
+      } catch {
+        /* not JSON */
+      }
+      throw new ApiError(res.status, msg, null);
+    }
+    return res.blob();
+  }
+
   /** Opens a PDF (or other binary) response in a new tab without exposing the token in a URL. */
   async function openBlob(path: string, init: RequestInit = {}) {
     const win = window.open('', '_blank');
@@ -115,6 +130,7 @@ export function createClient(app: AppName, onLogout: () => void) {
     patch: <T = any>(p: string, body?: unknown) => json<T>(p, { method: 'PATCH', body: JSON.stringify(body ?? {}) }),
     put: <T = any>(p: string, body?: unknown) => json<T>(p, { method: 'PUT', body: JSON.stringify(body ?? {}) }),
     openBlob,
+    blob,
     download,
   };
 }

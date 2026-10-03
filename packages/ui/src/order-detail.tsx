@@ -4,6 +4,7 @@ import { OrderStatus } from '@shiply/shared';
 import { useState } from 'react';
 import { useApp } from './app-context';
 import { Button, Card, ErrorBox, formatDateTime, inputClass, Money, Spinner, StatusBadge, useAsync } from './components';
+import { useLabelPrinter } from './pdf-viewer';
 import { EVENT_LABELS, SIZE_LABELS, STATUS_LABELS, TYPE_LABELS } from './i18n';
 
 interface OrderEvent {
@@ -59,6 +60,7 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
   const [note, setNote] = useState('');
   const [actionError, setActionError] = useState<unknown>(null);
   const [busy, setBusy] = useState(false);
+  const printLabels = useLabelPrinter();
 
   if (loading && !o) return <Spinner />;
   if (error || !o) return <ErrorBox error={error} />;
@@ -79,13 +81,8 @@ export function OrderDetail({ id, showMerchant }: { id: string; showMerchant?: b
     }
   }
 
-  async function print() {
-    try {
-      await api.openBlob(`/orders/${id}/label`);
-      reload();
-    } catch (e) {
-      setActionError(e);
-    }
+  function print() {
+    printLabels([id], reload);
   }
 
   const score = o.customerScore;

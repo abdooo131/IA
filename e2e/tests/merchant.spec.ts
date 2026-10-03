@@ -16,7 +16,7 @@ test.beforeEach(async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
 });
 
-test('Eve Chantelle imports 10 orders by CSV, sees frozen prices, prints labels and the event history', async ({ page, context }) => {
+test('Eve Chantelle imports 10 orders by CSV, sees frozen prices, prints labels and the event history', async ({ page }) => {
   await login(page);
   await page.getByRole('link', { name: 'Import CSV' }).first().click();
   await page.setInputFiles('input[type=file]', join(__dirname, '..', '..', 'samples', 'eve-chantelle-10-orders.csv'));
@@ -25,12 +25,21 @@ test('Eve Chantelle imports 10 orders by CSV, sees frozen prices, prints labels 
   await expect(summary).toContainText('10');
   await expect(page.getByTestId('import-created').locator('tbody tr')).toHaveCount(10);
 
-  // Bulk print the imported labels: a PDF opens in a new tab.
-  const popupPromise = context.waitForEvent('page');
+  // Bulk print the imported labels: the PDF opens in the in page viewer, and Download gives a real PDF file.
   await page.getByRole('button', { name: /Print selected labels/ }).click();
-  const popup = await popupPromise;
-  await popup.waitForURL(/^blob:/);
-  await popup.close();
+  const viewer = page.getByTestId('pdf-viewer');
+  await expect(viewer).toBeVisible();
+  await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', /^blob:/);
+  await expect(page.getByTestId('pdf-print')).toBeVisible();
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByTestId('pdf-download').click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toMatch(/\.pdf$/);
+  const fs = await import('fs');
+  const head = fs.readFileSync((await download.path())!).subarray(0, 4).toString();
+  expect(head).toBe('%PDF');
+  await viewer.getByRole('button', { name: 'Close' }).click();
+  await expect(viewer).toBeHidden();
 
   // Open the first imported order: frozen fees and timeline with CREATED and LABEL_PRINTED.
   await page.getByTestId('import-created').locator('tbody tr a').first().click();
@@ -86,4 +95,17 @@ test('orders list filters by printed status', async ({ page }) => {
   await expect(page.getByTestId('orders-table')).toBeVisible();
   await page.goto(`${MERCHANT}/orders?printed=true`);
   await expect(page.getByTestId('orders-table').locator('tbody tr').first()).toBeVisible();
+});
+
+test('print from the order page and from the orders table opens the label viewer', async ({ page }) => {
+  await login(page);
+  await page.goto(`${MERCHANT}/orders`);
+  const row = page.getByTestId('orders-table').locator('tbody tr').first();
+  await row.getByRole('button', { name: /Print label/ }).click();
+  await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', /^blob:/);
+  await page.keyboard.press('Escape');
+  await row.locator('a').first().click();
+  await expect(page.getByTestId('tracking-number')).toBeVisible();
+  await page.getByRole('button', { name: /Print label/ }).click();
+  await expect(page.getByTestId('pdf-frame')).toHaveAttribute('src', /^blob:/);
 });

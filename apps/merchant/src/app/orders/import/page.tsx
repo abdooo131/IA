@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, Card, ErrorBox, Money, useApp } from '@shiply/ui';
+import { Button, Card, ErrorBox, Money, useApp, useLabelPrinter } from '@shiply/ui';
 import Link from 'next/link';
 import { FormEvent, useRef, useState } from 'react';
 
@@ -38,17 +38,9 @@ export default function ImportPage() {
     }
   }
 
-  async function printImported() {
-    if (!result) return;
-    try {
-      await api.openBlob('/orders/labels', {
-        method: 'POST',
-        body: JSON.stringify({ ids: result.created.map((c) => c.id) }),
-        headers: { 'Content-Type': 'application/json' },
-      });
-    } catch (err) {
-      setError(err);
-    }
+  const printLabels = useLabelPrinter();
+  function printImported() {
+    if (result) printLabels(result.created.map((c) => c.id));
   }
 
   return (

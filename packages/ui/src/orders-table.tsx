@@ -6,6 +6,7 @@ import { useApp } from './app-context';
 import { Button, ErrorBox, inputClass, Money, Spinner, StatusBadge, useAsync } from './components';
 import { GROUP_LABELS, STATUS_LABELS } from './i18n';
 import { IconPrinter } from './icons';
+import { useLabelPrinter } from './pdf-viewer';
 
 export interface OrderRow {
   id: string;
@@ -70,15 +71,13 @@ export function OrdersTable({ Link, initialQuery, onQueryChange, showMerchant, m
     onQueryChange(clean);
   }
 
-  async function print(ids: string[]) {
+  const printLabels = useLabelPrinter();
+  function print(ids: string[]) {
     setPrintError(null);
-    try {
-      await api.openBlob('/orders/labels', { method: 'POST', body: JSON.stringify({ ids }), headers: { 'Content-Type': 'application/json' } });
+    printLabels(ids, () => {
       setSelected(new Set());
       reload();
-    } catch (e) {
-      setPrintError(e);
-    }
+    });
   }
 
   const items = data?.items ?? [];

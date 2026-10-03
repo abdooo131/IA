@@ -5,3 +5,4 @@ export * from './i18n';
 export * from './orders-table';
 export * from './order-detail';
 export * from './icons';
+export * from './pdf-viewer';

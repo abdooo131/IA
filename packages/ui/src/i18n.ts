@@ -205,6 +205,8 @@ const en = {
   recordDeposit: 'Record deposit',
   paymentReference: 'Reference',
   none: 'Nothing here yet',
+  openNewTab: 'Open in new tab',
+  close: 'Close',
   back: 'Back',
 };
 
@@ -412,6 +414,8 @@ const ar: Dict = {
   recordDeposit: 'تسجيل إيداع',
   paymentReference: 'المرجع',
   none: 'لا يوجد شيء بعد',
+  openNewTab: 'فتح في علامة تبويب جديدة',
+  close: 'إغلاق',
   back: 'رجوع',
 };
 

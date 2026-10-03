@@ -1,6 +1,6 @@
 'use client';
 
-import { AppProvider, IconBox, IconDashboard, IconPlus, IconSettings, IconUpload, IconWallet, LoginScreen, Shell, Spinner, useApp } from '@shiply/ui';
+import { AppProvider, PdfViewerProvider, IconBox, IconDashboard, IconPlus, IconSettings, IconUpload, IconWallet, LoginScreen, Shell, Spinner, useApp } from '@shiply/ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
@@ -30,7 +30,9 @@ function Gate({ children }: { children: ReactNode }) {
 export function Frame({ children }: { children: ReactNode }) {
   return (
     <AppProvider app="merchant">
-      <Gate>{children}</Gate>
+      <PdfViewerProvider>
+        <Gate>{children}</Gate>
+      </PdfViewerProvider>
     </AppProvider>
   );
 }
