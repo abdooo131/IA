@@ -143,3 +143,26 @@ export const DEMO_ORDERS = [
   { name: 'Yasmin Fathy', phone: '01512345678', gov: 'ALX', area: 'Smouha', address: '14 Victor Emmanuel Sq, Smouha', cod: 350000, size: 'SMALL_MEDIUM', type: 'DELIVER', open: true },
   { name: 'Omar Samir', phone: '01098765432', gov: 'GIZ', area: '6th of October', address: 'District 7, 6th of October', cod: 89900, size: 'XLARGE', type: 'DELIVER', open: false },
 ] as const;
+
+/** Chart of accounts. Codes: 1xxx assets, 2xxx liabilities, 3xxx equity, 4xxx revenue, 5xxx expenses. */
+export const CHART_OF_ACCOUNTS = [
+  { code: '1010', type: 'ASSET', en: 'Bank account', ar: 'الحساب البنكي', d: 'Company bank balance' },
+  { code: '1020', type: 'ASSET', en: 'Cash with drivers', ar: 'نقدية مع المناديب', d: 'COD collected by drivers and not yet deposited' },
+  { code: '1030', type: 'ASSET', en: 'Fawry receivable', ar: 'مستحقات فوري', d: 'Cash deposited at Fawry, not yet settled to the bank' },
+  { code: '2010', type: 'LIABILITY', en: 'Merchant wallets (COD payable)', ar: 'محافظ التجار (مستحقات التحصيل)', d: 'What Shiply owes merchants; one sub ledger per merchant' },
+  { code: '2015', type: 'LIABILITY', en: 'COD awaiting settlement', ar: 'تحصيل في انتظار التسوية', d: 'COD collected today, moved to merchant wallets by the midnight cash cycle' },
+  { code: '2020', type: 'LIABILITY', en: 'VAT payable', ar: 'ضريبة القيمة المضافة المستحقة', d: 'VAT charged to merchants, owed to the tax authority' },
+  { code: '2030', type: 'LIABILITY', en: 'Driver payable', ar: 'مستحقات المناديب', d: 'Driver earnings owed (Phase 5 points engine)' },
+  { code: '2040', type: 'LIABILITY', en: 'Franchise payable', ar: 'مستحقات الامتياز', d: 'Franchise commissions owed (Phase 5)' },
+  { code: '3010', type: 'EQUITY', en: 'Owner equity', ar: 'حقوق الملكية', d: 'Capital and retained earnings' },
+  { code: '4010', type: 'REVENUE', en: 'Shipping revenue', ar: 'إيرادات الشحن', d: 'Delivery fees excluding VAT' },
+  { code: '4020', type: 'REVENUE', en: 'COD fee revenue', ar: 'إيرادات رسوم التحصيل', d: '1% fee on COD above the threshold' },
+  { code: '4030', type: 'REVENUE', en: 'Open package fee revenue', ar: 'إيرادات رسوم فتح الشحنة', d: 'Open package fees' },
+  { code: '4040', type: 'REVENUE', en: 'Failed delivery revenue', ar: 'إيرادات التوصيل الفاشل', d: 'Charges for failed deliveries' },
+  { code: '4050', type: 'REVENUE', en: 'Cashout fee revenue', ar: 'إيرادات رسوم التحويل', d: 'Merchant cashout fees' },
+  { code: '4060', type: 'REVENUE', en: 'Other income', ar: 'إيرادات أخرى', d: 'Deductions charged to merchants' },
+  { code: '5010', type: 'EXPENSE', en: 'Driver earnings', ar: 'أرباح المناديب', d: 'Points paid to drivers (Phase 5)' },
+  { code: '5020', type: 'EXPENSE', en: 'Franchise commission', ar: 'عمولة الامتياز', d: 'Franchise share (Phase 5)' },
+  { code: '5030', type: 'EXPENSE', en: 'Merchant compensation', ar: 'تعويضات التجار', d: 'Compensation for lost or damaged parcels' },
+  { code: '5040', type: 'EXPENSE', en: 'Payment processing fees', ar: 'رسوم معالجة المدفوعات', d: 'Bank and Fawry charges' },
+] as const;

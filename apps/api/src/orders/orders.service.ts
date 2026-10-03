@@ -14,6 +14,8 @@ import {
   STATUS_GROUP_OF,
   statusesInGroup,
 } from '@shiply/shared';
+import { LedgerService } from '../accounting/ledger.service';
+import { codCollected } from '../accounting/posting';
 import { AuditService } from '../audit/audit.service';
 import { RequestContext } from '../common/context';
 import { ConfigService } from '../config/config.service';
@@ -36,6 +38,7 @@ export class OrdersService {
     private readonly zones: ZoneService,
     private readonly config: ConfigService,
     private readonly audit: AuditService,
+    private readonly ledger: LedgerService,
   ) {}
 
   resolveMerchantId(ctx: RequestContext, requested?: string | null): string {
@@ -312,6 +315,7 @@ export class OrdersService {
           actorRole: ctx.role,
         },
       });
+      await this.onFinalStatus(tx, ctx, order, to);
       await this.audit.record(tx, ctx, {
         action: 'order.transition',
         entityType: 'order',
@@ -323,6 +327,29 @@ export class OrdersService {
       });
       return { id, from, to };
     });
+  }
+
+  /**
+   * Money side effects of a status change, in the same transaction:
+   * Delivered records the COD as cash with the driver; every final status is stamped so the
+   * midnight cash cycle settles it into the merchant wallet.
+   */
+  private async onFinalStatus(tx: Tx, ctx: RequestContext, order: { id: string } & Parameters<typeof codCollected>[0], to: OrderStatus) {
+    if (!['DELIVERED', 'RETURNED', 'UNSUCCESSFUL'].includes(to)) return;
+    const now = new Date();
+    await tx.order.update({ where: { id: order.id }, data: { finalizedAt: now } });
+    if (to === 'DELIVERED' && order.codAmount > 0) {
+      await this.ledger.post(tx, {
+        type: 'COD_COLLECTED',
+        description: `COD collected for ${order.trackingNumber}`,
+        idempotencyKey: `cod:${order.id}`,
+        lines: codCollected(order),
+        merchantId: order.merchantId,
+        orderId: order.id,
+        occurredAt: now,
+        createdById: ctx.userId,
+      });
+    }
   }
 
   /** Records that labels were printed (feeds the printed / not printed filter). */

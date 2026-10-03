@@ -11,6 +11,7 @@ export function ownerAdminClient() {
 export default async function globalSetup() {
   const name = `shiply_test_${Date.now()}_${process.pid}`;
   process.env.SHIPLY_TEST_DB = name;
+  process.env.REDIS_URL = '';
   const admin = ownerAdminClient();
   await admin.$executeRawUnsafe(`CREATE DATABASE "${name}"`);
   await admin.$disconnect();

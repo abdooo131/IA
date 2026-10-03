@@ -1,7 +1,10 @@
 import { Module } from '@nestjs/common';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
+import { AccountingModule } from './accounting/accounting.module';
+import { LedgerModule } from './accounting/ledger.module';
 import { AdminModule } from './admin/admin.module';
+import { JobsModule } from './jobs/jobs.module';
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
 import { AuthGuard } from './common/guards';
@@ -16,10 +19,13 @@ import { PrismaModule } from './prisma/prisma.module';
     JwtModule.register({ global: true }),
     PrismaModule,
     AuditModule,
+    JobsModule,
+    LedgerModule,
     AuthModule,
     OrdersModule,
     MerchantsModule,
     AdminModule,
+    AccountingModule,
   ],
   controllers: [HealthController],
   providers: [

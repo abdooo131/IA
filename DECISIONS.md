@@ -48,3 +48,24 @@ Choices made where the spec left room, newest phase last. Each one is easy to re
 * Merchant settings beyond pickup locations and language: logo upload, team member permission editing, TOTP 2FA, API keys with OTP gate, webhook URL, AWB preferences, sub accounts UI. The schema already has `parent_merchant_id`, `permissions` and bank details.
 * Order creation via merchant API key (spec 4.5) arrives with API keys.
 * Editing pricing tables in the UI (read only view now; values are editable in the database and the 66 `system_config` keys are editable in ops).
+
+## Accounting module (built ahead of Phase 5 on request)
+
+* **Two step COD.** At delivery: Dr Cash with drivers / Cr COD awaiting settlement (2015). At the midnight cash cycle: COD moves from 2015 into the merchant wallet (2010), and the order's frozen fees move from the wallet into revenue and VAT payable. A merchant's money therefore shows as "arriving tonight" until the cycle runs, as the spec's cash cycle describes.
+* **Merchant wallet = account 2010 per merchant.** The balance is always derived from ledger rows (credits minus debits) and never stored. "Available to cash out" is the balance minus pending cashouts.
+* **Failed delivery charge** is posted when an order becomes Returned or Unsuccessful, at 60% of shipping plus VAT. Whether VAT applies and at what rate is read from the pricing snapshot frozen on the order, not from today's settings. Terminated (cancelled before pickup) orders are not charged.
+* **Prepaid orders** (COD 0) still have their fees taken from the wallet, so a wallet can go negative. A negative wallet blocks cashouts until new deliveries bring it back up.
+* **Settlement safety:** each order is claimed with `settled_at IS NULL` and posted with idempotency key `settle:<order id>`, so reruns and retries never double count. A unique partial index allows only one RUNNING cash cycle across all API instances (the distributed lock). A run left RUNNING for over an hour is marked failed so the lock cannot stick.
+* **Database guarantees:** a deferred constraint trigger rejects any journal whose debits and credits differ (or that has fewer than two lines) at commit. Each line is a positive debit or a positive credit, never both. `journal_entries` and `ledger_entries` are append only. Corrections are REVERSAL journals that mirror the original. Only adjustments and deposits can be reversed by hand, because order money follows the order status.
+* **Row level security:** merchants can read only their own ledger lines and cashouts. Only staff can write journals. Deposits, settlement runs and report exports are staff only.
+* **Cashouts:**
+  * Fees come from `system_config`: bank 15 EGP flat, Fawry 1%, minimum 20 EGP (`merchant.min_cashout_amount`, my default).
+  * Requests are serialized per merchant with a row lock so a double click can't overdraw.
+  * Approval calls the payout adapter (mock for now) with the cashout id as the idempotency key, then posts Dr Wallet (gross) / Cr Bank (net) / Cr Cashout fee revenue.
+  * No VAT on cashout fees by default (`finance.cashout_fee_vat`, not applied yet).
+* **Automatic cashouts:** on each merchant's cashout day the cycle opens a bank cashout for the full available balance, when bank details exist and the amount covers the fee. Finance still approves it. Due is measured from the last automatic cashout (1, 2 or 7 days).
+* **Cash deposits:** finance records them by hand until the delivery app scans Fawry receipts (Phase 5). The same reference can never be recorded twice (fraud rule 11.2).
+* **Reports:** built live from the ledger. Day boundaries follow `finance.timezone` (Africa/Cairo). Exports run as background jobs (BullMQ when `REDIS_URL` is set, otherwise in process) and are stored in `report_exports` for download. Excel amounts are in EGP with two decimals, the only place money is shown as a decimal.
+* **Jobs:** BullMQ on Redis. Without `REDIS_URL`, jobs run in process. The tests use that mode and set `REDIS_URL` to an empty string, because Prisma loads `.env` by itself and would otherwise connect the tests to the developer's queue.
+* **Financial endpoints** send `Cache-Control: no-store`.
+* **Driver earnings and franchise payouts** are not posted yet. Accounts 2030, 2040, 5010 and 5020 exist for Phase 5.

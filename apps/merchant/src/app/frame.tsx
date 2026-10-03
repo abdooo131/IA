@@ -1,6 +1,6 @@
 'use client';
 
-import { AppProvider, IconBox, IconDashboard, IconPlus, IconSettings, IconUpload, LoginScreen, Shell, Spinner, useApp } from '@shiply/ui';
+import { AppProvider, IconBox, IconDashboard, IconPlus, IconSettings, IconUpload, IconWallet, LoginScreen, Shell, Spinner, useApp } from '@shiply/ui';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ReactNode } from 'react';
@@ -17,6 +17,7 @@ function Gate({ children }: { children: ReactNode }) {
     { href: '/orders', label: t.orders, icon: IconBox },
     { href: '/orders/new', label: t.newOrder, icon: IconPlus },
     { href: '/orders/import', label: t.importCsv, icon: IconUpload },
+    { href: '/wallet', label: t.wallet, icon: IconWallet },
     { href: '/settings', label: t.settings, icon: IconSettings },
   ];
   return (

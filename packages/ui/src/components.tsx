@@ -235,6 +235,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon?: React.ComponentType<SVGProps<SVGSVGElement>>;
+  /** Items sharing a group are listed under that heading. */
+  group?: string;
 }
 
 /** App frame: navy navigation rail on the start side (stacks on top on small screens), content on paper. */
@@ -265,10 +267,13 @@ export function Shell({
           <Brand product={brand} light />
         </div>
         <nav className="flex gap-1 overflow-x-auto px-3 pb-3 lg:flex-1 lg:flex-col lg:overflow-visible">
-          {nav.map((n) => {
+          {nav.map((n, i) => {
             const active = n.href === activeHref;
             const Icon = n.icon;
-            return (
+            const heading = n.group && n.group !== nav[i - 1]?.group ? (
+              <div key={`g-${n.group}`} className="hidden px-3 pb-1 pt-4 text-[10px] font-semibold uppercase tracking-widest text-white/40 lg:block">{n.group}</div>
+            ) : null;
+            return [heading,
               <Link
                 key={n.href}
                 href={n.href}
@@ -278,8 +283,8 @@ export function Shell({
               >
                 {Icon && <Icon className={active ? 'text-accent' : ''} />}
                 {n.label}
-              </Link>
-            );
+              </Link>,
+            ];
           })}
         </nav>
         <div className="hidden border-t border-ink-line p-3 lg:block">

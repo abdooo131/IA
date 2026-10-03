@@ -158,6 +158,7 @@ model Merchant {
   parentMerchantId String?          @map("parent_merchant_id") @db.Uuid
   defaultOpenPackage Boolean        @default(false) @map("default_open_package")
   defaultSize      PackageSize      @default(SMALL_MEDIUM) @map("default_size")
+  lastAutoCashoutAt DateTime?       @map("last_auto_cashout_at")
   archived         Boolean          @default(false)
   createdAt        DateTime         @default(now()) @map("created_at")
   updatedAt        DateTime         @updatedAt @map("updated_at")
@@ -169,6 +170,7 @@ model Merchant {
   orders          Order[]
   bankDetails     MerchantBankDetails?
   importBatches   ImportBatch[]
+  cashouts        CashoutRequest[]
 
   @@map("merchants")
 }
@@ -353,6 +355,8 @@ model Order {
   failedDeliveryFee Int  @map("failed_delivery_fee")
   pricingSnapshot   Json @map("pricing_snapshot")
 
+  finalizedAt    DateTime? @map("finalized_at")
+  settledAt      DateTime? @map("settled_at")
   printCount     Int       @default(0) @map("print_count")
   labelPrintedAt DateTime? @map("label_printed_at")
   importBatchId  String?   @map("import_batch_id") @db.Uuid
@@ -429,4 +433,156 @@ model ImportBatch {
 
   @@index([merchantId])
   @@map("import_batches")
+}
+
+// ───────────────────────── Accounting ─────────────────────────
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+enum JournalType {
+  COD_COLLECTED
+  ORDER_SETTLEMENT
+  FAILED_DELIVERY_FEE
+  CASH_DEPOSIT
+  MERCHANT_CASHOUT
+  MERCHANT_ADJUSTMENT
+  REVERSAL
+}
+
+enum CashoutMethod {
+  BANK
+  FAWRY_ACCOUNT
+  FAWRY_CARD
+}
+
+enum CashoutStatus {
+  PENDING
+  PAID
+  REJECTED
+}
+
+/// Chart of accounts.
+model LedgerAccount {
+  code        String      @id
+  nameEn      String      @map("name_en")
+  nameAr      String      @map("name_ar")
+  type        AccountType
+  description String
+  archived    Boolean     @default(false)
+
+  @@map("ledger_accounts")
+}
+
+/// One balanced money event. Append only; corrections are new REVERSAL journals.
+model JournalEntry {
+  id             BigInt         @id @default(autoincrement())
+  type           JournalType
+  description    String
+  occurredAt     DateTime       @default(now()) @map("occurred_at")
+  merchantId     String?        @map("merchant_id") @db.Uuid
+  orderId        String?        @map("order_id") @db.Uuid
+  referenceType  String?        @map("reference_type")
+  referenceId    String?        @map("reference_id")
+  idempotencyKey String         @unique @map("idempotency_key")
+  reversesId     BigInt?        @unique @map("reverses_id")
+  createdById    String?        @map("created_by_id") @db.Uuid
+  createdAt      DateTime       @default(now()) @map("created_at")
+  lines          LedgerEntry[]
+
+  @@index([merchantId, occurredAt])
+  @@index([type, occurredAt])
+  @@map("journal_entries")
+}
+
+/// Append only. Exactly one of debit / credit is positive. Every journal balances (deferred DB trigger).
+model LedgerEntry {
+  id          BigInt       @id @default(autoincrement())
+  journalId   BigInt       @map("journal_id")
+  accountCode String       @map("account_code")
+  merchantId  String?      @map("merchant_id") @db.Uuid
+  orderId     String?      @map("order_id") @db.Uuid
+  debit       Int          @default(0)
+  credit      Int          @default(0)
+  memo        String?
+  occurredAt  DateTime     @map("occurred_at")
+  journal     JournalEntry @relation(fields: [journalId], references: [id])
+
+  @@index([accountCode, occurredAt])
+  @@index([merchantId, accountCode])
+  @@map("ledger_entries")
+}
+
+model CashoutRequest {
+  id              String        @id @default(uuid()) @db.Uuid
+  merchantId      String        @map("merchant_id") @db.Uuid
+  amount          Int
+  fee             Int
+  netAmount       Int           @map("net_amount")
+  method          CashoutMethod
+  destination     String
+  status          CashoutStatus @default(PENDING)
+  auto            Boolean       @default(false)
+  requestedById   String?       @map("requested_by_id") @db.Uuid
+  decidedById     String?       @map("decided_by_id") @db.Uuid
+  decidedAt       DateTime?     @map("decided_at")
+  payoutReference String?       @map("payout_reference")
+  rejectReason    String?       @map("reject_reason")
+  journalId       BigInt?       @map("journal_id")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+  merchant        Merchant      @relation(fields: [merchantId], references: [id])
+
+  @@index([merchantId, status])
+  @@map("cashout_requests")
+}
+
+model CashDeposit {
+  id           String   @id @default(uuid()) @db.Uuid
+  kind         String
+  reference    String   @unique
+  amount       Int
+  depositedAt  DateTime @map("deposited_at")
+  note         String?
+  journalId    BigInt   @map("journal_id")
+  recordedById String?  @map("recorded_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("cash_deposits")
+}
+
+model SettlementRun {
+  id               String    @id @default(uuid()) @db.Uuid
+  asOf             DateTime  @map("as_of")
+  status           String
+  ordersSettled    Int       @default(0) @map("orders_settled")
+  ordersCharged    Int       @default(0) @map("orders_charged")
+  cashoutsCreated  Int       @default(0) @map("cashouts_created")
+  error            String?
+  triggeredBy      String    @map("triggered_by")
+  startedAt        DateTime  @default(now()) @map("started_at")
+  finishedAt       DateTime? @map("finished_at")
+
+  @@map("settlement_runs")
+}
+
+model ReportExport {
+  id            String    @id @default(uuid()) @db.Uuid
+  kind          String
+  format        String
+  params        Json
+  status        String
+  fileName      String?   @map("file_name")
+  content       Bytes?
+  error         String?
+  requestedById String?   @map("requested_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at")
+  finishedAt    DateTime? @map("finished_at")
+
+  @@map("report_exports")
 }

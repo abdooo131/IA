@@ -6,4 +6,6 @@ process.env.DATABASE_URL = `${appBase}/${db}`;
 process.env.MIGRATE_DATABASE_URL = `${ownerBase}/${db}`;
 process.env.JWT_ACCESS_SECRET = 'test-access-secret';
 process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
+// Empty (not deleted) so neither dotenv nor Prisma's .env loading can bring Redis back: jobs run in process.
+process.env.REDIS_URL = '';
 export {};

@@ -8,10 +8,13 @@ import * as bcrypt from 'bcryptjs';
 import { AppModule } from '../src/app.module';
 import { RequestContext } from '../src/common/context';
 import { CONFIG_DEFAULTS } from '../src/config/defaults';
+import { FinanceService } from '../src/accounting/finance.service';
+import { CashoutService } from '../src/accounting/cashout.service';
+import { SettlementService } from '../src/accounting/settlement.service';
 import { OrdersService } from '../src/orders/orders.service';
 import { PrismaService } from '../src/prisma/prisma.service';
 import {
-  AREAS, DEMO_ORDERS, DEMO_PASSWORD, HUBS, MERCHANTS, SIZE_ADD, STAFF, TIER_BP, ZONE_LEVEL, ZONE_LEVEL_STEP,
+  AREAS, CHART_OF_ACCOUNTS, DEMO_ORDERS, DEMO_PASSWORD, HUBS, MERCHANTS, SIZE_ADD, STAFF, TIER_BP, ZONE_LEVEL, ZONE_LEVEL_STEP,
 } from './seed-data';
 
 export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
@@ -38,6 +41,15 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
       });
     }
     log(`config: ${CONFIG_DEFAULTS.length} keys`);
+
+    for (const a of CHART_OF_ACCOUNTS) {
+      await tx.ledgerAccount.upsert({
+        where: { code: a.code },
+        update: { nameEn: a.en, nameAr: a.ar, description: a.d },
+        create: { code: a.code, nameEn: a.en, nameAr: a.ar, type: a.type, description: a.d },
+      });
+    }
+    log(`chart of accounts: ${CHART_OF_ACCOUNTS.length} accounts`);
 
     for (const g of GOVERNORATES) {
       await tx.governorate.upsert({
@@ -131,6 +143,7 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
     log(`users: ${STAFF.length} staff, ${MERCHANTS.length} merchants`);
   }, { timeout: 120000 });
 
+  let seededOrders = false;
   if (opts.demoOrders !== false) {
     const merchants = await prisma.asSystem((tx) => tx.merchant.findMany({ include: { users: true } }));
     for (const m of merchants) {
@@ -158,8 +171,35 @@ export async function seed(opts: { demoOrders?: boolean; log?: boolean } = {}) {
       for (const s of ['PICKED_UP', 'AT_SORTING_FACILITY', 'IN_TRANSFER', 'AT_LAST_MILE_HUB', 'ASSIGNED_TO_DRIVER', 'HEADING_TO_CUSTOMER', 'AWAITING_MERCHANT_ACTION'] as OrderStatus[]) {
         await orders.transition(opsCtx, created[1].id, s, s === 'AWAITING_MERCHANT_ACTION' ? 'Failed attempt: Customer is not answering the phone' : undefined);
       }
+      // A failed order so the failed delivery charge shows up in the wallet.
+      await orders.transition(ctx, created[4].id, 'PENDING_PICKUP');
+      for (const s of ['PICKED_UP', 'AT_SORTING_FACILITY', 'IN_TRANSFER', 'AT_LAST_MILE_HUB', 'ASSIGNED_TO_DRIVER', 'HEADING_TO_CUSTOMER', 'AWAITING_MERCHANT_ACTION', 'UNSUCCESSFUL'] as OrderStatus[]) {
+        await orders.transition(opsCtx, created[4].id, s, s === 'UNSUCCESSFUL' ? 'Customer refused to receive the order' : undefined);
+      }
       log(`orders: ${created.length} demo orders for ${m.nameEn}`);
+      seededOrders = true;
     }
+  }
+
+  if (seededOrders) {
+    // Money demo: run the cash cycle, record a driver deposit, open a cashout for Eve Chantelle.
+    const finance = await prisma.user.findUniqueOrThrow({ where: { email: 'finance@shiply.eg' } });
+    const finCtx: RequestContext = { userId: finance.id, role: 'FINANCE', merchantId: null, franchiseId: null, bypassRls: true, language: 'en' };
+    await app.get(SettlementService).run({ triggeredBy: 'seed', ctx: finCtx });
+    await app.get(FinanceService).recordDeposit(finCtx, { kind: 'DRIVER_TO_FAWRY', amount: 90000, reference: 'FWR-DEMO-0001', note: 'Demo driver deposit' });
+    await app.get(FinanceService).recordDeposit(finCtx, { kind: 'FAWRY_SETTLEMENT', amount: 90000, reference: 'FWR-SETTLE-0001', note: 'Fawry paid the bank' });
+    const eve = await prisma.asSystem((tx) => tx.merchant.findUniqueOrThrow({ where: { code: 'EVE' }, include: { users: true } }));
+    const eveOwner = eve.users.find((u) => u.role === 'MERCHANT_OWNER')!;
+    const eveCtx: RequestContext = { userId: eveOwner.id, role: 'MERCHANT_OWNER', merchantId: eve.id, franchiseId: null, bypassRls: false, language: 'en' };
+    await prisma.withContext(eveCtx, (tx) =>
+      tx.merchantBankDetails.upsert({
+        where: { merchantId: eve.id },
+        update: {},
+        create: { merchantId: eve.id, bankName: 'CIB', accountName: 'Eve Chantelle LLC', iban: 'EG380019000500000000263180002' },
+      }),
+    );
+    await app.get(CashoutService).request(eveCtx, eve.id, { amount: 20000, method: 'BANK' });
+    log('finance: cash cycle run, demo deposits, pending cashout for Eve Chantelle');
   }
   await app.close();
 }

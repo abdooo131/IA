@@ -22,3 +22,8 @@ export const IconPrinter = base(<><path d="M6 9V3h12v6" /><rect x="3" y="9" widt
 export const IconLogout = base(<><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="m16 17 5-5-5-5" /><path d="M21 12H9" /></>);
 export const IconGlobe = base(<><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18" /></>);
 export const IconAlert = base(<><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" /><path d="M12 9v4M12 17h.01" /></>);
+export const IconWallet = base(<><path d="M20 7V5a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H5a2 2 0 0 1-2-2V6" /><path d="M17 13.5h.01" /></>);
+export const IconLedger = base(<><path d="M4 4h12a2 2 0 0 1 2 2v14H6a2 2 0 0 1-2-2V4Z" /><path d="M8 8h6M8 12h6M8 16h4" /><path d="M18 8h2v12" /></>);
+export const IconChart = base(<><path d="M4 20V4" /><path d="M4 20h16" /><path d="M8 16v-4M12 16V8M16 16v-6" /></>);
+export const IconBank = base(<><path d="m3 9 9-5 9 5" /><path d="M5 9v9M9 9v9M15 9v9M19 9v9" /><path d="M3 20h18" /></>);
+export const IconTransfer = base(<><path d="M7 7h13l-3-3" /><path d="M17 17H4l3 3" /></>);

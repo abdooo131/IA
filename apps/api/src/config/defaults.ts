@@ -33,6 +33,13 @@ export const CONFIG_DEFAULTS: ConfigDefault[] = [
   { key: 'merchant.bank_details_lock_days', value: 15, type: 'int', category: 'merchant_finance', description: 'Bank details can be edited once every N days (enforced by a DB trigger)' },
   { key: 'merchant.default_cashout_frequency', value: 'WEEKLY', type: 'string', category: 'merchant_finance', description: 'Default cashout frequency for new merchants' },
 
+  // Finance (spec 11.1)
+  { key: 'finance.timezone', value: 'Africa/Cairo', type: 'string', category: 'finance', description: 'Business day boundaries for the cash cycle and reports' },
+  { key: 'finance.settlement_cron', value: '5 0 * * *', type: 'string', category: 'finance', description: 'Midnight cash cycle schedule (cron, finance timezone)' },
+  { key: 'finance.auto_cashout_enabled', value: true, type: 'bool', category: 'finance', description: 'Create cashout requests automatically on each merchant cashout day' },
+  { key: 'merchant.min_cashout_amount', value: 2000, type: 'int', category: 'merchant_finance', description: 'Minimum merchant cashout (piastres)' },
+  { key: 'finance.cashout_fee_vat', value: false, type: 'bool', category: 'finance', description: 'Charge VAT on merchant cashout fees' },
+
   // Orders
   { key: 'orders.tracking_prefix', value: 'SHP', type: 'string', category: 'orders', description: 'Tracking number prefix' },
   { key: 'orders.csv_max_rows', value: 2000, type: 'int', category: 'orders', description: 'Maximum rows per CSV import' },
