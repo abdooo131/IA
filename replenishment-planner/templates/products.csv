@@ -1,0 +1,18 @@
+code,name,madeAt,price
+P101,Espresso,BRANCH,55
+P102,Americano,BRANCH,65
+P103,Latte,BRANCH,85
+P104,Cappuccino,BRANCH,80
+P105,Flat white,BRANCH,85
+P106,Vanilla latte,BRANCH,95
+P107,Caramel macchiato,BRANCH,100
+P108,Iced latte,BRANCH,90
+P109,Oat latte,BRANCH,110
+P110,Mocha,BRANCH,100
+P111,Turkish coffee,BRANCH,50
+P112,Hot chocolate,BRANCH,85
+P201,Turkey and cheddar sandwich,CK,175
+P202,Halloumi pesto ciabatta,CK,165
+P203,Egg and cheese brioche,CK,110
+P204,Tiramisu,CK,155
+P205,Chocolate mousse,CK,130
