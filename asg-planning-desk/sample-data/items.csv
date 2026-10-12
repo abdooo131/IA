@@ -1,0 +1,150 @@
+sku,product,model,line,finish,size,source,unit_cost,price
+ASG-MI-02-SN-40MM,Internal Lock MI-02 Room,MI-02,Internal mortise locks,Satin Nickel,40mm,"Factory 1, Locks",172.08,249.52
+ASG-MI-02-SN-45MM,Internal Lock MI-02 Room,MI-02,Internal mortise locks,Satin Nickel,45mm,"Factory 1, Locks",180.03,261.04
+ASG-MI-02-PB-40MM,Internal Lock MI-02 Room,MI-02,Internal mortise locks,Polished Brass,40mm,"Factory 1, Locks",182.54,264.68
+ASG-MI-02-PB-45MM,Internal Lock MI-02 Room,MI-02,Internal mortise locks,Polished Brass,45mm,"Factory 1, Locks",197.09,285.78
+ASG-MI-02-AB-40MM,Internal Lock MI-02 Room,MI-02,Internal mortise locks,Antique Brass,40mm,"Factory 1, Locks",201.57,292.28
+ASG-MI-02-AB-45MM,Internal Lock MI-02 Room,MI-02,Internal mortise locks,Antique Brass,45mm,"Factory 1, Locks",168.22,243.92
+ASG-MI-04-SN-40MM,Internal Lock MI-04 Bathroom,MI-04,Internal mortise locks,Satin Nickel,40mm,"Factory 1, Locks",180.09,261.13
+ASG-MI-04-SN-45MM,Internal Lock MI-04 Bathroom,MI-04,Internal mortise locks,Satin Nickel,45mm,"Factory 1, Locks",198.18,287.36
+ASG-MI-04-PB-40MM,Internal Lock MI-04 Bathroom,MI-04,Internal mortise locks,Polished Brass,40mm,"Factory 1, Locks",177.95,258.03
+ASG-MI-04-PB-45MM,Internal Lock MI-04 Bathroom,MI-04,Internal mortise locks,Polished Brass,45mm,"Factory 1, Locks",192.18,278.66
+ASG-MI-04-AB-40MM,Internal Lock MI-04 Bathroom,MI-04,Internal mortise locks,Antique Brass,40mm,"Factory 1, Locks",187.19,271.43
+ASG-MI-04-AB-45MM,Internal Lock MI-04 Bathroom,MI-04,Internal mortise locks,Antique Brass,45mm,"Factory 1, Locks",197.9,286.95
+ASG-MI-06-SN-25MM,Internal Lock MI-06 Narrow Door,MI-06,Internal mortise locks,Satin Nickel,25mm,"Factory 1, Locks",201.09,291.58
+ASG-MI-06-SN-30MM,Internal Lock MI-06 Narrow Door,MI-06,Internal mortise locks,Satin Nickel,30mm,"Factory 1, Locks",220.8,320.16
+ASG-MI-06-PB-25MM,Internal Lock MI-06 Narrow Door,MI-06,Internal mortise locks,Polished Brass,25mm,"Factory 1, Locks",217.07,314.75
+ASG-MI-06-PB-30MM,Internal Lock MI-06 Narrow Door,MI-06,Internal mortise locks,Polished Brass,30mm,"Factory 1, Locks",202.18,293.16
+ASG-MI-07-SN-40MM,Internal Lock MI-07 French Type,MI-07,Internal mortise locks,Satin Nickel,40mm,"Factory 1, Locks",227.99,330.59
+ASG-MI-07-SN-45MM,Internal Lock MI-07 French Type,MI-07,Internal mortise locks,Satin Nickel,45mm,"Factory 1, Locks",237.55,344.45
+ASG-MI-07-PB-40MM,Internal Lock MI-07 French Type,MI-07,Internal mortise locks,Polished Brass,40mm,"Factory 1, Locks",252.68,366.39
+ASG-MI-07-PB-45MM,Internal Lock MI-07 French Type,MI-07,Internal mortise locks,Polished Brass,45mm,"Factory 1, Locks",237.76,344.75
+ASG-MI-08-SN-50MM,Internal Lock MI-08 European Type,MI-08,Internal mortise locks,Satin Nickel,50mm,"Factory 1, Locks",240.09,348.13
+ASG-MI-08-SN-55MM,Internal Lock MI-08 European Type,MI-08,Internal mortise locks,Satin Nickel,55mm,"Factory 1, Locks",246.88,357.98
+ASG-MI-08-CP-50MM,Internal Lock MI-08 European Type,MI-08,Internal mortise locks,Chrome,50mm,"Factory 1, Locks",257.36,373.17
+ASG-MI-08-CP-55MM,Internal Lock MI-08 European Type,MI-08,Internal mortise locks,Chrome,55mm,"Factory 1, Locks",278.93,404.45
+ASG-MI-08-BK-50MM,Internal Lock MI-08 European Type,MI-08,Internal mortise locks,Matt Black,50mm,"Factory 1, Locks",279.98,405.97
+ASG-MI-08-BK-55MM,Internal Lock MI-08 European Type,MI-08,Internal mortise locks,Matt Black,55mm,"Factory 1, Locks",246.06,356.79
+ASG-MI-14-SN-40MM,Internal Lock MI-14,MI-14,Internal mortise locks,Satin Nickel,40mm,"Factory 1, Locks",209.56,303.86
+ASG-MI-14-SN-45MM,Internal Lock MI-14,MI-14,Internal mortise locks,Satin Nickel,45mm,"Factory 1, Locks",222.92,323.23
+ASG-MI-14-PB-40MM,Internal Lock MI-14,MI-14,Internal mortise locks,Polished Brass,40mm,"Factory 1, Locks",225.17,326.5
+ASG-MI-14-PB-45MM,Internal Lock MI-14,MI-14,Internal mortise locks,Polished Brass,45mm,"Factory 1, Locks",232.32,336.86
+ASG-MI-15-SN-40MM,Internal Lock MI-15,MI-15,Internal mortise locks,Satin Nickel,40mm,"Factory 1, Locks",220.45,319.65
+ASG-MI-15-SN-45MM,Internal Lock MI-15,MI-15,Internal mortise locks,Satin Nickel,45mm,"Factory 1, Locks",,298.02
+ASG-MI-15-AB-40MM,Internal Lock MI-15,MI-15,Internal mortise locks,Antique Brass,40mm,"Factory 1, Locks",204.87,297.06
+ASG-MI-15-AB-45MM,Internal Lock MI-15,MI-15,Internal mortise locks,Antique Brass,45mm,"Factory 1, Locks",218.86,317.35
+ASG-MI-16-SN-50MM,Internal Lock MI-16,MI-16,Internal mortise locks,Satin Nickel,50mm,"Factory 1, Locks",251.02,363.98
+ASG-MI-16-SN-55MM,Internal Lock MI-16,MI-16,Internal mortise locks,Satin Nickel,55mm,"Factory 1, Locks",249.63,361.96
+ASG-MI-16-BK-50MM,Internal Lock MI-16,MI-16,Internal mortise locks,Matt Black,50mm,"Factory 1, Locks",269.13,390.24
+ASG-MI-16-BK-55MM,Internal Lock MI-16,MI-16,Internal mortise locks,Matt Black,55mm,"Factory 1, Locks",257.3,373.08
+ASG-ME-02-SN-85X45,External Lock ME-02 Deadbolt,ME-02,External mortise locks,Satin Nickel,85x45,"Factory 1, Locks",370.67,537.47
+ASG-ME-02-SN-85X50,External Lock ME-02 Deadbolt,ME-02,External mortise locks,Satin Nickel,85x50,"Factory 1, Locks",307.84,446.37
+ASG-ME-02-PB-85X45,External Lock ME-02 Deadbolt,ME-02,External mortise locks,Polished Brass,85x45,"Factory 1, Locks",353.34,512.34
+ASG-ME-02-PB-85X50,External Lock ME-02 Deadbolt,ME-02,External mortise locks,Polished Brass,85x50,"Factory 1, Locks",358.49,519.81
+ASG-ME-04-SN-85X45,External Lock ME-04,ME-04,External mortise locks,Satin Nickel,85x45,"Factory 1, Locks",340.06,493.09
+ASG-ME-04-SN-85X50,External Lock ME-04,ME-04,External mortise locks,Satin Nickel,85x50,"Factory 1, Locks",382.04,553.96
+ASG-ME-04-PB-85X45,External Lock ME-04,ME-04,External mortise locks,Polished Brass,85x45,"Factory 1, Locks",361.27,523.84
+ASG-ME-04-PB-85X50,External Lock ME-04,ME-04,External mortise locks,Polished Brass,85x50,"Factory 1, Locks",344.12,498.97
+ASG-ME-06-SN-85X45,External Lock ME-06 Triple Square Deadbolt,ME-06,External mortise locks,Satin Nickel,85x45,"Factory 1, Locks",415.57,602.58
+ASG-ME-06-SN-85X50,External Lock ME-06 Triple Square Deadbolt,ME-06,External mortise locks,Satin Nickel,85x50,"Factory 1, Locks",408.63,592.51
+ASG-ME-06-PB-85X45,External Lock ME-06 Triple Square Deadbolt,ME-06,External mortise locks,Polished Brass,85x45,"Factory 1, Locks",395.17,573.0
+ASG-ME-06-PB-85X50,External Lock ME-06 Triple Square Deadbolt,ME-06,External mortise locks,Polished Brass,85x50,"Factory 1, Locks",418.28,606.51
+ASG-ME-06-AB-85X45,External Lock ME-06 Triple Square Deadbolt,ME-06,External mortise locks,Antique Brass,85x45,"Factory 1, Locks",433.49,628.56
+ASG-ME-06-AB-85X50,External Lock ME-06 Triple Square Deadbolt,ME-06,External mortise locks,Antique Brass,85x50,"Factory 1, Locks",418.15,606.32
+ASG-ME-09-SN-85X45,External Lock ME-09,ME-09,External mortise locks,Satin Nickel,85x45,"Factory 1, Locks",418.77,607.22
+ASG-ME-09-SN-85X50,External Lock ME-09,ME-09,External mortise locks,Satin Nickel,85x50,"Factory 1, Locks",430.3,623.93
+ASG-ME-12-SN-85X30,External Lock ME-12 Sliding Hook Bolt,ME-12,External mortise locks,Satin Nickel,85x30,"Factory 1, Locks",353.49,512.56
+ASG-ME-12-SN-85X35,External Lock ME-12 Sliding Hook Bolt,ME-12,External mortise locks,Satin Nickel,85x35,"Factory 1, Locks",404.81,586.97
+ASG-ME-19-SN-85X45,External Lock ME-19,ME-19,External mortise locks,Satin Nickel,85x45,"Factory 1, Locks",454.38,658.85
+ASG-ME-19-SN-85X50,External Lock ME-19,ME-19,External mortise locks,Satin Nickel,85x50,"Factory 1, Locks",463.47,672.03
+ASG-ME-19-PB-85X45,External Lock ME-19,ME-19,External mortise locks,Polished Brass,85x45,"Factory 1, Locks",483.46,701.02
+ASG-ME-19-PB-85X50,External Lock ME-19,ME-19,External mortise locks,Polished Brass,85x50,"Factory 1, Locks",431.37,625.49
+ASG-ME-23-SN-85X45,External Lock ME-23,ME-23,External mortise locks,Satin Nickel,85x45,"Factory 1, Locks",462.39,670.47
+ASG-ME-23-SN-85X50,External Lock ME-23,ME-23,External mortise locks,Satin Nickel,85x50,"Factory 1, Locks",466.07,675.8
+ASG-ME-23-BK-85X45,External Lock ME-23,ME-23,External mortise locks,Matt Black,85x45,"Factory 1, Locks",509.27,738.44
+ASG-ME-23-BK-85X50,External Lock ME-23,ME-23,External mortise locks,Matt Black,85x50,"Factory 1, Locks",424.76,615.9
+ASG-RL-01-SN-60MM,Rim Lock RL-01,RL-01,Rim locks,Satin Nickel,60mm,"Factory 1, Locks",328.55,476.4
+ASG-RL-01-SN-80MM,Rim Lock RL-01,RL-01,Rim locks,Satin Nickel,80mm,"Factory 1, Locks",313.5,454.57
+ASG-RL-01-PB-60MM,Rim Lock RL-01,RL-01,Rim locks,Polished Brass,60mm,"Factory 1, Locks",327.62,475.05
+ASG-RL-01-PB-80MM,Rim Lock RL-01,RL-01,Rim locks,Polished Brass,80mm,"Factory 1, Locks",296.17,429.45
+ASG-RL-02-SN-60MM,Rim Lock RL-02 Night Latch,RL-02,Rim locks,Satin Nickel,60mm,"Factory 1, Locks",305.08,442.37
+ASG-AFM-ML-SN-85X45,"AFM Mortise Lock 54mm Deadbolt, Cylinder, 5 Computer Keys",AFM-ML,AFM locks,Satin Nickel,85x45,"Factory 1, Locks",365.41,529.84
+ASG-AFM-ML-SN-85X50,"AFM Mortise Lock 54mm Deadbolt, Cylinder, 5 Computer Keys",AFM-ML,AFM locks,Satin Nickel,85x50,"Factory 1, Locks",367.43,532.77
+ASG-AFM-ML-PB-85X45,"AFM Mortise Lock 54mm Deadbolt, Cylinder, 5 Computer Keys",AFM-ML,AFM locks,Polished Brass,85x45,"Factory 1, Locks",392.49,569.11
+ASG-AFM-ML-PB-85X50,"AFM Mortise Lock 54mm Deadbolt, Cylinder, 5 Computer Keys",AFM-ML,AFM locks,Polished Brass,85x50,"Factory 1, Locks",397.36,576.17
+ASG-AFM-MX-SN-85X45,"AFM External Lock Case, no Cylinder",AFM-MX,AFM locks,Satin Nickel,85x45,"Factory 1, Locks",237.22,343.97
+ASG-AFM-MX-SN-85X50,"AFM External Lock Case, no Cylinder",AFM-MX,AFM locks,Satin Nickel,85x50,"Factory 1, Locks",248.13,359.79
+ASG-CY-01-SN-60MM,Cylinder CY-01 Oval,CY-01,Cylinders,Satin Nickel,60mm,"Factory 2, Cylinders and Padlocks",156.48,226.9
+ASG-CY-01-SN-70MM,Cylinder CY-01 Oval,CY-01,Cylinders,Satin Nickel,70mm,"Factory 2, Cylinders and Padlocks",164.03,237.84
+ASG-CY-01-PB-60MM,Cylinder CY-01 Oval,CY-01,Cylinders,Polished Brass,60mm,"Factory 2, Cylinders and Padlocks",149.62,216.95
+ASG-CY-01-PB-70MM,Cylinder CY-01 Oval,CY-01,Cylinders,Polished Brass,70mm,"Factory 2, Cylinders and Padlocks",147.95,214.53
+ASG-CY-03-SN-60MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Satin Nickel,60mm,"Factory 2, Cylinders and Padlocks",202.38,293.45
+ASG-CY-03-SN-70MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Satin Nickel,70mm,"Factory 2, Cylinders and Padlocks",207.5,300.88
+ASG-CY-03-SN-80MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Satin Nickel,80mm,"Factory 2, Cylinders and Padlocks",210.52,305.25
+ASG-CY-03-SN-90MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Satin Nickel,90mm,"Factory 2, Cylinders and Padlocks",229.81,333.22
+ASG-CY-03-PB-60MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Polished Brass,60mm,"Factory 2, Cylinders and Padlocks",221.72,321.49
+ASG-CY-03-PB-70MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Polished Brass,70mm,"Factory 2, Cylinders and Padlocks",227.28,329.56
+ASG-CY-03-PB-80MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Polished Brass,80mm,"Factory 2, Cylinders and Padlocks",227.61,330.03
+ASG-CY-03-PB-90MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Polished Brass,90mm,"Factory 2, Cylinders and Padlocks",191.42,277.56
+ASG-CY-03-CP-60MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Chrome,60mm,"Factory 2, Cylinders and Padlocks",228.41,331.19
+ASG-CY-03-CP-70MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Chrome,70mm,"Factory 2, Cylinders and Padlocks",224.96,326.19
+ASG-CY-03-CP-80MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Chrome,80mm,"Factory 2, Cylinders and Padlocks",203.24,294.7
+ASG-CY-03-CP-90MM,Euro Cylinder CY-03 Key/Key,CY-03,Cylinders,Chrome,90mm,"Factory 2, Cylinders and Padlocks",194.43,281.92
+ASG-CY-07-SN-60MM,Euro Cylinder CY-07 Key/Knob,CY-07,Cylinders,Satin Nickel,60mm,"Factory 2, Cylinders and Padlocks",228.41,331.19
+ASG-CY-07-SN-70MM,Euro Cylinder CY-07 Key/Knob,CY-07,Cylinders,Satin Nickel,70mm,"Factory 2, Cylinders and Padlocks",235.45,341.4
+ASG-CY-07-SN-80MM,Euro Cylinder CY-07 Key/Knob,CY-07,Cylinders,Satin Nickel,80mm,"Factory 2, Cylinders and Padlocks",229.22,332.37
+ASG-CY-07-PB-60MM,Euro Cylinder CY-07 Key/Knob,CY-07,Cylinders,Polished Brass,60mm,"Factory 2, Cylinders and Padlocks",221.25,320.81
+ASG-CY-07-PB-70MM,Euro Cylinder CY-07 Key/Knob,CY-07,Cylinders,Polished Brass,70mm,"Factory 2, Cylinders and Padlocks",243.76,353.45
+ASG-CY-07-PB-80MM,Euro Cylinder CY-07 Key/Knob,CY-07,Cylinders,Polished Brass,80mm,"Factory 2, Cylinders and Padlocks",241.68,350.44
+ASG-CY-14-SN-40MM,Euro Cylinder CY-14 Half,CY-14,Cylinders,Satin Nickel,40mm,"Factory 2, Cylinders and Padlocks",160.21,232.3
+ASG-CY-14-SN-45MM,Euro Cylinder CY-14 Half,CY-14,Cylinders,Satin Nickel,45mm,"Factory 2, Cylinders and Padlocks",170.63,247.41
+ASG-CY-18-SN-60MM,Euro Cylinder CY-18 High Security 6 Pin,CY-18,Cylinders,Satin Nickel,60mm,"Factory 2, Cylinders and Padlocks",504.15,731.02
+ASG-CY-18-SN-70MM,Euro Cylinder CY-18 High Security 6 Pin,CY-18,Cylinders,Satin Nickel,70mm,"Factory 2, Cylinders and Padlocks",545.05,790.32
+ASG-CY-18-SN-80MM,Euro Cylinder CY-18 High Security 6 Pin,CY-18,Cylinders,Satin Nickel,80mm,"Factory 2, Cylinders and Padlocks",555.49,805.46
+ASG-CY-18-BK-60MM,Euro Cylinder CY-18 High Security 6 Pin,CY-18,Cylinders,Matt Black,60mm,"Factory 2, Cylinders and Padlocks",493.19,715.13
+ASG-CY-18-BK-70MM,Euro Cylinder CY-18 High Security 6 Pin,CY-18,Cylinders,Matt Black,70mm,"Factory 2, Cylinders and Padlocks",514.37,745.84
+ASG-CY-18-BK-80MM,Euro Cylinder CY-18 High Security 6 Pin,CY-18,Cylinders,Matt Black,80mm,"Factory 2, Cylinders and Padlocks",524.9,761.1
+ASG-CY-24-SN-60MM,Euro Cylinder CY-24 Anti Drill,CY-24,Cylinders,Satin Nickel,60mm,"Factory 2, Cylinders and Padlocks",670.21,971.8
+ASG-CY-24-SN-70MM,Euro Cylinder CY-24 Anti Drill,CY-24,Cylinders,Satin Nickel,70mm,"Factory 2, Cylinders and Padlocks",690.38,1001.05
+ASG-CY-24-SN-80MM,Euro Cylinder CY-24 Anti Drill,CY-24,Cylinders,Satin Nickel,80mm,"Factory 2, Cylinders and Padlocks",657.46,953.32
+ASG-CY-28-SN-60MM,Euro Cylinder CY-28 Computer Key,CY-28,Cylinders,Satin Nickel,60mm,"Factory 2, Cylinders and Padlocks",298.48,432.8
+ASG-CY-28-SN-70MM,Euro Cylinder CY-28 Computer Key,CY-28,Cylinders,Satin Nickel,70mm,"Factory 2, Cylinders and Padlocks",331.93,481.3
+ASG-CY-28-PB-60MM,Euro Cylinder CY-28 Computer Key,CY-28,Cylinders,Polished Brass,60mm,"Factory 2, Cylinders and Padlocks",355.02,514.78
+ASG-CY-28-PB-70MM,Euro Cylinder CY-28 Computer Key,CY-28,Cylinders,Polished Brass,70mm,"Factory 2, Cylinders and Padlocks",306.86,444.95
+ASG-PL-B-BR-30MM,Brass Padlock,PL-B,Padlocks,Brass,30mm,"Factory 2, Cylinders and Padlocks",101.37,146.99
+ASG-PL-B-BR-40MM,Brass Padlock,PL-B,Padlocks,Brass,40mm,"Factory 2, Cylinders and Padlocks",100.93,146.35
+ASG-PL-B-BR-50MM,Brass Padlock,PL-B,Padlocks,Brass,50mm,"Factory 2, Cylinders and Padlocks",101.36,146.97
+ASG-PL-B-BR-60MM,Brass Padlock,PL-B,Padlocks,Brass,60mm,"Factory 2, Cylinders and Padlocks",102.46,148.57
+ASG-PL-S-ST-40MM,Steel Padlock Long Shackle,PL-S,Padlocks,Hardened Steel,40mm,"Factory 2, Cylinders and Padlocks",117.81,170.82
+ASG-PL-S-ST-50MM,Steel Padlock Long Shackle,PL-S,Padlocks,Hardened Steel,50mm,"Factory 2, Cylinders and Padlocks",138.73,201.16
+ASG-PL-S-ST-60MM,Steel Padlock Long Shackle,PL-S,Padlocks,Hardened Steel,60mm,"Factory 2, Cylinders and Padlocks",134.7,195.31
+ASG-PL-D-SS-70MM,Disc Padlock,PL-D,Padlocks,Stainless,70mm,"Factory 2, Cylinders and Padlocks",220.43,319.62
+ASG-AFM-H-SN-STD,AFM Lever Handle on Rose,AFM-H,AFM handles,Satin Nickel,STD,"Factory 3, Hardware",191.77,278.07
+ASG-AFM-H-PB-STD,AFM Lever Handle on Rose,AFM-H,AFM handles,Polished Brass,STD,"Factory 3, Hardware",200.15,290.22
+ASG-AFM-H-BK-STD,AFM Lever Handle on Rose,AFM-H,AFM handles,Matt Black,STD,"Factory 3, Hardware",229.98,333.47
+ASG-AFM-HP-SN-STD,AFM Lever Handle on Plate,AFM-HP,AFM handles,Satin Nickel,STD,"Factory 3, Hardware",248.82,360.79
+ASG-AFM-HP-PB-STD,AFM Lever Handle on Plate,AFM-HP,AFM handles,Polished Brass,STD,"Factory 3, Hardware",219.72,318.59
+ASG-HG-BB-SN-4IN,Ball Bearing Hinge,HG-BB,Hinges,Satin Nickel,4in,"Factory 3, Hardware",46.12,66.87
+ASG-HG-BB-SN-5IN,Ball Bearing Hinge,HG-BB,Hinges,Satin Nickel,5in,"Factory 3, Hardware",45.78,66.38
+ASG-HG-BB-PB-4IN,Ball Bearing Hinge,HG-BB,Hinges,Polished Brass,4in,"Factory 3, Hardware",45.99,66.69
+ASG-HG-BB-PB-5IN,Ball Bearing Hinge,HG-BB,Hinges,Polished Brass,5in,"Factory 3, Hardware",44.34,64.29
+ASG-HG-BB-SS-4IN,Ball Bearing Hinge,HG-BB,Hinges,Stainless,4in,"Factory 3, Hardware",52.19,75.68
+ASG-HG-BB-SS-5IN,Ball Bearing Hinge,HG-BB,Hinges,Stainless,5in,"Factory 3, Hardware",52.49,76.11
+ASG-HG-FL-SN-100MM,Flag Hinge,HG-FL,Hinges,Satin Nickel,100mm,"Factory 3, Hardware",39.21,56.85
+ASG-HG-FL-SN-120MM,Flag Hinge,HG-FL,Hinges,Satin Nickel,120mm,"Factory 3, Hardware",36.17,52.45
+ASG-SC-H01-SN-STD,Sicuro Lever Handle H01,SC-H01,Sicuro handles,Satin Nickel,STD,"Sicuro import, Italy",641.12,929.62
+ASG-SC-H01-CP-STD,Sicuro Lever Handle H01,SC-H01,Sicuro handles,Chrome,STD,"Sicuro import, Italy",690.91,1001.82
+ASG-SC-H01-BK-STD,Sicuro Lever Handle H01,SC-H01,Sicuro handles,Matt Black,STD,"Sicuro import, Italy",638.94,926.46
+ASG-SC-H02-SN-STD,Sicuro Lever Handle H02,SC-H02,Sicuro handles,Satin Nickel,STD,"Sicuro import, Italy",755.66,1095.71
+ASG-SC-H02-AB-STD,Sicuro Lever Handle H02,SC-H02,Sicuro handles,Antique Brass,STD,"Sicuro import, Italy",819.11,1187.71
+ASG-SC-H03-CP-STD,Sicuro Lever Handle H03 Modern,SC-H03,Sicuro handles,Chrome,STD,"Sicuro import, Italy",959.2,1390.84
+ASG-SC-H03-BK-STD,Sicuro Lever Handle H03 Modern,SC-H03,Sicuro handles,Matt Black,STD,"Sicuro import, Italy",900.29,1305.42
+ASG-SC-PH-SS-300MM,Sicuro Pull Handle,SC-PH,Sicuro handles,Stainless,300mm,"Sicuro import, Italy",1133.45,1643.5
+ASG-SC-PH-SS-450MM,Sicuro Pull Handle,SC-PH,Sicuro handles,Stainless,450mm,"Sicuro import, Italy",1226.98,1779.12
+ASG-SC-PH-SS-600MM,Sicuro Pull Handle,SC-PH,Sicuro handles,Stainless,600mm,"Sicuro import, Italy",1096.12,1589.37
+ASG-SC-PH-BK-300MM,Sicuro Pull Handle,SC-PH,Sicuro handles,Matt Black,300mm,"Sicuro import, Italy",1254.92,1819.63
+ASG-SC-PH-BK-450MM,Sicuro Pull Handle,SC-PH,Sicuro handles,Matt Black,450mm,"Sicuro import, Italy",1245.09,1805.38
+ASG-SC-PH-BK-600MM,Sicuro Pull Handle,SC-PH,Sicuro handles,Matt Black,600mm,"Sicuro import, Italy",1046.38,1517.25
+ASG-DG-01-BK-STD,Smart Lock DG-01 Fingerprint and Code,DG-01,Digital locks,Matt Black,STD,Smart lock OEM,5350.27,7757.89
+ASG-DG-02-BK-STD,Smart Lock DG-02 Card and App,DG-02,Digital locks,Matt Black,STD,Smart lock OEM,6848.42,9930.21
+ASG-DG-02-SN-STD,Smart Lock DG-02 Card and App,DG-02,Digital locks,Satin Nickel,STD,Smart lock OEM,7753.77,11242.97

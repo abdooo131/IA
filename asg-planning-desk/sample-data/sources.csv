@@ -1,0 +1,6 @@
+source,type,lead_time_days,carton,min_batch,weekly_capacity,confirmed
+"Factory 1, Locks",factory,14,50,2000,111000,no
+"Factory 2, Cylinders and Padlocks",factory,10,100,3000,63000,no
+"Factory 3, Hardware",factory,12,100,3000,47000,no
+"Sicuro import, Italy",import,75,20,500,,no
+Smart lock OEM,import,60,10,200,,no

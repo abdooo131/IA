@@ -45,7 +45,7 @@ header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:spac
 h1{font:700 34px/1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
 h2{font:600 21px/1.15 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
 .sub{color:var(--muted);font-size:13px;max-width:70ch}
-.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:999px;padding:3px 10px}
+.badge{border:0;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:999px;padding:3px 10px}
 
 .filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:var(--bg);margin-top:16px;padding-block:10px;border-bottom:1px solid var(--line);
   display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
@@ -147,6 +147,24 @@ input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
 .plancard{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--accent-soft);border-radius:6px;padding:10px 12px}
 .plancard label{font-size:12.5px;color:var(--ink);font-weight:600}
 .empty{color:var(--muted);font-size:13px;padding:12px 4px}
+.badge.mine{color:var(--good);background:var(--good-bg)}
+.slots{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr))}
+.slot{border:1px solid var(--line);border-radius:var(--r);padding:14px;display:flex;flex-direction:column;gap:8px;background:var(--panel);min-width:0}
+.slot.ok{border-color:var(--good)}
+.slot.bad{border-color:var(--bad)}
+.slot h3{font:600 18px/1.1 var(--display);margin:0;display:flex;gap:8px;align-items:center;justify-content:space-between}
+.cols{font:12px/1.5 var(--mono);color:var(--muted);overflow-wrap:anywhere}
+.cols b{color:var(--ink);font-weight:500}
+.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1.5px dashed var(--line);border-radius:6px;padding:14px;text-align:center;cursor:pointer;color:var(--muted);font-size:13px;background:var(--sunk)}
+.drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
+.drop strong{color:var(--accent);font-weight:600}
+.drop input{position:absolute;width:1px;height:1px;opacity:0}
+.drop:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+.fstat{font-size:12.5px}
+.fstat.ok{color:var(--good)} .fstat.bad{color:var(--bad)}
+.problems{margin:0;padding-left:18px;color:var(--bad);font-size:13px}
+.problems li.warn{color:var(--warn)}
+.steps{margin:0;padding-left:20px;font-size:13.5px;display:grid;gap:4px;max-width:80ch}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:720px){.filters{position:static}}
 @media (max-width:560px){h1{font-size:28px}.tiles{grid-template-columns:1fr 1fr}.tile .v{font-size:24px}.scope{margin-left:0;width:100%}.barrow{grid-template-columns:110px 1fr auto}}
@@ -160,7 +178,7 @@ input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
       <h1>ASG Planning Desk</h1>
       <div class="sub">Demand forecast and production plan for Ahram, AFM and Sicuro lines. Data as of <span id="asof"></span>. Demand is dealer orders after stockout adjustment; cancelled orders never count.</div>
     </div>
-    <span class="badge" title="Volumes, stock, costs and lead times are generated for the demo">Synthetic demo data, not real ASG sales</span>
+    <button class="badge" id="srcBadge" type="button" title="Where these numbers come from">Synthetic demo data, not real ASG sales</button>
   </header>
 
   <div class="filters" role="search">
@@ -180,8 +198,9 @@ input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
 <div id="drawerRoot"></div>
 
 <script id="data" type="application/json">__DATA__</script>
+<script>/*__ENGINE__*/</script>
 <script>
-const D = JSON.parse(document.getElementById('data').textContent);
+let D, byId, INFO;
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -190,22 +209,20 @@ const big = x => { if (x == null) return '–'; const a = Math.abs(x);
   return a >= 1e6 ? nf(x / 1e6, a >= 1e7 ? 1 : 2) + 'M' : a >= 1e4 ? nf(x / 1e3, 0) + 'k' : nf(x); };
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dlabel = (iso, yr = true) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MON[m-1]}${yr ? ' ' + String(y).slice(2) : ''}`; };
-const byId = Object.fromEntries(D.skus.map(s => [s.id, s]));
-$('#asof').textContent = dlabel(D.asof);
 
 /* ---------- per viewer plan edits, kept in this browser only ---------- */
-const KEY = 'asg-plan-v1';
+const KEY = 'asg-plan-v2';
 let edits = {};
 try { edits = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { edits = {}; }
 const saveEdits = () => { try { localStorage.setItem(KEY, JSON.stringify(edits)); } catch (e) {} };
-const planQty = s => edits[s.id]?.q ?? s.q;
-const approved = s => !!edits[s.id]?.ok;
+const planQty = s => edits[s.sku]?.q ?? s.q;
+const approved = s => !!edits[s.sku]?.ok;
+const setEdit = (s, patch) => { const e = {...edits[s.sku], ...patch}; if (e.q === s.q) delete e.q; edits[s.sku] = e; saveEdits(); };
 
 /* ---------- filters ---------- */
 const F = {line:'', src:'', fin:'', q:''};
 function fillSelect(id, label, vals){ $(id).innerHTML = `<option value="">All ${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join(''); }
 const uniq = k => [...new Set(D.skus.map(s => s[k]))].sort();
-fillSelect('#fLine', 'lines', uniq('line')); fillSelect('#fSrc', 'sources', Object.keys(D.sources)); fillSelect('#fFin', 'finishes', uniq('c'));
 function filtered(){
   const q = F.q.trim().toLowerCase();
   return D.skus.filter(s => (!F.line || s.line === F.line) && (!F.src || s.src === F.src) && (!F.fin || s.c === F.fin) &&
@@ -317,7 +334,7 @@ views.overview = list => {
   const stuck = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
   const chg = last8 ? (next8 / last8 - 1) * 100 : 0;
   const tiles = [
-    ['products', big(next8), `units forecast, next 8 weeks (${chg >= 0 ? '+' : ''}${nf(chg)}% on last 8)`, 'See every SKU', ''],
+    ['products', big(next8), `units forecast, next 8 weeks (${Math.round(chg) > 0 ? '+' : ''}${nf(Math.round(chg) || 0)}% on last 8)`, 'See every SKU', ''],
     ['plan', plan.length, `SKUs to make or buy now, ${big(sum(plan, planQty))} units`, 'Open production plan', plan.length ? 'warn' : ''],
     ['plan', 'EGP ' + big(planVal), 'value of this week\'s plan at cost', 'Review and approve', ''],
     ['health', low.length, 'SKUs running out within 14 days', 'See what runs out', low.length ? 'alert' : ''],
@@ -398,9 +415,9 @@ views.plan = list => {
           {h: 'Confidence', k: 'conf', f: r => confPill(r.conf)}], g, {sort: 'dl', dir: 1})}</section>`; }).join('') || '<section class="panel empty">Nothing to make or buy in the current filter.</section>'}`,
     after(root){
       $$('input.qty', root).forEach(i => i.addEventListener('change', () => { const s = byId[i.dataset.id], v = Math.max(0, Math.round(+i.value || 0));
-        edits[s.id] = {...edits[s.id], q: v}; if (v === s.q) delete edits[s.id].q; saveEdits(); toast(`${s.sku} set to ${nf(v)}`); render(); }));
-      $$('input.appr', root).forEach(c => c.addEventListener('change', () => { edits[c.dataset.id] = {...edits[c.dataset.id], ok: c.checked}; saveEdits(); render(); }));
-      $('#approveAll', root).addEventListener('click', () => { list.filter(s => planQty(s) > 0).forEach(s => edits[s.id] = {...edits[s.id], ok: true}); saveEdits(); toast('Plan approved'); render(); });
+        setEdit(s, {q: v}); toast(`${s.sku} set to ${nf(v)}`); render(); }));
+      $$('input.appr', root).forEach(c => c.addEventListener('change', () => { setEdit(byId[c.dataset.id], {ok: c.checked}); render(); }));
+      $('#approveAll', root).addEventListener('click', () => { list.filter(s => planQty(s) > 0).forEach(s => setEdit(s, {ok: true})); toast('Plan approved'); render(); });
       $('#resetPlan', root).addEventListener('click', () => { edits = {}; saveEdits(); toast('Edits undone'); render(); });
       $('#copyCsv', root).addEventListener('click', () => {
         const rows = [['source', 'sku', 'product', 'finish', 'size', 'qty', 'unit_cost_egp', 'value_egp', 'approved']].concat(
@@ -449,6 +466,139 @@ views.issues = list => {
       {h: 'Kind', k: 'kind', f: r => r.kind === 'process' ? 'Process' : 'Data'}, {h: 'SKU or source', k: 'sku', cls: 'sku'}, {h: 'Detail', k: 'detail'}], rows, {sort: 'sev', dir: 1})}</section>`};
 };
 
+/* ---------- data: demo or uploaded files ---------- */
+const DEMO = JSON.parse(document.getElementById('data').textContent);
+const unpack = t => t.rows.map(r => Object.fromEntries(t.cols.map((c, i) => [c, r[i]])));
+const SLOTS = [
+  {k: 'items', name: 'Item list', req: true, cols: ['sku', 'product', 'line', 'source'], opt: ['finish', 'size', 'unit_cost', 'price', 'model'],
+   help: 'One row per SKU. The source column names the factory or supplier that makes it.',
+   ex: 'sku,product,line,source,finish,size,unit_cost,price,model\nASG-MI-02-SN-40MM,Internal Lock MI-02 Room,Internal mortise locks,"Factory 1, Locks",Satin Nickel,40mm,185,268,MI-02'},
+  {k: 'sales', name: 'Sales history', req: true, cols: ['date', 'sku', 'qty'], opt: ['status', 'reason', 'value'],
+   help: 'Order lines, invoices or weekly totals. Rows with status cancelled count as cancellations, not demand. Two years of history gives seasonality.',
+   ex: 'date,sku,qty,status,reason,value\n2026-09-28,ASG-MI-02-SN-40MM,1200,shipped,,\n2026-09-29,ASG-MI-02-SN-40MM,300,cancelled,Dealer credit hold,80400'},
+  {k: 'stock', name: 'Stock on hand', req: true, cols: ['sku', 'on_hand'], opt: ['committed', 'incoming'],
+   help: 'Today\'s stock per SKU. Committed is confirmed but not shipped; incoming is production or purchase orders not yet received.',
+   ex: 'sku,on_hand,committed,incoming\nASG-MI-02-SN-40MM,18686,1912,0'},
+  {k: 'sources', name: 'Factories and suppliers', req: false, cols: ['source', 'lead_time_days'], opt: ['type', 'carton', 'min_batch', 'weekly_capacity', 'confirmed'],
+   help: 'One row per factory or supplier. Type is factory or import. Without it the plan uses 21 days and no batch rules.',
+   ex: 'source,type,lead_time_days,carton,min_batch,weekly_capacity,confirmed\n"Factory 1, Locks",factory,14,50,2000,113000,yes'},
+  {k: 'stockouts', name: 'Stockout days', req: false, cols: ['date', 'sku', 'days_out'], opt: [],
+   help: 'Days each SKU was out of stock in a week, so demand lost to stockouts is added back.',
+   ex: 'date,sku,days_out\n2026-09-28,ASG-MI-02-SN-40MM,3'},
+];
+const pending = {};
+let lastProblems = [];
+
+function parseCSV(text){
+  text = text.replace(/^﻿/, '');
+  const nl = text.indexOf('\n'), first = nl >= 0 ? text.slice(0, nl) : text;
+  const delim = [',', ';', '\t'].map(d => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++){ const c = text[i];
+    if (q){ if (c === '"'){ if (text[i + 1] === '"'){ f += '"'; i++; } else q = false; } else f += c; }
+    else if (c === '"') q = true;
+    else if (c === delim){ row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r'){ if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); rows.push(row); row = []; f = ''; }
+    else f += c; }
+  if (f !== '' || row.length){ row.push(f); rows.push(row); }
+  const head = (rows.shift() || []).map(h => h.trim());
+  return rows.filter(r => r.some(x => x.trim() !== '')).map(r => Object.fromEntries(head.map((h, i) => [h, (r[i] ?? '').trim()])));
+}
+let xlsxLib;
+function loadXLSX(){
+  return xlsxLib ||= new Promise((ok, no) => { const sc = document.createElement('script');
+    sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = () => ok(window.XLSX);
+    sc.onerror = () => { xlsxLib = null; no(new Error('Could not load the Excel reader. Check the internet connection, or save the sheet as CSV.')); }; document.head.appendChild(sc); });
+}
+async function readFile(file){
+  if (/\.(xlsx|xlsm|xls)$/i.test(file.name)){
+    const X = await loadXLSX(), wb = X.read(await file.arrayBuffer(), {type: 'array', cellDates: true});
+    return X.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], {defval: '', raw: true});
+  }
+  return parseCSV(await file.text());
+}
+async function takeFile(k, file){
+  pending[k] = {file: file.name, busy: true}; render();
+  try { const rows = await readFile(file); pending[k] = {file: file.name, rows};
+    if (!rows.length) pending[k].err = 'No rows found. Check the file has a header row and data.'; }
+  catch (e) { pending[k] = {file: file.name, err: e.message || 'Could not read this file.'}; }
+  render();
+}
+function useRaw(raw, info){
+  D = ENGINE.build(raw); INFO = info;
+  byId = Object.fromEntries(D.skus.map(s => [s.id, s]));
+  const uniq = k => [...new Set(D.skus.map(s => s[k]))].sort();
+  Object.keys(F).forEach(k => F[k] = ''); $('#fQ').value = '';
+  fillSelect('#fLine', 'lines', uniq('line')); fillSelect('#fSrc', 'sources', Object.keys(D.sources)); fillSelect('#fFin', 'finishes', uniq('c'));
+  $('#asof').textContent = dlabel(D.asof);
+  const b = $('#srcBadge'); b.textContent = info.demo ? 'Synthetic demo data, not real ASG sales' : `Your data: ${info.files.join(', ')}`; b.classList.toggle('mine', !info.demo);
+}
+function useDemo(){
+  const {raw} = ENGINE.fromTables(Object.fromEntries(Object.entries(DEMO).map(([k, t]) => [k, unpack(t)])));
+  useRaw(raw, {demo: true, files: []});
+}
+function buildFromUploads(){
+  const tables = Object.fromEntries(SLOTS.map(sl => [sl.k, pending[sl.k]?.rows || null]));
+  const {raw, problems} = ENGINE.fromTables(tables);
+  lastProblems = problems;
+  if (!raw){ render(); toast('Fix the problems listed, then build again.'); return; }
+  const info = {demo: false, files: SLOTS.filter(sl => pending[sl.k]?.rows).map(sl => pending[sl.k].file), at: new Date().toISOString().slice(0, 10)};
+  try { useRaw(raw, info); }
+  catch (e) { lastProblems = [...problems, 'The forecast could not be built: ' + e.message]; render(); return; }
+  edits = {}; saveEdits();
+  try { localStorage.setItem('asg-data', JSON.stringify({raw, info})); }
+  catch (e) { toast('Built. Too large to remember in this browser, so upload again next time.'); }
+  toast(`Built from your files: ${D.skus.length} SKUs, ${D.weeks.length} weeks shown.`);
+  show('overview');
+}
+function boot(){
+  let saved = null; try { saved = JSON.parse(localStorage.getItem('asg-data') || 'null'); } catch (e) {}
+  if (saved?.raw){ try { useRaw(saved.raw, saved.info); render(); return; } catch (e) { try { localStorage.removeItem('asg-data'); } catch (_) {} } }
+  useDemo(); render();
+}
+$('#srcBadge').addEventListener('click', () => show('data'));
+
+views.data = () => {
+  const ready = SLOTS.filter(sl => sl.req).every(sl => pending[sl.k]?.rows?.length);
+  const colList = sl => `<b>${sl.cols.join(', ')}</b>${sl.opt.length ? `, ${sl.opt.join(', ')}` : ''}`;
+  return {html: `
+    <section class="panel"><div class="panel-head"><div><h2>Where the numbers come from</h2>
+      <div class="note">${INFO.demo ? 'Now showing <b>synthetic demo data</b>. Upload your own files below to replace it.' : `Now showing <b>your data</b> from ${esc(INFO.files.join(', '))}, built ${esc(INFO.at)}.`}</div></div>
+      ${INFO.demo ? '' : '<button class="btn" id="toDemo" type="button">Switch back to demo data</button>'}</div>
+      <div class="kv">${[['Data as of', dlabel(D.asof)], ['SKUs', nf(D.skus.length)], ['Units, last 52 weeks', big(D.annual)], ['Factories and suppliers', Object.keys(D.sources).length], ['Data issues', D.issues.length]]
+        .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></section>
+    <section class="panel"><div class="panel-head"><div><h2>Upload your data</h2><div class="note">CSV or Excel exports from the ERP. Column names are matched loosely, so "Item code" or "Quantity" also work. Files are read in this browser and never sent anywhere.</div></div></div>
+      <ol class="steps"><li>Export the three required files from the ERP, and the optional ones if you have them.</li>
+        <li>Drop each file on its box, or click the box to choose it.</li><li>Press <b>Build forecast</b>. Every tab then shows your numbers.</li></ol>
+      <div class="slots" style="margin-top:14px">${SLOTS.map(sl => { const p = pending[sl.k];
+        const st = !p ? '' : p.busy ? `<div class="fstat">Reading ${esc(p.file)}…</div>` : p.err ? `<div class="fstat bad">${esc(p.file)}: ${esc(p.err)}</div>` : `<div class="fstat ok">✓ ${nf(p.rows.length)} rows from ${esc(p.file)}</div>`;
+        return `<div class="slot ${p?.rows?.length ? 'ok' : p?.err ? 'bad' : ''}" data-slot="${sl.k}">
+          <h3>${sl.name}<span class="pill ${sl.req ? 'p-warn' : 'p-info'}">${sl.req ? 'Required' : 'Optional'}</span></h3>
+          <div class="note">${esc(sl.help)}</div><div class="cols">${colList(sl)}</div>
+          <label class="drop" for="up_${sl.k}"><input id="up_${sl.k}" type="file" accept=".csv,.tsv,.txt,.xlsx,.xls,.xlsm"><strong>Choose file</strong><span>or drop it here</span></label>
+          ${st}<div><button class="btn small" data-tpl="${sl.k}" type="button">Copy example CSV</button></div></div>`; }).join('')}</div>
+      ${lastProblems.length ? `<ul class="problems" style="margin-top:12px">${lastProblems.map(p => `<li class="${p.includes('only') ? 'warn' : ''}">${esc(p)}</li>`).join('')}</ul>` : ''}
+      <div class="toolbar" style="margin-top:14px"><button class="btn primary" id="build" type="button" ${ready ? '' : 'disabled'}>Build forecast from my files</button>
+        <span class="note">${ready ? 'Ready.' : 'Add the item list, sales history and stock on hand to continue.'}</span></div>
+      <p class="note">To try it, use the files in <span style="font-family:var(--mono)">asg-planning-desk/sample-data/</span>, the same demo data in upload format.</p>
+    </section>`,
+    after(root){
+      SLOTS.forEach(sl => { const box = $(`[data-slot="${sl.k}"]`, root), inp = $(`#up_${sl.k}`, root), drop = $('.drop', box);
+        inp.addEventListener('change', () => inp.files[0] && takeFile(sl.k, inp.files[0]));
+        drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
+        drop.addEventListener('dragleave', () => drop.classList.remove('over'));
+        drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) takeFile(sl.k, f); }); });
+      $$('[data-tpl]', root).forEach(b => b.addEventListener('click', () => { const sl = SLOTS.find(x => x.k === b.dataset.tpl);
+        navigator.clipboard.writeText(sl.ex).then(() => toast('Example copied. Paste into Excel or a text file.')).catch(() => toast('Copy was blocked by the browser.')); }));
+      $('#build', root).addEventListener('click', buildFromUploads);
+      $('#toDemo', root)?.addEventListener('click', () => { try { localStorage.removeItem('asg-data'); } catch (e) {} edits = {}; saveEdits(); useDemo(); toast('Showing demo data'); render(); });
+    }};
+};
+// let files dropped anywhere on the Upload tab land in the right box by file name
+document.addEventListener('dragover', e => { if (tab === 'data') e.preventDefault(); });
+document.addEventListener('drop', e => { if (tab !== 'data' || e.target.closest('.drop')) return; e.preventDefault();
+  [...e.dataTransfer.files].forEach(f => { const k = [...SLOTS].sort((x, y) => y.k.length - x.k.length).find(sl => f.name.toLowerCase().includes(sl.k.replace(/s$/, '')))?.k; if (k) takeFile(k, f); else toast(`Not sure which box ${f.name} belongs to. Drop it on its box.`); }); });
+
 /* ---------- SKU drawer ---------- */
 function openSku(id){
   const s = byId[id]; if (!s) return; const src = D.sources[s.src], h = D.H[id], f = D.F[id];
@@ -477,11 +627,11 @@ function openSku(id){
   $('#scrim').addEventListener('click', close); $('#dClose').addEventListener('click', close); $('#dClose').focus();
   $('#dSave').addEventListener('click', () => { let v = Math.max(0, Math.round(+$('#dQty').value || 0));
     if (v && v < src.moq) v = src.moq; if (v) v = Math.ceil(v / src.pack) * src.pack;
-    edits[id] = {...edits[id], q: v}; if (v === s.q) delete edits[id].q; saveEdits(); toast(`${s.sku}: ${nf(v)} in the plan`); close(); render(); });
+    setEdit(s, {q: v}); toast(`${s.sku}: ${nf(v)} in the plan`); close(); render(); });
 }
 
 /* ---------- shell ---------- */
-const TABS = [['overview', 'Overview'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['pricing', 'Pricing'], ['issues', 'Data issues']];
+const TABS = [['overview', 'Overview'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['pricing', 'Pricing'], ['issues', 'Data issues'], ['data', 'Upload data']];
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
 function render(){
   const list = filtered();
@@ -495,7 +645,7 @@ function render(){
 function show(k){ tab = k; try { localStorage.setItem('asg-tab', k); history.replaceState(null, '', '#' + k); } catch (e) {} render(); window.scrollTo({top: 0}); }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.k); });
 try { const t = location.hash.slice(1) || localStorage.getItem('asg-tab'); if (views[t]) tab = t; } catch (e) {}
-render();
+boot();
 </script>
 </body>
 </html>
