@@ -1,0 +1,238 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ASG Planning Desk</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&family=Libre+Franklin:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a planner's desk. Slim header with tabs, one working panel at a time, summary before detail. */
+:root{
+  --bg:#f6f5f7; --panel:#ffffff; --ink:#1f1a22; --muted:#6c6470; --line:#e3dfe6;
+  --accent:#1d4e89; --accent-soft:#e4edf7;
+  --s1:#2a78d6; --s2:#eb6834; --band:#cfe0f6;
+  --good:#1f7a4d; --warn:#a86400; --bad:#b3261e; --good-bg:#e6f3ec; --warn-bg:#fbf0dc; --bad-bg:#fbe6e4;
+  --display:"Bodoni Moda", Georgia, "Times New Roman", serif;
+  --body:"Libre Franklin", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141116; --panel:#1d1920; --ink:#f1edf3; --muted:#a79fab; --line:#332d37;
+  --accent:#8db8ec; --accent-soft:#1a2a3d; --s1:#3987e5; --s2:#d95926; --band:#1f3a5c;
+  --good:#5cc08c; --warn:#e3a640; --bad:#f07a70; --good-bg:#16301f; --warn-bg:#33270f; --bad-bg:#3a1a18; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141116; --panel:#1d1920; --ink:#f1edf3; --muted:#a79fab; --line:#332d37;
+  --accent:#8db8ec; --accent-soft:#1a2a3d; --s1:#3987e5; --s2:#d95926; --band:#1f3a5c;
+  --good:#5cc08c; --warn:#e3a640; --bad:#f07a70; --good-bg:#16301f; --warn-bg:#33270f; --bad-bg:#3a1a18; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:20px 48px}
+header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px}
+h1{font:600 30px/1.1 var(--display);margin:0;letter-spacing:.01em;text-wrap:balance}
+h2{font:600 20px/1.2 var(--display);margin:0 0 10px;text-wrap:balance}
+h3{font:600 12px/1.3 var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
+.note{color:var(--muted);font-size:13px}
+.demo{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:12px;padding:3px 10px;border-radius:999px;letter-spacing:.03em}
+nav{display:flex;flex-wrap:wrap;gap:4px;margin:18px 0 20px;border-bottom:1px solid var(--line)}
+nav button{font:500 14px var(--body);color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;cursor:pointer}
+nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.grid{display:grid;gap:16px}
+.tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.two{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
+.tile .v{font:500 26px/1.1 var(--mono);font-variant-numeric:tabular-nums}
+.tile .l{color:var(--muted);font-size:12.5px;margin-top:4px}
+.tblwrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:600;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);padding:6px 8px;white-space:nowrap}
+td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
+.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
+.p-good{background:var(--good-bg);color:var(--good)} .p-warn{background:var(--warn-bg);color:var(--warn)} .p-bad{background:var(--bad-bg);color:var(--bad)}
+.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px}
+label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
+select,input{font:14px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:100%}
+.chart svg{width:100%;height:auto;display:block}
+.chart text{fill:var(--muted);font:11px var(--body)}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted);margin-top:6px}
+.sw{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
+.reason{font-size:13px;color:var(--ink);background:var(--bg);border-radius:8px;padding:10px 12px;margin-top:10px}
+.bar{height:10px;border-radius:4px;background:var(--accent)}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
+.kv div span{display:block;color:var(--muted);font-size:12px}
+.kv div b{font:500 16px var(--mono)} .kv div{min-width:0} .kv .pill{font-family:var(--body)}
+.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 8px;border-radius:6px;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:5}
+@media (prefers-reduced-motion:reduce){.tip{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>ASG Planning Desk</h1>
+      <div class="note">Data as of <span id="asof"></span>. Ahram Security Group: Ahram, AFM and Sicuro lines. Forecasts are dealer demand after stockout adjustment; cancelled orders never count.</div>
+    </div>
+    <span class="demo">Synthetic demo data, not real ASG sales</span>
+  </header>
+  <nav role="tablist" id="tabs"></nav>
+  <main id="view"></main>
+</div>
+<div class="tip" id="tip"></div>
+
+<script id="data" type="application/json">__DATA__</script>
+<script>
+const D = JSON.parse(document.getElementById('data').textContent);
+const $ = s => document.querySelector(s);
+const fmt = (x, d=0) => x == null ? '' : Number(x).toLocaleString('en', {minimumFractionDigits:d, maximumFractionDigits:d});
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+$('#asof').textContent = D.asof;
+const tip = $('#tip');
+function showTip(e, html){ tip.innerHTML = html; tip.style.opacity = 1;
+  const x = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8); tip.style.left = x + 'px'; tip.style.top = (e.clientY + 12) + 'px'; }
+function hideTip(){ tip.style.opacity = 0; }
+
+function table(cols, rows){
+  return `<div class="tblwrap"><table><thead><tr>${cols.map(c => `<th class="${c.n?'n':''}">${c.h}</th>`).join('')}</tr></thead><tbody>${
+    rows.map(r => `<tr>${cols.map(c => `<td class="${c.n?'n':''}">${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') ||
+    `<tr><td colspan="${cols.length}" class="note">Nothing to show</td></tr>`}</tbody></table></div>`;
+}
+const confPill = c => `<span class="pill ${c==='high'?'p-good':c==='medium'?'p-warn':'p-bad'}">${esc(c)}</span>`;
+
+/* Bars for weekly totals */
+function barChart(labels, vals, unit){
+  const W = 760, H = 220, L = 46, B = 28, T = 10, max = Math.max(...vals) * 1.1 || 1;
+  const bw = (W - L - 8) / vals.length, ticks = 4;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Forecast units per week">`;
+  for (let i = 0; i <= ticks; i++){ const v = max * i / ticks, y = H - B - (H - B - T) * i / ticks;
+    s += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+4}" text-anchor="end">${fmt(v)}</text>`; }
+  vals.forEach((v, i) => { const h = (H - B - T) * v / max, x = L + i * bw + 3;
+    s += `<rect x="${x}" y="${H-B-h}" width="${bw-6}" height="${h}" rx="3" fill="var(--s1)" data-t="${esc(labels[i])}: ${fmt(v)} ${unit}"/>`;
+    if (i % 2 === 0) s += `<text x="${x + (bw-6)/2}" y="${H-10}" text-anchor="middle">${esc(labels[i].slice(0,6))}</text>`; });
+  return s + '</svg>';
+}
+function wireTips(root){ root.querySelectorAll('[data-t]').forEach(el => {
+  el.addEventListener('mousemove', e => showTip(e, esc(el.dataset.t))); el.addEventListener('mouseleave', hideTip); }); }
+
+/* History plus forecast for one SKU */
+function skuChart(id){
+  const h = D.H[id] || {o:[],a:[],s:[]}, f = D.F[id] || {m:[],l:[],h:[]};
+  const n = D.weeks.length, m = f.m.length, N = n + m, W = 760, H = 260, L = 40, B = 28, T = 10;
+  const max = Math.max(1, ...h.a, ...h.o, ...f.h) * 1.1;
+  const x = i => L + (W - L - 10) * i / (N - 1), y = v => H - B - (H - B - T) * v / max;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly demand history and forecast">`;
+  for (let i = 0; i <= 4; i++){ const v = max * i / 4; s += `<line x1="${L}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v, max < 8 ? 1 : 0)}</text>`; }
+  h.s.forEach((d, i) => { if (d > 0) s += `<rect x="${x(i)-3}" y="${T}" width="6" height="${H-B-T}" fill="var(--bad)" opacity="${0.06 + 0.02*d}"/>`; });
+  if (m){ let up = '', dn = '';
+    f.h.forEach((v, i) => up += `${i?'L':'M'}${x(n+i)},${y(v)}`); for (let i = m-1; i >= 0; i--) dn += `L${x(n+i)},${y(f.l[i])}`;
+    s += `<path d="${up}${dn}Z" fill="var(--band)" opacity=".8"/>`; }
+  const line = (arr, off, col, dash) => `<path d="${arr.map((v,i)=>`${i?'L':'M'}${x(off+i)},${y(v||0)}`).join('')}" fill="none" stroke="${col}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':''}/>`;
+  s += line(h.o, 0, 'var(--s2)') + line(h.a, 0, 'var(--s1)') + (m ? line(f.m, n, 'var(--s1)', true) : '');
+  s += `<line x1="${x(n-0.5)}" x2="${x(n-0.5)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="2 3"/><text x="${x(n-0.5)+4}" y="${T+10}">forecast</text>`;
+  [0, Math.floor(n/2), n-1].forEach(i => s += `<text x="${x(i)}" y="${H-10}" text-anchor="middle">${esc(D.weeks[i])}</text>`);
+  if (m) s += `<text x="${x(N-1)}" y="${H-10}" text-anchor="end">16 weeks ahead</text>`;
+  for (let i = 0; i < N; i++){ const lbl = i < n ? `Week of ${D.weeks[i]}: sold ${fmt(h.o[i],1)}, demand ${fmt(h.a[i],1)}${h.s[i]?`, ${h.s[i]} stockout days`:''}`
+      : `Forecast week ${i-n+1}: ${fmt(f.m[i-n],1)} (p10 ${fmt(f.l[i-n],1)}, p90 ${fmt(f.h[i-n],1)})`;
+    s += `<rect x="${x(i)-(W-L)/N/2}" y="${T}" width="${(W-L)/N}" height="${H-B-T}" fill="transparent" data-t="${esc(lbl)}"/>`; }
+  return s + '</svg>';
+}
+
+const views = {
+  overview(){
+    const sk = D.skus, ord = sk.filter(s => s.q > 0);
+    const acc = Object.fromEntries(D.acc.map(a => [a.scope + '|' + a.model, a.wape]));
+    const sup = {}; ord.forEach(s => { const o = sup[s.sup] ||= {n:0,u:0,c:0}; o.n++; o.u += s.q; o.c += s.lt || 0; });
+    const mix = Object.entries(D.mix), mmax = Math.max(...mix.map(e => e[1]));
+    return `<div class="grid tiles">
+      ${[[sk.length,'active SKUs'],[ord.length,'SKUs to reorder now'],[fmt(ord.reduce((a,s)=>a+(s.lt||0),0)),'reorder cost, EGP'],
+         [D.low.length >= 40 ? '40+' : D.low.length,'SKUs running out within 14 days'],[fmt(D.dead.reduce((a,d)=>a+(d.v||0),0)),'dead stock value, EGP']]
+        .map(([v,l]) => `<div class="panel tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}
+    </div>
+    <div class="grid two" style="margin-top:16px">
+      <div class="panel"><h2>Does the forecast beat the old method?</h2>
+        <p class="note">WAPE is the share of units the forecast gets wrong, lower is better. The old method is the trailing 30 day sales rate.</p>
+        ${table([{h:'Test',k:'t'},{h:'Forecast',n:1,f:r=>fmt(r.a,3)},{h:'30 day rate',n:1,f:r=>fmt(r.b,3)},{h:'Result',f:r=>r.a<r.b?'<span class="pill p-good">forecast wins</span>':'<span class="pill p-bad">baseline wins</span>'}],
+          [{t:'All 4 backtest folds',a:acc['catalog all folds|selected'],b:acc['catalog all folds|velocity_30']},
+           {t:'Latest fold only, models picked on older folds',a:acc['latest fold holdout|selected'],b:acc['latest fold holdout|velocity_30']}])}
+      </div>
+      <div class="panel"><h2>Purchase orders by supplier</h2>
+        ${table([{h:'Supplier',k:'s'},{h:'SKUs',n:1,k:'n'},{h:'Units',n:1,f:r=>fmt(r.u)},{h:'Cost EGP',n:1,f:r=>fmt(r.c)}], Object.entries(sup).map(([s,o])=>({s,...o})))}
+        <p class="note">${esc(D.ltnote)}</p>
+      </div>
+    </div>
+    <div class="grid two" style="margin-top:16px">
+      <div class="panel chart"><h2>Forecast units per week</h2>${barChart(D.fweeks, D.ftot, 'units')}<p class="note">${esc(D.peaknote)}</p></div>
+      <div class="panel"><h2>Which model won per SKU</h2>
+        ${mix.map(([k,v]) => `<div style="display:grid;grid-template-columns:120px 1fr 40px;gap:8px;align-items:center;margin:5px 0"><span style="font-family:var(--mono);font-size:12px">${esc(k)}</span><div class="bar" style="width:${100*v/mmax}%"></div><span class="n" style="font-family:var(--mono);text-align:right">${v}</span></div>`).join('')}
+      </div>
+    </div>`;
+  },
+  explorer(){
+    const opts = [...D.skus].sort((a,b) => (a.p+a.c+a.z).localeCompare(b.p+b.c+b.z));
+    return `<div class="panel">
+      <div class="controls"><label for="skuSel">SKU<select id="skuSel">${opts.map(s => `<option value="${esc(s.id)}">${esc(s.p)} ${esc(s.c)} ${esc(s.z)}  (${esc(s.sku)})</option>`).join('')}</select></label></div>
+      <div id="skuBody"></div></div>`;
+  },
+  orders(){
+    const u = k => [...new Set(D.skus.map(s => s[k]))].sort();
+    const sel = (id, lbl, k) => `<label for="${id}">${lbl}<select id="${id}"><option value="">All</option>${u(k).map(v=>`<option>${esc(v)}</option>`).join('')}</select></label>`;
+    return `<div class="panel"><div class="controls">${sel('fSup','Supplier','sup')}${sel('fCol','Finish','c')}${sel('fColl','Product line','col')}</div>
+      <div id="poSum" class="note"></div><div id="poBody"></div>
+      <p class="note">Order quantities are rounded up to full cartons and the supplier minimum.</p></div>`;
+  },
+  health(){
+    return `<div class="grid">
+      <div class="panel"><h2>Running out within 14 days</h2><p class="note">Ranked by revenue at risk per day. Top 40 shown.</p>
+        ${table([{h:'SKU',k:'sku'},{h:'Product',f:r=>`${esc(r.p)} ${esc(r.c)} ${esc(r.z)}`},{h:'Days left',n:1,f:r=>`<span class="pill ${r.d<=3?'p-bad':'p-warn'}">${fmt(r.d)}</span>`},{h:'EGP at risk per day',n:1,f:r=>fmt(r.rr)},{h:'Action',k:'a'}], D.low)}</div>
+      <div class="grid two">
+        <div class="panel"><h2>Dead stock</h2><p class="note">No sales in 90 days. Never reordered.</p>
+          ${table([{h:'SKU',k:'sku'},{h:'On hand',n:1,k:'oh'},{h:'Value EGP',n:1,f:r=>fmt(r.v)},{h:'Days since sale',n:1,k:'ds'}], D.dead)}</div>
+        <div class="panel"><h2>Overstock by product line</h2><p class="note">Stock beyond 120 days of forecast cover.</p>
+          ${table([{h:'Product line',k:'col'},{h:'SKUs',n:1,k:'n'},{h:'Excess units',n:1,f:r=>fmt(r.u)},{h:'Excess value EGP',n:1,f:r=>fmt(r.v)}], D.over)}</div>
+      </div>
+      <div class="grid two">
+        <div class="panel"><h2>Cancelled orders</h2>${table([{h:'Window',k:'Window'},{h:'Orders',n:1,f:r=>fmt(r.Orders)},{h:'Units',n:1,f:r=>fmt(r.Units)},{h:'Value EGP',n:1,f:r=>fmt(r.Value)}], D.ct)}</div>
+        <div class="panel"><h2>Cancel reasons, last 90 days</h2>${table([{h:'Reason',k:'Reason'},{h:'Orders',n:1,f:r=>fmt(r.Orders)},{h:'Value EGP',n:1,f:r=>fmt(r.Value)}], D.cr)}</div>
+      </div></div>`;
+  },
+  pricing(){
+    const cols = (lbl) => [{h:'SKU',k:'sku'},{h:'Product',f:r=>`${esc(r.p)} ${esc(r.c)} ${esc(r.z)}`},{h:lbl,n:1,f:r=>fmt(r.pct)+' %'},{h:'Confidence',f:r=>confPill(r.conf)},{h:'Why',f:r=>`<span style="font-size:12.5px">${esc(r.reason)}</span>`}];
+    return `<div class="grid"><div class="panel"><h2>Markdowns</h2><p class="note">Smallest step on the ladder that clears excess stock in 60 days, within the margin floor. Top 30 by stock value.</p>${table(cols('Markdown'), D.md)}</div>
+      <div class="panel"><h2>Markups</h2><p class="note">Strong sellers that keep running out.</p>${table(cols('Markup'), D.mu)}</div></div>`;
+  },
+  issues(){
+    return `<div class="panel"><h2>Data and process issues</h2><p class="note">Data problem: ERP records are wrong or incomplete. Process problem: stock or orders handled outside the system.</p>
+      ${table([{h:'Issue',k:'type'},{h:'SKU',k:'sku'},{h:'Kind',f:r=>`<span class="pill ${r.problem_kind==='process problem'?'p-warn':'p-bad'}">${esc(r.problem_kind)}</span>`},{h:'Detail',k:'detail'}], D.disc)}</div>`;
+  }
+};
+const tabs = [['overview','Overview'],['explorer','SKU explorer'],['orders','Purchase orders'],['health','Health'],['pricing','Pricing'],['issues','Data issues']];
+$('#tabs').innerHTML = tabs.map(([k,l]) => `<button role="tab" id="t_${k}" data-k="${k}">${l}</button>`).join('');
+
+function renderSku(id){
+  const s = D.skus.find(x => x.id === id);
+  $('#skuBody').innerHTML = `<div class="kv">
+      ${[['Model',s.model],['Demand class',s.cls],['Backtest WAPE',fmt(s.wape,2)],['Confidence',`<span style="display:inline-block">${confPill(s.conf)}</span>`],['On hand',s.oh],['Incoming',s.inc],['Reorder point',s.rop],['Order now',s.q]]
+        .map(([k,v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+    <div class="chart" style="margin-top:12px">${skuChart(id)}</div>
+    <div class="legend"><span><i class="sw" style="background:var(--s1)"></i>Demand after stockout adjustment</span><span><i class="sw" style="background:var(--s2)"></i>Units sold</span>
+      <span><i class="sw" style="background:var(--band);height:10px"></i>p10 to p90 forecast range</span><span><i class="sw" style="background:var(--bad);opacity:.3;height:10px"></i>Weeks with stockout days</span></div>
+    <div class="reason">${esc(s.reason)}${s.flags ? `<br><span class="note">Flags: ${esc(s.flags)}</span>` : ''}</div>`;
+  wireTips($('#skuBody'));
+}
+function renderPO(){
+  const f = {sup:$('#fSup').value, c:$('#fCol').value, col:$('#fColl').value};
+  const rows = D.skus.filter(s => s.q > 0 && (!f.sup || s.sup===f.sup) && (!f.c || s.c===f.c) && (!f.col || s.col===f.col))
+    .sort((a,b) => (a.sup+a.p+a.c+a.z).localeCompare(b.sup+b.p+b.c+b.z));
+  $('#poSum').textContent = `${rows.length} SKUs, ${fmt(rows.reduce((a,r)=>a+r.q,0))} units, ${fmt(rows.reduce((a,r)=>a+(r.lt||0),0))} EGP`;
+  $('#poBody').innerHTML = table([{h:'Supplier',k:'sup'},{h:'SKU',k:'sku'},{h:'Product',f:r=>`${esc(r.p)} ${esc(r.c)} ${esc(r.z)}`},{h:'On hand',n:1,k:'oh'},{h:'Incoming',n:1,k:'inc'},
+    {h:'Reorder point',n:1,k:'rop'},{h:'Order',n:1,f:r=>`<b>${r.q}</b>`},{h:'Line EGP',n:1,f:r=>fmt(r.lt)},{h:'Class',f:r=>r.abc+r.xyz},{h:'Confidence',f:r=>confPill(r.conf)}], rows);
+}
+function show(k){
+  tabs.forEach(([t]) => $('#t_'+t).setAttribute('aria-selected', t===k));
+  $('#view').innerHTML = views[k](); wireTips($('#view'));
+  if (k === 'explorer'){ const sel = $('#skuSel'); const best = [...D.skus].sort((a,b)=>b.f30-a.f30)[0]; sel.value = best.id; renderSku(best.id); sel.onchange = () => renderSku(sel.value); }
+  if (k === 'orders'){ ['#fSup','#fCol','#fColl'].forEach(i => $(i).onchange = renderPO); renderPO(); }
+  try { localStorage.setItem('tab', k); } catch(e) {}
+}
+$('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.k); });
+let start = 'overview'; try { const t = (location.hash||'').slice(1) || localStorage.getItem('tab'); if (views[t]) start = t; } catch(e) {}
+show(start);
+</script>
+
+</body></html>
