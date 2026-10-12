@@ -39,7 +39,8 @@ const ENGINE = (() => {
   const clamp = (x, lo, hi) => Math.max(lo, Math.min(hi, x));
   const ceilTo = (x, step) => step > 0 ? Math.ceil(x / step) * step : Math.ceil(x);
   const iso = d => d.toISOString().slice(0, 10);
-  const ms = s => Date.parse(s + 'T00:00:00Z');
+  const msCache = new Map();
+  const ms = s => { let v = msCache.get(s); if (v === undefined){ v = Date.parse(s + 'T00:00:00Z'); msCache.set(s, v); } return v; };
   const addDays = (s, n) => iso(new Date(ms(s) + n * MS_DAY));
   const daysBetween = (a, b) => Math.round((ms(b) - ms(a)) / MS_DAY);
   const fmt = x => Math.round(x).toLocaleString('en');
@@ -59,13 +60,15 @@ const ENGINE = (() => {
   }
 
   /* ---------- Egyptian trading calendar ---------- */
-  const RAMADAN = [['2023-03-23', '2023-04-20'], ['2024-03-11', '2024-04-08'], ['2025-03-01', '2025-03-29'], ['2026-02-18', '2026-03-18'], ['2027-02-08', '2027-03-08'], ['2028-01-28', '2028-02-25']];
-  const EID = [['2023-04-21', '2023-04-24', 'Eid al Fitr'], ['2023-06-27', '2023-07-01', 'Eid al Adha'], ['2024-04-09', '2024-04-12', 'Eid al Fitr'], ['2024-06-15', '2024-06-19', 'Eid al Adha'],
+  const RAMADAN = [['2019-05-06', '2019-06-03'], ['2020-04-24', '2020-05-23'], ['2021-04-13', '2021-05-12'], ['2022-04-02', '2022-05-01'], ['2023-03-23', '2023-04-20'], ['2024-03-11', '2024-04-08'], ['2025-03-01', '2025-03-29'], ['2026-02-18', '2026-03-18'], ['2027-02-08', '2027-03-08'], ['2028-01-28', '2028-02-25']];
+  const EID = [['2019-06-04', '2019-06-07', 'Eid al Fitr'], ['2019-08-11', '2019-08-15', 'Eid al Adha'], ['2020-05-24', '2020-05-27', 'Eid al Fitr'], ['2020-07-31', '2020-08-04', 'Eid al Adha'],
+    ['2021-05-13', '2021-05-16', 'Eid al Fitr'], ['2021-07-20', '2021-07-24', 'Eid al Adha'], ['2022-05-02', '2022-05-05', 'Eid al Fitr'], ['2022-07-09', '2022-07-13', 'Eid al Adha'],
+    ['2023-04-21', '2023-04-24', 'Eid al Fitr'], ['2023-06-27', '2023-07-01', 'Eid al Adha'], ['2024-04-09', '2024-04-12', 'Eid al Fitr'], ['2024-06-15', '2024-06-19', 'Eid al Adha'],
     ['2025-03-30', '2025-04-02', 'Eid al Fitr'], ['2025-06-05', '2025-06-09', 'Eid al Adha'], ['2026-03-19', '2026-03-22', 'Eid al Fitr'], ['2026-05-26', '2026-05-30', 'Eid al Adha'],
     ['2027-03-09', '2027-03-12', 'Eid al Fitr'], ['2027-05-15', '2027-05-19', 'Eid al Adha'], ['2028-02-26', '2028-02-29', 'Eid al Fitr'], ['2028-05-04', '2028-05-08', 'Eid al Adha']];
   const DAYOFF = [['01-07', 'Coptic Christmas'], ['01-25', 'Revolution Day'], ['04-25', 'Sinai Liberation Day'], ['05-01', 'Labour Day'], ['06-30', 'June 30 Revolution'],
     ['07-23', 'Revolution Day'], ['10-06', 'Armed Forces Day']];
-  const NESSIM = ['2023-04-17', '2024-05-06', '2025-04-21', '2026-04-13', '2027-05-03', '2028-04-17'];
+  const NESSIM = ['2019-04-29', '2020-04-20', '2021-05-03', '2022-04-25', '2023-04-17', '2024-05-06', '2025-04-21', '2026-04-13', '2027-05-03', '2028-04-17'];
   const overlap = (ws, a, b) => Math.max(0, (Math.min(ms(addDays(ws, 6)), ms(b)) - Math.max(ms(ws), ms(a))) / MS_DAY + 1); // days of [a, b] inside the week
   function calendar(ws){
     let m = 1; const why = [];
@@ -185,7 +188,8 @@ const ENGINE = (() => {
     const events = (R.events || []).map((e, k) => ({...e, k, auto: false}));
     const macro = R.macro || [];
     for (let i = 1; i < macro.length; i++){ const a = macro[i - 1].usd_egp, b = macro[i].usd_egp;
-      if (a && b && b / a - 1 > .05) events.push({type: 'price', start: `${macro[i].month}-15`, end: `${macro[i].month}-15`, pct: Math.round((b / a - 1) * 50), line: '', sku: '', k: events.length, auto: true,
+      const near = events.some(e => e.type === 'price' && Math.abs(daysBetween(e.start, `${macro[i].month}-15`)) < 75);
+      if (a && b && b / a - 1 > .05 && !near) events.push({type: 'price', start: `${macro[i].month}-15`, end: `${macro[i].month}-15`, pct: Math.round((b / a - 1) * 50), line: '', sku: '', k: events.length, auto: true,
         name: `Devaluation ${macro[i].month} (${pctTxt(b / a - 1)} USD/EGP), dealers expect a price rise`}); }
     const covers = (e, s) => (!e.line || e.line === s.line) && (!e.sku || e.sku === s.sku);
     const lines = [...new Set(S.map(s => s.line))];
@@ -193,7 +197,7 @@ const ENGINE = (() => {
       if (N < 104) return w;
       const y = Array.from({length: N}, (_, i) => sum(mem.map(s => s.adj[i] / effOf(s, i))) / cal(weeks[i])), acc = Array.from({length: 52}, () => []);
       for (let i = 26; i < N - 26; i++){ const base = mean(y.slice(i - 26, i + 26)); if (base > 0) acc[woy(weeks[i])].push(y[i] / base); }
-      const raw = acc.map(v => v.length ? mean(v) : 1);
+      const raw = acc.map(v => v.length ? median(v) : 1);
       for (let k = 0; k < 52; k++){ const sm = mean([-2, -1, 0, 1, 2].map(o => raw[(k + o + 52) % 52])); w[k] = 1 + .6 * (sm - 1); }
       return w; };
     const shape0 = Object.fromEntries(lines.map(l => [l, shapeOf(S.filter(s => s.line === l), () => 1)]));
@@ -339,6 +343,7 @@ const ENGINE = (() => {
       else if (!s.isNew && sum(s.dealer.slice(-13)) === 0 && sum(s.adj.slice(-13)) === 0) s.fDealer = s.fDealer.map(() => 0);
     }
 
+    const holNames = [...new Set(fweeks.flatMap(ws => calendar(ws).why.filter(([n]) => !/Year end|Ramadan/.test(n)).map(([n]) => n)))].slice(0, 4);
     /* 10 export run rate, confirmed orders */
     const ordersBySku = {};
     for (const o of R.orders || []){ const w = wkOf(o.date) - N; if (w < 0 || w >= HORIZON || !bySku[o.sku]) continue; (ordersBySku[o.sku] ||= []).push({...o, w}); }
@@ -366,7 +371,7 @@ const ENGINE = (() => {
       for (const name of evNames){ const ks = evWhy.filter(x => x[0] === name);
         const delta = sum(ks.map(([, m, k]) => s.fDealer[k] - s.fDealer[k] / m));
         s.notes.push(['Price and promotions', `${name}: ${delta >= 0 ? 'adds' : 'removes'} about ${fmt(Math.abs(delta))} units across ${ks.length} weeks.`]); }
-      const hol = [...new Set(fweeks.flatMap((ws, k) => calendar(ws).why.filter(([n]) => !/Year end|Ramadan/.test(n)).map(([n]) => n)))].slice(0, 4);
+      const hol = holNames;
       if (hol.length) s.notes.push(['Calendar', `Holidays in the forecast: ${hol.join(', ')}. Ramadan and year end stocking are always applied.`]);
     }
 
@@ -402,6 +407,7 @@ const ENGINE = (() => {
       }
       const free = Math.max(oh, 0) - cm, dl = daily ? free / daily : null;
       if ((status === 'ok' || status === 'make') && daily && free > daily * 120) status = 'over';
+      const ovq = status === 'dead' || status === 'longout' ? Math.max(0, free) : status === 'over' ? Math.max(0, Math.round(free - demandOver(s, 120))) : 0;
       if (oh < 0) issues.push({type: 'Negative stock', sku: s.sku, id: s.id, detail: `Stock file shows ${fmt(oh)} on hand. Shipments were booked before the receipt.`, kind: 'process', sev: 'high'});
       if (!s.cost) issues.push({type: 'Unit cost missing', sku: s.sku, id: s.id, detail: 'No unit cost in the item list, so order value is left out.', kind: 'data', sev: 'medium'});
       if (!R.stock[s.sku]) issues.push({type: 'Not in stock file', sku: s.sku, id: s.id, detail: 'No stock row, so on hand is taken as zero.', kind: 'data', sev: 'medium'});
@@ -412,6 +418,7 @@ const ENGINE = (() => {
               cost: s.cost || null, val: s.cost ? Math.round(q * s.cost) : null, sv: Math.round(Math.max(oh, 0) * (s.cost || 0)), dl: dl == null ? null : Math.round(dl),
               abc: s.abc, xyz: s.xyz, cls: s.cls, model: s.model, modelTxt: MODEL_TXT[s.model], ens: s.ens, wape: s.wape,
               conf: s.wape < .2 ? 'high' : s.wape < .4 ? 'medium' : 'low', status, reason, life, launch: s.launch || '', end: s.end || '', replaces: s.replaces || '',
+              dept: s.dept || s.line, ovq,
               lt: src.lt, pack: src.pack || 1, moq: src.moq || 0, svc: Math.round(level * 100), price: s.price || null, notes: s.notes,
               dcov: s.dealerCover ? +s.dealerCover.idx.toFixed(2) : null};
     });
@@ -462,7 +469,15 @@ const ENGINE = (() => {
     const win = (from, label, rowsC) => { const r = rowsC.filter(c => c.date > from); return {w: label, o: r.length, u: sum(r.map(c => c.qty)), v: Math.round(sum(r.map(c => c.value || 0)))}; };
 
     const w = x => x[1] ? x[0] / x[1] : 0, first = Math.max(0, N - SHOW_WEEKS);
+    /* months split from weekly totals by day, all channels shipped, cancelled excluded */
+    const monthsAll = []; for (let m = monthOf(weeks[0]); m <= monthOf(asof); m = addMonths(m, 1)) monthsAll.push(m);
+    const mPos = Object.fromEntries(monthsAll.map((m, i) => [m, i]));
+    const shares = weeks.map(ws => { const o = {}; for (let d = 0; d < 7; d++){ const day = addDays(ws, d); if (day > asof) break; const j = mPos[monthOf(day)]; o[j] = (o[j] || 0) + 1 / 7; } return Object.entries(o); });
+    const monthly = s => { const out = Array(monthsAll.length).fill(0);
+      for (let i = 0; i < N; i++){ const v = s.dealer[i] + s.project[i] + s.export[i]; if (v) for (const [j, f] of shares[i]) out[j] += v * f; }
+      return out.map(Math.round); };
     return {
+      months: monthsAll, M: Object.fromEntries(S.map(s => [s.id, monthly(s)])),
       asof, annual: Math.round(sum(S.map(s => sum(s.dealer.slice(-52)) + sum(s.project.slice(-52)) + sum(s.export.slice(-52))))),
       weeks: weeks.slice(first), fweeks, horizon: HORIZON, sched: SCHED_WEEKS,
       acc: {sel: w(tot.sel), base: w(tot.base), hsel: w(hold.sel), hbase: w(hold.base), msel: w(tot.msel), mbase: w(tot.mbase),
@@ -489,6 +504,7 @@ const ENGINE = (() => {
   const ALIAS = {
     sku: ['sku', 'item', 'item code', 'code', 'product code', 'variant sku'],
     p: ['product', 'name', 'description', 'item name', 'product name', 'title'],
+    dept: ['department', 'dept', 'division', 'business unit'],
     line: ['line', 'product line', 'category', 'family', 'group', 'collection'],
     c: ['finish', 'color', 'colour', 'variant'], z: ['size', 'dimension'],
     src: ['source', 'factory', 'supplier', 'made at', 'plant', 'vendor'],
@@ -543,7 +559,7 @@ const ENGINE = (() => {
       return m;
     };
     const opt = (name, rows, cols, req) => rows?.length ? need(name, rows, cols, req) : null;
-    const mi = need('Items', t.items, ['sku', 'p', 'line', 'c', 'z', 'src', 'cost', 'price', 'code', 'launch', 'end', 'replaces'], ['sku', 'p', 'line', 'src']);
+    const mi = need('Items', t.items, ['sku', 'p', 'dept', 'line', 'c', 'z', 'src', 'cost', 'price', 'code', 'launch', 'end', 'replaces'], ['sku', 'p', 'line', 'src']);
     const ms_ = need('Sales', t.sales, ['sku', 'date', 'qty', 'status', 'reason', 'value', 'channel'], ['sku', 'date', 'qty']);
     const mk = need('Stock', t.stock, ['sku', 'oh', 'cm', 'inc'], ['sku', 'oh']);
     const mo = opt('Sources', t.sources, ['src', 'kind', 'lt', 'pack', 'moq', 'cap', 'confirmed'], ['src', 'lt']);
@@ -560,7 +576,7 @@ const ENGINE = (() => {
     for (const r of t.items){ const sku = str(r[mi.sku]); if (!sku) continue;
       if (seen.has(sku)){ issues.push({type: 'Duplicate SKU', sku, id: null, detail: 'Appears more than once in the item list. The first row is used.', kind: 'data', sev: 'high'}); continue; }
       seen.add(sku);
-      items.push({sku, p: str(r[mi.p]) || sku, line: str(r[mi.line]) || 'Other', c: mi.c ? str(r[mi.c]) : '', z: mi.z ? str(r[mi.z]) : '', src: str(r[mi.src]) || 'Unknown',
+      items.push({sku, p: str(r[mi.p]) || sku, dept: mi.dept ? str(r[mi.dept]) : '', line: str(r[mi.line]) || 'Other', c: mi.c ? str(r[mi.c]) : '', z: mi.z ? str(r[mi.z]) : '', src: str(r[mi.src]) || 'Unknown',
                   cost: mi.cost ? num(r[mi.cost]) : null, price: mi.price ? num(r[mi.price]) : null, code: mi.code ? str(r[mi.code]) : '',
                   launch: mi.launch ? toISODate(r[mi.launch]) : null, end: mi.end ? toISODate(r[mi.end]) : null, replaces: mi.replaces ? str(r[mi.replaces]) : ''}); }
     const dated = [], cancels = [], unknown = new Map(); let badDate = 0;

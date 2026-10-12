@@ -17,7 +17,11 @@ No server, packages or Docker needed. Everything runs in the browser.
 * **Forecast by month or week.** The Month / Week switch at the top changes every chart and table. Months split into
   weeks (click a month in the Forecast tab or in a SKU's drawer); weeks are cut at month ends so they add up.
   The forecast runs 26 weeks ahead.
-* **Tabs:** Overview, Forecast (lines and SKUs by period and channel), Products, Production plan (capacity schedule,
+* **Merchandise view:** a table with each SKU on the left, its monthly sales side by side, then total sales, stock,
+  forecast (next 1, 3 or 6 months) and the order quantity or overstock quantity. Above it, sales per department per
+  month with share, change on the year before and a trend line. Choose the last 12 or 24 months or any year, in units
+  or EGP; click a department to show only its SKUs; sort by any column; copy as CSV.
+* **Tabs:** Overview, Forecast (lines and SKUs by period and channel), Merchandise, Products, Production plan (capacity schedule,
   late orders, raw materials), Stock health, Drivers (everything that moves the forecast), Pricing, Data issues,
   Upload data.
 * Filters by product line, factory, finish and search apply to every tab. Every SKU opens a drawer that explains its
@@ -47,7 +51,7 @@ Open the **Upload data** tab and add CSV or Excel exports. Column names are matc
 
 | File | Required | Columns (bold are required) | Switches on |
 |---|---|---|---|
-| Item list | yes | **sku, product, line, source**, finish, size, unit_cost, price, model, launch_date, end_date, replaces | launches and phase outs |
+| Item list | yes | **sku, product, line, source**, department, finish, size, unit_cost, price, model, launch_date, end_date, replaces | launches and phase outs |
 | Sales history | yes | **date, sku, qty**, status (shipped, cancelled, lost), channel (dealer, project, export), reason, value | channels, lost orders, cancellations |
 | Stock on hand | yes | **sku, on_hand**, committed, incoming | the plan |
 | Factories and suppliers | no | **source, lead_time_days**, type, carton, min_batch, weekly_capacity, confirmed | lead times, batches, schedule |
@@ -70,7 +74,9 @@ Open the **Upload data** tab and add CSV or Excel exports. Column names are matc
 
 * `engine.js` is the forecasting and planning engine.
 * `template.html` is the page.
-* `generate.py` creates the synthetic demo data (153 SKUs, about 9.5 million units a year, every factor above built in,
+* `generate.py` creates the synthetic demo data: seven years of weekly history (October 2019 to September 2026, including
+  the 2020 lockdown dip and the 2022 to 2024 devaluations and price rises), 153 SKUs in four departments, about 10 million
+  units a year, every factor above built in,
   and every product line, factory and finish in every state so any filter shows a full page), writes `sample-data/`,
   and builds `index.html` from `template.html`, `engine.js` and the demo data. Run `python3 generate.py` after
   changing the template or engine.

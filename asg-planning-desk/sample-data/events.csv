@@ -1,4 +1,12 @@
 type,start,end,pct,line,sku,name
+price,2020-01-05,2020-01-05,5,,,Price list January 2020
+price,2021-01-03,2021-01-03,5,,,Price list January 2021
+price,2022-01-02,2022-01-02,7,,,Price list January 2022
+price,2022-04-03,2022-04-03,10,,,Price rise after March 2022 devaluation
+price,2022-11-06,2022-11-06,12,,,Price rise after October 2022 devaluation
+price,2023-01-29,2023-01-29,20,,,Price list 2023 after January devaluation
+price,2024-01-07,2024-01-07,12,,,Price list January 2024
+price,2024-04-07,2024-04-07,25,,,Price rise after March 2024 devaluation
 price,2025-01-05,2025-01-05,10,,,Price list January 2025
 price,2026-01-04,2026-01-04,12,,,Price list January 2026
 price,2027-01-03,2027-01-03,10,,,Price list January 2027 (announced)
@@ -16,3 +24,53 @@ promo,2026-11-01,2026-11-14,10,Padlocks,,Padlock autumn offer (planned)
 promo,2026-11-15,2026-11-28,12,Sicuro handles,,Sicuro autumn offer (planned)
 promo,2026-10-18,2026-10-31,8,Rim locks,,Rim lock offer (planned)
 promo,2026-12-06,2026-12-19,10,Digital locks,,Smart lock offer (planned)
+promo,2020-09-20,2020-10-03,8,Cylinders,,Cylinders offer 2020
+promo,2020-10-18,2020-10-31,10,Internal mortise locks,,Internal mortise locks offer 2020
+promo,2020-11-15,2020-11-28,8,Padlocks,,Padlocks offer 2020
+promo,2020-11-01,2020-11-14,10,Hinges,,Hinges offer 2020
+promo,2020-10-18,2020-10-31,8,AFM locks,,AFM locks offer 2020
+promo,2020-09-20,2020-10-03,10,AFM handles,,AFM handles offer 2020
+promo,2020-11-15,2020-11-28,10,Sicuro handles,,Sicuro handles offer 2020
+promo,2020-10-18,2020-10-31,8,External mortise locks,,External mortise locks offer 2020
+promo,2020-09-20,2020-10-03,8,Digital locks,,Digital locks offer 2020
+promo,2020-11-08,2020-11-21,8,Rim locks,,Rim locks offer 2020
+promo,2021-10-03,2021-10-16,8,Cylinders,,Cylinders offer 2021
+promo,2021-11-21,2021-12-04,8,Internal mortise locks,,Internal mortise locks offer 2021
+promo,2021-06-06,2021-06-19,10,Padlocks,,Padlocks offer 2021
+promo,2021-07-18,2021-07-31,10,Hinges,,Hinges offer 2021
+promo,2021-10-10,2021-10-23,10,AFM locks,,AFM locks offer 2021
+promo,2021-10-17,2021-10-30,10,AFM handles,,AFM handles offer 2021
+promo,2021-05-09,2021-05-22,8,Sicuro handles,,Sicuro handles offer 2021
+promo,2021-02-07,2021-02-20,10,External mortise locks,,External mortise locks offer 2021
+promo,2021-05-09,2021-05-22,10,Digital locks,,Digital locks offer 2021
+promo,2021-11-21,2021-12-04,10,Rim locks,,Rim locks offer 2021
+promo,2022-07-17,2022-07-30,10,Cylinders,,Cylinders offer 2022
+promo,2022-09-11,2022-09-24,10,Internal mortise locks,,Internal mortise locks offer 2022
+promo,2022-09-04,2022-09-17,10,Padlocks,,Padlocks offer 2022
+promo,2022-10-02,2022-10-15,10,Hinges,,Hinges offer 2022
+promo,2022-09-18,2022-10-01,8,AFM locks,,AFM locks offer 2022
+promo,2022-10-09,2022-10-22,8,AFM handles,,AFM handles offer 2022
+promo,2022-10-16,2022-10-29,8,Sicuro handles,,Sicuro handles offer 2022
+promo,2022-10-16,2022-10-29,10,External mortise locks,,External mortise locks offer 2022
+promo,2022-06-05,2022-06-18,8,Digital locks,,Digital locks offer 2022
+promo,2022-07-17,2022-07-30,10,Rim locks,,Rim locks offer 2022
+promo,2023-02-12,2023-02-25,8,Cylinders,,Cylinders offer 2023
+promo,2023-07-02,2023-07-15,8,Internal mortise locks,,Internal mortise locks offer 2023
+promo,2023-06-11,2023-06-24,10,Padlocks,,Padlocks offer 2023
+promo,2023-11-05,2023-11-18,8,Hinges,,Hinges offer 2023
+promo,2023-09-17,2023-09-30,8,AFM locks,,AFM locks offer 2023
+promo,2023-07-16,2023-07-29,10,AFM handles,,AFM handles offer 2023
+promo,2023-09-10,2023-09-23,8,Sicuro handles,,Sicuro handles offer 2023
+promo,2023-02-12,2023-02-25,8,External mortise locks,,External mortise locks offer 2023
+promo,2023-02-05,2023-02-18,8,Digital locks,,Digital locks offer 2023
+promo,2023-05-14,2023-05-27,10,Rim locks,,Rim locks offer 2023
+promo,2024-09-08,2024-09-21,8,Cylinders,,Cylinders offer 2024
+promo,2024-10-06,2024-10-19,10,Internal mortise locks,,Internal mortise locks offer 2024
+promo,2024-06-09,2024-06-22,8,Padlocks,,Padlocks offer 2024
+promo,2024-11-10,2024-11-23,10,Hinges,,Hinges offer 2024
+promo,2024-07-21,2024-08-03,10,AFM locks,,AFM locks offer 2024
+promo,2024-10-20,2024-11-02,8,AFM handles,,AFM handles offer 2024
+promo,2024-09-15,2024-09-28,10,Sicuro handles,,Sicuro handles offer 2024
+promo,2024-07-21,2024-08-03,8,External mortise locks,,External mortise locks offer 2024
+promo,2024-06-09,2024-06-22,10,Digital locks,,Digital locks offer 2024
+promo,2024-09-08,2024-09-21,10,Rim locks,,Rim locks offer 2024

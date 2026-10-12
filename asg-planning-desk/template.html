@@ -85,8 +85,8 @@ main{margin-top:18px;display:grid;gap:16px}
 .tblwrap{overflow-x:auto;margin-inline:-4px}
 table{border-collapse:collapse;width:100%;font-size:13px}
 th{text-align:left;font-weight:600;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding:7px 8px;white-space:nowrap;background:var(--panel)}
-th.sort{cursor:pointer;user-select:none}
-th.sort:hover{color:var(--ink)}
+th.sort,th.msort{cursor:pointer;user-select:none}
+th.sort:hover,th.msort:hover{color:var(--ink)}
 th .arr{font-size:10px;margin-left:3px;color:var(--accent)}
 td{border-bottom:1px solid var(--line);padding:7px 8px;vertical-align:middle}
 td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -187,6 +187,13 @@ th.wkcol,td.wkcol{background:var(--accent-soft)}
 .loadgrid .cell i.over{background:var(--bad)}
 .loadgrid .cell span{position:relative;font:500 11.5px/26px var(--mono);padding-left:6px}
 .loadgrid .h{font-size:11.5px;color:var(--muted);text-align:center}
+.merch th:first-child,.merch td:first-child{position:sticky;left:0;z-index:1;background:var(--panel);min-width:230px;max-width:300px}
+.merch tr.grp td:first-child{background:var(--sunk)}
+.merch td.tcol,.merch th.tcol{border-left:2px solid var(--line)}
+.merch tr.click-dept{cursor:pointer}
+.merch tr.click-dept:hover td,.merch tr.click-dept.on td{background:var(--accent-soft)}
+.merch td{white-space:nowrap}
+.merch td,.merch th{padding-inline:6px}
 .legend-inline{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 @media (max-width:720px){.filters{position:static}.notes li{grid-template-columns:1fr}}
@@ -680,6 +687,93 @@ views.drivers = list => {
     </div>`};
 };
 
+/* merchandise view: sales by month side by side, then total, stock, forecast and what to order or clear */
+let mPer = 'l12', mMeasure = 'units', mFc = 3, mDept = '', mSort = {k: null, d: -1};
+const unitPrice = s => s.price || (s.cost || 0) * D.margin;
+function merchMonths(){
+  const all = D.months, cur = D.asof.slice(0, 7), full = all.filter(m => m < cur);
+  if (mPer === 'l12') return full.slice(-12);
+  if (mPer === 'l24') return full.slice(-24);
+  return all.filter(m => m.startsWith(mPer));
+}
+function fcMonths(s){ return ENGINE.toMonths(D.fweeks, D.F[s.id][0], addDays(D.asof, 1)).slice(0, mFc); }
+views.merch = list => {
+  const months = merchMonths(), idx = months.map(m => D.months.indexOf(m)), cur = D.asof.slice(0, 7);
+  const years = [...new Set(D.months.map(m => m.slice(0, 4)))].reverse();
+  const k = s => mMeasure === 'egp' ? unitPrice(s) : 1;
+  const sales = s => idx.map(i => (D.M[s.id][i] || 0) * k(s));
+  const prevIdx = months.map(m => D.months.indexOf(`${+m.slice(0, 4) - 1}${m.slice(4)}`));
+  const prevTot = s => prevIdx.reduce((t, i) => t + (i >= 0 ? (D.M[s.id][i] || 0) * k(s) : 0), 0);
+  const fcLabel = (() => { const f = list.length ? fcMonths(list[0]) : []; return f.length ? `${mlabel(f[0].m, false)}${f.length > 1 ? '–' + mlabel(f[f.length - 1].m, false) : ''}` : ''; })();
+  const ml = m => mlabel(m) + (m === cur ? '*' : '');
+  const fmtV = v => mMeasure === 'egp' ? big(v) : nf(v);
+
+  /* departments by month */
+  const depts = {}; list.forEach(s => (depts[s.dept] ||= []).push(s));
+  const drow = Object.entries(depts).map(([d, mem]) => { const v = months.map((_, j) => sum(mem, s => sales(s)[j])), tot = sumA(v), prev = sum(mem, prevTot);
+    return {d, v, tot, prev, n: mem.length}; }).sort((a, b) => b.tot - a.tot);
+  const grand = months.map((_, j) => sumA(drow.map(r => r.v[j]))), gtot = sumA(grand), gprev = sumA(drow.map(r => r.prev));
+  const spark = v => { const mx = Math.max(1, ...v), W = 90, H = 22; return `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${v.map((x, i) => `${i ? 'L' : 'M'}${(W - 2) * i / Math.max(1, v.length - 1) + 1},${H - 2 - (H - 4) * x / mx}`).join('')}" fill="none" stroke="var(--s1)" stroke-width="1.5"/></svg>`; };
+  const yoy = (t, p) => p ? `<span class="pill ${t >= p ? 'p-good' : 'p-bad'}">${pct(t / p - 1)}</span>` : '–';
+
+  /* SKUs */
+  const rows = list.filter(s => !mDept || s.dept === mDept).map(s => { const v = sales(s), f = sumA(fcMonths(s).map(r => r.v)) * k(s), q = planQty(s);
+    return {s, v, tot: sumA(v), stock: Math.max(0, s.oh) * k(s), fc: f, act: q > 0 ? q * k(s) : -(s.ovq || 0) * k(s), q, ovq: s.ovq || 0}; });
+  const keyOf = {sku: r => r.s.sku, tot: r => r.tot, stock: r => r.stock, fc: r => r.fc, act: r => r.act};
+  months.forEach((m, j) => keyOf['m' + j] = r => r.v[j]);
+  if (mSort.k) rows.sort((a, b) => { const x = keyOf[mSort.k](a), y = keyOf[mSort.k](b); return (typeof x === 'string' ? x.localeCompare(y) : x - y) * mSort.d; });
+  else rows.sort((a, b) => a.s.dept.localeCompare(b.s.dept) || a.s.line.localeCompare(b.s.line) || b.tot - a.tot);
+  const th = (key, label, cls = 'n') => `<th class="${cls} msort" data-mk="${key}" tabindex="0">${label}${mSort.k === key ? `<span class="arr">${mSort.d > 0 ? '▲' : '▼'}</span>` : ''}</th>`;
+  const heat = (v, mx) => mx ? `style="background:color-mix(in srgb, var(--s1) ${Math.round(32 * v / mx)}%, transparent)"` : '';
+  const act = r => r.q > 0 ? `<span class="pill p-warn">Order ${fmtV(r.act)}</span>` : r.ovq > 0 ? `<span class="pill ${r.s.status === 'over' ? 'p-info' : 'p-bad'}">Overstock ${fmtV(-r.act)}</span>` : '<span class="note">–</span>';
+  const skuRow = r => { const mx = Math.max(...r.v);
+    return `<tr class="click" data-id="${r.s.id}" tabindex="0"><td><span class="sku">${esc(r.s.sku)}</span> ${lifePill(r.s)}<small style="display:block;color:var(--muted);font-size:12px">${esc(r.s.p)} · ${esc(r.s.c)} · ${esc(r.s.z)}</small></td>
+      ${r.v.map(v => `<td class="n" ${heat(v, mx)} title="${nf(v)}">${v ? big(v) : '<span class="note">–</span>'}</td>`).join('')}<td class="n tcol"><b>${fmtV(r.tot)}</b></td><td class="n">${fmtV(r.stock)}</td><td class="n">${fmtV(r.fc)}</td><td class="n">${act(r)}</td></tr>`; };
+  let body = '', lastDept = null;
+  for (const r of rows){
+    if (!mSort.k && r.s.dept !== lastDept){ lastDept = r.s.dept; const mem = rows.filter(x => x.s.dept === lastDept);
+      const v = months.map((_, j) => sumA(mem.map(x => x.v[j])));
+      body += `<tr class="grp"><td>${esc(lastDept)} <span class="note">${mem.length} SKUs</span></td>${v.map(x => `<td class="n">${fmtV(x)}</td>`).join('')}<td class="n tcol">${fmtV(sumA(v))}</td>
+        <td class="n">${fmtV(sumA(mem.map(x => x.stock)))}</td><td class="n">${fmtV(sumA(mem.map(x => x.fc)))}</td><td class="n note">${mem.filter(x => x.q > 0).length} to order · ${mem.filter(x => x.q <= 0 && x.ovq > 0).length} over</td></tr>`; }
+    body += skuRow(r);
+  }
+  const seg = (name, cur, opts) => `<div class="seg" role="group" aria-label="${name}">${opts.map(([v, l]) => `<button type="button" data-${name}="${v}" aria-pressed="${String(cur) === String(v)}">${l}</button>`).join('')}</div>`;
+  return {html: `
+    <section class="panel"><div class="panel-head"><div><h2>Merchandise view</h2>
+      <div class="note">Shipped sales by month (cancelled orders excluded), then total, stock on hand, forecast and what to order or clear. ${months.includes(cur) ? '* is the month in progress. ' : ''}Months come from weekly totals split by day.</div></div>
+      <div class="toolbar"><button class="btn" id="mCopy" type="button">Copy as CSV</button></div></div>
+      <div class="toolbar" style="gap:14px">
+        <label class="seg-label" for="mPer">Months<select id="mPer"><option value="l12">Last 12 months</option><option value="l24">Last 24 months</option>${years.map(y => `<option value="${y}">${y}</option>`).join('')}</select></label>
+        <div class="seg-label">Show${seg('meas', mMeasure, [['units', 'Units'], ['egp', 'EGP']])}</div>
+        <div class="seg-label">Forecast${seg('fc', mFc, [[1, '1 month'], [3, '3 months'], [6, '6 months']])}</div>
+      </div></section>
+    <section class="panel"><div class="panel-head"><h2>Sales by department</h2><span class="note">${mMeasure === 'egp' ? 'EGP at dealer price' : 'Units'}. Click a department to show only its SKUs below.</span></div>
+      <div class="tblwrap merch"><table><thead><tr><th>Department</th>${months.map(m => `<th class="n">${ml(m)}</th>`).join('')}<th class="n tcol">Total</th><th class="n">Share</th><th class="n">Vs year before</th><th>Trend</th></tr></thead>
+      <tbody>${drow.map(r => `<tr class="click-dept ${mDept === r.d ? 'on' : ''}" data-dept="${esc(r.d)}" tabindex="0"><td><b>${esc(r.d)}</b> <span class="note">${r.n} SKUs</span></td>${r.v.map(v => `<td class="n">${fmtV(v)}</td>`).join('')}
+        <td class="n tcol"><b>${fmtV(r.tot)}</b></td><td class="n">${gtot ? nf(100 * r.tot / gtot) + '%' : '–'}</td><td class="n">${yoy(r.tot, r.prev)}</td><td>${spark(r.v)}</td></tr>`).join('') || `<tr><td class="empty" colspan="${months.length + 5}">Nothing in this filter.</td></tr>`}
+      <tr class="grp"><td>All departments</td>${grand.map(v => `<td class="n">${fmtV(v)}</td>`).join('')}<td class="n tcol">${fmtV(gtot)}</td><td class="n">100%</td><td class="n">${yoy(gtot, gprev)}</td><td>${spark(grand)}</td></tr></tbody></table></div></section>
+    <section class="panel"><div class="panel-head"><h2>${mDept ? esc(mDept) + ' SKUs' : 'All SKUs'}</h2><div class="toolbar">${mDept ? '<button class="btn small" id="mAll" type="button">Show all departments</button>' : ''}<span class="note">${rows.length} SKUs. Click a header to sort; click a SKU for its detail.</span></div></div>
+      <div class="tblwrap merch"><table><thead><tr>${th('sku', 'SKU', '')}${months.map((m, j) => th('m' + j, ml(m))).join('')}${th('tot', 'Total')}${th('stock', 'Stock')}${th('fc', `Forecast ${fcLabel}`)}${th('act', 'Order or overstock')}</tr></thead>
+      <tbody>${body || `<tr><td class="empty" colspan="${months.length + 5}">Nothing in this filter.</td></tr>`}</tbody></table></div>
+      <p class="note">Order is this week's production or purchase quantity from the plan (your edits included). Overstock is stock beyond 120 days of forecast, or all of it for dead and long out SKUs.</p></section>`,
+    after(root){
+      $('#mPer', root).value = mPer; $('#mPer', root).addEventListener('change', e => { mPer = e.target.value; render(); });
+      $$('[data-meas]', root).forEach(b => b.addEventListener('click', () => { mMeasure = b.dataset.meas; render(); }));
+      $$('[data-fc]', root).forEach(b => b.addEventListener('click', () => { mFc = +b.dataset.fc; render(); }));
+      $$('[data-dept]', root).forEach(tr => { const go = () => { mDept = mDept === tr.dataset.dept ? '' : tr.dataset.dept; render(); };
+        tr.addEventListener('click', go); tr.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); });
+      $('#mAll', root)?.addEventListener('click', () => { mDept = ''; render(); });
+      $$('[data-mk]', root).forEach(h => { const go = () => { mSort = mSort.k === h.dataset.mk ? (mSort.d > 0 ? {k: null, d: -1} : {k: h.dataset.mk, d: 1}) : {k: h.dataset.mk, d: -1}; render(); };
+        h.addEventListener('click', go); h.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); });
+      $('#mCopy', root).addEventListener('click', () => {
+        const head = ['department', 'line', 'sku', 'product', 'finish', 'size', ...months, 'total', 'stock', `forecast ${fcLabel}`, 'order', 'overstock'];
+        const out = [head, ...rows.map(r => [r.s.dept, r.s.line, r.s.sku, r.s.p, r.s.c, r.s.z, ...r.v.map(Math.round), Math.round(r.tot), Math.round(r.stock), Math.round(r.fc), r.q > 0 ? Math.round(r.act) : 0, r.q <= 0 ? Math.round(-r.act) : 0])];
+        const csv = out.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
+        navigator.clipboard.writeText(csv).then(() => toast(`Copied ${rows.length} SKUs. Paste into Excel.`)).catch(() => toast('Copy was blocked by the browser.'));
+      });
+    }};
+};
+
 views.pricing = list => {
   const ids = new Set(list.map(s => s.id)), mk = arr => arr.filter(r => ids.has(r.id)).map(r => ({...byId[r.id], pct: r.pct, why: r.why}));
   const cols = lbl => [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: lbl, n: 1, k: 'pct', f: r => r.pct + '%'}, {h: 'Why', f: r => `<span style="font-size:12.5px">${esc(r.why)}</span>`}];
@@ -699,7 +793,7 @@ views.issues = list => {
 const DEMO = JSON.parse(document.getElementById('data').textContent);
 const unpack = t => t.rows.map(r => Object.fromEntries(t.cols.map((c, i) => [c, r[i]])));
 const SLOTS = [
-  {k: 'items', name: 'Item list', req: true, cols: ['sku', 'product', 'line', 'source'], opt: ['finish', 'size', 'unit_cost', 'price', 'model', 'launch_date', 'end_date', 'replaces'],
+  {k: 'items', name: 'Item list', req: true, cols: ['sku', 'product', 'line', 'source'], opt: ['department', 'finish', 'size', 'unit_cost', 'price', 'model', 'launch_date', 'end_date', 'replaces'],
    help: 'One row per SKU. Source names the factory or supplier. Launch date, end date and replaces handle new and discontinued SKUs.',
    ex: 'sku,product,line,source,finish,size,unit_cost,price,model,launch_date,end_date,replaces\nASG-MI-16-SN-40MM,Internal Lock MI-16 Slim,Internal mortise locks,"Factory 1, Locks",Satin Nickel,40mm,230,333,MI-16,2026-07-06,,ASG-MI-14-SN-40MM'},
   {k: 'sales', name: 'Sales history', req: true, cols: ['date', 'sku', 'qty'], opt: ['status', 'channel', 'reason', 'value'],
@@ -772,7 +866,16 @@ function useRaw(raw, info){
   $('#asof').textContent = dlabel(D.asof);
   const b = $('#srcBadge'); b.textContent = info.demo ? 'Synthetic demo data, not real ASG sales' : `Your data: ${info.files.length} files, built ${info.at}`; b.classList.toggle('mine', !info.demo);
 }
-function demoTables(){ return Object.fromEntries(Object.entries(DEMO).map(([k, t]) => [k, unpack(t)])); }
+function demoTables(){
+  const t = Object.fromEntries(Object.entries(DEMO).filter(([k]) => k !== 'weekly').map(([k, v]) => [k, unpack(v)]));
+  const W = DEMO.weekly, rows = t.sales; // cancelled rows are kept as rows; shipped and lost come from weekly arrays
+  W.skus.forEach((sku, j) => { for (let i = 0; i < W.dealer[j].length; i++){ const date = addDays(W.start, 7 * i);
+    if (W.dealer[j][i]) rows.push({date, sku, qty: W.dealer[j][i], status: 'shipped', channel: 'dealer'});
+    if (W.export[j][i]) rows.push({date, sku, qty: W.export[j][i], status: 'shipped', channel: 'export'});
+    if (W.project[j][i]) rows.push({date, sku, qty: W.project[j][i], status: 'shipped', channel: 'project'});
+    if (W.lost[j][i]) rows.push({date, sku, qty: W.lost[j][i], status: 'lost', channel: 'dealer'}); } });
+  return t;
+}
 function useDemo(){ const {raw} = ENGINE.fromTables(demoTables()); useRaw(raw, {demo: true, files: []}); }
 function buildFromUploads(){
   const tables = Object.fromEntries(SLOTS.map(sl => [sl.k, pending[sl.k]?.rows || null]));
@@ -883,7 +986,7 @@ function openSku(id){
 }
 
 /* ---------- shell ---------- */
-const TABS = [['overview', 'Overview'], ['forecast', 'Forecast'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['drivers', 'Drivers'], ['pricing', 'Pricing'], ['issues', 'Data issues'], ['data', 'Upload data']];
+const TABS = [['overview', 'Overview'], ['forecast', 'Forecast'], ['merch', 'Merchandise'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['drivers', 'Drivers'], ['pricing', 'Pricing'], ['issues', 'Data issues'], ['data', 'Upload data']];
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400); }
 function render(){
   const list = filtered();

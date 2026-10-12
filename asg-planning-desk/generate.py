@@ -28,8 +28,8 @@ from collections import defaultdict
 from pathlib import Path
 
 SEED = 11
-START = dt.date(2024, 9, 30)  # Monday of the first history week
-WEEKS = 105                   # two years of weekly history, last week starts 28 Sep 2026
+WEEKS = 365                   # seven years of weekly history
+START = dt.date(2026, 9, 28) - dt.timedelta(weeks=WEEKS - 1)  # Monday of the first history week (7 Oct 2019)
 ANNUAL_UNITS = 10_000_000
 MARGIN = 1.45
 rnd = random.Random(SEED)
@@ -78,6 +78,13 @@ CATALOG = [
     ("DG-02", "Smart Lock DG-02 Card and App", "Digital locks", OEM, "BK SN CP", "STD", .8, 7400, "flat", 0),
     ("DG-03", "Smart Lock DG-03 Rim Mounted", "Digital locks", OEM, "BK PB", "STD", .6, 4300, "flat", 0),
 ]
+DEPARTMENT = {"Internal mortise locks": "Locks", "External mortise locks": "Locks", "Rim locks": "Locks", "AFM locks": "Locks",
+              "Cylinders": "Cylinders and padlocks", "Padlocks": "Cylinders and padlocks",
+              "AFM handles": "Door hardware", "Hinges": "Door hardware", "Sicuro handles": "Door hardware", "Digital locks": "Smart locks"}
+# models introduced during the seven years of history (not new any more)
+INTRO = {"CY-18": "2020-06-01", "SC-H01": "2020-02-03", "SC-H02": "2020-02-03", "SC-H03": "2021-09-06", "SC-PH": "2022-04-04",
+         "DG-01": "2021-03-01", "DG-02": "2022-02-07", "DG-03": "2023-05-08", "AFM-HP": "2021-01-04", "ME-19": "2022-09-05", "PL-D": "2023-03-06"}
+
 # a new model per line: (code, name, line, source, finish, size, volume, cost, profile, launch weeks from now (negative is past), replaces code or None)
 LAUNCHES = [
     ("MI-16", "Internal Lock MI-16 Slim", "Internal mortise locks", F1, "SN", "40mm", 9, 230, "build", -12, "MI-14"),
@@ -94,6 +101,14 @@ LAUNCHES = [
 
 # price changes and promotions: (type, start, end, pct, line or "", name)
 EVENTS = [
+    ("price", "2020-01-05", "2020-01-05", 5, "", "Price list January 2020"),
+    ("price", "2021-01-03", "2021-01-03", 5, "", "Price list January 2021"),
+    ("price", "2022-01-02", "2022-01-02", 7, "", "Price list January 2022"),
+    ("price", "2022-04-03", "2022-04-03", 10, "", "Price rise after March 2022 devaluation"),
+    ("price", "2022-11-06", "2022-11-06", 12, "", "Price rise after October 2022 devaluation"),
+    ("price", "2023-01-29", "2023-01-29", 20, "", "Price list 2023 after January devaluation"),
+    ("price", "2024-01-07", "2024-01-07", 12, "", "Price list January 2024"),
+    ("price", "2024-04-07", "2024-04-07", 25, "", "Price rise after March 2024 devaluation"),
     ("price", "2025-01-05", "2025-01-05", 10, "", "Price list January 2025"),
     ("price", "2026-01-04", "2026-01-04", 12, "", "Price list January 2026"),
     ("price", "2027-01-03", "2027-01-03", 10, "", "Price list January 2027 (announced)"),
@@ -112,16 +127,24 @@ EVENTS = [
     ("promo", "2026-10-18", "2026-10-31", 8, "Rim locks", "Rim lock offer (planned)"),
     ("promo", "2026-12-06", "2026-12-19", 10, "Digital locks", "Smart lock offer (planned)"),
 ]
+_er = random.Random(3)
+for _y in range(2020, 2025):   # earlier promotions, one per line per year
+    for _line in ["Cylinders", "Internal mortise locks", "Padlocks", "Hinges", "AFM locks", "AFM handles", "Sicuro handles", "External mortise locks", "Digital locks", "Rim locks"]:
+        _m = _er.choice([9, 10, 11]) if _y == 2020 else _er.choice([2, 5, 6, 7, 9, 10, 11])   # no offers during the 2020 lockdown
+        _d = dt.date(_y, _m, 1) + dt.timedelta(days=(6 - dt.date(_y, _m, 1).weekday()) + 7 * _er.randint(0, 2))
+        EVENTS.append(("promo", _d.isoformat(), (_d + dt.timedelta(days=13)).isoformat(), _er.choice([8, 10]), _line, f"{_line} offer {_y}"))
 PROFILE = {"price": {-4: .03, -3: .06, -2: .1, -1: .14, 0: -.12, 1: -.1, 2: -.06, 3: -.03}, "promo": {"during": .25, "post1": -.1, "post2": -.05}}
 ELASTICITY = {"build": .6, "flat": .25, "summer": .35}
 DEALERS = ["Dealer A", "Dealer B", "Dealer C", "Dealer D", "Dealer E"]
 
 # ---------------------------------------------------------------- calendar, mirrors engine.js
-RAMADAN = [("2024-03-11", "2024-04-08"), ("2025-03-01", "2025-03-29"), ("2026-02-18", "2026-03-18"), ("2027-02-08", "2027-03-08")]
-EID = [("2024-04-09", "2024-04-12"), ("2024-06-15", "2024-06-19"), ("2025-03-30", "2025-04-02"), ("2025-06-05", "2025-06-09"),
+RAMADAN = [("2019-05-06", "2019-06-03"), ("2020-04-24", "2020-05-23"), ("2021-04-13", "2021-05-12"), ("2022-04-02", "2022-05-01"), ("2023-03-23", "2023-04-20"), ("2024-03-11", "2024-04-08"), ("2025-03-01", "2025-03-29"), ("2026-02-18", "2026-03-18"), ("2027-02-08", "2027-03-08")]
+EID = [("2019-06-04", "2019-06-07"), ("2019-08-11", "2019-08-15"), ("2020-05-24", "2020-05-27"), ("2020-07-31", "2020-08-04"),
+       ("2021-05-13", "2021-05-16"), ("2021-07-20", "2021-07-24"), ("2022-05-02", "2022-05-05"), ("2022-07-09", "2022-07-13"),
+       ("2023-04-21", "2023-04-24"), ("2023-06-28", "2023-07-02"), ("2024-04-09", "2024-04-12"), ("2024-06-15", "2024-06-19"), ("2025-03-30", "2025-04-02"), ("2025-06-05", "2025-06-09"),
        ("2026-03-19", "2026-03-22"), ("2026-05-26", "2026-05-30"), ("2027-03-09", "2027-03-12"), ("2027-05-15", "2027-05-19")]
 DAYOFF = ["01-07", "01-25", "04-25", "05-01", "06-30", "07-23", "10-06"]
-NESSIM = ["2024-05-06", "2025-04-21", "2026-04-13", "2027-05-03"]
+NESSIM = ["2019-04-29", "2020-04-20", "2021-05-03", "2022-04-25", "2023-04-17", "2024-05-06", "2025-04-21", "2026-04-13", "2027-05-03"]
 P = dt.date.fromisoformat
 
 
@@ -165,6 +188,14 @@ def season(profile, d):
     return 1.0
 
 
+def covid(d):
+    if dt.date(2020, 3, 16) <= d <= dt.date(2020, 6, 28):
+        return .55
+    if dt.date(2020, 6, 29) <= d <= dt.date(2020, 9, 27):
+        return .82
+    return 1.0
+
+
 def week(i):
     return START + D(7 * i)
 
@@ -175,34 +206,52 @@ def wk_of(d):
 
 # construction activity, monthly cement sales in thousand tons
 MONTHS = []
-m = dt.date(2023, 10, 1)
+m = dt.date(2019, 1, 1)
 while m <= dt.date(2026, 9, 1):
     MONTHS.append(m)
     m = (m + D(32)).replace(day=1)
 
 
 def cement_at(d):
-    t = (d.year - 2023) * 12 + d.month - 10
-    return 4000 * (1 + .004 * t) * (1 + .07 * math.sin(2 * math.pi * (t - 3) / 22)) * (1 + .03 * math.cos(2 * math.pi * (d.month - 3) / 12))
+    t = (d.year - 2019) * 12 + d.month - 1
+    covid = .82 if dt.date(2020, 4, 1) <= d <= dt.date(2020, 8, 1) else 1
+    return 3500 * (1 + .003 * t) * (1 + .07 * math.sin(2 * math.pi * (t - 3) / 22)) * (1 + .03 * math.cos(2 * math.pi * (d.month - 3) / 12)) * covid
+
+
+FX_ANCHORS = [("2019-01", 17.9), ("2019-12", 16.1), ("2021-12", 15.7), ("2022-02", 15.7), ("2022-03", 18.3), ("2022-09", 19.5), ("2022-10", 19.8),
+              ("2022-11", 24.4), ("2022-12", 24.6), ("2023-01", 29.7), ("2024-02", 30.9), ("2024-03", 47.5), ("2025-06", 50.2), ("2026-09", 50.9)]
+
+
+def fx_at(d):
+    key = d.strftime("%Y-%m")
+    for (a, va), (b, vb) in zip(FX_ANCHORS, FX_ANCHORS[1:]):
+        if a <= key <= b:
+            ma = int(a[:4]) * 12 + int(a[5:]); mb = int(b[:4]) * 12 + int(b[5:]); mk = d.year * 12 + d.month
+            return va + (vb - va) * (mk - ma) / max(1, mb - ma)
+    return FX_ANCHORS[-1][1]
 
 
 MACRO = []
-fx, cpi = 47.6, 100.0
+cpi = 100.0
 for mm in MONTHS:
-    fx = fx * (1 + rnd.uniform(-.002, .009))
-    cpi = cpi * (1 + rnd.uniform(.011, .022))
+    fx = fx_at(mm) * rnd.uniform(.997, 1.003)
+    cpi = cpi * (1 + (rnd.uniform(.003, .008) if mm.year < 2022 else rnd.uniform(.02, .035) if mm.year < 2025 else rnd.uniform(.01, .02)))
     MACRO.append(dict(month=mm.strftime("%Y-%m"), cement=round(cement_at(mm) * rnd.uniform(.985, 1.015)), usd_egp=round(fx, 2), cpi=round(cpi, 1)))
 CEM = {r["month"]: r["cement"] for r in MACRO}
 
 
+CEM_KEYS = sorted(CEM)
+_cl = {}
+
+
 def cement_lag(d):
     k = (d.year * 12 + d.month - 1) - 6
-    key = f"{k // 12}-{k % 12 + 1:02d}"
-    keys = sorted(CEM)
-    key = min(max(key, keys[0]), keys[-1])
-    i = keys.index(key)
-    ks = keys[max(0, i - 1):i + 2]
-    return sum(CEM[x] for x in ks) / len(ks)
+    if k not in _cl:
+        key = min(max(f"{k // 12}-{k % 12 + 1:02d}", CEM_KEYS[0]), CEM_KEYS[-1])
+        i = CEM_KEYS.index(key)
+        ks = CEM_KEYS[max(0, i - 1):i + 2]
+        _cl[k] = sum(CEM[x] for x in ks) / len(ks)
+    return _cl[k]
 
 
 CEM_REF = cement_lag(START + D(7 * (WEEKS - 1)))
@@ -246,7 +295,8 @@ def build_skus():
                 skus.append(dict(sku=f"ASG-{code}-{f}-{z.upper()}", code=code, p=name, line=line, src=src, c=FINISH[f], fc=f, z=z,
                                  rel=base * fshare[fi] * size_share[len(sizes)][zi] * rnd.uniform(.75, 1.25), cost=round(cost * rnd.uniform(.9, 1.1), 2),
                                  prof=prof, exp=exp, trend=rnd.uniform(-.12, .2), noise=rnd.uniform(.12, .25) if base >= 5 else rnd.uniform(.25, .4),
-                                 launch=launch, replaces=replaces, end=None, role="normal"))
+                                 launch=launch, replaces=replaces, end=None, role="normal", dept=DEPARTMENT[line],
+                                 intro=P(INTRO[code]) if code in INTRO else None))
     for row in CATALOG:
         add(*row)
     for code, name, line, src, fins, sizes, base, cost, prof, lw, rep in LAUNCHES:
@@ -311,7 +361,7 @@ def simulate(skus):
     for s in skus:
         s.update(dealer=[0] * WEEKS, export=[0] * WEEKS, project=[0] * WEEKS, lost=[0] * WEEKS, short=[0] * WEEKS, demand=[0.0] * WEEKS)
         s["records_lost"] = rnd.random() < .5
-        out = set(rnd.sample(range(10, WEEKS - 14), rnd.choice([1, 2, 3]) + (3 if s["src"] == OEM else 0)))  # imports run short more often
+        out = set(rnd.sample(range(10, WEEKS - 14), rnd.choice([3, 5, 7]) + (6 if s["src"] == OEM else 0)))  # imports run short more often
         if s["role"] == "short":
             out |= set(rnd.sample(range(WEEKS - 13, WEEKS), rnd.choice([4, 5])))
         if s["role"] == "longout":
@@ -320,12 +370,14 @@ def simulate(skus):
     for i in range(WEEKS):
         d = week(i)
         for s in skus:
-            if (s["launch"] and d < s["launch"]) or (s["end"] and d >= s["end"]):
+            if (s["launch"] and d < s["launch"]) or (s["end"] and d >= s["end"]) or (s["intro"] and d < s["intro"]):
                 continue
-            age = (d - s["launch"]).days // 7 if s["launch"] else 99
+            start = s["launch"] or s["intro"]
+            age = (d - start).days // 7 if start else 99
             ramp = [.5, .75, .9][age] if age < 3 else 1
             lam = (s["rate"] * ramp * season(s["prof"], d) * calendar(d) * event_eff(s["line"], i)
-                   * (cement_lag(d) / CEM_REF) ** ELASTICITY[s["prof"]] * (1 + s["trend"] * (i - WEEKS) / WEEKS))
+                   * (cement_lag(d) / CEM_REF) ** ELASTICITY[s["prof"]] * (1 + s["trend"] * (i - WEEKS) / WEEKS)
+                   * 1.04 ** ((i - WEEKS) / 52) * covid(d))
             s["demand"][i] = lam * math.exp(rnd.gauss(0, s["noise"]) - s["noise"] ** 2 / 2)
             if s["exp"]:
                 s["export"][i] = round(s["rate"] * s["exp"] * rnd.uniform(.6, 1.4) * (rnd.random() > .1))
@@ -409,9 +461,9 @@ def main():
     items, stock, sales, stockouts, dealers, orders, bom = [], [], [], [], [], [], []
     neg_done = set()
     for s in skus:
-        items.append(dict(sku=s["sku"], product=s["p"], model=s["code"], line=s["line"], finish=s["c"], size=s["z"], source=s["src"],
+        items.append(dict(sku=s["sku"], product=s["p"], model=s["code"], department=s["dept"], line=s["line"], finish=s["c"], size=s["z"], source=s["src"],
                           unit_cost=None if s["role"] == "issue_cost" else s["cost"], price=round(s["cost"] * MARGIN, 2),
-                          launch_date=s["launch"].isoformat() if s["launch"] else "", end_date=s["end"].isoformat() if s["end"] else "",
+                          launch_date=(s["launch"] or s["intro"]).isoformat() if (s["launch"] or s["intro"]) else "", end_date=s["end"].isoformat() if s["end"] else "",
                           replaces=s["replaces_sku"] or ""))
         oh, cm, inc = stock_for(s)
         if s["line"] not in neg_done and s["role"] == "normal" and not s["launch"] and rnd.random() < .5:
@@ -450,10 +502,11 @@ def main():
 
     reasons = ["Dealer credit hold"] * 34 + ["Out of stock at dispatch"] * 27 + ["Dealer changed order"] * 24 + ["Duplicate order"] * 15
     pool = [s for s in skus if not s["launch"]]
-    for _ in range(1800):   # cancelled dealer orders, spread over every line
+    for _ in range(5000):   # cancelled dealer orders, spread over every line
         s = rnd.choice(pool)
         q = rnd.choice([100, 200, 300, 500, 1000])
-        sales.append(dict(date=(week(rnd.randrange(WEEKS)) + D(rnd.randrange(6))).isoformat(), sku=s["sku"], qty=q, status="cancelled", channel="dealer",
+        lo = wk_of(s["intro"].isoformat()) if s["intro"] else 0
+        sales.append(dict(date=(week(rnd.randrange(max(0, lo), WEEKS)) + D(rnd.randrange(6))).isoformat(), sku=s["sku"], qty=q, status="cancelled", channel="dealer",
                           reason=rnd.choice(reasons), value=round(q * s["cost"] * MARGIN)))
 
     sources = []
@@ -487,7 +540,11 @@ def main():
             w = csv.DictWriter(f, fieldnames=list(rows[0]))
             w.writeheader()
             w.writerows(rows)
-    demo = {k: dict(cols=list(v[0]), rows=[list(r.values()) for r in v]) for k, v in tables.items()}  # columnar keeps the page small
+    # columnar keeps the page small; shipped and lost sales go as one weekly array per SKU and channel
+    demo = {k: dict(cols=list(v[0]), rows=[list(r.values()) for r in v]) for k, v in tables.items() if k != "sales"}
+    demo["sales"] = dict(cols=list(sales[0]), rows=[list(r.values()) for r in sales if r["status"] == "cancelled"])
+    demo["weekly"] = dict(start=START.isoformat(), skus=[s["sku"] for s in skus],
+                          dealer=[s["dealer"] for s in skus], export=[s["export"] for s in skus], project=[s["project"] for s in skus], lost=[s["lost"] for s in skus])
     page = (here / "template.html").read_text()
     page = page.replace("/*__ENGINE__*/", (here / "engine.js").read_text())
     page = page.replace("__DATA__", json.dumps(demo, separators=(",", ":")).replace("</", "<\\/"))
