@@ -1,238 +1,501 @@
-<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ASG Planning Desk</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,500;6..96,600&family=Libre+Franklin:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
-/* Layout: a planner's desk. Slim header with tabs, one working panel at a time, summary before detail. */
+/* Layout: a plant planner's desk. Filters scope everything; summary tiles open the list behind them; any SKU opens a side drawer. */
 :root{
-  --bg:#f6f5f7; --panel:#ffffff; --ink:#1f1a22; --muted:#6c6470; --line:#e3dfe6;
-  --accent:#1d4e89; --accent-soft:#e4edf7;
-  --s1:#2a78d6; --s2:#eb6834; --band:#cfe0f6;
-  --good:#1f7a4d; --warn:#a86400; --bad:#b3261e; --good-bg:#e6f3ec; --warn-bg:#fbf0dc; --bad-bg:#fbe6e4;
-  --display:"Bodoni Moda", Georgia, "Times New Roman", serif;
-  --body:"Libre Franklin", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --mono:"IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+  color-scheme:light;
+  --bg:#f2f3f5; --panel:#ffffff; --sunk:#f7f8f9; --ink:#15181d; --muted:#5b626d; --faint:#8a919b; --line:#dde0e5;
+  --accent:#8f620c; --accent-ink:#ffffff; --accent-soft:#f6ecd8;
+  --s1:#2a78d6; --s2:#eb6834; --band:#cde2fb; --cap:#15181d;
+  --good:#1f7a4d; --good-bg:#e4f2ea; --warn:#9a5c00; --warn-bg:#fbefd9; --bad:#b3261e; --bad-bg:#fbe5e3; --info:#3d4f66; --info-bg:#e7ecf2;
+  --display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --r:8px;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#141116; --panel:#1d1920; --ink:#f1edf3; --muted:#a79fab; --line:#332d37;
-  --accent:#8db8ec; --accent-soft:#1a2a3d; --s1:#3987e5; --s2:#d95926; --band:#1f3a5c;
-  --good:#5cc08c; --warn:#e3a640; --bad:#f07a70; --good-bg:#16301f; --warn-bg:#33270f; --bad-bg:#3a1a18; color-scheme:dark}}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  color-scheme:dark;
+  --bg:#0f1216; --panel:#171b21; --sunk:#1c2128; --ink:#eceef2; --muted:#a2a9b4; --faint:#7a828d; --line:#2a3038;
+  --accent:#dcaa4a; --accent-ink:#1a1407; --accent-soft:#2e2512;
+  --s1:#3987e5; --s2:#d95926; --band:#1c3657; --cap:#eceef2;
+  --good:#5cc08c; --good-bg:#15301f; --warn:#e3a640; --warn-bg:#33270f; --bad:#f07a70; --bad-bg:#3a1a18; --info:#a9bbd2; --info-bg:#1e2733}}
 :root[data-theme="dark"]{
-  --bg:#141116; --panel:#1d1920; --ink:#f1edf3; --muted:#a79fab; --line:#332d37;
-  --accent:#8db8ec; --accent-soft:#1a2a3d; --s1:#3987e5; --s2:#d95926; --band:#1f3a5c;
-  --good:#5cc08c; --warn:#e3a640; --bad:#f07a70; --good-bg:#16301f; --warn-bg:#33270f; --bad-bg:#3a1a18; color-scheme:dark}
+  color-scheme:dark;
+  --bg:#0f1216; --panel:#171b21; --sunk:#1c2128; --ink:#eceef2; --muted:#a2a9b4; --faint:#7a828d; --line:#2a3038;
+  --accent:#dcaa4a; --accent-ink:#1a1407; --accent-soft:#2e2512;
+  --s1:#3987e5; --s2:#d95926; --band:#1c3657; --cap:#eceef2;
+  --good:#5cc08c; --good-bg:#15301f; --warn:#e3a640; --warn-bg:#33270f; --bad:#f07a70; --bad-bg:#3a1a18; --info:#a9bbd2; --info-bg:#1e2733}
 *{box-sizing:border-box}
+html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.5 var(--body)}
-.wrap{max-width:1180px;margin:0 auto;padding-inline:20px;padding-block:20px 48px}
-header{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:8px 24px}
-h1{font:600 30px/1.1 var(--display);margin:0;letter-spacing:.01em;text-wrap:balance}
-h2{font:600 20px/1.2 var(--display);margin:0 0 10px;text-wrap:balance}
-h3{font:600 12px/1.3 var(--body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 8px}
-.note{color:var(--muted);font-size:13px}
-.demo{display:inline-block;background:var(--accent-soft);color:var(--accent);font-weight:600;font-size:12px;padding:3px 10px;border-radius:999px;letter-spacing:.03em}
-nav{display:flex;flex-wrap:wrap;gap:4px;margin:18px 0 20px;border-bottom:1px solid var(--line)}
-nav button{font:500 14px var(--body);color:var(--muted);background:none;border:0;border-bottom:2px solid transparent;padding:8px 12px;cursor:pointer}
-nav button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
-nav button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.grid{display:grid;gap:16px}
-.tiles{grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
-.two{grid-template-columns:repeat(auto-fit,minmax(320px,1fr))}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;min-width:0}
-.tile .v{font:500 26px/1.1 var(--mono);font-variant-numeric:tabular-nums}
-.tile .l{color:var(--muted);font-size:12.5px;margin-top:4px}
-.tblwrap{overflow-x:auto}
-table{border-collapse:collapse;width:100%;font-size:13px}
-th{text-align:left;font-weight:600;font-size:12px;color:var(--muted);border-bottom:1px solid var(--line);padding:6px 8px;white-space:nowrap}
-td{border-bottom:1px solid var(--line);padding:6px 8px;vertical-align:top}
-td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums}
-.pill{display:inline-block;font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;white-space:nowrap}
-.p-good{background:var(--good-bg);color:var(--good)} .p-warn{background:var(--warn-bg);color:var(--warn)} .p-bad{background:var(--bad-bg);color:var(--bad)}
-.controls{display:flex;flex-wrap:wrap;gap:10px;align-items:end;margin-bottom:12px}
-label{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted)}
-select,input{font:14px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 8px;max-width:100%}
-.chart svg{width:100%;height:auto;display:block}
-.chart text{fill:var(--muted);font:11px var(--body)}
-.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:12.5px;color:var(--muted);margin-top:6px}
-.sw{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:6px}
-.reason{font-size:13px;color:var(--ink);background:var(--bg);border-radius:8px;padding:10px 12px;margin-top:10px}
-.bar{height:10px;border-radius:4px;background:var(--accent)}
-.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px}
-.kv div span{display:block;color:var(--muted);font-size:12px}
-.kv div b{font:500 16px var(--mono)} .kv div{min-width:0} .kv .pill{font-family:var(--body)}
-.tip{position:fixed;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;padding:6px 8px;border-radius:6px;opacity:0;transition:opacity .1s;white-space:nowrap;z-index:5}
-@media (prefers-reduced-motion:reduce){.tip{transition:none}}
-</style>
+.wrap{max-width:1240px;margin:0 auto;padding-inline:20px;padding-block:18px 56px}
+button{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 24px}
+.brand{display:flex;flex-direction:column;gap:2px}
+.eyebrow{font:600 12px var(--body);letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+h1{font:700 34px/1 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+h2{font:600 21px/1.15 var(--display);letter-spacing:.01em;margin:0;text-wrap:balance}
+.sub{color:var(--muted);font-size:13px;max-width:70ch}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;color:var(--warn);background:var(--warn-bg);border-radius:999px;padding:3px 10px}
+
+.filters{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;background:var(--bg);margin-top:16px;padding-block:10px;border-bottom:1px solid var(--line);
+  display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+select,input[type=search],input[type=number]{font:14px var(--body);color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:7px 9px;max-width:100%}
+input[type=search]{width:min(260px,100%)}
+.btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);border-radius:6px;padding:7px 12px;cursor:pointer;font-weight:500;font-size:13.5px}
+.btn:hover{border-color:var(--muted)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.07)}
+.btn.small{padding:4px 9px;font-size:12.5px}
+.scope{font-size:12.5px;color:var(--muted);margin-left:auto;align-self:center}
+.scope b{color:var(--ink);font-weight:600}
+
+nav.tabs{display:flex;gap:2px;overflow-x:auto;margin-top:12px;border-bottom:1px solid var(--line)}
+nav.tabs button{background:none;border:0;border-bottom:2px solid transparent;padding:9px 14px;cursor:pointer;color:var(--muted);font-weight:500;white-space:nowrap}
+nav.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+nav.tabs .count{font:500 11.5px var(--mono);background:var(--sunk);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:6px;color:var(--muted)}
+main{margin-top:18px;display:grid;gap:16px}
+
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;min-width:0}
+.panel-head{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:6px 16px;margin-bottom:10px}
+.note{color:var(--muted);font-size:12.5px}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(min(100%,380px),1fr))}
+.g3{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+
+.tiles{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr))}
+.tile{text-align:left;background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:14px 14px 12px;cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:border-color .12s,transform .12s}
+.tile:hover{border-color:var(--accent)}
+.tile .v{font:600 30px/1 var(--display);font-variant-numeric:tabular-nums;letter-spacing:.01em}
+.tile .l{font-size:12.5px;color:var(--muted)}
+.tile .go{font-size:12px;color:var(--accent);font-weight:600;margin-top:4px}
+.tile.alert .v{color:var(--bad)}
+.tile.warn .v{color:var(--warn)}
+
+.tblwrap{overflow-x:auto;margin-inline:-4px}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th{text-align:left;font-weight:600;font-size:11.5px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--line);padding:7px 8px;white-space:nowrap;background:var(--panel)}
+th.sort{cursor:pointer;user-select:none}
+th.sort:hover{color:var(--ink)}
+th .arr{font-size:10px;margin-left:3px;color:var(--accent)}
+td{border-bottom:1px solid var(--line);padding:7px 8px;vertical-align:middle}
+td.n,th.n{text-align:right;font-family:var(--mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+td.sku{font-family:var(--mono);font-size:12px;white-space:nowrap}
+tr.click{cursor:pointer}
+tr.click:hover td{background:var(--sunk)}
+.prod{max-width:330px}
+.prod small{display:block;color:var(--muted);font-size:12px}
+
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.p-good{background:var(--good-bg);color:var(--good)} .p-warn{background:var(--warn-bg);color:var(--warn)} .p-bad{background:var(--bad-bg);color:var(--bad)} .p-info{background:var(--info-bg);color:var(--info)}
+
+.chart svg{width:100%;height:auto;display:block;overflow:visible}
+.chart text{fill:var(--muted);font:11px var(--body)}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-top:8px}
+.key{display:inline-block;width:14px;height:2px;vertical-align:middle;margin-right:6px;border-radius:1px}
+.key.box{height:10px;border-radius:2px}
+.key.dash{background:repeating-linear-gradient(90deg,var(--s1) 0 4px,transparent 4px 7px)!important}
+
+.bars{display:grid;gap:4px}
+.barrow{display:grid;grid-template-columns:minmax(120px,190px) 1fr auto;gap:10px;align-items:center;padding:5px 6px;border-radius:6px;cursor:pointer;border:0;background:none;text-align:left;width:100%}
+.barrow:hover,.barrow.on{background:var(--sunk)}
+.barrow.on .bl{color:var(--accent);font-weight:600}
+.bl{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.track{position:relative;height:14px}
+.fill{position:absolute;inset:0 auto 0 0;background:var(--s1);border-radius:0 4px 4px 0}
+.fill.over{background:var(--bad)}
+.capmark{position:absolute;top:-3px;bottom:-3px;width:2px;background:var(--cap)}
+.bv{font:500 12.5px var(--mono);font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:12px 14px}
+.kv div{min-width:0}
+.kv span{display:block;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.04em}
+.kv b{font:500 15px var(--mono);font-variant-numeric:tabular-nums}
+.reason{font-size:13px;background:var(--sunk);border:1px solid var(--line);border-radius:6px;padding:10px 12px;line-height:1.55}
+
+.src-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:8px 16px;margin-bottom:8px}
+.load{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted);min-width:min(100%,320px)}
+.load .track{flex:1;min-width:120px;background:var(--sunk);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+input.qty{width:96px;text-align:right;font-family:var(--mono);padding:5px 7px}
+input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:8px 14px;border-radius:6px;font-size:13px;opacity:0;transition:opacity .15s;pointer-events:none;z-index:30}
+.toast.show{opacity:1}
+
+.tip{position:fixed;pointer-events:none;background:var(--panel);color:var(--ink);border:1px solid var(--line);box-shadow:0 6px 20px rgba(0,0,0,.14);font-size:12px;padding:8px 10px;border-radius:6px;opacity:0;z-index:40;min-width:150px}
+.tip .t{color:var(--muted);margin-bottom:4px}
+.tip .r{display:flex;align-items:center;justify-content:space-between;gap:14px}
+.tip .r b{font:500 12.5px var(--mono)}
+
+.scrim{position:fixed;inset:0;background:rgba(10,12,15,.4);z-index:20}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(720px,100%);background:var(--panel);border-left:1px solid var(--line);z-index:21;overflow-y:auto;
+  padding:calc(18px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:14px}
+.drawer-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.drawer h2{font-size:24px}
+.close{border:1px solid var(--line);background:var(--panel);border-radius:6px;width:34px;height:34px;cursor:pointer;font-size:18px;line-height:1;flex:none}
+.plancard{display:flex;flex-wrap:wrap;gap:10px;align-items:center;background:var(--accent-soft);border-radius:6px;padding:10px 12px}
+.plancard label{font-size:12.5px;color:var(--ink);font-weight:600}
+.empty{color:var(--muted);font-size:13px;padding:12px 4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+@media (max-width:720px){.filters{position:static}}
+@media (max-width:560px){h1{font-size:28px}.tiles{grid-template-columns:1fr 1fr}.tile .v{font-size:24px}.scope{margin-left:0;width:100%}.barrow{grid-template-columns:110px 1fr auto}}
+</style>
+</head>
+<body>
 <div class="wrap">
-  <header>
-    <div>
+  <header class="top">
+    <div class="brand">
+      <span class="eyebrow">Ahram Security Group</span>
       <h1>ASG Planning Desk</h1>
-      <div class="note">Data as of <span id="asof"></span>. Ahram Security Group: Ahram, AFM and Sicuro lines. Forecasts are dealer demand after stockout adjustment; cancelled orders never count.</div>
+      <div class="sub">Demand forecast and production plan for Ahram, AFM and Sicuro lines. Data as of <span id="asof"></span>. Demand is dealer orders after stockout adjustment; cancelled orders never count.</div>
     </div>
-    <span class="demo">Synthetic demo data, not real ASG sales</span>
+    <span class="badge" title="Volumes, stock, costs and lead times are generated for the demo">Synthetic demo data, not real ASG sales</span>
   </header>
-  <nav role="tablist" id="tabs"></nav>
+
+  <div class="filters" role="search">
+    <label for="fLine">Product line<select id="fLine"></select></label>
+    <label for="fSrc">Made at<select id="fSrc"></select></label>
+    <label for="fFin">Finish<select id="fFin"></select></label>
+    <label for="fQ">Search<input id="fQ" type="search" placeholder="SKU, model or name"></label>
+    <button class="btn" id="fReset" type="button">Clear filters</button>
+    <div class="scope" id="scope"></div>
+  </div>
+
+  <nav class="tabs" role="tablist" id="tabs"></nav>
   <main id="view"></main>
 </div>
 <div class="tip" id="tip"></div>
+<div class="toast" id="toast" role="status"></div>
+<div id="drawerRoot"></div>
 
 <script id="data" type="application/json">__DATA__</script>
 <script>
 const D = JSON.parse(document.getElementById('data').textContent);
-const $ = s => document.querySelector(s);
-const fmt = (x, d=0) => x == null ? '' : Number(x).toLocaleString('en', {minimumFractionDigits:d, maximumFractionDigits:d});
-const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-$('#asof').textContent = D.asof;
-const tip = $('#tip');
-function showTip(e, html){ tip.innerHTML = html; tip.style.opacity = 1;
-  const x = Math.min(e.clientX + 12, window.innerWidth - tip.offsetWidth - 8); tip.style.left = x + 'px'; tip.style.top = (e.clientY + 12) + 'px'; }
-function hideTip(){ tip.style.opacity = 0; }
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf = (x, d = 0) => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('en', {minimumFractionDigits:d, maximumFractionDigits:d});
+const big = x => { if (x == null) return '–'; const a = Math.abs(x);
+  return a >= 1e6 ? nf(x / 1e6, a >= 1e7 ? 1 : 2) + 'M' : a >= 1e4 ? nf(x / 1e3, 0) + 'k' : nf(x); };
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const dlabel = (iso, yr = true) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MON[m-1]}${yr ? ' ' + String(y).slice(2) : ''}`; };
+const byId = Object.fromEntries(D.skus.map(s => [s.id, s]));
+$('#asof').textContent = dlabel(D.asof);
 
-function table(cols, rows){
-  return `<div class="tblwrap"><table><thead><tr>${cols.map(c => `<th class="${c.n?'n':''}">${c.h}</th>`).join('')}</tr></thead><tbody>${
-    rows.map(r => `<tr>${cols.map(c => `<td class="${c.n?'n':''}">${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') ||
-    `<tr><td colspan="${cols.length}" class="note">Nothing to show</td></tr>`}</tbody></table></div>`;
+/* ---------- per viewer plan edits, kept in this browser only ---------- */
+const KEY = 'asg-plan-v1';
+let edits = {};
+try { edits = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { edits = {}; }
+const saveEdits = () => { try { localStorage.setItem(KEY, JSON.stringify(edits)); } catch (e) {} };
+const planQty = s => edits[s.id]?.q ?? s.q;
+const approved = s => !!edits[s.id]?.ok;
+
+/* ---------- filters ---------- */
+const F = {line:'', src:'', fin:'', q:''};
+function fillSelect(id, label, vals){ $(id).innerHTML = `<option value="">All ${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join(''); }
+const uniq = k => [...new Set(D.skus.map(s => s[k]))].sort();
+fillSelect('#fLine', 'lines', uniq('line')); fillSelect('#fSrc', 'sources', Object.keys(D.sources)); fillSelect('#fFin', 'finishes', uniq('c'));
+function filtered(){
+  const q = F.q.trim().toLowerCase();
+  return D.skus.filter(s => (!F.line || s.line === F.line) && (!F.src || s.src === F.src) && (!F.fin || s.c === F.fin) &&
+    (!q || (s.sku + ' ' + s.p + ' ' + s.code).toLowerCase().includes(q)));
 }
-const confPill = c => `<span class="pill ${c==='high'?'p-good':c==='medium'?'p-warn':'p-bad'}">${esc(c)}</span>`;
+function setFilter(k, v){ F[k] = v; const el = {line:'#fLine', src:'#fSrc', fin:'#fFin', q:'#fQ'}[k]; $(el).value = v; render(); }
+['line','src','fin'].forEach(k => $({line:'#fLine', src:'#fSrc', fin:'#fFin'}[k]).addEventListener('change', e => { F[k] = e.target.value; render(); }));
+let qTimer; $('#fQ').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { F.q = e.target.value; render(); }, 120); });
+$('#fReset').addEventListener('click', () => { Object.keys(F).forEach(k => F[k] = ''); ['#fLine','#fSrc','#fFin','#fQ'].forEach(i => $(i).value = ''); render(); });
 
-/* Bars for weekly totals */
-function barChart(labels, vals, unit){
-  const W = 760, H = 220, L = 46, B = 28, T = 10, max = Math.max(...vals) * 1.1 || 1;
-  const bw = (W - L - 8) / vals.length, ticks = 4;
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Forecast units per week">`;
-  for (let i = 0; i <= ticks; i++){ const v = max * i / ticks, y = H - B - (H - B - T) * i / ticks;
-    s += `<line x1="${L}" x2="${W}" y1="${y}" y2="${y}" stroke="var(--line)"/><text x="${L-6}" y="${y+4}" text-anchor="end">${fmt(v)}</text>`; }
-  vals.forEach((v, i) => { const h = (H - B - T) * v / max, x = L + i * bw + 3;
-    s += `<rect x="${x}" y="${H-B-h}" width="${bw-6}" height="${h}" rx="3" fill="var(--s1)" data-t="${esc(labels[i])}: ${fmt(v)} ${unit}"/>`;
-    if (i % 2 === 0) s += `<text x="${x + (bw-6)/2}" y="${H-10}" text-anchor="middle">${esc(labels[i].slice(0,6))}</text>`; });
-  return s + '</svg>';
-}
-function wireTips(root){ root.querySelectorAll('[data-t]').forEach(el => {
-  el.addEventListener('mousemove', e => showTip(e, esc(el.dataset.t))); el.addEventListener('mouseleave', hideTip); }); }
-
-/* History plus forecast for one SKU */
-function skuChart(id){
-  const h = D.H[id] || {o:[],a:[],s:[]}, f = D.F[id] || {m:[],l:[],h:[]};
-  const n = D.weeks.length, m = f.m.length, N = n + m, W = 760, H = 260, L = 40, B = 28, T = 10;
-  const max = Math.max(1, ...h.a, ...h.o, ...f.h) * 1.1;
-  const x = i => L + (W - L - 10) * i / (N - 1), y = v => H - B - (H - B - T) * v / max;
-  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly demand history and forecast">`;
-  for (let i = 0; i <= 4; i++){ const v = max * i / 4; s += `<line x1="${L}" x2="${W-10}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L-6}" y="${y(v)+4}" text-anchor="end">${fmt(v, max < 8 ? 1 : 0)}</text>`; }
-  h.s.forEach((d, i) => { if (d > 0) s += `<rect x="${x(i)-3}" y="${T}" width="6" height="${H-B-T}" fill="var(--bad)" opacity="${0.06 + 0.02*d}"/>`; });
-  if (m){ let up = '', dn = '';
-    f.h.forEach((v, i) => up += `${i?'L':'M'}${x(n+i)},${y(v)}`); for (let i = m-1; i >= 0; i--) dn += `L${x(n+i)},${y(f.l[i])}`;
-    s += `<path d="${up}${dn}Z" fill="var(--band)" opacity=".8"/>`; }
-  const line = (arr, off, col, dash) => `<path d="${arr.map((v,i)=>`${i?'L':'M'}${x(off+i)},${y(v||0)}`).join('')}" fill="none" stroke="${col}" stroke-width="2" ${dash?'stroke-dasharray="5 4"':''}/>`;
-  s += line(h.o, 0, 'var(--s2)') + line(h.a, 0, 'var(--s1)') + (m ? line(f.m, n, 'var(--s1)', true) : '');
-  s += `<line x1="${x(n-0.5)}" x2="${x(n-0.5)}" y1="${T}" y2="${H-B}" stroke="var(--muted)" stroke-dasharray="2 3"/><text x="${x(n-0.5)+4}" y="${T+10}">forecast</text>`;
-  [0, Math.floor(n/2), n-1].forEach(i => s += `<text x="${x(i)}" y="${H-10}" text-anchor="middle">${esc(D.weeks[i])}</text>`);
-  if (m) s += `<text x="${x(N-1)}" y="${H-10}" text-anchor="end">16 weeks ahead</text>`;
-  for (let i = 0; i < N; i++){ const lbl = i < n ? `Week of ${D.weeks[i]}: sold ${fmt(h.o[i],1)}, demand ${fmt(h.a[i],1)}${h.s[i]?`, ${h.s[i]} stockout days`:''}`
-      : `Forecast week ${i-n+1}: ${fmt(f.m[i-n],1)} (p10 ${fmt(f.l[i-n],1)}, p90 ${fmt(f.h[i-n],1)})`;
-    s += `<rect x="${x(i)-(W-L)/N/2}" y="${T}" width="${(W-L)/N}" height="${H-B-T}" fill="transparent" data-t="${esc(lbl)}"/>`; }
-  return s + '</svg>';
-}
-
-const views = {
-  overview(){
-    const sk = D.skus, ord = sk.filter(s => s.q > 0);
-    const acc = Object.fromEntries(D.acc.map(a => [a.scope + '|' + a.model, a.wape]));
-    const sup = {}; ord.forEach(s => { const o = sup[s.sup] ||= {n:0,u:0,c:0}; o.n++; o.u += s.q; o.c += s.lt || 0; });
-    const mix = Object.entries(D.mix), mmax = Math.max(...mix.map(e => e[1]));
-    return `<div class="grid tiles">
-      ${[[sk.length,'active SKUs'],[ord.length,'SKUs to reorder now'],[fmt(ord.reduce((a,s)=>a+(s.lt||0),0)),'reorder cost, EGP'],
-         [D.low.length >= 40 ? '40+' : D.low.length,'SKUs running out within 14 days'],[fmt(D.dead.reduce((a,d)=>a+(d.v||0),0)),'dead stock value, EGP']]
-        .map(([v,l]) => `<div class="panel tile"><div class="v">${v}</div><div class="l">${l}</div></div>`).join('')}
-    </div>
-    <div class="grid two" style="margin-top:16px">
-      <div class="panel"><h2>Does the forecast beat the old method?</h2>
-        <p class="note">WAPE is the share of units the forecast gets wrong, lower is better. The old method is the trailing 30 day sales rate.</p>
-        ${table([{h:'Test',k:'t'},{h:'Forecast',n:1,f:r=>fmt(r.a,3)},{h:'30 day rate',n:1,f:r=>fmt(r.b,3)},{h:'Result',f:r=>r.a<r.b?'<span class="pill p-good">forecast wins</span>':'<span class="pill p-bad">baseline wins</span>'}],
-          [{t:'All 4 backtest folds',a:acc['catalog all folds|selected'],b:acc['catalog all folds|velocity_30']},
-           {t:'Latest fold only, models picked on older folds',a:acc['latest fold holdout|selected'],b:acc['latest fold holdout|velocity_30']}])}
-      </div>
-      <div class="panel"><h2>Purchase orders by supplier</h2>
-        ${table([{h:'Supplier',k:'s'},{h:'SKUs',n:1,k:'n'},{h:'Units',n:1,f:r=>fmt(r.u)},{h:'Cost EGP',n:1,f:r=>fmt(r.c)}], Object.entries(sup).map(([s,o])=>({s,...o})))}
-        <p class="note">${esc(D.ltnote)}</p>
-      </div>
-    </div>
-    <div class="grid two" style="margin-top:16px">
-      <div class="panel chart"><h2>Forecast units per week</h2>${barChart(D.fweeks, D.ftot, 'units')}<p class="note">${esc(D.peaknote)}</p></div>
-      <div class="panel"><h2>Which model won per SKU</h2>
-        ${mix.map(([k,v]) => `<div style="display:grid;grid-template-columns:120px 1fr 40px;gap:8px;align-items:center;margin:5px 0"><span style="font-family:var(--mono);font-size:12px">${esc(k)}</span><div class="bar" style="width:${100*v/mmax}%"></div><span class="n" style="font-family:var(--mono);text-align:right">${v}</span></div>`).join('')}
-      </div>
-    </div>`;
-  },
-  explorer(){
-    const opts = [...D.skus].sort((a,b) => (a.p+a.c+a.z).localeCompare(b.p+b.c+b.z));
-    return `<div class="panel">
-      <div class="controls"><label for="skuSel">SKU<select id="skuSel">${opts.map(s => `<option value="${esc(s.id)}">${esc(s.p)} ${esc(s.c)} ${esc(s.z)}  (${esc(s.sku)})</option>`).join('')}</select></label></div>
-      <div id="skuBody"></div></div>`;
-  },
-  orders(){
-    const u = k => [...new Set(D.skus.map(s => s[k]))].sort();
-    const sel = (id, lbl, k) => `<label for="${id}">${lbl}<select id="${id}"><option value="">All</option>${u(k).map(v=>`<option>${esc(v)}</option>`).join('')}</select></label>`;
-    return `<div class="panel"><div class="controls">${sel('fSup','Supplier','sup')}${sel('fCol','Finish','c')}${sel('fColl','Product line','col')}</div>
-      <div id="poSum" class="note"></div><div id="poBody"></div>
-      <p class="note">Order quantities are rounded up to full cartons and the supplier minimum.</p></div>`;
-  },
-  health(){
-    return `<div class="grid">
-      <div class="panel"><h2>Running out within 14 days</h2><p class="note">Ranked by revenue at risk per day. Top 40 shown.</p>
-        ${table([{h:'SKU',k:'sku'},{h:'Product',f:r=>`${esc(r.p)} ${esc(r.c)} ${esc(r.z)}`},{h:'Days left',n:1,f:r=>`<span class="pill ${r.d<=3?'p-bad':'p-warn'}">${fmt(r.d)}</span>`},{h:'EGP at risk per day',n:1,f:r=>fmt(r.rr)},{h:'Action',k:'a'}], D.low)}</div>
-      <div class="grid two">
-        <div class="panel"><h2>Dead stock</h2><p class="note">No sales in 90 days. Never reordered.</p>
-          ${table([{h:'SKU',k:'sku'},{h:'On hand',n:1,k:'oh'},{h:'Value EGP',n:1,f:r=>fmt(r.v)},{h:'Days since sale',n:1,k:'ds'}], D.dead)}</div>
-        <div class="panel"><h2>Overstock by product line</h2><p class="note">Stock beyond 120 days of forecast cover.</p>
-          ${table([{h:'Product line',k:'col'},{h:'SKUs',n:1,k:'n'},{h:'Excess units',n:1,f:r=>fmt(r.u)},{h:'Excess value EGP',n:1,f:r=>fmt(r.v)}], D.over)}</div>
-      </div>
-      <div class="grid two">
-        <div class="panel"><h2>Cancelled orders</h2>${table([{h:'Window',k:'Window'},{h:'Orders',n:1,f:r=>fmt(r.Orders)},{h:'Units',n:1,f:r=>fmt(r.Units)},{h:'Value EGP',n:1,f:r=>fmt(r.Value)}], D.ct)}</div>
-        <div class="panel"><h2>Cancel reasons, last 90 days</h2>${table([{h:'Reason',k:'Reason'},{h:'Orders',n:1,f:r=>fmt(r.Orders)},{h:'Value EGP',n:1,f:r=>fmt(r.Value)}], D.cr)}</div>
-      </div></div>`;
-  },
-  pricing(){
-    const cols = (lbl) => [{h:'SKU',k:'sku'},{h:'Product',f:r=>`${esc(r.p)} ${esc(r.c)} ${esc(r.z)}`},{h:lbl,n:1,f:r=>fmt(r.pct)+' %'},{h:'Confidence',f:r=>confPill(r.conf)},{h:'Why',f:r=>`<span style="font-size:12.5px">${esc(r.reason)}</span>`}];
-    return `<div class="grid"><div class="panel"><h2>Markdowns</h2><p class="note">Smallest step on the ladder that clears excess stock in 60 days, within the margin floor. Top 30 by stock value.</p>${table(cols('Markdown'), D.md)}</div>
-      <div class="panel"><h2>Markups</h2><p class="note">Strong sellers that keep running out.</p>${table(cols('Markup'), D.mu)}</div></div>`;
-  },
-  issues(){
-    return `<div class="panel"><h2>Data and process issues</h2><p class="note">Data problem: ERP records are wrong or incomplete. Process problem: stock or orders handled outside the system.</p>
-      ${table([{h:'Issue',k:'type'},{h:'SKU',k:'sku'},{h:'Kind',f:r=>`<span class="pill ${r.problem_kind==='process problem'?'p-warn':'p-bad'}">${esc(r.problem_kind)}</span>`},{h:'Detail',k:'detail'}], D.disc)}</div>`;
-  }
+/* ---------- helpers ---------- */
+const STATUS = {
+  make:   ['p-warn', s => D.sources[s.src].kind === 'factory' ? 'Make now' : 'Buy now'],
+  ok:     ['p-good', () => 'Covered'],
+  over:   ['p-info', () => 'Overstock'],
+  dead:   ['p-bad',  () => 'Dead stock'],
+  longout:['p-bad',  () => 'Long out'],
 };
-const tabs = [['overview','Overview'],['explorer','SKU explorer'],['orders','Purchase orders'],['health','Health'],['pricing','Pricing'],['issues','Data issues']];
-$('#tabs').innerHTML = tabs.map(([k,l]) => `<button role="tab" id="t_${k}" data-k="${k}">${l}</button>`).join('');
+const statusPill = s => { const [c, f] = STATUS[s.status]; return `<span class="pill ${c}">${esc(f(s))}</span>`; };
+const confPill = c => `<span class="pill ${c === 'high' ? 'p-good' : c === 'medium' ? 'p-warn' : 'p-bad'}">${esc(c)}</span>`;
+const daysPill = d => d == null ? '–' : `<span class="pill ${d <= 7 ? 'p-bad' : d <= 14 ? 'p-warn' : 'p-good'}">${nf(d)} d</span>`;
+const prod = s => `<div class="prod">${esc(s.p)}<small>${esc(s.c)} · ${esc(s.z)}</small></div>`;
+function sum(arr, f){ let t = 0; for (const x of arr) t += f(x) || 0; return t; }
+function aggregate(list){
+  const n = D.weeks.length, m = D.fweeks.length, o = Array(n).fill(0), a = Array(n).fill(0), fm = Array(m).fill(0), fl = Array(m).fill(0), fh = Array(m).fill(0);
+  let varSum = Array(m).fill(0);
+  for (const s of list){ const h = D.H[s.id], f = D.F[s.id];
+    for (let i = 0; i < n; i++){ o[i] += h[0][i]; a[i] += h[1][i]; }
+    for (let i = 0; i < m; i++){ fm[i] += f[0][i]; const sd = (f[2][i] - f[0][i]) / 1.28; varSum[i] += sd * sd; } }
+  for (let i = 0; i < m; i++){ const sd = Math.sqrt(varSum[i]); fl[i] = Math.max(0, fm[i] - 1.28 * sd); fh[i] = fm[i] + 1.28 * sd; }
+  return {o, a, fm, fl, fh};
+}
 
-function renderSku(id){
-  const s = D.skus.find(x => x.id === id);
-  $('#skuBody').innerHTML = `<div class="kv">
-      ${[['Model',s.model],['Demand class',s.cls],['Backtest WAPE',fmt(s.wape,2)],['Confidence',`<span style="display:inline-block">${confPill(s.conf)}</span>`],['On hand',s.oh],['Incoming',s.inc],['Reorder point',s.rop],['Order now',s.q]]
-        .map(([k,v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
-    <div class="chart" style="margin-top:12px">${skuChart(id)}</div>
-    <div class="legend"><span><i class="sw" style="background:var(--s1)"></i>Demand after stockout adjustment</span><span><i class="sw" style="background:var(--s2)"></i>Units sold</span>
-      <span><i class="sw" style="background:var(--band);height:10px"></i>p10 to p90 forecast range</span><span><i class="sw" style="background:var(--bad);opacity:.3;height:10px"></i>Weeks with stockout days</span></div>
-    <div class="reason">${esc(s.reason)}${s.flags ? `<br><span class="note">Flags: ${esc(s.flags)}</span>` : ''}</div>`;
-  wireTips($('#skuBody'));
+/* ---------- tooltip ---------- */
+const tip = $('#tip');
+function showTip(x, y, html){ tip.innerHTML = html; tip.style.opacity = 1;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  tip.style.left = Math.min(x + 14, innerWidth - w - 8) + 'px'; tip.style.top = (y + h + 24 > innerHeight ? y - h - 12 : y + 14) + 'px'; }
+const hideTip = () => tip.style.opacity = 0;
+function wireTips(root){ $$('[data-tip]', root).forEach(el => {
+  el.addEventListener('pointermove', e => showTip(e.clientX, e.clientY, el.dataset.tip)); el.addEventListener('pointerleave', hideTip);
+  el.addEventListener('focus', () => { const r = el.getBoundingClientRect(); showTip(r.right, r.top, el.dataset.tip); }); el.addEventListener('blur', hideTip); }); }
+
+/* ---------- demand chart: history, forecast band, crosshair ---------- */
+function demandChart(agg, opts = {}){
+  const n = D.weeks.length, m = D.fweeks.length, N = n + m, W = 800, H = opts.h || 270, L = 52, R = 14, T = 14, B = 30;
+  const max = Math.max(1, ...agg.a, ...agg.o, ...agg.fh) * 1.08;
+  const x = i => L + (W - L - R) * i / (N - 1), y = v => H - B - (H - B - T) * v / max;
+  const step = niceStep(max / 4); let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly demand history and 16 week forecast">`;
+  for (let v = 0; v <= max; v += step) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${big(v)}</text>`;
+  s += `<rect x="${x(n - .5)}" y="${T}" width="${x(N - 1) - x(n - .5) + 4}" height="${H - B - T}" fill="var(--sunk)"/>`;
+  let up = '', dn = ''; agg.fh.forEach((v, i) => up += `${i ? 'L' : 'M'}${x(n + i)},${y(v)}`); for (let i = m - 1; i >= 0; i--) dn += `L${x(n + i)},${y(agg.fl[i])}`;
+  s += `<path d="${up}${dn}Z" fill="var(--band)"/>`;
+  const path = (arr, off) => arr.map((v, i) => `${i ? 'L' : 'M'}${x(off + i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  s += `<path d="${path(agg.o, 0)}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"/>`;
+  s += `<path d="${path(agg.a, 0)}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>`;
+  s += `<path d="M${x(n - 1)},${y(agg.a[n - 1])}L${path(agg.fm, n).slice(1)}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  s += `<text x="${x(n - .5) + 6}" y="${T + 12}" style="font-weight:600">Forecast</text>`;
+  const ticks = [0, 13, 26, 39, n - 1]; ticks.forEach(i => s += `<text x="${x(i)}" y="${H - 9}" text-anchor="middle">${dlabel(D.weeks[i])}</text>`);
+  s += `<text x="${x(N - 1)}" y="${H - 9}" text-anchor="end">${dlabel(D.fweeks[m - 1])}</text>`;
+  s += `<line class="xh" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-width="1" opacity="0"/>`;
+  s += `<circle class="xd" r="4" fill="var(--s1)" stroke="var(--panel)" stroke-width="2" opacity="0"/>`;
+  s += `<rect class="hit" x="${L}" y="${T}" width="${W - L - R}" height="${H - B - T}" fill="transparent"/></svg>`;
+  return {svg: s, wire(root){
+    const svg = $('svg', root), xh = $('.xh', root), xd = $('.xd', root), hit = $('.hit', root);
+    hit.addEventListener('pointermove', e => { const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+      const i = Math.max(0, Math.min(N - 1, Math.round((px - L) / (W - L - R) * (N - 1))));
+      xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('opacity', .6);
+      const v = i < n ? agg.a[i] : agg.fm[i - n]; xd.setAttribute('cx', x(i)); xd.setAttribute('cy', y(v)); xd.setAttribute('opacity', 1);
+      const row = (c, l, v, dash) => `<div class="r"><span><i class="key ${dash ? 'dash' : ''}" style="background:${c}"></i>${l}</span><b>${v}</b></div>`;
+      const html = i < n
+        ? `<div class="t">Week of ${dlabel(D.weeks[i])}</div>${row('var(--s1)', 'Demand', nf(agg.a[i]))}${row('var(--s2)', 'Shipped', nf(agg.o[i]))}${agg.a[i] - agg.o[i] > .5 ? row('var(--bad)', 'Unmet', nf(agg.a[i] - agg.o[i])) : ''}`
+        : `<div class="t">Week of ${dlabel(D.fweeks[i - n])}, forecast</div>${row('var(--s1)', 'Forecast', nf(agg.fm[i - n]), 1)}${row('var(--band)', 'Likely range', nf(agg.fl[i - n]) + ' to ' + nf(agg.fh[i - n]))}`;
+      showTip(e.clientX, e.clientY, html); });
+    hit.addEventListener('pointerleave', () => { hideTip(); xh.setAttribute('opacity', 0); xd.setAttribute('opacity', 0); });
+  }};
 }
-function renderPO(){
-  const f = {sup:$('#fSup').value, c:$('#fCol').value, col:$('#fColl').value};
-  const rows = D.skus.filter(s => s.q > 0 && (!f.sup || s.sup===f.sup) && (!f.c || s.c===f.c) && (!f.col || s.col===f.col))
-    .sort((a,b) => (a.sup+a.p+a.c+a.z).localeCompare(b.sup+b.p+b.c+b.z));
-  $('#poSum').textContent = `${rows.length} SKUs, ${fmt(rows.reduce((a,r)=>a+r.q,0))} units, ${fmt(rows.reduce((a,r)=>a+(r.lt||0),0))} EGP`;
-  $('#poBody').innerHTML = table([{h:'Supplier',k:'sup'},{h:'SKU',k:'sku'},{h:'Product',f:r=>`${esc(r.p)} ${esc(r.c)} ${esc(r.z)}`},{h:'On hand',n:1,k:'oh'},{h:'Incoming',n:1,k:'inc'},
-    {h:'Reorder point',n:1,k:'rop'},{h:'Order',n:1,f:r=>`<b>${r.q}</b>`},{h:'Line EGP',n:1,f:r=>fmt(r.lt)},{h:'Class',f:r=>r.abc+r.xyz},{h:'Confidence',f:r=>confPill(r.conf)}], rows);
+function niceStep(raw){ const p = Math.pow(10, Math.floor(Math.log10(raw || 1))), r = raw / p; return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * p; }
+const chartLegend = `<div class="legend"><span><i class="key" style="background:var(--s1)"></i>Demand after stockout adjustment</span><span><i class="key" style="background:var(--s2)"></i>Shipped</span><span><i class="key dash"></i>Forecast</span><span><i class="key box" style="background:var(--band)"></i>Likely range, 80%</span></div>`;
+
+/* ---------- sortable tables ---------- */
+const sortState = {};
+function sortable(key, cols, rows, opts = {}){
+  const st = sortState[key] || (sortState[key] = {k: opts.sort || null, d: opts.dir || -1});
+  if (st.k){ const c = cols.find(c => c.k === st.k); const v = c?.v || (r => r[st.k]);
+    rows = [...rows].sort((a, b) => { const x = v(a), y = v(b); if (x == null) return 1; if (y == null) return -1;
+      return (typeof x === 'string' ? x.localeCompare(y) : x - y) * st.d; }); }
+  const lim = opts.limit && rows.length > opts.limit ? opts.limit : rows.length;
+  return `<div class="tblwrap"><table data-key="${key}"><thead><tr>${cols.map(c => `<th class="${c.n ? 'n' : ''} ${c.k ? 'sort' : ''}" ${c.k ? `data-k="${c.k}" tabindex="0" aria-sort="${st.k === c.k ? (st.d > 0 ? 'ascending' : 'descending') : 'none'}"` : ''}>${c.h}${st.k === c.k ? `<span class="arr">${st.d > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('')}</tr></thead>
+    <tbody>${rows.slice(0, lim).map(r => `<tr class="${r.id ? 'click' : ''}" ${r.id ? `data-id="${esc(r.id)}" tabindex="0"` : ''}>${cols.map(c => `<td class="${c.n ? 'n' : ''} ${c.cls || ''}">${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') ||
+      `<tr><td colspan="${cols.length}" class="empty">Nothing matches the current filters.</td></tr>`}</tbody></table></div>${lim < rows.length ? `<p class="note">Showing ${lim} of ${rows.length}. Narrow the filters or sort to see others.</p>` : ''}`;
 }
-function show(k){
-  tabs.forEach(([t]) => $('#t_'+t).setAttribute('aria-selected', t===k));
-  $('#view').innerHTML = views[k](); wireTips($('#view'));
-  if (k === 'explorer'){ const sel = $('#skuSel'); const best = [...D.skus].sort((a,b)=>b.f30-a.f30)[0]; sel.value = best.id; renderSku(best.id); sel.onchange = () => renderSku(sel.value); }
-  if (k === 'orders'){ ['#fSup','#fCol','#fColl'].forEach(i => $(i).onchange = renderPO); renderPO(); }
-  try { localStorage.setItem('tab', k); } catch(e) {}
+function wireTables(root){
+  $$('th.sort', root).forEach(th => { const go = () => { const key = th.closest('table').dataset.key, st = sortState[key];
+    st.d = st.k === th.dataset.k ? -st.d : -1; st.k = th.dataset.k; render(); };
+    th.addEventListener('click', go); th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } }); });
+  $$('tr.click', root).forEach(tr => { tr.addEventListener('click', e => { if (e.target.closest('input,button,label')) return; openSku(tr.dataset.id); });
+    tr.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.target.closest('input')) openSku(tr.dataset.id); }); });
 }
+
+/* ---------- views ---------- */
+let tab = 'overview';
+const views = {};
+
+views.overview = list => {
+  const agg = aggregate(list), next8 = agg.fm.slice(0, 8).reduce((a, b) => a + b, 0), last8 = agg.a.slice(-8).reduce((a, b) => a + b, 0);
+  const plan = list.filter(s => planQty(s) > 0), planVal = sum(plan, s => planQty(s) * (s.cost || 0));
+  const low = list.filter(s => s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status));
+  const stuck = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
+  const chg = last8 ? (next8 / last8 - 1) * 100 : 0;
+  const tiles = [
+    ['products', big(next8), `units forecast, next 8 weeks (${chg >= 0 ? '+' : ''}${nf(chg)}% on last 8)`, 'See every SKU', ''],
+    ['plan', plan.length, `SKUs to make or buy now, ${big(sum(plan, planQty))} units`, 'Open production plan', plan.length ? 'warn' : ''],
+    ['plan', 'EGP ' + big(planVal), 'value of this week\'s plan at cost', 'Review and approve', ''],
+    ['health', low.length, 'SKUs running out within 14 days', 'See what runs out', low.length ? 'alert' : ''],
+    ['health', 'EGP ' + big(sum(over, s => s.sv) + sum(stuck, s => s.sv)), `tied up in ${over.length} overstocked and ${stuck.length} dead or long out SKUs`, 'See stock health', ''],
+  ];
+  const lines = {}; list.forEach(s => { const o = lines[s.line] ||= {f: 0, n: 0}; o.f += D.F[s.id][0].slice(0, 8).reduce((a, b) => a + b, 0); o.n++; });
+  const lmax = Math.max(1, ...Object.values(lines).map(o => o.f));
+  const accL = Object.fromEntries(D.acc.lines.map(r => [r.line, r]));
+  const fac = Object.entries(D.sources).filter(([, v]) => v.kind === 'factory').map(([k, v]) => {
+    const sk = list.filter(s => s.src === k); return {k, cap: v.cap, fc: sum(sk, s => D.F[s.id][0].slice(0, 8).reduce((a, b) => a + b, 0)) / 8, plan: sum(sk, planQty)}; });
+  const fmax = Math.max(1, ...fac.map(f => Math.max(f.cap, f.fc, f.plan / 2))) * 1.05;
+  const ch = demandChart(agg);
+  return {html: `
+    <div class="tiles">${tiles.map(([t, v, l, go, cls]) => `<button class="tile ${cls}" data-go="${t}" type="button"><span class="v">${v}</span><span class="l">${esc(l)}</span><span class="go">${go} →</span></button>`).join('')}</div>
+    <section class="panel"><div class="panel-head"><h2>Weekly demand and forecast</h2><span class="note">${list.length === D.skus.length ? 'Whole catalog' : `${list.length} SKUs in the current filter`}. Hover for weekly numbers.</span></div>
+      <div class="chart" id="mainChart">${ch.svg}</div>${chartLegend}</section>
+    <div class="grid g2">
+      <section class="panel"><div class="panel-head"><h2>Forecast by product line</h2><span class="note">Next 8 weeks. Click a line to filter.</span></div>
+        <div class="bars">${Object.entries(lines).sort((a, b) => b[1].f - a[1].f).map(([k, o]) => `<button class="barrow ${F.line === k ? 'on' : ''}" data-line="${esc(k)}" type="button"
+          data-tip="${esc(`<div class='t'>${esc(k)}</div><div class='r'><span>Next 8 weeks</span><b>${nf(o.f)}</b></div><div class='r'><span>SKUs</span><b>${o.n}</b></div>${accL[k] ? `<div class='r'><span>Forecast error</span><b>${nf(accL[k].sel * 100)}%</b></div>` : ''}`)}">
+          <span class="bl">${esc(k)}</span><span class="track"><span class="fill" style="width:${100 * o.f / lmax}%"></span></span><span class="bv">${big(o.f)}</span></button>`).join('') || '<div class="empty">No SKUs in this filter.</div>'}</div></section>
+      <section class="panel"><div class="panel-head"><h2>Factory load</h2><span class="note">Average weekly forecast against weekly capacity (black mark).</span></div>
+        <div class="bars">${fac.map(f => `<button class="barrow ${F.src === f.k ? 'on' : ''}" data-src="${esc(f.k)}" type="button"
+          data-tip="${esc(`<div class='t'>${esc(f.k)}</div><div class='r'><span>Forecast per week</span><b>${nf(f.fc)}</b></div><div class='r'><span>Capacity per week</span><b>${nf(f.cap)}</b></div><div class='r'><span>Load</span><b>${nf(100 * f.fc / f.cap)}%</b></div><div class='r'><span>Planned now</span><b>${nf(f.plan)}</b></div>`)}">
+          <span class="bl">${esc(f.k)}</span><span class="track"><span class="fill ${f.fc > f.cap ? 'over' : ''}" style="width:${100 * f.fc / fmax}%"></span><span class="capmark" style="left:${100 * f.cap / fmax}%"></span></span>
+          <span class="bv">${nf(100 * f.fc / f.cap)}%</span></button>`).join('')}</div>
+        <p class="note">Capacity is a placeholder set at 15% above last year's average demand. Click a factory to filter.</p></section>
+    </div>
+    <section class="panel"><div class="panel-head"><h2>Does the forecast beat the old method?</h2><span class="note">Forecast error (WAPE) is the share of units the forecast gets wrong. Lower is better. The old method is the last 30 days' sales rate.</span></div>
+      ${sortable('acc', [{h: 'Product line', k: 'line'}, {h: 'Forecast error', n: 1, k: 'sel', f: r => nf(r.sel * 100, 1) + '%'}, {h: '30 day rate error', n: 1, k: 'base', f: r => nf(r.base * 100, 1) + '%'},
+        {h: 'Result', f: r => r.sel < r.base ? `<span class="pill p-good">Forecast ${nf((1 - r.sel / r.base) * 100)}% better</span>` : '<span class="pill p-bad">Old method wins</span>'}],
+        [{line: 'Whole catalog, 4 backtest folds', sel: D.acc.sel, base: D.acc.base}, {line: 'Latest 8 weeks only, models picked on older data', sel: D.acc.hsel, base: D.acc.hbase}, ...D.acc.lines.filter(r => !F.line || r.line === F.line)])}
+    </section>`,
+    after(root){ ch.wire($('#mainChart', root));
+      $$('[data-go]', root).forEach(b => b.addEventListener('click', () => show(b.dataset.go)));
+      $$('[data-line]', root).forEach(b => b.addEventListener('click', () => setFilter('line', F.line === b.dataset.line ? '' : b.dataset.line)));
+      $$('[data-src]', root).forEach(b => b.addEventListener('click', () => setFilter('src', F.src === b.dataset.src ? '' : b.dataset.src))); }};
+};
+
+const STATUS_ORDER = {make: 0, longout: 1, dead: 2, over: 3, ok: 4};
+let pStatus = '';
+views.products = list => {
+  const counts = {}; list.forEach(s => counts[s.status] = (counts[s.status] || 0) + 1);
+  const rows = list.filter(s => !pStatus || s.status === pStatus);
+  return {html: `<section class="panel"><div class="panel-head"><h2>All SKUs</h2>
+      <div class="toolbar"><span class="note">Show</span>${[['', 'All', list.length], ...Object.keys(STATUS).map(k => [k, STATUS[k][1]({src: 'Factory 1, Locks'}).replace('Make now', 'Make or buy now'), counts[k] || 0])]
+        .map(([k, l, c]) => `<button class="btn small ${pStatus === k ? 'primary' : ''}" data-st="${k}" type="button">${esc(l)} <span style="font-family:var(--mono)">${c}</span></button>`).join('')}</div></div>
+    ${sortable('products', [
+      {h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: 'Line', k: 'line'},
+      {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Forecast / wk', n: 1, k: 'wk', f: r => nf(r.wk)},
+      {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)}, {h: 'Reorder point', n: 1, k: 'rop', f: r => nf(r.rop)},
+      {h: 'Plan', n: 1, k: 'q', v: planQty, f: r => planQty(r) ? `<b>${nf(planQty(r))}</b>` : '–'},
+      {h: 'Status', k: 'status', v: r => STATUS_ORDER[r.status], f: statusPill}], rows, {sort: 'status', dir: 1})}
+    <p class="note">Click a row for its demand history, forecast and the reasoning behind the plan.</p></section>`,
+    after(root){ $$('[data-st]', root).forEach(b => b.addEventListener('click', () => { pStatus = b.dataset.st; render(); })); }};
+};
+
+views.plan = list => {
+  const inPlan = list.filter(s => planQty(s) > 0 || s.q > 0);
+  const groups = {}; inPlan.forEach(s => (groups[s.src] ||= []).push(s));
+  const tot = sum(inPlan, planQty), val = sum(inPlan, s => planQty(s) * (s.cost || 0)), nOk = inPlan.filter(approved).length;
+  return {html: `
+    <section class="panel"><div class="panel-head"><div><h2>Production and purchase plan</h2>
+      <div class="note">${inPlan.length} SKUs, ${nf(tot)} units, EGP ${nf(val)} at cost. ${nOk} of ${inPlan.length} approved. Edits stay in this browser.</div></div>
+      <div class="toolbar"><button class="btn primary" id="approveAll" type="button">Approve all shown</button><button class="btn" id="copyCsv" type="button">Copy plan as CSV</button><button class="btn" id="resetPlan" type="button">Undo my edits</button></div></div>
+      <p class="note">Quantities are rounded up to full cartons and the minimum batch. Change any quantity; open a SKU to add one that is not planned.</p></section>
+    ${Object.keys(D.sources).filter(k => groups[k]).map(k => { const g = groups[k], src = D.sources[k], u = sum(g, planQty);
+      const loadPct = src.cap ? 100 * u / (src.cap * 2) : null;
+      return `<section class="panel"><div class="src-head"><div><h2>${esc(k)}</h2><div class="note">${src.kind === 'factory' ? 'Production order' : 'Purchase order'} · lead time ${src.lt} days · cartons of ${src.pack} · minimum batch ${nf(src.moq)}</div></div>
+        ${src.cap ? `<div class="load"><span>${nf(u)} units, ${nf(loadPct)}% of 2 weeks capacity</span><span class="track"><span class="fill ${loadPct > 100 ? 'over' : ''}" style="width:${Math.min(100, loadPct)}%"></span></span></div>` : `<div class="note">${nf(u)} units, EGP ${nf(sum(g, s => planQty(s) * (s.cost || 0)))}</div>`}</div>
+        ${sortable('plan-' + k, [
+          {h: 'OK', f: r => `<input type="checkbox" class="appr" data-id="${r.id}" ${approved(r) ? 'checked' : ''} aria-label="Approve ${esc(r.sku)}">`},
+          {h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: 'Stock position', n: 1, k: 'pos', f: r => nf(r.pos)},
+          {h: 'Reorder point', n: 1, k: 'rop', f: r => nf(r.rop)}, {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)},
+          {h: 'Suggested', n: 1, k: 'q', f: r => nf(r.q)},
+          {h: 'Plan qty', n: 1, k: 'pq', v: planQty, f: r => `<input class="qty ${planQty(r) !== r.q ? 'changed' : ''}" type="number" min="0" step="${src.pack}" value="${planQty(r)}" data-id="${r.id}" aria-label="Plan quantity for ${esc(r.sku)}">`},
+          {h: 'EGP', n: 1, k: 'val', v: r => planQty(r) * (r.cost || 0), f: r => r.cost ? nf(planQty(r) * r.cost) : '<span class="pill p-bad">no cost</span>'},
+          {h: 'Confidence', k: 'conf', f: r => confPill(r.conf)}], g, {sort: 'dl', dir: 1})}</section>`; }).join('') || '<section class="panel empty">Nothing to make or buy in the current filter.</section>'}`,
+    after(root){
+      $$('input.qty', root).forEach(i => i.addEventListener('change', () => { const s = byId[i.dataset.id], v = Math.max(0, Math.round(+i.value || 0));
+        edits[s.id] = {...edits[s.id], q: v}; if (v === s.q) delete edits[s.id].q; saveEdits(); toast(`${s.sku} set to ${nf(v)}`); render(); }));
+      $$('input.appr', root).forEach(c => c.addEventListener('change', () => { edits[c.dataset.id] = {...edits[c.dataset.id], ok: c.checked}; saveEdits(); render(); }));
+      $('#approveAll', root).addEventListener('click', () => { list.filter(s => planQty(s) > 0).forEach(s => edits[s.id] = {...edits[s.id], ok: true}); saveEdits(); toast('Plan approved'); render(); });
+      $('#resetPlan', root).addEventListener('click', () => { edits = {}; saveEdits(); toast('Edits undone'); render(); });
+      $('#copyCsv', root).addEventListener('click', () => {
+        const rows = [['source', 'sku', 'product', 'finish', 'size', 'qty', 'unit_cost_egp', 'value_egp', 'approved']].concat(
+          list.filter(s => planQty(s) > 0).map(s => [s.src, s.sku, s.p, s.c, s.z, planQty(s), s.cost ?? '', s.cost ? Math.round(planQty(s) * s.cost) : '', approved(s) ? 'yes' : 'no']));
+        const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
+        navigator.clipboard.writeText(csv).then(() => toast(`Copied ${rows.length - 1} lines. Paste into Excel.`)).catch(() => toast('Copy was blocked by the browser.'));
+      });
+    }};
+};
+
+views.health = list => {
+  const low = list.filter(s => s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status));
+  const dead = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
+  return {html: `
+    <section class="panel"><div class="panel-head"><h2>Running out within 14 days</h2><span class="note">Free stock divided by forecast daily demand. Dealer value at risk uses the price list.</span></div>
+      ${sortable('low', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)},
+        {h: 'EGP at risk / day', n: 1, k: 'risk', v: r => r.wk / 7 * (r.cost || 0) * D.margin, f: r => nf(r.wk / 7 * (r.cost || 0) * D.margin)},
+        {h: 'Incoming', n: 1, k: 'inc', f: r => nf(r.inc)}, {h: 'Action', f: r => planQty(r) ? `${D.sources[r.src].kind === 'factory' ? 'Make' : 'Buy'} ${nf(planQty(r))}` : r.inc ? 'Chase incoming order' : 'Review'}], low, {sort: 'dl', dir: 1})}</section>
+    <div class="grid g2">
+      <section class="panel"><div class="panel-head"><h2>Dead and long out stock</h2><span class="note">No sales in 13 weeks, or out for months.</span></div>
+        ${sortable('dead', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Status', k: 'status', f: statusPill}, {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Value EGP', n: 1, k: 'sv', f: r => nf(r.sv)}], dead, {sort: 'sv'})}</section>
+      <section class="panel"><div class="panel-head"><h2>Overstock</h2><span class="note">More than 120 days of forecast on the shelf.</span></div>
+        ${sortable('over', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Days of cover', n: 1, k: 'dl', f: r => nf(r.dl)}, {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Value EGP', n: 1, k: 'sv', f: r => nf(r.sv)}], over, {sort: 'sv'})}</section>
+    </div>
+    <div class="grid g2">
+      <section class="panel"><h2 style="margin-bottom:10px">Cancelled dealer orders</h2>
+        ${sortable('cw', [{h: 'Window', k: 'w'}, {h: 'Orders', n: 1, k: 'o', f: r => nf(r.o)}, {h: 'Units', n: 1, k: 'u', f: r => nf(r.u)}, {h: 'Value EGP', n: 1, k: 'v', f: r => nf(r.v)}], D.cancel.win)}
+        <p class="note">Whole catalog. Cancellations are not split by SKU in this demo.</p></section>
+      <section class="panel"><h2 style="margin-bottom:10px">Cancel reasons, last 90 days</h2>
+        ${sortable('cr', [{h: 'Reason', k: 'r'}, {h: 'Orders', n: 1, k: 'o', f: r => nf(r.o)}, {h: 'Value EGP', n: 1, k: 'v', f: r => nf(r.v)}], D.cancel.why, {sort: 'v'})}</section>
+    </div>`};
+};
+
+views.pricing = list => {
+  const ids = new Set(list.map(s => s.id)), mk = arr => arr.filter(r => ids.has(r.id)).map(r => ({...byId[r.id], pct: r.pct, why: r.why}));
+  const cols = lbl => [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: lbl, n: 1, k: 'pct', f: r => r.pct + '%'}, {h: 'Why', f: r => `<span style="font-size:12.5px">${esc(r.why)}</span>`}];
+  return {html: `<section class="panel"><div class="panel-head"><h2>Dealer discounts to clear excess</h2><span class="note">Smallest step that clears the excess in about 60 days.</span></div>${sortable('md', cols('Discount'), mk(D.md))}</section>
+    <section class="panel"><div class="panel-head"><h2>Price list increases</h2><span class="note">Strong sellers that keep running short.</span></div>${sortable('mu', cols('Increase'), mk(D.mu))}</section>`};
+};
+
+views.issues = list => {
+  const ids = new Set(list.map(s => s.id)), rows = D.issues.filter(r => !r.id || ids.has(r.id));
+  const sev = {high: 0, medium: 1, low: 2};
+  return {html: `<section class="panel"><div class="panel-head"><h2>Data and process issues</h2><span class="note">Data issue: ERP records are wrong or missing. Process issue: stock or orders handled outside the system.</span></div>
+    ${sortable('issues', [{h: 'Issue', k: 'type'}, {h: 'Severity', k: 'sev', v: r => sev[r.sev], f: r => `<span class="pill ${r.sev === 'high' ? 'p-bad' : r.sev === 'medium' ? 'p-warn' : 'p-info'}">${r.sev}</span>`},
+      {h: 'Kind', k: 'kind', f: r => r.kind === 'process' ? 'Process' : 'Data'}, {h: 'SKU or source', k: 'sku', cls: 'sku'}, {h: 'Detail', k: 'detail'}], rows, {sort: 'sev', dir: 1})}</section>`};
+};
+
+/* ---------- SKU drawer ---------- */
+function openSku(id){
+  const s = byId[id]; if (!s) return; const src = D.sources[s.src], h = D.H[id], f = D.F[id];
+  const ch = demandChart({o: h[0], a: h[1], fm: f[0], fl: f[1], fh: f[2]}, {h: 250});
+  const shortWeeks = h[2].filter(x => x > 0).length;
+  $('#drawerRoot').innerHTML = `<div class="scrim" id="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle">
+    <div class="drawer-head"><div><div class="eyebrow">${esc(s.line)} · ${esc(s.src)}</div><h2 id="dTitle">${esc(s.p)}</h2>
+      <div class="note"><span style="font-family:var(--mono)">${esc(s.sku)}</span> · ${esc(s.c)} · ${esc(s.z)}</div></div>
+      <button class="close" id="dClose" type="button" aria-label="Close">×</button></div>
+    <div>${statusPill(s)} ${confPill(s.conf)} <span class="pill p-info">${esc(s.abc + s.xyz)} · ${s.svc}% service</span></div>
+    <div class="kv">${[['On hand', nf(s.oh)], ['Committed', nf(s.cm)], ['Incoming', nf(s.inc)], ['Days left', s.dl == null ? '–' : nf(s.dl)], ['Forecast / week', nf(s.wk)],
+      ['Reorder point', nf(s.rop)], ['Order up to', nf(s.tgt)], ['Unit cost EGP', s.cost ? nf(s.cost, 2) : 'missing'], ['Model', esc(s.model)], ['Forecast error', nf(s.wape * 100, 1) + '%'], ['Demand type', esc(s.cls)], ['Short weeks', `${shortWeeks} of 53`]]
+      .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+    <div class="chart" id="dChart">${ch.svg}</div>${chartLegend}
+    <div class="reason">${esc(s.reason)}</div>
+    <div class="plancard"><label for="dQty">${src.kind === 'factory' ? 'Make' : 'Buy'} this week</label>
+      <input id="dQty" class="qty" type="number" min="0" step="${src.pack}" value="${planQty(s)}">
+      <button class="btn primary small" id="dSave" type="button">Save to plan</button>
+      <span class="note">Suggested ${nf(s.q)}. Cartons of ${src.pack}, minimum batch ${nf(src.moq)}.</span></div>
+  </aside>`;
+  ch.wire($('#dChart'));
+  const close = () => { $('#drawerRoot').innerHTML = ''; hideTip(); document.removeEventListener('keydown', onKey); last?.focus(); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
+  const last = document.activeElement;
+  document.addEventListener('keydown', onKey);
+  $('#scrim').addEventListener('click', close); $('#dClose').addEventListener('click', close); $('#dClose').focus();
+  $('#dSave').addEventListener('click', () => { let v = Math.max(0, Math.round(+$('#dQty').value || 0));
+    if (v && v < src.moq) v = src.moq; if (v) v = Math.ceil(v / src.pack) * src.pack;
+    edits[id] = {...edits[id], q: v}; if (v === s.q) delete edits[id].q; saveEdits(); toast(`${s.sku}: ${nf(v)} in the plan`); close(); render(); });
+}
+
+/* ---------- shell ---------- */
+const TABS = [['overview', 'Overview'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['pricing', 'Pricing'], ['issues', 'Data issues']];
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+function render(){
+  const list = filtered();
+  const counts = {plan: list.filter(s => planQty(s) > 0).length, health: list.filter(s => (s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status)) || ['dead', 'longout', 'over'].includes(s.status)).length,
+    issues: D.issues.filter(r => !r.id || list.some(s => s.id === r.id)).length, products: list.length};
+  $('#tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" id="t_${k}" data-k="${k}" aria-selected="${k === tab}" type="button">${l}${counts[k] != null ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
+  const active = Object.values(F).some(Boolean);
+  $('#scope').innerHTML = active ? `Showing <b>${list.length}</b> of ${D.skus.length} SKUs` : `<b>${D.skus.length}</b> SKUs · about ${big(D.annual)} units a year`;
+  const v = views[tab](list), root = $('#view'); root.innerHTML = v.html; v.after?.(root); wireTables(root); wireTips(root);
+}
+function show(k){ tab = k; try { localStorage.setItem('asg-tab', k); history.replaceState(null, '', '#' + k); } catch (e) {} render(); window.scrollTo({top: 0}); }
 $('#tabs').addEventListener('click', e => { const b = e.target.closest('button'); if (b) show(b.dataset.k); });
-let start = 'overview'; try { const t = (location.hash||'').slice(1) || localStorage.getItem('tab'); if (views[t]) start = t; } catch(e) {}
-show(start);
+try { const t = location.hash.slice(1) || localStorage.getItem('asg-tab'); if (views[t]) tab = t; } catch (e) {}
+render();
 </script>
-
-</body></html>
+</body>
+</html>
