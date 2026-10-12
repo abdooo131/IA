@@ -1,0 +1,6 @@
+code,name,unit,supplier,leadTimeDays,moq,packSize,transferMultiple,unitCost,shelfLifeDays
+RM001,"Espresso beans, house blend",kg,Roastery Co.,3,10,1,0.5,950,60
+RM002,Full cream milk,L,Delta Dairy,1,48,12,1,45,7
+RM003,Oat milk,L,Plant Drinks,5,12,6,1,180,90
+RM004,Whipping cream,L,Delta Dairy,1,6,1,1,160,10
+RM005,Mascarpone,kg,Dairy Imports,7,10,0.5,0.5,600,30

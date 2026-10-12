@@ -1,0 +1,671 @@
+<title>Daily Replenishment Planner</title>
+<meta name="description" content="Tells the warehouse what to send to each branch and the central kitchen, and what to order from suppliers.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: an operations console. Header with the plan date, four summary tiles, then tabbed work lists the warehouse team acts on. */
+:root {
+  --bg: #f4f5f2;
+  --surface: #ffffff;
+  --sunk: #eceee9;
+  --ink: #18201c;
+  --muted: #5d6862;
+  --line: #d9ddd7;
+  --accent: #1f5c74;
+  --accent-soft: #e2edf1;
+  --ok: #2b7a4b;
+  --ok-soft: #e3f1e8;
+  --warn: #9a6408;
+  --warn-soft: #f8edd8;
+  --crit: #b3261e;
+  --crit-soft: #f9e3e1;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-head: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-num: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --r: 6px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111614; --surface: #181e1b; --sunk: #1f2622; --ink: #e5eae7; --muted: #9aa69f; --line: #2c3530;
+    --accent: #7ab8d1; --accent-soft: #1b2e36; --ok: #6cc08d; --ok-soft: #17291e; --warn: #e2b04a; --warn-soft: #2e2512;
+    --crit: #f08a82; --crit-soft: #351b19; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111614; --surface: #181e1b; --sunk: #1f2622; --ink: #e5eae7; --muted: #9aa69f; --line: #2c3530;
+  --accent: #7ab8d1; --accent-soft: #1b2e36; --ok: #6cc08d; --ok-soft: #17291e; --warn: #e2b04a; --warn-soft: #2e2512;
+  --crit: #f08a82; --crit-soft: #351b19; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; line-height: 1.45; }
+.wrap { max-width: 1240px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; gap: 20px; }
+h1, h2, h3 { font-family: var(--font-head); font-weight: 600; text-wrap: balance; margin: 0; letter-spacing: 0.005em; }
+h1 { font-size: 26px; }
+h2 { font-size: 19px; }
+h3 { font-size: 15px; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+.label { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); font-weight: 600; }
+
+header.top { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; }
+header.top .meta { display: flex; flex-wrap: wrap; gap: 8px 14px; align-items: center; margin-top: 6px; color: var(--muted); }
+.controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.field { display: grid; gap: 4px; }
+.field label { font-size: 12px; color: var(--muted); font-weight: 500; }
+input, select { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 7px 9px; min-width: 0; }
+input[type="number"] { width: 100%; }
+button { font: inherit; font-weight: 500; cursor: pointer; border-radius: var(--r); border: 1px solid var(--line); background: var(--surface); color: var(--ink); padding: 7px 12px; }
+button:hover { border-color: var(--accent); }
+button.primary { background: var(--accent); border-color: var(--accent); color: var(--surface); }
+button.small { padding: 4px 9px; font-size: 12.5px; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: var(--sunk); color: var(--muted); white-space: nowrap; }
+.chip.example { background: var(--warn-soft); color: var(--warn); }
+.chip.live { background: var(--ok-soft); color: var(--ok); }
+
+.tiles { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; display: grid; gap: 4px; align-content: start; }
+.tile .big { font-family: var(--font-num); font-size: 26px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.tile .sub { color: var(--muted); font-size: 12.5px; }
+.tile.alert { border-color: var(--crit); }
+.tile.alert .big { color: var(--crit); }
+
+.alerts { display: grid; gap: 6px; }
+.alert-row { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; border-radius: var(--r); background: var(--surface); border: 1px solid var(--line); }
+.alert-row .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; transform: translateY(-1px); background: var(--muted); }
+.alert-row.error .dot { background: var(--crit); }
+.alert-row.warn .dot { background: var(--warn); }
+.alert-row.info .dot { background: var(--accent); }
+
+nav.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); overflow-x: auto; }
+nav.tabs button { border: 0; border-bottom: 2px solid transparent; border-radius: 0; background: none; padding: 10px 14px; color: var(--muted); white-space: nowrap; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+
+section.panel { display: grid; gap: 16px; }
+.bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; justify-content: space-between; }
+.bar .left { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.pills { display: flex; flex-wrap: wrap; gap: 6px; }
+.pills button { padding: 4px 10px; font-size: 13px; border-radius: 999px; }
+.pills button[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); display: grid; min-width: 0; }
+.card > .head { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+.card > .body { padding: 14px; display: grid; gap: 10px; min-width: 0; }
+.scroll { overflow-x: auto; min-width: 0; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { padding: 6px 10px; border-bottom: 1px solid var(--line); text-align: left; vertical-align: baseline; white-space: nowrap; }
+th { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; background: var(--sunk); position: sticky; top: 0; }
+td.n, th.n { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; }
+td.n { font-size: 12.5px; }
+td.send { font-weight: 600; color: var(--accent); }
+td.zero { color: var(--muted); font-weight: 400; }
+tr.group td { background: var(--sunk); font-weight: 600; font-family: var(--font-head); font-size: 13.5px; }
+tr.total td { font-weight: 600; border-top: 2px solid var(--line); }
+td.wrap { white-space: normal; min-width: 180px; }
+.matrix td.n { min-width: 52px; }
+.matrix td.shortcell { background: var(--crit-soft); color: var(--crit); }
+
+.status { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
+.status.urgent { background: var(--crit-soft); color: var(--crit); }
+.status.order { background: var(--warn-soft); color: var(--warn); }
+.status.ok { background: var(--ok-soft); color: var(--ok); }
+.status.none { background: var(--sunk); color: var(--muted); }
+.status.short { background: var(--crit-soft); color: var(--crit); }
+
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.settings { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 16px; }
+.settings .hint { font-size: 12px; color: var(--muted); }
+.datasets { display: grid; gap: 0; }
+.ds { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 2fr) auto; gap: 8px 16px; align-items: center; padding: 12px 14px; border-bottom: 1px solid var(--line); }
+.ds:last-child { border-bottom: 0; }
+.ds .cols { font-family: var(--font-num); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+.ds .acts { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.ds input[type="file"] { display: none; }
+.method { display: grid; gap: 14px; max-width: 72ch; }
+.method .formula { font-family: var(--font-num); font-size: 13px; background: var(--sunk); padding: 8px 12px; border-radius: var(--r); overflow-x: auto; }
+.method ol { margin: 0; padding-left: 20px; display: grid; gap: 10px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(18px + env(safe-area-inset-bottom, 0px)); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: var(--r); font-size: 13px; }
+.empty { padding: 18px; color: var(--muted); }
+
+@media (max-width: 860px) {
+  .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid2 { grid-template-columns: minmax(0, 1fr); }
+  .ds { grid-template-columns: minmax(0, 1fr); }
+  .ds .acts { justify-content: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Daily Replenishment Planner</h1>
+      <div class="meta">
+        <span id="metaPlan">Plan for …</span>
+        <span id="metaHist" class="muted"></span>
+        <span id="metaSource" class="chip example">Example data</span>
+      </div>
+    </div>
+    <div class="controls">
+      <div class="field">
+        <label for="planDate">Delivery day</label>
+        <input type="date" id="planDate">
+      </div>
+      <button class="primary" id="btnRun">Recalculate</button>
+    </div>
+  </header>
+
+  <div class="tiles" id="tiles"></div>
+  <div class="alerts" id="alerts"></div>
+
+  <nav class="tabs" role="tablist">
+    <button role="tab" id="tab-branches" aria-selected="true" data-tab="branches">Branch dispatch</button>
+    <button role="tab" id="tab-kitchen" aria-selected="false" data-tab="kitchen">Central kitchen</button>
+    <button role="tab" id="tab-purchasing" aria-selected="false" data-tab="purchasing">Purchasing</button>
+    <button role="tab" id="tab-data" aria-selected="false" data-tab="data">Data and settings</button>
+    <button role="tab" id="tab-method" aria-selected="false" data-tab="method">How it works</button>
+  </nav>
+
+  <section class="panel" id="panel-branches"></section>
+  <section class="panel" id="panel-kitchen" hidden></section>
+  <section class="panel" id="panel-purchasing" hidden></section>
+  <section class="panel" id="panel-data" hidden></section>
+  <section class="panel" id="panel-method" hidden></section>
+</div>
+<div class="toast" id="toast" hidden></div>
+
+<script src="engine.js"></script>
+<script src="demo.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script>
+(function () {
+  'use strict';
+  var STORE_KEY = 'replenishmentPlanner.v1';
+
+  // ---------- datasets: names, columns and header aliases ----------
+  var DATASETS = [
+    { key: 'branches', title: 'Branches', desc: 'One row per branch and its raw material delivery days.', required: ['code', 'name'],
+      fields: { code: ['code', 'branch', 'branchcode', 'store', 'storecode', 'subinventory'], name: ['name', 'branchname', 'storename', 'description'], deliveryDays: ['deliverydays', 'delivery', 'schedule', 'days'] } },
+    { key: 'items', title: 'Raw materials', desc: 'Item master with supplier, lead time, order rules and cost.', required: ['code', 'name'],
+      fields: { code: ['code', 'item', 'itemcode', 'itemnumber', 'sku'], name: ['name', 'itemname', 'description', 'itemdescription'], unit: ['unit', 'uom', 'primaryuom', 'unitofmeasure'],
+        supplier: ['supplier', 'vendor', 'suppliername', 'vendorname'], leadTimeDays: ['leadtimedays', 'leadtime', 'lt', 'processingleadtime'], leadTimeSdDays: ['leadtimesddays', 'leadtimesd', 'leadtimevariation'],
+        moq: ['moq', 'minorder', 'minimumorder', 'minorderqty', 'minimumorderquantity'], packSize: ['packsize', 'pack', 'casesize', 'ordermultiple', 'fixedlotmultiplier'],
+        transferMultiple: ['transfermultiple', 'issuemultiple', 'transferpack'], unitCost: ['unitcost', 'cost', 'itemcost', 'price'], shelfLifeDays: ['shelflifedays', 'shelflife'],
+        orderEveryDays: ['ordereverydays', 'ordercycle', 'reviewdays', 'orderfrequency'] } },
+    { key: 'products', title: 'Products', desc: 'Menu items. Made at = CK for kitchen products, BRANCH for drinks made in store.', required: ['code', 'madeAt'],
+      fields: { code: ['code', 'product', 'productcode', 'menuitem', 'itemcode'], name: ['name', 'productname', 'description'], madeAt: ['madeat', 'producedat', 'source', 'kitchen', 'type'],
+        price: ['price', 'sellingprice', 'menuprice'], targetService: ['targetservice', 'servicelevel'], minQty: ['minqty', 'mindisplay', 'minimum'] } },
+    { key: 'bom', title: 'Recipes (BOM)', desc: 'Raw material used per one unit sold.', required: ['product', 'item', 'qty'],
+      fields: { product: ['product', 'productcode', 'parent', 'assembly', 'menuitem'], item: ['item', 'itemcode', 'component', 'ingredient', 'rawmaterial'], qty: ['qty', 'quantity', 'qtyper', 'quantityper', 'usage', 'componentquantity'] } },
+    { key: 'sales', title: 'Sales history', desc: 'Units sold per day, per branch, per product. 8 weeks or more.', required: ['date', 'branch', 'product', 'qty'],
+      fields: { date: ['date', 'businessdate', 'transactiondate', 'saledate'], branch: ['branch', 'store', 'location', 'branchcode', 'storecode'], product: ['product', 'productcode', 'menuitem', 'item', 'itemcode'], qty: ['qty', 'quantity', 'sold', 'unitssold', 'count'] } },
+    { key: 'stock', title: 'Stock on hand', desc: 'Balance per location. Location = MAIN, CK or a branch code.', required: ['location', 'item', 'qty'],
+      fields: { location: ['location', 'subinventory', 'warehouse', 'branch', 'store', 'organization'], item: ['item', 'itemcode', 'sku', 'itemnumber'], qty: ['qty', 'quantity', 'onhand', 'onhandqty', 'balance'] } },
+    { key: 'inTransit', title: 'In transit', desc: 'Transfers already on the way to the CK or a branch. Optional.', required: ['location', 'item', 'qty'],
+      fields: { location: ['location', 'tolocation', 'destination', 'branch', 'subinventory'], item: ['item', 'itemcode', 'sku'], qty: ['qty', 'quantity', 'intransit'] } },
+    { key: 'openPOs', title: 'Open purchase orders', desc: 'Ordered from suppliers but not received yet. Optional.', required: ['item', 'qty'],
+      fields: { item: ['item', 'itemcode', 'sku', 'itemnumber'], qty: ['qty', 'quantity', 'openqty', 'quantitydue', 'remaining'], due: ['due', 'duedate', 'needbydate', 'promiseddate'] } }
+  ];
+
+  var SETTINGS_UI = [
+    { key: 'historyWeeks', label: 'Weeks of sales history', hint: 'More weeks means steadier forecasts, fewer means faster reaction.', min: 2, max: 26, step: 1 },
+    { key: 'branchServiceLevel', label: 'Branch service level (%)', hint: 'Chance a branch has enough of each raw material until the next delivery.', pct: true, min: 50, max: 99.9, step: 0.5 },
+    { key: 'mainServiceLevel', label: 'Main WH service level (%)', hint: 'Chance the main WH has stock until the supplier order arrives.', pct: true, min: 50, max: 99.9, step: 0.5 },
+    { key: 'orderEveryDays', label: 'Days between supplier orders', hint: 'Default when an item has no order cycle of its own.', min: 1, max: 60, step: 1 },
+    { key: 'freshMinService', label: 'Fresh items: lowest target (%)', hint: 'Floor for the margin based target on sandwiches and desserts.', pct: true, min: 10, max: 99, step: 1 },
+    { key: 'freshMaxService', label: 'Fresh items: highest target (%)', hint: 'Ceiling for the margin based target.', pct: true, min: 10, max: 99, step: 1 },
+    { key: 'freshDefaultService', label: 'Fresh items without price (%)', hint: 'Used when a product has no selling price.', pct: true, min: 10, max: 99, step: 1 },
+    { key: 'ckBufferPct', label: 'Extra kitchen production (%)', hint: 'Added on top of the sum of branch plans.', min: 0, max: 50, step: 1 }
+  ];
+
+  // ---------- state ----------
+  var state = { data: null, sources: {}, settings: {}, planDate: '', branch: 'ALL', onlyOrders: true, tab: 'branches' };
+  var result = null;
+
+  function todayIso() { var d = new Date(); return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10); }
+  function addDays(iso, n) { var t = Planner.parseDate(iso) + n * 86400000; return Planner.fmtDate(t); }
+
+  function loadDemo() {
+    state.data = PlannerDemo.buildDemo(addDays(todayIso(), -1), 10);
+    state.sources = {};
+    DATASETS.forEach(function (d) { state.sources[d.key] = { kind: 'example' }; });
+  }
+
+  function save() {
+    try {
+      var imported = {};
+      var any = false;
+      DATASETS.forEach(function (d) { if (state.sources[d.key] && state.sources[d.key].kind === 'file') { imported[d.key] = state.data[d.key]; any = true; } });
+      localStorage.setItem(STORE_KEY, JSON.stringify({ settings: state.settings, sources: state.sources, imported: any ? imported : null }));
+    } catch (e) { /* storage unavailable: the page still works for this visit */ }
+  }
+
+  function restore() {
+    loadDemo();
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      if (!raw) return;
+      var saved = JSON.parse(raw);
+      state.settings = saved.settings || {};
+      if (saved.imported) {
+        Object.keys(saved.imported).forEach(function (k) {
+          state.data[k] = saved.imported[k];
+          state.sources[k] = saved.sources[k];
+        });
+      }
+    } catch (e) { /* ignore and keep example data */ }
+  }
+
+  // ---------- formatting ----------
+  var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
+  var nf1 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
+  var nf2 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+  function q(n, unit) {
+    if (n === null || n === undefined || !isFinite(n)) return '–';
+    if (unit === 'pcs' || Math.abs(n) >= 100) return nf0.format(n);
+    return Math.abs(n) >= 10 ? nf1.format(n) : nf2.format(n);
+  }
+  function money(n) { return 'EGP ' + nf0.format(n || 0); }
+  function pct(x) { return nf0.format(x * 100) + '%'; }
+  function esc(s) { return String(s === undefined || s === null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  function dateLabel(iso) {
+    var t = Planner.parseDate(iso);
+    return new Date(t).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+  }
+  function el(id) { return document.getElementById(id); }
+
+  function toast(msg) {
+    var t = el('toast');
+    t.textContent = msg;
+    t.hidden = false;
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function () { t.hidden = true; }, 2200);
+  }
+
+  function copyRows(rows) {
+    var text = rows.map(function (r) { return r.map(function (c) { return String(c === undefined || c === null ? '' : c).replace(/[\t\n]/g, ' '); }).join('\t'); }).join('\n');
+    var done = function () { toast('Copied ' + (rows.length - 1) + ' rows. Paste into Excel.'); };
+    try {
+      navigator.clipboard.writeText(text).then(done, function () { fallbackCopy(text); done(); });
+    } catch (e) { fallbackCopy(text); done(); }
+  }
+  function fallbackCopy(text) {
+    var ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e) { /* nothing else to try */ }
+    document.body.removeChild(ta);
+  }
+
+  // ---------- run ----------
+  function run() {
+    var settings = Object.assign({}, state.settings, { planDate: state.planDate || null });
+    result = Planner.plan(state.data, settings);
+    if (!state.planDate) state.planDate = result.planDate;
+    el('planDate').value = result.planDate;
+    render();
+  }
+
+  function branchName(code) {
+    var b = result.branches.find(function (x) { return x.code === code; });
+    return b ? b.name : code;
+  }
+
+  // ---------- render ----------
+  function render() {
+    el('metaPlan').textContent = 'Plan for ' + dateLabel(result.planDate);
+    el('metaHist').textContent = 'Sales history ' + result.historyFrom + ' to ' + result.historyTo;
+    var anyFile = DATASETS.some(function (d) { return state.sources[d.key] && state.sources[d.key].kind === 'file'; });
+    var allFile = DATASETS.slice(0, 6).every(function (d) { return state.sources[d.key] && state.sources[d.key].kind === 'file'; });
+    var src = el('metaSource');
+    src.className = 'chip ' + (allFile ? 'live' : 'example');
+    src.textContent = allFile ? 'Imported data' : (anyFile ? 'Mixed: imported and example data' : 'Example data, not real figures');
+
+    renderTiles();
+    renderAlerts();
+    renderBranches();
+    renderKitchen();
+    renderPurchasing();
+    renderData();
+    renderMethod();
+  }
+
+  function renderTiles() {
+    var dispUnitsLines = result.branchRaw.filter(function (r) { return r.send > 0; }).length;
+    var freshUnits = result.fresh.reduce(function (a, r) { return a + r.send; }, 0);
+    var delivered = result.branches.filter(function (b) { return b.delivers; }).length;
+    var prodUnits = result.production.reduce(function (a, r) { return a + r.total; }, 0);
+    var wasteCost = result.production.reduce(function (a, r) { return a + r.expWasteCost; }, 0);
+    var orders = result.purchasing.filter(function (r) { return r.orderQty > 0; });
+    var suppliers = new Set(orders.map(function (r) { return r.supplier; })).size;
+    var value = orders.reduce(function (a, r) { return a + r.value; }, 0);
+    var urgent = orders.filter(function (r) { return r.status === 'urgent'; }).length;
+    var shortLines = result.branchRaw.filter(function (r) { return r.short > 0; }).length + result.ckTransfer.filter(function (r) { return r.short > 0; }).length;
+    el('tiles').innerHTML =
+      tile('Branch dispatch', nf0.format(dispUnitsLines), 'raw material lines to ' + delivered + ' of ' + result.branches.length + ' branches, plus ' + nf0.format(freshUnits) + ' fresh units') +
+      tile('Kitchen production', nf0.format(prodUnits), 'units to make. Expected leftover about ' + money(wasteCost)) +
+      tile('Purchase orders', nf0.format(orders.length), 'lines to ' + suppliers + ' suppliers, ' + money(value) + (urgent ? ', ' + urgent + ' urgent' : '')) +
+      tile('Short at main WH', nf0.format(shortLines), shortLines ? 'lines cannot be sent in full' : 'everything requested can be sent', shortLines > 0);
+  }
+  function tile(label, big, sub, alert) {
+    return '<div class="tile' + (alert ? ' alert' : '') + '"><span class="label">' + esc(label) + '</span><span class="big">' + esc(big) + '</span><span class="sub">' + esc(sub) + '</span></div>';
+  }
+
+  function renderAlerts() {
+    var w = result.warnings.slice().sort(function (a, b) { return rank(a.level) - rank(b.level); });
+    function rank(l) { return l === 'error' ? 0 : l === 'warn' ? 1 : 2; }
+    var shown = w.slice(0, 6);
+    var html = shown.map(function (x) { return '<div class="alert-row ' + x.level + '"><span class="dot"></span><span>' + esc(x.msg) + '</span></div>'; }).join('');
+    if (w.length > shown.length) html += '<div class="muted" style="padding-left:12px">' + (w.length - shown.length) + ' more notes not shown.</div>';
+    el('alerts').innerHTML = html;
+  }
+
+  // ----- branch dispatch -----
+  function renderBranches() {
+    var p = el('panel-branches');
+    var pills = '<button data-branch="ALL" aria-pressed="' + (state.branch === 'ALL') + '">All branches</button>' +
+      result.branches.map(function (b) { return '<button data-branch="' + esc(b.code) + '" aria-pressed="' + (state.branch === b.code) + '">' + esc(b.name) + '</button>'; }).join('');
+    var html = '<div class="pills" id="branchPills">' + pills + '</div>';
+    if (state.branch === 'ALL') html += branchMatrix();
+    else html += branchDetail(state.branch);
+    p.innerHTML = html;
+    p.querySelectorAll('#branchPills button').forEach(function (b) {
+      b.addEventListener('click', function () { state.branch = b.getAttribute('data-branch'); renderBranches(); });
+    });
+    p.querySelectorAll('[data-copy]').forEach(function (b) { b.addEventListener('click', function () { copyRows(COPY[b.getAttribute('data-copy')]()); }); });
+  }
+
+  var COPY = {};
+
+  function branchMatrix() {
+    var bs = result.branches;
+    // Fresh products matrix
+    var prods = result.production;
+    var fh = '<tr><th>Fresh product</th>' + bs.map(function (b) { return '<th class="n">' + esc(b.name) + '</th>'; }).join('') + '<th class="n">Total</th></tr>';
+    var fb = prods.map(function (pr) {
+      return '<tr><td>' + esc(pr.name) + '</td>' + bs.map(function (b) { var v = pr.byBranch[b.code] || 0; return '<td class="n' + (v ? '' : ' zero') + '">' + q(v, 'pcs') + '</td>'; }).join('') +
+        '<td class="n send">' + q(sumObj(pr.byBranch), 'pcs') + '</td></tr>';
+    }).join('');
+    COPY.freshMatrix = function () {
+      return [['Product'].concat(bs.map(function (b) { return b.name; }), ['Total'])].concat(prods.map(function (pr) {
+        return [pr.name].concat(bs.map(function (b) { return pr.byBranch[b.code] || 0; }), [sumObj(pr.byBranch)]);
+      }));
+    };
+
+    // Raw materials matrix
+    var itemCodes = [];
+    var byItem = {};
+    result.branchRaw.forEach(function (r) {
+      if (!byItem[r.item]) { byItem[r.item] = { name: r.name, unit: r.unit, cells: {} }; itemCodes.push(r.item); }
+      byItem[r.item].cells[r.branch] = r;
+    });
+    itemCodes.sort(function (a, b) { return byItem[a].name.localeCompare(byItem[b].name); });
+    var rh = '<tr><th>Raw material</th><th>Unit</th>' + bs.map(function (b) { return '<th class="n">' + esc(b.name) + (b.delivers ? '' : '<br><span class="muted" style="text-transform:none;letter-spacing:0">no delivery</span>') + '</th>'; }).join('') + '<th class="n">Total</th></tr>';
+    var rb = itemCodes.map(function (it) {
+      var row = byItem[it];
+      var total = 0;
+      var cells = bs.map(function (b) {
+        var c = row.cells[b.code];
+        if (!c) return '<td class="n zero">·</td>';
+        total += c.send;
+        var cls = c.short > 0 ? ' shortcell' : (c.send ? '' : ' zero');
+        var title = c.short > 0 ? ' title="Needs ' + q(c.request, row.unit) + ', short ' + q(c.short, row.unit) + '"' : '';
+        return '<td class="n' + cls + '"' + title + '>' + q(c.send, row.unit) + '</td>';
+      }).join('');
+      return '<tr><td>' + esc(row.name) + '</td><td class="muted">' + esc(row.unit) + '</td>' + cells + '<td class="n send">' + q(total, row.unit) + '</td></tr>';
+    }).join('');
+    COPY.rawMatrix = function () {
+      return [['Raw material', 'Unit'].concat(bs.map(function (b) { return b.name; }), ['Total'])].concat(itemCodes.map(function (it) {
+        var row = byItem[it]; var t = 0;
+        var vals = bs.map(function (b) { var c = row.cells[b.code]; var v = c ? c.send : 0; t += v; return v; });
+        return [row.name, row.unit].concat(vals, [t]);
+      }));
+    };
+
+    return '<div class="card"><div class="head"><div><h2>Fresh products from the central kitchen</h2><p class="muted">Pushed to every branch daily. Branches do not order these.</p></div><button class="small" data-copy="freshMatrix">Copy for Excel</button></div>' +
+      '<div class="scroll"><table class="matrix">' + fh + fb + '</table></div></div>' +
+      '<div class="card"><div class="head"><div><h2>Raw materials from the main WH</h2><p class="muted">Quantity to send per branch. Red cells are short because the main WH does not have enough.</p></div><button class="small" data-copy="rawMatrix">Copy for Excel</button></div>' +
+      '<div class="scroll"><table class="matrix">' + rh + rb + '</table></div></div>';
+  }
+
+  function branchDetail(code) {
+    var b = result.branches.find(function (x) { return x.code === code; });
+    var fr = result.fresh.filter(function (r) { return r.branch === code; });
+    var raw = result.branchRaw.filter(function (r) { return r.branch === code; });
+    var fhead = '<tr><th>Product</th><th class="n">Expected sales</th><th class="n">Target</th><th class="n">Send</th><th class="n">Likely leftover</th><th class="n">Likely missed sales</th></tr>';
+    var fbody = fr.map(function (r) {
+      return '<tr><td>' + esc(r.name) + '</td><td class="n">' + q(r.forecast) + '</td><td class="n">' + pct(r.serviceLevel) + '</td><td class="n send">' + q(r.send, 'pcs') + '</td><td class="n">' + q(r.expWaste) + '</td><td class="n">' + q(r.expLostSales) + '</td></tr>';
+    }).join('');
+    var rhead = '<tr><th>Raw material</th><th>Unit</th><th class="n">Use until next delivery</th><th class="n">Safety stock</th><th class="n">Target</th><th class="n">On hand</th><th class="n">In transit</th><th class="n">Send</th><th></th></tr>';
+    var rbody = raw.map(function (r) {
+      var flag = r.short > 0 ? '<span class="status short">Short ' + q(r.short, r.unit) + '</span>' : (r.shelfCapped ? '<span class="status none">Shelf life limit</span>' : '');
+      return '<tr><td>' + esc(r.name) + '</td><td class="muted">' + esc(r.unit) + '</td><td class="n">' + q(r.forecast, r.unit) + '</td><td class="n">' + q(r.safety, r.unit) + '</td><td class="n">' + q(r.target, r.unit) +
+        '</td><td class="n">' + q(r.onHand, r.unit) + '</td><td class="n">' + q(r.inTransit, r.unit) + '</td><td class="n send' + (r.send ? '' : ' zero') + '">' + q(r.send, r.unit) + '</td><td>' + flag + '</td></tr>';
+    }).join('');
+    COPY.branchFresh = function () { return [['Branch', 'Product', 'Send']].concat(fr.map(function (r) { return [b.name, r.name, r.send]; })); };
+    COPY.branchRaw = function () { return [['Branch', 'Raw material', 'Unit', 'Send', 'Short']].concat(raw.map(function (r) { return [b.name, r.name, r.unit, r.send, r.short]; })); };
+    var note = b.delivers ? 'Covers ' + b.coverDays + ' day' + (b.coverDays > 1 ? 's' : '') + ' until the next delivery. Delivery days: ' + esc(b.deliveryText) + '.' : 'No raw material delivery to this branch on this day. Delivery days: ' + esc(b.deliveryText) + '.';
+    return '<div class="card"><div class="head"><div><h2>' + esc(b.name) + ': fresh products</h2><p class="muted">Target = chance of not selling out, set from each product\'s margin.</p></div><button class="small" data-copy="branchFresh">Copy for Excel</button></div>' +
+      '<div class="scroll"><table>' + fhead + fbody + '</table></div></div>' +
+      '<div class="card"><div class="head"><div><h2>' + esc(b.name) + ': raw materials</h2><p class="muted">' + note + '</p></div><button class="small" data-copy="branchRaw">Copy for Excel</button></div>' +
+      '<div class="scroll"><table>' + rhead + rbody + '</table></div></div>';
+  }
+
+  function sumObj(o) { return Object.keys(o).reduce(function (a, k) { return a + o[k]; }, 0); }
+
+  // ----- kitchen -----
+  function renderKitchen() {
+    var p = el('panel-kitchen');
+    var ph = '<tr><th>Product</th><th class="n">Make</th><th class="n">Price</th><th class="n">Recipe cost</th><th class="n">Target</th><th class="n">Likely leftover</th><th class="n">Leftover cost</th></tr>';
+    var pb = result.production.map(function (r) {
+      return '<tr><td>' + esc(r.name) + '</td><td class="n send">' + q(r.total, 'pcs') + '</td><td class="n">' + q(r.price) + '</td><td class="n">' + q(r.unitCost) + '</td><td class="n">' + pct(r.serviceLevel) +
+        '</td><td class="n">' + q(r.expWaste) + '</td><td class="n">' + money(r.expWasteCost) + '</td></tr>';
+    }).join('');
+    var th = '<tr><th>Raw material</th><th>Unit</th><th class="n">Needed for production</th><th class="n">At kitchen now</th><th class="n">In transit</th><th class="n">Send from main WH</th><th></th></tr>';
+    var tb = result.ckTransfer.map(function (r) {
+      return '<tr><td>' + esc(r.name) + '</td><td class="muted">' + esc(r.unit) + '</td><td class="n">' + q(r.need, r.unit) + '</td><td class="n">' + q(r.onHand, r.unit) + '</td><td class="n">' + q(r.inTransit, r.unit) +
+        '</td><td class="n send' + (r.send ? '' : ' zero') + '">' + q(r.send, r.unit) + '</td><td>' + (r.short > 0 ? '<span class="status short">Short ' + q(r.short, r.unit) + '</span>' : '') + '</td></tr>';
+    }).join('');
+    COPY.production = function () { return [['Product', 'Make']].concat(result.production.map(function (r) { return [r.name, r.total]; })); };
+    COPY.ckTransfer = function () { return [['Raw material', 'Unit', 'Needed', 'At kitchen', 'Send']].concat(result.ckTransfer.map(function (r) { return [r.name, r.unit, +r.need.toFixed(3), r.onHand, r.send]; })); };
+    p.innerHTML = '<div class="grid2">' +
+      '<div class="card"><div class="head"><div><h2>Production plan</h2><p class="muted">Sum of all branch plans' + (result.settings.ckBufferPct ? ' plus ' + result.settings.ckBufferPct + '% extra' : '') + '.</p></div><button class="small" data-copy="production">Copy for Excel</button></div><div class="scroll"><table>' + ph + pb + '</table></div></div>' +
+      '<div class="card"><div class="head"><div><h2>Raw materials to send to the kitchen</h2><p class="muted">Recipe quantities for the plan, minus what the kitchen already holds.</p></div><button class="small" data-copy="ckTransfer">Copy for Excel</button></div><div class="scroll"><table>' + th + tb + '</table></div></div>' +
+      '</div>';
+    p.querySelectorAll('[data-copy]').forEach(function (b) { b.addEventListener('click', function () { copyRows(COPY[b.getAttribute('data-copy')]()); }); });
+  }
+
+  // ----- purchasing -----
+  function renderPurchasing() {
+    var p = el('panel-purchasing');
+    var rows = result.purchasing.filter(function (r) { return !state.onlyOrders || r.orderQty > 0; });
+    var head = '<tr><th>Raw material</th><th>Unit</th><th class="n">Use per day</th><th class="n">Lead time</th><th class="n">On hand</th><th class="n">On order</th><th class="n">Days left</th><th class="n">Reorder at</th><th class="n">Order up to</th><th class="n">Order</th><th class="n">Packs</th><th class="n">Value</th><th>Status</th></tr>';
+    var body = '';
+    var cur = null, sub = 0, grand = 0;
+    rows.forEach(function (r, i) {
+      if (r.supplier !== cur) {
+        if (cur !== null) body += subtotal(cur, sub);
+        cur = r.supplier; sub = 0;
+        body += '<tr class="group"><td colspan="13">' + esc(r.supplier) + '</td></tr>';
+      }
+      sub += r.value; grand += r.value;
+      var st = r.status === 'urgent' ? '<span class="status urgent">Urgent</span>' : r.status === 'order' ? '<span class="status order">Order</span>' : r.status === 'ok' ? '<span class="status ok">OK</span>' : '<span class="status none">Not used</span>';
+      body += '<tr><td>' + esc(r.name) + (r.shelfCapped ? ' <span class="muted" title="Order up to level limited by shelf life">(shelf life)</span>' : '') + '</td><td class="muted">' + esc(r.unit) + '</td><td class="n">' + q(r.dailyAvg, r.unit) + '</td><td class="n">' + r.leadTimeDays + ' d</td><td class="n">' + q(r.onHand, r.unit) +
+        '</td><td class="n">' + q(r.onOrder, r.unit) + '</td><td class="n">' + (isFinite(r.daysLeft) ? nf1.format(r.daysLeft) : '–') + '</td><td class="n">' + q(r.reorderPoint, r.unit) + '</td><td class="n">' + q(r.orderUpTo, r.unit) +
+        '</td><td class="n send' + (r.orderQty ? '' : ' zero') + '">' + q(r.orderQty, r.unit) + '</td><td class="n">' + (r.orderQty ? q(r.packs) + ' × ' + q(r.packSize, r.unit) : '') + '</td><td class="n">' + (r.value ? money(r.value) : '') + '</td><td>' + st + '</td></tr>';
+      if (i === rows.length - 1) body += subtotal(cur, sub);
+    });
+    if (!rows.length) body = '<tr><td colspan="13" class="empty">Nothing to order today. Every item is above its reorder point.</td></tr>';
+    else body += '<tr class="total"><td colspan="11">All suppliers</td><td class="n">' + money(grand) + '</td><td></td></tr>';
+    COPY.po = function () {
+      return [['Supplier', 'Raw material', 'Unit', 'Order qty', 'Packs', 'Pack size', 'Unit cost', 'Value', 'Status']].concat(result.purchasing.filter(function (r) { return r.orderQty > 0; }).map(function (r) {
+        return [r.supplier, r.name, r.unit, r.orderQty, r.packs, r.packSize, r.unitCost, Math.round(r.value), r.status];
+      }));
+    };
+    p.innerHTML = '<div class="bar"><div class="left"><div class="pills"><button id="poOnly" aria-pressed="' + state.onlyOrders + '">Only items to order</button><button id="poAll" aria-pressed="' + !state.onlyOrders + '">All items</button></div></div><button class="small" data-copy="po">Copy orders for Excel</button></div>' +
+      '<div class="card"><div class="scroll"><table>' + head + body + '</table></div></div>' +
+      '<p class="muted">Urgent means the main WH will run out before a new order can arrive, or it cannot cover today\'s dispatch.</p>';
+    el('poOnly').addEventListener('click', function () { state.onlyOrders = true; renderPurchasing(); });
+    el('poAll').addEventListener('click', function () { state.onlyOrders = false; renderPurchasing(); });
+    p.querySelector('[data-copy="po"]').addEventListener('click', function () { copyRows(COPY.po()); });
+  }
+  function subtotal(name, v) { return '<tr><td colspan="11" class="muted">Subtotal ' + esc(name) + '</td><td class="n">' + money(v) + '</td><td></td></tr>'; }
+
+  // ----- data and settings -----
+  function renderData() {
+    var p = el('panel-data');
+    var s = result.settings;
+    var setHtml = SETTINGS_UI.map(function (f) {
+      var v = s[f.key];
+      if (f.pct) v = +(v * 100).toFixed(2);
+      return '<div class="field"><label for="set-' + f.key + '">' + esc(f.label) + '</label><input type="number" id="set-' + f.key + '" data-key="' + f.key + '" data-pct="' + (f.pct ? 1 : 0) + '" min="' + f.min + '" max="' + f.max + '" step="' + f.step + '" value="' + v + '"><span class="hint">' + esc(f.hint) + '</span></div>';
+    }).join('');
+    var dsHtml = DATASETS.map(function (d) {
+      var src = state.sources[d.key] || { kind: 'example' };
+      var n = (state.data[d.key] || []).length;
+      var badge = src.kind === 'file' ? '<span class="chip live">' + esc(src.name) + '</span>' : '<span class="chip example">Example</span>';
+      return '<div class="ds"><div><h3>' + esc(d.title) + '</h3><p class="muted">' + esc(d.desc) + '</p></div>' +
+        '<div><div class="cols">' + Object.keys(d.fields).map(function (k) { return d.required.indexOf(k) >= 0 ? '<strong>' + k + '</strong>' : k; }).join(', ') + '</div><div style="margin-top:4px">' + badge + ' <span class="muted num">' + nf0.format(n) + ' rows</span></div></div>' +
+        '<div class="acts"><input type="file" id="file-' + d.key + '" accept=".csv,.txt,.xlsx,.xls"><button class="small" data-file="' + d.key + '">Import file</button><button class="small" data-headers="' + d.key + '">Copy headers</button></div></div>';
+    }).join('');
+    p.innerHTML =
+      '<div class="card"><div class="head"><div><h2>Settings</h2><p class="muted">Changes apply as soon as you leave a field.</p></div></div><div class="body"><div class="settings">' + setHtml + '</div></div></div>' +
+      '<div class="card"><div class="head"><div><h2>Data</h2><p class="muted">Import CSV or Excel exports from Oracle. Bold columns are required. Common Oracle column names are recognised automatically.</p></div><button class="small" id="btnDemo">Restore example data</button></div><div class="datasets">' + dsHtml + '</div></div>' +
+      '<p class="muted">Imported files stay in this browser only. Re-import stock on hand every day before planning.</p>';
+
+    p.querySelectorAll('.settings input').forEach(function (inp) {
+      inp.addEventListener('change', function () {
+        var v = parseFloat(inp.value);
+        if (!isFinite(v)) return;
+        if (inp.getAttribute('data-pct') === '1') v = Math.min(0.999, Math.max(0.01, v / 100));
+        state.settings[inp.getAttribute('data-key')] = v;
+        save(); run(); showTab('data');
+        toast('Settings updated');
+      });
+    });
+    p.querySelectorAll('[data-file]').forEach(function (b) {
+      var key = b.getAttribute('data-file');
+      var inp = el('file-' + key);
+      b.addEventListener('click', function () { inp.click(); });
+      inp.addEventListener('change', function () { if (inp.files[0]) importFile(key, inp.files[0]); inp.value = ''; });
+    });
+    p.querySelectorAll('[data-headers]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var d = DATASETS.find(function (x) { return x.key === b.getAttribute('data-headers'); });
+        var ex = (state.data[d.key] || []).slice(0, 3);
+        copyRows([Object.keys(d.fields)].concat(ex.map(function (r) { return Object.keys(d.fields).map(function (k) { return r[k]; }); })));
+      });
+    });
+    el('btnDemo').addEventListener('click', function () {
+      loadDemo(); state.planDate = ''; save(); run(); showTab('data'); toast('Example data restored');
+    });
+  }
+
+  // ---------- import ----------
+  function normKey(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  function parseCsv(text) {
+    text = text.replace(/^﻿/, '');
+    var first = text.split(/\r?\n/)[0] || '';
+    var delim = [',', ';', '\t'].sort(function (a, b) { return first.split(b).length - first.split(a).length; })[0];
+    var rows = [], row = [], cur = '', inQ = false;
+    for (var i = 0; i < text.length; i++) {
+      var c = text[i];
+      if (inQ) {
+        if (c === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else inQ = false; }
+        else cur += c;
+      } else if (c === '"') inQ = true;
+      else if (c === delim) { row.push(cur); cur = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cur); cur = '';
+        if (row.some(function (x) { return x.trim() !== ''; })) rows.push(row);
+        row = [];
+      } else cur += c;
+    }
+    row.push(cur);
+    if (row.some(function (x) { return x.trim() !== ''; })) rows.push(row);
+    var head = rows.shift() || [];
+    return rows.map(function (r) { var o = {}; head.forEach(function (h, j) { o[h] = r[j]; }); return o; });
+  }
+
+  function mapRows(ds, rows) {
+    if (!rows.length) throw new Error('The file has no rows.');
+    var headers = Object.keys(rows[0]);
+    var map = {};
+    Object.keys(ds.fields).forEach(function (f) {
+      var aliases = ds.fields[f];
+      var h = headers.find(function (x) { return aliases.indexOf(normKey(x)) >= 0; });
+      if (h) map[f] = h;
+    });
+    var missing = ds.required.filter(function (f) { return !map[f]; });
+    if (missing.length) throw new Error('Missing column' + (missing.length > 1 ? 's' : '') + ': ' + missing.join(', ') + '. Found: ' + headers.join(', ') + '.');
+    return rows.map(function (r) { var o = {}; Object.keys(map).forEach(function (f) { o[f] = r[map[f]]; }); return o; });
+  }
+
+  function importFile(key, file) {
+    var ds = DATASETS.find(function (d) { return d.key === key; });
+    var isXlsx = /\.xlsx?$/i.test(file.name);
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var rows;
+        if (isXlsx) {
+          if (!window.XLSX) throw new Error('The Excel reader did not load. Save the sheet as CSV and import that.');
+          var wb = XLSX.read(reader.result, { type: 'array', cellDates: true });
+          rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { raw: false, dateNF: 'yyyy-mm-dd', defval: '' });
+        } else rows = parseCsv(reader.result);
+        var mapped = mapRows(ds, rows);
+        state.data[key] = mapped;
+        state.sources[key] = { kind: 'file', name: file.name };
+        save(); run(); showTab('data');
+        toast('Imported ' + nf0.format(mapped.length) + ' rows into ' + ds.title);
+      } catch (e) {
+        toast(e.message);
+      }
+    };
+    if (isXlsx) reader.readAsArrayBuffer(file); else reader.readAsText(file);
+  }
+
+  // ----- method -----
+  function renderMethod() {
+    if (el('panel-method').childElementCount) return;
+    el('panel-method').innerHTML = '<div class="card"><div class="body method">' +
+      '<h2>How the plan is built</h2>' +
+      '<p>The planner runs once a day, after the stock counts and sales for the day are in. It follows the goods backwards from the customer.</p>' +
+      '<ol>' +
+      '<li><strong>Forecast each branch.</strong> For every product at every branch it averages sales on the same weekday over the last weeks, with recent weeks counting more. It also measures how much sales move around.</li>' +
+      '<li><strong>Fresh products are pushed, not ordered.</strong> Sandwiches and desserts are sold the same day or thrown away. The quantity balances the profit lost when a branch sells out against the cost of throwing one away:<div class="formula">Target = (price − recipe cost) ÷ price<br>Send = expected sales + z(target) × sales variation</div>A product with a high margin gets a higher target, so it sells out less often. A low margin product gets a lower target, so less is thrown away.</li>' +
+      '<li><strong>The kitchen makes the sum of the branch plans.</strong> The recipes turn that into raw materials, and the planner asks the main WH for whatever the kitchen does not already hold.</li>' +
+      '<li><strong>Branch raw materials use a target level.</strong> Drinks made in the branch are converted to raw material use through the recipes. On a delivery day each branch is filled up to:<div class="formula">Target = expected use until next delivery + safety stock<br>Safety stock = z(branch service level) × daily variation × √days covered<br>Send = target − on hand − in transit</div>Quantities round up to the transfer multiple, and targets never exceed what can be used within the shelf life.</li>' +
+      '<li><strong>Short stock is shared fairly.</strong> If the main WH cannot cover every request, the kitchen goes first because its products are already promised to branches. The rest is shared by need, and leftovers go to the branches closest to running out.</li>' +
+      '<li><strong>The main WH orders from suppliers.</strong> Demand is the total raw material use of the whole network. For each item:<div class="formula">Reorder at = daily use × lead time + safety stock<br>Order up to = reorder at + daily use × days between orders<br>Order = order up to − (on hand + on order), when on hand + on order ≤ reorder at</div>Orders round up to the supplier pack size and minimum order quantity.</li>' +
+      '</ol>' +
+      '<h3>What keeps it accurate</h3>' +
+      '<p>The plan is only as good as the stock balances. A full count once a month is not enough when goods move every day. Count the 20 to 30 most used and most expensive items every week, record waste every day at each branch, and record the time each fresh product sells out. Sold out days hide real demand, so they will be used to correct the forecast in the next version.</p>' +
+      '</div></div>';
+  }
+
+  // ---------- tabs ----------
+  function showTab(name) {
+    state.tab = name;
+    document.querySelectorAll('nav.tabs button').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === name)); });
+    ['branches', 'kitchen', 'purchasing', 'data', 'method'].forEach(function (t) { el('panel-' + t).hidden = t !== name; });
+  }
+
+  document.querySelectorAll('nav.tabs button').forEach(function (b) {
+    b.addEventListener('click', function () { showTab(b.getAttribute('data-tab')); });
+  });
+  el('btnRun').addEventListener('click', function () { state.planDate = el('planDate').value || ''; run(); showTab(state.tab); toast('Plan updated'); });
+  el('planDate').addEventListener('change', function () { state.planDate = el('planDate').value || ''; run(); showTab(state.tab); });
+
+  restore();
+  run();
+  var hash = (location.hash || '').replace('#', '');
+  showTab(['branches', 'kitchen', 'purchasing', 'data', 'method'].indexOf(hash) >= 0 ? hash : 'branches');
+})();
+</script>
