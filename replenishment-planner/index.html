@@ -106,6 +106,11 @@ td.zero { color: var(--muted); font-weight: 400; }
 tr.group td { background: var(--sunk); font-weight: 600; font-family: var(--font-head); font-size: 13.5px; }
 tr.total td { font-weight: 600; border-top: 2px solid var(--line); }
 td.wrap { white-space: normal; min-width: 180px; }
+.step { font-family: var(--font-num); font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: 0.04em; }
+.flow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; color: var(--muted); font-size: 13px; }
+.flow b { color: var(--ink); font-weight: 600; }
+.via { color: var(--muted); font-size: 12px; }
+select#explodeProduct { min-width: 0; max-width: 100%; }
 .matrix td.n { min-width: 52px; }
 .matrix td.shortcell { background: var(--crit-soft); color: var(--crit); }
 
@@ -163,14 +168,16 @@ td.wrap { white-space: normal; min-width: 180px; }
   <div class="alerts" id="alerts"></div>
 
   <nav class="tabs" role="tablist">
-    <button role="tab" id="tab-branches" aria-selected="true" data-tab="branches">Branch dispatch</button>
+    <button role="tab" id="tab-forecast" aria-selected="true" data-tab="forecast">Forecast and recipes</button>
+    <button role="tab" id="tab-branches" aria-selected="false" data-tab="branches">Branch dispatch</button>
     <button role="tab" id="tab-kitchen" aria-selected="false" data-tab="kitchen">Central kitchen</button>
     <button role="tab" id="tab-purchasing" aria-selected="false" data-tab="purchasing">Purchasing</button>
     <button role="tab" id="tab-data" aria-selected="false" data-tab="data">Data and settings</button>
     <button role="tab" id="tab-method" aria-selected="false" data-tab="method">How it works</button>
   </nav>
 
-  <section class="panel" id="panel-branches"></section>
+  <section class="panel" id="panel-forecast"></section>
+  <section class="panel" id="panel-branches" hidden></section>
   <section class="panel" id="panel-kitchen" hidden></section>
   <section class="panel" id="panel-purchasing" hidden></section>
   <section class="panel" id="panel-data" hidden></section>
@@ -223,8 +230,9 @@ td.wrap { white-space: normal; min-width: 180px; }
   ];
 
   // ---------- state ----------
-  var state = { data: null, sources: {}, settings: {}, planDate: '', branch: 'ALL', onlyOrders: true, tab: 'branches' };
+  var state = { data: null, sources: {}, settings: {}, planDate: '', branch: 'ALL', onlyOrders: true, tab: 'forecast', explode: '' };
   var result = null;
+  var COPY = {};
 
   function todayIso() { var d = new Date(); return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate())).toISOString().slice(0, 10); }
   function addDays(iso, n) { var t = Planner.parseDate(iso) + n * 86400000; return Planner.fmtDate(t); }
@@ -264,6 +272,7 @@ td.wrap { white-space: normal; min-width: 180px; }
   var nf0 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
   var nf1 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 });
   var nf2 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
+  var nf4 = new Intl.NumberFormat('en-US', { maximumFractionDigits: 4 });
   function q(n, unit) {
     if (n === null || n === undefined || !isFinite(n)) return '–';
     if (unit === 'pcs' || Math.abs(n) >= 100) return nf0.format(n);
@@ -327,6 +336,7 @@ td.wrap { white-space: normal; min-width: 180px; }
 
     renderTiles();
     renderAlerts();
+    renderForecast();
     renderBranches();
     renderKitchen();
     renderPurchasing();
@@ -364,6 +374,67 @@ td.wrap { white-space: normal; min-width: 180px; }
     el('alerts').innerHTML = html;
   }
 
+  // ----- forecast and recipes -----
+  function madeAtLabel(m) { return m === 'CK' ? 'Central kitchen' : 'Branch'; }
+
+  function renderForecast() {
+    var p = el('panel-forecast');
+    var bs = result.branches;
+    var dem = result.demand;
+    if (!state.explode || !result.explosion.some(function (e) { return e.product === state.explode; })) {
+      var deep = result.explosion.slice().sort(function (a, b) { return b.lines.length - a.lines.length; })[0];
+      state.explode = deep ? deep.product : '';
+    }
+
+    // Step 1
+    var h1 = '<tr><th>Product</th><th>Made at</th><th class="n">Components</th><th class="n">Expected sales</th><th class="n">Planned</th>' + bs.map(function (b) { return '<th class="n">' + esc(b.name) + '</th>'; }).join('') + '</tr>';
+    var b1 = dem.map(function (d) {
+      return '<tr><td>' + esc(d.name) + '</td><td class="muted">' + madeAtLabel(d.madeAt) + '</td><td class="n">' + d.components + '</td><td class="n">' + q(d.forecast) + '</td><td class="n send">' + q(d.planned, 'pcs') + '</td>' +
+        bs.map(function (b) { var v = d.plannedByBranch[b.code] || 0; return '<td class="n' + (v ? '' : ' zero') + '">' + q(v, 'pcs') + '</td>'; }).join('') + '</tr>';
+    }).join('');
+    COPY.demand = function () {
+      return [['Product', 'Made at', 'Expected sales', 'Planned'].concat(bs.map(function (b) { return b.name; }))].concat(dem.map(function (d) {
+        return [d.name, madeAtLabel(d.madeAt), +d.forecast.toFixed(1), Math.round(d.planned)].concat(bs.map(function (b) { return Math.round(d.plannedByBranch[b.code] || 0); }));
+      }));
+    };
+
+    // Step 2
+    var ex = result.explosion.find(function (e) { return e.product === state.explode; });
+    var opts = result.explosion.map(function (e) { return '<option value="' + esc(e.product) + '"' + (e.product === state.explode ? ' selected' : '') + '>' + esc(e.name) + ' (' + e.lines.length + ' raw materials)</option>'; }).join('');
+    var h2 = '<tr><th>Raw material</th><th>Through</th><th class="n">Per unit</th><th class="n">× Planned</th><th class="n">= Needed</th><th>Unit</th><th class="n">Cost per unit</th></tr>';
+    var b2 = ex ? ex.lines.map(function (l) {
+      return '<tr><td>' + esc(l.name) + '</td><td class="via">' + (l.via ? esc(l.via) : 'Direct') + '</td><td class="n">' + nf4.format(l.qtyPer) + '</td><td class="n">' + q(ex.planned, 'pcs') + '</td><td class="n send">' + q(l.need, l.unit) + '</td><td class="muted">' + esc(l.unit) + '</td><td class="n">' + nf2.format(l.cost) + '</td></tr>';
+    }).join('') : '';
+    if (ex) b2 += '<tr class="total"><td colspan="6">Recipe cost per unit</td><td class="n">' + nf2.format(ex.lines.reduce(function (a, l) { return a + l.cost; }, 0)) + '</td></tr>';
+    COPY.explode = function () {
+      return [['Product', 'Raw material', 'Through', 'Per unit', 'Planned', 'Needed', 'Unit']].concat(ex.lines.map(function (l) { return [ex.name, l.name, l.via || 'Direct', +l.qtyPer.toFixed(4), Math.round(ex.planned), +l.need.toFixed(3), l.unit]; }));
+    };
+
+    // Step 3
+    var h3 = '<tr><th>Raw material</th><th>Unit</th><th class="n">For kitchen products</th><th class="n">For branch drinks</th><th class="n">Total needed</th><th class="n">Used in</th><th class="n">Main WH on hand</th><th class="n">Value</th></tr>';
+    var b3 = result.requirements.map(function (r) {
+      return '<tr><td>' + esc(r.name) + '</td><td class="muted">' + esc(r.unit) + '</td><td class="n' + (r.ck ? '' : ' zero') + '">' + q(r.ck, r.unit) + '</td><td class="n' + (r.branch ? '' : ' zero') + '">' + q(r.branch, r.unit) + '</td><td class="n send">' + q(r.total, r.unit) +
+        '</td><td class="n">' + r.products + ' product' + (r.products > 1 ? 's' : '') + '</td><td class="n">' + q(r.mainOnHand, r.unit) + '</td><td class="n">' + money(r.value) + '</td></tr>';
+    }).join('');
+    COPY.requirements = function () {
+      return [['Raw material', 'Unit', 'For kitchen products', 'For branch drinks', 'Total needed', 'Main WH on hand']].concat(result.requirements.map(function (r) { return [r.name, r.unit, +r.ck.toFixed(3), +r.branch.toFixed(3), +r.total.toFixed(3), r.mainOnHand]; }));
+    };
+
+    p.innerHTML =
+      '<div class="flow"><b>Product forecast</b><span>→</span><b>Recipe (BOM)</b><span>→</span><b>Raw materials needed</b><span>→</span><span>then safety stock, stock on hand and delivery days give the dispatch and purchase orders.</span></div>' +
+      '<div class="card"><div class="head"><div><span class="step">STEP 1</span><h2>Product forecast for ' + esc(dateLabel(result.planDate)) + '</h2><p class="muted">Expected sales from the same weekday in past weeks. Planned is what gets made: kitchen products include the margin based buffer, branch drinks use the forecast.</p></div><button class="small" data-copy="demand">Copy for Excel</button></div>' +
+      '<div class="scroll"><table class="matrix">' + h1 + b1 + '</table></div></div>' +
+      '<div class="card"><div class="head"><div><span class="step">STEP 2</span><h2>Break a product into its raw materials</h2><p class="muted">Every component of the recipe, including components of semi finished items such as a cream mix.</p></div><button class="small" data-copy="explode">Copy for Excel</button></div>' +
+      '<div class="body"><div class="field"><label for="explodeProduct">Product</label><select id="explodeProduct">' + opts + '</select></div>' +
+      (ex ? '<p class="flow"><b>' + esc(ex.name) + '</b><span>made at ' + madeAtLabel(ex.madeAt).toLowerCase() + ',</span><b class="num">' + q(ex.planned, 'pcs') + '</b><span>planned across all branches</span></p>' : '') + '</div>' +
+      '<div class="scroll"><table>' + h2 + b2 + '</table></div></div>' +
+      '<div class="card"><div class="head"><div><span class="step">STEP 3</span><h2>Total raw materials needed for the day</h2><p class="muted">Sum of step 2 over every product. This is pure usage, before safety stock and stock on hand.</p></div><button class="small" data-copy="requirements">Copy for Excel</button></div>' +
+      '<div class="scroll"><table>' + h3 + b3 + '</table></div></div>';
+
+    el('explodeProduct').addEventListener('change', function (e) { state.explode = e.target.value; renderForecast(); });
+    p.querySelectorAll('[data-copy]').forEach(function (b) { b.addEventListener('click', function () { copyRows(COPY[b.getAttribute('data-copy')]()); }); });
+  }
+
   // ----- branch dispatch -----
   function renderBranches() {
     var p = el('panel-branches');
@@ -379,8 +450,7 @@ td.wrap { white-space: normal; min-width: 180px; }
     p.querySelectorAll('[data-copy]').forEach(function (b) { b.addEventListener('click', function () { copyRows(COPY[b.getAttribute('data-copy')]()); }); });
   }
 
-  var COPY = {};
-
+  
   function branchMatrix() {
     var bs = result.branches;
     // Fresh products matrix
@@ -640,7 +710,8 @@ td.wrap { white-space: normal; min-width: 180px; }
       '<ol>' +
       '<li><strong>Forecast each branch.</strong> For every product at every branch it averages sales on the same weekday over the last weeks, with recent weeks counting more. It also measures how much sales move around.</li>' +
       '<li><strong>Fresh products are pushed, not ordered.</strong> Sandwiches and desserts are sold the same day or thrown away. The quantity balances the profit lost when a branch sells out against the cost of throwing one away:<div class="formula">Target = (price − recipe cost) ÷ price<br>Send = expected sales + z(target) × sales variation</div>A product with a high margin gets a higher target, so it sells out less often. A low margin product gets a lower target, so less is thrown away.</li>' +
-      '<li><strong>The kitchen makes the sum of the branch plans.</strong> The recipes turn that into raw materials, and the planner asks the main WH for whatever the kitchen does not already hold.</li>' +
+      '<li><strong>Recipes turn products into raw materials.</strong> Each planned unit is multiplied by every line of its BOM. When a component has its own recipe (a semi finished item such as a cream mix), it is broken down again until only raw materials remain. The <em>Forecast and recipes</em> tab shows each step.</li>' +
+      '<li><strong>The kitchen makes the sum of the branch plans.</strong> The planner asks the main WH for the raw materials the kitchen does not already hold.</li>' +
       '<li><strong>Branch raw materials use a target level.</strong> Drinks made in the branch are converted to raw material use through the recipes. On a delivery day each branch is filled up to:<div class="formula">Target = expected use until next delivery + safety stock<br>Safety stock = z(branch service level) × daily variation × √days covered<br>Send = target − on hand − in transit</div>Quantities round up to the transfer multiple, and targets never exceed what can be used within the shelf life.</li>' +
       '<li><strong>Short stock is shared fairly.</strong> If the main WH cannot cover every request, the kitchen goes first because its products are already promised to branches. The rest is shared by need, and leftovers go to the branches closest to running out.</li>' +
       '<li><strong>The main WH orders from suppliers.</strong> Demand is the total raw material use of the whole network. For each item:<div class="formula">Reorder at = daily use × lead time + safety stock<br>Order up to = reorder at + daily use × days between orders<br>Order = order up to − (on hand + on order), when on hand + on order ≤ reorder at</div>Orders round up to the supplier pack size and minimum order quantity.</li>' +
@@ -654,7 +725,7 @@ td.wrap { white-space: normal; min-width: 180px; }
   function showTab(name) {
     state.tab = name;
     document.querySelectorAll('nav.tabs button').forEach(function (b) { b.setAttribute('aria-selected', String(b.getAttribute('data-tab') === name)); });
-    ['branches', 'kitchen', 'purchasing', 'data', 'method'].forEach(function (t) { el('panel-' + t).hidden = t !== name; });
+    ['forecast', 'branches', 'kitchen', 'purchasing', 'data', 'method'].forEach(function (t) { el('panel-' + t).hidden = t !== name; });
   }
 
   document.querySelectorAll('nav.tabs button').forEach(function (b) {
@@ -666,6 +737,6 @@ td.wrap { white-space: normal; min-width: 180px; }
   restore();
   run();
   var hash = (location.hash || '').replace('#', '');
-  showTab(['branches', 'kitchen', 'purchasing', 'data', 'method'].indexOf(hash) >= 0 ? hash : 'branches');
+  showTab(['forecast', 'branches', 'kitchen', 'purchasing', 'data', 'method'].indexOf(hash) >= 0 ? hash : 'forecast');
 })();
 </script>

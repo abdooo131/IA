@@ -106,7 +106,17 @@
       inTransit: [],
       openPOs: []
     };
-    products.forEach(function (p) { p[5].forEach(function (l) { data.bom.push({ product: p[0], item: l[0], qty: l[1] }); }); });
+    products.forEach(function (p) {
+      if (p[0] === 'P204') return; // tiramisu is written as a two level recipe below
+      p[5].forEach(function (l) { data.bom.push({ product: p[0], item: l[0], qty: l[1] }); });
+    });
+    // Two level recipe: tiramisu uses a cream mix made at the kitchen, which has its own recipe per kg.
+    [['SF01', 0.12], ['RM006', 0.04], ['RM001', 0.006], ['RM007', 0.003], ['RM025', 1]].forEach(function (l) {
+      data.bom.push({ product: 'P204', item: l[0], qty: l[1] });
+    });
+    [['RM005', 0.65], ['RM004', 0.33], ['RM008', 0.12], ['RM020', 8]].forEach(function (l) {
+      data.bom.push({ product: 'SF01', item: l[0], qty: l[1], productName: 'Tiramisu cream mix (per kg)' });
+    });
 
     var useBranch = {}; // branch|item -> total over history
     var useCK = {};

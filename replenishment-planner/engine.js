@@ -173,21 +173,51 @@
       });
     });
 
-    var bom = new Map();
+    // Recipes can have several levels: a component that has its own recipe
+    // (a semi finished product such as a cream mix) is broken down into raw materials.
+    var rawBom = new Map(); // parent -> [{ comp, qty }]
+    var parentNames = new Map();
     (data.bom || []).forEach(function (r) {
       var p = String(r.product || '').trim();
-      var it = String(r.item || '').trim();
+      var c = String(r.item || '').trim();
       var q = num(r.qty, 0);
-      if (!p || !it || !(q > 0)) return;
-      if (!products.has(p)) return;
-      if (!items.has(it)) { warn('warn', 'Recipe for ' + p + ' uses unknown item ' + it + '. Line skipped.'); return; }
-      if (!bom.has(p)) bom.set(p, []);
-      bom.get(p).push({ item: it, qty: q });
+      if (!p || !c || !(q > 0)) return;
+      if (!rawBom.has(p)) rawBom.set(p, []);
+      rawBom.get(p).push({ comp: c, qty: q });
+      if (r.productName) parentNames.set(p, r.productName);
     });
+    var unknownComp = new Set();
+    var bom = new Map(); // product -> flat raw lines [{ item, qty, via }]
+    function flatten(code, factor, via, stack, out) {
+      (rawBom.get(code) || []).forEach(function (l) {
+        if (rawBom.has(l.comp)) {
+          if (stack.indexOf(l.comp) >= 0) { warn('error', 'Recipe loop: ' + stack.concat(l.comp).join(' → ') + '. Fix the BOM.'); return; }
+          var name = products.has(l.comp) ? products.get(l.comp).name : (parentNames.get(l.comp) || l.comp);
+          flatten(l.comp, factor * l.qty, via ? via + ' › ' + name : name, stack.concat(l.comp), out);
+        } else if (items.has(l.comp)) {
+          out.push({ item: l.comp, qty: factor * l.qty, via: via || '' });
+        } else unknownComp.add(code + ' uses ' + l.comp);
+      });
+      return out;
+    }
+    var isComponent = new Set();
+    rawBom.forEach(function (lines) { lines.forEach(function (l) { if (rawBom.has(l.comp)) isComponent.add(l.comp); }); });
     products.forEach(function (p) {
-      if (!bom.has(p.code)) warn('warn', 'Product ' + p.name + ' has no recipe, so it uses no raw materials.');
-      p.cost = (bom.get(p.code) || []).reduce(function (a, l) { return a + l.qty * items.get(l.item).unitCost; }, 0);
+      var lines = flatten(p.code, 1, '', [p.code], []);
+      var merged = new Map();
+      lines.forEach(function (l) {
+        var k = l.item + '|' + l.via;
+        if (merged.has(k)) merged.get(k).qty += l.qty; else merged.set(k, { item: l.item, qty: l.qty, via: l.via });
+      });
+      bom.set(p.code, Array.from(merged.values()));
+      p.components = (rawBom.get(p.code) || []).length;
+      p.rawLines = bom.get(p.code).length;
+      if (!rawBom.has(p.code)) warn('warn', 'Product ' + p.name + ' has no recipe, so it uses no raw materials.');
+      p.cost = bom.get(p.code).reduce(function (a, l) { return a + l.qty * items.get(l.item).unitCost; }, 0);
     });
+    unknownComp.forEach(function (m) { warn('warn', 'Recipe line skipped: ' + m + ', which is not a raw material or a recipe.'); });
+    // Semi finished products are planned through their parents, not sold on their own.
+    isComponent.forEach(function (c) { if (products.has(c)) products.delete(c); });
 
     var branches = [];
     (data.branches || []).forEach(function (r) {
@@ -462,6 +492,52 @@
     });
     purchasing.sort(function (a, b) { return a.supplier.localeCompare(b.supplier) || a.name.localeCompare(b.name); });
 
+    // ----- 5. the chain made visible: forecast → recipe → raw materials (plan day) -----
+    var demand = [];
+    var planned = new Map(); // product -> total planned units on the plan day
+    products.forEach(function (p) {
+      var byBranch = {}, fcByBranch = {}, total = 0, fcTotal = 0;
+      branches.forEach(function (b) {
+        var f = forecast(b.code, p.code, planDate);
+        var units;
+        if (p.madeAt === 'CK') {
+          var fr = fresh.find(function (r) { return r.branch === b.code && r.product === p.code; });
+          units = fr ? fr.send : 0;
+        } else units = f.mean;
+        byBranch[b.code] = units; fcByBranch[b.code] = f.mean;
+        total += units; fcTotal += f.mean;
+      });
+      planned.set(p.code, total);
+      demand.push({ product: p.code, name: p.name, madeAt: p.madeAt, components: p.components, rawLines: p.rawLines, forecast: fcTotal, planned: total, forecastByBranch: fcByBranch, plannedByBranch: byBranch, price: p.price, cost: p.cost });
+    });
+    demand.sort(function (a, b) { return a.madeAt.localeCompare(b.madeAt) || b.planned - a.planned; });
+
+    var explosion = demand.map(function (d) {
+      return {
+        product: d.product, name: d.name, madeAt: d.madeAt, planned: d.planned,
+        lines: (bom.get(d.product) || []).map(function (l) {
+          var it = items.get(l.item);
+          return { item: l.item, name: it.name, unit: it.unit, via: l.via, qtyPer: l.qty, need: l.qty * d.planned, cost: l.qty * it.unitCost };
+        })
+      };
+    });
+
+    var reqMap = new Map();
+    explosion.forEach(function (e) {
+      e.lines.forEach(function (l) {
+        if (!reqMap.has(l.item)) reqMap.set(l.item, { item: l.item, name: l.name, unit: l.unit, ck: 0, branch: 0, total: 0, usedIn: new Set() });
+        var r = reqMap.get(l.item);
+        if (e.madeAt === 'CK') r.ck += l.need; else r.branch += l.need;
+        r.total += l.need; r.usedIn.add(e.product);
+      });
+    });
+    var requirements = Array.from(reqMap.values()).map(function (r) {
+      r.products = r.usedIn.size; delete r.usedIn;
+      r.mainOnHand = stock.get('MAIN|' + r.item) || 0;
+      r.value = r.total * items.get(r.item).unitCost;
+      return r;
+    }).sort(byName);
+
     var notDelivered = branches.filter(function (b) { return branchesDelivered.indexOf(b.code) < 0; });
     if (notDelivered.length) warn('info', notDelivered.map(function (b) { return b.name; }).join(', ') + ': no raw material delivery on this day (fresh products still go out).');
 
@@ -476,6 +552,9 @@
       ckTransfer: ckTransfer.sort(byName),
       branchRaw: branchRaw.sort(byName),
       purchasing: purchasing,
+      demand: demand,
+      explosion: explosion,
+      requirements: requirements,
       warnings: warnings
     };
   }

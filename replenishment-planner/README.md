@@ -25,7 +25,7 @@ No server or install is needed. Imported files stay in the browser that imported
 |---|---|
 | `engine.js` | The planning logic. Runs in the browser and in Node (`require('./engine.js').plan(data, settings)`). |
 | `demo.js` | Example data: 11 branches, 27 raw materials, 17 products, 10 weeks of sales. |
-| `index.html` | The screens. |
+| `index.html` | The screens. The first tab shows the chain: product forecast, recipe breakdown, total raw materials. |
 | `templates/*.csv` | One template per import file, with sample rows. |
 
 ## Data to import
@@ -46,6 +46,7 @@ Common Oracle column names (item number, UOM, subinventory, on hand quantity, ne
 ## Method in short
 
 * **Forecast:** same weekday average over the last 8 weeks, recent weeks weighted more.
+* **Recipes:** each planned product is multiplied through its BOM. Recipes can have several levels: a component with its own recipe (for example a cream mix) is broken down until only raw materials remain. Semi finished items only need to appear in the BOM, as a parent with their own lines.
 * **Fresh products (sold the same day or thrown away):** pushed to branches. Target = (price − recipe cost) ÷ price, so high margin items sell out less often and low margin items are thrown away less often.
 * **Branch raw materials:** filled up to expected use until the next delivery plus safety stock, minus stock on hand and in transit. Never more than the shelf life allows.
 * **Shortages at the main WH:** the kitchen is served first, then branches share by need, with leftovers going to the branch closest to running out.
