@@ -155,7 +155,7 @@ input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
 .slot h3{font:600 18px/1.1 var(--display);margin:0;display:flex;gap:8px;align-items:center;justify-content:space-between}
 .cols{font:12px/1.5 var(--mono);color:var(--muted);overflow-wrap:anywhere}
 .cols b{color:var(--ink);font-weight:500}
-.drop{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1.5px dashed var(--line);border-radius:6px;padding:14px;text-align:center;cursor:pointer;color:var(--muted);font-size:13px;background:var(--sunk)}
+.drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1.5px dashed var(--line);border-radius:6px;padding:14px;text-align:center;cursor:pointer;color:var(--muted);font-size:13px;background:var(--sunk)}
 .drop:hover,.drop.over{border-color:var(--accent);color:var(--ink)}
 .drop strong{color:var(--accent);font-weight:600}
 .drop input{position:absolute;width:1px;height:1px;opacity:0}
@@ -165,8 +165,31 @@ input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
 .problems{margin:0;padding-left:18px;color:var(--bad);font-size:13px}
 .problems li.warn{color:var(--warn)}
 .steps{margin:0;padding-left:20px;font-size:13.5px;display:grid;gap:4px;max-width:80ch}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:var(--panel)}
+.seg button{border:0;background:none;padding:7px 12px;cursor:pointer;font-size:13.5px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.seg-label{display:flex;flex-direction:column;gap:3px;font-size:11.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+.notes{display:grid;gap:8px;margin:0;padding:0;list-style:none}
+.notes li{display:grid;grid-template-columns:150px 1fr;gap:10px;font-size:13px;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:var(--sunk)}
+.notes li b{font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.04em;color:var(--accent)}
+tr.grp td{background:var(--sunk);font-weight:600}
+tr.grp td:first-child{cursor:pointer}
+tr.sub td{font-size:12.5px;color:var(--muted)}
+th.mon{cursor:pointer}
+th.mon:hover{color:var(--ink)}
+th.wkcol,td.wkcol{background:var(--accent-soft)}
+.caret{display:inline-block;width:12px;color:var(--accent)}
+.mini{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.mini .chart text{font-size:10px}
+.loadgrid{display:grid;grid-template-columns:minmax(120px,200px) repeat(6,1fr);gap:4px 6px;align-items:center;font-size:12.5px}
+.loadgrid .cell{height:26px;border-radius:4px;background:var(--sunk);position:relative;overflow:hidden;border:1px solid var(--line)}
+.loadgrid .cell i{position:absolute;left:0;bottom:0;top:0;background:var(--s1)}
+.loadgrid .cell i.over{background:var(--bad)}
+.loadgrid .cell span{position:relative;font:500 11.5px/26px var(--mono);padding-left:6px}
+.loadgrid .h{font-size:11.5px;color:var(--muted);text-align:center}
+.legend-inline{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
-@media (max-width:720px){.filters{position:static}}
+@media (max-width:720px){.filters{position:static}.notes li{grid-template-columns:1fr}}
 @media (max-width:560px){h1{font-size:28px}.tiles{grid-template-columns:1fr 1fr}.tile .v{font-size:24px}.scope{margin-left:0;width:100%}.barrow{grid-template-columns:110px 1fr auto}}
 </style>
 </head>
@@ -176,12 +199,13 @@ input.qty.changed{border-color:var(--accent);background:var(--accent-soft)}
     <div class="brand">
       <span class="eyebrow">Ahram Security Group</span>
       <h1>ASG Planning Desk</h1>
-      <div class="sub">Demand forecast and production plan for Ahram, AFM and Sicuro lines. Data as of <span id="asof"></span>. Demand is dealer orders after stockout adjustment; cancelled orders never count.</div>
+      <div class="sub">Demand forecast and production plan for Ahram, AFM and Sicuro lines. Data as of <span id="asof"></span>. Forecast is monthly and splits into weeks; it accounts for price changes, promotions, holidays, construction activity, dealer stock, channels and stockouts.</div>
     </div>
     <button class="badge" id="srcBadge" type="button" title="Where these numbers come from">Synthetic demo data, not real ASG sales</button>
   </header>
 
   <div class="filters" role="search">
+    <div class="seg-label">View by<div class="seg" role="group" aria-label="View by"><button type="button" data-per="month" aria-pressed="true">Month</button><button type="button" data-per="week" aria-pressed="false">Week</button></div></div>
     <label for="fLine">Product line<select id="fLine"></select></label>
     <label for="fSrc">Made at<select id="fSrc"></select></label>
     <label for="fFin">Finish<select id="fFin"></select></label>
@@ -207,8 +231,13 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt
 const nf = (x, d = 0) => x == null || isNaN(x) ? '–' : Number(x).toLocaleString('en', {minimumFractionDigits:d, maximumFractionDigits:d});
 const big = x => { if (x == null) return '–'; const a = Math.abs(x);
   return a >= 1e6 ? nf(x / 1e6, a >= 1e7 ? 1 : 2) + 'M' : a >= 1e4 ? nf(x / 1e3, 0) + 'k' : nf(x); };
+const pct = (x, d = 0) => x == null ? '–' : (x > 0 ? '+' : '') + nf(x * 100, d) + '%';
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const dlabel = (iso, yr = true) => { const [y, m, d] = iso.split('-').map(Number); return `${d} ${MON[m-1]}${yr ? ' ' + String(y).slice(2) : ''}`; };
+const mlabel = (m, yr = true) => { const [y, mo] = m.split('-').map(Number); return `${MON[mo-1]}${yr ? ' ' + String(y).slice(2) : ''}`; };
+const sumA = a => a.reduce((x, y) => x + y, 0);
+function sum(arr, f){ let t = 0; for (const x of arr) t += f(x) || 0; return t; }
+const addDays = (s, n) => ENGINE.addDays(s, n);
 
 /* ---------- per viewer plan edits, kept in this browser only ---------- */
 const KEY = 'asg-plan-v2';
@@ -219,89 +248,151 @@ const planQty = s => edits[s.sku]?.q ?? s.q;
 const approved = s => !!edits[s.sku]?.ok;
 const setEdit = (s, patch) => { const e = {...edits[s.sku], ...patch}; if (e.q === s.q) delete e.q; edits[s.sku] = e; saveEdits(); };
 
-/* ---------- filters ---------- */
+/* ---------- filters and period ---------- */
 const F = {line:'', src:'', fin:'', q:''};
+let PER = 'month';
+try { PER = localStorage.getItem('asg-per') || 'month'; } catch (e) {}
 function fillSelect(id, label, vals){ $(id).innerHTML = `<option value="">All ${label}</option>` + vals.map(v => `<option>${esc(v)}</option>`).join(''); }
-const uniq = k => [...new Set(D.skus.map(s => s[k]))].sort();
 function filtered(){
   const q = F.q.trim().toLowerCase();
   return D.skus.filter(s => (!F.line || s.line === F.line) && (!F.src || s.src === F.src) && (!F.fin || s.c === F.fin) &&
     (!q || (s.sku + ' ' + s.p + ' ' + s.code).toLowerCase().includes(q)));
 }
-function setFilter(k, v){ F[k] = v; const el = {line:'#fLine', src:'#fSrc', fin:'#fFin', q:'#fQ'}[k]; $(el).value = v; render(); }
+function setFilter(k, v){ F[k] = v; $({line:'#fLine', src:'#fSrc', fin:'#fFin', q:'#fQ'}[k]).value = v; render(); }
 ['line','src','fin'].forEach(k => $({line:'#fLine', src:'#fSrc', fin:'#fFin'}[k]).addEventListener('change', e => { F[k] = e.target.value; render(); }));
 let qTimer; $('#fQ').addEventListener('input', e => { clearTimeout(qTimer); qTimer = setTimeout(() => { F.q = e.target.value; render(); }, 120); });
 $('#fReset').addEventListener('click', () => { Object.keys(F).forEach(k => F[k] = ''); ['#fLine','#fSrc','#fFin','#fQ'].forEach(i => $(i).value = ''); render(); });
+function syncPer(){ $$('[data-per]').forEach(b => b.setAttribute('aria-pressed', b.dataset.per === PER)); }
+$$('[data-per]').forEach(b => b.addEventListener('click', () => { PER = b.dataset.per; try { localStorage.setItem('asg-per', PER); } catch (e) {} syncPer(); render(); }));
+syncPer();
 
-/* ---------- helpers ---------- */
+/* ---------- status helpers ---------- */
 const STATUS = {
-  make:   ['p-warn', s => D.sources[s.src].kind === 'factory' ? 'Make now' : 'Buy now'],
+  make:   ['p-warn', s => D.sources[s.src]?.kind === 'import' ? 'Buy now' : 'Make now'],
   ok:     ['p-good', () => 'Covered'],
   over:   ['p-info', () => 'Overstock'],
   dead:   ['p-bad',  () => 'Dead stock'],
   longout:['p-bad',  () => 'Long out'],
 };
 const statusPill = s => { const [c, f] = STATUS[s.status]; return `<span class="pill ${c}">${esc(f(s))}</span>`; };
+const lifePill = s => s.life === 'new' ? `<span class="pill p-info" title="Launch ${esc(s.launch)}">New</span>` : s.life === 'phaseout' ? `<span class="pill p-warn" title="Ends ${esc(s.end)}">Phase out</span>` : s.life === 'ended' ? '<span class="pill p-bad">Ended</span>' : '';
 const confPill = c => `<span class="pill ${c === 'high' ? 'p-good' : c === 'medium' ? 'p-warn' : 'p-bad'}">${esc(c)}</span>`;
 const daysPill = d => d == null ? '–' : `<span class="pill ${d <= 7 ? 'p-bad' : d <= 14 ? 'p-warn' : 'p-good'}">${nf(d)} d</span>`;
-const prod = s => `<div class="prod">${esc(s.p)}<small>${esc(s.c)} · ${esc(s.z)}</small></div>`;
-function sum(arr, f){ let t = 0; for (const x of arr) t += f(x) || 0; return t; }
+const prod = s => `<div class="prod">${esc(s.p)} ${lifePill(s)}<small>${esc(s.c)} · ${esc(s.z)}</small></div>`;
+const isLow = s => s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status);
+
+/* ---------- periods: weeks, or calendar months with weeks split at month ends ---------- */
 function aggregate(list){
-  const n = D.weeks.length, m = D.fweeks.length, o = Array(n).fill(0), a = Array(n).fill(0), fm = Array(m).fill(0), fl = Array(m).fill(0), fh = Array(m).fill(0);
-  let varSum = Array(m).fill(0);
-  for (const s of list){ const h = D.H[s.id], f = D.F[s.id];
+  const n = D.weeks.length, m = D.fweeks.length, z = k => Array(k).fill(0);
+  const o = z(n), a = z(n), fm = z(m), d = z(m), e = z(m), p = z(m), vr = z(m);
+  for (const s of list){ const h = D.H[s.id], f = D.F[s.id], sd = D.SD[s.id] || 0;
     for (let i = 0; i < n; i++){ o[i] += h[0][i]; a[i] += h[1][i]; }
-    for (let i = 0; i < m; i++){ fm[i] += f[0][i]; const sd = (f[2][i] - f[0][i]) / 1.28; varSum[i] += sd * sd; } }
-  for (let i = 0; i < m; i++){ const sd = Math.sqrt(varSum[i]); fl[i] = Math.max(0, fm[i] - 1.28 * sd); fh[i] = fm[i] + 1.28 * sd; }
-  return {o, a, fm, fl, fh};
+    for (let i = 0; i < m; i++){ fm[i] += f[0][i]; d[i] += f[3][i]; e[i] += f[4][i]; p[i] += f[5][i]; if (f[0][i]) vr[i] += sd * sd; } }
+  return {o, a, fm, d, e, p, vr};
+}
+/* points for charts and tables: {key, label, kind: 'h' | 'f' | 'mix', a, o, f, l, h, d, e, p, weeks: [{ws, share}]} */
+function periods(agg, per = PER){
+  const n = D.weeks.length, m = D.fweeks.length;
+  if (per === 'week'){
+    const pts = D.weeks.map((ws, i) => ({key: ws, label: dlabel(ws), kind: 'h', a: agg.a[i], o: agg.o[i]}));
+    D.fweeks.forEach((ws, k) => { const sd = Math.sqrt(agg.vr[k]);
+      pts.push({key: ws, label: dlabel(ws), kind: 'f', f: agg.fm[k], l: Math.max(agg.p[k], agg.fm[k] - 1.28 * sd), h: agg.fm[k] + (agg.fm[k] ? 1.28 * sd : 0), d: agg.d[k], e: agg.e[k], p: agg.p[k], weeks: [{ws, share: 1, k}]}); });
+    return pts;
+  }
+  const asof = D.asof, map = new Map();
+  const get = mo => map.get(mo) || (map.set(mo, {key: mo, label: mlabel(mo), a: 0, o: 0, f: 0, d: 0, e: 0, p: 0, vr: 0, hd: 0, fd: 0, weeks: []}), map.get(mo));
+  D.weeks.forEach((ws, i) => { for (let j = 0; j < 7; j++){ const day = addDays(ws, j); if (day > asof) break; const r = get(day.slice(0, 7)); r.a += agg.a[i] / 7; r.o += agg.o[i] / 7; r.hd++; } });
+  D.fweeks.forEach((ws, k) => { const per = {};
+    for (let j = 0; j < 7; j++){ const day = addDays(ws, j); per[day.slice(0, 7)] = (per[day.slice(0, 7)] || 0) + 1; }
+    for (const [mo, days] of Object.entries(per)){ const r = get(mo), sh = days / 7;
+      r.f += agg.fm[k] * sh; r.d += agg.d[k] * sh; r.e += agg.e[k] * sh; r.p += agg.p[k] * sh; r.vr += agg.vr[k] * sh * sh; r.fd += days; r.weeks.push({ws, share: sh, k}); } });
+  const out = [...map.values()].sort((x, y) => x.key < y.key ? -1 : 1);
+  const first = out.findIndex(r => r.hd >= 20 || r.fd > 0);
+  return out.slice(Math.max(0, first)).filter((r, i, arr) => !(i === arr.length - 1 && r.fd && !r.hd && r.fd < 20)).map(r => {
+    const sd = Math.sqrt(r.vr);
+    if (!r.fd) return {...r, kind: 'h'};
+    const actual = r.a, f = r.f + actual;
+    return {...r, kind: r.hd ? 'mix' : 'f', actual, f, l: Math.max(r.p + actual, f - 1.28 * sd), h: f + (r.f ? 1.28 * sd : 0), label: mlabel(r.key) + (r.hd ? '*' : '')};
+  });
+}
+const futurePts = pts => pts.filter(p => p.kind !== 'h');
+const PER_TXT = () => PER === 'month' ? 'next 2 months' : 'next 8 weeks';
+const nextWindow = agg => PER === 'month' ? (() => { const fp = futurePts(periods(agg, 'month')); return sumA(fp.slice(0, 2).map(p => p.f - (p.actual || 0))) + 0; })() : sumA(agg.fm.slice(0, 8));
+const lastWindow = agg => PER === 'month' ? sumA(agg.a.slice(-9)) * 8.7 / 9 : sumA(agg.a.slice(-8));
+
+/* events that touch a set of SKUs */
+function eventsFor(list){
+  const lines = new Set(list.map(s => s.line)), skus = new Set(list.map(s => s.sku));
+  return D.events.filter(e => (!e.line || lines.has(e.line)) && (!e.sku || skus.has(e.sku)));
 }
 
 /* ---------- tooltip ---------- */
 const tip = $('#tip');
 function showTip(x, y, html){ tip.innerHTML = html; tip.style.opacity = 1;
   const w = tip.offsetWidth, h = tip.offsetHeight;
-  tip.style.left = Math.min(x + 14, innerWidth - w - 8) + 'px'; tip.style.top = (y + h + 24 > innerHeight ? y - h - 12 : y + 14) + 'px'; }
+  tip.style.left = Math.max(8, Math.min(x + 14, innerWidth - w - 8)) + 'px'; tip.style.top = (y + h + 24 > innerHeight ? y - h - 12 : y + 14) + 'px'; }
 const hideTip = () => tip.style.opacity = 0;
 function wireTips(root){ $$('[data-tip]', root).forEach(el => {
   el.addEventListener('pointermove', e => showTip(e.clientX, e.clientY, el.dataset.tip)); el.addEventListener('pointerleave', hideTip);
   el.addEventListener('focus', () => { const r = el.getBoundingClientRect(); showTip(r.right, r.top, el.dataset.tip); }); el.addEventListener('blur', hideTip); }); }
+const trow = (c, l, v, dash) => `<div class="r"><span><i class="key ${dash ? 'dash' : ''}" style="background:${c}"></i>${l}</span><b>${v}</b></div>`;
 
-/* ---------- demand chart: history, forecast band, crosshair ---------- */
-function demandChart(agg, opts = {}){
-  const n = D.weeks.length, m = D.fweeks.length, N = n + m, W = 800, H = opts.h || 270, L = 52, R = 14, T = 14, B = 30;
-  const max = Math.max(1, ...agg.a, ...agg.o, ...agg.fh) * 1.08;
-  const x = i => L + (W - L - R) * i / (N - 1), y = v => H - B - (H - B - T) * v / max;
-  const step = niceStep(max / 4); let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Weekly demand history and 16 week forecast">`;
+/* ---------- demand chart: history, forecast band, events, crosshair ---------- */
+function niceStep(raw){ const p = Math.pow(10, Math.floor(Math.log10(raw || 1))), r = raw / p; return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * p; }
+function demandChart(pts, evs = [], opts = {}){
+  const N = pts.length, W = 800, H = opts.h || 280, L = 52, R = 14, T = 22, B = 30;
+  const hi = pts.findIndex(p => p.kind !== 'h'), nH = hi < 0 ? N : hi;
+  const max = Math.max(1, ...pts.map(p => Math.max(p.a || 0, p.o || 0, p.h || 0, p.f || 0))) * 1.08;
+  const x = i => L + (W - L - R) * (N === 1 ? .5 : i / (N - 1)), y = v => H - B - (H - B - T) * v / max;
+  const step = niceStep(max / 4); let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Demand history and forecast">`;
   for (let v = 0; v <= max; v += step) s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end">${big(v)}</text>`;
-  s += `<rect x="${x(n - .5)}" y="${T}" width="${x(N - 1) - x(n - .5) + 4}" height="${H - B - T}" fill="var(--sunk)"/>`;
-  let up = '', dn = ''; agg.fh.forEach((v, i) => up += `${i ? 'L' : 'M'}${x(n + i)},${y(v)}`); for (let i = m - 1; i >= 0; i--) dn += `L${x(n + i)},${y(agg.fl[i])}`;
-  s += `<path d="${up}${dn}Z" fill="var(--band)"/>`;
-  const path = (arr, off) => arr.map((v, i) => `${i ? 'L' : 'M'}${x(off + i).toFixed(1)},${y(v).toFixed(1)}`).join('');
-  s += `<path d="${path(agg.o, 0)}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"/>`;
-  s += `<path d="${path(agg.a, 0)}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>`;
-  s += `<path d="M${x(n - 1)},${y(agg.a[n - 1])}L${path(agg.fm, n).slice(1)}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-dasharray="5 4"/>`;
-  s += `<text x="${x(n - .5) + 6}" y="${T + 12}" style="font-weight:600">Forecast</text>`;
-  const ticks = [0, 13, 26, 39, n - 1]; ticks.forEach(i => s += `<text x="${x(i)}" y="${H - 9}" text-anchor="middle">${dlabel(D.weeks[i])}</text>`);
-  s += `<text x="${x(N - 1)}" y="${H - 9}" text-anchor="end">${dlabel(D.fweeks[m - 1])}</text>`;
-  s += `<line class="xh" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-width="1" opacity="0"/>`;
-  s += `<circle class="xd" r="4" fill="var(--s1)" stroke="var(--panel)" stroke-width="2" opacity="0"/>`;
-  s += `<rect class="hit" x="${L}" y="${T}" width="${W - L - R}" height="${H - B - T}" fill="transparent"/></svg>`;
+  if (nH < N) s += `<rect x="${x(nH - .5)}" y="${T}" width="${W - R - x(nH - .5)}" height="${H - B - T}" fill="var(--sunk)"/><text x="${x(nH - .5) + 6}" y="${T + 12}" style="font-weight:600">Forecast</text>`;
+  const fp = pts.map((p, i) => [p, i]).filter(([p]) => p.kind !== 'h');
+  if (fp.length){ let up = '', dn = ''; fp.forEach(([p, i], j) => up += `${j ? 'L' : 'M'}${x(i)},${y(p.h)}`); for (let j = fp.length - 1; j >= 0; j--) dn += `L${x(fp[j][1])},${y(fp[j][0].l)}`; s += `<path d="${up}${dn}Z" fill="var(--band)"/>`; }
+  const path = arr => arr.map(([v, i], j) => `${j ? 'L' : 'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  const hp = pts.map((p, i) => [p, i]).filter(([p]) => p.kind === 'h');
+  s += `<path d="${path(hp.map(([p, i]) => [p.o, i]))}" fill="none" stroke="var(--s2)" stroke-width="2" stroke-linejoin="round"/>`;
+  s += `<path d="${path(hp.map(([p, i]) => [p.a, i]))}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-linejoin="round"/>`;
+  if (fp.length) s += `<path d="${path([...(hp.length ? [[hp[hp.length - 1][0].a, hp[hp.length - 1][1]]] : []), ...fp.map(([p, i]) => [p.f, i])])}" fill="none" stroke="var(--s1)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  /* event markers */
+  const evAt = i => { const p = pts[i], from = PER === 'week' || opts.per === 'week' ? p.key : p.key + '-01', to = PER === 'week' || opts.per === 'week' ? addDays(p.key, 6) : p.key + '-31';
+    return evs.filter(e => e.start >= from && e.start <= to); }; // mark where each event starts
+  pts.forEach((p, i) => { const ev = evAt(i); if (!ev.length) return; const cx = x(i), cy = T - 8, col = ev.some(e => e.type === 'price') ? 'var(--accent)' : 'var(--s2)';
+    s += `<path d="M${cx},${cy - 5}L${cx + 5},${cy}L${cx},${cy + 5}L${cx - 5},${cy}Z" fill="${col}"/>`; });
+  const step2 = Math.max(1, Math.ceil(N / 7));
+  pts.forEach((p, i) => { if (i % step2 === 0 || i === N - 1) s += `<text x="${x(i)}" y="${H - 9}" text-anchor="${i === N - 1 ? 'end' : i === 0 ? 'start' : 'middle'}">${esc(p.label)}</text>`; });
+  s += `<line class="xh" x1="0" x2="0" y1="${T}" y2="${H - B}" stroke="var(--muted)" stroke-width="1" opacity="0"/><circle class="xd" r="4" fill="var(--s1)" stroke="var(--panel)" stroke-width="2" opacity="0"/>`;
+  s += `<rect class="hit" x="${L - 10}" y="0" width="${W - L - R + 20}" height="${H - B}" fill="transparent"/></svg>`;
   return {svg: s, wire(root){
     const svg = $('svg', root), xh = $('.xh', root), xd = $('.xd', root), hit = $('.hit', root);
     hit.addEventListener('pointermove', e => { const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
-      const i = Math.max(0, Math.min(N - 1, Math.round((px - L) / (W - L - R) * (N - 1))));
+      const i = Math.max(0, Math.min(N - 1, Math.round((px - L) / (W - L - R) * (N - 1)))), p = pts[i];
       xh.setAttribute('x1', x(i)); xh.setAttribute('x2', x(i)); xh.setAttribute('opacity', .6);
-      const v = i < n ? agg.a[i] : agg.fm[i - n]; xd.setAttribute('cx', x(i)); xd.setAttribute('cy', y(v)); xd.setAttribute('opacity', 1);
-      const row = (c, l, v, dash) => `<div class="r"><span><i class="key ${dash ? 'dash' : ''}" style="background:${c}"></i>${l}</span><b>${v}</b></div>`;
-      const html = i < n
-        ? `<div class="t">Week of ${dlabel(D.weeks[i])}</div>${row('var(--s1)', 'Demand', nf(agg.a[i]))}${row('var(--s2)', 'Shipped', nf(agg.o[i]))}${agg.a[i] - agg.o[i] > .5 ? row('var(--bad)', 'Unmet', nf(agg.a[i] - agg.o[i])) : ''}`
-        : `<div class="t">Week of ${dlabel(D.fweeks[i - n])}, forecast</div>${row('var(--s1)', 'Forecast', nf(agg.fm[i - n]), 1)}${row('var(--band)', 'Likely range', nf(agg.fl[i - n]) + ' to ' + nf(agg.fh[i - n]))}`;
+      const v = p.kind === 'h' ? p.a : p.f; xd.setAttribute('cx', x(i)); xd.setAttribute('cy', y(v)); xd.setAttribute('opacity', 1);
+      const ev = evAt(i).map(e => `<div class="r"><span>◆ ${esc(e.name)}</span></div>`).join('');
+      const per = PER === 'week' || opts.per === 'week' ? `Week of ${esc(p.label)}` : esc(p.label.replace('*', ''));
+      const html = p.kind === 'h'
+        ? `<div class="t">${per}</div>${trow('var(--s1)', 'Demand', nf(p.a))}${trow('var(--s2)', 'Shipped', nf(p.o))}${p.a - p.o > .5 ? trow('var(--bad)', 'Unmet', nf(p.a - p.o)) : ''}${ev}`
+        : `<div class="t">${per}, forecast${p.kind === 'mix' ? ` (includes ${nf(p.actual)} actual so far)` : ''}</div>${trow('var(--s1)', 'Forecast', nf(p.f), 1)}${trow('var(--band)', 'Likely range', nf(p.l) + ' to ' + nf(p.h))}
+           ${p.e > .5 || p.p > .5 ? trow('transparent', 'Dealer', nf(p.d)) + trow('transparent', 'Export', nf(p.e)) + trow('transparent', 'Project', nf(p.p)) : ''}${ev}`;
       showTip(e.clientX, e.clientY, html); });
     hit.addEventListener('pointerleave', () => { hideTip(); xh.setAttribute('opacity', 0); xd.setAttribute('opacity', 0); });
   }};
 }
-function niceStep(raw){ const p = Math.pow(10, Math.floor(Math.log10(raw || 1))), r = raw / p; return (r < 1.5 ? 1 : r < 3 ? 2 : r < 7 ? 5 : 10) * p; }
-const chartLegend = `<div class="legend"><span><i class="key" style="background:var(--s1)"></i>Demand after stockout adjustment</span><span><i class="key" style="background:var(--s2)"></i>Shipped</span><span><i class="key dash"></i>Forecast</span><span><i class="key box" style="background:var(--band)"></i>Likely range, 80%</span></div>`;
+const chartLegend = `<div class="legend"><span><i class="key" style="background:var(--s1)"></i>Demand after stockout adjustment</span><span><i class="key" style="background:var(--s2)"></i>Shipped</span><span><i class="key dash"></i>Forecast</span><span><i class="key box" style="background:var(--band)"></i>Likely range, 80%</span><span>◆ price change or promotion</span></div>`;
+function lineChart(vals, labels, {h = 150, fmt = big, color = 'var(--s1)', mark = null} = {}){
+  const W = 360, H = h, L = 40, R = 8, T = 10, B = 22, N = vals.length, ok = vals.filter(v => v != null);
+  if (!ok.length) return '<div class="empty">No data uploaded.</div>';
+  let lo = Math.min(...ok), hi = Math.max(...ok); const pad = (hi - lo) * .15 || hi * .05 || 1; lo -= pad; hi += pad;
+  const x = i => L + (W - L - R) * i / Math.max(1, N - 1), y = v => H - B - (H - B - T) * (v - lo) / (hi - lo);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img">`;
+  [lo + pad, (lo + hi) / 2, hi - pad].forEach(v => s += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 4}" y="${y(v) + 3}" text-anchor="end">${fmt(v)}</text>`);
+  if (mark != null) s += `<rect x="${x(mark)}" y="${T}" width="${W - R - x(mark)}" height="${H - B - T}" fill="var(--sunk)"/>`;
+  s += `<path d="${vals.map((v, i) => v == null ? '' : `${i && vals[i - 1] != null ? 'L' : 'M'}${x(i)},${y(v)}`).join('')}" fill="none" stroke="${color}" stroke-width="2"/>`;
+  [0, Math.floor(N / 2), N - 1].forEach(i => s += `<text x="${x(i)}" y="${H - 6}" text-anchor="${i === 0 ? 'start' : i === N - 1 ? 'end' : 'middle'}">${esc(labels[i])}</text>`);
+  vals.forEach((v, i) => { if (v != null) s += `<rect x="${x(i) - (W - L) / N / 2}" y="${T}" width="${(W - L) / N}" height="${H - B - T}" fill="transparent" data-tip="${esc(`<div class='t'>${esc(labels[i])}</div><b>${nf(v, v < 100 ? 1 : 0)}</b>`)}"/>`; });
+  return s + '</svg>';
+}
 
 /* ---------- sortable tables ---------- */
 const sortState = {};
@@ -313,7 +404,7 @@ function sortable(key, cols, rows, opts = {}){
   const lim = opts.limit && rows.length > opts.limit ? opts.limit : rows.length;
   return `<div class="tblwrap"><table data-key="${key}"><thead><tr>${cols.map(c => `<th class="${c.n ? 'n' : ''} ${c.k ? 'sort' : ''}" ${c.k ? `data-k="${c.k}" tabindex="0" aria-sort="${st.k === c.k ? (st.d > 0 ? 'ascending' : 'descending') : 'none'}"` : ''}>${c.h}${st.k === c.k ? `<span class="arr">${st.d > 0 ? '▲' : '▼'}</span>` : ''}</th>`).join('')}</tr></thead>
     <tbody>${rows.slice(0, lim).map(r => `<tr class="${r.id ? 'click' : ''}" ${r.id ? `data-id="${esc(r.id)}" tabindex="0"` : ''}>${cols.map(c => `<td class="${c.n ? 'n' : ''} ${c.cls || ''}">${c.f ? c.f(r) : esc(r[c.k])}</td>`).join('')}</tr>`).join('') ||
-      `<tr><td colspan="${cols.length}" class="empty">Nothing matches the current filters.</td></tr>`}</tbody></table></div>${lim < rows.length ? `<p class="note">Showing ${lim} of ${rows.length}. Narrow the filters or sort to see others.</p>` : ''}`;
+      `<tr><td colspan="${cols.length}" class="empty">${esc(opts.empty || 'Nothing here for the current filters.')}</td></tr>`}</tbody></table></div>${lim < rows.length ? `<p class="note">Showing ${lim} of ${rows.length}. Narrow the filters or sort to see others.</p>` : ''}`;
 }
 function wireTables(root){
   $$('th.sort', root).forEach(th => { const go = () => { const key = th.closest('table').dataset.key, st = sortState[key];
@@ -323,55 +414,139 @@ function wireTables(root){
     tr.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.target.closest('input')) openSku(tr.dataset.id); }); });
 }
 
+/* ---------- capacity schedule: most urgent first, each factory filled week by week ---------- */
+function schedule(list){
+  const out = {}, load = {};
+  for (const [name, src] of Object.entries(D.sources)){
+    const orders = list.filter(s => s.src === name && planQty(s) > 0).sort((a, b) => (a.dl ?? 1e9) - (b.dl ?? 1e9));
+    const cap = src.cap || Infinity, left = Array(D.sched).fill(cap), use = Array(D.sched).fill(0);
+    for (const s of orders){ let q = planQty(s), sw = null, fw = null;
+      if (src.kind === 'import'){ out[s.id] = {sw: 0, fw: 0, ready: addDays(D.asof, 1 + src.lt), late: s.dl != null && src.lt > s.dl}; continue; }
+      for (let w = 0; w < D.sched && q > 0; w++){ const take = Math.min(q, left[w]); if (take <= 0) continue; if (sw == null) sw = w; fw = w; left[w] -= take; use[w] += take; q -= take; }
+      if (q > 0){ sw ??= D.sched; fw = D.sched; }
+      const ready = addDays(D.asof, 1 + 7 * sw + src.lt);
+      out[s.id] = {sw, fw, ready, late: s.dl != null && 7 * sw + src.lt > s.dl, spill: q > 0};
+    }
+    load[name] = {cap: src.cap, use, kind: src.kind};
+  }
+  return {by: out, load};
+}
+
 /* ---------- views ---------- */
 let tab = 'overview';
 const views = {};
 
 views.overview = list => {
-  const agg = aggregate(list), next8 = agg.fm.slice(0, 8).reduce((a, b) => a + b, 0), last8 = agg.a.slice(-8).reduce((a, b) => a + b, 0);
+  const agg = aggregate(list), pts = periods(agg), evs = eventsFor(list);
+  const nextW = nextWindow(agg), lastW = lastWindow(agg), chg = lastW ? nextW / lastW - 1 : 0;
   const plan = list.filter(s => planQty(s) > 0), planVal = sum(plan, s => planQty(s) * (s.cost || 0));
-  const low = list.filter(s => s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status));
-  const stuck = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
-  const chg = last8 ? (next8 / last8 - 1) * 100 : 0;
+  const low = list.filter(isLow), stuck = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
+  const sch = schedule(list), late = plan.filter(s => sch.by[s.id]?.late);
   const tiles = [
-    ['products', big(next8), `units forecast, next 8 weeks (${Math.round(chg) > 0 ? '+' : ''}${nf(Math.round(chg) || 0)}% on last 8)`, 'See every SKU', ''],
-    ['plan', plan.length, `SKUs to make or buy now, ${big(sum(plan, planQty))} units`, 'Open production plan', plan.length ? 'warn' : ''],
+    ['forecast', big(nextW), `units forecast, ${PER_TXT()} (${Math.round(chg * 100) > 0 ? '+' : ''}${nf(Math.round(chg * 100) || 0)}% on the same span before)`, 'Open the forecast', ''],
+    ['plan', plan.length, `SKUs to make or buy now, ${big(sum(plan, planQty))} units${late.length ? `, ${late.length} late` : ''}`, 'Open production plan', plan.length ? 'warn' : ''],
     ['plan', 'EGP ' + big(planVal), 'value of this week\'s plan at cost', 'Review and approve', ''],
     ['health', low.length, 'SKUs running out within 14 days', 'See what runs out', low.length ? 'alert' : ''],
     ['health', 'EGP ' + big(sum(over, s => s.sv) + sum(stuck, s => s.sv)), `tied up in ${over.length} overstocked and ${stuck.length} dead or long out SKUs`, 'See stock health', ''],
   ];
-  const lines = {}; list.forEach(s => { const o = lines[s.line] ||= {f: 0, n: 0}; o.f += D.F[s.id][0].slice(0, 8).reduce((a, b) => a + b, 0); o.n++; });
+  const winOf = s => { const f = D.F[s.id][0]; return PER === 'month' ? sumA(f.slice(0, 9)) : sumA(f.slice(0, 8)); };
+  const lines = {}; list.forEach(s => { const o = lines[s.line] ||= {f: 0, n: 0}; o.f += winOf(s); o.n++; });
   const lmax = Math.max(1, ...Object.values(lines).map(o => o.f));
   const accL = Object.fromEntries(D.acc.lines.map(r => [r.line, r]));
   const fac = Object.entries(D.sources).filter(([, v]) => v.kind === 'factory').map(([k, v]) => {
-    const sk = list.filter(s => s.src === k); return {k, cap: v.cap, fc: sum(sk, s => D.F[s.id][0].slice(0, 8).reduce((a, b) => a + b, 0)) / 8, plan: sum(sk, planQty)}; });
-  const fmax = Math.max(1, ...fac.map(f => Math.max(f.cap, f.fc, f.plan / 2))) * 1.05;
-  const ch = demandChart(agg);
+    const sk = list.filter(s => s.src === k); return {k, cap: v.cap, fc: sum(sk, s => sumA(D.F[s.id][0].slice(0, 8))) / 8, plan: sum(sk, planQty)}; }).filter(f => f.fc || !F.src);
+  const fmax = Math.max(1, ...fac.map(f => Math.max(f.cap || 0, f.fc))) * 1.05;
+  const upcoming = evs.filter(e => e.future).slice(0, 4), hol = D.holidays.slice(0, 3);
+  const ch = demandChart(pts, evs);
+  const fpts = futurePts(pts);
+  const chan = {d: sumA(fpts.map(p => p.d)), e: sumA(fpts.map(p => p.e)), p: sumA(fpts.map(p => p.p))}, ctot = chan.d + chan.e + chan.p || 1;
   return {html: `
     <div class="tiles">${tiles.map(([t, v, l, go, cls]) => `<button class="tile ${cls}" data-go="${t}" type="button"><span class="v">${v}</span><span class="l">${esc(l)}</span><span class="go">${go} →</span></button>`).join('')}</div>
-    <section class="panel"><div class="panel-head"><h2>Weekly demand and forecast</h2><span class="note">${list.length === D.skus.length ? 'Whole catalog' : `${list.length} SKUs in the current filter`}. Hover for weekly numbers.</span></div>
-      <div class="chart" id="mainChart">${ch.svg}</div>${chartLegend}</section>
+    <section class="panel"><div class="panel-head"><h2>${PER === 'month' ? 'Monthly' : 'Weekly'} demand and forecast</h2><span class="note">${list.length === D.skus.length ? 'Whole catalog' : `${list.length} SKUs in the current filter`}. Hover for numbers${PER === 'month' ? '; * marks the month in progress, actual plus forecast' : ''}.</span></div>
+      <div class="chart" id="mainChart">${ch.svg}</div>${chartLegend}
+      <div class="legend-inline" style="margin-top:8px">Next ${D.horizon} weeks by channel: <b style="color:var(--ink)">Dealer ${nf(100 * chan.d / ctot)}%</b> · Export ${nf(100 * chan.e / ctot)}% · Confirmed project ${nf(100 * chan.p / ctot)}%</div></section>
     <div class="grid g2">
-      <section class="panel"><div class="panel-head"><h2>Forecast by product line</h2><span class="note">Next 8 weeks. Click a line to filter.</span></div>
+      <section class="panel"><div class="panel-head"><h2>Forecast by product line</h2><span class="note">${PER === 'month' ? 'Next 2 months' : 'Next 8 weeks'}. Click a line to filter.</span></div>
         <div class="bars">${Object.entries(lines).sort((a, b) => b[1].f - a[1].f).map(([k, o]) => `<button class="barrow ${F.line === k ? 'on' : ''}" data-line="${esc(k)}" type="button"
-          data-tip="${esc(`<div class='t'>${esc(k)}</div><div class='r'><span>Next 8 weeks</span><b>${nf(o.f)}</b></div><div class='r'><span>SKUs</span><b>${o.n}</b></div>${accL[k] ? `<div class='r'><span>Forecast error</span><b>${nf(accL[k].sel * 100)}%</b></div>` : ''}`)}">
+          data-tip="${esc(`<div class='t'>${esc(k)}</div>${trow('var(--s1)', PER === 'month' ? 'Next 2 months' : 'Next 8 weeks', nf(o.f))}<div class='r'><span>SKUs</span><b>${o.n}</b></div>${accL[k] ? `<div class='r'><span>Forecast error, weekly</span><b>${nf(accL[k].sel * 100)}%</b></div>` : ''}`)}">
           <span class="bl">${esc(k)}</span><span class="track"><span class="fill" style="width:${100 * o.f / lmax}%"></span></span><span class="bv">${big(o.f)}</span></button>`).join('') || '<div class="empty">No SKUs in this filter.</div>'}</div></section>
+      <section class="panel"><div class="panel-head"><h2>What moves the forecast</h2><button class="btn small" data-go="drivers" type="button">All drivers →</button></div>
+        <ul class="notes">${upcoming.map(e => `<li><b>${e.type === 'price' ? 'Price change' : 'Promotion'}</b><span>${esc(e.name)}, ${dlabel(e.start)}${e.end !== e.start ? ' to ' + dlabel(e.end) : ''}${e.line ? ' · ' + esc(e.line) : ' · all lines'}</span></li>`).join('')}
+          ${hol.map(h => `<li><b>Calendar</b><span>Week of ${dlabel(h.ws)}: ${esc(h.why.map(w => w[0]).join(', '))} (${pct(h.m - 1)})</span></li>`).join('')}
+          ${Object.entries(D.elasticity).filter(([l, v]) => v.beta > .1 && (!F.line || F.line === l)).slice(0, 2).map(([l, v]) => `<li><b>Construction</b><span>${esc(l)} follows cement sales 6 months earlier (elasticity ${v.beta.toFixed(2)}).</span></li>`).join('')}
+          ${list.filter(s => s.dcov && Math.abs(s.dcov - 1) > .3).length ? `<li><b>Dealer stock</b><span>${list.filter(s => s.dcov > 1.3).length} SKUs overstocked at dealers, ${list.filter(s => s.dcov && s.dcov < .7).length} understocked. Next 8 weeks adjusted.</span></li>` : ''}
+        </ul></section>
+    </div>
+    <div class="grid g2">
       <section class="panel"><div class="panel-head"><h2>Factory load</h2><span class="note">Average weekly forecast against weekly capacity (black mark).</span></div>
         <div class="bars">${fac.map(f => `<button class="barrow ${F.src === f.k ? 'on' : ''}" data-src="${esc(f.k)}" type="button"
-          data-tip="${esc(`<div class='t'>${esc(f.k)}</div><div class='r'><span>Forecast per week</span><b>${nf(f.fc)}</b></div><div class='r'><span>Capacity per week</span><b>${nf(f.cap)}</b></div><div class='r'><span>Load</span><b>${nf(100 * f.fc / f.cap)}%</b></div><div class='r'><span>Planned now</span><b>${nf(f.plan)}</b></div>`)}">
+          data-tip="${esc(`<div class='t'>${esc(f.k)}</div><div class='r'><span>Forecast per week</span><b>${nf(f.fc)}</b></div><div class='r'><span>Capacity per week</span><b>${nf(f.cap)}</b></div><div class='r'><span>Load</span><b>${nf(100 * f.fc / f.cap)}%</b></div><div class='r'><span>In this week's plan</span><b>${nf(f.plan)}</b></div>`)}">
           <span class="bl">${esc(f.k)}</span><span class="track"><span class="fill ${f.fc > f.cap ? 'over' : ''}" style="width:${100 * f.fc / fmax}%"></span><span class="capmark" style="left:${100 * f.cap / fmax}%"></span></span>
-          <span class="bv">${nf(100 * f.fc / f.cap)}%</span></button>`).join('')}</div>
-        <p class="note">Capacity is a placeholder set at 15% above last year's average demand. Click a factory to filter.</p></section>
-    </div>
-    <section class="panel"><div class="panel-head"><h2>Does the forecast beat the old method?</h2><span class="note">Forecast error (WAPE) is the share of units the forecast gets wrong. Lower is better. The old method is the last 30 days' sales rate.</span></div>
-      ${sortable('acc', [{h: 'Product line', k: 'line'}, {h: 'Forecast error', n: 1, k: 'sel', f: r => nf(r.sel * 100, 1) + '%'}, {h: '30 day rate error', n: 1, k: 'base', f: r => nf(r.base * 100, 1) + '%'},
-        {h: 'Result', f: r => r.sel < r.base ? `<span class="pill p-good">Forecast ${nf((1 - r.sel / r.base) * 100)}% better</span>` : '<span class="pill p-bad">Old method wins</span>'}],
-        [{line: 'Whole catalog, 4 backtest folds', sel: D.acc.sel, base: D.acc.base}, {line: 'Latest 8 weeks only, models picked on older data', sel: D.acc.hsel, base: D.acc.hbase}, ...D.acc.lines.filter(r => !F.line || r.line === F.line)])}
-    </section>`,
+          <span class="bv">${nf(100 * f.fc / f.cap)}%</span></button>`).join('') || `<ul class="notes">${[...new Set(list.map(s => s.src))].map(k => `<li><b>Imported</b><span>${esc(k)}: no factory capacity applies. Lead time ${D.sources[k].lt} days, minimum order ${nf(D.sources[k].moq)}.</span></li>`).join('')}</ul>`}</div>
+        <p class="note">Click a factory to filter. The production plan tab shows the week by week schedule.</p></section>
+      <section class="panel"><div class="panel-head"><h2>Does the forecast beat the old method?</h2></div>
+        <p class="note" style="margin-top:0">Forecast error (WAPE) is the share of units the forecast gets wrong, tested on 4 past windows of 8 weeks. The old method is the last 30 days' sales rate.</p>
+        ${sortable('acc', [{h: 'Test', k: 'line'}, {h: 'Forecast', n: 1, k: 'sel', f: r => nf(r.sel * 100, 1) + '%'}, {h: 'Old method', n: 1, k: 'base', f: r => nf(r.base * 100, 1) + '%'},
+          {h: 'Result', f: r => r.sel < r.base ? `<span class="pill p-good">${nf((1 - r.sel / r.base) * 100)}% better</span>` : '<span class="pill p-bad">Old wins</span>'}],
+          [{line: 'Monthly totals', sel: D.acc.msel, base: D.acc.mbase}, {line: 'Weekly, whole catalog', sel: D.acc.sel, base: D.acc.base}, {line: 'Latest 8 weeks only', sel: D.acc.hsel, base: D.acc.hbase},
+           ...D.acc.lines.filter(r => list.some(s => s.line === r.line))])}</section>
+    </div>`,
     after(root){ ch.wire($('#mainChart', root));
       $$('[data-go]', root).forEach(b => b.addEventListener('click', () => show(b.dataset.go)));
       $$('[data-line]', root).forEach(b => b.addEventListener('click', () => setFilter('line', F.line === b.dataset.line ? '' : b.dataset.line)));
       $$('[data-src]', root).forEach(b => b.addEventListener('click', () => setFilter('src', F.src === b.dataset.src ? '' : b.dataset.src))); }};
+};
+
+/* forecast table: product lines with SKUs, months that open into weeks */
+let fChan = 'total', openLines = new Set(), openMonth = null;
+views.forecast = list => {
+  const ci = {total: 0, dealer: 3, export: 4, project: 5}[fChan];
+  const one = s => { const a = aggregate([s]); if (ci) { a.fm = D.F[s.id][ci].slice(); a.vr = a.vr.map(() => 0); } return futurePts(periods(a)); };
+  const tmpl = futurePts(periods(aggregate(list.slice(0, 1))));
+  const cols = [];
+  tmpl.forEach((p, j) => { cols.push({type: 'p', j, label: p.label, key: p.key});
+    if (PER === 'month' && openMonth === p.key){ if (p.kind === 'mix') cols.push({type: 'a', j, label: 'shipped so far'});
+      p.weeks.forEach(w => cols.push({type: 'w', j, ws: w.ws, k: w.k, share: w.share, label: dlabel(w.ws, false)})); } });
+  const val = (pts, c, s) => { const p = pts[c.j]; if (!p) return 0;
+    if (c.type === 'p') return ci ? p.f - (p.actual || 0) : p.f;
+    if (c.type === 'a') return ci ? 0 : p.actual || 0;
+    const f = D.F[s.id][ci]; return f[c.k] * c.share; };
+  const rowsBy = {}; list.forEach(s => (rowsBy[s.line] ||= []).push(s));
+  const skuPts = Object.fromEntries(list.map(s => [s.id, one(s)]));
+  const cell = (v, c) => `<td class="n ${c.type !== 'p' ? 'wkcol' : ''}">${nf(v)}</td>`;
+  let body = '';
+  for (const [line, mem] of Object.entries(rowsBy).sort()){
+    const tot = cols.map(c => sum(mem, s => val(skuPts[s.id], c, s)));
+    const open = openLines.has(line);
+    body += `<tr class="grp"><td data-grp="${esc(line)}" tabindex="0"><span class="caret">${open ? '▾' : '▸'}</span>${esc(line)} <span class="note">${mem.length} SKUs</span></td>${tot.map((v, i) => cell(v, cols[i])).join('')}<td class="n">${nf(sumA(tot.filter((_, i) => cols[i].type === 'p')))}</td></tr>`;
+    if (open) for (const s of mem.sort((a, b) => b.wk - a.wk)){ const v = cols.map(c => val(skuPts[s.id], c, s));
+      body += `<tr class="click" data-id="${s.id}" tabindex="0"><td><span class="sku">${esc(s.sku)}</span> ${lifePill(s)}</td>${v.map((x, i) => cell(x, cols[i])).join('')}<td class="n">${nf(sumA(v.filter((_, i) => cols[i].type === 'p')))}</td></tr>`; }
+  }
+  const gtot = cols.map(c => sum(list, s => val(skuPts[s.id], c, s)));
+  return {html: `<section class="panel"><div class="panel-head"><div><h2>${PER === 'month' ? 'Monthly' : 'Weekly'} forecast</h2>
+      <div class="note">${PER === 'month' ? 'Click a month to split it into weeks. Weeks are cut at month ends so they add up to the month. The first month (*) includes sales already shipped.' : 'Each column is a week starting Monday.'} Click a product line to see its SKUs, and a SKU for its detail.</div></div>
+      <div class="toolbar"><div class="seg" role="group" aria-label="Channel">${[['total', 'All channels'], ['dealer', 'Dealer'], ['export', 'Export'], ['project', 'Project']].map(([k, l]) => `<button type="button" data-ch="${k}" aria-pressed="${fChan === k}">${l}</button>`).join('')}</div>
+        <button class="btn" id="openAll" type="button">${openLines.size ? 'Collapse all' : 'Expand all'}</button><button class="btn" id="copyFc" type="button">Copy as CSV</button></div></div>
+    <div class="tblwrap"><table><thead><tr><th>Product line / SKU</th>${cols.map(c => c.type === 'p'
+      ? `<th class="n ${PER === 'month' ? 'mon' : ''}" ${PER === 'month' ? `data-mon="${c.key}" tabindex="0" title="Split into weeks"` : ''}>${PER === 'month' ? `<span class="caret">${openMonth === c.key ? '▾' : '▸'}</span>` : ''}${esc(c.label)}</th>`
+      : `<th class="n wkcol">${c.type === 'a' ? esc(c.label) : 'w/c ' + esc(c.label)}</th>`).join('')}<th class="n">Total</th></tr></thead>
+      <tbody>${body || `<tr><td class="empty" colspan="${cols.length + 2}">Nothing in this filter.</td></tr>`}
+      <tr class="grp"><td>All shown</td>${gtot.map((v, i) => cell(v, cols[i])).join('')}<td class="n">${nf(sumA(gtot.filter((_, i) => cols[i].type === 'p')))}</td></tr></tbody></table></div>
+    ${fChan === 'project' ? '<p class="note">Project demand is only what is confirmed in the order book; one off project orders are never extrapolated.</p>' : ''}</section>`,
+    after(root){
+      $$('[data-ch]', root).forEach(b => b.addEventListener('click', () => { fChan = b.dataset.ch; render(); }));
+      $$('[data-grp]', root).forEach(td => { const go = () => { const l = td.dataset.grp; openLines.has(l) ? openLines.delete(l) : openLines.add(l); render(); };
+        td.addEventListener('click', go); td.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); });
+      $$('[data-mon]', root).forEach(th => { const go = () => { openMonth = openMonth === th.dataset.mon ? null : th.dataset.mon; render(); };
+        th.addEventListener('click', go); th.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); });
+      $('#openAll', root).addEventListener('click', () => { openLines = openLines.size ? new Set() : new Set(list.map(s => s.line)); render(); });
+      $('#copyFc', root).addEventListener('click', () => {
+        const head = ['sku', 'product', 'finish', 'size', 'line', 'channel', ...cols.map(c => c.type === 'p' ? c.key : c.type === 'a' ? 'shipped so far' : 'week ' + c.ws)];
+        const rows = [head, ...list.map(s => [s.sku, s.p, s.c, s.z, s.line, fChan, ...cols.map(c => Math.round(val(skuPts[s.id], c, s)))])];
+        const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
+        navigator.clipboard.writeText(csv).then(() => toast(`Copied ${list.length} SKUs. Paste into Excel.`)).catch(() => toast('Copy was blocked by the browser.'));
+      });
+    }};
 };
 
 const STATUS_ORDER = {make: 0, longout: 1, dead: 2, over: 3, ok: 4};
@@ -380,48 +555,61 @@ views.products = list => {
   const counts = {}; list.forEach(s => counts[s.status] = (counts[s.status] || 0) + 1);
   const rows = list.filter(s => !pStatus || s.status === pStatus);
   return {html: `<section class="panel"><div class="panel-head"><h2>All SKUs</h2>
-      <div class="toolbar"><span class="note">Show</span>${[['', 'All', list.length], ...Object.keys(STATUS).map(k => [k, STATUS[k][1]({src: 'Factory 1, Locks'}).replace('Make now', 'Make or buy now'), counts[k] || 0])]
+      <div class="toolbar"><span class="note">Show</span>${[['', 'All', list.length], ['make', 'Make or buy now', counts.make || 0], ['ok', 'Covered', counts.ok || 0], ['over', 'Overstock', counts.over || 0], ['dead', 'Dead stock', counts.dead || 0], ['longout', 'Long out', counts.longout || 0]]
         .map(([k, l, c]) => `<button class="btn small ${pStatus === k ? 'primary' : ''}" data-st="${k}" type="button">${esc(l)} <span style="font-family:var(--mono)">${c}</span></button>`).join('')}</div></div>
     ${sortable('products', [
       {h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: 'Line', k: 'line'},
       {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Forecast / wk', n: 1, k: 'wk', f: r => nf(r.wk)},
       {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)}, {h: 'Reorder point', n: 1, k: 'rop', f: r => nf(r.rop)},
       {h: 'Plan', n: 1, k: 'q', v: planQty, f: r => planQty(r) ? `<b>${nf(planQty(r))}</b>` : '–'},
-      {h: 'Status', k: 'status', v: r => STATUS_ORDER[r.status], f: statusPill}], rows, {sort: 'status', dir: 1})}
-    <p class="note">Click a row for its demand history, forecast and the reasoning behind the plan.</p></section>`,
+      {h: 'Status', k: 'status', v: r => STATUS_ORDER[r.status], f: statusPill}], rows, {sort: 'status', dir: 1, empty: 'No SKUs in this status for the current filters.'})}
+    <p class="note">Click a row for its demand history, forecast, the drivers behind it and the reasoning behind the plan.</p></section>`,
     after(root){ $$('[data-st]', root).forEach(b => b.addEventListener('click', () => { pStatus = b.dataset.st; render(); })); }};
 };
 
 views.plan = list => {
-  const inPlan = list.filter(s => planQty(s) > 0 || s.q > 0);
+  const inPlan = list.filter(s => planQty(s) > 0 || s.q > 0), sch = schedule(list);
   const groups = {}; inPlan.forEach(s => (groups[s.src] ||= []).push(s));
-  const tot = sum(inPlan, planQty), val = sum(inPlan, s => planQty(s) * (s.cost || 0)), nOk = inPlan.filter(approved).length;
+  const tot = sum(inPlan, planQty), val = sum(inPlan, s => planQty(s) * (s.cost || 0)), nOk = inPlan.filter(approved).length, late = inPlan.filter(s => sch.by[s.id]?.late);
+  const facs = Object.entries(sch.load).filter(([k, v]) => v.kind === 'factory' && list.some(s => s.src === k));
+  const wk = Array.from({length: D.sched}, (_, w) => addDays(D.asof, 1 + 7 * w));
+  /* materials for the plan in this filter */
+  const need = {}; list.forEach(s => (D.bom[s.sku] || []).forEach(([m, per]) => { const o = need[m] ||= {m, plan: 0, next13: 0}; o.plan += planQty(s) * per; o.next13 += sumA(D.F[s.id][0].slice(0, 13)) * per; }));
+  const mats = Object.values(need).map(o => { const st = D.matStock[o.m] || {}; const have = (st.on_hand || 0) + (st.on_order || 0);
+    return {...o, unit: st.unit || '', on_hand: st.on_hand || 0, on_order: st.on_order || 0, lt: st.lt, cover: o.next13 ? have / (o.next13 / 13) : null, short: Math.max(0, o.plan - (st.on_hand || 0))}; });
   return {html: `
     <section class="panel"><div class="panel-head"><div><h2>Production and purchase plan</h2>
-      <div class="note">${inPlan.length} SKUs, ${nf(tot)} units, EGP ${nf(val)} at cost. ${nOk} of ${inPlan.length} approved. Edits stay in this browser.</div></div>
+      <div class="note">${inPlan.length} SKUs, ${nf(tot)} units, EGP ${nf(val)} at cost. ${nOk} of ${inPlan.length} approved.${late.length ? ` <b style="color:var(--bad)">${late.length} will arrive after stock runs out.</b>` : ''} Edits stay in this browser.</div></div>
       <div class="toolbar"><button class="btn primary" id="approveAll" type="button">Approve all shown</button><button class="btn" id="copyCsv" type="button">Copy plan as CSV</button><button class="btn" id="resetPlan" type="button">Undo my edits</button></div></div>
-      <p class="note">Quantities are rounded up to full cartons and the minimum batch. Change any quantity; open a SKU to add one that is not planned.</p></section>
+      <p class="note">Quantities cover forecast demand over lead time plus 3 weeks, rounded up to full cartons and the minimum batch. Factory orders are scheduled most urgent first within weekly capacity.</p></section>
+    ${facs.length ? `<section class="panel"><div class="panel-head"><h2>Factory schedule, next ${D.sched} weeks</h2><span class="note">Planned units against weekly capacity. Red is full.</span></div>
+      <div class="tblwrap"><div class="loadgrid" style="min-width:640px"><span></span>${wk.map(w => `<span class="h">w/c ${dlabel(w, false)}</span>`).join('')}
+      ${facs.map(([k, v]) => `<span class="bl">${esc(k)}</span>${v.use.map(u => { const p = v.cap ? u / v.cap : 0; return `<div class="cell" data-tip="${esc(`<div class='t'>${esc(k)}</div><div class='r'><span>Planned</span><b>${nf(u)}</b></div><div class='r'><span>Capacity</span><b>${nf(v.cap)}</b></div>`)}"><i class="${p >= .999 ? 'over' : ''}" style="width:${Math.min(100, 100 * p)}%"></i><span>${nf(100 * p)}%</span></div>`; }).join('')}`).join('')}</div></div></section>` : ''}
     ${Object.keys(D.sources).filter(k => groups[k]).map(k => { const g = groups[k], src = D.sources[k], u = sum(g, planQty);
-      const loadPct = src.cap ? 100 * u / (src.cap * 2) : null;
       return `<section class="panel"><div class="src-head"><div><h2>${esc(k)}</h2><div class="note">${src.kind === 'factory' ? 'Production order' : 'Purchase order'} · lead time ${src.lt} days · cartons of ${src.pack} · minimum batch ${nf(src.moq)}</div></div>
-        ${src.cap ? `<div class="load"><span>${nf(u)} units, ${nf(loadPct)}% of 2 weeks capacity</span><span class="track"><span class="fill ${loadPct > 100 ? 'over' : ''}" style="width:${Math.min(100, loadPct)}%"></span></span></div>` : `<div class="note">${nf(u)} units, EGP ${nf(sum(g, s => planQty(s) * (s.cost || 0)))}</div>`}</div>
+        <div class="note">${nf(u)} units, EGP ${nf(sum(g, s => planQty(s) * (s.cost || 0)))}</div></div>
         ${sortable('plan-' + k, [
           {h: 'OK', f: r => `<input type="checkbox" class="appr" data-id="${r.id}" ${approved(r) ? 'checked' : ''} aria-label="Approve ${esc(r.sku)}">`},
           {h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: 'Stock position', n: 1, k: 'pos', f: r => nf(r.pos)},
-          {h: 'Reorder point', n: 1, k: 'rop', f: r => nf(r.rop)}, {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)},
-          {h: 'Suggested', n: 1, k: 'q', f: r => nf(r.q)},
+          {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)},
           {h: 'Plan qty', n: 1, k: 'pq', v: planQty, f: r => `<input class="qty ${planQty(r) !== r.q ? 'changed' : ''}" type="number" min="0" step="${src.pack}" value="${planQty(r)}" data-id="${r.id}" aria-label="Plan quantity for ${esc(r.sku)}">`},
+          {h: src.kind === 'factory' ? 'Starts' : 'Order', k: 'sw', v: r => sch.by[r.id]?.sw, f: r => { const b = sch.by[r.id]; return b ? (b.sw >= D.sched ? '<span class="pill p-bad">No capacity</span>' : 'w/c ' + dlabel(addDays(D.asof, 1 + 7 * b.sw), false)) : '–'; }},
+          {h: 'Ready', k: 'rd', v: r => sch.by[r.id]?.ready, f: r => { const b = sch.by[r.id]; return b ? `${dlabel(b.ready, false)} ${b.late ? '<span class="pill p-bad">Late</span>' : ''}` : '–'; }},
           {h: 'EGP', n: 1, k: 'val', v: r => planQty(r) * (r.cost || 0), f: r => r.cost ? nf(planQty(r) * r.cost) : '<span class="pill p-bad">no cost</span>'},
-          {h: 'Confidence', k: 'conf', f: r => confPill(r.conf)}], g, {sort: 'dl', dir: 1})}</section>`; }).join('') || '<section class="panel empty">Nothing to make or buy in the current filter.</section>'}`,
+          {h: 'Confidence', k: 'conf', f: r => confPill(r.conf)}], g, {sort: 'dl', dir: 1})}</section>`; }).join('') || '<section class="panel empty">Nothing to make or buy in the current filter. Stock covers forecast demand.</section>'}
+    <section class="panel"><div class="panel-head"><h2>Raw materials</h2><span class="note">Need for this plan, and weeks of cover against the next 13 weeks of forecast.</span></div>
+      ${sortable('mats', [{h: 'Material', k: 'm'}, {h: 'Unit', k: 'unit'}, {h: 'This plan needs', n: 1, k: 'plan', f: r => nf(r.plan)}, {h: 'On hand', n: 1, k: 'on_hand', f: r => nf(r.on_hand)},
+        {h: 'On order', n: 1, k: 'on_order', f: r => nf(r.on_order)}, {h: 'Weeks of cover', n: 1, k: 'cover', f: r => r.cover == null ? '–' : nf(r.cover, 1)},
+        {h: 'Status', k: 'short', v: r => -r.short, f: r => r.short > 0 ? `<span class="pill p-bad">Short ${nf(r.short)}</span>` : r.cover != null && r.lt && r.cover * 7 < r.lt ? '<span class="pill p-warn">Reorder now</span>' : '<span class="pill p-good">OK</span>'}],
+        mats, {sort: 'short', dir: 1, empty: 'No bill of materials for these SKUs. Upload one on the Upload data tab.'})}</section>`,
     after(root){
-      $$('input.qty', root).forEach(i => i.addEventListener('change', () => { const s = byId[i.dataset.id], v = Math.max(0, Math.round(+i.value || 0));
-        setEdit(s, {q: v}); toast(`${s.sku} set to ${nf(v)}`); render(); }));
+      $$('input.qty', root).forEach(i => i.addEventListener('change', () => { const s = byId[i.dataset.id], v = Math.max(0, Math.round(+i.value || 0)); setEdit(s, {q: v}); toast(`${s.sku} set to ${nf(v)}`); render(); }));
       $$('input.appr', root).forEach(c => c.addEventListener('change', () => { setEdit(byId[c.dataset.id], {ok: c.checked}); render(); }));
       $('#approveAll', root).addEventListener('click', () => { list.filter(s => planQty(s) > 0).forEach(s => setEdit(s, {ok: true})); toast('Plan approved'); render(); });
       $('#resetPlan', root).addEventListener('click', () => { edits = {}; saveEdits(); toast('Edits undone'); render(); });
       $('#copyCsv', root).addEventListener('click', () => {
-        const rows = [['source', 'sku', 'product', 'finish', 'size', 'qty', 'unit_cost_egp', 'value_egp', 'approved']].concat(
-          list.filter(s => planQty(s) > 0).map(s => [s.src, s.sku, s.p, s.c, s.z, planQty(s), s.cost ?? '', s.cost ? Math.round(planQty(s) * s.cost) : '', approved(s) ? 'yes' : 'no']));
+        const rows = [['source', 'sku', 'product', 'finish', 'size', 'qty', 'start_week', 'ready', 'unit_cost_egp', 'value_egp', 'approved']].concat(
+          list.filter(s => planQty(s) > 0).map(s => { const b = sch.by[s.id] || {}; return [s.src, s.sku, s.p, s.c, s.z, planQty(s), b.sw != null && b.sw < D.sched ? addDays(D.asof, 1 + 7 * b.sw) : '', b.ready || '', s.cost ?? '', s.cost ? Math.round(planQty(s) * s.cost) : '', approved(s) ? 'yes' : 'no']; }));
         const csv = rows.map(r => r.map(v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : v).join(',')).join('\n');
         navigator.clipboard.writeText(csv).then(() => toast(`Copied ${rows.length - 1} lines. Paste into Excel.`)).catch(() => toast('Copy was blocked by the browser.'));
       });
@@ -429,62 +617,113 @@ views.plan = list => {
 };
 
 views.health = list => {
-  const low = list.filter(s => s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status));
-  const dead = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
+  const low = list.filter(isLow), dead = list.filter(s => s.status === 'dead' || s.status === 'longout'), over = list.filter(s => s.status === 'over');
+  const skus = new Set(list.map(s => s.sku)), cr = D.cancel.rows.filter(c => skus.has(c.sku));
+  const win = (from, w) => { const r = cr.filter(c => c.date > from); return {w, o: r.length, u: sum(r, c => c.qty), v: sum(r, c => c.value)}; };
+  const why = {}; cr.filter(c => c.date > D.cancel.c90).forEach(c => { const o = why[c.reason || 'Not given'] ||= {r: c.reason || 'Not given', o: 0, v: 0}; o.o++; o.v += c.value || 0; });
   return {html: `
     <section class="panel"><div class="panel-head"><h2>Running out within 14 days</h2><span class="note">Free stock divided by forecast daily demand. Dealer value at risk uses the price list.</span></div>
       ${sortable('low', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: 'Days left', n: 1, k: 'dl', f: r => daysPill(r.dl)},
-        {h: 'EGP at risk / day', n: 1, k: 'risk', v: r => r.wk / 7 * (r.cost || 0) * D.margin, f: r => nf(r.wk / 7 * (r.cost || 0) * D.margin)},
-        {h: 'Incoming', n: 1, k: 'inc', f: r => nf(r.inc)}, {h: 'Action', f: r => planQty(r) ? `${D.sources[r.src].kind === 'factory' ? 'Make' : 'Buy'} ${nf(planQty(r))}` : r.inc ? 'Chase incoming order' : 'Review'}], low, {sort: 'dl', dir: 1})}</section>
+        {h: 'EGP at risk / day', n: 1, k: 'risk', v: r => r.wk / 7 * (r.price || (r.cost || 0) * D.margin), f: r => nf(r.wk / 7 * (r.price || (r.cost || 0) * D.margin))},
+        {h: 'Incoming', n: 1, k: 'inc', f: r => nf(r.inc)}, {h: 'Action', f: r => planQty(r) ? `${D.sources[r.src]?.kind === 'import' ? 'Buy' : 'Make'} ${nf(planQty(r))}` : r.inc ? 'Chase incoming order' : 'Review'}], low, {sort: 'dl', dir: 1, empty: 'Nothing runs out within 14 days in this filter.'})}</section>
     <div class="grid g2">
-      <section class="panel"><div class="panel-head"><h2>Dead and long out stock</h2><span class="note">No sales in 13 weeks, or out for months.</span></div>
-        ${sortable('dead', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Status', k: 'status', f: statusPill}, {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Value EGP', n: 1, k: 'sv', f: r => nf(r.sv)}], dead, {sort: 'sv'})}</section>
+      <section class="panel"><div class="panel-head"><h2>Dead and long out stock</h2><span class="note">Discontinued, no sales in 13 weeks, or out for months.</span></div>
+        ${sortable('dead', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Status', k: 'status', f: r => statusPill(r) + ' ' + lifePill(r)}, {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Value EGP', n: 1, k: 'sv', f: r => nf(r.sv)}], dead, {sort: 'sv', empty: 'No dead or long out stock in this filter.'})}</section>
       <section class="panel"><div class="panel-head"><h2>Overstock</h2><span class="note">More than 120 days of forecast on the shelf.</span></div>
-        ${sortable('over', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Days of cover', n: 1, k: 'dl', f: r => nf(r.dl)}, {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Value EGP', n: 1, k: 'sv', f: r => nf(r.sv)}], over, {sort: 'sv'})}</section>
+        ${sortable('over', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Days of cover', n: 1, k: 'dl', f: r => nf(r.dl)}, {h: 'On hand', n: 1, k: 'oh', f: r => nf(r.oh)}, {h: 'Value EGP', n: 1, k: 'sv', f: r => nf(r.sv)}], over, {sort: 'sv', empty: 'No overstock in this filter.'})}</section>
     </div>
     <div class="grid g2">
       <section class="panel"><h2 style="margin-bottom:10px">Cancelled dealer orders</h2>
-        ${sortable('cw', [{h: 'Window', k: 'w'}, {h: 'Orders', n: 1, k: 'o', f: r => nf(r.o)}, {h: 'Units', n: 1, k: 'u', f: r => nf(r.u)}, {h: 'Value EGP', n: 1, k: 'v', f: r => nf(r.v)}], D.cancel.win)}
-        <p class="note">Whole catalog. Cancellations are not split by SKU in this demo.</p></section>
+        ${sortable('cw', [{h: 'Window', k: 'w'}, {h: 'Orders', n: 1, k: 'o', f: r => nf(r.o)}, {h: 'Units', n: 1, k: 'u', f: r => nf(r.u)}, {h: 'Value EGP', n: 1, k: 'v', f: r => nf(r.v)}],
+          cr.length ? [win(D.cancel.c90, 'Last 90 days'), win(D.cancel.c365, 'Last 12 months')] : [], {empty: 'No cancellations recorded for these SKUs.'})}</section>
       <section class="panel"><h2 style="margin-bottom:10px">Cancel reasons, last 90 days</h2>
-        ${sortable('cr', [{h: 'Reason', k: 'r'}, {h: 'Orders', n: 1, k: 'o', f: r => nf(r.o)}, {h: 'Value EGP', n: 1, k: 'v', f: r => nf(r.v)}], D.cancel.why, {sort: 'v'})}</section>
+        ${sortable('cr', [{h: 'Reason', k: 'r'}, {h: 'Orders', n: 1, k: 'o', f: r => nf(r.o)}, {h: 'Value EGP', n: 1, k: 'v', f: r => nf(r.v)}], Object.values(why), {sort: 'v', empty: 'No cancellations in the last 90 days.'})}</section>
+    </div>`};
+};
+
+views.drivers = list => {
+  const evs = eventsFor(list), lines = [...new Set(list.map(s => s.line))];
+  const P = D.profile, pre = ['p-4', 'p-3', 'p-2', 'p-1'].reduce((a, k) => a + P.price[k], 0) / 4, post = ['p0', 'p1', 'p2', 'p3'].reduce((a, k) => a + P.price[k], 0) / 4;
+  const mac = D.macro, mlab = mac.map(r => mlabel(r.m));
+  const ids = new Set(list.map(s => s.id));
+  const dealer = list.filter(s => s.dcov && Math.abs(s.dcov - 1) >= .1);
+  const life = list.filter(s => s.life);
+  const subst = D.subst.filter(g => g.ids.some(i => ids.has(i)));
+  return {html: `
+    <section class="panel"><div class="panel-head"><h2>Price changes and promotions</h2><span class="note">Measured from ${D.eventCounts.price} past price changes and ${D.eventCounts.promo} past promotions, then applied to the ones ahead.</span></div>
+      <div class="kv" style="margin-bottom:12px">${[['Before a 10% price rise', pct(pre) + ' a week, 4 weeks'], ['After a 10% price rise', pct(post) + ' a week, 4 weeks'], ['During a 10% promotion', pct(P.promo.during)], ['2 weeks after a promotion', pct((P.promo.post1 + P.promo.post2) / 2)]]
+        .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
+      ${sortable('ev', [{h: 'Event', k: 'name'}, {h: 'Type', k: 'type', f: r => r.type === 'price' ? 'Price change' : 'Promotion'}, {h: 'Dates', k: 'start', f: r => dlabel(r.start) + (r.end !== r.start ? ' to ' + dlabel(r.end) : '')},
+        {h: 'Applies to', k: 'line', f: r => r.sku || r.line || 'All lines'}, {h: 'Change', n: 1, k: 'pct', f: r => (r.type === 'price' ? '+' : '−') + nf(r.pct) + '%'},
+        {h: 'Status', k: 'future', v: r => r.future ? 0 : 1, f: r => r.future ? '<span class="pill p-warn">Ahead, in forecast</span>' : r.measured ? '<span class="pill p-good">Measured</span>' : '<span class="pill p-info">Past</span>'},
+        {h: 'Measured effect', f: r => !r.measured ? '–' : r.type === 'price' ? `before ${pct(((r.measured['p-1'] || 0) + (r.measured['p-2'] || 0)) / 2)}, after ${pct(((r.measured.p0 || 0) + (r.measured.p1 || 0)) / 2)}` : `during ${pct(r.measured.during)}, after ${pct(r.measured.post1)}`}],
+        evs, {sort: 'future', dir: 1, empty: 'No price changes or promotions for these lines. Upload them on the Upload data tab.'})}</section>
+    <section class="panel"><div class="panel-head"><h2>Market</h2><span class="note">Monthly market data. Cement sales lead lock demand by ${D.macroLag} months, so the last ${D.macroLag} months of cement already shape the next ${D.macroLag} months of demand.</span></div>
+      <div class="mini">${[['Cement sales, thousand tons', mac.map(r => r.cement)], ['USD / EGP', mac.map(r => r.fx)], ['Consumer prices, index', mac.map(r => r.cpi)]]
+        .map(([t, v]) => `<div><div class="note" style="font-weight:600;color:var(--ink)">${t}</div><div class="chart">${lineChart(v, mlab, {fmt: x => nf(x, x < 100 ? 1 : 0)})}</div></div>`).join('')}</div>
+      ${sortable('el', [{h: 'Product line', k: 'line'}, {h: 'Elasticity to cement', n: 1, k: 'beta', f: r => r.beta.toFixed(2)}, {h: 'Meaning', f: r => r.beta > .05 ? `10% more cement sold → about ${nf(r.beta * 10, 1)}% more ${esc(r.line)} demand 6 months later` : 'No clear link; not applied'}],
+        lines.map(l => ({line: l, ...(D.elasticity[l] || {beta: 0})})), {sort: 'beta'})}
+      <p class="note">A devaluation of more than 5% in a month is treated like a price change, because dealers buy ahead of the price rise that follows. Consumer prices are shown for context.</p></section>
+    <div class="grid g2">
+      <section class="panel"><div class="panel-head"><h2>Calendar ahead</h2><span class="note">Weeks in the forecast that holidays move.</span></div>
+        ${sortable('hol', [{h: 'Week of', k: 'ws', f: r => dlabel(r.ws)}, {h: 'What', f: r => esc(r.why.map(w => w[0]).join(', '))}, {h: 'Effect', n: 1, k: 'm', f: r => pct(r.m - 1)}], D.holidays, {sort: 'ws', dir: 1})}</section>
+      <section class="panel"><div class="panel-head"><h2>Dealer stock</h2><span class="note">Weeks of stock at the five biggest dealers against their normal level.</span></div>
+        ${sortable('dc', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Against normal', n: 1, k: 'dcov', f: r => nf(r.dcov * 100) + '%'}, {h: 'Next 8 weeks', f: r => r.dcov > 1 ? '<span class="pill p-warn">Reduced</span>' : '<span class="pill p-good">Raised</span>'}],
+          dealer, {sort: 'dcov', empty: 'Dealer stock is normal for these SKUs, or none was uploaded.'})}</section>
+    </div>
+    <div class="grid g2">
+      <section class="panel"><div class="panel-head"><h2>New and ending SKUs</h2></div>
+        ${sortable('life', [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Stage', k: 'life', f: lifePill}, {h: 'Date', k: 'launch', v: r => r.launch || r.end, f: r => r.life === 'new' ? 'Launch ' + dlabel(r.launch) : 'Ends ' + dlabel(r.end)},
+          {h: 'Replaces', k: 'replaces', f: r => r.replaces ? `<span class="sku">${esc(r.replaces)}</span>` : '–'}], life, {sort: 'launch', empty: 'No launches or phase outs in this filter.'})}</section>
+      <section class="panel"><div class="panel-head"><h2>Substitution between sizes</h2><span class="note">Share of a size's demand that moves to its sibling sizes when it is out.</span></div>
+        ${sortable('sub', [{h: 'Model and finish', k: 'group'}, {h: 'Moves to siblings', n: 1, k: 'rate', f: r => nf(r.rate * 100) + '%'}, {h: 'Weeks seen', n: 1, k: 'weeks'}], subst, {sort: 'rate', empty: 'No substitution found in this filter.'})}</section>
     </div>`};
 };
 
 views.pricing = list => {
   const ids = new Set(list.map(s => s.id)), mk = arr => arr.filter(r => ids.has(r.id)).map(r => ({...byId[r.id], pct: r.pct, why: r.why}));
   const cols = lbl => [{h: 'SKU', k: 'sku', cls: 'sku'}, {h: 'Product', k: 'p', f: prod}, {h: lbl, n: 1, k: 'pct', f: r => r.pct + '%'}, {h: 'Why', f: r => `<span style="font-size:12.5px">${esc(r.why)}</span>`}];
-  return {html: `<section class="panel"><div class="panel-head"><h2>Dealer discounts to clear excess</h2><span class="note">Smallest step that clears the excess in about 60 days.</span></div>${sortable('md', cols('Discount'), mk(D.md))}</section>
-    <section class="panel"><div class="panel-head"><h2>Price list increases</h2><span class="note">Strong sellers that keep running short.</span></div>${sortable('mu', cols('Increase'), mk(D.mu))}</section>`};
+  return {html: `<section class="panel"><div class="panel-head"><h2>Dealer discounts to clear excess</h2><span class="note">Smallest step that clears the excess in about 60 days.</span></div>${sortable('md', cols('Discount'), mk(D.md), {empty: 'No excess stock to discount in this filter.'})}</section>
+    <section class="panel"><div class="panel-head"><h2>Price list increases</h2><span class="note">Strong sellers that keep running short.</span></div>${sortable('mu', cols('Increase'), mk(D.mu), {empty: 'No SKU in this filter keeps running short.'})}</section>`};
 };
 
 views.issues = list => {
   const ids = new Set(list.map(s => s.id)), rows = D.issues.filter(r => !r.id || ids.has(r.id));
   const sev = {high: 0, medium: 1, low: 2};
-  return {html: `<section class="panel"><div class="panel-head"><h2>Data and process issues</h2><span class="note">Data issue: ERP records are wrong or missing. Process issue: stock or orders handled outside the system.</span></div>
+  return {html: `<section class="panel"><div class="panel-head"><h2>Data and process issues</h2><span class="note">Data issue: records are wrong or missing. Process issue: stock, orders or materials handled outside the plan.</span></div>
     ${sortable('issues', [{h: 'Issue', k: 'type'}, {h: 'Severity', k: 'sev', v: r => sev[r.sev], f: r => `<span class="pill ${r.sev === 'high' ? 'p-bad' : r.sev === 'medium' ? 'p-warn' : 'p-info'}">${r.sev}</span>`},
-      {h: 'Kind', k: 'kind', f: r => r.kind === 'process' ? 'Process' : 'Data'}, {h: 'SKU or source', k: 'sku', cls: 'sku'}, {h: 'Detail', k: 'detail'}], rows, {sort: 'sev', dir: 1})}</section>`};
+      {h: 'Kind', k: 'kind', f: r => r.kind === 'process' ? 'Process' : 'Data'}, {h: 'SKU or source', k: 'sku', cls: 'sku'}, {h: 'Detail', k: 'detail'}], rows, {sort: 'sev', dir: 1, empty: 'No issues found.'})}</section>`};
 };
 
 /* ---------- data: demo or uploaded files ---------- */
 const DEMO = JSON.parse(document.getElementById('data').textContent);
 const unpack = t => t.rows.map(r => Object.fromEntries(t.cols.map((c, i) => [c, r[i]])));
 const SLOTS = [
-  {k: 'items', name: 'Item list', req: true, cols: ['sku', 'product', 'line', 'source'], opt: ['finish', 'size', 'unit_cost', 'price', 'model'],
-   help: 'One row per SKU. The source column names the factory or supplier that makes it.',
-   ex: 'sku,product,line,source,finish,size,unit_cost,price,model\nASG-MI-02-SN-40MM,Internal Lock MI-02 Room,Internal mortise locks,"Factory 1, Locks",Satin Nickel,40mm,185,268,MI-02'},
-  {k: 'sales', name: 'Sales history', req: true, cols: ['date', 'sku', 'qty'], opt: ['status', 'reason', 'value'],
-   help: 'Order lines, invoices or weekly totals. Rows with status cancelled count as cancellations, not demand. Two years of history gives seasonality.',
-   ex: 'date,sku,qty,status,reason,value\n2026-09-28,ASG-MI-02-SN-40MM,1200,shipped,,\n2026-09-29,ASG-MI-02-SN-40MM,300,cancelled,Dealer credit hold,80400'},
+  {k: 'items', name: 'Item list', req: true, cols: ['sku', 'product', 'line', 'source'], opt: ['finish', 'size', 'unit_cost', 'price', 'model', 'launch_date', 'end_date', 'replaces'],
+   help: 'One row per SKU. Source names the factory or supplier. Launch date, end date and replaces handle new and discontinued SKUs.',
+   ex: 'sku,product,line,source,finish,size,unit_cost,price,model,launch_date,end_date,replaces\nASG-MI-16-SN-40MM,Internal Lock MI-16 Slim,Internal mortise locks,"Factory 1, Locks",Satin Nickel,40mm,230,333,MI-16,2026-07-06,,ASG-MI-14-SN-40MM'},
+  {k: 'sales', name: 'Sales history', req: true, cols: ['date', 'sku', 'qty'], opt: ['status', 'channel', 'reason', 'value'],
+   help: 'Order lines, invoices or weekly totals. Status: shipped, cancelled (not demand) or lost (refused for no stock, counted as demand). Channel: dealer, project or export.',
+   ex: 'date,sku,qty,status,channel,reason,value\n2026-09-28,ASG-MI-02-SN-40MM,1200,shipped,dealer,,\n2026-09-28,ASG-MI-02-SN-40MM,400,lost,dealer,No stock,\n2026-09-29,ASG-MI-02-SN-40MM,5000,shipped,project,,\n2026-09-30,ASG-MI-02-SN-40MM,300,cancelled,dealer,Dealer credit hold,80400'},
   {k: 'stock', name: 'Stock on hand', req: true, cols: ['sku', 'on_hand'], opt: ['committed', 'incoming'],
-   help: 'Today\'s stock per SKU. Committed is confirmed but not shipped; incoming is production or purchase orders not yet received.',
-   ex: 'sku,on_hand,committed,incoming\nASG-MI-02-SN-40MM,18686,1912,0'},
+   help: 'Today\'s stock per SKU. Committed is confirmed but not shipped; incoming is production or purchase orders not yet received.', ex: 'sku,on_hand,committed,incoming\nASG-MI-02-SN-40MM,18686,1912,0'},
   {k: 'sources', name: 'Factories and suppliers', req: false, cols: ['source', 'lead_time_days'], opt: ['type', 'carton', 'min_batch', 'weekly_capacity', 'confirmed'],
-   help: 'One row per factory or supplier. Type is factory or import. Without it the plan uses 21 days and no batch rules.',
-   ex: 'source,type,lead_time_days,carton,min_batch,weekly_capacity,confirmed\n"Factory 1, Locks",factory,14,50,2000,113000,yes'},
+   help: 'One row per factory or supplier. Type is factory or import. Weekly capacity drives the schedule.', ex: 'source,type,lead_time_days,carton,min_batch,weekly_capacity,confirmed\n"Factory 1, Locks",factory,14,50,2000,113000,yes'},
+  {k: 'events', name: 'Price changes and promotions', req: false, cols: ['type', 'start', 'pct'], opt: ['end', 'line', 'sku', 'name'],
+   help: 'Past and announced ones. Type price or promo. Pct is the price rise or the discount. Leave line and sku empty for all products.',
+   ex: 'type,start,end,pct,line,sku,name\nprice,2027-01-03,2027-01-03,10,,,Price list January 2027\npromo,2026-11-01,2026-11-14,10,Padlocks,,Padlock autumn offer'},
+  {k: 'orders', name: 'Confirmed future orders', req: false, cols: ['due_date', 'sku', 'qty'], opt: ['channel'],
+   help: 'Project and export orders already in the order book. Added on top of the dealer forecast.', ex: 'due_date,sku,qty,channel\n2026-11-10,ASG-ME-06-SN-85X45,6000,project'},
+  {k: 'macro', name: 'Market data', req: false, cols: ['month'], opt: ['cement', 'usd_egp', 'cpi'],
+   help: 'Monthly. Cement sales drive construction demand 6 months later. Big devaluations are treated as price rises.', ex: 'month,cement,usd_egp,cpi\n2026-09,4380,50.9,182.4'},
+  {k: 'dealers', name: 'Dealer stock', req: false, cols: ['date', 'sku', 'stock', 'sell_out'], opt: ['dealer'],
+   help: 'Weekly snapshots from your biggest dealers: their stock and weekly sales to customers.', ex: 'date,dealer,sku,stock,sell_out\n2026-09-28,Dealer A,ASG-MI-02-SN-40MM,1650,410'},
   {k: 'stockouts', name: 'Stockout days', req: false, cols: ['date', 'sku', 'days_out'], opt: [],
-   help: 'Days each SKU was out of stock in a week, so demand lost to stockouts is added back.',
-   ex: 'date,sku,days_out\n2026-09-28,ASG-MI-02-SN-40MM,3'},
+   help: 'Days each SKU was out in a week, so lost demand is added back.', ex: 'date,sku,days_out\n2026-09-28,ASG-MI-02-SN-40MM,3'},
+  {k: 'bom', name: 'Bill of materials', req: false, cols: ['sku', 'material', 'qty_per_unit'], opt: [],
+   help: 'Material used per unit.', ex: 'sku,material,qty_per_unit\nASG-CY-03-SN-60MM,Brass rod,0.22'},
+  {k: 'materials', name: 'Material stock', req: false, cols: ['material', 'on_hand'], opt: ['unit', 'on_order', 'lead_time_days'],
+   help: 'Raw material stock, open purchase orders and lead time.', ex: 'material,unit,on_hand,on_order,lead_time_days\nBrass rod,kg,12000,30000,60'},
 ];
 const pending = {};
 let lastProblems = [];
@@ -528,15 +767,13 @@ function useRaw(raw, info){
   D = ENGINE.build(raw); INFO = info;
   byId = Object.fromEntries(D.skus.map(s => [s.id, s]));
   const uniq = k => [...new Set(D.skus.map(s => s[k]))].sort();
-  Object.keys(F).forEach(k => F[k] = ''); $('#fQ').value = '';
+  Object.keys(F).forEach(k => F[k] = ''); $('#fQ').value = ''; openLines = new Set(); openMonth = null;
   fillSelect('#fLine', 'lines', uniq('line')); fillSelect('#fSrc', 'sources', Object.keys(D.sources)); fillSelect('#fFin', 'finishes', uniq('c'));
   $('#asof').textContent = dlabel(D.asof);
-  const b = $('#srcBadge'); b.textContent = info.demo ? 'Synthetic demo data, not real ASG sales' : `Your data: ${info.files.join(', ')}`; b.classList.toggle('mine', !info.demo);
+  const b = $('#srcBadge'); b.textContent = info.demo ? 'Synthetic demo data, not real ASG sales' : `Your data: ${info.files.length} files, built ${info.at}`; b.classList.toggle('mine', !info.demo);
 }
-function useDemo(){
-  const {raw} = ENGINE.fromTables(Object.fromEntries(Object.entries(DEMO).map(([k, t]) => [k, unpack(t)])));
-  useRaw(raw, {demo: true, files: []});
-}
+function demoTables(){ return Object.fromEntries(Object.entries(DEMO).map(([k, t]) => [k, unpack(t)])); }
+function useDemo(){ const {raw} = ENGINE.fromTables(demoTables()); useRaw(raw, {demo: true, files: []}); }
 function buildFromUploads(){
   const tables = Object.fromEntries(SLOTS.map(sl => [sl.k, pending[sl.k]?.rows || null]));
   const {raw, problems} = ENGINE.fromTables(tables);
@@ -548,7 +785,7 @@ function buildFromUploads(){
   edits = {}; saveEdits();
   try { localStorage.setItem('asg-data', JSON.stringify({raw, info})); }
   catch (e) { toast('Built. Too large to remember in this browser, so upload again next time.'); }
-  toast(`Built from your files: ${D.skus.length} SKUs, ${D.weeks.length} weeks shown.`);
+  toast(`Built from your files: ${D.skus.length} SKUs.`);
   show('overview');
 }
 function boot(){
@@ -565,11 +802,11 @@ views.data = () => {
     <section class="panel"><div class="panel-head"><div><h2>Where the numbers come from</h2>
       <div class="note">${INFO.demo ? 'Now showing <b>synthetic demo data</b>. Upload your own files below to replace it.' : `Now showing <b>your data</b> from ${esc(INFO.files.join(', '))}, built ${esc(INFO.at)}.`}</div></div>
       ${INFO.demo ? '' : '<button class="btn" id="toDemo" type="button">Switch back to demo data</button>'}</div>
-      <div class="kv">${[['Data as of', dlabel(D.asof)], ['SKUs', nf(D.skus.length)], ['Units, last 52 weeks', big(D.annual)], ['Factories and suppliers', Object.keys(D.sources).length], ['Data issues', D.issues.length]]
+      <div class="kv">${[['Data as of', dlabel(D.asof)], ['SKUs', nf(D.skus.length)], ['Units, last 52 weeks', big(D.annual)], ['Factories and suppliers', Object.keys(D.sources).length], ['Events', D.events.length], ['Data issues', D.issues.length]]
         .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></section>
-    <section class="panel"><div class="panel-head"><div><h2>Upload your data</h2><div class="note">CSV or Excel exports from the ERP. Column names are matched loosely, so "Item code" or "Quantity" also work. Files are read in this browser and never sent anywhere.</div></div></div>
-      <ol class="steps"><li>Export the three required files from the ERP, and the optional ones if you have them.</li>
-        <li>Drop each file on its box, or click the box to choose it.</li><li>Press <b>Build forecast</b>. Every tab then shows your numbers.</li></ol>
+    <section class="panel"><div class="panel-head"><div><h2>Upload your data</h2><div class="note">CSV or Excel exports. Column names are matched loosely, so "Item code" or "Quantity" also work. Files are read in this browser and never sent anywhere.</div></div></div>
+      <ol class="steps"><li>Export the three required files, plus any optional ones you have. Each optional file switches on one more forecast driver.</li>
+        <li>Drop each file on its box, or click the box to choose it. Several files dropped at once go to the box their name matches.</li><li>Press <b>Build forecast</b>. Every tab then shows your numbers.</li></ol>
       <div class="slots" style="margin-top:14px">${SLOTS.map(sl => { const p = pending[sl.k];
         const st = !p ? '' : p.busy ? `<div class="fstat">Reading ${esc(p.file)}…</div>` : p.err ? `<div class="fstat bad">${esc(p.file)}: ${esc(p.err)}</div>` : `<div class="fstat ok">✓ ${nf(p.rows.length)} rows from ${esc(p.file)}</div>`;
         return `<div class="slot ${p?.rows?.length ? 'ok' : p?.err ? 'bad' : ''}" data-slot="${sl.k}">
@@ -580,62 +817,77 @@ views.data = () => {
       ${lastProblems.length ? `<ul class="problems" style="margin-top:12px">${lastProblems.map(p => `<li class="${p.includes('only') ? 'warn' : ''}">${esc(p)}</li>`).join('')}</ul>` : ''}
       <div class="toolbar" style="margin-top:14px"><button class="btn primary" id="build" type="button" ${ready ? '' : 'disabled'}>Build forecast from my files</button>
         <span class="note">${ready ? 'Ready.' : 'Add the item list, sales history and stock on hand to continue.'}</span></div>
-      <p class="note">To try it, use the files in <span style="font-family:var(--mono)">asg-planning-desk/sample-data/</span>, the same demo data in upload format.</p>
+      <p class="note">To try it, use the files in <span style="font-family:var(--mono)">asg-planning-desk/sample-data/</span>: the demo data in upload format.</p>
     </section>`,
     after(root){
       SLOTS.forEach(sl => { const box = $(`[data-slot="${sl.k}"]`, root), inp = $(`#up_${sl.k}`, root), drop = $('.drop', box);
         inp.addEventListener('change', () => inp.files[0] && takeFile(sl.k, inp.files[0]));
         drop.addEventListener('dragover', e => { e.preventDefault(); drop.classList.add('over'); });
         drop.addEventListener('dragleave', () => drop.classList.remove('over'));
-        drop.addEventListener('drop', e => { e.preventDefault(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) takeFile(sl.k, f); }); });
+        drop.addEventListener('drop', e => { e.preventDefault(); e.stopPropagation(); drop.classList.remove('over'); const f = e.dataTransfer.files[0]; if (f) takeFile(sl.k, f); }); });
       $$('[data-tpl]', root).forEach(b => b.addEventListener('click', () => { const sl = SLOTS.find(x => x.k === b.dataset.tpl);
         navigator.clipboard.writeText(sl.ex).then(() => toast('Example copied. Paste into Excel or a text file.')).catch(() => toast('Copy was blocked by the browser.')); }));
       $('#build', root).addEventListener('click', buildFromUploads);
       $('#toDemo', root)?.addEventListener('click', () => { try { localStorage.removeItem('asg-data'); } catch (e) {} edits = {}; saveEdits(); useDemo(); toast('Showing demo data'); render(); });
     }};
 };
-// let files dropped anywhere on the Upload tab land in the right box by file name
 document.addEventListener('dragover', e => { if (tab === 'data') e.preventDefault(); });
 document.addEventListener('drop', e => { if (tab !== 'data' || e.target.closest('.drop')) return; e.preventDefault();
-  [...e.dataTransfer.files].forEach(f => { const k = [...SLOTS].sort((x, y) => y.k.length - x.k.length).find(sl => f.name.toLowerCase().includes(sl.k.replace(/s$/, '')))?.k; if (k) takeFile(k, f); else toast(`Not sure which box ${f.name} belongs to. Drop it on its box.`); }); });
+  const order = [...SLOTS].sort((x, y) => y.k.length - x.k.length);
+  [...e.dataTransfer.files].forEach(f => { const n = f.name.toLowerCase(); const k = order.find(sl => n.includes(sl.k.replace(/s$/, '')))?.k; if (k) takeFile(k, f); else toast(`Not sure which box ${f.name} belongs to. Drop it on its box.`); }); });
 
 /* ---------- SKU drawer ---------- */
+let drawerOpenMonth = null;
 function openSku(id){
   const s = byId[id]; if (!s) return; const src = D.sources[s.src], h = D.H[id], f = D.F[id];
-  const ch = demandChart({o: h[0], a: h[1], fm: f[0], fl: f[1], fh: f[2]}, {h: 250});
+  const agg = aggregate([s]), pts = periods(agg), evs = eventsFor([s]);
+  const ch = demandChart(PER === 'month' ? pts : pts.slice(-40), evs, {h: 250});
+  const fpm = futurePts(periods(agg, 'month'));
   const shortWeeks = h[2].filter(x => x > 0).length;
+  const mrow = p => `<tr class="grp"><td data-dm="${p.key}" tabindex="0"><span class="caret">${drawerOpenMonth === p.key ? '▾' : '▸'}</span>${esc(p.label)}</td><td class="n">${nf(p.d)}</td><td class="n">${nf(p.e)}</td><td class="n">${nf(p.p)}</td><td class="n"><b>${nf(p.f)}</b></td></tr>` +
+    (drawerOpenMonth === p.key ? p.weeks.map(w => `<tr class="sub"><td>&nbsp;&nbsp;&nbsp;w/c ${dlabel(w.ws, false)}${w.share < 1 ? ` (${Math.round(w.share * 7)} days)` : ''}</td><td class="n">${nf(f[3][w.k] * w.share)}</td><td class="n">${nf(f[4][w.k] * w.share)}</td><td class="n">${nf(f[5][w.k] * w.share)}</td><td class="n">${nf(f[0][w.k] * w.share)}</td></tr>`).join('') : '');
   $('#drawerRoot').innerHTML = `<div class="scrim" id="scrim"></div><aside class="drawer" role="dialog" aria-modal="true" aria-labelledby="dTitle">
     <div class="drawer-head"><div><div class="eyebrow">${esc(s.line)} · ${esc(s.src)}</div><h2 id="dTitle">${esc(s.p)}</h2>
       <div class="note"><span style="font-family:var(--mono)">${esc(s.sku)}</span> · ${esc(s.c)} · ${esc(s.z)}</div></div>
       <button class="close" id="dClose" type="button" aria-label="Close">×</button></div>
-    <div>${statusPill(s)} ${confPill(s.conf)} <span class="pill p-info">${esc(s.abc + s.xyz)} · ${s.svc}% service</span></div>
+    <div>${statusPill(s)} ${lifePill(s)} ${confPill(s.conf)} <span class="pill p-info">${esc(s.abc + s.xyz)} · ${s.svc}% service</span></div>
     <div class="kv">${[['On hand', nf(s.oh)], ['Committed', nf(s.cm)], ['Incoming', nf(s.inc)], ['Days left', s.dl == null ? '–' : nf(s.dl)], ['Forecast / week', nf(s.wk)],
-      ['Reorder point', nf(s.rop)], ['Order up to', nf(s.tgt)], ['Unit cost EGP', s.cost ? nf(s.cost, 2) : 'missing'], ['Model', esc(s.model)], ['Forecast error', nf(s.wape * 100, 1) + '%'], ['Demand type', esc(s.cls)], ['Short weeks', `${shortWeeks} of 53`]]
+      ['Reorder point', nf(s.rop)], ['Order up to', nf(s.tgt)], ['Unit cost EGP', s.cost ? nf(s.cost, 2) : 'missing'], ['Forecast error', nf(s.wape * 100, 1) + '%'], ['Demand type', esc(s.cls)], ['Short weeks', `${shortWeeks} of ${D.weeks.length}`], ['Dealer stock', s.dcov ? nf(s.dcov * 100) + '% of normal' : '–']]
       .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div>
     <div class="chart" id="dChart">${ch.svg}</div>${chartLegend}
-    <div class="reason">${esc(s.reason)}</div>
-    <div class="plancard"><label for="dQty">${src.kind === 'factory' ? 'Make' : 'Buy'} this week</label>
-      <input id="dQty" class="qty" type="number" min="0" step="${src.pack}" value="${planQty(s)}">
+    <div><h3 style="font:600 18px var(--display);margin:4px 0 8px">Forecast by month and channel</h3>
+      <div class="tblwrap"><table><thead><tr><th>Month (click for weeks)</th><th class="n">Dealer</th><th class="n">Export</th><th class="n">Project</th><th class="n">Total</th></tr></thead>
+      <tbody>${fpm.map(mrow).join('')}</tbody></table></div>
+      <p class="note">* the current month includes ${nf(fpm[0]?.actual || 0)} units already shipped. Weeks are cut at month ends.</p></div>
+    <div><h3 style="font:600 18px var(--display);margin:4px 0 8px">Why this forecast</h3>
+      <ul class="notes"><li><b>Model</b><span>${esc(s.model)}: ${esc(s.modelTxt)}. Picked from 8 models because it had the lowest error on 4 past 8 week windows (${nf(s.wape * 100, 1)}%).</span></li>
+      ${s.notes.map(([k, v]) => `<li><b>${esc(k)}</b><span>${esc(v)}</span></li>`).join('')}</ul></div>
+    <div><h3 style="font:600 18px var(--display);margin:4px 0 8px">Plan</h3><div class="reason">${esc(s.reason)}</div></div>
+    <div class="plancard"><label for="dQty">${src?.kind === 'import' ? 'Buy' : 'Make'} this week</label>
+      <input id="dQty" class="qty" type="number" min="0" step="${src?.pack || 1}" value="${planQty(s)}">
       <button class="btn primary small" id="dSave" type="button">Save to plan</button>
-      <span class="note">Suggested ${nf(s.q)}. Cartons of ${src.pack}, minimum batch ${nf(src.moq)}.</span></div>
+      <span class="note">Suggested ${nf(s.q)}. Cartons of ${src?.pack || 1}, minimum batch ${nf(src?.moq || 0)}.</span></div>
   </aside>`;
   ch.wire($('#dChart'));
-  const close = () => { $('#drawerRoot').innerHTML = ''; hideTip(); document.removeEventListener('keydown', onKey); last?.focus(); };
-  const onKey = e => { if (e.key === 'Escape') close(); };
   const last = document.activeElement;
+  const close = () => { $('#drawerRoot').innerHTML = ''; hideTip(); document.removeEventListener('keydown', onKey); drawerOpenMonth = null; last?.focus?.(); };
+  const onKey = e => { if (e.key === 'Escape') close(); };
   document.addEventListener('keydown', onKey);
-  $('#scrim').addEventListener('click', close); $('#dClose').addEventListener('click', close); $('#dClose').focus();
+  $('#scrim').addEventListener('click', close); $('#dClose').addEventListener('click', close);
+  $$('[data-dm]').forEach(td => { const go = () => { const sc = $('.drawer').scrollTop; drawerOpenMonth = drawerOpenMonth === td.dataset.dm ? null : td.dataset.dm; document.removeEventListener('keydown', onKey); openSku(id); $('.drawer').scrollTop = sc; };
+    td.addEventListener('click', go); td.addEventListener('keydown', e => { if (e.key === 'Enter') go(); }); });
+  if (!drawerOpenMonth) $('#dClose').focus();
   $('#dSave').addEventListener('click', () => { let v = Math.max(0, Math.round(+$('#dQty').value || 0));
-    if (v && v < src.moq) v = src.moq; if (v) v = Math.ceil(v / src.pack) * src.pack;
+    if (v && v < (src?.moq || 0)) v = src.moq; if (v) v = Math.ceil(v / (src?.pack || 1)) * (src?.pack || 1);
     setEdit(s, {q: v}); toast(`${s.sku}: ${nf(v)} in the plan`); close(); render(); });
 }
 
 /* ---------- shell ---------- */
-const TABS = [['overview', 'Overview'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['pricing', 'Pricing'], ['issues', 'Data issues'], ['data', 'Upload data']];
-function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2200); }
+const TABS = [['overview', 'Overview'], ['forecast', 'Forecast'], ['products', 'Products'], ['plan', 'Production plan'], ['health', 'Stock health'], ['drivers', 'Drivers'], ['pricing', 'Pricing'], ['issues', 'Data issues'], ['data', 'Upload data']];
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2400); }
 function render(){
   const list = filtered();
-  const counts = {plan: list.filter(s => planQty(s) > 0).length, health: list.filter(s => (s.dl != null && s.dl <= 14 && ['make', 'ok'].includes(s.status)) || ['dead', 'longout', 'over'].includes(s.status)).length,
+  const counts = {plan: list.filter(s => planQty(s) > 0).length, health: list.filter(s => isLow(s) || ['dead', 'longout', 'over'].includes(s.status)).length,
     issues: D.issues.filter(r => !r.id || list.some(s => s.id === r.id)).length, products: list.length};
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button role="tab" id="t_${k}" data-k="${k}" aria-selected="${k === tab}" type="button">${l}${counts[k] != null ? `<span class="count">${counts[k]}</span>` : ''}</button>`).join('');
   const active = Object.values(F).some(Boolean);

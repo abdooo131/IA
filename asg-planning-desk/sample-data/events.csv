@@ -1,0 +1,18 @@
+type,start,end,pct,line,sku,name
+price,2025-01-05,2025-01-05,10,,,Price list January 2025
+price,2026-01-04,2026-01-04,12,,,Price list January 2026
+price,2027-01-03,2027-01-03,10,,,Price list January 2027 (announced)
+promo,2025-09-14,2025-09-27,10,Cylinders,,Cylinder dealer fortnight
+promo,2025-11-02,2025-11-15,8,Internal mortise locks,,Internal lock autumn offer
+promo,2026-02-01,2026-02-14,10,Padlocks,,Padlock winter offer
+promo,2026-05-03,2026-05-16,8,Hinges,,Hinge spring offer
+promo,2026-06-07,2026-06-20,10,AFM locks,,AFM lock offer
+promo,2026-08-02,2026-08-15,10,AFM handles,,AFM handle summer offer
+promo,2026-04-26,2026-05-09,8,Sicuro handles,,Sicuro showroom days
+promo,2025-10-05,2025-10-18,8,External mortise locks,,External lock offer
+promo,2025-06-15,2025-06-28,8,Digital locks,,Smart lock summer offer
+promo,2025-12-07,2025-12-13,8,Rim locks,,Rim lock offer
+promo,2026-11-01,2026-11-14,10,Padlocks,,Padlock autumn offer (planned)
+promo,2026-11-15,2026-11-28,12,Sicuro handles,,Sicuro autumn offer (planned)
+promo,2026-10-18,2026-10-31,8,Rim locks,,Rim lock offer (planned)
+promo,2026-12-06,2026-12-19,10,Digital locks,,Smart lock offer (planned)
