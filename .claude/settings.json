@@ -182,13 +182,20 @@
   "enabledPlugins": {
     "ruflo-mods@ruflo": true,
     "ruflo-swarm@ruflo": true,
-    "ruflo-console@ruflo": true
+    "ruflo-console@ruflo": true,
+    "ponytail@ponytail": true
   },
   "extraKnownMarketplaces": {
     "ruflo": {
       "source": {
         "source": "github",
         "repo": "ruvnet/ruflo"
+      }
+    },
+    "ponytail": {
+      "source": {
+        "source": "github",
+        "repo": "DietrichGebert/ponytail"
       }
     }
   },
