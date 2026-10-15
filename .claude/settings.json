@@ -38,6 +38,26 @@
             "timeout": 5000
           }
         ]
+      },
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'command -v graphify >/dev/null 2>&1 || exit 0; exec graphify hook-guard search'",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "sh -c 'command -v graphify >/dev/null 2>&1 || exit 0; exec graphify hook-guard read'",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "PostToolUse": [

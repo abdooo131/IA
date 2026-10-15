@@ -10,3 +10,7 @@
 .swarm/
 ruvector.db
 .claude/settings.json.bak-*
+
+# Graphify output (rebuild with: graphify update .) and backups
+graphify-out/
+.claude/settings.json.graphify-bak
