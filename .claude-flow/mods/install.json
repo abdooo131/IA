@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "installedAt": "2026-10-15T15:59:48.379Z",
+  "files": {
+    "/home/user/IA/.claude/settings.json": {
+      "plugins": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo"
+      ],
+      "marketplace": true,
+      "env": true,
+      "claudeInstalled": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo"
+      ]
+    }
+  }
+}
