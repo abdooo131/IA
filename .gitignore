@@ -14,3 +14,4 @@ ruvector.db
 # Graphify output (rebuild with: graphify update .) and backups
 graphify-out/
 .claude/settings.json.graphify-bak
+.claude-flow/mods/session.json
