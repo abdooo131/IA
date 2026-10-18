@@ -1,0 +1,532 @@
+sku,material,qty_per_unit
+ASG-MI-02-SN-40MM,Steel strip,0.32
+ASG-MI-02-SN-40MM,Zinc alloy,0.12
+ASG-MI-02-SN-40MM,Springs,3
+ASG-MI-02-SN-40MM,Cartons,0.1
+ASG-MI-02-SN-45MM,Steel strip,0.32
+ASG-MI-02-SN-45MM,Zinc alloy,0.12
+ASG-MI-02-SN-45MM,Springs,3
+ASG-MI-02-SN-45MM,Cartons,0.1
+ASG-MI-02-PB-40MM,Steel strip,0.32
+ASG-MI-02-PB-40MM,Zinc alloy,0.12
+ASG-MI-02-PB-40MM,Springs,3
+ASG-MI-02-PB-40MM,Cartons,0.1
+ASG-MI-02-PB-45MM,Steel strip,0.32
+ASG-MI-02-PB-45MM,Zinc alloy,0.12
+ASG-MI-02-PB-45MM,Springs,3
+ASG-MI-02-PB-45MM,Cartons,0.1
+ASG-MI-02-AB-40MM,Steel strip,0.32
+ASG-MI-02-AB-40MM,Zinc alloy,0.12
+ASG-MI-02-AB-40MM,Springs,3
+ASG-MI-02-AB-40MM,Cartons,0.1
+ASG-MI-02-AB-45MM,Steel strip,0.32
+ASG-MI-02-AB-45MM,Zinc alloy,0.12
+ASG-MI-02-AB-45MM,Springs,3
+ASG-MI-02-AB-45MM,Cartons,0.1
+ASG-MI-04-SN-40MM,Steel strip,0.32
+ASG-MI-04-SN-40MM,Zinc alloy,0.12
+ASG-MI-04-SN-40MM,Springs,3
+ASG-MI-04-SN-40MM,Cartons,0.1
+ASG-MI-04-SN-45MM,Steel strip,0.32
+ASG-MI-04-SN-45MM,Zinc alloy,0.12
+ASG-MI-04-SN-45MM,Springs,3
+ASG-MI-04-SN-45MM,Cartons,0.1
+ASG-MI-04-PB-40MM,Steel strip,0.32
+ASG-MI-04-PB-40MM,Zinc alloy,0.12
+ASG-MI-04-PB-40MM,Springs,3
+ASG-MI-04-PB-40MM,Cartons,0.1
+ASG-MI-04-PB-45MM,Steel strip,0.32
+ASG-MI-04-PB-45MM,Zinc alloy,0.12
+ASG-MI-04-PB-45MM,Springs,3
+ASG-MI-04-PB-45MM,Cartons,0.1
+ASG-MI-04-AB-40MM,Steel strip,0.32
+ASG-MI-04-AB-40MM,Zinc alloy,0.12
+ASG-MI-04-AB-40MM,Springs,3
+ASG-MI-04-AB-40MM,Cartons,0.1
+ASG-MI-04-AB-45MM,Steel strip,0.32
+ASG-MI-04-AB-45MM,Zinc alloy,0.12
+ASG-MI-04-AB-45MM,Springs,3
+ASG-MI-04-AB-45MM,Cartons,0.1
+ASG-MI-06-SN-25MM,Steel strip,0.32
+ASG-MI-06-SN-25MM,Zinc alloy,0.12
+ASG-MI-06-SN-25MM,Springs,3
+ASG-MI-06-SN-25MM,Cartons,0.1
+ASG-MI-06-SN-30MM,Steel strip,0.32
+ASG-MI-06-SN-30MM,Zinc alloy,0.12
+ASG-MI-06-SN-30MM,Springs,3
+ASG-MI-06-SN-30MM,Cartons,0.1
+ASG-MI-06-PB-25MM,Steel strip,0.32
+ASG-MI-06-PB-25MM,Zinc alloy,0.12
+ASG-MI-06-PB-25MM,Springs,3
+ASG-MI-06-PB-25MM,Cartons,0.1
+ASG-MI-06-PB-30MM,Steel strip,0.32
+ASG-MI-06-PB-30MM,Zinc alloy,0.12
+ASG-MI-06-PB-30MM,Springs,3
+ASG-MI-06-PB-30MM,Cartons,0.1
+ASG-MI-08-SN-50MM,Steel strip,0.32
+ASG-MI-08-SN-50MM,Zinc alloy,0.12
+ASG-MI-08-SN-50MM,Springs,3
+ASG-MI-08-SN-50MM,Cartons,0.1
+ASG-MI-08-SN-55MM,Steel strip,0.32
+ASG-MI-08-SN-55MM,Zinc alloy,0.12
+ASG-MI-08-SN-55MM,Springs,3
+ASG-MI-08-SN-55MM,Cartons,0.1
+ASG-MI-08-CP-50MM,Steel strip,0.32
+ASG-MI-08-CP-50MM,Zinc alloy,0.12
+ASG-MI-08-CP-50MM,Springs,3
+ASG-MI-08-CP-50MM,Cartons,0.1
+ASG-MI-08-CP-55MM,Steel strip,0.32
+ASG-MI-08-CP-55MM,Zinc alloy,0.12
+ASG-MI-08-CP-55MM,Springs,3
+ASG-MI-08-CP-55MM,Cartons,0.1
+ASG-MI-08-BK-50MM,Steel strip,0.32
+ASG-MI-08-BK-50MM,Zinc alloy,0.12
+ASG-MI-08-BK-50MM,Springs,3
+ASG-MI-08-BK-50MM,Cartons,0.1
+ASG-MI-08-BK-55MM,Steel strip,0.32
+ASG-MI-08-BK-55MM,Zinc alloy,0.12
+ASG-MI-08-BK-55MM,Springs,3
+ASG-MI-08-BK-55MM,Cartons,0.1
+ASG-MI-14-SN-40MM,Steel strip,0.32
+ASG-MI-14-SN-40MM,Zinc alloy,0.12
+ASG-MI-14-SN-40MM,Springs,3
+ASG-MI-14-SN-40MM,Cartons,0.1
+ASG-MI-14-SN-45MM,Steel strip,0.32
+ASG-MI-14-SN-45MM,Zinc alloy,0.12
+ASG-MI-14-SN-45MM,Springs,3
+ASG-MI-14-SN-45MM,Cartons,0.1
+ASG-MI-14-PB-40MM,Steel strip,0.32
+ASG-MI-14-PB-40MM,Zinc alloy,0.12
+ASG-MI-14-PB-40MM,Springs,3
+ASG-MI-14-PB-40MM,Cartons,0.1
+ASG-MI-14-PB-45MM,Steel strip,0.32
+ASG-MI-14-PB-45MM,Zinc alloy,0.12
+ASG-MI-14-PB-45MM,Springs,3
+ASG-MI-14-PB-45MM,Cartons,0.1
+ASG-ME-02-SN-85X45,Steel strip,0.55
+ASG-ME-02-SN-85X45,Zinc alloy,0.2
+ASG-ME-02-SN-85X45,Springs,4
+ASG-ME-02-SN-85X45,Cartons,0.1
+ASG-ME-02-SN-85X50,Steel strip,0.55
+ASG-ME-02-SN-85X50,Zinc alloy,0.2
+ASG-ME-02-SN-85X50,Springs,4
+ASG-ME-02-SN-85X50,Cartons,0.1
+ASG-ME-02-PB-85X45,Steel strip,0.55
+ASG-ME-02-PB-85X45,Zinc alloy,0.2
+ASG-ME-02-PB-85X45,Springs,4
+ASG-ME-02-PB-85X45,Cartons,0.1
+ASG-ME-02-PB-85X50,Steel strip,0.55
+ASG-ME-02-PB-85X50,Zinc alloy,0.2
+ASG-ME-02-PB-85X50,Springs,4
+ASG-ME-02-PB-85X50,Cartons,0.1
+ASG-ME-06-SN-85X45,Steel strip,0.55
+ASG-ME-06-SN-85X45,Zinc alloy,0.2
+ASG-ME-06-SN-85X45,Springs,4
+ASG-ME-06-SN-85X45,Cartons,0.1
+ASG-ME-06-SN-85X50,Steel strip,0.55
+ASG-ME-06-SN-85X50,Zinc alloy,0.2
+ASG-ME-06-SN-85X50,Springs,4
+ASG-ME-06-SN-85X50,Cartons,0.1
+ASG-ME-06-PB-85X45,Steel strip,0.55
+ASG-ME-06-PB-85X45,Zinc alloy,0.2
+ASG-ME-06-PB-85X45,Springs,4
+ASG-ME-06-PB-85X45,Cartons,0.1
+ASG-ME-06-PB-85X50,Steel strip,0.55
+ASG-ME-06-PB-85X50,Zinc alloy,0.2
+ASG-ME-06-PB-85X50,Springs,4
+ASG-ME-06-PB-85X50,Cartons,0.1
+ASG-ME-06-AB-85X45,Steel strip,0.55
+ASG-ME-06-AB-85X45,Zinc alloy,0.2
+ASG-ME-06-AB-85X45,Springs,4
+ASG-ME-06-AB-85X45,Cartons,0.1
+ASG-ME-06-AB-85X50,Steel strip,0.55
+ASG-ME-06-AB-85X50,Zinc alloy,0.2
+ASG-ME-06-AB-85X50,Springs,4
+ASG-ME-06-AB-85X50,Cartons,0.1
+ASG-ME-12-SN-85X30,Steel strip,0.55
+ASG-ME-12-SN-85X30,Zinc alloy,0.2
+ASG-ME-12-SN-85X30,Springs,4
+ASG-ME-12-SN-85X30,Cartons,0.1
+ASG-ME-12-SN-85X35,Steel strip,0.55
+ASG-ME-12-SN-85X35,Zinc alloy,0.2
+ASG-ME-12-SN-85X35,Springs,4
+ASG-ME-12-SN-85X35,Cartons,0.1
+ASG-ME-12-BK-85X30,Steel strip,0.55
+ASG-ME-12-BK-85X30,Zinc alloy,0.2
+ASG-ME-12-BK-85X30,Springs,4
+ASG-ME-12-BK-85X30,Cartons,0.1
+ASG-ME-12-BK-85X35,Steel strip,0.55
+ASG-ME-12-BK-85X35,Zinc alloy,0.2
+ASG-ME-12-BK-85X35,Springs,4
+ASG-ME-12-BK-85X35,Cartons,0.1
+ASG-ME-19-SN-85X45,Steel strip,0.55
+ASG-ME-19-SN-85X45,Zinc alloy,0.2
+ASG-ME-19-SN-85X45,Springs,4
+ASG-ME-19-SN-85X45,Cartons,0.1
+ASG-ME-19-SN-85X50,Steel strip,0.55
+ASG-ME-19-SN-85X50,Zinc alloy,0.2
+ASG-ME-19-SN-85X50,Springs,4
+ASG-ME-19-SN-85X50,Cartons,0.1
+ASG-ME-19-PB-85X45,Steel strip,0.55
+ASG-ME-19-PB-85X45,Zinc alloy,0.2
+ASG-ME-19-PB-85X45,Springs,4
+ASG-ME-19-PB-85X45,Cartons,0.1
+ASG-ME-19-PB-85X50,Steel strip,0.55
+ASG-ME-19-PB-85X50,Zinc alloy,0.2
+ASG-ME-19-PB-85X50,Springs,4
+ASG-ME-19-PB-85X50,Cartons,0.1
+ASG-ME-19-CP-85X45,Steel strip,0.55
+ASG-ME-19-CP-85X45,Zinc alloy,0.2
+ASG-ME-19-CP-85X45,Springs,4
+ASG-ME-19-CP-85X45,Cartons,0.1
+ASG-ME-19-CP-85X50,Steel strip,0.55
+ASG-ME-19-CP-85X50,Zinc alloy,0.2
+ASG-ME-19-CP-85X50,Springs,4
+ASG-ME-19-CP-85X50,Cartons,0.1
+ASG-RL-01-SN-60MM,Steel strip,0.45
+ASG-RL-01-SN-60MM,Brass rod,0.08
+ASG-RL-01-SN-60MM,Cartons,0.1
+ASG-RL-01-SN-80MM,Steel strip,0.45
+ASG-RL-01-SN-80MM,Brass rod,0.08
+ASG-RL-01-SN-80MM,Cartons,0.1
+ASG-RL-01-PB-60MM,Steel strip,0.45
+ASG-RL-01-PB-60MM,Brass rod,0.08
+ASG-RL-01-PB-60MM,Cartons,0.1
+ASG-RL-01-PB-80MM,Steel strip,0.45
+ASG-RL-01-PB-80MM,Brass rod,0.08
+ASG-RL-01-PB-80MM,Cartons,0.1
+ASG-RL-01-BK-60MM,Steel strip,0.45
+ASG-RL-01-BK-60MM,Brass rod,0.08
+ASG-RL-01-BK-60MM,Cartons,0.1
+ASG-RL-01-BK-80MM,Steel strip,0.45
+ASG-RL-01-BK-80MM,Brass rod,0.08
+ASG-RL-01-BK-80MM,Cartons,0.1
+ASG-RL-02-SN-60MM,Steel strip,0.45
+ASG-RL-02-SN-60MM,Brass rod,0.08
+ASG-RL-02-SN-60MM,Cartons,0.1
+ASG-RL-02-CP-60MM,Steel strip,0.45
+ASG-RL-02-CP-60MM,Brass rod,0.08
+ASG-RL-02-CP-60MM,Cartons,0.1
+ASG-RL-02-AB-60MM,Steel strip,0.45
+ASG-RL-02-AB-60MM,Brass rod,0.08
+ASG-RL-02-AB-60MM,Cartons,0.1
+ASG-AFM-ML-SN-85X45,Steel strip,0.5
+ASG-AFM-ML-SN-85X45,Zinc alloy,0.18
+ASG-AFM-ML-SN-85X45,Brass rod,0.1
+ASG-AFM-ML-SN-85X45,Springs,4
+ASG-AFM-ML-SN-85X45,Cartons,0.1
+ASG-AFM-ML-SN-85X50,Steel strip,0.5
+ASG-AFM-ML-SN-85X50,Zinc alloy,0.18
+ASG-AFM-ML-SN-85X50,Brass rod,0.1
+ASG-AFM-ML-SN-85X50,Springs,4
+ASG-AFM-ML-SN-85X50,Cartons,0.1
+ASG-AFM-ML-PB-85X45,Steel strip,0.5
+ASG-AFM-ML-PB-85X45,Zinc alloy,0.18
+ASG-AFM-ML-PB-85X45,Brass rod,0.1
+ASG-AFM-ML-PB-85X45,Springs,4
+ASG-AFM-ML-PB-85X45,Cartons,0.1
+ASG-AFM-ML-PB-85X50,Steel strip,0.5
+ASG-AFM-ML-PB-85X50,Zinc alloy,0.18
+ASG-AFM-ML-PB-85X50,Brass rod,0.1
+ASG-AFM-ML-PB-85X50,Springs,4
+ASG-AFM-ML-PB-85X50,Cartons,0.1
+ASG-AFM-ML-AB-85X45,Steel strip,0.5
+ASG-AFM-ML-AB-85X45,Zinc alloy,0.18
+ASG-AFM-ML-AB-85X45,Brass rod,0.1
+ASG-AFM-ML-AB-85X45,Springs,4
+ASG-AFM-ML-AB-85X45,Cartons,0.1
+ASG-AFM-ML-AB-85X50,Steel strip,0.5
+ASG-AFM-ML-AB-85X50,Zinc alloy,0.18
+ASG-AFM-ML-AB-85X50,Brass rod,0.1
+ASG-AFM-ML-AB-85X50,Springs,4
+ASG-AFM-ML-AB-85X50,Cartons,0.1
+ASG-AFM-MX-SN-85X45,Steel strip,0.5
+ASG-AFM-MX-SN-85X45,Zinc alloy,0.18
+ASG-AFM-MX-SN-85X45,Brass rod,0.1
+ASG-AFM-MX-SN-85X45,Springs,4
+ASG-AFM-MX-SN-85X45,Cartons,0.1
+ASG-AFM-MX-SN-85X50,Steel strip,0.5
+ASG-AFM-MX-SN-85X50,Zinc alloy,0.18
+ASG-AFM-MX-SN-85X50,Brass rod,0.1
+ASG-AFM-MX-SN-85X50,Springs,4
+ASG-AFM-MX-SN-85X50,Cartons,0.1
+ASG-AFM-MX-BK-85X45,Steel strip,0.5
+ASG-AFM-MX-BK-85X45,Zinc alloy,0.18
+ASG-AFM-MX-BK-85X45,Brass rod,0.1
+ASG-AFM-MX-BK-85X45,Springs,4
+ASG-AFM-MX-BK-85X45,Cartons,0.1
+ASG-AFM-MX-BK-85X50,Steel strip,0.5
+ASG-AFM-MX-BK-85X50,Zinc alloy,0.18
+ASG-AFM-MX-BK-85X50,Brass rod,0.1
+ASG-AFM-MX-BK-85X50,Springs,4
+ASG-AFM-MX-BK-85X50,Cartons,0.1
+ASG-CY-01-SN-60MM,Brass rod,0.22
+ASG-CY-01-SN-60MM,Springs,6
+ASG-CY-01-SN-60MM,Nickel plating salt,0.004
+ASG-CY-01-SN-60MM,Cartons,0.05
+ASG-CY-01-SN-70MM,Brass rod,0.22
+ASG-CY-01-SN-70MM,Springs,6
+ASG-CY-01-SN-70MM,Nickel plating salt,0.004
+ASG-CY-01-SN-70MM,Cartons,0.05
+ASG-CY-01-PB-60MM,Brass rod,0.22
+ASG-CY-01-PB-60MM,Springs,6
+ASG-CY-01-PB-60MM,Nickel plating salt,0.004
+ASG-CY-01-PB-60MM,Cartons,0.05
+ASG-CY-01-PB-70MM,Brass rod,0.22
+ASG-CY-01-PB-70MM,Springs,6
+ASG-CY-01-PB-70MM,Nickel plating salt,0.004
+ASG-CY-01-PB-70MM,Cartons,0.05
+ASG-CY-03-SN-60MM,Brass rod,0.22
+ASG-CY-03-SN-60MM,Springs,6
+ASG-CY-03-SN-60MM,Nickel plating salt,0.004
+ASG-CY-03-SN-60MM,Cartons,0.05
+ASG-CY-03-SN-70MM,Brass rod,0.22
+ASG-CY-03-SN-70MM,Springs,6
+ASG-CY-03-SN-70MM,Nickel plating salt,0.004
+ASG-CY-03-SN-70MM,Cartons,0.05
+ASG-CY-03-SN-80MM,Brass rod,0.22
+ASG-CY-03-SN-80MM,Springs,6
+ASG-CY-03-SN-80MM,Nickel plating salt,0.004
+ASG-CY-03-SN-80MM,Cartons,0.05
+ASG-CY-03-PB-60MM,Brass rod,0.22
+ASG-CY-03-PB-60MM,Springs,6
+ASG-CY-03-PB-60MM,Nickel plating salt,0.004
+ASG-CY-03-PB-60MM,Cartons,0.05
+ASG-CY-03-PB-70MM,Brass rod,0.22
+ASG-CY-03-PB-70MM,Springs,6
+ASG-CY-03-PB-70MM,Nickel plating salt,0.004
+ASG-CY-03-PB-70MM,Cartons,0.05
+ASG-CY-03-PB-80MM,Brass rod,0.22
+ASG-CY-03-PB-80MM,Springs,6
+ASG-CY-03-PB-80MM,Nickel plating salt,0.004
+ASG-CY-03-PB-80MM,Cartons,0.05
+ASG-CY-03-CP-60MM,Brass rod,0.22
+ASG-CY-03-CP-60MM,Springs,6
+ASG-CY-03-CP-60MM,Nickel plating salt,0.004
+ASG-CY-03-CP-60MM,Cartons,0.05
+ASG-CY-03-CP-70MM,Brass rod,0.22
+ASG-CY-03-CP-70MM,Springs,6
+ASG-CY-03-CP-70MM,Nickel plating salt,0.004
+ASG-CY-03-CP-70MM,Cartons,0.05
+ASG-CY-03-CP-80MM,Brass rod,0.22
+ASG-CY-03-CP-80MM,Springs,6
+ASG-CY-03-CP-80MM,Nickel plating salt,0.004
+ASG-CY-03-CP-80MM,Cartons,0.05
+ASG-CY-07-SN-60MM,Brass rod,0.22
+ASG-CY-07-SN-60MM,Springs,6
+ASG-CY-07-SN-60MM,Nickel plating salt,0.004
+ASG-CY-07-SN-60MM,Cartons,0.05
+ASG-CY-07-SN-70MM,Brass rod,0.22
+ASG-CY-07-SN-70MM,Springs,6
+ASG-CY-07-SN-70MM,Nickel plating salt,0.004
+ASG-CY-07-SN-70MM,Cartons,0.05
+ASG-CY-07-PB-60MM,Brass rod,0.22
+ASG-CY-07-PB-60MM,Springs,6
+ASG-CY-07-PB-60MM,Nickel plating salt,0.004
+ASG-CY-07-PB-60MM,Cartons,0.05
+ASG-CY-07-PB-70MM,Brass rod,0.22
+ASG-CY-07-PB-70MM,Springs,6
+ASG-CY-07-PB-70MM,Nickel plating salt,0.004
+ASG-CY-07-PB-70MM,Cartons,0.05
+ASG-CY-07-AB-60MM,Brass rod,0.22
+ASG-CY-07-AB-60MM,Springs,6
+ASG-CY-07-AB-60MM,Nickel plating salt,0.004
+ASG-CY-07-AB-60MM,Cartons,0.05
+ASG-CY-07-AB-70MM,Brass rod,0.22
+ASG-CY-07-AB-70MM,Springs,6
+ASG-CY-07-AB-70MM,Nickel plating salt,0.004
+ASG-CY-07-AB-70MM,Cartons,0.05
+ASG-CY-18-SN-60MM,Brass rod,0.22
+ASG-CY-18-SN-60MM,Springs,6
+ASG-CY-18-SN-60MM,Nickel plating salt,0.004
+ASG-CY-18-SN-60MM,Cartons,0.05
+ASG-CY-18-SN-70MM,Brass rod,0.22
+ASG-CY-18-SN-70MM,Springs,6
+ASG-CY-18-SN-70MM,Nickel plating salt,0.004
+ASG-CY-18-SN-70MM,Cartons,0.05
+ASG-CY-18-SN-80MM,Brass rod,0.22
+ASG-CY-18-SN-80MM,Springs,6
+ASG-CY-18-SN-80MM,Nickel plating salt,0.004
+ASG-CY-18-SN-80MM,Cartons,0.05
+ASG-CY-18-BK-60MM,Brass rod,0.22
+ASG-CY-18-BK-60MM,Springs,6
+ASG-CY-18-BK-60MM,Nickel plating salt,0.004
+ASG-CY-18-BK-60MM,Cartons,0.05
+ASG-CY-18-BK-70MM,Brass rod,0.22
+ASG-CY-18-BK-70MM,Springs,6
+ASG-CY-18-BK-70MM,Nickel plating salt,0.004
+ASG-CY-18-BK-70MM,Cartons,0.05
+ASG-CY-18-BK-80MM,Brass rod,0.22
+ASG-CY-18-BK-80MM,Springs,6
+ASG-CY-18-BK-80MM,Nickel plating salt,0.004
+ASG-CY-18-BK-80MM,Cartons,0.05
+ASG-PL-B-PB-30MM,Brass rod,0.18
+ASG-PL-B-PB-30MM,Steel strip,0.08
+ASG-PL-B-PB-30MM,Springs,4
+ASG-PL-B-PB-30MM,Cartons,0.05
+ASG-PL-B-PB-40MM,Brass rod,0.18
+ASG-PL-B-PB-40MM,Steel strip,0.08
+ASG-PL-B-PB-40MM,Springs,4
+ASG-PL-B-PB-40MM,Cartons,0.05
+ASG-PL-B-PB-50MM,Brass rod,0.18
+ASG-PL-B-PB-50MM,Steel strip,0.08
+ASG-PL-B-PB-50MM,Springs,4
+ASG-PL-B-PB-50MM,Cartons,0.05
+ASG-PL-B-PB-60MM,Brass rod,0.18
+ASG-PL-B-PB-60MM,Steel strip,0.08
+ASG-PL-B-PB-60MM,Springs,4
+ASG-PL-B-PB-60MM,Cartons,0.05
+ASG-PL-S-SN-40MM,Brass rod,0.18
+ASG-PL-S-SN-40MM,Steel strip,0.08
+ASG-PL-S-SN-40MM,Springs,4
+ASG-PL-S-SN-40MM,Cartons,0.05
+ASG-PL-S-SN-50MM,Brass rod,0.18
+ASG-PL-S-SN-50MM,Steel strip,0.08
+ASG-PL-S-SN-50MM,Springs,4
+ASG-PL-S-SN-50MM,Cartons,0.05
+ASG-PL-S-BK-40MM,Brass rod,0.18
+ASG-PL-S-BK-40MM,Steel strip,0.08
+ASG-PL-S-BK-40MM,Springs,4
+ASG-PL-S-BK-40MM,Cartons,0.05
+ASG-PL-S-BK-50MM,Brass rod,0.18
+ASG-PL-S-BK-50MM,Steel strip,0.08
+ASG-PL-S-BK-50MM,Springs,4
+ASG-PL-S-BK-50MM,Cartons,0.05
+ASG-PL-S-SS-40MM,Brass rod,0.18
+ASG-PL-S-SS-40MM,Steel strip,0.08
+ASG-PL-S-SS-40MM,Springs,4
+ASG-PL-S-SS-40MM,Cartons,0.05
+ASG-PL-S-SS-50MM,Brass rod,0.18
+ASG-PL-S-SS-50MM,Steel strip,0.08
+ASG-PL-S-SS-50MM,Springs,4
+ASG-PL-S-SS-50MM,Cartons,0.05
+ASG-PL-D-SS-70MM,Brass rod,0.18
+ASG-PL-D-SS-70MM,Steel strip,0.08
+ASG-PL-D-SS-70MM,Springs,4
+ASG-PL-D-SS-70MM,Cartons,0.05
+ASG-PL-D-CP-70MM,Brass rod,0.18
+ASG-PL-D-CP-70MM,Steel strip,0.08
+ASG-PL-D-CP-70MM,Springs,4
+ASG-PL-D-CP-70MM,Cartons,0.05
+ASG-AFM-H-SN-STD,Zinc alloy,0.35
+ASG-AFM-H-SN-STD,Nickel plating salt,0.006
+ASG-AFM-H-SN-STD,Cartons,0.1
+ASG-AFM-H-PB-STD,Zinc alloy,0.35
+ASG-AFM-H-PB-STD,Nickel plating salt,0.006
+ASG-AFM-H-PB-STD,Cartons,0.1
+ASG-AFM-H-BK-STD,Zinc alloy,0.35
+ASG-AFM-H-BK-STD,Nickel plating salt,0.006
+ASG-AFM-H-BK-STD,Cartons,0.1
+ASG-AFM-H-AB-STD,Zinc alloy,0.35
+ASG-AFM-H-AB-STD,Nickel plating salt,0.006
+ASG-AFM-H-AB-STD,Cartons,0.1
+ASG-AFM-HP-SN-STD,Zinc alloy,0.35
+ASG-AFM-HP-SN-STD,Nickel plating salt,0.006
+ASG-AFM-HP-SN-STD,Cartons,0.1
+ASG-AFM-HP-PB-STD,Zinc alloy,0.35
+ASG-AFM-HP-PB-STD,Nickel plating salt,0.006
+ASG-AFM-HP-PB-STD,Cartons,0.1
+ASG-AFM-HP-CP-STD,Zinc alloy,0.35
+ASG-AFM-HP-CP-STD,Nickel plating salt,0.006
+ASG-AFM-HP-CP-STD,Cartons,0.1
+ASG-AFM-HP-SS-STD,Zinc alloy,0.35
+ASG-AFM-HP-SS-STD,Nickel plating salt,0.006
+ASG-AFM-HP-SS-STD,Cartons,0.1
+ASG-HG-BB-SN-3IN,Steel strip,0.12
+ASG-HG-BB-SN-3IN,Nickel plating salt,0.002
+ASG-HG-BB-SN-3IN,Cartons,0.02
+ASG-HG-BB-SN-4IN,Steel strip,0.12
+ASG-HG-BB-SN-4IN,Nickel plating salt,0.002
+ASG-HG-BB-SN-4IN,Cartons,0.02
+ASG-HG-BB-SN-5IN,Steel strip,0.12
+ASG-HG-BB-SN-5IN,Nickel plating salt,0.002
+ASG-HG-BB-SN-5IN,Cartons,0.02
+ASG-HG-BB-PB-3IN,Steel strip,0.12
+ASG-HG-BB-PB-3IN,Nickel plating salt,0.002
+ASG-HG-BB-PB-3IN,Cartons,0.02
+ASG-HG-BB-PB-4IN,Steel strip,0.12
+ASG-HG-BB-PB-4IN,Nickel plating salt,0.002
+ASG-HG-BB-PB-4IN,Cartons,0.02
+ASG-HG-BB-PB-5IN,Steel strip,0.12
+ASG-HG-BB-PB-5IN,Nickel plating salt,0.002
+ASG-HG-BB-PB-5IN,Cartons,0.02
+ASG-HG-BB-SS-3IN,Steel strip,0.12
+ASG-HG-BB-SS-3IN,Nickel plating salt,0.002
+ASG-HG-BB-SS-3IN,Cartons,0.02
+ASG-HG-BB-SS-4IN,Steel strip,0.12
+ASG-HG-BB-SS-4IN,Nickel plating salt,0.002
+ASG-HG-BB-SS-4IN,Cartons,0.02
+ASG-HG-BB-SS-5IN,Steel strip,0.12
+ASG-HG-BB-SS-5IN,Nickel plating salt,0.002
+ASG-HG-BB-SS-5IN,Cartons,0.02
+ASG-HG-BB-BK-3IN,Steel strip,0.12
+ASG-HG-BB-BK-3IN,Nickel plating salt,0.002
+ASG-HG-BB-BK-3IN,Cartons,0.02
+ASG-HG-BB-BK-4IN,Steel strip,0.12
+ASG-HG-BB-BK-4IN,Nickel plating salt,0.002
+ASG-HG-BB-BK-4IN,Cartons,0.02
+ASG-HG-BB-BK-5IN,Steel strip,0.12
+ASG-HG-BB-BK-5IN,Nickel plating salt,0.002
+ASG-HG-BB-BK-5IN,Cartons,0.02
+ASG-SC-H01-SN-STD,Cartons,0.1
+ASG-SC-H01-CP-STD,Cartons,0.1
+ASG-SC-H01-BK-STD,Cartons,0.1
+ASG-SC-H02-SN-STD,Cartons,0.1
+ASG-SC-H02-AB-STD,Cartons,0.1
+ASG-SC-H02-PB-STD,Cartons,0.1
+ASG-SC-H03-CP-STD,Cartons,0.1
+ASG-SC-H03-BK-STD,Cartons,0.1
+ASG-SC-H03-SS-STD,Cartons,0.1
+ASG-SC-PH-SS-300MM,Cartons,0.1
+ASG-SC-PH-SS-450MM,Cartons,0.1
+ASG-SC-PH-BK-300MM,Cartons,0.1
+ASG-SC-PH-BK-450MM,Cartons,0.1
+ASG-DG-01-BK-STD,Electronic module,1
+ASG-DG-01-BK-STD,Cartons,0.2
+ASG-DG-01-SN-STD,Electronic module,1
+ASG-DG-01-SN-STD,Cartons,0.2
+ASG-DG-01-SS-STD,Electronic module,1
+ASG-DG-01-SS-STD,Cartons,0.2
+ASG-DG-02-BK-STD,Electronic module,1
+ASG-DG-02-BK-STD,Cartons,0.2
+ASG-DG-02-SN-STD,Electronic module,1
+ASG-DG-02-SN-STD,Cartons,0.2
+ASG-DG-02-CP-STD,Electronic module,1
+ASG-DG-02-CP-STD,Cartons,0.2
+ASG-DG-03-BK-STD,Electronic module,1
+ASG-DG-03-BK-STD,Cartons,0.2
+ASG-DG-03-PB-STD,Electronic module,1
+ASG-DG-03-PB-STD,Cartons,0.2
+ASG-MI-16-SN-40MM,Steel strip,0.32
+ASG-MI-16-SN-40MM,Zinc alloy,0.12
+ASG-MI-16-SN-40MM,Springs,3
+ASG-MI-16-SN-40MM,Cartons,0.1
+ASG-ME-23-SN-85X45,Steel strip,0.55
+ASG-ME-23-SN-85X45,Zinc alloy,0.2
+ASG-ME-23-SN-85X45,Springs,4
+ASG-ME-23-SN-85X45,Cartons,0.1
+ASG-RL-03-SN-60MM,Steel strip,0.45
+ASG-RL-03-SN-60MM,Brass rod,0.08
+ASG-RL-03-SN-60MM,Cartons,0.1
+ASG-AFM-MZ-SN-85X45,Steel strip,0.5
+ASG-AFM-MZ-SN-85X45,Zinc alloy,0.18
+ASG-AFM-MZ-SN-85X45,Brass rod,0.1
+ASG-AFM-MZ-SN-85X45,Springs,4
+ASG-AFM-MZ-SN-85X45,Cartons,0.1
+ASG-CY-28-SN-60MM,Brass rod,0.22
+ASG-CY-28-SN-60MM,Springs,6
+ASG-CY-28-SN-60MM,Nickel plating salt,0.004
+ASG-CY-28-SN-60MM,Cartons,0.05
+ASG-PL-L-SS-50MM,Brass rod,0.18
+ASG-PL-L-SS-50MM,Steel strip,0.08
+ASG-PL-L-SS-50MM,Springs,4
+ASG-PL-L-SS-50MM,Cartons,0.05
+ASG-AFM-HM-BK-STD,Zinc alloy,0.35
+ASG-AFM-HM-BK-STD,Nickel plating salt,0.006
+ASG-AFM-HM-BK-STD,Cartons,0.1
+ASG-HG-FL-SN-100MM,Steel strip,0.12
+ASG-HG-FL-SN-100MM,Nickel plating salt,0.002
+ASG-HG-FL-SN-100MM,Cartons,0.02
+ASG-SC-H04-AB-STD,Cartons,0.1
+ASG-DG-04-BK-STD,Electronic module,1
+ASG-DG-04-BK-STD,Cartons,0.2
