@@ -73,6 +73,11 @@ nav.tabs button[aria-selected="true"] .count{background:var(--brass);color:#1b12
 .srccard.mine .dot{background:#5cc995}
 .srccard button{margin-top:8px;width:100%;border:0;border-radius:8px;padding:7px;background:rgba(255,255,255,.08);color:#fff;cursor:pointer;font-weight:600;font-size:12.5px}
 .srccard button:hover{background:rgba(255,255,255,.14)}
+.dsw{display:flex;gap:3px;margin-top:9px;background:rgba(0,0,0,.25);border-radius:9px;padding:3px}
+.srccard .dsw button{margin:0;flex:1;padding:6px 4px;font-size:11.5px;background:none;color:var(--rail-muted)}
+.srccard .dsw button[aria-pressed="true"]{background:var(--brass);color:#1b1206}
+.dsw[hidden]{display:none}
+.busy{position:fixed;inset:0;z-index:50;display:grid;place-items:center;background:rgba(8,13,26,.55);color:#fff;font-weight:700;font-size:15px;backdrop-filter:blur(2px)}
 .theme{display:flex;align-items:center;justify-content:space-between;gap:8px;border:0;background:none;color:var(--rail-muted);cursor:pointer;padding:6px 8px;border-radius:8px;font-size:12.5px}
 .theme:hover{color:#fff}
 
@@ -288,6 +293,7 @@ th.wkcol,td.wkcol{background:var(--accent-soft)}
     <nav class="tabs" role="tablist" id="tabs" aria-orientation="vertical"></nav>
     <div class="side-foot">
       <div class="srccard" id="srcCard"><b><span class="dot"></span><span id="srcTitle">Demo data</span></b><span id="srcSub">Synthetic, not real ASG sales</span>
+        <div class="dsw" id="dsw" role="group" aria-label="Demo data set"><button type="button" data-kind="asg" aria-pressed="false">ASG data</button><button type="button" data-kind="synthetic" aria-pressed="false">Synthetic</button></div>
         <button id="srcBadge" type="button">Upload your data</button></div>
       <button class="theme" id="themeBtn" type="button" aria-label="Switch light or dark theme"><span id="themeTxt">Dark theme</span>
         <svg class="i" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
@@ -315,6 +321,7 @@ th.wkcol,td.wkcol{background:var(--accent-soft)}
 <div id="drawerRoot"></div>
 
 <script id="data" type="application/json">__DATA__</script>
+<script id="asgdata" type="application/json">__ASGDATA__</script>
 <script>/*__ENGINE__*/</script>
 <script>
 let D, byId, INFO;
@@ -929,6 +936,7 @@ views.issues = list => {
 
 /* ---------- data: demo or uploaded files ---------- */
 const DEMO = JSON.parse(document.getElementById('data').textContent);
+const ASG = (() => { try { return JSON.parse(document.getElementById('asgdata').textContent); } catch (e) { return null; } })();
 const unpack = t => t.rows.map(r => Object.fromEntries(t.cols.map((c, i) => [c, r[i]])));
 const SLOTS = [
   {k: 'items', name: 'Item list', req: true, cols: ['sku', 'product', 'line', 'source'], opt: ['department', 'finish', 'size', 'unit_cost', 'price', 'model', 'launch_date', 'end_date', 'replaces'],
@@ -1002,7 +1010,10 @@ function useRaw(raw, info){
   Object.keys(F).forEach(k => F[k] = ''); $('#fQ').value = ''; openLines = new Set(); openMonth = null;
   fillSelect('#fLine', 'lines', uniq('line')); fillSelect('#fSrc', 'sources', Object.keys(D.sources)); fillSelect('#fFin', 'finishes', uniq('c'));
   $('#asof').textContent = dlabel(D.asof);
-  $('#srcTitle').textContent = info.demo ? 'Demo data' : 'Your data'; $('#srcSub').textContent = info.demo ? 'Synthetic, not real ASG sales' : `${info.files.length} files, built ${info.at}`;
+  const asgK = info.demo && info.kind === 'asg';
+  $('#srcTitle').textContent = asgK ? 'ASG challenge data' : info.demo ? 'Synthetic demo data' : 'Your data';
+  $('#srcSub').textContent = asgK ? 'ASG dummy figures, real structure. Stock estimated.' : info.demo ? 'Synthetic, not real ASG sales' : `${info.files.length} files, built ${info.at}`;
+  $('#dsw').hidden = !info.demo || !ASG; $$('#dsw button').forEach(b => b.setAttribute('aria-pressed', String(info.demo && b.dataset.kind === info.kind)));
   $('#srcCard').classList.toggle('mine', !info.demo); $('#srcBadge').textContent = info.demo ? 'Upload your data' : 'Change data';
 }
 function demoTables(){
@@ -1015,7 +1026,39 @@ function demoTables(){
     if (W.lost[j][i]) rows.push({date, sku, qty: W.lost[j][i], status: 'lost', channel: 'dealer'}); } });
   return t;
 }
-function useDemo(){ const {raw} = ENGINE.fromTables(demoTables()); useRaw(raw, {demo: true, files: []}); }
+/* expand ASG monthly series into weekly shipped rows: each month split across its weeks by day, totals kept exact */
+function asgTables(A, unpack, addDays){
+  const t = {items: unpack(A.items), stock: unpack(A.stock), sources: unpack(A.sources), sales: []};
+  const [y0, m0] = A.start.split('-').map(Number), iso = d => d.toISOString().slice(0, 10);
+  const plan = [];
+  for (let k = 0; k < A.months; k++){
+    const y = y0 + Math.floor((m0 - 1 + k) / 12), m = (m0 - 1 + k) % 12, days = new Date(Date.UTC(y, m + 1, 0)).getUTCDate(), wk = {};
+    for (let d = 1; d <= days; d++){ const dt = new Date(Date.UTC(y, m, d)), mon = new Date(dt - ((dt.getUTCDay() + 6) % 7) * 864e5); wk[iso(mon)] = (wk[iso(mon)] || 0) + 1 / days; }
+    plan.push(wk);
+  }
+  /* weeks cut by the start or end of the data move into the next or previous full week, so no week looks half empty */
+  const first = Object.keys(plan[0]).sort()[0], last = Object.keys(plan[A.months - 1]).sort().pop();
+  const startD = A.start + '-01', endD = (() => { const y = y0 + Math.floor((m0 - 2 + A.months) / 12), m = (m0 - 2 + A.months) % 12; return iso(new Date(Date.UTC(y, m + 1, 0))); })();
+  if (first < startD){ const to = addDays(first, 7); plan.forEach(w => { if (w[first]){ w[to] = (w[to] || 0) + w[first]; delete w[first]; } }); }
+  if (addDays(last, 6) > endD){ const to = addDays(last, -7); plan.forEach(w => { if (w[last]){ w[to] = (w[to] || 0) + w[last]; delete w[last]; } }); }
+  plan.forEach((w, k) => plan[k] = Object.entries(w).sort());
+  const M = A.monthly;
+  M.sku.forEach((sku, j) => { const q = M.qty[j], channel = M.channel[j];
+    q.forEach((v, k) => { if (!v) return; let done = 0, acc = 0;
+      plan[k].forEach(([date, f]) => { acc += v * f; const n = Math.round(acc) - done; done += n; if (n) t.sales.push({date, sku, qty: n, status: 'shipped', channel}); }); }); });
+  return t;
+}
+function demoKind(){ let k = null; try { k = localStorage.getItem('asg-demo-kind'); } catch (e) {} return ASG && k !== 'synthetic' ? 'asg' : 'synthetic'; }
+function useDemo(kind = demoKind()){
+  if (kind === 'asg' && !ASG) kind = 'synthetic';
+  const {raw} = ENGINE.fromTables(kind === 'asg' ? asgTables(ASG, unpack, addDays) : demoTables()); useRaw(raw, {demo: true, kind, files: []});
+}
+function switchDemo(kind){
+  if (INFO?.demo && INFO.kind === kind) return;
+  try { localStorage.setItem('asg-demo-kind', kind); localStorage.removeItem('asg-data'); } catch (e) {}
+  const ov = document.createElement('div'); ov.className = 'busy'; ov.setAttribute('role', 'status'); ov.textContent = kind === 'asg' ? 'Building the forecast for 2,589 ASG SKUs…' : 'Building the forecast…'; document.body.appendChild(ov);
+  setTimeout(() => { try { edits = {}; saveEdits(); useDemo(kind); render(); toast(kind === 'asg' ? 'Showing ASG challenge data' : 'Showing synthetic demo data'); } finally { ov.remove(); } }, 40);
+}
 function buildFromUploads(){
   const tables = Object.fromEntries(SLOTS.map(sl => [sl.k, pending[sl.k]?.rows || null]));
   const {raw, problems} = ENGINE.fromTables(tables);
@@ -1036,14 +1079,15 @@ function boot(){
   useDemo(); render();
 }
 $('#srcBadge').addEventListener('click', () => show('data'));
+$$('#dsw button').forEach(b => b.addEventListener('click', () => switchDemo(b.dataset.kind)));
 
 views.data = () => {
   const ready = SLOTS.filter(sl => sl.req).every(sl => pending[sl.k]?.rows?.length);
   const colList = sl => `<b>${sl.cols.join(', ')}</b>${sl.opt.length ? `, ${sl.opt.join(', ')}` : ''}`;
   return {html: `
     <section class="panel"><div class="panel-head"><div><h2>Where the numbers come from</h2>
-      <div class="note">${INFO.demo ? 'Now showing <b>synthetic demo data</b>. Upload your own files below to replace it.' : `Now showing <b>your data</b> from ${esc(INFO.files.join(', '))}, built ${esc(INFO.at)}.`}</div></div>
-      ${INFO.demo ? '' : '<button class="btn" id="toDemo" type="button">Switch back to demo data</button>'}</div>
+      <div class="note">${INFO.demo ? (INFO.kind === 'asg' ? 'Now showing <b>ASG challenge data</b>: dummy figures supplied by ASG with the structure of its real forecasting data (2,589 SKUs, 7 channels, Jan 2023 to Sep 2026). Stock is estimated, and there are no prices. Upload your own files below to replace it.' : 'Now showing <b>synthetic demo data</b>. Upload your own files below to replace it.') : `Now showing <b>your data</b> from ${esc(INFO.files.join(', '))}, built ${esc(INFO.at)}.`}</div></div>
+      ${INFO.demo ? (ASG ? `<button class="btn" id="toOther" type="button">Show ${INFO.kind === 'asg' ? 'synthetic demo' : 'ASG challenge'} data</button>` : '') : '<button class="btn" id="toDemo" type="button">Switch back to demo data</button>'}</div>
       <div class="kv">${[['Data as of', dlabel(D.asof)], ['SKUs', nf(D.skus.length)], ['Units, last 52 weeks', big(D.annual)], ['Factories and suppliers', Object.keys(D.sources).length], ['Events', D.events.length], ['Data issues', D.issues.length]]
         .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('')}</div></section>
     <section class="panel"><div class="panel-head"><div><h2>Upload your data</h2><div class="note">CSV or Excel exports. Column names are matched loosely, so "Item code" or "Quantity" also work. Files are read in this browser and never sent anywhere.</div></div></div>
@@ -1070,6 +1114,7 @@ views.data = () => {
       $$('[data-tpl]', root).forEach(b => b.addEventListener('click', () => { const sl = SLOTS.find(x => x.k === b.dataset.tpl);
         navigator.clipboard.writeText(sl.ex).then(() => toast('Example copied. Paste into Excel or a text file.')).catch(() => toast('Copy was blocked by the browser.')); }));
       $('#build', root).addEventListener('click', buildFromUploads);
+      $('#toOther', root)?.addEventListener('click', () => switchDemo(INFO.kind === 'asg' ? 'synthetic' : 'asg'));
       $('#toDemo', root)?.addEventListener('click', () => { try { localStorage.removeItem('asg-data'); } catch (e) {} edits = {}; saveEdits(); useDemo(); toast('Showing demo data'); render(); });
     }};
 };

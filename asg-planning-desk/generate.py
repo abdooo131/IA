@@ -548,6 +548,8 @@ def main():
     page = (here / "template.html").read_text()
     page = page.replace("/*__ENGINE__*/", (here / "engine.js").read_text())
     page = page.replace("__DATA__", json.dumps(demo, separators=(",", ":")).replace("</", "<\\/"))
+    asg = here / "asg-data" / "asg_demo.json"   # ASG challenge data, built by asg_import.py
+    page = page.replace("__ASGDATA__", asg.read_text().replace("</", "<\\/") if asg.exists() else "null")
     (here / "index.html").write_text(page)
     shipped = sum(sum(s["dealer"][-52:]) + sum(s["export"][-52:]) + sum(s["project"][-52:]) for s in skus)
     print(f"{len(skus)} SKUs, {shipped:,} units shipped in the last 52 weeks, {len(sales):,} sales rows")
