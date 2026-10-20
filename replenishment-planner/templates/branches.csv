@@ -1,0 +1,12 @@
+code,name,deliveryDays
+BR01,Maadi,daily
+BR02,New Cairo Mivida,daily
+BR03,Lake Town,daily
+BR04,Nasr City,daily
+BR05,Mohandessin,daily
+BR06,New Giza,daily
+BR07,Sheikh Zayed,daily
+BR08,6th of October,daily
+BR09,Heliopolis,daily
+BR10,Alexandria,"Sun,Tue,Thu"
+BR11,Mansoura,"Sun,Tue,Thu"

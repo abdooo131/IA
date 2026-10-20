@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Supply Chain Control</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="side" id="side">
+    <div class="brand"><div class="mark">SC</div><div><b>Supply Chain Control</b><span>Main WH · Kitchen · Branches</span></div></div>
+    <nav class="nav" id="nav">
+      <div class="grp"><span>Overview</span><a href="#/">Dashboard</a></div>
+      <div class="grp"><span>Plan</span><a href="#/plans">Daily planning</a><a href="#/production">Kitchen production</a></div>
+      <div class="grp"><span>Execute</span><a href="#/pos">Purchase orders <i class="badge" id="bPo" hidden></i></a><a href="#/transfers">Transfers <i class="badge" id="bTr" hidden></i></a></div>
+      <div class="grp"><span>Inventory</span><a href="#/stock">Stock on hand</a><a href="#/ledger">Stock ledger</a><a href="#/waste">Waste and sold out</a></div>
+      <div class="grp"><span>Data</span><a href="#/sales">Sales</a><a href="#/products">Products and recipes</a><a href="#/items">Raw materials</a><a href="#/suppliers">Suppliers</a><a href="#/locations">Locations</a></div>
+      <div class="grp"><span>Admin</span><a href="#/log">Activity log</a><a href="#/settings">Settings and imports</a></div>
+    </nav>
+    <div class="who"><span class="faint">Signed in as</span><b id="whoName">…</b><button id="whoSwitch" type="button">Change user</button></div>
+  </aside>
+  <div>
+    <div class="topbar"><button id="menuBtn" type="button" aria-label="Open menu">Menu</button><b>Supply Chain Control</b></div>
+    <main id="main"><div class="loading">Loading…</div></main>
+  </div>
+</div>
+<dialog id="dlg"></dialog>
+<div class="toast" id="toast" hidden></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+<script src="/app.js"></script>
+</body>
+</html>
