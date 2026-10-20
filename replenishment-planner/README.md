@@ -1,4 +1,46 @@
-# Daily Replenishment Planner
+# Supply Chain Control
+
+A supply chain system for a café chain with a main warehouse, a central kitchen and branches.
+
+## Run it
+
+Needs Node.js 18 or newer. No install step and no dependencies.
+
+```bash
+cd replenishment-planner
+node server.js
+```
+
+Open http://localhost:3000. The first start builds example data with two weeks of simulated operations (plans, purchase orders, receipts, transfers, production, sales, waste and a count). Your data is saved in `data/db.json`. Delete that file, or use Settings → Reset, to start again. Use `PORT=4000 node server.js` for another port.
+
+## What it does
+
+| Area | Screens |
+|---|---|
+| Overview | Dashboard: waste, sold out, open orders, deliveries, what needs attention |
+| Plan | Daily planning (forecast → recipes → deliveries, production, supplier orders; change any line with a reason; approve to create documents), Kitchen production |
+| Execute | Purchase orders (draft → approved → sent with Oracle PO number → received, full history), Transfers (dispatch and receive with differences) |
+| Inventory | Stock on hand per location, Stock ledger (every movement), Waste and sold out |
+| Data | Sales upload with import history, Products and recipes (SKU, Oracle code, multi level BOM editor), Raw materials, Suppliers, Locations |
+| Admin | Activity log (who did what), Settings and imports |
+
+Stock on hand is always the sum of the stock ledger. Sales of drinks made in branches use up raw materials through their recipes; kitchen production uses up raw materials at the kitchen; receipts, transfers, waste and counts post their own movements.
+
+## Code
+
+| File | What it is |
+|---|---|
+| `server.js` | HTTP server and API (Node built ins only) |
+| `lib/ops.js` | Business rules: ledger, plans, purchase orders, transfers, production, counts, waste, imports, master data |
+| `lib/seed.js` | Builds the example data by simulating two weeks of operations |
+| `engine.js` | Planning engine (forecast, recipe breakdown, fresh targets, branch targets, shortages, reorder points) |
+| `public/` | The web app |
+| `index.html`, `demo.js`, `templates/` | The earlier single page planner and its CSV templates, still usable on their own |
+
+---
+
+# Planning engine and the earlier single page planner
+
 
 A planning tool for a café chain with a main warehouse, a central kitchen and branches with their own small stores and kitchens.
 

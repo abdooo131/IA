@@ -474,7 +474,7 @@
       var onHand = stock.get('MAIN|' + it) || 0;
       var onOrder = openPO.get(it) || 0;
       var committed = (requestedByItem.get(it) || 0);
-      var position = onHand + onOrder;
+      var position = onHand + onOrder - committed; // stock already promised to branches and the kitchen today is gone
       var qty = 0;
       if (mean > 0 && position <= reorderPoint) {
         qty = roundUpTo(Math.max(orderUpTo - position, item.moq), item.packSize);

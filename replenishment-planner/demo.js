@@ -88,7 +88,9 @@
   // Egypt weekend is Friday and Saturday. Index = getUTCDay().
   var weekdayFactor = [0.95, 0.9, 0.9, 0.95, 1.15, 1.25, 1.2];
 
-  function buildDemo(endDate, weeks) {
+  // opts.healthy: opening stock covers each lead time (used for the simulated history).
+  function buildDemo(endDate, weeks, opts) {
+    var healthy = !!(opts && opts.healthy);
     var r = rng(1980);
     var m = String(endDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
     var end = Date.UTC(+m[1], +m[2] - 1, +m[3]);
@@ -146,8 +148,9 @@
       var daily = (useNet[i[0]] || 0) / days;
       var cover = 2 + r() * 14; // days of stock at the main WH
       if (i[9] > 0) cover = Math.min(cover, i[9] * (0.3 + r() * 0.5));
-      if (i[0] === 'RM005' || i[0] === 'RM009') cover = 1.5; // a couple of items running low
-      if (i[0] === 'RM010') cover = 0.4; // not enough to cover every branch today
+      if (healthy) cover = Math.max(cover, i[4] + 4 + r() * 4);
+      else if (i[0] === 'RM005' || i[0] === 'RM009') cover = 1.5; // a couple of items running low
+      if (!healthy && i[0] === 'RM010') cover = 0.4; // not enough to cover every branch today
       data.stock.push({ location: 'MAIN', item: i[0], qty: round(daily * cover, i[7]) });
       var ck = (useCK[i[0]] || 0) / days;
       if (ck > 0) data.stock.push({ location: 'CK', item: i[0], qty: round(ck * r() * 0.6, i[7]) });
