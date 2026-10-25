@@ -26,6 +26,7 @@ export class AdminCatalogController {
         titleEn: s.titleEn,
         titleAr: s.titleAr,
         pricePiastres: s.pricePiastres,
+        weightGrams: s.weightGrams,
         isActive: s.isActive,
         shopifyVariantId: s.shopifyVariantId,
         merchant: { id: s.merchant.id, name: s.merchant.name },

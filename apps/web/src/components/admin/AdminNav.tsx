@@ -13,6 +13,10 @@ const ITEMS = [
   { href: '/admin/stock', key: 'stock' },
   { href: '/admin/shipments', key: 'shipments' },
   { href: '/admin/counts', key: 'counts' },
+  { href: '/admin/merchants', key: 'merchants' },
+  { href: '/admin/users', key: 'users' },
+  { href: '/admin/settings', key: 'settings' },
+  { href: '/admin/audit', key: 'audit' },
 ] as const;
 
 export function AdminNav() {

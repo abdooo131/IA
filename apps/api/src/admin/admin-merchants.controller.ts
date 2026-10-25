@@ -90,8 +90,14 @@ export class AdminMerchantsController {
         errors.push({
           row,
           sku: typeof raw.sku === 'string' ? raw.sku : undefined,
+          // Our own rules answer a plain code the screen can translate; zod's
+          // generic messages keep the column name so the row is easy to fix.
           error: parsed.error.issues
-            .map((i) => `${i.path.join('.') || 'row'}: ${i.message}`)
+            .map((i) =>
+              /^[a-z_]+$/.test(i.message)
+                ? i.message
+                : `${i.path.join('.') || 'row'}: ${i.message}`,
+            )
             .join('; '),
         });
     });

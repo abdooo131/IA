@@ -1,65 +1,40 @@
-import { getLocale, getTranslations } from 'next-intl/server';
+import { getTranslations } from 'next-intl/server';
+import { ProductsManager } from '@/components/admin/ProductsManager';
 import type { AdminSku } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
-import { formatCount, formatEgp } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-export default async function AdminProductsPage() {
-  const [skus, t, locale] = await Promise.all([
+export default async function AdminProductsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ merchant?: string; q?: string }>;
+}) {
+  const filters = await searchParams;
+  const [skus, merchants, t] = await Promise.all([
     apiGet<AdminSku[]>('/admin/skus'),
+    apiGet<{ id: string; name: string; isActive: boolean }[]>('/admin/merchants'),
     getTranslations('admin.products'),
-    getLocale(),
   ]);
-  const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
-  const td = 'px-3 py-2 align-top';
-
+  const q = filters.q?.trim().toLowerCase();
+  const shown = skus.filter(
+    (s) =>
+      (!filters.merchant || s.merchant.id === filters.merchant) &&
+      (!q ||
+        s.sku.toLowerCase().includes(q) ||
+        (s.barcode ?? '').toLowerCase().includes(q) ||
+        s.titleEn.toLowerCase().includes(q) ||
+        s.titleAr.includes(filters.q!.trim())),
+  );
   return (
     <>
       <h1 className="text-h2">{t('title')}</h1>
-      <div className="mt-6 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
-        <table className="w-full min-w-[720px] text-body-sm">
-          <thead className="border-b border-line bg-surface-raised">
-            <tr>
-              <th className={th}>{t('sku')}</th>
-              <th className={th}>{t('name')}</th>
-              <th className={th}>{t('merchant')}</th>
-              <th className={`${th} text-end`}>{t('price')}</th>
-              <th className={`${th} text-end`}>{t('onHand')}</th>
-              <th className={`${th} text-end`}>{t('reserved')}</th>
-              <th className={th}>{t('shopify')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {skus.map((s) => (
-              <tr key={s.id} className="border-b border-line last:border-0">
-                <td className={`${td} font-bold`}>
-                  <span className="ltr-iso">{s.sku}</span>
-                  {s.barcode && (
-                    <div className="text-caption font-normal text-text-muted">
-                      <span className="ltr-iso">{s.barcode}</span>
-                    </div>
-                  )}
-                </td>
-                <td className={td}>{locale === 'ar' ? s.titleAr : s.titleEn}</td>
-                <td className={td}>{s.merchant.name}</td>
-                <td className={`${td} text-end`}>
-                  <span className="ltr-iso">{formatEgp(s.pricePiastres)}</span>
-                </td>
-                <td className={`${td} text-end`}>
-                  <span className="ltr-iso">{formatCount(s.unitsOnHand)}</span>
-                </td>
-                <td className={`${td} text-end`}>
-                  <span className="ltr-iso">{formatCount(s.unitsReserved)}</span>
-                </td>
-                <td className={`${td} text-text-muted`}>
-                  {s.shopifyVariantId ? t('linked') : t('notLinked')}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <ProductsManager
+        key={`${filters.merchant ?? ''}|${filters.q ?? ''}`}
+        skus={shown}
+        merchants={merchants}
+        filters={{ merchant: filters.merchant ?? '', q: filters.q ?? '' }}
+      />
     </>
   );
 }

@@ -198,9 +198,7 @@ describe('admin dashboard, settings, users and catalog', () => {
         ],
       })
       .expect(201);
-    expect(bad.body.errors).toEqual([
-      { row: 3, sku: 'NC-3', error: expect.stringContaining('price_egp') },
-    ]);
+    expect(bad.body.errors).toEqual([{ row: 3, sku: 'NC-3', error: 'invalid_price' }]);
     expect(await prisma.sku.count({ where: { merchantId: merchant.body.id } })).toBe(1);
 
     const ok = await admin

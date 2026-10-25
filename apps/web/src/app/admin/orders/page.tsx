@@ -46,12 +46,20 @@ export default async function AdminOrdersPage({
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-h2">{t('title')}</h1>
-        <Link
-          href="/admin/orders/new"
-          className="flex h-10 items-center rounded-md bg-primary px-4 font-bold text-on-primary"
-        >
-          {t('newOrder')}
-        </Link>
+        <div className="flex gap-2">
+          <a
+            href={`/api/admin/orders/export.csv?${query}`}
+            className="flex h-10 items-center rounded-md border border-line bg-surface px-4 text-body-sm font-bold"
+          >
+            {t('export')}
+          </a>
+          <Link
+            href="/admin/orders/new"
+            className="flex h-10 items-center rounded-md bg-primary px-4 font-bold text-on-primary"
+          >
+            {t('newOrder')}
+          </Link>
+        </div>
       </div>
       <form className="mt-4 flex flex-wrap items-end gap-2" method="get">
         <select

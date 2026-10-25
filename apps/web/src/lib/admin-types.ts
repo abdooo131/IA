@@ -31,6 +31,7 @@ export interface AdminSku {
   titleEn: string;
   titleAr: string;
   pricePiastres: number;
+  weightGrams: number | null;
   isActive: boolean;
   shopifyVariantId: string | null;
   merchant: { id: string; name: string };
