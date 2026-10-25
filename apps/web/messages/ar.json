@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appName": "Shiply Now",
+    "language": "اللغة",
+    "theme": "المظهر",
+    "themeOptions": { "system": "زي الجهاز", "light": "فاتح", "dark": "غامق" },
+    "localeOptions": { "en": "English", "ar": "العربية" },
+    "signOut": "تسجيل الخروج",
+    "signedInAs": "داخل باسم {name}",
+    "comingSoon": "هتيجي في خطوة بعدين"
+  },
+  "roles": {
+    "admin": "مدير",
+    "merchant": "تاجر",
+    "store_staff": "موظف مخزن",
+    "rider": "مندوب"
+  },
+  "login": {
+    "title": "تسجيل الدخول",
+    "subtitle": "تشغيل Shiply Now",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة السر",
+    "submit": "ادخل",
+    "submitting": "بندخلك…",
+    "errors": {
+      "invalid_credentials": "البريد أو كلمة السر غلط.",
+      "validation": "اكتب بريد صحيح وكلمة السر.",
+      "network": "حصلت مشكلة، جرب تاني."
+    }
+  },
+  "areas": {
+    "admin": {
+      "title": "الإدارة",
+      "description": "هنا هتلاقي المخازن والمناطق والمخزون والطلبات والمؤشرات."
+    },
+    "store": {
+      "title": "المخزن",
+      "description": "هنا هيكون الاستلام والتخزين والتجهيز والتغليف."
+    },
+    "rider": {
+      "title": "المندوب",
+      "description": "هنا هتلاقي التوصيلات المطلوبة منك."
+    }
+  },
+  "home": {
+    "noArea": "حسابك لسه مالوش مساحة شغل على الويب."
+  }
+}

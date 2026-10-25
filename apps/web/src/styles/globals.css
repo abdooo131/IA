@@ -1,0 +1,71 @@
+@import './shiply-tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-Regular.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-Medium.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-SemiBold.ttf') format('truetype');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/IBMPlexSansArabic-Bold.ttf') format('truetype');
+}
+
+@layer base {
+  body {
+    @apply bg-bg text-text text-body antialiased;
+    font-family: var(--shiply-font);
+  }
+  html[lang='ar'] body {
+    font-family: var(--shiply-font-arabic);
+  }
+  :focus-visible {
+    outline: 2px solid var(--shiply-focus);
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* Numbers, phones and order IDs stay left to right inside Arabic text. */
+  .ltr-iso {
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+
+  /* Logo swap follows the same rule as the tokens: explicit theme first, then the OS. */
+  .logo-dark {
+    display: none;
+  }
+  :root[data-theme='dark'] .logo-light {
+    display: none;
+  }
+  :root[data-theme='dark'] .logo-dark {
+    display: block;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme='light']) .logo-light {
+      display: none;
+    }
+    :root:not([data-theme='light']) .logo-dark {
+      display: block;
+    }
+  }
+}

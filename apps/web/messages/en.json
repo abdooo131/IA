@@ -1,0 +1,48 @@
+{
+  "common": {
+    "appName": "Shiply Now",
+    "language": "Language",
+    "theme": "Theme",
+    "themeOptions": { "system": "System", "light": "Light", "dark": "Dark" },
+    "localeOptions": { "en": "English", "ar": "العربية" },
+    "signOut": "Sign out",
+    "signedInAs": "Signed in as {name}",
+    "comingSoon": "Coming in a later step"
+  },
+  "roles": {
+    "admin": "Admin",
+    "merchant": "Merchant",
+    "store_staff": "Store staff",
+    "rider": "Rider"
+  },
+  "login": {
+    "title": "Sign in",
+    "subtitle": "Shiply Now operations",
+    "email": "Email",
+    "password": "Password",
+    "submit": "Sign in",
+    "submitting": "Signing in…",
+    "errors": {
+      "invalid_credentials": "Wrong email or password.",
+      "validation": "Enter a valid email and your password.",
+      "network": "Something went wrong. Try again."
+    }
+  },
+  "areas": {
+    "admin": {
+      "title": "Admin",
+      "description": "Dark stores, zones, stock, orders and KPIs will live here."
+    },
+    "store": {
+      "title": "Dark store",
+      "description": "Receiving, put away, picking and packing will live here."
+    },
+    "rider": {
+      "title": "Rider",
+      "description": "Your assigned deliveries will live here."
+    }
+  },
+  "home": {
+    "noArea": "Your account does not have a workspace in the web app yet."
+  }
+}

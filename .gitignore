@@ -1,0 +1,15 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# env files: only .env.example is committed
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log

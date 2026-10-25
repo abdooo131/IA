@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Shiply design tokens v1.0 (light) -->
+<resources>
+    <color name="shiply_blue">#0047BB</color>
+    <color name="shiply_sky">#59CBE8</color>
+    <color name="shiply_navy">#13294B</color>
+    <color name="shiply_bg">#F3F6FA</color>
+    <color name="shiply_surface">#FFFFFF</color>
+    <color name="shiply_surface_raised">#F3F6FA</color>
+    <color name="shiply_line">#DFE5EE</color>
+    <color name="shiply_text">#13294B</color>
+    <color name="shiply_text_muted">#5B6B82</color>
+    <color name="shiply_primary">#0047BB</color>
+    <color name="shiply_on_primary">#FFFFFF</color>
+    <color name="shiply_primary_pressed">#003C9D</color>
+    <color name="shiply_link">#0047BB</color>
+    <color name="shiply_selected_bg">#E6F6FB</color>
+    <color name="shiply_sky">#59CBE8</color>
+    <color name="shiply_focus">#59CBE8</color>
+    <color name="shiply_danger">#DC2626</color>
+    <color name="shiply_status_new">#64748B</color>
+    <color name="shiply_status_in_progress">#7C3AED</color>
+    <color name="shiply_status_heading_to_customer">#C026D3</color>
+    <color name="shiply_status_delivered">#16A34A</color>
+    <color name="shiply_status_needs_action">#D97706</color>
+    <color name="shiply_status_returning">#DC2626</color>
+    <color name="shiply_cash">#0E9384</color>
+    <color name="shiply_points">#FFC21A</color>
+</resources>
