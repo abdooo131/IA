@@ -185,6 +185,9 @@ importers:
         specifier: ^0.45.1
         version: 0.45.1
     devDependencies:
+      '@types/node':
+        specifier: ^22.20.5
+        version: 22.20.5
       dotenv-cli:
         specifier: ^10.0.0
         version: 10.0.0

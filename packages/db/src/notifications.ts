@@ -1,6 +1,13 @@
 import type { Prisma } from '@prisma/client';
 
-export type NotificationType = 'stock_count_adjusted' | 'manifest_received';
+export type NotificationType =
+  | 'stock_count_adjusted'
+  | 'manifest_received'
+  | 'order_items_cancelled'
+  | 'order_moved_to_standard'
+  | 'order_delivered'
+  | 'order_failed'
+  | 'order_cancelled';
 
 /**
  * Records a notification for a merchant, shown in the merchant panel. This is the one
