@@ -51,3 +51,20 @@ export {
   type ZoneGeometry,
   type ZoneWithArea,
 } from './zones';
+export {
+  changeSetting,
+  createMerchant,
+  createSku,
+  createUser,
+  importSkus,
+  listAudit,
+  listSettings,
+  listUsers,
+  resetUserPassword,
+  updateMerchant,
+  updateSku,
+  updateUser,
+  type AuditFilter,
+  type SkuImportResult,
+} from './admin-ops';
+export { computeKpis, type KpiFilter, type Kpis, type KpiTotals } from './kpis';

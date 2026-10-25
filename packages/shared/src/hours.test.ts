@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import {
+  addDays,
+  cairoDay,
+  cairoDayStart,
   cairoClock,
   type DayHours,
   formatMinute,
@@ -84,5 +87,15 @@ describe('minute formatting', () => {
     expect(formatMinute(26 * 60 + 5)).toBe('02:05');
     expect(parseMinute('09:30')).toBe(570);
     expect(parseMinute('24:00')).toBeNull();
+  });
+});
+
+describe('Cairo days', () => {
+  it('starts days at Cairo midnight in winter and in summer time', () => {
+    expect(cairoDayStart('2026-01-14').toISOString()).toBe('2026-01-13T22:00:00.000Z');
+    expect(cairoDayStart('2026-07-14').toISOString()).toBe('2026-07-13T21:00:00.000Z');
+    expect(cairoDay(new Date('2026-07-13T21:30:00Z'))).toBe('2026-07-14');
+    expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
+    expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
   });
 });

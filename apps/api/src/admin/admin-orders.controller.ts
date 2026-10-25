@@ -1,4 +1,4 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   cancelOrder,
@@ -16,7 +16,10 @@ import {
   ORDER_STATUSES,
   type OrderStatus,
 } from '@shiplynow/shared';
+import type { Response } from 'express';
 import { CurrentUser, Roles } from '../auth/decorators';
+import { parseBound } from '../common/dates';
+import { ordersCsv } from './orders-csv';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { OrderIntakeService } from '../orders/order-intake.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -48,18 +51,61 @@ export class AdminOrdersController {
     @Query('q') q?: string,
     @Query('late') late?: string,
   ) {
-    const date = (v?: string) => (v && !Number.isNaN(Date.parse(v)) ? new Date(v) : undefined);
-    return listOrders(this.prisma, {
+    return listOrders(
+      this.prisma,
+      this.filter({ status, darkStoreId, merchantId, from, to, q, late }),
+    );
+  }
+
+  /** The same list as a CSV file for Excel (UTF-8 with BOM so Arabic shows correctly). */
+  @Get('orders/export.csv')
+  @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'darkStoreId', required: false })
+  @ApiQuery({ name: 'merchantId', required: false })
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'to', required: false })
+  @ApiQuery({ name: 'q', required: false })
+  @ApiQuery({ name: 'late', required: false })
+  async exportCsv(
+    @Res() res: Response,
+    @Query('status') status?: string,
+    @Query('darkStoreId') darkStoreId?: string,
+    @Query('merchantId') merchantId?: string,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('q') q?: string,
+    @Query('late') late?: string,
+  ) {
+    const orders = await listOrders(this.prisma, {
+      ...this.filter({ status, darkStoreId, merchantId, from, to, q, late }),
+      take: 1000,
+    });
+    res.setHeader('content-type', 'text/csv; charset=utf-8');
+    res.setHeader('content-disposition', 'attachment; filename="shiply-orders.csv"');
+    res.send(ordersCsv(orders));
+  }
+
+  private filter(f: {
+    status?: string;
+    darkStoreId?: string;
+    merchantId?: string;
+    from?: string;
+    to?: string;
+    q?: string;
+    late?: string;
+  }) {
+    const { status, darkStoreId, merchantId, from, to, q, late } = f;
+    return {
       statuses: ORDER_STATUSES.includes(status as OrderStatus)
         ? [status as OrderStatus]
         : undefined,
       darkStoreId: darkStoreId || undefined,
       merchantId: merchantId || undefined,
-      from: date(from),
-      to: date(to),
+      from: parseBound(from, 'from'),
+      to: parseBound(to, 'to'),
       q: q || undefined,
       lateOnly: late === 'true',
-    });
+    };
   }
 
   @Get('orders/:id')

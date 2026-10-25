@@ -28,9 +28,9 @@ export default async function AdminOrdersPage({
   if (filters.store) query.set('darkStoreId', filters.store);
   if (filters.merchant) query.set('merchantId', filters.merchant);
   if (filters.q) query.set('q', filters.q);
-  // Dates are Cairo calendar days; the API takes instants.
-  if (filters.from) query.set('from', `${filters.from}T00:00:00+02:00`);
-  if (filters.to) query.set('to', `${filters.to}T23:59:59+02:00`);
+  // Plain days; the API reads them as whole Cairo calendar days.
+  if (filters.from) query.set('from', filters.from);
+  if (filters.to) query.set('to', filters.to);
   if (filters.late === 'true') query.set('late', 'true');
 
   const [orders, stores, merchants, t, statuses, locale] = await Promise.all([
