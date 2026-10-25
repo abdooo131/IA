@@ -16,8 +16,8 @@
     "db:up": "docker compose up -d",
     "db:down": "docker compose down",
     "db:migrate": "pnpm --filter @shiplynow/db migrate:dev",
-    "db:deploy": "pnpm --filter @shiplynow/db migrate:deploy",
-    "db:seed": "pnpm --filter @shiplynow/shared build && pnpm --filter @shiplynow/db seed"
+    "db:deploy": "pnpm --filter @shiplynow/db migrate:deploy && pnpm --filter @shiplynow/db generate",
+    "db:seed": "pnpm build:packages && pnpm --filter @shiplynow/db seed"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
