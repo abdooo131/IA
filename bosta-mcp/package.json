@@ -1,0 +1,17 @@
+{
+  "name": "bosta-mcp",
+  "version": "1.0.0",
+  "description": "MCP server that connects Claude to the Bosta shipping API",
+  "type": "module",
+  "main": "index.js",
+  "bin": { "bosta-mcp": "index.js" },
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test.js"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "zod": "^3.25.76"
+  }
+}
