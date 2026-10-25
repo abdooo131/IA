@@ -4,7 +4,10 @@ import { ConfigModule } from '@nestjs/config';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CoverageModule } from './coverage/coverage.module';
+import { JobsModule } from './jobs/jobs.module';
 import { MerchantModule } from './merchant/merchant.module';
+import { PhotosModule } from './photos/photos.module';
+import { RiderModule } from './rider/rider.module';
 import { StoreModule } from './store/store.module';
 import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
@@ -25,6 +28,9 @@ import { UsersController } from './users/users.controller';
     AdminModule,
     StoreModule,
     MerchantModule,
+    PhotosModule,
+    RiderModule,
+    JobsModule,
   ],
   controllers: [HealthController, UsersController],
 })

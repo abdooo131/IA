@@ -16,6 +16,8 @@ export const envSchema = z.object({
   COOKIE_SECURE: booleanString,
   /** Optional. Without it, address lookups answer geocoding_not_configured. */
   GOOGLE_MAPS_API_KEY: z.string().optional(),
+  /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */
+  JOBS_ENABLED: z.enum(['true', 'false']).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
