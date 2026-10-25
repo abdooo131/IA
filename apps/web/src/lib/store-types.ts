@@ -10,6 +10,8 @@ export interface StoreSummary {
   openManifests: number;
   unitsToPutAway: number;
   pendingCounts: number;
+  activeOrders: number;
+  lateOrders: number;
 }
 
 export interface ManifestListItem {
