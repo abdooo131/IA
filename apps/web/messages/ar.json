@@ -66,7 +66,8 @@
       "overview": "نظرة عامة",
       "zones": "المناطق",
       "products": "المنتجات",
-      "stock": "المخزون"
+      "stock": "المخزون",
+      "counts": "الجرد"
     },
     "overview": {
       "title": "المخازن",
@@ -143,6 +144,187 @@
         "network": "مش قادرين نوصل للسيرفر. جرب تاني.",
         "generic": "حصلت مشكلة، جرب تاني."
       }
+    },
+    "counts": {
+      "title": "الجرد",
+      "pending": "مستني موافقة",
+      "history": "اتراجع",
+      "empty": "مفيش جرد مستني.",
+      "by": "جرده {name}",
+      "bin": "الرف {bin}",
+      "expected": "السيستم",
+      "counted": "الجرد",
+      "diff": "الفرق",
+      "approve": "وافق وعدل المخزون",
+      "reject": "ارفض",
+      "statuses": {
+        "submitted": "مستني",
+        "approved": "اتوافق",
+        "rejected": "اترفض",
+        "stale": "الرف اتغير، جرد تاني"
+      },
+      "errors": {
+        "would_break_reservations": "في قطع محجوزة لطلبات. خلي الموظف يجرد تاني بعد التجهيز.",
+        "count_already_reviewed": "حد راجع الجرد ده قبلك.",
+        "generic": "حصلت مشكلة، جرب تاني."
+      },
+      "product": "المنتج"
+    }
+  },
+  "scan": {
+    "placeholder": "امسح أو اكتب الكود",
+    "submit": "تمام",
+    "camera": "الكاميرا",
+    "closeCamera": "اقفل الكاميرا",
+    "cameraHint": "وجه الكاميرا على الباركود.",
+    "cameraUnavailable": "الكاميرا محتاجة اتصال آمن (https) أو إذن. اكتب الكود أو استخدم الماسح.",
+    "notFound": "مفيش منتج أو رف بالكود {code}.",
+    "notProduct": "{code} ده رف، امسح منتج.",
+    "notBin": "{code} ده منتج، امسح رف."
+  },
+  "store": {
+    "chooseStore": "اختار المخزن",
+    "noStore": "حسابك لسه مش مربوط بمخزن. كلم الأدمن.",
+    "home": {
+      "receive": "استلام",
+      "receiveHint": "{count} شحنات مستنية",
+      "putAway": "تخزين على الرف",
+      "putAwayHint": "{count} قطعة محتاجة تتخزن",
+      "count": "جرد",
+      "countHint": "جرد رف",
+      "damaged": "تالف ومحجوز",
+      "damagedHint": "شيل حاجات من البيع",
+      "labels": "ليبلات الرفوف",
+      "labelsHint": "اطبع ليبلات الباركود",
+      "back": "رجوع"
+    },
+    "receive": {
+      "title": "استلام",
+      "empty": "مفيش شحنات مستنية للمخزن ده.",
+      "expected": "المتوقع",
+      "received": "المستلم",
+      "units": "{received} من {expected} قطعة",
+      "statusExpected": "في الطريق",
+      "statusReceiving": "جاري الاستلام",
+      "scanned": "اتستلم {quantity} × {sku}",
+      "extra": "مش في الشحنة دي",
+      "quantity": "الكمية في كل مسح",
+      "close": "خلص الاستلام",
+      "closeConfirm": "تخلص الشحنة دي؟ التاجر هيوصله الملخص ومش هيتقبل مسح تاني.",
+      "closed": "الشحنة اتستلمت والتاجر وصله إشعار.",
+      "missing": "{count} ناقص",
+      "over": "{count} زيادة"
+    },
+    "putAway": {
+      "title": "تخزين على الرف",
+      "empty": "مفيش حاجة مستنية في الاستلام.",
+      "stepProduct": "1. امسح منتج من الاستلام",
+      "stepBin": "2. امسح ليبل الرف",
+      "stepQty": "3. كام قطعة؟",
+      "toShelf": "على الرف {bin}",
+      "confirm": "خزن",
+      "done": "{quantity} × {sku} على الرف {bin}",
+      "waiting": "في الاستلام"
+    },
+    "count": {
+      "title": "جرد",
+      "stepBin": "امسح ليبل الرف اللي هتجرده",
+      "bin": "الرف {bin}",
+      "hint": "امسح كل قطعة، أو استخدم + و −. أي حاجة فاضلة 0 معناها مفيش.",
+      "submit": "ابعت للموافقة",
+      "submitted": "الجرد اتبعت. عدد الفروق: {variances}، مستنية موافقة الأدمن.",
+      "noDiff": "الجرد اتبعت. مفيش فروق.",
+      "another": "جرد رف تاني"
+    },
+    "damaged": {
+      "title": "تالف ومحجوز",
+      "stepProduct": "امسح المنتج",
+      "from": "من الرف",
+      "reason": "إيه اللي حصل؟",
+      "damaged": "تالف",
+      "held": "محجوز (يتراجع بعدين)",
+      "release": "يرجع الرف من الحجز",
+      "quantity": "الكمية",
+      "confirm": "انقل",
+      "done": "اتنقل {quantity} × {sku} لـ {bin}",
+      "noBins": "المنتج ده مش موجود في رف ينفع منه النقل ده."
+    },
+    "labels": {
+      "title": "ليبلات الرفوف",
+      "print": "اطبع"
+    },
+    "binTypes": {
+      "receiving": "استلام",
+      "pickable": "رف",
+      "damaged": "تالف",
+      "held": "محجوز"
+    },
+    "errors": {
+      "insufficient_bin_stock": "مفيش قطع كفاية في الرف ده.",
+      "would_break_reservations": "القطع دي محجوزة لطلبات.",
+      "manifest_closed": "الشحنة دي خلصت خلاص.",
+      "sku_not_on_merchant": "المنتج ده مش تبع التاجر ده.",
+      "bin_not_pickable": "امسح رف بيع.",
+      "nothing_to_put_away": "مفيش كمية كفاية من المنتج ده في الاستلام.",
+      "move_not_allowed": "النقل ده مش مسموح.",
+      "network": "مفيش اتصال. جرب تاني.",
+      "generic": "حصلت مشكلة، جرب تاني."
+    }
+  },
+  "merchant": {
+    "nav": {
+      "shipments": "الشحنات",
+      "new": "شحنة جديدة",
+      "products": "المنتجات",
+      "notifications": "الإشعارات"
+    },
+    "shipments": {
+      "title": "الشحنات",
+      "empty": "مفيش شحنات لسه.",
+      "reference": "المرجع",
+      "store": "المخزن",
+      "status": "الحالة",
+      "units": "اتستلم {received} من {expected}",
+      "cancel": "إلغاء",
+      "statuses": {
+        "expected": "في الطريق",
+        "receiving": "جاري الاستلام",
+        "received": "اتستلمت",
+        "cancelled": "اتلغت"
+      }
+    },
+    "new": {
+      "title": "شحنة جديدة",
+      "store": "ابعتها لـ",
+      "reference": "المرجع بتاعك (زي رقم أمر الشراء)",
+      "note": "ملاحظة (اختياري)",
+      "expectedAt": "توصل يوم (اختياري)",
+      "product": "المنتج",
+      "quantity": "الكمية",
+      "addLine": "ضيف منتج",
+      "remove": "شيل",
+      "submit": "اعمل الشحنة",
+      "created": "الشحنة اتعملت. المخزن هيمسحها أول ما توصل.",
+      "errors": {
+        "reference_taken": "المرجع ده استخدمته قبل كده.",
+        "validation_failed": "راجع المنتجات والكميات.",
+        "duplicate_sku": "كل منتج مرة واحدة بس.",
+        "generic": "حصلت مشكلة، جرب تاني."
+      }
+    },
+    "products": {
+      "title": "المنتجات والمخزون",
+      "onHand": "على الرفوف",
+      "reserved": "محجوز"
+    },
+    "notifications": {
+      "title": "الإشعارات",
+      "empty": "مفيش إشعارات لسه.",
+      "markRead": "اتقرت",
+      "manifest_received": "الشحنة {reference} اتستلمت في {store}",
+      "stock_count_adjusted": "المخزون اتعدل بعد جرد في {store}، الرف {bin}",
+      "line": "{sku}: {before} ← {after}",
+      "received": "{sku}: {received} من {expected}"
     }
   }
 }

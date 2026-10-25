@@ -5,6 +5,7 @@ export const AREA_ROLES = {
   '/admin': ['admin'],
   '/store': ['admin', 'store_staff'],
   '/rider': ['admin', 'rider'],
+  '/merchant': ['merchant'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Area = keyof typeof AREA_ROLES;
@@ -13,11 +14,11 @@ const HOME_BY_ROLE: Record<Role, Area | null> = {
   admin: '/admin',
   store_staff: '/store',
   rider: '/rider',
-  // Merchants have no web area in the pilot; they work through the Shopify app.
-  merchant: null,
+  merchant: '/merchant',
 };
 
 export function homeFor(role: Role): Area | null {
+  // Every role has an area today; null stays possible for future roles.
   return HOME_BY_ROLE[role];
 }
 

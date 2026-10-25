@@ -15,7 +15,7 @@ describe('homeFor', () => {
     expect(homeFor('admin')).toBe('/admin');
     expect(homeFor('store_staff')).toBe('/store');
     expect(homeFor('rider')).toBe('/rider');
-    expect(homeFor('merchant')).toBeNull();
+    expect(homeFor('merchant')).toBe('/merchant');
   });
 });
 
@@ -65,7 +65,11 @@ describe('decideAccess', () => {
     });
     expect(decideAccess({ ...base, pathname: '/store', role: 'merchant' })).toEqual({
       kind: 'redirect',
-      to: '/',
+      to: '/merchant',
+    });
+    expect(decideAccess({ ...base, pathname: '/merchant', role: 'admin' })).toEqual({
+      kind: 'redirect',
+      to: '/admin',
     });
   });
 });

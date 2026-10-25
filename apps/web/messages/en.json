@@ -66,7 +66,8 @@
       "overview": "Overview",
       "zones": "Zones",
       "products": "Products",
-      "stock": "Stock"
+      "stock": "Stock",
+      "counts": "Counts"
     },
     "overview": {
       "title": "Dark stores",
@@ -143,6 +144,187 @@
         "network": "Could not reach the server. Try again.",
         "generic": "Something went wrong. Try again."
       }
+    },
+    "counts": {
+      "title": "Stock counts",
+      "pending": "Waiting for approval",
+      "history": "Reviewed",
+      "empty": "No counts waiting.",
+      "by": "Counted by {name}",
+      "bin": "Bin {bin}",
+      "expected": "System",
+      "counted": "Counted",
+      "diff": "Difference",
+      "approve": "Approve and correct stock",
+      "reject": "Reject",
+      "statuses": {
+        "submitted": "Waiting",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "stale": "Bin changed, count again"
+      },
+      "errors": {
+        "would_break_reservations": "Some of these units are reserved for orders. Ask staff to count again after picking.",
+        "count_already_reviewed": "Someone already reviewed this count.",
+        "generic": "Something went wrong. Try again."
+      },
+      "product": "Product"
+    }
+  },
+  "scan": {
+    "placeholder": "Scan or type a code",
+    "submit": "Go",
+    "camera": "Camera",
+    "closeCamera": "Close camera",
+    "cameraHint": "Point the camera at the barcode.",
+    "cameraUnavailable": "The camera needs a secure (https) connection or permission. Type the code or use a scanner instead.",
+    "notFound": "No product or bin with code {code}.",
+    "notProduct": "{code} is a bin, scan a product.",
+    "notBin": "{code} is a product, scan a bin."
+  },
+  "store": {
+    "chooseStore": "Choose a store",
+    "noStore": "Your account is not linked to a dark store yet. Ask an admin.",
+    "home": {
+      "receive": "Receive",
+      "receiveHint": "{count} shipments waiting",
+      "putAway": "Put away",
+      "putAwayHint": "{count} units to shelve",
+      "count": "Stock count",
+      "countHint": "Count a bin",
+      "damaged": "Damaged and held",
+      "damagedHint": "Move items out of sale",
+      "labels": "Bin labels",
+      "labelsHint": "Print barcode labels",
+      "back": "Back"
+    },
+    "receive": {
+      "title": "Receive",
+      "empty": "No shipments waiting for this store.",
+      "expected": "Expected",
+      "received": "Received",
+      "units": "{received} of {expected} units",
+      "statusExpected": "On its way",
+      "statusReceiving": "Receiving",
+      "scanned": "Received {quantity} × {sku}",
+      "extra": "Not on this shipment",
+      "quantity": "Quantity per scan",
+      "close": "Finish receiving",
+      "closeConfirm": "Finish this shipment? The merchant gets the summary and no more scans are accepted.",
+      "closed": "Shipment received. The merchant was notified.",
+      "missing": "{count} missing",
+      "over": "{count} extra"
+    },
+    "putAway": {
+      "title": "Put away",
+      "empty": "Nothing waiting in receiving.",
+      "stepProduct": "1. Scan a product from receiving",
+      "stepBin": "2. Scan the shelf label",
+      "stepQty": "3. How many?",
+      "toShelf": "To shelf {bin}",
+      "confirm": "Put away",
+      "done": "{quantity} × {sku} on shelf {bin}",
+      "waiting": "In receiving"
+    },
+    "count": {
+      "title": "Stock count",
+      "stepBin": "Scan the bin label to count",
+      "bin": "Bin {bin}",
+      "hint": "Scan each item, or use + and −. Anything left at 0 is counted as none.",
+      "submit": "Send for approval",
+      "submitted": "Count sent. {variances, plural, one {# difference waits} other {# differences wait}} for admin approval.",
+      "noDiff": "Count sent. No differences found.",
+      "another": "Count another bin"
+    },
+    "damaged": {
+      "title": "Damaged and held",
+      "stepProduct": "Scan the product",
+      "from": "From bin",
+      "reason": "What happened?",
+      "damaged": "Damaged",
+      "held": "Hold (check later)",
+      "release": "Back to shelf from hold",
+      "quantity": "Quantity",
+      "confirm": "Move",
+      "done": "Moved {quantity} × {sku} to {bin}",
+      "noBins": "This product is not in any bin that allows this move."
+    },
+    "labels": {
+      "title": "Bin labels",
+      "print": "Print"
+    },
+    "binTypes": {
+      "receiving": "Receiving",
+      "pickable": "Shelf",
+      "damaged": "Damaged",
+      "held": "Held"
+    },
+    "errors": {
+      "insufficient_bin_stock": "Not enough units in that bin.",
+      "would_break_reservations": "Those units are reserved for orders.",
+      "manifest_closed": "This shipment is already finished.",
+      "sku_not_on_merchant": "This product does not belong to this merchant.",
+      "bin_not_pickable": "Scan a shelf bin.",
+      "nothing_to_put_away": "Not enough of this product in receiving.",
+      "move_not_allowed": "That move is not allowed.",
+      "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "merchant": {
+    "nav": {
+      "shipments": "Shipments",
+      "new": "New shipment",
+      "products": "Products",
+      "notifications": "Notifications"
+    },
+    "shipments": {
+      "title": "Shipments",
+      "empty": "No shipments yet.",
+      "reference": "Reference",
+      "store": "Dark store",
+      "status": "Status",
+      "units": "{received} of {expected} received",
+      "cancel": "Cancel",
+      "statuses": {
+        "expected": "On its way",
+        "receiving": "Being received",
+        "received": "Received",
+        "cancelled": "Cancelled"
+      }
+    },
+    "new": {
+      "title": "New shipment",
+      "store": "Send to",
+      "reference": "Your reference (for example PO number)",
+      "note": "Note (optional)",
+      "expectedAt": "Arrives on (optional)",
+      "product": "Product",
+      "quantity": "Quantity",
+      "addLine": "Add product",
+      "remove": "Remove",
+      "submit": "Create shipment",
+      "created": "Shipment created. The store will scan it on arrival.",
+      "errors": {
+        "reference_taken": "You already used this reference.",
+        "validation_failed": "Check the products and quantities.",
+        "duplicate_sku": "Each product only once, please.",
+        "generic": "Something went wrong. Try again."
+      }
+    },
+    "products": {
+      "title": "Products and stock",
+      "onHand": "On shelves",
+      "reserved": "Reserved"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "empty": "No notifications yet.",
+      "markRead": "Mark as read",
+      "manifest_received": "Shipment {reference} received at {store}",
+      "stock_count_adjusted": "Stock corrected after a count at {store}, bin {bin}",
+      "line": "{sku}: {before} → {after}",
+      "received": "{sku}: {received} of {expected}"
     }
   }
 }

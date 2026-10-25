@@ -17,3 +17,17 @@ export async function apiSend<T = unknown>(
     return { ok: false, error: 'network' };
   }
 }
+
+/** GET from the browser through the /api proxy. */
+export async function apiGetClient<T>(
+  path: string,
+): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+  try {
+    const res = await fetch(`/api${path}`, { cache: 'no-store' });
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    if (!res.ok) return { ok: false, error: data.error ?? `http_${res.status}` };
+    return { ok: true, data: data as T };
+  } catch {
+    return { ok: false, error: 'network' };
+  }
+}

@@ -12,7 +12,10 @@
   "dependencies": {
     "@geoman-io/leaflet-geoman-free": "^2.20.4",
     "@shiplynow/shared": "workspace:*",
+    "@zxing/browser": "0.1.5",
+    "@zxing/library": "0.21.3",
     "jose": "^6.0.0",
+    "jsbarcode": "3.12.1",
     "leaflet": "1.9.4",
     "next": "15.5.28",
     "next-intl": "^4.14.0",

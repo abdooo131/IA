@@ -9,6 +9,7 @@ const ITEMS = [
   { href: '/admin/zones', key: 'zones' },
   { href: '/admin/products', key: 'products' },
   { href: '/admin/stock', key: 'stock' },
+  { href: '/admin/counts', key: 'counts' },
 ] as const;
 
 export function AdminNav() {

@@ -32,7 +32,8 @@ Open http://localhost:3000 and sign in with the seeded admin.
 
 The seed also creates demo accounts, all with `SEED_DEMO_PASSWORD` (or the admin password if
 that is not set): `staff.newcairo@shiplynow.local`, `staff.maadi@shiplynow.local`,
-`rider.newcairo@shiplynow.local` and `rider.maadi@shiplynow.local`. It loads 3 dark stores
+`rider.newcairo@shiplynow.local`, `rider.maadi@shiplynow.local`, and the merchant login
+`merchant@evechantelle.example`. It loads 3 dark stores
 (New Cairo, Maadi, Zamalek) with zones and bins, the 27 governorates, the merchant
 Eve Chantelle with 20 SKUs, and opening stock. Running it again changes nothing.
 

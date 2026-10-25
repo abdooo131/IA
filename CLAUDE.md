@@ -80,6 +80,12 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Step 3: capacity counts orders placed in the last 60 minutes, excluding cancelled and moved_to_standard, against store.capacity_orders_per_hour (store override, then global).
 - Step 3: geocoding sits behind the Geocoder interface (Google today). Without GOOGLE_MAPS_API_KEY address lookups answer 503 geocoding_not_configured.
 - Step 3: the admin map uses Leaflet with OpenStreetMap tiles and Geoman for editing; no map API key is needed. Zone borders are single polygons inside Egypt, validated by zod and PostGIS ST_IsValid.
+- Step 4: merchants have a web area at /merchant (merchant users link to a merchant through users.merchant_id). Merchants create inbound manifests (shipments) there; staff receive against them. Manifest status: expected, receiving, received, cancelled.
+- Step 4: receiving puts units in the store's receiving bin (not sellable); put away moves them to a shelf. Extra products not on the manifest get a line with expected 0. Closing a manifest notifies the merchant with expected against received.
+- Step 4: stock counts are blind (staff see which products belong in the bin, not how many). Every difference waits for admin approval. If the bin changed between count and approval the count becomes stale and must be redone. Approved differences notify each affected merchant.
+- Step 4: merchant notifications are stored in the notifications table and shown in the merchant panel; email or WhatsApp can be added later inside notifyMerchant without changing callers.
+- Step 4: every staff action sends a client generated idempotency key, so double taps and retries apply once. Business rule refusals answer JSON { error: code } with 4xx.
+- Step 4: scanning accepts typed codes, handheld scanners (keyboard input plus Enter) and the phone camera (@zxing/browser). Phone cameras need https.
 - Step 2: the seed only creates missing rows and never overwrites admin edits. Zone polygons in the seed are rough test outlines, not real boundaries.
 
 ## Working style for Claude Code
