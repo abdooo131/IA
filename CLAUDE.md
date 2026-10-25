@@ -18,6 +18,8 @@ This is a standalone system for the pilot. Later it will connect to the main Shi
 
 Out of scope for the pilot: ML forecasting, virtual stores on third party platforms, WooCommerce, accounting, payouts, Fawry integration, native mobile apps.
 
+Added by the business (Step 11, last): a finance module covering rider cash handover, merchant fees from settings, and merchant statements of COD collected against our fees. It is not full accounting and it never sends payouts by itself; the exact fee model is agreed before the step is built.
+
 ## Tech stack
 
 - Language: TypeScript everywhere, strict mode

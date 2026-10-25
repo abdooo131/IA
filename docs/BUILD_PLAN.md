@@ -80,6 +80,13 @@ Prompt:
 
 Check: full flow test passes on staging.
 
+## Step 11: Finance (details to agree with the business before building)
+
+Prompt:
+> Add the money side of the pilot. Cash on delivery: riders hand collected cash to the store at the end of a shift, staff count it against what the system expects, and differences are recorded and approved by admin. Merchant fees: per order fulfillment and delivery fees and monthly storage, all from settings, never hardcoded. Merchant statements: per period, orders delivered, COD collected for the merchant, our fees, and the net amount we owe the merchant (or the merchant owes us). Admin finance pages: cash in hand per rider and per store, open COD to settle with each merchant, statements with export. Everything in integer piastres, every change audited, nothing is paid automatically.
+
+Check: deliver COD orders, close a rider shift with a cash difference, generate a merchant statement whose totals match the delivered orders.
+
 ## Tips
 
 - Start every new session with: "Read CLAUDE.md and tell me where we left off."
