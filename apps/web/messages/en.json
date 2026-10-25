@@ -291,7 +291,15 @@
         "receiving": "Being received",
         "received": "Received",
         "cancelled": "Cancelled"
-      }
+      },
+      "product": "Product",
+      "expected": "Sent",
+      "received": "Received",
+      "difference": "Difference",
+      "extra": "Extra, not on the ASN",
+      "missing": "{count} missing",
+      "over": "{count} extra",
+      "complete": "Complete"
     },
     "new": {
       "title": "New shipment",

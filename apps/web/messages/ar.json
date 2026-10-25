@@ -291,7 +291,15 @@
         "receiving": "جاري الاستلام",
         "received": "اتستلمت",
         "cancelled": "اتلغت"
-      }
+      },
+      "product": "المنتج",
+      "expected": "المبعوت",
+      "received": "المستلم",
+      "difference": "الفرق",
+      "extra": "زيادة، مش في الـ ASN",
+      "missing": "{count} ناقص",
+      "over": "{count} زيادة",
+      "complete": "كامل"
     },
     "new": {
       "title": "شحنة جديدة",

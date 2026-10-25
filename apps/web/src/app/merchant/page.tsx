@@ -3,6 +3,7 @@ import { CancelShipmentButton } from '@/components/merchant/CancelShipmentButton
 import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
 import type { MerchantShipment } from '@/lib/merchant-types';
+import { title } from '@/lib/store-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,6 +34,41 @@ export default async function ShipmentsPage() {
                 <p className="text-body-sm text-text-muted">
                   {localized(s.darkStore, locale)} · {t('units', { received, expected })}
                 </p>
+                <ul className="mt-3 divide-y divide-line border-t border-line">
+                  {s.lines.map((l) => {
+                    const diff = l.receivedQty - l.expectedQty;
+                    const started = s.status !== 'expected';
+                    return (
+                      <li key={l.sku} className="py-2 text-body-sm">
+                        <p>
+                          <span className="ltr-iso font-bold">{l.sku}</span> {title(l, locale)}
+                        </p>
+                        {l.expectedQty === 0 && (
+                          <p className="text-caption text-text-muted">{t('extra')}</p>
+                        )}
+                        <p className="mt-0.5 flex flex-wrap gap-x-3 text-text-muted">
+                          <span>
+                            {t('expected')}{' '}
+                            <span className="ltr-iso font-bold text-text">{l.expectedQty}</span>
+                          </span>
+                          <span>
+                            {t('received')}{' '}
+                            <span className="ltr-iso font-bold text-text">{l.receivedQty}</span>
+                          </span>
+                          {started && (
+                            <span className="font-bold text-text">
+                              {diff === 0
+                                ? t('complete')
+                                : diff < 0
+                                  ? t('missing', { count: -diff })
+                                  : t('over', { count: diff })}
+                            </span>
+                          )}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ul>
                 {s.status === 'expected' && <CancelShipmentButton id={s.id} />}
               </li>
             );
