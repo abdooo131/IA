@@ -67,7 +67,8 @@
       "zones": "المناطق",
       "products": "المنتجات",
       "stock": "المخزون",
-      "counts": "الجرد"
+      "counts": "الجرد",
+      "shipments": "الشحنات"
     },
     "overview": {
       "title": "المخازن",
@@ -169,6 +170,20 @@
         "generic": "حصلت مشكلة، جرب تاني."
       },
       "product": "المنتج"
+    },
+    "shipments": {
+      "title": "الشحنات (ASN)",
+      "allStatuses": "كل الحالات",
+      "allStores": "كل المخازن",
+      "allMerchants": "كل التجار",
+      "search": "ابحث بالمرجع",
+      "apply": "فلتر",
+      "empty": "مفيش شحنات بالشروط دي.",
+      "reference": "المرجع",
+      "merchant": "التاجر",
+      "store": "المخزن",
+      "created": "اتعملت",
+      "units": "المستلم / المبعوت"
     }
   },
   "scan": {
@@ -340,5 +355,41 @@
       "line": "{sku}: {before} ← {after}",
       "received": "{sku}: {received} من {expected}"
     }
+  },
+  "shipment": {
+    "title": "الشحنة {reference}",
+    "merchant": "التاجر",
+    "store": "المخزن",
+    "status": "الحالة",
+    "createdAt": "اتعملت",
+    "createdBy": "عملها",
+    "expectedAt": "ميعاد الوصول",
+    "receivedAt": "خلص الاستلام",
+    "note": "ملاحظة",
+    "timeline": "اللي حصل",
+    "events": {
+      "created": "الـ ASN اتعمل",
+      "receiving_started": "بدأ الاستلام",
+      "received": "خلص الاستلام",
+      "cancelled": "اتلغت"
+    },
+    "by": "بواسطة {name}",
+    "products": "المنتجات",
+    "product": "المنتج",
+    "sent": "المبعوت",
+    "received": "المستلم",
+    "difference": "الفرق",
+    "complete": "كامل",
+    "missing": "{count} ناقص",
+    "over": "{count} زيادة",
+    "extra": "زيادة، مش في الـ ASN",
+    "scans": "سجل الاستلام",
+    "scanTime": "الوقت",
+    "scanBy": "الموظف",
+    "scanQty": "الكمية",
+    "scanBin": "الرف",
+    "noScans": "مفيش حاجة اتمسحت لسه.",
+    "totals": "اتستلم {received} من {expected} قطعة",
+    "back": "كل الشحنات"
   }
 }

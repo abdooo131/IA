@@ -19,3 +19,15 @@ export function formatCairoTime(iso: string, locale: string): string {
     minute: '2-digit',
   });
 }
+
+/** Date and time in Cairo, Latin digits, for tables and timelines. */
+export function formatCairoDateTime(iso: string | Date, locale: string): string {
+  return new Date(iso).toLocaleString(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', {
+    timeZone: 'Africa/Cairo',
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}

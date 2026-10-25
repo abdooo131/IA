@@ -257,4 +257,58 @@ describe('store staff app, merchant panel and count approvals', () => {
       .expect(400);
     expect(res.body.error).toBe('sku_not_found');
   });
+
+  it('shows a shipment in detail to its merchant and to admin, never to another merchant', async () => {
+    const sku = await skuByCode('EC-002');
+    const merchant = await agent('merchant@evechantelle.example');
+    const created = await merchant
+      .post('/merchant/manifests')
+      .send({
+        darkStoreId: ncr,
+        reference: 'PO-DETAIL',
+        lines: [{ skuId: sku.id, expectedQty: 5 }],
+      })
+      .expect(201);
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    await staff
+      .post(`/stores/${ncr}/manifests/${created.body.id}/receive`)
+      .send({ skuId: sku.id, quantity: 2, idempotencyKey: randomUUID() })
+      .expect(201);
+
+    const mine = await merchant.get(`/merchant/manifests/${created.body.id}`).expect(200);
+    expect(mine.body.timeline.map((t: { event: string }) => t.event)).toEqual([
+      'created',
+      'receiving_started',
+    ]);
+    expect(mine.body.scans[0]).toMatchObject({ by: 'Mona Adel', quantity: 2, sku: 'EC-002' });
+    expect(mine.body.createdBy.name).toBe('Eve Chantelle Ops');
+
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const list = await admin.get('/admin/manifests').query({ q: 'detail' }).expect(200);
+    expect(list.body).toEqual([
+      expect.objectContaining({ reference: 'PO-DETAIL', expectedUnits: 5, receivedUnits: 2 }),
+    ]);
+    await admin.get(`/admin/manifests/${created.body.id}`).expect(200);
+    const merchants = await admin.get('/admin/merchants').expect(200);
+    expect(merchants.body[0]).toMatchObject({
+      name: 'Eve Chantelle',
+      skuCount: 20,
+      shipmentCount: 1,
+    });
+
+    // A second merchant cannot read it.
+    const other = await prisma.merchant.create({ data: { name: 'Other brand' } });
+    const { hashPassword } = await import('@shiplynow/db');
+    await prisma.user.create({
+      data: {
+        email: 'other@brand.eg',
+        name: 'Other',
+        role: 'merchant',
+        merchantId: other.id,
+        passwordHash: await hashPassword(DEMO),
+      },
+    });
+    const stranger = await agent('other@brand.eg');
+    await stranger.get(`/merchant/manifests/${created.body.id}`).expect(404);
+  });
 });

@@ -1,6 +1,6 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { cancelManifest, createManifest, DomainError } from '@shiplynow/db';
+import { cancelManifest, createManifest, DomainError, getManifestDetail } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   type CreateManifestBody,
@@ -113,6 +113,16 @@ export class MerchantController {
       actorUserId: user.sub,
     });
     return { id: manifest.id };
+  }
+
+  @Get('manifests/:id')
+  async manifest(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    const merchant = await this.merchantOf(user);
+    const detail = await getManifestDetail(this.prisma, id);
+    // Another merchant's shipment looks exactly like a missing one.
+    if (!detail || detail.merchant.id !== merchant.id)
+      throw new DomainError('manifest_not_found', 404);
+    return detail;
   }
 
   @Post('manifests/:id/cancel')

@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { CancelShipmentButton } from '@/components/merchant/CancelShipmentButton';
 import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
@@ -26,7 +27,12 @@ export default async function ShipmentsPage() {
             return (
               <li key={s.id} className="rounded-lg border border-line bg-surface p-4 shadow-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="ltr-iso text-h3">{s.reference}</span>
+                  <Link
+                    href={`/merchant/shipments/${s.id}`}
+                    className="ltr-iso text-h3 text-link underline"
+                  >
+                    {s.reference}
+                  </Link>
                   <span className="rounded-pill border border-line px-2.5 py-0.5 text-caption">
                     {t(`statuses.${s.status}`)}
                   </span>

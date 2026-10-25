@@ -7,8 +7,10 @@ export {
   cancelManifest,
   closeManifest,
   createManifest,
+  getManifestDetail,
   receiveOnManifest,
   type CreateManifestInput,
+  type ManifestDetail,
 } from './inbound';
 export { notifyMerchant, type NotificationType } from './notifications';
 export { hashPassword, verifyPassword } from './password';

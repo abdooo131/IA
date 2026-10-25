@@ -250,3 +250,38 @@ describe('stock counts', () => {
     expect(await prisma.notification.count()).toBe(0);
   });
 });
+
+describe('manifest detail', () => {
+  it('tells who created, who scanned what and when, and who finished', async () => {
+    const { getManifestDetail } = await import('../src/inbound');
+    const staff = await prisma.user.create({
+      data: { email: 's@test.eg', name: 'Staff One', role: 'store_staff', passwordHash: 'x' },
+    });
+    const m = await newManifest();
+    await receiveOnManifest(prisma, {
+      manifestId: m.id,
+      darkStoreId: f.store.id,
+      skuId: f.sku.id,
+      quantity: 4,
+      actorUserId: staff.id,
+      idempotencyKey: 'd1',
+    });
+    await closeManifest(prisma, {
+      manifestId: m.id,
+      darkStoreId: f.store.id,
+      actorUserId: staff.id,
+    });
+
+    const detail = await getManifestDetail(prisma, m.id);
+    expect(detail!.timeline.map((t) => [t.event, t.by])).toEqual([
+      ['created', 'A'],
+      ['receiving_started', 'Staff One'],
+      ['received', 'Staff One'],
+    ]);
+    expect(detail!.scans).toEqual([
+      expect.objectContaining({ by: 'Staff One', sku: 'SKU-1', quantity: 4, bin: 'RCV' }),
+    ]);
+    expect(detail!.lines[0]).toMatchObject({ expectedQty: 10, receivedQty: 4 });
+    expect(detail!.createdBy?.name).toBe('A');
+  });
+});

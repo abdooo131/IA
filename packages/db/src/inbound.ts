@@ -195,3 +195,122 @@ async function receivingBin(tx: Prisma.TransactionClient, darkStoreId: string) {
   if (!bin) throw new DomainError('no_receiving_bin');
   return bin;
 }
+
+export interface ManifestDetail {
+  id: string;
+  reference: string;
+  status: string;
+  note: string | null;
+  expectedAt: Date | null;
+  createdAt: Date;
+  receivedAt: Date | null;
+  merchant: { id: string; name: string };
+  darkStore: { id: string; code: string; nameEn: string; nameAr: string };
+  createdBy: { name: string; email: string } | null;
+  timeline: { at: Date; event: string; by: string | null }[];
+  lines: {
+    skuId: string;
+    sku: string;
+    barcode: string | null;
+    titleEn: string;
+    titleAr: string;
+    expectedQty: number;
+    receivedQty: number;
+  }[];
+  scans: {
+    at: Date;
+    by: string | null;
+    sku: string;
+    titleEn: string;
+    titleAr: string;
+    quantity: number;
+    bin: string;
+  }[];
+}
+
+const TIMELINE_EVENTS: Record<string, string> = {
+  'manifest.create': 'created',
+  'manifest.cancel': 'cancelled',
+  'manifest.close': 'received',
+};
+
+/** Everything about one shipment: who did what and when, the goods, and every scan. */
+export async function getManifestDetail(
+  db: Db,
+  manifestId: string,
+): Promise<ManifestDetail | null> {
+  const m = await db.inboundManifest.findUnique({
+    where: { id: manifestId },
+    include: {
+      merchant: true,
+      darkStore: true,
+      createdBy: true,
+      lines: { include: { sku: true }, orderBy: { sku: { sku: 'asc' } } },
+      stockMovements: {
+        where: { type: 'receive' },
+        include: { actor: true, sku: true, toBin: true },
+        orderBy: { createdAt: 'asc' },
+      },
+    },
+  });
+  if (!m) return null;
+
+  const audits = await db.auditLog.findMany({
+    where: { entityType: 'inbound_manifest', entityId: m.id },
+    include: { actor: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  const timeline = audits
+    .filter((a) => TIMELINE_EVENTS[a.action])
+    .map((a) => ({
+      at: a.createdAt,
+      event: TIMELINE_EVENTS[a.action]!,
+      by: a.actor?.name ?? null,
+    }));
+  const firstScan = m.stockMovements[0];
+  if (firstScan) {
+    timeline.push({
+      at: firstScan.createdAt,
+      event: 'receiving_started',
+      by: firstScan.actor?.name ?? null,
+    });
+  }
+  timeline.sort((a, b) => a.at.getTime() - b.at.getTime());
+
+  return {
+    id: m.id,
+    reference: m.reference,
+    status: m.status,
+    note: m.note,
+    expectedAt: m.expectedAt,
+    createdAt: m.createdAt,
+    receivedAt: m.receivedAt,
+    merchant: { id: m.merchant.id, name: m.merchant.name },
+    darkStore: {
+      id: m.darkStore.id,
+      code: m.darkStore.code,
+      nameEn: m.darkStore.nameEn,
+      nameAr: m.darkStore.nameAr,
+    },
+    createdBy: m.createdBy ? { name: m.createdBy.name, email: m.createdBy.email } : null,
+    timeline,
+    lines: m.lines.map((l) => ({
+      skuId: l.skuId,
+      sku: l.sku.sku,
+      barcode: l.sku.barcode,
+      titleEn: l.sku.titleEn,
+      titleAr: l.sku.titleAr,
+      expectedQty: l.expectedQty,
+      receivedQty: l.receivedQty,
+    })),
+    scans: m.stockMovements.map((s) => ({
+      at: s.createdAt,
+      by: s.actor?.name ?? null,
+      sku: s.sku.sku,
+      titleEn: s.sku.titleEn,
+      titleAr: s.sku.titleAr,
+      quantity: s.quantity,
+      bin: s.toBin?.code ?? '',
+    })),
+  };
+}

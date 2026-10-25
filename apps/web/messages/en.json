@@ -67,7 +67,8 @@
       "zones": "Zones",
       "products": "Products",
       "stock": "Stock",
-      "counts": "Counts"
+      "counts": "Counts",
+      "shipments": "Shipments"
     },
     "overview": {
       "title": "Dark stores",
@@ -169,6 +170,20 @@
         "generic": "Something went wrong. Try again."
       },
       "product": "Product"
+    },
+    "shipments": {
+      "title": "Shipments (ASN)",
+      "allStatuses": "All statuses",
+      "allStores": "All stores",
+      "allMerchants": "All merchants",
+      "search": "Search reference",
+      "apply": "Filter",
+      "empty": "No shipments match.",
+      "reference": "Reference",
+      "merchant": "Merchant",
+      "store": "Store",
+      "created": "Created",
+      "units": "Received / sent"
     }
   },
   "scan": {
@@ -340,5 +355,41 @@
       "line": "{sku}: {before} → {after}",
       "received": "{sku}: {received} of {expected}"
     }
+  },
+  "shipment": {
+    "title": "Shipment {reference}",
+    "merchant": "Merchant",
+    "store": "Dark store",
+    "status": "Status",
+    "createdAt": "Created",
+    "createdBy": "Created by",
+    "expectedAt": "Expected arrival",
+    "receivedAt": "Finished receiving",
+    "note": "Note",
+    "timeline": "Timeline",
+    "events": {
+      "created": "ASN created",
+      "receiving_started": "Receiving started",
+      "received": "Receiving finished",
+      "cancelled": "Cancelled"
+    },
+    "by": "by {name}",
+    "products": "Products",
+    "product": "Product",
+    "sent": "Sent",
+    "received": "Received",
+    "difference": "Difference",
+    "complete": "Complete",
+    "missing": "{count} missing",
+    "over": "{count} extra",
+    "extra": "Extra, not on the ASN",
+    "scans": "Receiving log",
+    "scanTime": "Time",
+    "scanBy": "Staff",
+    "scanQty": "Qty",
+    "scanBin": "Bin",
+    "noScans": "Nothing scanned yet.",
+    "totals": "{received} of {expected} units received",
+    "back": "All shipments"
   }
 }
