@@ -39,6 +39,12 @@ Eve Chantelle with 20 SKUs, and opening stock. Running it again changes nothing.
 
 The web app proxies `/api/*` to the API, so the auth cookies stay on the web origin.
 
+## Put it online
+
+See [docs/DEPLOY.md](docs/DEPLOY.md): a free staging server on Render plus a Neon database, no
+credit card. The `Dockerfile` runs the API and the website in one container
+(`deploy/start.mjs` applies migrations, optionally seeds, then starts both).
+
 ## Checks
 
 ```bash

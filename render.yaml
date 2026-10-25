@@ -1,0 +1,26 @@
+# Render blueprint: Dashboard > New > Blueprint, then pick this repository.
+# Free plan, no credit card. The database lives on Neon (see docs/DEPLOY.md).
+services:
+  - type: web
+    name: shiplynow
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: SEED_ON_START
+        value: 'true'
+      - key: SEED_ADMIN_EMAIL
+        sync: false
+      - key: SEED_ADMIN_PASSWORD
+        sync: false
+      - key: SEED_DEMO_PASSWORD
+        sync: false
+      - key: GOOGLE_MAPS_API_KEY
+        sync: false

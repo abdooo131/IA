@@ -13,18 +13,13 @@ loadEnvConfig(
   true,
 );
 
-const apiUrl = process.env.API_URL ?? 'http://localhost:4000';
-
 const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   // Lets phones open the dev server through a tunnel (for camera testing over https).
   allowedDevOrigins: ['*.trycloudflare.com'],
-  // The browser only ever talks to the web origin; /api is proxied to the NestJS API so
-  // the auth cookies stay first party.
-  async rewrites() {
-    return [{ source: '/api/:path*', destination: `${apiUrl}/:path*` }];
-  },
+  // /api is forwarded to the NestJS API by src/app/api/[...path]/route.ts, which reads
+  // API_URL at runtime. (A rewrite here would freeze the address at build time.)
 };
 
 export default createNextIntlPlugin('./src/i18n/request.ts')(nextConfig);
