@@ -9,7 +9,15 @@ import { OrderStatusChip } from './OrderStatusChip';
 import { StageTimer } from './StageTimer';
 
 /** The store's work queue, most urgent first, refreshed every 15 seconds. */
-export function OrdersQueue({ storeId, view, initial }: { storeId: string; view: 'active' | 'done'; initial: OrderSummary[] }) {
+export function OrdersQueue({
+  storeId,
+  view,
+  initial,
+}: {
+  storeId: string;
+  view: 'active' | 'done';
+  initial: OrderSummary[];
+}) {
   const t = useTranslations('orders');
   const locale = useLocale();
   const [orders, setOrders] = useState(initial);
@@ -58,10 +66,17 @@ export function OrdersQueue({ storeId, view, initial }: { storeId: string; view:
                     <StageTimer stage={o.stage.stage} dueAt={o.stage.dueAt} />
                   </p>
                 )}
-                {o.phoneFlagged && <p className="mt-1 text-caption text-status-needs-action">⚠ {t('phone')}</p>}
+                {o.phoneFlagged && (
+                  <p className="mt-1 text-caption text-status-needs-action">⚠ {t('phone')}</p>
+                )}
                 {view === 'done' && o.deliveredAt && (
                   <p className="text-caption text-text-muted">
-                    <span className="ltr-iso">{new Date(o.deliveredAt).toLocaleTimeString(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { timeZone: 'Africa/Cairo', hour: '2-digit', minute: '2-digit' })}</span>
+                    <span className="ltr-iso">
+                      {new Date(o.deliveredAt).toLocaleTimeString(
+                        locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB',
+                        { timeZone: 'Africa/Cairo', hour: '2-digit', minute: '2-digit' },
+                      )}
+                    </span>
                   </p>
                 )}
               </Link>

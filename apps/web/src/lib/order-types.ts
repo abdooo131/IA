@@ -85,5 +85,24 @@ export interface OrderDetail extends OrderSummary {
     codCollectedPiastres: number | null;
   }[];
   events: { at: string; type: string; by: string | null; data: Record<string, unknown> | null }[];
-  alerts: { id: string; type: string; stage: string | null; data: unknown; createdAt: string; resolvedAt: string | null }[];
+  alerts: {
+    id: string;
+    type: string;
+    stage: string | null;
+    data: unknown;
+    createdAt: string;
+    resolvedAt: string | null;
+  }[];
 }
+
+export const ORDER_STATUS_LIST: OrderStatus[] = [
+  'new',
+  'accepted',
+  'picking',
+  'packed',
+  'out_for_delivery',
+  'delivered',
+  'cancelled',
+  'failed',
+  'moved_to_standard',
+];

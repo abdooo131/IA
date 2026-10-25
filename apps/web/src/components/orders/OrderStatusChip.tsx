@@ -22,7 +22,9 @@ export function OrderStatusChip({ status, late }: { status: OrderStatus; late?: 
   const look = LOOK[status];
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
-      <span className={`inline-flex items-center gap-1.5 rounded-pill border border-line bg-surface px-2.5 py-1 text-caption font-bold ${look.color}`}>
+      <span
+        className={`inline-flex items-center gap-1.5 rounded-pill border border-line bg-surface px-2.5 py-1 text-caption font-bold ${look.color}`}
+      >
         <Icon name={look.icon} />
         <span className="text-text">{t(`statuses.${status}`)}</span>
       </span>

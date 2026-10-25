@@ -35,7 +35,8 @@ const CANCELLABLE = ['new', 'accepted', 'picking', 'packed'];
 
 const primary =
   'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
-const secondary = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
+const secondary =
+  'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
 
 const remaining = (i: OrderItemView) => i.quantity - i.pickedQty - i.cancelledQty;
 
@@ -54,7 +55,10 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
 
   const base = `/stores/${storeId}/orders/${order.id}`;
   const fail = (error: string) =>
-    action.setMessage({ text: t(`errors.${KNOWN_ERRORS.includes(error) ? error : 'generic'}`), error: true });
+    action.setMessage({
+      text: t(`errors.${KNOWN_ERRORS.includes(error) ? error : 'generic'}`),
+      error: true,
+    });
 
   async function refresh() {
     const fresh = await apiGetClient<OrderDetail>(base);
@@ -78,12 +82,15 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
   async function onPickCode(code: string) {
     action.setBusy(true);
     action.setMessage(null);
-    const lookup = await apiGetClient<{ kind: 'sku' | 'bin'; sku?: { id: string; sku: string }; bin?: ScannedBin }>(
-      `/stores/${storeId}/lookup?code=${encodeURIComponent(code)}`,
-    );
+    const lookup = await apiGetClient<{
+      kind: 'sku' | 'bin';
+      sku?: { id: string; sku: string };
+      bin?: ScannedBin;
+    }>(`/stores/${storeId}/lookup?code=${encodeURIComponent(code)}`);
     action.setBusy(false);
     if (!lookup.ok) {
-      if (lookup.error === 'code_not_found') action.setMessage({ text: tScan('notFound', { code }), error: true });
+      if (lookup.error === 'code_not_found')
+        action.setMessage({ text: tScan('notFound', { code }), error: true });
       else fail(lookup.error);
       return;
     }
@@ -103,7 +110,11 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
 
   async function confirmMissing(item: OrderItemView) {
     setMissing(null);
-    await run('missing', { skuId: item.skuId, quantity: remaining(item), idempotencyKey: newActionKey() });
+    await run('missing', {
+      skuId: item.skuId,
+      quantity: remaining(item),
+      idempotencyKey: newActionKey(),
+    });
   }
 
   const picking = order.status === 'accepted' || order.status === 'picking';
@@ -118,7 +129,8 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
         </div>
         {order.stage && <StageTimer stage={order.stage.stage} dueAt={order.stage.dueAt} />}
         <p className="text-body-sm">
-          {order.customerName} · <span className="ltr-iso">{order.customerPhone}</span> · {order.merchant.name}
+          {order.customerName} · <span className="ltr-iso">{order.customerPhone}</span> ·{' '}
+          {order.merchant.name}
         </p>
         <p className="text-caption text-text-muted">{order.addressText}</p>
         {order.phoneFlagged && (
@@ -134,7 +146,8 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
         <p className="text-body-sm">
           {order.paymentMethod === 'cod' ? (
             <>
-              {t('codAmount')}: <span className="ltr-iso font-bold">EGP {formatEgp(order.codAmountPiastres)}</span>
+              {t('codAmount')}:{' '}
+              <span className="ltr-iso font-bold">EGP {formatEgp(order.codAmountPiastres)}</span>
             </>
           ) : (
             t('prepaid')
@@ -145,7 +158,12 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
       <Message message={action.message} />
 
       {order.status === 'new' && (
-        <button type="button" className={primary} disabled={action.busy} onClick={() => void run('accept', {})}>
+        <button
+          type="button"
+          className={primary}
+          disabled={action.busy}
+          onClick={() => void run('accept', {})}
+        >
           {t('actions.accept')}
         </button>
       )}
@@ -155,9 +173,14 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
           <p className="text-body-sm font-bold">{t('actions.scanToPick')}</p>
           <ScanBox onCode={(c) => void onPickCode(c)} disabled={action.busy} />
           <p className="text-caption text-text-muted">
-            {t('actions.fromBin')}: <span className="ltr-iso">{shelf?.code ?? t('actions.anyShelf')}</span>
+            {t('actions.fromBin')}:{' '}
+            <span className="ltr-iso">{shelf?.code ?? t('actions.anyShelf')}</span>
             {shelf && (
-              <button type="button" className="ms-2 text-link underline" onClick={() => setShelf(null)}>
+              <button
+                type="button"
+                className="ms-2 text-link underline"
+                onClick={() => setShelf(null)}
+              >
                 ✕
               </button>
             )}
@@ -192,18 +215,31 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
                 {picking && left > 0 && item.bins && item.bins.length > 0 && (
                   <p className="text-caption">
                     {t('actions.fromBin')}:{' '}
-                    <span className="ltr-iso">{item.bins.map((b) => `${b.code} (${b.quantity})`).join(', ')}</span>
+                    <span className="ltr-iso">
+                      {item.bins.map((b) => `${b.code} (${b.quantity})`).join(', ')}
+                    </span>
                   </p>
                 )}
-                {picking && left > 0 &&
+                {picking &&
+                  left > 0 &&
                   (missing?.skuId === item.skuId ? (
                     <div className="mt-2 space-y-2">
-                      <p className="text-body-sm">{t('actions.missingConfirm', { count: left, sku: item.sku })}</p>
+                      <p className="text-body-sm">
+                        {t('actions.missingConfirm', { count: left, sku: item.sku })}
+                      </p>
                       <div className="flex gap-2">
-                        <button type="button" className={secondary} onClick={() => void confirmMissing(item)}>
+                        <button
+                          type="button"
+                          className={secondary}
+                          onClick={() => void confirmMissing(item)}
+                        >
                           {t('actions.yes')}
                         </button>
-                        <button type="button" className={secondary} onClick={() => setMissing(null)}>
+                        <button
+                          type="button"
+                          className={secondary}
+                          onClick={() => setMissing(null)}
+                        >
                           {t('actions.no')}
                         </button>
                       </div>
@@ -226,7 +262,12 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
 
       {pickingDone && (
         <section className="space-y-2">
-          <PhotoCapture kind="pack" label={t('actions.takePhoto')} onUploaded={setPhotoId} onError={fail} />
+          <PhotoCapture
+            kind="pack"
+            label={t('actions.takePhoto')}
+            onUploaded={setPhotoId}
+            onError={fail}
+          />
           <button
             type="button"
             className={primary}
@@ -243,7 +284,9 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
           <p className="text-body-sm font-bold">{t('actions.scanBadge')}</p>
           <ScanBox
             onCode={(badgeCode) =>
-              void run<{ rider: string }>('handover', { badgeCode }, (d) => t('actions.handedTo', { rider: d.rider }))
+              void run<{ rider: string }>('handover', { badgeCode }, (d) =>
+                t('actions.handedTo', { rider: d.rider }),
+              )
             }
             disabled={action.busy}
           />
@@ -307,7 +350,11 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
             </div>
           </section>
         ) : (
-          <button type="button" className={`${secondary} text-danger`} onClick={() => setCancelling(true)}>
+          <button
+            type="button"
+            className={`${secondary} text-danger`}
+            onClick={() => setCancelling(true)}
+          >
             {t('actions.cancel')}
           </button>
         ))}

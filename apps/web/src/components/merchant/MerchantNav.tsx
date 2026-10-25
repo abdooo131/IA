@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation';
 
 const ITEMS = [
   { href: '/merchant', key: 'shipments' },
+  { href: '/merchant/orders', key: 'orders' },
   { href: '/merchant/new', key: 'new' },
   { href: '/merchant/products', key: 'products' },
   { href: '/merchant/notifications', key: 'notifications' },

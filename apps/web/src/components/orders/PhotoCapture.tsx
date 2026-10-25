@@ -47,7 +47,13 @@ export function PhotoCapture({
         aria-label={label}
         onChange={(e) => void chosen(e.target.files?.[0])}
       />
-      {preview && <img src={preview} alt="" className="max-h-56 rounded-md border border-line object-contain" />}
+      {preview && (
+        <img
+          src={preview}
+          alt=""
+          className="max-h-56 rounded-md border border-line object-contain"
+        />
+      )}
       <button
         type="button"
         disabled={busy}

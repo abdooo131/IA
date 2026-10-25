@@ -8,7 +8,13 @@ export function Icon({ name, className = 'h-4 w-4' }: { name: string; className?
     <span
       aria-hidden
       className={`inline-block shrink-0 bg-current ${className}`}
-      style={{ maskImage: url, WebkitMaskImage: url, maskSize: 'contain', WebkitMaskSize: 'contain', maskRepeat: 'no-repeat' }}
+      style={{
+        maskImage: url,
+        WebkitMaskImage: url,
+        maskSize: 'contain',
+        WebkitMaskSize: 'contain',
+        maskRepeat: 'no-repeat',
+      }}
     />
   );
 }

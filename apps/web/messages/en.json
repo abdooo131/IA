@@ -414,7 +414,14 @@
       "allStatuses": "All statuses",
       "filter": "Filter",
       "cancel": "Cancel order",
-      "back": "All orders"
+      "back": "All orders",
+      "merchant": "Merchant",
+      "cod": "Cash on delivery",
+      "prepaid": "Prepaid",
+      "areaOpen": "{store} is open and can take this order.",
+      "areaClosed": "{store} is closed now. It opens {time}.",
+      "areaFull": "{store} is full for this hour. Try again shortly.",
+      "areaChecking": "Checking the store…"
     }
   },
   "shipment": {
@@ -570,6 +577,12 @@
       "at_capacity": "The store for that area is full for this hour.",
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
+    },
+    "deliveryStatuses": {
+      "assigned": "Assigned",
+      "picked_up": "On the way",
+      "delivered": "Delivered",
+      "failed": "Failed"
     }
   },
   "rider": {
