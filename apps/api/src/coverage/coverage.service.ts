@@ -58,7 +58,12 @@ export class CoverageService {
         covered: true,
         location,
         darkStore: store(winner),
-        zone: { id: winner.zoneId, code: winner.zoneCode, nameEn: winner.zoneNameEn, nameAr: winner.zoneNameAr },
+        zone: {
+          id: winner.zoneId,
+          code: winner.zoneCode,
+          nameEn: winner.zoneNameEn,
+          nameAr: winner.zoneNameAr,
+        },
         promiseMinutes: await getSetting(this.prisma, 'sla.promise_minutes', winner.darkStoreId),
       };
     }

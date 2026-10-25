@@ -70,7 +70,10 @@ describe('admin', () => {
       stock.body.every((r: { available: number; onHand: number }) => r.available === r.onHand),
     ).toBe(true);
 
-    await prisma.setting.create({ data: { key: 'stock.low_stock_threshold', value: 1000 } });
+    await prisma.setting.update({
+      where: { key_scope: { key: 'stock.low_stock_threshold', scope: 'global' } },
+      data: { value: 1000 },
+    });
     const low = await admin.get('/admin/stock').expect(200);
     expect(low.body.every((r: { lowStock: boolean }) => r.lowStock)).toBe(true);
   });

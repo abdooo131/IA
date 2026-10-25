@@ -10,8 +10,10 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@geoman-io/leaflet-geoman-free": "^2.20.4",
     "@shiplynow/shared": "workspace:*",
     "jose": "^6.0.0",
+    "leaflet": "1.9.4",
     "next": "15.5.28",
     "next-intl": "^4.14.0",
     "react": "^19.1.0",
@@ -20,6 +22,7 @@
   },
   "devDependencies": {
     "@next/env": "15.5.28",
+    "@types/leaflet": "~1.9.22",
     "@types/node": "^22.0.0",
     "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.0",

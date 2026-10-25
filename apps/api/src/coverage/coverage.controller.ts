@@ -15,7 +15,9 @@ export class CoverageController {
   @ApiQuery({ name: 'lat', required: false, type: Number })
   @ApiQuery({ name: 'lng', required: false, type: Number })
   @ApiQuery({ name: 'address', required: false, type: String })
-  @ApiOkResponse({ description: 'covered with the dark store and zone, or not covered with a reason' })
+  @ApiOkResponse({
+    description: 'covered with the dark store and zone, or not covered with a reason',
+  })
   check(@Query(new ZodValidationPipe(coverageQuerySchema)) query: CoverageQuery) {
     return this.coverage.check(query);
   }

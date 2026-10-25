@@ -47,7 +47,8 @@ export class GoogleGeocoder extends Geocoder {
     }
     if (body.status === 'ZERO_RESULTS') return null;
     const first = body.results[0];
-    if (body.status !== 'OK' || !first) throw new BadGatewayException({ error: 'geocoding_failed' });
+    if (body.status !== 'OK' || !first)
+      throw new BadGatewayException({ error: 'geocoding_failed' });
     return {
       latitude: first.geometry.location.lat,
       longitude: first.geometry.location.lng,

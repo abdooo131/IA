@@ -76,6 +76,10 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Step 2: units reserved by orders cannot be adjusted, moved or counted away; such calls fail with would_break_reservations.
 - Step 2: the database enforces the hard rules too: CHECK constraints keep stock and money non negative, and triggers make stock_movements, order_events and audit_log reject UPDATE and DELETE.
 - Step 2: settings are keyed by (key, scope) where scope is "global" or a dark store id. Definitions and defaults live in packages/shared/src/settings.ts. Defaults: SLA accept 2, pick 10, pack 5, hand over 5, ride 35, promise 60 minutes; stock buffer 0; low stock threshold 5; capacity 20 orders per hour.
+- Step 3: GET /coverage (lat/lng or address) and GET /coverage/areas are public. Coverage picks the nearest store whose zone contains the point and that is open (Cairo time, hours may run past midnight) and under its hourly capacity; otherwise it answers outside_zones, at_capacity or store_closed with nextOpenAt.
+- Step 3: capacity counts orders placed in the last 60 minutes, excluding cancelled and moved_to_standard, against store.capacity_orders_per_hour (store override, then global).
+- Step 3: geocoding sits behind the Geocoder interface (Google today). Without GOOGLE_MAPS_API_KEY address lookups answer 503 geocoding_not_configured.
+- Step 3: the admin map uses Leaflet with OpenStreetMap tiles and Geoman for editing; no map API key is needed. Zone borders are single polygons inside Egypt, validated by zod and PostGIS ST_IsValid.
 - Step 2: the seed only creates missing rows and never overwrites admin edits. Zone polygons in the seed are rough test outlines, not real boundaries.
 
 ## Working style for Claude Code
