@@ -2,7 +2,10 @@ node_modules/
 dist/
 .next/
 out/
-coverage/
+# test coverage reports (not source folders named coverage)
+/coverage/
+apps/*/coverage/
+packages/*/coverage/
 *.tsbuildinfo
 next-env.d.ts
 

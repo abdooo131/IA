@@ -14,6 +14,8 @@ export const envSchema = z.object({
   ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
   COOKIE_SECURE: booleanString,
+  /** Optional. Without it, address lookups answer geocoding_not_configured. */
+  GOOGLE_MAPS_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -63,3 +63,21 @@ describe('seed', () => {
     expect(ean13('400638133393')).toBe('4006381333931');
   });
 });
+
+describe('zone queries', () => {
+  it('lists covering zones nearest store first, with distance', async () => {
+    const { coveringZones } = await import('../src/zones');
+    const [zone] = await coveringZones(prisma, { latitude: 30.03, longitude: 31.47 });
+    expect(zone).toMatchObject({ zoneCode: 'NCR-5S', darkStoreCode: 'NCR' });
+    expect(zone!.distanceMeters).toBeGreaterThan(0);
+    expect(zone!.distanceMeters).toBeLessThan(2000);
+  });
+
+  it('returns each zone area as GeoJSON with a label point', async () => {
+    const { listZonesWithArea } = await import('../src/zones');
+    const zones = await listZonesWithArea(prisma);
+    expect(zones).toHaveLength(3);
+    expect(zones[0]!.area?.type).toBe('MultiPolygon');
+    expect(zones[0]!.center).toHaveLength(2);
+  });
+});
