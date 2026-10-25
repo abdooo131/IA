@@ -26,6 +26,9 @@ describe('seed', () => {
     expect(await prisma.user.count({ where: { role: 'admin' } })).toBe(1);
     expect(await prisma.user.count({ where: { role: 'store_staff' } })).toBe(2);
     expect(await prisma.rider.count()).toBe(2);
+    expect(
+      await prisma.user.count({ where: { role: 'merchant', merchantId: { not: null } } }),
+    ).toBe(1);
     expect(await prisma.setting.count()).toBe(9);
   });
 

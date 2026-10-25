@@ -1,6 +1,16 @@
 export * from '@prisma/client';
 export { recordAudit, type AuditEntry } from './audit';
 export { type Db, inTransaction } from './client';
+export { approveCount, rejectCount, submitCount, type SubmitCountInput } from './counts';
+export { DomainError } from './domain-error';
+export {
+  cancelManifest,
+  closeManifest,
+  createManifest,
+  receiveOnManifest,
+  type CreateManifestInput,
+} from './inbound';
+export { notifyMerchant, type NotificationType } from './notifications';
 export { hashPassword, verifyPassword } from './password';
 export { getSetting, setSetting } from './settings';
 export * from './stock';

@@ -316,8 +316,8 @@ export const DEMO_USERS: {
   email: string;
   name: string;
   phone: string;
-  role: 'store_staff' | 'rider';
-  storeCode: string;
+  role: 'store_staff' | 'rider' | 'merchant';
+  storeCode?: string;
   badgeCode?: string;
 }[] = [
   {
@@ -349,6 +349,12 @@ export const DEMO_USERS: {
     role: 'rider',
     storeCode: 'MAA',
     badgeCode: 'RDR-0002',
+  },
+  {
+    email: 'merchant@evechantelle.example',
+    name: 'Eve Chantelle Ops',
+    phone: '+201200000301',
+    role: 'merchant',
   },
 ];
 

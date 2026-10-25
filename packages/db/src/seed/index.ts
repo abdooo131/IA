@@ -137,7 +137,7 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
 
   const demoHash = await hashPassword(options.demoPassword);
   for (const u of DEMO_USERS) {
-    const darkStoreId = stores.get(u.storeCode)!;
+    const darkStoreId = u.storeCode ? stores.get(u.storeCode)! : null;
     const user = await prisma.user.upsert({
       where: { email: u.email },
       update: {},
@@ -147,10 +147,11 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
         phone: u.phone,
         role: u.role,
         darkStoreId,
+        merchantId: u.role === 'merchant' ? merchant.id : null,
         passwordHash: demoHash,
       },
     });
-    if (u.role === 'rider' && u.badgeCode) {
+    if (u.role === 'rider' && u.badgeCode && darkStoreId) {
       await prisma.rider.upsert({
         where: { userId: user.id },
         update: {},

@@ -38,18 +38,25 @@ model User {
   isActive     Boolean  @default(true) @map("is_active")
   /// Home dark store for store staff and riders
   darkStoreId  String?  @map("dark_store_id")
+  /// The merchant a merchant user belongs to
+  merchantId   String?  @map("merchant_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  darkStore      DarkStore?      @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  refreshTokens  RefreshToken[]
-  rider          Rider?
-  stockMovements StockMovement[]
-  orderEvents    OrderEvent[]
-  auditEntries   AuditLog[]
-  settingChanges Setting[]
+  darkStore        DarkStore?        @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  merchant         Merchant?         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  refreshTokens    RefreshToken[]
+  createdManifests InboundManifest[] @relation("manifest_created_by")
+  countsSubmitted  StockCount[]      @relation("count_submitted_by")
+  countsReviewed   StockCount[]      @relation("count_reviewed_by")
+  rider            Rider?
+  stockMovements   StockMovement[]
+  orderEvents      OrderEvent[]
+  auditEntries     AuditLog[]
+  settingChanges   Setting[]
 
   @@index([darkStoreId])
+  @@index([merchantId])
   @@map("users")
 }
 
@@ -108,6 +115,7 @@ model DarkStore {
   orders           Order[]
   riders           Rider[]
   users            User[]
+  stockCounts      StockCount[]
 
   @@map("dark_stores")
 }
@@ -167,6 +175,8 @@ model Merchant {
   skus             Sku[]
   inboundManifests InboundManifest[]
   orders           Order[]
+  users            User[]
+  notifications    Notification[]
 
   @@map("merchants")
 }
@@ -194,6 +204,7 @@ model Sku {
   stockMovements StockMovement[]
   manifestLines  InboundManifestLine[]
   orderItems     OrderItem[]
+  countLines     StockCountLine[]
 
   @@unique([merchantId, sku])
   @@index([barcode])
@@ -225,6 +236,7 @@ model Bin {
   stock         BinStock[]
   movementsFrom StockMovement[] @relation("movement_from_bin")
   movementsTo   StockMovement[] @relation("movement_to_bin")
+  counts        StockCount[]
 
   @@unique([darkStoreId, code])
   @@map("bins")
@@ -309,10 +321,80 @@ model StockMovement {
   @@map("stock_movements")
 }
 
+// ─── Stock counts ──────────────────────────────────────────────────────────────
+
+enum CountStatus {
+  /// Waiting for admin approval
+  submitted
+  approved
+  rejected
+  /// The bin changed between counting and approval; count it again
+  stale
+
+  @@map("count_status")
+}
+
+/// A count of one bin by store staff. Differences change stock only after admin approval.
+model StockCount {
+  id            String      @id @default(cuid())
+  darkStoreId   String      @map("dark_store_id")
+  binId         String      @map("bin_id")
+  status        CountStatus @default(submitted)
+  submittedById String      @map("submitted_by_id")
+  reviewedById  String?     @map("reviewed_by_id")
+  reviewedAt    DateTime?   @map("reviewed_at")
+  reviewNote    String?     @map("review_note")
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  darkStore   DarkStore        @relation(fields: [darkStoreId], references: [id])
+  bin         Bin              @relation(fields: [binId], references: [id])
+  submittedBy User             @relation("count_submitted_by", fields: [submittedById], references: [id], onDelete: Restrict)
+  reviewedBy  User?            @relation("count_reviewed_by", fields: [reviewedById], references: [id], onDelete: Restrict)
+  lines       StockCountLine[]
+
+  @@index([status, createdAt])
+  @@index([darkStoreId, createdAt])
+  @@map("stock_counts")
+}
+
+model StockCountLine {
+  id          String @id @default(cuid())
+  countId     String @map("count_id")
+  skuId       String @map("sku_id")
+  /// What the system had in the bin when the count was submitted
+  expectedQty Int    @map("expected_qty")
+  countedQty  Int    @map("counted_qty")
+
+  count StockCount @relation(fields: [countId], references: [id], onDelete: Cascade)
+  sku   Sku        @relation(fields: [skuId], references: [id])
+
+  @@unique([countId, skuId])
+  @@map("stock_count_lines")
+}
+
+// ─── Notifications ─────────────────────────────────────────────────────────────
+
+/// Messages for merchants, shown in the merchant panel. Other channels (email,
+/// WhatsApp) can be added behind the Notifier interface without changing callers.
+model Notification {
+  id         String    @id @default(cuid())
+  merchantId String    @map("merchant_id")
+  type       String
+  data       Json
+  readAt     DateTime? @map("read_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, createdAt])
+  @@map("notifications")
+}
+
 // ─── Inbound ───────────────────────────────────────────────────────────────────
 
 enum ManifestStatus {
-  draft
+  /// Created by the merchant, on its way to the store
+  expected
   receiving
   received
   cancelled
@@ -326,7 +408,9 @@ model InboundManifest {
   merchantId  String         @map("merchant_id")
   /// Merchant or carrier reference printed on the delivery note
   reference   String
-  status      ManifestStatus @default(draft)
+  status      ManifestStatus @default(expected)
+  note        String?
+  createdById String?        @map("created_by_id")
   expectedAt  DateTime?      @map("expected_at")
   receivedAt  DateTime?      @map("received_at")
   createdAt   DateTime       @default(now()) @map("created_at")
@@ -334,10 +418,12 @@ model InboundManifest {
 
   darkStore      DarkStore             @relation(fields: [darkStoreId], references: [id])
   merchant       Merchant              @relation(fields: [merchantId], references: [id])
+  createdBy      User?                 @relation("manifest_created_by", fields: [createdById], references: [id], onDelete: Restrict)
   lines          InboundManifestLine[]
   stockMovements StockMovement[]
 
   @@unique([merchantId, reference])
+  @@index([darkStoreId, status])
   @@map("inbound_manifests")
 }
 
