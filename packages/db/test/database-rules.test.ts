@@ -46,6 +46,7 @@ describe('append only tables', () => {
         customerPhone: '+201000000000',
         addressText: 'x',
         paymentMethod: 'cod',
+        deliveryOtp: '1234',
         subtotalPiastres: 1000,
         placedAt: new Date(),
       },

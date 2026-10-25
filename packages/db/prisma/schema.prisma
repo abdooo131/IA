@@ -49,6 +49,9 @@ model User {
   createdManifests InboundManifest[] @relation("manifest_created_by")
   countsSubmitted  StockCount[]      @relation("count_submitted_by")
   countsReviewed   StockCount[]      @relation("count_reviewed_by")
+  ordersCreated    Order[]           @relation("order_created_by")
+  photos           Photo[]           @relation("photo_created_by")
+  alertsResolved   Alert[]           @relation("alert_resolved_by")
   rider            Rider?
   stockMovements   StockMovement[]
   orderEvents      OrderEvent[]
@@ -116,6 +119,7 @@ model DarkStore {
   riders           Rider[]
   users            User[]
   stockCounts      StockCount[]
+  alerts           Alert[]
 
   @@map("dark_stores")
 }
@@ -153,6 +157,7 @@ model Zone {
 
   darkStore   DarkStore   @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
   governorate Governorate @relation(fields: [governorateId], references: [id])
+  orders      Order[]
 
   @@unique([darkStoreId, code])
   @@index([area], type: Gist)
@@ -457,6 +462,13 @@ enum OrderStatus {
   @@map("order_status")
 }
 
+enum OrderSource {
+  manual
+  shopify
+
+  @@map("order_source")
+}
+
 enum PaymentMethod {
   prepaid
   cod
@@ -472,11 +484,18 @@ model Order {
   darkStoreId               String        @map("dark_store_id")
   shopifyOrderId            String?       @map("shopify_order_id")
   shopifyFulfillmentOrderId String?       @unique @map("shopify_fulfillment_order_id")
+  source                    OrderSource   @default(manual)
   status                    OrderStatus   @default(new)
+  zoneId                    String?       @map("zone_id")
   customerName              String        @map("customer_name")
   /// Normalized Egyptian mobile
   customerPhone             String        @map("customer_phone")
   addressText               String        @map("address_text")
+  customerNote              String?       @map("customer_note")
+  /// The phone is not a valid Egyptian mobile; staff should check it before dispatch
+  phoneFlagged              Boolean       @default(false) @map("phone_flagged")
+  /// Code the customer gives the rider to confirm delivery
+  deliveryOtp               String        @map("delivery_otp")
   latitude                  Float?
   longitude                 Float?
   paymentMethod             PaymentMethod @map("payment_method")
@@ -485,18 +504,38 @@ model Order {
   /// Cash the rider must collect; 0 for prepaid orders
   codAmountPiastres         Int           @default(0) @map("cod_amount_piastres")
   placedAt                  DateTime      @map("placed_at")
+  /// The promise to the customer: placed_at plus sla.promise_minutes
   slaDueAt                  DateTime?     @map("sla_due_at")
+  acceptedAt                DateTime?     @map("accepted_at")
+  pickingStartedAt          DateTime?     @map("picking_started_at")
+  pickedAt                  DateTime?     @map("picked_at")
+  packedAt                  DateTime?     @map("packed_at")
+  outForDeliveryAt          DateTime?     @map("out_for_delivery_at")
+  deliveredAt               DateTime?     @map("delivered_at")
+  /// When it reached cancelled, failed or moved_to_standard
+  closedAt                  DateTime?     @map("closed_at")
+  closedReason              String?       @map("closed_reason")
+  /// The stage that is currently late (accept, pick, pack, handover, ride), if any
+  lateStage                 String?       @map("late_stage")
+  packPhotoId               String?       @map("pack_photo_id")
+  createdById               String?       @map("created_by_id")
   createdAt                 DateTime      @default(now()) @map("created_at")
   updatedAt                 DateTime      @updatedAt @map("updated_at")
 
   merchant       Merchant        @relation(fields: [merchantId], references: [id])
   darkStore      DarkStore       @relation(fields: [darkStoreId], references: [id])
+  zone           Zone?           @relation(fields: [zoneId], references: [id])
+  packPhoto      Photo?          @relation("order_pack_photo", fields: [packPhotoId], references: [id])
+  createdBy      User?           @relation("order_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  alerts         Alert[]
   items          OrderItem[]
   events         OrderEvent[]
   deliveries     Delivery[]
   stockMovements StockMovement[]
 
   @@index([darkStoreId, status, slaDueAt])
+  @@index([merchantId, placedAt])
+  @@index([status, placedAt])
   @@map("orders")
 }
 
@@ -507,6 +546,8 @@ model OrderItem {
   quantity          Int
   unitPricePiastres Int    @map("unit_price_piastres")
   pickedQty         Int    @default(0) @map("picked_qty")
+  /// Units cancelled because the store did not have them (at intake or at pick)
+  cancelledQty      Int    @default(0) @map("cancelled_qty")
 
   order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
   sku   Sku   @relation(fields: [skuId], references: [id])
@@ -572,16 +613,67 @@ model Delivery {
   deliveredAt          DateTime?      @map("delivered_at")
   failedAt             DateTime?      @map("failed_at")
   failedReason         String?        @map("failed_reason")
-  proofPhotoUrl        String?        @map("proof_photo_url")
+  proofPhotoId         String?        @map("proof_photo_id")
   otpVerified          Boolean        @default(false) @map("otp_verified")
+  /// What the rider had to collect when the order left the store
+  codExpectedPiastres  Int            @default(0) @map("cod_expected_piastres")
   codCollectedPiastres Int?           @map("cod_collected_piastres")
 
-  order Order @relation(fields: [orderId], references: [id])
-  rider Rider @relation(fields: [riderId], references: [id])
+  order      Order  @relation(fields: [orderId], references: [id])
+  rider      Rider  @relation(fields: [riderId], references: [id])
+  proofPhoto Photo? @relation("delivery_proof_photo", fields: [proofPhotoId], references: [id])
 
   @@index([riderId, status])
   @@index([orderId])
   @@map("deliveries")
+}
+
+// ─── Photos and alerts ─────────────────────────────────────────────────────────
+
+enum PhotoKind {
+  pack
+  delivery
+
+  @@map("photo_kind")
+}
+
+/// Small JPEG photos (pack and delivery proof), stored in the database so any host works.
+model Photo {
+  id          String    @id @default(cuid())
+  kind        PhotoKind
+  contentType String    @map("content_type")
+  data        Bytes
+  sizeBytes   Int       @map("size_bytes")
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  createdBy  User?      @relation("photo_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  packedFor  Order[]    @relation("order_pack_photo")
+  deliveries Delivery[] @relation("delivery_proof_photo")
+
+  @@map("photos")
+}
+
+/// Things admin should look at: late stages, items missing at pick, COD differences.
+model Alert {
+  id           String    @id @default(cuid())
+  type         String
+  darkStoreId  String?   @map("dark_store_id")
+  orderId      String?   @map("order_id")
+  /// For late alerts, which stage was late; makes the SLA check safe to run twice
+  stage        String?
+  data         Json?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  resolvedAt   DateTime? @map("resolved_at")
+  resolvedById String?   @map("resolved_by_id")
+
+  darkStore  DarkStore? @relation(fields: [darkStoreId], references: [id])
+  order      Order?     @relation(fields: [orderId], references: [id])
+  resolvedBy User?      @relation("alert_resolved_by", fields: [resolvedById], references: [id], onDelete: Restrict)
+
+  @@unique([orderId, type, stage])
+  @@index([resolvedAt, createdAt])
+  @@map("alerts")
 }
 
 // ─── System ────────────────────────────────────────────────────────────────────

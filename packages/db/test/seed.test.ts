@@ -1,3 +1,4 @@
+import { SETTING_KEYS } from '@shiplynow/shared';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { seed } from '../src/seed';
 import { ean13 } from '../src/seed/data';
@@ -29,7 +30,7 @@ describe('seed', () => {
     expect(
       await prisma.user.count({ where: { role: 'merchant', merchantId: { not: null } } }),
     ).toBe(1);
-    expect(await prisma.setting.count()).toBe(9);
+    expect(await prisma.setting.count()).toBe(SETTING_KEYS.length);
   });
 
   it('puts opening stock on the shelves through movements', async () => {

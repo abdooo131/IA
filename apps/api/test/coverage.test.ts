@@ -71,6 +71,7 @@ describe('coverage', () => {
         customerPhone: '+201000000000',
         addressText: 'x',
         paymentMethod: 'cod',
+        deliveryOtp: '1234',
         subtotalPiastres: 1000,
         placedAt: new Date(clock.now().getTime() - 5 * 60_000),
       },

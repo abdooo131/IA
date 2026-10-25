@@ -53,6 +53,12 @@ export const SETTING_DEFINITIONS = {
     default: 5,
     description: 'Available units at or below which admin shows a low stock alert',
   },
+  'delivery.max_orders_per_trip': {
+    schema: z.number().int().min(1).max(5),
+    default: 2,
+    description:
+      'Most orders one rider may carry in one trip, when all of them stay inside the SLA',
+  },
   'store.capacity_orders_per_hour': {
     schema: count,
     default: 20,
