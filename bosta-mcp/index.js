@@ -3,17 +3,20 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
+import { demoBosta } from "./demo.js";
 
 const API_KEY = process.env.BOSTA_API_KEY;
 const BASE_URL = (process.env.BOSTA_BASE_URL || "https://app.bosta.co").replace(/\/+$/, "");
 const API_VERSION = process.env.BOSTA_API_VERSION || "v1";
+const DEMO = ["1", "true", "yes"].includes(String(process.env.BOSTA_DEMO).toLowerCase());
 
-if (!API_KEY) {
-  console.error("BOSTA_API_KEY is not set. Get it from the Bosta dashboard under Settings > API Integration.");
+if (!API_KEY && !DEMO) {
+  console.error("BOSTA_API_KEY is not set. Get it from the Bosta dashboard under Settings > API Integration, or set BOSTA_DEMO=1 to try it with fake data.");
   process.exit(1);
 }
 
 async function bosta(method, path, { query, body } = {}) {
+  if (DEMO) return demoBosta(method, path, { query, body });
   const url = new URL(`${BASE_URL}/api/${API_VERSION}${path.startsWith("/") ? path : `/${path}`}`);
   for (const [key, value] of Object.entries(query || {})) {
     if (value !== undefined && value !== null) url.searchParams.set(key, String(value));

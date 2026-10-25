@@ -4,6 +4,16 @@ Connects Claude to the [Bosta](https://bosta.co) shipping API, so you can ask Cl
 "create a delivery to Nasr City with 250 EGP COD", "where is shipment 1234567?" or
 "schedule a pickup tomorrow morning".
 
+## Try it first with fake data (no Bosta account needed)
+
+Set `BOSTA_DEMO=1` instead of an API key. Claude then talks to a pretend Bosta that runs on your
+computer, with 3 cities, a few zones, 3 sample deliveries and 1 pickup. Nothing is sent to Bosta, no
+real shipment is created, and the fake data resets every time Claude restarts.
+
+```json
+"env": { "BOSTA_DEMO": "1" }
+```
+
 ## 1. Get your Bosta API key
 
 Log in to the Bosta business dashboard, open **Settings > API Integration** and create an API key.
@@ -49,7 +59,8 @@ claude mcp add bosta -e BOSTA_API_KEY=your_api_key_here -- node /full/path/to/IA
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `BOSTA_API_KEY` | (required) | Your API key, sent as the `Authorization` header |
+| `BOSTA_DEMO` | off | Set to `1` to use fake offline data instead of the real API |
+| `BOSTA_API_KEY` | (required unless demo) | Your API key, sent as the `Authorization` header |
 | `BOSTA_BASE_URL` | `https://app.bosta.co` | Use `https://stg-app.bosta.co` to test on staging |
 | `BOSTA_API_VERSION` | `v1` | API version in the path (`/api/v1/...`). Set to `v2` if your account uses the newer API |
 

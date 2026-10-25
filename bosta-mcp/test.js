@@ -51,3 +51,32 @@ assert.match(failed.content[0].text, /404.*Delivery not found/);
 await client.close();
 mock.close();
 console.log(`ok: ${tools.length} tools, ${seen.length} requests checked`);
+
+// Demo mode: no API key, no network, fake data kept in memory.
+const demo = new Client({ name: "test-demo", version: "1.0.0" });
+const { BOSTA_API_KEY, ...envWithoutKey } = process.env;
+await demo.connect(new StdioClientTransport({ command: "node", args: ["index.js"], env: { ...envWithoutKey, BOSTA_DEMO: "1" } }));
+const call = async (name, args = {}) => {
+  const res = await demo.callTool({ name, arguments: args });
+  assert.notEqual(res.isError, true, res.content[0].text);
+  return JSON.parse(res.content[0].text);
+};
+
+assert.equal((await call("bosta_list_cities")).data.length, 3);
+assert.deepEqual((await call("bosta_list_zones", { cityId: "giza" })).data.map((z) => z.name), ["Dokki", "Sheikh Zayed"]);
+assert.equal((await call("bosta_list_deliveries")).count, 3);
+assert.equal((await call("bosta_list_deliveries", { filters: { state: 45 } })).count, 1);
+
+const created = await call("bosta_create_delivery", { delivery: { cod: 99, receiver: { firstName: "Test" } } });
+assert.equal((await call("bosta_get_delivery", { deliveryId: created.trackingNumber })).cod, 99);
+await call("bosta_terminate_delivery", { deliveryId: created.trackingNumber });
+assert.equal((await call("bosta_track_delivery", { deliveryId: created.trackingNumber })).state.code, 100);
+
+const pickup = await call("bosta_create_pickup", { pickup: { scheduledDate: "2030-01-01" } });
+assert.equal((await call("bosta_get_pickup", { pickupId: pickup._id })).scheduledDate, "2030-01-01");
+
+const missing = await demo.callTool({ name: "bosta_get_delivery", arguments: { deliveryId: "nope" } });
+assert.equal(missing.isError, true);
+
+await demo.close();
+console.log("ok: demo mode works without an API key");
