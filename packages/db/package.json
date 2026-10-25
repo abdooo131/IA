@@ -20,10 +20,10 @@
   },
   "dependencies": {
     "@prisma/client": "6.19.3",
-    "argon2": "^0.45.1"
+    "argon2": "^0.45.1",
+    "@shiplynow/shared": "workspace:*"
   },
   "devDependencies": {
-    "@shiplynow/shared": "workspace:*",
     "dotenv-cli": "^10.0.0",
     "prisma": "6.19.3",
     "tsx": "^4.20.0",

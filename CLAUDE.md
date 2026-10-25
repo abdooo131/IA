@@ -71,6 +71,12 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Step 1: locale (en, ar) and theme (system, light, dark) are cookies, so the areas keep plain URLs /admin, /store, /rider.
 - Step 1: Egyptian phone numbers accept mobiles only (010, 011, 012, 015) and are stored as +20 followed by 10 digits.
 - Step 1: the postgis image's extra extensions (topology, tiger geocoder) are dropped at init; only postgis is used.
+- Step 2: stock rules live in packages/db/src/stock (receive, move, reserve, release, pick, adjust) so the seed, the API and jobs share one implementation. Each call is one transaction (or joins the caller's), inserts the movement first, changes levels with guarded UPDATEs and writes audit_log.
+- Step 2: stock_levels.on_hand counts only pickable bins. Receiving, damaged and held bins are tracked in bin_stock but are not sellable. Available = on_hand - reserved - stock.buffer_units.
+- Step 2: units reserved by orders cannot be adjusted, moved or counted away; such calls fail with would_break_reservations.
+- Step 2: the database enforces the hard rules too: CHECK constraints keep stock and money non negative, and triggers make stock_movements, order_events and audit_log reject UPDATE and DELETE.
+- Step 2: settings are keyed by (key, scope) where scope is "global" or a dark store id. Definitions and defaults live in packages/shared/src/settings.ts. Defaults: SLA accept 2, pick 10, pack 5, hand over 5, ride 35, promise 60 minutes; stock buffer 0; low stock threshold 5; capacity 20 orders per hour.
+- Step 2: the seed only creates missing rows and never overwrites admin edits. Zone polygons in the seed are rough test outlines, not real boundaries.
 
 ## Working style for Claude Code
 

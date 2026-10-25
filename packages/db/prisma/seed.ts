@@ -1,25 +1,21 @@
 import { PrismaClient } from '@prisma/client';
-import { passwordSchema } from '@shiplynow/shared';
-import { hashPassword } from '../src/password';
+import { seed } from '../src/seed';
 
 const prisma = new PrismaClient();
 
 async function main() {
-  const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
+  const email = process.env.SEED_ADMIN_EMAIL;
   const password = process.env.SEED_ADMIN_PASSWORD;
-  const name = process.env.SEED_ADMIN_NAME ?? 'Shiply Admin';
   if (!email || !password) {
     throw new Error('Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD in .env before seeding');
   }
-  passwordSchema.parse(password);
-
-  // Upsert keeps the seed safe to run twice; an existing admin keeps their current password.
-  const admin = await prisma.user.upsert({
-    where: { email },
-    update: { role: 'admin', isActive: true },
-    create: { email, name, role: 'admin', passwordHash: await hashPassword(password) },
+  await seed(prisma, {
+    admin: { email, password, name: process.env.SEED_ADMIN_NAME ?? 'Shiply Admin' },
+    // Falls back to the admin password so an older .env still works.
+    demoPassword: process.env.SEED_DEMO_PASSWORD || password,
+    log: (message) => console.log(message),
   });
-  console.log(`Admin ready: ${admin.email}`);
+  console.log(`Admin ready: ${email.trim().toLowerCase()}`);
 }
 
 main()

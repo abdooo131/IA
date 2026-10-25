@@ -1,5 +1,9 @@
-// Step 1 holds only auth. The full pilot schema (dark stores, zones, stock, orders...)
-// arrives in Step 2. Tables and columns use snake_case to match CLAUDE.md.
+// Shiply Now pilot schema. Tables and columns use snake_case to match CLAUDE.md.
+//
+// Things Prisma cannot express live in the migration SQL and are listed there:
+// PostGIS geometry columns and their GiST indexes, CHECK constraints (stock never below
+// zero, money never negative) and the triggers that make the append only tables reject
+// UPDATE and DELETE.
 
 generator client {
   provider        = "prisma-client-js"
@@ -11,6 +15,8 @@ datasource db {
   url        = env("DATABASE_URL")
   extensions = [postgis]
 }
+
+// ─── Users and auth ────────────────────────────────────────────────────────────
 
 enum Role {
   admin
@@ -30,25 +36,500 @@ model User {
   phone        String?  @unique
   role         Role
   isActive     Boolean  @default(true) @map("is_active")
+  /// Home dark store for store staff and riders
+  darkStoreId  String?  @map("dark_store_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  refreshTokens RefreshToken[]
+  darkStore      DarkStore?      @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  refreshTokens  RefreshToken[]
+  rider          Rider?
+  stockMovements StockMovement[]
+  orderEvents    OrderEvent[]
+  auditEntries   AuditLog[]
+  settingChanges Setting[]
 
+  @@index([darkStoreId])
   @@map("users")
 }
 
 /// Opaque refresh tokens, stored only as a SHA256 hash. Rotated on every refresh.
 model RefreshToken {
-  id         String    @id @default(cuid())
-  userId     String    @map("user_id")
-  tokenHash  String    @unique @map("token_hash")
-  expiresAt  DateTime  @map("expires_at")
-  revokedAt  DateTime? @map("revoked_at")
-  createdAt  DateTime  @default(now()) @map("created_at")
+  id        String    @id @default(cuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("refresh_tokens")
+}
+
+// ─── Places ────────────────────────────────────────────────────────────────────
+
+model Governorate {
+  id     Int    @id
+  /// ISO 3166-2 code, for example EG-C for Cairo
+  code   String @unique
+  nameEn String @map("name_en")
+  nameAr String @map("name_ar")
+
+  darkStores DarkStore[]
+  zones      Zone[]
+
+  @@map("governorates")
+}
+
+model DarkStore {
+  id            String   @id @default(cuid())
+  /// Short stable code used in bins, seeds and Shopify location names, for example NCR
+  code          String   @unique
+  nameEn        String   @map("name_en")
+  nameAr        String   @map("name_ar")
+  addressEn     String   @map("address_en")
+  addressAr     String   @map("address_ar")
+  governorateId Int      @map("governorate_id")
+  latitude      Float
+  longitude     Float
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  governorate      Governorate       @relation(fields: [governorateId], references: [id])
+  hours            StoreHours[]
+  zones            Zone[]
+  bins             Bin[]
+  stockLevels      StockLevel[]
+  stockMovements   StockMovement[]
+  inboundManifests InboundManifest[]
+  orders           Order[]
+  riders           Rider[]
+  users            User[]
+
+  @@map("dark_stores")
+}
+
+/// Opening hours per weekday (0 = Sunday). Minutes from midnight; closes_minute may go
+/// past 1440 for stores that close after midnight.
+model StoreHours {
+  id           String  @id @default(cuid())
+  darkStoreId  String  @map("dark_store_id")
+  weekday      Int
+  opensMinute  Int     @map("opens_minute")
+  closesMinute Int     @map("closes_minute")
+  isClosed     Boolean @default(false) @map("is_closed")
+
+  darkStore DarkStore @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+
+  @@unique([darkStoreId, weekday])
+  @@map("store_hours")
+}
+
+/// A delivery zone. The polygon is a PostGIS MultiPolygon in SRID 4326 and is written
+/// and read with raw SQL (see src/zones.ts).
+model Zone {
+  id            String                                       @id @default(cuid())
+  darkStoreId   String                                       @map("dark_store_id")
+  /// Stable code, unique per store
+  code          String
+  nameEn        String                                       @map("name_en")
+  nameAr        String                                       @map("name_ar")
+  governorateId Int                                          @map("governorate_id")
+  area          Unsupported("geometry(MultiPolygon, 4326)")?
+  isActive      Boolean                                      @default(true) @map("is_active")
+  createdAt     DateTime                                     @default(now()) @map("created_at")
+  updatedAt     DateTime                                     @updatedAt @map("updated_at")
+
+  darkStore   DarkStore   @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+  governorate Governorate @relation(fields: [governorateId], references: [id])
+
+  @@unique([darkStoreId, code])
+  @@index([area], type: Gist)
+  @@map("zones")
+}
+
+// ─── Catalog ───────────────────────────────────────────────────────────────────
+
+model Merchant {
+  id                String   @id @default(cuid())
+  name              String
+  /// myshop.myshopify.com, set when the Shopify app is installed
+  shopifyShopDomain String?  @unique @map("shopify_shop_domain")
+  contactEmail      String?  @map("contact_email")
+  contactPhone      String?  @map("contact_phone")
+  isActive          Boolean  @default(true) @map("is_active")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  skus             Sku[]
+  inboundManifests InboundManifest[]
+  orders           Order[]
+
+  @@map("merchants")
+}
+
+model Sku {
+  id               String   @id @default(cuid())
+  merchantId       String   @map("merchant_id")
+  /// The merchant's SKU code. Shopify variants are matched on this.
+  sku              String
+  barcode          String?
+  shopifyVariantId String?  @unique @map("shopify_variant_id")
+  shopifyProductId String?  @map("shopify_product_id")
+  titleEn          String   @map("title_en")
+  titleAr          String   @map("title_ar")
+  /// Integer piastres, never a float
+  pricePiastres    Int      @map("price_piastres")
+  weightGrams      Int?     @map("weight_grams")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  merchant       Merchant              @relation(fields: [merchantId], references: [id])
+  binStock       BinStock[]
+  stockLevels    StockLevel[]
+  stockMovements StockMovement[]
+  manifestLines  InboundManifestLine[]
+  orderItems     OrderItem[]
+
+  @@unique([merchantId, sku])
+  @@index([barcode])
+  @@map("skus")
+}
+
+// ─── Stock ─────────────────────────────────────────────────────────────────────
+
+enum BinType {
+  /// Inbound staging, not sellable until put away
+  receiving
+  /// Shelves pickers pick from. Only these count as on hand.
+  pickable
+  damaged
+  held
+
+  @@map("bin_type")
+}
+
+model Bin {
+  id          String   @id @default(cuid())
+  darkStoreId String   @map("dark_store_id")
+  code        String
+  type        BinType
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  darkStore     DarkStore       @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+  stock         BinStock[]
+  movementsFrom StockMovement[] @relation("movement_from_bin")
+  movementsTo   StockMovement[] @relation("movement_to_bin")
+
+  @@unique([darkStoreId, code])
+  @@map("bins")
+}
+
+/// Units of a SKU in one bin. Changed only by the stock functions, together with a
+/// stock_movements row, in one transaction.
+model BinStock {
+  binId     String   @map("bin_id")
+  skuId     String   @map("sku_id")
+  quantity  Int
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  bin Bin @relation(fields: [binId], references: [id], onDelete: Cascade)
+  sku Sku @relation(fields: [skuId], references: [id])
+
+  @@id([binId, skuId])
+  @@index([skuId])
+  @@map("bin_stock")
+}
+
+/// Per store and SKU. on_hand counts only units in pickable bins; reserved is held for
+/// open orders. Available to sell = on_hand - reserved - stock buffer setting.
+model StockLevel {
+  darkStoreId String   @map("dark_store_id")
+  skuId       String   @map("sku_id")
+  onHand      Int      @default(0) @map("on_hand")
+  reserved    Int      @default(0)
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  darkStore DarkStore @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+  sku       Sku       @relation(fields: [skuId], references: [id])
+
+  @@id([darkStoreId, skuId])
+  @@index([skuId])
+  @@map("stock_levels")
+}
+
+enum MovementType {
+  /// Into a bin from outside (inbound manifest or opening stock)
+  receive
+  /// Between two bins of the same store (put away, damage, hold, release from hold)
+  move
+  reserve
+  release
+  /// Out of a pickable bin for an order; also consumes the reservation
+  pick
+  /// Count or correction, up (to_bin) or down (from_bin)
+  adjust
+
+  @@map("movement_type")
+}
+
+/// Append only. Every stock change is one row here.
+model StockMovement {
+  id             String       @id @default(cuid())
+  darkStoreId    String       @map("dark_store_id")
+  skuId          String       @map("sku_id")
+  type           MovementType
+  /// Always positive; direction comes from the type and the bins
+  quantity       Int
+  fromBinId      String?      @map("from_bin_id")
+  toBinId        String?      @map("to_bin_id")
+  reason         String?
+  orderId        String?      @map("order_id")
+  manifestId     String?      @map("manifest_id")
+  actorUserId    String?      @map("actor_user_id")
+  /// Makes a retried job or request apply the movement only once
+  idempotencyKey String?      @unique @map("idempotency_key")
+  createdAt      DateTime     @default(now()) @map("created_at")
+
+  darkStore DarkStore        @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  sku       Sku              @relation(fields: [skuId], references: [id], onDelete: Restrict)
+  fromBin   Bin?             @relation("movement_from_bin", fields: [fromBinId], references: [id], onDelete: Restrict)
+  toBin     Bin?             @relation("movement_to_bin", fields: [toBinId], references: [id], onDelete: Restrict)
+  order     Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  manifest  InboundManifest? @relation(fields: [manifestId], references: [id], onDelete: Restrict)
+  actor     User?            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([darkStoreId, skuId, createdAt])
+  @@index([orderId])
+  @@map("stock_movements")
+}
+
+// ─── Inbound ───────────────────────────────────────────────────────────────────
+
+enum ManifestStatus {
+  draft
+  receiving
+  received
+  cancelled
+
+  @@map("manifest_status")
+}
+
+model InboundManifest {
+  id          String         @id @default(cuid())
+  darkStoreId String         @map("dark_store_id")
+  merchantId  String         @map("merchant_id")
+  /// Merchant or carrier reference printed on the delivery note
+  reference   String
+  status      ManifestStatus @default(draft)
+  expectedAt  DateTime?      @map("expected_at")
+  receivedAt  DateTime?      @map("received_at")
+  createdAt   DateTime       @default(now()) @map("created_at")
+  updatedAt   DateTime       @updatedAt @map("updated_at")
+
+  darkStore      DarkStore             @relation(fields: [darkStoreId], references: [id])
+  merchant       Merchant              @relation(fields: [merchantId], references: [id])
+  lines          InboundManifestLine[]
+  stockMovements StockMovement[]
+
+  @@unique([merchantId, reference])
+  @@map("inbound_manifests")
+}
+
+model InboundManifestLine {
+  id          String @id @default(cuid())
+  manifestId  String @map("manifest_id")
+  skuId       String @map("sku_id")
+  expectedQty Int    @map("expected_qty")
+  receivedQty Int    @default(0) @map("received_qty")
+
+  manifest InboundManifest @relation(fields: [manifestId], references: [id], onDelete: Cascade)
+  sku      Sku             @relation(fields: [skuId], references: [id])
+
+  @@unique([manifestId, skuId])
+  @@map("inbound_manifest_lines")
+}
+
+// ─── Orders and delivery ───────────────────────────────────────────────────────
+
+enum OrderStatus {
+  new
+  accepted
+  picking
+  packed
+  out_for_delivery
+  delivered
+  cancelled
+  failed
+  moved_to_standard
+
+  @@map("order_status")
+}
+
+enum PaymentMethod {
+  prepaid
+  cod
+
+  @@map("payment_method")
+}
+
+model Order {
+  id                        String        @id @default(cuid())
+  /// Human friendly number shown to staff and customers
+  number                    String        @unique
+  merchantId                String        @map("merchant_id")
+  darkStoreId               String        @map("dark_store_id")
+  shopifyOrderId            String?       @map("shopify_order_id")
+  shopifyFulfillmentOrderId String?       @unique @map("shopify_fulfillment_order_id")
+  status                    OrderStatus   @default(new)
+  customerName              String        @map("customer_name")
+  /// Normalized Egyptian mobile
+  customerPhone             String        @map("customer_phone")
+  addressText               String        @map("address_text")
+  latitude                  Float?
+  longitude                 Float?
+  paymentMethod             PaymentMethod @map("payment_method")
+  subtotalPiastres          Int           @map("subtotal_piastres")
+  deliveryFeePiastres       Int           @default(0) @map("delivery_fee_piastres")
+  /// Cash the rider must collect; 0 for prepaid orders
+  codAmountPiastres         Int           @default(0) @map("cod_amount_piastres")
+  placedAt                  DateTime      @map("placed_at")
+  slaDueAt                  DateTime?     @map("sla_due_at")
+  createdAt                 DateTime      @default(now()) @map("created_at")
+  updatedAt                 DateTime      @updatedAt @map("updated_at")
+
+  merchant       Merchant        @relation(fields: [merchantId], references: [id])
+  darkStore      DarkStore       @relation(fields: [darkStoreId], references: [id])
+  items          OrderItem[]
+  events         OrderEvent[]
+  deliveries     Delivery[]
+  stockMovements StockMovement[]
+
+  @@index([darkStoreId, status, slaDueAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id                String @id @default(cuid())
+  orderId           String @map("order_id")
+  skuId             String @map("sku_id")
+  quantity          Int
+  unitPricePiastres Int    @map("unit_price_piastres")
+  pickedQty         Int    @default(0) @map("picked_qty")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku   Sku   @relation(fields: [skuId], references: [id])
+
+  @@unique([orderId, skuId])
+  @@map("order_items")
+}
+
+/// Append only history of everything that happened to an order.
+model OrderEvent {
+  id          String       @id @default(cuid())
+  orderId     String       @map("order_id")
+  type        String
+  fromStatus  OrderStatus? @map("from_status")
+  toStatus    OrderStatus? @map("to_status")
+  actorUserId String?      @map("actor_user_id")
+  data        Json?
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, createdAt])
+  @@map("order_events")
+}
+
+model Rider {
+  id          String   @id @default(cuid())
+  userId      String   @unique @map("user_id")
+  darkStoreId String   @map("dark_store_id")
+  /// Printed on the rider's badge; scanned at hand over
+  badgeCode   String   @unique @map("badge_code")
+  vehicle     String?
+  isAvailable Boolean  @default(true) @map("is_available")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  darkStore  DarkStore  @relation(fields: [darkStoreId], references: [id])
+  deliveries Delivery[]
+
+  @@map("riders")
+}
+
+enum DeliveryStatus {
+  assigned
+  picked_up
+  delivered
+  failed
+
+  @@map("delivery_status")
+}
+
+model Delivery {
+  id                   String         @id @default(cuid())
+  orderId              String         @map("order_id")
+  riderId              String         @map("rider_id")
+  status               DeliveryStatus @default(assigned)
+  /// Orders batched into one trip share a trip id
+  tripId               String?        @map("trip_id")
+  assignedAt           DateTime       @default(now()) @map("assigned_at")
+  pickedUpAt           DateTime?      @map("picked_up_at")
+  deliveredAt          DateTime?      @map("delivered_at")
+  failedAt             DateTime?      @map("failed_at")
+  failedReason         String?        @map("failed_reason")
+  proofPhotoUrl        String?        @map("proof_photo_url")
+  otpVerified          Boolean        @default(false) @map("otp_verified")
+  codCollectedPiastres Int?           @map("cod_collected_piastres")
+
+  order Order @relation(fields: [orderId], references: [id])
+  rider Rider @relation(fields: [riderId], references: [id])
+
+  @@index([riderId, status])
+  @@index([orderId])
+  @@map("deliveries")
+}
+
+// ─── System ────────────────────────────────────────────────────────────────────
+
+/// Every configurable business value (SLA minutes, capacity, buffers...). scope is
+/// "global" or a dark store id for a per store override.
+model Setting {
+  key         String
+  scope       String   @default("global")
+  value       Json
+  description String?
+  updatedById String?  @map("updated_by_id")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  updatedBy User? @relation(fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@id([key, scope])
+  @@map("settings")
+}
+
+/// Append only record of who changed what, with the state before and after.
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?  @map("actor_user_id")
+  action      String
+  entityType  String   @map("entity_type")
+  entityId    String   @map("entity_id")
+  before      Json?
+  after       Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorUserId, createdAt])
+  @@map("audit_log")
 }

@@ -160,13 +160,13 @@ importers:
       '@prisma/client':
         specifier: 6.19.3
         version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      '@shiplynow/shared':
+        specifier: workspace:*
+        version: link:../shared
       argon2:
         specifier: ^0.45.1
         version: 0.45.1
     devDependencies:
-      '@shiplynow/shared':
-        specifier: workspace:*
-        version: link:../shared
       dotenv-cli:
         specifier: ^10.0.0
         version: 10.0.0
