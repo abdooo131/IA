@@ -86,6 +86,8 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Step 4: merchant notifications are stored in the notifications table and shown in the merchant panel; email or WhatsApp can be added later inside notifyMerchant without changing callers.
 - Step 4: every staff action sends a client generated idempotency key, so double taps and retries apply once. Business rule refusals answer JSON { error: code } with 4xx.
 - Step 4: scanning accepts typed codes, handheld scanners (keyboard input plus Enter) and the phone camera (@zxing/browser). Phone cameras need https.
+- Receiving rules (agreed with the business): goods are received only against an inbound manifest (ASN) that the merchant created first; staff never open one. Once an ASN exists, everything that arrives is received, including products not on it and units above the listed quantity, and the merchant sees them as extra in the summary. Barcodes that are not in the catalog are refused and never enter the system.
+- Step 5 rules (agreed, not built yet): when a Shopify order arrives and some items are missing at the store, accept what is in stock, cancel the missing items on the Shopify order, and record it. COD amount is Shopify's outstanding total, in piastres. The 60 minute delivery price is set by the merchant in Shopify; we record what the order shows. A customer phone that is not a valid Egyptian mobile is accepted, kept as written and flagged for staff. Still open: what to do when the store is closed or at capacity.
 - Step 2: the seed only creates missing rows and never overwrites admin edits. Zone polygons in the seed are rough test outlines, not real boundaries.
 
 ## Working style for Claude Code
