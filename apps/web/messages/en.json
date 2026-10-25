@@ -180,7 +180,13 @@
     "cameraUnavailable": "The camera needs a secure (https) connection or permission. Type the code or use a scanner instead.",
     "notFound": "No product or bin with code {code}.",
     "notProduct": "{code} is a bin, scan a product.",
-    "notBin": "{code} is a product, scan a bin."
+    "notBin": "{code} is a product, scan a bin.",
+    "cameraStarting": "Starting the camera…",
+    "cameraDenied": "Camera permission was refused. Allow the camera for this site in your browser settings, then try again.",
+    "cameraInsecure": "The camera only works on a secure (https) link. Open the https address, or type the code.",
+    "cameraNotFound": "No camera was found on this device.",
+    "cameraBusy": "The camera is in use by another app. Close it and try again.",
+    "cameraError": "The camera could not start ({name}). Type the code instead."
   },
   "store": {
     "chooseStore": "Choose a store",
