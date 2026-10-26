@@ -259,7 +259,8 @@
         "delivery_failed": "Delivery failed: {reason}",
         "shopify_rejected": "Shopify order {order} sent back to the merchant: {reason}",
         "over_capacity": "Order {order} came in while the store was full",
-        "shopify_sync_failed": "Could not update Shopify ({kind}): {error}"
+        "shopify_sync_failed": "Could not update Shopify ({kind}): {error}",
+        "shopify_wrong_store": "Shopify order {order} chose the 60 minute rate {rate} but landed at store {store}"
       },
       "handledBy": "Handled by {name}"
     },
@@ -470,14 +471,23 @@
       "result": {
         "register": "{created} locations created, {failed} failed.",
         "catalog": "{linked} linked, {created} added, {already} already linked, {missing} not in our catalog, {withoutSku} without SKU.",
-        "sync": "Synced."
+        "sync": "Synced.",
+        "checkout": "Checkout rate is on."
       },
       "errors": {
         "shop_linked_to_other_merchant": "That store is already linked to another merchant.",
         "shop_not_installed": "The merchant has not installed the app yet.",
         "validation_failed": "Check the store address.",
         "generic": "Something went wrong. Try again."
-      }
+      },
+      "checkout": "Checkout rate",
+      "checkoutOn": "On: Shopify asks us for the 60 minute rate at checkout",
+      "checkoutOff": "Off: customers cannot choose 60 minutes yet",
+      "turnOnCheckout": "Turn on checkout rate",
+      "merchantPrice": "Merchant's 60 minute price",
+      "noPrice": "Not set by the merchant",
+      "addressMissing": "address not set",
+      "price": "{price} EGP"
     }
   },
   "scan": {
@@ -595,7 +605,8 @@
       "products": "Products",
       "notifications": "Notifications",
       "orders": "Orders",
-      "wallet": "Wallet"
+      "wallet": "Wallet",
+      "delivery": "60 minute delivery"
     },
     "shipments": {
       "title": "Shipments",
@@ -685,6 +696,27 @@
       "areaClosed": "{store} is closed now. It opens {time}.",
       "areaFull": "{store} is full for this hour. Try again shortly.",
       "areaChecking": "Checking the store…"
+    },
+    "delivery": {
+      "title": "60 minute delivery",
+      "intro": "Customers see this option at your Shopify checkout only when we can really deliver it. You set the price; the customer pays it to you.",
+      "off": "The 60 minute option is off. Set a price to offer it.",
+      "current": "Your price: {price} EGP",
+      "price": "Price the customer pays",
+      "egp": "EGP",
+      "save": "Save price",
+      "turnOff": "Stop offering",
+      "saved": "Saved. Checkout uses the new price within 15 minutes.",
+      "turnedOff": "The 60 minute option is off.",
+      "invalid": "Enter an amount like 45 or 45.50.",
+      "error": "Could not save. Try again.",
+      "checkoutReady": "Your Shopify checkout is connected.",
+      "checkoutNotReady": "Your Shopify checkout is not connected yet. Our team will finish the setup.",
+      "rulesTitle": "When customers see it",
+      "ruleZone": "The address is inside a dark store's delivery zone.",
+      "ruleOpen": "That store is open and has room for more orders.",
+      "ruleStock": "Every item in the cart is in stock at that store.",
+      "ruleOtherwise": "Otherwise customers see only your normal delivery rates."
     }
   },
   "shipment": {

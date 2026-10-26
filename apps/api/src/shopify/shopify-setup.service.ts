@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { DomainError, recordAudit, type ShopifyShop } from '@shiplynow/db';
-import { FULFILLMENT_SERVICE_CREATE, PRODUCT_VARIANTS } from './graphql';
+import {
+  CARRIER_SERVICE_CREATE,
+  FULFILLMENT_SERVICE_CREATE,
+  LOCATION_EDIT,
+  PRODUCT_VARIANTS,
+} from './graphql';
 import { assertNoUserErrors, moneyToPiastres } from './shopify-admin';
 import { ShopifyService } from './shopify.service';
 
@@ -13,6 +18,11 @@ interface Variant {
   title: string;
   inventoryItem: { id: string } | null;
   product: { id: string; title: string; status: string };
+}
+
+/** The address2 line of a dark store's Shopify location, which names the store. */
+export function storeMarker(code: string) {
+  return `Shiply Now ${code}`;
 }
 
 export interface CatalogSyncResult {
@@ -47,12 +57,20 @@ export class ShopifySetupService {
     const stores = await this.prisma.darkStore.findMany({
       where: { isActive: true },
       orderBy: { code: 'asc' },
+      include: { governorate: true },
     });
     const existing = await this.prisma.shopifyLocation.findMany({ where: { shopId: shop.id } });
     const created: { store: string; locationId: string }[] = [];
     const failed: { store: string; error: string }[] = [];
     for (const store of stores) {
-      if (existing.some((l) => l.darkStoreId === store.id)) continue;
+      const known = existing.find((l) => l.darkStoreId === store.id);
+      if (known) {
+        if (!known.addressSyncedAt)
+          await this.setAddress(shop, known.id, known.locationId, store).catch((error: Error) =>
+            failed.push({ store: store.code, error: error.message }),
+          );
+        continue;
+      }
       // The row id is part of the callback address, so it is chosen before calling Shopify.
       const id = randomUUID();
       try {
@@ -78,6 +96,7 @@ export class ShopifySetupService {
           },
         });
         created.push({ store: store.code, locationId: service.location.id });
+        await this.setAddress(shop, id, service.location.id, store);
       } catch (error) {
         failed.push({ store: store.code, error: (error as Error).message });
       }
@@ -100,6 +119,95 @@ export class ShopifySetupService {
         }),
       );
     return { created, failed };
+  }
+
+  /**
+   * Gives the location the dark store's address. Checkout rate requests name their origin
+   * only by address, so address2 carries the store code that tells us which store it is.
+   */
+  private async setAddress(
+    shop: ShopifyShop,
+    rowId: string,
+    locationGid: string,
+    store: {
+      code: string;
+      nameEn: string;
+      addressEn: string;
+      governorate: { code: string; nameEn: string };
+    },
+  ) {
+    const data = await this.shopify.call<{
+      locationEdit: { userErrors: { message: string }[] };
+    }>(shop, LOCATION_EDIT, {
+      id: locationGid,
+      input: {
+        name: `Shiply Now ${store.nameEn}`,
+        address: {
+          address1: store.addressEn.slice(0, 255),
+          address2: storeMarker(store.code),
+          city: store.governorate.nameEn,
+          // Shopify's Egyptian province codes are the ISO codes without the EG- prefix.
+          provinceCode: store.governorate.code.replace(/^EG-/, ''),
+          countryCode: 'EG',
+        },
+      },
+    });
+    assertNoUserErrors('locationEdit', data.locationEdit);
+    await this.prisma.shopifyLocation.update({
+      where: { id: rowId },
+      data: { addressSyncedAt: new Date() },
+    });
+  }
+
+  /**
+   * Registers the checkout rate service for the shop (once). Shopify then asks us for rates
+   * at checkout, and the 60 minute option appears only when we can really deliver it.
+   */
+  async registerCarrierService(shopId: string, actorUserId: string | null) {
+    const shop = await this.activeShop(shopId);
+    if (shop.carrierServiceId) return { carrierServiceId: shop.carrierServiceId, created: false };
+    const data = await this.shopify.call<{
+      carrierServiceCreate: {
+        carrierService: { id: string } | null;
+        userErrors: { message: string }[];
+      };
+    }>(shop, CARRIER_SERVICE_CREATE, {
+      input: {
+        name: 'Shiply Now 60 minutes',
+        callbackUrl: this.shopify.ratesUrl(shop.id),
+        active: true,
+        supportsServiceDiscovery: true,
+      },
+    });
+    try {
+      assertNoUserErrors('carrierServiceCreate', data.carrierServiceCreate);
+    } catch (error) {
+      await this.shopify.record(shop.id, {
+        direction: 'out',
+        kind: 'carrier_service',
+        ok: false,
+        message: (error as Error).message,
+      });
+      throw error;
+    }
+    const id = data.carrierServiceCreate.carrierService!.id;
+    await this.prisma.$transaction(async (tx) => {
+      await tx.shopifyShop.update({ where: { id: shop.id }, data: { carrierServiceId: id } });
+      await recordAudit(tx, {
+        actorUserId,
+        action: 'shopify.carrier_service',
+        entityType: 'shopify_shop',
+        entityId: shop.id,
+        after: { carrierServiceId: id },
+      });
+    });
+    await this.shopify.record(shop.id, {
+      direction: 'out',
+      kind: 'carrier_service',
+      ok: true,
+      message: id,
+    });
+    return { carrierServiceId: id, created: true };
   }
 
   /**

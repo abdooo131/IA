@@ -21,6 +21,8 @@ export interface FakeFulfillmentOrder {
     longitude: number | null;
   };
   rejected?: { reason: string; message: string };
+  /** The shipping rate code the customer chose; by default our 60 minute rate from that store. */
+  shippingCode?: string | null;
 }
 
 let seq = 1000;
@@ -45,6 +47,12 @@ export class FakeShopify extends ShopifyAdmin {
   fulfillments: { id: string; fulfillmentOrderId: string; tracking: string; events: string[] }[] =
     [];
   orderQuantities = new Map<string, number>();
+  carrierServices: { id: string; name: string; callbackUrl: string }[] = [];
+  /** locationId -> address set through locationEdit */
+  locationAddresses = new Map<
+    string,
+    { name: string; address1: string; address2: string; city: string; provinceCode: string }
+  >();
   calls: string[] = [];
 
   addVariant(sku: string | null, price = '100.00', barcode: string | null = null) {
@@ -155,6 +163,10 @@ export class FakeShopify extends ShopifyAdmin {
                   nodes: [
                     {
                       title: '60 minutes',
+                      code:
+                        f.shippingCode !== undefined
+                          ? f.shippingCode
+                          : `SN60:${this.locationAddresses.get(f.locationId)?.address2.replace('Shiply Now ', '')}`,
                       discountedPriceSet: { shopMoney: { amount: f.shipping } },
                     },
                   ],
@@ -277,6 +289,24 @@ export class FakeShopify extends ShopifyAdmin {
             ...errors,
           },
         });
+      }
+      case 'CarrierServiceCreate': {
+        const input = v.input as { name: string; callbackUrl: string };
+        const c = {
+          id: gid('DeliveryCarrierService'),
+          name: input.name,
+          callbackUrl: input.callbackUrl,
+        };
+        this.carrierServices.push(c);
+        return ok({ carrierServiceCreate: { carrierService: { id: c.id }, ...errors } });
+      }
+      case 'LocationEdit': {
+        const input = v.input as {
+          name: string;
+          address: { address1: string; address2: string; city: string; provinceCode: string };
+        };
+        this.locationAddresses.set(String(v.id), { name: input.name, ...input.address });
+        return ok({ locationEdit: { location: { id: v.id }, ...errors } });
       }
       default:
         throw new Error(`fake Shopify does not know ${name}`);

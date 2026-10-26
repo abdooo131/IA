@@ -17,6 +17,7 @@ import {
   REJECT_FULFILLMENT_REQUEST,
 } from './graphql';
 import { assertNoUserErrors, moneyToPiastres } from './shopify-admin';
+import { RATE_CODE_PREFIX } from './shopify-rates.service';
 import { ShopifyService } from './shopify.service';
 
 type Money = { shopMoney: { amount: string } } | null;
@@ -51,7 +52,7 @@ export interface FulfillmentOrder {
       latitude: number | null;
       longitude: number | null;
     } | null;
-    shippingLines: { nodes: { title: string; discountedPriceSet: Money }[] };
+    shippingLines: { nodes: { title: string; code: string | null; discountedPriceSet: Money }[] };
   };
   lineItems: {
     nodes: {
@@ -215,6 +216,34 @@ export class ShopifyOrdersService {
         reason: message,
       });
       return { kind: 'rejected', reason: 'unknown_products' };
+    }
+
+    // With the checkout rate in place, only orders that chose it are ours. Next day orders go
+    // back to the merchant, who ships them normally.
+    if (shop.carrierServiceId) {
+      const express = fo.order.shippingLines.nodes.find((l) =>
+        (l.code ?? '').startsWith(RATE_CODE_PREFIX),
+      );
+      if (!express) {
+        await this.reject(shop, fo, 'OTHER', 'Not a 60 minute order; ship it normally');
+        await this.shopify.record(shop.id, {
+          direction: 'in',
+          kind: 'fulfillment_request',
+          ok: true,
+          message: `${fo.order.name} handed back: not a 60 minute order`,
+        });
+        return { kind: 'rejected', reason: 'not_express' };
+      }
+      const store = await this.prisma.darkStore.findUniqueOrThrow({
+        where: { id: location.darkStoreId },
+      });
+      // Checkout only offers the rate from the right store, so this should never happen.
+      if (express.code !== `${RATE_CODE_PREFIX}${store.code}`)
+        await this.alert(location.darkStoreId, 'shopify_wrong_store', {
+          order: fo.order.name,
+          rate: express.code ?? '',
+          store: store.code,
+        });
     }
 
     const address = fo.order.shippingAddress;

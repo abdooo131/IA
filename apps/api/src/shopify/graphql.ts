@@ -78,6 +78,7 @@ const FULFILLMENT_ORDER_FIELDS = /* GraphQL */ `
     shippingLines(first: 5) {
       nodes {
         title
+        code
         discountedPriceSet {
           shopMoney {
             amount
@@ -331,6 +332,36 @@ export const INVENTORY_SET_QUANTITIES = /* GraphQL */ `
         field
         message
         code
+      }
+    }
+  }
+`;
+
+/** The checkout rate service: Shopify asks it for rates on every checkout of the shop. */
+export const CARRIER_SERVICE_CREATE = /* GraphQL */ `
+  mutation CarrierServiceCreate($input: DeliveryCarrierServiceCreateInput!) {
+    carrierServiceCreate(input: $input) {
+      carrierService {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+/** Gives a fulfillment service location the dark store's real address. */
+export const LOCATION_EDIT = /* GraphQL */ `
+  mutation LocationEdit($id: ID!, $input: LocationEditInput!) {
+    locationEdit(id: $id, input: $input) {
+      location {
+        id
+      }
+      userErrors {
+        field
+        message
       }
     }
   }

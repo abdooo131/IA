@@ -6,6 +6,7 @@ import type { PrismaService } from '../src/prisma/prisma.service';
 import { openToken, sealToken, verifyBodyHmac, verifyQueryHmac } from '../src/shopify/security';
 import { moneyToPiastres } from '../src/shopify/shopify-admin';
 import { ShopifyJobsService } from '../src/shopify/shopify-jobs.service';
+import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
 import { FakeShopify } from './fake-shopify';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
 
@@ -27,6 +28,20 @@ const sign = (params: Record<string, string>) => {
     .join('&');
   return createHmac('sha256', SECRET).update(message).digest('hex');
 };
+
+/** Places a few known checkout addresses; counts calls so the cache can be checked. */
+class FakeGeocoder extends Geocoder {
+  calls = 0;
+  async geocode(address: string): Promise<GeocodeResult | null> {
+    this.calls++;
+    if (address.includes('boom')) throw new Error('provider down');
+    if (address.includes('Fifth Settlement'))
+      return { ...NEW_CAIRO, formattedAddress: 'Fifth Settlement, New Cairo' };
+    if (address.includes('Alexandria'))
+      return { latitude: 31.2, longitude: 29.92, formattedAddress: 'Alexandria' };
+    return null;
+  }
+}
 
 describe('shopify security helpers', () => {
   it('checks body and query signatures and keeps tokens encrypted', () => {
@@ -56,6 +71,7 @@ describe('shopify app', () => {
   let stores: Map<string, string>;
   let merchantId: string;
   const clock = new FixedClock(NOON_CAIRO);
+  const geocoder = new FakeGeocoder();
 
   const agent = async (email: string, password = DEMO) => {
     const a = request.agent(app.getHttpServer());
@@ -65,7 +81,7 @@ describe('shopify app', () => {
 
   beforeAll(async () => {
     fake = new FakeShopify();
-    ({ app, prisma } = await createTestApp({ clock, shopify: fake }));
+    ({ app, prisma } = await createTestApp({ clock, shopify: fake, geocoder }));
     jobs = app.get(ShopifyJobsService);
   });
   afterAll(async () => {
@@ -95,7 +111,11 @@ describe('shopify app', () => {
       const linked = await prisma.sku.count({
         where: { merchantId, shopifyVariantId: { not: null } },
       });
-      if ((await prisma.shopifyLocation.count()) === 3 && linked >= 2) break;
+      const ready = await prisma.shopifyShop.count({ where: { carrierServiceId: { not: null } } });
+      const addressed = await prisma.shopifyLocation.count({
+        where: { addressSyncedAt: { not: null } },
+      });
+      if (addressed === 3 && linked >= 2 && ready === 1) break;
       await new Promise((r) => setTimeout(r, 100));
     }
     return {
@@ -117,6 +137,8 @@ describe('shopify app', () => {
     fake.fulfillments = [];
     fake.inventory.clear();
     fake.idempotencyKeys = [];
+    fake.carrierServices = [];
+    fake.locationAddresses.clear();
     fake.addVariant('EC-001', '325.00');
     fake.addVariant('EC-019', '99.00');
     fake.addVariant(null);
@@ -413,5 +435,163 @@ describe('shopify app', () => {
       .expect(200);
     const shop = await prisma.shopifyShop.findUniqueOrThrow({ where: { shopDomain: SHOP } });
     expect(shop).toMatchObject({ status: 'uninstalled', accessTokenEnc: null });
+  });
+
+  // ─── checkout rates ──────────────────────────────────────────────────────────
+
+  /** Sends a checkout rate request the way Shopify does: raw JSON signed with the app secret. */
+  const askRates = (shopId: string, rate: Record<string, unknown>, secret = SECRET) => {
+    const body = JSON.stringify({ rate: { currency: 'EGP', locale: 'en', ...rate } });
+    return request(app.getHttpServer())
+      .post(`/shopify/rates/${shopId}`)
+      .set('content-type', 'application/json')
+      .set('x-shopify-hmac-sha256', createHmac('sha256', secret).update(body).digest('base64'))
+      .send(body);
+  };
+  const origin = (code: string) => ({
+    country: 'EG',
+    city: 'Cairo',
+    address1: 'Store street',
+    address2: `Shiply Now ${code}`,
+  });
+  const home = (address1 = 'Street 9, Fifth Settlement') => ({
+    country: 'EG',
+    province: 'Cairo',
+    city: 'New Cairo',
+    address1,
+    address2: '',
+    postal_code: '11835',
+  });
+
+  it('sets up checkout: dark store addresses on each location and one rate service', async () => {
+    const { shop } = await install();
+    expect(fake.carrierServices).toEqual([
+      expect.objectContaining({
+        name: 'Shiply Now 60 minutes',
+        callbackUrl: `http://localhost:3000/api/shopify/rates/${shop.id}`,
+      }),
+    ]);
+    expect(shop.carrierServiceId).toBe(fake.carrierServices[0]!.id);
+    expect(fake.locationAddresses.get(await locationOf('NCR'))).toMatchObject({
+      name: 'Shiply Now New Cairo',
+      address1: 'South 90th Street, Fifth Settlement, New Cairo',
+      address2: 'Shiply Now NCR',
+      countryCode: 'EG',
+      provinceCode: 'C',
+    });
+  });
+
+  it('offers the 60 minute rate only when the store, zone, hours and stock all allow it', async () => {
+    const { shop, admin } = await install();
+    const [ec001] = fake.variants;
+    const item = (quantity: number, extra: Record<string, unknown> = {}) => ({
+      sku: 'EC-001',
+      variant_id: Number(ec001!.id.split('/').pop()),
+      quantity,
+      requires_shipping: true,
+      ...extra,
+    });
+    const ask = (rate: Record<string, unknown>) =>
+      askRates(shop.id, { origin: origin('NCR'), destination: home(), items: [item(1)], ...rate });
+
+    // Shopify must sign the request.
+    await askRates(shop.id, { origin: origin('NCR') }, 'wrong-secret').expect(401);
+    // The merchant has not set a price yet, so nothing is offered.
+    expect((await ask({}).expect(200)).body).toEqual({ rates: [] });
+
+    // Only the merchant sets the price; admin can see it but not change it.
+    const merchant = await agent('merchant@evechantelle.example');
+    await merchant.put('/merchant/delivery').send({ expressPricePiastres: 4500 }).expect(200);
+    await admin.put('/merchant/delivery').send({ expressPricePiastres: 1 }).expect(403);
+    expect((await merchant.get('/merchant/delivery').expect(200)).body).toEqual({
+      expressPricePiastres: 4500,
+      shopify: { status: 'active', checkoutRateReady: true },
+    });
+    const overview = await admin.get('/admin/shopify').expect(200);
+    expect(overview.body.shops[0].expressPricePiastres).toBe(4500);
+
+    geocoder.calls = 0;
+    const offered = await ask({}).expect(200);
+    expect(offered.body.rates).toEqual([
+      {
+        service_name: 'Delivery in 60 minutes',
+        service_code: 'SN60:NCR',
+        total_price: '4500',
+        description: 'Arrives within 60 minutes from Shiply Now',
+        currency: 'EGP',
+      },
+    ]);
+    const arabic = await ask({ locale: 'ar' }).expect(200);
+    expect(arabic.body.rates[0].service_name).toBe('توصيل خلال 60 دقيقة');
+    // The address was placed once; later checkouts use the cache.
+    expect(geocoder.calls).toBe(1);
+
+    const level = await prisma.stockLevel.findFirstOrThrow({
+      where: { darkStoreId: stores.get('NCR'), sku: { sku: 'EC-001' } },
+    });
+    const available = level.onHand - level.reserved;
+    const none = async (rate: Record<string, unknown>) =>
+      expect((await ask(rate).expect(200)).body.rates).toEqual([]);
+    await none({ items: [item(available + 1)] }); // not enough stock
+    await none({ items: [item(1), item(available)] }); // the same product twice adds up
+    await none({ items: [{ sku: 'NOT-OURS', quantity: 1 }] }); // unknown product
+    await none({ origin: origin('MAA') }); // Shopify planned Maadi, the address is New Cairo's
+    await none({ origin: { ...origin('NCR'), address2: 'Warehouse' } }); // merchant's own place
+    await none({ destination: home('Corniche, Alexandria') }); // outside every zone
+    await none({ destination: home('somewhere unknown') }); // address not found
+    await none({ destination: { ...home(), country: 'SA' } });
+    await none({ currency: 'USD' });
+    // Items that do not ship (gift cards) do not block the rate.
+    expect(
+      (await ask({ items: [item(1), { sku: 'GIFT', quantity: 1, requires_shipping: false }] })).body
+        .rates,
+    ).toHaveLength(1);
+
+    // Closed stores offer nothing.
+    clock.set(EARLY_CAIRO);
+    await none({});
+    clock.set(NOON_CAIRO);
+
+    // When the address cannot be placed now, Shopify should retry soon, not cache "no rate".
+    await ask({ destination: home('boom street') }).expect(503);
+
+    const logged = await prisma.shopifyLog.findMany({
+      where: { shopId: shop.id, kind: 'checkout_rate' },
+      select: { message: true },
+    });
+    expect(new Set(logged.map((l) => l.message))).toEqual(
+      new Set([
+        'no_price',
+        'offered',
+        'out_of_stock',
+        'unknown_product',
+        'outside_zone',
+        'unknown_origin',
+        'address_not_found',
+        'outside_egypt',
+        'currency',
+        'store_closed',
+      ]),
+    );
+  });
+
+  it('hands next day orders back to the merchant once checkout rates are on', async () => {
+    const { shop } = await install();
+    const ec001 = fake.variants[0]!;
+    const fo = fake.addRequest({
+      name: '#1010',
+      locationId: await locationOf('NCR'),
+      lines: [{ id: 'li-10', sku: 'EC-001', variantId: ec001.id, quantity: 1, price: '325.00' }],
+      outstanding: '325.00',
+      shipping: '30.00',
+      shippingCode: 'Standard',
+      address: { name: 'C', phone: '01012345678', address1: 'x', city: 'New Cairo', ...NEW_CAIRO },
+    });
+    await jobs.runShop(shop);
+    expect(fake.fulfillmentOrders.find((f) => f.id === fo.id)!.rejected).toEqual({
+      reason: 'OTHER',
+      message: 'Not a 60 minute order; ship it normally',
+    });
+    expect(await prisma.order.count({ where: { shopifyFulfillmentOrderId: fo.id } })).toBe(0);
   });
 });

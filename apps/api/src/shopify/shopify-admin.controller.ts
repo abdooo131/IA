@@ -42,7 +42,7 @@ export class ShopifyAdminController {
   async overview() {
     const shops = await this.prisma.shopifyShop.findMany({
       include: {
-        merchant: { select: { id: true, name: true } },
+        merchant: { select: { id: true, name: true, expressPricePiastres: true } },
         locations: {
           include: { darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } } },
         },
@@ -55,8 +55,12 @@ export class ShopifyAdminController {
       shops: await Promise.all(
         shops.map(async (s) => ({
           id: s.id,
-          merchant: s.merchant,
+          merchant: { id: s.merchant.id, name: s.merchant.name },
           shopDomain: s.shopDomain,
+          // The merchant sets this price; admin only sees it.
+          expressPricePiastres: s.merchant.expressPricePiastres,
+          carrierServiceId: s.carrierServiceId,
+          ratesUrl: this.shopify.ratesUrl(s.id),
           status: s.status,
           scopes: s.scopes,
           installedAt: s.installedAt,
@@ -66,6 +70,7 @@ export class ShopifyAdminController {
             darkStore: l.darkStore,
             locationId: l.locationId,
             isActive: l.isActive,
+            addressSynced: l.addressSyncedAt != null,
             callbackUrl: this.shopify.callbackUrl(l.id),
           })),
           linkedProducts: await this.prisma.sku.count({
@@ -134,6 +139,11 @@ export class ShopifyAdminController {
   @Post(':id/register-locations')
   registerLocations(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return this.setup.registerLocations(id, user.sub);
+  }
+
+  @Post(':id/carrier-service')
+  registerCarrierService(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return this.setup.registerCarrierService(id, user.sub);
   }
 
   @Post(':id/sync-catalog')

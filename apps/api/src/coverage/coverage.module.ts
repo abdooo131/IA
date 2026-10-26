@@ -22,6 +22,6 @@ import { StoreStatusService } from './store-status.service';
       },
     },
   ],
-  exports: [StoreStatusService, Clock, CoverageService],
+  exports: [StoreStatusService, Clock, CoverageService, Geocoder],
 })
 export class CoverageModule {}

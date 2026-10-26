@@ -17,6 +17,11 @@ import { Public } from '../auth/decorators';
 import { sealToken, isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
 import { ShopifyAdmin } from './shopify-admin';
 import { ShopifyJobsService } from './shopify-jobs.service';
+import {
+  type RateRequest,
+  RatesUnavailableError,
+  ShopifyRatesService,
+} from './shopify-rates.service';
 import { ShopifySetupService } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
 import { SHOPIFY_SCOPES, ShopifyService } from './shopify.service';
@@ -34,6 +39,7 @@ export class ShopifyPublicController {
     private readonly jobs: ShopifyJobsService,
     private readonly setup: ShopifySetupService,
     private readonly sync: ShopifySyncService,
+    private readonly rates: ShopifyRatesService,
   ) {}
 
   private get prisma() {
@@ -108,6 +114,7 @@ export class ShopifyPublicController {
       // Set up in the background: locations for every dark store, then link the catalog.
       void (async () => {
         await this.setup.registerLocations(active.id, null).catch(() => undefined);
+        await this.setup.registerCarrierService(active.id, null).catch(() => undefined);
         await this.setup
           .syncCatalog(active.id, { createMissing: false }, null)
           .catch(() => undefined);
@@ -200,6 +207,51 @@ export class ShopifyPublicController {
       message: 'Tracking is sent with each fulfillment',
       success: true,
     };
+  }
+
+  // ─── checkout rates ──────────────────────────────────────────────────────────
+
+  /**
+   * Shopify asks for shipping rates while the customer is at checkout. An empty list means
+   * no 60 minute option, and Shopify keeps that answer for 15 minutes. When we cannot decide
+   * (geocoding down) we answer 503, which Shopify retries after 30 seconds.
+   */
+  @Post('rates/:shopId')
+  @HttpCode(200)
+  async checkoutRates(
+    @Param('shopId') shopId: string,
+    @Req() req: Request,
+    @Res() res: Response,
+    @Headers('x-shopify-hmac-sha256') hmac?: string,
+  ) {
+    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+    if (!verifyBodyHmac(raw, hmac, this.shopify.secret)) return res.status(401).send();
+    let body: RateRequest;
+    try {
+      body = JSON.parse(raw.toString('utf8')) as RateRequest;
+    } catch {
+      return res.status(400).json({ error: 'invalid_body' });
+    }
+    try {
+      const { rates, reason } = await this.rates.quote(shopId, body);
+      void this.shopify.record(reason === 'shop_not_active' ? null : shopId, {
+        direction: 'in',
+        kind: 'checkout_rate',
+        ok: true,
+        message: reason,
+      });
+      return res.status(200).json({ rates });
+    } catch (error) {
+      void this.shopify.record(null, {
+        direction: 'in',
+        kind: 'checkout_rate',
+        ok: false,
+        message: (error as Error).message,
+      });
+      return res
+        .status(error instanceof RatesUnavailableError ? 503 : 500)
+        .json({ error: 'rates_unavailable' });
+    }
   }
 
   // ─── webhooks ────────────────────────────────────────────────────────────────

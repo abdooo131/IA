@@ -18,6 +18,7 @@ export const SHOPIFY_SCOPES = [
   'write_fulfillments',
   'read_assigned_fulfillment_orders',
   'write_assigned_fulfillment_orders',
+  'write_shipping',
 ].join(',');
 
 /** Shared plumbing for the Shopify services: config, a shop's client and the sync log. */
@@ -54,6 +55,11 @@ export class ShopifyService {
   /** Where Shopify calls a fulfillment service. The web app forwards /api to this API. */
   callbackUrl(locationRowId: string) {
     return `${this.publicUrl}/api/shopify/fs/${locationRowId}`;
+  }
+
+  /** Where Shopify asks for checkout rates for one shop. */
+  ratesUrl(shopId: string) {
+    return `${this.publicUrl}/api/shopify/rates/${shopId}`;
   }
 
   /** Runs GraphQL for an installed shop. */

@@ -1,14 +1,26 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { cancelManifest, createManifest, DomainError, getManifestDetail } from '@shiplynow/db';
+import {
+  cancelManifest,
+  createManifest,
+  DomainError,
+  getManifestDetail,
+  recordAudit,
+} from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   type CreateManifestBody,
   createManifestSchema,
 } from '@shiplynow/shared';
+import { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
+
+/** Up to 100,000 EGP, in piastres; null stops offering the 60 minute option. */
+const deliverySchema = z.object({
+  expressPricePiastres: z.number().int().min(0).max(10_000_000).nullable(),
+});
 
 /** The merchant panel. Every query is limited to the signed in user's merchant. */
 @ApiTags('merchant')
@@ -34,6 +46,42 @@ export class MerchantController {
       where: { merchantId: merchant.id, readAt: null },
     });
     return { merchant: { id: merchant.id, name: merchant.name }, unreadNotifications: unread };
+  }
+
+  /** The merchant's own 60 minute delivery price. Only the merchant can change it. */
+  @Get('delivery')
+  async delivery(@CurrentUser() user: AccessTokenClaims) {
+    const merchant = await this.merchantOf(user);
+    const shop = await this.prisma.shopifyShop.findUnique({ where: { merchantId: merchant.id } });
+    return {
+      expressPricePiastres: merchant.expressPricePiastres,
+      shopify: shop
+        ? { status: shop.status, checkoutRateReady: shop.carrierServiceId != null }
+        : null,
+    };
+  }
+
+  @Put('delivery')
+  async setDelivery(
+    @Body(new ZodValidationPipe(deliverySchema)) body: z.infer<typeof deliverySchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const merchant = await this.merchantOf(user);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.merchant.update({
+        where: { id: merchant.id },
+        data: { expressPricePiastres: body.expressPricePiastres },
+      });
+      await recordAudit(tx, {
+        actorUserId: user.sub,
+        action: 'merchant.express_price',
+        entityType: 'merchant',
+        entityId: merchant.id,
+        before: { expressPricePiastres: merchant.expressPricePiastres },
+        after: { expressPricePiastres: body.expressPricePiastres },
+      });
+    });
+    return { expressPricePiastres: body.expressPricePiastres };
   }
 
   @Get('skus')

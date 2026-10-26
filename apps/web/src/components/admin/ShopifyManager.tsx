@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { localized } from '@/lib/admin-types';
 import { apiSend } from '@/lib/api-client';
-import { formatCairoDateTime } from '@/lib/format';
+import { formatCairoDateTime, formatEgp } from '@/lib/format';
 
 type StoreRef = { id: string; code: string; nameEn: string; nameAr: string };
 
@@ -20,7 +20,15 @@ export interface ShopifyOverview {
     scopes: string | null;
     installedAt: string | null;
     installUrl: string;
-    locations: { id: string; darkStore: StoreRef; locationId: string; isActive: boolean }[];
+    expressPricePiastres: number | null;
+    carrierServiceId: string | null;
+    locations: {
+      id: string;
+      darkStore: StoreRef;
+      locationId: string;
+      isActive: boolean;
+      addressSynced: boolean;
+    }[];
     linkedProducts: number;
     products: number;
     pendingCalls: number;
@@ -159,6 +167,41 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
             </div>
           </dl>
 
+          <div className="grid gap-3 rounded-md border border-line p-3 md:grid-cols-2">
+            <div>
+              <p className="text-caption text-text-muted">{t('checkout')}</p>
+              <p
+                className={`text-body-sm font-bold ${
+                  shop.carrierServiceId ? 'text-status-delivered' : 'text-status-needs-action'
+                }`}
+              >
+                {shop.carrierServiceId ? t('checkoutOn') : t('checkoutOff')}
+              </p>
+              {!shop.carrierServiceId && (
+                <button
+                  type="button"
+                  className={`${button} mt-2`}
+                  disabled={action.busy}
+                  onClick={() =>
+                    void action.send(`/admin/shopify/${shop.id}/carrier-service`, {}, () =>
+                      t('result.checkout'),
+                    )
+                  }
+                >
+                  {t('turnOnCheckout')}
+                </button>
+              )}
+            </div>
+            <div>
+              <p className="text-caption text-text-muted">{t('merchantPrice')}</p>
+              <p className="text-body-sm font-bold">
+                {shop.expressPricePiastres == null
+                  ? t('noPrice')
+                  : t('price', { price: formatEgp(shop.expressPricePiastres) })}
+              </p>
+            </div>
+          </div>
+
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -229,6 +272,9 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
                 {shop.locations.map((l) => (
                   <li key={l.id} className="rounded-pill border border-line px-3 py-1 text-caption">
                     {localized(l.darkStore, locale)}
+                    {!l.addressSynced && (
+                      <span className="text-status-needs-action"> · {t('addressMissing')}</span>
+                    )}
                   </li>
                 ))}
               </ul>

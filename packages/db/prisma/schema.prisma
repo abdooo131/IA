@@ -179,17 +179,19 @@ model Zone {
 // ─── Catalog ───────────────────────────────────────────────────────────────────
 
 model Merchant {
-  id                String         @id @default(cuid())
-  name              String
+  id                   String         @id @default(cuid())
+  name                 String
   /// myshop.myshopify.com, set when the Shopify app is installed
-  shopifyShopDomain String?        @unique @map("shopify_shop_domain")
-  contactEmail      String?        @map("contact_email")
-  contactPhone      String?        @map("contact_phone")
-  isActive          Boolean        @default(true) @map("is_active")
+  shopifyShopDomain    String?        @unique @map("shopify_shop_domain")
+  contactEmail         String?        @map("contact_email")
+  contactPhone         String?        @map("contact_phone")
+  isActive             Boolean        @default(true) @map("is_active")
   /// How often finance pays this merchant the COD collected after fees
-  payoutSchedule    PayoutSchedule @default(weekly) @map("payout_schedule")
-  createdAt         DateTime       @default(now()) @map("created_at")
-  updatedAt         DateTime       @updatedAt @map("updated_at")
+  payoutSchedule       PayoutSchedule @default(weekly) @map("payout_schedule")
+  /// The merchant's own 60 minute delivery price shown at checkout; null means not offered
+  expressPricePiastres Int?           @map("express_price_piastres")
+  createdAt            DateTime       @default(now()) @map("created_at")
+  updatedAt            DateTime       @updatedAt @map("updated_at")
 
   skus             Sku[]
   inboundManifests InboundManifest[]
@@ -925,16 +927,18 @@ enum ShopifyShopStatus {
 
 /// A merchant's Shopify store and our access to it. The token is encrypted at rest.
 model ShopifyShop {
-  id             String            @id @default(cuid())
-  merchantId     String            @unique @map("merchant_id")
-  shopDomain     String            @unique @map("shop_domain")
-  status         ShopifyShopStatus @default(pending)
-  accessTokenEnc String?           @map("access_token_enc")
-  scopes         String?
-  installedAt    DateTime?         @map("installed_at")
-  uninstalledAt  DateTime?         @map("uninstalled_at")
-  createdAt      DateTime          @default(now()) @map("created_at")
-  updatedAt      DateTime          @updatedAt @map("updated_at")
+  id               String            @id @default(cuid())
+  merchantId       String            @unique @map("merchant_id")
+  shopDomain       String            @unique @map("shop_domain")
+  status           ShopifyShopStatus @default(pending)
+  accessTokenEnc   String?           @map("access_token_enc")
+  scopes           String?
+  installedAt      DateTime?         @map("installed_at")
+  uninstalledAt    DateTime?         @map("uninstalled_at")
+  /// The carrier service that answers checkout rates for this shop
+  carrierServiceId String?           @map("carrier_service_id")
+  createdAt        DateTime          @default(now()) @map("created_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
 
   merchant  Merchant          @relation(fields: [merchantId], references: [id])
   locations ShopifyLocation[]
@@ -947,13 +951,15 @@ model ShopifyShop {
 /// One fulfillment service (and its Shopify location) per merchant store and dark store.
 /// Its id is part of the callback address Shopify calls.
 model ShopifyLocation {
-  id                   String   @id @default(cuid())
-  shopId               String   @map("shop_id")
-  darkStoreId          String   @map("dark_store_id")
-  fulfillmentServiceId String   @map("fulfillment_service_id")
-  locationId           String   @unique @map("location_id")
-  isActive             Boolean  @default(true) @map("is_active")
-  createdAt            DateTime @default(now()) @map("created_at")
+  id                   String    @id @default(cuid())
+  shopId               String    @map("shop_id")
+  darkStoreId          String    @map("dark_store_id")
+  fulfillmentServiceId String    @map("fulfillment_service_id")
+  locationId           String    @unique @map("location_id")
+  isActive             Boolean   @default(true) @map("is_active")
+  /// When the Shopify location's address was set to the dark store's address
+  addressSyncedAt      DateTime? @map("address_synced_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
 
   shop      ShopifyShop        @relation(fields: [shopId], references: [id])
   darkStore DarkStore          @relation(fields: [darkStoreId], references: [id])
@@ -1017,4 +1023,14 @@ model ShopifyLog {
 
   @@index([shopId, createdAt])
   @@map("shopify_logs")
+}
+
+/// Checkout addresses already turned into map points; null coordinates mean not found
+model GeocodeCache {
+  addressKey String   @id @map("address_key")
+  latitude   Float?
+  longitude  Float?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@map("geocode_cache")
 }

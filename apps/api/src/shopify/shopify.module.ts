@@ -5,6 +5,7 @@ import { ShopifyAdminController } from './shopify-admin.controller';
 import { ShopifyJobsService } from './shopify-jobs.service';
 import { ShopifyOrdersService } from './shopify-orders.service';
 import { ShopifyPublicController } from './shopify-public.controller';
+import { ShopifyRatesService } from './shopify-rates.service';
 import { ShopifySetupService } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
 import { ShopifyService } from './shopify.service';
@@ -18,6 +19,7 @@ import { ShopifyService } from './shopify.service';
     ShopifyOrdersService,
     ShopifySyncService,
     ShopifyJobsService,
+    ShopifyRatesService,
   ],
   controllers: [ShopifyPublicController, ShopifyAdminController],
   exports: [ShopifyJobsService],
