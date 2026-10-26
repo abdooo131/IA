@@ -6,8 +6,8 @@ import { type FormEvent, useState } from 'react';
 import { localized } from '@/lib/admin-types';
 import { apiSend } from '@/lib/api-client';
 
-type Role = 'admin' | 'merchant' | 'store_staff' | 'rider';
-const ROLES: Role[] = ['admin', 'store_staff', 'rider', 'merchant'];
+type Role = 'admin' | 'merchant' | 'store_staff' | 'rider' | 'finance';
+const ROLES: Role[] = ['admin', 'finance', 'store_staff', 'rider', 'merchant'];
 
 export interface AdminUser {
   id: string;

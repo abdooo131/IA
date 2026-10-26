@@ -13,6 +13,7 @@ export interface RiderMe {
   badgeCode: string;
   darkStore: { code: string; nameEn: string; nameAr: string };
   today: { delivered: number; failed: number; codCollectedPiastres: number };
+  wallet: { cashPiastres: number; bonusOwedPiastres: number };
 }
 export interface RiderDelivery {
   id: string;
@@ -48,6 +49,7 @@ const field =
 /** The rider's phone screen: orders in hand, call and directions, deliver or fail. */
 export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: RiderDelivery[] }) {
   const t = useTranslations('rider');
+  const tw = useTranslations('riderWallet');
   const locale = useLocale();
   const [me, setMe] = useState(initialMe);
   const [deliveries, setDeliveries] = useState(initial);
@@ -86,6 +88,13 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
             cash: formatEgp(me.today.codCollectedPiastres),
           })}
         </p>
+        <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-body-sm">
+          <p className="font-bold">{tw('cash', { amount: formatEgp(me.wallet.cashPiastres) })}</p>
+          <p>{tw('bonus', { amount: formatEgp(me.wallet.bonusOwedPiastres) })}</p>
+          {me.wallet.cashPiastres > 0 && (
+            <p className="text-caption text-text-muted">{tw('handIn')}</p>
+          )}
+        </div>
       </header>
 
       <section className="space-y-3">

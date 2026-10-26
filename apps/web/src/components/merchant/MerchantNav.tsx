@@ -9,6 +9,7 @@ const ITEMS = [
   { href: '/merchant/orders', key: 'orders' },
   { href: '/merchant/new', key: 'new' },
   { href: '/merchant/products', key: 'products' },
+  { href: '/merchant/wallet', key: 'wallet' },
   { href: '/merchant/notifications', key: 'notifications' },
 ] as const;
 

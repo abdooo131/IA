@@ -75,7 +75,8 @@
       "users": "Users",
       "merchants": "Merchants",
       "settings": "Settings",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "finance": "Finance"
     },
     "overview": {
       "title": "Overview",
@@ -271,7 +272,15 @@
         "stock__buffer_units": "Units held back per product",
         "stock__low_stock_threshold": "Low stock at or below",
         "delivery__max_orders_per_trip": "Orders per rider trip",
-        "store__capacity_orders_per_hour": "Orders per hour per store"
+        "store__capacity_orders_per_hour": "Orders per hour per store",
+        "fee__order_fixed_piastres": "Order fee, fixed (EGP)",
+        "fee__order_percent_bp": "Order fee, share of products (%)",
+        "fee__cod_percent_bp": "COD fee, share of cash (%)",
+        "fee__failed_delivery_piastres": "Failed delivery fee (EGP)",
+        "fee__receiving_per_unit_piastres": "Receiving fee per unit (EGP)",
+        "fee__storage_per_unit_month_piastres": "Storage per unit per month (EGP)",
+        "fee__vat_bp": "VAT on our fees (%)",
+        "rider__bonus_per_delivery_piastres": "Rider bonus per delivery (EGP)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -284,8 +293,12 @@
       "errors": {
         "invalid_setting_value": "That value is outside what this setting allows.",
         "validation_failed": "Enter a whole number.",
-        "generic": "Something went wrong. Try again."
-      }
+        "generic": "Something went wrong. Try again.",
+        "scope_not_allowed": "This setting cannot have a value for that store or merchant."
+      },
+      "addMerchantOverride": "Different value for a merchant",
+      "chooseMerchant": "Choose a merchant",
+      "unitEgp": "EGP"
     },
     "audit": {
       "title": "Audit log",
@@ -536,7 +549,8 @@
       "new": "New shipment",
       "products": "Products",
       "notifications": "Notifications",
-      "orders": "Orders"
+      "orders": "Orders",
+      "wallet": "Wallet"
     },
     "shipments": {
       "title": "Shipments",
@@ -828,5 +842,237 @@
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
     }
+  },
+  "finance": {
+    "title": "Finance",
+    "nav": {
+      "overview": "Overview",
+      "cash": "Cash",
+      "payouts": "Payouts",
+      "merchants": "Merchants",
+      "riders": "Riders",
+      "journal": "Journal",
+      "trial": "Trial balance"
+    },
+    "kinds": {
+      "cod_collected": "COD collected",
+      "order_fee": "Order fee",
+      "cod_fee": "COD fee",
+      "failed_fee": "Failed delivery fee",
+      "receiving_fee": "Receiving fee",
+      "storage_fee": "Storage fee",
+      "rider_bonus": "Rider bonus",
+      "cash_handover": "Cash handed to store",
+      "cash_difference": "Cash difference",
+      "bank_deposit": "Bank deposit",
+      "merchant_payout": "Payout to merchant",
+      "merchant_receipt": "Payment from merchant",
+      "rider_bonus_payout": "Bonus paid to rider",
+      "adjustment": "Adjustment",
+      "opening_balance": "Opening balance",
+      "closing_balance": "Closing balance"
+    },
+    "accounts": {
+      "merchant": "Merchant wallet",
+      "rider_cash": "Rider cash",
+      "rider_bonus": "Rider bonus",
+      "store_cash": "Store cash box",
+      "bank": "Bank",
+      "revenue": "Fee income",
+      "vat_payable": "VAT payable",
+      "rider_bonus_expense": "Rider bonus cost",
+      "cash_difference": "Cash differences"
+    },
+    "schedules": {
+      "daily": "Daily",
+      "twice_weekly": "Twice a week (Sun, Wed)",
+      "weekly": "Weekly (Sun)"
+    },
+    "egp": "EGP",
+    "amount": "Amount (EGP)",
+    "reference": "Reference",
+    "note": "Note",
+    "save": "Save",
+    "cancel": "Cancel",
+    "apply": "Show",
+    "from": "From",
+    "to": "To",
+    "export": "Export to Excel",
+    "loadMore": "Load more",
+    "empty": "Nothing here yet.",
+    "by": "By {name}",
+    "done": "Done.",
+    "overview": {
+      "owedToMerchants": "We owe merchants",
+      "owedByMerchants": "Merchants owe us",
+      "cashWithRiders": "Cash with riders",
+      "cashInStores": "Cash in store boxes",
+      "bank": "Bank",
+      "revenue": "Fee income",
+      "vat": "VAT payable",
+      "bonusOwed": "Bonuses owed to riders",
+      "bonusCost": "Bonus cost",
+      "cashDifference": "Cash differences written off",
+      "pendingHandovers": "Cash differences to review",
+      "draftPayouts": "Payouts waiting to be paid",
+      "attention": "Needs attention",
+      "company": "Company books",
+      "wallets": "Wallets"
+    },
+    "cash": {
+      "title": "Cash",
+      "pending": "Differences to review",
+      "none": "No differences waiting.",
+      "rider": "Rider",
+      "store": "Store",
+      "expected": "Expected",
+      "counted": "Counted",
+      "difference": "Difference",
+      "short": "Short {amount}",
+      "over": "Over {amount}",
+      "writeOff": "Write off",
+      "chargeRider": "Keep on rider",
+      "reviewNote": "Why?",
+      "recent": "Recent handovers",
+      "receivedBy": "Received by {name}",
+      "statuses": {
+        "balanced": "Balanced",
+        "pending": "Waiting",
+        "written_off": "Written off",
+        "charged_to_rider": "On rider"
+      },
+      "stores": "Store cash boxes",
+      "deposit": "Deposit to bank",
+      "depositTitle": "Record a bank deposit",
+      "inBox": "In the box: {amount}",
+      "depositDone": "Deposit recorded."
+    },
+    "payouts": {
+      "title": "Payouts",
+      "intro": "Prepare what we owe each merchant up to a day, transfer it from the bank, then mark it paid with the transfer reference. Nothing is paid automatically.",
+      "prepareDue": "Prepare all due today",
+      "cutoffDay": "Up to the end of",
+      "prepared": "{count} payouts prepared.",
+      "skippedNone": "No merchant is due today with money owed.",
+      "draft": "Waiting to be paid",
+      "paid": "Paid",
+      "cancelled": "Cancelled",
+      "markPaid": "Mark as paid",
+      "transferRef": "Bank transfer reference",
+      "cancelPayout": "Cancel",
+      "cancelNote": "Why cancel?",
+      "merchant": "Merchant",
+      "cutoff": "Up to",
+      "created": "Prepared by {name}",
+      "paidBy": "Paid by {name}, {time}",
+      "statuses": {
+        "draft": "Waiting",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      }
+    },
+    "merchants": {
+      "title": "Merchant wallets",
+      "owed": "We owe",
+      "owes": "Owes us",
+      "schedule": "Payout schedule",
+      "statement": "Statement",
+      "prepare": "Prepare payout",
+      "receipt": "Record payment received",
+      "adjust": "Adjustment",
+      "adjustHelp": "Positive gives the merchant credit, negative charges them. Always write the reason.",
+      "reason": "Reason",
+      "openDraft": "Payout waiting: {amount}",
+      "opening": "Opening balance",
+      "closing": "Closing balance",
+      "date": "Date",
+      "type": "Type",
+      "order": "Order",
+      "balance": "Balance",
+      "errors": {
+        "nothing_to_pay": "Nothing is owed to this merchant up to that day.",
+        "payout_already_open": "This merchant already has a payout waiting.",
+        "reason_required": "Write a reason of at least 5 characters.",
+        "invalid_amount": "Enter an amount.",
+        "more_than_cash_in_store": "That is more than the cash in this store.",
+        "more_than_owed": "That is more than the rider has earned.",
+        "handover_not_pending": "Someone already reviewed this.",
+        "payout_not_draft": "This payout was already handled.",
+        "validation_failed": "Check the fields.",
+        "generic": "Something went wrong. Try again."
+      }
+    },
+    "riders": {
+      "title": "Rider wallets",
+      "cash": "Cash carrying",
+      "bonus": "Bonus owed",
+      "pay": "Pay bonus",
+      "fromBank": "By bank",
+      "fromStore": "From store cash",
+      "paid": "Bonus paid.",
+      "store": "Store",
+      "badge": "Badge",
+      "pending": "Differences waiting"
+    },
+    "journal": {
+      "title": "Journal",
+      "intro": "Every money movement, with its debit and credit lines.",
+      "kind": "Type",
+      "allKinds": "All types",
+      "account": "Account",
+      "debit": "Debit",
+      "credit": "Credit",
+      "when": "When",
+      "what": "What"
+    },
+    "trial": {
+      "title": "Trial balance",
+      "intro": "Debits and credits per account. The two totals must always be equal.",
+      "total": "Total",
+      "balance": "Balance",
+      "balanced": "Balanced",
+      "notBalanced": "Not balanced, call support"
+    }
+  },
+  "storeCash": {
+    "tile": "Rider cash",
+    "tileHint": "Count cash from riders",
+    "title": "Cash from riders",
+    "intro": "Count the cash the rider hands in, then enter the total. Any difference goes to finance.",
+    "carrying": "Carrying {amount}",
+    "outNow": "{count} orders still out",
+    "counted": "Cash counted (EGP)",
+    "record": "Record handover",
+    "balanced": "Recorded. It matches.",
+    "short": "Recorded. {amount} short; finance will review it.",
+    "over": "Recorded. {amount} more than expected; finance will review it.",
+    "none": "No riders in this store.",
+    "recent": "Recent handovers",
+    "errors": {
+      "rider_other_store": "That rider belongs to another store.",
+      "invalid_amount": "Enter the amount counted.",
+      "validation_failed": "Enter the amount counted.",
+      "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "merchantFinance": {
+    "nav": "Wallet",
+    "title": "Wallet and statements",
+    "owed": "We owe you",
+    "owes": "You owe us",
+    "schedule": "You are paid: {schedule}",
+    "payouts": "Payouts",
+    "noPayouts": "No payouts yet.",
+    "waiting": "Being prepared",
+    "paid": "Paid",
+    "reference": "Transfer reference {reference}",
+    "statement": "Statement",
+    "export": "Export to Excel"
+  },
+  "riderWallet": {
+    "cash": "Cash with you: {amount} EGP",
+    "bonus": "Bonus earned: {amount} EGP",
+    "handIn": "Hand the cash to the store at the end of your shift."
   }
 }

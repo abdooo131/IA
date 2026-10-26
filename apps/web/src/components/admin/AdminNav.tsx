@@ -17,6 +17,7 @@ const ITEMS = [
   { href: '/admin/users', key: 'users' },
   { href: '/admin/settings', key: 'settings' },
   { href: '/admin/audit', key: 'audit' },
+  { href: '/finance', key: 'finance' },
 ] as const;
 
 export function AdminNav() {

@@ -316,7 +316,7 @@ export const DEMO_USERS: {
   email: string;
   name: string;
   phone: string;
-  role: 'store_staff' | 'rider' | 'merchant';
+  role: 'store_staff' | 'rider' | 'merchant' | 'finance';
   storeCode?: string;
   badgeCode?: string;
 }[] = [
@@ -355,6 +355,12 @@ export const DEMO_USERS: {
     name: 'Eve Chantelle Ops',
     phone: '+201200000301',
     role: 'merchant',
+  },
+  {
+    email: 'finance@shiplynow.local',
+    name: 'Nadia Mostafa',
+    phone: '+201500000401',
+    role: 'finance',
   },
 ];
 

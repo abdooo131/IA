@@ -75,7 +75,8 @@
       "users": "المستخدمين",
       "merchants": "التجار",
       "settings": "الإعدادات",
-      "audit": "سجل التغييرات"
+      "audit": "سجل التغييرات",
+      "finance": "المالية"
     },
     "overview": {
       "title": "نظرة عامة",
@@ -271,7 +272,15 @@
         "stock__buffer_units": "قطع محجوزة احتياطي لكل منتج",
         "stock__low_stock_threshold": "مخزون قليل عند أو أقل من",
         "delivery__max_orders_per_trip": "طلبات في مشوار المندوب",
-        "store__capacity_orders_per_hour": "طلبات في الساعة لكل مخزن"
+        "store__capacity_orders_per_hour": "طلبات في الساعة لكل مخزن",
+        "fee__order_fixed_piastres": "رسوم الطلب الثابتة (جنيه)",
+        "fee__order_percent_bp": "رسوم الطلب، نسبة من المنتجات (%)",
+        "fee__cod_percent_bp": "رسوم التحصيل، نسبة من الكاش (%)",
+        "fee__failed_delivery_piastres": "رسوم فشل التوصيل (جنيه)",
+        "fee__receiving_per_unit_piastres": "رسوم الاستلام للقطعة (جنيه)",
+        "fee__storage_per_unit_month_piastres": "التخزين للقطعة في الشهر (جنيه)",
+        "fee__vat_bp": "ضريبة القيمة المضافة على رسومنا (%)",
+        "rider__bonus_per_delivery_piastres": "حافز المندوب لكل توصيلة (جنيه)"
       },
       "default": "الافتراضي {value}",
       "global": "في كل مكان",
@@ -284,8 +293,12 @@
       "errors": {
         "invalid_setting_value": "القيمة دي برة المسموح للإعداد ده.",
         "validation_failed": "اكتب رقم صحيح.",
-        "generic": "حصلت مشكلة. جرب تاني."
-      }
+        "generic": "حصلت مشكلة. جرب تاني.",
+        "scope_not_allowed": "الإعداد ده مينفعش يكون له قيمة للمخزن أو التاجر ده."
+      },
+      "addMerchantOverride": "قيمة مختلفة لتاجر",
+      "chooseMerchant": "اختار تاجر",
+      "unitEgp": "جنيه"
     },
     "audit": {
       "title": "سجل التغييرات",
@@ -536,7 +549,8 @@
       "new": "شحنة جديدة",
       "products": "المنتجات",
       "notifications": "الإشعارات",
-      "orders": "الطلبات"
+      "orders": "الطلبات",
+      "wallet": "المحفظة"
     },
     "shipments": {
       "title": "الشحنات",
@@ -828,5 +842,237 @@
       "network": "مفيش اتصال. جرب تاني.",
       "generic": "حصلت مشكلة، جرب تاني."
     }
+  },
+  "finance": {
+    "title": "المالية",
+    "nav": {
+      "overview": "نظرة عامة",
+      "cash": "الكاش",
+      "payouts": "التحويلات",
+      "merchants": "التجار",
+      "riders": "المناديب",
+      "journal": "اليومية",
+      "trial": "ميزان المراجعة"
+    },
+    "kinds": {
+      "cod_collected": "تحصيل عند الاستلام",
+      "order_fee": "رسوم الطلب",
+      "cod_fee": "رسوم التحصيل",
+      "failed_fee": "رسوم فشل التوصيل",
+      "receiving_fee": "رسوم الاستلام",
+      "storage_fee": "رسوم التخزين",
+      "rider_bonus": "حافز المندوب",
+      "cash_handover": "كاش اتسلم للمخزن",
+      "cash_difference": "فرق كاش",
+      "bank_deposit": "إيداع في البنك",
+      "merchant_payout": "تحويل للتاجر",
+      "merchant_receipt": "دفعة من التاجر",
+      "rider_bonus_payout": "حافز اتصرف للمندوب",
+      "adjustment": "تسوية",
+      "opening_balance": "رصيد أول المدة",
+      "closing_balance": "رصيد آخر المدة"
+    },
+    "accounts": {
+      "merchant": "محفظة التاجر",
+      "rider_cash": "كاش المندوب",
+      "rider_bonus": "حافز المندوب",
+      "store_cash": "خزنة المخزن",
+      "bank": "البنك",
+      "revenue": "إيراد الرسوم",
+      "vat_payable": "ضريبة قيمة مضافة مستحقة",
+      "rider_bonus_expense": "تكلفة الحوافز",
+      "cash_difference": "فروق الكاش"
+    },
+    "schedules": {
+      "daily": "يومي",
+      "twice_weekly": "مرتين في الأسبوع (الأحد والأربع)",
+      "weekly": "أسبوعي (الأحد)"
+    },
+    "egp": "جنيه",
+    "amount": "المبلغ (جنيه)",
+    "reference": "المرجع",
+    "note": "ملاحظة",
+    "save": "حفظ",
+    "cancel": "إلغاء",
+    "apply": "عرض",
+    "from": "من",
+    "to": "إلى",
+    "export": "تصدير لإكسل",
+    "loadMore": "عرض المزيد",
+    "empty": "مفيش حاجة لسه.",
+    "by": "بواسطة {name}",
+    "done": "تم.",
+    "overview": {
+      "owedToMerchants": "علينا للتجار",
+      "owedByMerchants": "على التجار لينا",
+      "cashWithRiders": "كاش مع المناديب",
+      "cashInStores": "كاش في خزن المخازن",
+      "bank": "البنك",
+      "revenue": "إيراد الرسوم",
+      "vat": "ضريبة مستحقة",
+      "bonusOwed": "حوافز مستحقة للمناديب",
+      "bonusCost": "تكلفة الحوافز",
+      "cashDifference": "فروق كاش اتشطبت",
+      "pendingHandovers": "فروق كاش محتاجة مراجعة",
+      "draftPayouts": "تحويلات مستنية الدفع",
+      "attention": "محتاج انتباه",
+      "company": "دفاتر الشركة",
+      "wallets": "المحافظ"
+    },
+    "cash": {
+      "title": "الكاش",
+      "pending": "فروق محتاجة مراجعة",
+      "none": "مفيش فروق مستنية.",
+      "rider": "المندوب",
+      "store": "المخزن",
+      "expected": "المتوقع",
+      "counted": "المعدود",
+      "difference": "الفرق",
+      "short": "ناقص {amount}",
+      "over": "زيادة {amount}",
+      "writeOff": "اشطبه",
+      "chargeRider": "خليه على المندوب",
+      "reviewNote": "السبب؟",
+      "recent": "آخر عمليات التسليم",
+      "receivedBy": "استلمه {name}",
+      "statuses": {
+        "balanced": "مظبوط",
+        "pending": "مستني",
+        "written_off": "اتشطب",
+        "charged_to_rider": "على المندوب"
+      },
+      "stores": "خزن المخازن",
+      "deposit": "إيداع في البنك",
+      "depositTitle": "تسجيل إيداع في البنك",
+      "inBox": "في الخزنة: {amount}",
+      "depositDone": "الإيداع اتسجل."
+    },
+    "payouts": {
+      "title": "التحويلات",
+      "intro": "جهّز اللي علينا لكل تاجر لحد يوم معين، حوّله من البنك، وبعدين علّمه مدفوع برقم التحويل. مفيش دفع أوتوماتيك.",
+      "prepareDue": "جهّز كل المستحق النهارده",
+      "cutoffDay": "لحد آخر يوم",
+      "prepared": "اتجهز {count} تحويل.",
+      "skippedNone": "مفيش تاجر مستحق النهارده وعليه فلوس.",
+      "draft": "مستني الدفع",
+      "paid": "اتدفع",
+      "cancelled": "اتلغى",
+      "markPaid": "علّمه مدفوع",
+      "transferRef": "رقم التحويل البنكي",
+      "cancelPayout": "إلغاء",
+      "cancelNote": "سبب الإلغاء؟",
+      "merchant": "التاجر",
+      "cutoff": "لحد",
+      "created": "جهّزه {name}",
+      "paidBy": "دفعه {name}، {time}",
+      "statuses": {
+        "draft": "مستني",
+        "paid": "اتدفع",
+        "cancelled": "اتلغى"
+      }
+    },
+    "merchants": {
+      "title": "محافظ التجار",
+      "owed": "علينا",
+      "owes": "عليه لينا",
+      "schedule": "مواعيد التحويل",
+      "statement": "كشف الحساب",
+      "prepare": "جهّز تحويل",
+      "receipt": "سجّل دفعة وصلت",
+      "adjust": "تسوية",
+      "adjustHelp": "الموجب رصيد للتاجر، والسالب خصم عليه. اكتب السبب دايمًا.",
+      "reason": "السبب",
+      "openDraft": "تحويل مستني: {amount}",
+      "opening": "رصيد أول المدة",
+      "closing": "رصيد آخر المدة",
+      "date": "التاريخ",
+      "type": "النوع",
+      "order": "الطلب",
+      "balance": "الرصيد",
+      "errors": {
+        "nothing_to_pay": "مفيش حاجة علينا للتاجر ده لحد اليوم ده.",
+        "payout_already_open": "التاجر ده عنده تحويل مستني بالفعل.",
+        "reason_required": "اكتب سبب 5 حروف على الأقل.",
+        "invalid_amount": "اكتب المبلغ.",
+        "more_than_cash_in_store": "ده أكتر من الكاش اللي في المخزن.",
+        "more_than_owed": "ده أكتر من اللي المندوب كسبه.",
+        "handover_not_pending": "حد راجعه قبل كده.",
+        "payout_not_draft": "التحويل ده اتعامل معاه قبل كده.",
+        "validation_failed": "راجع البيانات.",
+        "generic": "حصلت مشكلة. جرب تاني."
+      }
+    },
+    "riders": {
+      "title": "محافظ المناديب",
+      "cash": "كاش معاه",
+      "bonus": "حافز مستحق",
+      "pay": "اصرف الحافز",
+      "fromBank": "من البنك",
+      "fromStore": "من خزنة المخزن",
+      "paid": "الحافز اتصرف.",
+      "store": "المخزن",
+      "badge": "الكارنيه",
+      "pending": "فروق مستنية"
+    },
+    "journal": {
+      "title": "اليومية",
+      "intro": "كل حركة فلوس، بسطور المدين والدائن.",
+      "kind": "النوع",
+      "allKinds": "كل الأنواع",
+      "account": "الحساب",
+      "debit": "مدين",
+      "credit": "دائن",
+      "when": "إمتى",
+      "what": "إيه"
+    },
+    "trial": {
+      "title": "ميزان المراجعة",
+      "intro": "المدين والدائن لكل حساب. الإجماليين لازم يكونوا متساويين دايمًا.",
+      "total": "الإجمالي",
+      "balance": "الرصيد",
+      "balanced": "متزن",
+      "notBalanced": "مش متزن، كلّم الدعم"
+    }
+  },
+  "storeCash": {
+    "tile": "كاش المناديب",
+    "tileHint": "عدّ الكاش من المناديب",
+    "title": "الكاش من المناديب",
+    "intro": "عدّ الكاش اللي المندوب بيسلمه، واكتب الإجمالي. أي فرق بيروح للمالية.",
+    "carrying": "معاه {amount}",
+    "outNow": "{count} طلب لسه برة",
+    "counted": "الكاش المعدود (جنيه)",
+    "record": "سجّل التسليم",
+    "balanced": "اتسجل. مظبوط.",
+    "short": "اتسجل. ناقص {amount}، المالية هتراجعه.",
+    "over": "اتسجل. زيادة {amount} عن المتوقع، المالية هتراجعه.",
+    "none": "مفيش مناديب في المخزن ده.",
+    "recent": "آخر عمليات التسليم",
+    "errors": {
+      "rider_other_store": "المندوب ده تبع مخزن تاني.",
+      "invalid_amount": "اكتب المبلغ المعدود.",
+      "validation_failed": "اكتب المبلغ المعدود.",
+      "network": "مفيش اتصال. جرب تاني.",
+      "generic": "حصلت مشكلة. جرب تاني."
+    }
+  },
+  "merchantFinance": {
+    "nav": "المحفظة",
+    "title": "المحفظة وكشوف الحساب",
+    "owed": "لك عندنا",
+    "owes": "عليك لينا",
+    "schedule": "بتتحوّل لك: {schedule}",
+    "payouts": "التحويلات",
+    "noPayouts": "مفيش تحويلات لسه.",
+    "waiting": "بيتجهز",
+    "paid": "اتدفع",
+    "reference": "رقم التحويل {reference}",
+    "statement": "كشف الحساب",
+    "export": "تصدير لإكسل"
+  },
+  "riderWallet": {
+    "cash": "الكاش اللي معاك: {amount} جنيه",
+    "bonus": "الحافز اللي كسبته: {amount} جنيه",
+    "handIn": "سلّم الكاش للمخزن في آخر الوردية."
   }
 }

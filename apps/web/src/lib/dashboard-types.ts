@@ -49,8 +49,12 @@ export interface SettingRow {
   global: number | null;
   globalUpdatedAt: string | null;
   globalUpdatedBy: string | null;
+  /** Which per scope value is allowed: per store, per merchant, or none */
+  override: 'store' | 'merchant' | 'none';
   overrides: {
-    darkStoreId: string;
+    scope: string;
+    darkStoreId: string | null;
+    merchantId: string | null;
     value: number | null;
     updatedAt: string;
     updatedBy: string | null;
@@ -59,5 +63,6 @@ export interface SettingRow {
 
 export interface SettingsList {
   stores: { id: string; code: string; nameEn: string; nameAr: string }[];
+  merchants: { id: string; name: string }[];
   settings: SettingRow[];
 }

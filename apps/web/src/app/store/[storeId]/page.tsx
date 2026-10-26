@@ -8,9 +8,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function StoreHomePage({ params }: { params: Promise<{ storeId: string }> }) {
   const { storeId } = await params;
-  const [summary, t, locale] = await Promise.all([
+  const [summary, t, tc, locale] = await Promise.all([
     apiGet<StoreSummary>(`/stores/${storeId}/summary`),
     getTranslations('store.home'),
+    getTranslations('storeCash'),
     getLocale(),
   ]);
   const tiles = [
@@ -29,6 +30,7 @@ export default async function StoreHomePage({ params }: { params: Promise<{ stor
     { href: 'count', title: t('count'), hint: t('countHint') },
     { href: 'damaged', title: t('damaged'), hint: t('damagedHint') },
     { href: 'labels', title: t('labels'), hint: t('labelsHint') },
+    { href: 'cash', title: tc('tile'), hint: tc('tileHint') },
   ];
   return (
     <>

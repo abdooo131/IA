@@ -6,7 +6,7 @@ import { getClaims } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
 
-const ROLES = ['admin', 'store_staff', 'rider', 'merchant'] as const;
+const ROLES = ['admin', 'finance', 'store_staff', 'rider', 'merchant'] as const;
 
 export default async function AdminUsersPage({
   searchParams,

@@ -54,7 +54,7 @@ Every push to the branch rebuilds and redeploys automatically.
 - Demo accounts (password = `SEED_DEMO_PASSWORD`):
   `staff.newcairo@shiplynow.local`, `staff.maadi@shiplynow.local`,
   `rider.newcairo@shiplynow.local`, `rider.maadi@shiplynow.local`,
-  `merchant@evechantelle.example`.
+  `merchant@evechantelle.example`, `finance@shiplynow.local` (finance team).
 - The starting data (3 dark stores, zones, 20 Eve Chantelle products, opening stock) loads on
   the first start. Later starts only add missing rows and never overwrite your changes.
 
