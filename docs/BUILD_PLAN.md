@@ -52,6 +52,10 @@ Prompt:
 
 Check: pick Maadi on the test store, only Maadi stock shows.
 
+Checkout decision (agreed): the widget is followed by a final check at checkout through a carrier service (GraphQL carrierServiceCreate, never the REST resource). Shopify sends the address and cart; we find the store whose zone holds the address (geocoding it when there is no map point), check it is open, under capacity and has every item in stock, and answer with a "60 minute delivery" rate whose code names the store (SN60:<store id>), or no rate so the customer only sees the merchant's next day rates. After the order, the sync reads that code and makes sure the fulfillment order sits at that store's location (fulfillmentOrderMove), then reserves stock as today. Orders that did not choose the 60 minute rate are handed back to the merchant. Fallback if a plan lacks carrier rates: widget plus a delivery customization function.
+
+Check: a Maadi address with stock shows the 60 minute option at checkout; an address outside every zone, a closed store or a missing item shows only next day; a 60 minute order routed by Shopify to the wrong store ends up at the right one.
+
 ## Step 7: Orders, picking and SLA (3 to 4 days)
 
 Prompt:
