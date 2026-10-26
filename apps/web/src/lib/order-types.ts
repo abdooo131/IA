@@ -47,6 +47,8 @@ export interface OrderSummary {
   codAmountPiastres: number;
   placedAt: string;
   slaDueAt: string | null;
+  /** Set when the order waits for the store to open */
+  slaStartsAt: string | null;
   deliveredAt: string | null;
   closedReason: string | null;
   lateStage: SlaStage | null;

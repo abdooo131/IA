@@ -76,7 +76,8 @@
       "merchants": "Merchants",
       "settings": "Settings",
       "audit": "Audit log",
-      "finance": "Finance"
+      "finance": "Finance",
+      "shopify": "Shopify"
     },
     "overview": {
       "title": "Overview",
@@ -255,7 +256,10 @@
         "item_missing": "Item missing at pick: {sku} × {quantity}",
         "cod_mismatch": "Cash difference: expected {expected}, collected {collected} EGP",
         "phone_invalid": "Customer phone is not a valid Egyptian mobile",
-        "delivery_failed": "Delivery failed: {reason}"
+        "delivery_failed": "Delivery failed: {reason}",
+        "shopify_rejected": "Shopify order {order} sent back to the merchant: {reason}",
+        "over_capacity": "Order {order} came in while the store was full",
+        "shopify_sync_failed": "Could not update Shopify ({kind}): {error}"
       },
       "handledBy": "Handled by {name}"
     },
@@ -431,6 +435,47 @@
         "invalid_price": "Enter a price like 249.50.",
         "empty_file": "The file has no rows.",
         "validation_failed": "Check the fields.",
+        "generic": "Something went wrong. Try again."
+      }
+    },
+    "shopify": {
+      "title": "Shopify",
+      "intro": "Connect merchants' Shopify stores. Orders for 60 minute delivery arrive here automatically, stock is sent back within a minute, and customers get tracking and delivery updates in Shopify.",
+      "notConfigured": "Shopify is not connected on this server yet. Add SHOPIFY_API_KEY and SHOPIFY_API_SECRET to the server settings.",
+      "link": "Link a merchant's store",
+      "merchant": "Merchant",
+      "domain": "Shopify store address",
+      "domainHint": "For example evechantelle or evechantelle.myshopify.com",
+      "linkButton": "Link store",
+      "installLink": "Install link",
+      "installHelp": "Send this link to the merchant, or open it while signed in to their Shopify admin. Shopify asks them to approve the app.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "statuses": {
+        "pending": "Waiting for install",
+        "active": "Connected",
+        "uninstalled": "Uninstalled"
+      },
+      "locations": "Locations in Shopify",
+      "noLocations": "No locations yet.",
+      "register": "Create locations for all dark stores",
+      "catalog": "Products linked",
+      "syncCatalog": "Link products by SKU",
+      "createMissing": "Also add Shopify products we do not have yet",
+      "syncNow": "Sync now",
+      "pending": "Calls waiting",
+      "failed": "Calls failed",
+      "log": "Activity",
+      "noLog": "Nothing yet.",
+      "result": {
+        "register": "{created} locations created, {failed} failed.",
+        "catalog": "{linked} linked, {created} added, {already} already linked, {missing} not in our catalog, {withoutSku} without SKU.",
+        "sync": "Synced."
+      },
+      "errors": {
+        "shop_linked_to_other_merchant": "That store is already linked to another merchant.",
+        "shop_not_installed": "The merchant has not installed the app yet.",
+        "validation_failed": "Check the store address.",
         "generic": "Something went wrong. Try again."
       }
     }
@@ -716,7 +761,8 @@
       "cancelled": "Cancelled",
       "moved_to_standard": "Moved to standard",
       "returned_to_store": "Goods back in store",
-      "late": "Late"
+      "late": "Late",
+      "queued_until_open": "Waiting for the store to open"
     },
     "number": "Order",
     "customer": "Customer",
@@ -801,7 +847,8 @@
       "picked_up": "On the way",
       "delivered": "Delivered",
       "failed": "Failed"
-    }
+    },
+    "queued": "Waiting for the store to open"
   },
   "rider": {
     "title": "My deliveries",
@@ -1074,5 +1121,18 @@
     "cash": "Cash with you: {amount} EGP",
     "bonus": "Bonus earned: {amount} EGP",
     "handIn": "Hand the cash to the store at the end of your shift."
+  },
+  "shopifyInstalled": {
+    "title": "Shiply Now",
+    "ok": "Shiply Now is connected to {shop}. Your dark store locations and products are being set up; this takes a minute.",
+    "next": "You can close this page. Orders for 60 minute delivery now go to Shiply Now automatically.",
+    "errors": {
+      "shop_not_linked": "This store is not linked to a Shiply Now merchant yet. Ask the Shiply team to link {shop} first.",
+      "expired": "The install link expired. Open it again.",
+      "invalid_request": "The request from Shopify could not be verified. Try again from Shopify.",
+      "install_failed": "Installing did not work. Try again, or contact the Shiply team.",
+      "invalid_shop": "That is not a Shopify store address.",
+      "not_configured": "The Shopify app is not set up on this server yet."
+    }
   }
 }

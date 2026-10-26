@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic';
 
 interface AlertRow {
   id: string;
-  type: 'late' | 'item_missing' | 'cod_mismatch' | 'phone_invalid' | 'delivery_failed';
+  type: string;
   stage: string | null;
   data: Record<string, unknown> | null;
   createdAt: string;
@@ -55,7 +55,12 @@ export default async function AdminAlertsPage({
         return t('types.delivery_failed', { reason: reasons.has(r) ? reasons(r) : r });
       }
       default:
-        return t.has(`types.${a.type}`) ? t(`types.${a.type}`) : a.type;
+        return t.has(`types.${a.type}`)
+          ? t(
+              `types.${a.type}`,
+              Object.fromEntries(Object.entries(d).map(([k, v]) => [k, String(v ?? '')])),
+            )
+          : a.type;
     }
   };
 

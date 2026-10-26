@@ -1,0 +1,27 @@
+# Shopify app configuration for Shiply Now. Replace RENDER_URL with the deployed address
+# (for example https://shiplynow.onrender.com) before running `shopify app deploy`, or enter
+# the same values by hand in the Dev Dashboard (see README.md).
+client_id = "f861196e9ba7d2e755655e4e29132d82"
+name = "Shiply Now"
+application_url = "RENDER_URL/api/shopify/app"
+# Merchants manage everything in Shiply Now's own web app, so the app opens outside Shopify admin.
+embedded = false
+
+[access_scopes]
+scopes = "read_products,read_inventory,write_inventory,read_locations,read_orders,write_order_edits,read_fulfillments,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders"
+# The server installs with the OAuth authorization code grant (apps/api/src/shopify).
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = ["RENDER_URL/api/shopify/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+  [[webhooks.subscriptions]]
+  topics = ["app/uninstalled"]
+  uri = "RENDER_URL/api/shopify/webhooks"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "RENDER_URL/api/shopify/webhooks"

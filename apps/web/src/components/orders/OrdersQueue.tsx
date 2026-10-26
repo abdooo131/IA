@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { apiGetClient } from '@/lib/api-client';
+import { formatCairoDateTime } from '@/lib/format';
 import type { OrderSummary } from '@/lib/order-types';
 import { OrderStatusChip } from './OrderStatusChip';
 import { StageTimer } from './StageTimer';
@@ -64,6 +65,12 @@ export function OrdersQueue({
                 {o.stage && view === 'active' && (
                   <p className="mt-1">
                     <StageTimer stage={o.stage.stage} dueAt={o.stage.dueAt} />
+                  </p>
+                )}
+                {o.status === 'new' && o.slaStartsAt && (
+                  <p className="mt-1 text-caption text-text-muted">
+                    {t('queued')} ·{' '}
+                    <span className="ltr-iso">{formatCairoDateTime(o.slaStartsAt, locale)}</span>
                   </p>
                 )}
                 {o.phoneFlagged && (

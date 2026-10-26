@@ -76,7 +76,8 @@
       "merchants": "التجار",
       "settings": "الإعدادات",
       "audit": "سجل التغييرات",
-      "finance": "المالية"
+      "finance": "المالية",
+      "shopify": "شوبيفاي"
     },
     "overview": {
       "title": "نظرة عامة",
@@ -255,7 +256,10 @@
         "item_missing": "منتج ناقص في التجهيز: {sku} × {quantity}",
         "cod_mismatch": "فرق كاش: المطلوب {expected} والمحصل {collected} ج.م",
         "phone_invalid": "موبايل العميل مش رقم مصري صحيح",
-        "delivery_failed": "التوصيل فشل: {reason}"
+        "delivery_failed": "التوصيل فشل: {reason}",
+        "shopify_rejected": "طلب شوبيفاي {order} رجع للتاجر: {reason}",
+        "over_capacity": "الطلب {order} وصل والمخزن مليان",
+        "shopify_sync_failed": "مقدرناش نحدّث شوبيفاي ({kind}): {error}"
       },
       "handledBy": "اتعامل معاه {name}"
     },
@@ -431,6 +435,47 @@
         "invalid_price": "اكتب سعر زي 249.50.",
         "empty_file": "الملف مفيهوش سطور.",
         "validation_failed": "راجع البيانات.",
+        "generic": "حصلت مشكلة. جرب تاني."
+      }
+    },
+    "shopify": {
+      "title": "شوبيفاي",
+      "intro": "اربط متاجر شوبيفاي بتاعة التجار. طلبات التوصيل في 60 دقيقة بتوصل هنا أوتوماتيك، والمخزون بيتبعت في أقل من دقيقة، والعميل بيشوف التتبع والتسليم في شوبيفاي.",
+      "notConfigured": "شوبيفاي لسه مش متوصل على السيرفر ده. ضيف SHOPIFY_API_KEY و SHOPIFY_API_SECRET في إعدادات السيرفر.",
+      "link": "اربط متجر تاجر",
+      "merchant": "التاجر",
+      "domain": "عنوان متجر شوبيفاي",
+      "domainHint": "مثلًا evechantelle أو evechantelle.myshopify.com",
+      "linkButton": "اربط المتجر",
+      "installLink": "لينك التثبيت",
+      "installHelp": "ابعت اللينك ده للتاجر، أو افتحه وانت داخل على أدمن شوبيفاي بتاعه. شوبيفاي هيطلب منه يوافق على التطبيق.",
+      "copy": "نسخ",
+      "copied": "اتنسخ",
+      "statuses": {
+        "pending": "مستني التثبيت",
+        "active": "متوصل",
+        "uninstalled": "اتشال"
+      },
+      "locations": "المواقع في شوبيفاي",
+      "noLocations": "مفيش مواقع لسه.",
+      "register": "اعمل مواقع لكل المخازن",
+      "catalog": "منتجات مربوطة",
+      "syncCatalog": "اربط المنتجات بالكود",
+      "createMissing": "وضيف منتجات شوبيفاي اللي مش عندنا",
+      "syncNow": "زامن دلوقتي",
+      "pending": "طلبات مستنية",
+      "failed": "طلبات فشلت",
+      "log": "النشاط",
+      "noLog": "مفيش حاجة لسه.",
+      "result": {
+        "register": "اتعمل {created} موقع، فشل {failed}.",
+        "catalog": "{linked} اتربطوا، {created} اتضافوا، {already} مربوطين قبل كده، {missing} مش في الكتالوج، {withoutSku} من غير كود.",
+        "sync": "اتزامن."
+      },
+      "errors": {
+        "shop_linked_to_other_merchant": "المتجر ده مربوط بتاجر تاني.",
+        "shop_not_installed": "التاجر لسه منزّلش التطبيق.",
+        "validation_failed": "راجع عنوان المتجر.",
         "generic": "حصلت مشكلة. جرب تاني."
       }
     }
@@ -716,7 +761,8 @@
       "cancelled": "اتلغى",
       "moved_to_standard": "اتحول للشحن العادي",
       "returned_to_store": "البضاعة رجعت المخزن",
-      "late": "متأخر"
+      "late": "متأخر",
+      "queued_until_open": "مستني المخزن يفتح"
     },
     "number": "الطلب",
     "customer": "العميل",
@@ -801,7 +847,8 @@
       "picked_up": "في الطريق",
       "delivered": "تم التسليم",
       "failed": "فشل التسليم"
-    }
+    },
+    "queued": "مستني المخزن يفتح"
   },
   "rider": {
     "title": "توصيلاتي",
@@ -1074,5 +1121,18 @@
     "cash": "الكاش اللي معاك: {amount} جنيه",
     "bonus": "الحافز اللي كسبته: {amount} جنيه",
     "handIn": "سلّم الكاش للمخزن في آخر الوردية."
+  },
+  "shopifyInstalled": {
+    "title": "Shiply Now",
+    "ok": "Shiply Now اتوصل بـ {shop}. مواقع المخازن والمنتجات بتتجهز؛ ده بياخد دقيقة.",
+    "next": "تقدر تقفل الصفحة. طلبات التوصيل في 60 دقيقة بتروح لـ Shiply Now أوتوماتيك.",
+    "errors": {
+      "shop_not_linked": "المتجر ده لسه مش مربوط بتاجر في Shiply Now. اطلب من فريق Shiply يربط {shop} الأول.",
+      "expired": "لينك التثبيت انتهى. افتحه تاني.",
+      "invalid_request": "مقدرناش نتأكد من الطلب اللي جاي من شوبيفاي. جرب تاني من شوبيفاي.",
+      "install_failed": "التثبيت مانجحش. جرب تاني أو كلّم فريق Shiply.",
+      "invalid_shop": "ده مش عنوان متجر شوبيفاي.",
+      "not_configured": "تطبيق شوبيفاي لسه مش متجهز على السيرفر ده."
+    }
   }
 }

@@ -14,6 +14,7 @@ const ITEMS = [
   { href: '/admin/shipments', key: 'shipments' },
   { href: '/admin/counts', key: 'counts' },
   { href: '/admin/merchants', key: 'merchants' },
+  { href: '/admin/shopify', key: 'shopify' },
   { href: '/admin/users', key: 'users' },
   { href: '/admin/settings', key: 'settings' },
   { href: '/admin/audit', key: 'audit' },

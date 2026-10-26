@@ -45,6 +45,7 @@ function summarize(o: ListRow, sla: Awaited<ReturnType<typeof slaFor>> | null, n
     codAmountPiastres: o.codAmountPiastres,
     placedAt: o.placedAt,
     slaDueAt: o.slaDueAt,
+    slaStartsAt: o.slaStartsAt,
     deliveredAt: o.deliveredAt,
     closedReason: o.closedReason,
     lateStage: o.lateStage,
