@@ -41,6 +41,8 @@ export type SlaStage = 'accept' | 'pick' | 'pack' | 'handover' | 'ride';
 export interface StageTimes {
   status: OrderStatus;
   placedAt: Date;
+  /** Set when an order waits for the store to open: the clock starts then, not at placement */
+  slaStartsAt?: Date | null;
   acceptedAt: Date | null;
   pickedAt: Date | null;
   packedAt: Date | null;
@@ -68,7 +70,7 @@ export function currentStageDue(
   let result: { stage: SlaStage; dueAt: Date | null };
   switch (order.status) {
     case 'new':
-      result = { stage: 'accept', dueAt: plus(order.placedAt, sla.accept) };
+      result = { stage: 'accept', dueAt: plus(order.slaStartsAt ?? order.placedAt, sla.accept) };
       break;
     case 'accepted':
     case 'picking':

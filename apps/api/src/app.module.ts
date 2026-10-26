@@ -9,6 +9,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { MerchantModule } from './merchant/merchant.module';
 import { PhotosModule } from './photos/photos.module';
 import { RiderModule } from './rider/rider.module';
+import { ShopifyModule } from './shopify/shopify.module';
 import { StoreModule } from './store/store.module';
 import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
@@ -33,6 +34,7 @@ import { UsersController } from './users/users.controller';
     RiderModule,
     JobsModule,
     FinanceModule,
+    ShopifyModule,
   ],
   controllers: [HealthController, UsersController],
 })

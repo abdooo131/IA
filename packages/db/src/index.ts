@@ -69,3 +69,4 @@ export {
 } from './admin-ops';
 export { computeKpis, type KpiFilter, type Kpis, type KpiTotals } from './kpis';
 export * from './finance';
+export { queueShopify, type ShopifyOutboxKind } from './shopify/outbox';

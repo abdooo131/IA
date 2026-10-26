@@ -11,6 +11,8 @@ export function setupApp(app: INestApplication) {
   app.use(cookieParser());
   // Photos are uploaded as the raw image body (the client shrinks them first).
   app.use('/photos', raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1600kb' }));
+  // Shopify signs the exact bytes it sends, so its callbacks keep the raw body.
+  app.use(['/shopify/fs', '/shopify/webhooks'], raw({ type: () => true, limit: '1mb' }));
   app.useGlobalFilters(new DomainErrorFilter());
   app.enableCors({ origin: config.get('WEB_ORIGIN', { infer: true }), credentials: true });
   app.enableShutdownHooks();

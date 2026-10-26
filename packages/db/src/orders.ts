@@ -1,3 +1,4 @@
+import { queueShopify } from './shopify/outbox';
 import { randomUUID } from 'node:crypto';
 import type { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import {
@@ -147,6 +148,8 @@ export interface CreateOrderInput {
   codAmountPiastres?: number;
   items: { skuId: string; quantity: number; unitPricePiastres?: number }[];
   placedAt?: Date;
+  /** Start of the SLA clock when later than placement (the store opens later) */
+  slaStartsAt?: Date;
   actorUserId: Actor;
 }
 
@@ -209,7 +212,8 @@ export function createOrder(db: Db, input: CreateOrderInput): Promise<CreatedOrd
         subtotalPiastres: 0,
         deliveryOtp: newDeliveryOtp(),
         placedAt,
-        slaDueAt: new Date(placedAt.getTime() + promise * 60_000),
+        slaStartsAt: input.slaStartsAt ?? null,
+        slaDueAt: new Date((input.slaStartsAt ?? placedAt).getTime() + promise * 60_000),
         createdById: input.actorUserId,
         items: {
           create: priced.map((i) => ({
@@ -506,6 +510,9 @@ export function markItemMissing(
       reason: 'missing_at_pick',
       lines: [line],
     });
+    await queueShopify(tx, order, 'cancel_items', `missing:${input.idempotencyKey}`, {
+      lines: [line],
+    });
     await finishPickingIfDone(tx, order.id, input.actorUserId);
     return { replayed: false };
   });
@@ -589,6 +596,9 @@ export function handToRider(
       { outForDeliveryAt: now },
       { rider: rider.user.name, badge: rider.badgeCode, tripId, batched: active.length > 0 },
     );
+    await queueShopify(tx, order, 'fulfill', `order:${order.id}:fulfill`, {
+      trackingNumber: order.number,
+    });
     return { rider: rider.user.name, tripId, batched: active.length > 0 };
   });
 }
@@ -720,6 +730,9 @@ export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
       actorUserId: input.riderUserId,
       now,
     });
+    await queueShopify(tx, order, 'delivered', `order:${order.id}:delivered`, {
+      at: now.toISOString(),
+    });
   });
 }
 
@@ -763,6 +776,10 @@ export function failDelivery(
       reason: input.reason,
     });
     await postDeliveryFailed(tx, { deliveryId: delivery.id, actorUserId: input.riderUserId, now });
+    await queueShopify(tx, order, 'failed', `delivery:${delivery.id}:failed`, {
+      reason: input.reason,
+      at: now.toISOString(),
+    });
   });
 }
 
@@ -803,6 +820,7 @@ export async function flagLateOrders(db: Db, now: Date = new Date()) {
       darkStoreId: true,
       status: true,
       placedAt: true,
+      slaStartsAt: true,
       acceptedAt: true,
       pickedAt: true,
       packedAt: true,

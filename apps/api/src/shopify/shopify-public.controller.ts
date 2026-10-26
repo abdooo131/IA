@@ -1,0 +1,236 @@
+import { randomBytes } from 'node:crypto';
+import {
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Query,
+  Req,
+  Res,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ApiExcludeController } from '@nestjs/swagger';
+import type { Request, Response } from 'express';
+import { Public } from '../auth/decorators';
+import { sealToken, isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
+import { ShopifyAdmin } from './shopify-admin';
+import { ShopifyJobsService } from './shopify-jobs.service';
+import { ShopifySetupService } from './shopify-setup.service';
+import { ShopifySyncService } from './shopify-sync.service';
+import { SHOPIFY_SCOPES, ShopifyService } from './shopify.service';
+
+const STATE_COOKIE = 'shopify_oauth_state';
+
+/** Everything Shopify (or a merchant coming from Shopify) calls. No Shiply login here. */
+@ApiExcludeController()
+@Public()
+@Controller('shopify')
+export class ShopifyPublicController {
+  constructor(
+    private readonly shopify: ShopifyService,
+    private readonly admin: ShopifyAdmin,
+    private readonly jobs: ShopifyJobsService,
+    private readonly setup: ShopifySetupService,
+    private readonly sync: ShopifySyncService,
+  ) {}
+
+  private get prisma() {
+    return this.shopify.prisma;
+  }
+
+  private done(res: Response, params: Record<string, string>) {
+    res.redirect(302, `${this.shopify.publicUrl}/shopify/installed?${new URLSearchParams(params)}`);
+  }
+
+  /** Starts installation for a shop that admin linked to a merchant. */
+  @Get('install')
+  async install(@Query('shop') shop: string, @Res() res: Response) {
+    if (!this.shopify.configured) return this.done(res, { error: 'not_configured' });
+    if (!isShopDomain(shop)) return this.done(res, { error: 'invalid_shop' });
+    const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
+    if (!linked) return this.done(res, { error: 'shop_not_linked', shop });
+    const state = randomBytes(16).toString('hex');
+    res.cookie(STATE_COOKIE, state, {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: this.shopify.publicUrl.startsWith('https://'),
+      maxAge: 10 * 60_000,
+      path: '/',
+    });
+    const url = new URL(`https://${shop}/admin/oauth/authorize`);
+    url.searchParams.set('client_id', this.shopify.apiKey);
+    url.searchParams.set('scope', SHOPIFY_SCOPES);
+    url.searchParams.set('redirect_uri', `${this.shopify.publicUrl}/api/shopify/callback`);
+    url.searchParams.set('state', state);
+    res.redirect(302, url.toString());
+  }
+
+  /** Shopify sends the merchant back here after they approve the app. */
+  @Get('callback')
+  async callback(
+    @Query() query: Record<string, string>,
+    @Req() req: Request,
+    @Res() res: Response,
+  ) {
+    const shop = query.shop;
+    if (!isShopDomain(shop) || !verifyQueryHmac(query, this.shopify.secret))
+      return this.done(res, { error: 'invalid_request' });
+    const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
+    if (!query.state || cookies[STATE_COOKIE] !== query.state)
+      return this.done(res, { error: 'expired', shop });
+    res.clearCookie(STATE_COOKIE, { path: '/' });
+    const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
+    if (!linked) return this.done(res, { error: 'shop_not_linked', shop });
+    try {
+      const token = await this.admin.exchangeCode(shop, query.code ?? '');
+      const active = await this.prisma.shopifyShop.update({
+        where: { id: linked.id },
+        data: {
+          status: 'active',
+          accessTokenEnc: sealToken(token.accessToken, this.shopify.secret),
+          scopes: token.scope,
+          installedAt: new Date(),
+          uninstalledAt: null,
+        },
+      });
+      await this.prisma.merchant.update({
+        where: { id: linked.merchantId },
+        data: { shopifyShopDomain: shop },
+      });
+      await this.shopify.record(active.id, {
+        direction: 'in',
+        kind: 'install',
+        ok: true,
+        message: token.scope,
+      });
+      // Set up in the background: locations for every dark store, then link the catalog.
+      void (async () => {
+        await this.setup.registerLocations(active.id, null).catch(() => undefined);
+        await this.setup
+          .syncCatalog(active.id, { createMissing: false }, null)
+          .catch(() => undefined);
+      })();
+      return this.done(res, { shop });
+    } catch (error) {
+      await this.shopify.record(linked.id, {
+        direction: 'in',
+        kind: 'install',
+        ok: false,
+        message: (error as Error).message,
+      });
+      return this.done(res, { error: 'install_failed', shop });
+    }
+  }
+
+  /** The app address in Shopify admin: installed shops see their status, others install. */
+  @Get('app')
+  async app(@Query() query: Record<string, string>, @Res() res: Response) {
+    const shop = query.shop;
+    if (!isShopDomain(shop) || !verifyQueryHmac(query, this.shopify.secret))
+      return this.done(res, { error: 'invalid_request' });
+    const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
+    if (linked?.status === 'active') return this.done(res, { shop });
+    res.redirect(
+      302,
+      `${this.shopify.publicUrl}/api/shopify/install?shop=${encodeURIComponent(shop)}`,
+    );
+  }
+
+  // ─── fulfillment service callbacks (one address per dark store location) ──────
+
+  @Post('fs/:id/fulfillment_order_notification')
+  @HttpCode(200)
+  async notification(
+    @Param('id') id: string,
+    @Req() req: Request,
+    @Headers('x-shopify-hmac-sha256') hmac?: string,
+  ) {
+    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+    if (!verifyBodyHmac(raw, hmac, this.shopify.secret))
+      throw new UnauthorizedException({ error: 'invalid_hmac' });
+    const location = await this.prisma.shopifyLocation.findUnique({
+      where: { id },
+      include: { shop: true },
+    });
+    if (!location) return { ok: false };
+    let kind = 'unknown';
+    try {
+      kind = (JSON.parse(raw.toString('utf8')) as { kind?: string }).kind ?? 'unknown';
+    } catch {
+      // A body we cannot read still triggers a sweep, which finds the request itself.
+    }
+    await this.shopify.record(location.shopId, {
+      direction: 'in',
+      kind: 'notification',
+      ok: true,
+      message: kind,
+    });
+    // Answer at once; the sweep asks Shopify for the actual requests.
+    void this.jobs.runShop(location.shop);
+    return { ok: true };
+  }
+
+  /** Shopify asks how many units we have: one SKU, or all of them hourly. */
+  @Get(['fs/:id/fetch_stock', 'fs/:id/fetch_stock.json'])
+  async fetchStock(
+    @Param('id') id: string,
+    @Query('shop') shop?: string,
+    @Query('sku') sku?: string,
+  ) {
+    const location = await this.prisma.shopifyLocation.findUnique({
+      where: { id },
+      include: { shop: true },
+    });
+    if (!location || (shop && shop !== location.shop.shopDomain)) return {};
+    const available = await this.sync.availableAt(location.darkStoreId, location.shop.merchantId);
+    const skus = await this.prisma.sku.findMany({
+      where: { merchantId: location.shop.merchantId, ...(sku ? { sku } : {}) },
+      select: { id: true, sku: true },
+    });
+    return Object.fromEntries(skus.map((s) => [s.sku, available.get(s.id) ?? 0]));
+  }
+
+  /** Tracking is sent with each fulfillment already, so there is nothing extra to report. */
+  @Get(['fs/:id/fetch_tracking_numbers', 'fs/:id/fetch_tracking_numbers.json'])
+  trackingNumbers() {
+    return {
+      tracking_numbers: {},
+      message: 'Tracking is sent with each fulfillment',
+      success: true,
+    };
+  }
+
+  // ─── webhooks ────────────────────────────────────────────────────────────────
+
+  @Post('webhooks')
+  @HttpCode(200)
+  async webhook(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Headers('x-shopify-hmac-sha256') hmac?: string,
+    @Headers('x-shopify-topic') topic?: string,
+    @Headers('x-shopify-shop-domain') shopDomain?: string,
+  ) {
+    const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
+    if (!verifyBodyHmac(raw, hmac, this.shopify.secret)) return res.status(401).send();
+    const shop = shopDomain
+      ? await this.prisma.shopifyShop.findUnique({ where: { shopDomain } })
+      : null;
+    if (topic === 'app/uninstalled' && shop) {
+      await this.prisma.shopifyShop.update({
+        where: { id: shop.id },
+        data: { status: 'uninstalled', accessTokenEnc: null, uninstalledAt: new Date() },
+      });
+    }
+    // Privacy requests (customers/data_request, customers/redact, shop/redact) are logged
+    // for the team to act on; order records are kept as long as accounting needs them.
+    await this.shopify.record(shop?.id ?? null, {
+      direction: 'in',
+      kind: `webhook:${topic ?? 'unknown'}`,
+      ok: true,
+    });
+    return res.status(200).send();
+  }
+}

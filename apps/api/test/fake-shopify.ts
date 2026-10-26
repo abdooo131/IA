@@ -1,0 +1,285 @@
+import { ShopifyAdmin } from '../src/shopify/shopify-admin';
+
+type Line = { id: string; sku: string; variantId: string; quantity: number; price: string };
+
+export interface FakeFulfillmentOrder {
+  id: string;
+  orderId: string;
+  name: string;
+  locationId: string;
+  assignment:
+    'FULFILLMENT_REQUESTED' | 'FULFILLMENT_ACCEPTED' | 'CANCELLATION_REQUESTED' | 'CLOSED';
+  lines: Line[];
+  outstanding: string;
+  shipping: string;
+  address: {
+    name: string;
+    phone: string;
+    address1: string;
+    city: string;
+    latitude: number | null;
+    longitude: number | null;
+  };
+  rejected?: { reason: string; message: string };
+}
+
+let seq = 1000;
+const gid = (type: string) => `gid://shopify/${type}/${++seq}`;
+
+/** An in-memory Shopify that answers the app's GraphQL operations, for tests. */
+export class FakeShopify extends ShopifyAdmin {
+  services: { id: string; name: string; callbackUrl: string; locationId: string }[] = [];
+  variants: {
+    id: string;
+    sku: string | null;
+    barcode: string | null;
+    price: string;
+    title: string;
+    inventoryItemId: string;
+    product: string;
+  }[] = [];
+  fulfillmentOrders: FakeFulfillmentOrder[] = [];
+  /** inventoryItemId|locationId -> available */
+  inventory = new Map<string, number>();
+  idempotencyKeys: string[] = [];
+  fulfillments: { id: string; fulfillmentOrderId: string; tracking: string; events: string[] }[] =
+    [];
+  orderQuantities = new Map<string, number>();
+  calls: string[] = [];
+
+  addVariant(sku: string | null, price = '100.00', barcode: string | null = null) {
+    const v = {
+      id: gid('ProductVariant'),
+      sku,
+      barcode,
+      price,
+      title: 'Default Title',
+      inventoryItemId: gid('InventoryItem'),
+      product: `Product ${sku}`,
+    };
+    this.variants.push(v);
+    return v;
+  }
+
+  addRequest(input: Omit<FakeFulfillmentOrder, 'id' | 'orderId' | 'assignment'>) {
+    const fo: FakeFulfillmentOrder = {
+      ...input,
+      id: gid('FulfillmentOrder'),
+      orderId: gid('Order'),
+      assignment: 'FULFILLMENT_REQUESTED',
+    };
+    for (const l of fo.lines) this.orderQuantities.set(l.id, l.quantity);
+    this.fulfillmentOrders.push(fo);
+    return fo;
+  }
+
+  async exchangeCode(_shop: string, code: string) {
+    if (code !== 'good-code') throw new Error('bad code');
+    return { accessToken: 'shpat_test_token', scope: 'read_products,write_inventory' };
+  }
+
+  async graphql<T>(
+    _shop: string,
+    token: string,
+    query: string,
+    v: Record<string, unknown> = {},
+  ): Promise<T> {
+    if (token !== 'shpat_test_token') throw new Error('bad token');
+    const name = /(?:query|mutation)\s+(\w+)/.exec(query)?.[1] ?? 'unknown';
+    this.calls.push(name);
+    const ok = (data: unknown) => data as T;
+    const errors = { userErrors: [] as { message: string }[] };
+    const fo = (id: unknown) => this.fulfillmentOrders.find((f) => f.id === id)!;
+
+    switch (name) {
+      case 'FulfillmentServiceCreate': {
+        const s = {
+          id: gid('FulfillmentService'),
+          name: String(v.name),
+          callbackUrl: String(v.callbackUrl),
+          locationId: gid('Location'),
+        };
+        this.services.push(s);
+        return ok({
+          fulfillmentServiceCreate: {
+            fulfillmentService: { id: s.id, location: { id: s.locationId } },
+            ...errors,
+          },
+        });
+      }
+      case 'ProductVariants':
+        return ok({
+          productVariants: {
+            nodes: this.variants.map((x) => ({
+              id: x.id,
+              sku: x.sku,
+              barcode: x.barcode,
+              price: x.price,
+              title: x.title,
+              inventoryItem: { id: x.inventoryItemId },
+              product: { id: `${x.id}-product`, title: x.product, status: 'ACTIVE' },
+            })),
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        });
+      case 'AssignedFulfillmentOrders': {
+        const list = this.fulfillmentOrders.filter(
+          (f) =>
+            f.assignment === v.status &&
+            (!v.locationIds || (v.locationIds as string[]).includes(f.locationId)),
+        );
+        return ok({
+          assignedFulfillmentOrders: {
+            nodes: list.map((f) => ({
+              id: f.id,
+              status: 'OPEN',
+              requestStatus: f.assignment,
+              assignedLocation: { location: { id: f.locationId } },
+              destination: {
+                firstName: 'Sara',
+                lastName: 'Ali',
+                phone: f.address.phone,
+                address1: f.address.address1,
+                address2: null,
+                city: f.address.city,
+                province: 'Cairo',
+              },
+              order: {
+                id: f.orderId,
+                name: f.name,
+                phone: null,
+                note: 'Ring twice',
+                totalOutstandingSet: { shopMoney: { amount: f.outstanding, currencyCode: 'EGP' } },
+                shippingAddress: { ...f.address, address2: null, province: 'Cairo' },
+                shippingLines: {
+                  nodes: [
+                    {
+                      title: '60 minutes',
+                      discountedPriceSet: { shopMoney: { amount: f.shipping } },
+                    },
+                  ],
+                },
+              },
+              lineItems: {
+                nodes: f.lines.map((l) => ({
+                  id: `${l.id}-fo`,
+                  sku: l.sku,
+                  remainingQuantity: l.quantity,
+                  totalQuantity: l.quantity,
+                  variant: { id: l.variantId },
+                  lineItem: {
+                    id: l.id,
+                    sku: l.sku,
+                    discountedUnitPriceAfterAllDiscountsSet: { shopMoney: { amount: l.price } },
+                  },
+                })),
+              },
+            })),
+            pageInfo: { hasNextPage: false, endCursor: null },
+          },
+        });
+      }
+      case 'AcceptFulfillmentRequest':
+        fo(v.id).assignment = 'FULFILLMENT_ACCEPTED';
+        return ok({
+          fulfillmentOrderAcceptFulfillmentRequest: { fulfillmentOrder: { id: v.id }, ...errors },
+        });
+      case 'RejectFulfillmentRequest':
+        fo(v.id).assignment = 'CLOSED';
+        fo(v.id).rejected = { reason: String(v.reason), message: String(v.message) };
+        return ok({
+          fulfillmentOrderRejectFulfillmentRequest: { fulfillmentOrder: { id: v.id }, ...errors },
+        });
+      case 'AcceptCancellationRequest':
+        fo(v.id).assignment = 'CLOSED';
+        return ok({
+          fulfillmentOrderAcceptCancellationRequest: { fulfillmentOrder: { id: v.id }, ...errors },
+        });
+      case 'RejectCancellationRequest':
+        fo(v.id).assignment = 'FULFILLMENT_ACCEPTED';
+        return ok({
+          fulfillmentOrderRejectCancellationRequest: { fulfillmentOrder: { id: v.id }, ...errors },
+        });
+      case 'FulfillmentCreate': {
+        const input = v.fulfillment as {
+          lineItemsByFulfillmentOrder: { fulfillmentOrderId: string }[];
+          trackingInfo: { number: string };
+        };
+        const f = {
+          id: gid('Fulfillment'),
+          fulfillmentOrderId: input.lineItemsByFulfillmentOrder[0]!.fulfillmentOrderId,
+          tracking: input.trackingInfo.number,
+          events: [] as string[],
+        };
+        this.fulfillments.push(f);
+        return ok({
+          fulfillmentCreate: { fulfillment: { id: f.id, status: 'SUCCESS' }, ...errors },
+        });
+      }
+      case 'FulfillmentEventCreate': {
+        const input = v.fulfillmentEvent as { fulfillmentId: string; status: string };
+        this.fulfillments.find((f) => f.id === input.fulfillmentId)!.events.push(input.status);
+        return ok({
+          fulfillmentEventCreate: {
+            fulfillmentEvent: { id: gid('FulfillmentEvent'), status: input.status },
+            ...errors,
+          },
+        });
+      }
+      case 'OrderEditBegin': {
+        const order = this.fulfillmentOrders.find((f) => f.orderId === v.id)!;
+        return ok({
+          orderEditBegin: {
+            calculatedOrder: {
+              id: `calc-${order.orderId}`,
+              lineItems: {
+                nodes: order.lines.map((l) => ({
+                  id: `calc-${l.id}`,
+                  sku: l.sku,
+                  quantity: this.orderQuantities.get(l.id),
+                  variant: { id: l.variantId },
+                })),
+              },
+            },
+            ...errors,
+          },
+        });
+      }
+      case 'OrderEditSetQuantity':
+        this.orderQuantities.set(String(v.lineItemId).replace('calc-', ''), Number(v.quantity));
+        return ok({ orderEditSetQuantity: { calculatedOrder: { id: v.id }, ...errors } });
+      case 'OrderEditCommit':
+        return ok({ orderEditCommit: { order: { id: v.id }, ...errors } });
+      case 'InventoryActivate':
+        this.idempotencyKeys.push(String(v.key));
+        this.inventory.set(`${v.inventoryItemId}|${v.locationId}`, Number(v.available));
+        return ok({
+          inventoryActivate: { inventoryLevel: { id: gid('InventoryLevel') }, ...errors },
+        });
+      case 'InventorySetQuantities': {
+        this.idempotencyKeys.push(String(v.key));
+        const input = v.input as {
+          quantities: {
+            inventoryItemId: string;
+            locationId: string;
+            quantity: number;
+            changeFromQuantity: null;
+          }[];
+        };
+        for (const q of input.quantities) {
+          if (q.changeFromQuantity !== null)
+            throw new Error('changeFromQuantity must be explicitly null');
+          this.inventory.set(`${q.inventoryItemId}|${q.locationId}`, q.quantity);
+        }
+        return ok({
+          inventorySetQuantities: {
+            inventoryAdjustmentGroup: { id: gid('InventoryAdjustmentGroup') },
+            ...errors,
+          },
+        });
+      }
+      default:
+        throw new Error(`fake Shopify does not know ${name}`);
+    }
+  }
+}

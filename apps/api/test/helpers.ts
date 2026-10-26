@@ -5,11 +5,13 @@ import { AppModule } from '../src/app.module';
 import { Clock } from '../src/common/clock';
 import { Geocoder } from '../src/coverage/geocoding';
 import { PrismaService } from '../src/prisma/prisma.service';
+import { ShopifyAdmin } from '../src/shopify/shopify-admin';
 import { setupApp } from '../src/setup-app';
 
 export interface Overrides {
   clock?: Clock;
   geocoder?: Geocoder;
+  shopify?: ShopifyAdmin;
 }
 
 export async function createTestApp(
@@ -18,6 +20,8 @@ export async function createTestApp(
   let builder = Test.createTestingModule({ imports: [AppModule] });
   if (overrides.clock) builder = builder.overrideProvider(Clock).useValue(overrides.clock);
   if (overrides.geocoder) builder = builder.overrideProvider(Geocoder).useValue(overrides.geocoder);
+  if (overrides.shopify)
+    builder = builder.overrideProvider(ShopifyAdmin).useValue(overrides.shopify);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   setupApp(app);

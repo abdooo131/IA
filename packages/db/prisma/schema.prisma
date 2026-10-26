@@ -131,6 +131,8 @@ model DarkStore {
   ledgerAccounts LedgerAccount[]
   cashHandovers  CashHandover[]
 
+  shopifyLocations ShopifyLocation[]
+
   @@map("dark_stores")
 }
 
@@ -198,25 +200,29 @@ model Merchant {
   ledgerAccounts LedgerAccount[]
   payouts        Payout[]
 
+  shopifyShop ShopifyShop?
+
   @@map("merchants")
 }
 
 model Sku {
-  id               String   @id @default(cuid())
-  merchantId       String   @map("merchant_id")
+  id                     String   @id @default(cuid())
+  merchantId             String   @map("merchant_id")
   /// The merchant's SKU code. Shopify variants are matched on this.
-  sku              String
-  barcode          String?
-  shopifyVariantId String?  @unique @map("shopify_variant_id")
-  shopifyProductId String?  @map("shopify_product_id")
-  titleEn          String   @map("title_en")
-  titleAr          String   @map("title_ar")
+  sku                    String
+  barcode                String?
+  shopifyVariantId       String?  @unique @map("shopify_variant_id")
+  shopifyProductId       String?  @map("shopify_product_id")
+  /// The variant's inventory item, used to push stock levels
+  shopifyInventoryItemId String?  @map("shopify_inventory_item_id")
+  titleEn                String   @map("title_en")
+  titleAr                String   @map("title_ar")
   /// Integer piastres, never a float
-  pricePiastres    Int      @map("price_piastres")
-  weightGrams      Int?     @map("weight_grams")
-  isActive         Boolean  @default(true) @map("is_active")
-  createdAt        DateTime @default(now()) @map("created_at")
-  updatedAt        DateTime @updatedAt @map("updated_at")
+  pricePiastres          Int      @map("price_piastres")
+  weightGrams            Int?     @map("weight_grams")
+  isActive               Boolean  @default(true) @map("is_active")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
 
   merchant       Merchant              @relation(fields: [merchantId], references: [id])
   binStock       BinStock[]
@@ -225,6 +231,8 @@ model Sku {
   manifestLines  InboundManifestLine[]
   orderItems     OrderItem[]
   countLines     StockCountLine[]
+
+  shopifyStock ShopifyStockSync[]
 
   @@unique([merchantId, sku])
   @@index([barcode])
@@ -521,6 +529,10 @@ model Order {
   placedAt                  DateTime      @map("placed_at")
   /// The promise to the customer: placed_at plus sla.promise_minutes
   slaDueAt                  DateTime?     @map("sla_due_at")
+  /// When the SLA clock starts; later than placed_at for orders queued until the store opens
+  slaStartsAt               DateTime?     @map("sla_starts_at")
+  /// Shopify fulfillment created when the order left with a rider
+  shopifyFulfillmentId      String?       @map("shopify_fulfillment_id")
   acceptedAt                DateTime?     @map("accepted_at")
   pickingStartedAt          DateTime?     @map("picking_started_at")
   pickedAt                  DateTime?     @map("picked_at")
@@ -549,6 +561,8 @@ model Order {
   stockMovements StockMovement[]
 
   ledgerEntries LedgerEntry[]
+
+  shopifyOutbox ShopifyOutbox[]
 
   @@index([darkStoreId, status, slaDueAt])
   @@index([merchantId, placedAt])
@@ -896,4 +910,111 @@ model Payout {
 
   @@index([merchantId, status])
   @@map("payouts")
+}
+
+// ─── Shopify ───────────────────────────────────────────────────────────────────
+
+enum ShopifyShopStatus {
+  /// Linked by admin, the merchant has not installed the app yet
+  pending
+  active
+  uninstalled
+
+  @@map("shopify_shop_status")
+}
+
+/// A merchant's Shopify store and our access to it. The token is encrypted at rest.
+model ShopifyShop {
+  id             String            @id @default(cuid())
+  merchantId     String            @unique @map("merchant_id")
+  shopDomain     String            @unique @map("shop_domain")
+  status         ShopifyShopStatus @default(pending)
+  accessTokenEnc String?           @map("access_token_enc")
+  scopes         String?
+  installedAt    DateTime?         @map("installed_at")
+  uninstalledAt  DateTime?         @map("uninstalled_at")
+  createdAt      DateTime          @default(now()) @map("created_at")
+  updatedAt      DateTime          @updatedAt @map("updated_at")
+
+  merchant  Merchant          @relation(fields: [merchantId], references: [id])
+  locations ShopifyLocation[]
+  outbox    ShopifyOutbox[]
+  logs      ShopifyLog[]
+
+  @@map("shopify_shops")
+}
+
+/// One fulfillment service (and its Shopify location) per merchant store and dark store.
+/// Its id is part of the callback address Shopify calls.
+model ShopifyLocation {
+  id                   String   @id @default(cuid())
+  shopId               String   @map("shop_id")
+  darkStoreId          String   @map("dark_store_id")
+  fulfillmentServiceId String   @map("fulfillment_service_id")
+  locationId           String   @unique @map("location_id")
+  isActive             Boolean  @default(true) @map("is_active")
+  createdAt            DateTime @default(now()) @map("created_at")
+
+  shop      ShopifyShop        @relation(fields: [shopId], references: [id])
+  darkStore DarkStore          @relation(fields: [darkStoreId], references: [id])
+  stock     ShopifyStockSync[]
+
+  @@unique([shopId, darkStoreId])
+  @@map("shopify_locations")
+}
+
+/// What Shopify was last told about one product at one location.
+model ShopifyStockSync {
+  locationId    String    @map("location_id")
+  skuId         String    @map("sku_id")
+  activated     Boolean   @default(false)
+  lastPushedQty Int?      @map("last_pushed_qty")
+  pushedAt      DateTime? @map("pushed_at")
+  lastError     String?   @map("last_error")
+
+  location ShopifyLocation @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  sku      Sku             @relation(fields: [skuId], references: [id])
+
+  @@id([locationId, skuId])
+  @@map("shopify_stock_sync")
+}
+
+/// Calls to Shopify that must happen, written in the same transaction as the change that
+/// needs them and retried with growing delays until they succeed.
+model ShopifyOutbox {
+  id             String    @id @default(cuid())
+  shopId         String    @map("shop_id")
+  orderId        String?   @map("order_id")
+  /// fulfill, delivered, failed, cancel_items
+  kind           String
+  payload        Json?
+  idempotencyKey String    @unique @map("idempotency_key")
+  attempts       Int       @default(0)
+  nextAttemptAt  DateTime  @default(now()) @map("next_attempt_at")
+  doneAt         DateTime? @map("done_at")
+  lastError      String?   @map("last_error")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  shop  ShopifyShop @relation(fields: [shopId], references: [id])
+  order Order?      @relation(fields: [orderId], references: [id])
+
+  @@index([doneAt, nextAttemptAt])
+  @@map("shopify_outbox")
+}
+
+/// A readable trail of what came from and went to Shopify, for troubleshooting.
+model ShopifyLog {
+  id        String   @id @default(cuid())
+  shopId    String?  @map("shop_id")
+  direction String
+  kind      String
+  ok        Boolean
+  message   String?
+  data      Json?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  shop ShopifyShop? @relation(fields: [shopId], references: [id])
+
+  @@index([shopId, createdAt])
+  @@map("shopify_logs")
 }
