@@ -25,6 +25,7 @@ public class LoginGui extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
+					DesignSystem.applySaved();
 					LoginGui frame = new LoginGui();
 					frame.setVisible(true);
 				} catch (Exception e) {

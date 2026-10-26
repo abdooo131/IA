@@ -28,6 +28,7 @@ public class AddRm extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
+					DesignSystem.applySaved();
 					AddRm frame = new AddRm();
 					frame.setVisible(true);
 				} catch (Exception e) {

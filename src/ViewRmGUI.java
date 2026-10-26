@@ -22,6 +22,7 @@ public class ViewRmGUI extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
+					DesignSystem.applySaved();
 					ViewRmGUI frame = new ViewRmGUI();
 					frame.setVisible(true);
 				} catch (Exception e) {

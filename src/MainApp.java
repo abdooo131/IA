@@ -31,6 +31,7 @@ public class MainApp extends JFrame {
 		EventQueue.invokeLater(new Runnable() {
 			public void run() {
 				try {
+					DesignSystem.applySaved();
 					MainApp frame = new MainApp();
 					frame.setVisible(true);
 				} catch (Exception e) {
@@ -85,6 +86,8 @@ public class MainApp extends JFrame {
 		
 		JMenu mnNewMenu = new JMenu("Find");
 		menuBar.add(mnNewMenu);
+		
+		menuBar.add(DesignSystem.createMenu());
 		
 		textField = new JTextField();
 		mnNewMenu.add(textField);
