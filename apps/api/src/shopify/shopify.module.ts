@@ -6,6 +6,7 @@ import { ShopifyJobsService } from './shopify-jobs.service';
 import { ShopifyOrdersService } from './shopify-orders.service';
 import { ShopifyPublicController } from './shopify-public.controller';
 import { ShopifyRatesService } from './shopify-rates.service';
+import { ShopifyStorefrontController } from './shopify-storefront.controller';
 import { ShopifySetupService } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
 import { ShopifyService } from './shopify.service';
@@ -21,7 +22,7 @@ import { ShopifyService } from './shopify.service';
     ShopifyJobsService,
     ShopifyRatesService,
   ],
-  controllers: [ShopifyPublicController, ShopifyAdminController],
+  controllers: [ShopifyPublicController, ShopifyAdminController, ShopifyStorefrontController],
   exports: [ShopifyJobsService],
 })
 export class ShopifyModule {}

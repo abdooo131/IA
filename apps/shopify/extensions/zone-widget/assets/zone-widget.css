@@ -1,0 +1,203 @@
+/* Shiply Now storefront widget. Scoped under .snw so it never restyles the theme. */
+.snw {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+  pointer-events: none;
+  font-family: inherit;
+}
+.snw--bottom {
+  bottom: 0;
+}
+.snw--top {
+  top: 0;
+}
+.snw[hidden] {
+  display: none;
+}
+.snw-bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 640px;
+  width: 100%;
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  background: #0b1f3a;
+  color: #fff;
+  box-shadow: 0 6px 24px rgba(11, 31, 58, 0.25);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.snw[data-state='open'] .snw-bar {
+  background: #0d6b4f;
+}
+.snw[data-state='closed'] .snw-bar,
+.snw[data-state='at_capacity'] .snw-bar {
+  background: #5b4a12;
+}
+.snw-label {
+  flex: 1;
+  min-width: 0;
+}
+.snw-button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #fff;
+  color: #0b1f3a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.snw-button:focus-visible,
+.snw-area:focus-visible,
+.snw-close:focus-visible,
+.snw-search:focus-visible {
+  outline: 3px solid #4c9aff;
+  outline-offset: 2px;
+}
+.snw-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(11, 31, 58, 0.45);
+  font-family: inherit;
+}
+@media (min-width: 640px) {
+  .snw-backdrop {
+    align-items: center;
+  }
+}
+.snw-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  padding: 16px;
+  border-radius: 16px 16px 0 0;
+  background: #fff;
+  color: #0b1f3a;
+}
+@media (min-width: 640px) {
+  .snw-dialog {
+    border-radius: 16px;
+  }
+}
+.snw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.snw-title {
+  margin: 0;
+  font-size: 18px;
+}
+.snw-close {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+  cursor: pointer;
+}
+.snw-search {
+  margin: 12px 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #c9d2de;
+  border-radius: 8px;
+  font: inherit;
+}
+.snw-list {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.snw-area {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid #eef1f5;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.snw-area:hover {
+  background: #f3f6fa;
+}
+.snw-area-name {
+  font-weight: 700;
+}
+.snw-area-store {
+  color: #5b6b80;
+  font-size: 13px;
+}
+.snw-note {
+  margin: 8px 0 0;
+  color: #5b6b80;
+  font-size: 13px;
+}
+[data-shiplynow] {
+  position: relative;
+}
+.snw-badge,
+.snw-standard {
+  position: absolute;
+  top: 8px;
+  inset-inline-start: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  pointer-events: none;
+}
+.snw-badge {
+  background: #0d6b4f;
+  color: #fff;
+}
+.snw-standard {
+  background: #eef1f5;
+  color: #3d4b5c;
+}
+.snw-dim {
+  opacity: 0.55;
+}
+.snw-product {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.snw-product--yes {
+  background: #e6f4ef;
+  color: #0d6b4f;
+}
+.snw-product--no {
+  background: #f3f6fa;
+  color: #3d4b5c;
+}

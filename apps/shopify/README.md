@@ -64,3 +64,21 @@ What the merchant does once:
 
 To check on the dev store first: the origin address in the rate request carries the location
 address we set.
+
+## Storefront widget (theme app extension)
+
+`extensions/zone-widget` is an app embed. After `shopify app deploy`, the merchant opens
+Online Store, Themes, Customize, App embeds and turns on "Shiply Now 60 minutes". No theme
+code is edited. Settings: bar at the top or bottom, and whether to hide products that cannot
+arrive in 60 minutes (otherwise they are dimmed and marked "Normal delivery").
+
+The customer picks their area once (kept in the browser and on the cart as
+`_shiplynow_zone`). The bar then says whether 60 minute delivery reaches that area now,
+when it opens again, or that the store is busy. Collection pages get a "60 min" badge on
+products the area's dark store has in stock, and product pages say "Arrives in 60 minutes"
+or "normal delivery only". If the merchant has no 60 minute price the widget stays hidden.
+
+The widget calls `/apps/shiplynow/areas` and `/apps/shiplynow/availability` on the shop's own
+domain. Shopify signs those requests and forwards them to `/api/shopify/proxy` (the
+`[app_proxy]` block in `shopify.app.toml`). It is only a guide for browsing; the checkout rate
+checks the real address, hours and stock again before payment.

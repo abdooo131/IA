@@ -1,0 +1,9 @@
+{
+  "name": "Shiply Now 60 minutes",
+  "settings": {
+    "hide_unavailable": "Hide products that cannot arrive in 60 minutes",
+    "position": "Bar position",
+    "bottom": "Bottom of the page",
+    "top": "Top of the page"
+  }
+}

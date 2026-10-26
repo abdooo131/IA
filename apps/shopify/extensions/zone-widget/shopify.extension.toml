@@ -1,0 +1,3 @@
+# The storefront widget: an app embed the merchant switches on in the theme editor.
+name = "Shiply Now 60 minutes"
+type = "theme"

@@ -37,6 +37,23 @@ export function verifyQueryHmac(query: Record<string, unknown>, secret: string) 
   return sameText(digest, hmac);
 }
 
+/**
+ * App proxy requests (the storefront calling us through the shop's own domain): hex HMAC of
+ * the other query parameters as name=value, sorted, joined with nothing in between.
+ */
+export function verifyProxySignature(query: Record<string, unknown>, secret: string) {
+  const { signature, ...rest } = query;
+  if (typeof signature !== 'string') return false;
+  const message = Object.keys(rest)
+    .map(
+      (k) => `${k}=${Array.isArray(rest[k]) ? (rest[k] as string[]).join(',') : String(rest[k])}`,
+    )
+    .sort()
+    .join('');
+  const digest = createHmac('sha256', secret).update(message).digest('hex');
+  return sameText(digest, signature);
+}
+
 /** A myshopify.com domain, the only kind of shop address we accept. */
 export function isShopDomain(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(value);

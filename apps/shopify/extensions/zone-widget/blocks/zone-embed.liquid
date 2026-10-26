@@ -1,0 +1,41 @@
+{%- comment -%}
+  Shiply Now storefront widget. The customer picks their area, sees whether 60 minute delivery
+  reaches it, and product and collection pages mark what the area's dark store has in stock.
+  Data comes from the app proxy at /apps/shiplynow; checkout checks everything again.
+{%- endcomment -%}
+<div
+  id="shiplynow-widget"
+  data-proxy="/apps/shiplynow"
+  data-locale="{{ request.locale.iso_code }}"
+  data-hide-unavailable="{{ block.settings.hide_unavailable }}"
+  data-position="{{ block.settings.position }}"
+  {%- if product %} data-product-variant="{{ product.selected_or_first_available_variant.id }}"{% endif %}
+  hidden
+></div>
+<script src="{{ 'zone-widget.js' | asset_url }}" defer></script>
+{{ 'zone-widget.css' | asset_url | stylesheet_tag }}
+
+{% schema %}
+{
+  "name": "t:name",
+  "target": "body",
+  "settings": [
+    {
+      "type": "checkbox",
+      "id": "hide_unavailable",
+      "label": "t:settings.hide_unavailable",
+      "default": false
+    },
+    {
+      "type": "select",
+      "id": "position",
+      "label": "t:settings.position",
+      "options": [
+        { "value": "bottom", "label": "t:settings.bottom" },
+        { "value": "top", "label": "t:settings.top" }
+      ],
+      "default": "bottom"
+    }
+  ]
+}
+{% endschema %}

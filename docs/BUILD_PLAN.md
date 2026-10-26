@@ -45,7 +45,7 @@ Prompt:
 
 Check: install on your development store, place a test order, it appears in the dark store queue and stock drops in Shopify.
 
-## Step 6: Storefront zone widget (2 to 3 days)
+## Step 6: Storefront zone widget (2 to 3 days). Status: built (widget and Phase A), waiting for the real store test
 
 Prompt:
 > Build a Shopify theme app extension (app embed) that shows a banner "Delivery in 60 minutes, check your zone", lets the customer pick their area from the covered areas API or share location, saves the choice in the browser, and filters collection pages to variants in stock at that dark store. Product pages show "Arrives in 60 minutes" or "Standard delivery". Arabic and English.

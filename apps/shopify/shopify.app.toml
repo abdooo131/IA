@@ -25,3 +25,10 @@ api_version = "2026-10"
   [[webhooks.subscriptions]]
   compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
   uri = "RENDER_URL/api/shopify/webhooks"
+
+# The storefront widget calls /apps/shiplynow/... on the shop's own domain; Shopify signs
+# each request and forwards it here.
+[app_proxy]
+url = "RENDER_URL/api/shopify/proxy"
+subpath = "shiplynow"
+prefix = "apps"
