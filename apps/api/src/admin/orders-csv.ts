@@ -50,7 +50,8 @@ export function egp(piastres: number) {
 function cell(value: string | number | boolean) {
   const text = String(value);
   // Quote anything with separators, and neutralise formula prefixes so Excel never runs them.
-  const safe = /^[=+\-@\t\r]/.test(text) ? `'${text}` : text;
+  // A plain number (also negative, like -60.42) stays a number Excel can add up.
+  const safe = /^[=+\-@\t\r]/.test(text) && !/^-?\d+(\.\d+)?$/.test(text) ? `'${text}` : text;
   return /[",\n\r]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
 }
 

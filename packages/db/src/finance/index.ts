@@ -18,7 +18,9 @@ export { accrueStorage, lastClosedDay } from './postings';
 export {
   type EntryFilter,
   financeWallets,
+  listCashHandovers,
   listLedgerEntries,
+  listPayouts,
   merchantStatement,
   type StatementLine,
   trialBalance,

@@ -252,3 +252,70 @@ export async function trialBalance(db: Db, from?: Date, to?: Date) {
     totalCreditPiastres: list.reduce((s, r) => s + r.creditPiastres, 0),
   };
 }
+
+/** Cash handovers, newest first; finance looks at the pending ones. */
+export async function listCashHandovers(
+  db: Db,
+  filter: {
+    status?: 'balanced' | 'pending' | 'written_off' | 'charged_to_rider';
+    darkStoreId?: string;
+    riderId?: string;
+    take?: number;
+  },
+) {
+  const rows = await db.cashHandover.findMany({
+    where: { status: filter.status, darkStoreId: filter.darkStoreId, riderId: filter.riderId },
+    include: {
+      rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+      darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
+      receivedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(filter.take ?? 100, 500),
+  });
+  return rows.map((h) => ({
+    id: h.id,
+    at: h.createdAt,
+    status: h.status,
+    rider: { id: h.riderId, name: h.rider.user.name, badgeCode: h.rider.badgeCode },
+    darkStore: h.darkStore,
+    expectedPiastres: h.expectedPiastres,
+    countedPiastres: h.countedPiastres,
+    differencePiastres: h.differencePiastres,
+    note: h.note,
+    receivedBy: h.receivedBy.name,
+    reviewedBy: h.reviewedBy?.name ?? null,
+    reviewedAt: h.reviewedAt,
+    reviewNote: h.reviewNote,
+  }));
+}
+
+export async function listPayouts(
+  db: Db,
+  filter: { status?: 'draft' | 'paid' | 'cancelled'; merchantId?: string; take?: number },
+) {
+  const rows = await db.payout.findMany({
+    where: { status: filter.status, merchantId: filter.merchantId },
+    include: {
+      merchant: { select: { id: true, name: true, payoutSchedule: true } },
+      createdBy: { select: { name: true } },
+      paidBy: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: Math.min(filter.take ?? 100, 500),
+  });
+  return rows.map((p) => ({
+    id: p.id,
+    merchant: p.merchant,
+    cutoffAt: p.cutoffAt,
+    amountPiastres: p.amountPiastres,
+    status: p.status,
+    reference: p.reference,
+    note: p.note,
+    createdAt: p.createdAt,
+    createdBy: p.createdBy.name,
+    paidAt: p.paidAt,
+    paidBy: p.paidBy?.name ?? null,
+  }));
+}

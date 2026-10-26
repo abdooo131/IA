@@ -5,12 +5,14 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { flagLateOrders } from '@shiplynow/db';
+import { accrueStorage, flagLateOrders, lastClosedDay } from '@shiplynow/db';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Advisory lock id for the SLA check, so only one API instance runs it at a time. */
 const SLA_LOCK = 735_001;
+/** Advisory lock id for the daily storage charge. */
+const STORAGE_LOCK = 735_002;
 const EVERY_MS = 30_000;
 
 /**
@@ -23,6 +25,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private readonly log = new Logger('Jobs');
   private timer?: NodeJS.Timeout;
   private running = false;
+  /** The last Cairo day storage was charged for by this instance, to skip needless work. */
+  private storageDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -35,7 +39,10 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       ? setting === 'true'
       : this.config.get('NODE_ENV', { infer: true }) !== 'test';
     if (!enabled) return;
-    this.timer = setInterval(() => void this.runSlaCheck(), EVERY_MS);
+    this.timer = setInterval(() => {
+      void this.runSlaCheck();
+      void this.runStorageCharge();
+    }, EVERY_MS);
     this.timer.unref();
   }
 
@@ -68,6 +75,36 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return null;
     } finally {
       this.running = false;
+    }
+  }
+
+  /**
+   * Charges storage once for the Cairo day that just ended. Safe to run any number of times:
+   * every store and merchant pair has its own key for the day.
+   */
+  async runStorageCharge(now: Date = new Date()) {
+    const day = lastClosedDay(now);
+    if (this.storageDone === day) return null;
+    try {
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const [{ locked }] = (await tx.$queryRaw<
+            { locked: boolean }[]
+          >`SELECT pg_try_advisory_xact_lock(${STORAGE_LOCK}) AS locked`) as [{ locked: boolean }];
+          if (!locked) return null;
+          return accrueStorage(tx, day);
+        },
+        { timeout: 60_000 },
+      );
+      if (result) {
+        this.storageDone = day;
+        if (result.charged > 0)
+          this.log.log(`Storage charged for ${day}: ${result.charged} entries`);
+      }
+      return result;
+    } catch (error) {
+      this.log.error(`Storage charge failed: ${(error as Error).message}`);
+      return null;
     }
   }
 }

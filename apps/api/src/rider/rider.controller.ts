@@ -1,6 +1,6 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { completeDelivery, failDelivery } from '@shiplynow/db';
+import { completeDelivery, failDelivery, riderBonusOwed, riderCash } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   completeDeliverySchema,
@@ -38,9 +38,14 @@ export class RiderController {
         OR: [{ deliveredAt: { gte: since } }, { failedAt: { gte: since } }],
       },
     });
+    const [cash, bonus] = await Promise.all([
+      riderCash(this.prisma, rider.id),
+      riderBonusOwed(this.prisma, rider.id),
+    ]);
     return {
       name: rider.user.name,
       badgeCode: rider.badgeCode,
+      wallet: { cashPiastres: cash, bonusOwedPiastres: bonus },
       darkStore: {
         code: rider.darkStore.code,
         nameEn: rider.darkStore.nameEn,

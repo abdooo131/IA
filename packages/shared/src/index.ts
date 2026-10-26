@@ -7,3 +7,4 @@ export * from './roles';
 export * from './settings';
 export * from './store';
 export * from './admin';
+export * from './finance';
