@@ -52,9 +52,15 @@ Prompt:
 
 Check: pick Maadi on the test store, only Maadi stock shows.
 
-Checkout decision (agreed): the widget is followed by a final check at checkout through a carrier service (GraphQL carrierServiceCreate, never the REST resource). Shopify sends the address and cart; we find the store whose zone holds the address (geocoding it when there is no map point), check it is open, under capacity and has every item in stock, and answer with a "60 minute delivery" rate whose code names the store (SN60:<store id>), or no rate so the customer only sees the merchant's next day rates. After the order, the sync reads that code and makes sure the fulfillment order sits at that store's location (fulfillmentOrderMove), then reserves stock as today. Orders that did not choose the 60 minute rate are handed back to the merchant. Fallback if a plan lacks carrier rates: widget plus a delivery customization function.
+Checkout decision (agreed): every check happens before the customer can pay, so no order reaches us that we cannot serve. Merchants never need Shopify Plus.
 
-Check: a Maadi address with stock shows the 60 minute option at checkout; an address outside every zone, a closed store or a missing item shows only next day; a 60 minute order routed by Shopify to the wrong store ends up at the right one.
+Phase A (pilot, any plan with carrier calculated rates): a carrier service (GraphQL carrierServiceCreate, never the REST resource). Each dark store location carries its real address and the merchant uses Shopify's "closest location" routing rule. When Shopify asks for rates it tells us the origin location it plans to ship from; we return a "60 minute delivery" rate at the merchant's own price only when that location is the dark store whose zone holds the address (geocoded when there is no map point), the store is open and under capacity, and every item is in stock there. Otherwise no 60 minute rate, so the customer buys next day from the merchant. A wrong plan by Shopify costs a missed chance, never a lost or cancelled order. After the order, a safety check only alerts admin if an order ever lands at the wrong store.
+
+Phase B (after the app passes review as an unlisted Shopify App Store app, still no Plus): add a fulfillment constraints function that locks the cart to the dark store chosen in the widget, so Shopify always plans the right store.
+
+First thing to confirm on the dev store: the rate request carries the planned origin location.
+
+Check: a Maadi address with stock shows the 60 minute option at checkout; an address outside every zone, a closed or full store, a missing item, or a cart Shopify plans from the wrong store shows only next day.
 
 ## Step 7: Orders, picking and SLA (3 to 4 days)
 
