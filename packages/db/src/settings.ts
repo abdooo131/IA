@@ -1,4 +1,9 @@
-import { GLOBAL_SCOPE, SETTING_DEFINITIONS, type SettingKey } from '@shiplynow/shared';
+import {
+  GLOBAL_SCOPE,
+  merchantScope,
+  SETTING_DEFINITIONS,
+  type SettingKey,
+} from '@shiplynow/shared';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 
@@ -9,6 +14,23 @@ import { type Db, inTransaction } from './client';
 export async function getSetting(db: Db, key: SettingKey, darkStoreId?: string): Promise<number> {
   const def = SETTING_DEFINITIONS[key];
   const scopes = darkStoreId ? [darkStoreId, GLOBAL_SCOPE] : [GLOBAL_SCOPE];
+  const rows = await db.setting.findMany({ where: { key, scope: { in: scopes } } });
+  for (const scope of scopes) {
+    const row = rows.find((r) => r.scope === scope);
+    const parsed = row && def.schema.safeParse(row.value);
+    if (parsed?.success) return parsed.data;
+  }
+  return def.default;
+}
+
+/** Reads a fee setting: the merchant's own value if set, then the global value, then the default. */
+export async function getMerchantSetting(
+  db: Db,
+  key: SettingKey,
+  merchantId: string,
+): Promise<number> {
+  const def = SETTING_DEFINITIONS[key];
+  const scopes = [merchantScope(merchantId), GLOBAL_SCOPE];
   const rows = await db.setting.findMany({ where: { key, scope: { in: scopes } } });
   for (const scope of scopes) {
     const row = rows.find((r) => r.scope === scope);

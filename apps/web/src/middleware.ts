@@ -30,5 +30,11 @@ export const config = {
   // Node.js runtime so the middleware reads JWT_ACCESS_SECRET at runtime, without it
   // ever being inlined into a bundle.
   runtime: 'nodejs',
-  matcher: ['/admin/:path*', '/store/:path*', '/rider/:path*', '/merchant/:path*'],
+  matcher: [
+    '/admin/:path*',
+    '/store/:path*',
+    '/rider/:path*',
+    '/merchant/:path*',
+    '/finance/:path*',
+  ],
 };

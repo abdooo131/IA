@@ -1,3 +1,4 @@
+import { postReceivingFee } from './finance/postings';
 import type { Prisma } from '@prisma/client';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
@@ -182,6 +183,11 @@ export function closeManifest(
         nameAr: manifest.darkStore.nameAr,
       },
       lines,
+    });
+    await postReceivingFee(tx, {
+      manifestId: manifest.id,
+      actorUserId: input.actorUserId,
+      now: new Date(),
     });
     return { lines };
   });

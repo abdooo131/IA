@@ -18,7 +18,7 @@ describe('loginSchema', () => {
 
 describe('roles', () => {
   it('has exactly the four pilot roles', () => {
-    expect(ROLES).toEqual(['admin', 'merchant', 'store_staff', 'rider']);
+    expect(ROLES).toEqual(['admin', 'merchant', 'store_staff', 'rider', 'finance']);
   });
 
   it('guards role strings', () => {

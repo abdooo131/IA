@@ -6,6 +6,7 @@ export const AREA_ROLES = {
   '/store': ['admin', 'store_staff'],
   '/rider': ['admin', 'rider'],
   '/merchant': ['merchant'],
+  '/finance': ['admin', 'finance'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Area = keyof typeof AREA_ROLES;
@@ -15,6 +16,7 @@ const HOME_BY_ROLE: Record<Role, Area | null> = {
   store_staff: '/store',
   rider: '/rider',
   merchant: '/merchant',
+  finance: '/finance',
 };
 
 export function homeFor(role: Role): Area | null {

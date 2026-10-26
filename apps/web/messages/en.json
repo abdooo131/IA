@@ -20,7 +20,8 @@
     "admin": "Admin",
     "merchant": "Merchant",
     "store_staff": "Store staff",
-    "rider": "Rider"
+    "rider": "Rider",
+    "finance": "Finance"
   },
   "login": {
     "title": "Sign in",

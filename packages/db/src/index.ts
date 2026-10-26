@@ -39,7 +39,7 @@ export {
   type OrderSummary,
 } from './order-views';
 export { hashPassword, verifyPassword } from './password';
-export { getSetting, setSetting } from './settings';
+export { getMerchantSetting, getSetting, setSetting } from './settings';
 export * from './stock';
 export { seed, type SeedOptions } from './seed';
 export {
@@ -68,3 +68,4 @@ export {
   type SkuImportResult,
 } from './admin-ops';
 export { computeKpis, type KpiFilter, type Kpis, type KpiTotals } from './kpis';
+export * from './finance';

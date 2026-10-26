@@ -3,6 +3,7 @@ import {
   type CreateUserBody,
   GLOBAL_SCOPE,
   type MerchantBody,
+  merchantScope,
   SETTING_DEFINITIONS,
   SETTING_KEYS,
   type SettingKey,
@@ -490,15 +491,17 @@ export function importSkus(
 // ─── settings ──────────────────────────────────────────────────────────────────
 
 export async function listSettings(db: Db) {
-  const [rows, stores] = await Promise.all([
+  const [rows, stores, merchants] = await Promise.all([
     db.setting.findMany({ include: { updatedBy: { select: { name: true } } } }),
     db.darkStore.findMany({
       select: { id: true, code: true, nameEn: true, nameAr: true },
       orderBy: { code: 'asc' },
     }),
+    db.merchant.findMany({ select: { id: true, name: true }, orderBy: { name: 'asc' } }),
   ]);
   return {
     stores,
+    merchants,
     settings: SETTING_KEYS.map((key) => {
       const def = SETTING_DEFINITIONS[key];
       const valid = (value: unknown) => {
@@ -510,13 +513,16 @@ export async function listSettings(db: Db) {
         key,
         description: def.description,
         default: def.default,
+        override: def.override,
         global: global ? valid(global.value) : null,
         globalUpdatedAt: global?.updatedAt ?? null,
         globalUpdatedBy: global?.updatedBy?.name ?? null,
         overrides: rows
           .filter((r) => r.key === key && r.scope !== GLOBAL_SCOPE)
           .map((r) => ({
-            darkStoreId: r.scope,
+            scope: r.scope,
+            darkStoreId: r.scope.startsWith('merchant:') ? null : r.scope,
+            merchantId: r.scope.startsWith('merchant:') ? r.scope.slice('merchant:'.length) : null,
             value: valid(r.value),
             updatedAt: r.updatedAt,
             updatedBy: r.updatedBy?.name ?? null,
@@ -532,8 +538,19 @@ export async function changeSetting(
   input: { key: SettingKey; scope: string; value: number | null; actorUserId: Actor },
 ) {
   if (input.scope !== GLOBAL_SCOPE) {
-    const store = await db.darkStore.findUnique({ where: { id: input.scope } });
-    if (!store) throw new DomainError('dark_store_not_found', 404);
+    // Each setting allows one kind of override: per store (SLA, capacity) or per merchant (fees).
+    const kind = SETTING_DEFINITIONS[input.key].override;
+    if (input.scope.startsWith('merchant:')) {
+      if (kind !== 'merchant') throw new DomainError('scope_not_allowed', 400);
+      const id = input.scope.slice('merchant:'.length);
+      const merchant = await db.merchant.findUnique({ where: { id } });
+      if (!merchant || merchantScope(merchant.id) !== input.scope)
+        throw new DomainError('merchant_not_found', 404);
+    } else {
+      if (kind !== 'store') throw new DomainError('scope_not_allowed', 400);
+      const store = await db.darkStore.findUnique({ where: { id: input.scope } });
+      if (!store) throw new DomainError('dark_store_not_found', 404);
+    }
   }
   if (input.value !== null) {
     const parsed = SETTING_DEFINITIONS[input.key].schema.safeParse(input.value);

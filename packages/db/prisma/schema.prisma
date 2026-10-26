@@ -23,6 +23,7 @@ enum Role {
   merchant
   store_staff
   rider
+  finance
 
   @@map("role")
 }
@@ -57,6 +58,12 @@ model User {
   orderEvents      OrderEvent[]
   auditEntries     AuditLog[]
   settingChanges   Setting[]
+
+  ledgerEntries     LedgerEntry[]  @relation("ledger_entry_created_by")
+  handoversReceived CashHandover[] @relation("handover_received_by")
+  handoversReviewed CashHandover[] @relation("handover_reviewed_by")
+  payoutsCreated    Payout[]       @relation("payout_created_by")
+  payoutsPaid       Payout[]       @relation("payout_paid_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -121,6 +128,9 @@ model DarkStore {
   stockCounts      StockCount[]
   alerts           Alert[]
 
+  ledgerAccounts LedgerAccount[]
+  cashHandovers  CashHandover[]
+
   @@map("dark_stores")
 }
 
@@ -167,21 +177,26 @@ model Zone {
 // ─── Catalog ───────────────────────────────────────────────────────────────────
 
 model Merchant {
-  id                String   @id @default(cuid())
+  id                String         @id @default(cuid())
   name              String
   /// myshop.myshopify.com, set when the Shopify app is installed
-  shopifyShopDomain String?  @unique @map("shopify_shop_domain")
-  contactEmail      String?  @map("contact_email")
-  contactPhone      String?  @map("contact_phone")
-  isActive          Boolean  @default(true) @map("is_active")
-  createdAt         DateTime @default(now()) @map("created_at")
-  updatedAt         DateTime @updatedAt @map("updated_at")
+  shopifyShopDomain String?        @unique @map("shopify_shop_domain")
+  contactEmail      String?        @map("contact_email")
+  contactPhone      String?        @map("contact_phone")
+  isActive          Boolean        @default(true) @map("is_active")
+  /// How often finance pays this merchant the COD collected after fees
+  payoutSchedule    PayoutSchedule @default(weekly) @map("payout_schedule")
+  createdAt         DateTime       @default(now()) @map("created_at")
+  updatedAt         DateTime       @updatedAt @map("updated_at")
 
   skus             Sku[]
   inboundManifests InboundManifest[]
   orders           Order[]
   users            User[]
   notifications    Notification[]
+
+  ledgerAccounts LedgerAccount[]
+  payouts        Payout[]
 
   @@map("merchants")
 }
@@ -533,6 +548,8 @@ model Order {
   deliveries     Delivery[]
   stockMovements StockMovement[]
 
+  ledgerEntries LedgerEntry[]
+
   @@index([darkStoreId, status, slaDueAt])
   @@index([merchantId, placedAt])
   @@index([status, placedAt])
@@ -588,6 +605,9 @@ model Rider {
   user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
   darkStore  DarkStore  @relation(fields: [darkStoreId], references: [id])
   deliveries Delivery[]
+
+  ledgerAccounts LedgerAccount[]
+  cashHandovers  CashHandover[]
 
   @@map("riders")
 }
@@ -710,4 +730,170 @@ model AuditLog {
   @@index([entityType, entityId, createdAt])
   @@index([actorUserId, createdAt])
   @@map("audit_log")
+}
+
+// ─── Finance ───────────────────────────────────────────────────────────────────
+
+enum PayoutSchedule {
+  daily
+  twice_weekly
+  weekly
+
+  @@map("payout_schedule")
+}
+
+/// What a ledger account represents. Asset accounts (cash, bank) normally have a debit
+/// balance; what we owe (merchant, rider bonus, VAT) and income normally have a credit balance.
+enum LedgerAccountType {
+  /// What we owe the merchant: COD collected for them minus our fees
+  merchant
+  /// Cash on delivery a rider is carrying
+  rider_cash
+  /// Delivery bonuses owed to a rider
+  rider_bonus
+  /// The cash box of a dark store
+  store_cash
+  /// Company bank account
+  bank
+  /// Fee income
+  revenue
+  /// VAT charged on our fees, owed to the tax authority
+  vat_payable
+  /// Cost of rider delivery bonuses
+  rider_bonus_expense
+  /// Cash shortages written off, and cash surpluses
+  cash_difference
+
+  @@map("ledger_account_type")
+}
+
+/// One wallet or book account. The key is stable, for example "merchant:<id>" or "revenue".
+model LedgerAccount {
+  id          String            @id @default(cuid())
+  key         String            @unique
+  type        LedgerAccountType
+  merchantId  String?           @map("merchant_id")
+  riderId     String?           @map("rider_id")
+  darkStoreId String?           @map("dark_store_id")
+  createdAt   DateTime          @default(now()) @map("created_at")
+
+  merchant  Merchant?    @relation(fields: [merchantId], references: [id])
+  rider     Rider?       @relation(fields: [riderId], references: [id])
+  darkStore DarkStore?   @relation(fields: [darkStoreId], references: [id])
+  lines     LedgerLine[]
+
+  @@index([type])
+  @@map("ledger_accounts")
+}
+
+/// One money event (append only). Its lines always add up to zero; the database checks it.
+model LedgerEntry {
+  id             String   @id @default(cuid())
+  /// cod_collected, order_fee, cod_fee, failed_fee, receiving_fee, storage_fee, rider_bonus,
+  /// cash_handover, cash_difference, bank_deposit, merchant_payout, merchant_receipt,
+  /// rider_bonus_payout, adjustment
+  kind           String
+  memo           String?
+  occurredAt     DateTime @map("occurred_at")
+  orderId        String?  @map("order_id")
+  /// Same key twice means the same event: the second post is ignored
+  idempotencyKey String   @unique @map("idempotency_key")
+  data           Json?
+  createdById    String?  @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  order     Order?       @relation(fields: [orderId], references: [id])
+  createdBy User?        @relation("ledger_entry_created_by", fields: [createdById], references: [id])
+  lines     LedgerLine[]
+
+  @@index([kind, occurredAt])
+  @@index([orderId])
+  @@map("ledger_entries")
+}
+
+/// One side of an entry. Debit is positive, credit is negative, in piastres.
+model LedgerLine {
+  id             String   @id @default(cuid())
+  entryId        String   @map("entry_id")
+  accountId      String   @map("account_id")
+  amountPiastres Int      @map("amount_piastres")
+  occurredAt     DateTime @map("occurred_at")
+
+  entry   LedgerEntry   @relation(fields: [entryId], references: [id])
+  account LedgerAccount @relation(fields: [accountId], references: [id])
+
+  @@index([accountId, occurredAt])
+  @@map("ledger_lines")
+}
+
+enum CashHandoverStatus {
+  /// Counted cash matched what the rider carried
+  balanced
+  /// There is a difference waiting for finance or admin
+  pending
+  /// The difference was written off as a company loss (or kept as surplus)
+  written_off
+  /// The difference stays on the rider's wallet to be recovered
+  charged_to_rider
+
+  @@map("cash_handover_status")
+}
+
+/// A rider handing collected cash to a dark store, counted by staff.
+model CashHandover {
+  id                 String             @id @default(cuid())
+  riderId            String             @map("rider_id")
+  darkStoreId        String             @map("dark_store_id")
+  expectedPiastres   Int                @map("expected_piastres")
+  countedPiastres    Int                @map("counted_piastres")
+  /// expected minus counted: positive means cash is short
+  differencePiastres Int                @map("difference_piastres")
+  status             CashHandoverStatus
+  note               String?
+  receivedById       String             @map("received_by_id")
+  reviewedById       String?            @map("reviewed_by_id")
+  reviewedAt         DateTime?          @map("reviewed_at")
+  reviewNote         String?            @map("review_note")
+  idempotencyKey     String             @unique @map("idempotency_key")
+  createdAt          DateTime           @default(now()) @map("created_at")
+
+  rider      Rider     @relation(fields: [riderId], references: [id])
+  darkStore  DarkStore @relation(fields: [darkStoreId], references: [id])
+  receivedBy User      @relation("handover_received_by", fields: [receivedById], references: [id])
+  reviewedBy User?     @relation("handover_reviewed_by", fields: [reviewedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([riderId, createdAt])
+  @@map("cash_handovers")
+}
+
+enum PayoutStatus {
+  draft
+  paid
+  cancelled
+
+  @@map("payout_status")
+}
+
+/// Money we owe a merchant up to a cutoff, prepared by finance and marked paid by hand.
+model Payout {
+  id             String       @id @default(cuid())
+  merchantId     String       @map("merchant_id")
+  cutoffAt       DateTime     @map("cutoff_at")
+  amountPiastres Int          @map("amount_piastres")
+  status         PayoutStatus @default(draft)
+  reference      String?
+  note           String?
+  createdById    String       @map("created_by_id")
+  paidById       String?      @map("paid_by_id")
+  paidAt         DateTime?    @map("paid_at")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  merchant  Merchant @relation(fields: [merchantId], references: [id])
+  createdBy User     @relation("payout_created_by", fields: [createdById], references: [id])
+  paidBy    User?    @relation("payout_paid_by", fields: [paidById], references: [id])
+
+  @@index([merchantId, status])
+  @@map("payouts")
 }

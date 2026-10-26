@@ -6,6 +6,7 @@ import {
   newDeliveryOtp,
   normalizeEgyptianPhone,
 } from '@shiplynow/shared';
+import { postDeliveryCompleted, postDeliveryFailed } from './finance/postings';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -714,6 +715,11 @@ export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
       orderId: order.id,
       number: order.number,
     });
+    await postDeliveryCompleted(tx, {
+      deliveryId: delivery.id,
+      actorUserId: input.riderUserId,
+      now,
+    });
   });
 }
 
@@ -756,6 +762,7 @@ export function failDelivery(
       number: order.number,
       reason: input.reason,
     });
+    await postDeliveryFailed(tx, { deliveryId: delivery.id, actorUserId: input.riderUserId, now });
   });
 }
 

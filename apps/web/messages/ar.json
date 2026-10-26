@@ -20,7 +20,8 @@
     "admin": "مدير",
     "merchant": "تاجر",
     "store_staff": "موظف مخزن",
-    "rider": "مندوب"
+    "rider": "مندوب",
+    "finance": "المالية"
   },
   "login": {
     "title": "تسجيل الدخول",
