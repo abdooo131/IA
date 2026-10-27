@@ -1,0 +1,61 @@
+name: Database backup
+
+# A daily copy of the production database, encrypted before it leaves the runner and kept
+# as a private workflow artifact for 30 days. Needs two repository secrets:
+#   BACKUP_DATABASE_URL  the Neon direct (unpooled) connection string
+#   BACKUP_PASSPHRASE    a long random passphrase, kept somewhere safe outside GitHub too
+# Restore steps are in docs/BACKUP.md.
+
+on:
+  schedule:
+    - cron: '17 1 * * *' # 03:17 or 04:17 Cairo time, every day
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check the secrets are set
+        env:
+          URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          PASS: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$PASS" ]; then
+            echo "Set BACKUP_DATABASE_URL and BACKUP_PASSPHRASE in the repository secrets." >&2
+            exit 1
+          fi
+
+      - name: Install the PostgreSQL 16 client
+        run: |
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSo /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" | sudo tee /etc/apt/sources.list.d/pgdg.list
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-16
+
+      - name: Dump and encrypt
+        env:
+          DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+          BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          stamp=$(date -u +%Y%m%dT%H%MZ)
+          /usr/lib/postgresql/16/bin/pg_dump --format=custom --no-owner --no-privileges \
+            --dbname="$DATABASE_URL" --file=shiplynow.dump
+          /usr/lib/postgresql/16/bin/pg_restore --list shiplynow.dump > /dev/null
+          gpg --batch --yes --symmetric --cipher-algo AES256 \
+            --passphrase-fd 3 --output "shiplynow-$stamp.dump.gpg" shiplynow.dump \
+            3<<< "$BACKUP_PASSPHRASE"
+          rm shiplynow.dump
+          ls -l shiplynow-*.dump.gpg
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shiplynow-backup
+          path: shiplynow-*.dump.gpg
+          retention-days: 30
+          if-no-files-found: error
