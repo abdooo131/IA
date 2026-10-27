@@ -5,6 +5,7 @@ import {
   failDelivery,
   getSetting,
   recordDeliveryCall,
+  recordRiderLocation,
   riderBonusOwed,
   riderCash,
 } from '@shiplynow/db';
@@ -12,6 +13,7 @@ import {
   type AccessTokenClaims,
   completeDeliverySchema,
   failDeliverySchema,
+  riderLocationSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -45,12 +47,14 @@ export class RiderController {
         OR: [{ deliveredAt: { gte: since } }, { failedAt: { gte: since } }],
       },
     });
-    const [cash, bonus] = await Promise.all([
+    const [cash, bonus, pingSeconds] = await Promise.all([
       riderCash(this.prisma, rider.id),
       riderBonusOwed(this.prisma, rider.id),
+      getSetting(this.prisma, 'tracking.rider_ping_seconds', rider.darkStoreId),
     ]);
     return {
       name: rider.user.name,
+      pingSeconds,
       badgeCode: rider.badgeCode,
       wallet: { cashPiastres: cash, bonusOwedPiastres: bonus },
       darkStore: {
@@ -64,6 +68,15 @@ export class RiderController {
         codCollectedPiastres: today.reduce((s, d) => s + (d.codCollectedPiastres ?? 0), 0),
       },
     };
+  }
+
+  /** The phone's position while carrying orders, shown on the customer's tracking page. */
+  @Post('location')
+  location(
+    @CurrentUser() user: AccessTokenClaims,
+    @Body(new ZodValidationPipe(riderLocationSchema)) body: z.infer<typeof riderLocationSchema>,
+  ) {
+    return recordRiderLocation(this.prisma, { riderUserId: user.sub, ...body });
   }
 
   /** Orders in the rider's hands now, plus the last day's finished ones. */

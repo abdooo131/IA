@@ -98,6 +98,26 @@ export const SETTING_DEFINITIONS = {
       'Calls the rider must make from the app before reporting that the customer did not answer',
     override: 'store',
   },
+  'tracking.rider_ping_seconds': {
+    schema: z.number().int().min(5).max(300),
+    default: 20,
+    description: 'Seconds between rider position updates while an order is out for delivery',
+    override: 'store',
+  },
+  'tracking.rider_stale_minutes': {
+    schema: z.number().int().min(1).max(60),
+    default: 5,
+    description:
+      'Minutes after which the customer map hides a rider position that stopped updating',
+    override: 'store',
+  },
+  'tracking.low_rating_stars': {
+    schema: z.number().int().min(0).max(5),
+    default: 2,
+    description:
+      'Customer ratings at or below this many stars raise an admin alert (0 turns it off)',
+    override: 'none',
+  },
   'fee.order_fixed_piastres': {
     schema: piastres,
     default: 0,
@@ -132,6 +152,12 @@ export const SETTING_DEFINITIONS = {
     schema: piastres,
     default: 0,
     description: 'Storage fee per unit per month, charged daily on units in stock, in piastres',
+    override: 'merchant',
+  },
+  'fee.return_per_unit_piastres': {
+    schema: piastres,
+    default: 0,
+    description: 'Fee per unit returned to the merchant from a dark store, in piastres',
     override: 'merchant',
   },
   'fee.vat_bp': {

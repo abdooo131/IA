@@ -132,7 +132,9 @@
       "lateNow": "متأخرة دلوقتي",
       "perDayHint": "الطلبات اللي اتعملت كل يوم. وقّف على اليوم تشوف اللي اتسلم واللي وصل في معاده.",
       "dayDetail": "{date}: {orders} طلب، {delivered} اتسلم، {onTime} في المعاد",
-      "overTarget": "أكتر من المستهدف"
+      "overTarget": "أكتر من المستهدف",
+      "rating": "تقييم العملاء",
+      "ratingCount": "{count, plural, =0 {مفيش تقييمات لسه} one {تقييم واحد} other {# تقييم}}"
     },
     "products": {
       "title": "المنتجات",
@@ -269,7 +271,8 @@
         "shopify_sync_failed": "مقدرناش نحدّث شوبيفاي ({kind}): {error}",
         "shopify_wrong_store": "طلب شوبيفاي {order} اختار توصيل الـ 60 دقيقة {rate} لكن وصل لمخزن {store}",
         "server_error": "مشكلة في السيرفر في {source}: {message} (اتكررت {count} مرة)",
-        "goods_not_returned": "بضاعة توصيلة فاشلة لسه مارجعتش المخزن"
+        "goods_not_returned": "بضاعة توصيلة فاشلة لسه مارجعتش المخزن",
+        "low_rating": "العميل قيّم بـ {stars} نجوم"
       },
       "handledBy": "اتعامل معاه {name}"
     },
@@ -298,7 +301,11 @@
         "delivery__max_attempts": "عدد محاولات التوصيل لكل طلب",
         "delivery__retry_hold_hours": "ساعات لاتخاذ القرار بعد محاولة فاشلة",
         "delivery__return_alert_minutes": "دقايق قبل التنبيه إن البضاعة مارجعتش",
-        "delivery__min_calls_no_answer": "مكالمات قبل \"العميل مش بيرد\""
+        "delivery__min_calls_no_answer": "مكالمات قبل \"العميل مش بيرد\"",
+        "tracking__rider_ping_seconds": "ثواني بين تحديثات مكان المندوب",
+        "tracking__rider_stale_minutes": "إخفاء مكان المندوب بعد (دقايق من غير تحديث)",
+        "tracking__low_rating_stars": "تنبيه لما تقييم العميل يكون أقل من أو يساوي (نجوم)",
+        "fee__return_per_unit_piastres": "رسوم الإرجاع للتاجر للقطعة (جنيه)"
       },
       "default": "الافتراضي {value}",
       "global": "في كل مكان",
@@ -763,7 +770,9 @@
       "owes": "عليك لينا",
       "codCollected": "كاش اتحصّل لحسابك",
       "amount": "{amount} جنيه",
-      "newShipment": "ابعت بضاعة لمخزن"
+      "newShipment": "ابعت بضاعة لمخزن",
+      "rating": "تقييم العملاء",
+      "ratingCount": "{count, plural, =0 {مفيش تقييمات لسه} one {تقييم واحد} other {# تقييم}}"
     }
   },
   "shipment": {
@@ -953,7 +962,8 @@
       "back": "رجوع",
       "retried": "الطلب رجع قايمة المخزن عشان يتوصل تاني.",
       "closed": "الطلب اتقفل على إنه فشل."
-    }
+    },
+    "trackingLink": "صفحة متابعة العميل"
   },
   "rider": {
     "title": "توصيلاتي",
@@ -1006,7 +1016,12 @@
     "doorPhotoHint": "مطلوبة لو العميل مش بيرد.",
     "bringBack": "رجع البضاعة للمخزن النهارده.",
     "doneFailedBack": "فشل، البضاعة رجعت",
-    "doneFailedBring": "فشل، رجع البضاعة"
+    "doneFailedBring": "فشل، رجع البضاعة",
+    "location": {
+      "sharing": "مكانك ظاهر لعملائك طول ما طلباتهم معاك.",
+      "denied": "الموقع مقفول. افتح الموقع للموقع ده عشان العملاء يتابعوا طلبهم.",
+      "unsupported": "الموبايل ده مش بيقدر يشارك مكانه."
+    }
   },
   "finance": {
     "title": "المالية",
@@ -1261,5 +1276,49 @@
       "invalid_shop": "ده مش عنوان متجر شوبيفاي.",
       "not_configured": "تطبيق شوبيفاي لسه مش متجهز على السيرفر ده."
     }
+  },
+  "tracking": {
+    "pageTitle": "تابع طلبك",
+    "brand": "شيبلي ناو",
+    "title": "طلب {number}",
+    "promise": "هيوصل قبل {time}",
+    "progress": "مراحل الطلب",
+    "current": "دلوقتي",
+    "steps": {
+      "placed": "اتستلم",
+      "preparing": "بيتجهز",
+      "onTheWay": "في الطريق",
+      "delivered": "اتسلّم"
+    },
+    "status": {
+      "new": "استلمنا طلبك",
+      "accepted": "طلبك بيتجهز",
+      "picking": "طلبك بيتجهز",
+      "packed": "اتغلف ومستني المندوب",
+      "out_for_delivery": "المندوب في الطريق ليك",
+      "attempt_failed": "ماقدرناش نوصل طلبك",
+      "delivered": "اتسلّم",
+      "cancelled": "الطلب ده اتلغى",
+      "failed": "الطلب ده ماقدرناش نوصله",
+      "moved_to_standard": "الطلب ده هيوصل بالشحن العادي"
+    },
+    "codeLabel": "كود الاستلام بتاعك",
+    "codeHint": "ادي الكود ده للمندوب لما تستلم طلبك. ماتقولوش لحد قبلها.",
+    "cod": "جهّز المبلغ ده كاش لو سمحت:",
+    "rider": "المندوب بتاعك: {name}",
+    "positionAt": "مكان المندوب الساعة {time}",
+    "noPosition": "مكان المندوب هيظهر هنا أول ما يكون متاح.",
+    "attemptFailed": "المندوب ماقدرش يوصلك. فريق {store} هيكلمك عشان نحدد محاولة تانية.",
+    "proof": "صورة التسليم",
+    "proofAlt": "صورة صورها المندوب وقت التسليم",
+    "rateTitle": "إيه رأيك في التوصيل؟",
+    "starsLabel": "{count, plural, one {نجمة واحدة} two {نجمتين} other {# نجوم}}",
+    "comment": "عايز تقولنا حاجة؟ (اختياري)",
+    "send": "ابعت التقييم",
+    "thanks": "شكرا على تقييمك",
+    "rateError": "ماقدرناش نبعت تقييمك. جرّب تاني.",
+    "from": "وصّلها شيبلي ناو من {store}",
+    "notFound": "لينك المتابعة ده مش صحيح. راجع اللينك في إيميل طلبك.",
+    "unavailable": "المتابعة مش متاحة دلوقتي. جرّب كمان دقيقة."
   }
 }

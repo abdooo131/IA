@@ -246,6 +246,7 @@ export class ShopifySyncService {
             trackingInfo: {
               company: 'Shiply Now',
               number: String(payload.trackingNumber ?? order.number),
+              url: this.shopify.trackingUrl(order.trackingToken),
             },
           },
         });

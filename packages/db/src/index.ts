@@ -74,3 +74,10 @@ export {
 export { computeKpis, type KpiFilter, type Kpis, type KpiTotals } from './kpis';
 export * from './finance';
 export { queueShopify, type ShopifyOutboxKind } from './shopify/outbox';
+export {
+  getTracking,
+  getTrackingPhoto,
+  rateOrder,
+  recordRiderLocation,
+  type TrackingView,
+} from './tracking';

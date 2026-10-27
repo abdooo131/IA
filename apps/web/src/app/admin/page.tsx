@@ -174,6 +174,13 @@ export default async function AdminOverviewPage({
           value={formatEgp(kpis.totals.codCollectedPiastres)}
         />
         <StatCard
+          icon="delivered"
+          tone="delivered"
+          label={t('rating')}
+          value={kpis.totals.avgRating === null ? '–' : `${kpis.totals.avgRating} ★`}
+          hint={t('ratingCount', { count: kpis.totals.ratings })}
+        />
+        <StatCard
           icon="products"
           label={t('deliveredValue')}
           value={formatEgp(kpis.totals.deliveredValuePiastres)}

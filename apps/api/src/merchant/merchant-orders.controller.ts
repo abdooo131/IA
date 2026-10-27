@@ -78,12 +78,13 @@ export class MerchantOrdersController {
   async detail(
     @Param('id') id: string,
     @CurrentUser() user: AccessTokenClaims,
-  ): Promise<Omit<OrderDetail, 'deliveryOtp'>> {
+  ): Promise<Omit<OrderDetail, 'deliveryOtp' | 'trackingToken'>> {
     const merchantId = await this.merchantIdOf(user);
     const detail = await getOrderDetail(this.prisma, id);
     if (!detail || detail.merchant.id !== merchantId) throw new DomainError('order_not_found', 404);
-    // Merchants see the outcome but not the customer's delivery code.
-    const { deliveryOtp, ...visible } = detail;
+    // Merchants see the outcome but not the customer's delivery code (nor the tracking
+    // link, which shows it).
+    const { deliveryOtp, trackingToken, ...visible } = detail;
     return visible;
   }
 

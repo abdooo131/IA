@@ -10,10 +10,12 @@ import { WalletCard } from '@/components/WalletCard';
 import { formatEgp } from '@/lib/format';
 import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
+import { useRiderLocation } from './useRiderLocation';
 
 export interface RiderMe {
   name: string;
   badgeCode: string;
+  pingSeconds: number;
   darkStore: { code: string; nameEn: string; nameAr: string };
   today: { delivered: number; failed: number; codCollectedPiastres: number };
   wallet: { cashPiastres: number; bonusOwedPiastres: number };
@@ -94,6 +96,10 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
 
   const active = deliveries.filter((d) => d.status === 'assigned' || d.status === 'picked_up');
   const done = deliveries.filter((d) => d.status === 'delivered' || d.status === 'failed');
+  const location = useRiderLocation(
+    active.some((d) => d.status === 'picked_up'),
+    me.pingSeconds,
+  );
   const trips = new Map<string, number>();
   for (const d of active) if (d.tripId) trips.set(d.tripId, (trips.get(d.tripId) ?? 0) + 1);
 
@@ -136,6 +142,14 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
 
       <section className="space-y-3">
         <h2 className="text-h3">{t('active')}</h2>
+        {location === 'sharing' && (
+          <p className="text-caption text-text-muted">{t('location.sharing')}</p>
+        )}
+        {(location === 'denied' || location === 'unsupported') && (
+          <p role="alert" className="text-body-sm text-status-needs-action">
+            {t(`location.${location}`)}
+          </p>
+        )}
         {active.length === 0 && <p className="text-body text-text-muted">{t('empty')}</p>}
         {active.map((d) => (
           <DeliveryCard

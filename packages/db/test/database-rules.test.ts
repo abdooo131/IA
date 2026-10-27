@@ -47,6 +47,7 @@ describe('append only tables', () => {
         addressText: 'x',
         paymentMethod: 'cod',
         deliveryOtp: '1234',
+        trackingToken: 'rules-token-1',
         subtotalPiastres: 1000,
         placedAt: new Date(),
       },

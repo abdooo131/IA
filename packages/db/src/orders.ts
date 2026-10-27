@@ -1,5 +1,5 @@
 import { queueShopify } from './shopify/outbox';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import type { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import {
   ACTIVE_STATUSES,
@@ -29,6 +29,11 @@ const PICKABLE_STATES: OrderStatus[] = ['accepted', 'picking'];
 const CANCELLABLE_STATES: OrderStatus[] = ['new', 'accepted', 'picking', 'packed'];
 
 // ─── helpers ───────────────────────────────────────────────────────────────────
+
+/** 24 url safe characters (144 random bits) for the customer's tracking link. */
+export function newTrackingToken() {
+  return randomBytes(18).toString('base64url');
+}
 
 async function lockOrder(tx: Tx, orderId: string, darkStoreId?: string) {
   const rows = await tx.$queryRaw<
@@ -214,6 +219,7 @@ export function createOrder(db: Db, input: CreateOrderInput): Promise<CreatedOrd
         deliveryFeePiastres: input.deliveryFeePiastres,
         subtotalPiastres: 0,
         deliveryOtp: newDeliveryOtp(),
+        trackingToken: newTrackingToken(),
         placedAt,
         slaStartsAt: input.slaStartsAt ?? null,
         slaDueAt: new Date((input.slaStartsAt ?? placedAt).getTime() + promise * 60_000),

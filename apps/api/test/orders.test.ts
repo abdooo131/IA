@@ -89,6 +89,7 @@ describe('orders end to end', () => {
     expect(adminView.body.deliveryOtp).toMatch(/^\d{4}$/);
     const merchantView = await merchant.get(`/merchant/orders/${created.body.id}`).expect(200);
     expect(merchantView.body.deliveryOtp).toBeUndefined();
+    expect(merchantView.body.trackingToken).toBeUndefined();
     expect(merchantView.body.status).toBe('out_for_delivery');
 
     const rider = await agent('rider.newcairo@shiplynow.local');

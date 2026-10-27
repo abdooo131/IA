@@ -72,6 +72,7 @@ describe('coverage', () => {
         addressText: 'x',
         paymentMethod: 'cod',
         deliveryOtp: '1234',
+        trackingToken: `T-${Math.random()}`,
         subtotalPiastres: 1000,
         placedAt: new Date(clock.now().getTime() - 5 * 60_000),
       },

@@ -44,8 +44,13 @@ export class FakeShopify extends ShopifyAdmin {
   /** inventoryItemId|locationId -> available */
   inventory = new Map<string, number>();
   idempotencyKeys: string[] = [];
-  fulfillments: { id: string; fulfillmentOrderId: string; tracking: string; events: string[] }[] =
-    [];
+  fulfillments: {
+    id: string;
+    fulfillmentOrderId: string;
+    tracking: string;
+    trackingUrl?: string;
+    events: string[];
+  }[] = [];
   orderQuantities = new Map<string, number>();
   carrierServices: { id: string; name: string; callbackUrl: string }[] = [];
   /** locationId -> address set through locationEdit */
@@ -216,12 +221,13 @@ export class FakeShopify extends ShopifyAdmin {
       case 'FulfillmentCreate': {
         const input = v.fulfillment as {
           lineItemsByFulfillmentOrder: { fulfillmentOrderId: string }[];
-          trackingInfo: { number: string };
+          trackingInfo: { number: string; url?: string };
         };
         const f = {
           id: gid('Fulfillment'),
           fulfillmentOrderId: input.lineItemsByFulfillmentOrder[0]!.fulfillmentOrderId,
           tracking: input.trackingInfo.number,
+          trackingUrl: input.trackingInfo.url,
           events: [] as string[],
         };
         this.fulfillments.push(f);

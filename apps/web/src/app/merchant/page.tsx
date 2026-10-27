@@ -35,7 +35,7 @@ export default async function ShipmentsPage() {
     <>
       <h1 className="text-h2">{th('title')}</h1>
       <p className="mt-1 text-body-sm text-text-muted">{th('period')}</p>
-      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-5">
         <StatCard icon="orders" label={th('orders')} value={formatCount(k.orders)} />
         <StatCard
           icon="delivered"
@@ -49,6 +49,13 @@ export default async function ShipmentsPage() {
           tone="returning"
           label={th('cancelledFailed')}
           value={formatCount(k.cancelled + k.failed)}
+        />
+        <StatCard
+          icon="delivered"
+          tone="delivered"
+          label={th('rating')}
+          value={k.avgRating === null ? '–' : `${k.avgRating} ★`}
+          hint={th('ratingCount', { count: k.ratings })}
         />
       </div>
       <div className="mt-4 grid gap-4 lg:grid-cols-3">

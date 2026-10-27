@@ -57,6 +57,11 @@ export class ShopifyService {
     return `${this.publicUrl}/api/shopify/fs/${locationRowId}`;
   }
 
+  /** The customer's tracking page, linked from Shopify's shipping email and order status page. */
+  trackingUrl(token: string) {
+    return `${this.publicUrl}/t/${token}`;
+  }
+
   /** Where Shopify sends the shop's webhooks. */
   webhooksUrl() {
     return `${this.publicUrl}/api/shopify/webhooks`;

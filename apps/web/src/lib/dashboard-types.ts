@@ -17,6 +17,8 @@ export interface KpiTotals {
   deliveryFeesPiastres: number;
   codExpectedPiastres: number;
   codCollectedPiastres: number;
+  ratings: number;
+  avgRating: number | null;
 }
 
 export interface Kpis {

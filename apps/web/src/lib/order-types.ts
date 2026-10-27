@@ -65,6 +65,7 @@ export interface OrderSummary {
 
 export interface OrderDetail extends OrderSummary {
   deliveryOtp?: string;
+  trackingToken?: string;
   customerNote: string | null;
   latitude: number | null;
   longitude: number | null;

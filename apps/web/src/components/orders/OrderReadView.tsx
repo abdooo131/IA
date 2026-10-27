@@ -134,6 +134,18 @@ export function OrderReadView({
               {t('otp')}: <span className="ltr-iso font-bold">{order.deliveryOtp}</span>
             </p>
           )}
+          {order.trackingToken && (
+            <p className="text-body-sm">
+              <a
+                href={`/t/${order.trackingToken}`}
+                target="_blank"
+                rel="noreferrer"
+                className="text-link underline"
+              >
+                {t('trackingLink')}
+              </a>
+            </p>
+          )}
         </div>
         <div className="space-y-1 rounded-lg border border-line bg-surface p-4 text-body-sm">
           <h2 className="text-h3">{t('payment')}</h2>

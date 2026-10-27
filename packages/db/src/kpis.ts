@@ -36,6 +36,9 @@ export interface KpiTotals {
   deliveryFeesPiastres: number;
   codExpectedPiastres: number;
   codCollectedPiastres: number;
+  ratings: number;
+  /** Average customer stars, 1 to 5, one decimal */
+  avgRating: number | null;
 }
 
 export interface Kpis {
@@ -107,6 +110,8 @@ function totalsOf(rows: Row[]): KpiTotals {
       .filter((d) => d.status === 'delivered')
       .reduce((s, d) => s + d.codExpectedPiastres, 0),
     codCollectedPiastres: deliveries.reduce((s, d) => s + (d.codCollectedPiastres ?? 0), 0),
+    ratings: rows.filter((o) => o.rating).length,
+    avgRating: average(rows.map((o) => o.rating?.stars ?? null)),
   };
 }
 
@@ -135,6 +140,7 @@ function load(db: Db, filter: KpiFilter) {
       deliveries: {
         select: { status: true, codExpectedPiastres: true, codCollectedPiastres: true },
       },
+      rating: { select: { stars: true } },
       // An order counts as late if any stage was ever flagged, even after it caught up.
       events: { where: { type: 'late' }, select: { id: true }, take: 1 },
     },

@@ -292,10 +292,23 @@ describe('shopify app', () => {
     await jobs.runShop(shop);
     expect(fake.fulfillments).toHaveLength(1);
     expect(fake.fulfillments[0]!.tracking).toBe(order.number);
-
-    const rider = await agent('rider.newcairo@shiplynow.local');
-    const deliveries = await rider.get('/rider/deliveries').expect(200);
     const fresh = await prisma.order.findUniqueOrThrow({ where: { id: order.id } });
+    expect(fake.fulfillments[0]!.trackingUrl).toBe(
+      `http://localhost:3000/t/${fresh.trackingToken}`,
+    );
+
+    // The customer follows the rider on the tracking page.
+    const rider = await agent('rider.newcairo@shiplynow.local');
+    await rider.post('/rider/location').send({ lat: 30.02, lng: 31.47 }).expect(201);
+    const onRoad = await request(app.getHttpServer())
+      .get(`/track/${fresh.trackingToken}`)
+      .expect(200);
+    expect(onRoad.body).toMatchObject({
+      status: 'out_for_delivery',
+      deliveryCode: fresh.deliveryOtp,
+      riderPosition: { lat: 30.02, lng: 31.47 },
+    });
+    const deliveries = await rider.get('/rider/deliveries').expect(200);
     await rider
       .post(`/rider/deliveries/${deliveries.body[0].id}/complete`)
       .send({ otp: fresh.deliveryOtp, codCollectedPiastres: fresh.codAmountPiastres })
@@ -303,6 +316,17 @@ describe('shopify app', () => {
     await jobs.runShop(shop);
     expect(fake.fulfillments[0]!.events).toEqual(['DELIVERED']);
     expect(await prisma.shopifyOutbox.count({ where: { doneAt: null } })).toBe(0);
+
+    const customer = request(app.getHttpServer());
+    await customer.post(`/track/${fresh.trackingToken}/rating`).send({ stars: 9 }).expect(400);
+    await customer
+      .post(`/track/${fresh.trackingToken}/rating`)
+      .send({ stars: 5, comment: 'Fast' })
+      .expect(201);
+    await customer.post(`/track/${fresh.trackingToken}/rating`).send({ stars: 4 }).expect(409);
+    const done = await customer.get(`/track/${fresh.trackingToken}`).expect(200);
+    expect(done.body).toMatchObject({ deliveryCode: null, rating: { stars: 5 }, canRate: false });
+    await customer.get('/track/not-a-real-token-at-all').expect(404);
   });
 
   it('queues an order that arrives while the store is closed', async () => {

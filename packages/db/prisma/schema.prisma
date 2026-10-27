@@ -523,6 +523,8 @@ model Order {
   phoneFlagged              Boolean       @default(false) @map("phone_flagged")
   /// Code the customer gives the rider to confirm delivery
   deliveryOtp               String        @map("delivery_otp")
+  /// Unguessable key of the customer's public tracking page /t/<token>
+  trackingToken             String        @unique @map("tracking_token")
   latitude                  Float?
   longitude                 Float?
   paymentMethod             PaymentMethod @map("payment_method")
@@ -570,6 +572,8 @@ model Order {
 
   shopifyOutbox ShopifyOutbox[]
 
+  rating OrderRating?
+
   @@index([darkStoreId, status, slaDueAt])
   @@index([merchantId, placedAt])
   @@index([status, placedAt])
@@ -612,15 +616,19 @@ model OrderEvent {
 }
 
 model Rider {
-  id          String   @id @default(cuid())
-  userId      String   @unique @map("user_id")
-  darkStoreId String   @map("dark_store_id")
+  id             String    @id @default(cuid())
+  userId         String    @unique @map("user_id")
+  darkStoreId    String    @map("dark_store_id")
   /// Printed on the rider's badge; scanned at hand over
-  badgeCode   String   @unique @map("badge_code")
-  vehicle     String?
-  isAvailable Boolean  @default(true) @map("is_available")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  badgeCode      String    @unique @map("badge_code")
+  vehicle        String?
+  isAvailable    Boolean   @default(true) @map("is_available")
+  /// Latest phone position while carrying orders (no history is kept)
+  lastLat        Float?    @map("last_lat")
+  lastLng        Float?    @map("last_lng")
+  lastLocationAt DateTime? @map("last_location_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
 
   user       User       @relation(fields: [userId], references: [id], onDelete: Restrict)
   darkStore  DarkStore  @relation(fields: [darkStoreId], references: [id])
@@ -673,6 +681,20 @@ model Delivery {
   @@index([riderId, status])
   @@index([orderId])
   @@map("deliveries")
+}
+
+/// The customer's 1 to 5 star rating, given once from the tracking page after delivery
+model OrderRating {
+  id        String   @id @default(cuid())
+  orderId   String   @unique @map("order_id")
+  stars     Int
+  comment   String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@index([createdAt])
+  @@map("order_ratings")
 }
 
 // ─── Photos and alerts ─────────────────────────────────────────────────────────

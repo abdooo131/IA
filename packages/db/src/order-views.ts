@@ -150,6 +150,7 @@ export async function getOrderDetail(db: Db, orderId: string) {
   return {
     ...summary,
     deliveryOtp: o.deliveryOtp,
+    trackingToken: o.trackingToken,
     customerNote: o.customerNote,
     latitude: o.latitude,
     longitude: o.longitude,

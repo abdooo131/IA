@@ -12,6 +12,7 @@ import { PhotosModule } from './photos/photos.module';
 import { RiderModule } from './rider/rider.module';
 import { ShopifyModule } from './shopify/shopify.module';
 import { StoreModule } from './store/store.module';
+import { TrackingModule } from './tracking/tracking.module';
 import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
@@ -37,6 +38,7 @@ import { UsersController } from './users/users.controller';
     JobsModule,
     FinanceModule,
     ShopifyModule,
+    TrackingModule,
   ],
   controllers: [HealthController, UsersController],
 })
