@@ -5,7 +5,10 @@ import { useEffect, useState } from 'react';
 import { PhotoCapture } from '@/components/orders/PhotoCapture';
 import { localized } from '@/lib/admin-types';
 import { apiGetClient, apiSend } from '@/lib/api-client';
+import { StatCard } from '@/components/StatCard';
+import { WalletCard } from '@/components/WalletCard';
 import { formatEgp } from '@/lib/format';
+import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
 
 export interface RiderMe {
@@ -81,19 +84,32 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
           {me.name} · <span className="ltr-iso">{me.badgeCode}</span> ·{' '}
           {localized(me.darkStore, locale)}
         </p>
-        <p className="mt-1 text-body-sm">
-          {t('today', {
-            delivered: me.today.delivered,
-            failed: me.today.failed,
-            cash: formatEgp(me.today.codCollectedPiastres),
-          })}
-        </p>
-        <div className="mt-3 rounded-lg border border-line bg-surface p-3 text-body-sm">
-          <p className="font-bold">{tw('cash', { amount: formatEgp(me.wallet.cashPiastres) })}</p>
-          <p>{tw('bonus', { amount: formatEgp(me.wallet.bonusOwedPiastres) })}</p>
-          {me.wallet.cashPiastres > 0 && (
-            <p className="text-caption text-text-muted">{tw('handIn')}</p>
-          )}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          <StatCard
+            icon="delivered"
+            tone="delivered"
+            label={t('deliveredToday')}
+            value={String(me.today.delivered)}
+          />
+          <StatCard
+            icon="returns"
+            tone="returning"
+            label={t('failedToday')}
+            value={String(me.today.failed)}
+          />
+        </div>
+        <div className="mt-3 grid grid-cols-1 gap-3">
+          <WalletCard
+            icon="cash"
+            label={tw('cashLabel')}
+            value={tw('amount', { amount: formatEgp(me.wallet.cashPiastres) })}
+            hint={me.wallet.cashPiastres > 0 ? tw('handIn') : undefined}
+          />
+          <WalletCard
+            icon="wallet"
+            label={tw('bonusLabel')}
+            value={tw('amount', { amount: formatEgp(me.wallet.bonusOwedPiastres) })}
+          />
         </div>
       </header>
 
@@ -173,13 +189,13 @@ function DeliveryCard({
 
   function deliver() {
     if (!/^\d{4}$/.test(otp) && !photoId) return fail('proof_required');
-    const piastres = Math.round(Number(cash) * 100);
-    if (cod && (!cash.trim() || !Number.isFinite(piastres) || piastres < 0))
-      return fail('cod_required');
+    // Typed EGP to piastres without floats, so 12.30 is exactly 1230.
+    const piastres = parseEgp(cash);
+    if (cod && piastres === null) return fail('cod_required');
     void send('complete', {
       otp: /^\d{4}$/.test(otp) ? otp : undefined,
       photoId: photoId ?? undefined,
-      codCollectedPiastres: cod ? piastres : undefined,
+      codCollectedPiastres: cod ? (piastres ?? undefined) : undefined,
     });
   }
 

@@ -535,7 +535,8 @@
       "labelsHint": "اطبع ليبلات الباركود",
       "back": "رجوع",
       "orders": "الطلبات",
-      "ordersHint": "{active} شغالة · {late} متأخرة"
+      "ordersHint": "{active} شغالة · {late} متأخرة",
+      "homeTab": "الرئيسية"
     },
     "receive": {
       "title": "استلام",
@@ -708,7 +709,8 @@
       "areaOpen": "{store} مفتوح ويمكنه استلام هذا الطلب.",
       "areaClosed": "{store} مغلق الآن. يفتح {time}.",
       "areaFull": "{store} ممتلئ في هذه الساعة. حاول بعد قليل.",
-      "areaChecking": "جار التحقق من المخزن…"
+      "areaChecking": "جار التحقق من المخزن…",
+      "invalidFee": "اكتب سعر التوصيل زي 45 أو 45.50."
     },
     "delivery": {
       "title": "توصيل خلال 60 دقيقة",
@@ -948,7 +950,9 @@
       "delivery_closed": "التوصيلة دي اتقفلت خلاص.",
       "network": "مفيش اتصال. جرب تاني.",
       "generic": "حصلت مشكلة، جرب تاني."
-    }
+    },
+    "deliveredToday": "اتسلم النهارده",
+    "failedToday": "فشل النهارده"
   },
   "finance": {
     "title": "المالية",
@@ -1161,7 +1165,8 @@
       "validation_failed": "اكتب المبلغ المعدود.",
       "network": "مفيش اتصال. جرب تاني.",
       "generic": "حصلت مشكلة. جرب تاني."
-    }
+    },
+    "tab": "الكاش"
   },
   "merchantFinance": {
     "nav": "المحفظة",
@@ -1185,7 +1190,10 @@
   "riderWallet": {
     "cash": "الكاش اللي معاك: {amount} جنيه",
     "bonus": "الحافز اللي كسبته: {amount} جنيه",
-    "handIn": "سلّم الكاش للمخزن في آخر الوردية."
+    "handIn": "سلّم الكاش للمخزن في آخر الوردية.",
+    "cashLabel": "الكاش اللي معاك",
+    "bonusLabel": "البونص بتاعك",
+    "amount": "{amount} جنيه"
   },
   "shopifyInstalled": {
     "title": "Shiply Now",

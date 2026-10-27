@@ -535,7 +535,8 @@
       "labelsHint": "Print barcode labels",
       "back": "Back",
       "orders": "Orders",
-      "ordersHint": "{active} active · {late} late"
+      "ordersHint": "{active} active · {late} late",
+      "homeTab": "Home"
     },
     "receive": {
       "title": "Receive",
@@ -708,7 +709,8 @@
       "areaOpen": "{store} is open and can take this order.",
       "areaClosed": "{store} is closed now. It opens {time}.",
       "areaFull": "{store} is full for this hour. Try again shortly.",
-      "areaChecking": "Checking the store…"
+      "areaChecking": "Checking the store…",
+      "invalidFee": "Enter the delivery fee like 45 or 45.50."
     },
     "delivery": {
       "title": "60 minute delivery",
@@ -948,7 +950,9 @@
       "delivery_closed": "This delivery is already closed.",
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
-    }
+    },
+    "deliveredToday": "Delivered today",
+    "failedToday": "Failed today"
   },
   "finance": {
     "title": "Finance",
@@ -1161,7 +1165,8 @@
       "validation_failed": "Enter the amount counted.",
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
-    }
+    },
+    "tab": "Cash"
   },
   "merchantFinance": {
     "nav": "Wallet",
@@ -1185,7 +1190,10 @@
   "riderWallet": {
     "cash": "Cash with you: {amount} EGP",
     "bonus": "Bonus earned: {amount} EGP",
-    "handIn": "Hand the cash to the store at the end of your shift."
+    "handIn": "Hand the cash to the store at the end of your shift.",
+    "cashLabel": "Cash with you",
+    "bonusLabel": "Bonus earned",
+    "amount": "EGP {amount}"
   },
   "shopifyInstalled": {
     "title": "Shiply Now",

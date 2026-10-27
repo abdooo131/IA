@@ -6,6 +6,7 @@ import { type FormEvent, useState } from 'react';
 import { localized } from '@/lib/admin-types';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import { formatCairoDateTime } from '@/lib/format';
+import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
 
 export interface CoverageArea {
@@ -95,7 +96,9 @@ export function NewOrderForm({
     const form = new FormData(event.currentTarget);
     const area = areas.find((a) => a.zoneId === form.get('zoneId'));
     if (!area) return setError(t('chooseArea'));
-    const fee = Math.round(Number(form.get('deliveryFee') || 0) * 100);
+    const feeText = String(form.get('deliveryFee') ?? '').trim();
+    const fee = feeText ? parseEgp(feeText) : 0;
+    if (fee === null) return setError(t('invalidFee'));
     setBusy(true);
     setError(null);
     const result = await apiSend<{ id: string }>('POST', endpoint, {
