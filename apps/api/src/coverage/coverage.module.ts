@@ -4,7 +4,7 @@ import { Clock, SystemClock } from '../common/clock';
 import type { Env } from '../config/env';
 import { CoverageController } from './coverage.controller';
 import { CoverageService } from './coverage.service';
-import { Geocoder, GoogleGeocoder, NotConfiguredGeocoder } from './geocoding';
+import { Geocoder, GoogleGeocoder, NotConfiguredGeocoder, OsmGeocoder } from './geocoding';
 import { StoreStatusService } from './store-status.service';
 
 @Module({
@@ -18,7 +18,12 @@ import { StoreStatusService } from './store-status.service';
       inject: [ConfigService],
       useFactory: (config: ConfigService<Env, true>) => {
         const key = config.get('GOOGLE_MAPS_API_KEY', { infer: true });
-        return key ? new GoogleGeocoder(key) : new NotConfiguredGeocoder();
+        if (key) return new GoogleGeocoder(key);
+        // OpenStreetMap is for local testing only; production needs the Google key.
+        const osm =
+          config.get('GEOCODER', { infer: true }) === 'osm' &&
+          config.get('NODE_ENV', { infer: true }) !== 'production';
+        return osm ? new OsmGeocoder() : new NotConfiguredGeocoder();
       },
     },
   ],

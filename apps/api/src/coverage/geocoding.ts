@@ -56,3 +56,63 @@ export class GoogleGeocoder extends Geocoder {
     };
   }
 }
+
+interface NominatimPlace {
+  lat: string;
+  lon: string;
+  display_name: string;
+}
+
+/**
+ * OpenStreetMap's free Nominatim service, for local testing without a Google key
+ * (GEOCODER=osm). Its usage policy allows about one request a second with a named client, so
+ * it is never used in production. Shopify addresses are often too precise for it, so when the
+ * full text is not found the leading parts (street, building) are dropped and it tries again.
+ */
+export class OsmGeocoder extends Geocoder {
+  constructor(
+    private readonly fetcher: typeof fetch = fetch,
+    private readonly pauseMs = 1100,
+  ) {
+    super();
+  }
+
+  async geocode(address: string): Promise<GeocodeResult | null> {
+    const parts = address
+      .split(',')
+      .map((p) => p.trim())
+      .filter((p) => p && p.toLowerCase() !== 'egypt');
+    for (let drop = 0; drop < Math.min(parts.length, 3); drop++) {
+      if (drop > 0) await new Promise((r) => setTimeout(r, this.pauseMs));
+      const found = await this.search(parts.slice(drop).join(', '));
+      if (found) return found;
+    }
+    return null;
+  }
+
+  private async search(text: string): Promise<GeocodeResult | null> {
+    const url = new URL('https://nominatim.openstreetmap.org/search');
+    url.searchParams.set('q', text);
+    url.searchParams.set('countrycodes', 'eg');
+    url.searchParams.set('format', 'jsonv2');
+    url.searchParams.set('limit', '1');
+    let places: NominatimPlace[];
+    try {
+      const res = await this.fetcher(url, {
+        headers: { 'user-agent': 'ShiplyNow pilot (local testing)' },
+        signal: AbortSignal.timeout(5000),
+      });
+      if (!res.ok) throw new Error(String(res.status));
+      places = (await res.json()) as NominatimPlace[];
+    } catch {
+      throw new BadGatewayException({ error: 'geocoding_failed' });
+    }
+    const first = places[0];
+    if (!first) return null;
+    return {
+      latitude: Number(first.lat),
+      longitude: Number(first.lon),
+      formattedAddress: first.display_name,
+    };
+  }
+}

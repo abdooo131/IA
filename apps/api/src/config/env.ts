@@ -16,6 +16,8 @@ export const envSchema = z.object({
   COOKIE_SECURE: booleanString,
   /** Optional. Without it, address lookups answer geocoding_not_configured. */
   GOOGLE_MAPS_API_KEY: z.string().optional(),
+  /** Set to osm to use OpenStreetMap when there is no Google key (local testing only). */
+  GEOCODER: z.enum(['google', 'osm']).default('google'),
   /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */
   JOBS_ENABLED: z.enum(['true', 'false']).optional(),
   /** Shopify app client ID (not secret). Without it the Shopify connection stays off. */

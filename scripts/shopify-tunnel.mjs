@@ -72,8 +72,11 @@ if (!secret) {
   if (!typed) fail('No secret given; nothing changed.');
   env = setVar(env, 'SHOPIFY_API_SECRET', typed);
 }
+// Checkout needs addresses placed on the map; without a Google key use OpenStreetMap locally.
+const googleKey = /^GOOGLE_MAPS_API_KEY=(.*)$/m.exec(env)?.[1]?.trim();
+if (!googleKey) env = setVar(env, 'GEOCODER', 'osm');
 writeFileSync(ENV, env);
-console.log(`.env updated: WEB_ORIGIN=${url}`);
+console.log(`.env updated: WEB_ORIGIN=${url}${googleKey ? '' : ', GEOCODER=osm'}`);
 
 const toml = readFileSync(join(APP, 'shopify.app.toml'), 'utf8')
   .split('\n')
