@@ -3,7 +3,8 @@
 //   pnpm shopify:tunnel                 starts a cloudflared tunnel and keeps it open
 //   pnpm shopify:tunnel https://<words>.trycloudflare.com   uses a tunnel already running
 //   pnpm local                          everything in one window: frees ports 3000 and 4000,
-//                                       starts the database, the tunnel and then pnpm dev
+//                                       starts the database and applies its updates, the
+//                                       tunnel and then pnpm dev
 // It sets WEB_ORIGIN and the Shopify keys in .env (asking for the client secret without
 // showing it), writes apps/shopify/shopify.app.local.toml with the tunnel address and runs
 // `shopify app deploy` with it, which sends the URLs, scopes, webhooks, app proxy and the
@@ -49,7 +50,10 @@ function startTunnel() {
     child.on('error', () =>
       fail('cloudflared is not installed. Install it with: brew install cloudflared'),
     );
-    child.on('exit', (code) => fail(`The tunnel stopped (code ${code}). Run this again.`));
+    // Ctrl+C reaches every process in the window; stopping by signal is not an error.
+    child.on('exit', (code, signal) =>
+      signal ? process.exit(0) : fail(`The tunnel stopped (code ${code}). Run this again.`),
+    );
     let found = false;
     const timer = setTimeout(() => fail('The tunnel gave no address within a minute.'), 60_000);
     const read = (chunk) => {
@@ -87,6 +91,14 @@ if (dev) {
   const db = spawnSync('docker', ['compose', 'up', '-d'], { cwd: ROOT, stdio: 'inherit' });
   if (db.status !== 0)
     fail('The database did not start. Open Docker Desktop, wait for it, then run this again.');
+  // Database updates from a git pull; the database may need a few seconds after starting.
+  console.log('Applying database updates...');
+  let migrated = false;
+  for (let attempt = 0; attempt < 10 && !migrated; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+    migrated = spawnSync('pnpm', ['db:deploy'], { cwd: ROOT, stdio: 'ignore' }).status === 0;
+  }
+  if (!migrated) fail('Database updates failed. Run: pnpm db:deploy   to see why.');
 }
 
 let url;
@@ -181,7 +193,9 @@ if (deploy) {
 if (dev) {
   console.log('\nStarting the app (pnpm dev)...\n');
   const app = spawn('pnpm', ['dev'], { cwd: ROOT, stdio: 'inherit' });
-  app.on('exit', (code) => fail(`The app stopped (code ${code}). Read the message above.`));
+  app.on('exit', (code, signal) =>
+    signal ? process.exit(0) : fail(`The app stopped (code ${code}). Read the message above.`),
+  );
   children.push(app);
   console.log(`
 When you see "Ready" below, open ${url}/admin and sign in as admin.
