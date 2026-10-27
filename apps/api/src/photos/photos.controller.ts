@@ -39,6 +39,7 @@ export class PhotosController {
       include: {
         packedFor: { select: { merchantId: true } },
         deliveries: { select: { order: { select: { merchantId: true } } } },
+        failedDeliveries: { select: { order: { select: { merchantId: true } } } },
       },
     });
     if (!photo) throw new NotFoundException({ error: 'photo_not_found' });
@@ -47,6 +48,7 @@ export class PhotosController {
       const owners = [
         ...photo.packedFor.map((o) => o.merchantId),
         ...photo.deliveries.map((d) => d.order.merchantId),
+        ...photo.failedDeliveries.map((d) => d.order.merchantId),
       ];
       if (!me?.merchantId || !owners.includes(me.merchantId))
         throw new NotFoundException({ error: 'photo_not_found' });

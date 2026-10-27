@@ -182,7 +182,7 @@ describe('orders end to end', () => {
     expect(order.lateStage).toBe('accept');
   });
 
-  it('handles a failed delivery and the return to the store', async () => {
+  it('retries a failed delivery once, then takes the goods back for good', async () => {
     const merchant = await agent('merchant@evechantelle.example');
     const created = await merchant
       .post('/merchant/orders')
@@ -205,15 +205,65 @@ describe('orders end to end', () => {
     await staff.post(`${base}/pack`).send({ photoId: photo.body.id }).expect(201);
     await staff.post(`${base}/handover`).send({ badgeCode: 'RDR-0001' }).expect(201);
 
+    // First attempt: "no answer" needs two logged calls and a photo at the door.
     const rider = await agent('rider.newcairo@shiplynow.local');
     const [delivery] = (await rider.get('/rider/deliveries')).body;
-    await rider
-      .post(`/rider/deliveries/${delivery.id}/fail`)
-      .send({ reason: 'no_answer' })
+    const fail = (id: string, body: Record<string, unknown>) =>
+      rider.post(`/rider/deliveries/${id}/fail`).send(body);
+    expect((await fail(delivery.id, { reason: 'no_answer' }).expect(400)).body).toEqual({
+      error: 'calls_required',
+    });
+    await rider.post(`/rider/deliveries/${delivery.id}/call`).expect(201);
+    const call = await rider.post(`/rider/deliveries/${delivery.id}/call`).expect(201);
+    expect(call.body).toEqual({ calls: 2, phone: '+201012345678' });
+    const door = await rider
+      .post('/photos?kind=delivery')
+      .set('content-type', 'image/jpeg')
+      .send(JPEG)
       .expect(201);
-    const returned = await staff.post(`${base}/return`).expect(201);
-    expect(returned.body).toMatchObject({ bin: 'HLD-01', units: 3 });
+    expect(
+      (await fail(delivery.id, { reason: 'no_answer', photoId: door.body.id }).expect(201)).body,
+    ).toEqual({ status: 'attempt_failed', attempt: 1, maxAttempts: 2 });
+
+    // The store queue shows it waiting; the merchant cannot retry before the goods are back.
+    const queue = (await staff.get(`/stores/${ncr}/orders`)).body;
+    expect(queue.find((o: { id: string }) => o.id === created.body.id)).toMatchObject({
+      status: 'attempt_failed',
+      goodsBack: false,
+    });
+    const decide = (body: Record<string, unknown>) =>
+      merchant.post(`/merchant/orders/${created.body.id}/decision`).send(body);
+    expect((await decide({ action: 'retry' }).expect(409)).body).toEqual({
+      error: 'goods_not_back',
+    });
+    expect((await staff.post(`${base}/return`).expect(201)).body).toMatchObject({
+      keptForRetry: true,
+      units: 0,
+    });
+    const detail = (await merchant.get(`/merchant/orders/${created.body.id}`)).body;
+    expect(detail).toMatchObject({ status: 'attempt_failed', goodsBack: true });
+    expect(detail.deliveries[0]).toMatchObject({ callAttempts: 2, failedPhotoId: door.body.id });
+    // The merchant sees the door photo of their own order.
+    await merchant.get(`/photos/${door.body.id}`).expect(200);
+    await decide({ action: 'retry' }).expect(201);
+
+    // Second and last attempt: the order fails for good, the goods go to the held bin.
+    await staff.post(`${base}/handover`).send({ badgeCode: 'RDR-0001' }).expect(201);
+    const second = (await rider.get('/rider/deliveries')).body.find(
+      (d: { status: string }) => d.status === 'picked_up',
+    );
+    expect((await fail(second.id, { reason: 'wrong_address' }).expect(201)).body).toMatchObject({
+      status: 'failed',
+      attempt: 2,
+    });
+    expect((await staff.post(`${base}/return`).expect(201)).body).toMatchObject({
+      bin: 'HLD-01',
+      units: 3,
+    });
     expect((await merchant.get(`/merchant/orders/${created.body.id}`)).body.status).toBe('failed');
+    expect((await decide({ action: 'retry' }).expect(409)).body).toEqual({
+      error: 'invalid_order_state',
+    });
   });
 
   it('keeps each role in its lane', async () => {

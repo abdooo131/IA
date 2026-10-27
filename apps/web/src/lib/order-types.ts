@@ -4,6 +4,7 @@ export type OrderStatus =
   | 'picking'
   | 'packed'
   | 'out_for_delivery'
+  | 'attempt_failed'
   | 'delivered'
   | 'cancelled'
   | 'failed'
@@ -51,6 +52,10 @@ export interface OrderSummary {
   slaStartsAt: string | null;
   deliveredAt: string | null;
   closedReason: string | null;
+  /** While attempt_failed: when the order fails for good if nobody decides */
+  retryHoldUntil: string | null;
+  /** While attempt_failed: the goods of the last attempt are back in the store */
+  goodsBack: boolean;
   lateStage: SlaStage | null;
   stage: { stage: SlaStage; dueAt: string; late: boolean } | null;
   units: number;
@@ -81,6 +86,9 @@ export interface OrderDetail extends OrderSummary {
     deliveredAt: string | null;
     failedAt: string | null;
     failedReason: string | null;
+    callAttempts: number;
+    failedPhotoId: string | null;
+    returnedAt: string | null;
     otpVerified: boolean;
     proofPhotoId: string | null;
     codExpectedPiastres: number;
@@ -103,6 +111,7 @@ export const ORDER_STATUS_LIST: OrderStatus[] = [
   'picking',
   'packed',
   'out_for_delivery',
+  'attempt_failed',
   'delivered',
   'cancelled',
   'failed',

@@ -21,6 +21,8 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
   'packed',
   'out_for_delivery',
 ];
+/** Not moving and not closed: a failed attempt waiting for its goods and a decision. */
+export const WAITING_STATUSES: OrderStatus[] = ['attempt_failed'];
 export const CLOSED_STATUSES: OrderStatus[] = [
   'delivered',
   'cancelled',

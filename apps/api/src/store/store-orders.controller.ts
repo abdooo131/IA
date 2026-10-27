@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   acceptOrder,
   cancelOrder,
+  decideFailedOrder,
   getOrderDetail,
   handToRider,
   listOrders,
@@ -17,9 +18,12 @@ import {
   ACTIVE_STATUSES,
   cancelOrderSchema,
   CLOSED_STATUSES,
+  type FailedOrderDecision,
+  failedOrderDecisionSchema,
   handoverSchema,
   missingItemSchema,
   pickScanSchema,
+  WAITING_STATUSES,
 } from '@shiplynow/shared';
 import { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -39,7 +43,7 @@ export class StoreOrdersController {
     private readonly access: StoreAccessService,
   ) {}
 
-  /** The work queue (active orders by promise time) or today's finished orders. */
+  /** The work queue (active orders by promise time, and failed attempts waiting) or today's finished orders. */
   @Get()
   @ApiQuery({ name: 'view', required: false, enum: ['active', 'done'] })
   async list(
@@ -58,7 +62,7 @@ export class StoreOrdersController {
     }
     return listOrders(
       this.prisma,
-      { darkStoreId: storeId, statuses: [...ACTIVE_STATUSES] },
+      { darkStoreId: storeId, statuses: [...ACTIVE_STATUSES, ...WAITING_STATUSES] },
       'promise',
     );
   }
@@ -177,5 +181,22 @@ export class StoreOrdersController {
   ) {
     await this.access.check(user, storeId);
     return returnToStore(this.prisma, { orderId, darkStoreId: storeId, actorUserId: user.sub });
+  }
+
+  /** After a failed attempt: try again (goods must be back), ship normally or cancel. */
+  @Post(':orderId/decision')
+  async decide(
+    @Param('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+    @Body(new ZodValidationPipe(failedOrderDecisionSchema)) body: FailedOrderDecision,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.access.check(user, storeId);
+    return decideFailedOrder(this.prisma, {
+      orderId,
+      darkStoreId: storeId,
+      decision: body,
+      actorUserId: user.sub,
+    });
   }
 }

@@ -2,6 +2,7 @@ import { Body, Controller, Get, NotFoundException, Param, Post, Query, Res } fro
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   cancelOrder,
+  decideFailedOrder,
   DomainError,
   getOrderDetail,
   listOrders,
@@ -11,6 +12,8 @@ import {
 import {
   type AccessTokenClaims,
   cancelOrderSchema,
+  type FailedOrderDecision,
+  failedOrderDecisionSchema,
   type CreateOrderBody,
   createOrderSchema,
   ORDER_STATUSES,
@@ -132,6 +135,15 @@ export class AdminOrdersController {
   ) {
     await cancelOrder(this.prisma, { orderId: id, reason: body.reason, actorUserId: user.sub });
     return { status: 'cancelled' };
+  }
+
+  @Post('orders/:id/decision')
+  decide(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(failedOrderDecisionSchema)) body: FailedOrderDecision,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return decideFailedOrder(this.prisma, { orderId: id, decision: body, actorUserId: user.sub });
   }
 
   @Get('alerts')

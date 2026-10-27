@@ -1,6 +1,12 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { completeDelivery, failDelivery, riderBonusOwed, riderCash } from '@shiplynow/db';
+import {
+  completeDelivery,
+  failDelivery,
+  recordDeliveryCall,
+  riderBonusOwed,
+  riderCash,
+} from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   completeDeliverySchema,
@@ -84,6 +90,8 @@ export class RiderController {
       deliveredAt: d.deliveredAt,
       failedAt: d.failedAt,
       failedReason: d.failedReason,
+      callAttempts: d.callAttempts,
+      returnedAt: d.returnedAt,
       codExpectedPiastres: d.codExpectedPiastres,
       codCollectedPiastres: d.codCollectedPiastres,
       order: {
@@ -128,12 +136,18 @@ export class RiderController {
     @Body(new ZodValidationPipe(failDeliverySchema)) body: z.infer<typeof failDeliverySchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    await failDelivery(this.prisma, {
+    return failDelivery(this.prisma, {
       deliveryId: id,
       riderUserId: user.sub,
       reason: body.reason,
       note: body.note,
+      photoId: body.photoId,
     });
-    return { status: 'failed' };
+  }
+
+  /** The rider is calling the customer; the call is logged as proof for a "no answer" report. */
+  @Post('deliveries/:id/call')
+  call(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return recordDeliveryCall(this.prisma, { deliveryId: id, riderUserId: user.sub });
   }
 }

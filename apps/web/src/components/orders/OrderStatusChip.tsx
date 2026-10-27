@@ -11,6 +11,7 @@ const LOOK: Record<OrderStatus, { color: string; icon: string }> = {
   picking: { color: 'text-status-in-progress', icon: 'packaging' },
   packed: { color: 'text-status-in-progress', icon: 'packaging' },
   out_for_delivery: { color: 'text-status-heading-to-customer', icon: 'courier' },
+  attempt_failed: { color: 'text-status-needs-action', icon: 'returns' },
   delivered: { color: 'text-status-delivered', icon: 'delivered' },
   failed: { color: 'text-status-returning', icon: 'returns' },
   cancelled: { color: 'text-status-new', icon: 'alert' },

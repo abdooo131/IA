@@ -2,6 +2,7 @@ import { Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   cancelOrder,
+  decideFailedOrder,
   computeKpis,
   DomainError,
   getOrderDetail,
@@ -12,6 +13,8 @@ import {
   type AccessTokenClaims,
   type CreateOrderBody,
   createOrderSchema,
+  type FailedOrderDecision,
+  failedOrderDecisionSchema,
   ORDER_STATUSES,
   type OrderStatus,
 } from '@shiplynow/shared';
@@ -106,5 +109,20 @@ export class MerchantOrdersController {
       actorUserId: user.sub,
     });
     return { status: 'cancelled' };
+  }
+
+  /** After a failed attempt the merchant decides: try again, ship it normally, or cancel. */
+  @Post(':id/decision')
+  async decide(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(failedOrderDecisionSchema)) body: FailedOrderDecision,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return decideFailedOrder(this.prisma, {
+      orderId: id,
+      merchantId: await this.merchantIdOf(user),
+      decision: body,
+      actorUserId: user.sub,
+    });
   }
 }
