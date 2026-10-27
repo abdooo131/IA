@@ -6,6 +6,7 @@ import type { Env } from '../config/env';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import { LoginThrottleService } from './login-throttle.service';
 import { RolesGuard } from './roles.guard';
 
 @Module({
@@ -23,10 +24,11 @@ import { RolesGuard } from './roles.guard';
   controllers: [AuthController],
   providers: [
     AuthService,
+    LoginThrottleService,
     // Order matters: authenticate first, then check roles.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
   ],
-  exports: [AuthService],
+  exports: [AuthService, LoginThrottleService],
 })
 export class AuthModule {}

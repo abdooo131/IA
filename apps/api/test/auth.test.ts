@@ -3,6 +3,7 @@ import { ACCESS_TOKEN_COOKIE, REFRESH_TOKEN_COOKIE } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
+import { LoginThrottleService } from '../src/auth/login-throttle.service';
 import { cookieValue, createTestApp, createUser, resetDatabase } from './helpers';
 
 const ADMIN = { email: 'admin@test.eg', password: 'admin-password-1', role: 'admin' as const };
@@ -21,6 +22,10 @@ describe('auth', () => {
   });
 
   beforeEach(async () => {
+    // Each test starts with no failed sign ins counted.
+    const throttle = app.get(LoginThrottleService);
+    (throttle as unknown as { failures: Map<string, number[]> }).failures.clear();
+    throttle.now = () => Date.now();
     await resetDatabase(prisma);
     await createUser(prisma, ADMIN);
     await createUser(prisma, RIDER);
@@ -30,6 +35,47 @@ describe('auth', () => {
     request(app.getHttpServer()).post('/auth/login').send({ email, password });
 
   describe('POST /auth/login', () => {
+    it('locks an account for 15 minutes after 5 wrong passwords', async () => {
+      const throttle = app.get(LoginThrottleService);
+      let now = Date.now();
+      throttle.now = () => now;
+      for (let i = 0; i < 5; i++) await login(ADMIN.email, 'wrong-password').expect(401);
+      // Even the right password waits now, so guessing gains nothing.
+      const blocked = await login(ADMIN.email, ADMIN.password).expect(429);
+      expect(blocked.body).toEqual({ error: 'too_many_attempts', retryAfterSeconds: 900 });
+      // Other accounts are not affected.
+      await login(RIDER.email, RIDER.password).expect(200);
+      now += 15 * 60_000 + 1;
+      await login(ADMIN.email, ADMIN.password).expect(200);
+      // A good sign in clears the count.
+      for (let i = 0; i < 4; i++) await login(ADMIN.email, 'wrong-password').expect(401);
+      await login(ADMIN.email, ADMIN.password).expect(200);
+      await login(ADMIN.email, 'wrong-password').expect(401);
+      await login(ADMIN.email, ADMIN.password).expect(200);
+    });
+
+    it('limits wrong passwords from one address across accounts', async () => {
+      const from = (address: string, email: string) =>
+        request(app.getHttpServer())
+          .post('/auth/login')
+          .set('x-forwarded-for', `1.1.1.1, ${address}`)
+          .send({ email, password: 'wrong-password' });
+      for (let i = 0; i < 20; i++) await from('10.0.0.7', `guess${i}@test.eg`).expect(401);
+      await from('10.0.0.7', 'guess99@test.eg').expect(429);
+      // The first entry is whatever the visitor sent; only the last one counts.
+      await from('10.0.0.8', 'guess99@test.eg').expect(401);
+    });
+
+    it('sends security headers and hides the framework', async () => {
+      const res = await request(app.getHttpServer()).get('/health').expect(200);
+      expect(res.headers).toMatchObject({
+        'x-content-type-options': 'nosniff',
+        'x-frame-options': 'DENY',
+        'referrer-policy': 'no-referrer',
+      });
+      expect(res.headers['x-powered-by']).toBeUndefined();
+    });
+
     it('signs in with the right password and sets httpOnly cookies', async () => {
       const res = await login('  ADMIN@test.eg ', ADMIN.password).expect(200);
 

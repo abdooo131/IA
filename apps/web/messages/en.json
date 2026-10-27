@@ -35,7 +35,8 @@
     "errors": {
       "invalid_credentials": "Wrong email or password.",
       "validation": "Enter a valid email and your password.",
-      "network": "Something went wrong. Try again."
+      "network": "Something went wrong. Try again.",
+      "too_many_attempts": "Too many wrong passwords. Wait 15 minutes, then try again."
     }
   },
   "areas": {

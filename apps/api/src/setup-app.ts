@@ -1,14 +1,24 @@
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
-import { raw } from 'express';
+import { type NextFunction, raw, type Request, type Response } from 'express';
 import { DomainErrorFilter } from './common/domain-error.filter';
 import type { Env } from './config/env';
 
 /** Shared by main.ts and the tests so both run the same middleware. */
 export function setupApp(app: INestApplication) {
   const config = app.get<ConfigService<Env, true>>(ConfigService);
+  app.getHttpAdapter().getInstance().disable('x-powered-by');
   app.use(cookieParser());
+  // The API only answers JSON: browsers must not sniff, frame or cache what it sends.
+  app.use((_req: Request, res: Response, next: NextFunction) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('Content-Security-Policy', "default-src 'none'; frame-ancestors 'none'");
+    res.setHeader('Cross-Origin-Resource-Policy', 'same-site');
+    next();
+  });
   // Photos are uploaded as the raw image body (the client shrinks them first).
   app.use('/photos', raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1600kb' }));
   // Shopify signs the exact bytes it sends, so its callbacks keep the raw body.

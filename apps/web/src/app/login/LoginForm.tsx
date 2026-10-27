@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { homeFor } from '@/lib/access';
 
-type ErrorKey = 'invalid_credentials' | 'validation' | 'network';
+type ErrorKey = 'invalid_credentials' | 'too_many_attempts' | 'validation' | 'network';
 
 const inputBase =
   'mt-1 block h-10 w-full rounded-md border bg-surface px-3 text-body text-text placeholder:text-text-muted';
@@ -41,9 +41,11 @@ export function LoginForm({ next }: { next: string | null }) {
         setError(
           res.status === 401
             ? 'invalid_credentials'
-            : res.status === 400
-              ? 'validation'
-              : 'network',
+            : res.status === 429
+              ? 'too_many_attempts'
+              : res.status === 400
+                ? 'validation'
+                : 'network',
         );
         return;
       }
