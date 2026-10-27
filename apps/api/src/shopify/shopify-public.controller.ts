@@ -113,6 +113,7 @@ export class ShopifyPublicController {
       });
       // Set up in the background: locations for every dark store, then link the catalog.
       void (async () => {
+        await this.setup.registerWebhooks(active.id).catch(() => undefined);
         await this.setup.registerLocations(active.id, null).catch(() => undefined);
         await this.setup.registerCarrierService(active.id, null).catch(() => undefined);
         await this.setup

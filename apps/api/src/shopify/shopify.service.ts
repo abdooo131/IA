@@ -57,6 +57,11 @@ export class ShopifyService {
     return `${this.publicUrl}/api/shopify/fs/${locationRowId}`;
   }
 
+  /** Where Shopify sends the shop's webhooks. */
+  webhooksUrl() {
+    return `${this.publicUrl}/api/shopify/webhooks`;
+  }
+
   /** Where Shopify asks for checkout rates for one shop. */
   ratesUrl(shopId: string) {
     return `${this.publicUrl}/api/shopify/rates/${shopId}`;

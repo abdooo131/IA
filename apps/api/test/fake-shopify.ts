@@ -53,6 +53,7 @@ export class FakeShopify extends ShopifyAdmin {
     string,
     { name: string; address1: string; address2: string; city: string; provinceCode: string }
   >();
+  webhooks: { id: string; topic: string; uri: string }[] = [];
   calls: string[] = [];
 
   addVariant(sku: string | null, price = '100.00', barcode: string | null = null) {
@@ -307,6 +308,19 @@ export class FakeShopify extends ShopifyAdmin {
         };
         this.locationAddresses.set(String(v.id), { name: input.name, ...input.address });
         return ok({ locationEdit: { location: { id: v.id }, ...errors } });
+      }
+      case 'WebhookSubscriptions':
+        return ok({ webhookSubscriptions: { nodes: this.webhooks } });
+      case 'WebhookSubscriptionCreate': {
+        const input = v.webhookSubscription as { uri: string };
+        const w = { id: gid('WebhookSubscription'), topic: String(v.topic), uri: input.uri };
+        this.webhooks.push(w);
+        return ok({ webhookSubscriptionCreate: { webhookSubscription: { id: w.id }, ...errors } });
+      }
+      case 'WebhookSubscriptionUpdate': {
+        const w = this.webhooks.find((x) => x.id === v.id)!;
+        w.uri = (v.webhookSubscription as { uri: string }).uri;
+        return ok({ webhookSubscriptionUpdate: { webhookSubscription: { id: w.id }, ...errors } });
       }
       default:
         throw new Error(`fake Shopify does not know ${name}`);

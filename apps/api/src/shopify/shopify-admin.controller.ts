@@ -136,8 +136,10 @@ export class ShopifyAdminController {
     };
   }
 
+  /** Also refreshes the shop's webhooks, so a new public address reaches Shopify. */
   @Post(':id/register-locations')
-  registerLocations(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async registerLocations(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    await this.setup.registerWebhooks(id);
     return this.setup.registerLocations(id, user.sub);
   }
 

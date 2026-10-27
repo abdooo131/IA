@@ -366,3 +366,47 @@ export const LOCATION_EDIT = /* GraphQL */ `
     }
   }
 `;
+
+/** The shop's webhook subscriptions made by this app (registered per shop at install). */
+export const WEBHOOK_SUBSCRIPTIONS = /* GraphQL */ `
+  query WebhookSubscriptions {
+    webhookSubscriptions(first: 50) {
+      nodes {
+        id
+        topic
+        uri
+      }
+    }
+  }
+`;
+
+export const WEBHOOK_SUBSCRIPTION_CREATE = /* GraphQL */ `
+  mutation WebhookSubscriptionCreate(
+    $topic: WebhookSubscriptionTopic!
+    $webhookSubscription: WebhookSubscriptionInput!
+  ) {
+    webhookSubscriptionCreate(topic: $topic, webhookSubscription: $webhookSubscription) {
+      webhookSubscription {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const WEBHOOK_SUBSCRIPTION_UPDATE = /* GraphQL */ `
+  mutation WebhookSubscriptionUpdate($id: ID!, $webhookSubscription: WebhookSubscriptionInput!) {
+    webhookSubscriptionUpdate(id: $id, webhookSubscription: $webhookSubscription) {
+      webhookSubscription {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;

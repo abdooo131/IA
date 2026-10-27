@@ -129,7 +129,7 @@ describe('shopify app', () => {
       const addressed = await prisma.shopifyLocation.count({
         where: { addressSyncedAt: { not: null } },
       });
-      if (addressed === 3 && linked >= 2 && ready === 1) break;
+      if (addressed === 3 && linked >= 2 && ready === 1 && fake.webhooks.length === 4) break;
       await new Promise((r) => setTimeout(r, 100));
     }
     return {
@@ -153,6 +153,7 @@ describe('shopify app', () => {
     fake.idempotencyKeys = [];
     fake.carrierServices = [];
     fake.locationAddresses.clear();
+    fake.webhooks = [];
     fake.addVariant('EC-001', '325.00');
     fake.addVariant('EC-019', '99.00');
     fake.addVariant(null);
@@ -176,6 +177,21 @@ describe('shopify app', () => {
     const sku = await prisma.sku.findFirstOrThrow({ where: { sku: 'EC-001' } });
     expect(sku.shopifyVariantId).toBe(fake.variants[0]!.id);
     expect(sku.shopifyInventoryItemId).toBe(fake.variants[0]!.inventoryItemId);
+
+    // The shop's own webhooks point at this deployment, once each.
+    const hooks = 'http://localhost:3000/api/shopify/webhooks';
+    expect(fake.webhooks.map((w) => `${w.topic} ${w.uri}`).sort()).toEqual(
+      ['APP_UNINSTALLED', 'PRODUCTS_CREATE', 'PRODUCTS_DELETE', 'PRODUCTS_UPDATE'].map(
+        (t) => `${t} ${hooks}`,
+      ),
+    );
+    // Running it again changes nothing; a moved address is updated in place.
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    await admin.post(`/admin/shopify/${shop.id}/register-locations`).expect(201);
+    expect(fake.webhooks).toHaveLength(4);
+    fake.webhooks[0]!.uri = 'https://old-tunnel.trycloudflare.com/api/shopify/webhooks';
+    await admin.post(`/admin/shopify/${shop.id}/register-locations`).expect(201);
+    expect(fake.webhooks.map((w) => w.uri)).toEqual(Array(4).fill(hooks));
 
     // A tampered callback is refused.
     const params = { code: 'good-code', shop: SHOP, state: 'x', timestamp: '1' };

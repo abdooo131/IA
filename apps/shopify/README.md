@@ -15,7 +15,6 @@ Replace `RENDER_URL` with the live address, for example `https://shiplynow.onren
 | Use legacy install flow                                                   | On                                                                                                                                                                                                                           |
 | Scopes                                                                    | `read_products, read_inventory, write_inventory, read_locations, read_orders, write_order_edits, read_fulfillments, write_fulfillments, read_assigned_fulfillment_orders, write_assigned_fulfillment_orders, write_shipping` |
 | Webhooks API version                                                      | `2026-10`                                                                                                                                                                                                                    |
-| Webhook `app/uninstalled`                                                 | `RENDER_URL/api/shopify/webhooks`                                                                                                                                                                                            |
 | Compliance webhooks (customer data request, customer redact, shop redact) | `RENDER_URL/api/shopify/webhooks`                                                                                                                                                                                            |
 | Protected customer data                                                   | Request name, phone and address (riders need them to deliver)                                                                                                                                                                |
 
@@ -32,6 +31,10 @@ It sets `WEB_ORIGIN` and the Shopify keys in `.env` (asking for the client secre
 showing it), writes `shopify.app.local.toml` with the tunnel address (not committed) and runs
 `shopify app deploy` with it, so the URLs, scopes, webhooks, app proxy and widget all reach
 Shopify in one go. Restart `pnpm dev` afterwards. A new tunnel address means running it again.
+
+Webhooks `app/uninstalled` and `products/create`, `products/update`, `products/delete` are not
+set in the dashboard: the legacy install flow does not allow them there, so the server
+registers them for each shop at install (and again from admin's "Register locations").
 
 ## Server settings (Render)
 

@@ -6,6 +6,9 @@ import {
   FULFILLMENT_SERVICE_CREATE,
   LOCATION_EDIT,
   PRODUCT_VARIANTS,
+  WEBHOOK_SUBSCRIPTION_CREATE,
+  WEBHOOK_SUBSCRIPTION_UPDATE,
+  WEBHOOK_SUBSCRIPTIONS,
 } from './graphql';
 import { assertNoUserErrors, moneyToPiastres } from './shopify-admin';
 import { ShopifyService } from './shopify.service';
@@ -36,6 +39,17 @@ export interface WebhookProduct {
     inventory_item_id?: number | string | null;
   }[];
 }
+
+/**
+ * Webhooks each shop gets from us at install. The legacy install flow does not allow them in
+ * shopify.app.toml (only the compliance topics stay there), so they are registered per shop.
+ */
+export const SHOP_WEBHOOK_TOPICS = [
+  'APP_UNINSTALLED',
+  'PRODUCTS_CREATE',
+  'PRODUCTS_UPDATE',
+  'PRODUCTS_DELETE',
+] as const;
 
 /** The address2 line of a dark store's Shopify location, which names the store. */
 export function storeMarker(code: string) {
@@ -176,6 +190,56 @@ export class ShopifySetupService {
       where: { id: rowId },
       data: { addressSyncedAt: new Date() },
     });
+  }
+
+  /**
+   * Subscribes the shop to the webhooks we handle, pointing at this deployment. Safe to run
+   * again: existing subscriptions are kept, and moved when the public address changed.
+   */
+  async registerWebhooks(shopId: string) {
+    const shop = await this.activeShop(shopId);
+    const uri = this.shopify.webhooksUrl();
+    const existing = await this.shopify.call<{
+      webhookSubscriptions: { nodes: { id: string; topic: string; uri: string }[] };
+    }>(shop, WEBHOOK_SUBSCRIPTIONS);
+    const changed: string[] = [];
+    try {
+      for (const topic of SHOP_WEBHOOK_TOPICS) {
+        const found = existing.webhookSubscriptions.nodes.find((n) => n.topic === topic);
+        if (found?.uri === uri) continue;
+        if (found) {
+          const data = await this.shopify.call<{
+            webhookSubscriptionUpdate: { userErrors: { message: string }[] };
+          }>(shop, WEBHOOK_SUBSCRIPTION_UPDATE, { id: found.id, webhookSubscription: { uri } });
+          assertNoUserErrors('webhookSubscriptionUpdate', data.webhookSubscriptionUpdate);
+        } else {
+          const data = await this.shopify.call<{
+            webhookSubscriptionCreate: { userErrors: { message: string }[] };
+          }>(shop, WEBHOOK_SUBSCRIPTION_CREATE, {
+            topic,
+            webhookSubscription: { uri, format: 'JSON' },
+          });
+          assertNoUserErrors('webhookSubscriptionCreate', data.webhookSubscriptionCreate);
+        }
+        changed.push(topic);
+      }
+    } catch (error) {
+      await this.shopify.record(shop.id, {
+        direction: 'out',
+        kind: 'webhooks',
+        ok: false,
+        message: (error as Error).message,
+      });
+      throw error;
+    }
+    if (changed.length)
+      await this.shopify.record(shop.id, {
+        direction: 'out',
+        kind: 'webhooks',
+        ok: true,
+        message: changed.join(','),
+      });
+    return { changed };
   }
 
   /**
