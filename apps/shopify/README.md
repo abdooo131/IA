@@ -20,17 +20,19 @@ Replace `RENDER_URL` with the live address, for example `https://shiplynow.onren
 
 ## Testing from your own computer (tunnel)
 
-Run the app locally, start `cloudflared tunnel --url http://localhost:3000` in its own window,
-then in the project folder:
+Run the app locally (`pnpm dev`), then in another window in the project folder:
 
 ```
-pnpm shopify:tunnel https://<words>.trycloudflare.com
+pnpm shopify:tunnel
 ```
+
+It starts a cloudflared tunnel itself and keeps it open in that window (Ctrl+C closes it). To
+use a tunnel you already started, pass its address: `pnpm shopify:tunnel https://<words>.trycloudflare.com`.
 
 It sets `WEB_ORIGIN` and the Shopify keys in `.env` (asking for the client secret once, without
 showing it), writes `shopify.app.local.toml` with the tunnel address (not committed) and runs
 `shopify app deploy` with it, so the URLs, scopes, webhooks, app proxy and widget all reach
-Shopify in one go. Restart `pnpm dev` afterwards. A new tunnel address means running it again.
+Shopify in one go. Restart `pnpm dev` afterwards and press Register locations in admin so the shop's webhooks follow. A new tunnel address means running it again.
 
 Webhooks `app/uninstalled` and `products/create`, `products/update`, `products/delete` are not
 set in the dashboard: the legacy install flow does not allow them there, so the server

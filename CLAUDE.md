@@ -127,7 +127,7 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Hardening: Shopify signature checks (body HMAC, OAuth query HMAC, app proxy signature) refuse everything when SHOPIFY_API_SECRET is empty. Load test results and method are in docs/LOAD_TEST.md (scripts/load-test.mjs, always against a throwaway database).
 - Shopify webhooks: the legacy install flow refuses topic webhooks in shopify.app.toml, so app/uninstalled and products/* are registered per shop with webhookSubscriptionCreate at install and refreshed (address moved) by admin's Register locations; only the compliance topics stay in the TOML.
 - Local Shopify testing: GEOCODER=osm uses OpenStreetMap's Nominatim (about one request a second, street parts dropped until found) when there is no Google key; it is ignored in production. pnpm shopify:tunnel sets it when GOOGLE_MAPS_API_KEY is empty.
-- Local Shopify testing: pnpm shopify:tunnel <https tunnel address> updates .env, writes apps/shopify/shopify.app.local.toml (ignored by git) and runs shopify app deploy --config local.
+- Local Shopify testing: pnpm shopify:tunnel (no address) starts cloudflared itself and reads its address; with an address it uses a running tunnel. It updates .env, writes apps/shopify/shopify.app.local.toml (ignored by git) and runs shopify app deploy --config local.
 - Step 2: the seed only creates missing rows and never overwrites admin edits. Zone polygons in the seed are rough test outlines, not real boundaries.
 
 ## Working style for Claude Code

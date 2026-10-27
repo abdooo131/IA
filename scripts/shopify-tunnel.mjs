@@ -1,11 +1,12 @@
 // Points the Shopify app at a local Shiply Now running behind a tunnel, for testing on a dev
 // store without deploying the server:
-//   pnpm shopify:tunnel https://<words>.trycloudflare.com
+//   pnpm shopify:tunnel                 starts a cloudflared tunnel and keeps it open
+//   pnpm shopify:tunnel https://<words>.trycloudflare.com   uses a tunnel already running
 // It sets WEB_ORIGIN and the Shopify keys in .env (asking for the client secret without
 // showing it), writes apps/shopify/shopify.app.local.toml with the tunnel address and runs
 // `shopify app deploy` with it, which sends the URLs, scopes, webhooks, app proxy and the
 // storefront widget to Shopify. Add --no-deploy to only update the files.
-import { spawnSync } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -25,16 +26,59 @@ function fail(message) {
   process.exit(1);
 }
 
-let origin;
-try {
-  origin = new URL(given ?? '');
-} catch {
-  fail(
-    'Give the tunnel address, for example:\n  pnpm shopify:tunnel https://some-words.trycloudflare.com',
-  );
+/** Starts a quick cloudflared tunnel to the web app and resolves with its address. */
+function startTunnel() {
+  return new Promise((resolve) => {
+    console.log('Starting the tunnel (cloudflared)...');
+    const child = spawn('cloudflared', ['tunnel', '--url', 'http://localhost:3000'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    child.on('error', () =>
+      fail('cloudflared is not installed. Install it with: brew install cloudflared'),
+    );
+    child.on('exit', (code) => fail(`The tunnel stopped (code ${code}). Run this again.`));
+    let found = false;
+    const timer = setTimeout(() => fail('The tunnel gave no address within a minute.'), 60_000);
+    const read = (chunk) => {
+      const text = String(chunk);
+      const match = /https:\/\/[a-z0-9-]+\.trycloudflare\.com/.exec(text);
+      if (!found && match) {
+        found = true;
+        clearTimeout(timer);
+        resolve({ url: match[0], child });
+      } else if (found && /\bERR\b/.test(text)) {
+        process.stdout.write(`[tunnel] ${text}`);
+      }
+    };
+    child.stdout.on('data', read);
+    child.stderr.on('data', read);
+    process.on('SIGINT', () => {
+      child.removeAllListeners('exit');
+      child.kill();
+      console.log('\nTunnel closed.');
+      process.exit(0);
+    });
+  });
 }
-if (origin.protocol !== 'https:') fail('The tunnel address must start with https://');
-const url = origin.origin;
+
+let url;
+let tunnel = null;
+if (given) {
+  let origin;
+  try {
+    origin = new URL(given);
+  } catch {
+    fail('That is not an address. Run it without one and the tunnel starts by itself.');
+  }
+  if (origin.protocol !== 'https:') fail('The tunnel address must start with https://');
+  // The examples in the instructions are not real tunnels.
+  if (/^(new-address|some-words|some-random-words|your)/i.test(origin.hostname))
+    fail('That is the example address. Run: pnpm shopify:tunnel   (the tunnel starts by itself)');
+  url = origin.origin;
+} else {
+  ({ url, child: tunnel } = await startTunnel());
+  console.log(`Tunnel address: ${url}`);
+}
 
 /** Reads a line without echoing it, so the secret never shows on screen. */
 function askHidden(question) {
@@ -90,18 +134,30 @@ console.log('apps/shopify/shopify.app.local.toml written');
 
 if (deploy) {
   console.log('\nSending the settings to Shopify. Sign in with your Shopify account if asked.\n');
-  const run = spawnSync(
-    'npx',
-    ['--yes', '@shopify/cli@3', 'app', 'deploy', '--config', 'local', '--path', APP],
-    { stdio: 'inherit', cwd: ROOT },
-  );
-  if (run.status !== 0) fail('shopify app deploy did not finish. Read the message above.');
+  const status = await new Promise((resolve) => {
+    const run = spawn(
+      'npx',
+      ['--yes', '@shopify/cli@3', 'app', 'deploy', '--config', 'local', '--path', APP],
+      { stdio: 'inherit', cwd: ROOT },
+    );
+    run.on('exit', resolve);
+    run.on('error', () => resolve(1));
+  });
+  if (status !== 0) {
+    tunnel?.removeAllListeners('exit');
+    tunnel?.kill();
+    fail('shopify app deploy did not finish. Read the message above.');
+  }
 }
 
 console.log(`
 Done. Next:
   1. Restart the app: Ctrl+C in the pnpm dev window, then pnpm dev
   2. Open ${url}/admin and sign in as admin
-  3. Shopify page: link shiplynow-test to a merchant, then press Install
-Keep the tunnel window open. A new tunnel address means running this again.
+  3. Shopify page: press Register locations (or Install if the shop is not installed yet)
+${
+  tunnel
+    ? 'The tunnel runs in THIS window: leave it open. Ctrl+C here closes it.'
+    : 'Keep the tunnel window open. A new tunnel address means running this again.'
+}
 `);
