@@ -116,16 +116,46 @@ export class ShopifyAdminController {
     if (taken && taken.merchantId !== merchant.id)
       throw new DomainError('shop_linked_to_other_merchant');
     const shop = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.shopifyShop.findUnique({ where: { merchantId: merchant.id } });
+      const moved = before !== null && before.shopDomain !== body.shopDomain;
+      if (moved) {
+        // A different store: nothing from the old one (access, locations, rate service,
+        // product links, pending calls) may be used against the new one.
+        await tx.shopifyLocation.deleteMany({ where: { shopId: before.id } });
+        await tx.shopifyOutbox.updateMany({
+          where: { shopId: before.id, doneAt: null },
+          data: { doneAt: new Date(), lastError: 'shop_changed' },
+        });
+        await tx.sku.updateMany({
+          where: { merchantId: merchant.id },
+          data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
+        });
+        await tx.merchant.update({
+          where: { id: merchant.id },
+          data: { shopifyShopDomain: null },
+        });
+      }
       const row = await tx.shopifyShop.upsert({
         where: { merchantId: merchant.id },
         create: { merchantId: merchant.id, shopDomain: body.shopDomain },
-        update: { shopDomain: body.shopDomain },
+        update: moved
+          ? {
+              shopDomain: body.shopDomain,
+              status: 'pending',
+              accessTokenEnc: null,
+              scopes: null,
+              installedAt: null,
+              uninstalledAt: null,
+              carrierServiceId: null,
+            }
+          : {},
       });
       await recordAudit(tx, {
         actorUserId: user.sub,
         action: 'shopify.link',
         entityType: 'shopify_shop',
         entityId: row.id,
+        before: before ? { shopDomain: before.shopDomain, status: before.status } : undefined,
         after: { merchantId: merchant.id, shopDomain: body.shopDomain },
       });
       return row;

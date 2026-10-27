@@ -452,6 +452,40 @@ describe('shopify app', () => {
     expect(stock.body).toEqual({ 'EC-001': level.onHand - level.reserved - 2 });
   });
 
+  it('starts clean when admin links the merchant to a different store', async () => {
+    const { admin, shop } = await install();
+    expect(await prisma.shopifyLocation.count({ where: { shopId: shop.id } })).toBe(3);
+    // Linking the same store again changes nothing.
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test' })
+      .expect(201);
+    expect((await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } })).status).toBe(
+      'active',
+    );
+
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-adv' })
+      .expect(201);
+    const moved = await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } });
+    expect(moved).toMatchObject({
+      shopDomain: 'shiplynow-adv.myshopify.com',
+      status: 'pending',
+      accessTokenEnc: null,
+      carrierServiceId: null,
+    });
+    expect(await prisma.shopifyLocation.count({ where: { shopId: shop.id } })).toBe(0);
+    expect(await prisma.sku.count({ where: { merchantId, shopifyVariantId: { not: null } } })).toBe(
+      0,
+    );
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'shopify.link', entityId: shop.id },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(audit.before).toMatchObject({ shopDomain: SHOP, status: 'active' });
+  });
+
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });
