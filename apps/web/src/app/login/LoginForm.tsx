@@ -61,8 +61,10 @@ export function LoginForm({ next }: { next: string | null }) {
 
   const border = error ? 'border-danger' : 'border-line';
 
+  // method="post": even if the form is sent before the script loads, the password never
+  // lands in the address bar or a server log.
   return (
-    <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
+    <form className="mt-6 space-y-4" method="post" onSubmit={onSubmit} noValidate>
       <div>
         <label htmlFor="email" className="text-caption text-text">
           {t('email')}
