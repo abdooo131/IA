@@ -20,6 +20,23 @@ interface Variant {
   product: { id: string; title: string; status: string };
 }
 
+/** The parts of a products/create or products/update webhook body we use. */
+export interface WebhookProduct {
+  id: number | string;
+  admin_graphql_api_id?: string;
+  title?: string;
+  status?: string;
+  variants?: {
+    id: number | string;
+    admin_graphql_api_id?: string;
+    sku?: string | null;
+    barcode?: string | null;
+    price?: string | number;
+    title?: string;
+    inventory_item_id?: number | string | null;
+  }[];
+}
+
 /** The address2 line of a dark store's Shopify location, which names the store. */
 export function storeMarker(code: string) {
   return `Shiply Now ${code}`;
@@ -27,6 +44,8 @@ export function storeMarker(code: string) {
 
 export interface CatalogSyncResult {
   linked: number;
+  /** Prices changed in Shopify and copied to our catalog (automatic sync only) */
+  repriced?: number;
   created: number;
   alreadyLinked: number;
   notInCatalog: { sku: string; title: string }[];
@@ -260,10 +279,92 @@ export class ShopifySetupService {
     return result;
   }
 
+  /**
+   * A product created or changed in Shopify (products/create and products/update webhooks):
+   * its variants are linked to our products by SKU, new SKUs are added to the catalog and
+   * prices follow Shopify. Safe to run twice; a repeat changes nothing.
+   */
+  async syncProductWebhook(shop: ShopifyShop, product: WebhookProduct) {
+    const result: CatalogSyncResult = {
+      linked: 0,
+      created: 0,
+      alreadyLinked: 0,
+      notInCatalog: [],
+      withoutSku: 0,
+    };
+    const productGid = product.admin_graphql_api_id ?? `gid://shopify/Product/${product.id}`;
+    for (const v of product.variants ?? []) {
+      await this.syncVariant(
+        shop,
+        {
+          id: v.admin_graphql_api_id ?? `gid://shopify/ProductVariant/${v.id}`,
+          sku: v.sku ?? null,
+          barcode: v.barcode ?? null,
+          price: String(v.price ?? '0'),
+          title: v.title ?? '',
+          inventoryItem: v.inventory_item_id
+            ? { id: `gid://shopify/InventoryItem/${v.inventory_item_id}` }
+            : null,
+          product: {
+            id: productGid,
+            title: product.title ?? '',
+            status: String(product.status ?? 'active').toUpperCase(),
+          },
+        },
+        { createMissing: true, updatePrice: true },
+        result,
+      );
+    }
+    const changed = result.linked + result.created + (result.repriced ?? 0);
+    await this.shopify.record(shop.id, {
+      direction: 'in',
+      kind: 'product_sync',
+      ok: true,
+      message: `${product.title ?? productGid}: ${result.linked} linked, ${result.created} added, ${result.repriced ?? 0} repriced`,
+    });
+    if (changed)
+      await this.prisma.$transaction((tx) =>
+        recordAudit(tx, {
+          actorUserId: null,
+          action: 'shopify.product_sync',
+          entityType: 'shopify_shop',
+          entityId: shop.id,
+          after: { product: productGid, ...result, notInCatalog: result.notInCatalog.length },
+        }),
+      );
+    return result;
+  }
+
+  /** A product deleted in Shopify: our products stay (they may hold stock) but lose the link. */
+  async unlinkProductWebhook(shop: ShopifyShop, productId: number | string) {
+    const gid = `gid://shopify/Product/${productId}`;
+    const { count } = await this.prisma.sku.updateMany({
+      where: { merchantId: shop.merchantId, shopifyProductId: gid },
+      data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
+    });
+    await this.shopify.record(shop.id, {
+      direction: 'in',
+      kind: 'product_sync',
+      ok: true,
+      message: `${gid} deleted in Shopify: ${count} unlinked`,
+    });
+    if (count)
+      await this.prisma.$transaction((tx) =>
+        recordAudit(tx, {
+          actorUserId: null,
+          action: 'shopify.product_unlink',
+          entityType: 'shopify_shop',
+          entityId: shop.id,
+          after: { product: gid, unlinked: count },
+        }),
+      );
+    return { unlinked: count };
+  }
+
   private async syncVariant(
     shop: ShopifyShop,
     v: Variant,
-    options: { createMissing: boolean },
+    options: { createMissing: boolean; updatePrice?: boolean },
     result: CatalogSyncResult,
   ) {
     const code = v.sku?.trim();
@@ -280,6 +381,12 @@ export class ShopifySetupService {
       where: { merchantId_sku: { merchantId: shop.merchantId, sku: code } },
     });
     if (ours) {
+      // Shopify is where the merchant sets prices; the automatic sync keeps ours in step.
+      const price = moneyToPiastres(v.price);
+      if (options.updatePrice && ours.pricePiastres !== price) {
+        await this.prisma.sku.update({ where: { id: ours.id }, data: { pricePiastres: price } });
+        result.repriced = (result.repriced ?? 0) + 1;
+      }
       if (
         ours.shopifyVariantId === v.id &&
         ours.shopifyInventoryItemId === links.shopifyInventoryItemId

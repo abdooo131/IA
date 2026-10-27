@@ -32,9 +32,9 @@ Replace `RENDER_URL` with the live address, for example `https://shiplynow.onren
 
 1. Admin, Shopify: link the merchant to their store address (for example `shiplynow-test`).
 2. Open the install link while signed in to that store's Shopify admin and approve the app.
-3. The server creates one location per dark store and links products by SKU. Use "Link
-   products by SKU" again after adding products, with "also add Shopify products" to copy
-   products we do not have yet.
+3. The server creates one location per dark store and links products by SKU. After that,
+   products created, changed or deleted in Shopify sync by themselves (product webhooks);
+   "Link products by SKU" is only needed to catch up a shop by hand.
 4. In Shopify, products sold for 60 minute delivery must be stocked at the Shiply Now
    locations; Shopify then routes those orders to us.
 

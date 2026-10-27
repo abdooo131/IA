@@ -22,6 +22,11 @@ api_version = "2026-10"
   topics = ["app/uninstalled"]
   uri = "RENDER_URL/api/shopify/webhooks"
 
+  # New and changed products are linked to our catalog automatically.
+  [[webhooks.subscriptions]]
+  topics = ["products/create", "products/update", "products/delete"]
+  uri = "RENDER_URL/api/shopify/webhooks"
+
   [[webhooks.subscriptions]]
   compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
   uri = "RENDER_URL/api/shopify/webhooks"

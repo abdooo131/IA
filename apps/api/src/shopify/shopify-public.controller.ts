@@ -22,7 +22,7 @@ import {
   RatesUnavailableError,
   ShopifyRatesService,
 } from './shopify-rates.service';
-import { ShopifySetupService } from './shopify-setup.service';
+import { ShopifySetupService, type WebhookProduct } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
 import { SHOPIFY_SCOPES, ShopifyService } from './shopify.service';
 
@@ -275,6 +275,23 @@ export class ShopifyPublicController {
         where: { id: shop.id },
         data: { status: 'uninstalled', accessTokenEnc: null, uninstalledAt: new Date() },
       });
+    }
+    if (shop?.status === 'active' && topic?.startsWith('products/')) {
+      try {
+        const body = JSON.parse(raw.toString('utf8')) as WebhookProduct;
+        if (topic === 'products/delete') await this.setup.unlinkProductWebhook(shop, body.id);
+        else await this.setup.syncProductWebhook(shop, body);
+      } catch (error) {
+        await this.shopify.record(shop.id, {
+          direction: 'in',
+          kind: 'product_sync',
+          ok: false,
+          message: (error as Error).message,
+        });
+        // Shopify retries a failed delivery, so the product is picked up again.
+        return res.status(500).send();
+      }
+      return res.status(200).send();
     }
     // Privacy requests (customers/data_request, customers/redact, shop/redact) are logged
     // for the team to act on; order records are kept as long as accounting needs them.

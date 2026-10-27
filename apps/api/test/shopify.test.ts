@@ -437,6 +437,74 @@ describe('shopify app', () => {
     expect(shop).toMatchObject({ status: 'uninstalled', accessTokenEnc: null });
   });
 
+  it('links, adds and reprices products from the signed product webhooks', async () => {
+    await install();
+    const webhook = (topic: string, payload: unknown, secret = SECRET) => {
+      const body = JSON.stringify(payload);
+      return request(app.getHttpServer())
+        .post('/shopify/webhooks')
+        .set('content-type', 'application/json')
+        .set('x-shopify-topic', topic)
+        .set('x-shopify-shop-domain', SHOP)
+        .set('x-shopify-hmac-sha256', createHmac('sha256', secret).update(body).digest('base64'))
+        .send(body);
+    };
+    const product = (price: string) => ({
+      id: 777,
+      admin_graphql_api_id: 'gid://shopify/Product/777',
+      title: 'Oud Candle',
+      status: 'active',
+      variants: [
+        {
+          id: 8801,
+          admin_graphql_api_id: 'gid://shopify/ProductVariant/8801',
+          sku: 'EC-NEW-1',
+          barcode: '6221000099991',
+          price,
+          title: 'Default Title',
+          inventory_item_id: 5501,
+        },
+        { id: 8802, sku: 'EC-001', price: '330.00', title: 'Large', inventory_item_id: 5502 },
+        { id: 8803, sku: '', price: '1.00', title: 'No SKU', inventory_item_id: 5503 },
+      ],
+    });
+
+    await webhook('products/create', product('250.00'), 'wrong-secret').expect(401);
+    await webhook('products/create', product('250.00')).expect(200);
+    const added = await prisma.sku.findFirstOrThrow({ where: { merchantId, sku: 'EC-NEW-1' } });
+    expect(added).toMatchObject({
+      titleEn: 'Oud Candle',
+      barcode: '6221000099991',
+      pricePiastres: 25000,
+      shopifyVariantId: 'gid://shopify/ProductVariant/8801',
+      shopifyInventoryItemId: 'gid://shopify/InventoryItem/5501',
+    });
+    const existing = await prisma.sku.findFirstOrThrow({ where: { merchantId, sku: 'EC-001' } });
+    expect(existing).toMatchObject({
+      shopifyVariantId: 'gid://shopify/ProductVariant/8802',
+      pricePiastres: 33000,
+    });
+
+    // Shopify may deliver the same webhook twice; nothing changes the second time.
+    const count = await prisma.sku.count();
+    const audits = await prisma.auditLog.count({ where: { action: 'shopify.product_sync' } });
+    await webhook('products/create', product('250.00')).expect(200);
+    expect(await prisma.sku.count()).toBe(count);
+    expect(await prisma.auditLog.count({ where: { action: 'shopify.product_sync' } })).toBe(audits);
+
+    await webhook('products/update', product('199.50')).expect(200);
+    expect(
+      (await prisma.sku.findFirstOrThrow({ where: { merchantId, sku: 'EC-NEW-1' } })).pricePiastres,
+    ).toBe(19950);
+
+    // Deleted in Shopify: our products stay, without the link.
+    await webhook('products/delete', { id: 777 }).expect(200);
+    const after = await prisma.sku.findMany({
+      where: { merchantId, sku: { in: ['EC-NEW-1', 'EC-001'] } },
+    });
+    expect(after.map((s) => s.shopifyVariantId)).toEqual([null, null]);
+  });
+
   // ─── checkout rates ──────────────────────────────────────────────────────────
 
   /** Sends a checkout rate request the way Shopify does: raw JSON signed with the app secret. */
