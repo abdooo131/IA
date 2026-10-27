@@ -87,13 +87,15 @@ export const SETTING_DEFINITIONS = {
   'delivery.return_alert_minutes': {
     schema: minutes,
     default: 120,
-    description: 'Minutes after a failed attempt before admin is alerted that the goods are not back',
+    description:
+      'Minutes after a failed attempt before admin is alerted that the goods are not back',
     override: 'store',
   },
   'delivery.min_calls_no_answer': {
     schema: z.number().int().min(0).max(5),
     default: 2,
-    description: 'Calls the rider must make from the app before reporting that the customer did not answer',
+    description:
+      'Calls the rider must make from the app before reporting that the customer did not answer',
     override: 'store',
   },
   'fee.order_fixed_piastres': {
