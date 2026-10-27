@@ -44,6 +44,14 @@
 }
 
 @layer components {
+  /* Selected icons: Blue line (the text color) with a Sky fill, as the handoff specifies. */
+  .is-selected .shiply-fill {
+    fill: var(--shiply-sky);
+    fill-opacity: 0.55;
+  }
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
   /* Numbers, phones and order IDs stay left to right inside Arabic text. */
   .ltr-iso {
     direction: ltr;

@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import { Stat } from '@/components/admin/Stat';
+import { StatCard } from '@/components/StatCard';
+import { WalletCard } from '@/components/WalletCard';
 import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
 import type { FinanceOverview } from '@/lib/finance-types';
@@ -15,7 +16,7 @@ export default async function FinanceOverviewPage() {
     getTranslations('finance'),
     getLocale(),
   ]);
-  const card = 'rounded-lg border border-line bg-surface p-5 shadow-sm';
+  const card = 'rounded-lg border border-line bg-surface p-5';
   return (
     <>
       <h1 className="text-h2">{tf('title')}</h1>
@@ -47,33 +48,64 @@ export default async function FinanceOverviewPage() {
 
       <section className="mt-6">
         <h2 className="text-h3">{t('wallets')}</h2>
-        <dl className={`${card} mt-3 grid grid-cols-2 gap-4 md:grid-cols-5`}>
-          <Stat
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <WalletCard
+            icon="payout"
             label={t('owedToMerchants')}
             value={formatEgp(data.totals.owedToMerchantsPiastres)}
           />
-          <Stat
+          <WalletCard
+            icon="invoice"
             label={t('owedByMerchants')}
             value={formatEgp(data.totals.owedByMerchantsPiastres)}
           />
-          <Stat label={t('cashWithRiders')} value={formatEgp(data.totals.cashWithRidersPiastres)} />
-          <Stat label={t('cashInStores')} value={formatEgp(data.totals.cashInStoresPiastres)} />
-          <Stat label={t('bonusOwed')} value={formatEgp(data.totals.riderBonusOwedPiastres)} />
-        </dl>
+          <WalletCard
+            icon="courier"
+            label={t('cashWithRiders')}
+            value={formatEgp(data.totals.cashWithRidersPiastres)}
+          />
+          <WalletCard
+            icon="store"
+            label={t('cashInStores')}
+            value={formatEgp(data.totals.cashInStoresPiastres)}
+          />
+          <WalletCard
+            icon="cash"
+            label={t('bonusOwed')}
+            value={formatEgp(data.totals.riderBonusOwedPiastres)}
+          />
+        </div>
       </section>
 
       <section className="mt-6">
         <h2 className="text-h3">{t('company')}</h2>
-        <dl className={`${card} mt-3 grid grid-cols-2 gap-4 md:grid-cols-5`}>
-          <Stat label={t('bank')} value={formatEgp(data.company.bankPiastres)} />
-          <Stat label={t('revenue')} value={formatEgp(data.company.revenuePiastres)} />
-          <Stat label={t('vat')} value={formatEgp(data.company.vatPayablePiastres)} />
-          <Stat label={t('bonusCost')} value={formatEgp(data.company.riderBonusExpensePiastres)} />
-          <Stat
+        <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+          <StatCard icon="wallet" label={t('bank')} value={formatEgp(data.company.bankPiastres)} />
+          <StatCard
+            icon="analytics"
+            tone="delivered"
+            label={t('revenue')}
+            value={formatEgp(data.company.revenuePiastres)}
+          />
+          <StatCard
+            icon="invoice"
+            label={t('vat')}
+            value={formatEgp(data.company.vatPayablePiastres)}
+          />
+          <StatCard
+            icon="courier"
+            tone="in-progress"
+            label={t('bonusCost')}
+            value={formatEgp(data.company.riderBonusExpensePiastres)}
+          />
+          <StatCard
+            icon="alert"
+            tone="needs-action"
             label={t('cashDifference')}
             value={formatEgp(data.company.cashDifferencePiastres)}
+            alert={data.company.cashDifferencePiastres !== 0}
           />
-        </dl>
+        </div>
       </section>
 
       <section className="mt-6 grid gap-4 md:grid-cols-2">

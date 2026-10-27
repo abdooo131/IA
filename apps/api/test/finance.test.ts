@@ -229,4 +229,29 @@ describe('finance', () => {
     const again = await admin.post('/finance/payouts/due').send({ cutoffDay: today }).expect(201);
     expect(again.body.skipped).toContainEqual({ merchantId, reason: 'payout_already_open' });
   });
+
+  it('lets merchants choose their own payout schedule, and only their own', async () => {
+    const merchant = await agent('merchant@evechantelle.example');
+    await merchant
+      .patch('/merchant/finance/payout-schedule')
+      .send({ payoutSchedule: 'twice_weekly' })
+      .expect(200);
+    await merchant
+      .patch('/merchant/finance/payout-schedule')
+      .send({ payoutSchedule: 'hourly' })
+      .expect(400);
+    expect((await merchant.get('/merchant/finance').expect(200)).body.payoutSchedule).toBe(
+      'twice_weekly',
+    );
+    const audit = await prisma.auditLog.findFirstOrThrow({
+      where: { action: 'merchant.payout_schedule' },
+    });
+    expect(audit.after).toEqual({ payoutSchedule: 'twice_weekly' });
+    // Staff change it from the finance pages; this address is for merchants only.
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    await admin
+      .patch('/merchant/finance/payout-schedule')
+      .send({ payoutSchedule: 'daily' })
+      .expect(403);
+  });
 });

@@ -14,7 +14,9 @@
     },
     "signOut": "Sign out",
     "signedInAs": "Signed in as {name}",
-    "comingSoon": "Coming in a later step"
+    "comingSoon": "Coming in a later step",
+    "menu": "Menu",
+    "close": "Close"
   },
   "roles": {
     "admin": "Admin",
@@ -77,7 +79,8 @@
       "settings": "Settings",
       "audit": "Audit log",
       "finance": "Finance",
-      "shopify": "Shopify"
+      "shopify": "Shopify",
+      "backToAdmin": "Back to admin"
     },
     "overview": {
       "title": "Overview",
@@ -125,7 +128,10 @@
       "noData": "No orders in this period.",
       "queue": "Queue",
       "merchant": "Merchant",
-      "lateNow": "Late now"
+      "lateNow": "Late now",
+      "perDayHint": "Orders placed each day. Hover a day for delivered and on time.",
+      "dayDetail": "{date}: {orders} orders, {delivered} delivered, {onTime} on time",
+      "overTarget": "Over target"
     },
     "products": {
       "title": "Products",
@@ -488,6 +494,12 @@
       "noPrice": "Not set by the merchant",
       "addressMissing": "address not set",
       "price": "{price} EGP"
+    },
+    "navGroups": {
+      "stores": "Dark stores",
+      "merchants": "Merchants",
+      "system": "System",
+      "books": "Books"
     }
   },
   "scan": {
@@ -1147,7 +1159,12 @@
     "paid": "Paid",
     "reference": "Transfer reference {reference}",
     "statement": "Statement",
-    "export": "Export to Excel"
+    "export": "Export to Excel",
+    "amount": "EGP {amount}",
+    "scheduleTitle": "How often should we pay you?",
+    "scheduleSaved": "Saved. Your next payout follows this schedule.",
+    "scheduleError": "Could not save. Try again.",
+    "scheduleHint": "Finance prepares each payout on your days and sends it by bank transfer. You see the reference here once it is paid."
   },
   "riderWallet": {
     "cash": "Cash with you: {amount} EGP",

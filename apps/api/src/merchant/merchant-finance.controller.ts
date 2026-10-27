@@ -1,11 +1,13 @@
-import { Controller, ForbiddenException, Get, Query, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Patch, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { listPayouts, merchantOwed, merchantStatement } from '@shiplynow/db';
-import { type AccessTokenClaims, cairoDay } from '@shiplynow/shared';
+import { listPayouts, merchantOwed, merchantStatement, recordAudit } from '@shiplynow/db';
+import { type AccessTokenClaims, cairoDay, payoutScheduleSchema } from '@shiplynow/shared';
 import type { Response } from 'express';
+import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
+import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { cairoStamp, csv, egp } from '../finance/finance-csv';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -27,6 +29,30 @@ export class MerchantFinanceController {
     });
     if (!me?.merchant) throw new ForbiddenException({ error: 'no_merchant' });
     return me.merchant;
+  }
+
+  /** Merchants choose how often they are paid; finance still prepares and sends each payout. */
+  @Patch('payout-schedule')
+  async schedule(
+    @Body(new ZodValidationPipe(payoutScheduleSchema)) body: z.infer<typeof payoutScheduleSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const merchant = await this.merchantOf(user);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.merchant.update({
+        where: { id: merchant.id },
+        data: { payoutSchedule: body.payoutSchedule },
+      });
+      await recordAudit(tx, {
+        actorUserId: user.sub,
+        action: 'merchant.payout_schedule',
+        entityType: 'merchant',
+        entityId: merchant.id,
+        before: { payoutSchedule: merchant.payoutSchedule },
+        after: { payoutSchedule: body.payoutSchedule },
+      });
+    });
+    return { payoutSchedule: body.payoutSchedule };
   }
 
   @Get()

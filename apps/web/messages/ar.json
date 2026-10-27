@@ -14,7 +14,9 @@
     },
     "signOut": "تسجيل الخروج",
     "signedInAs": "داخل باسم {name}",
-    "comingSoon": "هتيجي في خطوة بعدين"
+    "comingSoon": "هتيجي في خطوة بعدين",
+    "menu": "القائمة",
+    "close": "إغلاق"
   },
   "roles": {
     "admin": "مدير",
@@ -77,7 +79,8 @@
       "settings": "الإعدادات",
       "audit": "سجل التغييرات",
       "finance": "المالية",
-      "shopify": "شوبيفاي"
+      "shopify": "شوبيفاي",
+      "backToAdmin": "رجوع للإدارة"
     },
     "overview": {
       "title": "نظرة عامة",
@@ -125,7 +128,10 @@
       "noData": "مفيش طلبات في الفترة دي.",
       "queue": "الطابور",
       "merchant": "التاجر",
-      "lateNow": "متأخرة دلوقتي"
+      "lateNow": "متأخرة دلوقتي",
+      "perDayHint": "الطلبات اللي اتعملت كل يوم. وقّف على اليوم تشوف اللي اتسلم واللي وصل في معاده.",
+      "dayDetail": "{date}: {orders} طلب، {delivered} اتسلم، {onTime} في المعاد",
+      "overTarget": "أكتر من المستهدف"
     },
     "products": {
       "title": "المنتجات",
@@ -488,6 +494,12 @@
       "noPrice": "التاجر لسه محددش",
       "addressMissing": "العنوان مش متسجل",
       "price": "{price} جنيه"
+    },
+    "navGroups": {
+      "stores": "المخازن",
+      "merchants": "التجار",
+      "system": "النظام",
+      "books": "الدفاتر"
     }
   },
   "scan": {
@@ -1147,7 +1159,12 @@
     "paid": "اتدفع",
     "reference": "رقم التحويل {reference}",
     "statement": "كشف الحساب",
-    "export": "تصدير لإكسل"
+    "export": "تصدير لإكسل",
+    "amount": "{amount} جنيه",
+    "scheduleTitle": "عايز تقبض كل قد إيه؟",
+    "scheduleSaved": "اتحفظ. التحويل الجاي هيمشي على المواعيد دي.",
+    "scheduleError": "محصلش حفظ. جرّب تاني.",
+    "scheduleHint": "المالية بتجهّز كل تحويل في أيامك وبتبعته تحويل بنكي. هتلاقي رقم التحويل هنا أول ما يتدفع."
   },
   "riderWallet": {
     "cash": "الكاش اللي معاك: {amount} جنيه",

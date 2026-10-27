@@ -3,6 +3,9 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { AutoRefresh } from '@/components/admin/AutoRefresh';
 import { Stat } from '@/components/admin/Stat';
+import { ColumnChart } from '@/components/charts/ColumnChart';
+import { TargetBars } from '@/components/charts/TargetBars';
+import { StatCard } from '@/components/StatCard';
 import { StoreStatusChip } from '@/components/admin/StoreStatusChip';
 import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
@@ -42,12 +45,17 @@ export default async function AdminOverviewPage({
     const s = settings.settings.find((x) => x.key === key);
     return s ? (s.global ?? s.default) : null;
   };
+  // Every day in the range gets a column, so quiet days show as zero instead of vanishing.
+  const days: Kpis['perDay'] = [];
+  for (let d = from; d <= to && days.length < 92; d = addDays(d, 1))
+    days.push(
+      kpis.perDay.find((x) => x.date === d) ?? { date: d, orders: 0, delivered: 0, onTime: 0 },
+    );
   const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
   const mins = (v: number | null) => (v === null ? '–' : t('minutes', { value: v }));
   const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
   const td = 'px-3 py-2';
   const field = 'mt-1 block h-10 rounded-md border border-line bg-surface px-2 text-body-sm';
-  const maxDay = Math.max(1, ...kpis.perDay.map((d) => d.orders));
 
   const row = (name: string, k: KpiTotals, key: string) => (
     <tr key={key} className="border-b border-line last:border-0">
@@ -79,9 +87,156 @@ export default async function AdminOverviewPage({
   return (
     <>
       <AutoRefresh seconds={20} />
-      <h1 className="text-h2">{t('title')}</h1>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div>
+          <h1 className="text-h2">{t('title')}</h1>
+          <p className="mt-1 text-body-sm text-text-muted">{t('kpis')}</p>
+        </div>
+        <form className="flex flex-wrap items-end gap-3" method="get">
+          <label className="text-caption">
+            {t('from')}
+            <input type="date" name="from" defaultValue={from} dir="ltr" className={field} />
+          </label>
+          <label className="text-caption">
+            {t('to')}
+            <input type="date" name="to" defaultValue={to} dir="ltr" className={field} />
+          </label>
+          <label className="text-caption">
+            {t('store')}
+            <select name="store" defaultValue={params.store ?? ''} className={field}>
+              <option value="">{t('allStores')}</option>
+              {stores.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {localized(s, locale)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="submit"
+            className="h-10 rounded-md bg-selected-bg px-4 text-body-sm font-bold text-link"
+          >
+            {t('apply')}
+          </button>
+        </form>
+      </div>
 
-      <section className="mt-6">
+      <div className="mt-6 grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        <StatCard icon="orders" label={t('orders')} value={formatCount(kpis.totals.orders)} />
+        <StatCard
+          icon="delivered"
+          tone="delivered"
+          label={t('delivered')}
+          value={formatCount(kpis.totals.delivered)}
+        />
+        <StatCard
+          icon="schedule"
+          tone="delivered"
+          label={t('onTime')}
+          value={pct(kpis.totals.onTimeRate)}
+        />
+        <StatCard
+          icon="courier"
+          tone="in-progress"
+          label={t('avgDelivery')}
+          value={mins(kpis.totals.avgDeliveryMinutes)}
+          hint={
+            kpis.totals.medianDeliveryMinutes !== null
+              ? t('medianDelivery', { value: kpis.totals.medianDeliveryMinutes })
+              : undefined
+          }
+        />
+        <StatCard
+          icon="alert"
+          tone="needs-action"
+          label={t('late')}
+          value={formatCount(kpis.totals.late)}
+          alert={kpis.totals.late > 0}
+        />
+        <StatCard
+          icon="returns"
+          tone="returning"
+          label={t('cancelledFailed')}
+          value={formatCount(kpis.totals.cancelled + kpis.totals.failed)}
+        />
+        <StatCard
+          icon="alert"
+          tone="needs-action"
+          label={t('missingUnits')}
+          value={formatCount(kpis.totals.unitsMissing)}
+          alert={kpis.totals.unitsMissing > 0}
+        />
+        <StatCard
+          icon="new"
+          tone="new"
+          label={t('movedToStandard')}
+          value={formatCount(kpis.totals.movedToStandard)}
+        />
+        <StatCard
+          icon="cash"
+          label={t('codCollected')}
+          value={formatEgp(kpis.totals.codCollectedPiastres)}
+        />
+        <StatCard
+          icon="products"
+          label={t('deliveredValue')}
+          value={formatEgp(kpis.totals.deliveredValuePiastres)}
+        />
+      </div>
+
+      {kpis.totals.orders === 0 ? (
+        <p className="mt-6 rounded-lg border border-line bg-surface p-5 text-body text-text-muted">
+          {t('noData')}
+        </p>
+      ) : (
+        <div className="mt-6 grid gap-4 lg:grid-cols-5">
+          <section className="rounded-lg border border-line bg-surface p-5 lg:col-span-3">
+            <h2 className="text-h3">{t('perDay')}</h2>
+            <p className="text-caption text-text-muted">{t('perDayHint')}</p>
+            <div className="mt-4">
+              <ColumnChart
+                title={t('perDay')}
+                valueLabel={t('orders')}
+                columns={days.map((d) => ({
+                  key: d.date,
+                  label: `${d.date.slice(8, 10)}/${d.date.slice(5, 7)}`,
+                  value: d.orders,
+                  detail: t('dayDetail', {
+                    date: d.date,
+                    orders: d.orders,
+                    delivered: d.delivered,
+                    onTime: d.onTime,
+                  }),
+                }))}
+              />
+            </div>
+          </section>
+          <section className="rounded-lg border border-line bg-surface p-5 lg:col-span-2">
+            <h2 className="text-h3">{t('stageTimes')}</h2>
+            <div className="mt-4">
+              <TargetBars
+                overLabel={t('overTarget')}
+                bars={STAGES.map((stage) => {
+                  const goal = target(`sla.${stage}_minutes`);
+                  return {
+                    key: stage,
+                    label: stages(stage),
+                    value: kpis.totals.stageAvgMinutes[stage],
+                    target: goal,
+                    valueText: mins(kpis.totals.stageAvgMinutes[stage]),
+                    targetText:
+                      goal !== null
+                        ? t('target', { value: t('minutes', { value: goal }) })
+                        : undefined,
+                  };
+                })}
+              />
+            </div>
+          </section>
+        </div>
+      )}
+
+      <section className="mt-10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h2 className="text-h3">{t('live')}</h2>
           <p className="text-caption text-text-muted">{t('liveHint')}</p>
@@ -90,7 +245,7 @@ export default async function AdminOverviewPage({
           {stores.map((s) => {
             const now = live.stores.find((l) => l.darkStore.id === s.id);
             return (
-              <li key={s.id} className="rounded-lg border border-line bg-surface p-5 shadow-sm">
+              <li key={s.id} className="rounded-lg border border-line bg-surface p-5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <h3 className="text-h3">{localized(s, locale)}</h3>
@@ -160,131 +315,27 @@ export default async function AdminOverviewPage({
         </ul>
       </section>
 
-      <section className="mt-10">
-        <h2 className="text-h3">{t('kpis')}</h2>
-        <form className="mt-3 flex flex-wrap items-end gap-3" method="get">
-          <label className="text-caption">
-            {t('from')}
-            <input type="date" name="from" defaultValue={from} dir="ltr" className={field} />
-          </label>
-          <label className="text-caption">
-            {t('to')}
-            <input type="date" name="to" defaultValue={to} dir="ltr" className={field} />
-          </label>
-          <label className="text-caption">
-            {t('store')}
-            <select name="store" defaultValue={params.store ?? ''} className={field}>
-              <option value="">{t('allStores')}</option>
-              {stores.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {localized(s, locale)}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="submit"
-            className="h-10 rounded-md bg-selected-bg px-4 text-body-sm font-bold text-link"
-          >
-            {t('apply')}
-          </button>
-        </form>
+      {kpis.totals.orders > 0 && (
+        <section className="mt-10">
+          <h2 className="text-h3">{t('perStore')}</h2>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
+            <table className="w-full min-w-[760px] text-body-sm">
+              {head(t('store'))}
+              <tbody>
+                {kpis.perStore.map((s) => row(localized(s.darkStore, locale), s, s.darkStore.id))}
+              </tbody>
+            </table>
+          </div>
 
-        <dl className="mt-4 grid grid-cols-2 gap-4 rounded-lg border border-line bg-surface p-5 shadow-sm md:grid-cols-4">
-          <Stat label={t('orders')} value={formatCount(kpis.totals.orders)} />
-          <Stat label={t('delivered')} value={formatCount(kpis.totals.delivered)} />
-          <Stat label={t('onTime')} value={pct(kpis.totals.onTimeRate)} />
-          <Stat
-            label={t('avgDelivery')}
-            value={mins(kpis.totals.avgDeliveryMinutes)}
-            hint={
-              kpis.totals.medianDeliveryMinutes !== null
-                ? t('medianDelivery', { value: kpis.totals.medianDeliveryMinutes })
-                : undefined
-            }
-          />
-          <Stat label={t('late')} value={formatCount(kpis.totals.late)} />
-          <Stat
-            label={t('cancelledFailed')}
-            value={formatCount(kpis.totals.cancelled + kpis.totals.failed)}
-          />
-          <Stat label={t('missingUnits')} value={formatCount(kpis.totals.unitsMissing)} />
-          <Stat label={t('movedToStandard')} value={formatCount(kpis.totals.movedToStandard)} />
-          <Stat label={t('codCollected')} value={formatEgp(kpis.totals.codCollectedPiastres)} />
-          <Stat label={t('deliveredValue')} value={formatEgp(kpis.totals.deliveredValuePiastres)} />
-        </dl>
-
-        {kpis.totals.orders === 0 ? (
-          <p className="mt-6 text-body text-text-muted">{t('noData')}</p>
-        ) : (
-          <>
-            <h3 className="mt-8 text-body font-bold">{t('stageTimes')}</h3>
-            <ul className="mt-2 grid grid-cols-2 gap-3 md:grid-cols-5">
-              {STAGES.map((stage) => {
-                const avg = kpis.totals.stageAvgMinutes[stage];
-                const goal = target(`sla.${stage}_minutes`);
-                const over = avg !== null && goal !== null && avg > goal;
-                return (
-                  <li
-                    key={stage}
-                    className={`rounded-lg border bg-surface p-3 ${over ? 'border-status-needs-action' : 'border-line'}`}
-                  >
-                    <p className="text-caption text-text-muted">{stages(stage)}</p>
-                    <p className={`text-h3 ${over ? 'text-status-needs-action' : ''}`}>
-                      <span className="ltr-iso">{mins(avg)}</span>
-                    </p>
-                    {goal !== null && (
-                      <p className="text-caption text-text-muted">
-                        {t('target', { value: t('minutes', { value: goal }) })}
-                      </p>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-
-            <h3 className="mt-8 text-body font-bold">{t('perDay')}</h3>
-            <ul className="mt-2 space-y-1">
-              {kpis.perDay.map((d) => (
-                <li key={d.date} className="flex items-center gap-3 text-body-sm">
-                  <span className="ltr-iso w-24 shrink-0">{d.date}</span>
-                  <span className="relative h-5 flex-1 rounded-sm bg-surface-raised">
-                    <span
-                      className="absolute inset-y-0 start-0 rounded-sm bg-selected-bg"
-                      style={{ width: `${(d.orders / maxDay) * 100}%` }}
-                    />
-                    <span
-                      className="absolute inset-y-0 start-0 rounded-sm bg-primary"
-                      style={{ width: `${(d.delivered / maxDay) * 100}%` }}
-                    />
-                  </span>
-                  <span className="ltr-iso w-20 shrink-0 text-end">
-                    {d.delivered} / {d.orders}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <h3 className="mt-8 text-body font-bold">{t('perStore')}</h3>
-            <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
-              <table className="w-full min-w-[760px] text-body-sm">
-                {head(t('store'))}
-                <tbody>
-                  {kpis.perStore.map((s) => row(localized(s.darkStore, locale), s, s.darkStore.id))}
-                </tbody>
-              </table>
-            </div>
-
-            <h3 className="mt-8 text-body font-bold">{t('perMerchant')}</h3>
-            <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
-              <table className="w-full min-w-[760px] text-body-sm">
-                {head(t('merchant'))}
-                <tbody>{kpis.perMerchant.map((m) => row(m.merchant.name, m, m.merchant.id))}</tbody>
-              </table>
-            </div>
-          </>
-        )}
-      </section>
+          <h2 className="mt-8 text-h3">{t('perMerchant')}</h2>
+          <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
+            <table className="w-full min-w-[760px] text-body-sm">
+              {head(t('merchant'))}
+              <tbody>{kpis.perMerchant.map((m) => row(m.merchant.name, m, m.merchant.id))}</tbody>
+            </table>
+          </div>
+        </section>
+      )}
     </>
   );
 }

@@ -1,10 +1,12 @@
 import { addDays, cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Amount } from '@/components/finance/Amount';
+import { PayoutScheduleForm } from '@/components/merchant/PayoutScheduleForm';
+import { WalletCard } from '@/components/WalletCard';
 import { StatementView } from '@/components/finance/StatementView';
 import { apiGet } from '@/lib/api-server';
 import type { PayoutSchedule, Statement } from '@/lib/finance-types';
-import { formatCairoDateTime, formatCutoffDay } from '@/lib/format';
+import { formatCairoDateTime, formatCutoffDay, formatEgp } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -42,16 +44,18 @@ export default async function MerchantWalletPage({
   return (
     <>
       <h1 className="text-h2">{t('title')}</h1>
-      <section className="mt-4 rounded-lg border border-line bg-surface p-5 shadow-sm">
-        <p className="text-caption text-text-muted">
-          {wallet.owedPiastres < 0 ? t('owes') : t('owed')}
-        </p>
-        <p className="text-h2">
-          <Amount piastres={Math.abs(wallet.owedPiastres)} strong /> {tf('egp')}
-        </p>
-        <p className="mt-1 text-body-sm text-text-muted">
-          {t('schedule', { schedule: tf(`schedules.${wallet.payoutSchedule}`) })}
-        </p>
+      <section className="mt-4 grid gap-4 lg:grid-cols-2">
+        <WalletCard
+          large
+          icon={wallet.owedPiastres < 0 ? 'invoice' : 'wallet'}
+          label={wallet.owedPiastres < 0 ? t('owes') : t('owed')}
+          value={t('amount', { amount: formatEgp(Math.abs(wallet.owedPiastres)) })}
+          hint={t('schedule', { schedule: tf(`schedules.${wallet.payoutSchedule}`) })}
+        />
+        <div className="rounded-lg border border-line bg-surface p-5">
+          <PayoutScheduleForm schedule={wallet.payoutSchedule} />
+          <p className="mt-3 text-caption text-text-muted">{t('scheduleHint')}</p>
+        </div>
       </section>
 
       <section className="mt-6">
