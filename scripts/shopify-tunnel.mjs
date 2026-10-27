@@ -183,7 +183,14 @@ if (deploy) {
     run.on('exit', resolve);
     run.on('error', () => resolve(1));
   });
-  if (status !== 0) {
+  if (status !== 0 && dev) {
+    // Shopify itself can be briefly down; the app still runs and the settings can follow later.
+    console.log(`
+Shopify did not take the new settings (read the message above). The app starts anyway.
+To retry only that step, open another Terminal window and run:
+  cd ~/ShiplyNowApp && pnpm shopify:tunnel ${url}
+`);
+  } else if (status !== 0) {
     tunnel?.removeAllListeners('exit');
     tunnel?.kill();
     fail('shopify app deploy did not finish. Read the message above.');
