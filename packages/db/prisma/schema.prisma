@@ -53,6 +53,8 @@ model User {
   ordersCreated     Order[]           @relation("order_created_by")
   returnsCreated    MerchantReturn[]  @relation("return_created_by")
   returnsHandedOver MerchantReturn[]  @relation("return_handed_over_by")
+  damageReported    DamageReport[]    @relation("damage_reported_by")
+  damageSettled     DamageReport[]    @relation("damage_settled_by")
   photos            Photo[]           @relation("photo_created_by")
   alertsResolved    Alert[]           @relation("alert_resolved_by")
   rider             Rider?
@@ -125,6 +127,7 @@ model DarkStore {
   stockMovements   StockMovement[]
   inboundManifests InboundManifest[]
   merchantReturns  MerchantReturn[]
+  damageReports    DamageReport[]
   orders           Order[]
   riders           Rider[]
   users            User[]
@@ -199,6 +202,7 @@ model Merchant {
   skus             Sku[]
   inboundManifests InboundManifest[]
   merchantReturns  MerchantReturn[]
+  damageReports    DamageReport[]
   orders           Order[]
   users            User[]
   notifications    Notification[]
@@ -236,6 +240,7 @@ model Sku {
   stockMovements StockMovement[]
   manifestLines  InboundManifestLine[]
   returnLines    MerchantReturnLine[]
+  damageReports  DamageReport[]
   orderItems     OrderItem[]
   countLines     StockCountLine[]
 
@@ -353,6 +358,7 @@ model StockMovement {
   order     Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
   manifest  InboundManifest? @relation(fields: [manifestId], references: [id], onDelete: Restrict)
   return    MerchantReturn?  @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  damage    DamageReport?
   actor     User?            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([darkStoreId, skuId, createdAt])
@@ -547,6 +553,59 @@ model MerchantReturnLine {
   @@map("merchant_return_lines")
 }
 
+// ─── Damage settlement ─────────────────────────────────────────────────────────
+
+/// Why units were damaged. The company pays for store_handling and delivery; the merchant
+/// bears arrived_damaged, customer and expired.
+enum DamageCause {
+  arrived_damaged
+  store_handling
+  delivery
+  customer
+  expired
+
+  @@map("damage_cause")
+}
+
+enum DamageStatus {
+  pending
+  settled
+
+  @@map("damage_status")
+}
+
+/// Units staff moved to the damaged bin, waiting for admin to settle who pays.
+model DamageReport {
+  id                   String       @id @default(cuid())
+  darkStoreId          String       @map("dark_store_id")
+  merchantId           String       @map("merchant_id")
+  skuId                String       @map("sku_id")
+  quantity             Int
+  cause                DamageCause
+  note                 String?
+  riderId              String?      @map("rider_id")
+  movementId           String       @unique @map("movement_id")
+  status               DamageStatus @default(pending)
+  reportedById         String       @map("reported_by_id")
+  settledById          String?      @map("settled_by_id")
+  settledAt            DateTime?    @map("settled_at")
+  settleNote           String?      @map("settle_note")
+  compensationPiastres Int          @default(0) @map("compensation_piastres")
+  riderChargePiastres  Int          @default(0) @map("rider_charge_piastres")
+  createdAt            DateTime     @default(now()) @map("created_at")
+
+  darkStore  DarkStore     @relation(fields: [darkStoreId], references: [id])
+  merchant   Merchant      @relation(fields: [merchantId], references: [id])
+  sku        Sku           @relation(fields: [skuId], references: [id])
+  rider      Rider?        @relation(fields: [riderId], references: [id])
+  movement   StockMovement @relation(fields: [movementId], references: [id])
+  reportedBy User          @relation("damage_reported_by", fields: [reportedById], references: [id])
+  settledBy  User?         @relation("damage_settled_by", fields: [settledById], references: [id])
+
+  @@index([status, createdAt])
+  @@map("damage_reports")
+}
+
 // ─── Orders and delivery ───────────────────────────────────────────────────────
 
 enum OrderStatus {
@@ -712,6 +771,7 @@ model Rider {
 
   ledgerAccounts LedgerAccount[]
   cashHandovers  CashHandover[]
+  damageReports  DamageReport[]
 
   @@map("riders")
 }
@@ -889,6 +949,8 @@ enum LedgerAccountType {
   rider_bonus_expense
   /// Cash shortages written off, and cash surpluses
   cash_difference
+  /// What the company pays for units damaged in its care
+  damage_expense
 
   @@map("ledger_account_type")
 }

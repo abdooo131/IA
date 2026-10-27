@@ -74,3 +74,30 @@ export const returnHandOverSchema = z.object({
 });
 
 export const cancelReturnSchema = z.object({ reason: z.string().trim().max(300).optional() });
+
+export const DAMAGE_CAUSES = [
+  'arrived_damaged',
+  'store_handling',
+  'delivery',
+  'customer',
+  'expired',
+] as const;
+
+/** Staff move units to the damaged bin and say why; admin settles who pays. */
+export const reportDamageSchema = z.object({
+  skuId: id,
+  fromBinId: id,
+  quantity,
+  cause: z.enum(DAMAGE_CAUSES),
+  note: z.string().trim().max(300).optional(),
+  riderBadge: z.string().trim().max(40).optional(),
+  idempotencyKey,
+});
+export type ReportDamageBody = z.infer<typeof reportDamageSchema>;
+
+export const settleDamageSchema = z.object({
+  cause: z.enum(DAMAGE_CAUSES),
+  chargeRider: z.boolean().default(false),
+  note: z.string().trim().max(300).optional(),
+});
+export type SettleDamageBody = z.infer<typeof settleDamageSchema>;

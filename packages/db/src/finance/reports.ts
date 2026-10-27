@@ -40,6 +40,7 @@ export async function financeWallets(db: Db) {
       'vat_payable',
       'rider_bonus_expense',
       'cash_difference',
+      'damage_expense',
     ]),
     db.payout.findMany({
       where: { status: 'draft' },
@@ -90,6 +91,7 @@ export async function financeWallets(db: Db) {
       vatPayablePiastres: negate(sumOf(of('vat_payable'))),
       riderBonusExpensePiastres: sumOf(of('rider_bonus_expense')),
       cashDifferencePiastres: sumOf(of('cash_difference')),
+      damageExpensePiastres: sumOf(of('damage_expense')),
     },
     totals: {
       owedToMerchantsPiastres: negate(sumOf(of('merchant').filter((b) => b.balance < 0))),

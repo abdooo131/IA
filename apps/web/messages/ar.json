@@ -82,7 +82,8 @@
       "finance": "المالية",
       "shopify": "شوبيفاي",
       "backToAdmin": "رجوع للإدارة",
-      "returns": "مرتجعات للتجار"
+      "returns": "مرتجعات للتجار",
+      "damage": "تلفيات للتسوية"
     },
     "overview": {
       "title": "نظرة عامة",
@@ -604,7 +605,12 @@
       "quantity": "الكمية",
       "confirm": "انقل",
       "done": "اتنقل {quantity} × {sku} لـ {bin}",
-      "noBins": "المنتج ده مش موجود في رف ينفع منه النقل ده."
+      "noBins": "المنتج ده مش موجود في رف ينفع منه النقل ده.",
+      "cause": "اتلف ليه؟",
+      "chooseCause": "اختار السبب",
+      "riderBadge": "كارت المندوب (اختياري)",
+      "damageNote": "ملاحظة (اختياري)",
+      "reported": "اتنقل {quantity} × {sku} لـ {bin}. الإدارة هتحدد مين يدفع."
     },
     "labels": {
       "title": "ليبلات الرفوف",
@@ -625,7 +631,9 @@
       "nothing_to_put_away": "مفيش كمية كفاية من المنتج ده في الاستلام.",
       "move_not_allowed": "النقل ده مش مسموح.",
       "network": "مفيش اتصال. جرب تاني.",
-      "generic": "حصلت مشكلة، جرب تاني."
+      "generic": "حصلت مشكلة، جرب تاني.",
+      "rider_not_found": "مفيش مندوب في المخزن ده بالكارت ده.",
+      "no_damaged_bin": "المخزن ده مالوش مكان للتالف. اطلب من الإدارة تضيفه."
     }
   },
   "merchant": {
@@ -706,7 +714,11 @@
       "openOrder": "افتح الطلب",
       "other": "تحديث",
       "return_collected": "مرتجع {reference}: {units} قطعة استلمها {by}",
-      "openReturn": "افتح المرتجع"
+      "openReturn": "افتح المرتجع",
+      "damage_settled": "تلف {sku} × {quantity}: {cause}",
+      "damage_paid": "ضفنا لمحفظتك {amount} جنيه.",
+      "damage_yours": "التلف ده على التاجر؛ مفيش تعويض.",
+      "openDamage": "شوف تقارير التلف"
     },
     "orders": {
       "title": "الطلبات",
@@ -1057,7 +1069,9 @@
       "adjustment": "تسوية",
       "opening_balance": "رصيد أول المدة",
       "closing_balance": "رصيد آخر المدة",
-      "return_fee": "رسوم الإرجاع للتاجر"
+      "return_fee": "رسوم الإرجاع للتاجر",
+      "damage_compensation": "تعويض تلف للتاجر",
+      "damage_rider_charge": "تلف محمّل على المندوب"
     },
     "accounts": {
       "merchant": "محفظة التاجر",
@@ -1068,7 +1082,8 @@
       "revenue": "إيراد الرسوم",
       "vat_payable": "ضريبة قيمة مضافة مستحقة",
       "rider_bonus_expense": "تكلفة الحوافز",
-      "cash_difference": "فروق الكاش"
+      "cash_difference": "فروق الكاش",
+      "damage_expense": "تلفيات دفعناها"
     },
     "schedules": {
       "daily": "يومي",
@@ -1386,6 +1401,43 @@
       "bin_not_allowed": "المرتجعات مش بتتاخد من المكان ده.",
       "invalid_return_state": "المرتجع ده مش مفتوح للخطوة دي.",
       "network": "مفيش اتصال. جرّب تاني.",
+      "generic": "حصلت مشكلة. جرّب تاني."
+    }
+  },
+  "damage": {
+    "title": "تلفيات للتسوية",
+    "intro": "قطع الفريق نقلها لمكان التالف. أكد السبب: بندفع للتاجر سعر المنتج لو التلف في المخزن أو التوصيل، وممكن نحمّل المندوب تلف التوصيل.",
+    "merchantTitle": "منتجات تالفة",
+    "merchantIntro": "قطع لقيناها تالفة في مخازننا ومين دفع تمنها.",
+    "empty": "مفيش حاجة هنا.",
+    "cause": "السبب",
+    "reportedBy": "بلّغ عنها {name}",
+    "causeIs": "السبب: {cause}",
+    "rider": "المندوب {name} ({badge})",
+    "statuses": {
+      "pending": "مستني",
+      "settled": "اتسوّى"
+    },
+    "causes": {
+      "arrived_damaged": "وصلت تالفة من التاجر",
+      "store_handling": "اتلفت في المخزن",
+      "delivery": "اتلفت في التوصيل",
+      "customer": "العميل اللي أتلفها",
+      "expired": "منتهية الصلاحية"
+    },
+    "noteOptional": "ملاحظة (اختياري)",
+    "noteRequired": "ليه غيرت السبب (مطلوب)",
+    "chargeRider": "حمّل {name} التمن",
+    "weCompensate": "هندفع للتاجر {amount} جنيه.",
+    "merchantBears": "التاجر بيتحملها؛ مفيش فلوس بتتحرك.",
+    "settle": "سوّي",
+    "compensated": "اتضاف للتاجر {amount} جنيه",
+    "merchantBore": "التاجر اتحملها",
+    "riderCharged": "المندوب اتحمل {amount} جنيه",
+    "errors": {
+      "note_required": "اكتب ليه غيرت السبب.",
+      "rider_charge_not_allowed": "بس تلف التوصيل اللي فيه مندوب ينفع يتحمّل على المندوب.",
+      "damage_already_settled": "حد سوّاها قبلك.",
       "generic": "حصلت مشكلة. جرّب تاني."
     }
   }

@@ -26,6 +26,8 @@ const KNOWN = [
   'bin_not_pickable',
   'nothing_to_put_away',
   'move_not_allowed',
+  'rider_not_found',
+  'no_damaged_bin',
   'network',
 ];
 

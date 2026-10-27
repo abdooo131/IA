@@ -144,7 +144,8 @@ describe('store staff app, merchant panel and count approvals', () => {
         include: { bin: true },
       })
     ).bin;
-    const ok = await staff
+    // Damage needs its cause, so it goes through a damage report rather than a plain move.
+    const plain = await staff
       .post(`/stores/${ncr}/move`)
       .send({
         skuId: sku.id,
@@ -154,8 +155,19 @@ describe('store staff app, merchant panel and count approvals', () => {
         reason: 'damaged',
         idempotencyKey: randomUUID(),
       })
+      .expect(400);
+    expect(plain.body.error).toBe('cause_required');
+    const ok = await staff
+      .post(`/stores/${ncr}/damage`)
+      .send({
+        skuId: sku.id,
+        fromBinId: shelf.id,
+        quantity: 2,
+        cause: 'store_handling',
+        idempotencyKey: randomUUID(),
+      })
       .expect(201);
-    expect(ok.body.level.onHand).toBeGreaterThan(0);
+    expect(ok.body.status).toBe('pending');
     const wrong = await staff
       .post(`/stores/${ncr}/move`)
       .send({
@@ -163,23 +175,40 @@ describe('store staff app, merchant panel and count approvals', () => {
         fromBinId: damaged.id,
         toBinId: shelf.id,
         quantity: 1,
-        reason: 'damaged',
+        reason: 'release',
         idempotencyKey: randomUUID(),
       })
       .expect(400);
     expect(wrong.body.error).toBe('move_not_allowed');
     const tooMany = await staff
-      .post(`/stores/${ncr}/move`)
+      .post(`/stores/${ncr}/damage`)
       .send({
         skuId: sku.id,
         fromBinId: shelf.id,
-        toBinId: damaged.id,
         quantity: 9999,
-        reason: 'damaged',
+        cause: 'store_handling',
         idempotencyKey: randomUUID(),
       })
       .expect(409);
     expect(tooMany.body.error).toBe('insufficient_bin_stock');
+
+    // Admin settles: damage in the store is paid to the merchant at the product price.
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    await staff.get('/admin/damage').expect(403);
+    const pending = await admin.get('/admin/damage?status=pending').expect(200);
+    expect(pending.body).toHaveLength(1);
+    const settled = await admin
+      .post(`/admin/damage/${ok.body.id}/settle`)
+      .send({ cause: 'store_handling' })
+      .expect(201);
+    expect(settled.body.compensationPiastres).toBe(2 * sku.pricePiastres);
+    await admin
+      .post(`/admin/damage/${ok.body.id}/settle`)
+      .send({ cause: 'customer', note: 'x' })
+      .expect(409);
+    const merchant = await agent('merchant@evechantelle.example');
+    const mine = await merchant.get('/merchant/returns/damage').expect(200);
+    expect(mine.body[0]).toMatchObject({ status: 'settled', cause: 'store_handling' });
   });
 
   it('counts wait for admin approval, then adjust stock and notify the merchant', async () => {

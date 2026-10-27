@@ -94,3 +94,11 @@ export {
   type ReturnDetail,
   type ReturnFilter,
 } from './returns';
+export {
+  COMPANY_CAUSES,
+  listDamageReports,
+  reportDamage,
+  settleDamage,
+  type ReportDamageInput,
+  type SettleDamageInput,
+} from './damage';

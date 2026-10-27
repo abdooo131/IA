@@ -3,7 +3,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import { MarkReadButton } from '@/components/merchant/MarkReadButton';
 import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
-import { formatCairoDateTime } from '@/lib/format';
+import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import type { MerchantNotification } from '@/lib/merchant-types';
 
 export const dynamic = 'force-dynamic';
@@ -28,11 +28,12 @@ const ORDER_TYPES = [
 ];
 
 export default async function NotificationsPage() {
-  const [notes, t, tReasons, locale] = await Promise.all([
+  const [notes, t, tReasons, locale, tCause] = await Promise.all([
     apiGet<MerchantNotification[]>('/merchant/notifications'),
     getTranslations('merchant.notifications'),
     getTranslations('rider.reasons'),
     getLocale(),
+    getTranslations('damage.causes'),
   ]);
 
   /** The headline, detail lines and link of one notification, by its type. */
@@ -69,6 +70,19 @@ export default async function NotificationsPage() {
         lines: [],
         href: typeof d.returnId === 'string' ? `/merchant/returns/${d.returnId}` : null,
         link: t('openReturn'),
+      };
+    }
+    if (n.type === 'damage_settled') {
+      const amount = Number(d.compensationPiastres ?? 0);
+      return {
+        title: t('damage_settled', {
+          sku: String(d.sku ?? ''),
+          quantity: Number(d.quantity ?? 0),
+          cause: tCause.has(String(d.cause)) ? tCause(String(d.cause)) : String(d.cause ?? ''),
+        }),
+        lines: [amount > 0 ? t('damage_paid', { amount: formatEgp(amount) }) : t('damage_yours')],
+        href: '/merchant/returns',
+        link: t('openDamage'),
       };
     }
     if (ORDER_TYPES.includes(n.type)) {

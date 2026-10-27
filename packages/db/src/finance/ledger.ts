@@ -10,7 +10,15 @@ export type AccountRef =
   | { type: 'rider_cash'; riderId: string }
   | { type: 'rider_bonus'; riderId: string }
   | { type: 'store_cash'; darkStoreId: string }
-  | { type: 'bank' | 'revenue' | 'vat_payable' | 'rider_bonus_expense' | 'cash_difference' };
+  | {
+      type:
+        | 'bank'
+        | 'revenue'
+        | 'vat_payable'
+        | 'rider_bonus_expense'
+        | 'cash_difference'
+        | 'damage_expense';
+    };
 
 export function accountKey(ref: AccountRef): string {
   switch (ref.type) {

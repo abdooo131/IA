@@ -1,15 +1,19 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { DamageList } from '@/components/damage/DamageList';
 import { ReturnsTable } from '@/components/returns/ReturnsTable';
 import { apiGet } from '@/lib/api-server';
+import type { DamageReportRow } from '@/lib/damage-types';
 import type { ReturnListItem } from '@/lib/return-types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MerchantReturnsPage() {
-  const [rows, t] = await Promise.all([
+  const [rows, damage, t, td] = await Promise.all([
     apiGet<ReturnListItem[]>('/merchant/returns'),
+    apiGet<DamageReportRow[]>('/merchant/returns/damage'),
     getTranslations('returns'),
+    getTranslations('damage'),
   ]);
   return (
     <>
@@ -24,6 +28,9 @@ export default async function MerchantReturnsPage() {
       </div>
       <p className="mt-1 text-body-sm text-text-muted">{t('intro')}</p>
       <ReturnsTable rows={rows} linkBase="/merchant/returns" />
+      <h2 className="mt-10 text-h3">{td('merchantTitle')}</h2>
+      <p className="mt-1 text-body-sm text-text-muted">{td('merchantIntro')}</p>
+      <DamageList rows={damage} canSettle={false} />
     </>
   );
 }

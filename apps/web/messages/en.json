@@ -82,7 +82,8 @@
       "finance": "Finance",
       "shopify": "Shopify",
       "backToAdmin": "Back to admin",
-      "returns": "Returns to merchants"
+      "returns": "Returns to merchants",
+      "damage": "Damage to settle"
     },
     "overview": {
       "title": "Overview",
@@ -604,7 +605,12 @@
       "quantity": "Quantity",
       "confirm": "Move",
       "done": "Moved {quantity} × {sku} to {bin}",
-      "noBins": "This product is not in any bin that allows this move."
+      "noBins": "This product is not in any bin that allows this move.",
+      "cause": "Why was it damaged?",
+      "chooseCause": "Choose the cause",
+      "riderBadge": "Rider badge (optional)",
+      "damageNote": "Note (optional)",
+      "reported": "Moved {quantity} × {sku} to {bin}. Admin will settle who pays."
     },
     "labels": {
       "title": "Bin labels",
@@ -625,7 +631,9 @@
       "nothing_to_put_away": "Not enough of this product in receiving.",
       "move_not_allowed": "That move is not allowed.",
       "network": "No connection. Try again.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "rider_not_found": "No rider of this store has that badge.",
+      "no_damaged_bin": "This store has no damaged bin. Ask admin to add one."
     }
   },
   "merchant": {
@@ -706,7 +714,11 @@
       "openOrder": "Open the order",
       "other": "Update",
       "return_collected": "Return {reference}: {units} units collected by {by}",
-      "openReturn": "Open the return"
+      "openReturn": "Open the return",
+      "damage_settled": "Damaged {sku} × {quantity}: {cause}",
+      "damage_paid": "We credited your wallet EGP {amount}.",
+      "damage_yours": "This damage is on the merchant; no credit.",
+      "openDamage": "See damage reports"
     },
     "orders": {
       "title": "Orders",
@@ -1057,7 +1069,9 @@
       "adjustment": "Adjustment",
       "opening_balance": "Opening balance",
       "closing_balance": "Closing balance",
-      "return_fee": "Return to merchant fee"
+      "return_fee": "Return to merchant fee",
+      "damage_compensation": "Damage compensation to merchant",
+      "damage_rider_charge": "Damage charged to rider"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1068,7 +1082,8 @@
       "revenue": "Fee income",
       "vat_payable": "VAT payable",
       "rider_bonus_expense": "Rider bonus cost",
-      "cash_difference": "Cash differences"
+      "cash_difference": "Cash differences",
+      "damage_expense": "Damage paid by us"
     },
     "schedules": {
       "daily": "Daily",
@@ -1386,6 +1401,43 @@
       "bin_not_allowed": "Returns are not taken from this bin.",
       "invalid_return_state": "This return is not open for that step.",
       "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "damage": {
+    "title": "Damage to settle",
+    "intro": "Units staff moved to the damaged bin. Confirm the cause: we pay the merchant the product price for store handling and delivery damage, and may charge the rider for delivery damage.",
+    "merchantTitle": "Damaged products",
+    "merchantIntro": "Units found damaged in our stores and who paid for them.",
+    "empty": "Nothing here.",
+    "cause": "Cause",
+    "reportedBy": "reported by {name}",
+    "causeIs": "Cause: {cause}",
+    "rider": "Rider {name} ({badge})",
+    "statuses": {
+      "pending": "Waiting",
+      "settled": "Settled"
+    },
+    "causes": {
+      "arrived_damaged": "Arrived damaged from the merchant",
+      "store_handling": "Damaged in the store",
+      "delivery": "Damaged in delivery",
+      "customer": "Damaged by the customer",
+      "expired": "Expired"
+    },
+    "noteOptional": "Note (optional)",
+    "noteRequired": "Why you changed the cause (required)",
+    "chargeRider": "Charge {name} for it",
+    "weCompensate": "We pay the merchant EGP {amount}.",
+    "merchantBears": "The merchant bears this; no money moves.",
+    "settle": "Settle",
+    "compensated": "Merchant credited EGP {amount}",
+    "merchantBore": "Merchant bore it",
+    "riderCharged": "rider charged EGP {amount}",
+    "errors": {
+      "note_required": "Write why you changed the cause.",
+      "rider_charge_not_allowed": "Only delivery damage with a rider can be charged to the rider.",
+      "damage_already_settled": "Someone already settled this.",
       "generic": "Something went wrong. Try again."
     }
   }

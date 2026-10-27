@@ -1,6 +1,13 @@
 import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { closeManifest, DomainError, move, receiveOnManifest, submitCount } from '@shiplynow/db';
+import {
+  closeManifest,
+  DomainError,
+  move,
+  receiveOnManifest,
+  reportDamage,
+  submitCount,
+} from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   type CountInput,
@@ -10,6 +17,8 @@ import {
   moveSchema,
   type PutAwayInput,
   putAwaySchema,
+  type ReportDamageBody,
+  reportDamageSchema,
   type ReceiveScanInput,
   receiveScanSchema,
 } from '@shiplynow/shared';
@@ -263,6 +272,8 @@ export class StoreController {
     @CurrentUser() user: AccessTokenClaims,
   ) {
     await this.access.check(user, storeId);
+    // Damage always goes through a damage report, so admin can settle who pays.
+    if (body.reason === 'damaged') throw new DomainError('cause_required', 400);
     const bins = await this.prisma.bin.findMany({
       where: { id: { in: [body.fromBinId, body.toBinId] } },
     });
@@ -284,6 +295,22 @@ export class StoreController {
       actorUserId: user.sub,
       idempotencyKey: `move:${body.idempotencyKey}`,
     });
+  }
+
+  /** Units to the damaged bin with the cause; admin then settles who pays. */
+  @Post(':storeId/damage')
+  async damage(
+    @Param('storeId') storeId: string,
+    @Body(new ZodValidationPipe(reportDamageSchema)) body: ReportDamageBody,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.access.check(user, storeId);
+    const { report } = await reportDamage(this.prisma, {
+      ...body,
+      darkStoreId: storeId,
+      actorUserId: user.sub,
+    });
+    return { id: report.id, status: report.status };
   }
 
   @Post(':storeId/counts')

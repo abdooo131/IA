@@ -1,6 +1,6 @@
 'use client';
 
-import { MOVE_REASONS } from '@shiplynow/shared';
+import { DAMAGE_CAUSES, MOVE_REASONS } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ScanBox } from '@/components/scan/ScanBox';
@@ -10,6 +10,7 @@ import { type BinWithItems, title } from '@/lib/store-types';
 import { Message, type ScannedSku, useStoreAction } from './useStoreAction';
 
 type Reason = Exclude<(typeof MOVE_REASONS)[number], 'relocate'>;
+type Cause = (typeof DAMAGE_CAUSES)[number];
 
 /** Same rules as the API: where each reason may take units from, and to. */
 const RULES: Record<Reason, { from: BinWithItems['type'][]; to: BinWithItems['type'] }> = {
@@ -34,6 +35,10 @@ export function DamagedScreen({
   const [reason, setReason] = useState<Reason>('damaged');
   const [fromId, setFromId] = useState('');
   const [quantity, setQuantity] = useState(1);
+  const [cause, setCause] = useState<Cause | ''>('');
+  const [note, setNote] = useState('');
+  const [riderBadge, setRiderBadge] = useState('');
+  const tCause = useTranslations('damage.causes');
 
   const sources = sku
     ? bins.filter(
@@ -59,18 +64,38 @@ export function DamagedScreen({
 
   async function confirm() {
     if (!sku || !from || !target) return;
+    if (reason === 'damaged' && !cause) return;
     action.setBusy(true);
-    const result = await apiSend('POST', `/stores/${storeId}/move`, {
-      skuId: sku.id,
-      fromBinId: from.id,
-      toBinId: target.id,
-      quantity,
-      reason,
-      idempotencyKey: newActionKey(),
-    });
+    // Damage goes through a report with its cause, so admin can settle who pays.
+    const result =
+      reason === 'damaged'
+        ? await apiSend('POST', `/stores/${storeId}/damage`, {
+            skuId: sku.id,
+            fromBinId: from.id,
+            quantity,
+            cause,
+            note: note.trim() || undefined,
+            riderBadge: cause === 'delivery' && riderBadge.trim() ? riderBadge.trim() : undefined,
+            idempotencyKey: newActionKey(),
+          })
+        : await apiSend('POST', `/stores/${storeId}/move`, {
+            skuId: sku.id,
+            fromBinId: from.id,
+            toBinId: target.id,
+            quantity,
+            reason,
+            idempotencyKey: newActionKey(),
+          });
     if (result.ok) {
-      action.ok(t('done', { quantity, sku: sku.sku, bin: target.code }));
+      action.ok(
+        reason === 'damaged'
+          ? t('reported', { quantity, sku: sku.sku, bin: target.code })
+          : t('done', { quantity, sku: sku.sku, bin: target.code }),
+      );
       setSku(null);
+      setCause('');
+      setNote('');
+      setRiderBadge('');
       const fresh = await apiGetClient<BinWithItems[]>(`/stores/${storeId}/bins`);
       if (fresh.ok) setBins(fresh.data);
     } else action.fail(result.error);
@@ -104,6 +129,49 @@ export function DamagedScreen({
               <option value="release">{t('release')}</option>
             </select>
           </label>
+          {reason === 'damaged' && (
+            <>
+              <label className="block text-caption">
+                {t('cause')}
+                <select
+                  className={select}
+                  value={cause}
+                  required
+                  onChange={(e) => setCause(e.target.value as Cause)}
+                >
+                  <option value="" disabled>
+                    {t('chooseCause')}
+                  </option>
+                  {DAMAGE_CAUSES.map((c) => (
+                    <option key={c} value={c}>
+                      {tCause(c)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {cause === 'delivery' && (
+                <label className="block text-caption">
+                  {t('riderBadge')}
+                  <input
+                    value={riderBadge}
+                    onChange={(e) => setRiderBadge(e.target.value)}
+                    dir="ltr"
+                    maxLength={40}
+                    className={select}
+                  />
+                </label>
+              )}
+              <label className="block text-caption">
+                {t('damageNote')}
+                <input
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  maxLength={300}
+                  className={select}
+                />
+              </label>
+            </>
+          )}
           {sources.length === 0 ? (
             <p className="text-body-sm text-danger">{t('noBins')}</p>
           ) : (
@@ -141,7 +209,7 @@ export function DamagedScreen({
                 <button
                   type="button"
                   onClick={confirm}
-                  disabled={action.busy || !target}
+                  disabled={action.busy || !target || (reason === 'damaged' && !cause)}
                   className="h-12 flex-1 rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
                 >
                   {t('confirm')}

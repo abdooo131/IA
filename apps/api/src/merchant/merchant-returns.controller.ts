@@ -5,6 +5,7 @@ import {
   createReturn,
   DomainError,
   getReturnDetail,
+  listDamageReports,
   listReturns,
   returnableStock,
 } from '@shiplynow/db';
@@ -36,6 +37,12 @@ export class MerchantReturnsController {
   @Get()
   async list(@CurrentUser() user: AccessTokenClaims) {
     return listReturns(this.prisma, { merchantId: await this.merchantIdOf(user) });
+  }
+
+  /** Damage reports on the merchant's products and how each was settled. */
+  @Get('damage')
+  async damage(@CurrentUser() user: AccessTokenClaims) {
+    return listDamageReports(this.prisma, { merchantId: await this.merchantIdOf(user) });
   }
 
   /** Units that can be asked back from one store, per product: sellable, damaged, held. */
