@@ -6,7 +6,7 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { accrueStorage, flagLateOrders, lastClosedDay } from '@shiplynow/db';
+import { accrueStorage, checkFailedDeliveries, flagLateOrders, lastClosedDay } from '@shiplynow/db';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -52,7 +52,10 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     if (this.timer) clearInterval(this.timer);
   }
 
-  /** Flags late order stages. Returns null when another instance holds the lock. */
+  /**
+   * Flags late order stages and follows up failed delivery attempts. Returns null when another
+   * instance holds the lock.
+   */
   async runSlaCheck(now: Date = new Date()) {
     if (this.running) return null;
     this.running = true;
@@ -68,7 +71,13 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
             this.log.log(
               `SLA check: ${result.flagged} newly late of ${result.checked} active orders`,
             );
-          return result;
+          // Failed attempts: holds that ran out, and goods the rider has not brought back.
+          const failed = await checkFailedDeliveries(tx, now);
+          if (failed.closed + failed.alerted > 0)
+            this.log.log(
+              `Failed deliveries: ${failed.closed} closed after the hold, ${failed.alerted} goods not back`,
+            );
+          return { ...result, ...failed };
         },
         { timeout: 25_000 },
       );

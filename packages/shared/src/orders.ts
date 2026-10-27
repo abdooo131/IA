@@ -6,6 +6,7 @@ export const ORDER_STATUSES = [
   'picking',
   'packed',
   'out_for_delivery',
+  'attempt_failed',
   'delivered',
   'cancelled',
   'failed',
@@ -141,13 +142,34 @@ export const FAILURE_REASONS = [
   'no_answer',
   'wrong_address',
   'refused',
+  'reschedule_requested',
   'unreachable_area',
   'other',
 ] as const;
-export const failDeliverySchema = z.object({
-  reason: z.enum(FAILURE_REASONS),
-  note: z.string().trim().max(300).optional(),
-});
+export type FailureReason = (typeof FAILURE_REASONS)[number];
+/** A customer who refused the goods gets no second attempt. */
+export const FINAL_FAILURE_REASONS: FailureReason[] = ['refused'];
+export const failDeliverySchema = z
+  .object({
+    reason: z.enum(FAILURE_REASONS),
+    note: z.string().trim().max(300).optional(),
+    /** Photo at the door; required when the customer did not answer */
+    photoId: id.optional(),
+  })
+  .refine((b) => b.reason !== 'other' || (b.note && b.note.length >= 3), {
+    message: 'note_required',
+    path: ['note'],
+  });
+
+/** What happens to an order after a failed attempt. */
+export const failedOrderDecisionSchema = z.discriminatedUnion('action', [
+  z.object({ action: z.literal('retry') }),
+  z.object({
+    action: z.enum(['ship_normally', 'cancel']),
+    reason: z.string().trim().max(300).optional(),
+  }),
+]);
+export type FailedOrderDecision = z.infer<typeof failedOrderDecisionSchema>;
 
 export const completeDeliverySchema = z
   .object({

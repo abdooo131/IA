@@ -204,7 +204,7 @@ describe('fees on orders', () => {
 
   it('charges the failed delivery fee and leaves no cash with the rider', async () => {
     const { delivery } = await outForDelivery(1);
-    await failDelivery(prisma, { deliveryId: delivery.id, riderUserId, reason: 'no_answer' });
+    await failDelivery(prisma, { deliveryId: delivery.id, riderUserId, reason: 'wrong_address' });
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(-(2500 + share(2500, 1400)));
     expect(await riderCash(prisma, riderId)).toBe(0);
   });

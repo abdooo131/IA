@@ -6,6 +6,7 @@ export type NotificationType =
   | 'order_items_cancelled'
   | 'order_moved_to_standard'
   | 'order_delivered'
+  | 'order_attempt_failed'
   | 'order_failed'
   | 'order_cancelled';
 

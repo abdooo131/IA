@@ -2,14 +2,17 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   acceptOrder,
   cancelOrder,
+  checkFailedDeliveries,
   completeDelivery,
   createOrder,
+  decideFailedOrder,
   failDelivery,
   flagLateOrders,
   handToRider,
   markItemMissing,
   packOrder,
   pickOrderItem,
+  recordDeliveryCall,
   returnToStore,
 } from '../src/orders';
 import { savePhoto } from '../src/photos';
@@ -550,21 +553,189 @@ describe('delivery', () => {
     });
   });
 
-  it('records a failed delivery and takes the goods back into the held bin once', async () => {
+  const doorPhoto = async () =>
+    (
+      await savePhoto(prisma, {
+        kind: 'delivery',
+        contentType: 'image/jpeg',
+        data: Buffer.from('door'),
+        actorUserId: riderUser,
+      })
+    ).id;
+  const statusOf = async (id: string) =>
+    (await prisma.order.findUniqueOrThrow({ where: { id } })).status;
+  const back = (id: string) =>
+    returnToStore(prisma, { orderId: id, darkStoreId: f.store.id, actorUserId: staff });
+
+  it('needs two calls and a door photo before "no answer", and a note for "other"', async () => {
+    const { delivery } = await outForDelivery();
+    const fail = (extra: Partial<Parameters<typeof failDelivery>[1]>) =>
+      failDelivery(prisma, {
+        deliveryId: delivery.id,
+        riderUserId: riderUser,
+        reason: 'no_answer',
+        ...extra,
+      });
+    await expect(fail({})).rejects.toMatchObject({ code: 'calls_required' });
+    expect(
+      await recordDeliveryCall(prisma, { deliveryId: delivery.id, riderUserId: riderUser }),
+    ).toMatchObject({ calls: 1, phone: '+201012345678' });
+    await recordDeliveryCall(prisma, { deliveryId: delivery.id, riderUserId: riderUser });
+    await expect(fail({})).rejects.toMatchObject({ code: 'photo_required' });
+    await expect(fail({ reason: 'other' })).rejects.toMatchObject({ code: 'note_required' });
+    expect(await fail({ photoId: await doorPhoto() })).toMatchObject({
+      status: 'attempt_failed',
+      attempt: 1,
+      maxAttempts: 2,
+    });
+  });
+
+  it('keeps the goods with the order for a retry, then fails for good after the last attempt', async () => {
     const { id, delivery } = await outForDelivery();
     await failDelivery(prisma, {
       deliveryId: delivery.id,
       riderUserId: riderUser,
-      reason: 'no_answer',
+      reason: 'wrong_address',
     });
-    expect((await prisma.order.findUniqueOrThrow({ where: { id } })).status).toBe('failed');
+    expect(await statusOf(id)).toBe('attempt_failed');
     const held = await prisma.bin.findFirstOrThrow({
       where: { darkStoreId: f.store.id, type: 'held' },
     });
-    await returnToStore(prisma, { orderId: id, darkStoreId: f.store.id, actorUserId: staff });
-    await returnToStore(prisma, { orderId: id, darkStoreId: f.store.id, actorUserId: staff });
+    // Retrying before the goods are back is refused.
+    await expect(
+      decideFailedOrder(prisma, { orderId: id, decision: { action: 'retry' }, actorUserId: staff }),
+    ).rejects.toMatchObject({ code: 'goods_not_back' });
+    // Goods back: they stay with the order, no stock moves.
+    expect(await back(id)).toMatchObject({ keptForRetry: true, units: 0 });
+    await back(id);
+    expect(await binQty(held.id, f.sku.id)).toBe(0);
+    await decideFailedOrder(prisma, {
+      orderId: id,
+      decision: { action: 'retry' },
+      actorUserId: staff,
+    });
+    expect(await statusOf(id)).toBe('packed');
+
+    // Second and last attempt.
+    await handToRider(prisma, {
+      orderId: id,
+      darkStoreId: f.store.id,
+      badgeCode: 'RDR-1',
+      actorUserId: staff,
+    });
+    const second = await prisma.delivery.findFirstOrThrow({
+      where: { orderId: id, status: 'picked_up' },
+    });
+    expect(
+      await failDelivery(prisma, {
+        deliveryId: second.id,
+        riderUserId: riderUser,
+        reason: 'reschedule_requested',
+      }),
+    ).toMatchObject({ status: 'failed', attempt: 2 });
+    expect(await statusOf(id)).toBe('failed');
+    await back(id);
+    await back(id);
     expect(await binQty(held.id, f.sku.id)).toBe(2);
-    expect(await prisma.alert.count({ where: { type: 'delivery_failed' } })).toBe(1);
+    expect(await prisma.alert.count({ where: { type: 'delivery_failed' } })).toBe(2);
+    const notes = await prisma.notification.findMany({ orderBy: { createdAt: 'asc' } });
+    expect(notes.map((x) => x.type)).toEqual(
+      expect.arrayContaining(['order_attempt_failed', 'order_failed']),
+    );
+  });
+
+  it('fails at once when the customer refused', async () => {
+    const { id, delivery } = await outForDelivery();
+    await failDelivery(prisma, {
+      deliveryId: delivery.id,
+      riderUserId: riderUser,
+      reason: 'refused',
+    });
+    expect(await statusOf(id)).toBe('failed');
+  });
+
+  it('lets the merchant end it: goods already back go to the held bin', async () => {
+    const { id, delivery } = await outForDelivery();
+    await failDelivery(prisma, {
+      deliveryId: delivery.id,
+      riderUserId: riderUser,
+      reason: 'wrong_address',
+    });
+    await back(id);
+    await expect(
+      decideFailedOrder(prisma, {
+        orderId: id,
+        decision: { action: 'cancel' },
+        actorUserId: staff,
+        merchantId: 'someone-else',
+      }),
+    ).rejects.toMatchObject({ code: 'order_not_found' });
+    expect(
+      await decideFailedOrder(prisma, {
+        orderId: id,
+        decision: { action: 'ship_normally', reason: 'customer will collect' },
+        actorUserId: staff,
+        merchantId: f.merchant.id,
+      }),
+    ).toMatchObject({ status: 'failed', goodsBack: true });
+    const o = await prisma.order.findUniqueOrThrow({ where: { id } });
+    expect(o).toMatchObject({
+      status: 'failed',
+      closedReason: 'ship_normally: customer will collect',
+    });
+    const held = await prisma.bin.findFirstOrThrow({
+      where: { darkStoreId: f.store.id, type: 'held' },
+    });
+    expect(await binQty(held.id, f.sku.id)).toBe(2);
+  });
+
+  it('closes undecided orders after the hold and alerts once when goods are not back', async () => {
+    const { id, delivery } = await outForDelivery();
+    const failedAt = new Date();
+    await failDelivery(prisma, {
+      deliveryId: delivery.id,
+      riderUserId: riderUser,
+      reason: 'unreachable_area',
+      now: failedAt,
+    });
+    const later = (minutes: number) => new Date(failedAt.getTime() + minutes * 60_000);
+    expect(await checkFailedDeliveries(prisma, later(60))).toEqual({ closed: 0, alerted: 0 });
+    expect(await checkFailedDeliveries(prisma, later(121))).toEqual({ closed: 0, alerted: 1 });
+    expect(await checkFailedDeliveries(prisma, later(122))).toEqual({ closed: 0, alerted: 0 });
+    // The goods come back: the alert is resolved.
+    await back(id);
+    expect(
+      await prisma.alert.count({ where: { type: 'goods_not_returned', resolvedAt: null } }),
+    ).toBe(0);
+    // Nobody decided within 48 hours.
+    expect(await checkFailedDeliveries(prisma, later(48 * 60 + 1))).toEqual({
+      closed: 1,
+      alerted: 0,
+    });
+    expect(await prisma.order.findUniqueOrThrow({ where: { id } })).toMatchObject({
+      status: 'failed',
+      closedReason: 'hold_expired',
+    });
+    expect(await checkFailedDeliveries(prisma, later(48 * 60 + 2))).toEqual({
+      closed: 0,
+      alerted: 0,
+    });
+  });
+
+  it('honours store settings for attempts', async () => {
+    await setSetting(prisma, {
+      key: 'delivery.max_attempts',
+      scope: f.store.id,
+      value: 1,
+      actorUserId: null,
+    });
+    const { id, delivery } = await outForDelivery();
+    await failDelivery(prisma, {
+      deliveryId: delivery.id,
+      riderUserId: riderUser,
+      reason: 'wrong_address',
+    });
+    expect(await statusOf(id)).toBe('failed');
   });
 });
 

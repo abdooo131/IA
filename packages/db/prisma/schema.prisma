@@ -479,6 +479,8 @@ enum OrderStatus {
   picking
   packed
   out_for_delivery
+  /// A delivery attempt failed and another is allowed: waiting for the goods and a decision
+  attempt_failed
   delivered
   cancelled
   failed
@@ -546,6 +548,8 @@ model Order {
   closedReason              String?       @map("closed_reason")
   /// The stage that is currently late (accept, pick, pack, handover, ride), if any
   lateStage                 String?       @map("late_stage")
+  /// While attempt_failed: the order ends as failed if nobody retries it by then
+  retryHoldUntil            DateTime?     @map("retry_hold_until")
   packPhotoId               String?       @map("pack_photo_id")
   createdById               String?       @map("created_by_id")
   createdAt                 DateTime      @default(now()) @map("created_at")
@@ -649,15 +653,22 @@ model Delivery {
   deliveredAt          DateTime?      @map("delivered_at")
   failedAt             DateTime?      @map("failed_at")
   failedReason         String?        @map("failed_reason")
+  /// Times the rider called the customer from the app on this attempt
+  callAttempts         Int            @default(0) @map("call_attempts")
+  /// Photo at the door when the customer did not answer
+  failedPhotoId        String?        @map("failed_photo_id")
+  /// When staff took the goods of a failed attempt back at the store
+  returnedAt           DateTime?      @map("returned_at")
   proofPhotoId         String?        @map("proof_photo_id")
   otpVerified          Boolean        @default(false) @map("otp_verified")
   /// What the rider had to collect when the order left the store
   codExpectedPiastres  Int            @default(0) @map("cod_expected_piastres")
   codCollectedPiastres Int?           @map("cod_collected_piastres")
 
-  order      Order  @relation(fields: [orderId], references: [id])
-  rider      Rider  @relation(fields: [riderId], references: [id])
-  proofPhoto Photo? @relation("delivery_proof_photo", fields: [proofPhotoId], references: [id])
+  order       Order  @relation(fields: [orderId], references: [id])
+  rider       Rider  @relation(fields: [riderId], references: [id])
+  proofPhoto  Photo? @relation("delivery_proof_photo", fields: [proofPhotoId], references: [id])
+  failedPhoto Photo? @relation("delivery_failed_photo", fields: [failedPhotoId], references: [id])
 
   @@index([riderId, status])
   @@index([orderId])
@@ -683,9 +694,10 @@ model Photo {
   createdById String?   @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
 
-  createdBy  User?      @relation("photo_created_by", fields: [createdById], references: [id], onDelete: Restrict)
-  packedFor  Order[]    @relation("order_pack_photo")
-  deliveries Delivery[] @relation("delivery_proof_photo")
+  createdBy        User?      @relation("photo_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  packedFor        Order[]    @relation("order_pack_photo")
+  deliveries       Delivery[] @relation("delivery_proof_photo")
+  failedDeliveries Delivery[] @relation("delivery_failed_photo")
 
   @@map("photos")
 }

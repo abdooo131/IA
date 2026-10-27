@@ -4,6 +4,9 @@ import type { OrderStatus, PaymentMethod, Prisma } from '@prisma/client';
 import {
   ACTIVE_STATUSES,
   currentStageDue,
+  type FailedOrderDecision,
+  FINAL_FAILURE_REASONS,
+  type FailureReason,
   newDeliveryOtp,
   normalizeEgyptianPhone,
 } from '@shiplynow/shared';
@@ -736,61 +739,170 @@ export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
   });
 }
 
-/** The rider could not deliver. The goods come back to the store (see returnToStore). */
-export function failDelivery(
-  db: Db,
-  input: { deliveryId: string; riderUserId: string; reason: string; note?: string; now?: Date },
-) {
+/** The rider called the customer from the app; counted as proof before a "no answer" report. */
+export function recordDeliveryCall(db: Db, input: { deliveryId: string; riderUserId: string }) {
+  return inTransaction(db, async (tx) => {
+    const { delivery, order } = await lockDelivery(tx, input.deliveryId, input.riderUserId);
+    const updated = await tx.delivery.update({
+      where: { id: delivery.id },
+      data: { callAttempts: { increment: 1 } },
+    });
+    await addEvent(tx, order.id, 'customer_called', input.riderUserId, {
+      data: { attempt: updated.callAttempts },
+    });
+    return { calls: updated.callAttempts, phone: order.customerPhone };
+  });
+}
+
+export interface FailDeliveryInput {
+  deliveryId: string;
+  riderUserId: string;
+  reason: FailureReason;
+  note?: string;
+  photoId?: string;
+  now?: Date;
+}
+
+/**
+ * The rider could not deliver. While attempts remain (delivery.max_attempts) and the customer
+ * did not refuse, the order waits in attempt_failed for the goods to come back and for a
+ * decision (decideFailedOrder) until delivery.retry_hold_hours; otherwise it fails for good.
+ * The failed delivery fee and Shopify's FAILURE event happen on every attempt.
+ */
+export function failDelivery(db: Db, input: FailDeliveryInput) {
   return inTransaction(db, async (tx) => {
     const now = input.now ?? new Date();
     const { delivery, order } = await lockDelivery(tx, input.deliveryId, input.riderUserId);
+    if (input.reason === 'no_answer') {
+      const calls = await getSetting(tx, 'delivery.min_calls_no_answer', order.darkStoreId);
+      if (delivery.callAttempts < calls) throw new DomainError('calls_required', 400);
+      if (!input.photoId) throw new DomainError('photo_required', 400);
+    }
+    if (input.reason === 'other' && !input.note) throw new DomainError('note_required', 400);
+    if (input.photoId) {
+      const photo = await tx.photo.findUnique({
+        where: { id: input.photoId },
+        select: { kind: true },
+      });
+      if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
+    }
     await tx.delivery.update({
       where: { id: delivery.id },
       data: {
         status: 'failed',
         failedAt: now,
         failedReason: input.note ? `${input.reason}: ${input.note}` : input.reason,
+        failedPhotoId: input.photoId ?? null,
       },
     });
-    await moveStatus(
-      tx,
-      order,
-      'failed',
-      ['out_for_delivery'],
-      input.riderUserId,
-      'delivery_failed',
-      { closedAt: now, closedReason: input.reason, lateStage: null },
-      { reason: input.reason, note: input.note ?? null },
-    );
+    const attempts = await tx.delivery.count({ where: { orderId: order.id, status: 'failed' } });
+    const maxAttempts = await getSetting(tx, 'delivery.max_attempts', order.darkStoreId);
+    const retry = attempts < maxAttempts && !FINAL_FAILURE_REASONS.includes(input.reason);
+    const details = {
+      reason: input.reason,
+      note: input.note ?? null,
+      attempt: attempts,
+      maxAttempts,
+    };
+    if (retry) {
+      const holdHours = await getSetting(tx, 'delivery.retry_hold_hours', order.darkStoreId);
+      const holdUntil = new Date(now.getTime() + holdHours * 3_600_000);
+      await moveStatus(
+        tx,
+        order,
+        'attempt_failed',
+        ['out_for_delivery'],
+        input.riderUserId,
+        'delivery_attempt_failed',
+        { retryHoldUntil: holdUntil, lateStage: null },
+        { ...details, holdUntil: holdUntil.toISOString() },
+      );
+      await notifyMerchant(tx, order.merchantId, 'order_attempt_failed', {
+        orderId: order.id,
+        number: order.number,
+        reason: input.reason,
+        attempt: attempts,
+        maxAttempts,
+        holdUntil: holdUntil.toISOString(),
+      });
+    } else {
+      await moveStatus(
+        tx,
+        order,
+        'failed',
+        ['out_for_delivery'],
+        input.riderUserId,
+        'delivery_failed',
+        { closedAt: now, closedReason: input.reason, lateStage: null },
+        details,
+      );
+      await notifyMerchant(tx, order.merchantId, 'order_failed', {
+        orderId: order.id,
+        number: order.number,
+        reason: input.reason,
+        attempt: attempts,
+      });
+    }
     await tx.alert.create({
       data: {
         type: 'delivery_failed',
         darkStoreId: order.darkStoreId,
         orderId: order.id,
-        data: { reason: input.reason },
+        data: { reason: input.reason, attempt: attempts, final: !retry },
       },
-    });
-    await notifyMerchant(tx, order.merchantId, 'order_failed', {
-      orderId: order.id,
-      number: order.number,
-      reason: input.reason,
     });
     await postDeliveryFailed(tx, { deliveryId: delivery.id, actorUserId: input.riderUserId, now });
     await queueShopify(tx, order, 'failed', `delivery:${delivery.id}:failed`, {
       reason: input.reason,
       at: now.toISOString(),
     });
+    return { status: retry ? 'attempt_failed' : 'failed', attempt: attempts, maxAttempts };
   });
 }
 
-/** Staff took back the goods of a failed delivery. They go to the held bin to be checked. */
+/** The latest failed attempt of an order, if any. */
+function lastFailedDelivery(tx: Tx, orderId: string) {
+  return tx.delivery.findFirst({
+    where: { orderId, status: 'failed' },
+    orderBy: { failedAt: 'desc' },
+  });
+}
+
+/**
+ * Staff took back the goods of a failed attempt. While a retry is still possible the goods
+ * stay with the order (no stock change); once the order has failed for good they go to the
+ * held bin to be checked. Safe to tap twice.
+ */
 export function returnToStore(
   db: Db,
-  input: { orderId: string; darkStoreId: string; actorUserId: Actor },
+  input: { orderId: string; darkStoreId: string; actorUserId: Actor; now?: Date },
 ) {
   return inTransaction(db, async (tx) => {
+    const now = input.now ?? new Date();
     const order = await lockOrder(tx, input.orderId, input.darkStoreId);
-    if (order.status !== 'failed') throw new DomainError('invalid_order_state');
+    if (order.status !== 'failed' && order.status !== 'attempt_failed')
+      throw new DomainError('invalid_order_state');
+    const last = await lastFailedDelivery(tx, order.id);
+    if (last && !last.returnedAt) {
+      await tx.delivery.update({ where: { id: last.id }, data: { returnedAt: now } });
+      await tx.alert.updateMany({
+        where: { orderId: order.id, type: 'goods_not_returned', resolvedAt: null },
+        data: { resolvedAt: now },
+      });
+    }
+    if (order.status === 'attempt_failed') {
+      if (last && !last.returnedAt) {
+        await addEvent(tx, order.id, 'goods_back_for_retry', input.actorUserId);
+        await recordAudit(tx, {
+          actorUserId: input.actorUserId,
+          action: 'order.goods_back_for_retry',
+          entityType: 'order',
+          entityId: order.id,
+          after: { deliveryId: last.id },
+        });
+      }
+      return { bin: null, units: 0, keptForRetry: true };
+    }
     const returned = await returnPickedUnits(tx, order, input.actorUserId, 'returned');
     if (returned.units > 0) {
       await addEvent(tx, order.id, 'returned_to_store', input.actorUserId, { data: returned });
@@ -802,8 +914,137 @@ export function returnToStore(
         after: returned,
       });
     }
-    return returned;
+    return { ...returned, keptForRetry: false };
   });
+}
+
+/** Ends an order waiting after a failed attempt: it fails for good and its goods go to held if back. */
+async function endFailedOrder(
+  tx: Tx,
+  order: Awaited<ReturnType<typeof lockOrder>>,
+  actor: Actor,
+  outcome: 'ship_normally' | 'cancel' | 'hold_expired',
+  reason: string | undefined,
+  now: Date,
+) {
+  const last = await lastFailedDelivery(tx, order.id);
+  const goodsBack = Boolean(last?.returnedAt);
+  const returned = goodsBack
+    ? await returnPickedUnits(tx, order, actor, 'returned')
+    : { bin: null, units: 0 };
+  await moveStatus(
+    tx,
+    order,
+    'failed',
+    ['attempt_failed'],
+    actor,
+    'failed_order_closed',
+    {
+      closedAt: now,
+      closedReason: reason ? `${outcome}: ${reason}` : outcome,
+      retryHoldUntil: null,
+    },
+    { outcome, reason: reason ?? null, returnedUnits: returned.units, bin: returned.bin },
+  );
+  await notifyMerchant(tx, order.merchantId, 'order_failed', {
+    orderId: order.id,
+    number: order.number,
+    outcome,
+    goodsBack,
+  });
+  return { status: 'failed' as const, outcome, goodsBack };
+}
+
+/**
+ * After a failed attempt the merchant, staff or admin decide: try again (the goods must be
+ * back in the store; the order returns to packed for a new handover), ship it normally
+ * (the merchant's own courier) or cancel. The last two end the order as failed.
+ */
+export function decideFailedOrder(
+  db: Db,
+  input: {
+    orderId: string;
+    decision: FailedOrderDecision;
+    actorUserId: Actor;
+    darkStoreId?: string;
+    merchantId?: string;
+    now?: Date;
+  },
+) {
+  return inTransaction(db, async (tx) => {
+    const now = input.now ?? new Date();
+    const order = await lockOrder(tx, input.orderId, input.darkStoreId);
+    if (input.merchantId && order.merchantId !== input.merchantId)
+      throw new DomainError('order_not_found', 404);
+    if (order.status !== 'attempt_failed') throw new DomainError('invalid_order_state');
+    const decision = input.decision;
+    if (decision.action !== 'retry')
+      return endFailedOrder(tx, order, input.actorUserId, decision.action, decision.reason, now);
+    const last = await lastFailedDelivery(tx, order.id);
+    if (!last?.returnedAt) throw new DomainError('goods_not_back');
+    await moveStatus(
+      tx,
+      order,
+      'packed',
+      ['attempt_failed'],
+      input.actorUserId,
+      'delivery_retry',
+      { packedAt: now, retryHoldUntil: null, lateStage: null },
+      { attempt: (await tx.delivery.count({ where: { orderId: order.id } })) + 1 },
+    );
+    return { status: 'packed' as const };
+  });
+}
+
+/**
+ * Background check after failed attempts, safe to run twice: orders nobody decided on by
+ * retry_hold_until fail for good, and goods not back within delivery.return_alert_minutes
+ * raise one goods_not_returned alert per attempt.
+ */
+export async function checkFailedDeliveries(db: Db, now: Date = new Date()) {
+  const expired = await db.order.findMany({
+    where: { status: 'attempt_failed', retryHoldUntil: { lt: now } },
+    select: { id: true },
+  });
+  let closed = 0;
+  for (const { id: orderId } of expired) {
+    await inTransaction(db, async (tx) => {
+      const order = await lockOrder(tx, orderId);
+      if (order.status !== 'attempt_failed' || !order.retryHoldUntil || order.retryHoldUntil >= now)
+        return;
+      await endFailedOrder(tx, order, null, 'hold_expired', undefined, now);
+      closed++;
+    });
+  }
+
+  const pending = await db.delivery.findMany({
+    where: { status: 'failed', returnedAt: null, failedAt: { not: null } },
+    include: { order: { select: { id: true, darkStoreId: true, number: true } } },
+  });
+  let alerted = 0;
+  const alertAfter = new Map<string, number>();
+  for (const d of pending) {
+    let minutes = alertAfter.get(d.order.darkStoreId);
+    if (minutes === undefined) {
+      minutes = await getSetting(db, 'delivery.return_alert_minutes', d.order.darkStoreId);
+      alertAfter.set(d.order.darkStoreId, minutes);
+    }
+    if (d.failedAt!.getTime() + minutes * 60_000 > now.getTime()) continue;
+    const created = await db.alert.createMany({
+      data: [
+        {
+          type: 'goods_not_returned',
+          darkStoreId: d.order.darkStoreId,
+          orderId: d.order.id,
+          stage: d.id,
+          data: { deliveryId: d.id, riderId: d.riderId, failedAt: d.failedAt!.toISOString() },
+        },
+      ],
+      skipDuplicates: true,
+    });
+    alerted += created.count;
+  }
+  return { closed, alerted };
 }
 
 // ─── SLA ───────────────────────────────────────────────────────────────────────

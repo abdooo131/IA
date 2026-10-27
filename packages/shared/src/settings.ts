@@ -72,6 +72,30 @@ export const SETTING_DEFINITIONS = {
       'Most orders one rider may carry in one trip, when all of them stay inside the SLA',
     override: 'store',
   },
+  'delivery.max_attempts': {
+    schema: z.number().int().min(1).max(5),
+    default: 2,
+    description: 'Delivery attempts per order before it finally fails',
+    override: 'store',
+  },
+  'delivery.retry_hold_hours': {
+    schema: z.number().int().min(1).max(168),
+    default: 48,
+    description: 'Hours a failed attempt waits for a retry decision before the order finally fails',
+    override: 'store',
+  },
+  'delivery.return_alert_minutes': {
+    schema: minutes,
+    default: 120,
+    description: 'Minutes after a failed attempt before admin is alerted that the goods are not back',
+    override: 'store',
+  },
+  'delivery.min_calls_no_answer': {
+    schema: z.number().int().min(0).max(5),
+    default: 2,
+    description: 'Calls the rider must make from the app before reporting that the customer did not answer',
+    override: 'store',
+  },
   'fee.order_fixed_piastres': {
     schema: piastres,
     default: 0,
