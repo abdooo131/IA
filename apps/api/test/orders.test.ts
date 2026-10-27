@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
+import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { JobsService } from '../src/jobs/jobs.service';
@@ -110,6 +111,22 @@ describe('orders end to end', () => {
     expect(done.body.events.map((e: { type: string }) => e.type)).toContain('handed_to_rider');
     // The merchant can see the pack photo of their own order.
     await merchant.get(`/photos/${photo.body.id}`).expect(200).expect('content-type', 'image/jpeg');
+
+    // The merchant's home page numbers count this delivery, and only their own orders.
+    // Orders are stamped with the real time while this test's clock is fixed, so ask for that day.
+    const day = cairoDay(new Date());
+    const kpis = await merchant
+      .get('/merchant/orders/kpis')
+      .query({ from: day, to: day })
+      .expect(200);
+    expect(kpis.body.totals).toMatchObject({
+      orders: 1,
+      delivered: 1,
+      codCollectedPiastres: expected,
+    });
+    expect(kpis.body.perDay).toHaveLength(1);
+    expect(kpis.body).not.toHaveProperty('perMerchant');
+    await staff.get('/merchant/orders/kpis').expect(403);
   });
 
   it('refuses 60 minute delivery outside the zones or when the store is closed', async () => {

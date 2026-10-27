@@ -618,7 +618,8 @@
       "notifications": "Notifications",
       "orders": "Orders",
       "wallet": "Wallet",
-      "delivery": "60 minute delivery"
+      "delivery": "60 minute delivery",
+      "home": "Home and shipments"
     },
     "shipments": {
       "title": "Shipments",
@@ -729,6 +730,21 @@
       "ruleOpen": "That store is open and has room for more orders.",
       "ruleStock": "Every item in the cart is in stock at that store.",
       "ruleOtherwise": "Otherwise customers see only your normal delivery rates."
+    },
+    "home": {
+      "title": "Home",
+      "period": "Last 14 days",
+      "orders": "Orders",
+      "delivered": "Delivered",
+      "onTime": "On time",
+      "cancelledFailed": "Cancelled or failed",
+      "perDay": "Orders per day",
+      "dayDetail": "{date}: {orders} orders, {delivered} delivered",
+      "owed": "We owe you",
+      "owes": "You owe us",
+      "codCollected": "Cash collected for you",
+      "amount": "EGP {amount}",
+      "newShipment": "Send stock to a dark store"
     }
   },
   "shipment": {

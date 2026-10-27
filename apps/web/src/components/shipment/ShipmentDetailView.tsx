@@ -4,6 +4,7 @@ import { localized } from '@/lib/admin-types';
 import { formatCairoDateTime } from '@/lib/format';
 import type { ShipmentDetail } from '@/lib/shipment-types';
 import { title } from '@/lib/store-types';
+import { ShipmentStatusChip } from './ShipmentStatusChip';
 
 /** The full story of one shipment, shared by the merchant panel and admin. */
 export async function ShipmentDetailView({
@@ -13,11 +14,7 @@ export async function ShipmentDetailView({
   detail: ShipmentDetail;
   backHref: string;
 }) {
-  const [t, statuses, locale] = await Promise.all([
-    getTranslations('shipment'),
-    getTranslations('merchant.shipments.statuses'),
-    getLocale(),
-  ]);
+  const [t, locale] = await Promise.all([getTranslations('shipment'), getLocale()]);
   const when = (iso: string | null) =>
     iso ? <span className="ltr-iso">{formatCairoDateTime(iso, locale)}</span> : '—';
   const expected = detail.lines.reduce((s, l) => s + l.expectedQty, 0);
@@ -38,9 +35,7 @@ export async function ShipmentDetailView({
           {t('title', { reference: '' })}
           <span className="ltr-iso">{detail.reference}</span>
         </h1>
-        <span className="rounded-pill border border-line px-2.5 py-0.5 text-caption">
-          {statuses(detail.status)}
-        </span>
+        <ShipmentStatusChip status={detail.status} />
       </div>
       <p className="text-body-sm text-text-muted">{t('totals', { received, expected })}</p>
 

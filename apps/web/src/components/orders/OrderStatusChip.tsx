@@ -17,19 +17,24 @@ const LOOK: Record<OrderStatus, { color: string; icon: string }> = {
   moved_to_standard: { color: 'text-status-needs-action', icon: 'route' },
 };
 
+/** The chip background is the status color at 14%, as the handoff specifies. */
+export const TINT = 'bg-[color-mix(in_srgb,currentColor_14%,transparent)]';
+
 export function OrderStatusChip({ status, late }: { status: OrderStatus; late?: boolean }) {
   const t = useTranslations('orders');
   const look = LOOK[status];
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5">
       <span
-        className={`inline-flex items-center gap-1.5 rounded-pill border border-line bg-surface px-2.5 py-1 text-caption font-bold ${look.color}`}
+        className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-caption font-bold ${TINT} ${look.color}`}
       >
         <Icon name={look.icon} />
         <span className="text-text">{t(`statuses.${status}`)}</span>
       </span>
       {late && (
-        <span className="inline-flex items-center gap-1.5 rounded-pill border border-line bg-surface px-2.5 py-1 text-caption font-bold text-status-needs-action">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-pill px-2.5 py-1 text-caption font-bold ${TINT} text-status-needs-action`}
+        >
           <Icon name="alert" />
           <span className="text-text">{t('late')}</span>
         </span>

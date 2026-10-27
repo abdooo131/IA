@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { type AdminStore, localized } from '@/lib/admin-types';
+import { ShipmentStatusChip } from '@/components/shipment/ShipmentStatusChip';
 import { apiGet } from '@/lib/api-server';
 import { formatCairoDateTime } from '@/lib/format';
 
@@ -129,7 +130,9 @@ export default async function AdminShipmentsPage({
                   <td className="ltr-iso px-3 py-2 text-end">
                     {r.receivedUnits} / {r.expectedUnits}
                   </td>
-                  <td className="px-3 py-2 text-caption">{statuses(r.status)}</td>
+                  <td className="px-3 py-2">
+                    <ShipmentStatusChip status={r.status} />
+                  </td>
                 </tr>
               ))}
             </tbody>

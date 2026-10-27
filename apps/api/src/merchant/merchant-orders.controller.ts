@@ -2,6 +2,7 @@ import { Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   cancelOrder,
+  computeKpis,
   DomainError,
   getOrderDetail,
   listOrders,
@@ -15,6 +16,8 @@ import {
   type OrderStatus,
 } from '@shiplynow/shared';
 import { CurrentUser, Roles } from '../auth/decorators';
+import { Clock } from '../common/clock';
+import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { OrderIntakeService } from '../orders/order-intake.service';
 import { PrismaService } from '../prisma/prisma.service';
@@ -27,12 +30,30 @@ export class MerchantOrdersController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly intake: OrderIntakeService,
+    private readonly clock: Clock,
   ) {}
 
   private async merchantIdOf(user: AccessTokenClaims) {
     const me = await this.prisma.user.findUnique({ where: { id: user.sub } });
     if (!me?.merchantId) throw new ForbiddenException({ error: 'no_merchant' });
     return me.merchantId;
+  }
+
+  /** The merchant's own numbers for their home page: totals and orders per day. */
+  @Get('kpis')
+  @ApiQuery({ name: 'from', required: false, description: 'Cairo day, default 13 days ago' })
+  @ApiQuery({ name: 'to', required: false, description: 'Cairo day, included, default today' })
+  async kpis(
+    @CurrentUser() user: AccessTokenClaims,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const merchantId = await this.merchantIdOf(user);
+    const kpis = await computeKpis(this.prisma, {
+      ...parseRange(from, to, this.clock.now(), 13),
+      merchantId,
+    });
+    return { from: kpis.from, to: kpis.to, totals: kpis.totals, perDay: kpis.perDay };
   }
 
   @Get()

@@ -618,7 +618,8 @@
       "notifications": "الإشعارات",
       "orders": "الطلبات",
       "wallet": "المحفظة",
-      "delivery": "توصيل 60 دقيقة"
+      "delivery": "توصيل 60 دقيقة",
+      "home": "الرئيسية والشحنات"
     },
     "shipments": {
       "title": "الشحنات",
@@ -729,6 +730,21 @@
       "ruleOpen": "المخزن ده فاتح وعنده مكان لطلبات أكتر.",
       "ruleStock": "كل المنتجات اللي في السلة موجودة في المخزن ده.",
       "ruleOtherwise": "غير كده العميل بيشوف أسعار التوصيل العادية بتاعتك بس."
+    },
+    "home": {
+      "title": "الرئيسية",
+      "period": "آخر 14 يوم",
+      "orders": "الطلبات",
+      "delivered": "اتسلمت",
+      "onTime": "في المعاد",
+      "cancelledFailed": "اتلغت أو فشلت",
+      "perDay": "الطلبات كل يوم",
+      "dayDetail": "{date}: {orders} طلب، {delivered} اتسلم",
+      "owed": "ليك عندنا",
+      "owes": "عليك لينا",
+      "codCollected": "كاش اتحصّل لحسابك",
+      "amount": "{amount} جنيه",
+      "newShipment": "ابعت بضاعة لمخزن"
     }
   },
   "shipment": {

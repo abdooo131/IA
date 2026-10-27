@@ -11,6 +11,7 @@ import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
 import type { Kpis, KpiTotals, LiveStore, SettingsList } from '@/lib/dashboard-types';
 import { formatCount, formatEgp } from '@/lib/format';
+import { fillDays, shortDay } from '@/lib/kpi-days';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,12 +46,7 @@ export default async function AdminOverviewPage({
     const s = settings.settings.find((x) => x.key === key);
     return s ? (s.global ?? s.default) : null;
   };
-  // Every day in the range gets a column, so quiet days show as zero instead of vanishing.
-  const days: Kpis['perDay'] = [];
-  for (let d = from; d <= to && days.length < 92; d = addDays(d, 1))
-    days.push(
-      kpis.perDay.find((x) => x.date === d) ?? { date: d, orders: 0, delivered: 0, onTime: 0 },
-    );
+  const days = fillDays(kpis.perDay, from, to);
   const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
   const mins = (v: number | null) => (v === null ? '–' : t('minutes', { value: v }));
   const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
@@ -199,7 +195,7 @@ export default async function AdminOverviewPage({
                 valueLabel={t('orders')}
                 columns={days.map((d) => ({
                   key: d.date,
-                  label: `${d.date.slice(8, 10)}/${d.date.slice(5, 7)}`,
+                  label: shortDay(d.date),
                   value: d.orders,
                   detail: t('dayDetail', {
                     date: d.date,
