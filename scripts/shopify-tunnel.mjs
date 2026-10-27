@@ -40,13 +40,16 @@ const url = origin.origin;
 function askHidden(question) {
   return new Promise((resolve) => {
     const rl = createInterface({ input: process.stdin, output: process.stdout, terminal: true });
-    process.stdout.write(question);
-    rl._writeToOutput = () => {};
-    rl.question('', (answer) => {
+    let muted = false;
+    rl._writeToOutput = (text) => {
+      if (!muted) process.stdout.write(text);
+    };
+    rl.question(question, (answer) => {
       rl.close();
       process.stdout.write('\n');
       resolve(answer.trim());
     });
+    muted = true;
   });
 }
 
