@@ -267,7 +267,8 @@
         "shopify_rejected": "طلب شوبيفاي {order} رجع للتاجر: {reason}",
         "over_capacity": "الطلب {order} وصل والمخزن مليان",
         "shopify_sync_failed": "مقدرناش نحدّث شوبيفاي ({kind}): {error}",
-        "shopify_wrong_store": "طلب شوبيفاي {order} اختار توصيل الـ 60 دقيقة {rate} لكن وصل لمخزن {store}"
+        "shopify_wrong_store": "طلب شوبيفاي {order} اختار توصيل الـ 60 دقيقة {rate} لكن وصل لمخزن {store}",
+        "server_error": "مشكلة في السيرفر في {source}: {message} (اتكررت {count} مرة)"
       },
       "handledBy": "اتعامل معاه {name}"
     },

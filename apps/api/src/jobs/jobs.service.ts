@@ -1,3 +1,4 @@
+import { ErrorReporter } from '../common/error-reporter';
 import {
   Injectable,
   Logger,
@@ -31,6 +32,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   constructor(
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
+    private readonly reporter: ErrorReporter,
   ) {}
 
   onApplicationBootstrap() {
@@ -71,7 +73,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
         { timeout: 25_000 },
       );
     } catch (error) {
-      this.log.error(`SLA check failed: ${(error as Error).message}`);
+      await this.reporter.report('job: SLA check', error);
       return null;
     } finally {
       this.running = false;
@@ -103,7 +105,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       }
       return result;
     } catch (error) {
-      this.log.error(`Storage charge failed: ${(error as Error).message}`);
+      await this.reporter.report('job: storage charge', error);
       return null;
     }
   }

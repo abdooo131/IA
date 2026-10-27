@@ -2,7 +2,9 @@ import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
 import { type NextFunction, raw, type Request, type Response } from 'express';
-import { DomainErrorFilter } from './common/domain-error.filter';
+import { HttpAdapterHost } from '@nestjs/core';
+import { AppErrorFilter } from './common/domain-error.filter';
+import { ErrorReporter } from './common/error-reporter';
 import type { Env } from './config/env';
 
 /** Shared by main.ts and the tests so both run the same middleware. */
@@ -26,7 +28,9 @@ export function setupApp(app: INestApplication) {
     ['/shopify/fs', '/shopify/webhooks', '/shopify/rates'],
     raw({ type: () => true, limit: '1mb' }),
   );
-  app.useGlobalFilters(new DomainErrorFilter());
+  app.useGlobalFilters(
+    new AppErrorFilter(app.get(HttpAdapterHost).httpAdapter, app.get(ErrorReporter)),
+  );
   app.enableCors({ origin: config.get('WEB_ORIGIN', { infer: true }), credentials: true });
   app.enableShutdownHooks();
 }

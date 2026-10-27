@@ -267,7 +267,8 @@
         "shopify_rejected": "Shopify order {order} sent back to the merchant: {reason}",
         "over_capacity": "Order {order} came in while the store was full",
         "shopify_sync_failed": "Could not update Shopify ({kind}): {error}",
-        "shopify_wrong_store": "Shopify order {order} chose the 60 minute rate {rate} but landed at store {store}"
+        "shopify_wrong_store": "Shopify order {order} chose the 60 minute rate {rate} but landed at store {store}",
+        "server_error": "Server problem in {source}: {message} (seen {count} times)"
       },
       "handledBy": "Handled by {name}"
     },

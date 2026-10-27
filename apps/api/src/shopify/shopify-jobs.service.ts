@@ -1,3 +1,4 @@
+import { ErrorReporter } from '../common/error-reporter';
 import {
   Injectable,
   Logger,
@@ -31,6 +32,7 @@ export class ShopifyJobsService implements OnApplicationBootstrap, OnApplication
     private readonly orders: ShopifyOrdersService,
     private readonly sync: ShopifySyncService,
     private readonly config: ConfigService<Env, true>,
+    private readonly reporter: ErrorReporter,
   ) {}
 
   onApplicationBootstrap() {
@@ -73,7 +75,7 @@ export class ShopifyJobsService implements OnApplicationBootstrap, OnApplication
       const stock = await this.sync.pushStock(shop);
       return { outbox, requests, stock };
     } catch (error) {
-      this.log.error(`${shop.shopDomain}: ${(error as Error).message}`);
+      await this.reporter.report(`job: Shopify sync ${shop.shopDomain}`, error);
       await this.shopify.record(shop.id, {
         direction: 'out',
         kind: 'sync',

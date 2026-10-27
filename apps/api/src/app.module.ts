@@ -1,3 +1,4 @@
+import { ErrorReporterModule } from './common/error-reporter';
 import path from 'node:path';
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
@@ -18,6 +19,7 @@ import { UsersController } from './users/users.controller';
 
 @Module({
   imports: [
+    ErrorReporterModule,
     ConfigModule.forRoot({
       isGlobal: true,
       // The single .env lives at the repo root. Real environment variables win over it.
