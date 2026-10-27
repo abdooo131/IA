@@ -7,6 +7,7 @@ services:
     plan: free
     region: frankfurt
     dockerfilePath: ./Dockerfile
+    branch: ShiplyNow
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
@@ -23,4 +24,9 @@ services:
       - key: SEED_DEMO_PASSWORD
         sync: false
       - key: GOOGLE_MAPS_API_KEY
+        sync: false
+      # Shopify app (client ID is public; the secret is entered only in Render)
+      - key: SHOPIFY_API_KEY
+        value: f861196e9ba7d2e755655e4e29132d82
+      - key: SHOPIFY_API_SECRET
         sync: false
