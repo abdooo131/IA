@@ -72,6 +72,8 @@ export default async function NotificationsPage() {
         link: t('openReturn'),
       };
     }
+    if (n.type === 'account_approved')
+      return { title: t('account_approved'), lines: [], href: null, link: null };
     if (n.type === 'damage_settled') {
       const amount = Number(d.compensationPiastres ?? 0);
       return {

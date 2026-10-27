@@ -36,8 +36,12 @@
       "invalid_credentials": "Wrong email or password.",
       "validation": "Enter a valid email and your password.",
       "network": "Something went wrong. Try again.",
-      "too_many_attempts": "Too many wrong passwords. Wait 15 minutes, then try again."
-    }
+      "too_many_attempts": "Too many wrong passwords. Wait 15 minutes, then try again.",
+      "account_pending": "Your application is still being reviewed. We will open your account soon.",
+      "account_rejected": "Your application was not approved. Contact us for details."
+    },
+    "newMerchant": "New merchant?",
+    "applyLink": "Apply for Shiply Now"
   },
   "areas": {
     "admin": {
@@ -274,7 +278,8 @@
         "shopify_wrong_store": "Shopify order {order} chose the 60 minute rate {rate} but landed at store {store}",
         "server_error": "Server problem in {source}: {message} (seen {count} times)",
         "goods_not_returned": "Goods of a failed delivery are not back in the store",
-        "low_rating": "Customer gave {stars} stars"
+        "low_rating": "Customer gave {stars} stars",
+        "merchant_signup": "New merchant application: {name}"
       },
       "handledBy": "Handled by {name}"
     },
@@ -423,6 +428,15 @@
       "errors": {
         "validation_failed": "Check the fields.",
         "generic": "Something went wrong. Try again."
+      },
+      "signups": {
+        "title": "{count, plural, one {# application waiting} other {# applications waiting}}",
+        "approve": "Approve",
+        "reject": "Reject",
+        "reason": "Why (sent with the refusal)",
+        "confirmReject": "Reject application",
+        "back": "Back",
+        "error": "Could not save. Refresh and try again."
       }
     },
     "productsEdit": {
@@ -718,7 +732,8 @@
       "damage_settled": "Damaged {sku} × {quantity}: {cause}",
       "damage_paid": "We credited your wallet EGP {amount}.",
       "damage_yours": "This damage is on the merchant; no credit.",
-      "openDamage": "See damage reports"
+      "openDamage": "See damage reports",
+      "account_approved": "Welcome to Shiply Now, your account is open"
     },
     "orders": {
       "title": "Orders",
@@ -791,6 +806,18 @@
       "newShipment": "Send stock to a dark store",
       "rating": "Customer rating",
       "ratingCount": "{count, plural, =0 {No ratings yet} one {# rating} other {# ratings}}"
+    },
+    "onboarding": {
+      "title": "Get ready for your first 60 minute order",
+      "left": "{count, plural, one {# step left} other {# steps left}}",
+      "done": "done",
+      "todo": "to do",
+      "steps": {
+        "products": "Add your products",
+        "price": "Set your 60 minute delivery price",
+        "shopify": "Connect your Shopify store",
+        "shipment": "Send your first shipment to a dark store"
+      }
     }
   },
   "shipment": {
@@ -1438,6 +1465,31 @@
       "note_required": "Write why you changed the cause.",
       "rider_charge_not_allowed": "Only delivery damage with a rider can be charged to the rider.",
       "damage_already_settled": "Someone already settled this.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "signup": {
+    "title": "Apply as a merchant",
+    "subtitle": "60 minute delivery from our dark stores in Greater Cairo. We review every application before opening the account.",
+    "businessName": "Business name",
+    "contactName": "Your name",
+    "email": "Work email",
+    "phone": "Mobile (Egypt)",
+    "password": "Password (at least 10 characters)",
+    "shopDomain": "Shopify store address (optional)",
+    "submit": "Send application",
+    "done": "Thank you. We received your application and will review it soon. You can sign in once it is approved.",
+    "haveAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "errors": {
+      "email_taken": "This email already has an account.",
+      "phone_taken": "This mobile already has an account.",
+      "too_many_attempts": "Too many applications from here. Try again later.",
+      "validation": "Check the fields and try again.",
+      "phone_invalid": "Enter an Egyptian mobile number (010, 011, 012 or 015).",
+      "password_short": "The password needs at least 10 characters.",
+      "shop_invalid": "Use your store's myshopify.com address.",
+      "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
     }
   }

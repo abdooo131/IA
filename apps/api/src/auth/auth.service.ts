@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { hashPassword, type User, verifyPassword } from '@shiplynow/db';
@@ -43,7 +43,18 @@ export class AuthService {
       throw invalidCredentials();
     }
     const ok = await verifyPassword(user.passwordHash, input.password);
-    if (!ok || !user.isActive) throw invalidCredentials();
+    if (!ok) throw invalidCredentials();
+    if (!user.isActive) {
+      // Only someone who knows the password learns that a sign up is waiting or refused.
+      const merchant = user.merchantId
+        ? await this.prisma.merchant.findUnique({ where: { id: user.merchantId } })
+        : null;
+      if (merchant?.approval === 'pending')
+        throw new ForbiddenException({ error: 'account_pending' });
+      if (merchant?.approval === 'rejected')
+        throw new ForbiddenException({ error: 'account_rejected' });
+      throw invalidCredentials();
+    }
 
     return { user, tokens: await this.issueTokens(user) };
   }

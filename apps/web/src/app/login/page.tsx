@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { redirect } from 'next/navigation';
+import Link from 'next/link';
 import { Logo } from '@/components/Logo';
 import { PreferencesMenu } from '@/components/PreferencesMenu';
 import { homeFor, safeNext } from '@/lib/access';
@@ -32,6 +33,12 @@ export default async function LoginPage({
           <h1 className="mt-6 text-h3">{t('login.title')}</h1>
           <p className="mt-1 text-body-sm text-text-muted">{t('login.subtitle')}</p>
           <LoginForm next={next} />
+          <p className="mt-6 text-center text-body-sm text-text-muted">
+            {t('login.newMerchant')}{' '}
+            <Link href="/signup" className="font-bold text-link underline">
+              {t('login.applyLink')}
+            </Link>
+          </p>
         </div>
       </main>
     </div>

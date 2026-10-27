@@ -102,3 +102,4 @@ export {
   type ReportDamageInput,
   type SettleDamageInput,
 } from './damage';
+export { decideSignUp, onboardingSteps, signUpMerchant, type SignUpInput } from './signup';

@@ -6,7 +6,13 @@ import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { homeFor } from '@/lib/access';
 
-type ErrorKey = 'invalid_credentials' | 'too_many_attempts' | 'validation' | 'network';
+type ErrorKey =
+  | 'invalid_credentials'
+  | 'too_many_attempts'
+  | 'validation'
+  | 'network'
+  | 'account_pending'
+  | 'account_rejected';
 
 const inputBase =
   'mt-1 block h-10 w-full rounded-md border bg-surface px-3 text-body text-text placeholder:text-text-muted';
@@ -37,6 +43,11 @@ export function LoginForm({ next }: { next: string | null }) {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(parsed.data),
       });
+      if (res.status === 403) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        setError(body.error === 'account_rejected' ? 'account_rejected' : 'account_pending');
+        return;
+      }
       if (!res.ok) {
         setError(
           res.status === 401

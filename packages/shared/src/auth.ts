@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { ROLES } from './roles';
+import { egyptianPhoneSchema } from './phone';
 
 export const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -29,3 +30,19 @@ export interface AccessTokenClaims {
 
 export const ACCESS_TOKEN_COOKIE = 'shiply_at';
 export const REFRESH_TOKEN_COOKIE = 'shiply_rt';
+
+/** A merchant's application from the public sign up page. */
+export const signUpSchema = z.object({
+  businessName: z.string().trim().min(2).max(120),
+  contactName: z.string().trim().min(2).max(120),
+  email: z.string().trim().toLowerCase().email(),
+  phone: egyptianPhoneSchema,
+  password: passwordSchema,
+  shopDomain: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/)
+    .optional(),
+});
+export type SignUpBody = z.infer<typeof signUpSchema>;

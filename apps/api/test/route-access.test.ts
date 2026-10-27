@@ -61,7 +61,7 @@ describe('route access', () => {
     // the customer's tracking page (its unguessable token is the key).
     for (const route of publicRoutes)
       expect(route).toMatch(
-        /^(auth\/(login|refresh|logout)|health|coverage|shopify\/|track\/:token)/,
+        /^(auth\/(login|refresh|logout|signup)|health|coverage|shopify\/|track\/:token)/,
       );
   });
 });

@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   createMerchant,
   createSku,
+  decideSignUp,
   importSkus,
   type SkuImportResult,
   updateMerchant,
@@ -20,10 +21,12 @@ import {
   type UpdateSkuBody,
   updateSkuSchema,
 } from '@shiplynow/shared';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
+
+const rejectSchema = z.object({ reason: z.string().trim().min(2).max(300) });
 
 @ApiTags('admin')
 @ApiBearerAuth()
@@ -49,6 +52,26 @@ export class AdminMerchantsController {
   ) {
     await updateMerchant(this.prisma, { ...body, merchantId: id, actorUserId: user.sub });
     return { id };
+  }
+
+  /** A self sign up: approve opens the account, reject needs a reason. */
+  @Post('merchants/:id/approve')
+  approve(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return decideSignUp(this.prisma, { merchantId: id, approve: true, actorUserId: user.sub });
+  }
+
+  @Post('merchants/:id/reject')
+  reject(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(rejectSchema)) body: z.infer<typeof rejectSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return decideSignUp(this.prisma, {
+      merchantId: id,
+      approve: false,
+      reason: body.reason,
+      actorUserId: user.sub,
+    });
   }
 
   @Post('skus')

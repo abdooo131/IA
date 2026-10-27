@@ -5,6 +5,7 @@ import {
   createManifest,
   DomainError,
   getManifestDetail,
+  onboardingSteps,
   recordAudit,
 } from '@shiplynow/db';
 import {
@@ -46,6 +47,13 @@ export class MerchantController {
       where: { merchantId: merchant.id, readAt: null },
     });
     return { merchant: { id: merchant.id, name: merchant.name }, unreadNotifications: unread };
+  }
+
+  /** The first steps a new merchant still has to take, for the checklist on the home page. */
+  @Get('onboarding')
+  async onboarding(@CurrentUser() user: AccessTokenClaims) {
+    const merchant = await this.merchantOf(user);
+    return onboardingSteps(this.prisma, merchant.id);
   }
 
   /** The merchant's own 60 minute delivery price. Only the merchant can change it. */

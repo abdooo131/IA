@@ -3,6 +3,10 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/charts/ColumnChart';
 import { CancelShipmentButton } from '@/components/merchant/CancelShipmentButton';
+import {
+  OnboardingChecklist,
+  type OnboardingSteps,
+} from '@/components/merchant/OnboardingChecklist';
 import { ShipmentStatusChip } from '@/components/shipment/ShipmentStatusChip';
 import { StatCard } from '@/components/StatCard';
 import { WalletCard } from '@/components/WalletCard';
@@ -19,7 +23,7 @@ export const dynamic = 'force-dynamic';
 export default async function ShipmentsPage() {
   const today = cairoDay(new Date());
   const from = addDays(today, -13);
-  const [shipments, kpis, wallet, t, th, locale] = await Promise.all([
+  const [shipments, kpis, wallet, t, th, locale, steps] = await Promise.all([
     apiGet<MerchantShipment[]>('/merchant/manifests'),
     apiGet<{ totals: KpiTotals; perDay: DayCount[] }>(
       `/merchant/orders/kpis?from=${from}&to=${today}`,
@@ -28,6 +32,7 @@ export default async function ShipmentsPage() {
     getTranslations('merchant.shipments'),
     getTranslations('merchant.home'),
     getLocale(),
+    apiGet<OnboardingSteps>('/merchant/onboarding'),
   ]);
   const k = kpis.totals;
   const pct = (v: number | null) => (v === null ? '–' : `${Math.round(v * 100)}%`);
@@ -35,6 +40,7 @@ export default async function ShipmentsPage() {
     <>
       <h1 className="text-h2">{th('title')}</h1>
       <p className="mt-1 text-body-sm text-text-muted">{th('period')}</p>
+      <OnboardingChecklist steps={steps} />
       <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-5">
         <StatCard icon="orders" label={th('orders')} value={formatCount(k.orders)} />
         <StatCard

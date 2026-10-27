@@ -10,6 +10,9 @@ export interface AdminMerchant {
   id: string;
   name: string;
   isActive: boolean;
+  approval: 'pending' | 'approved' | 'rejected';
+  rejectReason: string | null;
+  createdAt: string;
   contactEmail: string | null;
   contactPhone: string | null;
   shopifyShopDomain: string | null;

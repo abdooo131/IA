@@ -184,20 +184,31 @@ model Zone {
 
 // ─── Catalog ───────────────────────────────────────────────────────────────────
 
+/// Merchants created by admin start approved; self sign ups wait for admin.
+enum MerchantApproval {
+  pending
+  approved
+  rejected
+
+  @@map("merchant_approval")
+}
+
 model Merchant {
-  id                   String         @id @default(cuid())
+  id                   String           @id @default(cuid())
   name                 String
   /// myshop.myshopify.com, set when the Shopify app is installed
-  shopifyShopDomain    String?        @unique @map("shopify_shop_domain")
-  contactEmail         String?        @map("contact_email")
-  contactPhone         String?        @map("contact_phone")
-  isActive             Boolean        @default(true) @map("is_active")
+  shopifyShopDomain    String?          @unique @map("shopify_shop_domain")
+  contactEmail         String?          @map("contact_email")
+  contactPhone         String?          @map("contact_phone")
+  isActive             Boolean          @default(true) @map("is_active")
   /// How often finance pays this merchant the COD collected after fees
-  payoutSchedule       PayoutSchedule @default(weekly) @map("payout_schedule")
+  payoutSchedule       PayoutSchedule   @default(weekly) @map("payout_schedule")
   /// The merchant's own 60 minute delivery price shown at checkout; null means not offered
-  expressPricePiastres Int?           @map("express_price_piastres")
-  createdAt            DateTime       @default(now()) @map("created_at")
-  updatedAt            DateTime       @updatedAt @map("updated_at")
+  expressPricePiastres Int?             @map("express_price_piastres")
+  approval             MerchantApproval @default(approved)
+  rejectReason         String?          @map("reject_reason")
+  createdAt            DateTime         @default(now()) @map("created_at")
+  updatedAt            DateTime         @updatedAt @map("updated_at")
 
   skus             Sku[]
   inboundManifests InboundManifest[]

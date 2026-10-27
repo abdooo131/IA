@@ -18,13 +18,15 @@ import {
   ApiTooManyRequestsResponse,
   ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
-import type { User } from '@shiplynow/db';
+import { signUpMerchant, type User } from '@shiplynow/db';
 import {
   ACCESS_TOKEN_COOKIE,
   type AccessTokenClaims,
   type LoginInput,
   loginSchema,
   REFRESH_TOKEN_COOKIE,
+  type SignUpBody,
+  signUpSchema,
 } from '@shiplynow/shared';
 import type { CookieOptions, Request, Response } from 'express';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -33,6 +35,7 @@ import { AuthService, type IssuedTokens, toPublicUser } from './auth.service';
 import { clientAddress, LoginThrottleService } from './login-throttle.service';
 import { CurrentUser, Public } from './decorators';
 import { AuthResponseDto, LoginBody, MeResponseDto } from './dto';
+import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('auth')
 @Controller('auth')
@@ -41,6 +44,7 @@ export class AuthController {
     private readonly auth: AuthService,
     private readonly config: ConfigService<Env, true>,
     private readonly throttle: LoginThrottleService,
+    private readonly prisma: PrismaService,
   ) {}
 
   @Public()
@@ -65,6 +69,16 @@ export class AuthController {
       if (error instanceof UnauthorizedException) this.throttle.failed(body.email, address);
       throw error;
     }
+  }
+
+  /** A merchant applies; the account opens once admin approves it. */
+  @Public()
+  @Post('signup')
+  @ApiTooManyRequestsResponse({ description: 'too_many_attempts' })
+  async signUp(@Body(new ZodValidationPipe(signUpSchema)) body: SignUpBody, @Req() req: Request) {
+    this.throttle.signUp(clientAddress(req.headers['x-forwarded-for'], req.socket.remoteAddress));
+    await signUpMerchant(this.prisma, body);
+    return { status: 'pending' };
   }
 
   @Public()

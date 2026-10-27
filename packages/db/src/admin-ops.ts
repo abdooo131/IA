@@ -78,7 +78,7 @@ function uniqueViolation(error: unknown): string | null {
   return null;
 }
 
-async function mapUnique<T>(work: () => Promise<T>): Promise<T> {
+export async function mapUnique<T>(work: () => Promise<T>): Promise<T> {
   try {
     return await work();
   } catch (error) {

@@ -51,6 +51,20 @@ export class LoginThrottleService {
   succeeded(email: string) {
     this.failures.delete(`account:${email.toLowerCase()}`);
   }
+
+  /** Merchant sign ups: at most 5 per address in the window, counted whether or not they work. */
+  signUp(address: string | null) {
+    const key = `signup:${address ?? 'unknown'}`;
+    const list = this.recent(key);
+    if (list.length >= 5) {
+      const retryAfterSeconds = Math.ceil((list[0]! + WINDOW_MS - this.now()) / 1000);
+      throw new HttpException(
+        { error: 'too_many_attempts', retryAfterSeconds },
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    this.failures.set(key, [...list, this.now()]);
+  }
 }
 
 /**
