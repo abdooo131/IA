@@ -45,7 +45,7 @@ export class StoreController {
   @Get(':storeId/summary')
   async summary(@Param('storeId') storeId: string, @CurrentUser() user: AccessTokenClaims) {
     const store = await this.access.check(user, storeId);
-    const [openManifests, receivingUnits, pendingCounts, activeOrders, lateOrders] =
+    const [openManifests, receivingUnits, pendingCounts, activeOrders, lateOrders, openReturns] =
       await Promise.all([
         this.prisma.inboundManifest.count({
           where: { darkStoreId: storeId, status: { in: ['expected', 'receiving'] } },
@@ -65,6 +65,9 @@ export class StoreController {
             lateStage: { not: null },
           },
         }),
+        this.prisma.merchantReturn.count({
+          where: { darkStoreId: storeId, status: { in: ['requested', 'picking', 'ready'] } },
+        }),
       ]);
     return {
       store: { id: store.id, code: store.code, nameEn: store.nameEn, nameAr: store.nameAr },
@@ -73,6 +76,7 @@ export class StoreController {
       pendingCounts,
       activeOrders,
       lateOrders,
+      openReturns,
     };
   }
 

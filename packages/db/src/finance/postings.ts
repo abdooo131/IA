@@ -137,6 +137,28 @@ export async function postReceivingFee(
   });
 }
 
+/** Units sent back to the merchant are charged per unit when the parcel is collected. */
+export async function postReturnFee(
+  tx: Tx,
+  input: { returnId: string; actorUserId: string | null; now: Date },
+) {
+  const ret = await tx.merchantReturn.findUniqueOrThrow({
+    where: { id: input.returnId },
+    include: { lines: true },
+  });
+  const units = ret.lines.reduce((s, l) => s + l.pickedQty, 0);
+  const perUnit = await getMerchantSetting(tx, 'fee.return_per_unit_piastres', ret.merchantId);
+  await post(tx, {
+    kind: 'return_fee',
+    idempotencyKey: `return:${ret.id}:return_fee`,
+    occurredAt: input.now,
+    createdById: input.actorUserId,
+    memo: ret.reference,
+    data: { returnId: ret.id, units, perUnitPiastres: perUnit },
+    lines: await feeLines(tx, ret.merchantId, units * perUnit),
+  });
+}
+
 /**
  * Charges storage for one Cairo day: the units each merchant has in each store (every
  * bin, sellable or not) times the monthly rate divided by the days in that month. Run

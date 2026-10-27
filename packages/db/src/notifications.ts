@@ -8,7 +8,8 @@ export type NotificationType =
   | 'order_delivered'
   | 'order_attempt_failed'
   | 'order_failed'
-  | 'order_cancelled';
+  | 'order_cancelled'
+  | 'return_collected';
 
 /**
  * Records a notification for a merchant, shown in the merchant panel. This is the one

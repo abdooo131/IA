@@ -81,7 +81,8 @@
       "audit": "Audit log",
       "finance": "Finance",
       "shopify": "Shopify",
-      "backToAdmin": "Back to admin"
+      "backToAdmin": "Back to admin",
+      "returns": "Returns to merchants"
     },
     "overview": {
       "title": "Overview",
@@ -550,7 +551,9 @@
       "back": "Back",
       "orders": "Orders",
       "ordersHint": "{active} active · {late} late",
-      "homeTab": "Home"
+      "homeTab": "Home",
+      "returns": "Returns to merchants",
+      "returnsHint": "{count, plural, =0 {Nothing to send back} one {# return to pick} other {# returns to pick}}"
     },
     "receive": {
       "title": "Receive",
@@ -634,7 +637,8 @@
       "orders": "Orders",
       "wallet": "Wallet",
       "delivery": "60 minute delivery",
-      "home": "Home and shipments"
+      "home": "Home and shipments",
+      "returns": "Take stock back"
     },
     "shipments": {
       "title": "Shipments",
@@ -700,7 +704,9 @@
       "order_failed": "Order {number}: delivery failed",
       "cancelledLine": "{sku} × {quantity}",
       "openOrder": "Open the order",
-      "other": "Update"
+      "other": "Update",
+      "return_collected": "Return {reference}: {units} units collected by {by}",
+      "openReturn": "Open the return"
     },
     "orders": {
       "title": "Orders",
@@ -1050,7 +1056,8 @@
       "rider_bonus_payout": "Bonus paid to rider",
       "adjustment": "Adjustment",
       "opening_balance": "Opening balance",
-      "closing_balance": "Closing balance"
+      "closing_balance": "Closing balance",
+      "return_fee": "Return to merchant fee"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1320,5 +1327,66 @@
     "from": "Delivered by Shiply Now from {store}",
     "notFound": "This tracking link is not valid. Check the link in your order email.",
     "unavailable": "Tracking is not available right now. Try again in a minute."
+  },
+  "returns": {
+    "title": "Returns to merchants",
+    "storeTitle": "Returns to merchants",
+    "new": "Take stock back",
+    "intro": "Ask for units back from a dark store. Sellable units are held for you at once, so they stop selling.",
+    "empty": "No returns yet.",
+    "storeEmpty": "No returns waiting.",
+    "reference": "Reference",
+    "merchant": "Merchant",
+    "store": "Dark store",
+    "status": "Status",
+    "units": "Units",
+    "created": "Requested",
+    "collected": "Collected",
+    "note": "Note (optional)",
+    "cancelReason": "Cancel reason",
+    "allStatuses": "All statuses",
+    "apply": "Apply",
+    "statuses": {
+      "requested": "Requested",
+      "picking": "Picking",
+      "ready": "Ready to collect",
+      "collected": "Collected",
+      "cancelled": "Cancelled"
+    },
+    "sources": {
+      "sellable": "Sellable",
+      "damaged": "Damaged",
+      "held": "Held"
+    },
+    "max": "{count} there",
+    "loading": "Loading…",
+    "nothingInStore": "You have no units in this store.",
+    "feeHint": "A return fee per unit may apply, as agreed in your fees.",
+    "submit": "{count, plural, =0 {Choose units} one {Ask for # unit back} other {Ask for # units back}}",
+    "cancel": "Cancel return",
+    "cancelConfirm": "Cancel this return? The units go back on sale.",
+    "pickedOf": "{picked} of {total} units picked",
+    "scanToPick": "Scan a shelf (optional) then each product",
+    "binNow": "Taking from",
+    "anyBin": "any bin that has it",
+    "fromBin": "Taking from {bin}",
+    "picked": "Picked {sku} from {bin}",
+    "where": "Where",
+    "collectedBy": "Collected by (name)",
+    "handOver": "Hand over",
+    "handedOver": "Handed over. The merchant is notified.",
+    "errors": {
+      "not_enough_available": "Not that many units are free in this store. Lower the quantity.",
+      "validation_failed": "Check the quantities.",
+      "duplicate_sku": "A product is listed twice.",
+      "return_not_cancellable": "Staff already started picking this return; it can no longer be cancelled.",
+      "over_pick": "That product is already fully picked for this return.",
+      "sku_not_on_return": "That product is not on this return.",
+      "not_on_shelf": "This bin does not have that product. Scan the bin where it is.",
+      "bin_not_allowed": "Returns are not taken from this bin.",
+      "invalid_return_state": "This return is not open for that step.",
+      "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    }
   }
 }

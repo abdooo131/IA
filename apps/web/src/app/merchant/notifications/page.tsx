@@ -56,6 +56,19 @@ export default async function NotificationsPage() {
             : t('line', { sku: l.sku, before: l.before ?? 0, after: l.after ?? 0 }),
         ),
         href: null,
+        link: null,
+      };
+    }
+    if (n.type === 'return_collected') {
+      return {
+        title: t('return_collected', {
+          reference: String(d.reference ?? ''),
+          units: Number(d.units ?? 0),
+          by: String(d.collectedBy ?? ''),
+        }),
+        lines: [],
+        href: typeof d.returnId === 'string' ? `/merchant/returns/${d.returnId}` : null,
+        link: t('openReturn'),
       };
     }
     if (ORDER_TYPES.includes(n.type)) {
@@ -77,9 +90,10 @@ export default async function NotificationsPage() {
           ...extra,
         ],
         href: typeof d.orderId === 'string' ? `/merchant/orders/${d.orderId}` : null,
+        link: t('openOrder'),
       };
     }
-    return { title: t('other'), lines: [], href: null };
+    return { title: t('other'), lines: [], href: null, link: null };
   }
 
   return (
@@ -110,7 +124,7 @@ export default async function NotificationsPage() {
                 <div className="mt-2 flex flex-wrap items-center gap-3">
                   {note.href && (
                     <Link href={note.href} className="text-body-sm text-link underline">
-                      {t('openOrder')}
+                      {note.link}
                     </Link>
                   )}
                   {!n.readAt && <MarkReadButton id={n.id} />}

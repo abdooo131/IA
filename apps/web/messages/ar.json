@@ -81,7 +81,8 @@
       "audit": "سجل التغييرات",
       "finance": "المالية",
       "shopify": "شوبيفاي",
-      "backToAdmin": "رجوع للإدارة"
+      "backToAdmin": "رجوع للإدارة",
+      "returns": "مرتجعات للتجار"
     },
     "overview": {
       "title": "نظرة عامة",
@@ -550,7 +551,9 @@
       "back": "رجوع",
       "orders": "الطلبات",
       "ordersHint": "{active} شغالة · {late} متأخرة",
-      "homeTab": "الرئيسية"
+      "homeTab": "الرئيسية",
+      "returns": "مرتجعات للتجار",
+      "returnsHint": "{count, plural, =0 {مفيش حاجة ترجع} one {مرتجع واحد يتجهز} other {# مرتجعات تتجهز}}"
     },
     "receive": {
       "title": "استلام",
@@ -634,7 +637,8 @@
       "orders": "الطلبات",
       "wallet": "المحفظة",
       "delivery": "توصيل 60 دقيقة",
-      "home": "الرئيسية والشحنات"
+      "home": "الرئيسية والشحنات",
+      "returns": "استرجاع بضاعة"
     },
     "shipments": {
       "title": "الشحنات",
@@ -700,7 +704,9 @@
       "order_failed": "الطلب {number}: التوصيل فشل",
       "cancelledLine": "{sku} × {quantity}",
       "openOrder": "افتح الطلب",
-      "other": "تحديث"
+      "other": "تحديث",
+      "return_collected": "مرتجع {reference}: {units} قطعة استلمها {by}",
+      "openReturn": "افتح المرتجع"
     },
     "orders": {
       "title": "الطلبات",
@@ -1050,7 +1056,8 @@
       "rider_bonus_payout": "حافز اتصرف للمندوب",
       "adjustment": "تسوية",
       "opening_balance": "رصيد أول المدة",
-      "closing_balance": "رصيد آخر المدة"
+      "closing_balance": "رصيد آخر المدة",
+      "return_fee": "رسوم الإرجاع للتاجر"
     },
     "accounts": {
       "merchant": "محفظة التاجر",
@@ -1320,5 +1327,66 @@
     "from": "وصّلها شيبلي ناو من {store}",
     "notFound": "لينك المتابعة ده مش صحيح. راجع اللينك في إيميل طلبك.",
     "unavailable": "المتابعة مش متاحة دلوقتي. جرّب كمان دقيقة."
+  },
+  "returns": {
+    "title": "مرتجعات للتجار",
+    "storeTitle": "مرتجعات للتجار",
+    "new": "استرجاع بضاعة",
+    "intro": "اطلب قطع ترجعلك من مخزن. القطع اللي ممكن تتباع بتتحجز ليك فورا فتقف عن البيع.",
+    "empty": "مفيش مرتجعات لسه.",
+    "storeEmpty": "مفيش مرتجعات مستنية.",
+    "reference": "المرجع",
+    "merchant": "التاجر",
+    "store": "المخزن",
+    "status": "الحالة",
+    "units": "القطع",
+    "created": "اتطلب",
+    "collected": "اتستلم",
+    "note": "ملاحظة (اختياري)",
+    "cancelReason": "سبب الإلغاء",
+    "allStatuses": "كل الحالات",
+    "apply": "تطبيق",
+    "statuses": {
+      "requested": "اتطلب",
+      "picking": "بيتجهز",
+      "ready": "جاهز للاستلام",
+      "collected": "اتستلم",
+      "cancelled": "اتلغى"
+    },
+    "sources": {
+      "sellable": "قابل للبيع",
+      "damaged": "تالف",
+      "held": "محجوز"
+    },
+    "max": "موجود {count}",
+    "loading": "بيحمّل…",
+    "nothingInStore": "مالكش قطع في المخزن ده.",
+    "feeHint": "ممكن يكون في رسوم إرجاع لكل قطعة حسب رسومك المتفق عليها.",
+    "submit": "{count, plural, =0 {اختار القطع} one {اطلب قطعة واحدة} other {اطلب # قطع}}",
+    "cancel": "إلغاء المرتجع",
+    "cancelConfirm": "تلغي المرتجع ده؟ القطع هترجع للبيع.",
+    "pickedOf": "اتجهز {picked} من {total} قطعة",
+    "scanToPick": "امسح الرف (اختياري) وبعدين كل منتج",
+    "binNow": "بناخد من",
+    "anyBin": "أي مكان فيه المنتج",
+    "fromBin": "بناخد من {bin}",
+    "picked": "اتجهز {sku} من {bin}",
+    "where": "مكانه",
+    "collectedBy": "استلمه (الاسم)",
+    "handOver": "سلّم",
+    "handedOver": "اتسلم. التاجر وصله إشعار.",
+    "errors": {
+      "not_enough_available": "العدد ده مش متاح في المخزن. قلل الكمية.",
+      "validation_failed": "راجع الكميات.",
+      "duplicate_sku": "في منتج متكرر.",
+      "return_not_cancellable": "الفريق بدأ يجهز المرتجع ده؛ مينفعش يتلغي.",
+      "over_pick": "المنتج ده اتجهز كله للمرتجع ده.",
+      "sku_not_on_return": "المنتج ده مش في المرتجع ده.",
+      "not_on_shelf": "المكان ده مفيهوش المنتج ده. امسح المكان اللي هو فيه.",
+      "bin_not_allowed": "المرتجعات مش بتتاخد من المكان ده.",
+      "invalid_return_state": "المرتجع ده مش مفتوح للخطوة دي.",
+      "network": "مفيش اتصال. جرّب تاني.",
+      "generic": "حصلت مشكلة. جرّب تاني."
+    }
   }
 }

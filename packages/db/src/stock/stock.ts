@@ -50,6 +50,10 @@ export interface PickInput extends Common {
   binId: string;
   orderId?: string;
 }
+export interface DispatchInput extends Common {
+  binId: string;
+  returnId?: string;
+}
 export interface AdjustInput extends Omit<Common, 'quantity'> {
   binId: string;
   /** Positive to add units, negative to remove them */
@@ -204,6 +208,40 @@ export async function pick(db: Db, input: PickInput): Promise<StockResult> {
   });
 }
 
+/**
+ * Units leave the store for good (back to the merchant). From a pickable shelf they must
+ * have been reserved first, so the units come off on_hand and reserved together; from a
+ * damaged or held bin only the bin changes.
+ */
+export async function dispatch(db: Db, input: DispatchInput): Promise<StockResult> {
+  assertQuantity(input.quantity);
+  return run(db, input, async (tx) => {
+    const bin = await loadBin(tx, input.binId);
+    if (bin.type === 'receiving') throw new StockError('bin_not_allowed');
+    const movement = await insertMovement(tx, input, {
+      type: 'dispatch',
+      darkStoreId: bin.darkStoreId,
+      fromBinId: bin.id,
+      returnId: input.returnId,
+    });
+    const binAfter = await takeFromBin(tx, bin.id, input.skuId, input.quantity);
+    const level =
+      bin.type === 'pickable'
+        ? await changeLevel(
+            tx,
+            bin.darkStoreId,
+            input.skuId,
+            -input.quantity,
+            -input.quantity,
+            'insufficient_reserved',
+          )
+        : null;
+    const sellable = bin.type === 'pickable' ? -input.quantity : 0;
+    await audit(tx, movement, level, sellable, sellable, { [bin.code]: binAfter });
+    return { movement, level };
+  });
+}
+
 /** Corrects a bin after a count or a mistake. Cannot remove units that orders reserved. */
 export async function adjust(db: Db, input: AdjustInput): Promise<StockResult> {
   if (!Number.isInteger(input.delta) || input.delta === 0) throw new StockError('invalid_quantity');
@@ -292,6 +330,7 @@ function insertMovement(
     toBinId?: string | null;
     orderId?: string;
     manifestId?: string;
+    returnId?: string;
   },
 ) {
   return tx.stockMovement.create({

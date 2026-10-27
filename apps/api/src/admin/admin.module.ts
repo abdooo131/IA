@@ -11,6 +11,7 @@ import { AdminOrdersController } from './admin-orders.controller';
 import { OrdersModule } from '../orders/orders.module';
 import { AdminStoresController } from './admin-stores.controller';
 import { AdminZonesController } from './admin-zones.controller';
+import { AdminReturnsController } from './admin-returns.controller';
 
 @Module({
   imports: [CoverageModule, OrdersModule],
@@ -25,6 +26,7 @@ import { AdminZonesController } from './admin-zones.controller';
     AdminSettingsController,
     AdminUsersController,
     AdminMerchantsController,
+    AdminReturnsController,
   ],
 })
 export class AdminModule {}

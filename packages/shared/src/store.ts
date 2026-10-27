@@ -45,3 +45,32 @@ export const createManifestSchema = z.object({
     .max(200),
 });
 export type CreateManifestBody = z.infer<typeof createManifestSchema>;
+
+export const STOCK_SOURCES = ['sellable', 'damaged', 'held'] as const;
+export const RETURN_STATUSES = ['requested', 'picking', 'ready', 'collected', 'cancelled'] as const;
+
+/** A merchant asks for units back from one store. */
+export const createReturnSchema = z.object({
+  darkStoreId: id,
+  note: z.string().trim().max(500).optional(),
+  lines: z
+    .array(z.object({ skuId: id, source: z.enum(STOCK_SOURCES), quantity }))
+    .min(1)
+    .max(200),
+});
+export type CreateReturnBody = z.infer<typeof createReturnSchema>;
+
+/** Staff scan a product (optionally after the bin) for a return. */
+export const returnPickSchema = z.object({
+  skuId: id,
+  binId: id.optional(),
+  quantity: quantity.default(1),
+  idempotencyKey,
+});
+export type ReturnPickBody = z.infer<typeof returnPickSchema>;
+
+export const returnHandOverSchema = z.object({
+  collectedBy: z.string().trim().min(2).max(120),
+});
+
+export const cancelReturnSchema = z.object({ reason: z.string().trim().max(300).optional() });

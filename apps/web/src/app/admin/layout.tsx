@@ -19,6 +19,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         { href: '/admin/zones', label: t('nav.zones'), icon: 'route' },
         { href: '/admin/stock', label: t('nav.stock'), icon: 'inventory' },
         { href: '/admin/shipments', label: t('nav.shipments'), icon: 'pickups' },
+        { href: '/admin/returns', label: t('nav.returns'), icon: 'returns' },
         { href: '/admin/counts', label: t('nav.counts'), icon: 'scan' },
       ],
     },

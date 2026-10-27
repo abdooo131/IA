@@ -44,20 +44,22 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  darkStore        DarkStore?        @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  merchant         Merchant?         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
-  refreshTokens    RefreshToken[]
-  createdManifests InboundManifest[] @relation("manifest_created_by")
-  countsSubmitted  StockCount[]      @relation("count_submitted_by")
-  countsReviewed   StockCount[]      @relation("count_reviewed_by")
-  ordersCreated    Order[]           @relation("order_created_by")
-  photos           Photo[]           @relation("photo_created_by")
-  alertsResolved   Alert[]           @relation("alert_resolved_by")
-  rider            Rider?
-  stockMovements   StockMovement[]
-  orderEvents      OrderEvent[]
-  auditEntries     AuditLog[]
-  settingChanges   Setting[]
+  darkStore         DarkStore?        @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  merchant          Merchant?         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  refreshTokens     RefreshToken[]
+  createdManifests  InboundManifest[] @relation("manifest_created_by")
+  countsSubmitted   StockCount[]      @relation("count_submitted_by")
+  countsReviewed    StockCount[]      @relation("count_reviewed_by")
+  ordersCreated     Order[]           @relation("order_created_by")
+  returnsCreated    MerchantReturn[]  @relation("return_created_by")
+  returnsHandedOver MerchantReturn[]  @relation("return_handed_over_by")
+  photos            Photo[]           @relation("photo_created_by")
+  alertsResolved    Alert[]           @relation("alert_resolved_by")
+  rider             Rider?
+  stockMovements    StockMovement[]
+  orderEvents       OrderEvent[]
+  auditEntries      AuditLog[]
+  settingChanges    Setting[]
 
   ledgerEntries     LedgerEntry[]  @relation("ledger_entry_created_by")
   handoversReceived CashHandover[] @relation("handover_received_by")
@@ -122,6 +124,7 @@ model DarkStore {
   stockLevels      StockLevel[]
   stockMovements   StockMovement[]
   inboundManifests InboundManifest[]
+  merchantReturns  MerchantReturn[]
   orders           Order[]
   riders           Rider[]
   users            User[]
@@ -195,6 +198,7 @@ model Merchant {
 
   skus             Sku[]
   inboundManifests InboundManifest[]
+  merchantReturns  MerchantReturn[]
   orders           Order[]
   users            User[]
   notifications    Notification[]
@@ -231,6 +235,7 @@ model Sku {
   stockLevels    StockLevel[]
   stockMovements StockMovement[]
   manifestLines  InboundManifestLine[]
+  returnLines    MerchantReturnLine[]
   orderItems     OrderItem[]
   countLines     StockCountLine[]
 
@@ -316,6 +321,8 @@ enum MovementType {
   pick
   /// Count or correction, up (to_bin) or down (from_bin)
   adjust
+  /// Units leaving the store for good, for example back to the merchant
+  dispatch
 
   @@map("movement_type")
 }
@@ -333,6 +340,7 @@ model StockMovement {
   reason         String?
   orderId        String?      @map("order_id")
   manifestId     String?      @map("manifest_id")
+  returnId       String?      @map("return_id")
   actorUserId    String?      @map("actor_user_id")
   /// Makes a retried job or request apply the movement only once
   idempotencyKey String?      @unique @map("idempotency_key")
@@ -344,6 +352,7 @@ model StockMovement {
   toBin     Bin?             @relation("movement_to_bin", fields: [toBinId], references: [id], onDelete: Restrict)
   order     Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
   manifest  InboundManifest? @relation(fields: [manifestId], references: [id], onDelete: Restrict)
+  return    MerchantReturn?  @relation(fields: [returnId], references: [id], onDelete: Restrict)
   actor     User?            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([darkStoreId, skuId, createdAt])
@@ -469,6 +478,73 @@ model InboundManifestLine {
 
   @@unique([manifestId, skuId])
   @@map("inbound_manifest_lines")
+}
+
+// ─── Outbound: stock back to the merchant ──────────────────────────────────────
+
+enum ReturnStatus {
+  requested
+  picking
+  ready
+  collected
+  cancelled
+
+  @@map("return_status")
+}
+
+/// Which stock a return takes: sellable shelves, the damaged bin or the held bin
+enum StockSource {
+  sellable
+  damaged
+  held
+
+  @@map("stock_source")
+}
+
+/// A merchant's request to take units out of a dark store. Sellable units are reserved at
+/// once so orders cannot sell them; staff pick by scan and hand the parcel over.
+model MerchantReturn {
+  id             String       @id @default(cuid())
+  reference      String
+  darkStoreId    String       @map("dark_store_id")
+  merchantId     String       @map("merchant_id")
+  status         ReturnStatus @default(requested)
+  note           String?
+  createdById    String?      @map("created_by_id")
+  readyAt        DateTime?    @map("ready_at")
+  collectedAt    DateTime?    @map("collected_at")
+  collectedBy    String?      @map("collected_by")
+  handedOverById String?      @map("handed_over_by_id")
+  cancelledAt    DateTime?    @map("cancelled_at")
+  cancelReason   String?      @map("cancel_reason")
+  createdAt      DateTime     @default(now()) @map("created_at")
+  updatedAt      DateTime     @updatedAt @map("updated_at")
+
+  darkStore      DarkStore            @relation(fields: [darkStoreId], references: [id])
+  merchant       Merchant             @relation(fields: [merchantId], references: [id])
+  createdBy      User?                @relation("return_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  handedOverBy   User?                @relation("return_handed_over_by", fields: [handedOverById], references: [id], onDelete: Restrict)
+  lines          MerchantReturnLine[]
+  stockMovements StockMovement[]
+
+  @@unique([merchantId, reference])
+  @@index([darkStoreId, status])
+  @@map("merchant_returns")
+}
+
+model MerchantReturnLine {
+  id        String      @id @default(cuid())
+  returnId  String      @map("return_id")
+  skuId     String      @map("sku_id")
+  source    StockSource
+  quantity  Int
+  pickedQty Int         @default(0) @map("picked_qty")
+
+  return MerchantReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  sku    Sku            @relation(fields: [skuId], references: [id])
+
+  @@unique([returnId, skuId, source])
+  @@map("merchant_return_lines")
 }
 
 // ─── Orders and delivery ───────────────────────────────────────────────────────

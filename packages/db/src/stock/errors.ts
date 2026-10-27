@@ -4,6 +4,7 @@ export type StockErrorCode =
   | 'bin_inactive'
   | 'bin_wrong_store'
   | 'bin_not_pickable'
+  | 'bin_not_allowed'
   | 'same_bin'
   | 'insufficient_stock'
   | 'insufficient_bin_stock'

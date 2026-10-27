@@ -45,6 +45,13 @@ export default async function StoreHomePage({ params }: { params: Promise<{ stor
       hint: t('putAwayHint', { count: summary.unitsToPutAway }),
       badge: summary.unitsToPutAway,
     },
+    {
+      href: 'returns',
+      icon: 'returns',
+      title: t('returns'),
+      hint: t('returnsHint', { count: summary.openReturns }),
+      badge: summary.openReturns,
+    },
     { href: 'count', title: t('count'), hint: t('countHint'), icon: 'scan' },
     { href: 'damaged', title: t('damaged'), hint: t('damagedHint'), icon: 'alert' },
     { href: 'labels', title: t('labels'), hint: t('labelsHint'), icon: 'print' },
