@@ -18,7 +18,7 @@ export function DeliveryPriceForm({ price }: { price: number | null }) {
   const t = useTranslations('merchant.delivery');
   const router = useRouter();
   const [current, setCurrent] = useState(price);
-  const [text, setText] = useState(price == null ? '' : (price / 100).toFixed(2));
+  const [text, setText] = useState(price == null ? '' : formatEgp(price).replace(/,/g, ''));
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
