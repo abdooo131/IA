@@ -268,7 +268,8 @@
         "over_capacity": "Order {order} came in while the store was full",
         "shopify_sync_failed": "Could not update Shopify ({kind}): {error}",
         "shopify_wrong_store": "Shopify order {order} chose the 60 minute rate {rate} but landed at store {store}",
-        "server_error": "Server problem in {source}: {message} (seen {count} times)"
+        "server_error": "Server problem in {source}: {message} (seen {count} times)",
+        "goods_not_returned": "Goods of a failed delivery are not back in the store"
       },
       "handledBy": "Handled by {name}"
     },
@@ -293,7 +294,11 @@
         "fee__receiving_per_unit_piastres": "Receiving fee per unit (EGP)",
         "fee__storage_per_unit_month_piastres": "Storage per unit per month (EGP)",
         "fee__vat_bp": "VAT on our fees (%)",
-        "rider__bonus_per_delivery_piastres": "Rider bonus per delivery (EGP)"
+        "rider__bonus_per_delivery_piastres": "Rider bonus per delivery (EGP)",
+        "delivery__max_attempts": "Delivery attempts per order",
+        "delivery__retry_hold_hours": "Hours to decide after a failed attempt",
+        "delivery__return_alert_minutes": "Minutes before alerting that goods are not back",
+        "delivery__min_calls_no_answer": "Calls before \"customer not answering\""
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -678,7 +683,17 @@
       "manifest_received": "Shipment {reference} received at {store}",
       "stock_count_adjusted": "Stock corrected after a count at {store}, bin {bin}",
       "line": "{sku}: {before} → {after}",
-      "received": "{sku}: {received} of {expected}"
+      "received": "{sku}: {received} of {expected}",
+      "order_items_cancelled": "Order {number}: some items were not in stock and were cancelled",
+      "order_moved_to_standard": "Order {number} went to standard delivery (nothing in stock)",
+      "order_cancelled": "Order {number} was cancelled",
+      "order_delivered": "Order {number} was delivered",
+      "order_attempt_failed": "Order {number}: delivery attempt {attempt} of {max} failed ({reason})",
+      "order_attempt_failed_hint": "Open the order to try again, ship it normally or cancel before {time}.",
+      "order_failed": "Order {number}: delivery failed",
+      "cancelledLine": "{sku} × {quantity}",
+      "openOrder": "Open the order",
+      "other": "Update"
     },
     "orders": {
       "title": "Orders",
@@ -797,7 +812,8 @@
       "delivered": "Delivered",
       "cancelled": "Cancelled",
       "failed": "Failed",
-      "moved_to_standard": "Moved to standard"
+      "moved_to_standard": "Moved to standard",
+      "attempt_failed": "Attempt failed"
     },
     "stages": {
       "accept": "Accept",
@@ -826,7 +842,12 @@
       "moved_to_standard": "Moved to standard",
       "returned_to_store": "Goods back in store",
       "late": "Late",
-      "queued_until_open": "Waiting for the store to open"
+      "queued_until_open": "Waiting for the store to open",
+      "delivery_attempt_failed": "Delivery attempt failed",
+      "customer_called": "Rider called the customer",
+      "goods_back_for_retry": "Goods back, waiting for a decision",
+      "delivery_retry": "Delivery will be tried again",
+      "failed_order_closed": "Closed after a failed attempt"
     },
     "number": "Order",
     "customer": "Customer",
@@ -884,7 +905,8 @@
       "confirmCancel": "Cancel the order",
       "receiveBack": "Receive goods back",
       "receivedBack": "{units} units went to {bin}. Check them before putting them on a shelf.",
-      "uploading": "Uploading photo…"
+      "uploading": "Uploading photo…",
+      "keptForRetry": "Goods are back. They stay with the order until someone decides."
     },
     "errors": {
       "invalid_order_state": "Someone already moved this order. The screen was refreshed.",
@@ -904,7 +926,8 @@
       "store_closed": "The store for that area is closed now.",
       "at_capacity": "The store for that area is full for this hour.",
       "network": "No connection. Try again.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "goods_not_back": "The goods are not back in the store yet."
     },
     "deliveryStatuses": {
       "assigned": "Assigned",
@@ -912,7 +935,25 @@
       "delivered": "Delivered",
       "failed": "Failed"
     },
-    "queued": "Waiting for the store to open"
+    "queued": "Waiting for the store to open",
+    "failedAttempt": {
+      "title": "Delivery attempt {attempt} failed",
+      "reason": "Reason",
+      "calls": "Calls by the rider: {count}",
+      "doorPhoto": "Photo at the door",
+      "goodsBack": "Goods are back in the store.",
+      "goodsOnWay": "Goods are on the way back with the rider.",
+      "deadline": "Decide by {time}, or the order fails and the goods return to stock.",
+      "retry": "Try again",
+      "retryNeedsGoods": "You can try again once the goods are back in the store.",
+      "shipNormally": "Ship it normally",
+      "cancel": "Cancel the order",
+      "note": "Note (optional)",
+      "confirm": "Confirm",
+      "back": "Back",
+      "retried": "The order is back in the store queue for a new delivery.",
+      "closed": "The order is closed as failed."
+    }
   },
   "rider": {
     "title": "My deliveries",
@@ -937,7 +978,8 @@
       "wrong_address": "Wrong address",
       "refused": "Customer refused",
       "unreachable_area": "Could not reach the area",
-      "other": "Other"
+      "other": "Other",
+      "reschedule_requested": "Customer asked for another time"
     },
     "failNote": "Details (optional)",
     "confirmFail": "Mark as failed",
@@ -951,10 +993,20 @@
       "cod_required": "Enter the cash you collected.",
       "delivery_closed": "This delivery is already closed.",
       "network": "No connection. Try again.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "calls_required": "Call the customer from this screen first.",
+      "photo_required": "Take a photo at the door first.",
+      "note_required": "Write what happened."
     },
     "deliveredToday": "Delivered today",
-    "failedToday": "Failed today"
+    "failedToday": "Failed today",
+    "callsMade": "Calls made: {count}",
+    "callsNeeded": "Call the customer at least {count} times from this screen before choosing \"not answering\".",
+    "doorPhoto": "Photo at the door",
+    "doorPhotoHint": "Needed when the customer is not answering.",
+    "bringBack": "Bring the goods back to the store today.",
+    "doneFailedBack": "Failed, goods back",
+    "doneFailedBring": "Failed, bring goods back"
   },
   "finance": {
     "title": "Finance",

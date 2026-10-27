@@ -8,22 +8,28 @@ import { apiSend } from '@/lib/api-client';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import type { OrderDetail } from '@/lib/order-types';
 import { title } from '@/lib/store-types';
+import { FailedAttemptPanel } from './FailedAttemptPanel';
 import { OrderStatusChip } from './OrderStatusChip';
 import { OrderTimeline } from './OrderTimeline';
 import { StageTimer } from './StageTimer';
 
 const CANCEL_REASONS = ['customer_request', 'out_of_stock', 'duplicate', 'other'] as const;
 
-/** Read only order page for merchants and admin, with an optional cancel action. */
+/**
+ * Read only order page for merchants and admin, with an optional cancel action and, after a
+ * failed delivery attempt, the decision to try again, ship normally or cancel.
+ */
 export function OrderReadView({
   order,
   cancelPath,
   cancellable,
+  decisionPath,
   created,
 }: {
   order: OrderDetail;
   cancelPath?: string;
   cancellable: boolean;
+  decisionPath?: string;
   created?: boolean;
 }) {
   const t = useTranslations('orders');
@@ -34,6 +40,7 @@ export function OrderReadView({
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState<(typeof CANCEL_REASONS)[number]>('customer_request');
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function cancel() {
@@ -54,6 +61,9 @@ export function OrderReadView({
     order.packPhotoId && { id: order.packPhotoId, label: t('packPhoto') },
     ...order.deliveries.map(
       (d) => d.proofPhotoId && { id: d.proofPhotoId, label: t('proofPhoto') },
+    ),
+    ...order.deliveries.map(
+      (d) => d.failedPhotoId && { id: d.failedPhotoId, label: t('failedAttempt.doorPhoto') },
     ),
   ].filter(Boolean) as { id: string; label: string }[];
   const cell = 'px-3 py-2';
@@ -223,6 +233,25 @@ export function OrderReadView({
             </figure>
           ))}
         </section>
+      )}
+
+      {notice && (
+        <p
+          role="status"
+          className="rounded-md border border-line bg-surface-raised px-3 py-2 text-body-sm"
+        >
+          {notice}
+        </p>
+      )}
+      {decisionPath && (
+        <FailedAttemptPanel
+          order={order}
+          decisionPath={decisionPath}
+          onDone={(text) => {
+            setNotice(text);
+            router.refresh();
+          }}
+        />
       )}
 
       {cancellable && cancelPath && (

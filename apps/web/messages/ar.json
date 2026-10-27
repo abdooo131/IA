@@ -268,7 +268,8 @@
         "over_capacity": "الطلب {order} وصل والمخزن مليان",
         "shopify_sync_failed": "مقدرناش نحدّث شوبيفاي ({kind}): {error}",
         "shopify_wrong_store": "طلب شوبيفاي {order} اختار توصيل الـ 60 دقيقة {rate} لكن وصل لمخزن {store}",
-        "server_error": "مشكلة في السيرفر في {source}: {message} (اتكررت {count} مرة)"
+        "server_error": "مشكلة في السيرفر في {source}: {message} (اتكررت {count} مرة)",
+        "goods_not_returned": "بضاعة توصيلة فاشلة لسه مارجعتش المخزن"
       },
       "handledBy": "اتعامل معاه {name}"
     },
@@ -293,7 +294,11 @@
         "fee__receiving_per_unit_piastres": "رسوم الاستلام للقطعة (جنيه)",
         "fee__storage_per_unit_month_piastres": "التخزين للقطعة في الشهر (جنيه)",
         "fee__vat_bp": "ضريبة القيمة المضافة على رسومنا (%)",
-        "rider__bonus_per_delivery_piastres": "حافز المندوب لكل توصيلة (جنيه)"
+        "rider__bonus_per_delivery_piastres": "حافز المندوب لكل توصيلة (جنيه)",
+        "delivery__max_attempts": "عدد محاولات التوصيل لكل طلب",
+        "delivery__retry_hold_hours": "ساعات لاتخاذ القرار بعد محاولة فاشلة",
+        "delivery__return_alert_minutes": "دقايق قبل التنبيه إن البضاعة مارجعتش",
+        "delivery__min_calls_no_answer": "مكالمات قبل \"العميل مش بيرد\""
       },
       "default": "الافتراضي {value}",
       "global": "في كل مكان",
@@ -678,7 +683,17 @@
       "manifest_received": "الشحنة {reference} اتستلمت في {store}",
       "stock_count_adjusted": "المخزون اتعدل بعد جرد في {store}، الرف {bin}",
       "line": "{sku}: {before} ← {after}",
-      "received": "{sku}: {received} من {expected}"
+      "received": "{sku}: {received} من {expected}",
+      "order_items_cancelled": "الطلب {number}: شوية منتجات مكانتش موجودة واتلغت",
+      "order_moved_to_standard": "الطلب {number} اتحول للتوصيل العادي (مفيش مخزون)",
+      "order_cancelled": "الطلب {number} اتلغى",
+      "order_delivered": "الطلب {number} اتسلم",
+      "order_attempt_failed": "الطلب {number}: محاولة التوصيل {attempt} من {max} فشلت ({reason})",
+      "order_attempt_failed_hint": "افتح الطلب عشان تجرب تاني أو تشحنه عادي أو تلغيه قبل {time}.",
+      "order_failed": "الطلب {number}: التوصيل فشل",
+      "cancelledLine": "{sku} × {quantity}",
+      "openOrder": "افتح الطلب",
+      "other": "تحديث"
     },
     "orders": {
       "title": "الطلبات",
@@ -797,7 +812,8 @@
       "delivered": "اتسلم",
       "cancelled": "اتلغى",
       "failed": "فشل التوصيل",
-      "moved_to_standard": "اتحول للشحن العادي"
+      "moved_to_standard": "اتحول للشحن العادي",
+      "attempt_failed": "محاولة فشلت"
     },
     "stages": {
       "accept": "القبول",
@@ -826,7 +842,12 @@
       "moved_to_standard": "اتحول للشحن العادي",
       "returned_to_store": "البضاعة رجعت المخزن",
       "late": "متأخر",
-      "queued_until_open": "مستني المخزن يفتح"
+      "queued_until_open": "مستني المخزن يفتح",
+      "delivery_attempt_failed": "محاولة التوصيل فشلت",
+      "customer_called": "المندوب اتصل بالعميل",
+      "goods_back_for_retry": "البضاعة رجعت، مستنية قرار",
+      "delivery_retry": "هنحاول نوصل تاني",
+      "failed_order_closed": "اتقفل بعد محاولة فاشلة"
     },
     "number": "الطلب",
     "customer": "العميل",
@@ -884,7 +905,8 @@
       "confirmCancel": "الغي الطلب",
       "receiveBack": "استلم البضاعة اللي رجعت",
       "receivedBack": "{units} قطعة راحت {bin}. راجعها قبل ما ترجعها الرف.",
-      "uploading": "بنرفع الصورة…"
+      "uploading": "بنرفع الصورة…",
+      "keptForRetry": "البضاعة رجعت. هتفضل مع الطلب لحد ما حد ياخد قرار."
     },
     "errors": {
       "invalid_order_state": "حد تاني حرك الطلب ده. الشاشة اتحدثت.",
@@ -904,7 +926,8 @@
       "store_closed": "مخزن المنطقة دي مقفول دلوقتي.",
       "at_capacity": "مخزن المنطقة دي مليان الساعة دي.",
       "network": "مفيش اتصال. جرب تاني.",
-      "generic": "حصلت مشكلة، جرب تاني."
+      "generic": "حصلت مشكلة، جرب تاني.",
+      "goods_not_back": "البضاعة لسه مارجعتش المخزن."
     },
     "deliveryStatuses": {
       "assigned": "تم التعيين",
@@ -912,7 +935,25 @@
       "delivered": "تم التسليم",
       "failed": "فشل التسليم"
     },
-    "queued": "مستني المخزن يفتح"
+    "queued": "مستني المخزن يفتح",
+    "failedAttempt": {
+      "title": "محاولة التوصيل رقم {attempt} فشلت",
+      "reason": "السبب",
+      "calls": "مكالمات المندوب: {count}",
+      "doorPhoto": "صورة عند الباب",
+      "goodsBack": "البضاعة رجعت المخزن.",
+      "goodsOnWay": "البضاعة راجعة مع المندوب.",
+      "deadline": "خد قرار قبل {time}، وإلا الطلب هيفشل والبضاعة ترجع المخزون.",
+      "retry": "جرب تاني",
+      "retryNeedsGoods": "تقدر تجرب تاني لما البضاعة ترجع المخزن.",
+      "shipNormally": "اشحنه عادي",
+      "cancel": "الغي الطلب",
+      "note": "ملاحظة (اختياري)",
+      "confirm": "تأكيد",
+      "back": "رجوع",
+      "retried": "الطلب رجع قايمة المخزن عشان يتوصل تاني.",
+      "closed": "الطلب اتقفل على إنه فشل."
+    }
   },
   "rider": {
     "title": "توصيلاتي",
@@ -937,7 +978,8 @@
       "wrong_address": "العنوان غلط",
       "refused": "العميل رفض",
       "unreachable_area": "معرفتش أوصل المنطقة",
-      "other": "سبب تاني"
+      "other": "سبب تاني",
+      "reschedule_requested": "العميل طلب ميعاد تاني"
     },
     "failNote": "تفاصيل (اختياري)",
     "confirmFail": "سجل إنه فشل",
@@ -951,10 +993,20 @@
       "cod_required": "اكتب الكاش اللي حصلته.",
       "delivery_closed": "التوصيلة دي اتقفلت خلاص.",
       "network": "مفيش اتصال. جرب تاني.",
-      "generic": "حصلت مشكلة، جرب تاني."
+      "generic": "حصلت مشكلة، جرب تاني.",
+      "calls_required": "اتصل بالعميل من الشاشة دي الأول.",
+      "photo_required": "صور عند الباب الأول.",
+      "note_required": "اكتب اللي حصل."
     },
     "deliveredToday": "اتسلم النهارده",
-    "failedToday": "فشل النهارده"
+    "failedToday": "فشل النهارده",
+    "callsMade": "عدد المكالمات: {count}",
+    "callsNeeded": "اتصل بالعميل {count} مرات على الأقل من الشاشة دي قبل ما تختار \"مش بيرد\".",
+    "doorPhoto": "صورة عند الباب",
+    "doorPhotoHint": "مطلوبة لو العميل مش بيرد.",
+    "bringBack": "رجع البضاعة للمخزن النهارده.",
+    "doneFailedBack": "فشل، البضاعة رجعت",
+    "doneFailedBring": "فشل، رجع البضاعة"
   },
   "finance": {
     "title": "المالية",

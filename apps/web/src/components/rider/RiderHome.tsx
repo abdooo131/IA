@@ -25,6 +25,10 @@ export interface RiderDelivery {
   codExpectedPiastres: number;
   codCollectedPiastres: number | null;
   failedReason: string | null;
+  callAttempts: number;
+  /** Calls the store requires before "not answering" (delivery.min_calls_no_answer) */
+  callsNeeded: number;
+  returnedAt: string | null;
   order: {
     id: string;
     number: string;
@@ -42,8 +46,25 @@ export interface RiderDelivery {
   };
 }
 
-const REASONS = ['no_answer', 'wrong_address', 'refused', 'unreachable_area', 'other'] as const;
-const KNOWN = ['wrong_otp', 'proof_required', 'cod_required', 'delivery_closed', 'network'];
+const REASONS = [
+  'no_answer',
+  'wrong_address',
+  'refused',
+  'reschedule_requested',
+  'unreachable_area',
+  'other',
+] as const;
+const KNOWN = [
+  'wrong_otp',
+  'proof_required',
+  'cod_required',
+  'delivery_closed',
+  'network',
+  'calls_required',
+  'photo_required',
+  'note_required',
+];
+
 const primary =
   'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
 const field =
@@ -139,7 +160,9 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
                   <span className="ltr-iso font-bold">{d.order.number}</span> {d.order.customerName}
                 </span>
                 <span className={d.status === 'failed' ? 'text-danger' : 'text-text-muted'}>
-                  {d.status === 'failed' ? t('doneFailed') : t('doneDelivered')}
+                  {d.status === 'failed'
+                    ? t(d.returnedAt ? 'doneFailedBack' : 'doneFailedBring')
+                    : t('doneDelivered')}
                   {d.codCollectedPiastres ? (
                     <span className="ltr-iso ms-2">{formatEgp(d.codCollectedPiastres)}</span>
                   ) : null}
@@ -171,6 +194,8 @@ function DeliveryCard({
   const [cash, setCash] = useState(formatEgp(d.codExpectedPiastres).replace(/,/g, ''));
   const [reason, setReason] = useState<(typeof REASONS)[number]>('no_answer');
   const [note, setNote] = useState('');
+  const [doorPhotoId, setDoorPhotoId] = useState<string | null>(null);
+  const [calls, setCalls] = useState(d.callAttempts);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const cod = d.order.paymentMethod === 'cod' && d.codExpectedPiastres > 0;
@@ -185,6 +210,24 @@ function DeliveryCard({
     if (!result.ok) return fail(result.error);
     setMode('idle');
     await onDone();
+  }
+
+  /** The call itself goes through the phone; we only log it as proof for "not answering". */
+  function logCall() {
+    void apiSend<{ calls: number }>('POST', `/rider/deliveries/${d.id}/call`, {}).then((r) => {
+      if (r.ok) setCalls(r.data.calls);
+    });
+  }
+
+  function reportFailure() {
+    if (reason === 'no_answer' && calls < d.callsNeeded) return fail('calls_required');
+    if (reason === 'no_answer' && !doorPhotoId) return fail('photo_required');
+    if (reason === 'other' && note.trim().length < 3) return fail('note_required');
+    void send('fail', {
+      reason,
+      note: note.trim() || undefined,
+      photoId: doorPhotoId ?? undefined,
+    });
   }
 
   function deliver() {
@@ -235,6 +278,7 @@ function DeliveryCard({
       <div className="flex gap-2">
         <a
           href={`tel:${d.order.customerPhone}`}
+          onClick={logCall}
           className="flex h-12 flex-1 items-center justify-center rounded-md border border-line font-bold"
         >
           {t('call')}
@@ -333,6 +377,23 @@ function DeliveryCard({
               ))}
             </select>
           </label>
+          <p className="text-caption text-text-muted">{t('callsMade', { count: calls })}</p>
+          {reason === 'no_answer' && (
+            <>
+              {calls < d.callsNeeded && (
+                <p className="text-caption text-status-needs-action">
+                  {t('callsNeeded', { count: d.callsNeeded })}
+                </p>
+              )}
+              <PhotoCapture
+                kind="delivery"
+                label={t('doorPhoto')}
+                onUploaded={setDoorPhotoId}
+                onError={fail}
+              />
+              <p className="text-caption text-text-muted">{t('doorPhotoHint')}</p>
+            </>
+          )}
           <label className="block text-body-sm">
             {t('failNote')}
             <input
@@ -342,11 +403,12 @@ function DeliveryCard({
               className={field}
             />
           </label>
+          <p className="text-caption text-text-muted">{t('bringBack')}</p>
           <button
             type="button"
             disabled={busy}
             className="h-12 w-full rounded-md border border-danger font-bold text-danger"
-            onClick={() => void send('fail', { reason, note: note.trim() || undefined })}
+            onClick={reportFailure}
           >
             {t('confirmFail')}
           </button>

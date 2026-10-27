@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   completeDelivery,
   failDelivery,
+  getSetting,
   recordDeliveryCall,
   riderBonusOwed,
   riderCash,
@@ -82,6 +83,11 @@ export class RiderController {
       include: { order: { include: { items: { include: { sku: true } } } } },
       orderBy: { assignedAt: 'desc' },
     });
+    const callsNeeded = await getSetting(
+      this.prisma,
+      'delivery.min_calls_no_answer',
+      rider.darkStoreId,
+    );
     return list.map((d) => ({
       id: d.id,
       status: d.status,
@@ -91,6 +97,7 @@ export class RiderController {
       failedAt: d.failedAt,
       failedReason: d.failedReason,
       callAttempts: d.callAttempts,
+      callsNeeded,
       returnedAt: d.returnedAt,
       codExpectedPiastres: d.codExpectedPiastres,
       codCollectedPiastres: d.codCollectedPiastres,

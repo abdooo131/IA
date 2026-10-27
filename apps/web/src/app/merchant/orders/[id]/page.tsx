@@ -21,6 +21,7 @@ export default async function MerchantOrderPage({
         order={order}
         created={created === '1'}
         cancelPath={`/merchant/orders/${id}/cancel`}
+        decisionPath={`/merchant/orders/${id}/decision`}
         cancellable={order.status === 'new' || order.status === 'accepted'}
       />
     </>

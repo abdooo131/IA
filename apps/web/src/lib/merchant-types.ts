@@ -30,7 +30,8 @@ export interface MerchantSku {
 
 export interface MerchantNotification {
   id: string;
-  type: 'manifest_received' | 'stock_count_adjusted';
+  /** manifest_received, stock_count_adjusted or one of the order_ updates */
+  type: string;
   data: Record<string, unknown>;
   readAt: string | null;
   createdAt: string;

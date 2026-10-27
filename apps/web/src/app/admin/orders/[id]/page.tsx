@@ -21,6 +21,7 @@ export default async function AdminOrderPage({
         order={order}
         created={created === '1'}
         cancelPath={`/admin/orders/${id}/cancel`}
+        decisionPath={`/admin/orders/${id}/decision`}
         cancellable={['new', 'accepted', 'picking', 'packed'].includes(order.status)}
       />
     </>

@@ -9,6 +9,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import type { OrderDetail, OrderItemView } from '@/lib/order-types';
 import { title } from '@/lib/store-types';
+import { FailedAttemptPanel } from './FailedAttemptPanel';
 import { OrderStatusChip } from './OrderStatusChip';
 import { OrderTimeline } from './OrderTimeline';
 import { PhotoCapture } from './PhotoCapture';
@@ -293,20 +294,34 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
         </section>
       )}
 
-      {order.status === 'failed' && (
+      {(order.status === 'failed' || (order.status === 'attempt_failed' && !order.goodsBack)) && (
         <button
           type="button"
           className={primary}
           disabled={action.busy}
           onClick={() =>
-            void run<{ bin: string; units: number }>('return', {}, (d) =>
-              t('actions.receivedBack', { units: d.units, bin: d.bin }),
+            void run<{ bin: string | null; units: number; keptForRetry: boolean }>(
+              'return',
+              {},
+              (d) =>
+                d.keptForRetry
+                  ? t('actions.keptForRetry')
+                  : t('actions.receivedBack', { units: d.units, bin: d.bin ?? '' }),
             )
           }
         >
           {t('actions.receiveBack')}
         </button>
       )}
+
+      <FailedAttemptPanel
+        order={order}
+        decisionPath={`${base}/decision`}
+        onDone={async (text) => {
+          action.ok(text);
+          await refresh();
+        }}
+      />
 
       {order.rider && (
         <p className="text-body-sm">
