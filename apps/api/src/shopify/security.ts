@@ -15,7 +15,8 @@ function sameText(a: string, b: string) {
 
 /** Shopify webhooks and fulfillment service callbacks: base64 HMAC SHA256 of the raw body. */
 export function verifyBodyHmac(raw: Buffer, header: string | undefined, secret: string) {
-  if (!header) return false;
+  // Without the app secret nothing can be verified, so nothing is accepted.
+  if (!header || !secret) return false;
   const digest = createHmac('sha256', secret).update(raw).digest('base64');
   return sameText(digest, header);
 }
@@ -26,7 +27,7 @@ export function verifyBodyHmac(raw: Buffer, header: string | undefined, secret: 
  */
 export function verifyQueryHmac(query: Record<string, unknown>, secret: string) {
   const { hmac, signature: _signature, ...rest } = query;
-  if (typeof hmac !== 'string') return false;
+  if (typeof hmac !== 'string' || !secret) return false;
   const message = Object.keys(rest)
     .sort()
     .map(
@@ -43,7 +44,7 @@ export function verifyQueryHmac(query: Record<string, unknown>, secret: string) 
  */
 export function verifyProxySignature(query: Record<string, unknown>, secret: string) {
   const { signature, ...rest } = query;
-  if (typeof signature !== 'string') return false;
+  if (typeof signature !== 'string' || !secret) return false;
   const message = Object.keys(rest)
     .map(
       (k) => `${k}=${Array.isArray(rest[k]) ? (rest[k] as string[]).join(',') : String(rest[k])}`,

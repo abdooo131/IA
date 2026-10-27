@@ -3,7 +3,13 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { openToken, sealToken, verifyBodyHmac, verifyQueryHmac } from '../src/shopify/security';
+import {
+  openToken,
+  sealToken,
+  verifyBodyHmac,
+  verifyProxySignature,
+  verifyQueryHmac,
+} from '../src/shopify/security';
 import { moneyToPiastres } from '../src/shopify/shopify-admin';
 import { ShopifyJobsService } from '../src/shopify/shopify-jobs.service';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
@@ -57,6 +63,14 @@ describe('shopify security helpers', () => {
     expect(sealed).not.toContain('shpat_abc');
     expect(openToken(sealed, SECRET)).toBe('shpat_abc');
     expect(() => openToken(sealed, 'other-secret')).toThrow();
+    // A missing app secret must never turn into "anything goes".
+    const empty = createHmac('sha256', '').update(body).digest('base64');
+    expect(verifyBodyHmac(body, empty, '')).toBe(false);
+    const emptyQuery = createHmac('sha256', '')
+      .update('code=c&shop=' + SHOP)
+      .digest('hex');
+    expect(verifyQueryHmac({ code: 'c', shop: SHOP, hmac: emptyQuery }, '')).toBe(false);
+    expect(verifyProxySignature({ shop: SHOP, signature: 'x' }, '')).toBe(false);
     expect(moneyToPiastres('1249.5')).toBe(124950);
     expect(moneyToPiastres('30.00')).toBe(3000);
     expect(moneyToPiastres('0.005')).toBe(0);
