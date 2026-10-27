@@ -20,7 +20,14 @@ Replace `RENDER_URL` with the live address, for example `https://shiplynow.onren
 
 ## Testing from your own computer (tunnel)
 
-Run the app locally (`pnpm dev`), then in another window in the project folder:
+Easiest, everything in one window (Docker Desktop open):
+
+```
+pnpm local
+```
+
+It frees ports 3000 and 4000, starts the database, the tunnel and the Shopify settings, then
+`pnpm dev`; Ctrl+C stops it all. Or, with `pnpm dev` already running in another window:
 
 ```
 pnpm shopify:tunnel

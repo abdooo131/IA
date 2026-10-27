@@ -2,11 +2,13 @@
 // store without deploying the server:
 //   pnpm shopify:tunnel                 starts a cloudflared tunnel and keeps it open
 //   pnpm shopify:tunnel https://<words>.trycloudflare.com   uses a tunnel already running
+//   pnpm local                          everything in one window: frees ports 3000 and 4000,
+//                                       starts the database, the tunnel and then pnpm dev
 // It sets WEB_ORIGIN and the Shopify keys in .env (asking for the client secret without
 // showing it), writes apps/shopify/shopify.app.local.toml with the tunnel address and runs
 // `shopify app deploy` with it, which sends the URLs, scopes, webhooks, app proxy and the
 // storefront widget to Shopify. Add --no-deploy to only update the files.
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createInterface } from 'node:readline';
@@ -19,6 +21,17 @@ const CLIENT_ID = 'f861196e9ba7d2e755655e4e29132d82';
 
 const args = process.argv.slice(2);
 const deploy = !args.includes('--no-deploy');
+const dev = args.includes('--dev');
+/** Processes this script started; Ctrl+C stops them all. */
+const children = [];
+process.on('SIGINT', () => {
+  for (const child of children) {
+    child.removeAllListeners('exit');
+    child.kill('SIGINT');
+  }
+  console.log('\nStopped.');
+  process.exit(0);
+});
 const given = args.find((a) => !a.startsWith('--'));
 
 function fail(message) {
@@ -52,13 +65,28 @@ function startTunnel() {
     };
     child.stdout.on('data', read);
     child.stderr.on('data', read);
-    process.on('SIGINT', () => {
-      child.removeAllListeners('exit');
-      child.kill();
-      console.log('\nTunnel closed.');
-      process.exit(0);
-    });
+    children.push(child);
   });
+}
+
+if (dev) {
+  // A previous run may still hold the ports; this run replaces it.
+  for (const port of [3000, 4000]) {
+    const pids = spawnSync('lsof', ['-ti', `tcp:${port}`], { encoding: 'utf8' })
+      .stdout?.split('\n')
+      .filter(Boolean);
+    for (const pid of pids ?? []) {
+      try {
+        process.kill(Number(pid));
+      } catch {
+        // already gone
+      }
+    }
+  }
+  console.log('Starting the database (docker compose)...');
+  const db = spawnSync('docker', ['compose', 'up', '-d'], { cwd: ROOT, stdio: 'inherit' });
+  if (db.status !== 0)
+    fail('The database did not start. Open Docker Desktop, wait for it, then run this again.');
 }
 
 let url;
@@ -150,7 +178,17 @@ if (deploy) {
   }
 }
 
-console.log(`
+if (dev) {
+  console.log('\nStarting the app (pnpm dev)...\n');
+  const app = spawn('pnpm', ['dev'], { cwd: ROOT, stdio: 'inherit' });
+  app.on('exit', (code) => fail(`The app stopped (code ${code}). Read the message above.`));
+  children.push(app);
+  console.log(`
+When you see "Ready" below, open ${url}/admin and sign in as admin.
+Everything runs in THIS window: leave it open. Ctrl+C stops it all.
+`);
+} else {
+  console.log(`
 Done. Next:
   1. Restart the app: Ctrl+C in the pnpm dev window, then pnpm dev
   2. Open ${url}/admin and sign in as admin
@@ -161,3 +199,4 @@ ${
     : 'Keep the tunnel window open. A new tunnel address means running this again.'
 }
 `);
+}
