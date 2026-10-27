@@ -16,3 +16,7 @@ next-env.d.ts
 
 .DS_Store
 *.log
+
+# local Shopify app configs (scripts/shopify-tunnel.mjs) and Shopify CLI state
+apps/shopify/shopify.app.*.toml
+apps/shopify/.shopify/

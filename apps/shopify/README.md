@@ -19,6 +19,20 @@ Replace `RENDER_URL` with the live address, for example `https://shiplynow.onren
 | Compliance webhooks (customer data request, customer redact, shop redact) | `RENDER_URL/api/shopify/webhooks`                                                                                                                                                                                            |
 | Protected customer data                                                   | Request name, phone and address (riders need them to deliver)                                                                                                                                                                |
 
+## Testing from your own computer (tunnel)
+
+Run the app locally, start `cloudflared tunnel --url http://localhost:3000` in its own window,
+then in the project folder:
+
+```
+pnpm shopify:tunnel https://<words>.trycloudflare.com
+```
+
+It sets `WEB_ORIGIN` and the Shopify keys in `.env` (asking for the client secret once, without
+showing it), writes `shopify.app.local.toml` with the tunnel address (not committed) and runs
+`shopify app deploy` with it, so the URLs, scopes, webhooks, app proxy and widget all reach
+Shopify in one go. Restart `pnpm dev` afterwards. A new tunnel address means running it again.
+
 ## Server settings (Render)
 
 - `SHOPIFY_API_KEY`: the client ID (`f861196e9ba7d2e755655e4e29132d82`)
