@@ -87,7 +87,8 @@
       "shopify": "Shopify",
       "backToAdmin": "Back to admin",
       "returns": "Returns to merchants",
-      "damage": "Damage to settle"
+      "damage": "Damage to settle",
+      "stores": "Dark stores and hubs"
     },
     "overview": {
       "title": "Overview",
@@ -530,6 +531,41 @@
       "merchants": "Merchants",
       "system": "System",
       "books": "Books"
+    },
+    "locations": {
+      "title": "Dark stores and hubs",
+      "intro": "Dark stores sell and deliver in their zones. A hub (sorting facility) receives every merchant shipment and supplies the stores; it never sells.",
+      "new": "Add location",
+      "kind": "Type",
+      "kinds": {
+        "dark_store": "Dark store",
+        "hub": "Sorting facility (hub)"
+      },
+      "code": "Short code (2 to 8 letters or digits)",
+      "governorate": "Governorate",
+      "nameEn": "Name in English",
+      "nameAr": "Name in Arabic",
+      "addressEn": "Address in English",
+      "addressAr": "Address in Arabic",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "shelves": "Number of shelves",
+      "pinHint": "Tip: in Google Maps, right click the building and click the numbers to copy latitude and longitude. Receiving, damaged and held bins are created for you.",
+      "create": "Create",
+      "cancel": "Cancel",
+      "stock": "{units} units of {skus} products",
+      "zones": "{count, plural, =0 {no zones yet} one {# zone} other {# zones}}",
+      "editZones": "Draw zones and set hours",
+      "openStaffApp": "Open staff app",
+      "moreShelves": "Add shelves",
+      "shelvesToAdd": "Shelves to add",
+      "addShelves": "Add",
+      "errors": {
+        "code_taken": "Another location already uses this code.",
+        "governorate_not_found": "Choose a governorate.",
+        "validation": "Check every field. Latitude and longitude must be inside Egypt.",
+        "generic": "Something went wrong. Try again."
+      }
     }
   },
   "scan": {
@@ -701,7 +737,8 @@
         "reference_taken": "You already used this reference.",
         "validation_failed": "Check the products and quantities.",
         "duplicate_sku": "Each product only once, please.",
-        "generic": "Something went wrong. Try again."
+        "generic": "Something went wrong. Try again.",
+        "shipments_go_to_hub": "Shipments now go to our sorting facility. Refresh the page and choose it."
       }
     },
     "products": {

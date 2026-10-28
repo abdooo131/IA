@@ -103,3 +103,4 @@ export {
   type SettleDamageInput,
 } from './damage';
 export { decideSignUp, onboardingSteps, signUpMerchant, type SignUpInput } from './signup';
+export { addShelves, createLocation, listHubs, type CreateLocationInput } from './locations';

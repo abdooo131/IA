@@ -57,11 +57,16 @@ export default async function StoreHomePage({ params }: { params: Promise<{ stor
     { href: 'labels', title: t('labels'), hint: t('labelsHint'), icon: 'print' },
     { href: 'cash', title: tc('tile'), hint: tc('tileHint'), icon: 'cash' },
   ];
+  // A sorting facility takes no customer orders and holds no rider cash.
+  const shown =
+    summary.store.kind === 'hub'
+      ? tiles.filter((tile) => tile.href !== 'orders' && tile.href !== 'cash')
+      : tiles;
   return (
     <>
       <h1 className="text-h2">{localized(summary.store, locale)}</h1>
       <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {tiles.map((tile) => (
+        {shown.map((tile) => (
           <li key={tile.href}>
             <Link
               href={`/store/${storeId}/${tile.href}`}

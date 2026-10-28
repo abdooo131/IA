@@ -54,6 +54,8 @@ export class AdminZonesController {
       return await this.prisma.$transaction(async (tx) => {
         const store = await tx.darkStore.findUnique({ where: { id: body.darkStoreId } });
         if (!store) throw new NotFoundException({ error: 'dark_store_not_found' });
+        // A sorting facility never delivers, so it has no delivery zones.
+        if (store.kind === 'hub') throw new ConflictException({ error: 'hub_has_no_zones' });
         const zone = await tx.zone.create({
           data: {
             darkStoreId: store.id,

@@ -104,20 +104,30 @@ model Governorate {
   @@map("governorates")
 }
 
+/// A dark store sells and delivers; a hub (sorting facility) only receives merchant stock and
+/// distributes it to the stores. Hubs have no zones, take no orders and are not Shopify locations.
+enum LocationKind {
+  dark_store
+  hub
+
+  @@map("location_kind")
+}
+
 model DarkStore {
-  id            String   @id @default(cuid())
+  id            String       @id @default(cuid())
+  kind          LocationKind @default(dark_store)
   /// Short stable code used in bins, seeds and Shopify location names, for example NCR
-  code          String   @unique
-  nameEn        String   @map("name_en")
-  nameAr        String   @map("name_ar")
-  addressEn     String   @map("address_en")
-  addressAr     String   @map("address_ar")
-  governorateId Int      @map("governorate_id")
+  code          String       @unique
+  nameEn        String       @map("name_en")
+  nameAr        String       @map("name_ar")
+  addressEn     String       @map("address_en")
+  addressAr     String       @map("address_ar")
+  governorateId Int          @map("governorate_id")
   latitude      Float
   longitude     Float
-  isActive      Boolean  @default(true) @map("is_active")
-  createdAt     DateTime @default(now()) @map("created_at")
-  updatedAt     DateTime @updatedAt @map("updated_at")
+  isActive      Boolean      @default(true) @map("is_active")
+  createdAt     DateTime     @default(now()) @map("created_at")
+  updatedAt     DateTime     @updatedAt @map("updated_at")
 
   governorate      Governorate       @relation(fields: [governorateId], references: [id])
   hours            StoreHours[]

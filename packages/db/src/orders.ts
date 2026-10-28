@@ -178,6 +178,7 @@ export function createOrder(db: Db, input: CreateOrderInput): Promise<CreatedOrd
   return inTransaction(db, async (tx) => {
     const store = await tx.darkStore.findUnique({ where: { id: input.darkStoreId } });
     if (!store || !store.isActive) throw new DomainError('dark_store_not_found', 404);
+    if (store.kind === 'hub') throw new DomainError('hub_takes_no_orders');
     const skuIds = input.items.map((i) => i.skuId);
     if (new Set(skuIds).size !== skuIds.length) throw new DomainError('duplicate_sku', 400);
     const skus = await tx.sku.findMany({

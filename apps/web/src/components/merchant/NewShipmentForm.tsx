@@ -10,7 +10,7 @@ import { type StoreRef, title } from '@/lib/store-types';
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
-const KNOWN = ['reference_taken', 'validation_failed', 'duplicate_sku'];
+const KNOWN = ['reference_taken', 'validation_failed', 'duplicate_sku', 'shipments_go_to_hub'];
 
 export function NewShipmentForm({ stores, skus }: { stores: StoreRef[]; skus: MerchantSku[] }) {
   const t = useTranslations('merchant.new');

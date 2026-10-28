@@ -1,9 +1,12 @@
-import { Body, Controller, Get, NotFoundException, Param, Put } from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { recordAudit, setSetting } from '@shiplynow/db';
+import { addShelves, createLocation, recordAudit, setSetting } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
+  addShelvesSchema,
   capacitySchema,
+  type CreateLocationBody,
+  createLocationSchema,
   type WeekHours,
   weekHoursSchema,
 } from '@shiplynow/shared';
@@ -59,6 +62,31 @@ export class AdminStoresController {
         nextOpenAt: s.nextOpenAt?.toISOString() ?? null,
       };
     });
+  }
+
+  /** The 27 governorates, for the new location form. */
+  @Get('governorates')
+  governorates() {
+    return this.prisma.governorate.findMany({ orderBy: { id: 'asc' } });
+  }
+
+  /** Opens a dark store or a sorting facility (hub) with its bins and default hours. */
+  @Post()
+  async create(
+    @Body(new ZodValidationPipe(createLocationSchema)) body: CreateLocationBody,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const store = await createLocation(this.prisma, { ...body, actorUserId: user.sub });
+    return { id: store.id, code: store.code };
+  }
+
+  @Post(':id/shelves')
+  addShelves(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(addShelvesSchema)) body: { count: number },
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return addShelves(this.prisma, { darkStoreId: id, count: body.count, actorUserId: user.sub });
   }
 
   @Put(':id/hours')

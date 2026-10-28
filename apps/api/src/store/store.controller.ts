@@ -79,7 +79,13 @@ export class StoreController {
         }),
       ]);
     return {
-      store: { id: store.id, code: store.code, nameEn: store.nameEn, nameAr: store.nameAr },
+      store: {
+        id: store.id,
+        kind: store.kind,
+        code: store.code,
+        nameEn: store.nameEn,
+        nameAr: store.nameAr,
+      },
       openManifests,
       unitsToPutAway: receivingUnits._sum.quantity ?? 0,
       pendingCounts,

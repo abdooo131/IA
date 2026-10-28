@@ -5,6 +5,7 @@ import {
   createManifest,
   DomainError,
   getManifestDetail,
+  listHubs,
   onboardingSteps,
   recordAudit,
 } from '@shiplynow/db';
@@ -117,11 +118,28 @@ export class MerchantController {
     }));
   }
 
+  /**
+   * Where the merchant can send shipments. Once a sorting facility (hub) exists, every
+   * shipment goes there and the hub distributes to the stores.
+   */
   @Get('dark-stores')
   async stores() {
+    const hubs = await listHubs(this.prisma);
+    const stores = hubs.length
+      ? hubs
+      : await this.prisma.darkStore.findMany({
+          where: { isActive: true },
+          orderBy: { code: 'asc' },
+        });
+    return stores.map((s) => ({ id: s.id, code: s.code, nameEn: s.nameEn, nameAr: s.nameAr }));
+  }
+
+  /** Every location that may hold the merchant's stock (stores and hubs), for returns. */
+  @Get('locations')
+  async locations() {
     const stores = await this.prisma.darkStore.findMany({
       where: { isActive: true },
-      orderBy: { code: 'asc' },
+      orderBy: [{ kind: 'desc' }, { code: 'asc' }],
     });
     return stores.map((s) => ({ id: s.id, code: s.code, nameEn: s.nameEn, nameAr: s.nameAr }));
   }

@@ -4,6 +4,7 @@ import type { DayHours } from '@shiplynow/shared';
 
 export interface AdminStore {
   id: string;
+  kind: 'dark_store' | 'hub';
   code: string;
   nameEn: string;
   nameAr: string;

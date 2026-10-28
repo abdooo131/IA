@@ -87,8 +87,9 @@ export class ShopifySetupService {
    */
   async registerLocations(shopId: string, actorUserId: string | null) {
     const shop = await this.activeShop(shopId);
+    // Hubs never sell, so only dark stores become Shopify locations.
     const stores = await this.prisma.darkStore.findMany({
-      where: { isActive: true },
+      where: { isActive: true, kind: 'dark_store' },
       orderBy: { code: 'asc' },
       include: { governorate: true },
     });

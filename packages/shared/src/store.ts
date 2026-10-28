@@ -101,3 +101,26 @@ export const settleDamageSchema = z.object({
   note: z.string().trim().max(300).optional(),
 });
 export type SettleDamageBody = z.infer<typeof settleDamageSchema>;
+
+export const LOCATION_KINDS = ['dark_store', 'hub'] as const;
+
+/** Admin opens a dark store or a sorting facility (hub). */
+export const createLocationSchema = z.object({
+  kind: z.enum(LOCATION_KINDS),
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{2,8}$/),
+  nameEn: z.string().trim().min(2).max(80),
+  nameAr: z.string().trim().min(2).max(80),
+  addressEn: z.string().trim().min(5).max(300),
+  addressAr: z.string().trim().min(5).max(300),
+  governorateId: z.number().int().min(1).max(27),
+  latitude: z.number().min(22).max(32),
+  longitude: z.number().min(24).max(37),
+  shelves: z.number().int().min(1).max(200),
+});
+export type CreateLocationBody = z.infer<typeof createLocationSchema>;
+
+export const addShelvesSchema = z.object({ count: z.number().int().min(1).max(100) });

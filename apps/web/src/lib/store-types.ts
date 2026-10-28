@@ -6,7 +6,7 @@ export interface StoreRef {
 }
 
 export interface StoreSummary {
-  store: StoreRef;
+  store: StoreRef & { kind: 'dark_store' | 'hub' };
   openManifests: number;
   unitsToPutAway: number;
   pendingCounts: number;

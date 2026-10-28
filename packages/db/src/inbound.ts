@@ -21,6 +21,12 @@ export function createManifest(db: Db, input: CreateManifestInput) {
   return inTransaction(db, async (tx) => {
     const store = await tx.darkStore.findUnique({ where: { id: input.darkStoreId } });
     if (!store || !store.isActive) throw new DomainError('dark_store_not_found', 404);
+    // Once a sorting facility exists, merchant shipments go there, never straight to a store.
+    if (
+      store.kind !== 'hub' &&
+      (await tx.darkStore.count({ where: { kind: 'hub', isActive: true } })) > 0
+    )
+      throw new DomainError('shipments_go_to_hub');
     const skuIds = [...new Set(input.lines.map((l) => l.skuId))];
     if (skuIds.length !== input.lines.length) throw new DomainError('duplicate_sku', 400);
     const owned = await tx.sku.count({

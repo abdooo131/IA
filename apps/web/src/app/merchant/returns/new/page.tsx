@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function NewReturnPage() {
   const [stores, t] = await Promise.all([
-    apiGet<StoreRef[]>('/merchant/dark-stores'),
+    apiGet<StoreRef[]>('/merchant/locations'),
     getTranslations('returns'),
   ]);
   return (
