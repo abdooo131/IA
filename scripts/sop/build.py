@@ -49,4 +49,8 @@ index = ['# Standard operating procedures', '',
          'Edit `scripts/sop/content.py`, then run `python3 scripts/sop/build.py` to update the app and these files.', '']
 index += [f'- [{EN[r]["title"]}]({r}.md): {EN[r]["who"]}' for r in ORDER]
 open(os.path.join(ROOT, 'docs/sop/README.md'), 'w', encoding='utf-8').write('\n'.join(index) + '\n')
+# Keep the files in the repo's formatting.
+import subprocess
+subprocess.run(['npx', 'prettier', '--write', 'apps/web/messages', 'docs/sop'], cwd=ROOT, check=True,
+               stdout=subprocess.DEVNULL)
 print('SOPs written for', ', '.join(ORDER))

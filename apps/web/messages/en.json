@@ -2097,9 +2097,7 @@
           },
           {
             "title": "Rider bonuses",
-            "steps": [
-              "Riders shows bonuses owed. Pay from a bank or a store box with a reference."
-            ]
+            "steps": ["Riders shows bonuses owed. Pay from a bank or a store box with a reference."]
           },
           {
             "title": "Month end",
