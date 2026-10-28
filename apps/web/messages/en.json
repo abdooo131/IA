@@ -89,7 +89,8 @@
       "returns": "Returns to merchants",
       "damage": "Damage to settle",
       "stores": "Dark stores and hubs",
-      "transfers": "Transfers"
+      "transfers": "Transfers",
+      "addresses": "Address map"
     },
     "overview": {
       "title": "Overview",
@@ -1639,5 +1640,67 @@
     "max": "Maximum",
     "badLevels": "Use whole numbers, minimum not above maximum. Leave both empty for the store default.",
     "saved": "Saved."
+  },
+  "geo": {
+    "title": "Address map",
+    "intro": "Shiply Now places addresses by reading the area names in them: governorate, district, neighbourhood, compound, then street, each one tighter than the last. Only when the map cannot decide do we pay Google, and every Google answer teaches the map new names for you to approve here.",
+    "levels": {
+      "1": "Governorates",
+      "2": "Districts",
+      "3": "Neighbourhoods",
+      "4": "Compounds",
+      "5": "Streets"
+    },
+    "placed": "Last 30 days: {engine} addresses placed by the map, {google} by Google.",
+    "error": "Something went wrong. Try again.",
+    "import": {
+      "title": "Fill the map from OpenStreetMap",
+      "intro": "Run neighbourhoods and compounds first, then streets. Streets go one district at a time and take about 10 to 20 minutes; keep this page open until it finishes. Running it again updates the same areas.",
+      "places": "Import neighbourhoods and compounds",
+      "streets": "Import streets",
+      "kinds": {
+        "places": "Neighbourhoods and compounds",
+        "streets": "Streets"
+      },
+      "running": "{kind}: working, {done} of {total} parts done, {saved} areas saved so far.",
+      "finished": "{kind}: finished. {found} found, {saved} saved.",
+      "failed": "Not loaded this time (OpenStreetMap was busy): {names}. Run streets again later to fill them.",
+      "error": "The import stopped. OpenStreetMap may be busy; try again in a few minutes.",
+      "busy": "An import is already running."
+    },
+    "try": {
+      "title": "Try an address",
+      "intro": "See how the map reads an address, without paying for a lookup.",
+      "placeholder": "Villa 12, South 90th Street, New Cairo",
+      "check": "Check",
+      "zone": "Inside a delivery zone: no Google lookup needed.",
+      "outside": "Outside every delivery zone: no Google lookup needed.",
+      "unsure": "The map is not sure ({reason}), so Google would be asked.",
+      "reasons": {
+        "no_area_named": "no known area named",
+        "area_spans_zones": "the area crosses a zone border",
+        "too_coarse": "the area is too large"
+      },
+      "matched": "Words recognised: {words}"
+    },
+    "suggestions": {
+      "title": "Names to approve",
+      "intro": "Words from addresses Google placed inside an area the map did not recognise. Approve to teach the map (you can correct the words first) or reject.",
+      "none": "Nothing to approve.",
+      "phrase": "Name",
+      "meta": "{area} ({level}), seen {seen} times",
+      "approve": "Approve",
+      "reject": "Reject"
+    },
+    "names": {
+      "title": "Add a name by hand",
+      "intro": "Find an area and add another way people write it, in Arabic or English.",
+      "search": "Search areas",
+      "find": "Find",
+      "noAreas": "No area has that name.",
+      "newName": "New name",
+      "add": "Add",
+      "added": "Added “{name}”."
+    }
   }
 }

@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { hashPassword, type Role, seed } from '@shiplynow/db';
 import { AppModule } from '../src/app.module';
 import { Clock } from '../src/common/clock';
+import { Overpass } from '../src/coverage/geo-import.service';
 import { Geocoder } from '../src/coverage/geocoding';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ShopifyAdmin } from '../src/shopify/shopify-admin';
@@ -12,6 +13,7 @@ export interface Overrides {
   clock?: Clock;
   geocoder?: Geocoder;
   shopify?: ShopifyAdmin;
+  overpass?: Overpass;
 }
 
 export async function createTestApp(
@@ -22,6 +24,7 @@ export async function createTestApp(
   if (overrides.geocoder) builder = builder.overrideProvider(Geocoder).useValue(overrides.geocoder);
   if (overrides.shopify)
     builder = builder.overrideProvider(ShopifyAdmin).useValue(overrides.shopify);
+  if (overrides.overpass) builder = builder.overrideProvider(Overpass).useValue(overrides.overpass);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();
   setupApp(app);
