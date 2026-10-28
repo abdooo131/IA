@@ -187,6 +187,12 @@ export class ShopifyAdminController {
     return this.setup.syncCatalog(id, body, user.sub);
   }
 
+  /** Ends the link with this Shopify store (our locations and rate service are removed there). */
+  @Post(':id/disconnect')
+  disconnect(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return this.setup.disconnect(id, user.sub);
+  }
+
   /** Runs the sync now instead of waiting for the next timer tick. */
   @Post(':id/sync-now')
   async syncNow(@Param('id') id: string) {

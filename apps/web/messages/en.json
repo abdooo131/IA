@@ -516,7 +516,9 @@
         "register": "{created} locations created, {failed} failed.",
         "catalog": "{linked} linked, {created} added, {already} already linked, {missing} not in our catalog, {withoutSku} without SKU.",
         "sync": "Synced.",
-        "checkout": "Checkout rate is on."
+        "checkout": "Checkout rate is on.",
+        "disconnect": "Store disconnected.",
+        "disconnectPartly": "Store disconnected. {count} items could not be removed in Shopify; delete them there by hand (Settings, Locations and Shipping)."
       },
       "errors": {
         "shop_linked_to_other_merchant": "That store is already linked to another merchant.",
@@ -531,7 +533,9 @@
       "merchantPrice": "Merchant's 60 minute price",
       "noPrice": "Not set by the merchant",
       "addressMissing": "address not set",
-      "price": "{price} EGP"
+      "price": "{price} EGP",
+      "disconnect": "Disconnect store",
+      "disconnectConfirm": "Disconnect {shop}? Our locations and the 60 minute rate are removed from that Shopify store, product links are cleared, and the merchant can then be linked to another store. Orders already received stay."
     },
     "navGroups": {
       "stores": "Dark stores",

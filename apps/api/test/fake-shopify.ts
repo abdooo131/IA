@@ -122,6 +122,12 @@ export class FakeShopify extends ShopifyAdmin {
         s.callbackUrl = String(v.callbackUrl);
         return ok({ fulfillmentServiceUpdate: { fulfillmentService: { id: s.id }, ...errors } });
       }
+      case 'FulfillmentServiceDelete':
+        this.services = this.services.filter((x) => x.id !== v.id);
+        return ok({ fulfillmentServiceDelete: { deletedId: v.id, ...errors } });
+      case 'CarrierServiceDelete':
+        this.carrierServices = this.carrierServices.filter((x) => x.id !== v.id);
+        return ok({ carrierServiceDelete: { deletedId: v.id, ...errors } });
       case 'FulfillmentServiceCreate': {
         // Shopify refuses a second service with the same name in one shop.
         if (this.services.some((x) => x.name === String(v.name)))

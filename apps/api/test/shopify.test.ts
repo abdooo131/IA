@@ -529,6 +529,31 @@ describe('shopify app', () => {
     expect(audit.before).toMatchObject({ shopDomain: SHOP, status: 'active' });
   });
 
+  it('disconnects a store: removes our locations and rate service there, then the link', async () => {
+    const { admin, shop } = await install();
+    await admin.post(`/admin/shopify/${shop.id}/carrier-service`).expect(201);
+    expect(fake.services).toHaveLength(3);
+    expect(fake.carrierServices).toHaveLength(1);
+
+    const res = await admin.post(`/admin/shopify/${shop.id}/disconnect`).expect(201);
+    expect(res.body).toEqual({ disconnected: true, notRemovedInShopify: 0 });
+    expect(fake.services).toHaveLength(0);
+    expect(fake.carrierServices).toHaveLength(0);
+    expect(await prisma.shopifyShop.count()).toBe(0);
+    expect(await prisma.shopifyLocation.count()).toBe(0);
+    expect(await prisma.sku.count({ where: { merchantId, shopifyVariantId: { not: null } } })).toBe(
+      0,
+    );
+    expect(await prisma.auditLog.count({ where: { action: 'shopify.disconnect' } })).toBe(1);
+    await admin.post(`/admin/shopify/${shop.id}/disconnect`).expect(404);
+
+    // The merchant can now be linked to another store.
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-adv' })
+      .expect(201);
+  });
+
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });

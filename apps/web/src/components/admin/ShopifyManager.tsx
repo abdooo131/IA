@@ -260,6 +260,24 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
               />
               {t('createMissing')}
             </label>
+            <button
+              type="button"
+              className={`${button} ms-auto text-danger`}
+              disabled={action.busy}
+              onClick={() => {
+                if (!window.confirm(t('disconnectConfirm', { shop: shop.shopDomain }))) return;
+                void action.send<{ notRemovedInShopify: number }>(
+                  `/admin/shopify/${shop.id}/disconnect`,
+                  {},
+                  (d) =>
+                    d.notRemovedInShopify > 0
+                      ? t('result.disconnectPartly', { count: d.notRemovedInShopify })
+                      : t('result.disconnect'),
+                );
+              }}
+            >
+              {t('disconnect')}
+            </button>
           </div>
           <Message message={action.message} />
 

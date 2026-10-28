@@ -3,7 +3,9 @@ import { Injectable } from '@nestjs/common';
 import { DomainError, recordAudit, type ShopifyShop } from '@shiplynow/db';
 import {
   CARRIER_SERVICE_CREATE,
+  CARRIER_SERVICE_DELETE,
   FULFILLMENT_SERVICE_CREATE,
+  FULFILLMENT_SERVICE_DELETE,
   FULFILLMENT_SERVICE_UPDATE,
   FULFILLMENT_SERVICES,
   LOCATION_EDIT,
@@ -335,6 +337,83 @@ export class ShopifySetupService {
       message: id,
     });
     return { carrierServiceId: id, created: true };
+  }
+
+  /**
+   * Ends the link between a merchant and their Shopify store. While we still have access, our
+   * locations and rate service are removed from the shop first (best effort: a refusal is
+   * logged and the link is ended anyway). Then everything we keep for the shop goes: its
+   * locations, pending calls, product links and the shop row, so the merchant can be linked
+   * to another store and the old one can be linked to anyone.
+   */
+  async disconnect(shopId: string, actorUserId: string) {
+    const shop = await this.prisma.shopifyShop.findUnique({
+      where: { id: shopId },
+      include: { locations: true },
+    });
+    if (!shop) throw new DomainError('shop_not_found', 404);
+    const notRemoved: string[] = [];
+    if (shop.status === 'active' && shop.accessTokenEnc) {
+      const remove = async (id: string, query: string, field: string) => {
+        try {
+          const data = await this.shopify.call<
+            Record<string, { userErrors: { message: string }[] }>
+          >(shop, query, { id });
+          assertNoUserErrors(field, data[field]!);
+        } catch (error) {
+          notRemoved.push(id);
+          await this.shopify.record(null, {
+            direction: 'out',
+            kind: 'disconnect',
+            ok: false,
+            message: `${shop.shopDomain} ${id}: ${(error as Error).message}`,
+          });
+        }
+      };
+      for (const l of shop.locations)
+        await remove(
+          l.fulfillmentServiceId,
+          FULFILLMENT_SERVICE_DELETE,
+          'fulfillmentServiceDelete',
+        );
+      if (shop.carrierServiceId)
+        await remove(shop.carrierServiceId, CARRIER_SERVICE_DELETE, 'carrierServiceDelete');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      await tx.shopifyLocation.deleteMany({ where: { shopId } });
+      await tx.shopifyOutbox.deleteMany({ where: { shopId } });
+      await tx.shopifyLog.updateMany({ where: { shopId }, data: { shopId: null } });
+      await tx.sku.updateMany({
+        where: { merchantId: shop.merchantId },
+        data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
+      });
+      await tx.merchant.update({
+        where: { id: shop.merchantId },
+        data: { shopifyShopDomain: null },
+      });
+      await tx.shopifyShop.delete({ where: { id: shopId } });
+      await recordAudit(tx, {
+        actorUserId,
+        action: 'shopify.disconnect',
+        entityType: 'shopify_shop',
+        entityId: shopId,
+        before: {
+          merchantId: shop.merchantId,
+          shopDomain: shop.shopDomain,
+          status: shop.status,
+          locations: shop.locations.length,
+          carrierServiceId: shop.carrierServiceId,
+        },
+        after: { notRemovedInShopify: notRemoved },
+      });
+    });
+    await this.shopify.record(null, {
+      direction: 'out',
+      kind: 'disconnect',
+      ok: true,
+      message: shop.shopDomain,
+    });
+    return { disconnected: true, notRemovedInShopify: notRemoved.length };
   }
 
   /**

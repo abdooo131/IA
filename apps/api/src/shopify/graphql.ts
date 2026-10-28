@@ -440,3 +440,29 @@ export const WEBHOOK_SUBSCRIPTION_UPDATE = /* GraphQL */ `
     }
   }
 `;
+
+/** Removes one of our fulfillment services (and its location, with the stock we reported). */
+export const FULFILLMENT_SERVICE_DELETE = /* GraphQL */ `
+  mutation FulfillmentServiceDelete($id: ID!) {
+    fulfillmentServiceDelete(id: $id, inventoryAction: DELETE) {
+      deletedId
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+/** Removes the checkout rate service. */
+export const CARRIER_SERVICE_DELETE = /* GraphQL */ `
+  mutation CarrierServiceDelete($id: ID!) {
+    carrierServiceDelete(id: $id) {
+      deletedId
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
