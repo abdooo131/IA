@@ -5,7 +5,7 @@ app configuration and, in Step 6, the storefront zone widget (a theme app extens
 
 ## Dev Dashboard settings
 
-Replace `RENDER_URL` with the live address, for example `https://shiplynow.onrender.com`.
+The live address is `https://shiplynow.onrender.com` (already filled in shopify.app.toml); RENDER_URL below stands for it.
 
 | Setting                                                                   | Value                                                                                                                                                                                                                        |
 | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

@@ -164,7 +164,9 @@ console.log(`.env updated: WEB_ORIGIN=${url}${googleKey ? '' : ', GEOCODER=osm'}
 
 const toml = readFileSync(join(APP, 'shopify.app.toml'), 'utf8')
   .split('\n')
-  .map((line) => (line.startsWith('#') ? line : line.replaceAll('RENDER_URL', url)))
+  .map((line) =>
+    line.startsWith('#') ? line : line.replaceAll('https://shiplynow.onrender.com', url),
+  )
   .join('\n');
 writeFileSync(
   join(APP, 'shopify.app.local.toml'),
