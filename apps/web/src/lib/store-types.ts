@@ -13,6 +13,8 @@ export interface StoreSummary {
   activeOrders: number;
   lateOrders: number;
   openReturns: number;
+  transfersToPick: number;
+  transfersToReceive: number;
 }
 
 export interface ManifestListItem {

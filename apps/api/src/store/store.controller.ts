@@ -7,6 +7,7 @@ import {
   receiveOnManifest,
   reportDamage,
   submitCount,
+  transferCounts,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -78,6 +79,7 @@ export class StoreController {
           where: { darkStoreId: storeId, status: { in: ['requested', 'picking', 'ready'] } },
         }),
       ]);
+    const transfers = await transferCounts(this.prisma, storeId);
     return {
       store: {
         id: store.id,
@@ -92,6 +94,8 @@ export class StoreController {
       activeOrders,
       lateOrders,
       openReturns,
+      transfersToPick: transfers.toPick,
+      transfersToReceive: transfers.toReceive,
     };
   }
 

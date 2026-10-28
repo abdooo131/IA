@@ -124,3 +124,42 @@ export const createLocationSchema = z.object({
 export type CreateLocationBody = z.infer<typeof createLocationSchema>;
 
 export const addShelvesSchema = z.object({ count: z.number().int().min(1).max(100) });
+
+export const TRANSFER_STATUSES = [
+  'draft',
+  'approved',
+  'picking',
+  'in_transit',
+  'received',
+  'cancelled',
+] as const;
+
+const transferLines = z
+  .array(z.object({ skuId: id, quantity }))
+  .min(1)
+  .max(500);
+
+/** Admin moves stock between locations; store to store goes through the hub. */
+export const createTransferSchema = z.object({
+  fromId: id,
+  toId: id,
+  note: z.string().trim().max(300).optional(),
+  lines: transferLines,
+});
+export type CreateTransferBody = z.infer<typeof createTransferSchema>;
+
+/** Approving a refill draft, optionally with changed quantities (0 drops a line). */
+export const approveTransferSchema = z.object({
+  lines: z
+    .array(z.object({ skuId: id, quantity: z.number().int().min(0).max(100_000) }))
+    .max(500)
+    .optional(),
+});
+
+export const transferScanSchema = z.object({
+  skuId: id,
+  binId: id.optional(),
+  quantity: quantity.default(1),
+  idempotencyKey,
+});
+export type TransferScanBody = z.infer<typeof transferScanSchema>;

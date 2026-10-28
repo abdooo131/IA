@@ -55,6 +55,8 @@ model User {
   returnsHandedOver MerchantReturn[]  @relation("return_handed_over_by")
   damageReported    DamageReport[]    @relation("damage_reported_by")
   damageSettled     DamageReport[]    @relation("damage_settled_by")
+  transfersCreated  Transfer[]        @relation("transfer_created_by")
+  transfersApproved Transfer[]        @relation("transfer_approved_by")
   photos            Photo[]           @relation("photo_created_by")
   alertsResolved    Alert[]           @relation("alert_resolved_by")
   rider             Rider?
@@ -140,6 +142,9 @@ model DarkStore {
   damageReports    DamageReport[]
   orders           Order[]
   riders           Rider[]
+  transfersOut     Transfer[]        @relation("transfer_from")
+  transfersIn      Transfer[]        @relation("transfer_to")
+  transfersFinal   Transfer[]        @relation("transfer_final")
   users            User[]
   stockCounts      StockCount[]
   alerts           Alert[]
@@ -261,6 +266,7 @@ model Sku {
   stockMovements StockMovement[]
   manifestLines  InboundManifestLine[]
   returnLines    MerchantReturnLine[]
+  transferLines  TransferLine[]
   damageReports  DamageReport[]
   orderItems     OrderItem[]
   countLines     StockCountLine[]
@@ -367,6 +373,7 @@ model StockMovement {
   orderId        String?      @map("order_id")
   manifestId     String?      @map("manifest_id")
   returnId       String?      @map("return_id")
+  transferId     String?      @map("transfer_id")
   actorUserId    String?      @map("actor_user_id")
   /// Makes a retried job or request apply the movement only once
   idempotencyKey String?      @unique @map("idempotency_key")
@@ -379,6 +386,7 @@ model StockMovement {
   order     Order?           @relation(fields: [orderId], references: [id], onDelete: Restrict)
   manifest  InboundManifest? @relation(fields: [manifestId], references: [id], onDelete: Restrict)
   return    MerchantReturn?  @relation(fields: [returnId], references: [id], onDelete: Restrict)
+  transfer  Transfer?        @relation(fields: [transferId], references: [id], onDelete: Restrict)
   damage    DamageReport?
   actor     User?            @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
@@ -625,6 +633,80 @@ model DamageReport {
 
   @@index([status, createdAt])
   @@map("damage_reports")
+}
+
+// ─── Transfers between locations ──────────────────────────────────────────────
+
+enum TransferStatus {
+  draft
+  approved
+  picking
+  in_transit
+  received
+  cancelled
+
+  @@map("transfer_status")
+}
+
+enum TransferOrigin {
+  manual
+  refill
+
+  @@map("transfer_origin")
+}
+
+/// One leg of moving stock between two locations. Store to store always goes through the
+/// hub: the first leg ends at the hub and carries the final destination; when the hub closes
+/// its receipt, the onward leg is created (or joins the open trip to that store).
+model Transfer {
+  id                 String         @id @default(cuid())
+  reference          String         @unique
+  fromId             String         @map("from_id")
+  toId               String         @map("to_id")
+  finalDestinationId String?        @map("final_destination_id")
+  previousId         String?        @map("previous_id")
+  status             TransferStatus
+  origin             TransferOrigin @default(manual)
+  /// Cairo day of the automatic refill run that made it (one trip per store per day)
+  refillDay          String?        @map("refill_day")
+  note               String?
+  createdById        String?        @map("created_by_id")
+  approvedById       String?        @map("approved_by_id")
+  approvedAt         DateTime?      @map("approved_at")
+  sentAt             DateTime?      @map("sent_at")
+  receivedAt         DateTime?      @map("received_at")
+  cancelledAt        DateTime?      @map("cancelled_at")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  from             DarkStore       @relation("transfer_from", fields: [fromId], references: [id])
+  to               DarkStore       @relation("transfer_to", fields: [toId], references: [id])
+  finalDestination DarkStore?      @relation("transfer_final", fields: [finalDestinationId], references: [id])
+  previous         Transfer?       @relation("transfer_legs", fields: [previousId], references: [id])
+  next             Transfer[]      @relation("transfer_legs")
+  createdBy        User?           @relation("transfer_created_by", fields: [createdById], references: [id])
+  approvedBy       User?           @relation("transfer_approved_by", fields: [approvedById], references: [id])
+  lines            TransferLine[]
+  stockMovements   StockMovement[]
+
+  @@index([fromId, status])
+  @@index([toId, status])
+  @@map("transfers")
+}
+
+model TransferLine {
+  id          String @id @default(cuid())
+  transferId  String @map("transfer_id")
+  skuId       String @map("sku_id")
+  quantity    Int
+  pickedQty   Int    @default(0) @map("picked_qty")
+  receivedQty Int    @default(0) @map("received_qty")
+
+  transfer Transfer @relation(fields: [transferId], references: [id], onDelete: Cascade)
+  sku      Sku      @relation(fields: [skuId], references: [id])
+
+  @@unique([transferId, skuId])
+  @@map("transfer_lines")
 }
 
 // ─── Orders and delivery ───────────────────────────────────────────────────────

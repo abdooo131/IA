@@ -37,6 +37,7 @@ interface Common {
 export interface ReceiveInput extends Common {
   binId: string;
   manifestId?: string;
+  transferId?: string;
 }
 export interface MoveInput extends Common {
   fromBinId: string;
@@ -53,6 +54,12 @@ export interface PickInput extends Common {
 export interface DispatchInput extends Common {
   binId: string;
   returnId?: string;
+  transferId?: string;
+  /**
+   * From a shelf, whether the units were reserved first (the default). Only the onward leg
+   * from a hub takes unreserved shelf units, because a hub never sells.
+   */
+  reserved?: boolean;
 }
 export interface AdjustInput extends Omit<Common, 'quantity'> {
   binId: string;
@@ -71,6 +78,7 @@ export async function receive(db: Db, input: ReceiveInput): Promise<StockResult>
       darkStoreId: bin.darkStoreId,
       toBinId: bin.id,
       manifestId: input.manifestId,
+      transferId: input.transferId,
     });
     const binAfter = await addToBin(tx, bin.id, input.skuId, input.quantity);
     const level =
@@ -209,35 +217,37 @@ export async function pick(db: Db, input: PickInput): Promise<StockResult> {
 }
 
 /**
- * Units leave the store for good (back to the merchant). From a pickable shelf they must
- * have been reserved first, so the units come off on_hand and reserved together; from a
- * damaged or held bin only the bin changes.
+ * Units leave the location: back to the merchant or onto a transfer truck. From a pickable
+ * shelf they must have been reserved first, so they come off on_hand and reserved together;
+ * from a receiving, damaged or held bin only the bin changes.
  */
 export async function dispatch(db: Db, input: DispatchInput): Promise<StockResult> {
   assertQuantity(input.quantity);
   return run(db, input, async (tx) => {
     const bin = await loadBin(tx, input.binId);
-    if (bin.type === 'receiving') throw new StockError('bin_not_allowed');
     const movement = await insertMovement(tx, input, {
       type: 'dispatch',
       darkStoreId: bin.darkStoreId,
       fromBinId: bin.id,
       returnId: input.returnId,
+      transferId: input.transferId,
     });
     const binAfter = await takeFromBin(tx, bin.id, input.skuId, input.quantity);
-    const level =
-      bin.type === 'pickable'
-        ? await changeLevel(
-            tx,
-            bin.darkStoreId,
-            input.skuId,
-            -input.quantity,
-            -input.quantity,
-            'insufficient_reserved',
-          )
-        : null;
-    const sellable = bin.type === 'pickable' ? -input.quantity : 0;
-    await audit(tx, movement, level, sellable, sellable, { [bin.code]: binAfter });
+    const fromShelf = bin.type === 'pickable';
+    const reservedDelta = fromShelf && input.reserved !== false ? -input.quantity : 0;
+    const level = fromShelf
+      ? await changeLevel(
+          tx,
+          bin.darkStoreId,
+          input.skuId,
+          -input.quantity,
+          reservedDelta,
+          reservedDelta ? 'insufficient_reserved' : 'would_break_reservations',
+        )
+      : null;
+    await audit(tx, movement, level, fromShelf ? -input.quantity : 0, reservedDelta, {
+      [bin.code]: binAfter,
+    });
     return { movement, level };
   });
 }
@@ -331,6 +341,7 @@ function insertMovement(
     orderId?: string;
     manifestId?: string;
     returnId?: string;
+    transferId?: string;
   },
 ) {
   return tx.stockMovement.create({

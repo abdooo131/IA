@@ -104,3 +104,20 @@ export {
 } from './damage';
 export { decideSignUp, onboardingSteps, signUpMerchant, type SignUpInput } from './signup';
 export { addShelves, createLocation, listHubs, type CreateLocationInput } from './locations';
+export {
+  approveTransfer,
+  cancelTransfer,
+  closeTransfer,
+  createTransfer,
+  getTransferDetail,
+  listTransfers,
+  pickForTransfer,
+  receiveTransfer,
+  sendTransfer,
+  transferCounts,
+  type CreateTransferInput,
+  type PickTransferInput,
+  type ReceiveTransferInput,
+  type TransferDetail,
+  type TransferLineInput,
+} from './transfers';

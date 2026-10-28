@@ -46,6 +46,16 @@ export default async function StoreHomePage({ params }: { params: Promise<{ stor
       badge: summary.unitsToPutAway,
     },
     {
+      href: 'transfers',
+      icon: 'route',
+      title: t('transfers'),
+      hint: t('transfersHint', {
+        pick: summary.transfersToPick,
+        receive: summary.transfersToReceive,
+      }),
+      badge: summary.transfersToPick + summary.transfersToReceive,
+    },
+    {
       href: 'returns',
       icon: 'returns',
       title: t('returns'),
