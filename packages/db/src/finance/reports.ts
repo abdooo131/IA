@@ -1,6 +1,7 @@
 import type { LedgerAccountType, PayoutSchedule } from '@prisma/client';
 import { entryNumber, handoverNumber, payoutNumber } from '@shiplynow/shared';
 import type { Db } from '../client';
+import { DomainError } from '../domain-error';
 import { accountKey, balancesByType } from './ledger';
 
 /** How an account is shown: who it belongs to, in both languages where it has a name. */
@@ -122,7 +123,7 @@ export interface StatementLine {
 export async function merchantStatement(db: Db, merchantId: string, from: Date, to: Date) {
   const key = accountKey({ type: 'merchant', merchantId });
   const [merchant, opening, lines] = await Promise.all([
-    db.merchant.findUniqueOrThrow({
+    db.merchant.findUnique({
       where: { id: merchantId },
       select: { id: true, name: true, payoutSchedule: true },
     }),
@@ -136,6 +137,7 @@ export async function merchantStatement(db: Db, merchantId: string, from: Date, 
       orderBy: [{ occurredAt: 'asc' }, { id: 'asc' }],
     }),
   ]);
+  if (!merchant) throw new DomainError('merchant_not_found', 404);
   const openingOwed = negate(opening._sum.amountPiastres ?? 0);
   let running = openingOwed;
   const rows: StatementLine[] = lines.map((l) => {

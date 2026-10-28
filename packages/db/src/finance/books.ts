@@ -6,6 +6,7 @@ import {
   cairoDayStart,
   debitNormal,
   entryNumber,
+  isCalendarDay,
   type ManualAccountType,
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
@@ -37,6 +38,7 @@ const isWallet = (a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId
 /** When a money event happened: a past Cairo day at noon, or now for today and no day. */
 export function eventTime(day: string | undefined, now: Date = new Date()) {
   if (!day || day === cairoDay(now)) return now;
+  if (!isCalendarDay(day)) throw new DomainError('invalid_date', 400);
   if (day > cairoDay(now)) throw new DomainError('future_date', 400);
   return new Date(cairoDayStart(day).getTime() + 12 * 3600_000);
 }

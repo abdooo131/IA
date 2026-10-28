@@ -23,6 +23,7 @@ import {
   createAccountSchema,
   entryNumber,
   expenseSchema,
+  isCalendarDay,
   journalEntrySchema,
   moneyTransferSchema,
   otherIncomeSchema,
@@ -36,8 +37,6 @@ import { parseBound, parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { cairoStamp, csv, egp } from './finance-csv';
-
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** What a posting answers: the entry and its voucher number. */
 const voucher = (entry: { id: string; number: number }) => ({
@@ -216,7 +215,7 @@ export class BooksController {
   @ApiQuery({ name: 'day', required: false, description: 'Cairo day, default today' })
   sheet(@Query('day') day?: string) {
     const at = day ?? cairoDay(this.clock.now());
-    if (!DAY.test(at)) throw new DomainError('invalid_date', 400);
+    if (!isCalendarDay(at)) throw new DomainError('invalid_date', 400);
     return balanceSheet(this.prisma, at);
   }
 

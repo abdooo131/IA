@@ -3,6 +3,7 @@ import {
   addDays,
   cairoDay,
   cairoDayStart,
+  isCalendarDay,
   cairoClock,
   type DayHours,
   formatMinute,
@@ -97,5 +98,17 @@ describe('Cairo days', () => {
     expect(cairoDay(new Date('2026-07-13T21:30:00Z'))).toBe('2026-07-14');
     expect(addDays('2026-02-28', 1)).toBe('2026-03-01');
     expect(addDays('2026-01-01', -1)).toBe('2025-12-31');
+  });
+
+  // Regression: ISSUE-002, an impossible day like 30 February was accepted as 2 March
+  // Found by /qa on 2026-10-28
+  // Report: docs/QA_REPORT.md
+  it('knows real calendar days', () => {
+    expect(isCalendarDay('2028-02-29')).toBe(true);
+    expect(isCalendarDay('2026-02-29')).toBe(false);
+    expect(isCalendarDay('2026-02-30')).toBe(false);
+    expect(isCalendarDay('2026-13-01')).toBe(false);
+    expect(isCalendarDay('2026-1-01')).toBe(false);
+    expect(() => cairoDayStart('2026-02-30')).toThrow();
   });
 });

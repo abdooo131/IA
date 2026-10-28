@@ -1,9 +1,10 @@
 import { z } from 'zod';
+import { isCalendarDay } from './hours';
 
 const id = z.string().min(1).max(64);
 const key = z.string().min(8).max(100);
 const piastres = z.number().int().min(1).max(1_000_000_000);
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_day');
+const day = z.string().refine(isCalendarDay, 'invalid_day');
 
 export const PAYOUT_SCHEDULES = ['daily', 'twice_weekly', 'weekly'] as const;
 export type PayoutScheduleName = (typeof PAYOUT_SCHEDULES)[number];

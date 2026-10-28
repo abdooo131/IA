@@ -1,4 +1,4 @@
-import { addDays, cairoDay, cairoDayStart } from '@shiplynow/shared';
+import { addDays, cairoDay, cairoDayStart, isCalendarDay } from '@shiplynow/shared';
 import { DomainError } from '@shiplynow/db';
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -9,7 +9,10 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
  */
 export function parseBound(value: string | undefined, edge: 'from' | 'to'): Date | undefined {
   if (!value) return undefined;
-  if (DAY.test(value)) return cairoDayStart(edge === 'from' ? value : addDays(value, 1));
+  if (DAY.test(value)) {
+    if (!isCalendarDay(value)) throw new DomainError('invalid_date', 400);
+    return cairoDayStart(edge === 'from' ? value : addDays(value, 1));
+  }
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) throw new DomainError('invalid_date', 400);
   return date;

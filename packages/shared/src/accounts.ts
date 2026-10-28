@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { isCalendarDay } from './hours';
 
 // Chart of accounts. The first digit of a code is its category, the next three its group:
 //
@@ -162,7 +163,7 @@ export const handoverNumber = (n: number) => `CH-${pad(n)}`;
 const id = z.string().min(1).max(64);
 const key = z.string().min(8).max(100);
 const piastres = z.number().int().min(1).max(1_000_000_000);
-const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'invalid_day');
+const day = z.string().refine(isCalendarDay, 'invalid_day');
 const name = z.string().trim().min(2).max(80);
 const optionalText = (max: number) =>
   z

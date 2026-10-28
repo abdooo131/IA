@@ -100,10 +100,18 @@ function cairoOffsetMinutes(at: Date): number {
   return Math.round((asUtc - Math.floor(at.getTime() / 1000) * 1000) / 60_000);
 }
 
+/** Whether YYYY-MM-DD names a day that exists (no 30 February, no month 13). */
+export function isCalendarDay(day: string): boolean {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
+  if (!match) return false;
+  const d = new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  return d.toISOString().slice(0, 10) === day;
+}
+
 /** The instant a Cairo calendar day (YYYY-MM-DD) starts, honouring Egypt's summer time. */
 export function cairoDayStart(day: string): Date {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(day);
-  if (!match) throw new Error(`invalid day ${day}`);
+  if (!match || !isCalendarDay(day)) throw new Error(`invalid day ${day}`);
   const utcMidnight = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
   let guess = utcMidnight - cairoOffsetMinutes(new Date(utcMidnight)) * 60_000;
   guess = utcMidnight - cairoOffsetMinutes(new Date(guess)) * 60_000;
