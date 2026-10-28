@@ -89,7 +89,11 @@ export function AuditList({ first, query }: { first: AuditPage; query: string })
                     )}
                   </td>
                   <td className="px-3 py-2">
-                    <span className="ltr-iso font-bold">{r.action}</span>
+                    <span className="font-bold">
+                      {t.has(`actions.${r.action.replace(/\./g, '__')}`)
+                        ? t(`actions.${r.action.replace(/\./g, '__')}`)
+                        : r.action}
+                    </span>
                     <p className="ltr-iso text-caption text-text-muted">
                       {t.has(`entities.${r.entityType}`)
                         ? t(`entities.${r.entityType}`)
