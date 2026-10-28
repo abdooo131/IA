@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { getSetting, zonesContaining } from '@shiplynow/db';
-import { Clock } from '../common/clock';
-import { Geocoder } from '../coverage/geocoding';
+import { AddressLocator } from '../coverage/address-locator.service';
 import { StoreStatusService } from '../coverage/store-status.service';
 import { storeMarker } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
@@ -62,17 +61,13 @@ export class RatesUnavailableError extends Error {}
 /** The rate code: Shiply Now 60 minutes from one store. The order intake reads it back. */
 export const RATE_CODE_PREFIX = 'SN60:';
 
-/** Addresses Shopify could not place are tried again after a day; found ones are kept. */
-const NOT_FOUND_TTL_MS = 24 * 60 * 60_000;
-
 @Injectable()
 export class ShopifyRatesService {
   constructor(
     private readonly shopify: ShopifyService,
-    private readonly geocoder: Geocoder,
+    private readonly locator: AddressLocator,
     private readonly status: StoreStatusService,
     private readonly sync: ShopifySyncService,
-    private readonly clock: Clock,
   ) {}
 
   private get prisma() {
@@ -133,8 +128,10 @@ export class ShopifyRatesService {
       wanted.set(sku.id, (wanted.get(sku.id) ?? 0) + Math.max(0, Number(item.quantity) || 0));
     }
 
-    const point = await this.locate(rate.destination!);
-    if (!point) return none('address_not_found');
+    const located = await this.locate(rate.destination!);
+    if (!located || located.kind === 'not_found') return none('address_not_found');
+    if (located.kind === 'outside') return none('outside_zone');
+    const point = located;
     const zones = (await zonesContaining(this.prisma, point)).filter(
       (z) => z.darkStoreId === store.id,
     );
@@ -166,37 +163,20 @@ export class ShopifyRatesService {
     };
   }
 
-  /** The address as a map point, from the cache when we placed it before. */
+  /**
+   * The address as a map point. The area engine answers most addresses from their area names;
+   * the paid lookup only runs when it cannot decide (see AddressLocator).
+   */
   private async locate(address: RateAddress) {
     const text = [address.address1, address.address2, address.city, address.province]
       .map((p) => (p ?? '').trim())
       .filter(Boolean)
       .join(', ');
     if (!text) return null;
-    const key = `${text}, ${address.postal_code ?? ''}, EG`.toLowerCase().replace(/\s+/g, ' ');
-    const cached = await this.prisma.geocodeCache.findUnique({ where: { addressKey: key } });
-    const now = this.clock.now().getTime();
-    if (cached && (cached.latitude != null || now - cached.createdAt.getTime() < NOT_FOUND_TTL_MS))
-      return cached.latitude != null && cached.longitude != null
-        ? { latitude: cached.latitude, longitude: cached.longitude }
-        : null;
-
-    let found;
     try {
-      found = await this.geocoder.geocode(`${text}, Egypt`);
+      return await this.locator.locate(text);
     } catch {
       throw new RatesUnavailableError('geocoding unavailable');
     }
-    const row = {
-      latitude: found?.latitude ?? null,
-      longitude: found?.longitude ?? null,
-      createdAt: new Date(now),
-    };
-    await this.prisma.geocodeCache.upsert({
-      where: { addressKey: key },
-      create: { addressKey: key, ...row },
-      update: row,
-    });
-    return found ? { latitude: found.latitude, longitude: found.longitude } : null;
   }
 }

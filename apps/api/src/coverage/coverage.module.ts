@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Clock, SystemClock } from '../common/clock';
 import type { Env } from '../config/env';
+import { AddressLocator } from './address-locator.service';
 import { CoverageController } from './coverage.controller';
 import { CoverageService } from './coverage.service';
 import { Geocoder, GoogleGeocoder, NotConfiguredGeocoder, OsmGeocoder } from './geocoding';
@@ -11,6 +12,7 @@ import { StoreStatusService } from './store-status.service';
   controllers: [CoverageController],
   providers: [
     CoverageService,
+    AddressLocator,
     StoreStatusService,
     { provide: Clock, useClass: SystemClock },
     {
@@ -27,6 +29,6 @@ import { StoreStatusService } from './store-status.service';
       },
     },
   ],
-  exports: [StoreStatusService, Clock, CoverageService, Geocoder],
+  exports: [StoreStatusService, Clock, CoverageService, Geocoder, AddressLocator],
 })
 export class CoverageModule {}

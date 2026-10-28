@@ -193,7 +193,8 @@ export async function learnFromPoint(
   const known = new Set(findHits(text, areas).flatMap((h) => h.name.split(' ')));
   const unknown = text
     .split(' ')
-    .filter((w) => !known.has(w) && !ADDRESS_FILLER.has(w) && !/\d/.test(w) && w.length > 1);
+    // Plain numbers are building or flat numbers; words like "90th" or "5th" are kept.
+    .filter((w) => !known.has(w) && !ADDRESS_FILLER.has(w) && !/^\d+$/.test(w) && w.length > 1);
   if (unknown.length === 0) return null;
   const [holder] = await db.$queryRaw<{ id: string }[]>`
     SELECT id FROM geo_areas

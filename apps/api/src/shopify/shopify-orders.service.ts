@@ -8,6 +8,7 @@ import {
   type ShopifyShop,
   zonesContaining,
 } from '@shiplynow/db';
+import { AddressLocator } from '../coverage/address-locator.service';
 import { StoreStatusService } from '../coverage/store-status.service';
 import {
   ACCEPT_CANCELLATION_REQUEST,
@@ -88,7 +89,37 @@ export class ShopifyOrdersService {
   constructor(
     private readonly shopify: ShopifyService,
     private readonly status: StoreStatusService,
+    private readonly locator: AddressLocator,
   ) {}
+
+  /**
+   * The rider's door for an order Shopify sent without coordinates. Returns null when the
+   * address cannot be placed (or no lookup is set up), and the order is then taken as before.
+   */
+  private async lookUp(
+    address:
+      | {
+          address1?: string | null;
+          address2?: string | null;
+          city?: string | null;
+          province?: string | null;
+        }
+      | null
+      | undefined,
+  ) {
+    const text = [address?.address1, address?.address2, address?.city, address?.province]
+      .filter((p) => p && p.trim())
+      .join(', ');
+    if (!text) return null;
+    try {
+      const found = await this.locator.locate(text, { exact: true });
+      return found.kind === 'point'
+        ? { latitude: found.latitude, longitude: found.longitude }
+        : null;
+    } catch {
+      return null;
+    }
+  }
 
   private get prisma() {
     return this.shopify.prisma;
@@ -247,10 +278,11 @@ export class ShopifyOrdersService {
     }
 
     const address = fo.order.shippingAddress;
+    // Shopify's own coordinates first; without them the rider's door is looked up.
     const point =
       address?.latitude != null && address.longitude != null
         ? { latitude: address.latitude, longitude: address.longitude }
-        : null;
+        : await this.lookUp(address ?? fo.destination);
     let zoneId: string | null = null;
     if (point) {
       const zones = (await zonesContaining(this.prisma, point)).filter(

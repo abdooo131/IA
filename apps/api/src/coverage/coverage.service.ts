@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { coveringZones, getSetting, listZonesWithArea } from '@shiplynow/db';
 import type { CoverageQuery, CoverageReason } from '@shiplynow/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { Geocoder } from './geocoding';
+import { AddressLocator } from './address-locator.service';
 import { StoreStatusService } from './store-status.service';
 
 interface Named {
@@ -23,16 +23,21 @@ export type CoverageResult = {
 export class CoverageService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly geocoder: Geocoder,
+    private readonly locator: AddressLocator,
     private readonly status: StoreStatusService,
   ) {}
 
   async check(query: CoverageQuery): Promise<CoverageResult> {
     let location: CoverageResult['location'];
     if ('address' in query) {
-      const found = await this.geocoder.geocode(query.address);
-      if (!found) return { covered: false, reason: 'outside_zones', location: null };
-      location = found;
+      const found = await this.locator.locate(query.address);
+      if (found.kind !== 'point')
+        return { covered: false, reason: 'outside_zones', location: null };
+      location = {
+        latitude: found.latitude,
+        longitude: found.longitude,
+        ...(found.formattedAddress && { formattedAddress: found.formattedAddress }),
+      };
     } else {
       location = { latitude: query.lat, longitude: query.lng };
     }

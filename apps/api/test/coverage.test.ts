@@ -2,6 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
+import { forgetAreaNames, loadBaseAreas } from '@shiplynow/db';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
 
@@ -13,7 +14,9 @@ const NEW_CAIRO = { lat: 30.03, lng: 31.47 };
 const ALEXANDRIA = { lat: 31.2, lng: 29.92 };
 
 class FakeGeocoder extends Geocoder {
+  calls = 0;
   async geocode(address: string): Promise<GeocodeResult | null> {
+    this.calls++;
     if (address.includes('90th')) {
       return {
         latitude: NEW_CAIRO.lat,
@@ -33,6 +36,7 @@ class FakeGeocoder extends Geocoder {
 }
 
 describe('coverage', () => {
+  const geocoder = new FakeGeocoder();
   let app: INestApplication;
   let prisma: PrismaService;
   const clock = new FixedClock(NOON_CAIRO);
@@ -40,7 +44,7 @@ describe('coverage', () => {
   let adminCookie: string[];
 
   beforeAll(async () => {
-    ({ app, prisma } = await createTestApp({ clock, geocoder: new FakeGeocoder() }));
+    ({ app, prisma } = await createTestApp({ clock, geocoder }));
   });
 
   afterAll(async () => {
@@ -48,6 +52,7 @@ describe('coverage', () => {
   });
 
   beforeEach(async () => {
+    forgetAreaNames();
     clock.set(NOON_CAIRO);
     ({ stores } = await resetAndSeed(prisma));
     const login = await request(app.getHttpServer())
@@ -105,6 +110,28 @@ describe('coverage', () => {
     expect(alex.body.covered).toBe(false);
     const unknown = await check({ address: 'nowhere at all' }).expect(200);
     expect(unknown.body).toMatchObject({ covered: false, reason: 'outside_zones', location: null });
+  });
+
+  it('answers from the area map without the paid lookup, and teaches it from Google', async () => {
+    await loadBaseAreas(prisma);
+    forgetAreaNames();
+    // New Cairo's seeded zone, drawn to cover the whole New Cairo district here.
+    await prisma.$executeRaw`
+      UPDATE zones SET area = (SELECT ST_Multi(ST_Buffer(ST_Union(geom), 0.01)) FROM geo_areas
+        WHERE name_en = 'New Cairo' AND level = 2)
+      WHERE dark_store_id = ${stores.get('NCR')!}`;
+    geocoder.calls = 0;
+    const hit = await check({ address: 'فيلا ١٢، التجمع، القاهرة الجديدة' }).expect(200);
+    expect(hit.body).toMatchObject({ covered: true, darkStore: { code: 'NCR' } });
+    const far = await check({ address: 'Street 3, Sheikh Zayed, Giza' }).expect(200);
+    expect(far.body).toMatchObject({ covered: false, reason: 'outside_zones' });
+    expect(geocoder.calls).toBe(0);
+    // An address the engine cannot place goes to Google once, then comes from the saved answer.
+    await check({ address: 'South 90th Street' }).expect(200);
+    await check({ address: 'South 90th Street' }).expect(200);
+    expect(geocoder.calls).toBe(1);
+    const learned = await prisma.geoSuggestion.findFirst({ include: { area: true } });
+    expect(learned).toMatchObject({ phrase: 'south 90th' });
   });
 
   it('reports a closed store with its next opening time', async () => {
@@ -183,6 +210,7 @@ describe('coverage', () => {
 
 describe('coverage without a geocoding key', () => {
   it('answers geocoding_not_configured for addresses but still works for points', async () => {
+    forgetAreaNames();
     const { app, prisma } = await createTestApp({ clock: new FixedClock(NOON_CAIRO) });
     await resetAndSeed(prisma);
     const res = await request(app.getHttpServer())
