@@ -4,6 +4,8 @@ import { DomainError, recordAudit, type ShopifyShop } from '@shiplynow/db';
 import {
   CARRIER_SERVICE_CREATE,
   FULFILLMENT_SERVICE_CREATE,
+  FULFILLMENT_SERVICE_UPDATE,
+  FULFILLMENT_SERVICES,
   LOCATION_EDIT,
   PRODUCT_VARIANTS,
   WEBHOOK_SUBSCRIPTION_CREATE,
@@ -96,6 +98,7 @@ export class ShopifySetupService {
     const existing = await this.prisma.shopifyLocation.findMany({ where: { shopId: shop.id } });
     const created: { store: string; locationId: string }[] = [];
     const failed: { store: string; error: string }[] = [];
+    let services: Awaited<ReturnType<typeof this.fulfillmentServices>> | undefined;
     for (const store of stores) {
       const known = existing.find((l) => l.darkStoreId === store.id);
       if (known) {
@@ -107,14 +110,40 @@ export class ShopifySetupService {
       }
       // The row id is part of the callback address, so it is chosen before calling Shopify.
       const id = randomUUID();
+      const name = `Shiply Now ${store.nameEn}`;
       try {
+        // A service of ours with this name may already exist (an earlier install of the app,
+        // or another server): take it over and point it here instead of creating a duplicate.
+        services ??= await this.fulfillmentServices(shop).catch(() => []);
+        const mine = services.find((s) => s.serviceName === name && s.location);
+        if (mine) {
+          const updated = await this.shopify.call<{
+            fulfillmentServiceUpdate: { userErrors: { message: string }[] };
+          }>(shop, FULFILLMENT_SERVICE_UPDATE, {
+            id: mine.id,
+            callbackUrl: this.shopify.callbackUrl(id),
+          });
+          assertNoUserErrors('fulfillmentServiceUpdate', updated.fulfillmentServiceUpdate);
+          await this.prisma.shopifyLocation.create({
+            data: {
+              id,
+              shopId: shop.id,
+              darkStoreId: store.id,
+              fulfillmentServiceId: mine.id,
+              locationId: mine.location!.id,
+            },
+          });
+          created.push({ store: store.code, locationId: mine.location!.id });
+          await this.setAddress(shop, id, mine.location!.id, store);
+          continue;
+        }
         const data = await this.shopify.call<{
           fulfillmentServiceCreate: {
             fulfillmentService: { id: string; location: { id: string } | null } | null;
             userErrors: { message: string }[];
           };
         }>(shop, FULFILLMENT_SERVICE_CREATE, {
-          name: `Shiply Now ${store.nameEn}`,
+          name,
           callbackUrl: this.shopify.callbackUrl(id),
         });
         assertNoUserErrors('fulfillmentServiceCreate', data.fulfillmentServiceCreate);
@@ -153,6 +182,20 @@ export class ShopifySetupService {
         }),
       );
     return { created, failed };
+  }
+
+  private async fulfillmentServices(shop: ShopifyShop) {
+    const data = await this.shopify.call<{
+      shop: {
+        fulfillmentServices: {
+          id: string;
+          serviceName: string;
+          callbackUrl: string | null;
+          location: { id: string } | null;
+        }[];
+      };
+    }>(shop, FULFILLMENT_SERVICES, {});
+    return data.shop.fulfillmentServices;
   }
 
   /**

@@ -476,6 +476,25 @@ describe('shopify app', () => {
     expect(stock.body).toEqual({ 'EC-001': level.onHand - level.reserved - 2 });
   });
 
+  it('takes over its own locations left in the shop by an earlier install', async () => {
+    // The shop still has our three services from a laptop test, pointing at a dead address.
+    for (const name of ['Shiply Now Maadi', 'Shiply Now New Cairo', 'Shiply Now Zamalek'])
+      fake.services.push({
+        id: `gid://shopify/FulfillmentService/old-${name.length}${name.at(-1)}`,
+        name,
+        callbackUrl: 'https://old-tunnel.trycloudflare.com/api/shopify/fs/x',
+        locationId: `gid://shopify/Location/old-${name}`,
+      });
+    await install();
+    expect(fake.services).toHaveLength(3);
+    const rows = await prisma.shopifyLocation.findMany();
+    expect(rows).toHaveLength(3);
+    for (const row of rows) {
+      const service = fake.services.find((s) => s.locationId === row.locationId)!;
+      expect(service.callbackUrl).toBe(`http://localhost:3000/api/shopify/fs/${row.id}`);
+    }
+  });
+
   it('starts clean when admin links the merchant to a different store', async () => {
     const { admin, shop } = await install();
     expect(await prisma.shopifyLocation.count({ where: { shopId: shop.id } })).toBe(3);

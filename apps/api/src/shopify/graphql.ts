@@ -13,6 +13,36 @@ export const SHOP_INFO = /* GraphQL */ `
   }
 `;
 
+/** The shop's fulfillment services, to take over ours left from an earlier install. */
+export const FULFILLMENT_SERVICES = /* GraphQL */ `
+  query FulfillmentServices {
+    shop {
+      fulfillmentServices {
+        id
+        serviceName
+        callbackUrl
+        location {
+          id
+        }
+      }
+    }
+  }
+`;
+
+export const FULFILLMENT_SERVICE_UPDATE = /* GraphQL */ `
+  mutation FulfillmentServiceUpdate($id: ID!, $callbackUrl: URL!) {
+    fulfillmentServiceUpdate(id: $id, callbackUrl: $callbackUrl) {
+      fulfillmentService {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 export const FULFILLMENT_SERVICE_CREATE = /* GraphQL */ `
   mutation FulfillmentServiceCreate($name: String!, $callbackUrl: URL!) {
     fulfillmentServiceCreate(

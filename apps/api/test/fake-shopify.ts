@@ -106,7 +106,31 @@ export class FakeShopify extends ShopifyAdmin {
     const fo = (id: unknown) => this.fulfillmentOrders.find((f) => f.id === id)!;
 
     switch (name) {
+      case 'FulfillmentServices':
+        return ok({
+          shop: {
+            fulfillmentServices: this.services.map((s) => ({
+              id: s.id,
+              serviceName: s.name,
+              callbackUrl: s.callbackUrl,
+              location: { id: s.locationId },
+            })),
+          },
+        });
+      case 'FulfillmentServiceUpdate': {
+        const s = this.services.find((x) => x.id === v.id)!;
+        s.callbackUrl = String(v.callbackUrl);
+        return ok({ fulfillmentServiceUpdate: { fulfillmentService: { id: s.id }, ...errors } });
+      }
       case 'FulfillmentServiceCreate': {
+        // Shopify refuses a second service with the same name in one shop.
+        if (this.services.some((x) => x.name === String(v.name)))
+          return ok({
+            fulfillmentServiceCreate: {
+              fulfillmentService: null,
+              userErrors: [{ field: ['name'], message: 'Name has already been taken' }],
+            },
+          });
         const s = {
           id: gid('FulfillmentService'),
           name: String(v.name),
