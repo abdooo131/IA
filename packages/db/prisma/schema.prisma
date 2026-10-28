@@ -1071,19 +1071,57 @@ enum LedgerAccountType {
   cash_difference
   /// What the company pays for units damaged in its care
   damage_expense
+  /// A company cash box that is not a dark store's (head office safe, petty cash)
+  cash_box
+  /// Other things we own (deposits paid, advances)
+  other_asset
+  /// Other things we owe (loans, accrued bills)
+  other_liability
+  /// Owner capital and drawings
+  equity
+  /// Income other than our fees (interest, sale of old equipment)
+  other_income
+  /// Running costs by category (rent, salaries, fuel, bank charges)
+  expense
 
   @@map("ledger_account_type")
 }
 
+/// The five accounting categories; the first digit of an account code.
+enum AccountCategory {
+  asset
+  liability
+  equity
+  revenue
+  expense
+
+  @@map("account_category")
+}
+
 /// One wallet or book account. The key is stable, for example "merchant:<id>" or "revenue".
 model LedgerAccount {
-  id          String            @id @default(cuid())
-  key         String            @unique
-  type        LedgerAccountType
-  merchantId  String?           @map("merchant_id")
-  riderId     String?           @map("rider_id")
-  darkStoreId String?           @map("dark_store_id")
-  createdAt   DateTime          @default(now()) @map("created_at")
+  id            String            @id @default(cuid())
+  key           String            @unique
+  type          LedgerAccountType
+  /// Chart of accounts number: 1101 for a company account, 2100-0001 for a party's wallet.
+  /// Given automatically from the group's sequence.
+  code          String            @unique
+  category      AccountCategory
+  /// The group (1100 banks, 5400 operating expenses...) the code was taken from
+  groupCode     Int               @map("group_code")
+  /// Party and store accounts have no name; they show their owner's name
+  nameEn        String?           @map("name_en")
+  nameAr        String?           @map("name_ar")
+  bankName      String?           @map("bank_name")
+  accountNumber String?           @map("account_number")
+  iban          String?
+  note          String?
+  isActive      Boolean           @default(true) @map("is_active")
+  merchantId    String?           @map("merchant_id")
+  riderId       String?           @map("rider_id")
+  darkStoreId   String?           @map("dark_store_id")
+  createdById   String?           @map("created_by_id")
+  createdAt     DateTime          @default(now()) @map("created_at")
 
   merchant  Merchant?    @relation(fields: [merchantId], references: [id])
   rider     Rider?       @relation(fields: [riderId], references: [id])
@@ -1091,12 +1129,15 @@ model LedgerAccount {
   lines     LedgerLine[]
 
   @@index([type])
+  @@index([groupCode])
   @@map("ledger_accounts")
 }
 
 /// One money event (append only). Its lines always add up to zero; the database checks it.
 model LedgerEntry {
   id             String   @id @default(cuid())
+  /// Gapless serial number shown as JV-000001
+  number         Int      @unique
   /// cod_collected, order_fee, cod_fee, failed_fee, receiving_fee, storage_fee, rider_bonus,
   /// cash_handover, cash_difference, bank_deposit, merchant_payout, merchant_receipt,
   /// rider_bonus_payout, adjustment
@@ -1150,6 +1191,8 @@ enum CashHandoverStatus {
 /// A rider handing collected cash to a dark store, counted by staff.
 model CashHandover {
   id                 String             @id @default(cuid())
+  /// Gapless serial number shown as CH-000001
+  number             Int                @unique
   riderId            String             @map("rider_id")
   darkStoreId        String             @map("dark_store_id")
   expectedPiastres   Int                @map("expected_piastres")
@@ -1186,6 +1229,8 @@ enum PayoutStatus {
 /// Money we owe a merchant up to a cutoff, prepared by finance and marked paid by hand.
 model Payout {
   id             String       @id @default(cuid())
+  /// Gapless serial number shown as PAY-000001
+  number         Int          @unique
   merchantId     String       @map("merchant_id")
   cutoffAt       DateTime     @map("cutoff_at")
   amountPiastres Int          @map("amount_piastres")

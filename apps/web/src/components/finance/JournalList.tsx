@@ -1,6 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useState } from 'react';
 import { apiGetClient } from '@/lib/api-client';
 import type { JournalPage } from '@/lib/finance-types';
@@ -57,6 +58,9 @@ export function JournalList({ first, query }: { first: JournalPage; query: strin
                         {formatCairoDateTime(e.at, locale)}
                       </td>
                       <td rowSpan={e.lines.length} className="px-3 py-2 align-top">
+                        <span className="ltr-iso me-2 text-caption font-bold text-link">
+                          {e.number}
+                        </span>
                         <span className="font-bold">
                           {tf.has(`kinds.${e.kind}`) ? tf(`kinds.${e.kind}`) : e.kind}
                         </span>
@@ -70,9 +74,13 @@ export function JournalList({ first, query }: { first: JournalPage; query: strin
                     </>
                   )}
                   <td className="px-3 py-1">
-                    {tf.has(`accounts.${l.accountType}`)
-                      ? tf(`accounts.${l.accountType}`)
-                      : l.accountType}
+                    <Link href={`/finance/accounts/${l.accountId}`} className="text-link">
+                      <span className="ltr-iso">{l.accountCode}</span>{' '}
+                      {l.accountName ??
+                        (tf.has(`accounts.${l.accountType}`)
+                          ? tf(`accounts.${l.accountType}`)
+                          : l.accountType)}
+                    </Link>
                     {l.owner && <span className="text-text-muted"> · {l.owner}</span>}
                   </td>
                   <td className="ltr-iso px-3 py-1 text-end">

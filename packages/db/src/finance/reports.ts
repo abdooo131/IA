@@ -1,4 +1,5 @@
 import type { LedgerAccountType, PayoutSchedule } from '@prisma/client';
+import { entryNumber, handoverNumber, payoutNumber } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { accountKey, balancesByType } from './ledger';
 
@@ -165,6 +166,8 @@ export async function merchantStatement(db: Db, merchantId: string, from: Date, 
 export interface EntryFilter {
   kind?: string;
   accountKey?: string;
+  accountId?: string;
+  number?: number;
   orderId?: string;
   from?: Date;
   to?: Date;
@@ -180,14 +183,19 @@ export async function listLedgerEntries(db: Db, filter: EntryFilter) {
       kind: filter.kind,
       orderId: filter.orderId,
       occurredAt: filter.from || filter.to ? { gte: filter.from, lt: filter.to } : undefined,
-      lines: filter.accountKey ? { some: { account: { key: filter.accountKey } } } : undefined,
+      number: filter.number,
+      lines: filter.accountId
+        ? { some: { accountId: filter.accountId } }
+        : filter.accountKey
+          ? { some: { account: { key: filter.accountKey } } }
+          : undefined,
     },
     include: {
       lines: { include: { account: true } },
       createdBy: { select: { name: true } },
       order: { select: { number: true } },
     },
-    orderBy: [{ occurredAt: 'desc' }, { id: 'desc' }],
+    orderBy: [{ occurredAt: 'desc' }, { number: 'desc' }],
     take: take + 1,
     cursor: filter.cursor ? { id: filter.cursor } : undefined,
     skip: filter.cursor ? 1 : 0,
@@ -211,6 +219,7 @@ export async function listLedgerEntries(db: Db, filter: EntryFilter) {
   return {
     rows: page.map((e) => ({
       id: e.id,
+      number: entryNumber(e.number),
       at: e.occurredAt,
       kind: e.kind,
       memo: e.memo,
@@ -220,38 +229,15 @@ export async function listLedgerEntries(db: Db, filter: EntryFilter) {
       data: e.data as unknown,
       lines: e.lines.map((l) => ({
         accountKey: l.account.key,
+        accountId: l.account.id,
+        accountCode: l.account.code,
+        accountName: l.account.nameEn,
         accountType: l.account.type,
         owner: label(l.account),
         amountPiastres: l.amountPiastres,
       })),
     })),
     nextCursor: entries.length > take ? page[page.length - 1]!.id : null,
-  };
-}
-
-/** Debits and credits per account type in a period; the totals always match. */
-export async function trialBalance(db: Db, from?: Date, to?: Date) {
-  const lines = await db.ledgerLine.findMany({
-    where: { occurredAt: from || to ? { gte: from, lt: to } : undefined },
-    select: { amountPiastres: true, account: { select: { type: true } } },
-  });
-  const rows = new Map<LedgerAccountType, { debit: number; credit: number }>();
-  for (const l of lines) {
-    const row = rows.get(l.account.type) ?? { debit: 0, credit: 0 };
-    if (l.amountPiastres > 0) row.debit += l.amountPiastres;
-    else row.credit -= l.amountPiastres;
-    rows.set(l.account.type, row);
-  }
-  const list = [...rows.entries()].map(([type, r]) => ({
-    type,
-    debitPiastres: r.debit,
-    creditPiastres: r.credit,
-    balancePiastres: r.debit - r.credit,
-  }));
-  return {
-    rows: list.sort((a, b) => a.type.localeCompare(b.type)),
-    totalDebitPiastres: list.reduce((s, r) => s + r.debitPiastres, 0),
-    totalCreditPiastres: list.reduce((s, r) => s + r.creditPiastres, 0),
   };
 }
 
@@ -278,6 +264,7 @@ export async function listCashHandovers(
   });
   return rows.map((h) => ({
     id: h.id,
+    number: handoverNumber(h.number),
     at: h.createdAt,
     status: h.status,
     rider: { id: h.riderId, name: h.rider.user.name, badgeCode: h.rider.badgeCode },
@@ -309,6 +296,7 @@ export async function listPayouts(
   });
   return rows.map((p) => ({
     id: p.id,
+    number: payoutNumber(p.number),
     merchant: p.merchant,
     cutoffAt: p.cutoffAt,
     amountPiastres: p.amountPiastres,

@@ -8,6 +8,7 @@ import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
+import { BankSelect } from './BankSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
@@ -81,6 +82,7 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
   const action = useFinanceAction();
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
+  const [bank, setBank] = useState('');
   const piastres = parseEgp(amount);
   return (
     <li className="space-y-2 rounded-lg border border-line bg-surface p-4">
@@ -109,6 +111,7 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
             aria-label={tf('reference')}
             className={`${field} min-w-0 flex-1`}
           />
+          <BankSelect value={bank} onChange={setBank} className={field} />
           <button
             type="button"
             className={button}
@@ -121,6 +124,7 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
                   darkStoreId: store.id,
                   amountPiastres: piastres,
                   reference,
+                  bankAccountId: bank || undefined,
                   idempotencyKey: newActionKey(),
                 },
                 () => t('depositDone'),
@@ -194,6 +198,9 @@ export function CashDesk({
               {recent.map((h) => (
                 <tr key={h.id} className="border-b border-line last:border-0">
                   <td className="px-3 py-2">
+                    <span className="ltr-iso me-2 text-caption font-bold text-link">
+                      {h.number}
+                    </span>
                     {h.rider.name}
                     <p className="ltr-iso text-caption text-text-muted">
                       {formatCairoDateTime(h.at, locale)}

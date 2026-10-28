@@ -1,8 +1,33 @@
-export { accountKey, type AccountRef, balanceOf, post, share } from './ledger';
+export {
+  accountKey,
+  type AccountRef,
+  balanceOf,
+  DEFAULT_ACCOUNTS,
+  ensureDefaultAccounts,
+  post,
+  share,
+} from './ledger';
+export {
+  accountStatement,
+  balanceSheet,
+  chartOfAccounts,
+  createAccount,
+  eventTime,
+  moneyAccounts,
+  profitAndLoss,
+  recordCapital,
+  recordExpense,
+  recordJournalEntry,
+  recordOtherIncome,
+  transferMoney,
+  trialBalance,
+  updateAccount,
+} from './books';
 export {
   cancelPayout,
   createPayout,
   markPayoutPaid,
+  bankAccount,
   merchantOwed,
   payoutDueOn,
   payRiderBonus,
@@ -23,5 +48,4 @@ export {
   listPayouts,
   merchantStatement,
   type StatementLine,
-  trialBalance,
 } from './reports';

@@ -2,7 +2,7 @@ import type { PayoutSchedule, Prisma } from '@prisma/client';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
-import { type AccountRef, balanceOf, post } from './ledger';
+import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -12,6 +12,18 @@ const negate = (value: number) => 0 - value;
 const positive = (amount: number) => {
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new DomainError('invalid_amount', 400);
 };
+
+/**
+ * The bank that paid or received: one finance chose, or the main bank (CIB, 1101). A chosen
+ * account must be an open bank account.
+ */
+export async function bankAccount(tx: Db, bankAccountId?: string): Promise<AccountRef> {
+  if (!bankAccountId) return { type: 'bank' };
+  const account = await tx.ledgerAccount.findUnique({ where: { id: bankAccountId } });
+  if (!account || account.groupCode !== 1100) throw new DomainError('bank_account_not_found', 404);
+  if (!account.isActive) throw new DomainError('account_inactive');
+  return { id: account.id };
+}
 
 // ─── rider cash ────────────────────────────────────────────────────────────────
 
@@ -56,6 +68,7 @@ export function recordCashHandover(
     const difference = expected - input.countedPiastres;
     const handover = await tx.cashHandover.create({
       data: {
+        number: await nextNumber(tx, 'cash_handovers'),
         riderId: rider.id,
         darkStoreId: input.darkStoreId,
         expectedPiastres: expected,
@@ -152,12 +165,14 @@ export function recordBankDeposit(
     darkStoreId: string;
     amountPiastres: number;
     reference: string;
+    bankAccountId?: string;
     actorUserId: string;
     idempotencyKey: string;
   },
 ) {
   positive(input.amountPiastres);
   return inTransaction(db, async (tx) => {
+    const bank = await bankAccount(tx, input.bankAccountId);
     await tx.$queryRaw`SELECT id FROM dark_stores WHERE id = ${input.darkStoreId} FOR UPDATE`;
     const inBox = await balanceOf(tx, { type: 'store_cash', darkStoreId: input.darkStoreId });
     if (input.amountPiastres > inBox) throw new DomainError('more_than_cash_in_store');
@@ -168,7 +183,7 @@ export function recordBankDeposit(
       memo: input.reference,
       data: { darkStoreId: input.darkStoreId, reference: input.reference },
       lines: [
-        { account: { type: 'bank' }, amount: input.amountPiastres },
+        { account: bank, amount: input.amountPiastres },
         {
           account: { type: 'store_cash', darkStoreId: input.darkStoreId },
           amount: -input.amountPiastres,
@@ -224,6 +239,7 @@ export function createPayout(
     if (amount <= 0) throw new DomainError('nothing_to_pay');
     const payout = await tx.payout.create({
       data: {
+        number: await nextNumber(tx, 'payouts'),
         merchantId: merchant.id,
         cutoffAt: input.cutoffAt,
         amountPiastres: amount,
@@ -245,9 +261,10 @@ export function createPayout(
 /** Finance sent the bank transfer: the merchant's balance drops by the amount paid. */
 export function markPayoutPaid(
   db: Db,
-  input: { payoutId: string; reference: string; actorUserId: string },
+  input: { payoutId: string; reference: string; bankAccountId?: string; actorUserId: string },
 ) {
   return inTransaction(db, async (tx) => {
+    const bank = await bankAccount(tx, input.bankAccountId);
     const payout = await tx.payout.findUnique({ where: { id: input.payoutId } });
     if (!payout) throw new DomainError('payout_not_found', 404);
     if (payout.status !== 'draft') throw new DomainError('payout_not_draft');
@@ -274,7 +291,7 @@ export function markPayoutPaid(
           account: { type: 'merchant', merchantId: payout.merchantId },
           amount: payout.amountPiastres,
         },
-        { account: { type: 'bank' }, amount: -payout.amountPiastres },
+        { account: bank, amount: -payout.amountPiastres },
       ],
     });
     await recordAudit(tx, {
@@ -318,12 +335,14 @@ export function recordMerchantReceipt(
     merchantId: string;
     amountPiastres: number;
     reference: string;
+    bankAccountId?: string;
     actorUserId: string;
     idempotencyKey: string;
   },
 ) {
   positive(input.amountPiastres);
   return inTransaction(db, async (tx) => {
+    const bank = await bankAccount(tx, input.bankAccountId);
     const merchant = await tx.merchant.findUnique({ where: { id: input.merchantId } });
     if (!merchant) throw new DomainError('merchant_not_found', 404);
     const entry = await post(tx, {
@@ -333,7 +352,7 @@ export function recordMerchantReceipt(
       memo: input.reference,
       data: { reference: input.reference },
       lines: [
-        { account: { type: 'bank' }, amount: input.amountPiastres },
+        { account: bank, amount: input.amountPiastres },
         { account: { type: 'merchant', merchantId: merchant.id }, amount: -input.amountPiastres },
       ],
     });
@@ -399,6 +418,7 @@ export function payRiderBonus(
     riderId: string;
     amountPiastres: number;
     from: 'bank' | 'store_cash';
+    bankAccountId?: string;
     reference: string;
     actorUserId: string;
     idempotencyKey: string;
@@ -413,7 +433,7 @@ export function payRiderBonus(
       throw new DomainError('more_than_owed');
     const source: AccountRef =
       input.from === 'bank'
-        ? { type: 'bank' }
+        ? await bankAccount(tx, input.bankAccountId)
         : { type: 'store_cash', darkStoreId: rider.darkStoreId };
     if (input.from === 'store_cash' && input.amountPiastres > (await balanceOf(tx, source)))
       throw new DomainError('more_than_cash_in_store');

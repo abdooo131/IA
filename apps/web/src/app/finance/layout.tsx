@@ -25,8 +25,12 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
     {
       label: ta('navGroups.books'),
       items: [
+        { href: '/finance/accounts', label: t('accounts'), icon: 'wallet' },
+        { href: '/finance/movements', label: t('movements'), icon: 'payout' },
         { href: '/finance/journal', label: t('journal'), icon: 'invoice' },
         { href: '/finance/trial', label: t('trial'), icon: 'analytics' },
+        { href: '/finance/profit-and-loss', label: t('pl'), icon: 'analytics' },
+        { href: '/finance/balance-sheet', label: t('bs'), icon: 'invoice' },
       ],
     },
   ];

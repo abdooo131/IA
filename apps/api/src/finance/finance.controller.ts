@@ -18,7 +18,6 @@ import {
   recordMerchantAdjustment,
   recordMerchantReceipt,
   reviewCashHandover,
-  trialBalance,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -158,12 +157,13 @@ export class FinanceController {
   @Post('payouts/:id/paid')
   paid(
     @Param('id') id: string,
-    @Body(new ZodValidationPipe(payoutPaidSchema)) body: { reference: string },
+    @Body(new ZodValidationPipe(payoutPaidSchema)) body: z.infer<typeof payoutPaidSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
     return markPayoutPaid(this.prisma, {
       payoutId: id,
       reference: body.reference,
+      bankAccountId: body.bankAccountId,
       actorUserId: user.sub,
     });
   }
@@ -289,7 +289,11 @@ export class FinanceController {
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
   @ApiQuery({ name: 'cursor', required: false })
+  @ApiQuery({ name: 'number', required: false, description: 'Voucher, JV-000123 or 123' })
+  @ApiQuery({ name: 'accountId', required: false })
   ledger(
+    @Query('number') number?: string,
+    @Query('accountId') accountId?: string,
     @Query('kind') kind?: string,
     @Query('accountKey') accountKey?: string,
     @Query('orderId') orderId?: string,
@@ -297,7 +301,12 @@ export class FinanceController {
     @Query('to') to?: string,
     @Query('cursor') cursor?: string,
   ) {
+    const voucher = number ? Number(/(\d+)\s*$/.exec(number)?.[1] ?? NaN) : undefined;
+    if (voucher !== undefined && !Number.isSafeInteger(voucher))
+      throw new DomainError('invalid_number', 400);
     return listLedgerEntries(this.prisma, {
+      number: voucher,
+      accountId: accountId || undefined,
       kind: kind || undefined,
       accountKey: accountKey || undefined,
       orderId: orderId || undefined,
@@ -319,12 +328,12 @@ export class FinanceController {
         for (const l of e.lines)
           rows.push([
             cairoStamp(e.at),
-            e.id,
+            e.number,
             e.kind,
             e.orderNumber,
             e.memo,
-            l.accountType,
-            l.owner,
+            l.accountCode,
+            l.accountName ?? l.owner,
             l.amountPiastres > 0 ? egp(l.amountPiastres) : null,
             l.amountPiastres < 0 ? egp(0 - l.amountPiastres) : null,
             e.by,
@@ -344,8 +353,8 @@ export class FinanceController {
           'type',
           'order',
           'memo',
+          'account_code',
           'account',
-          'owner',
           'debit_egp',
           'credit_egp',
           'by',
@@ -353,12 +362,5 @@ export class FinanceController {
         rows,
       ),
     );
-  }
-
-  @Get('trial-balance')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
-  trialBalance(@Query('from') from?: string, @Query('to') to?: string) {
-    return trialBalance(this.prisma, parseBound(from, 'from'), parseBound(to, 'to'));
   }
 }

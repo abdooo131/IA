@@ -5,6 +5,7 @@ import { useState } from 'react';
 import type { PayoutRow } from '@/lib/finance-types';
 import { formatCairoDateTime, formatCutoffDay } from '@/lib/format';
 import { Amount } from './Amount';
+import { BankSelect } from './BankSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
@@ -18,13 +19,17 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
   const locale = useLocale();
   const action = useFinanceAction();
   const [reference, setReference] = useState('');
+  const [bank, setBank] = useState('');
   const [cancelNote, setCancelNote] = useState('');
   const [cancelling, setCancelling] = useState(false);
   return (
     <li className="space-y-2 rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <p className="text-h3">{payout.merchant.name}</p>
+          <p className="text-h3">
+            <span className="ltr-iso me-2 text-body-sm text-link">{payout.number}</span>
+            {payout.merchant.name}
+          </p>
           <p className="text-caption text-text-muted">
             {t('cutoff')}{' '}
             <span className="ltr-iso">{formatCutoffDay(payout.cutoffAt, locale)}</span> ·{' '}
@@ -44,12 +49,16 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
           aria-label={t('transferRef')}
           className={`${field} min-w-0 flex-1`}
         />
+        <BankSelect value={bank} onChange={setBank} className={field} />
         <button
           type="button"
           className={primary}
           disabled={action.busy || reference.trim().length < 2}
           onClick={() =>
-            void action.send('POST', `/finance/payouts/${payout.id}/paid`, { reference })
+            void action.send('POST', `/finance/payouts/${payout.id}/paid`, {
+              reference,
+              bankAccountId: bank || undefined,
+            })
           }
         >
           {t('markPaid')}
@@ -156,7 +165,10 @@ export function PayoutsManager({ payouts, today }: { payouts: PayoutRow[]; today
               <tbody>
                 {done.map((p) => (
                   <tr key={p.id} className="border-b border-line last:border-0">
-                    <td className="px-3 py-2 font-bold">{p.merchant.name}</td>
+                    <td className="px-3 py-2 font-bold">
+                      <span className="ltr-iso me-2 text-caption text-link">{p.number}</span>
+                      {p.merchant.name}
+                    </td>
                     <td className="ltr-iso px-3 py-2">{formatCutoffDay(p.cutoffAt, locale)}</td>
                     <td className="px-3 py-2 text-end">
                       <Amount piastres={p.amountPiastres} />

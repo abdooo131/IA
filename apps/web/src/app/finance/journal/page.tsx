@@ -10,7 +10,7 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 export default async function FinanceJournalPage({
   searchParams,
 }: {
-  searchParams: Promise<{ from?: string; to?: string; kind?: string }>;
+  searchParams: Promise<{ from?: string; to?: string; kind?: string; number?: string }>;
 }) {
   const q = await searchParams;
   const today = cairoDay(new Date());
@@ -18,6 +18,12 @@ export default async function FinanceJournalPage({
   const to = q.to && DAY.test(q.to) ? q.to : today;
   const query = new URLSearchParams({ from, to });
   if (q.kind) query.set('kind', q.kind);
+  // A voucher number finds that entry whatever its date.
+  if (q.number?.trim()) {
+    query.delete('from');
+    query.delete('to');
+    query.set('number', q.number.trim());
+  }
   const [first, t, tf] = await Promise.all([
     apiGet<JournalPage>(`/finance/ledger?${query}`),
     getTranslations('finance.journal'),
@@ -47,6 +53,16 @@ export default async function FinanceJournalPage({
               </option>
             ))}
           </select>
+        </label>
+        <label className="text-caption">
+          {t('voucher')}
+          <input
+            name="number"
+            defaultValue={q.number ?? ''}
+            placeholder="JV-000123"
+            dir="ltr"
+            className={`${field} w-36`}
+          />
         </label>
         <button
           type="submit"

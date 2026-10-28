@@ -1,3 +1,4 @@
+import { ensureDefaultAccounts } from '../finance';
 import { loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
 import { passwordSchema, SETTING_DEFINITIONS, SETTING_KEYS, GLOBAL_SCOPE } from '@shiplynow/shared';
@@ -198,6 +199,9 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
     }
   }
   log(`Opening stock: ${movements} new movements`);
+
+  await ensureDefaultAccounts(prisma);
+  log('Chart of accounts: CIB bank, owner money and expense categories ready');
 
   if (options.areas !== false) {
     const loaded = await loadBaseAreas(prisma);

@@ -8,6 +8,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
+import { BankSelect } from './BankSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 type Rider = FinanceOverview['riders'][number];
@@ -24,6 +25,7 @@ function RiderRow({ rider }: { rider: Rider }) {
   const [amount, setAmount] = useState(formatEgp(rider.bonusOwedPiastres).replace(/,/g, ''));
   const [from, setFrom] = useState<'bank' | 'store_cash'>('bank');
   const [reference, setReference] = useState('');
+  const [bank, setBank] = useState('');
   const piastres = parseEgp(amount);
   return (
     <li className="space-y-2 rounded-lg border border-line bg-surface p-4 shadow-sm">
@@ -81,6 +83,7 @@ function RiderRow({ rider }: { rider: Rider }) {
             <option value="bank">{t('fromBank')}</option>
             <option value="store_cash">{t('fromStore')}</option>
           </select>
+          {from === 'bank' && <BankSelect value={bank} onChange={setBank} className={field} />}
           <input
             value={reference}
             onChange={(e) => setReference(e.target.value)}
@@ -100,6 +103,7 @@ function RiderRow({ rider }: { rider: Rider }) {
                   riderId: rider.id,
                   amountPiastres: piastres,
                   from,
+                  bankAccountId: from === 'bank' && bank ? bank : undefined,
                   reference,
                   idempotencyKey: newActionKey(),
                 },

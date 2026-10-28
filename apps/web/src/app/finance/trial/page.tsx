@@ -1,4 +1,5 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { Amount } from '@/components/finance/Amount';
 import { apiGet } from '@/lib/api-server';
 import type { TrialBalance } from '@/lib/finance-types';
@@ -16,11 +17,12 @@ export default async function FinanceTrialPage({
   const query = new URLSearchParams();
   if (q.from && DAY.test(q.from)) query.set('from', q.from);
   if (q.to && DAY.test(q.to)) query.set('to', q.to);
-  const [tb, t, tf, tj] = await Promise.all([
+  const [tb, t, tf, tj, locale] = await Promise.all([
     apiGet<TrialBalance>(`/finance/trial-balance?${query}`),
     getTranslations('finance.trial'),
     getTranslations('finance'),
     getTranslations('finance.journal'),
+    getLocale(),
   ]);
   const balanced = tb.totalDebitPiastres === tb.totalCreditPiastres;
   const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
@@ -63,9 +65,12 @@ export default async function FinanceTrialPage({
           </thead>
           <tbody>
             {tb.rows.map((r) => (
-              <tr key={r.type} className="border-b border-line">
-                <td className="px-3 py-2 font-bold">
-                  {tf.has(`accounts.${r.type}`) ? tf(`accounts.${r.type}`) : r.type}
+              <tr key={r.id} className="border-b border-line">
+                <td className="px-3 py-2">
+                  <Link href={`/finance/accounts/${r.id}`} className="text-link">
+                    <span className="ltr-iso me-2 font-bold">{r.code}</span>
+                    {locale === 'ar' ? r.nameAr || r.nameEn : r.nameEn}
+                  </Link>
                 </td>
                 <td className="ltr-iso px-3 py-2 text-end">{formatEgp(r.debitPiastres)}</td>
                 <td className="ltr-iso px-3 py-2 text-end">{formatEgp(r.creditPiastres)}</td>

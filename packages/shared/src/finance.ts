@@ -23,6 +23,8 @@ export const reviewHandoverSchema = z.object({
 
 export const bankDepositSchema = z.object({
   darkStoreId: id,
+  /** Which bank; empty uses the main bank (CIB, 1101) */
+  bankAccountId: id.optional(),
   amountPiastres: piastres,
   reference: z.string().trim().min(2).max(100),
   idempotencyKey: key,
@@ -37,11 +39,17 @@ export const createPayoutSchema = z.object({
 
 export const duePayoutsSchema = z.object({ cutoffDay: day });
 
-export const payoutPaidSchema = z.object({ reference: z.string().trim().min(2).max(100) });
+export const payoutPaidSchema = z.object({
+  reference: z.string().trim().min(2).max(100),
+  /** Which bank; empty uses the main bank (CIB, 1101) */
+  bankAccountId: id.optional(),
+});
 export const payoutCancelSchema = z.object({ note: z.string().trim().min(3).max(300) });
 
 export const merchantReceiptSchema = z.object({
   merchantId: id,
+  /** Which bank; empty uses the main bank (CIB, 1101) */
+  bankAccountId: id.optional(),
   amountPiastres: piastres,
   reference: z.string().trim().min(2).max(100),
   idempotencyKey: key,
@@ -64,6 +72,8 @@ export const riderBonusPayoutSchema = z.object({
   riderId: id,
   amountPiastres: piastres,
   from: z.enum(['bank', 'store_cash']),
+  /** Which bank; empty uses the main bank (CIB, 1101) */
+  bankAccountId: id.optional(),
   reference: z.string().trim().min(2).max(100),
   idempotencyKey: key,
 });
@@ -86,4 +96,13 @@ export const LEDGER_KINDS = [
   'merchant_receipt',
   'rider_bonus_payout',
   'adjustment',
+  'return_fee',
+  'damage_compensation',
+  'damage_rider_charge',
+  'money_transfer',
+  'expense',
+  'capital_in',
+  'capital_out',
+  'other_income',
+  'journal',
 ] as const;

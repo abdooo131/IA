@@ -8,6 +8,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
+import { BankSelect } from './BankSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const SCHEDULES: PayoutSchedule[] = ['daily', 'twice_weekly', 'weekly'];
@@ -24,6 +25,7 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
   const [panel, setPanel] = useState<'receipt' | 'adjust' | null>(null);
   const [amount, setAmount] = useState('');
   const [text, setText] = useState('');
+  const [bank, setBank] = useState('');
 
   const piastres = parseEgp(amount, { allowNegative: panel === 'adjust' });
   async function submit() {
@@ -34,6 +36,7 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
             merchantId: merchant.id,
             amountPiastres: piastres,
             reference: text,
+            bankAccountId: bank || undefined,
             idempotencyKey: newActionKey(),
           })
         : await action.send('POST', '/finance/adjustments', {
@@ -144,6 +147,9 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
               aria-label={panel === 'receipt' ? tf('reference') : t('reason')}
               className={`${field} min-w-0 flex-1`}
             />
+            {panel === 'receipt' && (
+              <BankSelect value={bank} onChange={setBank} className={field} />
+            )}
             <button
               type="button"
               className={button}
