@@ -12,8 +12,12 @@ export interface AreaInput {
   nameAr: string;
   aliases: string[];
   source: string;
-  /** GeoJSON Polygon or MultiPolygon in WGS84 */
+  /**
+   * GeoJSON in WGS84: a (Multi)Polygon; a (Multi)LineString made of the pieces of an outline
+   * (joined into a shape); or, with `bufferMeters`, a point or street line widened into a shape.
+   */
   geometry: unknown;
+  bufferMeters?: number;
 }
 
 /** Every name an area is matched by, cleaned and without duplicates. */
@@ -27,17 +31,36 @@ export function areaNames(a: { nameEn: string; nameAr: string; aliases: string[]
  * Adds or refreshes one area by its ref. Names admin added (aliases not in the input) are
  * kept, so a re-import never loses what the engine has learned. Returns the area id.
  */
-export async function upsertArea(db: Db, input: AreaInput): Promise<string> {
+export async function upsertArea(db: Db, input: AreaInput): Promise<string | null> {
   const geometry = JSON.stringify(input.geometry);
+  const buffer = input.bufferMeters ?? 0;
+  // One shape from whatever OpenStreetMap or the file gives; empty when it cannot be closed.
+  const [shape] = await db.$queryRaw<{ ok: boolean }[]>`
+    WITH g AS (SELECT ST_SetSRID(ST_GeomFromGeoJSON(${geometry}), 4326) AS g)
+    SELECT NOT COALESCE(ST_IsEmpty(s), true) AS ok FROM (
+      SELECT CASE
+        WHEN ${buffer} > 0 THEN ST_Multi(ST_Buffer(g::geography, ${buffer})::geometry)
+        WHEN GeometryType(g) IN ('LINESTRING', 'MULTILINESTRING')
+          THEN ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_BuildArea(ST_Node(g))), 3))
+        ELSE ST_Multi(ST_CollectionExtract(ST_MakeValid(g), 3)) END AS s
+      FROM g) x`;
+  if (!shape?.ok) return null;
+
   const names = areaNames(input);
   const existing = await db.geoArea.findUnique({ where: { ref: input.ref } });
   const aliases = [...new Set([...(existing?.aliases ?? []), ...names])];
   const [row] = await db.$queryRaw<{ id: string }[]>`
+    WITH g AS (SELECT ST_SetSRID(ST_GeomFromGeoJSON(${geometry}), 4326) AS g)
     INSERT INTO geo_areas (id, ref, level, name_en, name_ar, aliases, source, geom, updated_at)
-    VALUES (gen_random_uuid()::text, ${input.ref}, ${input.level}, ${input.nameEn}, ${input.nameAr},
+    SELECT gen_random_uuid()::text, ${input.ref}, ${input.level}, ${input.nameEn}, ${input.nameAr},
       ${aliases}, ${input.source},
-      ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_SetSRID(ST_GeomFromGeoJSON(${geometry}), 4326)), 3)),
-      now())
+      CASE
+        WHEN ${buffer} > 0 THEN ST_Multi(ST_Buffer(g::geography, ${buffer})::geometry)
+        WHEN GeometryType(g) IN ('LINESTRING', 'MULTILINESTRING')
+          THEN ST_Multi(ST_CollectionExtract(ST_MakeValid(ST_BuildArea(ST_Node(g))), 3))
+        ELSE ST_Multi(ST_CollectionExtract(ST_MakeValid(g), 3)) END,
+      now()
+    FROM g
     ON CONFLICT (ref) DO UPDATE SET level = EXCLUDED.level, name_en = EXCLUDED.name_en,
       name_ar = EXCLUDED.name_ar, aliases = EXCLUDED.aliases, source = EXCLUDED.source,
       geom = EXCLUDED.geom, updated_at = now()
