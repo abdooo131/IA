@@ -102,6 +102,30 @@ export const settleDamageSchema = z.object({
 });
 export type SettleDamageBody = z.infer<typeof settleDamageSchema>;
 
+/**
+ * Reads latitude and longitude as people paste them: Arabic digits, a comma or ٫ as the decimal
+ * mark, a degree sign, or both numbers in one box ("30.0444, 31.2357" as Google Maps copies
+ * them). Returns null when two numbers cannot be found.
+ */
+export function parseCoordinates(latitude: string, longitude: string) {
+  const numbers = (text: string) =>
+    text
+      .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x0660))
+      .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x06f0))
+      .replace(/٫/g, '.')
+      // "30,0444" is one number with a decimal comma; "30, 31" or "30.1,31.2" are two numbers.
+      .replace(/^\s*(-?\d+),(\d+)\s*$/, '$1.$2')
+      .match(/-?\d+(?:\.\d+)?/g)
+      ?.map(Number) ?? [];
+  const a = numbers(latitude);
+  const b = numbers(longitude);
+  const both = a.length >= 2 ? a : b.length >= 2 ? b : [a[0], b[0]];
+  const [lat, lng] = both;
+  if (lat === undefined || lng === undefined || !Number.isFinite(lat) || !Number.isFinite(lng))
+    return null;
+  return { latitude: lat, longitude: lng };
+}
+
 export const LOCATION_KINDS = ['dark_store', 'hub'] as const;
 
 /** Admin opens a dark store or a sorting facility (hub). */

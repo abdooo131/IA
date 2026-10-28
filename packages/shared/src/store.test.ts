@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { countSchema, createManifestSchema, moveSchema, receiveScanSchema } from './store';
+import {
+  countSchema,
+  createManifestSchema,
+  moveSchema,
+  parseCoordinates,
+  receiveScanSchema,
+} from './store';
 
 describe('store schemas', () => {
   it('needs a positive whole quantity and an idempotency key on scans', () => {
@@ -48,5 +54,18 @@ describe('store schemas', () => {
         lines: [{ skuId: 's', expectedQty: 5 }],
       }).data?.reference,
     ).toBe('R1');
+  });
+});
+
+describe('parseCoordinates', () => {
+  it('reads coordinates the way people paste them', () => {
+    const cairo = { latitude: 30.0444, longitude: 31.2357 };
+    expect(parseCoordinates('30.0444', '31.2357')).toEqual(cairo);
+    expect(parseCoordinates('30.0444, 31.2357', '')).toEqual(cairo);
+    expect(parseCoordinates('', '30.0444,31.2357')).toEqual(cairo);
+    expect(parseCoordinates('٣٠٫٠٤٤٤', '٣١٫٢٣٥٧')).toEqual(cairo);
+    expect(parseCoordinates('30,0444', '31,2357')).toEqual(cairo);
+    expect(parseCoordinates('30.0444°', ' 31.2357° ')).toEqual(cairo);
+    expect(parseCoordinates('abc', '')).toBeNull();
   });
 });

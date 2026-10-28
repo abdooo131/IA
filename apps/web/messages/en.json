@@ -576,7 +576,14 @@
         "code_taken": "Another location already uses this code.",
         "governorate_not_found": "Choose a governorate.",
         "validation": "Check every field. Latitude and longitude must be inside Egypt.",
-        "generic": "Something went wrong. Try again."
+        "generic": "Something went wrong. Try again.",
+        "field_code": "Code: 2 to 8 English letters or numbers, no spaces or dashes (for example HUB1).",
+        "field_nameEn": "English name: at least 2 letters.",
+        "field_nameAr": "Arabic name: at least 2 letters.",
+        "field_addressEn": "English address: at least 5 letters.",
+        "field_addressAr": "Arabic address: at least 5 letters.",
+        "field_shelves": "Shelves: a number from 1 to 200.",
+        "field_coordinates": "Location: latitude must be between 22 and 32 and longitude between 24 and 37 (Cairo is about 30.04 and 31.24). You can paste both from Google Maps into the latitude box."
       }
     }
   },

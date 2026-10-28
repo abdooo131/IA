@@ -1,6 +1,6 @@
 'use client';
 
-import { createLocationSchema } from '@shiplynow/shared';
+import { createLocationSchema, parseCoordinates } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -39,6 +39,8 @@ export function LocationsManager({
   async function create(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const f = new FormData(event.currentTarget);
+    const point = parseCoordinates(String(f.get('latitude')), String(f.get('longitude')));
+    if (!point) return setError(t('errors.field_coordinates'));
     const parsed = createLocationSchema.safeParse({
       kind: f.get('kind'),
       code: f.get('code'),
@@ -47,11 +49,17 @@ export function LocationsManager({
       addressEn: f.get('addressEn'),
       addressAr: f.get('addressAr'),
       governorateId: Number(f.get('governorateId')),
-      latitude: Number(f.get('latitude')),
-      longitude: Number(f.get('longitude')),
+      ...point,
       shelves: Number(f.get('shelves')),
     });
-    if (!parsed.success) return setError(t('errors.validation'));
+    if (!parsed.success) {
+      // Name the first field that is wrong, so admin knows what to fix.
+      const field = String(parsed.error.issues[0]?.path[0] ?? '');
+      const known = ['code', 'nameEn', 'nameAr', 'addressEn', 'addressAr', 'shelves'];
+      if (field === 'latitude' || field === 'longitude')
+        return setError(t('errors.field_coordinates'));
+      return setError(t(known.includes(field) ? `errors.field_${field}` : 'errors.validation'));
+    }
     setBusy(true);
     setError(null);
     const result = await apiSend('POST', '/admin/dark-stores', parsed.data);
