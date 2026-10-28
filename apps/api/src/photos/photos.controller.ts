@@ -6,6 +6,16 @@ import type { Request, Response } from 'express';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
+/** The first bytes every file of each allowed type starts with. */
+function isImage(contentType: string, data: Buffer) {
+  const starts = (bytes: number[], at = 0) => bytes.every((b, i) => data[at + i] === b);
+  if (contentType === 'image/jpeg') return starts([0xff, 0xd8, 0xff]);
+  if (contentType === 'image/png') return starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+  if (contentType === 'image/webp')
+    return starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], 8);
+  return false;
+}
+
 @ApiTags('photos')
 @ApiBearerAuth()
 @Controller('photos')
@@ -23,9 +33,13 @@ export class PhotosController {
   ) {
     if (kind !== 'pack' && kind !== 'delivery') throw new DomainError('photo_kind_invalid', 400);
     if (!Buffer.isBuffer(req.body)) throw new DomainError('photo_type_not_allowed', 400);
+    const contentType = (req.headers['content-type'] ?? '').split(';')[0]!.trim();
+    // A phone can send any bytes under an image type; only real images become proof.
+    if (req.body.length > 0 && !isImage(contentType, req.body))
+      throw new DomainError('photo_not_image', 400);
     return savePhoto(this.prisma, {
       kind,
-      contentType: (req.headers['content-type'] ?? '').split(';')[0]!.trim(),
+      contentType,
       data: req.body,
       actorUserId: user.sub,
     });
