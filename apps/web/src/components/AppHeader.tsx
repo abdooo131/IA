@@ -11,7 +11,7 @@ export async function AppHeader() {
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
         <Logo alt={t('appName')} />
         <div className="flex flex-wrap items-center gap-2">
-          <PreferencesMenu theme={await getTheme()} />
+          <PreferencesMenu theme={await getTheme()} help />
           <SignOutButton />
         </div>
       </div>

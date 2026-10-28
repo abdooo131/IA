@@ -1,6 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import {
@@ -21,8 +22,10 @@ function setCookie(name: string, value: string) {
 const selectClass = 'h-10 rounded-md border border-line bg-surface px-2 text-body-sm text-text';
 
 /** `theme` is the saved choice, read from the cookie on the server. */
-export function PreferencesMenu({ theme }: { theme: Theme }) {
+/** `help` adds the Help link (signed in areas only; not on public pages). */
+export function PreferencesMenu({ theme, help = false }: { theme: Theme; help?: boolean }) {
   const t = useTranslations('common');
+  const ts = useTranslations('sop');
   const locale = useLocale() as Locale;
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -41,7 +44,15 @@ export function PreferencesMenu({ theme }: { theme: Theme }) {
   }
 
   return (
-    <div className="flex items-center gap-2" aria-busy={pending}>
+    <div className="flex flex-wrap items-center gap-2" aria-busy={pending}>
+      {help && (
+        <Link
+          href="/help"
+          className="flex h-10 items-center rounded-md border border-line bg-surface px-3 text-body-sm font-bold text-link"
+        >
+          {ts('menu')}
+        </Link>
+      )}
       <label className="sr-only" htmlFor="pref-locale">
         {t('language')}
       </label>

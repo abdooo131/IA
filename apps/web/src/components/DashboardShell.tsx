@@ -28,7 +28,7 @@ export async function DashboardShell({
                 <p className="text-caption text-text-muted">{t(`roles.${user.role}`)}</p>
               </div>
             )}
-            <PreferencesMenu theme={theme} />
+            <PreferencesMenu theme={theme} help />
             <SignOutButton />
           </div>
         }
