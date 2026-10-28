@@ -1318,10 +1318,63 @@ model ShopifyLog {
 }
 
 /// Checkout addresses already turned into map points; null coordinates mean not found
+// ─── Area engine (address to zone without a paid lookup) ──────────────────────
+
+/// One named area of Greater Cairo: governorate (1), city or district (2), neighbourhood (3),
+/// compound or landmark (4), street (5). Names and spellings are stored already cleaned
+/// (normalizeAddressText). Each area sits inside its parent, so matching narrows level by level.
+model GeoArea {
+  id        String                                      @id @default(cuid())
+  /// Where it came from and its id there: gb:<id>, osm:<type>/<id>, admin:<cuid>
+  ref       String                                      @unique
+  level     Int
+  parentId  String?                                     @map("parent_id")
+  nameEn    String                                      @map("name_en")
+  nameAr    String                                      @map("name_ar")
+  aliases   String[]
+  source    String
+  isActive  Boolean                                     @default(true) @map("is_active")
+  geom      Unsupported("geometry(MultiPolygon, 4326)")
+  createdAt DateTime                                    @default(now()) @map("created_at")
+  updatedAt DateTime                                    @updatedAt @map("updated_at")
+
+  parent      GeoArea?        @relation("geo_area_tree", fields: [parentId], references: [id])
+  children    GeoArea[]       @relation("geo_area_tree")
+  suggestions GeoSuggestion[]
+
+  @@index([level])
+  @@index([parentId])
+  @@index([geom], type: Gist)
+  @@map("geo_areas")
+}
+
+/// Words Google placed in an area the engine did not recognise. Admin approves them as a new
+/// name of that area (or rejects them), so the engine learns and Google is needed less.
+model GeoSuggestion {
+  id            String    @id @default(cuid())
+  phrase        String
+  areaId        String    @map("area_id")
+  sampleAddress String    @map("sample_address")
+  seen          Int       @default(1)
+  status        String    @default("pending")
+  decidedById   String?   @map("decided_by_id")
+  decidedAt     DateTime? @map("decided_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  area GeoArea @relation(fields: [areaId], references: [id], onDelete: Cascade)
+
+  @@unique([phrase, areaId])
+  @@index([status, seen])
+  @@map("geo_suggestions")
+}
+
 model GeocodeCache {
   addressKey String   @id @map("address_key")
   latitude   Float?
   longitude  Float?
+  /// How the point was found: engine, google, osm
+  method     String?
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("geocode_cache")

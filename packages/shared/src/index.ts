@@ -9,3 +9,4 @@ export * from './store';
 export * from './admin';
 export * from './finance';
 export * from './tracking';
+export * from './geo-text';

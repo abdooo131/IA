@@ -1,3 +1,4 @@
+import { loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
 import { passwordSchema, SETTING_DEFINITIONS, SETTING_KEYS, GLOBAL_SCOPE } from '@shiplynow/shared';
 import { hashPassword } from '../password';
@@ -21,6 +22,8 @@ export interface SeedOptions {
   /** Password for the demo store staff and riders */
   demoPassword: string;
   log?: (message: string) => void;
+  /** Load the Greater Cairo area map for the address engine (default on; tests skip it) */
+  areas?: boolean;
 }
 
 /**
@@ -195,6 +198,11 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
     }
   }
   log(`Opening stock: ${movements} new movements`);
+
+  if (options.areas !== false) {
+    const loaded = await loadBaseAreas(prisma);
+    log(`Area map: ${loaded.areas} areas of Greater Cairo`);
+  }
 
   return { adminId: admin.id, merchantId: merchant.id, stores };
 }

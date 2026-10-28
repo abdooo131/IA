@@ -42,6 +42,7 @@ export async function resetAndSeed(prisma: PrismaService) {
     `TRUNCATE TABLE ${rows.map((r) => `"${r.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`,
   );
   return seed(prisma, {
+    areas: false,
     admin: { email: 'admin@test.eg', password: 'admin-password-1', name: 'Admin' },
     demoPassword: 'demo-password-1',
   });
