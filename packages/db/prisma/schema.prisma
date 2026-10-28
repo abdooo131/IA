@@ -145,6 +145,7 @@ model DarkStore {
   transfersOut     Transfer[]        @relation("transfer_from")
   transfersIn      Transfer[]        @relation("transfer_to")
   transfersFinal   Transfer[]        @relation("transfer_final")
+  stockTargets     StockTarget[]
   users            User[]
   stockCounts      StockCount[]
   alerts           Alert[]
@@ -267,6 +268,7 @@ model Sku {
   manifestLines  InboundManifestLine[]
   returnLines    MerchantReturnLine[]
   transferLines  TransferLine[]
+  stockTargets   StockTarget[]
   damageReports  DamageReport[]
   orderItems     OrderItem[]
   countLines     StockCountLine[]
@@ -633,6 +635,21 @@ model DamageReport {
 
   @@index([status, createdAt])
   @@map("damage_reports")
+}
+
+/// A store's own refill levels for one product; without a row the store's default settings apply.
+model StockTarget {
+  darkStoreId String   @map("dark_store_id")
+  skuId       String   @map("sku_id")
+  minUnits    Int      @map("min_units")
+  maxUnits    Int      @map("max_units")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  darkStore DarkStore @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+  sku       Sku       @relation(fields: [skuId], references: [id], onDelete: Cascade)
+
+  @@id([darkStoreId, skuId])
+  @@map("stock_targets")
 }
 
 // ─── Transfers between locations ──────────────────────────────────────────────

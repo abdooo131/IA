@@ -118,6 +118,31 @@ export const SETTING_DEFINITIONS = {
       'Customer ratings at or below this many stars raise an admin alert (0 turns it off)',
     override: 'none',
   },
+  'refill.default_min_units': {
+    schema: count,
+    default: 5,
+    description:
+      'A store is refilled when a product falls below this many units (product value wins)',
+    override: 'store',
+  },
+  'refill.default_max_units': {
+    schema: count,
+    default: 20,
+    description: 'Refills fill a store up to this many units of a product (product value wins)',
+    override: 'store',
+  },
+  'refill.run_hour': {
+    schema: z.number().int().min(0).max(23),
+    default: 21,
+    description: 'Cairo hour after which the daily automatic refill drafts are prepared',
+    override: 'none',
+  },
+  'refill.enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description: 'Prepare automatic refill drafts every day (1 on, 0 off)',
+    override: 'none',
+  },
   'fee.order_fixed_piastres': {
     schema: piastres,
     default: 0,

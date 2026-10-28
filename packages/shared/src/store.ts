@@ -163,3 +163,14 @@ export const transferScanSchema = z.object({
   idempotencyKey,
 });
 export type TransferScanBody = z.infer<typeof transferScanSchema>;
+
+/** A store's own refill levels for one product; both null goes back to the store default. */
+export const stockTargetSchema = z
+  .object({
+    darkStoreId: id,
+    skuId: id,
+    minUnits: z.number().int().min(0).max(100_000).nullable(),
+    maxUnits: z.number().int().min(0).max(100_000).nullable(),
+  })
+  .refine((t) => (t.minUnits === null) === (t.maxUnits === null), { message: 'both_or_neither' });
+export type StockTargetBody = z.infer<typeof stockTargetSchema>;

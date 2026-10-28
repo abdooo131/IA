@@ -6,7 +6,15 @@ import {
   type OnApplicationShutdown,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { accrueStorage, checkFailedDeliveries, flagLateOrders, lastClosedDay } from '@shiplynow/db';
+import {
+  accrueStorage,
+  checkFailedDeliveries,
+  flagLateOrders,
+  getSetting,
+  lastClosedDay,
+  planRefill,
+} from '@shiplynow/db';
+import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -28,6 +36,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private running = false;
   /** The last Cairo day storage was charged for by this instance, to skip needless work. */
   private storageDone: string | null = null;
+  /** The last Cairo day the refill drafts were prepared for by this instance. */
+  private refillDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -44,6 +54,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     this.timer = setInterval(() => {
       void this.runSlaCheck();
       void this.runStorageCharge();
+      void this.runRefill();
     }, EVERY_MS);
     this.timer.unref();
   }
@@ -86,6 +97,27 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return null;
     } finally {
       this.running = false;
+    }
+  }
+
+  /**
+   * Prepares the day's automatic refill drafts once the Cairo clock passes refill.run_hour.
+   * planRefill itself takes a lock and plans a day only once, so overlaps are harmless.
+   */
+  async runRefill(now: Date = new Date()) {
+    const day = cairoDay(now);
+    if (this.refillDone === day) return null;
+    try {
+      const hour = await getSetting(this.prisma, 'refill.run_hour');
+      if (cairoClock(now).minute < hour * 60) return null;
+      const result = await planRefill(this.prisma, { day });
+      this.refillDone = day;
+      if (result.created.length > 0)
+        this.log.log(`Refill drafts for ${day}: ${result.created.length} waiting for approval`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: refill', error);
+      return null;
     }
   }
 

@@ -316,7 +316,11 @@
         "tracking__rider_ping_seconds": "Seconds between rider position updates",
         "tracking__rider_stale_minutes": "Hide rider position after (minutes without update)",
         "tracking__low_rating_stars": "Alert on customer ratings at or below (stars)",
-        "fee__return_per_unit_piastres": "Return to merchant fee per unit (EGP)"
+        "fee__return_per_unit_piastres": "Return to merchant fee per unit (EGP)",
+        "refill__default_min_units": "Refill when a product falls below (units)",
+        "refill__default_max_units": "Refill up to (units)",
+        "refill__run_hour": "Prepare refill drafts after (Cairo hour, 0 to 23)",
+        "refill__enabled": "Automatic refill on (1) or off (0)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -1614,5 +1618,22 @@
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
     }
+  },
+  "refill": {
+    "title": "Automatic refill",
+    "intro": "Every evening (Settings: refill hour) the system checks each store. A product below its minimum is refilled up to its maximum, from the sorting facility first, then from stores with more than their maximum. The trips wait as drafts until you approve them in Transfers.",
+    "noHub": "Add a sorting facility in Dark stores and hubs first; refill starts from it.",
+    "runNow": "Prepare today's refill now",
+    "drafts": "{count, plural, =0 {No drafts waiting} one {# draft waiting for approval} other {# drafts waiting for approval}}",
+    "alreadyPlanned": "Today's refill was already prepared. Approve the drafts in Transfers.",
+    "planned": "{count, plural, =0 {Nothing is low. No drafts needed.} one {# draft prepared.} other {# drafts prepared.}}",
+    "error": "Could not prepare the refill. Try again.",
+    "defaults": "Store defaults (min to max):",
+    "product": "Product",
+    "has": "has {count}",
+    "min": "Minimum",
+    "max": "Maximum",
+    "badLevels": "Use whole numbers, minimum not above maximum. Leave both empty for the store default.",
+    "saved": "Saved."
   }
 }

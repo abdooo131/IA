@@ -133,4 +133,49 @@ describe('hub and transfers end to end', () => {
     expect(all.body).toHaveLength(2);
     await ncrStaff.get('/admin/transfers').expect(403);
   });
+  it('admin sets levels and prepares refill drafts for approval', async () => {
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const created = await admin
+      .post('/admin/dark-stores')
+      .send({
+        kind: 'hub',
+        code: 'HUB',
+        nameEn: 'Main sorting facility',
+        nameAr: 'مركز الفرز الرئيسي',
+        addressEn: 'Obour industrial zone',
+        addressAr: 'المنطقة الصناعية بالعبور',
+        governorateId: 4,
+        latitude: 30.22,
+        longitude: 31.47,
+        shelves: 2,
+      })
+      .expect(201);
+    expect(created.body.code).toBe('HUB');
+    const overview = await admin.get('/admin/refill').expect(200);
+    expect(overview.body.hub.code).toBe('HUB');
+    const skuId = overview.body.rows[0].id as string;
+    await admin
+      .put('/admin/refill/targets')
+      .send({ darkStoreId: ncr, skuId, minUnits: 5, maxUnits: 1 })
+      .expect(400);
+    // Maadi wants far more of this product than it has: New Cairo's excess is proposed.
+    await admin
+      .put('/admin/refill/targets')
+      .send({ darkStoreId: maa, skuId, minUnits: 100, maxUnits: 120 })
+      .expect(200);
+    await admin
+      .put('/admin/refill/targets')
+      .send({ darkStoreId: ncr, skuId, minUnits: 0, maxUnits: 1 })
+      .expect(200);
+    const run = await admin.post('/admin/refill/run').expect(201);
+    expect(run.body.created.length).toBeGreaterThan(0);
+    expect((await admin.post('/admin/refill/run').expect(201)).body.alreadyPlanned).toBe(true);
+    const drafts = await admin.get('/admin/transfers?status=draft').expect(200);
+    const fromNcr = drafts.body.find(
+      (d: { from: { id: string }; finalDestination: { id: string } | null }) =>
+        d.from.id === ncr && d.finalDestination?.id === maa,
+    );
+    expect(fromNcr).toMatchObject({ origin: 'refill', finalDestination: { id: maa } });
+    await admin.post(`/admin/transfers/${fromNcr.id}/approve`).send({}).expect(201);
+  });
 });
