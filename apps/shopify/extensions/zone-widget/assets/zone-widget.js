@@ -13,6 +13,8 @@
 
   var PROXY = root.getAttribute('data-proxy') || '/apps/shiplynow';
   var HIDE = root.getAttribute('data-hide-unavailable') === 'true';
+  // After choosing an area, open the area's page with everything its dark store can deliver.
+  var OPEN_PAGE = root.getAttribute('data-open-page') === 'true';
   var KEY = 'shiplynow_area';
   var MAX_PRODUCTS = 48;
   var locale =
@@ -253,9 +255,26 @@
       headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
       credentials: 'same-origin',
       body: JSON.stringify({ attributes: { _shiplynow_zone: chosen.zoneId } }),
-    }).catch(function () {});
+    })
+      .catch(function () {})
+      .then(function () {
+        if (OPEN_PAGE) window.location.href = storePage(chosen.zoneId);
+      });
     refresh();
   }
+
+  function storePage(zoneId) {
+    return PROXY + '/store?' + new URLSearchParams({ zone: zoneId, lang: locale }).toString();
+  }
+
+  // The area page's "Change area" button opens the picker.
+  document.addEventListener('click', function (event) {
+    var target = event.target;
+    if (target && target.closest && target.closest('[data-shiplynow-change-area]')) {
+      event.preventDefault();
+      openPicker();
+    }
+  });
 
   // ─── products ──────────────────────────────────────────────────────────────
 

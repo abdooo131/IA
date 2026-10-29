@@ -157,6 +157,59 @@ describe('storefront widget', () => {
     expect(unknownZone.body).toEqual({ zone: null });
   });
 
+  it('shows the area page: only what the dark store of the area has, inside the theme', async () => {
+    const shop = await prisma.shopifyShop.findUniqueOrThrow({ where: { shopDomain: SHOP } });
+    await prisma.sku.update({
+      where: { merchantId_sku: { merchantId, sku: 'EC-001' } },
+      data: {
+        shopifyProductId: 'gid://shopify/Product/501',
+        titleEn: 'Rose {{ shop.secret }} oud',
+      },
+    });
+    await prisma.shopProduct.create({
+      data: {
+        shopId: shop.id,
+        merchantId,
+        shopifyId: 'gid://shopify/Product/501',
+        title: 'Rose oud',
+        handle: 'rose-oud',
+        status: 'ACTIVE',
+        imageUrl: 'https://cdn.shopify.com/rose.jpg',
+        raw: {},
+      },
+    });
+    const page = await request(app.getHttpServer())
+      .get('/shopify/proxy/store')
+      .query(proxyParams({ zone: ncrZone.id, lang: 'en' }))
+      .expect(200);
+    expect(page.headers['content-type']).toContain('application/liquid');
+    expect(page.text).toContain(`60 minute delivery to ${ncrZone.nameEn}`);
+    expect(page.text).toContain(`/products/rose-oud?variant=${STOCKED}`);
+    expect(page.text).toContain('rose.jpg');
+    // A title can never run as Liquid in the merchant's theme.
+    expect(page.text).not.toContain('{{');
+    expect(page.text).toContain('Rose &#123;&#123; shop.secret &#125;&#125; oud');
+    expect(page.text).toContain('data-shiplynow-change-area');
+
+    const arabic = await request(app.getHttpServer())
+      .get('/shopify/proxy/store')
+      .query(proxyParams({ zone: ncrZone.id, lang: 'ar' }))
+      .expect(200);
+    expect(arabic.text).toContain('dir="rtl"');
+    expect(arabic.text).toContain(`توصيل خلال 60 دقيقة إلى ${ncrZone.nameAr}`);
+
+    // An unknown area, or a request Shopify did not sign.
+    const none = await request(app.getHttpServer())
+      .get('/shopify/proxy/store')
+      .query(proxyParams({ zone: 'nope' }))
+      .expect(200);
+    expect(none.text).toContain('Choose your area first');
+    await request(app.getHttpServer())
+      .get('/shopify/proxy/store')
+      .query({ ...proxyParams({ zone: ncrZone.id }), signature: 'bad' })
+      .expect(401);
+  });
+
   // ─── in a real browser ───────────────────────────────────────────────────────
 
   /** A tiny storefront: a collection page, a product page and the Shopify endpoints it uses. */

@@ -4,6 +4,7 @@
     "hide_unavailable": "Hide products that cannot arrive in 60 minutes",
     "position": "Bar position",
     "bottom": "Bottom of the page",
-    "top": "Top of the page"
+    "top": "Top of the page",
+    "open_store_page": "After choosing an area, open a page with everything its dark store can deliver in 60 minutes"
   }
 }

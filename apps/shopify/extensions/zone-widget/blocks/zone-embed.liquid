@@ -8,6 +8,7 @@
   data-proxy="/apps/shiplynow"
   data-locale="{{ request.locale.iso_code }}"
   data-hide-unavailable="{{ block.settings.hide_unavailable }}"
+  data-open-page="{{ block.settings.open_store_page }}"
   data-position="{{ block.settings.position }}"
   {%- if product %} data-product-variant="{{ product.selected_or_first_available_variant.id }}"{% endif %}
   hidden
@@ -20,6 +21,12 @@
   "name": "t:name",
   "target": "body",
   "settings": [
+    {
+      "type": "checkbox",
+      "id": "open_store_page",
+      "label": "t:settings.open_store_page",
+      "default": true
+    },
     {
       "type": "checkbox",
       "id": "hide_unavailable",
