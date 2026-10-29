@@ -140,6 +140,11 @@ export class ShopifyService {
     );
   }
 
+  /** A token from the custom app's own credentials (apps made by the store's organization). */
+  async directToken(shop: { shopDomain: string; appId: string | null }) {
+    return this.admin.clientCredentials(shop.shopDomain, await this.credentialsFor(shop));
+  }
+
   /** The fields that store a shop's tokens, sealed, from an answer of Shopify's token endpoint. */
   tokenFields(token: OfflineToken, now: Date = new Date()) {
     const at = (seconds?: number) => (seconds ? new Date(now.getTime() + seconds * 1000) : null);
@@ -174,20 +179,25 @@ export class ShopifyService {
 
   private async renew(shopId: string) {
     const row = await this.prisma.shopifyShop.findUniqueOrThrow({ where: { id: shopId } });
-    const legacy = !row.refreshTokenEnc;
+    // No refresh token but an expiry: connected with client credentials, which are simply
+    // asked again. No refresh token and no expiry: an old non expiring token to move over.
+    const direct = !row.refreshTokenEnc && !!row.accessTokenExpiresAt && !!row.appId;
+    const legacy = !row.refreshTokenEnc && !direct;
     try {
       const app = await this.credentialsFor(row);
-      const token = legacy
-        ? await this.admin.migrateToken(
-            row.shopDomain,
-            openToken(row.accessTokenEnc!, this.secret),
-            app,
-          )
-        : await this.admin.refreshToken(
-            row.shopDomain,
-            openToken(row.refreshTokenEnc!, this.secret),
-            app,
-          );
+      const token = direct
+        ? await this.admin.clientCredentials(row.shopDomain, app)
+        : legacy
+          ? await this.admin.migrateToken(
+              row.shopDomain,
+              openToken(row.accessTokenEnc!, this.secret),
+              app,
+            )
+          : await this.admin.refreshToken(
+              row.shopDomain,
+              openToken(row.refreshTokenEnc!, this.secret),
+              app,
+            );
       await this.prisma.shopifyShop.update({
         where: { id: shopId },
         data: { ...this.tokenFields(token), ...(token.scope ? { scopes: token.scope } : {}) },

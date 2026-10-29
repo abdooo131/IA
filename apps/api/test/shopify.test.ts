@@ -148,6 +148,7 @@ describe('shopify app', () => {
     ({ stores } = await resetAndSeed(prisma));
     merchantId = (await prisma.merchant.findFirstOrThrow()).id;
     fake.services = [];
+    fake.denyClientCredentials = false;
     fake.variants = [];
     fake.fulfillmentOrders = [];
     fake.fulfillments = [];
@@ -940,6 +941,8 @@ describe('shopify app', () => {
   });
 
   it('installs a store through its own custom app and checks its signatures with that app', async () => {
+    // An app from another organization: no direct connection, the merchant approves instead.
+    fake.denyClientCredentials = true;
     const admin = await agent('admin@test.eg', 'admin-password-1');
     const APP_SECRET = 'custom-app-secret-for-eve';
     const signWith = (secret: string, params: Record<string, string>) =>
@@ -1029,6 +1032,7 @@ describe('shopify app', () => {
   });
 
   it('a store linked before its custom app was added follows the app it is opened from', async () => {
+    fake.denyClientCredentials = true;
     const admin = await agent('admin@test.eg', 'admin-password-1');
     // Linked with the main app first (as happened for Nabta), custom app added afterwards.
     await admin
@@ -1067,6 +1071,45 @@ describe('shopify app', () => {
     expect(new URL(start.headers.location!).searchParams.get('client_id')).toBe(
       'later-custom-client',
     );
+  });
+
+  it('connects a store through its own organization app with no merchant step', async () => {
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const added = await admin
+      .post('/admin/shopify/apps')
+      .send({ name: 'Own org app', clientId: 'own-org-client', clientSecret: 'own-org-secret-1' })
+      .expect(201);
+    const linked = await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test', appId: added.body.id })
+      .expect(201);
+    fake.tokenCalls.length = 0;
+    fake.tokenApps.length = 0;
+    const connected = await admin.post(`/admin/shopify/${linked.body.id}/connect`).expect(201);
+    expect(connected.body).toEqual({ status: 'active' });
+    expect(fake.tokenCalls).toEqual(['client']);
+    expect(fake.tokenApps).toEqual(['own-org-client']);
+    const shop = await prisma.shopifyShop.findUniqueOrThrow({ where: { id: linked.body.id } });
+    expect(shop).toMatchObject({ status: 'active', refreshTokenEnc: null });
+    expect(shop.accessTokenExpiresAt!.getTime()).toBeGreaterThan(Date.now() + 23 * 3600_000);
+    expect(await prisma.auditLog.count({ where: { action: 'shopify.connect_direct' } })).toBe(1);
+
+    // Near expiry, the token is simply asked for again with the same credentials.
+    await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: { accessTokenExpiresAt: new Date(Date.now() + 60_000) },
+    });
+    fake.tokenCalls.length = 0;
+    await app.get(ShopifyService).tokenFor(shop.id);
+    expect(fake.tokenCalls).toEqual(['client']);
+
+    // The main app cannot connect this way; a refused grant answers a clear error.
+    await prisma.shopifyShop.update({ where: { id: shop.id }, data: { appId: null } });
+    await admin.post(`/admin/shopify/${shop.id}/connect`).expect(409);
+    await prisma.shopifyShop.update({ where: { id: shop.id }, data: { appId: added.body.id } });
+    fake.denyClientCredentials = true;
+    const refused = await admin.post(`/admin/shopify/${shop.id}/connect`).expect(409);
+    expect(refused.body).toEqual({ error: 'direct_connect_refused' });
   });
 
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {

@@ -167,6 +167,21 @@ export class FakeShopify extends ShopifyAdmin {
     };
   }
 
+  /** Refuse the client credentials grant, like an app from another organization */
+  denyClientCredentials = false;
+
+  async clientCredentials(_shop: string, app?: { clientId: string }) {
+    this.tokenCalls.push('client');
+    this.tokenApps.push(app?.clientId ?? '');
+    if (this.denyClientCredentials)
+      throw new Error('client credentials failed (400 invalid_client)');
+    return {
+      accessToken: 'shpat_test_token',
+      scope: 'read_products,write_inventory,read_orders,read_customers',
+      expiresIn: 86399,
+    };
+  }
+
   async migrateToken(_shop: string, legacyToken: string) {
     this.tokenCalls.push('migrate');
     if (legacyToken !== 'shpat_test_token') throw new Error('token migration failed (400)');

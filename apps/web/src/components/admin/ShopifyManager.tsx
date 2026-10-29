@@ -62,6 +62,8 @@ const KNOWN = [
   'app_is_main_app',
   'app_in_use',
   'app_not_found',
+  'direct_connect_refused',
+  'main_app_needs_install',
 ];
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
 const button =
@@ -151,6 +153,24 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
           {t(`statuses.${shop.status}`)}
         </span>
       </div>
+
+      {!active && shop.appId && (
+        <div className="space-y-2 rounded-md border border-line p-3">
+          <p className="text-body-sm font-bold">{t('connectTitle')}</p>
+          <p className="text-caption text-text-muted">{t('connectHelp')}</p>
+          <button
+            type="button"
+            className={primary}
+            disabled={action.busy}
+            onClick={() =>
+              void action.send(`/admin/shopify/${shop.id}/connect`, {}, () => t('connected'))
+            }
+          >
+            {t('connectNow')}
+          </button>
+          <Message message={action.message} />
+        </div>
+      )}
 
       {!active && (
         <div className="space-y-2">

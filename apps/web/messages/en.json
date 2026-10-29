@@ -478,7 +478,8 @@
         "customer__view": "Opened a customer profile",
         "customer__merge": "Merged two customer profiles",
         "shopify__app_add": "Added a Shopify custom app",
-        "shopify__app_remove": "Removed a Shopify custom app"
+        "shopify__app_remove": "Removed a Shopify custom app",
+        "shopify__connect_direct": "Connected a store directly with its custom app"
       }
     },
     "users": {
@@ -640,7 +641,9 @@
         "app_exists": "An app with this client ID is already added.",
         "app_is_main_app": "That is the main Shiply Now app; it does not need adding.",
         "app_in_use": "A store still uses this app.",
-        "app_not_found": "That app no longer exists."
+        "app_not_found": "That app no longer exists.",
+        "direct_connect_refused": "Shopify refused a direct connection: this app is not from the merchant's own organization or is not installed on the store yet. Use the install link instead.",
+        "main_app_needs_install": "The main app connects through the install link, not directly."
       },
       "checkout": "Checkout rate",
       "checkoutOn": "On: Shopify asks us for the 60 minute rate at checkout",
@@ -673,7 +676,11 @@
       "appRemoved": "App removed.",
       "appChoice": "Shopify app",
       "mainApp": "Shiply Now (main app)",
-      "alreadyLinked": "{name} (already linked: relinking resets the connection)"
+      "alreadyLinked": "{name} (already linked: relinking resets the connection)",
+      "connectTitle": "Connect directly (custom app made in the merchant's own Shopify organization)",
+      "connectHelp": "If the merchant created and installed this custom app themselves, we connect with its keys alone: no approval page and nothing for the merchant to do.",
+      "connectNow": "Connect now",
+      "connected": "Connected. Locations, products, stock and customers are being set up."
     },
     "navGroups": {
       "stores": "Dark stores",

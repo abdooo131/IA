@@ -37,6 +37,12 @@ export abstract class ShopifyAdmin {
     app: AppCredentials,
   ): Promise<OfflineToken>;
 
+  /**
+   * Client credentials: for an app made by the store's own organization, a 24 hour token from
+   * the app's client id and secret alone, with no merchant redirect. Asked again to renew.
+   */
+  abstract clientCredentials(shop: string, app: AppCredentials): Promise<OfflineToken>;
+
   /** One time: trades a shop's old non expiring token for an expiring one (the old one dies). */
   abstract migrateToken(
     shop: string,
@@ -159,6 +165,10 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
       { grant_type: 'refresh_token', refresh_token: refreshToken },
       'token refresh',
     );
+  }
+
+  clientCredentials(shop: string, app: AppCredentials) {
+    return this.tokenRequest(shop, app, { grant_type: 'client_credentials' }, 'client credentials');
   }
 
   migrateToken(shop: string, legacyToken: string, app: AppCredentials) {

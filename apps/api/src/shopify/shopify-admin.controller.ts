@@ -263,6 +263,12 @@ export class ShopifyAdminController {
     return { removed: true };
   }
 
+  /** Connects a store through its custom app's own credentials, with no merchant step. */
+  @Post(':id/connect')
+  connect(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return this.setup.connectDirect(id, user.sub);
+  }
+
   /** Also refreshes the shop's webhooks, so a new public address reaches Shopify. */
   @Post(':id/register-locations')
   async registerLocations(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {

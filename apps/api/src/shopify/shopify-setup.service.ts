@@ -14,7 +14,7 @@ import {
   WEBHOOK_SUBSCRIPTION_UPDATE,
   WEBHOOK_SUBSCRIPTIONS,
 } from './graphql';
-import { assertNoUserErrors, moneyToPiastres } from './shopify-admin';
+import { assertNoUserErrors, moneyToPiastres, type OfflineToken } from './shopify-admin';
 import { ShopifyService } from './shopify.service';
 
 interface Variant {
@@ -389,6 +389,77 @@ export class ShopifySetupService {
    * locations, pending calls, product links and the shop row, so the merchant can be linked
    * to another store and the old one can be linked to anyone.
    */
+  /**
+   * Marks a store connected with a fresh token, then sets it up in the background: webhooks,
+   * a location per dark store, the rate service and the catalog links.
+   */
+  async activate(
+    shopId: string,
+    token: OfflineToken,
+    how: 'install' | 'direct',
+  ): Promise<{ id: string; status: string }> {
+    const active = await this.prisma.shopifyShop.update({
+      where: { id: shopId },
+      data: {
+        status: 'active',
+        ...this.shopify.tokenFields(token),
+        scopes: token.scope,
+        installedAt: new Date(),
+        uninstalledAt: null,
+      },
+    });
+    await this.prisma.merchant.update({
+      where: { id: active.merchantId },
+      data: { shopifyShopDomain: active.shopDomain },
+    });
+    await this.shopify.record(active.id, {
+      direction: 'in',
+      kind: how === 'install' ? 'install' : 'connect_direct',
+      ok: true,
+      message: token.scope,
+    });
+    void (async () => {
+      await this.registerWebhooks(active.id).catch(() => undefined);
+      await this.registerLocations(active.id, null).catch(() => undefined);
+      await this.registerCarrierService(active.id, null).catch(() => undefined);
+      await this.syncCatalog(active.id, { createMissing: false }, null).catch(() => undefined);
+    })();
+    return { id: active.id, status: active.status };
+  }
+
+  /**
+   * Connects a store through its custom app's own credentials (client credentials grant),
+   * which works when the app belongs to the store's organization and is installed there: no
+   * merchant redirect at all. Refused when Shopify does not allow it; then the install link
+   * (merchant approval) remains.
+   */
+  async connectDirect(shopId: string, actorUserId: string | null) {
+    const shop = await this.prisma.shopifyShop.findUnique({ where: { id: shopId } });
+    if (!shop) throw new DomainError('shop_not_found', 404);
+    if (!shop.appId) throw new DomainError('main_app_needs_install');
+    let token: OfflineToken;
+    try {
+      token = await this.shopify.directToken(shop);
+    } catch (error) {
+      await this.shopify.record(shop.id, {
+        direction: 'out',
+        kind: 'connect_direct',
+        ok: false,
+        message: (error as Error).message,
+      });
+      throw new DomainError('direct_connect_refused');
+    }
+    const active = await this.activate(shop.id, token, 'direct');
+    if (actorUserId)
+      await recordAudit(this.prisma, {
+        actorUserId,
+        action: 'shopify.connect_direct',
+        entityType: 'shopify_shop',
+        entityId: shop.id,
+      });
+    return { status: active.status };
+  }
+
   async disconnect(shopId: string, actorUserId: string) {
     const shop = await this.prisma.shopifyShop.findUnique({
       where: { id: shopId },

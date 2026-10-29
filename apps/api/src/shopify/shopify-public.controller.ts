@@ -69,6 +69,12 @@ export class ShopifyPublicController {
     if (!isShopDomain(shop)) return this.done(res, { error: 'invalid_shop' });
     const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
     if (!linked) return this.done(res, { error: 'shop_not_linked', shop });
+    // A custom app made by the store's own organization connects with its credentials alone;
+    // when Shopify refuses that, the merchant approves on Shopify's page as usual.
+    if (linked.appId) {
+      const direct = await this.setup.connectDirect(linked.id, null).catch(() => null);
+      if (direct) return this.done(res, { shop });
+    }
     const state = randomBytes(16).toString('hex');
     res.cookie(STATE_COOKIE, state, {
       httpOnly: true,
@@ -108,35 +114,7 @@ export class ShopifyPublicController {
         query.code ?? '',
         await this.shopify.credentialsFor(linked),
       );
-      const active = await this.prisma.shopifyShop.update({
-        where: { id: linked.id },
-        data: {
-          status: 'active',
-          ...this.shopify.tokenFields(token),
-          scopes: token.scope,
-          installedAt: new Date(),
-          uninstalledAt: null,
-        },
-      });
-      await this.prisma.merchant.update({
-        where: { id: linked.merchantId },
-        data: { shopifyShopDomain: shop },
-      });
-      await this.shopify.record(active.id, {
-        direction: 'in',
-        kind: 'install',
-        ok: true,
-        message: token.scope,
-      });
-      // Set up in the background: locations for every dark store, then link the catalog.
-      void (async () => {
-        await this.setup.registerWebhooks(active.id).catch(() => undefined);
-        await this.setup.registerLocations(active.id, null).catch(() => undefined);
-        await this.setup.registerCarrierService(active.id, null).catch(() => undefined);
-        await this.setup
-          .syncCatalog(active.id, { createMissing: false }, null)
-          .catch(() => undefined);
-      })();
+      await this.setup.activate(linked.id, token, 'install');
       return this.done(res, { shop });
     } catch (error) {
       await this.shopify.record(linked.id, {
