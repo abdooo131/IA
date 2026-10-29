@@ -53,6 +53,8 @@ export const SHOP_WEBHOOK_TOPICS = [
   'PRODUCTS_CREATE',
   'PRODUCTS_UPDATE',
   'PRODUCTS_DELETE',
+  'ORDERS_CREATE',
+  'ORDERS_UPDATED',
 ] as const;
 
 /** The address2 line of a dark store's Shopify location, which names the store. */

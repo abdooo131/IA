@@ -11,6 +11,7 @@ import {
   verifyQueryHmac,
 } from '../src/shopify/security';
 import { moneyToPiastres } from '../src/shopify/shopify-admin';
+import { ShopDataService } from '../src/shopify/shop-data.service';
 import { ShopifyJobsService } from '../src/shopify/shopify-jobs.service';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
 import { FakeShopify } from './fake-shopify';
@@ -129,7 +130,7 @@ describe('shopify app', () => {
       const addressed = await prisma.shopifyLocation.count({
         where: { addressSyncedAt: { not: null } },
       });
-      if (addressed === 3 && linked >= 2 && ready === 1 && fake.webhooks.length === 4) break;
+      if (addressed === 3 && linked >= 2 && ready === 1 && fake.webhooks.length === 6) break;
       await new Promise((r) => setTimeout(r, 100));
     }
     return {
@@ -181,17 +182,22 @@ describe('shopify app', () => {
     // The shop's own webhooks point at this deployment, once each.
     const hooks = 'http://localhost:3000/api/shopify/webhooks';
     expect(fake.webhooks.map((w) => `${w.topic} ${w.uri}`).sort()).toEqual(
-      ['APP_UNINSTALLED', 'PRODUCTS_CREATE', 'PRODUCTS_DELETE', 'PRODUCTS_UPDATE'].map(
-        (t) => `${t} ${hooks}`,
-      ),
+      [
+        'APP_UNINSTALLED',
+        'ORDERS_CREATE',
+        'ORDERS_UPDATED',
+        'PRODUCTS_CREATE',
+        'PRODUCTS_DELETE',
+        'PRODUCTS_UPDATE',
+      ].map((t) => `${t} ${hooks}`),
     );
     // Running it again changes nothing; a moved address is updated in place.
     const admin = await agent('admin@test.eg', 'admin-password-1');
     await admin.post(`/admin/shopify/${shop.id}/register-locations`).expect(201);
-    expect(fake.webhooks).toHaveLength(4);
+    expect(fake.webhooks).toHaveLength(6);
     fake.webhooks[0]!.uri = 'https://old-tunnel.trycloudflare.com/api/shopify/webhooks';
     await admin.post(`/admin/shopify/${shop.id}/register-locations`).expect(201);
-    expect(fake.webhooks.map((w) => w.uri)).toEqual(Array(4).fill(hooks));
+    expect(fake.webhooks.map((w) => w.uri)).toEqual(Array(6).fill(hooks));
 
     // A tampered callback is refused.
     const params = { code: 'good-code', shop: SHOP, state: 'x', timestamp: '1' };
@@ -552,6 +558,190 @@ describe('shopify app', () => {
       .post('/admin/shopify/link')
       .send({ merchantId, shopDomain: 'shiplynow-adv' })
       .expect(201);
+  });
+
+  it('collects the whole store: products, stock per location and orders, then insights', async () => {
+    const { admin, shop } = await install();
+    const P = 'gid://shopify/Product/9001';
+    const V = 'gid://shopify/ProductVariant/9101';
+    const I = 'gid://shopify/InventoryItem/9201';
+    const ours = await locationOf('NCR');
+    fake.store.products = [
+      {
+        id: P,
+        title: 'Rose Serum',
+        status: 'ACTIVE',
+        vendor: 'Eve',
+        productType: 'Serum',
+        tags: ['face'],
+        createdAt: '2025-01-05T10:00:00Z',
+        category: {
+          id: 'gid://shopify/TaxonomyCategory/hb',
+          fullName: 'Health & Beauty > Personal Care > Cosmetics',
+        },
+        mediaCount: { count: 3 },
+        totalInventory: 12,
+      },
+      {
+        id: V,
+        __parentId: P,
+        title: '30 ml',
+        sku: 'EC-016',
+        barcode: '622000',
+        price: '325.50',
+        compareAtPrice: '400.00',
+        inventoryItem: {
+          id: I,
+          unitCost: { amount: '120.00' },
+          measurement: { weight: { value: 0.2, unit: 'KILOGRAMS' } },
+        },
+      },
+      {
+        id: 'gid://shopify/Product/9002',
+        title: 'Old Cream',
+        status: 'DRAFT',
+        productType: 'Cream',
+        tags: [],
+        totalInventory: 0,
+      },
+    ];
+    fake.store.inventory = [
+      { id: I, sku: 'EC-016' },
+      {
+        id: 'gid://shopify/InventoryLevel/1',
+        __parentId: I,
+        location: { id: 'gid://shopify/Location/warehouse', name: 'Merchant warehouse' },
+        quantities: [
+          { name: 'available', quantity: 10 },
+          { name: 'on_hand', quantity: 11 },
+        ],
+      },
+      {
+        id: 'gid://shopify/InventoryLevel/2',
+        __parentId: I,
+        location: { id: ours, name: 'Shiply Now New Cairo' },
+        quantities: [{ name: 'available', quantity: 2 }],
+      },
+    ];
+    const O = 'gid://shopify/Order/7001';
+    fake.store.orders = [
+      {
+        id: O,
+        name: '#1001',
+        createdAt: new Date(Date.now() - 5 * 86_400_000).toISOString(),
+        currencyCode: 'EGP',
+        sourceName: 'web',
+        test: false,
+        subtotalLineItemsQuantity: 2,
+        subtotalPriceSet: { shopMoney: { amount: '651.00' } },
+        totalDiscountsSet: { shopMoney: { amount: '0.00' } },
+        totalPriceSet: { shopMoney: { amount: '701.00' } },
+        totalRefundedSet: { shopMoney: { amount: '0.00' } },
+        shippingAddress: { province: 'Cairo', city: 'New Cairo', countryCodeV2: 'EG' },
+      },
+      {
+        id: 'gid://shopify/LineItem/1',
+        __parentId: O,
+        name: 'Rose Serum - 30 ml',
+        sku: 'EC-016',
+        quantity: 2,
+        currentQuantity: 2,
+        originalUnitPriceSet: { shopMoney: { amount: '325.50' } },
+        totalDiscountSet: { shopMoney: { amount: '0.00' } },
+        product: { id: P },
+        variant: { id: V },
+      },
+    ];
+    fake.denyAddresses = true;
+    const data = app.get(ShopDataService);
+    const run = async () => {
+      for (let i = 0; i < 12; i++) await data.tick(shop);
+    };
+    await run();
+
+    const kinds = await prisma.shopDataSync.findMany({ orderBy: { startedAt: 'asc' } });
+    expect(kinds.map((k) => `${k.kind}:${k.status}`)).toEqual([
+      'products:done',
+      'inventory:done',
+      'orders:failed',
+      'orders:done',
+    ]);
+    // Addresses refused: orders are collected without them.
+    expect(kinds.at(-1)!.limited).toBe('addresses');
+    expect(await prisma.shopVariant.findUniqueOrThrow({ where: { shopifyId: V } })).toMatchObject({
+      pricePiastres: 32550,
+      compareAtPiastres: 40000,
+      costPiastres: 12000,
+      weightGrams: 200,
+    });
+    expect(await prisma.shopProduct.findUniqueOrThrow({ where: { shopifyId: P } })).toMatchObject({
+      categoryTop: 'Health & Beauty',
+      status: 'ACTIVE',
+    });
+    const levels = await prisma.shopInventoryLevel.findMany({ orderBy: { available: 'desc' } });
+    expect(levels.map((l) => [l.available, l.ours])).toEqual([
+      [10, false],
+      [2, true],
+    ]);
+    expect(
+      (await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } })).profile,
+    ).toMatchObject({
+      shop: { name: 'Test Shop' },
+    });
+
+    // Nothing is due again until tomorrow, and a rerun does not double anything.
+    expect(await data.tick(shop)).toBeNull();
+    await data.refreshAll(shop.id);
+    fake.denyAddresses = false;
+    await run();
+    expect(await prisma.shopOrder.count()).toBe(1);
+    expect(await prisma.shopOrderLine.count()).toBe(1);
+    expect((await prisma.shopOrder.findFirstOrThrow()).province).toBe('Cairo');
+
+    // A new order arrives by webhook and is saved at once.
+    const O2 = 'gid://shopify/Order/7002';
+    fake.store.orders.push(
+      {
+        id: O2,
+        name: '#1002',
+        createdAt: new Date().toISOString(),
+        currencyCode: 'EGP',
+        test: false,
+        totalPriceSet: { shopMoney: { amount: '325.50' } },
+        subtotalLineItemsQuantity: 1,
+      },
+      {
+        id: 'gid://shopify/LineItem/2',
+        __parentId: O2,
+        name: 'Rose Serum - 30 ml',
+        quantity: 1,
+        currentQuantity: 1,
+        originalUnitPriceSet: { shopMoney: { amount: '325.50' } },
+        product: { id: P },
+        variant: { id: V },
+      },
+    );
+    const body = JSON.stringify({ id: 7002, admin_graphql_api_id: O2 });
+    await request(app.getHttpServer())
+      .post('/shopify/webhooks')
+      .set('content-type', 'application/json')
+      .set('x-shopify-topic', 'orders/create')
+      .set('x-shopify-shop-domain', SHOP)
+      .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(body).digest('base64'))
+      .send(body)
+      .expect(200);
+    expect(await prisma.shopOrder.count()).toBe(2);
+
+    const insights = (await admin.get(`/admin/data/merchants/${merchantId}`).expect(200)).body;
+    expect(insights.catalogue).toMatchObject({ products: 2, active: 1, draft: 1, variants: 1 });
+    expect(insights.stock).toMatchObject({ ownWarehouses: 10, inOurStores: 2, warehouses: 1 });
+    expect(insights.sales).toMatchObject({ orders: 2, units: 3, revenuePiastres: 70100 + 32550 });
+    expect(insights.topProducts[0]).toMatchObject({ title: 'Rose Serum', units90: 3 });
+    expect(insights.regions[0]).toMatchObject({ province: 'Cairo' });
+    const market = (await admin.get('/admin/data/market').expect(200)).body;
+    expect(market.categories[0]).toMatchObject({ category: 'Health & Beauty', merchants: 1 });
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    await staff.get('/admin/data/market').expect(403);
   });
 
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {

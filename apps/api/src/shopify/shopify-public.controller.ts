@@ -15,6 +15,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from '../auth/decorators';
 import { sealToken, isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
+import { ShopDataService } from './shop-data.service';
 import { ShopifyAdmin } from './shopify-admin';
 import { ShopifyJobsService } from './shopify-jobs.service';
 import {
@@ -24,7 +25,7 @@ import {
 } from './shopify-rates.service';
 import { ShopifySetupService, type WebhookProduct } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
-import { SHOPIFY_SCOPES, ShopifyService } from './shopify.service';
+import { ShopifyService } from './shopify.service';
 
 const STATE_COOKIE = 'shopify_oauth_state';
 
@@ -40,6 +41,7 @@ export class ShopifyPublicController {
     private readonly setup: ShopifySetupService,
     private readonly sync: ShopifySyncService,
     private readonly rates: ShopifyRatesService,
+    private readonly shopData: ShopDataService,
   ) {}
 
   private get prisma() {
@@ -67,7 +69,7 @@ export class ShopifyPublicController {
     });
     const url = new URL(`https://${shop}/admin/oauth/authorize`);
     url.searchParams.set('client_id', this.shopify.apiKey);
-    url.searchParams.set('scope', SHOPIFY_SCOPES);
+    url.searchParams.set('scope', this.shopify.scopes);
     url.searchParams.set('redirect_uri', `${this.shopify.publicUrl}/api/shopify/callback`);
     url.searchParams.set('state', state);
     res.redirect(302, url.toString());
@@ -290,6 +292,22 @@ export class ShopifyPublicController {
           message: (error as Error).message,
         });
         // Shopify retries a failed delivery, so the product is picked up again.
+        return res.status(500).send();
+      }
+      return res.status(200).send();
+    }
+    if (shop?.status === 'active' && (topic === 'orders/create' || topic === 'orders/updated')) {
+      try {
+        const body = JSON.parse(raw.toString('utf8')) as { admin_graphql_api_id?: string };
+        if (body.admin_graphql_api_id)
+          await this.shopData.orderWebhook(shop, body.admin_graphql_api_id);
+      } catch (error) {
+        await this.shopify.record(shop.id, {
+          direction: 'in',
+          kind: 'data_order',
+          ok: false,
+          message: (error as Error).message,
+        });
         return res.status(500).send();
       }
       return res.status(200).send();

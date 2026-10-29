@@ -466,3 +466,157 @@ export const CARRIER_SERVICE_DELETE = /* GraphQL */ `
     }
   }
 `;
+
+// ─── merchant store data (bulk exports) ─────────────────────────────────────────
+
+const updatedSince = (since?: Date) =>
+  since ? `(query: "updated_at:>'${since.toISOString()}'")` : '';
+
+/** Every product with its variants; with `since`, only those changed after it. */
+export function productsExport(since?: Date) {
+  return `{
+  products${updatedSince(since)} {
+    edges { node {
+      id title handle status vendor productType tags createdAt updatedAt publishedAt totalInventory
+      category { id fullName }
+      featuredMedia { preview { image { url } } }
+      mediaCount { count }
+      variants { edges { node {
+        id title sku barcode price compareAtPrice inventoryQuantity createdAt updatedAt
+        selectedOptions { name value }
+        inventoryItem { id unitCost { amount } measurement { weight { value unit } } }
+      } } }
+    } }
+  }
+}`;
+}
+
+/** Stock of every item at every location (the merchant's warehouses and our dark stores). */
+export function inventoryExport() {
+  return `{
+  inventoryItems {
+    edges { node {
+      id sku
+      inventoryLevels { edges { node {
+        id location { id name }
+        quantities(names: ["available", "on_hand", "committed", "incoming"]) { name quantity }
+      } } }
+    } }
+  }
+}`;
+}
+
+const ORDER_FIELDS = (address: boolean) => `
+  id name createdAt processedAt updatedAt cancelledAt test
+  displayFinancialStatus displayFulfillmentStatus currencyCode sourceName tags
+  subtotalLineItemsQuantity currentSubtotalLineItemsQuantity
+  subtotalPriceSet { shopMoney { amount } }
+  totalDiscountsSet { shopMoney { amount } }
+  totalShippingPriceSet { shopMoney { amount } }
+  totalTaxSet { shopMoney { amount } }
+  totalPriceSet { shopMoney { amount } }
+  totalRefundedSet { shopMoney { amount } }
+  ${address ? 'shippingAddress { province city countryCodeV2 }' : ''}`;
+
+const LINE_FIELDS = `
+  id name sku vendor quantity currentQuantity
+  originalUnitPriceSet { shopMoney { amount } }
+  totalDiscountSet { shopMoney { amount } }
+  product { id } variant { id }`;
+
+/**
+ * Every order with its lines. No customer, no names, no street: only province and city, and
+ * those only when the app may read addresses (`address` false leaves them out).
+ */
+export function ordersExport(since: Date | undefined, address: boolean) {
+  return `{
+  orders${updatedSince(since)} {
+    edges { node {
+      ${ORDER_FIELDS(address)}
+      lineItems { edges { node { ${LINE_FIELDS} } } }
+    } }
+  }
+}`;
+}
+
+/** One order, for the orders/create and orders/updated webhooks. */
+export function orderForData(address: boolean) {
+  return `query OrderForData($id: ID!) {
+  order(id: $id) {
+    ${ORDER_FIELDS(address)}
+    lineItems(first: 250) { nodes { ${LINE_FIELDS} } }
+  }
+}`;
+}
+
+export const BULK_RUN = /* GraphQL */ `
+  mutation BulkRun($query: String!) {
+    bulkOperationRunQuery(query: $query) {
+      bulkOperation {
+        id
+        status
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
+export const BULK_STATUS = /* GraphQL */ `
+  query BulkStatus($id: ID!) {
+    node(id: $id) {
+      ... on BulkOperation {
+        id
+        status
+        errorCode
+        objectCount
+        url
+        partialDataUrl
+      }
+    }
+  }
+`;
+
+/** The store itself: name, plan, currency, age, and its locations. */
+export const SHOP_PROFILE = /* GraphQL */ `
+  query ShopProfile {
+    shop {
+      id
+      name
+      myshopifyDomain
+      currencyCode
+      createdAt
+      ianaTimezone
+      plan {
+        displayName
+        partnerDevelopment
+        shopifyPlus
+      }
+      primaryDomain {
+        host
+      }
+      billingAddress {
+        city
+        countryCodeV2
+      }
+    }
+    productsCount {
+      count
+    }
+    locations(first: 100) {
+      nodes {
+        id
+        name
+        isActive
+        fulfillsOnlineOrders
+        address {
+          city
+          province
+          countryCode
+        }
+      }
+    }
+  }
+`;

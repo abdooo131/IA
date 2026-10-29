@@ -1282,10 +1282,15 @@ model ShopifyShop {
   createdAt        DateTime          @default(now()) @map("created_at")
   updatedAt        DateTime          @updatedAt @map("updated_at")
 
+  /// Store profile from Shopify (name, plan, currency, created), refreshed with each data sync
+  profile      Json?
+  dataSyncedAt DateTime? @map("data_synced_at")
+
   merchant  Merchant          @relation(fields: [merchantId], references: [id])
   locations ShopifyLocation[]
   outbox    ShopifyOutbox[]
   logs      ShopifyLog[]
+  dataSyncs ShopDataSync[]
 
   @@map("shopify_shops")
 }
@@ -1507,4 +1512,165 @@ model TicketMessage {
   @@unique([ticketId, slackTs])
   @@index([ticketId, createdAt])
   @@map("ticket_messages")
+}
+
+/// One data export from a merchant's Shopify store (bulk operation): products, inventory or orders.
+model ShopDataSync {
+  id              String    @id @default(cuid())
+  shopId          String    @map("shop_id")
+  /// products, inventory, orders
+  kind            String
+  /// running, done, failed
+  status          String    @default("running")
+  bulkOperationId String?   @map("bulk_operation_id")
+  /// Only records changed since then (null: everything)
+  since           DateTime?
+  objectCount     Int       @default(0) @map("object_count")
+  /// Fields Shopify refused and the export left out (for example order addresses)
+  limited         String?
+  error           String?
+  startedAt       DateTime  @default(now()) @map("started_at")
+  finishedAt      DateTime? @map("finished_at")
+
+  shop ShopifyShop @relation(fields: [shopId], references: [id], onDelete: Cascade)
+
+  @@index([shopId, kind, startedAt])
+  @@map("shop_data_syncs")
+}
+
+/// A product as it is in the merchant's Shopify store (every product, not only what we stock).
+model ShopProduct {
+  id             String    @id @default(cuid())
+  shopId         String    @map("shop_id")
+  merchantId     String    @map("merchant_id")
+  shopifyId      String    @unique @map("shopify_id")
+  title          String
+  handle         String?
+  /// ACTIVE, DRAFT, ARCHIVED, UNLISTED
+  status         String
+  vendor         String?
+  productType    String?   @map("product_type")
+  /// Shopify standard product taxonomy, for example "Apparel & Accessories > Clothing > Dresses"
+  categoryId     String?   @map("category_id")
+  categoryName   String?   @map("category_name")
+  /// Top level of the taxonomy (or the product type), used to compare merchants
+  categoryTop    String?   @map("category_top")
+  tags           String[]
+  imageUrl       String?   @map("image_url")
+  mediaCount     Int       @default(0) @map("media_count")
+  totalInventory Int       @default(0) @map("total_inventory")
+  createdAtShop  DateTime? @map("created_at_shop")
+  updatedAtShop  DateTime? @map("updated_at_shop")
+  publishedAt    DateTime? @map("published_at")
+  raw            Json
+  syncedAt       DateTime  @default(now()) @updatedAt @map("synced_at")
+
+  variants ShopVariant[]
+
+  @@index([merchantId, status])
+  @@index([categoryTop])
+  @@map("shop_products")
+}
+
+model ShopVariant {
+  id                String    @id @default(cuid())
+  shopId            String    @map("shop_id")
+  productShopifyId  String    @map("product_shopify_id")
+  shopifyId         String    @unique @map("shopify_id")
+  inventoryItemId   String?   @unique @map("inventory_item_id")
+  title             String
+  sku               String?
+  barcode           String?
+  pricePiastres     Int       @default(0) @map("price_piastres")
+  compareAtPiastres Int?      @map("compare_at_piastres")
+  costPiastres      Int?      @map("cost_piastres")
+  weightGrams       Int?      @map("weight_grams")
+  inventoryQuantity Int       @default(0) @map("inventory_quantity")
+  options           Json?
+  createdAtShop     DateTime? @map("created_at_shop")
+  updatedAtShop     DateTime? @map("updated_at_shop")
+  raw               Json
+
+  product ShopProduct @relation(fields: [productShopifyId], references: [shopifyId], onDelete: Cascade)
+
+  @@index([shopId, sku])
+  @@map("shop_variants")
+}
+
+/// Stock of one item at one of the merchant's own Shopify locations (their warehouses and ours).
+model ShopInventoryLevel {
+  id              String   @id @default(cuid())
+  shopId          String   @map("shop_id")
+  inventoryItemId String   @map("inventory_item_id")
+  locationId      String   @map("location_id")
+  locationName    String   @map("location_name")
+  /// Our dark store fulfillment service, not the merchant's own warehouse
+  ours            Boolean  @default(false)
+  available       Int      @default(0)
+  onHand          Int      @default(0) @map("on_hand")
+  committed       Int      @default(0)
+  incoming        Int      @default(0)
+  syncedAt        DateTime @default(now()) @updatedAt @map("synced_at")
+
+  @@unique([inventoryItemId, locationId])
+  @@index([shopId])
+  @@map("shop_inventory_levels")
+}
+
+/// A merchant's Shopify order (all channels, not only 60 minute ones). No customer names,
+/// phones, emails or street addresses are kept.
+model ShopOrder {
+  id                String    @id @default(cuid())
+  shopId            String    @map("shop_id")
+  merchantId        String    @map("merchant_id")
+  shopifyId         String    @unique @map("shopify_id")
+  name              String
+  createdAtShop     DateTime  @map("created_at_shop")
+  processedAt       DateTime? @map("processed_at")
+  updatedAtShop     DateTime? @map("updated_at_shop")
+  cancelledAt       DateTime? @map("cancelled_at")
+  financialStatus   String?   @map("financial_status")
+  fulfillmentStatus String?   @map("fulfillment_status")
+  currency          String
+  subtotalPiastres  Int       @default(0) @map("subtotal_piastres")
+  discountsPiastres Int       @default(0) @map("discounts_piastres")
+  shippingPiastres  Int       @default(0) @map("shipping_piastres")
+  taxPiastres       Int       @default(0) @map("tax_piastres")
+  totalPiastres     Int       @default(0) @map("total_piastres")
+  refundedPiastres  Int       @default(0) @map("refunded_piastres")
+  units             Int       @default(0)
+  sourceName        String?   @map("source_name")
+  province          String?
+  city              String?
+  country           String?
+  tags              String[]
+  test              Boolean   @default(false)
+  raw               Json
+
+  lines ShopOrderLine[]
+
+  @@index([merchantId, createdAtShop])
+  @@map("shop_orders")
+}
+
+model ShopOrderLine {
+  id                String  @id @default(cuid())
+  orderShopifyId    String  @map("order_shopify_id")
+  shopifyId         String  @unique @map("shopify_id")
+  productShopifyId  String? @map("product_shopify_id")
+  variantShopifyId  String? @map("variant_shopify_id")
+  sku               String?
+  title             String
+  vendor            String?
+  quantity          Int
+  /// Still on the order after removals and refunds
+  currentQuantity   Int     @map("current_quantity")
+  unitPricePiastres Int     @map("unit_price_piastres")
+  discountPiastres  Int     @default(0) @map("discount_piastres")
+  totalPiastres     Int     @map("total_piastres")
+
+  order ShopOrder @relation(fields: [orderShopifyId], references: [shopifyId], onDelete: Cascade)
+
+  @@index([productShopifyId])
+  @@map("shop_order_lines")
 }

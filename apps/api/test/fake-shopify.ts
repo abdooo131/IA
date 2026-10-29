@@ -60,6 +60,11 @@ export class FakeShopify extends ShopifyAdmin {
   >();
   webhooks: { id: string; topic: string; uri: string }[] = [];
   calls: string[] = [];
+  /** The merchant's store for data exports, as Shopify would export it (JSON Lines rows). */
+  store = { products: [] as object[], inventory: [] as object[], orders: [] as object[] };
+  /** Refuse order addresses, like a store whose app lacks protected customer data access */
+  denyAddresses = false;
+  bulk: { id: string; query: string; polls: number; status?: string; errorCode?: string }[] = [];
 
   addVariant(sku: string | null, price = '100.00', barcode: string | null = null) {
     const v = {
@@ -87,6 +92,16 @@ export class FakeShopify extends ShopifyAdmin {
     return fo;
   }
 
+  async *downloadLines(url: string) {
+    const op = this.bulk.find((b) => url === `fake://bulk/${b.id}`)!;
+    const rows = op.query.includes('inventoryItems')
+      ? this.store.inventory
+      : op.query.includes('orders')
+        ? this.store.orders
+        : this.store.products;
+    for (const row of rows) yield JSON.stringify(row);
+  }
+
   async exchangeCode(_shop: string, code: string) {
     if (code !== 'good-code') throw new Error('bad code');
     return { accessToken: 'shpat_test_token', scope: 'read_products,write_inventory' };
@@ -106,6 +121,53 @@ export class FakeShopify extends ShopifyAdmin {
     const fo = (id: unknown) => this.fulfillmentOrders.find((f) => f.id === id)!;
 
     switch (name) {
+      case 'BulkRun': {
+        const query = String(v.query);
+        const op = { id: gid('BulkOperation'), query, polls: 0 } as FakeShopify['bulk'][number];
+        if (this.denyAddresses && query.includes('shippingAddress')) {
+          op.status = 'FAILED';
+          op.errorCode = 'ACCESS_DENIED';
+        }
+        this.bulk.push(op);
+        return ok({
+          bulkOperationRunQuery: { bulkOperation: { id: op.id, status: 'CREATED' }, ...errors },
+        });
+      }
+      case 'BulkStatus': {
+        const op = this.bulk.find((b) => b.id === v.id)!;
+        // Running on the first look, finished on the next.
+        const status = op.status ?? (op.polls++ === 0 ? 'RUNNING' : 'COMPLETED');
+        return ok({
+          node: {
+            id: op.id,
+            status,
+            errorCode: op.errorCode ?? null,
+            objectCount: '0',
+            url: status === 'COMPLETED' ? `fake://bulk/${op.id}` : null,
+          },
+        });
+      }
+      case 'ShopProfile':
+        return ok({
+          shop: {
+            id: 'gid://shopify/Shop/1',
+            name: 'Test Shop',
+            currencyCode: 'EGP',
+            createdAt: '2022-03-01T10:00:00Z',
+            plan: { displayName: 'Basic', partnerDevelopment: true, shopifyPlus: false },
+          },
+          productsCount: { count: this.store.products.length },
+          locations: { nodes: [] },
+        });
+      case 'OrderForData': {
+        const rows = this.store.orders as { id?: string; __parentId?: string }[];
+        const order = rows.find((r) => r.id === v.id);
+        return ok({
+          order: order
+            ? { ...order, lineItems: { nodes: rows.filter((r) => r.__parentId === v.id) } }
+            : null,
+        });
+      }
       case 'FulfillmentServices':
         return ok({
           shop: {

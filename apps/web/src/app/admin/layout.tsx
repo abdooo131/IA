@@ -33,6 +33,7 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         { href: '/admin/merchants', label: t('nav.merchants'), icon: 'customers' },
         { href: '/admin/products', label: t('nav.products'), icon: 'products' },
         { href: '/admin/shopify', label: t('nav.shopify'), icon: 'store' },
+        { href: '/admin/data', label: t('nav.data'), icon: 'analytics' },
       ],
     },
     {

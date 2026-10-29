@@ -47,6 +47,18 @@ export class ShopifyService {
     return this.config.get('SHOPIFY_API_SECRET', { infer: true }) ?? '';
   }
 
+  /**
+   * Permissions asked at install: ours plus SHOPIFY_EXTRA_SCOPES (for example read_all_orders,
+   * which Shopify must approve first, and which then brings every order instead of 60 days).
+   */
+  get scopes() {
+    const extra = (this.config.get('SHOPIFY_EXTRA_SCOPES', { infer: true }) ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => /^[a-z_]+$/.test(s));
+    return [...new Set([...SHOPIFY_SCOPES.split(','), ...extra])].join(',');
+  }
+
   /** The public https address of this deployment (Render sets it), without a trailing slash. */
   get publicUrl() {
     return this.config.get('WEB_ORIGIN', { infer: true }).replace(/\/$/, '');

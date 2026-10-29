@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import type { ShopifyShop } from '@shiplynow/db';
 import type { Env } from '../config/env';
+import { ShopDataService } from './shop-data.service';
 import { ShopifyOrdersService } from './shopify-orders.service';
 import { ShopifySyncService } from './shopify-sync.service';
 import { ShopifyService } from './shopify.service';
@@ -31,6 +32,7 @@ export class ShopifyJobsService implements OnApplicationBootstrap, OnApplication
     private readonly shopify: ShopifyService,
     private readonly orders: ShopifyOrdersService,
     private readonly sync: ShopifySyncService,
+    private readonly shopData: ShopDataService,
     private readonly config: ConfigService<Env, true>,
     private readonly reporter: ErrorReporter,
   ) {}
@@ -73,7 +75,14 @@ export class ShopifyJobsService implements OnApplicationBootstrap, OnApplication
       const outbox = await this.sync.processOutbox(shop);
       const requests = await this.orders.sweep(shop);
       const stock = await this.sync.pushStock(shop);
-      return { outbox, requests, stock };
+      // The merchant's store data: a separate step, so its trouble never holds up orders.
+      const data = await this.shopData
+        .tick(shop)
+        .catch(
+          (error: unknown) =>
+            void this.reporter.report(`job: store data ${shop.shopDomain}`, error),
+        );
+      return { outbox, requests, stock, data };
     } catch (error) {
       await this.reporter.report(`job: Shopify sync ${shop.shopDomain}`, error);
       await this.shopify.record(shop.id, {

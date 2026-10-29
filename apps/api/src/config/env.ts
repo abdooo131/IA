@@ -31,6 +31,8 @@ export const envSchema = z.object({
   /** Shopify app client secret: signs Shopify's requests and protects stored tokens */
   SHOPIFY_API_SECRET: z.string().optional(),
   SHOPIFY_API_VERSION: z.string().default('2026-10'),
+  /** More install permissions once Shopify approves them, comma separated (read_all_orders) */
+  SHOPIFY_EXTRA_SCOPES: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

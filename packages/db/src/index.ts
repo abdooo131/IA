@@ -124,3 +124,4 @@ export {
 export { planRefill, refillOverview, setStockTarget } from './refill';
 export * from './geo';
 export * from './tickets';
+export * from './shopdata';

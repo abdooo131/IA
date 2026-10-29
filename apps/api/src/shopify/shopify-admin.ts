@@ -24,6 +24,9 @@ export abstract class ShopifyAdmin {
     variables?: Record<string, unknown>,
   ): Promise<T>;
 
+  /** The lines of a finished bulk export (JSON Lines at a signed Shopify address). */
+  abstract downloadLines(url: string): AsyncIterable<string>;
+
   /** OAuth: trades the one time code from the install redirect for an offline token. */
   abstract exchangeCode(
     shop: string,
@@ -88,6 +91,22 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
         throw new ShopifyApiError(`http ${res.status} without data`, res.status >= 500);
       return body.data;
     }
+  }
+
+  /** Streams the file line by line, so a store's whole history never sits in memory at once. */
+  async *downloadLines(url: string) {
+    const res = await fetch(url, { signal: AbortSignal.timeout(15 * 60_000) });
+    if (!res.ok || !res.body) throw new ShopifyApiError(`bulk download http ${res.status}`, true);
+    const decoder = new TextDecoder();
+    let rest = '';
+    for await (const chunk of res.body as unknown as AsyncIterable<Uint8Array>) {
+      rest += decoder.decode(chunk, { stream: true });
+      const lines = rest.split('\n');
+      rest = lines.pop() ?? '';
+      for (const line of lines) if (line.trim()) yield line;
+    }
+    rest += decoder.decode();
+    if (rest.trim()) yield rest;
   }
 
   async exchangeCode(shop: string, code: string) {
