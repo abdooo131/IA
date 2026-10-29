@@ -61,8 +61,15 @@ export class FakeShopify extends ShopifyAdmin {
   webhooks: { id: string; topic: string; uri: string }[] = [];
   calls: string[] = [];
   /** The merchant's store for data exports, as Shopify would export it (JSON Lines rows). */
-  store = { products: [] as object[], inventory: [] as object[], orders: [] as object[] };
-  /** Refuse order addresses, like a store whose app lacks protected customer data access */
+  store = {
+    products: [] as object[],
+    inventory: [] as object[],
+    orders: [] as object[],
+    customers: [] as object[],
+  };
+  /** Refuse buyer contact details, like an app without protected customer data (level 2) */
+  denyContact = false;
+  /** Refuse order addresses too, like an app without protected customer data at all */
   denyAddresses = false;
   bulk: { id: string; query: string; polls: number; status?: string; errorCode?: string }[] = [];
 
@@ -94,12 +101,33 @@ export class FakeShopify extends ShopifyAdmin {
 
   async *downloadLines(url: string) {
     const op = this.bulk.find((b) => url === `fake://bulk/${b.id}`)!;
-    const rows = op.query.includes('inventoryItems')
-      ? this.store.inventory
-      : op.query.includes('orders')
-        ? this.store.orders
-        : this.store.products;
-    for (const row of rows) yield JSON.stringify(row);
+    const root = /^\{\s*(\w+)/.exec(op.query)?.[1] as string;
+    const rows =
+      root === 'inventoryItems'
+        ? this.store.inventory
+        : root === 'orders'
+          ? this.store.orders
+          : root === 'customers'
+            ? this.store.customers
+            : this.store.products;
+    for (const row of rows)
+      yield JSON.stringify(root === 'orders' ? this.asAsked(row, op.query) : row);
+  }
+
+  /** An order row with only the buyer details the export asked for, as Shopify returns it. */
+  private asAsked(row: object, query: string) {
+    const r = { ...(row as Record<string, unknown>) };
+    if (!/\bemail phone\b/.test(query)) {
+      delete r.email;
+      delete r.phone;
+      delete r.customer;
+      if (r.shippingAddress) {
+        const { province, city, countryCodeV2 } = r.shippingAddress as Record<string, unknown>;
+        r.shippingAddress = { province, city, countryCodeV2 };
+      }
+    }
+    if (!query.includes('shippingAddress')) delete r.shippingAddress;
+    return r;
   }
 
   async exchangeCode(_shop: string, code: string) {
@@ -124,7 +152,11 @@ export class FakeShopify extends ShopifyAdmin {
       case 'BulkRun': {
         const query = String(v.query);
         const op = { id: gid('BulkOperation'), query, polls: 0 } as FakeShopify['bulk'][number];
-        if (this.denyAddresses && query.includes('shippingAddress')) {
+        const contact = query.includes('defaultEmailAddress') || /\bemail phone\b/.test(query);
+        if (
+          ((this.denyContact || this.denyAddresses) && contact) ||
+          (this.denyAddresses && query.includes('shippingAddress'))
+        ) {
           op.status = 'FAILED';
           op.errorCode = 'ACCESS_DENIED';
         }

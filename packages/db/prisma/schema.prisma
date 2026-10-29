@@ -816,7 +816,10 @@ model Order {
   createdById               String?       @map("created_by_id")
   createdAt                 DateTime      @default(now()) @map("created_at")
   updatedAt                 DateTime      @updatedAt @map("updated_at")
+  /// The person across every merchant, linked by the customer jobs from the phone
+  customerId                String?       @map("customer_id")
 
+  customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   merchant       Merchant        @relation(fields: [merchantId], references: [id])
   darkStore      DarkStore       @relation(fields: [darkStoreId], references: [id])
   zone           Zone?           @relation(fields: [zoneId], references: [id])
@@ -837,6 +840,7 @@ model Order {
   @@index([darkStoreId, status, slaDueAt])
   @@index([merchantId, placedAt])
   @@index([status, placedAt])
+  @@index([customerId])
   @@map("orders")
 }
 
@@ -1646,10 +1650,15 @@ model ShopOrder {
   tags              String[]
   test              Boolean   @default(false)
   raw               Json
+  /// The person behind the order across every merchant, when the order names a phone or email
+  customerId        String?   @map("customer_id")
+  customerShopifyId String?   @map("customer_shopify_id")
 
-  lines ShopOrderLine[]
+  lines    ShopOrderLine[]
+  customer Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([merchantId, createdAtShop])
+  @@index([customerId])
   @@map("shop_orders")
 }
 
@@ -1673,4 +1682,60 @@ model ShopOrderLine {
 
   @@index([productShopifyId])
   @@map("shop_order_lines")
+}
+
+/// One person across every merchant and our own deliveries, matched by Egyptian mobile first,
+/// then by email. Admin only; every profile view is audited.
+model Customer {
+  id          String   @id @default(cuid())
+  /// +20 followed by 10 digits
+  phone       String?  @unique
+  /// Lower case
+  email       String?  @unique
+  name        String   @default("")
+  governorate String?
+  city        String?
+  /// The latest delivery address seen
+  address     String?
+  firstSeenAt DateTime @map("first_seen_at")
+  lastSeenAt  DateTime @map("last_seen_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  shopCustomers ShopCustomer[]
+  shopOrders    ShopOrder[]
+  orders        Order[]
+
+  @@map("customers")
+}
+
+/// A customer record in one merchant's Shopify store.
+model ShopCustomer {
+  id                  String    @id @default(cuid())
+  shopId              String    @map("shop_id")
+  merchantId          String    @map("merchant_id")
+  shopifyId           String    @unique @map("shopify_id")
+  customerId          String?   @map("customer_id")
+  firstName           String?   @map("first_name")
+  lastName            String?   @map("last_name")
+  email               String?
+  phone               String?
+  state               String?
+  ordersCount         Int       @default(0) @map("orders_count")
+  amountSpentPiastres Int       @default(0) @map("amount_spent_piastres")
+  emailMarketing      String?   @map("email_marketing")
+  smsMarketing        String?   @map("sms_marketing")
+  province            String?
+  city                String?
+  tags                String[]
+  createdAtShop       DateTime? @map("created_at_shop")
+  updatedAtShop       DateTime? @map("updated_at_shop")
+  raw                 Json
+  syncedAt            DateTime  @default(now()) @updatedAt @map("synced_at")
+
+  customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([merchantId])
+  @@map("shop_customers")
 }

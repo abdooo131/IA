@@ -1,5 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import type { Db } from '../client';
+import { resolveCustomer } from './customers';
 
 // Turns lines of a Shopify bulk export (JSON Lines, children after their parent with
 // __parentId) into rows. Every write is an upsert keyed by the Shopify id, so a run repeated
@@ -162,15 +163,39 @@ export async function ingestOrders(
   for (const l of lines) {
     if (kind(l.id) === 'Order') {
       const address = l.shippingAddress as {
+        name?: string;
+        phone?: string;
+        address1?: string;
+        address2?: string;
         province?: string;
         city?: string;
         countryCodeV2?: string;
       } | null;
+      const buyer = l.customer as {
+        id?: string;
+        firstName?: string;
+        lastName?: string;
+        defaultEmailAddress?: { emailAddress?: string } | null;
+        defaultPhoneNumber?: { phoneNumber?: string } | null;
+      } | null;
+      const createdAt = date(l.createdAt) ?? new Date(0);
+      // Only when the app may read customer contact details (otherwise these are all empty).
+      const customerId = await resolveCustomer(db, {
+        phone: str(l.phone) ?? str(address?.phone) ?? str(buyer?.defaultPhoneNumber?.phoneNumber),
+        email: str(l.email) ?? str(buyer?.defaultEmailAddress?.emailAddress),
+        name:
+          str(address?.name) ??
+          ([buyer?.firstName, buyer?.lastName].filter(Boolean).join(' ') || null),
+        governorate: address?.province,
+        city: address?.city,
+        address: [address?.address1, address?.address2].filter(Boolean).join(', '),
+        seenAt: createdAt,
+      });
       const data = {
         shopId: shop.id,
         merchantId: shop.merchantId,
         name: str(l.name) ?? '',
-        createdAtShop: date(l.createdAt) ?? new Date(0),
+        createdAtShop: createdAt,
         processedAt: date(l.processedAt),
         updatedAtShop: date(l.updatedAt),
         cancelledAt: date(l.cancelledAt),
@@ -191,6 +216,8 @@ export async function ingestOrders(
         tags: Array.isArray(l.tags) ? (l.tags as string[]) : [],
         test: l.test === true,
         raw: json(l),
+        customerId,
+        customerShopifyId: str(buyer?.id),
       };
       await db.shopOrder.upsert({
         where: { shopifyId: l.id! },

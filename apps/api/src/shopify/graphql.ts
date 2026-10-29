@@ -506,7 +506,14 @@ export function inventoryExport() {
 }`;
 }
 
-const ORDER_FIELDS = (address: boolean) => `
+/**
+ * How much of the buyer an order export reads. "full": contact details and the delivery
+ * address; "contact" (Shopify refused contact details): governorate and city only;
+ * "addresses" (Shopify refused addresses too): nothing about the buyer.
+ */
+export type OrderDetail = 'full' | 'contact' | 'addresses';
+
+const ORDER_FIELDS = (detail: OrderDetail) => `
   id name createdAt processedAt updatedAt cancelledAt test
   displayFinancialStatus displayFulfillmentStatus currencyCode sourceName tags
   subtotalLineItemsQuantity currentSubtotalLineItemsQuantity
@@ -516,7 +523,15 @@ const ORDER_FIELDS = (address: boolean) => `
   totalTaxSet { shopMoney { amount } }
   totalPriceSet { shopMoney { amount } }
   totalRefundedSet { shopMoney { amount } }
-  ${address ? 'shippingAddress { province city countryCodeV2 }' : ''}`;
+  ${
+    detail === 'full'
+      ? `email phone
+  customer { id firstName lastName defaultEmailAddress { emailAddress } defaultPhoneNumber { phoneNumber } }
+  shippingAddress { name phone address1 address2 province city countryCodeV2 }`
+      : detail === 'contact'
+        ? 'shippingAddress { province city countryCodeV2 }'
+        : ''
+  }`;
 
 const LINE_FIELDS = `
   id name sku vendor quantity currentQuantity
@@ -525,25 +540,39 @@ const LINE_FIELDS = `
   product { id } variant { id }`;
 
 /**
- * Every order with its lines. No customer, no names, no street: only province and city, and
- * those only when the app may read addresses (`address` false leaves them out).
+ * Every order with its lines, and as much of the buyer as `detail` allows (see OrderDetail).
  */
-export function ordersExport(since: Date | undefined, address: boolean) {
+export function ordersExport(since: Date | undefined, detail: OrderDetail) {
   return `{
   orders${updatedSince(since)} {
     edges { node {
-      ${ORDER_FIELDS(address)}
+      ${ORDER_FIELDS(detail)}
       lineItems { edges { node { ${LINE_FIELDS} } } }
     } }
   }
 }`;
 }
 
+/** Every customer record of the store with contact details, consent, address and totals. */
+export function customersExport(since: Date | undefined) {
+  return `{
+  customers${updatedSince(since)} {
+    edges { node {
+      id firstName lastName state tags createdAt updatedAt numberOfOrders
+      amountSpent { amount }
+      defaultEmailAddress { emailAddress marketingState }
+      defaultPhoneNumber { phoneNumber marketingState }
+      defaultAddress { address1 address2 city province phone }
+    } }
+  }
+}`;
+}
+
 /** One order, for the orders/create and orders/updated webhooks. */
-export function orderForData(address: boolean) {
+export function orderForData(detail: OrderDetail) {
   return `query OrderForData($id: ID!) {
   order(id: $id) {
-    ${ORDER_FIELDS(address)}
+    ${ORDER_FIELDS(detail)}
     lineItems(first: 250) { nodes { ${LINE_FIELDS} } }
   }
 }`;

@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { CoverageModule } from '../coverage/coverage.module';
 import { AdminDataController } from './admin-data.controller';
+import { AdminCustomersController } from './admin-customers.controller';
 import { ShopDataService } from './shop-data.service';
 import { HttpShopifyAdmin, ShopifyAdmin } from './shopify-admin';
 import { ShopifyAdminController } from './shopify-admin.controller';
@@ -30,6 +31,7 @@ import { ShopifyService } from './shopify.service';
     ShopifyAdminController,
     ShopifyStorefrontController,
     AdminDataController,
+    AdminCustomersController,
   ],
   exports: [ShopifyJobsService],
 })

@@ -224,6 +224,30 @@ export const SETTING_DEFINITIONS = {
       'Minutes after which the assignee is reminded once if they have not opened the ticket',
     override: 'none',
   },
+  'customer.new_days': {
+    schema: count,
+    default: 30,
+    description: 'A customer whose first order is this recent counts as new',
+    override: 'none',
+  },
+  'customer.at_risk_days': {
+    schema: count,
+    default: 60,
+    description: 'A customer with no order for this many days counts as at risk',
+    override: 'none',
+  },
+  'customer.lost_days': {
+    schema: count,
+    default: 180,
+    description: 'A customer with no order for this many days counts as lost',
+    override: 'none',
+  },
+  'customer.vip_orders': {
+    schema: count,
+    default: 5,
+    description: 'A customer with at least this many orders counts as VIP',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

@@ -637,7 +637,17 @@ describe('shopify app', () => {
         totalDiscountsSet: { shopMoney: { amount: '0.00' } },
         totalPriceSet: { shopMoney: { amount: '701.00' } },
         totalRefundedSet: { shopMoney: { amount: '0.00' } },
-        shippingAddress: { province: 'Cairo', city: 'New Cairo', countryCodeV2: 'EG' },
+        email: 'Mona@Example.com',
+        phone: null,
+        customer: { id: 'gid://shopify/Customer/501', firstName: 'Mona', lastName: 'Adel' },
+        shippingAddress: {
+          name: 'Mona Adel',
+          phone: '0100 123 4567',
+          address1: '12 Street 90',
+          province: 'Cairo',
+          city: 'New Cairo',
+          countryCodeV2: 'EG',
+        },
       },
       {
         id: 'gid://shopify/LineItem/1',
@@ -652,22 +662,40 @@ describe('shopify app', () => {
         variant: { id: V },
       },
     ];
+    fake.store.customers = [
+      {
+        id: 'gid://shopify/Customer/501',
+        firstName: 'Mona',
+        lastName: 'Adel',
+        numberOfOrders: '1',
+        amountSpent: { amount: '701.00' },
+        defaultEmailAddress: { emailAddress: 'mona@example.com', marketingState: 'SUBSCRIBED' },
+        defaultPhoneNumber: { phoneNumber: '+201001234567', marketingState: 'NOT_SUBSCRIBED' },
+        defaultAddress: { province: 'Cairo', city: 'New Cairo', address1: '12 Street 90' },
+        createdAt: '2025-02-01T10:00:00Z',
+        updatedAt: '2025-02-01T10:00:00Z',
+        tags: ['vip'],
+      },
+    ];
     fake.denyAddresses = true;
     const data = app.get(ShopDataService);
     const run = async () => {
-      for (let i = 0; i < 12; i++) await data.tick(shop);
+      for (let i = 0; i < 20; i++) await data.tick(shop);
     };
     await run();
 
     const kinds = await prisma.shopDataSync.findMany({ orderBy: { startedAt: 'asc' } });
-    expect(kinds.map((k) => `${k.kind}:${k.status}`)).toEqual([
-      'products:done',
-      'inventory:done',
-      'orders:failed',
-      'orders:done',
+    expect(kinds.map((k) => `${k.kind}:${k.status}:${k.limited ?? ''}`)).toEqual([
+      'products:done:',
+      'inventory:done:',
+      'orders:failed:',
+      'orders:failed:contact',
+      // Buyer details and addresses refused: orders are collected without them...
+      'orders:done:addresses',
+      // ...and customer records wait for tomorrow.
+      'customers:done:denied',
     ]);
-    // Addresses refused: orders are collected without them.
-    expect(kinds.at(-1)!.limited).toBe('addresses');
+    expect(await prisma.customer.count()).toBe(0);
     expect(await prisma.shopVariant.findUniqueOrThrow({ where: { shopifyId: V } })).toMatchObject({
       pricePiastres: 32550,
       compareAtPiastres: 40000,
@@ -697,6 +725,23 @@ describe('shopify app', () => {
     expect(await prisma.shopOrder.count()).toBe(1);
     expect(await prisma.shopOrderLine.count()).toBe(1);
     expect((await prisma.shopOrder.findFirstOrThrow()).province).toBe('Cairo');
+
+    // With protected customer data allowed, the order and the customer record are one person.
+    const person = await prisma.customer.findFirstOrThrow({ include: { shopCustomers: true } });
+    expect(await prisma.customer.count()).toBe(1);
+    expect(person).toMatchObject({
+      phone: '+201001234567',
+      email: 'mona@example.com',
+      name: 'Mona Adel',
+      governorate: 'Cairo',
+      city: 'New Cairo',
+    });
+    expect(person.shopCustomers[0]).toMatchObject({
+      emailMarketing: 'SUBSCRIBED',
+      ordersCount: 1,
+      amountSpentPiastres: 70100,
+    });
+    expect((await prisma.shopOrder.findFirstOrThrow()).customerId).toBe(person.id);
 
     // A new order arrives by webhook and is saved at once.
     const O2 = 'gid://shopify/Order/7002';
@@ -742,6 +787,42 @@ describe('shopify app', () => {
     expect(market.categories[0]).toMatchObject({ category: 'Health & Beauty', merchants: 1 });
     const staff = await agent('staff.newcairo@shiplynow.local');
     await staff.get('/admin/data/market').expect(403);
+
+    // The customer base: found by any phone format, profile opened and the view audited.
+    const found = (await admin.get('/admin/customers?q=01001234567').expect(200)).body;
+    expect(found.customers).toHaveLength(1);
+    expect(found.customers[0]).toMatchObject({ orders: 1, spendPiastres: 70100, merchants: 1 });
+    const profile = (await admin.get(`/admin/customers/${found.customers[0].id}`).expect(200)).body;
+    expect(profile.categories[0]).toMatchObject({ category: 'Health & Beauty', units: 2 });
+    expect(profile.merchants[0]).toMatchObject({ orders: 1 });
+    expect(profile.segment).toBe('new');
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'customer.view', entityId: found.customers[0].id },
+      }),
+    ).toBe(1);
+    const overview = (await admin.get('/admin/customers/overview').expect(200)).body;
+    expect(overview).toMatchObject({ customers: 1, buyers: 1, withPhone: 1, withEmail: 1 });
+    await staff.get('/admin/customers').expect(403);
+    await staff.get(`/admin/customers/${found.customers[0].id}`).expect(403);
+    await admin.get('/admin/customers/nobody').expect(404);
+
+    // Shopify's customers/redact forgets the buyer: record, order contact details and person.
+    const redact = JSON.stringify({ customer: { id: 501 }, orders_to_redact: [7001] });
+    await request(app.getHttpServer())
+      .post('/shopify/webhooks')
+      .set('content-type', 'application/json')
+      .set('x-shopify-topic', 'customers/redact')
+      .set('x-shopify-shop-domain', SHOP)
+      .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(redact).digest('base64'))
+      .send(redact)
+      .expect(200);
+    expect(await prisma.shopCustomer.count()).toBe(0);
+    expect(await prisma.customer.count()).toBe(0);
+    const kept = await prisma.shopOrder.findUniqueOrThrow({ where: { shopifyId: O } });
+    expect(kept).toMatchObject({ customerId: null, totalPiastres: 70100, province: 'Cairo' });
+    expect(kept.raw).not.toHaveProperty('email');
+    expect(kept.raw).not.toHaveProperty('shippingAddress');
   });
 
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {

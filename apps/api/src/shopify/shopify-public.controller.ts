@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { redactShopCustomer, redactShopCustomers } from '@shiplynow/db';
 import { Public } from '../auth/decorators';
 import { sealToken, isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
 import { ShopDataService } from './shop-data.service';
@@ -312,12 +313,31 @@ export class ShopifyPublicController {
       }
       return res.status(200).send();
     }
-    // Privacy requests (customers/data_request, customers/redact, shop/redact) are logged
-    // for the team to act on; order records are kept as long as accounting needs them.
+    // Privacy requests: customers/redact and shop/redact delete the buyer details we keep
+    // (order totals stay for the sales figures); customers/data_request is logged for the team
+    // to answer from the customer's profile.
+    let message: string | undefined;
+    if (shop && (topic === 'customers/redact' || topic === 'shop/redact')) {
+      const body = JSON.parse(raw.toString('utf8')) as {
+        customer?: { id?: number | string };
+        orders_to_redact?: (number | string)[];
+      };
+      const result =
+        topic === 'shop/redact'
+          ? await redactShopCustomers(this.prisma, shop.id)
+          : await redactShopCustomer(
+              this.prisma,
+              shop.id,
+              body.customer?.id ? `gid://shopify/Customer/${body.customer.id}` : null,
+              (body.orders_to_redact ?? []).map((id) => `gid://shopify/Order/${id}`),
+            );
+      message = JSON.stringify(result);
+    }
     await this.shopify.record(shop?.id ?? null, {
       direction: 'in',
       kind: `webhook:${topic ?? 'unknown'}`,
       ok: true,
+      message,
     });
     return res.status(200).send();
   }

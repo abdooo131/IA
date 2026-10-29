@@ -1,8 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import {
+  ingestCustomers,
   ingestInventory,
   ingestOrders,
   ingestProducts,
+  toPiastres,
   type Prisma,
   type ShopifyShop,
 } from '@shiplynow/db';
@@ -10,19 +12,25 @@ import { ErrorReporter } from '../common/error-reporter';
 import {
   BULK_RUN,
   BULK_STATUS,
+  customersExport,
   inventoryExport,
   orderForData,
   ordersExport,
   productsExport,
   SHOP_PROFILE,
+  type OrderDetail,
 } from './graphql';
 import { assertNoUserErrors, ShopifyAdmin } from './shopify-admin';
 import { ShopifyService } from './shopify.service';
 
-const KINDS = ['products', 'inventory', 'orders'] as const;
+const KINDS = ['products', 'inventory', 'orders', 'customers'] as const;
 type Kind = (typeof KINDS)[number];
 /** A kind is exported again (only what changed) when its last export is older than this. */
 const REFRESH_MS = 24 * 3600_000;
+/** A kind whose export failed is tried again after this long, not on every tick. */
+const RETRY_MS = 3600_000;
+/** When Shopify refuses part of an order export, the next try asks for less (see OrderDetail). */
+const LESS: Record<string, string | undefined> = { full: 'contact', contact: 'addresses' };
 const BATCH = 500;
 
 type Line = Record<string, unknown> & { id?: string; __parentId?: string };
@@ -33,7 +41,10 @@ type Line = Record<string, unknown> & { id?: string; __parentId?: string };
  * takes everything; later runs take only what changed since the last one. Each step is saved
  * by Shopify id, so a step repeated after a restart changes nothing.
  *
- *   products ──▶ inventory ──▶ orders ──▶ (24 h later) products changed since … and so on
+ *   products ──▶ inventory ──▶ orders ──▶ customers ──▶ (24 h later) what changed since …
+ *
+ * Buyer details are protected customer data: when Shopify refuses them (ACCESS_DENIED) orders
+ * are read again with less (full ──▶ contact ──▶ addresses) and customers wait for tomorrow.
  */
 @Injectable()
 export class ShopDataService {
@@ -57,12 +68,17 @@ export class ShopDataService {
     });
     if (running) return this.poll(shop, running.id);
     for (const kind of KINDS) {
-      const last = await this.prisma.shopDataSync.findFirst({
-        where: { shopId: shop.id, kind, status: 'done' },
-        orderBy: { startedAt: 'desc' },
-      });
+      const [last, failed] = await Promise.all(
+        (['done', 'failed'] as const).map((status) =>
+          this.prisma.shopDataSync.findFirst({
+            where: { shopId: shop.id, kind, status },
+            orderBy: { startedAt: 'desc' },
+          }),
+        ),
+      );
       if (last && now.getTime() - last.startedAt.getTime() < REFRESH_MS) continue;
-      // Stock is cheap to read whole; products and orders only bring what changed.
+      if (failed && now.getTime() - failed.startedAt.getTime() < RETRY_MS) continue;
+      // Stock is cheap to read whole; the rest only bring what changed.
       return this.start(shop, kind, kind === 'inventory' ? undefined : last?.startedAt);
     }
     return null;
@@ -71,7 +87,7 @@ export class ShopDataService {
   /** Admin's "Collect everything again": the next exports take the whole store. */
   async refreshAll(shopId: string) {
     await this.prisma.shopDataSync.updateMany({
-      where: { shopId, status: 'done' },
+      where: { shopId, status: { in: ['done', 'failed'] } },
       data: { status: 'superseded' },
     });
   }
@@ -82,7 +98,9 @@ export class ShopDataService {
         ? productsExport(since)
         : kind === 'inventory'
           ? inventoryExport()
-          : ordersExport(since, limited !== 'addresses');
+          : kind === 'orders'
+            ? ordersExport(since, (limited ?? 'full') as OrderDetail)
+            : customersExport(since);
     const data = await this.shopify.call<{
       bulkOperationRunQuery: {
         bulkOperation: { id: string } | null;
@@ -122,14 +140,26 @@ export class ShopDataService {
     if (!op || ['CREATED', 'RUNNING', 'CANCELING'].includes(op.status))
       return { running: sync.kind };
     if (op.status !== 'COMPLETED') {
+      const denied = op.errorCode === 'ACCESS_DENIED';
+      // Customer records need Shopify's protected customer data approval: without it there is
+      // nothing to read, so wait for tomorrow instead of retrying every hour.
+      if (sync.kind === 'customers' && denied) {
+        await this.prisma.shopDataSync.update({
+          where: { id: sync.id },
+          data: {
+            status: 'done',
+            limited: 'denied',
+            error: 'ACCESS_DENIED',
+            finishedAt: new Date(),
+          },
+        });
+        return { denied: sync.kind };
+      }
       await this.fail(shop, sync.id, `${op.status} ${op.errorCode ?? ''}`.trim());
-      // Shopify may refuse order addresses (protected customer data): try again without them.
-      if (
-        sync.kind === 'orders' &&
-        op.errorCode === 'ACCESS_DENIED' &&
-        sync.limited !== 'addresses'
-      )
-        return this.start(shop, 'orders', sync.since ?? undefined, 'addresses');
+      // Shopify may refuse buyer details on orders: try again asking for less.
+      const less = LESS[sync.limited ?? 'full'];
+      if (sync.kind === 'orders' && denied && less)
+        return this.start(shop, 'orders', sync.since ?? undefined, less);
       return { failed: sync.kind };
     }
     try {
@@ -176,7 +206,8 @@ export class ShopDataService {
     const flush = async () => {
       if (kind === 'products') await ingestProducts(this.prisma, shop, batch);
       else if (kind === 'inventory') await ingestInventory(this.prisma, shop, batch, ours);
-      else await ingestOrders(this.prisma, shop, batch);
+      else if (kind === 'orders') await ingestOrders(this.prisma, shop, batch);
+      else await ingestCustomers(this.prisma, shop, batch, toPiastres);
       batch = [];
     };
     for await (const line of this.admin.downloadLines(url)) {
@@ -200,13 +231,13 @@ export class ShopDataService {
   /** orders/create and orders/updated: fetch that one order and save it at once. */
   async orderWebhook(shop: ShopifyShop, orderGid: string) {
     const lastOrders = await this.prisma.shopDataSync.findFirst({
-      where: { shopId: shop.id, kind: 'orders' },
+      where: { shopId: shop.id, kind: 'orders', status: 'done' },
       orderBy: { startedAt: 'desc' },
     });
-    const address = lastOrders?.limited !== 'addresses';
+    const detail = (lastOrders?.limited ?? 'full') as OrderDetail;
     const data = await this.shopify.call<{
       order: (Line & { lineItems?: { nodes: Line[] } }) | null;
-    }>(shop, orderForData(address), { id: orderGid });
+    }>(shop, orderForData(detail), { id: orderGid });
     if (!data.order) return null;
     const { lineItems, ...order } = data.order;
     const lines: Line[] = [

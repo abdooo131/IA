@@ -12,6 +12,7 @@ import {
   flagLateOrders,
   getSetting,
   lastClosedDay,
+  linkDeliveryCustomers,
   planRefill,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
@@ -39,6 +40,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private storageDone: string | null = null;
   /** The last Cairo day the refill drafts were prepared for by this instance. */
   private refillDone: string | null = null;
+  private linking = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -58,6 +60,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runStorageCharge();
       void this.runRefill();
       void this.runTicketReminders();
+      void this.runCustomerLinks();
     }, EVERY_MS);
     this.timer.unref();
   }
@@ -69,6 +72,23 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     } catch (error) {
       void this.reporter.report('job_ticket_reminders', error);
       return null;
+    }
+  }
+
+  /**
+   * Links new delivery orders to the customer with the same mobile. Matching is safe to run
+   * twice (a unique phone per customer), so two instances at once change nothing extra.
+   */
+  async runCustomerLinks() {
+    if (this.linking) return null;
+    this.linking = true;
+    try {
+      return await linkDeliveryCustomers(this.prisma);
+    } catch (error) {
+      void this.reporter.report('job_customer_links', error);
+      return null;
+    } finally {
+      this.linking = false;
     }
   }
 

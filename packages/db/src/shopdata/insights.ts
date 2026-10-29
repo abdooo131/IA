@@ -72,7 +72,7 @@ export async function merchantInsights(db: Db, merchantId: string, now: Date = n
   const monthly = await db.$queryRaw<
     { month: string; orders: bigint; revenue: bigint; units: bigint }[]
   >`
-    SELECT to_char(date_trunc('month', created_at_shop AT TIME ZONE 'Africa/Cairo'), 'YYYY-MM') AS month,
+    SELECT to_char(date_trunc('month', created_at_shop AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Cairo'), 'YYYY-MM') AS month,
       COUNT(*) AS orders, SUM(total_piastres - refunded_piastres) AS revenue, SUM(units) AS units
     FROM shop_orders WHERE merchant_id = ${merchantId} AND NOT test AND cancelled_at IS NULL
       AND created_at_shop >= now() - interval '24 months'
@@ -290,7 +290,7 @@ export async function marketInsights(db: Db, now: Date = new Date()) {
   const monthly = await db.$queryRaw<
     { month: string; orders: bigint; revenue: bigint; merchants: bigint }[]
   >`
-    SELECT to_char(date_trunc('month', created_at_shop AT TIME ZONE 'Africa/Cairo'), 'YYYY-MM') AS month,
+    SELECT to_char(date_trunc('month', created_at_shop AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Cairo'), 'YYYY-MM') AS month,
       COUNT(*) AS orders, SUM(total_piastres - refunded_piastres) AS revenue,
       COUNT(DISTINCT merchant_id) AS merchants
     FROM shop_orders WHERE NOT test AND cancelled_at IS NULL AND created_at_shop >= now() - interval '24 months'

@@ -16,6 +16,7 @@ const ENTITIES = [
   'dark_store',
   'zone',
   'alert',
+  'customer',
 ] as const;
 
 type Filters = {
