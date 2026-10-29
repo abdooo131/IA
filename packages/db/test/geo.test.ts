@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
+  applyAreaDictionary,
   forgetAreaNames,
   learnFromPoint,
   loadBaseAreas,
@@ -143,5 +144,66 @@ describe('area engine', () => {
     const s = await prisma.geoSuggestion.findFirstOrThrow({ include: { area: true } });
     expect(s).toMatchObject({ phrase: 'degla gardens', seen: 2, status: 'pending' });
     expect(s.area.nameEn).toBe('Maadi');
+  });
+
+  it('reads names spelled loosely: El Maady, معادي, Mohandiseen', async () => {
+    const zone = await zoneAround('MAA-ALL', 'Maadi', 0.01);
+    for (const address of ['14 Road 233, El Maady', 'شارع ٢٣٣ معادي', 'Maady, Cairo'])
+      expect(await resolveByAreas(prisma, address)).toMatchObject({
+        status: 'zone',
+        zoneId: zone.id,
+      });
+  });
+
+  it('knows the names people use for places the map lacks (Rehab, Degla, Madinaty)', async () => {
+    expect((await resolveByAreas(prisma, 'Rehab City, group 96')).chain).toEqual([]);
+    expect(await applyAreaDictionary(prisma)).toMatchObject({ updated: expect.any(Number) });
+    // Running it again adds nothing.
+    expect(await applyAreaDictionary(prisma)).toEqual({ updated: 0 });
+    forgetAreaNames();
+    for (const [address, district] of [
+      ['Rehab City, group 96, building 12', 'New Cairo'],
+      ['مدينتي B6', 'New Cairo'],
+      ['Street 200, Degla', 'Maadi'],
+      ['زهراء المعادي عماره 5', 'Maadi'],
+      ['Beverly Hills compound', 'Sheikh Zayed'],
+      ['التجمع الخامس الحي الاول', 'New Cairo'],
+    ] as const) {
+      const r = await resolveByAreas(prisma, address);
+      expect(r.chain.map((c) => c.nameEn)).toContain(district);
+    }
+    // "الدور الخامس" (fifth floor) is not the Fifth Settlement.
+    expect((await resolveByAreas(prisma, 'عماره 3 الدور الخامس')).chain).toEqual([]);
+  });
+
+  it('never places an address in another governorate on a Cairo street with the same name', async () => {
+    const [maadi] = await prisma.$queryRaw<{ lng: number; lat: number }[]>`
+      SELECT ST_X(ST_PointOnSurface(geom)) AS lng, ST_Y(ST_PointOnSurface(geom)) AS lat
+      FROM geo_areas WHERE name_en = 'Maadi'`;
+    await upsertArea(prisma, {
+      ref: 't:gomhoreya',
+      level: 5,
+      nameEn: 'El Gomhoreya Street',
+      nameAr: 'شارع الجمهوريه',
+      aliases: ['الجمهوريه', 'gomhoreya'],
+      source: 'test',
+      geometry: { type: 'Point', coordinates: [maadi!.lng, maadi!.lat] },
+      bufferMeters: 150,
+    });
+    forgetAreaNames();
+    await zoneAround('MAA-ALL', 'Maadi', 0.01);
+    for (const address of [
+      'سوهاج امتداد شارع الجمهوريه, سوهاج, Sohag',
+      '12 Gomhoreya, Alexandria, Cairo',
+      'المنصوره - الجمهوريه',
+    ])
+      expect(await resolveByAreas(prisma, address)).toMatchObject({ status: 'outside' });
+    // A Cairo street named after a city stays ours, and a named district of ours wins.
+    expect((await resolveByAreas(prisma, 'شارع بورسعيد, المعادي')).chain.at(-1)?.nameEn).toBe(
+      'Maadi',
+    );
+    expect(
+      (await resolveByAreas(prisma, 'طريق السويس, المعادي')).chain.map((c) => c.nameEn),
+    ).toContain('Maadi');
   });
 });

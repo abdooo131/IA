@@ -1,4 +1,11 @@
-import { ADDRESS_FILLER, containsWords, normalizeAddressText } from '@shiplynow/shared';
+import {
+  ADDRESS_FILLER,
+  containsWords,
+  foldPlaceText,
+  normalizeAddressText,
+  OTHER_GOVERNORATE_NAMES,
+  STREET_WORDS,
+} from '@shiplynow/shared';
 import type { Db } from '../client';
 
 // The area engine: reads an address, finds the named areas it mentions, and narrows level by
@@ -22,6 +29,8 @@ interface NamedArea {
   nameEn: string;
   nameAr: string;
   aliases: string[];
+  /** The aliases spelled loosely (foldPlaceText), long enough to be trusted that way */
+  folded: string[];
 }
 
 let cache: { at: number; areas: NamedArea[] } | null = null;
@@ -33,10 +42,16 @@ export function forgetAreaNames() {
 
 async function namedAreas(db: Db): Promise<NamedArea[]> {
   if (cache && Date.now() - cache.at < NAMES_TTL_MS) return cache.areas;
-  const areas = await db.geoArea.findMany({
+  const rows = await db.geoArea.findMany({
     where: { isActive: true },
     select: { id: true, level: true, parentId: true, nameEn: true, nameAr: true, aliases: true },
   });
+  const areas = rows.map((a) => ({
+    ...a,
+    folded: [...new Set(a.aliases.map(foldPlaceText))].filter(
+      (f) => f.length >= 4 && !a.aliases.includes(f),
+    ),
+  }));
   cache = { at: Date.now(), areas };
   return areas;
 }
@@ -66,16 +81,41 @@ interface Hit {
   name: string;
 }
 
-/** The names of every area mentioned in the text, longest name kept per area. */
+/**
+ * The names of every area mentioned in the text, longest name kept per area. Names match as
+ * written, or spelled loosely (foldPlaceText) when the loose form is long enough to trust.
+ */
 function findHits(text: string, areas: NamedArea[]): Hit[] {
+  const folded = foldPlaceText(text);
   const hits = new Map<string, Hit>();
-  for (const area of areas)
-    for (const name of area.aliases) {
-      if (!containsWords(text, name)) continue;
-      const best = hits.get(area.id);
-      if (!best || name.length > best.name.length) hits.set(area.id, { area, name });
-    }
+  const keep = (area: NamedArea, name: string) => {
+    const best = hits.get(area.id);
+    if (!best || name.length > best.name.length) hits.set(area.id, { area, name });
+  };
+  for (const area of areas) {
+    for (const name of area.aliases) if (containsWords(text, name)) keep(area, name);
+    for (const name of area.folded) if (containsWords(folded, name)) keep(area, name);
+  }
   return [...hits.values()];
+}
+
+/**
+ * True when the text names a governorate (or its main city) outside Greater Cairo as where the
+ * address is, not as a street's name ("شارع بورسعيد", "Suez Road" stay ours).
+ */
+export function namesOtherGovernorate(text: string) {
+  const words = text.split(' ');
+  return OTHER_GOVERNORATE_NAMES.some((name) => {
+    const parts = name.split(' ');
+    for (let i = 0; i + parts.length <= words.length; i++) {
+      if (parts.some((p, j) => words[i + j] !== p)) continue;
+      const before = words[i - 1];
+      const after = words[i + parts.length];
+      if ((before && STREET_WORDS.has(before)) || (after && STREET_WORDS.has(after))) continue;
+      return true;
+    }
+    return false;
+  });
 }
 
 /**
@@ -139,7 +179,25 @@ export async function resolveByAreas(db: Db, address: string): Promise<EngineRes
   const text = normalizeAddressText(address);
   const areas = await namedAreas(db);
   const byId = new Map(areas.map((a) => [a.id, a]));
-  const hits = findHits(text, areas);
+  let hits = findHits(text, areas);
+  // An address in Alexandria or Mansoura often shares street names with Cairo ("الجمهوريه").
+  // When another governorate is named, only a district of ours named outright keeps the
+  // address ours ("Cairo" alone does not: shoppers often pick it whatever their city);
+  // otherwise it is outside the area we serve.
+  if (namesOtherGovernorate(text)) {
+    const named = hits.filter((h) => h.area.level === 2);
+    if (named.length === 0) return { status: 'outside', chain: [], matched: [] };
+    const keep = new Set(named.map((h) => h.area.id));
+    hits = hits.filter((h) => {
+      if (keep.has(h.area.id)) return true;
+      let p = h.area.parentId ? byId.get(h.area.parentId) : undefined;
+      while (p) {
+        if (keep.has(p.id)) return true;
+        p = p.parentId ? byId.get(p.parentId) : undefined;
+      }
+      return false;
+    });
+  }
   const matched = hits.map((h) => h.name);
   const best = bestChain(hits, byId);
   if (!best) return { status: 'unsure', chain: [], matched, reason: 'no_area_named' };

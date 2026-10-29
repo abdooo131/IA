@@ -1,8 +1,10 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  applyAreaDictionary,
   districtBoxes,
   DomainError,
+  forgetAreaNames,
   type OsmElement,
   placeAreas,
   placesQuery,
@@ -80,7 +82,7 @@ const idle: ImportStatus = {
  * updates the same areas (they are keyed by their OpenStreetMap id), so it is safe to repeat.
  */
 @Injectable()
-export class GeoImportService {
+export class GeoImportService implements OnApplicationBootstrap {
   private readonly log = new Logger('GeoImport');
   private state: ImportStatus = { ...idle };
   /** Wait between two district requests, in milliseconds. */
@@ -91,6 +93,19 @@ export class GeoImportService {
     private readonly overpass: Overpass,
     private readonly reporter: ErrorReporter,
   ) {}
+
+  /** Keeps the names people use for places (AREA_DICTIONARY) on their districts after deploys. */
+  onApplicationBootstrap() {
+    if (process.env.NODE_ENV === 'test') return;
+    void applyAreaDictionary(this.prisma)
+      .then((r) => {
+        if (r.updated) {
+          forgetAreaNames();
+          this.log.log(`Area names added to ${r.updated} districts`);
+        }
+      })
+      .catch((error: unknown) => void this.reporter.report('geo_dictionary', error));
+  }
 
   status(): ImportStatus {
     return { ...this.state, failed: [...this.state.failed] };

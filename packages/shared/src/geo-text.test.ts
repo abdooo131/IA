@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { containsWords, normalizeAddressText } from './geo-text';
+import { containsWords, foldPlaceText, normalizeAddressText } from './geo-text';
 
 describe('address text cleaning', () => {
   it('folds Arabic letter families, diacritics and digits', () => {
@@ -21,5 +21,14 @@ describe('address text cleaning', () => {
     expect(containsWords(text, 'maadi')).toBe(true);
     expect(containsWords(text, 'maad')).toBe(false);
     expect(containsWords(text, 'maadi degla')).toBe(true);
+  });
+});
+
+describe('foldPlaceText', () => {
+  it('spells common variants the same way', () => {
+    const fold = (s: string) => foldPlaceText(normalizeAddressText(s));
+    expect(fold('El Maady')).toBe(fold('maadi'));
+    expect(fold('المعادي')).toBe(fold('معادي'));
+    expect(fold('Zamalek')).toBe('zamalek');
   });
 });

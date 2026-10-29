@@ -680,7 +680,26 @@
       "connectTitle": "Connect directly (custom app made in the merchant's own Shopify organization)",
       "connectHelp": "If the merchant created and installed this custom app themselves, we connect with its keys alone: no approval page and nothing for the merchant to do.",
       "connectNow": "Connect now",
-      "connected": "Connected. Locations, products, stock and customers are being set up."
+      "connected": "Connected. Locations, products, stock and customers are being set up.",
+      "ready": {
+        "yes": "Ready to receive 60 minute orders",
+        "no": "Not ready to receive orders yet",
+        "connected": "Store connected",
+        "connectedTodo": "Connect the store (install link or Connect now).",
+        "products": "Products linked: {linked} of {total} in Shopify",
+        "productsTodo": "Products are linked by SKU. {noSku} Shopify products have no SKU: add SKUs (and barcodes) in Shopify, then press \"Link products by SKU\" with \"Also add Shopify products we do not have yet\" ticked.",
+        "stock": "Stock in our dark stores: {units} units",
+        "stockTodo": "The merchant sends a shipment of stock; Shopify only sends an order to a dark store that holds the items.",
+        "price": "60 minute price set by the merchant",
+        "priceTodo": "The merchant sets their 60 minute delivery price in their area (Delivery). Without it the option never shows at checkout.",
+        "rates": "60 minute option registered at checkout",
+        "ratesTodo": "Press \"Turn on checkout rate\" below.",
+        "lastRequest": "Last request from Shopify: {at} ({result})",
+        "noRequest": "No order request from Shopify yet",
+        "lastOrder": "last order {number} on {at}",
+        "noOrder": "no order yet",
+        "onlyExpress": "Only orders where the customer chose the 60 minute option come here; the merchant ships other orders as usual. The live server must stay awake (Render paid plan), or orders and stock wait until it wakes."
+      }
     },
     "navGroups": {
       "stores": "Dark stores",

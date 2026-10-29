@@ -833,6 +833,13 @@ describe('shopify app', () => {
     expect(list.shops[0].missingScopes).toContain('read_customers');
     // write_inventory includes read_inventory, so that one is not reported missing.
     expect(list.shops[0].missingScopes).not.toContain('read_inventory');
+    // The checklist says what still stands between this store and 60 minute orders.
+    expect(list.shops[0].readiness).toMatchObject({
+      connected: true,
+      priceSet: false,
+      lastRequest: null,
+      lastOrder: null,
+    });
 
     const data = app.get(ShopDataService);
     const now = new Date();

@@ -97,6 +97,7 @@ export class ShopifyAdminController {
           missingScopes: missingScopes(this.shopify.scopes, s.scopes),
           installedAt: s.installedAt,
           installUrl: `${this.shopify.publicUrl}/api/shopify/install?shop=${s.shopDomain}`,
+          readiness: await this.readiness(s),
           locations: s.locations.map((l) => ({
             id: l.id,
             darkStore: l.darkStore,
@@ -131,6 +132,46 @@ export class ShopifyAdminController {
           })),
         })),
       ),
+    };
+  }
+
+  /**
+   * What a store needs before 60 minute orders can reach us, in the order it is usually done:
+   * connected, products linked (by SKU), stock in a dark store, the merchant's 60 minute
+   * price and the rate service. Plus the last request Shopify sent and the last order made.
+   */
+  private async readiness(s: {
+    id: string;
+    merchantId: string;
+    status: string;
+    carrierServiceId: string | null;
+    merchant: { expressPricePiastres: number | null };
+  }) {
+    const [variants] = await this.prisma.$queryRaw<{ total: bigint; no_sku: bigint }[]>`
+      SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE COALESCE(TRIM(sku), '') = '') AS no_sku
+      FROM shop_variants WHERE shop_id = ${s.id}`;
+    const [stock] = await this.prisma.$queryRaw<{ units: bigint | null }[]>`
+      SELECT SUM(l.on_hand - l.reserved) AS units FROM stock_levels l
+      JOIN skus k ON k.id = l.sku_id WHERE k.merchant_id = ${s.merchantId}`;
+    const lastRequest = await this.prisma.shopifyLog.findFirst({
+      where: { shopId: s.id, kind: 'fulfillment_request' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, ok: true, message: true },
+    });
+    const lastOrder = await this.prisma.order.findFirst({
+      where: { merchantId: s.merchantId, shopifyOrderId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, number: true },
+    });
+    return {
+      connected: s.status === 'active',
+      shopifyVariants: Number(variants?.total ?? 0),
+      variantsWithoutSku: Number(variants?.no_sku ?? 0),
+      unitsWithUs: Number(stock?.units ?? 0),
+      priceSet: s.merchant.expressPricePiastres != null,
+      rateService: s.carrierServiceId != null,
+      lastRequest,
+      lastOrder,
     };
   }
 

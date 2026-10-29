@@ -40,6 +40,16 @@ export interface ShopifyOverview {
       addressSynced: boolean;
     }[];
     linkedProducts: number;
+    readiness: {
+      connected: boolean;
+      shopifyVariants: number;
+      variantsWithoutSku: number;
+      unitsWithUs: number;
+      priceSet: boolean;
+      rateService: boolean;
+      lastRequest: { createdAt: string; ok: boolean; message: string | null } | null;
+      lastOrder: { createdAt: string; number: string } | null;
+    };
     products: number;
     pendingCalls: number;
     failedCalls: number;
@@ -129,6 +139,64 @@ function CopyLink({ url }: { url: string }) {
   );
 }
 
+/**
+ * What stands between this store and 60 minute orders reaching us, step by step, with what to
+ * do for each missing step, then the last request Shopify sent and the last order made.
+ */
+function Readiness({ shop }: { shop: ShopifyOverview['shops'][number] }) {
+  const t = useTranslations('admin.shopify');
+  const locale = useLocale();
+  const r = shop.readiness;
+  const steps: { ok: boolean; label: string; todo: string }[] = [
+    { ok: r.connected, label: t('ready.connected'), todo: t('ready.connectedTodo') },
+    {
+      ok: shop.linkedProducts > 0,
+      label: t('ready.products', { linked: shop.linkedProducts, total: r.shopifyVariants }),
+      todo: t('ready.productsTodo', { noSku: r.variantsWithoutSku }),
+    },
+    {
+      ok: r.unitsWithUs > 0,
+      label: t('ready.stock', { units: r.unitsWithUs }),
+      todo: t('ready.stockTodo'),
+    },
+    { ok: r.priceSet, label: t('ready.price'), todo: t('ready.priceTodo') },
+    { ok: r.rateService, label: t('ready.rates'), todo: t('ready.ratesTodo') },
+  ];
+  const ready = steps.every((x) => x.ok);
+  return (
+    <div className="rounded-md border border-line p-3">
+      <p className="text-body-sm font-bold">{ready ? t('ready.yes') : t('ready.no')}</p>
+      <ol className="mt-2 space-y-1">
+        {steps.map((x) => (
+          <li key={x.label} className="text-body-sm">
+            <span aria-hidden className={x.ok ? 'text-status-delivered' : 'text-danger'}>
+              {x.ok ? '✓' : '✗'}
+            </span>{' '}
+            {x.label}
+            {!x.ok && <span className="block ps-5 text-caption text-text-muted">{x.todo}</span>}
+          </li>
+        ))}
+      </ol>
+      <p className="mt-2 text-caption text-text-muted">
+        {r.lastRequest
+          ? t('ready.lastRequest', {
+              at: formatCairoDateTime(r.lastRequest.createdAt, locale),
+              result: r.lastRequest.message ?? (r.lastRequest.ok ? 'ok' : ''),
+            })
+          : t('ready.noRequest')}
+        {' · '}
+        {r.lastOrder
+          ? t('ready.lastOrder', {
+              number: r.lastOrder.number,
+              at: formatCairoDateTime(r.lastOrder.createdAt, locale),
+            })
+          : t('ready.noOrder')}
+      </p>
+      <p className="mt-1 text-caption text-text-muted">{t('ready.onlyExpress')}</p>
+    </div>
+  );
+}
+
 function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
   const t = useTranslations('admin.shopify');
   const locale = useLocale();
@@ -191,6 +259,8 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
           <CopyLink url={shop.installUrl} />
         </div>
       )}
+
+      {active && <Readiness shop={shop} />}
 
       {active && (
         <>

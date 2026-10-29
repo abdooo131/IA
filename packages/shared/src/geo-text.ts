@@ -82,3 +82,140 @@ export function containsWords(text: string, name: string): boolean {
   if (!name) return false;
   return ` ${text} `.includes(` ${name} `);
 }
+
+/**
+ * A looser spelling of normalized text, for matching names people write in many ways: the
+ * Arabic article on longer words and the Latin "el", "al" and "the" are dropped, and common
+ * Latin transliteration differences are folded (ee/i, oo/ou/u, y/i, q/k, doubled letters).
+ * "El Maady" and "maadi", "المعادي" and "معادي" fold to the same text.
+ */
+export function foldPlaceText(normalized: string): string {
+  return normalized
+    .split(' ')
+    .filter((w) => w && !['el', 'al', 'the'].includes(w))
+    .map((w) => {
+      if (/^ال/.test(w) && w.length >= 4) return w.slice(2);
+      if (!/^[a-z0-9]+$/.test(w)) return w;
+      return w
+        .replace(/ee/g, 'i')
+        .replace(/oo|ou/g, 'u')
+        .replace(/y/g, 'i')
+        .replace(/q/g, 'k')
+        .replace(/([a-z])\1+/g, '$1');
+    })
+    .join(' ');
+}
+
+/**
+ * Egypt's governorates outside Greater Cairo, with the names and main cities people write for
+ * them (normalized). An address naming one of these is outside the area we serve.
+ */
+export const OTHER_GOVERNORATE_NAMES: readonly string[] = [
+  'alexandria',
+  'alex',
+  'الاسكندريه',
+  'اسكندريه',
+  'اسكندرية',
+  'الاسكندرية',
+  'dakahlia',
+  'el dakahlia',
+  'الدقهليه',
+  'mansoura',
+  'el mansoura',
+  'المنصوره',
+  'منصوره',
+  'sharqia',
+  'al sharqia',
+  'el sharkia',
+  'sharkia',
+  'الشرقيه',
+  'zagazig',
+  'الزقازيق',
+  'gharbia',
+  'el gharbia',
+  'الغربيه',
+  'tanta',
+  'طنطا',
+  'el mahalla',
+  'المحله',
+  'المحله الكبري',
+  'monufia',
+  'menoufia',
+  'el menoufia',
+  'المنوفيه',
+  'shebin el kom',
+  'شبين الكوم',
+  'beheira',
+  'el beheira',
+  'البحيره',
+  'damanhour',
+  'دمنهور',
+  'kafr el dawar',
+  'كفر الدوار',
+  'kafr el sheikh',
+  'kafr el-sheikh',
+  'كفر الشيخ',
+  'damietta',
+  'دمياط',
+  'port said',
+  'بورسعيد',
+  'بور سعيد',
+  'ismailia',
+  'الاسماعيليه',
+  'suez',
+  'السويس',
+  'fayoum',
+  'faiyum',
+  'الفيوم',
+  'beni suef',
+  'bani suef',
+  'بني سويف',
+  'minya',
+  'el minya',
+  'المنيا',
+  'asyut',
+  'assiut',
+  'asiut',
+  'اسيوط',
+  'sohag',
+  'سوهاج',
+  'qena',
+  'قنا',
+  'luxor',
+  'الاقصر',
+  'aswan',
+  'اسوان',
+  'red sea',
+  'البحر الاحمر',
+  'hurghada',
+  'الغردقه',
+  'matrouh',
+  'marsa matrouh',
+  'مطروح',
+  'مرسي مطروح',
+  'north sinai',
+  'شمال سيناء',
+  'el arish',
+  'العريش',
+  'south sinai',
+  'جنوب سيناء',
+  'sharm el sheikh',
+  'شرم الشيخ',
+  'new valley',
+  'الوادي الجديد',
+].map(normalizeAddressText);
+
+/** Words just before or after a place name that make it a street's name, not where it is. */
+export const STREET_WORDS = new Set([
+  'شارع',
+  'ش',
+  'طريق',
+  'ميدان',
+  'كوبري',
+  'street',
+  'st',
+  'road',
+  'rd',
+  'square',
+  'bridge',
+]);

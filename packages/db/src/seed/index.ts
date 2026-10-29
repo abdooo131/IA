@@ -1,5 +1,5 @@
 import { ensureDefaultAccounts } from '../finance';
-import { loadBaseAreas } from '../geo';
+import { applyAreaDictionary, loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
 import { passwordSchema, SETTING_DEFINITIONS, SETTING_KEYS, GLOBAL_SCOPE } from '@shiplynow/shared';
 import { hashPassword } from '../password';
@@ -205,7 +205,8 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
 
   if (options.areas !== false) {
     const loaded = await loadBaseAreas(prisma);
-    log(`Area map: ${loaded.areas} areas of Greater Cairo`);
+    await applyAreaDictionary(prisma);
+    log(`Area map: ${loaded.areas} areas of Greater Cairo, plus the names people use`);
   }
 
   return { adminId: admin.id, merchantId: merchant.id, stores };
