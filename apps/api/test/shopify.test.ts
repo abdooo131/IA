@@ -1028,6 +1028,47 @@ describe('shopify app', () => {
     await admin.post(`/admin/shopify/apps/${added.body.id}/remove`).expect(409);
   });
 
+  it('a store linked before its custom app was added follows the app it is opened from', async () => {
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    // Linked with the main app first (as happened for Nabta), custom app added afterwards.
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test' })
+      .expect(201);
+    const SECRET2 = 'later-custom-app-secret';
+    const added = await admin
+      .post('/admin/shopify/apps')
+      .send({ name: 'Later app', clientId: 'later-custom-client', clientSecret: SECRET2 })
+      .expect(201);
+    const open = (secret: string) => {
+      const params = { shop: SHOP, timestamp: '1700000000', host: 'abc' };
+      const hmac = createHmac('sha256', secret)
+        .update(
+          Object.keys(params)
+            .sort()
+            .map((k) => `${k}=${params[k as keyof typeof params]}`)
+            .join('&'),
+        )
+        .digest('hex');
+      return request(app.getHttpServer())
+        .get('/shopify/app')
+        .query({ ...params, hmac });
+    };
+    // A signature from no app of ours changes nothing.
+    expect((await open('someone-else').expect(302)).headers.location).toContain('invalid_request');
+    expect((await prisma.shopifyShop.findFirstOrThrow()).appId).toBeNull();
+    // Opened from the custom app: the store now uses it, and install asks for that app.
+    const res = await open(SECRET2).expect(302);
+    expect(res.headers.location).toContain('/api/shopify/install?shop=');
+    expect((await prisma.shopifyShop.findFirstOrThrow()).appId).toBe(added.body.id);
+    const start = await request(app.getHttpServer())
+      .get(`/shopify/install?shop=${SHOP}`)
+      .expect(302);
+    expect(new URL(start.headers.location!).searchParams.get('client_id')).toBe(
+      'later-custom-client',
+    );
+  });
+
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });

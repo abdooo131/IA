@@ -121,6 +121,17 @@ export class ShopifyService {
     return { clientId: app.clientId, secret: openToken(app.clientSecretEnc, this.secret) };
   }
 
+  /**
+   * Which of our apps signed a request: the main app (null), a custom app's id, or undefined
+   * when none of them did.
+   */
+  async signerOf(check: (secret: string) => boolean): Promise<string | null | undefined> {
+    if (this.secret && check(this.secret)) return null;
+    for (const app of await this.prisma.shopifyApp.findMany())
+      if (check(openToken(app.clientSecretEnc, this.secret))) return app.id;
+    return undefined;
+  }
+
   /** Every app secret we hold, for signed calls about a store we no longer have a row for. */
   async allSecrets() {
     const apps = await this.prisma.shopifyApp.findMany();

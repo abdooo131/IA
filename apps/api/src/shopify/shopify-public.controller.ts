@@ -155,8 +155,32 @@ export class ShopifyPublicController {
     const shop = query.shop;
     if (!isShopDomain(shop)) return this.done(res, { error: 'invalid_request' });
     const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
-    if (!(await this.signed(linked, (secret) => verifyQueryHmac(query, secret))))
-      return this.done(res, { error: 'invalid_request' });
+    const signer = await this.shopify.signerOf((secret) => verifyQueryHmac(query, secret));
+    if (signer === undefined) return this.done(res, { error: 'invalid_request' });
+    if (linked && signer !== linked.appId) {
+      // The merchant opened one of our apps that is not the one this store was linked with
+      // (often: linked first, custom app added after). A store not connected yet simply
+      // follows the app it opened; a connected store keeps its app.
+      if (linked.status === 'active') {
+        await this.shopify.record(linked.id, {
+          direction: 'in',
+          kind: 'app_open',
+          ok: false,
+          message: 'opened from another of our apps than the one this store is connected with',
+        });
+        return this.done(res, { error: 'invalid_request' });
+      }
+      await this.prisma.shopifyShop.update({
+        where: { id: linked.id },
+        data: { appId: signer },
+      });
+      await this.shopify.record(linked.id, {
+        direction: 'in',
+        kind: 'app_open',
+        ok: true,
+        message: signer ? 'store follows the custom app it opened' : 'store follows the main app',
+      });
+    }
     if (linked?.status === 'active') return this.done(res, { shop });
     res.redirect(
       302,
