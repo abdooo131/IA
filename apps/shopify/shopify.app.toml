@@ -8,7 +8,7 @@ application_url = "https://shiplynow.onrender.com/api/shopify/app"
 embedded = false
 
 [access_scopes]
-scopes = "read_products,read_inventory,write_inventory,read_locations,read_orders,write_order_edits,read_fulfillments,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders,write_shipping"
+scopes = "read_products,read_inventory,write_inventory,read_locations,read_orders,read_customers,write_order_edits,read_fulfillments,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders,write_shipping"
 # The server installs with the OAuth authorization code grant (apps/api/src/shopify).
 use_legacy_install_flow = true
 

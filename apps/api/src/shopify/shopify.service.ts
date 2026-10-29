@@ -13,6 +13,7 @@ export const SHOPIFY_SCOPES = [
   'write_inventory',
   'read_locations',
   'read_orders',
+  'read_customers',
   'write_order_edits',
   'read_fulfillments',
   'write_fulfillments',

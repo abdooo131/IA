@@ -48,5 +48,5 @@ Admin, Data and insights (`/admin/data`):
 
 1. Orders older than 60 days need the `read_all_orders` scope, which Shopify grants on request: Partner Dashboard, the app, API access, "Read all orders scope", request it and explain we analyse the merchant's sales history to plan dark store stock.
 2. Buyer details are protected customer data: in the same API access page, fill in "Protected customer data access" and ask for level 2 with the Name, Email, Phone and Address fields, explaining that we build one customer profile across the merchants we deliver for.
-3. Once approved, set `SHOPIFY_EXTRA_SCOPES=read_all_orders` on Render. Each merchant then opens the app once in Shopify to approve the new scope.
+3. Once approved, set `SHOPIFY_EXTRA_SCOPES=read_all_orders` on Render. The app also asks for `read_customers` (the store's customer list). Each merchant then opens the app once in Shopify to approve the new permissions; for the app's own settings run `shopify app deploy` so Shopify knows the new scope list.
 4. In Admin, Shopify, press Register locations for each shop so the orders webhooks are added.
