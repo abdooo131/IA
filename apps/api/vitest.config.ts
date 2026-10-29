@@ -20,6 +20,8 @@ export default defineConfig({
       REFRESH_TOKEN_TTL_DAYS: '30',
       WEB_ORIGIN: 'http://localhost:3000',
       COOKIE_SECURE: 'false',
+      SLACK_SIGNING_SECRET: 'test-slack-signing-secret',
+      SLACK_BOT_TOKEN: '',
     },
   },
 });

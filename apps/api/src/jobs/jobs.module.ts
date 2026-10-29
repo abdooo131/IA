@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
+import { TicketsModule } from '../tickets/tickets.module';
 import { JobsService } from './jobs.service';
 
-@Module({ providers: [JobsService], exports: [JobsService] })
+@Module({ imports: [TicketsModule], providers: [JobsService], exports: [JobsService] })
 export class JobsModule {}

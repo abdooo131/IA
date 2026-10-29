@@ -17,6 +17,7 @@ import {
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
+import { TicketsService } from '../tickets/tickets.service';
 
 /** Advisory lock id for the SLA check, so only one API instance runs it at a time. */
 const SLA_LOCK = 735_001;
@@ -43,6 +44,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     private readonly prisma: PrismaService,
     private readonly config: ConfigService<Env, true>,
     private readonly reporter: ErrorReporter,
+    private readonly tickets: TicketsService,
   ) {}
 
   onApplicationBootstrap() {
@@ -55,8 +57,19 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runSlaCheck();
       void this.runStorageCharge();
       void this.runRefill();
+      void this.runTicketReminders();
     }, EVERY_MS);
     this.timer.unref();
+  }
+
+  /** Ticket reminders; each is claimed in the database first, so overlaps send nothing twice. */
+  async runTicketReminders(now: Date = new Date()) {
+    try {
+      return await this.tickets.remind(now);
+    } catch (error) {
+      void this.reporter.report('job_ticket_reminders', error);
+      return null;
+    }
   }
 
   onApplicationShutdown() {

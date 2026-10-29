@@ -218,7 +218,10 @@ export async function nextAccountCode(tx: Tx, group: number, party: boolean) {
 }
 
 /** The next gapless serial number of a document table (taken inside its transaction). */
-export async function nextNumber(tx: Tx, table: 'ledger_entries' | 'payouts' | 'cash_handovers') {
+export async function nextNumber(
+  tx: Tx,
+  table: 'ledger_entries' | 'payouts' | 'cash_handovers' | 'tickets',
+) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(
     `SELECT MAX("number") AS max FROM "${table}"`,

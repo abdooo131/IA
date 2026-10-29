@@ -1,3 +1,5 @@
+import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { BackLink } from '@/components/store/BackLink';
 import { OrderReadView } from '@/components/orders/OrderReadView';
@@ -14,10 +16,21 @@ export default async function AdminOrderPage({
   searchParams: Promise<{ created?: string }>;
 }) {
   const [{ id }, { created }] = await Promise.all([params, searchParams]);
-  const order = await apiGet<OrderDetail>(`/admin/orders/${id}`);
+  const [order, t] = await Promise.all([
+    apiGet<OrderDetail>(`/admin/orders/${id}`),
+    getTranslations('tickets'),
+  ]);
   return (
     <>
-      <BackLink href="/admin/orders" />
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <BackLink href="/admin/orders" />
+        <Link
+          href={`/tickets?new=1&about=order/${order.id}`}
+          className="text-body-sm font-bold text-link"
+        >
+          {t('ask')}
+        </Link>
+      </div>
       <OrderReadView
         order={order}
         created={created === '1'}

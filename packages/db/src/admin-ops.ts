@@ -33,6 +33,7 @@ function userSnapshot(u: {
   isActive: boolean;
   darkStoreId: string | null;
   merchantId: string | null;
+  slackUserId?: string | null;
 }) {
   return {
     email: u.email,
@@ -42,6 +43,7 @@ function userSnapshot(u: {
     isActive: u.isActive,
     darkStoreId: u.darkStoreId,
     merchantId: u.merchantId,
+    slackUserId: u.slackUserId ?? null,
   };
 }
 
@@ -71,6 +73,7 @@ function uniqueViolation(error: unknown): string | null {
     if (target.includes('email')) return 'email_taken';
     if (target.includes('phone')) return 'phone_taken';
     if (target.includes('badge')) return 'badge_taken';
+    if (target.includes('slack')) return 'slack_id_taken';
     if (target.includes('sku')) return 'sku_taken';
     if (target.includes('shopify')) return 'shopify_variant_taken';
     return 'already_exists';
@@ -162,6 +165,7 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
           darkStoreId:
             before.role === 'store_staff' || before.role === 'rider' ? darkStoreId : null,
           merchantId: before.role === 'merchant' ? merchantId : null,
+          slackUserId: input.slackUserId,
         },
       });
       if (before.role === 'rider' && before.rider) {
@@ -245,6 +249,7 @@ export async function listUsers(db: Db, filter: { role?: Role; q?: string } = {}
     darkStore: u.darkStore,
     merchant: u.merchant,
     badgeCode: u.rider?.badgeCode ?? null,
+    slackUserId: u.slackUserId,
     createdAt: u.createdAt,
   }));
 }

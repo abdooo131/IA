@@ -203,6 +203,27 @@ export const SETTING_DEFINITIONS = {
     description: 'Orders a store accepts per hour before it stops offering 60 minute delivery',
     override: 'store',
   },
+  'ticket.normal_answer_minutes': {
+    schema: minutes,
+    default: 120,
+    description:
+      'Minutes a normal ticket may wait for its first answer before both people are told',
+    override: 'none',
+  },
+  'ticket.urgent_answer_minutes': {
+    schema: minutes,
+    default: 30,
+    description:
+      'Minutes an urgent ticket may wait for its first answer before both people are told',
+    override: 'none',
+  },
+  'ticket.read_reminder_minutes': {
+    schema: minutes,
+    default: 15,
+    description:
+      'Minutes after which the assignee is reminded once if they have not opened the ticket',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

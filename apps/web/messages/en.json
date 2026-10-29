@@ -321,7 +321,10 @@
         "refill__default_min_units": "Refill when a product falls below (units)",
         "refill__default_max_units": "Refill up to (units)",
         "refill__run_hour": "Prepare refill drafts after (Cairo hour, 0 to 23)",
-        "refill__enabled": "Automatic refill on (1) or off (0)"
+        "refill__enabled": "Automatic refill on (1) or off (0)",
+        "ticket__normal_answer_minutes": "Normal ticket: answer within (minutes)",
+        "ticket__urgent_answer_minutes": "Urgent ticket: answer within (minutes)",
+        "ticket__read_reminder_minutes": "Remind if not opened after (minutes)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -498,8 +501,11 @@
         "rider_has_open_deliveries": "This rider still has orders out. Finish them first.",
         "invalid_badge_code": "Badge codes use letters, numbers and dashes (3 to 20).",
         "validation_failed": "Check the fields.",
-        "generic": "Something went wrong. Try again."
-      }
+        "generic": "Something went wrong. Try again.",
+        "slack_id_taken": "That Slack ID belongs to another user."
+      },
+      "slackId": "Slack member ID (optional)",
+      "slackIdHint": "In Slack: open the person, the three dots, Copy member ID. Tickets for them then also arrive in Slack."
     },
     "merchants": {
       "title": "Merchants",
@@ -2278,7 +2284,49 @@
       "balanced": "Balanced",
       "written_off": "Written off",
       "charged_to_rider": "On the rider",
-      "rejected": "Rejected"
+      "rejected": "Rejected",
+      "open": "Waiting for answer",
+      "answered": "Answered",
+      "closed": "Closed"
+    }
+  },
+  "tickets": {
+    "title": "Tickets",
+    "intro": "Ask a team member and follow the answer here. Each ticket has an answer time; late tickets turn red and admin is told.",
+    "introSlack": "Ask a team member: they get it in Slack, answer in Slack, and the answer appears here. Each ticket has an answer time; they are reminded if they have not opened it, and both of you are told when it is late.",
+    "back": "Back",
+    "allTickets": "All tickets",
+    "new": "New ticket",
+    "to": "To",
+    "from": "From",
+    "subject": "Subject",
+    "message": "Message",
+    "urgent": "Urgent (shorter answer time)",
+    "urgentShort": "Urgent",
+    "send": "Send",
+    "about": "About: {record}",
+    "aboutLabel": "About",
+    "inbox": "For me",
+    "sent": "I asked",
+    "all": "All",
+    "none": "No tickets here.",
+    "toName": "To {name}",
+    "fromName": "From {name}",
+    "late": "Late",
+    "answerBy": "Answer by",
+    "seen": "Seen by them",
+    "notSeen": "Not yet",
+    "viaSlack": "via Slack",
+    "reply": "Reply",
+    "close": "Close ticket",
+    "reopen": "Reopen",
+    "closeConfirm": "Close this ticket? Either of you can reopen it.",
+    "ask": "Ask a teammate",
+    "errors": {
+      "assignee_not_found": "Choose someone from the list.",
+      "cannot_assign_self": "You cannot send a ticket to yourself.",
+      "validation_failed": "Fill in the subject and the message.",
+      "generic": "Something went wrong. Try again."
     }
   }
 }

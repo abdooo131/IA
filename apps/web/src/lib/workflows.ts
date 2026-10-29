@@ -16,6 +16,7 @@ export const WORKFLOWS = {
   payout: { path: ['draft', 'paid'], side: ['cancelled'] },
   handover: { path: ['pending', 'balanced'], side: ['written_off', 'charged_to_rider'] },
   signup: { path: ['pending', 'approved'], side: ['rejected'] },
+  ticket: { path: ['open', 'answered', 'closed'], side: [] },
 } as const;
 
 export type WorkflowName = keyof typeof WORKFLOWS;

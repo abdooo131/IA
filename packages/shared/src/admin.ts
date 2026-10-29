@@ -40,6 +40,14 @@ export const updateUserSchema = z.object({
   darkStoreId: id.nullable().optional(),
   merchantId: id.nullable().optional(),
   badgeCode: badgeCodeSchema.nullable().optional(),
+  /** Slack member id, found in Slack under the person's profile, More, Copy member ID */
+  slackUserId: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[UW][A-Z0-9]{6,20}$/, 'invalid_slack_id')
+    .nullable()
+    .optional(),
 });
 export type UpdateUserBody = z.infer<typeof updateUserSchema>;
 

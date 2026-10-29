@@ -1,3 +1,4 @@
+import { TicketsModule } from './tickets/tickets.module';
 import { ErrorReporterModule } from './common/error-reporter';
 import path from 'node:path';
 import { Module } from '@nestjs/common';
@@ -39,6 +40,7 @@ import { UsersController } from './users/users.controller';
     FinanceModule,
     ShopifyModule,
     TrackingModule,
+    TicketsModule,
   ],
   controllers: [HealthController, UsersController],
 })

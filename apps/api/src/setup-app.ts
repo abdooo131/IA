@@ -24,6 +24,8 @@ export function setupApp(app: INestApplication) {
   // Photos are uploaded as the raw image body (the client shrinks them first).
   app.use('/photos', raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1600kb' }));
   // Shopify signs the exact bytes it sends, so its callbacks keep the raw body.
+  // Slack signs the exact bytes it sends too.
+  app.use('/slack', raw({ type: () => true, limit: '1mb' }));
   app.use(
     ['/shopify/fs', '/shopify/webhooks', '/shopify/rates'],
     raw({ type: () => true, limit: '1mb' }),

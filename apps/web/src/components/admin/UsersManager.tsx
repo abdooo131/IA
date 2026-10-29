@@ -19,6 +19,7 @@ export interface AdminUser {
   darkStore: { id: string; code: string; nameEn: string; nameAr: string } | null;
   merchant: { id: string; name: string } | null;
   badgeCode: string | null;
+  slackUserId: string | null;
 }
 type StoreRef = { id: string; nameEn: string; nameAr: string };
 type MerchantRef = { id: string; name: string };
@@ -27,6 +28,7 @@ const KNOWN = [
   'email_taken',
   'phone_taken',
   'badge_taken',
+  'slack_id_taken',
   'dark_store_required',
   'badge_required',
   'merchant_required',
@@ -345,7 +347,12 @@ function UserEditor({
     void run(
       'PATCH',
       `/admin/users/${user.id}`,
-      { name: form.get('name'), phone: (form.get('phone') as string) || null, ...links(form) },
+      {
+        name: form.get('name'),
+        phone: (form.get('phone') as string) || null,
+        slackUserId: String(form.get('slackUserId') ?? '').trim() || null,
+        ...links(form),
+      },
       t('saved'),
     );
   }
@@ -357,6 +364,20 @@ function UserEditor({
           {t('name')}
           <input name="name" required minLength={2} defaultValue={user.name} className={field} />
         </label>
+        {user.role !== 'merchant' && (
+          <label className="block text-caption">
+            {t('slackId')}
+            <input
+              name="slackUserId"
+              defaultValue={user.slackUserId ?? ''}
+              pattern="[UWuw][A-Za-z0-9]{6,20}"
+              dir="ltr"
+              placeholder="U0123ABCD"
+              className={field}
+            />
+            <span className="mt-1 block text-text-muted">{t('slackIdHint')}</span>
+          </label>
+        )}
         <label className="block text-caption">
           {t('phone')}
           <input

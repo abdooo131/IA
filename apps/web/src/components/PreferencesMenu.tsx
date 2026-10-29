@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
+import { TicketsLink } from '@/components/tickets/TicketsLink';
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import {
@@ -53,6 +54,7 @@ export function PreferencesMenu({ theme, help = false }: { theme: Theme; help?: 
           {ts('menu')}
         </Link>
       )}
+      {help && <TicketsLink />}
       <label className="sr-only" htmlFor="pref-locale">
         {t('language')}
       </label>

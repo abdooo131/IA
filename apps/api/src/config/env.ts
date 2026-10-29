@@ -20,6 +20,10 @@ export const envSchema = z.object({
   GEOCODER: z.enum(['google', 'osm']).default('google'),
   /** OpenStreetMap's Overpass service, used by admin's area map import */
   OVERPASS_URL: z.string().url().default('https://overpass-api.de/api/interpreter'),
+  /** Slack app bot token (xoxb-...). Without it tickets stay inside Shiply. */
+  SLACK_BOT_TOKEN: z.string().optional(),
+  /** Slack app signing secret: proves events and button taps come from Slack */
+  SLACK_SIGNING_SECRET: z.string().optional(),
   /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */
   JOBS_ENABLED: z.enum(['true', 'false']).optional(),
   /** Shopify app client ID (not secret). Without it the Shopify connection stays off. */

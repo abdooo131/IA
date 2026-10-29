@@ -41,6 +41,8 @@ model User {
   darkStoreId  String?  @map("dark_store_id")
   /// The merchant a merchant user belongs to
   merchantId   String?  @map("merchant_id")
+  /// Slack member id (U0123...) so tickets can reach this person in Slack
+  slackUserId  String?  @unique @map("slack_user_id")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -54,6 +56,9 @@ model User {
   returnsCreated    MerchantReturn[]  @relation("return_created_by")
   returnsHandedOver MerchantReturn[]  @relation("return_handed_over_by")
   damageReported    DamageReport[]    @relation("damage_reported_by")
+  ticketsOpened     Ticket[]          @relation("ticket_created_by")
+  ticketsAssigned   Ticket[]          @relation("ticket_assignee")
+  ticketMessages    TicketMessage[]
   damageSettled     DamageReport[]    @relation("damage_settled_by")
   transfersCreated  Transfer[]        @relation("transfer_created_by")
   transfersApproved Transfer[]        @relation("transfer_approved_by")
@@ -1423,4 +1428,83 @@ model GeocodeCache {
   createdAt  DateTime @default(now()) @map("created_at")
 
   @@map("geocode_cache")
+}
+
+enum TicketStatus {
+  /// Waiting for the person it is assigned to
+  open
+  /// The assignee answered; waiting for the person who asked
+  answered
+  /// Done
+  closed
+
+  @@map("ticket_status")
+}
+
+enum TicketPriority {
+  normal
+  urgent
+
+  @@map("ticket_priority")
+}
+
+/// A question or task from one team member to another, mirrored in Slack when connected.
+model Ticket {
+  id             String         @id @default(cuid())
+  /// Gapless serial number shown as TCK-000001
+  number         Int            @unique
+  title          String
+  priority       TicketPriority @default(normal)
+  status         TicketStatus   @default(open)
+  createdById    String         @map("created_by_id")
+  assigneeId     String         @map("assignee_id")
+  /// Optional record the ticket is about, for example order / <id>
+  relatedType    String?        @map("related_type")
+  relatedId      String?        @map("related_id")
+  /// The answer is due by then (settings ticket.*_answer_minutes)
+  dueAt          DateTime       @map("due_at")
+  /// The assignee opened it in Shiply, acknowledged it in Slack or replied
+  readAt         DateTime?      @map("read_at")
+  answeredAt     DateTime?      @map("answered_at")
+  closedAt       DateTime?      @map("closed_at")
+  /// Reminders already sent, so the job sends each once
+  readReminderAt DateTime?      @map("read_reminder_at")
+  lateNoticeAt   DateTime?      @map("late_notice_at")
+  /// The Slack conversation and thread the ticket lives in
+  slackChannel   String?        @map("slack_channel")
+  slackThreadTs  String?        @map("slack_thread_ts")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  createdBy User            @relation("ticket_created_by", fields: [createdById], references: [id])
+  assignee  User            @relation("ticket_assignee", fields: [assigneeId], references: [id])
+  messages  TicketMessage[]
+
+  @@unique([slackChannel, slackThreadTs])
+  @@index([assigneeId, status])
+  @@index([createdById, status])
+  @@index([status, dueAt])
+  @@map("tickets")
+}
+
+/// One message on a ticket, written in Shiply or in the Slack thread (append only).
+model TicketMessage {
+  id         String   @id @default(cuid())
+  ticketId   String   @map("ticket_id")
+  /// Null when written in Slack by someone not linked to a Shiply user
+  authorId   String?  @map("author_id")
+  authorName String   @map("author_name")
+  /// app or slack
+  source     String
+  body       String
+  /// The Slack message, so a Slack event delivered twice is kept once
+  slackTs    String?  @map("slack_ts")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  ticket Ticket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  author User?  @relation(fields: [authorId], references: [id])
+
+  @@unique([ticketId, slackTs])
+  @@index([ticketId, createdAt])
+  @@map("ticket_messages")
 }

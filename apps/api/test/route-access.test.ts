@@ -57,11 +57,11 @@ describe('route access', () => {
       expect.arrayContaining(['auth/login', 'shopify/rates/:shopId', 'shopify/proxy/areas']),
     );
     expect(checked).toBeGreaterThan(100);
-    // Public routes are only these: sign in, health, coverage, Shopify's signed callbacks and
+    // Public routes are only these: sign in, health, coverage, Shopify's and Slack's signed calls and
     // the customer's tracking page (its unguessable token is the key).
     for (const route of publicRoutes)
       expect(route).toMatch(
-        /^(auth\/(login|refresh|logout|signup)|health|coverage|shopify\/|track\/:token)/,
+        /^(auth\/(login|refresh|logout|signup)|health|coverage|shopify\/|track\/:token|slack\/(events|interactivity)$)/,
       );
   });
 });
