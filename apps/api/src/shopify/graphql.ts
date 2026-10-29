@@ -382,6 +382,66 @@ export const CARRIER_SERVICE_CREATE = /* GraphQL */ `
   }
 `;
 
+/**
+ * The shop's shipping zones, with the countries each covers and who rates each method, so we
+ * can tell which zones lack our checkout rate.
+ */
+export const DELIVERY_ZONES = /* GraphQL */ `
+  query DeliveryZones {
+    deliveryProfiles(first: 20) {
+      nodes {
+        id
+        profileLocationGroups {
+          locationGroup {
+            id
+          }
+          locationGroupZones(first: 50) {
+            nodes {
+              zone {
+                id
+                name
+                countries {
+                  code {
+                    countryCode
+                    restOfWorld
+                  }
+                }
+              }
+              methodDefinitions(first: 50) {
+                nodes {
+                  id
+                  rateProvider {
+                    ... on DeliveryParticipant {
+                      carrierService {
+                        id
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+/** Adds shipping methods (our checkout rate) to zones of one shipping profile. */
+export const DELIVERY_PROFILE_UPDATE = /* GraphQL */ `
+  mutation DeliveryProfileUpdate($id: ID!, $profile: DeliveryProfileInput!) {
+    deliveryProfileUpdate(id: $id, profile: $profile) {
+      profile {
+        id
+      }
+      userErrors {
+        field
+        message
+      }
+    }
+  }
+`;
+
 /** Gives a fulfillment service location the dark store's real address. */
 export const LOCATION_EDIT = /* GraphQL */ `
   mutation LocationEdit($id: ID!, $input: LocationEditInput!) {

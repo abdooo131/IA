@@ -4,6 +4,8 @@ import { DomainError, recordAudit, type ShopifyShop } from '@shiplynow/db';
 import {
   CARRIER_SERVICE_CREATE,
   CARRIER_SERVICE_DELETE,
+  DELIVERY_PROFILE_UPDATE,
+  DELIVERY_ZONES,
   FULFILLMENT_SERVICE_CREATE,
   FULFILLMENT_SERVICE_DELETE,
   FULFILLMENT_SERVICE_UPDATE,
@@ -16,6 +18,32 @@ import {
 } from './graphql';
 import { assertNoUserErrors, moneyToPiastres, type OfflineToken } from './shopify-admin';
 import { ShopifyService } from './shopify.service';
+
+/** The name our checkout rate carries in the shop's shipping settings. */
+export const RATE_NAME = 'Shiply Now 60 minutes';
+
+interface ZonesData {
+  deliveryProfiles: {
+    nodes: {
+      id: string;
+      profileLocationGroups: {
+        locationGroup: { id: string };
+        locationGroupZones: {
+          nodes: {
+            zone: {
+              id: string;
+              name: string;
+              countries: { code: { countryCode: string | null; restOfWorld: boolean } }[];
+            };
+            methodDefinitions: {
+              nodes: { id: string; rateProvider: { carrierService?: { id: string } | null } }[];
+            };
+          }[];
+        };
+      }[];
+    }[];
+  };
+}
 
 interface Variant {
   id: string;
@@ -337,7 +365,10 @@ export class ShopifySetupService {
    */
   async registerCarrierService(shopId: string, actorUserId: string | null) {
     const shop = await this.activeShop(shopId);
-    if (shop.carrierServiceId) return { carrierServiceId: shop.carrierServiceId, created: false };
+    if (shop.carrierServiceId) {
+      await this.ensureShippingZones(shop.id).catch(() => undefined);
+      return { carrierServiceId: shop.carrierServiceId, created: false };
+    }
     const data = await this.shopify.call<{
       carrierServiceCreate: {
         carrierService: { id: string } | null;
@@ -345,7 +376,7 @@ export class ShopifySetupService {
       };
     }>(shop, CARRIER_SERVICE_CREATE, {
       input: {
-        name: 'Shiply Now 60 minutes',
+        name: RATE_NAME,
         callbackUrl: this.shopify.ratesUrl(shop.id),
         active: true,
         supportsServiceDiscovery: true,
@@ -379,7 +410,88 @@ export class ShopifySetupService {
       ok: true,
       message: id,
     });
+    await this.ensureShippingZones(shop.id).catch(() => undefined);
     return { carrierServiceId: id, created: true };
+  }
+
+  /**
+   * Adds our checkout rate to every shipping zone that covers Egypt (or, when no zone names
+   * Egypt, to the rest of world zones), so the merchant never has to do it by hand. Zones that
+   * already carry our rate are left alone, so running it again changes nothing. Shopify still
+   * shows the rate only on plans with carrier calculated shipping.
+   */
+  async ensureShippingZones(shopId: string) {
+    const shop = await this.activeShop(shopId);
+    if (!shop.carrierServiceId) return { added: 0, zones: 0 };
+    const carrierServiceId = shop.carrierServiceId;
+    try {
+      const data = await this.shopify.call<ZonesData>(shop, DELIVERY_ZONES, {});
+      const zones = data.deliveryProfiles.nodes.flatMap((profile) =>
+        profile.profileLocationGroups.flatMap((group) =>
+          group.locationGroupZones.nodes.map((z) => ({
+            profileId: profile.id,
+            groupId: group.locationGroup.id,
+            zoneId: z.zone.id,
+            egypt: z.zone.countries.some((c) => c.code.countryCode === 'EG'),
+            restOfWorld: z.zone.countries.some((c) => c.code.restOfWorld),
+            ours: z.methodDefinitions.nodes.some(
+              (m) => m.rateProvider?.carrierService?.id === carrierServiceId,
+            ),
+          })),
+        ),
+      );
+      const covering = zones.some((z) => z.egypt)
+        ? zones.filter((z) => z.egypt)
+        : zones.filter((z) => z.restOfWorld);
+      const missing = covering.filter((z) => !z.ours);
+      const byProfile = new Map<string, Map<string, string[]>>();
+      for (const z of missing) {
+        const groups = byProfile.get(z.profileId) ?? new Map<string, string[]>();
+        groups.set(z.groupId, [...(groups.get(z.groupId) ?? []), z.zoneId]);
+        byProfile.set(z.profileId, groups);
+      }
+      for (const [profileId, groups] of byProfile) {
+        const result = await this.shopify.call<{
+          deliveryProfileUpdate: { userErrors: { message: string }[] };
+        }>(shop, DELIVERY_PROFILE_UPDATE, {
+          id: profileId,
+          profile: {
+            locationGroupsToUpdate: [...groups].map(([groupId, zoneIds]) => ({
+              id: groupId,
+              zonesToUpdate: zoneIds.map((zoneId) => ({
+                id: zoneId,
+                methodDefinitionsToCreate: [
+                  {
+                    name: RATE_NAME,
+                    active: true,
+                    participant: { carrierServiceId, adaptToNewServices: true },
+                  },
+                ],
+              })),
+            })),
+          },
+        });
+        assertNoUserErrors('deliveryProfileUpdate', result.deliveryProfileUpdate);
+      }
+      await this.shopify.record(shop.id, {
+        direction: 'out',
+        kind: 'shipping_zone',
+        ok: covering.length > 0,
+        message:
+          covering.length === 0
+            ? 'no shipping zone covers Egypt'
+            : `rate added to ${missing.length} of ${covering.length} zones`,
+      });
+      return { added: missing.length, zones: covering.length };
+    } catch (error) {
+      await this.shopify.record(shop.id, {
+        direction: 'out',
+        kind: 'shipping_zone',
+        ok: false,
+        message: (error as Error).message,
+      });
+      throw error;
+    }
   }
 
   /**

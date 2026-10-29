@@ -15,6 +15,7 @@ import { ShopDataService } from '../src/shopify/shop-data.service';
 import { ShopifyService } from '../src/shopify/shopify.service';
 import { ShopifyJobsService } from '../src/shopify/shopify-jobs.service';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
+import { ShopifySetupService } from '../src/shopify/shopify-setup.service';
 import { FakeShopify } from './fake-shopify';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
 
@@ -155,6 +156,20 @@ describe('shopify app', () => {
     fake.inventory.clear();
     fake.idempotencyKeys = [];
     fake.carrierServices = [];
+    fake.shippingZones = [
+      {
+        id: 'gid://shopify/DeliveryZone/1',
+        name: 'Egypt',
+        countries: ['EG'],
+        methods: [
+          {
+            id: 'gid://shopify/DeliveryMethodDefinition/1',
+            name: 'Standard',
+            carrierServiceId: null,
+          },
+        ],
+      },
+    ];
     fake.locationAddresses.clear();
     fake.webhooks = [];
     fake.addVariant('EC-001', '325.00');
@@ -1237,6 +1252,14 @@ describe('shopify app', () => {
       }),
     ]);
     expect(shop.carrierServiceId).toBe(fake.carrierServices[0]!.id);
+    // The rate is added to the Egypt shipping zone by itself, next to the merchant's own rates.
+    expect(fake.shippingZones[0]!.methods).toEqual([
+      expect.objectContaining({ name: 'Standard', carrierServiceId: null }),
+      expect.objectContaining({
+        name: 'Shiply Now 60 minutes',
+        carrierServiceId: shop.carrierServiceId,
+      }),
+    ]);
     expect(fake.locationAddresses.get(await locationOf('NCR'))).toMatchObject({
       name: 'Shiply Now New Cairo',
       address1: 'South 90th Street, Fifth Settlement, New Cairo',
@@ -1244,6 +1267,29 @@ describe('shopify app', () => {
       countryCode: 'EG',
       provinceCode: 'C',
     });
+  });
+
+  it('adds the rate only to zones covering Egypt, once, and falls back to rest of world', async () => {
+    const { shop } = await install();
+    const setup = app.get(ShopifySetupService);
+    fake.shippingZones.push(
+      { id: 'gid://shopify/DeliveryZone/2', name: 'Gulf', countries: ['AE', 'SA'], methods: [] },
+      { id: 'gid://shopify/DeliveryZone/3', name: 'World', countries: ['*'], methods: [] },
+    );
+    expect(await setup.ensureShippingZones(shop.id)).toEqual({ added: 0, zones: 1 });
+    expect(fake.shippingZones[1]!.methods).toEqual([]);
+    expect(fake.shippingZones[2]!.methods).toEqual([]);
+
+    // A store with no Egypt zone gets the rate in its rest of world zone instead.
+    fake.shippingZones = fake.shippingZones.slice(1);
+    expect(await setup.ensureShippingZones(shop.id)).toEqual({ added: 1, zones: 1 });
+    expect(fake.shippingZones[1]!.methods).toHaveLength(1);
+    expect(fake.shippingZones[0]!.methods).toEqual([]);
+    const log = await prisma.shopifyLog.findFirst({
+      where: { shopId: shop.id, kind: 'shipping_zone' },
+      orderBy: { createdAt: 'desc' },
+    });
+    expect(log).toMatchObject({ ok: true, message: 'rate added to 1 of 1 zones' });
   });
 
   it('offers the 60 minute rate only when the store, zone, hours and stock all allow it', async () => {

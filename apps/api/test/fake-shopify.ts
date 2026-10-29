@@ -53,6 +53,26 @@ export class FakeShopify extends ShopifyAdmin {
   }[] = [];
   orderQuantities = new Map<string, number>();
   carrierServices: { id: string; name: string; callbackUrl: string }[] = [];
+  /** Shipping zones (one profile, one location group), with each method's carrier service */
+  shippingZones: {
+    id: string;
+    name: string;
+    countries: string[];
+    methods: { id: string; name: string; carrierServiceId: string | null }[];
+  }[] = [
+    {
+      id: 'gid://shopify/DeliveryZone/1',
+      name: 'Egypt',
+      countries: ['EG'],
+      methods: [
+        {
+          id: 'gid://shopify/DeliveryMethodDefinition/1',
+          name: 'Standard',
+          carrierServiceId: null,
+        },
+      ],
+    },
+  ];
   /** locationId -> address set through locationEdit */
   locationAddresses = new Map<
     string,
@@ -487,6 +507,67 @@ export class FakeShopify extends ShopifyAdmin {
         };
         this.carrierServices.push(c);
         return ok({ carrierServiceCreate: { carrierService: { id: c.id }, ...errors } });
+      }
+      case 'DeliveryZones':
+        return ok({
+          deliveryProfiles: {
+            nodes: [
+              {
+                id: 'gid://shopify/DeliveryProfile/1',
+                profileLocationGroups: [
+                  {
+                    locationGroup: { id: 'gid://shopify/DeliveryLocationGroup/1' },
+                    locationGroupZones: {
+                      nodes: this.shippingZones.map((z) => ({
+                        zone: {
+                          id: z.id,
+                          name: z.name,
+                          countries: z.countries.map((c) => ({
+                            code: {
+                              countryCode: c === '*' ? null : c,
+                              restOfWorld: c === '*',
+                            },
+                          })),
+                        },
+                        methodDefinitions: {
+                          nodes: z.methods.map((m) => ({
+                            id: m.id,
+                            rateProvider: m.carrierServiceId
+                              ? { carrierService: { id: m.carrierServiceId } }
+                              : {},
+                          })),
+                        },
+                      })),
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        });
+      case 'DeliveryProfileUpdate': {
+        const profile = v.profile as {
+          locationGroupsToUpdate: {
+            zonesToUpdate: {
+              id: string;
+              methodDefinitionsToCreate: {
+                name: string;
+                participant: { carrierServiceId: string };
+              }[];
+            }[];
+          }[];
+        };
+        for (const group of profile.locationGroupsToUpdate)
+          for (const update of group.zonesToUpdate) {
+            const zone = this.shippingZones.find((z) => z.id === update.id)!;
+            for (const m of update.methodDefinitionsToCreate)
+              zone.methods.push({
+                id: gid('DeliveryMethodDefinition'),
+                name: m.name,
+                carrierServiceId: m.participant.carrierServiceId,
+              });
+          }
+        return ok({ deliveryProfileUpdate: { profile: { id: v.id }, ...errors } });
       }
       case 'LocationEdit': {
         const input = v.input as {
