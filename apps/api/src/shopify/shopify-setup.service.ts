@@ -360,6 +360,123 @@ export class ShopifySetupService {
   }
 
   /**
+   * What a store needs before 60 minute orders can reach us, in the order it is usually done:
+   * connected, products linked (by SKU), stock in a dark store, the merchant's 60 minute
+   * price and the rate service. Plus the last request Shopify sent and the last order made.
+   */
+  async readiness(s: {
+    id: string;
+    merchantId: string;
+    status: string;
+    carrierServiceId: string | null;
+    merchant: { expressPricePiastres: number | null };
+  }) {
+    const [variants] = await this.prisma.$queryRaw<{ total: bigint; no_sku: bigint }[]>`
+      SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE COALESCE(TRIM(sku), '') = '') AS no_sku
+      FROM shop_variants WHERE shop_id = ${s.id}`;
+    const [stock] = await this.prisma.$queryRaw<{ units: bigint | null }[]>`
+      SELECT SUM(l.on_hand - l.reserved) AS units FROM stock_levels l
+      JOIN skus k ON k.id = l.sku_id WHERE k.merchant_id = ${s.merchantId}`;
+    const lastRequest = await this.prisma.shopifyLog.findFirst({
+      where: { shopId: s.id, kind: 'fulfillment_request' },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, ok: true, message: true },
+    });
+    const lastOrder = await this.prisma.order.findFirst({
+      where: { merchantId: s.merchantId, shopifyOrderId: { not: null } },
+      orderBy: { createdAt: 'desc' },
+      select: { createdAt: true, number: true },
+    });
+    return {
+      connected: s.status === 'active',
+      shopifyVariants: Number(variants?.total ?? 0),
+      variantsWithoutSku: Number(variants?.no_sku ?? 0),
+      unitsWithUs: Number(stock?.units ?? 0),
+      priceSet: s.merchant.expressPricePiastres != null,
+      rateService: s.carrierServiceId != null,
+      lastRequest,
+      lastOrder,
+    };
+  }
+
+  /**
+   * Links a merchant to their Shopify store through the main app (appId null) or one of our
+   * custom apps. Linking another store, or the same store through another app, starts clean:
+   * nothing from the old connection may be used against the new one.
+   */
+  async linkShop(body: {
+    merchantId: string;
+    shopDomain: string;
+    appId: string | null;
+    actorUserId: string;
+  }): Promise<ShopifyShop> {
+    const merchant = await this.prisma.merchant.findUnique({ where: { id: body.merchantId } });
+    if (!merchant) throw new DomainError('merchant_not_found', 404);
+    const taken = await this.prisma.shopifyShop.findUnique({
+      where: { shopDomain: body.shopDomain },
+    });
+    if (taken && taken.merchantId !== merchant.id)
+      throw new DomainError('shop_linked_to_other_merchant');
+    const appId = body.appId;
+    if (appId && !(await this.prisma.shopifyApp.findUnique({ where: { id: appId } })))
+      throw new DomainError('app_not_found', 404);
+    const shop = await this.prisma.$transaction(async (tx) => {
+      const before = await tx.shopifyShop.findUnique({ where: { merchantId: merchant.id } });
+      // Another store, or the same store through another app: the old access is useless.
+      const moved =
+        before !== null && (before.shopDomain !== body.shopDomain || before.appId !== appId);
+      if (moved) {
+        // A different store: nothing from the old one (access, locations, rate service,
+        // product links, pending calls) may be used against the new one.
+        await tx.shopifyLocation.deleteMany({ where: { shopId: before.id } });
+        await tx.shopifyOutbox.updateMany({
+          where: { shopId: before.id, doneAt: null },
+          data: { doneAt: new Date(), lastError: 'shop_changed' },
+        });
+        await tx.sku.updateMany({
+          where: { merchantId: merchant.id },
+          data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
+        });
+        await tx.merchant.update({
+          where: { id: merchant.id },
+          data: { shopifyShopDomain: null },
+        });
+      }
+      const row = await tx.shopifyShop.upsert({
+        where: { merchantId: merchant.id },
+        create: { merchantId: merchant.id, shopDomain: body.shopDomain, appId },
+        update: moved
+          ? {
+              shopDomain: body.shopDomain,
+              appId,
+              status: 'pending',
+              accessTokenEnc: null,
+              accessTokenExpiresAt: null,
+              refreshTokenEnc: null,
+              refreshTokenExpiresAt: null,
+              scopes: null,
+              installedAt: null,
+              uninstalledAt: null,
+              carrierServiceId: null,
+            }
+          : {},
+      });
+      await recordAudit(tx, {
+        actorUserId: body.actorUserId,
+        action: 'shopify.link',
+        entityType: 'shopify_shop',
+        entityId: row.id,
+        before: before
+          ? { shopDomain: before.shopDomain, status: before.status, appId: before.appId }
+          : undefined,
+        after: { merchantId: merchant.id, shopDomain: body.shopDomain, appId },
+      });
+      return row;
+    });
+    return shop;
+  }
+
+  /**
    * Registers the checkout rate service for the shop (once). Shopify then asks us for rates
    * at checkout, and the 60 minute option appears only when we can really deliver it.
    */

@@ -1134,6 +1134,76 @@ describe('shopify app', () => {
     expect(refused.body).toEqual({ error: 'direct_connect_refused' });
   });
 
+  it('lets a merchant connect their own store and download the widget kit', async () => {
+    const merchant = await agent('merchant@evechantelle.example');
+    const before = await merchant.get('/merchant/shopify').expect(200);
+    expect(before.body.shop).toBeNull();
+    expect(before.body.setup.redirectUrl).toBe('http://localhost:3000/api/shopify/callback');
+    await merchant.get('/merchant/shopify/kit').expect(409);
+
+    // Shopify refuses the direct grant (an app from another organization): approve instead.
+    fake.denyClientCredentials = true;
+    const app1 = {
+      shopDomain: 'shiplynow-test',
+      clientId: 'merchant-own-app',
+      clientSecret: 'merchant-secret-1',
+    };
+    const approve = await merchant.post('/merchant/shopify/connect').send(app1).expect(201);
+    expect(approve.body).toEqual({
+      status: 'approve',
+      installUrl: `http://localhost:3000/api/shopify/install?shop=${SHOP}`,
+    });
+    const saved = await prisma.shopifyApp.findUniqueOrThrow({
+      where: { clientId: 'merchant-own-app' },
+    });
+    expect(saved.clientSecretEnc).not.toContain('merchant-secret-1');
+
+    // Once Shopify allows it, checking again connects with no merchant step.
+    fake.denyClientCredentials = false;
+    const checked = await merchant.post('/merchant/shopify/check').expect(201);
+    expect(checked.body).toEqual({ status: 'active' });
+    for (let i = 0; i < 50 && fake.carrierServices.length === 0; i++)
+      await new Promise((r) => setTimeout(r, 100));
+    const status = await merchant.get('/merchant/shopify').expect(200);
+    expect(status.body.shop).toMatchObject({
+      shopDomain: SHOP,
+      status: 'active',
+      ownApp: true,
+      clientId: 'merchant-own-app',
+      themeEditorUrl: `https://${SHOP}/admin/themes/current/editor?context=apps&activateAppId=merchant-own-app/zone-embed`,
+    });
+    expect(status.body.shop.readiness).toMatchObject({ connected: true });
+
+    const kit = await merchant
+      .get('/merchant/shopify/kit')
+      .buffer(true)
+      .parse((res, done) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (c: Buffer) => chunks.push(c));
+        res.on('end', () => done(null, Buffer.concat(chunks)));
+      })
+      .expect(200);
+    expect(kit.headers['content-type']).toBe('application/zip');
+    const text = (kit.body as Buffer).toString('utf8');
+    expect(text.startsWith('PK')).toBe(true);
+    expect(text).toContain('client_id = "merchant-own-app"');
+    expect(text).toContain('http://localhost:3000/api/shopify/proxy');
+    expect(text).not.toContain('shiplynow.onrender.com');
+    expect(text).toContain('extensions/zone-widget/blocks/zone-embed.liquid');
+
+    // Another merchant can use neither this store nor this app.
+    await prisma.shopifyShop.update({
+      where: { shopDomain: SHOP },
+      data: { merchant: { create: { name: 'Other merchant' } } },
+    });
+    const refused = await merchant.post('/merchant/shopify/connect').send(app1).expect(409);
+    expect(refused.body).toEqual({ error: 'shop_linked_to_other_merchant' });
+    await merchant
+      .post('/merchant/shopify/connect')
+      .send({ ...app1, shopDomain: 'another-store' })
+      .expect(409, { error: 'app_used_by_other_merchant' });
+  });
+
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });

@@ -11,7 +11,7 @@ export interface OnboardingSteps {
 const STEPS: { key: keyof OnboardingSteps; href: string }[] = [
   { key: 'products', href: '/merchant/products' },
   { key: 'price', href: '/merchant/delivery' },
-  { key: 'shopify', href: '/merchant/delivery' },
+  { key: 'shopify', href: '/merchant/shopify' },
   { key: 'shipment', href: '/merchant/new' },
 ];
 

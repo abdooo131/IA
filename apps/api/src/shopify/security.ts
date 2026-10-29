@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
   createCipheriv,
   createDecipheriv,
@@ -59,6 +60,14 @@ export function verifyProxySignature(query: Record<string, unknown>, secret: str
 export function isShopDomain(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(value);
 }
+
+/** "evechantelle" or "evechantelle.myshopify.com", stored as the full myshopify.com address. */
+export const shopDomainSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .transform((v) => (v.endsWith('.myshopify.com') ? v : `${v}.myshopify.com`))
+  .refine(isShopDomain, 'invalid_shop');
 
 function keyFrom(secret: string) {
   return Buffer.from(hkdfSync('sha256', secret, 'shiply-now', 'shopify-access-token', 32));

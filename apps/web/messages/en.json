@@ -881,7 +881,8 @@
       "wallet": "Wallet",
       "delivery": "60 minute delivery",
       "home": "Home and shipments",
-      "returns": "Take stock back"
+      "returns": "Take stock back",
+      "shopify": "Connect Shopify"
     },
     "shipments": {
       "title": "Shipments",
@@ -1039,6 +1040,63 @@
         "price": "Set your 60 minute delivery price",
         "shopify": "Connect your Shopify store",
         "shipment": "Send your first shipment to a dark store"
+      }
+    },
+    "shopify": {
+      "title": "Connect Shopify",
+      "intro": "Connect your Shopify store yourself in a few minutes. Once connected, the 60 minute option shows at your checkout for addresses we can reach, and those orders come straight to our dark store.",
+      "notConfigured": "Shopify connections are not switched on yet. Please contact Shiply Now.",
+      "step1": "Create your own app in Shopify",
+      "step1a": "In your Shopify admin open Settings, Apps, Develop apps, then Build apps in Dev Dashboard, and create an app named Shiply Now.",
+      "step1b": "Open the app's Settings and copy the Client ID and the Secret.",
+      "step1c": "Paste them here with your store address and press Save.",
+      "shopDomain": "Store address (myshopify.com)",
+      "clientId": "Client ID",
+      "clientSecret": "Secret",
+      "save": "Save",
+      "cancel": "Cancel",
+      "change": "Change",
+      "step2": "Give your app our settings and the area widget",
+      "step2Intro": "Download the kit made for your app. It holds every address, permission and the storefront widget.",
+      "downloadKit": "Download the kit",
+      "step2Run": "Unzip it, open a terminal in the folder and run the command below (it needs Node.js 20 or newer). Sign in with your Shopify account when asked and confirm the release. The README in the kit shows each step.",
+      "byHand": "Set up by hand instead",
+      "appUrl": "App URL",
+      "redirectUrl": "Allowed redirection URL",
+      "proxyUrl": "App proxy URL (prefix apps, subpath shiplynow)",
+      "scopes": "Access scopes",
+      "step3": "Install the app on your store",
+      "step3Intro": "Press Install and approve the app in Shopify. You come back here when it is done.",
+      "step3Done": "Your store is connected. We set up your locations, the checkout rate and your shipping zone by ourselves.",
+      "missing": "Your store has not approved these permissions yet: {scopes}. Press Install again to approve them.",
+      "install": "Install on my store",
+      "checkAgain": "Check again",
+      "step4": "Switch on the area widget",
+      "step4Intro": "Open your theme editor, switch on Shiply Now 60 minutes under App embeds and press Save. Customers then pick their area and see what we can deliver in 60 minutes.",
+      "openThemeEditor": "Open theme editor",
+      "step5": "Ready for 60 minute orders",
+      "ready": {
+        "rates": "The 60 minute rate is added to your checkout and your Egypt shipping zone.",
+        "ratesTodo": "The checkout rate is not set up yet. Press Check again.",
+        "products": "{count, plural, one {# product linked by SKU} other {# products linked by SKU}}",
+        "productsTodo": "No product is linked yet. Give your Shopify products the same SKU as in Shiply Now ({noSku} have no SKU).",
+        "stock": "{units} units in our dark stores",
+        "stockTodo": "No stock with us yet. Send your first shipment.",
+        "price": "Your 60 minute price is set.",
+        "priceTodo": "Set your 60 minute price in 60 minute delivery."
+      },
+      "planNote": "Shopify shows rates from apps only on plans with carrier calculated shipping (Advanced and above, or the Shopify plan paid yearly).",
+      "copy": "Copy",
+      "copied": "Copied",
+      "saved": "Saved. Now download the kit (step 2) and install the app (step 3).",
+      "connected": "Your store is connected.",
+      "notYet": "Not connected yet. Press Install on my store and approve the app.",
+      "errors": {
+        "shop_linked_to_other_merchant": "This store is already connected to another merchant. Contact Shiply Now.",
+        "app_used_by_other_merchant": "This app is used by another merchant. Create your own app.",
+        "app_is_main_app": "Use the app you created yourself, not the Shiply Now app.",
+        "validation_failed": "Check the store address, Client ID and Secret.",
+        "generic": "Something went wrong. Try again."
       }
     }
   },

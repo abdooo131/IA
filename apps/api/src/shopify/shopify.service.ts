@@ -98,6 +98,22 @@ export class ShopifyService {
     return `${this.publicUrl}/api/shopify/rates/${shopId}`;
   }
 
+  /** The link a merchant opens to approve the app on their store (or reconnect it). */
+  installUrl(shopDomain: string) {
+    return `${this.publicUrl}/api/shopify/install?shop=${shopDomain}`;
+  }
+
+  /** What to paste when creating a custom app for a store (Partner Dashboard or Dev Dashboard). */
+  appSetupValues() {
+    return {
+      appUrl: `${this.publicUrl}/api/shopify/app`,
+      redirectUrl: `${this.publicUrl}/api/shopify/callback`,
+      webhooksUrl: this.webhooksUrl(),
+      proxyUrl: `${this.publicUrl}/api/shopify/proxy`,
+      scopes: this.scopes,
+    };
+  }
+
   /** Runs GraphQL for an installed shop, with a token that is valid now. */
   async call<T = Record<string, unknown>>(
     shop: ShopifyShop,

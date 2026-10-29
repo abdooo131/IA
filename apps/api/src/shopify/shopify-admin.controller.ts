@@ -6,7 +6,7 @@ import type { AccessTokenClaims } from '@shiplynow/shared';
 import { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
-import { isShopDomain } from './security';
+import { shopDomainSchema } from './security';
 
 const appSchema = z.object({
   name: z.string().trim().min(2).max(80),
@@ -21,13 +21,7 @@ const linkSchema = z.object({
   merchantId: z.string().min(1).max(64),
   /** The custom app made for this merchant; null or missing is the main app */
   appId: z.string().min(1).max(64).nullable().optional(),
-  /** "evechantelle" or "evechantelle.myshopify.com" */
-  shopDomain: z
-    .string()
-    .trim()
-    .toLowerCase()
-    .transform((v) => (v.endsWith('.myshopify.com') ? v : `${v}.myshopify.com`))
-    .refine(isShopDomain, 'invalid_shop'),
+  shopDomain: shopDomainSchema,
 });
 const catalogSchema = z.object({ createMissing: z.boolean().default(false) });
 
@@ -66,13 +60,7 @@ export class ShopifyAdminController {
       configured: this.shopify.configured,
       publicUrl: this.shopify.publicUrl,
       // What to paste when creating a custom app for a merchant in the Partner Dashboard.
-      setup: {
-        appUrl: `${this.shopify.publicUrl}/api/shopify/app`,
-        redirectUrl: `${this.shopify.publicUrl}/api/shopify/callback`,
-        webhooksUrl: this.shopify.webhooksUrl(),
-        proxyUrl: `${this.shopify.publicUrl}/api/shopify/proxy`,
-        scopes: this.shopify.scopes,
-      },
+      setup: this.shopify.appSetupValues(),
       // Never the secrets: only who uses which app.
       apps: apps.map((a) => ({
         id: a.id,
@@ -96,8 +84,8 @@ export class ShopifyAdminController {
           // merchant opens the install link again to approve them.
           missingScopes: missingScopes(this.shopify.scopes, s.scopes),
           installedAt: s.installedAt,
-          installUrl: `${this.shopify.publicUrl}/api/shopify/install?shop=${s.shopDomain}`,
-          readiness: await this.readiness(s),
+          installUrl: this.shopify.installUrl(s.shopDomain),
+          readiness: await this.setup.readiness(s),
           locations: s.locations.map((l) => ({
             id: l.id,
             darkStore: l.darkStore,
@@ -135,119 +123,19 @@ export class ShopifyAdminController {
     };
   }
 
-  /**
-   * What a store needs before 60 minute orders can reach us, in the order it is usually done:
-   * connected, products linked (by SKU), stock in a dark store, the merchant's 60 minute
-   * price and the rate service. Plus the last request Shopify sent and the last order made.
-   */
-  private async readiness(s: {
-    id: string;
-    merchantId: string;
-    status: string;
-    carrierServiceId: string | null;
-    merchant: { expressPricePiastres: number | null };
-  }) {
-    const [variants] = await this.prisma.$queryRaw<{ total: bigint; no_sku: bigint }[]>`
-      SELECT COUNT(*) AS total, COUNT(*) FILTER (WHERE COALESCE(TRIM(sku), '') = '') AS no_sku
-      FROM shop_variants WHERE shop_id = ${s.id}`;
-    const [stock] = await this.prisma.$queryRaw<{ units: bigint | null }[]>`
-      SELECT SUM(l.on_hand - l.reserved) AS units FROM stock_levels l
-      JOIN skus k ON k.id = l.sku_id WHERE k.merchant_id = ${s.merchantId}`;
-    const lastRequest = await this.prisma.shopifyLog.findFirst({
-      where: { shopId: s.id, kind: 'fulfillment_request' },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true, ok: true, message: true },
-    });
-    const lastOrder = await this.prisma.order.findFirst({
-      where: { merchantId: s.merchantId, shopifyOrderId: { not: null } },
-      orderBy: { createdAt: 'desc' },
-      select: { createdAt: true, number: true },
-    });
-    return {
-      connected: s.status === 'active',
-      shopifyVariants: Number(variants?.total ?? 0),
-      variantsWithoutSku: Number(variants?.no_sku ?? 0),
-      unitsWithUs: Number(stock?.units ?? 0),
-      priceSet: s.merchant.expressPricePiastres != null,
-      rateService: s.carrierServiceId != null,
-      lastRequest,
-      lastOrder,
-    };
-  }
-
   /** Links a merchant to their Shopify store; they then install the app from the link. */
   @Post('link')
   async link(
     @Body(new ZodValidationPipe(linkSchema)) body: z.infer<typeof linkSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const merchant = await this.prisma.merchant.findUnique({ where: { id: body.merchantId } });
-    if (!merchant) throw new DomainError('merchant_not_found', 404);
-    const taken = await this.prisma.shopifyShop.findUnique({
-      where: { shopDomain: body.shopDomain },
+    const shop = await this.setup.linkShop({
+      merchantId: body.merchantId,
+      shopDomain: body.shopDomain,
+      appId: body.appId ?? null,
+      actorUserId: user.sub,
     });
-    if (taken && taken.merchantId !== merchant.id)
-      throw new DomainError('shop_linked_to_other_merchant');
-    const appId = body.appId ?? null;
-    if (appId && !(await this.prisma.shopifyApp.findUnique({ where: { id: appId } })))
-      throw new DomainError('app_not_found', 404);
-    const shop = await this.prisma.$transaction(async (tx) => {
-      const before = await tx.shopifyShop.findUnique({ where: { merchantId: merchant.id } });
-      // Another store, or the same store through another app: the old access is useless.
-      const moved =
-        before !== null && (before.shopDomain !== body.shopDomain || before.appId !== appId);
-      if (moved) {
-        // A different store: nothing from the old one (access, locations, rate service,
-        // product links, pending calls) may be used against the new one.
-        await tx.shopifyLocation.deleteMany({ where: { shopId: before.id } });
-        await tx.shopifyOutbox.updateMany({
-          where: { shopId: before.id, doneAt: null },
-          data: { doneAt: new Date(), lastError: 'shop_changed' },
-        });
-        await tx.sku.updateMany({
-          where: { merchantId: merchant.id },
-          data: { shopifyVariantId: null, shopifyProductId: null, shopifyInventoryItemId: null },
-        });
-        await tx.merchant.update({
-          where: { id: merchant.id },
-          data: { shopifyShopDomain: null },
-        });
-      }
-      const row = await tx.shopifyShop.upsert({
-        where: { merchantId: merchant.id },
-        create: { merchantId: merchant.id, shopDomain: body.shopDomain, appId },
-        update: moved
-          ? {
-              shopDomain: body.shopDomain,
-              appId,
-              status: 'pending',
-              accessTokenEnc: null,
-              accessTokenExpiresAt: null,
-              refreshTokenEnc: null,
-              refreshTokenExpiresAt: null,
-              scopes: null,
-              installedAt: null,
-              uninstalledAt: null,
-              carrierServiceId: null,
-            }
-          : {},
-      });
-      await recordAudit(tx, {
-        actorUserId: user.sub,
-        action: 'shopify.link',
-        entityType: 'shopify_shop',
-        entityId: row.id,
-        before: before
-          ? { shopDomain: before.shopDomain, status: before.status, appId: before.appId }
-          : undefined,
-        after: { merchantId: merchant.id, shopDomain: body.shopDomain, appId },
-      });
-      return row;
-    });
-    return {
-      id: shop.id,
-      installUrl: `${this.shopify.publicUrl}/api/shopify/install?shop=${shop.shopDomain}`,
-    };
+    return { id: shop.id, installUrl: this.shopify.installUrl(shop.shopDomain) };
   }
 
   /**
