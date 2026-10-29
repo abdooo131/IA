@@ -644,7 +644,9 @@
       "addressMissing": "address not set",
       "price": "{price} EGP",
       "disconnect": "Disconnect store",
-      "disconnectConfirm": "Disconnect {shop}? Our locations and the 60 minute rate are removed from that Shopify store, product links are cleared, and the merchant can then be linked to another store. Orders already received stay."
+      "disconnectConfirm": "Disconnect {shop}? Our locations and the 60 minute rate are removed from that Shopify store, product links are cleared, and the merchant can then be linked to another store. Orders already received stay.",
+      "missingScopes": "This store has not given every permission yet",
+      "missingScopesHelp": "Open this link while signed in to the store's Shopify admin and approve. Customer data starts arriving within a minute; customers also need Shopify's protected customer data access for the app."
     },
     "navGroups": {
       "stores": "Dark stores",

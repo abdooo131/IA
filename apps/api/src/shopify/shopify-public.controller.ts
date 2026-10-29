@@ -297,6 +297,25 @@ export class ShopifyPublicController {
       }
       return res.status(200).send();
     }
+    if (
+      shop?.status === 'active' &&
+      (topic === 'customers/create' || topic === 'customers/update')
+    ) {
+      try {
+        const body = JSON.parse(raw.toString('utf8')) as { admin_graphql_api_id?: string };
+        if (body.admin_graphql_api_id)
+          await this.shopData.customerWebhook(shop, body.admin_graphql_api_id);
+      } catch (error) {
+        await this.shopify.record(shop.id, {
+          direction: 'in',
+          kind: 'data_customer',
+          ok: false,
+          message: (error as Error).message,
+        });
+        return res.status(500).send();
+      }
+      return res.status(200).send();
+    }
     if (shop?.status === 'active' && (topic === 'orders/create' || topic === 'orders/updated')) {
       try {
         const body = JSON.parse(raw.toString('utf8')) as { admin_graphql_api_id?: string };

@@ -57,6 +57,15 @@ export const SHOP_WEBHOOK_TOPICS = [
   'ORDERS_UPDATED',
 ] as const;
 
+/**
+ * Webhooks that need a permission the shop may not have granted yet (customer data). Each is
+ * registered only when the shop granted its scope, and a refusal is logged, never fatal.
+ */
+export const OPTIONAL_WEBHOOK_TOPICS = [
+  { topic: 'CUSTOMERS_CREATE', scope: 'read_customers' },
+  { topic: 'CUSTOMERS_UPDATE', scope: 'read_customers' },
+] as const;
+
 /** The address2 line of a dark store's Shopify location, which names the store. */
 export function storeMarker(code: string) {
   return `Shiply Now ${code}`;
@@ -279,6 +288,37 @@ export class ShopifySetupService {
         message: (error as Error).message,
       });
       throw error;
+    }
+    const granted = new Set((shop.scopes ?? '').split(','));
+    for (const { topic, scope } of OPTIONAL_WEBHOOK_TOPICS) {
+      if (!granted.has(scope)) continue;
+      const found = existing.webhookSubscriptions.nodes.find((n) => n.topic === topic);
+      if (found?.uri === uri) continue;
+      try {
+        if (found) {
+          const data = await this.shopify.call<{
+            webhookSubscriptionUpdate: { userErrors: { message: string }[] };
+          }>(shop, WEBHOOK_SUBSCRIPTION_UPDATE, { id: found.id, webhookSubscription: { uri } });
+          assertNoUserErrors('webhookSubscriptionUpdate', data.webhookSubscriptionUpdate);
+        } else {
+          const data = await this.shopify.call<{
+            webhookSubscriptionCreate: { userErrors: { message: string }[] };
+          }>(shop, WEBHOOK_SUBSCRIPTION_CREATE, {
+            topic,
+            webhookSubscription: { uri, format: 'JSON' },
+          });
+          assertNoUserErrors('webhookSubscriptionCreate', data.webhookSubscriptionCreate);
+        }
+        changed.push(topic);
+      } catch (error) {
+        // Shopify has not approved customer data for the app yet: the daily export still runs.
+        await this.shopify.record(shop.id, {
+          direction: 'out',
+          kind: 'webhooks',
+          ok: false,
+          message: `${topic}: ${(error as Error).message}`,
+        });
+      }
     }
     if (changed.length)
       await this.shopify.record(shop.id, {

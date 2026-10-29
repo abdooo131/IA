@@ -553,20 +553,26 @@ export function ordersExport(since: Date | undefined, detail: OrderDetail) {
 }`;
 }
 
+const CUSTOMER_FIELDS = `
+  id firstName lastName state tags createdAt updatedAt numberOfOrders
+  amountSpent { amount }
+  defaultEmailAddress { emailAddress marketingState }
+  defaultPhoneNumber { phoneNumber marketingState }
+  defaultAddress { address1 address2 city province phone }`;
+
 /** Every customer record of the store with contact details, consent, address and totals. */
 export function customersExport(since: Date | undefined) {
   return `{
   customers${updatedSince(since)} {
-    edges { node {
-      id firstName lastName state tags createdAt updatedAt numberOfOrders
-      amountSpent { amount }
-      defaultEmailAddress { emailAddress marketingState }
-      defaultPhoneNumber { phoneNumber marketingState }
-      defaultAddress { address1 address2 city province phone }
-    } }
+    edges { node { ${CUSTOMER_FIELDS} } }
   }
 }`;
 }
+
+/** One customer, for the customers/create and customers/update webhooks. */
+export const CUSTOMER_FOR_DATA = `query CustomerForData($id: ID!) {
+  customer(id: $id) { ${CUSTOMER_FIELDS} }
+}`;
 
 /** One order, for the orders/create and orders/updated webhooks. */
 export function orderForData(detail: OrderDetail) {

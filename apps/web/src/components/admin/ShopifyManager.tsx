@@ -18,6 +18,7 @@ export interface ShopifyOverview {
     shopDomain: string;
     status: 'pending' | 'active' | 'uninstalled';
     scopes: string | null;
+    missingScopes: string[];
     installedAt: string | null;
     installUrl: string;
     expressPricePiastres: number | null;
@@ -138,6 +139,18 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
         <div className="space-y-2">
           <p className="text-body-sm font-bold">{t('installLink')}</p>
           <p className="text-caption text-text-muted">{t('installHelp')}</p>
+          <CopyLink url={shop.installUrl} />
+        </div>
+      )}
+
+      {active && shop.missingScopes.length > 0 && (
+        <div
+          role="status"
+          className="space-y-2 rounded-md border border-s-4 border-status-needs-action p-3"
+        >
+          <p className="text-body-sm font-bold">{t('missingScopes')}</p>
+          <p className="ltr-iso text-caption">{shop.missingScopes.join(', ')}</p>
+          <p className="text-caption text-text-muted">{t('missingScopesHelp')}</p>
           <CopyLink url={shop.installUrl} />
         </div>
       )}

@@ -12,6 +12,7 @@ import { ErrorReporter } from '../common/error-reporter';
 import {
   BULK_RUN,
   BULK_STATUS,
+  CUSTOMER_FOR_DATA,
   customersExport,
   inventoryExport,
   orderForData,
@@ -68,18 +69,25 @@ export class ShopDataService {
     });
     if (running) return this.poll(shop, running.id);
     for (const kind of KINDS) {
-      const [last, failed] = await Promise.all(
-        (['done', 'failed'] as const).map((status) =>
-          this.prisma.shopDataSync.findFirst({
-            where: { shopId: shop.id, kind, status },
-            orderBy: { startedAt: 'desc' },
-          }),
-        ),
-      );
-      if (last && now.getTime() - last.startedAt.getTime() < REFRESH_MS) continue;
+      const latest = (status: string, extra: Prisma.ShopDataSyncWhereInput = {}) =>
+        this.prisma.shopDataSync.findFirst({
+          where: { shopId: shop.id, kind, status, ...extra },
+          orderBy: { startedAt: 'desc' },
+        });
+      const [last, failed, collected] = await Promise.all([
+        latest('done'),
+        latest('failed'),
+        // The last run that really read the store: a refused one ("denied") read nothing.
+        latest('done', { OR: [{ limited: null }, { limited: { not: 'denied' } }] }),
+      ]);
+      // A refusal from before the store last (re)connected no longer counts: try again now.
+      const refusedBeforeReconnect =
+        last?.limited === 'denied' && shop.installedAt && last.startedAt < shop.installedAt;
+      if (last && !refusedBeforeReconnect && now.getTime() - last.startedAt.getTime() < REFRESH_MS)
+        continue;
       if (failed && now.getTime() - failed.startedAt.getTime() < RETRY_MS) continue;
-      // Stock is cheap to read whole; the rest only bring what changed.
-      return this.start(shop, kind, kind === 'inventory' ? undefined : last?.startedAt);
+      // Stock is cheap to read whole; the rest only bring what changed since the last read.
+      return this.start(shop, kind, kind === 'inventory' ? undefined : collected?.startedAt);
     }
     return null;
   }
@@ -226,6 +234,15 @@ export class ShopDataService {
       where: { id: shop.id },
       data: { profile: data as Prisma.InputJsonValue },
     });
+  }
+
+  /** customers/create and customers/update: fetch that one customer and save it at once. */
+  async customerWebhook(shop: ShopifyShop, customerGid: string) {
+    const data = await this.shopify.call<{ customer: Line | null }>(shop, CUSTOMER_FOR_DATA, {
+      id: customerGid,
+    });
+    if (!data.customer) return null;
+    return ingestCustomers(this.prisma, shop, [data.customer], toPiastres);
   }
 
   /** orders/create and orders/updated: fetch that one order and save it at once. */

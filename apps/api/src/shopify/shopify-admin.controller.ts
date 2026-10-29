@@ -8,7 +8,7 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { isShopDomain } from './security';
 import { ShopifyJobsService } from './shopify-jobs.service';
 import { ShopifySetupService } from './shopify-setup.service';
-import { ShopifyService } from './shopify.service';
+import { missingScopes, ShopifyService } from './shopify.service';
 
 const linkSchema = z.object({
   merchantId: z.string().min(1).max(64),
@@ -63,6 +63,9 @@ export class ShopifyAdminController {
           ratesUrl: this.shopify.ratesUrl(s.id),
           status: s.status,
           scopes: s.scopes,
+          // Asked for but not granted (a store connected before we asked for more): the
+          // merchant opens the install link again to approve them.
+          missingScopes: missingScopes(this.shopify.scopes, s.scopes),
           installedAt: s.installedAt,
           installUrl: `${this.shopify.publicUrl}/api/shopify/install?shop=${s.shopDomain}`,
           locations: s.locations.map((l) => ({

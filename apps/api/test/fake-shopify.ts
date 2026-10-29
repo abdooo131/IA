@@ -191,6 +191,10 @@ export class FakeShopify extends ShopifyAdmin {
           productsCount: { count: this.store.products.length },
           locations: { nodes: [] },
         });
+      case 'CustomerForData': {
+        const rows = this.store.customers as { id?: string }[];
+        return ok({ customer: rows.find((r) => r.id === v.id) ?? null });
+      }
       case 'OrderForData': {
         const rows = this.store.orders as { id?: string; __parentId?: string }[];
         const order = rows.find((r) => r.id === v.id);

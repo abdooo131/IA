@@ -825,6 +825,71 @@ describe('shopify app', () => {
     expect(kept.raw).not.toHaveProperty('shippingAddress');
   });
 
+  it('shows missing permissions, retries customers after a reconnect and takes customer webhooks', async () => {
+    const { admin, shop } = await install();
+    const list = (await admin.get('/admin/shopify').expect(200)).body;
+    expect(list.shops[0].missingScopes).toContain('read_customers');
+    // write_inventory includes read_inventory, so that one is not reported missing.
+    expect(list.shops[0].missingScopes).not.toContain('read_inventory');
+
+    const data = app.get(ShopDataService);
+    const now = new Date();
+    // Customers were refused an hour ago, before the store gave the new permission.
+    await prisma.shopDataSync.createMany({
+      data: (['products', 'inventory', 'orders'] as const)
+        .map((kind) => ({ shopId: shop.id, kind, status: 'done', startedAt: now }))
+        .concat({
+          shopId: shop.id,
+          kind: 'customers',
+          status: 'done',
+          limited: 'denied',
+          error: 'ACCESS_DENIED',
+          startedAt: new Date(now.getTime() - 3600_000),
+        } as never),
+    });
+    // Connected two hours ago, refused an hour ago: nothing to do until tomorrow.
+    const before = await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: { installedAt: new Date(now.getTime() - 7200_000) },
+    });
+    expect(await data.tick(before, now)).toBeNull();
+    await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: { installedAt: now, scopes: 'read_products,read_customers' },
+    });
+    const fresh = await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } });
+    expect(await data.tick(fresh, now)).toMatchObject({ started: 'customers' });
+    // The refused run read nothing, so the new run takes the whole customer list.
+    const started = await prisma.shopDataSync.findFirstOrThrow({
+      where: { kind: 'customers', status: 'running' },
+    });
+    expect(started.since).toBeNull();
+    expect(fake.bulk.at(-1)!.query).not.toContain('updated_at:>');
+
+    fake.store.customers = [
+      {
+        id: 'gid://shopify/Customer/777',
+        firstName: 'Nour',
+        lastName: 'Samir',
+        defaultPhoneNumber: { phoneNumber: '+201155566677', marketingState: 'SUBSCRIBED' },
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+      },
+    ];
+    const body = JSON.stringify({ id: 777, admin_graphql_api_id: 'gid://shopify/Customer/777' });
+    await request(app.getHttpServer())
+      .post('/shopify/webhooks')
+      .set('content-type', 'application/json')
+      .set('x-shopify-topic', 'customers/create')
+      .set('x-shopify-shop-domain', SHOP)
+      .set('x-shopify-hmac-sha256', createHmac('sha256', SECRET).update(body).digest('base64'))
+      .send(body)
+      .expect(200);
+    expect(
+      await prisma.customer.findUniqueOrThrow({ where: { phone: '+201155566677' } }),
+    ).toMatchObject({ name: 'Nour Samir' });
+  });
+
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });

@@ -22,6 +22,19 @@ export const SHOPIFY_SCOPES = [
   'write_shipping',
 ].join(',');
 
+/**
+ * Permissions we ask for that a shop has not granted. A write permission includes its read
+ * one, and Shopify reports only the write one, so read_x counts as granted with write_x.
+ */
+export function missingScopes(wanted: string, granted: string | null) {
+  const have = new Set((granted ?? '').split(',').map((s) => s.trim()));
+  return wanted
+    .split(',')
+    .filter(
+      (s) => s && !have.has(s) && !(s.startsWith('read_') && have.has(`write_${s.slice(5)}`)),
+    );
+}
+
 /** Shared plumbing for the Shopify services: config, a shop's client and the sync log. */
 @Injectable()
 export class ShopifyService {
