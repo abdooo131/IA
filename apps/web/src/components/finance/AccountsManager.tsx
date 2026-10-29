@@ -1,5 +1,6 @@
 'use client';
 
+import { FormFooter } from '@/components/workflow/FormFooter';
 import { ACCOUNT_CATEGORIES, ACCOUNT_GROUPS } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
@@ -24,6 +25,7 @@ function NewAccount({ onDone }: { onDone: () => void }) {
   const t = useTranslations('finance.accounts');
   const action = useFinanceAction();
   const [group, setGroup] = useState(OPEN_GROUPS[0]!.code);
+  const [dirty, setDirty] = useState(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,11 +45,15 @@ function NewAccount({ onDone }: { onDone: () => void }) {
       },
       (d) => t('created', { code: d.code }),
     );
-    if (result) onDone();
+    if (result) {
+      setDirty(false);
+      onDone();
+    }
   }
 
   return (
     <form
+      onChange={() => setDirty(true)}
       onSubmit={(e) => void submit(e)}
       className="max-w-2xl space-y-3 rounded-lg border border-line bg-surface p-4"
     >
@@ -98,14 +104,7 @@ function NewAccount({ onDone }: { onDone: () => void }) {
           <input name="note" className={field} />
         </label>
       </div>
-      <div className="flex gap-2">
-        <button type="submit" className={primary} disabled={action.busy}>
-          {t('open')}
-        </button>
-        <button type="button" className={button} onClick={onDone}>
-          {t('close')}
-        </button>
-      </div>
+      <FormFooter dirty={dirty} busy={action.busy} saveLabel={t('open')} onCancel={onDone} />
       <ActionMessage message={action.message} />
     </form>
   );
@@ -114,6 +113,7 @@ function NewAccount({ onDone }: { onDone: () => void }) {
 function EditAccount({ account, onDone }: { account: BookAccount; onDone: () => void }) {
   const t = useTranslations('finance.accounts');
   const action = useFinanceAction();
+  const [dirty, setDirty] = useState(false);
 
   async function submit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -127,11 +127,18 @@ function EditAccount({ account, onDone }: { account: BookAccount; onDone: () => 
       iban: text('iban'),
       note: text('note'),
     });
-    if (ok) onDone();
+    if (ok) {
+      setDirty(false);
+      onDone();
+    }
   }
 
   return (
-    <form onSubmit={(e) => void submit(e)} className="mt-2 grid gap-2 sm:grid-cols-2">
+    <form
+      onChange={() => setDirty(true)}
+      onSubmit={(e) => void submit(e)}
+      className="mt-2 grid gap-2 sm:grid-cols-2"
+    >
       {!account.wallet && (
         <>
           <label className="block text-caption">
@@ -174,13 +181,8 @@ function EditAccount({ account, onDone }: { account: BookAccount; onDone: () => 
         {t('note')}
         <input name="note" defaultValue={account.note ?? ''} className={field} />
       </label>
-      <div className="flex gap-2 sm:col-span-2">
-        <button type="submit" className={primary} disabled={action.busy}>
-          {t('save')}
-        </button>
-        <button type="button" className={button} onClick={onDone}>
-          {t('close')}
-        </button>
+      <div className="sm:col-span-2">
+        <FormFooter dirty={dirty} busy={action.busy} saveLabel={t('save')} onCancel={onDone} />
       </div>
       <ActionMessage message={action.message} />
     </form>

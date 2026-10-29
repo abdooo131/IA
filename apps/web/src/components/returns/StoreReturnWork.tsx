@@ -1,5 +1,6 @@
 'use client';
 
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ScanBox } from '@/components/scan/ScanBox';
@@ -93,6 +94,7 @@ export function StoreReturnWork({ storeId, initial }: { storeId: string; initial
           <h1 className="text-h2">{ret.merchant.name}</h1>
           <ReturnStatusChip status={ret.status} />
         </div>
+        <StatusBar flow="return" status={ret.status} />
         <p className="ltr-iso text-body-sm font-bold">{ret.reference}</p>
         {ret.note && <p className="text-body-sm">{ret.note}</p>}
       </div>

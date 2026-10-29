@@ -1,3 +1,4 @@
+import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { BackLink } from '@/components/store/BackLink';
 import { OrderReadView } from '@/components/orders/OrderReadView';
 import { apiGet } from '@/lib/api-server';
@@ -24,6 +25,7 @@ export default async function AdminOrderPage({
         decisionPath={`/admin/orders/${id}/decision`}
         cancellable={['new', 'accepted', 'picking', 'packed'].includes(order.status)}
       />
+      <RecordHistory entityType="order" entityId={order.id} />
     </>
   );
 }

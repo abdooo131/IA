@@ -2240,5 +2240,45 @@
         ]
       }
     }
+  },
+  "workflow": {
+    "statusBar": "Status",
+    "history": "History",
+    "noHistory": "Nothing recorded yet.",
+    "system": "System",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel",
+    "back": "Back",
+    "unsaved": "Unsaved changes",
+    "leaveConfirm": "You have changes that are not saved. Leave anyway?",
+    "discardConfirm": "Throw away the changes you made?",
+    "states": {
+      "new": "New",
+      "accepted": "Accepted",
+      "picking": "Picking",
+      "packed": "Packed",
+      "out_for_delivery": "Out for delivery",
+      "delivered": "Delivered",
+      "attempt_failed": "Attempt failed",
+      "cancelled": "Cancelled",
+      "failed": "Failed",
+      "moved_to_standard": "Moved to standard",
+      "expected": "Expected",
+      "receiving": "Receiving",
+      "received": "Received",
+      "draft": "Draft",
+      "approved": "Approved",
+      "in_transit": "In transit",
+      "requested": "Requested",
+      "ready": "Ready",
+      "collected": "Collected",
+      "paid": "Paid",
+      "pending": "Waiting",
+      "balanced": "Balanced",
+      "written_off": "Written off",
+      "charged_to_rider": "On the rider",
+      "rejected": "Rejected"
+    }
   }
 }

@@ -1,3 +1,4 @@
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { localized } from '@/lib/admin-types';
@@ -37,6 +38,7 @@ export async function ShipmentDetailView({
         </h1>
         <ShipmentStatusChip status={detail.status} />
       </div>
+      <StatusBar flow="shipment" status={detail.status} />
       <p className="text-body-sm text-text-muted">{t('totals', { received, expected })}</p>
 
       <section className={card}>

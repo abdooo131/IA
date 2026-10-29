@@ -1,5 +1,6 @@
 'use client';
 
+import { FormFooter } from '@/components/workflow/FormFooter';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -24,6 +25,7 @@ export function NewReturnForm({ stores }: { stores: StoreRef[] }) {
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     if (!storeId) return;
@@ -52,12 +54,13 @@ export function NewReturnForm({ stores }: { stores: StoreRef[] }) {
     setBusy(false);
     if (!result.ok)
       return setError(t(`errors.${KNOWN.includes(result.error) ? result.error : 'generic'}`));
+    setDirty(false);
     router.push(`/merchant/returns/${result.data.id}`);
     router.refresh();
   }
 
   return (
-    <div className="mt-4 max-w-3xl space-y-4">
+    <div className="mt-4 max-w-3xl space-y-4" onChange={() => setDirty(true)}>
       <label className="block max-w-sm text-caption">
         {t('store')}
         <select value={storeId} onChange={(e) => setStoreId(e.target.value)} className={field}>
@@ -123,14 +126,14 @@ export function NewReturnForm({ stores }: { stores: StoreRef[] }) {
           {error}
         </p>
       )}
-      <button
-        type="button"
-        disabled={busy || lines.length === 0}
-        onClick={() => void submit()}
-        className="h-10 rounded-md bg-primary px-6 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
-      >
-        {t('submit', { count: lines.reduce((s, l) => s + l.quantity, 0) })}
-      </button>
+      <FormFooter
+        dirty={dirty}
+        busy={busy}
+        saveLabel={t('submit', { count: lines.reduce((s, l) => s + l.quantity, 0) })}
+        disabled={lines.length === 0}
+        cancelHref="/merchant/returns"
+        onSave={() => void submit()}
+      />
     </div>
   );
 }

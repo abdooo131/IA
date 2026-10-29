@@ -1,5 +1,6 @@
 'use client';
 
+import { FormFooter } from '@/components/workflow/FormFooter';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -56,6 +57,7 @@ export function NewOrderForm({
   const [lines, setLines] = useState([{ skuId: choices[0]?.id ?? '', quantity: 1 }]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const [areaNote, setAreaNote] = useState<{ text: string; ok: boolean } | null>(null);
 
   /** Tells the user straight away whether the area's store can take the order now. */
@@ -115,12 +117,13 @@ export function NewOrderForm({
     });
     setBusy(false);
     if (!result.ok) return setError(tErr(KNOWN.includes(result.error) ? result.error : 'generic'));
+    setDirty(false);
     router.push(`${detailBase}/${result.data.id}?created=1`);
     router.refresh();
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 max-w-xl space-y-4">
+    <form onSubmit={submit} className="mt-4 max-w-xl space-y-4" onChange={() => setDirty(true)}>
       {merchants && (
         <label className="block text-caption">
           {t('merchant')}
@@ -294,13 +297,13 @@ export function NewOrderForm({
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={busy || choices.length === 0}
-        className="h-10 rounded-md bg-primary px-6 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
-      >
-        {t('submit')}
-      </button>
+      <FormFooter
+        dirty={dirty}
+        busy={busy}
+        saveLabel={t('submit')}
+        disabled={choices.length === 0}
+        cancelHref={detailBase}
+      />
     </form>
   );
 }

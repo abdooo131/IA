@@ -1,5 +1,6 @@
 'use client';
 
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -86,6 +87,7 @@ export function OrderReadView({
         </p>
       )}
 
+      <StatusBar flow="order" status={order.status} />
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="ltr-iso text-h2">{order.number}</h1>

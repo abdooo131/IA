@@ -1,9 +1,10 @@
 'use client';
 
+import { FormFooter } from '@/components/workflow/FormFooter';
 import { cairoDay } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useRef, useState } from 'react';
 import type { BookAccount } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
@@ -14,8 +15,6 @@ export type MovementTab = 'transfer' | 'expense' | 'capital' | 'income' | 'journ
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
-const primary =
-  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
 const button =
   'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
 
@@ -94,6 +93,8 @@ function Common({ memoRequired = false }: { memoRequired?: boolean }) {
 function useMovement() {
   const t = useTranslations('finance.movements');
   const action = useFinanceAction();
+  const ref = useRef<HTMLFormElement>(null);
+  const [dirty, setDirty] = useState(false);
   async function submit(
     e: FormEvent<HTMLFormElement>,
     path: string,
@@ -118,14 +119,23 @@ function useMovement() {
       },
       (d) => t('saved', { number: d.number }),
     );
-    if (result) form.reset();
+    if (result) {
+      form.reset();
+      setDirty(false);
+    }
   }
-  return { action, submit };
+  /** Cancel empties the form. */
+  const reset = () => {
+    ref.current?.reset();
+    setDirty(false);
+  };
+  const formProps = { ref, onChange: () => setDirty(true) };
+  return { action, submit, dirty, reset, formProps };
 }
 
 function Transfer({ money }: { money: BookAccount[] }) {
   const t = useTranslations('finance.movements');
-  const { action, submit } = useMovement();
+  const { action, submit, dirty, reset, formProps } = useMovement();
   return (
     <form
       onSubmit={(e) =>
@@ -134,12 +144,13 @@ function Transfer({ money }: { money: BookAccount[] }) {
           toAccountId: f.get('to'),
         }))
       }
+      {...formProps}
       className="grid gap-3 sm:grid-cols-2"
     >
       <AccountSelect name="from" accounts={money} title={t('from')} withBalance />
       <AccountSelect name="to" accounts={money} title={t('to')} withBalance />
       <Common />
-      <Submit busy={action.busy} />
+      <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
   );
@@ -147,7 +158,7 @@ function Transfer({ money }: { money: BookAccount[] }) {
 
 function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAccount[] }) {
   const t = useTranslations('finance.movements');
-  const { action, submit } = useMovement();
+  const { action, submit, dirty, reset, formProps } = useMovement();
   return (
     <form
       onSubmit={(e) =>
@@ -157,6 +168,7 @@ function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAcco
           vatPiastres: parseEgp(String(f.get('vat') || '0')) ?? 0,
         }))
       }
+      {...formProps}
       className="grid gap-3 sm:grid-cols-2"
     >
       <AccountSelect name="expense" accounts={expenses} title={t('category')} />
@@ -166,7 +178,7 @@ function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAcco
         {t('vat')}
         <input name="vat" inputMode="decimal" dir="ltr" placeholder="0" className={field} />
       </label>
-      <Submit busy={action.busy} />
+      <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
   );
@@ -174,7 +186,7 @@ function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAcco
 
 function Capital({ money, equity }: { money: BookAccount[]; equity: BookAccount[] }) {
   const t = useTranslations('finance.movements');
-  const { action, submit } = useMovement();
+  const { action, submit, dirty, reset, formProps } = useMovement();
   const [direction, setDirection] = useState<'in' | 'out'>('in');
   return (
     <form
@@ -185,6 +197,7 @@ function Capital({ money, equity }: { money: BookAccount[]; equity: BookAccount[
           equityAccountId: f.get('equity') || undefined,
         }))
       }
+      {...formProps}
       className="grid gap-3 sm:grid-cols-2"
     >
       <fieldset className="flex gap-4 text-body-sm sm:col-span-2">
@@ -221,7 +234,7 @@ function Capital({ money, equity }: { money: BookAccount[]; equity: BookAccount[
         </select>
       </label>
       <Common />
-      <Submit busy={action.busy} />
+      <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
   );
@@ -229,7 +242,7 @@ function Capital({ money, equity }: { money: BookAccount[]; equity: BookAccount[
 
 function Income({ money, income }: { money: BookAccount[]; income: BookAccount[] }) {
   const t = useTranslations('finance.movements');
-  const { action, submit } = useMovement();
+  const { action, submit, dirty, reset, formProps } = useMovement();
   return (
     <form
       onSubmit={(e) =>
@@ -238,12 +251,13 @@ function Income({ money, income }: { money: BookAccount[]; income: BookAccount[]
           moneyAccountId: f.get('money'),
         }))
       }
+      {...formProps}
       className="grid gap-3 sm:grid-cols-2"
     >
       <AccountSelect name="income" accounts={income} title={t('incomeAccount')} />
       <AccountSelect name="money" accounts={money} title={t('to')} withBalance />
       <Common memoRequired />
-      <Submit busy={action.busy} />
+      <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
   );
@@ -268,6 +282,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
   const amount = (v: string) => (v.trim() ? parseEgp(v) : 0);
   const debit = lines.reduce((s, l) => s + (amount(l.debit) ?? 0), 0);
   const credit = lines.reduce((s, l) => s + (amount(l.credit) ?? 0), 0);
+  const dirty = reason !== '' || lines.some((l) => l.accountId || l.debit || l.credit);
   const set = (i: number, patch: Partial<JournalLine>) =>
     setLines(lines.map((l, j) => (j === i ? { ...l, ...patch } : l)));
   // Merchant and rider wallets have their own screens; store cash boxes are allowed.
@@ -397,26 +412,35 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
           />
         </label>
       </div>
-      <button
-        type="button"
-        className={primary}
-        disabled={action.busy || debit === 0 || debit !== credit || reason.trim().length < 5}
-        onClick={() => void save()}
-      >
-        {t('save')}
-      </button>
+      <FormFooter
+        dirty={dirty}
+        busy={action.busy}
+        saveLabel={t('save')}
+        disabled={debit === 0 || debit !== credit || reason.trim().length < 5}
+        onSave={() => void save()}
+        onCancel={() => {
+          setLines([empty(), empty()]);
+          setReason('');
+        }}
+      />
       <ActionMessage message={action.message} />
     </div>
   );
 }
 
-function Submit({ busy }: { busy: boolean }) {
+function Submit({
+  busy,
+  dirty,
+  onCancel,
+}: {
+  busy: boolean;
+  dirty: boolean;
+  onCancel: () => void;
+}) {
   const t = useTranslations('finance.movements');
   return (
     <div className="sm:col-span-2">
-      <button type="submit" className={primary} disabled={busy}>
-        {t('save')}
-      </button>
+      <FormFooter dirty={dirty} busy={busy} saveLabel={t('save')} onCancel={onCancel} />
     </div>
   );
 }

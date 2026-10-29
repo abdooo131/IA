@@ -1,5 +1,6 @@
 'use client';
 
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
@@ -40,6 +41,7 @@ export function ReturnDetailView({
         <h1 className="ltr-iso text-h2">{detail.reference}</h1>
         <ReturnStatusChip status={detail.status} />
       </div>
+      <StatusBar flow="return" status={detail.status} />
       <dl className="grid grid-cols-1 gap-2 rounded-lg border border-line bg-surface p-4 text-body-sm sm:grid-cols-2">
         <div>
           <dt className="text-text-muted">{t('merchant')}</dt>

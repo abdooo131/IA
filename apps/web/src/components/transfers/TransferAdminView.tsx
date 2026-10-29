@@ -1,5 +1,6 @@
 'use client';
 
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -49,6 +50,7 @@ export function TransferAdminView({ detail }: { detail: TransferDetail }) {
           <span className="text-caption text-text-muted">{t('auto')}</span>
         )}
       </div>
+      <StatusBar flow="transfer" status={detail.status} />
       <p className="text-body">
         <TransferRoute
           from={detail.from}

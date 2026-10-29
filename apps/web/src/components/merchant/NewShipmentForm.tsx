@@ -1,5 +1,6 @@
 'use client';
 
+import { FormFooter } from '@/components/workflow/FormFooter';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
@@ -19,6 +20,7 @@ export function NewShipmentForm({ stores, skus }: { stores: StoreRef[]; skus: Me
   const [lines, setLines] = useState([{ skuId: skus[0]?.id ?? '', expectedQty: 1 }]);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -35,12 +37,13 @@ export function NewShipmentForm({ stores, skus }: { stores: StoreRef[]; skus: Me
     setBusy(false);
     if (!result.ok)
       return setError(t(`errors.${KNOWN.includes(result.error) ? result.error : 'generic'}`));
+    setDirty(false);
     router.push('/merchant');
     router.refresh();
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 max-w-xl space-y-4">
+    <form onSubmit={submit} className="mt-4 max-w-xl space-y-4" onChange={() => setDirty(true)}>
       <label className="block text-caption">
         {t('store')}
         <select name="darkStoreId" required className={field}>
@@ -141,13 +144,7 @@ export function NewShipmentForm({ stores, skus }: { stores: StoreRef[]; skus: Me
           {error}
         </p>
       )}
-      <button
-        type="submit"
-        disabled={busy}
-        className="h-10 rounded-md bg-primary px-6 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
-      >
-        {t('submit')}
-      </button>
+      <FormFooter dirty={dirty} busy={busy} saveLabel={t('submit')} cancelHref="/merchant" />
     </form>
   );
 }

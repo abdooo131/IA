@@ -1,5 +1,6 @@
 'use client';
 
+import { FormFooter } from '@/components/workflow/FormFooter';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -29,6 +30,7 @@ export function NewTransferForm({ stores }: { stores: AdminStore[] }) {
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
   const from = stores.find((s) => s.id === fromId);
   const to = stores.find((s) => s.id === toId);
   const hub = stores.find((s) => s.kind === 'hub');
@@ -59,12 +61,13 @@ export function NewTransferForm({ stores }: { stores: AdminStore[] }) {
     setBusy(false);
     if (!result.ok)
       return setError(t(`errors.${KNOWN.includes(result.error) ? result.error : 'generic'}`));
+    setDirty(false);
     router.push(`/admin/transfers/${result.data.id}`);
     router.refresh();
   }
 
   return (
-    <div className="mt-4 max-w-3xl space-y-4">
+    <div className="mt-4 max-w-3xl space-y-4" onChange={() => setDirty(true)}>
       <div className="grid gap-3 sm:grid-cols-2">
         <label className="block text-caption">
           {t('from')}
@@ -142,14 +145,14 @@ export function NewTransferForm({ stores }: { stores: AdminStore[] }) {
           {error}
         </p>
       )}
-      <button
-        type="button"
-        disabled={busy || lines.length === 0 || !toId || fromId === toId}
-        onClick={() => void submit()}
-        className="h-10 rounded-md bg-primary px-6 font-bold text-on-primary disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
-      >
-        {t('create', { count: lines.reduce((s, l) => s + l.quantity, 0) })}
-      </button>
+      <FormFooter
+        dirty={dirty}
+        busy={busy}
+        saveLabel={t('create', { count: lines.reduce((s, l) => s + l.quantity, 0) })}
+        disabled={lines.length === 0 || !toId || fromId === toId}
+        cancelHref="/admin/transfers"
+        onSave={() => void submit()}
+      />
     </div>
   );
 }

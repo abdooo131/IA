@@ -1,5 +1,6 @@
 'use client';
 
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ScanBox } from '@/components/scan/ScanBox';
@@ -113,6 +114,7 @@ export function StoreTransferWork({
           <h1 className="ltr-iso text-h2">{tr.reference}</h1>
           <TransferStatusChip status={tr.status} />
         </div>
+        <StatusBar flow="transfer" status={tr.status} />
         <p className="text-body-sm">
           <TransferRoute from={tr.from} to={tr.to} finalDestination={tr.finalDestination} />
         </p>

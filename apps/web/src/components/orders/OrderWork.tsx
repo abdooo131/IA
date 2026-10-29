@@ -1,5 +1,6 @@
 'use client';
 
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { ScanBox } from '@/components/scan/ScanBox';
@@ -128,6 +129,7 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
           <h1 className="ltr-iso text-h2">{order.number}</h1>
           <OrderStatusChip status={order.status} late={order.stage?.late} />
         </div>
+        <StatusBar flow="order" status={order.status} />
         {order.stage && <StageTimer stage={order.stage.stage} dueAt={order.stage.dueAt} />}
         <p className="text-body-sm">
           {order.customerName} · <span className="ltr-iso">{order.customerPhone}</span> ·{' '}

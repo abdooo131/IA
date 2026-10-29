@@ -1,3 +1,4 @@
+import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { addDays, cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
@@ -141,6 +142,7 @@ export default async function AccountStatementPage({
           </table>
         </div>
       )}
+      <RecordHistory entityType="ledger_account" entityId={s.account.id} />
     </>
   );
 }

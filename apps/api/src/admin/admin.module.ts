@@ -1,3 +1,4 @@
+import { HistoryController } from './history.controller';
 import { Module } from '@nestjs/common';
 import { CoverageModule } from '../coverage/coverage.module';
 import { AdminCatalogController } from './admin-catalog.controller';
@@ -33,6 +34,7 @@ import { AdminRefillController } from './admin-refill.controller';
     AdminDamageController,
     AdminTransfersController,
     AdminRefillController,
+    HistoryController,
   ],
 })
 export class AdminModule {}

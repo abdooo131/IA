@@ -2240,5 +2240,45 @@
         ]
       }
     }
+  },
+  "workflow": {
+    "statusBar": "الحالة",
+    "history": "السجل",
+    "noHistory": "مفيش حاجة متسجلة لسه.",
+    "system": "السيستم",
+    "save": "احفظ",
+    "saving": "بيتحفظ…",
+    "cancel": "إلغاء",
+    "back": "رجوع",
+    "unsaved": "تغييرات مش محفوظة",
+    "leaveConfirm": "فيه تغييرات مش محفوظة. تخرج برضه؟",
+    "discardConfirm": "تلغي التغييرات اللي عملتها؟",
+    "states": {
+      "new": "جديد",
+      "accepted": "مقبول",
+      "picking": "بيتجهز",
+      "packed": "متغلف",
+      "out_for_delivery": "خرج للتوصيل",
+      "delivered": "اتسلم",
+      "attempt_failed": "محاولة فشلت",
+      "cancelled": "ملغي",
+      "failed": "فشل",
+      "moved_to_standard": "اتحول للعادي",
+      "expected": "متوقع",
+      "receiving": "بيتستلم",
+      "received": "اتستلم",
+      "draft": "مسودة",
+      "approved": "معتمد",
+      "in_transit": "في الطريق",
+      "requested": "مطلوب",
+      "ready": "جاهز",
+      "collected": "اتسلم",
+      "paid": "اتدفع",
+      "pending": "مستني",
+      "balanced": "مظبوط",
+      "written_off": "اتشال على الشركة",
+      "charged_to_rider": "على المندوب",
+      "rejected": "مرفوض"
+    }
   }
 }
