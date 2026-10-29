@@ -130,9 +130,42 @@ export class FakeShopify extends ShopifyAdmin {
     return r;
   }
 
+  /** Token endpoint calls, to check renewals happen once and only when due. */
+  tokenCalls: string[] = [];
+  /** The refresh token Shopify would accept next; using it retires it. */
+  private liveRefresh = 'shprt_1';
+
   async exchangeCode(_shop: string, code: string) {
     if (code !== 'good-code') throw new Error('bad code');
-    return { accessToken: 'shpat_test_token', scope: 'read_products,write_inventory,read_orders' };
+    this.tokenCalls.push('code');
+    this.liveRefresh = 'shprt_1';
+    return {
+      accessToken: 'shpat_test_token',
+      scope: 'read_products,write_inventory,read_orders',
+      expiresIn: 3600,
+      refreshToken: this.liveRefresh,
+      refreshTokenExpiresIn: 7_776_000,
+    };
+  }
+
+  async refreshToken(_shop: string, refreshToken: string) {
+    this.tokenCalls.push('refresh');
+    if (refreshToken !== this.liveRefresh)
+      throw new Error('token refresh failed (400 invalid_grant)');
+    this.liveRefresh = `shprt_${this.tokenCalls.length + 1}`;
+    return {
+      accessToken: 'shpat_test_token',
+      scope: '',
+      expiresIn: 3600,
+      refreshToken: this.liveRefresh,
+      refreshTokenExpiresIn: 7_776_000,
+    };
+  }
+
+  async migrateToken(_shop: string, legacyToken: string) {
+    this.tokenCalls.push('migrate');
+    if (legacyToken !== 'shpat_test_token') throw new Error('token migration failed (400)');
+    return this.refreshToken(_shop, this.liveRefresh);
   }
 
   async graphql<T>(

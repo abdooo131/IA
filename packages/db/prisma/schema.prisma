@@ -1273,18 +1273,23 @@ enum ShopifyShopStatus {
 
 /// A merchant's Shopify store and our access to it. The token is encrypted at rest.
 model ShopifyShop {
-  id               String            @id @default(cuid())
-  merchantId       String            @unique @map("merchant_id")
-  shopDomain       String            @unique @map("shop_domain")
-  status           ShopifyShopStatus @default(pending)
-  accessTokenEnc   String?           @map("access_token_enc")
-  scopes           String?
-  installedAt      DateTime?         @map("installed_at")
-  uninstalledAt    DateTime?         @map("uninstalled_at")
+  id                    String            @id @default(cuid())
+  merchantId            String            @unique @map("merchant_id")
+  shopDomain            String            @unique @map("shop_domain")
+  status                ShopifyShopStatus @default(pending)
+  accessTokenEnc        String?           @map("access_token_enc")
+  /// Expiring offline tokens (required for public apps): the access token lasts about an hour
+  /// and is renewed with the refresh token, which lasts 90 days. Null on a non expiring token.
+  accessTokenExpiresAt  DateTime?         @map("access_token_expires_at")
+  refreshTokenEnc       String?           @map("refresh_token_enc")
+  refreshTokenExpiresAt DateTime?         @map("refresh_token_expires_at")
+  scopes                String?
+  installedAt           DateTime?         @map("installed_at")
+  uninstalledAt         DateTime?         @map("uninstalled_at")
   /// The carrier service that answers checkout rates for this shop
-  carrierServiceId String?           @map("carrier_service_id")
-  createdAt        DateTime          @default(now()) @map("created_at")
-  updatedAt        DateTime          @updatedAt @map("updated_at")
+  carrierServiceId      String?           @map("carrier_service_id")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
 
   /// Store profile from Shopify (name, plan, currency, created), refreshed with each data sync
   profile      Json?

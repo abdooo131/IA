@@ -3,8 +3,8 @@ import { ConfigService } from '@nestjs/config';
 import type { Prisma, ShopifyShop } from '@shiplynow/db';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
-import { openToken } from './security';
-import { ShopifyAdmin } from './shopify-admin';
+import { openToken, sealToken } from './security';
+import { type OfflineToken, ShopifyAdmin } from './shopify-admin';
 
 /** Permissions the app asks for when a merchant installs it. */
 export const SHOPIFY_SCOPES = [
@@ -98,7 +98,7 @@ export class ShopifyService {
     return `${this.publicUrl}/api/shopify/rates/${shopId}`;
   }
 
-  /** Runs GraphQL for an installed shop. */
+  /** Runs GraphQL for an installed shop, with a token that is valid now. */
   async call<T = Record<string, unknown>>(
     shop: ShopifyShop,
     query: string,
@@ -106,12 +106,67 @@ export class ShopifyService {
   ) {
     if (shop.status !== 'active' || !shop.accessTokenEnc)
       throw new Error(`shop ${shop.shopDomain} is not installed`);
-    return this.admin.graphql<T>(
-      shop.shopDomain,
-      openToken(shop.accessTokenEnc, this.secret),
-      query,
-      variables,
-    );
+    return this.admin.graphql<T>(shop.shopDomain, await this.tokenFor(shop.id), query, variables);
+  }
+
+  /** The fields that store a shop's tokens, sealed, from an answer of Shopify's token endpoint. */
+  tokenFields(token: OfflineToken, now: Date = new Date()) {
+    const at = (seconds?: number) => (seconds ? new Date(now.getTime() + seconds * 1000) : null);
+    return {
+      accessTokenEnc: sealToken(token.accessToken, this.secret),
+      accessTokenExpiresAt: at(token.expiresIn),
+      refreshTokenEnc: token.refreshToken ? sealToken(token.refreshToken, this.secret) : null,
+      refreshTokenExpiresAt: at(token.refreshTokenExpiresIn),
+    };
+  }
+
+  private renewing = new Map<string, Promise<string>>();
+
+  /**
+   * The shop's access token, read fresh from the database (another call may have renewed it).
+   * An expiring token is renewed five minutes before it runs out; a shop still on an old non
+   * expiring token is moved to an expiring one once. Concurrent calls share one renewal, since
+   * Shopify retires a refresh token once it has been used.
+   */
+  async tokenFor(shopId: string): Promise<string> {
+    const row = await this.prisma.shopifyShop.findUniqueOrThrow({ where: { id: shopId } });
+    if (!row.accessTokenEnc) throw new Error(`shop ${row.shopDomain} is not installed`);
+    const fresh =
+      row.accessTokenExpiresAt && row.accessTokenExpiresAt.getTime() > Date.now() + 5 * 60_000;
+    if (fresh) return openToken(row.accessTokenEnc, this.secret);
+    const running = this.renewing.get(shopId);
+    if (running) return running;
+    const renewal = this.renew(shopId).finally(() => this.renewing.delete(shopId));
+    this.renewing.set(shopId, renewal);
+    return renewal;
+  }
+
+  private async renew(shopId: string) {
+    const row = await this.prisma.shopifyShop.findUniqueOrThrow({ where: { id: shopId } });
+    const legacy = !row.refreshTokenEnc;
+    try {
+      const token = legacy
+        ? await this.admin.migrateToken(row.shopDomain, openToken(row.accessTokenEnc!, this.secret))
+        : await this.admin.refreshToken(
+            row.shopDomain,
+            openToken(row.refreshTokenEnc!, this.secret),
+          );
+      await this.prisma.shopifyShop.update({
+        where: { id: shopId },
+        data: { ...this.tokenFields(token), ...(token.scope ? { scopes: token.scope } : {}) },
+      });
+      if (legacy) await this.record(shopId, { direction: 'out', kind: 'token_migrated', ok: true });
+      return token.accessToken;
+    } catch (error) {
+      // A refused refresh (refresh token past 90 days, app removed): the merchant reconnects.
+      await this.record(shopId, {
+        direction: 'out',
+        kind: legacy ? 'token_migrated' : 'token_refresh',
+        ok: false,
+        message: (error as Error).message,
+      });
+      throw error;
+    }
   }
 
   activeShops() {

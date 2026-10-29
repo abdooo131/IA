@@ -15,7 +15,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { redactShopCustomer, redactShopCustomers } from '@shiplynow/db';
 import { Public } from '../auth/decorators';
-import { sealToken, isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
+import { isShopDomain, verifyBodyHmac, verifyQueryHmac } from './security';
 import { ShopDataService } from './shop-data.service';
 import { ShopifyAdmin } from './shopify-admin';
 import { ShopifyJobsService } from './shopify-jobs.service';
@@ -98,7 +98,7 @@ export class ShopifyPublicController {
         where: { id: linked.id },
         data: {
           status: 'active',
-          accessTokenEnc: sealToken(token.accessToken, this.shopify.secret),
+          ...this.shopify.tokenFields(token),
           scopes: token.scope,
           installedAt: new Date(),
           uninstalledAt: null,
@@ -277,7 +277,14 @@ export class ShopifyPublicController {
     if (topic === 'app/uninstalled' && shop) {
       await this.prisma.shopifyShop.update({
         where: { id: shop.id },
-        data: { status: 'uninstalled', accessTokenEnc: null, uninstalledAt: new Date() },
+        data: {
+          status: 'uninstalled',
+          accessTokenEnc: null,
+          accessTokenExpiresAt: null,
+          refreshTokenEnc: null,
+          refreshTokenExpiresAt: null,
+          uninstalledAt: new Date(),
+        },
       });
     }
     if (shop?.status === 'active' && topic?.startsWith('products/')) {

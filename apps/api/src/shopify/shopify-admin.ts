@@ -27,11 +27,26 @@ export abstract class ShopifyAdmin {
   /** The lines of a finished bulk export (JSON Lines at a signed Shopify address). */
   abstract downloadLines(url: string): AsyncIterable<string>;
 
-  /** OAuth: trades the one time code from the install redirect for an offline token. */
-  abstract exchangeCode(
-    shop: string,
-    code: string,
-  ): Promise<{ accessToken: string; scope: string }>;
+  /** OAuth: trades the one time code from the install redirect for an expiring offline token. */
+  abstract exchangeCode(shop: string, code: string): Promise<OfflineToken>;
+
+  /** Trades the refresh token for a new access token and a new refresh token. */
+  abstract refreshToken(shop: string, refreshToken: string): Promise<OfflineToken>;
+
+  /** One time: trades a shop's old non expiring token for an expiring one (the old one dies). */
+  abstract migrateToken(shop: string, legacyToken: string): Promise<OfflineToken>;
+}
+
+/**
+ * An offline token as Shopify answers it. Public apps get expiring ones: the access token
+ * lasts about an hour, the refresh token 90 days (both renewed on every refresh).
+ */
+export interface OfflineToken {
+  accessToken: string;
+  scope: string;
+  expiresIn?: number;
+  refreshToken?: string;
+  refreshTokenExpiresIn?: number;
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -119,21 +134,68 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
     if (rest.trim()) yield rest;
   }
 
-  async exchangeCode(shop: string, code: string) {
+  exchangeCode(shop: string, code: string) {
+    return this.tokenRequest(shop, { code, expiring: '1' }, 'token exchange');
+  }
+
+  refreshToken(shop: string, refreshToken: string) {
+    return this.tokenRequest(
+      shop,
+      { grant_type: 'refresh_token', refresh_token: refreshToken },
+      'token refresh',
+    );
+  }
+
+  migrateToken(shop: string, legacyToken: string) {
+    return this.tokenRequest(
+      shop,
+      {
+        grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+        subject_token: legacyToken,
+        subject_token_type: 'urn:shopify:params:oauth:token-type:offline-access-token',
+        requested_token_type: 'urn:shopify:params:oauth:token-type:offline-access-token',
+        expiring: '1',
+      },
+      'token migration',
+    );
+  }
+
+  /** POST to the shop's token endpoint with the app's credentials. Never logs a token. */
+  private async tokenRequest(
+    shop: string,
+    params: Record<string, string>,
+    what: string,
+  ): Promise<OfflineToken> {
     const res = await fetch(`https://${shop}/admin/oauth/access_token`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({
-        client_id: this.config.get('SHOPIFY_API_KEY', { infer: true }),
-        client_secret: this.config.get('SHOPIFY_API_SECRET', { infer: true }),
-        code,
+      headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
+      body: new URLSearchParams({
+        client_id: this.config.get('SHOPIFY_API_KEY', { infer: true }) ?? '',
+        client_secret: this.config.get('SHOPIFY_API_SECRET', { infer: true }) ?? '',
+        ...params,
       }),
       signal: AbortSignal.timeout(20_000),
     });
-    const body = (await res.json().catch(() => ({}))) as { access_token?: string; scope?: string };
+    const body = (await res.json().catch(() => ({}))) as {
+      access_token?: string;
+      scope?: string;
+      expires_in?: number;
+      refresh_token?: string;
+      refresh_token_expires_in?: number;
+      error?: string;
+    };
     if (!res.ok || !body.access_token)
-      throw new ShopifyApiError(`token exchange failed (${res.status})`, false);
-    return { accessToken: body.access_token, scope: body.scope ?? '' };
+      throw new ShopifyApiError(
+        `${what} failed (${res.status}${body.error ? ` ${body.error}` : ''})`,
+        res.status >= 500,
+      );
+    return {
+      accessToken: body.access_token,
+      scope: body.scope ?? '',
+      expiresIn: body.expires_in,
+      refreshToken: body.refresh_token,
+      refreshTokenExpiresIn: body.refresh_token_expires_in,
+    };
   }
 }
 

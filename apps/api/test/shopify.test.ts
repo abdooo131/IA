@@ -12,6 +12,7 @@ import {
 } from '../src/shopify/security';
 import { moneyToPiastres } from '../src/shopify/shopify-admin';
 import { ShopDataService } from '../src/shopify/shop-data.service';
+import { ShopifyService } from '../src/shopify/shopify.service';
 import { ShopifyJobsService } from '../src/shopify/shopify-jobs.service';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
 import { FakeShopify } from './fake-shopify';
@@ -888,6 +889,54 @@ describe('shopify app', () => {
     expect(
       await prisma.customer.findUniqueOrThrow({ where: { phone: '+201155566677' } }),
     ).toMatchObject({ name: 'Nour Samir' });
+  });
+
+  it('renews expiring tokens once when due and moves an old permanent token over', async () => {
+    const { shop } = await install();
+    const stored = await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } });
+    expect(stored.refreshTokenEnc).toBeTruthy();
+    expect(stored.refreshTokenEnc).not.toContain('shprt');
+    expect(stored.accessTokenExpiresAt!.getTime()).toBeGreaterThan(Date.now() + 50 * 60_000);
+    const service = app.get(ShopifyService);
+    fake.tokenCalls.length = 0;
+
+    // Still valid: no renewal.
+    await service.tokenFor(shop.id);
+    expect(fake.tokenCalls).toEqual([]);
+
+    // Four minutes left: renewed once, even with three calls at the same time.
+    await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: { accessTokenExpiresAt: new Date(Date.now() + 4 * 60_000) },
+    });
+    await Promise.all([1, 2, 3].map(() => service.tokenFor(shop.id)));
+    expect(fake.tokenCalls).toEqual(['refresh']);
+    const renewed = await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } });
+    expect(renewed.accessTokenExpiresAt!.getTime()).toBeGreaterThan(Date.now() + 50 * 60_000);
+    expect(renewed.refreshTokenEnc).not.toBe(stored.refreshTokenEnc);
+
+    // A shop connected before expiring tokens: moved over on its next call.
+    await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: { refreshTokenEnc: null, accessTokenExpiresAt: null, refreshTokenExpiresAt: null },
+    });
+    fake.tokenCalls.length = 0;
+    await service.tokenFor(shop.id);
+    expect(fake.tokenCalls[0]).toBe('migrate');
+    expect(
+      (await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } })).refreshTokenEnc,
+    ).toBeTruthy();
+
+    // A refused refresh is logged and the call fails (the merchant reconnects).
+    await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: {
+        accessTokenExpiresAt: new Date(Date.now() - 1000),
+        refreshTokenEnc: stored.refreshTokenEnc,
+      },
+    });
+    await expect(service.tokenFor(shop.id)).rejects.toThrow('invalid_grant');
+    expect(await prisma.shopifyLog.count({ where: { kind: 'token_refresh', ok: false } })).toBe(1);
   });
 
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
