@@ -1140,10 +1140,18 @@ describe('shopify app', () => {
     // When the address cannot be placed now, Shopify should retry soon, not cache "no rate".
     await ask({ destination: home('boom street') }).expect(503);
 
-    const logged = await prisma.shopifyLog.findMany({
-      where: { shopId: shop.id, kind: 'checkout_rate' },
-      select: { message: true },
-    });
+    // Rate answers write their log line in the background (Shopify waits for the answer, not
+    // the log), so give the last one a moment to land before reading them.
+    const readLog = () =>
+      prisma.shopifyLog.findMany({
+        where: { shopId: shop.id, kind: 'checkout_rate' },
+        select: { message: true },
+      });
+    let logged = await readLog();
+    for (let i = 0; i < 40 && !logged.some((l) => l.message === 'store_closed'); i++) {
+      await new Promise((r) => setTimeout(r, 50));
+      logged = await readLog();
+    }
     expect(new Set(logged.map((l) => l.message))).toEqual(
       new Set([
         'no_price',
