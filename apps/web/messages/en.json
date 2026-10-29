@@ -1975,228 +1975,343 @@
     "others": "Other roles",
     "back": "Back",
     "mine": "Your role",
+    "day": "Your day",
+    "escalation": "Who tells whom",
+    "steps": "Steps",
+    "check": "Check it went right",
+    "problems": "If something is wrong",
+    "tasks": "Tasks",
     "roles": {
       "store_staff": {
         "title": "Dark store staff",
-        "who": "Receivers, pickers and packers working inside a dark store or the hub. Open your store from the home screen.",
+        "who": "Receivers, pickers and packers in a dark store or the hub. Your store opens from Home after you sign in.",
+        "day": [
+          "Start of shift (first 10 minutes): sign in, open your store, read Orders (red = late), check the scanner reads a barcode, check the Receive and Put away counts.",
+          "Every hour: Orders first, always. Between orders: put away, then returns and transfers, then counts.",
+          "Before a rider leaves: every packed order has its photo and was handed over by scanning the badge.",
+          "End of shift (last 15 minutes): receive cash from every rider who is back, put away everything in receiving, receive goods back from failed deliveries, and write a ticket to the next shift lead about anything open."
+        ],
+        "escalation": [
+          "An order will be late, or a product is missing on the shelf: tap Missing on the order (admin is alerted automatically) and tell your store lead.",
+          "A shipment arrives without a shipment number from the merchant: do not take it; open a ticket to admin with the merchant name and number of boxes.",
+          "Cash does not match: enter what you counted; finance reviews it. Do not change the count.",
+          "Scanner, phone or internet down for more than 10 minutes: call your store lead; they open an urgent ticket to admin.",
+          "Anything you are not sure about: ticket to your store lead before you act."
+        ],
         "sections": [
-          {
-            "title": "Start of shift",
-            "steps": [
-              "Sign in on the store phone or tablet and open your store.",
-              "Check the Orders list: anything red is late and comes first.",
-              "Make sure the scanner (or camera) reads a barcode before the first order arrives."
-            ]
-          },
           {
             "title": "Receive a merchant shipment",
             "steps": [
-              "Goods are received only against a shipment the merchant created first. If there is none, do not take the goods; call admin.",
-              "Open Receive, choose the shipment, then scan every unit. Each scan adds one unit to the receiving bin.",
-              "Products not on the shipment and units above the listed quantity are still received; the merchant sees them as extra.",
-              "A barcode that is not in the catalog is refused. Put the item aside and tell admin.",
-              "When every box is scanned, tap Close shipment. The merchant gets a summary of expected against received."
+              "Ask the driver for the merchant's shipment reference. No shipment in Receive for that merchant means no receiving: call admin.",
+              "Open Receive and choose that shipment. Check the merchant name matches the boxes.",
+              "Open one box at a time. Scan every unit. Each scan adds 1 to the receiving bin.",
+              "Damaged on arrival: put it aside; after closing, report it in Damaged and held with cause Arrived damaged.",
+              "When all boxes are empty, tap Close shipment and confirm."
+            ],
+            "check": [
+              "The screen shows received against expected for every product.",
+              "The shipment's status bar shows Received.",
+              "The receiving bin count went up by what you scanned (Put away shows it)."
+            ],
+            "problems": [
+              "Barcode refused (not in catalog): put the item aside, take a photo of the label, and open a ticket to admin with the merchant name.",
+              "More units than expected: receive them anyway; the merchant sees them as extra.",
+              "You closed by mistake: tell admin by ticket at once; do not receive the rest on another shipment."
             ]
           },
           {
             "title": "Put away",
             "steps": [
-              "Open Put away. Scan the product in the receiving bin, then scan the shelf you place it on.",
-              "Only shelf stock can be sold. Do not leave stock in receiving at the end of a shift."
+              "Open Put away. Pick up the units from the receiving bin.",
+              "Scan the product, then scan the shelf label where you place it.",
+              "Repeat until the receiving bin is empty."
+            ],
+            "check": [
+              "Put away on Home shows 0 units to shelve.",
+              "The product is on the shelf whose label you scanned."
+            ],
+            "problems": [
+              "Shelf full: use the next empty shelf and scan that one.",
+              "No shelf label: print it from Bin labels before placing anything there."
             ]
           },
           {
             "title": "Pick an order",
             "steps": [
-              "Open the order at the top of the list (oldest first, late in red).",
-              "Go to the shelf shown, scan the shelf (optional) and then each product. The count goes up with each scan.",
-              "If a product is not on the shelf, tap Missing. The missing units are cancelled, the merchant is told and admin gets an alert. Never replace with another product."
+              "Open Orders and tap the top order (oldest first, red is late). Tap Accept if it is new.",
+              "Go to the shelf shown. Scan the shelf (optional), then each product.",
+              "If a product is not there, tap Missing for it. Never replace it with something else."
+            ],
+            "check": [
+              "Every line shows picked equal to ordered (or the missing units are marked).",
+              "The status bar moves to Picking, then Packed after packing."
+            ],
+            "problems": [
+              "Wrong product scanned: the screen refuses it; scan the right one.",
+              "Product damaged on the shelf: tap Missing, then report it in Damaged and held with cause Store handling."
             ]
           },
           {
             "title": "Pack and hand to the rider",
             "steps": [
-              "Pack the items, then take a clear photo of the closed package. Packing cannot finish without the photo.",
-              "When the rider arrives, scan the rider's badge. The order moves to Out for delivery and the customer's clock keeps running.",
-              "A rider may take several orders in one trip only if none of them would miss its promise; the screen will refuse otherwise."
+              "Pack all items, close the bag and stick the order label.",
+              "Take a clear photo of the closed bag. Packing does not finish without it.",
+              "When the rider arrives, scan the rider's badge.",
+              "Give the bags and say the number of bags out loud."
+            ],
+            "check": [
+              "The status bar shows Out for delivery.",
+              "The rider's screen shows the order with the right number of units."
+            ],
+            "problems": [
+              "The screen refuses to add an order to a rider's trip: an order on the trip would be late; give it to another rider.",
+              "Wrong badge scanned: call admin; do not let the rider leave with the order."
             ]
           },
           {
             "title": "Cash from riders",
             "steps": [
-              "Open Cash, choose the rider and count the money in front of the rider.",
-              "Type the counted total exactly. If it differs from what the system expects, finance reviews it; do not change the count to make it match.",
-              "Keep the cash in the store box. Only finance takes it to the bank."
+              "Open Cash and choose the rider.",
+              "Count the money in front of the rider, twice.",
+              "Type exactly what you counted and save.",
+              "Put the cash in the store box at once."
+            ],
+            "check": [
+              "The handover shows Balanced, or Waiting if it differs (finance reviews it).",
+              "The store box total in Cash went up by the amount."
+            ],
+            "problems": [
+              "Short or over: save the real count anyway, write a note (what the rider said), and the difference goes to finance.",
+              "Rider refuses to wait for the count: do not save; tell the store lead."
             ]
           },
           {
-            "title": "Failed deliveries and returns",
+            "title": "Failed deliveries and returns to merchants",
             "steps": [
-              "When a rider brings goods back, tap Receive goods back on that order.",
-              "For a merchant return, open Returns, scan each unit listed, then hand it over and type the collector's full name."
+              "When a rider brings goods back: open the order and tap Receive goods back.",
+              "Merchant return: open Returns, choose the return, scan each unit listed.",
+              "When ready, hand it to the merchant's driver and type the driver's full name."
+            ],
+            "check": ["The order shows the goods are back; the return shows Collected."],
+            "problems": [
+              "Goods not back within 2 hours of a failed attempt: admin gets an alert; find the rider and ask."
             ]
           },
           {
-            "title": "Damaged stock and counts",
+            "title": "Damaged stock, counts and transfers",
             "steps": [
-              "Damaged units go to the damaged bin only through Damaged, with the cause. Never hide damage in a shelf.",
-              "Counts are blind: scan what you find in the bin. Differences wait for admin approval."
-            ]
-          },
-          {
-            "title": "Transfers",
-            "steps": [
-              "Approved transfers show in Transfers. Pick by scan, then tap Send. Units you could not find are released and admin is told.",
-              "When a transfer arrives, scan every unit into receiving, close it, then put away as usual."
-            ]
-          },
-          {
-            "title": "If something goes wrong",
-            "steps": [
-              "The screen says a code like not_enough_available: read it, do not repeat the tap many times; every tap is counted once anyway.",
-              "No internet: wait and try again; the action is not lost and will not be applied twice.",
-              "Anything unclear: call your store lead or admin before acting."
+              "Damaged: open Damaged and held, scan the unit, choose the cause, save.",
+              "Count: open Stock count, scan the bin, scan every unit you find; you are not shown the expected number.",
+              "Transfer to send: open Transfers, pick by scan, tap Send.",
+              "Transfer received: scan every unit into receiving, close it, then put away."
+            ],
+            "check": [
+              "Damaged units are no longer on sale.",
+              "The count shows Submitted; admin approves differences.",
+              "The transfer status bar shows In transit (sent) or Received."
+            ],
+            "problems": [
+              "Units for a transfer not found: send what you have; the missing units are released and admin is told."
             ]
           }
         ]
       },
       "rider": {
         "title": "Rider",
-        "who": "Riders delivering 60 minute orders from a dark store.",
+        "who": "Riders delivering 60 minute orders from one dark store.",
+        "day": [
+          "Start of shift: sign in, allow location, check your phone battery is above 50% and you have change for cash orders.",
+          "For every trip: take orders only by badge scan at the store; check the number of bags.",
+          "After every trip: come back to the store, give back failed goods, and hand any cash over if your lead asks.",
+          "End of shift: hand all cash to the store and watch it being counted. Nothing stays with you overnight."
+        ],
+        "escalation": [
+          "Customer not answering after the calls the app asks for: mark it failed with the door photo; the store lead decides the next step.",
+          "Accident, police or danger: stop, stay safe, call your store lead at once.",
+          "Wrong amount of cash collected: type exactly what you got; finance will review it.",
+          "App not working: call the store lead; do not hand over a package without the code or a photo."
+        ],
         "sections": [
           {
-            "title": "Before you leave the store",
+            "title": "Deliver an order",
             "steps": [
-              "Keep the rider app open; it shares your position with the customer while you carry an order.",
-              "Staff scan your badge to hand you the orders. Check the number of packages matches the screen."
-            ]
-          },
-          {
-            "title": "Deliver",
-            "steps": [
-              "Tap the map link to navigate. Call the customer from the app if you cannot find the place.",
-              "Hand over the package and ask for the customer's 4 digit code, or take a handover photo.",
-              "Cash on delivery: collect the exact amount shown and type what you collected. A difference raises an alert, so count carefully."
+              "Open the order and tap Directions.",
+              "At the address, call from the app if you cannot find it.",
+              "Ask for the 4 digit customer code and type it, or take a photo of the handover.",
+              "Cash order: take exactly the amount shown, type what you got, tap Delivered."
+            ],
+            "check": [
+              "The order moves to Finished today as Delivered.",
+              "Today's cash total went up by the amount."
+            ],
+            "problems": [
+              "Code wrong: check it again with the customer; never deliver without the code or a photo.",
+              "Customer has no change: do not give change from the company cash; call the store lead."
             ]
           },
           {
             "title": "When you cannot deliver",
             "steps": [
-              "Choose the reason. No answer needs at least the required number of calls from the app and a photo of the door; Other needs a note.",
-              "Bring the goods back to the store the same trip and give them to staff. Never keep goods overnight."
+              "Customer not answering: call from the app as many times as it asks, then take a photo of the door.",
+              "Tap Could not deliver, choose the reason, add details if Other.",
+              "Bring the goods back to the store on the same trip."
+            ],
+            "check": [
+              "The order shows Attempt failed or Failed.",
+              "Store staff tapped Receive goods back."
+            ],
+            "problems": [
+              "You cannot get back to the store: call the store lead; never keep goods overnight."
             ]
           },
           {
-            "title": "End of shift cash",
+            "title": "Cash at the end of the shift",
             "steps": [
-              "Hand all collected cash to store staff and watch them count it.",
-              "Any shortage stays on your wallet until finance decides. Your delivery bonuses are paid by finance."
-            ]
-          },
-          {
-            "title": "Rules",
-            "steps": [
-              "Never give the package without the code or a photo.",
-              "Never share a customer's phone or address.",
-              "Drive safely; the promise time is never a reason to break traffic rules."
+              "Go to the store with all the cash you collected.",
+              "Hand it over and watch it being counted.",
+              "Check that the counted total matches your app's total for today."
+            ],
+            "check": ["The store's screen shows Balanced."],
+            "problems": [
+              "Difference: tell staff what happened so they write it in the note; finance decides."
             ]
           }
         ]
       },
       "merchant": {
         "title": "Merchant",
-        "who": "Shops selling through Shiply Now 60 minute delivery.",
+        "who": "Shops selling with Shiply Now 60 minute delivery.",
+        "day": [
+          "Every morning: check Orders and Notifications; check stock you are low on in Products.",
+          "Before sending stock: create the shipment first, then send.",
+          "Every week: check your Wallet and statement; make sure your payout schedule is right."
+        ],
+        "escalation": [
+          "A question about an order or money: write to Shiply support (your account manager) with the order or payout number.",
+          "Something missing after a shipment was received: reply with the shipment number and the product SKU within 48 hours."
+        ],
         "sections": [
           {
-            "title": "Get started",
+            "title": "Start selling",
             "steps": [
-              "Add your products (or import the product file, or link your Shopify store) with a barcode on every product.",
+              "Add your products (one by one, by file, or by linking your Shopify store). Every product needs a barcode.",
               "Set your 60 minute delivery price in Delivery.",
-              "Create your first shipment so we can receive your stock."
+              "Create your first shipment so we can receive stock."
+            ],
+            "check": ["The checklist on Home is all ticked."],
+            "problems": [
+              "A barcode is refused: it already belongs to another product; use the real barcode on the item."
             ]
           },
           {
             "title": "Send stock",
             "steps": [
-              "In Shipments, create a shipment listing products and quantities before you send anything. We do not accept goods without it.",
-              "Print or write the shipment number on the boxes.",
-              "When we close it you get a summary: expected against received, and anything extra."
-            ]
+              "Shipments, New shipment: list each product and quantity.",
+              "Write the shipment number on every box.",
+              "Send the boxes to the address shown."
+            ],
+            "check": [
+              "The shipment goes Expected, Receiving, Received.",
+              "You get a summary: expected against received."
+            ],
+            "problems": ["Extra units: they are received and shown as extra; nothing to do."]
           },
           {
-            "title": "Orders",
+            "title": "Orders and money",
             "steps": [
-              "Shopify orders with the 60 minute option arrive by themselves. You can also create an order by hand in New order.",
-              "You can cancel only new or accepted orders. After that, call support.",
-              "Items we did not have are cancelled on the order and you are told."
-            ]
-          },
-          {
-            "title": "Money",
-            "steps": [
-              "Wallet shows what we owe you: cash collected for you minus our fees.",
-              "Choose your payout schedule (daily, twice weekly or weekly). Payouts go to your bank with a reference you can see.",
-              "Download a statement for any period from Wallet."
-            ]
-          },
-          {
-            "title": "Take stock back",
-            "steps": [
-              "In Returns, ask for sellable, damaged or held units of one store. We pick them and hand them to your driver; a fee per unit applies."
+              "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order.",
+              "You can cancel only new or accepted orders.",
+              "Wallet shows what we owe you; payouts go to your bank on your schedule."
+            ],
+            "check": ["Each payout shows a bank reference."],
+            "problems": [
+              "A payout looks wrong: download the statement for the period and send it with your question."
             ]
           }
         ]
       },
       "finance": {
         "title": "Finance",
-        "who": "The finance team and the accountant. Everything is in /finance.",
+        "who": "The finance team and the accountant. Everything is in Finance.",
+        "day": [
+          "Every morning (30 minutes): Overview; review every cash difference in Cash; deposit yesterday's store cash to the bank (choose the bank, write the slip number).",
+          "Payout days: Payouts, prepare due payouts, check each, transfer from the bank, mark paid with the bank reference.",
+          "Every bill or money movement the same day it happens: Money movements, with the paper receipt's number as reference.",
+          "End of month: trial balance, profit and loss, balance sheet, bank statement check, CSVs to the accountant."
+        ],
+        "escalation": [
+          "A rider is short more than once in a week: ticket to admin with the CH- numbers.",
+          "A payout bounced or a bank figure does not match: ticket to admin; do not book a correction until you know why.",
+          "The trial balance does not balance: stop and open an urgent ticket to admin (it should never happen)."
+        ],
         "sections": [
           {
-            "title": "Every day",
+            "title": "Review a cash difference",
             "steps": [
-              "Overview: check cash with riders, cash in store boxes and pending reviews.",
-              "Cash: review every handover with a difference. Write it off (company loss) or keep it on the rider, always with a note.",
-              "Deposit store cash to the bank: choose the store, the amount, the bank and the slip number."
+              "Cash, Waiting for you: open the handover (CH-...).",
+              "Read the note and talk to the store lead if needed.",
+              "Write it off (company loss) or keep it on the rider, always with a reason."
+            ],
+            "check": ["The handover leaves the waiting list; the rider's cash in Riders is right."],
+            "problems": [
+              "You are not sure who is right: ticket to the store lead; decide only after the answer."
             ]
           },
           {
-            "title": "Chart of accounts",
+            "title": "Deposit store cash to the bank",
             "steps": [
-              "Accounts are numbered by category: 1 assets, 2 liabilities, 3 equity, 4 income, 5 expenses. New accounts take the next number of their group automatically (CIB is 1101, the next bank 1102).",
-              "Open a bank account: Chart of accounts, Open a new account, group 1100 Banks, bank name and account number.",
-              "Open an expense category in group 5400, or a cash box in group 1200.",
-              "Only an empty account can be closed. System accounts cannot be closed."
+              "Cash, the store, enter the amount and the bank slip number, choose the bank, Deposit.",
+              "Keep the slip; write the JV number on it."
+            ],
+            "check": [
+              "The store box goes down and the bank account (Chart of accounts) goes up by the same amount."
+            ],
+            "problems": [
+              "Deposited to the wrong bank: book a Transfer between the two banks with the reason; never delete."
             ]
           },
           {
-            "title": "Money movements",
+            "title": "Record money movements",
             "steps": [
-              "Cash box to bank or bank to cash box: Money movements, Transfer.",
-              "A bill you paid: Expense. Choose the category and where it was paid from; enter the VAT if the bill shows it.",
-              "Owner money in or out: Owner money.",
-              "Corrections: Journal entry, with a reason. Never delete; a wrong entry is corrected by a new one.",
-              "Each record gets a voucher number (JV-000123). Write it on the paper receipt and file it."
+              "Transfer: from one bank or box to another.",
+              "Expense: choose the category and where it was paid from; enter VAT if the bill shows it.",
+              "Owner money: capital in or drawings out.",
+              "Journal entry: corrections, with a written reason. Debits must equal credits."
+            ],
+            "check": [
+              "You get a voucher number (JV-...). Write it on the receipt and file it.",
+              "The account statement shows the line with the right balance after it."
+            ],
+            "problems": [
+              "Not enough money in the account: the screen refuses; check the date and the account."
             ]
           },
           {
             "title": "Merchant payouts",
             "steps": [
-              "Payouts, Prepare due payouts for the day. Check each draft.",
-              "Send the bank transfer, then Mark paid with the bank reference and the bank used. Only then the balance moves.",
-              "A merchant who owes us and pays: Merchants, Record payment."
+              "Payouts, prepare due payouts for the day.",
+              "Open each draft (PAY-...) and compare with the merchant's statement.",
+              "Transfer from the bank, then Mark paid with the bank reference and the bank used."
+            ],
+            "check": ["The payout shows Paid; the merchant's balance dropped by the amount."],
+            "problems": [
+              "Amount looks wrong: cancel the draft with a note and open a ticket to admin."
             ]
-          },
-          {
-            "title": "Rider bonuses",
-            "steps": ["Riders shows bonuses owed. Pay from a bank or a store box with a reference."]
           },
           {
             "title": "Month end",
             "steps": [
-              "Trial balance: totals must be equal.",
-              "Profit and loss for the month, and the balance sheet at the last day.",
-              "Download the journal and account statements as CSV for the accountant.",
-              "Compare each bank account statement in the system with the real bank statement; book bank charges as an Expense in 5501."
+              "Trial balance for the month: debits must equal credits.",
+              "Profit and loss for the month; balance sheet at the last day.",
+              "Compare each bank account statement in Shiply with the real bank statement; book bank charges as an Expense in 5501.",
+              "Download the journal and statements as CSV for the accountant."
+            ],
+            "check": [
+              "Bank balances in Shiply equal the bank statements.",
+              "The balance sheet says Assets equal liabilities plus equity."
+            ],
+            "problems": [
+              "A difference you cannot explain: ticket to admin with the account code and the amount."
             ]
           }
         ]
@@ -2204,43 +2319,61 @@
       "admin": {
         "title": "Admin",
         "who": "Operations admins. You can open every area.",
+        "day": [
+          "Every morning: Overview, then Alerts (handle each one), then Tickets (For me).",
+          "Every hour at peak: Orders, late ones first; call the store lead of any red store.",
+          "Every evening after 21:00: Transfers, approve or edit tonight's refill drafts.",
+          "Every week: Merchants (sign ups), Counts (approve differences), Damage (settle), Settings (check nothing changed by mistake)."
+        ],
+        "escalation": [
+          "You receive what nobody else can decide: missing stock, money differences, merchant complaints, broken equipment.",
+          "Use Tickets to ask anyone; every ticket has an answer time and a reminder.",
+          "Shopify, payments or the server down: ticket to the tech lead (urgent) and tell the stores to take manual orders only after you say so."
+        ],
         "sections": [
-          {
-            "title": "Every day",
-            "steps": [
-              "Overview and Alerts: handle every open alert (late orders, missing items, cash and rating alerts).",
-              "Orders: watch late orders and call the store lead."
-            ]
-          },
           {
             "title": "Stores, hubs and zones",
             "steps": [
-              "Stores: open a dark store or a sorting facility (hub) with a short code of letters and numbers, address and location.",
-              "Zones: draw the delivery area of each store on the map.",
-              "Address map: run the OpenStreetMap import once, then approve the names it learns."
+              "Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.",
+              "Zones: draw each store's delivery area.",
+              "Address map: run the OpenStreetMap import once, then approve the names it learns each week."
+            ],
+            "check": ["Try an address on the Address map page: it lands in the right store."],
+            "problems": [
+              "An area is served by two stores: fix the zone borders so they do not overlap."
             ]
           },
           {
-            "title": "Merchants and products",
+            "title": "Merchants, products and Shopify",
             "steps": [
-              "Merchants: approve or reject sign ups. Link a merchant to their Shopify store in Shopify.",
-              "Disconnect store in Shopify ends the link with an old Shopify store.",
+              "Merchants: approve or reject sign ups with a reason.",
+              "Shopify: link the merchant to their store, send them the install link, then create locations.",
               "Products: import the product file; every barcode must be unique."
+            ],
+            "check": ["The Shopify card shows locations and linked products."],
+            "problems": [
+              "A merchant moved to a new Shopify store: Disconnect store, then link the new one."
             ]
           },
           {
             "title": "Stock",
             "steps": [
-              "Approve count differences in Counts.",
-              "Damage: confirm the cause of each report; company causes credit the merchant.",
-              "Transfers: create, approve or cancel; refill drafts come every evening for approval."
-            ]
+              "Counts: approve or reject each difference.",
+              "Damage: confirm the cause; company causes credit the merchant.",
+              "Transfers: approve, edit quantities, or cancel before picking starts."
+            ],
+            "check": ["Stock on the Stock page matches what staff see on the shelves."],
+            "problems": ["A count is stale: ask the store to count the bin again."]
           },
           {
             "title": "Users and settings",
             "steps": [
-              "Users: create staff (with a store), riders (with a store and badge), merchants and finance users. Disabling a user signs them out everywhere.",
-              "Settings: SLA minutes, capacity, fees and refill levels. Every change is audited."
+              "Users: create staff (with a store), riders (store and badge), merchants and finance users; add each person's Slack member ID.",
+              "Settings: SLA minutes, capacity, fees, refill levels and ticket answer times."
+            ],
+            "check": ["The audit log shows every change with who made it."],
+            "problems": [
+              "Someone leaves: disable the user the same day; they are signed out everywhere."
             ]
           }
         ]

@@ -1,38 +1,64 @@
 # SOP: Merchant
 
-_Shops selling through Shiply Now 60 minute delivery._
+_Shops selling with Shiply Now 60 minute delivery._
 
 Also inside the app: settings menu (top of every screen), Help.
 
 ## English
 
-### Get started
+### Your day
 
-1. Add your products (or import the product file, or link your Shopify store) with a barcode on every product.
+- Every morning: check Orders and Notifications; check stock you are low on in Products.
+- Before sending stock: create the shipment first, then send.
+- Every week: check your Wallet and statement; make sure your payout schedule is right.
+
+### Who tells whom
+
+- A question about an order or money: write to Shiply support (your account manager) with the order or payout number.
+- Something missing after a shipment was received: reply with the shipment number and the product SKU within 48 hours.
+
+### Start selling
+
+1. Add your products (one by one, by file, or by linking your Shopify store). Every product needs a barcode.
 2. Set your 60 minute delivery price in Delivery.
-3. Create your first shipment so we can receive your stock.
+3. Create your first shipment so we can receive stock.
+
+**Check it went right**
+
+- The checklist on Home is all ticked.
+
+**If something is wrong**
+
+- A barcode is refused: it already belongs to another product; use the real barcode on the item.
 
 ### Send stock
 
-1. In Shipments, create a shipment listing products and quantities before you send anything. We do not accept goods without it.
-2. Print or write the shipment number on the boxes.
-3. When we close it you get a summary: expected against received, and anything extra.
+1. Shipments, New shipment: list each product and quantity.
+2. Write the shipment number on every box.
+3. Send the boxes to the address shown.
 
-### Orders
+**Check it went right**
 
-1. Shopify orders with the 60 minute option arrive by themselves. You can also create an order by hand in New order.
-2. You can cancel only new or accepted orders. After that, call support.
-3. Items we did not have are cancelled on the order and you are told.
+- The shipment goes Expected, Receiving, Received.
+- You get a summary: expected against received.
 
-### Money
+**If something is wrong**
 
-1. Wallet shows what we owe you: cash collected for you minus our fees.
-2. Choose your payout schedule (daily, twice weekly or weekly). Payouts go to your bank with a reference you can see.
-3. Download a statement for any period from Wallet.
+- Extra units: they are received and shown as extra; nothing to do.
 
-### Take stock back
+### Orders and money
 
-1. In Returns, ask for sellable, damaged or held units of one store. We pick them and hand them to your driver; a fee per unit applies.
+1. Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order.
+2. You can cancel only new or accepted orders.
+3. Wallet shows what we owe you; payouts go to your bank on your schedule.
+
+**Check it went right**
+
+- Each payout shows a bank reference.
+
+**If something is wrong**
+
+- A payout looks wrong: download the statement for the period and send it with your question.
 
 ## العربية
 
@@ -40,30 +66,56 @@ Also inside the app: settings menu (top of every screen), Help.
 
 المحلات اللي بتبيع بتوصيل شيبلي ناو في 60 دقيقة.
 
-### البداية
+### يومك
 
-1. ضيف منتجاتك (أو ارفع ملف المنتجات، أو اربط متجر شوبيفاي) وكل منتج عليه باركود.
-2. حدد سعر توصيل الـ60 دقيقة من صفحة التوصيل.
-3. اعمل أول شحنة عشان نستلم بضاعتك.
+- كل صباح: بص على الطلبات والإشعارات؛ وشوف المنتجات اللي قربت تخلص.
+- قبل ما تبعت بضاعة: اعمل الشحنة الأول، وبعدين ابعت.
+- كل أسبوع: راجع المحفظة وكشف الحساب؛ واتأكد إن مواعيد التحويل صح.
+
+### مين يبلغ مين
+
+- سؤال عن طلب أو فلوس: كلم دعم شيبلي (مدير حسابك) برقم الطلب أو التحويل.
+- حاجة ناقصة بعد استلام شحنة: ابعت رقم الشحنة وكود المنتج خلال 48 ساعة.
+
+### ابدأ البيع
+
+1. ضيف منتجاتك (واحد واحد، بملف، أو بربط متجر شوبيفاي). كل منتج محتاج باركود.
+2. حدد سعر توصيل الـ60 دقيقة من التوصيل.
+3. اعمل أول شحنة عشان نستلم البضاعة.
+
+**اتأكد إنها مشيت صح**
+
+- القائمة في الرئيسية كلها متعلمة.
+
+**لو فيه مشكلة**
+
+- باركود اترفض: مستخدم لمنتج تاني؛ استخدم الباركود الحقيقي اللي على القطعة.
 
 ### ابعت بضاعة
 
-1. من الشحنات اعمل شحنة فيها المنتجات والكميات قبل ما تبعت أي حاجة. مش بنستلم بضاعة من غيرها.
-2. اطبع أو اكتب رقم الشحنة على الكراتين.
-3. لما نقفلها بيوصلك ملخص: المتوقع والمستلم وأي زيادة.
+1. الشحنات، شحنة جديدة: اكتب كل منتج وكميته.
+2. اكتب رقم الشحنة على كل كرتونة.
+3. ابعت الكراتين للعنوان اللي ظاهر.
 
-### الطلبات
+**اتأكد إنها مشيت صح**
 
-1. طلبات شوبيفاي اللي فيها اختيار الـ60 دقيقة بتوصل لوحدها. وتقدر تعمل طلب بإيدك من طلب جديد.
-2. تقدر تلغي الطلبات الجديدة أو المقبولة بس. بعد كده كلم الدعم.
-3. المنتجات اللي ما كانتش عندنا بتتلغي من الطلب وبتتبلغ.
+- الشحنة بتمشي متوقع، بيتستلم، اتستلم.
+- بيوصلك ملخص: المتوقع قصاد المستلم.
 
-### الفلوس
+**لو فيه مشكلة**
 
-1. المحفظة بتوريك لك عندنا كام: الكاش اللي اتحصل لك ناقص رسومنا.
-2. اختار مواعيد التحويل (يومي، مرتين في الأسبوع، أو أسبوعي). التحويلات بتنزل البنك برقم مرجع تقدر تشوفه.
-3. نزل كشف حساب لأي فترة من المحفظة.
+- قطع زيادة: بتتستلم وبتظهر زيادة؛ مفيش حاجة تعملها.
 
-### استرجاع بضاعة
+### الطلبات والفلوس
 
-1. من المرتجعات اطلب قطع سليمة أو تالفة أو محجوزة من فرع واحد. بنجهزها ونسلمها لمندوبك؛ وفيه رسوم على كل قطعة.
+1. طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد.
+2. تقدر تلغي الطلبات الجديدة أو المقبولة بس.
+3. المحفظة بتوري لك عندنا كام؛ التحويلات بتنزل البنك على مواعيدك.
+
+**اتأكد إنها مشيت صح**
+
+- كل تحويل ليه رقم مرجع من البنك.
+
+**لو فيه مشكلة**
+
+- تحويل شكله غلط: نزل كشف الحساب للفترة وابعته مع سؤالك.

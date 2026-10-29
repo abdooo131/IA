@@ -12,7 +12,9 @@ type SopRole = (typeof ROLES)[number];
 interface Sop {
   title: string;
   who: string;
-  sections: { title: string; steps: string[] }[];
+  day: string[];
+  escalation: string[];
+  sections: { title: string; steps: string[]; check: string[]; problems: string[] }[];
 }
 
 /** The SOP of the signed in user's role. Admins can read every role's. */
@@ -51,14 +53,44 @@ export default async function HelpPage({
         <article className="mt-4 rounded-lg border border-line bg-surface p-4">
           <h2 className="text-h3">{sop.title}</h2>
           <p className="mt-1 text-body-sm text-text-muted">{sop.who}</p>
-          {sop.sections.map((s, i) => (
-            <details key={s.title} open={i === 0} className="mt-4 border-t border-line pt-3">
+          <section className="mt-4 rounded-md bg-selected-bg p-3">
+            <h3 className="text-body font-bold">{t('day')}</h3>
+            <ul className="mt-1 list-disc space-y-1 ps-6 text-body-sm">
+              {sop.day.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          </section>
+          <section className="mt-3 rounded-md border border-status-needs-action p-3">
+            <h3 className="text-body font-bold">{t('escalation')}</h3>
+            <ul className="mt-1 list-disc space-y-1 ps-6 text-body-sm">
+              {sop.escalation.map((d) => (
+                <li key={d}>{d}</li>
+              ))}
+            </ul>
+          </section>
+          <h3 className="mt-5 text-h3">{t('tasks')}</h3>
+          {sop.sections.map((s) => (
+            <details key={s.title} className="mt-3 border-t border-line pt-3">
               <summary className="cursor-pointer text-body font-bold">{s.title}</summary>
-              <ol className="mt-2 list-decimal space-y-2 ps-6 text-body-sm">
+              <p className="mt-2 text-caption font-bold text-text-muted">{t('steps')}</p>
+              <ol className="mt-1 list-decimal space-y-2 ps-6 text-body-sm">
                 {s.steps.map((step) => (
                   <li key={step}>{step}</li>
                 ))}
               </ol>
+              <p className="mt-3 text-caption font-bold text-text-muted">✓ {t('check')}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-6 text-body-sm">
+                {s.check.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
+              <p className="mt-3 text-caption font-bold text-danger">! {t('problems')}</p>
+              <ul className="mt-1 list-disc space-y-1 ps-6 text-body-sm">
+                {s.problems.map((c) => (
+                  <li key={c}>{c}</li>
+                ))}
+              </ul>
             </details>
           ))}
         </article>

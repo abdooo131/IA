@@ -8,9 +8,13 @@ ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
 ORDER = ['store_staff', 'rider', 'merchant', 'finance', 'admin']
 UI = {
   'en': {'title': 'Help and SOPs', 'intro': 'How we work: the steps for your role, written for the screens you use.',
-         'menu': 'Help', 'others': 'Other roles', 'back': 'Back', 'mine': 'Your role'},
+         'menu': 'Help', 'others': 'Other roles', 'back': 'Back', 'mine': 'Your role',
+         'day': 'Your day', 'escalation': 'Who tells whom', 'steps': 'Steps', 'check': 'Check it went right',
+         'problems': 'If something is wrong', 'tasks': 'Tasks'},
   'ar': {'title': 'المساعدة وطرق الشغل', 'intro': 'إزاي بنشتغل: خطوات دورك على الشاشات اللي بتستخدمها.',
-         'menu': 'المساعدة', 'others': 'أدوار تانية', 'back': 'رجوع', 'mine': 'دورك'},
+         'menu': 'المساعدة', 'others': 'أدوار تانية', 'back': 'رجوع', 'mine': 'دورك',
+         'day': 'يومك', 'escalation': 'مين يبلغ مين', 'steps': 'الخطوات', 'check': 'اتأكد إنها مشيت صح',
+         'problems': 'لو فيه مشكلة', 'tasks': 'المهام'},
 }
 
 def check(a, b, path='sop'):
@@ -35,13 +39,17 @@ os.makedirs(os.path.join(ROOT, 'docs/sop'), exist_ok=True)
 for r in ORDER:
   out = [f'# SOP: {EN[r]["title"]}', '', f'_{EN[r]["who"]}_', '',
          'Also inside the app: settings menu (top of every screen), Help.', '']
-  for lang, content in (('English', EN), ('العربية', AR)):
+  for lang, content, ui in (('English', EN, UI['en']), ('العربية', AR, UI['ar'])):
+    c = content[r]
     out += [f'## {lang}', '']
-    if lang != 'English': out += [f'### {content[r]["title"]}', '', content[r]['who'], '']
-    for s in content[r]['sections']:
+    if lang != 'English': out += [f'### {c["title"]}', '', c['who'], '']
+    out += [f'### {ui["day"]}', ''] + [f'- {x}' for x in c['day']] + ['']
+    out += [f'### {ui["escalation"]}', ''] + [f'- {x}' for x in c['escalation']] + ['']
+    for s in c['sections']:
       out += [f'### {s["title"]}', '']
-      out += [f'{i}. {step}' for i, step in enumerate(s['steps'], 1)]
-      out.append('')
+      out += [f'{i}. {step}' for i, step in enumerate(s['steps'], 1)] + ['']
+      out += [f'**{ui["check"]}**', ''] + [f'- {x}' for x in s['check']] + ['']
+      out += [f'**{ui["problems"]}**', ''] + [f'- {x}' for x in s['problems']] + ['']
   with open(os.path.join(ROOT, 'docs/sop', f'{r}.md'), 'w', encoding='utf-8') as f:
     f.write('\n'.join(out).rstrip() + '\n')
 index = ['# Standard operating procedures', '',
