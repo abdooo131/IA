@@ -14,6 +14,7 @@ type Filters = {
   segment?: string;
   governorate?: string;
   merchantId?: string;
+  due?: string;
   page?: string;
 };
 
@@ -22,12 +23,20 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
   const filters = await searchParams;
   const query = new URLSearchParams();
   for (const [k, v] of Object.entries(filters)) if (v) query.set(k, v);
-  const [list, o, t, locale] = await Promise.all([
+  const [list, o, t, days, locale] = await Promise.all([
     apiGet<CustomerList>(`/admin/customers?${query}`),
     apiGet<CustomersOverview>('/admin/customers/overview'),
     getTranslations('customers'),
+    getTranslations('weekdays'),
     getLocale(),
   ]);
+  const byDay = Array.from({ length: 7 }, (_, d) =>
+    o.timing.filter((x) => x.dow === d).reduce((sum, x) => sum + x.orders, 0),
+  );
+  const byHour = Array.from({ length: 24 }, (_, h) =>
+    o.timing.filter((x) => x.hour === h).reduce((sum, x) => sum + x.orders, 0),
+  );
+  const hour = (h: number) => `${String(h).padStart(2, '0')}:00`;
   const pageLink = (page: number) => {
     const q = new URLSearchParams(query);
     q.set('page', String(page));
@@ -56,6 +65,28 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           hint={t('multiHint')}
         />
         <StatCard label={t('averageSpend')} value={formatEgp(o.averageSpendPiastres)} />
+        <StatCard
+          label={t('forecast')}
+          value={formatEgp(o.forecastPiastres)}
+          hint={t('forecastHint')}
+        />
+        <StatCard
+          label={t('dueTitle')}
+          value={String(o.dueToReorder)}
+          hint={t('dueHint', { pct: o.rules.latePct })}
+        />
+        <StatCard
+          label={t('consent')}
+          value={`${o.emailSubscribers} · ${o.smsSubscribers}`}
+          hint={t('consentHint')}
+        />
+        <Link
+          href="/admin/customers/places"
+          className="flex flex-col justify-center rounded-lg border border-line bg-surface p-4 text-body-sm font-bold text-link"
+        >
+          {t('placesLink')}
+          <span className="mt-1 text-caption font-normal text-text-muted">{t('placesHint')}</span>
+        </Link>
       </div>
 
       <div className="mt-4 flex flex-wrap gap-2">
@@ -105,6 +136,10 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
               ))}
           </select>
         </label>
+        <label className="flex h-10 items-center gap-2 text-body-sm">
+          <input type="checkbox" name="due" value="1" defaultChecked={filters.due === '1'} />
+          {t('dueOnly')}
+        </label>
         <button className="h-10 rounded-md bg-primary px-4 text-body-sm font-bold text-on-primary">
           {t('filter')}
         </button>
@@ -134,6 +169,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
             formatEgp(c.spendPiastres),
             c.merchants,
             c.lastOrderAt ? formatCairoDateTime(c.lastOrderAt, locale) : '–',
+            c.expectedAt ? formatCairoDateTime(c.expectedAt, locale) : '–',
             t(`segments.${c.segment}`),
           ])}
         />
@@ -183,6 +219,69 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
           empty={t('noShared')}
           headers={[t('merchantPair'), t('customers')]}
           rows={o.sharedShoppers.map((s) => [`${s.a.name} + ${s.b.name}`, s.customers])}
+        />
+        <DataTable
+          title={t('pairs')}
+          empty={t('noPairs')}
+          headers={[t('categoryPair'), t('customers'), t('lift')]}
+          rows={o.categoryPairs.map((p) => [`${p.a} + ${p.b}`, p.customers, `×${p.lift}`])}
+        />
+        <DataTable
+          title={t('risky')}
+          empty={t('noRisky')}
+          headers={[t('customer'), t('attempts'), t('failed'), t('refused'), t('riskPct')]}
+          rows={o.riskyCustomers.map((c) => [
+            <Link key={c.id} href={`/admin/customers/${c.id}`} className="font-bold text-link">
+              {c.name || c.phone}
+            </Link>,
+            c.attempts,
+            c.failed,
+            c.refused,
+            `${c.pct}%`,
+          ])}
+        />
+      </div>
+
+      <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <section className="rounded-lg border border-line bg-surface p-4">
+          <h2 className="text-h3">{t('byDayAll')}</h2>
+          <ColumnChart
+            title={t('byDayAll')}
+            valueLabel={t('orders')}
+            height={140}
+            columns={byDay.map((v, d) => ({
+              key: String(d),
+              label: locale === 'ar' ? days(String(d)) : days(String(d)).slice(0, 3),
+              value: v,
+              detail: `${days(String(d))}: ${v}`,
+            }))}
+          />
+        </section>
+        <section className="rounded-lg border border-line bg-surface p-4">
+          <h2 className="text-h3">{t('byHourAll')}</h2>
+          <ColumnChart
+            title={t('byHourAll')}
+            valueLabel={t('orders')}
+            height={140}
+            columns={byHour.map((v, h) => ({
+              key: String(h),
+              label: h % 3 === 0 ? String(h) : '',
+              value: v,
+              detail: `${hour(h)}: ${v}`,
+            }))}
+          />
+        </section>
+      </div>
+      <div className="mt-4">
+        <DataTable
+          title={t('storePeaks')}
+          empty={t('none')}
+          headers={[t('store'), t('orders90'), t('peakHours')]}
+          rows={o.storePeaks.map((s) => [
+            locale === 'ar' ? s.nameAr : s.nameEn,
+            s.orders,
+            s.hours.map((h) => `${hour(h.hour)} (${h.orders})`).join(' · '),
+          ])}
         />
       </div>
     </>

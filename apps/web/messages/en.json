@@ -286,7 +286,8 @@
         "low_rating": "Customer gave {stars} stars",
         "merchant_signup": "New merchant application: {name}",
         "transfer_short_sent": "Transfer {reference} left with units missing",
-        "transfer_short_received": "Transfer {reference} arrived with units missing"
+        "transfer_short_received": "Transfer {reference} arrived with units missing",
+        "cod_risk_customer": "Cash order from a customer with high delivery risk"
       },
       "handledBy": "Handled by {name}"
     },
@@ -330,7 +331,14 @@
         "customer__new_days": "New customer: first order within (days)",
         "customer__at_risk_days": "At risk after no order for (days)",
         "customer__lost_days": "Lost after no order for (days)",
-        "customer__vip_orders": "VIP from this many orders"
+        "customer__vip_orders": "VIP from this many orders",
+        "customer__late_factor_pct": "Should have reordered after (% of usual gap)",
+        "customer__at_risk_value_pct": "At risk customers in the 12 month forecast (%)",
+        "customer__budget_index_pct": "Budget buyer below (% of usual price)",
+        "customer__premium_index_pct": "Premium buyer above (% of usual price)",
+        "customer__risk_min_attempts": "Delivery attempts before a risk level",
+        "customer__risk_medium_pct": "Medium cash risk from (% failed)",
+        "customer__risk_high_pct": "High cash risk from (% failed)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -466,7 +474,8 @@
         "zone__area_update": "Zone border changed",
         "zone__create": "Zones created",
         "zone__update": "Zones updated",
-        "customer__view": "Opened a customer profile"
+        "customer__view": "Opened a customer profile",
+        "customer__merge": "Merged two customer profiles"
       }
     },
     "users": {
@@ -2543,7 +2552,11 @@
       "done": "Done",
       "failed": "Failed",
       "superseded": "Replaced"
-    }
+    },
+    "crossSell": "Their customers also buy elsewhere ({elsewhere} of {customers} customers)",
+    "noCrossSell": "No category gaps found yet.",
+    "customersWord": "Customers",
+    "spendElsewhere": "Spent elsewhere (EGP)"
   },
   "customers": {
     "title": "Customers",
@@ -2671,6 +2684,85 @@
       "cancelled": "Cancelled",
       "failed": "Failed",
       "moved_to_standard": "Moved to standard"
-    }
+    },
+    "forecast": "Expected next 12 months (EGP)",
+    "forecastHint": "From how often they buy and their average order; at risk count in part, lost not at all",
+    "dueTitle": "Should have ordered by now",
+    "dueHint": "Repeat customers past {pct}% of their usual gap",
+    "consent": "Marketing consent (email · SMS)",
+    "consentHint": "Customers who agreed in a merchant store",
+    "placesLink": "Where to open next",
+    "placesHint": "Customers and spend by district against our zones",
+    "dueOnly": "Should have ordered",
+    "expected": "Usually orders by",
+    "pairs": "Categories bought together",
+    "noPairs": "Not enough product data yet.",
+    "categoryPair": "Categories",
+    "lift": "Together vs chance",
+    "risky": "Cash on delivery risk",
+    "noRisky": "No failed deliveries yet.",
+    "attempts": "Attempts",
+    "refused": "Refused",
+    "riskPct": "Failed share",
+    "byDayAll": "When customers buy: by day",
+    "byHourAll": "When customers buy: by hour (Cairo)",
+    "storePeaks": "Busiest hours per store (90 days)",
+    "store": "Store",
+    "orders90": "Orders",
+    "peakHours": "Peak hours",
+    "district": "District",
+    "buyers12": "Buyers (12 months)",
+    "orders12": "Orders (12 months)",
+    "spend12": "Spend, 12 months (EGP)",
+    "covered": "Covered by our zones",
+    "placesTitle": "Where to open next",
+    "placesIntro": "Every customer placed in a district from their delivery point or address, with what they spent in the last 12 months and how much of the district our zones already cover. High spend with low coverage is where a new dark store pays.",
+    "placed": "Customers placed",
+    "unplaced": "{count} not placed yet (address not recognised)",
+    "outsideSpend": "Spend in uncovered districts (EGP)",
+    "outsideHint": "Districts less than half covered by our zones",
+    "outsideDistricts": "Uncovered districts with customers",
+    "openNext": "Best candidates (less than half covered), highest spend first",
+    "noPlaces": "No customers placed yet. Places come from delivery points and the area map.",
+    "allDistricts": "Every district with customers",
+    "mergeTitle": "Same person with another profile?",
+    "mergeIntro": "Find the other profile and join it into this one. Its orders, phone and email move here; the old phone and email keep pointing here.",
+    "find": "Find",
+    "mergeConfirm": "Join {name} into this profile? This cannot be undone.",
+    "mergeHere": "Join into this profile",
+    "errors": {
+      "same_customer": "That is this same profile.",
+      "customer_not_found": "That profile no longer exists.",
+      "validation_failed": "Choose a profile first.",
+      "generic": "Something went wrong. Try again."
+    },
+    "riskTitle": "Cash on delivery risk",
+    "openProfile": "Open customer profile",
+    "riskLevels": {
+      "unknown": "Not enough history",
+      "low": "Low risk",
+      "medium": "Medium risk",
+      "high": "High risk"
+    },
+    "riskLine": "{attempts} attempts · {failed} failed · {refused} refused · {pct}% failed share",
+    "riskMore": "{noAnswer} no answer · {short} short on cash",
+    "districtIs": "District: {name}",
+    "alsoKnown": "Also known as",
+    "spend30": "Spend, 30 days (EGP)",
+    "spend90": "{amount} in 90 days",
+    "spend365": "Spend, 12 months (EGP)",
+    "nextOrder": "usually orders again by {date}",
+    "overdue": "should have ordered by {date}",
+    "priceLevel": "Price level",
+    "tiers": {
+      "budget": "Budget",
+      "mid": "Mid range",
+      "premium": "Premium"
+    },
+    "priceIndex": "pays {index}% of the usual price",
+    "monthlySpend": "Spend by month (12 months)",
+    "household": "Same address",
+    "noHousehold": "Nobody else at this address.",
+    "phone": "Mobile"
   }
 }

@@ -2,6 +2,10 @@ export { ingestInventory, ingestOrders, ingestProducts, toPiastres, topCategory 
 export { marketInsights, merchantInsights } from './insights';
 export {
   cleanEmail,
+  customerRisk,
+  locateCustomers,
+  mergeCustomers,
+  type RiskLevel,
   ingestCustomers,
   linkDeliveryCustomers,
   redactShopCustomer,
@@ -9,4 +13,10 @@ export {
   resolveCustomer,
   type CustomerFacts,
 } from './customers';
-export { customerProfile, customersOverview, listCustomers } from './customer-insights';
+export {
+  customerProfile,
+  customersOverview,
+  districtDemand,
+  listCustomers,
+  merchantCategoryGaps,
+} from './customer-insights';

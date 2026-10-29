@@ -33,6 +33,16 @@ Admin, Customers (`/admin/customers`) shows one profile per person across every 
 * The overview shows buyers, repeat rate, shoppers who buy from two or more merchants, new customers by month, governorates and which merchants share shoppers.
 * Privacy: admin only; opening a profile writes customer.view to the audit log. Shopify's customers/redact deletes that buyer's record and the contact details on the named orders (totals stay), and shop/redact does the same for the whole shop; a person is deleted once no merchant and no delivery of ours knows them.
 
+## Value, risk, places and cross selling (admin only, never in the merchant area)
+
+* Value: spend in the last 30, 90 and 365 days, spend by month, the date a repeat customer usually orders again, a "should have ordered" list (past customer.late_factor_pct of their usual gap), and a 12 month forecast (orders a year times the average order; at risk customers count at customer.at_risk_value_pct, lost ones not at all).
+* Price level: what the customer pays against the median price of the same category across every merchant; below customer.budget_index_pct is budget, above customer.premium_index_pct is premium.
+* Cash on delivery risk: from our own finished delivery attempts, failed attempts with refusals counted twice as a share of attempts. Fewer than customer.risk_min_attempts attempts give "not enough history" (or medium after a refusal); customer.risk_medium_pct and customer.risk_high_pct set the levels. A new cash order from a high risk customer raises one cod_risk_customer alert for admin; admin's order page shows the customer's risk. Merchants never see this alert.
+* Places: a job places each new or changed customer in a district (geo_areas level 2), from the latest point of our own orders, else by reading the address with the area engine. /admin/customers/places ranks districts by spend over the last 12 months with how much of each our zones cover.
+* Cross selling: admin's merchant data page shows what that merchant's customers buy at other merchants in categories it does not sell; the customer overview shows categories bought together (lift above 1 means more than chance) and merchants that share shoppers.
+* Data care: admin merges two profiles of one person (the other's phone and email stay as aliases so new orders still find the kept profile; audited as customer.merge). Profiles show others at the same address and the marketing consent from each store.
+* Timing: when the customer base buys (day and Cairo hour) and the three busiest hours per store over 90 days.
+
 ## Legal note
 
 Building one named profile across merchants is the business's decision. Before going live: Shopify must approve protected customer data (level 2: name, email, phone, address) with this purpose written honestly in the request, every merchant contract must allow it, the tracking page needs a privacy notice, and a lawyer should confirm what Egypt's Personal Data Protection Law (151 of 2020) requires, including any license from the Data Protection Center.

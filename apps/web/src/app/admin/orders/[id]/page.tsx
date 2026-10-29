@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { CustomerRiskCard } from '@/components/customers/CustomerRiskCard';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { BackLink } from '@/components/store/BackLink';
 import { OrderReadView } from '@/components/orders/OrderReadView';
@@ -38,6 +39,7 @@ export default async function AdminOrderPage({
         decisionPath={`/admin/orders/${id}/decision`}
         cancellable={['new', 'accepted', 'picking', 'packed'].includes(order.status)}
       />
+      <CustomerRiskCard orderId={order.id} />
       <RecordHistory entityType="order" entityId={order.id} />
     </>
   );

@@ -1,6 +1,12 @@
 import { Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { DomainError, marketInsights, merchantInsights, recordAudit } from '@shiplynow/db';
+import {
+  DomainError,
+  marketInsights,
+  merchantCategoryGaps,
+  merchantInsights,
+  recordAudit,
+} from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
@@ -29,6 +35,8 @@ export class AdminDataController {
     return {
       merchant: { id: merchant.id, name: merchant.name },
       ...(await merchantInsights(this.prisma, merchantId)),
+      // Admin only: what this merchant's customers buy elsewhere that it does not sell.
+      crossSell: await merchantCategoryGaps(this.prisma, merchantId),
     };
   }
 

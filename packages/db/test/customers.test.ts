@@ -1,9 +1,15 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { createOrder } from '../src/orders';
+import { forgetAreaNames, loadBaseAreas } from '../src/geo';
 import {
   customerProfile,
+  customerRisk,
   customersOverview,
+  districtDemand,
   ingestOrders,
+  locateCustomers,
+  merchantCategoryGaps,
+  mergeCustomers,
   linkDeliveryCustomers,
   listCustomers,
   redactShopCustomer,
@@ -84,7 +90,7 @@ describe('one customer across every merchant', () => {
       // A cancelled order is counted apart, never in spend.
       shopifyOrder(4, '+201001234567', '999.00', ago(15), { cancelledAt: ago(15).toISOString() }),
       // Someone else, and an order with no contact at all.
-      shopifyOrder(5, '01119998877', '50.00', ago(2)),
+      shopifyOrder(5, '01119998877', '50.00', ago(1)),
       shopifyOrder(6, null, '70.00', ago(2)),
     ]);
     // Our own manual delivery for the same person, and one with a foreign number.
@@ -163,5 +169,206 @@ describe('one customer across every merchant', () => {
     });
     expect((await customerProfile(prisma, id))!.segment).toBe('at_risk');
     expect(await customerProfile(prisma, 'missing')).toBeNull();
+  });
+});
+
+/** A finished delivery attempt of one of our orders, for the risk score. */
+async function attempt(orderId: string, status: 'delivered' | 'failed', reason?: string) {
+  const rider =
+    (await prisma.rider.findFirst()) ??
+    (await prisma.rider.create({
+      data: {
+        badgeCode: 'RDR-1',
+        darkStore: { connect: { id: f.store.id } },
+        user: {
+          create: {
+            email: 'r@t.eg',
+            name: 'Rider',
+            role: 'rider',
+            passwordHash: 'x',
+            darkStoreId: f.store.id,
+          },
+        },
+      },
+    }));
+  await prisma.delivery.create({
+    data: {
+      orderId,
+      riderId: rider.id,
+      status,
+      failedReason: reason ?? null,
+      failedAt: status === 'failed' ? new Date() : null,
+      deliveredAt: status === 'delivered' ? new Date() : null,
+    },
+  });
+}
+
+const manualOrder = (phone: string, paymentMethod: 'cod' | 'prepaid' = 'cod') =>
+  createOrder(prisma, {
+    merchantId: f.merchant.id,
+    darkStoreId: f.store.id,
+    source: 'manual',
+    customerName: 'Hany',
+    customerPhone: phone,
+    addressText: '9 Road 233, Degla, Maadi, Cairo',
+    latitude: null as unknown as number,
+    longitude: null as unknown as number,
+    paymentMethod,
+    deliveryFeePiastres: 0,
+    items: [{ skuId: f.sku.id, quantity: 1 }],
+  });
+
+describe('value, risk, places and merging', () => {
+  it('scores cash risk and alerts admin once on a new cash order from a risky customer', async () => {
+    await receive(prisma, { skuId: f.sku.id, binId: f.shelfA.id, quantity: 10 });
+    const past = await Promise.all([1, 2, 3].map(() => manualOrder('01112223334')));
+    await linkDeliveryCustomers(prisma);
+    const customer = await prisma.customer.findUniqueOrThrow({ where: { phone: '+201112223334' } });
+    expect((await customerRisk(prisma, customer.id)).level).toBe('unknown');
+    await attempt(past[0]!.id, 'failed', 'refused');
+    // One refusal is enough for medium even with little history.
+    expect((await customerRisk(prisma, customer.id)).level).toBe('medium');
+    await attempt(past[1]!.id, 'failed', 'no_answer');
+    await attempt(past[2]!.id, 'delivered');
+    // 2 failed + 1 refusal over 3 attempts: 100%.
+    expect(await customerRisk(prisma, customer.id)).toMatchObject({
+      level: 'high',
+      attempts: 3,
+      failed: 2,
+      refused: 1,
+      noAnswer: 1,
+    });
+
+    const next = await manualOrder('01112223334');
+    const prepaid = await manualOrder('01112223334', 'prepaid');
+    expect(await linkDeliveryCustomers(prisma)).toMatchObject({ linked: 2, alerted: 1 });
+    const alert = await prisma.alert.findFirstOrThrow({ where: { type: 'cod_risk_customer' } });
+    expect(alert).toMatchObject({ orderId: next.id, darkStoreId: f.store.id });
+    expect(await prisma.alert.count({ where: { orderId: prepaid.id } })).toBe(0);
+
+    const overview = await customersOverview(prisma);
+    expect(overview.riskyCustomers[0]).toMatchObject({ id: customer.id, pct: 100 });
+  });
+
+  it('places customers in their district and ranks demand outside our zones', async () => {
+    await loadBaseAreas(prisma);
+    forgetAreaNames();
+    await receive(prisma, { skuId: f.sku.id, binId: f.shelfA.id, quantity: 5 });
+    await manualOrder('01001112223');
+    await linkDeliveryCustomers(prisma);
+    expect(await locateCustomers(prisma)).toMatchObject({ looked: 1, placed: 1 });
+    // Placed once; nothing to do until the customer changes.
+    expect(await locateCustomers(prisma)).toMatchObject({ looked: 0 });
+    const c = await prisma.customer.findFirstOrThrow({ include: { district: true } });
+    expect(c.district?.nameEn).toBe('Maadi');
+
+    const demand = await districtDemand(prisma);
+    expect(demand).toMatchObject({ placed: 1, unplaced: 0 });
+    expect(demand.districts[0]).toMatchObject({ nameEn: 'Maadi', customers: 1, coveredPct: 0 });
+    expect(demand.spendOutsidePiastres).toBe(f.sku.pricePiastres);
+  });
+
+  it('merges two profiles of one person and keeps the old phone as an alias', async () => {
+    const a = (await resolveCustomer(prisma, {
+      phone: '01001234567',
+      name: 'Mona',
+      seenAt: ago(50),
+    }))!;
+    const b = (await resolveCustomer(prisma, {
+      phone: '01229998887',
+      email: 'mona@example.com',
+      city: 'Dokki',
+      seenAt: ago(5),
+    }))!;
+    await ingestOrders(prisma, { id: 'shop-a', merchantId: f.merchant.id }, [
+      shopifyOrder(9, '01229998887', '80.00', ago(5)),
+    ]);
+    const admin = await prisma.user.create({
+      data: { email: 'a@t.eg', name: 'Admin', role: 'admin', passwordHash: 'x' },
+    });
+    await expect(
+      mergeCustomers(prisma, { keepId: a, mergeId: a, actorUserId: admin.id }),
+    ).rejects.toThrow('same_customer');
+    const kept = await mergeCustomers(prisma, { keepId: a, mergeId: b, actorUserId: admin.id });
+    expect(kept).toMatchObject({
+      phone: '+201001234567',
+      email: 'mona@example.com',
+      city: 'Dokki',
+      name: 'Mona',
+    });
+    expect(kept.firstSeenAt < ago(49)).toBe(true);
+    expect(await prisma.customer.count()).toBe(1);
+    expect((await prisma.shopOrder.findFirstOrThrow()).customerId).toBe(a);
+    // A new order with the merged phone still lands on the kept profile.
+    expect(await resolveCustomer(prisma, { phone: '+201229998887', seenAt: new Date() })).toBe(a);
+    expect(await prisma.auditLog.count({ where: { action: 'customer.merge' } })).toBe(1);
+  });
+
+  it('forecasts value, flags who should have reordered and reads price level', async () => {
+    const other = await prisma.merchant.create({ data: { name: 'Second Shop' } });
+    await prisma.shopProduct.createMany({
+      data: [
+        {
+          shopId: 'shop-a',
+          merchantId: f.merchant.id,
+          shopifyId: 'P1',
+          title: 'Serum',
+          status: 'ACTIVE',
+          categoryTop: 'Beauty',
+          raw: {},
+        },
+        {
+          shopId: 'shop-b',
+          merchantId: other.id,
+          shopifyId: 'P2',
+          title: 'Shirt',
+          status: 'ACTIVE',
+          categoryTop: 'Apparel',
+          raw: {},
+        },
+      ],
+    });
+    const line = (id: number, order: number, product: string, price: string, qty = 1) => ({
+      id: `gid://shopify/LineItem/${id}`,
+      __parentId: `gid://shopify/Order/${order}`,
+      name: product,
+      quantity: qty,
+      currentQuantity: qty,
+      originalUnitPriceSet: { shopMoney: { amount: price } },
+      product: { id: product },
+    });
+    // Mona buys serum every 10 days, last 40 days ago: she is late. Someone else buys cheap.
+    await ingestOrders(prisma, { id: 'shop-a', merchantId: f.merchant.id }, [
+      shopifyOrder(1, '01001234567', '300.00', ago(60)),
+      line(1, 1, 'P1', '300.00'),
+      shopifyOrder(2, '01001234567', '300.00', ago(50)),
+      line(2, 2, 'P1', '300.00'),
+      shopifyOrder(3, '01001234567', '300.00', ago(40)),
+      line(3, 3, 'P1', '300.00'),
+      shopifyOrder(4, '01119998877', '100.00', ago(3)),
+      line(4, 4, 'P1', '100.00'),
+      line(6, 4, 'P1', '100.00'),
+      line(7, 4, 'P1', '100.00'),
+    ]);
+    await ingestOrders(prisma, { id: 'shop-b', merchantId: other.id }, [
+      shopifyOrder(5, '01119998877', '50.00', ago(1)),
+      line(5, 5, 'P2', '50.00'),
+    ]);
+    const mona = await prisma.customer.findUniqueOrThrow({ where: { phone: '+201001234567' } });
+    const p = (await customerProfile(prisma, mona.id))!;
+    expect(p.value).toMatchObject({ due: true, spend90Piastres: 90_000, priceTier: 'premium' });
+    // Every 10 days at 300 EGP: about 36.5 orders a year.
+    expect(p.value.forecastPiastres).toBe(Math.round((365 / 10) * 30_000));
+    const due = await listCustomers(prisma, { due: true });
+    expect(due.customers.map((c) => c.id)).toEqual([mona.id]);
+    expect(due.customers[0]!.expectedAt).not.toBeNull();
+    const overview = await customersOverview(prisma);
+    expect(overview.dueToReorder).toBe(1);
+    expect(overview.categoryPairs[0]).toMatchObject({ customers: 1 });
+
+    // The second shop's buyer also buys Beauty at merchant A, which the second shop lacks.
+    const gaps = await merchantCategoryGaps(prisma, other.id);
+    expect(gaps).toMatchObject({ customers: 1, alsoBuyElsewhere: 1 });
+    expect(gaps.gaps[0]).toMatchObject({ category: 'Beauty', customers: 1 });
   });
 });

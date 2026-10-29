@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/charts/ColumnChart';
+import { MergeCustomerForm } from '@/components/customers/MergeCustomerForm';
 import { DataTable } from '@/components/data/DataTable';
 import { StatCard } from '@/components/StatCard';
 import { BackLink } from '@/components/store/BackLink';
@@ -42,6 +43,17 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
           <p className="text-body-sm text-text-muted">
             {[c.address, c.city, c.governorate].filter(Boolean).join(', ') || t('unknownPlace')}
           </p>
+          {p.district && (
+            <p className="text-body-sm text-text-muted">
+              {t('districtIs', { name: locale === 'ar' ? p.district.nameAr : p.district.nameEn })}
+            </p>
+          )}
+          {p.aliases.length > 0 && (
+            <p className="text-caption text-text-muted">
+              {t('alsoKnown')}{' '}
+              <span className="ltr-iso">{p.aliases.map((a) => a.value).join(' · ')}</span>
+            </p>
+          )}
         </div>
         <span className="rounded-full border border-line bg-surface px-3 py-1 text-body-sm font-bold">
           {t(`segments.${p.segment}`)}
@@ -73,6 +85,66 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
           hint={t('lastOrderOn', { date: when(p.totals.lastOrderAt) })}
         />
       </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <StatCard
+          label={t('spend30')}
+          value={formatEgp(p.value.spend30Piastres)}
+          hint={t('spend90', { amount: formatEgp(p.value.spend90Piastres) })}
+        />
+        <StatCard label={t('spend365')} value={formatEgp(p.value.spend365Piastres)} />
+        <StatCard
+          label={t('forecast')}
+          value={formatEgp(p.value.forecastPiastres)}
+          hint={
+            p.value.expectedAt
+              ? t(p.value.due ? 'overdue' : 'nextOrder', { date: when(p.value.expectedAt) })
+              : undefined
+          }
+        />
+        <StatCard
+          label={t('priceLevel')}
+          value={p.value.priceTier ? t(`tiers.${p.value.priceTier}`) : '–'}
+          hint={
+            p.value.priceIndex === null ? undefined : t('priceIndex', { index: p.value.priceIndex })
+          }
+        />
+      </div>
+
+      <section
+        className={`mt-4 rounded-lg border border-s-4 bg-surface p-4 ${p.risk.level === 'high' ? 'border-danger' : p.risk.level === 'medium' ? 'border-status-needs-action' : p.risk.level === 'low' ? 'border-status-delivered' : 'border-line'}`}
+      >
+        <h2 className="text-h3">{t('riskTitle')}</h2>
+        <p className="mt-1 text-body-sm">
+          <strong>{t(`riskLevels.${p.risk.level}`)}</strong>
+          {' · '}
+          {t('riskLine', {
+            attempts: p.risk.attempts,
+            failed: p.risk.failed,
+            refused: p.risk.refused,
+            pct: p.risk.pct,
+          })}
+          {' · '}
+          {t('riskMore', { noAnswer: p.risk.noAnswer, short: p.risk.cashShort })}
+        </p>
+      </section>
+
+      {p.value.monthly.length > 0 && (
+        <section className="mt-4 rounded-lg border border-line bg-surface p-4">
+          <h2 className="text-h3">{t('monthlySpend')}</h2>
+          <ColumnChart
+            title={t('monthlySpend')}
+            valueLabel="EGP"
+            height={140}
+            columns={p.value.monthly.map((m) => ({
+              key: m.month,
+              label: m.month.slice(2),
+              value: m.spendPiastres / 100,
+              detail: `${m.month}: ${formatEgp(m.spendPiastres)} EGP · ${m.orders}`,
+            }))}
+          />
+        </section>
+      )}
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">
         <section className="rounded-lg border border-line bg-surface p-4">
@@ -207,6 +279,20 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             when(s.since),
           ])}
         />
+        <DataTable
+          title={t('household')}
+          empty={t('noHousehold')}
+          headers={[t('customer'), t('phone')]}
+          rows={p.household.map((h) => [
+            <Link key={h.id} href={`/admin/customers/${h.id}`} className="font-bold text-link">
+              {h.name || '–'}
+            </Link>,
+            <span key={`${h.id}-p`} className="ltr-iso">
+              {h.phone ?? '–'}
+            </span>,
+          ])}
+        />
+        <MergeCustomerForm customerId={c.id} />
         <DataTable
           title={t('recent')}
           empty={t('none')}

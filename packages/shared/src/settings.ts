@@ -248,6 +248,53 @@ export const SETTING_DEFINITIONS = {
     description: 'A customer with at least this many orders counts as VIP',
     override: 'none',
   },
+  'customer.late_factor_pct': {
+    schema: count,
+    default: 150,
+    description:
+      'A repeat customer should have ordered again once this share of their usual gap has passed (150 means one and a half gaps)',
+    override: 'none',
+  },
+  'customer.at_risk_value_pct': {
+    schema: count,
+    default: 50,
+    description:
+      "Share of an at risk customer's usual yearly spend counted in the 12 month forecast",
+    override: 'none',
+  },
+  'customer.budget_index_pct': {
+    schema: count,
+    default: 80,
+    description:
+      'A customer whose items cost below this share of the usual price in their categories buys budget',
+    override: 'none',
+  },
+  'customer.premium_index_pct': {
+    schema: count,
+    default: 125,
+    description:
+      'A customer whose items cost above this share of the usual price in their categories buys premium',
+    override: 'none',
+  },
+  'customer.risk_min_attempts': {
+    schema: count,
+    default: 3,
+    description: 'Delivery attempts needed before a customer gets a cash on delivery risk level',
+    override: 'none',
+  },
+  'customer.risk_medium_pct': {
+    schema: count,
+    default: 20,
+    description: 'Failed attempts (refusals count double) at or above this share mean medium risk',
+    override: 'none',
+  },
+  'customer.risk_high_pct': {
+    schema: count,
+    default: 40,
+    description:
+      'Failed attempts (refusals count double) at or above this share mean high risk; new cash orders from them raise an alert',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

@@ -1,3 +1,5 @@
+import type { CrossSell } from './customer-types';
+
 export interface ProductInsight {
   id: string;
   title: string;
@@ -13,6 +15,8 @@ export interface ProductInsight {
 }
 
 export interface MerchantInsights {
+  /** Admin only: what this merchant's customers buy elsewhere that it does not sell */
+  crossSell: CrossSell;
   merchant: { id: string; name: string };
   shop: {
     domain: string;

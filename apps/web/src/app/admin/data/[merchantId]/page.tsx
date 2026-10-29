@@ -168,6 +168,20 @@ export default async function MerchantDataPage({
           headers={[t('channel'), t('orders'), t('revenueAll')]}
           rows={d.channels.map((c) => [c.source, c.orders, formatEgp(c.revenuePiastres)])}
         />
+        <DataTable
+          title={t('crossSell', {
+            customers: d.crossSell.customers,
+            elsewhere: d.crossSell.alsoBuyElsewhere,
+          })}
+          empty={t('noCrossSell')}
+          headers={[t('category'), t('customersWord'), t('spendElsewhere'), t('merchants')]}
+          rows={d.crossSell.gaps.map((g) => [
+            g.category,
+            g.customers,
+            formatEgp(g.spendPiastres),
+            g.merchants,
+          ])}
+        />
         {d.shop && (
           <DataTable
             title={t('syncs')}

@@ -1400,6 +1400,7 @@ model GeoArea {
   parent      GeoArea?        @relation("geo_area_tree", fields: [parentId], references: [id])
   children    GeoArea[]       @relation("geo_area_tree")
   suggestions GeoSuggestion[]
+  customers   Customer[]
 
   @@index([level])
   @@index([parentId])
@@ -1687,26 +1688,53 @@ model ShopOrderLine {
 /// One person across every merchant and our own deliveries, matched by Egyptian mobile first,
 /// then by email. Admin only; every profile view is audited.
 model Customer {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   /// +20 followed by 10 digits
-  phone       String?  @unique
+  phone       String?   @unique
   /// Lower case
-  email       String?  @unique
-  name        String   @default("")
+  email       String?   @unique
+  name        String    @default("")
   governorate String?
   city        String?
   /// The latest delivery address seen
   address     String?
-  firstSeenAt DateTime @map("first_seen_at")
-  lastSeenAt  DateTime @map("last_seen_at")
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  /// The latest delivery point of our own orders, when there is one
+  latitude    Float?
+  longitude   Float?
+  /// The district (geo_areas level 2) the customer lives in, from the point or the address
+  districtId  String?   @map("district_id")
+  /// When the district was last worked out; done again after the customer changes
+  locatedAt   DateTime? @map("located_at")
+  firstSeenAt DateTime  @map("first_seen_at")
+  lastSeenAt  DateTime  @map("last_seen_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
+  district      GeoArea?        @relation(fields: [districtId], references: [id], onDelete: SetNull)
   shopCustomers ShopCustomer[]
   shopOrders    ShopOrder[]
   orders        Order[]
+  aliases       CustomerAlias[]
 
+  @@index([districtId])
   @@map("customers")
+}
+
+/// Other phones and emails of a customer, kept when admin merges two profiles of one person
+/// so new orders with either still find the same profile.
+model CustomerAlias {
+  id         String   @id @default(cuid())
+  customerId String   @map("customer_id")
+  /// phone or email
+  kind       String
+  value      String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  customer Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@unique([kind, value])
+  @@index([customerId])
+  @@map("customer_aliases")
 }
 
 /// A customer record in one merchant's Shopify store.

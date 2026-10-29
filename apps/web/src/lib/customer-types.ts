@@ -21,12 +21,57 @@ export type CustomerRow = {
   merchants: number;
   lastOrderAt: string | null;
   segment: Segment;
+  /** When a repeat customer would usually order again */
+  expectedAt: string | null;
 };
 
 export type CustomerList = { page: number; more: boolean; customers: CustomerRow[] };
 
+export type RiskLevel = 'unknown' | 'low' | 'medium' | 'high';
+export type Risk = {
+  level: RiskLevel;
+  pct: number;
+  attempts: number;
+  failed: number;
+  refused: number;
+  noAnswer: number;
+  cashShort: number;
+};
+
 export type CustomersOverview = {
-  rules: { newDays: number; atRiskDays: number; lostDays: number; vipOrders: number };
+  rules: {
+    newDays: number;
+    atRiskDays: number;
+    lostDays: number;
+    vipOrders: number;
+    latePct: number;
+    atRiskValuePct: number;
+    budgetPct: number;
+    premiumPct: number;
+    riskMinAttempts: number;
+  };
+  forecastPiastres: number;
+  dueToReorder: number;
+  emailSubscribers: number;
+  smsSubscribers: number;
+  timing: { dow: number; hour: number; orders: number }[];
+  storePeaks: {
+    id: string;
+    nameEn: string;
+    nameAr: string;
+    orders: number;
+    hours: { hour: number; orders: number }[];
+  }[];
+  categoryPairs: { a: string; b: string; customers: number; lift: number }[];
+  riskyCustomers: {
+    id: string;
+    name: string;
+    phone: string | null;
+    attempts: number;
+    failed: number;
+    refused: number;
+    pct: number;
+  }[];
   customers: number;
   withPhone: number;
   withEmail: number;
@@ -58,6 +103,21 @@ export type CustomerProfile = {
     lastSeenAt: string;
   };
   segment: Segment;
+  district: { id: string; nameEn: string; nameAr: string } | null;
+  household: { id: string; name: string; phone: string | null }[];
+  aliases: { kind: 'phone' | 'email'; value: string }[];
+  risk: Risk;
+  value: {
+    spend30Piastres: number;
+    spend90Piastres: number;
+    spend365Piastres: number;
+    monthly: { month: string; spendPiastres: number; orders: number }[];
+    expectedAt: string | null;
+    due: boolean;
+    forecastPiastres: number;
+    priceIndex: number | null;
+    priceTier: 'budget' | 'mid' | 'premium' | null;
+  };
   totals: {
     orders: number;
     cancelled: number;
@@ -117,4 +177,28 @@ export type CustomerProfile = {
     status: string;
     units: number;
   }[];
+};
+
+export type DistrictDemand = {
+  placed: number;
+  unplaced: number;
+  spendOutsidePiastres: number;
+  districts: {
+    id: string;
+    nameEn: string;
+    nameAr: string;
+    governorateEn: string | null;
+    governorateAr: string | null;
+    customers: number;
+    buyers: number;
+    orders: number;
+    spendPiastres: number;
+    coveredPct: number;
+  }[];
+};
+
+export type CrossSell = {
+  customers: number;
+  alsoBuyElsewhere: number;
+  gaps: { category: string; customers: number; spendPiastres: number; merchants: number }[];
 };

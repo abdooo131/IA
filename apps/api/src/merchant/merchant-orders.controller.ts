@@ -25,6 +25,9 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { OrderIntakeService } from '../orders/order-intake.service';
 import { PrismaService } from '../prisma/prisma.service';
 
+/** Alerts about the customer base that stay with Shiply Now. */
+const ADMIN_ONLY_ALERTS = new Set(['cod_risk_customer']);
+
 @ApiTags('merchant')
 @ApiBearerAuth()
 @Roles('merchant')
@@ -83,9 +86,9 @@ export class MerchantOrdersController {
     const detail = await getOrderDetail(this.prisma, id);
     if (!detail || detail.merchant.id !== merchantId) throw new DomainError('order_not_found', 404);
     // Merchants see the outcome but not the customer's delivery code (nor the tracking
-    // link, which shows it).
+    // link, which shows it), nor our own customer risk alerts.
     const { deliveryOtp, trackingToken, ...visible } = detail;
-    return visible;
+    return { ...visible, alerts: visible.alerts.filter((a) => !ADMIN_ONLY_ALERTS.has(a.type)) };
   }
 
   @Post()

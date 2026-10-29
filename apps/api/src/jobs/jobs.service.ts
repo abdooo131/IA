@@ -13,6 +13,7 @@ import {
   getSetting,
   lastClosedDay,
   linkDeliveryCustomers,
+  locateCustomers,
   planRefill,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
@@ -76,14 +77,17 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   /**
-   * Links new delivery orders to the customer with the same mobile. Matching is safe to run
-   * twice (a unique phone per customer), so two instances at once change nothing extra.
+   * Links new delivery orders to the customer with the same mobile (raising cash risk alerts)
+   * and places new or changed customers in their district. Both are safe to run twice: a phone
+   * belongs to one customer and an alert is unique per order.
    */
   async runCustomerLinks() {
     if (this.linking) return null;
     this.linking = true;
     try {
-      return await linkDeliveryCustomers(this.prisma);
+      const links = await linkDeliveryCustomers(this.prisma);
+      const places = await locateCustomers(this.prisma);
+      return { ...links, ...places };
     } catch (error) {
       void this.reporter.report('job_customer_links', error);
       return null;
