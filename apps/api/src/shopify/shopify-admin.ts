@@ -73,19 +73,29 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
         }
         throw new ShopifyApiError(`http ${res.status}`, true);
       }
-      const body = (await res.json().catch(() => ({}))) as {
-        data?: T;
-        errors?: { message: string; extensions?: { code?: string } }[];
-      };
+      const text = await res.text().catch(() => '');
+      let body: { data?: T; errors?: unknown } = {};
+      try {
+        body = JSON.parse(text) as typeof body;
+      } catch {
+        // Not JSON (an HTML error page): only the status and the text below are kept.
+      }
+      // Shopify's reason (for example a protected customer data refusal); never the token.
       if (res.status === 401 || res.status === 403)
-        throw new ShopifyApiError(`http ${res.status}`, false);
-      if (body.errors?.length) {
-        const throttled = body.errors.some((e) => e.extensions?.code === 'THROTTLED');
+        throw new ShopifyApiError(
+          `http ${res.status}: ${(typeof body.errors === 'string' ? body.errors : text).slice(0, 300)}`,
+          false,
+        );
+      if (typeof body.errors === 'string') throw new ShopifyApiError(body.errors, false);
+      const errors = body.errors as
+        { message: string; extensions?: { code?: string } }[] | undefined;
+      if (errors?.length) {
+        const throttled = errors.some((e) => e.extensions?.code === 'THROTTLED');
         if (throttled && attempt < 3) {
           await sleep(1000 * 2 ** attempt);
           continue;
         }
-        throw new ShopifyApiError(body.errors.map((e) => e.message).join('; '), throttled);
+        throw new ShopifyApiError(errors.map((e) => e.message).join('; '), throttled);
       }
       if (!body.data)
         throw new ShopifyApiError(`http ${res.status} without data`, res.status >= 500);
