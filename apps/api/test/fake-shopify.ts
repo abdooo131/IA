@@ -135,9 +135,13 @@ export class FakeShopify extends ShopifyAdmin {
   /** The refresh token Shopify would accept next; using it retires it. */
   private liveRefresh = 'shprt_1';
 
-  async exchangeCode(_shop: string, code: string) {
+  /** The app (client id) each token call was made with. */
+  tokenApps: string[] = [];
+
+  async exchangeCode(_shop: string, code: string, app?: { clientId: string }) {
     if (code !== 'good-code') throw new Error('bad code');
     this.tokenCalls.push('code');
+    this.tokenApps.push(app?.clientId ?? '');
     this.liveRefresh = 'shprt_1';
     return {
       accessToken: 'shpat_test_token',
@@ -148,8 +152,9 @@ export class FakeShopify extends ShopifyAdmin {
     };
   }
 
-  async refreshToken(_shop: string, refreshToken: string) {
+  async refreshToken(_shop: string, refreshToken: string, app?: { clientId: string }) {
     this.tokenCalls.push('refresh');
+    this.tokenApps.push(app?.clientId ?? '');
     if (refreshToken !== this.liveRefresh)
       throw new Error('token refresh failed (400 invalid_grant)');
     this.liveRefresh = `shprt_${this.tokenCalls.length + 1}`;

@@ -1274,6 +1274,9 @@ enum ShopifyShopStatus {
 /// A merchant's Shopify store and our access to it. The token is encrypted at rest.
 model ShopifyShop {
   id                    String            @id @default(cuid())
+  /// The Shopify app this store installed: null is the main app (SHOPIFY_API_KEY); a custom
+  /// distribution app made for one merchant otherwise.
+  appId                 String?           @map("app_id")
   merchantId            String            @unique @map("merchant_id")
   shopDomain            String            @unique @map("shop_domain")
   status                ShopifyShopStatus @default(pending)
@@ -1300,6 +1303,7 @@ model ShopifyShop {
   outbox    ShopifyOutbox[]
   logs      ShopifyLog[]
   dataSyncs ShopDataSync[]
+  app       ShopifyApp?       @relation(fields: [appId], references: [id], onDelete: Restrict)
 
   @@map("shopify_shops")
 }
@@ -1771,4 +1775,18 @@ model ShopCustomer {
   @@index([customerId])
   @@index([merchantId])
   @@map("shop_customers")
+}
+
+/// A Shopify app other than the main one: a custom distribution app made in the Partner
+/// Dashboard for one merchant (no App Store review). Its client secret is stored sealed.
+model ShopifyApp {
+  id              String   @id @default(cuid())
+  name            String
+  clientId        String   @unique @map("client_id")
+  clientSecretEnc String   @map("client_secret_enc")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  shops ShopifyShop[]
+
+  @@map("shopify_apps")
 }

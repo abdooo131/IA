@@ -400,7 +400,8 @@
         "transfer": "Transfer",
         "merchant_return": "Return to merchant",
         "shopify_shop": "Shopify store",
-        "customer": "Customer"
+        "customer": "Customer",
+        "shopify_app": "Shopify app"
       },
       "actions": {
         "alert__resolve": "Alert handled",
@@ -475,7 +476,9 @@
         "zone__create": "Zones created",
         "zone__update": "Zones updated",
         "customer__view": "Opened a customer profile",
-        "customer__merge": "Merged two customer profiles"
+        "customer__merge": "Merged two customer profiles",
+        "shopify__app_add": "Added a Shopify custom app",
+        "shopify__app_remove": "Removed a Shopify custom app"
       }
     },
     "users": {
@@ -633,7 +636,11 @@
         "shop_linked_to_other_merchant": "That store is already linked to another merchant.",
         "shop_not_installed": "The merchant has not installed the app yet.",
         "validation_failed": "Check the store address.",
-        "generic": "Something went wrong. Try again."
+        "generic": "Something went wrong. Try again.",
+        "app_exists": "An app with this client ID is already added.",
+        "app_is_main_app": "That is the main Shiply Now app; it does not need adding.",
+        "app_in_use": "A store still uses this app.",
+        "app_not_found": "That app no longer exists."
       },
       "checkout": "Checkout rate",
       "checkoutOn": "On: Shopify asks us for the 60 minute rate at checkout",
@@ -646,7 +653,27 @@
       "disconnect": "Disconnect store",
       "disconnectConfirm": "Disconnect {shop}? Our locations and the 60 minute rate are removed from that Shopify store, product links are cleared, and the merchant can then be linked to another store. Orders already received stay.",
       "missingScopes": "This store has not given every permission yet",
-      "missingScopesHelp": "Open this link while signed in to the store's Shopify admin and approve. Customer data starts arriving within a minute; customers also need Shopify's protected customer data access for the app."
+      "missingScopesHelp": "Open this link while signed in to the store's Shopify admin and approve. Customer data starts arriving within a minute; customers also need Shopify's protected customer data access for the app.",
+      "apps": "Custom apps (one per pilot merchant)",
+      "appsIntro": "Shiply Now is a public app and needs Shopify's review before real stores can install it. Until then, make a custom app for each pilot merchant in the Partner Dashboard (custom distribution, no review), paste the values below into it, then add its client ID and secret here and choose it when you link the merchant's store.",
+      "setupTitle": "Values to paste when creating the custom app",
+      "setupAppUrl": "App URL",
+      "setupRedirect": "Allowed redirection URL",
+      "setupWebhooks": "Compliance webhooks URL (customer data request, customer redact, shop redact)",
+      "setupProxy": "App proxy URL (subpath apps/shiplynow, for the area widget)",
+      "setupScopes": "Access scopes",
+      "appName": "Name",
+      "clientId": "Client ID",
+      "clientSecret": "Client secret",
+      "addApp": "Add app",
+      "appAdded": "App added. Choose it when you link the merchant's store.",
+      "appShops": "{count, plural, =0 {No store uses it yet} one {Used by 1 store} other {Used by # stores}}",
+      "removeApp": "Remove",
+      "removeAppConfirm": "Remove the app {name}?",
+      "appRemoved": "App removed.",
+      "appChoice": "Shopify app",
+      "mainApp": "Shiply Now (main app)",
+      "alreadyLinked": "{name} (already linked: relinking resets the connection)"
     },
     "navGroups": {
       "stores": "Dark stores",

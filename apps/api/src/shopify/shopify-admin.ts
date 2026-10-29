@@ -28,13 +28,27 @@ export abstract class ShopifyAdmin {
   abstract downloadLines(url: string): AsyncIterable<string>;
 
   /** OAuth: trades the one time code from the install redirect for an expiring offline token. */
-  abstract exchangeCode(shop: string, code: string): Promise<OfflineToken>;
+  abstract exchangeCode(shop: string, code: string, app: AppCredentials): Promise<OfflineToken>;
 
   /** Trades the refresh token for a new access token and a new refresh token. */
-  abstract refreshToken(shop: string, refreshToken: string): Promise<OfflineToken>;
+  abstract refreshToken(
+    shop: string,
+    refreshToken: string,
+    app: AppCredentials,
+  ): Promise<OfflineToken>;
 
   /** One time: trades a shop's old non expiring token for an expiring one (the old one dies). */
-  abstract migrateToken(shop: string, legacyToken: string): Promise<OfflineToken>;
+  abstract migrateToken(
+    shop: string,
+    legacyToken: string,
+    app: AppCredentials,
+  ): Promise<OfflineToken>;
+}
+
+/** The app a store installed: the main app, or a custom app made for that merchant. */
+export interface AppCredentials {
+  clientId: string;
+  secret: string;
 }
 
 /**
@@ -134,21 +148,23 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
     if (rest.trim()) yield rest;
   }
 
-  exchangeCode(shop: string, code: string) {
-    return this.tokenRequest(shop, { code, expiring: '1' }, 'token exchange');
+  exchangeCode(shop: string, code: string, app: AppCredentials) {
+    return this.tokenRequest(shop, app, { code, expiring: '1' }, 'token exchange');
   }
 
-  refreshToken(shop: string, refreshToken: string) {
+  refreshToken(shop: string, refreshToken: string, app: AppCredentials) {
     return this.tokenRequest(
       shop,
+      app,
       { grant_type: 'refresh_token', refresh_token: refreshToken },
       'token refresh',
     );
   }
 
-  migrateToken(shop: string, legacyToken: string) {
+  migrateToken(shop: string, legacyToken: string, app: AppCredentials) {
     return this.tokenRequest(
       shop,
+      app,
       {
         grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
         subject_token: legacyToken,
@@ -163,6 +179,7 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
   /** POST to the shop's token endpoint with the app's credentials. Never logs a token. */
   private async tokenRequest(
     shop: string,
+    app: AppCredentials,
     params: Record<string, string>,
     what: string,
   ): Promise<OfflineToken> {
@@ -170,8 +187,8 @@ export class HttpShopifyAdmin extends ShopifyAdmin {
       method: 'POST',
       headers: { 'content-type': 'application/x-www-form-urlencoded', accept: 'application/json' },
       body: new URLSearchParams({
-        client_id: this.config.get('SHOPIFY_API_KEY', { infer: true }) ?? '',
-        client_secret: this.config.get('SHOPIFY_API_SECRET', { infer: true }) ?? '',
+        client_id: app.clientId,
+        client_secret: app.secret,
         ...params,
       }),
       signal: AbortSignal.timeout(20_000),

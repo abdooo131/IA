@@ -17,6 +17,7 @@ const ENTITIES = [
   'zone',
   'alert',
   'customer',
+  'shopify_app',
 ] as const;
 
 type Filters = {

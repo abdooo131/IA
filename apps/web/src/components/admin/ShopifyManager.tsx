@@ -12,8 +12,17 @@ type StoreRef = { id: string; code: string; nameEn: string; nameAr: string };
 export interface ShopifyOverview {
   configured: boolean;
   publicUrl: string;
+  setup: {
+    appUrl: string;
+    redirectUrl: string;
+    webhooksUrl: string;
+    proxyUrl: string;
+    scopes: string;
+  };
+  apps: { id: string; name: string; clientId: string; shops: number }[];
   shops: {
     id: string;
+    appId: string | null;
     merchant: { id: string; name: string };
     shopDomain: string;
     status: 'pending' | 'active' | 'uninstalled';
@@ -45,7 +54,15 @@ export interface ShopifyOverview {
   }[];
 }
 
-const KNOWN = ['shop_linked_to_other_merchant', 'shop_not_installed', 'validation_failed'];
+const KNOWN = [
+  'shop_linked_to_other_merchant',
+  'shop_not_installed',
+  'validation_failed',
+  'app_exists',
+  'app_is_main_app',
+  'app_in_use',
+  'app_not_found',
+];
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
 const button =
   'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
@@ -338,6 +355,117 @@ function ShopCard({ shop }: { shop: ShopifyOverview['shops'][number] }) {
   );
 }
 
+/**
+ * Custom apps: one per pilot merchant, made in the Partner Dashboard with custom distribution
+ * (no App Store review). Shows what to paste there, then takes the app's client id and secret.
+ */
+function AppsPanel({ data }: { data: ShopifyOverview }) {
+  const t = useTranslations('admin.shopify');
+  const action = useAction();
+  function add(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const formEl = event.currentTarget;
+    const form = new FormData(formEl);
+    void action
+      .send(
+        '/admin/shopify/apps',
+        {
+          name: form.get('name'),
+          clientId: form.get('clientId'),
+          clientSecret: form.get('clientSecret'),
+        },
+        () => t('appAdded'),
+      )
+      .then((done) => done && formEl.reset());
+  }
+  const rows: [string, string][] = [
+    [t('setupAppUrl'), data.setup.appUrl],
+    [t('setupRedirect'), data.setup.redirectUrl],
+    [t('setupWebhooks'), data.setup.webhooksUrl],
+    [t('setupProxy'), data.setup.proxyUrl],
+    [t('setupScopes'), data.setup.scopes],
+  ];
+  return (
+    <section className="space-y-4 rounded-lg border border-line bg-surface p-4">
+      <div>
+        <h2 className="text-h3">{t('apps')}</h2>
+        <p className="mt-1 text-body-sm text-text-muted">{t('appsIntro')}</p>
+      </div>
+      <details className="rounded-md border border-line p-3">
+        <summary className="cursor-pointer text-body-sm font-bold">{t('setupTitle')}</summary>
+        <div className="mt-3 space-y-3">
+          {rows.map(([label, value]) => (
+            <div key={label}>
+              <p className="text-caption text-text-muted">{label}</p>
+              <CopyLink url={value} />
+            </div>
+          ))}
+        </div>
+      </details>
+      {data.apps.length > 0 && (
+        <ul className="divide-y divide-line">
+          {data.apps.map((a) => (
+            <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+              <span className="text-body-sm">
+                <strong>{a.name}</strong>
+                <span className="ltr-iso block text-caption text-text-muted">{a.clientId}</span>
+                <span className="block text-caption text-text-muted">
+                  {t('appShops', { count: a.shops })}
+                </span>
+              </span>
+              <button
+                type="button"
+                className={button}
+                disabled={action.busy || a.shops > 0}
+                onClick={() => {
+                  if (!window.confirm(t('removeAppConfirm', { name: a.name }))) return;
+                  void action.send(`/admin/shopify/apps/${a.id}/remove`, {}, () => t('appRemoved'));
+                }}
+              >
+                {t('removeApp')}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      <form onSubmit={add} className="flex flex-wrap items-end gap-3">
+        <label className="text-caption">
+          {t('appName')}
+          <input name="name" required minLength={2} className={`${field} mt-1 block`} />
+        </label>
+        <label className="text-caption">
+          {t('clientId')}
+          <input
+            name="clientId"
+            required
+            minLength={10}
+            dir="ltr"
+            className={`${field} mt-1 block`}
+          />
+        </label>
+        <label className="text-caption">
+          {t('clientSecret')}
+          <input
+            name="clientSecret"
+            type="password"
+            required
+            minLength={10}
+            autoComplete="off"
+            dir="ltr"
+            className={`${field} mt-1 block`}
+          />
+        </label>
+        <button type="submit" className={button} disabled={action.busy}>
+          {t('addApp')}
+        </button>
+        <div className="w-full">
+          <Message message={action.message} />
+        </div>
+      </form>
+    </section>
+  );
+}
+
 export function ShopifyManager({
   data,
   merchants,
@@ -347,14 +475,18 @@ export function ShopifyManager({
 }) {
   const t = useTranslations('admin.shopify');
   const action = useAction();
-  const unlinked = merchants.filter((m) => !data.shops.some((s) => s.merchant.id === m.id));
+  const linkedIds = new Set(data.shops.map((s) => s.merchant.id));
 
   function link(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
     void action.send(
       '/admin/shopify/link',
-      { merchantId: form.get('merchantId'), shopDomain: form.get('shopDomain') },
+      {
+        merchantId: form.get('merchantId'),
+        shopDomain: form.get('shopDomain'),
+        appId: form.get('appId') || null,
+      },
       () => t('installLink'),
     );
   }
@@ -370,7 +502,9 @@ export function ShopifyManager({
         </p>
       )}
 
-      {unlinked.length > 0 && (
+      <AppsPanel data={data} />
+
+      {merchants.length > 0 && (
         <form
           onSubmit={link}
           className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface p-4"
@@ -379,9 +513,20 @@ export function ShopifyManager({
           <label className="text-caption">
             {t('merchant')}
             <select name="merchantId" required className={`${field} mt-1 block`}>
-              {unlinked.map((m) => (
+              {merchants.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.name}
+                  {linkedIds.has(m.id) ? t('alreadyLinked', { name: m.name }) : m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-caption">
+            {t('appChoice')}
+            <select name="appId" defaultValue="" className={`${field} mt-1 block`}>
+              <option value="">{t('mainApp')}</option>
+              {data.apps.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
                 </option>
               ))}
             </select>

@@ -4,7 +4,7 @@ import type { Prisma, ShopifyShop } from '@shiplynow/db';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
 import { openToken, sealToken } from './security';
-import { type OfflineToken, ShopifyAdmin } from './shopify-admin';
+import { type AppCredentials, type OfflineToken, ShopifyAdmin } from './shopify-admin';
 
 /** Permissions the app asks for when a merchant installs it. */
 export const SHOPIFY_SCOPES = [
@@ -109,6 +109,26 @@ export class ShopifyService {
     return this.admin.graphql<T>(shop.shopDomain, await this.tokenFor(shop.id), query, variables);
   }
 
+  /** The main app's credentials (SHOPIFY_API_KEY and SHOPIFY_API_SECRET). */
+  mainCredentials(): AppCredentials {
+    return { clientId: this.apiKey, secret: this.secret };
+  }
+
+  /** The credentials of the app a store installed: its custom app, or the main one. */
+  async credentialsFor(shop: { appId: string | null }): Promise<AppCredentials> {
+    if (!shop.appId) return this.mainCredentials();
+    const app = await this.prisma.shopifyApp.findUniqueOrThrow({ where: { id: shop.appId } });
+    return { clientId: app.clientId, secret: openToken(app.clientSecretEnc, this.secret) };
+  }
+
+  /** Every app secret we hold, for signed calls about a store we no longer have a row for. */
+  async allSecrets() {
+    const apps = await this.prisma.shopifyApp.findMany();
+    return [this.secret, ...apps.map((a) => openToken(a.clientSecretEnc, this.secret))].filter(
+      Boolean,
+    );
+  }
+
   /** The fields that store a shop's tokens, sealed, from an answer of Shopify's token endpoint. */
   tokenFields(token: OfflineToken, now: Date = new Date()) {
     const at = (seconds?: number) => (seconds ? new Date(now.getTime() + seconds * 1000) : null);
@@ -145,11 +165,17 @@ export class ShopifyService {
     const row = await this.prisma.shopifyShop.findUniqueOrThrow({ where: { id: shopId } });
     const legacy = !row.refreshTokenEnc;
     try {
+      const app = await this.credentialsFor(row);
       const token = legacy
-        ? await this.admin.migrateToken(row.shopDomain, openToken(row.accessTokenEnc!, this.secret))
+        ? await this.admin.migrateToken(
+            row.shopDomain,
+            openToken(row.accessTokenEnc!, this.secret),
+            app,
+          )
         : await this.admin.refreshToken(
             row.shopDomain,
             openToken(row.refreshTokenEnc!, this.secret),
+            app,
           );
       await this.prisma.shopifyShop.update({
         where: { id: shopId },

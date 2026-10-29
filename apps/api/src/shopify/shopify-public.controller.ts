@@ -53,6 +53,15 @@ export class ShopifyPublicController {
     res.redirect(302, `${this.shopify.publicUrl}/shopify/installed?${new URLSearchParams(params)}`);
   }
 
+  /**
+   * True when `check` passes with the secret of the app this store installed, or, for a store
+   * we have no row for (removed already), with any app secret we hold.
+   */
+  private async signed(shop: { appId: string | null } | null, check: (secret: string) => boolean) {
+    if (shop) return check((await this.shopify.credentialsFor(shop)).secret);
+    return (await this.shopify.allSecrets()).some(check);
+  }
+
   /** Starts installation for a shop that admin linked to a merchant. */
   @Get('install')
   async install(@Query('shop') shop: string, @Res() res: Response) {
@@ -69,7 +78,7 @@ export class ShopifyPublicController {
       path: '/',
     });
     const url = new URL(`https://${shop}/admin/oauth/authorize`);
-    url.searchParams.set('client_id', this.shopify.apiKey);
+    url.searchParams.set('client_id', (await this.shopify.credentialsFor(linked)).clientId);
     url.searchParams.set('scope', this.shopify.scopes);
     url.searchParams.set('redirect_uri', `${this.shopify.publicUrl}/api/shopify/callback`);
     url.searchParams.set('state', state);
@@ -84,16 +93,21 @@ export class ShopifyPublicController {
     @Res() res: Response,
   ) {
     const shop = query.shop;
-    if (!isShopDomain(shop) || !verifyQueryHmac(query, this.shopify.secret))
+    if (!isShopDomain(shop)) return this.done(res, { error: 'invalid_request' });
+    const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
+    if (!(await this.signed(linked, (secret) => verifyQueryHmac(query, secret))))
       return this.done(res, { error: 'invalid_request' });
     const cookies = (req as Request & { cookies?: Record<string, string> }).cookies ?? {};
     if (!query.state || cookies[STATE_COOKIE] !== query.state)
       return this.done(res, { error: 'expired', shop });
     res.clearCookie(STATE_COOKIE, { path: '/' });
-    const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
     if (!linked) return this.done(res, { error: 'shop_not_linked', shop });
     try {
-      const token = await this.admin.exchangeCode(shop, query.code ?? '');
+      const token = await this.admin.exchangeCode(
+        shop,
+        query.code ?? '',
+        await this.shopify.credentialsFor(linked),
+      );
       const active = await this.prisma.shopifyShop.update({
         where: { id: linked.id },
         data: {
@@ -139,9 +153,10 @@ export class ShopifyPublicController {
   @Get('app')
   async app(@Query() query: Record<string, string>, @Res() res: Response) {
     const shop = query.shop;
-    if (!isShopDomain(shop) || !verifyQueryHmac(query, this.shopify.secret))
-      return this.done(res, { error: 'invalid_request' });
+    if (!isShopDomain(shop)) return this.done(res, { error: 'invalid_request' });
     const linked = await this.prisma.shopifyShop.findUnique({ where: { shopDomain: shop } });
+    if (!(await this.signed(linked, (secret) => verifyQueryHmac(query, secret))))
+      return this.done(res, { error: 'invalid_request' });
     if (linked?.status === 'active') return this.done(res, { shop });
     res.redirect(
       302,
@@ -159,12 +174,12 @@ export class ShopifyPublicController {
     @Headers('x-shopify-hmac-sha256') hmac?: string,
   ) {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
-    if (!verifyBodyHmac(raw, hmac, this.shopify.secret))
-      throw new UnauthorizedException({ error: 'invalid_hmac' });
     const location = await this.prisma.shopifyLocation.findUnique({
       where: { id },
       include: { shop: true },
     });
+    if (!(await this.signed(location?.shop ?? null, (secret) => verifyBodyHmac(raw, hmac, secret))))
+      throw new UnauthorizedException({ error: 'invalid_hmac' });
     if (!location) return { ok: false };
     let kind = 'unknown';
     try {
@@ -229,7 +244,9 @@ export class ShopifyPublicController {
     @Headers('x-shopify-hmac-sha256') hmac?: string,
   ) {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
-    if (!verifyBodyHmac(raw, hmac, this.shopify.secret)) return res.status(401).send();
+    const rateShop = await this.prisma.shopifyShop.findUnique({ where: { id: shopId } });
+    if (!(await this.signed(rateShop, (secret) => verifyBodyHmac(raw, hmac, secret))))
+      return res.status(401).send();
     let body: RateRequest;
     try {
       body = JSON.parse(raw.toString('utf8')) as RateRequest;
@@ -270,10 +287,11 @@ export class ShopifyPublicController {
     @Headers('x-shopify-shop-domain') shopDomain?: string,
   ) {
     const raw = Buffer.isBuffer(req.body) ? req.body : Buffer.from('');
-    if (!verifyBodyHmac(raw, hmac, this.shopify.secret)) return res.status(401).send();
     const shop = shopDomain
       ? await this.prisma.shopifyShop.findUnique({ where: { shopDomain } })
       : null;
+    if (!(await this.signed(shop, (secret) => verifyBodyHmac(raw, hmac, secret))))
+      return res.status(401).send();
     if (topic === 'app/uninstalled' && shop) {
       await this.prisma.shopifyShop.update({
         where: { id: shop.id },

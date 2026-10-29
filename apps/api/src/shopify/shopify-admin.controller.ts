@@ -1,4 +1,5 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
+import { sealToken } from './security';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DomainError, recordAudit } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
@@ -6,12 +7,20 @@ import { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { isShopDomain } from './security';
+
+const appSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  clientId: z.string().trim().min(10).max(100),
+  clientSecret: z.string().trim().min(10).max(200),
+});
 import { ShopifyJobsService } from './shopify-jobs.service';
 import { ShopifySetupService } from './shopify-setup.service';
 import { missingScopes, ShopifyService } from './shopify.service';
 
 const linkSchema = z.object({
   merchantId: z.string().min(1).max(64),
+  /** The custom app made for this merchant; null or missing is the main app */
+  appId: z.string().min(1).max(64).nullable().optional(),
   /** "evechantelle" or "evechantelle.myshopify.com" */
   shopDomain: z
     .string()
@@ -49,14 +58,34 @@ export class ShopifyAdminController {
       },
       orderBy: { createdAt: 'asc' },
     });
+    const apps = await this.prisma.shopifyApp.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: { _count: { select: { shops: true } } },
+    });
     return {
       configured: this.shopify.configured,
       publicUrl: this.shopify.publicUrl,
+      // What to paste when creating a custom app for a merchant in the Partner Dashboard.
+      setup: {
+        appUrl: `${this.shopify.publicUrl}/api/shopify/app`,
+        redirectUrl: `${this.shopify.publicUrl}/api/shopify/callback`,
+        webhooksUrl: this.shopify.webhooksUrl(),
+        proxyUrl: `${this.shopify.publicUrl}/api/shopify/proxy`,
+        scopes: this.shopify.scopes,
+      },
+      // Never the secrets: only who uses which app.
+      apps: apps.map((a) => ({
+        id: a.id,
+        name: a.name,
+        clientId: a.clientId,
+        shops: a._count.shops,
+      })),
       shops: await Promise.all(
         shops.map(async (s) => ({
           id: s.id,
           merchant: { id: s.merchant.id, name: s.merchant.name },
           shopDomain: s.shopDomain,
+          appId: s.appId,
           // The merchant sets this price; admin only sees it.
           expressPricePiastres: s.merchant.expressPricePiastres,
           carrierServiceId: s.carrierServiceId,
@@ -118,9 +147,14 @@ export class ShopifyAdminController {
     });
     if (taken && taken.merchantId !== merchant.id)
       throw new DomainError('shop_linked_to_other_merchant');
+    const appId = body.appId ?? null;
+    if (appId && !(await this.prisma.shopifyApp.findUnique({ where: { id: appId } })))
+      throw new DomainError('app_not_found', 404);
     const shop = await this.prisma.$transaction(async (tx) => {
       const before = await tx.shopifyShop.findUnique({ where: { merchantId: merchant.id } });
-      const moved = before !== null && before.shopDomain !== body.shopDomain;
+      // Another store, or the same store through another app: the old access is useless.
+      const moved =
+        before !== null && (before.shopDomain !== body.shopDomain || before.appId !== appId);
       if (moved) {
         // A different store: nothing from the old one (access, locations, rate service,
         // product links, pending calls) may be used against the new one.
@@ -140,10 +174,11 @@ export class ShopifyAdminController {
       }
       const row = await tx.shopifyShop.upsert({
         where: { merchantId: merchant.id },
-        create: { merchantId: merchant.id, shopDomain: body.shopDomain },
+        create: { merchantId: merchant.id, shopDomain: body.shopDomain, appId },
         update: moved
           ? {
               shopDomain: body.shopDomain,
+              appId,
               status: 'pending',
               accessTokenEnc: null,
               accessTokenExpiresAt: null,
@@ -161,8 +196,10 @@ export class ShopifyAdminController {
         action: 'shopify.link',
         entityType: 'shopify_shop',
         entityId: row.id,
-        before: before ? { shopDomain: before.shopDomain, status: before.status } : undefined,
-        after: { merchantId: merchant.id, shopDomain: body.shopDomain },
+        before: before
+          ? { shopDomain: before.shopDomain, status: before.status, appId: before.appId }
+          : undefined,
+        after: { merchantId: merchant.id, shopDomain: body.shopDomain, appId },
       });
       return row;
     });
@@ -170,6 +207,60 @@ export class ShopifyAdminController {
       id: shop.id,
       installUrl: `${this.shopify.publicUrl}/api/shopify/install?shop=${shop.shopDomain}`,
     };
+  }
+
+  /**
+   * Adds a custom app made in the Partner Dashboard for one merchant (custom distribution, no
+   * App Store review). The client secret is stored sealed and never shown again.
+   */
+  @Post('apps')
+  async addApp(
+    @Body(new ZodValidationPipe(appSchema)) body: z.infer<typeof appSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    if (body.clientId === this.shopify.apiKey) throw new DomainError('app_is_main_app');
+    if (await this.prisma.shopifyApp.findUnique({ where: { clientId: body.clientId } }))
+      throw new DomainError('app_exists');
+    const app = await this.prisma.$transaction(async (tx) => {
+      const created = await tx.shopifyApp.create({
+        data: {
+          name: body.name,
+          clientId: body.clientId,
+          clientSecretEnc: sealToken(body.clientSecret, this.shopify.secret),
+        },
+      });
+      await recordAudit(tx, {
+        actorUserId: user.sub,
+        action: 'shopify.app_add',
+        entityType: 'shopify_app',
+        entityId: created.id,
+        after: { name: created.name, clientId: created.clientId },
+      });
+      return created;
+    });
+    return { id: app.id, name: app.name, clientId: app.clientId };
+  }
+
+  /** Removes a custom app no store uses any more. */
+  @Post('apps/:appId/remove')
+  async removeApp(@Param('appId') appId: string, @CurrentUser() user: AccessTokenClaims) {
+    const app = await this.prisma.shopifyApp.findUnique({
+      where: { id: appId },
+      include: { _count: { select: { shops: true } } },
+    });
+    if (!app) throw new DomainError('app_not_found', 404);
+    if (app._count.shops > 0) throw new DomainError('app_in_use');
+    await this.prisma.$transaction(async (tx) => {
+      await tx.shopifyApp.delete({ where: { id: appId } });
+      await recordAudit(tx, {
+        actorUserId: user.sub,
+        action: 'shopify.app_remove',
+        entityType: 'shopify_app',
+        entityId: appId,
+        before: { name: app.name, clientId: app.clientId },
+      });
+    });
+    return { removed: true };
   }
 
   /** Also refreshes the shop's webhooks, so a new public address reaches Shopify. */

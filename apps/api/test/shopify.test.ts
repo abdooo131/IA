@@ -939,6 +939,95 @@ describe('shopify app', () => {
     expect(await prisma.shopifyLog.count({ where: { kind: 'token_refresh', ok: false } })).toBe(1);
   });
 
+  it('installs a store through its own custom app and checks its signatures with that app', async () => {
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const APP_SECRET = 'custom-app-secret-for-eve';
+    const signWith = (secret: string, params: Record<string, string>) =>
+      createHmac('sha256', secret)
+        .update(
+          Object.keys(params)
+            .sort()
+            .map((k) => `${k}=${params[k]}`)
+            .join('&'),
+        )
+        .digest('hex');
+    // The main app's client id is not a custom app, and secrets are never shown back.
+    await admin
+      .post('/admin/shopify/apps')
+      .send({ name: 'Eve custom', clientId: 'test-client-id', clientSecret: APP_SECRET })
+      .expect(409);
+    const added = await admin
+      .post('/admin/shopify/apps')
+      .send({ name: 'Eve custom', clientId: 'eve-custom-client', clientSecret: APP_SECRET })
+      .expect(201);
+    expect(JSON.stringify(added.body)).not.toContain(APP_SECRET);
+    const stored = await prisma.shopifyApp.findUniqueOrThrow({ where: { id: added.body.id } });
+    expect(stored.clientSecretEnc).not.toContain(APP_SECRET);
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    await staff
+      .post('/admin/shopify/apps')
+      .send({ name: 'x', clientId: 'x'.repeat(12), clientSecret: 'y'.repeat(12) })
+      .expect(403);
+
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test', appId: 'missing' })
+      .expect(404);
+    await admin
+      .post('/admin/shopify/link')
+      .send({ merchantId, shopDomain: 'shiplynow-test', appId: added.body.id })
+      .expect(201);
+    const overview = (await admin.get('/admin/shopify').expect(200)).body;
+    expect(overview.apps).toEqual([
+      { id: added.body.id, name: 'Eve custom', clientId: 'eve-custom-client', shops: 1 },
+    ]);
+    expect(overview.setup.appUrl).toContain('/api/shopify/app');
+    expect(overview.shops[0].appId).toBe(added.body.id);
+
+    // Install asks Shopify for the custom app, and only its signature is accepted back.
+    const browser = request.agent(app.getHttpServer());
+    const start = await browser.get(`/shopify/install?shop=${SHOP}`).expect(302);
+    const authorize = new URL(start.headers.location!);
+    expect(authorize.searchParams.get('client_id')).toBe('eve-custom-client');
+    const params = {
+      code: 'good-code',
+      shop: SHOP,
+      state: authorize.searchParams.get('state')!,
+      timestamp: '1700000000',
+    };
+    const wrong = await browser
+      .get('/shopify/callback')
+      .query({ ...params, hmac: signWith(SECRET, params) })
+      .expect(302);
+    expect(wrong.headers.location).toContain('error=invalid_request');
+    fake.tokenApps.length = 0;
+    const back = await browser
+      .get('/shopify/callback')
+      .query({ ...params, hmac: signWith(APP_SECRET, params) })
+      .expect(302);
+    expect(back.headers.location).toContain('/shopify/installed?shop=');
+    expect(fake.tokenApps).toEqual(['eve-custom-client']);
+    expect(
+      (await prisma.shopifyShop.findUniqueOrThrow({ where: { shopDomain: SHOP } })).status,
+    ).toBe('active');
+
+    // Webhooks from this store must carry the custom app's signature.
+    const body = JSON.stringify({ id: 1 });
+    const hook = (secret: string) =>
+      request(app.getHttpServer())
+        .post('/shopify/webhooks')
+        .set('content-type', 'application/json')
+        .set('x-shopify-topic', 'shop/update')
+        .set('x-shopify-shop-domain', SHOP)
+        .set('x-shopify-hmac-sha256', createHmac('sha256', secret).update(body).digest('base64'))
+        .send(body);
+    await hook(SECRET).expect(401);
+    await hook(APP_SECRET).expect(200);
+
+    // An app in use cannot be removed.
+    await admin.post(`/admin/shopify/apps/${added.body.id}/remove`).expect(409);
+  });
+
   it('marks the shop uninstalled on the signed app/uninstalled webhook', async () => {
     await install();
     const body = JSON.stringify({ id: 1 });

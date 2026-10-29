@@ -31,12 +31,16 @@ export class ShopifyStorefrontController {
   }
 
   private async shopOf(query: Record<string, unknown>) {
-    if (!verifyProxySignature(query, this.shopify.secret))
-      throw new UnauthorizedException({ error: 'invalid_signature' });
     const shop = await this.prisma.shopifyShop.findUnique({
       where: { shopDomain: String(query.shop ?? '') },
       include: { merchant: true },
     });
+    // Signed with the secret of the app this store installed (custom app or the main one).
+    const secrets = shop
+      ? [(await this.shopify.credentialsFor(shop)).secret]
+      : await this.shopify.allSecrets();
+    if (!secrets.some((secret) => verifyProxySignature(query, secret)))
+      throw new UnauthorizedException({ error: 'invalid_signature' });
     if (!shop || shop.status !== 'active')
       throw new UnauthorizedException({ error: 'shop_not_installed' });
     return shop;
