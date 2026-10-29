@@ -834,7 +834,7 @@ describe('shopify app', () => {
 
     const data = app.get(ShopDataService);
     const now = new Date();
-    // Customers were refused an hour ago, before the store gave the new permission.
+    // Customers were refused half an hour ago, before the store gave the new permission.
     await prisma.shopDataSync.createMany({
       data: (['products', 'inventory', 'orders'] as const)
         .map((kind) => ({ shopId: shop.id, kind, status: 'done', startedAt: now }))
@@ -844,10 +844,10 @@ describe('shopify app', () => {
           status: 'done',
           limited: 'denied',
           error: 'ACCESS_DENIED',
-          startedAt: new Date(now.getTime() - 3600_000),
+          startedAt: new Date(now.getTime() - 1800_000),
         } as never),
     });
-    // Connected two hours ago, refused an hour ago: nothing to do until tomorrow.
+    // Connected two hours ago, refused half an hour ago: asked again only after an hour.
     const before = await prisma.shopifyShop.update({
       where: { id: shop.id },
       data: { installedAt: new Date(now.getTime() - 7200_000) },

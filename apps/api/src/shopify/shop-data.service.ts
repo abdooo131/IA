@@ -83,7 +83,10 @@ export class ShopDataService {
       // A refusal from before the store last (re)connected no longer counts: try again now.
       const refusedBeforeReconnect =
         last?.limited === 'denied' && shop.installedAt && last.startedAt < shop.installedAt;
-      if (last && !refusedBeforeReconnect && now.getTime() - last.startedAt.getTime() < REFRESH_MS)
+      // Refused (protected customer data not approved yet): ask again every hour, so access
+      // approved later in the Partner Dashboard is picked up without anyone pressing a button.
+      const wait = last?.limited === 'denied' ? RETRY_MS : REFRESH_MS;
+      if (last && !refusedBeforeReconnect && now.getTime() - last.startedAt.getTime() < wait)
         continue;
       if (failed && now.getTime() - failed.startedAt.getTime() < RETRY_MS) continue;
       // Stock is cheap to read whole; the rest only bring what changed since the last read.

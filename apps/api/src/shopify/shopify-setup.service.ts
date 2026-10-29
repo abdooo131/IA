@@ -53,15 +53,16 @@ export const SHOP_WEBHOOK_TOPICS = [
   'PRODUCTS_CREATE',
   'PRODUCTS_UPDATE',
   'PRODUCTS_DELETE',
-  'ORDERS_CREATE',
-  'ORDERS_UPDATED',
 ] as const;
 
 /**
- * Webhooks that need a permission the shop may not have granted yet (customer data). Each is
+ * Webhooks that carry protected customer data: Shopify refuses them until the app's protected
+ * customer data access is approved, and the customer ones also need read_customers. Each is
  * registered only when the shop granted its scope, and a refusal is logged, never fatal.
  */
 export const OPTIONAL_WEBHOOK_TOPICS = [
+  { topic: 'ORDERS_CREATE', scope: 'read_orders' },
+  { topic: 'ORDERS_UPDATED', scope: 'read_orders' },
   { topic: 'CUSTOMERS_CREATE', scope: 'read_customers' },
   { topic: 'CUSTOMERS_UPDATE', scope: 'read_customers' },
 ] as const;

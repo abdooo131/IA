@@ -132,7 +132,7 @@ export class FakeShopify extends ShopifyAdmin {
 
   async exchangeCode(_shop: string, code: string) {
     if (code !== 'good-code') throw new Error('bad code');
-    return { accessToken: 'shpat_test_token', scope: 'read_products,write_inventory' };
+    return { accessToken: 'shpat_test_token', scope: 'read_products,write_inventory,read_orders' };
   }
 
   async graphql<T>(
