@@ -29,6 +29,12 @@ describe('merchant self sign up end to end', () => {
     const throttle = app.get(LoginThrottleService);
     (throttle as unknown as { failures: Map<string, number[]> }).failures.clear();
     await resetAndSeed(prisma);
+    // These tests follow the waiting path (auto approval is tested in packages/db).
+    await prisma.setting.upsert({
+      where: { key_scope: { key: 'signup.auto_approve', scope: 'global' } },
+      create: { key: 'signup.auto_approve', scope: 'global', value: 0 },
+      update: { value: 0 },
+    });
   });
 
   const login = (email: string, password: string) =>
@@ -40,7 +46,8 @@ describe('merchant self sign up end to end', () => {
       .post('/auth/signup')
       .send({ ...application, phone: '123' })
       .expect(400);
-    await web.post('/auth/signup').send(application).expect(201);
+    const sent = await web.post('/auth/signup').send(application).expect(201);
+    expect(sent.body).toEqual({ status: 'pending' });
     await web.post('/auth/signup').send(application).expect(409);
 
     const pending = await login(application.email, application.password).expect(403);
@@ -93,5 +100,18 @@ describe('merchant self sign up end to end', () => {
       .post('/auth/signup')
       .send({ ...application, email: 'x9@nile.example', phone: '01019998809' })
       .expect(429);
+  });
+
+  it('opens the account at once when auto approval is on', async () => {
+    await prisma.setting.update({
+      where: { key_scope: { key: 'signup.auto_approve', scope: 'global' } },
+      data: { value: 1 },
+    });
+    const sent = await request(app.getHttpServer())
+      .post('/auth/signup')
+      .send(application)
+      .expect(201);
+    expect(sent.body).toEqual({ status: 'approved' });
+    await login(application.email, application.password).expect(200);
   });
 });

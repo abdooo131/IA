@@ -12,7 +12,7 @@ const KNOWN = ['email_taken', 'phone_taken', 'too_many_attempts', 'validation', 
 export function SignUpForm() {
   const t = useTranslations('signup');
   const [error, setError] = useState<string | null>(null);
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<null | 'approved' | 'pending'>(null);
   const [busy, setBusy] = useState(false);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
@@ -40,9 +40,13 @@ export function SignUpForm() {
     }
     setBusy(true);
     setError(null);
-    const result = await apiSend('POST', '/auth/signup', parsed.data);
+    const result = await apiSend<{ status: 'approved' | 'pending' }>(
+      'POST',
+      '/auth/signup',
+      parsed.data,
+    );
     setBusy(false);
-    if (result.ok) return setDone(true);
+    if (result.ok) return setDone(result.data.status === 'approved' ? 'approved' : 'pending');
     setError(
       result.error === 'http_429'
         ? 'too_many_attempts'
@@ -58,7 +62,12 @@ export function SignUpForm() {
         role="status"
         className="mt-6 rounded-md border border-line bg-surface-raised p-4 text-body"
       >
-        {t('done')}
+        {done === 'approved' ? t('doneApproved') : t('done')}{' '}
+        {done === 'approved' && (
+          <a href="/login" className="font-semibold underline">
+            {t('signIn')}
+          </a>
+        )}
       </p>
     );
 

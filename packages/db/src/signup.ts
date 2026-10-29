@@ -4,12 +4,14 @@ import { DomainError } from './domain-error';
 import { mapUnique } from './admin-ops';
 import { notifyMerchant } from './notifications';
 import { hashPassword } from './password';
+import { getSetting } from './settings';
 
-// Merchant self sign up: the applicant gets a merchant (inactive, approval pending) and a
-// merchant user who cannot sign in until admin approves. Admin sees an alert for each one.
+// Merchant self sign up. With signup.auto_approve on (the default) the merchant and its user
+// are active at once; otherwise the applicant waits for admin. Admin sees an alert either way.
 //
-//   sign up ──▶ pending ──approve──▶ approved (merchant and its users active)
-//                  └─────reject───▶ rejected (stays inactive, reason kept)
+//   sign up ──(auto approve)──────────────▶ approved (merchant and its users active)
+//      └──▶ pending ──approve──▶ approved
+//              └─────reject───▶ rejected (stays inactive, reason kept)
 
 export interface SignUpInput {
   businessName: string;
@@ -24,14 +26,15 @@ export interface SignUpInput {
 export function signUpMerchant(db: Db, input: SignUpInput) {
   return mapUnique(async () => {
     const passwordHash = await hashPassword(input.password);
+    const auto = (await getSetting(db, 'signup.auto_approve')) === 1;
     return inTransaction(db, async (tx) => {
       const merchant = await tx.merchant.create({
         data: {
           name: input.businessName,
           contactEmail: input.email,
           contactPhone: input.phone,
-          isActive: false,
-          approval: 'pending',
+          isActive: auto,
+          approval: auto ? 'approved' : 'pending',
         },
       });
       const user = await tx.user.create({
@@ -41,7 +44,7 @@ export function signUpMerchant(db: Db, input: SignUpInput) {
           phone: input.phone,
           role: 'merchant',
           passwordHash,
-          isActive: false,
+          isActive: auto,
           merchantId: merchant.id,
         },
       });
@@ -52,6 +55,7 @@ export function signUpMerchant(db: Db, input: SignUpInput) {
             merchantId: merchant.id,
             name: merchant.name,
             shopDomain: input.shopDomain ?? null,
+            autoApproved: auto,
           },
         },
       });
@@ -66,9 +70,10 @@ export function signUpMerchant(db: Db, input: SignUpInput) {
           phone: input.phone,
           shopDomain: input.shopDomain ?? null,
           userId: user.id,
+          approval: merchant.approval,
         },
       });
-      return { merchantId: merchant.id };
+      return { merchantId: merchant.id, approval: merchant.approval };
     });
   });
 }

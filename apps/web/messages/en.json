@@ -338,7 +338,8 @@
         "customer__premium_index_pct": "Premium buyer above (% of usual price)",
         "customer__risk_min_attempts": "Delivery attempts before a risk level",
         "customer__risk_medium_pct": "Medium cash risk from (% failed)",
-        "customer__risk_high_pct": "High cash risk from (% failed)"
+        "customer__risk_high_pct": "High cash risk from (% failed)",
+        "signup__auto_approve": "Approve new merchant sign ups at once (1 yes, 0 wait for admin)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -1858,7 +1859,7 @@
   },
   "signup": {
     "title": "Apply as a merchant",
-    "subtitle": "60 minute delivery from our dark stores in Greater Cairo. We review every application before opening the account.",
+    "subtitle": "60 minute delivery from our dark stores in Greater Cairo. Open your merchant account in a minute.",
     "businessName": "Business name",
     "contactName": "Your name",
     "email": "Work email",
@@ -1879,7 +1880,8 @@
       "shop_invalid": "Use your store's myshopify.com address.",
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again."
-    }
+    },
+    "doneApproved": "Welcome. Your account is ready: sign in to add your products and connect your Shopify store."
   },
   "transfers": {
     "title": "Transfers",

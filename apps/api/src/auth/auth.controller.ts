@@ -71,14 +71,14 @@ export class AuthController {
     }
   }
 
-  /** A merchant applies; the account opens once admin approves it. */
+  /** A merchant applies; the account opens at once (signup.auto_approve) or once admin approves. */
   @Public()
   @Post('signup')
   @ApiTooManyRequestsResponse({ description: 'too_many_attempts' })
   async signUp(@Body(new ZodValidationPipe(signUpSchema)) body: SignUpBody, @Req() req: Request) {
     this.throttle.signUp(clientAddress(req.headers['x-forwarded-for'], req.socket.remoteAddress));
-    await signUpMerchant(this.prisma, body);
-    return { status: 'pending' };
+    const { approval } = await signUpMerchant(this.prisma, body);
+    return { status: approval };
   }
 
   @Public()

@@ -14,6 +14,8 @@ const input = {
 
 beforeEach(async () => {
   await resetDatabase();
+  // These tests follow the waiting path; auto approval has its own test.
+  await prisma.setting.create({ data: { key: 'signup.auto_approve', scope: 'global', value: 0 } });
   admin = (
     await prisma.user.create({
       data: { email: 'a@t.eg', name: 'Admin', role: 'admin', passwordHash: 'x' },
@@ -83,5 +85,23 @@ describe('merchant self sign up', () => {
       code: 'phone_taken',
     });
     expect(await prisma.merchant.count()).toBe(1);
+  });
+
+  it('approves at once when signup.auto_approve is on', async () => {
+    await prisma.setting.update({
+      where: { key_scope: { key: 'signup.auto_approve', scope: 'global' } },
+      data: { value: 1 },
+    });
+    const { merchantId, approval } = await signUpMerchant(prisma, input);
+    expect(approval).toBe('approved');
+    expect(await prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } })).toMatchObject({
+      isActive: true,
+      approval: 'approved',
+    });
+    expect(await prisma.user.findUniqueOrThrow({ where: { email: input.email } })).toMatchObject({
+      isActive: true,
+    });
+    const alert = await prisma.alert.findFirstOrThrow({ where: { type: 'merchant_signup' } });
+    expect(alert.data).toMatchObject({ autoApproved: true });
   });
 });

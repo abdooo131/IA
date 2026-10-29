@@ -203,6 +203,13 @@ export const SETTING_DEFINITIONS = {
     description: 'Orders a store accepts per hour before it stops offering 60 minute delivery',
     override: 'store',
   },
+  'signup.auto_approve': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'New merchants who sign up are approved at once (1) or wait for admin approval (0)',
+    override: 'none',
+  },
   'ticket.normal_answer_minutes': {
     schema: minutes,
     default: 120,
