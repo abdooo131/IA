@@ -1,0 +1,32 @@
+# Shopify app configuration for Shiply Now, pointing at the live server on Render.
+# Local testing writes shopify.app.local.toml with the tunnel address instead
+# (scripts/shopify-tunnel.mjs), so this file always stays on the live address.
+client_id = "f861196e9ba7d2e755655e4e29132d82"
+name = "Shiply Now"
+application_url = "https://shiplynow.onrender.com/api/shopify/app"
+# Merchants manage everything in Shiply Now's own web app, so the app opens outside Shopify admin.
+embedded = false
+
+[access_scopes]
+scopes = "read_products,read_inventory,write_inventory,read_locations,read_orders,read_all_orders,read_customers,write_order_edits,read_fulfillments,write_fulfillments,read_assigned_fulfillment_orders,write_assigned_fulfillment_orders,write_shipping"
+# The server installs with the OAuth authorization code grant (apps/api/src/shopify).
+use_legacy_install_flow = true
+
+[auth]
+redirect_urls = ["https://shiplynow.onrender.com/api/shopify/callback"]
+
+[webhooks]
+api_version = "2026-10"
+
+  # app/uninstalled and products/create, update and delete are registered per shop at install
+  # (webhookSubscriptionCreate), because the legacy install flow does not allow them here.
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://shiplynow.onrender.com/api/shopify/webhooks"
+
+# The storefront widget calls /apps/shiplynow/... on the shop's own domain; Shopify signs
+# each request and forwards it here.
+[app_proxy]
+url = "https://shiplynow.onrender.com/api/shopify/proxy"
+subpath = "shiplynow"
+prefix = "apps"

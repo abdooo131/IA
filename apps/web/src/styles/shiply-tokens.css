@@ -1,0 +1,197 @@
+/* Shiply design tokens v1.0. Light is the default, dark applies with [data-theme="dark"] or the OS setting. */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-800.woff2') format('woff2');
+}
+
+:root {
+  /* brand (fixed in both themes) */
+  --shiply-blue: #0047bb;
+  --shiply-sky: #59cbe8;
+  --shiply-navy: #13294b;
+  --shiply-white: #ffffff;
+
+  /* roles, light */
+  --shiply-bg: #f3f6fa;
+  --shiply-surface: #ffffff;
+  --shiply-surface-raised: #f3f6fa;
+  --shiply-line: #dfe5ee;
+  --shiply-text: #13294b;
+  --shiply-text-muted: #5b6b82;
+  --shiply-primary: #0047bb;
+  --shiply-on-primary: #ffffff;
+  --shiply-primary-pressed: #003c9d;
+  --shiply-link: #0047bb;
+  --shiply-selected-bg: #e6f6fb;
+  --shiply-sky: #59cbe8;
+  --shiply-focus: #59cbe8;
+  --shiply-danger: #dc2626;
+  --shiply-status-new: #64748b;
+  --shiply-status-in-progress: #7c3aed;
+  --shiply-status-heading-to-customer: #c026d3;
+  --shiply-status-delivered: #16a34a;
+  --shiply-status-needs-action: #d97706;
+  --shiply-status-returning: #dc2626;
+  --shiply-cash: #0e9384;
+  --shiply-cash-tint: #e1f5f2;
+  --shiply-cash-ink: #0b5f57;
+  --shiply-points: #ffc21a;
+  --shiply-points-tint: #fff6d6;
+  --shiply-points-ink: #7a5200;
+
+  /* gradients */
+  --shiply-gradient-daylight: linear-gradient(135deg, #59cbe8 0%, #0047bb 100%);
+  --shiply-gradient-night-route: linear-gradient(160deg, #0047bb 0%, #13294b 100%);
+  --shiply-gradient-glow:
+    radial-gradient(circle at 80% 20%, #59cbe8 0%, rgba(89, 203, 232, 0) 55%), #0047bb;
+  --shiply-gradient-horizon: linear-gradient(180deg, #ffffff 0%, #e6f6fb 100%);
+
+  /* type */
+  --shiply-font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --shiply-font-arabic: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --shiply-type-display: 800 56px/1.05 var(--shiply-font);
+  --shiply-tracking-display: -0.035em;
+  --shiply-type-h1: 800 40px/1.1 var(--shiply-font);
+  --shiply-tracking-h1: -0.03em;
+  --shiply-type-h2: 700 28px/1.2 var(--shiply-font);
+  --shiply-tracking-h2: -0.02em;
+  --shiply-type-h3: 700 20px/1.35 var(--shiply-font);
+  --shiply-tracking-h3: -0.01em;
+  --shiply-type-body-lg: 400 18px/1.6 var(--shiply-font);
+  --shiply-tracking-body-lg: 0em;
+  --shiply-type-body: 400 16px/1.6 var(--shiply-font);
+  --shiply-tracking-body: 0em;
+  --shiply-type-body-sm: 400 14px/1.5 var(--shiply-font);
+  --shiply-tracking-body-sm: 0em;
+  --shiply-type-caption: 500 13px/1.4 var(--shiply-font);
+  --shiply-tracking-caption: 0em;
+  --shiply-type-label: 700 12px/1.3 var(--shiply-font);
+  --shiply-tracking-label: 0.06em;
+  --shiply-type-number-lg: 800 28px/1.1 var(--shiply-font);
+  --shiply-tracking-number-lg: -0.01em;
+
+  /* space, radius, shadow */
+  --shiply-space-1: 4px;
+  --shiply-space-2: 8px;
+  --shiply-space-3: 12px;
+  --shiply-space-4: 16px;
+  --shiply-space-5: 20px;
+  --shiply-space-6: 24px;
+  --shiply-space-7: 32px;
+  --shiply-space-8: 40px;
+  --shiply-space-9: 48px;
+  --shiply-space-10: 64px;
+  --shiply-radius-sm: 6px;
+  --shiply-radius-md: 10px;
+  --shiply-radius-lg: 16px;
+  --shiply-radius-xl: 24px;
+  --shiply-radius-pill: 999px;
+  --shiply-shadow-sm: 0 1px 2px rgba(19, 41, 75, 0.06), 0 1px 1px rgba(19, 41, 75, 0.04);
+  --shiply-shadow-md: 0 6px 16px rgba(19, 41, 75, 0.1);
+  --shiply-shadow-lg: 0 16px 32px rgba(19, 41, 75, 0.16);
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --shiply-bg: #0b1424;
+  --shiply-surface: #111e33;
+  --shiply-surface-raised: #18273f;
+  --shiply-line: #24344f;
+  --shiply-text: #e7edf7;
+  --shiply-text-muted: #93a3bc;
+  --shiply-primary: #2f6bff;
+  --shiply-on-primary: #ffffff;
+  --shiply-primary-pressed: #255be0;
+  --shiply-link: #5b8cff;
+  --shiply-selected-bg: #18273f;
+  --shiply-sky: #59cbe8;
+  --shiply-focus: #59cbe8;
+  --shiply-danger: #f87171;
+  --shiply-status-new: #94a3b8;
+  --shiply-status-in-progress: #a78bfa;
+  --shiply-status-heading-to-customer: #e879f9;
+  --shiply-status-delivered: #4ade80;
+  --shiply-status-needs-action: #fb923c;
+  --shiply-status-returning: #f87171;
+  --shiply-cash: #2dd4bf;
+  --shiply-cash-tint: color-mix(in srgb, #2dd4bf 14%, transparent);
+  --shiply-cash-ink: #2dd4bf;
+  --shiply-points: #ffd34d;
+  --shiply-points-tint: color-mix(in srgb, #ffd34d 14%, transparent);
+  --shiply-points-ink: #ffd34d;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --shiply-bg: #0b1424;
+    --shiply-surface: #111e33;
+    --shiply-surface-raised: #18273f;
+    --shiply-line: #24344f;
+    --shiply-text: #e7edf7;
+    --shiply-text-muted: #93a3bc;
+    --shiply-primary: #2f6bff;
+    --shiply-on-primary: #ffffff;
+    --shiply-primary-pressed: #255be0;
+    --shiply-link: #5b8cff;
+    --shiply-selected-bg: #18273f;
+    --shiply-sky: #59cbe8;
+    --shiply-focus: #59cbe8;
+    --shiply-danger: #f87171;
+    --shiply-status-new: #94a3b8;
+    --shiply-status-in-progress: #a78bfa;
+    --shiply-status-heading-to-customer: #e879f9;
+    --shiply-status-delivered: #4ade80;
+    --shiply-status-needs-action: #fb923c;
+    --shiply-status-returning: #f87171;
+    --shiply-cash: #2dd4bf;
+    --shiply-cash-tint: color-mix(in srgb, #2dd4bf 14%, transparent);
+    --shiply-cash-ink: #2dd4bf;
+    --shiply-points: #ffd34d;
+    --shiply-points-tint: color-mix(in srgb, #ffd34d 14%, transparent);
+    --shiply-points-ink: #ffd34d;
+    color-scheme: dark;
+  }
+}
+
+html[dir='rtl'],
+[lang='ar'] {
+  font-family: var(--shiply-font-arabic);
+}
+body {
+  background: var(--shiply-bg);
+  color: var(--shiply-text);
+  font: var(--shiply-type-body);
+}
+:focus-visible {
+  outline: 2px solid var(--shiply-focus);
+  outline-offset: 2px;
+}
+.shiply-num {
+  font-variant-numeric: tabular-nums;
+}

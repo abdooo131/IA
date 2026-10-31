@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.next/
+out/
+# test coverage reports (not source folders named coverage)
+/coverage/
+apps/*/coverage/
+packages/*/coverage/
+*.tsbuildinfo
+next-env.d.ts
+
+# env files: only .env.example is committed
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+
+# local Shopify app configs (scripts/shopify-tunnel.mjs) and Shopify CLI state
+apps/shopify/shopify.app.*.toml
+apps/shopify/.shopify/
+.gstack/
