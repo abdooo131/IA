@@ -44,9 +44,19 @@ export async function resetAndSeed(prisma: PrismaService) {
   const rows = await prisma.$queryRaw<{ tablename: string }[]>`
     SELECT tablename FROM pg_tables
     WHERE schemaname = 'public' AND tablename NOT IN ('_prisma_migrations', 'spatial_ref_sys')`;
-  await prisma.$executeRawUnsafe(
-    `TRUNCATE TABLE ${rows.map((r) => `"${r.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`,
-  );
+  const truncate = `TRUNCATE TABLE ${rows.map((r) => `"${r.tablename}"`).join(', ')} RESTART IDENTITY CASCADE`;
+  // Background work a test started (a Shopify store's setup after connecting) may still be
+  // writing; Postgres then stops one side as a deadlock. Emptying the tables again succeeds.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      await prisma.$executeRawUnsafe(truncate);
+      break;
+    } catch (error) {
+      const deadlock = (error as { meta?: { code?: string } }).meta?.code === '40P01';
+      if (!deadlock || attempt >= 5) throw error;
+      await new Promise((r) => setTimeout(r, 200 * attempt));
+    }
+  }
   return seed(prisma, {
     areas: false,
     admin: { email: 'admin@test.eg', password: 'admin-password-1', name: 'Admin' },
