@@ -914,6 +914,36 @@ describe('shopify app', () => {
     ).toMatchObject({ name: 'Nour Samir' });
   });
 
+  it('takes every order again once a store grants read_all_orders, then only changes', async () => {
+    const { shop } = await install();
+    const data = app.get(ShopDataService);
+    const now = new Date();
+    // Everything was read an hour ago, while only the last 60 days of orders were allowed.
+    await prisma.shopDataSync.createMany({
+      data: (['products', 'inventory', 'orders', 'customers'] as const).map((kind) => ({
+        shopId: shop.id,
+        kind,
+        status: 'done',
+        startedAt: new Date(now.getTime() - 3600_000),
+      })),
+    });
+    expect(await data.tick(shop, now)).toBeNull();
+
+    const granted = await prisma.shopifyShop.update({
+      where: { id: shop.id },
+      data: { scopes: 'read_products,read_orders,read_all_orders,read_customers' },
+    });
+    expect(await data.tick(granted, now)).toMatchObject({ started: 'orders' });
+    const full = await prisma.shopDataSync.findFirstOrThrow({
+      where: { kind: 'orders', status: 'running' },
+    });
+    expect(full).toMatchObject({ since: null, allOrders: true });
+
+    // Once the full read is done, the store is back to the daily changes only.
+    await prisma.shopDataSync.update({ where: { id: full.id }, data: { status: 'done' } });
+    expect(await data.tick(granted, now)).toBeNull();
+  });
+
   it('renews expiring tokens once when due and moves an old permanent token over', async () => {
     const { shop } = await install();
     const stored = await prisma.shopifyShop.findUniqueOrThrow({ where: { id: shop.id } });

@@ -13,6 +13,9 @@ export const SHOPIFY_SCOPES = [
   'write_inventory',
   'read_locations',
   'read_orders',
+  // Orders older than 60 days. Apps a store makes in its own Dev Dashboard get it without
+  // Shopify approval; the main app (Partner organization) would need approval first.
+  'read_all_orders',
   'read_customers',
   'write_order_edits',
   'read_fulfillments',

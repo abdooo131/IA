@@ -31,6 +31,11 @@ const REFRESH_MS = 24 * 3600_000;
 /** A kind whose export failed is tried again after this long, not on every tick. */
 const RETRY_MS = 3600_000;
 /** When Shopify refuses part of an order export, the next try asks for less (see OrderDetail). */
+/** Whether the store granted a permission (the scopes Shopify reported, comma separated). */
+function hasScope(scopes: string | null, scope: string) {
+  return (scopes ?? '').split(',').some((s) => s.trim() === scope);
+}
+
 const LESS: Record<string, string | undefined> = { full: 'contact', contact: 'addresses' };
 const BATCH = 500;
 
@@ -74,19 +79,31 @@ export class ShopDataService {
           where: { shopId: shop.id, kind, status, ...extra },
           orderBy: { startedAt: 'desc' },
         });
+      // A store that granted read_all_orders since its orders were last read in full gets
+      // every order once (before, only the last 60 days came); then only what changed.
+      const allOrders = kind === 'orders' && hasScope(shop.scopes, 'read_all_orders');
       const [last, failed, collected] = await Promise.all([
         latest('done'),
         latest('failed'),
         // The last run that really read the store: a refused one ("denied") read nothing.
-        latest('done', { OR: [{ limited: null }, { limited: { not: 'denied' } }] }),
+        latest('done', {
+          OR: [{ limited: null }, { limited: { not: 'denied' } }],
+          ...(allOrders ? { allOrders: true } : {}),
+        }),
       ]);
+      const historyMissing = allOrders && !collected;
       // A refusal from before the store last (re)connected no longer counts: try again now.
       const refusedBeforeReconnect =
         last?.limited === 'denied' && shop.installedAt && last.startedAt < shop.installedAt;
       // Refused (protected customer data not approved yet): ask again every hour, so access
       // approved later in the Partner Dashboard is picked up without anyone pressing a button.
       const wait = last?.limited === 'denied' ? RETRY_MS : REFRESH_MS;
-      if (last && !refusedBeforeReconnect && now.getTime() - last.startedAt.getTime() < wait)
+      if (
+        last &&
+        !refusedBeforeReconnect &&
+        !historyMissing &&
+        now.getTime() - last.startedAt.getTime() < wait
+      )
         continue;
       if (failed && now.getTime() - failed.startedAt.getTime() < RETRY_MS) continue;
       // Stock is cheap to read whole; the rest only bring what changed since the last read.
@@ -125,6 +142,7 @@ export class ShopDataService {
         kind,
         since: since ?? null,
         limited: limited ?? null,
+        allOrders: kind === 'orders' && hasScope(shop.scopes, 'read_all_orders'),
         bulkOperationId: data.bulkOperationRunQuery.bulkOperation!.id,
       },
     });

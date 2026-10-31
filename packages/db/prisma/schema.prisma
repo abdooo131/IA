@@ -1542,6 +1542,8 @@ model ShopDataSync {
   objectCount     Int       @default(0) @map("object_count")
   /// Fields Shopify refused and the export left out (for example order addresses)
   limited         String?
+  /// An orders export run with read_all_orders granted (every order, not only the last 60 days)
+  allOrders       Boolean   @default(false) @map("all_orders")
   error           String?
   startedAt       DateTime  @default(now()) @map("started_at")
   finishedAt      DateTime? @map("finished_at")
