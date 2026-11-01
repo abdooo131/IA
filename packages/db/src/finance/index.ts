@@ -76,6 +76,7 @@ export {
   submitBillPayment,
   submitPrepayment,
   submitTaxPayment,
+  submitStaffBonus,
   queueRequest,
 } from './controls';
 export {
@@ -89,6 +90,8 @@ export {
   payTax,
   recordBill,
   taxesOwed,
+  TAXES,
+  type TaxKind,
   updateSupplier,
   whtReport,
   withholdingFor,
@@ -104,7 +107,17 @@ export {
 } from './assets';
 export { createRecurring, listRecurring, runRecurring, setRecurringActive } from './recurring';
 export { merchantsOwingUs, requestMerchantPayment } from './receivables';
-export { giveAdvance, listStaffPay, previewPayroll, runPayroll, setSalary } from './payroll';
+export {
+  giveAdvance,
+  listStaffPay,
+  payrollRules,
+  payslips,
+  payStaffBonus,
+  previewPayroll,
+  runPayroll,
+  setEmployment,
+  setSalary,
+} from './payroll';
 export { costPerOrder, profitBy } from './profit';
 export {
   autoMatch,

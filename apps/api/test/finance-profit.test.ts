@@ -74,7 +74,9 @@ describe('profit and salaries end to end', () => {
       lines: [{ userId: staff.id, advanceRecoveryPiastres: 50_000 }],
     };
     const preview = await finance.post('/finance/payroll/preview').send(body).expect(201);
-    expect(preview.body).toMatchObject({ totalNetPiastres: 450_000, totalCostPiastres: 500_000 });
+    // 5,000 gross: 550 insurance and 2.50 martyrs fund come off, 500 back from the advance;
+    // the company also pays 937.50 insurance.
+    expect(preview.body).toMatchObject({ totalNetPiastres: 394_750, totalCostPiastres: 593_750 });
     expect((await finance.post('/finance/payroll').send(body).expect(201)).body.status).toBe(
       'posted',
     );
@@ -92,7 +94,7 @@ describe('profit and salaries end to end', () => {
       )
       .expect(200);
     expect(profit.body.rows.find((r: { id: string }) => r.id === staff.darkStoreId)).toMatchObject({
-      costsPiastres: 500_000,
+      costsPiastres: 593_750,
     });
     await finance.get('/finance/cost-per-order').expect(200);
   });

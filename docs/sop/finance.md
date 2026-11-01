@@ -105,9 +105,11 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Salaries and advances
 
-1. Salaries: admin sets each person's monthly salary.
+1. Salaries: admin marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.
 2. An advance: choose the person, amount and the bank or box it is paid from.
-3. Month end: choose the month and the bank, enter deductions and how much advance to take back, Pay.
+3. Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.
+4. Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.
+5. Each month pay salary tax, social insurance and the martyrs fund from Taxes.
 
 **Check it went right**
 
@@ -338,9 +340,11 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### المرتبات والسلف
 
-1. المرتبات: الأدمن بيحدد مرتب كل واحد في الشهر.
+1. المرتبات: الأدمن بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.
 2. سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.
-3. آخر الشهر: اختار الشهر والبنك، اكتب الخصومات وقد إيه هتسترد من السلفة، وادفع.
+3. آخر الشهر: اختار الشهر والبنك، اكتب المكافآت والخصومات والسلف المستردة، راجع المرتبات (الضريبة والتأمينات وصندوق الشهداء لكل شخص)، وادفع؛ واطبع القسائم.
+4. العمالة الخارجية: سجل فاتورة شركتهم الشهرية لكل شخص في الموردون والفواتير؛ استرد السلف وإنت بتدفع الفاتورة؛ وادفع مكافآتهم من هنا.
+5. كل شهر سدد ضريبة كسب العمل والتأمينات وصندوق الشهداء من الضرائب.
 
 **اتأكد إنها مشيت صح**
 

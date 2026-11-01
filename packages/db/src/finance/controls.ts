@@ -9,7 +9,9 @@ import { post } from './ledger';
 import { recordMerchantAdjustment, recordMerchantReceipt } from './operations';
 import {
   type AdvanceInput,
+  type BonusInput,
   giveAdvance,
+  payStaffBonus,
   type PayrollInput,
   previewPayroll,
   runPayroll,
@@ -122,6 +124,7 @@ export type RequestPayload =
   | { kind: 'merchant_receipt'; input: Stored<ReceiptInput> }
   | { kind: 'merchant_adjustment'; input: Stored<AdjustmentInput> }
   | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
+  | { kind: 'staff_bonus'; input: Stored<BonusInput> }
   | { kind: 'bill_payment'; input: Stored<BillPaymentInput> }
   | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
   | { kind: 'prepayment'; input: Stored<PrepaymentInput> }
@@ -238,6 +241,8 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return recordMerchantAdjustment(db, { ...p.input, actorUserId });
     case 'staff_advance':
       return giveAdvance(db, { ...p.input, actorUserId });
+    case 'staff_bonus':
+      return payStaffBonus(db, { ...p.input, actorUserId });
     case 'payroll':
       return runPayroll(db, { ...p.input, actorUserId });
     case 'bill_payment':
@@ -494,6 +499,7 @@ export const RECEIPT_KINDS = [
   'prepayment',
   'asset_purchase',
   'staff_advance',
+  'staff_bonus',
 ];
 
 /** Money movements without any receipt yet, newest first, and how many there are. */
@@ -632,3 +638,6 @@ export const submitTaxPayment = submitter<'tax_payment', TaxPaymentInput>('tax_p
 export const submitPrepayment = submitter<'prepayment', PrepaymentInput>('prepayment');
 /** Equipment bought, depreciated over its life. */
 export const submitAssetPurchase = submitter<'asset_purchase', AssetInput>('asset_purchase');
+
+/** A bonus paid straight to an outsourced person. */
+export const submitStaffBonus = submitter<'staff_bonus', BonusInput>('staff_bonus');

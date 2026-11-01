@@ -10,6 +10,8 @@ const count = z.number().int().min(0).max(100_000);
 const piastres = z.number().int().min(0).max(100_000_000);
 /** A percentage in basis points: 250 means 2.5% */
 const basisPoints = z.number().int().min(0).max(10_000);
+/** Yearly salary amounts can pass 1,000,000 EGP */
+const yearlyPiastres = z.number().int().min(0).max(2_000_000_000);
 
 /**
  * Every configurable business value, with its default (CLAUDE.md rule 6). Values live in
@@ -155,6 +157,161 @@ export const SETTING_DEFINITIONS = {
     default: 1,
     description:
       'Owner capital, other income, merchant payments to us and merchant balance changes wait for a second person (1) or post at once (0)',
+    override: 'none',
+  },
+  'payroll.tax_band_1_to_piastres': {
+    schema: yearlyPiastres,
+    default: 4000000,
+    description:
+      'Salary income tax: band 1 covers yearly taxable income up to this amount (piastres)',
+    override: 'none',
+  },
+  'payroll.tax_band_1_bp': {
+    schema: basisPoints,
+    default: 0,
+    description: 'Salary income tax rate of band 1, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_band_2_to_piastres': {
+    schema: yearlyPiastres,
+    default: 5500000,
+    description:
+      'Salary income tax: band 2 covers yearly taxable income up to this amount (piastres)',
+    override: 'none',
+  },
+  'payroll.tax_band_2_bp': {
+    schema: basisPoints,
+    default: 1000,
+    description: 'Salary income tax rate of band 2, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_band_3_to_piastres': {
+    schema: yearlyPiastres,
+    default: 7000000,
+    description:
+      'Salary income tax: band 3 covers yearly taxable income up to this amount (piastres)',
+    override: 'none',
+  },
+  'payroll.tax_band_3_bp': {
+    schema: basisPoints,
+    default: 1500,
+    description: 'Salary income tax rate of band 3, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_band_4_to_piastres': {
+    schema: yearlyPiastres,
+    default: 20000000,
+    description:
+      'Salary income tax: band 4 covers yearly taxable income up to this amount (piastres)',
+    override: 'none',
+  },
+  'payroll.tax_band_4_bp': {
+    schema: basisPoints,
+    default: 2000,
+    description: 'Salary income tax rate of band 4, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_band_5_to_piastres': {
+    schema: yearlyPiastres,
+    default: 40000000,
+    description:
+      'Salary income tax: band 5 covers yearly taxable income up to this amount (piastres)',
+    override: 'none',
+  },
+  'payroll.tax_band_5_bp': {
+    schema: basisPoints,
+    default: 2250,
+    description: 'Salary income tax rate of band 5, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_band_6_to_piastres': {
+    schema: yearlyPiastres,
+    default: 120000000,
+    description:
+      'Salary income tax: band 6 covers yearly taxable income up to this amount (piastres)',
+    override: 'none',
+  },
+  'payroll.tax_band_6_bp': {
+    schema: basisPoints,
+    default: 2500,
+    description: 'Salary income tax rate of band 6, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_top_bp': {
+    schema: basisPoints,
+    default: 2750,
+    description: 'Salary income tax rate above the last band, in basis points',
+    override: 'none',
+  },
+  'payroll.tax_skip_1_from_piastres': {
+    schema: yearlyPiastres,
+    default: 60000000,
+    description:
+      'Above this yearly taxable income, bands 1 to 1 are taxed at the rate of band 2 (0 turns it off)',
+    override: 'none',
+  },
+  'payroll.tax_skip_2_from_piastres': {
+    schema: yearlyPiastres,
+    default: 70000000,
+    description:
+      'Above this yearly taxable income, bands 1 to 2 are taxed at the rate of band 3 (0 turns it off)',
+    override: 'none',
+  },
+  'payroll.tax_skip_3_from_piastres': {
+    schema: yearlyPiastres,
+    default: 80000000,
+    description:
+      'Above this yearly taxable income, bands 1 to 3 are taxed at the rate of band 4 (0 turns it off)',
+    override: 'none',
+  },
+  'payroll.tax_skip_4_from_piastres': {
+    schema: yearlyPiastres,
+    default: 90000000,
+    description:
+      'Above this yearly taxable income, bands 1 to 4 are taxed at the rate of band 5 (0 turns it off)',
+    override: 'none',
+  },
+  'payroll.tax_skip_5_from_piastres': {
+    schema: yearlyPiastres,
+    default: 120000000,
+    description:
+      'Above this yearly taxable income, bands 1 to 5 are taxed at the rate of band 6 (0 turns it off)',
+    override: 'none',
+  },
+  'payroll.personal_exemption_piastres': {
+    schema: yearlyPiastres,
+    default: 2_000_000,
+    description: 'Yearly personal exemption before salary income tax (piastres)',
+    override: 'none',
+  },
+  'payroll.si_employee_bp': {
+    schema: basisPoints,
+    default: 1100,
+    description: 'Social insurance paid by the employee, share of the insured wage (basis points)',
+    override: 'none',
+  },
+  'payroll.si_employer_bp': {
+    schema: basisPoints,
+    default: 1875,
+    description: 'Social insurance paid by the company, share of the insured wage (basis points)',
+    override: 'none',
+  },
+  'payroll.si_min_wage_piastres': {
+    schema: piastres,
+    default: 270_000,
+    description: 'Lowest monthly insured wage (piastres)',
+    override: 'none',
+  },
+  'payroll.si_max_wage_piastres': {
+    schema: piastres,
+    default: 1_670_000,
+    description: 'Highest monthly insured wage (piastres)',
+    override: 'none',
+  },
+  'payroll.martyrs_fund_bp': {
+    schema: basisPoints,
+    default: 5,
+    description: 'Martyrs fund deducted from gross salary (basis points; 5 is 0.05%)',
     override: 'none',
   },
   'fee.order_fixed_piastres': {

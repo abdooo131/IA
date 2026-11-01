@@ -29,7 +29,12 @@ export type SystemAccountKey =
   | 'fixed_assets'
   | 'accumulated_depreciation'
   | 'depreciation_expense'
-  | 'retained_earnings';
+  | 'retained_earnings'
+  | 'payroll_tax_payable'
+  | 'social_insurance_payable'
+  | 'martyrs_fund_payable'
+  | 'social_insurance_expense'
+  | 'staff_bonus_expense';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -119,6 +124,41 @@ const SYSTEM_ACCOUNTS: Record<
     code: '3401',
     nameEn: 'Retained earnings',
     nameAr: 'أرباح مرحلة',
+  },
+  payroll_tax_payable: {
+    type: 'other_liability',
+    group: 2300,
+    code: '2303',
+    nameEn: 'Salary income tax payable',
+    nameAr: 'ضريبة كسب العمل المستحقة',
+  },
+  social_insurance_payable: {
+    type: 'other_liability',
+    group: 2300,
+    code: '2304',
+    nameEn: 'Social insurance payable',
+    nameAr: 'التأمينات الاجتماعية المستحقة',
+  },
+  martyrs_fund_payable: {
+    type: 'other_liability',
+    group: 2300,
+    code: '2305',
+    nameEn: 'Martyrs fund payable',
+    nameAr: 'صندوق الشهداء المستحق',
+  },
+  social_insurance_expense: {
+    type: 'expense',
+    group: 5700,
+    code: '5701',
+    nameEn: 'Social insurance, company share',
+    nameAr: 'حصة الشركة في التأمينات',
+  },
+  staff_bonus_expense: {
+    type: 'expense',
+    group: 5700,
+    code: '5702',
+    nameEn: 'Staff bonuses',
+    nameAr: 'مكافآت العاملين',
   },
 };
 

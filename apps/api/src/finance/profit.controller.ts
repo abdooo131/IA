@@ -4,7 +4,10 @@ import {
   costPerOrder,
   DomainError,
   listStaffPay,
+  payslips,
   previewPayroll,
+  setEmployment,
+  submitStaffBonus,
   profitBy,
   setSalary,
   submitAdvance,
@@ -13,8 +16,11 @@ import {
 import {
   type AccessTokenClaims,
   advanceSchema,
+  employmentSchema,
+  entryNumber,
   payrollSchema,
   salarySchema,
+  staffBonusSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -80,8 +86,40 @@ export class ProfitController {
     return setSalary(this.prisma, {
       userId,
       monthlyPiastres: body.monthlyPiastres,
+      insuredWagePiastres: body.insuredWagePiastres,
       actorUserId: user.sub,
     });
+  }
+
+  /** Employee on our payroll, or hired through an outsourcing company: admin only. */
+  @Put('employment/:userId')
+  @Roles('admin')
+  employment(
+    @Param('userId') userId: string,
+    @Body(new ZodValidationPipe(employmentSchema)) body: z.infer<typeof employmentSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return setEmployment(this.prisma, { ...body, userId, actorUserId: user.sub });
+  }
+
+  /** A bonus paid straight to an outsourced person. */
+  @Post('staff-bonuses')
+  async bonus(
+    @Body(new ZodValidationPipe(staffBonusSchema)) body: z.infer<typeof staffBonusSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return submitted(await submitStaffBonus(this.prisma, { ...body, actorUserId: user.sub }));
+  }
+
+  /** The payslips of a month's salary run. */
+  @Get('payslips')
+  @ApiQuery({ name: 'month', required: true })
+  async payslips(@Query('month') month: string) {
+    const run = await payslips(this.prisma, month ?? '');
+    return {
+      ...run,
+      entryNumber: run.entryNumber ? entryNumber(run.entryNumber) : null,
+    };
   }
 
   @Post('advances')

@@ -152,17 +152,34 @@ export const openingBalancesSchema = z.object({
 
 export const salarySchema = z.object({
   monthlyPiastres: z.number().int().min(0).max(1_000_000_000),
+  /** The wage social insurance is counted on; null means the salary itself */
+  insuredWagePiastres: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
 });
 
-export const advanceSchema = z.object({
-  userId: id,
-  amountPiastres: piastres,
-  moneyAccountId: id,
-  reference: z.string().trim().min(2).max(100),
-  day: day.optional(),
-  idempotencyKey: key,
-  receiptPhotoId: id.optional(),
-});
+export const employmentSchema = z
+  .object({
+    employment: z.enum(['employee', 'outsourced']),
+    staffingSupplierId: id.optional(),
+  })
+  .refine((v) => v.employment === 'employee' || Boolean(v.staffingSupplierId), {
+    path: ['staffingSupplierId'],
+    message: 'staffing_company_required',
+  });
+
+export const staffBonusSchema = advanceSchemaBase();
+
+function advanceSchemaBase() {
+  return z.object({
+    userId: id,
+    amountPiastres: piastres,
+    moneyAccountId: id,
+    reference: z.string().trim().min(2).max(100),
+    day: day.optional(),
+    idempotencyKey: key,
+    receiptPhotoId: id.optional(),
+  });
+}
+export const advanceSchema = advanceSchemaBase();
 
 /** The month's salaries (YYYY-MM): everyone paid, with deductions and advance recovery. */
 export const payrollSchema = z.object({
@@ -173,6 +190,7 @@ export const payrollSchema = z.object({
       z.object({
         userId: id,
         grossPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
+        bonusPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
         deductionPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
         advanceRecoveryPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
         note: z.string().trim().max(200).optional(),

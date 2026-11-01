@@ -291,8 +291,33 @@ export interface StaffPayRow {
   name: string;
   role: string;
   darkStore: { id: string; code: string; nameEn: string; nameAr: string } | null;
+  employment: 'employee' | 'outsourced';
+  staffingSupplier: { id: string; name: string } | null;
   monthlyPiastres: number | null;
+  insuredWagePiastres: number | null;
   advanceOwedPiastres: number;
+}
+
+export interface PayslipRun {
+  month: string;
+  entryNumber: string | null;
+  paidAt: string | null;
+  people: {
+    userId: string;
+    name: string;
+    base: number;
+    bonus: number;
+    deduction: number;
+    gross: number;
+    insuredWage: number;
+    siEmployee: number;
+    siEmployer: number;
+    martyrs: number;
+    incomeTax: number;
+    recovery: number;
+    net: number;
+    note: string | null;
+  }[];
 }
 
 type Named = { code: string; nameEn: string; nameAr: string };
@@ -310,6 +335,7 @@ export interface SupplierRow {
   accountCode: string | null;
   owedPiastres: number;
   openBills: number;
+  staff: { id: string; name: string }[];
 }
 
 export interface BillRow {
@@ -329,6 +355,7 @@ export interface BillRow {
   paidPiastres: number;
   leftPiastres: number;
   status: 'open' | 'paid' | 'cancelled';
+  person: { id: string; name: string } | null;
   overdue: boolean;
   memo: string | null;
 }
@@ -348,6 +375,9 @@ export interface BillAgeing {
 export interface TaxesOwed {
   vatPiastres: number;
   whtPiastres: number;
+  payrollTaxPiastres: number;
+  socialInsurancePiastres: number;
+  martyrsFundPiastres: number;
 }
 
 export interface WhtReport {

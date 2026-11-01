@@ -142,7 +142,14 @@ export async function listSuppliers(db: Db) {
   const [suppliers, open] = await Promise.all([
     db.supplier.findMany({
       orderBy: { name: 'asc' },
-      include: { accounts: { select: { id: true, code: true } } },
+      include: {
+        accounts: { select: { id: true, code: true } },
+        staff: {
+          where: { isActive: true },
+          select: { id: true, name: true },
+          orderBy: { name: 'asc' },
+        },
+      },
     }),
     db.bill.groupBy({
       by: ['supplierId'],
@@ -174,6 +181,8 @@ export async function listSuppliers(db: Db) {
       /** What we owe them (credit balance shown positive) */
       owedPiastres: 0 - raw,
       openBills: open.find((o) => o.supplierId === s.id)?._count._all ?? 0,
+      /** People hired through this company (when it is an outsourcing company) */
+      staff: s.staff,
     };
   });
 }
@@ -191,6 +200,8 @@ export interface BillInput {
   netPiastres: number;
   vatPiastres?: number;
   memo?: string;
+  /** The person the bill is for: an outsourced worker's month from their outsourcing company */
+  userId?: string | null;
   actorUserId: string;
   idempotencyKey: string;
 }
@@ -214,12 +225,26 @@ export function recordBill(db: Db, input: BillInput) {
     const expenseId = input.expenseAccountId ?? supplier.defaultExpenseAccountId;
     if (!expenseId) throw new DomainError('expense_account_required', 400);
     const expense = await lockedAccount(tx, expenseId, EXPENSE_GROUPS, 'expense_account_not_found');
-    if (input.darkStoreId && !(await tx.darkStore.findUnique({ where: { id: input.darkStoreId } })))
+    let darkStoreId = input.darkStoreId ?? null;
+    let person: { id: string; riderId: string | null } | null = null;
+    if (input.userId) {
+      const user = await tx.user.findUnique({
+        where: { id: input.userId },
+        include: { rider: { select: { id: true, darkStoreId: true } } },
+      });
+      if (!user || user.role === 'merchant') throw new DomainError('user_not_found', 404);
+      // An outsourced person's month is billed by their own outsourcing company only.
+      if (user.employment === 'outsourced' && user.staffingSupplierId !== supplier.id)
+        throw new DomainError('not_their_company');
+      darkStoreId ??= user.darkStoreId ?? user.rider?.darkStoreId ?? null;
+      person = { id: user.id, riderId: user.rider?.id ?? null };
+    }
+    if (darkStoreId && !(await tx.darkStore.findUnique({ where: { id: darkStoreId } })))
       throw new DomainError('store_not_found', 404);
     const reference = input.reference.trim();
     if (
-      await tx.bill.findUnique({
-        where: { supplierId_reference: { supplierId: supplier.id, reference } },
+      await tx.bill.findFirst({
+        where: { supplierId: supplier.id, reference, userId: person?.id ?? null },
       })
     )
       throw new DomainError('bill_exists');
@@ -230,10 +255,15 @@ export function recordBill(db: Db, input: BillInput) {
       occurredAt: at,
       createdById: input.actorUserId,
       memo: input.memo || `${supplier.name} ${reference}`,
-      darkStoreId: input.darkStoreId ?? null,
-      data: { supplierId: supplier.id, reference, vat },
+      darkStoreId,
+      riderId: person?.riderId ?? null,
+      data: { supplierId: supplier.id, reference, vat, userId: person?.id ?? null },
       lines: [
-        { account: { id: expense.id }, amount: input.netPiastres },
+        {
+          account: { id: expense.id },
+          amount: input.netPiastres,
+          tags: person ? { userId: person.id, darkStoreId, riderId: person.riderId } : undefined,
+        },
         { account: { type: 'vat_payable' }, amount: vat },
         { account: { type: 'supplier', supplierId: supplier.id }, amount: -total },
       ],
@@ -246,7 +276,8 @@ export function recordBill(db: Db, input: BillInput) {
         billDate: new Date(`${input.billDate}T00:00:00Z`),
         dueDate: new Date(`${input.dueDate}T00:00:00Z`),
         expenseAccountId: expense.id,
-        darkStoreId: input.darkStoreId ?? null,
+        darkStoreId,
+        userId: person?.id ?? null,
         netPiastres: input.netPiastres,
         vatPiastres: vat,
         totalPiastres: total,
@@ -320,6 +351,11 @@ export interface BillPaymentInput {
   amountPiastres: number;
   moneyAccountId: string;
   reference: string;
+  /**
+   * For an outsourced person's bill: an advance we gave them, taken back from what we pay
+   * their company (the company takes it from their salary)
+   */
+  advanceRecoveryPiastres?: number;
   day?: string;
   actorUserId: string;
   idempotencyKey: string;
@@ -345,7 +381,16 @@ export function payBill(db: Db, input: BillPaymentInput) {
       throw new DomainError('more_than_owed');
     const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
     const wht = withholdingFor(bill, input.amountPiastres);
-    const cash = input.amountPiastres - wht;
+    const recovery = input.advanceRecoveryPiastres ?? 0;
+    if (!Number.isSafeInteger(recovery) || recovery < 0)
+      throw new DomainError('invalid_amount', 400);
+    if (recovery > 0) {
+      if (!bill.userId) throw new DomainError('no_person_on_bill', 400);
+      if (recovery > (await balanceOf(tx, { type: 'staff_advance', userId: bill.userId })))
+        throw new DomainError('more_than_advance', 400);
+    }
+    const cash = input.amountPiastres - wht - recovery;
+    if (cash < 0) throw new DomainError('net_below_zero', 400);
     if (cash > (await balanceOf(tx, { id: money.id }))) throw new DomainError('not_enough_money');
     const entry = await post(tx, {
       kind: 'bill_payment',
@@ -360,6 +405,7 @@ export function payBill(db: Db, input: BillPaymentInput) {
         reference: input.reference,
         gross: input.amountPiastres,
         wht,
+        recovery,
         net: Math.round((bill.netPiastres * input.amountPiastres) / bill.totalPiastres),
       },
       lines: [
@@ -369,6 +415,15 @@ export function payBill(db: Db, input: BillPaymentInput) {
         },
         { account: { id: money.id }, amount: -cash },
         { account: { type: 'wht_payable' }, amount: -wht },
+        ...(recovery
+          ? [
+              {
+                account: { type: 'staff_advance' as const, userId: bill.userId! },
+                amount: -recovery,
+                tags: { userId: bill.userId },
+              },
+            ]
+          : []),
       ],
     });
     const paid = bill.paidPiastres + input.amountPiastres;
@@ -399,6 +454,7 @@ export async function listBills(
       supplier: { select: { id: true, name: true } },
       expenseAccount: { select: { code: true, nameEn: true, nameAr: true } },
       darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
+      person: { select: { id: true, name: true } },
     },
     orderBy: [{ dueDate: 'asc' }, { number: 'asc' }],
     take: 500,
@@ -422,6 +478,7 @@ export async function listBills(
       paidPiastres: b.paidPiastres,
       leftPiastres: b.status === 'open' ? b.totalPiastres - b.paidPiastres : 0,
       status: b.status,
+      person: b.person,
       overdue: b.status === 'open' && due < today,
       memo: b.memo,
     };
@@ -529,17 +586,40 @@ export async function whtReport(db: Db, input: { year: number; quarter: number }
   };
 }
 
-/** What we owe the tax authority now: VAT (net of VAT claimed back) and withholding tax. */
+export const TAXES = {
+  vat: 'vat_payable',
+  wht: 'wht_payable',
+  payroll_tax: 'payroll_tax_payable',
+  social_insurance: 'social_insurance_payable',
+  martyrs_fund: 'martyrs_fund_payable',
+} as const;
+export type TaxKind = keyof typeof TAXES;
+
+/**
+ * What we owe the state now: VAT (net of VAT claimed back), withholding tax, salary income
+ * tax, social insurance (both shares) and the martyrs fund.
+ */
 export async function taxesOwed(db: Db) {
-  const [vat, wht] = await Promise.all([
-    balanceOf(db, { type: 'vat_payable' }),
-    balanceOf(db, { type: 'wht_payable' }),
-  ]);
-  return { vatPiastres: 0 - vat, whtPiastres: 0 - wht };
+  const owed = async (tax: TaxKind) => 0 - (await balanceOf(db, { type: TAXES[tax] }));
+  return {
+    vatPiastres: await owed('vat'),
+    whtPiastres: await owed('wht'),
+    payrollTaxPiastres: await owed('payroll_tax'),
+    socialInsurancePiastres: await owed('social_insurance'),
+    martyrsFundPiastres: await owed('martyrs_fund'),
+  };
 }
 
+const TAX_NAMES: Record<TaxKind, string> = {
+  vat: 'VAT',
+  wht: 'Withholding tax',
+  payroll_tax: 'Salary income tax',
+  social_insurance: 'Social insurance',
+  martyrs_fund: 'Martyrs fund',
+};
+
 export interface TaxPaymentInput {
-  tax: 'vat' | 'wht';
+  tax: TaxKind;
   amountPiastres: number;
   moneyAccountId: string;
   reference: string;
@@ -552,14 +632,14 @@ export interface TaxPaymentInput {
 export function payTax(db: Db, input: TaxPaymentInput) {
   if (!Number.isSafeInteger(input.amountPiastres) || input.amountPiastres <= 0)
     throw new DomainError('invalid_amount', 400);
-  if (input.tax !== 'vat' && input.tax !== 'wht') throw new DomainError('invalid_tax', 400);
+  if (!(input.tax in TAXES)) throw new DomainError('invalid_tax', 400);
   const at = eventTime(input.day);
   return inTransaction(db, async (tx) => {
     const key = `tax_payment:${input.idempotencyKey}`;
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;
     const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
-    const account = { type: input.tax === 'vat' ? 'vat_payable' : 'wht_payable' } as const;
+    const account = { type: TAXES[input.tax] };
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'tax:' + input.tax}))`;
     const owed = 0 - (await balanceOf(tx, account));
     if (input.amountPiastres > owed) throw new DomainError('more_than_owed');
@@ -570,7 +650,7 @@ export function payTax(db: Db, input: TaxPaymentInput) {
       idempotencyKey: key,
       occurredAt: at,
       createdById: input.actorUserId,
-      memo: `${input.tax === 'vat' ? 'VAT' : 'Withholding tax'} ${input.reference}`,
+      memo: `${TAX_NAMES[input.tax]} ${input.reference}`,
       data: { tax: input.tax, reference: input.reference },
       lines: [
         { account, amount: input.amountPiastres },

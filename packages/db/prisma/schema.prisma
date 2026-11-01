@@ -81,28 +81,33 @@ model User {
   auditEntries      AuditLog[]
   settingChanges    Setting[]
 
-  ledgerEntries     LedgerEntry[]       @relation("ledger_entry_created_by")
-  handoversReceived CashHandover[]      @relation("handover_received_by")
-  handoversReviewed CashHandover[]      @relation("handover_reviewed_by")
-  payoutsCreated    Payout[]            @relation("payout_created_by")
-  payoutsPaid       Payout[]            @relation("payout_paid_by")
-  payoutsApproved   Payout[]            @relation("payout_approved_by")
-  booksLocks        BooksLock[]
-  financeRequests   FinanceRequest[]    @relation("finance_request_by")
-  financeDecisions  FinanceRequest[]    @relation("finance_request_decided_by")
-  financeReceipts   FinanceReceipt[]
-  advanceAccounts   LedgerAccount[]     @relation("ledger_account_user")
-  ledgerLines       LedgerLine[]        @relation("ledger_line_user")
-  salary            StaffSalary?        @relation("staff_salary_user")
-  salariesSet       StaffSalary[]       @relation("staff_salary_updated_by")
-  suppliers         Supplier[]
-  bankStatements    BankStatement[]
-  bankLinesDecided  BankStatementLine[] @relation("bank_line_decided_by")
-  budgetsSet        Budget[]            @relation("budget_updated_by")
-  bills             Bill[]
-  recurringEntries  RecurringEntry[]
-  prepayments       Prepayment[]
-  fixedAssets       FixedAsset[]
+  ledgerEntries      LedgerEntry[]       @relation("ledger_entry_created_by")
+  handoversReceived  CashHandover[]      @relation("handover_received_by")
+  handoversReviewed  CashHandover[]      @relation("handover_reviewed_by")
+  payoutsCreated     Payout[]            @relation("payout_created_by")
+  payoutsPaid        Payout[]            @relation("payout_paid_by")
+  payoutsApproved    Payout[]            @relation("payout_approved_by")
+  booksLocks         BooksLock[]
+  financeRequests    FinanceRequest[]    @relation("finance_request_by")
+  financeDecisions   FinanceRequest[]    @relation("finance_request_decided_by")
+  financeReceipts    FinanceReceipt[]
+  advanceAccounts    LedgerAccount[]     @relation("ledger_account_user")
+  ledgerLines        LedgerLine[]        @relation("ledger_line_user")
+  salary             StaffSalary?        @relation("staff_salary_user")
+  salariesSet        StaffSalary[]       @relation("staff_salary_updated_by")
+  suppliers          Supplier[]
+  /// employee: on our payroll; outsourced: hired through an outsourcing company (a supplier)
+  employment         EmploymentType      @default(employee)
+  staffingSupplierId String?             @map("staffing_supplier_id")
+  staffingSupplier   Supplier?           @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
+  billsFor           Bill[]              @relation("bill_person")
+  bankStatements     BankStatement[]
+  bankLinesDecided   BankStatementLine[] @relation("bank_line_decided_by")
+  budgetsSet         Budget[]            @relation("budget_updated_by")
+  bills              Bill[]
+  recurringEntries   RecurringEntry[]
+  prepayments        Prepayment[]
+  fixedAssets        FixedAsset[]
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -1948,10 +1953,12 @@ model FinanceReceipt {
 
 /// A team member's monthly salary (gross), set by admin; used by the monthly salary run.
 model StaffSalary {
-  userId          String   @id @map("user_id")
-  monthlyPiastres Int      @map("monthly_piastres")
-  updatedById     String   @map("updated_by_id")
-  updatedAt       DateTime @default(now()) @updatedAt @map("updated_at")
+  userId              String   @id @map("user_id")
+  monthlyPiastres     Int      @map("monthly_piastres")
+  /// The wage social insurance is counted on; empty means the salary itself
+  insuredWagePiastres Int?     @map("insured_wage_piastres")
+  updatedById         String   @map("updated_by_id")
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
   user      User @relation("staff_salary_user", fields: [userId], references: [id], onDelete: Restrict)
   updatedBy User @relation("staff_salary_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
@@ -1977,6 +1984,7 @@ model Supplier {
   createdBy             User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
   accounts              LedgerAccount[]
   bills                 Bill[]
+  staff                 User[]          @relation("staffing_supplier")
 
   @@map("suppliers")
 }
@@ -2009,17 +2017,20 @@ model Bill {
   status           BillStatus @default(open)
   memo             String?
   entryId          String?    @map("entry_id")
+  /// The person the bill is for (an outsourced worker's month)
+  userId           String?    @map("user_id")
   createdById      String     @map("created_by_id")
   createdAt        DateTime   @default(now()) @map("created_at")
 
+  person         User?         @relation("bill_person", fields: [userId], references: [id], onDelete: Restrict)
   supplier       Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   expenseAccount LedgerAccount @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
   darkStore      DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
   entry          LedgerEntry?  @relation(fields: [entryId], references: [id], onDelete: Restrict)
   createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
-  @@unique([supplierId, reference])
   @@index([status, dueDate])
+  @@index([userId])
   @@map("bills")
 }
 
@@ -2160,4 +2171,11 @@ model Budget {
   updatedBy User          @relation("budget_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
 
   @@map("budgets")
+}
+
+enum EmploymentType {
+  employee
+  outsourced
+
+  @@map("employment_type")
 }

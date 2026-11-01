@@ -137,8 +137,10 @@ describe('salaries and advances', () => {
       lines: [{ userId: staff, deductionPiastres: 50_000, advanceRecoveryPiastres: 100_000 }],
       actorUserId: admin,
     });
-    // 6,000 gross − 500 deducted = 5,500 cost; 1,000 back from the advance; 4,500 paid.
-    expect(await balanceOf(prisma, { id: cib.id })).toBe(before - 450_000);
+    // 6,000 − 500 deducted = 5,500 gross; social insurance 11% (605) and the martyrs fund
+    // (2.75) come off; no income tax below the first band; 1,000 back from the advance.
+    expect(await balanceOf(prisma, { id: cib.id })).toBe(before - 389_225);
+    expect(await balanceOf(prisma, { type: 'social_insurance_payable' })).toBe(-(60_500 + 103_125));
     expect(await balanceOf(prisma, { type: 'staff_advance', userId: staff })).toBe(0);
     const line = await prisma.ledgerLine.findFirstOrThrow({
       where: { account: { key: 'expense:salaries' } },

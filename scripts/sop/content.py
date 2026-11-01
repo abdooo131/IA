@@ -266,9 +266,11 @@ EN = {
          "A late bill for a closed month: enter it today with a note; ask admin only if it must sit in the old month."]},
       {"title": "Salaries and advances",
        "steps": [
-         "Salaries: admin sets each person's monthly salary.",
+         "Salaries: admin marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.",
          "An advance: choose the person, amount and the bank or box it is paid from.",
-         "Month end: choose the month and the bank, enter deductions and how much advance to take back, Pay."],
+         "Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.",
+         "Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.",
+         "Each month pay salary tax, social insurance and the martyrs fund from Taxes."],
        "check": [
          "Each person's advance owed goes down; the run shows in Approvals when it is above the limit."],
        "problems": [
@@ -665,9 +667,11 @@ AR = {
          "فاتورة متأخرة لشهر مقفول: سجلها النهارده بملاحظة؛ اسأل الأدمن بس لو لازم تتسجل في الشهر القديم."]},
       {"title": "المرتبات والسلف",
        "steps": [
-         "المرتبات: الأدمن بيحدد مرتب كل واحد في الشهر.",
+         "المرتبات: الأدمن بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.",
          "سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.",
-         "آخر الشهر: اختار الشهر والبنك، اكتب الخصومات وقد إيه هتسترد من السلفة، وادفع."],
+         "آخر الشهر: اختار الشهر والبنك، اكتب المكافآت والخصومات والسلف المستردة، راجع المرتبات (الضريبة والتأمينات وصندوق الشهداء لكل شخص)، وادفع؛ واطبع القسائم.",
+         "العمالة الخارجية: سجل فاتورة شركتهم الشهرية لكل شخص في الموردون والفواتير؛ استرد السلف وإنت بتدفع الفاتورة؛ وادفع مكافآتهم من هنا.",
+         "كل شهر سدد ضريبة كسب العمل والتأمينات وصندوق الشهداء من الضرائب."],
        "check": [
          "السلفة المستحقة على كل واحد بتقل؛ المرتبات بتظهر في الموافقات لو فوق الحد."],
        "problems": [

@@ -36,6 +36,8 @@ const secondary =
 const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
 const td = 'px-3 py-2';
 const thisMonth = () => cairoDay(new Date()).slice(0, 7);
+const TAX_KINDS = ['wht', 'vat', 'payroll_tax', 'social_insurance', 'martyrs_fund'] as const;
+type TaxKind = (typeof TAX_KINDS)[number];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
@@ -158,6 +160,8 @@ function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
   const [amount, setAmount] = useState((bill.leftPiastres / 100).toFixed(2));
   const [from, setFrom] = useState(money[0]?.id ?? '');
   const [reference, setReference] = useState('');
+  const [recovery, setRecovery] = useState('');
+  const recoveryValue = recovery.trim() ? parseEgp(recovery) : 0;
   const value = parseEgp(amount);
   const wht =
     value && bill.whtBp
@@ -176,20 +180,31 @@ function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
           className={field}
         />
       </div>
-      {wht > 0 && (
+      {bill.person && (
+        <Field label={t('advanceBack', { name: bill.person.name })}>
+          {egpInput(recovery, setRecovery, t('advanceBack', { name: bill.person.name }))}
+        </Field>
+      )}
+      {(wht > 0 || (recoveryValue ?? 0) > 0) && (
         <p className="text-caption text-text-muted">
-          {t('whtKept', { amount: formatEgp(wht), cash: formatEgp((value ?? 0) - wht) })}
+          {t('whtKept', {
+            amount: formatEgp(wht),
+            cash: formatEgp((value ?? 0) - wht - (recoveryValue ?? 0)),
+          })}
         </p>
       )}
       <button
         type="button"
         className={primary}
-        disabled={action.busy || !value || !from || reference.trim().length < 2}
+        disabled={
+          action.busy || !value || !from || reference.trim().length < 2 || recoveryValue === null
+        }
         onClick={() =>
           void action.send('POST', `/finance/bills/${bill.id}/payments`, {
             amountPiastres: value,
             moneyAccountId: from,
             reference,
+            advanceRecoveryPiastres: recoveryValue || undefined,
             idempotencyKey: newActionKey(),
           })
         }
@@ -333,6 +348,7 @@ function NewBill({
     net: '',
     vat: '',
     memo: '',
+    person: '',
   };
   const [b, setB] = useState(blank);
   const active = suppliers.filter((s) => s.isActive);
@@ -345,7 +361,7 @@ function NewBill({
         <Field label={t('supplier')}>
           <select
             value={b.supplierId}
-            onChange={(e) => setB({ ...b, supplierId: e.target.value })}
+            onChange={(e) => setB({ ...b, supplierId: e.target.value, person: '' })}
             className={field}
           >
             <option value="">{t('chooseSupplier')}</option>
@@ -386,6 +402,22 @@ function NewBill({
         <Field label={t('store')}>
           <StoreSelect stores={stores} value={b.store} onChange={(v) => setB({ ...b, store: v })} />
         </Field>
+        {supplier && supplier.staff.length > 0 && (
+          <Field label={t('billPerson')}>
+            <select
+              value={b.person}
+              onChange={(e) => setB({ ...b, person: e.target.value })}
+              className={field}
+            >
+              <option value="">{t('nobody')}</option>
+              {supplier.staff.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
         <Field label={t('net')}>{egpInput(b.net, (v) => setB({ ...b, net: v }), t('net'))}</Field>
         <Field label={t('vat')}>{egpInput(b.vat, (v) => setB({ ...b, vat: v }), t('vat'))}</Field>
       </div>
@@ -424,11 +456,13 @@ function NewBill({
               netPiastres: net,
               vatPiastres: vat,
               memo: b.memo,
+              userId: b.person || undefined,
               idempotencyKey: newActionKey(),
             },
             (d) => t('billSaved', { number: d.number }),
           );
-          if (ok) setB(blank);
+          // The next person on the same invoice: keep the supplier, number and dates.
+          if (ok) setB(b.person ? { ...b, person: '', net: '', vat: '', memo: '' } : blank);
         }}
       >
         {t('saveBill')}
@@ -546,7 +580,12 @@ export function SuppliersAndBills({
                   <span className="ltr-iso font-bold">{b.numberLabel}</span>
                   <span className="block text-caption text-text-muted">{b.reference}</span>
                 </td>
-                <td className={td}>{b.supplier.name}</td>
+                <td className={td}>
+                  {b.supplier.name}
+                  {b.person && (
+                    <span className="block text-caption text-text-muted">{b.person.name}</span>
+                  )}
+                </td>
                 <td className={`${td} ltr-iso ${b.overdue ? 'font-bold text-danger' : ''}`}>
                   {b.dueDate}
                 </td>
@@ -665,7 +704,7 @@ export function Taxes({
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
   const money = accounts.filter((a) => a.money && a.isActive);
-  const [tax, setTax] = useState<'vat' | 'wht'>('wht');
+  const [tax, setTax] = useState<TaxKind>('wht');
   const [amount, setAmount] = useState('');
   const [from, setFrom] = useState(money[0]?.id ?? '');
   const [reference, setReference] = useState('');
@@ -673,6 +712,23 @@ export function Taxes({
   const quarters = [1, 2, 3, 4];
   return (
     <div className="mt-4 space-y-8">
+      <div className="grid gap-4 sm:grid-cols-3">
+        {(
+          [
+            ['payroll_tax', owed.payrollTaxPiastres],
+            ['social_insurance', owed.socialInsurancePiastres],
+            ['martyrs_fund', owed.martyrsFundPiastres],
+          ] as const
+        ).map(([k, v]) => (
+          <div key={k} className="rounded-lg border border-line bg-surface p-4">
+            <p className="text-label uppercase text-text-muted">{t(`taxNames.${k}`)}</p>
+            <p className="mt-1 text-h2">
+              <Amount piastres={v} />
+            </p>
+            <p className="text-caption text-text-muted">{t(`taxHints.${k}`)}</p>
+          </div>
+        ))}
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-lg border border-line bg-surface p-4">
           <p className="text-label uppercase text-text-muted">{t('vatOwed')}</p>
@@ -695,11 +751,14 @@ export function Taxes({
           <Field label={t('tax')}>
             <select
               value={tax}
-              onChange={(e) => setTax(e.target.value as 'vat' | 'wht')}
+              onChange={(e) => setTax(e.target.value as TaxKind)}
               className={field}
             >
-              <option value="wht">{t('whtName')}</option>
-              <option value="vat">{t('vatName')}</option>
+              {TAX_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {t(`taxNames.${k}`)}
+                </option>
+              ))}
             </select>
           </Field>
           <Field label={t('amount')}>{egpInput(amount, setAmount, t('amount'))}</Field>

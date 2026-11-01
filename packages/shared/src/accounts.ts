@@ -193,6 +193,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     money: false,
   },
   {
+    code: 5700,
+    category: 'expense',
+    key: 'staff_costs',
+    party: false,
+    manualType: null,
+    money: false,
+  },
+  {
     code: 5600,
     category: 'expense',
     key: 'depreciation',
@@ -385,6 +393,8 @@ export const billSchema = z.object({
   netPiastres: piastres,
   vatPiastres: z.number().int().min(0).max(1_000_000_000).default(0),
   memo: optionalText(300),
+  /** The person the bill is for (an outsourced worker's month) */
+  userId: id.optional(),
   idempotencyKey: key,
 });
 
@@ -394,13 +404,14 @@ export const billPaymentSchema = z.object({
   amountPiastres: piastres,
   moneyAccountId: id,
   reference,
+  advanceRecoveryPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
   day: onDay,
   receiptPhotoId: id.optional(),
   idempotencyKey: key,
 });
 
 export const taxPaymentSchema = z.object({
-  tax: z.enum(['vat', 'wht']),
+  tax: z.enum(['vat', 'wht', 'payroll_tax', 'social_insurance', 'martyrs_fund']),
   amountPiastres: piastres,
   moneyAccountId: id,
   reference,

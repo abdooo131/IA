@@ -345,7 +345,31 @@
         "customer__risk_high_pct": "High cash risk from (% failed)",
         "signup__auto_approve": "Approve new merchant sign ups at once (1 yes, 0 wait for admin)",
         "finance__approval_threshold_piastres": "Second approver from (EGP)",
-        "finance__approve_money_in": "Second person checks all money coming in (1 yes, 0 no)"
+        "finance__approve_money_in": "Second person checks all money coming in (1 yes, 0 no)",
+        "payroll__personal_exemption_piastres": "Salary tax: yearly personal exemption (EGP)",
+        "payroll__si_employee_bp": "Social insurance, employee share (%)",
+        "payroll__si_employer_bp": "Social insurance, company share (%)",
+        "payroll__si_min_wage_piastres": "Lowest monthly insured wage (EGP)",
+        "payroll__si_max_wage_piastres": "Highest monthly insured wage (EGP)",
+        "payroll__martyrs_fund_bp": "Martyrs fund, share of gross salary (%)",
+        "payroll__tax_top_bp": "Salary tax rate above the last band (%)",
+        "payroll__tax_band_1_to_piastres": "Salary tax band 1: yearly income up to (EGP)",
+        "payroll__tax_band_1_bp": "Salary tax band 1: rate (%)",
+        "payroll__tax_band_2_to_piastres": "Salary tax band 2: yearly income up to (EGP)",
+        "payroll__tax_band_2_bp": "Salary tax band 2: rate (%)",
+        "payroll__tax_band_3_to_piastres": "Salary tax band 3: yearly income up to (EGP)",
+        "payroll__tax_band_3_bp": "Salary tax band 3: rate (%)",
+        "payroll__tax_band_4_to_piastres": "Salary tax band 4: yearly income up to (EGP)",
+        "payroll__tax_band_4_bp": "Salary tax band 4: rate (%)",
+        "payroll__tax_band_5_to_piastres": "Salary tax band 5: yearly income up to (EGP)",
+        "payroll__tax_band_5_bp": "Salary tax band 5: rate (%)",
+        "payroll__tax_band_6_to_piastres": "Salary tax band 6: yearly income up to (EGP)",
+        "payroll__tax_band_6_bp": "Salary tax band 6: rate (%)",
+        "payroll__tax_skip_1_from_piastres": "Above this yearly income, bands 1 to 1 lose their lower rate (EGP)",
+        "payroll__tax_skip_2_from_piastres": "Above this yearly income, bands 1 to 2 lose their lower rate (EGP)",
+        "payroll__tax_skip_3_from_piastres": "Above this yearly income, bands 1 to 3 lose their lower rate (EGP)",
+        "payroll__tax_skip_4_from_piastres": "Above this yearly income, bands 1 to 4 lose their lower rate (EGP)",
+        "payroll__tax_skip_5_from_piastres": "Above this yearly income, bands 1 to 5 lose their lower rate (EGP)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -1433,7 +1457,8 @@
       "prepayment_release": "Prepaid month used",
       "asset_purchase": "Equipment bought",
       "depreciation": "Depreciation",
-      "year_close": "Year end closing"
+      "year_close": "Year end closing",
+      "staff_bonus": "Staff bonus"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1505,7 +1530,8 @@
         "fixed_assets": "Equipment and vehicles",
         "accumulated_depreciation": "Accumulated depreciation",
         "suppliers": "Suppliers",
-        "depreciation": "Depreciation"
+        "depreciation": "Depreciation",
+        "staff_costs": "Staff costs"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -1706,7 +1732,12 @@
         "earlier_year_open": "Close the earlier year first.",
         "invalid_year": "Year not valid.",
         "range_too_long": "Choose at most about a year.",
-        "invalid_range": "The end is before the start."
+        "invalid_range": "The end is before the start.",
+        "outsourced_not_on_payroll": "This person is paid by their outsourcing company, not by our payroll.",
+        "employee_bonus_in_payroll": "Employees get bonuses in the salary run, where they are taxed.",
+        "staffing_company_required": "Choose the outsourcing company.",
+        "not_their_company": "This person is hired through another company.",
+        "no_person_on_bill": "Advances are taken back only on a bill for one person."
       }
     },
     "riders": {
@@ -1858,7 +1889,8 @@
         "bill_payment": "Supplier bill payment",
         "tax_payment": "Tax payment",
         "prepayment": "Paid ahead",
-        "asset_purchase": "Equipment bought"
+        "asset_purchase": "Equipment bought",
+        "staff_bonus": "Bonus to outsourced person"
       },
       "statuses": {
         "pending": "Waiting",
@@ -1913,7 +1945,7 @@
     },
     "payroll": {
       "title": "Salaries",
-      "intro": "Each team member's monthly salary, the advances they owe, and the monthly salary run. The run pays everyone from one bank or cash box, books the cost to each person's store and takes back advances.",
+      "intro": "Employees on our payroll and people hired through an outsourcing company. The monthly run pays employees from one bank or box after income tax, social insurance and the martyrs fund, and records what is owed to the state. Outsourced people are paid by their company (a monthly bill per person under Suppliers and bills); we only give them advances and bonuses.",
       "team": "Team",
       "person": "Person",
       "salary": "Monthly salary (EGP)",
@@ -1930,7 +1962,34 @@
       "recovery": "Advance back (EGP)",
       "noSalaries": "Set salaries first (admin, in the table above).",
       "netTotal": "Net to pay: {amount} EGP",
-      "pay": "Pay salaries for {month}"
+      "pay": "Pay salaries for {month}",
+      "employment": "Hired as",
+      "employee": "Employee",
+      "outsourcedVia": "Outsourced: {company}",
+      "paidByCompany": "Paid by their company",
+      "outsourcedHint": "To mark someone as outsourced, add their outsourcing company under Suppliers and bills first.",
+      "insured": "Insured wage",
+      "insuredHint": "The wage social insurance is counted on (from the contract); empty means the salary.",
+      "insuredShort": "Insured on {amount}",
+      "giveBonus": "Bonus to an outsourced person",
+      "bonusHint": "Employees get bonuses in the salary run, where they are taxed.",
+      "bonus": "Bonus (EGP)",
+      "check": "Check the run",
+      "gross": "Gross",
+      "insurance": "Insurance",
+      "incomeTax": "Income tax",
+      "martyrs": "Martyrs fund",
+      "net": "Net",
+      "owedToState": "Owed to the state: income tax EGP {tax}, social insurance EGP {insurance} (both shares), martyrs fund EGP {martyrs}.",
+      "costTotal": "Cost to the company: {amount} EGP",
+      "payslips": "Payslips",
+      "payslipsTitle": "Payslips {month}",
+      "back": "Back to salaries",
+      "noRun": "No salary run for this month yet.",
+      "slipFor": "{month} · {number}",
+      "baseSalary": "Salary",
+      "insuranceOn": "Social insurance (on {amount})",
+      "companyShare": "The company also pays EGP {amount} social insurance."
     },
     "payables": {
       "billsTitle": "Suppliers and bills",
@@ -2063,7 +2122,22 @@
       "never": "Never",
       "askToPay": "Ask to pay",
       "asked": "The merchant sees the request in their panel.",
-      "nobodyOwes": "No merchant owes us anything."
+      "nobodyOwes": "No merchant owes us anything.",
+      "advanceBack": "Advance to take back from {name} (EGP)",
+      "billPerson": "For person",
+      "nobody": "Not for one person",
+      "taxNames": {
+        "wht": "Withholding tax",
+        "vat": "VAT",
+        "payroll_tax": "Salary income tax",
+        "social_insurance": "Social insurance",
+        "martyrs_fund": "Martyrs fund"
+      },
+      "taxHints": {
+        "payroll_tax": "Taken from employees' salaries; paid monthly.",
+        "social_insurance": "Employee and company shares; paid monthly to the insurance office.",
+        "martyrs_fund": "Taken from salaries; paid with the payroll tax."
+      }
     },
     "period": {
       "bankTitle": "Bank matching",
@@ -2188,7 +2262,8 @@
       "lastMonth": "Last month",
       "downloadJournal": "Download journal (CSV)",
       "downloadPack": "Download audit pack (zip)"
-    }
+    },
+    "print": "Print or save as PDF"
   },
   "storeCash": {
     "tile": "Rider cash",
@@ -2936,9 +3011,11 @@
           {
             "title": "Salaries and advances",
             "steps": [
-              "Salaries: admin sets each person's monthly salary.",
+              "Salaries: admin marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.",
               "An advance: choose the person, amount and the bank or box it is paid from.",
-              "Month end: choose the month and the bank, enter deductions and how much advance to take back, Pay."
+              "Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.",
+              "Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.",
+              "Each month pay salary tax, social insurance and the martyrs fund from Taxes."
             ],
             "check": [
               "Each person's advance owed goes down; the run shows in Approvals when it is above the limit."
