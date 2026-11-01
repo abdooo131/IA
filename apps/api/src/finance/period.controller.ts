@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
+  bookCorporateTax,
+  comparativeStatements,
+  corporateTaxEstimate,
+  payrollForms,
+  vatReturn,
+  withholdingPayments,
   bookBankCharge,
   budgetVsActual,
   cashFlow,
@@ -28,6 +34,7 @@ import {
   bankMatchSchema,
   budgetSchema,
   cairoDay,
+  corporateTaxSchema,
   cairoDayStart,
   entryNumber,
   isCalendarDay,
@@ -345,5 +352,174 @@ export class PeriodController {
     res.setHeader('content-type', 'application/zip');
     res.setHeader('content-disposition', `attachment; filename="${folder}.zip"`);
     res.send(zip(files));
+  }
+
+  // ─── tax returns ────────────────────────────────────────────────────────────
+
+  private month(month?: string) {
+    if (month && MONTH.test(month)) return month;
+    const today = cairoDay(this.clock.now());
+    return addDays(`${today.slice(0, 7)}-01`, -1).slice(0, 7);
+  }
+
+  @Get('tax-returns/vat')
+  @ApiQuery({ name: 'month', required: false })
+  vatReturn(@Query('month') month?: string) {
+    return vatReturn(this.prisma, this.month(month));
+  }
+
+  private quarter(year?: string, quarter?: string) {
+    const today = cairoDay(this.clock.now());
+    return {
+      year: year ? Number(year) : Number(today.slice(0, 4)),
+      quarter: quarter ? Number(quarter) : Math.ceil(Number(today.slice(5, 7)) / 3),
+    };
+  }
+
+  @Get('tax-returns/withholding')
+  @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'quarter', required: false })
+  withholding(@Query('year') year?: string, @Query('quarter') quarter?: string) {
+    return withholdingPayments(this.prisma, this.quarter(year, quarter));
+  }
+
+  /** Form 41 lines: one row per payment, in the order the tax portal's sheet asks. */
+  @Get('tax-returns/withholding.csv')
+  @ApiQuery({ name: 'year', required: false })
+  @ApiQuery({ name: 'quarter', required: false })
+  async withholdingCsv(
+    @Res() res: Response,
+    @Query('year') year?: string,
+    @Query('quarter') quarter?: string,
+  ) {
+    const q = this.quarter(year, quarter);
+    const rows = await withholdingPayments(this.prisma, q);
+    this.sendCsv(
+      res,
+      `form41-${q.year}-Q${q.quarter}.csv`,
+      csv(
+        [
+          'Tax registration number',
+          'Name',
+          'Date',
+          'Amount before VAT',
+          'Rate %',
+          'Withheld',
+          'Voucher',
+        ],
+        rows.map((r) => [
+          r.taxId,
+          r.supplier,
+          r.day,
+          egp(r.netPiastres),
+          (r.rateBp / 100).toFixed(2),
+          egp(r.whtPiastres),
+          entryNumber(r.entryNumber),
+        ]),
+      ),
+    );
+  }
+
+  @Get('tax-returns/payroll')
+  @ApiQuery({ name: 'month', required: false })
+  async payroll(@Query('month') month?: string) {
+    const forms = await payrollForms(this.prisma, this.month(month));
+    return { ...forms, entryNumber: forms.entryNumber ? entryNumber(forms.entryNumber) : null };
+  }
+
+  /** Salary tax (kind "tax") or social insurance (kind "insurance") list for the month. */
+  @Get('tax-returns/payroll.csv')
+  @ApiQuery({ name: 'month', required: false })
+  @ApiQuery({ name: 'kind', required: false, enum: ['tax', 'insurance'] })
+  async payrollCsv(
+    @Res() res: Response,
+    @Query('month') month?: string,
+    @Query('kind') kind?: string,
+  ) {
+    const m = this.month(month);
+    const forms = await payrollForms(this.prisma, m);
+    if (kind === 'insurance')
+      return this.sendCsv(
+        res,
+        `social-insurance-${m}.csv`,
+        csv(
+          [
+            'Insurance number',
+            'National ID',
+            'Name',
+            'Insured wage',
+            'Employee share',
+            'Company share',
+            'Total',
+          ],
+          forms.rows.map((r) => [
+            r.insuranceNumber ?? '',
+            r.nationalId ?? '',
+            r.name,
+            egp(r.insuredWage),
+            egp(r.siEmployee),
+            egp(r.siEmployer),
+            egp(r.siEmployee + r.siEmployer),
+          ]),
+        ),
+      );
+    this.sendCsv(
+      res,
+      `salary-tax-${m}.csv`,
+      csv(
+        [
+          'National ID',
+          'Name',
+          'Gross',
+          'Employee insurance',
+          'Taxable',
+          'Income tax',
+          'Martyrs fund',
+          'Net',
+        ],
+        forms.rows.map((r) => [
+          r.nationalId ?? '',
+          r.name,
+          egp(r.gross),
+          egp(r.siEmployee),
+          egp(r.gross - r.siEmployee),
+          egp(r.incomeTax),
+          egp(r.martyrs),
+          egp(r.net),
+        ]),
+      ),
+    );
+  }
+
+  @Get('tax-returns/corporate')
+  @ApiQuery({ name: 'year', required: false })
+  corporate(@Query('year') year?: string) {
+    return corporateTaxEstimate(
+      this.prisma,
+      year ? Number(year) : Number(cairoDay(this.clock.now()).slice(0, 4)) - 1,
+    );
+  }
+
+  /** Books the year's company income tax before closing the year: approvers only. */
+  @Post('tax-returns/corporate')
+  @FinanceLevel('approve')
+  bookCorporate(
+    @Body(new ZodValidationPipe(corporateTaxSchema)) body: z.infer<typeof corporateTaxSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return bookCorporateTax(this.prisma, { ...body, actorUserId: user.sub, now: this.clock.now() });
+  }
+
+  @Get('comparative-statements')
+  @ApiQuery({ name: 'from', required: false })
+  @ApiQuery({ name: 'to', required: false })
+  compare(@Query('from') from?: string, @Query('to') to?: string) {
+    return comparativeStatements(this.prisma, days(from, to, cairoDay(this.clock.now())));
+  }
+
+  private sendCsv(res: Response, name: string, body: string) {
+    res.setHeader('content-type', 'text/csv; charset=utf-8');
+    res.setHeader('content-disposition', `attachment; filename="${name}"`);
+    res.send(body);
   }
 }

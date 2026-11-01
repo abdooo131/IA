@@ -25,6 +25,8 @@ function SalaryCell({ row, canEdit }: { row: StaffPayRow; canEdit: boolean }) {
   const action = useFinanceAction();
   const [salary, setSalary] = useState(egpText(row.monthlyPiastres));
   const [insured, setInsured] = useState(egpText(row.insuredWagePiastres));
+  const [nationalId, setNationalId] = useState(row.nationalId ?? '');
+  const [insuranceNumber, setInsuranceNumber] = useState(row.insuranceNumber ?? '');
   if (!canEdit)
     return row.monthlyPiastres === null ? (
       <span className="text-text-muted">{t('notSet')}</span>
@@ -61,6 +63,23 @@ function SalaryCell({ row, canEdit }: { row: StaffPayRow; canEdit: boolean }) {
         title={t('insuredHint')}
         className={`${field} w-28 text-end`}
       />
+      <input
+        value={nationalId}
+        onChange={(e) => setNationalId(e.target.value.replace(/\D/g, '').slice(0, 14))}
+        inputMode="numeric"
+        dir="ltr"
+        aria-label={t('nationalId')}
+        placeholder={t('nationalId')}
+        className={`${field} w-40`}
+      />
+      <input
+        value={insuranceNumber}
+        onChange={(e) => setInsuranceNumber(e.target.value)}
+        dir="ltr"
+        aria-label={t('insuranceNumber')}
+        placeholder={t('insuranceNumber')}
+        className={`${field} w-32`}
+      />
       <button
         type="button"
         disabled={action.busy || value === null || (insured.trim() !== '' && insuredValue === null)}
@@ -68,6 +87,8 @@ function SalaryCell({ row, canEdit }: { row: StaffPayRow; canEdit: boolean }) {
           void action.send('PUT', `/finance/salaries/${row.userId}`, {
             monthlyPiastres: value,
             insuredWagePiastres: insuredValue,
+            nationalId,
+            insuranceNumber,
           })
         }
         className={secondary}

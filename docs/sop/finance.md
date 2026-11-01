@@ -138,7 +138,10 @@ Also inside the app: settings menu (top of every screen), Help.
 
 1. Taxes shows the VAT and withholding tax we owe today.
 2. Every quarter: open the quarter, give the list to the accountant for form 41, then Pay tax (withholding) for the total.
-3. Every month: after the accountant files the VAT return, Pay tax (VAT) for the amount filed.
+3. Every month: Tax returns gives the VAT return boxes; after the accountant files it, Pay tax (VAT) for the amount filed.
+4. Every month: Tax returns gives the salary tax and insurance lists (CSV); pay both from Taxes.
+5. Every quarter: Tax returns, download the form 41 CSV and upload it to the tax portal.
+6. After the year ends: Tax returns, company income tax; book the amount agreed with the accountant before closing the year.
 
 **Check it went right**
 
@@ -388,7 +391,10 @@ Also inside the app: settings menu (top of every screen), Help.
 
 1. الضرائب بتبين القيمة المضافة والخصم من المنبع المستحقين النهارده.
 2. كل ربع سنة: افتح الربع، ادي القائمة للمحاسب لنموذج 41، وبعدين سداد ضريبة (خصم من المنبع) بالإجمالي.
-3. كل شهر: بعد ما المحاسب يقدم إقرار القيمة المضافة، سداد ضريبة (قيمة مضافة) بالمبلغ المقدم.
+3. كل شهر: الإقرارات الضريبية فيها خانات إقرار القيمة المضافة؛ بعد ما المحاسب يقدمه، سداد ضريبة (قيمة مضافة) بالمبلغ المقدم.
+4. كل شهر: الإقرارات الضريبية فيها قوائم ضريبة المرتبات والتأمينات (CSV)؛ سدد الاتنين من الضرائب.
+5. كل ربع سنة: الإقرارات الضريبية، نزل ملف نموذج 41 وارفعه على بوابة الضرائب.
+6. بعد نهاية السنة: الإقرارات الضريبية، ضريبة الدخل؛ سجل المبلغ المتفق عليه مع المحاسب قبل إقفال السنة.
 
 **اتأكد إنها مشيت صح**
 

@@ -87,6 +87,8 @@ export class ProfitController {
       userId,
       monthlyPiastres: body.monthlyPiastres,
       insuredWagePiastres: body.insuredWagePiastres,
+      nationalId: body.nationalId,
+      insuranceNumber: body.insuranceNumber,
       actorUserId: user.sub,
     });
   }

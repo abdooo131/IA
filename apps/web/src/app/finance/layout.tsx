@@ -54,6 +54,8 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/balance-sheet', label: t('bs'), icon: 'invoice' },
         { href: '/finance/taxes', label: t('taxes'), icon: 'invoice' },
         { href: '/finance/vat', label: t('vat'), icon: 'invoice' },
+        { href: '/finance/tax-returns', label: t('taxReturns'), icon: 'invoice' },
+        { href: '/finance/statements', label: t('statements'), icon: 'analytics' },
         { href: '/finance/budgets', label: t('budgets'), icon: 'analytics' },
         { href: '/finance/money-flow', label: t('cashFlow'), icon: 'analytics' },
         { href: '/finance/recurring', label: t('recurring'), icon: 'schedule' },

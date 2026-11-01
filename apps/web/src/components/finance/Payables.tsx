@@ -36,7 +36,14 @@ const secondary =
 const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
 const td = 'px-3 py-2';
 const thisMonth = () => cairoDay(new Date()).slice(0, 7);
-const TAX_KINDS = ['wht', 'vat', 'payroll_tax', 'social_insurance', 'martyrs_fund'] as const;
+const TAX_KINDS = [
+  'wht',
+  'vat',
+  'payroll_tax',
+  'social_insurance',
+  'martyrs_fund',
+  'corporate_tax',
+] as const;
 type TaxKind = (typeof TAX_KINDS)[number];
 
 function Field({ label, children }: { label: string; children: ReactNode }) {

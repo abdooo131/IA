@@ -1422,7 +1422,9 @@
       "cashFlow": "Cash flow",
       "yearEnd": "Year end and export",
       "invoices": "Tax invoices",
-      "company": "Company tax details"
+      "company": "Company tax details",
+      "taxReturns": "Tax returns",
+      "statements": "Financial statements"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1462,7 +1464,8 @@
       "depreciation": "Depreciation",
       "year_close": "Year end closing",
       "staff_bonus": "Staff bonus",
-      "credit_note": "Credit note"
+      "credit_note": "Credit note",
+      "corporate_tax": "Company income tax"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1535,7 +1538,8 @@
         "accumulated_depreciation": "Accumulated depreciation",
         "suppliers": "Suppliers",
         "depreciation": "Depreciation",
-        "staff_costs": "Staff costs"
+        "staff_costs": "Staff costs",
+        "income_tax": "Income tax"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -1747,7 +1751,8 @@
         "more_than_invoiced": "More than is left on this invoice.",
         "invoice_not_rejected": "Only a rejected or invalid invoice can be sent again.",
         "invalid_tax_number": "A tax registration number has 9 digits.",
-        "invalid_activity_code": "An activity code has 4 digits."
+        "invalid_activity_code": "An activity code has 4 digits.",
+        "invalid_national_id": "A national ID has 14 digits."
       }
     },
     "riders": {
@@ -2000,7 +2005,9 @@
       "slipFor": "{month} · {number}",
       "baseSalary": "Salary",
       "insuranceOn": "Social insurance (on {amount})",
-      "companyShare": "The company also pays EGP {amount} social insurance."
+      "companyShare": "The company also pays EGP {amount} social insurance.",
+      "nationalId": "National ID",
+      "insuranceNumber": "Insurance number"
     },
     "payables": {
       "billsTitle": "Suppliers and bills",
@@ -2142,7 +2149,8 @@
         "vat": "VAT",
         "payroll_tax": "Salary income tax",
         "social_insurance": "Social insurance",
-        "martyrs_fund": "Martyrs fund"
+        "martyrs_fund": "Martyrs fund",
+        "corporate_tax": "Company income tax"
       },
       "taxHints": {
         "payroll_tax": "Taken from employees' salaries; paid monthly.",
@@ -2375,6 +2383,68 @@
       },
       "merchantTitle": "Invoices",
       "merchantIntro": "Our tax invoices to you for the month's fees, and credit notes when fees were given back. Open one to print it or save it as PDF."
+    },
+    "returns": {
+      "title": "Tax returns",
+      "intro": "Worksheets for the returns the accountant files, built from the books: VAT each month, withholding tax every quarter (form 41), salary tax and social insurance each month, and the company income tax once a year. Download the lists as CSV or print this page.",
+      "show": "Show",
+      "vatTitle": "VAT return {month}",
+      "vatHint": "Copy these boxes into the monthly VAT return on the tax portal, then record the payment in Taxes.",
+      "sales": "Taxable sales (our fees)",
+      "outputVat": "VAT on sales",
+      "creditNotes": "Credit notes",
+      "creditNoteVat": "VAT on credit notes",
+      "purchases": "Purchases with VAT",
+      "inputVat": "VAT claimed back",
+      "carriedIn": "Credit carried from earlier months",
+      "due": "VAT due this month",
+      "carriedOut": "Credit carried to next month",
+      "whtTitle": "Withholding tax Q{quarter} {year} (form 41)",
+      "whtHint": "Every payment that kept withholding tax, one line each. Upload the CSV to the tax portal's form 41, then record the payment in Taxes.",
+      "downloadCsv": "Download CSV",
+      "none": "Nothing in this period.",
+      "taxId": "Tax number",
+      "name": "Name",
+      "date": "Date",
+      "beforeVat": "Before VAT",
+      "rate": "Rate",
+      "withheld": "Withheld",
+      "noTaxId": "Missing",
+      "total": "Total",
+      "payrollTitle": "Salary tax and social insurance {month}",
+      "payrollHint": "From the month's salary run. The salary tax list goes with the monthly salary tax payment; the insurance list goes to the social insurance office.",
+      "salaryTaxCsv": "Salary tax list (CSV)",
+      "insuranceCsv": "Insurance list (CSV)",
+      "noRun": "No salary run for this month.",
+      "missingIds": "{count, plural, one {# employee has} other {# employees have}} no national ID or insurance number (Salaries).",
+      "gross": "Gross salaries",
+      "incomeTax": "Salary income tax",
+      "insuredWages": "Insured wages",
+      "siEmployee": "Insurance, employee share",
+      "siEmployer": "Insurance, company share",
+      "siTotal": "Insurance to pay",
+      "martyrs": "Martyrs fund",
+      "corporateTitle": "Company income tax {year}",
+      "corporateHint": "Profit before tax for the year times the rate in settings. The accountant adjusts it for costs the law does not accept; book the agreed amount before closing the year, then pay it from Taxes.",
+      "profitBeforeTax": "Profit before tax",
+      "rateIs": "Rate",
+      "estimate": "Estimated tax",
+      "booked": "Already booked",
+      "bookAmount": "Amount to book (EGP)",
+      "book": "Book the tax",
+      "statementsTitle": "Financial statements",
+      "statementsIntro": "Profit and loss for the chosen days and the balance sheet on the last day, each next to the same number of days just before. Print or save as PDF for the bank, the auditor or the tax office.",
+      "account": "Account",
+      "pl": "Profit and loss",
+      "totalIncome": "Total income",
+      "totalCosts": "Total costs",
+      "profit": "Profit",
+      "bs": "Balance sheet on {now} and {before}",
+      "assets": "Assets",
+      "totalAssets": "Total assets",
+      "liabilities": "Liabilities",
+      "equity": "Equity",
+      "earnings": "Profit not yet closed into equity"
     }
   },
   "storeCash": {
@@ -3152,7 +3222,10 @@
             "steps": [
               "Taxes shows the VAT and withholding tax we owe today.",
               "Every quarter: open the quarter, give the list to the accountant for form 41, then Pay tax (withholding) for the total.",
-              "Every month: after the accountant files the VAT return, Pay tax (VAT) for the amount filed."
+              "Every month: Tax returns gives the VAT return boxes; after the accountant files it, Pay tax (VAT) for the amount filed.",
+              "Every month: Tax returns gives the salary tax and insurance lists (CSV); pay both from Taxes.",
+              "Every quarter: Tax returns, download the form 41 CSV and upload it to the tax portal.",
+              "After the year ends: Tax returns, company income tax; book the amount agreed with the accountant before closing the year."
             ],
             "check": ["The amount owed goes down by what you paid."],
             "problems": ["A supplier has no tax id: add it on the supplier before filing."]

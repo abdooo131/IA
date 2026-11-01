@@ -162,3 +162,11 @@ export {
   updateCompanyProfile,
   updateMerchantTax,
 } from './invoices';
+export {
+  bookCorporateTax,
+  comparativeStatements,
+  corporateTaxEstimate,
+  payrollForms,
+  vatReturn,
+  withholdingPayments,
+} from './returns';

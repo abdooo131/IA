@@ -289,7 +289,10 @@ EN = {
        "steps": [
          "Taxes shows the VAT and withholding tax we owe today.",
          "Every quarter: open the quarter, give the list to the accountant for form 41, then Pay tax (withholding) for the total.",
-         "Every month: after the accountant files the VAT return, Pay tax (VAT) for the amount filed."],
+         "Every month: Tax returns gives the VAT return boxes; after the accountant files it, Pay tax (VAT) for the amount filed.",
+         "Every month: Tax returns gives the salary tax and insurance lists (CSV); pay both from Taxes.",
+         "Every quarter: Tax returns, download the form 41 CSV and upload it to the tax portal.",
+         "After the year ends: Tax returns, company income tax; book the amount agreed with the accountant before closing the year."],
        "check": [
          "The amount owed goes down by what you paid."],
        "problems": [
@@ -700,7 +703,10 @@ AR = {
        "steps": [
          "الضرائب بتبين القيمة المضافة والخصم من المنبع المستحقين النهارده.",
          "كل ربع سنة: افتح الربع، ادي القائمة للمحاسب لنموذج 41، وبعدين سداد ضريبة (خصم من المنبع) بالإجمالي.",
-         "كل شهر: بعد ما المحاسب يقدم إقرار القيمة المضافة، سداد ضريبة (قيمة مضافة) بالمبلغ المقدم."],
+         "كل شهر: الإقرارات الضريبية فيها خانات إقرار القيمة المضافة؛ بعد ما المحاسب يقدمه، سداد ضريبة (قيمة مضافة) بالمبلغ المقدم.",
+         "كل شهر: الإقرارات الضريبية فيها قوائم ضريبة المرتبات والتأمينات (CSV)؛ سدد الاتنين من الضرائب.",
+         "كل ربع سنة: الإقرارات الضريبية، نزل ملف نموذج 41 وارفعه على بوابة الضرائب.",
+         "بعد نهاية السنة: الإقرارات الضريبية، ضريبة الدخل؛ سجل المبلغ المتفق عليه مع المحاسب قبل إقفال السنة."],
        "check": [
          "المستحق بيقل بقد اللي دفعته."],
        "problems": [

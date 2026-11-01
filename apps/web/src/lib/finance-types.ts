@@ -295,6 +295,8 @@ export interface StaffPayRow {
   staffingSupplier: { id: string; name: string } | null;
   monthlyPiastres: number | null;
   insuredWagePiastres: number | null;
+  nationalId: string | null;
+  insuranceNumber: string | null;
   advanceOwedPiastres: number;
 }
 
@@ -641,4 +643,82 @@ export interface MerchantTax {
   taxRegionCity: string | null;
   taxStreet: string | null;
   taxBuildingNumber: string | null;
+}
+
+export interface VatReturn {
+  month: string;
+  salesPiastres: number;
+  outputVatPiastres: number;
+  creditNotesPiastres: number;
+  creditNoteVatPiastres: number;
+  purchasesPiastres: number;
+  inputVatPiastres: number;
+  carriedInPiastres: number;
+  duePiastres: number;
+  carriedOutPiastres: number;
+  paidSincePiastres: number;
+}
+
+export interface WithholdingRow {
+  day: string;
+  entryNumber: number;
+  supplier: string;
+  taxId: string;
+  netPiastres: number;
+  rateBp: number;
+  whtPiastres: number;
+  reference: string;
+}
+
+export interface PayrollForms {
+  month: string;
+  entryNumber: string | null;
+  rows: (PayslipRun['people'][number] & {
+    nationalId: string | null;
+    insuranceNumber: string | null;
+  })[];
+  totals: {
+    grossPiastres: number;
+    incomeTaxPiastres: number;
+    insuredWagesPiastres: number;
+    siEmployeePiastres: number;
+    siEmployerPiastres: number;
+    martyrsPiastres: number;
+  };
+  missingIds: number;
+}
+
+export interface CorporateTax {
+  year: number;
+  profitBeforeTaxPiastres: number;
+  rateBp: number;
+  estimatePiastres: number;
+  bookedPiastres: number;
+}
+
+interface PlReport {
+  income: { code: string; nameEn: string; nameAr: string; amountPiastres: number }[];
+  expenses: { code: string; nameEn: string; nameAr: string; amountPiastres: number }[];
+  totalIncomePiastres: number;
+  totalExpensesPiastres: number;
+  profitPiastres: number;
+}
+interface BsRow {
+  code: string;
+  groupCode: number;
+  nameEn: string;
+  nameAr: string;
+  amountPiastres: number;
+  wallets?: number;
+}
+interface BsReport {
+  assets: BsRow[];
+  liabilities: BsRow[];
+  equity: BsRow[];
+  earningsPiastres: number;
+  totalAssetsPiastres: number;
+}
+export interface ComparativeStatements {
+  current: { from: string; to: string; pl: PlReport; bs: BsReport };
+  previous: { from: string; to: string; pl: PlReport; bs: BsReport };
 }
