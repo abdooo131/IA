@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import { type AuditPage, AuditList } from '@/components/admin/AuditList';
 import { apiGet } from '@/lib/api-server';
+import { DateInput } from '@/components/DateInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,23 +66,11 @@ export default async function AdminAuditPage({ searchParams }: { searchParams: P
         </label>
         <label className="text-caption">
           {t('from')}
-          <input
-            type="date"
-            name="from"
-            defaultValue={filters.from ?? ''}
-            dir="ltr"
-            className={field}
-          />
+          <DateInput name="from" defaultValue={filters.from ?? ''} dir="ltr" className={field} />
         </label>
         <label className="text-caption">
           {t('to')}
-          <input
-            type="date"
-            name="to"
-            defaultValue={filters.to ?? ''}
-            dir="ltr"
-            className={field}
-          />
+          <DateInput name="to" defaultValue={filters.to ?? ''} dir="ltr" className={field} />
         </label>
         {filters.entityId && <input type="hidden" name="entityId" value={filters.entityId} />}
         <button

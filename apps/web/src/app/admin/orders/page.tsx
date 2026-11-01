@@ -4,6 +4,7 @@ import { OrdersTable } from '@/components/orders/OrdersTable';
 import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
 import { ORDER_STATUS_LIST, type OrderSummary } from '@/lib/order-types';
+import { DateInput } from '@/components/DateInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,8 +104,7 @@ export default async function AdminOrdersPage({
         </select>
         <label className="text-caption">
           {t('from')}
-          <input
-            type="date"
+          <DateInput
             name="from"
             defaultValue={filters.from ?? ''}
             dir="ltr"
@@ -113,8 +113,7 @@ export default async function AdminOrdersPage({
         </label>
         <label className="text-caption">
           {t('to')}
-          <input
-            type="date"
+          <DateInput
             name="to"
             defaultValue={filters.to ?? ''}
             dir="ltr"

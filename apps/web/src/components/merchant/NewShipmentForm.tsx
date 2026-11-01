@@ -8,6 +8,7 @@ import { localized } from '@/lib/admin-types';
 import { apiSend } from '@/lib/api-client';
 import type { MerchantSku } from '@/lib/merchant-types';
 import { type StoreRef, title } from '@/lib/store-types';
+import { DateInput } from '@/components/DateInput';
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
@@ -60,7 +61,7 @@ export function NewShipmentForm({ stores, skus }: { stores: StoreRef[]; skus: Me
       </label>
       <label className="block text-caption">
         {t('expectedAt')}
-        <input name="expectedAt" type="date" dir="ltr" className={field} />
+        <DateInput name="expectedAt" dir="ltr" className={field} />
       </label>
       <label className="block text-caption">
         {t('note')}

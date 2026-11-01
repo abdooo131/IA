@@ -1,19 +1,20 @@
 import { getTranslations } from 'next-intl/server';
-import { getTheme } from '@/lib/server-session';
+import { getCurrentUser, getTheme } from '@/lib/server-session';
+import { AccountMenu } from './AccountMenu';
 import { Logo } from './Logo';
-import { PreferencesMenu } from './PreferencesMenu';
-import { SignOutButton } from './SignOutButton';
 
+/** The top bar of the phone screens (store, rider, help, tickets): logo and one Settings menu. */
 export async function AppHeader() {
-  const t = await getTranslations('common');
+  const [t, user, theme] = await Promise.all([
+    getTranslations('common'),
+    getCurrentUser(),
+    getTheme(),
+  ]);
   return (
-    <header className="border-b border-line bg-surface">
-      <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+    <header className="sticky top-0 z-30 border-b border-line bg-surface">
+      <div className="mx-auto flex h-14 max-w-6xl items-center justify-between gap-3 px-4">
         <Logo alt={t('appName')} />
-        <div className="flex flex-wrap items-center gap-2">
-          <PreferencesMenu theme={await getTheme()} help />
-          <SignOutButton />
-        </div>
+        <AccountMenu theme={theme} tickets={!!user && user.role !== 'merchant'} />
       </div>
     </header>
   );

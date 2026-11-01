@@ -86,7 +86,7 @@ export default async function AdminAlertsPage({
                 a.resolvedAt ? 'border-line opacity-70' : 'border-status-needs-action'
               }`}
             >
-              <div>
+              <div className="min-w-0 [overflow-wrap:anywhere]">
                 <p className="text-body-sm font-bold">{text(a)}</p>
                 <p className="text-caption text-text-muted">
                   {a.order && (

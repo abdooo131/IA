@@ -41,6 +41,11 @@
     outline: 2px solid var(--shiply-focus);
     outline-offset: 2px;
   }
+  /* A grid cell never grows wider than its column because of a wide table or a long word,
+     so pages never slide sideways on a phone (wide tables scroll inside their own box). */
+  .grid > * {
+    min-width: 0;
+  }
 }
 
 @layer components {

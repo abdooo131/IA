@@ -2,9 +2,8 @@ import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { getCurrentUser, getTheme } from '@/lib/server-session';
 import { Logo } from './Logo';
-import { PreferencesMenu } from './PreferencesMenu';
+import { AccountMenu } from './AccountMenu';
 import { type NavGroup, SideNav } from './SideNav';
-import { SignOutButton } from './SignOutButton';
 
 /** The frame of the desk areas (admin, finance, merchant): sidebar on the side, page beside it. */
 export async function DashboardShell({
@@ -21,15 +20,14 @@ export async function DashboardShell({
         groups={groups}
         brand={<Logo alt={t('common.appName')} />}
         footer={
-          <div className="space-y-3">
+          <div className="flex items-center justify-between gap-2">
             {user && (
               <div className="min-w-0">
                 <p className="truncate text-body-sm font-bold">{user.name}</p>
                 <p className="text-caption text-text-muted">{t(`roles.${user.role}`)}</p>
               </div>
             )}
-            <PreferencesMenu theme={theme} help />
-            <SignOutButton />
+            <AccountMenu theme={theme} tickets={user?.role !== 'merchant'} up compact />
           </div>
         }
       />

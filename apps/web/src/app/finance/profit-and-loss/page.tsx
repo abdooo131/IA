@@ -4,6 +4,7 @@ import { Amount } from '@/components/finance/Amount';
 import { ReportTable } from '@/components/finance/ReportTable';
 import { apiGet } from '@/lib/api-server';
 import type { ProfitAndLoss } from '@/lib/finance-types';
+import { DateInput } from '@/components/DateInput';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,12 +31,11 @@ export default async function ProfitAndLossPage({
       <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
         <label className="text-caption">
           {tf('from')}
-          <input type="date" name="from" defaultValue={from} dir="ltr" className={field} />
+          <DateInput name="from" defaultValue={from} dir="ltr" className={field} />
         </label>
         <label className="text-caption">
           {tf('to')}
-          <input
-            type="date"
+          <DateInput
             name="to"
             defaultValue={to}
             max={addDays(today, 0)}

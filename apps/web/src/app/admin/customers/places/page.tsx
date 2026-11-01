@@ -63,12 +63,19 @@ export default async function CustomerPlacesPage() {
           headers={headers}
           rows={outside.map(row)}
         />
-        <DataTable
-          title={t('allDistricts')}
-          empty={t('noPlaces')}
-          headers={headers}
-          rows={d.districts.map(row)}
-        />
+        <details className="rounded-lg border border-line bg-surface">
+          <summary className="cursor-pointer px-4 py-3 text-body-sm font-bold text-link">
+            {t('allDistricts')}
+          </summary>
+          <div className="p-2 pt-0">
+            <DataTable
+              title={t('allDistricts')}
+              empty={t('noPlaces')}
+              headers={headers}
+              rows={d.districts.map(row)}
+            />
+          </div>
+        </details>
       </div>
     </>
   );

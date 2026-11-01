@@ -16,7 +16,10 @@
     "signedInAs": "Signed in as {name}",
     "comingSoon": "Coming in a later step",
     "menu": "Menu",
-    "close": "Close"
+    "close": "Close",
+    "settings": "Settings",
+    "datePlaceholder": "dd/mm/yyyy",
+    "pickDate": "Pick a date"
   },
   "roles": {
     "admin": "Admin",
@@ -145,7 +148,8 @@
       "dayDetail": "{date}: {orders} orders, {delivered} delivered, {onTime} on time",
       "overTarget": "Over target",
       "rating": "Customer rating",
-      "ratingCount": "{count, plural, =0 {No ratings yet} one {# rating} other {# ratings}}"
+      "ratingCount": "{count, plural, =0 {No ratings yet} one {# rating} other {# ratings}}",
+      "moreNumbers": "More numbers"
     },
     "products": {
       "title": "Products",
@@ -1288,7 +1292,10 @@
       "retried": "The order is back in the store queue for a new delivery.",
       "closed": "The order is closed as failed."
     },
-    "trackingLink": "Customer tracking page"
+    "trackingLink": "Customer tracking page",
+    "durationMinutes": "{m}:{ss} min",
+    "durationHours": "{h} h {m} min",
+    "durationDays": "{d, plural, one {# day} other {# days}} {h} h"
   },
   "rider": {
     "title": "My deliveries",
@@ -1346,7 +1353,8 @@
       "sharing": "Your position is shared with your customers while you carry their orders.",
       "denied": "Location is blocked. Allow location for this site so customers can follow their order.",
       "unsupported": "This phone cannot share its location."
-    }
+    },
+    "myDay": "My day"
   },
   "finance": {
     "title": "Finance",
@@ -2878,6 +2886,12 @@
     "monthlySpend": "Spend by month (12 months)",
     "household": "Same address",
     "noHousehold": "Nobody else at this address.",
-    "phone": "Mobile"
+    "phone": "Mobile",
+    "moreInsights": "More insights: months, governorates, shared shoppers, risk and busy times"
+  },
+  "notFound": {
+    "title": "Not found",
+    "body": "This page or record does not exist, or it belongs to another store or account.",
+    "home": "Go to my home page"
   }
 }

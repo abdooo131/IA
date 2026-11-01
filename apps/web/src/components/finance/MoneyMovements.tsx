@@ -10,6 +10,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { DateInput } from '@/components/DateInput';
 
 export type MovementTab = 'transfer' | 'expense' | 'capital' | 'income' | 'journal';
 
@@ -68,8 +69,7 @@ function Common({ memoRequired = false }: { memoRequired?: boolean }) {
       </label>
       <label className="block text-caption">
         {t('day')}
-        <input
-          type="date"
+        <DateInput
           name="day"
           max={cairoDay(new Date())}
           defaultValue={cairoDay(new Date())}
@@ -402,8 +402,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
         </label>
         <label className="block text-caption">
           {t('day')}
-          <input
-            type="date"
+          <DateInput
             value={day}
             max={cairoDay(new Date())}
             onChange={(e) => setDay(e.target.value)}

@@ -7,6 +7,7 @@ import { formatCairoDateTime, formatCutoffDay } from '@/lib/format';
 import { Amount } from './Amount';
 import { BankSelect } from './BankSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { DateInput } from '@/components/DateInput';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
 const button =
@@ -108,8 +109,7 @@ export function PayoutsManager({ payouts, today }: { payouts: PayoutRow[]; today
       <section className="flex flex-wrap items-end gap-3 rounded-lg border border-line bg-surface p-4">
         <label className="text-caption">
           {t('cutoffDay')}
-          <input
-            type="date"
+          <DateInput
             value={cutoff}
             max={today}
             onChange={(e) => setCutoff(e.target.value)}

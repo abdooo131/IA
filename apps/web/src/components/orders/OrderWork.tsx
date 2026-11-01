@@ -132,8 +132,11 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
         <StatusBar flow="order" status={order.status} />
         {order.stage && <StageTimer stage={order.stage.stage} dueAt={order.stage.dueAt} />}
         <p className="text-body-sm">
-          {order.customerName} · <span className="ltr-iso">{order.customerPhone}</span> ·{' '}
-          {order.merchant.name}
+          {order.customerName} ·{' '}
+          <a href={`tel:${order.customerPhone}`} className="ltr-iso font-bold text-link underline">
+            {order.customerPhone}
+          </a>{' '}
+          · {order.merchant.name}
         </p>
         <p className="text-caption text-text-muted">{order.addressText}</p>
         {order.phoneFlagged && (

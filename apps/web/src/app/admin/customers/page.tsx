@@ -187,103 +187,110 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </div>
       </div>
 
-      {o.newByMonth.length > 0 && (
-        <section className="mt-6 rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-h3">{t('newByMonth')}</h2>
-          <ColumnChart
-            title={t('newByMonth')}
-            valueLabel={t('customers')}
-            columns={o.newByMonth.map((m) => ({
-              key: m.month,
-              label: m.month.slice(2),
-              value: m.customers,
-              detail: `${m.month}: ${m.customers}`,
-            }))}
-          />
-        </section>
-      )}
+      <details className="mt-6 rounded-lg border border-line bg-surface">
+        <summary className="cursor-pointer px-4 py-3 text-body-sm font-bold text-link">
+          {t('moreInsights')}
+        </summary>
+        <div className="p-4 pt-0">
+          {o.newByMonth.length > 0 && (
+            <section className="mt-6 rounded-lg border border-line bg-surface p-4">
+              <h2 className="text-h3">{t('newByMonth')}</h2>
+              <ColumnChart
+                title={t('newByMonth')}
+                valueLabel={t('customers')}
+                columns={o.newByMonth.map((m) => ({
+                  key: m.month,
+                  label: m.month.slice(2),
+                  value: m.customers,
+                  detail: `${m.month}: ${m.customers}`,
+                }))}
+              />
+            </section>
+          )}
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <DataTable
-          title={t('byGovernorate')}
-          empty={t('none')}
-          headers={[t('governorate'), t('customers'), t('spend')]}
-          rows={o.governorates.map((g) => [
-            g.governorate ?? t('unknownPlace'),
-            g.customers,
-            formatEgp(g.spendPiastres),
-          ])}
-        />
-        <DataTable
-          title={t('shared')}
-          empty={t('noShared')}
-          headers={[t('merchantPair'), t('customers')]}
-          rows={o.sharedShoppers.map((s) => [`${s.a.name} + ${s.b.name}`, s.customers])}
-        />
-        <DataTable
-          title={t('pairs')}
-          empty={t('noPairs')}
-          headers={[t('categoryPair'), t('customers'), t('lift')]}
-          rows={o.categoryPairs.map((p) => [`${p.a} + ${p.b}`, p.customers, `×${p.lift}`])}
-        />
-        <DataTable
-          title={t('risky')}
-          empty={t('noRisky')}
-          headers={[t('customer'), t('attempts'), t('failed'), t('refused'), t('riskPct')]}
-          rows={o.riskyCustomers.map((c) => [
-            <Link key={c.id} href={`/admin/customers/${c.id}`} className="font-bold text-link">
-              {c.name || c.phone}
-            </Link>,
-            c.attempts,
-            c.failed,
-            c.refused,
-            `${c.pct}%`,
-          ])}
-        />
-      </div>
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <DataTable
+              title={t('byGovernorate')}
+              empty={t('none')}
+              headers={[t('governorate'), t('customers'), t('spend')]}
+              rows={o.governorates.map((g) => [
+                g.governorate ?? t('unknownPlace'),
+                g.customers,
+                formatEgp(g.spendPiastres),
+              ])}
+            />
+            <DataTable
+              title={t('shared')}
+              empty={t('noShared')}
+              headers={[t('merchantPair'), t('customers')]}
+              rows={o.sharedShoppers.map((s) => [`${s.a.name} + ${s.b.name}`, s.customers])}
+            />
+            <DataTable
+              title={t('pairs')}
+              empty={t('noPairs')}
+              headers={[t('categoryPair'), t('customers'), t('lift')]}
+              rows={o.categoryPairs.map((p) => [`${p.a} + ${p.b}`, p.customers, `×${p.lift}`])}
+            />
+            <DataTable
+              title={t('risky')}
+              empty={t('noRisky')}
+              headers={[t('customer'), t('attempts'), t('failed'), t('refused'), t('riskPct')]}
+              rows={o.riskyCustomers.map((c) => [
+                <Link key={c.id} href={`/admin/customers/${c.id}`} className="font-bold text-link">
+                  {c.name || c.phone}
+                </Link>,
+                c.attempts,
+                c.failed,
+                c.refused,
+                `${c.pct}%`,
+              ])}
+            />
+          </div>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2">
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-h3">{t('byDayAll')}</h2>
-          <ColumnChart
-            title={t('byDayAll')}
-            valueLabel={t('orders')}
-            height={140}
-            columns={byDay.map((v, d) => ({
-              key: String(d),
-              label: locale === 'ar' ? days(String(d)) : days(String(d)).slice(0, 3),
-              value: v,
-              detail: `${days(String(d))}: ${v}`,
-            }))}
-          />
-        </section>
-        <section className="rounded-lg border border-line bg-surface p-4">
-          <h2 className="text-h3">{t('byHourAll')}</h2>
-          <ColumnChart
-            title={t('byHourAll')}
-            valueLabel={t('orders')}
-            height={140}
-            columns={byHour.map((v, h) => ({
-              key: String(h),
-              label: h % 3 === 0 ? String(h) : '',
-              value: v,
-              detail: `${hour(h)}: ${v}`,
-            }))}
-          />
-        </section>
-      </div>
-      <div className="mt-4">
-        <DataTable
-          title={t('storePeaks')}
-          empty={t('none')}
-          headers={[t('store'), t('orders90'), t('peakHours')]}
-          rows={o.storePeaks.map((s) => [
-            locale === 'ar' ? s.nameAr : s.nameEn,
-            s.orders,
-            s.hours.map((h) => `${hour(h.hour)} (${h.orders})`).join(' · '),
-          ])}
-        />
-      </div>
+          <div className="mt-6 grid gap-4 lg:grid-cols-2">
+            <section className="rounded-lg border border-line bg-surface p-4">
+              <h2 className="text-h3">{t('byDayAll')}</h2>
+              <ColumnChart
+                title={t('byDayAll')}
+                valueLabel={t('orders')}
+                height={140}
+                columns={byDay.map((v, d) => ({
+                  key: String(d),
+                  label: locale === 'ar' ? days(String(d)) : days(String(d)).slice(0, 3),
+                  value: v,
+                  detail: `${days(String(d))}: ${v}`,
+                }))}
+              />
+            </section>
+            <section className="rounded-lg border border-line bg-surface p-4">
+              <h2 className="text-h3">{t('byHourAll')}</h2>
+              <ColumnChart
+                title={t('byHourAll')}
+                valueLabel={t('orders')}
+                height={140}
+                columns={byHour.map((v, h) => ({
+                  key: String(h),
+                  label: h % 3 === 0 ? String(h) : '',
+                  value: v,
+                  detail: `${hour(h)}: ${v}`,
+                }))}
+              />
+            </section>
+          </div>
+          <div className="mt-4">
+            <DataTable
+              title={t('storePeaks')}
+              empty={t('none')}
+              headers={[t('store'), t('orders90'), t('peakHours')]}
+              rows={o.storePeaks.map((s) => [
+                locale === 'ar' ? s.nameAr : s.nameEn,
+                s.orders,
+                s.hours.map((h) => `${hour(h.hour)} (${h.orders})`).join(' · '),
+              ])}
+            />
+          </div>
+        </div>
+      </details>
     </>
   );
 }

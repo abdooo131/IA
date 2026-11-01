@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import type { Statement } from '@/lib/finance-types';
 import { formatCairoDateTime } from '@/lib/format';
 import { Amount } from './Amount';
+import { DateInput } from '@/components/DateInput';
 
 /** A merchant statement: opening balance, every movement with its running balance, closing. */
 export async function StatementView({
@@ -27,11 +28,11 @@ export async function StatementView({
       <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
         <label className="text-caption">
           {tf('from')}
-          <input type="date" name="from" defaultValue={from} dir="ltr" className={field} />
+          <DateInput name="from" defaultValue={from} dir="ltr" className={field} />
         </label>
         <label className="text-caption">
           {tf('to')}
-          <input type="date" name="to" defaultValue={to} dir="ltr" className={field} />
+          <DateInput name="to" defaultValue={to} dir="ltr" className={field} />
         </label>
         <button
           type="submit"

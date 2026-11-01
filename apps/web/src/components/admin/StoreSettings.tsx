@@ -77,62 +77,64 @@ export function HoursForm({ store }: { store: AdminStore }) {
   return (
     <section className="rounded-lg border border-line bg-surface p-4">
       <h3 className="text-body font-bold">{t('hours')}</h3>
-      <table className="mt-3 w-full text-body-sm">
-        <thead>
-          <tr className="text-caption text-text-muted">
-            <th className="py-1 text-start font-medium">{t('day')}</th>
-            <th className="py-1 text-start font-medium">{t('opens')}</th>
-            <th className="py-1 text-start font-medium">{t('closes')}</th>
-            <th className="py-1 text-start font-medium">{t('closedDay')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => {
-            // Closing at 00:00 is plain midnight; only later times need the "next day" note.
-            const closes = parseMinute(r.closes) ?? 0;
-            const overnight = closes > 0 && closes <= (parseMinute(r.opens) ?? 0);
-            return (
-              <tr key={r.weekday}>
-                <td className="py-1 pe-2">{weekdays(String(r.weekday))}</td>
-                <td className="py-1 pe-2">
-                  <input
-                    type="time"
-                    dir="ltr"
-                    aria-label={`${weekdays(String(r.weekday))} ${t('opens')}`}
-                    className={input}
-                    value={r.opens}
-                    disabled={r.isClosed}
-                    onChange={(e) => update(r.weekday, { opens: e.target.value })}
-                  />
-                </td>
-                <td className="py-1 pe-2">
-                  <input
-                    type="time"
-                    dir="ltr"
-                    aria-label={`${weekdays(String(r.weekday))} ${t('closes')}`}
-                    className={input}
-                    value={r.closes}
-                    disabled={r.isClosed}
-                    onChange={(e) => update(r.weekday, { closes: e.target.value })}
-                  />
-                  {overnight && !r.isClosed && (
-                    <span className="ms-1 text-caption text-text-muted">{t('nextDay')}</span>
-                  )}
-                </td>
-                <td className="py-1">
-                  <input
-                    type="checkbox"
-                    aria-label={`${weekdays(String(r.weekday))} ${t('closedDay')}`}
-                    className="h-5 w-5"
-                    checked={r.isClosed}
-                    onChange={(e) => update(r.weekday, { isClosed: e.target.checked })}
-                  />
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
+      <div className="mt-3 overflow-x-auto">
+        <table className="w-full text-body-sm">
+          <thead>
+            <tr className="text-caption text-text-muted">
+              <th className="py-1 text-start font-medium">{t('day')}</th>
+              <th className="py-1 text-start font-medium">{t('opens')}</th>
+              <th className="py-1 text-start font-medium">{t('closes')}</th>
+              <th className="py-1 text-start font-medium">{t('closedDay')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => {
+              // Closing at 00:00 is plain midnight; only later times need the "next day" note.
+              const closes = parseMinute(r.closes) ?? 0;
+              const overnight = closes > 0 && closes <= (parseMinute(r.opens) ?? 0);
+              return (
+                <tr key={r.weekday}>
+                  <td className="py-1 pe-2">{weekdays(String(r.weekday))}</td>
+                  <td className="py-1 pe-2">
+                    <input
+                      type="time"
+                      dir="ltr"
+                      aria-label={`${weekdays(String(r.weekday))} ${t('opens')}`}
+                      className={input}
+                      value={r.opens}
+                      disabled={r.isClosed}
+                      onChange={(e) => update(r.weekday, { opens: e.target.value })}
+                    />
+                  </td>
+                  <td className="py-1 pe-2">
+                    <input
+                      type="time"
+                      dir="ltr"
+                      aria-label={`${weekdays(String(r.weekday))} ${t('closes')}`}
+                      className={input}
+                      value={r.closes}
+                      disabled={r.isClosed}
+                      onChange={(e) => update(r.weekday, { closes: e.target.value })}
+                    />
+                    {overnight && !r.isClosed && (
+                      <span className="ms-1 text-caption text-text-muted">{t('nextDay')}</span>
+                    )}
+                  </td>
+                  <td className="py-1">
+                    <input
+                      type="checkbox"
+                      aria-label={`${weekdays(String(r.weekday))} ${t('closedDay')}`}
+                      className="h-5 w-5"
+                      checked={r.isClosed}
+                      onChange={(e) => update(r.weekday, { isClosed: e.target.checked })}
+                    />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
       <div className="mt-3 flex items-center gap-3">
         <button type="button" className={secondary} disabled={saver.busy} onClick={submit}>
           {t('saveHours')}

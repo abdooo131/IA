@@ -6,6 +6,7 @@ import { WORKFLOWS, type WorkflowName } from '@/lib/workflows';
 /**
  * Where a document is on its path, like a form's status bar: done steps ticked, the current
  * one lit, later ones grey. A side state (cancelled, failed) replaces the path's end in red.
+ * On phones only the step before, the current one and the next one show, so nothing is cut.
  */
 export function StatusBar({ flow, status }: { flow: WorkflowName; status: string }) {
   const t = useTranslations('workflow');
@@ -22,13 +23,15 @@ export function StatusBar({ flow, status }: { flow: WorkflowName; status: string
       {steps.map((s, i) => {
         const done = !off && at > i;
         const current = !off && at === i;
+        // Steps far from where the document is wait for a wider screen.
+        const far = off ? i < steps.length - 1 : Math.abs(i - at) > 1;
         return (
           <li
             key={s}
             aria-current={current ? 'step' : undefined}
             className={`flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-2 ${
-              i > 0 ? 'border-s border-line' : ''
-            } ${current ? 'bg-primary font-bold text-on-primary' : done ? 'text-text' : 'text-text-muted'}`}
+              far ? 'max-sm:hidden' : ''
+            } ${i > 0 ? 'border-s border-line' : ''} ${current ? 'bg-primary font-bold text-on-primary' : done ? 'text-text' : 'text-text-muted'}`}
           >
             {done && <span aria-hidden>✓</span>}
             {label(s)}

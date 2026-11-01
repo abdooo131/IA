@@ -4,6 +4,7 @@ import { Amount } from '@/components/finance/Amount';
 import { apiGet } from '@/lib/api-server';
 import type { TrialBalance } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
+import { DateInput } from '@/components/DateInput';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -34,11 +35,11 @@ export default async function FinanceTrialPage({
       <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
         <label className="text-caption">
           {tf('from')}
-          <input type="date" name="from" defaultValue={q.from ?? ''} dir="ltr" className={field} />
+          <DateInput name="from" defaultValue={q.from ?? ''} dir="ltr" className={field} />
         </label>
         <label className="text-caption">
           {tf('to')}
-          <input type="date" name="to" defaultValue={q.to ?? ''} dir="ltr" className={field} />
+          <DateInput name="to" defaultValue={q.to ?? ''} dir="ltr" className={field} />
         </label>
         <button
           type="submit"

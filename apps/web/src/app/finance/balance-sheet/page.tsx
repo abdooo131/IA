@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { ReportTable } from '@/components/finance/ReportTable';
 import { apiGet } from '@/lib/api-server';
 import type { BalanceSheet } from '@/lib/finance-types';
+import { DateInput } from '@/components/DateInput';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -30,14 +31,7 @@ export default async function BalanceSheetPage({
       <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
         <label className="text-caption">
           {t('asOf')}
-          <input
-            type="date"
-            name="day"
-            defaultValue={day}
-            max={today}
-            dir="ltr"
-            className={field}
-          />
+          <DateInput name="day" defaultValue={day} max={today} dir="ltr" className={field} />
         </label>
         <button
           type="submit"

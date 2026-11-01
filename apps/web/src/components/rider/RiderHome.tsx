@@ -111,7 +111,31 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
           {me.name} · <span className="ltr-iso">{me.badgeCode}</span> ·{' '}
           {localized(me.darkStore, locale)}
         </p>
-        <div className="mt-4 grid grid-cols-2 gap-3">
+      </header>
+
+      <section className="space-y-3">
+        <h2 className="text-h3">{t('active')}</h2>
+        {location === 'sharing' && (
+          <p className="text-caption text-text-muted">{t('location.sharing')}</p>
+        )}
+        {(location === 'denied' || location === 'unsupported') && (
+          <p role="alert" className="text-body-sm text-status-needs-action">
+            {t(`location.${location}`)}
+          </p>
+        )}
+        {active.length === 0 && <p className="text-body text-text-muted">{t('empty')}</p>}
+        {active.map((d) => (
+          <DeliveryCard
+            key={d.id}
+            delivery={d}
+            tripSize={d.tripId ? (trips.get(d.tripId) ?? 1) : 1}
+            onDone={refresh}
+          />
+        ))}
+      </section>
+
+      <section aria-label={t('myDay')}>
+        <div className="grid grid-cols-2 gap-3">
           <StatCard
             icon="delivered"
             tone="delivered"
@@ -138,27 +162,6 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
             value={tw('amount', { amount: formatEgp(me.wallet.bonusOwedPiastres) })}
           />
         </div>
-      </header>
-
-      <section className="space-y-3">
-        <h2 className="text-h3">{t('active')}</h2>
-        {location === 'sharing' && (
-          <p className="text-caption text-text-muted">{t('location.sharing')}</p>
-        )}
-        {(location === 'denied' || location === 'unsupported') && (
-          <p role="alert" className="text-body-sm text-status-needs-action">
-            {t(`location.${location}`)}
-          </p>
-        )}
-        {active.length === 0 && <p className="text-body text-text-muted">{t('empty')}</p>}
-        {active.map((d) => (
-          <DeliveryCard
-            key={d.id}
-            delivery={d}
-            tripSize={d.tripId ? (trips.get(d.tripId) ?? 1) : 1}
-            onDone={refresh}
-          />
-        ))}
       </section>
 
       {done.length > 0 && (
@@ -314,13 +317,13 @@ function DeliveryCard({
       )}
 
       {mode === 'idle' && (
-        <div className="flex gap-2">
+        <div className="grid grid-cols-2 gap-2">
           <button type="button" className={primary} onClick={() => setMode('deliver')}>
             {t('delivered')}
           </button>
           <button
             type="button"
-            className="h-12 flex-1 rounded-md border border-line px-3 font-bold text-danger"
+            className="h-12 rounded-md border border-line px-3 font-bold leading-tight text-danger"
             onClick={() => setMode('fail')}
           >
             {t('failed')}

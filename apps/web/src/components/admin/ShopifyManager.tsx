@@ -621,7 +621,7 @@ export function ShopifyManager({
               ))}
             </select>
           </label>
-          <label className="min-w-0 flex-1 text-caption">
+          <label className="min-w-0 flex-1 basis-60 text-caption">
             {t('domain')}
             <input
               name="shopDomain"
@@ -630,7 +630,7 @@ export function ShopifyManager({
               placeholder="evechantelle.myshopify.com"
               className={`${field} mt-1 block w-full`}
             />
-            <span className="text-text-muted">{t('domainHint')}</span>
+            <span className="block text-text-muted">{t('domainHint')}</span>
           </label>
           <button type="submit" className={button} disabled={action.busy}>
             {t('linkButton')}

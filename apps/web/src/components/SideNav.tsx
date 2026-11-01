@@ -23,48 +23,95 @@ function isActive(item: NavItem, pathname: string) {
   return item.exact ? pathname === item.href : pathname.startsWith(item.href);
 }
 
+const OPEN_KEY = 'shiply_nav_open';
+
+/**
+ * The links, grouped. A labelled group folds: the one holding the current page is always
+ * open, others open when tapped (remembered on this device), so the whole menu fits a laptop
+ * screen without hiding links below the fold.
+ */
 function Links({ groups, onPick }: { groups: NavGroup[]; onPick?: () => void }) {
   const pathname = usePathname();
+  const [opened, setOpened] = useState<string[]>([]);
+  useEffect(() => {
+    try {
+      setOpened(JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]') as string[]);
+    } catch {
+      // No saved choice (private window, storage blocked): start with the current group only.
+    }
+  }, []);
+  function toggle(label: string) {
+    setOpened((now) => {
+      const next = now.includes(label) ? now.filter((l) => l !== label) : [...now, label];
+      try {
+        localStorage.setItem(OPEN_KEY, JSON.stringify(next));
+      } catch {
+        // Not saved; it still works for this visit.
+      }
+      return next;
+    });
+  }
   return (
     <nav className="flex-1 overflow-y-auto px-3 py-2">
-      {groups.map((group, g) => (
-        <div key={group.label ?? g} className="mb-3">
-          {group.label && (
-            <p className="px-3 pb-1 pt-2 text-label uppercase text-text-muted">{group.label}</p>
-          )}
-          <ul className="space-y-0.5">
-            {group.items.map((item) => {
-              const active = isActive(item, pathname);
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    onClick={onPick}
-                    aria-current={active ? 'page' : undefined}
-                    className={`relative flex min-h-11 items-center gap-3 rounded-md px-3 text-body-sm font-semibold ${
-                      active ? 'bg-selected-bg text-link' : 'text-text hover:bg-surface-raised'
-                    }`}
+      {groups.map((group, g) => {
+        const current = group.items.some((item) => isActive(item, pathname));
+        const open = !group.label || current || opened.includes(group.label);
+        return (
+          <div key={group.label ?? g} className="mb-2">
+            {group.label && (
+              <button
+                type="button"
+                onClick={() => !current && toggle(group.label!)}
+                aria-expanded={open}
+                className="flex w-full items-center justify-between rounded-md px-3 pb-1 pt-2 text-label uppercase text-text-muted hover:text-text"
+              >
+                {group.label}
+                {!current && (
+                  <span
+                    aria-hidden="true"
+                    className={`transition-transform ${open ? 'rotate-90' : ''}`}
                   >
-                    {active && (
-                      <span
-                        aria-hidden="true"
-                        className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-primary"
-                      />
-                    )}
-                    <Icon name={item.icon} size={20} selected={active} />
-                    <span className="flex-1 truncate">{item.label}</span>
-                    {!!item.badge && (
-                      <span className="ltr-iso rounded-pill bg-status-needs-action px-2 text-caption font-bold text-white">
-                        {item.badge}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ))}
+                    ›
+                  </span>
+                )}
+              </button>
+            )}
+            {open && (
+              <ul className="space-y-0.5">
+                {group.items.map((item) => {
+                  const active = isActive(item, pathname);
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        onClick={onPick}
+                        aria-current={active ? 'page' : undefined}
+                        className={`relative flex min-h-10 items-center gap-3 rounded-md px-3 text-body-sm font-semibold ${
+                          active ? 'bg-selected-bg text-link' : 'text-text hover:bg-surface-raised'
+                        }`}
+                      >
+                        {active && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-primary"
+                          />
+                        )}
+                        <Icon name={item.icon} size={20} selected={active} />
+                        <span className="flex-1 truncate">{item.label}</span>
+                        {!!item.badge && (
+                          <span className="ltr-iso rounded-pill bg-status-needs-action px-2 text-caption font-bold text-white">
+                            {item.badge}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        );
+      })}
     </nav>
   );
 }

@@ -12,6 +12,7 @@ import { apiGet } from '@/lib/api-server';
 import type { Kpis, KpiTotals, LiveStore, SettingsList } from '@/lib/dashboard-types';
 import { formatCount, formatEgp } from '@/lib/format';
 import { fillDays, shortDay } from '@/lib/kpi-days';
+import { DateInput } from '@/components/DateInput';
 
 export const dynamic = 'force-dynamic';
 
@@ -91,11 +92,11 @@ export default async function AdminOverviewPage({
         <form className="flex flex-wrap items-end gap-3" method="get">
           <label className="text-caption">
             {t('from')}
-            <input type="date" name="from" defaultValue={from} dir="ltr" className={field} />
+            <DateInput name="from" defaultValue={from} dir="ltr" className={field} />
           </label>
           <label className="text-caption">
             {t('to')}
-            <input type="date" name="to" defaultValue={to} dir="ltr" className={field} />
+            <DateInput name="to" defaultValue={to} dir="ltr" className={field} />
           </label>
           <label className="text-caption">
             {t('store')}
@@ -132,17 +133,6 @@ export default async function AdminOverviewPage({
           value={pct(kpis.totals.onTimeRate)}
         />
         <StatCard
-          icon="courier"
-          tone="in-progress"
-          label={t('avgDelivery')}
-          value={mins(kpis.totals.avgDeliveryMinutes)}
-          hint={
-            kpis.totals.medianDeliveryMinutes !== null
-              ? t('medianDelivery', { value: kpis.totals.medianDeliveryMinutes })
-              : undefined
-          }
-        />
-        <StatCard
           icon="alert"
           tone="needs-action"
           label={t('late')}
@@ -150,94 +140,60 @@ export default async function AdminOverviewPage({
           alert={kpis.totals.late > 0}
         />
         <StatCard
-          icon="returns"
-          tone="returning"
-          label={t('cancelledFailed')}
-          value={formatCount(kpis.totals.cancelled + kpis.totals.failed)}
-        />
-        <StatCard
-          icon="alert"
-          tone="needs-action"
-          label={t('missingUnits')}
-          value={formatCount(kpis.totals.unitsMissing)}
-          alert={kpis.totals.unitsMissing > 0}
-        />
-        <StatCard
-          icon="new"
-          tone="new"
-          label={t('movedToStandard')}
-          value={formatCount(kpis.totals.movedToStandard)}
-        />
-        <StatCard
           icon="cash"
           label={t('codCollected')}
           value={formatEgp(kpis.totals.codCollectedPiastres)}
         />
-        <StatCard
-          icon="delivered"
-          tone="delivered"
-          label={t('rating')}
-          value={kpis.totals.avgRating === null ? '–' : `${kpis.totals.avgRating} ★`}
-          hint={t('ratingCount', { count: kpis.totals.ratings })}
-        />
-        <StatCard
-          icon="products"
-          label={t('deliveredValue')}
-          value={formatEgp(kpis.totals.deliveredValuePiastres)}
-        />
       </div>
-
-      {kpis.totals.orders === 0 ? (
-        <p className="mt-6 rounded-lg border border-line bg-surface p-5 text-body text-text-muted">
-          {t('noData')}
-        </p>
-      ) : (
-        <div className="mt-6 grid gap-4 lg:grid-cols-5">
-          <section className="rounded-lg border border-line bg-surface p-5 lg:col-span-3">
-            <h2 className="text-h3">{t('perDay')}</h2>
-            <p className="text-caption text-text-muted">{t('perDayHint')}</p>
-            <div className="mt-4">
-              <ColumnChart
-                title={t('perDay')}
-                valueLabel={t('orders')}
-                columns={days.map((d) => ({
-                  key: d.date,
-                  label: shortDay(d.date),
-                  value: d.orders,
-                  detail: t('dayDetail', {
-                    date: d.date,
-                    orders: d.orders,
-                    delivered: d.delivered,
-                    onTime: d.onTime,
-                  }),
-                }))}
-              />
-            </div>
-          </section>
-          <section className="rounded-lg border border-line bg-surface p-5 lg:col-span-2">
-            <h2 className="text-h3">{t('stageTimes')}</h2>
-            <div className="mt-4">
-              <TargetBars
-                overLabel={t('overTarget')}
-                bars={STAGES.map((stage) => {
-                  const goal = target(`sla.${stage}_minutes`);
-                  return {
-                    key: stage,
-                    label: stages(stage),
-                    value: kpis.totals.stageAvgMinutes[stage],
-                    target: goal,
-                    valueText: mins(kpis.totals.stageAvgMinutes[stage]),
-                    targetText:
-                      goal !== null
-                        ? t('target', { value: t('minutes', { value: goal }) })
-                        : undefined,
-                  };
-                })}
-              />
-            </div>
-          </section>
+      <details className="mt-3 rounded-lg border border-line bg-surface">
+        <summary className="cursor-pointer px-4 py-3 text-body-sm font-bold text-link">
+          {t('moreNumbers')}
+        </summary>
+        <div className="grid grid-cols-2 gap-4 p-4 pt-0 md:grid-cols-3 xl:grid-cols-6">
+          <StatCard
+            icon="courier"
+            tone="in-progress"
+            label={t('avgDelivery')}
+            value={mins(kpis.totals.avgDeliveryMinutes)}
+            hint={
+              kpis.totals.medianDeliveryMinutes !== null
+                ? t('medianDelivery', { value: kpis.totals.medianDeliveryMinutes })
+                : undefined
+            }
+          />
+          <StatCard
+            icon="returns"
+            tone="returning"
+            label={t('cancelledFailed')}
+            value={formatCount(kpis.totals.cancelled + kpis.totals.failed)}
+          />
+          <StatCard
+            icon="alert"
+            tone="needs-action"
+            label={t('missingUnits')}
+            value={formatCount(kpis.totals.unitsMissing)}
+            alert={kpis.totals.unitsMissing > 0}
+          />
+          <StatCard
+            icon="new"
+            tone="new"
+            label={t('movedToStandard')}
+            value={formatCount(kpis.totals.movedToStandard)}
+          />
+          <StatCard
+            icon="delivered"
+            tone="delivered"
+            label={t('rating')}
+            value={kpis.totals.avgRating === null ? '–' : `${kpis.totals.avgRating} ★`}
+            hint={t('ratingCount', { count: kpis.totals.ratings })}
+          />
+          <StatCard
+            icon="products"
+            label={t('deliveredValue')}
+            value={formatEgp(kpis.totals.deliveredValuePiastres)}
+          />
         </div>
-      )}
+      </details>
 
       <section className="mt-10">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -317,6 +273,58 @@ export default async function AdminOverviewPage({
           })}
         </ul>
       </section>
+
+      {kpis.totals.orders === 0 ? (
+        <p className="mt-6 rounded-lg border border-line bg-surface p-5 text-body text-text-muted">
+          {t('noData')}
+        </p>
+      ) : (
+        <div className="mt-6 grid gap-4 lg:grid-cols-5">
+          <section className="rounded-lg border border-line bg-surface p-5 lg:col-span-3">
+            <h2 className="text-h3">{t('perDay')}</h2>
+            <p className="text-caption text-text-muted">{t('perDayHint')}</p>
+            <div className="mt-4">
+              <ColumnChart
+                title={t('perDay')}
+                valueLabel={t('orders')}
+                columns={days.map((d) => ({
+                  key: d.date,
+                  label: shortDay(d.date),
+                  value: d.orders,
+                  detail: t('dayDetail', {
+                    date: d.date,
+                    orders: d.orders,
+                    delivered: d.delivered,
+                    onTime: d.onTime,
+                  }),
+                }))}
+              />
+            </div>
+          </section>
+          <section className="rounded-lg border border-line bg-surface p-5 lg:col-span-2">
+            <h2 className="text-h3">{t('stageTimes')}</h2>
+            <div className="mt-4">
+              <TargetBars
+                overLabel={t('overTarget')}
+                bars={STAGES.map((stage) => {
+                  const goal = target(`sla.${stage}_minutes`);
+                  return {
+                    key: stage,
+                    label: stages(stage),
+                    value: kpis.totals.stageAvgMinutes[stage],
+                    target: goal,
+                    valueText: mins(kpis.totals.stageAvgMinutes[stage]),
+                    targetText:
+                      goal !== null
+                        ? t('target', { value: t('minutes', { value: goal }) })
+                        : undefined,
+                  };
+                })}
+              />
+            </div>
+          </section>
+        </div>
+      )}
 
       {kpis.totals.orders > 0 && (
         <section className="mt-10">
