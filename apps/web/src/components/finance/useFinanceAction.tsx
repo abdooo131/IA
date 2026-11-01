@@ -5,52 +5,6 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { apiSend } from '@/lib/api-client';
 
-const KNOWN = [
-  'nothing_to_pay',
-  'payout_already_open',
-  'reason_required',
-  'invalid_amount',
-  'more_than_cash_in_store',
-  'more_than_owed',
-  'handover_not_pending',
-  'payout_not_draft',
-  'validation_failed',
-  'account_name_taken',
-  'bank_account_exists',
-  'bank_details_required',
-  'group_not_open',
-  'group_full',
-  'account_locked',
-  'account_has_balance',
-  'account_inactive',
-  'account_not_found',
-  'bank_account_not_found',
-  'expense_account_not_found',
-  'income_account_not_found',
-  'equity_account_not_found',
-  'not_enough_money',
-  'same_account',
-  'future_date',
-  'invalid_vat',
-  'not_balanced',
-  'invalid_line',
-  'wallet_not_allowed',
-  'money_account_not_allowed',
-  'books_closed',
-  'approval_needed',
-  'same_person',
-  'already_approved',
-  'finance_level_too_low',
-  'request_not_pending',
-  'not_your_request',
-  'note_required',
-  'reopen_admin_only',
-  'day_not_over',
-  'opening_already_posted',
-  'account_twice',
-  'nothing_to_post',
-];
-
 /** Sends one finance action, shows its result and refreshes the page data. */
 export function useFinanceAction() {
   const t = useTranslations('finance');
@@ -70,7 +24,11 @@ export function useFinanceAction() {
     setBusy(false);
     if (!result.ok) {
       setMessage({
-        text: t(`merchants.errors.${KNOWN.includes(result.error) ? result.error : 'generic'}`),
+        text: t(
+          t.has(`merchants.errors.${result.error}`)
+            ? `merchants.errors.${result.error}`
+            : 'merchants.errors.generic',
+        ),
         error: true,
       });
       return null;

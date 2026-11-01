@@ -294,3 +294,128 @@ export interface StaffPayRow {
   monthlyPiastres: number | null;
   advanceOwedPiastres: number;
 }
+
+type Named = { code: string; nameEn: string; nameAr: string };
+type StoreOrNone = StoreRef | null;
+
+export interface SupplierRow {
+  id: string;
+  name: string;
+  taxId: string | null;
+  phone: string | null;
+  email: string | null;
+  whtBp: number;
+  defaultExpenseAccountId: string | null;
+  isActive: boolean;
+  accountCode: string | null;
+  owedPiastres: number;
+  openBills: number;
+}
+
+export interface BillRow {
+  id: string;
+  number: number;
+  numberLabel: string;
+  supplier: { id: string; name: string };
+  reference: string;
+  billDate: string;
+  dueDate: string;
+  expenseAccount: Named;
+  darkStore: StoreOrNone;
+  netPiastres: number;
+  vatPiastres: number;
+  totalPiastres: number;
+  whtBp: number;
+  paidPiastres: number;
+  leftPiastres: number;
+  status: 'open' | 'paid' | 'cancelled';
+  overdue: boolean;
+  memo: string | null;
+}
+
+export const AGEING_BUCKETS = ['current', 'd1_30', 'd31_60', 'd61_90', 'over_90'] as const;
+export type AgeingBucket = (typeof AGEING_BUCKETS)[number];
+export interface BillAgeing {
+  asOf: string;
+  rows: {
+    supplier: { id: string; name: string };
+    buckets: Record<AgeingBucket, number>;
+    total: number;
+  }[];
+  total: { buckets: Record<AgeingBucket, number>; total: number };
+}
+
+export interface TaxesOwed {
+  vatPiastres: number;
+  whtPiastres: number;
+}
+
+export interface WhtReport {
+  year: number;
+  quarter: number;
+  from: string;
+  to: string;
+  rows: {
+    supplierId: string;
+    name: string;
+    taxId: string | null;
+    netPiastres: number;
+    whtPiastres: number;
+    payments: number;
+  }[];
+  totalWhtPiastres: number;
+  missingTaxId: number;
+}
+
+export interface RecurringRow {
+  id: string;
+  name: string;
+  amountPiastres: number;
+  vatPiastres: number;
+  dayOfMonth: number;
+  startMonth: string;
+  endMonth: string | null;
+  isActive: boolean;
+  darkStoreId: string | null;
+  expenseAccount: Named | null;
+  paidFrom: Named | null;
+  createdBy: string;
+  preparedThisMonth: boolean;
+}
+
+export interface PrepaymentRow {
+  id: string;
+  name: string;
+  expenseAccount: Named;
+  darkStore: StoreOrNone;
+  totalPiastres: number;
+  months: number;
+  startMonth: string;
+  monthlyPiastres: number;
+  monthsCharged: number;
+  chargedPiastres: number;
+  leftPiastres: number;
+}
+
+export interface FixedAssetRow {
+  id: string;
+  name: string;
+  darkStore: StoreOrNone;
+  costPiastres: number;
+  salvagePiastres: number;
+  lifeMonths: number;
+  startMonth: string;
+  monthlyPiastres: number;
+  monthsCharged: number;
+  depreciatedPiastres: number;
+  bookValuePiastres: number;
+}
+
+export interface ReceivableRow {
+  merchantId: string;
+  name: string;
+  phone: string | null;
+  owesPiastres: number;
+  since: string | null;
+  lastRequestedAt: string | null;
+}

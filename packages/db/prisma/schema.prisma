@@ -95,6 +95,11 @@ model User {
   ledgerLines       LedgerLine[]     @relation("ledger_line_user")
   salary            StaffSalary?     @relation("staff_salary_user")
   salariesSet       StaffSalary[]    @relation("staff_salary_updated_by")
+  suppliers         Supplier[]
+  bills             Bill[]
+  recurringEntries  RecurringEntry[]
+  prepayments       Prepayment[]
+  fixedAssets       FixedAsset[]
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -181,6 +186,10 @@ model DarkStore {
   shopifyLocations ShopifyLocation[]
 
   ledgerLines LedgerLine[]
+
+  bills       Bill[]
+  prepayments Prepayment[]
+  fixedAssets FixedAsset[]
 
   @@map("dark_stores")
 }
@@ -1122,6 +1131,8 @@ enum LedgerAccountType {
   expense
   /// Money advanced to a team member, recovered from their salary
   staff_advance
+  /// What we owe a supplier for bills not yet paid
+  supplier
 
   @@map("ledger_account_type")
 }
@@ -1161,14 +1172,20 @@ model LedgerAccount {
   darkStoreId   String?           @map("dark_store_id")
   /// The team member a staff advance wallet belongs to
   userId        String?           @map("user_id")
+  /// The supplier a payable wallet belongs to
+  supplierId    String?           @map("supplier_id")
   createdById   String?           @map("created_by_id")
   createdAt     DateTime          @default(now()) @map("created_at")
 
-  merchant  Merchant?    @relation(fields: [merchantId], references: [id])
-  rider     Rider?       @relation(fields: [riderId], references: [id])
-  darkStore DarkStore?   @relation(fields: [darkStoreId], references: [id])
-  user      User?        @relation("ledger_account_user", fields: [userId], references: [id], onDelete: Restrict)
-  lines     LedgerLine[]
+  merchant         Merchant?    @relation(fields: [merchantId], references: [id])
+  rider            Rider?       @relation(fields: [riderId], references: [id])
+  darkStore        DarkStore?   @relation(fields: [darkStoreId], references: [id])
+  user             User?        @relation("ledger_account_user", fields: [userId], references: [id], onDelete: Restrict)
+  supplier         Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  lines            LedgerLine[]
+  suppliersDefault Supplier[]   @relation("supplier_default_expense")
+  bills            Bill[]
+  prepayments      Prepayment[]
 
   @@index([type])
   @@index([groupCode])
@@ -1193,11 +1210,14 @@ model LedgerEntry {
   createdById    String?  @map("created_by_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  order     Order?           @relation(fields: [orderId], references: [id])
-  createdBy User?            @relation("ledger_entry_created_by", fields: [createdById], references: [id])
-  lines     LedgerLine[]
-  receipts  FinanceReceipt[]
-  requests  FinanceRequest[]
+  order       Order?           @relation(fields: [orderId], references: [id])
+  createdBy   User?            @relation("ledger_entry_created_by", fields: [createdById], references: [id])
+  lines       LedgerLine[]
+  receipts    FinanceReceipt[]
+  requests    FinanceRequest[]
+  bills       Bill[]
+  prepayments Prepayment[]
+  fixedAssets FixedAsset[]
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -1929,4 +1949,130 @@ model StaffSalary {
   updatedBy User @relation("staff_salary_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
 
   @@map("staff_salaries")
+}
+
+/// Someone we buy from: rent, internet, packaging, fuel.
+model Supplier {
+  id                      String   @id @default(cuid())
+  name                    String   @unique
+  taxId                   String?  @map("tax_id")
+  phone                   String?
+  email                   String?
+  /// Withholding tax deducted from each payment, basis points of the amount before VAT
+  whtBp                   Int      @default(0) @map("wht_bp")
+  defaultExpenseAccountId String?  @map("default_expense_account_id")
+  isActive                Boolean  @default(true) @map("is_active")
+  createdById             String   @map("created_by_id")
+  createdAt               DateTime @default(now()) @map("created_at")
+
+  defaultExpenseAccount LedgerAccount?  @relation("supplier_default_expense", fields: [defaultExpenseAccountId], references: [id])
+  createdBy             User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  accounts              LedgerAccount[]
+  bills                 Bill[]
+
+  @@map("suppliers")
+}
+
+enum BillStatus {
+  open
+  paid
+  cancelled
+
+  @@map("bill_status")
+}
+
+/// A supplier's bill, owed until paid (in one or several payments).
+model Bill {
+  id               String     @id @default(cuid())
+  /// Gapless serial number shown as BILL-000001
+  number           Int        @unique
+  supplierId       String     @map("supplier_id")
+  /// The supplier's own invoice number
+  reference        String
+  billDate         DateTime   @map("bill_date") @db.Date
+  dueDate          DateTime   @map("due_date") @db.Date
+  expenseAccountId String     @map("expense_account_id")
+  darkStoreId      String?    @map("dark_store_id")
+  netPiastres      Int        @map("net_piastres")
+  vatPiastres      Int        @default(0) @map("vat_piastres")
+  totalPiastres    Int        @map("total_piastres")
+  whtBp            Int        @default(0) @map("wht_bp")
+  paidPiastres     Int        @default(0) @map("paid_piastres")
+  status           BillStatus @default(open)
+  memo             String?
+  entryId          String?    @map("entry_id")
+  createdById      String     @map("created_by_id")
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  supplier       Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  expenseAccount LedgerAccount @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  darkStore      DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry          LedgerEntry?  @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([supplierId, reference])
+  @@index([status, dueDate])
+  @@map("bills")
+}
+
+/// An expense that repeats monthly, prepared on its day (through the second person rule).
+model RecurringEntry {
+  id             String   @id @default(cuid())
+  name           String
+  payload        Json
+  amountPiastres Int      @map("amount_piastres")
+  dayOfMonth     Int      @map("day_of_month")
+  /// YYYY-MM
+  startMonth     String   @map("start_month")
+  endMonth       String?  @map("end_month")
+  isActive       Boolean  @default(true) @map("is_active")
+  createdById    String   @map("created_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("recurring_entries")
+}
+
+/// Paid ahead and moved to expense month by month.
+model Prepayment {
+  id               String   @id @default(cuid())
+  name             String
+  expenseAccountId String   @map("expense_account_id")
+  darkStoreId      String?  @map("dark_store_id")
+  totalPiastres    Int      @map("total_piastres")
+  months           Int
+  /// YYYY-MM
+  startMonth       String   @map("start_month")
+  entryId          String   @map("entry_id")
+  createdById      String   @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  expenseAccount LedgerAccount @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  darkStore      DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry          LedgerEntry   @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("prepayments")
+}
+
+/// Equipment bought once and depreciated straight line every month.
+model FixedAsset {
+  id              String   @id @default(cuid())
+  name            String
+  costPiastres    Int      @map("cost_piastres")
+  salvagePiastres Int      @default(0) @map("salvage_piastres")
+  lifeMonths      Int      @map("life_months")
+  /// YYYY-MM, the first month of depreciation
+  startMonth      String   @map("start_month")
+  darkStoreId     String?  @map("dark_store_id")
+  entryId         String   @map("entry_id")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  darkStore DarkStore?  @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry     LedgerEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@map("fixed_assets")
 }

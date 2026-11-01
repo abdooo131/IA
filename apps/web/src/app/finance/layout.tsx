@@ -24,6 +24,8 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/merchants', label: t('merchants'), icon: 'customers' },
         { href: '/finance/riders', label: t('riders'), icon: 'courier' },
         { href: '/finance/payroll', label: t('payroll'), icon: 'account' },
+        { href: '/finance/bills', label: t('bills'), icon: 'invoice' },
+        { href: '/finance/receivables', label: t('receivables'), icon: 'customers' },
         {
           href: '/finance/approvals',
           label: t('approvals'),
@@ -48,6 +50,9 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/profit-and-loss', label: t('pl'), icon: 'analytics' },
         { href: '/finance/profit', label: t('profit'), icon: 'analytics' },
         { href: '/finance/balance-sheet', label: t('bs'), icon: 'invoice' },
+        { href: '/finance/taxes', label: t('taxes'), icon: 'invoice' },
+        { href: '/finance/recurring', label: t('recurring'), icon: 'schedule' },
+        { href: '/finance/assets', label: t('assets'), icon: 'wallet' },
         { href: '/finance/close', label: t('close'), icon: 'schedule' },
         ...(user?.role === 'admin'
           ? [{ href: '/finance/opening', label: t('opening'), icon: 'wallet' as const }]

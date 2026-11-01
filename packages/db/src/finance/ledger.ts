@@ -11,21 +11,28 @@ export type AccountRef =
   | { type: 'rider_bonus'; riderId: string }
   | { type: 'store_cash'; darkStoreId: string }
   | { type: 'staff_advance'; userId: string }
-  | {
-      type:
-        | 'bank'
-        | 'revenue'
-        | 'vat_payable'
-        | 'rider_bonus_expense'
-        | 'cash_difference'
-        | 'damage_expense';
-    }
+  | { type: 'supplier'; supplierId: string }
+  | { type: SystemAccountKey }
   /** Any account by its id: banks, cash boxes, expense categories and the rest */
   | { id: string };
 
+/** Accounts that exist once, by key. Some share a type (wht_payable is an other liability). */
+export type SystemAccountKey =
+  | 'bank'
+  | 'revenue'
+  | 'vat_payable'
+  | 'rider_bonus_expense'
+  | 'cash_difference'
+  | 'damage_expense'
+  | 'wht_payable'
+  | 'prepaid'
+  | 'fixed_assets'
+  | 'accumulated_depreciation'
+  | 'depreciation_expense';
+
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
-  string,
+  SystemAccountKey,
   { type: LedgerAccountType; group: number; code: string; nameEn: string; nameAr: string }
 > = {
   bank: {
@@ -69,6 +76,41 @@ const SYSTEM_ACCOUNTS: Record<
     code: '5301',
     nameEn: 'Cash shortages and surpluses',
     nameAr: 'عجز وزيادة النقدية',
+  },
+  wht_payable: {
+    type: 'other_liability',
+    group: 2300,
+    code: '2302',
+    nameEn: 'Withholding tax payable',
+    nameAr: 'ضريبة الخصم والإضافة المستحقة',
+  },
+  prepaid: {
+    type: 'other_asset',
+    group: 1400,
+    code: '1401',
+    nameEn: 'Prepaid expenses',
+    nameAr: 'مصروفات مدفوعة مقدما',
+  },
+  fixed_assets: {
+    type: 'other_asset',
+    group: 1600,
+    code: '1601',
+    nameEn: 'Equipment and vehicles',
+    nameAr: 'معدات ووسائل نقل',
+  },
+  accumulated_depreciation: {
+    type: 'other_asset',
+    group: 1700,
+    code: '1701',
+    nameEn: 'Accumulated depreciation',
+    nameAr: 'مجمع الإهلاك',
+  },
+  depreciation_expense: {
+    type: 'expense',
+    group: 5600,
+    code: '5601',
+    nameEn: 'Depreciation',
+    nameAr: 'مصروف الإهلاك',
   },
 };
 
@@ -202,6 +244,7 @@ const WALLET_GROUPS: Partial<Record<LedgerAccountType, { group: number; party: b
   merchant: { group: 2100, party: true },
   rider_bonus: { group: 2200, party: true },
   staff_advance: { group: 1500, party: true },
+  supplier: { group: 2500, party: true },
 };
 
 /**
@@ -230,7 +273,7 @@ export async function nextAccountCode(tx: Tx, group: number, party: boolean) {
 /** The next gapless serial number of a document table (taken inside its transaction). */
 export async function nextNumber(
   tx: Tx,
-  table: 'ledger_entries' | 'payouts' | 'cash_handovers' | 'tickets',
+  table: 'ledger_entries' | 'payouts' | 'cash_handovers' | 'tickets' | 'bills',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(
@@ -252,6 +295,8 @@ export function accountKey(ref: AccountRef): string {
       return `store_cash:${ref.darkStoreId}`;
     case 'staff_advance':
       return `staff_advance:${ref.userId}`;
+    case 'supplier':
+      return `supplier:${ref.supplierId}`;
     default:
       return ref.type;
   }
@@ -267,8 +312,10 @@ async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
   const key = accountKey(ref);
   const found = await tx.ledgerAccount.findUnique({ where: { key } });
   if (found) return found.id;
-  const system = SYSTEM_ACCOUNTS[key];
-  const wallet = WALLET_GROUPS[ref.type];
+  const system = SYSTEM_ACCOUNTS[key as SystemAccountKey] as
+    (typeof SYSTEM_ACCOUNTS)[SystemAccountKey] | undefined;
+  const type = system?.type ?? (ref.type as LedgerAccountType);
+  const wallet = WALLET_GROUPS[type];
   const group = system?.group ?? wallet!.group;
   let code = system?.code;
   if (!code || (await tx.ledgerAccount.findUnique({ where: { code } })))
@@ -278,10 +325,10 @@ async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
     update: {},
     create: {
       key,
-      type: ref.type as LedgerAccountType,
+      type,
       code,
       groupCode: group,
-      category: CATEGORY[ref.type as LedgerAccountType],
+      category: CATEGORY[type],
       nameEn: system?.nameEn ?? null,
       nameAr: system?.nameAr ?? null,
       bankName: key === 'bank' ? 'CIB' : null,
@@ -289,6 +336,7 @@ async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
       riderId: 'riderId' in ref ? ref.riderId : null,
       darkStoreId: 'darkStoreId' in ref ? ref.darkStoreId : null,
       userId: 'userId' in ref ? ref.userId : null,
+      supplierId: 'supplierId' in ref ? ref.supplierId : null,
     },
   });
   return created.id;
@@ -303,6 +351,7 @@ export const CATEGORY: Record<LedgerAccountType, AccountCategory> = {
   other_asset: 'asset',
   staff_advance: 'asset',
   merchant: 'liability',
+  supplier: 'liability',
   rider_bonus: 'liability',
   vat_payable: 'liability',
   other_liability: 'liability',

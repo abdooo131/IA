@@ -76,6 +76,104 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Amount looks wrong: cancel the draft with a note and open a ticket to admin.
 
+### Approvals and receipts
+
+1. Approvals: every money in claim, and money out from the approval limit, waits here for a second person.
+2. Open each one, check the receipt or bank slip, then Approve or Reject with a reason. You cannot approve your own.
+3. Receipts: attach the photo of the paper receipt or transfer slip to every movement listed there.
+
+**Check it went right**
+
+- Approved items get a JV number; the Receipts list gets shorter every day.
+
+**If something is wrong**
+
+- Something waits that you never asked for: reject it and open an urgent ticket to admin.
+
+### Close the month
+
+1. After the month end checks pass, Close the books through the last day of the month.
+2. Nothing can be posted before that day any more; only admin can reopen, with a written reason.
+
+**Check it went right**
+
+- Close the books shows the new closed through day.
+
+**If something is wrong**
+
+- A late bill for a closed month: enter it today with a note; ask admin only if it must sit in the old month.
+
+### Salaries and advances
+
+1. Salaries: admin sets each person's monthly salary.
+2. An advance: choose the person, amount and the bank or box it is paid from.
+3. Month end: choose the month and the bank, enter deductions and how much advance to take back, Pay.
+
+**Check it went right**
+
+- Each person's advance owed goes down; the run shows in Approvals when it is above the limit.
+
+**If something is wrong**
+
+- Someone is missing from the run: their salary is not set yet; ask admin.
+
+### Supplier bills
+
+1. Suppliers and bills: add the supplier once with their tax id and withholding % (ask the accountant).
+2. New bill the day it arrives: supplier, their invoice number, dates, category, store, amount before VAT and the VAT.
+3. To pay: open the bill, enter the amount, the bank and the transfer reference. The withholding tax is kept back by itself.
+4. Look at What we owe, by how late every week; pay the red columns first.
+
+**Check it went right**
+
+- A paid bill leaves Open bills; the supplier's We owe goes to zero.
+
+**If something is wrong**
+
+- Bill entered twice or wrong: Cancel bill with a reason (only before any payment).
+
+### Taxes
+
+1. Taxes shows the VAT and withholding tax we owe today.
+2. Every quarter: open the quarter, give the list to the accountant for form 41, then Pay tax (withholding) for the total.
+3. Every month: after the accountant files the VAT return, Pay tax (VAT) for the amount filed.
+
+**Check it went right**
+
+- The amount owed goes down by what you paid.
+
+**If something is wrong**
+
+- A supplier has no tax id: add it on the supplier before filing.
+
+### Recurring, prepaid and equipment
+
+1. Recurring expenses: rent, internet and the like; each month on its day it waits in Approvals.
+2. Prepaid and equipment: rent paid ahead goes in Pay ahead; shelves, fridges and motorbikes in Buy equipment.
+3. Each month end the system moves the right part to the expense or depreciation by itself.
+
+**Check it went right**
+
+- Months charged goes up by one every month.
+
+**If something is wrong**
+
+- A recurring expense changed price: stop the old one and add a new one.
+
+### Merchants who owe us
+
+1. Owed by merchants lists every merchant whose fees passed the cash we collected.
+2. Call them, then Ask to pay (they see it in their panel).
+3. When they transfer, enter it in Merchants as a payment from the merchant.
+
+**Check it went right**
+
+- The merchant leaves the list once their balance is back to zero or above.
+
+**If something is wrong**
+
+- Owed for more than 30 days: ticket to admin.
+
 ### Month end
 
 1. Trial balance for the month: debits must equal credits.
@@ -167,6 +265,104 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - المبلغ شكله غلط: الغي المسودة بملاحظة وافتح تذكرة للأدمن.
+
+### الموافقات والإيصالات
+
+1. الموافقات: كل فلوس داخلة، وكل فلوس خارجة من حد الموافقة، بتستنى هنا شخص تاني.
+2. افتح كل واحدة، راجع الإيصال أو إشعار البنك، ووافق أو ارفض بسبب. ما ينفعش توافق على طلبك.
+3. الإيصالات: ارفع صورة الإيصال الورق أو إشعار التحويل لكل حركة في القائمة.
+
+**اتأكد إنها مشيت صح**
+
+- اللي اتوافق عليه بياخد رقم JV؛ قائمة الإيصالات بتقل كل يوم.
+
+**لو فيه مشكلة**
+
+- فيه طلب مستني إنت ما طلبتوش: ارفضه وافتح تذكرة عاجلة للأدمن.
+
+### قفل الشهر
+
+1. بعد ما مراجعات آخر الشهر تمشي صح، اقفل الدفاتر لحد آخر يوم في الشهر.
+2. مفيش تسجيل قبل اليوم ده تاني؛ الأدمن بس يفتح، بسبب مكتوب.
+
+**اتأكد إنها مشيت صح**
+
+- شاشة قفل الدفاتر بتبين اليوم الجديد.
+
+**لو فيه مشكلة**
+
+- فاتورة متأخرة لشهر مقفول: سجلها النهارده بملاحظة؛ اسأل الأدمن بس لو لازم تتسجل في الشهر القديم.
+
+### المرتبات والسلف
+
+1. المرتبات: الأدمن بيحدد مرتب كل واحد في الشهر.
+2. سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.
+3. آخر الشهر: اختار الشهر والبنك، اكتب الخصومات وقد إيه هتسترد من السلفة، وادفع.
+
+**اتأكد إنها مشيت صح**
+
+- السلفة المستحقة على كل واحد بتقل؛ المرتبات بتظهر في الموافقات لو فوق الحد.
+
+**لو فيه مشكلة**
+
+- حد مش ظاهر في المرتبات: مرتبه لسه مش متحدد؛ اسأل الأدمن.
+
+### فواتير الموردين
+
+1. الموردون والفواتير: ضيف المورد مرة واحدة برقمه الضريبي ونسبة الخصم من المنبع (اسأل المحاسب).
+2. فاتورة جديدة يوم ما توصل: المورد، رقم فاتورته، التواريخ، البند، المخزن، المبلغ قبل الضريبة والضريبة.
+3. للسداد: افتح الفاتورة، اكتب المبلغ والبنك ومرجع التحويل. الخصم من المنبع بيتحجز لوحده.
+4. بص على المستحق حسب التأخير كل أسبوع؛ ادفع العواميد الحمرا الأول.
+
+**اتأكد إنها مشيت صح**
+
+- الفاتورة المدفوعة بتخرج من الفواتير المفتوحة؛ المستحق للمورد بيبقى صفر.
+
+**لو فيه مشكلة**
+
+- فاتورة اتسجلت مرتين أو غلط: إلغاء الفاتورة بسبب (قبل أي سداد بس).
+
+### الضرائب
+
+1. الضرائب بتبين القيمة المضافة والخصم من المنبع المستحقين النهارده.
+2. كل ربع سنة: افتح الربع، ادي القائمة للمحاسب لنموذج 41، وبعدين سداد ضريبة (خصم من المنبع) بالإجمالي.
+3. كل شهر: بعد ما المحاسب يقدم إقرار القيمة المضافة، سداد ضريبة (قيمة مضافة) بالمبلغ المقدم.
+
+**اتأكد إنها مشيت صح**
+
+- المستحق بيقل بقد اللي دفعته.
+
+**لو فيه مشكلة**
+
+- مورد من غير رقم ضريبي: ضيفه في بيانات المورد قبل التقديم.
+
+### المتكرر والمدفوع مقدما والمعدات
+
+1. المصروفات المتكررة: الإيجار والإنترنت وزيهم؛ كل شهر في يومه بيستنى في الموافقات.
+2. المدفوع مقدما والمعدات: الإيجار المدفوع مقدما في دفع مقدم؛ الأرفف والتلاجات والموتوسيكلات في شراء معدات.
+3. آخر كل شهر السيستم بينقل الجزء الصح للمصروف أو الإهلاك لوحده.
+
+**اتأكد إنها مشيت صح**
+
+- الشهور المحملة بتزيد واحد كل شهر.
+
+**لو فيه مشكلة**
+
+- مصروف متكرر سعره اتغير: وقف القديم وضيف واحد جديد.
+
+### تجار عليهم مستحقات
+
+1. مستحقات على التجار بتعرض كل تاجر رسومه عدت الكاش اللي حصلناه له.
+2. كلمه، وبعدين مطالبة بالسداد (بيشوفها في لوحته).
+3. لما يحول، سجلها في التجار كتحصيل من التاجر.
+
+**اتأكد إنها مشيت صح**
+
+- التاجر بيخرج من القائمة لما رصيده يرجع صفر أو أكتر.
+
+**لو فيه مشكلة**
+
+- مديون أكتر من 30 يوم: تذكرة للأدمن.
 
 ### آخر الشهر
 

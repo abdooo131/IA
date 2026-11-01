@@ -72,6 +72,37 @@ export {
   submitMerchantAdjustment,
   submitMerchantReceipt,
   submitOtherIncome,
+  submitAssetPurchase,
+  submitBillPayment,
+  submitPrepayment,
+  submitTaxPayment,
+  queueRequest,
 } from './controls';
+export {
+  AGEING_BUCKETS,
+  billAgeing,
+  cancelBill,
+  createSupplier,
+  listBills,
+  listSuppliers,
+  payBill,
+  payTax,
+  recordBill,
+  taxesOwed,
+  updateSupplier,
+  whtReport,
+  withholdingFor,
+} from './payables';
+export {
+  addMonths,
+  listFixedAssets,
+  listPrepayments,
+  monthlyPart,
+  recordAssetPurchase,
+  recordPrepayment,
+  runMonthlyCharges,
+} from './assets';
+export { createRecurring, listRecurring, runRecurring, setRecurringActive } from './recurring';
+export { merchantsOwingUs, requestMerchantPayment } from './receivables';
 export { giveAdvance, listStaffPay, previewPayroll, runPayroll, setSalary } from './payroll';
 export { costPerOrder, profitBy } from './profit';

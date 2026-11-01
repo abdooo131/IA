@@ -74,6 +74,13 @@ export default async function NotificationsPage() {
     }
     if (n.type === 'account_approved')
       return { title: t('account_approved'), lines: [], href: null, link: null };
+    if (n.type === 'payment_requested')
+      return {
+        title: t('payment_requested', { amount: formatEgp(Number(d.amountPiastres ?? 0)) }),
+        lines: typeof d.note === 'string' && d.note ? [d.note] : [],
+        href: '/merchant/wallet',
+        link: t('openWallet'),
+      };
     if (n.type === 'damage_settled') {
       const amount = Number(d.compensationPiastres ?? 0);
       return {

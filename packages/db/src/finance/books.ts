@@ -31,10 +31,16 @@ const LOCKED_KEYS = new Set([
   'equity:capital',
   'equity:drawings',
   'equity:opening',
+  'wht_payable',
+  'prepaid',
+  'fixed_assets',
+  'accumulated_depreciation',
+  'depreciation_expense',
 ]);
 
-const isWallet = (a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId'>) =>
-  a.merchantId != null || a.riderId != null || a.darkStoreId != null;
+const isWallet = (
+  a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId' | 'supplierId'>,
+) => a.merchantId != null || a.riderId != null || a.darkStoreId != null || a.supplierId != null;
 
 /** When a money event happened: a past Cairo day at noon, or now for today and no day. */
 export function eventTime(day: string | undefined, now: Date = new Date()) {
@@ -48,14 +54,30 @@ export function eventTime(day: string | undefined, now: Date = new Date()) {
 
 /** Names for accounts that belong to a merchant, rider or store, in both languages. */
 async function ownerNames(db: Db) {
-  const [merchants, riders, stores] = await Promise.all([
+  const [merchants, riders, stores, suppliers, users] = await Promise.all([
     db.merchant.findMany({ select: { id: true, name: true } }),
     db.rider.findMany({ select: { id: true, badgeCode: true, user: { select: { name: true } } } }),
     db.darkStore.findMany({ select: { id: true, code: true, nameEn: true, nameAr: true } }),
+    db.supplier.findMany({ select: { id: true, name: true } }),
+    db.ledgerAccount.findMany({
+      where: { userId: { not: null } },
+      select: { userId: true, user: { select: { name: true } } },
+    }),
   ]);
   return (
-    a: Pick<LedgerAccount, 'nameEn' | 'nameAr' | 'merchantId' | 'riderId' | 'darkStoreId'>,
+    a: Pick<
+      LedgerAccount,
+      'nameEn' | 'nameAr' | 'merchantId' | 'riderId' | 'darkStoreId' | 'supplierId' | 'userId'
+    >,
   ) => {
+    if (a.supplierId) {
+      const name = suppliers.find((x) => x.id === a.supplierId)?.name ?? a.supplierId;
+      return { nameEn: name, nameAr: name };
+    }
+    if (a.userId && !a.nameEn) {
+      const name = users.find((x) => x.userId === a.userId)?.user?.name ?? a.userId;
+      return { nameEn: name, nameAr: name };
+    }
     if (a.merchantId) {
       const name = merchants.find((m) => m.id === a.merchantId)?.name ?? a.merchantId;
       return { nameEn: name, nameAr: name };

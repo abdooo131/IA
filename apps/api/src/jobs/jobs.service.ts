@@ -15,6 +15,8 @@ import {
   linkDeliveryCustomers,
   locateCustomers,
   planRefill,
+  runMonthlyCharges,
+  runRecurring,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
@@ -25,6 +27,8 @@ import { TicketsService } from '../tickets/tickets.service';
 const SLA_LOCK = 735_001;
 /** Advisory lock id for the daily storage charge. */
 const STORAGE_LOCK = 735_002;
+/** Advisory lock id for recurring expenses, prepayments and depreciation. */
+const MONTHLY_LOCK = 735_003;
 const EVERY_MS = 30_000;
 
 /**
@@ -42,6 +46,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   /** The last Cairo day the refill drafts were prepared for by this instance. */
   private refillDone: string | null = null;
   private linking = false;
+  /** The last Cairo day recurring expenses and monthly charges ran for in this instance. */
+  private monthlyDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -62,6 +68,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runRefill();
       void this.runTicketReminders();
       void this.runCustomerLinks();
+      void this.runMonthlyFinance();
     }, EVERY_MS);
     this.timer.unref();
   }
@@ -184,6 +191,44 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: storage charge', error);
+      return null;
+    }
+  }
+
+  /**
+   * Once a Cairo day: prepares the recurring expenses whose day has come (as requests for a
+   * second person) and charges the months that are over for prepayments and fixed assets.
+   * Both are keyed per item and month, so repeats and overlaps change nothing.
+   */
+  async runMonthlyFinance(now: Date = new Date()) {
+    const day = cairoDay(now);
+    if (this.monthlyDone === day) return null;
+    try {
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const [{ locked }] = (await tx.$queryRaw<
+            { locked: boolean }[]
+          >`SELECT pg_try_advisory_xact_lock(${MONTHLY_LOCK}) AS locked`) as [{ locked: boolean }];
+          if (!locked) return null;
+          return {
+            recurring: await runRecurring(tx, now),
+            charges: await runMonthlyCharges(tx, now),
+          };
+        },
+        { timeout: 60_000 },
+      );
+      if (!result) return null;
+      this.monthlyDone = day;
+      const failed = [...result.recurring.failed, ...result.charges.failed];
+      for (const f of failed)
+        await this.reporter.report('job: monthly finance', new Error(`${f.id}: ${f.error}`));
+      if (result.recurring.prepared + result.charges.charged > 0)
+        this.log.log(
+          `Monthly finance: ${result.recurring.prepared} recurring prepared, ${result.charges.charged} charges posted`,
+        );
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: monthly finance', error);
       return null;
     }
   }

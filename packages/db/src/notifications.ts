@@ -11,7 +11,8 @@ export type NotificationType =
   | 'order_cancelled'
   | 'return_collected'
   | 'damage_settled'
-  | 'account_approved';
+  | 'account_approved'
+  | 'payment_requested';
 
 /**
  * Records a notification for a merchant, shown in the merchant panel. This is the one

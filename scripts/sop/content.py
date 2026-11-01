@@ -247,6 +247,69 @@ EN = {
          "The payout shows Paid; the merchant's balance dropped by the amount."],
        "problems": [
          "Amount looks wrong: cancel the draft with a note and open a ticket to admin."]},
+      {"title": "Approvals and receipts",
+       "steps": [
+         "Approvals: every money in claim, and money out from the approval limit, waits here for a second person.",
+         "Open each one, check the receipt or bank slip, then Approve or Reject with a reason. You cannot approve your own.",
+         "Receipts: attach the photo of the paper receipt or transfer slip to every movement listed there."],
+       "check": [
+         "Approved items get a JV number; the Receipts list gets shorter every day."],
+       "problems": [
+         "Something waits that you never asked for: reject it and open an urgent ticket to admin."]},
+      {"title": "Close the month",
+       "steps": [
+         "After the month end checks pass, Close the books through the last day of the month.",
+         "Nothing can be posted before that day any more; only admin can reopen, with a written reason."],
+       "check": [
+         "Close the books shows the new closed through day."],
+       "problems": [
+         "A late bill for a closed month: enter it today with a note; ask admin only if it must sit in the old month."]},
+      {"title": "Salaries and advances",
+       "steps": [
+         "Salaries: admin sets each person's monthly salary.",
+         "An advance: choose the person, amount and the bank or box it is paid from.",
+         "Month end: choose the month and the bank, enter deductions and how much advance to take back, Pay."],
+       "check": [
+         "Each person's advance owed goes down; the run shows in Approvals when it is above the limit."],
+       "problems": [
+         "Someone is missing from the run: their salary is not set yet; ask admin."]},
+      {"title": "Supplier bills",
+       "steps": [
+         "Suppliers and bills: add the supplier once with their tax id and withholding % (ask the accountant).",
+         "New bill the day it arrives: supplier, their invoice number, dates, category, store, amount before VAT and the VAT.",
+         "To pay: open the bill, enter the amount, the bank and the transfer reference. The withholding tax is kept back by itself.",
+         "Look at What we owe, by how late every week; pay the red columns first."],
+       "check": [
+         "A paid bill leaves Open bills; the supplier's We owe goes to zero."],
+       "problems": [
+         "Bill entered twice or wrong: Cancel bill with a reason (only before any payment)."]},
+      {"title": "Taxes",
+       "steps": [
+         "Taxes shows the VAT and withholding tax we owe today.",
+         "Every quarter: open the quarter, give the list to the accountant for form 41, then Pay tax (withholding) for the total.",
+         "Every month: after the accountant files the VAT return, Pay tax (VAT) for the amount filed."],
+       "check": [
+         "The amount owed goes down by what you paid."],
+       "problems": [
+         "A supplier has no tax id: add it on the supplier before filing."]},
+      {"title": "Recurring, prepaid and equipment",
+       "steps": [
+         "Recurring expenses: rent, internet and the like; each month on its day it waits in Approvals.",
+         "Prepaid and equipment: rent paid ahead goes in Pay ahead; shelves, fridges and motorbikes in Buy equipment.",
+         "Each month end the system moves the right part to the expense or depreciation by itself."],
+       "check": [
+         "Months charged goes up by one every month."],
+       "problems": [
+         "A recurring expense changed price: stop the old one and add a new one."]},
+      {"title": "Merchants who owe us",
+       "steps": [
+         "Owed by merchants lists every merchant whose fees passed the cash we collected.",
+         "Call them, then Ask to pay (they see it in their panel).",
+         "When they transfer, enter it in Merchants as a payment from the merchant."],
+       "check": [
+         "The merchant leaves the list once their balance is back to zero or above."],
+       "problems": [
+         "Owed for more than 30 days: ticket to admin."]},
       {"title": "Month end",
        "steps": [
          "Trial balance for the month: debits must equal credits.",
@@ -555,6 +618,69 @@ AR = {
          "التحويل بيقول اتدفع؛ رصيد التاجر قل بالمبلغ."],
        "problems": [
          "المبلغ شكله غلط: الغي المسودة بملاحظة وافتح تذكرة للأدمن."]},
+      {"title": "الموافقات والإيصالات",
+       "steps": [
+         "الموافقات: كل فلوس داخلة، وكل فلوس خارجة من حد الموافقة، بتستنى هنا شخص تاني.",
+         "افتح كل واحدة، راجع الإيصال أو إشعار البنك، ووافق أو ارفض بسبب. ما ينفعش توافق على طلبك.",
+         "الإيصالات: ارفع صورة الإيصال الورق أو إشعار التحويل لكل حركة في القائمة."],
+       "check": [
+         "اللي اتوافق عليه بياخد رقم JV؛ قائمة الإيصالات بتقل كل يوم."],
+       "problems": [
+         "فيه طلب مستني إنت ما طلبتوش: ارفضه وافتح تذكرة عاجلة للأدمن."]},
+      {"title": "قفل الشهر",
+       "steps": [
+         "بعد ما مراجعات آخر الشهر تمشي صح، اقفل الدفاتر لحد آخر يوم في الشهر.",
+         "مفيش تسجيل قبل اليوم ده تاني؛ الأدمن بس يفتح، بسبب مكتوب."],
+       "check": [
+         "شاشة قفل الدفاتر بتبين اليوم الجديد."],
+       "problems": [
+         "فاتورة متأخرة لشهر مقفول: سجلها النهارده بملاحظة؛ اسأل الأدمن بس لو لازم تتسجل في الشهر القديم."]},
+      {"title": "المرتبات والسلف",
+       "steps": [
+         "المرتبات: الأدمن بيحدد مرتب كل واحد في الشهر.",
+         "سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.",
+         "آخر الشهر: اختار الشهر والبنك، اكتب الخصومات وقد إيه هتسترد من السلفة، وادفع."],
+       "check": [
+         "السلفة المستحقة على كل واحد بتقل؛ المرتبات بتظهر في الموافقات لو فوق الحد."],
+       "problems": [
+         "حد مش ظاهر في المرتبات: مرتبه لسه مش متحدد؛ اسأل الأدمن."]},
+      {"title": "فواتير الموردين",
+       "steps": [
+         "الموردون والفواتير: ضيف المورد مرة واحدة برقمه الضريبي ونسبة الخصم من المنبع (اسأل المحاسب).",
+         "فاتورة جديدة يوم ما توصل: المورد، رقم فاتورته، التواريخ، البند، المخزن، المبلغ قبل الضريبة والضريبة.",
+         "للسداد: افتح الفاتورة، اكتب المبلغ والبنك ومرجع التحويل. الخصم من المنبع بيتحجز لوحده.",
+         "بص على المستحق حسب التأخير كل أسبوع؛ ادفع العواميد الحمرا الأول."],
+       "check": [
+         "الفاتورة المدفوعة بتخرج من الفواتير المفتوحة؛ المستحق للمورد بيبقى صفر."],
+       "problems": [
+         "فاتورة اتسجلت مرتين أو غلط: إلغاء الفاتورة بسبب (قبل أي سداد بس)."]},
+      {"title": "الضرائب",
+       "steps": [
+         "الضرائب بتبين القيمة المضافة والخصم من المنبع المستحقين النهارده.",
+         "كل ربع سنة: افتح الربع، ادي القائمة للمحاسب لنموذج 41، وبعدين سداد ضريبة (خصم من المنبع) بالإجمالي.",
+         "كل شهر: بعد ما المحاسب يقدم إقرار القيمة المضافة، سداد ضريبة (قيمة مضافة) بالمبلغ المقدم."],
+       "check": [
+         "المستحق بيقل بقد اللي دفعته."],
+       "problems": [
+         "مورد من غير رقم ضريبي: ضيفه في بيانات المورد قبل التقديم."]},
+      {"title": "المتكرر والمدفوع مقدما والمعدات",
+       "steps": [
+         "المصروفات المتكررة: الإيجار والإنترنت وزيهم؛ كل شهر في يومه بيستنى في الموافقات.",
+         "المدفوع مقدما والمعدات: الإيجار المدفوع مقدما في دفع مقدم؛ الأرفف والتلاجات والموتوسيكلات في شراء معدات.",
+         "آخر كل شهر السيستم بينقل الجزء الصح للمصروف أو الإهلاك لوحده."],
+       "check": [
+         "الشهور المحملة بتزيد واحد كل شهر."],
+       "problems": [
+         "مصروف متكرر سعره اتغير: وقف القديم وضيف واحد جديد."]},
+      {"title": "تجار عليهم مستحقات",
+       "steps": [
+         "مستحقات على التجار بتعرض كل تاجر رسومه عدت الكاش اللي حصلناه له.",
+         "كلمه، وبعدين مطالبة بالسداد (بيشوفها في لوحته).",
+         "لما يحول، سجلها في التجار كتحصيل من التاجر."],
+       "check": [
+         "التاجر بيخرج من القائمة لما رصيده يرجع صفر أو أكتر."],
+       "problems": [
+         "مديون أكتر من 30 يوم: تذكرة للأدمن."]},
       {"title": "آخر الشهر",
        "steps": [
          "ميزان المراجعة للشهر: المدين لازم يساوي الدائن.",

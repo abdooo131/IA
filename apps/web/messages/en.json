@@ -968,7 +968,9 @@
       "damage_paid": "We credited your wallet EGP {amount}.",
       "damage_yours": "This damage is on the merchant; no credit.",
       "openDamage": "See damage reports",
-      "account_approved": "Welcome to Shiply Now, your account is open"
+      "account_approved": "Welcome to Shiply Now, your account is open",
+      "payment_requested": "Your balance with us is EGP {amount} owed to Shiply Now. Please transfer it.",
+      "openWallet": "Open your wallet"
     },
     "orders": {
       "title": "Orders",
@@ -1383,7 +1385,12 @@
       "close": "Close month",
       "opening": "Opening balances",
       "profit": "Profit by store",
-      "payroll": "Salaries"
+      "payroll": "Salaries",
+      "bills": "Suppliers and bills",
+      "taxes": "Taxes",
+      "recurring": "Recurring expenses",
+      "assets": "Prepaid and equipment",
+      "receivables": "Owed by merchants"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1412,7 +1419,15 @@
       "other_income": "Other income",
       "journal": "Journal entry",
       "payroll": "Salaries",
-      "staff_advance": "Staff advance"
+      "staff_advance": "Staff advance",
+      "supplier_bill": "Supplier bill",
+      "supplier_bill_cancel": "Supplier bill cancelled",
+      "bill_payment": "Bill paid",
+      "tax_payment": "Tax paid",
+      "prepayment": "Paid ahead",
+      "prepayment_release": "Prepaid month used",
+      "asset_purchase": "Equipment bought",
+      "depreciation": "Depreciation"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1480,7 +1495,11 @@
         "operating_expenses": "Operating expenses",
         "bank_charges": "Bank charges",
         "opening_balances": "Opening balances",
-        "staff_advances": "Staff advances"
+        "staff_advances": "Staff advances",
+        "fixed_assets": "Equipment and vehicles",
+        "accumulated_depreciation": "Accumulated depreciation",
+        "suppliers": "Suppliers",
+        "depreciation": "Depreciation"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -1651,7 +1670,24 @@
         "payroll_already_run": "This month's salaries were already paid.",
         "invalid_month": "Choose a valid month.",
         "person_twice": "A person appears twice.",
-        "user_not_found": "Person not found."
+        "user_not_found": "Person not found.",
+        "supplier_exists": "A supplier with this name already exists.",
+        "supplier_not_found": "Supplier not found or closed.",
+        "bill_exists": "This supplier invoice number is already entered.",
+        "bill_not_found": "Bill not found.",
+        "bill_not_open": "This bill is already paid or cancelled.",
+        "expense_account_required": "Choose the expense category (or set one on the supplier).",
+        "due_before_bill": "The due date cannot be before the bill date.",
+        "invalid_wht": "Withholding tax must be between 0% and 100%.",
+        "invalid_salvage": "What it is worth at the end must be less than its price.",
+        "invalid_months": "Number of months is not valid.",
+        "nothing_owed": "This merchant does not owe us anything.",
+        "end_before_start": "The last month cannot be before the first.",
+        "invalid_day_of_month": "Day of month must be 1 to 28.",
+        "recurring_not_found": "Recurring expense not found.",
+        "merchant_not_found": "Merchant not found.",
+        "invalid_quarter": "Quarter not valid.",
+        "invalid_date": "Date not valid."
       }
     },
     "riders": {
@@ -1799,7 +1835,11 @@
         "merchant_receipt": "Merchant paid us",
         "merchant_adjustment": "Merchant balance change",
         "staff_advance": "Staff advance",
-        "payroll": "Monthly salaries"
+        "payroll": "Monthly salaries",
+        "bill_payment": "Supplier bill payment",
+        "tax_payment": "Tax payment",
+        "prepayment": "Paid ahead",
+        "asset_purchase": "Equipment bought"
       },
       "statuses": {
         "pending": "Waiting",
@@ -1872,6 +1912,139 @@
       "noSalaries": "Set salaries first (admin, in the table above).",
       "netTotal": "Net to pay: {amount} EGP",
       "pay": "Pay salaries for {month}"
+    },
+    "payables": {
+      "billsTitle": "Suppliers and bills",
+      "billsIntro": "Enter a supplier's bill when it arrives: its cost counts in that month even if you pay later. Pay it in one or several payments; withholding tax is kept back automatically and owed to the tax authority.",
+      "taxesTitle": "Taxes",
+      "taxesIntro": "What we owe the Egyptian Tax Authority now, paying it, and the quarterly withholding tax list (form 41) with each supplier's tax id.",
+      "recurringTitle": "Recurring expenses",
+      "recurringIntro": "Expenses that repeat every month. On their day the system prepares that month's expense in Approvals; a second person approves it once the money has really left.",
+      "assetsTitle": "Prepaid and equipment",
+      "assetsIntro": "Money paid once for something used over many months. Prepaid costs (a year's rent) and equipment (shelves, fridges, motorbikes) are spread over their months automatically when each month ends.",
+      "receivablesTitle": "Merchants who owe us",
+      "receivablesIntro": "When our fees, storage or damage charges are more than the cash we collected for a merchant, they owe us. Ask them to pay; their payment is entered as a merchant receipt.",
+      "ageing": "What we owe, by how late",
+      "buckets": {
+        "current": "Not due",
+        "d1_30": "1 to 30 days",
+        "d31_60": "31 to 60 days",
+        "d61_90": "61 to 90 days",
+        "over_90": "Over 90 days"
+      },
+      "total": "Total",
+      "noneOwed": "We owe no supplier anything.",
+      "openBills": "Open bills",
+      "noBills": "No open bills.",
+      "bill": "Bill",
+      "supplier": "Supplier",
+      "dueDate": "Due date",
+      "billDate": "Bill date",
+      "expense": "Expense category",
+      "left": "Left to pay",
+      "payOrCancel": "Pay",
+      "close": "Close",
+      "amount": "Amount (EGP)",
+      "paidFrom": "Paid from",
+      "reference": "Reference",
+      "pay": "Pay",
+      "whtKept": "Withholding tax kept back: EGP {amount}. Leaves the bank: EGP {cash}.",
+      "cancelReason": "Why cancel (entered by mistake...)",
+      "cancelBill": "Cancel bill",
+      "newSupplier": "New supplier",
+      "supplierName": "Supplier",
+      "taxId": "Tax id",
+      "phone": "Phone",
+      "email": "Email",
+      "whtPercent": "Withholding %",
+      "defaultExpense": "Usual expense category",
+      "none": "None",
+      "whtHint": "Withholding tax is usually 1% for supplies and 3% for services, on the amount before VAT. Ask your accountant for each supplier.",
+      "addSupplier": "Add supplier",
+      "newBill": "New bill",
+      "chooseSupplier": "Choose a supplier",
+      "invoiceNumber": "Supplier's invoice number",
+      "supplierDefault": "The supplier's usual category",
+      "chooseExpense": "Choose a category",
+      "store": "Store",
+      "companyWide": "Company wide",
+      "net": "Amount before VAT (EGP)",
+      "vat": "VAT (EGP)",
+      "memo": "Note",
+      "billTotal": "Bill total: EGP {amount}",
+      "saveBill": "Save bill",
+      "billSaved": "Saved as {number}.",
+      "suppliers": "Suppliers",
+      "noSuppliers": "No suppliers yet.",
+      "openBillsCount": "Open bills",
+      "owed": "We owe",
+      "noTaxId": "No tax id",
+      "vatOwed": "VAT we owe",
+      "vatOwedHint": "VAT charged on our fees minus VAT we paid on bills.",
+      "whtOwed": "Withholding tax we owe",
+      "whtOwedHint": "Kept back from supplier payments; paid every quarter.",
+      "payTax": "Pay tax",
+      "tax": "Tax",
+      "whtName": "Withholding tax",
+      "vatName": "VAT",
+      "whtReport": "Withholding tax, Q{quarter} {year}",
+      "whtReportHint": "Payments from {from} to {to}. Enter these lines in the e tax portal (form 41).",
+      "missingTaxIds": "{count, plural, one {# supplier has} other {# suppliers have}} no tax id; add it before filing.",
+      "noWht": "No withholding tax in this quarter.",
+      "payments": "Payments",
+      "paidBeforeVat": "Paid before VAT",
+      "withheld": "Withheld",
+      "noRecurring": "No recurring expenses yet.",
+      "recurringName": "Name",
+      "everyMonthOn": "Every month",
+      "thisMonth": "This month",
+      "fromTo": "{from} to {to}",
+      "noEnd": "no end",
+      "dayN": "Day {day}",
+      "prepared": "Prepared, in Approvals",
+      "waitingDay": "Waiting for its day",
+      "stopped": "Stopped",
+      "stop": "Stop",
+      "restart": "Start again",
+      "newRecurring": "New recurring expense",
+      "recurringHint": "Each month it waits in Approvals; nothing is paid by itself.",
+      "amountWithVat": "Amount with VAT (EGP)",
+      "vatPart": "Of which VAT (EGP)",
+      "dayOfMonth": "Day of month (1 to 28)",
+      "startMonth": "First month",
+      "endMonth": "Last month (optional)",
+      "saveRecurring": "Save recurring expense",
+      "prepaid": "Paid ahead",
+      "noPrepaid": "Nothing paid ahead.",
+      "item": "What",
+      "paid": "Paid",
+      "perMonth": "Per month",
+      "progress": "Months charged",
+      "monthsOf": "{done} of {of} from {start}",
+      "leftAhead": "Still ahead",
+      "equipment": "Equipment",
+      "noAssets": "No equipment yet.",
+      "cost": "Price (EGP)",
+      "bookValue": "Value now",
+      "newPrepaid": "Pay ahead",
+      "prepaidHint": "For example 12 months of rent paid today: each month one twelfth becomes rent.",
+      "months": "Months",
+      "eachMonth": "About EGP {amount} each month.",
+      "savePrepaid": "Save",
+      "newAsset": "Buy equipment",
+      "assetHint": "Its price, minus what it is still worth at the end, becomes depreciation month by month over its life.",
+      "salvage": "Worth at the end (EGP)",
+      "lifeMonths": "Life in months",
+      "eachMonthDepr": "About EGP {amount} depreciation each month.",
+      "saveAsset": "Save",
+      "merchant": "Merchant",
+      "since": "Owes since",
+      "lastAsked": "Last asked",
+      "owesUs": "Owes us",
+      "never": "Never",
+      "askToPay": "Ask to pay",
+      "asked": "The merchant sees the request in their panel.",
+      "nobodyOwes": "No merchant owes us anything."
     }
   },
   "storeCash": {
@@ -2593,6 +2766,84 @@
             "problems": [
               "Amount looks wrong: cancel the draft with a note and open a ticket to admin."
             ]
+          },
+          {
+            "title": "Approvals and receipts",
+            "steps": [
+              "Approvals: every money in claim, and money out from the approval limit, waits here for a second person.",
+              "Open each one, check the receipt or bank slip, then Approve or Reject with a reason. You cannot approve your own.",
+              "Receipts: attach the photo of the paper receipt or transfer slip to every movement listed there."
+            ],
+            "check": ["Approved items get a JV number; the Receipts list gets shorter every day."],
+            "problems": [
+              "Something waits that you never asked for: reject it and open an urgent ticket to admin."
+            ]
+          },
+          {
+            "title": "Close the month",
+            "steps": [
+              "After the month end checks pass, Close the books through the last day of the month.",
+              "Nothing can be posted before that day any more; only admin can reopen, with a written reason."
+            ],
+            "check": ["Close the books shows the new closed through day."],
+            "problems": [
+              "A late bill for a closed month: enter it today with a note; ask admin only if it must sit in the old month."
+            ]
+          },
+          {
+            "title": "Salaries and advances",
+            "steps": [
+              "Salaries: admin sets each person's monthly salary.",
+              "An advance: choose the person, amount and the bank or box it is paid from.",
+              "Month end: choose the month and the bank, enter deductions and how much advance to take back, Pay."
+            ],
+            "check": [
+              "Each person's advance owed goes down; the run shows in Approvals when it is above the limit."
+            ],
+            "problems": ["Someone is missing from the run: their salary is not set yet; ask admin."]
+          },
+          {
+            "title": "Supplier bills",
+            "steps": [
+              "Suppliers and bills: add the supplier once with their tax id and withholding % (ask the accountant).",
+              "New bill the day it arrives: supplier, their invoice number, dates, category, store, amount before VAT and the VAT.",
+              "To pay: open the bill, enter the amount, the bank and the transfer reference. The withholding tax is kept back by itself.",
+              "Look at What we owe, by how late every week; pay the red columns first."
+            ],
+            "check": ["A paid bill leaves Open bills; the supplier's We owe goes to zero."],
+            "problems": [
+              "Bill entered twice or wrong: Cancel bill with a reason (only before any payment)."
+            ]
+          },
+          {
+            "title": "Taxes",
+            "steps": [
+              "Taxes shows the VAT and withholding tax we owe today.",
+              "Every quarter: open the quarter, give the list to the accountant for form 41, then Pay tax (withholding) for the total.",
+              "Every month: after the accountant files the VAT return, Pay tax (VAT) for the amount filed."
+            ],
+            "check": ["The amount owed goes down by what you paid."],
+            "problems": ["A supplier has no tax id: add it on the supplier before filing."]
+          },
+          {
+            "title": "Recurring, prepaid and equipment",
+            "steps": [
+              "Recurring expenses: rent, internet and the like; each month on its day it waits in Approvals.",
+              "Prepaid and equipment: rent paid ahead goes in Pay ahead; shelves, fridges and motorbikes in Buy equipment.",
+              "Each month end the system moves the right part to the expense or depreciation by itself."
+            ],
+            "check": ["Months charged goes up by one every month."],
+            "problems": ["A recurring expense changed price: stop the old one and add a new one."]
+          },
+          {
+            "title": "Merchants who owe us",
+            "steps": [
+              "Owed by merchants lists every merchant whose fees passed the cash we collected.",
+              "Call them, then Ask to pay (they see it in their panel).",
+              "When they transfer, enter it in Merchants as a payment from the merchant."
+            ],
+            "check": ["The merchant leaves the list once their balance is back to zero or above."],
+            "problems": ["Owed for more than 30 days: ticket to admin."]
           },
           {
             "title": "Month end",

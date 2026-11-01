@@ -14,6 +14,13 @@ import {
   previewPayroll,
   runPayroll,
 } from './payroll';
+import { type BillPaymentInput, payBill, payTax, type TaxPaymentInput } from './payables';
+import {
+  type AssetInput,
+  type PrepaymentInput,
+  recordAssetPurchase,
+  recordPrepayment,
+} from './assets';
 
 type Tx = Prisma.TransactionClient;
 
@@ -115,6 +122,10 @@ export type RequestPayload =
   | { kind: 'merchant_receipt'; input: Stored<ReceiptInput> }
   | { kind: 'merchant_adjustment'; input: Stored<AdjustmentInput> }
   | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
+  | { kind: 'bill_payment'; input: Stored<BillPaymentInput> }
+  | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
+  | { kind: 'prepayment'; input: Stored<PrepaymentInput> }
+  | { kind: 'asset_purchase'; input: Stored<AssetInput> }
   | {
       kind: 'payroll';
       input: Stored<PayrollInput> & { amountPiastres: number; idempotencyKey: string };
@@ -161,6 +172,22 @@ async function submit(
       await attachReceipt(db, { entryId: entry.id, photoId: receiptPhotoId, actorUserId });
     return { status: 'posted' as const, entry };
   }
+  return {
+    status: 'pending' as const,
+    request: await queueRequest(db, payload, actorUserId, receiptPhotoId),
+  };
+}
+
+/**
+ * Keeps a movement as a request for a second person (once per idempotency key). Recurring
+ * entries are always prepared this way, so someone confirms the money really left.
+ */
+export async function queueRequest(
+  db: Db,
+  payload: RequestPayload,
+  actorUserId: string,
+  receiptPhotoId?: string,
+) {
   // Same check the movement makes when it is finally posted, so a bad request fails now.
   eventTime(dayOf(payload));
   return inTransaction(db, async (tx) => {
@@ -169,11 +196,11 @@ async function submit(
         payload: { path: ['input', 'idempotencyKey'], equals: payload.input.idempotencyKey },
       },
     });
-    if (seen) return { status: 'pending' as const, request: seen };
+    if (seen) return seen;
     const request = await tx.financeRequest.create({
       data: {
         kind: payload.kind,
-        amountPiastres: amount,
+        amountPiastres: Math.abs(payload.input.amountPiastres),
         payload: payload as unknown as Prisma.InputJsonValue,
         requestedById: actorUserId,
       },
@@ -191,7 +218,7 @@ async function submit(
         reference: referenceOf(payload),
       },
     });
-    return { status: 'pending' as const, request };
+    return request;
   });
 }
 
@@ -213,6 +240,14 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return giveAdvance(db, { ...p.input, actorUserId });
     case 'payroll':
       return runPayroll(db, { ...p.input, actorUserId });
+    case 'bill_payment':
+      return payBill(db, { ...p.input, actorUserId });
+    case 'tax_payment':
+      return payTax(db, { ...p.input, actorUserId });
+    case 'prepayment':
+      return recordPrepayment(db, { ...p.input, actorUserId });
+    case 'asset_purchase':
+      return recordAssetPurchase(db, { ...p.input, actorUserId });
   }
 }
 
@@ -454,6 +489,11 @@ export const RECEIPT_KINDS = [
   'merchant_payout',
   'merchant_receipt',
   'rider_bonus_payout',
+  'bill_payment',
+  'tax_payment',
+  'prepayment',
+  'asset_purchase',
+  'staff_advance',
 ];
 
 /** Money movements without any receipt yet, newest first, and how many there are. */
@@ -583,3 +623,12 @@ export async function submitPayroll(db: Db, input: PayrollInput) {
     actorUserId,
   );
 }
+
+/** A supplier bill paid (or part of it): at once below the approval limit, else waiting. */
+export const submitBillPayment = submitter<'bill_payment', BillPaymentInput>('bill_payment');
+/** VAT or withholding tax paid to the tax authority. */
+export const submitTaxPayment = submitter<'tax_payment', TaxPaymentInput>('tax_payment');
+/** Months paid ahead (rent for a year). */
+export const submitPrepayment = submitter<'prepayment', PrepaymentInput>('prepayment');
+/** Equipment bought, depreciated over its life. */
+export const submitAssetPurchase = submitter<'asset_purchase', AssetInput>('asset_purchase');

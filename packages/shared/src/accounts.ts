@@ -70,6 +70,22 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     money: false,
   },
   {
+    code: 1600,
+    category: 'asset',
+    key: 'fixed_assets',
+    party: false,
+    manualType: null,
+    money: false,
+  },
+  {
+    code: 1700,
+    category: 'asset',
+    key: 'accumulated_depreciation',
+    party: false,
+    manualType: null,
+    money: false,
+  },
+  {
     code: 2100,
     category: 'liability',
     key: 'merchants',
@@ -92,6 +108,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     key: 'other_liabilities',
     party: false,
     manualType: 'other_liability',
+    money: false,
+  },
+  {
+    code: 2500,
+    category: 'liability',
+    key: 'suppliers',
+    party: true,
+    manualType: null,
     money: false,
   },
   {
@@ -158,6 +182,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     key: 'bank_charges',
     party: false,
     manualType: 'expense',
+    money: false,
+  },
+  {
+    code: 5600,
+    category: 'expense',
+    key: 'depreciation',
+    party: false,
+    manualType: null,
     money: false,
   },
 ];
@@ -308,3 +340,117 @@ export type JournalEntryBody = z.infer<typeof journalEntrySchema>;
 
 /** Which bank paid or received; empty uses the main bank (CIB, 1101). */
 export const bankChoice = z.object({ bankAccountId: id.optional() });
+
+// ─── suppliers, bills, taxes, recurring, prepayments, fixed assets ──────────────
+
+const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'invalid_month');
+/** Withholding tax as basis points: 100 is 1% */
+const basisPoints = z.number().int().min(0).max(10_000);
+
+export const billNumber = (n: number) => `BILL-${pad(n)}`;
+
+export const supplierSchema = z.object({
+  name,
+  taxId: optionalText(30),
+  phone: optionalText(20),
+  email: z
+    .string()
+    .trim()
+    .max(120)
+    .refine((v) => v === '' || /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(v), 'invalid_email')
+    .optional()
+    .transform((v) => (v ? v : undefined)),
+  whtBp: basisPoints.default(0),
+  defaultExpenseAccountId: id.optional(),
+});
+export const updateSupplierSchema = supplierSchema.partial().extend({
+  isActive: z.boolean().optional(),
+});
+
+export const billSchema = z.object({
+  supplierId: id,
+  reference,
+  billDate: day,
+  dueDate: day,
+  expenseAccountId: id.optional(),
+  darkStoreId: id.optional(),
+  netPiastres: piastres,
+  vatPiastres: z.number().int().min(0).max(1_000_000_000).default(0),
+  memo: optionalText(300),
+  idempotencyKey: key,
+});
+
+export const cancelBillSchema = z.object({ reason: z.string().trim().min(5).max(300) });
+
+export const billPaymentSchema = z.object({
+  amountPiastres: piastres,
+  moneyAccountId: id,
+  reference,
+  day: onDay,
+  receiptPhotoId: id.optional(),
+  idempotencyKey: key,
+});
+
+export const taxPaymentSchema = z.object({
+  tax: z.enum(['vat', 'wht']),
+  amountPiastres: piastres,
+  moneyAccountId: id,
+  reference,
+  day: onDay,
+  receiptPhotoId: id.optional(),
+  idempotencyKey: key,
+});
+
+export const recurringSchema = z
+  .object({
+    name,
+    expenseAccountId: id,
+    paidFromAccountId: id,
+    amountPiastres: piastres,
+    vatPiastres: z.number().int().min(0).max(1_000_000_000).default(0),
+    darkStoreId: id.optional(),
+    memo: z.string().trim().min(3).max(300),
+    reference,
+    dayOfMonth: z.number().int().min(1).max(28),
+    startMonth: month,
+    endMonth: month.optional(),
+  })
+  .refine((v) => !v.endMonth || v.endMonth >= v.startMonth, {
+    path: ['endMonth'],
+    message: 'end_before_start',
+  });
+
+export const prepaymentSchema = z.object({
+  name,
+  expenseAccountId: id,
+  amountPiastres: piastres,
+  months: z.number().int().min(1).max(120),
+  startMonth: month,
+  darkStoreId: id.optional(),
+  moneyAccountId: id,
+  reference,
+  day: onDay,
+  receiptPhotoId: id.optional(),
+  idempotencyKey: key,
+});
+
+export const assetSchema = z
+  .object({
+    name,
+    amountPiastres: piastres,
+    salvagePiastres: z.number().int().min(0).max(1_000_000_000).default(0),
+    lifeMonths: z.number().int().min(1).max(600),
+    startMonth: month,
+    darkStoreId: id.optional(),
+    moneyAccountId: id,
+    reference,
+    day: onDay,
+    receiptPhotoId: id.optional(),
+    idempotencyKey: key,
+  })
+  .refine((v) => v.salvagePiastres < v.amountPiastres, {
+    path: ['salvagePiastres'],
+    message: 'invalid_salvage',
+  });
+
+export const paymentRequestSchema = z.object({ note: optionalText(300) });
