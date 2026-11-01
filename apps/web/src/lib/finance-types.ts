@@ -419,3 +419,116 @@ export interface ReceivableRow {
   since: string | null;
   lastRequestedAt: string | null;
 }
+
+export interface BankStatementRow {
+  id: string;
+  number: number;
+  account: Named;
+  fileName: string;
+  fromDay: string;
+  toDay: string;
+  lines: number;
+  skipped: number;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface BankReconciliation {
+  account: { id: string; code: string; nameEn: string | null; nameAr: string | null };
+  day: string;
+  bookBalancePiastres: number;
+  bankBalancePiastres: number | null;
+  bankBalanceDay: string | null;
+  differencePiastres: number | null;
+  matched: number;
+  ignored: number;
+  checkedSince: string | null;
+  bankOnly: {
+    id: string;
+    statement: number;
+    lineNo: number;
+    day: string;
+    description: string;
+    reference: string | null;
+    amountPiastres: number;
+    balancePiastres: number | null;
+  }[];
+  booksOnly: {
+    id: string;
+    entryNumber: number;
+    kind: string;
+    memo: string | null;
+    at: string;
+    amountPiastres: number;
+  }[];
+}
+
+export interface VatReport {
+  year: number;
+  months: {
+    month: string;
+    outputPiastres: number;
+    inputPiastres: number;
+    duePiastres: number;
+    paidPiastres: number;
+  }[];
+  total: {
+    outputPiastres: number;
+    inputPiastres: number;
+    duePiastres: number;
+    paidPiastres: number;
+  };
+}
+
+export interface BudgetReport {
+  month: string;
+  darkStoreId: string | null;
+  rows: {
+    accountId: string;
+    code: string;
+    category: 'revenue' | 'expense';
+    nameEn: string;
+    nameAr: string;
+    budgetPiastres: number;
+    actualPiastres: number;
+    variancePiastres: number;
+  }[];
+  income: { budgetPiastres: number; actualPiastres: number };
+  costs: { budgetPiastres: number; actualPiastres: number };
+}
+
+export interface CashFlowReport {
+  from: string;
+  to: string;
+  openingPiastres: number;
+  closingPiastres: number;
+  sections: {
+    section: 'operating' | 'investing' | 'financing';
+    rows: { kind: string; inPiastres: number; outPiastres: number }[];
+    netPiastres: number;
+  }[];
+}
+
+export interface CashForecast {
+  today: string;
+  moneyPiastres: number;
+  weeklyTradingPiastres: number;
+  weeks: {
+    from: string;
+    to: string;
+    openingPiastres: number;
+    tradingPiastres: number;
+    billsPiastres: number;
+    recurringPiastres: number;
+    salariesPiastres: number;
+    taxesPiastres: number;
+    closingPiastres: number;
+  }[];
+}
+
+export interface YearStatus {
+  year: number;
+  over: boolean;
+  closed: boolean;
+  entryNumber: number | null;
+}

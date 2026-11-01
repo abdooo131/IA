@@ -11,3 +11,4 @@ export * from './finance';
 export * from './tracking';
 export * from './geo-text';
 export * from './accounts';
+export * from './statement';

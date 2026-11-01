@@ -142,6 +142,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     manualType: null,
     money: false,
   },
+  {
+    code: 3400,
+    category: 'equity',
+    key: 'retained_earnings',
+    party: false,
+    manualType: null,
+    money: false,
+  },
   { code: 4100, category: 'revenue', key: 'fees', party: false, manualType: null, money: false },
   {
     code: 4200,
@@ -454,3 +462,13 @@ export const assetSchema = z
   });
 
 export const paymentRequestSchema = z.object({ note: optionalText(300) });
+
+export const budgetSchema = z.object({
+  month,
+  accountId: id,
+  darkStoreId: id.optional(),
+  amountPiastres: z.number().int().min(0).max(1_000_000_000),
+});
+export const yearCloseSchema = z.object({ year: z.number().int().min(2020).max(2100) });
+export const bankMatchSchema = z.object({ ledgerLineId: id });
+export const bankIgnoreSchema = z.object({ note: z.string().trim().min(5).max(300) });

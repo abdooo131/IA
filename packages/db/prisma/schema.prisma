@@ -81,21 +81,24 @@ model User {
   auditEntries      AuditLog[]
   settingChanges    Setting[]
 
-  ledgerEntries     LedgerEntry[]    @relation("ledger_entry_created_by")
-  handoversReceived CashHandover[]   @relation("handover_received_by")
-  handoversReviewed CashHandover[]   @relation("handover_reviewed_by")
-  payoutsCreated    Payout[]         @relation("payout_created_by")
-  payoutsPaid       Payout[]         @relation("payout_paid_by")
-  payoutsApproved   Payout[]         @relation("payout_approved_by")
+  ledgerEntries     LedgerEntry[]       @relation("ledger_entry_created_by")
+  handoversReceived CashHandover[]      @relation("handover_received_by")
+  handoversReviewed CashHandover[]      @relation("handover_reviewed_by")
+  payoutsCreated    Payout[]            @relation("payout_created_by")
+  payoutsPaid       Payout[]            @relation("payout_paid_by")
+  payoutsApproved   Payout[]            @relation("payout_approved_by")
   booksLocks        BooksLock[]
-  financeRequests   FinanceRequest[] @relation("finance_request_by")
-  financeDecisions  FinanceRequest[] @relation("finance_request_decided_by")
+  financeRequests   FinanceRequest[]    @relation("finance_request_by")
+  financeDecisions  FinanceRequest[]    @relation("finance_request_decided_by")
   financeReceipts   FinanceReceipt[]
-  advanceAccounts   LedgerAccount[]  @relation("ledger_account_user")
-  ledgerLines       LedgerLine[]     @relation("ledger_line_user")
-  salary            StaffSalary?     @relation("staff_salary_user")
-  salariesSet       StaffSalary[]    @relation("staff_salary_updated_by")
+  advanceAccounts   LedgerAccount[]     @relation("ledger_account_user")
+  ledgerLines       LedgerLine[]        @relation("ledger_line_user")
+  salary            StaffSalary?        @relation("staff_salary_user")
+  salariesSet       StaffSalary[]       @relation("staff_salary_updated_by")
   suppliers         Supplier[]
+  bankStatements    BankStatement[]
+  bankLinesDecided  BankStatementLine[] @relation("bank_line_decided_by")
+  budgetsSet        Budget[]            @relation("budget_updated_by")
   bills             Bill[]
   recurringEntries  RecurringEntry[]
   prepayments       Prepayment[]
@@ -190,6 +193,7 @@ model DarkStore {
   bills       Bill[]
   prepayments Prepayment[]
   fixedAssets FixedAsset[]
+  budgets     Budget[]
 
   @@map("dark_stores")
 }
@@ -1177,15 +1181,18 @@ model LedgerAccount {
   createdById   String?           @map("created_by_id")
   createdAt     DateTime          @default(now()) @map("created_at")
 
-  merchant         Merchant?    @relation(fields: [merchantId], references: [id])
-  rider            Rider?       @relation(fields: [riderId], references: [id])
-  darkStore        DarkStore?   @relation(fields: [darkStoreId], references: [id])
-  user             User?        @relation("ledger_account_user", fields: [userId], references: [id], onDelete: Restrict)
-  supplier         Supplier?    @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  merchant         Merchant?           @relation(fields: [merchantId], references: [id])
+  rider            Rider?              @relation(fields: [riderId], references: [id])
+  darkStore        DarkStore?          @relation(fields: [darkStoreId], references: [id])
+  user             User?               @relation("ledger_account_user", fields: [userId], references: [id], onDelete: Restrict)
+  supplier         Supplier?           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
   lines            LedgerLine[]
-  suppliersDefault Supplier[]   @relation("supplier_default_expense")
+  suppliersDefault Supplier[]          @relation("supplier_default_expense")
   bills            Bill[]
   prepayments      Prepayment[]
+  bankStatements   BankStatement[]
+  bankLines        BankStatementLine[] @relation("bank_line_account")
+  budgets          Budget[]            @relation("budget_account")
 
   @@index([type])
   @@index([groupCode])
@@ -1238,12 +1245,13 @@ model LedgerLine {
   /// The team member a salary or advance line is for
   userId         String?  @map("user_id")
 
-  entry     LedgerEntry   @relation(fields: [entryId], references: [id])
-  account   LedgerAccount @relation(fields: [accountId], references: [id])
-  darkStore DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  merchant  Merchant?     @relation(fields: [merchantId], references: [id], onDelete: Restrict)
-  rider     Rider?        @relation(fields: [riderId], references: [id], onDelete: Restrict)
-  user      User?         @relation("ledger_line_user", fields: [userId], references: [id], onDelete: Restrict)
+  entry     LedgerEntry        @relation(fields: [entryId], references: [id])
+  account   LedgerAccount      @relation(fields: [accountId], references: [id])
+  darkStore DarkStore?         @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  merchant  Merchant?          @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  rider     Rider?             @relation(fields: [riderId], references: [id], onDelete: Restrict)
+  user      User?              @relation("ledger_line_user", fields: [userId], references: [id], onDelete: Restrict)
+  bankLine  BankStatementLine?
 
   @@index([accountId, occurredAt])
   @@index([darkStoreId, occurredAt])
@@ -2075,4 +2083,81 @@ model FixedAsset {
   createdBy User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
   @@map("fixed_assets")
+}
+
+/// A bank statement uploaded from the bank's Excel or CSV file.
+model BankStatement {
+  id          String   @id @default(cuid())
+  /// Shown as BS-000001
+  number      Int      @unique
+  accountId   String   @map("account_id")
+  fileName    String   @map("file_name")
+  fromDay     DateTime @map("from_day") @db.Date
+  toDay       DateTime @map("to_day") @db.Date
+  lines       Int      @default(0)
+  /// Lines already uploaded in an earlier statement
+  skipped     Int      @default(0)
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  account   LedgerAccount       @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  createdBy User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  rows      BankStatementLine[]
+
+  @@map("bank_statements")
+}
+
+enum BankLineStatus {
+  unmatched
+  matched
+  ignored
+
+  @@map("bank_line_status")
+}
+
+/// One line of a bank statement, matched to the ledger line it proves.
+model BankStatementLine {
+  id              String         @id @default(cuid())
+  statementId     String         @map("statement_id")
+  accountId       String         @map("account_id")
+  lineNo          Int            @map("line_no")
+  day             DateTime       @db.Date
+  description     String
+  reference       String?
+  /// Money in positive, money out negative
+  amountPiastres  Int            @map("amount_piastres")
+  balancePiastres Int?           @map("balance_piastres")
+  fingerprint     String
+  status          BankLineStatus @default(unmatched)
+  ledgerLineId    String?        @unique @map("ledger_line_id")
+  note            String?
+  decidedById     String?        @map("decided_by_id")
+  decidedAt       DateTime?      @map("decided_at")
+
+  statement  BankStatement @relation(fields: [statementId], references: [id], onDelete: Restrict)
+  account    LedgerAccount @relation("bank_line_account", fields: [accountId], references: [id], onDelete: Restrict)
+  ledgerLine LedgerLine?   @relation(fields: [ledgerLineId], references: [id], onDelete: Restrict)
+  decidedBy  User?         @relation("bank_line_decided_by", fields: [decidedById], references: [id])
+
+  @@unique([accountId, fingerprint])
+  @@index([accountId, status, day])
+  @@map("bank_statement_lines")
+}
+
+/// What we plan to earn or spend per account and month, for a store or company wide.
+model Budget {
+  id             String   @id @default(cuid())
+  /// YYYY-MM
+  month          String
+  accountId      String   @map("account_id")
+  darkStoreId    String?  @map("dark_store_id")
+  amountPiastres Int      @map("amount_piastres")
+  updatedById    String   @map("updated_by_id")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  account   LedgerAccount @relation("budget_account", fields: [accountId], references: [id], onDelete: Restrict)
+  darkStore DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  updatedBy User          @relation("budget_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@map("budgets")
 }

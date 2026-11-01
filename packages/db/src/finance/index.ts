@@ -106,3 +106,24 @@ export { createRecurring, listRecurring, runRecurring, setRecurringActive } from
 export { merchantsOwingUs, requestMerchantPayment } from './receivables';
 export { giveAdvance, listStaffPay, previewPayroll, runPayroll, setSalary } from './payroll';
 export { costPerOrder, profitBy } from './profit';
+export {
+  autoMatch,
+  bookBankCharge,
+  ignoreBankLine,
+  importStatement,
+  listStatements,
+  matchBankLine,
+  reconciliation,
+  reopenBankLine,
+} from './bank';
+export {
+  budgetVsActual,
+  cashFlow,
+  cashForecast,
+  closeYear,
+  journalLines,
+  receiptPhotos,
+  setBudget,
+  vatReport,
+  yearCloseStatus,
+} from './period';

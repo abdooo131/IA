@@ -28,7 +28,8 @@ export type SystemAccountKey =
   | 'prepaid'
   | 'fixed_assets'
   | 'accumulated_depreciation'
-  | 'depreciation_expense';
+  | 'depreciation_expense'
+  | 'retained_earnings';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -111,6 +112,13 @@ const SYSTEM_ACCOUNTS: Record<
     code: '5601',
     nameEn: 'Depreciation',
     nameAr: 'مصروف الإهلاك',
+  },
+  retained_earnings: {
+    type: 'equity',
+    group: 3400,
+    code: '3401',
+    nameEn: 'Retained earnings',
+    nameAr: 'أرباح مرحلة',
   },
 };
 
@@ -273,7 +281,7 @@ export async function nextAccountCode(tx: Tx, group: number, party: boolean) {
 /** The next gapless serial number of a document table (taken inside its transaction). */
 export async function nextNumber(
   tx: Tx,
-  table: 'ledger_entries' | 'payouts' | 'cash_handovers' | 'tickets' | 'bills',
+  table: 'ledger_entries' | 'payouts' | 'cash_handovers' | 'tickets' | 'bills' | 'bank_statements',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(

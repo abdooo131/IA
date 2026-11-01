@@ -174,6 +174,49 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Owed for more than 30 days: ticket to admin.
 
+### Bank matching
+
+1. Every week: download the statement from CIB online banking as Excel (.xlsx) or CSV.
+2. Bank matching, choose the bank, choose the file; check the columns it picked and the first lines, then Import statement.
+3. In the bank, not in the books: bank fees go to Book as bank charges; money that came in is entered as a merchant receipt or owner capital first; a bank error is set aside with a reason.
+4. In the books, not in the bank: find out why (a deposit not made, a cheque not cleared).
+
+**Check it went right**
+
+- Both lists are empty and the difference shows Matches.
+
+**If something is wrong**
+
+- An entry in the books that never reached the bank after a week: urgent ticket to admin with the JV number.
+
+### VAT, budgets and cash
+
+1. VAT report: each month give the accountant the month's line for the VAT return, then record the payment in Taxes.
+2. Budgets: before each month, enter the budget per account (per store or for the company); look at better or worse every week.
+3. Cash flow: read the next four weeks every Monday; if money runs out, tell admin the same day.
+
+**Check it went right**
+
+- The forecast's last week ends above zero.
+
+**If something is wrong**
+
+- A cost far above budget: ticket to admin with the account and the amount.
+
+### Year end and exports
+
+1. In January, after the December checks: Year end and export, Close year for last year (approvers only).
+2. For the accountant: choose the days and Download journal (CSV); it imports into Odoo, Zoho Books, QuickBooks or Daftra.
+3. For the auditor: Download audit pack (zip) with the journal, trial balance, chart of accounts, VAT and receipt photos.
+
+**Check it went right**
+
+- The year shows Closed with a JV number; last year's profit and loss still reads the same.
+
+**If something is wrong**
+
+- Close the earlier year first: close the years in order, oldest first.
+
 ### Month end
 
 1. Trial balance for the month: debits must equal credits.
@@ -363,6 +406,49 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - مديون أكتر من 30 يوم: تذكرة للأدمن.
+
+### مطابقة البنك
+
+1. كل أسبوع: نزل كشف الحساب من الإنترنت البنكي لـ CIB إكسل (.xlsx) أو CSV.
+2. مطابقة البنك، اختار البنك والملف؛ راجع الأعمدة اللي اختارها وأول السطور، وبعدين استيراد الكشف.
+3. في البنك ومش في الدفاتر: مصاريف البنك اضغط سجل كمصاريف بنكية؛ الفلوس الداخلة تتسجل الأول تحصيل من تاجر أو رأس مال؛ غلطة البنك تتستبعد بسبب.
+4. في الدفاتر ومش في البنك: اعرف السبب (إيداع ما اتعملش، شيك ما اتصرفش).
+
+**اتأكد إنها مشيت صح**
+
+- القائمتين فاضيين والفرق مكتوب مطابق.
+
+**لو فيه مشكلة**
+
+- قيد في الدفاتر ما وصلش البنك بعد أسبوع: تذكرة عاجلة للأدمن برقم JV.
+
+### القيمة المضافة والموازنات والكاش
+
+1. تقرير القيمة المضافة: كل شهر ادي المحاسب سطر الشهر للإقرار، وبعدين سجل السداد في الضرائب.
+2. الموازنات: قبل كل شهر اكتب الموازنة لكل حساب (لكل مخزن أو للشركة)؛ بص على أفضل أو أسوأ كل أسبوع.
+3. التدفق النقدي: اقرا الأربع أسابيع الجاية كل يوم اتنين؛ لو الفلوس هتخلص بلغ الأدمن في نفس اليوم.
+
+**اتأكد إنها مشيت صح**
+
+- آخر أسبوع في التوقع بيخلص فوق الصفر.
+
+**لو فيه مشكلة**
+
+- مصروف أعلى بكتير من الموازنة: تذكرة للأدمن بالحساب والمبلغ.
+
+### نهاية السنة والتصدير
+
+1. في يناير بعد مراجعات ديسمبر: نهاية السنة والتصدير، إقفال السنة للسنة اللي فاتت (للموافقين بس).
+2. للمحاسب: اختار الأيام ونزل اليومية (CSV)؛ بتتستورد في أودو وزوهو بوكس وكويك بوكس ودفترة.
+3. للمراجع: نزل حزمة المراجعة (zip) فيها اليومية وميزان المراجعة ودليل الحسابات والقيمة المضافة وصور الإيصالات.
+
+**اتأكد إنها مشيت صح**
+
+- السنة مكتوب عليها مقفلة برقم JV؛ أرباح وخسائر السنة اللي فاتت لسه زي ما هي.
+
+**لو فيه مشكلة**
+
+- أقفل السنة السابقة الأول: أقفل السنين بالترتيب من الأقدم.
 
 ### آخر الشهر
 

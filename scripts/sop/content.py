@@ -310,6 +310,34 @@ EN = {
          "The merchant leaves the list once their balance is back to zero or above."],
        "problems": [
          "Owed for more than 30 days: ticket to admin."]},
+      {"title": "Bank matching",
+       "steps": [
+         "Every week: download the statement from CIB online banking as Excel (.xlsx) or CSV.",
+         "Bank matching, choose the bank, choose the file; check the columns it picked and the first lines, then Import statement.",
+         "In the bank, not in the books: bank fees go to Book as bank charges; money that came in is entered as a merchant receipt or owner capital first; a bank error is set aside with a reason.",
+         "In the books, not in the bank: find out why (a deposit not made, a cheque not cleared)."],
+       "check": [
+         "Both lists are empty and the difference shows Matches."],
+       "problems": [
+         "An entry in the books that never reached the bank after a week: urgent ticket to admin with the JV number."]},
+      {"title": "VAT, budgets and cash",
+       "steps": [
+         "VAT report: each month give the accountant the month's line for the VAT return, then record the payment in Taxes.",
+         "Budgets: before each month, enter the budget per account (per store or for the company); look at better or worse every week.",
+         "Cash flow: read the next four weeks every Monday; if money runs out, tell admin the same day."],
+       "check": [
+         "The forecast's last week ends above zero."],
+       "problems": [
+         "A cost far above budget: ticket to admin with the account and the amount."]},
+      {"title": "Year end and exports",
+       "steps": [
+         "In January, after the December checks: Year end and export, Close year for last year (approvers only).",
+         "For the accountant: choose the days and Download journal (CSV); it imports into Odoo, Zoho Books, QuickBooks or Daftra.",
+         "For the auditor: Download audit pack (zip) with the journal, trial balance, chart of accounts, VAT and receipt photos."],
+       "check": [
+         "The year shows Closed with a JV number; last year's profit and loss still reads the same."],
+       "problems": [
+         "Close the earlier year first: close the years in order, oldest first."]},
       {"title": "Month end",
        "steps": [
          "Trial balance for the month: debits must equal credits.",
@@ -681,6 +709,34 @@ AR = {
          "التاجر بيخرج من القائمة لما رصيده يرجع صفر أو أكتر."],
        "problems": [
          "مديون أكتر من 30 يوم: تذكرة للأدمن."]},
+      {"title": "مطابقة البنك",
+       "steps": [
+         "كل أسبوع: نزل كشف الحساب من الإنترنت البنكي لـ CIB إكسل (.xlsx) أو CSV.",
+         "مطابقة البنك، اختار البنك والملف؛ راجع الأعمدة اللي اختارها وأول السطور، وبعدين استيراد الكشف.",
+         "في البنك ومش في الدفاتر: مصاريف البنك اضغط سجل كمصاريف بنكية؛ الفلوس الداخلة تتسجل الأول تحصيل من تاجر أو رأس مال؛ غلطة البنك تتستبعد بسبب.",
+         "في الدفاتر ومش في البنك: اعرف السبب (إيداع ما اتعملش، شيك ما اتصرفش)."],
+       "check": [
+         "القائمتين فاضيين والفرق مكتوب مطابق."],
+       "problems": [
+         "قيد في الدفاتر ما وصلش البنك بعد أسبوع: تذكرة عاجلة للأدمن برقم JV."]},
+      {"title": "القيمة المضافة والموازنات والكاش",
+       "steps": [
+         "تقرير القيمة المضافة: كل شهر ادي المحاسب سطر الشهر للإقرار، وبعدين سجل السداد في الضرائب.",
+         "الموازنات: قبل كل شهر اكتب الموازنة لكل حساب (لكل مخزن أو للشركة)؛ بص على أفضل أو أسوأ كل أسبوع.",
+         "التدفق النقدي: اقرا الأربع أسابيع الجاية كل يوم اتنين؛ لو الفلوس هتخلص بلغ الأدمن في نفس اليوم."],
+       "check": [
+         "آخر أسبوع في التوقع بيخلص فوق الصفر."],
+       "problems": [
+         "مصروف أعلى بكتير من الموازنة: تذكرة للأدمن بالحساب والمبلغ."]},
+      {"title": "نهاية السنة والتصدير",
+       "steps": [
+         "في يناير بعد مراجعات ديسمبر: نهاية السنة والتصدير، إقفال السنة للسنة اللي فاتت (للموافقين بس).",
+         "للمحاسب: اختار الأيام ونزل اليومية (CSV)؛ بتتستورد في أودو وزوهو بوكس وكويك بوكس ودفترة.",
+         "للمراجع: نزل حزمة المراجعة (zip) فيها اليومية وميزان المراجعة ودليل الحسابات والقيمة المضافة وصور الإيصالات."],
+       "check": [
+         "السنة مكتوب عليها مقفلة برقم JV؛ أرباح وخسائر السنة اللي فاتت لسه زي ما هي."],
+       "problems": [
+         "أقفل السنة السابقة الأول: أقفل السنين بالترتيب من الأقدم."]},
       {"title": "آخر الشهر",
        "steps": [
          "ميزان المراجعة للشهر: المدين لازم يساوي الدائن.",

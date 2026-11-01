@@ -1390,7 +1390,12 @@
       "taxes": "Taxes",
       "recurring": "Recurring expenses",
       "assets": "Prepaid and equipment",
-      "receivables": "Owed by merchants"
+      "receivables": "Owed by merchants",
+      "bank": "Bank matching",
+      "vat": "VAT report",
+      "budgets": "Budgets",
+      "cashFlow": "Cash flow",
+      "yearEnd": "Year end and export"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1427,7 +1432,8 @@
       "prepayment": "Paid ahead",
       "prepayment_release": "Prepaid month used",
       "asset_purchase": "Equipment bought",
-      "depreciation": "Depreciation"
+      "depreciation": "Depreciation",
+      "year_close": "Year end closing"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1687,7 +1693,20 @@
         "recurring_not_found": "Recurring expense not found.",
         "merchant_not_found": "Merchant not found.",
         "invalid_quarter": "Quarter not valid.",
-        "invalid_date": "Date not valid."
+        "invalid_date": "Date not valid.",
+        "bank_line_not_found": "Bank line not found.",
+        "bank_line_not_open": "This bank line is already matched or set aside.",
+        "ledger_line_not_found": "Entry line not found.",
+        "ledger_line_matched": "That entry already matches another bank line.",
+        "amounts_differ": "The amounts are different.",
+        "not_money_out": "Only money out can be bank charges.",
+        "nothing_to_import": "No lines to import.",
+        "year_not_over": "This year is not over yet.",
+        "year_already_closed": "This year is already closed.",
+        "earlier_year_open": "Close the earlier year first.",
+        "invalid_year": "Year not valid.",
+        "range_too_long": "Choose at most about a year.",
+        "invalid_range": "The end is before the start."
       }
     },
     "riders": {
@@ -2045,6 +2064,130 @@
       "askToPay": "Ask to pay",
       "asked": "The merchant sees the request in their panel.",
       "nobodyOwes": "No merchant owes us anything."
+    },
+    "period": {
+      "bankTitle": "Bank matching",
+      "bankIntro": "Upload the bank's statement (Excel .xlsx or CSV from CIB online banking). Each bank line is matched to the entry it proves. What stays unmatched is your work list; when both lists are empty and the difference is zero, every pound in the books is in the bank.",
+      "bookBalance": "Bank in our books",
+      "bankBalance": "Bank's own balance",
+      "difference": "Difference",
+      "onDay": "On {day}",
+      "noStatement": "No statement uploaded yet.",
+      "matchedCount": "{matched} matched, {ignored} set aside",
+      "balanced": "Matches",
+      "bankOnly": "In the bank, not in the books ({count})",
+      "bankOnlyHint": "Money the bank moved that has no entry yet: book bank charges in one tap, match it to an entry, or set it aside with a reason.",
+      "nothingLeft": "Nothing left to check.",
+      "booksOnly": "In the books, not in the bank ({count})",
+      "booksOnlyHint": "Entries since {since} that no bank line proves yet: a deposit not made, a cheque not cleared, or a typo. Find out why.",
+      "resolve": "Resolve",
+      "close": "Close",
+      "matchWith": "Match with:",
+      "bookCharge": "Book as bank charges",
+      "ignoreNote": "Why it needs no entry",
+      "ignore": "Set aside",
+      "resolveHint": "Money that came in must be entered as a merchant receipt, owner capital or other income first (a second person approves it); it then matches by itself.",
+      "upload": "Upload a statement",
+      "uploadHint": "Old .xls files: open them in Excel and save as .xlsx or CSV first. Uploading the same month twice adds nothing.",
+      "bank": "Bank",
+      "file": "File",
+      "headerRow": "Header row",
+      "columnN": "Column {n}",
+      "none": "None",
+      "columns": {
+        "date": "Date",
+        "description": "Description",
+        "reference": "Reference",
+        "amount": "Amount (one column, out is minus)",
+        "debit": "Money out",
+        "credit": "Money in",
+        "balance": "Balance",
+        "header": "Header row"
+      },
+      "preview": "{count} lines read from {file}. First lines:",
+      "amount": "Amount",
+      "import": "Import statement",
+      "imported": "{number}: {imported} lines added, {skipped} already there, {matched} matched.",
+      "fileErrors": {
+        "old_excel_format": "This is an old .xls file. Open it in Excel and save it as .xlsx or CSV.",
+        "file_unreadable": "This file could not be read. Save it as .xlsx or CSV and try again.",
+        "file_empty": "The file is empty.",
+        "generic": "The file could not be read."
+      },
+      "statements": "Uploaded statements",
+      "statement": "Statement",
+      "period": "Days",
+      "lines": "Lines",
+      "skipped": "{count} already uploaded",
+      "by": "Uploaded by",
+      "entry": "Entry",
+      "vatTitle": "VAT {year}",
+      "vatIntro": "Per month: VAT we charged on our fees, VAT we paid on bills and expenses (claimed back), what is due to the tax authority and what was paid. Give this to the accountant for the monthly VAT return.",
+      "month": "Month",
+      "vatOutput": "VAT on our fees",
+      "vatInput": "VAT claimed back",
+      "vatDue": "Due",
+      "vatPaid": "Paid",
+      "total": "Total",
+      "vatHint": "A minus due means more VAT was paid than charged that month; it is carried to the next return.",
+      "budgetsTitle": "Budgets",
+      "budgetsIntro": "Plan each month's income and costs, per store or for the company, and compare with what really happened. Green is better than plan, red is worse.",
+      "budget": "Budget",
+      "actual": "Actual",
+      "variance": "Better (+) or worse (−)",
+      "save": "Save",
+      "income": "Income",
+      "costs": "Costs",
+      "account": "Account",
+      "store": "Store",
+      "wholeCompany": "Whole company",
+      "ofBudget": "Budget EGP {amount}",
+      "budgetCompanyHint": "Whole company adds up every store's budget and the company wide ones. Choose a store to set that store's budget.",
+      "cashTitle": "Cash flow",
+      "cashIntro": "Where money came from and where it went, and the next four weeks. Money means the banks, the cash boxes and cash riders carry.",
+      "forecast": "Next four weeks",
+      "forecastHint": "Trading is the usual weekly result of fees, COD collected and payouts over the last eight weeks (EGP {amount} a week). Bills, recurring expenses, salaries and taxes owed are taken from what is already known.",
+      "week": "Week",
+      "opening": "Start",
+      "trading": "Trading",
+      "billsDue": "Bills due",
+      "recurring": "Recurring",
+      "salaries": "Salaries",
+      "taxes": "Taxes",
+      "closing": "End",
+      "forecastShort": "Money runs out in this forecast: plan a payout date, a delay or owner money now.",
+      "cashFlow": "What happened",
+      "sections": {
+        "operating": "Running the business",
+        "investing": "Equipment",
+        "financing": "Owner money"
+      },
+      "kind": "Kind",
+      "in": "In",
+      "out": "Out",
+      "cashFlowHint": "Moves between our own banks and boxes cancel out and are not shown.",
+      "yearTitle": "Year end and export",
+      "yearIntro": "Close a finished year into retained earnings, and download the books for the accountant or the auditor.",
+      "years": "Years",
+      "yearsHint": "Closing moves the year's profit or loss to retained earnings (3401) and closes the books through 31 December. Close years in order; the year's profit and loss report stays readable.",
+      "noYears": "No entries yet.",
+      "year": "Year",
+      "state": "State",
+      "closedWith": "Closed ({number})",
+      "waitingClose": "Over, not closed",
+      "running": "Running",
+      "closeYear": "Close year",
+      "confirmClose": "Yes, close {year}",
+      "cancel": "Cancel",
+      "yearClosed": "Closed with {number}; profit EGP {amount} moved to retained earnings.",
+      "exports": "Exports",
+      "exportsHint": "The journal CSV has one row per line (date, voucher, account code, debit, credit): it imports into Odoo, Zoho Books, QuickBooks or Daftra. The audit pack adds the trial balance, chart of accounts, VAT by month and every receipt photo named by its voucher.",
+      "fromDay": "From",
+      "toDay": "To",
+      "lastYear": "Last year",
+      "lastMonth": "Last month",
+      "downloadJournal": "Download journal (CSV)",
+      "downloadPack": "Download audit pack (zip)"
     }
   },
   "storeCash": {
@@ -2844,6 +2987,43 @@
             ],
             "check": ["The merchant leaves the list once their balance is back to zero or above."],
             "problems": ["Owed for more than 30 days: ticket to admin."]
+          },
+          {
+            "title": "Bank matching",
+            "steps": [
+              "Every week: download the statement from CIB online banking as Excel (.xlsx) or CSV.",
+              "Bank matching, choose the bank, choose the file; check the columns it picked and the first lines, then Import statement.",
+              "In the bank, not in the books: bank fees go to Book as bank charges; money that came in is entered as a merchant receipt or owner capital first; a bank error is set aside with a reason.",
+              "In the books, not in the bank: find out why (a deposit not made, a cheque not cleared)."
+            ],
+            "check": ["Both lists are empty and the difference shows Matches."],
+            "problems": [
+              "An entry in the books that never reached the bank after a week: urgent ticket to admin with the JV number."
+            ]
+          },
+          {
+            "title": "VAT, budgets and cash",
+            "steps": [
+              "VAT report: each month give the accountant the month's line for the VAT return, then record the payment in Taxes.",
+              "Budgets: before each month, enter the budget per account (per store or for the company); look at better or worse every week.",
+              "Cash flow: read the next four weeks every Monday; if money runs out, tell admin the same day."
+            ],
+            "check": ["The forecast's last week ends above zero."],
+            "problems": [
+              "A cost far above budget: ticket to admin with the account and the amount."
+            ]
+          },
+          {
+            "title": "Year end and exports",
+            "steps": [
+              "In January, after the December checks: Year end and export, Close year for last year (approvers only).",
+              "For the accountant: choose the days and Download journal (CSV); it imports into Odoo, Zoho Books, QuickBooks or Daftra.",
+              "For the auditor: Download audit pack (zip) with the journal, trial balance, chart of accounts, VAT and receipt photos."
+            ],
+            "check": [
+              "The year shows Closed with a JV number; last year's profit and loss still reads the same."
+            ],
+            "problems": ["Close the earlier year first: close the years in order, oldest first."]
           },
           {
             "title": "Month end",

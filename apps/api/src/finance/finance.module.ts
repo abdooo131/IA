@@ -3,6 +3,7 @@ import { CoverageModule } from '../coverage/coverage.module';
 import { BooksController } from './books.controller';
 import { ControlsController } from './controls.controller';
 import { PayablesController } from './payables.controller';
+import { PeriodController } from './period.controller';
 import { ProfitController } from './profit.controller';
 import { FinanceController } from './finance.controller';
 
@@ -14,6 +15,7 @@ import { FinanceController } from './finance.controller';
     ControlsController,
     ProfitController,
     PayablesController,
+    PeriodController,
   ],
 })
 export class FinanceModule {}

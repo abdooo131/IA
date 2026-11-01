@@ -36,6 +36,7 @@ const LOCKED_KEYS = new Set([
   'fixed_assets',
   'accumulated_depreciation',
   'depreciation_expense',
+  'retained_earnings',
 ]);
 
 const isWallet = (
@@ -616,15 +617,16 @@ export async function accountStatement(db: Db, accountId: string, from: Date, to
 }
 
 /** Sums of each account's lines in a period (both bounds optional). */
-async function sumsByAccount(db: Db, from?: Date, to?: Date) {
+async function sumsByAccount(db: Db, from?: Date, to?: Date, withoutYearClose = false) {
   const rows = await db.$queryRaw<{ account_id: string; debit: bigint; credit: bigint }[]>`
-    SELECT account_id,
-      COALESCE(SUM(CASE WHEN amount_piastres > 0 THEN amount_piastres END), 0) AS debit,
-      COALESCE(SUM(CASE WHEN amount_piastres < 0 THEN -amount_piastres END), 0) AS credit
-    FROM ledger_lines
-    WHERE (${from ?? null}::timestamptz IS NULL OR occurred_at >= ${from ?? null}::timestamptz)
-      AND (${to ?? null}::timestamptz IS NULL OR occurred_at < ${to ?? null}::timestamptz)
-    GROUP BY account_id`;
+    SELECT l.account_id,
+      COALESCE(SUM(CASE WHEN l.amount_piastres > 0 THEN l.amount_piastres END), 0) AS debit,
+      COALESCE(SUM(CASE WHEN l.amount_piastres < 0 THEN -l.amount_piastres END), 0) AS credit
+    FROM ledger_lines l JOIN ledger_entries e ON e.id = l.entry_id
+    WHERE (${from ?? null}::timestamptz IS NULL OR l.occurred_at >= ${from ?? null}::timestamptz)
+      AND (${to ?? null}::timestamptz IS NULL OR l.occurred_at < ${to ?? null}::timestamptz)
+      AND (${withoutYearClose} = false OR e.kind <> 'year_close')
+    GROUP BY l.account_id`;
   return new Map(
     rows.map((r) => [r.account_id, { debit: Number(r.debit), credit: Number(r.credit) }]),
   );
@@ -666,7 +668,8 @@ export async function profitAndLoss(db: Db, from: Date, to: Date) {
       where: { category: { in: ['revenue', 'expense'] } },
       orderBy: { code: 'asc' },
     }),
-    sumsByAccount(db, from, to),
+    // The year end entry moves profit to retained earnings; it is not income or cost.
+    sumsByAccount(db, from, to, true),
     ownerNames(db),
   ]);
   const line = (a: LedgerAccount) => {

@@ -44,6 +44,7 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
       label: ta('navGroups.books'),
       items: [
         { href: '/finance/accounts', label: t('accounts'), icon: 'wallet' },
+        { href: '/finance/bank', label: t('bank'), icon: 'cash' },
         { href: '/finance/movements', label: t('movements'), icon: 'payout' },
         { href: '/finance/journal', label: t('journal'), icon: 'invoice' },
         { href: '/finance/trial', label: t('trial'), icon: 'analytics' },
@@ -51,9 +52,13 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/profit', label: t('profit'), icon: 'analytics' },
         { href: '/finance/balance-sheet', label: t('bs'), icon: 'invoice' },
         { href: '/finance/taxes', label: t('taxes'), icon: 'invoice' },
+        { href: '/finance/vat', label: t('vat'), icon: 'invoice' },
+        { href: '/finance/budgets', label: t('budgets'), icon: 'analytics' },
+        { href: '/finance/money-flow', label: t('cashFlow'), icon: 'analytics' },
         { href: '/finance/recurring', label: t('recurring'), icon: 'schedule' },
         { href: '/finance/assets', label: t('assets'), icon: 'wallet' },
         { href: '/finance/close', label: t('close'), icon: 'schedule' },
+        { href: '/finance/year-end', label: t('yearEnd'), icon: 'schedule' },
         ...(user?.role === 'admin'
           ? [{ href: '/finance/opening', label: t('opening'), icon: 'wallet' as const }]
           : []),

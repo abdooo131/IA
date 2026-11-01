@@ -23,7 +23,9 @@ export async function profitBy(db: Db, input: { from: Date; to: Date; by: Profit
        COALESCE(-SUM(l.amount_piastres) FILTER (WHERE a.category = 'revenue'), 0) AS income,
        COALESCE(SUM(l.amount_piastres) FILTER (WHERE a.category = 'expense'), 0) AS costs
      FROM ledger_lines l JOIN ledger_accounts a ON a.id = l.account_id
+       JOIN ledger_entries e ON e.id = l.entry_id
      WHERE l.occurred_at >= $1 AND l.occurred_at < $2 AND a.category IN ('revenue', 'expense')
+       AND e.kind <> 'year_close'
      GROUP BY l.${column}`,
     input.from,
     input.to,
