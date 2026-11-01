@@ -257,3 +257,40 @@ export interface BalanceSheet {
   totalLiabilitiesPiastres: number;
   totalEquityPiastres: number;
 }
+
+export interface StoreOption {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  kind: 'dark_store' | 'hub';
+}
+
+export interface ProfitRow {
+  id: string | null;
+  name: string | null;
+  incomePiastres: number;
+  costsPiastres: number;
+  profitPiastres: number;
+}
+
+export interface CostPerOrderRow {
+  store: { id: string; code: string; nameEn: string; nameAr: string };
+  deliveredOrders: number;
+  incomePiastres: number;
+  directCostsPiastres: number;
+  sharedCostsPiastres: number;
+  incomePerOrderPiastres: number | null;
+  directCostPerOrderPiastres: number | null;
+  fullCostPerOrderPiastres: number | null;
+  profitPerOrderPiastres: number | null;
+}
+
+export interface StaffPayRow {
+  userId: string;
+  name: string;
+  role: string;
+  darkStore: { id: string; code: string; nameEn: string; nameAr: string } | null;
+  monthlyPiastres: number | null;
+  advanceOwedPiastres: number;
+}

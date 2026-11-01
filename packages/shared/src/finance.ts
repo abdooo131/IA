@@ -149,3 +149,35 @@ export const openingBalancesSchema = z.object({
     .min(1)
     .max(500),
 });
+
+export const salarySchema = z.object({
+  monthlyPiastres: z.number().int().min(0).max(1_000_000_000),
+});
+
+export const advanceSchema = z.object({
+  userId: id,
+  amountPiastres: piastres,
+  moneyAccountId: id,
+  reference: z.string().trim().min(2).max(100),
+  day: day.optional(),
+  idempotencyKey: key,
+  receiptPhotoId: id.optional(),
+});
+
+/** The month's salaries (YYYY-MM): everyone paid, with deductions and advance recovery. */
+export const payrollSchema = z.object({
+  month: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'invalid_month'),
+  moneyAccountId: id,
+  lines: z
+    .array(
+      z.object({
+        userId: id,
+        grossPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
+        deductionPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
+        advanceRecoveryPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
+        note: z.string().trim().max(200).optional(),
+      }),
+    )
+    .min(1)
+    .max(500),
+});

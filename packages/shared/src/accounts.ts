@@ -4,6 +4,7 @@ import { isCalendarDay } from './hours';
 // Chart of accounts. The first digit of a code is its category, the next three its group:
 //
 //   1000 assets       1100 banks · 1200 cash boxes · 1300 cash with riders · 1400 other assets
+//                     1500 staff advances
 //   2000 liabilities  2100 merchants · 2200 rider bonuses · 2300 taxes · 2400 other liabilities
 //   3000 equity       3100 owner capital · 3200 owner drawings · 3300 opening balances
 //   4000 income       4100 fees · 4200 other income
@@ -58,6 +59,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     key: 'other_assets',
     party: false,
     manualType: 'other_asset',
+    money: false,
+  },
+  {
+    code: 1500,
+    category: 'asset',
+    key: 'staff_advances',
+    party: true,
+    manualType: null,
     money: false,
   },
   {
@@ -249,6 +258,8 @@ export const expenseSchema = z.object({
   day: onDay,
   /** A receipt photo uploaded first (POST /photos?kind=receipt) */
   receiptPhotoId: id.optional(),
+  /** The dark store the cost belongs to; empty is company wide */
+  darkStoreId: id.optional(),
   idempotencyKey: key,
 });
 

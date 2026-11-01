@@ -59,7 +59,7 @@ export function useFinanceAction() {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   async function send<T>(
-    method: 'POST' | 'PATCH',
+    method: 'POST' | 'PUT' | 'PATCH',
     path: string,
     body: unknown,
     done?: (data: T) => string,

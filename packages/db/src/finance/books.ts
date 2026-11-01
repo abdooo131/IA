@@ -315,6 +315,8 @@ export async function recordExpense(
     paidFromAccountId: string;
     vatPiastres?: number;
     memo: string;
+    /** The dark store the cost belongs to; none is a company wide cost */
+    darkStoreId?: string | null;
   },
 ) {
   positive(input.amountPiastres);
@@ -335,7 +337,10 @@ export async function recordExpense(
     });
     if (seen) return seen;
     await mustHold(tx, from, input.amountPiastres);
+    if (input.darkStoreId && !(await tx.darkStore.findUnique({ where: { id: input.darkStoreId } })))
+      throw new DomainError('store_not_found', 404);
     const entry = await post(tx, {
+      darkStoreId: input.darkStoreId ?? null,
       kind: 'expense',
       idempotencyKey: `expense:${input.idempotencyKey}`,
       occurredAt: at,

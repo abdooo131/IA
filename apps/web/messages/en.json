@@ -1381,7 +1381,9 @@
       "approvals": "Approvals",
       "receipts": "Receipts",
       "close": "Close month",
-      "opening": "Opening balances"
+      "opening": "Opening balances",
+      "profit": "Profit by store",
+      "payroll": "Salaries"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1408,7 +1410,9 @@
       "capital_in": "Owner capital in",
       "capital_out": "Owner drawings",
       "other_income": "Other income",
-      "journal": "Journal entry"
+      "journal": "Journal entry",
+      "payroll": "Salaries",
+      "staff_advance": "Staff advance"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1475,7 +1479,8 @@
         "cash_differences": "Cash differences",
         "operating_expenses": "Operating expenses",
         "bank_charges": "Bank charges",
-        "opening_balances": "Opening balances"
+        "opening_balances": "Opening balances",
+        "staff_advances": "Staff advances"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -1638,7 +1643,15 @@
         "day_not_over": "You can close only days that are over.",
         "opening_already_posted": "Opening balances were already posted. Correct them with a journal entry.",
         "account_twice": "An account appears twice.",
-        "nothing_to_post": "Enter at least one amount."
+        "nothing_to_post": "Enter at least one amount.",
+        "store_not_found": "Store not found.",
+        "salary_not_set": "Set this person's salary first.",
+        "more_than_advance": "That is more than the person owes as an advance.",
+        "net_below_zero": "Deductions are larger than the salary.",
+        "payroll_already_run": "This month's salaries were already paid.",
+        "invalid_month": "Choose a valid month.",
+        "person_twice": "A person appears twice.",
+        "user_not_found": "Person not found."
       }
     },
     "riders": {
@@ -1716,7 +1729,9 @@
       "addLine": "Add a line",
       "removeLine": "Remove line",
       "totals": "Totals",
-      "difference": "Debits and credits differ by {amount} EGP."
+      "difference": "Debits and credits differ by {amount} EGP.",
+      "store": "Belongs to store",
+      "companyWide": "Company wide (no store)"
     },
     "reports": {
       "plTitle": "Profit and loss",
@@ -1782,7 +1797,9 @@
         "capital_in": "Owner capital in",
         "other_income": "Other income",
         "merchant_receipt": "Merchant paid us",
-        "merchant_adjustment": "Merchant balance change"
+        "merchant_adjustment": "Merchant balance change",
+        "staff_advance": "Staff advance",
+        "payroll": "Monthly salaries"
       },
       "statuses": {
         "pending": "Waiting",
@@ -1812,6 +1829,49 @@
       "hint": "Type each balance as an accountant reads it: money held, or the amount owed. Use a minus sign only for the opposite side (for example an overdrawn bank). The difference goes to Opening balances (equity).",
       "post": "Post opening balances",
       "alreadyPosted": "Opening balances were already posted. Correct them with a journal entry."
+    },
+    "profit": {
+      "title": "Profit by store",
+      "intro": "Income and costs per dark store, merchant or rider, worked out from every entry. Costs not tied to a store (head office, software) are shown as company wide.",
+      "by": {
+        "store": "Store",
+        "merchant": "Merchant",
+        "rider": "Rider"
+      },
+      "income": "Income",
+      "costs": "Costs",
+      "profit": "Profit",
+      "total": "Total",
+      "companyWide": "Company wide",
+      "perOrderTitle": "Cost per delivered order",
+      "perOrderIntro": "{orders, plural, one {# delivered order} other {# delivered orders}} in this period. Full cost adds each store's share of company wide costs, split by its part of all delivered orders.",
+      "orders": "Delivered",
+      "incomePerOrder": "Fees per order",
+      "directPerOrder": "Store costs per order",
+      "fullPerOrder": "Full cost per order",
+      "profitPerOrder": "Profit per order",
+      "perOrderHint": "Tag every expense with its store (Money movements, Expense) so these numbers are right."
+    },
+    "payroll": {
+      "title": "Salaries",
+      "intro": "Each team member's monthly salary, the advances they owe, and the monthly salary run. The run pays everyone from one bank or cash box, books the cost to each person's store and takes back advances.",
+      "team": "Team",
+      "person": "Person",
+      "salary": "Monthly salary (EGP)",
+      "notSet": "Not set",
+      "save": "Save",
+      "advanceOwed": "Advance owed",
+      "giveAdvance": "Give an advance",
+      "amount": "Amount (EGP)",
+      "reference": "Reference",
+      "paidFrom": "Paid from",
+      "run": "Monthly salary run",
+      "month": "Month",
+      "deduction": "Deduction (EGP)",
+      "recovery": "Advance back (EGP)",
+      "noSalaries": "Set salaries first (admin, in the table above).",
+      "netTotal": "Net to pay: {amount} EGP",
+      "pay": "Pay salaries for {month}"
     }
   },
   "storeCash": {

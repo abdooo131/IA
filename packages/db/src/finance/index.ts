@@ -64,10 +64,14 @@ export {
   receiptsFor,
   RECEIPT_KINDS,
   recordOpeningBalances,
+  submitAdvance,
   submitCapitalIn,
+  submitPayroll,
   submitDrawings,
   submitExpense,
   submitMerchantAdjustment,
   submitMerchantReceipt,
   submitOtherIncome,
 } from './controls';
+export { giveAdvance, listStaffPay, previewPayroll, runPayroll, setSalary } from './payroll';
+export { costPerOrder, profitBy } from './profit';

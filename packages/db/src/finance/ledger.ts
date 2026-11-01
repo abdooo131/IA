@@ -10,6 +10,7 @@ export type AccountRef =
   | { type: 'rider_cash'; riderId: string }
   | { type: 'rider_bonus'; riderId: string }
   | { type: 'store_cash'; darkStoreId: string }
+  | { type: 'staff_advance'; userId: string }
   | {
       type:
         | 'bank'
@@ -200,6 +201,7 @@ const WALLET_GROUPS: Partial<Record<LedgerAccountType, { group: number; party: b
   rider_cash: { group: 1300, party: true },
   merchant: { group: 2100, party: true },
   rider_bonus: { group: 2200, party: true },
+  staff_advance: { group: 1500, party: true },
 };
 
 /**
@@ -248,6 +250,8 @@ export function accountKey(ref: AccountRef): string {
       return `rider_bonus:${ref.riderId}`;
     case 'store_cash':
       return `store_cash:${ref.darkStoreId}`;
+    case 'staff_advance':
+      return `staff_advance:${ref.userId}`;
     default:
       return ref.type;
   }
@@ -284,6 +288,7 @@ async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
       merchantId: 'merchantId' in ref ? ref.merchantId : null,
       riderId: 'riderId' in ref ? ref.riderId : null,
       darkStoreId: 'darkStoreId' in ref ? ref.darkStoreId : null,
+      userId: 'userId' in ref ? ref.userId : null,
     },
   });
   return created.id;
@@ -296,6 +301,7 @@ export const CATEGORY: Record<LedgerAccountType, AccountCategory> = {
   cash_box: 'asset',
   rider_cash: 'asset',
   other_asset: 'asset',
+  staff_advance: 'asset',
   merchant: 'liability',
   rider_bonus: 'liability',
   vat_payable: 'liability',
@@ -339,8 +345,20 @@ export interface PostInput {
   orderId?: string | null;
   data?: Prisma.InputJsonValue;
   createdById?: string | null;
-  /** Debit positive, credit negative. Lines of zero are dropped. */
-  lines: { account: AccountRef; amount: number }[];
+  /** Where the whole entry counts; worked out from the order and wallets when left out. */
+  darkStoreId?: string | null;
+  merchantId?: string | null;
+  riderId?: string | null;
+  /** Debit positive, credit negative. Lines of zero are dropped. A line's own tags win. */
+  lines: { account: AccountRef; amount: number; tags?: LineTags }[];
+}
+
+/** Who and where a line counts for: profit per store, merchant, rider and team member. */
+export interface LineTags {
+  darkStoreId?: string | null;
+  merchantId?: string | null;
+  riderId?: string | null;
+  userId?: string | null;
 }
 
 /**
@@ -383,18 +401,60 @@ export async function post(db: Db, input: PostInput) {
         createdById: input.createdById ?? null,
       },
     });
-    for (const line of lines) {
+    const ids: string[] = [];
+    for (const line of lines) ids.push(await accountId(tx, line.account));
+    const tags = await entryTags(tx, input, ids);
+    for (const [i, line] of lines.entries()) {
       await tx.ledgerLine.create({
         data: {
           entryId: entry.id,
-          accountId: await accountId(tx, line.account),
+          accountId: ids[i]!,
           amountPiastres: line.amount,
           occurredAt,
+          darkStoreId: line.tags?.darkStoreId ?? tags.darkStoreId,
+          merchantId: line.tags?.merchantId ?? tags.merchantId,
+          riderId: line.tags?.riderId ?? tags.riderId,
+          userId: line.tags?.userId ?? null,
         },
       });
     }
     return entry;
   });
+}
+
+/**
+ * Where an entry counts: what the caller says, then the order it belongs to, then the
+ * wallets on its lines (a merchant, a rider, a store's cash box), then the rider's store.
+ */
+async function entryTags(tx: Tx, input: PostInput, accountIds: string[]) {
+  const tags = {
+    darkStoreId: input.darkStoreId ?? null,
+    merchantId: input.merchantId ?? null,
+    riderId: input.riderId ?? null,
+  };
+  if (input.orderId && (!tags.darkStoreId || !tags.merchantId)) {
+    const order = await tx.order.findUnique({
+      where: { id: input.orderId },
+      select: { darkStoreId: true, merchantId: true },
+    });
+    tags.darkStoreId ??= order?.darkStoreId ?? null;
+    tags.merchantId ??= order?.merchantId ?? null;
+  }
+  const owners = await tx.ledgerAccount.findMany({
+    where: { id: { in: accountIds } },
+    select: { merchantId: true, riderId: true, darkStoreId: true },
+  });
+  tags.merchantId ??= owners.find((o) => o.merchantId)?.merchantId ?? null;
+  tags.riderId ??= owners.find((o) => o.riderId)?.riderId ?? null;
+  tags.darkStoreId ??= owners.find((o) => o.darkStoreId)?.darkStoreId ?? null;
+  if (!tags.darkStoreId && tags.riderId) {
+    const rider = await tx.rider.findUnique({
+      where: { id: tags.riderId },
+      select: { darkStoreId: true },
+    });
+    tags.darkStoreId = rider?.darkStoreId ?? null;
+  }
+  return tags;
 }
 
 /** Debit minus credit of one account, optionally up to (not including) a moment. */

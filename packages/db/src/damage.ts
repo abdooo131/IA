@@ -134,7 +134,12 @@ export function settleDamage(db: Db, input: SettleDamageInput) {
 
     const compensation = companyPays ? report.quantity * report.sku.pricePiastres : 0;
     const riderCharge = input.chargeRider ? compensation : 0;
-    const base = { occurredAt: now, createdById: input.actorUserId, memo: report.sku.sku };
+    const base = {
+      occurredAt: now,
+      createdById: input.actorUserId,
+      memo: report.sku.sku,
+      darkStoreId: report.darkStoreId,
+    };
     await post(tx, {
       ...base,
       kind: 'damage_compensation',

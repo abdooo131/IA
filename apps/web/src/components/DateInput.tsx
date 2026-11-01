@@ -45,7 +45,7 @@ export function DateInput({
   }
 
   return (
-    <span className="relative inline-flex items-center">
+    <span dir="ltr" className="relative inline-flex items-center">
       <input
         type="text"
         inputMode="numeric"

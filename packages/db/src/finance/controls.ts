@@ -7,6 +7,13 @@ import { getSetting } from '../settings';
 import { eventTime, recordCapital, recordExpense, recordOtherIncome } from './books';
 import { post } from './ledger';
 import { recordMerchantAdjustment, recordMerchantReceipt } from './operations';
+import {
+  type AdvanceInput,
+  giveAdvance,
+  type PayrollInput,
+  previewPayroll,
+  runPayroll,
+} from './payroll';
 
 type Tx = Prisma.TransactionClient;
 
@@ -106,7 +113,12 @@ export type RequestPayload =
   | { kind: 'capital_in'; input: Stored<CapitalInput> }
   | { kind: 'other_income'; input: Stored<IncomeInput> }
   | { kind: 'merchant_receipt'; input: Stored<ReceiptInput> }
-  | { kind: 'merchant_adjustment'; input: Stored<AdjustmentInput> };
+  | { kind: 'merchant_adjustment'; input: Stored<AdjustmentInput> }
+  | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
+  | {
+      kind: 'payroll';
+      input: Stored<PayrollInput> & { amountPiastres: number; idempotencyKey: string };
+    };
 
 /**
  * Money said to come in (owner capital, other income, a merchant paying us) and changes to
@@ -122,7 +134,13 @@ const ALWAYS_REVIEWED = new Set([
 ]);
 
 const referenceOf = (p: RequestPayload) =>
-  'reference' in p.input ? p.input.reference : 'reason' in p.input ? p.input.reason : '';
+  'reference' in p.input
+    ? p.input.reference
+    : 'reason' in p.input
+      ? p.input.reason
+      : 'month' in p.input
+        ? `Salaries ${p.input.month}`
+        : '';
 const dayOf = (p: RequestPayload) => ('day' in p.input ? p.input.day : undefined);
 
 /** Posts the movement now, or keeps it as a request when it needs a second person. */
@@ -191,6 +209,10 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return recordMerchantReceipt(db, { ...p.input, actorUserId });
     case 'merchant_adjustment':
       return recordMerchantAdjustment(db, { ...p.input, actorUserId });
+    case 'staff_advance':
+      return giveAdvance(db, { ...p.input, actorUserId });
+    case 'payroll':
+      return runPayroll(db, { ...p.input, actorUserId });
   }
 }
 
@@ -534,4 +556,30 @@ export function recordOpeningBalances(
     });
     return entry!;
   });
+}
+
+/** Money advanced to a team member: posted at once below the approval limit, else waiting. */
+export const submitAdvance = submitter<'staff_advance', AdvanceInput>('staff_advance');
+
+/**
+ * The month's salaries: checked first (salaries set, advances to recover), then paid at once
+ * below the approval limit or kept for a second person.
+ */
+export async function submitPayroll(db: Db, input: PayrollInput) {
+  if (await db.ledgerEntry.findUnique({ where: { idempotencyKey: `payroll:${input.month}` } }))
+    throw new DomainError('payroll_already_run');
+  const plan = await previewPayroll(db, input);
+  const { actorUserId, ...rest } = input;
+  return submit(
+    db,
+    {
+      kind: 'payroll',
+      input: {
+        ...rest,
+        amountPiastres: Math.max(plan.totalNetPiastres, 1),
+        idempotencyKey: input.idempotencyKey ?? `payroll:${input.month}`,
+      },
+    },
+    actorUserId,
+  );
 }

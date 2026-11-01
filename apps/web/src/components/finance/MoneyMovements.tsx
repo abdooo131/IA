@@ -5,6 +5,7 @@ import { cairoDay } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { type FormEvent, useRef, useState } from 'react';
+import type { StoreOption } from '@/lib/finance-types';
 import type { BookAccount } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
@@ -158,8 +159,17 @@ function Transfer({ money }: { money: BookAccount[] }) {
   );
 }
 
-function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAccount[] }) {
+function Expense({
+  money,
+  expenses,
+  stores,
+}: {
+  money: BookAccount[];
+  expenses: BookAccount[];
+  stores: StoreOption[];
+}) {
   const t = useTranslations('finance.movements');
+  const locale = useLocale();
   const { action, submit, dirty, reset, formProps } = useMovement();
   return (
     <form
@@ -168,6 +178,7 @@ function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAcco
           expenseAccountId: f.get('expense'),
           paidFromAccountId: f.get('from'),
           vatPiastres: parseEgp(String(f.get('vat') || '0')) ?? 0,
+          darkStoreId: String(f.get('store') ?? '') || undefined,
         }))
       }
       {...formProps}
@@ -179,6 +190,17 @@ function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAcco
       <label className="block text-caption">
         {t('vat')}
         <input name="vat" inputMode="decimal" dir="ltr" placeholder="0" className={field} />
+      </label>
+      <label className="block text-caption">
+        {t('store')}
+        <select name="store" defaultValue="" className={field}>
+          <option value="">{t('companyWide')}</option>
+          {stores.map((s) => (
+            <option key={s.id} value={s.id}>
+              {locale === 'ar' ? s.nameAr : s.nameEn} ({s.code})
+            </option>
+          ))}
+        </select>
       </label>
       <ReceiptField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
@@ -449,7 +471,15 @@ function Submit({
   );
 }
 
-export function MoneyMovements({ accounts, tab }: { accounts: BookAccount[]; tab: MovementTab }) {
+export function MoneyMovements({
+  accounts,
+  stores,
+  tab,
+}: {
+  accounts: BookAccount[];
+  stores: StoreOption[];
+  tab: MovementTab;
+}) {
   const t = useTranslations('finance.movements');
   const money = accounts.filter((a) => a.money);
   const byGroup = (...codes: number[]) => accounts.filter((a) => codes.includes(a.groupCode));
@@ -468,7 +498,9 @@ export function MoneyMovements({ accounts, tab }: { accounts: BookAccount[]; tab
       <section className="mt-4 rounded-lg border border-line bg-surface p-4">
         <p className="mb-3 text-body-sm text-text-muted">{t(`help.${tab}`)}</p>
         {tab === 'transfer' && <Transfer money={money} />}
-        {tab === 'expense' && <Expense money={money} expenses={byGroup(5400, 5500)} />}
+        {tab === 'expense' && (
+          <Expense money={money} expenses={byGroup(5400, 5500)} stores={stores} />
+        )}
         {tab === 'capital' && <Capital money={money} equity={byGroup(3100, 3200)} />}
         {tab === 'income' && <Income money={money} income={byGroup(4200)} />}
         {tab === 'journal' && <Journal accounts={accounts} />}

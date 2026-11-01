@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import { cairoDay, cairoDayStart, addDays } from '@shiplynow/shared';
 import type { Db } from '../client';
+import { DomainError } from '../domain-error';
 import { getMerchantSetting, getSetting } from '../settings';
 import { type AccountRef, post, share } from './ledger';
 
@@ -129,6 +130,7 @@ export async function postReceivingFee(
   await post(tx, {
     kind: 'receiving_fee',
     idempotencyKey: `manifest:${manifest.id}:receiving_fee`,
+    darkStoreId: manifest.darkStoreId,
     occurredAt: input.now,
     createdById: input.actorUserId,
     memo: manifest.reference,
@@ -151,6 +153,7 @@ export async function postReturnFee(
   await post(tx, {
     kind: 'return_fee',
     idempotencyKey: `return:${ret.id}:return_fee`,
+    darkStoreId: ret.darkStoreId,
     occurredAt: input.now,
     createdById: input.actorUserId,
     memo: ret.reference,
@@ -198,9 +201,10 @@ export async function accrueStorage(db: Db, day: string) {
     const fee = Math.floor((u.units * monthly + Math.floor(daysInMonth / 2)) / daysInMonth);
     if (fee <= 0) continue;
     const vat = share(fee, await getSetting(db, 'fee.vat_bp'));
-    const entry = await post(db, {
+    const entry = await postUnlessClosed(db, {
       kind: 'storage_fee',
       idempotencyKey: `storage:${day}:${u.darkStoreId}:${u.merchantId}`,
+      darkStoreId: u.darkStoreId,
       occurredAt,
       memo: day,
       data: { day, darkStoreId: u.darkStoreId, units: u.units, monthlyPiastres: monthly },
@@ -213,6 +217,16 @@ export async function accrueStorage(db: Db, day: string) {
     if (entry) charged++;
   }
   return { day, charged };
+}
+
+/** A storage day already inside closed books is skipped, never retried forever. */
+async function postUnlessClosed(db: Db, input: Parameters<typeof post>[1]) {
+  try {
+    return await post(db, input);
+  } catch (error) {
+    if (error instanceof DomainError && error.code === 'books_closed') return null;
+    throw error;
+  }
 }
 
 /** The Cairo day that ended most recently, which storage is charged for. */
