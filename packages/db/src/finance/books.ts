@@ -42,6 +42,8 @@ const LOCKED_KEYS = new Set([
   'martyrs_fund_payable',
   'social_insurance_expense',
   'staff_bonus_expense',
+  'corporate_tax_payable',
+  'income_tax_expense',
 ]);
 
 const isWallet = (

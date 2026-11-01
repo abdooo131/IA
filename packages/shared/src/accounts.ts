@@ -208,6 +208,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     manualType: null,
     money: false,
   },
+  {
+    code: 5800,
+    category: 'expense',
+    key: 'income_tax',
+    party: false,
+    manualType: null,
+    money: false,
+  },
 ];
 
 export function accountGroup(code: number) {
@@ -411,7 +419,7 @@ export const billPaymentSchema = z.object({
 });
 
 export const taxPaymentSchema = z.object({
-  tax: z.enum(['vat', 'wht', 'payroll_tax', 'social_insurance', 'martyrs_fund']),
+  tax: z.enum(['vat', 'wht', 'payroll_tax', 'social_insurance', 'martyrs_fund', 'corporate_tax']),
   amountPiastres: piastres,
   moneyAccountId: id,
   reference,
@@ -535,4 +543,9 @@ export const signaturesSchema = z.object({
     .array(z.object({ id, signature: z.string().min(10).max(20_000) }))
     .min(1)
     .max(100),
+});
+
+export const corporateTaxSchema = z.object({
+  year: z.number().int().min(2020).max(2100),
+  amountPiastres: z.number().int().min(0).max(2_000_000_000),
 });

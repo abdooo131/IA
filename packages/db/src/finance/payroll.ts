@@ -58,17 +58,21 @@ export async function payrollRules(db: Db): Promise<PayrollRules> {
 }
 
 /** Sets an employee's monthly salary (gross, piastres) and insured wage. Admin only. */
-export function setSalary(
+export async function setSalary(
   db: Db,
   input: {
     userId: string;
     monthlyPiastres: number;
     insuredWagePiastres?: number | null;
+    nationalId?: string | null;
+    insuranceNumber?: string | null;
     actorUserId: string;
   },
 ) {
   if (!Number.isSafeInteger(input.monthlyPiastres) || input.monthlyPiastres < 0)
     throw new DomainError('invalid_amount', 400);
+  if (input.nationalId && !/^\d{14}$/.test(input.nationalId))
+    throw new DomainError('invalid_national_id', 400);
   if (
     input.insuredWagePiastres != null &&
     (!Number.isSafeInteger(input.insuredWagePiastres) || input.insuredWagePiastres < 0)
@@ -86,11 +90,15 @@ export function setSalary(
         userId: user.id,
         monthlyPiastres: input.monthlyPiastres,
         insuredWagePiastres: insured ?? null,
+        nationalId: input.nationalId ?? null,
+        insuranceNumber: input.insuranceNumber ?? null,
         updatedById: input.actorUserId,
       },
       update: {
         monthlyPiastres: input.monthlyPiastres,
         insuredWagePiastres: insured,
+        nationalId: input.nationalId,
+        insuranceNumber: input.insuranceNumber,
         updatedById: input.actorUserId,
       },
     });
@@ -141,6 +149,8 @@ export async function listStaffPay(db: Db) {
       staffingSupplier: u.staffingSupplier,
       monthlyPiastres: u.salary?.monthlyPiastres ?? null,
       insuredWagePiastres: u.salary?.insuredWagePiastres ?? null,
+      nationalId: u.salary?.nationalId ?? null,
+      insuranceNumber: u.salary?.insuranceNumber ?? null,
       advanceOwedPiastres: wallet
         ? (sums.find((s) => s.accountId === wallet.id)?._sum.amountPiastres ?? 0)
         : 0,

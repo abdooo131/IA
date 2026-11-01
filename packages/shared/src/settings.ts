@@ -278,6 +278,12 @@ export const SETTING_DEFINITIONS = {
       'Above this yearly taxable income, bands 1 to 5 are taxed at the rate of band 6 (0 turns it off)',
     override: 'none',
   },
+  'finance.corporate_tax_bp': {
+    schema: basisPoints,
+    default: 2250,
+    description: 'Company income tax on the year profit, in basis points (2250 is 22.5%)',
+    override: 'none',
+  },
   'payroll.personal_exemption_piastres': {
     schema: yearlyPiastres,
     default: 2_000_000,

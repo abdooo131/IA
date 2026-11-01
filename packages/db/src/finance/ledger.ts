@@ -34,7 +34,9 @@ export type SystemAccountKey =
   | 'social_insurance_payable'
   | 'martyrs_fund_payable'
   | 'social_insurance_expense'
-  | 'staff_bonus_expense';
+  | 'staff_bonus_expense'
+  | 'corporate_tax_payable'
+  | 'income_tax_expense';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -159,6 +161,20 @@ const SYSTEM_ACCOUNTS: Record<
     code: '5702',
     nameEn: 'Staff bonuses',
     nameAr: 'مكافآت العاملين',
+  },
+  corporate_tax_payable: {
+    type: 'other_liability',
+    group: 2300,
+    code: '2306',
+    nameEn: 'Company income tax payable',
+    nameAr: 'ضريبة الدخل المستحقة على الشركة',
+  },
+  income_tax_expense: {
+    type: 'expense',
+    group: 5800,
+    code: '5801',
+    nameEn: 'Company income tax',
+    nameAr: 'ضريبة الدخل',
   },
 };
 

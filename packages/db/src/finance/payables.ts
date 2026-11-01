@@ -592,6 +592,7 @@ export const TAXES = {
   payroll_tax: 'payroll_tax_payable',
   social_insurance: 'social_insurance_payable',
   martyrs_fund: 'martyrs_fund_payable',
+  corporate_tax: 'corporate_tax_payable',
 } as const;
 export type TaxKind = keyof typeof TAXES;
 
@@ -607,6 +608,7 @@ export async function taxesOwed(db: Db) {
     payrollTaxPiastres: await owed('payroll_tax'),
     socialInsurancePiastres: await owed('social_insurance'),
     martyrsFundPiastres: await owed('martyrs_fund'),
+    corporateTaxPiastres: await owed('corporate_tax'),
   };
 }
 
@@ -616,6 +618,7 @@ const TAX_NAMES: Record<TaxKind, string> = {
   payroll_tax: 'Salary income tax',
   social_insurance: 'Social insurance',
   martyrs_fund: 'Martyrs fund',
+  corporate_tax: 'Company income tax',
 };
 
 export interface TaxPaymentInput {

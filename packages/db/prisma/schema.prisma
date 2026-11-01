@@ -1967,6 +1967,10 @@ model StaffSalary {
   monthlyPiastres     Int      @map("monthly_piastres")
   /// The wage social insurance is counted on; empty means the salary itself
   insuredWagePiastres Int?     @map("insured_wage_piastres")
+  /// 14 digit national ID, for the salary tax forms
+  nationalId          String?  @map("national_id")
+  /// Social insurance number, for the insurance forms
+  insuranceNumber     String?  @map("insurance_number")
   updatedById         String   @map("updated_by_id")
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
