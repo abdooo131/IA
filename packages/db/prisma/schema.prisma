@@ -102,6 +102,7 @@ model User {
   staffingSupplier   Supplier?           @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
   billsFor           Bill[]              @relation("bill_person")
   bankStatements     BankStatement[]
+  taxInvoicesMade    TaxInvoice[]        @relation("tax_invoice_created_by")
   bankLinesDecided   BankStatementLine[] @relation("bank_line_decided_by")
   budgetsSet         Budget[]            @relation("budget_updated_by")
   bills              Bill[]
@@ -255,21 +256,29 @@ enum MerchantApproval {
 }
 
 model Merchant {
-  id                   String           @id @default(cuid())
-  name                 String
+  id                    String           @id @default(cuid())
+  name                  String
   /// myshop.myshopify.com, set when the Shopify app is installed
-  shopifyShopDomain    String?          @unique @map("shopify_shop_domain")
-  contactEmail         String?          @map("contact_email")
-  contactPhone         String?          @map("contact_phone")
-  isActive             Boolean          @default(true) @map("is_active")
+  shopifyShopDomain     String?          @unique @map("shopify_shop_domain")
+  contactEmail          String?          @map("contact_email")
+  contactPhone          String?          @map("contact_phone")
+  isActive              Boolean          @default(true) @map("is_active")
   /// How often finance pays this merchant the COD collected after fees
-  payoutSchedule       PayoutSchedule   @default(weekly) @map("payout_schedule")
+  payoutSchedule        PayoutSchedule   @default(weekly) @map("payout_schedule")
   /// The merchant's own 60 minute delivery price shown at checkout; null means not offered
-  expressPricePiastres Int?             @map("express_price_piastres")
-  approval             MerchantApproval @default(approved)
-  rejectReason         String?          @map("reject_reason")
-  createdAt            DateTime         @default(now()) @map("created_at")
-  updatedAt            DateTime         @updatedAt @map("updated_at")
+  expressPricePiastres  Int?             @map("express_price_piastres")
+  approval              MerchantApproval @default(approved)
+  rejectReason          String?          @map("reject_reason")
+  /// Tax details printed on our invoices and sent to the e-invoice system
+  legalName             String?          @map("legal_name")
+  taxRegistrationNumber String?          @map("tax_registration_number")
+  taxGovernorate        String?          @map("tax_governorate")
+  taxRegionCity         String?          @map("tax_region_city")
+  taxStreet             String?          @map("tax_street")
+  taxBuildingNumber     String?          @map("tax_building_number")
+  taxInvoices           TaxInvoice[]
+  createdAt             DateTime         @default(now()) @map("created_at")
+  updatedAt             DateTime         @updatedAt @map("updated_at")
 
   skus             Sku[]
   inboundManifests InboundManifest[]
@@ -1230,6 +1239,7 @@ model LedgerEntry {
   bills       Bill[]
   prepayments Prepayment[]
   fixedAssets FixedAsset[]
+  taxInvoices TaxInvoice[]
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -2178,4 +2188,102 @@ enum EmploymentType {
   outsourced
 
   @@map("employment_type")
+}
+
+/// Our own details as the tax authority knows them (one row, id "company").
+model CompanyProfile {
+  id                    String    @id @default("company")
+  legalNameEn           String    @default("") @map("legal_name_en")
+  legalNameAr           String    @default("") @map("legal_name_ar")
+  taxRegistrationNumber String    @default("") @map("tax_registration_number")
+  activityCode          String    @default("") @map("activity_code")
+  branchId              String    @default("0") @map("branch_id")
+  governorate           String    @default("")
+  regionCity            String    @default("") @map("region_city")
+  street                String    @default("")
+  buildingNumber        String    @default("") @map("building_number")
+  /// Item codes registered on the e-invoice portal, per fee kind
+  itemCodes             Json      @default("{}") @map("item_codes")
+  etaEnabled            Boolean   @default(false) @map("eta_enabled")
+  signerKeyHash         String?   @map("signer_key_hash")
+  signerKeyCreatedAt    DateTime? @map("signer_key_created_at")
+  updatedById           String?   @map("updated_by_id")
+  updatedAt             DateTime  @default(now()) @map("updated_at")
+
+  @@map("company_profile")
+}
+
+enum TaxDocumentType {
+  invoice
+  credit_note
+
+  @@map("tax_document_type")
+}
+
+enum EtaStatus {
+  not_sent
+  signed
+  submitted
+  valid
+  invalid
+  rejected
+
+  @@map("eta_status")
+}
+
+/// A tax invoice to a merchant for our fees, or a credit note against one.
+model TaxInvoice {
+  id              String          @id @default(cuid())
+  type            TaxDocumentType
+  /// INV-000001 or CN-000001, gapless per type
+  number          Int
+  merchantId      String          @map("merchant_id")
+  /// YYYY-MM for a monthly invoice
+  periodMonth     String?         @map("period_month")
+  issuedAt        DateTime        @default(now()) @map("issued_at")
+  originalId      String?         @map("original_id")
+  reason          String?
+  netPiastres     Int             @map("net_piastres")
+  vatPiastres     Int             @map("vat_piastres")
+  totalPiastres   Int             @map("total_piastres")
+  entryId         String?         @map("entry_id")
+  etaStatus       EtaStatus       @default(not_sent) @map("eta_status")
+  etaUuid         String?         @map("eta_uuid")
+  etaLongId       String?         @map("eta_long_id")
+  etaSubmissionId String?         @map("eta_submission_id")
+  etaError        Json?           @map("eta_error")
+  etaCheckedAt    DateTime?       @map("eta_checked_at")
+  document        Json?
+  canonical       String?
+  signature       String?
+  createdById     String          @map("created_by_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  merchant    Merchant         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  original    TaxInvoice?      @relation("credit_notes", fields: [originalId], references: [id], onDelete: Restrict)
+  creditNotes TaxInvoice[]     @relation("credit_notes")
+  entry       LedgerEntry?     @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy   User             @relation("tax_invoice_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  lines       TaxInvoiceLine[]
+
+  @@unique([type, number])
+  @@index([etaStatus])
+  @@map("tax_invoices")
+}
+
+model TaxInvoiceLine {
+  id            String @id @default(cuid())
+  invoiceId     String @map("invoice_id")
+  lineNo        Int    @map("line_no")
+  kind          String
+  descriptionEn String @map("description_en")
+  descriptionAr String @map("description_ar")
+  quantity      Int
+  netPiastres   Int    @map("net_piastres")
+  vatPiastres   Int    @map("vat_piastres")
+
+  invoice TaxInvoice @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+
+  @@unique([invoiceId, lineNo], map: "tax_invoice_lines_invoice_line_key")
+  @@map("tax_invoice_lines")
 }

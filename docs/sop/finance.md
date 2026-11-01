@@ -219,6 +219,21 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Close the earlier year first: close the years in order, oldest first.
 
+### Tax invoices and the e-invoice system
+
+1. First days of each month: Tax invoices, choose last month, Issue the month's invoices.
+2. On the finance PC with the company's USB token: run the signing program (docs/ETA.md); it signs and sends every waiting invoice.
+3. Check that each invoice turns Valid; open a Rejected or Invalid one, fix the reason shown and press Send again.
+4. Giving fees back: open the invoice, Credit note with the amount and reason; a second person approves it.
+
+**Check it went right**
+
+- Every invoice of the month is Valid; merchants see them under Invoices.
+
+**If something is wrong**
+
+- The signing program shows an error: send the message to admin; do not create the invoices again.
+
 ### Month end
 
 1. Trial balance for the month: debits must equal credits.
@@ -453,6 +468,21 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - أقفل السنة السابقة الأول: أقفل السنين بالترتيب من الأقدم.
+
+### الفواتير الضريبية ومنظومة الفاتورة الإلكترونية
+
+1. أول أيام كل شهر: الفواتير الضريبية، اختار الشهر اللي فات، إصدار فواتير الشهر.
+2. على جهاز الماليات وفيه فلاشة التوقيع: شغل برنامج التوقيع (docs/ETA.md)؛ بيوقع ويبعت كل الفواتير المستنية.
+3. اتأكد إن كل فاتورة بقت صحيحة؛ افتح المرفوضة أو غير الصحيحة، صلح السبب المكتوب واضغط إرسال مرة أخرى.
+4. رد رسوم: افتح الفاتورة، إشعار دائن بالمبلغ والسبب؛ شخص تاني يوافق.
+
+**اتأكد إنها مشيت صح**
+
+- كل فواتير الشهر صحيحة؛ التجار بيشوفوها في الفواتير.
+
+**لو فيه مشكلة**
+
+- برنامج التوقيع طلع خطأ: ابعت الرسالة للأدمن؛ ما تعملش الفواتير تاني.
 
 ### آخر الشهر
 

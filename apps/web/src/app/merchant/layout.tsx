@@ -23,6 +23,7 @@ export default async function MerchantLayout({ children }: { children: ReactNode
         { href: '/merchant/delivery', label: t('delivery'), icon: 'courier' },
         { href: '/merchant/shopify', label: t('shopify'), icon: 'store' },
         { href: '/merchant/wallet', label: t('wallet'), icon: 'wallet' },
+        { href: '/merchant/invoices', label: t('invoices'), icon: 'invoice' },
         {
           href: '/merchant/notifications',
           label: t('notifications'),

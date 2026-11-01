@@ -340,6 +340,16 @@ EN = {
          "The year shows Closed with a JV number; last year's profit and loss still reads the same."],
        "problems": [
          "Close the earlier year first: close the years in order, oldest first."]},
+      {"title": "Tax invoices and the e-invoice system",
+       "steps": [
+         "First days of each month: Tax invoices, choose last month, Issue the month's invoices.",
+         "On the finance PC with the company's USB token: run the signing program (docs/ETA.md); it signs and sends every waiting invoice.",
+         "Check that each invoice turns Valid; open a Rejected or Invalid one, fix the reason shown and press Send again.",
+         "Giving fees back: open the invoice, Credit note with the amount and reason; a second person approves it."],
+       "check": [
+         "Every invoice of the month is Valid; merchants see them under Invoices."],
+       "problems": [
+         "The signing program shows an error: send the message to admin; do not create the invoices again."]},
       {"title": "Month end",
        "steps": [
          "Trial balance for the month: debits must equal credits.",
@@ -741,6 +751,16 @@ AR = {
          "السنة مكتوب عليها مقفلة برقم JV؛ أرباح وخسائر السنة اللي فاتت لسه زي ما هي."],
        "problems": [
          "أقفل السنة السابقة الأول: أقفل السنين بالترتيب من الأقدم."]},
+      {"title": "الفواتير الضريبية ومنظومة الفاتورة الإلكترونية",
+       "steps": [
+         "أول أيام كل شهر: الفواتير الضريبية، اختار الشهر اللي فات، إصدار فواتير الشهر.",
+         "على جهاز الماليات وفيه فلاشة التوقيع: شغل برنامج التوقيع (docs/ETA.md)؛ بيوقع ويبعت كل الفواتير المستنية.",
+         "اتأكد إن كل فاتورة بقت صحيحة؛ افتح المرفوضة أو غير الصحيحة، صلح السبب المكتوب واضغط إرسال مرة أخرى.",
+         "رد رسوم: افتح الفاتورة، إشعار دائن بالمبلغ والسبب؛ شخص تاني يوافق."],
+       "check": [
+         "كل فواتير الشهر صحيحة؛ التجار بيشوفوها في الفواتير."],
+       "problems": [
+         "برنامج التوقيع طلع خطأ: ابعت الرسالة للأدمن؛ ما تعملش الفواتير تاني."]},
       {"title": "آخر الشهر",
        "steps": [
          "ميزان المراجعة للشهر: المدين لازم يساوي الدائن.",

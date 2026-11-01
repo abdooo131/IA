@@ -17,6 +17,7 @@ import {
   runPayroll,
 } from './payroll';
 import { type BillPaymentInput, payBill, payTax, type TaxPaymentInput } from './payables';
+import { type CreditNoteInput, issueCreditNote } from './invoices';
 import {
   type AssetInput,
   type PrepaymentInput,
@@ -125,6 +126,7 @@ export type RequestPayload =
   | { kind: 'merchant_adjustment'; input: Stored<AdjustmentInput> }
   | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
   | { kind: 'staff_bonus'; input: Stored<BonusInput> }
+  | { kind: 'credit_note'; input: Stored<CreditNoteInput> }
   | { kind: 'bill_payment'; input: Stored<BillPaymentInput> }
   | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
   | { kind: 'prepayment'; input: Stored<PrepaymentInput> }
@@ -141,6 +143,7 @@ export type RequestPayload =
  * person whatever the amount; money going out waits from the approval limit.
  */
 const ALWAYS_REVIEWED = new Set([
+  'credit_note',
   'capital_in',
   'other_income',
   'merchant_receipt',
@@ -243,6 +246,8 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return giveAdvance(db, { ...p.input, actorUserId });
     case 'staff_bonus':
       return payStaffBonus(db, { ...p.input, actorUserId });
+    case 'credit_note':
+      return issueCreditNote(db, { ...p.input, actorUserId });
     case 'payroll':
       return runPayroll(db, { ...p.input, actorUserId });
     case 'bill_payment':
@@ -641,3 +646,6 @@ export const submitAssetPurchase = submitter<'asset_purchase', AssetInput>('asse
 
 /** A bonus paid straight to an outsourced person. */
 export const submitStaffBonus = submitter<'staff_bonus', BonusInput>('staff_bonus');
+
+/** A credit note to a merchant: always waits for a second person (it lowers what they owe). */
+export const submitCreditNote = submitter<'credit_note', CreditNoteInput>('credit_note');

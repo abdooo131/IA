@@ -82,3 +82,10 @@
     }
   }
 }
+
+/* Printed pages (invoices, payslips, reports) are plain black on white. */
+@media print {
+  body {
+    background: #fff;
+  }
+}

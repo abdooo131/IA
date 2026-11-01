@@ -1,6 +1,23 @@
-import { Body, Controller, ForbiddenException, Get, Patch, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { listPayouts, merchantOwed, merchantStatement, recordAudit } from '@shiplynow/db';
+import {
+  getInvoice,
+  listInvoices,
+  listPayouts,
+  merchantOwed,
+  merchantStatement,
+  recordAudit,
+} from '@shiplynow/db';
 import { type AccessTokenClaims, cairoDay, payoutScheduleSchema } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -126,5 +143,22 @@ export class MerchantFinanceController {
         ],
       ),
     );
+  }
+
+  /** The merchant's tax invoices and credit notes from us. */
+  @Get('invoices')
+  async invoices(@CurrentUser() user: AccessTokenClaims): Promise<unknown> {
+    const merchant = await this.merchantOf(user);
+    return listInvoices(this.prisma, { merchantId: merchant.id });
+  }
+
+  @Get('invoices/:id')
+  async invoice(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims): Promise<unknown> {
+    const merchant = await this.merchantOf(user);
+    const { company, ...invoice } = await getInvoice(this.prisma, id);
+    if (invoice.merchant.id !== merchant.id)
+      throw new NotFoundException({ error: 'invoice_not_found' });
+    const { signerKeyHash: _hidden, itemCodes: _codes, ...publicCompany } = company;
+    return { ...invoice, company: publicCompany };
   }
 }

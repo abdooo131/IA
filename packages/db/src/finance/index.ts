@@ -77,6 +77,7 @@ export {
   submitPrepayment,
   submitTaxPayment,
   submitStaffBonus,
+  submitCreditNote,
   queueRequest,
 } from './controls';
 export {
@@ -140,3 +141,24 @@ export {
   vatReport,
   yearCloseStatus,
 } from './period';
+export {
+  companyProfile,
+  createSignerKey,
+  documentsToSign,
+  etaBacklog,
+  etaReadiness,
+  FEE_KINDS,
+  getInvoice,
+  invoiceLabel,
+  issueCreditNote,
+  listInvoices,
+  monthlyFees,
+  prepareInvoices,
+  recordEtaResult,
+  resendInvoice,
+  saveSignatures,
+  signedDocument,
+  signerKeyValid,
+  updateCompanyProfile,
+  updateMerchantTax,
+} from './invoices';

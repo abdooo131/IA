@@ -22,6 +22,11 @@ export const envSchema = z.object({
   OVERPASS_URL: z.string().url().default('https://overpass-api.de/api/interpreter'),
   /** Slack app bot token (xoxb-...). Without it tickets stay inside Shiply. */
   SLACK_BOT_TOKEN: z.string().optional(),
+  /** The e-invoice system's API client (from the ETA portal); empty means nothing is sent */
+  ETA_CLIENT_ID: z.string().optional(),
+  ETA_CLIENT_SECRET: z.string().optional(),
+  /** preprod (the tax authority's test system) or production */
+  ETA_ENV: z.enum(['preprod', 'production']).optional(),
   /** Slack app signing secret: proves events and button taps come from Slack */
   SLACK_SIGNING_SECRET: z.string().optional(),
   /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */

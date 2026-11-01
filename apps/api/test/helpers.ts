@@ -5,6 +5,7 @@ import { AppModule } from '../src/app.module';
 import { Clock } from '../src/common/clock';
 import { Overpass } from '../src/coverage/geo-import.service';
 import { Slack } from '../src/tickets/slack';
+import { EtaClient } from '../src/finance/eta';
 import { Geocoder } from '../src/coverage/geocoding';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { ShopifyAdmin } from '../src/shopify/shopify-admin';
@@ -16,6 +17,7 @@ export interface Overrides {
   shopify?: ShopifyAdmin;
   overpass?: Overpass;
   slack?: Slack;
+  eta?: EtaClient;
 }
 
 export async function createTestApp(
@@ -26,6 +28,7 @@ export async function createTestApp(
   if (overrides.geocoder) builder = builder.overrideProvider(Geocoder).useValue(overrides.geocoder);
   if (overrides.shopify)
     builder = builder.overrideProvider(ShopifyAdmin).useValue(overrides.shopify);
+  if (overrides.eta) builder = builder.overrideProvider(EtaClient).useValue(overrides.eta);
   if (overrides.slack) builder = builder.overrideProvider(Slack).useValue(overrides.slack);
   if (overrides.overpass) builder = builder.overrideProvider(Overpass).useValue(overrides.overpass);
   const moduleRef = await builder.compile();

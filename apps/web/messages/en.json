@@ -918,7 +918,8 @@
       "delivery": "60 minute delivery",
       "home": "Home and shipments",
       "returns": "Take stock back",
-      "shopify": "Connect Shopify"
+      "shopify": "Connect Shopify",
+      "invoices": "Invoices"
     },
     "shipments": {
       "title": "Shipments",
@@ -1419,7 +1420,9 @@
       "vat": "VAT report",
       "budgets": "Budgets",
       "cashFlow": "Cash flow",
-      "yearEnd": "Year end and export"
+      "yearEnd": "Year end and export",
+      "invoices": "Tax invoices",
+      "company": "Company tax details"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1458,7 +1461,8 @@
       "asset_purchase": "Equipment bought",
       "depreciation": "Depreciation",
       "year_close": "Year end closing",
-      "staff_bonus": "Staff bonus"
+      "staff_bonus": "Staff bonus",
+      "credit_note": "Credit note"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1737,7 +1741,13 @@
         "employee_bonus_in_payroll": "Employees get bonuses in the salary run, where they are taxed.",
         "staffing_company_required": "Choose the outsourcing company.",
         "not_their_company": "This person is hired through another company.",
-        "no_person_on_bill": "Advances are taken back only on a bill for one person."
+        "no_person_on_bill": "Advances are taken back only on a bill for one person.",
+        "month_not_over": "That month is not over yet.",
+        "invoice_not_found": "Invoice not found.",
+        "more_than_invoiced": "More than is left on this invoice.",
+        "invoice_not_rejected": "Only a rejected or invalid invoice can be sent again.",
+        "invalid_tax_number": "A tax registration number has 9 digits.",
+        "invalid_activity_code": "An activity code has 4 digits."
       }
     },
     "riders": {
@@ -1890,7 +1900,8 @@
         "tax_payment": "Tax payment",
         "prepayment": "Paid ahead",
         "asset_purchase": "Equipment bought",
-        "staff_bonus": "Bonus to outsourced person"
+        "staff_bonus": "Bonus to outsourced person",
+        "credit_note": "Credit note to a merchant"
       },
       "statuses": {
         "pending": "Waiting",
@@ -2263,7 +2274,108 @@
       "downloadJournal": "Download journal (CSV)",
       "downloadPack": "Download audit pack (zip)"
     },
-    "print": "Print or save as PDF"
+    "print": "Print or save as PDF",
+    "invoices": {
+      "title": "Tax invoices",
+      "intro": "One tax invoice per merchant and month for our fees, numbered INV-000001 onward, and credit notes (CN-) when we give fees back. They are signed with the company's electronic signature on the finance PC and sent to the tax authority's e-invoice system.",
+      "etaTitle": "E-invoice system",
+      "etaReady": "Everything is set: signed invoices are sent to the tax authority every minute.",
+      "missing": {
+        "connection": "The connection to the tax authority is not set on the server (ETA client id and secret).",
+        "eta_off": "Sending to the e-invoice system is switched off (Company tax details).",
+        "legal_name": "Our legal name is missing.",
+        "tax_registration_number": "Our tax registration number is missing.",
+        "activity_code": "Our activity code is missing.",
+        "governorate": "Our governorate is missing.",
+        "region_city": "Our city or area is missing.",
+        "street": "Our street is missing.",
+        "building_number": "Our building number is missing.",
+        "signer_key": "No signing key yet: admin creates one in Company tax details.",
+        "item_codes": "Item codes missing for: {kinds}."
+      },
+      "openCompany": "Company tax details",
+      "syncNow": "Send and check now",
+      "synced": "Done.",
+      "status": {
+        "not_sent": "Waiting for signature",
+        "signed": "Signed, sending",
+        "submitted": "Sent, checking",
+        "valid": "Valid",
+        "invalid": "Invalid",
+        "rejected": "Rejected"
+      },
+      "month": "Month",
+      "prepare": "Issue the month's invoices",
+      "prepareHint": "After a month ends, issue one invoice per merchant for that month's fees. Running it again adds only merchants that have none yet.",
+      "prepared": "{count, plural, =0 {No new invoices} one {# invoice issued} other {# invoices issued}} for {month}.",
+      "none": "No invoices yet.",
+      "number": "Number",
+      "merchant": "Merchant",
+      "date": "Date",
+      "total": "Total",
+      "etaState": "E-invoice",
+      "forMonth": "For {month}",
+      "against": "Against {number}",
+      "back": "All invoices",
+      "taxInvoice": "Tax invoice",
+      "creditNote": "Credit note",
+      "taxNumber": "Tax registration number",
+      "billTo": "Bill to",
+      "reasonIs": "Reason: {reason}",
+      "item": "Description",
+      "quantity": "Quantity",
+      "net": "Before VAT",
+      "vat": "VAT",
+      "etaId": "E-invoice ID",
+      "notYetSent": "Not yet accepted by the e-invoice system.",
+      "resendHint": "Fix the cause shown above (our details, the merchant's details or an item code), then send it again; it waits for a new signature.",
+      "resend": "Send again",
+      "creditNotes": "Credit notes",
+      "newCreditNote": "Credit note",
+      "creditNoteHint": "Gives the merchant back part of these fees and their VAT. A second person approves it.",
+      "amountBeforeVat": "Amount before VAT (EGP)",
+      "reason": "Reason",
+      "issueCreditNote": "Issue credit note",
+      "companyTitle": "Company tax details",
+      "companyIntro": "Our details exactly as registered with the tax authority, the item codes registered on the e-invoice portal for each fee, and the merchants' tax details printed on their invoices.",
+      "companyDetails": "Our details",
+      "fields": {
+        "legalNameAr": "Legal name (Arabic)",
+        "legalNameEn": "Legal name (English)",
+        "taxRegistrationNumber": "Tax registration number (9 digits)",
+        "activityCode": "Activity code (4 digits)",
+        "branchId": "Branch code (0 for the head office)",
+        "governorate": "Governorate",
+        "regionCity": "City or area",
+        "street": "Street",
+        "buildingNumber": "Building number"
+      },
+      "itemCodes": "Item codes",
+      "itemCodesHint": "Register one item code (EGS) per fee on the e-invoice portal, then paste each code here.",
+      "etaOn": "Send invoices to the e-invoice system",
+      "save": "Save",
+      "signerTitle": "Signing program",
+      "signerHint": "Invoices are signed on the finance PC where the company's USB token is plugged in, by the Shiply signing program (scripts/eta-signer, steps in docs/ETA.md). It needs a key from here.",
+      "signerKeySince": "A key was made on {date}.",
+      "noSignerKey": "No key yet.",
+      "newSignerKey": "New signing key",
+      "keyCreated": "Copy this key into the signing program now; it is shown only once. The old key stops working.",
+      "merchantsTax": "Merchants' tax details",
+      "merchantsTaxHint": "A merchant with a tax registration number is invoiced as a company and needs its full address; without one it is invoiced as a person.",
+      "companyComplete": "Company, complete",
+      "addressMissing": "Company, address missing",
+      "person": "Person (no tax number)",
+      "merchantFields": {
+        "legalName": "Legal name",
+        "taxRegistrationNumber": "Tax registration number",
+        "taxGovernorate": "Governorate",
+        "taxRegionCity": "City or area",
+        "taxStreet": "Street",
+        "taxBuildingNumber": "Building number"
+      },
+      "merchantTitle": "Invoices",
+      "merchantIntro": "Our tax invoices to you for the month's fees, and credit notes when fees were given back. Open one to print it or save it as PDF."
+    }
   },
   "storeCash": {
     "tile": "Rider cash",
@@ -3101,6 +3213,19 @@
               "The year shows Closed with a JV number; last year's profit and loss still reads the same."
             ],
             "problems": ["Close the earlier year first: close the years in order, oldest first."]
+          },
+          {
+            "title": "Tax invoices and the e-invoice system",
+            "steps": [
+              "First days of each month: Tax invoices, choose last month, Issue the month's invoices.",
+              "On the finance PC with the company's USB token: run the signing program (docs/ETA.md); it signs and sends every waiting invoice.",
+              "Check that each invoice turns Valid; open a Rejected or Invalid one, fix the reason shown and press Send again.",
+              "Giving fees back: open the invoice, Credit note with the amount and reason; a second person approves it."
+            ],
+            "check": ["Every invoice of the month is Valid; merchants see them under Invoices."],
+            "problems": [
+              "The signing program shows an error: send the message to admin; do not create the invoices again."
+            ]
           },
           {
             "title": "Month end",

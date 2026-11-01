@@ -4,6 +4,8 @@ import { BooksController } from './books.controller';
 import { ControlsController } from './controls.controller';
 import { PayablesController } from './payables.controller';
 import { PeriodController } from './period.controller';
+import { EtaClient, EtaSync, HttpEtaClient } from './eta';
+import { EtaSignerController, InvoicesController } from './invoices.controller';
 import { ProfitController } from './profit.controller';
 import { FinanceController } from './finance.controller';
 
@@ -16,6 +18,9 @@ import { FinanceController } from './finance.controller';
     ProfitController,
     PayablesController,
     PeriodController,
+    InvoicesController,
+    EtaSignerController,
   ],
+  providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })
 export class FinanceModule {}

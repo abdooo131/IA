@@ -562,3 +562,83 @@ export interface YearStatus {
   closed: boolean;
   entryNumber: number | null;
 }
+
+export type EtaState = 'not_sent' | 'signed' | 'submitted' | 'valid' | 'invalid' | 'rejected';
+
+export interface InvoiceRow {
+  id: string;
+  type: 'invoice' | 'credit_note';
+  label: string;
+  merchant: { id: string; name: string; legalName: string | null };
+  periodMonth: string | null;
+  issuedAt: string;
+  original: string | null;
+  reason: string | null;
+  netPiastres: number;
+  vatPiastres: number;
+  totalPiastres: number;
+  etaStatus: EtaState;
+  etaUuid: string | null;
+  etaLongId: string | null;
+  etaError: unknown;
+}
+
+export interface InvoiceDetail extends InvoiceRow {
+  receiver: { name: string; taxRegistrationNumber: string | null; address: string };
+  lines: {
+    id: string;
+    lineNo: number;
+    kind: string;
+    descriptionEn: string;
+    descriptionAr: string;
+    quantity: number;
+    netPiastres: number;
+    vatPiastres: number;
+  }[];
+  creditNotes: { id: string; label: string; totalPiastres: number }[];
+  company: {
+    legalNameEn: string;
+    legalNameAr: string;
+    taxRegistrationNumber: string;
+    governorate: string;
+    regionCity: string;
+    street: string;
+    buildingNumber: string;
+  };
+}
+
+export interface EtaReadiness {
+  ready: boolean;
+  missing: string[];
+  missingCodes: string[];
+  connected: boolean;
+  feeKinds: Record<string, { en: string; ar: string }>;
+  counts: Partial<Record<EtaState, number>>;
+}
+
+export interface CompanyProfile {
+  legalNameEn: string;
+  legalNameAr: string;
+  taxRegistrationNumber: string;
+  activityCode: string;
+  branchId: string;
+  governorate: string;
+  regionCity: string;
+  street: string;
+  buildingNumber: string;
+  itemCodes: Record<string, string>;
+  etaEnabled: boolean;
+  hasSignerKey: boolean;
+  signerKeyCreatedAt: string | null;
+}
+
+export interface MerchantTax {
+  id: string;
+  name: string;
+  legalName: string | null;
+  taxRegistrationNumber: string | null;
+  taxGovernorate: string | null;
+  taxRegionCity: string | null;
+  taxStreet: string | null;
+  taxBuildingNumber: string | null;
+}

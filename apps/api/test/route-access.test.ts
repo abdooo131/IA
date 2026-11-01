@@ -58,10 +58,11 @@ describe('route access', () => {
     );
     expect(checked).toBeGreaterThan(100);
     // Public routes are only these: sign in, health, coverage, Shopify's and Slack's signed calls and
-    // the customer's tracking page (its unguessable token is the key).
+    // the customer's tracking page (its unguessable token is the key) and the e-invoice signing
+    // program (its own key, checked in the controller).
     for (const route of publicRoutes)
       expect(route).toMatch(
-        /^(auth\/(login|refresh|logout|signup)|health|coverage|shopify\/|track\/:token|slack\/(events|interactivity)$)/,
+        /^(auth\/(login|refresh|logout|signup)|health|coverage|shopify\/|track\/:token|slack\/(events|interactivity)$|eta-signer\/(documents|signatures)$)/,
       );
   });
 });

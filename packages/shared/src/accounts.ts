@@ -483,3 +483,56 @@ export const budgetSchema = z.object({
 export const yearCloseSchema = z.object({ year: z.number().int().min(2020).max(2100) });
 export const bankMatchSchema = z.object({ ledgerLineId: id });
 export const bankIgnoreSchema = z.object({ note: z.string().trim().min(5).max(300) });
+
+// ─── tax invoices and the e-invoice system ──────────────────────────────────────
+
+const shortText = (max: number) => z.string().trim().max(max);
+export const companyProfileSchema = z.object({
+  legalNameEn: shortText(200).optional(),
+  legalNameAr: shortText(200).optional(),
+  taxRegistrationNumber: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^\d{9}$/.test(v), 'invalid_tax_number')
+    .optional(),
+  activityCode: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^\d{4}$/.test(v), 'invalid_activity_code')
+    .optional(),
+  branchId: shortText(20).optional(),
+  governorate: shortText(100).optional(),
+  regionCity: shortText(100).optional(),
+  street: shortText(200).optional(),
+  buildingNumber: shortText(50).optional(),
+  itemCodes: z.record(z.string(), shortText(100)).optional(),
+  etaEnabled: z.boolean().optional(),
+});
+
+export const merchantTaxSchema = z.object({
+  legalName: shortText(200).nullable().optional(),
+  taxRegistrationNumber: z
+    .string()
+    .trim()
+    .refine((v) => v === '' || /^\d{9}$/.test(v), 'invalid_tax_number')
+    .transform((v) => v || null)
+    .nullable()
+    .optional(),
+  taxGovernorate: shortText(100).nullable().optional(),
+  taxRegionCity: shortText(100).nullable().optional(),
+  taxStreet: shortText(200).nullable().optional(),
+  taxBuildingNumber: shortText(50).nullable().optional(),
+});
+
+export const prepareInvoicesSchema = z.object({ month });
+export const creditNoteSchema = z.object({
+  amountPiastres: piastres,
+  reason: z.string().trim().min(5).max(300),
+  idempotencyKey: key,
+});
+export const signaturesSchema = z.object({
+  signatures: z
+    .array(z.object({ id, signature: z.string().min(10).max(20_000) }))
+    .min(1)
+    .max(100),
+});
