@@ -28,6 +28,7 @@ export const bankDepositSchema = z.object({
   bankAccountId: id.optional(),
   amountPiastres: piastres,
   reference: z.string().trim().min(2).max(100),
+  receiptPhotoId: id.optional(),
   idempotencyKey: key,
 });
 
@@ -42,6 +43,8 @@ export const duePayoutsSchema = z.object({ cutoffDay: day });
 
 export const payoutPaidSchema = z.object({
   reference: z.string().trim().min(2).max(100),
+  /** The bank transfer slip photo, uploaded first */
+  receiptPhotoId: id.optional(),
   /** Which bank; empty uses the main bank (CIB, 1101) */
   bankAccountId: id.optional(),
 });
@@ -53,6 +56,7 @@ export const merchantReceiptSchema = z.object({
   bankAccountId: id.optional(),
   amountPiastres: piastres,
   reference: z.string().trim().min(2).max(100),
+  receiptPhotoId: id.optional(),
   idempotencyKey: key,
 });
 
@@ -107,3 +111,41 @@ export const LEDGER_KINDS = [
   'other_income',
   'journal',
 ] as const;
+
+/** Close the books through a Cairo day; a reason is needed to move the date back. */
+export const closeBooksSchema = z.object({
+  day,
+  reason: z.string().trim().max(300).optional(),
+});
+
+/** A second person approves or rejects a waiting request (a note is needed to reject). */
+export const decideRequestSchema = z.object({
+  approve: z.boolean(),
+  note: z.string().trim().max(300).optional(),
+});
+
+/** A receipt photo for exactly one entry, payout or request. */
+export const attachReceiptSchema = z
+  .object({
+    photoId: id,
+    entryId: id.optional(),
+    payoutId: id.optional(),
+    requestId: id.optional(),
+  })
+  .refine((v) => [v.entryId, v.payoutId, v.requestId].filter(Boolean).length === 1, {
+    message: 'one_target',
+  });
+
+/** Starting balances, as an accountant reads them (positive on the account's normal side). */
+export const openingBalancesSchema = z.object({
+  day,
+  lines: z
+    .array(
+      z.object({
+        accountId: id,
+        amountPiastres: z.number().int().min(-1_000_000_000).max(1_000_000_000),
+      }),
+    )
+    .min(1)
+    .max(500),
+});

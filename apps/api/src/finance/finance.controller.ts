@@ -15,9 +15,10 @@ import {
   payRiderBonus,
   recordAudit,
   recordBankDeposit,
-  recordMerchantAdjustment,
-  recordMerchantReceipt,
+  attachReceipt,
   reviewCashHandover,
+  submitMerchantAdjustment,
+  submitMerchantReceipt,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -43,6 +44,7 @@ import { Clock } from '../common/clock';
 import { parseBound, parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
+import { submitted } from './books.controller';
 import { cairoStamp, csv, egp } from './finance-csv';
 
 const HANDOVER_STATUSES = ['balanced', 'pending', 'written_off', 'charged_to_rider'] as const;
@@ -93,7 +95,14 @@ export class FinanceController {
     @Body(new ZodValidationPipe(bankDepositSchema)) body: z.infer<typeof bankDepositSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const entry = await recordBankDeposit(this.prisma, { ...body, actorUserId: user.sub });
+    const { receiptPhotoId, ...rest } = body;
+    const entry = await recordBankDeposit(this.prisma, { ...rest, actorUserId: user.sub });
+    if (receiptPhotoId)
+      await attachReceipt(this.prisma, {
+        entryId: entry.id,
+        photoId: receiptPhotoId,
+        actorUserId: user.sub,
+      });
     return { id: entry.id };
   }
 
@@ -155,17 +164,24 @@ export class FinanceController {
   }
 
   @Post('payouts/:id/paid')
-  paid(
+  async paid(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(payoutPaidSchema)) body: z.infer<typeof payoutPaidSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return markPayoutPaid(this.prisma, {
+    const result = await markPayoutPaid(this.prisma, {
       payoutId: id,
       reference: body.reference,
       bankAccountId: body.bankAccountId,
       actorUserId: user.sub,
     });
+    if (body.receiptPhotoId)
+      await attachReceipt(this.prisma, {
+        payoutId: id,
+        photoId: body.receiptPhotoId,
+        actorUserId: user.sub,
+      });
+    return result;
   }
 
   @Post('payouts/:id/cancel')
@@ -182,8 +198,7 @@ export class FinanceController {
     @Body(new ZodValidationPipe(merchantReceiptSchema)) body: z.infer<typeof merchantReceiptSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const entry = await recordMerchantReceipt(this.prisma, { ...body, actorUserId: user.sub });
-    return { id: entry.id };
+    return submitted(await submitMerchantReceipt(this.prisma, { ...body, actorUserId: user.sub }));
   }
 
   @Post('adjustments')
@@ -192,8 +207,9 @@ export class FinanceController {
     body: z.infer<typeof merchantAdjustmentSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const entry = await recordMerchantAdjustment(this.prisma, { ...body, actorUserId: user.sub });
-    return { id: entry.id };
+    return submitted(
+      await submitMerchantAdjustment(this.prisma, { ...body, actorUserId: user.sub }),
+    );
   }
 
   @Post('rider-bonus-payouts')

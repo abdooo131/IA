@@ -143,6 +143,20 @@ export const SETTING_DEFINITIONS = {
     description: 'Prepare automatic refill drafts every day (1 on, 0 off)',
     override: 'none',
   },
+  'finance.approval_threshold_piastres': {
+    schema: piastres,
+    default: 1_000_000,
+    description:
+      'Payouts, expenses and drawings from this amount (piastres) need a second person to approve them; 0 turns it off',
+    override: 'none',
+  },
+  'finance.approve_money_in': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'Owner capital, other income, merchant payments to us and merchant balance changes wait for a second person (1) or post at once (0)',
+    override: 'none',
+  },
   'fee.order_fixed_piastres': {
     schema: piastres,
     default: 0,

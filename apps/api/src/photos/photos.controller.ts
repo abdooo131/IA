@@ -24,21 +24,28 @@ export class PhotosController {
 
   /** Body: the image itself (image/jpeg, image/png or image/webp), at most about 1.5 MB. */
   @Post()
-  @Roles('admin', 'store_staff', 'rider')
-  @ApiQuery({ name: 'kind', enum: ['pack', 'delivery'] })
+  @Roles('admin', 'store_staff', 'rider', 'finance')
+  @ApiQuery({ name: 'kind', enum: ['pack', 'delivery', 'receipt'] })
   async upload(
     @Query('kind') kind: string,
     @Req() req: Request,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    if (kind !== 'pack' && kind !== 'delivery') throw new DomainError('photo_kind_invalid', 400);
+    // Receipts are for finance and admin; pack and delivery proof for the store and riders.
+    const allowed =
+      user.role === 'finance'
+        ? ['receipt']
+        : user.role === 'admin'
+          ? ['pack', 'delivery', 'receipt']
+          : ['pack', 'delivery'];
+    if (!allowed.includes(kind)) throw new DomainError('photo_kind_invalid', 400);
     if (!Buffer.isBuffer(req.body)) throw new DomainError('photo_type_not_allowed', 400);
     const contentType = (req.headers['content-type'] ?? '').split(';')[0]!.trim();
     // A phone can send any bytes under an image type; only real images become proof.
     if (req.body.length > 0 && !isImage(contentType, req.body))
       throw new DomainError('photo_not_image', 400);
     return savePhoto(this.prisma, {
-      kind,
+      kind: kind as 'pack' | 'delivery' | 'receipt',
       contentType,
       data: req.body,
       actorUserId: user.sub,

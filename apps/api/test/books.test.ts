@@ -65,7 +65,14 @@ describe('company books', () => {
         idempotencyKey: key(),
       })
       .expect(201);
-    expect(capital.body.number).toBe('JV-000001');
+    // Money said to come in always waits for a second person, here the admin.
+    expect(capital.body.status).toBe('pending');
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const approved = await admin
+      .post(`/finance/requests/${capital.body.requestId}/decide`)
+      .send({ approve: true })
+      .expect(201);
+    expect(approved.body).toMatchObject({ status: 'approved', number: 'JV-000001' });
 
     await finance
       .post('/finance/transfers')

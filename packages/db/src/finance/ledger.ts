@@ -97,6 +97,14 @@ export const DEFAULT_ACCOUNTS: {
     nameAr: 'مسحوبات المالك',
   },
   {
+    key: 'equity:opening',
+    type: 'equity',
+    group: 3300,
+    code: '3301',
+    nameEn: 'Opening balances',
+    nameAr: 'أرصدة افتتاحية',
+  },
+  {
     key: 'other_income:general',
     type: 'other_income',
     group: 4200,
@@ -336,6 +344,15 @@ export interface PostInput {
 }
 
 /**
+ * Refuses a moment inside a closed period (the books are closed through a Cairo day). The
+ * database refuses it too; this check gives the clear books_closed answer first.
+ */
+export async function assertPeriodOpen(tx: Tx, at: Date) {
+  const lock = await tx.booksLock.findUnique({ where: { id: 'books' } });
+  if (lock && at < lock.lockedBefore) throw new DomainError('books_closed');
+}
+
+/**
  * Posts one balanced entry. The same idempotency key posts once: a repeat returns the
  * first entry, so jobs and retries are safe. Returns null when every line is zero.
  */
@@ -353,6 +370,7 @@ export async function post(db: Db, input: PostInput) {
     });
     if (seen) return seen;
     const occurredAt = input.occurredAt ?? new Date();
+    await assertPeriodOpen(tx, occurredAt);
     const entry = await tx.ledgerEntry.create({
       data: {
         number: await nextNumber(tx, 'ledger_entries'),

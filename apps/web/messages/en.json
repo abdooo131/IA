@@ -343,7 +343,9 @@
         "customer__risk_min_attempts": "Delivery attempts before a risk level",
         "customer__risk_medium_pct": "Medium cash risk from (% failed)",
         "customer__risk_high_pct": "High cash risk from (% failed)",
-        "signup__auto_approve": "Approve new merchant sign ups at once (1 yes, 0 wait for admin)"
+        "signup__auto_approve": "Approve new merchant sign ups at once (1 yes, 0 wait for admin)",
+        "finance__approval_threshold_piastres": "Second approver from (EGP)",
+        "finance__approve_money_in": "Second person checks all money coming in (1 yes, 0 no)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -531,7 +533,13 @@
         "slack_id_taken": "That Slack ID belongs to another user."
       },
       "slackId": "Slack member ID (optional)",
-      "slackIdHint": "In Slack: open the person, the three dots, Copy member ID. Tickets for them then also arrive in Slack."
+      "slackIdHint": "In Slack: open the person, the three dots, Copy member ID. Tickets for them then also arrive in Slack.",
+      "financeLevel": "Finance access",
+      "financeLevels": {
+        "view": "View only: reports",
+        "prepare": "Prepare: record movements and payouts",
+        "approve": "Approve: also approve and close months"
+      }
     },
     "merchants": {
       "title": "Merchants",
@@ -1369,7 +1377,11 @@
       "accounts": "Chart of accounts",
       "movements": "Money movements",
       "pl": "Profit and loss",
-      "bs": "Balance sheet"
+      "bs": "Balance sheet",
+      "approvals": "Approvals",
+      "receipts": "Receipts",
+      "close": "Close month",
+      "opening": "Opening balances"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1386,7 +1398,7 @@
       "merchant_receipt": "Payment from merchant",
       "rider_bonus_payout": "Bonus paid to rider",
       "adjustment": "Adjustment",
-      "opening_balance": "Opening balance",
+      "opening_balance": "Opening balances",
       "closing_balance": "Closing balance",
       "return_fee": "Return to merchant fee",
       "damage_compensation": "Damage compensation to merchant",
@@ -1462,7 +1474,8 @@
         "damage": "Damage",
         "cash_differences": "Cash differences",
         "operating_expenses": "Operating expenses",
-        "bank_charges": "Bank charges"
+        "bank_charges": "Bank charges",
+        "opening_balances": "Opening balances"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -1558,7 +1571,10 @@
         "draft": "Waiting",
         "paid": "Paid",
         "cancelled": "Cancelled"
-      }
+      },
+      "needsApproval": "This payout is above the approval limit: another person must approve it before it is paid.",
+      "approve": "Approve",
+      "approvedBy": "Approved by {name}"
     },
     "merchants": {
       "title": "Merchant wallets",
@@ -1608,7 +1624,21 @@
         "invalid_vat": "VAT must be less than the amount.",
         "not_balanced": "Debits must equal credits.",
         "invalid_line": "Each line needs an account and either a debit or a credit.",
-        "wallet_not_allowed": "Merchant and rider wallets are changed from their own pages."
+        "wallet_not_allowed": "Merchant and rider wallets are changed from their own pages.",
+        "money_account_not_allowed": "Banks, cash boxes and riders' cash can't be changed by a journal entry. Use a transfer, deposit, expense or payout.",
+        "books_closed": "This date is in a closed month. Choose a later date, or ask an admin to reopen the month.",
+        "approval_needed": "This payout needs a second person's approval first.",
+        "same_person": "You prepared this, so another person must approve it.",
+        "already_approved": "Already approved.",
+        "finance_level_too_low": "Your finance access doesn't allow this. Ask an admin.",
+        "request_not_pending": "Someone already handled this.",
+        "not_your_request": "Only the person who asked can withdraw it.",
+        "note_required": "Write why you reject it.",
+        "reopen_admin_only": "Only an admin can reopen a closed month.",
+        "day_not_over": "You can close only days that are over.",
+        "opening_already_posted": "Opening balances were already posted. Correct them with a journal entry.",
+        "account_twice": "An account appears twice.",
+        "nothing_to_post": "Enter at least one amount."
       }
     },
     "riders": {
@@ -1716,6 +1746,72 @@
         "g2100": "Merchant balances",
         "g2200": "Rider bonuses owed"
       }
+    },
+    "sentForApproval": "Saved and sent for approval. A second person must approve it before it is posted.",
+    "receipts": {
+      "title": "Receipts",
+      "intro": "{count, plural, one {# money movement has no receipt or transfer slip yet} other {# money movements have no receipt or transfer slip yet}}. Auditors will ask for them.",
+      "attach": "Attach receipt photo",
+      "replace": "Change photo",
+      "uploading": "Uploading…",
+      "failed": "Upload failed. Try again.",
+      "attached": "Photo attached",
+      "hint": "Receipt or transfer slip (recommended)",
+      "save": "Save receipt",
+      "allDone": "Every money movement has its receipt."
+    },
+    "approvals": {
+      "title": "Approvals",
+      "intro": "Money going out from {amount} EGP, and every claimed money in (owner capital, other income, merchant payments, merchant balance changes), waits here until a second person approves it. Nobody can approve their own.",
+      "movements": "Money movements waiting",
+      "payouts": "Payouts waiting",
+      "none": "Nothing waiting.",
+      "recent": "Recently decided",
+      "askedBy": "Asked by {name}",
+      "dated": "dated",
+      "receipts": "{count, plural, =0 {no receipt} one {# receipt} other {# receipts}}",
+      "yours": "You asked for this, so another person must approve it.",
+      "withdraw": "Withdraw",
+      "approve": "Approve",
+      "reject": "Reject",
+      "rejectNote": "Reason to reject",
+      "open": "Open",
+      "kinds": {
+        "expense": "Expense",
+        "drawings": "Owner drawings",
+        "capital_in": "Owner capital in",
+        "other_income": "Other income",
+        "merchant_receipt": "Merchant paid us",
+        "merchant_adjustment": "Merchant balance change"
+      },
+      "statuses": {
+        "pending": "Waiting",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Withdrawn"
+      }
+    },
+    "close": {
+      "title": "Close month",
+      "intro": "Closing the books through a day stops anyone from posting on or before it, so reported numbers can't change. Automatic postings for today are never blocked.",
+      "closedThrough": "The books are closed through {day} (by {name}).",
+      "nothingClosed": "No month is closed yet.",
+      "closeThrough": "Close the books through",
+      "close": "Close",
+      "reopen": "Reopen to this day",
+      "reason": "Why reopen? (required, kept in the history)",
+      "adminOnly": "Moving the date back reopens closed days: only an admin can do it.",
+      "hint": "Closing needs the approve level. Every close and reopen is kept in the audit log."
+    },
+    "opening": {
+      "title": "Opening balances",
+      "intro": "The balances the books start from on your first day: money in each bank and cash box, what you owe and what is owed to you. Posted once; later corrections are journal entries.",
+      "day": "Starting day",
+      "account": "Account",
+      "amount": "Balance (EGP)",
+      "hint": "Type each balance as an accountant reads it: money held, or the amount owed. Use a minus sign only for the opposite side (for example an overdrawn bank). The difference goes to Opening balances (equity).",
+      "post": "Post opening balances",
+      "alreadyPosted": "Opening balances were already posted. Correct them with a journal entry."
     }
   },
   "storeCash": {

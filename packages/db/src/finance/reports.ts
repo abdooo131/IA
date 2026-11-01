@@ -1,6 +1,7 @@
 import type { LedgerAccountType, PayoutSchedule } from '@prisma/client';
 import { entryNumber, handoverNumber, payoutNumber } from '@shiplynow/shared';
 import type { Db } from '../client';
+import { getSetting } from '../settings';
 import { DomainError } from '../domain-error';
 import { accountKey, balancesByType } from './ledger';
 
@@ -292,10 +293,12 @@ export async function listPayouts(
       merchant: { select: { id: true, name: true, payoutSchedule: true } },
       createdBy: { select: { name: true } },
       paidBy: { select: { name: true } },
+      approvedBy: { select: { name: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: Math.min(filter.take ?? 100, 500),
   });
+  const limit = await getSetting(db, 'finance.approval_threshold_piastres');
   return rows.map((p) => ({
     id: p.id,
     number: payoutNumber(p.number),
@@ -309,5 +312,8 @@ export async function listPayouts(
     createdBy: p.createdBy.name,
     paidAt: p.paidAt,
     paidBy: p.paidBy?.name ?? null,
+    approvedBy: p.approvedBy?.name ?? null,
+    /** A second person must approve before it is paid (and has not yet) */
+    needsApproval: limit > 0 && p.amountPiastres >= limit && !p.approvedById,
   }));
 }

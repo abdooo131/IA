@@ -6,6 +6,7 @@ import type { PayoutRow } from '@/lib/finance-types';
 import { formatCairoDateTime, formatCutoffDay } from '@/lib/format';
 import { Amount } from './Amount';
 import { BankSelect } from './BankSelect';
+import { ReceiptField } from './ReceiptField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { DateInput } from '@/components/DateInput';
 
@@ -23,6 +24,7 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
   const [bank, setBank] = useState('');
   const [cancelNote, setCancelNote] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [slip, setSlip] = useState<string | null>(null);
   return (
     <li className="space-y-2 rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -41,6 +43,26 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
           <Amount piastres={payout.amountPiastres} strong /> EGP
         </p>
       </div>
+      {payout.needsApproval ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-status-needs-action p-3 text-body-sm">
+          <span className="flex-1">{t('needsApproval')}</span>
+          <button
+            type="button"
+            className={primary}
+            disabled={action.busy}
+            onClick={() => void action.send('POST', `/finance/payouts/${payout.id}/approve`, {})}
+          >
+            {t('approve')}
+          </button>
+        </div>
+      ) : (
+        payout.approvedBy && (
+          <p className="text-caption text-text-muted">
+            {t('approvedBy', { name: payout.approvedBy })}
+          </p>
+        )
+      )}
+      <ReceiptField onChange={setSlip} />
       <div className="flex flex-wrap gap-2">
         <input
           value={reference}
@@ -54,11 +76,12 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
         <button
           type="button"
           className={primary}
-          disabled={action.busy || reference.trim().length < 2}
+          disabled={action.busy || reference.trim().length < 2 || payout.needsApproval}
           onClick={() =>
             void action.send('POST', `/finance/payouts/${payout.id}/paid`, {
               reference,
               bankAccountId: bank || undefined,
+              receiptPhotoId: slip ?? undefined,
             })
           }
         >

@@ -8,10 +8,11 @@ import {
   DomainError,
   moneyAccounts,
   profitAndLoss,
-  recordCapital,
-  recordExpense,
   recordJournalEntry,
-  recordOtherIncome,
+  submitCapitalIn,
+  submitDrawings,
+  submitExpense,
+  submitOtherIncome,
   transferMoney,
   trialBalance,
   updateAccount,
@@ -43,6 +44,20 @@ const voucher = (entry: { id: string; number: number }) => ({
   id: entry.id,
   number: entryNumber(entry.number),
 });
+
+/** Posted at once (with its voucher), or waiting for a second person (with the request). */
+export const submitted = (
+  result:
+    | { status: 'posted'; entry: { id: string; number?: number } }
+    | { status: 'pending'; request: { id: string } },
+) =>
+  result.status === 'posted'
+    ? {
+        status: 'posted' as const,
+        id: result.entry.id,
+        ...(result.entry.number ? { number: entryNumber(result.entry.number) } : {}),
+      }
+    : { status: 'pending' as const, requestId: result.request.id };
 
 /** The company books: chart of accounts, money movements and the accountant's reports. */
 @ApiTags('finance')
@@ -176,7 +191,7 @@ export class BooksController {
     @Body(new ZodValidationPipe(expenseSchema)) body: z.infer<typeof expenseSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return voucher(await recordExpense(this.prisma, { ...body, actorUserId: user.sub }));
+    return submitted(await submitExpense(this.prisma, { ...body, actorUserId: user.sub }));
   }
 
   @Post('capital')
@@ -184,7 +199,13 @@ export class BooksController {
     @Body(new ZodValidationPipe(capitalSchema)) body: z.infer<typeof capitalSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return voucher(await recordCapital(this.prisma, { ...body, actorUserId: user.sub }));
+    const { direction, ...rest } = body;
+    const input = { ...rest, actorUserId: user.sub };
+    return submitted(
+      direction === 'in'
+        ? await submitCapitalIn(this.prisma, input)
+        : await submitDrawings(this.prisma, input),
+    );
   }
 
   @Post('other-income')
@@ -192,7 +213,7 @@ export class BooksController {
     @Body(new ZodValidationPipe(otherIncomeSchema)) body: z.infer<typeof otherIncomeSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return voucher(await recordOtherIncome(this.prisma, { ...body, actorUserId: user.sub }));
+    return submitted(await submitOtherIncome(this.prisma, { ...body, actorUserId: user.sub }));
   }
 
   @Post('journal-entries')

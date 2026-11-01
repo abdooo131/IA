@@ -35,6 +35,20 @@ const KNOWN = [
   'not_balanced',
   'invalid_line',
   'wallet_not_allowed',
+  'money_account_not_allowed',
+  'books_closed',
+  'approval_needed',
+  'same_person',
+  'already_approved',
+  'finance_level_too_low',
+  'request_not_pending',
+  'not_your_request',
+  'note_required',
+  'reopen_admin_only',
+  'day_not_over',
+  'opening_already_posted',
+  'account_twice',
+  'nothing_to_post',
 ];
 
 /** Sends one finance action, shows its result and refreshes the page data. */
@@ -61,7 +75,12 @@ export function useFinanceAction() {
       });
       return null;
     }
-    setMessage({ text: done ? done(result.data) : t('done'), error: false });
+    // Large or money in movements wait for a second person instead of posting.
+    const pending = (result.data as { status?: string } | null)?.status === 'pending';
+    setMessage({
+      text: pending ? t('sentForApproval') : done ? done(result.data) : t('done'),
+      error: false,
+    });
     router.refresh();
     return result.data;
   }

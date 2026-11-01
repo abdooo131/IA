@@ -20,6 +20,7 @@ export interface AdminUser {
   merchant: { id: string; name: string } | null;
   badgeCode: string | null;
   slackUserId: string | null;
+  financeLevel: 'view' | 'prepare' | 'approve' | null;
 }
 type StoreRef = { id: string; nameEn: string; nameAr: string };
 type MerchantRef = { id: string; name: string };
@@ -96,6 +97,22 @@ function LinkFields({
           />
         </label>
       )}
+      {role === 'finance' && (
+        <label className="block text-caption">
+          {t('financeLevel')}
+          <select
+            name="financeLevel"
+            defaultValue={initial?.financeLevel ?? 'approve'}
+            className={field}
+          >
+            {(['view', 'prepare', 'approve'] as const).map((level) => (
+              <option key={level} value={level}>
+                {t(`financeLevels.${level}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {role === 'merchant' && (
         <label className="block text-caption">
           {t('merchant')}
@@ -124,6 +141,7 @@ function links(form: FormData) {
     darkStoreId: get('darkStoreId'),
     merchantId: get('merchantId'),
     badgeCode: get('badgeCode'),
+    financeLevel: get('financeLevel') as AdminUser['financeLevel'] | undefined,
   };
 }
 

@@ -70,6 +70,48 @@ export interface PayoutRow {
   createdBy: string;
   paidAt: string | null;
   paidBy: string | null;
+  approvedBy: string | null;
+  needsApproval: boolean;
+}
+
+export interface FinanceRequestRow {
+  id: string;
+  kind:
+    | 'expense'
+    | 'drawings'
+    | 'capital_in'
+    | 'other_income'
+    | 'merchant_receipt'
+    | 'merchant_adjustment';
+  amountPiastres: number;
+  status: 'pending' | 'approved' | 'rejected' | 'cancelled';
+  reference: string;
+  memo: string | null;
+  day: string | null;
+  requestedBy: { id: string; name: string };
+  createdAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  decisionNote: string | null;
+  entryNumber: number | null;
+  receipts: number;
+}
+
+export interface FinanceControls {
+  lock: { closedThrough: string; updatedAt: string; updatedBy: string } | null;
+  approvalThresholdPiastres: number;
+  waiting: number;
+  payoutsToApprove: number;
+  missingReceipts: number;
+}
+
+export interface MissingReceipt {
+  id: string;
+  number: number;
+  kind: string;
+  at: string;
+  memo: string | null;
+  amountPiastres: number;
 }
 
 export interface Statement {

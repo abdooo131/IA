@@ -34,8 +34,10 @@ function userSnapshot(u: {
   darkStoreId: string | null;
   merchantId: string | null;
   slackUserId?: string | null;
+  financeLevel?: string;
 }) {
   return {
+    financeLevel: u.role === 'finance' ? u.financeLevel : undefined,
     email: u.email,
     name: u.name,
     phone: u.phone,
@@ -113,6 +115,9 @@ export function createUser(db: Db, input: CreateUserBody & { actorUserId: Actor 
           passwordHash,
           darkStoreId: links.darkStoreId,
           merchantId: links.merchantId,
+          ...(input.role === 'finance' && input.financeLevel
+            ? { financeLevel: input.financeLevel }
+            : {}),
         },
       });
       if (input.role === 'rider') {
@@ -166,6 +171,7 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
             before.role === 'store_staff' || before.role === 'rider' ? darkStoreId : null,
           merchantId: before.role === 'merchant' ? merchantId : null,
           slackUserId: input.slackUserId,
+          financeLevel: before.role === 'finance' ? input.financeLevel : undefined,
         },
       });
       if (before.role === 'rider' && before.rider) {
@@ -250,6 +256,7 @@ export async function listUsers(db: Db, filter: { role?: Role; q?: string } = {}
     merchant: u.merchant,
     badgeCode: u.rider?.badgeCode ?? null,
     slackUserId: u.slackUserId,
+    financeLevel: u.role === 'finance' ? u.financeLevel : null,
     createdAt: u.createdAt,
   }));
 }

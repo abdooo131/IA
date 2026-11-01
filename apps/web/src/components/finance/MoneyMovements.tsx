@@ -9,6 +9,7 @@ import type { BookAccount } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
+import { ReceiptField } from './ReceiptField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { DateInput } from '@/components/DateInput';
 
@@ -115,6 +116,7 @@ function useMovement() {
         day: String(f.get('day') ?? '') || undefined,
         memo: memo || undefined,
         idempotencyKey: newActionKey(),
+        receiptPhotoId: String(f.get('receiptPhotoId') ?? '') || undefined,
         ...build(f, amount),
       },
       (d) => t('saved', { number: d.number }),
@@ -178,6 +180,7 @@ function Expense({ money, expenses }: { money: BookAccount[]; expenses: BookAcco
         {t('vat')}
         <input name="vat" inputMode="decimal" dir="ltr" placeholder="0" className={field} />
       </label>
+      <ReceiptField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -234,6 +237,7 @@ function Capital({ money, equity }: { money: BookAccount[]; equity: BookAccount[
         </select>
       </label>
       <Common />
+      <ReceiptField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -257,6 +261,7 @@ function Income({ money, income }: { money: BookAccount[]; income: BookAccount[]
       <AccountSelect name="income" accounts={income} title={t('incomeAccount')} />
       <AccountSelect name="money" accounts={money} title={t('to')} withBalance />
       <Common memoRequired />
+      <ReceiptField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>

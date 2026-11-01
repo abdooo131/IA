@@ -10,6 +10,11 @@ export const ROLES_KEY = 'roles';
 /** Restricts a route to the given roles. Without it any signed in user may call the route. */
 export const Roles = (...roles: Role[]) => SetMetadata(ROLES_KEY, roles);
 
+export const FINANCE_LEVEL_KEY = 'financeLevel';
+export type FinanceLevelName = 'view' | 'prepare' | 'approve';
+/** The finance level a finance user needs for this route (admins always pass). */
+export const FinanceLevel = (level: FinanceLevelName) => SetMetadata(FINANCE_LEVEL_KEY, level);
+
 export type AuthedRequest = Request & { user?: AccessTokenClaims };
 
 export const CurrentUser = createParamDecorator(

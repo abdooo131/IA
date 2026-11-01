@@ -20,7 +20,7 @@ export async function shrinkPhoto(file: Blob, maxSide = 1280, quality = 0.72): P
 }
 
 export async function uploadPhoto(
-  kind: 'pack' | 'delivery',
+  kind: 'pack' | 'delivery' | 'receipt',
   blob: Blob,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {

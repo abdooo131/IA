@@ -4,6 +4,7 @@ export {
   balanceOf,
   DEFAULT_ACCOUNTS,
   ensureDefaultAccounts,
+  assertPeriodOpen,
   post,
   share,
 } from './ledger';
@@ -49,3 +50,24 @@ export {
   merchantStatement,
   type StatementLine,
 } from './reports';
+export {
+  approvalThreshold,
+  approvePayout,
+  attachReceipt,
+  booksLock,
+  cancelFinanceRequest,
+  closeBooks,
+  decideFinanceRequest,
+  listFinanceRequests,
+  missingReceipts,
+  payoutNeedsApproval,
+  receiptsFor,
+  RECEIPT_KINDS,
+  recordOpeningBalances,
+  submitCapitalIn,
+  submitDrawings,
+  submitExpense,
+  submitMerchantAdjustment,
+  submitMerchantReceipt,
+  submitOtherIncome,
+} from './controls';

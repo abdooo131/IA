@@ -30,6 +30,7 @@ const LOCKED_KEYS = new Set([
   'cash_difference',
   'equity:capital',
   'equity:drawings',
+  'equity:opening',
 ]);
 
 const isWallet = (a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId'>) =>
@@ -258,7 +259,7 @@ const positive = (amount: number) => {
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new DomainError('invalid_amount', 400);
 };
 
-interface MoveBase {
+export interface MoveBase {
   amountPiastres: number;
   reference: string;
   memo?: string;
@@ -491,6 +492,11 @@ export async function recordJournalEntry(
       if (!account) throw new DomainError('account_not_found', 404);
       if (isWallet(account) && account.darkStoreId == null)
         throw new DomainError('wallet_not_allowed');
+      // Banks, cash boxes and riders' cash change only through documented movements
+      // (deposits, transfers, expenses, payouts...), never by a free entry: otherwise money
+      // could appear on paper that no bank or box ever received.
+      if (MONEY_GROUPS.includes(account.groupCode) || account.groupCode === 1300)
+        throw new DomainError('money_account_not_allowed');
     }
     const entry = await post(tx, {
       kind: 'journal',

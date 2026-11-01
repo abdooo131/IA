@@ -2,15 +2,18 @@ import { getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { DashboardShell } from '@/components/DashboardShell';
 import type { NavGroup } from '@/components/SideNav';
+import { apiGet } from '@/lib/api-server';
+import type { FinanceControls } from '@/lib/finance-types';
 import { getCurrentUser } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FinanceLayout({ children }: { children: ReactNode }) {
-  const [t, ta, user] = await Promise.all([
+  const [t, ta, user, controls] = await Promise.all([
     getTranslations('finance.nav'),
     getTranslations('admin'),
     getCurrentUser(),
+    apiGet<FinanceControls>('/finance/controls'),
   ]);
   const groups: NavGroup[] = [
     {
@@ -20,6 +23,18 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/payouts', label: t('payouts'), icon: 'payout' },
         { href: '/finance/merchants', label: t('merchants'), icon: 'customers' },
         { href: '/finance/riders', label: t('riders'), icon: 'courier' },
+        {
+          href: '/finance/approvals',
+          label: t('approvals'),
+          icon: 'alert',
+          badge: controls.waiting + controls.payoutsToApprove,
+        },
+        {
+          href: '/finance/receipts',
+          label: t('receipts'),
+          icon: 'invoice',
+          badge: controls.missingReceipts,
+        },
       ],
     },
     {
@@ -31,6 +46,10 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/trial', label: t('trial'), icon: 'analytics' },
         { href: '/finance/profit-and-loss', label: t('pl'), icon: 'analytics' },
         { href: '/finance/balance-sheet', label: t('bs'), icon: 'invoice' },
+        { href: '/finance/close', label: t('close'), icon: 'schedule' },
+        ...(user?.role === 'admin'
+          ? [{ href: '/finance/opening', label: t('opening'), icon: 'wallet' as const }]
+          : []),
       ],
     },
   ];

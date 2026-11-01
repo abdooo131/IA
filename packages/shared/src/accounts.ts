@@ -5,7 +5,7 @@ import { isCalendarDay } from './hours';
 //
 //   1000 assets       1100 banks · 1200 cash boxes · 1300 cash with riders · 1400 other assets
 //   2000 liabilities  2100 merchants · 2200 rider bonuses · 2300 taxes · 2400 other liabilities
-//   3000 equity       3100 owner capital · 3200 owner drawings
+//   3000 equity       3100 owner capital · 3200 owner drawings · 3300 opening balances
 //   4000 income       4100 fees · 4200 other income
 //   5000 expenses     5100 rider bonuses · 5200 damage · 5300 cash differences
 //                     5400 operating expenses · 5500 bank charges
@@ -99,6 +99,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     key: 'drawings',
     party: false,
     manualType: 'equity',
+    money: false,
+  },
+  {
+    code: 3300,
+    category: 'equity',
+    key: 'opening_balances',
+    party: false,
+    manualType: null,
     money: false,
   },
   { code: 4100, category: 'revenue', key: 'fees', party: false, manualType: null, money: false },
@@ -239,6 +247,8 @@ export const expenseSchema = z.object({
   reference,
   memo: z.string().trim().min(3).max(300),
   day: onDay,
+  /** A receipt photo uploaded first (POST /photos?kind=receipt) */
+  receiptPhotoId: id.optional(),
   idempotencyKey: key,
 });
 
@@ -250,6 +260,8 @@ export const capitalSchema = z.object({
   reference,
   memo: optionalText(300),
   day: onDay,
+  /** A receipt photo uploaded first (POST /photos?kind=receipt) */
+  receiptPhotoId: id.optional(),
   idempotencyKey: key,
 });
 
@@ -260,6 +272,8 @@ export const otherIncomeSchema = z.object({
   reference,
   memo: z.string().trim().min(3).max(300),
   day: onDay,
+  /** A receipt photo uploaded first (POST /photos?kind=receipt) */
+  receiptPhotoId: id.optional(),
   idempotencyKey: key,
 });
 

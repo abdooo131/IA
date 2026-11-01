@@ -30,6 +30,8 @@ export const createUserSchema = z.object({
   darkStoreId: id.nullable().optional(),
   merchantId: id.nullable().optional(),
   badgeCode: badgeCodeSchema.nullable().optional(),
+  /** Finance users: view, prepare or approve (default approve) */
+  financeLevel: z.enum(['view', 'prepare', 'approve']).optional(),
 });
 export type CreateUserBody = z.infer<typeof createUserSchema>;
 
@@ -40,6 +42,7 @@ export const updateUserSchema = z.object({
   darkStoreId: id.nullable().optional(),
   merchantId: id.nullable().optional(),
   badgeCode: badgeCodeSchema.nullable().optional(),
+  financeLevel: z.enum(['view', 'prepare', 'approve']).optional(),
   /** Slack member id, found in Slack under the person's profile, More, Copy member ID */
   slackUserId: z
     .string()

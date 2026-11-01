@@ -2,6 +2,7 @@ import type { PayoutSchedule, Prisma } from '@prisma/client';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { payoutNeedsApproval } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -268,6 +269,9 @@ export function markPayoutPaid(
     const payout = await tx.payout.findUnique({ where: { id: input.payoutId } });
     if (!payout) throw new DomainError('payout_not_found', 404);
     if (payout.status !== 'draft') throw new DomainError('payout_not_draft');
+    // From the approval limit, a second person must have approved it first.
+    if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
+      throw new DomainError('approval_needed');
     const now = new Date();
     const updated = await tx.payout.updateMany({
       where: { id: payout.id, status: 'draft' },

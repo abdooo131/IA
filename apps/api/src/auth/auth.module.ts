@@ -7,6 +7,7 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { LoginThrottleService } from './login-throttle.service';
+import { FinanceLevelGuard } from './finance-level.guard';
 import { RolesGuard } from './roles.guard';
 
 @Module({
@@ -25,9 +26,10 @@ import { RolesGuard } from './roles.guard';
   providers: [
     AuthService,
     LoginThrottleService,
-    // Order matters: authenticate first, then check roles.
+    // Order matters: authenticate first, then check roles, then the finance level.
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
+    { provide: APP_GUARD, useClass: FinanceLevelGuard },
   ],
   exports: [AuthService, LoginThrottleService],
 })
