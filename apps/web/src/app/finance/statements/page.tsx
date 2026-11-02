@@ -4,7 +4,6 @@ import { Amount } from '@/components/finance/Amount';
 import { PrintButton } from '@/components/finance/PrintButton';
 import { apiGet } from '@/lib/api-server';
 import type { ComparativeStatements } from '@/lib/finance-types';
-import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -81,7 +80,6 @@ export default async function StatementsPage({
   );
   return (
     <>
-      <FinanceTabs family="reports" />
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <h1 className="text-h2">{t('statementsTitle')}</h1>
         <form className="flex flex-wrap items-end gap-2">

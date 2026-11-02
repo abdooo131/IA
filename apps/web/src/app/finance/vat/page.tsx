@@ -2,7 +2,6 @@ import { getTranslations } from 'next-intl/server';
 import { VatView } from '@/components/finance/PeriodReports';
 import { apiGet } from '@/lib/api-server';
 import type { VatReport } from '@/lib/finance-types';
-import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +17,6 @@ export default async function FinanceVatPage({
   ]);
   return (
     <>
-      <FinanceTabs family="taxes" />
       <h1 className="text-h2">{t('vatTitle', { year: report.year })}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('vatIntro')}</p>
       <VatView report={report} />

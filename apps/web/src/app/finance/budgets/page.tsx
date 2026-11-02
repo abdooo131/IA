@@ -2,7 +2,6 @@ import { getTranslations } from 'next-intl/server';
 import { Budgets } from '@/components/finance/PeriodReports';
 import { apiGet } from '@/lib/api-server';
 import type { BudgetReport, StoreOption } from '@/lib/finance-types';
-import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +21,6 @@ export default async function FinanceBudgetsPage({
   ]);
   return (
     <>
-      <FinanceTabs family="reports" />
       <h1 className="text-h2">{t('budgetsTitle')}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('budgetsIntro')}</p>
       <Budgets report={report} stores={stores} />

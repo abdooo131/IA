@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { localized } from '@/lib/admin-types';
+import type { AppId } from '@/lib/apps';
 import { apiSend } from '@/lib/api-client';
 import type { SettingRow, SettingsList } from '@/lib/dashboard-types';
 import { formatCairoDateTime } from '@/lib/format';
@@ -30,46 +31,63 @@ function read(text: string, unit: Unit): number | null {
 }
 
 /** Which tab each setting lives on, by the start of its key. */
-const TABS = ['delivery', 'fees', 'payroll', 'money', 'stock', 'customers', 'tickets'] as const;
-type Tab = (typeof TABS)[number] | 'other';
+type Tab =
+  | 'delivery'
+  | 'stock'
+  | 'merchants'
+  | 'customers'
+  | 'fees'
+  | 'payroll'
+  | 'money'
+  | 'tickets'
+  | 'other';
+/** Each app's Configuration shows only its own settings. */
+const APP_TABS: Record<AppId, Tab[]> = {
+  operations: ['delivery'],
+  inventory: ['stock'],
+  merchants: ['merchants'],
+  customers: ['customers'],
+  accounting: ['fees', 'payroll', 'money'],
+  system: ['tickets', 'other'],
+};
 function tabOf(key: string): Tab {
   if (key === 'finance.corporate_tax_bp' || key.startsWith('payroll.')) return 'payroll';
   if (/^(sla|delivery|store|tracking)\./.test(key)) return 'delivery';
   if (/^(fee|rider)\./.test(key)) return 'fees';
-  if (/^(finance|signup)\./.test(key)) return 'money';
+  if (key.startsWith('signup.')) return 'merchants';
+  if (key.startsWith('finance.')) return 'money';
   if (/^(stock|refill)\./.test(key)) return 'stock';
   if (key.startsWith('customer.')) return 'customers';
   if (key.startsWith('ticket.')) return 'tickets';
   return 'other';
 }
 
-export function SettingsEditor({ initial }: { initial: SettingsList }) {
+export function SettingsEditor({ initial, app }: { initial: SettingsList; app: AppId }) {
   const t = useTranslations('admin.settings');
   const [data, setData] = useState(initial);
-  const tabs: Tab[] = [
-    ...TABS,
-    ...(data.settings.some((s) => tabOf(s.key) === 'other') ? (['other'] as const) : []),
-  ];
-  const [tab, setTab] = useState<Tab>('delivery');
+  const tabs = APP_TABS[app].filter((k) => data.settings.some((s) => tabOf(s.key) === k));
+  const [tab, setTab] = useState<Tab>(tabs[0] ?? APP_TABS[app][0]!);
   return (
     <>
-      <nav className="-mx-1 mt-4 flex gap-1 overflow-x-auto border-b border-line">
-        {tabs.map((k) => (
-          <button
-            key={k}
-            type="button"
-            onClick={() => setTab(k)}
-            aria-current={tab === k ? 'page' : undefined}
-            className={`whitespace-nowrap border-b-2 px-3 pb-2 pt-1 text-body-sm font-semibold ${
-              tab === k
-                ? 'border-primary text-link'
-                : 'border-transparent text-text-muted hover:text-text'
-            }`}
-          >
-            {t(`tabs.${k}`)}
-          </button>
-        ))}
-      </nav>
+      {tabs.length > 1 && (
+        <nav className="-mx-1 mt-4 flex gap-1 overflow-x-auto border-b border-line">
+          {tabs.map((k) => (
+            <button
+              key={k}
+              type="button"
+              onClick={() => setTab(k)}
+              aria-current={tab === k ? 'page' : undefined}
+              className={`whitespace-nowrap border-b-2 px-3 pb-2 pt-1 text-body-sm font-semibold ${
+                tab === k
+                  ? 'border-primary text-link'
+                  : 'border-transparent text-text-muted hover:text-text'
+              }`}
+            >
+              {t(`tabs.${k}`)}
+            </button>
+          ))}
+        </nav>
+      )}
       <ul className="mt-6 space-y-4">
         {data.settings
           .filter((s) => tabOf(s.key) === tab)

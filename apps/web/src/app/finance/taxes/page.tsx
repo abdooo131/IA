@@ -2,7 +2,6 @@ import { getTranslations } from 'next-intl/server';
 import { Taxes } from '@/components/finance/Payables';
 import { apiGet } from '@/lib/api-server';
 import type { BookAccount, TaxesOwed, WhtReport } from '@/lib/finance-types';
-import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,7 +22,6 @@ export default async function FinanceTaxesPage({
   ]);
   return (
     <>
-      <FinanceTabs family="taxes" />
       <h1 className="text-h2">{t('taxesTitle')}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('taxesIntro')}</p>
       <Taxes owed={owed} report={report} accounts={accounts} />

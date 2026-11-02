@@ -7,12 +7,14 @@ export const AREA_ROLES = {
   '/rider': ['admin', 'rider'],
   '/merchant': ['merchant'],
   '/finance': ['admin', 'finance'],
+  // The apps home screen (tiles).
+  '/home': ['admin', 'finance'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Area = keyof typeof AREA_ROLES;
 
 const HOME_BY_ROLE: Record<Role, Area | null> = {
-  admin: '/admin',
+  admin: '/home',
   store_staff: '/store',
   rider: '/rider',
   merchant: '/merchant',

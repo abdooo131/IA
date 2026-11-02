@@ -36,5 +36,6 @@ export const config = {
     '/rider/:path*',
     '/merchant/:path*',
     '/finance/:path*',
+    '/home',
   ],
 };

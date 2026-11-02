@@ -12,7 +12,7 @@ describe('areaOf', () => {
 
 describe('homeFor', () => {
   it('sends each role to its area', () => {
-    expect(homeFor('admin')).toBe('/admin');
+    expect(homeFor('admin')).toBe('/home');
     expect(homeFor('store_staff')).toBe('/store');
     expect(homeFor('rider')).toBe('/rider');
     expect(homeFor('merchant')).toBe('/merchant');
@@ -69,7 +69,19 @@ describe('decideAccess', () => {
     });
     expect(decideAccess({ ...base, pathname: '/merchant', role: 'admin' })).toEqual({
       kind: 'redirect',
-      to: '/admin',
+      to: '/home',
+    });
+  });
+});
+
+describe('apps home', () => {
+  it('is open to admins and finance only', () => {
+    const base = { search: '', hasRefreshToken: false };
+    expect(decideAccess({ ...base, pathname: '/home', role: 'finance' }).kind).toBe('allow');
+    expect(decideAccess({ ...base, pathname: '/home', role: 'admin' }).kind).toBe('allow');
+    expect(decideAccess({ ...base, pathname: '/home', role: 'rider' })).toEqual({
+      kind: 'redirect',
+      to: '/rider',
     });
   });
 });
