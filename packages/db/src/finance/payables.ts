@@ -195,8 +195,6 @@ export async function listSuppliers(db: Db) {
       openBills: open.find((o) => o.supplierId === s.id)?._count._all ?? 0,
       /** People hired through this company (when it is an outsourcing company) */
       staff: s.staff,
-      /** The merchant that is the same company (partner ledger) */
-      merchantId: s.merchantId,
     };
   });
 }

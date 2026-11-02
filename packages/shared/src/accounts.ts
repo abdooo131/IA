@@ -597,4 +597,3 @@ export const disposeAssetSchema = z.object({
   day: onDay,
   idempotencyKey: key,
 });
-export const supplierLinkSchema = z.object({ merchantId: id.nullable() });

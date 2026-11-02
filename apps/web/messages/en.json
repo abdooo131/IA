@@ -1424,8 +1424,7 @@
       "invoices": "Tax invoices",
       "company": "Company tax details",
       "taxReturns": "Tax returns",
-      "statements": "Financial statements",
-      "partners": "Partners"
+      "statements": "Financial statements"
     },
     "kinds": {
       "cod_collected": "COD collected",
@@ -1762,9 +1761,7 @@
         "invalid_rate": "Write the rate as a number, for example 48.50.",
         "invalid_currency": "Currency not valid.",
         "asset_not_found": "Equipment not found.",
-        "asset_already_disposed": "Already sold or scrapped.",
-        "partner_not_found": "Not found.",
-        "merchant_already_linked": "That merchant is already linked to another supplier."
+        "asset_already_disposed": "Already sold or scrapped."
       }
     },
     "riders": {
@@ -2473,42 +2470,6 @@
       "liabilities": "Liabilities",
       "equity": "Equity",
       "earnings": "Profit not yet closed into equity"
-    },
-    "partners": {
-      "title": "Partners",
-      "intro": "Every merchant, supplier and team member with an account in our books, with one net balance across all their accounts. A positive net means they owe us; a negative net means we owe them.",
-      "search": "Search by name",
-      "name": "Name",
-      "kind": "Type",
-      "accounts": "Accounts",
-      "net": "Net",
-      "owesUs": "Owes us",
-      "weOwe": "We owe them",
-      "even": "Settled",
-      "kinds": {
-        "merchant": "Merchant",
-        "supplier": "Supplier",
-        "rider": "Rider",
-        "store_staff": "Store staff",
-        "finance": "Finance",
-        "admin": "Admin",
-        "person": "Person"
-      },
-      "linkTitle": "Same company as a merchant",
-      "linkHint": "When a supplier is also one of our merchants, link them so both show as one partner with one net.",
-      "sameAs": "Same company as",
-      "notAMerchant": "Not one of our merchants",
-      "sameAsMerchant": "Same as {name}",
-      "save": "Save",
-      "back": "All partners",
-      "show": "Show",
-      "date": "Date",
-      "entry": "Entry",
-      "account": "Account",
-      "amount": "Amount",
-      "running": "Net after",
-      "opening": "Before these days",
-      "signHint": "Amounts are from our books' side: plus is owed to us, minus is owed to them."
     },
     "bankDetails": {
       "title": "Bank account for payouts",
@@ -3385,16 +3346,13 @@
             ]
           },
           {
-            "title": "Partners, foreign bills, equipment and accruals",
+            "title": "Foreign bills, equipment and accruals",
             "steps": [
-              "Partners: one page per merchant, supplier or team member with every account and one net; link a supplier that is also a merchant.",
               "A bill in dollars or another currency: choose the currency and the rate on the bill; when paying, type the amount in that currency and today's rate. The difference goes to exchange differences by itself.",
               "Equipment sold or scrapped: Prepaid and equipment, Sell or scrap, with the price (0 if scrapped) and why; a second person approves.",
               "A cost of this month whose bill comes later: Journal entry with Reverse on the 1st of next month."
             ],
-            "check": [
-              "Partners shows the net you expect; sold equipment shows Sold or scrapped and stops depreciating."
-            ],
+            "check": ["Sold equipment shows Sold or scrapped and stops depreciating."],
             "problems": [
               "A rate typed wrong on a bill: cancel the bill (before paying) and enter it again."
             ]

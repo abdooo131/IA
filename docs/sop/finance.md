@@ -238,16 +238,15 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - The signing program shows an error: send the message to admin; do not create the invoices again.
 
-### Partners, foreign bills, equipment and accruals
+### Foreign bills, equipment and accruals
 
-1. Partners: one page per merchant, supplier or team member with every account and one net; link a supplier that is also a merchant.
-2. A bill in dollars or another currency: choose the currency and the rate on the bill; when paying, type the amount in that currency and today's rate. The difference goes to exchange differences by itself.
-3. Equipment sold or scrapped: Prepaid and equipment, Sell or scrap, with the price (0 if scrapped) and why; a second person approves.
-4. A cost of this month whose bill comes later: Journal entry with Reverse on the 1st of next month.
+1. A bill in dollars or another currency: choose the currency and the rate on the bill; when paying, type the amount in that currency and today's rate. The difference goes to exchange differences by itself.
+2. Equipment sold or scrapped: Prepaid and equipment, Sell or scrap, with the price (0 if scrapped) and why; a second person approves.
+3. A cost of this month whose bill comes later: Journal entry with Reverse on the 1st of next month.
 
 **Check it went right**
 
-- Partners shows the net you expect; sold equipment shows Sold or scrapped and stops depreciating.
+- Sold equipment shows Sold or scrapped and stops depreciating.
 
 **If something is wrong**
 
@@ -507,16 +506,15 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - برنامج التوقيع طلع خطأ: ابعت الرسالة للأدمن؛ ما تعملش الفواتير تاني.
 
-### الشركاء والفواتير بالعملة الأجنبية والمعدات والاستحقاقات
+### الفواتير بالعملة الأجنبية والمعدات والاستحقاقات
 
-1. الشركاء: صفحة لكل تاجر أو مورد أو عضو فريق فيها كل حساباته وصافي واحد؛ اربط المورد اللي هو كمان تاجر.
-2. فاتورة بالدولار أو عملة تانية: اختار العملة وسعر الفاتورة؛ وانت بتدفع اكتب المبلغ بالعملة وسعر النهارده. الفرق بيروح لفروق العملة لوحده.
-3. معدات اتباعت أو اتكهنت: مدفوع مقدما ومعدات، بيع أو تكهين، بالسعر (0 لو تكهين) والسبب؛ شخص تاني يوافق.
-4. مصروف الشهر ده وفاتورته جاية بعدين: قيد يومية مع عكس أول الشهر الجاي.
+1. فاتورة بالدولار أو عملة تانية: اختار العملة وسعر الفاتورة؛ وانت بتدفع اكتب المبلغ بالعملة وسعر النهارده. الفرق بيروح لفروق العملة لوحده.
+2. معدات اتباعت أو اتكهنت: مدفوع مقدما ومعدات، بيع أو تكهين، بالسعر (0 لو تكهين) والسبب؛ شخص تاني يوافق.
+3. مصروف الشهر ده وفاتورته جاية بعدين: قيد يومية مع عكس أول الشهر الجاي.
 
 **اتأكد إنها مشيت صح**
 
-- الشركاء بيبين الصافي اللي متوقعه؛ المعدات المباعة مكتوب عليها مباعة أو مكهنة ووقف إهلاكها.
+- المعدات المباعة مكتوب عليها مباعة أو مكهنة ووقف إهلاكها.
 
 **لو فيه مشكلة**
 

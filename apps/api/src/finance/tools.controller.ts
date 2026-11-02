@@ -1,22 +1,12 @@
-import { Body, Controller, Get, Param, Post, Put, Query, Res } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import {
-  DomainError,
-  linkSupplierToMerchant,
-  listPartners,
-  partnerLedger,
-  type PartnerKind,
-  payoutBankFile,
-  submitAssetDisposal,
-  updateMerchantBank,
-} from '@shiplynow/db';
+import { Body, Controller, Get, Param, Post, Put, Res } from '@nestjs/common';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { payoutBankFile, submitAssetDisposal, updateMerchantBank } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   cairoDay,
   disposeAssetSchema,
   merchantBankSchema,
   payoutNumber,
-  supplierLinkSchema,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -27,9 +17,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { submitted } from './books.controller';
 import { csv, egp } from './finance-csv';
 
-const KINDS: PartnerKind[] = ['merchant', 'supplier', 'person'];
-
-/** The payout file for the bank, merchants' bank details, equipment sold, partners. */
+/** The payout file for the bank, merchants' bank details, equipment sold. */
 @ApiTags('finance')
 @ApiBearerAuth()
 @Roles('admin', 'finance')
@@ -113,37 +101,5 @@ export class ToolsController {
     return submitted(
       await submitAssetDisposal(this.prisma, { ...body, assetId: id, actorUserId: user.sub }),
     );
-  }
-
-  @Put('suppliers/:id/merchant')
-  link(
-    @Param('id') id: string,
-    @Body(new ZodValidationPipe(supplierLinkSchema)) body: z.infer<typeof supplierLinkSchema>,
-    @CurrentUser() user: AccessTokenClaims,
-  ) {
-    return linkSupplierToMerchant(this.prisma, {
-      supplierId: id,
-      merchantId: body.merchantId,
-      actorUserId: user.sub,
-    });
-  }
-
-  @Get('partners')
-  partners() {
-    return listPartners(this.prisma);
-  }
-
-  @Get('partners/:kind/:id')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
-  partner(
-    @Param('kind') kind: string,
-    @Param('id') id: string,
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-  ) {
-    const k = KINDS.find((x) => x === kind);
-    if (!k) throw new DomainError('partner_not_found', 404);
-    return partnerLedger(this.prisma, { kind: k, id, from, to });
   }
 }

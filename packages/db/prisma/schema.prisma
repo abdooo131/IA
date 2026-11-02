@@ -282,8 +282,6 @@ model Merchant {
   bankAccountNumber     String?          @map("bank_account_number")
   iban                  String?
   beneficiaryName       String?          @map("beneficiary_name")
-  /// The same company as a supplier of ours (partner ledger)
-  supplierSelf          Supplier?        @relation("supplier_merchant")
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
 
@@ -2007,9 +2005,6 @@ model Supplier {
   accounts              LedgerAccount[]
   bills                 Bill[]
   staff                 User[]          @relation("staffing_supplier")
-  /// The same company as one of our merchants (partner ledger)
-  merchantId            String?         @unique @map("merchant_id")
-  merchant              Merchant?       @relation("supplier_merchant", fields: [merchantId], references: [id], onDelete: Restrict)
 
   @@map("suppliers")
 }

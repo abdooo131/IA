@@ -7,10 +7,7 @@ import {
   createSupplier,
   disposeAsset,
   ensureDefaultAccounts,
-  linkSupplierToMerchant,
   listFixedAssets,
-  listPartners,
-  partnerLedger,
   payBill,
   payoutBankFile,
   post,
@@ -170,8 +167,8 @@ describe('accruals', () => {
   });
 });
 
-describe('payout bank file and partner ledger', () => {
-  it('lists payouts ready for the bank and one ledger per partner', async () => {
+describe('payout bank file', () => {
+  it('lists payouts ready for the bank', async () => {
     await post(prisma, {
       kind: 'cod_collected',
       idempotencyKey: key(),
@@ -199,33 +196,5 @@ describe('payout bank file and partner ledger', () => {
     });
     file = await payoutBankFile(prisma);
     expect(file.ready[0]).toMatchObject({ beneficiary: 'Eve LLC', amountPiastres: 100_000 });
-
-    // The merchant is also a supplier of ours: one partner, one net.
-    const supplier = await createSupplier(prisma, {
-      name: 'Eve supplies',
-      defaultExpenseAccountId: (await byKey('expense:packaging')).id,
-      actorUserId: admin,
-    });
-    await recordBill(prisma, {
-      supplierId: supplier.id,
-      reference: 'E-1',
-      billDate: cairoDay(new Date()),
-      dueDate: cairoDay(new Date()),
-      netPiastres: 20_000,
-      actorUserId: admin,
-      idempotencyKey: key(),
-    });
-    await linkSupplierToMerchant(prisma, {
-      supplierId: supplier.id,
-      merchantId: f.merchant.id,
-      actorUserId: admin,
-    });
-    const partners = await listPartners(prisma);
-    const eve = partners.find((p) => p.kind === 'merchant' && p.id === f.merchant.id)!;
-    expect(eve).toMatchObject({ accounts: 2, netPiastres: -120_000 });
-    expect(partners.some((p) => p.kind === 'supplier' && p.id === supplier.id)).toBe(false);
-    const ledger = await partnerLedger(prisma, { kind: 'merchant', id: f.merchant.id });
-    expect(ledger.netPiastres).toBe(-120_000);
-    expect(ledger.lines.at(-1)!.runningPiastres).toBe(-120_000);
   });
 });

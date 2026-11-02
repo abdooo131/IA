@@ -4,7 +4,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp, resetAndSeed } from './helpers';
 
-describe('payout file, partners and merchant bank details end to end', () => {
+describe('payout file and merchant bank details end to end', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   const agent = async (email: string, password = 'demo-password-1') => {
@@ -42,8 +42,5 @@ describe('payout file, partners and merchant bank details end to end', () => {
     );
     const file = await finance.get('/finance/payouts/bank-file.csv').expect(200);
     expect(file.text).toContain('Beneficiary name');
-    const partners = await finance.get('/finance/partners').expect(200);
-    expect(Array.isArray(partners.body)).toBe(true);
-    await finance.get('/finance/partners/nobody/x').expect(404);
   });
 });
