@@ -60,8 +60,8 @@ query TransferByReference($query: String!, $after: String) {
 """
 
 TRANSFER_CREATE = """
-mutation InventoryTransferCreate($input: InventoryTransferCreateInput!) {
-  inventoryTransferCreate(input: $input) {
+mutation InventoryTransferCreate($input: InventoryTransferCreateInput!, $idempotencyKey: String!) {
+  inventoryTransferCreate(input: $input) @idempotent(key: $idempotencyKey) {
     inventoryTransfer { id status }
     userErrors { field message }
   }
@@ -332,10 +332,13 @@ def approve_po(conn, t: Tenant, po_number: str, edits: dict[str, int] | None = N
 
 
 def _find_transfer(client, po_number: str) -> dict | None:
-    """The Shopify inventory transfer whose referenceName is exactly the PO number, if any."""
+    """The Shopify inventory transfer whose referenceName is exactly the PO number, if any.
+
+    Transfers are created tagged with their PO number, so the documented `tag:` search filter finds them.
+    """
     after = None
     while True:
-        conn_ = client.graphql(TRANSFER_BY_REFERENCE, {"query": po_number, "after": after})["inventoryTransfers"]
+        conn_ = client.graphql(TRANSFER_BY_REFERENCE, {"query": f"tag:'{po_number}'", "after": after})["inventoryTransfers"]
         for n in conn_["nodes"]:
             if n.get("referenceName") == po_number:
                 return n
@@ -374,10 +377,12 @@ def push_po(conn, t: Tenant, po_number: str) -> str:
         client = shopify_client(t)
         existing = _find_transfer(client, po_number)
         if existing is None:
-            created = _payload(client.graphql(TRANSFER_CREATE, {"input": {
-                "destinationLocationId": t.main_location_id, "referenceName": po_number,
+            create_input = {
+                "destinationLocationId": t.main_location_id, "referenceName": po_number, "tags": [po_number],
                 "lineItems": [{"inventoryItemId": r["inventory_item_id"], "quantity": int(r["qty_approved"])}
-                              for r in items]}}), "inventoryTransferCreate")
+                              for r in items]}
+            created = _payload(client.graphql(TRANSFER_CREATE, {
+                "input": create_input, "idempotencyKey": f"{t.tenant_id}-{po_number}"}), "inventoryTransferCreate")
             transfer = created["inventoryTransfer"]
         else:
             transfer = existing
@@ -395,46 +400,65 @@ def push_po(conn, t: Tenant, po_number: str) -> str:
 def sync_receipts(conn, t: Tenant) -> int:
     """Read actual received quantities of pushed / partially received POs from Shopify; returns lines changed.
 
-    Positive deltas become stock_receipts rows (tenant local today, main location, source = PO number).
+    Positive deltas become stock_receipts rows (tenant local today, main location, source = PO number). Each PO
+    is its own transaction: the transfer is read first, then the PO row is locked and its state re-checked (a PO
+    cancelled meanwhile is left alone), its lines updated and committed. On any error the current PO's work is
+    rolled back and the error raised; POs already synced in this call stay committed.
     """
-    item_variant = {r["inventory_item_id"]: r["variant_id"] for r in conn.execute(
-        "SELECT inventory_item_id, variant_id FROM products WHERE tenant_id = %s AND inventory_item_id IS NOT NULL",
-        (t.tenant_id,))}
-    pos = conn.execute("SELECT po_number, transfer_id FROM purchase_orders WHERE tenant_id = %s AND state = ANY(%s)"
-                       " AND transfer_id IS NOT NULL ORDER BY po_number", (t.tenant_id, list(RECEIVING_STATES))).fetchall()
-    today, changed = _local_today(t), 0
-    for po in pos:
-        tr = fetch_transfer(t, po["transfer_id"])
-        received: dict[str, int] = defaultdict(int)
-        for li in tr["lines"]:
-            v = item_variant.get(li["inventory_item_id"])
-            if v is None:
-                log.warning("tenant %s PO %s: transfer line for unknown inventory item %s",
-                            t.tenant_id, po["po_number"], li["inventory_item_id"])
-                continue
-            received[v] += max(int(li["received"]), 0)
-        lines = conn.execute("SELECT variant_id, qty_approved, qty_received FROM po_lines"
-                             " WHERE tenant_id = %s AND po_number = %s FOR UPDATE",
-                             (t.tenant_id, po["po_number"])).fetchall()
-        for ln in lines:
-            new = received.get(ln["variant_id"], 0)
-            delta = new - ln["qty_received"]
-            if delta == 0:
-                continue
-            changed += 1
-            conn.execute("UPDATE po_lines SET qty_received = %s WHERE tenant_id = %s AND po_number = %s"
-                         " AND variant_id = %s", (new, t.tenant_id, po["po_number"], ln["variant_id"]))
-            if delta > 0:
-                conn.execute("INSERT INTO stock_receipts (tenant_id, date, variant_id, location_id, qty, source)"
-                             " VALUES (%s,%s,%s,%s,%s,%s)",
-                             (t.tenant_id, today, ln["variant_id"], t.main_location_id, delta, po["po_number"]))
-            ln["qty_received"] = new
-        got = sum(ln["qty_received"] for ln in lines)
-        complete = all(ln["qty_received"] >= (ln["qty_approved"] or 0) for ln in lines)
-        state = "received" if complete and got > 0 else "partially_received" if got > 0 else "pushed"
-        conn.execute("UPDATE purchase_orders SET state = %s WHERE tenant_id = %s AND po_number = %s",
-                     (state, t.tenant_id, po["po_number"]))
-    conn.commit()
+    try:
+        item_variant = {r["inventory_item_id"]: r["variant_id"] for r in conn.execute(
+            "SELECT inventory_item_id, variant_id FROM products WHERE tenant_id = %s AND inventory_item_id IS NOT NULL",
+            (t.tenant_id,))}
+        pos = conn.execute("SELECT po_number, transfer_id FROM purchase_orders WHERE tenant_id = %s"
+                           " AND state = ANY(%s) AND transfer_id IS NOT NULL ORDER BY po_number",
+                           (t.tenant_id, list(RECEIVING_STATES))).fetchall()
+        conn.commit()
+        today, changed = _local_today(t), 0
+        for po in pos:
+            tr = fetch_transfer(t, po["transfer_id"])
+            changed += _apply_receipt(conn, t, po["po_number"], po["transfer_id"], tr, item_variant, today)
+            conn.commit()
+        return changed
+    except Exception:
+        conn.rollback()
+        raise
+
+
+def _apply_receipt(conn, t: Tenant, po_number: str, transfer_id: str, tr: dict, item_variant: dict,
+                   today: date) -> int:
+    row = conn.execute("SELECT state, transfer_id FROM purchase_orders WHERE tenant_id = %s AND po_number = %s"
+                       " FOR UPDATE", (t.tenant_id, po_number)).fetchone()
+    if row is None or row["state"] not in RECEIVING_STATES or row["transfer_id"] != transfer_id:
+        return 0                                     # cancelled (or otherwise changed) since it was listed
+    received: dict[str, int] = defaultdict(int)
+    for li in tr["lines"]:
+        v = item_variant.get(li["inventory_item_id"])
+        if v is None:
+            log.warning("tenant %s PO %s: transfer line for unknown inventory item %s",
+                        t.tenant_id, po_number, li["inventory_item_id"])
+            continue
+        received[v] += max(int(li["received"]), 0)
+    lines = conn.execute("SELECT variant_id, qty_approved, qty_received FROM po_lines"
+                         " WHERE tenant_id = %s AND po_number = %s", (t.tenant_id, po_number)).fetchall()
+    changed = 0
+    for ln in lines:
+        new = received.get(ln["variant_id"], 0)
+        delta = new - ln["qty_received"]
+        if delta == 0:
+            continue
+        changed += 1
+        conn.execute("UPDATE po_lines SET qty_received = %s WHERE tenant_id = %s AND po_number = %s"
+                     " AND variant_id = %s", (new, t.tenant_id, po_number, ln["variant_id"]))
+        if delta > 0:
+            conn.execute("INSERT INTO stock_receipts (tenant_id, date, variant_id, location_id, qty, source)"
+                         " VALUES (%s,%s,%s,%s,%s,%s)",
+                         (t.tenant_id, today, ln["variant_id"], t.main_location_id, delta, po_number))
+        ln["qty_received"] = new
+    got = sum(ln["qty_received"] for ln in lines)
+    complete = all(ln["qty_received"] >= (ln["qty_approved"] or 0) for ln in lines)
+    state = "received" if complete and got > 0 else "partially_received" if got > 0 else "pushed"
+    conn.execute("UPDATE purchase_orders SET state = %s WHERE tenant_id = %s AND po_number = %s AND state = ANY(%s)",
+                 (state, t.tenant_id, po_number, list(RECEIVING_STATES)))
     return changed
 
 

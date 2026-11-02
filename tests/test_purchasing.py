@@ -292,7 +292,10 @@ def test_push_idempotent(conn, tenant_a, fakes):
     assert tid == "gid://shopify/InventoryTransfer/900"
     assert [c[0] for c in fakes.shopify.calls] == [
         "TransferByReference", "InventoryTransferCreate", "InventoryTransferMarkReady"]
+    assert fakes.shopify.calls[0][1]["query"] == "tag:'APO1'"
+    assert created[0]["idempotencyKey"] == f"{t.tenant_id}-APO1"
     inp = created[0]["input"]
+    assert inp["tags"] == ["APO1"]
     assert "originLocationId" not in inp
     assert inp["destinationLocationId"] == t.main_location_id and inp["referenceName"] == "APO1"
     assert inp["lineItems"] == [{"inventoryItemId": ITEM(1101), "quantity": 10},
@@ -420,6 +423,45 @@ def test_received_qty_from_shopify(conn, tenant_a, tenant_b, fakes):
     assert sum(r[1] for r in _receipts(conn, t)) == 25
     assert [c[1]["id"] for c in fakes.shopify.calls] == ["gid://shopify/InventoryTransfer/55"] * 2
     assert lines(conn, tenant_b, "BPO1")["V1"]["qty_received"] == 0
+
+
+def test_sync_leaves_cancelled_po_alone(conn, tenant_a, fakes):
+    t = tenant_a
+    product(conn, t, "P1", "S1", [("V1", "S", 1101), ("V2", "M", 1102)])
+    make_po(conn, t, "APO1", "pushed", {"V1": (20, 20, 0), "V2": (10, 10, 0)},
+            transfer_id="gid://shopify/InventoryTransfer/55")
+
+    def cancelled_meanwhile(v):                                  # another session cancels while Shopify is read
+        with db.connect(TEST_URL) as other:
+            other.execute("UPDATE purchase_orders SET state = 'cancelled' WHERE tenant_id = %s", (t.tenant_id,))
+        return _transfer([(1101, 20, 12), (1102, 10, 0)])
+
+    fakes.shopify.respond("InventoryTransferById", cancelled_meanwhile)
+    assert purchasing.sync_receipts(conn, t) == 0
+    assert po_row(conn, t, "APO1")["state"] == "cancelled"
+    assert lines(conn, t, "APO1")["V1"]["qty_received"] == 0 and _receipts(conn, t) == []
+
+
+def test_sync_failure_rolls_back(conn, tenant_a, fakes):
+    t = tenant_a
+    product(conn, t, "P1", "S1", [("V1", "S", 1101), ("V2", "M", 1102)])
+    make_po(conn, t, "APO1", "pushed", {"V1": (20, 20, 0)}, transfer_id="gid://shopify/InventoryTransfer/55")
+    make_po(conn, t, "APO2", "pushed", {"V2": (10, 10, 0)}, transfer_id="gid://shopify/InventoryTransfer/56")
+
+    def fetch(v):
+        if v["id"].endswith("/56"):
+            raise RuntimeError("Shopify down")
+        return _transfer([(1101, 20, 20)])
+
+    fakes.shopify.respond("InventoryTransferById", fetch)
+    with pytest.raises(RuntimeError, match="Shopify down"):
+        purchasing.sync_receipts(conn, t)
+    assert conn.info.transaction_status.name == "IDLE"           # no open transaction, no locks held
+    with db.connect(TEST_URL) as other:                          # APO1 committed before APO2 failed
+        st = {r["po_number"]: r["state"] for r in other.execute(
+            "SELECT po_number, state FROM purchase_orders WHERE tenant_id = %s", (t.tenant_id,))}
+    assert st == {"APO1": "received", "APO2": "pushed"}
+    assert lines(conn, t, "APO2")["V2"]["qty_received"] == 0
 
 
 def test_restock_lift(conn, tenant_a):
