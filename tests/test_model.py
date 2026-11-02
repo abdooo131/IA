@@ -62,6 +62,33 @@ def test_single_price_inherits_e():
     assert p.cr_ref == pytest.approx(TRUE["cr_ref"], rel=0.1)   # still fitted from own data
 
 
+def test_one_list_price_with_discount_jitter_inherits_e():
+    df = synthetic_panel(n=80, prices=(500,))
+    df["price"] = 500 * (1 - np.random.default_rng(3).uniform(0, 0.02, len(df)))
+    parent = DemandParams("style", 5000, 400, 0.03, -2.0, {}, False, False, ref_price=500, mean_level=6000)
+    p = model.fit_entity(df, parent)
+    assert p.e == -2.0 and "inherited_e" in p.flags and "e_clipped" not in p.flags
+    assert model._price_levels(np.array([500, 495, 491, 450, 400, 401.0])) == 3
+
+
+def test_partial_periods_do_not_bias_the_level_fit():
+    full = synthetic_panel(n=40)
+    full["n_days"], full["period_days"], full["views_days"] = 7, 7, 7
+    part = full.copy()
+    for i, keep in ((0, 3), (len(part) - 1, 1)):                 # first and current periods partly observed
+        for c in ("views", "units", "revenue", "spend", "adstock"):
+            part.loc[i, c] = part.loc[i, c] * keep / 7
+        part.loc[i, ["n_days", "views_days"]] = keep
+    ref = model.fit_entity(full.iloc[1:-1])
+    p = model.fit_entity(part)
+    assert p.baseline_v == pytest.approx(ref.baseline_v) and p.a == pytest.approx(ref.a)
+    assert p.n_periods == 40 and "partial_periods" not in p.flags
+    gap = full.copy()
+    gap.loc[5, "views_days"] = 2                                 # views cover only 2 of 7 data days
+    gap.loc[5, "views"] = gap.loc[5, "views"] * 2 / 7
+    assert model.fit_entity(gap).cr_ref == pytest.approx(model.fit_entity(full.drop(index=5)).cr_ref)
+
+
 def test_few_periods_inherit_a_and_e_scaled_but_fit_own_baseline():
     df = synthetic_panel(n=8)
     up = 5000 / df.views.mean()        # parent is a bigger entity with the same relative response

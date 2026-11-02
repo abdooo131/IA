@@ -198,3 +198,38 @@ def test_size_curve_skips_replaced_variants(conn, tenant_a):
     assert aggregate.size_curve(conn, tenant_a, STYLE) == pytest.approx({"S": 0.5, "M": 0.5})
     panel = aggregate.build_panel(conn, tenant_a, "month", "product")
     assert list(panel.entity_id) == [P1] and panel.units.iloc[0] == 40
+
+
+def test_landing_history_survives_once_pixel_has_60_days(conn, tenant_a):
+    seed_style(conn, tenant_a, ["S"])
+    t = tenant_a.tenant_id
+    start = date(2025, 6, 2)                                    # Monday
+    for d in days(start, 30):                                   # landing: 30 days
+        conn.execute("INSERT INTO landing_sessions (tenant_id, date, handle, sessions) VALUES (%s,%s,%s,10)",
+                     (t, d, "dress-black"))
+    for d in days(start + timedelta(days=20), 60):              # pixel: 60 days, overlap 10 -> share 0.25
+        conn.execute("INSERT INTO funnel_daily (tenant_id, date, product_id, views) VALUES (%s,%s,%s,40)",
+                     (t, d, P1))
+    conn.commit()
+    p = aggregate.build_panel(conn, tenant_a, "day", "product").set_index("period_start")
+    assert p.loc[start, "views"] == pytest.approx(40) and p.loc[start, "views_estimated"]
+    assert p.loc[start + timedelta(days=19), "views_estimated"]
+    later = start + timedelta(days=25)
+    assert p.loc[later, "views"] == 40 and not p.loc[later, "views_estimated"]
+    w = aggregate.build_panel(conn, tenant_a, "week", "product").set_index("period_start")
+    assert w.loc[start, "views"] == pytest.approx(280) and w.loc[start, "views_estimated"]
+    straddle = start + timedelta(days=14)                       # pixel starts mid week: landing covers it all
+    assert w.loc[straddle, "views"] == pytest.approx(280) and w.loc[straddle, "views_estimated"]
+    assert w.loc[start + timedelta(days=21), "views"] == 280 and not w.loc[start + timedelta(days=21), "views_estimated"]
+    assert (w["views_days"] == w["n_days"]).all()
+
+
+def test_period_coverage_columns(conn, tenant_a):
+    v = seed_style(conn, tenant_a, ["S"])
+    sell(conn, tenant_a, v["S"], date(2025, 6, 20), 1)
+    sell(conn, tenant_a, v["S"], date(2025, 8, 3), 1)
+    conn.commit()
+    p = aggregate.build_panel(conn, tenant_a, "month", "product").set_index("period_start")
+    assert list(p["period_days"]) == [30, 31, 31]
+    assert list(p["n_days"]) == [11, 31, 3]                     # first and current periods are partial
+    assert (p["views_days"] == 0).all()

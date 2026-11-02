@@ -22,12 +22,12 @@ DECAY = {"day": 0.6, "week": 0.3, "month": 0.1}
 FLAGS = ("payday", "white_friday_week", "ramadan", "eid_al_fitr", "eid_al_adha", "promo")
 STORE_ENTITY = "__store__"
 OTHER_PRODUCT = "__other__"      # sales/spend/views not tied to a known product (pool, deleted variants): store only
-PIXEL_MIN_DAYS = 56              # 8 weeks of pixel data before pixel views replace landing sessions
+PIXEL_MIN_DAYS = 56              # 8 weeks of pixel data before pixel views replace landing sessions (per period)
 REF_PRICE_DAYS = 180
 FULL_AVAILABILITY = 0.8
 PANEL_COLUMNS = ["entity_id", "period_start", "views", "views_estimated", "units", "revenue", "cost",
                  "missing_cost", "price", "ref_price", "spend", "impressions", "adstock", "size_availability",
-                 "no_stock_data", *FLAGS, "n_days"]
+                 "no_stock_data", *FLAGS, "n_days", "period_days", "views_days"]
 
 # Calendar data (not store data): Gregorian first days as observed in Egypt; moon sighting may shift them a day.
 # year: (first day of Ramadan, first day of Eid al Fitr, first day of Eid al Adha)
@@ -65,6 +65,16 @@ def period_start(d: date, grain: str) -> date:
     if grain == "month":
         return d.replace(day=1)
     raise ValueError(f"unknown grain {grain!r}")
+
+
+def _period_days(start: date, grain: str) -> int:
+    """Calendar length of the period starting at `start`."""
+    if grain == "day":
+        return 1
+    if grain == "week":
+        return 7
+    nxt = (start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return (nxt - start).days
 
 
 def _last_friday_of_november(year: int) -> date:
@@ -211,23 +221,23 @@ class TenantData:
         return df.groupby(["date", "product_id"], as_index=False)["views"].sum()
 
     def _views_source(self) -> None:
-        """Pixel views once there are 8 weeks of them; else landing sessions / landing share; else none."""
-        pixel_days = self.pixel["date"].nunique()
+        """Two views sources, stitched per period in panel(): pixel views and landing sessions / landing share.
+
+        pixel_ready: the pixel has >= 8 weeks of days, so periods inside the pixel window use pixel views and
+        earlier periods landing views. Before that, landing views wherever they exist (pixel only when the
+        tenant has no landing data at all).
+        """
+        self.pixel_ready = self.pixel["date"].nunique() >= PIXEL_MIN_DAYS
         self.landing_share = 1.0
-        if pixel_days >= PIXEL_MIN_DAYS or (pixel_days and self.landing.empty):
-            self.views_source, views = "pixel", self.pixel
-        elif not self.landing.empty:
-            self.views_source = "landing"
-            pix_day = self.pixel.groupby("date")["views"].sum()
-            land_day = self.landing_raw.groupby("date")["sessions"].sum()
-            both = pix_day.index.intersection(land_day.index)
-            if len(both) and pix_day[both].sum() > 0 and land_day[both].sum() > 0:
-                self.landing_share = float(land_day[both].sum() / pix_day[both].sum())
-            views = self.landing.assign(views=self.landing["views"] / self.landing_share)
-        else:
-            self.views_source, views = None, self.pixel.iloc[0:0]
-        self.views = views
-        self.views_window = (views["date"].min(), views["date"].max()) if len(views) else None
+        pix_day = self.pixel.groupby("date")["views"].sum()
+        land_day = self.landing_raw.groupby("date")["sessions"].sum()
+        both = pix_day.index.intersection(land_day.index)
+        if len(both) and pix_day[both].sum() > 0 and land_day[both].sum() > 0:
+            self.landing_share = float(land_day[both].sum() / pix_day[both].sum())
+        self.landing_views = self.landing.assign(views=self.landing["views"] / self.landing_share)
+        self.views = pd.concat([self.pixel, self.landing_views]) if len(self.landing_views) else self.pixel
+        win = lambda df: (df["date"].min(), df["date"].max()) if len(df) else None  # noqa: E731
+        self.pixel_window, self.landing_window = win(self.pixel), win(self.landing_views)
 
     def date_range(self) -> pd.DatetimeIndex:
         dates = [df["date"] for df in (self.sales, self.spend, self.views) if len(df)]
@@ -326,13 +336,15 @@ class TenantData:
         sp = self.spend.groupby(["product_id", "date"])
         d["spend"] = sp["spend"].sum().reindex(idx, fill_value=0.0)
         d["impressions"] = sp["impressions"].sum().reindex(idx, fill_value=0.0)
-        views = self.views.groupby(["product_id", "date"])["views"].sum().reindex(idx, fill_value=0.0)
-        if self.views_window is None:
-            views[:] = np.nan
-        else:
-            dts = views.index.get_level_values("date")
-            views[(dts < self.views_window[0]) | (dts > self.views_window[1])] = np.nan
-        d["views"] = views
+        dts = idx.get_level_values("date")
+        for col, src, window in (("views_pixel", self.pixel, self.pixel_window),
+                                 ("views_landing", self.landing_views, self.landing_window)):
+            v = src.groupby(["product_id", "date"])["views"].sum().reindex(idx, fill_value=0.0)
+            if window is None:
+                v[:] = np.nan
+            else:
+                v[(dts < window[0]) | (dts > window[1])] = np.nan     # outside the source's window: unknown
+            d[col] = v
         avail, no_stock = self._availability(days)
         long = avail.rename_axis(index="date", columns="product_id").stack()
         d["size_availability"] = long.swaplevel().reindex(idx) if len(long) else np.nan   # OTHER_PRODUCT: NaN
@@ -393,11 +405,13 @@ class TenantData:
         e = d.groupby(["entity_id", "date"]).agg(
             units=("units", "sum"), revenue=("revenue", "sum"), cost=("cost", "sum"),
             missing_cost=("missing_cost", "any"), spend=("spend", "sum"), impressions=("impressions", "sum"),
-            views=("views", lambda x: x.sum(min_count=1)), wa=("wa", "sum"), w=("w", "sum"),
+            views_pixel=("views_pixel", lambda x: x.sum(min_count=1)),
+            views_landing=("views_landing", lambda x: x.sum(min_count=1)), wa=("wa", "sum"), w=("w", "sum"),
             no_stock_data=("no_stock_data", "all"))
         e["size_availability"] = np.where(e["w"] > 0, e["wa"] / e["w"].where(e["w"] > 0, 1.0), 1.0)
         e = e.reset_index()
-        active = (e["units"] != 0) | (e["spend"] > 0) | (e["views"].fillna(0) > 0)
+        active = ((e["units"] != 0) | (e["spend"] > 0) | (e["views_pixel"].fillna(0) > 0)
+                  | (e["views_landing"].fillna(0) > 0))
         first = e[active].groupby("entity_id")["date"].min()
         e = e[e["entity_id"].isin(first.index)]
         e = e[e["date"] >= e["entity_id"].map(first)]
@@ -408,12 +422,16 @@ class TenantData:
         e["period_start"] = [period_start(x.date(), grain) for x in e["date"]]
         e["n_days"] = 1
         agg = {"units": "sum", "revenue": "sum", "cost": "sum", "missing_cost": "any", "spend": "sum",
-               "impressions": "sum", "views": lambda x: x.sum(min_count=1), "size_availability": "mean",
-               "no_stock_data": "all", "n_days": "sum"}
+               "impressions": "sum", "size_availability": "mean", "no_stock_data": "all", "n_days": "sum",
+               "views_pixel": lambda x: x.sum(min_count=1), "views_landing": lambda x: x.sum(min_count=1),
+               "pixel_days": "sum", "landing_days": "sum"}
+        e["pixel_days"] = e["views_pixel"].notna().astype(int)
+        e["landing_days"] = e["views_landing"].notna().astype(int)
         out = e.groupby(["entity_id", "period_start"]).agg(agg).reset_index()
+        out = self._stitch_views(out)
+        out["period_days"] = [_period_days(p, grain) for p in out["period_start"]]
         out = out.join(self._period_flags(days[0].date(), days[-1].date(), grain), on="period_start")
         out["cost"] = out["cost"].where(~out["missing_cost"])
-        out["views_estimated"] = (self.views_source == "landing") & out["views"].notna()
 
         ref = self._ref_prices(mapping, days[-1])
         out["ref_price"] = out["entity_id"].map(ref).astype(float)
@@ -424,6 +442,22 @@ class TenantData:
         out["adstock"] = out.groupby("entity_id")["spend"].transform(
             lambda x: pd.Series(adstock(x, DECAY[grain]), index=x.index))
         return out[PANEL_COLUMNS]
+
+    def _stitch_views(self, out: pd.DataFrame) -> pd.DataFrame:
+        """Choose one views source per period: pixel inside its window once pixel_ready, landing before."""
+        has_p, has_l = out["views_pixel"].notna(), out["views_landing"].notna()
+        if self.pixel_ready:
+            in_pixel = pd.Series([p >= self.pixel_window[0].date() for p in out["period_start"]], index=out.index)
+            use_p = has_p & (in_pixel | ~has_l)
+        elif self.landing_window is None:
+            use_p = has_p
+        else:
+            use_p = pd.Series(False, index=out.index)
+        use_l = ~use_p & has_l
+        out["views"] = np.where(use_p, out["views_pixel"], np.where(use_l, out["views_landing"], np.nan))
+        out["views_days"] = np.where(use_p, out["pixel_days"], np.where(use_l, out["landing_days"], 0))
+        out["views_estimated"] = use_l
+        return out
 
     def _period_flags(self, first: date, last: date, grain: str) -> pd.DataFrame:
         """Fraction of the calendar days of each period that carry each flag (whole periods, not just data days)."""
@@ -452,7 +486,9 @@ class TenantData:
 def build_panel(conn, t: Tenant, grain: str, level: str) -> pd.DataFrame:
     """One row per entity and period, from the entity's first activity to the tenant's last data date.
 
-    Columns: PANEL_COLUMNS. views is NaN when no views source covers the period; cost is NaN (missing_cost)
+    Columns: PANEL_COLUMNS. views come per period from the pixel inside its window once it has 8 weeks of
+    days, else from landing sessions / landing_share (views_estimated); NaN when no source covers the period.
+    n_days = data days, period_days = calendar days, views_days = days the chosen views source covers; cost is NaN (missing_cost)
     when any sold variant lacks a unit cost; size_availability is 1.0 with no_stock_data when the products
     have no stock records; flags are the fraction of days in the period carrying the flag.
     """

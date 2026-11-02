@@ -23,6 +23,7 @@ MIN_PERIODS = 12          # usable periods needed to fit a, seasonal and e from 
 MIN_PRICE_LEVELS = 3      # distinct (rounded) prices needed to fit e
 MIN_PERIODS_NO_PARENT = 3  # below this a store level fit keeps a = 0
 E_MIN, E_MAX = -6.0, 0.0
+PRICE_LEVEL_GAP = math.log(1.05)  # prices closer than 5% (discount jitter) are one price level
 
 
 @dataclass
@@ -78,6 +79,26 @@ def _season(p: DemandParams, flags) -> float:
 
 # ---------------------------------------------------------------- fitting
 
+def _price_levels(prices: np.ndarray) -> int:
+    """Distinct price levels: sorted ln(price) split wherever neighbours are >= 5% apart."""
+    lp = np.sort(np.log(prices[np.isfinite(prices) & (prices > 0)]))
+    return int(len(lp) > 0) + int(np.sum(np.diff(lp) >= PRICE_LEVEL_GAP))
+
+
+def _complete(df: pd.DataFrame) -> pd.Series:
+    """Rows whose data covers the whole calendar period (panels carry n_days / period_days)."""
+    if "n_days" in df and "period_days" in df:
+        return (df["n_days"].astype(float) >= df["period_days"].astype(float)).fillna(False)
+    return pd.Series(True, index=df.index)
+
+
+def _views_cover(df: pd.DataFrame, of: str) -> pd.Series:
+    """Rows whose views cover every day of `of` (n_days: the data days; period_days: the whole period)."""
+    if "views_days" in df and of in df:
+        return (df["views_days"].astype(float) >= df[of].astype(float)).fillna(False)
+    return pd.Series(True, index=df.index)
+
+
 def _fit_level(df: pd.DataFrame, y: np.ndarray, parent: DemandParams | None, flags: list[str]):
     """baseline + a * ln(1 + adstock) + seasonal on the rows of df (y aligned). Returns baseline, a, seasonal, mean."""
     seasonal = dict.fromkeys(FLAGS, 0.0)
@@ -125,7 +146,7 @@ def _fit_conversion(df: pd.DataFrame, parent: DemandParams | None, flags: list[s
     ok = (av >= FULL_AVAILABILITY) & (v > 0) & (u > 0)
     ratio = np.array([_price_ratio(p, r) for p, r in zip(price, ref)])
     valid_price = np.isfinite(price) & (price > 0) & np.isfinite(ref) & (ref > 0)
-    levels = len(set(np.round(price[ok & valid_price])))
+    levels = _price_levels(price[ok & valid_price])
     x = np.log(ratio[ok])
     if ok.sum() >= MIN_PERIODS and levels >= MIN_PRICE_LEVELS and np.ptp(x) > 0:
         y = np.log(u[ok] / (v[ok] * av[ok]))
@@ -162,14 +183,23 @@ def fit_entity(df: pd.DataFrame, parent: DemandParams | None = None) -> DemandPa
     ref = df["ref_price"].dropna()
     ref_price = _num(ref.iloc[-1], 0.0) if len(ref) else None
     views = pd.to_numeric(df["views"], errors="coerce")
+    complete = _complete(df)
     if views.notna().any():
-        rows = df[views.notna()].assign(views=views[views.notna()])
+        df = df.assign(views=views)
+        has = views.notna()
+        rows = df[has & complete & _views_cover(df, "period_days")]     # partial periods would bias the level
+        if rows.empty:
+            rows = df[has]
+            flags.append("partial_periods")
         baseline, a, seasonal, mean = _fit_level(rows, rows["views"].to_numpy(float), parent, flags)
-        e, cr_ref = _fit_conversion(rows, parent, flags)
+        e, cr_ref = _fit_conversion(df[has & _views_cover(df, "n_days")], parent, flags)   # same days for both
         fallback = False
     else:
         av = df["size_availability"].astype(float)
-        rows = df[av >= FULL_AVAILABILITY]
+        rows = df[(av >= FULL_AVAILABILITY) & complete]
+        if rows.empty:
+            rows = df[av >= FULL_AVAILABILITY]
+            flags.append("partial_periods")
         if rows.empty:
             rows = df[av > 0]
         y = (rows["units"].astype(float) / rows["size_availability"].astype(float)).to_numpy()
