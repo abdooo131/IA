@@ -46,8 +46,13 @@ def _entity_map(conn, t: Tenant, level: str) -> dict[str, str]:
     raise ValueError(f"level must be 'product' or 'style', got {level!r}")
 
 
-def _is_meta_source(source: str | None) -> bool:
+def is_meta_source(source: str | None) -> bool:
     return bool(source) and _META_SOURCE.match(source.strip().lower()) is not None
+
+
+def is_meta_order(utm_source: str | None, utm_content: str | None, ad_ids) -> bool:
+    """The Meta attribution rule: utm_source is facebook|fb|instagram|ig|meta, or utm_content is a tenant ad id."""
+    return is_meta_source(utm_source) or (utm_content in ad_ids if utm_content else False)
 
 
 # ---------------------------------------------------------------- first orders
@@ -68,7 +73,7 @@ def first_orders(conn, t: Tenant) -> pd.DataFrame:
         "SELECT DISTINCT ad_id FROM ad_spend_daily WHERE tenant_id = %(tenant_id)s", p)}
     out = pd.DataFrame(
         [{"customer_key": r["customer_key"], "order_id": r["order_id"], "date": r["date"],
-          "meta": _is_meta_source(r["utm_source"]) or (r["utm_content"] in ads if r["utm_content"] else False)}
+          "meta": is_meta_order(r["utm_source"], r["utm_content"], ads)}
          for r in rows], columns=["customer_key", "order_id", "date", "meta"])
     return out.sort_values(["date", "order_id"]).reset_index(drop=True)
 
