@@ -5,6 +5,7 @@ import { DateInput } from '@/components/DateInput';
 import { Amount } from '@/components/finance/Amount';
 import { apiGet } from '@/lib/api-server';
 import type { CostPerOrderRow, ProfitRow } from '@/lib/finance-types';
+import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,6 +41,7 @@ export default async function FinanceProfitPage({
   const money = (v: number | null) => (v === null ? '–' : <Amount piastres={v} />);
   return (
     <>
+      <FinanceTabs family="reports" />
       <h1 className="text-h2">{t('title')}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
       <form className="mt-4 flex flex-wrap items-end gap-3" method="get">

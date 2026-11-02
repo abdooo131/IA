@@ -387,7 +387,17 @@
       },
       "addMerchantOverride": "قيمة مختلفة لتاجر",
       "chooseMerchant": "اختار تاجر",
-      "unitEgp": "جنيه"
+      "unitEgp": "جنيه",
+      "tabs": {
+        "delivery": "التوصيل والمواعيد",
+        "fees": "الرسوم",
+        "payroll": "المرتبات والضرائب",
+        "money": "ضوابط المال",
+        "stock": "المخزون والتزويد",
+        "customers": "العملاء",
+        "tickets": "التذاكر",
+        "other": "أخرى"
+      }
     },
     "audit": {
       "title": "سجل التغييرات",
@@ -742,7 +752,11 @@
       "stores": "المخازن",
       "merchants": "التجار",
       "system": "النظام",
-      "books": "الدفاتر"
+      "books": "الدفاتر",
+      "today": "اليوم",
+      "warehouse": "المخازن",
+      "insights": "التحليلات",
+      "setup": "الإعداد"
     },
     "locations": {
       "title": "المخازن ومراكز الفرز",
@@ -1424,7 +1438,19 @@
       "invoices": "الفواتير الضريبية",
       "company": "بيانات الشركة الضريبية",
       "taxReturns": "الإقرارات الضريبية",
-      "statements": "القوائم المالية"
+      "statements": "مقارنة الفترات",
+      "groups": {
+        "today": "اليوم",
+        "merchants": "التجار",
+        "spending": "المصروفات",
+        "people": "العاملون",
+        "taxesReports": "الضرائب والتقارير",
+        "setup": "الإعداد"
+      },
+      "reports": "التقارير",
+      "closing": "الإقفال",
+      "taxesOwed": "المستحق والسداد",
+      "closeMonth": "إقفال شهر"
     },
     "kinds": {
       "cod_collected": "تحصيل عند الاستلام",

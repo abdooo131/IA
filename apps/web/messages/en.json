@@ -387,7 +387,17 @@
       },
       "addMerchantOverride": "Different value for a merchant",
       "chooseMerchant": "Choose a merchant",
-      "unitEgp": "EGP"
+      "unitEgp": "EGP",
+      "tabs": {
+        "delivery": "Delivery and SLA",
+        "fees": "Fees",
+        "payroll": "Salaries and tax",
+        "money": "Money controls",
+        "stock": "Stock and refill",
+        "customers": "Customers",
+        "tickets": "Tickets",
+        "other": "Other"
+      }
     },
     "audit": {
       "title": "Audit log",
@@ -742,7 +752,11 @@
       "stores": "Dark stores",
       "merchants": "Merchants",
       "system": "System",
-      "books": "Books"
+      "books": "Books",
+      "today": "Today",
+      "warehouse": "Warehouse",
+      "insights": "Insights",
+      "setup": "Setup"
     },
     "locations": {
       "title": "Dark stores and hubs",
@@ -1424,7 +1438,19 @@
       "invoices": "Tax invoices",
       "company": "Company tax details",
       "taxReturns": "Tax returns",
-      "statements": "Financial statements"
+      "statements": "Compare periods",
+      "groups": {
+        "today": "Today",
+        "merchants": "Merchants",
+        "spending": "Spending",
+        "people": "People",
+        "taxesReports": "Taxes and reports",
+        "setup": "Setup"
+      },
+      "reports": "Reports",
+      "closing": "Closing",
+      "taxesOwed": "Owed and pay",
+      "closeMonth": "Close a month"
     },
     "kinds": {
       "cod_collected": "COD collected",

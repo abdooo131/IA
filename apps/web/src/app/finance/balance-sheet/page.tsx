@@ -4,6 +4,7 @@ import { ReportTable } from '@/components/finance/ReportTable';
 import { apiGet } from '@/lib/api-server';
 import type { BalanceSheet } from '@/lib/finance-types';
 import { DateInput } from '@/components/DateInput';
+import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -26,6 +27,7 @@ export default async function BalanceSheetPage({
   const field = 'mt-1 block h-10 rounded-md border border-line bg-surface px-2 text-body-sm';
   return (
     <>
+      <FinanceTabs family="reports" />
       <h1 className="text-h2">{t('bsTitle')}</h1>
       <p className="mt-1 text-body-sm text-text-muted">{t('bsIntro')}</p>
       <form className="mt-4 flex flex-wrap items-end gap-3" method="get">

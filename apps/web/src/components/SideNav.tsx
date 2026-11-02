@@ -12,15 +12,23 @@ export interface NavItem {
   icon: IconName;
   /** Matches only this exact path (area home pages). */
   exact?: boolean;
+  /** Other pages shown as tabs of this one; the link stays highlighted on them. */
+  also?: string[];
   badge?: number;
 }
 export interface NavGroup {
   label?: string;
+  /** Never folds (the day to day links). */
+  alwaysOpen?: boolean;
   items: NavItem[];
 }
 
+const under = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
+
 function isActive(item: NavItem, pathname: string) {
-  return item.exact ? pathname === item.href : pathname.startsWith(item.href);
+  if (item.exact) return pathname === item.href;
+  return under(pathname, item.href) || (item.also ?? []).some((h) => under(pathname, h));
 }
 
 const OPEN_KEY = 'shiply_nav_open';
@@ -55,18 +63,19 @@ function Links({ groups, onPick }: { groups: NavGroup[]; onPick?: () => void }) 
     <nav className="flex-1 overflow-y-auto px-3 py-2">
       {groups.map((group, g) => {
         const current = group.items.some((item) => isActive(item, pathname));
-        const open = !group.label || current || opened.includes(group.label);
+        const fixed = !group.label || group.alwaysOpen;
+        const open = fixed || current || opened.includes(group.label!);
         return (
           <div key={group.label ?? g} className="mb-2">
             {group.label && (
               <button
                 type="button"
-                onClick={() => !current && toggle(group.label!)}
+                onClick={() => !current && !fixed && toggle(group.label!)}
                 aria-expanded={open}
                 className="flex w-full items-center justify-between rounded-md px-3 pb-1 pt-2 text-label uppercase text-text-muted hover:text-text"
               >
                 {group.label}
-                {!current && (
+                {!current && !fixed && (
                   <span
                     aria-hidden="true"
                     className={`transition-transform ${open ? 'rotate-90' : ''}`}

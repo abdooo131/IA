@@ -7,6 +7,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   const t = await getTranslations('admin');
   const groups: NavGroup[] = [
     {
+      label: t('navGroups.today'),
+      alwaysOpen: true,
       items: [
         { href: '/admin', label: t('nav.overview'), icon: 'home', exact: true },
         { href: '/admin/orders', label: t('nav.orders'), icon: 'orders' },
@@ -14,11 +16,8 @@ export default async function AdminLayout({ children }: { children: ReactNode })
       ],
     },
     {
-      label: t('navGroups.stores'),
+      label: t('navGroups.warehouse'),
       items: [
-        { href: '/admin/stores', label: t('nav.stores'), icon: 'store' },
-        { href: '/admin/zones', label: t('nav.zones'), icon: 'route' },
-        { href: '/admin/addresses', label: t('nav.addresses'), icon: 'tracking' },
         { href: '/admin/stock', label: t('nav.stock'), icon: 'inventory' },
         { href: '/admin/shipments', label: t('nav.shipments'), icon: 'pickups' },
         { href: '/admin/transfers', label: t('nav.transfers'), icon: 'route' },
@@ -33,14 +32,24 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         { href: '/admin/merchants', label: t('nav.merchants'), icon: 'customers' },
         { href: '/admin/products', label: t('nav.products'), icon: 'products' },
         { href: '/admin/shopify', label: t('nav.shopify'), icon: 'store' },
+      ],
+    },
+    {
+      label: t('navGroups.insights'),
+      items: [
         { href: '/admin/customers', label: t('nav.customers'), icon: 'customers' },
         { href: '/admin/data', label: t('nav.data'), icon: 'analytics' },
       ],
     },
     {
-      label: t('navGroups.system'),
+      items: [{ href: '/finance', label: t('nav.finance'), icon: 'wallet' }],
+    },
+    {
+      label: t('navGroups.setup'),
       items: [
-        { href: '/finance', label: t('nav.finance'), icon: 'wallet' },
+        { href: '/admin/stores', label: t('nav.stores'), icon: 'store' },
+        { href: '/admin/zones', label: t('nav.zones'), icon: 'route' },
+        { href: '/admin/addresses', label: t('nav.addresses'), icon: 'tracking' },
         { href: '/admin/users', label: t('nav.users'), icon: 'account' },
         { href: '/admin/settings', label: t('nav.settings'), icon: 'settings' },
         { href: '/admin/audit', label: t('nav.audit'), icon: 'invoice' },

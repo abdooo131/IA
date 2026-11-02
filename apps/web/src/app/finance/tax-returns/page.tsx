@@ -6,6 +6,7 @@ import { CorporateTaxForm } from '@/components/finance/CorporateTaxForm';
 import { PrintButton } from '@/components/finance/PrintButton';
 import { apiGet } from '@/lib/api-server';
 import type { CorporateTax, PayrollForms, VatReturn, WithholdingRow } from '@/lib/finance-types';
+import { FinanceTabs } from '@/components/finance/FinanceTabs';
 
 export const dynamic = 'force-dynamic';
 
@@ -88,6 +89,7 @@ export default async function TaxReturnsPage({
   const totalWht = wht.reduce((s, r) => s + r.whtPiastres, 0);
   return (
     <>
+      <FinanceTabs family="taxes" />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-h2">{t('title')}</h1>
         <PrintButton />
