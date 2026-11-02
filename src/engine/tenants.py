@@ -54,11 +54,12 @@ _TOKEN_PATTERNS = (
 )
 
 
-def redact(text, t: "Tenant | None" = None) -> str:
+def redact(text, t: "Tenant | None" = None, env_names=()) -> str:
     """text with access tokens removed: access_token=..., Bearer ..., token shaped strings, and the actual values
-    of the tenant's token env vars (and every other set env var whose name ends in _TOKEN)."""
+    of the tenant's token env vars, of env_names (token env vars of a tenant not built yet), and of every other
+    set env var whose name ends in TOKEN."""
     s = str(text)
-    names = {n for n in os.environ if n.upper().endswith("TOKEN")}
+    names = {n for n in os.environ if n.upper().endswith("TOKEN")} | set(env_names)
     if t is not None:
         names |= {t.shopify_token_env, t.meta_token_env}
     for n in names:
@@ -140,6 +141,7 @@ class MetaClient:
 
     def __init__(self, t: Tenant):
         self._token_env = t.meta_token_env
+        self._t = t
 
     def get(self, path: str, params: dict | None = None) -> dict:
         token = _token(self._token_env)
@@ -158,9 +160,9 @@ class MetaClient:
                 _sleep(_backoff(attempt))
                 continue
             if err:
-                raise MetaError(redact(f"Meta API error on {path}: code {code}: {err.get('message')}"))
+                raise MetaError(redact(f"Meta API error on {path}: code {code}: {err.get('message')}", self._t))
             if status >= 400:
-                raise MetaError(redact(f"Meta API HTTP {status} on {path}"))
+                raise MetaError(redact(f"Meta API HTTP {status} on {path}", self._t))
             return body
         raise MetaError(f"Meta API {path}: retries exhausted")
 

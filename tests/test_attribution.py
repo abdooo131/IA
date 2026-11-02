@@ -259,3 +259,86 @@ def test_product_shares_split_old_multi_colour_product():
     df = pd.DataFrame({"product_id": ["old", "x"], "spend": [10.0, 4.0]})
     out = rekey_products(df, {"old": {"a": 0.5, "b": 0.5}}, ["spend"])
     assert sorted(zip(out["product_id"], out["spend"])) == [("a", 5.0), ("b", 5.0), ("x", 4.0)]
+
+
+P_PART, P_NEW = pid(30), pid(40)
+V_PART = [vid(301 + i) for i in range(5)]
+V_NEW = vid(401)
+SPLIT_DAY = date(2025, 7, 15)          # local creation day of P_NEW = the lineage effective date
+
+
+def seed_partly_replaced(conn, t):
+    """P_PART has 5 variants; only the last is replaced by P_NEW (created on SPLIT_DAY), the rest stay on P_PART."""
+    from engine import lineage
+    for i, v in enumerate(V_PART):
+        conn.execute("INSERT INTO products (tenant_id, variant_id, product_id, handle, title, colour, size, status,"
+                     " created_at) VALUES (%s,%s,%s,'wrap-dress','Wrap Dress','Black',%s,'ACTIVE','2025-01-01')",
+                     (t.tenant_id, v, P_PART, "XS S M L XL".split()[i]))
+    conn.execute("INSERT INTO products (tenant_id, variant_id, product_id, handle, title, colour, size, status,"
+                 " created_at) VALUES (%s,%s,%s,'wrap-dress-black','Wrap Dress Black','Black','XL','ACTIVE',"
+                 " '2025-07-15 12:00:00+00')", (t.tenant_id, V_NEW, P_NEW))
+    conn.commit()
+    lineage.confirm(conn, t, V_PART[-1], V_NEW)
+    lineage.build_styles(conn, t)
+    assert lineage.replaced_on(conn, t) == {V_PART[-1]: SPLIT_DAY}
+
+
+def test_partly_replaced_product_moves_only_rows_before_the_split(conn, tenant_a):
+    """N1: rows of a partly replaced product dated before the lineage effective date are split by variant share;
+    rows on or after it belong to the product's remaining variants and stay 100% on it, in every reader."""
+    from engine import aggregate, customers
+    t = tenant_a
+    seed_partly_replaced(conn, t)
+    before, after = date(2025, 6, 10), date(2025, 7, 20)
+    add_sale(conn, t, "o_before", V_PART[0], 500, day=before)       # orders made only of P_PART items
+    add_sale(conn, t, "o_after", V_PART[0], 500, day=after)
+    conn.execute("UPDATE orders SET customer_key = order_id WHERE tenant_id = %s", (t.tenant_id,))
+    conn.commit()
+    attribution.run_attribution(conn, t, before, after)             # credits keyed to P_PART (current product)
+    for d, spend in ((before, 50), (after, 30)):                    # rows written before the lineage confirm
+        conn.execute("INSERT INTO spend_by_product (tenant_id, date, product_id, method, spend, impressions,"
+                     " meta_purchases) VALUES (%s,%s,%s,'name',%s,1000,5)", (t.tenant_id, d, P_PART, spend))
+        conn.execute("INSERT INTO funnel_daily (tenant_id, date, product_id, views) VALUES (%s,%s,%s,100)",
+                     (t.tenant_id, d, P_PART))
+    conn.commit()
+
+    td = aggregate.TenantData(conn, t)
+    sp = td.spend.groupby([td.spend["date"].dt.date, "product_id"])["spend"].sum().to_dict()
+    assert sp == pytest.approx({(before, P_PART): 40.0, (before, P_NEW): 10.0, (after, P_PART): 30.0})
+    vw = td.pixel.groupby([td.pixel["date"].dt.date, "product_id"])["views"].sum().to_dict()
+    assert vw == pytest.approx({(before, P_PART): 80.0, (before, P_NEW): 20.0, (after, P_PART): 100.0})
+
+    june = customers.cpa(conn, t, "2025-06", "product").set_index("entity_id")
+    assert june.loc[P_PART, "spend"] == pytest.approx(40) and june.loc[P_NEW, "spend"] == pytest.approx(10)
+    assert june.loc[P_PART, "order_credits"] == pytest.approx(0.8)
+    assert june.loc[P_NEW, "order_credits"] == pytest.approx(0.2)
+    july = customers.cpa(conn, t, "2025-07", "product").set_index("entity_id")
+    assert july.loc[P_PART, "spend"] == pytest.approx(30) and july.loc[P_PART, "order_credits"] == pytest.approx(1)
+    assert P_NEW not in july.index or (july.loc[P_NEW, "spend"] == 0 and july.loc[P_NEW, "order_credits"] == 0)
+    cac = customers.cac(conn, t, "2025-07", "product").set_index("entity_id")
+    assert cac.loc[P_PART, "new_customers"] == pytest.approx(1)
+    assert P_NEW not in cac.index or cac.loc[P_NEW, "new_customers"] == 0
+
+    # style level totals are unchanged by where the split falls
+    for month, spend in (("2025-06", 50), ("2025-07", 30)):
+        s = customers.cpa(conn, t, month, "style").set_index("entity_id")
+        s = s.drop(index="__store__")
+        assert len(s) == 1
+        assert s["spend"].iloc[0] == pytest.approx(spend) and s["order_credits"].iloc[0] == pytest.approx(1)
+    panel = aggregate.build_panel(conn, t, "month", "style")
+    assert panel["spend"].sum() == pytest.approx(80)
+
+
+def test_manual_map_of_partly_replaced_product_follows_the_split_date(conn, tenant_a):
+    """N1: a manual ad map naming a partly replaced product splits only on days before the effective date."""
+    t = tenant_a
+    seed_partly_replaced(conn, t)
+    before, after = date(2025, 7, 10), date(2025, 7, 20)
+    conn.execute("INSERT INTO ad_product_map (tenant_id, ad_id, product_id, share) VALUES (%s,'adM',%s,1)",
+                 (t.tenant_id, P_PART))
+    for d in (before, after):
+        add_ad(conn, t, "adM", "untitled", 10, 100, 1, day=d)
+    conn.commit()
+    got_before = by(attribution.attribute_day(conn, t, before))
+    assert got_before == {(P_PART, "manual"): pytest.approx((8, 80, 0.8)), (P_NEW, "manual"): pytest.approx((2, 20, 0.2))}
+    assert by(attribution.attribute_day(conn, t, after)) == {(P_PART, "manual"): pytest.approx((10, 100, 1))}

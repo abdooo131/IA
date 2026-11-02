@@ -87,13 +87,11 @@ class _Ctx:
             for (d, pid), v in sales.groupby(["date", "product_id"])["line_value"].sum().items():
                 self.rev[d][pid] = float(v)
 
-        raw: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
-        shares = product_shares(conn, t, self.cv)          # a manual map naming an old product follows lineage
+        self.shares = product_shares(conn, t, self.cv)     # a manual map naming an old product follows lineage
+        self.manual_raw: dict[str, dict[str, float]] = defaultdict(dict)
         for r in conn.execute("SELECT ad_id, product_id, share FROM ad_product_map"
                               " WHERE tenant_id = %(tenant_id)s", p):
-            for pid, w in shares.get(r["product_id"], {r["product_id"]: 1.0}).items():
-                raw[r["ad_id"]][pid] += float(r["share"]) * w
-        self.manual = {a: _normalise(s) for a, s in raw.items()}
+            self.manual_raw[r["ad_id"]][r["product_id"]] = float(r["share"])
 
         self.ad_names: dict[str, str | None] = {}
         for r in conn.execute("SELECT DISTINCT ON (ad_id) ad_id, ad_name FROM ad_spend_daily"
@@ -102,6 +100,17 @@ class _Ctx:
             self.ad_names[r["ad_id"]] = r["ad_name"]
         self.catalog_ads = {r["ad_id"] for r in conn.execute(
             "SELECT DISTINCT ad_id FROM catalog_spend_daily WHERE tenant_id = %(tenant_id)s", p)}
+
+    def manual(self, ad_id: str, day: date) -> dict[str, float]:
+        """The ad's manual map on `day`, re-keyed to current products (split by the row date, see ProductShares)."""
+        raw = self.manual_raw.get(ad_id)
+        if not raw:
+            return {}
+        out: dict[str, float] = defaultdict(float)
+        for pid, share in raw.items():
+            for cur, w in self.shares.on(pid, day).items():
+                out[cur] += share * w
+        return _normalise(dict(out))
 
     def product_of_catalog(self, catalog_id: str) -> str | None:
         v = self.cv.get(catalog_id)
@@ -135,8 +144,9 @@ class _Ctx:
             w = self.name_weights(h, day)
             if w:
                 return w, "name"
-        if self.manual.get(ad_id):
-            return self.manual[ad_id], "manual"
+        m = self.manual(ad_id, day)
+        if m:
+            return m, "manual"
         return {}, None
 
 
@@ -222,8 +232,8 @@ def _order_ad_product(ctx: _Ctx, ad_id: str | None, order_products: set[str], da
         return None
     h = parse_ad_name(ctx.ad_names.get(ad_id), ctx.handles)
     cands = set(ctx.handle_products(h)) if h else set()
-    if not cands and ctx.manual.get(ad_id):
-        m = ctx.manual[ad_id]
+    m = ctx.manual(ad_id, day) if not cands else {}
+    if m:
         cands = set(m) if len(m) == 1 else set()
     if not cands:
         return None

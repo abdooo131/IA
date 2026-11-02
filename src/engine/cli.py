@@ -590,7 +590,8 @@ def tenant_add(
                                    warnings=warnings)
         except Exception as e:                       # noqa: BLE001  HTTP errors included; never echo a token
             conn.rollback()
-            _fail(tenants.redact(f"{type(e).__name__}: {e}" if not isinstance(e, ValueError) else e))
+            _fail(tenants.redact(f"{type(e).__name__}: {e}" if not isinstance(e, ValueError) else e,
+                                 env_names=(shopify_token_env, meta_token_env)))
         typer.echo(f"tenant {t.tenant_id} {t.name}: {t.timezone} {t.currency}, main location {t.main_location_id}"
                    " (change with `engine tenant set-location`)")
         for w in warnings:

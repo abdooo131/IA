@@ -153,6 +153,18 @@ def test_redact(monkeypatch, tenant_a):
     assert "fields=x" in out
 
 
+def test_meta_client_redacts_tenant_token_whatever_the_env_name(monkeypatch, tenant_a):
+    """N2: the token value is removed even when its env var name does not end in TOKEN and it has no known shape."""
+    tenant_a.meta_token_env = "A_META_KEY"
+    monkeypatch.setenv("A_META_KEY", "plainsecretvalue123")
+    monkeypatch.setattr("engine.tenants.requests.get", lambda *a, **k: _Resp(
+        {"error": {"code": 190, "message": "Invalid OAuth token plainsecretvalue123"}}, 400))
+    with pytest.raises(tenants.MetaError) as e:
+        tenants.MetaClient(tenant_a).get("act_1")
+    assert "plainsecretvalue123" not in str(e.value) and "code 190" in str(e.value)
+    assert "plainsecretvalue123" not in tenants.redact("x plainsecretvalue123", env_names=["A_META_KEY"])
+
+
 def test_set_main_location(conn, tenant_a):
     t = tenants.set_main_location(conn, tenant_a, "gid://shopify/Location/999")
     assert t.main_location_id == "gid://shopify/Location/999"

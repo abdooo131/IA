@@ -82,9 +82,9 @@ def first_orders(conn, t: Tenant) -> pd.DataFrame:
 def _credits(conn, t: Tenant, level: str, start: date | None = None, end: date | None = None) -> pd.DataFrame:
     """order_credits as (order_id, entity_id, credit) summed per entity; unassigned products dropped."""
     rows = conn.execute(
-        "SELECT order_id, product_id, credit FROM order_credits WHERE tenant_id = %(tenant_id)s",
+        "SELECT order_id, product_id, credit, date FROM order_credits WHERE tenant_id = %(tenant_id)s",
         {"tenant_id": t.tenant_id}).fetchall()
-    df = pd.DataFrame(rows, columns=["order_id", "product_id", "credit"])
+    df = pd.DataFrame(rows, columns=["order_id", "product_id", "credit", "date"])
     df["credit"] = df["credit"].astype(float)
     df = rekey_products(df, product_shares(conn, t), ["credit"])       # lineage confirmed after attribution
     emap = _entity_map(conn, t, level)
@@ -97,12 +97,12 @@ def _month_spend(conn, t: Tenant, month: str, level: str) -> tuple[pd.Series, pd
     """(spend per entity, per entity impressions/purchases frame, store total spend) for the month."""
     start, end = _month_range(month)
     rows = conn.execute(
-        "SELECT product_id, SUM(spend) AS spend, SUM(meta_purchases) AS purchases FROM spend_by_product"
-        " WHERE tenant_id = %(tenant_id)s AND date >= %(s)s AND date < %(e)s GROUP BY product_id",
+        "SELECT date, product_id, SUM(spend) AS spend, SUM(meta_purchases) AS purchases FROM spend_by_product"
+        " WHERE tenant_id = %(tenant_id)s AND date >= %(s)s AND date < %(e)s GROUP BY date, product_id",
         {"tenant_id": t.tenant_id, "s": start, "e": end}).fetchall()
-    df = pd.DataFrame(rows, columns=["product_id", "spend", "purchases"])
+    df = pd.DataFrame(rows, columns=["date", "product_id", "spend", "purchases"])
     df[["spend", "purchases"]] = df[["spend", "purchases"]].astype(float)
-    df = rekey_products(df, product_shares(conn, t), ["spend", "purchases"])
+    df = rekey_products(df, product_shares(conn, t), ["spend", "purchases"])    # by row date (N1)
     emap = _entity_map(conn, t, level)
     total = df[["spend", "purchases"]].sum()
     df = df[~df["product_id"].isin(_UNASSIGNED)]

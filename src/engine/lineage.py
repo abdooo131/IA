@@ -345,46 +345,82 @@ def current_variant(conn, t: Tenant) -> dict[str, str]:
     return VariantMap(data, numeric)
 
 
-def product_shares(conn, t: Tenant, cv: dict | None = None) -> dict[str, dict[str, float]]:
+def _share_split(links: list[tuple[str, date | None]]) -> dict[str, float]:
+    n = len(links)
+    out: dict[str, float] = defaultdict(float)
+    for cur, _ in links:
+        out[cur] += 1 / n
+    return dict(out)
+
+
+class ProductShares(dict):
+    """Product id -> {current product: share over all its variants} for products whose variants were (partly)
+    replaced, plus the split that applies to a row of a given date (`on`).
+
+    A row of product P dated d belongs to P's variants still selling on d: those not replaced, or replaced on a
+    later date. Each of them carries 1/k of the row to its current product. So a row dated before a link's
+    effective date moves that variant's share to the new product, and a row dated on or after it stays on P's
+    remaining variants. A product all of whose variants were replaced by d keeps the full split (only its
+    replacements can carry the row). A link without an effective date always moves its share.
+    """
+
+    def __init__(self, links: dict[str, list[tuple[str, date | None]]]):
+        super().__init__({pid: _share_split(ls) for pid, ls in links.items()})
+        self._links = links
+
+    def on(self, product_id: str, day) -> dict[str, float]:
+        """{current product: share} for a row of product_id dated `day` (identity for an unaffected product)."""
+        links = self._links.get(product_id)
+        if links is None:
+            return {product_id: 1.0}
+        d = pd.Timestamp(day).date()
+        alive = [(cur, eff) for cur, eff in links if eff is None or d < eff]
+        return _share_split(alive or links)
+
+
+def product_shares(conn, t: Tenant, cv: dict | None = None) -> ProductShares:
     """Product ids whose variants were (partly) replaced through confirmed lineage -> {current product: share}.
 
     share = fraction of the product's variants that now map to that current product (an old 5 colour product
     split into 5 products gives 0.2 each; variants that were not replaced keep their share on the product itself).
     Products that are entirely current are absent (identity). Used to re-key product level rows written before
-    the lineage was confirmed (spend_by_product, order_credits, ad_product_map), the way sales are re-keyed.
+    the lineage was confirmed (spend_by_product, order_credits, funnel_daily, ad_product_map), the way sales are
+    re-keyed; `ProductShares.on(product, day)` gives the split for a row of that day (the per variant effective
+    date of its replacement link decides whether its share moves).
     """
     cv = cv if cv is not None else current_variant(conn, t)
     rows = _products(conn, t)
     product_of = {r["variant_id"]: r["product_id"] for r in rows}
-    counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    replaced = replaced_on(conn, t)
+    links: dict[str, list[tuple[str, date | None]]] = defaultdict(list)
     for r in rows:
-        cur = cv.get(r["variant_id"], r["variant_id"])
-        counts[r["product_id"]][product_of.get(cur, r["product_id"])] += 1
-    out = {}
-    for pid, c in counts.items():
-        if set(c) == {pid}:
-            continue
-        n = sum(c.values())
-        out[pid] = {k: v / n for k, v in c.items()}
-    return out
+        cur = product_of.get(cv.get(r["variant_id"], r["variant_id"]), r["product_id"])
+        links[r["product_id"]].append((cur, replaced.get(r["variant_id"]) if cur != r["product_id"] else None))
+    return ProductShares({pid: ls for pid, ls in links.items() if {c for c, _ in ls} != {pid}})
 
 
 def rekey_products(df: pd.DataFrame, shares: dict[str, dict[str, float]], value_cols: list[str],
-                   col: str = "product_id") -> pd.DataFrame:
+                   col: str = "product_id", date_col: str = "date") -> pd.DataFrame:
     """Rows of df keyed to current products: a row of a replaced product becomes one row per current product with
-    value_cols multiplied by the share (see product_shares). Other rows are unchanged; totals are conserved."""
+    value_cols multiplied by the share (see product_shares). With ProductShares the split depends on the row's
+    date_col (`ProductShares.on`); a plain mapping applies the same split to every row. Other rows are unchanged;
+    totals are conserved."""
     if df.empty or not shares or not df[col].isin(list(shares)).any():
         return df
-    keep = df[~df[col].isin(list(shares))]
-    moved = []
-    for pid, part in df[df[col].isin(list(shares))].groupby(col):
-        for new, w in shares[pid].items():
-            x = part.copy()
-            x[col] = new
-            for c in value_cols:
-                x[c] = x[c].astype(float) * w
-            moved.append(x)
-    return pd.concat([keep, *moved], ignore_index=True)
+    dated = isinstance(shares, ProductShares)
+    hit = df[col].isin(list(shares))
+    keep, part = df[~hit], df[hit]
+    keys = [col, date_col] if dated else [col]
+    weights = pd.DataFrame(
+        [(*k, new, w) for k in part[keys].drop_duplicates().itertuples(index=False, name=None)
+         for new, w in (shares.on(*k) if dated else shares[k[0]]).items()],
+        columns=[*keys, "__new", "__w"])
+    moved = part.merge(weights, on=keys, how="left")
+    for c in value_cols:
+        moved[c] = moved[c].astype(float) * moved["__w"]
+    moved[col] = moved.pop("__new")
+    moved = moved.drop(columns="__w")[list(df.columns)]
+    return pd.concat([keep, moved], ignore_index=True)
 
 
 def rekeyed_sales(conn, t: Tenant) -> pd.DataFrame:

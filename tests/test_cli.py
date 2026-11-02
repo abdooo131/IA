@@ -546,3 +546,34 @@ def test_snapshot_stock_and_po_sync_all_tenants(conn, env, tenant_a, tenant_b):
     r = invoke("po", "sync", "--all-tenants")
     assert r.output.count("PO lines updated") == 2
     assert runner.invoke(cli.app, ["po", "sync", "--tenant", tenant_a.name, "--all-tenants"]).exit_code != 0
+
+
+def test_tenant_add_never_echoes_tokens_of_unusual_env_names(conn, fake_clients, monkeypatch):
+    """N2: tenant add redacts the actual token values of the env vars it was given, whatever their names."""
+    monkeypatch.setattr(cli, "connect", lambda: db.connect(TEST_URL))
+    monkeypatch.setenv("C_SHOP_KEY", "shopsecretvalue987")
+    monkeypatch.setenv("C_META_KEY", "metasecretvalue123")
+    args = ["tenant", "add", "--name", "Tenant C", "--shop", "c.myshopify.com", "--shopify-token-env", "C_SHOP_KEY",
+            "--meta-token-env", "C_META_KEY", "--meta-account", ACCOUNT["A"], "--po-prefix", "C", "--no-ingest"]
+
+    # the real Meta client, whose error echoes the token
+    from engine import tenants
+    monkeypatch.setattr("engine.tenants.meta_client", tenants.MetaClient)
+
+    class Resp:
+        status_code = 400
+
+        def json(self):
+            return {"error": {"code": 190, "message": "Invalid OAuth access token metasecretvalue123"}}
+    monkeypatch.setattr("engine.tenants.requests.get", lambda *a, **k: Resp())
+    r = runner.invoke(cli.app, args)
+    assert r.exit_code == 1 and "code 190" in r.output
+    assert "metasecretvalue123" not in r.output
+
+    # any other failure that carries the Shopify token
+    def boom(query, variables=None):
+        raise RuntimeError("Shopify said: bad token shopsecretvalue987")
+    monkeypatch.setattr(fake_clients.shopify, "graphql", boom)
+    r = runner.invoke(cli.app, args)
+    assert r.exit_code == 1 and "Shopify said" in r.output
+    assert "shopsecretvalue987" not in r.output
