@@ -233,7 +233,8 @@ def test_cycle_never_pushes(conn, env, tenant_a):
     orders = second["stages"]["ingest_orders"]["result"]
     assert orders["full_history"] is False and orders["since"] == (END - timedelta(days=7)).isoformat()
     assert second["stages"]["ingest_spend"]["result"]["since"] == (END - timedelta(days=7)).isoformat()
-    assert first["run_id"] in second["stages"]["score_runs"]["result"]
+    # I9: the first run's forecasts (the months after the data) are not complete yet, so nothing is scored
+    assert second["stages"]["score_runs"]["result"] == {}
     order_queries = [v["query"] for name, v in env[tenant_a.tenant_id].shopify.calls if name == "Orders"]
     lo = datetime.combine(END - timedelta(days=7), time.min, ZoneInfo("Africa/Cairo")).astimezone(timezone.utc)
     assert f"updated_at:>='{lo:%Y-%m-%dT%H:%M:%SZ}'" in order_queries[-1]
@@ -457,3 +458,38 @@ def test_cycle_attributes_history_ingested_without_attribution(conn, env, tenant
     run = conn.execute("SELECT stages FROM runs WHERE tenant_id = %s ORDER BY started_at DESC",
                        (tenant_a.tenant_id,)).fetchone()["stages"]
     assert run["run_attribution"]["result"]["since"] == (END - timedelta(days=7)).isoformat()
+
+
+def test_cycle_scores_only_runs_with_newly_completed_periods(conn, env, tenant_a):
+    """I9: score_runs scores a run once its forecast periods complete, and never again once scored."""
+    invoke("cycle", "--tenant", tenant_a.name)
+    first = conn.execute("SELECT run_id FROM runs WHERE tenant_id = %s", (tenant_a.tenant_id,)).fetchone()["run_id"]
+    style = conn.execute("SELECT style_id FROM styles WHERE tenant_id = %s ORDER BY style_id",
+                         (tenant_a.tenant_id,)).fetchone()["style_id"]
+    conn.execute("INSERT INTO forecasts (tenant_id, run_id, entity_id, period, grain, params) VALUES"
+                 " (%s,%s,%s,'2026-10-01','month','{\"level\": \"style\", \"units\": 50}')",
+                 (tenant_a.tenant_id, first, style))
+    conn.commit()
+    invoke("cycle", "--tenant", tenant_a.name)
+    invoke("cycle", "--tenant", tenant_a.name)
+    runs = conn.execute("SELECT run_id, stages FROM runs WHERE tenant_id = %s ORDER BY started_at",
+                        (tenant_a.tenant_id,)).fetchall()
+    assert list(runs[1]["stages"]["score_runs"]["result"]) == [first]
+    assert runs[2]["stages"]["score_runs"]["result"] == {}
+    assert conn.execute("SELECT count(*) n FROM forecast_accuracy WHERE tenant_id = %s AND run_id = %s",
+                        (tenant_a.tenant_id, first)).fetchone()["n"] == 1
+
+
+def test_cycle_builds_tenant_data_once(conn, env, tenant_a, monkeypatch):
+    """I9: one TenantData per cycle run, shared by fit, scoring, decisions, POs, plan and backtest."""
+    built = []
+    real = cli.aggregate.TenantData
+
+    class Counting(real):
+        def __init__(self, *a, **k):
+            built.append(1)
+            super().__init__(*a, **k)
+    for mod in (cli.aggregate, cli.model, cli.backtest, cli.decisions, cli.purchasing):
+        monkeypatch.setattr(mod, "TenantData", Counting)
+    invoke("cycle", "--tenant", tenant_a.name)
+    assert len(built) == 1

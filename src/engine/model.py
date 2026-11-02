@@ -295,14 +295,14 @@ def fit_panel(panels: dict[str, pd.DataFrame], parents: dict[str, dict[str, tupl
     return fitted
 
 
-def fit_all(conn, t: Tenant, grain: str, level: str, run_id: str) -> list[DemandParams]:
+def fit_all(conn, t: Tenant, grain: str, level: str, run_id: str, data: TenantData | None = None) -> list[DemandParams]:
     """Fit every entity at `level`, parents first, and store one model_params row per entity.
 
-    Rerunning the same (run_id, grain, level) replaces its rows.
+    Rerunning the same (run_id, grain, level) replaces its rows. `data` shares one TenantData across calls.
     """
     if level not in LEVELS:
         raise ValueError(f"unknown level {level!r}")
-    data = TenantData(conn, t)
+    data = data or TenantData(conn, t)
     chain = list(reversed(LEVELS))
     chain = chain[:chain.index(level) + 1]
     panels = {lv: data.panel(grain, lv) for lv in chain}

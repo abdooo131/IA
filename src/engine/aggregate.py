@@ -224,6 +224,7 @@ class TenantData:
         self._views_source()
         self._daily: pd.DataFrame | None = None
         self._curves: dict[str, dict[str, float]] = {}
+        self._panels: dict[tuple[str, str], pd.DataFrame] = {}
 
     # ------------------------------------------------------------ keys and sources
 
@@ -311,9 +312,18 @@ class TenantData:
         self._curves[style_id] = curve
         return curve
 
+    def _in_stock_matrix(self, days: pd.DatetimeIndex) -> pd.DataFrame:
+        """days x every stocked variant in stock matrix (see _in_stock), built once from one pivot of all stock."""
+        if not len(days) or self.stock.empty:
+            return pd.DataFrame(index=days, dtype=float)
+        wide = self.stock.pivot_table(index="date", columns="variant_id", values="available", aggfunc="sum")
+        full = wide.reindex(wide.index.union(days)).sort_index().ffill().reindex(days)
+        return (full > 0).astype(float).where(full.notna(), 1.0)
+
     def _availability(self, days: pd.DatetimeIndex) -> tuple[pd.DataFrame, dict[str, bool]]:
         """days x products size availability, and per product whether it has no stock data at all."""
         stocked = set(self.stock["variant_id"])
+        matrix = self._in_stock_matrix(days)            # one pivot, then column lookups per product (I9)
         out, no_stock = {}, {}
         for pid, var in self.products.groupby("product_id"):
             var = var[var["current"]] if var["current"].any() else var
@@ -327,7 +337,7 @@ class TenantData:
             share = {s: curve.get(s, 0.0) for s in sizes}
             tot = sum(share.values())
             share = {s: v / tot for s, v in share.items()} if tot > 0 else {s: 1.0 / len(sizes) for s in sizes}
-            ins = _in_stock(self.stock, variants, days)
+            ins = matrix.reindex(columns=variants).fillna(1.0)     # a variant with no stock rows: in stock
             avail = np.zeros(len(days))
             for s in sizes:
                 cols = [v for v, z in zip(var["variant_id"], var["size"]) if z == s]
@@ -407,8 +417,14 @@ class TenantData:
     # ------------------------------------------------------------ panel
 
     def panel(self, grain: str, level: str) -> pd.DataFrame:
+        """The (grain, level) panel; built once per TenantData, a copy is returned (callers may modify it)."""
         if grain not in GRAINS:
             raise ValueError(f"unknown grain {grain!r}")
+        if (grain, level) not in self._panels:
+            self._panels[(grain, level)] = self._build_panel(grain, level)
+        return self._panels[(grain, level)].copy()
+
+    def _build_panel(self, grain: str, level: str) -> pd.DataFrame:
         mapping = self.entities_of(level)
         daily = self.daily()
         if daily.empty or not mapping:

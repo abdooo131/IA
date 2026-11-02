@@ -243,20 +243,15 @@ def run_attribution(conn, t: Tenant, since: date, until: date) -> None:
     for tbl in ("spend_by_product", "unmapped_spend_log", "order_credits"):
         conn.execute(f"DELETE FROM {tbl} WHERE tenant_id = %(tenant_id)s AND date BETWEEN %(since)s AND %(until)s", p)
 
+    spend_rows, unmapped_rows, credit_rows = [], [], []
     day = since
     while day <= until:
         df, unmapped = _attribute(ctx, day)
-        for r in df.itertuples(index=False):
-            conn.execute(
-                "INSERT INTO spend_by_product (tenant_id, date, product_id, method, spend, impressions,"
-                " meta_purchases) VALUES (%s,%s,%s,%s,%s,%s,%s)",
-                (t.tenant_id, day, r.product_id, r.method, r.spend, r.impressions, r.meta_purchases))
-        for u in unmapped:
-            conn.execute(
-                "INSERT INTO unmapped_spend_log (tenant_id, date, account_id, ad_id, ad_name, catalog_product_id,"
-                " spend, impressions, purchases, reason) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-                (t.tenant_id, u["date"], u["account_id"], u["ad_id"], u["ad_name"], u["catalog_product_id"],
-                 u["spend"], u["impressions"], u["purchases"], u["reason"]))
+        spend_rows.extend((t.tenant_id, day, r.product_id, r.method, float(r.spend), float(r.impressions),
+                           float(r.meta_purchases)) for r in df.itertuples(index=False))
+        unmapped_rows.extend((t.tenant_id, u["date"], u["account_id"], u["ad_id"], u["ad_name"],
+                              u["catalog_product_id"], u["spend"], u["impressions"], u["purchases"], u["reason"])
+                             for u in unmapped)
         if unmapped:
             log.warning("tenant %s %s: %.2f spend unmapped (%d rows) goes to the pool", t.tenant_id, day,
                         sum(u["spend"] for u in unmapped), len(unmapped))
@@ -275,8 +270,14 @@ def run_attribution(conn, t: Tenant, since: date, until: date) -> None:
             if ol is None:
                 continue
             ad_prod = _order_ad_product(ctx, o["utm_content"], set(ol["product_id"]), o["date"])
-            for pid, c in order_credit(ol, ad_prod).items():
-                conn.execute(
-                    "INSERT INTO order_credits (tenant_id, order_id, product_id, credit, ad_product_id, date)"
-                    " VALUES (%s,%s,%s,%s,%s,%s)", (t.tenant_id, o["order_id"], pid, c, ad_prod, o["date"]))
+            credit_rows.extend((t.tenant_id, o["order_id"], pid, c, ad_prod, o["date"])
+                               for pid, c in order_credit(ol, ad_prod).items())
+    with conn.cursor() as cur:                       # batched inserts (I9)
+        cur.executemany("INSERT INTO spend_by_product (tenant_id, date, product_id, method, spend, impressions,"
+                        " meta_purchases) VALUES (%s,%s,%s,%s,%s,%s,%s)", spend_rows)
+        cur.executemany("INSERT INTO unmapped_spend_log (tenant_id, date, account_id, ad_id, ad_name,"
+                        " catalog_product_id, spend, impressions, purchases, reason)"
+                        " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)", unmapped_rows)
+        cur.executemany("INSERT INTO order_credits (tenant_id, order_id, product_id, credit, ad_product_id, date)"
+                        " VALUES (%s,%s,%s,%s,%s,%s)", credit_rows)
     conn.commit()

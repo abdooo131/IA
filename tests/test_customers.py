@@ -259,3 +259,129 @@ def test_tenants_isolated(conn, tenant_a, tenant_b):
     assert row(p, PA)["meta_purchases"] == 2 and row(p, PA)["order_credits"] == 1
     v = customers.customer_value(conn, tenant_a, "product", as_of=date(2026, 6, 1))
     assert row(v, PA)["value_12m"] == pytest.approx(60) and row(v, PA)["customers"] == 1
+
+
+# ---------------------------------------------------------------- I9: vectorised customer value = reference loop
+
+def _reference_customer_values(conn, t, months, as_of):
+    """The pre-I9 per customer loop, kept as the reference for the vectorised implementation."""
+    import pandas as pd
+    from engine.lineage import rekeyed_sales
+    fo = customers.first_orders(conn, t)
+    cols = ["customer_key", "order_id", "value", "missing_cost", "young_unscaled"]
+    if fo.empty:
+        return pd.DataFrame(columns=cols), False
+    sales = rekeyed_sales(conn, t)
+    orders = pd.DataFrame(conn.execute(
+        "SELECT order_id, customer_key FROM orders WHERE tenant_id = %(tenant_id)s AND customer_key IS NOT NULL",
+        {"tenant_id": t.tenant_id}).fetchall(), columns=["order_id", "customer_key"])
+    sales = sales.merge(orders, on="order_id", how="inner")
+    cost = pd.DataFrame(conn.execute(
+        "SELECT variant_id, unit_cost FROM products WHERE tenant_id = %(tenant_id)s", {"tenant_id": t.tenant_id}
+    ).fetchall(), columns=["variant_id", "unit_cost"])
+    cost["unit_cost"] = pd.to_numeric(cost["unit_cost"], errors="coerce")
+    sales = sales.merge(cost, on="variant_id", how="left")
+    known = sales["unit_cost"].notna()
+    store_has_cost = bool(known.any())
+    ratio = None
+    if store_has_cost:
+        kv = sales.loc[known, "line_value"].sum()
+        if kv > 0:
+            ratio = float((kv - (sales.loc[known, "qty"] * sales.loc[known, "unit_cost"]).sum()) / kv)
+    sales["profit"] = sales["line_value"] - sales["qty"] * sales["unit_cost"]
+    sales.loc[~known, "profit"] = sales.loc[~known, "line_value"] * ratio if ratio is not None else float("nan")
+    sales["unknown"] = ~known
+
+    f = fo.set_index("customer_key")["date"]
+    sales["first"] = sales["customer_key"].map(f)
+    sales = sales[sales["first"].notna()].copy()
+    by_cust = {k: g for k, g in sales.groupby("customer_key")}
+
+    def cust_stats(key, first, n, inclusive):
+        """(profit, has a line without cost, has an uncomputable line) in [first, first + n months)."""
+        g = by_cust.get(key)
+        if g is None:
+            return 0.0, False, False
+        end = (pd.Timestamp(first) + pd.DateOffset(months=n)).date()
+        w = g[(g["date"] >= first) & ((g["date"] <= end) if inclusive else (g["date"] < end))]
+        if w.empty:
+            return 0.0, False, False
+        return float(w["profit"].sum(skipna=False)), bool(w["unknown"].any()), bool(w["profit"].isna().any())
+
+    recs = []
+    for r in fo.itertuples(index=False):
+        recs.append((r.customer_key, r.order_id, r.date,
+                     (pd.Timestamp(r.date) + pd.DateOffset(months=months)).date() <= as_of))
+    mature = [x for x in recs if x[3]]
+    # store ratio: 12m value / value at the same age, by whole months of age
+    ratios: dict[int, float] = {}
+    if mature:
+        full = {k: cust_stats(k, d, months, False)[0] for k, _, d, _ in mature}
+        for a in range(months):
+            num = den = 0.0
+            for k, _, d, _ in mature:
+                v12 = full[k]
+                va = cust_stats(k, d, a, True)[0]
+                if pd.notna(v12) and pd.notna(va):
+                    num += v12
+                    den += va
+            if den > 0 and num > 0:
+                ratios[a] = num / den
+
+    out = []
+    for key, oid, d, is_mature in recs:
+        if is_mature:
+            val, unk, nan = cust_stats(key, d, months, False)
+            young_unscaled = False
+        else:
+            age = (as_of.year - d.year) * 12 + as_of.month - d.month - (1 if as_of.day < d.day else 0)
+            age = max(age, 0)
+            val, unk, nan = cust_stats(key, d, age, True)
+            if age in ratios:
+                val, young_unscaled = val * ratios[age], False
+            else:
+                young_unscaled = True
+        out.append((key, oid, None if (nan or pd.isna(val)) else val, unk, young_unscaled))
+    return pd.DataFrame(out, columns=cols), store_has_cost
+
+
+@pytest.mark.parametrize("seed", [1, 2, 3])
+def test_vectorised_customer_values_match_reference(conn, tenant_a, seed):
+    import random
+    from datetime import timedelta
+    rnd = random.Random(seed)
+    seed_products(conn, tenant_a, cost_a=40, cost_b=None if seed == 2 else 20)
+    n = 0
+    for c in range(25):
+        start = date(2023, 1, 1) + timedelta(days=rnd.randint(0, 1000))
+        if c == 0:
+            start = date(2024, 1, 31)                    # month end clipping
+        for j in range(rnd.randint(1, 5)):
+            n += 1
+            d = start + timedelta(days=0 if j == 0 else rnd.randint(0, 500))
+            add_order(conn, tenant_a, f"o{n}", d, [(rnd.choice([VA, VB]), rnd.choice([1, 2, -1]), rnd.randint(50, 300))],
+                      key=f"c{c}")
+    add_order(conn, tenant_a, "edge1", date(2024, 2, 29), [(VA, 1, 100)], key="c0")   # Jan 31 + 1 month
+    add_order(conn, tenant_a, "edge2", date(2025, 1, 31), [(VA, 1, 100)], key="c0")   # exactly + 12 months
+    conn.commit()
+    for as_of in (date(2025, 6, 15), date(2026, 3, 1), date(2024, 3, 31)):
+        got, has = customers._customer_values(conn, tenant_a, 12, as_of)
+        ref, ref_has = _reference_customer_values(conn, tenant_a, 12, as_of)
+        assert has == ref_has
+        g = got.set_index("customer_key").sort_index()
+        r = ref.set_index("customer_key").sort_index()
+        assert list(g.index) == list(r.index)
+        for k in r.index:
+            a, b = g.at[k, "value"], r.at[k, "value"]
+            assert (a is None and b is None) or a == pytest.approx(b), (k, as_of)
+            assert bool(g.at[k, "missing_cost"]) == bool(r.at[k, "missing_cost"])
+            assert bool(g.at[k, "young_unscaled"]) == bool(r.at[k, "young_unscaled"])
+
+
+def test_customer_values_without_sales_lines(conn, tenant_a):
+    seed_products(conn, tenant_a)
+    conn.execute("INSERT INTO orders (tenant_id, order_id, date, customer_key, total) VALUES (%s,'o1','2024-01-01','k',0)",
+                 (tenant_a.tenant_id,))
+    conn.commit()
+    df, _ = customers._customer_values(conn, tenant_a, 12, date(2026, 1, 1))
+    assert list(df["customer_key"]) == ["k"]

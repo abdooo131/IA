@@ -9,6 +9,7 @@ from __future__ import annotations
 import re
 from datetime import date
 
+import numpy as np
 import pandas as pd
 
 from .attribution import POOL_PRODUCT, UNKNOWN_PRODUCT
@@ -178,6 +179,15 @@ def cac(conn, t: Tenant, month: str, level: str, lift: float | dict[str, float] 
 
 # ---------------------------------------------------------------- customer value
 
+def _add_months(start: pd.Series, n) -> pd.Series:
+    """start (datetime64 Series) + n months per row, clipping the day to the target month's end like
+    pd.DateOffset(months=n)."""
+    m = start.dt.year.to_numpy() * 12 + start.dt.month.to_numpy() - 1 + np.asarray(n, dtype=int)
+    first_of = pd.to_datetime(pd.DataFrame({"year": m // 12, "month": m % 12 + 1, "day": 1}))
+    day = np.minimum(start.dt.day.to_numpy(), first_of.dt.days_in_month.to_numpy())
+    return pd.Series(first_of.to_numpy() + (day - 1).astype("timedelta64[D]"), index=start.index)
+
+
 def _customer_values(conn, t: Tenant, months: int, as_of: date) -> tuple[pd.DataFrame, bool]:
     """Per customer with a first order: order_id, value (None when not computable), missing_cost, young_unscaled.
 
@@ -210,54 +220,60 @@ def _customer_values(conn, t: Tenant, months: int, as_of: date) -> tuple[pd.Data
 
     f = fo.set_index("customer_key")["date"]
     sales["first"] = sales["customer_key"].map(f)
-    sales = sales[sales["first"].notna()].copy()
-    by_cust = {k: g for k, g in sales.groupby("customer_key")}
+    sales = sales[sales["first"].notna()]
+    first = pd.to_datetime(sales["first"])
+    when = pd.to_datetime(sales["date"])
+    sales = sales[(when >= first).to_numpy()].copy()
+    first, when = pd.to_datetime(sales["first"]), pd.to_datetime(sales["date"])
 
-    def cust_stats(key, first, n, inclusive):
-        """(profit, has a line without cost, has an uncomputable line) in [first, first + n months)."""
-        g = by_cust.get(key)
-        if g is None:
-            return 0.0, False, False
-        end = (pd.Timestamp(first) + pd.DateOffset(months=n)).date()
-        w = g[(g["date"] >= first) & ((g["date"] <= end) if inclusive else (g["date"] < end))]
-        if w.empty:
-            return 0.0, False, False
-        return float(w["profit"].sum(skipna=False)), bool(w["unknown"].any()), bool(w["profit"].isna().any())
+    # month bucket k of each line: the smallest m >= 0 with date <= first + m months (DateOffset clipping), so
+    # "value at age a" (window [first, first + a months], inclusive) = lines with k <= a.
+    diff = ((when.dt.year - first.dt.year) * 12 + (when.dt.month - first.dt.month)).to_numpy()
+    k = np.where(when.to_numpy() <= _add_months(first, diff).to_numpy(), diff, diff + 1)
+    in_window = (when < _add_months(first, np.full(len(sales), months))).to_numpy()   # [first, first + months)
+    sales["k"] = np.minimum(k, months)                    # bucket `months` and later: outside every age window
+    sales["nan"] = sales["profit"].isna()
+    sales["p"] = sales["profit"].fillna(0.0)
 
-    recs = []
-    for r in fo.itertuples(index=False):
-        recs.append((r.customer_key, r.order_id, r.date,
-                     (pd.Timestamp(r.date) + pd.DateOffset(months=months)).date() <= as_of))
-    mature = [x for x in recs if x[3]]
-    # store ratio: 12m value / value at the same age, by whole months of age
+    keys = list(fo["customer_key"])
+    by_k = sales.groupby(["customer_key", "k"]).agg(p=("p", "sum"), nan=("nan", "sum"), unk=("unknown", "any"))
+    cols_k = list(range(months + 1))
+
+    def cum(col, fill):
+        wide = by_k[col].unstack("k").reindex(index=keys, columns=cols_k).fillna(fill)
+        return wide.astype(float).cumsum(axis=1).to_numpy()
+
+    cum_p, cum_nan, cum_unk = cum("p", 0.0), cum("nan", 0.0), cum("unk", False)
+    win = sales[in_window].groupby("customer_key").agg(p=("p", "sum"), nan=("nan", "sum"), unk=("unknown", "any"))
+    win = win.reindex(keys)
+    full_p = win["p"].fillna(0.0).to_numpy(float)
+    full_nan = win["nan"].fillna(0).to_numpy(float) > 0
+    full_unk = win["unk"].fillna(False).astype(bool).to_numpy()
+
+    dates = list(fo["date"])
+    mature = np.array([(pd.Timestamp(d) + pd.DateOffset(months=months)).date() <= as_of for d in dates], dtype=bool)
+    # store ratio: 12m value / value at the same age, by whole months of age, over mature customers
     ratios: dict[int, float] = {}
-    if mature:
-        full = {k: cust_stats(k, d, months, False)[0] for k, _, d, _ in mature}
+    if mature.any():
         for a in range(months):
-            num = den = 0.0
-            for k, _, d, _ in mature:
-                v12 = full[k]
-                va = cust_stats(k, d, a, True)[0]
-                if pd.notna(v12) and pd.notna(va):
-                    num += v12
-                    den += va
+            ok = mature & ~full_nan & (cum_nan[:, a] == 0)
+            num, den = float(full_p[ok].sum()), float(cum_p[ok, a].sum())
             if den > 0 and num > 0:
                 ratios[a] = num / den
 
     out = []
-    for key, oid, d, is_mature in recs:
-        if is_mature:
-            val, unk, nan = cust_stats(key, d, months, False)
-            young_unscaled = False
+    for i, (key, oid, d) in enumerate(zip(keys, fo["order_id"], dates)):
+        if mature[i]:
+            val, unk, nan, young_unscaled = full_p[i], full_unk[i], full_nan[i], False
         else:
             age = (as_of.year - d.year) * 12 + as_of.month - d.month - (1 if as_of.day < d.day else 0)
-            age = max(age, 0)
-            val, unk, nan = cust_stats(key, d, age, True)
+            age = min(max(age, 0), months)
+            val, unk, nan = cum_p[i, age], bool(cum_unk[i, age]), cum_nan[i, age] > 0
             if age in ratios:
                 val, young_unscaled = val * ratios[age], False
             else:
                 young_unscaled = True
-        out.append((key, oid, None if (nan or pd.isna(val)) else val, unk, young_unscaled))
+        out.append((key, oid, None if nan else float(val), bool(unk), young_unscaled))
     return pd.DataFrame(out, columns=cols), store_has_cost
 
 

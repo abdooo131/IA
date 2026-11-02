@@ -232,13 +232,13 @@ def _next_po_numbers(conn, t: Tenant, n: int) -> list[str]:
 
 # ---------------------------------------------------------------- public API
 
-def suggest_pos(conn, t: Tenant, run_id: str, cover_days: int = 30) -> list[str]:
+def suggest_pos(conn, t: Tenant, run_id: str, cover_days: int = 30, data: TenantData | None = None) -> list[str]:
     """Write one draft PO per supplier for the run's needs; returns the new PO numbers.
 
     Re running for the same run_id replaces that run's drafts (never approved or later POs). Products with no
     supplier are skipped and logged; products without params in the run use 90 day true demand (flagged).
     """
-    data = TenantData(conn, t)
+    data = data or TenantData(conn, t)
     params = _load_params(conn, t, run_id)
     kill_products, kill_styles = _killed(conn, t)
     by_product, by_style = _supplier_rows(conn, t)

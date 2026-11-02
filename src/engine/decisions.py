@@ -463,13 +463,13 @@ def decide(row, history, lead_time) -> tuple[str, str]:
     return "MAINTAIN", f"MAINTAIN: no rule matched (POAS {_fmt(poas)}, marginal POAS {_fmt(mp)}){tag}"
 
 
-def run_decisions(conn, t: Tenant, run_id: str, month: str) -> pd.DataFrame:
+def run_decisions(conn, t: Tenant, run_id: str, month: str, data: TenantData | None = None) -> pd.DataFrame:
     """Decide every style and product for `month` with the previous month as history; store decisions rows.
 
     Idempotent per (tenant, run_id, month, level): earlier rows of that slice are replaced. numbers holds the
     scorecard values (plus lead_time_days), flags the scorecard flags. Returns DECISION_COLUMNS.
     """
-    data = TenantData(conn, t)
+    data = data or TenantData(conn, t)
     prev = _prev_month(month)
     start = _month_start(month)
     out = []
@@ -557,7 +557,7 @@ def _cap(p, wanted, days, price, unit_cost, adstock0, supply) -> list[dict]:
     return out
 
 
-def forward_plan(conn, t: Tenant, run_id: str, months: int = 3) -> pd.DataFrame:
+def forward_plan(conn, t: Tenant, run_id: str, months: int = 3, data: TenantData | None = None) -> pd.DataFrame:
     """Per style with params in the run, the next `months` months after the last data month (Spec 34).
 
     Spend: planner.spend_at_marginal_poas (target 1.0, full availability) as monthly spend; 0 for KILL and the
@@ -566,7 +566,7 @@ def forward_plan(conn, t: Tenant, run_id: str, months: int = 3) -> pd.DataFrame:
     po_number = the run's draft PO covering the style) and records the plan as style/month forecasts.
     Returns PLAN_COLUMNS.
     """
-    data = TenantData(conn, t)
+    data = data or TenantData(conn, t)
     params = _load_params(conn, t, "style", run_id)
     panel = data.panel("month", "style")
     decided = {r["entity_id"]: r["decision"] for r in conn.execute(

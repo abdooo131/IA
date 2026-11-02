@@ -210,8 +210,11 @@ def _rollup(conn, t: Tenant, since: date, until: date) -> dict:
                          (t.timezone, t.tenant_id)).fetchone()["d"]
     n_days = rows = 0
     d = max(since, first) if first else until + timedelta(days=1)
+    cv = lineage.current_variant(conn, t) if d <= until else None
+    prod_of = {r["variant_id"]: r["product_id"] for r in conn.execute(
+        "SELECT variant_id, product_id FROM products WHERE tenant_id = %s", (t.tenant_id,))} if cv else None
     while d <= until:
-        rows += rollup_funnel(conn, t, d)
+        rows += rollup_funnel(conn, t, d, cv, prod_of)
         n_days += 1
         d += timedelta(days=1)
     return {"since": since, "until": until, "days": n_days, "rows": rows}
@@ -290,8 +293,9 @@ def _min_date(conn, t: Tenant, table: str) -> date | None:
     return conn.execute(f"SELECT min(date) AS d FROM {table} WHERE tenant_id = %s", (t.tenant_id,)).fetchone()["d"]
 
 
-def _fit(conn, t: Tenant, run_id: str, plan) -> dict:
-    return {f"{lv}/{g}": len(model.fit_all(conn, t, g, lv, run_id)) for g, lv in plan}
+def _fit(conn, t: Tenant, run_id: str, plan, data: aggregate.TenantData | None = None) -> dict:
+    data = data or aggregate.TenantData(conn, t)
+    return {f"{lv}/{g}": len(model.fit_all(conn, t, g, lv, run_id, data=data)) for g, lv in plan}
 
 
 def _cycle_stages(conn, t: Tenant, run_id: str, month: str, today: date,
@@ -312,29 +316,37 @@ def _cycle_stages(conn, t: Tenant, run_id: str, month: str, today: date,
     def factor():
         return {"month": month, "meta_factor": calibrate.meta_factor(conn, t, month)}
 
+    def data() -> aggregate.TenantData:
+        """One TenantData for every model stage of the run (built after lineage and attribution)."""
+        if "data" not in ctx:
+            ctx["data"] = aggregate.TenantData(conn, t)
+        return ctx["data"]
+
     def score():
-        earlier = conn.execute("SELECT run_id FROM runs WHERE tenant_id = %s AND status = 'done' AND run_id <> %s"
-                               " ORDER BY started_at", (t.tenant_id, run_id)).fetchall()
-        return {r["run_id"]: backtest.score_run(conn, t, r["run_id"]) for r in earlier}
+        days = data().date_range()
+        if not len(days):
+            return {}
+        return {r: backtest.score_run(conn, t, r, data=data())
+                for r in backtest.runs_to_score(conn, t, days[-1].date(), exclude=run_id)}
 
     def decide():
-        df = decisions.run_decisions(conn, t, run_id, month)
+        df = decisions.run_decisions(conn, t, run_id, month, data=data())
         return {"month": month, "rows": len(df),
                 "by_decision": {k: int(v) for k, v in df["decision"].value_counts().items()} if len(df) else {}}
 
     def roll():
         return {"grain": "month", "level": "style", "folds": 3,
-                "mape": backtest.rolling_backtest(conn, t, "month", "style", 3)}
+                "mape": backtest.rolling_backtest(conn, t, "month", "style", 3, data=data())}
 
     return _ingest_stages(conn, t, today, ctx) + [
         ("lineage", lineage_stage),
         ("run_attribution", attribute),
         ("meta_factor", factor),
-        ("fit", lambda: _fit(conn, t, run_id, FIT_PLAN)),
+        ("fit", lambda: _fit(conn, t, run_id, FIT_PLAN, data())),
         ("score_runs", score),
         ("run_decisions", decide),
-        ("suggest_pos", lambda: {"pos": purchasing.suggest_pos(conn, t, run_id)}),
-        ("forward_plan", lambda: {"rows": len(decisions.forward_plan(conn, t, run_id))}),
+        ("suggest_pos", lambda: {"pos": purchasing.suggest_pos(conn, t, run_id, data=data())}),
+        ("forward_plan", lambda: {"rows": len(decisions.forward_plan(conn, t, run_id, data=data()))}),
         ("rolling_backtest", roll),
     ]
 

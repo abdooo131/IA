@@ -66,7 +66,7 @@ def record_forecasts(conn, t: Tenant, run_id: str, level: str, grain: str, rows:
     return len(rows)
 
 
-def score_run(conn, t: Tenant, run_id: str) -> float | None:
+def score_run(conn, t: Tenant, run_id: str, data: TenantData | None = None) -> float | None:
     """Score a run's forecasts against actual units; store forecast_accuracy rows; return the MAPE.
 
     Periods without a complete actual row are skipped (not stored, not scored). A zero actual is stored with
@@ -75,7 +75,7 @@ def score_run(conn, t: Tenant, run_id: str) -> float | None:
     fc = conn.execute("SELECT entity_id, period, grain, params FROM forecasts WHERE tenant_id = %s AND run_id = %s"
                       " ORDER BY period, entity_id", (t.tenant_id, run_id)).fetchall()
     actuals: dict[tuple[str, str], pd.Series] = {}
-    data = TenantData(conn, t) if fc else None
+    data = (data or TenantData(conn, t)) if fc else None
     scored = []
     for f in fc:
         lv, grain = f["params"].get("level"), f["grain"]
@@ -100,6 +100,21 @@ def score_run(conn, t: Tenant, run_id: str) -> float | None:
                       Jsonb({"predicted": s["predicted"], "actual": s["actual"], "ape": s["ape"]})))
     conn.commit()
     return mape(pd.DataFrame(scored, columns=["predicted", "actual"]))
+
+
+def runs_to_score(conn, t: Tenant, last_date, exclude: str | None = None) -> list[str]:
+    """Done runs (other than `exclude`) holding a forecast whose period has completed by `last_date` (the last
+    data day) and has no forecast_accuracy row yet: only these need score_run. Oldest first."""
+    rows = conn.execute(
+        "SELECT f.run_id, min(r.started_at) AS s FROM forecasts f JOIN runs r ON r.tenant_id = f.tenant_id"
+        " AND r.run_id = f.run_id AND r.status = 'done'"
+        " WHERE f.tenant_id = %(t)s AND f.run_id IS DISTINCT FROM %(x)s"
+        " AND (f.period + CASE f.grain WHEN 'day' THEN interval '1 day' WHEN 'week' THEN interval '7 days'"
+        "      ELSE interval '1 month' END)::date <= %(last)s::date + 1"
+        " AND NOT EXISTS (SELECT 1 FROM forecast_accuracy a WHERE a.tenant_id = f.tenant_id"
+        "      AND a.run_id = f.run_id AND a.entity_id = f.entity_id AND a.period = f.period)"
+        " GROUP BY f.run_id ORDER BY s", {"t": t.tenant_id, "x": exclude, "last": last_date}).fetchall()
+    return [r["run_id"] for r in rows]
 
 
 # ---------------------------------------------------------------- rolling backtest
@@ -135,7 +150,8 @@ def backtest_panels(panels: dict[str, pd.DataFrame], parents: dict[str, dict], g
     return pd.DataFrame(out, columns=cols)
 
 
-def rolling_backtest(conn, t: Tenant, grain: str, level: str, folds: int = 3) -> float | None:
+def rolling_backtest(conn, t: Tenant, grain: str, level: str, folds: int = 3,
+                     data: TenantData | None = None) -> float | None:
     """Mean APE (a fraction) of one-period-ahead unit forecasts over the last `folds` complete periods.
 
     The panel is built once; each fold fits on periods strictly before its cutoff only. Entities with no
@@ -144,7 +160,7 @@ def rolling_backtest(conn, t: Tenant, grain: str, level: str, folds: int = 3) ->
     """
     if level not in LEVELS:
         raise ValueError(f"unknown level {level!r}")
-    data = TenantData(conn, t)
+    data = data or TenantData(conn, t)
     chain = list(reversed(LEVELS))
     chain = chain[:chain.index(level) + 1]
     panels = {lv: data.panel(grain, lv) for lv in chain}

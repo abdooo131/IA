@@ -13,6 +13,7 @@ from zoneinfo import ZoneInfo
 
 from .tenants import Tenant, shopify_client
 
+BATCH = 5000                        # rows per executemany batch
 COLOUR_OPTIONS = {"colour", "color", "اللون"}
 SIZE_OPTIONS = {"size", "المقاس"}
 
@@ -258,10 +259,12 @@ def ingest_orders(conn, t: Tenant, since: date, until: date) -> int:
                 variant = (rl.get("lineItem") or {}).get("variant")
                 if variant:
                     rows.append((rdate, variant["id"], -rl["quantity"], -_money(rl["subtotalSet"])))
-        for d, variant_id, qty, value in rows:
-            conn.execute(
-                "INSERT INTO sales_lines (tenant_id, order_id, date, variant_id, qty, line_value, customer_key)"
-                " VALUES (%s,%s,%s,%s,%s,%s,%s)", (t.tenant_id, o["id"], d, variant_id, qty, value, key))
+        if rows:
+            with conn.cursor() as cur:
+                cur.executemany(
+                    "INSERT INTO sales_lines (tenant_id, order_id, date, variant_id, qty, line_value, customer_key)"
+                    " VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                    [(t.tenant_id, o["id"], d, variant_id, qty, value, key) for d, variant_id, qty, value in rows])
         n += 1
     conn.commit()
     return n
@@ -342,7 +345,7 @@ def reconstruct_stock(conn, t: Tenant, until: date) -> int:
     for r in conn.execute("SELECT variant_id, location_id, date, sum(qty) q FROM stock_receipts"
                           " WHERE tenant_id=%s AND date>=%s GROUP BY variant_id, location_id, date", (tid, until)):
         recv[(r["variant_id"], r["location_id"], r["date"])] = int(r["q"])
-    n = 0
+    rows = []
     for f in first:
         v, loc = f["variant_id"], f["location_id"]
         avail, on_hand = f["available"], f["on_hand"]
@@ -355,12 +358,14 @@ def reconstruct_stock(conn, t: Tenant, until: date) -> int:
                 delta = -recv[(v, loc, d)]
             avail, on_hand = avail + delta, on_hand + delta
             d -= timedelta(days=1)
-            conn.execute(
+            rows.append((tid, d, v, loc, avail, on_hand))
+    with conn.cursor() as cur:                      # one batched statement, not one round trip per row
+        for i in range(0, len(rows), BATCH):
+            cur.executemany(
                 "INSERT INTO stock_daily (tenant_id, date, variant_id, location_id, available, on_hand, reconstructed)"
-                " VALUES (%s,%s,%s,%s,%s,%s,TRUE) ON CONFLICT DO NOTHING", (tid, d, v, loc, avail, on_hand))
-            n += 1
+                " VALUES (%s,%s,%s,%s,%s,%s,TRUE) ON CONFLICT DO NOTHING", rows[i:i + BATCH])
     conn.commit()
-    return n
+    return len(rows)
 
 
 # ---------------------------------------------------------------- landing sessions
