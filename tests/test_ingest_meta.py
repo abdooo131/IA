@@ -114,3 +114,14 @@ def test_missing_spend_zero(conn, tenant_a, meta):
     ingest_meta.ingest_spend(conn, tenant_a, "2026-10-01", "2026-10-01")
     r = rows(conn, "ad_spend_daily")[0]
     assert (r["spend"], r["impressions"], r["clicks"], r["purchases"]) == (0, 0, 0, 0)
+
+
+def test_history_requested_month_by_month(tenant_a, meta):
+    """I8: a long range is requested one calendar month at a time."""
+    meta.respond("act_496801511811310/insights", lambda params: {"data": [
+        ad(json.loads(params["time_range"])["since"], "a1", spend="1")]})
+    out = ingest_meta.fetch_ad_insights(tenant_a, "496801511811310", "2026-01-15", "2026-03-10")
+    ranges = [json.loads(c[1]["time_range"]) for c in meta.calls]
+    assert ranges == [{"since": "2026-01-15", "until": "2026-01-31"}, {"since": "2026-02-01", "until": "2026-02-28"},
+                      {"since": "2026-03-01", "until": "2026-03-10"}]
+    assert [r["date_start"] for r in out] == ["2026-01-15", "2026-02-01", "2026-03-01"]

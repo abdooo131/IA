@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict
+from datetime import date, timedelta
 from decimal import Decimal
 
 from .tenants import Tenant, meta_client, shopify_client  # noqa: F401  (names patched by tests)
@@ -29,21 +30,36 @@ def purchases_from_actions(actions) -> Decimal:
     return Decimal(0)
 
 
+def _months(since, until) -> list[tuple[date, date]]:
+    """since..until (dates or ISO strings) as calendar month chunks."""
+    s, u = date.fromisoformat(str(since)[:10]), date.fromisoformat(str(until)[:10])
+    out = []
+    while s <= u:
+        e = min((s.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1), u)
+        out.append((s, e))
+        s = e + timedelta(days=1)
+    return out
+
+
 def _fetch(t: Tenant, account_id, since, until, extra: dict) -> list[dict]:
+    """Daily insights rows, one request series per calendar month (a 3 year history in one synchronous request
+    times out); each request follows the cursor pages. Transient errors are retried by the client."""
     client = meta_client(t)
     path = f"{_act(account_id)}/insights"
-    params = {
-        "level": "ad", "time_increment": 1, "fields": AD_FIELDS, "limit": 500,
-        "time_range": json.dumps({"since": str(since), "until": str(until)}), **extra,
-    }
     rows = []
-    while True:
-        page = client.get(path, params)
-        rows.extend(page.get("data") or [])
-        after = ((page.get("paging") or {}).get("cursors") or {}).get("after")
-        if not (page.get("paging") or {}).get("next") or not after:
-            return rows
-        params = {**params, "after": after}
+    for lo, hi in _months(since, until):
+        params = {
+            "level": "ad", "time_increment": 1, "fields": AD_FIELDS, "limit": 500,
+            "time_range": json.dumps({"since": str(lo), "until": str(hi)}), **extra,
+        }
+        while True:
+            page = client.get(path, params)
+            rows.extend(page.get("data") or [])
+            after = ((page.get("paging") or {}).get("cursors") or {}).get("after")
+            if not (page.get("paging") or {}).get("next") or not after:
+                break
+            params = {**params, "after": after}
+    return rows
 
 
 def fetch_ad_insights(t: Tenant, account_id, since, until) -> list[dict]:

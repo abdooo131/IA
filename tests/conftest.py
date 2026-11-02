@@ -45,6 +45,71 @@ class _Fake:
         return r(arg) if callable(r) else r
 
 
+SHOPIFY_MAX_QUERY_COST = 1000
+_TOKEN = re.compile(r'"(?:[^"\\]|\\.)*"|\$?\w+|[{}():\[\],!@]')
+
+
+def _tokens(text):
+    return [t for t in _TOKEN.findall(text)]
+
+
+def _skip_parens(tok, i):
+    """Index after the balanced (...) starting at tok[i]; returns (args dict of name -> raw value, index)."""
+    args, depth, j = {}, 0, i
+    while True:
+        t = tok[j]
+        if t == "(":
+            depth += 1
+        elif t == ")":
+            depth -= 1
+            if depth == 0:
+                return args, j + 1
+        elif depth == 1 and j + 2 < len(tok) and tok[j + 1] == ":" and re.fullmatch(r"\w+", t):
+            args[t] = tok[j + 2]
+        j += 1
+
+
+def _selection_cost(tok, i, variables):
+    """Cost of a selection set starting after '{' at tok[i]; returns (cost, index after the closing '}').
+
+    Shopify's requested cost: an object field costs 1 plus its selection; a connection (a field with `first:`)
+    costs 2 + first x (cost of one node); scalars cost 0; pageInfo is free; nodes/edges are the node itself.
+    """
+    total = 0
+    while tok[i] != "}":
+        name = tok[i]
+        i += 1
+        if name in ("...", "@"):
+            continue
+        args = {}
+        if i < len(tok) and tok[i] == "(":
+            args, i = _skip_parens(tok, i)
+        while i < len(tok) and tok[i] == "@":            # directives
+            i += 2
+            if tok[i] == "(":
+                _, i = _skip_parens(tok, i)
+        if i < len(tok) and tok[i] == "{":
+            inner, i = _selection_cost(tok, i + 1, variables)
+            if name == "pageInfo":
+                continue
+            if "first" in args:
+                raw = args["first"]
+                n = int(variables.get(raw[1:], 0) if raw.startswith("$") else raw)
+                total += 2 + n * inner
+            elif name in ("nodes", "edges", "node"):
+                total += 1 + inner
+            else:
+                total += 1 + inner
+    return total, i + 1
+
+
+def query_cost(query: str, variables: dict | None = None) -> int:
+    """Requested cost estimate of a GraphQL operation, as Shopify computes it before running the query."""
+    tok = _tokens(query)
+    i = tok.index("{")
+    return _selection_cost(tok, i + 1, variables or {})[0]
+
+
 class FakeShopify(_Fake):
     kind = "shopify"
 
@@ -55,6 +120,9 @@ class FakeShopify(_Fake):
         m = re.search(r"\b(?:query|mutation)\s+(\w+)", query)
         if not m:
             raise AssertionError("fake Shopify needs a named operation")
+        cost = query_cost(query, variables)
+        if cost > SHOPIFY_MAX_QUERY_COST:
+            raise AssertionError(f"{m.group(1)}: requested query cost {cost} exceeds {SHOPIFY_MAX_QUERY_COST}")
         self.calls.append((m.group(1), variables))
         return self._resolve(m.group(1), variables)["data"]
 

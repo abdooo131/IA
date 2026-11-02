@@ -1,4 +1,5 @@
 import pytest
+import requests
 
 from engine import db, tenants
 
@@ -26,6 +27,19 @@ def test_add_tenant_reads_tz_currency_from_shop(conn, fake_clients, monkeypatch)
     assert [c[0] for c in fake_clients.meta.calls] == ["act_496801511811310", "act_1222339613363462"]
 
 
+def test_add_tenant_uses_primary_location_and_warns_on_timezone(conn, fake_clients):
+    """I6: the main location is the shop's primary location (location query without id), not the first by name.
+    M1: an ad account in another timezone is accepted with a warning."""
+    warnings = []
+    t = tenants.add_tenant(conn, "Eve", "e.myshopify.com", "S", "M", ["496801511811310", "1222339613363462"], "EVE",
+                           warnings=warnings)
+    assert t.main_location_id == "gid://shopify/Location/222"
+    q = [c for c in fake_clients.shopify.calls if c[0] == "ShopInfo"]
+    assert q and "locations" not in tenants.SHOP_INFO_QUERY
+    assert len(warnings) == 1 and "1222339613363462" in warnings[0] and "Europe/London" in warnings[0]
+    assert all(c[1]["fields"] == "currency,timezone_name" for c in fake_clients.meta.calls)
+
+
 def test_add_tenant_rejects_currency_mismatch(conn, fake_clients):
     with pytest.raises(ValueError, match="currency"):
         tenants.add_tenant(conn, "X", "x.myshopify.com", "X_S", "X_M", ["999"], "X")
@@ -46,18 +60,27 @@ def test_token_never_stored(conn, fake_clients, monkeypatch):
     assert row == {"shopify_token_env": "EVE_SHOPIFY_TOKEN", "meta_token_env": "EVE_META_TOKEN"}
 
 
+class _Resp:
+    def __init__(self, body, status=200, headers=None):
+        self._body, self.status_code, self.headers = body, status, headers or {}
+
+    def raise_for_status(self):
+        if self.status_code >= 400:
+            raise requests.HTTPError(f"{self.status_code} Error")
+
+    def json(self):
+        return self._body
+
+
 def test_clients_use_env_token_and_urls(monkeypatch, tenant_a):
+    """C3: the Meta token travels in an Authorization header, never in the URL or query params."""
     seen = {}
 
-    class R:
-        def raise_for_status(self): pass
-        def json(self): return {"data": {"ok": 1}}
-
     def post(url, json=None, headers=None, timeout=None):
-        seen["post"] = (url, headers); return R()
+        seen["post"] = (url, headers); return _Resp({"data": {"ok": 1}})
 
-    def get(url, params=None, timeout=None):
-        seen["get"] = (url, params); return R()
+    def get(url, params=None, headers=None, timeout=None):
+        seen["get"] = (url, params, headers); return _Resp({"id": "act_1"})
 
     monkeypatch.setattr("engine.tenants.requests.post", post)
     monkeypatch.setattr("engine.tenants.requests.get", get)
@@ -67,8 +90,75 @@ def test_clients_use_env_token_and_urls(monkeypatch, tenant_a):
     assert seen["post"] == ("https://a.myshopify.com/admin/api/2025-10/graphql.json",
                             {"X-Shopify-Access-Token": "tok1"})
     tenants.meta_client(tenant_a).get("act_1", {"fields": "currency"})
-    assert seen["get"] == ("https://graph.facebook.com/v23.0/act_1",
-                           {"fields": "currency", "access_token": "tok2"})
+    assert seen["get"] == ("https://graph.facebook.com/v23.0/act_1", {"fields": "currency"},
+                           {"Authorization": "Bearer tok2"})
+    assert "tok2" not in repr(seen["get"][:2])
+
+
+def test_missing_env_var_names_the_variable(monkeypatch, tenant_a):
+    monkeypatch.delenv("A_SHOPIFY_TOKEN", raising=False)
+    monkeypatch.delenv("A_META_TOKEN", raising=False)
+    with pytest.raises(tenants.MissingTokenError, match="A_SHOPIFY_TOKEN"):
+        tenants.shopify_client(tenant_a).graphql("query Q { x }")
+    with pytest.raises(tenants.MissingTokenError, match="A_META_TOKEN"):
+        tenants.meta_client(tenant_a).get("act_1")
+
+
+def test_shopify_retries_throttled_and_http_errors(monkeypatch, tenant_a):
+    waits = []
+    monkeypatch.setattr(tenants, "_sleep", waits.append)
+    monkeypatch.setenv("A_SHOPIFY_TOKEN", "tok1")
+    throttled = {"errors": [{"message": "Throttled", "extensions": {"code": "THROTTLED"}}],
+                 "extensions": {"cost": {"requestedQueryCost": 500, "actualQueryCost": None,
+                                         "throttleStatus": {"maximumAvailable": 1000, "currentlyAvailable": 100,
+                                                            "restoreRate": 50}}}}
+    replies = [_Resp({}, 429, {"Retry-After": "2"}), _Resp({}, 503), _Resp(throttled), _Resp({"data": {"ok": 1}})]
+    monkeypatch.setattr("engine.tenants.requests.post", lambda *a, **k: replies.pop(0))
+    assert tenants.shopify_client(tenant_a).graphql("query Q { x }") == {"ok": 1}
+    assert waits[0] == 2.0                      # Retry-After honoured
+    assert waits[2] == pytest.approx((500 - 100) / 50 + 0.5)     # waits for the bucket to refill
+    # a non throttle error is not retried
+    monkeypatch.setattr("engine.tenants.requests.post",
+                        lambda *a, **k: _Resp({"errors": [{"message": "Field x doesn't exist"}]}))
+    with pytest.raises(RuntimeError, match="doesn't exist"):
+        tenants.shopify_client(tenant_a).graphql("query Q { x }")
+
+
+def test_meta_retries_transient_codes_and_5xx(monkeypatch, tenant_a):
+    waits = []
+    monkeypatch.setattr(tenants, "_sleep", waits.append)
+    monkeypatch.setenv("A_META_TOKEN", "EAAGsecretsecretsecretsecret1234")
+    replies = [_Resp({"error": {"code": 17, "message": "User request limit reached"}}, 400),
+               _Resp({}, 502), _Resp({"error": {"code": 80004, "message": "too many calls"}}, 400),
+               _Resp({"data": [1]})]
+    monkeypatch.setattr("engine.tenants.requests.get", lambda *a, **k: replies.pop(0))
+    assert tenants.meta_client(tenant_a).get("act_1/insights") == {"data": [1]}
+    assert len(waits) == 3
+    monkeypatch.setattr("engine.tenants.requests.get", lambda *a, **k: _Resp(
+        {"error": {"code": 190, "message": "Invalid token EAAGsecretsecretsecretsecret1234 access_token=x"}}, 400))
+    with pytest.raises(tenants.MetaError) as e:
+        tenants.meta_client(tenant_a).get("act_1/insights")
+    assert "EAAGsecret" not in str(e.value) and "access_token=x" not in str(e.value)
+    assert len(waits) == 3                      # code 190 is not retried
+
+
+def test_redact(monkeypatch, tenant_a):
+    monkeypatch.setenv("A_META_TOKEN", "plain-meta-token-value")
+    msg = ("HTTPError for url: https://graph.facebook.com/v23.0/act_1?access_token=abc123&fields=x "
+           "token plain-meta-token-value shpat_0123456789abcdef EAAB0123456789abcdefghijklmnop Bearer zzz.yyy")
+    out = tenants.redact(msg, tenant_a)
+    for secret in ("abc123", "plain-meta-token-value", "shpat_0123456789abcdef", "EAAB0123456789abcdefghijklmnop",
+                   "zzz.yyy"):
+        assert secret not in out
+    assert "fields=x" in out
+
+
+def test_set_main_location(conn, tenant_a):
+    t = tenants.set_main_location(conn, tenant_a, "gid://shopify/Location/999")
+    assert t.main_location_id == "gid://shopify/Location/999"
+    assert tenants.set_main_location(conn, tenant_a, "1234").main_location_id == "gid://shopify/Location/1234"
+    with pytest.raises(ValueError):
+        tenants.set_main_location(conn, tenant_a, "gid://shopify/Product/1")
 
 
 def test_tenant_isolation_helper(conn, tenant_a, tenant_b):

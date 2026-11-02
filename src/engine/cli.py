@@ -11,6 +11,7 @@ import json
 import logging
 import math
 import time
+import traceback
 from contextlib import contextmanager
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
@@ -36,6 +37,9 @@ CYCLE_STAGES = ("sync_products", "ingest_orders", "ingest_spend", "ingest_landin
                 "lineage", "run_attribution", "meta_factor", "fit", "score_runs", "run_decisions", "suggest_pos",
                 "forward_plan", "rolling_backtest")
 INGEST_STAGES = CYCLE_STAGES[:5]
+# Optional stages: a failure is recorded as a warning in runs.stages and the run goes on (landing sessions need
+# the read_reports scope and ShopifyQL; the funnel only refines views).
+OPTIONAL_STAGES = frozenset({"ingest_landing_sessions", "rollup_funnel"})
 # Spec 35: month grain for the whole parent chain, week and day grains for products and styles.
 FIT_PLAN = tuple(("month", lv) for lv in ("store", "collection", "style", "product")) + tuple(
     (g, lv) for g in ("week", "day") for lv in ("product", "style"))
@@ -299,7 +303,9 @@ def _cycle_stages(conn, t: Tenant, run_id: str, month: str, today: date,
 
 def _run_stages(conn, t: Tenant, run_id: str | None, stages) -> tuple[bool, str | None]:
     """Run stages in order, logging each (and recording it in runs.stages when run_id is set). Stops at the
-    first failure. Returns (ok, failure message)."""
+    first failure of a required stage; an OPTIONAL_STAGES failure is recorded with status 'warning' and the next
+    stage runs. Error text is redacted (no access tokens) before it is logged, stored or returned.
+    Returns (ok, failure message)."""
     for seq, (name, fn) in enumerate(stages):
         start = time.monotonic()
         log.info("tenant %s (%s) run %s: %s started", t.tenant_id, t.name, run_id, name)
@@ -307,28 +313,66 @@ def _run_stages(conn, t: Tenant, run_id: str | None, stages) -> tuple[bool, str 
             result = fn()
         except Exception as e:                       # noqa: BLE001  a stage failure fails the run, not the CLI
             conn.rollback()
-            msg = f"{type(e).__name__}: {e}"
-            log.exception("tenant %s (%s) run %s: %s failed", t.tenant_id, t.name, run_id, name)
+            msg = tenants.redact(f"{type(e).__name__}: {e}", t)
+            optional = name in OPTIONAL_STAGES
+            log.error("tenant %s (%s) run %s: %s %s: %s\n%s", t.tenant_id, t.name, run_id, name,
+                      "failed (optional, continuing)" if optional else "failed", msg,
+                      tenants.redact(traceback.format_exc(), t))
             if run_id:
-                _record_stage(conn, t, run_id, name, {"seq": seq, "status": "failed", "error": msg,
-                                                      "seconds": round(time.monotonic() - start, 3)})
+                _safe_record(conn, t, run_id, name, {"seq": seq, "status": "warning" if optional else "failed",
+                                                     "error": msg, "seconds": round(time.monotonic() - start, 3)})
+            if optional:
+                continue
             return False, f"{name}: {msg}"
         secs = round(time.monotonic() - start, 3)
         log.info("tenant %s (%s) run %s: %s done in %.1fs: %s", t.tenant_id, t.name, run_id, name, secs,
-                 _plain(result))
+                 _summary(result))
         if run_id:
             _record_stage(conn, t, run_id, name, {"seq": seq, "status": "done", "seconds": secs, "result": result})
     return True, None
 
 
+def _summary(result, limit: int = 500) -> str:
+    """Stage result for the log, cut to `limit` characters."""
+    text = json.dumps(_plain(result), default=str)
+    return text if len(text) <= limit else text[:limit] + "..."
+
+
+def _safe_record(conn, t: Tenant, run_id: str, name: str, info: dict) -> None:
+    """Record a stage failure; best effort (a bookkeeping error is logged, never raised over the stage error)."""
+    try:
+        _record_stage(conn, t, run_id, name, info)
+    except Exception:                                # noqa: BLE001
+        conn.rollback()
+        log.error("tenant %s run %s: could not record stage %s", t.tenant_id, run_id, name)
+
+
 def run_cycle(conn, t: Tenant, today: date | None = None) -> tuple[str, bool, str | None]:
-    """One tenant's monthly cycle as a recorded run. Never approves, pushes or cancels a PO."""
+    """One tenant's monthly cycle as a recorded run. Never approves, pushes or cancels a PO.
+
+    If anything outside a stage raises (bookkeeping), the run is still marked failed, best effort."""
     today = today or local_today(t)
     month = previous_month(today)
     run_id = new_run(conn, t, month)
-    ok, err = _run_stages(conn, t, run_id, _cycle_stages(conn, t, run_id, month, today, {}))
-    _finish_run(conn, t, run_id, "done" if ok else "failed")
+    try:
+        ok, err = _run_stages(conn, t, run_id, _cycle_stages(conn, t, run_id, month, today, {}))
+        _finish_run(conn, t, run_id, "done" if ok else "failed")
+    except BaseException:
+        _mark_failed(conn, t, run_id)
+        raise
     return run_id, ok, err
+
+
+def _mark_failed(conn, t: Tenant, run_id: str) -> None:
+    try:
+        conn.rollback()
+        _finish_run(conn, t, run_id, "failed")
+    except Exception:                                # noqa: BLE001  the connection may be gone; try a new one
+        try:
+            with connect() as c2:
+                _finish_run(c2, t, run_id, "failed")
+        except Exception:                            # noqa: BLE001
+            log.error("tenant %s run %s: could not mark the run failed", t.tenant_id, run_id)
 
 
 # ---------------------------------------------------------------- tables and report
@@ -483,11 +527,17 @@ def tenant_add(
 ) -> None:
     """Register a store; timezone and currency are read from Shopify."""
     with _session() as conn:
+        warnings: list[str] = []
         try:
-            t = tenants.add_tenant(conn, name, shop, shopify_token_env, meta_token_env, meta_account, po_prefix)
-        except ValueError as e:
-            _fail(str(e))
-        typer.echo(f"tenant {t.tenant_id} {t.name}: {t.timezone} {t.currency}, main location {t.main_location_id}")
+            t = tenants.add_tenant(conn, name, shop, shopify_token_env, meta_token_env, meta_account, po_prefix,
+                                   warnings=warnings)
+        except Exception as e:                       # noqa: BLE001  HTTP errors included; never echo a token
+            conn.rollback()
+            _fail(tenants.redact(f"{type(e).__name__}: {e}" if not isinstance(e, ValueError) else e))
+        typer.echo(f"tenant {t.tenant_id} {t.name}: {t.timezone} {t.currency}, main location {t.main_location_id}"
+                   " (change with `engine tenant set-location`)")
+        for w in warnings:
+            typer.echo(f"warning: {w}", err=True)
         typer.echo(f"pixel key (for the storefront pixel): {t.pixel_key}")
         if ingest:
             ok, err = _run_stages(conn, t, None, _ingest_stages(conn, t, local_today(t), {}))
@@ -818,15 +868,16 @@ def cycle(tenant: Optional[str] = _tenant_opt(),
     failed = []
     with _session() as conn:
         targets = tenants.list_tenants(conn) if all_tenants else [resolve_tenant(conn, tenant)]
-        for t in targets:
-            try:
+    for t in targets:                                # a fresh connection per tenant: one tenant's broken
+        try:                                         # connection cannot fail the next tenant
+            with _session() as conn:
                 run_id, ok, err = run_cycle(conn, t)
-            except Exception as e:                   # noqa: BLE001  bookkeeping failure: next tenant
-                conn.rollback()
-                log.exception("tenant %s cycle crashed", t.tenant_id)
-                run_id, ok, err = None, False, f"{type(e).__name__}: {e}"
-            typer.echo(f"tenant {t.tenant_id} {t.name}: run {run_id} {'done' if ok else 'failed at ' + str(err)}")
-            if not ok:
-                failed.append(t.name)
+        except Exception as e:                       # noqa: BLE001  bookkeeping failure: next tenant
+            log.error("tenant %s cycle crashed: %s", t.tenant_id,
+                      tenants.redact(traceback.format_exc(), t))
+            run_id, ok, err = None, False, tenants.redact(f"{type(e).__name__}: {e}", t)
+        typer.echo(f"tenant {t.tenant_id} {t.name}: run {run_id} {'done' if ok else 'failed at ' + str(err)}")
+        if not ok:
+            failed.append(t.name)
     if failed:
         _fail(f"cycle failed for {', '.join(failed)}")

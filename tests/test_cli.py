@@ -343,3 +343,77 @@ def test_snapshot_stock_first_snapshot_reconstructs(conn, env, tenant_a):
     invoke("snapshot_stock", "--tenant", tenant_a.name)             # later snapshots do not reconstruct again
     assert conn.execute("SELECT count(*) n FROM stock_daily WHERE tenant_id = %s AND reconstructed",
                         (tenant_a.tenant_id,)).fetchone()["n"] == 3 * 3
+
+
+def test_meta_error_stores_no_token(conn, env, tenant_a, monkeypatch):
+    """C3: a Meta HTTP error carrying the token (in its text or a URL) reaches neither runs.stages, the log nor
+    the terminal; the real client sends the token as a Bearer header only."""
+    secret = "EAAGsupersecretmetatoken0123456789"
+    monkeypatch.setenv("A_META_TOKEN", secret)
+    monkeypatch.setattr("engine.tenants._sleep", lambda s: None)
+    sent = []
+
+    class Resp:
+        status_code = 400
+
+        def json(self):
+            return {"error": {"code": 190, "message": f"Malformed access token {secret}",
+                              "fbtrace_id": f"https://graph.facebook.com/x?access_token={secret}"}}
+
+    def get(url, params=None, headers=None, timeout=None):
+        sent.append((url, params, headers))
+        return Resp()
+    monkeypatch.setattr("engine.tenants.requests.get", get)
+    from engine import tenants as tn
+    monkeypatch.setattr(cli.ingest_meta, "meta_client", tn.MetaClient)
+    r = runner.invoke(cli.app, ["cycle", "--tenant", tenant_a.name])
+    assert r.exit_code != 0
+    run = conn.execute("SELECT status, stages FROM runs WHERE tenant_id = %s", (tenant_a.tenant_id,)).fetchone()
+    assert run["status"] == "failed" and run["stages"]["ingest_spend"]["status"] == "failed"
+    assert secret not in json.dumps(run["stages"]) and secret not in r.output
+    assert "Malformed access token" in run["stages"]["ingest_spend"]["error"]
+    assert sent and all(secret not in url and secret not in json.dumps(p) for url, p, _ in sent)
+    assert sent[0][2] == {"Authorization": f"Bearer {secret}"}
+
+    def leak(*a, **k):
+        raise RuntimeError(f"400 Client Error for url: https://graph.facebook.com/v23.0/act_1?access_token={secret}")
+    monkeypatch.setattr(cli.ingest_meta, "ingest_spend", leak)
+    r = runner.invoke(cli.app, ["cycle", "--tenant", tenant_a.name])
+    stages = json.dumps([x["stages"] for x in conn.execute("SELECT stages FROM runs WHERE tenant_id = %s",
+                                                            (tenant_a.tenant_id,))])
+    assert secret not in stages and secret not in r.output and "access_token=[REDACTED]" in stages
+
+
+def test_optional_landing_stage_failure_is_a_warning(conn, env, tenant_a, monkeypatch):
+    """I7: landing sessions (and the funnel roll-up) failing records a warning; the run still completes."""
+    def boom(*a, **k):
+        raise RuntimeError("Access denied for shopifyqlQuery field. Required access: `read_reports`")
+    monkeypatch.setattr(cli.ingest_shopify, "ingest_landing_sessions", boom)
+    monkeypatch.setattr(cli, "rollup_funnel", boom)
+    add_suppliers(conn, tenant_a, "A")
+    invoke("cycle", "--tenant", tenant_a.name)
+    run = conn.execute("SELECT status, stages FROM runs WHERE tenant_id = %s", (tenant_a.tenant_id,)).fetchone()
+    assert run["status"] == "done"
+    assert run["stages"]["ingest_landing_sessions"]["status"] == "warning"
+    assert "read_reports" in run["stages"]["ingest_landing_sessions"]["error"]
+    assert run["stages"]["forward_plan"]["status"] == "done"
+
+
+def test_cycle_bookkeeping_crash_marks_run_failed_and_next_tenant_runs(conn, env, tenant_a, tenant_b, monkeypatch):
+    """M6: a crash outside a stage (here, recording a stage) still marks the run failed; every tenant gets its
+    own connection, so tenant B runs normally."""
+    real = cli._record_stage
+    connections = []
+    real_connect = cli.connect
+    monkeypatch.setattr(cli, "connect", lambda: connections.append(1) or real_connect())
+
+    def record(c, t, run_id, name, info):
+        if t.tenant_id == tenant_a.tenant_id and name == "ingest_orders":
+            raise RuntimeError("stages column locked")
+        return real(c, t, run_id, name, info)
+    monkeypatch.setattr(cli, "_record_stage", record)
+    r = runner.invoke(cli.app, ["cycle", "--all-tenants"])
+    assert r.exit_code != 0 and "stages column locked" in r.output
+    status = {row["tenant_id"]: row["status"] for row in conn.execute("SELECT tenant_id, status FROM runs")}
+    assert status == {tenant_a.tenant_id: "failed", tenant_b.tenant_id: "done"}
+    assert len(connections) >= 3                    # tenant list + one per tenant

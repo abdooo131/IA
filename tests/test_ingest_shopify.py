@@ -1,4 +1,5 @@
-from datetime import date
+import re
+from datetime import date, timedelta
 
 import pytest
 
@@ -196,7 +197,9 @@ def test_landing_path_to_handle():
     assert f("/products/silk-dress-black/") == "silk-dress-black"
     assert f("/ar/products/silk-dress-black?variant=1&utm_source=x") == "silk-dress-black"
     assert f("/en-gb/products/a-b/?x=1") == "a-b"
-    assert f("/") is None and f("/collections/dresses") is None and f("/collections/x/products/y") is None
+    assert f("/collections/x/products/y") == "y"                       # M2: collection scoped product URLs
+    assert f("/ar/collections/dresses/products/silk-dress/?variant=2") == "silk-dress"
+    assert f("/") is None and f("/collections/dresses") is None and f("/collections/x/y/products/z") is None
     assert f("/pages/products") is None and f("") is None
 
 
@@ -233,21 +236,81 @@ def test_order_query_window_uses_tenant_tz_utc_bounds(conn, tenant_a, api):
     assert q == "updated_at:>='2026-02-28T22:00:00Z' AND created_at:<'2026-03-31T22:00:00Z'"
 
 
-def test_nested_connection_truncation_raises(conn, tenant_a, api):
+def test_nested_connections_paginate(conn, tenant_a, api):
+    """C2: nested connections that overflow their page are read with follow up queries, not truncated."""
     page = load_fixture("shopify", "OrdersPage1")
     page["data"]["orders"]["pageInfo"]["hasNextPage"] = False
-    page["data"]["orders"]["nodes"][0]["lineItems"]["pageInfo"] = {"hasNextPage": True}
+    o1 = page["data"]["orders"]["nodes"][0]
+    o1["lineItems"]["pageInfo"] = {"hasNextPage": True, "endCursor": "L1"}
+    o1["refunds"][0]["refundLineItems"]["pageInfo"] = {"hasNextPage": True, "endCursor": "R1"}
     api.shopify.respond("Orders", page)
-    with pytest.raises(RuntimeError, match="lineItems"):
-        ing.ingest_orders(conn, tenant_a, date(2026, 3, 1), date(2026, 3, 31))
-    page = load_fixture("shopify", "OrdersPage1")
-    page["data"]["orders"]["pageInfo"]["hasNextPage"] = False
-    page["data"]["orders"]["nodes"][0]["refunds"][0]["refundLineItems"]["pageInfo"] = {"hasNextPage": True}
-    api.shopify.respond("Orders", page)
-    with pytest.raises(RuntimeError, match="refundLineItems"):
-        ing.ingest_orders(conn, tenant_a, date(2026, 3, 1), date(2026, 3, 31))
+    money = lambda x: {"shopMoney": {"amount": str(x)}}
+    api.shopify.respond("OrderLineItems", lambda v: {"data": {"order": {"lineItems": {
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+        "nodes": [{"id": "li-extra", "quantity": 4, "variant": {"id": V201}, "discountedTotalSet": money(1600)}]}}}})
+    api.shopify.respond("RefundLineItems", lambda v: {"data": {"refund": {"refundLineItems": {
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+        "nodes": [{"quantity": 1, "subtotalSet": money(400), "lineItem": {"variant": {"id": V201}}}]}}}})
+    ing.ingest_orders(conn, tenant_a, date(2026, 3, 1), date(2026, 3, 31))
+    rows = [(r["date"], r["variant_id"], r["qty"]) for r in _lines(conn, tenant_a, O1)]
+    assert (date(2026, 3, 2), V201, 4) in rows and (date(2026, 3, 5), V201, -1) in rows
+    calls = {name: v for name, v in api.shopify.calls}
+    assert calls["OrderLineItems"] == {"id": O1, "after": "L1"}
+    assert calls["RefundLineItems"]["after"] == "R1"
+
     prods = load_fixture("shopify", "Products")
-    prods["data"]["products"]["nodes"][0]["variants"]["pageInfo"] = {"hasNextPage": True}
+    prods["data"]["products"]["nodes"][0]["variants"]["pageInfo"] = {"hasNextPage": True, "endCursor": "V1"}
     api.shopify.respond("Products", prods)
-    with pytest.raises(RuntimeError, match="variants"):
-        ing.sync_products(conn, tenant_a)
+    api.shopify.respond("ProductVariantsPage", {"data": {"product": {"variants": {
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+        "nodes": [{"id": "gid://shopify/ProductVariant/103", "sku": "x", "selectedOptions": [
+            {"name": "Size", "value": "L"}], "inventoryItem": {"id": "gid://shopify/InventoryItem/1103",
+                                                             "unitCost": None}}]}}}})
+    assert ing.sync_products(conn, tenant_a) == 4
+
+    stock = load_fixture("shopify", "StockLevels")
+    item = stock["data"]["productVariants"]["nodes"][1]["inventoryItem"]
+    item["id"] = "gid://shopify/InventoryItem/1102"
+    item["inventoryLevels"]["pageInfo"] = {"hasNextPage": True, "endCursor": "S1"}
+    api.shopify.respond("StockLevels", stock)
+    api.shopify.respond("InventoryLevelsPage", {"data": {"inventoryItem": {"inventoryLevels": {
+        "pageInfo": {"hasNextPage": False, "endCursor": None},
+        "nodes": [{"location": {"id": "gid://shopify/Location/333", "name": "Shop"},
+                   "quantities": [{"name": "available", "quantity": 4}, {"name": "on_hand", "quantity": 4}]}]}}}})
+    assert ing.snapshot_stock(conn, tenant_a, date(2026, 3, 10)) == 4
+
+
+def test_queries_fit_the_cost_limit():
+    """C2: every query's requested cost (fake estimator, Shopify's formula) stays under 1,000 points."""
+    from conftest import SHOPIFY_MAX_QUERY_COST, query_cost
+    from engine import purchasing, tenants
+    queries = [ing.PRODUCTS_QUERY, ing.PRODUCT_VARIANTS_QUERY, ing.ORDERS_QUERY, ing.ORDER_LINES_QUERY,
+               ing.REFUND_LINES_QUERY, ing.STOCK_QUERY, ing.STOCK_LEVELS_QUERY, ing.TRANSFER_QUERY,
+               ing.FIRST_ORDER_QUERY, ing.LANDING_QUERY, tenants.SHOP_INFO_QUERY, purchasing.TRANSFER_BY_REFERENCE,
+               purchasing.TRANSFER_CREATE, purchasing.TRANSFER_MARK_READY, purchasing.TRANSFER_CANCEL]
+    costs = [query_cost(q) for q in queries]
+    assert max(costs) <= SHOPIFY_MAX_QUERY_COST, costs
+    assert query_cost(ing.PRODUCTS_QUERY.replace("first: 10", "first: 50")) > SHOPIFY_MAX_QUERY_COST   # estimator bites
+
+
+def test_landing_sessions_chunked_by_month_and_split_when_full(conn, tenant_a, api, monkeypatch):
+    """I7: one ShopifyQL query per month; a result that fills the row limit is re-read in halves."""
+    monkeypatch.setattr(ing, "LANDING_LIMIT", 3)
+
+    def respond(v):
+        since, until = map(date.fromisoformat, re.search(r"SINCE (\S+) UNTIL (\S+)", v["q"]).groups())
+        n = (until - since).days + 1
+        rows = [{"landing_page_path": "/products/silk-dress-black", "day": (since + timedelta(days=i)).isoformat(),
+                 "sessions": "2"} for i in range(n)]
+        return {"data": {"shopifyqlQuery": {"parseErrors": [], "tableData": {"columns": [], "rows": rows[:3]}}}}
+    api.shopify.respond("LandingSessions", respond)
+    n = ing.ingest_landing_sessions(conn, tenant_a, date(2026, 1, 30), date(2026, 2, 3))
+    qs = [v["q"] for name, v in api.shopify.calls if name == "LandingSessions"]
+    assert "SINCE 2026-01-30 UNTIL 2026-01-31" in qs[0] and "LIMIT 3" in qs[0]
+    assert any("SINCE 2026-02-01 UNTIL 2026-02-03" in q for q in qs)       # full: split
+    assert n == 5 and conn.execute("SELECT sum(sessions) s FROM landing_sessions").fetchone()["s"] == 10
+    api.shopify.respond("LandingSessions", lambda v: {"data": {"shopifyqlQuery": {"parseErrors": [], "tableData": {
+        "columns": [], "rows": [{"landing_page_path": f"/products/p{i}", "day": "2026-01-01", "sessions": "1"}
+                                for i in range(3)]}}}})
+    with pytest.raises(RuntimeError, match="truncated"):
+        ing.ingest_landing_sessions(conn, tenant_a, date(2026, 1, 1), date(2026, 1, 1))

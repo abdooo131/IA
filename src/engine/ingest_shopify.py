@@ -36,11 +36,18 @@ def _local_date(ts: str, tz: str) -> date:
     return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(ZoneInfo(tz)).date()
 
 
-def _nodes(connection: dict, what: str) -> list[dict]:
-    """Nodes of a nested connection fetched with a fixed `first:`; raise rather than truncate silently."""
-    if ((connection.get("pageInfo") or {}).get("hasNextPage")):
-        raise RuntimeError(f"{what} has more than one page; refusing to ingest truncated data")
-    return connection["nodes"]
+def _all_nodes(client, connection: dict, query: str, variables: dict, path: tuple[str, ...]) -> list[dict]:
+    """Every node of a nested connection: the nodes already fetched with the parent, then follow up pages
+    (`query` with `variables` + after, the connection found at data[path...]) while hasNextPage."""
+    nodes = list(connection["nodes"])
+    info = connection.get("pageInfo") or {}
+    while info.get("hasNextPage"):
+        data = client.graphql(query, {**variables, "after": info.get("endCursor")})
+        for key in path:
+            data = data[key]
+        nodes.extend(data["nodes"])
+        info = data.get("pageInfo") or {}
+    return nodes
 
 
 def _money(m: dict | None) -> float:
@@ -83,17 +90,32 @@ def customer_key(phone: str | None, email: str | None, customer_id: str | None) 
 
 # ---------------------------------------------------------------- products
 
+# Page sizes keep each query's requested cost under Shopify's 1,000 point single query limit
+# (connection = 2 + first x node cost; nested connections multiply). Nested connections that overflow are read
+# with a follow up query for their parent.
+PRODUCTS_PAGE, PRODUCT_VARIANTS_PAGE = 10, 20          # 2 + 10 x (1 + 2 + 20 x 4) = 832
 PRODUCTS_QUERY = """
 query Products($after: String) {
-  products(first: 50, after: $after) {
+  products(first: %d, after: $after) {
     pageInfo { hasNextPage endCursor }
     nodes {
       id handle title status createdAt
-      variants(first: 100) { pageInfo { hasNextPage } nodes {
+      variants(first: %d) { pageInfo { hasNextPage endCursor } nodes {
         id sku selectedOptions { name value }
         inventoryItem { id unitCost { amount } }
       } }
     }
+  }
+}
+""" % (PRODUCTS_PAGE, PRODUCT_VARIANTS_PAGE)
+
+PRODUCT_VARIANTS_QUERY = """
+query ProductVariantsPage($id: ID!, $after: String) {
+  product(id: $id) {
+    variants(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+      id sku selectedOptions { name value }
+      inventoryItem { id unitCost { amount } }
+    } }
   }
 }
 """
@@ -104,7 +126,8 @@ def sync_products(conn, t: Tenant) -> int:
     client = shopify_client(t)
     n = 0
     for p in _pages(client, PRODUCTS_QUERY, {}, "products"):
-        for v in _nodes(p["variants"], f"product {p['id']} variants"):
+        for v in _all_nodes(client, p["variants"], PRODUCT_VARIANTS_QUERY, {"id": p["id"]},
+                            ("product", "variants")):
             opts = {o["name"].strip().lower(): o["value"] for o in v["selectedOptions"]}
             colour = next((val for k, val in opts.items() if k in COLOUR_OPTIONS), None)
             size = next((val for k, val in opts.items() if k in SIZE_OPTIONS), None)
@@ -126,22 +149,43 @@ def sync_products(conn, t: Tenant) -> int:
 
 # ---------------------------------------------------------------- orders
 
+ORDERS_PAGE, ORDER_LINES_PAGE, REFUND_LINES_PAGE = 8, 10, 10      # 2 + 8 x 102 = 818
 ORDERS_QUERY = """
 query Orders($after: String, $query: String) {
-  orders(first: 50, after: $after, query: $query, sortKey: CREATED_AT) {
+  orders(first: %d, after: $after, query: $query, sortKey: CREATED_AT) {
     pageInfo { hasNextPage endCursor }
     nodes {
       id createdAt cancelledAt email phone
       customer { id email phone }
       totalPriceSet { shopMoney { amount } }
       customerJourneySummary { lastVisit { landingPage utmParameters { source content } } }
-      lineItems(first: 100) { pageInfo { hasNextPage } nodes {
+      lineItems(first: %d) { pageInfo { hasNextPage endCursor } nodes {
         id quantity variant { id } discountedTotalSet { shopMoney { amount } }
       } }
-      refunds { id createdAt refundLineItems(first: 100) { pageInfo { hasNextPage } nodes {
+      refunds { id createdAt refundLineItems(first: %d) { pageInfo { hasNextPage endCursor } nodes {
         quantity subtotalSet { shopMoney { amount } } lineItem { variant { id } }
       } } }
     }
+  }
+}
+""" % (ORDERS_PAGE, ORDER_LINES_PAGE, REFUND_LINES_PAGE)
+
+ORDER_LINES_QUERY = """
+query OrderLineItems($id: ID!, $after: String) {
+  order(id: $id) {
+    lineItems(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+      id quantity variant { id } discountedTotalSet { shopMoney { amount } }
+    } }
+  }
+}
+"""
+
+REFUND_LINES_QUERY = """
+query RefundLineItems($id: ID!, $after: String) {
+  refund(id: $id) {
+    refundLineItems(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+      quantity subtotalSet { shopMoney { amount } } lineItem { variant { id } }
+    } }
   }
 }
 """
@@ -204,12 +248,13 @@ def ingest_orders(conn, t: Tenant, since: date, until: date) -> int:
             " VALUES (%s,%s,%s,%s,%s,%s,%s)",
             (t.tenant_id, o["id"], created, key, source, content, _money(o["totalPriceSet"])))
         rows = []
-        for li in _nodes(o["lineItems"], f"order {o['id']} lineItems"):
+        for li in _all_nodes(client, o["lineItems"], ORDER_LINES_QUERY, {"id": o["id"]}, ("order", "lineItems")):
             if li.get("variant"):          # deleted variants cannot be keyed; skipped
                 rows.append((created, li["variant"]["id"], li["quantity"], _money(li["discountedTotalSet"])))
         for rf in o.get("refunds") or []:
             rdate = _local_date(rf["createdAt"], t.timezone)
-            for rl in _nodes(rf["refundLineItems"], f"refund {rf['id']} refundLineItems"):
+            for rl in _all_nodes(client, rf["refundLineItems"], REFUND_LINES_QUERY, {"id": rf["id"]},
+                                 ("refund", "refundLineItems")):
                 variant = (rl.get("lineItem") or {}).get("variant")
                 if variant:
                     rows.append((rdate, variant["id"], -rl["quantity"], -_money(rl["subtotalSet"])))
@@ -224,14 +269,26 @@ def ingest_orders(conn, t: Tenant, since: date, until: date) -> int:
 
 # ---------------------------------------------------------------- stock
 
+STOCK_PAGE, STOCK_LEVELS_PAGE = 25, 10                  # 2 + 25 x (2 + 2 + 10 x 3) = 852
 STOCK_QUERY = """
 query StockLevels($after: String) {
-  productVariants(first: 50, after: $after) {
+  productVariants(first: %d, after: $after) {
     pageInfo { hasNextPage endCursor }
-    nodes { id inventoryItem { inventoryLevels(first: 50) { nodes {
+    nodes { id inventoryItem { id inventoryLevels(first: %d) { pageInfo { hasNextPage endCursor } nodes {
       location { id name }
       quantities(names: ["available", "on_hand"]) { name quantity }
     } } } }
+  }
+}
+""" % (STOCK_PAGE, STOCK_LEVELS_PAGE)
+
+STOCK_LEVELS_QUERY = """
+query InventoryLevelsPage($id: ID!, $after: String) {
+  inventoryItem(id: $id) {
+    inventoryLevels(first: 100, after: $after) { pageInfo { hasNextPage endCursor } nodes {
+      location { id name }
+      quantities(names: ["available", "on_hand"]) { name quantity }
+    } }
   }
 }
 """
@@ -242,7 +299,10 @@ def snapshot_stock(conn, t: Tenant, day: date) -> int:
     client = shopify_client(t)
     n = 0
     for v in _pages(client, STOCK_QUERY, {}, "productVariants"):
-        for lvl in ((v.get("inventoryItem") or {}).get("inventoryLevels") or {}).get("nodes", []):
+        item = v.get("inventoryItem") or {}
+        levels = item.get("inventoryLevels") or {"nodes": []}
+        for lvl in _all_nodes(client, levels, STOCK_LEVELS_QUERY, {"id": item.get("id")},
+                              ("inventoryItem", "inventoryLevels")):
             qty = {x["name"]: x["quantity"] for x in lvl["quantities"]}
             loc = lvl["location"]
             conn.execute(
@@ -314,11 +374,13 @@ query LandingSessions($q: String!) {
 }
 """
 
-_PRODUCT_PATH = re.compile(r"^(?:/[A-Za-z]{2}(?:-[A-Za-z]{2,4})?)?/products/([^/]+)$")
+_PRODUCT_PATH = re.compile(
+    r"^(?:/[A-Za-z]{2}(?:-[A-Za-z]{2,4})?)?(?:/collections/[^/]+)?/products/([^/]+)$")
+LANDING_LIMIT = 1000                 # rows per ShopifyQL query; a full result means more rows may exist
 
 
 def landing_path_to_handle(path: str | None) -> str | None:
-    """'/ar/products/foo/?variant=1' -> 'foo'; non product paths -> None."""
+    """'/ar/products/foo/?variant=1' or '/collections/x/products/foo' -> 'foo'; non product paths -> None."""
     if not path:
         return None
     p = urlsplit(path).path.rstrip("/")
@@ -326,23 +388,49 @@ def landing_path_to_handle(path: str | None) -> str | None:
     return unquote(m.group(1)) if m else None
 
 
-def ingest_landing_sessions(conn, t: Tenant, since: date, until: date) -> int:
-    """Daily sessions per product handle via ShopifyQL; replaces the range. Returns rows written."""
+def _month_chunks(since: date, until: date) -> list[tuple[date, date]]:
+    out, s = [], since
+    while s <= until:
+        nxt = (s.replace(day=28) + timedelta(days=4)).replace(day=1)
+        e = min(nxt - timedelta(days=1), until)
+        out.append((s, e))
+        s = e + timedelta(days=1)
+    return out
+
+
+def _landing_rows(client, since: date, until: date) -> list[dict]:
+    """ShopifyQL rows for since..until; a result that fills LANDING_LIMIT is re-read in halves (down to one day,
+    where a full result raises rather than silently truncating)."""
     ql = (f"FROM sessions SHOW sessions GROUP BY landing_page_path, day "
-          f"SINCE {since.isoformat()} UNTIL {until.isoformat()}")
-    res = shopify_client(t).graphql(LANDING_QUERY, {"q": ql})["shopifyqlQuery"]
+          f"SINCE {since.isoformat()} UNTIL {until.isoformat()} LIMIT {LANDING_LIMIT}")
+    res = client.graphql(LANDING_QUERY, {"q": ql})["shopifyqlQuery"]
     if res.get("parseErrors"):
         raise RuntimeError(f"ShopifyQL errors: {res['parseErrors']}")
+    rows = (res.get("tableData") or {}).get("rows") or []
+    if len(rows) < LANDING_LIMIT:
+        return rows
+    if since == until:
+        raise RuntimeError(f"ShopifyQL landing sessions for {since} returned {len(rows)} rows (the limit); "
+                           f"refusing to ingest a truncated result")
+    mid = since + timedelta(days=(until - since).days // 2)
+    return _landing_rows(client, since, mid) + _landing_rows(client, mid + timedelta(days=1), until)
+
+
+def ingest_landing_sessions(conn, t: Tenant, since: date, until: date) -> int:
+    """Daily sessions per product handle via ShopifyQL (one query per month, split further when a result hits
+    the row limit); replaces the range. Returns rows written. Needs the read_reports scope."""
+    client = shopify_client(t)
     totals: dict = defaultdict(int)
-    for row in (res.get("tableData") or {}).get("rows", []):
-        handle = landing_path_to_handle(row.get("landing_page_path"))
-        if handle:
-            totals[(date.fromisoformat(str(row["day"])[:10]), handle)] += int(float(row["sessions"]))
+    for s, e in _month_chunks(since, until):
+        for row in _landing_rows(client, s, e):
+            handle = landing_path_to_handle(row.get("landing_page_path"))
+            if handle:
+                totals[(date.fromisoformat(str(row["day"])[:10]), handle)] += int(float(row["sessions"]))
     conn.execute("DELETE FROM landing_sessions WHERE tenant_id=%s AND date BETWEEN %s AND %s",
                  (t.tenant_id, since, until))
-    for (d, handle), sessions in totals.items():
-        conn.execute("INSERT INTO landing_sessions (tenant_id, date, handle, sessions) VALUES (%s,%s,%s,%s)",
-                     (t.tenant_id, d, handle, sessions))
+    with conn.cursor() as cur:
+        cur.executemany("INSERT INTO landing_sessions (tenant_id, date, handle, sessions) VALUES (%s,%s,%s,%s)",
+                        [(t.tenant_id, d, handle, n) for (d, handle), n in totals.items()])
     conn.commit()
     return len(totals)
 
@@ -350,10 +438,10 @@ def ingest_landing_sessions(conn, t: Tenant, since: date, until: date) -> int:
 # ---------------------------------------------------------------- transfers
 
 TRANSFER_QUERY = """
-query InventoryTransferById($id: ID!) {
+query InventoryTransferById($id: ID!, $after: String) {
   inventoryTransfer(id: $id) {
     id referenceName status
-    lineItems(first: 250) { nodes {
+    lineItems(first: 250, after: $after) { pageInfo { hasNextPage endCursor } nodes {
       inventoryItem { id } totalQuantity shippedQuantity processableQuantity
     } }
   }
@@ -366,13 +454,15 @@ def fetch_transfer(t: Tenant, transfer_id: str) -> dict:
 
     received = shipped - processable (units shipped but not yet received are still processable).
     """
-    tr = shopify_client(t).graphql(TRANSFER_QUERY, {"id": transfer_id})["inventoryTransfer"]
+    client = shopify_client(t)
+    tr = client.graphql(TRANSFER_QUERY, {"id": transfer_id})["inventoryTransfer"]
     if tr is None:
         raise KeyError(f"transfer {transfer_id} not found")
+    lines = _all_nodes(client, tr["lineItems"], TRANSFER_QUERY, {"id": transfer_id}, ("inventoryTransfer", "lineItems"))
     return {
         "id": tr["id"], "reference_name": tr["referenceName"], "status": tr["status"],
         "lines": [{"inventory_item_id": li["inventoryItem"]["id"], "total": li["totalQuantity"],
                    "shipped": li["shippedQuantity"],
                    "received": li["shippedQuantity"] - li["processableQuantity"]}
-                  for li in tr["lineItems"]["nodes"]],
+                  for li in lines],
     }
