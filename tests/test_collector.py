@@ -151,3 +151,22 @@ def test_import_does_not_connect():
     import importlib
     m = importlib.import_module("engine.collector.app")
     assert callable(m.create_app)
+
+
+def test_weird_tenant_ids_404(client, tenant_a):
+    for tid in ("99999999999999999999", "%C2%B2", "-1", "abc"):
+        assert client.post(f"/e/{tid}", content=b"{}").status_code == 404
+
+
+def test_chunked_oversize_413(client, tenant_a):
+    def gen():
+        for _ in range(40):
+            yield b" " * 1024
+    body = b" " * 10
+    r = client.post(f"/e/{tenant_a.tenant_id}", content=gen(), headers={"X-Signature": sig(tenant_a.pixel_key, body)})
+    assert r.status_code == 413
+    def small():
+        yield json.dumps(ev()).encode()
+    b = json.dumps(ev()).encode()
+    r = client.post(f"/e/{tenant_a.tenant_id}", content=small(), headers={"X-Signature": sig(tenant_a.pixel_key, b)})
+    assert r.status_code == 204

@@ -9,6 +9,7 @@ import hmac
 import json
 from datetime import datetime, timezone
 
+import psycopg
 from fastapi import FastAPI, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
@@ -17,6 +18,7 @@ from .. import db, tenants
 from .funnel import rollup_funnel  # noqa: F401  (re-exported)
 
 MAX_BODY = 16 * 1024
+MAX_TENANT_ID = 2**63 - 1
 EVENTS = {"product_viewed", "product_added_to_cart", "checkout_completed", "size_selected", "notify_me"}
 PRODUCT_GID = "gid://shopify/Product/"
 VARIANT_GID = "gid://shopify/ProductVariant/"
@@ -83,14 +85,15 @@ def _parse(body: bytes, pixel_key: str) -> list[tuple]:
     return [(ts, sh, event, pid, vid, avail)]
 
 
-def _store(connect, tenant_id: int, body: bytes, signature: str | None) -> int:
+def _store(connect, tenant_id: int, body: bytes | None, signature: str | None) -> int:
+    """body is None when it exceeded MAX_BODY (never fully read)."""
     conn = connect()
     try:
         try:
             t = tenants.get_tenant(conn, tenant_id)
-        except KeyError:
+        except (KeyError, psycopg.DataError):
             return 404
-        if len(body) > MAX_BODY:
+        if body is None or len(body) > MAX_BODY:
             return 413
         want = hmac.new(t.pixel_key.encode(), body, hashlib.sha256).hexdigest()
         if not signature or not hmac.compare_digest(want, signature.strip().lower()):
@@ -116,15 +119,21 @@ def create_app(connect=db.connect) -> FastAPI:
 
     @app.post("/e/{tenant_id}")
     async def collect(tenant_id: str, request: Request):
-        if not tenant_id.isdigit():
+        if not (tenant_id.isascii() and tenant_id.isdigit()) or int(tenant_id) > MAX_TENANT_ID:
             return Response(status_code=404)
+        tid = int(tenant_id)
         cl = request.headers.get("content-length")
-        if cl and cl.isdigit() and int(cl) > MAX_BODY:
-            tid = int(tenant_id)
-            body = b"x" * (MAX_BODY + 1)  # size known too large; still 404 for unknown tenants
+        if cl and cl.isascii() and cl.isdigit() and int(cl) > MAX_BODY:
+            body = None
         else:
-            tid = int(tenant_id)
-            body = await request.body()
+            chunks, size = [], 0
+            async for c in request.stream():
+                size += len(c)
+                if size > MAX_BODY:
+                    chunks = None
+                    break
+                chunks.append(c)
+            body = None if chunks is None else b"".join(chunks)
         status = await run_in_threadpool(_store, connect, tid, body, request.headers.get("x-signature"))
         return Response(status_code=status)
 
