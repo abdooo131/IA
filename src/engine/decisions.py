@@ -34,6 +34,7 @@ SCALE_MARGINAL_POAS = 1.5
 VALUE_TO_CAC = 1.5
 LOST_SHARE = 0.2
 MISSING_COST_ROAS = planner.MISSING_COST_TARGET    # 3.0
+MISSING_COST_RESTOCK_ROAS = MISSING_COST_ROAS * SCALE_MARGINAL_POAS     # 4.5
 COVER_FORECAST_DAYS = 30
 BISECT_STEPS = 60
 
@@ -397,7 +398,8 @@ def decide(row, history, lead_time) -> tuple[str, str]:
     """(decision, rule) for one scorecard row; history = previous scorecard rows of the entity, latest first.
 
     First match wins, in Spec 33 order: TEST, RESTOCK FIRST, FIX PRICE, SCALE, KILL, CUT SPEND, MAINTAIN.
-    Rows flagged missing_cost: SCALE uses ROAS >= 3, KILL cannot fire, CUT SPEND uses marginal ROAS < 3.
+    Rows flagged missing_cost: RESTOCK FIRST clause 1 uses marginal ROAS >= 4.5, SCALE uses ROAS >= 3, KILL
+    cannot fire, CUT SPEND uses marginal ROAS < 3.
     A condition that needs a None input is false.
     """
     g = lambda k: _get(row, k)  # noqa: E731
@@ -415,7 +417,12 @@ def decide(row, history, lead_time) -> tuple[str, str]:
         return "TEST", f"TEST: first sale {first} is {age} days before {as_of} (< {MIN_AGE_DAYS} days)"
 
     cover = g("stock_cover_days")
-    if _le(SCALE_MARGINAL_POAS, mp) and _lt(cover, lead_time):
+    if missing:                                 # no unit cost: marginal ROAS >= 3 x 1.5 stands in for POAS >= 1.5
+        mr = g("marginal_roas")
+        if _le(MISSING_COST_RESTOCK_ROAS, mr) and _lt(cover, lead_time):
+            return "RESTOCK FIRST", (f"RESTOCK FIRST: marginal ROAS {_fmt(mr)} >= {MISSING_COST_RESTOCK_ROAS:g} and"
+                                     f" stock cover {_fmt(cover, 1)} days < lead time {_clean(lead_time):g}{tag}")
+    elif _le(SCALE_MARGINAL_POAS, mp) and _lt(cover, lead_time):
         return "RESTOCK FIRST", (f"RESTOCK FIRST: marginal POAS {_fmt(mp)} >= {SCALE_MARGINAL_POAS} and stock cover"
                                  f" {_fmt(cover, 1)} days < lead time {_clean(lead_time):g}")
     if _clean(td) is not None and _lt(LOST_SHARE * _clean(td), ls):

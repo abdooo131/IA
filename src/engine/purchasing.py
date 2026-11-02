@@ -8,7 +8,8 @@ whose total is above 0 but below the row's MOQ is raised to MOQ by forecast shar
 get nothing.
 
 The only Shopify writes in this module are inventoryTransferCreate, inventoryTransferMarkAsReadyToShip and
-inventoryTransferCancel, and only for approved (or, for cancel, pushed) POs. Every query filters tenant_id.
+inventoryTransferCancel, and only for approved (or, for cancel, approved or pushed) POs. Every query filters
+tenant_id.
 """
 from __future__ import annotations
 
@@ -89,10 +90,15 @@ mutation InventoryTransferCancel($id: ID!) {
 
 
 def _payload(data: dict, field: str) -> dict:
-    out = data[field]
+    """The mutation payload; userErrors, or a null payload / inventoryTransfer without userErrors, raise."""
+    out = data.get(field)
+    if out is None:
+        raise RuntimeError(f"Shopify {field} returned no payload")
     errs = out.get("userErrors") or []
     if errs:
         raise RuntimeError(f"Shopify {field} failed: " + "; ".join(e.get("message", "") for e in errs))
+    if "inventoryTransfer" in out and out["inventoryTransfer"] is None:
+        raise RuntimeError(f"Shopify {field} returned no inventoryTransfer and no userErrors")
     return out
 
 
@@ -344,7 +350,7 @@ def approve_po(conn, t: Tenant, po_number: str, edits: dict[str, int] | None = N
 
 
 def _find_transfer(client, po_number: str) -> dict | None:
-    """The Shopify inventory transfer whose referenceName is exactly the PO number, if any.
+    """The live (not CANCELED) Shopify inventory transfer whose referenceName is exactly the PO number, if any.
 
     Transfers are created tagged with their PO number, so the documented `tag:` search filter finds them.
     """
@@ -352,7 +358,7 @@ def _find_transfer(client, po_number: str) -> dict | None:
     while True:
         conn_ = client.graphql(TRANSFER_BY_REFERENCE, {"query": f"tag:'{po_number}'", "after": after})["inventoryTransfers"]
         for n in conn_["nodes"]:
-            if n.get("referenceName") == po_number:
+            if n.get("referenceName") == po_number and (n.get("status") or "").upper() != "CANCELED":
                 return n
         info = conn_.get("pageInfo") or {}
         if not info.get("hasNextPage"):
@@ -475,7 +481,8 @@ def _apply_receipt(conn, t: Tenant, po_number: str, transfer_id: str, tr: dict, 
 
 
 def cancel_po(conn, t: Tenant, po_number: str) -> None:
-    """draft / approved -> cancelled; pushed -> cancel the Shopify transfer, then cancelled; received raises."""
+    """draft -> cancelled; approved -> cancel the transfer a crashed push may have left in Shopify (found by its
+    PO number tag), then cancelled; pushed -> cancel the Shopify transfer, then cancelled; received raises."""
     try:
         row = _lock_po(conn, t, po_number)
         if row["state"] == "cancelled":
@@ -483,8 +490,13 @@ def cancel_po(conn, t: Tenant, po_number: str) -> None:
             return
         if row["state"] in ("partially_received", "received"):
             raise ValueError(f"PO {po_number} is {row['state']}; it cannot be cancelled")
-        if row["state"] == "pushed" and row["transfer_id"]:
-            _payload(shopify_client(t).graphql(TRANSFER_CANCEL, {"id": row["transfer_id"]}), "inventoryTransferCancel")
+        transfer_id = row["transfer_id"] if row["state"] == "pushed" else None
+        client = shopify_client(t) if row["state"] in ("approved", "pushed") else None
+        if row["state"] == "approved":
+            orphan = _find_transfer(client, po_number)
+            transfer_id = orphan["id"] if orphan else None
+        if transfer_id:
+            _payload(client.graphql(TRANSFER_CANCEL, {"id": transfer_id}), "inventoryTransferCancel")
         conn.execute("UPDATE purchase_orders SET state = 'cancelled' WHERE tenant_id = %s AND po_number = %s",
                      (t.tenant_id, po_number))
         conn.commit()

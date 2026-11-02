@@ -109,6 +109,16 @@ def test_missing_cost_rules():
     assert decisions.decide(row(lost_stock=50.0, **miss), [], 30)[0] == "RESTOCK FIRST"
 
 
+def test_missing_cost_high_roas_with_short_cover_restocks_not_scales():
+    """I11: without unit cost RESTOCK FIRST clause 1 uses marginal ROAS >= 4.5 (3 x 1.5) and cover < lead time, so
+    a missing cost product cannot SCALE into a stockout."""
+    miss = dict(poas=None, marginal_poas=None, flags=["missing_cost"])
+    d, rule = decisions.decide(row(roas=5.0, marginal_roas=4.6, stock_cover_days=10.0, **miss), [], 30)
+    assert d == "RESTOCK FIRST" and "marginal ROAS 4.60 >= 4.5" in rule and "missing cost" in rule
+    assert decisions.decide(row(roas=5.0, marginal_roas=4.4, stock_cover_days=10.0, **miss), [], 30)[0] == "SCALE"
+    assert decisions.decide(row(roas=5.0, marginal_roas=4.6, stock_cover_days=40.0, **miss), [], 30)[0] == "SCALE"
+
+
 # ---------------------------------------------------------------- DB helpers
 
 def days(start, end):

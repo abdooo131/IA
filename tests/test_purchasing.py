@@ -373,6 +373,46 @@ def test_cancel_po(conn, tenant_a, fakes):
         purchasing.cancel_po(conn, t, "APO3")
 
 
+def test_cancel_approved_po_cancels_orphan_transfer(conn, tenant_a, fakes):
+    """I12: a push that crashed after inventoryTransferCreate leaves a transfer tagged with the PO number;
+    cancelling the approved PO finds it by tag and cancels it in Shopify (a CANCELED one is left alone)."""
+    t = tenant_a
+    make_po(conn, t, "APO1", "approved", {"V1": (1, 1, 0)})
+    make_po(conn, t, "APO2", "approved", {"V1": (1, 1, 0)})
+    make_po(conn, t, "APO3", "approved", {"V1": (1, 1, 0)})
+    found = {"tag:'APO1'": [{"id": "gid://shopify/InventoryTransfer/31", "referenceName": "APO1", "status": "READY_TO_SHIP"}],
+             "tag:'APO2'": [{"id": "gid://shopify/InventoryTransfer/32", "referenceName": "APO2", "status": "CANCELED"}],
+             "tag:'APO3'": []}
+    fakes.shopify.respond("TransferByReference", lambda v: {"data": {"inventoryTransfers": {
+        "nodes": found[v["query"]], "pageInfo": {"hasNextPage": False, "endCursor": None}}}})
+    fakes.shopify.respond("InventoryTransferCancel", lambda v: {"data": {"inventoryTransferCancel": {
+        "inventoryTransfer": {"id": v["id"], "status": "CANCELED"}, "userErrors": []}}})
+    for po in ("APO1", "APO2", "APO3"):
+        purchasing.cancel_po(conn, t, po)
+        assert po_row(conn, t, po)["state"] == "cancelled"
+    cancels = [v["id"] for name, v in fakes.shopify.calls if name == "InventoryTransferCancel"]
+    assert cancels == ["gid://shopify/InventoryTransfer/31"]
+
+
+def test_push_ignores_canceled_transfer_and_rejects_null_payload(conn, tenant_a, fakes):
+    """I12: a CANCELED transfer with the PO's tag is not reused; a null inventoryTransfer without userErrors
+    raises a clear RuntimeError."""
+    t = tenant_a
+    product(conn, t, "P1", "S1", [("V1", "S", 1101)])
+    make_po(conn, t, "APO1", "approved", {"V1": (10, 10, 0)})
+    created = _shopify_transfers(fakes, existing=[
+        {"id": "gid://shopify/InventoryTransfer/5", "referenceName": "APO1", "status": "CANCELED"}])
+    assert purchasing.push_po(conn, t, "APO1") == "gid://shopify/InventoryTransfer/900"
+    assert len(created) == 1
+    make_po(conn, t, "APO2", "approved", {"V1": (10, 10, 0)})
+    _shopify_transfers(fakes)
+    fakes.shopify.respond("InventoryTransferCreate", {"data": {"inventoryTransferCreate": {
+        "inventoryTransfer": None, "userErrors": []}}})
+    with pytest.raises(RuntimeError, match="no inventoryTransfer"):
+        purchasing.push_po(conn, t, "APO2")
+    assert po_row(conn, t, "APO2")["state"] == "approved"
+
+
 # ---------------------------------------------------------------- receipts
 
 def _receipts(conn, t):
