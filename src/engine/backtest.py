@@ -49,13 +49,15 @@ def mape(scored: pd.DataFrame) -> float | None:
 def record_forecasts(conn, t: Tenant, run_id: str, level: str, grain: str, rows: pd.DataFrame) -> int:
     """Store predictions for a run. rows: entity_id, period_start, units (+ optional true_demand, revenue, ...).
 
-    Idempotent per (tenant, run_id): earlier forecasts of the run are deleted, then inserted again.
+    Idempotent per (tenant, run_id, level, grain): earlier forecasts of that slice are deleted, then inserted again;
+    other levels and grains of the same run are kept.
     Returns the number of rows stored.
     """
     if level not in LEVELS:
         raise ValueError(f"unknown level {level!r}")
     extra = [c for c in rows.columns if c not in ("entity_id", "period_start", "units")]
-    conn.execute("DELETE FROM forecasts WHERE tenant_id = %s AND run_id = %s", (t.tenant_id, run_id))
+    conn.execute("DELETE FROM forecasts WHERE tenant_id = %s AND run_id = %s AND grain = %s AND params->>'level' = %s",
+                 (t.tenant_id, run_id, grain, level))
     for r in rows.to_dict("records"):
         params = {"level": level, "units": _json_num(r["units"]), **{c: _json_num(r[c]) for c in extra}}
         conn.execute("INSERT INTO forecasts (tenant_id, run_id, entity_id, period, grain, params) VALUES (%s,%s,%s,%s,%s,%s)",

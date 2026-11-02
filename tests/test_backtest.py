@@ -65,17 +65,37 @@ def test_zero_actual_skipped(conn, tenant_a):
 
 def test_future_and_incomplete_periods_not_scored(conn, tenant_a):
     style, prods = seed_tenant(conn, tenant_a, 1)
-    panel = aggregate.build_panel(conn, tenant_a, "week", "product")
     ent = prods[0]
-    last = panel[panel.entity_id == ent].period_start.max()
-    rows = pd.DataFrame({"entity_id": [ent, ent, "nobody"], "period_start": [last, last + pd.Timedelta(days=700), last],
-                         "units": [3.0, 3.0, 3.0]})
+    panel = aggregate.build_panel(conn, tenant_a, "week", "product")
+    last = panel[panel.entity_id == ent].period_start.max()          # seeded data ends on a Sunday: complete
+    var = conn.execute("SELECT variant_id FROM products WHERE tenant_id = %s AND product_id = %s LIMIT 1",
+                       (tenant_a.tenant_id, ent)).fetchone()["variant_id"]
+    running = last + pd.Timedelta(days=7)                            # a sale on its Thursday: 4 of 7 days seen
+    conn.execute("INSERT INTO sales_lines (tenant_id, order_id, date, variant_id, qty, line_value)"
+                 " VALUES (%s,'late',%s,%s,2,1000)", (tenant_a.tenant_id, running + pd.Timedelta(days=3), var))
+    conn.commit()
+    panel = aggregate.build_panel(conn, tenant_a, "week", "product").set_index(["entity_id", "period_start"])
+    assert panel.loc[(ent, last), "n_days"] == panel.loc[(ent, last), "period_days"] == 7
+    assert panel.loc[(ent, running), "n_days"] == 4 and panel.loc[(ent, running), "units"] == 2
+    rows = pd.DataFrame({"entity_id": [ent, ent, ent, "nobody"],
+                         "period_start": [last, running, running + pd.Timedelta(days=700), last],
+                         "units": [3.0, 3.0, 3.0, 3.0]})
     backtest.record_forecasts(conn, tenant_a, "rf", "product", "week", rows)
-    full = panel[(panel.entity_id == ent) & (panel.period_start == last)].iloc[0]
-    assert full.n_days >= full.period_days or backtest.score_run(conn, tenant_a, "rf") is None
     backtest.score_run(conn, tenant_a, "rf")
-    n = conn.execute("SELECT count(*) AS n FROM forecast_accuracy WHERE tenant_id = %s", (tenant_a.tenant_id,)).fetchone()["n"]
-    assert n == (1 if full.n_days >= full.period_days else 0)
+    acc = conn.execute("SELECT entity_id, period FROM forecast_accuracy WHERE tenant_id = %s AND run_id = 'rf'",
+                       (tenant_a.tenant_id,)).fetchall()
+    assert [(r["entity_id"], r["period"]) for r in acc] == [(ent, last)]
+
+
+def test_record_forecasts_keeps_other_levels_and_grains(conn, tenant_a):
+    rows = pd.DataFrame({"entity_id": ["x"], "period_start": [pd.Timestamp("2025-03-03")], "units": [1.0]})
+    backtest.record_forecasts(conn, tenant_a, "run", "product", "week", rows)
+    backtest.record_forecasts(conn, tenant_a, "run", "style", "week", rows)
+    backtest.record_forecasts(conn, tenant_a, "run", "product", "month", rows)
+    backtest.record_forecasts(conn, tenant_a, "run", "product", "week", rows)        # rerun one slice only
+    got = conn.execute("SELECT grain, params->>'level' AS lv FROM forecasts WHERE tenant_id = %s ORDER BY 1, 2",
+                       (tenant_a.tenant_id,)).fetchall()
+    assert [(r["grain"], r["lv"]) for r in got] == [("month", "product"), ("week", "product"), ("week", "style")]
 
 
 def test_score_run_tenant_isolated(conn, tenant_a, tenant_b):
