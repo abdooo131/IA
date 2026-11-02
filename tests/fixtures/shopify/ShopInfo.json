@@ -1,0 +1,5 @@
+{"data": {"shop": {"ianaTimezone": "Africa/Cairo", "currencyCode": "EGP"},
+ "locations": {"nodes": [
+  {"id": "gid://shopify/Location/111", "name": "Fulfilment app", "isActive": true, "isFulfillmentService": true},
+  {"id": "gid://shopify/Location/222", "name": "Main warehouse", "isActive": true, "isFulfillmentService": false},
+  {"id": "gid://shopify/Location/333", "name": "Shop", "isActive": true, "isFulfillmentService": false}]}}}
