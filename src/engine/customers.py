@@ -12,7 +12,7 @@ from datetime import date
 import pandas as pd
 
 from .attribution import POOL_PRODUCT, UNKNOWN_PRODUCT
-from .lineage import rekeyed_sales
+from .lineage import product_shares, rekey_products, rekeyed_sales
 from .tenants import Tenant
 
 STORE = "__store__"
@@ -85,6 +85,7 @@ def _credits(conn, t: Tenant, level: str, start: date | None = None, end: date |
         {"tenant_id": t.tenant_id}).fetchall()
     df = pd.DataFrame(rows, columns=["order_id", "product_id", "credit"])
     df["credit"] = df["credit"].astype(float)
+    df = rekey_products(df, product_shares(conn, t), ["credit"])       # lineage confirmed after attribution
     emap = _entity_map(conn, t, level)
     df["entity_id"] = df["product_id"].map(emap)
     df = df[df["entity_id"].notna() & ~df["product_id"].isin(_UNASSIGNED)]
@@ -100,6 +101,7 @@ def _month_spend(conn, t: Tenant, month: str, level: str) -> tuple[pd.Series, pd
         {"tenant_id": t.tenant_id, "s": start, "e": end}).fetchall()
     df = pd.DataFrame(rows, columns=["product_id", "spend", "purchases"])
     df[["spend", "purchases"]] = df[["spend", "purchases"]].astype(float)
+    df = rekey_products(df, product_shares(conn, t), ["spend", "purchases"])
     emap = _entity_map(conn, t, level)
     total = df[["spend", "purchases"]].sum()
     df = df[~df["product_id"].isin(_UNASSIGNED)]

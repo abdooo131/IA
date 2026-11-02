@@ -250,6 +250,42 @@ def _ingest_stages(conn, t: Tenant, today: date, ctx: dict, since: date | None =
     return list(zip(INGEST_STAGES, (sync, orders, spend, landing, funnel)))
 
 
+def unattributed_since(conn, t: Tenant) -> date | None:
+    """Earliest date that has orders (with sales lines) or non zero spend but no attribution rows: an order
+    without order_credits, or an ad / catalog spend day without spend_by_product rows. None when everything is
+    attributed (a tenant that was never attributed gives its first order or spend date: the full history)."""
+    return conn.execute(
+        "SELECT LEAST("
+        " (SELECT min(o.date) FROM orders o WHERE o.tenant_id = %(t)s"
+        "  AND EXISTS (SELECT 1 FROM sales_lines l WHERE l.tenant_id = o.tenant_id AND l.order_id = o.order_id)"
+        "  AND NOT EXISTS (SELECT 1 FROM order_credits c WHERE c.tenant_id = o.tenant_id AND c.order_id = o.order_id)),"
+        " (SELECT min(a.date) FROM ad_spend_daily a WHERE a.tenant_id = %(t)s"
+        "  AND (a.spend <> 0 OR a.impressions <> 0 OR a.purchases <> 0)"
+        "  AND NOT EXISTS (SELECT 1 FROM spend_by_product s WHERE s.tenant_id = a.tenant_id AND s.date = a.date)),"
+        " (SELECT min(c.date) FROM catalog_spend_daily c WHERE c.tenant_id = %(t)s"
+        "  AND (c.spend <> 0 OR c.impressions <> 0 OR c.purchases <> 0)"
+        "  AND NOT EXISTS (SELECT 1 FROM spend_by_product s WHERE s.tenant_id = c.tenant_id AND s.date = c.date))"
+        ") AS d", {"t": t.tenant_id}).fetchone()["d"]
+
+
+def _history_stages(conn, t: Tenant, today: date) -> list[tuple[str, Callable[[], object]]]:
+    """tenant add: ingest the full history, then lineage proposals and attribution of that whole history."""
+    ctx: dict = {}
+
+    def lineage_stage():
+        df = lineage.propose_matches(conn, t)
+        return {"proposed": len(df), "styles": lineage.build_styles(conn, t)}
+
+    def attribute():
+        s = unattributed_since(conn, t)
+        if s is None:
+            return {"since": None, "until": ctx.get("until")}
+        attribution.run_attribution(conn, t, s, ctx["until"])
+        return {"since": s, "until": ctx["until"]}
+
+    return _ingest_stages(conn, t, today, ctx) + [("lineage", lineage_stage), ("run_attribution", attribute)]
+
+
 def _min_date(conn, t: Tenant, table: str) -> date | None:
     return conn.execute(f"SELECT min(date) AS d FROM {table} WHERE tenant_id = %s", (t.tenant_id,)).fetchone()["d"]
 
@@ -268,6 +304,8 @@ def _cycle_stages(conn, t: Tenant, run_id: str, month: str, today: date,
 
     def attribute():
         s = min(ctx["since"], ctx.get("spend_since", ctx["since"]))
+        gap = unattributed_since(conn, t)
+        s = min(s, gap) if gap else s
         attribution.run_attribution(conn, t, s, ctx["until"])
         return {"since": s, "until": ctx["until"]}
 
@@ -540,10 +578,10 @@ def tenant_add(
             typer.echo(f"warning: {w}", err=True)
         typer.echo(f"pixel key (for the storefront pixel): {t.pixel_key}")
         if ingest:
-            ok, err = _run_stages(conn, t, None, _ingest_stages(conn, t, local_today(t), {}))
+            ok, err = _run_stages(conn, t, None, _history_stages(conn, t, local_today(t)))
             if not ok:
                 _fail(f"ingest failed at {err}")
-            typer.echo("full history ingested")
+            typer.echo("full history ingested and attributed")
 
 
 @tenant_app.command("list")

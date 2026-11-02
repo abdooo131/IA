@@ -12,7 +12,7 @@ from typing import Iterable
 
 import pandas as pd
 
-from .lineage import current_variant, rekeyed_sales
+from .lineage import current_variant, product_shares, rekeyed_sales
 from .tenants import Tenant
 
 log = logging.getLogger(__name__)
@@ -87,10 +87,12 @@ class _Ctx:
             for (d, pid), v in sales.groupby(["date", "product_id"])["line_value"].sum().items():
                 self.rev[d][pid] = float(v)
 
-        raw: dict[str, dict[str, float]] = defaultdict(dict)
+        raw: dict[str, dict[str, float]] = defaultdict(lambda: defaultdict(float))
+        shares = product_shares(conn, t, self.cv)          # a manual map naming an old product follows lineage
         for r in conn.execute("SELECT ad_id, product_id, share FROM ad_product_map"
                               " WHERE tenant_id = %(tenant_id)s", p):
-            raw[r["ad_id"]][r["product_id"]] = float(r["share"])
+            for pid, w in shares.get(r["product_id"], {r["product_id"]: 1.0}).items():
+                raw[r["ad_id"]][pid] += float(r["share"]) * w
         self.manual = {a: _normalise(s) for a, s in raw.items()}
 
         self.ad_names: dict[str, str | None] = {}

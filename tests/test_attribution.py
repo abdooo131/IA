@@ -224,3 +224,38 @@ def test_run_attribution_order_credits(conn, t):
     got = {(r["order_id"], r["product_id"]): (float(r["credit"]), r["ad_product_id"]) for r in rows}
     assert got == {("o1", P_BLACK): (0.0, P_RED), ("o1", P_RED): (1.0, P_RED),
                    ("o2", P_BLACK): (0.8, None), ("o2", P_RED): (0.2, None)}
+
+
+def test_lineage_confirmed_after_attribution_moves_product_spend_and_credits(conn, tenant_a):
+    """I5: spend and order credits attributed to an old product before its lineage was confirmed are read as
+    the current product's in every reader (panels, CPA, CAC)."""
+    from engine import aggregate, customers, lineage
+    t = tenant_a
+    for v, p, h, c, created in ((V_BLACK, P_BLACK, "silk-dress-black", "Black", "2025-08-01"),
+                                (V_OLD_BLACK, P_OLD, "silk-dress", "Black", "2025-01-01")):
+        conn.execute("INSERT INTO products (tenant_id, variant_id, product_id, handle, title, colour, status,"
+                     " created_at) VALUES (%s,%s,%s,%s,'Silk Dress',%s,'ACTIVE',%s)", (t.tenant_id, v, p, h, c, created))
+    add_ad(conn, t, "adOld", "silk-dress_v_a", 30)
+    add_sale(conn, t, "o1", V_OLD_BLACK, 500, utm="adOld")
+    conn.execute("UPDATE orders SET customer_key = 'c1' WHERE tenant_id = %s", (t.tenant_id,))
+    conn.commit()
+    attribution.run_attribution(conn, t, D, D)
+    assert {r["product_id"] for r in conn.execute("SELECT product_id FROM spend_by_product WHERE tenant_id=%s",
+                                                   (t.tenant_id,))} == {P_OLD}
+    lineage.confirm(conn, t, V_OLD_BLACK, V_BLACK)
+
+    panel = aggregate.build_panel(conn, t, "month", "product").set_index("entity_id")
+    assert panel.loc[P_BLACK, "spend"] == pytest.approx(30) and panel.loc[P_BLACK, "units"] == 1
+    assert P_OLD not in panel.index or panel.loc[P_OLD, "spend"] == 0
+    cpa = customers.cpa(conn, t, "2025-07", "product").set_index("entity_id")
+    assert cpa.loc[P_BLACK, "spend"] == pytest.approx(30) and cpa.loc[P_BLACK, "order_credits"] == pytest.approx(1)
+    assert P_OLD not in cpa.index
+    cac = customers.cac(conn, t, "2025-07", "product").set_index("entity_id")
+    assert cac.loc[P_BLACK, "new_customers"] == pytest.approx(1)
+
+
+def test_product_shares_split_old_multi_colour_product():
+    from engine.lineage import rekey_products
+    df = pd.DataFrame({"product_id": ["old", "x"], "spend": [10.0, 4.0]})
+    out = rekey_products(df, {"old": {"a": 0.5, "b": 0.5}}, ["spend"])
+    assert sorted(zip(out["product_id"], out["spend"])) == [("a", 5.0), ("b", 5.0), ("x", 4.0)]

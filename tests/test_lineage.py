@@ -309,3 +309,27 @@ def test_lineage_isolated_per_tenant(conn, tenant_a, tenant_b):
     lineage.propose_matches(conn, tenant_b)
     assert conn.execute("SELECT count(*) AS n FROM variant_lineage WHERE tenant_id=%s",
                         (tenant_a.tenant_id,)).fetchone()["n"] == 20
+
+
+def test_style_id_stable_across_title_change_and_merge(conn, tenant_a):
+    """M4: once a style id exists for a group it is kept when titles change or groups merge (oldest product's id
+    first); styles referenced elsewhere (lift tests, suppliers, decisions) keep working."""
+    t = tenant_a
+    add_variant(conn, t, vid(1), pid(1), "Silk Dress", "Black", "S", None, "ARCHIVED", OLD_CREATED)
+    add_variant(conn, t, vid(2), pid(2), "Linen Dress Red", "Red", "S", None, "ACTIVE", NEW_CREATED)
+    conn.commit()
+    assert lineage.build_styles(conn, t) == 2
+    style = lambda p: conn.execute("SELECT style_id FROM product_style WHERE tenant_id=%s AND product_id=%s",
+                                   (t.tenant_id, p)).fetchone()["style_id"]
+    silk, linen = style(pid(1)), style(pid(2))
+    conn.execute("UPDATE products SET title = 'Silk Maxi Dress' WHERE tenant_id=%s AND product_id=%s",
+                 (t.tenant_id, pid(1)))
+    conn.commit()
+    lineage.build_styles(conn, t)
+    assert style(pid(1)) == silk                                        # title changed, id kept
+    lineage.confirm(conn, t, vid(1), vid(2))                            # merge the two groups
+    assert lineage.build_styles(conn, t) == 1
+    assert style(pid(1)) == style(pid(2)) == silk                       # the oldest product's id wins
+    assert {r["style_id"] for r in conn.execute("SELECT style_id FROM styles WHERE tenant_id=%s",
+                                                 (t.tenant_id,))} == {silk}
+    assert linen != silk

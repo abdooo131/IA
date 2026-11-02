@@ -186,8 +186,9 @@ def confirm(conn, t: Tenant, old_variant_id: str, new_variant_id: str) -> None:
 def build_styles(conn, t: Tenant) -> int:
     """One style per normalised base title (products linked by confirmed lineage are merged).
 
-    Writes styles and product_style (colour NULL for multi colour products). Style ids are
-    deterministic (`<tenant_id>-<slug of base title>`), so reruns are idempotent. Returns styles written.
+    Writes styles and product_style (colour NULL for multi colour products). A new group gets the id
+    `<tenant_id>-<slug of base title>`; a group that already has a style id keeps it (its oldest product's), so
+    ids survive title changes and merges, and reruns are idempotent. Returns styles written.
     """
     rows = _products(conn, t)
     info = _product_info(rows)
@@ -218,10 +219,25 @@ def build_styles(conn, t: Tenant) -> int:
     groups = defaultdict(list)
     for pid in info:
         groups[find(pid)].append(pid)
+    existing = {r["product_id"]: r["style_id"] for r in conn.execute(
+        "SELECT product_id, style_id FROM product_style WHERE tenant_id = %(tenant_id)s", {"tenant_id": t.tenant_id})}
+
+    def age(pid):
+        created = info[pid]["created_at"]
+        return (created is None, created or 0, pid)
+
     styles, links = {}, []
-    for members in groups.values():
+    ordered = sorted(groups.values(), key=lambda ms: min(age(m) for m in ms))      # oldest group claims first
+    for members in ordered:
         name = min(base[m] for m in members)
-        sid = f"{t.tenant_id}-{_slug(name) or 'style'}"
+        # keep an existing style id of the group (oldest product first) so ids survive title changes and merges
+        sid = next((existing[m] for m in sorted(members, key=age) if m in existing and existing[m] not in styles),
+                   None)
+        if sid is None:
+            sid = f"{t.tenant_id}-{_slug(name) or 'style'}"
+            k = 2
+            while sid in styles:
+                sid, k = f"{t.tenant_id}-{_slug(name) or 'style'}-{k}", k + 1
         styles[sid] = name
         for m in members:
             cols = sorted(info[m]["colours"])
@@ -281,6 +297,27 @@ def _tail(variant_id: str) -> str:
     return variant_id.rsplit("/", 1)[-1]
 
 
+def _steps(conn, t: Tenant) -> dict[str, tuple[str, date | None]]:
+    """old variant -> (its replacement, effective date) from confirmed lineage; the latest link wins."""
+    nxt: dict[str, tuple] = {}
+    for r in conn.execute(
+            "SELECT old_variant_id, new_variant_id, effective_date FROM variant_lineage"
+            " WHERE tenant_id = %(tenant_id)s AND confirmed", {"tenant_id": t.tenant_id}):
+        key = (r["effective_date"] or date.min, r["new_variant_id"])
+        if r["old_variant_id"] not in nxt or key > nxt[r["old_variant_id"]]:
+            nxt[r["old_variant_id"]] = key
+    return {o: (k[1], None if k[0] == date.min else k[0]) for o, k in nxt.items()}
+
+
+def replaced_on(conn, t: Tenant) -> dict[str, date | None]:
+    """old variant -> the date it was replaced (its confirmed lineage effective date; None when unknown).
+
+    Stock of an old variant counts for its replacement only before this date: from then on the replacement's
+    own stock is the truth (units left on an archived old variant are not sellable through the new one).
+    """
+    return {o: eff for o, (_, eff) in _steps(conn, t).items()}
+
+
 def current_variant(conn, t: Tenant) -> dict[str, str]:
     """Any historical variant id or Meta catalog id -> current variant id.
 
@@ -289,14 +326,7 @@ def current_variant(conn, t: Tenant) -> dict[str, str]:
     or the bare variant id) of known variants resolve through the same mapping.
     """
     known = [r["variant_id"] for r in _products(conn, t)]
-    nxt: dict[str, tuple] = {}
-    for r in conn.execute(
-            "SELECT old_variant_id, new_variant_id, effective_date FROM variant_lineage"
-            " WHERE tenant_id = %(tenant_id)s AND confirmed", {"tenant_id": t.tenant_id}):
-        key = (r["effective_date"] or date.min, r["new_variant_id"])
-        if r["old_variant_id"] not in nxt or key > nxt[r["old_variant_id"]]:
-            nxt[r["old_variant_id"]] = key
-    step = {o: k[1] for o, k in nxt.items()}
+    step = {o: new for o, (new, _) in _steps(conn, t).items()}
 
     mapping: dict[str, str] = {}
     for v in set(known) | set(step) | set(step.values()):
@@ -313,6 +343,48 @@ def current_variant(conn, t: Tenant) -> dict[str, str]:
     for tail, v in numeric.items():
         data.setdefault(tail, mapping[v])
     return VariantMap(data, numeric)
+
+
+def product_shares(conn, t: Tenant, cv: dict | None = None) -> dict[str, dict[str, float]]:
+    """Product ids whose variants were (partly) replaced through confirmed lineage -> {current product: share}.
+
+    share = fraction of the product's variants that now map to that current product (an old 5 colour product
+    split into 5 products gives 0.2 each; variants that were not replaced keep their share on the product itself).
+    Products that are entirely current are absent (identity). Used to re-key product level rows written before
+    the lineage was confirmed (spend_by_product, order_credits, ad_product_map), the way sales are re-keyed.
+    """
+    cv = cv if cv is not None else current_variant(conn, t)
+    rows = _products(conn, t)
+    product_of = {r["variant_id"]: r["product_id"] for r in rows}
+    counts: dict[str, dict[str, int]] = defaultdict(lambda: defaultdict(int))
+    for r in rows:
+        cur = cv.get(r["variant_id"], r["variant_id"])
+        counts[r["product_id"]][product_of.get(cur, r["product_id"])] += 1
+    out = {}
+    for pid, c in counts.items():
+        if set(c) == {pid}:
+            continue
+        n = sum(c.values())
+        out[pid] = {k: v / n for k, v in c.items()}
+    return out
+
+
+def rekey_products(df: pd.DataFrame, shares: dict[str, dict[str, float]], value_cols: list[str],
+                   col: str = "product_id") -> pd.DataFrame:
+    """Rows of df keyed to current products: a row of a replaced product becomes one row per current product with
+    value_cols multiplied by the share (see product_shares). Other rows are unchanged; totals are conserved."""
+    if df.empty or not shares or not df[col].isin(list(shares)).any():
+        return df
+    keep = df[~df[col].isin(list(shares))]
+    moved = []
+    for pid, part in df[df[col].isin(list(shares))].groupby(col):
+        for new, w in shares[pid].items():
+            x = part.copy()
+            x[col] = new
+            for c in value_cols:
+                x[c] = x[c].astype(float) * w
+            moved.append(x)
+    return pd.concat([keep, *moved], ignore_index=True)
 
 
 def rekeyed_sales(conn, t: Tenant) -> pd.DataFrame:

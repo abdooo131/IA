@@ -26,6 +26,7 @@ from psycopg.types.json import Jsonb
 
 from .aggregate import DECAY, TenantData
 from .ingest_shopify import fetch_transfer
+from .lineage import current_variant, replaced_on
 from .model import DemandParams, _num
 from .planner import forecast
 from .tenants import Tenant, shopify_client
@@ -134,13 +135,22 @@ def _killed(conn, t: Tenant) -> tuple[set[str], set[str]]:
 
 
 def _available(conn, t: Tenant, as_of: date | None = None) -> dict[str, int]:
-    """Latest available per variant (on or before `as_of` when given), summed over locations (each location's
-    latest row)."""
+    """Latest available per current variant (on or before `as_of` when given), summed over locations (each
+    location's latest row). As in the panels (aggregate.TenantData): an old variant's row counts for its current
+    variant when it is dated before the lineage effective date; on or after it, only the current variant's own
+    stock counts."""
+    cv, replaced = current_variant(conn, t), replaced_on(conn, t)
     out: dict[str, int] = defaultdict(int)
-    for r in conn.execute("SELECT DISTINCT ON (variant_id, location_id) variant_id, available FROM stock_daily"
+    for r in conn.execute("SELECT DISTINCT ON (variant_id, location_id) variant_id, date, available FROM stock_daily"
                           " WHERE tenant_id = %s AND (%s::date IS NULL OR date <= %s::date)"
                           " ORDER BY variant_id, location_id, date DESC", (t.tenant_id, as_of, as_of)):
-        out[r["variant_id"]] += r["available"]
+        v = r["variant_id"]
+        cur = cv.get(v, v)
+        if cur != v:
+            eff = replaced.get(v)
+            if eff is None or r["date"] >= eff:
+                continue
+        out[cur] += r["available"]
     return out
 
 

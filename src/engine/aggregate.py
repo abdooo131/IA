@@ -13,7 +13,7 @@ from datetime import date, timedelta
 import numpy as np
 import pandas as pd
 
-from .lineage import current_variant, rekeyed_sales
+from .lineage import current_variant, product_shares, rekey_products, rekeyed_sales, replaced_on
 from .tenants import Tenant
 
 GRAINS = ("day", "week", "month")
@@ -130,6 +130,21 @@ def _in_stock(stock: pd.DataFrame, variants: list[str], days: pd.DatetimeIndex) 
     return (full > 0).astype(float).where(full.notna(), 1.0)
 
 
+def _drop_replaced_stock(stock: pd.DataFrame, replaced: dict, cv) -> pd.DataFrame:
+    """Stock rows (date, variant_id, ...) without the rows of replaced variants dated on or after their
+    replacement date (I4); a replaced variant with no known date contributes no stock to its replacement."""
+    if stock.empty or not replaced:
+        return stock
+
+    def cutoff(v):
+        if v not in replaced or cv.get(v, v) == v:        # not replaced (or a lineage cycle): all rows
+            return date.max
+        return replaced[v] or date.min
+
+    keep = [d < cutoff(v) for d, v in zip(stock["date"], stock["variant_id"])]
+    return stock[keep].reset_index(drop=True)
+
+
 # ---------------------------------------------------------------- tenant data (loaded once)
 
 class TenantData:
@@ -165,6 +180,7 @@ class TenantData:
 
         stock = q("SELECT date, variant_id, SUM(available) AS available FROM stock_daily"
                   " WHERE tenant_id = %(tenant_id)s GROUP BY date, variant_id", ["date", "variant_id", "available"])
+        stock = _drop_replaced_stock(stock, replaced_on(conn, t), cv)
         stock["variant_id"] = [cv.get(v, v) for v in stock["variant_id"]]
         stock["date"] = pd.to_datetime(stock["date"])
         stock["available"] = stock["available"].astype(float)
@@ -174,6 +190,8 @@ class TenantData:
                 " AND variant_id = '' GROUP BY date, product_id", ["date", "product_id", "views"])
         pix["date"] = pd.to_datetime(pix["date"])
         pix["views"] = pix["views"].astype(float)
+        shares = product_shares(conn, t, cv)
+        pix = rekey_products(pix, shares, ["views"])          # rolled up before the lineage was confirmed
         pix["product_id"] = self._product_key(pix["product_id"])
         self.pixel = pix
         sv = q("SELECT variant_id, SUM(size_views) AS size_views FROM funnel_daily WHERE tenant_id = %(tenant_id)s"
@@ -197,6 +215,7 @@ class TenantData:
                   ["date", "product_id", "spend", "impressions"])
         spend["date"] = pd.to_datetime(spend["date"])
         spend[["spend", "impressions"]] = spend[["spend", "impressions"]].astype(float)
+        spend = rekey_products(spend, shares, ["spend", "impressions"])   # I5: lineage after attribution
         spend["product_id"] = self._product_key(spend["product_id"])
         self.spend = spend
 

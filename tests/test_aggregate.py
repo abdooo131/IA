@@ -233,3 +233,26 @@ def test_period_coverage_columns(conn, tenant_a):
     assert list(p["period_days"]) == [30, 31, 31]
     assert list(p["n_days"]) == [11, 31, 3]                     # first and current periods are partial
     assert (p["views_days"] == 0).all()
+
+
+def test_archived_old_variant_stock_ignored_after_lineage_date(conn, tenant_a):
+    """I4: stock left on an archived old variant counts for the new variant only before the lineage effective
+    date; from then on only the new variant's own stock counts (in the panel and in purchasing)."""
+    from engine import purchasing
+    v = seed_style(conn, tenant_a, ["S"])
+    old = vid(900)
+    conn.execute("INSERT INTO products (tenant_id, variant_id, product_id, handle, size, status)"
+                 " VALUES (%s,%s,'gid://shopify/Product/9','dress','S','ARCHIVED')", (tenant_a.tenant_id, old))
+    conn.execute("INSERT INTO variant_lineage (tenant_id, old_variant_id, new_variant_id, effective_date, method,"
+                 " confirmed) VALUES (%s,%s,%s,'2025-06-11','sku',TRUE)", (tenant_a.tenant_id, old, v["S"]))
+    for d in days(date(2025, 6, 1), 30):
+        stock(conn, tenant_a, old, d, 5)                    # leftover units on the archived old variant
+        if d >= date(2025, 6, 11):
+            stock(conn, tenant_a, v["S"], d, 0)             # the new variant sold out
+        sell(conn, tenant_a, old if d < date(2025, 6, 11) else v["S"], d, 1)
+    conn.commit()
+    row = aggregate.build_panel(conn, tenant_a, "month", "product").iloc[0]
+    assert row.size_availability == pytest.approx(10 / 30)
+    assert purchasing._available(conn, tenant_a, date(2025, 6, 5)).get(v["S"]) == 5     # before: old stock re keyed
+    assert purchasing._available(conn, tenant_a, date(2025, 6, 20)).get(v["S"], 0) == 0  # after: own stock only
+    assert purchasing._available(conn, tenant_a).get(v["S"], 0) == 0

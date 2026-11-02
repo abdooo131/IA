@@ -417,3 +417,43 @@ def test_cycle_bookkeeping_crash_marks_run_failed_and_next_tenant_runs(conn, env
     status = {row["tenant_id"]: row["status"] for row in conn.execute("SELECT tenant_id, status FROM runs")}
     assert status == {tenant_a.tenant_id: "failed", tenant_b.tenant_id: "done"}
     assert len(connections) >= 3                    # tenant list + one per tenant
+
+
+def _spend_dates(conn, t):
+    return conn.execute("SELECT min(date) lo, max(date) hi, count(*) n FROM spend_by_product WHERE tenant_id = %s",
+                        (t.tenant_id,)).fetchone()
+
+
+def test_tenant_add_ingest_attributes_full_history(conn, env, tenant_a, tenant_b):
+    """C1: tenant add ingests and attributes the full history; the next cycle keeps it."""
+    f = make_fakes("A")
+    env[None] = env[tenant_b.tenant_id + 1] = f              # the draft tenant, then the new tenant id
+    invoke("tenant", "add", "--name", "Tenant C", "--shop", "c.myshopify.com", "--shopify-token-env", "C_S",
+           "--meta-token-env", "C_M", "--meta-account", ACCOUNT["A"], "--po-prefix", "C")
+    t = cli.tenants.get_tenant(conn, tenant_b.tenant_id + 1)
+    got = _spend_dates(conn, t)
+    assert got["lo"] == START and got["hi"] == END
+    assert conn.execute("SELECT min(date) d FROM order_credits WHERE tenant_id = %s", (t.tenant_id,)).fetchone()["d"] \
+        == START
+    invoke("cycle", "--tenant", "Tenant C")
+    assert _spend_dates(conn, t)["lo"] == START
+
+
+def test_cycle_attributes_history_ingested_without_attribution(conn, env, tenant_a):
+    """C1: history ingested without attribution (engine ingest) is attributed by the next cycle, not only the
+    incremental window."""
+    invoke("ingest", "--tenant", tenant_a.name)
+    assert _spend_dates(conn, tenant_a)["n"] == 0
+    invoke("cycle", "--tenant", tenant_a.name)
+    run = conn.execute("SELECT stages FROM runs WHERE tenant_id = %s", (tenant_a.tenant_id,)).fetchone()["stages"]
+    assert run["ingest_orders"]["result"]["full_history"] is False          # incremental ingest window
+    assert run["run_attribution"]["result"]["since"] == START.isoformat()
+    assert _spend_dates(conn, tenant_a)["lo"] == START
+    n = conn.execute("SELECT count(*) n FROM orders o WHERE tenant_id = %s AND NOT EXISTS (SELECT 1 FROM"
+                     " order_credits c WHERE c.tenant_id = o.tenant_id AND c.order_id = o.order_id)",
+                     (tenant_a.tenant_id,)).fetchone()["n"]
+    assert n == 0
+    invoke("cycle", "--tenant", tenant_a.name)          # everything attributed: back to the incremental window
+    run = conn.execute("SELECT stages FROM runs WHERE tenant_id = %s ORDER BY started_at DESC",
+                       (tenant_a.tenant_id,)).fetchone()["stages"]
+    assert run["run_attribution"]["result"]["since"] == (END - timedelta(days=7)).isoformat()
