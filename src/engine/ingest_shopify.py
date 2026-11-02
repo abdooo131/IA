@@ -147,6 +147,19 @@ query Orders($after: String, $query: String) {
 """
 
 
+FIRST_ORDER_QUERY = """
+query FirstOrder {
+  orders(first: 1, sortKey: CREATED_AT) { nodes { createdAt } }
+}
+"""
+
+
+def first_order_date(t: Tenant) -> date | None:
+    """Local date of the store's oldest order (start of the full history ingest); None for a store with no orders."""
+    nodes = shopify_client(t).graphql(FIRST_ORDER_QUERY)["orders"]["nodes"]
+    return _local_date(nodes[0]["createdAt"], t.timezone) if nodes else None
+
+
 def _utm(order: dict) -> tuple[str | None, str | None]:
     visit = ((order.get("customerJourneySummary") or {}).get("lastVisit")) or {}
     utm = visit.get("utmParameters") or {}

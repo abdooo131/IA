@@ -18,6 +18,9 @@ dependencies = [
   "uvicorn",
 ]
 
+[project.scripts]
+engine = "engine.cli:app"
+
 [project.optional-dependencies]
 dev = ["pytest", "httpx"]
 
