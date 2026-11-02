@@ -125,3 +125,4 @@ export { planRefill, refillOverview, setStockTarget } from './refill';
 export * from './geo';
 export * from './tickets';
 export * from './shopdata';
+export { loadDemo, type DemoOptions, type DemoResult } from './demo';

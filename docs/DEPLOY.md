@@ -59,6 +59,19 @@ Every push to the branch rebuilds and redeploys automatically.
 - The starting data (3 dark stores, zones, 20 Eve Chantelle products, opening stock) loads on
   the first start. Later starts only add missing rows and never overwrite your changes.
 
+### A month of demo activity (optional)
+
+To show the dashboards, finance and reports with realistic numbers, add `DEMO_LOAD` = `true`
+under **Environment** and redeploy. On that start, after the seed, the container simulates the
+last 30 days (about 600 orders from accept to delivery, failed and cancelled ones, cash
+handovers, bank deposits, weekly payouts, storage fees, rent and fuel, a supplier bill,
+last month's salaries and tax invoices, a return and damage reports) through the real rules,
+with the times of that month. It runs in the background after the app starts (background jobs are paused until `DEMO_LOAD` is false again), runs only once
+(a later start sees it is loaded and skips it) and adds two demo merchants, Nile Pantry and
+Bayt Home & Care, plus extra riders and a second finance approver, all with
+`SEED_DEMO_PASSWORD`. Set `DEMO_LOAD` back to `false` afterwards. Locally:
+`DEMO_LOAD=true pnpm db:demo`. Never use it on a database with real merchants.
+
 ### Starting from real data instead of demo data
 
 When you are ready for real merchants and stock, set `SEED_ON_START` to `false` in Render

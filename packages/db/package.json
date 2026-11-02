@@ -16,6 +16,7 @@
     "migrate:dev": "dotenv -e ../../.env -- prisma migrate dev",
     "migrate:deploy": "dotenv -e ../../.env -- prisma migrate deploy",
     "seed": "dotenv -e ../../.env -- tsx prisma/seed.ts",
+    "demo:load": "dotenv -e ../../.env -- tsx prisma/demo-load.ts",
     "studio": "dotenv -e ../../.env -- prisma studio"
   },
   "dependencies": {

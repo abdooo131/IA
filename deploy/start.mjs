@@ -71,6 +71,11 @@ function start(name, command, args, cwd) {
   children.push(child);
 }
 
+// The demo month runs after the app is up (a slow host would pass the start time limit),
+// with the API's background jobs paused so they never act on half simulated orders. Set
+// DEMO_LOAD back to false afterwards: the next start turns the jobs on again.
+if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
+
 log(`starting API on 127.0.0.1:${env.API_PORT} and web on 0.0.0.0:${port}`);
 start('api', process.execPath, ['dist/main.js'], 'apps/api');
 start(
@@ -79,6 +84,20 @@ start(
   ['node_modules/next/dist/bin/next', 'start', '-p', port, '-H', '0.0.0.0'],
   'apps/web',
 );
+
+if (env.DEMO_LOAD === 'true') {
+  log('loading the demo month in the background (skipped when it was already loaded)');
+  const require = createRequire(import.meta.url);
+  const db = require(path.join(root, 'packages/db/dist/index.js'));
+  process.env.DATABASE_URL = env.DATABASE_URL;
+  const prisma = new db.PrismaClient({
+    transactionOptions: { maxWait: 20_000, timeout: 60_000 },
+  });
+  db.loadDemo(prisma, { demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD, log })
+    .then(() => log('demo month loaded; set DEMO_LOAD to false to turn the jobs back on'))
+    .catch((error) => log(`demo load failed: ${error instanceof Error ? error.message : error}`))
+    .finally(() => prisma.$disconnect());
+}
 
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => children.forEach((child) => child.kill(signal)));
