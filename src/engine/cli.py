@@ -1,6 +1,7 @@
 """Command line interface and the monthly operating cycle.
 
-Every command except `tenant add`, `tenant list` and `cycle --all-tenants` takes --tenant (a tenant id or name).
+Every command except `tenant add` and `tenant list` takes --tenant (a tenant id or name); `cycle`,
+`snapshot_stock` and `po sync` take --all-tenants instead.
 Commands that need a run (plan, po suggest, decide, report, backtest scoring) use the tenant's latest done run
 unless --run names one. The cycle runs every stage except approving, pushing and cancelling POs: nothing
 reaches Shopify unapproved (Spec 29); approve and push only happen through `po approve` and `po push`.
@@ -54,7 +55,13 @@ tenant_app = typer.Typer(no_args_is_help=True, help="Register and list tenants."
 lineage_app = typer.Typer(no_args_is_help=True, help="Variant lineage across split products.")
 suppliers_app = typer.Typer(no_args_is_help=True, help="Suppliers, lead times, pack multiples and MOQs.")
 po_app = typer.Typer(no_args_is_help=True, help="Purchase orders: suggest, approve, push, sync, cancel.")
+admap_app = typer.Typer(no_args_is_help=True, help="Manual ad -> product map (ads without a catalog or name match).")
+lift_app = typer.Typer(no_args_is_help=True, help="Lift test results per style (scale the ad response).")
+calendar_app = typer.Typer(no_args_is_help=True, help="Tenant calendar flags (promo days).")
 app.add_typer(tenant_app, name="tenant")
+app.add_typer(admap_app, name="ad-map")
+app.add_typer(lift_app, name="lift")
+app.add_typer(calendar_app, name="calendar")
 app.add_typer(lineage_app, name="lineage")
 app.add_typer(suppliers_app, name="suppliers")
 app.add_typer(po_app, name="po")
@@ -607,6 +614,44 @@ def tenant_list() -> None:
         columns=["tenant_id", "name", "shop", "timezone", "currency", "po_prefix", "meta_accounts"]))
 
 
+@tenant_app.command("set-location")
+def tenant_set_location(location: str = typer.Argument(..., help="Shopify Location GID (or its number)."),
+                        tenant: Optional[str] = _tenant_opt()) -> None:
+    """Set the main location: the destination of PO inventory transfers (default: the shop's primary location)."""
+    with _tenant_session(tenant) as (conn, t):
+        try:
+            t = tenants.set_main_location(conn, t, location)
+        except ValueError as e:
+            _fail(str(e))
+        typer.echo(f"tenant {t.tenant_id} {t.name}: main location {t.main_location_id}")
+
+
+def _targets(tenant: str | None, all_tenants: bool) -> list[Tenant]:
+    """--tenant X or --all-tenants (exactly one)."""
+    if bool(tenant) == all_tenants:
+        _fail("give exactly one of --tenant or --all-tenants")
+    with _session() as conn:
+        return tenants.list_tenants(conn) if all_tenants else [resolve_tenant(conn, tenant)]
+
+
+def _each_tenant(tenant: str | None, all_tenants: bool, action: Callable[[object, Tenant], str]) -> None:
+    """Run action per target tenant, each on its own connection; one tenant failing does not stop the others."""
+    failed = []
+    for t in _targets(tenant, all_tenants):
+        try:
+            with _session() as conn:
+                typer.echo(f"{t.name}: {action(conn, t)}")
+        except typer.Exit:
+            raise
+        except Exception as e:                       # noqa: BLE001
+            msg = tenants.redact(f"{type(e).__name__}: {e}", t)
+            log.error("tenant %s: %s", t.tenant_id, msg)
+            typer.echo(f"{t.name}: failed: {msg}", err=True)
+            failed.append(t.name)
+    if failed:
+        _fail(f"failed for {', '.join(failed)}")
+
+
 # ---------------------------------------------------------------- ingest and stock
 
 @app.command("ingest")
@@ -623,16 +668,19 @@ def ingest(tenant: Optional[str] = _tenant_opt(),
 
 
 @app.command("snapshot_stock")
-def snapshot_stock(tenant: Optional[str] = _tenant_opt()) -> None:
+def snapshot_stock(tenant: Optional[str] = _tenant_opt(),
+                   all_tenants: bool = typer.Option(False, "--all-tenants", help="Every tenant in turn.")) -> None:
     """Store today's inventory levels; the first snapshot also reconstructs stock history from sales."""
-    with _tenant_session(tenant) as (conn, t):
+    def act(conn, t):
         first = conn.execute("SELECT NOT EXISTS (SELECT 1 FROM stock_daily WHERE tenant_id = %s AND NOT reconstructed)"
                              " AS first", (t.tenant_id,)).fetchone()["first"]
         n = ingest_shopify.snapshot_stock(conn, t, local_today(t))
-        typer.echo(f"{n} stock rows for {local_today(t)}")
+        out = f"{n} stock rows for {local_today(t)}"
         earliest = _min_date(conn, t, "sales_lines")
         if first and earliest:
-            typer.echo(f"{ingest_shopify.reconstruct_stock(conn, t, earliest)} reconstructed rows back to {earliest}")
+            out += f"; {ingest_shopify.reconstruct_stock(conn, t, earliest)} reconstructed rows back to {earliest}"
+        return out
+    _each_tenant(tenant, all_tenants, act)
 
 
 # ---------------------------------------------------------------- lineage
@@ -893,9 +941,10 @@ def po_push(po: str, tenant: Optional[str] = _tenant_opt()) -> None:
 
 
 @po_app.command("sync")
-def po_sync(tenant: Optional[str] = _tenant_opt()) -> None:
+def po_sync(tenant: Optional[str] = _tenant_opt(),
+            all_tenants: bool = typer.Option(False, "--all-tenants", help="Every tenant in turn.")) -> None:
     """Read received quantities of pushed POs from Shopify."""
-    _po_action(tenant, lambda conn, t: f"{purchasing.sync_receipts(conn, t)} PO lines updated")
+    _each_tenant(tenant, all_tenants, lambda conn, t: f"{purchasing.sync_receipts(conn, t)} PO lines updated")
 
 
 @po_app.command("cancel")
@@ -907,18 +956,103 @@ def po_cancel(po: str, tenant: Optional[str] = _tenant_opt()) -> None:
     _po_action(tenant, act)
 
 
+# ---------------------------------------------------------------- operator inputs: ad map, lift, calendar
+
+def _parse_shares(items: list[str]) -> list[tuple[str, float]]:
+    out = []
+    for it in items:
+        prod, sep, share = it.rpartition("=")
+        if not sep or not prod:
+            _fail(f"expected PRODUCT=SHARE, got {it!r}")
+        try:
+            w = float(share)
+        except ValueError:
+            _fail(f"share must be a number, got {it!r}")
+        if not (w > 0 and math.isfinite(w)):
+            _fail(f"share must be > 0, got {it!r}")
+        out.append((prod, w))
+    return out
+
+
+@admap_app.command("set")
+def admap_set(ad_id: str = typer.Argument(..., help="Meta ad id."),
+              shares: list[str] = typer.Argument(..., help="PRODUCT=SHARE ... (product id or handle; shares are"
+                                                           " normalised)."),
+              tenant: Optional[str] = _tenant_opt()) -> None:
+    """Map an ad to products with shares (replaces the ad's earlier map). Used when neither the catalog breakdown
+    nor the ad name (PRODUCT_FORMAT_ANGLE) identifies the product; re-run `engine attribute` to apply it."""
+    parsed = _parse_shares(shares)
+    with _tenant_session(tenant) as (conn, t):
+        rows = {}
+        for prod, w in parsed:
+            pid = _resolve_product(conn, t, prod)
+            rows[pid] = rows.get(pid, 0.0) + w
+        conn.execute("DELETE FROM ad_product_map WHERE tenant_id = %s AND ad_id = %s", (t.tenant_id, ad_id))
+        for pid, w in rows.items():
+            conn.execute("INSERT INTO ad_product_map (tenant_id, ad_id, product_id, share) VALUES (%s,%s,%s,%s)",
+                         (t.tenant_id, ad_id, pid, w))
+        conn.commit()
+        total = sum(rows.values())
+        typer.echo(f"ad {ad_id}: " + ", ".join(f"{p} {w / total:.0%}" for p, w in rows.items()))
+
+
+@admap_app.command("list")
+def admap_list(tenant: Optional[str] = _tenant_opt()) -> None:
+    """The manual ad -> product map."""
+    with _tenant_session(tenant) as (conn, t):
+        rows = conn.execute(
+            "SELECT m.ad_id, m.product_id, max(p.handle) AS handle, m.share,"
+            " m.share / sum(m.share) OVER (PARTITION BY m.ad_id) AS normalised FROM ad_product_map m"
+            " LEFT JOIN products p ON p.tenant_id = m.tenant_id AND p.product_id = m.product_id"
+            " WHERE m.tenant_id = %s GROUP BY m.ad_id, m.product_id, m.share ORDER BY m.ad_id, m.product_id",
+            (t.tenant_id,)).fetchall()
+        _echo_table("ad map", _frame(rows, ["ad_id", "product_id", "handle", "share", "normalised"]))
+
+
+@lift_app.command("set")
+def lift_set(style: str = typer.Argument(..., help="Style id or name."),
+             factor: float = typer.Argument(..., help="Incremental share of Meta attributed results (e.g. 0.6)."),
+             tested_on: datetime = typer.Option(..., "--tested-on", formats=["%Y-%m-%d"], help="Test date."),
+             tenant: Optional[str] = _tenant_opt()) -> None:
+    """Record a lift test result for a style (the latest test's factor multiplies the ad response, Spec 26)."""
+    if not (factor > 0 and math.isfinite(factor)):
+        _fail("FACTOR must be a number > 0")
+    with _tenant_session(tenant) as (conn, t):
+        sid = _resolve_style(conn, t, style)
+        calibrate.set_lift(conn, t, sid, factor, tested_on.date())
+        typer.echo(f"lift {factor:g} for style {sid} tested on {tested_on.date()}")
+
+
+@calendar_app.command("promo")
+def calendar_promo(start: datetime = typer.Argument(..., formats=["%Y-%m-%d"], help="First day (local date)."),
+                   end: datetime = typer.Argument(..., formats=["%Y-%m-%d"], help="Last day, inclusive."),
+                   off: bool = typer.Option(False, "--off", help="Clear the promo flag instead."),
+                   tenant: Optional[str] = _tenant_opt()) -> None:
+    """Flag (or with --off clear) promo days; the model reads calendar.flags promo as a seasonal flag."""
+    s, e = start.date(), end.date()
+    if e < s:
+        _fail("END must be on or after START")
+    with _tenant_session(tenant) as (conn, t):
+        rows = [(t.tenant_id, s + timedelta(days=i)) for i in range((e - s).days + 1)]
+        with conn.cursor() as cur:
+            if off:
+                cur.executemany("UPDATE calendar SET flags = flags - 'promo' WHERE tenant_id = %s AND date = %s", rows)
+            else:
+                cur.executemany("INSERT INTO calendar (tenant_id, date, flags) VALUES (%s, %s, '{\"promo\": true}')"
+                                " ON CONFLICT (tenant_id, date) DO UPDATE SET flags = calendar.flags || '{\"promo\": true}'",
+                                rows)
+        conn.commit()
+        typer.echo(f"promo {'cleared' if off else 'set'} for {s} .. {e} ({len(rows)} days)")
+
+
 # ---------------------------------------------------------------- cycle
 
 @app.command("cycle")
 def cycle(tenant: Optional[str] = _tenant_opt(),
           all_tenants: bool = typer.Option(False, "--all-tenants", help="Run every tenant in turn.")) -> None:
     """The monthly cycle: every stage except approving and pushing POs."""
-    if bool(tenant) == all_tenants:
-        _fail("give exactly one of --tenant or --all-tenants")
     failed = []
-    with _session() as conn:
-        targets = tenants.list_tenants(conn) if all_tenants else [resolve_tenant(conn, tenant)]
-    for t in targets:                                # a fresh connection per tenant: one tenant's broken
+    for t in _targets(tenant, all_tenants):                                # a fresh connection per tenant: one tenant's broken
         try:                                         # connection cannot fail the next tenant
             with _session() as conn:
                 run_id, ok, err = run_cycle(conn, t)

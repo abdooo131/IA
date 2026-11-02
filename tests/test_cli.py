@@ -285,7 +285,9 @@ def test_report_sections(conn, env, tenant_a, tmp_path):
     ["attribute"], ["fit"], ["plan"], ["suppliers", "list"], ["suppliers", "add", "X", "--kind", "factory",
                                                               "--lead-time", "3"],
     ["po", "suggest"], ["po", "list"], ["po", "approve", "P1"], ["po", "push", "P1"], ["po", "sync"],
-    ["po", "cancel", "P1"], ["decide"], ["report"], ["backtest"], ["cycle"]])
+    ["po", "cancel", "P1"], ["decide"], ["report"], ["backtest"], ["cycle"], ["ad-map", "list"],
+    ["ad-map", "set", "a1", "x=1"], ["lift", "set", "S", "0.5", "--tested-on", "2026-10-01"],
+    ["calendar", "promo", "2026-10-01", "2026-10-02"], ["tenant", "set-location", "gid://shopify/Location/1"]])
 def test_commands_require_tenant(conn, env, args):
     r = runner.invoke(cli.app, args)
     assert r.exit_code != 0
@@ -493,3 +495,54 @@ def test_cycle_builds_tenant_data_once(conn, env, tenant_a, monkeypatch):
         monkeypatch.setattr(mod, "TenantData", Counting)
     invoke("cycle", "--tenant", tenant_a.name)
     assert len(built) == 1
+
+
+def test_operator_commands(conn, env, tenant_a):
+    """I10: ad-map set/list, lift set, calendar promo, tenant set-location."""
+    invoke("ingest", "--tenant", tenant_a.name)
+    invoke("lineage", "propose", "--tenant", tenant_a.name)
+    r = invoke("ad-map", "set", "a9", "silk-dress-black=3", f"{gid('Product', 20)}=1", "--tenant", tenant_a.name)
+    assert "75%" in r.output and "25%" in r.output
+    rows = {x["product_id"]: float(x["share"]) for x in conn.execute(
+        "SELECT product_id, share FROM ad_product_map WHERE tenant_id = %s AND ad_id = 'a9'", (tenant_a.tenant_id,))}
+    assert rows == {gid("Product", 10): 3.0, gid("Product", 20): 1.0}
+    invoke("ad-map", "set", "a9", "fustan-ahmar=1", "--tenant", tenant_a.name)          # replaces
+    assert "fustan-ahmar" in invoke("ad-map", "list", "--tenant", tenant_a.name).output
+    assert runner.invoke(cli.app, ["ad-map", "set", "a9", "nope=1", "--tenant", tenant_a.name]).exit_code != 0
+    assert runner.invoke(cli.app, ["ad-map", "set", "a9", "fustan-ahmar=-1", "--tenant", tenant_a.name]).exit_code != 0
+    invoke("attribute", "--tenant", tenant_a.name)
+    assert conn.execute("SELECT count(*) n FROM spend_by_product WHERE tenant_id = %s AND method = 'manual'"
+                        " AND product_id = %s", (tenant_a.tenant_id, gid("Product", 20))).fetchone()["n"] > 0
+
+    style = conn.execute("SELECT style_id FROM product_style WHERE tenant_id = %s AND product_id = %s",
+                         (tenant_a.tenant_id, gid("Product", 10))).fetchone()["style_id"]
+    invoke("lift", "set", style, "0.6", "--tested-on", "2026-09-15", "--tenant", tenant_a.name)
+    assert float(conn.execute("SELECT factor FROM lift_tests WHERE tenant_id = %s AND style_id = %s",
+                              (tenant_a.tenant_id, style)).fetchone()["factor"]) == 0.6
+    assert runner.invoke(cli.app, ["lift", "set", style, "0", "--tested-on", "2026-09-15",
+                                   "--tenant", tenant_a.name]).exit_code != 0
+
+    invoke("calendar", "promo", "2026-10-10", "2026-10-12", "--tenant", tenant_a.name)
+    promo = lambda: [r["date"] for r in conn.execute(
+        "SELECT date FROM calendar WHERE tenant_id = %s AND flags -> 'promo' = 'true'::jsonb ORDER BY date",
+        (tenant_a.tenant_id,))]
+    assert promo() == [date(2026, 10, 10), date(2026, 10, 11), date(2026, 10, 12)]
+    assert cli.aggregate.TenantData(conn, tenant_a).promo_days == set(promo())
+    invoke("calendar", "promo", "2026-10-11", "2026-10-11", "--off", "--tenant", tenant_a.name)
+    assert promo() == [date(2026, 10, 10), date(2026, 10, 12)]
+
+    invoke("tenant", "set-location", "gid://shopify/Location/777", "--tenant", tenant_a.name)
+    assert cli.tenants.get_tenant(conn, tenant_a.tenant_id).main_location_id == "gid://shopify/Location/777"
+    assert runner.invoke(cli.app, ["tenant", "set-location", "nope", "--tenant", tenant_a.name]).exit_code != 0
+
+
+def test_snapshot_stock_and_po_sync_all_tenants(conn, env, tenant_a, tenant_b):
+    """I10: --all-tenants on snapshot_stock and po sync."""
+    r = invoke("snapshot_stock", "--all-tenants")
+    assert "Tenant A" in r.output and "Tenant B" in r.output
+    n = {row["tenant_id"]: row["n"] for row in conn.execute(
+        "SELECT tenant_id, count(*) n FROM stock_daily WHERE NOT reconstructed GROUP BY tenant_id")}
+    assert set(n) == {tenant_a.tenant_id, tenant_b.tenant_id}
+    r = invoke("po", "sync", "--all-tenants")
+    assert r.output.count("PO lines updated") == 2
+    assert runner.invoke(cli.app, ["po", "sync", "--tenant", tenant_a.name, "--all-tenants"]).exit_code != 0

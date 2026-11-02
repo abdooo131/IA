@@ -256,3 +256,14 @@ def test_archived_old_variant_stock_ignored_after_lineage_date(conn, tenant_a):
     assert purchasing._available(conn, tenant_a, date(2025, 6, 5)).get(v["S"]) == 5     # before: old stock re keyed
     assert purchasing._available(conn, tenant_a, date(2025, 6, 20)).get(v["S"], 0) == 0  # after: own stock only
     assert purchasing._available(conn, tenant_a).get(v["S"], 0) == 0
+
+
+def test_warns_outside_islamic_calendar(caplog, monkeypatch):
+    """M5: dates outside the hard coded Islamic calendar log a warning (once per year)."""
+    monkeypatch.setattr(aggregate, "_warned_years", set())
+    with caplog.at_level("WARNING", logger="engine.aggregate"):
+        aggregate.day_flags(date(2029, 12, 30), date(2030, 1, 2))
+        aggregate.day_flags(date(2029, 12, 30), date(2030, 1, 2))
+        aggregate.day_flags(date(2025, 1, 1), date(2025, 1, 2))
+    msgs = [r.getMessage() for r in caplog.records if "Islamic" in r.getMessage()]
+    assert len(msgs) == 1 and "2029, 2030" in msgs[0]

@@ -7,6 +7,7 @@ products through lineage before it is summed. Every query filters on the tenant.
 """
 from __future__ import annotations
 
+import logging
 from collections import Counter, defaultdict
 from datetime import date, timedelta
 
@@ -15,6 +16,8 @@ import pandas as pd
 
 from .lineage import current_variant, product_shares, rekey_products, rekeyed_sales, replaced_on
 from .tenants import Tenant
+
+log = logging.getLogger(__name__)
 
 GRAINS = ("day", "week", "month")
 LEVELS = ("product", "style", "collection", "store")
@@ -84,9 +87,22 @@ def _last_friday_of_november(year: int) -> date:
     return d
 
 
+_warned_years: set[int] = set()
+
+
+def _warn_islamic_range(start: date, end: date) -> None:
+    """Log once per year when dates fall outside the hard coded Islamic calendar (Ramadan and Eid flags are 0)."""
+    missing = [y for y in range(start.year, end.year + 1) if y not in _ISLAMIC and y not in _warned_years]
+    if missing:
+        _warned_years.update(missing)
+        log.warning("no Islamic calendar dates for %s (covered %d to %d): Ramadan and Eid flags are 0; extend"
+                    " aggregate._ISLAMIC", ", ".join(map(str, missing)), min(_ISLAMIC), max(_ISLAMIC))
+
+
 def day_flags(start: date, end: date, promo_days=()) -> pd.DataFrame:
     """0/1 calendar flags per day (index: date, columns: FLAGS) for start..end inclusive."""
     idx = [start + timedelta(days=i) for i in range((end - start).days + 1)]
+    _warn_islamic_range(start, end)
     marked: dict[str, set[date]] = defaultdict(set)
     for y in range(start.year - 1, end.year + 2):
         wf = _last_friday_of_november(y)
