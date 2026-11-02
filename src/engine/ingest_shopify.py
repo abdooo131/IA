@@ -36,6 +36,13 @@ def _local_date(ts: str, tz: str) -> date:
     return datetime.fromisoformat(ts.replace("Z", "+00:00")).astimezone(ZoneInfo(tz)).date()
 
 
+def _nodes(connection: dict, what: str) -> list[dict]:
+    """Nodes of a nested connection fetched with a fixed `first:`; raise rather than truncate silently."""
+    if ((connection.get("pageInfo") or {}).get("hasNextPage")):
+        raise RuntimeError(f"{what} has more than one page; refusing to ingest truncated data")
+    return connection["nodes"]
+
+
 def _money(m: dict | None) -> float:
     return float(m["shopMoney"]["amount"]) if m else 0.0
 
@@ -82,7 +89,7 @@ query Products($after: String) {
     pageInfo { hasNextPage endCursor }
     nodes {
       id handle title status createdAt
-      variants(first: 100) { nodes {
+      variants(first: 100) { pageInfo { hasNextPage } nodes {
         id sku selectedOptions { name value }
         inventoryItem { id unitCost { amount } }
       } }
@@ -97,7 +104,7 @@ def sync_products(conn, t: Tenant) -> int:
     client = shopify_client(t)
     n = 0
     for p in _pages(client, PRODUCTS_QUERY, {}, "products"):
-        for v in p["variants"]["nodes"]:
+        for v in _nodes(p["variants"], f"product {p['id']} variants"):
             opts = {o["name"].strip().lower(): o["value"] for o in v["selectedOptions"]}
             colour = next((val for k, val in opts.items() if k in COLOUR_OPTIONS), None)
             size = next((val for k, val in opts.items() if k in SIZE_OPTIONS), None)
@@ -128,10 +135,10 @@ query Orders($after: String, $query: String) {
       customer { id email phone }
       totalPriceSet { shopMoney { amount } }
       customerJourneySummary { lastVisit { landingPage utmParameters { source content } } }
-      lineItems(first: 100) { nodes {
+      lineItems(first: 100) { pageInfo { hasNextPage } nodes {
         id quantity variant { id } discountedTotalSet { shopMoney { amount } }
       } }
-      refunds { id createdAt refundLineItems(first: 100) { nodes {
+      refunds { id createdAt refundLineItems(first: 100) { pageInfo { hasNextPage } nodes {
         quantity subtotalSet { shopMoney { amount } } lineItem { variant { id } }
       } } }
     }
@@ -160,7 +167,13 @@ def ingest_orders(conn, t: Tenant, since: date, until: date) -> int:
     Returns the number of orders written.
     """
     client = shopify_client(t)
-    q = f"updated_at:>='{since.isoformat()}' AND created_at:<'{(until + timedelta(days=1)).isoformat()}'"
+    # Explicit UTC bounds from the tenant's local midnights, so boundary orders are not lost.
+    tz = ZoneInfo(t.timezone)
+    utc = ZoneInfo("UTC")
+    lo = datetime.combine(since, datetime.min.time(), tz).astimezone(utc)
+    hi = datetime.combine(until + timedelta(days=1), datetime.min.time(), tz).astimezone(utc)
+    fmt = "%Y-%m-%dT%H:%M:%SZ"
+    q = f"updated_at:>='{lo.strftime(fmt)}' AND created_at:<'{hi.strftime(fmt)}'"
     n = 0
     for o in _pages(client, ORDERS_QUERY, {"query": q}, "orders"):
         created = _local_date(o["createdAt"], t.timezone)
@@ -178,12 +191,12 @@ def ingest_orders(conn, t: Tenant, since: date, until: date) -> int:
             " VALUES (%s,%s,%s,%s,%s,%s,%s)",
             (t.tenant_id, o["id"], created, key, source, content, _money(o["totalPriceSet"])))
         rows = []
-        for li in o["lineItems"]["nodes"]:
+        for li in _nodes(o["lineItems"], f"order {o['id']} lineItems"):
             if li.get("variant"):          # deleted variants cannot be keyed; skipped
                 rows.append((created, li["variant"]["id"], li["quantity"], _money(li["discountedTotalSet"])))
         for rf in o.get("refunds") or []:
             rdate = _local_date(rf["createdAt"], t.timezone)
-            for rl in rf["refundLineItems"]["nodes"]:
+            for rl in _nodes(rf["refundLineItems"], f"refund {rf['id']} refundLineItems"):
                 variant = (rl.get("lineItem") or {}).get("variant")
                 if variant:
                     rows.append((rdate, variant["id"], -rl["quantity"], -_money(rl["subtotalSet"])))

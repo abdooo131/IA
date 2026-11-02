@@ -225,3 +225,29 @@ def test_fetch_transfer(api, tenant_a):
     assert tr["lines"] == [
         {"inventory_item_id": "gid://shopify/InventoryItem/1101", "total": 20, "shipped": 20, "received": 12},
         {"inventory_item_id": "gid://shopify/InventoryItem/1102", "total": 10, "shipped": 10, "received": 0}]
+
+
+def test_order_query_window_uses_tenant_tz_utc_bounds(conn, tenant_a, api):
+    _ingest(conn, tenant_a, api)   # Cairo is UTC+2 in March: local midnight = 22:00Z the day before
+    q = [v for name, v in api.shopify.calls if name == "Orders"][0]["query"]
+    assert q == "updated_at:>='2026-02-28T22:00:00Z' AND created_at:<'2026-03-31T22:00:00Z'"
+
+
+def test_nested_connection_truncation_raises(conn, tenant_a, api):
+    page = load_fixture("shopify", "OrdersPage1")
+    page["data"]["orders"]["pageInfo"]["hasNextPage"] = False
+    page["data"]["orders"]["nodes"][0]["lineItems"]["pageInfo"] = {"hasNextPage": True}
+    api.shopify.respond("Orders", page)
+    with pytest.raises(RuntimeError, match="lineItems"):
+        ing.ingest_orders(conn, tenant_a, date(2026, 3, 1), date(2026, 3, 31))
+    page = load_fixture("shopify", "OrdersPage1")
+    page["data"]["orders"]["pageInfo"]["hasNextPage"] = False
+    page["data"]["orders"]["nodes"][0]["refunds"][0]["refundLineItems"]["pageInfo"] = {"hasNextPage": True}
+    api.shopify.respond("Orders", page)
+    with pytest.raises(RuntimeError, match="refundLineItems"):
+        ing.ingest_orders(conn, tenant_a, date(2026, 3, 1), date(2026, 3, 31))
+    prods = load_fixture("shopify", "Products")
+    prods["data"]["products"]["nodes"][0]["variants"]["pageInfo"] = {"hasNextPage": True}
+    api.shopify.respond("Products", prods)
+    with pytest.raises(RuntimeError, match="variants"):
+        ing.sync_products(conn, tenant_a)
