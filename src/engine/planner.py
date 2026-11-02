@@ -80,21 +80,39 @@ def forecast(p: DemandParams, budget, price_plan, stock_plan, grain: str, horizo
     return pd.DataFrame(rows, columns=COLUMNS).astype(object)
 
 
+def _steady_margin(p: DemandParams, price: float, unit_cost: float | None, avail: float) -> float:
+    """m: gross profit (revenue without unit_cost) per unit of a * ln(1 + adstock) response."""
+    margin = price if unit_cost is None else price - _num(unit_cost, 0.0)
+    conv = 1.0 if p.fallback else _cr_full(p, price)
+    return conv * avail * margin
+
+
+def steady_marginal_poas(p: DemandParams, spend: float, price: float, unit_cost: float | None,
+                         size_availability: float, decay: float) -> float:
+    """d(gross profit per period) / d(spend per period) at a steady `spend` per period (in p's grain).
+
+    a * m / ((1 - decay) + spend), the derivative behind spend_at_marginal_poas. Without unit_cost the margin
+    is the price, so the value is the marginal ROAS.
+    """
+    price, avail = _num(price, 0.0), min(max(_num(size_availability, 1.0), 0.0), 1.0)
+    if p.a <= 0 or avail <= 0:
+        return 0.0
+    m = _steady_margin(p, price, unit_cost, avail)
+    return _num(p.a * m / ((1.0 - decay) + max(_num(spend, 0.0), 0.0)), 0.0)
+
+
 def spend_at_marginal_poas(p: DemandParams, price: float, unit_cost: float | None, size_availability: float,
                            decay: float, target: float = 1.0) -> float:
     """Steady state spend per period where marginal gross profit per unit of spend equals `target`.
 
     s* = max(0, a * m / target - (1 - decay)), m = cr_full * availability * (price - unit_cost)
-    (fallback params: m = availability * (price - unit_cost)). Without unit_cost the margin is the price and the
-    target is marginal ROAS 3.
+    (fallback params: m = availability * (price - unit_cost)), i.e. steady_marginal_poas(s*) = target.
+    Without unit_cost the margin is the price and the target is marginal ROAS 3.
     """
     price, avail = _num(price, 0.0), min(max(_num(size_availability, 1.0), 0.0), 1.0)
     if unit_cost is None:
-        margin, target = price, MISSING_COST_TARGET
-    else:
-        margin = price - _num(unit_cost, 0.0)
-    if p.a <= 0 or margin <= 0 or avail <= 0 or target <= 0:
+        target = MISSING_COST_TARGET
+    m = _steady_margin(p, price, unit_cost, avail)
+    if p.a <= 0 or m <= 0 or avail <= 0 or target <= 0:
         return 0.0
-    conv = 1.0 if p.fallback else _cr_full(p, price)
-    m = conv * avail * margin
     return _num(max(0.0, p.a * m / target - (1.0 - decay)), 0.0)

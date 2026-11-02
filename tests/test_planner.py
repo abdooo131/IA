@@ -3,7 +3,7 @@ import math
 import pytest
 
 from engine.model import DemandParams, predict
-from engine.planner import forecast, spend_at_marginal_poas
+from engine.planner import forecast, spend_at_marginal_poas, steady_marginal_poas
 
 COLS = ["period", "spend", "views", "units", "lost_stock", "lost_price", "true_demand", "revenue", "profit",
         "roas", "poas", "marginal_poas", "missing_cost"]
@@ -94,6 +94,16 @@ def test_spend_at_marginal_one():
     h = 1e-4
     assert (gp(s + h) - gp(s - h)) / (2 * h) == pytest.approx(1.0, rel=1e-3)
     assert spend_at_marginal_poas(p, price, cost, 1.0, decay, target=2.0) < s
+
+
+def test_steady_marginal_poas_matches_optimal_spend():
+    p, price, cost, decay = P(), 100.0, 40.0, 0.3
+    s = spend_at_marginal_poas(p, price, cost, 1.0, decay, target=1.5)
+    assert steady_marginal_poas(p, s, price, cost, 1.0, decay) == pytest.approx(1.5)
+    m = p.cr_ref * (price / p.ref_price) ** p.e * price
+    assert steady_marginal_poas(p, 50.0, price, None, 1.0, decay) == pytest.approx(p.a * m / (0.7 + 50.0))
+    assert steady_marginal_poas(P(a=0.0), 50.0, price, cost, 1.0, decay) == 0.0
+    assert steady_marginal_poas(p, float("nan"), None, None, None, decay) == 0.0
 
 
 def test_lower_availability_lowers_optimal_spend():

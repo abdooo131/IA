@@ -133,11 +133,13 @@ def _killed(conn, t: Tenant) -> tuple[set[str], set[str]]:
             {r["entity_id"] for r in kill if r["level"] == "style"})
 
 
-def _available(conn, t: Tenant) -> dict[str, int]:
-    """Latest available per variant, summed over locations (each location's latest row)."""
+def _available(conn, t: Tenant, as_of: date | None = None) -> dict[str, int]:
+    """Latest available per variant (on or before `as_of` when given), summed over locations (each location's
+    latest row)."""
     out: dict[str, int] = defaultdict(int)
     for r in conn.execute("SELECT DISTINCT ON (variant_id, location_id) variant_id, available FROM stock_daily"
-                          " WHERE tenant_id = %s ORDER BY variant_id, location_id, date DESC", (t.tenant_id,)):
+                          " WHERE tenant_id = %s AND (%s::date IS NULL OR date <= %s::date)"
+                          " ORDER BY variant_id, location_id, date DESC", (t.tenant_id, as_of, as_of)):
         out[r["variant_id"]] += r["available"]
     return out
 
