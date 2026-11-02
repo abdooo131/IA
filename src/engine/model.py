@@ -265,6 +265,36 @@ def decompose(p: DemandParams, row) -> dict:
 
 # ---------------------------------------------------------------- fit all entities of a level
 
+def fit_panel(panels: dict[str, pd.DataFrame], parents: dict[str, dict[str, tuple[str, str]]],
+              level: str, grain: str) -> dict[str, dict[str, DemandParams]]:
+    """Fit store -> collection -> style -> product down to `level`, parents first (pure: no database).
+
+    panels[lv] is the panel of level lv (any row subset, e.g. history before a backtest cutoff);
+    parents[lv] maps an entity to (parent_level, parent_entity), a missing parent being the store.
+    Returns {level: {entity: DemandParams}} for every level of the chain. Shared by fit_all and the backtest.
+    """
+    if level not in LEVELS:
+        raise ValueError(f"unknown level {level!r}")
+    chain = list(reversed(LEVELS))                       # store, collection, style, product
+    chain = chain[:chain.index(level) + 1]
+    fitted: dict[str, dict[str, DemandParams]] = {}
+    for lv in chain:
+        panel = panels.get(lv)
+        fitted[lv] = {}
+        if panel is None or panel.empty:
+            continue
+        lv_parents = parents.get(lv, {})
+        for ent, g in panel.groupby("entity_id", sort=True):
+            plv, pid = lv_parents.get(ent, ("store", STORE_ENTITY))
+            parent = fitted.get(plv, {}).get(pid) or fitted.get("store", {}).get(STORE_ENTITY)
+            p = fit_entity(g, parent if lv != "store" else None)
+            if p is None:
+                continue
+            p.level, p.grain = lv, grain
+            fitted[lv][ent] = p
+    return fitted
+
+
 def fit_all(conn, t: Tenant, grain: str, level: str, run_id: str) -> list[DemandParams]:
     """Fit every entity at `level`, parents first, and store one model_params row per entity.
 
@@ -273,24 +303,11 @@ def fit_all(conn, t: Tenant, grain: str, level: str, run_id: str) -> list[Demand
     if level not in LEVELS:
         raise ValueError(f"unknown level {level!r}")
     data = TenantData(conn, t)
-    chain = list(reversed(LEVELS))                       # store, collection, style, product
+    chain = list(reversed(LEVELS))
     chain = chain[:chain.index(level) + 1]
-    fitted: dict[str, dict[str, DemandParams]] = {}
-    last_period: dict[str, object] = {}
-    for lv in chain:
-        panel = data.panel(grain, lv)
-        parents = data.parent_of(lv)
-        fitted[lv] = {}
-        for ent, g in panel.groupby("entity_id", sort=True):
-            plv, pid = parents.get(ent, ("store", STORE_ENTITY))
-            parent = fitted.get(plv, {}).get(pid) or fitted.get("store", {}).get(STORE_ENTITY)
-            p = fit_entity(g, parent if lv != "store" else None)
-            if p is None:
-                continue
-            p.level, p.grain = lv, grain
-            fitted[lv][ent] = p
-            if lv == level:
-                last_period[ent] = g["period_start"].max()
+    panels = {lv: data.panel(grain, lv) for lv in chain}
+    fitted = fit_panel(panels, {lv: data.parent_of(lv) for lv in chain}, level, grain)
+    last_period = panels[level].groupby("entity_id")["period_start"].max().to_dict()
 
     out = list(fitted[level].values())
     conn.execute("DELETE FROM model_params WHERE tenant_id = %s AND run_id = %s AND params->>'level' = %s"
