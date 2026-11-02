@@ -27,6 +27,7 @@ export default async function FinanceLayout({ children }: { children: ReactNode 
         { href: '/finance/invoices', label: t('invoices'), icon: 'invoice' },
         { href: '/finance/bills', label: t('bills'), icon: 'invoice' },
         { href: '/finance/receivables', label: t('receivables'), icon: 'customers' },
+        { href: '/finance/partners', label: t('partners'), icon: 'customers' },
         {
           href: '/finance/approvals',
           label: t('approvals'),

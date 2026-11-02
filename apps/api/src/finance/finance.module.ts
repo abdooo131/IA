@@ -7,6 +7,7 @@ import { PeriodController } from './period.controller';
 import { EtaClient, EtaSync, HttpEtaClient } from './eta';
 import { EtaSignerController, InvoicesController } from './invoices.controller';
 import { ProfitController } from './profit.controller';
+import { ToolsController } from './tools.controller';
 import { FinanceController } from './finance.controller';
 
 @Module({
@@ -20,6 +21,7 @@ import { FinanceController } from './finance.controller';
     PeriodController,
     InvoicesController,
     EtaSignerController,
+    ToolsController,
   ],
   providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })

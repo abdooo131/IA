@@ -164,12 +164,19 @@ const percentToBp = (text: string) => {
 function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
-  const [amount, setAmount] = useState((bill.leftPiastres / 100).toFixed(2));
+  const foreign = bill.currency !== 'EGP';
+  const [amount, setAmount] = useState(
+    ((foreign ? (bill.foreignLeftCents ?? 0) : bill.leftPiastres) / 100).toFixed(2),
+  );
+  const [rate, setRate] = useState(bill.fxRate ? String(bill.fxRate) : '');
   const [from, setFrom] = useState(money[0]?.id ?? '');
   const [reference, setReference] = useState('');
   const [recovery, setRecovery] = useState('');
   const recoveryValue = recovery.trim() ? parseEgp(recovery) : 0;
-  const value = parseEgp(amount);
+  const typed = parseEgp(amount);
+  const rateOk = !foreign || /^\d{1,6}(\.\d{1,6})?$/.test(rate.trim());
+  // What this payment settles of the bill, in EGP at the bill's own rate.
+  const value = typed === null ? null : foreign ? Math.round(typed * (bill.fxRate ?? 0)) : typed;
   const wht =
     value && bill.whtBp
       ? Math.round((bill.netPiastres * bill.whtBp * value) / (10_000 * bill.totalPiastres))
@@ -177,7 +184,22 @@ function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
   return (
     <div className="space-y-2">
       <div className="grid gap-2 sm:grid-cols-3">
-        {egpInput(amount, setAmount, t('amount'))}
+        {egpInput(
+          amount,
+          setAmount,
+          foreign ? t('amountIn', { currency: bill.currency }) : t('amount'),
+        )}
+        {foreign && (
+          <input
+            value={rate}
+            onChange={(e) => setRate(e.target.value)}
+            inputMode="decimal"
+            dir="ltr"
+            aria-label={t('rateToday', { currency: bill.currency })}
+            placeholder={t('rateToday', { currency: bill.currency })}
+            className={field}
+          />
+        )}
         <AccountSelect accounts={money} value={from} onChange={setFrom} label={t('paidFrom')} />
         <input
           value={reference}
@@ -204,11 +226,18 @@ function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
         type="button"
         className={primary}
         disabled={
-          action.busy || !value || !from || reference.trim().length < 2 || recoveryValue === null
+          action.busy ||
+          !value ||
+          !from ||
+          reference.trim().length < 2 ||
+          recoveryValue === null ||
+          !rateOk
         }
         onClick={() =>
           void action.send('POST', `/finance/bills/${bill.id}/payments`, {
-            amountPiastres: value,
+            ...(foreign
+              ? { foreignAmountCents: typed, fxRate: rate.trim() }
+              : { amountPiastres: value }),
             moneyAccountId: from,
             reference,
             advanceRecoveryPiastres: recoveryValue || undefined,
@@ -356,11 +385,19 @@ function NewBill({
     vat: '',
     memo: '',
     person: '',
+    currency: 'EGP',
+    rate: '',
   };
   const [b, setB] = useState(blank);
   const active = suppliers.filter((s) => s.isActive);
-  const net = parseEgp(b.net);
-  const vat = b.vat.trim() ? parseEgp(b.vat) : 0;
+  const foreign = b.currency !== 'EGP';
+  const rateOk = !foreign || /^\d{1,6}(\.\d{1,6})?$/.test(b.rate.trim());
+  // In a foreign currency the amounts are typed in that currency (cents work the same way).
+  const typedNet = parseEgp(b.net);
+  const typedVat = b.vat.trim() ? parseEgp(b.vat) : 0;
+  const rate = foreign && rateOk ? Number(b.rate) : 1;
+  const net = typedNet === null ? null : foreign ? Math.round(typedNet * rate) : typedNet;
+  const vat = typedVat === null ? null : foreign ? Math.round(typedVat * rate) : typedVat;
   const supplier = suppliers.find((s) => s.id === b.supplierId);
   return (
     <Card title={t('newBill')}>
@@ -425,8 +462,37 @@ function NewBill({
             </select>
           </Field>
         )}
-        <Field label={t('net')}>{egpInput(b.net, (v) => setB({ ...b, net: v }), t('net'))}</Field>
-        <Field label={t('vat')}>{egpInput(b.vat, (v) => setB({ ...b, vat: v }), t('vat'))}</Field>
+        <Field label={t('currency')}>
+          <select
+            value={b.currency}
+            onChange={(e) => setB({ ...b, currency: e.target.value })}
+            className={field}
+          >
+            {['EGP', 'USD', 'EUR', 'GBP', 'SAR', 'AED'].map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
+        {foreign && (
+          <Field label={t('rateOnBill', { currency: b.currency })}>
+            <input
+              value={b.rate}
+              onChange={(e) => setB({ ...b, rate: e.target.value })}
+              inputMode="decimal"
+              dir="ltr"
+              placeholder="48.50"
+              className={field}
+            />
+          </Field>
+        )}
+        <Field label={foreign ? t('netIn', { currency: b.currency }) : t('net')}>
+          {egpInput(b.net, (v) => setB({ ...b, net: v }), t('net'))}
+        </Field>
+        <Field label={foreign ? t('vatIn', { currency: b.currency }) : t('vat')}>
+          {egpInput(b.vat, (v) => setB({ ...b, vat: v }), t('vat'))}
+        </Field>
       </div>
       <Field label={t('memo')}>
         <input
@@ -435,7 +501,7 @@ function NewBill({
           className={field}
         />
       </Field>
-      {net && vat !== null && (
+      {net && vat !== null && rateOk && (
         <p className="text-body-sm font-bold">{t('billTotal', { amount: formatEgp(net + vat) })}</p>
       )}
       <button
@@ -447,6 +513,7 @@ function NewBill({
           b.reference.trim().length < 2 ||
           !net ||
           vat === null ||
+          !rateOk ||
           (!b.expense && !supplier?.defaultExpenseAccountId)
         }
         onClick={async () => {
@@ -460,8 +527,14 @@ function NewBill({
               dueDate: b.dueDate,
               expenseAccountId: b.expense || undefined,
               darkStoreId: b.store || undefined,
-              netPiastres: net,
-              vatPiastres: vat,
+              ...(foreign
+                ? {
+                    currency: b.currency,
+                    foreignNetCents: typedNet,
+                    foreignVatCents: typedVat,
+                    fxRate: b.rate.trim(),
+                  }
+                : { netPiastres: net, vatPiastres: vat }),
               memo: b.memo,
               userId: b.person || undefined,
               idempotencyKey: newActionKey(),
@@ -607,6 +680,11 @@ export function SuppliersAndBills({
                 </td>
                 <td className={`${td} text-end`}>
                   <Amount piastres={b.leftPiastres} strong />
+                  {b.currency !== 'EGP' && b.foreignLeftCents !== null && (
+                    <span className="block text-caption text-text-muted ltr-iso">
+                      {b.currency} {(b.foreignLeftCents / 100).toFixed(2)}
+                    </span>
+                  )}
                 </td>
                 <td className={`${td} text-end`}>
                   <button
@@ -1237,6 +1315,9 @@ export function PrepaidAndAssets({
                 </td>
                 <td className={`${td} text-end`}>
                   <Amount piastres={row.bookValuePiastres} strong />
+                  <span className="block">
+                    <DisposeAsset asset={row} money={money} />
+                  </span>
                 </td>
               </tr>
             ))}
@@ -1430,6 +1511,58 @@ export function PrepaidAndAssets({
           <ActionMessage message={buy.message} />
         </Card>
       </div>
+    </div>
+  );
+}
+
+function DisposeAsset({ asset, money }: { asset: FixedAssetRow; money: BookAccount[] }) {
+  const t = useTranslations('finance.payables');
+  const action = useFinanceAction();
+  const [open, setOpen] = useState(false);
+  const [sale, setSale] = useState('');
+  const [from, setFrom] = useState(money[0]?.id ?? '');
+  const [reason, setReason] = useState('');
+  const saleValue = sale.trim() ? parseEgp(sale) : 0;
+  if (asset.disposedAt)
+    return <span className="text-caption text-text-muted">{t('disposed')}</span>;
+  if (!open)
+    return (
+      <button type="button" className={secondary} onClick={() => setOpen(true)}>
+        {t('sellOrScrap')}
+      </button>
+    );
+  return (
+    <div className="mt-2 space-y-2">
+      <div className="grid gap-2 sm:grid-cols-3">
+        {egpInput(sale, setSale, t('salePrice'))}
+        {(saleValue ?? 0) > 0 && (
+          <AccountSelect accounts={money} value={from} onChange={setFrom} label={t('paidFrom')} />
+        )}
+        <input
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder={t('disposeReason')}
+          aria-label={t('disposeReason')}
+          className={field}
+        />
+      </div>
+      <p className="text-caption text-text-muted">{t('disposeHint')}</p>
+      <button
+        type="button"
+        className={primary}
+        disabled={action.busy || saleValue === null || reason.trim().length < 5}
+        onClick={() =>
+          void action.send('POST', `/finance/assets/${asset.id}/dispose`, {
+            salePiastres: saleValue,
+            moneyAccountId: (saleValue ?? 0) > 0 ? from : undefined,
+            reason,
+            idempotencyKey: newActionKey(),
+          })
+        }
+      >
+        {t('confirmDispose')}
+      </button>
+      <ActionMessage message={action.message} />
     </div>
   );
 }

@@ -44,11 +44,20 @@ const LOCKED_KEYS = new Set([
   'staff_bonus_expense',
   'corporate_tax_payable',
   'income_tax_expense',
+  'fx_difference',
+  'asset_disposal',
 ]);
 
 const isWallet = (
   a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId' | 'supplierId'>,
 ) => a.merchantId != null || a.riderId != null || a.darkStoreId != null || a.supplierId != null;
+
+/** YYYY-MM plus n months. */
+function addMonthText(month: string, n: number) {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  const i = y * 12 + (m - 1) + n;
+  return `${Math.floor(i / 12)}-${String((i % 12) + 1).padStart(2, '0')}`;
+}
 
 /** When a money event happened: a past Cairo day at noon, or now for today and no day. */
 export function eventTime(day: string | undefined, now: Date = new Date()) {
@@ -499,6 +508,8 @@ export async function recordJournalEntry(
     lines: { accountId: string; debitPiastres: number; creditPiastres: number }[];
     reason: string;
     day?: string;
+    /** An accrual: reversed by itself on the first day of the next month */
+    reverseNextMonth?: boolean;
     actorUserId: string;
     idempotencyKey: string;
   },
@@ -533,13 +544,16 @@ export async function recordJournalEntry(
       if (MONEY_GROUPS.includes(account.groupCode) || account.groupCode === 1300)
         throw new DomainError('money_account_not_allowed');
     }
+    const reverseOn = input.reverseNextMonth
+      ? `${addMonthText(cairoDay(at).slice(0, 7), 1)}-01`
+      : undefined;
     const entry = await post(tx, {
-      kind: 'journal',
+      kind: reverseOn ? 'accrual' : 'journal',
       idempotencyKey: key,
       occurredAt: at,
       createdById: input.actorUserId,
       memo: input.reason,
-      data: { reason: input.reason },
+      data: { reason: input.reason, ...(reverseOn ? { reverseOn } : {}) },
       lines: lines.map((l) => ({ account: { id: l.accountId }, amount: l.amount })),
     });
     await recordAudit(tx, {

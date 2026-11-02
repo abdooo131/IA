@@ -36,7 +36,9 @@ export type SystemAccountKey =
   | 'social_insurance_expense'
   | 'staff_bonus_expense'
   | 'corporate_tax_payable'
-  | 'income_tax_expense';
+  | 'income_tax_expense'
+  | 'fx_difference'
+  | 'asset_disposal';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -175,6 +177,20 @@ const SYSTEM_ACCOUNTS: Record<
     code: '5801',
     nameEn: 'Company income tax',
     nameAr: 'ضريبة الدخل',
+  },
+  fx_difference: {
+    type: 'expense',
+    group: 5900,
+    code: '5901',
+    nameEn: 'Exchange rate differences',
+    nameAr: 'فروق أسعار الصرف',
+  },
+  asset_disposal: {
+    type: 'expense',
+    group: 5900,
+    code: '5902',
+    nameEn: 'Loss or gain on equipment sold',
+    nameAr: 'خسائر أو أرباح بيع المعدات',
   },
 };
 

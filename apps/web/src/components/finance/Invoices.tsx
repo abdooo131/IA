@@ -15,6 +15,7 @@ import { formatCairoDateTime } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
+import { BankDetailsForm } from './BankDetailsForm';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const field = 'h-10 w-full rounded-md border border-line bg-surface px-2 text-body-sm';
@@ -486,6 +487,8 @@ function MerchantTaxRow({ merchant }: { merchant: MerchantTax }) {
             {t('save')}
           </button>
           <ActionMessage message={action.message} />
+          <h3 className="pt-2 text-body font-bold">{t('payoutBank')}</h3>
+          <BankDetailsForm details={m} path={`/finance/merchants/${m.id}/bank`} />
         </div>
       )}
     </div>

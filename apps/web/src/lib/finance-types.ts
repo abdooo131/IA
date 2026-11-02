@@ -338,6 +338,7 @@ export interface SupplierRow {
   owedPiastres: number;
   openBills: number;
   staff: { id: string; name: string }[];
+  merchantId: string | null;
 }
 
 export interface BillRow {
@@ -358,6 +359,10 @@ export interface BillRow {
   leftPiastres: number;
   status: 'open' | 'paid' | 'cancelled';
   person: { id: string; name: string } | null;
+  currency: string;
+  foreignTotalCents: number | null;
+  foreignLeftCents: number | null;
+  fxRate: number | null;
   overdue: boolean;
   memo: string | null;
 }
@@ -441,6 +446,7 @@ export interface FixedAssetRow {
   monthsCharged: number;
   depreciatedPiastres: number;
   bookValuePiastres: number;
+  disposedAt: string | null;
 }
 
 export interface ReceivableRow {
@@ -637,6 +643,10 @@ export interface CompanyProfile {
 export interface MerchantTax {
   id: string;
   name: string;
+  bankName: string | null;
+  bankAccountNumber: string | null;
+  iban: string | null;
+  beneficiaryName: string | null;
   legalName: string | null;
   taxRegistrationNumber: string | null;
   taxGovernorate: string | null;
@@ -721,4 +731,39 @@ interface BsReport {
 export interface ComparativeStatements {
   current: { from: string; to: string; pl: PlReport; bs: BsReport };
   previous: { from: string; to: string; pl: PlReport; bs: BsReport };
+}
+
+export interface PartnerRow {
+  kind: 'merchant' | 'supplier' | 'person';
+  id: string;
+  name: string;
+  accounts: number;
+  netPiastres: number;
+  detail: string;
+}
+
+export interface PartnerLedger {
+  kind: PartnerRow['kind'];
+  id: string;
+  name: string;
+  accounts: {
+    id: string;
+    code: string;
+    type: string;
+    groupCode: number;
+    balancePiastres: number;
+  }[];
+  openingPiastres: number;
+  lines: {
+    id: string;
+    at: string;
+    entryNumber: number;
+    kind: string;
+    memo: string | null;
+    accountCode: string;
+    accountType: string;
+    amountPiastres: number;
+    runningPiastres: number;
+  }[];
+  netPiastres: number;
 }

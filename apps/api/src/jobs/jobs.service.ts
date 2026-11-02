@@ -15,6 +15,7 @@ import {
   linkDeliveryCustomers,
   locateCustomers,
   planRefill,
+  reverseAccruals,
   runMonthlyCharges,
   runRecurring,
 } from '@shiplynow/db';
@@ -213,6 +214,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
           return {
             recurring: await runRecurring(tx, now),
             charges: await runMonthlyCharges(tx, now),
+            accruals: await reverseAccruals(tx, now),
           };
         },
         { timeout: 60_000 },
@@ -222,7 +224,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       const failed = [...result.recurring.failed, ...result.charges.failed];
       for (const f of failed)
         await this.reporter.report('job: monthly finance', new Error(`${f.id}: ${f.error}`));
-      if (result.recurring.prepared + result.charges.charged > 0)
+      if (result.recurring.prepared + result.charges.charged + result.accruals.reversed > 0)
         this.log.log(
           `Monthly finance: ${result.recurring.prepared} recurring prepared, ${result.charges.charged} charges posted`,
         );

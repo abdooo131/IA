@@ -191,6 +191,10 @@ export class InvoicesController {
         taxRegionCity: true,
         taxStreet: true,
         taxBuildingNumber: true,
+        bankName: true,
+        bankAccountNumber: true,
+        iban: true,
+        beneficiaryName: true,
       },
     });
   }

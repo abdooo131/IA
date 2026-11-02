@@ -124,7 +124,7 @@ const CHECK_AFTER_MS = 30_000;
 export class EtaSync implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly log = new Logger('ETA');
   private timer?: NodeJS.Timeout;
-  private running = false;
+  private current?: Promise<{ submitted: number; checked: number } | null>;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -147,16 +147,21 @@ export class EtaSync implements OnApplicationBootstrap, OnApplicationShutdown {
     if (this.timer) clearInterval(this.timer);
   }
 
-  async run() {
-    if (this.running || !this.eta.enabled) return null;
-    this.running = true;
+  /** One run at a time; a call while one is going waits for it instead of skipping. */
+  run() {
+    if (!this.eta.enabled) return Promise.resolve(null);
+    this.current ??= this.runOnce().finally(() => {
+      this.current = undefined;
+    });
+    return this.current;
+  }
+
+  private async runOnce() {
     try {
       return { submitted: await this.submitSigned(), checked: await this.checkSubmitted() };
     } catch (error) {
       await this.reporter.report('job: e-invoice', error);
       return null;
-    } finally {
-      this.running = false;
     }
   }
 

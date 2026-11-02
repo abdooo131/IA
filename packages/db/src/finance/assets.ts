@@ -256,6 +256,8 @@ export async function runMonthlyCharges(db: Db, now: Date = new Date()) {
       for (let i = 0; i < a.lifeMonths; i++) {
         const month = addMonths(a.startMonth, i);
         if (month > lastDone) break;
+        // Sold or scrapped: nothing from the month it left.
+        if (a.disposedAt && month >= cairoDay(a.disposedAt).slice(0, 7)) break;
         const key = `depr:${a.id}:${month}`;
         if (await db.ledgerEntry.findUnique({ where: { idempotencyKey: key } })) continue;
         const amount = monthlyPart(base, a.lifeMonths, i);
@@ -341,7 +343,8 @@ export async function listFixedAssets(db: Db) {
       monthlyPiastres: monthlyPart(a.costPiastres - a.salvagePiastres, a.lifeMonths, 0),
       monthsCharged: d.months,
       depreciatedPiastres: d.total,
-      bookValuePiastres: a.costPiastres - d.total,
+      bookValuePiastres: a.disposedAt ? 0 : a.costPiastres - d.total,
+      disposedAt: a.disposedAt,
     };
   });
 }

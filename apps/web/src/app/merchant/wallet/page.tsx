@@ -1,6 +1,7 @@
 import { addDays, cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Amount } from '@/components/finance/Amount';
+import { type BankDetails, BankDetailsForm } from '@/components/finance/BankDetailsForm';
 import { PayoutScheduleForm } from '@/components/merchant/PayoutScheduleForm';
 import { WalletCard } from '@/components/WalletCard';
 import { StatementView } from '@/components/finance/StatementView';
@@ -34,8 +35,9 @@ export default async function MerchantWalletPage({
   const from = q.from && DAY.test(q.from) ? q.from : addDays(today, -29);
   const to = q.to && DAY.test(q.to) ? q.to : today;
   const query = new URLSearchParams({ from, to });
-  const [wallet, statement, t, tf, locale] = await Promise.all([
+  const [wallet, bank, statement, t, tf, locale] = await Promise.all([
     apiGet<Wallet>('/merchant/finance'),
+    apiGet<BankDetails>('/merchant/finance/bank'),
     apiGet<Statement>(`/merchant/finance/statement?${query}`),
     getTranslations('merchantFinance'),
     getTranslations('finance'),
@@ -56,6 +58,12 @@ export default async function MerchantWalletPage({
           <PayoutScheduleForm schedule={wallet.payoutSchedule} />
           <p className="mt-3 text-caption text-text-muted">{t('scheduleHint')}</p>
         </div>
+      </section>
+
+      <section className="mt-6 rounded-lg border border-line bg-surface p-5">
+        <h2 className="text-h3">{tf('bankDetails.title')}</h2>
+        <p className="mb-3 text-caption text-text-muted">{tf('bankDetails.merchantHint')}</p>
+        <BankDetailsForm details={bank} path="/merchant/finance/bank" />
       </section>
 
       <section className="mt-6">

@@ -66,7 +66,8 @@ Also inside the app: settings menu (top of every screen), Help.
 
 1. Payouts, prepare due payouts for the day.
 2. Open each draft (PAY-...) and compare with the merchant's statement.
-3. Transfer from the bank, then Mark paid with the bank reference and the bank used.
+3. Download the bank transfer file at the top of Payouts and upload it to CIB's bulk transfer (merchants without a bank account are listed; they fill it in their Wallet).
+4. After the bank confirms, Mark paid with the bank reference and the bank used.
 
 **Check it went right**
 
@@ -237,6 +238,21 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - The signing program shows an error: send the message to admin; do not create the invoices again.
 
+### Partners, foreign bills, equipment and accruals
+
+1. Partners: one page per merchant, supplier or team member with every account and one net; link a supplier that is also a merchant.
+2. A bill in dollars or another currency: choose the currency and the rate on the bill; when paying, type the amount in that currency and today's rate. The difference goes to exchange differences by itself.
+3. Equipment sold or scrapped: Prepaid and equipment, Sell or scrap, with the price (0 if scrapped) and why; a second person approves.
+4. A cost of this month whose bill comes later: Journal entry with Reverse on the 1st of next month.
+
+**Check it went right**
+
+- Partners shows the net you expect; sold equipment shows Sold or scrapped and stops depreciating.
+
+**If something is wrong**
+
+- A rate typed wrong on a bill: cancel the bill (before paying) and enter it again.
+
 ### Month end
 
 1. Trial balance for the month: debits must equal credits.
@@ -319,7 +335,8 @@ Also inside the app: settings menu (top of every screen), Help.
 
 1. التحويلات، جهز التحويلات المستحقة لليوم.
 2. افتح كل مسودة (PAY-...) وقارنها بكشف حساب التاجر.
-3. حول من البنك، وبعدين اتدفع برقم المرجع والبنك اللي دفعت منه.
+3. نزل ملف التحويل البنكي من أعلى التحويلات وارفعه في التحويل الجماعي في CIB (التجار اللي ملهمش حساب بنكي بيظهروا؛ بيكتبوه في المحفظة).
+4. بعد تأكيد البنك، علمه اتدفع برقم المرجع والبنك اللي دفعت منه.
 
 **اتأكد إنها مشيت صح**
 
@@ -489,6 +506,21 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - برنامج التوقيع طلع خطأ: ابعت الرسالة للأدمن؛ ما تعملش الفواتير تاني.
+
+### الشركاء والفواتير بالعملة الأجنبية والمعدات والاستحقاقات
+
+1. الشركاء: صفحة لكل تاجر أو مورد أو عضو فريق فيها كل حساباته وصافي واحد؛ اربط المورد اللي هو كمان تاجر.
+2. فاتورة بالدولار أو عملة تانية: اختار العملة وسعر الفاتورة؛ وانت بتدفع اكتب المبلغ بالعملة وسعر النهارده. الفرق بيروح لفروق العملة لوحده.
+3. معدات اتباعت أو اتكهنت: مدفوع مقدما ومعدات، بيع أو تكهين، بالسعر (0 لو تكهين) والسبب؛ شخص تاني يوافق.
+4. مصروف الشهر ده وفاتورته جاية بعدين: قيد يومية مع عكس أول الشهر الجاي.
+
+**اتأكد إنها مشيت صح**
+
+- الشركاء بيبين الصافي اللي متوقعه؛ المعدات المباعة مكتوب عليها مباعة أو مكهنة ووقف إهلاكها.
+
+**لو فيه مشكلة**
+
+- سعر غلط في فاتورة: ألغي الفاتورة (قبل الدفع) وسجلها تاني.
 
 ### آخر الشهر
 

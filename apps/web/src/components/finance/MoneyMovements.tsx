@@ -306,6 +306,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
   const [lines, setLines] = useState<JournalLine[]>([empty(), empty()]);
   const [reason, setReason] = useState('');
   const [day, setDay] = useState(cairoDay(new Date()));
+  const [accrual, setAccrual] = useState(false);
   const amount = (v: string) => (v.trim() ? parseEgp(v) : 0);
   const debit = lines.reduce((s, l) => s + (amount(l.debit) ?? 0), 0);
   const credit = lines.reduce((s, l) => s + (amount(l.credit) ?? 0), 0);
@@ -326,7 +327,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
     const ok = await action.send<{ number: string }>(
       'POST',
       '/finance/journal-entries',
-      { lines: body, reason, day, idempotencyKey: newActionKey() },
+      { lines: body, reason, day, reverseNextMonth: accrual, idempotencyKey: newActionKey() },
       (d) => t('saved', { number: d.number }),
     );
     if (ok) {
@@ -438,6 +439,18 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
           />
         </label>
       </div>
+      <label className="flex items-start gap-2 text-body-sm">
+        <input
+          type="checkbox"
+          checked={accrual}
+          onChange={(e) => setAccrual(e.target.checked)}
+          className="mt-1"
+        />
+        <span>
+          {tj('accrual')}
+          <span className="block text-caption text-text-muted">{tj('accrualHint')}</span>
+        </span>
+      </label>
       <FormFooter
         dirty={dirty}
         busy={action.busy}

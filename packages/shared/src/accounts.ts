@@ -216,6 +216,14 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     manualType: null,
     money: false,
   },
+  {
+    code: 5900,
+    category: 'expense',
+    key: 'other_costs',
+    party: false,
+    manualType: null,
+    money: false,
+  },
 ];
 
 export function accountGroup(code: number) {
@@ -358,6 +366,8 @@ export const journalEntrySchema = z.object({
     .max(20),
   reason: z.string().trim().min(5).max(300),
   day: onDay,
+  /** An accrual: reversed by itself on the first day of the next month */
+  reverseNextMonth: z.boolean().optional(),
   idempotencyKey: key,
 });
 export type JournalEntryBody = z.infer<typeof journalEntrySchema>;
@@ -398,18 +408,36 @@ export const billSchema = z.object({
   dueDate: day,
   expenseAccountId: id.optional(),
   darkStoreId: id.optional(),
-  netPiastres: piastres,
+  netPiastres: piastres.optional(),
   vatPiastres: z.number().int().min(0).max(1_000_000_000).default(0),
   memo: optionalText(300),
   /** The person the bill is for (an outsourced worker's month) */
   userId: id.optional(),
+  /** A bill in another currency: its code, the amounts in its cents and the rate on the bill */
+  currency: z
+    .string()
+    .regex(/^[A-Z]{3}$/)
+    .optional(),
+  foreignNetCents: z.number().int().min(1).max(1_000_000_000).optional(),
+  foreignVatCents: z.number().int().min(0).max(1_000_000_000).optional(),
+  /** EGP for one unit, as text with up to 6 decimals ("48.75") */
+  fxRate: z
+    .string()
+    .regex(/^\d{1,6}(\.\d{1,6})?$/)
+    .optional(),
   idempotencyKey: key,
 });
 
 export const cancelBillSchema = z.object({ reason: z.string().trim().min(5).max(300) });
 
 export const billPaymentSchema = z.object({
-  amountPiastres: piastres,
+  /** In EGP; for a bill in another currency, use foreignAmountCents and fxRate instead */
+  amountPiastres: piastres.optional(),
+  foreignAmountCents: z.number().int().min(1).max(1_000_000_000).optional(),
+  fxRate: z
+    .string()
+    .regex(/^\d{1,6}(\.\d{1,6})?$/)
+    .optional(),
   moneyAccountId: id,
   reference,
   advanceRecoveryPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
@@ -549,3 +577,24 @@ export const corporateTaxSchema = z.object({
   year: z.number().int().min(2020).max(2100),
   amountPiastres: z.number().int().min(0).max(2_000_000_000),
 });
+
+const ibanText = z
+  .string()
+  .trim()
+  .toUpperCase()
+  .transform((v) => v.replace(/\s+/g, ''))
+  .refine((v) => v === '' || /^EG\d{27}$/.test(v), 'invalid_iban');
+export const merchantBankSchema = z.object({
+  bankName: z.string().trim().max(80).nullable().optional(),
+  bankAccountNumber: z.string().trim().max(40).nullable().optional(),
+  iban: ibanText.nullable().optional(),
+  beneficiaryName: z.string().trim().max(120).nullable().optional(),
+});
+export const disposeAssetSchema = z.object({
+  salePiastres: z.number().int().min(0).max(1_000_000_000),
+  moneyAccountId: id.optional(),
+  reason: z.string().trim().min(5).max(300),
+  day: onDay,
+  idempotencyKey: key,
+});
+export const supplierLinkSchema = z.object({ merchantId: id.nullable() });

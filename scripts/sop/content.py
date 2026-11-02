@@ -242,7 +242,8 @@ EN = {
        "steps": [
          "Payouts, prepare due payouts for the day.",
          "Open each draft (PAY-...) and compare with the merchant's statement.",
-         "Transfer from the bank, then Mark paid with the bank reference and the bank used."],
+         "Download the bank transfer file at the top of Payouts and upload it to CIB's bulk transfer (merchants without a bank account are listed; they fill it in their Wallet).",
+         "After the bank confirms, Mark paid with the bank reference and the bank used."],
        "check": [
          "The payout shows Paid; the merchant's balance dropped by the amount."],
        "problems": [
@@ -353,6 +354,16 @@ EN = {
          "Every invoice of the month is Valid; merchants see them under Invoices."],
        "problems": [
          "The signing program shows an error: send the message to admin; do not create the invoices again."]},
+      {"title": "Partners, foreign bills, equipment and accruals",
+       "steps": [
+         "Partners: one page per merchant, supplier or team member with every account and one net; link a supplier that is also a merchant.",
+         "A bill in dollars or another currency: choose the currency and the rate on the bill; when paying, type the amount in that currency and today's rate. The difference goes to exchange differences by itself.",
+         "Equipment sold or scrapped: Prepaid and equipment, Sell or scrap, with the price (0 if scrapped) and why; a second person approves.",
+         "A cost of this month whose bill comes later: Journal entry with Reverse on the 1st of next month."],
+       "check": [
+         "Partners shows the net you expect; sold equipment shows Sold or scrapped and stops depreciating."],
+       "problems": [
+         "A rate typed wrong on a bill: cancel the bill (before paying) and enter it again."]},
       {"title": "Month end",
        "steps": [
          "Trial balance for the month: debits must equal credits.",
@@ -656,7 +667,8 @@ AR = {
        "steps": [
          "التحويلات، جهز التحويلات المستحقة لليوم.",
          "افتح كل مسودة (PAY-...) وقارنها بكشف حساب التاجر.",
-         "حول من البنك، وبعدين اتدفع برقم المرجع والبنك اللي دفعت منه."],
+         "نزل ملف التحويل البنكي من أعلى التحويلات وارفعه في التحويل الجماعي في CIB (التجار اللي ملهمش حساب بنكي بيظهروا؛ بيكتبوه في المحفظة).",
+         "بعد تأكيد البنك، علمه اتدفع برقم المرجع والبنك اللي دفعت منه."],
        "check": [
          "التحويل بيقول اتدفع؛ رصيد التاجر قل بالمبلغ."],
        "problems": [
@@ -767,6 +779,16 @@ AR = {
          "كل فواتير الشهر صحيحة؛ التجار بيشوفوها في الفواتير."],
        "problems": [
          "برنامج التوقيع طلع خطأ: ابعت الرسالة للأدمن؛ ما تعملش الفواتير تاني."]},
+      {"title": "الشركاء والفواتير بالعملة الأجنبية والمعدات والاستحقاقات",
+       "steps": [
+         "الشركاء: صفحة لكل تاجر أو مورد أو عضو فريق فيها كل حساباته وصافي واحد؛ اربط المورد اللي هو كمان تاجر.",
+         "فاتورة بالدولار أو عملة تانية: اختار العملة وسعر الفاتورة؛ وانت بتدفع اكتب المبلغ بالعملة وسعر النهارده. الفرق بيروح لفروق العملة لوحده.",
+         "معدات اتباعت أو اتكهنت: مدفوع مقدما ومعدات، بيع أو تكهين، بالسعر (0 لو تكهين) والسبب؛ شخص تاني يوافق.",
+         "مصروف الشهر ده وفاتورته جاية بعدين: قيد يومية مع عكس أول الشهر الجاي."],
+       "check": [
+         "الشركاء بيبين الصافي اللي متوقعه؛ المعدات المباعة مكتوب عليها مباعة أو مكهنة ووقف إهلاكها."],
+       "problems": [
+         "سعر غلط في فاتورة: ألغي الفاتورة (قبل الدفع) وسجلها تاني."]},
       {"title": "آخر الشهر",
        "steps": [
          "ميزان المراجعة للشهر: المدين لازم يساوي الدائن.",

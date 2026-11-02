@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Param,
   Patch,
+  Put,
   Query,
   Res,
 } from '@nestjs/common';
@@ -17,8 +18,14 @@ import {
   merchantOwed,
   merchantStatement,
   recordAudit,
+  updateMerchantBank,
 } from '@shiplynow/db';
-import { type AccessTokenClaims, cairoDay, payoutScheduleSchema } from '@shiplynow/shared';
+import {
+  type AccessTokenClaims,
+  cairoDay,
+  merchantBankSchema,
+  payoutScheduleSchema,
+} from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -160,5 +167,36 @@ export class MerchantFinanceController {
       throw new NotFoundException({ error: 'invoice_not_found' });
     const { signerKeyHash: _hidden, itemCodes: _codes, ...publicCompany } = company;
     return { ...invoice, company: publicCompany };
+  }
+
+  /** The bank account payouts are sent to. */
+  @Get('bank')
+  async bank(@CurrentUser() user: AccessTokenClaims) {
+    const m = await this.merchantOf(user);
+    return {
+      bankName: m.bankName,
+      bankAccountNumber: m.bankAccountNumber,
+      iban: m.iban,
+      beneficiaryName: m.beneficiaryName,
+    };
+  }
+
+  @Put('bank')
+  async setBank(
+    @Body(new ZodValidationPipe(merchantBankSchema)) body: z.infer<typeof merchantBankSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const m = await this.merchantOf(user);
+    const after = await updateMerchantBank(this.prisma, {
+      ...body,
+      merchantId: m.id,
+      actorUserId: user.sub,
+    });
+    return {
+      bankName: after.bankName,
+      bankAccountNumber: after.bankAccountNumber,
+      iban: after.iban,
+      beneficiaryName: after.beneficiaryName,
+    };
   }
 }

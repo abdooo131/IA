@@ -78,6 +78,7 @@ export {
   submitTaxPayment,
   submitStaffBonus,
   submitCreditNote,
+  submitAssetDisposal,
   queueRequest,
 } from './controls';
 export {
@@ -170,3 +171,14 @@ export {
   vatReturn,
   withholdingPayments,
 } from './returns';
+export {
+  disposeAsset,
+  linkSupplierToMerchant,
+  listPartners,
+  partnerLedger,
+  type PartnerKind,
+  payoutBankFile,
+  reverseAccruals,
+  updateMerchantBank,
+} from './tools';
+export { centsToPiastres, rateMicro } from './payables';

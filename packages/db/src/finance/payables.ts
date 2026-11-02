@@ -32,6 +32,18 @@ async function lockedAccount(tx: Tx, id: string, groups: number[], notFound: str
 
 const validBp = (bp: number) => Number.isInteger(bp) && bp >= 0 && bp <= 10_000;
 
+/** "48.75" EGP for one unit → 48,750,000 (rate × 1,000,000, exact). */
+export function rateMicro(text: string) {
+  const m = /^(\d{1,6})(?:\.(\d{1,6}))?$/.exec(text.trim());
+  if (!m) throw new DomainError('invalid_rate', 400);
+  const micro = Number(m[1]) * 1_000_000 + Number((m[2] ?? '').padEnd(6, '0'));
+  if (micro <= 0) throw new DomainError('invalid_rate', 400);
+  return micro;
+}
+/** Cents of a currency at a rate (× 1,000,000) to piastres, rounded half up. */
+export const centsToPiastres = (cents: number, micro: number) =>
+  Math.floor((cents * micro + 500_000) / 1_000_000);
+
 // ─── suppliers ─────────────────────────────────────────────────────────────────
 
 export interface SupplierInput {
@@ -183,6 +195,8 @@ export async function listSuppliers(db: Db) {
       openBills: open.find((o) => o.supplierId === s.id)?._count._all ?? 0,
       /** People hired through this company (when it is an outsourcing company) */
       staff: s.staff,
+      /** The merchant that is the same company (partner ledger) */
+      merchantId: s.merchantId,
     };
   });
 }
@@ -197,8 +211,13 @@ export interface BillInput {
   dueDate: string;
   expenseAccountId?: string;
   darkStoreId?: string | null;
-  netPiastres: number;
+  /** In EGP; for a bill in another currency it is worked out from the foreign amounts */
+  netPiastres?: number;
   vatPiastres?: number;
+  currency?: string;
+  foreignNetCents?: number;
+  foreignVatCents?: number;
+  fxRate?: string;
   memo?: string;
   /** The person the bill is for: an outsourced worker's month from their outsourcing company */
   userId?: string | null;
@@ -207,10 +226,26 @@ export interface BillInput {
 }
 
 /** A bill as it arrives: the cost and VAT now, the supplier owed until it is paid. */
-export function recordBill(db: Db, input: BillInput) {
+export async function recordBill(db: Db, input: BillInput) {
+  const foreign = input.currency && input.currency !== 'EGP';
+  let fx: { currency: string; micro: number; total: number } | null = null;
+  if (foreign) {
+    if (!/^[A-Z]{3}$/.test(input.currency!)) throw new DomainError('invalid_currency', 400);
+    const micro = rateMicro(input.fxRate ?? '');
+    const fNet = input.foreignNetCents ?? 0;
+    const fVat = input.foreignVatCents ?? 0;
+    if (!Number.isSafeInteger(fNet) || fNet <= 0 || !Number.isSafeInteger(fVat) || fVat < 0)
+      throw new DomainError('invalid_amount', 400);
+    input = {
+      ...input,
+      netPiastres: centsToPiastres(fNet, micro),
+      vatPiastres: centsToPiastres(fVat, micro),
+    };
+    fx = { currency: input.currency!, micro, total: fNet + fVat };
+  }
+  const net = input.netPiastres ?? 0;
   const vat = input.vatPiastres ?? 0;
-  if (!Number.isSafeInteger(input.netPiastres) || input.netPiastres <= 0)
-    throw new DomainError('invalid_amount', 400);
+  if (!Number.isSafeInteger(net) || net <= 0) throw new DomainError('invalid_amount', 400);
   if (!Number.isSafeInteger(vat) || vat < 0) throw new DomainError('invalid_vat', 400);
   if (!isCalendarDay(input.billDate) || !isCalendarDay(input.dueDate))
     throw new DomainError('invalid_date', 400);
@@ -248,7 +283,7 @@ export function recordBill(db: Db, input: BillInput) {
       })
     )
       throw new DomainError('bill_exists');
-    const total = input.netPiastres + vat;
+    const total = net + vat;
     const entry = await post(tx, {
       kind: 'supplier_bill',
       idempotencyKey: key,
@@ -261,7 +296,7 @@ export function recordBill(db: Db, input: BillInput) {
       lines: [
         {
           account: { id: expense.id },
-          amount: input.netPiastres,
+          amount: net,
           tags: person ? { userId: person.id, darkStoreId, riderId: person.riderId } : undefined,
         },
         { account: { type: 'vat_payable' }, amount: vat },
@@ -278,9 +313,12 @@ export function recordBill(db: Db, input: BillInput) {
         expenseAccountId: expense.id,
         darkStoreId,
         userId: person?.id ?? null,
-        netPiastres: input.netPiastres,
+        netPiastres: net,
         vatPiastres: vat,
         totalPiastres: total,
+        ...(fx
+          ? { currency: fx.currency, fxRateMicro: BigInt(fx.micro), foreignTotal: fx.total }
+          : {}),
         whtBp: supplier.whtBp,
         memo: input.memo || null,
         entryId: entry!.id,
@@ -347,8 +385,11 @@ export function withholdingFor(
 
 export interface BillPaymentInput {
   billId: string;
-  /** How much of the bill this payment settles, withholding tax included */
-  amountPiastres: number;
+  /** How much of the bill this payment settles, withholding tax included (EGP bills) */
+  amountPiastres?: number;
+  /** A bill in another currency: how much of it is paid, in its cents, at today's rate */
+  foreignAmountCents?: number;
+  fxRate?: string;
   moneyAccountId: string;
   reference: string;
   /**
@@ -362,9 +403,7 @@ export interface BillPaymentInput {
 }
 
 /** Pays a bill (or part of it) from a bank or box, keeping back the withholding tax. */
-export function payBill(db: Db, input: BillPaymentInput) {
-  if (!Number.isSafeInteger(input.amountPiastres) || input.amountPiastres <= 0)
-    throw new DomainError('invalid_amount', 400);
+export async function payBill(db: Db, input: BillPaymentInput) {
   const at = eventTime(input.day);
   return inTransaction(db, async (tx) => {
     const key = `bill_payment:${input.idempotencyKey}`;
@@ -377,10 +416,33 @@ export function payBill(db: Db, input: BillPaymentInput) {
     });
     if (!bill) throw new DomainError('bill_not_found', 404);
     if (bill.status !== 'open') throw new DomainError('bill_not_open');
-    if (input.amountPiastres > bill.totalPiastres - bill.paidPiastres)
-      throw new DomainError('more_than_owed');
+    // settled: how much of the bill (in EGP at the bill's rate) this payment clears;
+    // paid: what it costs in EGP today. For a bill in another currency the two differ by
+    // the change in the exchange rate.
+    let settled: number;
+    let paid: number;
+    let foreignCents = 0;
+    if (bill.currency === 'EGP') {
+      settled = input.amountPiastres ?? 0;
+      if (!Number.isSafeInteger(settled) || settled <= 0)
+        throw new DomainError('invalid_amount', 400);
+      if (settled > bill.totalPiastres - bill.paidPiastres) throw new DomainError('more_than_owed');
+      paid = settled;
+    } else {
+      foreignCents = input.foreignAmountCents ?? 0;
+      if (!Number.isSafeInteger(foreignCents) || foreignCents <= 0)
+        throw new DomainError('invalid_amount', 400);
+      const left = bill.foreignTotal! - bill.foreignPaid;
+      if (foreignCents > left) throw new DomainError('more_than_owed');
+      settled =
+        foreignCents === left
+          ? bill.totalPiastres - bill.paidPiastres
+          : centsToPiastres(foreignCents, Number(bill.fxRateMicro));
+      paid = centsToPiastres(foreignCents, rateMicro(input.fxRate ?? ''));
+    }
+    const fxDiff = paid - settled;
     const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
-    const wht = withholdingFor(bill, input.amountPiastres);
+    const wht = withholdingFor(bill, settled);
     const recovery = input.advanceRecoveryPiastres ?? 0;
     if (!Number.isSafeInteger(recovery) || recovery < 0)
       throw new DomainError('invalid_amount', 400);
@@ -389,7 +451,7 @@ export function payBill(db: Db, input: BillPaymentInput) {
       if (recovery > (await balanceOf(tx, { type: 'staff_advance', userId: bill.userId })))
         throw new DomainError('more_than_advance', 400);
     }
-    const cash = input.amountPiastres - wht - recovery;
+    const cash = paid - wht - recovery;
     if (cash < 0) throw new DomainError('net_below_zero', 400);
     if (cash > (await balanceOf(tx, { id: money.id }))) throw new DomainError('not_enough_money');
     const entry = await post(tx, {
@@ -403,16 +465,19 @@ export function payBill(db: Db, input: BillPaymentInput) {
         billId: bill.id,
         supplierId: bill.supplierId,
         reference: input.reference,
-        gross: input.amountPiastres,
+        gross: settled,
         wht,
         recovery,
-        net: Math.round((bill.netPiastres * input.amountPiastres) / bill.totalPiastres),
+        fxDiff,
+        ...(foreignCents ? { currency: bill.currency, foreignCents, fxRate: input.fxRate } : {}),
+        net: Math.round((bill.netPiastres * settled) / bill.totalPiastres),
       },
       lines: [
         {
           account: { type: 'supplier', supplierId: bill.supplierId },
-          amount: input.amountPiastres,
+          amount: settled,
         },
+        { account: { type: 'fx_difference' }, amount: fxDiff },
         { account: { id: money.id }, amount: -cash },
         { account: { type: 'wht_payable' }, amount: -wht },
         ...(recovery
@@ -426,10 +491,14 @@ export function payBill(db: Db, input: BillPaymentInput) {
           : []),
       ],
     });
-    const paid = bill.paidPiastres + input.amountPiastres;
+    const paidNow = bill.paidPiastres + settled;
     await tx.bill.update({
       where: { id: bill.id },
-      data: { paidPiastres: paid, status: paid === bill.totalPiastres ? 'paid' : 'open' },
+      data: {
+        paidPiastres: paidNow,
+        foreignPaid: bill.foreignPaid + foreignCents,
+        status: paidNow === bill.totalPiastres ? 'paid' : 'open',
+      },
     });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
@@ -437,7 +506,7 @@ export function payBill(db: Db, input: BillPaymentInput) {
       entityType: 'bill',
       entityId: bill.id,
       before: { paid: bill.paidPiastres },
-      after: { paid, wht, from: money.code, entry: entry!.number },
+      after: { paid: paidNow, wht, fxDiff, from: money.code, entry: entry!.number },
     });
     return entry!;
   });
@@ -479,6 +548,10 @@ export async function listBills(
       leftPiastres: b.status === 'open' ? b.totalPiastres - b.paidPiastres : 0,
       status: b.status,
       person: b.person,
+      currency: b.currency,
+      foreignTotalCents: b.foreignTotal,
+      foreignLeftCents: b.foreignTotal === null ? null : b.foreignTotal - b.foreignPaid,
+      fxRate: b.fxRateMicro === null ? null : Number(b.fxRateMicro) / 1_000_000,
       overdue: b.status === 'open' && due < today,
       memo: b.memo,
     };

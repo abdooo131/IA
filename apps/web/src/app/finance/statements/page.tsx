@@ -56,7 +56,7 @@ export default async function StatementsPage({
     </tr>
   );
   const line = (label: string, now: number, before: number, strong = false) => (
-    <tr className={`border-t border-line ${strong ? 'font-bold' : ''}`}>
+    <tr key={label} className={`border-t border-line ${strong ? 'font-bold' : ''}`}>
       <td className={td}>{label}</td>
       <td className={`${td} text-end`}>
         <Amount piastres={now} strong={strong} />

@@ -16,8 +16,16 @@ import {
   previewPayroll,
   runPayroll,
 } from './payroll';
-import { type BillPaymentInput, payBill, payTax, type TaxPaymentInput } from './payables';
+import {
+  type BillPaymentInput,
+  centsToPiastres,
+  payBill,
+  payTax,
+  rateMicro,
+  type TaxPaymentInput,
+} from './payables';
 import { type CreditNoteInput, issueCreditNote } from './invoices';
+import { type DisposalInput, disposeAsset } from './tools';
 import {
   type AssetInput,
   type PrepaymentInput,
@@ -127,6 +135,7 @@ export type RequestPayload =
   | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
   | { kind: 'staff_bonus'; input: Stored<BonusInput> }
   | { kind: 'credit_note'; input: Stored<CreditNoteInput> }
+  | { kind: 'asset_disposal'; input: Stored<DisposalInput> & { amountPiastres: number } }
   | { kind: 'bill_payment'; input: Stored<BillPaymentInput> }
   | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
   | { kind: 'prepayment'; input: Stored<PrepaymentInput> }
@@ -144,6 +153,7 @@ export type RequestPayload =
  */
 const ALWAYS_REVIEWED = new Set([
   'credit_note',
+  'asset_disposal',
   'capital_in',
   'other_income',
   'merchant_receipt',
@@ -160,6 +170,19 @@ const referenceOf = (p: RequestPayload) =>
         : '';
 const dayOf = (p: RequestPayload) => ('day' in p.input ? p.input.day : undefined);
 
+/** The EGP size of a movement; a payment in another currency is valued at its own rate. */
+function amountOf(payload: RequestPayload): number {
+  const input = payload.input as {
+    amountPiastres?: number;
+    foreignAmountCents?: number;
+    fxRate?: string;
+  };
+  if (input.amountPiastres !== undefined) return input.amountPiastres;
+  if (input.foreignAmountCents && input.fxRate)
+    return centsToPiastres(input.foreignAmountCents, rateMicro(input.fxRate));
+  return 0;
+}
+
 /** Posts the movement now, or keeps it as a request when it needs a second person. */
 async function submit(
   db: Db,
@@ -167,7 +190,7 @@ async function submit(
   actorUserId: string,
   receiptPhotoId?: string,
 ) {
-  const amount = Math.abs(payload.input.amountPiastres);
+  const amount = Math.abs(amountOf(payload));
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new DomainError('invalid_amount', 400);
   const reviewed = ALWAYS_REVIEWED.has(payload.kind)
     ? (await getSetting(db, 'finance.approve_money_in')) === 1
@@ -206,7 +229,7 @@ export async function queueRequest(
     const request = await tx.financeRequest.create({
       data: {
         kind: payload.kind,
-        amountPiastres: Math.abs(payload.input.amountPiastres),
+        amountPiastres: Math.abs(amountOf(payload)),
         payload: payload as unknown as Prisma.InputJsonValue,
         requestedById: actorUserId,
       },
@@ -248,6 +271,8 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return payStaffBonus(db, { ...p.input, actorUserId });
     case 'credit_note':
       return issueCreditNote(db, { ...p.input, actorUserId });
+    case 'asset_disposal':
+      return disposeAsset(db, { ...p.input, actorUserId });
     case 'payroll':
       return runPayroll(db, { ...p.input, actorUserId });
     case 'bill_payment':
@@ -649,3 +674,15 @@ export const submitStaffBonus = submitter<'staff_bonus', BonusInput>('staff_bonu
 
 /** A credit note to a merchant: always waits for a second person (it lowers what they owe). */
 export const submitCreditNote = submitter<'credit_note', CreditNoteInput>('credit_note');
+
+/** Equipment sold or scrapped: waits for a second person (sale money comes in). */
+export function submitAssetDisposal(db: Db, input: DisposalInput & { receiptPhotoId?: string }) {
+  const { actorUserId, receiptPhotoId, ...rest } = input;
+  return submit(
+    db,
+    // Valued at least 1 so a scrapped item (sold for nothing) still makes a request.
+    { kind: 'asset_disposal', input: { ...rest, amountPiastres: Math.max(rest.salePiastres, 1) } },
+    actorUserId,
+    receiptPhotoId,
+  );
+}

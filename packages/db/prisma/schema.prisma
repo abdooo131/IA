@@ -277,6 +277,13 @@ model Merchant {
   taxStreet             String?          @map("tax_street")
   taxBuildingNumber     String?          @map("tax_building_number")
   taxInvoices           TaxInvoice[]
+  /// Where payouts are sent
+  bankName              String?          @map("bank_name")
+  bankAccountNumber     String?          @map("bank_account_number")
+  iban                  String?
+  beneficiaryName       String?          @map("beneficiary_name")
+  /// The same company as a supplier of ours (partner ledger)
+  supplierSelf          Supplier?        @relation("supplier_merchant")
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
 
@@ -1231,15 +1238,16 @@ model LedgerEntry {
   createdById    String?  @map("created_by_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  order       Order?           @relation(fields: [orderId], references: [id])
-  createdBy   User?            @relation("ledger_entry_created_by", fields: [createdById], references: [id])
-  lines       LedgerLine[]
-  receipts    FinanceReceipt[]
-  requests    FinanceRequest[]
-  bills       Bill[]
-  prepayments Prepayment[]
-  fixedAssets FixedAsset[]
-  taxInvoices TaxInvoice[]
+  order          Order?           @relation(fields: [orderId], references: [id])
+  createdBy      User?            @relation("ledger_entry_created_by", fields: [createdById], references: [id])
+  lines          LedgerLine[]
+  receipts       FinanceReceipt[]
+  requests       FinanceRequest[]
+  bills          Bill[]
+  prepayments    Prepayment[]
+  fixedAssets    FixedAsset[]
+  taxInvoices    TaxInvoice[]
+  assetsDisposed FixedAsset[]     @relation("asset_disposal")
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -1999,6 +2007,9 @@ model Supplier {
   accounts              LedgerAccount[]
   bills                 Bill[]
   staff                 User[]          @relation("staffing_supplier")
+  /// The same company as one of our merchants (partner ledger)
+  merchantId            String?         @unique @map("merchant_id")
+  merchant              Merchant?       @relation("supplier_merchant", fields: [merchantId], references: [id], onDelete: Restrict)
 
   @@map("suppliers")
 }
@@ -2033,6 +2044,13 @@ model Bill {
   entryId          String?    @map("entry_id")
   /// The person the bill is for (an outsourced worker's month)
   userId           String?    @map("user_id")
+  /// EGP, or the currency the supplier billed in (USD...)
+  currency         String     @default("EGP")
+  /// EGP for one unit of the currency × 1,000,000
+  fxRateMicro      BigInt?    @map("fx_rate_micro")
+  /// The bill in its own currency, in cents
+  foreignTotal     Int?       @map("foreign_total")
+  foreignPaid      Int        @default(0) @map("foreign_paid")
   createdById      String     @map("created_by_id")
   createdAt        DateTime   @default(now()) @map("created_at")
 
@@ -2091,21 +2109,25 @@ model Prepayment {
 
 /// Equipment bought once and depreciated straight line every month.
 model FixedAsset {
-  id              String   @id @default(cuid())
+  id              String    @id @default(cuid())
   name            String
-  costPiastres    Int      @map("cost_piastres")
-  salvagePiastres Int      @default(0) @map("salvage_piastres")
-  lifeMonths      Int      @map("life_months")
+  costPiastres    Int       @map("cost_piastres")
+  salvagePiastres Int       @default(0) @map("salvage_piastres")
+  lifeMonths      Int       @map("life_months")
   /// YYYY-MM, the first month of depreciation
-  startMonth      String   @map("start_month")
-  darkStoreId     String?  @map("dark_store_id")
-  entryId         String   @map("entry_id")
-  createdById     String   @map("created_by_id")
-  createdAt       DateTime @default(now()) @map("created_at")
+  startMonth      String    @map("start_month")
+  darkStoreId     String?   @map("dark_store_id")
+  entryId         String    @map("entry_id")
+  /// Sold or scrapped: no depreciation from that month on
+  disposedAt      DateTime? @map("disposed_at")
+  disposalEntryId String?   @map("disposal_entry_id")
+  createdById     String    @map("created_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
 
-  darkStore DarkStore?  @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  entry     LedgerEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
-  createdBy User        @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  darkStore     DarkStore?   @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry         LedgerEntry  @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  disposalEntry LedgerEntry? @relation("asset_disposal", fields: [disposalEntryId], references: [id], onDelete: Restrict)
+  createdBy     User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
 
   @@map("fixed_assets")
 }
