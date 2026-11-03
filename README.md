@@ -11,13 +11,21 @@ The code lives in `src/engine/` (Python package `engine`); the repository also h
 
 ## Setup
 
-Requirements: Python 3.11+, Postgres (Neon works).
+Requirements: Python 3.11+, Postgres (on a Mac: `brew install postgresql@16` then
+`brew services start postgresql@16`; Neon works too).
 
 ```bash
-pip install -e .            # add [dev] for pytest and httpx
-export DATABASE_URL=postgresql://user:pass@host:5432/engine
-engine --help               # migrations run automatically on every command
+cd IA                        # the repository folder
+python3 -m venv .venv        # once: a private Python for the engine (the launcher expects it here)
+source .venv/bin/activate    # in every new Terminal window
+pip install -e .             # add [dev] for pytest and httpx
+engine --help                # migrations run automatically on every command
 ```
+
+Database: without `DATABASE_URL` the engine uses `postgresql://localhost:5432/engine`, the local Postgres with
+your Mac login as the database user (what Homebrew sets up); the screen creates that `engine` database if it is
+missing. For another server set it, e.g. `export DATABASE_URL=postgresql://user:pass@host:5432/engine` (in
+`~/.engine_env` to keep it).
 
 Secrets never go in the database. A tenant row stores the *names* of the env vars that hold its tokens; set them
 in the environment of every process that runs the CLI for that tenant:
@@ -76,12 +84,19 @@ engine ui --demo             # a sample store with made up data (Demo Boutique, 
 engine ui --port 8800 --no-browser
 ```
 
-* **Double click launcher (macOS):** `scripts/Engine.command` goes to the repository, activates `.venv`, reads
-  `~/.engine_env` if present and runs `engine ui`. Double click it in Finder (the first time, right click > Open).
-* **Database:** the screen uses `DATABASE_URL` like every command (it also reads `~/.engine_env`). If it is not
-  set or the database cannot be reached, the screen still opens and shows a Setup page that explains what to do.
+* **Double click launcher (macOS):** `scripts/Engine.command` goes to the repository, activates `.venv` (made
+  with the Setup steps above), reads `~/.engine_env` if present and runs `engine ui`. Double click it in Finder
+  (the first time, right click > Open). If `.venv` is missing or the screen stops with an error, the window says
+  what to do and waits for Enter.
+* **Database:** the screen uses `DATABASE_URL` like every command (it also reads `~/.engine_env`); when it is not
+  set, the default local database `postgresql://localhost:5432/engine` (created if missing, never wiped). If the
+  database cannot be reached, the screen still opens and shows a Setup page that explains what to do (for
+  Homebrew: `brew services start postgresql@16`).
+* **Port:** if the port is busy (the screen is probably already open), `engine ui` says so and stops; use
+  `--port` for another one.
 * **Demo:** `--demo` wipes and fills the database `engine_demo` on the `DATABASE_URL` server (created if missing;
-  `--demo-db URL` to choose another), then runs the monthly cycle twice. Shopify and Meta are answered by an in
+  `--demo-db URL` to choose another; it refuses the engine's own database and any database holding a real store),
+  then runs the monthly cycle twice. Shopify and Meta are answered by an in
   process fake store (`src/engine/demo.py`); Send to Shopify only creates a fake transfer id. Every page shows the
   banner "Sample store, made up data".
 
