@@ -296,6 +296,15 @@ def _history_stages(conn, t: Tenant, today: date) -> list[tuple[str, Callable[[]
     return _ingest_stages(conn, t, today, ctx) + [("lineage", lineage_stage), ("run_attribution", attribute)]
 
 
+def ingest_history(conn, t: Tenant, wrap: Callable | None = None) -> tuple[bool, str | None]:
+    """The history stages `tenant add` runs (full ingest, lineage proposals, attribution), not recorded as a run.
+    wrap(name, fn) -> fn, if given, wraps each stage (the screen uses it to show progress)."""
+    stages = _history_stages(conn, t, local_today(t))
+    if wrap is not None:
+        stages = [(name, wrap(name, fn)) for name, fn in stages]
+    return _run_stages(conn, t, None, stages)
+
+
 def _min_date(conn, t: Tenant, table: str) -> date | None:
     return conn.execute(f"SELECT min(date) AS d FROM {table} WHERE tenant_id = %s", (t.tenant_id,)).fetchone()["d"]
 
@@ -598,7 +607,7 @@ def tenant_add(
             typer.echo(f"warning: {w}", err=True)
         typer.echo(f"pixel key (for the storefront pixel): {t.pixel_key}")
         if ingest:
-            ok, err = _run_stages(conn, t, None, _history_stages(conn, t, local_today(t)))
+            ok, err = ingest_history(conn, t)
             if not ok:
                 _fail(f"ingest failed at {err}")
             typer.echo("full history ingested and attributed")
@@ -672,16 +681,19 @@ def ingest(tenant: Optional[str] = _tenant_opt(),
 def snapshot_stock(tenant: Optional[str] = _tenant_opt(),
                    all_tenants: bool = typer.Option(False, "--all-tenants", help="Every tenant in turn.")) -> None:
     """Store today's inventory levels; the first snapshot also reconstructs stock history from sales."""
-    def act(conn, t):
-        first = conn.execute("SELECT NOT EXISTS (SELECT 1 FROM stock_daily WHERE tenant_id = %s AND NOT reconstructed)"
-                             " AS first", (t.tenant_id,)).fetchone()["first"]
-        n = ingest_shopify.snapshot_stock(conn, t, local_today(t))
-        out = f"{n} stock rows for {local_today(t)}"
-        earliest = _min_date(conn, t, "sales_lines")
-        if first and earliest:
-            out += f"; {ingest_shopify.reconstruct_stock(conn, t, earliest)} reconstructed rows back to {earliest}"
-        return out
-    _each_tenant(tenant, all_tenants, act)
+    _each_tenant(tenant, all_tenants, take_stock_snapshot)
+
+
+def take_stock_snapshot(conn, t: Tenant) -> str:
+    """Today's inventory levels; the first snapshot also reconstructs stock history from sales. Returns a summary."""
+    first = conn.execute("SELECT NOT EXISTS (SELECT 1 FROM stock_daily WHERE tenant_id = %s AND NOT reconstructed)"
+                         " AS first", (t.tenant_id,)).fetchone()["first"]
+    n = ingest_shopify.snapshot_stock(conn, t, local_today(t))
+    out = f"{n} stock rows for {local_today(t)}"
+    earliest = _min_date(conn, t, "sales_lines")
+    if first and earliest:
+        out += f"; {ingest_shopify.reconstruct_stock(conn, t, earliest)} reconstructed rows back to {earliest}"
+    return out
 
 
 # ---------------------------------------------------------------- lineage
@@ -815,22 +827,70 @@ def backtest_cmd(tenant: Optional[str] = _tenant_opt(),
 
 # ---------------------------------------------------------------- suppliers
 
-def _resolve_product(conn, t: Tenant, value: str) -> str:
+def find_product(conn, t: Tenant, value: str) -> str:
+    """A product id from a product id (gid) or a handle; ValueError if unknown."""
     if value.startswith("gid://"):
         return value
     rows = conn.execute("SELECT DISTINCT product_id FROM products WHERE tenant_id = %s AND handle = %s",
                         (t.tenant_id, value)).fetchall()
     if len(rows) != 1:
-        _fail(f"unknown product {value!r} (give a product id or handle)")
+        raise ValueError(f"unknown product {value!r} (give a product id or handle)")
     return rows[0]["product_id"]
 
 
-def _resolve_style(conn, t: Tenant, value: str) -> str:
+def find_style(conn, t: Tenant, value: str) -> str:
+    """A style id from a style id or name; ValueError if unknown."""
     rows = conn.execute("SELECT style_id FROM styles WHERE tenant_id = %s AND (style_id = %s OR name = %s)",
                         (t.tenant_id, value, value)).fetchall()
     if len(rows) != 1:
-        _fail(f"unknown style {value!r} (give a style id or name; run `engine lineage propose` to build styles)")
+        raise ValueError(f"unknown style {value!r} (give a style id or name; run `engine lineage propose` to build"
+                         " styles)")
     return rows[0]["style_id"]
+
+
+def _resolve_product(conn, t: Tenant, value: str) -> str:
+    try:
+        return find_product(conn, t, value)
+    except ValueError as e:
+        _fail(str(e))
+
+
+def _resolve_style(conn, t: Tenant, value: str) -> str:
+    try:
+        return find_style(conn, t, value)
+    except ValueError as e:
+        _fail(str(e))
+
+
+def add_supplier(conn, t: Tenant, name: str, kind: str, lead_time: int, pack: int = 1, moq: int = 0,
+                 style: str | None = None, product: str | None = None) -> str:
+    """Add or update a supplier, optionally linked to a style or a product (id, name or handle). ValueError on bad
+    input. Returns a summary."""
+    if not name.strip():
+        raise ValueError("a supplier needs a name")
+    if kind not in ("factory", "external"):
+        raise ValueError("kind must be factory or external")
+    if lead_time < 0 or pack < 1 or moq < 0:
+        raise ValueError("lead time >= 0, pack >= 1 and MOQ >= 0 are required")
+    if style and product:
+        raise ValueError("give a style or a product, not both")
+    sty = find_style(conn, t, style) if style else None
+    prod = find_product(conn, t, product) if product else None
+    sid = conn.execute(
+        "INSERT INTO suppliers (tenant_id, name, kind, lead_time_days, pack_multiple) VALUES (%s,%s,%s,%s,%s)"
+        " ON CONFLICT (tenant_id, name) DO UPDATE SET kind = EXCLUDED.kind,"
+        " lead_time_days = EXCLUDED.lead_time_days, pack_multiple = EXCLUDED.pack_multiple"
+        " RETURNING supplier_id", (t.tenant_id, name, kind, lead_time, pack)).fetchone()["supplier_id"]
+    link = ""
+    if sty or prod:
+        conn.execute(
+            "INSERT INTO product_suppliers (tenant_id, supplier_id, style_id, product_id, moq) VALUES (%s,%s,%s,%s,%s)"
+            " ON CONFLICT (tenant_id, COALESCE(style_id, ''), COALESCE(product_id, ''))"
+            " DO UPDATE SET supplier_id = EXCLUDED.supplier_id, moq = EXCLUDED.moq",
+            (t.tenant_id, sid, sty, prod, moq))
+        link = f" for {sty or prod} (moq {moq})"
+    conn.commit()
+    return f"supplier {sid} {name}{link}"
 
 
 @suppliers_app.command("add")
@@ -849,23 +909,11 @@ def suppliers_add(name: str, tenant: Optional[str] = _tenant_opt(),
     if style and product:
         _fail("give --style or --product, not both")
     with _tenant_session(tenant) as (conn, t):
-        sid = conn.execute(
-            "INSERT INTO suppliers (tenant_id, name, kind, lead_time_days, pack_multiple) VALUES (%s,%s,%s,%s,%s)"
-            " ON CONFLICT (tenant_id, name) DO UPDATE SET kind = EXCLUDED.kind,"
-            " lead_time_days = EXCLUDED.lead_time_days, pack_multiple = EXCLUDED.pack_multiple"
-            " RETURNING supplier_id", (t.tenant_id, name, kind, lead_time, pack)).fetchone()["supplier_id"]
-        link = ""
-        if style or product:
-            sty = _resolve_style(conn, t, style) if style else None
-            prod = _resolve_product(conn, t, product) if product else None
-            conn.execute(
-                "INSERT INTO product_suppliers (tenant_id, supplier_id, style_id, product_id, moq) VALUES (%s,%s,%s,%s,%s)"
-                " ON CONFLICT (tenant_id, COALESCE(style_id, ''), COALESCE(product_id, ''))"
-                " DO UPDATE SET supplier_id = EXCLUDED.supplier_id, moq = EXCLUDED.moq",
-                (t.tenant_id, sid, sty, prod, moq))
-            link = f" for {sty or prod} (moq {moq})"
-        conn.commit()
-        typer.echo(f"supplier {sid} {name}{link}")
+        try:
+            typer.echo(add_supplier(conn, t, name, kind, lead_time, pack, moq, style, product))
+        except ValueError as e:
+            conn.rollback()
+            _fail(str(e))
 
 
 @suppliers_app.command("list")
@@ -984,17 +1032,31 @@ def admap_set(ad_id: str = typer.Argument(..., help="Meta ad id."),
     nor the ad name (PRODUCT_FORMAT_ANGLE) identifies the product; re-run `engine attribute` to apply it."""
     parsed = _parse_shares(shares)
     with _tenant_session(tenant) as (conn, t):
-        rows = {}
-        for prod, w in parsed:
-            pid = _resolve_product(conn, t, prod)
-            rows[pid] = rows.get(pid, 0.0) + w
-        conn.execute("DELETE FROM ad_product_map WHERE tenant_id = %s AND ad_id = %s", (t.tenant_id, ad_id))
-        for pid, w in rows.items():
-            conn.execute("INSERT INTO ad_product_map (tenant_id, ad_id, product_id, share) VALUES (%s,%s,%s,%s)",
-                         (t.tenant_id, ad_id, pid, w))
-        conn.commit()
-        total = sum(rows.values())
-        typer.echo(f"ad {ad_id}: " + ", ".join(f"{p} {w / total:.0%}" for p, w in rows.items()))
+        try:
+            rows = set_ad_map(conn, t, ad_id, parsed)
+        except ValueError as e:
+            _fail(str(e))
+        typer.echo(f"ad {ad_id}: " + ", ".join(f"{p} {w:.0%}" for p, w in rows.items()))
+
+
+def set_ad_map(conn, t: Tenant, ad_id: str, shares: list[tuple[str, float]]) -> dict[str, float]:
+    """Replace an ad's manual map with products (id or handle) and shares > 0; returns {product_id: normalised
+    share}. ValueError for an unknown product, a bad share or no shares; nothing is written then."""
+    rows: dict[str, float] = {}
+    for prod, w in shares:
+        if not (w > 0 and math.isfinite(w)):
+            raise ValueError(f"share must be > 0, got {w!r} for {prod!r}")
+        pid = find_product(conn, t, prod)
+        rows[pid] = rows.get(pid, 0.0) + w
+    if not ad_id or not rows:
+        raise ValueError("give an ad id and at least one product with a share")
+    conn.execute("DELETE FROM ad_product_map WHERE tenant_id = %s AND ad_id = %s", (t.tenant_id, ad_id))
+    for pid, w in rows.items():
+        conn.execute("INSERT INTO ad_product_map (tenant_id, ad_id, product_id, share) VALUES (%s,%s,%s,%s)",
+                     (t.tenant_id, ad_id, pid, w))
+    conn.commit()
+    total = sum(rows.values())
+    return {p: w / total for p, w in rows.items()}
 
 
 @admap_app.command("list")
@@ -1034,16 +1096,24 @@ def calendar_promo(start: datetime = typer.Argument(..., formats=["%Y-%m-%d"], h
     if e < s:
         _fail("END must be on or after START")
     with _tenant_session(tenant) as (conn, t):
-        rows = [(t.tenant_id, s + timedelta(days=i)) for i in range((e - s).days + 1)]
-        with conn.cursor() as cur:
-            if off:
-                cur.executemany("UPDATE calendar SET flags = flags - 'promo' WHERE tenant_id = %s AND date = %s", rows)
-            else:
-                cur.executemany("INSERT INTO calendar (tenant_id, date, flags) VALUES (%s, %s, '{\"promo\": true}')"
-                                " ON CONFLICT (tenant_id, date) DO UPDATE SET flags = calendar.flags || '{\"promo\": true}'",
-                                rows)
-        conn.commit()
-        typer.echo(f"promo {'cleared' if off else 'set'} for {s} .. {e} ({len(rows)} days)")
+        n = set_promo(conn, t, s, e, off)
+        typer.echo(f"promo {'cleared' if off else 'set'} for {s} .. {e} ({n} days)")
+
+
+def set_promo(conn, t: Tenant, start: date, end: date, off: bool = False) -> int:
+    """Flag (or with off clear) promo days start..end inclusive; returns the number of days."""
+    if end < start:
+        raise ValueError("the last day must be on or after the first day")
+    rows = [(t.tenant_id, start + timedelta(days=i)) for i in range((end - start).days + 1)]
+    with conn.cursor() as cur:
+        if off:
+            cur.executemany("UPDATE calendar SET flags = flags - 'promo' WHERE tenant_id = %s AND date = %s", rows)
+        else:
+            cur.executemany("INSERT INTO calendar (tenant_id, date, flags) VALUES (%s, %s, '{\"promo\": true}')"
+                            " ON CONFLICT (tenant_id, date) DO UPDATE SET flags = calendar.flags || '{\"promo\": true}'",
+                            rows)
+    conn.commit()
+    return len(rows)
 
 
 # ---------------------------------------------------------------- cycle
