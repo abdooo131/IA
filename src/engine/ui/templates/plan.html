@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Plan{% endblock %}
+{% block content %}
+<h1>3 month plan per style</h1>
+<p class="lead">Ad spend up to the point where the next {{ currency }} of ads stops paying back its cost, capped by the stock you have and have ordered.</p>
+{% for s in styles %}
+<section class="plan">
+  <h2>{{ s.name }} {% if s.decision %}<span class="pill {{ s.css }}">{{ s.decision }}</span>{% endif %}</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Month</th><th>Ad spend</th><th>Units</th><th>Real demand</th><th>Sales</th><th>Profit</th><th>Purchase order</th></tr></thead>
+    <tbody>
+    {% for m in s.months %}
+    <tr><td>{{ m.month.strftime('%Y-%m') }}</td><td>{{ m.spend|money(currency) }}</td><td>{{ m.units|num }}</td>
+      <td>{{ m.true_demand|num }}</td><td>{{ m.revenue|money(currency) }}</td>
+      <td>{% if m.profit is none %}<span title="no unit cost">–</span>{% else %}{{ m.profit|money(currency) }}{% endif %}</td>
+      <td>{% if m.po_number %}<a href="/pos/{{ m.po_number }}?tenant={{ tenant.tenant_id }}">{{ m.po_number }}</a>{% endif %}</td></tr>
+    {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% else %}{% if run %}<p>No plan rows in this run.</p>{% endif %}
+{% endfor %}
+{% endblock %}

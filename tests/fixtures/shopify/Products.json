@@ -1,0 +1,19 @@
+{"data": {"products": {
+ "pageInfo": {"hasNextPage": false, "endCursor": null},
+ "nodes": [
+  {"id": "gid://shopify/Product/10", "handle": "silk-dress-black", "title": "Silk Dress Black",
+   "status": "ACTIVE", "createdAt": "2025-01-10T09:00:00Z",
+   "variants": {"nodes": [
+    {"id": "gid://shopify/ProductVariant/101", "sku": "SD-BLK-S",
+     "selectedOptions": [{"name": "Color", "value": "Black"}, {"name": "Size", "value": "S"}],
+     "inventoryItem": {"id": "gid://shopify/InventoryItem/1101", "unitCost": {"amount": "250.00"}}},
+    {"id": "gid://shopify/ProductVariant/102", "sku": "SD-BLK-M",
+     "selectedOptions": [{"name": "Color", "value": "Black"}, {"name": "Size", "value": "M"}],
+     "inventoryItem": {"id": "gid://shopify/InventoryItem/1102", "unitCost": null}}]}},
+  {"id": "gid://shopify/Product/20", "handle": "fustan-ahmar", "title": "فستان أحمر",
+   "status": "ACTIVE", "createdAt": "2025-02-01T09:00:00Z",
+   "variants": {"nodes": [
+    {"id": "gid://shopify/ProductVariant/201", "sku": "FA-L",
+     "selectedOptions": [{"name": "المقاس", "value": "L"}, {"name": "اللون", "value": "أحمر"}],
+     "inventoryItem": {"id": "gid://shopify/InventoryItem/1201", "unitCost": {"amount": "180.5"}}}]}}
+ ]}}}

@@ -1,0 +1,11 @@
+{"data": {"shopifyqlQuery": {"parseErrors": [], "tableData": {
+ "columns": [{"name": "landing_page_path", "dataType": "STRING"}, {"name": "day", "dataType": "DATE"},
+             {"name": "sessions", "dataType": "INTEGER"}],
+ "rows": [
+  {"landing_page_path": "/products/silk-dress-black", "day": "2026-03-01", "sessions": "40"},
+  {"landing_page_path": "/ar/products/silk-dress-black/?variant=101", "day": "2026-03-01", "sessions": "10"},
+  {"landing_page_path": "/products/fustan-ahmar?utm_source=ig", "day": "2026-03-01", "sessions": "7"},
+  {"landing_page_path": "/", "day": "2026-03-01", "sessions": "500"},
+  {"landing_page_path": "/collections/dresses", "day": "2026-03-01", "sessions": "90"},
+  {"landing_page_path": "/products/silk-dress-black", "day": "2026-03-02", "sessions": "25"}
+ ]}}}}

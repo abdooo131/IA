@@ -1,0 +1,5 @@
+{"data": {"inventoryTransfer": {
+  "id": "gid://shopify/InventoryTransfer/55", "referenceName": "EVEPO202603001", "status": "IN_PROGRESS",
+  "lineItems": {"nodes": [
+    {"inventoryItem": {"id": "gid://shopify/InventoryItem/1101"}, "totalQuantity": 20, "shippedQuantity": 20, "processableQuantity": 8},
+    {"inventoryItem": {"id": "gid://shopify/InventoryItem/1102"}, "totalQuantity": 10, "shippedQuantity": 10, "processableQuantity": 10}]}}}}

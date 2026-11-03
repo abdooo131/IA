@@ -1,0 +1,12 @@
+{"data": {"productVariants": {
+ "pageInfo": {"hasNextPage": false, "endCursor": null},
+ "nodes": [
+  {"id": "gid://shopify/ProductVariant/101", "inventoryItem": {"inventoryLevels": {"nodes": [
+    {"location": {"id": "gid://shopify/Location/222", "name": "Main warehouse"},
+     "quantities": [{"name": "available", "quantity": 10}, {"name": "on_hand", "quantity": 12}]},
+    {"location": {"id": "gid://shopify/Location/333", "name": "Shop"},
+     "quantities": [{"name": "available", "quantity": 3}, {"name": "on_hand", "quantity": 3}]}]}}},
+  {"id": "gid://shopify/ProductVariant/102", "inventoryItem": {"inventoryLevels": {"nodes": [
+    {"location": {"id": "gid://shopify/Location/222", "name": "Main warehouse"},
+     "quantities": [{"name": "available", "quantity": 0}, {"name": "on_hand", "quantity": 0}]}]}}}
+ ]}}}

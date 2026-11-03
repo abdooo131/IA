@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}Store engine{% endblock %}{% if tenant %} · {{ tenant.name }}{% endif %}</title>
+<link rel="stylesheet" href="/static/style.css">
+<link rel="icon" href="data:,">
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+{% if demo %}<div class="banner">Sample store, made up data</div>{% endif %}
+<header class="top">
+  <div class="brand">Store engine</div>
+  {% if tenants|length > 1 %}
+  <form class="picker" method="get" action="{{ nav }}">
+    <label for="tenant-pick">Store</label>
+    <select id="tenant-pick" name="tenant" data-autosubmit>
+      {% for t in tenants %}<option value="{{ t.tenant_id }}"{% if tenant and t.tenant_id == tenant.tenant_id %} selected{% endif %}>{{ t.name }}</option>{% endfor %}
+    </select>
+    <noscript><button type="submit">Show</button></noscript>
+  </form>
+  {% elif tenant %}<div class="store-name">{{ tenant.name }}</div>{% endif %}
+  <nav>
+    {% set q = '?tenant=' ~ tenant.tenant_id if tenant else '' %}
+    {% for path, label in [('/', 'Overview'), ('/lost-sales', 'Lost sales'), ('/scorecard', 'Scorecard'), ('/pos', 'Purchase orders'), ('/plan', 'Plan'), ('/run', 'Run'), ('/setup', 'Setup')] %}
+    <a href="{{ path }}{{ q }}"{% if nav == path or (path == '/pos' and nav.startswith('/pos/')) %} class="active" aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+</header>
+<main>
+{% block runline %}
+{% if tenant and show_run %}
+<div class="runline">
+  {% if run %}
+  Showing <strong>{{ run.month }}</strong> from run <code>{{ run.run_id }}</code>
+  {% if runs|length > 1 %}
+  <form method="get" action="{{ nav }}" class="inline">
+    <input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <label class="sr" for="run-pick">Run</label>
+    <select id="run-pick" name="run" data-autosubmit>
+      {% for r in runs if r.status == 'done' %}<option value="{{ r.run_id }}"{% if r.run_id == run.run_id %} selected{% endif %}>{{ r.month }} · {{ r.started_at|day }}</option>{% endfor %}
+    </select>
+    <noscript><button type="submit">Show</button></noscript>
+  </form>
+  {% endif %}
+  {% else %}
+  No finished monthly cycle yet. <a href="/run?tenant={{ tenant.tenant_id }}">Run the monthly cycle</a> to see results.
+  {% endif %}
+</div>
+{% endif %}
+{% endblock %}
+{% if flash %}<div class="note {{ flash[0] }}" role="status">{{ flash[1] }}</div>{% endif %}
+{% if error %}<div class="note error" role="alert">{{ error }}</div>{% endif %}
+{% block content %}{% endblock %}
+</main>
+<footer>Runs on this computer only (127.0.0.1). Nothing is sent to Shopify unless you approve a purchase order and press Send to Shopify.</footer>
+</body>
+</html>

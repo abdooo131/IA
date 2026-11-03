@@ -1,0 +1,28 @@
+{"data": {"orders": {
+ "pageInfo": {"hasNextPage": true, "endCursor": "CURSOR1"},
+ "nodes": [
+  {"id": "gid://shopify/Order/1001", "createdAt": "2026-03-01T22:30:00Z", "cancelledAt": null,
+   "email": "Sara@Example.com", "phone": null,
+   "customer": {"id": "gid://shopify/Customer/9", "email": "Sara@Example.com", "phone": "01012345678"},
+   "totalPriceSet": {"shopMoney": {"amount": "1500.00"}},
+   "customerJourneySummary": {"lastVisit": {
+      "landingPage": "https://shop.example/products/silk-dress-black?utm_source=ignored",
+      "utmParameters": {"source": "facebook", "content": "ad123"}}},
+   "lineItems": {"nodes": [
+     {"id": "gid://shopify/LineItem/1", "quantity": 2, "variant": {"id": "gid://shopify/ProductVariant/101"},
+      "discountedTotalSet": {"shopMoney": {"amount": "1000.00"}}},
+     {"id": "gid://shopify/LineItem/2", "quantity": 1, "variant": {"id": "gid://shopify/ProductVariant/102"},
+      "discountedTotalSet": {"shopMoney": {"amount": "500.00"}}}]},
+   "refunds": [{"id": "gid://shopify/Refund/1", "createdAt": "2026-03-05T10:00:00Z",
+     "refundLineItems": {"nodes": [
+       {"quantity": 1, "subtotalSet": {"shopMoney": {"amount": "500.00"}},
+        "lineItem": {"variant": {"id": "gid://shopify/ProductVariant/101"}}}]}}]},
+  {"id": "gid://shopify/Order/1002", "createdAt": "2026-03-02T10:00:00Z", "cancelledAt": "2026-03-02T11:00:00Z",
+   "email": null, "phone": null, "customer": null,
+   "totalPriceSet": {"shopMoney": {"amount": "700.00"}},
+   "customerJourneySummary": null,
+   "lineItems": {"nodes": [
+     {"id": "gid://shopify/LineItem/3", "quantity": 1, "variant": {"id": "gid://shopify/ProductVariant/201"},
+      "discountedTotalSet": {"shopMoney": {"amount": "700.00"}}}]},
+   "refunds": []}
+ ]}}}

@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Setup: database{% endblock %}
+{% block content %}
+<h1>Setup: database</h1>
+{% if using_default %}
+<p>The screen keeps its data in a Postgres database on this Mac. No database address is set (<code>DATABASE_URL</code>), so it tried the usual local one, <code>{{ default_url }}</code>, and could not reach it.</p>
+{% if error %}<p class="hint">Postgres said: <code>{{ error }}</code></p>{% endif %}
+<ol>
+  <li>Start Postgres. If you installed it with Homebrew, open Terminal and run <code>brew services start postgresql@16</code> (use the version you installed; <code>brew services list</code> shows it). Not installed yet? Run <code>brew install postgresql@16</code> first.</li>
+  <li>Reload this page. The screen creates its database (<code>engine</code>) by itself the first time.</li>
+  <li>Using a database somewhere else (for example Neon)? Paste its address below; it is saved in <code>~/.engine_env</code>.</li>
+</ol>
+{% else %}
+<p>The screen cannot reach the engine's database (the address in <code>DATABASE_URL</code>).{% if error %} The database said: <code>{{ error }}</code>{% endif %}</p>
+<ol>
+  <li>Make sure the database is running (on Neon, check the project is not paused; on this Mac with Homebrew, <code>brew services start postgresql@16</code>).</li>
+  <li>Check the address in <code>~/.engine_env</code> (<code>export DATABASE_URL="…"</code>), or paste a new one below.</li>
+  <li>Reload this page.</li>
+</ol>
+{% endif %}
+{% if not demo %}
+<form method="post" action="/setup/database" class="stack">
+  <input type="hidden" name="csrf" value="{{ csrf }}">
+  <label>Database address (DATABASE_URL) <input type="password" name="database_url" autocomplete="off" placeholder="postgresql://…"></label>
+  <button type="submit">Save and connect</button>
+</form>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}Run{% endblock %}
+{% block runline %}{% endblock %}
+{% block content %}
+<h1>Run</h1>
+<section class="runbox">
+  <h2>Monthly cycle</h2>
+  <p class="lead">Reads Shopify and Meta, fits the demand models, decides per product, suggests purchase orders and plans 3 months. It never approves or sends a purchase order. Run it on the 1st of the month; it takes a few minutes.</p>
+  <form method="post" action="/run/cycle" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <button type="submit"{% if running %} disabled{% endif %}>{% if running %}Running…{% else %}Run monthly cycle{% endif %}</button>
+  </form>
+</section>
+
+<section id="progress" class="progress" data-url="/api/progress?tenant={{ tenant.tenant_id }}" data-running="{{ '1' if running else '0' }}">
+  {% set job = progress.job %}
+  {% set prun = progress.run %}
+  <p class="statusline" id="progress-status">
+    {% if job %}
+      {{ 'Monthly cycle' if job.kind == 'cycle' else 'History load of the new store' }}: <strong>{{ job.state }}</strong>{% if job.message %} · {{ job.message }}{% endif %}
+    {% elif prun %}
+      Last run <code>{{ prun.run_id }}</code> ({{ prun.month }}): <strong>{{ prun.status }}</strong>
+    {% else %}No run yet.{% endif %}
+  </p>
+  {% if job and job.kind == 'history' %}
+  <table class="stages"><thead><tr><th>Step</th><th>Status</th><th>Seconds</th></tr></thead>
+    <tbody id="job-stages">
+    {% for s in job.stages %}<tr><td>{{ stage_label(s.name) }} <small>{{ s.name }}</small></td><td><span class="chip {{ s.status }}">{{ s.status }}</span>{% if s.error %} <small>{{ s.error }}</small>{% endif %}</td><td>{{ s.seconds if s.seconds is not none else '' }}</td></tr>{% endfor %}
+    </tbody></table>
+  {% endif %}
+  {% if prun %}
+  <table class="stages"><thead><tr><th>Stage</th><th>Status</th><th>Seconds</th></tr></thead>
+    <tbody id="run-stages">
+    {% for s in prun.stages %}<tr><td>{{ s.label }} <small>{{ s.name }}</small></td><td><span class="chip {{ s.status }}">{{ s.status }}</span>{% if s.error %} <small>{{ s.error }}</small>{% endif %}</td><td>{{ s.seconds if s.seconds is not none else '' }}</td></tr>{% endfor %}
+    {% for s in prun.pending %}<tr class="pending"><td>{{ s.label }} <small>{{ s.name }}</small></td><td><span class="chip">{{ 'running' if loop.first else 'waiting' }}</span></td><td></td></tr>{% endfor %}
+    </tbody></table>
+  {% endif %}
+  {% if running %}<noscript><meta http-equiv="refresh" content="3"></noscript>{% endif %}
+</section>
+
+<section class="runbox">
+  <h2>Daily jobs</h2>
+  <p class="lead">Stock history and size availability depend on a daily stock snapshot; receipts of sent purchase orders are read from Shopify.</p>
+  <form method="post" action="/run/snapshot" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <button type="submit" class="secondary">Take stock snapshot</button>
+  </form>
+  <form method="post" action="/pos/sync" class="inline">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}"><input type="hidden" name="next" value="/run">
+    <button type="submit" class="secondary">Sync PO receipts</button>
+  </form>
+</section>
+
+{% if runs %}
+<h2>Recent runs</h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>Run</th><th>Month decided</th><th>Started</th><th>Finished</th><th>Status</th></tr></thead>
+  <tbody>
+  {% for r in runs %}<tr><td><code>{{ r.run_id }}</code></td><td>{{ r.month }}</td><td>{{ r.started_at|day }}</td><td>{{ r.finished_at|day }}</td><td><span class="chip {{ r.status }}">{{ r.status }}</span></td></tr>{% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}

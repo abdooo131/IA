@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Purchase orders{% endblock %}
+{% block content %}
+<h1>Purchase orders</h1>
+<p class="lead">The monthly cycle suggests drafts. Nothing reaches Shopify until you approve a PO and then press Send to Shopify.</p>
+<form method="post" action="/pos/sync" class="inline">
+  <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}"><input type="hidden" name="next" value="/pos">
+  <button type="submit" class="secondary">Sync receipts from Shopify</button>
+</form>
+{% for g in groups %}
+<h2>{{ g.label }} <small>({{ g.pos|length }})</small></h2>
+<div class="table-wrap">
+<table>
+  <thead><tr><th>PO</th><th>Supplier</th><th>Created</th><th>Lines</th><th>Suggested</th><th>Approved</th><th>Received</th></tr></thead>
+  <tbody>
+  {% for p in g.pos %}
+  <tr><td><a href="/pos/{{ p.po_number }}?tenant={{ tenant.tenant_id }}">{{ p.po_number }}</a></td><td>{{ p.supplier or '–' }}</td>
+    <td>{{ p.created|day }}</td><td>{{ p.lines }}</td><td>{{ p.qty_suggested|num }}</td><td>{{ p.qty_approved|num }}</td><td>{{ p.qty_received|num }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p>No purchase orders yet. They are suggested by the monthly cycle once suppliers are set up.</p>
+{% endfor %}
+{% endblock %}

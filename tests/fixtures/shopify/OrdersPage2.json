@@ -1,0 +1,25 @@
+{"data": {"orders": {
+ "pageInfo": {"hasNextPage": false, "endCursor": "CURSOR2"},
+ "nodes": [
+  {"id": "gid://shopify/Order/1003", "createdAt": "2026-03-03T10:00:00Z", "cancelledAt": null,
+   "email": "Foo@Example.com", "phone": null, "customer": null,
+   "totalPriceSet": {"shopMoney": {"amount": "300.00"}},
+   "customerJourneySummary": {"lastVisit": {
+      "landingPage": "https://shop.example/products/fustan-ahmar?utm_source=ig&utm_content=77",
+      "utmParameters": null}},
+   "lineItems": {"nodes": [
+     {"id": "gid://shopify/LineItem/4", "quantity": 1, "variant": {"id": "gid://shopify/ProductVariant/201"},
+      "discountedTotalSet": {"shopMoney": {"amount": "300.00"}}}]},
+   "refunds": []},
+  {"id": "gid://shopify/Order/1004", "createdAt": "2026-03-04T10:00:00Z", "cancelledAt": null,
+   "email": null, "phone": null,
+   "customer": {"id": "gid://shopify/Customer/9", "email": null, "phone": "+201012345678"},
+   "totalPriceSet": {"shopMoney": {"amount": "250.00"}},
+   "customerJourneySummary": null,
+   "lineItems": {"nodes": [
+     {"id": "gid://shopify/LineItem/5", "quantity": 1, "variant": null,
+      "discountedTotalSet": {"shopMoney": {"amount": "250.00"}}},
+     {"id": "gid://shopify/LineItem/6", "quantity": 1, "variant": {"id": "gid://shopify/ProductVariant/102"},
+      "discountedTotalSet": {"shopMoney": {"amount": "250.00"}}}]},
+   "refunds": []}
+ ]}}}
