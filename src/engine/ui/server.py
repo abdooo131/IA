@@ -21,6 +21,7 @@ log = logging.getLogger("engine.ui")
 
 def port_free(port: int) -> bool:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)   # like uvicorn: a just closed run is not "in use"
         try:
             s.bind((HOST, port))
         except OSError:
