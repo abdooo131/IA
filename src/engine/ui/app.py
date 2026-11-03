@@ -94,7 +94,7 @@ def create_app(cfg: UiConfig) -> FastAPI:
         response.headers.update({
             "Content-Security-Policy": "default-src 'self'; img-src 'self' data:; style-src 'self'; "
                                        "script-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
-            "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "no-referrer",
+            "X-Frame-Options": "DENY", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin",
             "Cache-Control": "no-store"})
         return response
 

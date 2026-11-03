@@ -538,3 +538,12 @@ def test_style_names_keep_their_capitals_and_ad_map_rows_match(ui, demo_env):
     assert "Maxi-Dress Noor" in html and "Wool Coat" in html
     setup = client.get("/setup").text
     assert setup.count('name="product_') == app_module.AD_MAP_ROWS == setup.count('name="share_')
+
+
+def test_referrer_policy_lets_browsers_send_the_origin():
+    """Referrer-Policy no-referrer makes browsers send `Origin: null` on the screen's own form posts, which the
+    Origin check refuses; same-origin keeps the origin for our own forms and sends nothing to other sites."""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parents[1] / "src/engine/ui/app.py").read_text()
+    assert '"Referrer-Policy": "same-origin"' in src
+    assert '"no-referrer"' not in src
