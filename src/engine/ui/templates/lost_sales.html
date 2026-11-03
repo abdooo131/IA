@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Lost sales{% endblock %}
+{% block content %}
+<h1>Lost sales per style</h1>
+<p class="lead">Each bar is the real demand of the month: what sold, what was lost because sizes were sold out, and what was lost to the price. All bars use the same scale.</p>
+{% if lost and lost.rows %}
+<div class="legend"><span><span class="key seg-sold"></span>Sold</span> <span><span class="key seg-stock"></span>Lost to stock (empty sizes)</span> <span><span class="key seg-price"></span>Lost to price</span></div>
+<div class="bars">
+  {% for r in lost.rows %}
+  <div class="bar-row">
+    <div class="bar-name">{{ r.name }}</div>
+    <svg class="bar" viewBox="0 0 1000 28" preserveAspectRatio="none" role="img" aria-label="{{ r.name }}: sold {{ r.sold|num }}, lost to stock {{ r.lost_stock|num(1) }}, lost to price {{ r.lost_price_bar|num(1) }}">
+      <rect class="track" x="0" y="0" width="1000" height="28"/>
+      {% for s in r.segments %}<rect class="{{ s.css }}" x="{{ s.x }}" y="0" width="{{ s.w }}" height="28"/>{% endfor %}
+    </svg>
+    <div class="bar-total">{{ (r.sold + r.lost_stock + r.lost_price_bar)|num }} units</div>
+  </div>
+  {% endfor %}
+</div>
+<div class="table-wrap">
+<table class="sortable">
+  <thead><tr>
+    <th data-sort="text">Style</th>
+    <th data-sort="num">Sold <small>units</small></th>
+    <th data-sort="num">Lost to stock <small>lost_stock</small></th>
+    <th data-sort="num">Lost to price <small>lost_price</small></th>
+    <th data-sort="num">Real demand <small>true_demand</small></th>
+    <th data-sort="num">Unexplained <small>model residual</small></th>
+  </tr></thead>
+  <tbody>
+  {% for r in lost.rows %}
+  <tr><td data-v="{{ r.name }}">{{ r.name }}</td>
+    <td data-v="{{ r.sold }}">{{ r.sold|num }}</td>
+    <td data-v="{{ r.lost_stock }}">{{ r.lost_stock|num(1) }}</td>
+    <td data-v="{{ r.lost_price if r.lost_price is not none else '' }}">{{ r.lost_price|num(1) }}{% if r.lost_price is not none and r.lost_price < 0 %} <small>(a discount gained units)</small>{% endif %}</td>
+    <td data-v="{{ r.true_demand if r.true_demand is not none else '' }}">{{ r.true_demand|num(1) }}</td>
+    <td data-v="{{ r.unexplained if r.unexplained is not none else '' }}">{{ r.unexplained|num(1) }}</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="tech">Unexplained is the gap between visits × buy rate and the units the model explains through price and stock; it should stay small.</p>
+{% elif run %}<p>No styles with sales in {{ run.month }}.</p>{% endif %}
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Setup{% endblock %}
+{% block content %}
+<h1>Setup</h1>
+{% if job and job.state == 'running' and job.kind == 'history' %}<p class="note info">Loading the history of {{ tenant.name }}… <a href="/run?tenant={{ tenant.tenant_id }}">See progress</a></p>{% endif %}
+
+<section id="connect" class="panel">
+  <h2>Connect a store</h2>
+  {% if demo %}
+  <p class="lead">Not available in the sample store: start the screen without <code>--demo</code> to connect your own store.</p>
+  {% endif %}
+  <p class="lead">Your access tokens are saved only in <code>{{ env_file }}</code> on this computer (readable by you only), never in the database, and never shown again. Timezone and currency are read from Shopify.</p>
+  <form method="post" action="/setup/store" class="grid-form" autocomplete="off">
+    <input type="hidden" name="csrf" value="{{ csrf }}">
+    <label>Store name <input name="name" required value="{{ values.name or '' }}" placeholder="Eve Chantelle"></label>
+    <label>Shop domain <input name="shop" required value="{{ values.shop or '' }}" placeholder="yourstore.myshopify.com"></label>
+    <label>Shopify access token <small>Admin API token of the store's custom app (shpat_…)</small><input type="password" name="shopify_token" required autocomplete="new-password"></label>
+    <label>Meta access token <small>system user token with ads_read</small><input type="password" name="meta_token" required autocomplete="new-password"></label>
+    <label>Meta ad account ids <small>separated by spaces or commas</small><input name="meta_accounts" value="{{ values.meta_accounts or '' }}" placeholder="496801511811310 1222339613363462"></label>
+    <label>PO prefix <small>purchase orders are numbered PREFIXPO…</small><input name="po_prefix" required value="{{ values.po_prefix or '' }}" placeholder="EVE"></label>
+    <label class="check"><input type="checkbox" name="skip_history"> Skip loading the full order and ad history now</label>
+    <div><button type="submit"{% if demo %} disabled{% endif %}>Connect store</button></div>
+  </form>
+</section>
+
+{% if tenant %}
+<section id="suppliers" class="panel">
+  <h2>Suppliers</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Kind</th><th>Lead time (days)</th><th>Pack of</th><th>Makes</th><th>MOQ</th></tr></thead>
+    <tbody>
+    {% for s in suppliers %}<tr><td>{{ s.name }}</td><td>{{ s.kind }}</td><td>{{ s.lead_time_days }}</td><td>{{ s.pack_multiple }}</td><td>{{ s.makes or '–' }}</td><td>{{ s.moq if s.moq is not none else '' }}</td></tr>
+    {% else %}<tr><td colspan="6">No suppliers yet. Purchase orders are only suggested for products with a supplier.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <h3>Add or update a supplier</h3>
+  <form method="post" action="/setup/supplier" class="grid-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <label>Name <input name="name" required></label>
+    <label>Kind <select name="kind"><option value="factory">Factory (own)</option><option value="external">External</option></select></label>
+    <label>Lead time (days) <input type="number" name="lead_time" min="0" required value="30"></label>
+    <label>Pack multiple <input type="number" name="pack" min="1" value="1"></label>
+    <label>Minimum order (MOQ) <input type="number" name="moq" min="0" value="0"></label>
+    <label>Makes
+      <select name="target">
+        <option value="">(nothing yet)</option>
+        <optgroup label="Styles (all colours)">{% for sid, name in styles %}<option value="style:{{ sid }}">{{ name }}</option>{% endfor %}</optgroup>
+        <optgroup label="Products">{% for pid, name in products %}<option value="product:{{ pid }}">{{ name }}</option>{% endfor %}</optgroup>
+      </select>
+    </label>
+    <div><button type="submit">Save supplier</button></div>
+  </form>
+</section>
+
+<section id="lineage" class="panel">
+  <h2>Colour matches to review</h2>
+  <p class="lead">When an old multi colour product was split into one product per colour, each old size is matched to its new one so the sales history continues. These matches were not certain; confirm the right ones.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Old variant</th><th>New variant</th><th>Found by</th><th>Candidates</th><th></th></tr></thead>
+    <tbody>
+    {% for p in pending %}
+    <tr><td>{{ p.old_label }} {% if p.old_sku %}<small>{{ p.old_sku }}</small>{% endif %}</td><td>{{ p.new_label }} {% if p.new_sku %}<small>{{ p.new_sku }}</small>{% endif %}</td><td>{{ p.method }}</td><td>{{ p.candidates }}</td>
+      <td><form method="post" action="/setup/lineage/confirm" class="inline">
+        <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+        <input type="hidden" name="old" value="{{ p.old_variant_id }}"><input type="hidden" name="new" value="{{ p.new_variant_id }}">
+        <button type="submit" class="small">Confirm</button></form></td></tr>
+    {% else %}<tr><td colspan="5">Nothing to review.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section id="admap" class="panel">
+  <h2>Ads without a product</h2>
+  <p class="lead">Spend of these ads could not be tied to a product (neither the catalog nor the ad name named one), so it was shared over all products. Tell the engine which products each ad promotes.</p>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Ad</th><th>Ad name</th><th>Spend</th><th>From</th><th>To</th></tr></thead>
+    <tbody>
+    {% for a in unmapped %}<tr><td><code>{{ a.ad_id }}</code></td><td>{{ a.ad_name or '' }}</td><td>{{ a.spend|money(currency) }}</td><td>{{ a.first_date|day }}</td><td>{{ a.last_date|day }}</td></tr>
+    {% else %}<tr><td colspan="5">Every ad is tied to a product.</td></tr>{% endfor %}
+    </tbody>
+  </table>
+  </div>
+  <form method="post" action="/setup/ad-map" class="grid-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <label>Ad id <input name="ad_id" list="unmapped-ads" required></label>
+    <datalist id="unmapped-ads">{% for a in unmapped %}<option value="{{ a.ad_id }}">{{ a.ad_name or '' }}</option>{% endfor %}</datalist>
+    {% for i in range(1, 4) %}
+    <label>Product {{ i }}
+      <select name="product_{{ i }}"><option value="">–</option>{% for pid, name in products %}<option value="{{ pid }}">{{ name }}</option>{% endfor %}</select>
+    </label>
+    <label>Share {{ i }} <input type="number" name="share_{{ i }}" min="0" step="any" placeholder="1"></label>
+    {% endfor %}
+    <div><button type="submit">Save ad map</button></div>
+  </form>
+  {% if ad_maps %}
+  <h3>Saved ad maps</h3>
+  <ul class="plain">{% for m in ad_maps %}<li><code>{{ m.ad_id }}</code> → {{ m.product }} {{ (m.part * 100)|num }}%</li>{% endfor %}</ul>
+  {% endif %}
+</section>
+
+<section id="location" class="panel">
+  <h2>Main location</h2>
+  <p class="lead">Purchase orders sent to Shopify arrive at this location. Now: <code>{{ tenant.main_location_id or 'not set' }}</code>{% for l in locations if l.location_id == tenant.main_location_id %} ({{ l.name }}){% endfor %}.</p>
+  <form method="post" action="/setup/location" class="grid-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <label>Location <input name="location" list="locations" required placeholder="gid://shopify/Location/…" value="{{ tenant.main_location_id or '' }}"></label>
+    <datalist id="locations">{% for l in locations %}<option value="{{ l.location_id }}">{{ l.name }}</option>{% endfor %}</datalist>
+    <div><button type="submit">Set main location</button></div>
+  </form>
+</section>
+
+<section id="promo" class="panel">
+  <h2>Promo days</h2>
+  <p class="lead">Days with a sale or promotion; the demand model treats them as special days.</p>
+  {% if promos %}<ul class="plain">{% for a, b in promos %}<li>{{ a }}{% if b != a %} to {{ b }}{% endif %}</li>{% endfor %}</ul>{% else %}<p>No promo days in the last 60 days or ahead.</p>{% endif %}
+  <form method="post" action="/setup/promo" class="grid-form">
+    <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
+    <label>First day <input type="date" name="start" required></label>
+    <label>Last day <input type="date" name="end" required></label>
+    <label class="check"><input type="checkbox" name="off"> Remove the promo flag instead</label>
+    <div><button type="submit">Save promo days</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

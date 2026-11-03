@@ -16,6 +16,8 @@ dependencies = [
   "typer",
   "fastapi",
   "uvicorn",
+  "jinja2",
+  "python-multipart",
 ]
 
 [project.scripts]
@@ -28,7 +30,7 @@ dev = ["pytest", "httpx"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-engine = ["migrations/*.sql"]
+engine = ["migrations/*.sql", "ui/templates/*.html", "ui/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

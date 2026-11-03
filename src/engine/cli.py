@@ -1136,3 +1136,16 @@ def cycle(tenant: Optional[str] = _tenant_opt(),
             failed.append(t.name)
     if failed:
         _fail(f"cycle failed for {', '.join(failed)}")
+
+
+# ---------------------------------------------------------------- screen
+
+@app.command("ui")
+def ui(port: int = typer.Option(8765, "--port", help="Port on 127.0.0.1."),
+       demo: bool = typer.Option(False, "--demo", help="Serve a sample store with made up data."),
+       demo_db: Optional[str] = typer.Option(None, "--demo-db", help="Database URL for --demo (default: the"
+                                             " DATABASE_URL server with database engine_demo). It is wiped."),
+       no_browser: bool = typer.Option(False, "--no-browser", help="Do not open the browser.")) -> None:
+    """The local web screen on http://127.0.0.1:PORT (this computer only). Runs until Ctrl+C."""
+    from .ui.server import serve
+    serve(port=port, demo=demo, demo_db=demo_db, open_browser=not no_browser)

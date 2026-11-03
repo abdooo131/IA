@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+<section class="status">
+  <div class="statusline">
+    {% if last %}
+    <span class="dot {{ last.status }}"></span>
+    <span>Last monthly cycle: <strong>{{ last.started_at|day }}</strong>, {{ last.status }}</span>
+    {% if last.warnings %} · stages with problems:
+      {% for s in last.warnings %}<span class="chip {{ s.status }}" title="{{ s.error or '' }}">{{ s.label }}</span>{% endfor %}
+    {% else %} · all stages fine{% endif %}
+    {% else %}No monthly cycle has run yet.{% endif %}
+    {% if job and job.state == 'running' %} · <a href="/run?tenant={{ tenant.tenant_id }}">a {{ 'monthly cycle' if job.kind == 'cycle' else 'history load' }} is running now</a>{% endif %}
+  </div>
+  <div class="counts">
+    <a class="countbox" href="/pos?tenant={{ tenant.tenant_id }}"><span class="count{% if waiting.drafts %} attention{% endif %}">{{ waiting.drafts }}</span><span>Draft purchase orders</span></a>
+    <a class="countbox" href="/setup?tenant={{ tenant.tenant_id }}#lineage"><span class="count{% if waiting.lineage %} attention{% endif %}">{{ waiting.lineage }}</span><span>Colour matches to review</span></a>
+    <a class="countbox" href="/setup?tenant={{ tenant.tenant_id }}#admap"><span class="count{% if waiting.unmapped_ads %} attention{% endif %}">{{ waiting.unmapped_ads }}</span><span>Unmapped ad spend{% if waiting.unmapped_ads %}: {{ waiting.unmapped_spend|money(currency) }}{% endif %}</span></a>
+  </div>
+</section>
+
+{% if run %}
+{% for level, title in [('style', 'This month per style'), ('product', 'Per product (colour)')] %}
+{% if cards[level] %}
+<h2>{{ title }}</h2>
+<div class="cards">
+  {% for c in cards[level] %}
+  <article class="card">
+    <header>
+      <h3>{{ c.name }}</h3>
+      <span class="pill {{ c.css }}">{{ c.decision }}</span>
+    </header>
+    <p class="meaning">{{ c.meaning }}</p>
+    <p class="why">{{ c.plain }}</p>
+    <dl class="nums">
+      {% for label, value in c.numbers %}<div><dt>{{ label }}</dt><dd>{{ value }}</dd></div>{% endfor %}
+    </dl>
+    {% if c.flags %}<div class="flags">{% for f in c.flags %}<span class="chip" title="{{ f }}">{{ flag_label(f) }} <small>{{ f }}</small></span>{% endfor %}</div>{% endif %}
+    <p class="tech">{{ c.rule }}</p>
+  </article>
+  {% endfor %}
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endblock %}

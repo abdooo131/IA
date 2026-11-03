@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Scorecard{% endblock %}
+{% block content %}
+<h1>Scorecard</h1>
+<div class="toggle" role="group" aria-label="Level">
+  <a href="/scorecard?tenant={{ tenant.tenant_id }}&level=style{% if run %}&run={{ run.run_id }}{% endif %}"{% if level == 'style' %} class="active"{% endif %}>Per style</a>
+  <a href="/scorecard?tenant={{ tenant.tenant_id }}&level=product{% if run %}&run={{ run.run_id }}{% endif %}"{% if level == 'product' %} class="active"{% endif %}>Per product</a>
+</div>
+{% if card %}
+<p class="lead">Click a column title to sort. Money in {{ currency }}.</p>
+<div class="table-wrap">
+<table class="sortable scorecard">
+  <thead><tr>
+    <th data-sort="text" class="sticky">{{ 'Style' if level == 'style' else 'Product' }}</th>
+    {% for key, label, tech, kind in card.columns %}<th data-sort="num">{{ label }} <small>({{ tech }})</small></th>{% endfor %}
+    <th data-sort="text">Flags</th>
+  </tr></thead>
+  <tbody>
+  {% for r in card.rows %}
+  <tr><td class="sticky" data-v="{{ r.name }}">{{ r.name }}</td>
+    {% for c in r.cells %}<td data-v="{{ c.v if c.v is not none else '' }}">{{ c.text }}</td>{% endfor %}
+    <td data-v="{{ r.flags|join(',') }}">{% for f in r.flags %}<span class="chip" title="{{ flag_label(f) }}">{{ f }}</span>{% endfor %}</td></tr>
+  {% else %}<tr><td colspan="{{ card.columns|length + 2 }}">No rows for {{ run.month }}.</td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+{% endif %}
+{% endblock %}
