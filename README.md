@@ -65,6 +65,42 @@ errors (codes 1, 2, 4, 17, 341, 80004, HTTP 5xx) are retried.
 3. Add the theme snippet from the same file so the theme publishes `size_selected` (variant id, available) when a
    size is chosen; adapt the variant change event to the theme.
 
+## Screen (local web UI)
+
+A screen in the browser for the store owner, on top of the same engine. It runs on your own computer only
+(it listens on `127.0.0.1`, never on the network).
+
+```bash
+engine ui                    # opens http://127.0.0.1:8765 in the browser; Ctrl+C stops it
+engine ui --demo             # a sample store with made up data (Demo Boutique, EGP) in its own database
+engine ui --port 8800 --no-browser
+```
+
+* **Double click launcher (macOS):** `scripts/Engine.command` goes to the repository, activates `.venv`, reads
+  `~/.engine_env` if present and runs `engine ui`. Double click it in Finder (the first time, right click > Open).
+* **Database:** the screen uses `DATABASE_URL` like every command (it also reads `~/.engine_env`). If it is not
+  set or the database cannot be reached, the screen still opens and shows a Setup page that explains what to do.
+* **Demo:** `--demo` wipes and fills the database `engine_demo` on the `DATABASE_URL` server (created if missing;
+  `--demo-db URL` to choose another), then runs the monthly cycle twice. Shopify and Meta are answered by an in
+  process fake store (`src/engine/demo.py`); Send to Shopify only creates a fake transfer id. Every page shows the
+  banner "Sample store, made up data".
+
+| Page | What it shows and does |
+|---|---|
+| Overview | This month's decision per style and per product as cards (decision, why in plain words, sales, ad spend, profit per currency unit of ads, days of stock left), the last cycle's status, and what waits for you: draft POs, colour matches to review, ads without a product |
+| Lost sales | Per style: sold, lost to sold out sizes and lost to price as bars on one scale, plus the table with the unexplained residual |
+| Scorecard | The full monthly scorecard (Spec 32) per style or per product, sortable, flags as chips |
+| Purchase orders | POs by state; a PO page lists its lines (product, size, suggested, approved, received). Edit approved quantities and Approve; Send to Shopify and Cancel ask for a second click (Yes, send / Yes, cancel); Sync receipts |
+| Plan | The 3 month plan per style: ad spend, units, sales, profit and the linked PO |
+| Run | Run monthly cycle (in the background, one at a time per store, with live stage progress), Take stock snapshot, Sync PO receipts |
+| Setup | Connect a store (tokens are written only to `~/.engine_env`, mode 600, as `<STORE>_SHOPIFY_TOKEN` and `<STORE>_META_TOKEN`; the history then loads in the background), suppliers, colour matches to confirm, manual ad map, main location, promo days |
+
+Every page states the run and month it shows (default: the latest done run; another run can be picked). With
+more than one store, a store picker appears in the header. Safety: requests must use the local address
+(`127.0.0.1:<port>` or `localhost:<port>`), every form carries a per process random token, and posts from other
+sites are refused. As in the CLI, nothing reaches Shopify except Send to Shopify of an approved PO (and Cancel of a
+sent one); running the cycle never approves or sends.
+
 ## CLI
 
 Every command takes `--tenant` (tenant id or name) except `tenant add` and `tenant list`; `cycle`,
@@ -88,6 +124,7 @@ Every command takes `--tenant` (tenant id or name) except `tenant add` and `tena
 | `engine suppliers add NAME --kind factory --lead-time 30 [--pack N --moq N --style S \| --product P]` / `suppliers list` | Suppliers, lead times, pack multiples, MOQs |
 | `engine po suggest` / `list` / `approve PO [--edit VARIANT=QTY]` / `push PO` / `sync` / `cancel PO` | Purchase orders |
 | `engine cycle` | The monthly operating cycle |
+| `engine ui [--port P --demo --demo-db URL --no-browser]` | The local web screen (see above) |
 
 ## Operating cycle
 
