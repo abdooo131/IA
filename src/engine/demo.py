@@ -299,18 +299,31 @@ def demo_url(url: str, name: str = DEMO_DB_NAME) -> str:
     return make_conninfo(url, dbname=name)
 
 
-def reset_database(url: str) -> None:
-    """Create the database of url if missing, then wipe it (drop and recreate the public schema)."""
+def _same_database(a: str, b: str) -> bool:
+    da, dbb = conninfo_to_dict(a), conninfo_to_dict(b)
+    key = lambda d: ((d.get("host") or "localhost").lower(), str(d.get("port") or "5432"), d.get("dbname"))  # noqa: E731
+    return key(da) == key(dbb)
+
+
+def reset_database(url: str, database_url: str | None = None) -> None:
+    """Create the database of url if missing, then wipe it (drop and recreate the public schema).
+
+    Refuses (ValueError) to wipe the engine's own database (database_url, default config.database_url(): the
+    DATABASE_URL or the default local database) or a database holding any tenant other than the sample store."""
+    from . import config
     name = conninfo_to_dict(url).get("dbname")
     if not name:
         raise ValueError("the demo database URL names no database")
-    try:
-        c = psycopg.connect(url, autocommit=True)
-    except psycopg.OperationalError:
-        with psycopg.connect(make_conninfo(url, dbname="postgres"), autocommit=True) as admin:
-            admin.execute(f'CREATE DATABASE "{name}"')
-        c = psycopg.connect(url, autocommit=True)
-    with c:
+    if _same_database(url, database_url or config.database_url()):
+        raise ValueError("the demo database is the engine's own database (DATABASE_URL); give --demo-db another"
+                         " database")
+    db.ensure_database(url)
+    with psycopg.connect(url, autocommit=True) as c:
+        has_tenants = c.execute("SELECT to_regclass('public.tenants') IS NOT NULL").fetchone()[0]
+        others = [r[0] for r in c.execute("SELECT name FROM tenants WHERE name <> %s ORDER BY name",
+                                          (TENANT_NAME,))] if has_tenants else []
+        if others:
+            raise ValueError(f"database {name} holds real stores ({', '.join(others)}); the demo will not wipe it")
         c.execute("DROP SCHEMA IF EXISTS public CASCADE")
         c.execute("CREATE SCHEMA public")
 

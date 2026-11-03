@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import re
+import tempfile
 from pathlib import Path
 
 DEFAULT_PATH = Path.home() / ".engine_env"
@@ -58,8 +59,8 @@ def read_env(path: Path) -> dict[str, str]:
 
 
 def write_env(path: Path, values: dict[str, str]) -> None:
-    """Set `export NAME="value"` for each name: replace the name's existing line(s), append new ones. The file is
-    created with mode 600 and kept at 600."""
+    """Set `export NAME="value"` for each name: replace the name's existing line(s), append new ones. Written
+    atomically (a mode 600 temporary file in the same directory, then os.replace), so the file is always 600."""
     for name in values:
         if not _NAME.match(name):
             raise ValueError(f"not an environment variable name: {name!r}")
@@ -79,10 +80,20 @@ def write_env(path: Path, values: dict[str, str]) -> None:
             continue
         out.append(line)
     out += [f"export {n}={_quote(v)}" for n, v in values.items() if n not in done]
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    os.fchmod(fd, 0o600)                    # an existing file too, before any secret is written
-    with os.fdopen(fd, "w") as f:
-        f.write("\n".join(out) + "\n")
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.")      # mode 600 from the start
+    try:
+        with os.fdopen(fd, "w") as f:
+            f.write("\n".join(out) + "\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(tmp, 0o600)
+        os.replace(tmp, path)               # readers see the old file or the new one, never half of it
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except FileNotFoundError:
+            pass
+        raise
 
 
 def load_into_environ(path: Path) -> list[str]:

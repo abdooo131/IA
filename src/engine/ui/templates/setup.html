@@ -89,7 +89,7 @@
     <input type="hidden" name="csrf" value="{{ csrf }}"><input type="hidden" name="tenant" value="{{ tenant.tenant_id }}">
     <label>Ad id <input name="ad_id" list="unmapped-ads" required></label>
     <datalist id="unmapped-ads">{% for a in unmapped %}<option value="{{ a.ad_id }}">{{ a.ad_name or '' }}</option>{% endfor %}</datalist>
-    {% for i in range(1, 4) %}
+    {% for i in range(1, ad_map_rows + 1) %}
     <label>Product {{ i }}
       <select name="product_{{ i }}"><option value="">–</option>{% for pid, name in products %}<option value="{{ pid }}">{{ name }}</option>{% endfor %}</select>
     </label>

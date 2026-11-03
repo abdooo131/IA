@@ -6,8 +6,11 @@ of the test DB); setup tests use the conftest test DB and fake clients.
 """
 import os
 import re
+import socket
 import stat
+import subprocess
 import time
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -15,6 +18,7 @@ from fastapi.testclient import TestClient
 from psycopg.conninfo import make_conninfo
 
 from engine import db, demo, tenants
+from engine.ui import app as app_module, envfile, server
 from engine.ui.app import UiConfig, create_app
 from conftest import TEST_URL
 
@@ -361,6 +365,8 @@ def test_connect_store_writes_tokens_to_env_file_only(conn, fake_clients, tmp_pa
 
 def test_connect_store_new_env_file_and_error_redacted(conn, fake_clients, tmp_path, monkeypatch):
     monkeypatch.setattr(os, "environ", os.environ.copy())
+    os.environ["EVE_SHOPIFY_TOKEN"] = "previous-value-123"
+    os.environ.pop("EVE_META_TOKEN", None)
     app, client = make_client(tmp_path, url=TEST_URL, is_demo=False)
 
     def boom(query, variables=None):
@@ -371,7 +377,8 @@ def test_connect_store_new_env_file_and_error_redacted(conn, fake_clients, tmp_p
                                            "meta_accounts": "1", "po_prefix": "EVE"})
     assert r.status_code == 502 and "Shopify rejected" in r.text
     assert "shpat_badbadbad123456" not in r.text and "EAAmeta987654321xyz" not in r.text
-    assert stat.S_IMODE((tmp_path / "engine_env").stat().st_mode) == 0o600
+    assert not (tmp_path / "engine_env").exists()                 # written only after the store is accepted
+    assert os.environ["EVE_SHOPIFY_TOKEN"] == "previous-value-123" and "EVE_META_TOKEN" not in os.environ
     assert conn.execute("SELECT count(*) AS n FROM tenants").fetchone()["n"] == 0
 
 
@@ -383,14 +390,151 @@ def test_no_tenant_goes_to_setup(conn, tmp_path):
     assert "Connect a store" in html and 'type="password"' in html
 
 
-def test_database_unreachable_shows_setup_page(tmp_path):
+def test_database_unreachable_shows_setup_page(tmp_path, monkeypatch):
     def down():
-        raise psycopg.OperationalError("connection refused")
-    app = create_app(UiConfig(port=PORT, connect=down, env_file=tmp_path / "e", database_configured=True))
+        raise psycopg.OperationalError("connection to postgresql://u:pw0secret@db.example/engine refused")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:pw0secret@db.example/engine")
+    app = create_app(UiConfig(port=PORT, connect=down, env_file=tmp_path / "e"))
     client = TestClient(app, base_url=BASE)
     for path in ("/", "/pos", "/setup"):
         r = client.get(path)
         assert r.status_code == 503 and "database" in r.text.lower() and "Traceback" not in r.text
-    app = create_app(UiConfig(port=PORT, connect=down, env_file=tmp_path / "e", database_configured=False))
+        assert "pw0secret" not in r.text and "DATABASE_URL" in r.text and "tried the usual local one" not in r.text
+
+
+# ---------------------------------------------------------------- database: the default local database
+
+def _drop(name):
+    _admin(f"DROP DATABASE IF EXISTS {name} WITH (FORCE)")
+
+
+def test_ensure_database_creates_missing_and_never_wipes():
+    url = make_conninfo(TEST_URL, dbname="engine_test_ensure")
+    _drop("engine_test_ensure")
+    try:
+        assert db.ensure_database(url) == url
+        with psycopg.connect(url, autocommit=True) as c:
+            c.execute("CREATE TABLE keep_me (x int)")
+            c.execute("INSERT INTO keep_me VALUES (1)")
+        db.ensure_database(url)
+        with psycopg.connect(url) as c:
+            assert c.execute("SELECT x FROM keep_me").fetchone() == (1,)
+    finally:
+        _drop("engine_test_ensure")
+
+
+def test_default_database_used_when_database_url_unset(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    default = make_conninfo(TEST_URL, dbname="engine_test_default")
+    _drop("engine_test_default")
+    try:
+        app = create_app(UiConfig(port=PORT, connect=server.database_connect(default), env_file=tmp_path / "e",
+                                  default_url=default))
+        client = TestClient(app, base_url=BASE)
+        r = client.get("/", follow_redirects=False)
+        assert r.status_code == 303 and r.headers["location"] == "/setup"      # reached, created and migrated
+        assert "Connect a store" in client.get("/setup").text
+    finally:
+        _drop("engine_test_default")
+
+
+def test_default_database_unreachable_shows_homebrew_hints(tmp_path, monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    default = "postgresql://localhost:1/engine"
+    app = create_app(UiConfig(port=PORT, connect=server.database_connect(default), env_file=tmp_path / "e",
+                              default_url=default))
     r = TestClient(app, base_url=BASE).get("/")
-    assert r.status_code == 503 and "DATABASE_URL" in r.text
+    assert r.status_code == 503 and "Traceback" not in r.text
+    assert "brew services start postgresql@16" in r.text and default in r.text and "user:password" not in r.text
+
+
+def test_database_url_wins_over_the_default(tmp_path, monkeypatch):
+    monkeypatch.setenv("DATABASE_URL", TEST_URL)
+    connect = server.database_connect("postgresql://localhost:1/engine")
+    with connect() as c:
+        assert c.info.dbname == "engine_test"
+
+
+# ---------------------------------------------------------------- connect a store: no overwriting
+
+def test_connect_store_refuses_existing_store_or_env_names(conn, tenant_a, fake_clients, tmp_path, monkeypatch):
+    monkeypatch.setattr(os, "environ", os.environ.copy())
+    os.environ["A_SHOPIFY_TOKEN"] = "working-token-of-a"
+    before = dict(os.environ)
+    app, client = make_client(tmp_path, url=TEST_URL, is_demo=False)
+    base = {"shop": "new.myshopify.com", "shopify_token": "shpat_new1234567", "meta_token": "EAAnew",
+            "meta_accounts": "1", "po_prefix": "N"}
+    for form, why in (({**base, "name": "Tenant A"}, "already connected"),
+                      ({**base, "name": "New Store", "shop": "a.myshopify.com"}, "already connected"),
+                      ({**base, "name": "a"}, "A_SHOPIFY_TOKEN")):
+        r = post(app, client, "/setup/store", form)
+        assert r.status_code == 400 and why in r.text, (form, r.text[-800:])
+        assert "shpat_new1234567" not in r.text
+    assert not (tmp_path / "engine_env").exists() and dict(os.environ) == before
+    assert not fake_clients.shopify.calls                       # nothing was even tried
+    assert conn.execute("SELECT count(*) AS n FROM tenants").fetchone()["n"] == 1
+
+
+# ---------------------------------------------------------------- launcher, demo guard, redaction, env file, port
+
+def test_launcher_without_venv_explains_and_waits(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "scripts").mkdir(parents=True)
+    script = repo / "scripts" / "Engine.command"
+    script.write_text((Path(__file__).parent.parent / "scripts" / "Engine.command").read_text())
+    r = subprocess.run(["bash", str(script)], input="\n", capture_output=True, text=True, timeout=30,
+                       env={"HOME": str(tmp_path), "PATH": "/usr/bin:/bin"})
+    assert r.returncode != 0
+    assert "python3 -m venv .venv" in r.stdout and "pip install -e ." in r.stdout and "Press Enter" in r.stdout
+
+
+def test_demo_reset_refuses_real_databases(conn, tenant_a):
+    other = make_conninfo(TEST_URL, dbname="engine_test_other")
+    with pytest.raises(ValueError, match="DATABASE_URL"):
+        demo.reset_database(TEST_URL, database_url=TEST_URL)
+    with pytest.raises(ValueError, match="Tenant A"):
+        demo.reset_database(TEST_URL, database_url=other)
+    assert conn.execute("SELECT count(*) AS n FROM tenants").fetchone()["n"] == 1
+
+
+def test_redact_hides_database_passwords():
+    for text in ("connect postgresql://bob:s3cretpw@db.example:5432/engine failed",
+                 "postgres://bob:s3cretpw@db.example/engine", "host=db user=bob password=s3cretpw dbname=x"):
+        out = tenants.redact(text)
+        assert "s3cretpw" not in out and "[REDACTED]" in out, out
+    assert tenants.redact("postgresql://localhost:5432/engine") == "postgresql://localhost:5432/engine"
+
+
+def test_env_file_written_atomically(tmp_path, monkeypatch):
+    path = tmp_path / "engine_env"
+    path.write_text('export KEEP="1"\n')
+    path.chmod(0o644)
+    replaced = []
+    real = os.replace
+    monkeypatch.setattr(os, "replace", lambda a, b: (replaced.append((Path(a).parent, Path(b))), real(a, b)))
+    envfile.write_env(path, {"X_TOKEN": "v"})
+    assert replaced == [(tmp_path, path)]
+    assert stat.S_IMODE(path.stat().st_mode) == 0o600 and envfile.read_env(path) == {"KEEP": "1", "X_TOKEN": "v"}
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["engine_env"]
+
+
+def test_busy_port_is_reported(tmp_path):
+    with socket.socket() as s:
+        s.bind(("127.0.0.1", 0))
+        s.listen()
+        port = s.getsockname()[1]
+        assert not server.port_free(port)
+        with pytest.raises(SystemExit, match="already in use"):
+            server.serve(port=port, open_browser=False, env_file=tmp_path / "e")
+    assert server.port_free(port)
+
+
+def test_style_names_keep_their_capitals_and_ad_map_rows_match(ui, demo_env):
+    app, client = ui
+    with db.connect(DEMO_URL) as c:
+        c.execute("UPDATE styles SET name = 'Maxi-Dress Noor' WHERE style_id = '1-silk-dress'")
+        c.commit()
+    html = client.get("/").text
+    assert "Maxi-Dress Noor" in html and "Wool Coat" in html
+    setup = client.get("/setup").text
+    assert setup.count('name="product_') == app_module.AD_MAP_ROWS == setup.count('name="share_')

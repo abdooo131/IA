@@ -51,6 +51,8 @@ _TOKEN_PATTERNS = (
     re.compile(r"(Bearer\s+)[A-Za-z0-9._\-]+", re.I),
     re.compile(r"()\bshp(?:at|ca|pa|ss)_[A-Za-z0-9]+"),        # Shopify Admin API tokens
     re.compile(r"()\bEAA[A-Za-z0-9]{20,}"),                    # Meta access tokens
+    re.compile(r"(\bpostgres(?:ql)?://[^:/@\s]*:)[^@\s]+(?=@)", re.I),  # database URL passwords
+    re.compile(r"(\bpassword\s*=\s*)[^\s'\"]+", re.I),            # key=value conninfo passwords
 )
 
 

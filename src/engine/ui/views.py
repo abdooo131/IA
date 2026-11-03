@@ -116,6 +116,12 @@ def plain_rule(rule: str | None, currency: str) -> str:
 
 # ---------------------------------------------------------------- names
 
+def _style_name(name: str) -> str:
+    """Style names built from lower case base titles read better capitalised; a name with capitals or hyphens is
+    kept as stored."""
+    return name if name != name.lower() or "-" in name else name.title()
+
+
 def names(conn, t: Tenant) -> dict[str, dict]:
     """Display names: product id -> title, style id -> name, variant id -> (title, size)."""
     prod, var = {}, {}
@@ -123,7 +129,7 @@ def names(conn, t: Tenant) -> dict[str, dict]:
                           (t.tenant_id,)):
         prod.setdefault(r["product_id"], r["title"] or r["product_id"])
         var[r["variant_id"]] = (r["title"] or r["product_id"], r["size"] or "", r["sku"] or "")
-    styles = {r["style_id"]: (r["name"] or r["style_id"]).title()
+    styles = {r["style_id"]: _style_name(r["name"] or r["style_id"])
               for r in conn.execute("SELECT style_id, name FROM styles WHERE tenant_id = %s", (t.tenant_id,))}
     return {"product": prod, "style": styles, "variant": var}
 

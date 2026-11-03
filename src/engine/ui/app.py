@@ -27,11 +27,12 @@ from fastapi.templating import Jinja2Templates
 from starlette.datastructures import FormData
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
-from .. import attribution, cli, db, lineage, purchasing, tenants
+from .. import attribution, cli, config, db, lineage, purchasing, tenants
 from . import envfile, views
 from .jobs import Job, Jobs
 
 HERE = Path(__file__).parent
+AD_MAP_ROWS = 3                                       # product / share rows of the manual ad map form
 SAFE_NEXT = ("/", "/pos", "/run", "/setup", "/plan", "/scorecard", "/lost-sales")
 
 
@@ -41,7 +42,7 @@ class UiConfig:
     connect: Callable = field(default=db.connect)      # connection factory
     demo: bool = False
     env_file: Path = envfile.DEFAULT_PATH
-    database_configured: bool = True                  # False: DATABASE_URL was not set at start
+    default_url: str = config.DEFAULT_DATABASE_URL     # tried when DATABASE_URL is not set (server.database_connect)
 
 
 class DatabaseDown(Exception):
@@ -99,7 +100,9 @@ def create_app(cfg: UiConfig) -> FastAPI:
 
     @app.exception_handler(DatabaseDown)
     async def _db_down(request: Request, exc: DatabaseDown):
-        return _render(request, "database.html", {"error": str(exc) or None}, status=503, page_ctx=None)
+        return _render(request, "database.html", {"error": str(exc) or None, "default_url": cfg.default_url,
+                                                  "using_default": "DATABASE_URL" not in os.environ},
+                       status=503, page_ctx=None)
 
     @app.exception_handler(NeedSetup)
     async def _need_setup(request: Request, exc: NeedSetup):
@@ -125,8 +128,6 @@ def create_app(cfg: UiConfig) -> FastAPI:
 def get_conn(request: Request):
     """A connection for the request (migrated once per process); DatabaseDown when the DB is not reachable."""
     st = request.app.state
-    if not st.cfg.database_configured and "DATABASE_URL" not in os.environ:
-        raise DatabaseDown()
     try:
         conn = st.cfg.connect()
     except psycopg.Error as e:
@@ -418,7 +419,7 @@ def _routes(app: FastAPI) -> None:
     def _setup_page(request, conn, form=None, error=None, status=200, values=None):
         ts, t = _tenant(request, conn, form, required=False)
         ctx = {"tenants": ts, "tenant": t, "error": error, "values": values or {},
-               "env_file": str(request.app.state.cfg.env_file), "job": None}
+               "env_file": str(request.app.state.cfg.env_file), "job": None, "ad_map_rows": AD_MAP_ROWS}
         if t is not None:
             nm = views.names(conn, t)
             today = cli.local_today(t)
@@ -465,7 +466,7 @@ def _routes(app: FastAPI) -> None:
         def act(t):
             ad_id = str(form.get("ad_id") or "").strip()
             shares = []
-            for i in range(1, 6):
+            for i in range(1, AD_MAP_ROWS + 1):
                 prod = str(form.get(f"product_{i}") or "").strip()
                 raw = str(form.get(f"share_{i}") or "").strip()
                 if not prod:
@@ -525,11 +526,12 @@ def _routes(app: FastAPI) -> None:
         if missing:
             return _setup_page(request, conn, form, error="Please fill in: " + ", ".join(missing) + ".", status=400,
                                values=values)
-        try:
-            envfile.write_env(cfg.env_file, {shop_env: shop_token, meta_env: meta_token})
-        except (OSError, ValueError) as e:
-            return _setup_page(request, conn, form, error=tenants.redact(e, env_names=(shop_env, meta_env)),
-                               status=400, values=values)
+        clash = _store_clash(conn, values["name"], values["shop"], shop_env, meta_env)
+        if clash:
+            return _setup_page(request, conn, form, error=clash, status=400, values=values)
+        # The tokens live only in this process's environment while add_tenant checks them; the env file is
+        # written after the store is accepted, and the previous values come back if it is refused.
+        previous = {n: os.environ.get(n) for n in (shop_env, meta_env)}
         os.environ[shop_env], os.environ[meta_env] = shop_token, meta_token
         warnings: list[str] = []
         try:
@@ -538,11 +540,17 @@ def _routes(app: FastAPI) -> None:
         except Exception as e:                       # noqa: BLE001  HTTP errors included; never echo a token
             conn.rollback()
             msg = str(e) if isinstance(e, ValueError) else f"{type(e).__name__}: {e}"
-            return _setup_page(request, conn, form, error=tenants.redact(msg, env_names=(shop_env, meta_env)),
-                               status=_action_status(e), values=values)
+            msg = tenants.redact(msg, env_names=(shop_env, meta_env))      # while the values are still set
+            _restore_env(previous)
+            return _setup_page(request, conn, form, error=msg, status=_action_status(e), values=values)
         _changed(request.app)
-        text = (f"Connected {t.name} ({t.timezone}, {t.currency}). Tokens saved in {cfg.env_file} as {shop_env} and"
-                f" {meta_env}.")
+        try:
+            envfile.write_env(cfg.env_file, {shop_env: shop_token, meta_env: meta_token})
+            saved = f"Tokens saved in {cfg.env_file} as {shop_env} and {meta_env}."
+        except (OSError, ValueError) as e:
+            saved = (f"The tokens could not be saved in {cfg.env_file} ({tenants.redact(e, t)}): add {shop_env} and"
+                     f" {meta_env} there yourself before the next start.")
+        text = f"Connected {t.name} ({t.timezone}, {t.currency}). {saved}"
         if warnings:
             text += " Warning: " + "; ".join(warnings)
         if form.get("skip_history") != "on":
@@ -567,8 +575,31 @@ def _routes(app: FastAPI) -> None:
                            status=400)
         envfile.write_env(cfg.env_file, {"DATABASE_URL": url})
         os.environ["DATABASE_URL"] = url
-        cfg.database_configured = True
         return RedirectResponse("/", status_code=303)
+
+
+def _store_clash(conn, name: str, shop: str, shop_env: str, meta_env: str) -> str | None:
+    """Why a new store would overwrite a connected one (same name, same shop, or token env var names in use by
+    another store), or None."""
+    row = conn.execute("SELECT name FROM tenants WHERE lower(name) = lower(%s) OR lower(shop_domain) = lower(%s)"
+                       " LIMIT 1", (name, shop)).fetchone()
+    if row is not None:
+        return f"The store {row['name']} is already connected (same name or shop domain); nothing was changed."
+    row = conn.execute("SELECT name, shopify_token_env, meta_token_env FROM tenants WHERE shopify_token_env = ANY(%s)"
+                       " OR meta_token_env = ANY(%s) LIMIT 1", ([shop_env, meta_env], [shop_env, meta_env])).fetchone()
+    if row is not None:
+        return (f"The store {row['name']} already keeps its tokens in {row['shopify_token_env']} and"
+                f" {row['meta_token_env']}; choose a store name that gives other names than {shop_env}."
+                " Nothing was changed.")
+    return None
+
+
+def _restore_env(previous: dict[str, str | None]) -> None:
+    for name, value in previous.items():
+        if value is None:
+            os.environ.pop(name, None)
+        else:
+            os.environ[name] = value
 
 
 def _int(form: FormData, key: str, label: str, default: int | None = None) -> int:
