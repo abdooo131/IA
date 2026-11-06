@@ -625,7 +625,9 @@
         "document_type__create": "Document type added",
         "document_type__update": "Document type changed",
         "checklist_template__create": "Checklist template added",
-        "checklist_template__update": "Checklist template changed"
+        "checklist_template__update": "Checklist template changed",
+        "finance__salary_set": "Salary set (before HR v2)",
+        "finance__employment_set": "Employment set (before HR v2)"
       }
     },
     "users": {

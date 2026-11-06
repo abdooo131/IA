@@ -625,7 +625,9 @@
         "document_type__create": "إضافة نوع مستند",
         "document_type__update": "تغيير نوع مستند",
         "checklist_template__create": "إضافة قالب قائمة",
-        "checklist_template__update": "تغيير قالب قائمة"
+        "checklist_template__update": "تغيير قالب قائمة",
+        "finance__salary_set": "تحديد الراتب (قبل نسخة الموارد البشرية 2)",
+        "finance__employment_set": "تحديد نوع التعاقد (قبل نسخة الموارد البشرية 2)"
       }
     },
     "users": {
