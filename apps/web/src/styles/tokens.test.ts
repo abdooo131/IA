@@ -80,7 +80,8 @@ describe('brand v2 tokens', () => {
     expect(light.navy).toBe('#082341');
     expect(light.blue).toBe('#0046fc');
     expect(light.lime).toBe('#cff905');
-    expect(light.bg).toBe(light.cream);
+    // The owner kept the earlier light grey page background (#F3F6FA) instead of Cream.
+    expect(light.bg).toBe('#f3f6fa');
     expect(light.text).toBe(light.navy);
     expect(light.primary).toBe(light.blue);
     expect(light.accent).toBe(light.lime);

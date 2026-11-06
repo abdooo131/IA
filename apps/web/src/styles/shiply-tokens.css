@@ -68,10 +68,10 @@
   --shiply-white: #ffffff;
 
   /* roles, light: Cream page, white cards, Navy text, Shiply Blue actions */
-  --shiply-bg: #faf1e8;
+  --shiply-bg: #f3f6fa;
   --shiply-surface: #ffffff;
-  --shiply-surface-raised: #f6ede3;
-  --shiply-line: #e7dccf;
+  --shiply-surface-raised: #f3f6fa;
+  --shiply-line: #dfe5ee;
   /* borders that must stay visible (form fields): 3:1 on white and Cream */
   --shiply-line-strong: #7f8798;
   --shiply-text: #082341;
@@ -182,7 +182,7 @@
     --shiply-surface-raised: #133559;
     --shiply-line: #24476f;
     --shiply-line-strong: #6b85ab;
-  --shiply-line-strong: #6b85ab;
+    --shiply-line-strong: #6b85ab;
     --shiply-text: #faf1e8;
     --shiply-text-muted: #bfcbe0;
     --shiply-primary: #3366ff;

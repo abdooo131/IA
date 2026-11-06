@@ -63,7 +63,7 @@ export const APPS: AppDef[] = [
   {
     id: 'operations',
     icon: 'orders',
-    color: '#0046FC',
+    color: '#1D4ED8',
     access: 'operations',
     menus: [
       { label: 'dashboard', pages: [{ href: '/admin', label: 'overview', exact: true }] },
@@ -83,7 +83,7 @@ export const APPS: AppDef[] = [
   {
     id: 'inventory',
     icon: 'inventory',
-    color: '#082341',
+    color: '#0F766E',
     access: 'inventory',
     menus: [
       { label: 'stock', pages: [{ href: '/admin/stock', label: 'stockLevels' }] },
@@ -103,7 +103,7 @@ export const APPS: AppDef[] = [
   {
     id: 'merchants',
     icon: 'store',
-    color: '#CFF905',
+    color: '#B45309',
     access: 'merchants',
     menus: [
       { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
@@ -115,7 +115,7 @@ export const APPS: AppDef[] = [
   {
     id: 'customers',
     icon: 'customers',
-    color: '#6A3FD6',
+    color: '#7C3AED',
     access: 'customers',
     menus: [
       {
@@ -130,7 +130,7 @@ export const APPS: AppDef[] = [
   {
     id: 'accounting',
     icon: 'wallet',
-    color: '#12753C',
+    color: '#15803D',
     access: 'accounting',
     menus: [
       {
@@ -206,7 +206,7 @@ export const APPS: AppDef[] = [
   {
     id: 'hr',
     icon: 'account',
-    color: '#EBD9C6',
+    color: '#BE185D',
     access: 'hr',
     menus: [
       {
@@ -249,7 +249,7 @@ export const APPS: AppDef[] = [
   {
     id: 'system',
     icon: 'settings',
-    color: '#4A5A72',
+    color: '#475569',
     access: 'settings',
     menus: [
       {
@@ -290,7 +290,7 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
 }
 
 /** The store screens: a tile on the home screen for people with store use (not an app bar). */
-export const STORE_TILE = { icon: 'scan', color: '#0030B0', href: '/store' } as const satisfies {
+export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as const satisfies {
   icon: IconName;
   color: string;
   href: string;
