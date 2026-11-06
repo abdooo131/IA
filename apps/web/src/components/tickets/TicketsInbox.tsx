@@ -12,7 +12,7 @@ import type { Assignee, TicketList, TicketRow } from '@/lib/ticket-types';
 const field =
   'mt-1 block w-full rounded-md border border-line bg-surface px-3 py-2 text-body-sm text-text';
 const primary =
-  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 const KNOWN = ['assignee_not_found', 'cannot_assign_self', 'validation_failed'];
 
 /** Late means the answer is still owed and its time has passed. */

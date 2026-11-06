@@ -102,7 +102,7 @@ function Links({ groups, onPick }: { groups: NavGroup[]; onPick?: () => void }) 
                         {active && (
                           <span
                             aria-hidden="true"
-                            className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-primary"
+                            className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-accent"
                           />
                         )}
                         <Icon name={item.icon} size={20} selected={active} />
@@ -178,7 +178,7 @@ export function SideNav({
       </div>
       {open && (
         <div
-          className="fixed inset-0 z-40 bg-[rgba(19,41,75,0.45)] lg:hidden"
+          className="fixed inset-0 z-40 bg-[rgba(8,35,65,0.5)] lg:hidden"
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
@@ -186,7 +186,7 @@ export function SideNav({
       <aside
         id="side-nav"
         aria-label={t('menu')}
-        className={`fixed inset-y-0 start-0 z-50 flex w-[272px] max-w-[85vw] flex-col border-e border-line bg-surface shadow-lg transition-transform lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-[232px] lg:shadow-none ${
+        className={`shiply-on-navy fixed inset-y-0 start-0 z-50 flex w-[272px] max-w-[85vw] flex-col border-e border-line bg-surface shadow-lg transition-transform lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-[232px] lg:shadow-none ${
           open ? '' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full'
         }`}
       >

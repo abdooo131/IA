@@ -155,13 +155,13 @@ export default function CameraScanner({
         <button
           type="button"
           onClick={onClose}
-          className="h-10 shrink-0 rounded-md bg-white px-4 text-body-sm font-bold text-[#13294B]"
+          className="h-10 shrink-0 rounded-md bg-white px-4 text-body-sm font-bold text-shiply-navy"
         >
           {t('closeCamera')}
         </button>
       </div>
       {message ? (
-        <p role="alert" className="mt-6 rounded-md bg-white p-4 text-body-sm text-[#13294B]">
+        <p role="alert" className="mt-6 rounded-md bg-white p-4 text-body-sm text-shiply-navy">
           {message}
         </p>
       ) : (

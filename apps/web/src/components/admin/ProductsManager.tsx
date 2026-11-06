@@ -20,7 +20,7 @@ const KNOWN = ['sku_taken', 'barcode_taken', 'validation_failed'];
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
 const primary =
-  'h-10 rounded-md bg-primary px-5 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-10 rounded-md bg-primary px-5 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 const secondary =
   'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
 const TEMPLATE_HEADER = ['sku', 'barcode', 'title_en', 'title_ar', 'price_egp', 'weight_grams'];

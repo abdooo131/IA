@@ -20,7 +20,7 @@ const KNOWN = [
   'network',
 ];
 const primary =
-  'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 
 /** Staff pick a merchant return by scan (bin first is optional), then hand it over. */
 export function StoreReturnWork({ storeId, initial }: { storeId: string; initial: ReturnDetail }) {

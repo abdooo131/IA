@@ -32,6 +32,8 @@
   "login": {
     "title": "Sign in",
     "subtitle": "Shiply Now operations",
+    "tagline": "From order to growth.",
+    "taglineNote": "60 minute delivery from our dark stores across Greater Cairo.",
     "email": "Email",
     "password": "Password",
     "submit": "Sign in",

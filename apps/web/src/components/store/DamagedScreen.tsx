@@ -210,7 +210,7 @@ export function DamagedScreen({
                   type="button"
                   onClick={confirm}
                   disabled={action.busy || !target || (reason === 'damaged' && !cause)}
-                  className="h-12 flex-1 rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
+                  className="h-12 flex-1 rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted"
                 >
                   {t('confirm')}
                 </button>

@@ -9,7 +9,7 @@ import { apiSend } from '@/lib/api-client';
 
 const input = 'h-10 rounded-md border border-line bg-surface px-2 text-body-sm text-text';
 const secondary =
-  'h-10 rounded-md bg-selected-bg px-4 text-body-sm font-bold text-link disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-10 rounded-md bg-selected-bg px-4 text-body-sm font-bold text-link disabled:bg-line disabled:text-text-muted';
 
 function useSaver() {
   const t = useTranslations('admin.zones');

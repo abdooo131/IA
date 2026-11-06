@@ -50,14 +50,15 @@ export function TrackingClient({ token, initial }: { token: string; initial: Tra
 
   return (
     <div className="space-y-4">
-      <header className="space-y-1">
-        <p className="text-body-sm text-text-muted">{view.merchantName}</p>
+      {/* The brand hero: Navy ground, the status large, the promised time as the one Lime note. */}
+      <header className="space-y-1 rounded-xl bg-hero p-5 text-hero-ink">
+        <p className="text-body-sm opacity-90">{view.merchantName}</p>
         <h1 className="text-h2">{t('title', { number: view.number })}</h1>
-        <p className="text-body font-bold" role="status">
+        <p className="text-body-lg font-bold" role="status">
           {t(`status.${view.status}`)}
         </p>
         {view.promiseAt && step >= 0 && step < 3 && (
-          <p className="text-body-sm">
+          <p className="text-body-sm font-semibold text-hero-accent">
             {t('promise', { time: formatCairoTime(view.promiseAt, locale) })}
           </p>
         )}
@@ -164,7 +165,7 @@ function RatingBox({
         <p className="text-body font-bold">{t('thanks')}</p>
         <p className="text-h3 text-primary" aria-label={t('starsLabel', { count: rating.stars })}>
           {'★'.repeat(rating.stars)}
-          <span className="text-line">{'★'.repeat(5 - rating.stars)}</span>
+          <span className="text-line-strong">{'★'.repeat(5 - rating.stars)}</span>
         </p>
       </section>
     );
@@ -193,7 +194,7 @@ function RatingBox({
             role="radio"
             aria-checked={stars === n}
             aria-label={t('starsLabel', { count: n })}
-            className={`h-12 w-12 rounded-md text-[2rem] leading-none ${n <= stars ? 'text-primary' : 'text-line'}`}
+            className={`h-12 w-12 rounded-md text-[2rem] leading-none ${n <= stars ? 'text-primary' : 'text-line-strong'}`}
             onClick={() => setStars(n)}
           >
             ★

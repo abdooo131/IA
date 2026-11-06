@@ -5,9 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useUnsavedChanges } from './useUnsavedChanges';
 
 const primary =
-  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
-const button =
-  'h-10 rounded-md border border-line bg-surface px-4 text-body-sm font-bold disabled:opacity-50';
+  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
+const button = 'btn-secondary';
 
 /**
  * Save and Cancel for a form, with its saved state: "Unsaved changes" while edited, and a

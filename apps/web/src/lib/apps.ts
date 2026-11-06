@@ -34,7 +34,7 @@ export interface AppMenu {
 export interface AppDef {
   id: AppId;
   icon: IconName;
-  /** The tile's color: a solid brand shade that keeps white text readable. */
+  /** The tile's color, from the brand v2 palette; AppTileIcon picks white or Navy for the icon. */
   color: string;
   /** The access app behind it: the tile shows from view (settings: manage). */
   access: AccessApp;
@@ -63,7 +63,7 @@ export const APPS: AppDef[] = [
   {
     id: 'operations',
     icon: 'orders',
-    color: '#1D4ED8',
+    color: '#0046FC',
     access: 'operations',
     menus: [
       { label: 'dashboard', pages: [{ href: '/admin', label: 'overview', exact: true }] },
@@ -83,7 +83,7 @@ export const APPS: AppDef[] = [
   {
     id: 'inventory',
     icon: 'inventory',
-    color: '#0F766E',
+    color: '#082341',
     access: 'inventory',
     menus: [
       { label: 'stock', pages: [{ href: '/admin/stock', label: 'stockLevels' }] },
@@ -103,7 +103,7 @@ export const APPS: AppDef[] = [
   {
     id: 'merchants',
     icon: 'store',
-    color: '#B45309',
+    color: '#CFF905',
     access: 'merchants',
     menus: [
       { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
@@ -115,7 +115,7 @@ export const APPS: AppDef[] = [
   {
     id: 'customers',
     icon: 'customers',
-    color: '#7C3AED',
+    color: '#6A3FD6',
     access: 'customers',
     menus: [
       {
@@ -130,7 +130,7 @@ export const APPS: AppDef[] = [
   {
     id: 'accounting',
     icon: 'wallet',
-    color: '#15803D',
+    color: '#12753C',
     access: 'accounting',
     menus: [
       {
@@ -206,7 +206,7 @@ export const APPS: AppDef[] = [
   {
     id: 'hr',
     icon: 'account',
-    color: '#BE185D',
+    color: '#EBD9C6',
     access: 'hr',
     menus: [
       { label: 'employees', pages: [{ href: '/admin/hr', label: 'employees' }] },
@@ -231,7 +231,7 @@ export const APPS: AppDef[] = [
   {
     id: 'system',
     icon: 'settings',
-    color: '#475569',
+    color: '#4A5A72',
     access: 'settings',
     menus: [
       {
@@ -272,7 +272,7 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
 }
 
 /** The store screens: a tile on the home screen for people with store use (not an app bar). */
-export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as const satisfies {
+export const STORE_TILE = { icon: 'scan', color: '#0030B0', href: '/store' } as const satisfies {
   icon: IconName;
   color: string;
   href: string;

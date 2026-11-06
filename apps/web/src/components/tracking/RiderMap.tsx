@@ -44,7 +44,7 @@ export default function RiderMap({
         radius: 9,
         color: '#ffffff',
         weight: 3,
-        fillColor: '#0047BB',
+        fillColor: '#0046FC',
         fillOpacity: 1,
       }).addTo(m);
     } else riderDot.current.setLatLng([rider.lat, rider.lng]);
@@ -53,7 +53,7 @@ export default function RiderMap({
         radius: 8,
         color: '#ffffff',
         weight: 3,
-        fillColor: '#0E9384',
+        fillColor: '#082341',
         fillOpacity: 1,
       }).addTo(m);
     }

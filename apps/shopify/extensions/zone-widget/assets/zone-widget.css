@@ -1,4 +1,49 @@
-/* Shiply Now storefront widget. Scoped under .snw so it never restyles the theme. */
+/* Shiply Now storefront widget. Scoped under .snw so it never restyles the theme.
+   Brand v2: Navy bar, Shiply Blue when the 60 minute option is open, Lime for the one action
+   (always with Navy text), Plus Jakarta Sans and IBM Plex Sans Arabic (OFL, shipped here). */
+@font-face {
+  font-family: 'Shiply Jakarta';
+  font-weight: 400;
+  font-display: swap;
+  src: url('plus-jakarta-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Shiply Jakarta';
+  font-weight: 700;
+  font-display: swap;
+  src: url('plus-jakarta-sans-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Shiply Plex Arabic';
+  font-weight: 400;
+  font-display: swap;
+  src: url('ibm-plex-sans-arabic-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Shiply Plex Arabic';
+  font-weight: 700;
+  font-display: swap;
+  src: url('ibm-plex-sans-arabic-700.woff2') format('woff2');
+}
+.snw,
+.snw-backdrop,
+.snw-badge,
+.snw-standard,
+.snw-product {
+  font-family:
+    'Shiply Jakarta',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+.snw[dir='rtl'],
+.snw-backdrop[dir='rtl'],
+:lang(ar) .snw-badge,
+:lang(ar) .snw-standard,
+:lang(ar) .snw-product {
+  font-family: 'Shiply Plex Arabic', 'Shiply Jakarta', system-ui, sans-serif;
+}
 .snw {
   position: fixed;
   inset-inline: 0;
@@ -7,7 +52,6 @@
   justify-content: center;
   padding: 8px 16px;
   pointer-events: none;
-  font-family: inherit;
 }
 .snw--bottom {
   bottom: 0;
@@ -27,22 +71,25 @@
   width: 100%;
   padding: 10px 12px 10px 16px;
   border-radius: 12px;
-  background: #0b1f3a;
-  color: #fff;
-  box-shadow: 0 6px 24px rgba(11, 31, 58, 0.25);
+  background: #082341;
+  color: #faf1e8;
+  box-shadow: 0 6px 24px rgba(8, 35, 65, 0.25);
   font-size: 14px;
   line-height: 1.4;
 }
 .snw[data-state='open'] .snw-bar {
-  background: #0d6b4f;
+  background: #0046fc;
+  color: #ffffff;
 }
 .snw[data-state='closed'] .snw-bar,
 .snw[data-state='at_capacity'] .snw-bar,
 .snw[data-state='unsure'] .snw-bar {
-  background: #5b4a12;
+  background: #4a5a72;
+  color: #ffffff;
 }
 .snw[data-state='outside'] .snw-bar {
   background: #3d4b5c;
+  color: #ffffff;
 }
 .snw-label {
   flex: 1;
@@ -54,18 +101,21 @@
   padding: 0 16px;
   border: 0;
   border-radius: 8px;
-  background: #fff;
-  color: #0b1f3a;
+  background: #cff905;
+  color: #082341;
   font: inherit;
   font-weight: 700;
   cursor: pointer;
 }
 .snw-button:focus-visible,
-.snw-locate:focus-visible,
+.snw-locate:focus-visible {
+  outline: 3px solid #cff905;
+  outline-offset: 2px;
+}
 .snw-area:focus-visible,
 .snw-close:focus-visible,
 .snw-search:focus-visible {
-  outline: 3px solid #4c9aff;
+  outline: 3px solid #0046fc;
   outline-offset: 2px;
 }
 .snw-backdrop {
@@ -75,8 +125,7 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  background: rgba(11, 31, 58, 0.45);
-  font-family: inherit;
+  background: rgba(8, 35, 65, 0.5);
 }
 @media (min-width: 640px) {
   .snw-backdrop {
@@ -91,8 +140,8 @@
   max-height: 80vh;
   padding: 16px;
   border-radius: 16px 16px 0 0;
-  background: #fff;
-  color: #0b1f3a;
+  background: #faf1e8;
+  color: #082341;
 }
 @media (min-width: 640px) {
   .snw-dialog {
@@ -123,7 +172,9 @@
   margin: 12px 0;
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid #c9d2de;
+  border: 1px solid #7f8798;
+  background: #ffffff;
+  color: #082341;
   border-radius: 8px;
   font: inherit;
 }
@@ -166,7 +217,7 @@
   min-height: 48px;
   padding: 8px 12px;
   border: 0;
-  border-bottom: 1px solid #eef1f5;
+  border-bottom: 1px solid #e7dccf;
   background: transparent;
   color: inherit;
   font: inherit;
@@ -174,7 +225,7 @@
   cursor: pointer;
 }
 .snw-area:hover {
-  background: #f3f6fa;
+  background: #ffffff;
 }
 .snw-area-names {
   display: flex;
@@ -185,16 +236,16 @@
   font-weight: 700;
 }
 .snw-area-parent {
-  color: #5b6b80;
+  color: #556178;
   font-size: 13px;
 }
 .snw-area-store {
-  color: #5b6b80;
+  color: #556178;
   font-size: 13px;
 }
 .snw-note {
   margin: 4px 0 8px;
-  color: #5b6b80;
+  color: #556178;
   font-size: 13px;
 }
 [data-shiplynow] {
@@ -214,12 +265,12 @@
   pointer-events: none;
 }
 .snw-badge {
-  background: #0d6b4f;
-  color: #fff;
+  background: #cff905;
+  color: #082341;
 }
 .snw-standard {
-  background: #eef1f5;
-  color: #3d4b5c;
+  background: #faf1e8;
+  color: #082341;
 }
 .snw-dim {
   opacity: 0.55;
@@ -232,10 +283,10 @@
   font-weight: 700;
 }
 .snw-product--yes {
-  background: #e6f4ef;
-  color: #0d6b4f;
+  background: #e5ecff;
+  color: #0036c4;
 }
 .snw-product--no {
-  background: #f3f6fa;
-  color: #3d4b5c;
+  background: #faf1e8;
+  color: #556178;
 }

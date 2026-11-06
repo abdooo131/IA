@@ -37,7 +37,7 @@ const CANCEL_REASONS = ['customer_request', 'out_of_stock', 'duplicate', 'other'
 const CANCELLABLE = ['new', 'accepted', 'picking', 'packed'];
 
 const primary =
-  'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 const secondary =
   'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
 

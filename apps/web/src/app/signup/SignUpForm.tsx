@@ -132,7 +132,7 @@ export function SignUpForm() {
       <button
         type="submit"
         disabled={busy}
-        className="h-10 w-full rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
+        className="h-10 w-full rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted"
       >
         {t('submit')}
       </button>

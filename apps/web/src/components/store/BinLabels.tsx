@@ -17,7 +17,7 @@ function Label({ code, type }: { code: string; type: string }) {
       });
   }, [code]);
   return (
-    <div className="break-inside-avoid rounded-md border border-line bg-white p-3 text-center text-[#13294B]">
+    <div className="break-inside-avoid rounded-md border border-line bg-white p-3 text-center text-shiply-navy">
       <svg ref={svg} className="mx-auto h-auto max-w-full" />
       <p className="text-caption">{types(type)}</p>
     </div>

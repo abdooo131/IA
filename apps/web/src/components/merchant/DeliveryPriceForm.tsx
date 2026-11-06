@@ -9,7 +9,7 @@ import { parseEgp } from '@/lib/money';
 
 const field = 'h-12 w-40 rounded-md border border-line bg-surface px-3 text-body';
 const primary =
-  'h-12 rounded-md bg-primary px-5 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-12 rounded-md bg-primary px-5 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 const secondary =
   'h-12 rounded-md border border-line bg-surface px-4 text-body-sm font-bold disabled:opacity-50';
 

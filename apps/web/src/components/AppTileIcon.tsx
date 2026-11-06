@@ -1,7 +1,18 @@
 import type { AppDef } from '@/lib/apps';
 import { Icon } from './Icon';
 
-/** An app's square: its icon in white on the app's own color (home tiles and the top bar). */
+/** White on dark tiles, Navy on light ones (Lime, Sand), so the icon always stands out. */
+export function tileInk(hex: string) {
+  const n = parseInt(hex.replace('#', ''), 16);
+  const lin = (c: number) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  };
+  const l = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255);
+  return l > 0.3 ? '#082341' : '#FFFFFF';
+}
+
+/** An app's square: its icon on the app's own brand color (home tiles and the top bar). */
 export function AppTileIcon({
   app,
   size,
@@ -13,8 +24,9 @@ export function AppTileIcon({
   return (
     <span
       aria-hidden="true"
-      className={`inline-flex shrink-0 items-center justify-center text-white ${box}`}
-      style={{ backgroundColor: app.color }}
+      // The faint inner line keeps a Navy tile visible on the dark theme's Navy cards.
+      className={`inline-flex shrink-0 items-center justify-center shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)] ${box}`}
+      style={{ backgroundColor: app.color, color: tileInk(app.color) }}
     >
       <Icon name={app.icon} size={size === 'lg' ? 32 : 18} />
     </span>

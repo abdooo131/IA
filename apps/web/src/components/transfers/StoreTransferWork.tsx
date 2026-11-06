@@ -22,7 +22,7 @@ const KNOWN = [
   'network',
 ];
 const primary =
-  'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 
 /** Sender: scan units onto the truck, then Send. Receiver: scan units off it, then Close. */
 export function StoreTransferWork({

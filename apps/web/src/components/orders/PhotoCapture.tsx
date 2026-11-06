@@ -58,7 +58,7 @@ export function PhotoCapture({
         type="button"
         disabled={busy}
         onClick={() => input.current?.click()}
-        className="h-12 w-full rounded-md bg-selected-bg px-4 font-bold text-link disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]"
+        className="h-12 w-full rounded-md bg-selected-bg px-4 font-bold text-link disabled:bg-line disabled:text-text-muted"
       >
         {busy ? t('uploading') : preview ? t('retake') : label}
       </button>

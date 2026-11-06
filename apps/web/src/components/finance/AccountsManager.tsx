@@ -14,7 +14,7 @@ const field =
 const button =
   'h-9 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
 const primary =
-  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-[#E3E8EF] disabled:text-[#9AA6B8]';
+  'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 const OPEN_GROUPS = ACCOUNT_GROUPS.filter((g) => g.manualType);
 
 const name = (a: { nameEn: string; nameAr: string }, locale: string) =>

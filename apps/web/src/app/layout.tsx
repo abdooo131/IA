@@ -17,7 +17,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0047BB',
+  // The browser bar takes the page ground: Cream, or Navy in the dark theme.
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#FAF1E8' },
+    { media: '(prefers-color-scheme: dark)', color: '#082341' },
+  ],
   width: 'device-width',
   initialScale: 1,
 };
