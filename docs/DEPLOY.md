@@ -49,6 +49,31 @@ You do not need to create tables or install PostGIS: the server does both on its
 
 Every push to the branch rebuilds and redeploys automatically.
 
+### Phone notifications (web push, optional)
+
+Without these three variables nothing is sent and the Notifications page says it is not set up.
+
+1. On any computer with Node.js, make one key pair:
+
+   ```bash
+   npx web-push@3.6.7 generate-vapid-keys
+   ```
+
+2. In Render, open the `shiplynow` service, **Environment**, and add:
+
+   | Setting | What to enter |
+   | --- | --- |
+   | `VAPID_PUBLIC_KEY` | the Public Key line (not secret) |
+   | `VAPID_PRIVATE_KEY` | the Private Key line (secret: never in git or a chat) |
+   | `VAPID_SUBJECT` | `mailto:` and an address the push services may write to, for example `mailto:ops@yourcompany.com` |
+
+3. Save; Render redeploys. Every person then opens Settings menu, Notifications, and turns
+   them on for each phone (iPhone: add to the Home Screen first, iOS 16.4 or later).
+
+Keep the same pair for good: a new pair silently stops every device until each person turns
+notifications on again. The `push.enabled` setting (Settings, System) switches sending off
+without removing the keys.
+
 ## 3. Using it
 
 - It is https, so the **phone camera** works for scanning.

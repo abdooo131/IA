@@ -104,24 +104,24 @@ model User {
   storeAreasCreated StoreArea[]       @relation("store_area_created_by")
   settingChanges    Setting[]
 
-  ledgerEntries      LedgerEntry[]           @relation("ledger_entry_created_by")
-  handoversReceived  CashHandover[]          @relation("handover_received_by")
-  handoversReviewed  CashHandover[]          @relation("handover_reviewed_by")
-  payoutsCreated     Payout[]                @relation("payout_created_by")
-  payoutsPaid        Payout[]                @relation("payout_paid_by")
-  payoutsApproved    Payout[]                @relation("payout_approved_by")
+  ledgerEntries      LedgerEntry[]            @relation("ledger_entry_created_by")
+  handoversReceived  CashHandover[]           @relation("handover_received_by")
+  handoversReviewed  CashHandover[]           @relation("handover_reviewed_by")
+  payoutsCreated     Payout[]                 @relation("payout_created_by")
+  payoutsPaid        Payout[]                 @relation("payout_paid_by")
+  payoutsApproved    Payout[]                 @relation("payout_approved_by")
   booksLocks         BooksLock[]
-  financeRequests    FinanceRequest[]        @relation("finance_request_by")
-  financeDecisions   FinanceRequest[]        @relation("finance_request_decided_by")
+  financeRequests    FinanceRequest[]         @relation("finance_request_by")
+  financeDecisions   FinanceRequest[]         @relation("finance_request_decided_by")
   financeReceipts    FinanceReceipt[]
-  advanceAccounts    LedgerAccount[]         @relation("ledger_account_user")
-  ledgerLines        LedgerLine[]            @relation("ledger_line_user")
+  advanceAccounts    LedgerAccount[]          @relation("ledger_account_user")
+  ledgerLines        LedgerLine[]             @relation("ledger_line_user")
   suppliers          Supplier[]
-  billsFor           Bill[]                  @relation("bill_person")
+  billsFor           Bill[]                   @relation("bill_person")
   bankStatements     BankStatement[]
-  taxInvoicesMade    TaxInvoice[]            @relation("tax_invoice_created_by")
-  bankLinesDecided   BankStatementLine[]     @relation("bank_line_decided_by")
-  budgetsSet         Budget[]                @relation("budget_updated_by")
+  taxInvoicesMade    TaxInvoice[]             @relation("tax_invoice_created_by")
+  bankLinesDecided   BankStatementLine[]      @relation("bank_line_decided_by")
+  budgetsSet         Budget[]                 @relation("budget_updated_by")
   bills              Bill[]
   recurringEntries   RecurringEntry[]
   prepayments        Prepayment[]
@@ -129,12 +129,14 @@ model User {
   access             UserAccess?
   accessStores       UserStore[]
   employee           Employee?
-  documentsUploaded  EmployeeDocument[]      @relation("employee_document_uploaded_by")
-  documentsReviewed  EmployeeDocument[]      @relation("employee_document_reviewed_by")
-  salaryPackagesSet  SalaryPackage[]         @relation("salary_package_created_by")
-  checklistsStarted  EmployeeChecklist[]     @relation("employee_checklist_created_by")
-  checklistTasksDone EmployeeChecklistTask[] @relation("employee_checklist_task_done_by")
-  merchantsManaged   Merchant[]              @relation("merchant_account_manager")
+  documentsUploaded  EmployeeDocument[]       @relation("employee_document_uploaded_by")
+  documentsReviewed  EmployeeDocument[]       @relation("employee_document_reviewed_by")
+  salaryPackagesSet  SalaryPackage[]          @relation("salary_package_created_by")
+  checklistsStarted  EmployeeChecklist[]      @relation("employee_checklist_created_by")
+  checklistTasksDone EmployeeChecklistTask[]  @relation("employee_checklist_task_done_by")
+  merchantsManaged   Merchant[]               @relation("merchant_account_manager")
+  pushSubscriptions  PushSubscription[]
+  notificationPrefs  NotificationPreference[]
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -610,6 +612,7 @@ model Notification {
   merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
 
   @@index([merchantId, createdAt])
+  @@index([createdAt])
   @@map("notifications")
 }
 
@@ -991,6 +994,7 @@ model Order {
   @@index([merchantId, placedAt])
   @@index([status, placedAt])
   @@index([customerId])
+  @@index([createdAt])
   @@map("orders")
 }
 
@@ -1100,6 +1104,7 @@ model Delivery {
 
   @@index([riderId, status])
   @@index([orderId])
+  @@index([assignedAt])
   @@map("deliveries")
 }
 
@@ -1170,6 +1175,7 @@ model Alert {
 
   @@unique([orderId, type, stage])
   @@index([resolvedAt, createdAt])
+  @@index([createdAt])
   @@map("alerts")
 }
 
@@ -1773,6 +1779,7 @@ model TicketMessage {
 
   @@unique([ticketId, slackTs])
   @@index([ticketId, createdAt])
+  @@index([createdAt])
   @@map("ticket_messages")
 }
 
@@ -3010,5 +3017,55 @@ model AttendanceDay {
   @@unique([employeeId, day])
   @@index([darkStoreId, day])
   @@index([day])
+  @@index([closedAt])
   @@map("attendance_days")
+}
+
+// ─── Push notifications ────────────────────────────────────────────────────────
+
+/// One browser or installed app that receives web push notifications for a person. Removed when
+/// the push service says it is gone (404 or 410), or when the person removes the device.
+model PushSubscription {
+  id            String    @id @default(cuid())
+  userId        String    @map("user_id")
+  endpoint      String    @unique
+  p256dh        String
+  auth          String
+  /// The device's language when it last subscribed or opened the app (en, ar)
+  lang          String    @default("en")
+  userAgent     String?   @map("user_agent")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  lastSuccessAt DateTime? @map("last_success_at")
+  /// Failed sends in a row (reset by a success)
+  failures      Int       @default(0)
+  lastFailureAt DateTime? @map("last_failure_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+/// A notification type a person switched off or on again; a missing row means on.
+model NotificationPreference {
+  userId    String   @map("user_id")
+  type      String
+  enabled   Boolean
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, type])
+  @@map("notification_preferences")
+}
+
+/// Events already notified, so a job that runs twice (or two API instances) sends each once.
+/// Kept for two days, longer than the dispatcher ever looks back.
+model PushSent {
+  key        String   @id
+  recipients Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([createdAt])
+  @@map("push_sent")
 }

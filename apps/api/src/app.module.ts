@@ -18,6 +18,7 @@ import { TrackingModule } from './tracking/tracking.module';
 import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { PushModule } from './push/push.module';
 import { MeController } from './users/me.controller';
 import { UsersController } from './users/users.controller';
 
@@ -44,6 +45,7 @@ import { UsersController } from './users/users.controller';
     TrackingModule,
     TicketsModule,
     HrModule,
+    PushModule,
   ],
   controllers: [HealthController, UsersController, MeController],
 })

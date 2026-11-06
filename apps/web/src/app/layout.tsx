@@ -3,7 +3,8 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { directionOf, toLocale } from '@/lib/preferences';
-import { getTheme } from '@/lib/server-session';
+import { PushRegistrar } from '@/components/PushRegistrar';
+import { getClaims, getTheme } from '@/lib/server-session';
 import '@/styles/globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -29,6 +30,9 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   const locale = toLocale(await getLocale());
   const theme = await getTheme();
+  // The service worker only runs in production builds and once the server has push keys.
+  const push = process.env.NODE_ENV === 'production' && Boolean(process.env.VAPID_PUBLIC_KEY);
+  const signedIn = push && (await getClaims()) !== null;
 
   return (
     <html
@@ -38,7 +42,10 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       suppressHydrationWarning
     >
       <body className="min-h-dvh">
-        <NextIntlClientProvider>{children}</NextIntlClientProvider>
+        <NextIntlClientProvider>
+          {children}
+          {push && <PushRegistrar signedIn={signedIn} />}
+        </NextIntlClientProvider>
       </body>
     </html>
   );

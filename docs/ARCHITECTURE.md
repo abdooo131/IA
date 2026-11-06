@@ -202,6 +202,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
     daily storage fees
     monthly finance (recurring expenses, prepayments, depreciation, accrual reversals)
     ETA e-invoice submission and status (every minute, only when configured)
+    web push dispatcher (every 10 seconds, only when the VAPID keys are set)
 
 ## 11. Integrations
 
@@ -215,6 +216,25 @@ one instance acts, and each has an idempotency key so running twice changes noth
 * Slack (optional): tickets as direct messages, replies come back signed.
 * ETA (optional): Egyptian e-invoice portal. Documents are signed on the finance PC by
   scripts/eta-signer with the USB token, then submitted by the API.
+* Web push (optional): phone and browser notifications for every role, sent with the
+  `web-push` package behind the PushSender boundary (apps/api/src/push: HttpPush with
+  VAPID_PUBLIC_KEY, VAPID_PRIVATE_KEY, VAPID_SUBJECT; FakePush in tests). Nothing is sent
+  without the keys or while the push.enabled setting is 0, and the Notifications page
+  (/notifications, Settings menu) then hides the switch. Devices are push_subscriptions
+  (removed when the push service answers 404 or 410), switches are notification_preferences
+  (a missing row is on). The dispatcher (dispatchPush in packages/db/src/push.ts) changes no
+  business record: every 10 seconds it reads what happened in the last 15 minutes (new orders,
+  alerts, shipments and transfers sent, deliveries, finance requests and payouts to approve,
+  cash differences, ticket messages, late attendance days, merchant notifications, paid payouts,
+  low stock) and calls notify(userIds, type, text) for the people who may open the page it
+  links to: store staff of that store (store use), riders, accounting use, operations manage
+  (paging alerts), merchants manage (sign ups), the merchant's account manager, HR use and the
+  person (documents), the ticket's other person, merchant users with the orders, money or stock
+  right. Each event key is claimed in push_sent first (kept two days), so overlaps and other
+  instances send it once; a failed send is counted on the device and reported through
+  ErrorReporter, never failing the action. Words are in packages/shared/src/push.ts (en, ar,
+  in the device's language). public/sw.js shows the notification and opens or focuses its page;
+  the root layout registers it in production builds when VAPID_PUBLIC_KEY is set.
 * Google geocoding (optional): only used when GOOGLE_MAPS_API_KEY is set.
 * OpenStreetMap: map tiles in the admin map; area data imported through Overpass.
 
@@ -222,7 +242,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
 
 One .env at the repo root, documented in .env.example. Key variables: DATABASE_URL,
 JWT_ACCESS_SECRET, API_PORT, API_URL, WEB_ORIGIN, SEED_ON_START, SEED_ADMIN_*, DEMO_LOAD,
-SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL,
+SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*, VAPID_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL,
 JOBS_ENABLED. Business values (SLA minutes, fees, capacity, payroll rates, HR rules) are not in
 env: they live in the settings table and are edited from each app's Configuration page.
 

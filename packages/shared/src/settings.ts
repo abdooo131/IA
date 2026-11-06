@@ -380,6 +380,13 @@ export const SETTING_DEFINITIONS = {
     description: 'Orders a store accepts per hour before it stops offering 60 minute delivery',
     override: 'store',
   },
+  'push.enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'Phone and browser notifications are sent (1) or not (0); they also need the VAPID keys',
+    override: 'none',
+  },
   'signup.auto_approve': {
     schema: z.number().int().min(0).max(1),
     default: 1,

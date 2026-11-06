@@ -20,7 +20,8 @@
     "settings": "Settings",
     "datePlaceholder": "dd/mm/yyyy",
     "pickDate": "Pick a date",
-    "myFile": "My HR"
+    "myFile": "My HR",
+    "notifications": "Notifications"
   },
   "roles": {
     "admin": "Admin",
@@ -447,7 +448,8 @@
         "hr__auto_close_hours": "Close a day this long after the shift end (hours)",
         "hr__riders_must_clock_in": "Riders must clock in to take orders (1 yes, 0 no)",
         "hr__office_lat": "Office latitude (for office staff)",
-        "hr__office_lng": "Office longitude (for office staff)"
+        "hr__office_lng": "Office longitude (for office staff)",
+        "push__enabled": "Phone and browser notifications on (1) or off (0)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -3321,6 +3323,25 @@
             "problems": [
               "Units for a transfer not found: send what you have; the missing units are released and admin is told."
             ]
+          },
+          {
+            "title": "Turn on phone notifications",
+            "steps": [
+              "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
+              "Open the Settings menu (top of every screen), then Notifications.",
+              "Tap Turn on notifications on this device and allow notifications when the phone asks.",
+              "Tap Send me a test: a notification must appear within a few seconds.",
+              "Switch off the kinds you do not need. You are told about: new orders to accept, late orders, shipments and transfers on their way to your store, tickets."
+            ],
+            "check": [
+              "The page says notifications are on for this device and the test arrived.",
+              "Tapping a notification opens the right screen in Shiply Now."
+            ],
+            "problems": [
+              "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.",
+              "No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.",
+              "A lost or old phone: remove it from Your devices on the same page."
+            ]
           }
         ]
       },
@@ -3396,6 +3417,25 @@
             "problems": [
               "Difference: tell staff what happened so they write it in the note; finance decides."
             ]
+          },
+          {
+            "title": "Turn on phone notifications",
+            "steps": [
+              "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
+              "Open the Settings menu (top of every screen), then Notifications.",
+              "Tap Turn on notifications on this device and allow notifications when the phone asks.",
+              "Tap Send me a test: a notification must appear within a few seconds.",
+              "Switch off the kinds you do not need. You are told about: orders handed to you, tickets, a late clock in."
+            ],
+            "check": [
+              "The page says notifications are on for this device and the test arrived.",
+              "Tapping a notification opens the right screen in Shiply Now."
+            ],
+            "problems": [
+              "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.",
+              "No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.",
+              "A lost or old phone: remove it from Your devices on the same page."
+            ]
           }
         ]
       },
@@ -3459,6 +3499,25 @@
             "check": ["A member sees only the menu items of their rights."],
             "problems": [
               "You cannot lower or disable yourself, and one active owner always stays: make someone else owner first."
+            ]
+          },
+          {
+            "title": "Turn on phone notifications",
+            "steps": [
+              "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
+              "Open the Settings menu (top of every screen), then Notifications.",
+              "Tap Turn on notifications on this device and allow notifications when the phone asks.",
+              "Tap Send me a test: a notification must appear within a few seconds.",
+              "Switch off the kinds you do not need. You are told about: orders delivered or failed, payouts paid, products running low (each only if your rights cover it)."
+            ],
+            "check": [
+              "The page says notifications are on for this device and the test arrived.",
+              "Tapping a notification opens the right screen in Shiply Now."
+            ],
+            "problems": [
+              "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.",
+              "No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.",
+              "A lost or old phone: remove it from Your devices on the same page."
             ]
           }
         ]
@@ -3694,6 +3753,25 @@
             "problems": [
               "A difference you cannot explain: ticket to admin with the account code and the amount."
             ]
+          },
+          {
+            "title": "Turn on phone notifications",
+            "steps": [
+              "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
+              "Open the Settings menu (top of every screen), then Notifications.",
+              "Tap Turn on notifications on this device and allow notifications when the phone asks.",
+              "Tap Send me a test: a notification must appear within a few seconds.",
+              "Switch off the kinds you do not need. You are told about: requests and payouts waiting for a second person, cash differences, tickets."
+            ],
+            "check": [
+              "The page says notifications are on for this device and the test arrived.",
+              "Tapping a notification opens the right screen in Shiply Now."
+            ],
+            "problems": [
+              "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.",
+              "No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.",
+              "A lost or old phone: remove it from Your devices on the same page."
+            ]
           }
         ]
       },
@@ -3791,6 +3869,25 @@
             "check": ["The audit log shows every change with who made it."],
             "problems": [
               "Someone leaves: disable the user the same day; they are signed out everywhere."
+            ]
+          },
+          {
+            "title": "Turn on phone notifications",
+            "steps": [
+              "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
+              "Open the Settings menu (top of every screen), then Notifications.",
+              "Tap Turn on notifications on this device and allow notifications when the phone asks.",
+              "Tap Send me a test: a notification must appear within a few seconds.",
+              "Switch off the kinds you do not need. You are told about: urgent alerts (server errors, late orders, failed deliveries, goods not back), merchant sign ups, tickets."
+            ],
+            "check": [
+              "The page says notifications are on for this device and the test arrived.",
+              "Tapping a notification opens the right screen in Shiply Now."
+            ],
+            "problems": [
+              "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.",
+              "No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.",
+              "A lost or old phone: remove it from Your devices on the same page."
             ]
           }
         ]
@@ -5025,5 +5122,125 @@
     "fit": "Fit",
     "myExpiring": "{count, plural, one {# document expires soon} other {# documents expire soon}}",
     "myExpiringHint": "Still valid. Send the renewed one when you have it."
+  },
+  "push": {
+    "back": "Back",
+    "title": "Notifications",
+    "intro": "Get a notification on your phone or computer when something needs you, even when Shiply Now is closed.",
+    "notConfigured": "Notifications are not set up on this server yet. Ask admin.",
+    "thisDevice": "This device",
+    "state": {
+      "checking": "Checking this device…",
+      "unsupported": "This browser cannot show notifications. Use Chrome, Edge, Firefox or Safari.",
+      "install": "On iPhone and iPad, notifications work only from the app on your Home Screen.",
+      "blocked": "Notifications are blocked for Shiply Now in this browser.",
+      "off": "Notifications are off on this device.",
+      "on": "Notifications are on for this device.",
+      "working": "One moment…"
+    },
+    "enable": "Turn on notifications on this device",
+    "disable": "Turn off on this device",
+    "enabled": "Done. You will get notifications on this device.",
+    "enableFailed": "Could not turn notifications on. Try again, or check the browser settings.",
+    "blockedHelp": "Open the browser settings for this site, allow Notifications, then come back to this page.",
+    "iphoneTitle": "iPhone or iPad: add Shiply Now to the Home Screen first",
+    "iphoneStep1": "Open Shiply Now in Safari and tap Share.",
+    "iphoneStep2": "Tap Add to Home Screen, then Add.",
+    "iphoneStep3": "Open Shiply Now from the Home Screen icon, come back here and turn notifications on.",
+    "iphoneVersion": "Needs iOS or iPadOS 16.4 or later.",
+    "test": "Send me a test",
+    "testSent": "Test sent to {count, plural, one {# device} other {# devices}}.",
+    "testNone": "No device received the test. Turn notifications on first.",
+    "testFailed": "Could not send the test.",
+    "saveFailed": "Could not save. Try again.",
+    "typesTitle": "What to notify me about",
+    "typesIntro": "Switch off what you do not need. The list shows only what your work covers.",
+    "devicesTitle": "Your devices",
+    "noDevices": "No device has notifications on yet.",
+    "thisDeviceBadge": "This device",
+    "deviceName": "{device}, {browser}",
+    "lastSent": "Last notification {at}",
+    "added": "Added {at}",
+    "failures": "{count, plural, one {# failed send} other {# failed sends}}",
+    "remove": "Remove",
+    "device": {
+      "iphone": "iPhone",
+      "ipad": "iPad",
+      "android": "Android phone",
+      "windows": "Windows computer",
+      "mac": "Mac",
+      "linux": "Linux computer",
+      "other": "Device"
+    },
+    "browser": {
+      "safari": "Safari",
+      "chrome": "Chrome",
+      "edge": "Edge",
+      "firefox": "Firefox",
+      "samsung": "Samsung Internet",
+      "other": "browser"
+    },
+    "types": {
+      "order_new": {
+        "name": "New orders",
+        "hint": "An order arrives at your store and waits to be accepted."
+      },
+      "order_late": {
+        "name": "Late orders",
+        "hint": "An order at your store passed the time of its step."
+      },
+      "stock_arriving": {
+        "name": "Goods on the way",
+        "hint": "A merchant shipment or a transfer is coming to your store."
+      },
+      "rider_order": {
+        "name": "Orders handed to you",
+        "hint": "An order was handed to you to deliver."
+      },
+      "finance_approval": {
+        "name": "Approvals",
+        "hint": "A request or payout waits for a second person."
+      },
+      "cash_difference": {
+        "name": "Cash differences",
+        "hint": "A rider handed over a different amount than expected."
+      },
+      "ops_alert": {
+        "name": "Urgent alerts",
+        "hint": "Server errors, late orders, failed deliveries, goods not back."
+      },
+      "merchant_signup": {
+        "name": "Merchant sign ups",
+        "hint": "A new merchant signed up."
+      },
+      "merchant_alert": {
+        "name": "Alerts of your merchants",
+        "hint": "Urgent alerts about the merchants you look after."
+      },
+      "ticket": {
+        "name": "Tickets",
+        "hint": "A new ticket for you, or a reply on yours."
+      },
+      "attendance_late": {
+        "name": "Late clock in",
+        "hint": "A day of yours was closed as late."
+      },
+      "document_expiring": {
+        "name": "Documents running out",
+        "hint": "A document (yours, or one HR follows) runs out soon."
+      },
+      "merchant_order": {
+        "name": "Delivered and failed orders",
+        "hint": "An order was delivered, or a delivery failed."
+      },
+      "merchant_payout": {
+        "name": "Payouts",
+        "hint": "A payout was sent to your bank account."
+      },
+      "merchant_low_stock": {
+        "name": "Low stock",
+        "hint": "A product is running low at a store (once a day per product)."
+      }
+    }
   }
 }

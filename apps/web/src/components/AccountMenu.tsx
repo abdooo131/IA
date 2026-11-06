@@ -10,7 +10,7 @@ import { PreferencesMenu } from './PreferencesMenu';
 import { SignOutButton } from './SignOutButton';
 
 /**
- * One small Settings button that opens Help, Tickets, language, theme and Sign out, so these
+ * One small Settings button that opens Help, Notifications, Tickets, language, theme and Sign out, so these
  * never take a whole row of a phone screen or push the sidebar's links out of sight.
  * `up` opens the panel above the button (sidebar footer), otherwise below it (top bar).
  */
@@ -97,6 +97,12 @@ export function AccountMenu({
               className="flex h-10 items-center rounded-md border border-line bg-surface px-3 text-body-sm font-bold text-link"
             >
               {ts('menu')}
+            </Link>
+            <Link
+              href="/notifications"
+              className="flex h-10 items-center rounded-md border border-line bg-surface px-3 text-body-sm font-bold text-link"
+            >
+              {t('notifications')}
             </Link>
             {tickets && <TicketsLink />}
             {tickets && (

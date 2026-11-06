@@ -963,3 +963,51 @@ AR = {
          "حد ساب الشغل: وقف المستخدم في نفس اليوم؛ بيخرج من كل الأجهزة."]}
     ]}
 }
+
+# Phone notifications (web push): one section per role, the same steps with what each role is
+# told about. Added to the end of every role's sections in both languages.
+_PUSH_WHAT_EN = {
+  "store_staff": "new orders to accept, late orders, shipments and transfers on their way to your store, tickets",
+  "rider": "orders handed to you, tickets, a late clock in",
+  "merchant": "orders delivered or failed, payouts paid, products running low (each only if your rights cover it)",
+  "finance": "requests and payouts waiting for a second person, cash differences, tickets",
+  "admin": "urgent alerts (server errors, late orders, failed deliveries, goods not back), merchant sign ups, tickets",
+}
+_PUSH_WHAT_AR = {
+  "store_staff": "الطلبات الجديدة اللي محتاجة قبول، الطلبات المتأخرة، الشحنات والتحويلات الجاية لفرعك، التذاكر",
+  "rider": "الطلبات اللي اتسلمت لك، التذاكر، الحضور المتأخر",
+  "merchant": "الطلبات اللي اتسلمت أو فشلت، الدفعات اللي اتحولت، المنتجات اللي قربت تخلص (كل واحدة لو صلاحياتك بتغطيها)",
+  "finance": "الطلبات والدفعات اللي مستنية موافقة شخص تاني، فروق الفلوس، التذاكر",
+  "admin": "التنبيهات العاجلة (أخطاء السيرفر، الطلبات المتأخرة، التوصيل الفاشل، البضاعة اللي مرجعتش)، تسجيل التجار، التذاكر",
+}
+for _role in EN:
+  EN[_role]["sections"].append(
+    {"title": "Turn on phone notifications",
+     "steps": [
+       "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
+       "Open the Settings menu (top of every screen), then Notifications.",
+       "Tap Turn on notifications on this device and allow notifications when the phone asks.",
+       "Tap Send me a test: a notification must appear within a few seconds.",
+       f"Switch off the kinds you do not need. You are told about: {_PUSH_WHAT_EN[_role]}."],
+     "check": [
+       "The page says notifications are on for this device and the test arrived.",
+       "Tapping a notification opens the right screen in Shiply Now."],
+     "problems": [
+       "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.",
+       "No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.",
+       "A lost or old phone: remove it from Your devices on the same page."]})
+  AR[_role]["sections"].append(
+    {"title": "تشغيل إشعارات الموبايل",
+     "steps": [
+       "آيفون: افتح شيبلي ناو في سفاري، اضغط مشاركة، إضافة إلى الشاشة الرئيسية، وبعد كده افتحه دايما من الأيقونة (محتاج iOS 16.4 أو أحدث). أندرويد والكمبيوتر: أي متصفح شغال، وتثبيت التطبيق اختياري.",
+       "افتح قائمة الإعدادات (فوق في كل شاشة) وبعدين الإشعارات.",
+       "اضغط تفعيل الإشعارات على هذا الجهاز ووافق لما الموبايل يسأل.",
+       "اضغط أرسل لي إشعارًا تجريبيًا: لازم يوصل إشعار في ثواني.",
+       f"اقفل الأنواع اللي مش محتاجها. بيوصلك: {_PUSH_WHAT_AR[_role]}."],
+     "check": [
+       "الصفحة مكتوب فيها إن الإشعارات مفعّلة على الجهاز والتجربة وصلت.",
+       "لما تدوس على الإشعار بيفتح الشاشة الصح في شيبلي ناو."],
+     "problems": [
+       "محظورة: اسمح بالإشعارات للموقع من إعدادات المتصفح أو الموبايل وفعّلها تاني.",
+       "التجربة ما وصلتش: اتأكد إن الموبايل مش على عدم الإزعاج أو توفير البطارية وابعت تجربة تانية.",
+       "موبايل ضاع أو قديم: شيله من أجهزتك في نفس الصفحة."]})

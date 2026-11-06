@@ -29,6 +29,18 @@ export const envSchema = z.object({
   ETA_ENV: z.enum(['preprod', 'production']).optional(),
   /** Slack app signing secret: proves events and button taps come from Slack */
   SLACK_SIGNING_SECRET: z.string().optional(),
+  /**
+   * Web push (phone and browser notifications). All three or nothing is sent and the
+   * Notifications page hides the switch. Make a pair with: npx web-push generate-vapid-keys
+   */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  /** Who the push services contact about our messages: mailto:ops@example.com */
+  VAPID_SUBJECT: z
+    .string()
+    .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://')
+    .optional()
+    .or(z.literal('')),
   /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */
   JOBS_ENABLED: z.enum(['true', 'false']).optional(),
   /** Shopify app client ID (not secret). Without it the Shopify connection stays off. */

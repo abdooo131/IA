@@ -24,6 +24,7 @@ import {
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
+import { PushService } from '../push/push.service';
 import { TicketsService } from '../tickets/tickets.service';
 
 /** Advisory lock id for the SLA check, so only one API instance runs it at a time. */
@@ -33,6 +34,8 @@ const STORAGE_LOCK = 735_002;
 /** Advisory lock id for recurring expenses, prepayments and depreciation. */
 const MONTHLY_LOCK = 735_003;
 const EVERY_MS = 30_000;
+/** Notifications go out faster than the other jobs: a new order has minutes to be accepted. */
+const PUSH_EVERY_MS = 10_000;
 
 /**
  * Background jobs, run inside the API so the pilot needs no extra service. Each run takes
@@ -43,6 +46,7 @@ const EVERY_MS = 30_000;
 export class JobsService implements OnApplicationBootstrap, OnApplicationShutdown {
   private readonly log = new Logger('Jobs');
   private timer?: NodeJS.Timeout;
+  private pushTimer?: NodeJS.Timeout;
   private running = false;
   /** The last Cairo day storage was charged for by this instance, to skip needless work. */
   private storageDone: string | null = null;
@@ -62,6 +66,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     private readonly config: ConfigService<Env, true>,
     private readonly reporter: ErrorReporter,
     private readonly tickets: TicketsService,
+    private readonly push: PushService,
   ) {}
 
   onApplicationBootstrap() {
@@ -81,6 +86,16 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runAttendanceClose();
     }, EVERY_MS);
     this.timer.unref();
+    this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
+    this.pushTimer.unref();
+  }
+
+  /**
+   * Web push: notifies the people concerned by what happened in the last minutes. Each event
+   * has its own key, so overlaps and other instances send nothing twice.
+   */
+  runPush(now: Date = new Date()) {
+    return this.push.dispatch(now);
   }
 
   /** Ticket reminders; each is claimed in the database first, so overlaps send nothing twice. */
@@ -157,6 +172,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
 
   onApplicationShutdown() {
     if (this.timer) clearInterval(this.timer);
+    if (this.pushTimer) clearInterval(this.pushTimer);
   }
 
   /**

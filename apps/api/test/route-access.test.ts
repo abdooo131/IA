@@ -31,6 +31,13 @@ const ANY_SIGNED_IN = new Set([
   'me/team/:employeeId',
   // A person's photo: themself, their managers and HR view (checked inside).
   'people/:employeeId/photo',
+  // Notifications: a person's own devices, switches and test (each call touches only their rows).
+  'me/push/',
+  'me/push/subscriptions',
+  'me/push/subscriptions/remove',
+  'me/push/subscriptions/:id',
+  'me/push/preferences',
+  'me/push/test',
 ]);
 /**
  * Routes team members reach by role alone, without an access profile check: tickets (every

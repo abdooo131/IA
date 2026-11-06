@@ -110,6 +110,25 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Someone leaves: disable the user the same day; they are signed out everywhere.
 
+### Turn on phone notifications
+
+1. iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.
+2. Open the Settings menu (top of every screen), then Notifications.
+3. Tap Turn on notifications on this device and allow notifications when the phone asks.
+4. Tap Send me a test: a notification must appear within a few seconds.
+5. Switch off the kinds you do not need. You are told about: urgent alerts (server errors, late orders, failed deliveries, goods not back), merchant sign ups, tickets.
+
+**Check it went right**
+
+- The page says notifications are on for this device and the test arrived.
+- Tapping a notification opens the right screen in Shiply Now.
+
+**If something is wrong**
+
+- Blocked: allow notifications for the site in the browser or phone settings, then turn it on again.
+- No test arrives: check the phone is not in Do Not Disturb or battery saver, then send another test.
+- A lost or old phone: remove it from Your devices on the same page.
+
 ## العربية
 
 ### الأدمن
@@ -219,3 +238,22 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - حد ساب الشغل: وقف المستخدم في نفس اليوم؛ بيخرج من كل الأجهزة.
+
+### تشغيل إشعارات الموبايل
+
+1. آيفون: افتح شيبلي ناو في سفاري، اضغط مشاركة، إضافة إلى الشاشة الرئيسية، وبعد كده افتحه دايما من الأيقونة (محتاج iOS 16.4 أو أحدث). أندرويد والكمبيوتر: أي متصفح شغال، وتثبيت التطبيق اختياري.
+2. افتح قائمة الإعدادات (فوق في كل شاشة) وبعدين الإشعارات.
+3. اضغط تفعيل الإشعارات على هذا الجهاز ووافق لما الموبايل يسأل.
+4. اضغط أرسل لي إشعارًا تجريبيًا: لازم يوصل إشعار في ثواني.
+5. اقفل الأنواع اللي مش محتاجها. بيوصلك: التنبيهات العاجلة (أخطاء السيرفر، الطلبات المتأخرة، التوصيل الفاشل، البضاعة اللي مرجعتش)، تسجيل التجار، التذاكر.
+
+**اتأكد إنها مشيت صح**
+
+- الصفحة مكتوب فيها إن الإشعارات مفعّلة على الجهاز والتجربة وصلت.
+- لما تدوس على الإشعار بيفتح الشاشة الصح في شيبلي ناو.
+
+**لو فيه مشكلة**
+
+- محظورة: اسمح بالإشعارات للموقع من إعدادات المتصفح أو الموبايل وفعّلها تاني.
+- التجربة ما وصلتش: اتأكد إن الموبايل مش على عدم الإزعاج أو توفير البطارية وابعت تجربة تانية.
+- موبايل ضاع أو قديم: شيله من أجهزتك في نفس الصفحة.
