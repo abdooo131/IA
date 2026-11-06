@@ -1,15 +1,14 @@
 import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { OpeningBalances } from '@/components/finance/OpeningBalances';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { BookAccount } from '@/lib/finance-types';
-import { getCurrentUser } from '@/lib/server-session';
+import { isOwner } from '@/lib/apps';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FinanceOpeningPage() {
-  const me = await getCurrentUser();
-  if (me?.role !== 'admin') notFound();
+  if (!isOwner(await getMyProfile())) notFound();
   const [accounts, journal, t] = await Promise.all([
     apiGet<BookAccount[]>('/finance/accounts'),
     apiGet<{ rows: { kind: string }[] }>('/finance/ledger?kind=opening_balance'),

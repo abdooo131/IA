@@ -56,7 +56,7 @@ export function AppBar({
   const pathname = usePathname();
   const here = locate(pathname);
   // Only apps this person may open; a page outside them still shows its area's app.
-  const app = (here && apps.find((a) => a.id === here.app.id)) ?? apps[0]!;
+  const app = (here && apps.find((a) => a.id === here.app.id)) ?? apps[0] ?? null;
   const current: AppPage | null = here?.page ?? null;
   const [open, setOpen] = useState<string | null>(null);
   const [phone, setPhone] = useState(false);
@@ -103,116 +103,122 @@ export function AppBar({
         >
           <GridIcon />
         </Link>
-        <Link
-          href={app.menus[0]!.pages[0]!.href}
-          className="me-3 flex min-h-11 shrink-0 items-center gap-2 rounded-md px-1"
-        >
-          <AppTileIcon app={app} size="sm" />
-          <span className="text-body font-bold">{t(`names.${app.id}`)}</span>
-        </Link>
+        {app && (
+          <Link
+            href={app.menus[0]!.pages[0]!.href}
+            className="me-3 flex min-h-11 shrink-0 items-center gap-2 rounded-md px-1"
+          >
+            <AppTileIcon app={app} size="sm" />
+            <span className="text-body font-bold">{t(`names.${app.id}`)}</span>
+          </Link>
+        )}
 
-        <nav
-          aria-label={t(`names.${app.id}`)}
-          className="hidden flex-1 items-center gap-0.5 lg:flex"
-        >
-          {app.menus.map((menu) => {
-            const active = menuActive(menu);
-            const base = `flex h-11 items-center rounded-t-md border-b-2 px-3 text-body-sm font-semibold ${
-              active
-                ? 'border-primary text-link'
-                : 'border-transparent text-text hover:bg-surface-raised'
-            }`;
-            if (menu.pages.length === 1 && menu.label !== 'configuration') {
-              const page = menu.pages[0]!;
-              return (
-                <Link
-                  key={menu.label}
-                  href={page.href}
-                  aria-current={active ? 'page' : undefined}
-                  className={base}
-                >
-                  {t(`menus.${menu.label}`)}
-                  <Badge count={badges[page.href] ?? 0} />
-                </Link>
-              );
-            }
-            const isOpen = open === menu.label;
-            return (
-              <div key={menu.label} className="relative">
-                <button
-                  type="button"
-                  onClick={() => setOpen(isOpen ? null : menu.label)}
-                  aria-expanded={isOpen}
-                  aria-haspopup="true"
-                  className={`${base} ${isOpen ? 'bg-surface-raised' : ''}`}
-                >
-                  {t(`menus.${menu.label}`)}
-                  <Badge count={menuCount(menu, badges)} />
-                  <svg
-                    aria-hidden="true"
-                    width="12"
-                    height="12"
-                    viewBox="0 0 12 12"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="1.6"
-                    className="ms-1.5"
+        {app && (
+          <nav
+            aria-label={t(`names.${app.id}`)}
+            className="hidden flex-1 items-center gap-0.5 lg:flex"
+          >
+            {app.menus.map((menu) => {
+              const active = menuActive(menu);
+              const base = `flex h-11 items-center rounded-t-md border-b-2 px-3 text-body-sm font-semibold ${
+                active
+                  ? 'border-primary text-link'
+                  : 'border-transparent text-text hover:bg-surface-raised'
+              }`;
+              if (menu.pages.length === 1 && menu.label !== 'configuration') {
+                const page = menu.pages[0]!;
+                return (
+                  <Link
+                    key={menu.label}
+                    href={page.href}
+                    aria-current={active ? 'page' : undefined}
+                    className={base}
                   >
-                    <path d="M3 4.5 6 7.5 9 4.5" />
-                  </svg>
-                </button>
-                {isOpen && (
-                  <ul className="absolute start-0 top-12 z-40 min-w-[240px] rounded-lg border border-line bg-surface p-1.5 shadow-lg">
-                    {menu.pages.map((page) => (
-                      <li key={page.href}>
-                        <Link
-                          href={page.href}
-                          aria-current={isCurrent(page) ? 'page' : undefined}
-                          className={`flex min-h-10 items-center justify-between rounded-md px-3 text-body-sm ${
-                            isCurrent(page)
-                              ? 'bg-selected-bg font-bold text-link'
-                              : 'text-text hover:bg-surface-raised'
-                          }`}
-                        >
-                          {pageLabel(page)}
-                          <Badge count={badges[page.href] ?? 0} />
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </nav>
+                    {t(`menus.${menu.label}`)}
+                    <Badge count={badges[page.href] ?? 0} />
+                  </Link>
+                );
+              }
+              const isOpen = open === menu.label;
+              return (
+                <div key={menu.label} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setOpen(isOpen ? null : menu.label)}
+                    aria-expanded={isOpen}
+                    aria-haspopup="true"
+                    className={`${base} ${isOpen ? 'bg-surface-raised' : ''}`}
+                  >
+                    {t(`menus.${menu.label}`)}
+                    <Badge count={menuCount(menu, badges)} />
+                    <svg
+                      aria-hidden="true"
+                      width="12"
+                      height="12"
+                      viewBox="0 0 12 12"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.6"
+                      className="ms-1.5"
+                    >
+                      <path d="M3 4.5 6 7.5 9 4.5" />
+                    </svg>
+                  </button>
+                  {isOpen && (
+                    <ul className="absolute start-0 top-12 z-40 min-w-[240px] rounded-lg border border-line bg-surface p-1.5 shadow-lg">
+                      {menu.pages.map((page) => (
+                        <li key={page.href}>
+                          <Link
+                            href={page.href}
+                            aria-current={isCurrent(page) ? 'page' : undefined}
+                            className={`flex min-h-10 items-center justify-between rounded-md px-3 text-body-sm ${
+                              isCurrent(page)
+                                ? 'bg-selected-bg font-bold text-link'
+                                : 'text-text hover:bg-surface-raised'
+                            }`}
+                          >
+                            {pageLabel(page)}
+                            <Badge count={badges[page.href] ?? 0} />
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })}
+          </nav>
+        )}
 
         <div className="ms-auto flex shrink-0 items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setPhone((v) => !v)}
-            aria-expanded={phone}
-            aria-controls="app-menu-phone"
-            className="flex h-11 items-center gap-2 rounded-md border border-line px-3 text-body-sm font-bold lg:hidden"
-          >
-            <svg
-              aria-hidden="true"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
+          {app && (
+            <button
+              type="button"
+              onClick={() => setPhone((v) => !v)}
+              aria-expanded={phone}
+              aria-controls="app-menu-phone"
+              className="flex h-11 items-center gap-2 rounded-md border border-line px-3 text-body-sm font-bold lg:hidden"
             >
-              <path d="M4 7h16M4 12h16M4 17h16" />
-            </svg>
-            {t('home.menu')}
-          </button>
+              <svg
+                aria-hidden="true"
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.75"
+                strokeLinecap="round"
+              >
+                <path d="M4 7h16M4 12h16M4 17h16" />
+              </svg>
+              {t('home.menu')}
+            </button>
+          )}
           {account}
         </div>
       </div>
 
-      {phone && (
+      {app && phone && (
         <nav
           id="app-menu-phone"
           aria-label={t(`names.${app.id}`)}

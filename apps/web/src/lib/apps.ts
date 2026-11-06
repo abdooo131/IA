@@ -1,18 +1,31 @@
-import type { Role } from '@shiplynow/shared';
+import { type AccessApp, type AccessLevel, type AccessProfile, canDo } from '@shiplynow/shared';
 import type { IconName } from '@/components/Icon';
 
 /**
  * The desk is split into apps, Odoo style: a home screen of tiles, and inside each app a short
- * menu bar whose menus open a list of pages. Pages keep their addresses; this file only says
- * which app and menu each one belongs to. Labels are keys under `apps` in the messages.
+ * menu bar whose menus open a list of pages. Pages keep their addresses; this file says which
+ * app and menu each one belongs to and what access it needs (the same rule the API applies to
+ * the page's data, docs/ACCESS.md). Labels are keys under `apps` in the messages.
  */
+export interface PageNeed {
+  /** The app whose level is needed (default: the page's app) */
+  app?: AccessApp;
+  /** The level needed (default view) */
+  level?: AccessLevel;
+  /** Named customer profiles */
+  customerData?: boolean;
+  /** Salaries, payslips and the payroll run */
+  salaries?: boolean;
+  /** Owner only: accounting manage and settings manage */
+  owner?: boolean;
+}
 export interface AppPage {
   href: string;
   label: string;
   /** Matches only this exact path (an area's home page). */
   exact?: boolean;
-  /** Admins only (finance users cannot open it). */
-  adminOnly?: boolean;
+  /** What the person needs beyond view on the page's app. */
+  need?: PageNeed;
 }
 export interface AppMenu {
   label: string;
@@ -23,8 +36,8 @@ export interface AppDef {
   icon: IconName;
   /** The tile's color: a solid brand shade that keeps white text readable. */
   color: string;
-  /** Roles that see the tile. */
-  roles: readonly Role[];
+  /** The access app behind it: the tile shows from view (settings: manage). */
+  access: AccessApp;
   menus: AppMenu[];
 }
 
@@ -38,10 +51,11 @@ export const SETTINGS_APPS = [
 ] as const;
 export type AppId = (typeof SETTINGS_APPS)[number];
 
+/** Changing settings needs settings manage, so their pages are shown only then. */
 const settings = (app: AppId): AppPage => ({
   href: `/admin/settings/${app}`,
   label: 'settings',
-  adminOnly: true,
+  need: { app: 'settings', level: 'manage' },
 });
 
 export const APPS: AppDef[] = [
@@ -49,7 +63,7 @@ export const APPS: AppDef[] = [
     id: 'operations',
     icon: 'orders',
     color: '#1D4ED8',
-    roles: ['admin'],
+    access: 'operations',
     menus: [
       { label: 'dashboard', pages: [{ href: '/admin', label: 'overview', exact: true }] },
       { label: 'orders', pages: [{ href: '/admin/orders', label: 'orders' }] },
@@ -69,7 +83,7 @@ export const APPS: AppDef[] = [
     id: 'inventory',
     icon: 'inventory',
     color: '#0F766E',
-    roles: ['admin'],
+    access: 'inventory',
     menus: [
       { label: 'stock', pages: [{ href: '/admin/stock', label: 'stockLevels' }] },
       { label: 'receiving', pages: [{ href: '/admin/shipments', label: 'shipments' }] },
@@ -89,7 +103,7 @@ export const APPS: AppDef[] = [
     id: 'merchants',
     icon: 'store',
     color: '#B45309',
-    roles: ['admin'],
+    access: 'merchants',
     menus: [
       { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
       { label: 'products', pages: [{ href: '/admin/products', label: 'products' }] },
@@ -101,9 +115,12 @@ export const APPS: AppDef[] = [
     id: 'customers',
     icon: 'customers',
     color: '#7C3AED',
-    roles: ['admin'],
+    access: 'customers',
     menus: [
-      { label: 'customers', pages: [{ href: '/admin/customers', label: 'profiles' }] },
+      {
+        label: 'customers',
+        pages: [{ href: '/admin/customers', label: 'profiles', need: { customerData: true } }],
+      },
       { label: 'places', pages: [{ href: '/admin/customers/places', label: 'places' }] },
       { label: 'marketData', pages: [{ href: '/admin/data', label: 'marketData' }] },
       { label: 'configuration', pages: [settings('customers')] },
@@ -113,7 +130,7 @@ export const APPS: AppDef[] = [
     id: 'accounting',
     icon: 'wallet',
     color: '#15803D',
-    roles: ['admin', 'finance'],
+    access: 'accounting',
     menus: [
       {
         label: 'dashboard',
@@ -151,8 +168,8 @@ export const APPS: AppDef[] = [
       {
         label: 'employees',
         pages: [
-          { href: '/finance/payroll', label: 'payroll', exact: true },
-          { href: '/finance/payroll/payslips', label: 'payslips' },
+          { href: '/finance/payroll', label: 'payroll', exact: true, need: { salaries: true } },
+          { href: '/finance/payroll/payslips', label: 'payslips', need: { salaries: true } },
           { href: '/finance/riders', label: 'riders' },
         ],
       },
@@ -179,7 +196,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/company', label: 'company' },
           { href: '/finance/close', label: 'close' },
           { href: '/finance/year-end', label: 'yearEnd' },
-          { href: '/finance/opening', label: 'opening', adminOnly: true },
+          { href: '/finance/opening', label: 'opening', need: { owner: true } },
           settings('accounting'),
         ],
       },
@@ -189,10 +206,16 @@ export const APPS: AppDef[] = [
     id: 'system',
     icon: 'settings',
     color: '#475569',
-    roles: ['admin'],
+    access: 'settings',
     menus: [
-      { label: 'users', pages: [{ href: '/admin/users', label: 'users' }] },
-      { label: 'audit', pages: [{ href: '/admin/audit', label: 'audit' }] },
+      {
+        label: 'users',
+        pages: [{ href: '/admin/users', label: 'users', need: { level: 'manage' } }],
+      },
+      {
+        label: 'audit',
+        pages: [{ href: '/admin/audit', label: 'audit', need: { level: 'manage' } }],
+      },
       { label: 'tickets', pages: [settings('system')] },
     ],
   },
@@ -222,15 +245,65 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
   return null;
 }
 
-/** The app as a given role sees it: tiles it may open and pages it may use. */
-export function appsFor(role: Role): AppDef[] {
-  return APPS.filter((app) => app.roles.includes(role)).map((app) => ({
-    ...app,
-    menus: app.menus
-      .map((menu) => ({
-        ...menu,
-        pages: menu.pages.filter((page) => role === 'admin' || !page.adminOnly),
-      }))
-      .filter((menu) => menu.pages.length > 0),
-  }));
+/** The store screens: a tile on the home screen for people with store use (not an app bar). */
+export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as const satisfies {
+  icon: IconName;
+  color: string;
+  href: string;
+};
+
+type Profile = AccessProfile | null | undefined;
+
+/** Owner only actions (opening balances, the e-invoice signer key): accounting and settings manage. */
+export function isOwner(profile: Profile) {
+  return canDo(profile, 'accounting', 'manage') && canDo(profile, 'settings', 'manage');
+}
+
+/** Whether the person may open a page of this app (the API checks the same on its data). */
+export function canOpenPage(profile: Profile, app: Pick<AppDef, 'access'>, page: AppPage) {
+  if (!profile) return false;
+  const need = page.need ?? {};
+  const level = need.level ?? (app.access === 'settings' ? 'manage' : 'view');
+  if (!canDo(profile, need.app ?? app.access, level)) return false;
+  if (need.customerData && !profile.customerData) return false;
+  if (need.salaries && !profile.salaries) return false;
+  if (
+    need.owner &&
+    !(canDo(profile, 'accounting', 'manage') && canDo(profile, 'settings', 'manage'))
+  )
+    return false;
+  return true;
+}
+
+/** The apps a person may open, each with only the pages they may use. */
+export function appsFor(profile: Profile): AppDef[] {
+  if (!profile) return [];
+  return APPS.filter((app) =>
+    canDo(profile, app.access, app.access === 'settings' ? 'manage' : 'view'),
+  )
+    .map((app) => ({
+      ...app,
+      menus: app.menus
+        .map((menu) => ({
+          ...menu,
+          pages: menu.pages.filter((page) => canOpenPage(profile, app, page)),
+        }))
+        .filter((menu) => menu.pages.length > 0),
+    }))
+    .filter((app) => app.menus.length > 0);
+}
+
+/** Whether the store screens tile shows. */
+export function canOpenStoreScreens(profile: Profile) {
+  return canDo(profile, 'store', 'use');
+}
+
+/**
+ * Whether a path inside the apps may be opened: false only for a page on a menu the person
+ * may not use (the page then shows not found). Pages on no menu are left to the API.
+ */
+export function canOpenPath(profile: Profile, pathname: string) {
+  const here = locate(pathname);
+  if (!here?.page) return true;
+  return canOpenPage(profile, here.app, here.page);
 }

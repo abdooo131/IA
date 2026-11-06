@@ -7,4 +7,4 @@ Edit `scripts/sop/content.py`, then run `python3 scripts/sop/build.py` to update
 - [Rider](rider.md): Riders delivering 60 minute orders from one dark store.
 - [Merchant](merchant.md): Shops selling with Shiply Now 60 minute delivery.
 - [Finance](finance.md): The finance team and the accountant. Everything is in Finance.
-- [Admin](admin.md): Operations admins. You can open every area.
+- [Admin](admin.md): The team running operations. Home shows the apps your job role opens; the owner opens everything.

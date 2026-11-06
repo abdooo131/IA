@@ -1,12 +1,13 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { localized } from '@/lib/admin-types';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, requireMerchantRight } from '@/lib/api-server';
 import type { MerchantSku } from '@/lib/merchant-types';
 import { title } from '@/lib/store-types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MerchantProductsPage() {
+  await requireMerchantRight('stock');
   const [skus, t, locale] = await Promise.all([
     apiGet<MerchantSku[]>('/merchant/skus'),
     getTranslations('merchant.products'),

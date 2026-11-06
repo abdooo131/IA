@@ -1,8 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { Payroll } from '@/components/finance/Payroll';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { BookAccount, StaffPayRow, SupplierRow } from '@/lib/finance-types';
-import { getCurrentUser } from '@/lib/server-session';
+import { canDo } from '@shiplynow/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export default async function FinancePayrollPage() {
     apiGet<StaffPayRow[]>('/finance/staff-pay'),
     apiGet<BookAccount[]>('/finance/money-accounts'),
     apiGet<SupplierRow[]>('/finance/suppliers'),
-    getCurrentUser(),
+    getMyProfile(),
     getTranslations('finance.payroll'),
   ]);
   return (
@@ -22,7 +22,7 @@ export default async function FinancePayrollPage() {
         staff={staff}
         money={accounts}
         suppliers={suppliers.filter((x) => x.isActive)}
-        isAdmin={me?.role === 'admin'}
+        isAdmin={canDo(me, 'accounting', 'manage') && !!me?.salaries}
       />
     </>
   );

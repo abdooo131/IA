@@ -59,7 +59,7 @@ export default async function AdminUsersPage({
       <UsersManager
         key={query.toString()}
         users={users}
-        stores={stores.map((s) => ({ id: s.id, nameEn: s.nameEn, nameAr: s.nameAr }))}
+        stores={stores.map((s) => ({ id: s.id, code: s.code, nameEn: s.nameEn, nameAr: s.nameAr }))}
         merchants={merchants}
         meId={claims?.sub ?? null}
       />

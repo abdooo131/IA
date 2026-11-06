@@ -60,6 +60,20 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - A payout looks wrong: download the statement for the period and send it with your question.
 
+### Your team
+
+1. Owners open Team to add the people who work on the account: name, email, password, and owner or member.
+2. Members get only the rights you tick: orders, stock, money, settings.
+3. Someone leaves: Disable them the same day; they are signed out everywhere.
+
+**Check it went right**
+
+- A member sees only the menu items of their rights.
+
+**If something is wrong**
+
+- You cannot lower or disable yourself, and one active owner always stays: make someone else owner first.
+
 ## العربية
 
 ### التاجر
@@ -119,3 +133,17 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - تحويل شكله غلط: نزل كشف الحساب للفترة وابعته مع سؤالك.
+
+### فريقك
+
+1. المالك يفتح الفريق ويضيف الناس اللي بتشتغل على الحساب: الاسم والإيميل وكلمة السر، ومالك ولا عضو.
+2. العضو بياخد الصلاحيات اللي إنت بتعلّم عليها بس: الطلبات، البضاعة، الفلوس، الإعدادات.
+3. حد ساب الشغل: أوقفه في نفس اليوم؛ هيتعمله خروج من كل الأجهزة.
+
+**اتأكد إنها مشيت صح**
+
+- العضو بيشوف في القائمة الحاجات اللي ليها صلاحية بس.
+
+**لو فيه مشكلة**
+
+- مينفعش تنزّل دورك أو توقف نفسك، ولازم يفضل مالك واحد شغال: خلي حد تاني مالك الأول.

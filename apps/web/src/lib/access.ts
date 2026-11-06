@@ -1,24 +1,33 @@
 import type { Role } from '@shiplynow/shared';
 
-/** Which roles may open each area. Admins can open every area. */
+/** Team members: what they may open inside these areas comes from their access profile. */
+const TEAM = ['admin', 'finance', 'store_staff'] as const satisfies readonly Role[];
+
+/**
+ * Which roles may open each area. Team members may open every team area; the API checks
+ * their access profile on every call, and a refusal shows the not found page (docs/ACCESS.md).
+ */
 export const AREA_ROLES = {
-  '/admin': ['admin'],
-  '/store': ['admin', 'store_staff'],
+  '/admin': TEAM,
+  '/store': TEAM,
   '/rider': ['admin', 'rider'],
   '/merchant': ['merchant'],
-  '/finance': ['admin', 'finance'],
+  '/finance': TEAM,
   // The apps home screen (tiles).
-  '/home': ['admin', 'finance'],
+  '/home': TEAM,
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Area = keyof typeof AREA_ROLES;
+
+/** Request header the middleware sets with the path, for server layouts. */
+export const PATHNAME_HEADER = 'x-shiplynow-path';
 
 const HOME_BY_ROLE: Record<Role, Area | null> = {
   admin: '/home',
   store_staff: '/store',
   rider: '/rider',
   merchant: '/merchant',
-  finance: '/finance',
+  finance: '/home',
 };
 
 export function homeFor(role: Role): Area | null {

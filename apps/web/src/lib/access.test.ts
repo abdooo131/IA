@@ -16,6 +16,7 @@ describe('homeFor', () => {
     expect(homeFor('store_staff')).toBe('/store');
     expect(homeFor('rider')).toBe('/rider');
     expect(homeFor('merchant')).toBe('/merchant');
+    expect(homeFor('finance')).toBe('/home');
   });
 });
 
@@ -74,14 +75,34 @@ describe('decideAccess', () => {
   });
 });
 
-describe('apps home', () => {
-  it('is open to admins and finance only', () => {
-    const base = { search: '', hasRefreshToken: false };
-    expect(decideAccess({ ...base, pathname: '/home', role: 'finance' }).kind).toBe('allow');
-    expect(decideAccess({ ...base, pathname: '/home', role: 'admin' }).kind).toBe('allow');
+describe('team areas', () => {
+  const base = { search: '', hasRefreshToken: false };
+
+  it('are open to every team role; the API decides what each person sees', () => {
+    for (const role of ['admin', 'finance', 'store_staff'] as const)
+      for (const pathname of ['/home', '/admin/orders', '/finance', '/store'])
+        expect(decideAccess({ ...base, pathname, role }).kind).toBe('allow');
+  });
+
+  it('stay closed to riders and merchants', () => {
     expect(decideAccess({ ...base, pathname: '/home', role: 'rider' })).toEqual({
       kind: 'redirect',
       to: '/rider',
+    });
+    expect(decideAccess({ ...base, pathname: '/finance', role: 'merchant' })).toEqual({
+      kind: 'redirect',
+      to: '/merchant',
+    });
+  });
+
+  it('keep the rider app for riders and admins', () => {
+    expect(decideAccess({ ...base, pathname: '/rider', role: 'store_staff' })).toEqual({
+      kind: 'redirect',
+      to: '/store',
+    });
+    expect(decideAccess({ ...base, pathname: '/rider', role: 'finance' })).toEqual({
+      kind: 'redirect',
+      to: '/home',
     });
   });
 });

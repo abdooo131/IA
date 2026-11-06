@@ -94,7 +94,7 @@ Also inside the app: settings menu (top of every screen), Help.
 ### Close the month
 
 1. After the month end checks pass, Close the books through the last day of the month.
-2. Nothing can be posted before that day any more; only admin can reopen, with a written reason.
+2. Nothing can be posted before that day any more; only someone who manages settings (the owner) can reopen, with a written reason.
 
 **Check it went right**
 
@@ -106,7 +106,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Salaries and advances
 
-1. Salaries: admin marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.
+1. Salaries: a finance manager with salary access (or the owner) marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.
 2. An advance: choose the person, amount and the bank or box it is paid from.
 3. Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.
 4. Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.
@@ -362,7 +362,7 @@ Also inside the app: settings menu (top of every screen), Help.
 ### قفل الشهر
 
 1. بعد ما مراجعات آخر الشهر تمشي صح، اقفل الدفاتر لحد آخر يوم في الشهر.
-2. مفيش تسجيل قبل اليوم ده تاني؛ الأدمن بس يفتح، بسبب مكتوب.
+2. مفيش تسجيل قبل اليوم ده تاني؛ اللي بيدير الإعدادات بس (المالك) يفتح، بسبب مكتوب.
 
 **اتأكد إنها مشيت صح**
 
@@ -374,7 +374,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### المرتبات والسلف
 
-1. المرتبات: الأدمن بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.
+1. المرتبات: المدير المالي اللي معاه صلاحية المرتبات (أو المالك) بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.
 2. سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.
 3. آخر الشهر: اختار الشهر والبنك، اكتب المكافآت والخصومات والسلف المستردة، راجع المرتبات (الضريبة والتأمينات وصندوق الشهداء لكل شخص)، وادفع؛ واطبع القسائم.
 4. العمالة الخارجية: سجل فاتورة شركتهم الشهرية لكل شخص في الموردون والفواتير؛ استرد السلف وإنت بتدفع الفاتورة؛ وادفع مكافآتهم من هنا.

@@ -1,12 +1,18 @@
+import { headers } from 'next/headers';
+import { notFound } from 'next/navigation';
 import type { ReactNode } from 'react';
-import { appsFor } from '@/lib/apps';
-import { getCurrentUser, getTheme } from '@/lib/server-session';
+import { PATHNAME_HEADER } from '@/lib/access';
+import { getMyProfile } from '@/lib/api-server';
+import { appsFor, canOpenPath } from '@/lib/apps';
+import { getTheme } from '@/lib/server-session';
 import { AccountMenu } from './AccountMenu';
 import { AppBar } from './AppBar';
 
 /**
  * The frame of the admin and finance apps: the app's menu bar across the top, the page below.
- * `badges` puts a count next to a page (and its menu), keyed by the page's address.
+ * Menus show only the pages the person's access opens (GET /me/access); a page on a menu they
+ * may not use shows not found. `badges` puts a count next to a page (and its menu), keyed by
+ * the page's address.
  */
 export async function AppShell({
   badges = {},
@@ -15,8 +21,10 @@ export async function AppShell({
   badges?: Record<string, number>;
   children: ReactNode;
 }) {
-  const [user, theme] = await Promise.all([getCurrentUser(), getTheme()]);
-  const apps = appsFor(user?.role ?? 'finance');
+  const [profile, theme, head] = await Promise.all([getMyProfile(), getTheme(), headers()]);
+  const pathname = head.get(PATHNAME_HEADER);
+  if (pathname && !canOpenPath(profile, pathname)) notFound();
+  const apps = appsFor(profile);
   return (
     <div className="min-h-dvh">
       <AppBar apps={apps} badges={badges} account={<AccountMenu theme={theme} tickets compact />} />

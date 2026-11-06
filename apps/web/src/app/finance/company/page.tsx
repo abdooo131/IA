@@ -1,8 +1,8 @@
 import { getTranslations } from 'next-intl/server';
 import { CompanyTax } from '@/components/finance/Invoices';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { CompanyProfile, EtaReadiness, MerchantTax } from '@/lib/finance-types';
-import { getCurrentUser } from '@/lib/server-session';
+import { isOwner } from '@/lib/apps';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export default async function FinanceCompanyPage() {
     apiGet<CompanyProfile>('/finance/company-profile'),
     apiGet<EtaReadiness>('/finance/eta/readiness'),
     apiGet<MerchantTax[]>('/finance/merchants-tax'),
-    getCurrentUser(),
+    getMyProfile(),
     getTranslations('finance.invoices'),
   ]);
   return (
@@ -22,7 +22,7 @@ export default async function FinanceCompanyPage() {
         profile={profile}
         feeKinds={readiness.feeKinds}
         merchants={merchants}
-        isAdmin={me?.role === 'admin'}
+        isAdmin={isOwner(me)}
       />
     </>
   );

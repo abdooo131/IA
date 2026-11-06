@@ -193,7 +193,16 @@ EN = {
        "check": [
          "Each payout shows a bank reference."],
        "problems": [
-         "A payout looks wrong: download the statement for the period and send it with your question."]}
+         "A payout looks wrong: download the statement for the period and send it with your question."]},
+      {"title": "Your team",
+       "steps": [
+         "Owners open Team to add the people who work on the account: name, email, password, and owner or member.",
+         "Members get only the rights you tick: orders, stock, money, settings.",
+         "Someone leaves: Disable them the same day; they are signed out everywhere."],
+       "check": [
+         "A member sees only the menu items of their rights."],
+       "problems": [
+         "You cannot lower or disable yourself, and one active owner always stays: make someone else owner first."]}
     ]},
   "finance": {
     "title": "Finance",
@@ -260,14 +269,14 @@ EN = {
       {"title": "Close the month",
        "steps": [
          "After the month end checks pass, Close the books through the last day of the month.",
-         "Nothing can be posted before that day any more; only admin can reopen, with a written reason."],
+         "Nothing can be posted before that day any more; only someone who manages settings (the owner) can reopen, with a written reason."],
        "check": [
          "Close the books shows the new closed through day."],
        "problems": [
          "A late bill for a closed month: enter it today with a note; ask admin only if it must sit in the old month."]},
       {"title": "Salaries and advances",
        "steps": [
-         "Salaries: admin marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.",
+         "Salaries: a finance manager with salary access (or the owner) marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.",
          "An advance: choose the person, amount and the bank or box it is paid from.",
          "Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.",
          "Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.",
@@ -377,7 +386,7 @@ EN = {
     ]},
   "admin": {
     "title": "Admin",
-    "who": "Operations admins. You can open every area.",
+    "who": "The team running operations. Home shows the apps your job role opens; the owner opens everything.",
     "day": [
       "Every morning: Overview, then Alerts (handle each one), then Tickets (For me).",
       "Every hour at peak: Orders, late ones first; call the store lead of any red store.",
@@ -419,7 +428,7 @@ EN = {
          "A count is stale: ask the store to count the bin again."]},
       {"title": "Users and settings",
        "steps": [
-         "Users: create staff (with a store), riders (store and badge), merchants and finance users; add each person's Slack member ID.",
+         "Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.",
          "Settings: SLA minutes, capacity, fees, refill levels and ticket answer times."],
        "check": [
          "The audit log shows every change with who made it."],
@@ -617,7 +626,16 @@ AR = {
        "check": [
          "كل تحويل ليه رقم مرجع من البنك."],
        "problems": [
-         "تحويل شكله غلط: نزل كشف الحساب للفترة وابعته مع سؤالك."]}
+         "تحويل شكله غلط: نزل كشف الحساب للفترة وابعته مع سؤالك."]},
+      {"title": "فريقك",
+       "steps": [
+         "المالك يفتح الفريق ويضيف الناس اللي بتشتغل على الحساب: الاسم والإيميل وكلمة السر، ومالك ولا عضو.",
+         "العضو بياخد الصلاحيات اللي إنت بتعلّم عليها بس: الطلبات، البضاعة، الفلوس، الإعدادات.",
+         "حد ساب الشغل: أوقفه في نفس اليوم؛ هيتعمله خروج من كل الأجهزة."],
+       "check": [
+         "العضو بيشوف في القائمة الحاجات اللي ليها صلاحية بس."],
+       "problems": [
+         "مينفعش تنزّل دورك أو توقف نفسك، ولازم يفضل مالك واحد شغال: خلي حد تاني مالك الأول."]}
     ]},
   "finance": {
     "title": "الماليات",
@@ -684,14 +702,14 @@ AR = {
       {"title": "قفل الشهر",
        "steps": [
          "بعد ما مراجعات آخر الشهر تمشي صح، اقفل الدفاتر لحد آخر يوم في الشهر.",
-         "مفيش تسجيل قبل اليوم ده تاني؛ الأدمن بس يفتح، بسبب مكتوب."],
+         "مفيش تسجيل قبل اليوم ده تاني؛ اللي بيدير الإعدادات بس (المالك) يفتح، بسبب مكتوب."],
        "check": [
          "شاشة قفل الدفاتر بتبين اليوم الجديد."],
        "problems": [
          "فاتورة متأخرة لشهر مقفول: سجلها النهارده بملاحظة؛ اسأل الأدمن بس لو لازم تتسجل في الشهر القديم."]},
       {"title": "المرتبات والسلف",
        "steps": [
-         "المرتبات: الأدمن بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.",
+         "المرتبات: المدير المالي اللي معاه صلاحية المرتبات (أو المالك) بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.",
          "سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.",
          "آخر الشهر: اختار الشهر والبنك، اكتب المكافآت والخصومات والسلف المستردة، راجع المرتبات (الضريبة والتأمينات وصندوق الشهداء لكل شخص)، وادفع؛ واطبع القسائم.",
          "العمالة الخارجية: سجل فاتورة شركتهم الشهرية لكل شخص في الموردون والفواتير؛ استرد السلف وإنت بتدفع الفاتورة؛ وادفع مكافآتهم من هنا.",
@@ -801,7 +819,7 @@ AR = {
     ]},
   "admin": {
     "title": "الأدمن",
-    "who": "أدمن التشغيل. تقدر تفتح كل الأجزاء.",
+    "who": "فريق تشغيل الشغل. الرئيسية بتبين التطبيقات اللي وظيفتك بتفتحها؛ المالك بيفتح كل حاجة.",
     "day": [
       "كل صباح: النظرة العامة، بعدين التنبيهات (اتعامل مع كل واحد)، بعدين التذاكر (ليا).",
       "كل ساعة وقت الذروة: الطلبات، المتأخر الأول؛ كلم مسؤول أي فرع أحمر.",
@@ -843,7 +861,7 @@ AR = {
          "جرد قديم: اطلب من الفرع يجرد الرف تاني."]},
       {"title": "المستخدمين والإعدادات",
        "steps": [
-         "المستخدمين: اعمل موظفين (بفرع)، مناديب (بفرع وكارنيه)، تجار، وماليات؛ وضيف رقم سلاك لكل واحد.",
+         "المستخدمين: اعمل أعضاء الفريق بوظيفة (بتملا صلاحياتهم في كل تطبيق والمخازن اللي مسؤولين عنها)، ومناديب (بفرع وكارنيه)، وأصحاب حسابات التجار؛ عدّل صلاحيات أي حد من تعديل (محدش يغير صلاحياته بنفسه) وضيف رقم سلاك.",
          "الإعدادات: دقائق الـSLA، السعة، الرسوم، مستويات إعادة التعبئة، ووقت الرد على التذاكر."],
        "check": [
          "سجل التدقيق بيوري كل تغيير ومين عمله."],

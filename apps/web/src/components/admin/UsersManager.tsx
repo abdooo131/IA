@@ -1,10 +1,19 @@
 'use client';
 
+import { isTeamRole, JOB_ROLE_TEMPLATES, type JobRole, type JobRoleLabel } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { localized } from '@/lib/admin-types';
 import { apiSend } from '@/lib/api-client';
+import { FormFooter } from '@/components/workflow/FormFooter';
+import {
+  AccessEditor,
+  type AccessStoreRef,
+  JobRoleSelect,
+  StorePicker,
+  useAccessError,
+} from './AccessEditor';
 
 type Role = 'admin' | 'merchant' | 'store_staff' | 'rider' | 'finance';
 const ROLES: Role[] = ['admin', 'finance', 'store_staff', 'rider', 'merchant'];
@@ -20,9 +29,10 @@ export interface AdminUser {
   merchant: { id: string; name: string } | null;
   badgeCode: string | null;
   slackUserId: string | null;
-  financeLevel: 'view' | 'prepare' | 'approve' | null;
+  /** Team members: the job role their access was last filled from, or custom */
+  jobRole: JobRoleLabel | null;
 }
-type StoreRef = { id: string; nameEn: string; nameAr: string };
+type StoreRef = AccessStoreRef;
 type MerchantRef = { id: string; name: string };
 
 const KNOWN = [
@@ -36,6 +46,7 @@ const KNOWN = [
   'cannot_deactivate_self',
   'rider_has_open_deliveries',
   'validation_failed',
+  'last_owner',
 ];
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
@@ -46,8 +57,16 @@ const secondary =
 
 function useErrors() {
   const t = useTranslations('admin.users');
-  return (code: string) => t(`errors.${KNOWN.includes(code) ? code : 'generic'}`);
+  const accessError = useAccessError();
+  return (code: string) => (KNOWN.includes(code) ? t(`errors.${code}`) : accessError(code));
 }
+
+/** The job role a new team member starts from, by kind of account. */
+const DEFAULT_JOB_ROLE: Record<'admin' | 'finance' | 'store_staff', JobRole> = {
+  admin: 'operations_manager',
+  finance: 'finance_officer',
+  store_staff: 'store_staff',
+};
 
 /** Store, merchant and badge fields, shown only for the roles that need them. */
 function LinkFields({
@@ -97,22 +116,6 @@ function LinkFields({
           />
         </label>
       )}
-      {role === 'finance' && (
-        <label className="block text-caption">
-          {t('financeLevel')}
-          <select
-            name="financeLevel"
-            defaultValue={initial?.financeLevel ?? 'approve'}
-            className={field}
-          >
-            {(['view', 'prepare', 'approve'] as const).map((level) => (
-              <option key={level} value={level}>
-                {t(`financeLevels.${level}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
       {role === 'merchant' && (
         <label className="block text-caption">
           {t('merchant')}
@@ -141,7 +144,6 @@ function links(form: FormData) {
     darkStoreId: get('darkStoreId'),
     merchantId: get('merchantId'),
     badgeCode: get('badgeCode'),
-    financeLevel: get('financeLevel') as AdminUser['financeLevel'] | undefined,
   };
 }
 
@@ -163,6 +165,9 @@ export function UsersManager({
   const errorText = useErrors();
   const [creating, setCreating] = useState(false);
   const [role, setRole] = useState<Role>('store_staff');
+  const [jobRole, setJobRole] = useState<JobRole>('store_staff');
+  const [accessStores, setAccessStores] = useState<string[]>([]);
+  const [touched, setTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
@@ -180,10 +185,16 @@ export function UsersManager({
       role,
       password: form.get('password'),
       ...links(form),
+      ...(isTeamRole(role) && {
+        jobRole,
+        ...(!JOB_ROLE_TEMPLATES[jobRole].allStores &&
+          accessStores.length > 0 && { storeIds: accessStores }),
+      }),
     });
     setBusy(false);
     if (!result.ok) return setError(errorText(result.error));
     setCreating(false);
+    setTouched(false);
     setNotice(t('created'));
     router.refresh();
   }
@@ -201,13 +212,18 @@ export function UsersManager({
       {creating ? (
         <form
           onSubmit={create}
+          onChange={() => setTouched(true)}
           className="max-w-xl space-y-3 rounded-lg border border-line bg-surface p-4"
         >
           <label className="block text-caption">
             {t('role')}
             <select
               value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
+              onChange={(e) => {
+                const next = e.target.value as Role;
+                setRole(next);
+                if (isTeamRole(next)) setJobRole(DEFAULT_JOB_ROLE[next]);
+              }}
               className={field}
             >
               {ROLES.map((r) => (
@@ -237,6 +253,23 @@ export function UsersManager({
             <input name="phone" type="tel" dir="ltr" placeholder="01xxxxxxxxx" className={field} />
           </label>
           <LinkFields role={role} stores={stores} merchants={merchants} />
+          {isTeamRole(role) && (
+            <div className="space-y-2">
+              <JobRoleSelect value={jobRole} allowCustom={false} onChange={setJobRole} />
+              <p className="text-caption text-text-muted">{t('access.createHint')}</p>
+              {!JOB_ROLE_TEMPLATES[jobRole].allStores && (
+                <div>
+                  <p className="text-caption font-semibold">{t('access.storesTitle')}</p>
+                  <p className="text-caption text-text-muted">
+                    {role === 'store_staff'
+                      ? t('access.storesCreateHintStaff')
+                      : t('access.storesHint')}
+                  </p>
+                  <StorePicker stores={stores} selected={accessStores} onChange={setAccessStores} />
+                </div>
+              )}
+            </div>
+          )}
           <label className="block text-caption">
             {t('password')}
             <input
@@ -254,14 +287,16 @@ export function UsersManager({
               {error}
             </p>
           )}
-          <div className="flex gap-2">
-            <button type="submit" disabled={busy} className={primary}>
-              {t('create')}
-            </button>
-            <button type="button" className={secondary} onClick={() => setCreating(false)}>
-              {t('cancel')}
-            </button>
-          </div>
+          <FormFooter
+            dirty={touched}
+            busy={busy}
+            saveLabel={t('create')}
+            onCancel={() => {
+              setCreating(false);
+              setTouched(false);
+              setError(null);
+            }}
+          />
         </form>
       ) : (
         <button type="button" className={primary} onClick={() => setCreating(true)}>
@@ -286,6 +321,7 @@ export function UsersManager({
                 </p>
                 <p className="text-caption">
                   {roles(u.role)}
+                  {isTeamRole(u.role) && u.jobRole && <> · {t(`jobRoles.${u.jobRole}`)}</>}
                   {u.darkStore && <> · {localized(u.darkStore, locale)}</>}
                   {u.merchant && <> · {u.merchant.name}</>}
                   {u.badgeCode && (
@@ -312,17 +348,27 @@ export function UsersManager({
               </div>
             </div>
             {editing === u.id && (
-              <UserEditor
-                user={u}
-                stores={stores}
-                merchants={merchants}
-                isMe={u.id === meId}
-                onDone={(text) => {
-                  setEditing(null);
-                  setNotice(text);
-                  router.refresh();
-                }}
-              />
+              <>
+                <UserEditor
+                  user={u}
+                  stores={stores}
+                  merchants={merchants}
+                  isMe={u.id === meId}
+                  onDone={(text) => {
+                    setEditing(null);
+                    setNotice(text);
+                    router.refresh();
+                  }}
+                />
+                {isTeamRole(u.role) && (
+                  <AccessEditor
+                    userId={u.id}
+                    isMe={u.id === meId}
+                    stores={stores}
+                    onSaved={() => router.refresh()}
+                  />
+                )}
+              </>
             )}
           </li>
         ))}

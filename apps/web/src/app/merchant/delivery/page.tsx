@@ -1,6 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { DeliveryPriceForm } from '@/components/merchant/DeliveryPriceForm';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, requireMerchantRight } from '@/lib/api-server';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +10,7 @@ export interface MerchantDelivery {
 }
 
 export default async function MerchantDeliveryPage() {
+  await requireMerchantRight('settings');
   const [delivery, t] = await Promise.all([
     apiGet<MerchantDelivery>('/merchant/delivery'),
     getTranslations('merchant.delivery'),

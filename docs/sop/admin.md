@@ -1,6 +1,6 @@
 # SOP: Admin
 
-_Operations admins. You can open every area._
+_The team running operations. Home shows the apps your job role opens; the owner opens everything._
 
 Also inside the app: settings menu (top of every screen), Help.
 
@@ -63,7 +63,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Users and settings
 
-1. Users: create staff (with a store), riders (store and badge), merchants and finance users; add each person's Slack member ID.
+1. Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.
 2. Settings: SLA minutes, capacity, fees, refill levels and ticket answer times.
 
 **Check it went right**
@@ -78,7 +78,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### الأدمن
 
-أدمن التشغيل. تقدر تفتح كل الأجزاء.
+فريق تشغيل الشغل. الرئيسية بتبين التطبيقات اللي وظيفتك بتفتحها؛ المالك بيفتح كل حاجة.
 
 ### يومك
 
@@ -137,7 +137,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### المستخدمين والإعدادات
 
-1. المستخدمين: اعمل موظفين (بفرع)، مناديب (بفرع وكارنيه)، تجار، وماليات؛ وضيف رقم سلاك لكل واحد.
+1. المستخدمين: اعمل أعضاء الفريق بوظيفة (بتملا صلاحياتهم في كل تطبيق والمخازن اللي مسؤولين عنها)، ومناديب (بفرع وكارنيه)، وأصحاب حسابات التجار؛ عدّل صلاحيات أي حد من تعديل (محدش يغير صلاحياته بنفسه) وضيف رقم سلاك.
 2. الإعدادات: دقائق الـSLA، السعة، الرسوم، مستويات إعادة التعبئة، ووقت الرد على التذاكر.
 
 **اتأكد إنها مشيت صح**

@@ -1,12 +1,13 @@
 import { getTranslations } from 'next-intl/server';
 import { BackLink } from '@/components/store/BackLink';
 import { type CoverageArea, NewOrderForm } from '@/components/orders/NewOrderForm';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, requireMerchantRight } from '@/lib/api-server';
 import type { MerchantSku } from '@/lib/merchant-types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function MerchantNewOrderPage() {
+  await requireMerchantRight('orders');
   const [areas, skus, t] = await Promise.all([
     apiGet<CoverageArea[]>('/coverage/areas'),
     apiGet<MerchantSku[]>('/merchant/skus'),
