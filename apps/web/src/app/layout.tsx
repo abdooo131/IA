@@ -8,7 +8,12 @@ import '@/styles/globals.css';
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('common');
-  return { title: t('appName') };
+  return {
+    title: t('appName'),
+    // Installed on a phone's home screen it opens full screen with the Shiply icon.
+    appleWebApp: { capable: true, title: t('appName'), statusBarStyle: 'default' },
+    icons: { icon: '/brand/app-icon-192.png', apple: '/brand/app-icon-180.png' },
+  };
 }
 
 export const viewport: Viewport = {
