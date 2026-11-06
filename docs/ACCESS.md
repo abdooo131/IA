@@ -26,10 +26,12 @@ One row per team member (`user_access`):
 | `merchants` | none, view, use, manage |
 | `customers` | none, view, use, manage |
 | `accounting` | none, view, use, manage (view, prepare, approve in finance words) |
+| `hr` | none, view, use, manage |
 | `settings` | none, manage |
 | `all_stores` | true, or the listed stores only (`user_stores`) |
 | `customer_data` | may open named customer profiles (off unless given) |
 | `salaries` | may see salaries, payslips and the payroll run (off unless given) |
+| `own_merchants_only` | account managers: only the merchants whose account manager they are |
 
 Levels are ordered none < view < use < manage. A GET needs view, a change needs use, and
 routes that approve, close, undo or configure need manage.
@@ -50,6 +52,10 @@ What each app covers:
   `customer_data`. manage: merge profiles.
 - **accounting**: everything under `/finance`. view = reports only, use = prepare, manage =
   approve (second person rule, closing books, year end). Salary pages also need `salaries`.
+- **hr**: employee files, their documents and history, document expiry alerts (docs/HR.md).
+  view reads files, use changes them and adds documents, manage opens a file for an account
+  without one, changes the status (left disables the account) and deletes documents. Salary and
+  the salary bank account also need `salaries`.
 - **settings**: users and access, audit log, ticket settings, and the settings pages of every
   app (a setting is changed with settings manage).
 
@@ -59,18 +65,24 @@ screens, orders, stock, transfers, cash, alerts and the live board are filtered 
 
 ## Job roles (templates)
 
-| Job role | store | operations | inventory | merchants | customers | accounting | settings | stores | customer data | salaries |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Owner | manage | manage | manage | manage | manage | manage | manage | all | yes | yes |
-| Operations manager | manage | manage | manage | view | view | none | none | all | no | no |
-| Store manager | manage | use | use | none | none | none | none | listed | no | no |
-| Store staff | use | none | none | none | none | none | none | listed | no | no |
-| Hub staff | use | none | view | none | none | none | none | listed | no | no |
-| Dispatcher | use | use | view | none | none | none | none | all | no | no |
-| Customer service | none | use | view | view | view | none | none | all | yes | no |
-| Accountant | none | view | view | view | none | view | none | all | no | no |
-| Finance officer | none | view | view | view | none | use | none | all | no | no |
-| Finance manager | none | view | view | view | none | manage | none | all | no | yes |
+| Job role | store | operations | inventory | merchants | customers | accounting | hr | settings | stores | customer data | salaries | own merchants only |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Owner | manage | manage | manage | manage | manage | manage | manage | manage | all | yes | yes | no |
+| Operations manager | manage | manage | manage | view | view | none | none | none | all | no | no | no |
+| Store manager | manage | use | use | none | none | none | none | none | listed | no | no | no |
+| Store staff | use | none | none | none | none | none | none | none | listed | no | no | no |
+| Hub staff | use | none | view | none | none | none | none | none | listed | no | no | no |
+| Dispatcher | use | use | view | none | none | none | none | none | all | no | no | no |
+| Customer service | none | use | view | view | view | none | none | none | all | yes | no | no |
+| Accountant | none | view | view | view | none | view | none | none | all | no | no | no |
+| Finance officer | none | view | view | view | none | use | none | none | all | no | no | no |
+| Finance manager | none | view | view | view | none | manage | none | none | all | no | yes | no |
+| HR officer | none | none | none | none | none | none | manage | none | all | no | no | no |
+| Account manager | none | view | view | use | view | none | none | none | all | no | no | yes |
+| QC agent | use | none | view | none | none | none | none | none | listed | no | no | no |
+
+QC agent holds the same values as Hub staff until the QC queue (HR step 5) gives it its own
+screens; the stored job role label keeps them apart.
 
 Picking a job role overwrites every field; the person can then be adjusted (job role becomes
 `custom`).
@@ -94,9 +106,21 @@ price, tax details, payout schedule). Owners have all rights and manage the team
 `/merchant/team` (add, change rights, disable, reset password); an owner cannot remove
 themselves, and a merchant always keeps one active owner.
 
+## Account managers (docs/HR.md 5)
+
+A merchant has one account manager (`merchants.account_manager_id`, set by merchants manage on
+the merchant page). A person with `own_merchants_only` sees only the merchants they look after:
+the merchants list, products, stock, shipments, orders (list, detail, CSV, cancel), merchant fee
+settings and alerts are filtered, and any route naming another merchant (`:merchantId`,
+`?merchantId=`, a merchant's `:id`) answers 403 `{ error: 'merchant_not_allowed' }`. Alerts tied
+to a merchant (`alerts.merchant_id`, or the order's merchant) go to them. A merchant they create
+is theirs.
+
 ## Moving existing users
 
 - admin → Owner profile.
+- HR step 1: the new hr column starts at manage for the Owner job role and none for everyone
+  else; `own_merchants_only` starts off.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or
   Finance manager (approve).
 - store_staff → Store staff for their own store.

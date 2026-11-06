@@ -39,7 +39,7 @@ const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
 
 function toValues(profile: AccessProfile): Values {
-  const { jobRole: _label, storeIds, ...rest } = profile;
+  const { jobRole: _label, storeIds, merchantIds: _merchants, ...rest } = profile;
   return { ...rest, storeIds: [...storeIds].sort() };
 }
 
@@ -149,6 +149,8 @@ export function AccessEditor({
   const t = useTranslations('admin.users');
   const errorText = useAccessError();
   const [loaded, setLoaded] = useState<Values | null>(null);
+  /** The job role last picked or stored: tells apart roles with the same values. */
+  const [label, setLabel] = useState<JobRole | 'custom'>('custom');
   const [values, setValues] = useState<Values | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -160,6 +162,7 @@ export function AccessEditor({
       if (!live) return;
       if (!r.ok) return setError(errorText(r.error));
       const v = toValues(r.data.profile);
+      setLabel(r.data.profile.jobRole);
       setLoaded(v);
       setValues(v);
     });
@@ -168,7 +171,7 @@ export function AccessEditor({
     };
   }, [userId]);
 
-  const jobRole = useMemo(() => (values ? matchJobRole(values) : 'custom'), [values]);
+  const jobRole = useMemo(() => (values ? matchJobRole(values, label) : 'custom'), [values, label]);
   const dirty = !!values && !!loaded && !same(values, loaded);
 
   if (!values) {
@@ -206,6 +209,7 @@ export function AccessEditor({
     setBusy(false);
     if (!result.ok) return setError(errorText(result.error));
     const v = toValues(result.data.profile);
+    setLabel(result.data.profile.jobRole);
     setLoaded(v);
     setValues(v);
     setNotice(t('access.saved'));
@@ -235,7 +239,10 @@ export function AccessEditor({
           <JobRoleSelect
             value={jobRole}
             allowCustom
-            onChange={(role) => set({ ...JOB_ROLE_TEMPLATES[role], storeIds: values.storeIds })}
+            onChange={(role) => {
+              setLabel(role);
+              set({ ...JOB_ROLE_TEMPLATES[role], storeIds: values.storeIds });
+            }}
           />
         </div>
 
@@ -322,6 +329,20 @@ export function AccessEditor({
               <span className="font-semibold">{t('access.customerData')}</span>
               <span className="block text-caption text-text-muted">
                 {t('access.customerDataHint')}
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-body-sm">
+            <input
+              type="checkbox"
+              checked={values.ownMerchantsOnly}
+              onChange={(e) => set({ ownMerchantsOnly: e.target.checked })}
+              className="mt-0.5 h-4 w-4"
+            />
+            <span>
+              <span className="font-semibold">{t('access.ownMerchantsOnly')}</span>
+              <span className="block text-caption text-text-muted">
+                {t('access.ownMerchantsOnlyHint')}
               </span>
             </span>
           </label>

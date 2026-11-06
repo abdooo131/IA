@@ -1,15 +1,19 @@
-import { Body, Controller, Param, Patch, Post } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   createMerchant,
   createSku,
   decideSignUp,
   importSkus,
+  listAccountManagers,
+  setAccountManager,
   type SkuImportResult,
   updateMerchant,
   updateSku,
 } from '@shiplynow/db';
 import {
+  type AccessProfile,
+  accountManagerSchema,
   type AccessTokenClaims,
   type MerchantBody,
   merchantSchema,
@@ -22,7 +26,8 @@ import {
   updateSkuSchema,
 } from '@shiplynow/shared';
 import { z } from 'zod';
-import { Access, CurrentUser } from '../auth/decorators';
+import { assertMerchant } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -39,12 +44,42 @@ export class AdminMerchantsController {
   async createMerchant(
     @Body(new ZodValidationPipe(merchantSchema)) body: MerchantBody,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
     const merchant = await createMerchant(this.prisma, { ...body, actorUserId: user.sub });
+    // An account manager looks after the merchants they open.
+    if (access.ownMerchantsOnly)
+      await setAccountManager(this.prisma, {
+        merchantId: merchant.id,
+        userId: user.sub,
+        actorUserId: user.sub,
+      });
     return { id: merchant.id };
   }
 
+  /** Team members who can be picked as a merchant's account manager (merchants access). */
+  @Get('account-managers')
+  accountManagers() {
+    return listAccountManagers(this.prisma);
+  }
+
+  /** Gives the merchant its account manager, or none (docs/HR.md 5). */
+  @Put('merchants/:id/account-manager')
+  @Access('merchants', 'manage', { merchantParam: 'id' })
+  accountManager(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(accountManagerSchema)) body: { userId: string | null },
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    return setAccountManager(this.prisma, {
+      merchantId: id,
+      userId: body.userId,
+      actorUserId: user.sub,
+    });
+  }
+
   @Patch('merchants/:id')
+  @Access('merchants', undefined, { merchantParam: 'id' })
   async updateMerchant(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(merchantSchema.partial())) body: Partial<MerchantBody>,
@@ -56,13 +91,13 @@ export class AdminMerchantsController {
 
   /** A self sign up: approve opens the account, reject needs a reason. */
   @Post('merchants/:id/approve')
-  @Access('merchants', 'manage')
+  @Access('merchants', 'manage', { merchantParam: 'id' })
   approve(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return decideSignUp(this.prisma, { merchantId: id, approve: true, actorUserId: user.sub });
   }
 
   @Post('merchants/:id/reject')
-  @Access('merchants', 'manage')
+  @Access('merchants', 'manage', { merchantParam: 'id' })
   reject(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(rejectSchema)) body: z.infer<typeof rejectSchema>,
@@ -80,7 +115,9 @@ export class AdminMerchantsController {
   async createSku(
     @Body(new ZodValidationPipe(skuSchema)) body: SkuBody,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
+    assertMerchant(access, body.merchantId);
     const sku = await createSku(this.prisma, { ...body, actorUserId: user.sub });
     return { id: sku.id };
   }
@@ -90,7 +127,12 @@ export class AdminMerchantsController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(updateSkuSchema)) body: UpdateSkuBody,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
+    if (access.ownMerchantsOnly) {
+      const sku = await this.prisma.sku.findUnique({ where: { id }, select: { merchantId: true } });
+      if (sku) assertMerchant(access, sku.merchantId);
+    }
     await updateSku(this.prisma, { ...body, skuId: id, actorUserId: user.sub });
     return { id };
   }
@@ -103,7 +145,9 @@ export class AdminMerchantsController {
   async importSkus(
     @Body(new ZodValidationPipe(skuImportSchema)) body: z.infer<typeof skuImportSchema>,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ): Promise<SkuImportResult> {
+    assertMerchant(access, body.merchantId);
     const rows: { row: number; data: SkuImportRow }[] = [];
     const errors: SkuImportResult['errors'] = [];
     body.rows.forEach((raw, index) => {

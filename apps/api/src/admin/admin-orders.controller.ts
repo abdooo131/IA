@@ -32,7 +32,7 @@ import {
   canDo,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
-import { assertStore, storeFilter } from '../auth/access-scope';
+import { assertMerchant, assertStore, merchantFilter, storeFilter } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { parseBound } from '../common/dates';
 import { ordersCsv } from './orders-csv';
@@ -121,7 +121,7 @@ export class AdminOrdersController {
         ? [status as OrderStatus]
         : undefined,
       darkStoreId: storeFilter(access, darkStoreId),
-      merchantId: merchantId || undefined,
+      merchantId: merchantFilter(access, merchantId || undefined),
       from: parseBound(from, 'from'),
       to: parseBound(to, 'to'),
       q: q || undefined,
@@ -134,9 +134,9 @@ export class AdminOrdersController {
     @Param('id') id: string,
     @CurrentAccess() access: AccessProfile,
   ): Promise<OrderDetail> {
+    await this.orderIn(id, access);
     const detail = await getOrderDetail(this.prisma, id);
     if (!detail) throw new NotFoundException({ error: 'order_not_found' });
-    await this.orderIn(id, access);
     return detail;
   }
 
@@ -147,6 +147,7 @@ export class AdminOrdersController {
     @CurrentAccess() access: AccessProfile,
   ) {
     if (!body.merchantId) throw new DomainError('merchant_required', 400);
+    assertMerchant(access, body.merchantId);
     return this.intake.create(body.merchantId, body, user.sub, 'manual', (darkStoreId) =>
       assertStore(access, darkStoreId),
     );
@@ -185,11 +186,20 @@ export class AdminOrdersController {
   @Get('alerts')
   @ApiQuery({ name: 'open', required: false, description: 'true for unresolved only (default)' })
   async alerts(@CurrentAccess() access: AccessProfile, @Query('open') open?: string) {
+    const merchants = merchantFilter(access);
     const alerts = await this.prisma.alert.findMany({
       where: {
         ...(open !== 'false' && { resolvedAt: null }),
         // People limited to some stores see only those stores' alerts.
         darkStoreId: storeFilter(access),
+        // Employee document alerts belong to HR.
+        ...(!canDo(access, 'hr', 'view') && {
+          type: { notIn: ['document_expiring', 'document_expired'] },
+        }),
+        // Account managers get the alerts of their merchants (docs/HR.md 5).
+        ...(merchants && {
+          OR: [{ merchantId: merchants }, { order: { merchantId: merchants } }],
+        }),
       },
       include: {
         order: { select: { id: true, number: true, status: true } },
@@ -220,9 +230,13 @@ export class AdminOrdersController {
   ) {
     const alert = await this.prisma.alert.findUnique({
       where: { id },
-      select: { darkStoreId: true },
+      select: { darkStoreId: true, merchantId: true, order: { select: { merchantId: true } } },
     });
-    if (alert) assertStore(access, alert.darkStoreId);
+    if (alert) {
+      assertStore(access, alert.darkStoreId);
+      if (access.ownMerchantsOnly)
+        assertMerchant(access, alert.merchantId ?? alert.order?.merchantId ?? null);
+    }
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.alert.updateMany({
         where: { id, resolvedAt: null },
@@ -245,9 +259,12 @@ export class AdminOrdersController {
   private async orderIn(id: string, access: AccessProfile) {
     const order = await this.prisma.order.findUnique({
       where: { id },
-      select: { darkStoreId: true, status: true },
+      select: { darkStoreId: true, status: true, merchantId: true },
     });
-    if (order) assertStore(access, order.darkStoreId);
+    if (order) {
+      assertStore(access, order.darkStoreId);
+      assertMerchant(access, order.merchantId);
+    }
     return order;
   }
 }

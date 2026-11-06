@@ -1,5 +1,5 @@
 import { ForbiddenException } from '@nestjs/common';
-import { type AccessProfile, canUseStore } from '@shiplynow/shared';
+import { type AccessProfile, canUseMerchant, canUseStore } from '@shiplynow/shared';
 
 // Store scope (docs/ACCESS.md): a team member without all_stores sees only their listed
 // stores in every app. Lists are filtered with these helpers; single records are refused.
@@ -28,4 +28,33 @@ export function assertStore(access: AccessProfile | undefined, darkStoreId: stri
   if (!access || access.allStores) return;
   if (!darkStoreId || !canUseStore(access, darkStoreId))
     throw new ForbiddenException({ error: 'store_not_allowed' });
+}
+
+// Account managers (docs/HR.md 5): a person with own_merchants_only sees only the merchants
+// whose account manager they are, in every app.
+
+/** The merchants a person is limited to, or null for every merchant. */
+export function limitedMerchants(access: AccessProfile | undefined): string[] | null {
+  if (!access || !access.ownMerchantsOnly) return null;
+  return access.merchantIds;
+}
+
+/** A Prisma filter on merchant_id: the requested merchant (checked), else theirs, else nothing. */
+export function merchantFilter(
+  access: AccessProfile | undefined,
+  requested?: string | null,
+): string | { in: string[] } | undefined {
+  if (requested) {
+    assertMerchant(access, requested);
+    return requested;
+  }
+  const merchants = limitedMerchants(access);
+  return merchants ? { in: merchants } : undefined;
+}
+
+/** Refuses a record of a merchant the person does not look after. */
+export function assertMerchant(access: AccessProfile | undefined, merchantId: string | null) {
+  if (!access || !access.ownMerchantsOnly) return;
+  if (!merchantId || !canUseMerchant(access, merchantId))
+    throw new ForbiddenException({ error: 'merchant_not_allowed' });
 }

@@ -2,7 +2,7 @@ import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { getManifestDetail, type ManifestStatus, type Prisma } from '@shiplynow/db';
 import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
-import { assertStore, storeFilter } from '../auth/access-scope';
+import { assertMerchant, assertStore, merchantFilter, storeFilter } from '../auth/access-scope';
 import { type AccessProfile } from '@shiplynow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -18,10 +18,15 @@ export class AdminManifestsController {
   /** Every merchant: a lookup the pages of every app read. */
   @Get('merchants')
   @Access(ANY_APP)
-  async merchants() {
+  async merchants(@CurrentAccess() access: AccessProfile) {
+    const mine = merchantFilter(access);
     const merchants = await this.prisma.merchant.findMany({
+      where: mine ? { id: mine } : undefined,
       orderBy: { name: 'asc' },
-      include: { _count: { select: { skus: true, inboundManifests: true } } },
+      include: {
+        _count: { select: { skus: true, inboundManifests: true } },
+        accountManager: { select: { id: true, name: true } },
+      },
     });
     return merchants.map((m) => ({
       id: m.id,
@@ -35,6 +40,7 @@ export class AdminManifestsController {
       shopifyShopDomain: m.shopifyShopDomain,
       skuCount: m._count.skus,
       shipmentCount: m._count.inboundManifests,
+      accountManager: m.accountManager,
     }));
   }
 
@@ -53,7 +59,7 @@ export class AdminManifestsController {
     const where: Prisma.InboundManifestWhereInput = {
       ...(STATUSES.includes(status as ManifestStatus) && { status: status as ManifestStatus }),
       darkStoreId: storeFilter(access, darkStoreId),
-      ...(merchantId && { merchantId }),
+      merchantId: merchantFilter(access, merchantId || undefined),
       ...(q && { reference: { contains: q, mode: 'insensitive' } }),
     };
     const list = await this.prisma.inboundManifest.findMany({
@@ -87,9 +93,10 @@ export class AdminManifestsController {
     if (!detail) throw new NotFoundException({ error: 'manifest_not_found' });
     const row = await this.prisma.inboundManifest.findUnique({
       where: { id },
-      select: { darkStoreId: true },
+      select: { darkStoreId: true, merchantId: true },
     });
     assertStore(access, row?.darkStoreId ?? null);
+    assertMerchant(access, row?.merchantId ?? null);
     return detail;
   }
 }

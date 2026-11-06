@@ -23,6 +23,11 @@ export function setupApp(app: INestApplication) {
   });
   // Photos are uploaded as the raw image body (the client shrinks them first).
   app.use('/photos', raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1600kb' }));
+  // Employee documents are uploaded as the raw photo or PDF (at most 3 MB).
+  app.use(
+    /^\/hr\/employees\/[^/]+\/documents$/,
+    raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], limit: '3100kb' }),
+  );
   // Bank statement files (Excel or CSV) are read as the raw file.
   app.use('/finance/bank-statements/read', raw({ type: () => true, limit: '5mb' }));
   // Shopify signs the exact bytes it sends, so its callbacks keep the raw body.

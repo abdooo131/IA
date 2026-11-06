@@ -2,6 +2,7 @@ import type { PrismaClient } from '@prisma/client';
 import { addDays, cairoDay, cairoDayStart, GLOBAL_SCOPE, type SettingKey } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { createMerchant, createSku, createUser } from '../admin-ops';
+import { ensureEmployees } from '../hr';
 import { reportDamage, settleDamage } from '../damage';
 import { DomainError } from '../domain-error';
 import {
@@ -194,6 +195,7 @@ export async function loadDemo(base: PrismaClient, options: DemoOptions): Promis
     const rnd = randomSource(options.seed ?? 20261102);
     const world = await setUp(db, rnd, options, log);
     const counts = await simulate(db, sim, rnd, world, { firstDay, days, today, at }, options, log);
+    await fillEmployeeFiles(db);
     setContextClock(Math.min(realNow() - 1000, Date.now()));
     await db.$transaction((tx) =>
       recordAudit(tx, {
@@ -209,6 +211,26 @@ export async function loadDemo(base: PrismaClient, options: DemoOptions): Promis
     return { status: 'loaded', seconds, counts };
   } finally {
     restoreClock();
+  }
+}
+
+/** Every demo person gets an employee file with a job title and department (docs/HR.md). */
+async function fillEmployeeFiles(db: PrismaClient) {
+  await ensureEmployees(db);
+  const plain = await db.employee.findMany({
+    where: { department: null },
+    include: { user: { select: { role: true } } },
+  });
+  const byRole = {
+    admin: ['management', 'Manager'],
+    finance: ['finance', 'Accountant'],
+    store_staff: ['store', 'Store associate'],
+    rider: ['delivery', 'Rider'],
+    merchant: ['other', 'Other'],
+  } as const;
+  for (const e of plain) {
+    const [department, jobTitle] = byRole[e.user.role];
+    await db.employee.update({ where: { id: e.id }, data: { department, jobTitle } });
   }
 }
 

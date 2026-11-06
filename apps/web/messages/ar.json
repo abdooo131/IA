@@ -19,7 +19,8 @@
     "close": "إغلاق",
     "settings": "الإعدادات",
     "datePlaceholder": "يوم/شهر/سنة",
-    "pickDate": "اختار التاريخ"
+    "pickDate": "اختار التاريخ",
+    "myFile": "ملفي"
   },
   "roles": {
     "admin": "مدير",
@@ -295,7 +296,9 @@
         "merchant_signup": "طلب تاجر جديد: {name}",
         "transfer_short_sent": "التحويل {reference} خرج وناقص قطع",
         "transfer_short_received": "التحويل {reference} وصل وناقص قطع",
-        "cod_risk_customer": "طلب دفع عند الاستلام من عميل عالي المخاطرة"
+        "cod_risk_customer": "طلب دفع عند الاستلام من عميل عالي المخاطرة",
+        "document_expiring": "{nameEn}: مستند بينتهي يوم {expiresOn}",
+        "document_expired": "{nameEn}: مستند انتهى يوم {expiresOn}"
       },
       "handledBy": "اتعامل معاه {name}"
     },
@@ -373,7 +376,9 @@
         "payroll__tax_skip_2_from_piastres": "فوق هذا الدخل السنوي تفقد الشرائح 1 إلى 2 سعرها الأقل (جنيه)",
         "payroll__tax_skip_3_from_piastres": "فوق هذا الدخل السنوي تفقد الشرائح 1 إلى 3 سعرها الأقل (جنيه)",
         "payroll__tax_skip_4_from_piastres": "فوق هذا الدخل السنوي تفقد الشرائح 1 إلى 4 سعرها الأقل (جنيه)",
-        "payroll__tax_skip_5_from_piastres": "فوق هذا الدخل السنوي تفقد الشرائح 1 إلى 5 سعرها الأقل (جنيه)"
+        "payroll__tax_skip_5_from_piastres": "فوق هذا الدخل السنوي تفقد الشرائح 1 إلى 5 سعرها الأقل (جنيه)",
+        "hr__document_alert_days": "نبه قبل ما المستند يخلص بـ (أيام)",
+        "hr__probation_months": "فترة الاختبار للموظف الجديد (شهور)"
       },
       "default": "الافتراضي {value}",
       "global": "في كل مكان",
@@ -401,7 +406,8 @@
         "customers": "العملاء",
         "tickets": "التذاكر",
         "other": "أخرى",
-        "merchants": "تسجيل التجار"
+        "merchants": "تسجيل التجار",
+        "hr": "ملفات الموظفين"
       }
     },
     "audit": {
@@ -525,7 +531,13 @@
         "customer__merge": "دمج ملفي عميل",
         "shopify__app_add": "أضاف تطبيق شوبيفاي مخصصاً",
         "shopify__app_remove": "أزال تطبيق شوبيفاي مخصصاً",
-        "shopify__connect_direct": "ربط متجراً مباشرة بتطبيقه المخصص"
+        "shopify__connect_direct": "ربط متجراً مباشرة بتطبيقه المخصص",
+        "employee__create": "اتفتح ملف موظف",
+        "employee__update": "ملف الموظف اتعدل",
+        "employee__status": "حالة الموظف اتغيرت",
+        "employee__document_add": "مستند اتضاف",
+        "employee__document_delete": "مستند اتمسح",
+        "merchant__account_manager": "مدير الحساب اتغير"
       }
     },
     "users": {
@@ -596,7 +608,8 @@
           "merchants": "التجار",
           "customers": "العملاء",
           "accounting": "المحاسبة",
-          "settings": "الإعدادات"
+          "settings": "الإعدادات",
+          "hr": "الموارد البشرية"
         },
         "levelsHint": "العرض بيفتح الصفحات، والاستخدام بيسمح بالتعديل، والإدارة كمان بتوافق وتقفل وتظبط الإعدادات. المحاسبة: عرض = تقارير، استخدام = تجهيز، إدارة = موافقة.",
         "allStores": "بيشتغل في كل المخازن",
@@ -620,7 +633,9 @@
           "user_not_found": "المستخدم ده مبقاش موجود. اعمل تحديث للصفحة.",
           "validation_failed": "راجع البيانات.",
           "generic": "حصلت مشكلة. جرب تاني."
-        }
+        },
+        "ownMerchantsOnly": "تجاره هو بس",
+        "ownMerchantsOnlyHint": "مدير حساب: بيشوف بس التجار اللي هو مسؤول عنهم، بطلباتهم ومخزونهم وتنبيهاتهم."
       },
       "jobRoles": {
         "owner": "المالك",
@@ -633,7 +648,10 @@
         "accountant": "محاسب",
         "finance_officer": "موظف مالية",
         "finance_manager": "مدير مالي",
-        "custom": "مخصص"
+        "custom": "مخصص",
+        "hr_officer": "موظف موارد بشرية",
+        "account_manager": "مدير حساب",
+        "qc_agent": "مراقب جودة"
       }
     },
     "merchants": {
@@ -666,7 +684,9 @@
         "confirmReject": "ارفض الطلب",
         "back": "رجوع",
         "error": "ماقدرناش نحفظ. اعمل تحديث وجرّب تاني."
-      }
+      },
+      "accountManager": "مدير الحساب",
+      "noAccountManager": "مفيش"
     },
     "productsEdit": {
       "new": "إضافة منتج",
@@ -3939,7 +3959,8 @@
       "customers": "العملاء",
       "accounting": "المحاسبة",
       "system": "الإعدادات",
-      "store": "شاشات المخزن"
+      "store": "شاشات المخزن",
+      "hr": "الموارد البشرية"
     },
     "descriptions": {
       "operations": "المتاجر الآن والطلبات والتنبيهات",
@@ -3948,7 +3969,8 @@
       "customers": "الملفات والأماكن وبيانات السوق",
       "accounting": "الأموال والمدفوعات والضرائب والتقارير",
       "system": "المستخدمون وسجل التدقيق والتذاكر",
-      "store": "التجهيز والتغليف والاستلام والتسليم للمندوب"
+      "store": "التجهيز والتغليف والاستلام والتسليم للمندوب",
+      "hr": "ملفات الموظفين ومستنداتهم"
     },
     "menus": {
       "dashboard": "لوحة التحكم",
@@ -4026,7 +4048,175 @@
       "yearEnd": "نهاية السنة",
       "opening": "الأرصدة الافتتاحية",
       "users": "المستخدمون",
-      "audit": "سجل التدقيق"
+      "audit": "سجل التدقيق",
+      "employees": "الموظفين"
+    }
+  },
+  "hr": {
+    "title": "الموظفين",
+    "intro": "كل واحد بيشتغل معانا ليه ملف: بياناته ومستنداته وتاريخه. أي حساب يتعمل من المستخدمين بيتفتح له ملف على طول.",
+    "filters": "فلترة الموظفين",
+    "search": "بحث",
+    "searchHint": "الاسم أو الإيميل أو الموبايل أو الرقم القومي أو الوظيفة",
+    "store": "المخزن",
+    "allStores": "كل المخازن",
+    "department": "القسم",
+    "allDepartments": "كل الأقسام",
+    "status": "الحالة",
+    "allStatuses": "كل الحالات",
+    "apply": "اعرض",
+    "clear": "امسح",
+    "empty": "مفيش موظف بالمواصفات دي.",
+    "employee": "الموظف",
+    "job": "الوظيفة",
+    "hireDate": "تاريخ التعيين",
+    "documents": "المستندات",
+    "office": "المكتب",
+    "expiredCount": "{count, plural, one {مستند منتهي} other {# مستندات منتهية}}",
+    "withoutFile": "حسابات من غير ملف",
+    "withoutFileHint": "دول أعضاء فريق أو مناديب ليهم حساب بس لسه مالهمش ملف موظف.",
+    "openFile": "افتح ملف",
+    "newPersonHint": "الشخص الجديد بيبدأ بحساب من المستخدمين، والملف بيتفتح معاه.",
+    "openUsers": "افتح المستخدمين",
+    "alertsTitle": "مستندات قربت تخلص",
+    "expiresOn": "بتنتهي يوم {date}",
+    "expiredOn": "انتهت يوم {date}",
+    "handled": "اتعامل معاها",
+    "back": "رجوع للموظفين",
+    "backHome": "رجوع",
+    "accountDisabled": "الحساب متوقف",
+    "leftOnReason": "ساب الشغل يوم {date}: {reason}",
+    "tabsLabel": "أجزاء الملف",
+    "tabs": {
+      "details": "البيانات",
+      "documents": "المستندات",
+      "history": "التاريخ"
+    },
+    "sections": {
+      "identity": "الهوية",
+      "contact": "التواصل",
+      "job": "الوظيفة",
+      "contract": "العقد",
+      "bank": "حساب البنك للمرتب"
+    },
+    "fields": {
+      "nameEn": "الاسم بالكامل (إنجليزي)",
+      "nameAr": "الاسم بالكامل (عربي)",
+      "nationalId": "الرقم القومي (14 رقم)",
+      "nationalIdExpiresOn": "البطاقة سارية لحد",
+      "birthDate": "تاريخ الميلاد",
+      "address": "عنوان السكن",
+      "mobile": "الموبايل",
+      "emergencyName": "حد نكلمه في الطوارئ",
+      "emergencyPhone": "موبايل الطوارئ",
+      "jobTitle": "المسمى الوظيفي",
+      "department": "القسم",
+      "manager": "المدير",
+      "homeStore": "بيشتغل في",
+      "hireDate": "تاريخ التعيين",
+      "contractType": "نوع العقد",
+      "contractEndsOn": "العقد بينتهي يوم",
+      "probationEndsOn": "فترة الاختبار بتنتهي يوم",
+      "socialInsuranceNumber": "الرقم التأميني",
+      "bankName": "البنك",
+      "bankAccountNumber": "رقم الحساب",
+      "iban": "رقم الآيبان",
+      "bankAccountHolder": "اسم صاحب الحساب",
+      "leftOn": "آخر يوم شغل",
+      "leftReason": "سبب ترك الشغل",
+      "statusNote": "ملاحظة (اختياري)",
+      "issuedOn": "تاريخ الإصدار",
+      "expiresOn": "ساري لحد"
+    },
+    "storeFromAccount": "موظفين المخازن والمناديب بيشتغلوا في مخزن حسابهم (بيتغير من المستخدمين).",
+    "outsourcedBy": "متعين عن طريق {supplier} (بيتحدد من المرتبات)",
+    "save": "احفظ الملف",
+    "saved": "الملف اتحفظ.",
+    "salaryLine": "المرتب الشهري: {amount} جنيه.",
+    "noSalary": "لسه مفيش مرتب متسجل.",
+    "openPayroll": "افتح المرتبات",
+    "changeStatus": "غير الحالة",
+    "saveStatus": "احفظ الحالة",
+    "leftHint": "ترك الشغل بيوقف الحساب كمان ويخرج الشخص من كل الأجهزة.",
+    "leftConfirm": "تسجل إن الشخص ده ساب الشغل؟ حسابه هيتوقف على طول.",
+    "departments": {
+      "management": "الإدارة",
+      "operations": "العمليات",
+      "store": "المخزن",
+      "delivery": "التوصيل",
+      "merchants": "التجار",
+      "finance": "المالية",
+      "hr": "الموارد البشرية",
+      "quality": "الجودة",
+      "other": "أخرى"
+    },
+    "statuses": {
+      "active": "شغال",
+      "on_leave": "في إجازة",
+      "suspended": "موقوف",
+      "left": "ساب الشغل"
+    },
+    "contractTypes": {
+      "permanent": "دائم",
+      "fixed_term": "محدد المدة",
+      "part_time": "دوام جزئي",
+      "outsourced": "عن طريق شركة توريد"
+    },
+    "roles": {
+      "admin": "مكتب",
+      "finance": "مالية",
+      "store_staff": "موظف مخزن",
+      "rider": "مندوب",
+      "merchant": "تاجر"
+    },
+    "documentKinds": {
+      "national_id": "صورة البطاقة",
+      "contract": "العقد",
+      "criminal_record": "الفيش الجنائي",
+      "military_status": "الموقف من التجنيد",
+      "qualification": "المؤهل",
+      "medical": "شهادة طبية",
+      "other": "أخرى"
+    },
+    "noDocuments": "لسه مفيش مستندات.",
+    "issued": "صادر {date}",
+    "noExpiry": "مالوش تاريخ انتهاء",
+    "photo": "صورة",
+    "uploadedBy": "ضافه {name}",
+    "open": "افتح",
+    "delete": "امسح",
+    "deleteConfirm": "تمسح المستند ده؟ مش هينفع ترجعه.",
+    "addDocument": "ضيف مستند",
+    "documentKind": "المستند",
+    "documentTitle": "ملاحظة (اختياري)",
+    "uploadHint": "صورة من كاميرا الموبايل، أو صورة أو ملف PDF حجمه لحد 3 ميجا.",
+    "takePhoto": "صور",
+    "chooseFile": "اختار ملف",
+    "uploading": "بيترفع…",
+    "uploaded": "المستند اتضاف.",
+    "myTitle": "ملفي",
+    "myIntro": "اللي الشركة محتفظة بيه عنك. هنا للقراءة بس.",
+    "myCorrections": "في حاجة غلط أو ناقصة؟ قول للموارد البشرية وهما يصلحوها.",
+    "errors": {
+      "generic": "حصلت مشكلة. جرب تاني.",
+      "validation_failed": "راجع البيانات: التواريخ والرقم القومي 14 رقم والموبايلات والآيبان.",
+      "salaries_required": "بيانات البنك محتاجة صلاحية المرتبات.",
+      "manager_loop": "المدير ده تابع للشخص ده.",
+      "manager_is_self": "مينفعش حد يبقى مدير نفسه.",
+      "contract_end_required": "العقد محدد المدة محتاج تاريخ نهايته.",
+      "contract_ends_before_hire": "العقد مينفعش يخلص قبل تاريخ التعيين.",
+      "probation_ends_before_hire": "فترة الاختبار مينفعش تخلص قبل تاريخ التعيين.",
+      "phone_taken": "في حساب تاني بالموبايل ده.",
+      "store_not_allowed": "إنت مش مسؤول عن المخزن ده.",
+      "employment_set_in_payroll": "اللي متعينين عن طريق شركة بيتحددوا من المرتبات.",
+      "status_unchanged": "دي الحالة الحالية فعلًا.",
+      "cannot_leave_self": "مينفعش تسجل إنك سبت الشغل بنفسك.",
+      "left_before_hire": "آخر يوم مينفعش يبقى قبل تاريخ التعيين.",
+      "last_owner": "الشخص ده آخر واحد عنده الإعدادات: إدارة. اديها لحد تاني الأول.",
+      "document_type_not_allowed": "صور بس (JPEG وPNG وWebP) أو ملفات PDF.",
+      "document_too_large": "الملف أكبر من 3 ميجا.",
+      "document_not_readable": "الملف مش شكله صورة أو PDF.",
+      "expires_before_issued": "المستند مينفعش ينتهي قبل ما يصدر."
     }
   }
 }

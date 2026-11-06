@@ -129,13 +129,18 @@ export async function withholdingPayments(db: Db, input: { year: number; quarter
 /** The month's salary run per employee, with the numbers the tax and insurance forms ask for. */
 export async function payrollForms(db: Db, month: string) {
   const run = await payslips(db, month);
-  const salaries = await db.staffSalary.findMany({
+  // National ID and insurance number live on the employee file (docs/HR.md).
+  const files = await db.employee.findMany({
     where: { userId: { in: run.people.map((p) => p.userId) } },
-    select: { userId: true, nationalId: true, insuranceNumber: true },
+    select: { userId: true, nationalId: true, socialInsuranceNumber: true },
   });
   const rows = run.people.map((p) => {
-    const s = salaries.find((x) => x.userId === p.userId);
-    return { ...p, nationalId: s?.nationalId ?? null, insuranceNumber: s?.insuranceNumber ?? null };
+    const f = files.find((x) => x.userId === p.userId);
+    return {
+      ...p,
+      nationalId: f?.nationalId ?? null,
+      insuranceNumber: f?.socialInsuranceNumber ?? null,
+    };
   });
   const sum = (
     k: 'gross' | 'incomeTax' | 'siEmployee' | 'siEmployer' | 'martyrs' | 'insuredWage',

@@ -18,6 +18,73 @@ export interface AdminMerchant {
   shopifyShopDomain: string | null;
   skuCount: number;
   shipmentCount: number;
+  accountManager: { id: string; name: string } | null;
+}
+
+export interface AccountManagerOption {
+  id: string;
+  name: string;
+  email: string;
+}
+
+/** Merchants manage picks the merchant's account manager (docs/HR.md 5). */
+function AccountManagerPicker({
+  merchant,
+  managers,
+  canAssign,
+}: {
+  merchant: AdminMerchant;
+  managers: AccountManagerOption[];
+  canAssign: boolean;
+}) {
+  const t = useTranslations('admin.merchants');
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  if (!canAssign)
+    return (
+      <p className="mt-1 text-body-sm">
+        <span className="text-text-muted">{t('accountManager')}:</span>{' '}
+        {merchant.accountManager?.name ?? t('noAccountManager')}
+      </p>
+    );
+  async function change(userId: string) {
+    setBusy(true);
+    setError(null);
+    const result = await apiSend('PUT', `/admin/merchants/${merchant.id}/account-manager`, {
+      userId: userId || null,
+    });
+    setBusy(false);
+    if (!result.ok) return setError(t('errors.generic'));
+    router.refresh();
+  }
+  const current = merchant.accountManager;
+  return (
+    <label className="mt-2 block max-w-xs text-caption">
+      {t('accountManager')}
+      <select
+        value={current?.id ?? ''}
+        disabled={busy}
+        onChange={(e) => void change(e.target.value)}
+        className={field}
+      >
+        <option value="">{t('noAccountManager')}</option>
+        {current && !managers.some((m) => m.id === current.id) && (
+          <option value={current.id}>{current.name}</option>
+        )}
+        {managers.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name}
+          </option>
+        ))}
+      </select>
+      {error && (
+        <span role="alert" className="mt-1 block text-danger">
+          {error}
+        </span>
+      )}
+    </label>
+  );
 }
 
 const field =
@@ -105,7 +172,15 @@ function MerchantForm({
   );
 }
 
-export function MerchantsManager({ merchants }: { merchants: AdminMerchant[] }) {
+export function MerchantsManager({
+  merchants,
+  managers = [],
+  canAssign = false,
+}: {
+  merchants: AdminMerchant[];
+  managers?: AccountManagerOption[];
+  canAssign?: boolean;
+}) {
   const t = useTranslations('admin.merchants');
   const router = useRouter();
   const [mode, setMode] = useState<string | null>(null);
@@ -162,6 +237,7 @@ export function MerchantsManager({ merchants }: { merchants: AdminMerchant[] }) 
                     </span>
                   )}
                 </p>
+                <AccountManagerPicker merchant={m} managers={managers} canAssign={canAssign} />
               </div>
               <div className="flex items-center gap-2">
                 <span

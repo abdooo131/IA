@@ -7,6 +7,7 @@ import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
 import { CoverageModule } from './coverage/coverage.module';
 import { FinanceModule } from './finance/finance.module';
+import { HrModule } from './hr/hr.module';
 import { JobsModule } from './jobs/jobs.module';
 import { MerchantModule } from './merchant/merchant.module';
 import { PhotosModule } from './photos/photos.module';
@@ -42,6 +43,7 @@ import { UsersController } from './users/users.controller';
     ShopifyModule,
     TrackingModule,
     TicketsModule,
+    HrModule,
   ],
   controllers: [HealthController, UsersController, MeController],
 })

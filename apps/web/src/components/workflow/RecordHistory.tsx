@@ -22,12 +22,17 @@ const readable = (v: unknown) =>
 export async function RecordHistory({
   entityType,
   entityId,
+  path,
 }: {
   entityType: string;
   entityId: string;
+  /** Another endpoint answering the same rows (an employee's timeline) */
+  path?: string;
 }) {
   const [rows, t, ta, locale] = await Promise.all([
-    apiGet<HistoryRow[]>(`/history/${entityType}/${entityId}`).catch(() => [] as HistoryRow[]),
+    apiGet<HistoryRow[]>(path ?? `/history/${entityType}/${entityId}`).catch(
+      () => [] as HistoryRow[],
+    ),
     getTranslations('workflow'),
     getTranslations('admin.audit'),
     getLocale(),

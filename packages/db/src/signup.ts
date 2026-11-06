@@ -52,6 +52,7 @@ export function signUpMerchant(db: Db, input: SignUpInput) {
       await tx.alert.create({
         data: {
           type: 'merchant_signup',
+          merchantId: merchant.id,
           data: {
             merchantId: merchant.id,
             name: merchant.name,

@@ -19,7 +19,8 @@
     "close": "Close",
     "settings": "Settings",
     "datePlaceholder": "dd/mm/yyyy",
-    "pickDate": "Pick a date"
+    "pickDate": "Pick a date",
+    "myFile": "My HR"
   },
   "roles": {
     "admin": "Admin",
@@ -295,7 +296,9 @@
         "merchant_signup": "New merchant application: {name}",
         "transfer_short_sent": "Transfer {reference} left with units missing",
         "transfer_short_received": "Transfer {reference} arrived with units missing",
-        "cod_risk_customer": "Cash order from a customer with high delivery risk"
+        "cod_risk_customer": "Cash order from a customer with high delivery risk",
+        "document_expiring": "{nameEn}: a document runs out on {expiresOn}",
+        "document_expired": "{nameEn}: a document ran out on {expiresOn}"
       },
       "handledBy": "Handled by {name}"
     },
@@ -373,7 +376,9 @@
         "payroll__tax_skip_2_from_piastres": "Above this yearly income, bands 1 to 2 lose their lower rate (EGP)",
         "payroll__tax_skip_3_from_piastres": "Above this yearly income, bands 1 to 3 lose their lower rate (EGP)",
         "payroll__tax_skip_4_from_piastres": "Above this yearly income, bands 1 to 4 lose their lower rate (EGP)",
-        "payroll__tax_skip_5_from_piastres": "Above this yearly income, bands 1 to 5 lose their lower rate (EGP)"
+        "payroll__tax_skip_5_from_piastres": "Above this yearly income, bands 1 to 5 lose their lower rate (EGP)",
+        "hr__document_alert_days": "Alert before a document runs out (days)",
+        "hr__probation_months": "Probation for new employees (months)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -401,7 +406,8 @@
         "customers": "Customers",
         "tickets": "Tickets",
         "other": "Other",
-        "merchants": "Merchant sign ups"
+        "merchants": "Merchant sign ups",
+        "hr": "Employee files"
       }
     },
     "audit": {
@@ -525,7 +531,13 @@
         "customer__merge": "Merged two customer profiles",
         "shopify__app_add": "Added a Shopify custom app",
         "shopify__app_remove": "Removed a Shopify custom app",
-        "shopify__connect_direct": "Connected a store directly with its custom app"
+        "shopify__connect_direct": "Connected a store directly with its custom app",
+        "employee__create": "Employee file opened",
+        "employee__update": "Employee file changed",
+        "employee__status": "Employee status changed",
+        "employee__document_add": "Document added",
+        "employee__document_delete": "Document deleted",
+        "merchant__account_manager": "Account manager changed"
       }
     },
     "users": {
@@ -596,7 +608,8 @@
           "merchants": "Merchants",
           "customers": "Customers",
           "accounting": "Accounting",
-          "settings": "Settings"
+          "settings": "Settings",
+          "hr": "HR"
         },
         "levelsHint": "View opens the pages, Use makes changes, Manage also approves, closes and configures. Accounting: view = reports, use = prepare, manage = approve.",
         "allStores": "Works in every store",
@@ -620,7 +633,9 @@
           "user_not_found": "This user no longer exists. Reload the page.",
           "validation_failed": "Check the fields.",
           "generic": "Something went wrong. Try again."
-        }
+        },
+        "ownMerchantsOnly": "Only their own merchants",
+        "ownMerchantsOnlyHint": "An account manager: sees only the merchants they look after, with their orders, stock and alerts."
       },
       "jobRoles": {
         "owner": "Owner",
@@ -633,7 +648,10 @@
         "accountant": "Accountant",
         "finance_officer": "Finance officer",
         "finance_manager": "Finance manager",
-        "custom": "Custom"
+        "custom": "Custom",
+        "hr_officer": "HR officer",
+        "account_manager": "Account manager",
+        "qc_agent": "QC agent"
       }
     },
     "merchants": {
@@ -666,7 +684,9 @@
         "confirmReject": "Reject application",
         "back": "Back",
         "error": "Could not save. Refresh and try again."
-      }
+      },
+      "accountManager": "Account manager",
+      "noAccountManager": "None"
     },
     "productsEdit": {
       "new": "Add product",
@@ -3988,7 +4008,8 @@
       "customers": "Customers",
       "accounting": "Accounting",
       "system": "Settings",
-      "store": "Store screens"
+      "store": "Store screens",
+      "hr": "HR"
     },
     "descriptions": {
       "operations": "Live stores, orders and alerts",
@@ -3997,7 +4018,8 @@
       "customers": "Profiles, places and market data",
       "accounting": "Money, payouts, taxes and reports",
       "system": "Users, audit log and tickets",
-      "store": "Pick, pack, receive and hand to riders"
+      "store": "Pick, pack, receive and hand to riders",
+      "hr": "Employee files and documents"
     },
     "menus": {
       "dashboard": "Dashboard",
@@ -4075,7 +4097,175 @@
       "yearEnd": "Year end",
       "opening": "Opening balances",
       "users": "Users",
-      "audit": "Audit log"
+      "audit": "Audit log",
+      "employees": "Employees"
+    }
+  },
+  "hr": {
+    "title": "Employees",
+    "intro": "Every person who works for us has a file: details, documents and history. Accounts made in Users get a file at once.",
+    "filters": "Filter employees",
+    "search": "Search",
+    "searchHint": "Name, email, mobile, national ID or job",
+    "store": "Store",
+    "allStores": "All stores",
+    "department": "Department",
+    "allDepartments": "All departments",
+    "status": "Status",
+    "allStatuses": "All statuses",
+    "apply": "Show",
+    "clear": "Clear",
+    "empty": "No employee matches.",
+    "employee": "Employee",
+    "job": "Job",
+    "hireDate": "Hired",
+    "documents": "Documents",
+    "office": "Office",
+    "expiredCount": "{count, plural, one {1 expired} other {# expired}}",
+    "withoutFile": "Accounts without a file",
+    "withoutFileHint": "These team members or riders have an account but no employee file yet.",
+    "openFile": "Open a file",
+    "newPersonHint": "A new person starts with an account in Users; their file opens with it.",
+    "openUsers": "Open Users",
+    "alertsTitle": "Documents running out",
+    "expiresOn": "Runs out on {date}",
+    "expiredOn": "Ran out on {date}",
+    "handled": "Handled",
+    "back": "Back to employees",
+    "backHome": "Back",
+    "accountDisabled": "account disabled",
+    "leftOnReason": "Left on {date}: {reason}",
+    "tabsLabel": "Parts of the file",
+    "tabs": {
+      "details": "Details",
+      "documents": "Documents",
+      "history": "History"
+    },
+    "sections": {
+      "identity": "Identity",
+      "contact": "Contact",
+      "job": "Job",
+      "contract": "Contract",
+      "bank": "Salary bank account"
+    },
+    "fields": {
+      "nameEn": "Full name (English)",
+      "nameAr": "Full name (Arabic)",
+      "nationalId": "National ID (14 digits)",
+      "nationalIdExpiresOn": "National ID valid until",
+      "birthDate": "Birth date",
+      "address": "Home address",
+      "mobile": "Mobile",
+      "emergencyName": "Emergency contact",
+      "emergencyPhone": "Emergency contact mobile",
+      "jobTitle": "Job title",
+      "department": "Department",
+      "manager": "Manager",
+      "homeStore": "Works at",
+      "hireDate": "Hire date",
+      "contractType": "Contract",
+      "contractEndsOn": "Contract ends on",
+      "probationEndsOn": "Probation ends on",
+      "socialInsuranceNumber": "Social insurance number",
+      "bankName": "Bank",
+      "bankAccountNumber": "Account number",
+      "iban": "IBAN",
+      "bankAccountHolder": "Account holder",
+      "leftOn": "Last working day",
+      "leftReason": "Reason for leaving",
+      "statusNote": "Note (optional)",
+      "issuedOn": "Issued on",
+      "expiresOn": "Valid until"
+    },
+    "storeFromAccount": "Store staff and riders work at the store of their account (change it in Users).",
+    "outsourcedBy": "Hired through {supplier} (set in Payroll)",
+    "save": "Save file",
+    "saved": "File saved.",
+    "salaryLine": "Monthly salary: {amount} EGP.",
+    "noSalary": "No salary set yet.",
+    "openPayroll": "Open Payroll",
+    "changeStatus": "Change status",
+    "saveStatus": "Save status",
+    "leftHint": "Leaving also disables the account and signs the person out everywhere.",
+    "leftConfirm": "Mark this person as left? Their account is disabled at once.",
+    "departments": {
+      "management": "Management",
+      "operations": "Operations",
+      "store": "Store",
+      "delivery": "Delivery",
+      "merchants": "Merchants",
+      "finance": "Finance",
+      "hr": "HR",
+      "quality": "Quality",
+      "other": "Other"
+    },
+    "statuses": {
+      "active": "Active",
+      "on_leave": "On leave",
+      "suspended": "Suspended",
+      "left": "Left"
+    },
+    "contractTypes": {
+      "permanent": "Permanent",
+      "fixed_term": "Fixed term",
+      "part_time": "Part time",
+      "outsourced": "Outsourced"
+    },
+    "roles": {
+      "admin": "Office",
+      "finance": "Finance",
+      "store_staff": "Store staff",
+      "rider": "Rider",
+      "merchant": "Merchant"
+    },
+    "documentKinds": {
+      "national_id": "National ID copy",
+      "contract": "Contract",
+      "criminal_record": "Criminal record certificate",
+      "military_status": "Military status",
+      "qualification": "Qualification",
+      "medical": "Medical certificate",
+      "other": "Other"
+    },
+    "noDocuments": "No documents yet.",
+    "issued": "Issued {date}",
+    "noExpiry": "No expiry",
+    "photo": "Photo",
+    "uploadedBy": "added by {name}",
+    "open": "Open",
+    "delete": "Delete",
+    "deleteConfirm": "Delete this document? This cannot be undone.",
+    "addDocument": "Add a document",
+    "documentKind": "Document",
+    "documentTitle": "Note (optional)",
+    "uploadHint": "A photo from the phone camera, or a photo or PDF file of at most 3 MB.",
+    "takePhoto": "Take photo",
+    "chooseFile": "Choose file",
+    "uploading": "Uploading…",
+    "uploaded": "Document added.",
+    "myTitle": "My HR file",
+    "myIntro": "What the company keeps about you. It is read only here.",
+    "myCorrections": "Something wrong or missing? Tell HR and they will correct it.",
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "validation_failed": "Check the fields: dates, the 14 digit national ID, mobiles and the IBAN.",
+      "salaries_required": "Bank details need the Salaries switch.",
+      "manager_loop": "That manager reports to this person.",
+      "manager_is_self": "A person cannot be their own manager.",
+      "contract_end_required": "A fixed term contract needs its end date.",
+      "contract_ends_before_hire": "The contract cannot end before the hire date.",
+      "probation_ends_before_hire": "Probation cannot end before the hire date.",
+      "phone_taken": "Another account uses this mobile.",
+      "store_not_allowed": "You do not cover that store.",
+      "employment_set_in_payroll": "Outsourced people are set in Payroll.",
+      "status_unchanged": "That is already the status.",
+      "cannot_leave_self": "You cannot mark yourself as left.",
+      "left_before_hire": "The last day cannot be before the hire date.",
+      "last_owner": "This person is the last one with Settings: Manage. Give it to someone else first.",
+      "document_type_not_allowed": "Only photos (JPEG, PNG, WebP) and PDF files.",
+      "document_too_large": "The file is larger than 3 MB.",
+      "document_not_readable": "The file does not look like a photo or a PDF.",
+      "expires_before_issued": "The document cannot run out before it was issued."
     }
   }
 }

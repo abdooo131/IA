@@ -10,6 +10,7 @@ import {
   SETTING_KEYS,
 } from '@shiplynow/shared';
 import { writeAccess } from '../access';
+import { ensureEmployees } from '../hr';
 import { hashPassword } from '../password';
 import { move, receive } from '../stock';
 import { setZoneArea } from '../zones';
@@ -191,6 +192,8 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
     }
   }
   log(`Demo users: ${DEMO_USERS.length}`);
+  const files = await ensureEmployees(prisma);
+  if (files > 0) log(`Employee files opened: ${files}`);
 
   // Opening stock goes through the real stock functions: receive, then put away.
   let movements = 0;

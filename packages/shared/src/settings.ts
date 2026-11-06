@@ -479,6 +479,19 @@ export const SETTING_DEFINITIONS = {
       'Failed attempts (refusals count double) at or above this share mean high risk; new cash orders from them raise an alert',
     override: 'none',
   },
+  'hr.document_alert_days': {
+    schema: z.number().int().min(1).max(365),
+    default: 30,
+    description:
+      'Days before an employee document runs out when HR gets one document expiring alert',
+    override: 'none',
+  },
+  'hr.probation_months': {
+    schema: z.number().int().min(0).max(12),
+    default: 3,
+    description: 'Months of probation filled in for a new employee from the hire date',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

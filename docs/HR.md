@@ -1,4 +1,4 @@
-# HR module (plan, waiting for the owner's approval)
+# HR module (plan approved; step 1 built)
 
 Decisions taken by the owner on 2026-11-06: attendance by a Clock in button with a location
 check, violations from a penalty list that reaches payroll, leave by requests and balances,
@@ -82,9 +82,47 @@ account managers own merchants, QC agents check packing and received shipments.
   (rates in settings) from HR, so payslips show them; nothing is deducted without a
   confirmed record.
 
+## Step 1 as built (decisions taken while building)
+
+- `employees` is one row per team member and rider, 1:1 with `users` (EMP-0001 numbers). The
+  display name, sign in mobile (`users.phone`, edited from the file), employment and staffing
+  supplier stay on `users`; the file keeps the full names in English and Arabic. Store staff and
+  riders work at their account's store (`users.dark_store_id`, changed in Users, copied to the
+  file); office people have the store on the file (empty means the office).
+- The national ID and the social insurance number moved from `staff_salaries` to the file; the
+  Payroll screen and the salary tax and insurance lists read and write them there.
+- Contract type: permanent, fixed term (needs its end date) or part time; outsourced follows
+  the employment set in Payroll and cannot be chosen in HR. Probation end is filled in from the
+  hire date with `hr.probation_months` (default 3) when HR leaves it empty.
+- A new account in Users opens the file at once; HR manage can open a file for an older account
+  without one (HR never creates accounts, because access is settings manage's job). The seed and
+  the demo give every person a file.
+- Status: active, on leave, suspended, left. Left needs the last day and a reason, and also
+  disables the account and signs the person out (the last person with settings manage cannot be
+  marked as left). Coming back does not reopen the account; Users does.
+- HR access: view reads files, use edits them and adds documents, manage opens files, changes
+  the status and deletes documents. The salary and the salary bank account need the salaries
+  switch too. People limited to listed stores see only the files of those stores.
+- Documents are kept in `employee_documents` (bytea, photo or PDF up to 3 MB, checked by their
+  first bytes), not in `photos`, so only HR and the person can open them. The phone shrinks
+  photos before upload.
+- Alerts: the API job checks once an hour and raises one `document_expiring` alert
+  `hr.document_alert_days` (default 30) before a document or the national ID date runs out and
+  one `document_expired` on the day; each has its own key (`alerts.key`), so repeats change
+  nothing and a renewed document with a new date is watched again. HR sees them on the
+  Employees page; the Operations alerts list hides them from people without HR access.
+- History: one timeline from the audit log of the file (changes, status, documents) and of the
+  account (created, changed, access); pay changes and bank details only with salaries.
+- My HR (`/my-file`, in the Settings menu of every team member and rider): the person's own file,
+  documents and history, read only, including their own bank details.
+- Account managers (section 5, built with step 1): see docs/ACCESS.md. Tickets of their
+  merchants and the other merchant alerts (low stock, debit wallet, Shopify problems) reach them
+  once those alerts carry the merchant (the Shopify ones were left for the agent working there).
+
 ## Build order
 
-1. Employee files, documents, HR app and access, history (about 2 sessions).
+1. Employee files, documents, HR app and access, history (about 2 sessions). Built, with
+   account managers (part of 5).
 2. Shifts, Clock in with location, attendance days and the manager board (2 sessions).
 3. Leave requests and balances (1 session).
 4. Penalty list, violations, payroll link (1 to 2 sessions).

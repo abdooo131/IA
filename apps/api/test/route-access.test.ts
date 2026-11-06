@@ -11,7 +11,16 @@ import { createTestApp } from './helpers';
  * Routes open to any signed in user are listed here on purpose, so a new route can never be
  * left open by accident.
  */
-const ANY_SIGNED_IN = new Set(['auth/me', 'photos/:id', 'photos', 'me/access']);
+const ANY_SIGNED_IN = new Set([
+  'auth/me',
+  'photos/:id',
+  'photos',
+  'me/access',
+  // My HR: a person's own employee file, read only (merchants have none).
+  'me/employee',
+  'me/employee/history',
+  'me/employee/documents/:documentId',
+]);
 /**
  * Routes team members reach by role alone, without an access profile check: tickets (every
  * team member and rider talks to every other) and proof photos (kinds checked inside).

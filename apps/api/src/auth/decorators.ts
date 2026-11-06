@@ -32,6 +32,8 @@ export interface AccessRule {
   salaries?: boolean;
   /** A route parameter holding a dark store id other than :storeId, checked against the stores */
   storeParam?: string;
+  /** A route parameter holding a merchant id other than :merchantId, checked for account managers */
+  merchantParam?: string;
   /** Further levels needed as well, for example settings manage on owner only routes */
   also?: readonly (readonly [AccessApp, AccessLevel])[];
 }

@@ -8,6 +8,7 @@ import {
   type PayrollRules,
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
+import { ensureEmployee, syncEmployment } from '../hr';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { balanceOf, post } from './ledger';
@@ -90,18 +91,44 @@ export async function setSalary(
         userId: user.id,
         monthlyPiastres: input.monthlyPiastres,
         insuredWagePiastres: insured ?? null,
-        nationalId: input.nationalId ?? null,
-        insuranceNumber: input.insuranceNumber ?? null,
         updatedById: input.actorUserId,
       },
       update: {
         monthlyPiastres: input.monthlyPiastres,
         insuredWagePiastres: insured,
-        nationalId: input.nationalId,
-        insuranceNumber: input.insuranceNumber,
         updatedById: input.actorUserId,
       },
     });
+    // The national ID and insurance number live on the employee file (docs/HR.md).
+    if (input.nationalId !== undefined || input.insuranceNumber !== undefined) {
+      const file = await ensureEmployee(tx, user.id);
+      if (file) {
+        const ids = {
+          nationalId: input.nationalId === undefined ? file.nationalId : input.nationalId,
+          socialInsuranceNumber:
+            input.insuranceNumber === undefined
+              ? file.socialInsuranceNumber
+              : input.insuranceNumber,
+        };
+        if (
+          ids.nationalId !== file.nationalId ||
+          ids.socialInsuranceNumber !== file.socialInsuranceNumber
+        ) {
+          await tx.employee.update({ where: { id: file.id }, data: ids });
+          await recordAudit(tx, {
+            actorUserId: input.actorUserId,
+            action: 'employee.update',
+            entityType: 'employee',
+            entityId: file.id,
+            before: {
+              nationalId: file.nationalId,
+              socialInsuranceNumber: file.socialInsuranceNumber,
+            },
+            after: ids,
+          });
+        }
+      }
+    }
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.salary_set',
@@ -123,6 +150,7 @@ export async function listStaffPay(db: Db) {
     where: { role: { in: [...STAFF_ROLES] }, isActive: true },
     include: {
       salary: true,
+      employee: { select: { nationalId: true, socialInsuranceNumber: true } },
       darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
       rider: { select: { id: true, darkStoreId: true } },
       staffingSupplier: { select: { id: true, name: true } },
@@ -149,8 +177,8 @@ export async function listStaffPay(db: Db) {
       staffingSupplier: u.staffingSupplier,
       monthlyPiastres: u.salary?.monthlyPiastres ?? null,
       insuredWagePiastres: u.salary?.insuredWagePiastres ?? null,
-      nationalId: u.salary?.nationalId ?? null,
-      insuranceNumber: u.salary?.insuranceNumber ?? null,
+      nationalId: u.employee?.nationalId ?? null,
+      insuranceNumber: u.employee?.socialInsuranceNumber ?? null,
       advanceOwedPiastres: wallet
         ? (sums.find((s) => s.accountId === wallet.id)?._sum.amountPiastres ?? 0)
         : 0,
@@ -519,6 +547,7 @@ export function setEmployment(
       where: { id: user.id },
       data: { employment: input.employment, staffingSupplierId: supplierId },
     });
+    await syncEmployment(tx, user.id, input.employment === 'outsourced');
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.employment_set',

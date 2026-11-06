@@ -14,6 +14,7 @@ export const ACCESS_APPS = [
   'merchants',
   'customers',
   'accounting',
+  'hr',
   'settings',
 ] as const;
 export type AccessApp = (typeof ACCESS_APPS)[number];
@@ -29,6 +30,7 @@ export const APP_LEVELS: Record<AccessApp, readonly AccessLevel[]> = {
   merchants: ['none', 'view', 'use', 'manage'],
   customers: ['none', 'view', 'use', 'manage'],
   accounting: ['none', 'view', 'use', 'manage'],
+  hr: ['none', 'view', 'use', 'manage'],
   settings: ['none', 'manage'],
 };
 
@@ -45,6 +47,8 @@ export interface AccessTemplate extends AppLevels {
   allStores: boolean;
   customerData: boolean;
   salaries: boolean;
+  /** Account managers: only the merchants whose account manager they are (docs/HR.md 5) */
+  ownMerchantsOnly: boolean;
 }
 
 export const JOB_ROLES = [
@@ -58,25 +62,32 @@ export const JOB_ROLES = [
   'accountant',
   'finance_officer',
   'finance_manager',
+  'hr_officer',
+  'account_manager',
+  'qc_agent',
 ] as const;
 export type JobRole = (typeof JOB_ROLES)[number];
 export type JobRoleLabel = JobRole | 'custom';
 
+type Levels = [
+  store: AccessLevel,
+  operations: AccessLevel,
+  inventory: AccessLevel,
+  merchants: AccessLevel,
+  customers: AccessLevel,
+  accounting: AccessLevel,
+  hr: AccessLevel,
+  settings: AccessLevel,
+];
+
 function template(
-  levels: [
-    AccessLevel,
-    AccessLevel,
-    AccessLevel,
-    AccessLevel,
-    AccessLevel,
-    AccessLevel,
-    AccessLevel,
-  ],
+  levels: Levels,
   allStores: boolean,
   customerData: boolean,
   salaries: boolean,
+  ownMerchantsOnly = false,
 ): AccessTemplate {
-  const [store, operations, inventory, merchants, customers, accounting, settings] = levels;
+  const [store, operations, inventory, merchants, customers, accounting, hr, settings] = levels;
   return {
     store,
     operations,
@@ -84,64 +95,95 @@ function template(
     merchants,
     customers,
     accounting,
+    hr,
     settings,
     allStores,
     customerData,
     salaries,
+    ownMerchantsOnly,
   };
 }
 
 /** The job roles table of docs/ACCESS.md, column for column. */
 export const JOB_ROLE_TEMPLATES: Record<JobRole, AccessTemplate> = {
   owner: template(
-    ['manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage'],
+    ['manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage'],
     true,
     true,
     true,
   ),
   operations_manager: template(
-    ['manage', 'manage', 'manage', 'view', 'view', 'none', 'none'],
+    ['manage', 'manage', 'manage', 'view', 'view', 'none', 'none', 'none'],
     true,
     false,
     false,
   ),
   store_manager: template(
-    ['manage', 'use', 'use', 'none', 'none', 'none', 'none'],
+    ['manage', 'use', 'use', 'none', 'none', 'none', 'none', 'none'],
     false,
     false,
     false,
   ),
   store_staff: template(
-    ['use', 'none', 'none', 'none', 'none', 'none', 'none'],
+    ['use', 'none', 'none', 'none', 'none', 'none', 'none', 'none'],
     false,
     false,
     false,
   ),
-  hub_staff: template(['use', 'none', 'view', 'none', 'none', 'none', 'none'], false, false, false),
-  dispatcher: template(['use', 'use', 'view', 'none', 'none', 'none', 'none'], true, false, false),
+  hub_staff: template(
+    ['use', 'none', 'view', 'none', 'none', 'none', 'none', 'none'],
+    false,
+    false,
+    false,
+  ),
+  dispatcher: template(
+    ['use', 'use', 'view', 'none', 'none', 'none', 'none', 'none'],
+    true,
+    false,
+    false,
+  ),
   customer_service: template(
-    ['none', 'use', 'view', 'view', 'view', 'none', 'none'],
+    ['none', 'use', 'view', 'view', 'view', 'none', 'none', 'none'],
     true,
     true,
     false,
   ),
   accountant: template(
-    ['none', 'view', 'view', 'view', 'none', 'view', 'none'],
+    ['none', 'view', 'view', 'view', 'none', 'view', 'none', 'none'],
     true,
     false,
     false,
   ),
   finance_officer: template(
-    ['none', 'view', 'view', 'view', 'none', 'use', 'none'],
+    ['none', 'view', 'view', 'view', 'none', 'use', 'none', 'none'],
     true,
     false,
     false,
   ),
   finance_manager: template(
-    ['none', 'view', 'view', 'view', 'none', 'manage', 'none'],
+    ['none', 'view', 'view', 'view', 'none', 'manage', 'none', 'none'],
     true,
     false,
     true,
+  ),
+  hr_officer: template(
+    ['none', 'none', 'none', 'none', 'none', 'none', 'manage', 'none'],
+    true,
+    false,
+    false,
+  ),
+  account_manager: template(
+    ['none', 'view', 'view', 'use', 'view', 'none', 'none', 'none'],
+    true,
+    false,
+    false,
+    true,
+  ),
+  qc_agent: template(
+    ['use', 'none', 'view', 'none', 'none', 'none', 'none', 'none'],
+    false,
+    false,
+    false,
   ),
 };
 
@@ -149,6 +191,8 @@ export const JOB_ROLE_TEMPLATES: Record<JobRole, AccessTemplate> = {
 export interface AccessProfile extends AccessTemplate {
   jobRole: JobRoleLabel;
   storeIds: string[];
+  /** With ownMerchantsOnly: the merchants whose account manager this person is */
+  merchantIds: string[];
 }
 
 /** A profile that opens nothing: what a team member without an access row gets. */
@@ -160,11 +204,14 @@ export const NO_ACCESS: AccessProfile = {
   merchants: 'none',
   customers: 'none',
   accounting: 'none',
+  hr: 'none',
   settings: 'none',
   allStores: false,
   customerData: false,
   salaries: false,
+  ownMerchantsOnly: false,
   storeIds: [],
+  merchantIds: [],
 };
 
 export function levelRank(level: AccessLevel): number {
@@ -181,6 +228,15 @@ export function canDo(
   return levelRank(profile[app]) >= levelRank(level);
 }
 
+/** True when the profile may work with this merchant (every merchant, or one they manage). */
+export function canUseMerchant(
+  profile: Pick<AccessProfile, 'ownMerchantsOnly' | 'merchantIds'> | null | undefined,
+  merchantId: string,
+): boolean {
+  if (!profile) return false;
+  return !profile.ownMerchantsOnly || profile.merchantIds.includes(merchantId);
+}
+
 /** True when the profile may work with this store (all stores, or one of its listed stores). */
 export function canUseStore(
   profile: Pick<AccessProfile, 'allStores' | 'storeIds'> | null | undefined,
@@ -190,17 +246,25 @@ export function canUseStore(
   return profile.allStores || profile.storeIds.includes(darkStoreId);
 }
 
-/** The job role a set of values matches exactly, or custom. */
-export function matchJobRole(values: AccessTemplate): JobRoleLabel {
-  for (const role of JOB_ROLES) {
-    const t = JOB_ROLE_TEMPLATES[role];
-    const same =
-      ACCESS_APPS.every((app) => t[app] === values[app]) &&
-      t.allStores === values.allStores &&
-      t.customerData === values.customerData &&
-      t.salaries === values.salaries;
-    if (same) return role;
-  }
+function sameValues(t: AccessTemplate, values: AccessTemplate) {
+  return (
+    ACCESS_APPS.every((app) => t[app] === values[app]) &&
+    t.allStores === values.allStores &&
+    t.customerData === values.customerData &&
+    t.salaries === values.salaries &&
+    t.ownMerchantsOnly === values.ownMerchantsOnly
+  );
+}
+
+/**
+ * The job role a set of values matches exactly, or custom. Two job roles can hold the same
+ * values (QC agent and hub staff until the QC queue exists): `prefer`, the label chosen or
+ * stored, wins when it matches.
+ */
+export function matchJobRole(values: AccessTemplate, prefer?: JobRoleLabel): JobRoleLabel {
+  if (prefer && prefer !== 'custom' && sameValues(JOB_ROLE_TEMPLATES[prefer], values))
+    return prefer;
+  for (const role of JOB_ROLES) if (sameValues(JOB_ROLE_TEMPLATES[role], values)) return role;
   return 'custom';
 }
 
@@ -228,10 +292,12 @@ export const setAccessSchema = z.union([
     merchants: levelFor('merchants'),
     customers: levelFor('customers'),
     accounting: levelFor('accounting'),
+    hr: levelFor('hr').default('none'),
     settings: levelFor('settings'),
     allStores: z.boolean(),
     customerData: z.boolean(),
     salaries: z.boolean(),
+    ownMerchantsOnly: z.boolean().default(false),
     storeIds: storeIdsSchema.optional(),
   }),
 ]);

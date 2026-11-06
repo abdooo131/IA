@@ -2,7 +2,12 @@ import { JOB_ROLE_TEMPLATES, type JobRole, NO_ACCESS } from '@shiplynow/shared';
 import { describe, expect, it } from 'vitest';
 import { appsFor, canOpenPath, canOpenStoreScreens } from './apps';
 
-const profile = (role: JobRole) => ({ ...JOB_ROLE_TEMPLATES[role], jobRole: role, storeIds: [] });
+const profile = (role: JobRole) => ({
+  ...JOB_ROLE_TEMPLATES[role],
+  jobRole: role,
+  storeIds: [],
+  merchantIds: [],
+});
 const pages = (role: JobRole) =>
   appsFor(profile(role)).flatMap((a) => a.menus.flatMap((m) => m.pages.map((p) => p.href)));
 
@@ -15,6 +20,7 @@ describe('appsFor', () => {
       'merchants',
       'customers',
       'accounting',
+      'hr',
       'system',
     ]);
     expect(pages('owner')).toContain('/finance/opening');
@@ -40,6 +46,12 @@ describe('appsFor', () => {
     expect(pages('operations_manager')).toContain('/admin/customers/places');
     expect(pages('operations_manager')).not.toContain('/admin/customers');
     expect(pages('customer_service')).toContain('/admin/customers');
+  });
+
+  it('gives the HR officer the HR app only, with no settings page', () => {
+    expect(appsFor(profile('hr_officer')).map((a) => a.id)).toEqual(['hr']);
+    expect(pages('hr_officer')).toEqual(['/admin/hr']);
+    expect(pages('owner')).toContain('/admin/settings/hr');
   });
 
   it('opens nothing without a profile', () => {

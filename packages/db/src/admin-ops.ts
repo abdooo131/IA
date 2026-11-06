@@ -14,6 +14,7 @@ import {
 } from '@shiplynow/shared';
 import { assertCanDisable, createAccessFor, financeLevelOf } from './access';
 import { recordAudit } from './audit';
+import { ensureEmployee, syncEmployeeStore } from './hr';
 import { type Db, inTransaction } from './client';
 
 type Tx = Prisma.TransactionClient;
@@ -134,6 +135,8 @@ export function createUser(db: Db, input: CreateUserBody & { actorUserId: Actor 
           data: { userId: user.id, darkStoreId: links.darkStoreId!, badgeCode: links.badgeCode! },
         });
       }
+      // Every team member and rider has an employee file (docs/HR.md).
+      await ensureEmployee(tx, user.id);
       await recordAudit(tx, {
         actorUserId: input.actorUserId,
         action: 'user.create',
@@ -206,6 +209,11 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
           accessChange = { before: row.accounting, after: accounting };
         }
       }
+      if (
+        (before.role === 'store_staff' || before.role === 'rider') &&
+        darkStoreId !== before.darkStoreId
+      )
+        await syncEmployeeStore(tx, before.id, darkStoreId);
       if (before.role === 'rider' && before.rider) {
         await tx.rider.update({
           where: { id: before.rider.id },

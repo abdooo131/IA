@@ -15,3 +15,4 @@ export * from './statement';
 export * from './payroll';
 export * from './eta';
 export * from './access';
+export * from './hr';

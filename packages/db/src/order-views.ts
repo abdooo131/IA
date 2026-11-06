@@ -75,7 +75,7 @@ export type OrderSummary = ReturnType<typeof summarize>;
 export interface OrderListFilter {
   /** One store, or a person's stores ({ in: [...] }) */
   darkStoreId?: string | { in: string[] };
-  merchantId?: string;
+  merchantId?: string | { in: string[] };
   statuses?: OrderStatus[];
   from?: Date;
   to?: Date;

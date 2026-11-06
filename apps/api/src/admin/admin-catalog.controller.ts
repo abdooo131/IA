@@ -2,7 +2,7 @@ import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { getSetting } from '@shiplynow/db';
 import { Access, CurrentAccess } from '../auth/decorators';
-import { storeFilter } from '../auth/access-scope';
+import { merchantFilter, storeFilter } from '../auth/access-scope';
 import { type AccessProfile } from '@shiplynow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -14,9 +14,14 @@ export class AdminCatalogController {
   constructor(private readonly prisma: PrismaService) {}
 
   @Get('skus')
-  async skus() {
+  async skus(@CurrentAccess() access: AccessProfile) {
+    const merchants = merchantFilter(access);
     const [skus, totals] = await Promise.all([
-      this.prisma.sku.findMany({ orderBy: { sku: 'asc' }, include: { merchant: true } }),
+      this.prisma.sku.findMany({
+        where: merchants ? { merchantId: merchants } : undefined,
+        orderBy: { sku: 'asc' },
+        include: { merchant: true },
+      }),
       this.prisma.stockLevel.groupBy({ by: ['skuId'], _sum: { onHand: true, reserved: true } }),
     ]);
     return skus.map((s) => {
@@ -44,8 +49,12 @@ export class AdminCatalogController {
   @ApiQuery({ name: 'darkStoreId', required: false })
   async stock(@CurrentAccess() access: AccessProfile, @Query('darkStoreId') darkStoreId?: string) {
     const scope = storeFilter(access, darkStoreId);
+    const merchants = merchantFilter(access);
     const levels = await this.prisma.stockLevel.findMany({
-      where: scope ? { darkStoreId: scope } : undefined,
+      where: {
+        ...(scope && { darkStoreId: scope }),
+        ...(merchants && { sku: { merchantId: merchants } }),
+      },
       include: { darkStore: true, sku: true },
       orderBy: [{ darkStore: { code: 'asc' } }, { sku: { sku: 'asc' } }],
     });

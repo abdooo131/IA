@@ -27,11 +27,16 @@ import { hashPassword } from './password';
 
 type Tx = Prisma.TransactionClient;
 
-const accessInclude = { access: true, accessStores: { select: { darkStoreId: true } } } as const;
+const accessInclude = {
+  access: true,
+  accessStores: { select: { darkStoreId: true } },
+  merchantsManaged: { select: { id: true } },
+} as const;
 
 function toProfile(
   row: Prisma.UserAccessGetPayload<object> | null,
   storeIds: string[],
+  merchantIds: string[] = [],
 ): AccessProfile {
   if (!row) return { ...NO_ACCESS, storeIds };
   return {
@@ -42,11 +47,14 @@ function toProfile(
     merchants: row.merchants,
     customers: row.customers,
     accounting: row.accounting,
+    hr: row.hr,
     settings: row.settings,
     allStores: row.allStores,
     customerData: row.customerData,
     salaries: row.salaries,
+    ownMerchantsOnly: row.ownMerchantsOnly,
     storeIds: [...storeIds].sort(),
+    merchantIds: row.ownMerchantsOnly ? [...merchantIds].sort() : [],
   };
 }
 
@@ -60,6 +68,7 @@ export async function getAccessProfile(db: Db, userId: string): Promise<AccessPr
   return toProfile(
     user.access,
     user.accessStores.map((s) => s.darkStoreId),
+    user.merchantsManaged.map((m) => m.id),
   );
 }
 
@@ -72,6 +81,7 @@ export async function getUserAccess(db: Db, userId: string) {
       accessStores: {
         select: { darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } } },
       },
+      merchantsManaged: { select: { id: true } },
     },
   });
   if (!user) throw new DomainError('user_not_found', 404);
@@ -90,6 +100,7 @@ export async function getUserAccess(db: Db, userId: string) {
     profile: toProfile(
       user.access,
       stores.map((s) => s.id),
+      user.merchantsManaged.map((m) => m.id),
     ),
     stores,
   };
@@ -147,17 +158,26 @@ export async function writeAccess(
     merchants: values.merchants,
     customers: values.customers,
     accounting: values.accounting,
+    hr: values.hr,
     settings: values.settings,
     allStores: values.allStores,
     customerData: values.customerData,
     salaries: values.salaries,
+    ownMerchantsOnly: values.ownMerchantsOnly,
   };
   await tx.userAccess.upsert({ where: { userId }, update: data, create: { userId, ...data } });
   await tx.userStore.deleteMany({ where: { userId } });
   // With every store the list is not used; it is kept empty so nothing stale lingers.
   if (!values.allStores && unique.length > 0)
     await tx.userStore.createMany({ data: unique.map((darkStoreId) => ({ userId, darkStoreId })) });
-  return toProfile({ ...data, userId, updatedAt: new Date() }, values.allStores ? [] : unique);
+  const managed = data.ownMerchantsOnly
+    ? await tx.merchant.findMany({ where: { accountManagerId: userId }, select: { id: true } })
+    : [];
+  return toProfile(
+    { ...data, userId, updatedAt: new Date() },
+    values.allStores ? [] : unique,
+    managed.map((m) => m.id),
+  );
 }
 
 /**
@@ -180,6 +200,7 @@ export function setUserAccess(
     const before = toProfile(
       user.access,
       user.accessStores.map((s) => s.darkStoreId),
+      user.merchantsManaged.map((m) => m.id),
     );
     const values = accessFromBody(input.body);
     if (before.settings === 'manage' && values.settings !== 'manage')

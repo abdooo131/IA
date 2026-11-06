@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   accrueStorage,
+  checkDocumentExpiry,
   checkFailedDeliveries,
   flagLateOrders,
   getSetting,
@@ -49,6 +50,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private linking = false;
   /** The last Cairo day recurring expenses and monthly charges ran for in this instance. */
   private monthlyDone: string | null = null;
+  /** The last hour employee documents were checked in this instance. */
+  private documentsDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -70,6 +73,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runTicketReminders();
       void this.runCustomerLinks();
       void this.runMonthlyFinance();
+      void this.runDocumentExpiry();
     }, EVERY_MS);
     this.timer.unref();
   }
@@ -101,6 +105,26 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return null;
     } finally {
       this.linking = false;
+    }
+  }
+
+  /**
+   * Once an hour (so a document added today is seen the same day): one document_expiring
+   * alert per employee document hr.document_alert_days before it runs out, and one
+   * document_expired on the day. Every alert has its own key, so repeats and other instances
+   * raise nothing twice.
+   */
+  async runDocumentExpiry(now: Date = new Date()) {
+    const hour = now.toISOString().slice(0, 13);
+    if (this.documentsDone === hour) return null;
+    try {
+      const result = await checkDocumentExpiry(this.prisma, now);
+      this.documentsDone = hour;
+      if (result.raised > 0) this.log.log(`Employee documents: ${result.raised} alerts raised`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: document expiry', error);
+      return null;
     }
   }
 

@@ -88,6 +88,14 @@ export function AccountMenu({
               {ts('menu')}
             </Link>
             {tickets && <TicketsLink />}
+            {tickets && (
+              <Link
+                href="/my-file"
+                className="flex h-10 items-center rounded-md border border-line bg-surface px-3 text-body-sm font-bold text-link"
+              >
+                {t('myFile')}
+              </Link>
+            )}
           </div>
           <PreferencesMenu theme={theme} />
           <SignOutButton />

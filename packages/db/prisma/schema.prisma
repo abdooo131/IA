@@ -133,6 +133,9 @@ model User {
   fixedAssets        FixedAsset[]
   access             UserAccess?
   accessStores       UserStore[]
+  employee           Employee?
+  documentsUploaded  EmployeeDocument[]  @relation("employee_document_uploaded_by")
+  merchantsManaged   Merchant[]          @relation("merchant_account_manager")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -142,23 +145,26 @@ model User {
 /// What a team member (admin, finance, store staff account) may open and do, per app.
 /// Filled from a job role or set by hand (job_role custom). See docs/ACCESS.md.
 model UserAccess {
-  userId       String      @id @map("user_id")
+  userId           String      @id @map("user_id")
   /// The job role it was last filled from (label only), or custom
-  jobRole      String      @map("job_role")
-  store        AccessLevel @default(none)
-  operations   AccessLevel @default(none)
-  inventory    AccessLevel @default(none)
-  merchants    AccessLevel @default(none)
-  customers    AccessLevel @default(none)
-  accounting   AccessLevel @default(none)
-  settings     AccessLevel @default(none)
+  jobRole          String      @map("job_role")
+  store            AccessLevel @default(none)
+  operations       AccessLevel @default(none)
+  inventory        AccessLevel @default(none)
+  merchants        AccessLevel @default(none)
+  customers        AccessLevel @default(none)
+  accounting       AccessLevel @default(none)
+  hr               AccessLevel @default(none)
+  settings         AccessLevel @default(none)
   /// true: every store; false: only the stores in user_stores
-  allStores    Boolean     @default(false) @map("all_stores")
+  allStores        Boolean     @default(false) @map("all_stores")
   /// May open named customer profiles
-  customerData Boolean     @default(false) @map("customer_data")
+  customerData     Boolean     @default(false) @map("customer_data")
   /// May see salaries, payslips and the payroll run
-  salaries     Boolean     @default(false)
-  updatedAt    DateTime    @updatedAt @map("updated_at")
+  salaries         Boolean     @default(false)
+  /// Account managers: only the merchants whose account manager they are
+  ownMerchantsOnly Boolean     @default(false) @map("own_merchants_only")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -235,6 +241,7 @@ model DarkStore {
 
   governorate      Governorate       @relation(fields: [governorateId], references: [id])
   accessUsers      UserStore[]
+  employees        Employee[]
   hours            StoreHours[]
   zones            Zone[]
   bins             Bin[]
@@ -346,6 +353,9 @@ model Merchant {
   bankAccountNumber     String?          @map("bank_account_number")
   iban                  String?
   beneficiaryName       String?          @map("beneficiary_name")
+  /// The team member who looks after this merchant (docs/HR.md 5)
+  accountManagerId      String?          @map("account_manager_id")
+  accountManager        User?            @relation("merchant_account_manager", fields: [accountManagerId], references: [id], onDelete: Restrict)
   createdAt             DateTime         @default(now()) @map("created_at")
   updatedAt             DateTime         @updatedAt @map("updated_at")
 
@@ -363,7 +373,9 @@ model Merchant {
   shopifyShop ShopifyShop?
 
   ledgerLines LedgerLine[]
+  alerts      Alert[]
 
+  @@index([accountManagerId])
   @@map("merchants")
 }
 
@@ -1125,8 +1137,13 @@ model Alert {
   createdAt    DateTime  @default(now()) @map("created_at")
   resolvedAt   DateTime? @map("resolved_at")
   resolvedById String?   @map("resolved_by_id")
+  /// The merchant an alert is about: it goes to the merchant's account manager
+  merchantId   String?   @map("merchant_id")
+  /// Makes alerts not tied to an order safe to raise twice (document_expiring:<id>:<day>)
+  key          String?   @unique
 
   darkStore  DarkStore? @relation(fields: [darkStoreId], references: [id])
+  merchant   Merchant?  @relation(fields: [merchantId], references: [id])
   order      Order?     @relation(fields: [orderId], references: [id])
   resolvedBy User?      @relation("alert_resolved_by", fields: [resolvedById], references: [id], onDelete: Restrict)
 
@@ -2037,10 +2054,6 @@ model StaffSalary {
   monthlyPiastres     Int      @map("monthly_piastres")
   /// The wage social insurance is counted on; empty means the salary itself
   insuredWagePiastres Int?     @map("insured_wage_piastres")
-  /// 14 digit national ID, for the salary tax forms
-  nationalId          String?  @map("national_id")
-  /// Social insurance number, for the insurance forms
-  insuranceNumber     String?  @map("insurance_number")
   updatedById         String   @map("updated_by_id")
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
 
@@ -2371,4 +2384,109 @@ model TaxInvoiceLine {
 
   @@unique([invoiceId, lineNo], map: "tax_invoice_lines_invoice_line_key")
   @@map("tax_invoice_lines")
+}
+
+// ─── HR (docs/HR.md) ───────────────────────────────────────────────────────────
+
+enum EmployeeStatus {
+  active
+  on_leave
+  suspended
+  left
+
+  @@map("employee_status")
+}
+
+/// outsourced mirrors users.employment, which Payroll sets
+enum ContractType {
+  permanent
+  fixed_term
+  part_time
+  outsourced
+
+  @@map("contract_type")
+}
+
+enum EmployeeDocumentKind {
+  national_id
+  contract
+  criminal_record
+  military_status
+  qualification
+  medical
+  other
+
+  @@map("employee_document_kind")
+}
+
+/// One file per person who works for us (team members and riders), linked 1:1 to their user.
+/// The display name, sign in mobile, employment (employee or outsourced) and staffing supplier
+/// stay on users; the home store of store staff and riders follows users.dark_store_id.
+model Employee {
+  id                    String         @id @default(cuid())
+  /// Shown as EMP-0001
+  number                Int            @unique @default(autoincrement())
+  userId                String         @unique @map("user_id")
+  nameEn                String         @map("name_en")
+  nameAr                String?        @map("name_ar")
+  /// 14 digit national ID (salary tax forms read it from here)
+  nationalId            String?        @map("national_id")
+  nationalIdExpiresOn   DateTime?      @map("national_id_expires_on") @db.Date
+  birthDate             DateTime?      @map("birth_date") @db.Date
+  address               String?
+  emergencyName         String?        @map("emergency_name")
+  emergencyPhone        String?        @map("emergency_phone")
+  jobTitle              String?        @map("job_title")
+  department            String?
+  managerId             String?        @map("manager_id")
+  homeStoreId           String?        @map("home_store_id")
+  hireDate              DateTime?      @map("hire_date") @db.Date
+  contractType          ContractType   @default(permanent) @map("contract_type")
+  contractEndsOn        DateTime?      @map("contract_ends_on") @db.Date
+  probationEndsOn       DateTime?      @map("probation_ends_on") @db.Date
+  /// Social insurance number (insurance forms read it from here)
+  socialInsuranceNumber String?        @map("social_insurance_number")
+  /// Where the salary is paid; read and changed only with the salaries switch
+  bankName              String?        @map("bank_name")
+  bankAccountNumber     String?        @map("bank_account_number")
+  iban                  String?
+  bankAccountHolder     String?        @map("bank_account_holder")
+  status                EmployeeStatus @default(active)
+  leftOn                DateTime?      @map("left_on") @db.Date
+  leftReason            String?        @map("left_reason")
+  createdAt             DateTime       @default(now()) @map("created_at")
+  updatedAt             DateTime       @updatedAt @map("updated_at")
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  manager   Employee?          @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports   Employee[]         @relation("employee_manager")
+  homeStore DarkStore?         @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
+  documents EmployeeDocument[]
+
+  @@index([homeStoreId])
+  @@index([status])
+  @@map("employees")
+}
+
+/// A scanned document of an employee file (photo or PDF, at most 3 MB), kept in the database
+/// like proof photos but in its own table so only HR and the person can read it.
+model EmployeeDocument {
+  id           String               @id @default(cuid())
+  employeeId   String               @map("employee_id")
+  kind         EmployeeDocumentKind
+  title        String?
+  contentType  String               @map("content_type")
+  data         Bytes
+  sizeBytes    Int                  @map("size_bytes")
+  issuedOn     DateTime?            @map("issued_on") @db.Date
+  expiresOn    DateTime?            @map("expires_on") @db.Date
+  uploadedById String               @map("uploaded_by_id")
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  uploadedBy User     @relation("employee_document_uploaded_by", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@index([employeeId])
+  @@index([expiresOn])
+  @@map("employee_documents")
 }

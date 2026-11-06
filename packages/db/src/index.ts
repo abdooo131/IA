@@ -139,4 +139,28 @@ export { planRefill, refillOverview, setStockTarget } from './refill';
 export * from './geo';
 export * from './tickets';
 export * from './shopdata';
+export {
+  addEmployeeDocument,
+  checkDocumentExpiry,
+  createEmployee,
+  deleteEmployeeDocument,
+  employeeHistory,
+  ensureEmployee,
+  ensureEmployees,
+  getEmployee,
+  getEmployeeDocument,
+  getOwnEmployee,
+  listAccountManagers,
+  listDocumentAlerts,
+  listEmployeeDocuments,
+  listEmployees,
+  listPeopleWithoutFile,
+  resolveDocumentAlert,
+  setAccountManager,
+  setEmployeeStatus,
+  updateEmployee,
+  type EmployeeFile,
+  type EmployeeListFilter,
+  type StoreScope,
+} from './hr';
 export { loadDemo, type DemoOptions, type DemoResult } from './demo';

@@ -9,6 +9,7 @@ import {
   canDo,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
+import { assertMerchant } from '../auth/access-scope';
 import { Access, ANY_APP, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { parseBound } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -40,6 +41,7 @@ export class AdminSettingsController {
     const merchantFee = body.scope.startsWith('merchant:');
     if (!canDo(access, 'settings', 'manage') && !merchantFee)
       throw new ForbiddenException({ error: 'no_access' });
+    if (merchantFee) assertMerchant(access, body.scope.slice('merchant:'.length));
     await changeSetting(this.prisma, {
       key: body.key as SettingKey,
       scope: body.scope,

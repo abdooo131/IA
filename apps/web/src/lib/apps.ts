@@ -47,6 +47,7 @@ export const SETTINGS_APPS = [
   'merchants',
   'customers',
   'accounting',
+  'hr',
   'system',
 ] as const;
 export type AppId = (typeof SETTINGS_APPS)[number];
@@ -200,6 +201,16 @@ export const APPS: AppDef[] = [
           settings('accounting'),
         ],
       },
+    ],
+  },
+  {
+    id: 'hr',
+    icon: 'account',
+    color: '#BE185D',
+    access: 'hr',
+    menus: [
+      { label: 'employees', pages: [{ href: '/admin/hr', label: 'employees' }] },
+      { label: 'configuration', pages: [settings('hr')] },
     ],
   },
   {

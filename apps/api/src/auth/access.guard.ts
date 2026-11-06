@@ -4,6 +4,7 @@ import { getAccessProfile, getMerchantAccess } from '@shiplynow/db';
 import {
   type AccessProfile,
   canDo,
+  canUseMerchant,
   canUseStore,
   isTeamRole,
   type MerchantRightName,
@@ -63,6 +64,9 @@ export class AccessGuard implements CanActivate {
         for (const storeId of requestedStores(req, rule.storeParam))
           if (!canUseStore(profile, storeId))
             throw new ForbiddenException({ error: 'store_not_allowed' });
+        for (const merchantId of requestedMerchants(req, rule.merchantParam))
+          if (!canUseMerchant(profile, merchantId))
+            throw new ForbiddenException({ error: 'merchant_not_allowed' });
       }
     }
 
@@ -92,5 +96,17 @@ function requestedStores(req: AuthedRequest, storeParam?: string): string[] {
   const params = req.params as Record<string, string | undefined>;
   const query = req.query as Record<string, unknown>;
   const ids = [params.storeId, storeParam ? params[storeParam] : undefined, query.darkStoreId];
+  return ids.filter((id): id is string => typeof id === 'string' && id !== '');
+}
+
+/** Merchant ids a request names: :merchantId (or the rule's parameter) and ?merchantId. */
+function requestedMerchants(req: AuthedRequest, merchantParam?: string): string[] {
+  const params = req.params as Record<string, string | undefined>;
+  const query = req.query as Record<string, unknown>;
+  const ids = [
+    params.merchantId,
+    merchantParam ? params[merchantParam] : undefined,
+    query.merchantId,
+  ];
   return ids.filter((id): id is string => typeof id === 'string' && id !== '');
 }
