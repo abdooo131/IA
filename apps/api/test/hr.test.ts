@@ -1,3 +1,4 @@
+import { cairoDay } from '@shiplynow/shared';
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -187,13 +188,16 @@ describe('hr', () => {
     await admin.post(`/hr/alerts/${alerts[0].id}/resolve`).expect(201);
 
     await admin.delete(`/hr/employees/${rider.id}/documents/${doc.id}`).expect(200);
+    // The file's hire date is the real day the account was opened, so leave on that day or
+    // later (a fixed date failed once Cairo passed midnight).
+    const leftToday = cairoDay(new Date());
     await admin
       .post(`/hr/employees/${rider.id}/status`)
-      .send({ status: 'left', leftOn: '2026-11-06' })
+      .send({ status: 'left', leftOn: leftToday })
       .expect(400);
     await admin
       .post(`/hr/employees/${rider.id}/status`)
-      .send({ status: 'left', leftOn: '2026-11-06', reason: 'Moved city' })
+      .send({ status: 'left', leftOn: leftToday, reason: 'Moved city' })
       .expect(201);
     await request(app.getHttpServer())
       .post('/auth/login')
