@@ -60,6 +60,11 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
         </span>
       </div>
       <p className="mt-2 text-caption text-text-muted">{t('privacy')}</p>
+      {p.totals.fromShopifyTotals && (
+        <p className="mt-2 rounded-md border border-status-needs-action bg-surface p-2 text-caption">
+          {t('fromShopifyTotalsLong')}
+        </p>
+      )}
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard
@@ -202,7 +207,15 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             title={t('paymentsTitle')}
             empty={t('none')}
             headers={[t('payment'), t('orders')]}
-            rows={p.payments.map((x) => [payment(x.method), x.orders])}
+            rows={[
+              ...p.payments.map((x) => [payment(x.method), x.orders]),
+              ...(p.delivery.express + p.delivery.standard > 0
+                ? [
+                    [t('deliveryExpress'), p.delivery.express],
+                    [t('deliveryStandard'), p.delivery.standard],
+                  ]
+                : []),
+            ]}
           />
         </div>
         <DataTable

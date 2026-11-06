@@ -1,6 +1,7 @@
-import type { Prisma } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import type { Db } from '../client';
-import { resolveCustomer } from './customers';
+import { parsePinAttribute } from '@shiplynow/shared';
+import { egyptPoint, resolveCustomer } from './customers';
 
 // Turns lines of a Shopify bulk export (JSON Lines, children after their parent with
 // __parentId) into rows. Every write is an upsert keyed by the Shopify id, so a run repeated
@@ -152,6 +153,22 @@ export async function ingestInventory(
   return { levels };
 }
 
+/**
+ * How an order was paid, from Shopify's gateway names: cod (cash on delivery, in English or
+ * Arabic), card (any other named gateway except manual ones), other (manual or gift card
+ * only), or null when the order names none (free orders, details not read).
+ */
+export function paymentMethodOf(gateways: string[]): 'cod' | 'card' | 'other' | null {
+  const names = gateways.map((g) => g.trim()).filter(Boolean);
+  if (!names.length) return null;
+  if (names.some((g) => /cash|\bcod\b|on delivery|عند الاستلام|كاش|نقد/i.test(g))) return 'cod';
+  if (names.some((g) => !/^(manual|gift[ _]?card|bogus|exchange-credit)$/i.test(g))) return 'card';
+  return 'other';
+}
+
+/** Our 60 minute rate: the shipping line code SN60:<store code>. */
+export const isExpressCode = (code: string | null | undefined) => /^SN60:/i.test(code ?? '');
+
 /** Orders with their lines. Returns how many of each were saved. */
 export async function ingestOrders(
   db: Db,
@@ -170,7 +187,22 @@ export async function ingestOrders(
         province?: string;
         city?: string;
         countryCodeV2?: string;
+        latitude?: number | null;
+        longitude?: number | null;
       } | null;
+      const attributes = Object.fromEntries(
+        ((l.customAttributes as { key?: string; value?: string | null }[] | null) ?? [])
+          .filter((a) => typeof a?.key === 'string')
+          .map((a) => [a.key!, a.value ?? null]),
+      );
+      // The customer's own pin first (our widget), then Shopify's point of the address.
+      const pin = parsePinAttribute(attributes._shiplynow_pin);
+      const shopifyPoint = egyptPoint(address?.latitude, address?.longitude);
+      const point = pin ?? shopifyPoint;
+      const shipping = l.shippingLine as { code?: string | null; title?: string | null } | null;
+      const gateways = Array.isArray(l.paymentGatewayNames)
+        ? (l.paymentGatewayNames as unknown[]).filter((g): g is string => typeof g === 'string')
+        : [];
       const buyer = l.customer as {
         id?: string;
         firstName?: string;
@@ -189,6 +221,8 @@ export async function ingestOrders(
         governorate: address?.province,
         city: address?.city,
         address: [address?.address1, address?.address2].filter(Boolean).join(', '),
+        latitude: point?.latitude,
+        longitude: point?.longitude,
         seenAt: createdAt,
       });
       const data = {
@@ -218,6 +252,19 @@ export async function ingestOrders(
         raw: json(l),
         customerId,
         customerShopifyId: str(buyer?.id),
+        latitude: point?.latitude ?? null,
+        longitude: point?.longitude ?? null,
+        pointSource: pin ? 'pin' : shopifyPoint ? 'shopify' : null,
+        paymentGateways: gateways,
+        paymentMethod: paymentMethodOf(gateways),
+        shippingCode: str(shipping?.code),
+        shippingTitle: str(shipping?.title),
+        express: isExpressCode(str(shipping?.code)),
+        discountCodes: Array.isArray(l.discountCodes)
+          ? (l.discountCodes as unknown[]).filter((c): c is string => typeof c === 'string')
+          : [],
+        cancelReason: str(l.cancelReason),
+        customAttributes: Object.keys(attributes).length ? json(attributes) : Prisma.DbNull,
       };
       await db.shopOrder.upsert({
         where: { shopifyId: l.id! },

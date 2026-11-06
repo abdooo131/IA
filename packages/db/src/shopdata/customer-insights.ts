@@ -10,6 +10,13 @@ import { customerRisk } from './customers';
 //   shop_orders (customer_id) ──┐
 //                               ├──▶ purchases ──▶ per customer: orders, spend, merchants,
 //   orders without Shopify ─────┘                   first and last order ──▶ segment
+//                                   ▲
+//   shop_customers totals ──────────┘ floor while a shop's order history is partial
+//
+// Without read_all_orders a shop gives only its last 60 days of orders. While we hold no full
+// history of a shop, a customer record created before the oldest order we hold counts at least
+// Shopify's own numberOfOrders and amountSpent; the orders we lack are dated before that
+// oldest order. Such totals are marked fromShopifyTotals.
 
 const DAY = 86_400_000;
 const n = (v: bigint | number | null | undefined) => Number(v ?? 0);
@@ -36,6 +43,32 @@ const PURCHASES = Prisma.sql`
     o.status IN ('cancelled', 'failed', 'moved_to_standard'),
     (SELECT COALESCE(SUM(i.quantity - i.cancelled_qty), 0) FROM order_items i WHERE i.order_id = o.id)
   FROM orders o WHERE o.customer_id IS NOT NULL AND o.shopify_order_id IS NULL`;
+
+/**
+ * Orders and spend Shopify knows of but we do not count, per Shopify customer record (our count
+ * is its orders linked to the person, as in PURCHASES): only for a
+ * shop without a full history read (read_all_orders) and a record older than the shop's
+ * oldest order we hold. `before` is that oldest order (the missing ones are older), `since`
+ * the record's creation.
+ */
+const SHOPIFY_EXTRA = Prisma.sql`
+  SELECT sc.customer_id, sc.merchant_id,
+    GREATEST(sc.orders_count - COALESCE(own.orders, 0), 0) AS orders,
+    GREATEST(sc.amount_spent_piastres - COALESCE(own.spend, 0), 0) AS spend,
+    sc.created_at_shop AS since, h.oldest AS before
+  FROM shop_customers sc
+  LEFT JOIN (SELECT shop_id, MIN(created_at_shop) AS oldest FROM shop_orders
+    WHERE NOT test GROUP BY shop_id) h ON h.shop_id = sc.shop_id
+  LEFT JOIN (SELECT customer_shopify_id, COUNT(*) FILTER (WHERE cancelled_at IS NULL) AS orders,
+      COALESCE(SUM(total_piastres - refunded_piastres) FILTER (WHERE cancelled_at IS NULL), 0) AS spend
+    FROM shop_orders WHERE NOT test AND customer_shopify_id IS NOT NULL
+      AND customer_id IS NOT NULL
+    GROUP BY customer_shopify_id) own ON own.customer_shopify_id = sc.shopify_id
+  WHERE sc.customer_id IS NOT NULL AND sc.orders_count > COALESCE(own.orders, 0)
+    AND NOT EXISTS (SELECT 1 FROM shop_data_syncs s WHERE s.shop_id = sc.shop_id
+      AND s.kind = 'orders' AND s.all_orders AND s.status IN ('done', 'superseded')
+      AND (s.limited IS NULL OR s.limited <> 'denied'))
+    AND (sc.created_at_shop IS NULL OR h.oldest IS NULL OR sc.created_at_shop < h.oldest)`;
 
 async function rules(db: Db) {
   const [
@@ -110,16 +143,41 @@ function segmentSql(r: Rules, now: Date) {
     ELSE 'one_time' END`;
 }
 
+/**
+ * Per customer: orders, cancelled, spend, merchants, first and last order, and whether the
+ * numbers lean on Shopify's totals (from_shopify). With Shopify's totals the first order is the
+ * record's creation and the last one, when we hold none, the shop's oldest order we hold
+ * (an upper bound).
+ */
 const TOTALS = Prisma.sql`
+  WITH p AS (${PURCHASES}),
+  x0 AS (${SHOPIFY_EXTRA}),
+  x AS (SELECT customer_id, SUM(orders) AS orders, SUM(spend) AS spend,
+      MIN(since) AS since, MIN(before) AS before
+    FROM x0 GROUP BY customer_id),
+  pt AS (SELECT customer_id,
+      COUNT(*) FILTER (WHERE NOT cancelled) AS orders,
+      COUNT(*) FILTER (WHERE cancelled) AS cancelled,
+      COALESCE(SUM(value) FILTER (WHERE NOT cancelled), 0) AS spend,
+      MIN(at) FILTER (WHERE NOT cancelled) AS first_at,
+      MAX(at) FILTER (WHERE NOT cancelled) AS last_at
+    FROM p GROUP BY customer_id),
+  m AS (SELECT customer_id, COUNT(DISTINCT merchant_id) AS merchants FROM (
+      SELECT customer_id, merchant_id FROM p
+      UNION ALL SELECT customer_id, merchant_id FROM x0) u
+    GROUP BY customer_id)
   SELECT c.id,
-    COUNT(p.customer_id) FILTER (WHERE NOT p.cancelled) AS orders,
-    COUNT(p.customer_id) FILTER (WHERE p.cancelled) AS cancelled,
-    COALESCE(SUM(p.value) FILTER (WHERE NOT p.cancelled), 0) AS spend,
-    COUNT(DISTINCT p.merchant_id) AS merchants,
-    MIN(p.at) FILTER (WHERE NOT p.cancelled) AS first_at,
-    MAX(p.at) FILTER (WHERE NOT p.cancelled) AS last_at
-  FROM customers c LEFT JOIN (${PURCHASES}) p ON p.customer_id = c.id
-  GROUP BY c.id`;
+    COALESCE(pt.orders, 0) + COALESCE(x.orders, 0) AS orders,
+    COALESCE(pt.cancelled, 0) AS cancelled,
+    COALESCE(pt.spend, 0) + COALESCE(x.spend, 0) AS spend,
+    COALESCE(m.merchants, 0) AS merchants,
+    CASE WHEN x.customer_id IS NULL THEN pt.first_at
+      ELSE LEAST(pt.first_at, x.since, x.before) END AS first_at,
+    CASE WHEN x.customer_id IS NULL THEN pt.last_at
+      ELSE COALESCE(pt.last_at, x.before, x.since) END AS last_at,
+    x.customer_id IS NOT NULL AS from_shopify
+  FROM customers c LEFT JOIN pt ON pt.customer_id = c.id
+  LEFT JOIN x ON x.customer_id = c.id LEFT JOIN m ON m.customer_id = c.id`;
 
 type Row = {
   id: string;
@@ -133,6 +191,7 @@ type Row = {
   merchants: bigint;
   last_at: Date | null;
   segment: Segment;
+  from_shopify: boolean;
 };
 
 /** One page of customers, highest spend first, filtered by text, segment, place or merchant. */
@@ -173,7 +232,8 @@ export async function listCustomers(
   const rows = await db.$queryRaw<(Row & { gap: number | null })[]>`
     SELECT * FROM (
       SELECT c.id, c.name, c.phone, c.email, c.governorate, c.city,
-        t.orders, t.spend, t.merchants, t.last_at, ${segmentSql(r, now)} AS segment, ${GAP} AS gap
+        t.orders, t.spend, t.merchants, t.last_at, t.from_shopify,
+        ${segmentSql(r, now)} AS segment, ${GAP} AS gap
       FROM customers c JOIN (${TOTALS}) t ON t.id = c.id
       WHERE ${Prisma.join(where, ' AND ')}
     ) x
@@ -197,6 +257,8 @@ export async function listCustomers(
       lastOrderAt: c.last_at,
       segment: c.segment,
       expectedAt: c.gap != null && c.last_at ? new Date(c.last_at.getTime() + c.gap * DAY) : null,
+      /** Orders and spend include Shopify's own totals (our order history is partial) */
+      fromShopifyTotals: c.from_shopify,
     })),
   };
 }
@@ -214,9 +276,11 @@ export async function customersOverview(db: Db, now: Date = new Date()) {
       multi: bigint;
       orders: bigint;
       spend: bigint;
+      from_shopify: bigint;
     }[]
   >`
     SELECT COUNT(*) AS customers,
+      COUNT(*) FILTER (WHERE t.from_shopify) AS from_shopify,
       COUNT(*) FILTER (WHERE c.phone IS NOT NULL) AS with_phone,
       COUNT(*) FILTER (WHERE c.email IS NOT NULL) AS with_email,
       COUNT(*) FILTER (WHERE t.orders >= 1) AS buyers,
@@ -369,6 +433,9 @@ export async function customersOverview(db: Db, now: Date = new Date()) {
       };
     }),
     customers: n(totals?.customers),
+    /** Customers whose orders and spend lean on Shopify's totals (partial order history) */
+    fromShopifyTotals: n(totals?.from_shopify),
+    orderHistory: await orderHistoryCoverage(db),
     withPhone: n(totals?.with_phone),
     withEmail: n(totals?.with_email),
     buyers,
@@ -411,9 +478,10 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       last_at: Date | null;
       units: bigint;
       segment: Segment;
+      from_shopify: boolean;
     }[]
   >`
-    SELECT t.orders, t.cancelled, t.spend, t.merchants, t.first_at, t.last_at,
+    SELECT t.orders, t.cancelled, t.spend, t.merchants, t.first_at, t.last_at, t.from_shopify,
       (SELECT COALESCE(SUM(p.units), 0) FROM (${PURCHASES}) p WHERE p.customer_id = t.id AND NOT p.cancelled) AS units,
       ${segmentSql(r, now)} AS segment
     FROM (${TOTALS}) t WHERE t.id = ${id}`;
@@ -459,12 +527,20 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       COUNT(*) AS orders
     FROM (${PURCHASES}) p WHERE p.customer_id = ${id} AND NOT p.cancelled GROUP BY 1, 2`;
 
+  // How they pay: from the payment gateways (cash on delivery or card); older rows read before
+  // the gateways were collected fall back to the payment status.
   const payments = await db.$queryRaw<{ method: string; orders: bigint }[]>`
-    SELECT COALESCE(financial_status, 'UNKNOWN') AS method, COUNT(*) AS orders
+    SELECT COALESCE(payment_method, financial_status, 'UNKNOWN') AS method, COUNT(*) AS orders
     FROM shop_orders WHERE customer_id = ${id} AND NOT test GROUP BY 1
     UNION ALL
     SELECT 'shiply_' || payment_method::text, COUNT(*) FROM orders
     WHERE customer_id = ${id} AND shopify_order_id IS NULL GROUP BY 1`;
+
+  // 60 minute (our SN60 rate at checkout) against standard delivery, from Shopify's shipping line.
+  const [speed] = await db.$queryRaw<{ express: bigint; standard: bigint }[]>`
+    SELECT COUNT(*) FILTER (WHERE express) AS express,
+      COUNT(*) FILTER (WHERE NOT express AND shipping_code IS NOT NULL) AS standard
+    FROM shop_orders WHERE customer_id = ${id} AND NOT test AND cancelled_at IS NULL`;
 
   const [deliveries] = await db.$queryRaw<
     {
@@ -494,18 +570,21 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       value: bigint;
       status: string;
       units: bigint;
+      express: boolean;
+      payment: string | null;
     }[]
   >`
     SELECT 'shopify' AS source, so.name AS ref, so.id AS record_id, m.name AS merchant,
       so.created_at_shop AS at, (so.total_piastres - so.refunded_piastres) AS value,
       CASE WHEN so.cancelled_at IS NOT NULL THEN 'CANCELLED' ELSE COALESCE(so.fulfillment_status, '') END AS status,
-      so.units AS units
+      so.units AS units, so.express AS express, so.payment_method AS payment
     FROM shop_orders so JOIN merchants m ON m.id = so.merchant_id
     WHERE so.customer_id = ${id} AND NOT so.test
     UNION ALL
     SELECT 'shiply', o.number, o.id, m.name, o.placed_at,
       (o.subtotal_piastres + o.delivery_fee_piastres), o.status::text,
-      (SELECT COALESCE(SUM(i.quantity), 0) FROM order_items i WHERE i.order_id = o.id)
+      (SELECT COALESCE(SUM(i.quantity), 0) FROM order_items i WHERE i.order_id = o.id),
+      TRUE, o.payment_method::text
     FROM orders o JOIN merchants m ON m.id = o.merchant_id WHERE o.customer_id = ${id}
     ORDER BY 5 DESC LIMIT 50`;
 
@@ -633,6 +712,8 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       merchants: n(t?.merchants),
       firstOrderAt: t?.first_at ?? null,
       lastOrderAt: t?.last_at ?? null,
+      /** Orders and spend include Shopify's own totals; the dates are then estimates */
+      fromShopifyTotals: t?.from_shopify ?? false,
       // Average days between orders, once there are at least two.
       everyDays:
         orders >= 2 && t?.first_at && t.last_at
@@ -661,6 +742,7 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
     })),
     timing: timing.map((x) => ({ dow: x.dow, hour: x.hour, orders: n(x.orders) })),
     payments: payments.map((p) => ({ method: p.method, orders: n(p.orders) })),
+    delivery: { express: n(speed?.express), standard: n(speed?.standard) },
     deliveries: {
       orders: n(deliveries?.orders),
       delivered: n(deliveries?.delivered),
@@ -679,6 +761,7 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       emailMarketing: s.emailMarketing,
       smsMarketing: s.smsMarketing,
       tags: s.tags,
+      locale: s.locale,
       since: s.createdAtShop,
     })),
     recentOrders: recent.map((o) => ({
@@ -690,6 +773,8 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       valuePiastres: n(o.value),
       status: o.status,
       units: n(o.units),
+      express: o.express,
+      payment: o.payment,
     })),
   };
 }
@@ -797,4 +882,118 @@ export async function merchantCategoryGaps(db: Db, merchantId: string) {
       merchants: n(g.merchants),
     })),
   };
+}
+
+/**
+ * The order history we hold per connected shop: first and last order, how many, and whether
+ * the whole history is in (read_all_orders granted and an orders export with it done). Without
+ * it only the last 60 days came, and customer totals lean on Shopify's own counts.
+ */
+export async function orderHistoryCoverage(db: Db, merchantId?: string) {
+  const rows = await db.$queryRaw<
+    {
+      shop_id: string;
+      merchant_id: string;
+      merchant: string;
+      shop_domain: string;
+      scopes: string | null;
+      from_at: Date | null;
+      to_at: Date | null;
+      orders: bigint;
+      collected: boolean;
+    }[]
+  >`
+    SELECT s.id AS shop_id, s.merchant_id, m.name AS merchant, s.shop_domain, s.scopes,
+      h.from_at, h.to_at, COALESCE(h.orders, 0) AS orders,
+      EXISTS (SELECT 1 FROM shop_data_syncs d WHERE d.shop_id = s.id AND d.kind = 'orders'
+        AND d.all_orders AND d.status IN ('done', 'superseded')
+        AND (d.limited IS NULL OR d.limited <> 'denied')) AS collected
+    FROM shopify_shops s JOIN merchants m ON m.id = s.merchant_id
+    LEFT JOIN (SELECT shop_id, MIN(created_at_shop) AS from_at, MAX(created_at_shop) AS to_at,
+        COUNT(*) AS orders FROM shop_orders WHERE NOT test GROUP BY shop_id) h ON h.shop_id = s.id
+    WHERE ${merchantId ? Prisma.sql`s.merchant_id = ${merchantId}` : Prisma.sql`TRUE`}
+    ORDER BY m.name`;
+  return rows.map((r) => {
+    const granted = (r.scopes ?? '').split(',').some((x) => x.trim() === 'read_all_orders');
+    return {
+      shopId: r.shop_id,
+      merchantId: r.merchant_id,
+      merchant: r.merchant,
+      shopDomain: r.shop_domain,
+      from: r.from_at,
+      to: r.to_at,
+      orders: n(r.orders),
+      allOrdersGranted: granted,
+      /** The whole history is in; otherwise only what Shopify gave without read_all_orders */
+      complete: granted && r.collected,
+    };
+  });
+}
+
+export type ExportRow = {
+  phone: string | null;
+  email: string | null;
+  name: string;
+  segment: Segment;
+  emailMarketing: string | null;
+  smsMarketing: string | null;
+  lastOrderAt: Date | null;
+};
+
+/**
+ * Customers of one segment (or all) for a CSV. For marketing only people who agreed: a phone
+ * appears only with SMS consent, an email only with email consent, and someone with neither is
+ * left out. Consent is SUBSCRIBED in at least one merchant store and unsubscribed in none.
+ */
+export async function exportCustomers(
+  db: Db,
+  filter: { segment?: string; marketing?: boolean },
+  now: Date = new Date(),
+): Promise<ExportRow[]> {
+  const r = await rules(db);
+  const segment = SEGMENTS.includes(filter.segment as Segment) ? filter.segment : null;
+  const rows = await db.$queryRaw<
+    {
+      phone: string | null;
+      email: string | null;
+      name: string;
+      segment: Segment;
+      email_state: string | null;
+      sms_state: string | null;
+      last_at: Date | null;
+    }[]
+  >`
+    WITH consent AS (
+      SELECT customer_id,
+        CASE WHEN bool_or(email_marketing = 'UNSUBSCRIBED') THEN 'UNSUBSCRIBED'
+          WHEN bool_or(email_marketing = 'SUBSCRIBED') THEN 'SUBSCRIBED'
+          ELSE MAX(email_marketing) END AS email_state,
+        CASE WHEN bool_or(sms_marketing = 'UNSUBSCRIBED') THEN 'UNSUBSCRIBED'
+          WHEN bool_or(sms_marketing = 'SUBSCRIBED') THEN 'SUBSCRIBED'
+          ELSE MAX(sms_marketing) END AS sms_state
+      FROM shop_customers WHERE customer_id IS NOT NULL GROUP BY customer_id)
+    SELECT * FROM (
+      SELECT c.phone, c.email, c.name, ${segmentSql(r, now)} AS segment,
+        k.email_state, k.sms_state, t.last_at, t.spend
+      FROM customers c JOIN (${TOTALS}) t ON t.id = c.id
+      LEFT JOIN consent k ON k.customer_id = c.id
+    ) x
+    WHERE ${segment ? Prisma.sql`x.segment = ${segment}` : Prisma.sql`TRUE`}
+    ORDER BY x.spend DESC, x.name`;
+  const out: ExportRow[] = [];
+  for (const row of rows) {
+    const emailOk = row.email_state === 'SUBSCRIBED';
+    const smsOk = row.sms_state === 'SUBSCRIBED';
+    if (filter.marketing && !emailOk && !smsOk) continue;
+    out.push({
+      phone: filter.marketing && !smsOk ? null : row.phone,
+      email: filter.marketing && !emailOk ? null : row.email,
+      name: row.name,
+      segment: row.segment,
+      emailMarketing: row.email_state,
+      smsMarketing: row.sms_state,
+      lastOrderAt: row.last_at,
+    });
+  }
+  return out;
 }

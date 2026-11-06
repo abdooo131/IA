@@ -1,4 +1,4 @@
-import type { CrossSell } from './customer-types';
+import type { CrossSell, OrderHistory } from './customer-types';
 
 export interface ProductInsight {
   id: string;
@@ -17,6 +17,7 @@ export interface ProductInsight {
 export interface MerchantInsights {
   /** Admin only: what this merchant's customers buy elsewhere that it does not sell */
   crossSell: CrossSell;
+  orderHistory: OrderHistory[];
   merchant: { id: string; name: string };
   shop: {
     domain: string;
@@ -70,6 +71,7 @@ export interface MerchantInsights {
 }
 
 export interface MarketInsights {
+  orderHistory: OrderHistory[];
   categories: {
     category: string;
     merchants: number;

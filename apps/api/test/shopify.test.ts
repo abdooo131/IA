@@ -830,6 +830,10 @@ describe('shopify app', () => {
         test: false,
         totalPriceSet: { shopMoney: { amount: '325.50' } },
         subtotalLineItemsQuantity: 1,
+        paymentGatewayNames: ['Cash on Delivery (COD)'],
+        shippingLine: { code: 'SN60:NC', title: 'Shiply Now 60 minutes', source: 'shiplynow' },
+        discountCodes: ['WELCOME'],
+        customAttributes: [{ key: '_shiplynow_pin', value: '30.03,31.47' }],
       },
       {
         id: 'gid://shopify/LineItem/2',
@@ -852,6 +856,15 @@ describe('shopify app', () => {
       .send(body)
       .expect(200);
     expect(await prisma.shopOrder.count()).toBe(2);
+    expect(await prisma.shopOrder.findUniqueOrThrow({ where: { shopifyId: O2 } })).toMatchObject({
+      paymentMethod: 'cod',
+      express: true,
+      shippingCode: 'SN60:NC',
+      discountCodes: ['WELCOME'],
+      latitude: 30.03,
+      longitude: 31.47,
+      pointSource: 'pin',
+    });
 
     const insights = (await admin.get(`/admin/data/merchants/${merchantId}`).expect(200)).body;
     expect(insights.catalogue).toMatchObject({ products: 2, active: 1, draft: 1, variants: 1 });
@@ -1001,6 +1014,22 @@ describe('shopify app', () => {
     // Once the full read is done, the store is back to the daily changes only.
     await prisma.shopDataSync.update({ where: { id: full.id }, data: { status: 'done' } });
     expect(await data.tick(granted, now)).toBeNull();
+
+    // "Collect everything again": every kind from the start, orders with their whole history.
+    await data.refreshAll(shop.id);
+    expect(await data.tick(granted, now)).toMatchObject({ started: 'products' });
+    for (const kind of ['products', 'inventory'] as const) {
+      await prisma.shopDataSync.updateMany({
+        where: { kind, status: 'running' },
+        data: { status: 'done' },
+      });
+      expect(await data.tick(granted, now)).toMatchObject({
+        started: kind === 'products' ? 'inventory' : 'orders',
+      });
+    }
+    expect(
+      await prisma.shopDataSync.findFirstOrThrow({ where: { kind: 'orders', status: 'running' } }),
+    ).toMatchObject({ since: null, allOrders: true });
   });
 
   it('renews expiring tokens once when due and moves an old permanent token over', async () => {

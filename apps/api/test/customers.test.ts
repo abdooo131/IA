@@ -72,6 +72,7 @@ describe('customer base (admin only)', () => {
       '/admin/customers/places',
       `/admin/customers/by-order/${order.id}`,
       `/admin/customers/${order.customerId}`,
+      '/admin/customers/export',
     ])
       await merchant.get(path).expect(403);
     await merchant
@@ -96,5 +97,86 @@ describe('customer base (admin only)', () => {
     await admin.post(`/admin/customers/${order.customerId}/merge`).send({}).expect(400);
     const data = await admin.get(`/admin/data/merchants/${order.merchantId}`).expect(200);
     expect(data.body.crossSell).toMatchObject({ customers: 1, alsoBuyElsewhere: 0 });
+    expect(data.body.orderHistory).toEqual([]);
+  });
+
+  it('exports a segment as CSV, for marketing only with consent, and audits it', async () => {
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    const merchant = await prisma.merchant.findFirstOrThrow();
+    const shop = await prisma.shopifyShop.create({
+      data: { merchantId: merchant.id, shopDomain: 'export-test.myshopify.com', status: 'active' },
+    });
+    const sara = await prisma.customer.create({
+      data: {
+        phone: '+201012345678',
+        email: 'sara@example.com',
+        name: '=Sara',
+        firstSeenAt: clock.now(),
+        lastSeenAt: clock.now(),
+      },
+    });
+    await prisma.customer.create({
+      data: {
+        phone: '+201112345678',
+        name: 'Omar',
+        firstSeenAt: clock.now(),
+        lastSeenAt: clock.now(),
+      },
+    });
+    await prisma.shopCustomer.create({
+      data: {
+        shopId: shop.id,
+        merchantId: merchant.id,
+        shopifyId: 'gid://shopify/Customer/1',
+        customerId: sara.id,
+        emailMarketing: 'SUBSCRIBED',
+        smsMarketing: 'NOT_SUBSCRIBED',
+        raw: {},
+      },
+    });
+    await prisma.shopOrder.create({
+      data: {
+        shopId: shop.id,
+        merchantId: merchant.id,
+        shopifyId: 'gid://shopify/Order/1',
+        name: '#1',
+        createdAtShop: clock.now(),
+        currency: 'EGP',
+        totalPiastres: 10_000,
+        raw: {},
+      },
+    });
+
+    const all = await admin.get('/admin/customers/export?segment=no_orders').expect(200);
+    expect(all.headers['content-type']).toContain('text/csv');
+    expect(all.text.charCodeAt(0)).toBe(0xfeff);
+    const lines = all.text.slice(1).trim().split('\r\n');
+    expect(lines[0]).toBe('phone,email,name,segment,email_marketing,sms_marketing,last_order');
+    expect(lines).toHaveLength(3);
+    // A name that looks like a formula never runs in Excel.
+    expect(all.text).toContain("'=Sara");
+
+    const marketing = await admin.get('/admin/customers/export?marketing=1').expect(200);
+    const rows = marketing.text.slice(1).trim().split('\r\n');
+    expect(rows).toHaveLength(2);
+    // Email consent only: the phone is left out.
+    expect(rows[1]).toBe(",sara@example.com,'=Sara,no_orders,SUBSCRIBED,NOT_SUBSCRIBED,");
+
+    const audits = await prisma.auditLog.findMany({
+      where: { action: 'customer.export' },
+      orderBy: { createdAt: 'asc' },
+    });
+    expect(audits.map((a) => a.after)).toEqual([
+      { segment: 'no_orders', marketing: false, rows: 2 },
+      { segment: null, marketing: true, rows: 1 },
+    ]);
+
+    const market = await admin.get('/admin/data/market').expect(200);
+    expect(market.body.orderHistory).toEqual([
+      expect.objectContaining({ shopId: shop.id, orders: 1, complete: false }),
+    ]);
+    const overview = await admin.get('/admin/customers/overview').expect(200);
+    expect(overview.body).toMatchObject({ fromShopifyTotals: 0 });
+    expect(overview.body.orderHistory).toHaveLength(1);
   });
 });

@@ -2,6 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/charts/ColumnChart';
 import { DataTable } from '@/components/data/DataTable';
+import { OrderHistoryNote } from '@/components/data/OrderHistoryNote';
 import { StatCard } from '@/components/StatCard';
 import { apiGet } from '@/lib/api-server';
 import type { MarketInsights } from '@/lib/data-types';
@@ -21,6 +22,7 @@ export default async function MarketDataPage() {
     <>
       <h1 className="text-h2">{t('marketTitle')}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('marketIntro')}</p>
+      <OrderHistoryNote shops={m.orderHistory} />
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard label={t('merchants')} value={String(m.merchants.length)} />
         <StatCard label={t('categories')} value={String(m.categories.length)} />

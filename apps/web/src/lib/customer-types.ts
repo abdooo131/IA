@@ -23,6 +23,22 @@ export type CustomerRow = {
   segment: Segment;
   /** When a repeat customer would usually order again */
   expectedAt: string | null;
+  /** Orders and spend include Shopify's own totals (our order history is partial) */
+  fromShopifyTotals: boolean;
+};
+
+/** The order history we hold of one connected store. */
+export type OrderHistory = {
+  shopId: string;
+  merchantId: string;
+  merchant: string;
+  shopDomain: string;
+  from: string | null;
+  to: string | null;
+  orders: number;
+  allOrdersGranted: boolean;
+  /** The whole history is in, not only the last 60 days */
+  complete: boolean;
 };
 
 export type CustomerList = { page: number; more: boolean; customers: CustomerRow[] };
@@ -88,6 +104,8 @@ export type CustomersOverview = {
     customers: number;
   }[];
   newByMonth: { month: string; customers: number }[];
+  fromShopifyTotals: number;
+  orderHistory: OrderHistory[];
 };
 
 export type CustomerProfile = {
@@ -128,6 +146,7 @@ export type CustomerProfile = {
     firstOrderAt: string | null;
     lastOrderAt: string | null;
     everyDays: number | null;
+    fromShopifyTotals: boolean;
   };
   merchants: {
     id: string;
@@ -147,6 +166,8 @@ export type CustomerProfile = {
   }[];
   timing: { dow: number; hour: number; orders: number }[];
   payments: { method: string; orders: number }[];
+  /** Shopify orders by the delivery the customer chose: our 60 minutes or the merchant's own */
+  delivery: { express: number; standard: number };
   deliveries: {
     orders: number;
     delivered: number;
@@ -165,6 +186,7 @@ export type CustomerProfile = {
     emailMarketing: string | null;
     smsMarketing: string | null;
     tags: string[];
+    locale: string | null;
     since: string | null;
   }[];
   recentOrders: {
@@ -176,6 +198,8 @@ export type CustomerProfile = {
     valuePiastres: number;
     status: string;
     units: number;
+    express: boolean;
+    payment: string | null;
   }[];
 };
 

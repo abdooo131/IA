@@ -158,6 +158,7 @@ describe('access rights', () => {
     await cs.agent.get('/admin/customers/overview').expect(200);
     expect((await cs.agent.get('/admin/customers').expect(403)).body.error).toBe('no_access');
     await cs.agent.get('/admin/customers/some-id').expect(403);
+    await cs.agent.get('/admin/customers/export').expect(403);
   });
 
   it('applies a change at once, audited, never on oneself, and keeps an owner', async () => {

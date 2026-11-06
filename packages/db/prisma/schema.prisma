@@ -1914,12 +1914,32 @@ model ShopOrder {
   /// The person behind the order across every merchant, when the order names a phone or email
   customerId        String?   @map("customer_id")
   customerShopifyId String?   @map("customer_shopify_id")
+  /// The delivery point: the customer's pin (_shiplynow_pin) or Shopify's point of the address
+  latitude          Float?
+  longitude         Float?
+  /// pin or shopify
+  pointSource       String?   @map("point_source")
+  /// Payment gateways as Shopify names them ("Cash on Delivery (COD)", "Shopify Payments")
+  paymentGateways   String[]  @default([]) @map("payment_gateways")
+  /// From the gateways: cod, card or other (null when none is named)
+  paymentMethod     String?   @map("payment_method")
+  /// The shipping line chosen at checkout; SN60:<store code> is our 60 minute rate
+  shippingCode      String?   @map("shipping_code")
+  shippingTitle     String?   @map("shipping_title")
+  /// The customer chose our 60 minute delivery (shipping code SN60:...)
+  express           Boolean   @default(false)
+  discountCodes     String[]  @default([]) @map("discount_codes")
+  /// CUSTOMER, DECLINED, FRAUD, INVENTORY, OTHER, STAFF
+  cancelReason      String?   @map("cancel_reason")
+  /// The order's custom attributes as { key: value } (our _shiplynow_zone, _area, _pin)
+  customAttributes  Json?     @map("custom_attributes")
 
   lines    ShopOrderLine[]
   customer Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([merchantId, createdAtShop])
   @@index([customerId])
+  @@index([customerShopifyId])
   @@map("shop_orders")
 }
 
@@ -1958,7 +1978,7 @@ model Customer {
   city        String?
   /// The latest delivery address seen
   address     String?
-  /// The latest delivery point of our own orders, when there is one
+  /// The latest delivery point: our own orders, or a Shopify order's pin or map point
   latitude    Float?
   longitude   Float?
   /// The district (geo_areas level 2) the customer lives in, from the point or the address
@@ -2013,6 +2033,8 @@ model ShopCustomer {
   amountSpentPiastres Int       @default(0) @map("amount_spent_piastres")
   emailMarketing      String?   @map("email_marketing")
   smsMarketing        String?   @map("sms_marketing")
+  /// The customer's language in the store (for example ar or en)
+  locale              String?
   province            String?
   city                String?
   tags                String[]

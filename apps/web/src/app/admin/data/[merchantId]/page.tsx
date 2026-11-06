@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ColumnChart } from '@/components/charts/ColumnChart';
 import { DataTable } from '@/components/data/DataTable';
+import { OrderHistoryNote } from '@/components/data/OrderHistoryNote';
 import { RefreshDataButton } from '@/components/data/RefreshDataButton';
 import { StatCard } from '@/components/StatCard';
 import { BackLink } from '@/components/store/BackLink';
@@ -64,6 +65,7 @@ export default async function MerchantDataPage({
         </div>
         {d.shop && <RefreshDataButton merchantId={d.merchant.id} />}
       </div>
+      <OrderHistoryNote shops={d.orderHistory} />
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard

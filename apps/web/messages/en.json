@@ -3833,7 +3833,25 @@
     "customersWord": "Customers",
     "spendElsewhere": "Spent elsewhere (EGP)"
   },
+  "orderHistory": {
+    "title": "Order history we hold",
+    "complete": "Every order",
+    "partial": "Partial",
+    "window": "{from} to {to} · {orders} orders",
+    "empty": "No orders collected yet",
+    "notGranted": "The store has not granted read_all_orders, so only the last 60 days came. The merchant redeploys the app kit and approves the new permission.",
+    "collecting": "read_all_orders granted: the whole history comes with the next orders export.",
+    "totalsNote": "{customers} customers count Shopify's own order totals until the whole history is in (marked *)."
+  },
   "customers": {
+    "exportSegment": "Export customers",
+    "exportMarketing": "For marketing (only people who agreed)",
+    "exportCsv": "Download CSV",
+    "exportHint": "Phone, email, name, segment, consent and last order. Every export is written to the audit log.",
+    "fromShopifyTotals": "Includes Shopify's own count: older orders are not in our history yet",
+    "fromShopifyTotalsLong": "Orders and spend include Shopify's own totals for this customer, because we hold only part of the store's order history. First and last order dates are estimates until the whole history is collected.",
+    "deliveryExpress": "Chose 60 minute delivery",
+    "deliveryStandard": "Chose the merchant's own delivery",
     "title": "Customers",
     "intro": "One profile per person across every merchant and our own deliveries, matched by mobile number first, then email. Personal data: admin only, and every profile you open is written to the audit log.",
     "customers": "Customers",
@@ -3924,6 +3942,9 @@
     "sourceShiply": "Shiply Now",
     "sourceShopify": "Shopify",
     "payments": {
+      "cod": "Cash on delivery",
+      "card": "Card or online",
+      "other": "Other (manual)",
       "PAID": "Paid",
       "PENDING": "Pending (often cash on delivery)",
       "REFUNDED": "Refunded",

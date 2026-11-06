@@ -587,11 +587,14 @@ const ORDER_FIELDS = (detail: OrderDetail) => `
   totalTaxSet { shopMoney { amount } }
   totalPriceSet { shopMoney { amount } }
   totalRefundedSet { shopMoney { amount } }
+  cancelReason paymentGatewayNames discountCodes
+  shippingLine { code title source }
+  refunds { id createdAt note totalRefundedSet { shopMoney { amount } } }
   ${
     detail === 'full'
-      ? `email phone
+      ? `email phone customAttributes { key value }
   customer { id firstName lastName defaultEmailAddress { emailAddress } defaultPhoneNumber { phoneNumber } }
-  shippingAddress { name phone address1 address2 province city countryCodeV2 }`
+  shippingAddress { name phone address1 address2 province city countryCodeV2 latitude longitude }`
       : detail === 'contact'
         ? 'shippingAddress { province city countryCodeV2 }'
         : ''
@@ -618,11 +621,11 @@ export function ordersExport(since: Date | undefined, detail: OrderDetail) {
 }
 
 const CUSTOMER_FIELDS = `
-  id firstName lastName state tags createdAt updatedAt numberOfOrders
+  id firstName lastName state tags createdAt updatedAt numberOfOrders locale
   amountSpent { amount }
   defaultEmailAddress { emailAddress marketingState }
   defaultPhoneNumber { phoneNumber marketingState }
-  defaultAddress { address1 address2 city province phone }`;
+  defaultAddress { address1 address2 city province phone latitude longitude }`;
 
 /** Every customer record of the store with contact details, consent, address and totals. */
 export function customersExport(since: Date | undefined) {

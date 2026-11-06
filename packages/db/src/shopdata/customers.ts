@@ -3,6 +3,7 @@ import { normalizeEgyptianPhone } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { inTransaction, type Db } from '../client';
 import { DomainError } from '../domain-error';
+import { resolveDelivery } from '../geo/delivery';
 import { readAddress } from '../geo/engine';
 import { getSetting } from '../settings';
 
@@ -18,10 +19,16 @@ export type CustomerFacts = {
   governorate?: string | null;
   city?: string | null;
   address?: string | null;
-  /** A delivery point of our own order */
+  /** A delivery point: our own order, or a Shopify order's pin or map point */
   latitude?: number | null;
   longitude?: number | null;
+  /** When these facts were true (the latest wins for name and place) */
   seenAt: Date;
+  /**
+   * The earliest date the source knows the person by, when it is older than seenAt (a Shopify
+   * customer record's creation, while seenAt is its last update).
+   */
+  firstSeenAt?: Date | null;
 };
 
 export function cleanEmail(email: string | null | undefined) {
@@ -69,6 +76,7 @@ async function resolveOnce(db: Db, phone: string | null, email: string | null, f
   const byEmail = !byPhone && email ? await ownerOf(db, 'email', email) : null;
   const found = byPhone ?? byEmail;
   const name = clean(f.name);
+  const firstSeen = f.firstSeenAt && f.firstSeenAt < f.seenAt ? f.firstSeenAt : f.seenAt;
   if (!found) {
     const created = await db.customer.create({
       data: {
@@ -80,7 +88,7 @@ async function resolveOnce(db: Db, phone: string | null, email: string | null, f
         address: clean(f.address),
         latitude: f.latitude ?? null,
         longitude: f.longitude ?? null,
-        firstSeenAt: f.seenAt,
+        firstSeenAt: firstSeen,
         lastSeenAt: f.seenAt,
       },
     });
@@ -101,7 +109,7 @@ async function resolveOnce(db: Db, phone: string | null, email: string | null, f
     if (f.latitude !== found.latitude) data.latitude = f.latitude;
     if (f.longitude !== found.longitude) data.longitude = f.longitude;
   }
-  if (f.seenAt < found.firstSeenAt) data.firstSeenAt = f.seenAt;
+  if (firstSeen < found.firstSeenAt) data.firstSeenAt = firstSeen;
   if (f.seenAt > found.lastSeenAt) data.lastSeenAt = f.seenAt;
   if (Object.keys(data).length) await db.customer.update({ where: { id: found.id }, data });
   return found.id;
@@ -110,6 +118,14 @@ async function resolveOnce(db: Db, phone: string | null, email: string | null, f
 type Line = Record<string, unknown> & { id?: string };
 const str = (v: unknown) => (typeof v === 'string' && v ? v : null);
 const date = (v: unknown) => (typeof v === 'string' && v ? new Date(v) : null);
+
+/** A map point Shopify gave, only when it lies in Egypt (a bad geocode is worse than none). */
+export function egyptPoint(latitude: unknown, longitude: unknown) {
+  if (typeof latitude !== 'number' || typeof longitude !== 'number') return null;
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+  if (latitude < 21.5 || latitude > 32 || longitude < 24.5 || longitude > 37.5) return null;
+  return { latitude, longitude };
+}
 
 /** Shopify customers export rows. Returns how many were saved. */
 export async function ingestCustomers(
@@ -127,6 +143,8 @@ export async function ingestCustomers(
       address1?: string;
       address2?: string;
       phone?: string;
+      latitude?: number | null;
+      longitude?: number | null;
     } | null;
     const firstName = str(l.firstName);
     const lastName = str(l.lastName);
@@ -140,7 +158,10 @@ export async function ingestCustomers(
     } | null;
     const phone = str(phoneRow?.phoneNumber) ?? str(l.phone) ?? str(address?.phone);
     const email = str(emailRow?.emailAddress) ?? str(l.email);
-    const seenAt = date(l.updatedAt) ?? date(l.createdAt) ?? new Date();
+    // First seen is when the record was created; the last update only makes it the latest.
+    const createdAt = date(l.createdAt);
+    const seenAt = date(l.updatedAt) ?? createdAt ?? new Date();
+    const point = egyptPoint(address?.latitude, address?.longitude);
     const customerId = await resolveCustomer(db, {
       phone,
       email,
@@ -148,7 +169,10 @@ export async function ingestCustomers(
       governorate: address?.province,
       city: address?.city,
       address: [address?.address1, address?.address2].filter(Boolean).join(', '),
+      latitude: point?.latitude,
+      longitude: point?.longitude,
       seenAt,
+      firstSeenAt: createdAt,
     });
     const data = {
       shopId: shop.id,
@@ -163,6 +187,7 @@ export async function ingestCustomers(
       amountSpentPiastres: toPiastres(str((l.amountSpent as { amount?: string } | null)?.amount)),
       emailMarketing: str(emailRow?.marketingState),
       smsMarketing: str(phoneRow?.marketingState),
+      locale: str(l.locale),
       province: str(address?.province),
       city: str(address?.city),
       tags: Array.isArray(l.tags) ? (l.tags as string[]) : [],
@@ -359,9 +384,21 @@ export async function customerRisk(db: Db, customerId: string) {
   };
 }
 
+/** The district (level 2) an area lies in: itself, or the nearest ancestor at level 2. */
+async function districtOf(db: Db, areaId: string) {
+  const [hit] = await db.$queryRaw<{ id: string }[]>`
+    WITH RECURSIVE up AS (
+      SELECT id, parent_id, level FROM geo_areas WHERE id = ${areaId}
+      UNION ALL
+      SELECT g.id, g.parent_id, g.level FROM geo_areas g JOIN up ON g.id = up.parent_id
+    )
+    SELECT id FROM up WHERE level = 2 LIMIT 1`;
+  return hit?.id ?? null;
+}
+
 /**
  * Works out the district of customers not placed yet, or changed since: from the latest point
- * of our own orders, else by reading the address with the area engine. Returns how many it
+ * (our own orders, a Shopify order's pin or Shopify's map point), else by reading the address with the area engine. Returns how many it
  * placed. The jobs call it; a customer it cannot place is tried again only after a change.
  */
 export async function locateCustomers(db: Db, limit = 100) {
@@ -382,11 +419,19 @@ export async function locateCustomers(db: Db, limit = 100) {
   for (const c of pending) {
     let districtId: string | null = null;
     if (c.latitude != null && c.longitude != null) {
-      const [hit] = await db.$queryRaw<{ id: string }[]>`
-        SELECT id FROM geo_areas WHERE level = 2 AND is_active
-          AND ST_Contains(geom, ST_SetSRID(ST_MakePoint(${c.longitude}, ${c.latitude}), 4326))
-        LIMIT 1`;
-      districtId = hit?.id ?? null;
+      // The point first, read through the one delivery decision (it only reads): the deepest
+      // area holding the point, then the district above it.
+      const decision = await resolveDelivery(db, {
+        point: { latitude: c.latitude, longitude: c.longitude, source: 'shopify' },
+      });
+      if (decision.area) districtId = await districtOf(db, decision.area.id);
+      if (!districtId) {
+        const [hit] = await db.$queryRaw<{ id: string }[]>`
+          SELECT id FROM geo_areas WHERE level = 2 AND is_active
+            AND ST_Contains(geom, ST_SetSRID(ST_MakePoint(${c.longitude}, ${c.latitude}), 4326))
+          LIMIT 1`;
+        districtId = hit?.id ?? null;
+      }
     }
     const text = [c.address, c.city, c.governorate].filter(Boolean).join(', ');
     // From the text only when the engine was certain of one place; unsure stays unplaced.

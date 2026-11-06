@@ -1,7 +1,16 @@
-export { ingestInventory, ingestOrders, ingestProducts, toPiastres, topCategory } from './ingest';
+export {
+  ingestInventory,
+  ingestOrders,
+  ingestProducts,
+  isExpressCode,
+  paymentMethodOf,
+  toPiastres,
+  topCategory,
+} from './ingest';
 export { marketInsights, merchantInsights } from './insights';
 export {
   cleanEmail,
+  egyptPoint,
   customerRisk,
   locateCustomers,
   mergeCustomers,
@@ -17,6 +26,9 @@ export {
   customerProfile,
   customersOverview,
   districtDemand,
+  exportCustomers,
   listCustomers,
   merchantCategoryGaps,
+  orderHistoryCoverage,
+  type ExportRow,
 } from './customer-insights';

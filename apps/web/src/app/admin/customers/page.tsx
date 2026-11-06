@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/charts/ColumnChart';
 import { DataTable } from '@/components/data/DataTable';
+import { OrderHistoryNote } from '@/components/data/OrderHistoryNote';
 import { StatCard } from '@/components/StatCard';
 import { apiGet } from '@/lib/api-server';
 import { type CustomerList, type CustomersOverview, SEGMENTS } from '@/lib/customer-types';
@@ -47,6 +48,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     <>
       <h1 className="text-h2">{t('title')}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
+      <OrderHistoryNote shops={o.orderHistory} fromShopifyTotals={o.fromShopifyTotals} />
 
       <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard
@@ -145,6 +147,32 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         </button>
       </form>
 
+      <form
+        className="mt-3 flex flex-wrap items-end gap-3"
+        method="get"
+        action="/api/admin/customers/export"
+      >
+        <label className="text-caption">
+          {t('exportSegment')}
+          <select name="segment" defaultValue={filters.segment ?? ''} className={field}>
+            <option value="">{t('allSegments')}</option>
+            {SEGMENTS.map((s) => (
+              <option key={s} value={s}>
+                {t(`segments.${s}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="flex h-10 items-center gap-2 text-body-sm">
+          <input type="checkbox" name="marketing" value="1" />
+          {t('exportMarketing')}
+        </label>
+        <button className="h-10 rounded-md border border-line bg-surface px-4 text-body-sm font-bold">
+          {t('exportCsv')}
+        </button>
+        <span className="text-caption text-text-muted">{t('exportHint')}</span>
+      </form>
+
       <div className="mt-4">
         <DataTable
           title={t('list')}
@@ -165,7 +193,13 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
                 {c.governorate && ` · ${[c.city, c.governorate].filter(Boolean).join(', ')}`}
               </span>
             </Link>,
-            c.orders,
+            c.fromShopifyTotals ? (
+              <span key={`o${c.id}`} title={t('fromShopifyTotals')}>
+                {c.orders}*
+              </span>
+            ) : (
+              c.orders
+            ),
             formatEgp(c.spendPiastres),
             c.merchants,
             c.lastOrderAt ? formatCairoDateTime(c.lastOrderAt, locale) : '–',

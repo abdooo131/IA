@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   customerProfile,
@@ -6,14 +6,17 @@ import {
   customersOverview,
   districtDemand,
   DomainError,
+  exportCustomers,
   listCustomers,
   mergeCustomers,
   recordAudit,
 } from '@shiplynow/db';
+import type { Response } from 'express';
 import { z } from 'zod';
 import type { AccessTokenClaims } from '@shiplynow/shared';
 import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { cairoStamp, csv } from '../finance/finance-csv';
 import { PrismaService } from '../prisma/prisma.service';
 
 const mergeSchema = z.object({ mergeId: z.string().min(1).max(64) });
@@ -54,6 +57,47 @@ export class AdminCustomersController {
   @Get('overview')
   overview() {
     return customersOverview(this.prisma);
+  }
+
+  /**
+   * One segment (or every customer) as a CSV: phone, email, name, segment, marketing consent
+   * and last order. "For marketing" keeps only people who agreed, and of them only the channel
+   * they agreed to. Audited with the row count.
+   */
+  @Get('export')
+  @Access('customers', 'view', { customerData: true })
+  async export(
+    @CurrentUser() user: AccessTokenClaims,
+    @Res() res: Response,
+    @Query('segment') segment?: string,
+    @Query('marketing') marketing?: string,
+  ) {
+    const forMarketing = marketing === '1' || marketing === 'true';
+    const rows = await exportCustomers(this.prisma, { segment, marketing: forMarketing });
+    await recordAudit(this.prisma, {
+      actorUserId: user.sub,
+      action: 'customer.export',
+      entityType: 'customer',
+      entityId: 'export',
+      after: { segment: segment ?? null, marketing: forMarketing, rows: rows.length },
+    });
+    const name = `shiply-customers-${segment || 'all'}${forMarketing ? '-marketing' : ''}.csv`;
+    res.setHeader('content-type', 'text/csv; charset=utf-8');
+    res.setHeader('content-disposition', `attachment; filename="${name.replace(/[^\w.-]/g, '')}"`);
+    res.send(
+      csv(
+        ['phone', 'email', 'name', 'segment', 'email_marketing', 'sms_marketing', 'last_order'],
+        rows.map((r) => [
+          r.phone,
+          r.email,
+          r.name,
+          r.segment,
+          r.emailMarketing,
+          r.smsMarketing,
+          r.lastOrderAt ? cairoStamp(r.lastOrderAt) : null,
+        ]),
+      ),
+    );
   }
 
   /** Customers and spend by district against our zones: where a new dark store pays. */

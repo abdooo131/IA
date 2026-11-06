@@ -5,6 +5,7 @@ import {
   marketInsights,
   merchantCategoryGaps,
   merchantInsights,
+  orderHistoryCoverage,
   recordAudit,
 } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
@@ -23,9 +24,13 @@ export class AdminDataController {
     private readonly shopData: ShopDataService,
   ) {}
 
+  /** Every merchant together, with the order history we hold of each store. */
   @Get('market')
-  market() {
-    return marketInsights(this.prisma);
+  async market() {
+    return {
+      ...(await marketInsights(this.prisma)),
+      orderHistory: await orderHistoryCoverage(this.prisma),
+    };
   }
 
   @Get('merchants/:merchantId')
@@ -37,6 +42,7 @@ export class AdminDataController {
       ...(await merchantInsights(this.prisma, merchantId)),
       // Admin only: what this merchant's customers buy elsewhere that it does not sell.
       crossSell: await merchantCategoryGaps(this.prisma, merchantId),
+      orderHistory: await orderHistoryCoverage(this.prisma, merchantId),
     };
   }
 
