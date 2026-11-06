@@ -14,6 +14,7 @@ import { writeAccess } from '../access';
 import { ensureStoreShifts } from '../attendance';
 import { ensureEmployees } from '../hr';
 import { ensureHrDefaults, placeSeedPeople } from '../hr-defaults';
+import { freshStartDone } from '../fresh-start';
 import { hashPassword } from '../password';
 import { move, receive } from '../stock';
 import { setZoneArea } from '../zones';
@@ -147,6 +148,46 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
   }
   log(`Dark stores: ${STORES.map((s) => s.code).join(', ')}`);
 
+  // After the one time fresh start (src/fresh-start.ts) the database holds real data only:
+  // the sample merchant, its products, the sample team and the opening stock stay out.
+  const samples = !(await freshStartDone(prisma));
+  const merchantId = samples ? await seedSamples(prisma, admin.id, stores, options, log) : null;
+  if (!samples) log('Fresh start done: no sample merchant, people or stock');
+  const files = await ensureEmployees(prisma);
+  if (files > 0) log(`Employee files opened: ${files}`);
+  // Two store shifts (10:00 to 16:00 and 16:00 to 22:00) and the coming two weeks' roster.
+  const shifts = await ensureStoreShifts(prisma, cairoDay(new Date()));
+  if (shifts.created + shifts.assigned > 0)
+    log(`Shifts: ${shifts.created} created, ${shifts.assigned} people planned`);
+  // HR structure (docs/HR.md): departments, grades, positions, document types, checklists.
+  const hrRows = await ensureHrDefaults(prisma);
+  if (hrRows > 0) log(`HR structure: ${hrRows} rows added`);
+  const placed = await placeSeedPeople(prisma);
+  if (placed > 0) log(`People placed in the organisation: ${placed}`);
+
+  await ensureDefaultAccounts(prisma);
+  log('Chart of accounts: CIB bank, owner money and expense categories ready');
+
+  if (options.areas !== false) {
+    const loaded = await loadBaseAreas(prisma);
+    const prepared = await prepareAreaMap(prisma);
+    log(
+      `Area map: ${loaded.areas} areas of Greater Cairo, cleaned, plus the names people use; ` +
+        `zones from areas: ${prepared.outlines.done ? `${prepared.outlines.assigned} assigned` : 'unchanged'}`,
+    );
+  }
+
+  return { adminId: admin.id, merchantId, stores };
+}
+
+/** The sample merchant, its products, the sample team, their HR files and opening stock. */
+async function seedSamples(
+  prisma: PrismaClient,
+  adminId: string,
+  stores: Map<string, string>,
+  options: SeedOptions,
+  log: (message: string) => void,
+) {
   const merchant =
     (await prisma.merchant.findFirst({ where: { name: MERCHANT.name } })) ??
     (await prisma.merchant.create({ data: MERCHANT }));
@@ -195,17 +236,6 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
     }
   }
   log(`Demo users: ${DEMO_USERS.length}`);
-  const files = await ensureEmployees(prisma);
-  if (files > 0) log(`Employee files opened: ${files}`);
-  // Two store shifts (10:00 to 16:00 and 16:00 to 22:00) and the coming two weeks' roster.
-  const shifts = await ensureStoreShifts(prisma, cairoDay(new Date()));
-  if (shifts.created + shifts.assigned > 0)
-    log(`Shifts: ${shifts.created} created, ${shifts.assigned} people planned`);
-  // HR structure (docs/HR.md): departments, grades, positions, document types, checklists.
-  const hrRows = await ensureHrDefaults(prisma);
-  if (hrRows > 0) log(`HR structure: ${hrRows} rows added`);
-  const placed = await placeSeedPeople(prisma);
-  if (placed > 0) log(`People placed in the organisation: ${placed}`);
 
   // Opening stock goes through the real stock functions: receive, then put away.
   let movements = 0;
@@ -224,7 +254,7 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
         skuId,
         binId: receiving.id,
         quantity,
-        actorUserId: admin.id,
+        actorUserId: adminId,
         reason: 'opening_stock',
         idempotencyKey: `seed:receive:${s.code}:${sku}`,
       });
@@ -233,7 +263,7 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
         fromBinId: receiving.id,
         toBinId: shelves[i % shelves.length]!.id,
         quantity,
-        actorUserId: admin.id,
+        actorUserId: adminId,
         reason: 'put_away',
         idempotencyKey: `seed:putaway:${s.code}:${sku}`,
       });
@@ -241,18 +271,5 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
     }
   }
   log(`Opening stock: ${movements} new movements`);
-
-  await ensureDefaultAccounts(prisma);
-  log('Chart of accounts: CIB bank, owner money and expense categories ready');
-
-  if (options.areas !== false) {
-    const loaded = await loadBaseAreas(prisma);
-    const prepared = await prepareAreaMap(prisma);
-    log(
-      `Area map: ${loaded.areas} areas of Greater Cairo, cleaned, plus the names people use; ` +
-        `zones from areas: ${prepared.outlines.done ? `${prepared.outlines.assigned} assigned` : 'unchanged'}`,
-    );
-  }
-
-  return { adminId: admin.id, merchantId: merchant.id, stores };
+  return merchant.id;
 }

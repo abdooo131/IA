@@ -3069,3 +3069,15 @@ model PushSent {
   @@index([createdAt])
   @@map("push_sent")
 }
+
+/// The one time fresh start that wiped the demo activity (src/fresh-start.ts). A row here
+/// stops it from running again and stops the seed and the demo loader from adding samples.
+model FreshStart {
+  id            String   @id @default("fresh_start")
+  ranAt         DateTime @default(now()) @map("ran_at")
+  keptMerchants String[] @default([]) @map("kept_merchants")
+  /// Rows per table before and after
+  counts        Json
+
+  @@map("fresh_starts")
+}

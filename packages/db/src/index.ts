@@ -165,6 +165,12 @@ export * from './hr-checklists';
 export { ensureHrDefaults } from './hr-defaults';
 export { loadDemo, type DemoOptions, type DemoResult } from './demo';
 export {
+  freshStart,
+  freshStartDone,
+  FRESH_START_CONFIRMATION,
+  type FreshStartResult,
+} from './fresh-start';
+export {
   addManualPunch,
   attendanceBoard,
   attendanceDayDetail,

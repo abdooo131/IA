@@ -33,6 +33,41 @@ const migrate = spawnSync(
 );
 if (migrate.status !== 0) process.exit(migrate.status ?? 1);
 
+// The one time fresh start (docs/DEPLOY.md): with FRESH_START set to the confirmation word,
+// the demo activity is wiped after the migrations, before the seed and before the API (and
+// its jobs) start. It is one transaction: on failure nothing changed and the app starts.
+const loadDb = () => {
+  const require = createRequire(import.meta.url);
+  process.env.DATABASE_URL = env.DATABASE_URL;
+  return require(path.join(root, 'packages/db/dist/index.js'));
+};
+if (env.FRESH_START) {
+  const db = loadDb();
+  const prisma = new db.PrismaClient();
+  try {
+    if (env.FRESH_START !== db.FRESH_START_CONFIRMATION) {
+      log('FRESH_START is set but is not the confirmation word; nothing was wiped');
+    } else if (await db.freshStartDone(prisma)) {
+      log('fresh start already done on this database; remove FRESH_START');
+    } else {
+      log('fresh start: wiping the demo activity (one transaction)');
+      const result = await db.freshStart(prisma, { confirm: env.FRESH_START });
+      log(`fresh start done; kept merchants: ${result.keptMerchants.join(', ') || 'none'}`);
+      log(`fresh start: kept users: ${result.keptUsers}`);
+      for (const table of Object.keys(result.before)) {
+        const before = result.before[table];
+        const after = result.after[table];
+        if (before !== after) log(`fresh start: ${table} ${before} -> ${after}`);
+      }
+      log('fresh start: remove FRESH_START from the service environment');
+    }
+  } catch (error) {
+    log(`fresh start failed, nothing changed: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    await prisma.$disconnect();
+  }
+}
+
 if (env.SEED_ON_START === 'true') {
   if (!env.SEED_ADMIN_EMAIL || !env.SEED_ADMIN_PASSWORD) {
     log(
@@ -40,9 +75,7 @@ if (env.SEED_ON_START === 'true') {
     );
   } else {
     log('loading starting data (only missing rows are created)');
-    const require = createRequire(import.meta.url);
-    const db = require(path.join(root, 'packages/db/dist/index.js'));
-    process.env.DATABASE_URL = env.DATABASE_URL;
+    const db = loadDb();
     const prisma = new db.PrismaClient();
     try {
       await db.seed(prisma, {
@@ -74,6 +107,19 @@ function start(name, command, args, cwd) {
 // The demo month runs after the app is up (a slow host would pass the start time limit),
 // with the API's background jobs paused so they never act on half simulated orders. Set
 // DEMO_LOAD back to false afterwards: the next start turns the jobs on again.
+// Never after the fresh start: the demo loader refuses, and the jobs must keep running.
+if (env.DEMO_LOAD === 'true') {
+  const db = loadDb();
+  const prisma = new db.PrismaClient();
+  try {
+    if (await db.freshStartDone(prisma)) {
+      log('DEMO_LOAD is ignored: this database had its fresh start; remove DEMO_LOAD');
+      env.DEMO_LOAD = 'false';
+    }
+  } finally {
+    await prisma.$disconnect();
+  }
+}
 if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
 
 log(`starting API on 127.0.0.1:${env.API_PORT} and web on 0.0.0.0:${port}`);
@@ -87,14 +133,14 @@ start(
 
 if (env.DEMO_LOAD === 'true') {
   log('loading the demo month in the background (skipped when it was already loaded)');
-  const require = createRequire(import.meta.url);
-  const db = require(path.join(root, 'packages/db/dist/index.js'));
-  process.env.DATABASE_URL = env.DATABASE_URL;
+  const db = loadDb();
   const prisma = new db.PrismaClient({
     transactionOptions: { maxWait: 20_000, timeout: 60_000 },
   });
   db.loadDemo(prisma, { demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD, log })
-    .then(() => log('demo month loaded; set DEMO_LOAD to false to turn the jobs back on'))
+    .then((result) =>
+      log(`demo load: ${result.status}; set DEMO_LOAD to false to turn the jobs back on`),
+    )
     .catch((error) => log(`demo load failed: ${error instanceof Error ? error.message : error}`))
     .finally(() => prisma.$disconnect());
 }

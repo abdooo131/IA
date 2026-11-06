@@ -103,6 +103,40 @@ When you are ready for real merchants and stock, set `SEED_ON_START` to `false` 
 before loading real data, so no demo rows are added. Create a fresh Neon database (or a new
 Neon branch) for production so staging test data never mixes with real stock.
 
+### Fresh start: removing the demo data before real use (once)
+
+Ledger, stock movements, order events and the audit log are append only, so demo data cannot
+be removed by hand. The fresh start (`freshStart` in packages/db/src/fresh-start.ts) does it
+once, in one transaction, right after the migrations and before the seed and the API start:
+
+- **Kept:** dark stores and hubs with bins, hours and capacity; zones, area assignments and
+  the area map (geo_areas, geocode cache); every setting except those of removed merchants;
+  the HR structure (departments, grades, positions, document types, checklist templates,
+  shifts, holidays); the chart of accounts (system and company accounts, store cash boxes) and
+  the company profile; admin accounts with their access, store links and employee files; the
+  merchant **Nabta** (by name or the shop getnabta.myshopify.com) with its users, products,
+  Shopify store, app, locations, stock sync rows, Shopify data and the customers linked to it,
+  and its (now empty) wallet.
+- **Removed:** all orders, deliveries, photos and ratings; all stock (levels, bins, movements,
+  shipments, counts, transfers, targets, returns, damage); the whole ledger and every finance
+  document (handovers, payouts, requests, receipts, bills, suppliers, invoices and credit
+  notes, bank statements, budgets, assets, recurring entries, salary runs); attendance;
+  tickets, alerts, notifications, sent pushes and the audit log; every other merchant (Eve
+  Chantelle, Nile Pantry, Bayt Home & Care...) with its users, products and Shopify data;
+  every store staff, rider and finance user with their files; the four demo office admins
+  (`demo.*@shiplynow.local`); geo suggestions; customers not linked to Nabta's store; the
+  books lock.
+- **Numbering starts again:** order numbers from SN100001; JV, PAY, CH, TCK, BILL, BS, INV,
+  CN and RET numbers from 1 (they follow the rows that exist); EMP numbers continue after the
+  kept admins' files.
+
+Steps: take a Neon backup branch first. Add `FRESH_START` = `WIPE-DEMO-2026-11-07` under
+**Environment**, make sure `DEMO_LOAD` is `false`, and deploy once. The log shows each table's
+rows before and after (`[start] fresh start: orders 598 -> 0`). Then remove `FRESH_START`.
+A row in `fresh_starts` records the run: a second run is refused, the demo loader refuses to
+run, and the seed (`SEED_ON_START`) no longer adds the sample merchant, team or stock. If it
+fails, the log says so, nothing changed, and the app starts as usual.
+
 ## Troubleshooting
 
 | You see | Do this |

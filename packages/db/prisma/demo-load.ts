@@ -22,7 +22,8 @@ async function main() {
     log: (message) => console.log(message),
   });
   if (result.status === 'loaded') console.log(JSON.stringify(result.counts, null, 2));
-  if (result.status === 'partial_run_found') process.exitCode = 1;
+  if (result.status === 'partial_run_found' || result.status === 'fresh_start_done')
+    process.exitCode = 1;
 }
 
 main()

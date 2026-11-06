@@ -8,6 +8,7 @@ import { setSalaryPackage } from '../hr-pay';
 import { ensureHrDefaults, placeSeedPeople } from '../hr-defaults';
 import { reportDamage, settleDamage } from '../damage';
 import { DomainError } from '../domain-error';
+import { freshStartDone } from '../fresh-start';
 import {
   accountKey,
   approvePayout,
@@ -104,7 +105,7 @@ export interface DemoOptions {
 }
 
 export type DemoResult =
-  | { status: 'already_loaded' | 'partial_run_found' }
+  | { status: 'already_loaded' | 'partial_run_found' | 'fresh_start_done' }
   | { status: 'loaded'; seconds: number; counts: Record<string, number> };
 
 const MARKER = 'demo.loaded';
@@ -172,6 +173,11 @@ type Outcome = 'deliver' | 'cancel' | 'missing' | 'fail_retry' | 'fail_ship_norm
 export async function loadDemo(base: PrismaClient, options: DemoOptions): Promise<DemoResult> {
   if (process.env.DEMO_LOAD !== 'true') throw new Error('Set DEMO_LOAD=true to load demo data');
   const log = options.log ?? (() => undefined);
+  // Real data only after the one time fresh start (src/fresh-start.ts): never demo again.
+  if (await freshStartDone(base)) {
+    log('Refusing to load demo data: this database had its fresh start');
+    return { status: 'fresh_start_done' };
+  }
   if (await base.auditLog.findFirst({ where: { action: MARKER } })) {
     log('Demo data is already loaded; nothing to do');
     return { status: 'already_loaded' };

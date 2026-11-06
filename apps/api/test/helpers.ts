@@ -64,11 +64,13 @@ export async function resetAndSeed(prisma: PrismaService) {
       await new Promise((r) => setTimeout(r, 200 * attempt));
     }
   }
-  return seed(prisma, {
+  const seeded = await seed(prisma, {
     areas: false,
     admin: { email: 'admin@test.eg', password: 'admin-password-1', name: 'Admin' },
     demoPassword: 'demo-password-1',
   });
+  // A fresh database always gets the sample merchant (only a fresh start leaves it out).
+  return { ...seeded, merchantId: seeded.merchantId! };
 }
 
 /** A clock tests can move. */
