@@ -19,7 +19,12 @@ export default async function AdminZonesPage({
   return (
     <>
       <h1 className="text-h2">{t('title')}</h1>
-      <ZonesWorkspace stores={stores} zones={zones} initialStoreId={store} />
+      {/* A sorting facility takes no orders, so it has no zones: only dark stores are listed. */}
+      <ZonesWorkspace
+        stores={stores.filter((s) => s.kind !== 'hub')}
+        zones={zones}
+        initialStoreId={store}
+      />
     </>
   );
 }
