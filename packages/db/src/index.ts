@@ -56,6 +56,16 @@ export {
   type OrderListFilter,
   type OrderSummary,
 } from './order-views';
+export {
+  addOrderNote,
+  getOrderMoney,
+  listOrderNotes,
+  ORDER_NOTE_AUDIENCES,
+  type OrderFeeKind,
+  type OrderMoney,
+  type OrderNoteAudience,
+  type OrderNoteView,
+} from './order-extras';
 export { hashPassword, verifyPassword } from './password';
 export { getMerchantSetting, getSetting, setSetting } from './settings';
 export * from './stock';

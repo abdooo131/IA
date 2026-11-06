@@ -29,6 +29,20 @@ export async function apiGet<T>(path: string): Promise<T> {
 }
 
 /**
+ * GET for a secondary part of a page (notes, money, insight): null instead of the not found
+ * page when the API refuses or fails, so the rest of the page still shows.
+ */
+export async function apiTry<T>(path: string): Promise<T | null> {
+  const token = (await cookies()).get(ACCESS_TOKEN_COOKIE)?.value;
+  const res = await fetch(`${apiUrl}${path}`, {
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    cache: 'no-store',
+  }).catch(() => null);
+  if (!res?.ok) return null;
+  return (await res.json()) as T;
+}
+
+/**
  * What the signed in person may open (GET /me/access), read once per request however many
  * layouts and pages ask. Null when signed out or the API cannot answer.
  */

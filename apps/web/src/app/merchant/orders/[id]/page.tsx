@@ -1,7 +1,7 @@
 import { BackLink } from '@/components/store/BackLink';
-import { OrderReadView } from '@/components/orders/OrderReadView';
-import { apiGet } from '@/lib/api-server';
-import type { OrderDetail } from '@/lib/order-types';
+import { OrderDetailScreen } from '@/components/orders/detail/OrderDetailScreen';
+import { apiGet, apiTry, getMerchantRights } from '@/lib/api-server';
+import type { OrderDetail, OrderMoney, OrderNote } from '@/lib/order-types';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,19 +10,31 @@ export default async function MerchantOrderPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ created?: string }>;
+  searchParams: Promise<{ created?: string; tab?: string }>;
 }) {
-  const [{ id }, { created }] = await Promise.all([params, searchParams]);
-  const order = await apiGet<OrderDetail>(`/merchant/orders/${id}`);
+  const [{ id }, { created, tab }] = await Promise.all([params, searchParams]);
+  const api = `/merchant/orders/${id}`;
+  const rights = await getMerchantRights();
+  const [order, notes, money] = await Promise.all([
+    apiGet<OrderDetail>(api),
+    apiTry<OrderNote[]>(`${api}/notes`),
+    rights?.owner || rights?.rights.includes('money') ? apiTry<OrderMoney>(`${api}/money`) : null,
+  ]);
   return (
     <>
       <BackLink href="/merchant/orders" />
-      <OrderReadView
+      <OrderDetailScreen
         order={order}
-        created={created === '1'}
-        cancelPath={`/merchant/orders/${id}/cancel`}
-        decisionPath={`/merchant/orders/${id}/decision`}
+        viewer="merchant"
+        tab={tab === 'tracking' ? 'tracking' : 'details'}
+        basePath="/merchant/orders"
+        apiPath={api}
         cancellable={order.status === 'new' || order.status === 'accepted'}
+        created={created === '1'}
+        notes={notes}
+        teamNotes={false}
+        money={money}
+        customer={null}
       />
     </>
   );

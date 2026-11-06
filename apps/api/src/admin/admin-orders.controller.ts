@@ -11,10 +11,13 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
+  addOrderNote,
   cancelOrder,
   decideFailedOrder,
   DomainError,
   getOrderDetail,
+  getOrderMoney,
+  listOrderNotes,
   listOrders,
   type OrderDetail,
   recordAudit,
@@ -30,6 +33,8 @@ import {
   type OrderStatus,
   type AccessProfile,
   canDo,
+  type OrderNoteBody,
+  orderNoteSchema,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import { assertMerchant, assertStore, merchantFilter, storeFilter } from '../auth/access-scope';
@@ -138,6 +143,40 @@ export class AdminOrdersController {
     const detail = await getOrderDetail(this.prisma, id);
     if (!detail) throw new NotFoundException({ error: 'order_not_found' });
     return detail;
+  }
+
+  /** Both note threads of the order: the team's internal notes and the merchant thread. */
+  @Get('orders/:id/notes')
+  async notes(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
+    if (!(await this.orderIn(id, access)))
+      throw new NotFoundException({ error: 'order_not_found' });
+    return listOrderNotes(this.prisma, id, ['team', 'merchant']);
+  }
+
+  @Post('orders/:id/notes')
+  async addNote(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(orderNoteSchema)) body: OrderNoteBody,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    if (!(await this.orderIn(id, access)))
+      throw new NotFoundException({ error: 'order_not_found' });
+    return addOrderNote(this.prisma, {
+      orderId: id,
+      audience: body.audience,
+      body: body.body,
+      authorUserId: user.sub,
+    });
+  }
+
+  /** The order's fees and where its money stands, from the ledger (accounting view). */
+  @Get('orders/:id/money')
+  @Access('accounting', 'view')
+  async money(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
+    if (!(await this.orderIn(id, access)))
+      throw new NotFoundException({ error: 'order_not_found' });
+    return getOrderMoney(this.prisma, id);
   }
 
   @Post('orders')

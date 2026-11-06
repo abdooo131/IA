@@ -1,11 +1,14 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
+  addOrderNote,
   cancelOrder,
   decideFailedOrder,
   computeKpis,
   DomainError,
   getOrderDetail,
+  getOrderMoney,
+  listOrderNotes,
   listOrders,
   type OrderDetail,
 } from '@shiplynow/db';
@@ -17,6 +20,7 @@ import {
   failedOrderDecisionSchema,
   ORDER_STATUSES,
   type OrderStatus,
+  orderNoteSchema,
 } from '@shiplynow/shared';
 import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
 import { Clock } from '../common/clock';
@@ -90,6 +94,45 @@ export class MerchantOrdersController {
     // link, which shows it), nor our own customer risk alerts.
     const { deliveryOtp, trackingToken, ...visible } = detail;
     return { ...visible, alerts: visible.alerts.filter((a) => !ADMIN_ONLY_ALERTS.has(a.type)) };
+  }
+
+  /** The merchant's thread on the order (never the team's internal notes). */
+  @Get(':id/notes')
+  async notes(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    await this.ownOrder(id, user);
+    return listOrderNotes(this.prisma, id, ['merchant']);
+  }
+
+  @Post(':id/notes')
+  async addNote(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(orderNoteSchema.pick({ body: true }))) body: { body: string },
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.ownOrder(id, user);
+    return addOrderNote(this.prisma, {
+      orderId: id,
+      audience: 'merchant',
+      body: body.body,
+      authorUserId: user.sub,
+    });
+  }
+
+  /** The fees charged on the order and where its money stands (needs the money right). */
+  @Get(':id/money')
+  @MerchantRight('money')
+  async money(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    await this.ownOrder(id, user);
+    return getOrderMoney(this.prisma, id);
+  }
+
+  private async ownOrder(id: string, user: AccessTokenClaims) {
+    const merchantId = await this.merchantIdOf(user);
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: { merchantId: true },
+    });
+    if (!order || order.merchantId !== merchantId) throw new DomainError('order_not_found', 404);
   }
 
   @Post()

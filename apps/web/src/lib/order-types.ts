@@ -29,6 +29,9 @@ export interface OrderItemView {
   cancelledQty: number;
   unitPricePiastres: number;
   bins?: { id: string; code: string; quantity: number }[];
+  /** Product picture from the merchant's Shopify catalogue (detail only) */
+  imageUrl?: string | null;
+  barcode?: string | null;
 }
 
 export interface OrderSummary {
@@ -71,7 +74,18 @@ export interface OrderDetail extends OrderSummary {
   longitude: number | null;
   zone: { code: string; nameEn: string; nameAr: string } | null;
   createdBy: string | null;
+  shopifyOrderId: string | null;
+  /** The neighbourhood (and its district) the delivery decision found */
+  area: {
+    nameEn: string;
+    nameAr: string;
+    parent: { nameEn: string; nameAr: string } | null;
+  } | null;
+  rating: { stars: number; comment: string | null; at: string } | null;
+  /** delivery.max_attempts for the order's store */
+  maxAttempts: number;
   acceptedAt: string | null;
+  pickingStartedAt: string | null;
   pickedAt: string | null;
   packedAt: string | null;
   outForDeliveryAt: string | null;
@@ -118,3 +132,31 @@ export const ORDER_STATUS_LIST: OrderStatus[] = [
   'failed',
   'moved_to_standard',
 ];
+
+export interface OrderNote {
+  id: string;
+  audience: 'team' | 'merchant';
+  body: string;
+  at: string;
+  author: string;
+  fromMerchant: boolean;
+}
+
+export type OrderFeeKind = 'order_fixed' | 'order_percent' | 'cod_fee' | 'failed_fee' | 'other';
+
+/** GET .../orders/:id/money: the order's fees from the ledger and where its money stands. */
+export interface OrderMoney {
+  paymentMethod: 'cod' | 'prepaid';
+  productValuePiastres: number;
+  codAmountPiastres: number;
+  codCreditedPiastres: number | null;
+  fees: { kind: OrderFeeKind; amountPiastres: number; percentBp: number | null }[];
+  vatPiastres: number;
+  duesPiastres: number;
+  netPiastres: number;
+  payout:
+    | { status: 'paid'; number: number; reference: string | null; paidAt: string | null }
+    | { status: 'draft'; number: number }
+    | { status: 'next'; day: string }
+    | null;
+}

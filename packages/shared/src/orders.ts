@@ -151,6 +151,16 @@ export const handoverSchema = z.object({ badgeCode: z.string().trim().min(2).max
 
 export const cancelOrderSchema = z.object({ reason: z.string().trim().min(2).max(300) });
 
+/**
+ * A note on an order. "team" is the internal thread (our team only); "merchant" is the thread
+ * shared with the merchant's users. Merchants always write to the merchant thread.
+ */
+export const orderNoteSchema = z.object({
+  audience: z.enum(['team', 'merchant']).default('merchant'),
+  body: z.string().trim().min(1).max(1000),
+});
+export type OrderNoteBody = z.infer<typeof orderNoteSchema>;
+
 export const FAILURE_REASONS = [
   'no_answer',
   'wrong_address',

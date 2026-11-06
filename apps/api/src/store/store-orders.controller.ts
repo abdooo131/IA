@@ -2,10 +2,12 @@ import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@n
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   acceptOrder,
+  addOrderNote,
   cancelOrder,
   decideFailedOrder,
   getOrderDetail,
   handToRider,
+  listOrderNotes,
   listOrders,
   markItemMissing,
   type OrderDetail,
@@ -22,6 +24,8 @@ import {
   failedOrderDecisionSchema,
   handoverSchema,
   missingItemSchema,
+  type OrderNoteBody,
+  orderNoteSchema,
   pickScanSchema,
   WAITING_STATUSES,
 } from '@shiplynow/shared';
@@ -78,6 +82,43 @@ export class StoreOrdersController {
     if (!detail || detail.darkStore.id !== storeId)
       throw new NotFoundException({ error: 'order_not_found' });
     return detail;
+  }
+
+  /** Both note threads of an order of this store (team notes and the merchant thread). */
+  @Get(':orderId/notes')
+  async notes(
+    @Param('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.inStore(storeId, orderId, user);
+    return listOrderNotes(this.prisma, orderId, ['team', 'merchant']);
+  }
+
+  @Post(':orderId/notes')
+  async addNote(
+    @Param('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+    @Body(new ZodValidationPipe(orderNoteSchema)) body: OrderNoteBody,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.inStore(storeId, orderId, user);
+    return addOrderNote(this.prisma, {
+      orderId,
+      audience: body.audience,
+      body: body.body,
+      authorUserId: user.sub,
+    });
+  }
+
+  private async inStore(storeId: string, orderId: string, user: AccessTokenClaims) {
+    await this.access.check(user, storeId);
+    const order = await this.prisma.order.findUnique({
+      where: { id: orderId },
+      select: { darkStoreId: true },
+    });
+    if (!order || order.darkStoreId !== storeId)
+      throw new NotFoundException({ error: 'order_not_found' });
   }
 
   @Post(':orderId/accept')

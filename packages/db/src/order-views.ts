@@ -132,12 +132,17 @@ export async function getOrderDetail(db: Db, orderId: string) {
       ...listInclude,
       zone: { select: { code: true, nameEn: true, nameAr: true } },
       createdBy: { select: { name: true } },
+      geoArea: {
+        select: { nameEn: true, nameAr: true, parent: { select: { nameEn: true, nameAr: true } } },
+      },
+      rating: true,
       events: { include: { actor: { select: { name: true } } }, orderBy: { createdAt: 'asc' } },
       alerts: { orderBy: { createdAt: 'asc' } },
     },
   });
   if (!o) return null;
   const summary = summarize(o, await slaFor(db, o.darkStoreId), new Date());
+  const maxAttempts = await getSetting(db, 'delivery.max_attempts', o.darkStoreId);
   // Where each still needed unit can be picked from, fullest shelf first.
   const shelves = await db.binStock.findMany({
     where: {
@@ -148,6 +153,22 @@ export async function getOrderDetail(db: Db, orderId: string) {
     include: { bin: { select: { id: true, code: true } } },
     orderBy: { quantity: 'desc' },
   });
+  // Product pictures from the merchant's Shopify catalogue, when we have one.
+  const skus = await db.sku.findMany({
+    where: { id: { in: o.items.map((i) => i.skuId) } },
+    select: { id: true, shopifyProductId: true, barcode: true },
+  });
+  const productIds = skus.map((s) => s.shopifyProductId).filter((x): x is string => !!x);
+  const pictures = productIds.length
+    ? await db.shopProduct.findMany({
+        where: { merchantId: o.merchantId, shopifyId: { in: productIds } },
+        select: { shopifyId: true, imageUrl: true },
+      })
+    : [];
+  const pictureOf = (skuId: string) => {
+    const product = skus.find((s) => s.id === skuId)?.shopifyProductId;
+    return pictures.find((p) => p.shopifyId === product)?.imageUrl ?? null;
+  };
   return {
     ...summary,
     deliveryOtp: o.deliveryOtp,
@@ -165,8 +186,23 @@ export async function getOrderDetail(db: Db, orderId: string) {
     closedAt: o.closedAt,
     packPhotoId: o.packPhotoId,
     shopifyOrderId: o.shopifyOrderId,
+    maxAttempts,
+    area: o.geoArea
+      ? {
+          nameEn: o.geoArea.nameEn,
+          nameAr: o.geoArea.nameAr,
+          parent: o.geoArea.parent
+            ? { nameEn: o.geoArea.parent.nameEn, nameAr: o.geoArea.parent.nameAr }
+            : null,
+        }
+      : null,
+    rating: o.rating
+      ? { stars: o.rating.stars, comment: o.rating.comment, at: o.rating.createdAt }
+      : null,
     items: summary.items.map((i) => ({
       ...i,
+      imageUrl: pictureOf(i.skuId),
+      barcode: skus.find((s) => s.id === i.skuId)?.barcode ?? null,
       bins: shelves
         .filter((s) => s.skuId === i.skuId)
         .map((s) => ({ id: s.bin.id, code: s.bin.code, quantity: s.quantity })),

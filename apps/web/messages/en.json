@@ -629,7 +629,8 @@
         "checklist_template__create": "Checklist template added",
         "checklist_template__update": "Checklist template changed",
         "finance__salary_set": "Salary set (before HR v2)",
-        "finance__employment_set": "Employment set (before HR v2)"
+        "finance__employment_set": "Employment set (before HR v2)",
+        "order__note": "Note added"
       }
     },
     "users": {
@@ -5241,6 +5242,191 @@
         "name": "Low stock",
         "hint": "A product is running low at a store (once a day per product)."
       }
+    }
+  },
+  "orderDetail": {
+    "title": "Order",
+    "created": "Created <when>{date}</when> by {who}",
+    "createdByShopify": "Shopify",
+    "createdBySystem": "the system",
+    "summary": "Order summary",
+    "summaryTitle": "Order summary",
+    "more": "More",
+    "printLabel": "Print label",
+    "cancelTitle": "Cancel this order?",
+    "none": "None yet",
+    "chips": {
+      "phone": "Check the phone",
+      "waitingOpen": "Waiting for the store to open",
+      "attempts": "{count, plural, one {# failed attempt} other {# failed attempts}}"
+    },
+    "menu": {
+      "decide": "Decide after the failed attempt",
+      "copyTracking": "Copy tracking link",
+      "copied": "Link copied",
+      "openTracking": "Open tracking page",
+      "customer": "Open customer profile",
+      "ticket": "Ask a team member",
+      "cancel": "Cancel order"
+    },
+    "tabs": {
+      "details": "Order details",
+      "tracking": "Order tracking"
+    },
+    "banner": {
+      "state": {
+        "new": "The order is waiting for {store} to accept it.",
+        "waitingOpen": "{store} is closed now. The order is queued and its clock starts at {time}.",
+        "accepted": "{store} accepted the order and starts picking it now.",
+        "picking": "The order is at {store} and being picked.",
+        "packed": "The order is packed at {store} and waiting for a rider.",
+        "out_for_delivery": "{rider} is on the way to the customer with the order.",
+        "attempt_failed": "The delivery attempt failed: {reason}.",
+        "delivered": "The order was delivered to the customer on {time}.",
+        "cancelled": "The order was cancelled: {reason}.",
+        "failed": "The order failed: {reason}.",
+        "moved_to_standard": "This order goes by standard delivery: {reason}."
+      },
+      "noReason": "no reason given",
+      "promise": "It should reach the customer by {time}.",
+      "late": "It is running late at the {stage} stage.",
+      "nextDecide": "Decide by {time}: try again, ship it normally or cancel.",
+      "deliveredLate": "It was delivered after the promised time.",
+      "shipYourself": "Ship it with your standard courier."
+    },
+    "operation": {
+      "title": "Operation details",
+      "rider": "Rider",
+      "calls": "Calls by the rider",
+      "lastCall": "last at <t>{time}</t>",
+      "attempts": "Delivery attempts",
+      "attemptsOf": "{made} of {max}",
+      "expected": "Expected delivery",
+      "on_time": "On time",
+      "late": "Late",
+      "deliveredAt": "Delivered at",
+      "code": "Delivery code",
+      "rating": "Customer rating",
+      "stars": "{stars} of 5 stars",
+      "noRating": "Not rated yet"
+    },
+    "consignee": {
+      "title": "Consignee details",
+      "name": "Full name",
+      "phone": "Phone",
+      "phoneFlagged": "Not a valid Egyptian mobile: check it before dispatch",
+      "address": "Detailed address",
+      "area": "Area",
+      "store": "Dark store",
+      "zone": "Zone",
+      "insight": "Customer insight:",
+      "insightLine": "{pct}% delivered across {attempts} attempts ({failed} failed).",
+      "insightNone": "No delivery history with us yet."
+    },
+    "shipment": {
+      "title": "Shipment details",
+      "count": "{lines, plural, one {# product} other {# products}} · {units, plural, one {# unit} other {# units}}",
+      "ordered": "Ordered {n}",
+      "picked": "Picked {n}",
+      "cancelled": "Cancelled {n}"
+    },
+    "additional": {
+      "title": "Additional details",
+      "source": "Source",
+      "sources": {
+        "manual": "Created by hand",
+        "shopify": "Shopify"
+      },
+      "merchant": "Merchant",
+      "returnTo": "Return location",
+      "notes": "Delivery notes",
+      "noNotes": "No notes from the customer",
+      "tracking": "Tracking link",
+      "openTracking": "Open the tracking page"
+    },
+    "notes": {
+      "title": "Order notes",
+      "team": "Team",
+      "merchant": "Merchant",
+      "teamHint": "Internal: only our team sees these notes.",
+      "merchantHint": "Shared with the Shiply Now team.",
+      "merchantHintTeam": "Shared with the merchant.",
+      "placeholder": "Write a note…",
+      "add": "Add note",
+      "error": "The note could not be saved. Try again.",
+      "unavailable": "Notes could not be loaded.",
+      "empty": "No notes yet.",
+      "fromMerchant": "merchant"
+    },
+    "collection": {
+      "title": "Collection amount",
+      "codHint": "Cash the rider collects from the customer",
+      "prepaidHint": "Paid online: nothing to collect",
+      "method": "Payment method",
+      "cod": "Cash on delivery",
+      "prepaid": "Prepaid",
+      "products": "Product value",
+      "deliveryFee": "Delivery fee (customer)",
+      "collected": "Cash collected",
+      "fees": "Fees",
+      "noFees": "No fees are booked for this order yet.",
+      "kinds": {
+        "order_fixed": "Order fee (fixed)",
+        "order_percent": "Order fee",
+        "cod_fee": "COD fee",
+        "failed_fee": "Failed delivery fee",
+        "other": "Other charge"
+      },
+      "vat": "VAT on fees",
+      "dues": "Total dues",
+      "wallet": {
+        "label": "Merchant net",
+        "labelMerchant": "Your net",
+        "notYet": "Booked to the wallet once the order is delivered",
+        "paid": "Paid in {number} · reference {reference}",
+        "draft": "In payout {number}, waiting to be paid",
+        "next": "Lands in the wallet with the next payout on {day}"
+      }
+    },
+    "tracking": {
+      "path": "Order path",
+      "timeline": "Timeline",
+      "noEvents": "Nothing has happened yet.",
+      "customerDoor": "at the customer",
+      "contactLog": "Contact log",
+      "tabs": {
+        "calls": "Calls",
+        "messages": "Messages",
+        "photos": "Photos"
+      },
+      "noCalls": "The rider has not called the customer.",
+      "call": "Call {n} by the rider",
+      "messagesLater": "WhatsApp and SMS messages are coming later.",
+      "noPhotos": "No photos yet.",
+      "photos": {
+        "pack": "Pack photo",
+        "proof": "Handover photo",
+        "door": "Photo at the door"
+      }
+    },
+    "label": {
+      "title": "Shipping label",
+      "print": "Print label",
+      "express": "60 minute delivery",
+      "from": "From",
+      "merchant": "Merchant",
+      "to": "To",
+      "cod": "Collect cash",
+      "prepaid": "Prepaid",
+      "items": "Items"
+    },
+    "reasons": {
+      "no_stock": "none of the items were in stock at the store",
+      "missing_at_pick": "items were missing at pick",
+      "ship_normally": "sent by standard delivery after a failed attempt",
+      "cancel": "cancelled after a failed attempt",
+      "hold_expired": "nobody decided in time after the failed attempt",
+      "merchant_cancelled": "cancelled by the merchant"
     }
   }
 }

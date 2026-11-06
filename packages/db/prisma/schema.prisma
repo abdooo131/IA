@@ -92,6 +92,7 @@ model User {
   ticketsOpened     Ticket[]          @relation("ticket_created_by")
   ticketsAssigned   Ticket[]          @relation("ticket_assignee")
   ticketMessages    TicketMessage[]
+  orderNotes        OrderNote[]     @relation("order_note_author")
   damageSettled     DamageReport[]    @relation("damage_settled_by")
   transfersCreated  Transfer[]        @relation("transfer_created_by")
   transfersApproved Transfer[]        @relation("transfer_approved_by")
@@ -990,6 +991,8 @@ model Order {
 
   rating OrderRating?
 
+  notes OrderNote[]
+
   @@index([darkStoreId, status, slaDueAt])
   @@index([merchantId, placedAt])
   @@index([status, placedAt])
@@ -1106,6 +1109,24 @@ model Delivery {
   @@index([orderId])
   @@index([assignedAt])
   @@map("deliveries")
+}
+
+/// A note on an order, append only. "team" notes are internal (admin, operations and the
+/// order's store staff); "merchant" notes are a thread shared with the merchant's users.
+model OrderNote {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id")
+  /// team or merchant
+  audience  String
+  authorId  String   @map("author_id")
+  body      String
+  createdAt DateTime @default(now()) @map("created_at")
+
+  order  Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  author User  @relation("order_note_author", fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([orderId, audience, createdAt])
+  @@map("order_notes")
 }
 
 /// The customer's 1 to 5 star rating, given once from the tracking page after delivery
