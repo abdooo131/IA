@@ -211,8 +211,12 @@
         "zone_code_taken": "That code is already used in this store.",
         "validation_failed": "Check the values and try again.",
         "network": "Could not reach the server. Try again.",
-        "generic": "Something went wrong. Try again."
-      }
+        "generic": "Something went wrong. Try again.",
+        "zone_has_orders": "This zone already had orders, so it cannot be deleted. Switch it off instead; its order history stays."
+      },
+      "deleteZone": "Delete zone",
+      "deleteConfirm": "Delete the zone {name}? This cannot be undone.",
+      "deleted": "Zone deleted."
     },
     "counts": {
       "title": "Stock counts",

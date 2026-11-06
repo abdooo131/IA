@@ -1,14 +1,14 @@
 /** Calls the API from the browser through the /api proxy, so the session cookie is sent. */
 export async function apiSend<T = unknown>(
-  method: 'POST' | 'PUT' | 'PATCH',
+  method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
-  body: unknown,
+  body?: unknown,
 ): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   try {
     const res = await fetch(`/api${path}`, {
       method,
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(body),
+      headers: body === undefined ? undefined : { 'content-type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: string };
     if (!res.ok) return { ok: false, error: data.error ?? `http_${res.status}` };

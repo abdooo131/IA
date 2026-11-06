@@ -29,7 +29,13 @@ const input =
 
 type Mode = 'idle' | 'editing' | 'drawing' | 'naming';
 
-const KNOWN_ERRORS = ['zone_geometry_invalid', 'zone_code_taken', 'validation_failed', 'network'];
+const KNOWN_ERRORS = [
+  'zone_geometry_invalid',
+  'zone_code_taken',
+  'zone_has_orders',
+  'validation_failed',
+  'network',
+];
 
 export function ZonesWorkspace({
   stores,
@@ -101,6 +107,18 @@ export function ZonesWorkspace({
     const result = await apiSend('PATCH', `/admin/zones/${zone.id}`, { isActive: !zone.isActive });
     setBusy(false);
     if (!result.ok) return fail(result.error);
+    router.refresh();
+  }
+
+  /** Only a zone that never had an order can go; the server says so otherwise. */
+  async function deleteZone() {
+    if (!zone || !window.confirm(t('deleteConfirm', { name: localized(zone, locale) }))) return;
+    setBusy(true);
+    const result = await apiSend('DELETE', `/admin/zones/${zone.id}`);
+    setBusy(false);
+    if (!result.ok) return fail(result.error);
+    setZoneId(null);
+    setMessage({ text: t('deleted'), error: false });
     router.refresh();
   }
 
@@ -220,6 +238,14 @@ export function ZonesWorkspace({
                 </button>
                 <button type="button" className={outline} disabled={busy} onClick={toggleActive}>
                   {zone.isActive ? t('switchOff') : t('switchOn')}
+                </button>
+                <button
+                  type="button"
+                  className={`${outline} text-status-needs-action`}
+                  disabled={busy}
+                  onClick={deleteZone}
+                >
+                  {t('deleteZone')}
                 </button>
               </>
             )}

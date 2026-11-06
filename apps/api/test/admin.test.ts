@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { createOrder } from '@shiplynow/db';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
 
@@ -175,5 +176,66 @@ describe('admin', () => {
     await admin.patch(`/admin/zones/${created.body.id}`).send({ isActive: false }).expect(200);
     const areas = await request(app.getHttpServer()).get('/coverage/areas').expect(200);
     expect(areas.body.map((a: { code: string }) => a.code)).not.toContain('NCR-1S');
+  });
+
+  it('deletes a zone that never had an order, and refuses one with orders', async () => {
+    const square = (x: number) => ({
+      type: 'Polygon',
+      coordinates: [
+        [
+          [x, 30.0],
+          [x + 0.01, 30.0],
+          [x + 0.01, 30.01],
+          [x, 30.01],
+          [x, 30.0],
+        ],
+      ],
+    });
+    const created = await admin
+      .post('/admin/zones')
+      .send({
+        darkStoreId: stores.get('NCR'),
+        code: 'ncr-del',
+        nameEn: 'To delete',
+        nameAr: 'للحذف',
+        area: square(31.5),
+      })
+      .expect(201);
+    await admin.delete(`/admin/zones/${created.body.id}`).expect(200);
+    expect(await prisma.zone.findUnique({ where: { id: created.body.id } })).toBeNull();
+    expect(
+      await prisma.auditLog.count({ where: { action: 'zone.delete', entityId: created.body.id } }),
+    ).toBe(1);
+
+    const used = await admin
+      .post('/admin/zones')
+      .send({
+        darkStoreId: stores.get('NCR'),
+        code: 'ncr-used',
+        nameEn: 'Used',
+        nameAr: 'مستخدمة',
+        area: square(31.52),
+      })
+      .expect(201);
+    const level = await prisma.stockLevel.findFirstOrThrow({
+      where: { darkStoreId: stores.get('NCR'), onHand: { gt: 0 } },
+      include: { sku: true },
+    });
+    const adminUser = await prisma.user.findFirstOrThrow({ where: { role: 'admin' } });
+    await createOrder(prisma, {
+      merchantId: level.sku.merchantId,
+      darkStoreId: stores.get('NCR')!,
+      zoneId: used.body.id,
+      source: 'manual',
+      customerName: 'Zone Test',
+      customerPhone: '01012345678',
+      addressText: 'Test street',
+      paymentMethod: 'prepaid',
+      deliveryFeePiastres: 0,
+      items: [{ skuId: level.skuId, quantity: 1 }],
+      actorUserId: adminUser.id,
+    });
+    const refused = await admin.delete(`/admin/zones/${used.body.id}`).expect(409);
+    expect(refused.body.error).toBe('zone_has_orders');
   });
 });

@@ -2,6 +2,7 @@ import {
   Body,
   ConflictException,
   Controller,
+  Delete,
   Get,
   NotFoundException,
   Param,
@@ -133,6 +134,31 @@ export class AdminZonesController {
         after: pick(after),
       });
       return pick(after);
+    });
+  }
+
+  /**
+   * Deletes a zone that never had an order. A zone with orders keeps their history, so it can
+   * only be switched off.
+   */
+  @Delete(':id')
+  @Access('operations', 'manage')
+  async remove(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return this.prisma.$transaction(async (tx) => {
+      const before = await tx.zone.findUnique({ where: { id } });
+      if (!before) throw new NotFoundException({ error: 'zone_not_found' });
+      if (await tx.order.findFirst({ where: { zoneId: id }, select: { id: true } }))
+        throw new ConflictException({ error: 'zone_has_orders' });
+      await tx.zone.delete({ where: { id } });
+      await recordAudit(tx, {
+        actorUserId: user.sub,
+        action: 'zone.delete',
+        entityType: 'zone',
+        entityId: id,
+        before: { code: before.code, nameEn: before.nameEn, nameAr: before.nameAr },
+        after: null,
+      });
+      return { deleted: true };
     });
   }
 
