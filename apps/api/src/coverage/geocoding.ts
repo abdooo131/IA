@@ -11,11 +11,14 @@ export interface GeocodeResult {
  * swapped (or replaced by the main Shiply platform) without touching coverage.
  */
 export abstract class Geocoder {
+  /** False when no provider is set up: the delivery decision then never asks it. */
+  readonly configured: boolean = true;
   /** Resolves to null when the address was not found. */
   abstract geocode(address: string): Promise<GeocodeResult | null>;
 }
 
 export class NotConfiguredGeocoder extends Geocoder {
+  override readonly configured = false;
   async geocode(): Promise<GeocodeResult | null> {
     throw new ServiceUnavailableException({ error: 'geocoding_not_configured' });
   }

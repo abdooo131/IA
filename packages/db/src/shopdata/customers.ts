@@ -3,7 +3,7 @@ import { normalizeEgyptianPhone } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { inTransaction, type Db } from '../client';
 import { DomainError } from '../domain-error';
-import { resolveByAreas } from '../geo/engine';
+import { readAddress } from '../geo/engine';
 import { getSetting } from '../settings';
 
 // One person across every merchant: a Shopify customer, a Shopify order and our own delivery
@@ -389,9 +389,11 @@ export async function locateCustomers(db: Db, limit = 100) {
       districtId = hit?.id ?? null;
     }
     const text = [c.address, c.city, c.governorate].filter(Boolean).join(', ');
+    // From the text only when the engine was certain of one place; unsure stays unplaced.
     if (!districtId && text) {
-      const found = await resolveByAreas(db, text);
-      districtId = found.chain.find((a) => a.level === 2)?.id ?? null;
+      const found = await readAddress(db, text);
+      if (found.status === 'area' && found.areas.length === 1)
+        districtId = found.chain.find((a) => a.level === 2)?.id ?? null;
     }
     // Raw SQL so updated_at stays as it is (it is what marks a customer as changed).
     await db.$executeRaw`

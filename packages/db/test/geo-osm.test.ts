@@ -5,7 +5,7 @@ import {
   type OsmElement,
   osmNames,
   placeAreas,
-  resolveByAreas,
+  readAddress,
   saveDistrictStreets,
   saveOsmAreas,
 } from '../src/geo';
@@ -93,7 +93,7 @@ describe('OpenStreetMap import', () => {
     expect(palms.parent?.nameEn).toBe('Degla');
     expect(palms.parent?.parent?.nameEn).toBe('Maadi');
 
-    const r = await resolveByAreas(prisma, 'Villa 3, Degla Palms, Maadi');
+    const r = await readAddress(prisma, 'Villa 3, Degla Palms, Maadi');
     expect(r.chain.map((c) => c.nameEn)).toEqual(['Cairo', 'Maadi', 'Degla', 'Degla Palms']);
     // Running the import again only refreshes the same rows.
     await saveOsmAreas(prisma, areas);

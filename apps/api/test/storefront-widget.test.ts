@@ -5,6 +5,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
+import { assignArea, cleanUpAreas, forgetAreaNames, loadBaseAreas } from '@shiplynow/db';
 import { verifyProxySignature } from '../src/shopify/security';
 import { FakeShopify } from './fake-shopify';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
@@ -154,7 +155,61 @@ describe('storefront widget', () => {
       .get('/shopify/proxy/availability')
       .query(proxyParams({ zone: 'nope', variants: STOCKED }))
       .expect(200);
-    expect(unknownZone.body).toEqual({ zone: null });
+    expect(unknownZone.body).toMatchObject({ zone: null });
+  });
+
+  it('finds served neighbourhoods by name and answers for a picked area or a dropped pin', async () => {
+    await loadBaseAreas(prisma);
+    await cleanUpAreas(prisma);
+    forgetAreaNames();
+    const newCairo = await prisma.geoArea.findFirstOrThrow({
+      where: { level: 2, nameEn: 'New Cairo', isActive: true },
+    });
+    await prisma.$transaction(
+      (tx) => assignArea(tx, { areaId: newCairo.id, zoneId: ncrZone.id, actorUserId: null }),
+      { timeout: 60_000 },
+    );
+    const found = await request(app.getHttpServer())
+      .get('/shopify/proxy/search')
+      .query(proxyParams({ q: 'القاهره الجديده' }))
+      .expect(200);
+    expect(found.body).toEqual([
+      expect.objectContaining({
+        areaId: newCairo.id,
+        zoneId: ncrZone.id,
+        store: expect.objectContaining({ code: 'NCR' }),
+      }),
+    ]);
+    // Districts nobody serves are never offered.
+    const none = await request(app.getHttpServer())
+      .get('/shopify/proxy/search')
+      .query(proxyParams({ q: 'maadi' }))
+      .expect(200);
+    expect(none.body).toEqual([]);
+
+    const byArea = await request(app.getHttpServer())
+      .get('/shopify/proxy/availability')
+      .query(proxyParams({ area: newCairo.id, variants: STOCKED }))
+      .expect(200);
+    expect(byArea.body).toMatchObject({
+      zone: { id: ncrZone.id },
+      area: { id: newCairo.id },
+      store: { code: 'NCR' },
+      decision: { status: 'served' },
+    });
+    const [inside] = await prisma.$queryRaw<{ lat: number; lng: number }[]>`
+      SELECT ST_Y(ST_PointOnSurface(geom)) AS lat, ST_X(ST_PointOnSurface(geom)) AS lng
+      FROM geo_areas WHERE id = ${newCairo.id}`;
+    const byPin = await request(app.getHttpServer())
+      .get('/shopify/proxy/availability')
+      .query(proxyParams({ lat: String(inside!.lat), lng: String(inside!.lng), variants: STOCKED }))
+      .expect(200);
+    expect(byPin.body).toMatchObject({ zone: { id: ncrZone.id }, store: { code: 'NCR' } });
+    const far = await request(app.getHttpServer())
+      .get('/shopify/proxy/availability')
+      .query(proxyParams({ lat: '31.2', lng: '29.92' }))
+      .expect(200);
+    expect(far.body).toMatchObject({ zone: null, decision: { status: 'outside' } });
   });
 
   it('shows the area page: only what the dark store of the area has, inside the theme', async () => {

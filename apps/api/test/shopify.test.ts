@@ -434,6 +434,65 @@ describe('shopify app', () => {
     expect(await prisma.alert.count({ where: { type: 'shopify_rejected' } })).toBe(1);
   });
 
+  it('follows the place the cart carried, and hands back addresses it cannot place', async () => {
+    const { shop } = await install();
+    const ncr = await locationOf('NCR');
+    const ec001 = fake.variants[0]!;
+    const noPoint = { latitude: null, longitude: null };
+    // No point from Shopify, an address nobody can place, but the customer dropped a pin.
+    const pinned = fake.addRequest({
+      name: '#1020',
+      locationId: ncr,
+      lines: [{ id: 'li-20', sku: 'EC-001', variantId: ec001.id, quantity: 1, price: '325.00' }],
+      outstanding: '325.00',
+      shipping: '45.00',
+      address: { name: 'P', phone: '01012345678', address1: 'Villa 9', city: 'Cairo', ...noPoint },
+      attributes: { _shiplynow_pin: `${NEW_CAIRO.latitude},${NEW_CAIRO.longitude}` },
+    });
+    // The same unknown address with nothing else: unsure, so the merchant ships it.
+    const unsure = fake.addRequest({
+      name: '#1021',
+      locationId: ncr,
+      lines: [{ id: 'li-21', sku: 'EC-001', variantId: ec001.id, quantity: 1, price: '325.00' }],
+      outstanding: '325.00',
+      shipping: '45.00',
+      address: { name: 'U', phone: '01012345678', address1: 'Villa 9', city: 'Cairo', ...noPoint },
+    });
+    // A pin in Maadi's zone sent to the New Cairo location: another store serves it.
+    const elsewhere = fake.addRequest({
+      name: '#1022',
+      locationId: ncr,
+      lines: [{ id: 'li-22', sku: 'EC-001', variantId: ec001.id, quantity: 1, price: '325.00' }],
+      outstanding: '325.00',
+      shipping: '45.00',
+      address: { name: 'E', phone: '01012345678', address1: 'Villa 9', city: 'Cairo', ...noPoint },
+      attributes: { _shiplynow_pin: '29.96,31.26' },
+    });
+    await jobs.runShop(shop);
+
+    const order = await prisma.order.findFirstOrThrow({
+      where: { shopifyFulfillmentOrderId: pinned.id },
+      include: { zone: true },
+    });
+    expect(order).toMatchObject({
+      latitude: NEW_CAIRO.latitude,
+      longitude: NEW_CAIRO.longitude,
+      locationSource: 'pin',
+      resolvedBy: 'point',
+      zone: { code: 'NCR-5S' },
+    });
+    expect(fake.fulfillmentOrders.find((f) => f.id === unsure.id)!.rejected?.reason).toBe(
+      'UNDELIVERABLE_DESTINATION',
+    );
+    expect(fake.fulfillmentOrders.find((f) => f.id === elsewhere.id)!.rejected?.reason).toBe(
+      'UNDELIVERABLE_DESTINATION',
+    );
+    expect(await prisma.order.count({ where: { source: 'shopify' } })).toBe(1);
+    expect(await prisma.alert.count({ where: { type: 'shopify_wrong_store' } })).toBe(1);
+    // An order is never taken without a zone.
+    expect(await prisma.order.count({ where: { source: 'shopify', zoneId: null } })).toBe(0);
+  });
+
   it('cancels when the merchant cancels before the rider leaves', async () => {
     const { shop } = await install();
     const fo = fake.addRequest({
@@ -1449,7 +1508,7 @@ describe('shopify app', () => {
     await none({ origin: origin('MAA') }); // Shopify planned Maadi, the address is New Cairo's
     await none({ origin: { ...origin('NCR'), address2: 'Warehouse' } }); // merchant's own place
     await none({ destination: home('Corniche, Alexandria') }); // outside every zone
-    await none({ destination: home('somewhere unknown') }); // address not found
+    await none({ destination: home('somewhere unknown') }); // nobody can place it: unsure
     await none({ destination: { ...home(), country: 'SA' } });
     await none({ currency: 'USD' });
     // Items that do not ship (gift cards) do not block the rate.
@@ -1486,7 +1545,7 @@ describe('shopify app', () => {
         'unknown_product',
         'outside_zone',
         'unknown_origin',
-        'address_not_found',
+        'address_unsure',
         'outside_egypt',
         'currency',
         'store_closed',

@@ -22,3 +22,4 @@ apps/shopify/shopify.app.*.toml
 apps/shopify/.shopify/
 .gstack/
 scripts/eta-signer/signer.json
+.claude/worktrees/

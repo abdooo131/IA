@@ -17,12 +17,13 @@ export async function setZoneArea(db: Db, zoneId: string, geometry: ZoneGeometry
     WHERE id = ${zoneId}`;
 }
 
-/** Active zones whose area contains the point. Coverage rules (hours, capacity) come in Step 3. */
+/** Active zones of active dark stores (never hubs) whose area contains the point. */
 export function zonesContaining(db: Db, point: { latitude: number; longitude: number }) {
   return db.$queryRaw<{ id: string; code: string; darkStoreId: string }[]>`
-    SELECT id, code, dark_store_id AS "darkStoreId" FROM zones
-    WHERE is_active AND area IS NOT NULL
-      AND ST_Contains(area, ST_SetSRID(ST_MakePoint(${point.longitude}, ${point.latitude}), 4326))`;
+    SELECT z.id, z.code, z.dark_store_id AS "darkStoreId" FROM zones z
+    JOIN dark_stores d ON d.id = z.dark_store_id AND d.is_active AND d.kind = 'dark_store'
+    WHERE z.is_active AND z.area IS NOT NULL
+      AND ST_Contains(z.area, ST_SetSRID(ST_MakePoint(${point.longitude}, ${point.latitude}), 4326))`;
 }
 
 export interface CoveringZone {
@@ -48,7 +49,8 @@ export function coveringZones(db: Db, point: { latitude: number; longitude: numb
            ST_Distance(ST_SetSRID(ST_MakePoint(d.longitude, d.latitude), 4326)::geography,
                        p.geom::geography) AS "distanceMeters"
     FROM zones z JOIN dark_stores d ON d.id = z.dark_store_id, p
-    WHERE z.is_active AND d.is_active AND z.area IS NOT NULL AND ST_Contains(z.area, p.geom)
+    WHERE z.is_active AND d.is_active AND d.kind = 'dark_store' AND z.area IS NOT NULL
+      AND ST_Contains(z.area, p.geom)
     ORDER BY "distanceMeters", z.code`;
 }
 

@@ -91,7 +91,7 @@ async function orderOnTheRoad() {
   return prisma.order.findUniqueOrThrow({ where: { id } });
 }
 
-async function deliver(orderId: string) {
+async function deliver(orderId: string, position?: { latitude: number; longitude: number }) {
   const delivery = await prisma.delivery.findFirstOrThrow({ where: { orderId } });
   const photo = await savePhoto(prisma, {
     kind: 'delivery',
@@ -105,10 +105,22 @@ async function deliver(orderId: string) {
     riderUserId: riderUser,
     photoId: photo.id,
     codCollectedPiastres: o.codAmountPiastres,
+    position,
   });
 }
 
 describe('customer tracking', () => {
+  it('keeps where the rider stood at delivery and learns the address from it', async () => {
+    const o = await orderOnTheRoad();
+    await deliver(o.id, { latitude: 29.9601, longitude: 31.2502 });
+    const d = await prisma.delivery.findFirstOrThrow({ where: { orderId: o.id } });
+    expect(d).toMatchObject({ deliveredLat: 29.9601, deliveredLng: 31.2502 });
+    expect(await prisma.deliveredPoint.findUnique({ where: { orderId: o.id } })).toMatchObject({
+      addressKey: '12 road 9 maadi',
+      latitude: 29.9601,
+    });
+  });
+
   it('gives every order its own unguessable token', async () => {
     const a = await orderOnTheRoad();
     expect(a.trackingToken).toMatch(/^[A-Za-z0-9_-]{24}$/);

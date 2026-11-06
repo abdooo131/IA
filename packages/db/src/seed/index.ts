@@ -1,5 +1,5 @@
 import { ensureDefaultAccounts } from '../finance';
-import { applyAreaDictionary, loadBaseAreas } from '../geo';
+import { prepareAreaMap, loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
 import {
   GLOBAL_SCOPE,
@@ -235,8 +235,11 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
 
   if (options.areas !== false) {
     const loaded = await loadBaseAreas(prisma);
-    await applyAreaDictionary(prisma);
-    log(`Area map: ${loaded.areas} areas of Greater Cairo, plus the names people use`);
+    const prepared = await prepareAreaMap(prisma);
+    log(
+      `Area map: ${loaded.areas} areas of Greater Cairo, cleaned, plus the names people use; ` +
+        `zones from areas: ${prepared.outlines.done ? `${prepared.outlines.assigned} assigned` : 'unchanged'}`,
+    );
   }
 
   return { adminId: admin.id, merchantId: merchant.id, stores };

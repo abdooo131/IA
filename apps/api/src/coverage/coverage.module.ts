@@ -2,10 +2,10 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Clock, SystemClock } from '../common/clock';
 import type { Env } from '../config/env';
-import { AddressLocator } from './address-locator.service';
 import { AdminGeoController } from './admin-geo.controller';
 import { CoverageController } from './coverage.controller';
 import { CoverageService } from './coverage.service';
+import { DeliveryResolver } from './delivery-resolver.service';
 import { GeoImportService, HttpOverpass, Overpass } from './geo-import.service';
 import { Geocoder, GoogleGeocoder, NotConfiguredGeocoder, OsmGeocoder } from './geocoding';
 import { StoreStatusService } from './store-status.service';
@@ -14,7 +14,7 @@ import { StoreStatusService } from './store-status.service';
   controllers: [CoverageController, AdminGeoController],
   providers: [
     CoverageService,
-    AddressLocator,
+    DeliveryResolver,
     StoreStatusService,
     GeoImportService,
     { provide: Overpass, useClass: HttpOverpass },
@@ -33,6 +33,6 @@ import { StoreStatusService } from './store-status.service';
       },
     },
   ],
-  exports: [StoreStatusService, Clock, CoverageService, Geocoder, AddressLocator],
+  exports: [StoreStatusService, Clock, CoverageService, Geocoder, DeliveryResolver],
 })
 export class CoverageModule {}

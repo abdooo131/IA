@@ -12,6 +12,11 @@ interface DictionaryEntry {
   district: string;
   governorate: string;
   names: string[];
+  /**
+   * For a neighbourhood or compound instead of a district: its English name (level 3 or 4);
+   * `district` is then the area above it. Skipped where the map has no such area.
+   */
+  area?: string;
 }
 
 export const AREA_DICTIONARY: readonly DictionaryEntry[] = [
@@ -71,7 +76,76 @@ export const AREA_DICTIONARY: readonly DictionaryEntry[] = [
       'الاندلس',
       'gharb el golf',
       'غرب الجولف',
+      'dar misr el andalus',
+      'dar masr el andalus',
+      'دار مصر الاندلس',
     ],
+  },
+  {
+    district: 'El Shorouk',
+    governorate: 'Cairo',
+    names: [
+      'sherouk',
+      'el sherouk',
+      'al sherouk',
+      'shorouk',
+      'el shorouk',
+      'al shorouk',
+      'shrouk',
+      'el shrouk',
+      'sherouk city',
+      'shorouk city',
+      'el shorouk city',
+      'الشروق',
+      'مدينه الشروق',
+    ],
+  },
+  {
+    district: 'El Khalifa',
+    governorate: 'Cairo',
+    area: 'El Mukkatam',
+    names: [
+      'mokattam',
+      'el mokattam',
+      'al mokattam',
+      'mokatam',
+      'el mokatam',
+      'mukattam',
+      'mukatam',
+      'moqattam',
+      'el moqattam',
+      'el mukattam',
+      'المقطم',
+      'مقطم',
+      'هضبه المقطم',
+    ],
+  },
+  {
+    district: 'El Basatin',
+    governorate: 'Cairo',
+    area: 'Al Mearag City',
+    names: [
+      'maraag',
+      'el maraag',
+      'meraag',
+      'mearag',
+      'el mearag',
+      'miraj',
+      'المعراج',
+      'مدينه المعراج',
+    ],
+  },
+  {
+    district: 'New Cairo',
+    governorate: 'Cairo',
+    area: 'Al Ashrafiya Compound',
+    names: ['ashrafeya', 'el ashrafeya', 'ashrafiya', 'al ashrafiya', 'الاشرفيه'],
+  },
+  {
+    district: 'Sheikh Zayed',
+    governorate: 'Giza',
+    area: 'El Ashrafya Compound',
+    names: ['ashrafeya', 'el ashrafeya', 'ashrafiya', 'el ashrafya', 'الاشرفيه'],
   },
   {
     district: 'Maadi',
@@ -184,17 +258,25 @@ export const AREA_DICTIONARY: readonly DictionaryEntry[] = [
 ];
 
 /**
- * Adds the dictionary's names to their districts (all rows with that name in that governorate),
- * keeping every name already there. Safe on every start: a name already present changes
- * nothing. Returns how many districts gained names.
+ * Adds the dictionary's names to their districts (all rows with that name in that governorate)
+ * or, for entries naming an area, to that area inside the district. Keeps every name already
+ * there. Safe on every start: a name already present changes nothing. Returns how many areas
+ * gained names.
  */
 export async function applyAreaDictionary(db: Db) {
   let updated = 0;
   for (const entry of AREA_DICTIONARY) {
     const names = [...new Set(entry.names.map(normalizeAddressText))].filter((n) => n.length >= 2);
-    const rows = await db.$queryRaw<{ id: string; aliases: string[] }[]>`
-      SELECT a.id, a.aliases FROM geo_areas a JOIN geo_areas g ON g.id = a.parent_id
-      WHERE a.level = 2 AND a.name_en = ${entry.district} AND g.name_en = ${entry.governorate}`;
+    const rows = entry.area
+      ? await db.$queryRaw<{ id: string; aliases: string[] }[]>`
+          SELECT a.id, a.aliases FROM geo_areas a
+          JOIN geo_areas d ON d.id = a.parent_id AND d.level = 2 AND d.name_en = ${entry.district}
+          JOIN geo_areas g ON g.id = d.parent_id AND g.name_en = ${entry.governorate}
+          WHERE a.level IN (3, 4) AND a.is_active AND a.name_en = ${entry.area}`
+      : await db.$queryRaw<{ id: string; aliases: string[] }[]>`
+          SELECT a.id, a.aliases FROM geo_areas a JOIN geo_areas g ON g.id = a.parent_id
+          WHERE a.level = 2 AND a.is_active AND a.name_en = ${entry.district}
+            AND g.name_en = ${entry.governorate}`;
     for (const row of rows) {
       const missing = names.filter((n) => !row.aliases.includes(n));
       if (missing.length === 0) continue;

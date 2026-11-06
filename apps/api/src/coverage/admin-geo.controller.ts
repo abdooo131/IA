@@ -5,7 +5,7 @@ import {
   decideSuggestion,
   geoStats,
   listSuggestions,
-  resolveByAreas,
+  resolveDelivery,
   searchAreas,
 } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
@@ -39,10 +39,13 @@ export class AdminGeoController {
     return { ...(await geoStats(this.prisma)), import: this.imports.status() };
   }
 
-  /** Tries an address on the area engine alone (no paid lookup, nothing saved). */
+  /**
+   * Tries an address on the delivery decision without the paid lookup (nothing saved): what
+   * checkout and the order intake would decide from the text.
+   */
   @Post('resolve')
   resolve(@Body(new ZodValidationPipe(resolveSchema)) body: z.infer<typeof resolveSchema>) {
-    return resolveByAreas(this.prisma, body.address);
+    return resolveDelivery(this.prisma, { addressText: body.address });
   }
 
   @Get('suggestions')

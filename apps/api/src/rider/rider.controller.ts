@@ -146,7 +146,31 @@ export class RiderController {
     body: z.infer<typeof completeDeliverySchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    await completeDelivery(this.prisma, { deliveryId: id, riderUserId: user.sub, ...body });
+    const { lat, lng, ...proof } = body;
+    // The position the app sent with the tap, else its last ping if it is still fresh.
+    let position =
+      lat !== undefined && lng !== undefined ? { latitude: lat, longitude: lng } : null;
+    if (!position) {
+      const rider = await this.riderOf(user);
+      const staleMinutes = await getSetting(
+        this.prisma,
+        'tracking.rider_stale_minutes',
+        rider.darkStoreId,
+      );
+      if (
+        rider.lastLat != null &&
+        rider.lastLng != null &&
+        rider.lastLocationAt &&
+        Date.now() - rider.lastLocationAt.getTime() <= staleMinutes * 60_000
+      )
+        position = { latitude: rider.lastLat, longitude: rider.lastLng };
+    }
+    await completeDelivery(this.prisma, {
+      deliveryId: id,
+      riderUserId: user.sub,
+      ...proof,
+      position,
+    });
     return { status: 'delivered' };
   }
 

@@ -1,15 +1,19 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import {
   applyAreaDictionary,
+  cleanUpAreas,
   forgetAreaNames,
   learnFromPoint,
   loadBaseAreas,
-  resolveByAreas,
+  resolveDelivery,
   upsertArea,
 } from '../src/geo';
 import { createFixture, prisma, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
+
+/** The delivery decision from the address text alone. */
+const decide = (address: string) => resolveDelivery(prisma, { addressText: address });
 
 /** A zone of the fixture store drawn as the given district grown by `grow` degrees. */
 async function zoneAround(code: string, nameEn: string, grow: number, darkStoreId = f.store.id) {
@@ -32,6 +36,7 @@ beforeEach(async () => {
   forgetAreaNames();
   f = await createFixture();
   await loadBaseAreas(prisma);
+  await cleanUpAreas(prisma);
 });
 
 afterAll(() => prisma.$disconnect());
@@ -54,15 +59,21 @@ describe('area engine', () => {
   it('decides the zone from the district name, in English or Arabic', async () => {
     const zone = await zoneAround('MAA-ALL', 'Maadi', 0.01);
     for (const address of ['Villa 4, Road 9, Maadi, Cairo', 'شارع ٩، المعادي، القاهرة']) {
-      const r = await resolveByAreas(prisma, address);
-      expect(r).toMatchObject({ status: 'zone', zoneId: zone.id, darkStoreId: f.store.id });
+      const r = await decide(address);
+      expect(r).toMatchObject({
+        status: 'served',
+        zone: { id: zone.id },
+        store: { id: f.store.id },
+        confidence: 'text',
+        doorPoint: null,
+      });
       expect(r.chain.map((c) => c.nameEn)).toEqual(['Cairo', 'Maadi']);
     }
   });
 
   it('says outside without any lookup when the district is far from every zone', async () => {
     await zoneAround('MAA-ALL', 'Maadi', 0.01);
-    expect(await resolveByAreas(prisma, '12 Street 5, Sheikh Zayed, Giza')).toMatchObject({
+    expect(await decide('12 Street 5, Sheikh Zayed, Giza')).toMatchObject({
       status: 'outside',
     });
   });
@@ -75,11 +86,11 @@ describe('area engine', () => {
     await prisma.$executeRaw`
       UPDATE zones SET area = (SELECT ST_Multi(ST_Buffer(ST_PointOnSurface(geom), 0.01))
         FROM geo_areas WHERE name_en = 'Nasr City' LIMIT 1) WHERE id = ${zone.id}`;
-    expect(await resolveByAreas(prisma, 'Abbas El Akkad, Nasr City')).toMatchObject({
+    expect(await decide('Abbas El Akkad, Nasr City')).toMatchObject({
       status: 'unsure',
       reason: 'area_spans_zones',
     });
-    expect(await resolveByAreas(prisma, 'Building 7, floor 3')).toMatchObject({
+    expect(await decide('Building 7, floor 3')).toMatchObject({
       status: 'unsure',
       reason: 'no_area_named',
     });
@@ -119,16 +130,16 @@ describe('area engine', () => {
       });
     forgetAreaNames();
     const zone = await zoneAround('DOK-ALL', 'Dokki', 0.01);
-    expect(await resolveByAreas(prisma, '5 Tahrir, Dokki, Giza')).toMatchObject({
-      status: 'zone',
-      zoneId: zone.id,
+    expect(await decide('5 Tahrir, Dokki, Giza')).toMatchObject({
+      status: 'served',
+      zone: { id: zone.id },
     });
-    const giza = await resolveByAreas(prisma, 'Mosadak street, Dokki, Giza');
+    const giza = await decide('Mosadak street, Dokki, Giza');
     expect(giza.chain.map((c) => c.nameEn)).toEqual(['Giza', 'Dokki']);
-    const r = await resolveByAreas(prisma, '5 Tahrir, Dokki');
+    const r = await decide('5 Tahrir, Dokki');
     expect(r.chain.at(-1)?.nameEn).toBe('Tahrir Street');
     // Without the district, "Tahrir" alone is not trusted.
-    expect((await resolveByAreas(prisma, '5 Tahrir')).status).toBe('unsure');
+    expect((await decide('5 Tahrir')).status).toBe('unsure');
   });
 
   it('learns the words Google placed that it did not know', async () => {
@@ -149,14 +160,14 @@ describe('area engine', () => {
   it('reads names spelled loosely: El Maady, معادي, Mohandiseen', async () => {
     const zone = await zoneAround('MAA-ALL', 'Maadi', 0.01);
     for (const address of ['14 Road 233, El Maady', 'شارع ٢٣٣ معادي', 'Maady, Cairo'])
-      expect(await resolveByAreas(prisma, address)).toMatchObject({
-        status: 'zone',
-        zoneId: zone.id,
+      expect(await decide(address)).toMatchObject({
+        status: 'served',
+        zone: { id: zone.id },
       });
   });
 
   it('knows the names people use for places the map lacks (Rehab, Degla, Madinaty)', async () => {
-    expect((await resolveByAreas(prisma, 'Rehab City, group 96')).chain).toEqual([]);
+    expect((await decide('Rehab City, group 96')).chain).toEqual([]);
     expect(await applyAreaDictionary(prisma)).toMatchObject({ updated: expect.any(Number) });
     // Running it again adds nothing.
     expect(await applyAreaDictionary(prisma)).toEqual({ updated: 0 });
@@ -169,11 +180,11 @@ describe('area engine', () => {
       ['Beverly Hills compound', 'Sheikh Zayed'],
       ['التجمع الخامس الحي الاول', 'New Cairo'],
     ] as const) {
-      const r = await resolveByAreas(prisma, address);
+      const r = await decide(address);
       expect(r.chain.map((c) => c.nameEn)).toContain(district);
     }
     // "الدور الخامس" (fifth floor) is not the Fifth Settlement.
-    expect((await resolveByAreas(prisma, 'عماره 3 الدور الخامس')).chain).toEqual([]);
+    expect((await decide('عماره 3 الدور الخامس')).chain).toEqual([]);
   });
 
   it('never places an address in another governorate on a Cairo street with the same name', async () => {
@@ -197,13 +208,9 @@ describe('area engine', () => {
       '12 Gomhoreya, Alexandria, Cairo',
       'المنصوره - الجمهوريه',
     ])
-      expect(await resolveByAreas(prisma, address)).toMatchObject({ status: 'outside' });
+      expect(await decide(address)).toMatchObject({ status: 'outside' });
     // A Cairo street named after a city stays ours, and a named district of ours wins.
-    expect((await resolveByAreas(prisma, 'شارع بورسعيد, المعادي')).chain.at(-1)?.nameEn).toBe(
-      'Maadi',
-    );
-    expect(
-      (await resolveByAreas(prisma, 'طريق السويس, المعادي')).chain.map((c) => c.nameEn),
-    ).toContain('Maadi');
+    expect((await decide('شارع بورسعيد, المعادي')).chain.at(-1)?.nameEn).toBe('Maadi');
+    expect((await decide('طريق السويس, المعادي')).chain.map((c) => c.nameEn)).toContain('Maadi');
   });
 });

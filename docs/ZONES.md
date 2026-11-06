@@ -94,3 +94,90 @@ partial name matches, generic names without parents, missing spellings, rough zo
 deciding differently (checkout engine first; fulfillment Google first and accepting with no
 zone when nothing was found; manual orders using the zone centre; the widget taking the store
 straight from the zone).
+
+## Server side as built (2026-11-06)
+
+Migration `20261127090000_zones_from_areas`: `store_areas` (geo_area_id key, dark_store_id and
+zone_id together or both null, needs_review, note, created_by), `zones.legacy_area` (copied
+from `zones.area`), `geo_areas.merged_into_id`, `orders.geo_area_id`, `orders.resolved_by`,
+`orders.location_source`, `deliveries.delivered_lat/lng`, `delivered_points` (one per order,
+keyed by the cleaned address text).
+
+Decisions taken while building it:
+
+- **Zone polygon.** `zones.area` stays the stored shape: the union of the zone's areas minus the
+  areas inside them that another zone serves or that are excluded. A zone that never had an
+  area keeps its drawn outline (so a database without an area map, like the tests, works as
+  before); once a zone has areas it can no longer be drawn (`zone_uses_areas`). Drawing a new
+  zone selects the areas at least 60% inside the shape (neighbourhoods where the map has them,
+  else districts); with no area map the shape is kept as the outline.
+- **Who serves an area** (chosen area or the area the text names): its own row or its nearest
+  ancestor's. When areas inside it are served elsewhere or excluded, or nobody above it has a
+  row, its shape decides: at least 98% inside one zone is served, nothing inside any zone is
+  outside (district or finer), anything else is unsure. So a district split between stores is
+  unsure, and the customer is asked for the neighbourhood or a pin.
+- **Several areas named equally** (two districts, or one name in two places of the same
+  district): served only when every one of them gets the same zone, otherwise unsure
+  (`stores_tie`). A name found in several districts with none of them named is not used.
+- **Points.** A pin, Shopify's own coordinates, a saved Google answer and a learned address
+  are map points: the zone whose polygon holds the point decides, nearest store first when old
+  outlines overlap (the other stores are returned as `alternatives`, so coverage can still fall
+  back to an open store). A learned point (two deliveries within 150 m) is a real door point
+  too. The engine's old made up points in `geocode_cache` (method `engine`) are ignored.
+- **Google** runs only when a key (or `GEOCODER=osm` locally) is configured, after the
+  customer's choice and before the engine. When it fails and the engine is unsure, checkout
+  answers 503 so Shopify asks again in 30 seconds instead of caching "no rate".
+- **Fulfillment with another store's address** (Shopify sent it to a location whose store does
+  not serve the decided place): rejected with `UNDELIVERABLE_DESTINATION` and a
+  `shopify_wrong_store` alert, never delivered across the city. An unsure address raises a
+  `shopify_rejected` alert with the reason.
+- **Rider position.** The completion call takes `lat`/`lng`; without them the rider's last ping
+  is used when it is fresher than `tracking.rider_stale_minutes`.
+- **Clean up** (`cleanUpAreas`, idempotent, then the dictionary and the outline move, together
+  `prepareAreaMap`, at API start, after a places import and in the seed): duplicate districts
+  (same name under the same governorate) are merged into the one with most children (its shape
+  is all the pieces, re-joined after a reload of the base map; children, customers,
+  suggestions, orders and store rows are repointed; the others become inactive with
+  `merged_into_id`); a neighbourhood or compound without a district gets the district holding
+  at least half of it; a level 3 or 4 area covering a fifth of a district with the district's
+  own name (El Shorouk City) is folded into it. The dictionary can now also name a
+  neighbourhood or compound (El Mukkatam, Al Mearag City, the two Ashrafiya compounds); "Dar
+  Misr" alone stays ambiguous (it is in several cities), "Dar Misr El Andalus" is New Cairo.
+- **Outline move**: neighbourhoods and compounds (districts where the map has none) whose
+  combined share inside the drawn outlines is at least 60% go to the zone holding the largest
+  part; a compound only gets its own row when it lands somewhere other than its neighbourhood.
+  An area where a second store holds at least 5% is marked `needs_review` and listed, with the
+  zones that got no area, in one `zone_areas_review` alert. It runs once (audit row
+  `zones.areas_from_outlines`), and never while store_areas has rows or the map has no
+  districts.
+- **Echo rule**: only a governorate swallows a district of the same name ("Giza"); a
+  neighbourhood sharing its district's name is the more precise answer and stays.
+
+Endpoints for the web task (all under the existing guards):
+
+- `GET /admin/zones/areas?bbox=minLng,minLat,maxLng,maxLat&districtId=&levels=2,3&q=&cursor=&limit=`
+  → `{ areas: [{ id, level, parentId, nameEn, nameAr, owner: { darkStoreId, zoneId, excluded,
+  inherited, needsReview } | null, geometry }], nextCursor }` (operations view)
+- `GET /admin/zones/areas/review` → areas the outline move marked for review
+- `POST /admin/zones/:id/areas { areaId, move? }`, `POST /admin/zones/:id/areas/select { shape,
+  level=3, minShare?, move? }`, `DELETE /admin/zones/areas/:areaId`,
+  `POST /admin/zones/areas/:areaId/exclude { note? }` (operations manage); refusals
+  `area_served_by_other_store`, `hub_has_no_zones`, `area_level_not_assignable`,
+  `zone_uses_areas` (on `PUT /admin/zones/:id/area`)
+- `POST /admin/zones` takes the drawn `area` as optional and answers `{ id, assigned, skipped,
+  outline }`
+- `GET /coverage?areaId=` and `GET /coverage/search?q=` (public; served areas, top 10);
+  coverage answers `address_unsure` as a reason and returns `area`; `location` is only a real point
+- `POST /merchant/orders`, `POST /admin/orders`: `latitude`/`longitude` optional, `areaId`
+  optional, one of them required; `409 address_unsure` when the area cannot be served for sure
+- Storefront proxy: `GET /apps/shiplynow/search?q=` → `[{ areaId, level, nameEn, nameAr,
+  parent, zoneId, store }]`; `availability` and `store` take `area=` or `lat=&lng=` (or the old
+  `zone=`) and answer `zone`, `area` and `decision: { status, reason }`
+- `POST /rider/deliveries/:id/complete` takes optional `lat`, `lng`
+
+Measurement (`scripts/geo-eval.mjs <file>` against a database with the areas; read only): on a
+fixed sample of 300 of the 1,116 Greater Cairo Nabta addresses, with live's areas and the
+outline move computed read only on live, the old engine placed 6.0% (unsure 24.0%, outside
+70.0%) and the new decision serves 8.0% (unsure 21.0%, outside 71.0%). Most outside answers are
+real (the pilot zones cover a small part of Greater Cairo); most unsure ones name only a
+district split between stores (Maadi, New Cairo), which the area picker or a pin resolves.

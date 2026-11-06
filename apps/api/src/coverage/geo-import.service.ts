@@ -1,7 +1,7 @@
 import { Injectable, Logger, type OnApplicationBootstrap } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  applyAreaDictionary,
+  prepareAreaMap,
   districtBoxes,
   DomainError,
   forgetAreaNames,
@@ -94,17 +94,26 @@ export class GeoImportService implements OnApplicationBootstrap {
     private readonly reporter: ErrorReporter,
   ) {}
 
-  /** Keeps the names people use for places (AREA_DICTIONARY) on their districts after deploys. */
+  /**
+   * After deploys: cleans the area map, keeps the names people use for places (AREA_DICTIONARY)
+   * and, once per database, builds zones from the drawn outlines (prepareAreaMap).
+   */
   onApplicationBootstrap() {
     if (process.env.NODE_ENV === 'test') return;
-    void applyAreaDictionary(this.prisma)
+    void prepareAreaMap(this.prisma)
       .then((r) => {
-        if (r.updated) {
-          forgetAreaNames();
-          this.log.log(`Area names added to ${r.updated} districts`);
-        }
+        const c = r.cleanUp;
+        if (c.mergedDistricts || c.parented || c.foldedIntoDistrict || r.dictionary.updated)
+          this.log.log(
+            `Area map: ${c.mergedDistricts} duplicate districts merged, ${c.parented} areas given a district, ` +
+              `${c.foldedIntoDistrict} folded into their district, names added to ${r.dictionary.updated}`,
+          );
+        if (r.outlines.done)
+          this.log.log(
+            `Zones built from areas: ${r.outlines.assigned} assigned, ${r.outlines.review} to review`,
+          );
       })
-      .catch((error: unknown) => void this.reporter.report('geo_dictionary', error));
+      .catch((error: unknown) => void this.reporter.report('geo_prepare', error));
   }
 
   status(): ImportStatus {
@@ -152,6 +161,8 @@ export class GeoImportService implements OnApplicationBootstrap {
     this.state.total = 1;
     const areas = placeAreas(await this.overpass.query(placesQuery()));
     const result = await saveOsmAreas(this.prisma, areas);
+    // New neighbourhoods get their district and the dictionary names (docs/ZONES.md §4).
+    await prepareAreaMap(this.prisma);
     this.state.found = result.found;
     this.state.saved = result.saved;
     this.state.done = 1;

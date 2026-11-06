@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { getSetting, zonesContaining } from '@shiplynow/db';
-import { AddressLocator } from '../coverage/address-locator.service';
+import { getSetting } from '@shiplynow/db';
+import { DeliveryResolver } from '../coverage/delivery-resolver.service';
 import { StoreStatusService } from '../coverage/store-status.service';
 import { storeMarker } from './shopify-setup.service';
 import { ShopifySyncService } from './shopify-sync.service';
@@ -49,6 +49,7 @@ export type RateReason =
   | 'unknown_origin'
   | 'nothing_to_ship'
   | 'address_not_found'
+  | 'address_unsure'
   | 'outside_zone'
   | 'store_closed'
   | 'at_capacity'
@@ -65,7 +66,7 @@ export const RATE_CODE_PREFIX = 'SN60:';
 export class ShopifyRatesService {
   constructor(
     private readonly shopify: ShopifyService,
-    private readonly locator: AddressLocator,
+    private readonly resolver: DeliveryResolver,
     private readonly status: StoreStatusService,
     private readonly sync: ShopifySyncService,
   ) {}
@@ -75,10 +76,11 @@ export class ShopifyRatesService {
   }
 
   /**
-   * Answers one checkout rate request. The 60 minute rate is offered only when the location
-   * Shopify plans to ship from is the dark store whose zone holds the address, that store is
-   * open and under capacity, and every item is in stock there. Every check runs before the
-   * customer can pay, so no order reaches us that we cannot serve.
+   * Answers one checkout rate request. The 60 minute rate is offered only when the delivery
+   * decision (resolveDelivery) says the address is served, by the dark store Shopify plans to
+   * ship from, that store is open and under capacity, and every item is in stock there. An
+   * address we are unsure of gets no 60 minute rate. Every check runs before the customer can
+   * pay, so no order reaches us that we cannot serve.
    */
   async quote(
     shopId: string,
@@ -128,14 +130,19 @@ export class ShopifyRatesService {
       wanted.set(sku.id, (wanted.get(sku.id) ?? 0) + Math.max(0, Number(item.quantity) || 0));
     }
 
-    const located = await this.locate(rate.destination!);
-    if (!located || located.kind === 'not_found') return none('address_not_found');
-    if (located.kind === 'outside') return none('outside_zone');
-    const point = located;
-    const zones = (await zonesContaining(this.prisma, point)).filter(
-      (z) => z.darkStoreId === store.id,
-    );
-    if (zones.length === 0) return none('outside_zone');
+    const decision = await this.decide(rate.destination!);
+    if (!decision) return none('address_not_found');
+    if (decision.status === 'unsure') {
+      // The lookup failed and nothing else could decide: Shopify should ask again soon.
+      if (decision.reason === 'geocoder_failed')
+        throw new RatesUnavailableError('geocoding unavailable');
+      return none('address_unsure');
+    }
+    const servedHere =
+      decision.status === 'served' &&
+      (decision.store?.id === store.id ||
+        decision.alternatives.some((a) => a.store.id === store.id));
+    if (!servedHere) return none('outside_zone');
 
     const state = (await this.status.statusOf([store.id])).get(store.id)!;
     if (!state.openNow) return none('store_closed');
@@ -163,20 +170,13 @@ export class ShopifyRatesService {
     };
   }
 
-  /**
-   * The address as a map point. The area engine answers most addresses from their area names;
-   * the paid lookup only runs when it cannot decide (see AddressLocator).
-   */
-  private async locate(address: RateAddress) {
+  /** The delivery decision for the checkout address; null when there is no address at all. */
+  private async decide(address: RateAddress) {
     const text = [address.address1, address.address2, address.city, address.province]
       .map((p) => (p ?? '').trim())
       .filter(Boolean)
       .join(', ');
     if (!text) return null;
-    try {
-      return await this.locator.locate(text);
-    } catch {
-      throw new RatesUnavailableError('geocoding unavailable');
-    }
+    return this.resolver.resolve({ addressText: text });
   }
 }

@@ -89,6 +89,10 @@ const FULFILLMENT_ORDER_FIELDS = /* GraphQL */ `
     name
     phone
     note
+    customAttributes {
+      key
+      value
+    }
     totalOutstandingSet {
       shopMoney {
         amount

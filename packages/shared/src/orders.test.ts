@@ -73,11 +73,24 @@ describe('order schemas', () => {
     expect(createOrderSchema.safeParse({ ...order, items: [] }).success).toBe(false);
   });
 
+  it('takes a pin, a picked area or both, never neither', () => {
+    const { latitude: _a, longitude: _b, ...noPin } = order;
+    void _a;
+    void _b;
+    expect(createOrderSchema.safeParse(noPin).success).toBe(false);
+    expect(createOrderSchema.safeParse({ ...noPin, areaId: 'a1' }).success).toBe(true);
+    expect(createOrderSchema.safeParse({ ...noPin, latitude: 30 }).success).toBe(false);
+  });
+
   it('needs an OTP or a photo to complete a delivery', () => {
     expect(completeDeliverySchema.safeParse({}).success).toBe(false);
     expect(completeDeliverySchema.safeParse({ otp: '0420' }).success).toBe(true);
     expect(completeDeliverySchema.safeParse({ otp: '42' }).success).toBe(false);
     expect(completeDeliverySchema.safeParse({ photoId: 'p1' }).success).toBe(true);
+    expect(completeDeliverySchema.safeParse({ photoId: 'p1', lat: 30, lng: 31 }).success).toBe(
+      true,
+    );
+    expect(completeDeliverySchema.safeParse({ photoId: 'p1', lat: 30 }).success).toBe(false);
   });
 
   it('makes 4 digit codes, keeping leading zeros', () => {

@@ -108,8 +108,11 @@ export const createOrderSchema = z
     customerPhone: z.string().trim().min(5).max(30),
     addressText: z.string().trim().min(5).max(500),
     customerNote: z.string().trim().max(500).optional(),
-    latitude: z.number().min(-90).max(90),
-    longitude: z.number().min(-180).max(180),
+    /** The customer's map pin, when dropped; the store then comes from the point */
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    /** The neighbourhood (geo_areas id) picked from the area list */
+    areaId: id.optional(),
     paymentMethod: z.enum(['prepaid', 'cod']),
     deliveryFeePiastres: z.number().int().min(0).max(10_000_000).default(0),
     items: z.array(orderItemInputSchema).min(1).max(100),
@@ -119,6 +122,14 @@ export const createOrderSchema = z
   .refine((o) => new Set(o.items.map((i) => i.skuId)).size === o.items.length, {
     message: 'duplicate_sku',
     path: ['items'],
+  })
+  .refine((o) => (o.latitude === undefined) === (o.longitude === undefined), {
+    message: 'pin_incomplete',
+    path: ['latitude'],
+  })
+  .refine((o) => o.latitude !== undefined || o.areaId !== undefined, {
+    message: 'area_or_pin_required',
+    path: ['areaId'],
   });
 export type CreateOrderBody = z.infer<typeof createOrderSchema>;
 
@@ -182,8 +193,14 @@ export const completeDeliverySchema = z
       .optional(),
     photoId: id.optional(),
     codCollectedPiastres: z.number().int().min(0).max(100_000_000).optional(),
+    /** The phone's position at the door, when the app has it */
+    lat: z.number().min(-90).max(90).optional(),
+    lng: z.number().min(-180).max(180).optional(),
   })
-  .refine((b) => b.otp || b.photoId, { message: 'proof_required' });
+  .refine((b) => b.otp || b.photoId, { message: 'proof_required' })
+  .refine((b) => (b.lat === undefined) === (b.lng === undefined), {
+    message: 'position_incomplete',
+  });
 
 /** A 4 digit code the customer gives the rider. */
 export function newDeliveryOtp(random: () => number = Math.random): string {

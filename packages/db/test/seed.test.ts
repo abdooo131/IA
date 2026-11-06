@@ -43,7 +43,10 @@ describe('seed', () => {
       where: { bin: { type: 'receiving' } },
     });
     expect(receiving._sum.quantity).toBe(0);
-    expect(await prisma.auditLog.count()).toBe(await prisma.stockMovement.count());
+    // One audit row per movement, plus the one marking zones built from the drawn outlines.
+    expect(
+      await prisma.auditLog.count({ where: { action: { not: 'zones.areas_from_outlines' } } }),
+    ).toBe(await prisma.stockMovement.count());
   });
 
   it('is safe to run again', async () => {

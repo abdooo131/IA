@@ -2,7 +2,7 @@ import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { type GeocodeResult, Geocoder } from '../src/coverage/geocoding';
-import { forgetAreaNames, loadBaseAreas } from '@shiplynow/db';
+import { assignArea, cleanUpAreas, forgetAreaNames, loadBaseAreas } from '@shiplynow/db';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
 
@@ -104,34 +104,57 @@ describe('coverage', () => {
     expect(hit.body).toMatchObject({
       covered: true,
       darkStore: { code: 'NCR' },
-      location: { formattedAddress: '90th St, New Cairo' },
+      location: { latitude: NEW_CAIRO.lat, longitude: NEW_CAIRO.lng },
     });
     const alex = await check({ address: 'Alexandria corniche' }).expect(200);
     expect(alex.body.covered).toBe(false);
+    // Nobody knows where it is: unsure, never a guess.
     const unknown = await check({ address: 'nowhere at all' }).expect(200);
-    expect(unknown.body).toMatchObject({ covered: false, reason: 'outside_zones', location: null });
+    expect(unknown.body).toMatchObject({
+      covered: false,
+      reason: 'address_unsure',
+      location: null,
+    });
   });
 
-  it('answers from the area map without the paid lookup, and teaches it from Google', async () => {
+  it('asks the lookup once per address, reads the area map when it has no answer, and learns', async () => {
     await loadBaseAreas(prisma);
+    await cleanUpAreas(prisma);
     forgetAreaNames();
-    // New Cairo's seeded zone, drawn to cover the whole New Cairo district here.
-    await prisma.$executeRaw`
-      UPDATE zones SET area = (SELECT ST_Multi(ST_Buffer(ST_Union(geom), 0.01)) FROM geo_areas
-        WHERE name_en = 'New Cairo' AND level = 2)
-      WHERE dark_store_id = ${stores.get('NCR')!}`;
+    // New Cairo's seeded zone now serves the whole New Cairo district.
+    const newCairo = await prisma.geoArea.findFirstOrThrow({
+      where: { level: 2, nameEn: 'New Cairo', isActive: true },
+    });
+    const zone = await prisma.zone.findFirstOrThrow({ where: { code: 'NCR-5S' } });
+    await prisma.$transaction(
+      (tx) => assignArea(tx, { areaId: newCairo.id, zoneId: zone.id, actorUserId: null }),
+      { timeout: 60_000 },
+    );
     geocoder.calls = 0;
+    // The lookup does not know it; the area engine reads the district name.
     const hit = await check({ address: 'فيلا ١٢، التجمع، القاهرة الجديدة' }).expect(200);
-    expect(hit.body).toMatchObject({ covered: true, darkStore: { code: 'NCR' } });
+    expect(hit.body).toMatchObject({
+      covered: true,
+      darkStore: { code: 'NCR' },
+      area: { id: newCairo.id },
+      location: null,
+    });
     const far = await check({ address: 'Street 3, Sheikh Zayed, Giza' }).expect(200);
     expect(far.body).toMatchObject({ covered: false, reason: 'outside_zones' });
-    expect(geocoder.calls).toBe(0);
-    // An address the engine cannot place goes to Google once, then comes from the saved answer.
+    expect(geocoder.calls).toBe(2);
+    // Asked again, the saved "not found" answers: no new paid call.
+    await check({ address: 'Street 3, Sheikh Zayed, Giza' }).expect(200);
+    expect(geocoder.calls).toBe(2);
+    // An address only the lookup knows is asked once, then comes from the saved answer.
     await check({ address: 'South 90th Street' }).expect(200);
     await check({ address: 'South 90th Street' }).expect(200);
-    expect(geocoder.calls).toBe(1);
+    expect(geocoder.calls).toBe(3);
     const learned = await prisma.geoSuggestion.findFirst({ include: { area: true } });
     expect(learned).toMatchObject({ phrase: 'south 90th' });
+    // A picked area decides without any lookup.
+    const picked = await check({ areaId: newCairo.id }).expect(200);
+    expect(picked.body).toMatchObject({ covered: true, darkStore: { code: 'NCR' } });
+    expect(geocoder.calls).toBe(3);
   });
 
   it('reports a closed store with its next opening time', async () => {
@@ -209,15 +232,16 @@ describe('coverage', () => {
 });
 
 describe('coverage without a geocoding key', () => {
-  it('answers geocoding_not_configured for addresses but still works for points', async () => {
+  it('reads addresses from the area map alone and still works for points', async () => {
     forgetAreaNames();
     const { app, prisma } = await createTestApp({ clock: new FixedClock(NOON_CAIRO) });
     await resetAndSeed(prisma);
+    // No lookup and no area map: unsure rather than an error.
     const res = await request(app.getHttpServer())
       .get('/coverage')
-      .query({ address: 'Maadi road 9' });
-    expect(res.status).toBe(503);
-    expect(res.body.error).toBe('geocoding_not_configured');
+      .query({ address: 'Maadi road 9' })
+      .expect(200);
+    expect(res.body).toMatchObject({ covered: false, reason: 'address_unsure' });
     await request(app.getHttpServer()).get('/coverage').query(NEW_CAIRO).expect(200);
     await app.close();
   });

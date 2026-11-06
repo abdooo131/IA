@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { assignArea, cleanUpAreas, forgetAreaNames, loadBaseAreas } from '@shiplynow/db';
 import { JobsService } from '../src/jobs/jobs.service';
 import type { PrismaService } from '../src/prisma/prisma.service';
 import { createTestApp, FixedClock, resetAndSeed } from './helpers';
@@ -102,8 +103,19 @@ describe('orders end to end', () => {
     expect(expected).toBe(2 * 32500 + 9900 + 3000);
     await rider
       .post(`/rider/deliveries/${deliveries.body[0].id}/complete`)
-      .send({ otp: adminView.body.deliveryOtp, codCollectedPiastres: expected })
+      .send({
+        otp: adminView.body.deliveryOtp,
+        codCollectedPiastres: expected,
+        lat: 30.0301,
+        lng: 31.4702,
+      })
       .expect(201);
+    // Where the phone stood is kept on the delivery and teaches the address.
+    const delivery = await prisma.delivery.findFirstOrThrow({
+      where: { orderId: created.body.id },
+    });
+    expect(delivery).toMatchObject({ deliveredLat: 30.0301, deliveredLng: 31.4702 });
+    expect(await prisma.deliveredPoint.count({ where: { orderId: created.body.id } })).toBe(1);
     const me = await rider.get('/rider/me').expect(200);
     expect(me.body.today).toEqual({ delivered: 1, failed: 0, codCollectedPiastres: expected });
 
@@ -143,6 +155,40 @@ describe('orders end to end', () => {
       .send(await orderBody())
       .expect(409);
     expect(closed.body.error).toBe('store_closed');
+  });
+
+  it('takes the neighbourhood picked instead of a pin, and never a made up point', async () => {
+    await loadBaseAreas(prisma);
+    await cleanUpAreas(prisma);
+    forgetAreaNames();
+    const newCairo = await prisma.geoArea.findFirstOrThrow({
+      where: { level: 2, nameEn: 'New Cairo', isActive: true },
+    });
+    const zone = await prisma.zone.findFirstOrThrow({ where: { code: 'NCR-5S' } });
+    await prisma.$transaction(
+      (tx) => assignArea(tx, { areaId: newCairo.id, zoneId: zone.id, actorUserId: null }),
+      { timeout: 60_000 },
+    );
+    const merchant = await agent('merchant@evechantelle.example');
+    const { latitude: _lat, longitude: _lng, ...noPin } = await orderBody();
+    void _lat;
+    void _lng;
+    // Neither a pin nor an area: refused before anything is decided.
+    await merchant.post('/merchant/orders').send(noPin).expect(400);
+    const created = await merchant
+      .post('/merchant/orders')
+      .send({ ...noPin, areaId: newCairo.id })
+      .expect(201);
+    const order = await prisma.order.findUniqueOrThrow({ where: { id: created.body.id } });
+    expect(order).toMatchObject({
+      darkStoreId: ncr,
+      zoneId: zone.id,
+      geoAreaId: newCairo.id,
+      resolvedBy: 'chosen',
+      latitude: null,
+      longitude: null,
+      locationSource: null,
+    });
   });
 
   it('lets admin create an order for a merchant, see alerts and resolve them', async () => {

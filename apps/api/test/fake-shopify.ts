@@ -23,6 +23,8 @@ export interface FakeFulfillmentOrder {
   rejected?: { reason: string; message: string };
   /** The shipping rate code the customer chose; by default our 60 minute rate from that store. */
   shippingCode?: string | null;
+  /** Cart attributes (the widget's _shiplynow_zone, _shiplynow_area, _shiplynow_pin) */
+  attributes?: Record<string, string>;
 }
 
 let seq = 1000;
@@ -364,6 +366,10 @@ export class FakeShopify extends ShopifyAdmin {
                 name: f.name,
                 phone: null,
                 note: 'Ring twice',
+                customAttributes: Object.entries(f.attributes ?? {}).map(([key, value]) => ({
+                  key,
+                  value,
+                })),
                 totalOutstandingSet: { shopMoney: { amount: f.outstanding, currencyCode: 'EGP' } },
                 shippingAddress: { ...f.address, address2: null, province: 'Cairo' },
                 shippingLines: {

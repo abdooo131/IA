@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { coveringZones, getSetting, listZonesWithArea } from '@shiplynow/db';
+import { type DeliveryDecision, getSetting, listZonesWithArea } from '@shiplynow/db';
 import type { CoverageQuery, CoverageReason } from '@shiplynow/shared';
 import { PrismaService } from '../prisma/prisma.service';
-import { AddressLocator } from './address-locator.service';
+import { DeliveryResolver } from './delivery-resolver.service';
 import { StoreStatusService } from './store-status.service';
 
 interface Named {
@@ -13,7 +13,10 @@ interface Named {
 }
 
 export type CoverageResult = {
-  location: { latitude: number; longitude: number; formattedAddress?: string } | null;
+  /** A real point only (the pin, or the lookup's answer); null when the area alone decided */
+  location: { latitude: number; longitude: number } | null;
+  /** The area the decision found, when it found one */
+  area: { id: string; level: number; nameEn: string; nameAr: string } | null;
 } & (
   | { covered: true; darkStore: Named; zone: Named; promiseMinutes: number }
   | { covered: false; reason: CoverageReason; darkStore?: Named; nextOpenAt?: string | null }
@@ -23,68 +26,76 @@ export type CoverageResult = {
 export class CoverageService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly locator: AddressLocator,
+    private readonly resolver: DeliveryResolver,
     private readonly status: StoreStatusService,
   ) {}
 
+  /** Coverage of a pin, a chosen area or an address text, through the one delivery decision. */
   async check(query: CoverageQuery): Promise<CoverageResult> {
-    let location: CoverageResult['location'];
-    if ('address' in query) {
-      const found = await this.locator.locate(query.address);
-      if (found.kind !== 'point')
-        return { covered: false, reason: 'outside_zones', location: null };
-      location = {
-        latitude: found.latitude,
-        longitude: found.longitude,
-        ...(found.formattedAddress && { formattedAddress: found.formattedAddress }),
+    const decision = await this.resolver.resolve(
+      'lat' in query
+        ? { point: { latitude: query.lat, longitude: query.lng, source: 'pin' } }
+        : 'areaId' in query
+          ? { areaId: query.areaId }
+          : { addressText: query.address },
+    );
+    return this.fromDecision(decision);
+  }
+
+  /**
+   * Hours and capacity on top of a decision: the store that serves the place, or the nearest
+   * other store whose old outline also holds the point, when that one is open and has room.
+   */
+  async fromDecision(decision: DeliveryDecision): Promise<CoverageResult> {
+    const base = {
+      location: decision.doorPoint,
+      area: decision.area
+        ? {
+            id: decision.area.id,
+            level: decision.area.level,
+            nameEn: decision.area.nameEn,
+            nameAr: decision.area.nameAr,
+          }
+        : null,
+    };
+    if (decision.status !== 'served' || !decision.store || !decision.zone)
+      return {
+        ...base,
+        covered: false,
+        reason: decision.status === 'unsure' ? 'address_unsure' : 'outside_zones',
       };
-    } else {
-      location = { latitude: query.lat, longitude: query.lng };
-    }
-
-    const candidates = await coveringZones(this.prisma, location);
-    if (candidates.length === 0) return { covered: false, reason: 'outside_zones', location };
-
-    const statuses = await this.status.statusOf([...new Set(candidates.map((c) => c.darkStoreId))]);
-    const store = (c: (typeof candidates)[number]): Named => ({
-      id: c.darkStoreId,
-      code: c.darkStoreCode,
-      nameEn: c.darkStoreNameEn,
-      nameAr: c.darkStoreNameAr,
-    });
+    const candidates = [
+      { store: decision.store, zone: decision.zone },
+      ...decision.alternatives.map((a) => ({ store: a.store, zone: a.zone })),
+    ];
+    const statuses = await this.status.statusOf([...new Set(candidates.map((c) => c.store.id))]);
 
     // Nearest store that is open and has room wins.
     const winner = candidates.find((c) => {
-      const s = statuses.get(c.darkStoreId)!;
+      const s = statuses.get(c.store.id)!;
       return s.openNow && !s.atCapacity;
     });
-    if (winner) {
+    if (winner)
       return {
+        ...base,
         covered: true,
-        location,
-        darkStore: store(winner),
-        zone: {
-          id: winner.zoneId,
-          code: winner.zoneCode,
-          nameEn: winner.zoneNameEn,
-          nameAr: winner.zoneNameAr,
-        },
-        promiseMinutes: await getSetting(this.prisma, 'sla.promise_minutes', winner.darkStoreId),
+        darkStore: winner.store,
+        zone: winner.zone,
+        promiseMinutes: await getSetting(this.prisma, 'sla.promise_minutes', winner.store.id),
       };
-    }
 
     // Open but full beats closed: the customer can try again soon.
-    const full = candidates.find((c) => statuses.get(c.darkStoreId)!.openNow);
-    if (full) return { covered: false, reason: 'at_capacity', location, darkStore: store(full) };
+    const full = candidates.find((c) => statuses.get(c.store.id)!.openNow);
+    if (full) return { ...base, covered: false, reason: 'at_capacity', darkStore: full.store };
 
     const soonest = candidates
-      .map((c) => ({ c, at: statuses.get(c.darkStoreId)!.nextOpenAt }))
+      .map((c) => ({ c, at: statuses.get(c.store.id)!.nextOpenAt }))
       .sort((a, b) => (a.at?.getTime() ?? Infinity) - (b.at?.getTime() ?? Infinity))[0]!;
     return {
+      ...base,
       covered: false,
       reason: 'store_closed',
-      location,
-      darkStore: store(soonest.c),
+      darkStore: soonest.c.store,
       nextOpenAt: soonest.at?.toISOString() ?? null,
     };
   }

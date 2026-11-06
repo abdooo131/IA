@@ -6,9 +6,9 @@ import {
   queueShopify,
   type ShopifyLocation,
   type ShopifyShop,
-  zonesContaining,
 } from '@shiplynow/db';
-import { AddressLocator } from '../coverage/address-locator.service';
+import { parsePinAttribute } from '@shiplynow/shared';
+import { DeliveryResolver } from '../coverage/delivery-resolver.service';
 import { StoreStatusService } from '../coverage/store-status.service';
 import {
   ACCEPT_CANCELLATION_REQUEST,
@@ -42,6 +42,8 @@ export interface FulfillmentOrder {
     name: string;
     phone: string | null;
     note: string | null;
+    /** Cart attributes the storefront widget set: _shiplynow_zone, _shiplynow_area, _shiplynow_pin */
+    customAttributes?: { key: string; value: string | null }[] | null;
     totalOutstandingSet: Money;
     shippingAddress: {
       name: string | null;
@@ -89,37 +91,8 @@ export class ShopifyOrdersService {
   constructor(
     private readonly shopify: ShopifyService,
     private readonly status: StoreStatusService,
-    private readonly locator: AddressLocator,
+    private readonly resolver: DeliveryResolver,
   ) {}
-
-  /**
-   * The rider's door for an order Shopify sent without coordinates. Returns null when the
-   * address cannot be placed (or no lookup is set up), and the order is then taken as before.
-   */
-  private async lookUp(
-    address:
-      | {
-          address1?: string | null;
-          address2?: string | null;
-          city?: string | null;
-          province?: string | null;
-        }
-      | null
-      | undefined,
-  ) {
-    const text = [address?.address1, address?.address2, address?.city, address?.province]
-      .filter((p) => p && p.trim())
-      .join(', ');
-    if (!text) return null;
-    try {
-      const found = await this.locator.locate(text, { exact: true });
-      return found.kind === 'point'
-        ? { latitude: found.latitude, longitude: found.longitude }
-        : null;
-    } catch {
-      return null;
-    }
-  }
 
   private get prisma() {
     return this.shopify.prisma;
@@ -187,8 +160,9 @@ export class ShopifyOrdersService {
   }
 
   /**
-   * One fulfillment request. Unknown products or an address outside the store's zones are
-   * refused, so the merchant ships the order normally. Otherwise the order is created (units
+   * One fulfillment request. Unknown products, and an address the delivery decision finds
+   * outside, unsure, or served by another store, are refused, so the merchant ships the order
+   * normally (never accepted without a zone). Otherwise the order is created (units
    * the store lacks are cancelled on the Shopify order) and the request is accepted. A closed
    * store still accepts: the order waits and its clock starts when the store opens.
    */
@@ -278,40 +252,7 @@ export class ShopifyOrdersService {
     }
 
     const address = fo.order.shippingAddress;
-    // Shopify's own coordinates first; without them the rider's door is looked up.
-    const point =
-      address?.latitude != null && address.longitude != null
-        ? { latitude: address.latitude, longitude: address.longitude }
-        : await this.lookUp(address ?? fo.destination);
-    let zoneId: string | null = null;
-    if (point) {
-      const zones = (await zonesContaining(this.prisma, point)).filter(
-        (z) => z.darkStoreId === location.darkStoreId,
-      );
-      if (zones.length === 0) {
-        await this.reject(
-          shop,
-          fo,
-          'UNDELIVERABLE_DESTINATION',
-          'Outside the 60 minute delivery zones',
-        );
-        return { kind: 'rejected', reason: 'outside_zones' };
-      }
-      zoneId = zones[0]!.id;
-    }
-
-    const store = (await this.status.statusOf([location.darkStoreId])).get(location.darkStoreId);
-    const queuedUntil = store && !store.openNow ? store.nextOpenAt : null;
     const dest = fo.destination;
-    const name =
-      address?.name?.trim() ||
-      [dest?.firstName, dest?.lastName].filter(Boolean).join(' ').trim() ||
-      fo.order.name;
-    const outstanding = moneyToPiastres(fo.order.totalOutstandingSet?.shopMoney.amount);
-    const fee = fo.order.shippingLines.nodes.reduce(
-      (sum, l) => sum + moneyToPiastres(l.discountedPriceSet?.shopMoney.amount),
-      0,
-    );
     const addressText =
       [
         address?.address1 ?? dest?.address1,
@@ -322,12 +263,92 @@ export class ShopifyOrdersService {
         .filter((p) => p && p.trim())
         .join(', ') || 'No address on the Shopify order';
 
+    // The decision the cart carried first (the customer's pin, area or zone from the widget),
+    // then Shopify's own point, then the address (docs/ZONES.md section 2).
+    const attribute = (key: string) =>
+      fo.order.customAttributes?.find((a) => a.key === key)?.value?.trim() || null;
+    const pin = parsePinAttribute(attribute('_shiplynow_pin'));
+    const shopifyPoint =
+      address?.latitude != null && address.longitude != null
+        ? { latitude: address.latitude, longitude: address.longitude }
+        : null;
+    const decision = await this.resolver.resolve({
+      point: pin
+        ? { ...pin, source: 'pin' }
+        : shopifyPoint
+          ? { ...shopifyPoint, source: 'shopify' }
+          : null,
+      areaId: attribute('_shiplynow_area'),
+      zoneId: attribute('_shiplynow_zone'),
+      addressText,
+    });
+    if (decision.status !== 'served' || !decision.zone || !decision.store) {
+      // Outside every zone, or not sure where it is: the merchant ships it normally.
+      await this.reject(
+        shop,
+        fo,
+        'UNDELIVERABLE_DESTINATION',
+        decision.status === 'unsure'
+          ? 'Could not place the address with confidence; ship it normally'
+          : 'Outside the 60 minute delivery zones',
+      );
+      if (decision.status === 'unsure')
+        await this.alert(location.darkStoreId, 'shopify_rejected', {
+          order: fo.order.name,
+          reason: `address_unsure:${decision.reason}`,
+        });
+      await this.shopify.record(shop.id, {
+        direction: 'in',
+        kind: 'fulfillment_request',
+        ok: true,
+        message: `${fo.order.name} handed back: ${decision.status} (${decision.reason})`,
+      });
+      return {
+        kind: 'rejected',
+        reason: decision.status === 'unsure' ? 'address_unsure' : 'outside_zones',
+      };
+    }
+    const servingHere =
+      decision.store.id === location.darkStoreId
+        ? decision.zone
+        : (decision.alternatives.find((a) => a.store.id === location.darkStoreId)?.zone ?? null);
+    if (!servingHere) {
+      // Another store serves this address; Shopify chose this one. Never sent across the city.
+      await this.alert(location.darkStoreId, 'shopify_wrong_store', {
+        order: fo.order.name,
+        servedBy: decision.store.code,
+        location: location.darkStoreId,
+      });
+      await this.reject(
+        shop,
+        fo,
+        'UNDELIVERABLE_DESTINATION',
+        'Another Shiply Now store serves this address; ship it normally',
+      );
+      return { kind: 'rejected', reason: 'wrong_store' };
+    }
+
+    const store = (await this.status.statusOf([location.darkStoreId])).get(location.darkStoreId);
+    const queuedUntil = store && !store.openNow ? store.nextOpenAt : null;
+    const name =
+      address?.name?.trim() ||
+      [dest?.firstName, dest?.lastName].filter(Boolean).join(' ').trim() ||
+      fo.order.name;
+    const outstanding = moneyToPiastres(fo.order.totalOutstandingSet?.shopMoney.amount);
+    const fee = fo.order.shippingLines.nodes.reduce(
+      (sum, l) => sum + moneyToPiastres(l.discountedPriceSet?.shopMoney.amount),
+      0,
+    );
+
     let created;
     try {
       created = await createOrder(this.prisma, {
         merchantId: shop.merchantId,
         darkStoreId: location.darkStoreId,
-        zoneId,
+        zoneId: servingHere.id,
+        geoAreaId: decision.area?.id ?? null,
+        resolvedBy: decision.confidence,
+        locationSource: decision.pointSource,
         source: 'shopify',
         shopifyOrderId: fo.order.id,
         shopifyFulfillmentOrderId: fo.id,
@@ -338,8 +359,8 @@ export class ShopifyOrdersService {
           .filter(Boolean)
           .join(' · ')
           .slice(0, 500),
-        latitude: point?.latitude,
-        longitude: point?.longitude,
+        latitude: decision.doorPoint?.latitude,
+        longitude: decision.doorPoint?.longitude,
         paymentMethod: outstanding > 0 ? 'cod' : 'prepaid',
         deliveryFeePiastres: fee,
         codAmountPiastres: outstanding,

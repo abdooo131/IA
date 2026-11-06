@@ -15,6 +15,7 @@ import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
 import { notifyMerchant } from './notifications';
+import { recordDeliveredPoint } from './geo/delivery';
 import { getSetting } from './settings';
 import { pick, receive, release, reserve } from './stock';
 
@@ -148,8 +149,13 @@ export interface CreateOrderInput {
   customerPhone: string;
   addressText: string;
   customerNote?: string;
+  /** A real point only (pin, Shopify's point, geocoder, learned), never one made up */
   latitude?: number;
   longitude?: number;
+  /** From the delivery decision (resolveDelivery) */
+  geoAreaId?: string | null;
+  resolvedBy?: string | null;
+  locationSource?: string | null;
   paymentMethod: PaymentMethod;
   deliveryFeePiastres: number;
   /** What the customer still owes, when the source knows it (Shopify); otherwise computed */
@@ -216,6 +222,9 @@ export function createOrder(db: Db, input: CreateOrderInput): Promise<CreatedOrd
         customerNote: input.customerNote,
         latitude: input.latitude,
         longitude: input.longitude,
+        geoAreaId: input.geoAreaId ?? null,
+        resolvedBy: input.resolvedBy ?? null,
+        locationSource: input.latitude != null ? (input.locationSource ?? null) : null,
         paymentMethod: input.paymentMethod,
         deliveryFeePiastres: input.deliveryFeePiastres,
         subtotalPiastres: 0,
@@ -674,10 +683,15 @@ export interface CompleteDeliveryInput {
   otp?: string;
   photoId?: string;
   codCollectedPiastres?: number;
+  /** The phone's position at the door; the rider's last known position is used otherwise */
+  position?: { latitude: number; longitude: number } | null;
   now?: Date;
 }
 
-/** The customer has the goods: proved by their code or a photo. COD differences raise an alert. */
+/**
+ * The customer has the goods: proved by their code or a photo. COD differences raise an alert.
+ * The rider's position is kept on the delivery and teaches the address (docs/ZONES.md §5).
+ */
 export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
   return inTransaction(db, async (tx) => {
     const now = input.now ?? new Date();
@@ -705,8 +719,16 @@ export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
         otpVerified: otpOk,
         proofPhotoId: input.photoId,
         codCollectedPiastres: collected,
+        deliveredLat: input.position?.latitude ?? null,
+        deliveredLng: input.position?.longitude ?? null,
       },
     });
+    if (input.position)
+      await recordDeliveredPoint(tx, {
+        orderId: order.id,
+        addressText: order.addressText,
+        point: input.position,
+      });
     await moveStatus(
       tx,
       order,

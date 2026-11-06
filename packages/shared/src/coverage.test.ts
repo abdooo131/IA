@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { coverageQuerySchema, weekHoursSchema, zonePolygonSchema } from './coverage';
+import {
+  coverageQuerySchema,
+  parsePinAttribute,
+  weekHoursSchema,
+  zonePolygonSchema,
+} from './coverage';
 
 describe('coverageQuerySchema', () => {
   it('accepts a point from query strings or an address', () => {
@@ -57,5 +62,21 @@ describe('zonePolygonSchema', () => {
         coordinates: [square.map(([lng, lat]) => [lng! - 31, lat! + 20])],
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('delivery inputs', () => {
+  it('takes an area id as a coverage query', () => {
+    expect(coverageQuerySchema.parse({ areaId: 'abc' })).toEqual({ areaId: 'abc' });
+  });
+
+  it('reads the pin cart attribute only as a point in Egypt', () => {
+    expect(parsePinAttribute('30.0123, 31.4567')).toEqual({
+      latitude: 30.0123,
+      longitude: 31.4567,
+    });
+    expect(parsePinAttribute('51.5,-0.12')).toBeNull();
+    expect(parsePinAttribute('north')).toBeNull();
+    expect(parsePinAttribute(null)).toBeNull();
   });
 });

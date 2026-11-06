@@ -22,6 +22,9 @@ export function normalizeAddressText(input: string): string {
     .replace(/ئ/g, 'ي');
   // Latin spelling noise: "el-", "al-", "el " are kept as words; hyphens and dots become spaces.
   s = s.replace(/[^\p{L}\p{N}]+/gu, ' ');
+  // Numbers glued to names are split ("sherouk1" → "sherouk 1", "التجمع5" → "التجمع 5");
+  // ordinals such as "5th" and "90th" stay one word.
+  s = s.replace(/(\p{L})(\d)/gu, '$1 $2').replace(/(\d)(\p{Script=Arabic})/gu, '$1 $2');
   return s.trim().replace(/\s+/g, ' ');
 }
 
@@ -210,6 +213,7 @@ export const STREET_WORDS = new Set([
   'شارع',
   'ش',
   'طريق',
+  'جسر',
   'ميدان',
   'كوبري',
   'street',
@@ -219,3 +223,38 @@ export const STREET_WORDS = new Set([
   'square',
   'bridge',
 ]);
+
+/**
+ * Words that make an area name generic ("Street 9", "Neighbourhood 8", "الحي الايطالي"): such a
+ * name (or any name holding a number) only counts when an area above it is named too.
+ */
+export const GENERIC_AREA_WORDS = new Set(
+  [
+    'street',
+    'st',
+    'road',
+    'district',
+    'neighbourhood',
+    'neighborhood',
+    'zone',
+    'area',
+    'block',
+    'group',
+    'sector',
+    'phase',
+    'شارع',
+    'طريق',
+    'حي',
+    'الحي',
+    'مجاوره',
+    'المجاوره',
+    'منطقه',
+    'المنطقه',
+    'بلوك',
+    'مجموعه',
+    'المجموعه',
+    'قطاع',
+    'مرحله',
+    'المرحله',
+  ].map((w) => normalizeAddressText(w)),
+);

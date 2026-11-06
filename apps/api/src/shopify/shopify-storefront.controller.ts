@@ -1,8 +1,9 @@
 import { Controller, Get, Query, Res, UnauthorizedException } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { getSetting } from '@shiplynow/db';
+import { getSetting, searchServedAreas } from '@shiplynow/db';
 import { Public } from '../auth/decorators';
 import { CoverageService } from '../coverage/coverage.service';
+import { DeliveryResolver } from '../coverage/delivery-resolver.service';
 import { StoreStatusService } from '../coverage/store-status.service';
 import type { Response } from 'express';
 import { verifyProxySignature } from './security';
@@ -26,6 +27,7 @@ export class ShopifyStorefrontController {
     private readonly coverage: CoverageService,
     private readonly status: StoreStatusService,
     private readonly sync: ShopifySyncService,
+    private readonly resolver: DeliveryResolver,
   ) {}
 
   private get prisma() {
@@ -46,6 +48,72 @@ export class ShopifyStorefrontController {
     if (!shop || shop.status !== 'active')
       throw new UnauthorizedException({ error: 'shop_not_installed' });
     return shop;
+  }
+
+  /**
+   * Where the customer is, from what the widget sends: a dropped pin (lat, lng), a picked
+   * neighbourhood (area) or, from older widgets, a zone. The store comes from the one delivery
+   * decision, and only a store this shop sells from counts. Null zone when not served here.
+   */
+  private async place(shopId: string, query: Record<string, unknown>) {
+    const lat = Number(query.lat);
+    const lng = Number(query.lng);
+    const hasPin =
+      query.lat !== undefined &&
+      query.lng !== undefined &&
+      Number.isFinite(lat) &&
+      Number.isFinite(lng);
+    const decision = await this.resolver.resolve(
+      {
+        point: hasPin ? { latitude: lat, longitude: lng, source: 'pin' } : null,
+        areaId: query.area ? String(query.area) : null,
+        zoneId: query.zone ? String(query.zone) : null,
+      },
+      { lookup: false },
+    );
+    const locations = await this.prisma.shopifyLocation.findMany({
+      where: { shopId, isActive: true },
+      select: { darkStoreId: true },
+    });
+    const served = new Set(locations.map((l) => l.darkStoreId));
+    const pick =
+      decision.status === 'served' && decision.store && served.has(decision.store.id)
+        ? { store: decision.store, zone: decision.zone! }
+        : decision.alternatives.find((a) => served.has(a.store.id));
+    const zone = pick
+      ? await this.prisma.zone.findUnique({
+          where: { id: pick.zone.id },
+          include: { darkStore: true },
+        })
+      : null;
+    return { decision, zone };
+  }
+
+  /**
+   * Neighbourhood search (Arabic and English) for the widget's area picker: the top 10 served
+   * areas of this shop's stores, each with its store.
+   */
+  @Get('search')
+  async search(@Query() query: Record<string, unknown>) {
+    const shop = await this.shopOf(query);
+    const locations = await this.prisma.shopifyLocation.findMany({
+      where: { shopId: shop.id, isActive: true },
+      select: { darkStoreId: true },
+    });
+    const areas = await searchServedAreas(this.prisma, {
+      q: String(query.q ?? '').slice(0, 80),
+      storeIds: locations.map((l) => l.darkStoreId),
+      limit: 10,
+    });
+    return areas.map((a) => ({
+      areaId: a.id,
+      level: a.level,
+      nameEn: a.nameEn,
+      nameAr: a.nameAr,
+      parent: a.parent,
+      zoneId: a.zoneId,
+      store: { code: a.store.code, nameEn: a.store.nameEn, nameAr: a.store.nameAr },
+    }));
   }
 
   /** The covered areas the customer can pick from. */
@@ -69,22 +137,19 @@ export class ShopifyStorefrontController {
   }
 
   /**
-   * For the chosen area: is its store taking orders now, and which of these variants it has
+   * For the chosen place (area, pin or zone): is its store taking orders now, and which of these variants it has
    * in stock. The answer is a hint for browsing; checkout checks everything again.
    */
   @Get('availability')
   async availability(@Query() query: Record<string, unknown>) {
     const shop = await this.shopOf(query);
-    const zone = await this.prisma.zone.findFirst({
-      where: { id: String(query.zone ?? ''), isActive: true, darkStore: { isActive: true } },
-      include: { darkStore: true },
-    });
-    const served = zone
-      ? await this.prisma.shopifyLocation.findFirst({
-          where: { shopId: shop.id, darkStoreId: zone.darkStoreId, isActive: true },
-        })
-      : null;
-    if (!zone || !served) return { zone: null };
+    const { decision, zone } = await this.place(shop.id, query);
+    if (!zone)
+      return {
+        zone: null,
+        area: decision.area,
+        decision: { status: decision.status, reason: decision.reason },
+      };
 
     const ids = String(query.variants ?? '')
       .split(',')
@@ -113,6 +178,8 @@ export class ShopifyStorefrontController {
     );
     return {
       zone: { id: zone.id, nameEn: zone.nameEn, nameAr: zone.nameAr },
+      area: decision.area,
+      decision: { status: decision.status, reason: decision.reason },
       store: {
         code: zone.darkStore.code,
         nameEn: zone.darkStore.nameEn,
@@ -127,7 +194,8 @@ export class ShopifyStorefrontController {
   }
 
   /**
-   * The area landing page (/apps/shiplynow/store?zone=...): every product of this merchant in
+   * The area landing page (/apps/shiplynow/store?area=... or lat=&lng=, or zone= from older
+   * widgets): every product of this merchant in
    * stock at the dark store serving the area, rendered inside the merchant's theme (Shopify
    * renders an application/liquid answer in the store layout). Checkout still decides.
    */
@@ -136,16 +204,8 @@ export class ShopifyStorefrontController {
     const shop = await this.shopOf(query);
     const locale: PageLocale = query.lang === 'ar' ? 'ar' : 'en';
     res.type('application/liquid');
-    const zone = await this.prisma.zone.findFirst({
-      where: { id: String(query.zone ?? ''), isActive: true, darkStore: { isActive: true } },
-      include: { darkStore: true },
-    });
-    const served = zone
-      ? await this.prisma.shopifyLocation.findFirst({
-          where: { shopId: shop.id, darkStoreId: zone.darkStoreId, isActive: true },
-        })
-      : null;
-    if (!zone || !served) return res.send(renderNoArea(locale));
+    const { decision, zone } = await this.place(shop.id, query);
+    if (!zone) return res.send(renderNoArea(locale));
 
     const [state, available, promiseMinutes] = await Promise.all([
       this.status.statusOf([zone.darkStoreId]).then((m) => m.get(zone.darkStoreId)!),
@@ -198,7 +258,13 @@ export class ShopifyStorefrontController {
     return res.send(
       renderStorePage({
         locale,
-        area: locale === 'ar' ? zone.nameAr : zone.nameEn,
+        area: decision.area
+          ? locale === 'ar'
+            ? decision.area.nameAr
+            : decision.area.nameEn
+          : locale === 'ar'
+            ? zone.nameAr
+            : zone.nameEn,
         store: locale === 'ar' ? zone.darkStore.nameAr : zone.darkStore.nameEn,
         status: !state.openNow ? 'closed' : state.atCapacity ? 'at_capacity' : 'open',
         nextOpen,
