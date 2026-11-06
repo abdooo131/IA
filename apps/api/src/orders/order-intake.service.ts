@@ -21,9 +21,12 @@ export class OrderIntakeService {
     body: CreateOrderBody,
     actorUserId: string,
     source: 'manual' | 'shopify' = 'manual',
+    /** Refuses a store the person may not work in, before anything is written */
+    checkStore?: (darkStoreId: string) => void,
   ): Promise<CreatedOrder> {
     const check = await this.coverage.check({ lat: body.latitude, lng: body.longitude });
     if (!check.covered) throw new DomainError(check.reason, 409);
+    checkStore?.(check.darkStore.id);
     return createOrder(this.prisma, {
       merchantId,
       darkStoreId: check.darkStore.id,

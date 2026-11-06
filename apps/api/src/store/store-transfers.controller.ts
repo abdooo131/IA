@@ -14,7 +14,7 @@ import {
   type TransferScanBody,
   transferScanSchema,
 } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
@@ -22,7 +22,7 @@ import { StoreAccessService } from './store-access.service';
 /** Staff send transfers (pick by scan, then send) and receive them (scan, then close). */
 @ApiTags('store')
 @ApiBearerAuth()
-@Roles('admin', 'store_staff')
+@Access('store')
 @Controller('stores/:storeId/transfers')
 export class StoreTransfersController {
   constructor(

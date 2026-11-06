@@ -342,7 +342,8 @@ export function cancelReturn(
 
 export interface ReturnFilter {
   merchantId?: string;
-  darkStoreId?: string;
+  /** One store, or a person's stores ({ in: [...] }) */
+  darkStoreId?: string | { in: string[] };
   status?: ReturnStatus[];
 }
 

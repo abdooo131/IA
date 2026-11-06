@@ -73,7 +73,8 @@ function summarize(o: ListRow, sla: Awaited<ReturnType<typeof slaFor>> | null, n
 export type OrderSummary = ReturnType<typeof summarize>;
 
 export interface OrderListFilter {
-  darkStoreId?: string;
+  /** One store, or a person's stores ({ in: [...] }) */
+  darkStoreId?: string | { in: string[] };
   merchantId?: string;
   statuses?: OrderStatus[];
   from?: Date;

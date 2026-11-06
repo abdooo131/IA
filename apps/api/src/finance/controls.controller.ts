@@ -14,15 +14,17 @@ import {
   recordOpeningBalances,
 } from '@shiplynow/db';
 import {
+  type AccessProfile,
   type AccessTokenClaims,
   attachReceiptSchema,
+  canDo,
   closeBooksSchema,
   decideRequestSchema,
   entryNumber,
   openingBalancesSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { CurrentUser, FinanceLevel, Roles } from '../auth/decorators';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -34,7 +36,7 @@ const REQUEST_STATUSES = ['pending', 'approved', 'rejected', 'cancelled'] as con
  */
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class ControlsController {
   constructor(private readonly prisma: PrismaService) {}
@@ -59,18 +61,20 @@ export class ControlsController {
     });
   }
 
-  /** Close the books through a day (approve level); moving it back is admin only, with a reason. */
+  /** Close the books through a day (approve level); moving it back needs settings manage too, with a reason. */
   @Post('books-lock')
-  @FinanceLevel('approve')
+  @Access('accounting', 'manage')
   close(
     @Body(new ZodValidationPipe(closeBooksSchema)) body: z.infer<typeof closeBooksSchema>,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
     return closeBooks(this.prisma, {
       day: body.day,
       reason: body.reason,
       actorUserId: user.sub,
-      actorRole: user.role === 'admin' ? 'admin' : 'finance',
+      // Reopening closed days is for the owners: people with settings manage.
+      actorRole: canDo(access, 'settings', 'manage') ? 'admin' : 'finance',
     });
   }
 
@@ -82,7 +86,7 @@ export class ControlsController {
   }
 
   @Post('requests/:id/decide')
-  @FinanceLevel('approve')
+  @Access('accounting', 'manage')
   async decide(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(decideRequestSchema)) body: z.infer<typeof decideRequestSchema>,
@@ -106,7 +110,7 @@ export class ControlsController {
   }
 
   @Post('payouts/:id/approve')
-  @FinanceLevel('approve')
+  @Access('accounting', 'manage')
   approve(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return approvePayout(this.prisma, { payoutId: id, actorUserId: user.sub });
   }
@@ -136,8 +140,9 @@ export class ControlsController {
   }
 
   /** The balances the books start from, once (admin only). */
+  /** Posted once: owners only (accounting and settings manage). */
   @Post('opening-balances')
-  @Roles('admin')
+  @Access('accounting', 'manage', { also: [['settings', 'manage']] })
   async opening(
     @Body(new ZodValidationPipe(openingBalancesSchema)) body: z.infer<typeof openingBalancesSchema>,
     @CurrentUser() user: AccessTokenClaims,

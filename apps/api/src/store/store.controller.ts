@@ -22,8 +22,9 @@ import {
   reportDamageSchema,
   type ReceiveScanInput,
   receiveScanSchema,
+  type AccessProfile,
 } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
@@ -38,7 +39,7 @@ const MOVE_RULES: Record<MoveInput['reason'], { from: string[]; to: string[] }> 
 
 @ApiTags('store')
 @ApiBearerAuth()
-@Roles('admin', 'store_staff')
+@Access('store')
 @Controller('stores')
 export class StoreController {
   constructor(
@@ -47,8 +48,8 @@ export class StoreController {
   ) {}
 
   @Get()
-  async mine(@CurrentUser() user: AccessTokenClaims) {
-    const stores = await this.access.storesFor(user);
+  async mine(@CurrentAccess() access: AccessProfile) {
+    const stores = await this.access.storesFor(access);
     return stores.map((s) => ({ id: s.id, code: s.code, nameEn: s.nameEn, nameAr: s.nameAr }));
   }
 

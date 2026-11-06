@@ -27,6 +27,24 @@ enum FinanceLevel {
   @@map("finance_level")
 }
 
+/// Access level of a team member in one app (docs/ACCESS.md): none < view < use < manage
+enum AccessLevel {
+  none
+  view
+  use
+  manage
+
+  @@map("access_level")
+}
+
+/// A merchant user's place in the merchant's team: owners have every right and manage the team
+enum MerchantRole {
+  owner
+  member
+
+  @@map("merchant_role")
+}
+
 enum Role {
   admin
   merchant
@@ -38,24 +56,28 @@ enum Role {
 }
 
 model User {
-  id           String       @id @default(cuid())
-  email        String       @unique
-  passwordHash String       @map("password_hash")
-  name         String
+  id             String        @id @default(cuid())
+  email          String        @unique
+  passwordHash   String        @map("password_hash")
+  name           String
   /// Normalized Egyptian mobile, +20 followed by 10 digits
-  phone        String?      @unique
-  role         Role
-  isActive     Boolean      @default(true) @map("is_active")
+  phone          String?       @unique
+  role           Role
+  isActive       Boolean       @default(true) @map("is_active")
   /// Home dark store for store staff and riders
-  darkStoreId  String?      @map("dark_store_id")
+  darkStoreId    String?       @map("dark_store_id")
   /// The merchant a merchant user belongs to
-  merchantId   String?      @map("merchant_id")
+  merchantId     String?       @map("merchant_id")
   /// Slack member id (U0123...) so tickets can reach this person in Slack
-  slackUserId  String?      @unique @map("slack_user_id")
-  /// For the finance role: view, prepare or approve (admins can always do everything)
-  financeLevel FinanceLevel @default(approve) @map("finance_level")
-  createdAt    DateTime     @default(now()) @map("created_at")
-  updatedAt    DateTime     @updatedAt @map("updated_at")
+  slackUserId    String?       @unique @map("slack_user_id")
+  /// Kept for history only: decisions use user_access.accounting (docs/ACCESS.md)
+  financeLevel   FinanceLevel  @default(approve) @map("finance_level")
+  /// Merchant users: owner or member
+  merchantRole   MerchantRole? @map("merchant_role")
+  /// Merchant members: orders, stock, money, settings (owners have all)
+  merchantRights String[]      @default([]) @map("merchant_rights")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
 
   darkStore         DarkStore?        @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
   merchant          Merchant?         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
@@ -109,10 +131,51 @@ model User {
   recurringEntries   RecurringEntry[]
   prepayments        Prepayment[]
   fixedAssets        FixedAsset[]
+  access             UserAccess?
+  accessStores       UserStore[]
 
   @@index([darkStoreId])
   @@index([merchantId])
   @@map("users")
+}
+
+/// What a team member (admin, finance, store staff account) may open and do, per app.
+/// Filled from a job role or set by hand (job_role custom). See docs/ACCESS.md.
+model UserAccess {
+  userId       String      @id @map("user_id")
+  /// The job role it was last filled from (label only), or custom
+  jobRole      String      @map("job_role")
+  store        AccessLevel @default(none)
+  operations   AccessLevel @default(none)
+  inventory    AccessLevel @default(none)
+  merchants    AccessLevel @default(none)
+  customers    AccessLevel @default(none)
+  accounting   AccessLevel @default(none)
+  settings     AccessLevel @default(none)
+  /// true: every store; false: only the stores in user_stores
+  allStores    Boolean     @default(false) @map("all_stores")
+  /// May open named customer profiles
+  customerData Boolean     @default(false) @map("customer_data")
+  /// May see salaries, payslips and the payroll run
+  salaries     Boolean     @default(false)
+  updatedAt    DateTime    @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_access")
+}
+
+/// The stores a team member without all_stores works in.
+model UserStore {
+  userId      String @map("user_id")
+  darkStoreId String @map("dark_store_id")
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  darkStore DarkStore @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+
+  @@id([userId, darkStoreId])
+  @@index([darkStoreId])
+  @@map("user_stores")
 }
 
 /// Opaque refresh tokens, stored only as a SHA256 hash. Rotated on every refresh.
@@ -171,6 +234,7 @@ model DarkStore {
   updatedAt     DateTime     @updatedAt @map("updated_at")
 
   governorate      Governorate       @relation(fields: [governorateId], references: [id])
+  accessUsers      UserStore[]
   hours            StoreHours[]
   zones            Zone[]
   bins             Bin[]

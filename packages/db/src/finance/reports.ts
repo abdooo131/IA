@@ -249,7 +249,8 @@ export async function listCashHandovers(
   db: Db,
   filter: {
     status?: 'balanced' | 'pending' | 'written_off' | 'charged_to_rider';
-    darkStoreId?: string;
+    /** One store, or a person's stores ({ in: [...] }) */
+    darkStoreId?: string | { in: string[] };
     riderId?: string;
     take?: number;
   },

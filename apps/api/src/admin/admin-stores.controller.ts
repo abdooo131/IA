@@ -2,6 +2,7 @@ import { Body, Controller, Get, NotFoundException, Param, Post, Put } from '@nes
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { addShelves, createLocation, recordAudit, setSetting } from '@shiplynow/db';
 import {
+  type AccessProfile,
   type AccessTokenClaims,
   addShelvesSchema,
   capacitySchema,
@@ -10,14 +11,16 @@ import {
   type WeekHours,
   weekHoursSchema,
 } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { storeFilter } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { StoreStatusService } from '../coverage/store-status.service';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+/** Every app but the store screens reads the locations; limited people see their stores. */
+@Access(['operations', 'inventory', 'merchants', 'customers', 'accounting', 'settings'])
 @Controller('admin/dark-stores')
 export class AdminStoresController {
   constructor(
@@ -26,8 +29,9 @@ export class AdminStoresController {
   ) {}
 
   @Get()
-  async list() {
+  async list(@CurrentAccess() access: AccessProfile) {
     const stores = await this.prisma.darkStore.findMany({
+      where: { id: storeFilter(access) },
       orderBy: { code: 'asc' },
       include: {
         hours: { orderBy: { weekday: 'asc' } },
@@ -72,6 +76,7 @@ export class AdminStoresController {
 
   /** Opens a dark store or a sorting facility (hub) with its bins and default hours. */
   @Post()
+  @Access('operations', 'manage')
   async create(
     @Body(new ZodValidationPipe(createLocationSchema)) body: CreateLocationBody,
     @CurrentUser() user: AccessTokenClaims,
@@ -81,6 +86,7 @@ export class AdminStoresController {
   }
 
   @Post(':id/shelves')
+  @Access('operations', 'manage', { storeParam: 'id' })
   addShelves(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(addShelvesSchema)) body: { count: number },
@@ -90,6 +96,7 @@ export class AdminStoresController {
   }
 
   @Put(':id/hours')
+  @Access('operations', 'manage', { storeParam: 'id' })
   async setHours(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(weekHoursSchema)) week: WeekHours,
@@ -129,6 +136,7 @@ export class AdminStoresController {
   }
 
   @Put(':id/capacity')
+  @Access('operations', 'manage', { storeParam: 'id' })
   async setCapacity(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(capacitySchema)) body: { value: number },

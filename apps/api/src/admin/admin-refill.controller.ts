@@ -6,15 +6,17 @@ import {
   cairoDay,
   type StockTargetBody,
   stockTargetSchema,
+  type AccessProfile,
 } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { assertStore } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** Automatic refill: the levels per store and product, and preparing today's drafts now. */
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('inventory')
 @Controller('admin/refill')
 export class AdminRefillController {
   constructor(private readonly prisma: PrismaService) {}
@@ -28,7 +30,9 @@ export class AdminRefillController {
   setTarget(
     @Body(new ZodValidationPipe(stockTargetSchema)) body: StockTargetBody,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
+    assertStore(access, body.darkStoreId);
     return setStockTarget(this.prisma, { ...body, actorUserId: user.sub });
   }
 

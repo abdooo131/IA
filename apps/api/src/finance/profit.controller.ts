@@ -23,7 +23,7 @@ import {
   staffBonusSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -35,7 +35,7 @@ const DIMENSIONS = ['store', 'merchant', 'rider'] as const;
 /** Profit per store, merchant and rider; cost per order; salaries and staff advances. */
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class ProfitController {
   constructor(
@@ -71,13 +71,14 @@ export class ProfitController {
   }
 
   @Get('staff-pay')
+  @Access('accounting', 'view', { salaries: true })
   staff() {
     return listStaffPay(this.prisma);
   }
 
-  /** A team member's monthly salary: admin only. */
+  /** A team member's monthly salary: accounting manage with salaries. */
   @Put('salaries/:userId')
-  @Roles('admin')
+  @Access('accounting', 'manage', { salaries: true })
   salary(
     @Param('userId') userId: string,
     @Body(new ZodValidationPipe(salarySchema)) body: z.infer<typeof salarySchema>,
@@ -93,9 +94,9 @@ export class ProfitController {
     });
   }
 
-  /** Employee on our payroll, or hired through an outsourcing company: admin only. */
+  /** Employee on our payroll, or hired through an outsourcing company. */
   @Put('employment/:userId')
-  @Roles('admin')
+  @Access('accounting', 'manage', { salaries: true })
   employment(
     @Param('userId') userId: string,
     @Body(new ZodValidationPipe(employmentSchema)) body: z.infer<typeof employmentSchema>,
@@ -106,6 +107,7 @@ export class ProfitController {
 
   /** A bonus paid straight to an outsourced person. */
   @Post('staff-bonuses')
+  @Access('accounting', 'use', { salaries: true })
   async bonus(
     @Body(new ZodValidationPipe(staffBonusSchema)) body: z.infer<typeof staffBonusSchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -115,6 +117,7 @@ export class ProfitController {
 
   /** The payslips of a month's salary run. */
   @Get('payslips')
+  @Access('accounting', 'view', { salaries: true })
   @ApiQuery({ name: 'month', required: true })
   async payslips(@Query('month') month: string) {
     const run = await payslips(this.prisma, month ?? '');
@@ -125,6 +128,7 @@ export class ProfitController {
   }
 
   @Post('advances')
+  @Access('accounting', 'use', { salaries: true })
   async advance(
     @Body(new ZodValidationPipe(advanceSchema)) body: z.infer<typeof advanceSchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -134,11 +138,13 @@ export class ProfitController {
 
   /** What the month's run would pay, checked, without paying. */
   @Post('payroll/preview')
+  @Access('accounting', 'use', { salaries: true })
   preview(@Body(new ZodValidationPipe(payrollSchema)) body: z.infer<typeof payrollSchema>) {
     return previewPayroll(this.prisma, body);
   }
 
   @Post('payroll')
+  @Access('accounting', 'use', { salaries: true })
   async payroll(
     @Body(new ZodValidationPipe(payrollSchema)) body: z.infer<typeof payrollSchema>,
     @CurrentUser() user: AccessTokenClaims,

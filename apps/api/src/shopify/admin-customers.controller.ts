@@ -12,7 +12,7 @@ import {
 } from '@shiplynow/db';
 import { z } from 'zod';
 import type { AccessTokenClaims } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,12 +25,14 @@ const mergeSchema = z.object({ mergeId: z.string().min(1).max(64) });
  */
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('customers')
 @Controller('admin/customers')
 export class AdminCustomersController {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Named rows (name, phone, email): customer_data too. */
   @Get()
+  @Access('customers', 'view', { customerData: true })
   list(
     @Query('q') q?: string,
     @Query('segment') segment?: string,
@@ -62,6 +64,7 @@ export class AdminCustomersController {
 
   /** The person behind one of our orders, with their cash on delivery risk (admin order page). */
   @Get('by-order/:orderId')
+  @Access('customers', 'view', { customerData: true })
   async byOrder(@Param('orderId') orderId: string) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
@@ -77,6 +80,7 @@ export class AdminCustomersController {
 
   /** Joins another profile of the same person into this one (audited). */
   @Post(':id/merge')
+  @Access('customers', 'manage', { customerData: true })
   merge(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(mergeSchema)) body: { mergeId: string },
@@ -90,6 +94,7 @@ export class AdminCustomersController {
   }
 
   @Get(':id')
+  @Access('customers', 'view', { customerData: true })
   async profile(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     const profile = await customerProfile(this.prisma, id);
     if (!profile) throw new DomainError('customer_not_found', 404);

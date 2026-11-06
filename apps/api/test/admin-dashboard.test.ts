@@ -60,13 +60,19 @@ describe('admin dashboard, settings, users and catalog', () => {
     for (const path of [
       '/admin/kpis',
       '/admin/live',
-      '/admin/settings',
       '/admin/audit',
       '/admin/users',
       '/admin/orders/export.csv',
     ])
       await staff.get(path).expect(403);
     await staff.post('/admin/skus').send({}).expect(403);
+    // Every team member's pages read the settings of their apps; changing one needs settings manage.
+    await staff.get('/admin/settings').expect(200);
+    const refused = await staff
+      .put('/admin/settings')
+      .send({ key: 'sla.pick_minutes', scope: 'global', value: 9 })
+      .expect(403);
+    expect(refused.body.error).toBe('no_access');
   });
 
   it('reports KPIs for a Cairo day range and the live board', async () => {

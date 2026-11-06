@@ -44,7 +44,7 @@ import {
 } from '@shiplynow/shared';
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
-import { CurrentUser, FinanceLevel, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -69,7 +69,7 @@ function days(from: string | undefined, to: string | undefined, today: string) {
  */
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class PeriodController {
   constructor(
@@ -207,7 +207,7 @@ export class PeriodController {
 
   /** Closes a finished year into retained earnings: approvers only. */
   @Post('year-close')
-  @FinanceLevel('approve')
+  @Access('accounting', 'manage')
   async closeYear(
     @Body(new ZodValidationPipe(yearCloseSchema)) body: z.infer<typeof yearCloseSchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -421,6 +421,7 @@ export class PeriodController {
   }
 
   @Get('tax-returns/payroll')
+  @Access('accounting', 'view', { salaries: true })
   @ApiQuery({ name: 'month', required: false })
   async payroll(@Query('month') month?: string) {
     const forms = await payrollForms(this.prisma, this.month(month));
@@ -429,6 +430,7 @@ export class PeriodController {
 
   /** Salary tax (kind "tax") or social insurance (kind "insurance") list for the month. */
   @Get('tax-returns/payroll.csv')
+  @Access('accounting', 'view', { salaries: true })
   @ApiQuery({ name: 'month', required: false })
   @ApiQuery({ name: 'kind', required: false, enum: ['tax', 'insurance'] })
   async payrollCsv(
@@ -502,7 +504,7 @@ export class PeriodController {
 
   /** Books the year's company income tax before closing the year: approvers only. */
   @Post('tax-returns/corporate')
-  @FinanceLevel('approve')
+  @Access('accounting', 'manage')
   bookCorporate(
     @Body(new ZodValidationPipe(corporateTaxSchema)) body: z.infer<typeof corporateTaxSchema>,
     @CurrentUser() user: AccessTokenClaims,

@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { listCashHandovers, recordCashHandover, riderCash } from '@shiplynow/db';
 import { type AccessTokenClaims, cashHandoverSchema } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
@@ -11,7 +11,7 @@ import { StoreAccessService } from './store-access.service';
 /** Riders hand the cash they collected to the store at the end of a shift. */
 @ApiTags('store')
 @ApiBearerAuth()
-@Roles('admin', 'store_staff')
+@Access('store')
 @Controller('stores/:storeId/cash')
 export class StoreCashController {
   constructor(

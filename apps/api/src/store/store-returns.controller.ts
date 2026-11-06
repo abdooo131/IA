@@ -14,7 +14,7 @@ import {
   returnPickSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
@@ -22,7 +22,7 @@ import { StoreAccessService } from './store-access.service';
 /** Staff pick merchant returns by scan and hand them to whoever collects. */
 @ApiTags('store')
 @ApiBearerAuth()
-@Roles('admin', 'store_staff')
+@Access('store')
 @Controller('stores/:storeId/returns')
 export class StoreReturnsController {
   constructor(

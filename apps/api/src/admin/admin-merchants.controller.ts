@@ -22,7 +22,7 @@ import {
   updateSkuSchema,
 } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -30,7 +30,7 @@ const rejectSchema = z.object({ reason: z.string().trim().min(2).max(300) });
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('merchants')
 @Controller('admin')
 export class AdminMerchantsController {
   constructor(private readonly prisma: PrismaService) {}
@@ -56,11 +56,13 @@ export class AdminMerchantsController {
 
   /** A self sign up: approve opens the account, reject needs a reason. */
   @Post('merchants/:id/approve')
+  @Access('merchants', 'manage')
   approve(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return decideSignUp(this.prisma, { merchantId: id, approve: true, actorUserId: user.sub });
   }
 
   @Post('merchants/:id/reject')
+  @Access('merchants', 'manage')
   reject(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(rejectSchema)) body: z.infer<typeof rejectSchema>,

@@ -4,7 +4,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DomainError, recordAudit } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { shopDomainSchema } from './security';
 
@@ -27,7 +27,7 @@ const catalogSchema = z.object({ createMissing: z.boolean().default(false) });
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('merchants')
 @Controller('admin/shopify')
 export class ShopifyAdminController {
   constructor(
@@ -125,6 +125,7 @@ export class ShopifyAdminController {
 
   /** Links a merchant to their Shopify store; they then install the app from the link. */
   @Post('link')
+  @Access('merchants', 'manage')
   async link(
     @Body(new ZodValidationPipe(linkSchema)) body: z.infer<typeof linkSchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -143,6 +144,7 @@ export class ShopifyAdminController {
    * App Store review). The client secret is stored sealed and never shown again.
    */
   @Post('apps')
+  @Access('merchants', 'manage')
   async addApp(
     @Body(new ZodValidationPipe(appSchema)) body: z.infer<typeof appSchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -172,6 +174,7 @@ export class ShopifyAdminController {
 
   /** Removes a custom app no store uses any more. */
   @Post('apps/:appId/remove')
+  @Access('merchants', 'manage')
   async removeApp(@Param('appId') appId: string, @CurrentUser() user: AccessTokenClaims) {
     const app = await this.prisma.shopifyApp.findUnique({
       where: { id: appId },
@@ -194,18 +197,21 @@ export class ShopifyAdminController {
 
   /** Connects a store through its custom app's own credentials, with no merchant step. */
   @Post(':id/connect')
+  @Access('merchants', 'manage')
   connect(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return this.setup.connectDirect(id, user.sub);
   }
 
   /** Also refreshes the shop's webhooks, so a new public address reaches Shopify. */
   @Post(':id/register-locations')
+  @Access('merchants', 'manage')
   async registerLocations(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     await this.setup.registerWebhooks(id);
     return this.setup.registerLocations(id, user.sub);
   }
 
   @Post(':id/carrier-service')
+  @Access('merchants', 'manage')
   registerCarrierService(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return this.setup.registerCarrierService(id, user.sub);
   }
@@ -221,6 +227,7 @@ export class ShopifyAdminController {
 
   /** Ends the link with this Shopify store (our locations and rate service are removed there). */
   @Post(':id/disconnect')
+  @Access('merchants', 'manage')
   disconnect(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     return this.setup.disconnect(id, user.sub);
   }

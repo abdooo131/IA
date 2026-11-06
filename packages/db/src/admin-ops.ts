@@ -12,6 +12,7 @@ import {
   type UpdateSkuBody,
   type UpdateUserBody,
 } from '@shiplynow/shared';
+import { assertCanDisable, createAccessFor, financeLevelOf } from './access';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 
@@ -118,7 +119,15 @@ export function createUser(db: Db, input: CreateUserBody & { actorUserId: Actor 
           ...(input.role === 'finance' && input.financeLevel
             ? { financeLevel: input.financeLevel }
             : {}),
+          // A merchant user made by admin is an owner of that merchant.
+          ...(input.role === 'merchant' ? { merchantRole: 'owner' as const } : {}),
         },
+      });
+      // Team members start from a job role (docs/ACCESS.md).
+      const access = await createAccessFor(tx, user, {
+        jobRole: input.jobRole,
+        storeIds: input.storeIds,
+        financeLevel: input.financeLevel,
       });
       if (input.role === 'rider') {
         await tx.rider.create({
@@ -130,7 +139,11 @@ export function createUser(db: Db, input: CreateUserBody & { actorUserId: Actor 
         action: 'user.create',
         entityType: 'user',
         entityId: user.id,
-        after: { ...userSnapshot(user), badgeCode: links.badgeCode },
+        after: {
+          ...userSnapshot(user),
+          badgeCode: links.badgeCode,
+          access: access ? { ...access } : null,
+        },
       });
       return user;
     });
@@ -147,6 +160,8 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
       if (!before) throw new DomainError('user_not_found', 404);
       if (input.userId === input.actorUserId && input.isActive === false)
         throw new DomainError('cannot_deactivate_self', 400);
+      // The last active person with settings manage cannot be disabled.
+      if (input.isActive === false && before.isActive) await assertCanDisable(tx, before.id);
 
       const darkStoreId = input.darkStoreId !== undefined ? input.darkStoreId : before.darkStoreId;
       const merchantId = input.merchantId !== undefined ? input.merchantId : before.merchantId;
@@ -174,6 +189,23 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
           financeLevel: before.role === 'finance' ? input.financeLevel : undefined,
         },
       });
+      // The older finance level field now sets the accounting level of the access profile.
+      let accessChange: { before: string; after: string } | null = null;
+      if (before.role === 'finance' && input.financeLevel) {
+        const accounting = ({ view: 'view', prepare: 'use', approve: 'manage' } as const)[
+          input.financeLevel
+        ];
+        const row = await tx.userAccess.findUnique({ where: { userId: before.id } });
+        if (row && row.accounting !== accounting) {
+          if (input.userId === input.actorUserId)
+            throw new DomainError('cannot_change_own_access', 403);
+          await tx.userAccess.update({
+            where: { userId: before.id },
+            data: { accounting, jobRole: 'custom' },
+          });
+          accessChange = { before: row.accounting, after: accounting };
+        }
+      }
       if (before.role === 'rider' && before.rider) {
         await tx.rider.update({
           where: { id: before.rider.id },
@@ -196,6 +228,7 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
         after: {
           ...userSnapshot(user),
           badgeCode: before.role === 'rider' ? badgeCode : null,
+          ...(accessChange && { accounting: accessChange.after }),
         },
       });
       return user;
@@ -242,6 +275,7 @@ export async function listUsers(db: Db, filter: { role?: Role; q?: string } = {}
       darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
       merchant: { select: { id: true, name: true } },
       rider: { select: { badgeCode: true } },
+      access: { select: { jobRole: true, accounting: true } },
     },
     orderBy: [{ role: 'asc' }, { name: 'asc' }],
   });
@@ -256,7 +290,10 @@ export async function listUsers(db: Db, filter: { role?: Role; q?: string } = {}
     merchant: u.merchant,
     badgeCode: u.rider?.badgeCode ?? null,
     slackUserId: u.slackUserId,
-    financeLevel: u.role === 'finance' ? u.financeLevel : null,
+    // Read from the accounting level of the access profile (docs/ACCESS.md).
+    financeLevel: u.role === 'finance' ? financeLevelOf(u.access?.accounting ?? 'none') : null,
+    jobRole: u.access?.jobRole ?? null,
+    merchantRole: u.role === 'merchant' ? (u.merchantRole ?? 'owner') : null,
     createdAt: u.createdAt,
   }));
 }

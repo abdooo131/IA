@@ -23,7 +23,7 @@ describe('record history', () => {
     await resetAndSeed(prisma);
   });
 
-  it('shows who changed a record, newest first, to admin; finance only for money records', async () => {
+  it('shows who changed a record, newest first, to the people of its app', async () => {
     const admin = await agent('admin@test.eg', 'admin-password-1');
     const finance = await agent('finance@shiplynow.local');
     const created = await finance
@@ -47,8 +47,13 @@ describe('record history', () => {
     });
     await admin.get(`/history/ledger_account/${created.body.id}`).expect(200);
 
+    // A record's history follows its app: the Finance manager views operations (stores) but
+    // not users, which are for settings manage.
     const store = await prisma.darkStore.findFirstOrThrow();
-    await finance.get(`/history/dark_store/${store.id}`).expect(403);
+    await finance.get(`/history/dark_store/${store.id}`).expect(200);
+    const someone = await prisma.user.findFirstOrThrow({ where: { role: 'rider' } });
+    await finance.get(`/history/user/${someone.id}`).expect(403);
+    await admin.get(`/history/user/${someone.id}`).expect(200);
     await admin.get(`/history/dark_store/${store.id}`).expect(200);
     const staff = await agent('staff.newcairo@shiplynow.local');
     await staff.get(`/history/ledger_account/${created.body.id}`).expect(403);

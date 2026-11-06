@@ -26,7 +26,7 @@ import {
   WAITING_STATUSES,
 } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
@@ -35,7 +35,7 @@ const packSchema = z.object({ photoId: z.string().min(1).max(64) });
 
 @ApiTags('store orders')
 @ApiBearerAuth()
-@Roles('admin', 'store_staff')
+@Access('store')
 @Controller('stores/:storeId/orders')
 export class StoreOrdersController {
   constructor(

@@ -1,12 +1,14 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { getSetting } from '@shiplynow/db';
-import { Roles } from '../auth/decorators';
+import { Access, CurrentAccess } from '../auth/decorators';
+import { storeFilter } from '../auth/access-scope';
+import { type AccessProfile } from '@shiplynow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access(['inventory', 'merchants', 'operations'])
 @Controller('admin')
 export class AdminCatalogController {
   constructor(private readonly prisma: PrismaService) {}
@@ -38,10 +40,12 @@ export class AdminCatalogController {
 
   /** Stock per store and SKU. Available is what Shopify may sell: on hand minus reserved minus the buffer. */
   @Get('stock')
+  @Access('inventory')
   @ApiQuery({ name: 'darkStoreId', required: false })
-  async stock(@Query('darkStoreId') darkStoreId?: string) {
+  async stock(@CurrentAccess() access: AccessProfile, @Query('darkStoreId') darkStoreId?: string) {
+    const scope = storeFilter(access, darkStoreId);
     const levels = await this.prisma.stockLevel.findMany({
-      where: darkStoreId ? { darkStoreId } : undefined,
+      where: scope ? { darkStoreId: scope } : undefined,
       include: { darkStore: true, sku: true },
       orderBy: [{ darkStore: { code: 'asc' } }, { sku: { sku: 'asc' } }],
     });

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { hashPassword, type Role, seed } from '@shiplynow/db';
+import { hashPassword, type Role, seed, writeAccess } from '@shiplynow/db';
+import { JOB_ROLE_TEMPLATES, type JobRole } from '@shiplynow/shared';
 import { AppModule } from '../src/app.module';
 import { Clock } from '../src/common/clock';
 import { Overpass } from '../src/coverage/geo-import.service';
@@ -80,11 +81,24 @@ export class FixedClock extends Clock {
   }
 }
 
+/** Gives a team member a job role's access (docs/ACCESS.md). */
+export function grantAccess(
+  prisma: PrismaService,
+  userId: string,
+  jobRole: JobRole,
+  storeIds: string[] = [],
+) {
+  return prisma.$transaction((tx) =>
+    writeAccess(tx, userId, { ...JOB_ROLE_TEMPLATES[jobRole], jobRole }, storeIds),
+  );
+}
+
+/** A user made straight in the database; admins get the Owner profile, finance Finance manager. */
 export async function createUser(
   prisma: PrismaService,
   data: { email: string; password: string; role: Role; name?: string; isActive?: boolean },
 ) {
-  return prisma.user.create({
+  const user = await prisma.user.create({
     data: {
       email: data.email,
       name: data.name ?? data.email,
@@ -93,6 +107,9 @@ export async function createUser(
       passwordHash: await hashPassword(data.password),
     },
   });
+  if (data.role === 'admin') await grantAccess(prisma, user.id, 'owner');
+  if (data.role === 'finance') await grantAccess(prisma, user.id, 'finance_manager');
+  return user;
 }
 
 /** Pulls the value of one cookie out of a Set-Cookie header list. */

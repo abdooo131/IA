@@ -55,8 +55,23 @@ describe('employees and outsourced staff end to end', () => {
       .send({ name: 'Delta Staffing', whtBp: 300 })
       .expect(201);
 
-    // Only admin decides who is outsourced.
-    await finance
+    // Who is outsourced is decided with accounting manage and the salaries right.
+    await admin
+      .post('/admin/users')
+      .send({
+        email: 'officer@shiply.eg',
+        name: 'Officer',
+        role: 'finance',
+        jobRole: 'finance_officer',
+        password: 'officer-pass-1',
+      })
+      .expect(201);
+    const officer = request.agent(app.getHttpServer());
+    await officer
+      .post('/auth/login')
+      .send({ email: 'officer@shiply.eg', password: 'officer-pass-1' })
+      .expect(200);
+    await officer
       .put(`/finance/employment/${rider.id}`)
       .send({ employment: 'outsourced', staffingSupplierId: agency.body.id })
       .expect(403);

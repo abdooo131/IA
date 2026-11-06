@@ -1,9 +1,10 @@
 import { Controller, Get, NotFoundException, Param, Post, Query, Req, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { DomainError, savePhoto } from '@shiplynow/db';
-import type { AccessTokenClaims } from '@shiplynow/shared';
+import { type AccessTokenClaims, canDo } from '@shiplynow/shared';
 import type { Request, Response } from 'express';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { loadAccess } from '../auth/access.guard';
+import { type AuthedRequest, CurrentUser, Roles } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** The first bytes every file of each allowed type starts with. */
@@ -31,13 +32,15 @@ export class PhotosController {
     @Req() req: Request,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    // Receipts are for finance and admin; pack and delivery proof for the store and riders.
-    const allowed =
-      user.role === 'finance'
-        ? ['receipt']
-        : user.role === 'admin'
-          ? ['pack', 'delivery', 'receipt']
-          : ['pack', 'delivery'];
+    // Receipts are for accounting (use); pack and delivery proof for the store and riders.
+    const allowed: string[] = [];
+    if (user.role === 'rider') allowed.push('pack', 'delivery');
+    else {
+      const access = await loadAccess(req as AuthedRequest, this.prisma);
+      if (canDo(access, 'store', 'use') || canDo(access, 'operations', 'use'))
+        allowed.push('pack', 'delivery');
+      if (canDo(access, 'accounting', 'use')) allowed.push('receipt');
+    }
     if (!allowed.includes(kind)) throw new DomainError('photo_kind_invalid', 400);
     if (!Buffer.isBuffer(req.body)) throw new DomainError('photo_type_not_allowed', 400);
     const contentType = (req.headers['content-type'] ?? '').split(';')[0]!.trim();

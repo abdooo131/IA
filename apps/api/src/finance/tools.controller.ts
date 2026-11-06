@@ -10,7 +10,7 @@ import {
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
@@ -20,7 +20,7 @@ import { csv, egp } from './finance-csv';
 /** The payout file for the bank, merchants' bank details, equipment sold. */
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class ToolsController {
   constructor(

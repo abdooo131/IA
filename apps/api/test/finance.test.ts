@@ -92,7 +92,10 @@ describe('finance', () => {
       .expect(201);
     const finance = await agent('fin@shiply.eg', 'finance-pass-1');
     await finance.get('/finance/overview').expect(200);
-    await finance.get('/admin/orders').expect(403);
+    // A Finance officer (the default for new finance users) reads orders but not users.
+    await finance.get('/admin/orders').expect(200);
+    await finance.get('/admin/users').expect(403);
+    await finance.post('/admin/zones').send({}).expect(403);
     const staff = await agent('staff.newcairo@shiplynow.local');
     await staff.get('/finance/overview').expect(403);
     const merchant = await agent('merchant@evechantelle.example');

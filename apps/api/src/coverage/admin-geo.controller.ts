@@ -10,7 +10,7 @@ import {
 } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { GeoImportService } from './geo-import.service';
@@ -26,7 +26,7 @@ const importSchema = z.object({ kind: z.enum(['places', 'streets']) });
 /** The area map: how addresses are placed, names it learned, and filling it from OpenStreetMap. */
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('operations')
 @Controller('admin/geo')
 export class AdminGeoController {
   constructor(
@@ -51,6 +51,7 @@ export class AdminGeoController {
   }
 
   @Post('suggestions/:id')
+  @Access('operations', 'manage')
   decide(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(decideSchema)) body: z.infer<typeof decideSchema>,
@@ -65,6 +66,7 @@ export class AdminGeoController {
   }
 
   @Post('areas/:id/names')
+  @Access('operations', 'manage')
   addName(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(nameSchema)) body: z.infer<typeof nameSchema>,
@@ -74,6 +76,7 @@ export class AdminGeoController {
   }
 
   @Post('import')
+  @Access('operations', 'manage')
   startImport(
     @Body(new ZodValidationPipe(importSchema)) body: z.infer<typeof importSchema>,
     @CurrentUser() user: AccessTokenClaims,

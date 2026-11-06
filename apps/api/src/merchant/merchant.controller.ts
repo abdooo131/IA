@@ -15,7 +15,7 @@ import {
   createManifestSchema,
 } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -71,6 +71,7 @@ export class MerchantController {
   }
 
   @Put('delivery')
+  @MerchantRight('settings')
   async setDelivery(
     @Body(new ZodValidationPipe(deliverySchema)) body: z.infer<typeof deliverySchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -93,6 +94,7 @@ export class MerchantController {
     return { expressPricePiastres: body.expressPricePiastres };
   }
 
+  /** Read by the order form too, so every member may list products. */
   @Get('skus')
   async skus(@CurrentUser() user: AccessTokenClaims) {
     const merchant = await this.merchantOf(user);
@@ -145,6 +147,7 @@ export class MerchantController {
   }
 
   @Get('manifests')
+  @MerchantRight('stock')
   async manifests(@CurrentUser() user: AccessTokenClaims) {
     const merchant = await this.merchantOf(user);
     const list = await this.prisma.inboundManifest.findMany({
@@ -176,6 +179,7 @@ export class MerchantController {
   }
 
   @Post('manifests')
+  @MerchantRight('stock')
   async create(
     @Body(new ZodValidationPipe(createManifestSchema)) body: CreateManifestBody,
     @CurrentUser() user: AccessTokenClaims,
@@ -190,6 +194,7 @@ export class MerchantController {
   }
 
   @Get('manifests/:id')
+  @MerchantRight('stock')
   async manifest(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     const merchant = await this.merchantOf(user);
     const detail = await getManifestDetail(this.prisma, id);
@@ -200,6 +205,7 @@ export class MerchantController {
   }
 
   @Post('manifests/:id/cancel')
+  @MerchantRight('stock')
   async cancel(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
     const merchant = await this.merchantOf(user);
     await cancelManifest(this.prisma, {

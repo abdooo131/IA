@@ -2,15 +2,21 @@ import type { INestApplication } from '@nestjs/common';
 import { MetadataScanner, ModulesContainer, Reflector } from '@nestjs/core';
 import { PATH_METADATA } from '@nestjs/common/constants';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { IS_PUBLIC_KEY, ROLES_KEY } from '../src/auth/decorators';
+import { ACCESS_KEY, IS_PUBLIC_KEY, ROLES_KEY } from '../src/auth/decorators';
 import { createTestApp } from './helpers';
 
 /**
  * Every route must say who may call it: @Public (checked another way, for example Shopify's
- * signature) or @Roles. Routes open to any signed in user are listed here on purpose, so a
- * new route can never be left open by accident.
+ * signature), @Access (team members by their access profile, docs/ACCESS.md) or @Roles.
+ * Routes open to any signed in user are listed here on purpose, so a new route can never be
+ * left open by accident.
  */
-const ANY_SIGNED_IN = new Set(['auth/me', 'photos/:id', 'photos']);
+const ANY_SIGNED_IN = new Set(['auth/me', 'photos/:id', 'photos', 'me/access']);
+/**
+ * Routes team members reach by role alone, without an access profile check: tickets (every
+ * team member and rider talks to every other) and proof photos (kinds checked inside).
+ */
+const TEAM_BY_ROLE = /^(tickets|photos)(\/|$)/;
 
 describe('route access', () => {
   let app: INestApplication;
@@ -28,6 +34,8 @@ describe('route access', () => {
     const reflector = new Reflector();
     const open: string[] = [];
     const publicRoutes: string[] = [];
+    const byRoleOnly: string[] = [];
+    const accessRoutes: string[] = [];
     let checked = 0;
     const controllers = [...modules.values()].flatMap((m) => [...m.controllers.values()]);
     expect(controllers.length).toBeGreaterThan(20);
@@ -43,15 +51,25 @@ describe('route access', () => {
         const paths = Array.isArray(sub) ? sub : [sub];
         const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler, metatype]);
         const roles = reflector.getAllAndOverride<string[]>(ROLES_KEY, [handler, metatype]);
+        const access = reflector.getAllAndOverride<unknown>(ACCESS_KEY, [handler, metatype]);
         for (const p of paths) {
           const route = [base, String(p)].filter(Boolean).join('/').replace(/\/+/g, '/');
           checked++;
           if (isPublic) publicRoutes.push(route);
-          else if (!roles?.length && !ANY_SIGNED_IN.has(route)) open.push(route);
+          else if (!roles?.length && !access && !ANY_SIGNED_IN.has(route)) open.push(route);
+          // A team role named in @Roles must not skip the access profile, except on purpose.
+          const team = roles?.some((r) => r === 'admin' || r === 'finance' || r === 'store_staff');
+          if (team && !access && !TEAM_BY_ROLE.test(route)) byRoleOnly.push(route);
+          if (access) accessRoutes.push(route);
         }
       }
     }
     expect(open).toEqual([]);
+    expect(byRoleOnly).toEqual([]);
+    expect(accessRoutes.length).toBeGreaterThan(200);
+    expect(accessRoutes).toEqual(
+      expect.arrayContaining(['admin/orders', 'finance/overview', 'stores/:storeId/summary']),
+    );
     // The walk really sees the routes.
     expect(publicRoutes).toEqual(
       expect.arrayContaining(['auth/login', 'shopify/rates/:shopId', 'shopify/proxy/areas']),

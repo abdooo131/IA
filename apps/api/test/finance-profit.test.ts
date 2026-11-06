@@ -49,11 +49,27 @@ describe('profit and salaries end to end', () => {
     const staff = await prisma.user.findUniqueOrThrow({
       where: { email: 'staff.newcairo@shiplynow.local' },
     });
-    // Only admin sets salaries.
-    await finance
+    // Salaries need accounting manage and the salaries right: a Finance officer has neither.
+    await admin
+      .post('/admin/users')
+      .send({
+        email: 'officer@shiply.eg',
+        name: 'Officer',
+        role: 'finance',
+        jobRole: 'finance_officer',
+        password: 'officer-pass-1',
+      })
+      .expect(201);
+    const officer = request.agent(app.getHttpServer());
+    await officer
+      .post('/auth/login')
+      .send({ email: 'officer@shiply.eg', password: 'officer-pass-1' })
+      .expect(200);
+    await officer
       .put(`/finance/salaries/${staff.id}`)
       .send({ monthlyPiastres: 500_000 })
       .expect(403);
+    await officer.get('/finance/staff-pay').expect(403);
     await admin.put(`/finance/salaries/${staff.id}`).send({ monthlyPiastres: 500_000 }).expect(200);
     const advance = await finance
       .post('/finance/advances')

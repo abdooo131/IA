@@ -18,7 +18,7 @@ import {
   ORDER_STATUSES,
   type OrderStatus,
 } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -31,6 +31,7 @@ const ADMIN_ONLY_ALERTS = new Set(['cod_risk_customer']);
 @ApiTags('merchant')
 @ApiBearerAuth()
 @Roles('merchant')
+@MerchantRight('orders')
 @Controller('merchant/orders')
 export class MerchantOrdersController {
   constructor(

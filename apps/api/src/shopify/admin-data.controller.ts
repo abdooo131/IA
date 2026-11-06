@@ -8,14 +8,14 @@ import {
   recordAudit,
 } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 import { ShopDataService } from './shop-data.service';
 
 /** What the merchants' Shopify stores tell us, one merchant at a time and all together. */
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('customers')
 @Controller('admin/data')
 export class AdminDataController {
   constructor(

@@ -1,19 +1,23 @@
 import { Controller, Get, NotFoundException, Param, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { getManifestDetail, type ManifestStatus, type Prisma } from '@shiplynow/db';
-import { Roles } from '../auth/decorators';
+import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
+import { assertStore, storeFilter } from '../auth/access-scope';
+import { type AccessProfile } from '@shiplynow/shared';
 import { PrismaService } from '../prisma/prisma.service';
 
 const STATUSES: ManifestStatus[] = ['expected', 'receiving', 'received', 'cancelled'];
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('inventory')
 @Controller('admin')
 export class AdminManifestsController {
   constructor(private readonly prisma: PrismaService) {}
 
+  /** Every merchant: a lookup the pages of every app read. */
   @Get('merchants')
+  @Access(ANY_APP)
   async merchants() {
     const merchants = await this.prisma.merchant.findMany({
       orderBy: { name: 'asc' },
@@ -40,6 +44,7 @@ export class AdminManifestsController {
   @ApiQuery({ name: 'merchantId', required: false })
   @ApiQuery({ name: 'q', required: false, description: 'Search in the reference' })
   async list(
+    @CurrentAccess() access: AccessProfile,
     @Query('status') status?: string,
     @Query('darkStoreId') darkStoreId?: string,
     @Query('merchantId') merchantId?: string,
@@ -47,7 +52,7 @@ export class AdminManifestsController {
   ) {
     const where: Prisma.InboundManifestWhereInput = {
       ...(STATUSES.includes(status as ManifestStatus) && { status: status as ManifestStatus }),
-      ...(darkStoreId && { darkStoreId }),
+      darkStoreId: storeFilter(access, darkStoreId),
       ...(merchantId && { merchantId }),
       ...(q && { reference: { contains: q, mode: 'insensitive' } }),
     };
@@ -77,9 +82,14 @@ export class AdminManifestsController {
   }
 
   @Get('manifests/:id')
-  async detail(@Param('id') id: string) {
+  async detail(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
     const detail = await getManifestDetail(this.prisma, id);
     if (!detail) throw new NotFoundException({ error: 'manifest_not_found' });
+    const row = await this.prisma.inboundManifest.findUnique({
+      where: { id },
+      select: { darkStoreId: true },
+    });
+    assertStore(access, row?.darkStoreId ?? null);
     return detail;
   }
 }

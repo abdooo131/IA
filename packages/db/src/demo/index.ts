@@ -331,6 +331,7 @@ async function setUp(
   // Finance: the person who prepares and a different person who approves.
   const financeUsers = await db.user.findMany({
     where: { role: 'finance', isActive: true },
+    include: { access: { select: { accounting: true } } },
     orderBy: { createdAt: 'asc' },
   });
   let preparer = financeUsers[0]?.id;
@@ -342,19 +343,21 @@ async function setUp(
         phone: '+201500000902',
         role: 'finance',
         password: options.demoPassword,
-        financeLevel: 'approve',
+        jobRole: 'finance_officer',
         actorUserId: admin,
       })
     ).id;
   }
-  let approver = financeUsers.find((u) => u.id !== preparer && u.financeLevel === 'approve')?.id;
+  let approver = financeUsers.find(
+    (u) => u.id !== preparer && u.access?.accounting === 'manage',
+  )?.id;
   if (!approver) {
     approver = (
       await createUser(db, {
         ...DEMO_APPROVER,
         role: 'finance',
         password: options.demoPassword,
-        financeLevel: 'approve',
+        jobRole: 'finance_manager',
         actorUserId: admin,
       })
     ).id;

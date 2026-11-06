@@ -4,7 +4,8 @@ import type { Db } from './client';
 export interface KpiFilter {
   from: Date;
   to: Date;
-  darkStoreId?: string;
+  /** One store, or a person's stores ({ in: [...] }) */
+  darkStoreId?: string | { in: string[] };
   merchantId?: string;
 }
 

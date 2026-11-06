@@ -17,6 +17,7 @@ import { TrackingModule } from './tracking/tracking.module';
 import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
+import { MeController } from './users/me.controller';
 import { UsersController } from './users/users.controller';
 
 @Module({
@@ -42,6 +43,6 @@ import { UsersController } from './users/users.controller';
     TrackingModule,
     TicketsModule,
   ],
-  controllers: [HealthController, UsersController],
+  controllers: [HealthController, UsersController, MeController],
 })
 export class AppModule {}

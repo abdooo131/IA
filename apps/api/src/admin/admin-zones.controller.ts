@@ -20,7 +20,7 @@ import {
   zonePolygonSchema,
 } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -35,7 +35,7 @@ const patchBody = z
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('operations')
 @Controller('admin/zones')
 export class AdminZonesController {
   constructor(private readonly prisma: PrismaService) {}
@@ -46,6 +46,7 @@ export class AdminZonesController {
   }
 
   @Post()
+  @Access('operations', 'manage')
   async create(
     @Body(new ZodValidationPipe(createZoneSchema)) body: CreateZoneInput,
     @CurrentUser() user: AccessTokenClaims,
@@ -84,6 +85,7 @@ export class AdminZonesController {
   }
 
   @Put(':id/area')
+  @Access('operations', 'manage')
   async setArea(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(areaBody)) body: { area: ZonePolygon },
@@ -107,6 +109,7 @@ export class AdminZonesController {
   }
 
   @Patch(':id')
+  @Access('operations', 'manage')
   async update(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(patchBody)) body: z.infer<typeof patchBody>,

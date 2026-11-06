@@ -1,15 +1,16 @@
 import { Controller, Get, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { computeKpis, type Kpis } from '@shiplynow/db';
-import { ACTIVE_STATUSES } from '@shiplynow/shared';
-import { Roles } from '../auth/decorators';
+import { ACTIVE_STATUSES, type AccessProfile } from '@shiplynow/shared';
+import { Access, CurrentAccess } from '../auth/decorators';
+import { storeFilter } from '../auth/access-scope';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('operations')
 @Controller('admin')
 export class AdminDashboardController {
   constructor(
@@ -31,6 +32,7 @@ export class AdminDashboardController {
   @ApiQuery({ name: 'darkStoreId', required: false })
   @ApiQuery({ name: 'merchantId', required: false })
   kpis(
+    @CurrentAccess() access: AccessProfile,
     @Query('from') from?: string,
     @Query('to') to?: string,
     @Query('darkStoreId') darkStoreId?: string,
@@ -39,27 +41,28 @@ export class AdminDashboardController {
     const range = parseRange(from, to, this.clock.now());
     return computeKpis(this.prisma, {
       ...range,
-      darkStoreId: darkStoreId || undefined,
+      darkStoreId: storeFilter(access, darkStoreId),
       merchantId: merchantId || undefined,
     });
   }
 
   /** What is happening right now in every store: the queue, late orders, riders and alerts. */
   @Get('live')
-  async live() {
+  async live(@CurrentAccess() access: AccessProfile) {
     const now = this.clock.now();
+    const scope = storeFilter(access);
     const [stores, orders, riders, alerts] = await Promise.all([
       this.prisma.darkStore.findMany({
-        where: { isActive: true },
+        where: { isActive: true, id: scope },
         select: { id: true, code: true, nameEn: true, nameAr: true },
         orderBy: { code: 'asc' },
       }),
       this.prisma.order.findMany({
-        where: { status: { in: [...ACTIVE_STATUSES] } },
+        where: { status: { in: [...ACTIVE_STATUSES] }, darkStoreId: scope },
         select: { darkStoreId: true, status: true, lateStage: true, slaDueAt: true },
       }),
       this.prisma.rider.findMany({
-        where: { user: { isActive: true } },
+        where: { user: { isActive: true }, darkStoreId: scope },
         select: {
           darkStoreId: true,
           deliveries: {
@@ -70,7 +73,7 @@ export class AdminDashboardController {
       }),
       this.prisma.alert.groupBy({
         by: ['darkStoreId'],
-        where: { resolvedAt: null },
+        where: { resolvedAt: null, darkStoreId: scope },
         _count: { _all: true },
       }),
     ]);

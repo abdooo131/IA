@@ -35,7 +35,7 @@ import {
   signaturesSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { CurrentUser, FinanceLevel, Public, Roles } from '../auth/decorators';
+import { Access, CurrentUser, Public } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
@@ -45,7 +45,7 @@ import { EtaClient, EtaSync } from './eta';
 /** Tax invoices to merchants, credit notes, and our tax details for the e-invoice system. */
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class InvoicesController {
   constructor(
@@ -136,7 +136,7 @@ export class InvoicesController {
   }
 
   @Put('company-profile')
-  @FinanceLevel('approve')
+  @Access('accounting', 'manage')
   async setProfile(
     @Body(new ZodValidationPipe(companyProfileSchema)) body: z.infer<typeof companyProfileSchema>,
     @CurrentUser() user: AccessTokenClaims,
@@ -149,8 +149,9 @@ export class InvoicesController {
   }
 
   /** A new key for the signing program, shown once. Admin only. */
+  /** The signing program's key: owners only (accounting and settings manage). */
   @Post('company-profile/signer-key')
-  @Roles('admin')
+  @Access('accounting', 'manage', { also: [['settings', 'manage']] })
   signerKey(@CurrentUser() user: AccessTokenClaims) {
     return createSignerKey(this.prisma, { actorUserId: user.sub });
   }

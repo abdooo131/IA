@@ -46,6 +46,7 @@ export function signUpMerchant(db: Db, input: SignUpInput) {
           passwordHash,
           isActive: auto,
           merchantId: merchant.id,
+          merchantRole: 'owner',
         },
       });
       await tx.alert.create({

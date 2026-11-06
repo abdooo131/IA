@@ -21,6 +21,7 @@ import {
   submitMerchantReceipt,
 } from '@shiplynow/db';
 import {
+  type AccessProfile,
   type AccessTokenClaims,
   addDays,
   bankDepositSchema,
@@ -39,7 +40,8 @@ import {
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { storeFilter } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseBound, parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -57,7 +59,7 @@ const endOfDay = (day: string) => cairoDayStart(addDays(day, 1));
 
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class FinanceController {
   constructor(
@@ -74,10 +76,14 @@ export class FinanceController {
   @Get('handovers')
   @ApiQuery({ name: 'status', required: false })
   @ApiQuery({ name: 'darkStoreId', required: false })
-  handovers(@Query('status') status?: string, @Query('darkStoreId') darkStoreId?: string) {
+  handovers(
+    @CurrentAccess() access: AccessProfile,
+    @Query('status') status?: string,
+    @Query('darkStoreId') darkStoreId?: string,
+  ) {
     return listCashHandovers(this.prisma, {
       status: pick(HANDOVER_STATUSES, status),
-      darkStoreId: darkStoreId || undefined,
+      darkStoreId: storeFilter(access, darkStoreId),
     });
   }
 

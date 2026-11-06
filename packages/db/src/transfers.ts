@@ -499,7 +499,14 @@ const storeRef = { select: { id: true, kind: true, code: true, nameEn: true, nam
 
 export async function listTransfers(
   db: Db,
-  filter: { status?: TransferStatus[]; fromId?: string; toId?: string; locationId?: string },
+  filter: {
+    status?: TransferStatus[];
+    fromId?: string;
+    toId?: string;
+    locationId?: string;
+    /** A person's stores: transfers leaving or reaching one of them */
+    locationIds?: string[];
+  },
 ) {
   const rows = await db.transfer.findMany({
     where: {
@@ -508,6 +515,17 @@ export async function listTransfers(
       toId: filter.toId,
       ...(filter.locationId && {
         OR: [{ fromId: filter.locationId }, { toId: filter.locationId }],
+      }),
+      ...(filter.locationIds && {
+        AND: [
+          {
+            OR: [
+              { fromId: { in: filter.locationIds } },
+              { toId: { in: filter.locationIds } },
+              { finalDestinationId: { in: filter.locationIds } },
+            ],
+          },
+        ],
       }),
     },
     include: {

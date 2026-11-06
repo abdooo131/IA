@@ -1,7 +1,15 @@
 import { ensureDefaultAccounts } from '../finance';
 import { applyAreaDictionary, loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
-import { passwordSchema, SETTING_DEFINITIONS, SETTING_KEYS, GLOBAL_SCOPE } from '@shiplynow/shared';
+import {
+  GLOBAL_SCOPE,
+  JOB_ROLE_TEMPLATES,
+  type JobRole,
+  passwordSchema,
+  SETTING_DEFINITIONS,
+  SETTING_KEYS,
+} from '@shiplynow/shared';
+import { writeAccess } from '../access';
 import { hashPassword } from '../password';
 import { move, receive } from '../stock';
 import { setZoneArea } from '../zones';
@@ -17,6 +25,20 @@ import {
   STORE_GOVERNORATE_ID,
   STORES,
 } from './data';
+
+/** Gives a seeded team member a job role's access, only when they have none yet. */
+async function ensureAccess(
+  prisma: PrismaClient,
+  userId: string,
+  jobRole: JobRole,
+  storeIds: string[],
+) {
+  const existing = await prisma.userAccess.findUnique({ where: { userId } });
+  if (existing) return;
+  await prisma.$transaction((tx) =>
+    writeAccess(tx, userId, { ...JOB_ROLE_TEMPLATES[jobRole], jobRole }, storeIds),
+  );
+}
 
 export interface SeedOptions {
   admin: { email: string; password: string; name: string };
@@ -53,6 +75,7 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
       passwordHash: await hashPassword(options.admin.password),
     },
   });
+  await ensureAccess(prisma, admin.id, 'owner', []);
   log(`Admin: ${admin.email}`);
 
   for (const key of SETTING_KEYS) {
@@ -152,9 +175,13 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
         role: u.role,
         darkStoreId,
         merchantId: u.role === 'merchant' ? merchant.id : null,
+        merchantRole: u.role === 'merchant' ? 'owner' : null,
         passwordHash: demoHash,
       },
     });
+    if (u.role === 'store_staff' && darkStoreId)
+      await ensureAccess(prisma, user.id, 'store_staff', [darkStoreId]);
+    if (u.role === 'finance') await ensureAccess(prisma, user.id, 'finance_manager', []);
     if (u.role === 'rider' && u.badgeCode && darkStoreId) {
       await prisma.rider.upsert({
         where: { userId: user.id },

@@ -102,3 +102,49 @@ themselves, and a merchant always keeps one active owner.
 - store_staff → Store staff for their own store.
 - merchant users → owner (the first) ; any further users of the same merchant become owner
   too, so nobody loses access; the owner can lower them.
+
+## Decisions taken while building the server side
+
+These were left open above and decided in the code; change them here first if the business
+wants otherwise.
+
+- Moving existing users: finance users at level view get exactly the Accountant row
+  (accounting view), so they are labelled `accountant`.
+- New team members without a job role: admin accounts start as Operations manager, finance
+  accounts as Finance officer (or Finance manager / Accountant when the old finance level
+  approve / view is sent), store staff as Store staff of their own store. A team member without
+  a profile row opens nothing. A profile limited to listed stores needs at least one store
+  (`stores_required`).
+- Settings: every team member may read the settings (their app pages show them); changing one
+  needs settings manage, except a merchant's own fees (`merchant:<id>` scope), which merchants
+  manage may also change.
+- Owner only, as before: posting opening balances and creating the e-invoice signer key need
+  accounting manage and settings manage. Reopening closed books (moving the lock date back)
+  needs settings manage.
+- Salaries: setting a salary or employment type needs accounting manage and `salaries`; staff
+  pay, payslips, the payroll run (and its preview), advances, staff bonuses and the monthly
+  salary tax lists need the matching accounting level and `salaries`.
+- Customers: the customer list (it shows names and phones), the person behind an order and a
+  profile need `customer_data`; the overview and districts need customers view only; merging
+  needs customers manage and `customer_data`. The Shopify data pages (market, per merchant) are
+  customers view; collecting a store again is customers use.
+- Operations: cancelling an order before picking starts (new, accepted) needs operations use,
+  after that operations manage. Address lookups are use; approving suggestions, adding area
+  names and the area import are manage.
+- Inventory: transfers, returns and counts follow "approve or cancel = manage"; creating a
+  transfer, refill targets and preparing refill drafts are use. A transfer can be created only
+  from one of the person's stores.
+- Merchants: Shopify link, apps, connect, disconnect, locations and the checkout rate are
+  manage; syncing products or a store now is use. Creating or editing merchants and products
+  is use; approving or rejecting sign ups is manage.
+- Lookups read by every app (stores list, merchants list, settings) need any team access; the
+  locations list is not open to people who only have the store screens, and is filtered to the
+  person's stores.
+- Record history follows the record's app (orders in operations, transfers in inventory,
+  money records in accounting, merchants in merchants or accounting); users, settings and
+  anything not listed need settings manage.
+- Proof photos: pack and delivery photos need store use or operations use, receipt photos
+  accounting use. Tickets stay open to every team member and rider by role.
+- Merchant members: every member may read their merchant's details, notifications, products
+  (the order form needs them), stores and the 60 minute price; changing the price and the payout
+  schedule needs `settings`.

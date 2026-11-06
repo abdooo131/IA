@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { passwordSchema } from './auth';
 import { egyptianPhoneSchema } from './phone';
+import { JOB_ROLES } from './access';
 import { ROLES } from './roles';
 import { SETTING_KEYS } from './settings';
 
@@ -30,8 +31,12 @@ export const createUserSchema = z.object({
   darkStoreId: id.nullable().optional(),
   merchantId: id.nullable().optional(),
   badgeCode: badgeCodeSchema.nullable().optional(),
-  /** Finance users: view, prepare or approve (default approve) */
+  /** Finance users without a job role: view, prepare or approve (default approve) */
   financeLevel: z.enum(['view', 'prepare', 'approve']).optional(),
+  /** Team members: the job role their access starts from (docs/ACCESS.md) */
+  jobRole: z.enum(JOB_ROLES).optional(),
+  /** Team members working in listed stores: those stores (default: their own store) */
+  storeIds: z.array(id).max(200).optional(),
 });
 export type CreateUserBody = z.infer<typeof createUserSchema>;
 

@@ -57,8 +57,8 @@ describe('finance controls end to end', () => {
       .send({ approve: true })
       .expect(201);
 
-    // A viewer only reads.
-    await admin.patch(`/admin/users/${me.id}`).send({ financeLevel: 'view' }).expect(200);
+    // A viewer (Accountant: accounting view) only reads.
+    await admin.put(`/admin/users/${me.id}/access`).send({ jobRole: 'accountant' }).expect(200);
     await finance.get('/finance/controls').expect(200);
     const refused = await finance
       .post('/finance/expenses')
@@ -71,13 +71,20 @@ describe('finance controls end to end', () => {
         idempotencyKey: key(),
       })
       .expect(403);
-    expect(refused.body.error).toBe('finance_level_too_low');
+    expect(refused.body.error).toBe('no_access');
 
-    // A preparer records but cannot close months; an approver can, and only admin reopens.
-    await admin.patch(`/admin/users/${me.id}`).send({ financeLevel: 'prepare' }).expect(200);
+    // A preparer (Finance officer: accounting use) records but cannot close months; an approver
+    // (Finance manager: accounting manage) can, and only an owner (settings manage) reopens.
+    await admin
+      .put(`/admin/users/${me.id}/access`)
+      .send({ jobRole: 'finance_officer' })
+      .expect(200);
     const yesterday = addDays(cairoDay(new Date()), -1);
     await finance.post('/finance/books-lock').send({ day: yesterday }).expect(403);
-    await admin.patch(`/admin/users/${me.id}`).send({ financeLevel: 'approve' }).expect(200);
+    await admin
+      .put(`/admin/users/${me.id}/access`)
+      .send({ jobRole: 'finance_manager' })
+      .expect(200);
     await finance.post('/finance/books-lock').send({ day: yesterday }).expect(201);
     const late = await finance
       .post('/finance/expenses')

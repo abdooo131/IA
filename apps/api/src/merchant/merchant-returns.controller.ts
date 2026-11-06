@@ -16,7 +16,7 @@ import {
   createReturnSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -24,6 +24,7 @@ import { PrismaService } from '../prisma/prisma.service';
 @ApiTags('merchant')
 @ApiBearerAuth()
 @Roles('merchant')
+@MerchantRight('stock')
 @Controller('merchant/returns')
 export class MerchantReturnsController {
   constructor(private readonly prisma: PrismaService) {}

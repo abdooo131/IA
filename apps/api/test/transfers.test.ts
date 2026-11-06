@@ -4,7 +4,7 @@ import { hashPassword } from '@shiplynow/db';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, resetAndSeed } from './helpers';
+import { createTestApp, grantAccess, resetAndSeed } from './helpers';
 
 const DEMO = 'demo-password-1';
 
@@ -79,7 +79,7 @@ describe('hub and transfers end to end', () => {
         passwordHash: await hashPassword(DEMO),
       },
     });
-    expect(hubStaff.id).toBeDefined();
+    await grantAccess(prisma, hubStaff.id, 'hub_staff', [hub]);
 
     // Merchants now ship to the hub only.
     const merchant = await agent('merchant@evechantelle.example');

@@ -5,6 +5,7 @@ import { MerchantOrdersController } from './merchant-orders.controller';
 import { MerchantFinanceController } from './merchant-finance.controller';
 import { MerchantController } from './merchant.controller';
 import { MerchantReturnsController } from './merchant-returns.controller';
+import { MerchantTeamController } from './merchant-team.controller';
 
 @Module({
   imports: [OrdersModule, CoverageModule],
@@ -13,6 +14,7 @@ import { MerchantReturnsController } from './merchant-returns.controller';
     MerchantOrdersController,
     MerchantFinanceController,
     MerchantReturnsController,
+    MerchantTeamController,
   ],
 })
 export class MerchantModule {}

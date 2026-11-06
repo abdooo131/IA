@@ -28,7 +28,7 @@ import {
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -39,6 +39,7 @@ import { PrismaService } from '../prisma/prisma.service';
 @ApiTags('merchant')
 @ApiBearerAuth()
 @Roles('merchant')
+@MerchantRight('money')
 @Controller('merchant/finance')
 export class MerchantFinanceController {
   constructor(
@@ -57,6 +58,7 @@ export class MerchantFinanceController {
 
   /** Merchants choose how often they are paid; finance still prepares and sends each payout. */
   @Patch('payout-schedule')
+  @MerchantRight('settings')
   async schedule(
     @Body(new ZodValidationPipe(payoutScheduleSchema)) body: z.infer<typeof payoutScheduleSchema>,
     @CurrentUser() user: AccessTokenClaims,

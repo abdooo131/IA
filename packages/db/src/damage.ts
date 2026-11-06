@@ -206,7 +206,11 @@ export function settleDamage(db: Db, input: SettleDamageInput) {
 
 export async function listDamageReports(
   db: Db,
-  filter: { status?: 'pending' | 'settled'; merchantId?: string; darkStoreId?: string },
+  filter: {
+    status?: 'pending' | 'settled';
+    merchantId?: string;
+    darkStoreId?: string | { in: string[] };
+  },
 ) {
   const rows = await db.damageReport.findMany({
     where: filter,

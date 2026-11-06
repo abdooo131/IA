@@ -3,7 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DomainError, recordAudit } from '@shiplynow/db';
 import type { AccessTokenClaims } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { sealToken, shopDomainSchema } from './security';
 import { ShopifySetupService } from './shopify-setup.service';
@@ -25,6 +25,7 @@ const connectSchema = z.object({
 @ApiTags('merchant')
 @ApiBearerAuth()
 @Roles('merchant')
+@MerchantRight('settings')
 @Controller('merchant/shopify')
 export class MerchantShopifyController {
   constructor(

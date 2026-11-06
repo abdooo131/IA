@@ -1,4 +1,14 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   cancelOrder,
@@ -18,9 +28,12 @@ import {
   createOrderSchema,
   ORDER_STATUSES,
   type OrderStatus,
+  type AccessProfile,
+  canDo,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { assertStore, storeFilter } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { parseBound } from '../common/dates';
 import { ordersCsv } from './orders-csv';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -29,7 +42,7 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('operations')
 @Controller('admin')
 export class AdminOrdersController {
   constructor(
@@ -46,6 +59,7 @@ export class AdminOrdersController {
   @ApiQuery({ name: 'q', required: false })
   @ApiQuery({ name: 'late', required: false })
   async list(
+    @CurrentAccess() access: AccessProfile,
     @Query('status') status?: string,
     @Query('darkStoreId') darkStoreId?: string,
     @Query('merchantId') merchantId?: string,
@@ -56,7 +70,7 @@ export class AdminOrdersController {
   ) {
     return listOrders(
       this.prisma,
-      this.filter({ status, darkStoreId, merchantId, from, to, q, late }),
+      this.filter(access, { status, darkStoreId, merchantId, from, to, q, late }),
     );
   }
 
@@ -71,6 +85,7 @@ export class AdminOrdersController {
   @ApiQuery({ name: 'late', required: false })
   async exportCsv(
     @Res() res: Response,
+    @CurrentAccess() access: AccessProfile,
     @Query('status') status?: string,
     @Query('darkStoreId') darkStoreId?: string,
     @Query('merchantId') merchantId?: string,
@@ -80,7 +95,7 @@ export class AdminOrdersController {
     @Query('late') late?: string,
   ) {
     const orders = await listOrders(this.prisma, {
-      ...this.filter({ status, darkStoreId, merchantId, from, to, q, late }),
+      ...this.filter(access, { status, darkStoreId, merchantId, from, to, q, late }),
       take: 1000,
     });
     res.setHeader('content-type', 'text/csv; charset=utf-8');
@@ -88,21 +103,24 @@ export class AdminOrdersController {
     res.send(ordersCsv(orders));
   }
 
-  private filter(f: {
-    status?: string;
-    darkStoreId?: string;
-    merchantId?: string;
-    from?: string;
-    to?: string;
-    q?: string;
-    late?: string;
-  }) {
+  private filter(
+    access: AccessProfile,
+    f: {
+      status?: string;
+      darkStoreId?: string;
+      merchantId?: string;
+      from?: string;
+      to?: string;
+      q?: string;
+      late?: string;
+    },
+  ) {
     const { status, darkStoreId, merchantId, from, to, q, late } = f;
     return {
       statuses: ORDER_STATUSES.includes(status as OrderStatus)
         ? [status as OrderStatus]
         : undefined,
-      darkStoreId: darkStoreId || undefined,
+      darkStoreId: storeFilter(access, darkStoreId),
       merchantId: merchantId || undefined,
       from: parseBound(from, 'from'),
       to: parseBound(to, 'to'),
@@ -112,9 +130,13 @@ export class AdminOrdersController {
   }
 
   @Get('orders/:id')
-  async detail(@Param('id') id: string): Promise<OrderDetail> {
+  async detail(
+    @Param('id') id: string,
+    @CurrentAccess() access: AccessProfile,
+  ): Promise<OrderDetail> {
     const detail = await getOrderDetail(this.prisma, id);
     if (!detail) throw new NotFoundException({ error: 'order_not_found' });
+    await this.orderIn(id, access);
     return detail;
   }
 
@@ -122,9 +144,12 @@ export class AdminOrdersController {
   async create(
     @Body(new ZodValidationPipe(createOrderSchema)) body: CreateOrderBody,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
     if (!body.merchantId) throw new DomainError('merchant_required', 400);
-    return this.intake.create(body.merchantId, body, user.sub);
+    return this.intake.create(body.merchantId, body, user.sub, 'manual', (darkStoreId) =>
+      assertStore(access, darkStoreId),
+    );
   }
 
   @Post('orders/:id/cancel')
@@ -132,25 +157,40 @@ export class AdminOrdersController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(cancelOrderSchema)) body: { reason: string },
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
+    const order = await this.orderIn(id, access);
+    // Once picking has started, cancelling undoes store work: operations manage.
+    if (
+      order &&
+      !['new', 'accepted'].includes(order.status) &&
+      !canDo(access, 'operations', 'manage')
+    )
+      throw new ForbiddenException({ error: 'no_access' });
     await cancelOrder(this.prisma, { orderId: id, reason: body.reason, actorUserId: user.sub });
     return { status: 'cancelled' };
   }
 
   @Post('orders/:id/decision')
-  decide(
+  async decide(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(failedOrderDecisionSchema)) body: FailedOrderDecision,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
+    await this.orderIn(id, access);
     return decideFailedOrder(this.prisma, { orderId: id, decision: body, actorUserId: user.sub });
   }
 
   @Get('alerts')
   @ApiQuery({ name: 'open', required: false, description: 'true for unresolved only (default)' })
-  async alerts(@Query('open') open?: string) {
+  async alerts(@CurrentAccess() access: AccessProfile, @Query('open') open?: string) {
     const alerts = await this.prisma.alert.findMany({
-      where: open === 'false' ? undefined : { resolvedAt: null },
+      where: {
+        ...(open !== 'false' && { resolvedAt: null }),
+        // People limited to some stores see only those stores' alerts.
+        darkStoreId: storeFilter(access),
+      },
       include: {
         order: { select: { id: true, number: true, status: true } },
         darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
@@ -173,7 +213,16 @@ export class AdminOrdersController {
   }
 
   @Post('alerts/:id/resolve')
-  async resolve(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async resolve(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    const alert = await this.prisma.alert.findUnique({
+      where: { id },
+      select: { darkStoreId: true },
+    });
+    if (alert) assertStore(access, alert.darkStoreId);
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.alert.updateMany({
         where: { id, resolvedAt: null },
@@ -190,5 +239,15 @@ export class AdminOrdersController {
       });
       return { resolved: true };
     });
+  }
+
+  /** The order's store must be one of the person's stores (404 is left to the caller). */
+  private async orderIn(id: string, access: AccessProfile) {
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: { darkStoreId: true, status: true },
+    });
+    if (order) assertStore(access, order.darkStoreId);
+    return order;
   }
 }

@@ -1,22 +1,33 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
-import { createUser, listUsers, resetUserPassword, updateUser } from '@shiplynow/db';
+import {
+  createUser,
+  getUserAccess,
+  listUsers,
+  resetUserPassword,
+  setUserAccess,
+  updateUser,
+} from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   type CreateUserBody,
   createUserSchema,
+  JOB_ROLE_TEMPLATES,
+  JOB_ROLES,
+  type SetAccessBody,
+  setAccessSchema,
   isRole,
   resetPasswordSchema,
   type UpdateUserBody,
   updateUserSchema,
 } from '@shiplynow/shared';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-@Roles('admin')
+@Access('settings', 'manage')
 @Controller('admin/users')
 export class AdminUsersController {
   constructor(private readonly prisma: PrismaService) {}
@@ -58,5 +69,34 @@ export class AdminUsersController {
       password: body.password,
       actorUserId: user.sub,
     });
+  }
+
+  /** A team member's access profile and stores (docs/ACCESS.md). */
+  @Get(':id/access')
+  access(@Param('id') id: string) {
+    return getUserAccess(this.prisma, id);
+  }
+
+  /** Sets access from a job role or custom values; never one's own, audited. */
+  @Put(':id/access')
+  async setAccess(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(setAccessSchema)) body: SetAccessBody,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await setUserAccess(this.prisma, { userId: id, body, actorUserId: user.sub });
+    return getUserAccess(this.prisma, id);
+  }
+}
+
+/** The ready made job roles that fill a profile in one click. */
+@ApiTags('admin')
+@ApiBearerAuth()
+@Access('settings', 'manage')
+@Controller('admin/access')
+export class AdminAccessController {
+  @Get('job-roles')
+  jobRoles() {
+    return JOB_ROLES.map((jobRole) => ({ jobRole, ...JOB_ROLE_TEMPLATES[jobRole] }));
   }
 }

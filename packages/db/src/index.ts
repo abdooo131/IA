@@ -1,5 +1,19 @@
 export * from '@prisma/client';
 export { recordAudit, type AuditEntry } from './audit';
+export {
+  assertCanDisable,
+  createMerchantTeamUser,
+  defaultJobRole,
+  financeLevelOf,
+  getAccessProfile,
+  getMerchantAccess,
+  getUserAccess,
+  listMerchantTeam,
+  resetMerchantTeamPassword,
+  setUserAccess,
+  updateMerchantTeamUser,
+  writeAccess,
+} from './access';
 export { type Db, inTransaction } from './client';
 export { approveCount, rejectCount, submitCount, type SubmitCountInput } from './counts';
 export { DomainError } from './domain-error';

@@ -32,7 +32,7 @@ import {
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { Access, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseBound, parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -62,7 +62,7 @@ export const submitted = (
 /** The company books: chart of accounts, money movements and the accountant's reports. */
 @ApiTags('finance')
 @ApiBearerAuth()
-@Roles('admin', 'finance')
+@Access('accounting')
 @Controller('finance')
 export class BooksController {
   constructor(
