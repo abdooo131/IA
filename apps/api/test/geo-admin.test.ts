@@ -160,6 +160,12 @@ describe('admin area map', () => {
     expect(owners[newCairo.id]).toMatchObject({ zoneId: ncr.id, inherited: false });
     expect(owners[quarter.id]).toMatchObject({ zoneId: maa.id, inherited: false });
     expect(map.body.areas[0].geometry.type).toMatch(/Polygon/);
+    // A zone's own areas, for its list on the zone screen.
+    const own = await admin
+      .get('/admin/zones/areas')
+      .query({ zoneId: maa.id, levels: '2,3,4' })
+      .expect(200);
+    expect(own.body.areas.map((a: { id: string }) => a.id)).toEqual([quarter.id]);
 
     await admin.post(`/admin/zones/areas/${quarter.id}/exclude`).send({}).expect(201);
     await admin.delete(`/admin/zones/areas/${quarter.id}`).expect(200);

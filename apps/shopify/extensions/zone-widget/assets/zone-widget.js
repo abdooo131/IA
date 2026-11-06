@@ -1,11 +1,62 @@
 /*
- * Shiply Now storefront widget. The customer picks their area once; the bar then says
- * whether 60 minute delivery reaches it, and product and collection pages mark what the
- * area's dark store has in stock. Everything comes from the app proxy and is only a hint:
- * the checkout rate checks the real address, hours and stock again before payment.
+ * Shiply Now storefront widget. The customer finds their neighbourhood (or uses their
+ * location) once; the bar then says whether 60 minute delivery reaches it, and product and
+ * collection pages mark what that place's dark store has in stock. Everything comes from the
+ * app proxy and is only a hint: the checkout rate checks the real address, hours and stock
+ * again before payment.
  */
 (function () {
   'use strict';
+
+  // ─── pure helpers (also loaded by the tests) ─────────────────────────────────
+
+  /** The proxy parameters for a saved choice: a pin, a picked area or an old zone. */
+  function placeParams(choice) {
+    if (!choice) return null;
+    if (choice.pin) return { lat: String(choice.pin.lat), lng: String(choice.pin.lng) };
+    if (choice.areaId) return { area: choice.areaId };
+    if (choice.zoneId) return { zone: choice.zoneId };
+    return null;
+  }
+
+  /**
+   * The cart attributes for a choice, so checkout and the fulfillment request use the same
+   * place: _shiplynow_area (area id) or _shiplynow_pin ("lat,lng"), the other one cleared,
+   * and _shiplynow_zone kept for older readers.
+   */
+  function cartAttributes(choice, zoneId) {
+    return {
+      _shiplynow_area: (choice && !choice.pin && choice.areaId) || '',
+      _shiplynow_pin: choice && choice.pin ? choice.pin.lat + ',' + choice.pin.lng : '',
+      _shiplynow_zone: zoneId || (choice && choice.zoneId) || '',
+    };
+  }
+
+  /** A position rounded to about a metre, the way the cart keeps it. */
+  function roundPin(lat, lng) {
+    return { lat: Math.round(lat * 1e6) / 1e6, lng: Math.round(lng * 1e6) / 1e6 };
+  }
+
+  /** Calls `run` once typing has paused for `wait` milliseconds. */
+  function debounce(run, wait) {
+    var timer = null;
+    return function () {
+      var args = arguments;
+      clearTimeout(timer);
+      timer = setTimeout(function () {
+        run.apply(null, args);
+      }, wait);
+    };
+  }
+
+  var helpers = {
+    placeParams: placeParams,
+    cartAttributes: cartAttributes,
+    roundPin: roundPin,
+    debounce: debounce,
+  };
+  if (typeof module === 'object' && module.exports) module.exports = helpers;
+  if (typeof document === 'undefined') return;
 
   var root = document.getElementById('shiplynow-widget');
   if (!root || root.getAttribute('data-ready')) return;
@@ -13,7 +64,7 @@
 
   var PROXY = root.getAttribute('data-proxy') || '/apps/shiplynow';
   var HIDE = root.getAttribute('data-hide-unavailable') === 'true';
-  // After choosing an area, open the area's page with everything its dark store can deliver.
+  // After choosing a place, open its page with everything its dark store can deliver.
   var OPEN_PAGE = root.getAttribute('data-open-page') === 'true';
   var KEY = 'shiplynow_area';
   var MAX_PRODUCTS = 48;
@@ -33,11 +84,22 @@
       closed: '60 minute delivery to {area} starts again {when}',
       closedSoon: '60 minute delivery to {area} is closed now',
       busy: '{area}: we are busy right now. Try again in a little while',
+      outside: '60 minute delivery does not reach {area} yet',
+      outsideHere: '60 minute delivery does not reach your location yet',
+      unsure: 'Pick your neighbourhood so we can check 60 minute delivery',
+      here: 'your location',
       title: 'Where should we deliver?',
-      search: 'Search your area',
+      search: 'Search your neighbourhood or compound',
+      searchHint: 'Type at least 2 letters, in Arabic or English.',
+      locate: 'Use my location',
+      locating: 'Finding your location…',
+      locateFailed: 'Could not get your location. Search your neighbourhood instead.',
       close: 'Close',
-      none: 'No area matches. We deliver in 60 minutes only in these areas for now.',
-      failed: 'Could not load the areas. Try again.',
+      none: 'No neighbourhood with that name gets 60 minute delivery. Try another spelling or use your location.',
+      results: '{count} places found',
+      failed: 'Could not search right now. Try again.',
+      unsureNote:
+        'We could not tell exactly where you are. Please pick your neighbourhood from the list so we send your order from the right store.',
       badge: '60 min',
       arrives: 'Arrives in {minutes} minutes to {area}',
       standard: 'Not in stock for 60 minutes in {area}; normal delivery only',
@@ -51,11 +113,22 @@
       closed: 'توصيل الـ 60 دقيقة لـ {area} يرجع {when}',
       closedSoon: 'توصيل الـ 60 دقيقة لـ {area} مقفول دلوقتي',
       busy: '{area}: عندنا ضغط دلوقتي. جرّب بعد شوية',
+      outside: 'توصيل الـ 60 دقيقة لسه مش واصل {area}',
+      outsideHere: 'توصيل الـ 60 دقيقة لسه مش واصل مكانك',
+      unsure: 'اختار الحي بتاعك عشان نعرف إذا كان التوصيل خلال 60 دقيقة متاح',
+      here: 'مكانك',
       title: 'نوصّل فين؟',
-      search: 'دوّر على منطقتك',
+      search: 'دوّر على الحي أو الكمبوند',
+      searchHint: 'اكتب حرفين على الأقل، بالعربي أو الإنجليزي.',
+      locate: 'استخدم موقعي',
+      locating: 'بنحدد مكانك…',
+      locateFailed: 'مقدرناش نعرف مكانك. دوّر على الحي بتاعك بدل كده.',
       close: 'إغلاق',
-      none: 'مفيش منطقة بالاسم ده. التوصيل خلال 60 دقيقة متاح في المناطق دي بس حاليًا.',
-      failed: 'مقدرناش نحمّل المناطق. جرّب تاني.',
+      none: 'مفيش حي بالاسم ده عليه توصيل خلال 60 دقيقة. جرّب كتابة تانية أو استخدم موقعك.',
+      results: 'لقينا {count} مكان',
+      failed: 'مقدرناش ندوّر دلوقتي. جرّب تاني.',
+      unsureNote:
+        'مقدرناش نحدد مكانك بالظبط. من فضلك اختار الحي بتاعك من القايمة عشان نبعت طلبك من المخزن الصح.',
       badge: '60 دقيقة',
       arrives: 'يوصل خلال {minutes} دقيقة لـ {area}',
       standard: 'مش متاح خلال 60 دقيقة في {area}؛ توصيل عادي بس',
@@ -72,7 +145,8 @@
   }
 
   function nameOf(item) {
-    return (locale === 'ar' ? item.nameAr : item.nameEn) || item.nameEn;
+    if (!item) return '';
+    return (locale === 'ar' ? item.nameAr : item.nameEn) || item.nameEn || item.nameAr || '';
   }
 
   function el(tag, className, text) {
@@ -90,9 +164,9 @@
     }
   }
 
-  function write(area) {
+  function write(value) {
     try {
-      if (area) window.localStorage.setItem(KEY, JSON.stringify(area));
+      if (value) window.localStorage.setItem(KEY, JSON.stringify(value));
       else window.localStorage.removeItem(KEY);
     } catch {
       // Private browsing: the choice lasts for this page only.
@@ -110,6 +184,15 @@
     });
   }
 
+  function saveCart(zoneId) {
+    return fetch('/cart/update.js', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ attributes: cartAttributes(choice, zoneId) }),
+    }).catch(function () {});
+  }
+
   function when(iso) {
     try {
       return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', {
@@ -125,11 +208,20 @@
 
   // ─── state ─────────────────────────────────────────────────────────────────
 
-  var area = read();
-  var info = null; // the last availability answer for the chosen area
-  var known = {}; // variant id -> in stock at the area's store
+  // { areaId, nameEn, nameAr, zoneId } | { pin: { lat, lng }, zoneId } | { zoneId } (old)
+  var choice = read();
+  var info = null; // the last availability answer for the choice
+  var known = {}; // variant id -> in stock at the place's store
   var handles = {}; // product handle -> variant ids
   var scanTimer = null;
+
+  /** The place's name: the area the decision found, the one picked, else the zone. */
+  function placeName() {
+    if (info && info.area) return nameOf(info.area);
+    if (choice && choice.nameEn) return nameOf(choice);
+    if (info && info.zone) return nameOf(info.zone);
+    return t('here');
+  }
 
   // ─── the bar ───────────────────────────────────────────────────────────────
 
@@ -139,6 +231,7 @@
   root.setAttribute('lang', locale);
   var bar = el('div', 'snw-bar');
   var label = el('span', 'snw-label');
+  label.setAttribute('aria-live', 'polite');
   var action = el('button', 'snw-button');
   action.type = 'button';
   action.addEventListener('click', openPicker);
@@ -148,14 +241,22 @@
 
   function renderBar() {
     root.removeAttribute('data-state');
-    if (!area || !info || !info.zone) {
+    if (!choice || !info) {
       label.textContent = t('pick');
       action.textContent = t('check');
       root.setAttribute('data-state', 'pick');
       return;
     }
-    var name = nameOf(info.zone);
     action.textContent = t('change');
+    if (!info.zone) {
+      var unsure = info.decision && info.decision.status === 'unsure';
+      root.setAttribute('data-state', unsure ? 'unsure' : 'outside');
+      if (unsure) label.textContent = t('unsure');
+      else if (choice.pin && !info.area) label.textContent = t('outsideHere');
+      else label.textContent = t('outside', { area: placeName() });
+      return;
+    }
+    var name = placeName();
     root.setAttribute('data-state', info.status);
     if (info.status === 'open') label.textContent = t('open', { area: name });
     else if (info.status === 'at_capacity') label.textContent = t('busy', { area: name });
@@ -164,7 +265,7 @@
     else label.textContent = t('closedSoon', { area: name });
   }
 
-  // ─── the area picker ───────────────────────────────────────────────────────
+  // ─── the place picker ──────────────────────────────────────────────────────
 
   var dialog = null;
 
@@ -180,31 +281,43 @@
     if (event.key === 'Escape') closePicker();
   }
 
-  function openPicker() {
+  function openPicker(note) {
     if (dialog) return;
     dialog = el('div', 'snw-backdrop');
     dialog.setAttribute('dir', locale === 'ar' ? 'rtl' : 'ltr');
     var box = el('div', 'snw-dialog');
     box.setAttribute('role', 'dialog');
     box.setAttribute('aria-modal', 'true');
-    box.setAttribute('aria-label', t('title'));
+    box.setAttribute('aria-labelledby', 'snw-title');
     var head = el('div', 'snw-head');
-    head.appendChild(el('h2', 'snw-title', t('title')));
+    var title = el('h2', 'snw-title', t('title'));
+    title.id = 'snw-title';
+    head.appendChild(title);
     var close = el('button', 'snw-close', '×');
     close.type = 'button';
     close.setAttribute('aria-label', t('close'));
     close.addEventListener('click', closePicker);
     head.appendChild(close);
+    box.appendChild(head);
+
+    if (typeof note === 'string' && note) box.appendChild(el('p', 'snw-explain', note));
+
     var search = el('input', 'snw-search');
     search.type = 'search';
     search.placeholder = t('search');
     search.setAttribute('aria-label', t('search'));
+    search.setAttribute('aria-describedby', 'snw-status');
+    search.setAttribute('autocomplete', 'off');
+    var locate = el('button', 'snw-locate', t('locate'));
+    locate.type = 'button';
     var list = el('ul', 'snw-list');
-    var note = el('p', 'snw-note');
-    box.appendChild(head);
+    var status = el('p', 'snw-note', t('searchHint'));
+    status.id = 'snw-status';
+    status.setAttribute('role', 'status');
     box.appendChild(search);
+    if (navigator.geolocation) box.appendChild(locate);
+    box.appendChild(status);
     box.appendChild(list);
-    box.appendChild(note);
     dialog.appendChild(box);
     dialog.addEventListener('click', function (event) {
       if (event.target === dialog) closePicker();
@@ -213,58 +326,99 @@
     document.body.appendChild(dialog);
     search.focus();
 
-    get('/areas')
-      .then(function (areas) {
-        function show() {
-          var q = search.value.trim().toLowerCase();
+    var asked = 0;
+    var find = debounce(function (q) {
+      var turn = ++asked;
+      get('/search', { q: q })
+        .then(function (areas) {
+          if (turn !== asked || !dialog) return;
           list.textContent = '';
-          var shown = areas.filter(function (a) {
-            return !q || a.nameEn.toLowerCase().indexOf(q) >= 0 || (a.nameAr || '').indexOf(q) >= 0;
-          });
-          shown.forEach(function (a) {
+          areas.forEach(function (a) {
             var item = el('li');
             var choose = el('button', 'snw-area');
             choose.type = 'button';
-            choose.appendChild(el('span', 'snw-area-name', nameOf(a)));
+            var names = el('span', 'snw-area-names');
+            names.appendChild(el('span', 'snw-area-name', nameOf(a)));
+            if (a.parent) names.appendChild(el('span', 'snw-area-parent', nameOf(a.parent)));
+            choose.appendChild(names);
             choose.appendChild(el('span', 'snw-area-store', nameOf(a.store)));
             choose.addEventListener('click', function () {
-              pick(a);
+              pick({ areaId: a.areaId, nameEn: a.nameEn, nameAr: a.nameAr, zoneId: a.zoneId });
             });
             item.appendChild(choose);
             list.appendChild(item);
           });
-          note.textContent = shown.length ? '' : t('none');
-        }
-        search.addEventListener('input', show);
-        show();
-      })
-      .catch(function () {
-        note.textContent = t('failed');
-      });
+          status.textContent = areas.length ? t('results', { count: areas.length }) : t('none');
+        })
+        .catch(function () {
+          if (turn === asked && dialog) status.textContent = t('failed');
+        });
+    }, 300);
+
+    search.addEventListener('input', function () {
+      var q = search.value.trim().replace(/\s+/g, ' ');
+      if (q.length < 2) {
+        asked++;
+        list.textContent = '';
+        status.textContent = t('searchHint');
+        return;
+      }
+      find(q.slice(0, 80));
+    });
+
+    locate.addEventListener('click', function () {
+      status.textContent = t('locating');
+      locate.disabled = true;
+      navigator.geolocation.getCurrentPosition(
+        function (position) {
+          var p = roundPin(position.coords.latitude, position.coords.longitude);
+          pick({ pin: p });
+        },
+        function () {
+          if (!dialog) return;
+          locate.disabled = false;
+          status.textContent = t('locateFailed');
+          search.focus();
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 },
+      );
+    });
   }
 
   function pick(chosen) {
-    area = { zoneId: chosen.zoneId };
-    write(area);
+    choice = chosen;
+    write(choice);
+    info = null;
     known = {};
     clearMarks();
     closePicker();
-    // Saved on the cart too, so checkout can lock the order to this area's store later.
-    fetch('/cart/update.js', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({ attributes: { _shiplynow_zone: chosen.zoneId } }),
-    })
-      .catch(function () {})
-      .then(function () {
-        if (OPEN_PAGE) window.location.href = storePage(chosen.zoneId);
-      });
-    refresh();
+    // Saved on the cart too, so checkout and the order use the same place.
+    var saved = saveCart(choice.zoneId);
+    refresh(function (answer) {
+      // A pin only learns its zone from the answer; keep the cart in step.
+      if (choice && choice.pin && answer && answer.zone) {
+        choice.zoneId = answer.zone.id;
+        write(choice);
+        saved = saved.then(function () {
+          return saveCart(answer.zone.id);
+        });
+      }
+      if (answer && !answer.zone && answer.decision && answer.decision.status === 'unsure') {
+        // Not sure where the pin is: ask for the neighbourhood, kindly.
+        openPicker(t('unsureNote'));
+        return;
+      }
+      if (OPEN_PAGE && answer && answer.zone)
+        saved.then(function () {
+          window.location.href = storePage();
+        });
+    });
   }
 
-  function storePage(zoneId) {
-    return PROXY + '/store?' + new URLSearchParams({ zone: zoneId, lang: locale }).toString();
+  function storePage() {
+    var params = placeParams(choice) || {};
+    params.lang = locale;
+    return PROXY + '/store?' + new URLSearchParams(params).toString();
   }
 
   // The area page's "Change area" button opens the picker.
@@ -385,7 +539,7 @@
       if (old) old.remove();
       return;
     }
-    var name = nameOf(info.zone);
+    var name = placeName();
     var text = known[variant]
       ? t('arrives', { minutes: info.promiseMinutes, area: name })
       : t('standard', { area: name });
@@ -399,24 +553,24 @@
     var missing = ids.filter(function (id) {
       return !(id in known);
     });
-    if (!missing.length) return Promise.resolve();
+    var params = placeParams(choice);
+    if (!missing.length || !params) return Promise.resolve();
     var batches = [];
     for (var i = 0; i < missing.length; i += 250) batches.push(missing.slice(i, i + 250));
     return Promise.all(
       batches.map(function (batch) {
-        return get('/availability', { zone: area.zoneId, variants: batch.join(',') }).then(
-          function (answer) {
-            Object.keys(answer.variants || {}).forEach(function (id) {
-              known[id] = answer.variants[id];
-            });
-          },
-        );
+        var query = Object.assign({}, params, { variants: batch.join(',') });
+        return get('/availability', query).then(function (answer) {
+          Object.keys(answer.variants || {}).forEach(function (id) {
+            known[id] = answer.variants[id];
+          });
+        });
       }),
     );
   }
 
   function scan() {
-    if (!area || !info || !info.zone || info.offered === false) return;
+    if (!choice || !info || !info.zone || info.offered === false) return;
     var byHandle = cards();
     var names = Object.keys(byHandle);
     var current = productVariant();
@@ -450,33 +604,31 @@
 
   // ─── start ─────────────────────────────────────────────────────────────────
 
-  function refresh() {
-    if (!area) {
+  function refresh(then) {
+    var params = placeParams(choice);
+    if (!params) {
+      choice = null;
       info = null;
       renderBar();
+      if (then) then(null);
       return;
     }
     var current = productVariant();
-    get('/availability', { zone: area.zoneId, variants: current || '' })
+    get('/availability', Object.assign({}, params, { variants: current || '' }))
       .then(function (answer) {
-        if (!answer.zone) {
-          // The area is no longer served; ask again.
-          area = null;
-          write(null);
-          info = null;
-        } else {
-          info = answer;
-          Object.keys(answer.variants || {}).forEach(function (id) {
-            known[id] = answer.variants[id];
-          });
-        }
+        info = answer;
+        Object.keys(answer.variants || {}).forEach(function (id) {
+          known[id] = answer.variants[id];
+        });
         // The merchant does not offer 60 minutes right now: stay out of the way.
-        root.hidden = !!(info && info.offered === false);
+        root.hidden = answer.offered === false;
         renderBar();
         scan();
+        if (then) then(answer);
       })
       .catch(function () {
         renderBar();
+        if (then) then(null);
       });
   }
 

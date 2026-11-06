@@ -57,6 +57,8 @@ const mapQuery = z.object({
     .transform((v) => v.split(',').map(Number) as [number, number, number, number])
     .optional(),
   districtId: z.string().max(64).optional(),
+  /** Only this zone's own areas (its area list) */
+  zoneId: z.string().max(64).optional(),
   /** Comma separated levels, 2 to 4 by default */
   levels: z
     .string()

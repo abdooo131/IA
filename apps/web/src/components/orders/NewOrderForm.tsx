@@ -2,22 +2,29 @@
 
 import { FormFooter } from '@/components/workflow/FormFooter';
 import { useLocale, useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, useState } from 'react';
+import { type FormEvent, useEffect, useState } from 'react';
+import { AreaSearchBox } from '@/components/geo/AreaSearchBox';
+import type { Pin } from '@/components/geo/PinMap';
 import { localized } from '@/lib/admin-types';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import { formatCairoDateTime } from '@/lib/format';
 import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
+import {
+  type CoverageAnswer,
+  coverageMessage,
+  coverageQuery,
+  type ServedArea,
+} from '@/lib/zone-areas';
 
-export interface CoverageArea {
-  zoneId: string;
-  code: string;
-  nameEn: string;
-  nameAr: string;
-  darkStore: { id: string; code: string; nameEn: string; nameAr: string };
-  point: { latitude: number; longitude: number };
-}
+// Leaflet needs the browser, so the pin map never renders on the server.
+const PinMap = dynamic(() => import('@/components/geo/PinMap'), {
+  ssr: false,
+  loading: () => <div className="h-72 w-full animate-pulse rounded-lg bg-surface-raised" />,
+});
+
 export interface OrderableSku {
   id: string;
   sku: string;
@@ -28,22 +35,21 @@ export interface OrderableSku {
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
-const KNOWN = ['outside_zones', 'store_closed', 'at_capacity', 'network'];
+const KNOWN = ['outside_zones', 'address_unsure', 'store_closed', 'at_capacity', 'network'];
 
 /**
- * Places a manual 60 minute order. The area picks the point that coverage checks; the
- * store is chosen by the API, never by the form.
+ * Places a manual 60 minute order. The customer's neighbourhood (searched by name) and an
+ * optional map pin go to the API, which decides the store; the form never sends a made up
+ * point such as a zone centre.
  */
 export function NewOrderForm({
   endpoint,
   detailBase,
-  areas,
   skus,
   merchants,
 }: {
   endpoint: string;
   detailBase: string;
-  areas: CoverageArea[];
   skus: OrderableSku[];
   /** Admin only: choose whose order this is */
   merchants?: { id: string; name: string }[];
@@ -60,32 +66,29 @@ export function NewOrderForm({
   const [dirty, setDirty] = useState(false);
   const [areaNote, setAreaNote] = useState<{ text: string; ok: boolean } | null>(null);
 
-  /** Tells the user straight away whether the area's store can take the order now. */
-  async function checkArea(zoneId: string) {
-    const area = areas.find((a) => a.zoneId === zoneId);
-    if (!area) return setAreaNote(null);
+  const [area, setArea] = useState<ServedArea | null>(null);
+  const [pin, setPin] = useState<Pin | null>(null);
+  const [showMap, setShowMap] = useState(false);
+
+  // Tells the user straight away whether the place's store can take the order now.
+  useEffect(() => {
+    const query = coverageQuery({ areaId: area?.id, pin });
+    if (!query) return setAreaNote(null);
+    let current = true;
     setAreaNote({ text: t('areaChecking'), ok: true });
-    const result = await apiGetClient<{
-      covered: boolean;
-      reason?: string;
-      darkStore?: { nameEn: string; nameAr: string };
-      nextOpenAt?: string;
-    }>(`/coverage?lat=${area.point.latitude}&lng=${area.point.longitude}`);
-    if (!result.ok) return setAreaNote(null);
-    const store = localized(result.data.darkStore ?? area.darkStore, locale);
-    if (result.data.covered) setAreaNote({ text: t('areaOpen', { store }), ok: true });
-    else if (result.data.reason === 'store_closed')
-      setAreaNote({
-        text: t('areaClosed', {
-          store,
-          time: result.data.nextOpenAt ? formatCairoDateTime(result.data.nextOpenAt, locale) : '',
-        }),
-        ok: false,
-      });
-    else if (result.data.reason === 'at_capacity')
-      setAreaNote({ text: t('areaFull', { store }), ok: false });
-    else setAreaNote({ text: tErr('outside_zones'), ok: false });
-  }
+    void apiGetClient<CoverageAnswer>(`/coverage?${query}`).then((result) => {
+      if (!current) return;
+      if (!result.ok) return setAreaNote(null);
+      const answer = result.data;
+      const { key, ok } = coverageMessage(answer);
+      const store = answer.darkStore ? localized(answer.darkStore, locale) : '';
+      const time = answer.nextOpenAt ? formatCairoDateTime(answer.nextOpenAt, locale) : '';
+      setAreaNote({ text: t(key, { store, time }), ok });
+    });
+    return () => {
+      current = false;
+    };
+  }, [area, pin, locale, t]);
 
   function changeMerchant(id: string) {
     setMerchantId(id);
@@ -96,8 +99,7 @@ export function NewOrderForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const area = areas.find((a) => a.zoneId === form.get('zoneId'));
-    if (!area) return setError(t('chooseArea'));
+    if (!area && !pin) return setError(t('chooseArea'));
     const feeText = String(form.get('deliveryFee') ?? '').trim();
     const fee = feeText ? parseEgp(feeText) : 0;
     if (fee === null) return setError(t('invalidFee'));
@@ -109,8 +111,9 @@ export function NewOrderForm({
       customerPhone: form.get('customerPhone'),
       addressText: form.get('addressText'),
       customerNote: (form.get('customerNote') as string) || undefined,
-      latitude: area.point.latitude,
-      longitude: area.point.longitude,
+      areaId: area?.id,
+      latitude: pin?.latitude,
+      longitude: pin?.longitude,
       paymentMethod: form.get('paymentMethod'),
       deliveryFeePiastres: Number.isFinite(fee) && fee >= 0 ? fee : 0,
       items: lines.filter((l) => l.skuId),
@@ -156,33 +159,108 @@ export function NewOrderForm({
           className={field}
         />
       </label>
-      <label className="block text-caption">
-        {t('area')}
-        <select
-          name="zoneId"
-          required
-          defaultValue=""
-          className={field}
-          onChange={(e) => void checkArea(e.target.value)}
-        >
-          <option value="" disabled>
-            {t('chooseArea')}
-          </option>
-          {areas.map((a) => (
-            <option key={a.zoneId} value={a.zoneId}>
-              {localized(a, locale)} · {localized(a.darkStore, locale)}
-            </option>
-          ))}
-        </select>
+      <fieldset className="space-y-2">
+        <legend className="text-caption">{t('area')}</legend>
+        {area ? (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface px-3 py-2">
+            <span className="text-body-sm">
+              <span className="font-bold">{localized(area, locale)}</span>
+              {area.parent && (
+                <span className="text-text-muted"> · {localized(area.parent, locale)}</span>
+              )}
+              <span className="block text-caption text-text-muted">
+                {t('areaStore', { store: localized(area.store, locale) })}
+              </span>
+            </span>
+            <button
+              type="button"
+              className="h-9 rounded-md border border-line px-3 text-body-sm"
+              onClick={() => {
+                setArea(null);
+                setDirty(true);
+              }}
+            >
+              {t('areaChange')}
+            </button>
+          </div>
+        ) : (
+          <AreaSearchBox<ServedArea>
+            label={t('areaSearch')}
+            placeholder={t('areaSearchHint')}
+            emptyText={t('areaNone')}
+            failedText={t('areaSearchFailed')}
+            search={async (q) => {
+              const result = await apiGetClient<ServedArea[]>(
+                `/coverage/search?q=${encodeURIComponent(q)}`,
+              );
+              return result.ok ? result.data : null;
+            }}
+            keyOf={(a) => a.id}
+            render={(a) => (
+              <>
+                <span className="font-bold">{localized(a, locale)}</span>
+                {a.parent && <span> · {localized(a.parent, locale)}</span>}
+                <span className="block text-caption text-text-muted">
+                  {localized(a.store, locale)}
+                </span>
+              </>
+            )}
+            onPick={(a) => {
+              setArea(a);
+              setDirty(true);
+            }}
+          />
+        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            aria-expanded={showMap}
+            className="h-9 rounded-md bg-selected-bg px-3 text-body-sm font-bold text-link"
+            onClick={() => setShowMap((v) => !v)}
+          >
+            {showMap ? t('pinHide') : pin ? t('pinShow') : t('pinAdd')}
+          </button>
+          {pin && (
+            <>
+              <span className="ltr-iso text-caption text-text-muted" dir="ltr">
+                {pin.latitude.toFixed(5)}, {pin.longitude.toFixed(5)}
+              </span>
+              <button
+                type="button"
+                className="h-9 rounded-md border border-line px-3 text-body-sm"
+                onClick={() => {
+                  setPin(null);
+                  setDirty(true);
+                }}
+              >
+                {t('pinRemove')}
+              </button>
+            </>
+          )}
+        </div>
+        {showMap && (
+          <>
+            <p className="text-caption text-text-muted">{t('pinHint')}</p>
+            <PinMap
+              pin={pin}
+              frame={area?.bbox ?? null}
+              label={t('pinMapLabel')}
+              onPin={(p) => {
+                setPin(p);
+                setDirty(true);
+              }}
+            />
+          </>
+        )}
         {areaNote && (
-          <span
+          <p
             role="status"
-            className={`mt-1 block text-body-sm ${areaNote.ok ? 'text-text-muted' : 'text-danger'}`}
+            className={`text-body-sm ${areaNote.ok ? 'text-text-muted' : 'text-danger'}`}
           >
             {areaNote.text}
-          </span>
+          </p>
         )}
-      </label>
+      </fieldset>
       <label className="block text-caption">
         {t('address')}
         <textarea

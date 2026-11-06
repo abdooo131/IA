@@ -338,6 +338,8 @@ export async function listAreasForMap(
   input: {
     bbox?: [number, number, number, number] | null;
     districtId?: string | null;
+    /** Only the areas this zone holds through their own row (the zone's area list) */
+    zoneId?: string | null;
     levels?: number[];
     q?: string | null;
     cursor?: string | null;
@@ -373,6 +375,8 @@ export async function listAreasForMap(
       AND (${input.cursor ?? ''} = '' OR a.id > ${input.cursor ?? ''})
       AND (NOT ${useBox} OR a.geom && ST_MakeEnvelope(${minLng}, ${minLat}, ${maxLng}, ${maxLat}, 4326))
       AND (${input.districtId ?? ''} = '' OR a.id IN (SELECT id FROM inside))
+      AND (${input.zoneId ?? ''} = '' OR EXISTS (
+        SELECT 1 FROM store_areas s WHERE s.geo_area_id = a.id AND s.zone_id = ${input.zoneId ?? ''}))
       AND (${q} = '' OR EXISTS (SELECT 1 FROM unnest(a.aliases) n WHERE n LIKE ${'%' + q + '%'}))
     ORDER BY a.id
     LIMIT ${limit + 1}`;
@@ -431,6 +435,8 @@ export interface ServedArea {
   parent: { nameEn: string; nameAr: string } | null;
   zoneId: string;
   store: { id: string; code: string; nameEn: string; nameAr: string };
+  /** [minLng, minLat, maxLng, maxLat], to frame the area on a map (never a delivery point) */
+  bbox: [number, number, number, number];
 }
 
 /**
@@ -454,10 +460,16 @@ export async function searchServedAreas(
       parentEn: string | null;
       parentAr: string | null;
       rank: number;
+      minLng: number;
+      minLat: number;
+      maxLng: number;
+      maxLat: number;
     }[]
   >`
     SELECT a.id, a.level, a.name_en AS "nameEn", a.name_ar AS "nameAr",
       p.name_en AS "parentEn", p.name_ar AS "parentAr",
+      ST_XMin(a.geom) AS "minLng", ST_YMin(a.geom) AS "minLat",
+      ST_XMax(a.geom) AS "maxLng", ST_YMax(a.geom) AS "maxLat",
       (SELECT min(CASE WHEN n = ${q} THEN 0 WHEN n LIKE ${q + '%'} THEN 1
           WHEN n LIKE ${'% ' + q + '%'} THEN 2 ELSE 3 END)
         FROM unnest(a.aliases) n WHERE n LIKE ${'%' + q + '%'}) AS rank
@@ -505,6 +517,12 @@ export async function searchServedAreas(
         nameEn: zone.darkStore.nameEn,
         nameAr: zone.darkStore.nameAr,
       },
+      bbox: [f.minLng, f.minLat, f.maxLng, f.maxLat].map((n) => Number(n.toFixed(5))) as [
+        number,
+        number,
+        number,
+        number,
+      ],
     });
     if (out.length >= limit) break;
   }

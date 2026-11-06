@@ -181,3 +181,47 @@ outline move computed read only on live, the old engine placed 6.0% (unsure 24.0
 70.0%) and the new decision serves 8.0% (unsure 21.0%, outside 71.0%). Most outside answers are
 real (the pilot zones cover a small part of Greater Cairo); most unsure ones name only a
 district split between stores (Maadi, New Cairo), which the area picker or a pin resolves.
+
+## Screens as built (2026-11-06)
+
+- **Admin zone map** (Operations, Configuration, Delivery zones, `/admin/zones`;
+  `ZonesWorkspace` + `AreaZoneMap`). Leaflet on OpenStreetMap tiles, canvas rendering. The map
+  asks `GET /admin/zones/areas` for its box, 500 a page, up to 8 pages; below zoom 13 only
+  districts (zones then show their stored shape filled, so neighbourhoods served far out still
+  show), from zoom 13 districts become outlines under neighbourhoods and compounds. Colours: one
+  per store (legend), "not served" grey and dashed, "needs review" amber dashed, nobody a thin
+  grey line; the selected zone's areas are drawn thicker, the chosen area black. Store chips,
+  the store's zones, "New zone" (code and names only, no drawing). With a zone selected a tap
+  assigns the area (`POST /admin/zones/:id/areas`), a tap on one of the zone's own areas removes
+  it, an area served through its district does nothing, and an area of another store asks
+  first and is sent with `move: true`. Every tap also opens an area card: who serves it, Add to,
+  Remove from its zone or Clear the not served mark, Mark not served, Select its zone. The zone
+  panel lists its own areas with counts per level (new `zoneId` filter on
+  `GET /admin/zones/areas`), each with Remove and a jump to it on the map; "Select areas in a
+  shape" (Geoman, neighbourhoods, districts or compounds) calls `/areas/select` and offers "Move
+  those too" when areas of another store were skipped. Switch off and Delete zone stay; the
+  old Edit border is gone. A name search (Arabic or English) jumps to any area. The To review
+  tab lists `GET /admin/zones/areas/review` with Keep in its zone, Move to the selected zone,
+  Mark not served and Show on map. On a phone the map is full width with the panel below.
+- **Manual order form** (`/merchant/orders/new`, `/admin/orders/new`): a neighbourhood search
+  (`GET /coverage/search`, debounced, Arabic or English; each answer now carries the area's
+  `bbox` only to frame a map) and an optional pin map (tap to drop, drag to correct; the map
+  opens on the chosen neighbourhood). The coverage answer shows as soon as an area or pin is
+  chosen (`GET /coverage?lat&lng` when there is a pin, else `?areaId`): open, closed until,
+  full, outside, or `address_unsure` ("choose the exact neighbourhood or drop a pin"). The
+  order sends `areaId` and/or `latitude`/`longitude`, never a zone centre.
+- **Storefront widget** (theme app extension, plain JavaScript): the picker is a neighbourhood
+  search (`/apps/shiplynow/search`, 300 ms debounce, two letters at least, results announced)
+  plus "Use my location" (browser geolocation, https only). No map pin: the extension does not
+  load any map library and adding Leaflet from a CDN was ruled out to keep it small. The choice
+  is kept in localStorage (`{ areaId, names, zoneId }` or `{ pin, zoneId }`; an old `{ zoneId }`
+  still works) and on the cart through `/cart/update.js`: `_shiplynow_area` or `_shiplynow_pin`
+  ("lat,lng", 6 decimals), the other cleared, and `_shiplynow_zone` (for a pin, written once the
+  answer names the zone). Availability and the area page are asked with `area=` or `lat=&lng=`.
+  An unsure answer reopens the picker with a kind note asking for the neighbourhood; outside
+  says 60 minute delivery does not reach the place yet; the choice is no longer wiped when the
+  place is not served. The pure helpers (placeParams, cartAttributes, roundPin, debounce) are
+  exported for Node, and the API's browser test (`storefront-widget.test.ts`) drives the search,
+  the location button and the unsure note. Merchants get the new widget only after their app is
+  deployed again (`pnpm shopify:merchant-app --name <merchant> --client-id <id>`, or the
+  self-service kit's `npx @shopify/cli@latest app deploy`); nothing changes in the theme editor.

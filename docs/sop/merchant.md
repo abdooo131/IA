@@ -48,7 +48,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Orders and money
 
-1. Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order.
+1. Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.
 2. You can cancel only new or accepted orders.
 3. Wallet shows what we owe you; payouts go to your bank on your schedule.
 
@@ -122,7 +122,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### الطلبات والفلوس
 
-1. طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد.
+1. طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد: دوّر على حي العميل، ولو تعرف العمارة حط علامة على الخريطة. الفورم بيقولك على طول إذا كان الفرع يقدر ياخده.
 2. تقدر تلغي الطلبات الجديدة أو المقبولة بس.
 3. المحفظة بتوري لك عندنا كام؛ التحويلات بتنزل البنك على مواعيدك.
 

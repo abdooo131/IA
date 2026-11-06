@@ -37,8 +37,12 @@
   background: #0d6b4f;
 }
 .snw[data-state='closed'] .snw-bar,
-.snw[data-state='at_capacity'] .snw-bar {
+.snw[data-state='at_capacity'] .snw-bar,
+.snw[data-state='unsure'] .snw-bar {
   background: #5b4a12;
+}
+.snw[data-state='outside'] .snw-bar {
+  background: #3d4b5c;
 }
 .snw-label {
   flex: 1;
@@ -57,6 +61,7 @@
   cursor: pointer;
 }
 .snw-button:focus-visible,
+.snw-locate:focus-visible,
 .snw-area:focus-visible,
 .snw-close:focus-visible,
 .snw-search:focus-visible {
@@ -122,6 +127,30 @@
   border-radius: 8px;
   font: inherit;
 }
+.snw-explain {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff7e0;
+  color: #5b4a12;
+  font-size: 14px;
+}
+.snw-locate {
+  min-height: 44px;
+  margin-bottom: 4px;
+  padding: 0 12px;
+  border: 1px solid #c9d2de;
+  border-radius: 8px;
+  background: #f3f6fa;
+  color: #0b1f3a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.snw-locate:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
 .snw-list {
   flex: 1;
   margin: 0;
@@ -147,15 +176,24 @@
 .snw-area:hover {
   background: #f3f6fa;
 }
+.snw-area-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
 .snw-area-name {
   font-weight: 700;
+}
+.snw-area-parent {
+  color: #5b6b80;
+  font-size: 13px;
 }
 .snw-area-store {
   color: #5b6b80;
   font-size: 13px;
 }
 .snw-note {
-  margin: 8px 0 0;
+  margin: 4px 0 8px;
   color: #5b6b80;
   font-size: 13px;
 }

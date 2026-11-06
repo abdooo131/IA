@@ -38,8 +38,9 @@ Also inside the app: settings menu (top of every screen), Help.
 ### Stores, hubs and zones
 
 1. Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.
-2. Zones: draw each store's delivery area.
-3. Address map: run the OpenStreetMap import once, then approve the names it learns each week.
+2. Delivery zones: pick the store, create a zone (code and names), then tap neighbourhoods on the map to add them; tap again to remove, Mark not served for a place we never go. Select areas in a shape adds many at once.
+3. To review: decide each area that was split between two stores (keep, move or not served).
+4. Address map: run the OpenStreetMap import once, then approve the names it learns each week.
 
 **Check it went right**
 
@@ -47,7 +48,8 @@ Also inside the app: settings menu (top of every screen), Help.
 
 **If something is wrong**
 
-- An area is served by two stores: fix the zone borders so they do not overlap.
+- An area belongs to another store: tapping it asks before moving it.
+- Orders say address_unsure: the address names a district split between stores; add the missing neighbourhoods or ask for the neighbourhood or a pin.
 
 ### Merchants, products and Shopify
 
@@ -128,8 +130,9 @@ Also inside the app: settings menu (top of every screen), Help.
 ### الفروع والمراكز والمناطق
 
 1. المخازن ومراكز الفرز: افتح موقع بكود قصير (حروف وأرقام)، العنوان ومكانه على الخريطة.
-2. المناطق: ارسم منطقة توصيل كل فرع.
-3. خريطة العناوين: شغل تحميل OpenStreetMap مرة، وبعدين وافق على الأسماء اللي بتتعلمها كل أسبوع.
+2. مناطق التوصيل: اختار الفرع، اعمل منطقة (كود وأسامي)، وبعدين اضغط على الأحياء في الخريطة عشان تضيفها؛ اضغط تاني عشان تشيلها، و"علّمه مش بنخدمه" لمكان مش بنروحه. "اختار الأحياء جوه شكل" بيضيف كتير مرة واحدة.
+3. للمراجعة: قرّر في كل حي كان متقسم بين فرعين (خليه، انقله، أو مش بنخدمه).
+4. خريطة العناوين: شغل تحميل OpenStreetMap مرة، وبعدين وافق على الأسماء اللي بتتعلمها كل أسبوع.
 
 **اتأكد إنها مشيت صح**
 
@@ -137,7 +140,8 @@ Also inside the app: settings menu (top of every screen), Help.
 
 **لو فيه مشكلة**
 
-- منطقة بيخدمها فرعين: ظبط حدود المناطق عشان ما تتداخلش.
+- حي تبع فرع تاني: لما تضغط عليه هيسألك قبل ما ينقله.
+- طلبات بتقول address_unsure: العنوان فيه منطقة متقسمة بين فرعين؛ ضيف الأحياء الناقصة أو اطلب الحي أو علامة على الخريطة.
 
 ### التجار والمنتجات وشوبيفاي
 

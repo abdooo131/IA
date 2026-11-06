@@ -178,14 +178,10 @@
       "note": "Available is what can be sold now: on shelves minus reserved minus the stock buffer."
     },
     "zones": {
-      "title": "Zones and hours",
-      "mapHint": "Tap a zone to select it.",
-      "selectZone": "Select a zone on the map or in the list.",
-      "editBorder": "Edit border",
-      "saveBorder": "Save border",
+      "title": "Delivery zones and hours",
+      "mapHint": "Choose a zone, then tap areas on the map to add them. Tap an area without a zone to see who serves it.",
+      "selectZone": "Select a zone to see and change its areas.",
       "cancel": "Cancel",
-      "drawNew": "Draw new zone",
-      "drawHint": "Click on the map to add corners, then click the first corner to finish.",
       "newZone": "New zone for {store}",
       "code": "Code",
       "nameEn": "Name in English",
@@ -213,11 +209,70 @@
         "validation_failed": "Check the values and try again.",
         "network": "Could not reach the server. Try again.",
         "generic": "Something went wrong. Try again.",
-        "zone_has_orders": "This zone already had orders, so it cannot be deleted. Switch it off instead; its order history stays."
+        "zone_has_orders": "This zone already had orders, so it cannot be deleted. Switch it off instead; its order history stays.",
+        "area_served_by_other_store": "Another store serves this area. Confirm the move to take it.",
+        "area_level_not_assignable": "Only districts, neighbourhoods and compounds can belong to a zone.",
+        "hub_has_no_zones": "A hub takes no orders, so it has no zones.",
+        "zone_uses_areas": "This zone is built from areas; change it on the map."
       },
       "deleteZone": "Delete zone",
       "deleteConfirm": "Delete the zone {name}? This cannot be undone.",
-      "deleted": "Zone deleted."
+      "deleted": "Zone deleted.",
+      "mapHintZone": "Tap an area to add it to {zone}; tap one of its own areas again to remove it.",
+      "zoomHint": "Zoom in to see neighbourhoods and compounds.",
+      "shapeHint": "Click on the map to add corners, then click the first corner to finish. The areas mostly inside the shape join the zone.",
+      "searchArea": "Find an area",
+      "searchHint": "Neighbourhood, compound or district, in Arabic or English",
+      "searchNone": "No area with that name.",
+      "legend": "Map legend",
+      "legendExcluded": "Not served",
+      "legendReview": "Needs review",
+      "legendNobody": "Nobody serves it",
+      "areaCard": "Selected area",
+      "close": "Close",
+      "ownerNobody": "Nobody serves it",
+      "ownerExcluded": "Marked not served",
+      "ownerOwn": "Served by {where}",
+      "ownerInherited": "Served through its district by {where}",
+      "addTo": "Add to {zone}",
+      "removeArea": "Remove from its zone",
+      "serveAgain": "Clear the not served mark",
+      "notServed": "Mark not served",
+      "selectItsZone": "Select its zone",
+      "selectZoneToAssign": "Select a zone in the panel to add areas to it.",
+      "moveConfirm": "{area} is served by {store}. Move it to {zone}?",
+      "assigned": "{area} now belongs to {zone}.",
+      "removed": "{area} was removed; it is served like the area around it again.",
+      "excludedDone": "{area} is marked not served.",
+      "shapeDone": "{assigned, plural, =0 {No new areas were added} one {1 area added} other {# areas added}}{skipped, plural, =0 {.} one {; 1 area is served by another store and was left alone.} other {; # areas are served by another store and were left alone.}}",
+      "moveThemToo": "Move those too",
+      "tabZones": "Zones",
+      "tabReview": "To review ({count})",
+      "store": "Dark store",
+      "noZones": "This store has no zones yet.",
+      "zoneCounts": "{districts, plural, =0 {} one {1 district, } other {# districts, }}{neighbourhoods, plural, one {1 neighbourhood} other {# neighbourhoods}}{compounds, plural, =0 {} one {, 1 compound} other {, # compounds}}",
+      "zoneAreas": "Areas of this zone",
+      "zoneEmpty": "No areas yet. Tap areas on the map or select them in a shape.",
+      "zoneOutlineOnly": "This zone still uses its old drawn border. Add areas to build it from areas instead.",
+      "remove": "Remove",
+      "removeNamed": "Remove {area}",
+      "shapeLevel": "Select",
+      "levelNeighbourhoods": "Neighbourhoods",
+      "levelDistricts": "Districts",
+      "levelCompounds": "Compounds",
+      "levelDistrict": "District",
+      "levelNeighbourhood": "Neighbourhood",
+      "levelCompound": "Compound",
+      "selectInShape": "Select areas in a shape",
+      "newZoneButton": "New zone",
+      "newZoneHelp": "A zone is a named group of areas. After creating it, add areas on the map.",
+      "zoneCreated": "Zone created. Now add its areas on the map.",
+      "reviewHelp": "These areas were split between stores when zones moved from drawn borders to areas. Each went to the store holding the larger part; confirm it or decide.",
+      "reviewEmpty": "Nothing to review.",
+      "reviewNow": "now {store} · {zone}",
+      "reviewKeep": "Keep in {zone}",
+      "reviewMove": "Move to {zone}",
+      "showOnMap": "Show on map"
     },
     "counts": {
       "title": "Stock counts",
@@ -1108,8 +1163,8 @@
       "customerName": "Customer name",
       "customerPhone": "Customer mobile",
       "address": "Full address",
-      "area": "Delivery area",
-      "chooseArea": "Choose the customer's area",
+      "area": "Delivery place",
+      "chooseArea": "Choose the customer's neighbourhood or drop a pin on the map.",
       "note": "Note for the store (optional)",
       "payment": "Payment",
       "deliveryFee": "Delivery fee (EGP)",
@@ -1133,7 +1188,21 @@
       "areaClosed": "{store} is closed now. It opens {time}.",
       "areaFull": "{store} is full for this hour. Try again shortly.",
       "areaChecking": "Checking the store…",
-      "invalidFee": "Enter the delivery fee like 45 or 45.50."
+      "invalidFee": "Enter the delivery fee like 45 or 45.50.",
+      "areaSearch": "Customer's neighbourhood",
+      "areaSearchHint": "Type the neighbourhood or compound, in Arabic or English",
+      "areaNone": "We do not deliver in 60 minutes to a place with that name. Try another spelling or drop a pin.",
+      "areaSearchFailed": "Could not search right now. Try again.",
+      "areaStore": "Delivered from {store}",
+      "areaChange": "Change",
+      "pinAdd": "Drop a pin on the map (optional)",
+      "pinShow": "Show the pin",
+      "pinHide": "Hide the map",
+      "pinRemove": "Remove pin",
+      "pinHint": "Tap the customer's building on the map; drag the pin to correct it. A pin decides the store before the neighbourhood.",
+      "pinMapLabel": "Map to pin the customer's door",
+      "areaUnsure": "We cannot tell for sure which store serves this place. Choose the exact neighbourhood or drop a pin on the building.",
+      "areaOutside": "This place is outside our 60 minute delivery areas. Ship it by standard delivery."
     },
     "delivery": {
       "title": "60 minute delivery",
@@ -1464,7 +1533,8 @@
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again.",
       "goods_not_back": "The goods are not back in the store yet.",
-      "rider_not_clocked_in": "That rider is not clocked in. Ask them to clock in from the rider app first."
+      "rider_not_clocked_in": "That rider is not clocked in. Ask them to clock in from the rider app first.",
+      "address_unsure": "We cannot tell for sure which store serves this address. Choose the neighbourhood or drop a pin."
     },
     "deliveryStatuses": {
       "assigned": "Assigned",
@@ -3337,7 +3407,7 @@
           {
             "title": "Orders and money",
             "steps": [
-              "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order.",
+              "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.",
               "You can cancel only new or accepted orders.",
               "Wallet shows what we owe you; payouts go to your bank on your schedule."
             ],
@@ -3608,31 +3678,17 @@
         ],
         "sections": [
           {
-            "title": "Attendance and shifts",
-            "steps": [
-              "HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
-              "HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
-              "HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
-              "Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason."
-            ],
-            "check": [
-              "Yesterday's days are closed the morning after; a forgotten clock out shows the flag."
-            ],
-            "problems": [
-              "A person cannot clock in (too far): check their store on the file, the store's location and hr.clock_radius_m.",
-              "Office staff cannot clock in: set hr.office_lat and hr.office_lng."
-            ]
-          },
-          {
             "title": "Stores, hubs and zones",
             "steps": [
               "Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.",
-              "Zones: draw each store's delivery area.",
+              "Delivery zones: pick the store, create a zone (code and names), then tap neighbourhoods on the map to add them; tap again to remove, Mark not served for a place we never go. Select areas in a shape adds many at once.",
+              "To review: decide each area that was split between two stores (keep, move or not served).",
               "Address map: run the OpenStreetMap import once, then approve the names it learns each week."
             ],
             "check": ["Try an address on the Address map page: it lands in the right store."],
             "problems": [
-              "An area is served by two stores: fix the zone borders so they do not overlap."
+              "An area belongs to another store: tapping it asks before moving it.",
+              "Orders say address_unsure: the address names a district split between stores; add the missing neighbourhoods or ask for the neighbourhood or a pin."
             ]
           },
           {

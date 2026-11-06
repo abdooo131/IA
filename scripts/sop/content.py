@@ -208,7 +208,7 @@ EN = {
          "Extra units: they are received and shown as extra; nothing to do."]},
       {"title": "Orders and money",
        "steps": [
-         "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order.",
+         "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.",
          "You can cancel only new or accepted orders.",
          "Wallet shows what we owe you; payouts go to your bank on your schedule."],
        "check": [
@@ -434,12 +434,14 @@ EN = {
       {"title": "Stores, hubs and zones",
        "steps": [
          "Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.",
-         "Zones: draw each store's delivery area.",
+         "Delivery zones: pick the store, create a zone (code and names), then tap neighbourhoods on the map to add them; tap again to remove, Mark not served for a place we never go. Select areas in a shape adds many at once.",
+         "To review: decide each area that was split between two stores (keep, move or not served).",
          "Address map: run the OpenStreetMap import once, then approve the names it learns each week."],
        "check": [
          "Try an address on the Address map page: it lands in the right store."],
        "problems": [
-         "An area is served by two stores: fix the zone borders so they do not overlap."]},
+         "An area belongs to another store: tapping it asks before moving it.",
+         "Orders say address_unsure: the address names a district split between stores; add the missing neighbourhoods or ask for the neighbourhood or a pin."]},
       {"title": "Merchants, products and Shopify",
        "steps": [
          "Merchants: approve or reject sign ups with a reason.",
@@ -673,7 +675,7 @@ AR = {
          "قطع زيادة: بتتستلم وبتظهر زيادة؛ مفيش حاجة تعملها."]},
       {"title": "الطلبات والفلوس",
        "steps": [
-         "طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد.",
+         "طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد: دوّر على حي العميل، ولو تعرف العمارة حط علامة على الخريطة. الفورم بيقولك على طول إذا كان الفرع يقدر ياخده.",
          "تقدر تلغي الطلبات الجديدة أو المقبولة بس.",
          "المحفظة بتوري لك عندنا كام؛ التحويلات بتنزل البنك على مواعيدك."],
        "check": [
@@ -899,12 +901,14 @@ AR = {
       {"title": "الفروع والمراكز والمناطق",
        "steps": [
          "المخازن ومراكز الفرز: افتح موقع بكود قصير (حروف وأرقام)، العنوان ومكانه على الخريطة.",
-         "المناطق: ارسم منطقة توصيل كل فرع.",
+         "مناطق التوصيل: اختار الفرع، اعمل منطقة (كود وأسامي)، وبعدين اضغط على الأحياء في الخريطة عشان تضيفها؛ اضغط تاني عشان تشيلها، و\"علّمه مش بنخدمه\" لمكان مش بنروحه. \"اختار الأحياء جوه شكل\" بيضيف كتير مرة واحدة.",
+         "للمراجعة: قرّر في كل حي كان متقسم بين فرعين (خليه، انقله، أو مش بنخدمه).",
          "خريطة العناوين: شغل تحميل OpenStreetMap مرة، وبعدين وافق على الأسماء اللي بتتعلمها كل أسبوع."],
        "check": [
          "جرب عنوان في خريطة العناوين: بيروح للفرع الصح."],
        "problems": [
-         "منطقة بيخدمها فرعين: ظبط حدود المناطق عشان ما تتداخلش."]},
+         "حي تبع فرع تاني: لما تضغط عليه هيسألك قبل ما ينقله.",
+         "طلبات بتقول address_unsure: العنوان فيه منطقة متقسمة بين فرعين؛ ضيف الأحياء الناقصة أو اطلب الحي أو علامة على الخريطة."]},
       {"title": "التجار والمنتجات وشوبيفاي",
        "steps": [
          "التجار: وافق أو ارفض التسجيلات بسبب.",

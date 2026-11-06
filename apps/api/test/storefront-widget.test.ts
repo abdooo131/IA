@@ -17,7 +17,8 @@ process.env.SHOPIFY_API_SECRET = SECRET;
 const SHOP = 'widget-test.myshopify.com';
 const NOON_CAIRO = new Date('2026-01-14T10:00:00Z');
 const EARLY_CAIRO = new Date('2026-01-14T06:00:00Z');
-const STORE = 'http://shop.test';
+// https: the browser gives a position only to a secure page, as on a real store.
+const STORE = 'https://shop.test';
 const ASSETS = join(__dirname, '../../shopify/extensions/zone-widget/assets');
 const STOCKED = '9001';
 const UNSTOCKED = '9002';
@@ -268,9 +269,21 @@ describe('storefront widget', () => {
   // ─── in a real browser ───────────────────────────────────────────────────────
 
   /** A tiny storefront: a collection page, a product page and the Shopify endpoints it uses. */
-  async function storefront(options: { locale?: string; hide?: boolean } = {}) {
+  async function storefront(
+    options: {
+      locale?: string;
+      hide?: boolean;
+      geolocation?: { latitude: number; longitude: number };
+      /** Replaces the proxy's answer to one path, e.g. an unsure decision */
+      answer?: (path: string, params: Record<string, string>) => unknown;
+    } = {},
+  ) {
     const browser = await loadPlaywright().chromium.launch();
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    const page = await browser.newPage({
+      viewport: { width: 390, height: 844 },
+      geolocation: options.geolocation,
+      permissions: options.geolocation ? ['geolocation'] : [],
+    });
     const cart: unknown[] = [];
     const embed = `<div id="shiplynow-widget" data-proxy="/apps/shiplynow"
       data-locale="${options.locale ?? 'en'}" data-hide-unavailable="${options.hide ?? false}"
@@ -289,6 +302,8 @@ describe('storefront widget', () => {
       const url = new URL(route.request().url());
       if (url.pathname.startsWith('/apps/shiplynow/')) {
         const params = Object.fromEntries(url.searchParams);
+        const replaced = options.answer?.(url.pathname, params);
+        if (replaced) return route.fulfill({ json: replaced });
         const res = await request(app.getHttpServer())
           .get(url.pathname.replace('/apps/shiplynow', '/shopify/proxy'))
           .query(proxyParams(params));
@@ -318,9 +333,25 @@ describe('storefront widget', () => {
     return { browser, page, cart };
   }
 
+  /** New Cairo (the district) served by the NCR zone, as the area search needs. */
+  async function serveNewCairo() {
+    await loadBaseAreas(prisma);
+    await cleanUpAreas(prisma);
+    forgetAreaNames();
+    const newCairo = await prisma.geoArea.findFirstOrThrow({
+      where: { level: 2, nameEn: 'New Cairo', isActive: true },
+    });
+    await prisma.$transaction(
+      (tx) => assignArea(tx, { areaId: newCairo.id, zoneId: ncrZone.id, actorUserId: null }),
+      { timeout: 60_000 },
+    );
+    return newCairo;
+  }
+
   it.skipIf(!canBrowse)(
-    'lets the customer pick an area and marks what can arrive in 60 minutes',
+    'lets the customer find their neighbourhood and marks what can arrive in 60 minutes',
     async () => {
+      const newCairo = await serveNewCairo();
       const { browser, page, cart } = await storefront();
       try {
         const bar = page.locator('#shiplynow-widget');
@@ -330,13 +361,22 @@ describe('storefront widget', () => {
 
         await page.getByRole('button', { name: 'Check' }).click();
         const dialog = page.getByRole('dialog', { name: 'Where should we deliver?' });
-        await page.getByRole('searchbox').fill(ncrZone.nameEn.slice(0, 5));
-        await dialog.getByRole('button', { name: new RegExp(ncrZone.nameEn) }).click();
+        await page.getByRole('searchbox').fill('new cai');
+        await dialog.getByRole('button', { name: /New Cairo/ }).click();
         await expect.poll(() => bar.getAttribute('data-state')).toBe('open');
         expect(await bar.locator('.snw-label').textContent()).toBe(
-          `60 minute delivery to ${ncrZone.nameEn}`,
+          `60 minute delivery to ${newCairo.nameEn}`,
         );
-        expect(cart).toEqual([{ attributes: { _shiplynow_zone: ncrZone.id } }]);
+        // The cart carries the picked area; the pin is cleared and the zone kept for old readers.
+        expect(cart).toEqual([
+          {
+            attributes: {
+              _shiplynow_area: newCairo.id,
+              _shiplynow_pin: '',
+              _shiplynow_zone: ncrZone.id,
+            },
+          },
+        ]);
 
         const stocked = page.locator('li', { hasText: 'Rose oud' });
         const unstocked = page.locator('li', { hasText: 'Old musk' });
@@ -348,7 +388,7 @@ describe('storefront widget', () => {
         await page.goto(`${STORE}/products/rose-oud`);
         await expect
           .poll(() => page.locator('.snw-product').textContent())
-          .toBe(`Arrives in 60 minutes to ${ncrZone.nameEn}`);
+          .toBe(`Arrives in 60 minutes to ${newCairo.nameEn}`);
 
         // Closed store: the bar says when it opens again.
         clock.set(EARLY_CAIRO);
@@ -393,5 +433,54 @@ describe('storefront widget', () => {
       }
     },
     60_000,
+  );
+
+  it.skipIf(!canBrowse)(
+    'uses the phone location, and kindly asks for the neighbourhood when it cannot tell',
+    async () => {
+      await serveNewCairo();
+      const [inside] = await prisma.$queryRaw<{ lat: number; lng: number }[]>`
+        SELECT ST_Y(ST_PointOnSurface(area)) AS lat, ST_X(ST_PointOnSurface(area)) AS lng
+        FROM zones WHERE id = ${ncrZone.id}`;
+      const here = { latitude: inside!.lat, longitude: inside!.lng };
+      const { browser, page, cart } = await storefront({ geolocation: here });
+      try {
+        const bar = page.locator('#shiplynow-widget');
+        await page.goto(`${STORE}/collections/all`);
+        await page.getByRole('button', { name: 'Check' }).click();
+        await page.getByRole('button', { name: 'Use my location' }).click();
+        await expect.poll(() => bar.getAttribute('data-state')).toBe('open');
+        const pin = `${Math.round(here.latitude * 1e6) / 1e6},${Math.round(here.longitude * 1e6) / 1e6}`;
+        // The zone is learned from the answer and written to the cart as well.
+        await expect.poll(() => cart.length).toBe(2);
+        expect(cart.at(-1)).toEqual({
+          attributes: { _shiplynow_area: '', _shiplynow_pin: pin, _shiplynow_zone: ncrZone.id },
+        });
+      } finally {
+        await browser.close();
+      }
+
+      const far = await storefront({
+        geolocation: { latitude: 31.2, longitude: 29.92 },
+        answer: (path) =>
+          path.endsWith('/availability')
+            ? { zone: null, area: null, decision: { status: 'unsure', reason: 'stores_tie' } }
+            : null,
+      });
+      try {
+        const bar = far.page.locator('#shiplynow-widget');
+        await far.page.goto(`${STORE}/collections/all`);
+        await far.page.getByRole('button', { name: 'Check' }).click();
+        await far.page.getByRole('button', { name: 'Use my location' }).click();
+        await expect.poll(() => bar.getAttribute('data-state')).toBe('unsure');
+        const dialog = far.page.getByRole('dialog', { name: 'Where should we deliver?' });
+        await expect
+          .poll(() => dialog.locator('.snw-explain').textContent())
+          .toContain('pick your neighbourhood');
+      } finally {
+        await far.browser.close();
+      }
+    },
+    90_000,
   );
 });
