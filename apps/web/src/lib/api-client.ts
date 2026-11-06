@@ -3,7 +3,9 @@ export async function apiSend<T = unknown>(
   method: 'POST' | 'PUT' | 'PATCH' | 'DELETE',
   path: string,
   body?: unknown,
-): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
+): Promise<
+  { ok: true; data: T } | { ok: false; error: string; details?: Record<string, unknown> }
+> {
   try {
     const res = await fetch(`/api${path}`, {
       method,
@@ -11,7 +13,8 @@ export async function apiSend<T = unknown>(
       body: body === undefined ? undefined : JSON.stringify(body),
     });
     const data = (await res.json().catch(() => ({}))) as { error?: string };
-    if (!res.ok) return { ok: false, error: data.error ?? `http_${res.status}` };
+    // A refusal may carry plain values next to its code (amounts, a distance).
+    if (!res.ok) return { ok: false, error: data.error ?? `http_${res.status}`, details: data };
     return { ok: true, data: data as T };
   } catch {
     return { ok: false, error: 'network' };

@@ -1053,13 +1053,30 @@ async function simulate(
       return;
     }
     const at = now();
-    await handToRider(db, {
-      orderId: o.id,
-      darkStoreId: o.store.id,
-      badgeCode: rider.badge,
-      actorUserId: o.store.staffId,
-      now: at,
-    });
+    const give = () =>
+      handToRider(db, {
+        orderId: o.id,
+        darkStoreId: o.store.id,
+        badgeCode: rider.badge,
+        actorUserId: o.store.staffId,
+        now: at,
+      });
+    try {
+      await give();
+    } catch (error) {
+      // Over the store's rider cash limit: the rider hands in the cash first, then takes it.
+      if (!(error instanceof DomainError) || error.code !== 'rider_cash_limit') throw error;
+      const held = await riderCash(db, rider.id);
+      if (held > 0)
+        await recordCashHandover(db, {
+          riderId: rider.id,
+          darkStoreId: o.store.id,
+          countedPiastres: held,
+          receivedById: o.store.staffId,
+          idempotencyKey: `demo:handover-limit:${rider.id}:${at.getTime()}`,
+        });
+      await give();
+    }
     const late = rnd.chance(0.1);
     const ride = late ? rnd.between(42, 62) : rnd.between(9, 30);
     const start = at.getTime();

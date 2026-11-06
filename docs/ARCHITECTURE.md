@@ -166,9 +166,13 @@ address text read by the area engine. Answers served, outside or unsure. Stores 
 (neighbourhoods, districts) through store_areas.
 
 Money:
-riders hand cash to their store, staff count it → finance deposits store boxes to the bank →
+riders hand cash to their store, staff count it (a cash order is not handed to a rider past the
+store's cash limit unless a store manager gives a reason; cash held too long raises an alert) →
+store staff may pay small expenses from the box as petty cash (with a receipt photo, large ones
+wait for finance) → finance reads the daily cash position → finance deposits store boxes to the bank →
 weekly payouts to merchants (prepared, approved by a second person, marked paid) → monthly tax
-invoices and ETA e-invoices → bank statement matching → monthly closing.
+invoices and ETA e-invoices → bank statement matching → the month end checklist → monthly
+closing.
 
 People:
 an account is created in Settings > Users with a job role → its HR file opens with the
@@ -200,6 +204,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
     attendance roster planning and daily close
     automatic refill drafts
     daily storage fees
+    rider cash overdue alerts (every ten minutes, one per rider and Cairo day)
     monthly finance (recurring expenses, prepayments, depreciation, accrual reversals)
     ETA e-invoice submission and status (every minute, only when configured)
     web push dispatcher (every 10 seconds, only when the VAPID keys are set)

@@ -171,3 +171,21 @@ export {
 } from './returns';
 export { disposeAsset, payoutBankFile, reverseAccruals, updateMerchantBank } from './tools';
 export { centsToPiastres, rateMicro } from './payables';
+export {
+  cashPosition,
+  checkRiderCashLimit,
+  checkRiderCashOverdue,
+  listPettyCash,
+  markMonthEndItem,
+  monthEndChecklist,
+  pettyCategories,
+  postApprovedPettyCash,
+  reversePettyCash,
+  ridersHoldingCash,
+  riderCashPieces,
+  setPettyCategory,
+  storePettyCash,
+  storeRiderCash,
+  submitPettyCash,
+  unmarkMonthEndItem,
+} from './cash-control';

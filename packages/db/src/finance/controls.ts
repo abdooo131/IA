@@ -25,6 +25,7 @@ import {
   type TaxPaymentInput,
 } from './payables';
 import { type CreditNoteInput, issueCreditNote } from './invoices';
+import { postApprovedPettyCash } from './cash-control';
 import { type DisposalInput, disposeAsset } from './tools';
 import {
   type AssetInput,
@@ -140,6 +141,17 @@ export type RequestPayload =
   | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
   | { kind: 'prepayment'; input: Stored<PrepaymentInput> }
   | { kind: 'asset_purchase'; input: Stored<AssetInput> }
+  | {
+      kind: 'petty_cash';
+      input: {
+        pettyCashId: string;
+        amountPiastres: number;
+        reference: string;
+        memo: string;
+        darkStoreId: string;
+        idempotencyKey: string;
+      };
+    }
   | {
       kind: 'payroll';
       input: Stored<PayrollInput> & { amountPiastres: number; idempotencyKey: string };
@@ -283,6 +295,8 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return recordPrepayment(db, { ...p.input, actorUserId });
     case 'asset_purchase':
       return recordAssetPurchase(db, { ...p.input, actorUserId });
+    case 'petty_cash':
+      return postApprovedPettyCash(db, { pettyCashId: p.input.pettyCashId, actorUserId });
   }
 }
 
@@ -530,6 +544,7 @@ export const RECEIPT_KINDS = [
   'asset_purchase',
   'staff_advance',
   'staff_bonus',
+  'petty_cash',
 ];
 
 /** Money movements without any receipt yet, newest first, and how many there are. */

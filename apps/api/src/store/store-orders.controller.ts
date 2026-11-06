@@ -1,4 +1,13 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   acceptOrder,
@@ -16,8 +25,10 @@ import {
   returnToStore,
 } from '@shiplynow/db';
 import {
+  type AccessProfile,
   type AccessTokenClaims,
   ACTIVE_STATUSES,
+  canDo,
   cancelOrderSchema,
   CLOSED_STATUSES,
   type FailedOrderDecision,
@@ -30,7 +41,7 @@ import {
   WAITING_STATUSES,
 } from '@shiplynow/shared';
 import { z } from 'zod';
-import { Access, CurrentUser } from '../auth/decorators';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
@@ -185,14 +196,19 @@ export class StoreOrdersController {
   async handover(
     @Param('storeId') storeId: string,
     @Param('orderId') orderId: string,
-    @Body(new ZodValidationPipe(handoverSchema)) body: { badgeCode: string },
+    @Body(new ZodValidationPipe(handoverSchema)) body: z.infer<typeof handoverSchema>,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
   ) {
     await this.access.check(user, storeId);
+    // Past the rider's cash limit only a store manager (store manage) may hand over, with a reason.
+    if (body.cashOverrideReason && !canDo(access, 'store', 'manage'))
+      throw new ForbiddenException({ error: 'no_access' });
     return handToRider(this.prisma, {
       orderId,
       darkStoreId: storeId,
       badgeCode: body.badgeCode,
+      cashOverrideReason: body.cashOverrideReason,
       actorUserId: user.sub,
     });
   }

@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   accrueStorage,
   checkDocumentExpiry,
+  checkRiderCashOverdue,
   closeAttendanceDays,
   checkFailedDeliveries,
   flagLateOrders,
@@ -60,6 +61,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   /** The last ten minute slot the attendance close ran in this instance. */
   private attendanceDone: string | null = null;
   private closingAttendance = false;
+  /** The last ten minute slot riders' cash was checked in this instance. */
+  private riderCashDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -84,6 +87,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runMonthlyFinance();
       void this.runDocumentExpiry();
       void this.runAttendanceClose();
+      void this.runRiderCashCheck();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -167,6 +171,25 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return null;
     } finally {
       this.closingAttendance = false;
+    }
+  }
+
+  /**
+   * Every ten minutes: one rider_cash_overdue alert per rider and Cairo day while cash older
+   * than finance.rider_cash_max_hours is not handed in. The alert key holds the rider and the
+   * day, so repeats and other instances raise nothing twice.
+   */
+  async runRiderCashCheck(now: Date = new Date()) {
+    const slot = now.toISOString().slice(0, 15);
+    if (this.riderCashDone === slot) return null;
+    try {
+      const result = await checkRiderCashOverdue(this.prisma, now);
+      this.riderCashDone = slot;
+      if (result.raised > 0) this.log.log(`Rider cash: ${result.raised} overdue alerts raised`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: rider cash', error);
+      return null;
     }
   }
 

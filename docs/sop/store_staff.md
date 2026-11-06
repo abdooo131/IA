@@ -123,6 +123,24 @@ Also inside the app: settings menu (top of every screen), Help.
 - Short or over: save the real count anyway, write a note (what the rider said), and the difference goes to finance.
 - Rider refuses to wait for the count: do not save; tell the store lead.
 
+### Rider cash limit and petty cash
+
+1. Home lists the riders holding cash, with the amount and since when. Red means held too long: take their cash in Rider cash now.
+2. If handing over a cash order says the rider is over the cash limit: take their cash first, then scan the badge again. Only a store manager may hand over anyway, with a written reason.
+3. Petty cash: open Petty cash, choose what it was for, type the amount and a note, take a photo of the receipt, and tap Pay from the box.
+4. Keep the paper receipt in the box envelope.
+
+**Check it went right**
+
+- The petty expense shows Paid (the box went down) or Waiting for approval (finance decides first).
+- No rider on Home is red at the end of your shift.
+
+**If something is wrong**
+
+- The box does not hold that much: do not pay from your pocket; ask the store lead to call finance.
+- No category fits: ask finance by ticket to open one; do not choose a wrong one.
+- Rejected by finance: read the reason on the list and return the money or the item as told.
+
 ### Failed deliveries and returns to merchants
 
 1. When a rider brings goods back: open the order and tap Receive goods back.
@@ -295,6 +313,24 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - ناقص أو زيادة: احفظ العد الحقيقي، اكتب ملاحظة (المندوب قال إيه)، والفرق بيروح للماليات.
 - المندوب مش عايز يستنى العد: ما تحفظش؛ قول لمسؤول الفرع.
+
+### حد نقدية المندوب والنثريات
+
+1. الرئيسية بتعرض المناديب اللي معاهم فلوس، بالمبلغ ومن إمتى. الأحمر يعني معاه من مدة طويلة: استلم فلوسه من فلوس المناديب حالا.
+2. لو التسليم قال إن المندوب فوق حد النقدية: استلم فلوسه الأول وبعدين اعمل سكان للبادج تاني. مدير الفرع بس يقدر يسلّم برضه بسبب مكتوب.
+3. النثريات: افتح النثريات، اختار المصروف لإيه، اكتب المبلغ وملاحظة، صوّر الإيصال، واضغط ادفع من الخزنة.
+4. احتفظ بالإيصال الورق في ظرف الخزنة.
+
+**اتأكد إنها مشيت صح**
+
+- المصروف بيقول اتدفعت (الخزنة نقصت) أو مستنية موافقة (المالية تقرر الأول).
+- مفيش مندوب أحمر في الرئيسية آخر الشيفت.
+
+**لو فيه مشكلة**
+
+- الخزنة مافيهاش المبلغ: ما تدفعش من جيبك؛ اطلب من مسؤول الفرع يكلم المالية.
+- مفيش بند مناسب: اطلب من المالية بتذكرة يفتحوا بند؛ ما تختارش بند غلط.
+- المالية رفضت: اقرا السبب في القائمة ورجّع الفلوس أو الحاجة زي ما اتقال.
 
 ### التوصيل اللي فشل ومرتجعات التجار
 

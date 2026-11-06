@@ -55,6 +55,14 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState<(typeof CANCEL_REASONS)[number]>('customer_request');
+  // Cash controls: a hand over refused past the rider's cash limit, waiting for a manager.
+  const [cashLimit, setCashLimit] = useState<{
+    badgeCode: string;
+    limit: number;
+    total: number;
+  } | null>(null);
+  const [overrideReason, setOverrideReason] = useState('');
+  const tc = useTranslations('cashControl.override');
 
   const base = `/stores/${storeId}/orders/${order.id}`;
   const fail = (error: string) =>
@@ -80,6 +88,31 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
     await refresh();
     action.setBusy(false);
     return result.ok;
+  }
+
+  /** Hands the order to a rider; past the cash limit a store manager may give a reason. */
+  async function handOver(badgeCode: string, cashOverrideReason?: string) {
+    action.setBusy(true);
+    action.setMessage(null);
+    const result = await apiSend<{ rider: string }>('POST', `${base}/handover`, {
+      badgeCode,
+      ...(cashOverrideReason ? { cashOverrideReason } : {}),
+    });
+    if (result.ok) {
+      setCashLimit(null);
+      setOverrideReason('');
+      action.ok(t('actions.handedTo', { rider: result.data.rider }));
+    } else if (result.error === 'rider_cash_limit') {
+      setCashLimit({
+        badgeCode,
+        limit: Number(result.details?.limitPiastres ?? 0),
+        total: Number(result.details?.totalPiastres ?? 0),
+      });
+    } else if (result.error === 'no_access' && cashOverrideReason) {
+      action.setMessage({ text: tc('managerOnly'), error: true });
+    } else fail(result.error);
+    await refresh();
+    action.setBusy(false);
   }
 
   async function onPickCode(code: string) {
@@ -289,14 +322,35 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
       {order.status === 'packed' && (
         <section className="space-y-2">
           <p className="text-body-sm font-bold">{t('actions.scanBadge')}</p>
-          <ScanBox
-            onCode={(badgeCode) =>
-              void run<{ rider: string }>('handover', { badgeCode }, (d) =>
-                t('actions.handedTo', { rider: d.rider }),
-              )
-            }
-            disabled={action.busy}
-          />
+          <ScanBox onCode={(badgeCode) => void handOver(badgeCode)} disabled={action.busy} />
+          {cashLimit && (
+            <div className="space-y-2 rounded-md border border-status-needs-action p-3">
+              <p className="text-body-sm font-bold text-status-needs-action">{tc('title')}</p>
+              <p className="text-body-sm">
+                {tc('detail', {
+                  total: formatEgp(cashLimit.total),
+                  limit: formatEgp(cashLimit.limit),
+                })}
+              </p>
+              <label className="block text-caption">
+                {tc('reason')}
+                <input
+                  value={overrideReason}
+                  onChange={(e) => setOverrideReason(e.target.value)}
+                  className="mt-1 block h-11 w-full rounded-md border border-line-strong bg-surface px-3 text-body"
+                />
+              </label>
+              <button
+                type="button"
+                className={secondary}
+                disabled={action.busy || overrideReason.trim().length < 5}
+                onClick={() => void handOver(cashLimit.badgeCode, overrideReason.trim())}
+              >
+                {tc('confirm')}
+              </button>
+              <p className="text-caption text-text-muted">{tc('managerOnly')}</p>
+            </div>
+          )}
         </section>
       )}
 

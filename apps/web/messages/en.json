@@ -360,7 +360,8 @@
         "transfer_short_received": "Transfer {reference} arrived with units missing",
         "cod_risk_customer": "Cash order from a customer with high delivery risk",
         "document_expiring": "{nameEn}: a document runs out on {expiresOn}",
-        "document_expired": "{nameEn}: a document ran out on {expiresOn}"
+        "document_expired": "{nameEn}: a document ran out on {expiresOn}",
+        "rider_cash_overdue": "{rider} has held {amountEgp} EGP for over {hours} hours"
       },
       "handledBy": "Handled by {name}"
     },
@@ -415,6 +416,11 @@
         "signup__auto_approve": "Approve new merchant sign ups at once (1 yes, 0 wait for admin)",
         "finance__approval_threshold_piastres": "Second approver from (EGP)",
         "finance__approve_money_in": "Second person checks all money coming in (1 yes, 0 no)",
+        "finance__rider_cash_limit_piastres": "Most cash a rider may hold, with the orders they carry (EGP, 0 off)",
+        "finance__rider_cash_max_hours": "Rider cash is overdue after (hours)",
+        "finance__rider_cash_warn_hours": "Cash position: rider cash is getting old after (hours)",
+        "finance__petty_cash_limit_piastres": "Petty cash above this waits for finance (EGP, 0 off)",
+        "finance__petty_cash_float_piastres": "Cash a store box keeps; petty cash below it waits for finance (EGP)",
         "payroll__personal_exemption_piastres": "Salary tax: yearly personal exemption (EGP)",
         "payroll__si_employee_bp": "Social insurance, employee share (%)",
         "payroll__si_employer_bp": "Social insurance, company share (%)",
@@ -1554,6 +1560,7 @@
       "rider_not_found": "No rider with that badge.",
       "rider_other_store": "That rider belongs to another store.",
       "rider_full": "That rider already carries the most orders allowed in one trip.",
+      "rider_cash_limit": "The rider would carry more cash than the store allows.",
       "batch_would_break_sla": "Adding this order would make a delivery late. Use another rider.",
       "photo_too_large": "The photo is too large.",
       "photo_type_not_allowed": "That file is not a photo.",
@@ -1745,7 +1752,9 @@
       "corporate_tax": "Company income tax",
       "accrual": "Accrual",
       "accrual_reversal": "Accrual reversed",
-      "asset_disposal": "Equipment sold or scrapped"
+      "asset_disposal": "Equipment sold or scrapped",
+      "petty_cash": "Store petty cash",
+      "petty_cash_reversal": "Petty cash reversed"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -2038,7 +2047,12 @@
         "invalid_rate": "Write the rate as a number, for example 48.50.",
         "invalid_currency": "Currency not valid.",
         "asset_not_found": "Equipment not found.",
-        "asset_already_disposed": "Already sold or scrapped."
+        "asset_already_disposed": "Already sold or scrapped.",
+        "not_enough_cash_in_box": "The store box does not hold that much cash.",
+        "petty_cash_reversed": "This petty expense was already reversed.",
+        "petty_cash_not_posted": "Only a posted petty expense can be reversed.",
+        "invalid_item": "This item cannot be ticked by hand.",
+        "mark_not_found": "This item was not ticked."
       }
     },
     "riders": {
@@ -2195,7 +2209,8 @@
         "asset_purchase": "Equipment bought",
         "staff_bonus": "Bonus to outsourced person",
         "credit_note": "Credit note to a merchant",
-        "asset_disposal": "Equipment sold or scrapped"
+        "asset_disposal": "Equipment sold or scrapped",
+        "petty_cash": "Store petty cash"
       },
       "statuses": {
         "pending": "Waiting",
@@ -3297,6 +3312,24 @@
             ]
           },
           {
+            "title": "Rider cash limit and petty cash",
+            "steps": [
+              "Home lists the riders holding cash, with the amount and since when. Red means held too long: take their cash in Rider cash now.",
+              "If handing over a cash order says the rider is over the cash limit: take their cash first, then scan the badge again. Only a store manager may hand over anyway, with a written reason.",
+              "Petty cash: open Petty cash, choose what it was for, type the amount and a note, take a photo of the receipt, and tap Pay from the box.",
+              "Keep the paper receipt in the box envelope."
+            ],
+            "check": [
+              "The petty expense shows Paid (the box went down) or Waiting for approval (finance decides first).",
+              "No rider on Home is red at the end of your shift."
+            ],
+            "problems": [
+              "The box does not hold that much: do not pay from your pocket; ask the store lead to call finance.",
+              "No category fits: ask finance by ticket to open one; do not choose a wrong one.",
+              "Rejected by finance: read the reason on the list and return the money or the item as told."
+            ]
+          },
+          {
             "title": "Failed deliveries and returns to merchants",
             "steps": [
               "When a rider brings goods back: open the order and tap Receive goods back.",
@@ -3756,13 +3789,49 @@
             ]
           },
           {
+            "title": "Cash position every morning",
+            "steps": [
+              "Open Accounting, Dashboard, Cash position.",
+              "Banks and cash boxes: compare each with the bank app and the store box counts.",
+              "Cash with riders: anything Overdue is chased today with the store manager (the store and finance also get a notification).",
+              "Owed to merchants shows each merchant's next payout day; bills due within 7 days show what must leave soon. The net position is what is left after both.",
+              "Export CSV when the owner asks for the day's position."
+            ],
+            "check": [
+              "No rider cash is Overdue by noon.",
+              "Banks and boxes match the bank app and the counted boxes."
+            ],
+            "problems": [
+              "The net position is below zero: tell the owner the same day, with the bills and payouts due.",
+              "A rider keeps holding cash past the limit: open a ticket to the store manager, and ask admin to lower the store's limit if it repeats."
+            ]
+          },
+          {
+            "title": "Petty cash and the month end checklist",
+            "steps": [
+              "Petty cash (Cash and bank): open the categories stores may use. Large petty expenses, or ones that would leave a box below its float, wait in Approvals; check the receipt photo before approving.",
+              "Reverse a petty expense paid by mistake with a reason (approvers only); the money returns to the box.",
+              "After the month ends open Configuration, Month end checklist and choose the month.",
+              "Open each item that is not done and finish it: rider cash and differences, bank lines, receipts, petty cash, tax invoices, payroll, storage, depreciation.",
+              "Prepare the VAT return in Tax returns, then tick VAT return with a note.",
+              "When every item is done, tap Close the books."
+            ],
+            "check": [
+              "Every item shows Done (or a tick with a note) and the books are closed through the last day."
+            ],
+            "problems": [
+              "An item cannot be finished (for example a day without stock shows storage missing): tick it by hand with a note that explains why.",
+              "Something was ticked by mistake: Untick it; every tick and untick is in the history."
+            ]
+          },
+          {
             "title": "Turn on phone notifications",
             "steps": [
               "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
               "Open the Settings menu (top of every screen), then Notifications.",
               "Tap Turn on notifications on this device and allow notifications when the phone asks.",
               "Tap Send me a test: a notification must appear within a few seconds.",
-              "Switch off the kinds you do not need. You are told about: requests and payouts waiting for a second person, cash differences, tickets."
+              "Switch off the kinds you do not need. You are told about: requests and payouts waiting for a second person, cash differences, riders holding cash too long, tickets."
             ],
             "check": [
               "The page says notifications are on for this device and the test arrived.",
@@ -4366,6 +4435,7 @@
       "places": "Places and demand",
       "marketData": "Market data",
       "approvals": "Approvals",
+      "cashPosition": "Cash position",
       "wallets": "Merchant wallets",
       "payouts": "Payouts",
       "invoices": "Tax invoices",
@@ -4377,6 +4447,7 @@
       "storeCash": "Store cash",
       "bankMatching": "Bank matching",
       "receipts": "Missing receipts",
+      "pettyCash": "Petty cash",
       "payroll": "Payroll",
       "payslips": "Payslips",
       "riders": "Riders",
@@ -4394,6 +4465,7 @@
       "accounts": "Chart of accounts",
       "company": "Company tax details",
       "close": "Close the books",
+      "monthEnd": "Month end checklist",
       "yearEnd": "Year end",
       "opening": "Opening balances",
       "users": "Users",
@@ -5241,6 +5313,204 @@
       "merchant_low_stock": {
         "name": "Low stock",
         "hint": "A product is running low at a store (once a day per product)."
+      },
+      "rider_cash_overdue": {
+        "name": "Rider cash not handed in",
+        "hint": "A rider at your store has held cash longer than allowed."
+      }
+    }
+  },
+  "cashControl": {
+    "position": {
+      "title": "Cash position",
+      "intro": "Where the money is now ({time}): banks and cash boxes, cash with riders by age, what we owe merchants and bills due within a week.",
+      "export": "Export CSV",
+      "scopeStores": "You see only the cash of your stores. Banks, merchants, bills and the net position are company wide.",
+      "code": "Code",
+      "name": "Name",
+      "kind": "Kind",
+      "amount": "EGP",
+      "total": "Total",
+      "nothing": "Nothing to show.",
+      "money": {
+        "title": "Banks and cash boxes",
+        "bank": "In banks",
+        "boxes": "In cash boxes",
+        "kinds": {
+          "bank": "Bank",
+          "cash_box": "Cash box",
+          "store_box": "Store cash box"
+        }
+      },
+      "riders": {
+        "title": "Cash with riders",
+        "intro": "Collected cash not handed to a store yet, oldest handed in first. Over the store limit is overdue.",
+        "rider": "Rider",
+        "fresh": "Under {hours} h",
+        "aging": "Getting old",
+        "overdue": "Overdue",
+        "since": "holding for {hours} h",
+        "none": "No rider is holding cash.",
+        "overdueHint": "{amount} EGP overdue"
+      },
+      "merchants": {
+        "title": "Owed to merchants",
+        "merchant": "Merchant",
+        "next": "Next payout",
+        "draft": "Draft payout",
+        "owed": "Owed",
+        "none": "We owe no merchant anything.",
+        "owingUs": "Merchants owe us {amount} EGP (not counted as cash).",
+        "schedules": {
+          "daily": "Daily",
+          "twice_weekly": "Sunday and Wednesday",
+          "weekly": "Sunday"
+        }
+      },
+      "bills": {
+        "title": "Bills due within 7 days",
+        "none": "No bill is due this week.",
+        "due": "Due",
+        "overdue": "Overdue since"
+      },
+      "net": {
+        "title": "Net position",
+        "hint": "Banks and boxes plus rider cash, minus what we owe merchants and bills due this week."
+      }
+    },
+    "petty": {
+      "title": "Petty cash",
+      "intro": "Small expenses store staff paid from their store cash box, each with a receipt photo. Large ones wait in Approvals.",
+      "store": "Store",
+      "allStores": "All stores",
+      "status": "Status",
+      "allStatuses": "All",
+      "statuses": {
+        "posted": "Paid",
+        "pending": "Waiting for approval",
+        "rejected": "Rejected",
+        "cancelled": "Withdrawn",
+        "reversed": "Reversed"
+      },
+      "none": "No petty cash yet.",
+      "postedTotal": "Paid in this list",
+      "egp": "EGP",
+      "receipt": "Receipt",
+      "toApprovals": "Approvals",
+      "reverse": "Reverse",
+      "reason": "Reason to reverse",
+      "reverseConfirm": "Reverse and return to the box",
+      "reversedBy": "Reversed by {name}: {reason}",
+      "categories": {
+        "title": "Petty cash categories",
+        "intro": "Expense categories store staff may choose when they pay from the store box.",
+        "on": "Open to stores",
+        "off": "Not for stores"
+      }
+    },
+    "pettyStore": {
+      "title": "Petty cash",
+      "intro": "Pay a small expense from the store cash box. Take a photo of the receipt.",
+      "box": "In the store box (EGP)",
+      "limitHint": "Above {limit} EGP, or when the box would keep less than {float} EGP, finance approves it first.",
+      "category": "What was it for",
+      "amount": "Amount (EGP)",
+      "note": "Note",
+      "notePlaceholder": "What did you buy?",
+      "receipt": "Receipt photo",
+      "save": "Pay from the box",
+      "posted": "Saved as {number}. Paid from the box.",
+      "pending": "Saved as {number}. Waiting for finance to approve it.",
+      "recent": "Recent petty cash",
+      "none": "Nothing yet.",
+      "noCategories": "Finance has not opened any petty cash category yet.",
+      "errors": {
+        "not_enough_cash_in_box": "The box does not hold that much cash.",
+        "petty_category_not_found": "Choose a category.",
+        "receipt_required": "Take a photo of the receipt first.",
+        "note_required": "Write what it was for.",
+        "invalid_amount": "Enter the amount paid.",
+        "validation_failed": "Check the amount, the note and the receipt.",
+        "network": "No connection. Try again.",
+        "generic": "Something went wrong. Try again."
+      }
+    },
+    "storeHome": {
+      "pettyTile": "Petty cash",
+      "pettyHint": "Pay small expenses from the box",
+      "holdingTitle": "Riders holding cash",
+      "collect": "Collect cash",
+      "since": "since {time}",
+      "overdue": "Held over {hours} h: collect it now"
+    },
+    "override": {
+      "title": "Over the rider's cash limit",
+      "detail": "With this order the rider would hold {total} EGP; the store allows {limit} EGP. Collect cash first, or a store manager hands it over with a reason.",
+      "reason": "Store manager's reason",
+      "confirm": "Hand over anyway",
+      "managerOnly": "Only a store manager can hand over past the limit."
+    },
+    "monthEnd": {
+      "title": "Month end checklist",
+      "intro": "Everything to finish before closing a month, checked live. Open an item to work on it; finance can tick an item by hand with a note.",
+      "month": "Month",
+      "progress": "{done} of {total} done",
+      "notOver": "The month is not over yet.",
+      "done": "Done",
+      "notYet": "After the month ends",
+      "left": "{count, plural, one {# left} other {# left}}",
+      "toTick": "Tick when done",
+      "open": "Open",
+      "tick": "Tick by hand",
+      "untick": "Untick",
+      "note": "Note (what was done)",
+      "saveTick": "Tick",
+      "markedBy": "Ticked by {name}: {note}",
+      "ready": "Every item is done. Close the books to stop any change in this month.",
+      "notReady": "Finish the items above, or tick them with a note, before closing the books.",
+      "close": "Close the books through {day}",
+      "closed": "The books are closed through {day}.",
+      "items": {
+        "cash_handovers": {
+          "name": "Rider cash counted",
+          "hint": "Every rider handed in the cash of the month and every difference is settled."
+        },
+        "bank_lines": {
+          "name": "Bank lines matched",
+          "hint": "Every line of the month's bank statements is matched or set aside."
+        },
+        "receipts": {
+          "name": "Receipts attached",
+          "hint": "Every money movement of the month has its receipt or transfer slip."
+        },
+        "petty_cash": {
+          "name": "Petty cash decided",
+          "hint": "No petty expense of the month is waiting for approval."
+        },
+        "invoices": {
+          "name": "Tax invoices issued",
+          "hint": "Every merchant charged fees in the month has its invoice."
+        },
+        "payroll": {
+          "name": "Payroll run",
+          "hint": "The month's salaries are booked and paid."
+        },
+        "storage": {
+          "name": "Storage charged",
+          "hint": "Storage was charged for every day of the month."
+        },
+        "depreciation": {
+          "name": "Depreciation and prepaid months",
+          "hint": "Equipment depreciation and prepaid months are charged for the month."
+        },
+        "vat_return": {
+          "name": "VAT return prepared",
+          "hint": "Prepare the VAT return from Tax returns, then tick it with a note."
+        },
+        "books_closed": {
+          "name": "Books closed",
+          "hint": "Nothing more can be posted in the month."
+        }
       }
     }
   },

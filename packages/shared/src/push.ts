@@ -21,6 +21,7 @@ export const PUSH_TYPES = [
   'merchant_order',
   'merchant_payout',
   'merchant_low_stock',
+  'rider_cash_overdue',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -45,6 +46,7 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   const list: PushType[] = [];
   if (canDo(p, 'store', 'use')) list.push('order_new', 'order_late', 'stock_arriving');
   if (canDo(p, 'accounting', 'use')) list.push('finance_approval', 'cash_difference');
+  if (canDo(p, 'store', 'manage') || canDo(p, 'accounting', 'use')) list.push('rider_cash_overdue');
   if (canDo(p, 'operations', 'manage')) list.push('ops_alert');
   if (canDo(p, 'merchants', 'manage')) list.push('merchant_signup');
   if (canDo(p, 'merchants', 'use')) list.push('merchant_alert');
@@ -191,6 +193,16 @@ export const PUSH_TEXT = {
   merchant_low_stock: {
     en: ['Low stock: {product}', '{available} left to sell at {store}.'],
     ar: ['مخزون منخفض: {product}', 'متبقي {available} للبيع في {store}.'],
+  },
+  rider_cash_overdue: {
+    en: [
+      'Cash not handed in: {rider}',
+      '{rider} at {store} has held {amount} EGP for over {hours} h.',
+    ],
+    ar: [
+      'نقدية لم تُسلَّم: {rider}',
+      '{rider} في {store} معه {amount} جنيه منذ أكثر من {hours} ساعة.',
+    ],
   },
 } as const satisfies Record<string, Record<PushLang, readonly [string, string]>>;
 export type PushTextKey = keyof typeof PUSH_TEXT;

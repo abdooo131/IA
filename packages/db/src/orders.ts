@@ -11,6 +11,7 @@ import {
   normalizeEgyptianPhone,
 } from '@shiplynow/shared';
 import { postDeliveryCompleted, postDeliveryFailed } from './finance/postings';
+import { checkRiderCashLimit } from './finance/cash-control';
 import { isClockedIn } from './attendance';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
@@ -569,6 +570,8 @@ export function handToRider(
     darkStoreId: string;
     badgeCode: string;
     actorUserId: Actor;
+    /** A store manager hands a cash order over the rider's cash limit, with this reason */
+    cashOverrideReason?: string;
     now?: Date;
   },
 ) {
@@ -599,6 +602,15 @@ export function handToRider(
     if (active.length > 0 && !(inSla(order) && active.every((d) => inSla(d.order)))) {
       throw new DomainError('batch_would_break_sla');
     }
+    // Cash controls: a cash order may not take the rider past the store's cash limit.
+    const cash = await checkRiderCashLimit(tx, {
+      riderId: rider.id,
+      darkStoreId: order.darkStoreId,
+      orderId: order.id,
+      orderCodPiastres: order.codAmountPiastres,
+      overrideReason: input.cashOverrideReason,
+      actorUserId: input.actorUserId,
+    });
     const tripId = active[0]?.tripId ?? randomUUID();
 
     await tx.delivery.create({
@@ -620,7 +632,13 @@ export function handToRider(
       input.actorUserId,
       'handed_to_rider',
       { outForDeliveryAt: now },
-      { rider: rider.user.name, badge: rider.badgeCode, tripId, batched: active.length > 0 },
+      {
+        rider: rider.user.name,
+        badge: rider.badgeCode,
+        tripId,
+        batched: active.length > 0,
+        ...(cash.checked && cash.overridden ? { cashOverride: cash.reason } : {}),
+      },
     );
     await queueShopify(tx, order, 'fulfill', `order:${order.id}:fulfill`, {
       trackingNumber: order.number,

@@ -538,6 +538,40 @@ export const SETTING_DEFINITIONS = {
     description: '1: a rider who is not clocked in cannot be handed orders',
     override: 'store',
   },
+  'finance.rider_cash_limit_piastres': {
+    schema: piastres,
+    default: 500_000,
+    description:
+      'Most cash (piastres) a rider may hold, counting the cash on delivery of the orders they carry; handing over a cash order past it needs a store manager (0 turns it off)',
+    override: 'store',
+  },
+  'finance.rider_cash_max_hours': {
+    schema: z.number().int().min(1).max(168),
+    default: 12,
+    description:
+      'Hours a rider may keep collected cash before it is overdue (one alert per rider and day)',
+    override: 'store',
+  },
+  'finance.rider_cash_warn_hours': {
+    schema: z.number().int().min(1).max(168),
+    default: 4,
+    description: 'Cash position: rider cash older than this many hours shows as getting old',
+    override: 'none',
+  },
+  'finance.petty_cash_limit_piastres': {
+    schema: piastres,
+    default: 50_000,
+    description:
+      'Petty cash above this amount (piastres) waits for finance to approve it (0 turns the amount check off)',
+    override: 'store',
+  },
+  'finance.petty_cash_float_piastres': {
+    schema: piastres,
+    default: 100_000,
+    description:
+      'Cash (piastres) a store box keeps; a petty expense that would leave less waits for finance',
+    override: 'store',
+  },
   'hr.office_lat': {
     schema: z.number().min(-90).max(90),
     default: 0,

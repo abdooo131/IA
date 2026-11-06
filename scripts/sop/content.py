@@ -970,14 +970,14 @@ _PUSH_WHAT_EN = {
   "store_staff": "new orders to accept, late orders, shipments and transfers on their way to your store, tickets",
   "rider": "orders handed to you, tickets, a late clock in",
   "merchant": "orders delivered or failed, payouts paid, products running low (each only if your rights cover it)",
-  "finance": "requests and payouts waiting for a second person, cash differences, tickets",
+  "finance": "requests and payouts waiting for a second person, cash differences, riders holding cash too long, tickets",
   "admin": "urgent alerts (server errors, late orders, failed deliveries, goods not back), merchant sign ups, tickets",
 }
 _PUSH_WHAT_AR = {
   "store_staff": "الطلبات الجديدة اللي محتاجة قبول، الطلبات المتأخرة، الشحنات والتحويلات الجاية لفرعك، التذاكر",
   "rider": "الطلبات اللي اتسلمت لك، التذاكر، الحضور المتأخر",
   "merchant": "الطلبات اللي اتسلمت أو فشلت، الدفعات اللي اتحولت، المنتجات اللي قربت تخلص (كل واحدة لو صلاحياتك بتغطيها)",
-  "finance": "الطلبات والدفعات اللي مستنية موافقة شخص تاني، فروق الفلوس، التذاكر",
+  "finance": "الطلبات والدفعات اللي مستنية موافقة شخص تاني، فروق الفلوس، مناديب معاهم فلوس مدة طويلة، التذاكر",
   "admin": "التنبيهات العاجلة (أخطاء السيرفر، الطلبات المتأخرة، التوصيل الفاشل، البضاعة اللي مرجعتش)، تسجيل التجار، التذاكر",
 }
 for _role in EN:
@@ -1011,3 +1011,98 @@ for _role in EN:
        "محظورة: اسمح بالإشعارات للموقع من إعدادات المتصفح أو الموبايل وفعّلها تاني.",
        "التجربة ما وصلتش: اتأكد إن الموبايل مش على عدم الإزعاج أو توفير البطارية وابعت تجربة تانية.",
        "موبايل ضاع أو قديم: شيله من أجهزتك في نفس الصفحة."]})
+
+# Cash controls (CLAUDE.md, Cash controls): the rider cash limit and petty cash for store staff,
+# the cash position and the month end checklist for finance. Each goes after its neighbour.
+def _insert_after(role, title_en, title_ar, en, ar):
+  for lang, title, section in ((EN, title_en, en), (AR, title_ar, ar)):
+    sections = lang[role]["sections"]
+    at = next((i for i, s in enumerate(sections) if s["title"] == title), len(sections) - 1)
+    sections.insert(at + 1, section)
+
+_insert_after(
+  "store_staff", "Cash from riders", "فلوس المناديب",
+  {"title": "Rider cash limit and petty cash",
+   "steps": [
+     "Home lists the riders holding cash, with the amount and since when. Red means held too long: take their cash in Rider cash now.",
+     "If handing over a cash order says the rider is over the cash limit: take their cash first, then scan the badge again. Only a store manager may hand over anyway, with a written reason.",
+     "Petty cash: open Petty cash, choose what it was for, type the amount and a note, take a photo of the receipt, and tap Pay from the box.",
+     "Keep the paper receipt in the box envelope."],
+   "check": [
+     "The petty expense shows Paid (the box went down) or Waiting for approval (finance decides first).",
+     "No rider on Home is red at the end of your shift."],
+   "problems": [
+     "The box does not hold that much: do not pay from your pocket; ask the store lead to call finance.",
+     "No category fits: ask finance by ticket to open one; do not choose a wrong one.",
+     "Rejected by finance: read the reason on the list and return the money or the item as told."]},
+  {"title": "حد نقدية المندوب والنثريات",
+   "steps": [
+     "الرئيسية بتعرض المناديب اللي معاهم فلوس، بالمبلغ ومن إمتى. الأحمر يعني معاه من مدة طويلة: استلم فلوسه من فلوس المناديب حالا.",
+     "لو التسليم قال إن المندوب فوق حد النقدية: استلم فلوسه الأول وبعدين اعمل سكان للبادج تاني. مدير الفرع بس يقدر يسلّم برضه بسبب مكتوب.",
+     "النثريات: افتح النثريات، اختار المصروف لإيه، اكتب المبلغ وملاحظة، صوّر الإيصال، واضغط ادفع من الخزنة.",
+     "احتفظ بالإيصال الورق في ظرف الخزنة."],
+   "check": [
+     "المصروف بيقول اتدفعت (الخزنة نقصت) أو مستنية موافقة (المالية تقرر الأول).",
+     "مفيش مندوب أحمر في الرئيسية آخر الشيفت."],
+   "problems": [
+     "الخزنة مافيهاش المبلغ: ما تدفعش من جيبك؛ اطلب من مسؤول الفرع يكلم المالية.",
+     "مفيش بند مناسب: اطلب من المالية بتذكرة يفتحوا بند؛ ما تختارش بند غلط.",
+     "المالية رفضت: اقرا السبب في القائمة ورجّع الفلوس أو الحاجة زي ما اتقال."]})
+
+_insert_after(
+  "finance", "Month end", "آخر الشهر",
+  {"title": "Cash position every morning",
+   "steps": [
+     "Open Accounting, Dashboard, Cash position.",
+     "Banks and cash boxes: compare each with the bank app and the store box counts.",
+     "Cash with riders: anything Overdue is chased today with the store manager (the store and finance also get a notification).",
+     "Owed to merchants shows each merchant's next payout day; bills due within 7 days show what must leave soon. The net position is what is left after both.",
+     "Export CSV when the owner asks for the day's position."],
+   "check": [
+     "No rider cash is Overdue by noon.",
+     "Banks and boxes match the bank app and the counted boxes."],
+   "problems": [
+     "The net position is below zero: tell the owner the same day, with the bills and payouts due.",
+     "A rider keeps holding cash past the limit: open a ticket to the store manager, and ask admin to lower the store's limit if it repeats."]},
+  {"title": "موقف النقدية كل صبح",
+   "steps": [
+     "افتح الحسابات، لوحة التحكم، موقف النقدية.",
+     "البنوك والخزن: قارن كل واحد بتطبيق البنك وعد خزن الفروع.",
+     "النقدية مع المناديب: أي حاجة متأخرة تتابعها النهارده مع مدير الفرع (الفرع والمالية بيوصلهم إشعار كمان).",
+     "المستحق للتجار بيوري ميعاد الدفعة الجاية لكل تاجر؛ والفواتير المستحقة خلال 7 أيام بتوري اللي لازم يخرج قريب. صافي الموقف هو اللي فاضل بعدهم.",
+     "صدّر CSV لما المالك يطلب موقف اليوم."],
+   "check": [
+     "مفيش نقدية مندوب متأخرة لحد الضهر.",
+     "البنوك والخزن مطابقين لتطبيق البنك والخزن المعدودة."],
+   "problems": [
+     "صافي الموقف تحت الصفر: بلّغ المالك نفس اليوم بالفواتير والدفعات المستحقة.",
+     "مندوب بيفضل معاه فلوس فوق الحد: افتح تذكرة لمدير الفرع، واطلب من الأدمن يقلل حد الفرع لو اتكرر."]})
+
+_insert_after(
+  "finance", "Cash position every morning", "موقف النقدية كل صبح",
+  {"title": "Petty cash and the month end checklist",
+   "steps": [
+     "Petty cash (Cash and bank): open the categories stores may use. Large petty expenses, or ones that would leave a box below its float, wait in Approvals; check the receipt photo before approving.",
+     "Reverse a petty expense paid by mistake with a reason (approvers only); the money returns to the box.",
+     "After the month ends open Configuration, Month end checklist and choose the month.",
+     "Open each item that is not done and finish it: rider cash and differences, bank lines, receipts, petty cash, tax invoices, payroll, storage, depreciation.",
+     "Prepare the VAT return in Tax returns, then tick VAT return with a note.",
+     "When every item is done, tap Close the books."],
+   "check": [
+     "Every item shows Done (or a tick with a note) and the books are closed through the last day."],
+   "problems": [
+     "An item cannot be finished (for example a day without stock shows storage missing): tick it by hand with a note that explains why.",
+     "Something was ticked by mistake: Untick it; every tick and untick is in the history."]},
+  {"title": "النثريات وقائمة إقفال الشهر",
+   "steps": [
+     "النثريات (الكاش والبنك): افتح البنود اللي الفروع تقدر تستخدمها. النثريات الكبيرة، أو اللي هتنزّل الخزنة تحت رصيدها الثابت، بتستنى في الموافقات؛ راجع صورة الإيصال قبل الموافقة.",
+     "ألغي مصروف نثريات اتدفع غلط بسبب (اللي بيوافقوا بس)؛ الفلوس بترجع الخزنة.",
+     "بعد ما الشهر يخلص افتح الإعدادات، قائمة إقفال الشهر واختار الشهر.",
+     "افتح كل بند لسه ماخلصش وخلّصه: نقدية المناديب والفروق، سطور البنك، الإيصالات، النثريات، الفواتير الضريبية، المرتبات، التخزين، الإهلاك.",
+     "جهّز إقرار القيمة المضافة من الإقرارات الضريبية، وبعدين علّم على إقرار القيمة المضافة بملاحظة.",
+     "لما كل البنود تخلص، اضغط اقفل الدفاتر."],
+   "check": [
+     "كل بند مكتوب عليه خلص (أو علامة بملاحظة) والدفاتر مقفولة لحد آخر يوم."],
+   "problems": [
+     "بند مش هينفع يخلص (مثلا يوم من غير مخزون باين إن تخزينه ناقص): علّم عليه باليد بملاحظة بتشرح السبب.",
+     "علّمت على حاجة غلط: شيل العلامة؛ كل علامة وشيلها متسجلة في السجل."]})

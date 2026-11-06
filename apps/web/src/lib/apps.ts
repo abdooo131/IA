@@ -138,6 +138,7 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance', label: 'overview', exact: true },
           { href: '/finance/approvals', label: 'approvals' },
+          { href: '/finance/cash-position', label: 'cashPosition' },
         ],
       },
       {
@@ -164,6 +165,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/cash', label: 'storeCash' },
           { href: '/finance/bank', label: 'bankMatching' },
           { href: '/finance/receipts', label: 'receipts' },
+          { href: '/finance/petty-cash', label: 'pettyCash' },
         ],
       },
       {
@@ -195,6 +197,7 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance/accounts', label: 'accounts' },
           { href: '/finance/company', label: 'company' },
+          { href: '/finance/month-end', label: 'monthEnd' },
           { href: '/finance/close', label: 'close' },
           { href: '/finance/year-end', label: 'yearEnd' },
           { href: '/finance/opening', label: 'opening', need: { owner: true } },

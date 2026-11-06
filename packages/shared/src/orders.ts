@@ -147,7 +147,11 @@ export const missingItemSchema = z.object({
   idempotencyKey: z.string().min(8).max(100),
 });
 
-export const handoverSchema = z.object({ badgeCode: z.string().trim().min(2).max(40) });
+export const handoverSchema = z.object({
+  badgeCode: z.string().trim().min(2).max(40),
+  /** A store manager hands a cash order over the rider's cash limit, with a reason */
+  cashOverrideReason: z.string().trim().min(5).max(300).optional(),
+});
 
 export const cancelOrderSchema = z.object({ reason: z.string().trim().min(2).max(300) });
 

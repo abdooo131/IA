@@ -268,13 +268,49 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - A difference you cannot explain: ticket to admin with the account code and the amount.
 
+### Cash position every morning
+
+1. Open Accounting, Dashboard, Cash position.
+2. Banks and cash boxes: compare each with the bank app and the store box counts.
+3. Cash with riders: anything Overdue is chased today with the store manager (the store and finance also get a notification).
+4. Owed to merchants shows each merchant's next payout day; bills due within 7 days show what must leave soon. The net position is what is left after both.
+5. Export CSV when the owner asks for the day's position.
+
+**Check it went right**
+
+- No rider cash is Overdue by noon.
+- Banks and boxes match the bank app and the counted boxes.
+
+**If something is wrong**
+
+- The net position is below zero: tell the owner the same day, with the bills and payouts due.
+- A rider keeps holding cash past the limit: open a ticket to the store manager, and ask admin to lower the store's limit if it repeats.
+
+### Petty cash and the month end checklist
+
+1. Petty cash (Cash and bank): open the categories stores may use. Large petty expenses, or ones that would leave a box below its float, wait in Approvals; check the receipt photo before approving.
+2. Reverse a petty expense paid by mistake with a reason (approvers only); the money returns to the box.
+3. After the month ends open Configuration, Month end checklist and choose the month.
+4. Open each item that is not done and finish it: rider cash and differences, bank lines, receipts, petty cash, tax invoices, payroll, storage, depreciation.
+5. Prepare the VAT return in Tax returns, then tick VAT return with a note.
+6. When every item is done, tap Close the books.
+
+**Check it went right**
+
+- Every item shows Done (or a tick with a note) and the books are closed through the last day.
+
+**If something is wrong**
+
+- An item cannot be finished (for example a day without stock shows storage missing): tick it by hand with a note that explains why.
+- Something was ticked by mistake: Untick it; every tick and untick is in the history.
+
 ### Turn on phone notifications
 
 1. iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.
 2. Open the Settings menu (top of every screen), then Notifications.
 3. Tap Turn on notifications on this device and allow notifications when the phone asks.
 4. Tap Send me a test: a notification must appear within a few seconds.
-5. Switch off the kinds you do not need. You are told about: requests and payouts waiting for a second person, cash differences, tickets.
+5. Switch off the kinds you do not need. You are told about: requests and payouts waiting for a second person, cash differences, riders holding cash too long, tickets.
 
 **Check it went right**
 
@@ -555,13 +591,49 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - فرق مش عارف تفسره: تذكرة للأدمن بكود الحساب والمبلغ.
 
+### موقف النقدية كل صبح
+
+1. افتح الحسابات، لوحة التحكم، موقف النقدية.
+2. البنوك والخزن: قارن كل واحد بتطبيق البنك وعد خزن الفروع.
+3. النقدية مع المناديب: أي حاجة متأخرة تتابعها النهارده مع مدير الفرع (الفرع والمالية بيوصلهم إشعار كمان).
+4. المستحق للتجار بيوري ميعاد الدفعة الجاية لكل تاجر؛ والفواتير المستحقة خلال 7 أيام بتوري اللي لازم يخرج قريب. صافي الموقف هو اللي فاضل بعدهم.
+5. صدّر CSV لما المالك يطلب موقف اليوم.
+
+**اتأكد إنها مشيت صح**
+
+- مفيش نقدية مندوب متأخرة لحد الضهر.
+- البنوك والخزن مطابقين لتطبيق البنك والخزن المعدودة.
+
+**لو فيه مشكلة**
+
+- صافي الموقف تحت الصفر: بلّغ المالك نفس اليوم بالفواتير والدفعات المستحقة.
+- مندوب بيفضل معاه فلوس فوق الحد: افتح تذكرة لمدير الفرع، واطلب من الأدمن يقلل حد الفرع لو اتكرر.
+
+### النثريات وقائمة إقفال الشهر
+
+1. النثريات (الكاش والبنك): افتح البنود اللي الفروع تقدر تستخدمها. النثريات الكبيرة، أو اللي هتنزّل الخزنة تحت رصيدها الثابت، بتستنى في الموافقات؛ راجع صورة الإيصال قبل الموافقة.
+2. ألغي مصروف نثريات اتدفع غلط بسبب (اللي بيوافقوا بس)؛ الفلوس بترجع الخزنة.
+3. بعد ما الشهر يخلص افتح الإعدادات، قائمة إقفال الشهر واختار الشهر.
+4. افتح كل بند لسه ماخلصش وخلّصه: نقدية المناديب والفروق، سطور البنك، الإيصالات، النثريات، الفواتير الضريبية، المرتبات، التخزين، الإهلاك.
+5. جهّز إقرار القيمة المضافة من الإقرارات الضريبية، وبعدين علّم على إقرار القيمة المضافة بملاحظة.
+6. لما كل البنود تخلص، اضغط اقفل الدفاتر.
+
+**اتأكد إنها مشيت صح**
+
+- كل بند مكتوب عليه خلص (أو علامة بملاحظة) والدفاتر مقفولة لحد آخر يوم.
+
+**لو فيه مشكلة**
+
+- بند مش هينفع يخلص (مثلا يوم من غير مخزون باين إن تخزينه ناقص): علّم عليه باليد بملاحظة بتشرح السبب.
+- علّمت على حاجة غلط: شيل العلامة؛ كل علامة وشيلها متسجلة في السجل.
+
 ### تشغيل إشعارات الموبايل
 
 1. آيفون: افتح شيبلي ناو في سفاري، اضغط مشاركة، إضافة إلى الشاشة الرئيسية، وبعد كده افتحه دايما من الأيقونة (محتاج iOS 16.4 أو أحدث). أندرويد والكمبيوتر: أي متصفح شغال، وتثبيت التطبيق اختياري.
 2. افتح قائمة الإعدادات (فوق في كل شاشة) وبعدين الإشعارات.
 3. اضغط تفعيل الإشعارات على هذا الجهاز ووافق لما الموبايل يسأل.
 4. اضغط أرسل لي إشعارًا تجريبيًا: لازم يوصل إشعار في ثواني.
-5. اقفل الأنواع اللي مش محتاجها. بيوصلك: الطلبات والدفعات اللي مستنية موافقة شخص تاني، فروق الفلوس، التذاكر.
+5. اقفل الأنواع اللي مش محتاجها. بيوصلك: الطلبات والدفعات اللي مستنية موافقة شخص تاني، فروق الفلوس، مناديب معاهم فلوس مدة طويلة، التذاكر.
 
 **اتأكد إنها مشيت صح**
 

@@ -191,3 +191,10 @@ wants otherwise.
 - Merchant members: every member may read their merchant's details, notifications, products
   (the order form needs them), stores and the 60 minute price; changing the price and the payout
   schedule needs `settings`.
+- Cash controls: handing a cash order to a rider past the store's cash limit needs store manage
+  (a store manager) with a written reason (audited). Petty cash is store use (the form, and
+  uploading the receipt photo); its categories are accounting use, reversing a petty expense is
+  accounting manage, and approving a waiting one goes through Approvals like every request.
+  The cash position is accounting view; a person limited to some stores sees only those stores'
+  boxes and riders, without banks, merchants, bills or the net position. The month end
+  checklist is accounting view to read and use to tick or untick an item.

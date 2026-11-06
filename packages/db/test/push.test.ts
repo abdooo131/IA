@@ -348,6 +348,36 @@ describe('push notifications', () => {
     );
   });
 
+  it('tells store managers and finance once about a rider holding cash too long', async () => {
+    await person('manager', 'store_staff', {
+      job: 'store_manager',
+      stores: [fx.store.id],
+    });
+    await prisma.alert.create({
+      data: {
+        type: 'rider_cash_overdue',
+        key: 'rider_cash_overdue:r1:2026-11-06',
+        darkStoreId: fx.store.id,
+        data: { riderId: 'r1', rider: 'Omar', amountEgp: '1,250.00', hours: 12 },
+        createdAt: ago(1),
+      },
+    });
+    await run();
+    const by = (url: string) =>
+      push.sent
+        .filter((s) => s.message.url === url)
+        .map((s) => s.endpoint.split('/').pop())
+        .sort();
+    expect(by(`/store/${fx.store.id}/cash`)).toEqual(['manager', 'owner']);
+    expect(by('/finance/cash-position')).toEqual(['approver', 'finance']);
+    expect(push.sent.find((s) => s.endpoint.endsWith('/finance'))!.message.body).toBe(
+      'Omar at Test has held 1,250.00 EGP for over 12 h.',
+    );
+    push.sent = [];
+    await run();
+    expect(push.sent).toEqual([]);
+  });
+
   it('tells the assignee about a new ticket and the other person about a reply', async () => {
     const ticket = await createTicket(prisma, {
       title: 'Fridge broken',

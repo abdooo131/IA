@@ -32,14 +32,16 @@ export class PhotosController {
     @Req() req: Request,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    // Receipts are for accounting (use); pack and delivery proof for the store and riders.
+    // Receipts are for accounting (use) and store petty cash (store use); pack and delivery
+    // proof for the store and riders.
     const allowed: string[] = [];
     if (user.role === 'rider') allowed.push('pack', 'delivery');
     else {
       const access = await loadAccess(req as AuthedRequest, this.prisma);
       if (canDo(access, 'store', 'use') || canDo(access, 'operations', 'use'))
         allowed.push('pack', 'delivery');
-      if (canDo(access, 'accounting', 'use')) allowed.push('receipt');
+      if (canDo(access, 'accounting', 'use') || canDo(access, 'store', 'use'))
+        allowed.push('receipt');
     }
     if (!allowed.includes(kind)) throw new DomainError('photo_kind_invalid', 400);
     if (!Buffer.isBuffer(req.body)) throw new DomainError('photo_type_not_allowed', 400);

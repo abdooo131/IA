@@ -92,7 +92,7 @@ model User {
   ticketsOpened     Ticket[]          @relation("ticket_created_by")
   ticketsAssigned   Ticket[]          @relation("ticket_assignee")
   ticketMessages    TicketMessage[]
-  orderNotes        OrderNote[]     @relation("order_note_author")
+  orderNotes        OrderNote[]       @relation("order_note_author")
   damageSettled     DamageReport[]    @relation("damage_settled_by")
   transfersCreated  Transfer[]        @relation("transfer_created_by")
   transfersApproved Transfer[]        @relation("transfer_approved_by")
@@ -138,6 +138,9 @@ model User {
   merchantsManaged   Merchant[]               @relation("merchant_account_manager")
   pushSubscriptions  PushSubscription[]
   notificationPrefs  NotificationPreference[]
+  pettyCashCreated   PettyCashExpense[]       @relation("petty_cash_created_by")
+  pettyCashReversed  PettyCashExpense[]       @relation("petty_cash_reversed_by")
+  monthEndMarks      MonthEndMark[]
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -279,6 +282,8 @@ model DarkStore {
   rosterDays     RosterDay[]
   punches        Punch[]
   attendanceDays AttendanceDay[]
+
+  pettyCash PettyCashExpense[]
 
   @@map("dark_stores")
 }
@@ -1169,6 +1174,8 @@ model Photo {
   failedDeliveries Delivery[]       @relation("delivery_failed_photo")
   financeReceipts  FinanceReceipt[]
 
+  pettyCash PettyCashExpense[]
+
   @@map("photos")
 }
 
@@ -1318,6 +1325,8 @@ model LedgerAccount {
   accountNumber String?           @map("account_number")
   iban          String?
   note          String?
+  /// An expense category store staff may pick for petty cash
+  petty         Boolean           @default(false)
   isActive      Boolean           @default(true) @map("is_active")
   merchantId    String?           @map("merchant_id")
   riderId       String?           @map("rider_id")
@@ -1341,6 +1350,8 @@ model LedgerAccount {
   bankStatements   BankStatement[]
   bankLines        BankStatementLine[] @relation("bank_line_account")
   budgets          Budget[]            @relation("budget_account")
+
+  pettyCash PettyCashExpense[]
 
   @@index([type])
   @@index([groupCode])
@@ -1375,6 +1386,9 @@ model LedgerEntry {
   fixedAssets    FixedAsset[]
   taxInvoices    TaxInvoice[]
   assetsDisposed FixedAsset[]     @relation("asset_disposal")
+
+  pettyCash         PettyCashExpense[] @relation("petty_cash_entry")
+  pettyCashReversal PettyCashExpense[] @relation("petty_cash_reversal")
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -2136,6 +2150,8 @@ model FinanceRequest {
   decidedBy   User?            @relation("finance_request_decided_by", fields: [decidedById], references: [id])
   entry       LedgerEntry?     @relation(fields: [entryId], references: [id])
   receipts    FinanceReceipt[]
+
+  pettyCash PettyCashExpense[]
 
   @@index([status, createdAt])
   @@map("finance_requests")
@@ -3101,4 +3117,59 @@ model FreshStart {
   counts        Json
 
   @@map("fresh_starts")
+}
+
+// ─── cash controls ──────────────────────────────────────────────────────────────
+
+/// A small expense store staff paid from their store's cash box (PC-000001), with a receipt
+/// photo. Posted at once, or waiting for finance (a finance_requests row) above the petty cash
+/// limit or when the box would fall below its float. Finance may reverse a posted one.
+model PettyCashExpense {
+  id               String    @id @default(cuid())
+  /// Gapless serial number shown as PC-000001
+  number           Int       @unique
+  darkStoreId      String    @map("dark_store_id")
+  expenseAccountId String    @map("expense_account_id")
+  amountPiastres   Int       @map("amount_piastres")
+  note             String
+  photoId          String    @map("photo_id")
+  /// The posted entry (at once, or once finance approved)
+  entryId          String?   @unique @map("entry_id")
+  /// The request waiting for a second person, when it needed one
+  requestId        String?   @unique @map("request_id")
+  idempotencyKey   String    @unique @map("idempotency_key")
+  createdById      String    @map("created_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  reversalEntryId  String?   @unique @map("reversal_entry_id")
+  reversedById     String?   @map("reversed_by_id")
+  reversedAt       DateTime? @map("reversed_at")
+  reverseReason    String?   @map("reverse_reason")
+
+  darkStore      DarkStore       @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  expenseAccount LedgerAccount   @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  photo          Photo           @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  entry          LedgerEntry?    @relation("petty_cash_entry", fields: [entryId], references: [id], onDelete: Restrict)
+  reversalEntry  LedgerEntry?    @relation("petty_cash_reversal", fields: [reversalEntryId], references: [id], onDelete: Restrict)
+  request        FinanceRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
+  createdBy      User            @relation("petty_cash_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  reversedBy     User?           @relation("petty_cash_reversed_by", fields: [reversedById], references: [id], onDelete: Restrict)
+
+  @@index([darkStoreId, createdAt])
+  @@map("petty_cash_expenses")
+}
+
+/// A month end checklist item finance marked done by hand, with a note (audited).
+model MonthEndMark {
+  id         String   @id @default(cuid())
+  /// YYYY-MM
+  month      String
+  item       String
+  note       String
+  markedById String   @map("marked_by_id")
+  markedAt   DateTime @default(now()) @map("marked_at")
+
+  markedBy User @relation(fields: [markedById], references: [id], onDelete: Restrict)
+
+  @@unique([month, item])
+  @@map("month_end_marks")
 }

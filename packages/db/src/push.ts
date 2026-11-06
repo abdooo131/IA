@@ -449,6 +449,43 @@ const alertEvents: Source = async (db, since) => {
           },
         });
     }
+    if (a.type === 'rider_cash_overdue' && storeId) {
+      // Store managers (to collect it) and finance (to follow it up), each once.
+      const cashVars: PushVars = {
+        rider: String(data.rider ?? ''),
+        store,
+        amount: String(data.amountEgp ?? ''),
+        hours: String(data.hours ?? ''),
+      };
+      const managers = () => teamWith(db, 'store', 'manage', { storeId });
+      list.push({
+        key: `alert:${a.id}:store`,
+        make: async () => ({
+          userIds: await managers(),
+          type: 'rider_cash_overdue',
+          text: 'rider_cash_overdue',
+          vars: cashVars,
+          url: `/store/${storeId}/cash`,
+          tag: `rider-cash-${String(data.riderId ?? a.id)}`,
+        }),
+      });
+      list.push({
+        key: `alert:${a.id}:finance`,
+        make: async () => {
+          const skip = new Set(await managers());
+          return {
+            userIds: (await teamWith(db, 'accounting', 'use', { storeId })).filter(
+              (id) => !skip.has(id),
+            ),
+            type: 'rider_cash_overdue',
+            text: 'rider_cash_overdue',
+            vars: cashVars,
+            url: '/finance/cash-position',
+            tag: `rider-cash-${String(data.riderId ?? a.id)}`,
+          };
+        },
+      });
+    }
     if (a.type === 'merchant_signup') {
       list.push({
         key: `alert:${a.id}:signup`,
