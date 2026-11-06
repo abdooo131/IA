@@ -3678,6 +3678,22 @@
         ],
         "sections": [
           {
+            "title": "Attendance and shifts",
+            "steps": [
+              "HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
+              "HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
+              "HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
+              "Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason."
+            ],
+            "check": [
+              "Yesterday's days are closed the morning after; a forgotten clock out shows the flag."
+            ],
+            "problems": [
+              "A person cannot clock in (too far): check their store on the file, the store's location and hr.clock_radius_m.",
+              "Office staff cannot clock in: set hr.office_lat and hr.office_lng."
+            ]
+          },
+          {
             "title": "Stores, hubs and zones",
             "steps": [
               "Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.",
