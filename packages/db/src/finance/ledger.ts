@@ -12,6 +12,7 @@ export type AccountRef =
   | { type: 'store_cash'; darkStoreId: string }
   | { type: 'staff_advance'; userId: string }
   | { type: 'supplier'; supplierId: string }
+  | { type: 'merchant_deposit'; merchantId: string }
   | { type: SystemAccountKey }
   /** Any account by its id: banks, cash boxes, expense categories and the rest */
   | { id: string };
@@ -38,7 +39,9 @@ export type SystemAccountKey =
   | 'corporate_tax_payable'
   | 'income_tax_expense'
   | 'fx_difference'
-  | 'asset_disposal';
+  | 'asset_disposal'
+  | 'cheques_under_collection'
+  | 'cheques_payable';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -192,6 +195,20 @@ const SYSTEM_ACCOUNTS: Record<
     nameEn: 'Loss or gain on equipment sold',
     nameAr: 'خسائر أو أرباح بيع المعدات',
   },
+  cheques_under_collection: {
+    type: 'other_asset',
+    group: 1150,
+    code: '1151',
+    nameEn: 'Cheques under collection',
+    nameAr: 'شيكات تحت التحصيل',
+  },
+  cheques_payable: {
+    type: 'other_liability',
+    group: 2450,
+    code: '2451',
+    nameEn: 'Cheques payable',
+    nameAr: 'شيكات مستحقة الدفع',
+  },
 };
 
 /** Opening accounts every company starts with (also created by the chart of accounts migration). */
@@ -325,6 +342,7 @@ const WALLET_GROUPS: Partial<Record<LedgerAccountType, { group: number; party: b
   rider_bonus: { group: 2200, party: true },
   staff_advance: { group: 1500, party: true },
   supplier: { group: 2500, party: true },
+  merchant_deposit: { group: 2600, party: true },
 };
 
 /**
@@ -353,7 +371,14 @@ export async function nextAccountCode(tx: Tx, group: number, party: boolean) {
 /** The next gapless serial number of a document table (taken inside its transaction). */
 export async function nextNumber(
   tx: Tx,
-  table: 'ledger_entries' | 'payouts' | 'cash_handovers' | 'tickets' | 'bills' | 'bank_statements',
+  table:
+    | 'ledger_entries'
+    | 'payouts'
+    | 'cash_handovers'
+    | 'tickets'
+    | 'bills'
+    | 'bank_statements'
+    | 'cheques',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(
@@ -377,6 +402,8 @@ export function accountKey(ref: AccountRef): string {
       return `staff_advance:${ref.userId}`;
     case 'supplier':
       return `supplier:${ref.supplierId}`;
+    case 'merchant_deposit':
+      return `merchant_deposit:${ref.merchantId}`;
     default:
       return ref.type;
   }
@@ -432,6 +459,7 @@ export const CATEGORY: Record<LedgerAccountType, AccountCategory> = {
   staff_advance: 'asset',
   merchant: 'liability',
   supplier: 'liability',
+  merchant_deposit: 'liability',
   rider_bonus: 'liability',
   vat_payable: 'liability',
   other_liability: 'liability',

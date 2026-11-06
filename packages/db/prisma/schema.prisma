@@ -119,6 +119,8 @@ model User {
   ledgerLines        LedgerLine[]             @relation("ledger_line_user")
   suppliers          Supplier[]
   billsFor           Bill[]                   @relation("bill_person")
+  chequesCreated     Cheque[]                 @relation("cheque_created_by")
+  contractsUpdated   MerchantContract[]       @relation("contract_updated_by")
   bankStatements     BankStatement[]
   taxInvoicesMade    TaxInvoice[]             @relation("tax_invoice_created_by")
   bankLinesDecided   BankStatementLine[]      @relation("bank_line_decided_by")
@@ -392,6 +394,9 @@ model Merchant {
 
   ledgerLines LedgerLine[]
   alerts      Alert[]
+
+  contract MerchantContract?
+  cheques  Cheque[]
 
   @@index([accountManagerId])
   @@map("merchants")
@@ -1173,6 +1178,7 @@ model Photo {
   deliveries       Delivery[]       @relation("delivery_proof_photo")
   failedDeliveries Delivery[]       @relation("delivery_failed_photo")
   financeReceipts  FinanceReceipt[]
+  cheques          Cheque[]
 
   pettyCash PettyCashExpense[]
 
@@ -1292,6 +1298,8 @@ enum LedgerAccountType {
   staff_advance
   /// What we owe a supplier for bills not yet paid
   supplier
+  /// A merchant's security deposit we hold (paid back when the contract ends)
+  merchant_deposit
 
   @@map("ledger_account_type")
 }
@@ -1350,6 +1358,8 @@ model LedgerAccount {
   bankStatements   BankStatement[]
   bankLines        BankStatementLine[] @relation("bank_line_account")
   budgets          Budget[]            @relation("budget_account")
+  chequesBank      Cheque[]            @relation("cheque_bank")
+  chequesIncome    Cheque[]            @relation("cheque_income")
 
   pettyCash PettyCashExpense[]
 
@@ -1386,6 +1396,9 @@ model LedgerEntry {
   fixedAssets    FixedAsset[]
   taxInvoices    TaxInvoice[]
   assetsDisposed FixedAsset[]     @relation("asset_disposal")
+  chequesBooked  Cheque[]         @relation("cheque_book_entry")
+  chequesCleared Cheque[]         @relation("cheque_clear_entry")
+  chequesUndone  Cheque[]         @relation("cheque_reverse_entry")
 
   pettyCash         PettyCashExpense[] @relation("petty_cash_entry")
   pettyCashReversal PettyCashExpense[] @relation("petty_cash_reversal")
@@ -1500,6 +1513,7 @@ model Payout {
   paidBy     User?            @relation("payout_paid_by", fields: [paidById], references: [id])
   approvedBy User?            @relation("payout_approved_by", fields: [approvedById], references: [id])
   receipts   FinanceReceipt[]
+  cheques    Cheque[]
 
   @@index([merchantId, status])
   @@map("payouts")
@@ -2198,6 +2212,7 @@ model Supplier {
   accounts              LedgerAccount[]
   bills                 Bill[]
   staff                 Employee[]      @relation("staffing_supplier")
+  cheques               Cheque[]
 
   @@map("suppliers")
 }
@@ -2248,6 +2263,7 @@ model Bill {
   darkStore      DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
   entry          LedgerEntry?  @relation(fields: [entryId], references: [id], onDelete: Restrict)
   createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  cheques        Cheque[]
 
   @@index([status, dueDate])
   @@index([userId])
@@ -3172,4 +3188,149 @@ model MonthEndMark {
 
   @@unique([month, item])
   @@map("month_end_marks")
+}
+
+// ─── Cheques and merchant contracts ───────────────────────────────────────────
+
+enum ChequeDirection {
+  /// A cheque given to us (a merchant, a supplier paying back, anyone paying us)
+  received
+  /// A cheque we wrote (a bill, a payout, a deposit paid back)
+  issued
+
+  @@map("cheque_direction")
+}
+
+/// What a cheque pays for, which decides what it is booked against.
+enum ChequePurpose {
+  /// Received: the merchant pays what they owe us (merchant wallet)
+  merchant
+  /// Received: a merchant's security deposit (deposit wallet)
+  deposit
+  /// Received: a supplier paying us back (supplier wallet)
+  supplier
+  /// Received: other income (an account of group 4200)
+  other_income
+  /// Issued: payment of a supplier bill
+  bill
+  /// Issued: a merchant payout
+  payout
+  /// Issued: a merchant's security deposit paid back
+  deposit_refund
+
+  @@map("cheque_purpose")
+}
+
+enum ChequeStatus {
+  /// Waiting for a second person before it is booked
+  awaiting_approval
+  received
+  issued
+  /// A received cheque handed to our bank for collection
+  deposited
+  cleared
+  bounced
+  cancelled
+
+  @@map("cheque_status")
+}
+
+/// The cheques register: every cheque received or issued, post dated or not.
+model Cheque {
+  id              String          @id @default(cuid())
+  /// Gapless register number shown as CHQ-000001
+  number          Int             @unique
+  direction       ChequeDirection
+  purpose         ChequePurpose
+  status          ChequeStatus
+  /// The number printed on the cheque
+  chequeNumber    String          @map("cheque_number")
+  /// The bank the cheque is drawn on
+  bankName        String          @map("bank_name")
+  /// Who wrote it (received) or who it is made out to (issued)
+  partyName       String          @map("party_name")
+  amountPiastres  Int             @map("amount_piastres")
+  issueDate       DateTime        @map("issue_date") @db.Date
+  /// Not to be cashed before this day (post dated cheques)
+  dueDate         DateTime        @map("due_date") @db.Date
+  merchantId      String?         @map("merchant_id")
+  supplierId      String?         @map("supplier_id")
+  billId          String?         @map("bill_id")
+  payoutId        String?         @map("payout_id")
+  incomeAccountId String?         @map("income_account_id")
+  /// Our bank: the one an issued cheque is drawn on, or a received one was deposited into
+  bankAccountId   String?         @map("bank_account_id")
+  photoId         String?         @map("photo_id")
+  note            String?
+  bookEntryId     String?         @map("book_entry_id")
+  clearEntryId    String?         @map("clear_entry_id")
+  reverseEntryId  String?         @map("reverse_entry_id")
+  depositedAt     DateTime?       @map("deposited_at")
+  clearedAt       DateTime?       @map("cleared_at")
+  bouncedAt       DateTime?       @map("bounced_at")
+  bounceReason    String?         @map("bounce_reason")
+  cancelledAt     DateTime?       @map("cancelled_at")
+  cancelNote      String?         @map("cancel_note")
+  idempotencyKey  String          @unique @map("idempotency_key")
+  createdById     String          @map("created_by_id")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+
+  merchant      Merchant?      @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  supplier      Supplier?      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  bill          Bill?          @relation(fields: [billId], references: [id], onDelete: Restrict)
+  payout        Payout?        @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  incomeAccount LedgerAccount? @relation("cheque_income", fields: [incomeAccountId], references: [id], onDelete: Restrict)
+  bankAccount   LedgerAccount? @relation("cheque_bank", fields: [bankAccountId], references: [id], onDelete: Restrict)
+  photo         Photo?         @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  bookEntry     LedgerEntry?   @relation("cheque_book_entry", fields: [bookEntryId], references: [id], onDelete: Restrict)
+  clearEntry    LedgerEntry?   @relation("cheque_clear_entry", fields: [clearEntryId], references: [id], onDelete: Restrict)
+  reverseEntry  LedgerEntry?   @relation("cheque_reverse_entry", fields: [reverseEntryId], references: [id], onDelete: Restrict)
+  createdBy     User           @relation("cheque_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([status, dueDate])
+  @@index([merchantId])
+  @@map("cheques")
+}
+
+/// A merchant's contract: dates, volume tiers on the order fee, a monthly minimum, the
+/// security deposit agreed and a credit limit. Fees not set here come from settings.
+model MerchantContract {
+  id                        String    @id @default(cuid())
+  merchantId                String    @unique @map("merchant_id")
+  startDate                 DateTime  @map("start_date") @db.Date
+  endDate                   DateTime? @map("end_date") @db.Date
+  /// Days of notice either side gives to end the contract
+  noticeDays                Int       @map("notice_days")
+  /// Fees booked for a month are topped up to this at month end (null: no minimum)
+  minimumMonthlyFeePiastres Int?      @map("minimum_monthly_fee_piastres")
+  /// The security deposit agreed; what we really hold is the deposit wallet's balance
+  securityDepositPiastres   Int?      @map("security_deposit_piastres")
+  /// Shipments are refused while the merchant owes us more than this (null: no limit)
+  creditLimitPiastres       Int?      @map("credit_limit_piastres")
+  note                      String?
+  updatedById               String    @map("updated_by_id")
+  createdAt                 DateTime  @default(now()) @map("created_at")
+  updatedAt                 DateTime  @updatedAt @map("updated_at")
+
+  merchant  Merchant               @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  updatedBy User                   @relation("contract_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
+  tiers     MerchantContractTier[]
+
+  @@map("merchant_contracts")
+}
+
+/// From the nth delivered order of a Cairo month, the order fee uses these values (null: the
+/// setting). The order that crosses into a band and every later one pay the band's fee.
+model MerchantContractTier {
+  id               String @id @default(cuid())
+  contractId       String @map("contract_id")
+  fromOrder        Int    @map("from_order")
+  fixedFeePiastres Int?   @map("fixed_fee_piastres")
+  percentBp        Int?   @map("percent_bp")
+
+  contract MerchantContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, fromOrder])
+  @@map("merchant_contract_tiers")
 }

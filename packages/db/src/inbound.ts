@@ -1,3 +1,4 @@
+import { assertWithinCreditLimit } from './finance/contracts';
 import { postReceivingFee } from './finance/postings';
 import type { Prisma } from '@prisma/client';
 import { recordAudit } from './audit';
@@ -16,8 +17,12 @@ export interface CreateManifestInput {
   actorUserId: string;
 }
 
-/** A merchant announces a shipment to a dark store. */
-export function createManifest(db: Db, input: CreateManifestInput) {
+/**
+ * A merchant announces a shipment to a dark store. Refused while the merchant owes us more
+ * than their contract's credit limit (checked first, so the alert it raises stays).
+ */
+export async function createManifest(db: Db, input: CreateManifestInput) {
+  await assertWithinCreditLimit(db, input.merchantId);
   return inTransaction(db, async (tx) => {
     const store = await tx.darkStore.findUnique({ where: { id: input.darkStoreId } });
     if (!store || !store.isActive) throw new DomainError('dark_store_not_found', 404);

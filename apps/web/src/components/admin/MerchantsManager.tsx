@@ -231,6 +231,9 @@ export function MerchantsManager({
                   <Link className="font-bold text-link" href={`/admin/shipments?merchant=${m.id}`}>
                     {t('shipments')} (<span className="ltr-iso">{m.shipmentCount}</span>)
                   </Link>
+                  <Link className="font-bold text-link" href={`/admin/merchants/${m.id}`}>
+                    {t('open')}
+                  </Link>
                   {m.shopifyShopDomain && (
                     <span className="ltr-iso text-text-muted">
                       {t('shopify')}: {m.shopifyShopDomain}

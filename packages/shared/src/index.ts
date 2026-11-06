@@ -19,3 +19,4 @@ export * from './hr';
 export * from './attendance';
 export * from './push';
 export * from './cash-control';
+export * from './contracts';

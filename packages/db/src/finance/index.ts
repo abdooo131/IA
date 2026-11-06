@@ -189,3 +189,26 @@ export {
   submitPettyCash,
   unmarkMonthEndItem,
 } from './cash-control';
+export {
+  bookCheque,
+  bounceCheque,
+  cancelCheque,
+  chequesDue,
+  clearCheque,
+  depositCheque,
+  getCheque,
+  listCheques,
+  registerCheque,
+} from './cheques';
+export {
+  assertWithinCreditLimit,
+  chargeMinimumFees,
+  depositHeld,
+  getContract,
+  listContracts,
+  orderFeeTerms,
+  recordDeposit,
+  saveContract,
+  submitDeposit,
+} from './contracts';
+export { type MerchantMonth, merchantProfitability, merchantProfitDetail } from './merchant-profit';

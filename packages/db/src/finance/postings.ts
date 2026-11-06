@@ -3,6 +3,7 @@ import { cairoDay, cairoDayStart, addDays } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { getMerchantSetting, getSetting } from '../settings';
+import { orderFeeTerms } from './contracts';
 import { type AccountRef, post, share } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -56,14 +57,21 @@ export async function postDeliveryCompleted(
   });
 
   const products = order.items.reduce((s, i) => s + i.pickedQty * i.unitPricePiastres, 0);
-  const fixed = await getMerchantSetting(tx, 'fee.order_fixed_piastres', merchantId);
-  const percent = await getMerchantSetting(tx, 'fee.order_percent_bp', merchantId);
+  // The merchant's contract band for this order's place in the month, else the settings.
+  const terms = await orderFeeTerms(tx, { merchantId, orderId: order.id, at: input.now });
+  const fixed = terms.fixedPiastres;
+  const percent = terms.percentBp;
   const orderFee = fixed + share(products, percent);
   await post(tx, {
     ...base,
     kind: 'order_fee',
     idempotencyKey: `order:${order.id}:order_fee`,
-    data: { productsPiastres: products, fixedPiastres: fixed, percentBp: percent },
+    data: {
+      productsPiastres: products,
+      fixedPiastres: fixed,
+      percentBp: percent,
+      ...(terms.tierFrom !== null ? { tierFrom: terms.tierFrom, nth: terms.nth } : {}),
+    },
     lines: await feeLines(tx, merchantId, orderFee),
   });
 

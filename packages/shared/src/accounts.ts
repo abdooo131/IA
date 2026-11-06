@@ -224,6 +224,32 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     manualType: null,
     money: false,
   },
+  // Cheques: what we were given and not yet collected (1151), what we wrote and the bank has
+  // not yet paid (2451), and the security deposits merchants left with us (2600-0001...).
+  {
+    code: 1150,
+    category: 'asset',
+    key: 'cheques_under_collection',
+    party: false,
+    manualType: null,
+    money: false,
+  },
+  {
+    code: 2450,
+    category: 'liability',
+    key: 'cheques_payable',
+    party: false,
+    manualType: null,
+    money: false,
+  },
+  {
+    code: 2600,
+    category: 'liability',
+    key: 'merchant_deposits',
+    party: true,
+    manualType: null,
+    money: false,
+  },
 ];
 
 export function accountGroup(code: number) {

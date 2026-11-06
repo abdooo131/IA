@@ -47,6 +47,8 @@ const HISTORY_APPS: Record<string, readonly AccessApp[]> = {
   company_profile: ['accounting'],
   books: ['accounting'],
   employee: ['hr'],
+  cheque: ['accounting'],
+  merchant_contract: ['merchants', 'accounting'],
 };
 
 /** The history of one record (who did what, when, before and after), newest first. */

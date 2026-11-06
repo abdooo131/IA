@@ -393,6 +393,27 @@ EN = {
          "Sold equipment shows Sold or scrapped and stops depreciating."],
        "problems": [
          "A rate typed wrong on a bill: cancel the bill (before paying) and enter it again."]},
+      {"title": "Cheques",
+       "steps": [
+         "Cheques, Register a cheque: choose Received or Issued and what it is for (merchant balance, security deposit, supplier refund, other income; or a bill, a payout, a deposit paid back), type the printed number, the bank, the amount, the issue and due dates, and attach a photo of the cheque.",
+         "A cheque given to us always waits for a second person in Approvals; a cheque we write waits from the approval limit. Until then it shows Waiting for approval.",
+         "Every morning look at the Due list: overdue cheques first. Deposit at bank when you hand a received cheque to the bank, Bank paid it when the money shows on the statement (never before its due day).",
+         "A cheque came back unpaid: Bounced with the bank's reason. The debt comes back on the merchant, supplier or bill, a payout paid by it is cancelled, and admin gets an alert."],
+       "check": [
+         "Cheques under collection (1151) equals the received cheques not yet cleared; cheques payable (2451) equals the issued ones not yet paid by the bank."],
+       "problems": [
+         "Wrong amount or party: Cancel cheque with the reason (only before it is deposited or cleared), then register it again.",
+         "The bill was paid in part meanwhile and the cheque no longer fits: cancel it and write a new one."]},
+      {"title": "Merchant contracts, deposits and profitability",
+       "steps": [
+         "Merchant contracts: read each merchant's terms, the deposit we hold and their balance against the credit limit.",
+         "Security deposit: Deposit on the merchant's row, Received or Paid back, through our bank or the merchant's balance; a second person approves it.",
+         "The monthly minimum is topped up by itself on the 1st for the month before (Monthly minimum top up in the journal and on the invoice).",
+         "Profit per merchant: open a month, then a merchant to see fees by kind, costs and margin per order; use What if to try other fees on the same month before talking to the merchant."],
+       "check": [
+         "Deposits held (2600 wallets) match the signed contracts; no merchant shows Over limit without a ticket open with their account manager."],
+       "problems": [
+         "A merchant is over the credit limit and cannot send shipments: ask them to pay, record the receipt, and shipments open again at once."]},
       {"title": "Month end",
        "steps": [
          "Trial balance for the month: debits must equal credits.",
@@ -451,6 +472,15 @@ EN = {
          "The Shopify card shows locations and linked products."],
        "problems": [
          "A merchant moved to a new Shopify store: Disconnect store, then link the new one."]},
+      {"title": "Merchant contracts",
+       "steps": [
+         "Merchants: open a merchant (Contract and profit), then Edit contract: start and end dates, notice days, monthly minimum, security deposit, credit limit and volume tiers (from the nth delivered order of the month, a fixed fee and/or a share of products).",
+         "Tiers apply from the order that crosses the band, never to earlier orders of the month; empty values use the fee settings.",
+         "With Accounting access, the same page shows this month's fees, costs and margin; Details opens the what if."],
+       "check": [
+         "The merchant sees the contract read only under Contract; the History panel shows every change."],
+       "problems": [
+         "Shipments refused for a merchant over the credit limit: the alert names the balance; finance records the payment or you raise the limit with the owner's agreement."]},
       {"title": "Stock",
        "steps": [
          "Counts: approve or reject each difference.",
@@ -873,6 +903,27 @@ AR = {
          "المعدات المباعة مكتوب عليها مباعة أو مكهنة ووقف إهلاكها."],
        "problems": [
          "سعر غلط في فاتورة: ألغي الفاتورة (قبل الدفع) وسجلها تاني."]},
+      {"title": "الشيكات",
+       "steps": [
+         "الشيكات، تسجيل شيك: اختار مستلم أو صادر والغرض (رصيد تاجر، تأمين، مورد بيرجع فلوس، إيرادات تانية؛ أو فاتورة، دفعة تاجر، رد تأمين)، واكتب رقم الشيك والبنك والمبلغ وتاريخ الإصدار والاستحقاق، وارفع صورة الشيك.",
+         "الشيك اللي بيجيلنا دايما يستنى موافقة شخص تاني في الموافقات؛ والشيك اللي بنكتبه يستنى من حد الموافقة. لحد كده بيظهر في انتظار الموافقة.",
+         "كل صبح بص على قائمة الاستحقاق: المتأخر الأول. إيداع بالبنك لما تسلم الشيك للبنك، ودفعه البنك لما الفلوس تظهر في الكشف (مش قبل يوم استحقاقه).",
+         "شيك رجع من غير ما يتصرف: ارتد مع سبب البنك. المديونية بترجع على التاجر أو المورد أو الفاتورة، والدفعة اللي اتدفعت بيه بتتلغي، والإدارة بيوصلها تنبيه."],
+       "check": [
+         "شيكات تحت التحصيل (1151) بتساوي الشيكات المستلمة اللي لسه ما اتحصلتش؛ وشيكات مستحقة الدفع (2451) بتساوي الصادرة اللي البنك لسه ما دفعهاش."],
+       "problems": [
+         "مبلغ أو طرف غلط: إلغاء الشيك مع السبب (قبل الإيداع أو التحصيل بس)، وسجله تاني.",
+         "الفاتورة اتدفع جزء منها في النص والشيك مبقاش مناسب: ألغيه واكتب شيك جديد."]},
+      {"title": "عقود التجار والتأمينات والربحية",
+       "steps": [
+         "عقود التجار: اقرا شروط كل تاجر والتأمين اللي معانا ورصيده مقارنة بحد الائتمان.",
+         "التأمين: التأمين في صف التاجر، استلام أو رد، عن طريق البنك أو رصيد التاجر؛ شخص تاني يوافق.",
+         "الحد الأدنى الشهري بيتكمل لوحده يوم 1 للشهر اللي فات (استكمال الحد الأدنى الشهري في اليومية وفي الفاتورة).",
+         "الربح لكل تاجر: افتح شهر، وبعدين تاجر تشوف الرسوم حسب النوع والتكاليف والهامش لكل طلب؛ واستخدم ماذا لو تجرب رسوم تانية على نفس الشهر قبل ما تكلم التاجر."],
+       "check": [
+         "التأمينات المحتفظ بيها (محافظ 2600) مطابقة للعقود الموقعة؛ ومفيش تاجر متجاوز الحد من غير تذكرة مفتوحة مع مدير حسابه."],
+       "problems": [
+         "تاجر متجاوز حد الائتمان ومش قادر يبعت شحنات: اطلب منه يدفع، وسجل التحصيل، والشحنات بتفتح تاني على طول."]},
       {"title": "آخر الشهر",
        "steps": [
          "ميزان المراجعة للشهر: المدين لازم يساوي الدائن.",
@@ -931,6 +982,15 @@ AR = {
          "كارت شوبيفاي بيوري المواقع والمنتجات المربوطة."],
        "problems": [
          "تاجر نقل لمتجر شوبيفاي جديد: افصل المتجر وبعدين اربط الجديد."]},
+      {"title": "عقود التجار",
+       "steps": [
+         "التجار: افتح التاجر (العقد والربحية)، وبعدين تعديل العقد: تاريخ البداية والنهاية، أيام الإخطار، الحد الأدنى الشهري، التأمين، حد الائتمان وشرائح الحجم (من الطلب رقم n اللي اتوصل في الشهر، رسم ثابت و/أو نسبة من البضاعة).",
+         "الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ والقيم الفاضية من إعدادات الرسوم.",
+         "لو عندك صلاحية الحسابات، نفس الصفحة بتوريك رسوم الشهر وتكاليفه والهامش؛ والتفاصيل بتفتح ماذا لو."],
+       "check": [
+         "التاجر بيشوف العقد للعرض بس تحت العقد؛ ولوحة السجل بتوري كل تغيير."],
+       "problems": [
+         "شحنات مرفوضة لتاجر متجاوز حد الائتمان: التنبيه فيه الرصيد؛ الحسابات تسجل الدفع أو انت ترفع الحد بموافقة المالك."]},
       {"title": "المخزون",
        "steps": [
          "الجرد: وافق أو ارفض كل فرق.",

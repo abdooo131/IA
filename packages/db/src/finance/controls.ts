@@ -33,6 +33,8 @@ import {
   recordAssetPurchase,
   recordPrepayment,
 } from './assets';
+import { bookCheque, type ChequeBookInput, dropChequeRequest } from './cheques';
+import { type DepositInput, recordDeposit } from './contracts';
 
 type Tx = Prisma.TransactionClient;
 
@@ -155,7 +157,15 @@ export type RequestPayload =
   | {
       kind: 'payroll';
       input: Stored<PayrollInput> & { amountPiastres: number; idempotencyKey: string };
-    };
+    }
+  /** A cheque given to us: booked against the party once approved (money in) */
+  | { kind: 'cheque_in'; input: ChequeBookInput }
+  /** A cheque we wrote: booked to cheques payable once approved (money out) */
+  | { kind: 'cheque_out'; input: ChequeBookInput }
+  /** A merchant's security deposit received */
+  | { kind: 'deposit_in'; input: Stored<DepositInput> }
+  /** A merchant's security deposit paid back */
+  | { kind: 'deposit_out'; input: Stored<DepositInput> };
 
 /**
  * Money said to come in (owner capital, other income, a merchant paying us) and changes to
@@ -170,7 +180,13 @@ const ALWAYS_REVIEWED = new Set([
   'other_income',
   'merchant_receipt',
   'merchant_adjustment',
+  'cheque_in',
+  'deposit_in',
 ]);
+
+/** Always reviewed: the kinds above, and a deposit given back into the merchant's balance. */
+const alwaysReviewed = (p: RequestPayload) =>
+  ALWAYS_REVIEWED.has(p.kind) || (p.kind === 'deposit_out' && p.input.via === 'wallet');
 
 const referenceOf = (p: RequestPayload) =>
   'reference' in p.input
@@ -204,7 +220,7 @@ async function submit(
 ) {
   const amount = Math.abs(amountOf(payload));
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new DomainError('invalid_amount', 400);
-  const reviewed = ALWAYS_REVIEWED.has(payload.kind)
+  const reviewed = alwaysReviewed(payload)
     ? (await getSetting(db, 'finance.approve_money_in')) === 1
     : await needsApproval(db, amount);
   if (!reviewed) {
@@ -297,8 +313,17 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return recordAssetPurchase(db, { ...p.input, actorUserId });
     case 'petty_cash':
       return postApprovedPettyCash(db, { pettyCashId: p.input.pettyCashId, actorUserId });
+    case 'cheque_in':
+    case 'cheque_out':
+      return bookCheque(db, { ...p.input, actorUserId });
+    case 'deposit_in':
+    case 'deposit_out':
+      return recordDeposit(db, { ...p.input, actorUserId });
   }
 }
+
+/** Posts a movement now or keeps it for a second person (cheques, deposits). */
+export const submitMovement = submit;
 
 type WithReceipt<T> = T & { receiptPhotoId?: string };
 const submitter =
@@ -402,7 +427,7 @@ export async function decideFinanceRequest(
       );
       entryId = entry.id;
       await tx.financeRequest.update({ where: { id: request.id }, data: { entryId } });
-    }
+    } else await dropChequeRequest(tx, request, note);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: input.approve ? 'finance.request_approve' : 'finance.request_reject',
@@ -426,6 +451,7 @@ export function cancelFinanceRequest(db: Db, input: { requestId: string; actorUs
       data: { status: 'cancelled', decidedAt: new Date() },
     });
     if (updated.count !== 1) throw new DomainError('request_not_pending');
+    await dropChequeRequest(tx, request, null);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.request_cancel',
@@ -545,6 +571,9 @@ export const RECEIPT_KINDS = [
   'staff_advance',
   'staff_bonus',
   'petty_cash',
+  'cheque_received',
+  'deposit_received',
+  'deposit_refunded',
 ];
 
 /** Money movements without any receipt yet, newest first, and how many there are. */

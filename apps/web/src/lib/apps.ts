@@ -148,6 +148,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/payouts', label: 'payouts' },
           { href: '/finance/invoices', label: 'invoices' },
           { href: '/finance/receivables', label: 'receivables' },
+          { href: '/finance/contracts', label: 'contracts' },
         ],
       },
       {
@@ -166,6 +167,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/bank', label: 'bankMatching' },
           { href: '/finance/receipts', label: 'receipts' },
           { href: '/finance/petty-cash', label: 'pettyCash' },
+          { href: '/finance/cheques', label: 'cheques' },
         ],
       },
       {
@@ -183,6 +185,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/balance-sheet', label: 'balanceSheet' },
           { href: '/finance/statements', label: 'comparePeriods' },
           { href: '/finance/profit', label: 'profitPerStore' },
+          { href: '/finance/merchant-profit', label: 'merchantProfit' },
           { href: '/finance/money-flow', label: 'cashFlow' },
           { href: '/finance/budgets', label: 'budgets' },
           { href: '/finance/taxes', label: 'taxes' },

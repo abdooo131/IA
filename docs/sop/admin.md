@@ -65,6 +65,20 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - A merchant moved to a new Shopify store: Disconnect store, then link the new one.
 
+### Merchant contracts
+
+1. Merchants: open a merchant (Contract and profit), then Edit contract: start and end dates, notice days, monthly minimum, security deposit, credit limit and volume tiers (from the nth delivered order of the month, a fixed fee and/or a share of products).
+2. Tiers apply from the order that crosses the band, never to earlier orders of the month; empty values use the fee settings.
+3. With Accounting access, the same page shows this month's fees, costs and margin; Details opens the what if.
+
+**Check it went right**
+
+- The merchant sees the contract read only under Contract; the History panel shows every change.
+
+**If something is wrong**
+
+- Shipments refused for a merchant over the credit limit: the alert names the balance; finance records the payment or you raise the limit with the owner's agreement.
+
 ### Stock
 
 1. Counts: approve or reject each difference.
@@ -193,6 +207,20 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - تاجر نقل لمتجر شوبيفاي جديد: افصل المتجر وبعدين اربط الجديد.
+
+### عقود التجار
+
+1. التجار: افتح التاجر (العقد والربحية)، وبعدين تعديل العقد: تاريخ البداية والنهاية، أيام الإخطار، الحد الأدنى الشهري، التأمين، حد الائتمان وشرائح الحجم (من الطلب رقم n اللي اتوصل في الشهر، رسم ثابت و/أو نسبة من البضاعة).
+2. الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ والقيم الفاضية من إعدادات الرسوم.
+3. لو عندك صلاحية الحسابات، نفس الصفحة بتوريك رسوم الشهر وتكاليفه والهامش؛ والتفاصيل بتفتح ماذا لو.
+
+**اتأكد إنها مشيت صح**
+
+- التاجر بيشوف العقد للعرض بس تحت العقد؛ ولوحة السجل بتوري كل تغيير.
+
+**لو فيه مشكلة**
+
+- شحنات مرفوضة لتاجر متجاوز حد الائتمان: التنبيه فيه الرصيد؛ الحسابات تسجل الدفع أو انت ترفع الحد بموافقة المالك.
 
 ### المخزون
 

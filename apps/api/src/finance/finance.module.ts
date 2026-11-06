@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { CoverageModule } from '../coverage/coverage.module';
 import { BooksController } from './books.controller';
 import { CashControlController } from './cash-control.controller';
+import { ChequesController } from './cheques.controller';
 import { ControlsController } from './controls.controller';
 import { PayablesController } from './payables.controller';
 import { PeriodController } from './period.controller';
@@ -24,6 +25,7 @@ import { FinanceController } from './finance.controller';
     EtaSignerController,
     ToolsController,
     CashControlController,
+    ChequesController,
   ],
   providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })

@@ -252,6 +252,37 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - A rate typed wrong on a bill: cancel the bill (before paying) and enter it again.
 
+### Cheques
+
+1. Cheques, Register a cheque: choose Received or Issued and what it is for (merchant balance, security deposit, supplier refund, other income; or a bill, a payout, a deposit paid back), type the printed number, the bank, the amount, the issue and due dates, and attach a photo of the cheque.
+2. A cheque given to us always waits for a second person in Approvals; a cheque we write waits from the approval limit. Until then it shows Waiting for approval.
+3. Every morning look at the Due list: overdue cheques first. Deposit at bank when you hand a received cheque to the bank, Bank paid it when the money shows on the statement (never before its due day).
+4. A cheque came back unpaid: Bounced with the bank's reason. The debt comes back on the merchant, supplier or bill, a payout paid by it is cancelled, and admin gets an alert.
+
+**Check it went right**
+
+- Cheques under collection (1151) equals the received cheques not yet cleared; cheques payable (2451) equals the issued ones not yet paid by the bank.
+
+**If something is wrong**
+
+- Wrong amount or party: Cancel cheque with the reason (only before it is deposited or cleared), then register it again.
+- The bill was paid in part meanwhile and the cheque no longer fits: cancel it and write a new one.
+
+### Merchant contracts, deposits and profitability
+
+1. Merchant contracts: read each merchant's terms, the deposit we hold and their balance against the credit limit.
+2. Security deposit: Deposit on the merchant's row, Received or Paid back, through our bank or the merchant's balance; a second person approves it.
+3. The monthly minimum is topped up by itself on the 1st for the month before (Monthly minimum top up in the journal and on the invoice).
+4. Profit per merchant: open a month, then a merchant to see fees by kind, costs and margin per order; use What if to try other fees on the same month before talking to the merchant.
+
+**Check it went right**
+
+- Deposits held (2600 wallets) match the signed contracts; no merchant shows Over limit without a ticket open with their account manager.
+
+**If something is wrong**
+
+- A merchant is over the credit limit and cannot send shipments: ask them to pay, record the receipt, and shipments open again at once.
+
 ### Month end
 
 1. Trial balance for the month: debits must equal credits.
@@ -574,6 +605,37 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - سعر غلط في فاتورة: ألغي الفاتورة (قبل الدفع) وسجلها تاني.
+
+### الشيكات
+
+1. الشيكات، تسجيل شيك: اختار مستلم أو صادر والغرض (رصيد تاجر، تأمين، مورد بيرجع فلوس، إيرادات تانية؛ أو فاتورة، دفعة تاجر، رد تأمين)، واكتب رقم الشيك والبنك والمبلغ وتاريخ الإصدار والاستحقاق، وارفع صورة الشيك.
+2. الشيك اللي بيجيلنا دايما يستنى موافقة شخص تاني في الموافقات؛ والشيك اللي بنكتبه يستنى من حد الموافقة. لحد كده بيظهر في انتظار الموافقة.
+3. كل صبح بص على قائمة الاستحقاق: المتأخر الأول. إيداع بالبنك لما تسلم الشيك للبنك، ودفعه البنك لما الفلوس تظهر في الكشف (مش قبل يوم استحقاقه).
+4. شيك رجع من غير ما يتصرف: ارتد مع سبب البنك. المديونية بترجع على التاجر أو المورد أو الفاتورة، والدفعة اللي اتدفعت بيه بتتلغي، والإدارة بيوصلها تنبيه.
+
+**اتأكد إنها مشيت صح**
+
+- شيكات تحت التحصيل (1151) بتساوي الشيكات المستلمة اللي لسه ما اتحصلتش؛ وشيكات مستحقة الدفع (2451) بتساوي الصادرة اللي البنك لسه ما دفعهاش.
+
+**لو فيه مشكلة**
+
+- مبلغ أو طرف غلط: إلغاء الشيك مع السبب (قبل الإيداع أو التحصيل بس)، وسجله تاني.
+- الفاتورة اتدفع جزء منها في النص والشيك مبقاش مناسب: ألغيه واكتب شيك جديد.
+
+### عقود التجار والتأمينات والربحية
+
+1. عقود التجار: اقرا شروط كل تاجر والتأمين اللي معانا ورصيده مقارنة بحد الائتمان.
+2. التأمين: التأمين في صف التاجر، استلام أو رد، عن طريق البنك أو رصيد التاجر؛ شخص تاني يوافق.
+3. الحد الأدنى الشهري بيتكمل لوحده يوم 1 للشهر اللي فات (استكمال الحد الأدنى الشهري في اليومية وفي الفاتورة).
+4. الربح لكل تاجر: افتح شهر، وبعدين تاجر تشوف الرسوم حسب النوع والتكاليف والهامش لكل طلب؛ واستخدم ماذا لو تجرب رسوم تانية على نفس الشهر قبل ما تكلم التاجر.
+
+**اتأكد إنها مشيت صح**
+
+- التأمينات المحتفظ بيها (محافظ 2600) مطابقة للعقود الموقعة؛ ومفيش تاجر متجاوز الحد من غير تذكرة مفتوحة مع مدير حسابه.
+
+**لو فيه مشكلة**
+
+- تاجر متجاوز حد الائتمان ومش قادر يبعت شحنات: اطلب منه يدفع، وسجل التحصيل، والشحنات بتفتح تاني على طول.
 
 ### آخر الشهر
 

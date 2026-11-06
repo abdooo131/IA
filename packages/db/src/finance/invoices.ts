@@ -37,6 +37,7 @@ export const FEE_KINDS: Record<string, { en: string; ar: string }> = {
   storage_fee: { en: 'Storage fee', ar: 'رسوم التخزين' },
   return_fee: { en: 'Return to merchant fee', ar: 'رسوم إرجاع البضاعة للتاجر' },
   adjustment: { en: 'Fee adjustment', ar: 'تسوية رسوم' },
+  minimum_fee: { en: 'Monthly minimum fee top up', ar: 'استكمال الحد الأدنى الشهري للرسوم' },
 };
 
 export const invoiceLabel = (type: 'invoice' | 'credit_note', n: number) =>
@@ -467,7 +468,12 @@ export async function etaReadiness(db: Db) {
     if (!value) missing.push(field);
   if (!p.signerKeyHash) missing.push('signer_key');
   const codes = p.itemCodes as Record<string, string>;
-  const missingCodes = Object.keys(FEE_KINDS).filter((k) => !codes[k]);
+  // The monthly minimum needs its item code only once some contract has a minimum.
+  const minimumUsed =
+    (await db.merchantContract.count({ where: { minimumMonthlyFeePiastres: { gt: 0 } } })) > 0;
+  const missingCodes = Object.keys(FEE_KINDS).filter(
+    (k) => !codes[k] && (k !== 'minimum_fee' || minimumUsed),
+  );
   return { ready: missing.length === 0 && missingCodes.length === 0, missing, missingCodes };
 }
 

@@ -361,7 +361,9 @@
         "cod_risk_customer": "Cash order from a customer with high delivery risk",
         "document_expiring": "{nameEn}: a document runs out on {expiresOn}",
         "document_expired": "{nameEn}: a document ran out on {expiresOn}",
-        "rider_cash_overdue": "{rider} has held {amountEgp} EGP for over {hours} hours"
+        "rider_cash_overdue": "{rider} has held {amountEgp} EGP for over {hours} hours",
+        "cheque_bounced": "Cheque {number} ({chequeNumber}) from {party} for {amount} EGP bounced: {reason}",
+        "merchant_over_credit_limit": "{name} owes {owes} EGP, over the credit limit of {limit} EGP: new shipments are refused"
       },
       "handledBy": "Handled by {name}"
     },
@@ -530,7 +532,9 @@
         "merchant_return": "Return to merchant",
         "shopify_shop": "Shopify store",
         "customer": "Customer",
-        "shopify_app": "Shopify app"
+        "shopify_app": "Shopify app",
+        "cheque": "Cheques",
+        "merchant_contract": "Merchant contracts"
       },
       "actions": {
         "alert__resolve": "Alert handled",
@@ -636,7 +640,18 @@
         "checklist_template__update": "Checklist template changed",
         "finance__salary_set": "Salary set (before HR v2)",
         "finance__employment_set": "Employment set (before HR v2)",
-        "order__note": "Note added"
+        "order__note": "Note added",
+        "finance__cheque_register": "Cheque registered",
+        "finance__cheque_book": "Cheque booked",
+        "finance__cheque_deposit": "Cheque deposited at bank",
+        "finance__cheque_clear": "Cheque cleared",
+        "finance__cheque_bounce": "Cheque bounced",
+        "finance__cheque_cancel": "Cheque cancelled",
+        "finance__bill_payment_undone": "Bill payment undone",
+        "finance__deposit_in": "Security deposit received",
+        "finance__deposit_out": "Security deposit paid back",
+        "merchant__contract_create": "Contract created",
+        "merchant__contract_update": "Contract changed"
       }
     },
     "users": {
@@ -786,7 +801,8 @@
         "error": "Could not save. Refresh and try again."
       },
       "accountManager": "Account manager",
-      "noAccountManager": "None"
+      "noAccountManager": "None",
+      "open": "Contract and profit"
     },
     "productsEdit": {
       "new": "Add product",
@@ -1115,7 +1131,8 @@
       "returns": "Take stock back",
       "shopify": "Connect Shopify",
       "invoices": "Invoices",
-      "team": "Team"
+      "team": "Team",
+      "contract": "Contract"
     },
     "shipments": {
       "title": "Shipments",
@@ -1157,7 +1174,8 @@
         "validation_failed": "Check the products and quantities.",
         "duplicate_sku": "Each product only once, please.",
         "generic": "Something went wrong. Try again.",
-        "shipments_go_to_hub": "Shipments now go to our sorting facility. Refresh the page and choose it."
+        "shipments_go_to_hub": "Shipments now go to our sorting facility. Refresh the page and choose it.",
+        "merchant_over_credit_limit": "Your balance is over your credit limit. Settle what you owe us before sending new shipments."
       }
     },
     "products": {
@@ -1754,7 +1772,14 @@
       "accrual_reversal": "Accrual reversed",
       "asset_disposal": "Equipment sold or scrapped",
       "petty_cash": "Store petty cash",
-      "petty_cash_reversal": "Petty cash reversed"
+      "petty_cash_reversal": "Petty cash reversed",
+      "cheque_received": "Cheque received",
+      "cheque_cleared": "Cheque cleared",
+      "cheque_bounced": "Cheque bounced",
+      "cheque_cancelled": "Cheque cancelled",
+      "minimum_fee": "Monthly minimum top up",
+      "deposit_received": "Security deposit received",
+      "deposit_refunded": "Security deposit paid back"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -1829,7 +1854,10 @@
         "depreciation": "Depreciation",
         "staff_costs": "Staff costs",
         "income_tax": "Income tax",
-        "other_costs": "Other costs"
+        "other_costs": "Other costs",
+        "cheques_under_collection": "Cheques under collection",
+        "cheques_payable": "Cheques payable",
+        "merchant_deposits": "Merchant security deposits"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -2052,7 +2080,24 @@
         "petty_cash_reversed": "This petty expense was already reversed.",
         "petty_cash_not_posted": "Only a posted petty expense can be reversed.",
         "invalid_item": "This item cannot be ticked by hand.",
-        "mark_not_found": "This item was not ticked."
+        "mark_not_found": "This item was not ticked.",
+        "cheque_exists": "This cheque (bank and number) is already in the register.",
+        "cheque_not_due": "This cheque is post dated: it can be cleared on its due day.",
+        "cheque_not_open": "This cheque cannot do that in its current state.",
+        "cheque_not_cancellable": "Only a cheque not yet deposited or cleared can be cancelled.",
+        "cheque_amount_mismatch": "The bill changed since this cheque was written. Cancel it and write a new one.",
+        "cheque_egp_only": "Cheques pay bills in EGP only.",
+        "cheque_not_found": "Cheque not found.",
+        "bank_name_required": "Enter the bank the cheque is drawn on.",
+        "bank_account_required": "Choose our bank account the cheque is drawn on.",
+        "party_name_required": "Enter who wrote the cheque.",
+        "purpose_direction": "This purpose does not fit the direction.",
+        "due_before_issue": "The due date cannot be before the issue date.",
+        "more_than_deposit": "That is more than the deposit we hold.",
+        "merchant_over_credit_limit": "The merchant is over the credit limit.",
+        "tier_twice": "Each band needs its own starting order.",
+        "tier_empty": "Give each band a fixed fee, a percentage or both.",
+        "payout_not_found": "Payout not found."
       }
     },
     "riders": {
@@ -2210,7 +2255,11 @@
         "staff_bonus": "Bonus to outsourced person",
         "credit_note": "Credit note to a merchant",
         "asset_disposal": "Equipment sold or scrapped",
-        "petty_cash": "Store petty cash"
+        "petty_cash": "Store petty cash",
+        "cheque_in": "Cheque received",
+        "cheque_out": "Cheque issued",
+        "deposit_in": "Security deposit received",
+        "deposit_out": "Security deposit paid back"
       },
       "statuses": {
         "pending": "Waiting",
@@ -2786,6 +2835,151 @@
         "approval_needed": "waiting for a second person's approval",
         "bank_details_missing": "no bank account (merchant fills it in Wallet)"
       }
+    },
+    "cheques": {
+      "title": "Cheques",
+      "intro": "Every cheque we receive or write. A received cheque sits in cheques under collection (1151) until the bank pays it; one we write is owed in cheques payable (2451) until it leaves the bank. A bounced cheque puts the debt back and raises an alert.",
+      "due": "Due list",
+      "overdue": "Overdue",
+      "thisWeek": "Due this week",
+      "noneDue": "Nothing due.",
+      "all": "All",
+      "register": "Register a cheque",
+      "direction": "Direction",
+      "directions": {
+        "received": "Received",
+        "issued": "Issued"
+      },
+      "purpose": "For",
+      "purposes": {
+        "merchant": "Merchant pays what they owe",
+        "deposit": "Merchant security deposit",
+        "supplier": "Supplier pays us back",
+        "other_income": "Other income",
+        "bill": "Supplier bill",
+        "payout": "Merchant payout",
+        "deposit_refund": "Security deposit paid back"
+      },
+      "chequeNumber": "Cheque number",
+      "bankName": "Drawn on bank",
+      "ourBank": "Our bank account",
+      "party": "Drawer or payee",
+      "partyHint": "Left empty: the merchant or supplier's name",
+      "amount": "Amount (EGP)",
+      "settles": "Settles of the bill (EGP, tax kept back included)",
+      "issueDate": "Issue date",
+      "dueDate": "Due date",
+      "merchant": "Merchant",
+      "supplier": "Supplier",
+      "bill": "Bill",
+      "payout": "Draft payout",
+      "incomeAccount": "Income account",
+      "choose": "Choose…",
+      "photo": "Photo of the cheque",
+      "submit": "Register",
+      "registered": "Cheque registered and booked.",
+      "number": "Register no.",
+      "status": "Status",
+      "statuses": {
+        "awaiting_approval": "Waiting for approval",
+        "received": "Received",
+        "issued": "Issued",
+        "deposited": "Deposited",
+        "cleared": "Cleared",
+        "bounced": "Bounced",
+        "cancelled": "Cancelled"
+      },
+      "open": "Open",
+      "empty": "No cheques yet.",
+      "detail": "Cheque {label}",
+      "entries": "Entries",
+      "booked": "Booked",
+      "clearedEntry": "Cleared",
+      "reversed": "Undone",
+      "deposit": "Deposit at bank",
+      "clear": "Bank paid it",
+      "bounce": "Bounced",
+      "bounceReason": "Why it bounced",
+      "cancel": "Cancel cheque",
+      "cancelNote": "Why it is cancelled",
+      "day": "On (empty: today)",
+      "waiting": "Waiting for a second person in Approvals.",
+      "openApprovals": "Open Approvals",
+      "createdBy": "Registered by {name}",
+      "note": "Note",
+      "bounced": "Bounced: {reason}",
+      "cancelled": "Cancelled: {note}",
+      "photoTitle": "Cheque photo"
+    },
+    "contracts": {
+      "title": "Merchant contracts",
+      "intro": "Contract terms per merchant, the security deposit we hold and what each merchant owes against their credit limit. Merchants app users with manage change contracts; here you receive and pay back deposits.",
+      "merchant": "Merchant",
+      "period": "Period",
+      "noticeBy": "Notice by",
+      "minimum": "Monthly minimum",
+      "deposit": "Deposit agreed",
+      "held": "Deposit held",
+      "creditLimit": "Credit limit",
+      "owed": "Balance",
+      "overLimit": "Over limit",
+      "none": "No contracts yet. Open a merchant in the Merchants app to add one.",
+      "depositAction": "Deposit",
+      "direction": "Movement",
+      "in": "Received",
+      "out": "Paid back",
+      "via": "Through",
+      "viaBank": "Our bank",
+      "viaWallet": "The merchant's balance",
+      "reference": "Reference",
+      "submit": "Record",
+      "open": "Open",
+      "noEnd": "Open ended"
+    },
+    "merchantProfit": {
+      "title": "Profit per merchant",
+      "intro": "What each merchant earned us in the month (fees before VAT) against what serving them cost: their rider bonuses, a share of each store's rider salaries and running costs by their part of its deliveries, rent by units stored, damage, packaging and other costs tagged to them.",
+      "month": "Month",
+      "show": "Show",
+      "merchant": "Merchant",
+      "orders": "Delivered",
+      "fees": "Fees",
+      "costs": "Costs",
+      "margin": "Margin",
+      "perOrder": "Per order",
+      "marginShare": "Margin %",
+      "empty": "No merchant activity in this month.",
+      "feesByKind": "Fees by kind",
+      "costLines": {
+        "riderBonusPiastres": "Rider bonuses",
+        "riderSalaryPiastres": "Share of rider salaries",
+        "storeCostsPiastres": "Share of store running costs",
+        "storageSpacePiastres": "Storage space (rent by units)",
+        "damagePiastres": "Damage paid",
+        "packagingPiastres": "Packaging",
+        "otherDirectPiastres": "Other costs tagged to the merchant"
+      },
+      "stores": "Stores",
+      "storeLine": "{orders} of {storeOrders} deliveries, {units} of {storeUnits} unit days",
+      "volume": "Volume: {orders} delivered orders, products {products} EGP, cash collected {cash} EGP",
+      "whatIf": "What if",
+      "whatIfIntro": "Change the fees and see the same month again. Order and COD fees are worked out afresh; other fees and every cost stay as they were. Volume tiers are left out.",
+      "fixed": "Order fee, fixed (EGP)",
+      "percent": "Order fee, share of products (%)",
+      "codPercent": "COD fee (%)",
+      "minimumFee": "Monthly minimum (EGP, empty: none)",
+      "result": "Result",
+      "actual": "Booked",
+      "scenario": "What if",
+      "orderFee": "Order fees",
+      "codFee": "COD fees",
+      "otherFees": "Other fees",
+      "minimumTopUp": "Minimum top up",
+      "totalFees": "Fees",
+      "reset": "Back to current values",
+      "tiersNote": "This merchant has volume tiers; the booked order fees used them.",
+      "summary": "Profitability this month",
+      "details": "Details and what if"
     }
   },
   "storeCash": {
@@ -3773,6 +3967,37 @@
             ]
           },
           {
+            "title": "Cheques",
+            "steps": [
+              "Cheques, Register a cheque: choose Received or Issued and what it is for (merchant balance, security deposit, supplier refund, other income; or a bill, a payout, a deposit paid back), type the printed number, the bank, the amount, the issue and due dates, and attach a photo of the cheque.",
+              "A cheque given to us always waits for a second person in Approvals; a cheque we write waits from the approval limit. Until then it shows Waiting for approval.",
+              "Every morning look at the Due list: overdue cheques first. Deposit at bank when you hand a received cheque to the bank, Bank paid it when the money shows on the statement (never before its due day).",
+              "A cheque came back unpaid: Bounced with the bank's reason. The debt comes back on the merchant, supplier or bill, a payout paid by it is cancelled, and admin gets an alert."
+            ],
+            "check": [
+              "Cheques under collection (1151) equals the received cheques not yet cleared; cheques payable (2451) equals the issued ones not yet paid by the bank."
+            ],
+            "problems": [
+              "Wrong amount or party: Cancel cheque with the reason (only before it is deposited or cleared), then register it again.",
+              "The bill was paid in part meanwhile and the cheque no longer fits: cancel it and write a new one."
+            ]
+          },
+          {
+            "title": "Merchant contracts, deposits and profitability",
+            "steps": [
+              "Merchant contracts: read each merchant's terms, the deposit we hold and their balance against the credit limit.",
+              "Security deposit: Deposit on the merchant's row, Received or Paid back, through our bank or the merchant's balance; a second person approves it.",
+              "The monthly minimum is topped up by itself on the 1st for the month before (Monthly minimum top up in the journal and on the invoice).",
+              "Profit per merchant: open a month, then a merchant to see fees by kind, costs and margin per order; use What if to try other fees on the same month before talking to the merchant."
+            ],
+            "check": [
+              "Deposits held (2600 wallets) match the signed contracts; no merchant shows Over limit without a ticket open with their account manager."
+            ],
+            "problems": [
+              "A merchant is over the credit limit and cannot send shipments: ask them to pay, record the receipt, and shipments open again at once."
+            ]
+          },
+          {
             "title": "Month end",
             "steps": [
               "Trial balance for the month: debits must equal credits.",
@@ -3903,6 +4128,20 @@
             ]
           },
           {
+            "title": "Merchant contracts",
+            "steps": [
+              "Merchants: open a merchant (Contract and profit), then Edit contract: start and end dates, notice days, monthly minimum, security deposit, credit limit and volume tiers (from the nth delivered order of the month, a fixed fee and/or a share of products).",
+              "Tiers apply from the order that crosses the band, never to earlier orders of the month; empty values use the fee settings.",
+              "With Accounting access, the same page shows this month's fees, costs and margin; Details opens the what if."
+            ],
+            "check": [
+              "The merchant sees the contract read only under Contract; the History panel shows every change."
+            ],
+            "problems": [
+              "Shipments refused for a merchant over the credit limit: the alert names the balance; finance records the payment or you raise the limit with the owner's agreement."
+            ]
+          },
+          {
             "title": "Stock",
             "steps": [
               "Counts: approve or reject each difference.",
@@ -4004,7 +4243,12 @@
       "rejected": "Rejected",
       "open": "Waiting for answer",
       "answered": "Answered",
-      "closed": "Closed"
+      "closed": "Closed",
+      "awaiting_approval": "Waiting for approval",
+      "issued": "Issued",
+      "deposited": "Deposited",
+      "cleared": "Cleared",
+      "bounced": "Bounced"
     }
   },
   "tickets": {
@@ -4483,7 +4727,10 @@
       "positions": "Job positions",
       "grades": "Grades",
       "documentTypes": "Document types",
-      "checklistTemplates": "Checklist templates"
+      "checklistTemplates": "Checklist templates",
+      "cheques": "Cheques",
+      "contracts": "Merchant contracts",
+      "merchantProfit": "Profit per merchant"
     }
   },
   "hr": {
@@ -5697,6 +5944,45 @@
       "cancel": "cancelled after a failed attempt",
       "hold_expired": "nobody decided in time after the failed attempt",
       "merchant_cancelled": "cancelled by the merchant"
+    }
+  },
+  "contracts": {
+    "title": "Contract",
+    "none": "No contract yet: fees come from the settings.",
+    "start": "Start",
+    "end": "End (empty: open ended)",
+    "notice": "Notice (days)",
+    "noticeBy": "Last day to give notice: {day}",
+    "minimum": "Monthly minimum fee (EGP)",
+    "minimumHint": "Fees booked for a month are topped up to this when the month ends, shared by the days the contract was in force.",
+    "deposit": "Security deposit (EGP)",
+    "creditLimit": "Credit limit (EGP)",
+    "creditLimitHint": "While the merchant owes more than this, new shipments are refused. Empty: no limit.",
+    "note": "Internal note",
+    "tiers": "Volume tiers on the order fee",
+    "tiersHint": "From the nth delivered order in a Cairo month the band's fee applies, to that order and every later one; earlier orders keep their fee (no rebate). Empty values use the settings.",
+    "fromOrder": "From order",
+    "fixed": "Fixed (EGP)",
+    "percent": "Share of products (%)",
+    "addTier": "Add band",
+    "remove": "Remove",
+    "save": "Save contract",
+    "saved": "Contract saved.",
+    "edit": "Edit contract",
+    "readOnly": "Read only: Shiply changes your contract.",
+    "inForce": "In force",
+    "notInForce": "Not in force today",
+    "settingsFees": "Fees from settings: {fixed} EGP per order plus {percent}% of products, COD {cod}%",
+    "monthSoFar": "{count} delivered orders this month",
+    "nextBand": "Next order falls in the band from order {from}",
+    "held": "Deposit held: {amount} EGP",
+    "owed": "Balance: {amount} EGP",
+    "overLimit": "Over the credit limit: new shipments are refused.",
+    "empty": "–",
+    "openEnded": "Open ended",
+    "errors": {
+      "validation_failed": "Check the dates and the bands (each band once, with a fee).",
+      "generic": "Could not save. Try again."
     }
   }
 }

@@ -46,6 +46,8 @@ const LOCKED_KEYS = new Set([
   'income_tax_expense',
   'fx_difference',
   'asset_disposal',
+  'cheques_under_collection',
+  'cheques_payable',
 ]);
 
 const isWallet = (
@@ -97,6 +99,9 @@ async function ownerNames(db: Db) {
     }
     if (a.merchantId) {
       const name = merchants.find((m) => m.id === a.merchantId)?.name ?? a.merchantId;
+      // A merchant's security deposit sits apart from the wallet (group 2600).
+      if ((a as { type?: string }).type === 'merchant_deposit')
+        return { nameEn: `${name} security deposit`, nameAr: `تأمين ${name}` };
       return { nameEn: name, nameAr: name };
     }
     if (a.riderId) {

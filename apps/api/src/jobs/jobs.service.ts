@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   accrueStorage,
+  chargeMinimumFees,
   checkDocumentExpiry,
   checkRiderCashOverdue,
   closeAttendanceDays,
@@ -34,6 +35,8 @@ const SLA_LOCK = 735_001;
 const STORAGE_LOCK = 735_002;
 /** Advisory lock id for recurring expenses, prepayments and depreciation. */
 const MONTHLY_LOCK = 735_003;
+/** Advisory lock id for the merchant contracts' monthly minimum fees. */
+const MINIMUM_FEE_LOCK = 735_021;
 const EVERY_MS = 30_000;
 /** Notifications go out faster than the other jobs: a new order has minutes to be accepted. */
 const PUSH_EVERY_MS = 10_000;
@@ -56,6 +59,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private linking = false;
   /** The last Cairo day recurring expenses and monthly charges ran for in this instance. */
   private monthlyDone: string | null = null;
+  /** The last Cairo day contract minimums were charged for in this instance. */
+  private minimumDone: string | null = null;
   /** The last hour employee documents were checked in this instance. */
   private documentsDone: string | null = null;
   /** The last ten minute slot the attendance close ran in this instance. */
@@ -85,6 +90,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runTicketReminders();
       void this.runCustomerLinks();
       void this.runMonthlyFinance();
+      void this.runContractMinimums();
       void this.runDocumentExpiry();
       void this.runAttendanceClose();
       void this.runRiderCashCheck();
@@ -321,6 +327,39 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: monthly finance', error);
+      return null;
+    }
+  }
+
+  /**
+   * Once a Cairo day: tops last month's fees up to each merchant contract's minimum. Keyed per
+   * merchant and month, so the days after the first change nothing.
+   */
+  async runContractMinimums(now: Date = new Date()) {
+    const day = cairoDay(now);
+    if (this.minimumDone === day) return null;
+    try {
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const [{ locked }] = (await tx.$queryRaw<
+            { locked: boolean }[]
+          >`SELECT pg_try_advisory_xact_lock(${MINIMUM_FEE_LOCK}) AS locked`) as [
+            { locked: boolean },
+          ];
+          if (!locked) return null;
+          return chargeMinimumFees(tx, now);
+        },
+        { timeout: 60_000 },
+      );
+      if (!result) return null;
+      this.minimumDone = day;
+      if (result.charged > 0)
+        this.log.log(
+          `Contract minimums for ${result.month}: ${result.charged} merchants topped up`,
+        );
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: contract minimums', error);
       return null;
     }
   }

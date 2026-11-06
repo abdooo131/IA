@@ -5,6 +5,7 @@ import { AdminCatalogController } from './admin-catalog.controller';
 import { AdminCountsController } from './admin-counts.controller';
 import { AdminDashboardController } from './admin-dashboard.controller';
 import { AdminMerchantsController } from './admin-merchants.controller';
+import { AdminContractsController } from './admin-contracts.controller';
 import { AdminSettingsController } from './admin-settings.controller';
 import { AdminAccessController, AdminUsersController } from './admin-users.controller';
 import { AdminManifestsController } from './admin-manifests.controller';
@@ -31,6 +32,7 @@ import { AdminRefillController } from './admin-refill.controller';
     AdminUsersController,
     AdminAccessController,
     AdminMerchantsController,
+    AdminContractsController,
     AdminReturnsController,
     AdminDamageController,
     AdminTransfersController,

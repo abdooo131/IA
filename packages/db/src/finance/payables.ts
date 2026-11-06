@@ -404,6 +404,8 @@ export interface BillPaymentInput {
   day?: string;
   actorUserId: string;
   idempotencyKey: string;
+  /** Paid by a cheque we wrote: owed in cheques payable (2451) until the bank pays it */
+  viaChequesPayable?: boolean;
 }
 
 /** Pays a bill (or part of it) from a bank or box, keeping back the withholding tax. */
@@ -445,7 +447,9 @@ export async function payBill(db: Db, input: BillPaymentInput) {
       paid = centsToPiastres(foreignCents, rateMicro(input.fxRate ?? ''));
     }
     const fxDiff = paid - settled;
-    const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    const money = input.viaChequesPayable
+      ? null
+      : await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
     const wht = withholdingFor(bill, settled);
     const recovery = input.advanceRecoveryPiastres ?? 0;
     if (!Number.isSafeInteger(recovery) || recovery < 0)
@@ -457,7 +461,8 @@ export async function payBill(db: Db, input: BillPaymentInput) {
     }
     const cash = paid - wht - recovery;
     if (cash < 0) throw new DomainError('net_below_zero', 400);
-    if (cash > (await balanceOf(tx, { id: money.id }))) throw new DomainError('not_enough_money');
+    if (money && cash > (await balanceOf(tx, { id: money.id })))
+      throw new DomainError('not_enough_money');
     const entry = await post(tx, {
       kind: 'bill_payment',
       idempotencyKey: key,
@@ -482,7 +487,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
           amount: settled,
         },
         { account: { type: 'fx_difference' }, amount: fxDiff },
-        { account: { id: money.id }, amount: -cash },
+        { account: money ? { id: money.id } : { type: 'cheques_payable' }, amount: -cash },
         { account: { type: 'wht_payable' }, amount: -wht },
         ...(recovery
           ? [
@@ -510,7 +515,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
       entityType: 'bill',
       entityId: bill.id,
       before: { paid: bill.paidPiastres },
-      after: { paid: paidNow, wht, fxDiff, from: money.code, entry: entry!.number },
+      after: { paid: paidNow, wht, fxDiff, from: money?.code ?? '2451', entry: entry!.number },
     });
     return entry!;
   });
