@@ -11,6 +11,7 @@ import {
   normalizeEgyptianPhone,
 } from '@shiplynow/shared';
 import { postDeliveryCompleted, postDeliveryFailed } from './finance/postings';
+import { isClockedIn } from './attendance';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -581,6 +582,12 @@ export function handToRider(
     });
     if (!rider || !rider.user.isActive) throw new DomainError('rider_not_found', 404);
     if (rider.darkStoreId !== order.darkStoreId) throw new DomainError('rider_other_store');
+    // HR step 2: with hr.riders_must_clock_in on, a rider takes orders only while clocked in.
+    if (
+      (await getSetting(tx, 'hr.riders_must_clock_in', order.darkStoreId)) === 1 &&
+      !(await isClockedIn(tx, rider.userId))
+    )
+      throw new DomainError('rider_not_clocked_in');
 
     const active = await tx.delivery.findMany({
       where: { riderId: rider.id, status: { in: ['assigned', 'picked_up'] } },

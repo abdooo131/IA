@@ -21,7 +21,12 @@ export class AppErrorFilter extends BaseExceptionFilter {
   override catch(error: unknown, host: ArgumentsHost) {
     if (error instanceof DomainError || error instanceof StockError) {
       const status = error instanceof DomainError ? error.status : 409;
-      host.switchToHttp().getResponse<Response>().status(status).json({ error: error.code });
+      const details = error instanceof DomainError ? error.details : undefined;
+      host
+        .switchToHttp()
+        .getResponse<Response>()
+        .status(status)
+        .json({ ...details, error: error.code });
       return;
     }
     if (!(error instanceof HttpException)) {

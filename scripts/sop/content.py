@@ -22,6 +22,17 @@ EN = {
       "Anything you are not sure about: ticket to your store lead before you act."
     ],
     "sections": [
+      {"title": "Clock in and out",
+       "steps": [
+         "At the store, open your store's home and tap Clock in at the top. Allow location when the phone asks.",
+         "Your phone must be inside the store (within 150 m) with GPS on; the card then shows the time you clocked in and if you were late.",
+         "At the end of your shift tap Clock out, also at the store."],
+       "check": [
+         "The card shows Clocked in at the time you arrived; My HR in the Settings menu shows your month."],
+       "problems": [
+         "Too far or not precise enough: step outside or near a window, turn on GPS and try again.",
+         "Location blocked: allow location for the site in the browser settings.",
+         "Phone dead or forgotten: tell your store lead; HR adds the punch with a reason. A forgotten clock out is closed at your shift end and flagged."]},
       {"title": "Receive a merchant shipment",
        "steps": [
          "Ask the driver for the merchant's shipment reference. No shipment in Receive for that merchant means no receiving: call admin.",
@@ -121,6 +132,16 @@ EN = {
       "App not working: call the store lead; do not hand over a package without the code or a photo."
     ],
     "sections": [
+      {"title": "Clock in and out",
+       "steps": [
+         "At your store, open the rider app and tap Clock in at the top. Allow location when the phone asks.",
+         "You must be at the store (within 150 m) with GPS on.",
+         "When your shift ends and your cash is handed over, tap Clock out at the store."],
+       "check": [
+         "The card shows Clocked in at the time you arrived."],
+       "problems": [
+         "Store says you are not clocked in when handing you an order: clock in first (some stores require it).",
+         "Too far or not precise: go to the store, turn on GPS and try again; if it still fails call the store lead."]},
       {"title": "Deliver an order",
        "steps": [
          "Open the order and tap Directions.",
@@ -399,6 +420,17 @@ EN = {
       "Shopify, payments or the server down: ticket to the tech lead (urgent) and tell the stores to take manual orders only after you say so."
     ],
     "sections": [
+      {"title": "Attendance and shifts",
+       "steps": [
+         "HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
+         "HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
+         "HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
+         "Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason."],
+       "check": [
+         "Yesterday's days are closed the morning after; a forgotten clock out shows the flag."],
+       "problems": [
+         "A person cannot clock in (too far): check their store on the file, the store's location and hr.clock_radius_m.",
+         "Office staff cannot clock in: set hr.office_lat and hr.office_lng."]},
       {"title": "Stores, hubs and zones",
        "steps": [
          "Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.",
@@ -455,6 +487,17 @@ AR = {
       "أي حاجة مش متأكد منها: تذكرة لمسؤول الفرع قبل ما تتصرف."
     ],
     "sections": [
+      {"title": "تسجيل الحضور والانصراف",
+       "steps": [
+         "وانت في المخزن افتح الصفحة الرئيسية للمخزن واضغط تسجيل حضور فوق. اسمح باللوكيشن لما الموبايل يسأل.",
+         "لازم موبايلك يكون جوه المخزن (في حدود 150 متر) والـ GPS شغال؛ الكارت بيوريك وقت حضورك ولو اتأخرت.",
+         "آخر الوردية اضغط تسجيل انصراف وانت في المخزن برضه."],
+       "check": [
+         "الكارت مكتوب فيه وقت حضورك؛ وملفي من قائمة الإعدادات بيوريك الشهر كله."],
+       "problems": [
+         "بعيد أو المكان مش دقيق: اطلع برة أو قرب من شباك وشغّل الـ GPS وجرب تاني.",
+         "اللوكيشن مقفول: افتحه للموقع من إعدادات المتصفح.",
+         "الموبايل فاصل أو نسيته: قول لمسؤول المخزن؛ الموارد البشرية تضيف التسجيل بسبب. لو نسيت الانصراف اليوم بيتقفل على نهاية ورديتك ويتعلّم."]},
       {"title": "استلام شحنة تاجر",
        "steps": [
          "اطلب من السواق رقم شحنة التاجر. لو مفيش شحنة للتاجر ده في الاستلام يبقى مفيش استلام: كلم الأدمن.",
@@ -554,6 +597,16 @@ AR = {
       "التطبيق واقف: كلم مسؤول الفرع؛ ما تسلمش شنطة من غير الكود أو صورة."
     ],
     "sections": [
+      {"title": "تسجيل الحضور والانصراف",
+       "steps": [
+         "وانت في المخزن افتح تطبيق المندوب واضغط تسجيل حضور فوق. اسمح باللوكيشن لما الموبايل يسأل.",
+         "لازم تكون في المخزن (في حدود 150 متر) والـ GPS شغال.",
+         "لما ورديتك تخلص وتسلم الكاش، اضغط تسجيل انصراف في المخزن."],
+       "check": [
+         "الكارت مكتوب فيه وقت حضورك."],
+       "problems": [
+         "المخزن قالك إنك مش مسجل حضور وهو بيسلمك طلب: سجل حضور الأول (فيه مخازن بتطلبه).",
+         "بعيد أو المكان مش دقيق: روح المخزن وشغّل الـ GPS وجرب تاني؛ لو لسه مش شغال كلّم مسؤول المخزن."]},
       {"title": "توصيل طلب",
        "steps": [
          "افتح الطلب واضغط الاتجاهات.",
@@ -832,6 +885,17 @@ AR = {
       "شوبيفاي أو الدفع أو السيرفر واقف: تذكرة عاجلة للمسؤول التقني وقول للفروع ياخدوا طلبات يدوي بس بعد ما تقول."
     ],
     "sections": [
+      {"title": "الحضور والورديات",
+       "steps": [
+         "الموارد البشرية، الإعدادات: الورديات (البداية والنهاية والراحة والأيام) والإجازات الرسمية؛ وإعدادات الموارد البشرية فيها مسافة تسجيل الحضور والسماح والإضافي ومكان المكتب.",
+         "الموارد البشرية، الحضور، جدول الورديات: حدد الوردية الأساسية لكل شخص؛ الأسبوعين الجايين بيتعملوا منها؛ وغيّر أي يوم باليد لو محتاج.",
+         "الموارد البشرية، الحضور، النهارده: مين حاضر أو متأخر أو مش موجود أو في راحة في كل مخزن. أيام الحضور: الأيام المقفولة بالتأخير والإضافي والساعات وتصدير CSV.",
+         "افتح اليوم علشان تصححه: ضيف تسجيل الموبايل معملوش، أو الغي تسجيل غلط، أو حدد الحالة؛ كل تصحيح لازم له سبب."],
+       "check": [
+         "أيام امبارح بتتقفل الصبح؛ ولو حد نسي الانصراف بتظهر العلامة."],
+       "problems": [
+         "حد مش عارف يسجل حضور (بعيد): راجع مخزنه في الملف ومكان المخزن و hr.clock_radius_m.",
+         "موظفين المكتب مش عارفين يسجلوا: حدد hr.office_lat و hr.office_lng."]},
       {"title": "الفروع والمراكز والمناطق",
        "steps": [
          "المخازن ومراكز الفرز: افتح موقع بكود قصير (حروف وأرقام)، العنوان ومكانه على الخريطة.",

@@ -27,8 +27,14 @@ describe('appsFor', () => {
     expect(pages('owner')).toContain('/admin/settings/operations');
   });
 
-  it('shows a store manager only operations and inventory, without settings pages', () => {
-    expect(appsFor(profile('store_manager')).map((a) => a.id)).toEqual(['operations', 'inventory']);
+  it('shows a store manager operations, inventory and attendance, without settings pages', () => {
+    expect(appsFor(profile('store_manager')).map((a) => a.id)).toEqual([
+      'operations',
+      'inventory',
+      'hr',
+    ]);
+    expect(pages('store_manager')).toContain('/admin/hr/attendance');
+    expect(pages('store_manager')).not.toContain('/admin/settings/hr');
     expect(pages('store_manager')).not.toContain('/admin/settings/operations');
     expect(canOpenStoreScreens(profile('store_manager'))).toBe(true);
   });
@@ -50,7 +56,14 @@ describe('appsFor', () => {
 
   it('gives the HR officer the HR app only, with no settings page', () => {
     expect(appsFor(profile('hr_officer')).map((a) => a.id)).toEqual(['hr']);
-    expect(pages('hr_officer')).toEqual(['/admin/hr']);
+    expect(pages('hr_officer')).toEqual([
+      '/admin/hr',
+      '/admin/hr/attendance',
+      '/admin/hr/attendance/days',
+      '/admin/hr/roster',
+      '/admin/hr/shifts',
+      '/admin/hr/holidays',
+    ]);
     expect(pages('owner')).toContain('/admin/settings/hr');
   });
 

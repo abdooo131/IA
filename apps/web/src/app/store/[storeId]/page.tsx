@@ -1,6 +1,7 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Icon, type IconName } from '@/components/Icon';
+import { ClockCard } from '@/components/hr/ClockCard';
 import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
 import type { StoreSummary } from '@/lib/store-types';
@@ -75,6 +76,9 @@ export default async function StoreHomePage({ params }: { params: Promise<{ stor
   return (
     <>
       <h1 className="text-h2">{localized(summary.store, locale)}</h1>
+      <div className="mt-4">
+        <ClockCard compact />
+      </div>
       <ul className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
         {shown.map((tile) => (
           <li key={tile.href}>

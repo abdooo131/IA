@@ -129,3 +129,18 @@ export function addDays(day: string, days: number): string {
   d.setUTCDate(d.getUTCDate() + days);
   return d.toISOString().slice(0, 10);
 }
+
+/**
+ * The instant of a Cairo wall clock time: `minute` minutes after the start of the Cairo day
+ * (1440 and above fall on the next days), honouring Egypt's summer time.
+ */
+export function cairoAt(day: string, minute: number): Date {
+  const whole = Math.floor(minute / 1440);
+  const rest = minute - whole * 1440;
+  const target = addDays(day, whole);
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(target)!;
+  const wall = Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) + rest * 60_000;
+  let guess = wall - cairoOffsetMinutes(new Date(wall)) * 60_000;
+  guess = wall - cairoOffsetMinutes(new Date(guess)) * 60_000;
+  return new Date(guess);
+}

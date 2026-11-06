@@ -274,6 +274,10 @@ model DarkStore {
   fixedAssets FixedAsset[]
   budgets     Budget[]
 
+  rosterDays     RosterDay[]
+  punches        Punch[]
+  attendanceDays AttendanceDay[]
+
   @@map("dark_stores")
 }
 
@@ -2516,14 +2520,20 @@ model Employee {
   status                EmployeeStatus @default(active)
   leftOn                DateTime?      @map("left_on") @db.Date
   leftReason            String?        @map("left_reason")
+  /// The shift the weekly roster is generated from (HR step 2); none: no roster
+  defaultShiftId        String?        @map("default_shift_id")
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
-  user      User               @relation(fields: [userId], references: [id], onDelete: Restrict)
-  manager   Employee?          @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
-  reports   Employee[]         @relation("employee_manager")
-  homeStore DarkStore?         @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
-  documents EmployeeDocument[]
+  user           User               @relation(fields: [userId], references: [id], onDelete: Restrict)
+  manager        Employee?          @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports        Employee[]         @relation("employee_manager")
+  homeStore      DarkStore?         @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
+  documents      EmployeeDocument[]
+  defaultShift   Shift?             @relation(fields: [defaultShiftId], references: [id], onDelete: SetNull)
+  rosterDays     RosterDay[]
+  punches        Punch[]
+  attendanceDays AttendanceDay[]
 
   @@index([homeStoreId])
   @@index([status])
@@ -2551,4 +2561,162 @@ model EmployeeDocument {
   @@index([employeeId])
   @@index([expiresOn])
   @@map("employee_documents")
+}
+
+// ─── Attendance (docs/HR.md 2) ─────────────────────────────────────────────────
+
+enum PunchKind {
+  in
+  out
+
+  @@map("punch_kind")
+}
+
+/// app: the person's phone (location checked); manual: a manager with a reason; auto: the
+/// day close clocked out a person who forgot, at the shift end.
+enum PunchSource {
+  app
+  manual
+  auto
+
+  @@map("punch_source")
+}
+
+enum AttendanceStatus {
+  present
+  late
+  left_early
+  absent
+  on_leave
+  day_off
+  holiday
+
+  @@map("attendance_status")
+}
+
+/// A shift template. Minutes from midnight (Cairo); an end at or before the start runs past
+/// midnight, which only an overnight shift allows.
+model Shift {
+  id           String   @id @default(cuid())
+  nameEn       String   @map("name_en")
+  nameAr       String?  @map("name_ar")
+  startMinute  Int      @map("start_minute")
+  endMinute    Int      @map("end_minute")
+  breakMinutes Int      @default(0) @map("break_minutes")
+  /// Working weekdays, 0 = Sunday; the other days of the roster are days off
+  weekdays     Int[]
+  overnight    Boolean  @default(false)
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  employees  Employee[]
+  rosterDays RosterDay[]
+
+  @@map("shifts")
+}
+
+/// One person's plan for one Cairo day: a shift (its times copied, so the past keeps its plan)
+/// or a day off (no shift). Generated from the default shift; edited rows are kept.
+model RosterDay {
+  id           String   @id @default(cuid())
+  employeeId   String   @map("employee_id")
+  day          DateTime @db.Date
+  /// Where the person works that day (their store; null: the office)
+  darkStoreId  String?  @map("dark_store_id")
+  shiftId      String?  @map("shift_id")
+  startMinute  Int?     @map("start_minute")
+  endMinute    Int?     @map("end_minute")
+  breakMinutes Int?     @map("break_minutes")
+  /// Changed by hand: generating the roster again leaves it alone
+  edited       Boolean  @default(false)
+  updatedById  String?  @map("updated_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  darkStore DarkStore? @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  shift     Shift?     @relation(fields: [shiftId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, day])
+  @@index([darkStoreId, day])
+  @@map("roster_days")
+}
+
+/// Official holidays (Cairo days): nobody is absent on them.
+model Holiday {
+  id          String   @id @default(cuid())
+  day         DateTime @unique @db.Date
+  nameEn      String   @map("name_en")
+  nameAr      String   @map("name_ar")
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("holidays")
+}
+
+/// A clock in or out. Never deleted (a database trigger refuses it): a wrong punch is voided
+/// with a reason, and the day is computed again.
+model Punch {
+  id          String      @id @default(cuid())
+  employeeId  String      @map("employee_id")
+  kind        PunchKind
+  at          DateTime
+  latitude    Float?
+  longitude   Float?
+  /// The phone's accuracy and the distance to the place checked, in metres
+  accuracyM   Int?        @map("accuracy_m")
+  distanceM   Int?        @map("distance_m")
+  /// The store checked against (null: the office, or a manual punch)
+  darkStoreId String?     @map("dark_store_id")
+  device      String?
+  source      PunchSource
+  reason      String?
+  byUserId    String?     @map("by_user_id")
+  voidedAt    DateTime?   @map("voided_at")
+  voidedById  String?     @map("voided_by_id")
+  voidReason  String?     @map("void_reason")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  darkStore DarkStore? @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, at])
+  @@map("punches")
+}
+
+/// One closed attendance day per person and Cairo day, built from the roster and the punches
+/// by the daily close, and built again whenever a punch or the status is corrected.
+model AttendanceDay {
+  id               String            @id @default(cuid())
+  employeeId       String            @map("employee_id")
+  day              DateTime          @db.Date
+  darkStoreId      String?           @map("dark_store_id")
+  shiftId          String?           @map("shift_id")
+  plannedStart     DateTime?         @map("planned_start")
+  plannedEnd       DateTime?         @map("planned_end")
+  /// The status shown: the manager's status when set, else the computed one
+  status           AttendanceStatus
+  computedStatus   AttendanceStatus  @map("computed_status")
+  overrideStatus   AttendanceStatus? @map("override_status")
+  firstIn          DateTime?         @map("first_in")
+  lastOut          DateTime?         @map("last_out")
+  lateMinutes      Int               @default(0) @map("late_minutes")
+  earlyMinutes     Int               @default(0) @map("early_minutes")
+  overtimeMinutes  Int               @default(0) @map("overtime_minutes")
+  workedMinutes    Int               @default(0) @map("worked_minutes")
+  flags            String[]
+  correctedById    String?           @map("corrected_by_id")
+  correctionReason String?           @map("correction_reason")
+  correctedAt      DateTime?         @map("corrected_at")
+  closedAt         DateTime          @default(now()) @map("closed_at")
+  updatedAt        DateTime          @updatedAt @map("updated_at")
+
+  employee  Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  darkStore DarkStore? @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, day])
+  @@index([darkStoreId, day])
+  @@index([day])
+  @@map("attendance_days")
 }

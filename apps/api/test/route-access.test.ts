@@ -20,6 +20,10 @@ const ANY_SIGNED_IN = new Set([
   'me/employee',
   'me/employee/history',
   'me/employee/documents/:documentId',
+  // My attendance: a person's own Clock in, Clock out and days (merchants have no file).
+  'me/attendance',
+  'me/attendance/clock-in',
+  'me/attendance/clock-out',
 ]);
 /**
  * Routes team members reach by role alone, without an access profile check: tickets (every

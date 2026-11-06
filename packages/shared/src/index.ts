@@ -16,3 +16,4 @@ export * from './payroll';
 export * from './eta';
 export * from './access';
 export * from './hr';
+export * from './attendance';

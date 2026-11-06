@@ -26,6 +26,7 @@ const KNOWN_ERRORS = [
   'rider_not_found',
   'rider_other_store',
   'rider_full',
+  'rider_not_clocked_in',
   'batch_would_break_sla',
   'photo_too_large',
   'photo_type_not_allowed',

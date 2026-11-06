@@ -18,16 +18,25 @@ const button =
  * Money settings are stored in piastres and shares in basis points, but people type
  * pounds and percents: 45 means 45.00 EGP, 2.5 means 2.5%.
  */
-type Unit = 'egp' | 'percent' | 'number';
+type Unit = 'egp' | 'percent' | 'number' | 'coordinate';
+/** Map coordinates (the office location) are decimal degrees, typed as they are. */
 const unitOf = (key: string): Unit =>
-  key.endsWith('_piastres') ? 'egp' : key.endsWith('_bp') ? 'percent' : 'number';
+  key.endsWith('_piastres')
+    ? 'egp'
+    : key.endsWith('_bp')
+      ? 'percent'
+      : /_(lat|lng)$/.test(key)
+        ? 'coordinate'
+        : 'number';
 const show = (value: number, unit: Unit) =>
-  unit === 'number'
+  unit === 'number' || unit === 'coordinate'
     ? String(value)
     : `${Math.floor(value / 100)}.${String(value % 100).padStart(2, '0')}`;
 function read(text: string, unit: Unit): number | null {
+  const v = text.trim();
+  if (unit === 'coordinate') return /^-?\d{1,3}(\.\d{1,7})?$/.test(v) ? Number(v) : null;
   if (unit !== 'number') return parseEgp(text);
-  return /^\d+$/.test(text.trim()) ? Number(text.trim()) : null;
+  return /^\d+$/.test(v) ? Number(v) : null;
 }
 
 /** Which tab each setting lives on, by the start of its key. */
@@ -278,7 +287,7 @@ function ValueEditor(props: {
         className={input}
         aria-label={t('save')}
       />
-      {props.unit !== 'number' && (
+      {(props.unit === 'egp' || props.unit === 'percent') && (
         <span className="text-caption text-text-muted">
           {props.unit === 'egp' ? t('unitEgp') : '%'}
         </span>

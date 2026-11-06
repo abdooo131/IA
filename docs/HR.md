@@ -1,4 +1,4 @@
-# HR module (plan approved; step 1 built)
+# HR module (plan approved; steps 1 and 2 built)
 
 Decisions taken by the owner on 2026-11-06: attendance by a Clock in button with a location
 check, violations from a penalty list that reaches payroll, leave by requests and balances,
@@ -119,11 +119,75 @@ account managers own merchants, QC agents check packing and received shipments.
   merchants and the other merchant alerts (low stock, debit wallet, Shopify problems) reach them
   once those alerts carry the merchant (the Shopify ones were left for the agent working there).
 
+## Step 2 as built (decisions taken while building)
+
+- Data: `shifts` (name in English and Arabic, start and end as Cairo minutes, break minutes,
+  working weekdays, overnight allowed, in use), `employees.default_shift_id`, `roster_days`
+  (one per person and Cairo day: a shift with its times copied, or a day off; `edited` when
+  changed by hand), `holidays`, `punches` (in or out, the instant, latitude, longitude,
+  accuracy and distance in metres, the store checked, device, source app, manual or auto,
+  reason, by; never deleted: a database trigger refuses it, a wrong punch is voided with a
+  reason) and `attendance_days` (status, computed status, the manager's status, planned start
+  and end, first in, last out, late, early, overtime and worked minutes, flags, who corrected
+  it and why).
+- Settings: `hr.clock_radius_m` (150, per store), `hr.max_accuracy_m` (100),
+  `hr.late_grace_minutes` (10), `hr.overtime_after_minutes` (30), `hr.auto_close_hours` (4),
+  `hr.riders_must_clock_in` (0, per store), `hr.office_lat` and `hr.office_lng` (0: not set;
+  the only settings that take decimals).
+- Where a person clocks in: their store on the file (store staff and riders: their account's
+  store, so hub staff and QC agents use the hub or store they are linked to); a file without a
+  store is office staff, checked against the office settings. Refusals answer
+  `no_position` (400), `position_inaccurate` (400, with `accuracyM` and `maxAccuracyM`),
+  `too_far` (403, with `distanceM` and `radiusM`), `office_location_not_set` (409),
+  `already_clocked_in` and `not_clocked_in` (409), `employee_not_active` (403, suspended or
+  left). The distance must be within the radius; the accuracy is not added to it.
+- The roster week runs Saturday to Friday. The API's job (every 10 minutes) plans the coming
+  two weeks from each default shift (days already planned are kept) and closes every day of
+  the last 7 that is over: a day closes `hr.auto_close_hours` after its shift end (and never
+  before the Cairo day ends). Changing a person's default shift or a shift template plans
+  their coming generated days again from tomorrow; edited days stay.
+- A session (in, then out) belongs to the Cairo day of its clock in, or to the day before when
+  that day's overnight shift has not ended yet. A second in while one is open and an out
+  without an in are ignored.
+- Statuses: on leave (the file's status is on leave; leave requests come in step 3), holiday
+  (official holiday; work on it is overtime), day off (planned off; work on it is overtime),
+  absent (planned, no punch), late (first in more than the grace after the start), left early
+  (last out more than the grace before the end), else present. A person who worked without
+  any roster is present. Late minutes are the raw minutes after the start (the status uses the
+  grace); overtime is the time past the shift end once it reaches `hr.overtime_after_minutes`;
+  worked minutes are the sessions minus the shift's break.
+- Forgot clock out: when the day closes and the person is still in, an `auto` out punch is
+  added at the shift end (at the clock in when there was no shift, so nothing is paid by
+  guess) and the day is flagged `forgot_clock_out`. Clocking in the next morning closes the
+  open day first, so nobody is stuck as already clocked in.
+- Corrections (HR use): a manual punch with a reason, voiding a punch with a reason, or the
+  day's status with a reason (null goes back to the computed one). A closed day is built again
+  after each change; the manager's status stays through later rebuilds. Every change is in
+  the person's history (audit on the employee). Adding or removing a holiday rebuilds closed
+  days of that date.
+- Riders: with `hr.riders_must_clock_in` at 1 (per store), handing an order to a rider who is
+  not clocked in answers `rider_not_clocked_in`. Off by default.
+- Access: shifts and holidays are HR manage to change; the Today board, attendance days, the
+  roster and day details are HR view; roster cells, default shifts and corrections are HR use.
+  People limited to listed stores see and change only those stores' people; office people need
+  every store. Store managers got HR view (their stores' board, roster and days, and the files
+  of their people); fixing days stays with HR (use). Everyone's own: `GET /me/attendance`,
+  `POST /me/attendance/clock-in` and `clock-out` (merchants get 404).
+- Screens: the Clock in card on the store home, the rider home and My HR (with the month's
+  days); HR app menus Attendance (Today, Attendance days with CSV, Roster) and Configuration
+  (Shifts, Official holidays, HR settings). A day opens from the board or the list for
+  corrections.
+- Seed: shifts Morning 10:00 to 16:00 (Friday off) and Evening 16:00 to 22:00 (Thursday off)
+  are created when there is no shift; store staff and riders without a default shift get them
+  alternately within their store (never someone whose shift HR set or cleared), with two weeks
+  planned. The demo month plans from its first day and simulates punches at each store (most
+  on time, some late, a few absent or forgetting to clock out), then closes the days.
+
 ## Build order
 
 1. Employee files, documents, HR app and access, history (about 2 sessions). Built, with
    account managers (part of 5).
-2. Shifts, Clock in with location, attendance days and the manager board (2 sessions).
+2. Shifts, Clock in with location, attendance days and the manager board (2 sessions). Built.
 3. Leave requests and balances (1 session).
 4. Penalty list, violations, payroll link (1 to 2 sessions).
 5. Account managers (1 session) and QC queue and scores (1 to 2 sessions).

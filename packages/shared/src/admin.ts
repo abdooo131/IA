@@ -141,6 +141,7 @@ export const settingUpdateSchema = z.object({
   key: z.enum(SETTING_KEYS as [string, ...string[]]),
   /** "global" or a dark store id */
   scope: z.string().min(1).max(64).default('global'),
-  /** null removes a store override, so the global value applies again */
-  value: z.number().int().nullable(),
+  /** null removes a store override, so the global value applies again. Each setting's own
+   * schema decides whether fractions are allowed (only the office coordinates take them). */
+  value: z.number().finite().nullable(),
 });

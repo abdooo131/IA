@@ -52,10 +52,13 @@ What each app covers:
   `customer_data`. manage: merge profiles.
 - **accounting**: everything under `/finance`. view = reports only, use = prepare, manage =
   approve (second person rule, closing books, year end). Salary pages also need `salaries`.
-- **hr**: employee files, their documents and history, document expiry alerts (docs/HR.md).
-  view reads files, use changes them and adds documents, manage opens a file for an account
-  without one, changes the status (left disables the account) and deletes documents. Salary and
-  the salary bank account also need `salaries`.
+- **hr**: employee files, their documents and history, document expiry alerts, attendance
+  (docs/HR.md). view reads files, the Today board, attendance days and the roster; use changes
+  files, adds documents, plans the roster and corrects attendance (manual punches, voiding a
+  punch, a day's status); manage opens a file for an account without one, changes the status
+  (left disables the account), deletes documents and changes shifts and official holidays.
+  Salary and the salary bank account also need `salaries`. Clocking in and out and reading
+  one's own attendance need no access (every team member and rider).
 - **settings**: users and access, audit log, ticket settings, and the settings pages of every
   app (a setting is changed with settings manage).
 
@@ -69,7 +72,7 @@ screens, orders, stock, transfers, cash, alerts and the live board are filtered 
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
 | Owner | manage | manage | manage | manage | manage | manage | manage | manage | all | yes | yes | no |
 | Operations manager | manage | manage | manage | view | view | none | none | none | all | no | no | no |
-| Store manager | manage | use | use | none | none | none | none | none | listed | no | no | no |
+| Store manager | manage | use | use | none | none | none | view | none | listed | no | no | no |
 | Store staff | use | none | none | none | none | none | none | none | listed | no | no | no |
 | Hub staff | use | none | view | none | none | none | none | none | listed | no | no | no |
 | Dispatcher | use | use | view | none | none | none | none | none | all | no | no | no |
@@ -121,6 +124,8 @@ is theirs.
 - admin → Owner profile.
 - HR step 1: the new hr column starts at manage for the Owner job role and none for everyone
   else; `own_merchants_only` starts off.
+- HR step 2: Store managers get hr view (their stores' attendance board, roster and days); the
+  migration raises existing Store manager profiles from none to view.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or
   Finance manager (approve).
 - store_staff → Store staff for their own store.

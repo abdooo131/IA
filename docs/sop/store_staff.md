@@ -21,6 +21,22 @@ Also inside the app: settings menu (top of every screen), Help.
 - Scanner, phone or internet down for more than 10 minutes: call your store lead; they open an urgent ticket to admin.
 - Anything you are not sure about: ticket to your store lead before you act.
 
+### Clock in and out
+
+1. At the store, open your store's home and tap Clock in at the top. Allow location when the phone asks.
+2. Your phone must be inside the store (within 150 m) with GPS on; the card then shows the time you clocked in and if you were late.
+3. At the end of your shift tap Clock out, also at the store.
+
+**Check it went right**
+
+- The card shows Clocked in at the time you arrived; My HR in the Settings menu shows your month.
+
+**If something is wrong**
+
+- Too far or not precise enough: step outside or near a window, turn on GPS and try again.
+- Location blocked: allow location for the site in the browser settings.
+- Phone dead or forgotten: tell your store lead; HR adds the punch with a reason. A forgotten clock out is closed at your shift end and flagged.
+
 ### Receive a merchant shipment
 
 1. Ask the driver for the merchant's shipment reference. No shipment in Receive for that merchant means no receiving: call admin.
@@ -158,6 +174,22 @@ Also inside the app: settings menu (top of every screen), Help.
 - الفلوس مش مظبوطة: اكتب اللي عديته؛ الماليات بتراجع. ما تغيرش العد.
 - الاسكانر أو الموبايل أو النت واقف أكتر من 10 دقايق: كلم مسؤول الفرع؛ هو يفتح تذكرة عاجلة للأدمن.
 - أي حاجة مش متأكد منها: تذكرة لمسؤول الفرع قبل ما تتصرف.
+
+### تسجيل الحضور والانصراف
+
+1. وانت في المخزن افتح الصفحة الرئيسية للمخزن واضغط تسجيل حضور فوق. اسمح باللوكيشن لما الموبايل يسأل.
+2. لازم موبايلك يكون جوه المخزن (في حدود 150 متر) والـ GPS شغال؛ الكارت بيوريك وقت حضورك ولو اتأخرت.
+3. آخر الوردية اضغط تسجيل انصراف وانت في المخزن برضه.
+
+**اتأكد إنها مشيت صح**
+
+- الكارت مكتوب فيه وقت حضورك؛ وملفي من قائمة الإعدادات بيوريك الشهر كله.
+
+**لو فيه مشكلة**
+
+- بعيد أو المكان مش دقيق: اطلع برة أو قرب من شباك وشغّل الـ GPS وجرب تاني.
+- اللوكيشن مقفول: افتحه للموقع من إعدادات المتصفح.
+- الموبايل فاصل أو نسيته: قول لمسؤول المخزن؛ الموارد البشرية تضيف التسجيل بسبب. لو نسيت الانصراف اليوم بيتقفل على نهاية ورديتك ويتعلّم.
 
 ### استلام شحنة تاجر
 

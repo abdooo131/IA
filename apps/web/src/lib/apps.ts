@@ -210,7 +210,22 @@ export const APPS: AppDef[] = [
     access: 'hr',
     menus: [
       { label: 'employees', pages: [{ href: '/admin/hr', label: 'employees' }] },
-      { label: 'configuration', pages: [settings('hr')] },
+      {
+        label: 'attendance',
+        pages: [
+          { href: '/admin/hr/attendance', label: 'attendanceToday', exact: true },
+          { href: '/admin/hr/attendance/days', label: 'attendanceDays' },
+          { href: '/admin/hr/roster', label: 'roster' },
+        ],
+      },
+      {
+        label: 'configuration',
+        pages: [
+          { href: '/admin/hr/shifts', label: 'shifts' },
+          { href: '/admin/hr/holidays', label: 'holidays' },
+          settings('hr'),
+        ],
+      },
     ],
   },
   {

@@ -1,7 +1,8 @@
-import type { PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '@prisma/client';
 import { addDays, cairoDay, cairoDayStart, GLOBAL_SCOPE, type SettingKey } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { createMerchant, createSku, createUser } from '../admin-ops';
+import { closeAttendanceDays, ensureStoreShifts, generateRoster } from '../attendance';
 import { ensureEmployees } from '../hr';
 import { reportDamage, settleDamage } from '../damage';
 import { DomainError } from '../domain-error';
@@ -196,6 +197,8 @@ export async function loadDemo(base: PrismaClient, options: DemoOptions): Promis
     const world = await setUp(db, rnd, options, log);
     const counts = await simulate(db, sim, rnd, world, { firstDay, days, today, at }, options, log);
     await fillEmployeeFiles(db);
+    const attendance = await simulateAttendance(db, rnd, firstDay, today);
+    log(`Attendance: ${attendance.punches} punches, ${attendance.days} days closed`);
     setContextClock(Math.min(realNow() - 1000, Date.now()));
     await db.$transaction((tx) =>
       recordAudit(tx, {
@@ -232,6 +235,66 @@ async function fillEmployeeFiles(db: PrismaClient) {
     const [department, jobTitle] = byRole[e.user.role];
     await db.employee.update({ where: { id: e.id }, data: { department, jobTitle } });
   }
+}
+
+/**
+ * The month's attendance (docs/HR.md 2): the store teams get the two default shifts, a roster
+ * from the first day, and punches at their store around each shift (most on time, some late,
+ * a few absent or forgetting to clock out); then the daily close builds the attendance days.
+ */
+async function simulateAttendance(db: PrismaClient, rnd: Random, firstDay: string, today: string) {
+  await ensureStoreShifts(db, today);
+  const days = Math.round((Date.parse(today) - Date.parse(firstDay)) / 86_400_000) + 1;
+  await generateRoster(db, { from: firstDay, days: days + 14 });
+  const nowMs = Date.now();
+  const rows = await db.rosterDay.findMany({
+    where: { day: { gte: new Date(`${firstDay}T00:00:00Z`), lte: new Date(`${today}T00:00:00Z`) } },
+    include: { darkStore: { select: { latitude: true, longitude: true } } },
+  });
+  const punches: Prisma.PunchCreateManyInput[] = [];
+  for (const r of rows) {
+    if (r.startMinute === null || r.endMinute === null || !r.darkStore) continue;
+    const day = r.day.toISOString().slice(0, 10);
+    const kind = rnd.weighted([
+      ['on_time', 85],
+      ['late', 8],
+      ['absent', 4],
+      ['forgot', 3],
+    ] as const);
+    if (kind === 'absent') continue;
+    const start = cairoDayStart(day).getTime() + r.startMinute * MIN;
+    const end = cairoDayStart(day).getTime() + r.endMinute * MIN;
+    const inAt = start + (kind === 'late' ? rnd.int(12, 45) : rnd.int(-12, 8)) * MIN;
+    const outAt = end + rnd.int(-6, 50) * MIN;
+    const place = {
+      latitude: r.darkStore.latitude + rnd.between(-0.0004, 0.0004),
+      longitude: r.darkStore.longitude + rnd.between(-0.0004, 0.0004),
+      accuracyM: rnd.int(5, 40),
+      distanceM: rnd.int(3, 60),
+      darkStoreId: r.darkStoreId,
+      source: 'app' as const,
+      device: 'Demo phone',
+    };
+    if (inAt > nowMs) continue;
+    punches.push({
+      employeeId: r.employeeId,
+      kind: 'in',
+      at: new Date(inAt),
+      createdAt: new Date(inAt),
+      ...place,
+    });
+    if (kind !== 'forgot' && outAt <= nowMs)
+      punches.push({
+        employeeId: r.employeeId,
+        kind: 'out',
+        at: new Date(outAt),
+        createdAt: new Date(outAt),
+        ...place,
+      });
+  }
+  await db.punch.createMany({ data: punches });
+  const closed = await closeAttendanceDays(db, new Date(nowMs), days + 1);
+  return { punches: punches.length, days: closed.closed };
 }
 
 // ─── set up ────────────────────────────────────────────────────────────────────

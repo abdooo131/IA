@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { AppHeader } from '@/components/AppHeader';
+import { ClockCard } from '@/components/hr/ClockCard';
+import { MyAttendanceDays } from '@/components/hr/MyAttendanceDays';
 import { DocumentsPanel } from '@/components/hr/DocumentsPanel';
 import { StatusChip } from '@/components/hr/StatusChip';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
@@ -53,6 +55,11 @@ export default async function MyFilePage() {
           <StatusChip status={file.status} label={t(`statuses.${file.status}`)} />
         </div>
         <p className="mt-1 text-body-sm text-text-muted">{t('myIntro')}</p>
+
+        <div className="mt-4">
+          <ClockCard />
+        </div>
+        <MyAttendanceDays />
 
         <section className={box} aria-labelledby="me-identity">
           <h2 id="me-identity" className="text-h3">

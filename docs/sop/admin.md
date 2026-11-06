@@ -19,6 +19,22 @@ Also inside the app: settings menu (top of every screen), Help.
 - Use Tickets to ask anyone; every ticket has an answer time and a reminder.
 - Shopify, payments or the server down: ticket to the tech lead (urgent) and tell the stores to take manual orders only after you say so.
 
+### Attendance and shifts
+
+1. HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.
+2. HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.
+3. HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.
+4. Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason.
+
+**Check it went right**
+
+- Yesterday's days are closed the morning after; a forgotten clock out shows the flag.
+
+**If something is wrong**
+
+- A person cannot clock in (too far): check their store on the file, the store's location and hr.clock_radius_m.
+- Office staff cannot clock in: set hr.office_lat and hr.office_lng.
+
 ### Stores, hubs and zones
 
 1. Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.
@@ -92,6 +108,22 @@ Also inside the app: settings menu (top of every screen), Help.
 - بيوصلك اللي محدش تاني يقدر يقرره: نقص مخزون، فروق فلوس، شكاوى تجار، أجهزة بايظة.
 - استخدم التذاكر عشان تسأل أي حد؛ كل تذكرة ليها وقت رد وتذكير.
 - شوبيفاي أو الدفع أو السيرفر واقف: تذكرة عاجلة للمسؤول التقني وقول للفروع ياخدوا طلبات يدوي بس بعد ما تقول.
+
+### الحضور والورديات
+
+1. الموارد البشرية، الإعدادات: الورديات (البداية والنهاية والراحة والأيام) والإجازات الرسمية؛ وإعدادات الموارد البشرية فيها مسافة تسجيل الحضور والسماح والإضافي ومكان المكتب.
+2. الموارد البشرية، الحضور، جدول الورديات: حدد الوردية الأساسية لكل شخص؛ الأسبوعين الجايين بيتعملوا منها؛ وغيّر أي يوم باليد لو محتاج.
+3. الموارد البشرية، الحضور، النهارده: مين حاضر أو متأخر أو مش موجود أو في راحة في كل مخزن. أيام الحضور: الأيام المقفولة بالتأخير والإضافي والساعات وتصدير CSV.
+4. افتح اليوم علشان تصححه: ضيف تسجيل الموبايل معملوش، أو الغي تسجيل غلط، أو حدد الحالة؛ كل تصحيح لازم له سبب.
+
+**اتأكد إنها مشيت صح**
+
+- أيام امبارح بتتقفل الصبح؛ ولو حد نسي الانصراف بتظهر العلامة.
+
+**لو فيه مشكلة**
+
+- حد مش عارف يسجل حضور (بعيد): راجع مخزنه في الملف ومكان المخزن و hr.clock_radius_m.
+- موظفين المكتب مش عارفين يسجلوا: حدد hr.office_lat و hr.office_lng.
 
 ### الفروع والمراكز والمناطق
 

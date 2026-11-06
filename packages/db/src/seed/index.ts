@@ -2,6 +2,7 @@ import { ensureDefaultAccounts } from '../finance';
 import { prepareAreaMap, loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
 import {
+  cairoDay,
   GLOBAL_SCOPE,
   JOB_ROLE_TEMPLATES,
   type JobRole,
@@ -10,6 +11,7 @@ import {
   SETTING_KEYS,
 } from '@shiplynow/shared';
 import { writeAccess } from '../access';
+import { ensureStoreShifts } from '../attendance';
 import { ensureEmployees } from '../hr';
 import { hashPassword } from '../password';
 import { move, receive } from '../stock';
@@ -194,6 +196,10 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
   log(`Demo users: ${DEMO_USERS.length}`);
   const files = await ensureEmployees(prisma);
   if (files > 0) log(`Employee files opened: ${files}`);
+  // Two store shifts (10:00 to 16:00 and 16:00 to 22:00) and the coming two weeks' roster.
+  const shifts = await ensureStoreShifts(prisma, cairoDay(new Date()));
+  if (shifts.created + shifts.assigned > 0)
+    log(`Shifts: ${shifts.created} created, ${shifts.assigned} people planned`);
 
   // Opening stock goes through the real stock functions: receive, then put away.
   let movements = 0;

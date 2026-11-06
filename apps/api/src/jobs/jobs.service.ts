@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import {
   accrueStorage,
   checkDocumentExpiry,
+  closeAttendanceDays,
   checkFailedDeliveries,
   flagLateOrders,
   getSetting,
@@ -52,6 +53,9 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private monthlyDone: string | null = null;
   /** The last hour employee documents were checked in this instance. */
   private documentsDone: string | null = null;
+  /** The last ten minute slot the attendance close ran in this instance. */
+  private attendanceDone: string | null = null;
+  private closingAttendance = false;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -74,6 +78,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runCustomerLinks();
       void this.runMonthlyFinance();
       void this.runDocumentExpiry();
+      void this.runAttendanceClose();
     }, EVERY_MS);
     this.timer.unref();
   }
@@ -125,6 +130,28 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     } catch (error) {
       await this.reporter.report('job: document expiry', error);
       return null;
+    }
+  }
+
+  /**
+   * Every ten minutes: plans the coming two weeks from the default shifts and closes every
+   * attendance day that is over (a forgotten clock out is closed at the shift end). Each day is
+   * closed under a lock on the person and kept once, so overlaps and repeats change nothing.
+   */
+  async runAttendanceClose(now: Date = new Date()) {
+    const slot = now.toISOString().slice(0, 15);
+    if (this.attendanceDone === slot || this.closingAttendance) return null;
+    this.closingAttendance = true;
+    try {
+      const result = await closeAttendanceDays(this.prisma, now);
+      this.attendanceDone = slot;
+      if (result.closed > 0) this.log.log(`Attendance: ${result.closed} days closed`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: attendance close', error);
+      return null;
+    } finally {
+      this.closingAttendance = false;
     }
   }
 

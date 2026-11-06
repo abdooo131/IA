@@ -492,6 +492,57 @@ export const SETTING_DEFINITIONS = {
     description: 'Months of probation filled in for a new employee from the hire date',
     override: 'none',
   },
+  'hr.clock_radius_m': {
+    schema: z.number().int().min(10).max(5_000),
+    default: 150,
+    description: 'Metres from the store (or the office) inside which a phone may clock in or out',
+    override: 'store',
+  },
+  'hr.max_accuracy_m': {
+    schema: z.number().int().min(5).max(5_000),
+    default: 100,
+    description:
+      'A clock in is refused when the phone position is less accurate than this (metres)',
+    override: 'none',
+  },
+  'hr.late_grace_minutes': {
+    schema: minutes,
+    default: 10,
+    description:
+      'Minutes after the shift start (or before its end) that do not count as late or left early',
+    override: 'none',
+  },
+  'hr.overtime_after_minutes': {
+    schema: minutes,
+    default: 30,
+    description: 'Work past the shift end counts as overtime only from this many minutes',
+    override: 'none',
+  },
+  'hr.auto_close_hours': {
+    schema: z.number().int().min(1).max(12),
+    default: 4,
+    description:
+      'Hours after the shift end when a day is closed; a person still clocked in is clocked out at the shift end and flagged',
+    override: 'none',
+  },
+  'hr.riders_must_clock_in': {
+    schema: z.number().int().min(0).max(1),
+    default: 0,
+    description: '1: a rider who is not clocked in cannot be handed orders',
+    override: 'store',
+  },
+  'hr.office_lat': {
+    schema: z.number().min(-90).max(90),
+    default: 0,
+    description: 'Latitude of the company office where office staff clock in (0: not set)',
+    override: 'none',
+  },
+  'hr.office_lng': {
+    schema: z.number().min(-180).max(180),
+    default: 0,
+    description: 'Longitude of the company office where office staff clock in (0: not set)',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

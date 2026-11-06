@@ -378,7 +378,15 @@
         "payroll__tax_skip_4_from_piastres": "Above this yearly income, bands 1 to 4 lose their lower rate (EGP)",
         "payroll__tax_skip_5_from_piastres": "Above this yearly income, bands 1 to 5 lose their lower rate (EGP)",
         "hr__document_alert_days": "Alert before a document runs out (days)",
-        "hr__probation_months": "Probation for new employees (months)"
+        "hr__probation_months": "Probation for new employees (months)",
+        "hr__clock_radius_m": "Clock in distance from the store or office (metres)",
+        "hr__max_accuracy_m": "Least precise phone location accepted (metres)",
+        "hr__late_grace_minutes": "Grace before late or left early (minutes)",
+        "hr__overtime_after_minutes": "Overtime counts from (minutes past the shift end)",
+        "hr__auto_close_hours": "Close a day this long after the shift end (hours)",
+        "hr__riders_must_clock_in": "Riders must clock in to take orders (1 yes, 0 no)",
+        "hr__office_lat": "Office latitude (for office staff)",
+        "hr__office_lng": "Office longitude (for office staff)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -1455,7 +1463,8 @@
       "at_capacity": "The store for that area is full for this hour.",
       "network": "No connection. Try again.",
       "generic": "Something went wrong. Try again.",
-      "goods_not_back": "The goods are not back in the store yet."
+      "goods_not_back": "The goods are not back in the store yet.",
+      "rider_not_clocked_in": "That rider is not clocked in. Ask them to clock in from the rider app first."
     },
     "deliveryStatuses": {
       "assigned": "Assigned",
@@ -3080,6 +3089,22 @@
         ],
         "sections": [
           {
+            "title": "Clock in and out",
+            "steps": [
+              "At the store, open your store's home and tap Clock in at the top. Allow location when the phone asks.",
+              "Your phone must be inside the store (within 150 m) with GPS on; the card then shows the time you clocked in and if you were late.",
+              "At the end of your shift tap Clock out, also at the store."
+            ],
+            "check": [
+              "The card shows Clocked in at the time you arrived; My HR in the Settings menu shows your month."
+            ],
+            "problems": [
+              "Too far or not precise enough: step outside or near a window, turn on GPS and try again.",
+              "Location blocked: allow location for the site in the browser settings.",
+              "Phone dead or forgotten: tell your store lead; HR adds the punch with a reason. A forgotten clock out is closed at your shift end and flagged."
+            ]
+          },
+          {
             "title": "Receive a merchant shipment",
             "steps": [
               "Ask the driver for the merchant's shipment reference. No shipment in Receive for that merchant means no receiving: call admin.",
@@ -3212,6 +3237,19 @@
           "App not working: call the store lead; do not hand over a package without the code or a photo."
         ],
         "sections": [
+          {
+            "title": "Clock in and out",
+            "steps": [
+              "At your store, open the rider app and tap Clock in at the top. Allow location when the phone asks.",
+              "You must be at the store (within 150 m) with GPS on.",
+              "When your shift ends and your cash is handed over, tap Clock out at the store."
+            ],
+            "check": ["The card shows Clocked in at the time you arrived."],
+            "problems": [
+              "Store says you are not clocked in when handing you an order: clock in first (some stores require it).",
+              "Too far or not precise: go to the store, turn on GPS and try again; if it still fails call the store lead."
+            ]
+          },
           {
             "title": "Deliver an order",
             "steps": [
@@ -3569,6 +3607,22 @@
           "Shopify, payments or the server down: ticket to the tech lead (urgent) and tell the stores to take manual orders only after you say so."
         ],
         "sections": [
+          {
+            "title": "Attendance and shifts",
+            "steps": [
+              "HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
+              "HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
+              "HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
+              "Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason."
+            ],
+            "check": [
+              "Yesterday's days are closed the morning after; a forgotten clock out shows the flag."
+            ],
+            "problems": [
+              "A person cannot clock in (too far): check their store on the file, the store's location and hr.clock_radius_m.",
+              "Office staff cannot clock in: set hr.office_lat and hr.office_lng."
+            ]
+          },
           {
             "title": "Stores, hubs and zones",
             "steps": [
@@ -4019,7 +4073,7 @@
       "accounting": "Money, payouts, taxes and reports",
       "system": "Users, audit log and tickets",
       "store": "Pick, pack, receive and hand to riders",
-      "hr": "Employee files and documents"
+      "hr": "Employee files, attendance and shifts"
     },
     "menus": {
       "dashboard": "Dashboard",
@@ -4043,7 +4097,8 @@
       "reporting": "Reporting",
       "users": "Users",
       "audit": "Audit log",
-      "tickets": "Tickets"
+      "tickets": "Tickets",
+      "attendance": "Attendance"
     },
     "pages": {
       "overview": "Overview",
@@ -4098,7 +4153,12 @@
       "opening": "Opening balances",
       "users": "Users",
       "audit": "Audit log",
-      "employees": "Employees"
+      "employees": "Employees",
+      "attendanceToday": "Today",
+      "attendanceDays": "Attendance days",
+      "roster": "Roster",
+      "shifts": "Shifts",
+      "holidays": "Official holidays"
     }
   },
   "hr": {
@@ -4267,5 +4327,191 @@
       "document_not_readable": "The file does not look like a photo or a PDF.",
       "expires_before_issued": "The document cannot run out before it was issued."
     }
+  },
+  "attendance": {
+    "title": "Attendance",
+    "office": "the office",
+    "locating": "Finding your location…",
+    "working": "Please wait…",
+    "clockIn": "Clock in",
+    "clockOut": "Clock out",
+    "clockedInAt": "Clocked in at {time}.",
+    "clockedOutAt": "Clocked out at {time}.",
+    "shift": "Today's shift {start} – {end}",
+    "holiday": "Official holiday",
+    "dayOff": "Day off",
+    "noShift": "No shift planned today",
+    "inSince": "Clocked in at {time}",
+    "inSinceLate": "Clocked in at {time}, late {late} min",
+    "outAt": "Clocked out at {time} · worked {worked}",
+    "notIn": "Not clocked in",
+    "where": "Clock in within {radius} m of {place}. Your phone's location is checked each time.",
+    "errors": {
+      "no_position": "Your phone did not send a location. Turn on location and try again.",
+      "position_inaccurate": "Your location is not precise enough ({accuracy} m, at most {max} m). Turn on GPS, step outside or near a window, and try again.",
+      "too_far": "You are {distance} m from {place}. Clock in within {radius} m.",
+      "already_clocked_in": "You are already clocked in.",
+      "not_clocked_in": "You are not clocked in.",
+      "office_location_not_set": "The office location is not set yet. Ask HR.",
+      "employee_not_active": "Your file is not active. Ask HR.",
+      "location_denied": "Location is blocked for this site. Allow location in the browser settings, then try again.",
+      "location_unavailable": "Your phone could not find its location. Turn on location (GPS) and try again.",
+      "location_timeout": "Finding your location took too long. Try again outdoors or near a window.",
+      "no_geolocation": "This browser cannot share a location. Use Chrome or Safari on your phone.",
+      "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    },
+    "myDays": "My attendance",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "noDays": "No closed days yet.",
+    "columns": {
+      "day": "Day",
+      "status": "Status",
+      "in": "In",
+      "out": "Out",
+      "late": "Late (min)",
+      "worked": "Worked",
+      "person": "Person",
+      "shift": "Shift",
+      "state": "Now",
+      "overtime": "Overtime (min)",
+      "time": "Time",
+      "kind": "Punch",
+      "source": "From",
+      "distance": "Distance",
+      "note": "Note"
+    },
+    "statuses": {
+      "present": "Present",
+      "late": "Late",
+      "left_early": "Left early",
+      "absent": "Absent",
+      "on_leave": "On leave",
+      "day_off": "Day off",
+      "holiday": "Holiday"
+    },
+    "flags": {
+      "forgot_clock_out": "Forgot to clock out (closed at the shift end)",
+      "manual_punch": "Punch added by a manager",
+      "corrected": "Status set by a manager"
+    },
+    "board": {
+      "in": "In",
+      "late_in": "In, late",
+      "left": "Left",
+      "missing": "Missing",
+      "not_yet": "Not started",
+      "day_off": "Day off",
+      "holiday": "Holiday",
+      "on_leave": "On leave",
+      "unplanned": "No shift"
+    },
+    "todayTitle": "Today",
+    "todayIntro": "Who is in, late, missing or off right now, from the roster and the phones' clock ins.",
+    "holidayToday": "Today is an official holiday: {name}.",
+    "allStores": "All stores and the office",
+    "myStores": "All my stores",
+    "countsLabel": "People by state",
+    "nobody": "Nobody here.",
+    "lateBy": "{minutes} min late",
+    "missingFor": "{minutes} min since the shift started",
+    "store": "Store",
+    "daysTitle": "Attendance days",
+    "daysIntro": "Each closed day: status, punches, late minutes, overtime and hours worked. Open a day to correct it.",
+    "filters": "Filters",
+    "from": "From",
+    "to": "To",
+    "allStatuses": "All statuses",
+    "apply": "Apply",
+    "exportCsv": "Export CSV",
+    "backToDays": "Back to attendance days",
+    "closed": "Day closed",
+    "notClosed": "Not closed yet",
+    "plan": "Plan and totals",
+    "correctedFrom": "Status set by a manager (computed: {computed}). Reason: {reason}",
+    "punches": "Punches",
+    "noPunches": "No punches on this day.",
+    "kinds": {
+      "in": "Clock in",
+      "out": "Clock out"
+    },
+    "sources": {
+      "app": "Phone",
+      "manual": "Manager",
+      "auto": "Day close"
+    },
+    "corrections": "Corrections",
+    "correctionsHint": "Every correction needs a reason and is kept in the person's history.",
+    "addPunch": "Add a punch",
+    "reason": "Reason",
+    "nextDay": "The time is after midnight (the next calendar day)",
+    "addPunchButton": "Add punch",
+    "voidPunch": "Void a wrong punch",
+    "voidConfirm": "Void",
+    "voidButton": "Void…",
+    "setStatus": "Set the day's status",
+    "computedStatus": "As computed",
+    "saveStatus": "Save status",
+    "savedFix": "Saved.",
+    "fixErrors": {
+      "punch_in_future": "A punch cannot be in the future.",
+      "store_not_allowed": "You do not cover that store.",
+      "punch_already_voided": "That punch was already voided.",
+      "day_in_future": "That day has not come yet.",
+      "validation_failed": "Fill in a time (HH:MM) and a reason of at least 3 letters.",
+      "generic": "Something went wrong. Try again."
+    },
+    "rosterTitle": "Roster",
+    "rosterIntro": "Each person's shift for each day of the week (Saturday to Friday). The coming weeks are planned from the default shift; days changed by hand are kept.",
+    "weekNav": "Week",
+    "previousWeek": "Previous week",
+    "nextWeek": "Next week",
+    "generate": "Fill empty days",
+    "generateHint": "From each person's default shift; planned days stay as they are.",
+    "defaultShift": "Default shift",
+    "defaultShiftOf": "Default shift of {name}",
+    "noDefault": "None",
+    "cellOf": "{name} on {day}",
+    "editedHint": "Shaded days were changed by hand.",
+    "shiftsTitle": "Shifts",
+    "shiftsIntro": "Shift templates: start, end, break and working days. A shift that ends after midnight must be marked overnight.",
+    "inactive": "Not in use",
+    "overnight": "overnight",
+    "breakMinutes": "{minutes} min break",
+    "peopleOnShift": "{count, plural, =0 {Nobody on it} one {# person on it} other {# people on it}}",
+    "edit": "Edit",
+    "noShifts": "No shifts yet.",
+    "newShift": "New shift",
+    "editShift": "Edit shift",
+    "nameEn": "Name in English",
+    "nameAr": "Name in Arabic",
+    "starts": "Starts (HH:MM)",
+    "ends": "Ends (HH:MM)",
+    "breakLabel": "Break (minutes)",
+    "overnightLabel": "Ends after midnight (overnight)",
+    "activeLabel": "In use",
+    "workDays": "Working days",
+    "save": "Save",
+    "cancel": "Cancel",
+    "shiftErrors": {
+      "shift_crosses_midnight": "The end is before the start. Mark the shift as overnight.",
+      "shift_empty": "The start and the end are the same.",
+      "validation_failed": "Check the name, the times (HH:MM) and pick at least one day.",
+      "generic": "Something went wrong. Try again."
+    },
+    "holidaysTitle": "Official holidays",
+    "holidaysIntro": "Nobody is absent on an official holiday; work on it counts as overtime.",
+    "yearNav": "Year",
+    "noHolidays": "No holidays this year yet.",
+    "remove": "Remove",
+    "addHoliday": "Add a holiday",
+    "add": "Add",
+    "holidayErrors": {
+      "holiday_exists": "That day is already a holiday.",
+      "validation_failed": "Pick a day and write both names.",
+      "generic": "Something went wrong. Try again."
+    },
+    "officeName": "Office"
   }
 }

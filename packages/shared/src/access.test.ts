@@ -31,7 +31,7 @@ describe('job role templates', () => {
     const N = 'none';
     expect(row('owner')).toEqual([M, M, M, M, M, M, M, M, true, true, true, false]);
     expect(row('operations_manager')).toEqual([M, M, M, V, V, N, N, N, true, false, false, false]);
-    expect(row('store_manager')).toEqual([M, U, U, N, N, N, N, N, false, false, false, false]);
+    expect(row('store_manager')).toEqual([M, U, U, N, N, N, V, N, false, false, false, false]);
     expect(row('store_staff')).toEqual([U, N, N, N, N, N, N, N, false, false, false, false]);
     expect(row('hub_staff')).toEqual([U, N, V, N, N, N, N, N, false, false, false, false]);
     expect(row('dispatcher')).toEqual([U, U, V, N, N, N, N, N, true, false, false, false]);

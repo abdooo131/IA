@@ -20,6 +20,21 @@ Also inside the app: settings menu (top of every screen), Help.
 - Wrong amount of cash collected: type exactly what you got; finance will review it.
 - App not working: call the store lead; do not hand over a package without the code or a photo.
 
+### Clock in and out
+
+1. At your store, open the rider app and tap Clock in at the top. Allow location when the phone asks.
+2. You must be at the store (within 150 m) with GPS on.
+3. When your shift ends and your cash is handed over, tap Clock out at the store.
+
+**Check it went right**
+
+- The card shows Clocked in at the time you arrived.
+
+**If something is wrong**
+
+- Store says you are not clocked in when handing you an order: clock in first (some stores require it).
+- Too far or not precise: go to the store, turn on GPS and try again; if it still fails call the store lead.
+
 ### Deliver an order
 
 1. Open the order and tap Directions.
@@ -85,6 +100,21 @@ Also inside the app: settings menu (top of every screen), Help.
 - حادثة أو بوليس أو خطر: وقف، خليك في أمان، وكلم مسؤول الفرع فورا.
 - حصلت مبلغ غلط: اكتب اللي أخدته بالظبط؛ الماليات هتراجع.
 - التطبيق واقف: كلم مسؤول الفرع؛ ما تسلمش شنطة من غير الكود أو صورة.
+
+### تسجيل الحضور والانصراف
+
+1. وانت في المخزن افتح تطبيق المندوب واضغط تسجيل حضور فوق. اسمح باللوكيشن لما الموبايل يسأل.
+2. لازم تكون في المخزن (في حدود 150 متر) والـ GPS شغال.
+3. لما ورديتك تخلص وتسلم الكاش، اضغط تسجيل انصراف في المخزن.
+
+**اتأكد إنها مشيت صح**
+
+- الكارت مكتوب فيه وقت حضورك.
+
+**لو فيه مشكلة**
+
+- المخزن قالك إنك مش مسجل حضور وهو بيسلمك طلب: سجل حضور الأول (فيه مخازن بتطلبه).
+- بعيد أو المكان مش دقيق: روح المخزن وشغّل الـ GPS وجرب تاني؛ لو لسه مش شغال كلّم مسؤول المخزن.
 
 ### توصيل طلب
 

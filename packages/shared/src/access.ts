@@ -119,7 +119,7 @@ export const JOB_ROLE_TEMPLATES: Record<JobRole, AccessTemplate> = {
     false,
   ),
   store_manager: template(
-    ['manage', 'use', 'use', 'none', 'none', 'none', 'none', 'none'],
+    ['manage', 'use', 'use', 'none', 'none', 'none', 'view', 'none'],
     false,
     false,
     false,
