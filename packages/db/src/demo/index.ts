@@ -4,6 +4,8 @@ import { recordAudit } from '../audit';
 import { createMerchant, createSku, createUser } from '../admin-ops';
 import { closeAttendanceDays, ensureStoreShifts, generateRoster } from '../attendance';
 import { ensureEmployees } from '../hr';
+import { setSalaryPackage } from '../hr-pay';
+import { ensureHrDefaults, placeSeedPeople } from '../hr-defaults';
 import { reportDamage, settleDamage } from '../damage';
 import { DomainError } from '../domain-error';
 import {
@@ -24,7 +26,6 @@ import {
   reviewCashHandover,
   riderBonusOwed,
   riderCash,
-  setSalary,
   submitBillPayment,
   submitCapitalIn,
   submitExpense,
@@ -73,6 +74,7 @@ import {
   COLLECTORS,
   DEMO_APPROVER,
   DEMO_MERCHANTS,
+  DEMO_OFFICE,
   DEMO_TEAM,
   DOOR_PHOTO_JPEG,
   FIRST_NAMES,
@@ -217,24 +219,11 @@ export async function loadDemo(base: PrismaClient, options: DemoOptions): Promis
   }
 }
 
-/** Every demo person gets an employee file with a job title and department (docs/HR.md). */
+/** Every demo person gets an employee file placed in the organisation (docs/HR.md). */
 async function fillEmployeeFiles(db: PrismaClient) {
   await ensureEmployees(db);
-  const plain = await db.employee.findMany({
-    where: { department: null },
-    include: { user: { select: { role: true } } },
-  });
-  const byRole = {
-    admin: ['management', 'Manager'],
-    finance: ['finance', 'Accountant'],
-    store_staff: ['store', 'Store associate'],
-    rider: ['delivery', 'Rider'],
-    merchant: ['other', 'Other'],
-  } as const;
-  for (const e of plain) {
-    const [department, jobTitle] = byRole[e.user.role];
-    await db.employee.update({ where: { id: e.id }, data: { department, jobTitle } });
-  }
+  await ensureHrDefaults(db);
+  await placeSeedPeople(db);
 }
 
 /**
@@ -448,6 +437,17 @@ async function setUp(
     ).id;
   }
 
+  // The office: operations, HR, account management and customer service (docs/HR.md).
+  for (const o of DEMO_OFFICE) {
+    if (await db.user.findUnique({ where: { email: o.email } })) continue;
+    await createUser(db, {
+      ...o,
+      role: 'admin',
+      password: options.demoPassword,
+      actorUserId: admin,
+    });
+  }
+
   // Merchants: the seed's merchant plus two new ones, each with a 60 minute price.
   const merchants: SimMerchant[] = [];
   const existing = await db.merchant.findFirst({
@@ -513,21 +513,30 @@ async function setUp(
       await setSetting(db, { key, value, scope: GLOBAL_SCOPE, actorUserId: admin });
   }
 
-  // Salaries for the store teams (riders are on salary plus a bonus per delivery).
-  const team = await db.user.findMany({
+  // Salary packages for the store teams, kept in HR (riders are on salary plus a bonus per
+  // delivery): basic plus transport and phone allowances.
+  const team = await db.employee.findMany({
     where: {
-      isActive: true,
+      status: 'active',
       employment: 'employee',
-      role: { in: ['store_staff', 'rider'] },
-      darkStoreId: { in: stores.map((s) => s.id) },
+      user: { isActive: true, role: { in: ['store_staff', 'rider'] } },
+      homeStoreId: { in: stores.map((s) => s.id) },
+      salaryPackages: { none: {} },
     },
-    include: { salary: true },
+    include: { user: { select: { role: true } } },
   });
-  for (const u of team) {
-    if (u.salary) continue;
-    await setSalary(db, {
-      userId: u.id,
-      monthlyPiastres: u.role === 'rider' ? 700_000 : 900_000,
+  for (const e of team) {
+    const rider = e.user.role === 'rider';
+    await setSalaryPackage(db, {
+      employeeId: e.id,
+      body: {
+        basicPiastres: rider ? 600_000 : 750_000,
+        insuredWagePiastres: null,
+        allowances: [
+          { kind: 'transport', amountPiastres: rider ? 80_000 : 100_000 },
+          { kind: 'phone', amountPiastres: rider ? 20_000 : 50_000 },
+        ],
+      },
       actorUserId: admin,
     });
   }
@@ -1377,8 +1386,14 @@ async function simulate(
     if (day.endsWith('-01') && d > 0) {
       const month = addDays(day, -1).slice(0, 7);
       sim.atGlobal(t.at(day, 10, 30), async () => {
-        const salaries = await db.staffSalary.findMany({
-          where: { user: { isActive: true, employment: 'employee' }, monthlyPiastres: { gt: 0 } },
+        const salaries = await db.employee.findMany({
+          where: {
+            user: { isActive: true },
+            employment: 'employee',
+            status: { not: 'left' },
+            salaryPackages: { some: { basicPiastres: { gt: 0 } } },
+          },
+          select: { userId: true },
         });
         if (salaries.length > 0) {
           await twoPeople(

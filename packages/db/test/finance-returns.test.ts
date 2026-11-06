@@ -15,10 +15,10 @@ import {
   recordBill,
   recordCapital,
   runPayroll,
-  setSalary,
   vatReturn,
   withholdingPayments,
 } from '../src/finance';
+import { setSalary } from '../src/hr-pay';
 import { createFixture, prisma, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
@@ -122,20 +122,11 @@ describe('withholding and payroll forms', () => {
     const staff = await prisma.user.create({
       data: { email: 's@t.eg', name: 'Sara', role: 'store_staff', passwordHash: 'x' },
     });
-    await expect(
-      setSalary(prisma, {
-        userId: staff.id,
-        monthlyPiastres: 600_000,
-        nationalId: '123',
-        actorUserId: admin,
-      }),
-    ).rejects.toThrow('invalid_national_id');
-    await setSalary(prisma, {
-      userId: staff.id,
-      monthlyPiastres: 600_000,
-      nationalId: '29001011234567',
-      insuranceNumber: 'SI-77',
-      actorUserId: admin,
+    // HR keeps the salary package and the ID numbers on the file (docs/HR.md).
+    await setSalary(prisma, { userId: staff.id, monthlyPiastres: 600_000, actorUserId: admin });
+    await prisma.employee.update({
+      where: { userId: staff.id },
+      data: { nationalId: '29001011234567', socialInsuranceNumber: 'SI-77' },
     });
     await runPayroll(prisma, {
       month: lastMonth(),

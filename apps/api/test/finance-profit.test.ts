@@ -65,12 +65,20 @@ describe('profit and salaries end to end', () => {
       .post('/auth/login')
       .send({ email: 'officer@shiply.eg', password: 'officer-pass-1' })
       .expect(200);
-    await officer
-      .put(`/finance/salaries/${staff.id}`)
-      .send({ monthlyPiastres: 500_000 })
+    // HR keeps the salary package (docs/HR.md): Accounting cannot set it.
+    const file = await prisma.employee.findUniqueOrThrow({ where: { userId: staff.id } });
+    await finance
+      .post(`/hr/employees/${file.id}/package`)
+      .send({ basicPiastres: 500_000 })
       .expect(403);
     await officer.get('/finance/staff-pay').expect(403);
-    await admin.put(`/finance/salaries/${staff.id}`).send({ monthlyPiastres: 500_000 }).expect(200);
+    await admin
+      .post(`/hr/employees/${file.id}/package`)
+      .send({
+        basicPiastres: 400_000,
+        allowances: [{ kind: 'transport', amountPiastres: 100_000 }],
+      })
+      .expect(201);
     const advance = await finance
       .post('/finance/advances')
       .send({

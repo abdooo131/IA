@@ -157,6 +157,39 @@ export const DEMO_APPROVER = {
   phone: '+201500000901',
 };
 
+/** The office team the demo adds so the org chart has people beyond the stores (docs/HR.md). */
+export const DEMO_OFFICE: {
+  email: string;
+  name: string;
+  phone: string;
+  jobRole: 'operations_manager' | 'hr_manager' | 'account_manager' | 'customer_service';
+}[] = [
+  {
+    email: 'demo.operations@shiplynow.local',
+    name: 'Sherif Nabil',
+    phone: '+201500000903',
+    jobRole: 'operations_manager',
+  },
+  {
+    email: 'demo.hr@shiplynow.local',
+    name: 'Rana Hamdy',
+    phone: '+201500000904',
+    jobRole: 'hr_manager',
+  },
+  {
+    email: 'demo.accounts@shiplynow.local',
+    name: 'Yasmin Fouad',
+    phone: '+201500000905',
+    jobRole: 'account_manager',
+  },
+  {
+    email: 'demo.support@shiplynow.local',
+    name: 'Mai Khaled',
+    phone: '+201500000906',
+    jobRole: 'customer_service',
+  },
+];
+
 export const FIRST_NAMES = [
   'Ahmed',
   'Mohamed',

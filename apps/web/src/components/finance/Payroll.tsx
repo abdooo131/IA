@@ -4,7 +4,8 @@ import { addDays, cairoDay } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { apiSend } from '@/lib/api-client';
-import type { BookAccount, StaffPayRow, SupplierRow } from '@/lib/finance-types';
+import type { BookAccount, StaffPayRow } from '@/lib/finance-types';
+import { isoToDayFirst } from '@/lib/day-first';
 import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
@@ -17,147 +18,34 @@ const primary =
 const secondary =
   'h-10 rounded-md border border-line px-3 text-body-sm font-bold disabled:opacity-50';
 const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
-const egpText = (p: number | null) => (p === null ? '' : formatEgp(p).replace(/,/g, ''));
 
-/** Salary and insured wage of one employee (admin edits, others read). */
-function SalaryCell({ row, canEdit }: { row: StaffPayRow; canEdit: boolean }) {
+/** The salary package HR keeps for one person (read only here: HR edits people). */
+function PackageCell({ row, hrLink }: { row: StaffPayRow; hrLink: boolean }) {
   const t = useTranslations('finance.payroll');
-  const action = useFinanceAction();
-  const [salary, setSalary] = useState(egpText(row.monthlyPiastres));
-  const [insured, setInsured] = useState(egpText(row.insuredWagePiastres));
-  const [nationalId, setNationalId] = useState(row.nationalId ?? '');
-  const [insuranceNumber, setInsuranceNumber] = useState(row.insuranceNumber ?? '');
-  if (!canEdit)
-    return row.monthlyPiastres === null ? (
-      <span className="text-text-muted">{t('notSet')}</span>
-    ) : (
-      <span>
-        <Amount piastres={row.monthlyPiastres} />
-        {row.insuredWagePiastres !== null && (
-          <span className="block text-caption text-text-muted">
-            {t('insuredShort', { amount: formatEgp(row.insuredWagePiastres) })}
-          </span>
+  if (row.monthlyPiastres === null)
+    return (
+      <span className="text-text-muted">
+        {t('notSet')}
+        {hrLink && row.employeeId && (
+          <a href={`/admin/hr/${row.employeeId}?tab=pay`} className="ms-2 font-bold text-link">
+            {t('setInHr')}
+          </a>
         )}
       </span>
     );
-  const value = parseEgp(salary);
-  const insuredValue = insured.trim() ? parseEgp(insured) : null;
   return (
-    <span className="flex flex-wrap items-center gap-2">
-      <input
-        value={salary}
-        onChange={(e) => setSalary(e.target.value)}
-        inputMode="decimal"
-        dir="ltr"
-        aria-label={t('salary')}
-        placeholder={t('salary')}
-        className={`${field} w-28 text-end`}
-      />
-      <input
-        value={insured}
-        onChange={(e) => setInsured(e.target.value)}
-        inputMode="decimal"
-        dir="ltr"
-        aria-label={t('insured')}
-        placeholder={t('insured')}
-        title={t('insuredHint')}
-        className={`${field} w-28 text-end`}
-      />
-      <input
-        value={nationalId}
-        onChange={(e) => setNationalId(e.target.value.replace(/\D/g, '').slice(0, 14))}
-        inputMode="numeric"
-        dir="ltr"
-        aria-label={t('nationalId')}
-        placeholder={t('nationalId')}
-        className={`${field} w-40`}
-      />
-      <input
-        value={insuranceNumber}
-        onChange={(e) => setInsuranceNumber(e.target.value)}
-        dir="ltr"
-        aria-label={t('insuranceNumber')}
-        placeholder={t('insuranceNumber')}
-        className={`${field} w-32`}
-      />
-      <button
-        type="button"
-        disabled={action.busy || value === null || (insured.trim() !== '' && insuredValue === null)}
-        onClick={() =>
-          void action.send('PUT', `/finance/salaries/${row.userId}`, {
-            monthlyPiastres: value,
-            insuredWagePiastres: insuredValue,
-            nationalId,
-            insuranceNumber,
-          })
-        }
-        className={secondary}
-      >
-        {t('save')}
-      </button>
-      <ActionMessage message={action.message} />
-    </span>
-  );
-}
-
-/** Employee, or hired through an outsourcing company (admin decides). */
-function EmploymentCell({
-  row,
-  agencies,
-  canEdit,
-}: {
-  row: StaffPayRow;
-  agencies: SupplierRow[];
-  canEdit: boolean;
-}) {
-  const t = useTranslations('finance.payroll');
-  const action = useFinanceAction();
-  const [value, setValue] = useState(
-    row.employment === 'outsourced' ? (row.staffingSupplier?.id ?? '') : '',
-  );
-  if (!canEdit)
-    return (
-      <span>
-        {row.employment === 'outsourced'
-          ? t('outsourcedVia', { company: row.staffingSupplier?.name ?? '' })
-          : t('employee')}
+    <span>
+      <Amount piastres={row.monthlyPiastres} strong />
+      <span className="block text-caption text-text-muted">
+        {t('basicAndAllowances', {
+          basic: formatEgp(row.basicPiastres ?? 0),
+          allowances: formatEgp(row.allowancesPiastres ?? 0),
+        })}
+        {row.packageFrom && <> · {t('packageFrom', { date: isoToDayFirst(row.packageFrom) })}</>}
+        {row.insuredWagePiastres !== null && (
+          <> · {t('insuredShort', { amount: formatEgp(row.insuredWagePiastres) })}</>
+        )}
       </span>
-    );
-  const current = row.employment === 'outsourced' ? (row.staffingSupplier?.id ?? '') : '';
-  return (
-    <span className="flex flex-wrap items-center gap-2">
-      <select
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        aria-label={t('employment')}
-        className={`${field} w-48`}
-      >
-        <option value="">{t('employee')}</option>
-        {agencies.map((a) => (
-          <option key={a.id} value={a.id}>
-            {t('outsourcedVia', { company: a.name })}
-          </option>
-        ))}
-      </select>
-      {value !== current && (
-        <button
-          type="button"
-          className={secondary}
-          disabled={action.busy}
-          onClick={() =>
-            void action.send(
-              'PUT',
-              `/finance/employment/${row.userId}`,
-              value
-                ? { employment: 'outsourced', staffingSupplierId: value }
-                : { employment: 'employee' },
-            )
-          }
-        >
-          {t('save')}
-        </button>
-      )}
-      <ActionMessage message={action.message} />
     </span>
   );
 }
@@ -186,13 +74,12 @@ interface Preview {
 export function Payroll({
   staff,
   money,
-  suppliers,
-  isAdmin,
+  hrLink,
 }: {
   staff: StaffPayRow[];
   money: BookAccount[];
-  suppliers: SupplierRow[];
-  isAdmin: boolean;
+  /** The person may open HR files (to change a package there) */
+  hrLink: boolean;
 }) {
   const t = useTranslations('finance.payroll');
   const tf = useTranslations('finance');
@@ -321,28 +208,58 @@ export function Payroll({
     <div className="mt-4 space-y-8">
       <section>
         <h2 className="text-h3">{t('team')}</h2>
+        <p className="mt-1 max-w-3xl rounded-md bg-surface-raised px-3 py-2 text-body-sm">
+          {t('readsHr')}
+        </p>
         <div className="mt-2 overflow-x-auto rounded-lg border border-line bg-surface">
-          <table className="w-full text-body-sm">
+          <table className="w-full min-w-[720px] text-body-sm">
             <thead>
               <tr>
                 <th className={th}>{t('person')}</th>
                 <th className={th}>{t('employment')}</th>
-                <th className={th}>{t('salary')}</th>
+                <th className={th}>{t('salaryPackage')}</th>
                 <th className={`${th} text-end`}>{t('advanceOwed')}</th>
               </tr>
             </thead>
             <tbody>
               {staff.map((s) => (
                 <tr key={s.userId} className="border-t border-line">
-                  <td className="px-3 py-2">{name(s)}</td>
                   <td className="px-3 py-2">
-                    <EmploymentCell row={s} agencies={suppliers} canEdit={isAdmin} />
+                    {hrLink && s.employeeId ? (
+                      <a href={`/admin/hr/${s.employeeId}`} className="font-bold text-link">
+                        {s.name}
+                      </a>
+                    ) : (
+                      <span className="font-bold">{s.name}</span>
+                    )}
+                    <span className="block text-caption text-text-muted">
+                      {[
+                        s.position
+                          ? locale === 'ar'
+                            ? s.position.titleAr
+                            : s.position.titleEn
+                          : null,
+                        s.grade ? (locale === 'ar' ? s.grade.nameAr : s.grade.nameEn) : null,
+                        s.darkStore
+                          ? locale === 'ar'
+                            ? s.darkStore.nameAr
+                            : s.darkStore.nameEn
+                          : null,
+                      ]
+                        .filter(Boolean)
+                        .join(' · ') || '–'}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2">
+                    {s.employment === 'outsourced'
+                      ? t('outsourcedVia', { company: s.staffingSupplier?.name ?? '' })
+                      : t('employee')}
                   </td>
                   <td className="px-3 py-2">
                     {s.employment === 'outsourced' ? (
                       <span className="text-caption text-text-muted">{t('paidByCompany')}</span>
                     ) : (
-                      <SalaryCell row={s} canEdit={isAdmin} />
+                      <PackageCell row={s} hrLink={hrLink} />
                     )}
                   </td>
                   <td className="px-3 py-2 text-end">

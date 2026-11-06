@@ -297,7 +297,7 @@ EN = {
          "A late bill for a closed month: enter it today with a note; ask admin only if it must sit in the old month."]},
       {"title": "Salaries and advances",
        "steps": [
-         "Salaries: a finance manager with salary access (or the owner) marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.",
+         "Salaries: HR keeps each person's employment (employee or outsourced, with their company) and salary package (basic plus allowances, from a day on). Payroll shows them read only; ask HR for any change.",
          "An advance: choose the person, amount and the bank or box it is paid from.",
          "Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.",
          "Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.",
@@ -305,7 +305,7 @@ EN = {
        "check": [
          "Each person's advance owed goes down; the run shows in Approvals when it is above the limit."],
        "problems": [
-         "Someone is missing from the run: their salary is not set yet; ask admin."]},
+         "Someone is missing from the run: HR has not set their salary package yet; ask HR (a ticket to the HR manager)."]},
       {"title": "Supplier bills",
        "steps": [
          "Suppliers and bills: add the supplier once with their tax id and withholding % (ask the accountant).",
@@ -460,6 +460,19 @@ EN = {
          "Stock on the Stock page matches what staff see on the shelves."],
        "problems": [
          "A count is stale: ask the store to count the bin again."]},
+      {"title": "People (HR app)",
+       "steps": [
+         "Employees: search by name, mobile, national ID or EMP code; filter by department, position, grade, store or status; switch between table and cards; export CSV.",
+         "Open a file: the header shows the photo, position, grade, department, manager and how complete the documents are. Tabs: Overview, Job and contract, Salary package (with the salaries switch), Documents, Onboarding, Team, History.",
+         "Job and contract: choose the position (its department comes with it) and a grade inside the position's range; leave the manager empty to follow the department head.",
+         "Documents: upload a photo or PDF per required type; a new upload keeps the old one as a version. Verify what people sent from My HR, or refuse it with a note.",
+         "Org chart: by manager or by department; dashed cards are open places. Export PNG or print for the wall.",
+         "Configuration: departments (with heads), positions (planned headcount), grades (bands), document types (who needs them) and onboarding templates."],
+       "check": [
+         "Every file shows 100% documents, a position, a grade and a manager; the org chart has one person at the top."],
+       "problems": [
+         "Manager loop refused: someone would manage themselves through the chain; set the manager on the file instead.",
+         "A person is missing from payroll: open their Salary package tab and set the package."]},
       {"title": "Users and settings",
        "steps": [
          "Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.",
@@ -764,7 +777,7 @@ AR = {
          "فاتورة متأخرة لشهر مقفول: سجلها النهارده بملاحظة؛ اسأل الأدمن بس لو لازم تتسجل في الشهر القديم."]},
       {"title": "المرتبات والسلف",
        "steps": [
-         "المرتبات: المدير المالي اللي معاه صلاحية المرتبات (أو المالك) بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.",
+         "المرتبات: الموارد البشرية بتحدد كل شخص موظف ولا عمالة خارجية (وشركته) وحزمة مرتبه (الأساسي والبدلات من تاريخ معين). شاشة المرتبات بتعرضهم للقراءة بس؛ أي تغيير اطلبه من الموارد البشرية.",
          "سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.",
          "آخر الشهر: اختار الشهر والبنك، اكتب المكافآت والخصومات والسلف المستردة، راجع المرتبات (الضريبة والتأمينات وصندوق الشهداء لكل شخص)، وادفع؛ واطبع القسائم.",
          "العمالة الخارجية: سجل فاتورة شركتهم الشهرية لكل شخص في الموردون والفواتير؛ استرد السلف وإنت بتدفع الفاتورة؛ وادفع مكافآتهم من هنا.",
@@ -772,7 +785,7 @@ AR = {
        "check": [
          "السلفة المستحقة على كل واحد بتقل؛ المرتبات بتظهر في الموافقات لو فوق الحد."],
        "problems": [
-         "حد مش ظاهر في المرتبات: مرتبه لسه مش متحدد؛ اسأل الأدمن."]},
+         "حد مش ظاهر في المرتبات: الموارد البشرية لسه ما حددتش حزمة مرتبه؛ ابعت تذكرة لمدير الموارد البشرية."]},
       {"title": "فواتير الموردين",
        "steps": [
          "الموردون والفواتير: ضيف المورد مرة واحدة برقمه الضريبي ونسبة الخصم من المنبع (اسأل المحاسب).",
@@ -927,6 +940,19 @@ AR = {
          "المخزون في صفحة المخزون نفس اللي الموظفين شايفينه على الرفوف."],
        "problems": [
          "جرد قديم: اطلب من الفرع يجرد الرف تاني."]},
+      {"title": "الأفراد (تطبيق الموارد البشرية)",
+       "steps": [
+         "الموظفون: دوّر بالاسم أو الموبايل أو الرقم القومي أو كود الموظف؛ فلتر بالقسم أو الوظيفة أو الدرجة أو المخزن أو الحالة؛ بدّل بين الجدول والبطاقات؛ وصدّر CSV.",
+         "افتح الملف: الجزء العلوي فيه الصورة والوظيفة والدرجة والقسم والمدير ونسبة اكتمال المستندات. التبويبات: نظرة عامة، الوظيفة والعقد، حزمة الراتب (بصلاحية المرتبات)، المستندات، الاستقبال، الفريق، السجل.",
+         "الوظيفة والعقد: اختار الوظيفة (القسم بييجي معاها) ودرجة جوه نطاق الوظيفة؛ سيب المدير فاضي عشان يتبع رئيس القسم.",
+         "المستندات: ارفع صورة أو PDF لكل نوع مطلوب؛ الرفع الجديد بيحتفظ بالقديم كنسخة. اتحقق من اللي الناس بعتوه من ملفي، أو ارفضه بملاحظة.",
+         "الهيكل التنظيمي: حسب المدير أو حسب القسم؛ البطاقات المنقطة أماكن شاغرة. صدّره صورة PNG أو اطبعه.",
+         "الإعدادات: الأقسام (ورؤساؤها)، الوظائف (العدد المخطط)، الدرجات (النطاقات)، أنواع المستندات (مين محتاجها)، وقوالب الاستقبال."],
+       "check": [
+         "كل ملف مستنداته 100% وله وظيفة ودرجة ومدير؛ والهيكل التنظيمي فيه شخص واحد فوق."],
+       "problems": [
+         "اترفض بسبب دايرة مديرين: حد هيبقى مدير نفسه من خلال السلسلة؛ حدد المدير في الملف بدل كده.",
+         "حد مش ظاهر في المرتبات: افتح تبويب حزمة الراتب وحدد الحزمة."]},
       {"title": "المستخدمين والإعدادات",
        "steps": [
          "المستخدمين: اعمل أعضاء الفريق بوظيفة (بتملا صلاحياتهم في كل تطبيق والمخازن اللي مسؤولين عنها)، ومناديب (بفرع وكارنيه)، وأصحاب حسابات التجار؛ عدّل صلاحيات أي حد من تعديل (محدش يغير صلاحياته بنفسه) وضيف رقم سلاك.",

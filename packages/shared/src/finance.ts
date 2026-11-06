@@ -150,36 +150,6 @@ export const openingBalancesSchema = z.object({
     .max(500),
 });
 
-export const salarySchema = z.object({
-  monthlyPiastres: z.number().int().min(0).max(1_000_000_000),
-  /** The wage social insurance is counted on; null means the salary itself */
-  insuredWagePiastres: z.number().int().min(0).max(1_000_000_000).nullable().optional(),
-  nationalId: z
-    .string()
-    .trim()
-    .refine((v) => v === '' || /^\d{14}$/.test(v), 'invalid_national_id')
-    .transform((v) => v || null)
-    .nullable()
-    .optional(),
-  insuranceNumber: z
-    .string()
-    .trim()
-    .max(30)
-    .transform((v) => v || null)
-    .nullable()
-    .optional(),
-});
-
-export const employmentSchema = z
-  .object({
-    employment: z.enum(['employee', 'outsourced']),
-    staffingSupplierId: id.optional(),
-  })
-  .refine((v) => v.employment === 'employee' || Boolean(v.staffingSupplierId), {
-    path: ['staffingSupplierId'],
-    message: 'staffing_company_required',
-  });
-
 export const staffBonusSchema = advanceSchemaBase();
 
 function advanceSchemaBase() {

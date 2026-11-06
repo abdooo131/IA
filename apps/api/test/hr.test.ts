@@ -85,7 +85,7 @@ describe('hr', () => {
     expect(refused.body.error).toBe('salaries_required');
     await hr.agent
       .patch(`/hr/employees/${rider.id}`)
-      .send({ jobTitle: 'Rider', department: 'delivery', nationalId: '29001011234567' })
+      .send({ jobTitle: 'Rider', departmentId: 'dept_ops_rid', nationalId: '29001011234567' })
       .expect(200);
     await hr.agent
       .put('/admin/settings')
@@ -147,24 +147,25 @@ describe('hr', () => {
   it('stores documents, alerts before they expire once a day, and marks people as left', async () => {
     const rider = await fileOf('rider.maadi@shiplynow.local');
     await admin
-      .post(`/hr/employees/${rider.id}/documents?kind=text`)
+      .post(`/hr/employees/${rider.id}/documents?typeId=nope`)
       .set('content-type', 'application/pdf')
       .send(PDF)
-      .expect(400);
+      .expect(404);
     const doc = (
       await admin
-        .post(`/hr/employees/${rider.id}/documents?kind=medical&expiresOn=2026-11-20`)
+        .post(`/hr/employees/${rider.id}/documents?typeId=doctype_medical&expiresOn=2026-11-20`)
         .set('content-type', 'application/pdf')
         .send(PDF)
         .expect(201)
     ).body;
     await admin
-      .post(`/hr/employees/${rider.id}/documents?kind=national_id`)
+      .post(`/hr/employees/${rider.id}/documents?typeId=doctype_national_id&expiresOn=2031-01-01`)
       .set('content-type', 'image/jpeg')
       .send(JPEG)
       .expect(201);
     const docs = (await admin.get(`/hr/employees/${rider.id}/documents`).expect(200)).body;
-    expect(docs).toHaveLength(2);
+    expect(docs.documents).toHaveLength(2);
+    expect(docs.checklist).toMatchObject({ required: 4, done: 1, percent: 25 });
     const file = await admin.get(`/hr/employees/${rider.id}/documents/${doc.id}`).expect(200);
     expect(file.headers['content-type']).toBe('application/pdf');
     expect(
@@ -201,24 +202,34 @@ describe('hr', () => {
     const actions = (await admin.get(`/hr/employees/${rider.id}/history`).expect(200)).body.map(
       (h: { action: string }) => h.action,
     );
-    expect(actions.slice(0, 4)).toEqual([
-      'employee.status',
-      'employee.document_delete',
-      'employee.document_add',
-      'employee.document_add',
-    ]);
+    expect(actions).toEqual(
+      expect.arrayContaining([
+        'employee.status',
+        'employee.checklist_start',
+        'employee.document_delete',
+        'employee.document_add',
+      ]),
+    );
+    // Leaving started the offboarding checklist.
+    const lists = (await admin.get(`/hr/employees/${rider.id}/checklists`).expect(200)).body;
+    expect(lists[0]).toMatchObject({ kind: 'offboarding', status: 'open' });
   });
 
   it('lets every team member and rider read only their own file', async () => {
     const rider = await agent('rider.newcairo@shiplynow.local');
     const mine = (await rider.get('/me/employee').expect(200)).body;
-    expect(mine).toMatchObject({ user: { role: 'rider' }, documents: [] });
+    expect(mine).toMatchObject({
+      user: { role: 'rider' },
+      documents: [],
+      checklist: { percent: 0 },
+      position: { titleEn: 'Rider' },
+    });
     await rider.get('/me/employee/history').expect(200);
     const other = await fileOf('rider.maadi@shiplynow.local');
     await rider.get(`/hr/employees/${other.id}`).expect(403);
     const doc = (
       await admin
-        .post(`/hr/employees/${other.id}/documents?kind=contract`)
+        .post(`/hr/employees/${other.id}/documents?typeId=doctype_contract`)
         .set('content-type', 'application/pdf')
         .send(PDF)
         .expect(201)
@@ -308,5 +319,190 @@ describe('hr', () => {
       type: string;
     }[];
     expect(alerts.filter((a) => a.type === 'merchant_signup')).toHaveLength(1);
+  });
+  it('keeps salary packages in HR: HR with salaries edits, finance and HR without pay cannot', async () => {
+    const rider = await fileOf('rider.maadi@shiplynow.local');
+    const body = {
+      basicPiastres: 600_000,
+      allowances: [
+        { kind: 'transport', amountPiastres: 80_000 },
+        { kind: 'phone', amountPiastres: 20_000 },
+      ],
+    };
+    // HR officer: HR manage but no salaries switch.
+    const officer = await member('hr@shiply.eg', 'admin', 'hr_officer');
+    expect(
+      (await officer.agent.post(`/hr/employees/${rider.id}/package`).send(body).expect(403)).body
+        .error,
+    ).toBe('no_access');
+    await officer.agent.get(`/hr/employees/${rider.id}/package`).expect(403);
+    // Finance manager: runs payroll (salaries) but has no HR access, so cannot edit people.
+    const finance = await agent('finance@shiplynow.local');
+    await finance.post(`/hr/employees/${rider.id}/package`).send(body).expect(403);
+    await finance.put(`/finance/salaries/${rider.userId}`).send({ monthlyPiastres: 1 }).expect(404);
+    // HR manager: HR manage with salaries.
+    const manager = await member('hr.manager@shiply.eg', 'admin', 'hr_manager');
+    const saved = (
+      await manager.agent.post(`/hr/employees/${rider.id}/package`).send(body).expect(201)
+    ).body;
+    expect(saved).toMatchObject({ grossPiastres: 700_000, current: true });
+    const pkg = (await manager.agent.get(`/hr/employees/${rider.id}/package`).expect(200)).body;
+    expect(pkg.history).toHaveLength(1);
+    const detail = (await manager.agent.get(`/hr/employees/${rider.id}`).expect(200)).body;
+    expect(detail.salary).toMatchObject({ grossPiastres: 700_000, basicPiastres: 600_000 });
+    expect((await officer.agent.get(`/hr/employees/${rider.id}`).expect(200)).body.salary).toBe(
+      null,
+    );
+    // Accounting reads the package to pay it.
+    const pay = (await finance.get('/finance/staff-pay').expect(200)).body as {
+      userId: string;
+      monthlyPiastres: number;
+      allowancesPiastres: number;
+    }[];
+    expect(pay.find((p) => p.userId === rider.userId)).toMatchObject({
+      monthlyPiastres: 700_000,
+      allowancesPiastres: 100_000,
+    });
+    // HR use without manage changes employment but not the structure.
+    const supplier = await prisma.supplier.create({
+      data: { name: 'Delta Staffing', createdById: (await fileOf('admin@test.eg')).userId },
+    });
+    await manager.agent
+      .put(`/hr/employees/${rider.id}/employment`)
+      .send({ employment: 'outsourced', staffingSupplierId: supplier.id })
+      .expect(200);
+    expect(
+      (await manager.agent.post(`/hr/employees/${rider.id}/package`).send(body).expect(400)).body
+        .error,
+    ).toBe('outsourced_not_on_payroll');
+  });
+
+  it('shows managers their team without pay, and each person only their own file', async () => {
+    // The seed places the first store person (New Cairo) at the head of Dark stores, the
+    // Maadi store person under them, and each store's riders under their store's person.
+    const lead = await agent('staff.newcairo@shiplynow.local');
+    const team = (await lead.get('/me/team').expect(200)).body;
+    expect(team.people.map((p: { nameEn: string }) => p.nameEn).sort()).toEqual([
+      'Ahmed Samir',
+      'Karim Fathy',
+      'Mahmoud Hassan',
+    ]);
+    expect(team).toMatchObject({ direct: 2, total: 3 });
+    const ahmed = await fileOf('rider.newcairo@shiplynow.local');
+    const file = (await lead.get(`/me/team/${ahmed.id}`).expect(200)).body;
+    expect(file).toMatchObject({
+      nameEn: 'Ahmed Samir',
+      bank: null,
+      nationalId: null,
+      position: { titleEn: 'Rider' },
+    });
+    expect(file).not.toHaveProperty('salary');
+    // A manager without HR access still cannot open the HR screens.
+    await lead.get(`/hr/employees/${ahmed.id}`).expect(403);
+    // Someone not above the person cannot open their file.
+    const maadi = await agent('staff.maadi@shiplynow.local');
+    expect((await maadi.get(`/me/team/${ahmed.id}`).expect(403)).body.error).toBe('not_in_team');
+    const rider = await agent('rider.newcairo@shiplynow.local');
+    expect((await rider.get('/me/team').expect(200)).body.total).toBe(0);
+    await rider.get(`/hr/employees/${ahmed.id}`).expect(403);
+
+    // Photos: the person and their managers see them, other people do not.
+    await rider.put('/me/employee/photo').set('content-type', 'image/jpeg').send(JPEG).expect(200);
+    await rider.get('/me/employee/photo').expect(200);
+    await lead.get(`/people/${ahmed.id}/photo`).expect(200);
+    await maadi.get(`/people/${ahmed.id}/photo`).expect(403);
+    await admin.get(`/people/${ahmed.id}/photo`).expect(200);
+    const merchant = await agent('merchant@evechantelle.example');
+    await merchant.get(`/people/${ahmed.id}/photo`).expect(403);
+  });
+
+  it('lets people upload a missing document themselves for HR to verify', async () => {
+    const rider = await agent('rider.newcairo@shiplynow.local');
+    const file = await fileOf('rider.newcairo@shiplynow.local');
+    const up = (
+      await rider
+        .post('/me/employee/documents?typeId=doctype_driving_license&expiresOn=2029-05-01')
+        .set('content-type', 'image/jpeg')
+        .send(JPEG)
+        .expect(201)
+    ).body;
+    expect(up).toMatchObject({ status: 'pending', selfUploaded: true });
+    // The contract is HR's to upload.
+    await rider
+      .post('/me/employee/documents?typeId=doctype_contract')
+      .set('content-type', 'application/pdf')
+      .send(PDF)
+      .expect(403);
+    const pending = (await admin.get('/hr/documents/pending').expect(200)).body;
+    expect(pending.map((d: { id: string }) => d.id)).toEqual([up.id]);
+    const hrUse = await member('hr.use@shiply.eg', 'admin', 'hr_officer');
+    await hrUse.agent
+      .post(`/hr/employees/${file.id}/documents/${up.id}/review`)
+      .send({ status: 'rejected' })
+      .expect(400);
+    await hrUse.agent
+      .post(`/hr/employees/${file.id}/documents/${up.id}/review`)
+      .send({ status: 'verified' })
+      .expect(201);
+    const mine = (await rider.get('/me/employee').expect(200)).body;
+    const licence = mine.checklist.items.find(
+      (i: { type: { code: string } }) => i.type.code === 'driving_license',
+    );
+    expect(licence).toMatchObject({ state: 'verified' });
+    // The company view of what is missing, also as CSV.
+    const missing = (
+      await admin.get('/hr/documents/missing?typeId=doctype_driving_license').expect(200)
+    ).body as { employee: { id: string } }[];
+    expect(missing.map((m) => m.employee.id)).not.toContain(file.id);
+    const csv = await admin.get('/hr/documents/missing.csv').expect(200);
+    expect(csv.headers['content-type']).toContain('text/csv');
+    expect(csv.text).toContain('Mahmoud Hassan');
+  });
+
+  it('draws the org chart and keeps the structure to HR manage', async () => {
+    const chart = (await admin.get('/hr/org').expect(200)).body;
+    const ceo = chart.people.find((p: { nameEn: string }) => p.nameEn === 'Admin');
+    expect(ceo).toMatchObject({ titleEn: 'Chief executive officer', managerId: null });
+    const nadia = chart.people.find((p: { nameEn: string }) => p.nameEn === 'Nadia Mostafa');
+    expect(nadia).toMatchObject({ managerId: ceo.id, managerSource: 'department' });
+    expect(chart.departments.length).toBeGreaterThan(10);
+    expect(chart.vacancies.some((v: { code: string }) => v.code === 'PICKER')).toBe(true);
+    const use = await member('hr.use@shiply.eg', 'admin', 'hr_officer');
+    await admin
+      .put(`/admin/users/${use.id}/access`)
+      .send({
+        jobRole: 'custom',
+        store: 'none',
+        operations: 'none',
+        inventory: 'none',
+        merchants: 'none',
+        customers: 'none',
+        accounting: 'none',
+        hr: 'use',
+        settings: 'none',
+        allStores: true,
+        customerData: false,
+        salaries: false,
+        ownMerchantsOnly: false,
+        storeIds: [],
+      })
+      .expect(200);
+    const dept = {
+      code: 'LEGAL',
+      nameEn: 'Legal',
+      nameAr: 'الشؤون القانونية',
+      parentId: 'dept_mgt',
+    };
+    await use.agent.post('/hr/departments').send(dept).expect(403);
+    await use.agent.get('/hr/departments').expect(200);
+    const legal = (await admin.post('/hr/departments').send(dept).expect(201)).body;
+    await admin.patch('/hr/departments/dept_mgt').send({ parentId: legal.id }).expect(400);
+    await admin.post('/hr/grades/grade_lead/move?direction=up').expect(201);
+    const grades = (await admin.get('/hr/grades').expect(200)).body as { code: string }[];
+    expect(grades.map((g) => g.code).slice(4, 6)).toEqual(['SUPERVISOR', 'LEAD']);
+    const csv = await admin.get('/hr/employees.csv?departmentId=dept_ops').expect(200);
+    expect(csv.text.split('\r\n')[0]).toContain('code,name_en');
+    expect(csv.text).toContain('Ahmed Samir');
+    expect(csv.text).not.toContain('Nadia Mostafa');
   });
 });

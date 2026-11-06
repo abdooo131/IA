@@ -31,6 +31,8 @@ export function AccountMenu({
   const ts = useTranslations('sop');
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
+  // Team members and riders see their own photo on the button (My HR); none: the gear alone.
+  const [photo, setPhoto] = useState(tickets);
   const box = useRef<HTMLDivElement>(null);
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
@@ -58,6 +60,15 @@ export function AccountMenu({
         title={compact ? t('settings') : undefined}
         className="flex h-11 shrink-0 items-center gap-2 rounded-md border border-line bg-surface px-3 text-body-sm font-bold"
       >
+        {photo && (
+          <img
+            src="/api/me/employee/photo"
+            alt=""
+            aria-hidden="true"
+            onError={() => setPhoto(false)}
+            className="h-7 w-7 rounded-full border border-line object-cover"
+          />
+        )}
         <svg
           aria-hidden="true"
           width="20"

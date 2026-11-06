@@ -58,12 +58,22 @@ describe('appsFor', () => {
     expect(appsFor(profile('hr_officer')).map((a) => a.id)).toEqual(['hr']);
     expect(pages('hr_officer')).toEqual([
       '/admin/hr',
+      '/admin/hr/org',
       '/admin/hr/attendance',
       '/admin/hr/attendance/days',
       '/admin/hr/roster',
+      '/admin/hr/documents',
+      '/admin/hr/checklists',
+      '/admin/hr/departments',
+      '/admin/hr/positions',
+      '/admin/hr/grades',
+      '/admin/hr/document-types',
+      '/admin/hr/checklist-templates',
       '/admin/hr/shifts',
       '/admin/hr/holidays',
     ]);
+    // HR manager adds the salaries switch, still no accounting.
+    expect(appsFor(profile('hr_manager')).map((a) => a.id)).toEqual(['hr']);
     expect(pages('owner')).toContain('/admin/settings/hr');
   });
 

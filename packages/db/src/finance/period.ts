@@ -3,6 +3,7 @@ import { addDays, cairoDay, cairoDayStart, isCalendarDay } from '@shiplynow/shar
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { packageGross, packageInForce } from '../hr-pay';
 import { addMonths } from './assets';
 import { post } from './ledger';
 
@@ -290,16 +291,14 @@ export async function cashForecast(db: Db, now: Date = new Date()) {
     moneyAt(db, now),
     db.bill.findMany({ where: { status: 'open' } }),
     db.recurringEntry.findMany({ where: { isActive: true } }),
-    db.staffSalary.aggregate({
-      where: { user: { isActive: true } },
-      _sum: { monthlyPiastres: true },
-    }),
+    // Salary packages HR keeps for people on our payroll, in force today.
+    currentPayrollTotal(db),
     db.$queryRaw<{ owed: bigint | null }[]>`
       SELECT -SUM(l.amount_piastres) AS owed FROM ledger_lines l
       JOIN ledger_accounts a ON a.id = l.account_id
       WHERE a.key IN ('vat_payable', 'wht_payable')`,
   ]);
-  const salaryTotal = salaries._sum.monthlyPiastres ?? 0;
+  const salaryTotal = salaries;
   const taxesOwed = Math.max(0, Number(taxes[0]?.owed ?? 0));
   let balance = money;
   const weeks = [];
@@ -515,4 +514,19 @@ export async function receiptPhotos(db: Db, input: { from: string; to: string })
     WHERE e.occurred_at >= ${cairoDayStart(input.from)}
       AND e.occurred_at < ${cairoDayStart(addDays(input.to, 1))}
     ORDER BY e.number`;
+}
+
+/** The gross of every package in force today for active employees on our payroll. */
+async function currentPayrollTotal(db: Db) {
+  const people = await db.employee.findMany({
+    where: { employment: 'employee', status: { not: 'left' }, user: { isActive: true } },
+    select: { id: true },
+  });
+  const today = cairoDay(new Date());
+  let total = 0;
+  for (const p of people) {
+    const pkg = await packageInForce(db, p.id, today);
+    if (pkg) total += packageGross(pkg);
+  }
+  return total;
 }

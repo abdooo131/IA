@@ -8,7 +8,7 @@ import {
   type PayrollRules,
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
-import { ensureEmployee, syncEmployment } from '../hr';
+import { employmentOf, packageGross, packageInForce } from '../hr-pay';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { balanceOf, post } from './ledger';
@@ -17,7 +17,8 @@ import { eventTime } from './books';
 
 type Tx = Prisma.TransactionClient;
 
-// Salaries and staff advances. Each team member has a monthly salary (gross) set by admin.
+// Salaries and staff advances. HR keeps each person's salary package (basic plus allowances,
+// docs/HR.md); Accounting reads the package in force and pays it, it never edits people.
 // An advance is money given early, kept in the person's advance wallet (1500-xxxx) and
 // recovered from a salary. The month's salary run pays everyone in one entry:
 //
@@ -58,102 +59,29 @@ export async function payrollRules(db: Db): Promise<PayrollRules> {
   };
 }
 
-/** Sets an employee's monthly salary (gross, piastres) and insured wage. Admin only. */
-export async function setSalary(
-  db: Db,
-  input: {
-    userId: string;
-    monthlyPiastres: number;
-    insuredWagePiastres?: number | null;
-    nationalId?: string | null;
-    insuranceNumber?: string | null;
-    actorUserId: string;
-  },
-) {
-  if (!Number.isSafeInteger(input.monthlyPiastres) || input.monthlyPiastres < 0)
-    throw new DomainError('invalid_amount', 400);
-  if (input.nationalId && !/^\d{14}$/.test(input.nationalId))
-    throw new DomainError('invalid_national_id', 400);
-  if (
-    input.insuredWagePiastres != null &&
-    (!Number.isSafeInteger(input.insuredWagePiastres) || input.insuredWagePiastres < 0)
-  )
-    throw new DomainError('invalid_amount', 400);
-  return inTransaction(db, async (tx) => {
-    const user = await tx.user.findUnique({ where: { id: input.userId } });
-    if (!user || user.role === 'merchant') throw new DomainError('user_not_found', 404);
-    if (user.employment === 'outsourced') throw new DomainError('outsourced_not_on_payroll');
-    const before = await tx.staffSalary.findUnique({ where: { userId: user.id } });
-    const insured = input.insuredWagePiastres === undefined ? undefined : input.insuredWagePiastres;
-    await tx.staffSalary.upsert({
-      where: { userId: user.id },
-      create: {
-        userId: user.id,
-        monthlyPiastres: input.monthlyPiastres,
-        insuredWagePiastres: insured ?? null,
-        updatedById: input.actorUserId,
-      },
-      update: {
-        monthlyPiastres: input.monthlyPiastres,
-        insuredWagePiastres: insured,
-        updatedById: input.actorUserId,
-      },
-    });
-    // The national ID and insurance number live on the employee file (docs/HR.md).
-    if (input.nationalId !== undefined || input.insuranceNumber !== undefined) {
-      const file = await ensureEmployee(tx, user.id);
-      if (file) {
-        const ids = {
-          nationalId: input.nationalId === undefined ? file.nationalId : input.nationalId,
-          socialInsuranceNumber:
-            input.insuranceNumber === undefined
-              ? file.socialInsuranceNumber
-              : input.insuranceNumber,
-        };
-        if (
-          ids.nationalId !== file.nationalId ||
-          ids.socialInsuranceNumber !== file.socialInsuranceNumber
-        ) {
-          await tx.employee.update({ where: { id: file.id }, data: ids });
-          await recordAudit(tx, {
-            actorUserId: input.actorUserId,
-            action: 'employee.update',
-            entityType: 'employee',
-            entityId: file.id,
-            before: {
-              nationalId: file.nationalId,
-              socialInsuranceNumber: file.socialInsuranceNumber,
-            },
-            after: ids,
-          });
-        }
-      }
-    }
-    await recordAudit(tx, {
-      actorUserId: input.actorUserId,
-      action: 'finance.salary_set',
-      entityType: 'user',
-      entityId: user.id,
-      before: {
-        monthlyPiastres: before?.monthlyPiastres ?? null,
-        insuredWagePiastres: before?.insuredWagePiastres ?? null,
-      },
-      after: { monthlyPiastres: input.monthlyPiastres, insuredWagePiastres: insured ?? null },
-    });
-    return { userId: user.id, monthlyPiastres: input.monthlyPiastres };
-  });
-}
-
-/** Every active team member with their salary, store and the advance they still owe. */
+/**
+ * Every active team member with the salary package HR keeps for them (in force today), their
+ * store and the advance they still owe. Read only: HR edits people, Accounting pays them.
+ */
 export async function listStaffPay(db: Db) {
   const users = await db.user.findMany({
     where: { role: { in: [...STAFF_ROLES] }, isActive: true },
     include: {
-      salary: true,
-      employee: { select: { nationalId: true, socialInsuranceNumber: true } },
+      employee: {
+        select: {
+          id: true,
+          number: true,
+          nationalId: true,
+          socialInsuranceNumber: true,
+          employment: true,
+          staffingSupplier: { select: { id: true, name: true } },
+          department: { select: { id: true, nameEn: true, nameAr: true } },
+          position: { select: { id: true, titleEn: true, titleAr: true } },
+          grade: { select: { id: true, nameEn: true, nameAr: true } },
+        },
+      },
       darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
       rider: { select: { id: true, darkStoreId: true } },
-      staffingSupplier: { select: { id: true, name: true } },
     },
     orderBy: [{ role: 'asc' }, { name: 'asc' }],
   });
@@ -166,24 +94,36 @@ export async function listStaffPay(db: Db) {
     where: { accountId: { in: advances.map((a) => a.id) } },
     _sum: { amountPiastres: true },
   });
-  return users.map((u) => {
+  const today = cairoDay(new Date());
+  const rows = [];
+  for (const u of users) {
     const wallet = advances.find((a) => a.userId === u.id);
-    return {
+    const pkg = u.employee ? await packageInForce(db, u.employee.id, today) : null;
+    rows.push({
       userId: u.id,
+      employeeId: u.employee?.id ?? null,
       name: u.name,
       role: u.role,
       darkStore: u.darkStore,
-      employment: u.employment,
-      staffingSupplier: u.staffingSupplier,
-      monthlyPiastres: u.salary?.monthlyPiastres ?? null,
-      insuredWagePiastres: u.salary?.insuredWagePiastres ?? null,
+      department: u.employee?.department ?? null,
+      position: u.employee?.position ?? null,
+      grade: u.employee?.grade ?? null,
+      employment: u.employee?.employment ?? ('employee' as const),
+      staffingSupplier: u.employee?.staffingSupplier ?? null,
+      /** The gross of the package in force today (basic plus allowances) */
+      monthlyPiastres: pkg ? packageGross(pkg) : null,
+      basicPiastres: pkg?.basicPiastres ?? null,
+      allowancesPiastres: pkg ? packageGross(pkg) - pkg.basicPiastres : null,
+      packageFrom: pkg ? pkg.effectiveFrom.toISOString().slice(0, 10) : null,
+      insuredWagePiastres: pkg?.insuredWagePiastres ?? null,
       nationalId: u.employee?.nationalId ?? null,
       insuranceNumber: u.employee?.socialInsuranceNumber ?? null,
       advanceOwedPiastres: wallet
         ? (sums.find((s) => s.accountId === wallet.id)?._sum.amountPiastres ?? 0)
         : 0,
-    };
-  });
+    });
+  }
+  return rows;
 }
 
 async function moneyAccount(tx: Tx, id: string) {
@@ -285,6 +225,12 @@ export interface PayrollInput {
   idempotencyKey?: string;
 }
 
+/** The last day of a month YYYY-MM. */
+function monthEnd(month: string) {
+  const [y, m] = month.split('-').map(Number) as [number, number];
+  return `${month}-${String(new Date(Date.UTC(y, m, 0)).getUTCDate()).padStart(2, '0')}`;
+}
+
 /** What the month's run would pay each person, checked, before anything is posted. */
 export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUserId'>) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.month)) throw new DomainError('invalid_month', 400);
@@ -298,9 +244,11 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
   })[] = [];
   for (const l of input.lines) {
     const { user, tags } = await personTags(db as Tx, l.userId);
-    if (user.employment === 'outsourced') throw new DomainError('outsourced_not_on_payroll', 400);
-    const salary = await db.staffSalary.findUnique({ where: { userId: user.id } });
-    const base = l.grossPiastres ?? salary?.monthlyPiastres;
+    const file = await employmentOf(db, user.id);
+    if (file.employment === 'outsourced') throw new DomainError('outsourced_not_on_payroll', 400);
+    // The package HR keeps in force on the month's last day (basic plus allowances).
+    const salary = file.id ? await packageInForce(db, file.id, monthEnd(input.month)) : null;
+    const base = l.grossPiastres ?? (salary ? packageGross(salary) : undefined);
     if (base === undefined) throw new DomainError('salary_not_set', 400);
     const bonus = l.bonusPiastres ?? 0;
     const deduction = l.deductionPiastres ?? 0;
@@ -493,7 +441,8 @@ export function payStaffBonus(db: Db, input: BonusInput) {
     if (seen) return seen;
     const money = await moneyAccount(tx, input.moneyAccountId);
     const { user, tags } = await personTags(tx, input.userId);
-    if (user.employment !== 'outsourced') throw new DomainError('employee_bonus_in_payroll');
+    if ((await employmentOf(tx, user.id)).employment !== 'outsourced')
+      throw new DomainError('employee_bonus_in_payroll');
     if (input.amountPiastres > (await balanceOf(tx, { id: money.id })))
       throw new DomainError('not_enough_money');
     const entry = await post(tx, {
@@ -518,44 +467,5 @@ export function payStaffBonus(db: Db, input: BonusInput) {
       after: { userId: user.id, amount: input.amountPiastres, from: money.code },
     });
     return entry!;
-  });
-}
-
-/** Marks a team member as an employee or as hired through an outsourcing company. Admin only. */
-export function setEmployment(
-  db: Db,
-  input: {
-    userId: string;
-    employment: 'employee' | 'outsourced';
-    staffingSupplierId?: string | null;
-    actorUserId: string;
-  },
-) {
-  return inTransaction(db, async (tx) => {
-    const user = await tx.user.findUnique({ where: { id: input.userId } });
-    if (!user || user.role === 'merchant') throw new DomainError('user_not_found', 404);
-    const supplierId =
-      input.employment === 'outsourced' ? (input.staffingSupplierId ?? null) : null;
-    if (input.employment === 'outsourced') {
-      if (!supplierId) throw new DomainError('staffing_company_required', 400);
-      const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
-      if (!supplier || !supplier.isActive) throw new DomainError('supplier_not_found', 404);
-      // Someone paid by an outsourcing company has no salary of ours.
-      await tx.staffSalary.deleteMany({ where: { userId: user.id } });
-    }
-    const after = await tx.user.update({
-      where: { id: user.id },
-      data: { employment: input.employment, staffingSupplierId: supplierId },
-    });
-    await syncEmployment(tx, user.id, input.employment === 'outsourced');
-    await recordAudit(tx, {
-      actorUserId: input.actorUserId,
-      action: 'finance.employment_set',
-      entityType: 'user',
-      entityId: user.id,
-      before: { employment: user.employment, staffingSupplierId: user.staffingSupplierId },
-      after: { employment: after.employment, staffingSupplierId: after.staffingSupplierId },
-    });
-    return { userId: user.id, employment: after.employment, staffingSupplierId: supplierId };
   });
 }

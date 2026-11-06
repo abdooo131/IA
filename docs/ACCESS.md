@@ -52,13 +52,19 @@ What each app covers:
   `customer_data`. manage: merge profiles.
 - **accounting**: everything under `/finance`. view = reports only, use = prepare, manage =
   approve (second person rule, closing books, year end). Salary pages also need `salaries`.
-- **hr**: employee files, their documents and history, document expiry alerts, attendance
-  (docs/HR.md). view reads files, the Today board, attendance days and the roster; use changes
-  files, adds documents, plans the roster and corrects attendance (manual punches, voiding a
-  punch, a day's status); manage opens a file for an account without one, changes the status
-  (left disables the account), deletes documents and changes shifts and official holidays.
-  Salary and the salary bank account also need `salaries`. Clocking in and out and reading
-  one's own attendance need no access (every team member and rider).
+- **hr**: employee files, the organisation (departments, positions, grades, org chart), documents
+  and document types, onboarding and offboarding checklists, employment and salary packages,
+  history, document expiry alerts and attendance (docs/HR.md). view reads files, the org chart,
+  the configuration, documents of types that are not confidential, the Today board, attendance
+  days and the roster; use changes files, employment, photos, uploads and verifies documents
+  (confidential types need use), ticks checklist tasks, plans the roster and corrects attendance
+  (manual punches, voiding a punch, a day's status); manage opens a file for an account without
+  one, changes the status (left disables the account and starts offboarding), deletes documents,
+  cancels checklists and changes departments, positions, grades, document types, checklist
+  templates, shifts and official holidays. The salary package and the salary bank account also
+  need `salaries` (read with view, change with use). HR owns people: Accounting reads packages to
+  pay them and cannot change them. Clocking in and out and reading one's own attendance need no
+  access (every team member and rider).
 - **settings**: users and access, audit log, ticket settings, and the settings pages of every
   app (a setting is changed with settings manage).
 
@@ -81,6 +87,7 @@ screens, orders, stock, transfers, cash, alerts and the live board are filtered 
 | Finance officer | none | view | view | view | none | use | none | none | all | no | no | no |
 | Finance manager | none | view | view | view | none | manage | none | none | all | no | yes | no |
 | HR officer | none | none | none | none | none | none | manage | none | all | no | no | no |
+| HR manager | none | none | none | none | none | none | manage | none | all | no | yes | no |
 | Account manager | none | view | view | use | view | none | none | none | all | no | no | yes |
 | QC agent | use | none | view | none | none | none | none | none | listed | no | no | no |
 
@@ -150,9 +157,16 @@ wants otherwise.
 - Owner only, as before: posting opening balances and creating the e-invoice signer key need
   accounting manage and settings manage. Reopening closed books (moving the lock date back)
   needs settings manage.
-- Salaries: setting a salary or employment type needs accounting manage and `salaries`; staff
-  pay, payslips, the payroll run (and its preview), advances, staff bonuses and the monthly
-  salary tax lists need the matching accounting level and `salaries`.
+- Salaries (HR v2): the salary package and employment are kept in HR. Setting a package needs
+  hr use and `salaries` (an HR officer with the salaries switch, or the HR manager job role);
+  employment needs hr use. Staff pay (read only), payslips, the payroll run (and its preview),
+  advances, staff bonuses and the monthly salary tax lists need the matching accounting level
+  and `salaries` (the Finance manager runs payroll); accounting alone never changes a person.
+- Managers: anyone with people below them (by the manager in force, docs/HR.md) reads their team
+  at `/me/team` and each member's file at `/me/team/:id` without pay, bank details, ID numbers or
+  documents, whatever their access profile. Everyone reads only their own file in My HR, may set
+  their photo and may send a missing or refused document (HR verifies it). A person's photo
+  (`/people/:id/photo`) is open to themself, their managers and HR view within their stores.
 - Customers: the customer list (it shows names and phones), the person behind an order and a
   profile need `customer_data`; the overview and districts need customers view only; merging
   needs customers manage and `customer_data`. The Shopify data pages (market, per merchant) are

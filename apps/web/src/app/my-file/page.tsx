@@ -1,4 +1,3 @@
-import { cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
@@ -6,14 +5,20 @@ import type { ReactNode } from 'react';
 import { AppHeader } from '@/components/AppHeader';
 import { ClockCard } from '@/components/hr/ClockCard';
 import { MyAttendanceDays } from '@/components/hr/MyAttendanceDays';
+import { ChecklistsPanel } from '@/components/hr/ChecklistsPanel';
 import { DocumentsPanel } from '@/components/hr/DocumentsPanel';
-import { StatusChip } from '@/components/hr/StatusChip';
+import { EmployeeHeader } from '@/components/hr/EmployeeHeader';
+import { PhotoEditor } from '@/components/hr/PhotoEditor';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
-import { localized } from '@/lib/admin-types';
 import { homeFor } from '@/lib/access';
 import { apiGet } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
-import { type EmployeeDocument, type EmployeeFile, employeeName } from '@/lib/hr-types';
+import type {
+  DocumentChecklist,
+  EmployeeChecklist,
+  EmployeeDocument,
+  EmployeeFile,
+} from '@/lib/hr-types';
 import { getCurrentUser } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
@@ -27,14 +32,26 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-/** My HR: every team member and rider reads their own file, documents and history. */
+type MyFile = EmployeeFile & {
+  documents: EmployeeDocument[];
+  checklist: DocumentChecklist;
+  checklists: EmployeeChecklist[];
+  team: { direct: number; total: number };
+};
+
+/**
+ * My HR: every team member and rider sees their own file with their photo (which they may
+ * change), their document checklist (they send what is missing or refused; HR verifies it),
+ * their onboarding tasks, their team when they manage people, and their history.
+ */
 export default async function MyFilePage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/my-file');
   if (user.role === 'merchant') redirect('/merchant');
-  const [file, t, locale] = await Promise.all([
-    apiGet<EmployeeFile & { documents: EmployeeDocument[] }>('/me/employee'),
+  const [file, t, tp, locale] = await Promise.all([
+    apiGet<MyFile>('/me/employee'),
     getTranslations('hr'),
+    getTranslations('people'),
     getLocale(),
   ]);
   const day = (d: string | null) =>
@@ -42,29 +59,103 @@ export default async function MyFilePage() {
   const phone = (p: string | null) => (p ? <span className="ltr-iso">{p}</span> : null);
   const dl = 'mt-3 grid gap-3 sm:grid-cols-2';
   const box = 'mt-4 rounded-lg border border-line bg-surface p-4';
+  // Missing, refused or expired documents are to send; one still valid but running out soon
+  // counts as in order (the completeness stays 100%) and is only a reminder to renew.
+  const todo = file.checklist.items.filter(
+    (i) => i.required && ['missing', 'rejected', 'expired'].includes(i.state),
+  );
+  const expiring = file.checklist.items.filter((i) => i.state === 'expiring');
+  const tasks = file.checklists.filter((c) => c.status !== 'cancelled');
 
   return (
     <div className="flex min-h-dvh flex-col">
       <AppHeader />
-      <main className="mx-auto w-full max-w-3xl flex-1 px-4 py-6">
+      <main className="mx-auto w-full max-w-4xl flex-1 px-4 py-6">
         <Link href={homeFor(user.role) ?? '/'} className="text-body-sm text-link">
           {t('backHome')}
         </Link>
-        <div className="mt-2 flex flex-wrap items-center gap-3">
-          <h1 className="text-h2">{t('myTitle')}</h1>
-          <StatusChip status={file.status} label={t(`statuses.${file.status}`)} />
-        </div>
-        <p className="mt-1 text-body-sm text-text-muted">{t('myIntro')}</p>
+        <p className="mb-2 mt-1 text-body-sm text-text-muted">{tp('myIntro')}</p>
+        <EmployeeHeader
+          file={{ ...file, completeness: file.checklist }}
+          photo={
+            <PhotoEditor
+              employeeId={file.id}
+              photoVersion={file.photoVersion}
+              name={file.nameEn}
+              uploadPath="/me/employee/photo"
+              src={file.photoVersion ? `/api/me/employee/photo?v=${file.photoVersion}` : null}
+            />
+          }
+        />
 
         <div className="mt-4">
           <ClockCard />
         </div>
+
+        {(todo.length > 0 || expiring.length > 0 || file.team.total > 0) && (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {todo.length > 0 && (
+              <a
+                href="#me-docs"
+                className="rounded-lg border border-status-needs-action bg-surface p-4"
+              >
+                <span className="block font-bold">{tp('myTodo', { count: todo.length })}</span>
+                <span className="text-caption text-text-muted">{tp('myTodoHint')}</span>
+              </a>
+            )}
+            {expiring.length > 0 && (
+              <a href="#me-docs" className="rounded-lg border border-line bg-surface p-4">
+                <span className="block font-bold">
+                  {tp('myExpiring', { count: expiring.length })}
+                </span>
+                <span className="text-caption text-text-muted">{tp('myExpiringHint')}</span>
+              </a>
+            )}
+            {file.team.total > 0 && (
+              <Link
+                href="/my-file/team"
+                className="rounded-lg border border-line bg-surface p-4 hover:border-primary"
+              >
+                <span className="block font-bold">{tp('myTeam')}</span>
+                <span className="text-caption text-text-muted">
+                  {tp('teamLine', { direct: file.team.direct, total: file.team.total })}
+                </span>
+              </Link>
+            )}
+          </div>
+        )}
+
+        <section className="mt-6" aria-labelledby="me-docs-title" id="me-docs">
+          <h2 id="me-docs-title" className="text-h3">
+            {tp('myDocuments')}
+          </h2>
+          <DocumentsPanel
+            checklist={file.checklist}
+            documents={file.documents}
+            mode={{ kind: 'self' }}
+          />
+        </section>
+
+        {tasks.length > 0 && (
+          <section className="mt-6" aria-labelledby="me-tasks">
+            <h2 id="me-tasks" className="text-h3">
+              {tp('tabs.checklists')}
+            </h2>
+            <ChecklistsPanel
+              employeeId={file.id}
+              checklists={tasks}
+              templates={[]}
+              canUse={false}
+              canManage={false}
+            />
+          </section>
+        )}
+
         <MyAttendanceDays />
 
         <section className={box} aria-labelledby="me-identity">
           <h2 id="me-identity" className="text-h3">
-            {employeeName(file, locale)}{' '}
-            <span className="ltr-iso text-text-muted">{file.code}</span>
+            {tp('identity')}
           </h2>
           <dl className={dl}>
             <Row label={t('fields.nameEn')}>{file.nameEn}</Row>
@@ -84,23 +175,21 @@ export default async function MyFilePage() {
 
         <section className={box} aria-labelledby="me-job">
           <h2 id="me-job" className="text-h3">
-            {t('sections.job')}
+            {tp('contractCard')}
           </h2>
           <dl className={dl}>
-            <Row label={t('fields.jobTitle')}>{file.jobTitle}</Row>
-            <Row label={t('fields.department')}>
-              {file.department ? t(`departments.${file.department}`) : null}
+            <Row label={tp('employment')}>
+              {file.employment === 'outsourced'
+                ? tp('outsourcedVia', { company: file.staffingSupplier?.name ?? '–' })
+                : tp('employments.employee')}
             </Row>
-            <Row label={t('fields.manager')}>
-              {file.manager ? employeeName(file.manager, locale) : null}
-            </Row>
-            <Row label={t('fields.homeStore')}>
-              {file.homeStore ? localized(file.homeStore, locale) : t('office')}
-            </Row>
-            <Row label={t('fields.hireDate')}>{day(file.hireDate)}</Row>
             <Row label={t('fields.contractType')}>{t(`contractTypes.${file.contractType}`)}</Row>
+            <Row label={t('fields.hireDate')}>{day(file.hireDate)}</Row>
             <Row label={t('fields.contractEndsOn')}>{day(file.contractEndsOn)}</Row>
             <Row label={t('fields.probationEndsOn')}>{day(file.probationEndsOn)}</Row>
+            <Row label={tp('grade')}>
+              {file.grade ? (locale === 'ar' ? file.grade.nameAr : file.grade.nameEn) : null}
+            </Row>
           </dl>
         </section>
 
@@ -120,17 +209,6 @@ export default async function MyFilePage() {
           </section>
         )}
         <p className="mt-3 text-caption text-text-muted">{t('myCorrections')}</p>
-
-        <section className="mt-6" aria-labelledby="me-docs">
-          <h2 id="me-docs" className="text-h3">
-            {t('tabs.documents')}
-          </h2>
-          <DocumentsPanel
-            documents={file.documents}
-            downloadBase="/api/me/employee/documents"
-            today={cairoDay(new Date())}
-          />
-        </section>
 
         <RecordHistory entityType="employee" entityId={file.id} path="/me/employee/history" />
       </main>

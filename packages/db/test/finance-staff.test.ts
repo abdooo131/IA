@@ -12,10 +12,9 @@ import {
   recordBill,
   recordCapital,
   runPayroll,
-  setEmployment,
-  setSalary,
   taxesOwed,
 } from '../src/finance';
+import { setSalary, setEmployment } from '../src/hr-pay';
 import { createFixture, prisma, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;

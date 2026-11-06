@@ -55,7 +55,7 @@ describe('employees and outsourced staff end to end', () => {
       .send({ name: 'Delta Staffing', whtBp: 300 })
       .expect(201);
 
-    // Who is outsourced is decided with accounting manage and the salaries right.
+    // Who is outsourced is decided in HR (docs/HR.md); Accounting only pays.
     await admin
       .post('/admin/users')
       .send({
@@ -71,18 +71,24 @@ describe('employees and outsourced staff end to end', () => {
       .post('/auth/login')
       .send({ email: 'officer@shiply.eg', password: 'officer-pass-1' })
       .expect(200);
+    const riderFile = await prisma.employee.findUniqueOrThrow({ where: { userId: rider.id } });
+    const staffFile = await prisma.employee.findUniqueOrThrow({ where: { userId: staff.id } });
     await officer
-      .put(`/finance/employment/${rider.id}`)
+      .put(`/hr/employees/${riderFile.id}/employment`)
+      .send({ employment: 'outsourced', staffingSupplierId: agency.body.id })
+      .expect(403);
+    await finance
+      .put(`/hr/employees/${riderFile.id}/employment`)
       .send({ employment: 'outsourced', staffingSupplierId: agency.body.id })
       .expect(403);
     await admin
-      .put(`/finance/employment/${rider.id}`)
+      .put(`/hr/employees/${riderFile.id}/employment`)
       .send({ employment: 'outsourced', staffingSupplierId: agency.body.id })
       .expect(200);
     await admin
-      .put(`/finance/salaries/${staff.id}`)
-      .send({ monthlyPiastres: 800_000, insuredWagePiastres: 600_000 })
-      .expect(200);
+      .post(`/hr/employees/${staffFile.id}/package`)
+      .send({ basicPiastres: 800_000, insuredWagePiastres: 600_000 })
+      .expect(201);
     const team = await finance.get('/finance/staff-pay').expect(200);
     expect(team.body.find((p: { userId: string }) => p.userId === rider.id)).toMatchObject({
       employment: 'outsourced',

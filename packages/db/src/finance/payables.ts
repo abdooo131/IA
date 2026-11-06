@@ -157,9 +157,9 @@ export async function listSuppliers(db: Db) {
       include: {
         accounts: { select: { id: true, code: true } },
         staff: {
-          where: { isActive: true },
-          select: { id: true, name: true },
-          orderBy: { name: 'asc' },
+          where: { status: { not: 'left' }, user: { isActive: true } },
+          select: { user: { select: { id: true, name: true } } },
+          orderBy: { nameEn: 'asc' },
         },
       },
     }),
@@ -194,7 +194,7 @@ export async function listSuppliers(db: Db) {
       owedPiastres: 0 - raw,
       openBills: open.find((o) => o.supplierId === s.id)?._count._all ?? 0,
       /** People hired through this company (when it is an outsourcing company) */
-      staff: s.staff,
+      staff: s.staff.map((e) => e.user),
     };
   });
 }
@@ -263,11 +263,17 @@ export async function recordBill(db: Db, input: BillInput) {
     if (input.userId) {
       const user = await tx.user.findUnique({
         where: { id: input.userId },
-        include: { rider: { select: { id: true, darkStoreId: true } } },
+        include: {
+          rider: { select: { id: true, darkStoreId: true } },
+          employee: { select: { employment: true, staffingSupplierId: true } },
+        },
       });
       if (!user || user.role === 'merchant') throw new DomainError('user_not_found', 404);
-      // An outsourced person's month is billed by their own outsourcing company only.
-      if (user.employment === 'outsourced' && user.staffingSupplierId !== supplier.id)
+      // An outsourced person's month is billed by their own outsourcing company only (HR file).
+      if (
+        user.employee?.employment === 'outsourced' &&
+        user.employee.staffingSupplierId !== supplier.id
+      )
         throw new DomainError('not_their_company');
       darkStoreId ??= user.darkStoreId ?? user.rider?.darkStoreId ?? null;
       person = { id: user.id, riderId: user.rider?.id ?? null };

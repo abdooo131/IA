@@ -25,8 +25,13 @@ export function setupApp(app: INestApplication) {
   app.use('/photos', raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1600kb' }));
   // Employee documents are uploaded as the raw photo or PDF (at most 3 MB).
   app.use(
-    /^\/hr\/employees\/[^/]+\/documents$/,
+    [/^\/hr\/employees\/[^/]+\/documents$/, /^\/me\/employee\/documents$/],
     raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], limit: '3100kb' }),
+  );
+  // The square employee photo, made on the phone (at most 1 MB).
+  app.use(
+    [/^\/hr\/employees\/[^/]+\/photo$/, /^\/me\/employee\/photo$/],
+    raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1100kb' }),
   );
   // Bank statement files (Excel or CSV) are read as the raw file.
   app.use('/finance/bank-statements/read', raw({ type: () => true, limit: '5mb' }));

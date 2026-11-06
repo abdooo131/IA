@@ -1,6 +1,5 @@
 'use client';
 
-import { DEPARTMENTS } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
@@ -8,7 +7,15 @@ import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
 import { localized } from '@/lib/admin-types';
 import { apiSend } from '@/lib/api-client';
-import { type EmployeeFile, employeeName, type StoreRef } from '@/lib/hr-types';
+import {
+  departmentOptions,
+  type DepartmentRow,
+  type EmployeeFile,
+  employeeName,
+  type GradeRow,
+  type PositionRow,
+  type StoreRef,
+} from '@/lib/hr-types';
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text disabled:bg-surface-raised';
@@ -23,7 +30,10 @@ const KNOWN_ERRORS = [
   'probation_ends_before_hire',
   'phone_taken',
   'store_not_allowed',
-  'employment_set_in_payroll',
+  'contract_follows_employment',
+  'grade_outside_position',
+  'position_not_found',
+  'department_not_found',
 ];
 
 /** The editable fields of a file, as text (empty means not given). */
@@ -40,7 +50,9 @@ function valuesOf(file: EmployeeFile) {
     emergencyName: s(file.emergencyName),
     emergencyPhone: file.emergencyPhone ? `0${file.emergencyPhone.slice(3)}` : '',
     jobTitle: s(file.jobTitle),
-    department: s(file.department),
+    departmentId: file.department?.id ?? '',
+    positionId: file.position?.id ?? '',
+    gradeId: file.grade?.id ?? '',
     managerId: file.manager?.id ?? '',
     homeStoreId: file.homeStore?.id ?? '',
     hireDate: s(file.hireDate),
@@ -71,14 +83,21 @@ export function EmployeeForm({
   file,
   stores,
   managers,
+  departments,
+  positions,
+  grades,
   canEdit,
 }: {
   file: EmployeeFile;
   stores: StoreRef[];
   managers: { id: string; code: string; nameEn: string; nameAr: string | null }[];
+  departments: DepartmentRow[];
+  positions: PositionRow[];
+  grades: GradeRow[];
   canEdit: boolean;
 }) {
   const t = useTranslations('hr');
+  const tp = useTranslations('people');
   const locale = useLocale();
   const router = useRouter();
   const initial = useMemo(() => valuesOf(file), [file]);
@@ -176,22 +195,74 @@ export function EmployeeForm({
         </Section>
 
         <Section title={t('sections.job')}>
-          {text('jobTitle', t('fields.jobTitle'))}
           <label className="block text-caption">
-            {t('fields.department')}
-            <select value={values.department} onChange={set('department')} className={field}>
+            {tp('position')}
+            <select
+              value={values.positionId}
+              onChange={(e) => {
+                const p = positions.find((x) => x.id === e.target.value);
+                setNotice(null);
+                // A position brings its department along.
+                setValues((v) => ({
+                  ...v,
+                  positionId: e.target.value,
+                  departmentId: p ? p.departmentId : v.departmentId,
+                }));
+              }}
+              className={field}
+            >
               <option value="">–</option>
-              {DEPARTMENTS.map((d) => (
-                <option key={d} value={d}>
-                  {t(`departments.${d}`)}
+              {positions
+                .filter((p) => p.isActive || p.id === values.positionId)
+                .map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {locale === 'ar' ? p.titleAr : p.titleEn} ·{' '}
+                    {locale === 'ar' ? p.department.nameAr : p.department.nameEn}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="block text-caption">
+            {tp('grade')}
+            <select value={values.gradeId} onChange={set('gradeId')} className={field}>
+              <option value="">–</option>
+              {grades
+                .filter((g) => {
+                  const p = positions.find((x) => x.id === values.positionId);
+                  if (!p) return true;
+                  return (
+                    (!p.minGrade || g.rank >= p.minGrade.rank) &&
+                    (!p.maxGrade || g.rank <= p.maxGrade.rank)
+                  );
+                })
+                .map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {locale === 'ar' ? g.nameAr : g.nameEn}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label className="block text-caption">
+            {tp('department')}
+            <select value={values.departmentId} onChange={set('departmentId')} className={field}>
+              <option value="">–</option>
+              {departmentOptions(departments).map(({ d, depth }) => (
+                <option key={d.id} value={d.id}>
+                  {'\u00a0\u00a0'.repeat(depth)}
+                  {locale === 'ar' ? d.nameAr : d.nameEn}
                 </option>
               ))}
             </select>
           </label>
+          {text('jobTitle', tp('jobTitleFree'))}
           <label className="block text-caption">
             {t('fields.manager')}
             <select value={values.managerId} onChange={set('managerId')} className={field}>
-              <option value="">–</option>
+              <option value="">
+                {file.managerSource === 'department' && file.effectiveManager
+                  ? tp('managerDefault', { name: employeeName(file.effectiveManager, locale) })
+                  : tp('managerFromDepartment')}
+              </option>
               {managers
                 .filter((m) => m.id !== file.id)
                 .map((m) => (

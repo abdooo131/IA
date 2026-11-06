@@ -288,12 +288,20 @@ export interface CostPerOrderRow {
 
 export interface StaffPayRow {
   userId: string;
+  employeeId: string | null;
   name: string;
   role: string;
   darkStore: { id: string; code: string; nameEn: string; nameAr: string } | null;
+  department: { id: string; nameEn: string; nameAr: string } | null;
+  position: { id: string; titleEn: string; titleAr: string } | null;
+  grade: { id: string; nameEn: string; nameAr: string } | null;
   employment: 'employee' | 'outsourced';
   staffingSupplier: { id: string; name: string } | null;
+  /** The gross of the HR package in force today (basic plus allowances) */
   monthlyPiastres: number | null;
+  basicPiastres: number | null;
+  allowancesPiastres: number | null;
+  packageFrom: string | null;
   insuredWagePiastres: number | null;
   nationalId: string | null;
   insuranceNumber: string | null;

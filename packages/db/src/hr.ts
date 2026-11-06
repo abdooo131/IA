@@ -4,24 +4,31 @@ import {
   BANK_FIELDS,
   cairoDay,
   type CreateEmployeeBody,
-  DOCUMENT_TYPES,
-  type DocumentKind,
   EMPLOYEE_ROLES,
   employeeCode,
   type EmployeeFileBody,
   type EmployeeStatus,
   type EmployeeStatusBody,
   isTeamRole,
-  MAX_DOCUMENT_BYTES,
 } from '@shiplynow/shared';
 import { assertCanDisable } from './access';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { startChecklist } from './hr-checklists';
+import {
+  assertNoManagerLoop,
+  checkPlacement,
+  type ManagerLink,
+  managerLinks,
+  managerOf,
+} from './hr-org';
 import { getSetting } from './settings';
 
-// HR step 1 (docs/HR.md): employee files, their documents, the expiry alerts and one history
-// per person. Every change is audited on the employee with before and after.
+// HR (docs/HR.md): employee files, their placement in the organisation (department, position,
+// grade, manager), status and one history per person. Documents live in hr-documents, the
+// salary package and employment in hr-pay, the structure in hr-org and checklists in
+// hr-checklists. Every change is audited on the employee with before and after.
 
 type Tx = Prisma.TransactionClient;
 
@@ -36,6 +43,7 @@ const hasFile = (role: Role) => (EMPLOYEE_ROLES as readonly string[]).includes(r
 /** Store staff and riders work from their account's store; others from the file's. */
 const storeFromUser = (role: Role) => role === 'store_staff' || role === 'rider';
 
+const ref = { select: { id: true, code: true, nameEn: true, nameAr: true } } as const;
 const fileInclude = {
   user: {
     select: {
@@ -45,14 +53,36 @@ const fileInclude = {
       phone: true,
       role: true,
       isActive: true,
-      employment: true,
       darkStoreId: true,
-      staffingSupplier: { select: { id: true, name: true } },
       access: { select: { jobRole: true } },
     },
   },
-  homeStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
+  homeStore: ref,
+  department: ref,
+  position: {
+    select: {
+      id: true,
+      code: true,
+      titleEn: true,
+      titleAr: true,
+      minGradeId: true,
+      maxGradeId: true,
+    },
+  },
+  grade: {
+    select: {
+      id: true,
+      code: true,
+      nameEn: true,
+      nameAr: true,
+      rank: true,
+      bandMinPiastres: true,
+      bandMaxPiastres: true,
+    },
+  },
+  staffingSupplier: { select: { id: true, name: true } },
   manager: { select: { id: true, number: true, nameEn: true, nameAr: true } },
+  photo: { select: { updatedAt: true } },
 } as const;
 
 type FileRow = Prisma.EmployeeGetPayload<{ include: typeof fileInclude }>;
@@ -69,7 +99,9 @@ function snapshot(e: Prisma.EmployeeGetPayload<object>) {
     emergencyName: e.emergencyName,
     emergencyPhone: e.emergencyPhone,
     jobTitle: e.jobTitle,
-    department: e.department,
+    departmentId: e.departmentId,
+    positionId: e.positionId,
+    gradeId: e.gradeId,
     managerId: e.managerId,
     homeStoreId: e.homeStoreId,
     hireDate: day(e.hireDate),
@@ -87,8 +119,14 @@ function snapshot(e: Prisma.EmployeeGetPayload<object>) {
   };
 }
 
+type Who = { id: string; number: number; nameEn: string; nameAr: string | null };
+const who = (m: Who | null | undefined) => (m ? { ...m, code: employeeCode(m.number) } : null);
+
 /** The file as the screens show it; bank details only with the salaries switch. */
-function view(e: FileRow, options: { bank: boolean }) {
+function view(
+  e: FileRow,
+  options: { bank: boolean; manager?: { link: ManagerLink; person: Who | null } },
+) {
   return {
     id: e.id,
     number: e.number,
@@ -112,17 +150,21 @@ function view(e: FileRow, options: { bank: boolean }) {
     emergencyPhone: e.emergencyPhone,
     jobTitle: e.jobTitle,
     department: e.department,
-    manager: e.manager
-      ? { ...e.manager, code: employeeCode(e.manager.number) }
-      : (null as null | { id: string; number: number; nameEn: string; nameAr: string | null }),
+    position: e.position,
+    grade: e.grade,
+    /** Chosen on the file (may be empty) */
+    manager: who(e.manager),
+    /** The manager in force: chosen, or the head of the department chain */
+    effectiveManager: options.manager ? who(options.manager.person) : who(e.manager),
+    managerSource: options.manager ? options.manager.link.source : e.managerId ? 'set' : null,
     homeStore: e.homeStore,
     storeFromAccount: storeFromUser(e.user.role),
     hireDate: day(e.hireDate),
     contractType: e.contractType,
     contractEndsOn: day(e.contractEndsOn),
     probationEndsOn: day(e.probationEndsOn),
-    employment: e.user.employment,
-    staffingSupplier: e.user.staffingSupplier,
+    employment: e.employment,
+    staffingSupplier: e.staffingSupplier,
     socialInsuranceNumber: e.socialInsuranceNumber,
     bank: options.bank
       ? {
@@ -132,6 +174,7 @@ function view(e: FileRow, options: { bank: boolean }) {
           bankAccountHolder: e.bankAccountHolder,
         }
       : null,
+    photoVersion: e.photo ? e.photo.updatedAt.getTime() : null,
     status: e.status,
     leftOn: day(e.leftOn),
     leftReason: e.leftReason,
@@ -140,6 +183,23 @@ function view(e: FileRow, options: { bank: boolean }) {
   };
 }
 export type EmployeeFile = ReturnType<typeof view>;
+
+/** The department a new file starts in, from the kind of account (HR can change it). */
+async function defaultDepartment(tx: Tx, role: Role, storeId: string | null) {
+  const store = storeId ? await tx.darkStore.findUnique({ where: { id: storeId } }) : null;
+  const code =
+    role === 'rider'
+      ? 'OPS-RID'
+      : role === 'store_staff'
+        ? store?.kind === 'hub'
+          ? 'OPS-HUB'
+          : 'OPS-DS'
+        : role === 'finance'
+          ? 'FIN'
+          : null;
+  if (!code) return null;
+  return (await tx.department.findUnique({ where: { code } }))?.id ?? null;
+}
 
 /**
  * Opens the file of a team member or rider who has none yet, from what the account holds.
@@ -150,18 +210,39 @@ export async function ensureEmployee(tx: Tx, userId: string) {
   if (existing) return existing;
   const user = await tx.user.findUnique({ where: { id: userId }, include: { rider: true } });
   if (!user || !hasFile(user.role)) return null;
+  const homeStoreId = storeFromUser(user.role)
+    ? (user.darkStoreId ?? user.rider?.darkStoreId ?? null)
+    : null;
   return tx.employee.create({
     data: {
       userId: user.id,
       nameEn: user.name,
-      homeStoreId: storeFromUser(user.role)
-        ? (user.darkStoreId ?? user.rider?.darkStoreId ?? null)
-        : null,
-      contractType: user.employment === 'outsourced' ? 'outsourced' : 'permanent',
+      homeStoreId,
+      departmentId: await defaultDepartment(tx, user.role, homeStoreId),
+      contractType: 'permanent',
       hireDate: toDate(cairoDay(user.createdAt)),
       status: user.isActive ? 'active' : 'suspended',
     },
   });
+}
+
+/**
+ * A new person joined (a new account in Users, or HR opening a file): their file and, when a
+ * template exists, their onboarding checklist.
+ */
+export async function onboardNewPerson(tx: Tx, userId: string, actorUserId: string) {
+  const file = await ensureEmployee(tx, userId);
+  if (!file) return null;
+  const open = await tx.employeeChecklist.count({
+    where: { employeeId: file.id, kind: 'onboarding' },
+  });
+  if (open === 0)
+    await startChecklist(tx, {
+      employeeId: file.id,
+      body: { kind: 'onboarding' },
+      actorUserId,
+    });
+  return file;
 }
 
 /** Opens a file for every team member and rider without one (seed and demo). */
@@ -180,16 +261,6 @@ export async function syncEmployeeStore(tx: Tx, userId: string, darkStoreId: str
   await tx.employee.updateMany({ where: { userId }, data: { homeStoreId: darkStoreId } });
 }
 
-/** Payroll changed a person's employment: the contract type follows. */
-export async function syncEmployment(tx: Tx, userId: string, outsourced: boolean) {
-  const e = await tx.employee.findUnique({ where: { userId } });
-  if (!e) return;
-  if (outsourced && e.contractType !== 'outsourced')
-    await tx.employee.update({ where: { id: e.id }, data: { contractType: 'outsourced' } });
-  if (!outsourced && e.contractType === 'outsourced')
-    await tx.employee.update({ where: { id: e.id }, data: { contractType: 'permanent' } });
-}
-
 function inScope(scope: StoreScope, homeStoreId: string | null) {
   return scope === null || (homeStoreId !== null && scope.includes(homeStoreId));
 }
@@ -201,12 +272,43 @@ async function loadFile(db: Db, id: string, scope: StoreScope) {
   return e;
 }
 
+/** Refuses a file outside the person's stores (or one that does not exist). */
+export async function assertFileInScope(db: Db, id: string, scope: StoreScope) {
+  const e = await db.employee.findUnique({
+    where: { id },
+    select: { id: true, homeStoreId: true, userId: true },
+  });
+  if (!e) throw new DomainError('employee_not_found', 404);
+  if (!inScope(scope, e.homeStoreId)) throw new DomainError('store_not_allowed', 403);
+  return e;
+}
+
 export interface EmployeeListFilter {
   scope: StoreScope;
   q?: string;
   storeId?: string;
-  department?: string;
+  /** The department or any department below it */
+  departmentId?: string;
+  positionId?: string;
+  gradeId?: string;
+  employment?: 'employee' | 'outsourced';
   status?: EmployeeStatus;
+}
+
+/** A department and every department below it. */
+async function departmentAndBelow(db: Db, id: string) {
+  const rows = await db.department.findMany({ select: { id: true, parentId: true } });
+  const out = new Set([id]);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const d of rows)
+      if (d.parentId && out.has(d.parentId) && !out.has(d.id)) {
+        out.add(d.id);
+        grew = true;
+      }
+  }
+  return [...out];
 }
 
 export async function listEmployees(db: Db, f: EmployeeListFilter) {
@@ -214,28 +316,54 @@ export async function listEmployees(db: Db, f: EmployeeListFilter) {
     f.scope === null
       ? undefined
       : { in: f.storeId ? f.scope.filter((s) => s === f.storeId) : f.scope };
+  const q = f.q?.trim();
+  const digits = q?.replace(/\D/g, '') ?? '';
+  // 01012345678 is kept as +201012345678.
+  const phone = digits.length >= 4 ? (digits.startsWith('0') ? digits.slice(1) : digits) : null;
   const rows = await db.employee.findMany({
     where: {
       homeStoreId: storeIn ?? (f.storeId || undefined),
-      department: f.department || undefined,
+      departmentId: f.departmentId
+        ? { in: await departmentAndBelow(db, f.departmentId) }
+        : undefined,
+      positionId: f.positionId || undefined,
+      gradeId: f.gradeId || undefined,
+      employment: f.employment,
       status: f.status,
-      ...(f.q && {
+      ...(q && {
         OR: [
-          { nameEn: { contains: f.q, mode: 'insensitive' } },
-          { nameAr: { contains: f.q } },
-          { jobTitle: { contains: f.q, mode: 'insensitive' } },
-          { nationalId: { contains: f.q } },
-          { user: { name: { contains: f.q, mode: 'insensitive' } } },
-          { user: { email: { contains: f.q, mode: 'insensitive' } } },
-          { user: { phone: { contains: f.q } } },
+          { nameEn: { contains: q, mode: 'insensitive' } },
+          { nameAr: { contains: q } },
+          { jobTitle: { contains: q, mode: 'insensitive' } },
+          { nationalId: { contains: q } },
+          { user: { name: { contains: q, mode: 'insensitive' } } },
+          { user: { email: { contains: q, mode: 'insensitive' } } },
+          ...(phone ? [{ user: { phone: { contains: phone } } }] : []),
+          ...(/^EMP-?\d+$/i.test(q) ? [{ number: Number(q.replace(/\D/g, '')) }] : []),
         ],
       }),
     },
-    include: { ...fileInclude, documents: { select: { expiresOn: true } } },
+    include: fileInclude,
     orderBy: [{ status: 'asc' }, { nameEn: 'asc' }],
-    take: 500,
+    take: 1000,
   });
-  const today = cairoDay(new Date());
+  // The manager in force (set, or the department head chain), as the org chart draws it.
+  const [everyone, departments] = await Promise.all([
+    db.employee.findMany({
+      where: { status: { not: 'left' } },
+      select: {
+        id: true,
+        number: true,
+        nameEn: true,
+        nameAr: true,
+        managerId: true,
+        departmentId: true,
+      },
+    }),
+    db.department.findMany({ select: { id: true, parentId: true, headEmployeeId: true } }),
+  ]);
+  const links = managerLinks(everyone, departments);
+  const byId = new Map(everyone.map((p) => [p.id, p]));
   return rows.map((e) => ({
     id: e.id,
     code: employeeCode(e.number),
@@ -243,14 +371,28 @@ export async function listEmployees(db: Db, f: EmployeeListFilter) {
     nameAr: e.nameAr,
     user: { id: e.user.id, role: e.user.role, isActive: e.user.isActive, email: e.user.email },
     mobile: e.user.phone,
+    nationalId: e.nationalId,
     jobTitle: e.jobTitle,
     department: e.department,
+    position: e.position
+      ? { id: e.position.id, titleEn: e.position.titleEn, titleAr: e.position.titleAr }
+      : null,
+    grade: e.grade
+      ? {
+          id: e.grade.id,
+          code: e.grade.code,
+          nameEn: e.grade.nameEn,
+          nameAr: e.grade.nameAr,
+          rank: e.grade.rank,
+        }
+      : null,
+    manager: who(byId.get(links.get(e.id)?.managerId ?? '') ?? e.manager),
     homeStore: e.homeStore,
+    employment: e.employment,
     contractType: e.contractType,
     status: e.status,
     hireDate: day(e.hireDate),
-    documents: e.documents.length,
-    expiredDocuments: e.documents.filter((d) => d.expiresOn && day(d.expiresOn)! < today).length,
+    photoVersion: e.photo ? e.photo.updatedAt.getTime() : null,
   }));
 }
 
@@ -264,12 +406,24 @@ export async function listPeopleWithoutFile(db: Db) {
   return users;
 }
 
+async function withManager(db: Db, e: FileRow, bank: boolean) {
+  const link = await managerOf(db, e.id);
+  const person =
+    link.managerId && link.managerId !== e.managerId
+      ? await db.employee.findUnique({
+          where: { id: link.managerId },
+          select: { id: true, number: true, nameEn: true, nameAr: true },
+        })
+      : (e.manager ?? null);
+  return view(e, { bank, manager: { link, person: link.managerId ? person : null } });
+}
+
 export async function getEmployee(
   db: Db,
   id: string,
   options: { scope: StoreScope; bank: boolean },
 ) {
-  return view(await loadFile(db, id, options.scope), { bank: options.bank });
+  return withManager(db, await loadFile(db, id, options.scope), options.bank);
 }
 
 /** The person's own file, read only. Null for merchants and people without one. */
@@ -277,7 +431,7 @@ export async function getOwnEmployee(db: Db, userId: string) {
   const e = await db.employee.findUnique({ where: { userId }, include: fileInclude });
   if (!e) return null;
   // Their own bank details are theirs to see.
-  return view(e, { bank: true });
+  return withManager(db, e, true);
 }
 
 async function checkRefs(
@@ -289,12 +443,6 @@ async function checkRefs(
     if (body.managerId === employeeId) throw new DomainError('manager_is_self', 400);
     const m = await tx.employee.findUnique({ where: { id: body.managerId } });
     if (!m) throw new DomainError('manager_not_found', 404);
-    // A manager chain never loops back to this person.
-    let cursor = m.managerId;
-    for (let i = 0; cursor && i < 50; i++) {
-      if (cursor === employeeId) throw new DomainError('manager_loop', 400);
-      cursor = (await tx.employee.findUnique({ where: { id: cursor } }))?.managerId ?? null;
-    }
   }
   if (body.homeStoreId) {
     const s = await tx.darkStore.findUnique({ where: { id: body.homeStoreId } });
@@ -318,7 +466,9 @@ function fileData(body: EmployeeFileBody, options: { bank: boolean; storeFromUse
     emergencyName: body.emergencyName,
     emergencyPhone: body.emergencyPhone,
     jobTitle: body.jobTitle,
-    department: body.department,
+    departmentId: body.departmentId,
+    positionId: body.positionId,
+    gradeId: body.gradeId,
     managerId: body.managerId,
     homeStoreId: body.homeStoreId,
     hireDate: toDate(body.hireDate),
@@ -357,7 +507,21 @@ async function probationFrom(db: Db, hireDate: string | null | undefined) {
   return addDays(d.toISOString().slice(0, 10), -1);
 }
 
-/** Opens a file for an account that has none (HR manage). */
+/**
+ * Checks department, position and grade together after a change and fills the department
+ * from the position when the file has none.
+ */
+async function placeAfter(tx: Tx, e: Prisma.EmployeeGetPayload<object>) {
+  const { position } = await checkPlacement(tx, e);
+  if (position && !e.departmentId)
+    return tx.employee.update({
+      where: { id: e.id },
+      data: { departmentId: position.departmentId },
+    });
+  return e;
+}
+
+/** Opens a file for an account that has none (HR manage); the onboarding checklist starts. */
 export function createEmployee(
   db: Db,
   input: { body: CreateEmployeeBody; actorUserId: string; bank: boolean; scope: StoreScope },
@@ -381,14 +545,10 @@ export function createEmployee(
       { ...rest, probationEndsOn },
       { bank: input.bank, storeFromUser: storeFromUser(user.role) },
     );
-    const e = await tx.employee.update({
-      where: { id: created!.id },
-      data: {
-        ...data,
-        contractType: user.employment === 'outsourced' ? 'outsourced' : data.contractType,
-      },
-    });
+    let e = await tx.employee.update({ where: { id: created!.id }, data });
+    e = await placeAfter(tx, e);
     checkDates(e);
+    await assertNoManagerLoop(tx);
     if (mobile !== undefined) await setMobile(tx, user.id, mobile);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
@@ -397,7 +557,8 @@ export function createEmployee(
       entityId: e.id,
       after: snapshot(e),
     });
-    return view(await loadFile(tx, e.id, null), { bank: input.bank });
+    await onboardNewPerson(tx, user.id, input.actorUserId);
+    return withManager(tx, await loadFile(tx, e.id, null), input.bank);
   });
 }
 
@@ -429,10 +590,12 @@ export function updateEmployee(
       bank: input.bank,
       storeFromUser: storeFromUser(before.user.role),
     });
-    if (before.user.employment === 'outsourced' && data.contractType)
-      throw new DomainError('employment_set_in_payroll', 400);
-    const after = await tx.employee.update({ where: { id: before.id }, data });
+    if (before.employment === 'outsourced' && data.contractType)
+      throw new DomainError('contract_follows_employment', 400);
+    let after = await tx.employee.update({ where: { id: before.id }, data });
+    after = await placeAfter(tx, after);
     checkDates(after);
+    await assertNoManagerLoop(tx);
     const phoneBefore = before.user.phone;
     if (mobile !== undefined && mobile !== phoneBefore) await setMobile(tx, before.userId, mobile);
     await recordAudit(tx, {
@@ -443,14 +606,14 @@ export function updateEmployee(
       before: { ...snapshot(before), mobile: phoneBefore },
       after: { ...snapshot(after), mobile: mobile === undefined ? phoneBefore : mobile },
     });
-    return view(await loadFile(tx, before.id, null), { bank: input.bank });
+    return withManager(tx, await loadFile(tx, before.id, null), input.bank);
   });
 }
 
 /**
  * Active, on leave, suspended or left (with the last day and the reason). Leaving also
- * disables the account and signs the person out everywhere; coming back does not reopen it
- * (the Users screen does).
+ * disables the account, signs the person out everywhere and starts the offboarding checklist;
+ * coming back does not reopen the account (the Users screen does).
  */
 export function setEmployeeStatus(
   db: Db,
@@ -484,6 +647,12 @@ export function setEmployeeStatus(
       });
       disabled = true;
     }
+    // A person who leaves stops heading departments (their people move up the chain).
+    if (status === 'left')
+      await tx.department.updateMany({
+        where: { headEmployeeId: before.id },
+        data: { headEmployeeId: null },
+      });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'employee.status',
@@ -498,261 +667,25 @@ export function setEmployeeStatus(
         ...(disabled && { accountDisabled: true }),
       },
     });
+    if (status === 'left' && before.status !== 'left') {
+      const open = await tx.employeeChecklist.count({
+        where: { employeeId: before.id, kind: 'offboarding', status: 'open' },
+      });
+      if (open === 0)
+        await startChecklist(tx, {
+          employeeId: before.id,
+          body: { kind: 'offboarding', startsOn: leftOn },
+          actorUserId: input.actorUserId,
+        });
+    }
     return view(await loadFile(tx, before.id, null), { bank: false });
-  });
-}
-
-// ─── documents ─────────────────────────────────────────────────────────────────
-
-const docSelect = {
-  id: true,
-  kind: true,
-  title: true,
-  contentType: true,
-  sizeBytes: true,
-  issuedOn: true,
-  expiresOn: true,
-  createdAt: true,
-  uploadedBy: { select: { id: true, name: true } },
-} as const;
-
-function docView(d: Prisma.EmployeeDocumentGetPayload<{ select: typeof docSelect }>) {
-  return { ...d, issuedOn: day(d.issuedOn), expiresOn: day(d.expiresOn) };
-}
-
-/** The first bytes every file of each allowed type starts with. */
-function looksLike(contentType: string, data: Buffer) {
-  const starts = (bytes: number[], at = 0) => bytes.every((b, i) => data[at + i] === b);
-  if (contentType === 'image/jpeg') return starts([0xff, 0xd8, 0xff]);
-  if (contentType === 'image/png') return starts([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-  if (contentType === 'image/webp')
-    return starts([0x52, 0x49, 0x46, 0x46]) && starts([0x57, 0x45, 0x42, 0x50], 8);
-  if (contentType === 'application/pdf') return starts([0x25, 0x50, 0x44, 0x46]); // %PDF
-  return false;
-}
-
-export async function addEmployeeDocument(
-  db: Db,
-  input: {
-    employeeId: string;
-    kind: DocumentKind;
-    title?: string;
-    issuedOn?: string;
-    expiresOn?: string;
-    contentType: string;
-    data: Buffer;
-    actorUserId: string;
-    scope: StoreScope;
-  },
-) {
-  if (!(DOCUMENT_TYPES as readonly string[]).includes(input.contentType))
-    throw new DomainError('document_type_not_allowed', 400);
-  if (input.data.length === 0) throw new DomainError('document_empty', 400);
-  if (input.data.length > MAX_DOCUMENT_BYTES) throw new DomainError('document_too_large', 400);
-  if (!looksLike(input.contentType, input.data))
-    throw new DomainError('document_not_readable', 400);
-  if (input.issuedOn && input.expiresOn && input.expiresOn < input.issuedOn)
-    throw new DomainError('expires_before_issued', 400);
-  return inTransaction(db, async (tx) => {
-    const e = await loadFile(tx, input.employeeId, input.scope);
-    const doc = await tx.employeeDocument.create({
-      data: {
-        employeeId: e.id,
-        kind: input.kind,
-        title: input.title || null,
-        contentType: input.contentType,
-        data: new Uint8Array(input.data),
-        sizeBytes: input.data.length,
-        issuedOn: toDate(input.issuedOn ?? null),
-        expiresOn: toDate(input.expiresOn ?? null),
-        uploadedById: input.actorUserId,
-      },
-      select: docSelect,
-    });
-    await recordAudit(tx, {
-      actorUserId: input.actorUserId,
-      action: 'employee.document_add',
-      entityType: 'employee',
-      entityId: e.id,
-      after: {
-        documentId: doc.id,
-        kind: doc.kind,
-        title: doc.title,
-        issuedOn: day(doc.issuedOn),
-        expiresOn: day(doc.expiresOn),
-        sizeBytes: doc.sizeBytes,
-      },
-    });
-    return docView(doc);
-  });
-}
-
-export async function listEmployeeDocuments(db: Db, employeeId: string, scope: StoreScope) {
-  await loadFile(db, employeeId, scope);
-  const docs = await db.employeeDocument.findMany({
-    where: { employeeId },
-    select: docSelect,
-    orderBy: [{ kind: 'asc' }, { createdAt: 'desc' }],
-  });
-  return docs.map(docView);
-}
-
-/** One document with its bytes, for download. */
-export async function getEmployeeDocument(
-  db: Db,
-  input: { employeeId: string; documentId: string; scope: StoreScope },
-) {
-  await loadFile(db, input.employeeId, input.scope);
-  const doc = await db.employeeDocument.findFirst({
-    where: { id: input.documentId, employeeId: input.employeeId },
-  });
-  if (!doc) throw new DomainError('document_not_found', 404);
-  return doc;
-}
-
-export function deleteEmployeeDocument(
-  db: Db,
-  input: { employeeId: string; documentId: string; actorUserId: string; scope: StoreScope },
-) {
-  return inTransaction(db, async (tx) => {
-    const e = await loadFile(tx, input.employeeId, input.scope);
-    const doc = await tx.employeeDocument.findFirst({
-      where: { id: input.documentId, employeeId: e.id },
-      select: docSelect,
-    });
-    if (!doc) throw new DomainError('document_not_found', 404);
-    await tx.employeeDocument.delete({ where: { id: doc.id } });
-    await recordAudit(tx, {
-      actorUserId: input.actorUserId,
-      action: 'employee.document_delete',
-      entityType: 'employee',
-      entityId: e.id,
-      before: {
-        documentId: doc.id,
-        kind: doc.kind,
-        title: doc.title,
-        issuedOn: day(doc.issuedOn),
-        expiresOn: day(doc.expiresOn),
-      },
-    });
-    return { deleted: true };
-  });
-}
-
-/**
- * Raises one document_expiring alert per document hr.document_alert_days before it runs out
- * and one document_expired on the day (or the first run after it), also for the national ID
- * date on the file. Each alert has its own key (kind, document and expiry day), so running
- * twice raises nothing twice and a renewed document with a new date is watched again.
- */
-export async function checkDocumentExpiry(db: Db, now: Date = new Date()) {
-  const today = cairoDay(now);
-  const days = await getSetting(db, 'hr.document_alert_days');
-  const horizon = toDate(addDays(today, days))!;
-  const docs = await db.employeeDocument.findMany({
-    where: { expiresOn: { lte: horizon }, employee: { status: { not: 'left' } } },
-    select: {
-      id: true,
-      kind: true,
-      title: true,
-      expiresOn: true,
-      employee: { select: { id: true, nameEn: true, nameAr: true, homeStoreId: true } },
-    },
-  });
-  const ids = await db.employee.findMany({
-    where: { nationalIdExpiresOn: { lte: horizon }, status: { not: 'left' } },
-    select: { id: true, nameEn: true, nameAr: true, homeStoreId: true, nationalIdExpiresOn: true },
-  });
-  const items = [
-    ...docs.map((d) => ({
-      ref: d.id,
-      documentId: d.id as string | null,
-      kind: d.kind as string,
-      title: d.title,
-      expiresOn: day(d.expiresOn)!,
-      employee: d.employee,
-    })),
-    ...ids.map((e) => ({
-      ref: `nid:${e.id}`,
-      documentId: null,
-      kind: 'national_id',
-      title: null,
-      expiresOn: day(e.nationalIdExpiresOn)!,
-      employee: e,
-    })),
-  ];
-  const rows = items.map((i) => {
-    const type = i.expiresOn <= today ? 'document_expired' : 'document_expiring';
-    return {
-      type,
-      key: `${type}:${i.ref}:${i.expiresOn}`,
-      darkStoreId: i.employee.homeStoreId,
-      data: {
-        employeeId: i.employee.id,
-        documentId: i.documentId,
-        kind: i.kind,
-        title: i.title,
-        nameEn: i.employee.nameEn,
-        nameAr: i.employee.nameAr,
-        expiresOn: i.expiresOn,
-      },
-    };
-  });
-  if (rows.length === 0) return { raised: 0 };
-  const created = await db.alert.createMany({ data: rows, skipDuplicates: true });
-  return { raised: created.count };
-}
-
-/** Open document alerts for HR (people limited to stores see only theirs). */
-export async function listDocumentAlerts(db: Db, scope: StoreScope) {
-  const alerts = await db.alert.findMany({
-    where: {
-      type: { in: ['document_expiring', 'document_expired'] },
-      resolvedAt: null,
-      ...(scope && { darkStoreId: { in: scope } }),
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 200,
-  });
-  return alerts.map((a) => ({
-    id: a.id,
-    type: a.type,
-    data: a.data as unknown,
-    createdAt: a.createdAt,
-  }));
-}
-
-export function resolveDocumentAlert(
-  db: Db,
-  input: { alertId: string; actorUserId: string; scope: StoreScope },
-) {
-  return inTransaction(db, async (tx) => {
-    const alert = await tx.alert.findUnique({ where: { id: input.alertId } });
-    if (!alert || !['document_expiring', 'document_expired'].includes(alert.type))
-      throw new DomainError('alert_not_found', 404);
-    if (input.scope && !(alert.darkStoreId && input.scope.includes(alert.darkStoreId)))
-      throw new DomainError('store_not_allowed', 403);
-    const done = await tx.alert.updateMany({
-      where: { id: alert.id, resolvedAt: null },
-      data: { resolvedAt: new Date(), resolvedById: input.actorUserId },
-    });
-    if (done.count !== 1) throw new DomainError('alert_not_open', 409);
-    await recordAudit(tx, {
-      actorUserId: input.actorUserId,
-      action: 'alert.resolve',
-      entityType: 'alert',
-      entityId: alert.id,
-      before: { resolved: false },
-      after: { resolved: true },
-    });
-    return { resolved: true };
   });
 }
 
 // ─── history ───────────────────────────────────────────────────────────────────
 
 /** Actions that carry pay: shown only with the salaries switch. */
-const PAY_ACTIONS = ['finance.salary_set', 'finance.employment_set'];
+const PAY_ACTIONS = ['finance.salary_set', 'employee.package'];
 
 /**
  * One timeline per person, newest first: the file (created, changed, status, documents), the

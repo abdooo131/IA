@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   costPerOrder,
@@ -6,20 +6,16 @@ import {
   listStaffPay,
   payslips,
   previewPayroll,
-  setEmployment,
   submitStaffBonus,
   profitBy,
-  setSalary,
   submitAdvance,
   submitPayroll,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   advanceSchema,
-  employmentSchema,
   entryNumber,
   payrollSchema,
-  salarySchema,
   staffBonusSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
@@ -74,35 +70,6 @@ export class ProfitController {
   @Access('accounting', 'view', { salaries: true })
   staff() {
     return listStaffPay(this.prisma);
-  }
-
-  /** A team member's monthly salary: accounting manage with salaries. */
-  @Put('salaries/:userId')
-  @Access('accounting', 'manage', { salaries: true })
-  salary(
-    @Param('userId') userId: string,
-    @Body(new ZodValidationPipe(salarySchema)) body: z.infer<typeof salarySchema>,
-    @CurrentUser() user: AccessTokenClaims,
-  ) {
-    return setSalary(this.prisma, {
-      userId,
-      monthlyPiastres: body.monthlyPiastres,
-      insuredWagePiastres: body.insuredWagePiastres,
-      nationalId: body.nationalId,
-      insuranceNumber: body.insuranceNumber,
-      actorUserId: user.sub,
-    });
-  }
-
-  /** Employee on our payroll, or hired through an outsourcing company. */
-  @Put('employment/:userId')
-  @Access('accounting', 'manage', { salaries: true })
-  employment(
-    @Param('userId') userId: string,
-    @Body(new ZodValidationPipe(employmentSchema)) body: z.infer<typeof employmentSchema>,
-    @CurrentUser() user: AccessTokenClaims,
-  ) {
-    return setEmployment(this.prisma, { ...body, userId, actorUserId: user.sub });
   }
 
   /** A bonus paid straight to an outsourced person. */

@@ -39,6 +39,7 @@ describe('job role templates', () => {
     expect(row('accountant')).toEqual([N, V, V, V, N, V, N, N, true, false, false, false]);
     expect(row('finance_officer')).toEqual([N, V, V, V, N, U, N, N, true, false, false, false]);
     expect(row('hr_officer')).toEqual([N, N, N, N, N, N, M, N, true, false, false, false]);
+    expect(row('hr_manager')).toEqual([N, N, N, N, N, N, M, N, true, false, true, false]);
     expect(row('account_manager')).toEqual([N, V, V, U, V, N, N, N, true, false, false, true]);
     expect(row('qc_agent')).toEqual([U, N, V, N, N, N, N, N, false, false, false, false]);
     expect(row('finance_manager')).toEqual([N, V, V, V, N, M, N, N, true, false, true, false]);

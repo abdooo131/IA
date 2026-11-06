@@ -14,7 +14,7 @@ import {
 } from '@shiplynow/shared';
 import { assertCanDisable, createAccessFor, financeLevelOf } from './access';
 import { recordAudit } from './audit';
-import { ensureEmployee, syncEmployeeStore } from './hr';
+import { onboardNewPerson, syncEmployeeStore } from './hr';
 import { type Db, inTransaction } from './client';
 
 type Tx = Prisma.TransactionClient;
@@ -136,7 +136,7 @@ export function createUser(db: Db, input: CreateUserBody & { actorUserId: Actor 
         });
       }
       // Every team member and rider has an employee file (docs/HR.md).
-      await ensureEmployee(tx, user.id);
+      await onboardNewPerson(tx, user.id, input.actorUserId);
       await recordAudit(tx, {
         actorUserId: input.actorUserId,
         action: 'user.create',

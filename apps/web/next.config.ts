@@ -35,6 +35,19 @@ const nextConfig: NextConfig = {
           },
         ],
       },
+      // Employee documents (PDFs) are previewed in a frame of the file page: same origin only.
+      ...['/api/hr/employees/:id/documents/:doc', '/api/me/employee/documents/:doc'].map(
+        (source) => ({
+          source,
+          headers: [
+            { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+            {
+              key: 'Content-Security-Policy',
+              value: "frame-ancestors 'self'; base-uri 'self'; form-action 'self'",
+            },
+          ],
+        }),
+      ),
     ];
   },
   // /api is forwarded to the NestJS API by src/app/api/[...path]/route.ts, which reads

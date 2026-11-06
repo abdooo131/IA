@@ -10,8 +10,8 @@ import {
   recordCapital,
   recordExpense,
   runPayroll,
-  setSalary,
 } from '../src/finance';
+import { setSalary } from '../src/hr-pay';
 import { createFixture, prisma, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;

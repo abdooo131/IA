@@ -209,7 +209,13 @@ export const APPS: AppDef[] = [
     color: '#EBD9C6',
     access: 'hr',
     menus: [
-      { label: 'employees', pages: [{ href: '/admin/hr', label: 'employees' }] },
+      {
+        label: 'employees',
+        pages: [
+          { href: '/admin/hr', label: 'employees' },
+          { href: '/admin/hr/org', label: 'orgChart' },
+        ],
+      },
       {
         label: 'attendance',
         pages: [
@@ -219,8 +225,20 @@ export const APPS: AppDef[] = [
         ],
       },
       {
+        label: 'hrDocuments',
+        pages: [
+          { href: '/admin/hr/documents', label: 'hrDocuments' },
+          { href: '/admin/hr/checklists', label: 'hrChecklists' },
+        ],
+      },
+      {
         label: 'configuration',
         pages: [
+          { href: '/admin/hr/departments', label: 'departments' },
+          { href: '/admin/hr/positions', label: 'positions' },
+          { href: '/admin/hr/grades', label: 'grades' },
+          { href: '/admin/hr/document-types', label: 'documentTypes' },
+          { href: '/admin/hr/checklist-templates', label: 'checklistTemplates' },
           { href: '/admin/hr/shifts', label: 'shifts' },
           { href: '/admin/hr/holidays', label: 'holidays' },
           settings('hr'),

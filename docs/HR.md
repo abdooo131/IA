@@ -1,4 +1,4 @@
-# HR module (plan approved; steps 1 and 2 built)
+# HR module (plan approved; step 1 built, then HR v2; step 2 built)
 
 Decisions taken by the owner on 2026-11-06: attendance by a Clock in button with a location
 check, violations from a penalty list that reaches payroll, leave by requests and balances,
@@ -82,42 +82,149 @@ account managers own merchants, QC agents check packing and received shipments.
   (rates in settings) from HR, so payslips show them; nothing is deducted without a
   confirmed record.
 
-## Step 1 as built (decisions taken while building)
+## HR v2 as built (decisions taken while building)
 
-- `employees` is one row per team member and rider, 1:1 with `users` (EMP-0001 numbers). The
-  display name, sign in mobile (`users.phone`, edited from the file), employment and staffing
-  supplier stay on `users`; the file keeps the full names in English and Arabic. Store staff and
-  riders work at their account's store (`users.dark_store_id`, changed in Users, copied to the
-  file); office people have the store on the file (empty means the office).
-- The national ID and the social insurance number moved from `staff_salaries` to the file; the
-  Payroll screen and the salary tax and insurance lists read and write them there.
-- Contract type: permanent, fixed term (needs its end date) or part time; outsourced follows
-  the employment set in Payroll and cannot be chosen in HR. Probation end is filled in from the
-  hire date with `hr.probation_months` (default 3) when HR leaves it empty.
-- A new account in Users opens the file at once; HR manage can open a file for an older account
-  without one (HR never creates accounts, because access is settings manage's job). The seed and
-  the demo give every person a file.
-- Status: active, on leave, suspended, left. Left needs the last day and a reason, and also
-  disables the account and signs the person out (the last person with settings manage cannot be
-  marked as left). Coming back does not reopen the account; Users does.
-- HR access: view reads files, use edits them and adds documents, manage opens files, changes
-  the status and deletes documents. The salary and the salary bank account need the salaries
-  switch too. People limited to listed stores see only the files of those stores.
-- Documents are kept in `employee_documents` (bytea, photo or PDF up to 3 MB, checked by their
-  first bytes), not in `photos`, so only HR and the person can open them. The phone shrinks
-  photos before upload.
-- Alerts: the API job checks once an hour and raises one `document_expiring` alert
-  `hr.document_alert_days` (default 30) before a document or the national ID date runs out and
-  one `document_expired` on the day; each has its own key (`alerts.key`), so repeats change
-  nothing and a renewed document with a new date is watched again. HR sees them on the
-  Employees page; the Operations alerts list hides them from people without HR access.
-- History: one timeline from the audit log of the file (changes, status, documents) and of the
-  account (created, changed, access); pay changes and bank details only with salaries.
-- My HR (`/my-file`, in the Settings menu of every team member and rider): the person's own file,
-  documents and history, read only, including their own bank details.
-- Account managers (section 5, built with step 1): see docs/ACCESS.md. Tickets of their
-  merchants and the other merchant alerts (low stock, debit wallet, Shopify problems) reach them
-  once those alerts carry the merchant (the Shopify ones were left for the agent working there).
+The owner's review of step 1: "HR has nothing to do with accounting. Where is the team
+distribution and the type: senior, junior, head, manager... to automatically make a tree?
+Documents need more development, and employees need an image." HR v2 answers it.
+
+### HR owns people, Accounting only pays
+
+- Employment (employee on our payroll, or outsourced through a staffing company, a supplier)
+  moved from `users` to the file: `employees.employment` and `employees.staffing_supplier_id`
+  (a database check keeps an outsourced person tied to their company). The contract type
+  follows it (outsourced, or back to permanent). HR sets it: `PUT /hr/employees/:id/employment`
+  (HR use).
+- The salary package replaces `staff_salaries` (dropped; each salary became the person's first
+  package): `salary_packages` (from a day, basic, insured wage, note, who) with
+  `salary_allowances` (housing, transport, phone, other, an optional label, an amount). The
+  gross is basic plus allowances. A package on a day that already has one replaces that day's
+  row; any other day adds a row, so the list is the history. When no day is given the first
+  package starts on the hire date, later ones today. A package outside the grade's band is
+  allowed and flagged (`outsideBand`). HR use with the salaries switch edits
+  (`POST /hr/employees/:id/package`); HR view with salaries reads (`GET .../package`).
+- The payroll run reads the package in force on the month's last day; before the first package
+  was recorded the first one applies (nothing older was ever kept). `listStaffPay` (the Payroll
+  screen) shows the package in force today read only, with a link to the HR file for people who
+  have HR access. `PUT /finance/salaries/:userId` and `PUT /finance/employment/:userId` are gone;
+  the Payroll screen says that HR keeps people and Accounting runs, books and pays. The cash
+  flow forecast sums the packages in force. Outsourced bills check the company on the file.
+- Pay changes (`employee.package`, and the older `finance.salary_set`) show in a person's
+  history only with the salaries switch; employment changes (`employee.employment`) show to HR.
+
+### Organisation: departments, positions, grades, managers
+
+- `departments`: a tree (parent), a head (an employee), an optional cost centre store, order and
+  active. Defaults (fixed ids, added by the migration and the seed): Management; under it
+  Operations (Dark stores, Hub, Riders, Quality control), Commercial (Account management,
+  Sales), Finance, Human resources, Technology, Customer service. A department cannot sit under
+  itself (`department_loop`); one with people or active sub departments cannot be closed.
+- `grades`: an ordered list (rank, 1 is the most junior) with an optional salary band:
+  Intern, Junior, Mid level, Senior, Lead, Supervisor, Manager, Head, Director, Chief (C level).
+  HR moves a grade up or down (ranks swap).
+- `job_positions`: title in both languages, department, lowest and highest grade, planned
+  headcount. The seed adds 18 positions (CEO, Head of operations, Store manager, Picker and
+  packer, Hub supervisor and associate, Rider supervisor, Rider, QC agent, Head of commercial,
+  Account manager, Sales executive, Finance manager, Accountant, HR manager, HR officer,
+  Software engineer, Customer service agent).
+- Each file has a department, a position, a grade and optionally a manager. Choosing a position
+  fills the department when the file has none; a grade outside the position's range is refused
+  (`grade_outside_position`). `job_title` stays as a free title for people without a position.
+- The manager in force: the one set on the file, else the head of the person's department, else
+  the head of the department above, and so on (a head reports to the head above). Left people
+  are out of the tree. After every change to a manager, a department, a position, a department
+  head or a parent, the whole graph is checked and a loop is refused (`manager_loop`), through
+  department heads too. A person who leaves stops heading departments.
+- `GET /hr/org` returns people with their manager in force and its source, the department tree
+  with headcount, and open places (planned minus people in a position) attached to the head of
+  the position's department. The org chart (`/admin/hr/org`) is plain React and CSS: a tree by
+  manager (cards with photo, name, title and grade; groups of people without reports stack in a
+  column; levels below the second start folded; search opens the path to each match; zoom;
+  logical CSS so it mirrors in Arabic; scrolls sideways on phones), or a department view
+  (nested department boxes with head, headcount, people and open places). Export PNG draws the
+  cards and connectors on screen into a canvas (no new library); Print uses the browser.
+- Team: `teamOf` lists everyone below a person (direct and indirect, with their level) and
+  counts by grade and department; it is a tab of the HR file and `/my-file/team` for managers.
+
+### Photo
+
+- `employee_photos` (one row per person, apart from `employees` so lists never load bytes): a
+  square JPEG made on the phone (pick or take, drag and zoom inside a circle, 512 px), at most
+  1 MB, checked by its first bytes. HR use sets or removes it on the file; everyone sets their
+  own from My HR. Lists carry `photoVersion`, and `/api/people/:id/photo?v=` serves it (the
+  person, their managers and HR view within their stores). Shown on the file header, the
+  directory (table and cards), the org chart, team lists, My HR and the account menu button.
+
+### Documents
+
+- Document types are rows (`employee_document_types`): names, has expiry, required (with lists of
+  employments, departments and positions; nothing ticked is everyone, a department covers those
+  below it), allowed formats, largest size (at most 3 MB), confidential (only HR use and the
+  person see it), self upload (the person may send it), several per person, alert days (else
+  `hr.document_alert_days`). The step 1 kinds became types (`doctype_<kind>`); a driving licence
+  for Riders was added.
+- Versions: uploading a type kept once per person makes a new version of the current one
+  (`version`, `previous_id`, `is_current`); types with several documents add separate ones
+  unless a version is named. Deleting the current version (HR manage) makes the one before it
+  current again.
+- Verification: `pending`, `verified`, `rejected` with a note. HR uploads count as verified (HR
+  saw the original); uploads from My HR wait for HR. HR use verifies or refuses the current
+  version. A type with an expiry needs the date.
+- The checklist of a file lists every required type and anything on file: missing, waiting for
+  HR, refused, verified, expiring (inside its alert days) or expired. Completeness is the share
+  of required types holding a valid verified document; it shows on the directory, the file
+  header, the overview and My HR.
+- Self service (`POST /me/employee/documents`): a type that allows it and is not confidential,
+  when nothing valid is on file (missing, refused, expired or expiring); otherwise
+  `document_already_on_file`.
+- `/admin/hr/documents`: what waits for verification, and every required document not in order
+  across the company (filters by department, type and state) with a CSV export.
+- Preview: photos as an image, PDFs in a frame (the web app allows same origin framing only for
+  the two document addresses), plus download and open in a new tab.
+- Expiry alerts are per current document with its type's alert days; a refused document raises
+  none. Alert rows carry the type's names.
+
+### Onboarding and offboarding
+
+- `checklist_templates` (kind, position or the default, tasks with an owner: HR, manager,
+  employee, IT, finance, store; due days from the start; an optional document type). The seed
+  adds Onboarding, Store staff onboarding, Rider onboarding and Offboarding.
+- A new account in Users (or HR opening a file) starts the onboarding checklist from the
+  position's template, else the default; marking a person as left starts offboarding from the
+  last day. HR can start one by hand. Only one open checklist per kind. The tasks are copied, so
+  editing a template never changes a running checklist.
+- HR use ticks tasks; a task tied to a document type ticks itself when a verified document of
+  that type is on file. The checklist closes with its last task; HR manage may cancel one.
+  `/admin/hr/checklists` lists open ones, late first.
+
+### Screens
+
+- HR app menus: Employees (Directory, Org chart), Documents (Documents, Onboarding and
+  offboarding), Configuration (Departments, Positions, Grades, Document types, Checklist
+  templates, Settings).
+- Directory: four numbers (active, away, documents missing, open places), document alerts,
+  filters (search by name, mobile as typed, national ID or EMP code; department with those below
+  it, position, grade, store, status, employment), table or cards, CSV export.
+- File: the profile header (photo, names in both languages, position, grade, department, manager
+  with a link, status, tenure, store, documents %) and tabs Overview, Job and contract (employment
+  and the form), Salary package (salaries switch), Documents, Onboarding, Team, History.
+- My HR (`/my-file`): the same header with the person's own photo editor, what they still have to
+  send, their document checklist with uploads, their onboarding, their team (managers), their
+  file and history. A manager's team file (`/my-file/team/:id`) shows the header and onboarding
+  without pay, ID numbers, address or documents.
+
+### Access (docs/ACCESS.md)
+
+- HR view reads files, the org chart, configuration, documents of types that are not
+  confidential and the document lists. HR use edits files, employment, photos, uploads, verifies
+  and ticks tasks; confidential types need HR use. HR manage opens files, changes status,
+  deletes documents, cancels checklists and changes the structure and templates. Salary
+  packages need the salaries switch on top (read with view, change with use).
+- New job role HR manager: HR manage with salaries. HR officer stays HR manage without salaries.
+  Finance manager keeps accounting manage with salaries and no HR: they run payroll but cannot
+  edit a package (403).
+- Managers (anyone with people below them, by the manager in force) read their team at
+  `/me/team` and `/me/team/:id` without pay; everyone reads only their own file in My HR.
 
 ## Step 2 as built (decisions taken while building)
 
@@ -186,7 +293,8 @@ account managers own merchants, QC agents check packing and received shipments.
 ## Build order
 
 1. Employee files, documents, HR app and access, history (about 2 sessions). Built, with
-   account managers (part of 5).
+   account managers (part of 5). Then HR v2 (above): organisation, grades, positions, org
+   chart, photo, developed documents, onboarding, salary package and employment moved to HR.
 2. Shifts, Clock in with location, attendance days and the manager board (2 sessions). Built.
 3. Leave requests and balances (1 session).
 4. Penalty list, violations, payroll link (1 to 2 sessions).

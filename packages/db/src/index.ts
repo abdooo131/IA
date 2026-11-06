@@ -140,22 +140,17 @@ export * from './geo';
 export * from './tickets';
 export * from './shopdata';
 export {
-  addEmployeeDocument,
-  checkDocumentExpiry,
+  assertFileInScope,
   createEmployee,
-  deleteEmployeeDocument,
   employeeHistory,
   ensureEmployee,
   ensureEmployees,
   getEmployee,
-  getEmployeeDocument,
   getOwnEmployee,
   listAccountManagers,
-  listDocumentAlerts,
-  listEmployeeDocuments,
   listEmployees,
   listPeopleWithoutFile,
-  resolveDocumentAlert,
+  onboardNewPerson,
   setAccountManager,
   setEmployeeStatus,
   updateEmployee,
@@ -163,6 +158,11 @@ export {
   type EmployeeListFilter,
   type StoreScope,
 } from './hr';
+export * from './hr-org';
+export * from './hr-documents';
+export * from './hr-pay';
+export * from './hr-checklists';
+export { ensureHrDefaults } from './hr-defaults';
 export { loadDemo, type DemoOptions, type DemoResult } from './demo';
 export {
   addManualPunch,

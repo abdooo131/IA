@@ -104,30 +104,24 @@ model User {
   storeAreasCreated StoreArea[]       @relation("store_area_created_by")
   settingChanges    Setting[]
 
-  ledgerEntries      LedgerEntry[]       @relation("ledger_entry_created_by")
-  handoversReceived  CashHandover[]      @relation("handover_received_by")
-  handoversReviewed  CashHandover[]      @relation("handover_reviewed_by")
-  payoutsCreated     Payout[]            @relation("payout_created_by")
-  payoutsPaid        Payout[]            @relation("payout_paid_by")
-  payoutsApproved    Payout[]            @relation("payout_approved_by")
+  ledgerEntries      LedgerEntry[]           @relation("ledger_entry_created_by")
+  handoversReceived  CashHandover[]          @relation("handover_received_by")
+  handoversReviewed  CashHandover[]          @relation("handover_reviewed_by")
+  payoutsCreated     Payout[]                @relation("payout_created_by")
+  payoutsPaid        Payout[]                @relation("payout_paid_by")
+  payoutsApproved    Payout[]                @relation("payout_approved_by")
   booksLocks         BooksLock[]
-  financeRequests    FinanceRequest[]    @relation("finance_request_by")
-  financeDecisions   FinanceRequest[]    @relation("finance_request_decided_by")
+  financeRequests    FinanceRequest[]        @relation("finance_request_by")
+  financeDecisions   FinanceRequest[]        @relation("finance_request_decided_by")
   financeReceipts    FinanceReceipt[]
-  advanceAccounts    LedgerAccount[]     @relation("ledger_account_user")
-  ledgerLines        LedgerLine[]        @relation("ledger_line_user")
-  salary             StaffSalary?        @relation("staff_salary_user")
-  salariesSet        StaffSalary[]       @relation("staff_salary_updated_by")
+  advanceAccounts    LedgerAccount[]         @relation("ledger_account_user")
+  ledgerLines        LedgerLine[]            @relation("ledger_line_user")
   suppliers          Supplier[]
-  /// employee: on our payroll; outsourced: hired through an outsourcing company (a supplier)
-  employment         EmploymentType      @default(employee)
-  staffingSupplierId String?             @map("staffing_supplier_id")
-  staffingSupplier   Supplier?           @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
-  billsFor           Bill[]              @relation("bill_person")
+  billsFor           Bill[]                  @relation("bill_person")
   bankStatements     BankStatement[]
-  taxInvoicesMade    TaxInvoice[]        @relation("tax_invoice_created_by")
-  bankLinesDecided   BankStatementLine[] @relation("bank_line_decided_by")
-  budgetsSet         Budget[]            @relation("budget_updated_by")
+  taxInvoicesMade    TaxInvoice[]            @relation("tax_invoice_created_by")
+  bankLinesDecided   BankStatementLine[]     @relation("bank_line_decided_by")
+  budgetsSet         Budget[]                @relation("budget_updated_by")
   bills              Bill[]
   recurringEntries   RecurringEntry[]
   prepayments        Prepayment[]
@@ -135,8 +129,12 @@ model User {
   access             UserAccess?
   accessStores       UserStore[]
   employee           Employee?
-  documentsUploaded  EmployeeDocument[]  @relation("employee_document_uploaded_by")
-  merchantsManaged   Merchant[]          @relation("merchant_account_manager")
+  documentsUploaded  EmployeeDocument[]      @relation("employee_document_uploaded_by")
+  documentsReviewed  EmployeeDocument[]      @relation("employee_document_reviewed_by")
+  salaryPackagesSet  SalaryPackage[]         @relation("salary_package_created_by")
+  checklistsStarted  EmployeeChecklist[]     @relation("employee_checklist_created_by")
+  checklistTasksDone EmployeeChecklistTask[] @relation("employee_checklist_task_done_by")
+  merchantsManaged   Merchant[]              @relation("merchant_account_manager")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -243,6 +241,7 @@ model DarkStore {
   governorate      Governorate       @relation(fields: [governorateId], references: [id])
   accessUsers      UserStore[]
   employees        Employee[]
+  departments      Department[]
   hours            StoreHours[]
   zones            Zone[]
   bins             Bin[]
@@ -2136,21 +2135,6 @@ model FinanceReceipt {
   @@map("finance_receipts")
 }
 
-/// A team member's monthly salary (gross), set by admin; used by the monthly salary run.
-model StaffSalary {
-  userId              String   @id @map("user_id")
-  monthlyPiastres     Int      @map("monthly_piastres")
-  /// The wage social insurance is counted on; empty means the salary itself
-  insuredWagePiastres Int?     @map("insured_wage_piastres")
-  updatedById         String   @map("updated_by_id")
-  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at")
-
-  user      User @relation("staff_salary_user", fields: [userId], references: [id], onDelete: Restrict)
-  updatedBy User @relation("staff_salary_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
-
-  @@map("staff_salaries")
-}
-
 /// Someone we buy from: rent, internet, packaging, fuel.
 model Supplier {
   id                      String   @id @default(cuid())
@@ -2169,7 +2153,7 @@ model Supplier {
   createdBy             User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
   accounts              LedgerAccount[]
   bills                 Bill[]
-  staff                 User[]          @relation("staffing_supplier")
+  staff                 Employee[]      @relation("staffing_supplier")
 
   @@map("suppliers")
 }
@@ -2485,7 +2469,7 @@ enum EmployeeStatus {
   @@map("employee_status")
 }
 
-/// outsourced mirrors users.employment, which Payroll sets
+/// outsourced follows employees.employment, which HR sets
 enum ContractType {
   permanent
   fixed_term
@@ -2495,21 +2479,10 @@ enum ContractType {
   @@map("contract_type")
 }
 
-enum EmployeeDocumentKind {
-  national_id
-  contract
-  criminal_record
-  military_status
-  qualification
-  medical
-  other
-
-  @@map("employee_document_kind")
-}
-
 /// One file per person who works for us (team members and riders), linked 1:1 to their user.
-/// The display name, sign in mobile, employment (employee or outsourced) and staffing supplier
-/// stay on users; the home store of store staff and riders follows users.dark_store_id.
+/// The display name and sign in mobile stay on users; the home store of store staff and
+/// riders follows users.dark_store_id. HR owns employment, contract and salary package;
+/// Accounting only reads them to run payroll.
 model Employee {
   id                    String         @id @default(cuid())
   /// Shown as EMP-0001
@@ -2524,11 +2497,18 @@ model Employee {
   address               String?
   emergencyName         String?        @map("emergency_name")
   emergencyPhone        String?        @map("emergency_phone")
+  /// Free title shown when the person has no position (or to refine it)
   jobTitle              String?        @map("job_title")
-  department            String?
+  departmentId          String?        @map("department_id")
+  positionId            String?        @map("position_id")
+  gradeId               String?        @map("grade_id")
+  /// Set by hand; when empty the manager is the head of the department chain
   managerId             String?        @map("manager_id")
   homeStoreId           String?        @map("home_store_id")
   hireDate              DateTime?      @map("hire_date") @db.Date
+  /// employee: on our payroll; outsourced: hired through an outsourcing company (a supplier)
+  employment            EmploymentType @default(employee)
+  staffingSupplierId    String?        @map("staffing_supplier_id")
   contractType          ContractType   @default(permanent) @map("contract_type")
   contractEndsOn        DateTime?      @map("contract_ends_on") @db.Date
   probationEndsOn       DateTime?      @map("probation_ends_on") @db.Date
@@ -2547,42 +2527,332 @@ model Employee {
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
-  user           User               @relation(fields: [userId], references: [id], onDelete: Restrict)
-  manager        Employee?          @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
-  reports        Employee[]         @relation("employee_manager")
-  homeStore      DarkStore?         @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
-  documents      EmployeeDocument[]
-  defaultShift   Shift?             @relation(fields: [defaultShiftId], references: [id], onDelete: SetNull)
-  rosterDays     RosterDay[]
-  punches        Punch[]
-  attendanceDays AttendanceDay[]
+  user             User                @relation(fields: [userId], references: [id], onDelete: Restrict)
+  manager          Employee?           @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports          Employee[]          @relation("employee_manager")
+  homeStore        DarkStore?          @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
+  department       Department?         @relation("department_members", fields: [departmentId], references: [id], onDelete: Restrict)
+  position         JobPosition?        @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  grade            Grade?              @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  staffingSupplier Supplier?           @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
+  headOf           Department[]        @relation("department_head")
+  documents        EmployeeDocument[]
+  photo            EmployeePhoto?
+  salaryPackages   SalaryPackage[]
+  checklists       EmployeeChecklist[]
+  defaultShift     Shift?              @relation(fields: [defaultShiftId], references: [id], onDelete: SetNull)
+  rosterDays       RosterDay[]
+  punches          Punch[]
+  attendanceDays   AttendanceDay[]
 
   @@index([homeStoreId])
   @@index([status])
+  @@index([departmentId])
+  @@index([managerId])
   @@map("employees")
 }
 
-/// A scanned document of an employee file (photo or PDF, at most 3 MB), kept in the database
-/// like proof photos but in its own table so only HR and the person can read it.
-model EmployeeDocument {
-  id           String               @id @default(cuid())
-  employeeId   String               @map("employee_id")
-  kind         EmployeeDocumentKind
-  title        String?
-  contentType  String               @map("content_type")
-  data         Bytes
-  sizeBytes    Int                  @map("size_bytes")
-  issuedOn     DateTime?            @map("issued_on") @db.Date
-  expiresOn    DateTime?            @map("expires_on") @db.Date
-  uploadedById String               @map("uploaded_by_id")
-  createdAt    DateTime             @default(now()) @map("created_at")
+/// The square photo of a person (JPEG made on the phone), apart so lists never load it.
+model EmployeePhoto {
+  employeeId  String   @id @map("employee_id")
+  contentType String   @map("content_type")
+  data        Bytes
+  sizeBytes   Int      @map("size_bytes")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
-  uploadedBy User     @relation("employee_document_uploaded_by", fields: [uploadedById], references: [id], onDelete: Restrict)
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@map("employee_photos")
+}
+
+/// The organisation tree: a department may sit under another, has a head and optionally the
+/// store its costs belong to.
+model Department {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  nameEn         String   @map("name_en")
+  nameAr         String   @map("name_ar")
+  parentId       String?  @map("parent_id")
+  headEmployeeId String?  @map("head_employee_id")
+  costStoreId    String?  @map("cost_store_id")
+  sort           Int      @default(0)
+  isActive       Boolean  @default(true) @map("is_active")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  parent    Department?   @relation("department_tree", fields: [parentId], references: [id], onDelete: Restrict)
+  children  Department[]  @relation("department_tree")
+  head      Employee?     @relation("department_head", fields: [headEmployeeId], references: [id], onDelete: SetNull)
+  costStore DarkStore?    @relation(fields: [costStoreId], references: [id], onDelete: Restrict)
+  members   Employee[]    @relation("department_members")
+  positions JobPosition[]
+
+  @@index([parentId])
+  @@map("departments")
+}
+
+/// Grades (levels) in order: rank 1 is the most junior. A salary band is optional.
+model Grade {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  nameEn          String   @map("name_en")
+  nameAr          String   @map("name_ar")
+  rank            Int      @unique
+  bandMinPiastres Int?     @map("band_min_piastres")
+  bandMaxPiastres Int?     @map("band_max_piastres")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  employees   Employee[]
+  positionsLo JobPosition[] @relation("position_min_grade")
+  positionsHi JobPosition[] @relation("position_max_grade")
+
+  @@map("grades")
+}
+
+/// A job position: title, department, the grades it may hold and how many people are planned.
+model JobPosition {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  titleEn          String   @map("title_en")
+  titleAr          String   @map("title_ar")
+  departmentId     String   @map("department_id")
+  minGradeId       String?  @map("min_grade_id")
+  maxGradeId       String?  @map("max_grade_id")
+  headcountPlanned Int      @default(0) @map("headcount_planned")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  department         Department          @relation(fields: [departmentId], references: [id], onDelete: Restrict)
+  minGrade           Grade?              @relation("position_min_grade", fields: [minGradeId], references: [id], onDelete: Restrict)
+  maxGrade           Grade?              @relation("position_max_grade", fields: [maxGradeId], references: [id], onDelete: Restrict)
+  employees          Employee[]
+  checklistTemplates ChecklistTemplate[]
+
+  @@index([departmentId])
+  @@map("job_positions")
+}
+
+/// What HR keeps on a file (ID copy, contract...): expiry, who must have it, formats, size.
+/// Required when `required` is on and the person matches every non empty list.
+model EmployeeDocumentType {
+  id                    String   @id @default(cuid())
+  code                  String   @unique
+  nameEn                String   @map("name_en")
+  nameAr                String   @map("name_ar")
+  hasExpiry             Boolean  @default(false) @map("has_expiry")
+  required              Boolean  @default(false)
+  requiredEmployment    String[] @default([]) @map("required_employment")
+  requiredDepartmentIds String[] @default([]) @map("required_department_ids")
+  requiredPositionIds   String[] @default([]) @map("required_position_ids")
+  allowedTypes          String[] @default(["image/jpeg", "image/png", "image/webp", "application/pdf"]) @map("allowed_types")
+  maxBytes              Int      @default(3000000) @map("max_bytes")
+  /// Only HR use and the person may open it
+  confidential          Boolean  @default(false)
+  /// The person may upload it from My HR (waits for HR to verify)
+  selfUpload            Boolean  @default(true) @map("self_upload")
+  /// Several separate documents of this type (certificates); otherwise a new upload is a new version
+  multiple              Boolean  @default(false)
+  /// Days before expiry to alert; empty means hr.document_alert_days
+  alertDays             Int?     @map("alert_days")
+  sort                  Int      @default(0)
+  isActive              Boolean  @default(true) @map("is_active")
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  documents      EmployeeDocument[]
+  checklistTasks ChecklistTemplateTask[]
+
+  @@map("employee_document_types")
+}
+
+enum EmployeeDocumentStatus {
+  pending
+  verified
+  rejected
+
+  @@map("employee_document_status")
+}
+
+/// A scanned document of an employee file (photo or PDF), kept in the database like proof
+/// photos but in its own table so only HR and the person can read it. A new version keeps the
+/// old ones (previous_id); only the current one counts.
+model EmployeeDocument {
+  id           String                 @id @default(cuid())
+  employeeId   String                 @map("employee_id")
+  typeId       String                 @map("type_id")
+  title        String?
+  contentType  String                 @map("content_type")
+  data         Bytes
+  sizeBytes    Int                    @map("size_bytes")
+  issuedOn     DateTime?              @map("issued_on") @db.Date
+  expiresOn    DateTime?              @map("expires_on") @db.Date
+  version      Int                    @default(1)
+  previousId   String?                @unique @map("previous_id")
+  isCurrent    Boolean                @default(true) @map("is_current")
+  status       EmployeeDocumentStatus @default(pending)
+  reviewNote   String?                @map("review_note")
+  reviewedById String?                @map("reviewed_by_id")
+  reviewedAt   DateTime?              @map("reviewed_at")
+  /// Uploaded by the person from My HR
+  selfUploaded Boolean                @default(false) @map("self_uploaded")
+  uploadedById String                 @map("uploaded_by_id")
+  createdAt    DateTime               @default(now()) @map("created_at")
+
+  employee   Employee             @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  type       EmployeeDocumentType @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  previous   EmployeeDocument?    @relation("document_versions", fields: [previousId], references: [id], onDelete: SetNull)
+  next       EmployeeDocument?    @relation("document_versions")
+  uploadedBy User                 @relation("employee_document_uploaded_by", fields: [uploadedById], references: [id], onDelete: Restrict)
+  reviewedBy User?                @relation("employee_document_reviewed_by", fields: [reviewedById], references: [id], onDelete: Restrict)
 
   @@index([employeeId])
   @@index([expiresOn])
+  @@index([typeId])
   @@map("employee_documents")
+}
+
+/// A salary package from a day on: basic salary plus allowances. Later packages never change
+/// earlier rows, so the list is the history; payroll reads the one in force.
+model SalaryPackage {
+  id                  String   @id @default(cuid())
+  employeeId          String   @map("employee_id")
+  effectiveFrom       DateTime @map("effective_from") @db.Date
+  basicPiastres       Int      @map("basic_piastres")
+  /// The wage social insurance is counted on; empty means the gross itself
+  insuredWagePiastres Int?     @map("insured_wage_piastres")
+  note                String?
+  createdById         String   @map("created_by_id")
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  employee   Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy  User              @relation("salary_package_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  allowances SalaryAllowance[]
+
+  @@unique([employeeId, effectiveFrom])
+  @@map("salary_packages")
+}
+
+enum AllowanceKind {
+  housing
+  transport
+  phone
+  other
+
+  @@map("allowance_kind")
+}
+
+model SalaryAllowance {
+  id             String        @id @default(cuid())
+  packageId      String        @map("package_id")
+  kind           AllowanceKind
+  label          String?
+  amountPiastres Int           @map("amount_piastres")
+
+  package SalaryPackage @relation(fields: [packageId], references: [id], onDelete: Cascade)
+
+  @@index([packageId])
+  @@map("salary_allowances")
+}
+
+enum ChecklistKind {
+  onboarding
+  offboarding
+
+  @@map("checklist_kind")
+}
+
+/// Onboarding or offboarding tasks for a position (no position: the default for everyone).
+model ChecklistTemplate {
+  id         String        @id @default(cuid())
+  code       String        @unique
+  kind       ChecklistKind
+  nameEn     String        @map("name_en")
+  nameAr     String        @map("name_ar")
+  positionId String?       @map("position_id")
+  isActive   Boolean       @default(true) @map("is_active")
+  createdAt  DateTime      @default(now()) @map("created_at")
+  updatedAt  DateTime      @updatedAt @map("updated_at")
+
+  position   JobPosition?            @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  tasks      ChecklistTemplateTask[]
+  checklists EmployeeChecklist[]
+
+  @@map("checklist_templates")
+}
+
+model ChecklistTemplateTask {
+  id             String  @id @default(cuid())
+  templateId     String  @map("template_id")
+  titleEn        String  @map("title_en")
+  titleAr        String  @map("title_ar")
+  /// hr, manager, employee, it, finance, store
+  ownerRole      String  @map("owner_role")
+  /// Days after the start (hire or last day); negative is before it
+  dueDays        Int     @default(0) @map("due_days")
+  /// Done by itself once a verified document of this type is on the file
+  documentTypeId String? @map("document_type_id")
+  sort           Int     @default(0)
+
+  template     ChecklistTemplate     @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  documentType EmployeeDocumentType? @relation(fields: [documentTypeId], references: [id], onDelete: SetNull)
+
+  @@index([templateId])
+  @@map("checklist_template_tasks")
+}
+
+enum ChecklistStatus {
+  open
+  done
+  cancelled
+
+  @@map("checklist_status")
+}
+
+/// A checklist started for one person, copied from a template so later template edits never
+/// change it.
+model EmployeeChecklist {
+  id          String          @id @default(cuid())
+  employeeId  String          @map("employee_id")
+  templateId  String?         @map("template_id")
+  kind        ChecklistKind
+  nameEn      String          @map("name_en")
+  nameAr      String          @map("name_ar")
+  startsOn    DateTime        @map("starts_on") @db.Date
+  status      ChecklistStatus @default(open)
+  createdById String          @map("created_by_id")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+
+  employee  Employee                @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  template  ChecklistTemplate?      @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  createdBy User                    @relation("employee_checklist_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  tasks     EmployeeChecklistTask[]
+
+  @@index([employeeId])
+  @@map("employee_checklists")
+}
+
+model EmployeeChecklistTask {
+  id             String    @id @default(cuid())
+  checklistId    String    @map("checklist_id")
+  titleEn        String    @map("title_en")
+  titleAr        String    @map("title_ar")
+  ownerRole      String    @map("owner_role")
+  dueOn          DateTime  @map("due_on") @db.Date
+  documentTypeId String?   @map("document_type_id")
+  sort           Int       @default(0)
+  doneAt         DateTime? @map("done_at")
+  doneById       String?   @map("done_by_id")
+  note           String?
+
+  checklist EmployeeChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  doneBy    User?             @relation("employee_checklist_task_done_by", fields: [doneById], references: [id], onDelete: Restrict)
+
+  @@index([checklistId])
+  @@map("employee_checklist_tasks")
 }
 
 // ─── Attendance (docs/HR.md 2) ─────────────────────────────────────────────────

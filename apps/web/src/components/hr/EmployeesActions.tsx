@@ -32,7 +32,7 @@ export function DocumentAlerts({
   }
   return (
     <section
-      className="mt-4 max-w-3xl rounded-lg border border-status-needs-action bg-surface p-4"
+      className="mt-4 rounded-lg border border-status-needs-action bg-surface p-4"
       aria-labelledby="doc-alerts"
     >
       <h2 id="doc-alerts" className="text-h3">
@@ -46,7 +46,10 @@ export function DocumentAlerts({
                 {employeeName(a.data, locale)}
               </Link>
               {' · '}
-              {t(`documentKinds.${a.data.kind}`)}
+              {(locale === 'ar' ? a.data.typeNameAr : a.data.typeNameEn) ??
+                (t.has(`documentKinds.${a.data.kind}`)
+                  ? t(`documentKinds.${a.data.kind}`)
+                  : a.data.kind)}
               <span
                 className={`block text-caption ${a.type === 'document_expired' ? 'text-danger' : 'text-text-muted'}`}
               >

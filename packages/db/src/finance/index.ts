@@ -117,8 +117,6 @@ export {
   payStaffBonus,
   previewPayroll,
   runPayroll,
-  setEmployment,
-  setSalary,
 } from './payroll';
 export { costPerOrder, profitBy } from './profit';
 export {

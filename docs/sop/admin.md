@@ -79,6 +79,24 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - A count is stale: ask the store to count the bin again.
 
+### People (HR app)
+
+1. Employees: search by name, mobile, national ID or EMP code; filter by department, position, grade, store or status; switch between table and cards; export CSV.
+2. Open a file: the header shows the photo, position, grade, department, manager and how complete the documents are. Tabs: Overview, Job and contract, Salary package (with the salaries switch), Documents, Onboarding, Team, History.
+3. Job and contract: choose the position (its department comes with it) and a grade inside the position's range; leave the manager empty to follow the department head.
+4. Documents: upload a photo or PDF per required type; a new upload keeps the old one as a version. Verify what people sent from My HR, or refuse it with a note.
+5. Org chart: by manager or by department; dashed cards are open places. Export PNG or print for the wall.
+6. Configuration: departments (with heads), positions (planned headcount), grades (bands), document types (who needs them) and onboarding templates.
+
+**Check it went right**
+
+- Every file shows 100% documents, a position, a grade and a manager; the org chart has one person at the top.
+
+**If something is wrong**
+
+- Manager loop refused: someone would manage themselves through the chain; set the manager on the file instead.
+- A person is missing from payroll: open their Salary package tab and set the package.
+
 ### Users and settings
 
 1. Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.
@@ -170,6 +188,24 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - جرد قديم: اطلب من الفرع يجرد الرف تاني.
+
+### الأفراد (تطبيق الموارد البشرية)
+
+1. الموظفون: دوّر بالاسم أو الموبايل أو الرقم القومي أو كود الموظف؛ فلتر بالقسم أو الوظيفة أو الدرجة أو المخزن أو الحالة؛ بدّل بين الجدول والبطاقات؛ وصدّر CSV.
+2. افتح الملف: الجزء العلوي فيه الصورة والوظيفة والدرجة والقسم والمدير ونسبة اكتمال المستندات. التبويبات: نظرة عامة، الوظيفة والعقد، حزمة الراتب (بصلاحية المرتبات)، المستندات، الاستقبال، الفريق، السجل.
+3. الوظيفة والعقد: اختار الوظيفة (القسم بييجي معاها) ودرجة جوه نطاق الوظيفة؛ سيب المدير فاضي عشان يتبع رئيس القسم.
+4. المستندات: ارفع صورة أو PDF لكل نوع مطلوب؛ الرفع الجديد بيحتفظ بالقديم كنسخة. اتحقق من اللي الناس بعتوه من ملفي، أو ارفضه بملاحظة.
+5. الهيكل التنظيمي: حسب المدير أو حسب القسم؛ البطاقات المنقطة أماكن شاغرة. صدّره صورة PNG أو اطبعه.
+6. الإعدادات: الأقسام (ورؤساؤها)، الوظائف (العدد المخطط)، الدرجات (النطاقات)، أنواع المستندات (مين محتاجها)، وقوالب الاستقبال.
+
+**اتأكد إنها مشيت صح**
+
+- كل ملف مستنداته 100% وله وظيفة ودرجة ومدير؛ والهيكل التنظيمي فيه شخص واحد فوق.
+
+**لو فيه مشكلة**
+
+- اترفض بسبب دايرة مديرين: حد هيبقى مدير نفسه من خلال السلسلة؛ حدد المدير في الملف بدل كده.
+- حد مش ظاهر في المرتبات: افتح تبويب حزمة الراتب وحدد الحزمة.
 
 ### المستخدمين والإعدادات
 

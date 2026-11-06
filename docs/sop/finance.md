@@ -106,7 +106,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Salaries and advances
 
-1. Salaries: a finance manager with salary access (or the owner) marks each person as an employee or outsourced (with their company), and sets employees' salary and insured wage.
+1. Salaries: HR keeps each person's employment (employee or outsourced, with their company) and salary package (basic plus allowances, from a day on). Payroll shows them read only; ask HR for any change.
 2. An advance: choose the person, amount and the bank or box it is paid from.
 3. Month end: choose the month and the bank, enter bonuses, deductions and advances to take back, Check the run (tax, insurance, martyrs fund per person), then Pay; print the payslips.
 4. Outsourced people: enter their company's monthly bill per person in Suppliers and bills; take advances back when paying that bill; pay their bonuses here.
@@ -118,7 +118,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 **If something is wrong**
 
-- Someone is missing from the run: their salary is not set yet; ask admin.
+- Someone is missing from the run: HR has not set their salary package yet; ask HR (a ticket to the HR manager).
 
 ### Supplier bills
 
@@ -374,7 +374,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### المرتبات والسلف
 
-1. المرتبات: المدير المالي اللي معاه صلاحية المرتبات (أو المالك) بيحدد كل شخص موظف ولا عمالة خارجية (وشركته)، ومرتب الموظفين وأجرهم التأميني.
+1. المرتبات: الموارد البشرية بتحدد كل شخص موظف ولا عمالة خارجية (وشركته) وحزمة مرتبه (الأساسي والبدلات من تاريخ معين). شاشة المرتبات بتعرضهم للقراءة بس؛ أي تغيير اطلبه من الموارد البشرية.
 2. سلفة: اختار الشخص والمبلغ والبنك أو الخزنة اللي هتدفع منها.
 3. آخر الشهر: اختار الشهر والبنك، اكتب المكافآت والخصومات والسلف المستردة، راجع المرتبات (الضريبة والتأمينات وصندوق الشهداء لكل شخص)، وادفع؛ واطبع القسائم.
 4. العمالة الخارجية: سجل فاتورة شركتهم الشهرية لكل شخص في الموردون والفواتير؛ استرد السلف وإنت بتدفع الفاتورة؛ وادفع مكافآتهم من هنا.
@@ -386,7 +386,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 **لو فيه مشكلة**
 
-- حد مش ظاهر في المرتبات: مرتبه لسه مش متحدد؛ اسأل الأدمن.
+- حد مش ظاهر في المرتبات: الموارد البشرية لسه ما حددتش حزمة مرتبه؛ ابعت تذكرة لمدير الموارد البشرية.
 
 ### فواتير الموردين
 

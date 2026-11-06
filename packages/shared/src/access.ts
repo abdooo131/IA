@@ -63,6 +63,7 @@ export const JOB_ROLES = [
   'finance_officer',
   'finance_manager',
   'hr_officer',
+  'hr_manager',
   'account_manager',
   'qc_agent',
 ] as const;
@@ -171,6 +172,13 @@ export const JOB_ROLE_TEMPLATES: Record<JobRole, AccessTemplate> = {
     true,
     false,
     false,
+  ),
+  // HR v2: HR manager keeps salary packages (hr manage with salaries); no accounting.
+  hr_manager: template(
+    ['none', 'none', 'none', 'none', 'none', 'none', 'manage', 'none'],
+    true,
+    false,
+    true,
   ),
   account_manager: template(
     ['none', 'view', 'view', 'use', 'view', 'none', 'none', 'none'],

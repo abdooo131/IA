@@ -13,6 +13,7 @@ import {
 import { writeAccess } from '../access';
 import { ensureStoreShifts } from '../attendance';
 import { ensureEmployees } from '../hr';
+import { ensureHrDefaults, placeSeedPeople } from '../hr-defaults';
 import { hashPassword } from '../password';
 import { move, receive } from '../stock';
 import { setZoneArea } from '../zones';
@@ -200,6 +201,11 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
   const shifts = await ensureStoreShifts(prisma, cairoDay(new Date()));
   if (shifts.created + shifts.assigned > 0)
     log(`Shifts: ${shifts.created} created, ${shifts.assigned} people planned`);
+  // HR structure (docs/HR.md): departments, grades, positions, document types, checklists.
+  const hrRows = await ensureHrDefaults(prisma);
+  if (hrRows > 0) log(`HR structure: ${hrRows} rows added`);
+  const placed = await placeSeedPeople(prisma);
+  if (placed > 0) log(`People placed in the organisation: ${placed}`);
 
   // Opening stock goes through the real stock functions: receive, then put away.
   let movements = 0;

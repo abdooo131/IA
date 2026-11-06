@@ -16,7 +16,8 @@ const ANY_SIGNED_IN = new Set([
   'photos/:id',
   'photos',
   'me/access',
-  // My HR: a person's own employee file, read only (merchants have none).
+  // My HR: a person's own employee file (merchants have none): read, upload a missing
+  // document (HR verifies it), their photo; managers see their team without pay.
   'me/employee',
   'me/employee/history',
   'me/employee/documents/:documentId',
@@ -24,6 +25,12 @@ const ANY_SIGNED_IN = new Set([
   'me/attendance',
   'me/attendance/clock-in',
   'me/attendance/clock-out',
+  'me/employee/documents',
+  'me/employee/photo',
+  'me/team',
+  'me/team/:employeeId',
+  // A person's photo: themself, their managers and HR view (checked inside).
+  'people/:employeeId/photo',
 ]);
 /**
  * Routes team members reach by role alone, without an access profile check: tickets (every
