@@ -236,16 +236,16 @@
   font-weight: 700;
 }
 .snw-area-parent {
-  color: #556178;
+  color: #5b6b82;
   font-size: 13px;
 }
 .snw-area-store {
-  color: #556178;
+  color: #5b6b82;
   font-size: 13px;
 }
 .snw-note {
   margin: 4px 0 8px;
-  color: #556178;
+  color: #5b6b82;
   font-size: 13px;
 }
 [data-shiplynow] {
@@ -288,5 +288,5 @@
 }
 .snw-product--no {
   background: #faf1e8;
-  color: #556178;
+  color: #5b6b82;
 }

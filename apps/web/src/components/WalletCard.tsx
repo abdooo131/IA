@@ -1,9 +1,9 @@
 import { Icon, type IconName } from './Icon';
 
 /**
- * A money balance card, after the brand guide's COD balance card: a solid Navy ground (Shiply
- * Blue in the dark theme), a small spaced label, the amount large in Cream and the note in
- * Lime. Wallet colors appear only on cards like this one.
+ * A money balance card, after the brand guide's COD balance card: a Navy ground (Shiply Blue in
+ * the dark theme), a small spaced label, the amount large in Cream, the note in Lime and the S
+ * arrow mark faint in the corner. Wallet colors appear only on cards like this one.
  */
 export function WalletCard({
   label,
@@ -19,9 +19,15 @@ export function WalletCard({
   large?: boolean;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-lg bg-hero p-4 text-hero-ink">
+    <div className="relative isolate overflow-hidden rounded-xl bg-hero p-5 text-hero-ink">
+      <img
+        src="/brand/mark-reverse.svg"
+        alt=""
+        aria-hidden="true"
+        className={`pointer-events-none absolute -bottom-4 -end-3 -z-10 w-auto opacity-25 ${large ? 'h-28' : 'h-20'}`}
+      />
       <div className="flex items-center justify-between gap-2">
-        <p className="text-label uppercase">{label}</p>
+        <p className="text-label uppercase opacity-80">{label}</p>
         <Icon name={icon} size={20} className="text-hero-accent" />
       </div>
       <p

@@ -68,12 +68,27 @@
   .bg-danger.text-white {
     color: var(--shiply-on-status);
   }
-  /* Brand pattern ("S tape"): rows of the forward S mark, for brand panels and empty states.
-     Decorative only: never behind text that needs contrast. */
+  /* Brand patterns from the guide (public/brand). Decorative only: never behind text that needs
+     contrast. S tape: the S arrow repeated like packing tape (Cream at 15%, now and then Lime),
+     for Navy grounds. City route: a dotted Lime route over faint Cairo streets on the guide's Navy
+     gradient; on a tall panel only its right part shows, below the panel's text. */
   .shiply-tape {
     background-image: url('/brand/pattern-s-tape.svg');
-    background-size: 96px 96px;
+    background-size: 400px 163px;
     background-repeat: repeat;
+  }
+  .shiply-route {
+    background-color: var(--shiply-navy);
+    background-image:
+      url('/brand/pattern-city-route.svg'),
+      radial-gradient(ellipse at 90% 0%, #1f4fcb 0%, #0b2c6e 45%, #082341 100%);
+    background-size:
+      auto 100%,
+      cover;
+    background-position:
+      right center,
+      center;
+    background-repeat: no-repeat;
   }
   .tabular {
     font-variant-numeric: tabular-nums;

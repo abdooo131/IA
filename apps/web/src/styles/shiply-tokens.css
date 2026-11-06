@@ -75,7 +75,7 @@
   /* borders that must stay visible (form fields): 3:1 on white and Cream */
   --shiply-line-strong: #7f8798;
   --shiply-text: #082341;
-  --shiply-text-muted: #556178;
+  --shiply-text-muted: #5b6b82;
   --shiply-primary: #0046fc;
   --shiply-on-primary: #ffffff;
   --shiply-primary-pressed: #0036c4;
@@ -84,13 +84,13 @@
   --shiply-accent: #cff905;
   --shiply-on-accent: #082341;
   --shiply-focus: #0046fc;
-  --shiply-danger: #c42719;
-  --shiply-status-new: #5a6680;
+  --shiply-danger: #b42318;
+  --shiply-status-new: #4e5a72;
   --shiply-status-in-progress: #6a3fd6;
-  --shiply-status-heading-to-customer: #0046fc;
-  --shiply-status-delivered: #12753c;
-  --shiply-status-needs-action: #b04a00;
-  --shiply-status-returning: #c42719;
+  --shiply-status-heading-to-customer: #a8188e;
+  --shiply-status-delivered: #0f6a35;
+  --shiply-status-needs-action: #9a4100;
+  --shiply-status-returning: #b42318;
   /* text on a filled status or danger chip */
   --shiply-on-status: #ffffff;
   /* brand hero ground (money balance cards like the guide's COD balance card, the tracking status):
@@ -153,7 +153,7 @@
   --shiply-line: #24476f;
   --shiply-line-strong: #6b85ab;
   --shiply-text: #faf1e8;
-  --shiply-text-muted: #aebbcd;
+  --shiply-text-muted: #bfcbe0;
   --shiply-primary: #3366ff;
   --shiply-on-primary: #ffffff;
   --shiply-primary-pressed: #2350e0;
@@ -165,7 +165,7 @@
   --shiply-danger: #ff8a7a;
   --shiply-status-new: #b3bfd0;
   --shiply-status-in-progress: #b9a2ff;
-  --shiply-status-heading-to-customer: #9db5ff;
+  --shiply-status-heading-to-customer: #f28bde;
   --shiply-status-delivered: #5fd38d;
   --shiply-status-needs-action: #ffb35c;
   --shiply-status-returning: #ff8a7a;
@@ -184,7 +184,7 @@
     --shiply-line-strong: #6b85ab;
   --shiply-line-strong: #6b85ab;
     --shiply-text: #faf1e8;
-    --shiply-text-muted: #aebbcd;
+    --shiply-text-muted: #bfcbe0;
     --shiply-primary: #3366ff;
     --shiply-on-primary: #ffffff;
     --shiply-primary-pressed: #2350e0;
@@ -196,7 +196,7 @@
     --shiply-danger: #ff8a7a;
     --shiply-status-new: #b3bfd0;
     --shiply-status-in-progress: #b9a2ff;
-    --shiply-status-heading-to-customer: #9db5ff;
+    --shiply-status-heading-to-customer: #f28bde;
     --shiply-status-delivered: #5fd38d;
     --shiply-status-needs-action: #ffb35c;
     --shiply-status-returning: #ff8a7a;
@@ -216,7 +216,7 @@
   --shiply-line: #24476f;
   --shiply-line-strong: #6b85ab;
   --shiply-text: #faf1e8;
-  --shiply-text-muted: #aebbcd;
+  --shiply-text-muted: #bfcbe0;
   --shiply-primary: #3366ff;
   --shiply-on-primary: #ffffff;
   --shiply-primary-pressed: #2350e0;
@@ -228,7 +228,7 @@
   --shiply-danger: #ff8a7a;
   --shiply-status-new: #b3bfd0;
   --shiply-status-in-progress: #b9a2ff;
-  --shiply-status-heading-to-customer: #9db5ff;
+  --shiply-status-heading-to-customer: #f28bde;
   --shiply-status-delivered: #5fd38d;
   --shiply-status-needs-action: #ffb35c;
   --shiply-status-returning: #ff8a7a;

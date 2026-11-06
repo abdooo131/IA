@@ -104,6 +104,28 @@ describe('brand v2 tokens', () => {
     });
   }
 
+  // Status pills (the guide's "Heading to customer" pill): the status color as text on a 14%
+  // tint of itself over the card or the page.
+  const mix = (fg: string, bg: string, share: number) => {
+    const ch = (h: string, i: number) => parseInt(h.slice(1 + i * 2, 3 + i * 2), 16);
+    return `#${[0, 1, 2]
+      .map((i) => Math.round(ch(fg, i) * share + ch(bg, i) * (1 - share)))
+      .map((v) => v.toString(16).padStart(2, '0'))
+      .join('')}`;
+  };
+  for (const [theme, vars] of [
+    ['light', light],
+    ['dark', dark],
+  ] as const) {
+    it.each(STATUSES.flatMap((s) => ['bg', 'surface'].map((g) => [s, g])))(
+      `${theme}: %s pill on its tint over %s passes 4.5:1`,
+      (status, ground) => {
+        const fg = vars[status]!;
+        expect(contrast(fg, mix(fg, vars[ground]!, 0.14))).toBeGreaterThanOrEqual(4.5);
+      },
+    );
+  }
+
   it('never puts Lime text on white or Cream', () => {
     expect(contrast(light.lime!, '#ffffff')).toBeLessThan(3);
     expect(contrast(light.lime!, light.cream!)).toBeLessThan(3);

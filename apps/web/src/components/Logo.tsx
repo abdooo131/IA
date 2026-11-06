@@ -1,6 +1,7 @@
-// Plain img tags: the logo files are fixed brand v2 SVGs (public/brand) and must not be altered.
-// Light theme: Shiply Blue mark with a Navy wordmark. Dark theme: Lime mark with a Cream
-// wordmark. The mark always points forward, in Arabic too (never mirrored).
+// Plain img tags: the logo files are the guide's logo (public/brand, traced from the brand v2
+// artwork) and must not be altered. Light theme: Shiply Blue mark with a Navy wordmark. Dark
+// theme and Navy or Blue grounds: Lime mark with a white wordmark. The mark always points
+// forward, in Arabic too (never mirrored).
 
 export function Logo({ alt, size = 'md' }: { alt: string; size?: 'md' | 'lg' }) {
   const h = size === 'lg' ? 'h-9' : 'h-7';
