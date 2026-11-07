@@ -11,6 +11,7 @@ const groups = (me: Me): NavGroup[] => [
       { href: '/merchant/new', label: 'New parcel', icon: 'create' },
       { href: '/merchant/pickups', label: 'Pickups', icon: 'pickups' },
       { href: '/merchant/statement', label: 'Money', icon: 'wallet' },
+      { href: '/merchant/invoices', label: 'Tax invoices', icon: 'invoice' },
     ],
   },
 ];

@@ -119,8 +119,26 @@ What posts, and when:
     second person before they post.
 11. **Closing the books** for a day stops anything being posted on or before it.
 
-Reports: trial balance, profit and loss, balance sheet, and the age of money held (cash with
-couriers, and what merchants are waiting for).
+12. **VAT**: our prices include 14% VAT. Every fee books its amount before VAT as revenue and the
+    VAT on account 2400. Supplier bills book the VAT we paid on account 1500. The Taxes page shows
+    the month's VAT to pay and records the payment.
+13. **Tax invoices**: after a month ends, finance issues one tax invoice per merchant (numbered
+    once, never twice). A credit note gives money back against an invoice, after a second person
+    approves. Each document downloads as the Egyptian Tax Authority's file; sending it directly
+    needs the company's ETA client id, secret and signing token.
+14. **Suppliers and bills**: a bill records the amount before VAT, the VAT and the withholding tax
+    (0, 1, 3 or 5%). A second person approves it, then it is paid by its due date. Withholding tax
+    is paid to the state from the Taxes page.
+15. **Bank matching**: the bank's CSV statement is imported and each line matched to our books by
+    amount and date (a shared reference breaks a tie); lines only the bank has (charges, interest)
+    are booked from there.
+16. **Agent advances**: an agent may take up to half of what they earned so far this month (a
+    setting), approved by finance; it comes off their month end payment.
+17. **Cash limits**: a courier holding more cash than allowed, or a hub safe holding too much,
+    raises an urgent alert until it is handed in or deposited.
+
+Reports: trial balance, profit and loss, balance sheet, cash flow, profit per merchant, hub and
+courier, budgets against actual, and the age of money held.
 
 ## Statuses
 

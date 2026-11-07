@@ -13,6 +13,9 @@ interface Inbox {
   settlements: number;
   expenses: number;
   journals: number;
+  bills: number;
+  creditNotes: number;
+  advances: number;
   bankChanges: { mine: boolean }[];
 }
 
@@ -29,6 +32,9 @@ async function badges(): Promise<Record<string, number>> {
           '/admin/money/agents': inbox.settlements,
           '/admin/money/expenses': inbox.expenses,
           '/admin/money/books': inbox.journals,
+          '/admin/money/bills': inbox.bills,
+          '/admin/money/invoices': inbox.creditNotes,
+          '/admin/money/advances': inbox.advances,
         }
       : {}),
   };

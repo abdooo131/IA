@@ -34,6 +34,15 @@ const LABELS: Record<Editable, [string, string]> = {
   'pay.daily_bonus_points': ['Daily bonus points', 'Points for reaching the daily target'],
   'pay.freeze_days': ['Earnings freeze (days)', 'Days before a courier can withdraw what they earned'],
   'pay.pickup_paid_by': ['Pickup staff paid by', 'The company pays them directly, or their agent at month end'],
+  'tax.vat_bp': ['VAT rate', 'Our prices include it; the books split it out of every fee'],
+  'company.name': ['Company name', 'Shown on tax invoices'],
+  'company.tax_id': ['Tax registration number', 'Shown on tax invoices and sent to the tax authority'],
+  'company.address': ['Company address', 'Shown on tax invoices'],
+  'company.activity_code': ['ETA activity code', 'The tax authority code for our activity'],
+  'company.item_code': ['ETA item code', 'The code registered for our delivery service'],
+  'agents.advance_max_bp': ['Agent advance limit', 'Share of the month so far an agent may take early'],
+  'cash.courier_limit': ['Courier cash limit', 'Cash a courier may hold before an alert'],
+  'cash.safe_limit': ['Hub safe limit', 'Cash a hub safe may hold before it must go to the bank'],
 };
 
 const CHOICE_LABELS: Record<string, string> = { COMPANY: 'The company', AGENT: 'Their agent' };
@@ -68,6 +77,8 @@ function SettingRow({ name, value, onSaved }: { name: Editable; value: unknown; 
         return [...days].sort();
       case 'text':
         return text.trim().toUpperCase();
+      case 'longtext':
+        return text.trim();
       default:
         return text;
     }
@@ -118,7 +129,7 @@ function SettingRow({ name, value, onSaved }: { name: Editable; value: unknown; 
         <Input
           type={def.kind === 'time' ? 'time' : 'text'}
           inputMode={def.kind === 'time' || def.kind === 'text' ? undefined : 'decimal'}
-          className="w-36"
+          className={def.kind === 'longtext' ? 'w-72' : 'w-36'}
           value={text}
           onChange={(e) => setText(e.target.value)}
         />

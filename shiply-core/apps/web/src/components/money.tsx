@@ -83,3 +83,14 @@ export function useRunner(reload?: () => unknown) {
   const view = msg ? <Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert> : null;
   return { run, call, view, busy, setMsg };
 }
+
+/** Downloads a file from the API under the name given. */
+export async function downloadFile(path: string, name: string) {
+  const res = await fetch(`/api${path}`, { credentials: 'same-origin' });
+  if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Could not download');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(await res.blob());
+  a.download = name;
+  a.click();
+}
+

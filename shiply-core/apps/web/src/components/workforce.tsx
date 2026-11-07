@@ -134,6 +134,8 @@ export const ALERT_LABEL: Record<string, string> = {
   LATE_STILL_MISSING: 'Late and still missing',
   REPLACEMENT_NEEDED: 'Replacement needed',
   REPLACEMENT_OVERDUE: 'Replacement overdue',
+  CASH_LIMIT_COURIER: 'Courier over cash limit',
+  CASH_LIMIT_SAFE: 'Safe over cash limit',
 };
 export const VEHICLE_KIND: Record<string, string> = { VAN: 'Van', BOX_TRUCK: 'Box truck', PICKUP_TRUCK: 'Pickup truck', CAR: 'Car', MOTORCYCLE: 'Motorcycle' };
 export const REQUEST_REASON: Record<string, string> = { MERCHANT_SPECIAL: 'Merchant special pickup', BREAKDOWN: 'Vehicle broke down', VEHICLE_FULL: 'Vehicle full', OTHER: 'Other' };

@@ -127,12 +127,46 @@ export function allApps(me: Me | null): AppDef[] {
       color: '#15803D',
       menus: [
         { label: 'Dashboard', pages: [{ href: '/admin/money', label: 'Overview', exact: true }] },
-        { label: 'Merchants', pages: [{ href: '/admin/money/payouts', label: 'Payouts', hint: 'Balances, approvals and the bank file' }] },
+        {
+          label: 'Merchants',
+          pages: [
+            { href: '/admin/money/payouts', label: 'Payouts', hint: 'Balances, approvals and the bank file' },
+            { href: '/admin/money/invoices', label: 'Tax invoices', hint: 'Monthly invoices, credit notes and the ETA file' },
+          ],
+        },
         { label: 'Couriers', pages: [{ href: '/admin/money/couriers', label: 'Courier wallets', hint: 'Fawry pay ins and withdrawals' }] },
-        { label: 'Cash and bank', pages: [{ href: '/admin/money/safes', label: 'Hub safes', hint: 'Deposits to the bank' }] },
-        { label: 'Agents', pages: [{ href: '/admin/money/agents', label: 'Agent settlements' }] },
-        { label: 'Vendors', pages: [{ href: '/admin/money/expenses', label: 'Expenses' }] },
-        { label: 'Reporting', pages: [{ href: '/admin/money/books', label: 'Books and reports', hint: 'Profit and loss, balance sheet, journal' }] },
+        {
+          label: 'Cash and bank',
+          pages: [
+            { href: '/admin/money/safes', label: 'Hub safes', hint: 'Deposits to the bank' },
+            { href: '/admin/money/bank', label: 'Bank matching', hint: 'The bank statement against our books' },
+          ],
+        },
+        {
+          label: 'Agents',
+          pages: [
+            { href: '/admin/money/agents', label: 'Agent settlements' },
+            { href: '/admin/money/advances', label: 'Agent advances' },
+          ],
+        },
+        {
+          label: 'Vendors',
+          pages: [
+            { href: '/admin/money/bills', label: 'Bills', hint: 'Supplier invoices with VAT and withholding' },
+            { href: '/admin/money/suppliers', label: 'Suppliers' },
+            { href: '/admin/money/expenses', label: 'Expenses', hint: 'Paid on the spot' },
+          ],
+        },
+        {
+          label: 'Reporting',
+          pages: [
+            { href: '/admin/money/books', label: 'Books and reports', hint: 'Profit and loss, balance sheet, journal' },
+            { href: '/admin/money/profit', label: 'Profit per merchant, hub and courier' },
+            { href: '/admin/money/cash-flow', label: 'Cash flow' },
+            { href: '/admin/money/budgets', label: 'Budgets' },
+            { href: '/admin/money/taxes', label: 'Taxes', hint: 'VAT and withholding tax' },
+          ],
+        },
       ],
     },
     {
