@@ -1,0 +1,292 @@
+/* Shiply Now storefront widget. Scoped under .snw so it never restyles the theme.
+   Brand v2: Navy bar, Shiply Blue when the 60 minute option is open, Lime for the one action
+   (always with Navy text), Plus Jakarta Sans and IBM Plex Sans Arabic (OFL, shipped here). */
+@font-face {
+  font-family: 'Shiply Jakarta';
+  font-weight: 400;
+  font-display: swap;
+  src: url('plus-jakarta-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Shiply Jakarta';
+  font-weight: 700;
+  font-display: swap;
+  src: url('plus-jakarta-sans-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Shiply Plex Arabic';
+  font-weight: 400;
+  font-display: swap;
+  src: url('ibm-plex-sans-arabic-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Shiply Plex Arabic';
+  font-weight: 700;
+  font-display: swap;
+  src: url('ibm-plex-sans-arabic-700.woff2') format('woff2');
+}
+.snw,
+.snw-backdrop,
+.snw-badge,
+.snw-standard,
+.snw-product {
+  font-family:
+    'Shiply Jakarta',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+}
+.snw[dir='rtl'],
+.snw-backdrop[dir='rtl'],
+:lang(ar) .snw-badge,
+:lang(ar) .snw-standard,
+:lang(ar) .snw-product {
+  font-family: 'Shiply Plex Arabic', 'Shiply Jakarta', system-ui, sans-serif;
+}
+.snw {
+  position: fixed;
+  inset-inline: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  padding: 8px 16px;
+  pointer-events: none;
+}
+.snw--bottom {
+  bottom: 0;
+}
+.snw--top {
+  top: 0;
+}
+.snw[hidden] {
+  display: none;
+}
+.snw-bar {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 640px;
+  width: 100%;
+  padding: 10px 12px 10px 16px;
+  border-radius: 12px;
+  background: #082341;
+  color: #faf1e8;
+  box-shadow: 0 6px 24px rgba(8, 35, 65, 0.25);
+  font-size: 14px;
+  line-height: 1.4;
+}
+.snw[data-state='open'] .snw-bar {
+  background: #0046fc;
+  color: #ffffff;
+}
+.snw[data-state='closed'] .snw-bar,
+.snw[data-state='at_capacity'] .snw-bar,
+.snw[data-state='unsure'] .snw-bar {
+  background: #4a5a72;
+  color: #ffffff;
+}
+.snw[data-state='outside'] .snw-bar {
+  background: #3d4b5c;
+  color: #ffffff;
+}
+.snw-label {
+  flex: 1;
+  min-width: 0;
+}
+.snw-button {
+  flex: none;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 8px;
+  background: #cff905;
+  color: #082341;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.snw-button:focus-visible,
+.snw-locate:focus-visible {
+  outline: 3px solid #cff905;
+  outline-offset: 2px;
+}
+.snw-area:focus-visible,
+.snw-close:focus-visible,
+.snw-search:focus-visible {
+  outline: 3px solid #0046fc;
+  outline-offset: 2px;
+}
+.snw-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(8, 35, 65, 0.5);
+}
+@media (min-width: 640px) {
+  .snw-backdrop {
+    align-items: center;
+  }
+}
+.snw-dialog {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  padding: 16px;
+  border-radius: 16px 16px 0 0;
+  background: #faf1e8;
+  color: #082341;
+}
+@media (min-width: 640px) {
+  .snw-dialog {
+    border-radius: 16px;
+  }
+}
+.snw-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.snw-title {
+  margin: 0;
+  font-size: 18px;
+}
+.snw-close {
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font-size: 24px;
+  cursor: pointer;
+}
+.snw-search {
+  margin: 12px 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid #7f8798;
+  background: #ffffff;
+  color: #082341;
+  border-radius: 8px;
+  font: inherit;
+}
+.snw-explain {
+  margin: 8px 0 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: #fff7e0;
+  color: #5b4a12;
+  font-size: 14px;
+}
+.snw-locate {
+  min-height: 44px;
+  margin-bottom: 4px;
+  padding: 0 12px;
+  border: 1px solid #c9d2de;
+  border-radius: 8px;
+  background: #f3f6fa;
+  color: #0b1f3a;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.snw-locate:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.snw-list {
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+.snw-area {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 8px 12px;
+  border: 0;
+  border-bottom: 1px solid #e7dccf;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+.snw-area:hover {
+  background: #ffffff;
+}
+.snw-area-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.snw-area-name {
+  font-weight: 700;
+}
+.snw-area-parent {
+  color: #5b6b82;
+  font-size: 13px;
+}
+.snw-area-store {
+  color: #5b6b82;
+  font-size: 13px;
+}
+.snw-note {
+  margin: 4px 0 8px;
+  color: #5b6b82;
+  font-size: 13px;
+}
+[data-shiplynow] {
+  position: relative;
+}
+.snw-badge,
+.snw-standard {
+  position: absolute;
+  top: 8px;
+  inset-inline-start: 8px;
+  z-index: 2;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.6;
+  pointer-events: none;
+}
+.snw-badge {
+  background: #cff905;
+  color: #082341;
+}
+.snw-standard {
+  background: #faf1e8;
+  color: #082341;
+}
+.snw-dim {
+  opacity: 0.55;
+}
+.snw-product {
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 700;
+}
+.snw-product--yes {
+  background: #e5ecff;
+  color: #0036c4;
+}
+.snw-product--no {
+  background: #faf1e8;
+  color: #5b6b82;
+}

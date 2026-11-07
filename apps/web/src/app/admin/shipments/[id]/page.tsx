@@ -1,0 +1,17 @@
+import { RecordHistory } from '@/components/workflow/RecordHistory';
+import { ShipmentDetailView } from '@/components/shipment/ShipmentDetailView';
+import { apiGet } from '@/lib/api-server';
+import type { ShipmentDetail } from '@/lib/shipment-types';
+
+export const dynamic = 'force-dynamic';
+
+export default async function AdminShipmentPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const detail = await apiGet<ShipmentDetail>(`/admin/manifests/${encodeURIComponent(id)}`);
+  return (
+    <>
+      <ShipmentDetailView detail={detail} backHref="/admin/shipments" />
+      <RecordHistory entityType="inbound_manifest" entityId={detail.id} />
+    </>
+  );
+}
