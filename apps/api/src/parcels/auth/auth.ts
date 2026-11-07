@@ -31,7 +31,8 @@ export interface SessionUser {
   merchantRights: string[];
 }
 
-const ROLES_KEY = 'parcels:roles';
+export const PARCELS_ROLES_KEY = 'parcels:roles';
+const ROLES_KEY = PARCELS_ROLES_KEY;
 /** No sign in needed. The same mark Shiply Now's guard reads. */
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
 /** Only these network roles may call the route. With no roles, any signed in network user. */

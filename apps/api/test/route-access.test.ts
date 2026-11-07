@@ -3,6 +3,7 @@ import { MetadataScanner, ModulesContainer, Reflector } from '@nestjs/core';
 import { PATH_METADATA } from '@nestjs/common/constants';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { ACCESS_KEY, IS_PUBLIC_KEY, ROLES_KEY } from '../src/auth/decorators';
+import { PARCELS_ROLES_KEY } from '../src/parcels/auth/auth';
 import { createTestApp } from './helpers';
 
 /**
@@ -67,6 +68,12 @@ const ANY_SIGNED_IN = new Set([
  * team member and rider talks to every other) and proof photos (kinds checked inside).
  */
 const TEAM_BY_ROLE = /^(tickets|photos)(\/|$)/;
+// The network's public routes: tracking, reference lists, sign up and joining (phone codes),
+// the merchant API (checked by its API key) and Shopify's signed calls.
+const NETWORK_PUBLIC =
+  /^parcels\/(track\/:number(\/(logo|action))?$|reference\/locations$|health$|auth\/(join|signup(\/code)?)$|v1\/|integrations\/shopify\/(callback|ship(\/(orders|create))?|webhooks)$)/;
+// Open to anyone signed in: who am I, and hub names for trip destinations.
+const NETWORK_ANY_SIGNED_IN = new Set(['parcels/auth/me', 'parcels/reference/hubs']);
 
 describe('route access', () => {
   let app: INestApplication;
@@ -87,7 +94,10 @@ describe('route access', () => {
     const byRoleOnly: string[] = [];
     const accessRoutes: string[] = [];
     let checked = 0;
-    const controllers = [...modules.values()].flatMap((m) => [...m.controllers.values()]);
+    // The parcel network (served under /parcels) has its own roles: checked in its own test below.
+    const controllers = [...modules.values()]
+      .filter((m) => m.metatype?.name !== 'ParcelsModule')
+      .flatMap((m) => [...m.controllers.values()]);
     expect(controllers.length).toBeGreaterThan(20);
     for (const wrapper of controllers) {
       const { instance, metatype } = wrapper;
@@ -133,5 +143,40 @@ describe('route access', () => {
       expect(route).toMatch(
         /^(auth\/(login|refresh|logout|signup|setup\/:token$)|health|coverage|shopify\/|track\/:token|slack\/(events|interactivity)$|eta-signer\/(documents|signatures)$|site\/leads$|proposal\/:token(\/(accept|decline))?$)/,
       );
+  });
+  it('declares who may call every parcel network route', () => {
+    const modules = app.get(ModulesContainer);
+    const scanner = new MetadataScanner();
+    const reflector = new Reflector();
+    const open: string[] = [];
+    const publicRoutes: string[] = [];
+    let checked = 0;
+    const network = [...modules.values()].find((m) => m.metatype?.name === 'ParcelsModule');
+    expect(network).toBeDefined();
+    for (const wrapper of network!.controllers.values()) {
+      const { instance, metatype } = wrapper;
+      if (!instance || !metatype) continue;
+      const base = String(Reflect.getMetadata(PATH_METADATA, metatype) ?? '');
+      const proto = Object.getPrototypeOf(instance) as object;
+      for (const name of scanner.getAllMethodNames(proto)) {
+        const handler = (proto as Record<string, unknown>)[name] as () => unknown;
+        const sub = Reflect.getMetadata(PATH_METADATA, handler);
+        if (sub === undefined) continue;
+        const paths = Array.isArray(sub) ? sub : [sub];
+        const isPublic = reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [handler, metatype]);
+        const roles = reflector.getAllAndOverride<string[]>(PARCELS_ROLES_KEY, [handler, metatype]);
+        for (const p of paths) {
+          const route = ['parcels', base, String(p)].filter(Boolean).join('/').replace(/\/+/g, '/');
+          checked++;
+          if (isPublic) publicRoutes.push(route);
+          else if (!roles?.length && !NETWORK_ANY_SIGNED_IN.has(route)) open.push(route);
+        }
+      }
+    }
+    expect(checked).toBeGreaterThan(100);
+    expect(open).toEqual([]);
+    // Public: tracking (by tracking number), sign up, joining as staff, the reference lists, the
+    // merchant API (its own key), Shopify's signed calls, and labels and docs reached by link.
+    for (const route of publicRoutes) expect(route).toMatch(NETWORK_PUBLIC);
   });
 });

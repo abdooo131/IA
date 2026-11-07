@@ -334,6 +334,34 @@ describe('money', () => {
     expect(bs.totalAssetsPiastres).toBe(bs.totalLiabilitiesPiastres + bs.totalEquityPiastres);
   });
 
+  it('Accounting shows profit per company and cost center, combined or separated', async () => {
+    const today = new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 10);
+    const range = `from=${today.slice(0, 8)}01&to=${today}`;
+    const split = await ok(as.admin!.get(`/finance/profit-and-loss/by-cost-center?${range}`));
+    const shiply = split.companies.find((c: any) => c.company === 'shiply');
+    expect(shiply.incomePiastres).toBeGreaterThan(0);
+    const rows = split.costCenters.filter((r: any) => r.company === 'shiply');
+    // Hubs are NW- cost centers; agent commission has no hub and shows as no cost center.
+    expect(rows.every((r: any) => r.costCenterId === null || r.code.startsWith('NW-'))).toBe(true);
+    expect(rows.some((r: any) => r.code === 'NW-GIZ' && r.incomePiastres > 0)).toBe(true);
+    expect(rows.reduce((n: number, r: any) => n + r.profitPiastres, 0)).toBe(shiply.profitPiastres);
+    expect(split.group.profitPiastres).toBe(
+      split.companies.reduce((n: number, c: any) => n + c.profitPiastres, 0),
+    );
+    const network = await ok(as.admin!.get(`/finance/profit-and-loss?${range}&company=shiply`));
+    expect(network.income.some((r: any) => r.code === '4301')).toBe(true);
+    expect(network.profitPiastres).toBe(shiply.profitPiastres);
+    const now = await ok(as.admin!.get(`/finance/profit-and-loss?${range}&company=shiply_now`));
+    expect(now.income.some((r: any) => r.code === '4301')).toBe(false);
+    const giza = rows.find((r: any) => r.code === 'NW-GIZ');
+    const center = giza.costCenterId;
+    const one = await ok(as.admin!.get(`/finance/profit-and-loss?${range}&costCenter=${center}`));
+    expect(one.profitPiastres).toBe(giza.profitPiastres);
+    const centers = await ok(as.admin!.get('/finance/cost-centers'));
+    expect(centers.some((c: any) => c.id === center)).toBe(true);
+    expect((await as.admin!.get(`/finance/profit-and-loss?company=other`)).status).toBe(400);
+  });
+
   it('the books cannot be edited and must balance', async () => {
     await expect(prisma.ledgerLine.updateMany({ data: { amountPiastres: 1 } })).rejects.toThrow();
     await expect(prisma.ledgerEntry.deleteMany({})).rejects.toThrow();

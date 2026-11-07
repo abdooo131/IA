@@ -247,6 +247,36 @@ export interface ProfitAndLoss {
   profitPiastres: number;
 }
 
+export type GroupCompany = 'shiply_now' | 'shiply';
+
+export interface CostCenterOption {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  company: GroupCompany;
+}
+
+export interface ProfitByCostCenter {
+  companies: {
+    company: GroupCompany;
+    incomePiastres: number;
+    expensesPiastres: number;
+    profitPiastres: number;
+  }[];
+  costCenters: {
+    company: GroupCompany;
+    costCenterId: string | null;
+    code: string | null;
+    nameEn: string | null;
+    nameAr: string | null;
+    incomePiastres: number;
+    expensesPiastres: number;
+    profitPiastres: number;
+  }[];
+  group: { incomePiastres: number; expensesPiastres: number; profitPiastres: number };
+}
+
 export interface BalanceSheet {
   day: string;
   assets: ReportLine[];

@@ -2367,6 +2367,16 @@
       "companyWide": "Company wide (no store)"
     },
     "reports": {
+      "company": "Company",
+      "bothCompanies": "Both companies (group)",
+      "companyShiplyNow": "Shiply Now",
+      "companyShiply": "Shiply",
+      "costCenter": "Cost center",
+      "allCostCenters": "All cost centers",
+      "noCostCenter": "No cost center",
+      "byCostCenter": "Profit by company and cost center",
+      "byCostCenterIntro": "Each company on its own, each dark store, facility or hub on its own, and the group together.",
+      "group": "Group total",
       "plTitle": "Profit and loss",
       "plIntro": "Income and expenses of the period, and what is left.",
       "income": "Income",

@@ -643,7 +643,21 @@ export async function accountStatement(db: Db, accountId: string, from: Date, to
 }
 
 /** Sums of each account's lines in a period (both bounds optional). */
-async function sumsByAccount(db: Db, from?: Date, to?: Date, withoutYearClose = false) {
+/** Which part of the group a report covers: both companies when empty. */
+export interface BookScope {
+  company?: 'shiply_now' | 'shiply';
+  costCenterId?: string;
+}
+
+async function sumsByAccount(
+  db: Db,
+  from?: Date,
+  to?: Date,
+  withoutYearClose = false,
+  scope: BookScope = {},
+) {
+  const company = scope.company ?? null;
+  const costCenterId = scope.costCenterId ?? null;
   const rows = await db.$queryRaw<{ account_id: string; debit: bigint; credit: bigint }[]>`
     SELECT l.account_id,
       COALESCE(SUM(CASE WHEN l.amount_piastres > 0 THEN l.amount_piastres END), 0) AS debit,
@@ -652,6 +666,8 @@ async function sumsByAccount(db: Db, from?: Date, to?: Date, withoutYearClose = 
     WHERE (${from ?? null}::timestamptz IS NULL OR l.occurred_at >= ${from ?? null}::timestamptz)
       AND (${to ?? null}::timestamptz IS NULL OR l.occurred_at < ${to ?? null}::timestamptz)
       AND (${withoutYearClose} = false OR e.kind <> 'year_close')
+      AND (${company}::text IS NULL OR l.company::text = ${company}::text)
+      AND (${costCenterId}::text IS NULL OR l.cost_center_id = ${costCenterId}::text)
     GROUP BY l.account_id`;
   return new Map(
     rows.map((r) => [r.account_id, { debit: Number(r.debit), credit: Number(r.credit) }]),
@@ -688,14 +704,14 @@ export async function trialBalance(db: Db, from?: Date, to?: Date) {
 }
 
 /** Income and expenses of a period, per account, and the profit (or loss). */
-export async function profitAndLoss(db: Db, from: Date, to: Date) {
+export async function profitAndLoss(db: Db, from: Date, to: Date, scope: BookScope = {}) {
   const [accounts, sums, name] = await Promise.all([
     db.ledgerAccount.findMany({
       where: { category: { in: ['revenue', 'expense'] } },
       orderBy: { code: 'asc' },
     }),
     // The year end entry moves profit to retained earnings; it is not income or cost.
-    sumsByAccount(db, from, to, true),
+    sumsByAccount(db, from, to, true, scope),
     ownerNames(db),
   ]);
   const line = (a: LedgerAccount) => {
@@ -720,6 +736,68 @@ export async function profitAndLoss(db: Db, from: Date, to: Date) {
     totalExpensesPiastres: totalExpenses,
     profitPiastres: totalIncome - totalExpenses,
   };
+}
+
+/**
+ * Profit per company and per cost center (dark store, facility or hub, head office team) for a
+ * period. Lines without a cost center are counted under the company's "no cost center" row, so
+ * the rows of a company always add up to its profit and the two companies to the group's.
+ */
+export async function profitByCostCenter(db: Db, from: Date, to: Date) {
+  const rows = await db.$queryRaw<
+    { company: 'shiply_now' | 'shiply'; cost_center_id: string | null; income: bigint; expenses: bigint }[]
+  >`
+    SELECT l.company::text AS company, l.cost_center_id,
+      COALESCE(SUM(CASE WHEN a.category = 'revenue' THEN -l.amount_piastres END), 0) AS income,
+      COALESCE(SUM(CASE WHEN a.category = 'expense' THEN l.amount_piastres END), 0) AS expenses
+    FROM ledger_lines l
+      JOIN ledger_entries e ON e.id = l.entry_id
+      JOIN ledger_accounts a ON a.id = l.account_id
+    WHERE l.occurred_at >= ${from} AND l.occurred_at < ${to}
+      AND e.kind <> 'year_close' AND a.category IN ('revenue', 'expense')
+    GROUP BY l.company, l.cost_center_id`;
+  const centers = await db.costCenter.findMany({ orderBy: { code: 'asc' } });
+  const byId = new Map(centers.map((c) => [c.id, c]));
+  const lines = rows.map((r) => {
+    const c = r.cost_center_id ? byId.get(r.cost_center_id) : undefined;
+    const income = Number(r.income);
+    const expenses = Number(r.expenses);
+    return {
+      company: r.company,
+      costCenterId: r.cost_center_id,
+      code: c?.code ?? null,
+      nameEn: c?.nameEn ?? null,
+      nameAr: c?.nameAr ?? null,
+      incomePiastres: income,
+      expensesPiastres: expenses,
+      profitPiastres: income - expenses,
+    };
+  });
+  lines.sort((a, b) => a.company.localeCompare(b.company) || (a.code ?? '~').localeCompare(b.code ?? '~'));
+  const companies = (['shiply_now', 'shiply'] as const).map((company) => {
+    const mine = lines.filter((l) => l.company === company);
+    const income = mine.reduce((n, l) => n + l.incomePiastres, 0);
+    const expenses = mine.reduce((n, l) => n + l.expensesPiastres, 0);
+    return { company, incomePiastres: income, expensesPiastres: expenses, profitPiastres: income - expenses };
+  });
+  const income = companies.reduce((n, c) => n + c.incomePiastres, 0);
+  const expenses = companies.reduce((n, c) => n + c.expensesPiastres, 0);
+  return {
+    from,
+    to,
+    companies,
+    costCenters: lines,
+    group: { incomePiastres: income, expensesPiastres: expenses, profitPiastres: income - expenses },
+  };
+}
+
+/** The cost centers, for report filters. */
+export function listCostCenters(db: Db) {
+  return db.costCenter.findMany({
+    where: { isActive: true },
+    select: { id: true, code: true, nameEn: true, nameAr: true, company: true },
+    orderBy: [{ company: 'asc' }, { code: 'asc' }],
+  });
 }
 
 /**
