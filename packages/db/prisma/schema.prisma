@@ -51,6 +51,9 @@ enum Role {
   store_staff
   rider
   finance
+  hub_staff
+  courier
+  agent
 
   @@map("role")
 }
@@ -177,6 +180,24 @@ model User {
   activitiesAssigned       RecordActivity[]          @relation("record_activity_assignee")
   activitiesCreated        RecordActivity[]          @relation("record_activity_created_by")
 
+  // Shiply parcel network: hub staff, couriers and agents
+  team            Team?
+  hubId           String?        @map("hub_id")
+  hub             Hub?           @relation("parcels_user_hub", fields: [hubId], references: [id])
+  agentId         String?        @map("agent_id")
+  agent           Agent?         @relation("parcels_user_agent", fields: [agentId], references: [id])
+  courierType     CourierType?   @map("courier_type")
+  hubToHub        Boolean        @default(false) @map("hub_to_hub")
+  shiftStart      String         @default("09:00") @map("shift_start")
+  workDays        Int[]          @default([0, 1, 2, 3, 4, 6]) @map("work_days")
+  vehicleId       String?        @map("vehicle_id")
+  vehicle         Vehicle?       @relation("parcels_user_vehicle", fields: [vehicleId], references: [id])
+  pendingApproval Boolean        @default(false) @map("pending_approval")
+  unfreezeUntil   DateTime?      @map("unfreeze_until")
+  unfreezeReason  String         @default("") @map("unfreeze_reason")
+  courierAreas    CourierArea[]  @relation("parcels_courierArea_user")
+  courierShifts   CourierShift[] @relation("ShiftCourier")
+
   @@index([darkStoreId])
   @@index([merchantId])
   @@map("users")
@@ -254,6 +275,15 @@ model Governorate {
 
   darkStores DarkStore[]
   zones      Zone[]
+
+  // Shiply parcel network: price zone, the hub that serves it (null: not served yet), centre point
+  zoneCode String?       @map("zone_code")
+  zone     PricingZone?  @relation("parcels_governorate_zone", fields: [zoneCode], references: [code])
+  hubId    String?       @map("hub_id")
+  hub      Hub?          @relation("parcels_governorate_hub", fields: [hubId], references: [id])
+  lat      Float         @default(0)
+  lng      Float         @default(0)
+  areas    NetworkArea[] @relation("parcels_networkArea_governorate")
 
   @@map("governorates")
 }
@@ -448,6 +478,22 @@ model Merchant {
   crmDeals           CrmDeal[]
   crmProposals       CrmProposal[]
   crmCommissionLines CrmCommissionLine[]
+
+  // Shiply parcel network: where we pick up and the parcel prices
+  code            String?    @unique
+  contactName     String     @default("") @map("contact_name")
+  pickupAddress   String     @default("") @map("pickup_address")
+  governorateCode String?    @map("governorate_code")
+  areaId          String?    @map("area_id")
+  /// The sorting facility nearest the merchant: it collects their parcels and returns
+  homeHubId       String?    @map("home_hub_id")
+  homeHub         Hub?       @relation("parcels_merchant_homeHub", fields: [homeHubId], references: [id])
+  discountBp      Int        @default(0) @map("discount_bp")
+  logo            Bytes?
+  logoMime        String     @default("") @map("logo_mime")
+  flexShip        Boolean    @default(false) @map("flex_ship")
+  shipments       Shipment[] @relation("parcels_shipment_merchant")
+  pickups         Pickup[]   @relation("parcels_pickup_merchant")
 
   @@index([accountManagerId])
   @@map("merchants")
@@ -1662,6 +1708,7 @@ model Payout {
   approvedBy User?            @relation("payout_approved_by", fields: [approvedById], references: [id])
   receipts   FinanceReceipt[]
   cheques    Cheque[]
+  shipments  Shipment[]
 
   @@index([merchantId, status])
   @@map("payouts")
@@ -2355,13 +2402,14 @@ model Supplier {
   createdById             String   @map("created_by_id")
   createdAt               DateTime @default(now()) @map("created_at")
 
-  defaultExpenseAccount LedgerAccount?  @relation("supplier_default_expense", fields: [defaultExpenseAccountId], references: [id])
-  createdBy             User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  defaultExpenseAccount LedgerAccount?      @relation("supplier_default_expense", fields: [defaultExpenseAccountId], references: [id])
+  createdBy             User                @relation(fields: [createdById], references: [id], onDelete: Restrict)
   accounts              LedgerAccount[]
   bills                 Bill[]
-  staff                 Employee[]      @relation("staffing_supplier")
+  staff                 Employee[]          @relation("staffing_supplier")
   cheques               Cheque[]
   purchaseOrders        PurchaseOrder[]
+  shopPurchaseOrders    ShopPurchaseOrder[]
 
   @@map("suppliers")
 }
@@ -4836,4 +4884,1191 @@ model RecordActivity {
   @@index([entityType, entityId])
   @@index([assigneeId, doneAt, dueOn])
   @@map("record_activities")
+}
+
+// ============================================================================
+// Shiply parcel network (moved from Shiply Core). See docs/MERGE.md.
+// ============================================================================
+
+/// What an agent supplies: pickup staff, delivery staff, or both.
+enum AgentSupply {
+  PICKUP
+  DELIVERY
+  BOTH
+}
+
+enum CourierType {
+  PICKUP
+  DELIVERY
+}
+
+enum AgentDocumentKind {
+  NATIONAL_ID
+  COMMERCIAL_REGISTER
+  TAX_CARD
+  CONTRACT
+  OTHER
+}
+
+enum VehicleKind {
+  VAN
+  BOX_TRUCK
+  PICKUP_TRUCK
+  CAR
+  MOTORCYCLE
+}
+
+/// FIXED vehicles are rented monthly; SPECIAL ones are paid per request at a custom price.
+enum VehicleContract {
+  FIXED
+  SPECIAL
+}
+
+enum VehicleRequestReason {
+  MERCHANT_SPECIAL
+  BREAKDOWN
+  VEHICLE_FULL
+  OTHER
+}
+
+enum VehicleRequestStatus {
+  REQUESTED
+  PROVIDED
+  DONE
+  CANCELLED
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  CHECKED_IN
+  LATE_NOTICE
+  NOT_COMING
+  REPLACED
+}
+
+enum NetworkAlertStatus {
+  OPEN
+  RESOLVED
+}
+
+enum ShipmentStatus {
+  CREATED
+  PICKED_UP
+  AT_INBOUND
+  SORTED
+  AT_OUTBOUND
+  AT_HUB
+  ON_HOLD
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  ATTEMPT_FAILED
+  DELIVERED
+  RETURNED
+  CANCELLED
+  LOST
+}
+
+enum Direction {
+  FORWARD
+  RETURN
+}
+
+enum ParcelSize {
+  S
+  M
+  L
+  XL
+  XXL
+  BULKY
+}
+
+enum Team {
+  INBOUND
+  SORTING
+  OUTBOUND
+}
+
+enum PickupStatus {
+  REQUESTED
+  ASSIGNED
+  COLLECTED
+  RECEIVED
+  CANCELLED
+}
+
+enum BagStatus {
+  OPEN
+  SEALED
+  HANDED_OVER
+  IN_TRANSIT
+  RECEIVED
+  CHECKED
+}
+
+enum TripStatus {
+  LOADING
+  IN_TRANSIT
+  ARRIVED
+}
+
+enum RunStatus {
+  LOADING
+  OUT
+  CLOSED
+}
+
+enum RunItemResult {
+  PENDING
+  DELIVERED
+  RETURNED
+  FAILED
+}
+
+/// A sorting facility (isSorting) or a last mile hub (fed by one facility through parentId).
+model Hub {
+  id        String   @id @default(cuid())
+  code      String   @unique
+  name      String
+  address   String   @default("")
+  isSorting Boolean  @default(false) @map("is_sorting")
+  parentId  String?  @map("parent_id")
+  parent    Hub?     @relation("HubParent", fields: [parentId], references: [id])
+  children  Hub[]    @relation("HubParent")
+  lat       Float    @default(0)
+  lng       Float    @default(0)
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  governorates Governorate[] @relation("parcels_governorate_hub")
+  areas        NetworkArea[]
+  users        User[]        @relation("parcels_user_hub")
+  merchants    Merchant[]    @relation("parcels_merchant_homeHub")
+
+  @@map("hubs")
+}
+
+/// Pricing and promise zone, e.g. Greater Cairo next day, Delta two days.
+model PricingZone {
+  code        String @id
+  name        String
+  transitDays Int    @map("transit_days")
+  priceS      Int    @map("price_s")
+  priceM      Int    @map("price_m")
+  priceL      Int    @map("price_l")
+  priceXL     Int    @map("price_xl")
+  priceXXL    Int    @default(0) @map("price_xxl")
+  priceBulky  Int    @default(0) @map("price_bulky")
+
+  governorates Governorate[] @relation("parcels_governorate_zone")
+
+  @@map("pricing_zones")
+}
+
+model NetworkArea {
+  id              String        @id @default(cuid())
+  governorateCode String        @map("governorate_code")
+  governorate     Governorate   @relation("parcels_networkArea_governorate", fields: [governorateCode], references: [code])
+  nameEn          String        @map("name_en")
+  nameAr          String        @map("name_ar")
+  lat             Float?
+  lng             Float?
+  hubId           String?       @map("hub_id")
+  hub             Hub?          @relation(fields: [hubId], references: [id])
+  couriers        CourierArea[]
+
+  @@unique([governorateCode, nameEn])
+  @@map("network_areas")
+}
+
+/// A field agent (وكيل): supplies pickup and delivery staff, vehicles and replacements.
+model Agent {
+  id                 String      @id @default(cuid())
+  /// Staff can only register with this code, which ties them to the agent.
+  code               String      @unique
+  name               String
+  phone              String
+  email              String      @default("")
+  supplies           AgentSupply @default(BOTH)
+  nationalIdNo       String      @default("") @map("national_id_no")
+  commercialRegister String      @default("") @map("commercial_register")
+  taxCardNo          String      @default("") @map("tax_card_no")
+  bankName           String      @default("") @map("bank_name")
+  bankAccountName    String      @default("") @map("bank_account_name")
+  iban               String      @default("")
+  /// Null = the default commission from settings.
+  commissionBp       Int?        @map("commission_bp")
+  active             Boolean     @default(true)
+  createdAt          DateTime    @default(now()) @map("created_at")
+
+  users           User[]           @relation("parcels_user_agent")
+  documents       AgentDocument[]
+  vehicles        Vehicle[]
+  vehicleRequests VehicleRequest[]
+  shifts          CourierShift[]
+
+  @@map("agents")
+}
+
+model AgentDocument {
+  id           String            @id @default(cuid())
+  agentId      String            @map("agent_id")
+  agent        Agent             @relation(fields: [agentId], references: [id])
+  kind         AgentDocumentKind
+  fileName     String            @map("file_name")
+  mime         String
+  size         Int
+  data         Bytes
+  uploadedById String            @map("uploaded_by_id")
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@map("agent_documents")
+}
+
+model CourierArea {
+  userId String      @map("user_id")
+  user   User        @relation("parcels_courierArea_user", fields: [userId], references: [id])
+  areaId String      @map("area_id")
+  area   NetworkArea @relation(fields: [areaId], references: [id])
+
+  @@id([userId, areaId])
+  @@map("courier_areas")
+}
+
+model Vehicle {
+  id              String          @id @default(cuid())
+  agentId         String          @map("agent_id")
+  agent           Agent           @relation(fields: [agentId], references: [id])
+  plate           String          @unique
+  kind            VehicleKind
+  contract        VehicleContract @default(FIXED)
+  /// Monthly rent in piastres for FIXED vehicles.
+  monthlyRent     Int             @default(0) @map("monthly_rent")
+  capacityParcels Int?            @map("capacity_parcels")
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  users    User[]           @relation("parcels_user_vehicle")
+  requests VehicleRequest[]
+
+  @@map("vehicles")
+}
+
+/// Operations asks an agent for an extra vehicle with its driver, at a custom price.
+model VehicleRequest {
+  id            String               @id @default(cuid())
+  code          String               @unique
+  agentId       String               @map("agent_id")
+  agent         Agent                @relation(fields: [agentId], references: [id])
+  reason        VehicleRequestReason
+  merchantId    String?              @map("merchant_id")
+  hubId         String?              @map("hub_id")
+  date          String
+  /// Agreed price for this request, in piastres.
+  price         Int
+  status        VehicleRequestStatus @default(REQUESTED)
+  vehicleId     String?              @map("vehicle_id")
+  vehicle       Vehicle?             @relation(fields: [vehicleId], references: [id])
+  driverName    String               @default("") @map("driver_name")
+  driverPhone   String               @default("") @map("driver_phone")
+  notes         String               @default("")
+  requestedById String               @map("requested_by_id")
+  providedAt    DateTime?            @map("provided_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  @@index([agentId, status])
+  @@map("vehicle_requests")
+}
+
+/// One courier's working day: scheduled start, check in, and the agent's answer when they are missing.
+model CourierShift {
+  id                  String      @id @default(cuid())
+  courierId           String      @map("courier_id")
+  courier             User        @relation("ShiftCourier", fields: [courierId], references: [id])
+  agentId             String      @map("agent_id")
+  agent               Agent       @relation(fields: [agentId], references: [id])
+  date                String
+  startAt             DateTime    @map("start_at")
+  status              ShiftStatus @default(SCHEDULED)
+  checkInAt           DateTime?   @map("check_in_at")
+  checkInPhoto        Bytes?      @map("check_in_photo")
+  checkInLat          Float?      @map("check_in_lat")
+  checkInLng          Float?      @map("check_in_lng")
+  lateMinutes         Int?        @map("late_minutes")
+  alertedAt           DateTime?   @map("alerted_at")
+  answeredAt          DateTime?   @map("answered_at")
+  expectedAt          DateTime?   @map("expected_at")
+  replacementDeadline DateTime?   @map("replacement_deadline")
+  replacementOverdue  Boolean     @default(false) @map("replacement_overdue")
+  /// The shift of the person who replaced this one.
+  replacementShiftId  String?     @map("replacement_shift_id")
+  /// This shift covers someone else's.
+  replacesShiftId     String?     @map("replaces_shift_id")
+  createdAt           DateTime    @default(now()) @map("created_at")
+
+  @@unique([courierId, date])
+  @@index([agentId, date])
+  @@map("courier_shifts")
+}
+
+/// Something a person must act on. One open alert per kind and entity.
+model NetworkAlert {
+  id           String             @id @default(cuid())
+  kind         String
+  severity     String             @default("normal")
+  agentId      String?            @map("agent_id")
+  hubId        String?            @map("hub_id")
+  entity       String
+  entityId     String             @map("entity_id")
+  message      String
+  status       NetworkAlertStatus @default(OPEN)
+  note         String             @default("")
+  resolvedById String?            @map("resolved_by_id")
+  resolvedAt   DateTime?          @map("resolved_at")
+  createdAt    DateTime           @default(now()) @map("created_at")
+
+  @@index([status, agentId])
+  @@index([kind, entity, entityId])
+  @@map("network_alerts")
+}
+
+model Shipment {
+  id              String     @id @default(cuid())
+  trackingNumber  String     @unique @map("tracking_number")
+  merchantId      String     @map("merchant_id")
+  merchant        Merchant   @relation("parcels_shipment_merchant", fields: [merchantId], references: [id])
+  merchantRef     String     @default("") @map("merchant_ref")
+  customerName    String     @map("customer_name")
+  customerPhone   String     @map("customer_phone")
+  address         String
+  governorateCode String     @map("governorate_code")
+  areaId          String?    @map("area_id")
+  size            ParcelSize @default(M)
+  description     String     @default("")
+  notes           String     @default("")
+  allowOpen       Boolean    @default(false) @map("allow_open")
+  codAmount       Int        @default(0) @map("cod_amount")
+
+  status           ShipmentStatus @default(CREATED)
+  direction        Direction      @default(FORWARD)
+  originHubId      String         @map("origin_hub_id")
+  destinationHubId String         @map("destination_hub_id")
+  currentHubId     String?        @map("current_hub_id")
+  pickupId         String?        @map("pickup_id")
+  bagId            String?        @map("bag_id")
+  /// Lane the sorting team put the parcel on (its next place), waiting for outbound to bag it.
+  laneHubId        String?        @map("lane_hub_id")
+  runId            String?        @map("run_id")
+
+  attempts         Int       @default(0)
+  lastFailReason   String?   @map("last_fail_reason")
+  holdReason       String?   @map("hold_reason")
+  promisedDate     String?   @map("promised_date")
+  /// The planned way through our network as place codes, fixed when the parcel is made.
+  route            String[]  @default([])
+  /// Lost parcels are searched for until this time before the loss is final.
+  searchUntil      DateTime? @map("search_until")
+  /// When the loss became final: the merchant was compensated.
+  lostFinalAt      DateTime? @map("lost_final_at")
+  /// What the merchant was paid for the loss (piastres), reversed if the parcel turns up.
+  compensation     Int       @default(0)
+  damaged          Boolean   @default(false)
+  /// NORMAL, EXCHANGE (deliver new, collect old), EXCHANGE_RETURN (the old item coming back)
+  kind             String    @default("NORMAL")
+  linkedShipmentId String?   @map("linked_shipment_id")
+  /// Price breakdown at booking: list price, discount, open package fee, exchange fee (all included in shippingFee).
+  basePrice        Int       @default(0) @map("base_price")
+  discount         Int       @default(0)
+  openFee          Int       @default(0) @map("open_fee")
+  exchangeFee      Int       @default(0) @map("exchange_fee")
+  /// The customer asked for delivery on this day (YYYY-MM-DD).
+  deliverOn        String?   @map("deliver_on")
+  customerNote     String    @default("") @map("customer_note")
+  rating           Int?
+  ratingComment    String    @default("") @map("rating_comment")
+
+  shippingFee  Int     @map("shipping_fee")
+  codFee       Int     @map("cod_fee")
+  returnFee    Int     @default(0) @map("return_fee")
+  codCollected Int     @default(0) @map("cod_collected")
+  payoutId     String? @map("payout_id")
+  payout       Payout? @relation(fields: [payoutId], references: [id])
+
+  enteredAt   DateTime? @map("entered_at")
+  deliveredAt DateTime? @map("delivered_at")
+  closedAt    DateTime? @map("closed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  events   ShipmentEvent[]
+  runItems RunItem[]
+
+  @@index([merchantId, createdAt])
+  @@index([status, currentHubId])
+  @@index([bagId])
+  @@index([runId])
+  @@index([pickupId])
+  @@map("shipments")
+}
+
+/// Append only. A trigger rejects UPDATE and DELETE.
+model ShipmentEvent {
+  id         String          @id @default(cuid())
+  shipmentId String          @map("shipment_id")
+  shipment   Shipment        @relation(fields: [shipmentId], references: [id])
+  type       String
+  fromStatus ShipmentStatus? @map("from_status")
+  toStatus   ShipmentStatus  @map("to_status")
+  hubId      String?         @map("hub_id")
+  userId     String?         @map("user_id")
+  note       String          @default("")
+  createdAt  DateTime        @default(now()) @map("created_at")
+
+  @@index([shipmentId, createdAt])
+  @@map("shipment_events")
+}
+
+model Pickup {
+  id            String       @id @default(cuid())
+  code          String       @unique
+  merchantId    String       @map("merchant_id")
+  merchant      Merchant     @relation("parcels_pickup_merchant", fields: [merchantId], references: [id])
+  hubId         String       @map("hub_id")
+  date          String
+  status        PickupStatus @default(REQUESTED)
+  courierId     String?      @map("courier_id")
+  expectedCount Int          @default(0) @map("expected_count")
+  notes         String       @default("")
+  collectedAt   DateTime?    @map("collected_at")
+  /// Made by the system because the merchant had parcels waiting and no pickup booked.
+  auto          Boolean      @default(false)
+  receivedAt    DateTime?    @map("received_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([hubId, date])
+  @@map("pickups")
+}
+
+model Bag {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  originHubId      String    @map("origin_hub_id")
+  destinationHubId String    @map("destination_hub_id")
+  status           BagStatus @default(OPEN)
+  tripId           String?   @map("trip_id")
+  trip             Trip?     @relation(fields: [tripId], references: [id])
+  sealedAt         DateTime? @map("sealed_at")
+  receivedAt       DateTime? @map("received_at")
+  /// When the receiving team finished scanning the bag's parcels; unscanned ones were marked lost.
+  checkedAt        DateTime? @map("checked_at")
+  palletId         String?   @map("pallet_id")
+  pallet           Pallet?   @relation(fields: [palletId], references: [id])
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([originHubId, status])
+  @@map("bags")
+}
+
+/// A line haul vehicle moving sealed bags from one hub to another.
+model Trip {
+  id               String     @id @default(cuid())
+  code             String     @unique
+  originHubId      String     @map("origin_hub_id")
+  destinationHubId String     @map("destination_hub_id")
+  vehicle          String     @default("")
+  driverName       String     @default("") @map("driver_name")
+  status           TripStatus @default(LOADING)
+  departedAt       DateTime?  @map("departed_at")
+  arrivedAt        DateTime?  @map("arrived_at")
+  /// A back haul: the same vehicle returning, linked to the trip it came on.
+  backhaulOfId     String?    @map("backhaul_of_id")
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  bags Bag[]
+
+  @@map("trips")
+}
+
+/// A courier's delivery run for one day from one hub. Can carry deliveries and returns.
+model Run {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  hubId        String    @map("hub_id")
+  courierId    String    @map("courier_id")
+  date         String
+  status       RunStatus @default(LOADING)
+  cashExpected Int       @default(0) @map("cash_expected")
+  cashReceived Int?      @map("cash_received")
+  startedAt    DateTime? @map("started_at")
+  closedAt     DateTime? @map("closed_at")
+  closedById   String?   @map("closed_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  items RunItem[]
+
+  @@index([courierId, status])
+  @@map("runs")
+}
+
+model RunItem {
+  id            String        @id @default(cuid())
+  runId         String        @map("run_id")
+  run           Run           @relation(fields: [runId], references: [id])
+  shipmentId    String        @map("shipment_id")
+  shipment      Shipment      @relation(fields: [shipmentId], references: [id])
+  direction     Direction
+  result        RunItemResult @default(PENDING)
+  failReason    String?       @map("fail_reason")
+  codCollected  Int           @default(0) @map("cod_collected")
+  recipient     String        @default("")
+  backAtHub     Boolean       @default(false) @map("back_at_hub")
+  resolvedAt    DateTime?     @map("resolved_at")
+  /// Where the courier stood when they recorded the result.
+  lat           Float?
+  lng           Float?
+  /// Photo of a return taken in front of the customer, or proof of delivery.
+  photo         Bytes?
+  photoMime     String        @default("") @map("photo_mime")
+  /// The receiver gave the courier the code sent to their phone.
+  codeChecked   Boolean       @default(false) @map("code_checked")
+  /// FlexShip: shipping the refusing customer paid, included in codCollected.
+  flexPaid      Int           @default(0) @map("flex_paid")
+  /// Quality check of a failed attempt: GENUINE or FAKE.
+  reviewVerdict String?       @map("review_verdict")
+  reviewNote    String        @default("") @map("review_note")
+  reviewedById  String?       @map("reviewed_by_id")
+  reviewedAt    DateTime?     @map("reviewed_at")
+
+  @@unique([runId, shipmentId])
+  @@map("run_items")
+}
+
+enum EarningKind {
+  DELIVERY
+  RETURN
+  PICKUP
+  BONUS
+  PENALTY
+  ADJUSTMENT
+}
+
+/// What a courier earned (or lost), in points and money. Money becomes withdrawable after the freeze.
+model CourierEarning {
+  id           String      @id @default(cuid())
+  courierId    String      @map("courier_id")
+  /// The agent the courier worked for at the time; their month end settlement takes it.
+  agentId      String?     @map("agent_id")
+  kind         EarningKind
+  points       Int         @default(0)
+  amount       Int
+  shipmentId   String?     @map("shipment_id")
+  date         String
+  availableAt  DateTime    @map("available_at")
+  settlementId String?     @map("settlement_id")
+  note         String      @default("")
+  createdById  String?     @map("created_by_id")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@unique([courierId, kind, shipmentId])
+  @@index([courierId, date])
+  @@index([agentId, date])
+  @@map("courier_earnings")
+}
+
+enum RequestStatus {
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  REJECTED
+}
+
+/// A courier takes money out of their wallet. A second person approves, finance pays.
+model Withdrawal {
+  id            String        @id @default(cuid())
+  code          String        @unique
+  courierId     String        @map("courier_id")
+  amount        Int
+  method        String        @default("")
+  status        RequestStatus @default(PENDING_APPROVAL)
+  note          String        @default("")
+  requestedById String        @map("requested_by_id")
+  approvedById  String?       @map("approved_by_id")
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([courierId])
+  @@map("withdrawals")
+}
+
+enum PayInChannel {
+  FAWRY
+  BASATA
+  BANK_TRANSFER
+}
+
+enum PayInPurpose {
+  /// Cash collected on a run, paid in instead of handed over at the hub.
+  CASH
+  /// Money a courier pays to bring a negative wallet back up.
+  RECHARGE
+}
+
+enum CheckStatus {
+  SUBMITTED
+  CONFIRMED
+  REJECTED
+}
+
+/// A courier pays money in through Fawry (or another channel) and uploads the receipt.
+model PayIn {
+  id          String       @id @default(cuid())
+  code        String       @unique
+  courierId   String       @map("courier_id")
+  runId       String?      @map("run_id")
+  amount      Int
+  channel     PayInChannel @default(FAWRY)
+  purpose     PayInPurpose @default(CASH)
+  reference   String
+  receipt     Bytes?
+  receiptMime String       @default("") @map("receipt_mime")
+  status      CheckStatus  @default(SUBMITTED)
+  note        String       @default("")
+  checkedById String?      @map("checked_by_id")
+  checkedAt   DateTime?    @map("checked_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([runId])
+  @@map("pay_ins")
+}
+
+/// Hub staff take cash from the hub safe to the bank; finance confirms it arrived.
+model SafeDeposit {
+  id          String      @id @default(cuid())
+  code        String      @unique
+  hubId       String      @map("hub_id")
+  amount      Int
+  reference   String
+  receipt     Bytes?
+  receiptMime String      @default("") @map("receipt_mime")
+  status      CheckStatus @default(SUBMITTED)
+  note        String      @default("")
+  createdById String      @map("created_by_id")
+  checkedById String?     @map("checked_by_id")
+  checkedAt   DateTime?   @map("checked_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([hubId, status])
+  @@map("safe_deposits")
+}
+
+/// What an agent is owed for one month: staff pay, commission, vehicles, minus penalties.
+model AgentSettlement {
+  id              String        @id @default(cuid())
+  code            String        @unique
+  agentId         String        @map("agent_id")
+  /// YYYY-MM
+  month           String
+  staffPay        Int           @map("staff_pay")
+  commissionBp    Int           @map("commission_bp")
+  commission      Int
+  vehicleRent     Int           @map("vehicle_rent")
+  specialVehicles Int           @map("special_vehicles")
+  penalties       Int
+  /// Advances already paid to the agent this month, taken off the payment.
+  advances        Int           @default(0)
+  total           Int
+  details         Json
+  status          RequestStatus @default(PENDING_APPROVAL)
+  invoice         Bytes?
+  invoiceName     String        @default("") @map("invoice_name")
+  invoiceMime     String        @default("") @map("invoice_mime")
+  createdById     String        @map("created_by_id")
+  approvedById    String?       @map("approved_by_id")
+  paidAt          DateTime?     @map("paid_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@unique([agentId, month])
+  @@map("agent_settlements")
+}
+
+enum PaidFrom {
+  BANK
+  HUB_SAFE
+}
+
+/// Money paid to an agent before month end, taken off their next settlement.
+model AgentAdvance {
+  id            String        @id @default(cuid())
+  code          String        @unique
+  agentId       String        @map("agent_id")
+  amount        Int
+  status        RequestStatus @default(PENDING_APPROVAL)
+  note          String        @default("")
+  requestedById String        @map("requested_by_id")
+  approvedById  String?       @map("approved_by_id")
+  settlementId  String?       @map("settlement_id")
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@map("agent_advances")
+}
+
+/// A master waybill: sealed bags strapped together for one line haul destination.
+model Pallet {
+  id               String    @id @default(cuid())
+  code             String    @unique
+  originHubId      String    @map("origin_hub_id")
+  destinationHubId String    @map("destination_hub_id")
+  /// LOADING, SEALED, IN_TRANSIT, ARRIVED
+  status           String    @default("LOADING")
+  tripId           String?   @map("trip_id")
+  sealNo           String    @default("") @map("seal_no")
+  conditionOut     String    @default("") @map("condition_out")
+  photoOut         Bytes?    @map("photo_out")
+  conditionIn      String    @default("") @map("condition_in")
+  photoIn          Bytes?    @map("photo_in")
+  noteIn           String    @default("") @map("note_in")
+  sealedAt         DateTime? @map("sealed_at")
+  receivedAt       DateTime? @map("received_at")
+  createdById      String    @map("created_by_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  bags Bag[]
+
+  @@index([originHubId, status])
+  @@map("pallets")
+}
+
+enum QcStatus {
+  /// Raised; ops can cancel it until confirmAt.
+  OPEN
+  OVERRIDDEN
+  /// The penalty applied; the courier or agent may appeal until appealUntil.
+  CONFIRMED
+  APPEALED
+  UPHELD
+  REVERSED
+}
+
+/// A quality ticket against a courier, an agent or a hub, with a penalty that waits before it applies.
+model QcTicket {
+  id             String    @id @default(cuid())
+  code           String    @unique
+  /// DAMAGED, MISSING_PARCEL, FAKE_ATTEMPT, LATE_SCAN, WRONG_SCAN, CUSTOMER_COMPLAINT, PALLET_DAMAGED, OTHER
+  kind           String
+  shipmentId     String?   @map("shipment_id")
+  courierId      String?   @map("courier_id")
+  agentId        String?   @map("agent_id")
+  hubId          String?   @map("hub_id")
+  /// The person whose scan was last before the problem (who is held responsible).
+  responsibleId  String?   @map("responsible_id")
+  description    String
+  penalty        Int       @default(0)
+  photo          Bytes?
+  photoMime      String    @default("") @map("photo_mime")
+  status         QcStatus  @default(OPEN)
+  confirmAt      DateTime  @map("confirm_at")
+  confirmedAt    DateTime? @map("confirmed_at")
+  appealUntil    DateTime? @map("appeal_until")
+  overrideReason String    @default("") @map("override_reason")
+  appealText     String    @default("") @map("appeal_text")
+  decisionNote   String    @default("") @map("decision_note")
+  createdById    String?   @map("created_by_id")
+  decidedById    String?   @map("decided_by_id")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([status, confirmAt])
+  @@index([courierId])
+  @@index([agentId])
+  @@index([shipmentId])
+  @@map("qc_tickets")
+}
+
+model PriceTier {
+  id         String @id @default(cuid())
+  name       String
+  minParcels Int    @map("min_parcels")
+  discountBp Int    @map("discount_bp")
+
+  @@map("price_tiers")
+}
+
+model MerchantPrice {
+  merchantId String     @map("merchant_id")
+  zoneCode   String     @map("zone_code")
+  size       ParcelSize
+  price      Int
+
+  @@id([merchantId, zoneCode, size])
+  @@map("merchant_prices")
+}
+
+model RecurringPickup {
+  id             String   @id @default(cuid())
+  merchantId     String   @unique @map("merchant_id")
+  weekdays       Int[]
+  active         Boolean  @default(true)
+  notes          String   @default("")
+  lastCreatedFor String?  @map("last_created_for")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("recurring_pickups")
+}
+
+model OtpCode {
+  id        String    @id @default(cuid())
+  phone     String
+  purpose   String
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  attempts  Int       @default(0)
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([phone, purpose])
+  @@map("otp_codes")
+}
+
+model Message {
+  id         String    @id @default(cuid())
+  channel    String
+  to         String
+  template   String
+  body       String
+  shipmentId String?   @map("shipment_id")
+  status     String    @default("QUEUED")
+  error      String    @default("")
+  sentAt     DateTime? @map("sent_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([shipmentId])
+  @@map("messages")
+}
+
+/// Where a courier was, sent by their phone every minute or so while working.
+model CourierPing {
+  id       String   @id @default(cuid())
+  userId   String   @map("user_id")
+  lat      Float
+  lng      Float
+  accuracy Float?
+  at       DateTime @default(now())
+
+  @@index([userId, at])
+  @@index([at])
+  @@map("courier_pings")
+}
+
+/// Packaging Shiply keeps in stock and sells to merchants from the shop in their panel.
+model PackagingProduct {
+  id          String   @id @default(cuid())
+  sku         String   @unique
+  name        String
+  nameAr      String   @default("") @map("name_ar")
+  description String   @default("")
+  /// What one unit is, for example "Pack of 50".
+  unit        String   @default("")
+  /// Selling price of one unit, VAT included (piastres).
+  price       Int
+  /// Average cost of one unit before VAT, updated on every purchase (piastres).
+  cost        Int      @default(0)
+  stock       Int      @default(0)
+  /// At or below this, operations get a low stock alert.
+  minStock    Int      @default(0) @map("min_stock")
+  active      Boolean  @default(true)
+  photo       Bytes?
+  photoMime   String   @default("") @map("photo_mime")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  moves      StockMove[]
+  poLines    ShopPurchaseOrderLine[]
+  orderLines PackagingOrderLine[]
+
+  @@map("packaging_products")
+}
+
+enum StockMoveKind {
+  PURCHASE
+  SALE
+  CANCELLED_SALE
+  ADJUST
+}
+
+/// Every change to a product's stock, so the count can always be explained.
+model StockMove {
+  id        String           @id @default(cuid())
+  productId String           @map("product_id")
+  product   PackagingProduct @relation(fields: [productId], references: [id])
+  kind      StockMoveKind
+  qty       Int
+  unitCost  Int              @default(0) @map("unit_cost")
+  ref       String           @default("")
+  note      String           @default("")
+  userId    String           @map("user_id")
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([productId, createdAt])
+  @@map("stock_moves")
+}
+
+enum ShopPurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+/// What we order from a supplier. Receiving it adds the stock and raises the supplier's bill.
+model ShopPurchaseOrder {
+  id          String                  @id @default(cuid())
+  code        String                  @unique
+  supplierId  String                  @map("supplier_id")
+  supplier    Supplier                @relation(fields: [supplierId], references: [id])
+  status      ShopPurchaseOrderStatus @default(DRAFT)
+  expectedOn  String?                 @map("expected_on")
+  notes       String                  @default("")
+  /// Sum of the lines before VAT (piastres).
+  net         Int                     @default(0)
+  billId      String?                 @map("bill_id")
+  createdById String                  @map("created_by_id")
+  orderedAt   DateTime?               @map("ordered_at")
+  receivedAt  DateTime?               @map("received_at")
+  createdAt   DateTime                @default(now()) @map("created_at")
+
+  lines ShopPurchaseOrderLine[]
+
+  @@map("shop_purchase_orders")
+}
+
+model ShopPurchaseOrderLine {
+  id          String            @id @default(cuid())
+  poId        String            @map("po_id")
+  po          ShopPurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  productId   String            @map("product_id")
+  product     PackagingProduct  @relation(fields: [productId], references: [id])
+  qty         Int
+  /// Before VAT (piastres).
+  unitCost    Int               @map("unit_cost")
+  receivedQty Int               @default(0) @map("received_qty")
+
+  @@map("shop_purchase_order_lines")
+}
+
+enum PackagingOrderStatus {
+  PLACED
+  PACKED
+  OUT
+  DELIVERED
+  CANCELLED
+}
+
+/// A merchant's packaging order. Delivered like an order, for the delivery price in the settings.
+model PackagingOrder {
+  id           String               @id @default(cuid())
+  code         String               @unique
+  merchantId   String               @map("merchant_id")
+  hubId        String               @map("hub_id")
+  status       PackagingOrderStatus @default(PLACED)
+  /// WALLET: taken from the merchant balance. CASH: the courier collects it at the door.
+  payment      String
+  goodsTotal   Int                  @map("goods_total")
+  deliveryFee  Int                  @map("delivery_fee")
+  total        Int
+  courierId    String?              @map("courier_id")
+  notes        String               @default("")
+  codeChecked  Boolean              @default(false) @map("code_checked")
+  placedById   String               @map("placed_by_id")
+  packedAt     DateTime?            @map("packed_at")
+  outAt        DateTime?            @map("out_at")
+  deliveredAt  DateTime?            @map("delivered_at")
+  cancelReason String               @default("") @map("cancel_reason")
+  createdAt    DateTime             @default(now()) @map("created_at")
+
+  lines PackagingOrderLine[]
+
+  @@index([merchantId, createdAt])
+  @@index([status])
+  @@map("packaging_orders")
+}
+
+model PackagingOrderLine {
+  id        String           @id @default(cuid())
+  orderId   String           @map("order_id")
+  order     PackagingOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String           @map("product_id")
+  product   PackagingProduct @relation(fields: [productId], references: [id])
+  qty       Int
+  /// VAT included (piastres).
+  unitPrice Int              @map("unit_price")
+  /// Average cost when sold, before VAT (piastres).
+  unitCost  Int              @map("unit_cost")
+
+  @@map("packaging_order_lines")
+}
+
+/// A merchant's key for the API. Only a hash is kept; the key is shown once when made.
+model ApiKey {
+  id          String    @id @default(cuid())
+  merchantId  String    @map("merchant_id")
+  name        String
+  /// LIVE keys create real parcels; TEST keys work in the sandbox only.
+  mode        String
+  /// The start of the key, shown so people can tell keys apart.
+  prefix      String
+  keyHash     String    @unique @map("key_hash")
+  lastUsedAt  DateTime? @map("last_used_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([merchantId])
+  @@map("api_keys")
+}
+
+/// The same request sent twice with one Idempotency-Key gets the first answer back.
+model ApiIdempotency {
+  id         String   @id @default(cuid())
+  merchantId String   @map("merchant_id")
+  key        String
+  status     Int
+  response   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([merchantId, key])
+  @@map("api_idempotency")
+}
+
+/// Where a merchant wants to hear about their parcels. Each call is signed with the secret.
+model Webhook {
+  id         String   @id @default(cuid())
+  merchantId String   @map("merchant_id")
+  url        String
+  secret     String
+  /// LIVE or TEST: test webhooks only hear about sandbox parcels.
+  mode       String   @default("LIVE")
+  events     String[]
+  active     Boolean  @default(true)
+  /// Turned off by itself after too many failures in a row.
+  failures   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  deliveries WebhookDelivery[]
+
+  @@index([merchantId])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id            String    @id @default(cuid())
+  webhookId     String    @map("webhook_id")
+  webhook       Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event         String
+  payload       Json
+  /// PENDING, SENT or FAILED (gave up).
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  responseCode  Int?      @map("response_code")
+  responseBody  String    @default("") @map("response_body")
+  sentAt        DateTime? @map("sent_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+/// Parcels made with a TEST key. They live apart from real parcels and never reach a hub.
+model SandboxParcel {
+  id             String   @id @default(cuid())
+  merchantId     String   @map("merchant_id")
+  trackingNumber String   @unique @map("tracking_number")
+  merchantRef    String   @default("") @map("merchant_ref")
+  input          Json
+  status         String   @default("CREATED")
+  shippingFee    Int      @map("shipping_fee")
+  codAmount      Int      @map("cod_amount")
+  events         Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([merchantId, createdAt])
+  @@map("sandbox_parcels")
+}
+
+/// A merchant's Shopify store connected through the Shiply app. The token is kept encrypted.
+model ShopifyStore {
+  id            String    @id @default(cuid())
+  merchantId    String    @unique @map("merchant_id")
+  shop          String    @unique
+  tokenEnc      String    @map("token_enc")
+  scopes        String    @default("")
+  /// Make a parcel for every new order by itself, or wait for the merchant to press create.
+  autoCreate    Boolean   @default(false) @map("auto_create")
+  defaultSize   String    @default("M") @map("default_size")
+  /// Tell Shopify the order is fulfilled when we pick it up, and paid when COD is collected.
+  pushUpdates   Boolean   @default(true) @map("push_updates")
+  active        Boolean   @default(true)
+  installedAt   DateTime  @default(now()) @map("installed_at")
+  uninstalledAt DateTime? @map("uninstalled_at")
+
+  orders ShopifyOrder[]
+
+  @@map("shopify_stores")
+}
+
+/// One Shopify order as it arrived, and the parcel made for it.
+model ShopifyOrder {
+  id         String       @id @default(cuid())
+  storeId    String       @map("store_id")
+  store      ShopifyStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderId    String       @map("order_id")
+  orderName  String       @map("order_name")
+  /// WAITING (for the merchant), CREATED, FAILED (needs a fix), SKIPPED, CANCELLED
+  status     String
+  error      String       @default("")
+  shipmentId String?      @unique @map("shipment_id")
+  /// What we read from the order, ready to create the parcel.
+  draft      Json
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  @@unique([storeId, orderId])
+  @@index([storeId, createdAt])
+  @@map("shopify_orders")
+}
+
+/// Updates waiting to go back to Shopify, retried until they succeed.
+model ShopifyTask {
+  id            String    @id @default(cuid())
+  storeId       String    @map("store_id")
+  shipmentId    String    @map("shipment_id")
+  /// FULFILL or MARK_PAID
+  kind          String
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  error         String    @default("")
+  doneAt        DateTime? @map("done_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@unique([shipmentId, kind])
+  @@index([status, nextAttemptAt])
+  @@map("shopify_tasks")
+}
+
+/// A truck route from one sorting facility to another. Parcels may pass through up to two
+/// facilities in between. With no links at all, every facility reaches every other directly.
+model LineHaulLink {
+  id        String   @id @default(cuid())
+  fromId    String   @map("from_id")
+  toId      String   @map("to_id")
+  active    Boolean  @default(true)
+  /// Usual hours on the road, for planning.
+  hours     Int      @default(12)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([fromId, toId])
+  @@map("line_haul_links")
 }

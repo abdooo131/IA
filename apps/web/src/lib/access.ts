@@ -28,6 +28,10 @@ const HOME_BY_ROLE: Record<Role, Area | null> = {
   rider: '/rider',
   merchant: '/merchant',
   finance: '/home',
+  // Parcel network roles get their areas when the network screens move in (docs/MERGE.md).
+  hub_staff: null,
+  courier: null,
+  agent: null,
 };
 
 export function homeFor(role: Role): Area | null {
