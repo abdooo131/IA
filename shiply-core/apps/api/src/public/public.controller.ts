@@ -63,7 +63,8 @@ export class PublicController {
       nameEn: g.nameEn,
       nameAr: g.nameAr,
       served: g.hubId !== null || g.areas.some((a) => a.hubId),
-      areas: g.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr })),
+      hubId: g.hubId,
+      areas: g.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr, hubId: a.hubId ?? g.hubId })),
     }));
   }
 

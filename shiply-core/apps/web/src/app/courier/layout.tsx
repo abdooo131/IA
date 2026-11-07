@@ -1,5 +1,6 @@
 'use client';
 import { Shell , type NavItem } from '@/components/Shell';
+import { CheckInGate } from './CheckInGate';
 
 const NAV: NavItem[] = [
   { href: '/courier', label: 'My run', icon: 'route' },
@@ -9,7 +10,9 @@ const NAV: NavItem[] = [
 export default function CourierLayout({ children }: { children: React.ReactNode }) {
   return (
     <Shell roles={['COURIER']} nav={NAV} area="Courier">
-      <div className="mx-auto max-w-xl">{children}</div>
+      <div className="mx-auto max-w-xl">
+        <CheckInGate>{children}</CheckInGate>
+      </div>
     </Shell>
   );
 }

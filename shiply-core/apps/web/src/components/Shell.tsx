@@ -12,13 +12,15 @@ import { cx, Loading } from './ui';
 export interface Me {
   id: string;
   name: string;
-  email: string;
-  role: 'ADMIN' | 'HUB_STAFF' | 'COURIER' | 'MERCHANT';
+  email: string | null;
+  role: 'ADMIN' | 'HUB_STAFF' | 'COURIER' | 'MERCHANT' | 'AGENT';
   team: 'INBOUND' | 'SORTING' | 'OUTBOUND' | null;
   hubId: string | null;
   merchantId: string | null;
   hub: { id: string; code: string; name: string; isSorting: boolean } | null;
   merchant: { id: string; code: string; name: string } | null;
+  agentId: string | null;
+  agent: { id: string; code: string; name: string } | null;
 }
 
 const MeContext = createContext<Me | null>(null);
@@ -33,6 +35,7 @@ export const HOME_BY_ROLE: Record<Me['role'], string> = {
   HUB_STAFF: '/hub',
   COURIER: '/courier',
   MERCHANT: '/merchant',
+  AGENT: '/agent',
 };
 
 export interface NavItem {
@@ -112,7 +115,7 @@ export function Shell({ roles, nav: navFor, area, children }: { roles: Me['role'
   const roleText = me.team
     ? locale === 'ar' ? TEAM_LABELS_AR[me.team] : TEAM_LABELS[me.team]
     : me.role === 'HUB_STAFF' && me.hub?.isSorting ? t('Supervisor')
-    : t({ ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant' }[me.role]);
+    : t({ ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant', AGENT: 'Agent' }[me.role]);
 
   return (
     <MeContext.Provider value={me}>
@@ -166,7 +169,7 @@ export function Shell({ roles, nav: navFor, area, children }: { roles: Me['role'
           </nav>
           <div className="border-t border-line p-4">
             <p className="truncate text-body-sm font-bold">{me.name}</p>
-            <p className="truncate text-caption text-text-muted">{me.hub?.name ?? me.merchant?.name ?? me.email}</p>
+            <p className="truncate text-caption text-text-muted">{me.hub?.name ?? me.merchant?.name ?? me.agent?.name ?? me.email ?? ''}</p>
             <p className="truncate text-caption font-bold text-accent">{roleText}</p>
             <Prefs />
             <button type="button" onClick={() => void logout()} className="btn-secondary mt-3 min-h-9 w-full text-caption">{t('Sign out')}</button>

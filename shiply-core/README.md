@@ -44,6 +44,10 @@ Password `demo12345` (from `SEED_DEMO_PASSWORD`). The admin uses `SEED_ADMIN_EMA
 | Obour facility | `staff.obr@` supervisor, `inbound.obr@`, `sorting.obr@`, `outbound.obr@`, first mile `courier.obr@` (all `@shiply.local`) |
 | Alexandria facility | the same with `alxsf` |
 | Last mile hubs | `staff.<hub>@shiply.local` and `courier.<hub>@shiply.local` for `caie`, `cais`, `giz`, `dlt`, `ast`, `alx`, `dmn` |
+| Agents | `agent@cairomovers.example` (code `AGCAIRO`, pickup staff), `agent@deltariders.example` (code `AGDELTA`, delivery staff) |
+
+Anyone with a phone on their account can also sign in with the phone instead of the email.
+Couriers can register themselves at `/join` with their agent's code; the agent approves them.
 
 ## Tests
 
@@ -54,7 +58,10 @@ pnpm test
 The API test walks parcels through the company flow (pickup to the nearest facility, inbound,
 sorting and outbound teams, facility to facility line haul, last mile delivery, refusal, return
 through the facility, three failed attempts, cash, payout, tracking privacy, team permissions) on a new
-database it creates and drops itself, so it never touches existing data.
+database it creates and drops itself, so it never touches existing data. A second test covers agents
+and workforce: agent papers, joining with the agent code, approval into the right kind of hub, phone
+login, the 30 minute attendance alert, late and not coming answers, the 1 hour replacement rule and its
+escalation, check in with a photo, and special vehicle requests.
 
 ## Rules the code keeps
 

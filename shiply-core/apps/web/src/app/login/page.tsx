@@ -22,7 +22,7 @@ function LoginForm() {
     setBusy(true);
     setError(null);
     try {
-      await api('/auth/login', { body: { email, password } });
+      await api('/auth/login', { body: { login: email, password } });
       const me = await api<Me>('/auth/me');
       const next = params.get('next');
       router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : HOME_BY_ROLE[me.role]);
@@ -35,8 +35,8 @@ function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       {error && <Alert>{error}</Alert>}
-      <Field label={t('Email')}>
-        <Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className="ltr-iso" />
+      <Field label={t('Email or phone')}>
+        <Input type="text" inputMode="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className="ltr-iso" />
       </Field>
       <Field label={t('Password')}>
         <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
@@ -77,6 +77,9 @@ export default function LoginPage() {
             </div>
             <p className="mt-5 text-center text-body-sm text-text-muted">
               {t('Waiting for a parcel?')} <Link href="/track" className="font-bold text-link">{t('Track it here')}</Link>
+            </p>
+            <p className="mt-2 text-center text-body-sm text-text-muted">
+              {t('Courier with an agent code?')} <Link href="/join" className="font-bold text-link">{t('Join here')}</Link>
             </p>
           </div>
         </div>

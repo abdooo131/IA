@@ -483,7 +483,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
   async myShift(user: SessionUser) {
     const date = todayInCairo();
     const s = await this.prisma.shift.findUnique({ where: { courierId_date: { courierId: user.id, date } }, select: { id: true, date: true, startAt: true, status: true, checkInAt: true, lateMinutes: true, replacesShiftId: true } });
-    return { date, shift: s };
+    return { date, linked: !!user.agentId, shift: s };
   }
 
   /** Check in with a photo (kept only, not used for identity checks yet). */
@@ -515,8 +515,27 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
 
   // ---------------------------------------------------------------- alerts
 
-  alerts(filter: { agentId?: string; status?: 'OPEN' | 'RESOLVED' }) {
-    return this.prisma.alert.findMany({ where: { status: filter.status ?? 'OPEN', ...(filter.agentId ? { agentId: filter.agentId } : {}) }, orderBy: { createdAt: 'desc' }, take: 200 });
+  /** Alerts with the names the screens need to word them in either language. */
+  async alerts(filter: { agentId?: string; status?: 'OPEN' | 'RESOLVED' }) {
+    const rows = await this.prisma.alert.findMany({ where: { status: filter.status ?? 'OPEN', ...(filter.agentId ? { agentId: filter.agentId } : {}) }, orderBy: { createdAt: 'desc' }, take: 200 });
+    const ids = (entity: string) => rows.filter((r) => r.entity === entity).map((r) => r.entityId);
+    const [agents, shifts, users, requests] = await Promise.all([
+      this.prisma.agent.findMany({ where: { id: { in: rows.map((r) => r.agentId).filter((x): x is string => !!x) } }, select: { id: true, name: true } }),
+      this.prisma.shift.findMany({ where: { id: { in: ids('shift') } }, select: { id: true, expectedAt: true, replacementDeadline: true, courier: { select: { name: true } } } }),
+      this.prisma.user.findMany({ where: { id: { in: ids('user') } }, select: { id: true, name: true } }),
+      this.prisma.vehicleRequest.findMany({ where: { id: { in: ids('vehicle_request') } }, select: { id: true, code: true, date: true } }),
+    ]);
+    return rows.map((r) => {
+      const shift = shifts.find((x) => x.id === r.entityId);
+      const request = requests.find((x) => x.id === r.entityId);
+      return {
+        ...r,
+        agentName: agents.find((a) => a.id === r.agentId)?.name ?? null,
+        subject: shift?.courier.name ?? users.find((x) => x.id === r.entityId)?.name ?? request?.code ?? null,
+        date: request?.date ?? null,
+        deadline: shift?.replacementDeadline ?? null,
+      };
+    });
   }
 
   async resolveAlert(id: string, note: string, user: SessionUser, agentId?: string) {

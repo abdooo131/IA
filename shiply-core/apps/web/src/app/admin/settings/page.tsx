@@ -18,6 +18,9 @@ const LABELS: Record<SettingKey, [string, string]> = {
   'fees.return_fee_bp': ['Return fee', 'Share of shipping charged when a parcel comes back'],
   'tracking.prefix': ['Tracking number prefix', 'Letters at the start of every tracking number'],
   'handover.alert_hours': ['Handover alert (hours)', 'How long a parcel may wait between two teams before it shows as late'],
+  'agents.default_commission_bp': ['Default agent commission', 'Used for agents with no commission of their own'],
+  'attendance.alert_after_minutes': ['Attendance alert (minutes)', 'Minutes after the shift starts with no check in before the agent is asked'],
+  'attendance.replacement_minutes': ['Replacement window (minutes)', 'Time an agent has to send someone after saying a person is not coming'],
   'cash.shortage_alert': ['Courier cash alert', 'Cash difference that raises an alert'],
 };
 

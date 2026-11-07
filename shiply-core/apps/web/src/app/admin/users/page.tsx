@@ -9,7 +9,7 @@ import { useLocale, useT } from '@/lib/i18n';
 
 interface User {
   id: string;
-  email: string;
+  email: string | null;
   name: string;
   phone: string;
   role: Role;
@@ -21,7 +21,7 @@ interface User {
   merchant: { name: string } | null;
 }
 
-const ROLE_LABELS: Record<Role, string> = { ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant' };
+const ROLE_LABELS: Record<Role, string> = { ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant', AGENT: 'Agent' };
 const empty = { role: 'HUB_STAFF' as Role, name: '', email: '', phone: '', password: '', hubId: '', merchantId: '', team: '' };
 
 export default function UsersPage() {
@@ -75,9 +75,9 @@ export default function UsersPage() {
   };
 
   const resetPassword = (u: User) => {
-    const password = window.prompt(t('New password for {email} (8 characters or more)', { email: u.email }));
+    const password = window.prompt(t('New password for {email} (8 characters or more)', { email: u.email ?? u.phone }));
     if (!password) return;
-    void update(u, { password }, t('Password changed for {email}', { email: u.email }));
+    void update(u, { password }, t('Password changed for {email}', { email: u.email ?? u.phone }));
   };
 
   const list = roleFilter ? users.data.filter((u) => u.role === roleFilter) : users.data;
@@ -91,7 +91,7 @@ export default function UsersPage() {
           <form onSubmit={create} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <Field label={t('Role')}>
               <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value as Role })}>
-                {ROLES.map((r) => (
+                {ROLES.filter((r) => r !== 'AGENT').map((r) => (
                   <option key={r} value={r}>{t(ROLE_LABELS[r])}</option>
                 ))}
               </Select>
@@ -162,14 +162,14 @@ export default function UsersPage() {
                 {u.name}
                 {u.phone && <div className="ltr-iso text-caption text-text-muted">{u.phone}</div>}
               </Td>
-              <Td><span className="ltr-iso">{u.email}</span></Td>
+              <Td><span className="ltr-iso">{u.email ?? ''}</span></Td>
               <Td><Badge tone={u.role === 'ADMIN' ? 'blue' : 'slate'}>{t(ROLE_LABELS[u.role])}</Badge></Td>
               <Td><span className="ltr-iso">{u.hub?.code ?? u.merchant?.name ?? ''}</span>{u.team ? <span className="ms-2 text-caption font-bold text-link">{teamLabel(u.team)}</span> : null}</Td>
               <Td>{u.active ? <Badge tone="green">{t('Active')}</Badge> : <Badge tone="red">{t('Inactive')}</Badge>}</Td>
               <Td>
                 <div className="flex gap-1">
                   {u.id !== me.id && (
-                    <Button tone="ghost" onClick={() => update(u, { active: !u.active }, u.active ? t('{email} is now inactive', { email: u.email }) : t('{email} is now active', { email: u.email }))}>
+                    <Button tone="ghost" onClick={() => update(u, { active: !u.active }, u.active ? t('{email} is now inactive', { email: u.email ?? u.phone }) : t('{email} is now active', { email: u.email ?? u.phone }))}>
                       {u.active ? t('Deactivate') : t('Activate')}
                     </Button>
                   )}

@@ -56,6 +56,26 @@ At every scan the system works out the next place:
 The promised date is set when the parcel enters the network (pickup scan or drop off): today plus
 the zone's transit days, plus one day when it enters after the cutoff, skipping Friday.
 
+## Agents and attendance
+
+Pickup and delivery staff come from agents. Operations register each agent with their papers
+(national ID, commercial register, tax card, contract), bank account and commission (the default
+is in Settings). Every agent gets a code. Couriers register at `/join` with that code and wait;
+the agent approves them by choosing their hub (pickup staff at a sorting facility, delivery staff at
+a last mile hub), shift start, work days, areas, and for pickup staff a vehicle and whether they
+also drive hub to hub.
+
+Every working day each active courier has a shift. They check in from the courier app with a photo
+(and the location when the phone allows). 30 minutes after the shift starts with no check in, the
+agent gets an alert and answers: late (with the expected time) or not coming. After "not coming"
+the agent has 60 minutes to send a replacement from their free staff; if not, operations get an
+urgent alert. Both times are settings. Operations see every agent's attendance at
+`/admin/attendance` and every open alert at `/admin/alerts`.
+
+Operations can ask an agent for a vehicle with a driver (special merchant pickup, breakdown, full
+vehicle) at an agreed price. The agent answers with the driver and vehicle; operations close it
+when the job is done.
+
 ## Statuses
 
 | Status | Meaning | Where it is |
