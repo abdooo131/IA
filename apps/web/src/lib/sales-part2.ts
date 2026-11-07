@@ -1,4 +1,5 @@
 import {
+  type CommissionOutcome,
   type CommissionStatus,
   type ContractTier,
   type CrmStage,
@@ -236,7 +237,30 @@ export function proposalActions(
 export interface RepFigures {
   dealsWon: number;
   orders: number;
+  /** Counted fees: qualified merchants inside their commission months */
   feeRevenuePiastres: number;
+}
+
+/** A won merchant not counted yet: delivered orders in too few different months. */
+export interface PendingMerchant {
+  dealId: string;
+  company: string;
+  activeMonths: number;
+  qualifyMonths: number;
+}
+
+/** A rep's month against their fees target: hit or missed, and what it pays. */
+export interface MonthStanding {
+  outcome: CommissionOutcome;
+  revenuePiastres: number;
+  targetPiastres: number | null;
+  neededPiastres: number | null;
+  /** Each deal's rate on its counted fees: what the month pays if the target is hit */
+  potentialPiastres: number;
+  /** What it pays at the current level (the potential when hit, else 0) */
+  commissionPiastres: number;
+  qualified: number;
+  pending: PendingMerchant[];
 }
 
 export interface TargetRow {
@@ -244,6 +268,14 @@ export interface TargetRow {
   target: (RepFigures & { updatedAt: string; updatedBy: string }) | null;
   actual: RepFigures;
   progress: { dealsWon: number | null; orders: number | null; feeRevenue: number | null };
+  commission: MonthStanding;
+}
+
+export interface TargetsView {
+  month: string;
+  /** Managers: reps without a fees target for the current and the next month */
+  missingTargets: { month: string; users: { id: string; name: string }[] }[];
+  rows: TargetRow[];
 }
 
 export interface SalesDashboard {
@@ -270,6 +302,11 @@ export interface CommissionLine {
   label: string;
   company: string;
   monthIndex: number;
+  /** false: pending, its fees are not counted */
+  qualified: boolean;
+  activeMonths: number;
+  qualifiedMonth: string | null;
+  qualifyMonths: number | null;
   feesPiastres: number;
   rateBp: number;
   amountPiastres: number;
@@ -280,6 +317,9 @@ export interface CommissionRow {
   month: string;
   status: CommissionStatus;
   user: { id: string; name: string };
+  outcome: CommissionOutcome;
+  revenuePiastres: number;
+  targetPiastres: number | null;
   computedPiastres: number;
   amountPiastres: number;
   adjustReason: string | null;
@@ -292,14 +332,44 @@ export interface CommissionRow {
   lines: CommissionLine[];
 }
 
+/** The running month of one rep, as the commission job would see it now. */
+export interface CommissionEstimate {
+  user: { id: string; name: string };
+  month: string;
+  outcome: CommissionOutcome;
+  revenuePiastres: number;
+  targetPiastres: number | null;
+  progressBp: number | null;
+  neededPiastres: number | null;
+  potentialPiastres: number;
+  commissionPiastres: number;
+  lines: CommissionLine[];
+  pending: CommissionLine[];
+}
+
 export interface Commissions {
   month: string;
-  estimate: {
-    user: { id: string; name: string };
-    amountPiastres: number;
-    lines: CommissionLine[];
-  }[];
+  estimate: CommissionEstimate[];
   commissions: CommissionRow[];
+}
+
+/** An estimate's standing in the shape the targets and dashboard screens use. */
+export function estimateStanding(e: CommissionEstimate): MonthStanding {
+  return {
+    outcome: e.outcome,
+    revenuePiastres: e.revenuePiastres,
+    targetPiastres: e.targetPiastres,
+    neededPiastres: e.neededPiastres,
+    potentialPiastres: e.potentialPiastres,
+    commissionPiastres: e.commissionPiastres,
+    qualified: e.lines.length,
+    pending: e.pending.map((l) => ({
+      dealId: l.dealId,
+      company: l.company,
+      activeMonths: l.activeMonths,
+      qualifyMonths: l.qualifyMonths ?? 0,
+    })),
+  };
 }
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;

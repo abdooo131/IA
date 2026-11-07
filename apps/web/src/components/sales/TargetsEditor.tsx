@@ -6,11 +6,22 @@ import { useState } from 'react';
 import { apiSend } from '@/lib/api-client';
 import { formatCount, formatEgp } from '@/lib/format';
 import { bpText, egpInput, parseCount, parseMoney, type TargetRow } from '@/lib/sales-part2';
+import { CommissionCell } from './CommissionStanding';
 
 const box = 'h-10 w-28 rounded-md border border-line-strong bg-surface px-2 text-body-sm';
 
 /** One rep's figures against their targets; a sales manager edits the targets in place. */
-function Row({ row, month, canEdit }: { row: TargetRow; month: string; canEdit: boolean }) {
+function Row({
+  row,
+  month,
+  running,
+  canEdit,
+}: {
+  row: TargetRow;
+  month: string;
+  running: boolean;
+  canEdit: boolean;
+}) {
   const t = useTranslations('sales.targets');
   const te = useTranslations('sales.errors');
   const router = useRouter();
@@ -110,6 +121,9 @@ function Row({ row, month, canEdit }: { row: TargetRow; month: string; canEdit: 
           />
         )}
       </td>
+      <td className="px-3 py-2">
+        <CommissionCell standing={row.commission} running={running} />
+      </td>
       {canEdit && (
         <td className="px-3 py-2">
           <button
@@ -142,10 +156,13 @@ function Row({ row, month, canEdit }: { row: TargetRow; month: string; canEdit: 
 export function TargetsEditor({
   rows,
   month,
+  running,
   canEdit,
 }: {
   rows: TargetRow[];
   month: string;
+  /** The current month: a miss so far reads "not reached yet" */
+  running: boolean;
   canEdit: boolean;
 }) {
   const t = useTranslations('sales.targets');
@@ -160,12 +177,19 @@ export function TargetsEditor({
             <th className={th}>{t('deals')}</th>
             <th className={th}>{t('orders')}</th>
             <th className={th}>{t('revenue')}</th>
+            <th className={th}>{t('commission')}</th>
             {canEdit && <th className={th}>{t('action')}</th>}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => (
-            <Row key={`${r.user.id}-${month}`} row={r} month={month} canEdit={canEdit} />
+            <Row
+              key={`${r.user.id}-${month}`}
+              row={r}
+              month={month}
+              running={running}
+              canEdit={canEdit}
+            />
           ))}
         </tbody>
       </table>

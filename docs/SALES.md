@@ -239,10 +239,16 @@ by sales managers (Sales > Targets, audited `crm_target.set`). What a rep reache
 - deals won: deals won in the month with the rep as owner at the win (`won_by_id`),
 - orders brought in: delivered orders in the month of the merchants they won, from the moment
   each was won,
-- fees: fee income (fees before VAT: revenue lines tagged with the merchant, the year close
-  left out) of those merchants in the month, from the win on.
+- fees (counted fees): fee income (fees before VAT: revenue lines tagged with the merchant, the
+  year close left out) in the month of the merchants that count for them: qualified (section
+  11) and inside their commission months, from the win on. This is the figure the fees target
+  and the commission use.
 A merchant with two won deals counts for its first win only. Reps see their own row, managers
-everyone.
+everyone. Each row also carries the month's commission standing (hit, missed or no target, the
+commission at the current level, how much more hits the target, the merchants still pending).
+The fees target is what commission depends on; the deals won and orders targets are
+informative. Managers see a warning listing reps (sales use, not managers) without a fees target
+above 0 for the current and the next month.
 
 ## 10. Dashboard
 
@@ -251,17 +257,49 @@ open pipeline value (expected monthly fees of open deals, now) by stage, win rat
 and lost in the month), average days from opening to winning, new leads and their sources,
 overdue follow ups (now), the funnel of the deals opened in the month (the furthest stage each
 reached, with the share going on to the next stage), why deals were lost, deals won in the last
-six months and the leaderboard of reps against their targets (fees, then deals won).
+six months and the leaderboard of reps against their targets (counted fees, then deals won)
+with each rep's commission standing. When it shows one rep (a rep, or a manager who picked one)
+the dashboard also shows that rep's commission card (as on Commission).
 
 ## 11. Commission
 
-- Every won deal keeps the commission terms of the moment it was won: `sales.commission_bp`
-  (default 500 = 5%) of the won merchant's fees before VAT for `sales.commission_months`
-  (default 6) months, the win month counting as month 1, to the owner at the win.
+The rule (agreed with the owner, replacing "5% of each won merchant's fees for 6 months"):
+
+- Every rep has a monthly fees target (`crm_targets.fee_revenue_piastres`, section 9).
+- A won merchant counts for the rep who won it (the owner at the win) only once it is active:
+  it qualifies in the `sales.qualify_active_months` (default 2) distinct Cairo month, counted
+  from the win, in which it had at least one delivered order (orders delivered from the moment
+  of the win). Its fees count from the qualifying month on (the whole of that month); earlier
+  months are never counted backwards. Until then it is shown as pending, with its active months
+  (0 or 1 of 2).
+- A merchant counts for `sales.commission_months` (default 12) months, the win month being
+  month 1; 0 means no end.
+- Each deal keeps the terms of the moment it was won: `commission_bp`, `commission_months` and
+  `qualify_months` (deals won before these existed take today's settings).
+- Hit or miss: once the month is over, the rep's counted fees (sum over qualified merchants inside
+  their months) are compared with the rep's fees target for the month. Counted fees at or above
+  a target above 0: the rep earns each deal's frozen rate on that deal's counted fees (so with
+  every deal at 5% it is 5% of all the counted fees; lines may differ if the setting changed
+  between wins). Below the target: 0 for the month (outcome `missed`). No target, or a target of
+  0: 0 (outcome `no_target`).
+
+Example: target 500,000 EGP; counted fees 520,000 EGP: hit, 5% = 26,000 EGP. Counted fees
+480,000 EGP: missed, 0.
+
+How it runs:
+
 - Once a Cairo month is over (from its second day, after the month's minimum fees are booked),
-  the API job works out each rep's commission for it as a draft, once (`crm_commissions`, key
-  `commission:<rep>:<month>`), with one line per merchant (fees of the month from the win on,
-  never below zero, the share, the amount).
+  the API job works out each rep's month once (`crm_commissions`, key
+  `commission:<rep>:<month>`) for every rep with a won merchant inside its months or a fees
+  target: counted fees (`revenue_piastres`), the target (`target_piastres`), the outcome
+  (`hit`, `missed`, `no_target`), and one line per merchant (`qualified`, `active_months`,
+  `qualified_month`, fees of the month from the win on never below zero, the rate, and the
+  amount: the share on a hit, 0 otherwise; pending merchants are kept as lines that are not
+  qualified, their fees not counted).
+- A hit with something to pay is a `draft` for a sales manager. A month that pays 0 (missed, no
+  target, or nothing earned) is stored `closed`: it needs no approval, cannot be adjusted or
+  approved (`commission_not_draft`) and is never paid; the record stays so the rep and managers
+  see why. The database keeps a closed record at 0 and a non hit at 0.
 - A sales manager approves the draft or changes the amount with a written reason, never their
   own (`same_person`; the database refuses it too). Approved commission is never changed again.
 - Paying: approved commission of an employee goes into the next salary run of a month at or
@@ -269,8 +307,10 @@ six months and the leaderboard of reps against their targets (fees, then deals w
   payslip as commission) and is marked paid by that run, once. For people hired through an
   outsourcing company Accounting pays it as a direct staff bonus (Payroll, Sales commission to
   pay), which marks it paid (`commission_not_payable` for a second time or another amount).
-- Reps see what the running month is building up to (an estimate from the fees booked so far)
-  and their history; managers see everyone's.
+- Reps see the running month (Sales > Commission and the dashboard): counted fees so far against
+  the target with a progress bar, how much more hits it, the commission at the current level if
+  they hit it, and the merchants still pending; then their history per month (counted fees,
+  target, hit or missed, commission, status). Managers see everyone's (or one rep's).
 
 ## 12. API, settings and push (part 2)
 
@@ -285,7 +325,8 @@ six months and the leaderboard of reps against their targets (fees, then deals w
     POST   /sales/deals/:id/setup-link       a new owner setup link
     POST   /sales/deals/:id/account-manager  sales manage
     GET    /sales/dashboard                  ?month &ownerId
-    GET    /sales/targets, POST /sales/targets (sales manage)
+    GET    /sales/targets                    rows with the commission standing; managers: missingTargets
+    POST   /sales/targets                    sales manage
     GET    /sales/commissions                ?userId (managers)
     POST   /sales/commissions/:id/adjust, /approve   sales manage, not their own
     GET    /proposal/:token, POST /proposal/:token/accept, /decline        public
@@ -297,8 +338,9 @@ six months and the leaderboard of reps against their targets (fees, then deals w
 |---|---|---|
 | `sales.proposal_valid_days` | 14 | days a sent proposal stays open |
 | `sales.max_discount_bp` | 2000 | largest discount (20%) without a sales manager |
-| `sales.commission_bp` | 500 | commission share (5%) of a won merchant's fees |
-| `sales.commission_months` | 6 | months of commission, the win month first |
+| `sales.commission_bp` | 500 | commission share (5%) of the counted fees in a month the target is hit |
+| `sales.commission_months` | 12 | months a won merchant counts, the win month first (0: no end) |
+| `sales.qualify_active_months` | 2 | distinct months with a delivered order before a won merchant counts |
 | `sales.setup_link_days` | 7 | days a new owner's setup link stays valid |
 
 Push type `crm_proposal`: a discount waiting for approval (sales managers but its maker), the
@@ -321,3 +363,14 @@ packages/db/src/finance/payroll.ts.
 - A proposal's fees become the merchant's own fee settings even where they equal today's global
   value, so a later change of the global fee does not change an agreed contract.
 - Notice days default to 30 when the rep leaves it empty.
+- Commission against the target (choices made while building it):
+  - "Active" counts orders delivered from the moment of the win (a delivery earlier in the win
+    month does not count), and the qualifying month's fees count in full.
+  - A month that pays 0 is closed at once (no approval, no adjustment, never paid). A manager
+    who wants to pay something for such a month has no button for it; ask before adding one.
+  - A target set or changed after the job has worked out a month does not change that month.
+  - The targets and dashboard screens work the figures out live; the commission history shows
+    what the job stored when the month closed.
+  - The missing target warning lists sales people with sales use (not sales managers).
+  - Existing drafts were deleted by the migration (no live commission yet); the job works out
+    the month just ended again on its next run (older months are not redone).

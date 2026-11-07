@@ -3736,6 +3736,8 @@ model CrmDeal {
   /// Commission terms taken from the settings when the deal was won
   commissionBp               Int?      @map("commission_bp")
   commissionMonths           Int?      @map("commission_months")
+  /// Distinct months with a delivered order the merchant needs before its fees count (at the win)
+  qualifyMonths              Int?      @map("qualify_months")
   idempotencyKey             String?   @unique @map("idempotency_key")
   createdById                String?   @map("created_by_id")
   createdAt                  DateTime  @default(now()) @map("created_at")
@@ -3839,6 +3841,8 @@ enum CrmCommissionStatus {
   approved
   /// Paid in the salary run (employees) or as a direct bonus (outsourced people)
   paid
+  /// Nothing to pay (target missed, no target set, or nothing earned): settled without approval
+  closed
 
   @@map("crm_commission_status")
 }
@@ -3950,7 +3954,13 @@ model CrmCommission {
   userId           String              @map("user_id")
   month            String
   status           CrmCommissionStatus @default(draft)
-  /// What the lines add up to
+  /// Fees of the month counted for the rep: qualified merchants inside their commission months
+  revenuePiastres  Int                 @default(0) @map("revenue_piastres")
+  /// The rep's fees target for the month (null: none set)
+  targetPiastres   Int?                @map("target_piastres")
+  /// hit (counted fees at or above a target above 0), missed or no_target
+  outcome          String              @default("hit")
+  /// What the lines add up to (0 unless the target was hit)
   computedPiastres Int                 @map("computed_piastres")
   /// What is paid: the computed amount, or the manager's adjustment
   amountPiastres   Int                 @map("amount_piastres")
@@ -3980,15 +3990,22 @@ model CrmCommission {
 
 /// One won merchant's fees in the month and the commission on them.
 model CrmCommissionLine {
-  id             String @id @default(cuid())
-  commissionId   String @map("commission_id")
-  dealId         String @map("deal_id")
-  merchantId     String @map("merchant_id")
+  id             String  @id @default(cuid())
+  commissionId   String  @map("commission_id")
+  dealId         String  @map("deal_id")
+  merchantId     String  @map("merchant_id")
   /// 1 is the month the deal was won
-  monthIndex     Int    @map("month_index")
-  feesPiastres   Int    @map("fees_piastres")
-  rateBp         Int    @map("rate_bp")
-  amountPiastres Int    @map("amount_piastres")
+  monthIndex     Int     @map("month_index")
+  /// false: still pending (not active for enough months), its fees are not counted
+  qualified      Boolean @default(true)
+  /// Distinct Cairo months with a delivered order since the win, up to the month's end
+  activeMonths   Int     @default(0) @map("active_months")
+  /// The month it qualified in (YYYY-MM)
+  qualifiedMonth String? @map("qualified_month")
+  feesPiastres   Int     @map("fees_piastres")
+  rateBp         Int     @map("rate_bp")
+  /// The share of the fees when the target was hit, else 0
+  amountPiastres Int     @map("amount_piastres")
 
   commission CrmCommission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
   deal       CrmDeal       @relation(fields: [dealId], references: [id], onDelete: Restrict)

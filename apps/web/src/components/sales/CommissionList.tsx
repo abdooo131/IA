@@ -8,12 +8,16 @@ import { apiSend } from '@/lib/api-client';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { bpText, type CommissionLine, type CommissionRow, egpInput } from '@/lib/sales-part2';
 import { parseEgp } from '@/lib/money';
+import { OutcomePill } from './CommissionStanding';
 
 const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
 const td = 'px-3 py-2 align-top';
 
-/** The merchants behind a commission: fees of the month and what they earned. */
-export function CommissionLines({ lines }: { lines: CommissionLine[] }) {
+/**
+ * The merchants behind a commission: counted fees and the share each pays on a hit (`hit`
+ * false: counted, nothing paid), then merchants still pending (their fees not counted).
+ */
+export function CommissionLines({ lines, hit }: { lines: CommissionLine[]; hit: boolean }) {
   const t = useTranslations('sales.commission');
   return (
     <ul className="mt-1 space-y-0.5 text-caption text-text-muted">
@@ -23,12 +27,25 @@ export function CommissionLines({ lines }: { lines: CommissionLine[] }) {
             {l.company}
           </Link>{' '}
           ·{' '}
-          {t('lineText', {
-            month: l.monthIndex,
-            fees: formatEgp(l.feesPiastres),
-            rate: bpText(l.rateBp),
-            amount: formatEgp(l.amountPiastres),
-          })}
+          {!l.qualified
+            ? t('linePending', {
+                month: l.monthIndex,
+                active: Math.min(l.activeMonths, l.qualifyMonths ?? l.activeMonths),
+                needed: l.qualifyMonths ?? 0,
+                fees: formatEgp(l.feesPiastres),
+              })
+            : hit
+              ? t('lineText', {
+                  month: l.monthIndex,
+                  fees: formatEgp(l.feesPiastres),
+                  rate: bpText(l.rateBp),
+                  amount: formatEgp(l.amountPiastres),
+                })
+              : t('lineCounted', {
+                  month: l.monthIndex,
+                  fees: formatEgp(l.feesPiastres),
+                  rate: bpText(l.rateBp),
+                })}
         </li>
       ))}
     </ul>
@@ -140,6 +157,7 @@ export function CommissionList({
           <tr>
             <th className={th}>{t('month')}</th>
             <th className={th}>{t('rep')}</th>
+            <th className={th}>{t('result')}</th>
             <th className={`${th} text-end`}>{t('amount')}</th>
             <th className={th}>{t('status')}</th>
             {canManage && <th className={th}>{t('action')}</th>}
@@ -150,9 +168,18 @@ export function CommissionList({
             <tr key={r.id} className="border-t border-line">
               <td className={td}>
                 <span className="ltr-iso font-semibold">{r.month}</span>
-                <CommissionLines lines={r.lines} />
+                <CommissionLines lines={r.lines} hit={r.outcome === 'hit'} />
               </td>
               <td className={td}>{r.user.name}</td>
+              <td className={td}>
+                <OutcomePill outcome={r.outcome} />
+                <span className="mt-1 block text-caption text-text-muted">
+                  {t('countedOf', {
+                    revenue: formatEgp(r.revenuePiastres),
+                    target: r.targetPiastres ? formatEgp(r.targetPiastres) : t('noTargetShort'),
+                  })}
+                </span>
+              </td>
               <td className={`${td} text-end`}>
                 <span className="tabular font-bold">{formatEgp(r.amountPiastres)}</span>
                 {r.amountPiastres !== r.computedPiastres && (

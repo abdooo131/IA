@@ -281,7 +281,8 @@ describe('proposals', () => {
       merchantId: merchant.id,
       wonById: repA.userId,
       commissionBp: 500,
-      commissionMonths: 6,
+      commissionMonths: 12,
+      qualifyMonths: 2,
     });
     const audits = await prisma.auditLog.findMany({ where: { entityId: merchant.id } });
     expect(audits.map((a) => a.action)).toEqual(
@@ -390,10 +391,12 @@ async function store() {
   return s;
 }
 
-/** repA wins a merchant on the 10th of wonMonth; fees of 1,000 EGP each month after. */
-async function wonMerchant() {
-  storeId = null;
-  const { deal, proposal } = await acceptedDeal(repA, 'Won Brand');
+/**
+ * repA wins a merchant on the 10th of wonMonth; fees of `fee` (1,000 EGP) on the 15th of each
+ * month after, up to the running month.
+ */
+async function wonMerchant(brand = 'Won Brand', fee = 100_000) {
+  const { deal, proposal } = await acceptedDeal(repA, brand);
   const { merchantId } = await confirmProposal(prisma, proposal.id, {}, repA);
   await prisma.crmDeal.update({
     where: { id: deal.id },
@@ -401,13 +404,28 @@ async function wonMerchant() {
   });
   // A fee before the win is not the rep's.
   await feeBooked(merchantId, at(wonMonth, '05'), 50_000);
-  for (let i = 0; i <= 8; i++)
-    await feeBooked(merchantId, at(shiftMonth(wonMonth, i), '15'), 100_000);
+  for (let i = 0; i <= 8; i++) await feeBooked(merchantId, at(shiftMonth(wonMonth, i), '15'), fee);
   return { deal, merchantId };
 }
 
+/** One delivered order in each of these months after the win (the 20th). */
+async function activeIn(merchantId: string, offsets: number[]) {
+  for (const i of offsets) await deliveredOrder(merchantId, at(shiftMonth(wonMonth, i), '20'));
+}
+
+const revenueTarget = (month: string, feeRevenuePiastres: number) =>
+  setTarget(
+    prisma,
+    { userId: repA.userId, month, dealsWon: 0, orders: 0, feeRevenuePiastres },
+    manager,
+  );
+
+beforeEach(() => {
+  storeId = null;
+});
+
 describe('targets and the dashboard', () => {
-  it('counts what each rep brought in from the merchants they won, against targets', async () => {
+  it('counts what each rep brought in from qualified merchants, against targets', async () => {
     const { merchantId } = await wonMerchant();
     const month = shiftMonth(wonMonth, 1);
     await deliveredOrder(merchantId, at(month, '03'));
@@ -425,14 +443,35 @@ describe('targets and the dashboard', () => {
       { userId: repA.userId, month, dealsWon: 2, orders: 4, feeRevenuePiastres: 200_000 },
       manager,
     );
+    // The first active month: the merchant is pending (1 of 2), its fees do not count yet.
     const rows = (await listTargets(prisma, manager, month)).rows;
     const a = rows.find((r) => r.user.id === repA.userId)!;
-    expect(a.actual).toEqual({ dealsWon: 0, orders: 2, feeRevenuePiastres: 100_000 });
-    expect(a.progress).toEqual({ dealsWon: 0, orders: 5000, feeRevenue: 5000 });
-    // The win month counts the deal; fees before the win are left out.
+    expect(a.actual).toEqual({ dealsWon: 0, orders: 2, feeRevenuePiastres: 0 });
+    expect(a.progress).toEqual({ dealsWon: 0, orders: 5000, feeRevenue: 0 });
+    expect(a.commission).toMatchObject({
+      outcome: 'missed',
+      revenuePiastres: 0,
+      neededPiastres: 200_000,
+      qualified: 0,
+      pending: [{ company: 'Won Brand', activeMonths: 1, qualifyMonths: 2 }],
+    });
+    // The second active month: it qualifies and its fees count from this month on.
+    const next = (await listTargets(prisma, repA, shiftMonth(month, 1))).rows;
+    expect(next[0]!.actual).toEqual({ dealsWon: 0, orders: 1, feeRevenuePiastres: 100_000 });
+    expect(next[0]!.commission).toMatchObject({
+      outcome: 'no_target',
+      potentialPiastres: 5_000,
+      commissionPiastres: 0,
+      qualified: 1,
+      pending: [],
+    });
+    // The win month counts the deal; the merchant was not active yet.
     const first = (await listTargets(prisma, repA, wonMonth)).rows;
     expect(first).toHaveLength(1);
-    expect(first[0]!.actual).toEqual({ dealsWon: 1, orders: 0, feeRevenuePiastres: 100_000 });
+    expect(first[0]!.actual).toEqual({ dealsWon: 1, orders: 0, feeRevenuePiastres: 0 });
+    expect(first[0]!.commission.pending).toEqual([
+      expect.objectContaining({ activeMonths: 0, qualifyMonths: 2 }),
+    ]);
     const board = await salesDashboard(prisma, repA, { month: wonMonth });
     expect(board.won).toBe(1);
     expect(board.leaderboard).toHaveLength(1);
@@ -440,31 +479,168 @@ describe('targets and the dashboard', () => {
     expect(all.funnel[0]).toMatchObject({ stage: 'new' });
     expect(all.leaderboard.length).toBeGreaterThanOrEqual(4);
   });
+
+  it('shows managers the reps without a fees target this month and next', async () => {
+    const next = shiftMonth(thisMonth, 1);
+    await revenueTarget(thisMonth, 100_000);
+    const { missingTargets } = await listTargets(prisma, manager, thisMonth);
+    expect(missingTargets).toEqual([
+      { month: thisMonth, users: [{ id: repB.userId, name: 'repB' }] },
+      {
+        month: next,
+        users: [
+          { id: repA.userId, name: 'repA' },
+          { id: repB.userId, name: 'repB' },
+        ],
+      },
+    ]);
+    expect((await listTargets(prisma, repA, thisMonth)).missingTargets).toEqual([]);
+  });
 });
 
 describe('commission', () => {
-  it('pays 5% of the won merchant fees for six months to the owner at the win', async () => {
-    const { deal } = await wonMerchant();
+  it('counts a merchant from its second active month, within its months, against the target', async () => {
+    const { deal, merchantId } = await wonMerchant();
     // Given to someone else after the win: the commission stays with repA.
     await assignDeal(prisma, deal.id, repB.userId, manager);
+    // The terms frozen at the win: 6 months here (the win month is month 1).
+    await prisma.crmDeal.update({ where: { id: deal.id }, data: { commissionMonths: 6 } });
+    // A delivery before the win does not make the merchant active; then active in months 2 and 4.
+    await deliveredOrder(merchantId, at(wonMonth, '05'));
+    await activeIn(merchantId, [2, 4]);
+    for (let i = 0; i <= 7; i++) await revenueTarget(shiftMonth(wonMonth, i), 100_000);
     for (let i = 0; i <= 7; i++)
       await computeCommissions(prisma, new Date(), shiftMonth(wonMonth, i));
-    const rows = await prisma.crmCommission.findMany({ orderBy: { month: 'asc' } });
-    expect(rows.map((r) => [r.userId, r.month, r.amountPiastres])).toEqual(
-      [0, 1, 2, 3, 4, 5].map((i) => [repA.userId, shiftMonth(wonMonth, i), 5_000]),
-    );
+    const rows = await prisma.crmCommission.findMany({
+      orderBy: { month: 'asc' },
+      include: { lines: true },
+    });
+    expect(
+      rows.map((r) => [
+        r.userId,
+        r.month,
+        r.outcome,
+        r.revenuePiastres,
+        r.amountPiastres,
+        r.status,
+      ]),
+    ).toEqual([
+      // Pending (not active for two months yet): its fees do not count, not even later.
+      ...[0, 1, 2, 3].map((i) => [repA.userId, shiftMonth(wonMonth, i), 'missed', 0, 0, 'closed']),
+      // Qualified in month 5 (the second active month): 5% of all counted fees.
+      ...[4, 5].map((i) => [repA.userId, shiftMonth(wonMonth, i), 'hit', 100_000, 5_000, 'draft']),
+      // Past the deal's six months: nothing counts any more.
+      ...[6, 7].map((i) => [repA.userId, shiftMonth(wonMonth, i), 'missed', 0, 0, 'closed']),
+    ]);
+    expect(rows.map((r) => r.lines.map((l) => [l.qualified, l.activeMonths]))).toEqual([
+      [[false, 0]],
+      [[false, 0]],
+      [[false, 1]],
+      [[false, 1]],
+      [[true, 2]],
+      [[true, 2]],
+      [],
+      [],
+    ]);
+    expect(rows[4]!.lines[0]).toMatchObject({
+      qualifiedMonth: shiftMonth(wonMonth, 4),
+      monthIndex: 5,
+      feesPiastres: 100_000,
+      rateBp: 500,
+      amountPiastres: 5_000,
+    });
     // Again: nothing new.
     expect((await computeCommissions(prisma, new Date(), wonMonth)).created).toBe(0);
     await expect(computeCommissions(prisma, new Date(), thisMonth)).rejects.toThrow(
       'month_not_over',
     );
-    // A rep sees only their own; the running month is an estimate.
+    // A rep sees only their own; a closed month cannot be approved.
     expect((await listCommissions(prisma, repB)).commissions).toHaveLength(0);
-    expect((await listCommissions(prisma, repA)).commissions).toHaveLength(6);
+    expect((await listCommissions(prisma, repA)).commissions).toHaveLength(8);
+    await expect(approveCommission(prisma, rows[0]!.id, manager)).rejects.toThrow(
+      'commission_not_draft',
+    );
+  });
+
+  it('pays the frozen rate of each deal on all counted fees on a hit, nothing on a miss or without a target', async () => {
+    const first = await wonMerchant('First Brand', 100_000);
+    await setFee('sales.commission_bp', 1000);
+    const second = await wonMerchant('Second Brand', 300_000);
+    expect(
+      (await prisma.crmDeal.findUniqueOrThrow({ where: { id: second.deal.id } })).commissionBp,
+    ).toBe(1000);
+    await activeIn(first.merchantId, [1, 2]);
+    await activeIn(second.merchantId, [1, 2]);
+    const hit = shiftMonth(wonMonth, 3);
+    const miss = shiftMonth(wonMonth, 4);
+    const none = shiftMonth(wonMonth, 5);
+    await revenueTarget(hit, 400_000);
+    await revenueTarget(miss, 400_001);
+    for (const m of [hit, miss, none]) await computeCommissions(prisma, new Date(), m);
+    const rows = await prisma.crmCommission.findMany({
+      orderBy: { month: 'asc' },
+      include: { lines: { orderBy: { rateBp: 'asc' } } },
+    });
+    expect(rows.map((r) => [r.month, r.outcome, r.status])).toEqual([
+      [hit, 'hit', 'draft'],
+      [miss, 'missed', 'closed'],
+      [none, 'no_target', 'closed'],
+    ]);
+    // Hit (counted 400,000 >= target 400,000): 5% of 100,000 and 10% of 300,000.
+    expect(rows[0]).toMatchObject({
+      revenuePiastres: 400_000,
+      targetPiastres: 400_000,
+      computedPiastres: 35_000,
+      amountPiastres: 35_000,
+    });
+    expect(rows[0]!.lines.map((l) => [l.rateBp, l.feesPiastres, l.amountPiastres])).toEqual([
+      [500, 100_000, 5_000],
+      [1000, 300_000, 30_000],
+    ]);
+    // Missed by one piastre: 0, with the figures kept.
+    expect(rows[1]).toMatchObject({
+      revenuePiastres: 400_000,
+      targetPiastres: 400_001,
+      computedPiastres: 0,
+      amountPiastres: 0,
+    });
+    expect(rows[1]!.lines.map((l) => l.amountPiastres)).toEqual([0, 0]);
+    // No target set: 0.
+    expect(rows[2]).toMatchObject({ revenuePiastres: 400_000, targetPiastres: null });
+    const listed = await listCommissions(prisma, manager);
+    expect(listed.commissions.find((c) => c.month === miss)).toMatchObject({
+      outcome: 'missed',
+      status: 'closed',
+    });
+  });
+
+  it('estimates the running month: counted so far, what is still needed, what it would pay', async () => {
+    const { merchantId } = await wonMerchant();
+    await activeIn(merchantId, [7, 8]);
+    await revenueTarget(thisMonth, 150_000);
+    // Seen near the end of the month, so the fees and orders booked in it are in.
+    const { estimate } = await listCommissions(prisma, repA, {}, at(thisMonth, '28'));
+    expect(estimate).toEqual([
+      expect.objectContaining({
+        user: { id: repA.userId, name: 'repA' },
+        month: thisMonth,
+        outcome: 'missed',
+        revenuePiastres: 100_000,
+        targetPiastres: 150_000,
+        neededPiastres: 50_000,
+        progressBp: 6667,
+        potentialPiastres: 5_000,
+        commissionPiastres: 0,
+        pending: [],
+      }),
+    ]);
   });
 
   it('is approved or adjusted by another sales manager and paid once in the salary run', async () => {
-    await wonMerchant();
+    const { merchantId } = await wonMerchant();
+    await activeIn(merchantId, [0, 1]);
+    await revenueTarget(shiftMonth(wonMonth, 1), 100_000);
+    await revenueTarget(shiftMonth(wonMonth, 2), 100_000);
     await ensureDefaultAccounts(prisma);
     const bank = await prisma.ledgerAccount.findUniqueOrThrow({ where: { key: 'bank' } });
     await recordCapital(prisma, {
@@ -475,9 +651,13 @@ describe('commission', () => {
       actorUserId: manager.userId,
       idempotencyKey: key(),
     });
+    // The win month: pending and no target, closed at 0, never paid.
     await computeCommissions(prisma, new Date(), wonMonth);
     await computeCommissions(prisma, new Date(), shiftMonth(wonMonth, 1));
-    const [c0, c1] = await prisma.crmCommission.findMany({ orderBy: { month: 'asc' } });
+    await computeCommissions(prisma, new Date(), shiftMonth(wonMonth, 2));
+    const [closed, c0, c1] = await prisma.crmCommission.findMany({ orderBy: { month: 'asc' } });
+    expect(closed).toMatchObject({ status: 'closed', outcome: 'no_target', amountPiastres: 0 });
+    expect([c0!.status, c0!.amountPiastres, c1!.amountPiastres]).toEqual(['draft', 5_000, 5_000]);
     await expect(approveCommission(prisma, c0!.id, repA)).rejects.toThrow('no_access');
     await expect(
       adjustCommission(prisma, c1!.id, { amountPiastres: 7_000, reason: 'Big launch' }, manager),
@@ -485,6 +665,9 @@ describe('commission', () => {
     await approveCommission(prisma, c0!.id, manager);
     await expect(
       adjustCommission(prisma, c0!.id, { amountPiastres: 1, reason: 'Late change' }, manager),
+    ).rejects.toThrow('commission_not_draft');
+    await expect(
+      adjustCommission(prisma, closed!.id, { amountPiastres: 1, reason: 'Kind' }, manager),
     ).rejects.toThrow('commission_not_draft');
 
     await setSalary(prisma, {
@@ -505,6 +688,9 @@ describe('commission', () => {
       status: 'paid',
       paidVia: 'payroll',
     });
+    expect(
+      await prisma.crmCommission.findUniqueOrThrow({ where: { id: closed!.id } }),
+    ).toMatchObject({ status: 'closed', paidEntryId: null });
     // The next run takes only what was approved since.
     await approveCommission(prisma, c1!.id, manager);
     const next = shiftMonth(payMonth, 1);
@@ -526,7 +712,9 @@ describe('commission', () => {
   });
 
   it('pays an outsourced rep as a direct bonus, once; a manager never approves their own', async () => {
-    await wonMerchant();
+    const { merchantId } = await wonMerchant();
+    await activeIn(merchantId, [0, 1]);
+    await revenueTarget(shiftMonth(wonMonth, 1), 100_000);
     await ensureDefaultAccounts(prisma);
     const bank = await prisma.ledgerAccount.findUniqueOrThrow({ where: { key: 'bank' } });
     await recordCapital(prisma, {
@@ -546,8 +734,9 @@ describe('commission', () => {
       staffingSupplierId: agency.id,
       actorUserId: manager.userId,
     });
-    await computeCommissions(prisma, new Date(), wonMonth);
+    await computeCommissions(prisma, new Date(), shiftMonth(wonMonth, 1));
     const c = await prisma.crmCommission.findFirstOrThrow();
+    expect(c).toMatchObject({ status: 'draft', amountPiastres: 5_000 });
     await approveCommission(prisma, c.id, manager);
     const pay = () =>
       payStaffBonus(prisma, {

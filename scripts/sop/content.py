@@ -1295,15 +1295,17 @@ EN["sales"] = {
        "The owner lost the link or it ran out: tap New setup link on the deal."]},
     {"title": "Targets and commission",
      "steps": [
-       "Dashboard shows your month: deals won, orders and fees of the merchants you won against your targets.",
-       "Commission shows what this month is building up to, then each month once it is over.",
-       "Managers: in Targets, type each rep's deals, orders and fees for the month and Save.",
-       "Managers: in Commission, check each draft (merchants, fees, share), then Approve, or Change with a reason. Another manager approves your own.",
+       "The rule: you have a fees target each month. A merchant you won counts for you once it has had delivered orders in two different months (from that second month on, never backwards), for its first 12 months from the win.",
+       "When the month is over: if your counted fees reach the target or more, you earn 5% of all your counted fees; below the target, or with no target, the month pays nothing. Example: target 500,000 EGP, counted 520,000 EGP: hit, 5% = 26,000 EGP. Counted 480,000 EGP: missed, 0.",
+       "Dashboard and Commission show your counted fees so far against the target, how much more you need, the commission at this level if you hit it, and the merchants still pending (0 or 1 of 2 active months).",
+       "Managers: in Targets, type each rep's deals, orders and fees target for the month and Save. The page lists reps without a fees target this month and next.",
+       "Managers: in Commission, check each draft (counted fees, target, merchants, share), then Approve, or Change with a reason. Another manager approves your own. Missed months and months without a target close at 0 by themselves and need no approval.",
        "Approved commission is paid with the salary of that month's run, or as a bonus by Accounting for people hired through an outsourcing company."],
      "check": [
-       "Every rep has targets before the month starts; every commission of last month is Approved by the 5th."],
+       "Every rep has a fees target before the month starts; every commission of last month is Approved by the 5th."],
      "problems": [
-       "A merchant is missing from a rep's commission: check the deal is won with its merchant and the rep was its owner when it was won.",
+       "A merchant is missing from a rep's commission: check the deal is won with its merchant, the rep was its owner when it was won, and the merchant has delivered orders in two different months.",
+       "A rep had no target in a month that is over: that month closed at 0; set targets before each month starts so it does not happen.",
        "Paid commission was wrong: it cannot be changed; tell Accounting, who correct it in a later month."]},
     {"title": "Turn on phone notifications",
      "steps": [
@@ -1372,15 +1374,17 @@ AR["sales"] = {
        "المالك ضيّع الرابط أو خلص: اضغط رابط إعداد جديد على الصفقة."]},
     {"title": "الأهداف والعمولة",
      "steps": [
-       "لوحة المتابعة بتوريك شهرك: الصفقات المكسوبة والطلبات والرسوم من التجار اللي كسبتهم مقابل أهدافك.",
-       "العمولة بتوريك اللي بيتجمع الشهر ده، وبعدين كل شهر بعد ما يخلص.",
-       "المديرين: في الأهداف، اكتب لكل مندوب الصفقات والطلبات والرسوم للشهر واضغط حفظ.",
-       "المديرين: في العمولة، راجع كل مسودة (التجار والرسوم والنسبة)، وبعدين اعتماد، أو تعديل بسبب. مدير تاني بيعتمد عمولتك.",
+       "القاعدة: ليك هدف رسوم كل شهر. رسوم التاجر اللي كسبته بتتحسب ليك بعد ما يبقى له طلبات متسلمة في شهرين مختلفين (من الشهر التاني ده وبعده، مش بأثر رجعي)، ولمدة أول 12 شهر من الفوز.",
+       "بعد ما الشهر يخلص: لو الرسوم المحسوبة وصلت الهدف أو عدته، تاخد 5٪ من كل الرسوم المحسوبة؛ لو أقل من الهدف أو مفيش هدف، مفيش عمولة الشهر ده. مثال: الهدف 500,000 جنيه والمحسوب 520,000 جنيه: وصلت، 5٪ = 26,000 جنيه. المحسوب 480,000 جنيه: موصلتش، صفر.",
+       "لوحة المتابعة والعمولة بيوروك الرسوم المحسوبة لحد دلوقتي مقابل الهدف، فاضل قد إيه، العمولة بالمستوى ده لو وصلت، والتجار اللي لسه مستنيين (0 أو 1 من 2 شهر نشط).",
+       "المديرين: في الأهداف، اكتب لكل مندوب الصفقات والطلبات وهدف الرسوم للشهر واضغط حفظ. الصفحة بتوريك مين مالوش هدف الشهر ده والشهر الجاي.",
+       "المديرين: في العمولة، راجع كل مسودة (الرسوم المحسوبة والهدف والتجار والنسبة)، وبعدين اعتماد، أو تعديل بسبب. مدير تاني بيعتمد عمولتك. الشهور اللي متوصلتش أو مالهاش هدف بتتقفل بصفر لوحدها ومش محتاجة اعتماد.",
        "العمولة المعتمدة بتتصرف مع مرتب الشهر، أو كمكافأة من الحسابات لو الشخص شغال عن طريق شركة توظيف."],
      "check": [
-       "كل مندوب له أهداف قبل ما الشهر يبدأ؛ وكل عمولة الشهر اللي فات معتمدة قبل يوم 5."],
+       "كل مندوب له هدف رسوم قبل ما الشهر يبدأ؛ وكل عمولة الشهر اللي فات معتمدة قبل يوم 5."],
      "problems": [
-       "تاجر ناقص من عمولة مندوب: اتأكد إن الصفقة مكسوبة بالتاجر وإن المندوب كان صاحبها وقت الفوز.",
+       "تاجر ناقص من عمولة مندوب: اتأكد إن الصفقة مكسوبة بالتاجر وإن المندوب كان صاحبها وقت الفوز، وإن التاجر له طلبات متسلمة في شهرين مختلفين.",
+       "مندوب مالوش هدف في شهر خلص: الشهر ده اتقفل بصفر؛ حدد الأهداف قبل أول الشهر عشان ده ميحصلش.",
        "عمولة اتصرفت غلط: مش بتتغير؛ بلّغ الحسابات وهما يصححوها في شهر بعده."]},
     {"title": "تشغيل إشعارات الموبايل",
      "steps": [

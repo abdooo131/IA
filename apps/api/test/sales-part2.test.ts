@@ -1,5 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
-import type { JobRole } from '@shiplynow/shared';
+import { cairoDay, type JobRole } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
@@ -165,7 +165,7 @@ describe('sales CRM part 2', () => {
     await a.agent.post(`/sales/proposals/${draft.id}/send`).expect(201);
 
     // Targets: managers set them; reps read only their own.
-    const month = '2026-11';
+    const month = cairoDay(new Date()).slice(0, 7);
     await a.agent
       .post('/sales/targets')
       .send({ userId: a.user.id, month, dealsWon: 3, orders: 100, feeRevenuePiastres: 100_000 })
@@ -179,6 +179,20 @@ describe('sales CRM part 2', () => {
     expect(mine.body.rows[0]).toMatchObject({ user: { id: a.user.id }, target: { dealsWon: 3 } });
     const all = await boss.agent.get(`/sales/targets?month=${month}`).expect(200);
     expect(all.body.rows.length).toBeGreaterThanOrEqual(3);
+    // Each row carries the month's commission standing; managers see who has no fees target.
+    expect(mine.body.rows[0].commission).toMatchObject({
+      outcome: 'missed',
+      revenuePiastres: 0,
+      targetPiastres: 100_000,
+      neededPiastres: 100_000,
+      pending: [],
+    });
+    expect(mine.body.missingTargets).toEqual([]);
+    const missingNow = all.body.missingTargets[0];
+    expect(missingNow.month).toBe(month);
+    const missingIds = missingNow.users.map((u: { id: string }) => u.id);
+    expect(missingIds).toContain(b.user.id);
+    expect(missingIds).not.toContain(a.user.id);
     await a.agent.get(`/sales/dashboard?month=${month}`).expect(200);
     expect((await a.agent.get('/sales/dashboard?month=2026-13').expect(400)).body.error).toBe(
       'invalid_month',
@@ -202,5 +216,25 @@ describe('sales CRM part 2', () => {
       .send({ amountPiastres: 6_000, reason: '' })
       .expect(400);
     await boss.agent.post(`/sales/commissions/${c.id}/approve`).expect(201);
+    // A missed month is kept closed at 0: nothing to approve or pay.
+    const missed = await prisma.crmCommission.create({
+      data: {
+        userId: b.user.id,
+        month: '2026-10',
+        status: 'closed',
+        outcome: 'missed',
+        revenuePiastres: 90_000,
+        targetPiastres: 100_000,
+        computedPiastres: 0,
+        amountPiastres: 0,
+        idempotencyKey: `commission:${b.user.id}:2026-10`,
+      },
+    });
+    expect((await b.agent.get('/sales/commissions').expect(200)).body.commissions).toEqual([
+      expect.objectContaining({ status: 'closed', outcome: 'missed', targetPiastres: 100_000 }),
+    ]);
+    expect(
+      (await boss.agent.post(`/sales/commissions/${missed.id}/approve`).expect(409)).body.error,
+    ).toBe('commission_not_draft');
   });
 });

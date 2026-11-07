@@ -471,9 +471,10 @@
         "sales__stale_days": "Deal stuck in one stage after (days)",
         "sales__proposal_valid_days": "A sent proposal stays open for (days)",
         "sales__max_discount_bp": "Largest discount without a manager (%)",
-        "sales__commission_bp": "Commission on won merchant fees (%)",
-        "sales__commission_months": "Commission paid for (months from the win)",
-        "sales__setup_link_days": "New owner's password link valid for (days)"
+        "sales__commission_bp": "Commission on counted fees when the target is hit (%)",
+        "sales__commission_months": "A won merchant counts for (months from the win, 0 no end)",
+        "sales__setup_link_days": "New owner's password link valid for (days)",
+        "sales__qualify_active_months": "Months with delivered orders before a won merchant counts"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -4395,17 +4396,19 @@
           {
             "title": "Targets and commission",
             "steps": [
-              "Dashboard shows your month: deals won, orders and fees of the merchants you won against your targets.",
-              "Commission shows what this month is building up to, then each month once it is over.",
-              "Managers: in Targets, type each rep's deals, orders and fees for the month and Save.",
-              "Managers: in Commission, check each draft (merchants, fees, share), then Approve, or Change with a reason. Another manager approves your own.",
+              "The rule: you have a fees target each month. A merchant you won counts for you once it has had delivered orders in two different months (from that second month on, never backwards), for its first 12 months from the win.",
+              "When the month is over: if your counted fees reach the target or more, you earn 5% of all your counted fees; below the target, or with no target, the month pays nothing. Example: target 500,000 EGP, counted 520,000 EGP: hit, 5% = 26,000 EGP. Counted 480,000 EGP: missed, 0.",
+              "Dashboard and Commission show your counted fees so far against the target, how much more you need, the commission at this level if you hit it, and the merchants still pending (0 or 1 of 2 active months).",
+              "Managers: in Targets, type each rep's deals, orders and fees target for the month and Save. The page lists reps without a fees target this month and next.",
+              "Managers: in Commission, check each draft (counted fees, target, merchants, share), then Approve, or Change with a reason. Another manager approves your own. Missed months and months without a target close at 0 by themselves and need no approval.",
               "Approved commission is paid with the salary of that month's run, or as a bonus by Accounting for people hired through an outsourcing company."
             ],
             "check": [
-              "Every rep has targets before the month starts; every commission of last month is Approved by the 5th."
+              "Every rep has a fees target before the month starts; every commission of last month is Approved by the 5th."
             ],
             "problems": [
-              "A merchant is missing from a rep's commission: check the deal is won with its merchant and the rep was its owner when it was won.",
+              "A merchant is missing from a rep's commission: check the deal is won with its merchant, the rep was its owner when it was won, and the merchant has delivered orders in two different months.",
+              "A rep had no target in a month that is over: that month closed at 0; set targets before each month starts so it does not happen.",
               "Paid commission was wrong: it cannot be changed; tell Accounting, who correct it in a later month."
             ]
           },
@@ -7258,15 +7261,18 @@
       "noReps": "No sales people yet.",
       "rep": "Rep",
       "orders": "Orders brought in",
-      "revenue": "Fees (before VAT)"
+      "revenue": "Counted fees (before VAT)",
+      "commission": "Commission",
+      "myCommission": "Commission for {name}",
+      "myCommissionHint": "Counted fees against the fees target; commission is paid only when the target is reached."
     },
     "targets": {
       "title": "Targets",
-      "intro": "Each rep's month against their targets: deals won, delivered orders and fees before VAT of the merchants they won (from the day they won them). Sales managers set the targets here.",
+      "intro": "Each rep's month against their targets: deals won, delivered orders and counted fees (before VAT) of the merchants they won. A merchant's fees count once it has had delivered orders in two different months. Commission is paid only when the counted fees reach the fees target. Sales managers set the targets here.",
       "rep": "Rep",
       "deals": "Deals won",
       "orders": "Orders",
-      "revenue": "Fees (EGP)",
+      "revenue": "Counted fees (EGP)",
       "action": "Target",
       "save": "Save",
       "saved": "Saved.",
@@ -7274,18 +7280,20 @@
       "empty": "No sales people yet.",
       "dealsTarget": "Deals won target for {name}",
       "ordersTarget": "Orders target for {name}",
-      "revenueTarget": "Fees target for {name}"
+      "revenueTarget": "Fees target for {name}",
+      "commission": "Commission",
+      "missingTitle": "Reps without a fees target",
+      "missingHint": "A rep without a fees target earns no commission that month."
     },
     "commission": {
       "title": "Commission",
-      "intro": "The rep who won a merchant earns a share of its fees (before VAT) for its first months, the win month counting as the first. A sales manager approves each month's commission; it is then paid with the salary, or as a bonus to people hired through an outsourcing company.",
+      "intro": "Each rep has a monthly fees target. The fees (before VAT) of the merchants they won count once a merchant has had delivered orders in two different months, from that month on, for its first 12 months (the win month is the first). When the month is over: counted fees at or above the target pay the commission rate on all of them; below the target, or with no target set, the month pays nothing. A sales manager approves the commission; it is then paid with the salary, or as a bonus to people hired through an outsourcing company.",
       "rep": "Rep",
       "everyone": "Everyone",
       "show": "Show",
       "estimateTitle": "Building up in {month}",
-      "estimateHint": "An estimate from the fees booked so far; the real figure is worked out once the month is over.",
-      "estimateEmpty": "No won merchant earns commission this month.",
-      "soFar": "so far this month",
+      "estimateHint": "Counted from the fees booked so far; the real figure is worked out once the month is over.",
+      "estimateEmpty": "No won merchant or target for this month yet.",
       "waiting": "{n, plural, one {# commission waits} other {# commissions wait}} for your approval.",
       "history": "By month",
       "empty": "No commission yet.",
@@ -7296,7 +7304,8 @@
       "statuses": {
         "draft": "To approve",
         "approved": "Approved",
-        "paid": "Paid"
+        "paid": "Paid",
+        "closed": "Closed (nothing to pay)"
       },
       "lineText": "month {month}, fees {fees} EGP × {rate}% = {amount} EGP",
       "adjusted": "Worked out {computed} EGP; changed by {name}: {reason}",
@@ -7307,7 +7316,35 @@
       "adjust": "Change",
       "reason": "Why it changes",
       "saveAdjust": "Save the change",
-      "notYours": "Another sales manager approves your own commission."
+      "notYours": "Another sales manager approves your own commission.",
+      "result": "Result",
+      "counted": "Counted fees",
+      "egp": "EGP",
+      "noTargetShort": "no target",
+      "noTargetNote": "No target set for this month: no commission is paid.",
+      "earned": "Target hit: commission {amount} EGP",
+      "earnsSoFar": "Target reached: commission at this level {amount} EGP",
+      "needed": "{amount} EGP more counted fees hit the target",
+      "missedNote": "Target missed by {amount} EGP: no commission this month",
+      "wouldEarn": "Commission at this level if the target is hit: {amount} EGP",
+      "earnsShort": "Commission {amount} EGP",
+      "neededShort": "{amount} EGP to go",
+      "pendingTitle": "Not counted yet (needs delivered orders in more months)",
+      "pendingLine": "{active} of {needed} active months",
+      "pendingCount": "{n, plural, one {# merchant pending} other {# merchants pending}}",
+      "countedOf": "{revenue} of {target} EGP counted",
+      "lineCounted": "month {month}, fees {fees} EGP counted (rate {rate}%)",
+      "linePending": "month {month}, pending ({active} of {needed} active months), fees {fees} EGP not counted",
+      "outcomes": {
+        "hit": "Target hit",
+        "missed": "Target missed",
+        "no_target": "No target set"
+      },
+      "runningOutcomes": {
+        "hit": "Target reached",
+        "missed": "Not reached yet",
+        "no_target": "No target set"
+      }
     }
   },
   "proposalPage": {

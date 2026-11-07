@@ -1,17 +1,17 @@
 import { getTranslations } from 'next-intl/server';
 import { CommissionLines, CommissionList } from '@/components/sales/CommissionList';
-import { StatCard } from '@/components/StatCard';
+import { CommissionStanding } from '@/components/sales/CommissionStanding';
 import { apiGet } from '@/lib/api-server';
-import { formatEgp } from '@/lib/format';
 import type { SalesMeta } from '@/lib/sales';
-import type { Commissions } from '@/lib/sales-part2';
+import { type Commissions, estimateStanding } from '@/lib/sales-part2';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Sales > Commission: what the running month is building up to (an estimate from the fees
- * booked so far), then each month's commission as the job worked it out, approved by a sales
- * manager and paid with the salary (employees) or as a bonus (outsourced people).
+ * Sales > Commission: the running month (counted fees so far against the fees target, what
+ * more is needed, the commission at this level and the merchants still pending), then each
+ * month as the job worked it out: hit (a draft a sales manager approves, then paid with the
+ * salary or as a bonus to outsourced people), or missed / no target (closed at 0).
  */
 export default async function CommissionPage({
   searchParams,
@@ -68,13 +68,9 @@ export default async function CommissionPage({
           <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
             {data.estimate.map((e) => (
               <div key={e.user.id} className="min-w-0">
-                <StatCard
-                  icon="wallet"
-                  label={e.user.name}
-                  value={formatEgp(e.amountPiastres)}
-                  hint={t('soFar')}
-                />
-                <CommissionLines lines={e.lines} />
+                <h3 className="mb-1 text-body font-bold">{e.user.name}</h3>
+                <CommissionStanding standing={estimateStanding(e)} running />
+                <CommissionLines lines={e.lines} hit={e.outcome === 'hit'} />
               </div>
             ))}
           </div>

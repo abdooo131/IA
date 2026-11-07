@@ -432,14 +432,21 @@ export const SETTING_DEFINITIONS = {
     schema: basisPoints,
     default: 500,
     description:
-      "Commission to the rep who won a merchant, as a share of that merchant's fees before VAT (basis points: 500 is 5%)",
+      'Commission to a rep who hit their monthly fees target, as a share of all the fees counted for them that month (basis points: 500 is 5%)',
     override: 'none',
   },
   'sales.commission_months': {
     schema: z.number().int().min(0).max(60),
-    default: 6,
+    default: 12,
     description:
-      'Months a won merchant earns its rep commission, the month the deal was won counting as the first',
+      'Months a won merchant counts for its rep, the month the deal was won counting as the first (0: no end)',
+    override: 'none',
+  },
+  'sales.qualify_active_months': {
+    schema: z.number().int().min(1).max(12),
+    default: 2,
+    description:
+      'Distinct months with at least one delivered order a won merchant needs before its fees count for its rep (from the month it reaches them on)',
     override: 'none',
   },
   'sales.setup_link_days': {

@@ -821,6 +821,7 @@ export async function winTerms(tx: Db, ownerId: string | null) {
     wonById: ownerId,
     commissionBp: await getSetting(tx, 'sales.commission_bp'),
     commissionMonths: await getSetting(tx, 'sales.commission_months'),
+    qualifyMonths: await getSetting(tx, 'sales.qualify_active_months'),
   };
 }
 
@@ -870,7 +871,7 @@ export async function changeStage(
         lostNote,
         ...(body.stage === 'won'
           ? await winTerms(tx, before.ownerId)
-          : { wonById: null, commissionBp: null, commissionMonths: null }),
+          : { wonById: null, commissionBp: null, commissionMonths: null, qualifyMonths: null }),
       },
     });
     await tx.crmDealStageHistory.create({

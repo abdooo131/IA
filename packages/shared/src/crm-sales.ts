@@ -233,8 +233,40 @@ export const targetSchema = z.object({
 });
 export type TargetBody = z.infer<typeof targetSchema>;
 
-export const COMMISSION_STATUSES = ['draft', 'approved', 'paid'] as const;
+/** closed: nothing to pay (target missed, no target set, or nothing earned), no approval. */
+export const COMMISSION_STATUSES = ['draft', 'approved', 'paid', 'closed'] as const;
 export type CommissionStatus = (typeof COMMISSION_STATUSES)[number];
+
+/** A rep's month against their fees target. */
+export const COMMISSION_OUTCOMES = ['hit', 'missed', 'no_target'] as const;
+export type CommissionOutcome = (typeof COMMISSION_OUTCOMES)[number];
+
+/**
+ * Hit or miss: the counted fees at or above a fees target above 0 hit it; a target of 0 or none
+ * at all is no target; anything else missed it.
+ */
+export function commissionOutcome(
+  revenuePiastres: number,
+  targetPiastres: number | null | undefined,
+): CommissionOutcome {
+  if (!targetPiastres || targetPiastres <= 0) return 'no_target';
+  return revenuePiastres >= targetPiastres ? 'hit' : 'missed';
+}
+
+/** How much more counted fees the rep needs to hit the target (0 once hit, null without one). */
+export function targetGap(revenuePiastres: number, targetPiastres: number | null | undefined) {
+  if (!targetPiastres || targetPiastres <= 0) return null;
+  return Math.max(0, targetPiastres - revenuePiastres);
+}
+
+/**
+ * The month a won merchant qualifies in: the nth distinct Cairo month (n = the qualifying
+ * months frozen on the deal) in which it had a delivered order since the win; null before.
+ */
+export function qualifyingMonth(activeMonths: readonly string[], needed: number): string | null {
+  const months = [...new Set(activeMonths)].sort();
+  return months[Math.max(1, needed) - 1] ?? null;
+}
 
 /** A sales manager changes a draft commission: the amount to pay and why. */
 export const commissionAdjustSchema = z.object({
@@ -245,13 +277,13 @@ export type CommissionAdjustBody = z.infer<typeof commissionAdjustSchema>;
 
 /**
  * Which commission month of a won deal a month is: 1 is the month it was won, up to the
- * deal's number of months; null outside.
+ * deal's number of months (0: no end); null outside.
  */
 export function commissionMonthIndex(wonMonth: string, month: string, months: number) {
   const [wy, wm] = wonMonth.split('-').map(Number) as [number, number];
   const [y, m] = month.split('-').map(Number) as [number, number];
   const index = (y - wy) * 12 + (m - wm) + 1;
-  return index >= 1 && index <= months ? index : null;
+  return index >= 1 && (months <= 0 || index <= months) ? index : null;
 }
 
 /** Commission on a month's fees: the share in basis points, never below zero. */

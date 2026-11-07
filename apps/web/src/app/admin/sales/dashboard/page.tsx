@@ -1,6 +1,7 @@
 import { cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { ColumnChart } from '@/components/charts/ColumnChart';
+import { CommissionCell, CommissionStanding } from '@/components/sales/CommissionStanding';
 import { SalesMonthForm } from '@/components/sales/SalesMonthForm';
 import { StatCard } from '@/components/StatCard';
 import { apiGet } from '@/lib/api-server';
@@ -88,7 +89,9 @@ export default async function SalesDashboardPage({
   searchParams: Promise<{ month?: string; ownerId?: string }>;
 }) {
   const q = await searchParams;
-  const month = pickMonth(q.month, cairoDay(new Date()).slice(0, 7));
+  const current = cairoDay(new Date()).slice(0, 7);
+  const month = pickMonth(q.month, current);
+  const running = month === current;
   const meta = await apiGet<SalesMeta>('/sales/meta');
   const manager = meta.me.level === 'manage';
   const params = new URLSearchParams({ month });
@@ -252,6 +255,18 @@ export default async function SalesDashboardPage({
         </div>
       </section>
 
+      {d.leaderboard.length === 1 && (
+        <section aria-labelledby="my-commission" className="mt-6 max-w-xl">
+          <h2 id="my-commission" className="text-h3">
+            {t('myCommission', { name: d.leaderboard[0]!.user.name })}
+          </h2>
+          <p className="text-caption text-text-muted">{t('myCommissionHint')}</p>
+          <div className="mt-2">
+            <CommissionStanding standing={d.leaderboard[0]!.commission} running={running} />
+          </div>
+        </section>
+      )}
+
       <section aria-labelledby="leaders" className="mt-6">
         <h2 id="leaders" className="text-h3">
           {t('leaderboard')}
@@ -274,6 +289,9 @@ export default async function SalesDashboardPage({
                   </th>
                   <th className="px-3 py-2 text-start text-label uppercase text-text-muted">
                     {t('revenue')}
+                  </th>
+                  <th className="px-3 py-2 text-start text-label uppercase text-text-muted">
+                    {t('commission')}
                   </th>
                 </tr>
               </thead>
@@ -304,6 +322,9 @@ export default async function SalesDashboardPage({
                         target={r.target ? formatEgp(r.target.feeRevenuePiastres) : null}
                         bp={r.progress.feeRevenue}
                       />
+                    </td>
+                    <td className="px-3 py-2">
+                      <CommissionCell standing={r.commission} running={running} />
                     </td>
                   </tr>
                 ))}

@@ -6,19 +6,24 @@ import {
   type CommissionAdjustBody,
   commissionMonthIndex,
   commissionOn,
+  type CommissionOutcome,
+  commissionOutcome,
   CRM_OPEN_STAGES,
   CRM_SOURCES,
   CRM_STAGES,
   dealNumber,
   funnel,
   progressBp,
+  qualifyingMonth,
   shiftMonth,
+  targetGap,
   type TargetBody,
 } from '@shiplynow/shared';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { activityScope, type CrmActor, dealScope, need, salesPeople } from './crm';
 import { DomainError } from './domain-error';
+import { getSetting } from './settings';
 
 type Tx = Prisma.TransactionClient;
 
@@ -26,9 +31,15 @@ type Tx = Prisma.TransactionClient;
 // the sales dashboard, and commission on the fees of the merchants they won.
 //
 // A rep is credited with a merchant through the deal they won (crm_deals.won_by_id, the owner
-// at the moment of the win), from the moment it was won: delivered orders of that merchant and
-// fee income booked to it in the ledger (fees before VAT: revenue lines tagged with the
-// merchant, the year close left out). A merchant won twice counts for its first win only.
+// at the moment of the win), from the moment it was won. A merchant won twice counts for its
+// first win only. Its fees (fee income before VAT booked to it in the ledger: revenue lines
+// tagged with the merchant, the year close left out) count toward the rep's fees target and
+// commission only once the merchant is active (a delivered order) in the number of distinct
+// Cairo months frozen on the deal (sales.qualify_active_months, 2), from the month it reaches
+// that on, and only within the deal's commission months (sales.commission_months, the win month
+// first; 0 means no end). Once a month is over the rep's counted fees are compared with their
+// fees target: at or above a target above 0 they earn each deal's rate on all the counted fees,
+// otherwise nothing that month.
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 const monthStart = (month: string) => cairoDayStart(`${month}-01`);
@@ -44,25 +55,232 @@ function whoFor(actor: CrmActor, ownerId?: string | null) {
   return actor.userId;
 }
 
+// ─── counted fees and commission per rep and month ─────────────────────────────────
+
+/** Merchants won with their commission terms: the first win of each merchant. */
+async function commissionDeals(db: Db, userId: string | null) {
+  const deals = await db.crmDeal.findMany({
+    where: {
+      stage: 'won',
+      merchantId: { not: null },
+      wonById: userId ?? { not: null },
+      wonAt: { not: null },
+    },
+    select: {
+      id: true,
+      number: true,
+      merchantId: true,
+      wonById: true,
+      wonAt: true,
+      commissionBp: true,
+      commissionMonths: true,
+      qualifyMonths: true,
+      company: { select: { brandName: true } },
+    },
+    orderBy: { wonAt: 'asc' },
+  });
+  const seen = new Set<string>();
+  return deals.filter((d) => {
+    if (seen.has(d.merchantId!)) return false;
+    seen.add(d.merchantId!);
+    return true;
+  });
+}
+
+/** Fees before VAT booked to a merchant between two moments. */
+async function merchantFees(db: Db, merchantId: string, from: Date, to: Date) {
+  const rows = await db.$queryRaw<{ fees: bigint | null }[]>`
+    SELECT -SUM(l.amount_piastres) AS fees FROM ledger_lines l
+      JOIN ledger_accounts a ON a.id = l.account_id
+      JOIN ledger_entries e ON e.id = l.entry_id
+    WHERE a.type = 'revenue' AND e.kind <> 'year_close' AND l.merchant_id = ${merchantId}
+      AND l.occurred_at >= ${from} AND l.occurred_at < ${to}`;
+  return num(rows[0]?.fees);
+}
+
+/** The distinct Cairo months (YYYY-MM) in which a merchant had a delivered order. */
+async function activeMonths(db: Db, merchantId: string, from: Date, to: Date) {
+  const rows = await db.$queryRaw<{ month: string }[]>`
+    SELECT DISTINCT to_char(delivered_at AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Cairo', 'YYYY-MM')
+      AS month FROM orders
+    WHERE merchant_id = ${merchantId} AND status = 'delivered'
+      AND delivered_at >= ${from} AND delivered_at < ${to}
+    ORDER BY month`;
+  return rows.map((r) => r.month);
+}
+
+/** One won merchant in a rep's month. */
+export interface CommissionLineFigures {
+  dealId: string;
+  label: string;
+  company: string;
+  merchantId: string;
+  /** 1 is the month the deal was won */
+  monthIndex: number;
+  /** false: still pending, its fees do not count yet */
+  qualified: boolean;
+  /** Distinct months with a delivered order since the win, up to the month's end (or now) */
+  activeMonths: number;
+  /** The months it needs (frozen on the deal at the win) */
+  qualifyMonths: number;
+  qualifiedMonth: string | null;
+  feesPiastres: number;
+  rateBp: number;
+  /** The deal's rate on its fees: what the line pays when the target is hit */
+  amountPiastres: number;
+}
+
+/** A rep's month: counted fees against the fees target, and what it pays. */
+export interface RepMonth {
+  userId: string;
+  month: string;
+  /** Fees of the qualified merchants inside their commission months */
+  revenuePiastres: number;
+  targetPiastres: number | null;
+  outcome: CommissionOutcome;
+  progressBp: number | null;
+  /** How much more counted fees hit the target (null without one) */
+  neededPiastres: number | null;
+  /** Each deal's rate on its counted fees: what the month pays if the target is hit */
+  potentialPiastres: number;
+  /** What the month pays at the current level: the potential when hit, else 0 */
+  commissionPiastres: number;
+  lines: CommissionLineFigures[];
+  pending: CommissionLineFigures[];
+}
+
+const emptyRepMonth = (userId: string, month: string, target: number | null): RepMonth => ({
+  userId,
+  month,
+  revenuePiastres: 0,
+  targetPiastres: target,
+  outcome: commissionOutcome(0, target),
+  progressBp: progressBp(0, target),
+  neededPiastres: targetGap(0, target),
+  potentialPiastres: 0,
+  commissionPiastres: 0,
+  lines: [],
+  pending: [],
+});
+
+/**
+ * Each rep's month (up to now for the running month): one line per merchant whose deal they
+ * won while the month is within the deal's commission months. A merchant qualifies in the nth
+ * distinct month it had a delivered order since the win; from then on its fees count, before
+ * that it is pending. Reps with a won merchant in the window or a fees target show.
+ */
+export async function repMonths(
+  db: Db,
+  month: string,
+  userId: string | null = null,
+  now: Date = new Date(),
+): Promise<Map<string, RepMonth>> {
+  const { from, to } = monthRange(month);
+  const until = to < now ? to : now;
+  const [deals, targets, defaults] = await Promise.all([
+    commissionDeals(db, userId),
+    db.crmTarget.findMany({
+      where: { month, ...(userId ? { userId } : {}) },
+      select: { userId: true, feeRevenuePiastres: true },
+    }),
+    Promise.all([
+      getSetting(db, 'sales.commission_bp'),
+      getSetting(db, 'sales.commission_months'),
+      getSetting(db, 'sales.qualify_active_months'),
+    ]),
+  ]);
+  const targetOf = new Map(targets.map((t) => [t.userId, t.feeRevenuePiastres]));
+  const out = new Map<string, RepMonth>();
+  const rep = (id: string) => {
+    if (!out.has(id)) out.set(id, emptyRepMonth(id, month, targetOf.get(id) ?? null));
+    return out.get(id)!;
+  };
+  for (const t of targets) rep(t.userId);
+
+  for (const d of deals) {
+    if (d.wonAt! >= to) continue;
+    // Deals won before these terms existed take today's settings.
+    const rateBp = d.commissionBp ?? defaults[0];
+    const months = d.commissionMonths ?? defaults[1];
+    const needed = d.qualifyMonths ?? defaults[2];
+    const index = commissionMonthIndex(cairoDay(d.wonAt!).slice(0, 7), month, months);
+    if (index === null) continue;
+    const active = await activeMonths(db, d.merchantId!, d.wonAt!, until);
+    const qualifiedMonth = qualifyingMonth(active, needed);
+    const qualified = qualifiedMonth !== null && qualifiedMonth <= month;
+    const start = d.wonAt! > from ? d.wonAt! : from;
+    const fees = Math.max(0, await merchantFees(db, d.merchantId!, start, until));
+    const line: CommissionLineFigures = {
+      dealId: d.id,
+      label: dealNumber(d.number),
+      company: d.company.brandName,
+      merchantId: d.merchantId!,
+      monthIndex: index,
+      qualified,
+      activeMonths: active.length,
+      qualifyMonths: needed,
+      qualifiedMonth,
+      feesPiastres: fees,
+      rateBp,
+      amountPiastres: qualified ? commissionOn(fees, rateBp) : 0,
+    };
+    const r = rep(d.wonById!);
+    if (qualified) r.lines.push(line);
+    else r.pending.push(line);
+  }
+
+  for (const r of out.values()) {
+    r.revenuePiastres = r.lines.reduce((s, l) => s + l.feesPiastres, 0);
+    r.potentialPiastres = r.lines.reduce((s, l) => s + l.amountPiastres, 0);
+    r.outcome = commissionOutcome(r.revenuePiastres, r.targetPiastres);
+    r.progressBp = progressBp(r.revenuePiastres, r.targetPiastres);
+    r.neededPiastres = targetGap(r.revenuePiastres, r.targetPiastres);
+    r.commissionPiastres = r.outcome === 'hit' ? r.potentialPiastres : 0;
+    r.lines.sort((a, b) => b.feesPiastres - a.feesPiastres);
+  }
+  return out;
+}
+
+/** What screens show of a rep's month next to the targets. */
+function monthSummary(r: RepMonth) {
+  return {
+    outcome: r.outcome,
+    revenuePiastres: r.revenuePiastres,
+    targetPiastres: r.targetPiastres,
+    neededPiastres: r.neededPiastres,
+    potentialPiastres: r.potentialPiastres,
+    commissionPiastres: r.commissionPiastres,
+    qualified: r.lines.length,
+    pending: r.pending.map((l) => ({
+      dealId: l.dealId,
+      company: l.company,
+      activeMonths: l.activeMonths,
+      qualifyMonths: l.qualifyMonths,
+    })),
+  };
+}
+
 // ─── figures ─────────────────────────────────────────────────────────────────────
 
 export interface RepFigures {
   dealsWon: number;
   orders: number;
+  /** Counted fees: qualified merchants inside their commission months (as commission counts) */
   feeRevenuePiastres: number;
 }
 
 /**
- * Each rep's month: deals won in it, delivered orders and fees before VAT of the merchants
- * they won (from the win on). Only reps with something show; `userId` limits to one.
+ * Each rep's month: deals won in it, delivered orders of the merchants they won (from the win
+ * on) and the counted fees. Only reps with something show; `userId` limits to one.
  */
 export async function repFigures(
   db: Db,
   month: string,
   userId: string | null = null,
-): Promise<Map<string, RepFigures>> {
+  now: Date = new Date(),
+): Promise<{ figures: Map<string, RepFigures>; months: Map<string, RepMonth> }> {
   const { from, to } = monthRange(month);
-  const [won, orders, fees] = await Promise.all([
+  const [won, orders, months] = await Promise.all([
     db.$queryRaw<{ user_id: string; n: bigint }[]>`
       SELECT won_by_id AS user_id, COUNT(*) AS n FROM crm_deals
       WHERE stage = 'won' AND won_by_id IS NOT NULL AND won_at >= ${from} AND won_at < ${to}
@@ -78,19 +296,7 @@ export async function repFigures(
       WHERE o.status = 'delivered' AND o.delivered_at >= GREATEST(${from}::timestamp, f.won_at)
         AND o.delivered_at < ${to} AND (${userId}::text IS NULL OR f.won_by_id = ${userId})
       GROUP BY f.won_by_id`,
-    db.$queryRaw<{ user_id: string; amount: bigint }[]>`
-      WITH firsts AS (
-        SELECT DISTINCT ON (merchant_id) merchant_id, won_by_id, won_at FROM crm_deals
-        WHERE stage = 'won' AND merchant_id IS NOT NULL AND won_by_id IS NOT NULL
-        ORDER BY merchant_id, won_at)
-      SELECT f.won_by_id AS user_id, -SUM(l.amount_piastres) AS amount FROM firsts f
-        JOIN ledger_lines l ON l.merchant_id = f.merchant_id
-        JOIN ledger_accounts a ON a.id = l.account_id
-        JOIN ledger_entries e ON e.id = l.entry_id
-      WHERE a.type = 'revenue' AND e.kind <> 'year_close'
-        AND l.occurred_at >= GREATEST(${from}::timestamp, f.won_at) AND l.occurred_at < ${to}
-        AND (${userId}::text IS NULL OR f.won_by_id = ${userId})
-      GROUP BY f.won_by_id`,
+    repMonths(db, month, userId, now),
   ]);
   const out = new Map<string, RepFigures>();
   const row = (id: string) => {
@@ -99,36 +305,59 @@ export async function repFigures(
   };
   for (const r of won) row(r.user_id).dealsWon = num(r.n);
   for (const r of orders) row(r.user_id).orders = num(r.n);
-  for (const r of fees) row(r.user_id).feeRevenuePiastres = num(r.amount);
-  return out;
+  for (const [id, m] of months)
+    if (m.revenuePiastres) row(id).feeRevenuePiastres = m.revenuePiastres;
+  return { figures: out, months };
 }
 
 // ─── targets ─────────────────────────────────────────────────────────────────────
 
 /**
- * Targets against what was reached for a month: every sales person for a manager, only
- * themselves for anyone else.
+ * Targets against what was reached for a month, with the month's commission standing (hit or
+ * missed, what it pays, merchants still pending): every sales person for a manager, only
+ * themselves for anyone else. Managers also get the reps without a fees target for the current
+ * and the next month.
  */
-export async function listTargets(db: Db, actor: CrmActor, month: string) {
+export async function listTargets(db: Db, actor: CrmActor, month: string, now: Date = new Date()) {
   need(actor, 'view');
   monthRange(month);
   const people = (await salesPeople(db)).filter(
     (p) => actor.level === 'manage' || p.id === actor.userId,
   );
   const ids = people.map((p) => p.id);
-  const [targets, figures] = await Promise.all([
+  const [targets, { figures, months }] = await Promise.all([
     db.crmTarget.findMany({
       where: { month, userId: { in: ids } },
       include: { updatedBy: { select: { name: true } } },
     }),
-    repFigures(db, month, actor.level === 'manage' ? null : actor.userId),
+    repFigures(db, month, actor.level === 'manage' ? null : actor.userId, now),
   ]);
   const byUser = new Map(targets.map((t) => [t.userId, t]));
+
+  let missingTargets: { month: string; users: { id: string; name: string }[] }[] = [];
+  if (actor.level === 'manage') {
+    const current = cairoDay(now).slice(0, 7);
+    const ahead = [current, shiftMonth(current, 1)];
+    const set = await db.crmTarget.findMany({
+      where: { month: { in: ahead }, feeRevenuePiastres: { gt: 0 } },
+      select: { userId: true, month: true },
+    });
+    const reps = people.filter((p) => !p.manager);
+    missingTargets = ahead.map((m) => ({
+      month: m,
+      users: reps
+        .filter((p) => !set.some((s) => s.userId === p.id && s.month === m))
+        .map((p) => ({ id: p.id, name: p.name })),
+    }));
+  }
+
   return {
     month,
+    missingTargets,
     rows: people.map((p) => {
       const t = byUser.get(p.id);
       const f = figures.get(p.id) ?? { dealsWon: 0, orders: 0, feeRevenuePiastres: 0 };
+      const m = months.get(p.id) ?? emptyRepMonth(p.id, month, t?.feeRevenuePiastres ?? null);
       return {
         user: { id: p.id, name: p.name, manager: p.manager },
         target: t
@@ -146,6 +375,7 @@ export async function listTargets(db: Db, actor: CrmActor, month: string) {
           orders: progressBp(f.orders, t?.orders),
           feeRevenue: progressBp(f.feeRevenuePiastres, t?.feeRevenuePiastres),
         },
+        commission: monthSummary(m),
       };
     }),
   };
@@ -319,7 +549,7 @@ export async function salesDashboard(
     };
   });
 
-  const targets = await listTargets(db, actor, options.month);
+  const targets = await listTargets(db, actor, options.month, now);
   const leaderboard = targets.rows
     .filter((r) => !who || r.user.id === who)
     .sort(
@@ -351,127 +581,49 @@ export async function salesDashboard(
 
 // ─── commission ──────────────────────────────────────────────────────────────────
 
-/** Merchants won with commission terms: the first win of each merchant. */
-async function commissionDeals(db: Db, userId: string | null) {
-  const deals = await db.crmDeal.findMany({
-    where: {
-      stage: 'won',
-      merchantId: { not: null },
-      wonById: userId ?? { not: null },
-      wonAt: { not: null },
-    },
-    select: {
-      id: true,
-      number: true,
-      merchantId: true,
-      wonById: true,
-      wonAt: true,
-      commissionBp: true,
-      commissionMonths: true,
-      company: { select: { brandName: true } },
-    },
-    orderBy: { wonAt: 'asc' },
-  });
-  const seen = new Set<string>();
-  return deals.filter((d) => {
-    if (seen.has(d.merchantId!)) return false;
-    seen.add(d.merchantId!);
-    return (d.commissionBp ?? 0) > 0 && (d.commissionMonths ?? 0) > 0;
-  });
-}
-
-/** Fees before VAT booked to a merchant between two moments. */
-async function merchantFees(db: Db, merchantId: string, from: Date, to: Date) {
-  const rows = await db.$queryRaw<{ fees: bigint | null }[]>`
-    SELECT -SUM(l.amount_piastres) AS fees FROM ledger_lines l
-      JOIN ledger_accounts a ON a.id = l.account_id
-      JOIN ledger_entries e ON e.id = l.entry_id
-    WHERE a.type = 'revenue' AND e.kind <> 'year_close' AND l.merchant_id = ${merchantId}
-      AND l.occurred_at >= ${from} AND l.occurred_at < ${to}`;
-  return num(rows[0]?.fees);
-}
-
-/**
- * Each rep's commission lines for a month (up to now for the running month): one per merchant
- * whose deal they won, while the month is within the deal's commission months (the win month
- * is month 1), on the merchant's fees before VAT from the win on.
- */
-export async function commissionLines(
-  db: Db,
-  month: string,
-  userId: string | null = null,
-  now: Date = new Date(),
-) {
-  const { from, to } = monthRange(month);
-  const until = to < now ? to : now;
-  const out = new Map<
-    string,
-    {
-      dealId: string;
-      label: string;
-      company: string;
-      merchantId: string;
-      monthIndex: number;
-      feesPiastres: number;
-      rateBp: number;
-      amountPiastres: number;
-    }[]
-  >();
-  for (const d of await commissionDeals(db, userId)) {
-    if (d.wonAt! >= to) continue;
-    const index = commissionMonthIndex(cairoDay(d.wonAt!).slice(0, 7), month, d.commissionMonths!);
-    if (index === null) continue;
-    const start = d.wonAt! > from ? d.wonAt! : from;
-    const fees = Math.max(0, await merchantFees(db, d.merchantId!, start, until));
-    const list = out.get(d.wonById!) ?? [];
-    list.push({
-      dealId: d.id,
-      label: dealNumber(d.number),
-      company: d.company.brandName,
-      merchantId: d.merchantId!,
-      monthIndex: index,
-      feesPiastres: fees,
-      rateBp: d.commissionBp!,
-      amountPiastres: commissionOn(fees, d.commissionBp!),
-    });
-    out.set(d.wonById!, list);
-  }
-  return out;
-}
-
 /**
  * Once a Cairo month is over (from its second day after, so the month's minimum fees are in),
- * each rep's commission for it is worked out as a draft, once (key commission:<rep>:<month>).
- * Safe to run any number of times.
+ * each rep's commission for it is worked out once (key commission:<rep>:<month>): the counted
+ * fees against the fees target, one line per merchant (pending ones included, not counted).
+ * A hit with something to pay waits for a sales manager as a draft; a miss, no target or
+ * nothing earned is kept closed (0, nothing to approve or pay). Safe to run any number of times.
  */
 export async function computeCommissions(db: Db, now: Date = new Date(), month?: string) {
   const today = cairoDay(now);
   const target = month ?? shiftMonth(today.slice(0, 7), -1);
   if (target >= today.slice(0, 7)) throw new DomainError('month_not_over');
   if (!month && Number(today.slice(8, 10)) < 2) return { month: target, created: 0 };
-  const lines = await commissionLines(db, target, null, now);
+  const reps = await repMonths(db, target, null, now);
   let created = 0;
-  for (const [userId, rows] of lines) {
+  for (const [userId, r] of reps) {
     const key = `commission:${userId}:${target}`;
     if (await db.crmCommission.findUnique({ where: { idempotencyKey: key } })) continue;
-    const total = rows.reduce((s, r) => s + r.amountPiastres, 0);
+    const hit = r.outcome === 'hit';
+    const total = r.commissionPiastres;
     try {
       await inTransaction(db, async (tx) => {
         const row = await tx.crmCommission.create({
           data: {
             userId,
             month: target,
+            status: total > 0 ? 'draft' : 'closed',
+            revenuePiastres: r.revenuePiastres,
+            targetPiastres: r.targetPiastres,
+            outcome: r.outcome,
             computedPiastres: total,
             amountPiastres: total,
             idempotencyKey: key,
             lines: {
-              create: rows.map((r) => ({
-                dealId: r.dealId,
-                merchantId: r.merchantId,
-                monthIndex: r.monthIndex,
-                feesPiastres: r.feesPiastres,
-                rateBp: r.rateBp,
-                amountPiastres: r.amountPiastres,
+              create: [...r.lines, ...r.pending].map((l) => ({
+                dealId: l.dealId,
+                merchantId: l.merchantId,
+                monthIndex: l.monthIndex,
+                qualified: l.qualified,
+                activeMonths: l.activeMonths,
+                qualifiedMonth: l.qualifiedMonth,
+                feesPiastres: l.feesPiastres,
+                rateBp: l.rateBp,
+                amountPiastres: hit ? l.amountPiastres : 0,
               })),
             },
           },
@@ -481,7 +633,17 @@ export async function computeCommissions(db: Db, now: Date = new Date(), month?:
           action: 'crm_commission.compute',
           entityType: 'crm_commission',
           entityId: row.id,
-          after: { userId, month: target, amount: total, merchants: rows.length },
+          after: {
+            userId,
+            month: target,
+            outcome: r.outcome,
+            revenue: r.revenuePiastres,
+            target: r.targetPiastres,
+            amount: total,
+            status: row.status,
+            merchants: r.lines.length,
+            pending: r.pending.length,
+          },
         });
       });
       created++;
@@ -500,15 +662,23 @@ const commissionInclude = {
   paidEntry: { select: { number: true } },
   lines: {
     include: {
-      deal: { select: { id: true, number: true, company: { select: { brandName: true } } } },
+      deal: {
+        select: {
+          id: true,
+          number: true,
+          qualifyMonths: true,
+          company: { select: { brandName: true } },
+        },
+      },
     },
-    orderBy: { amountPiastres: 'desc' },
+    orderBy: [{ qualified: 'desc' }, { feesPiastres: 'desc' }],
   },
 } satisfies Prisma.CrmCommissionInclude;
 
 /**
- * Commission: the history (drafts, approved, paid) and the running month's estimate. A sales
- * manager sees everyone (or one rep); anyone else only their own.
+ * Commission: the history (drafts, approved, paid, closed) and the running month's estimate
+ * (counted fees so far against the target, what more is needed, what it would pay, pending
+ * merchants). A sales manager sees everyone (or one rep); anyone else only their own.
  */
 export async function listCommissions(
   db: Db,
@@ -525,21 +695,24 @@ export async function listCommissions(
     take: 300,
   });
   const month = cairoDay(now).slice(0, 7);
-  const estimate = await commissionLines(db, month, who, now);
+  const estimate = await repMonths(db, month, who, now);
   const people = await salesPeople(db);
   const name = (id: string) => people.find((p) => p.id === id)?.name ?? '';
   return {
     month,
-    estimate: [...estimate.entries()].map(([userId, lines]) => ({
-      user: { id: userId, name: name(userId) },
-      amountPiastres: lines.reduce((s, l) => s + l.amountPiastres, 0),
-      lines,
-    })),
+    estimate: [...estimate.values()]
+      .map((r) => ({ ...r, user: { id: r.userId, name: name(r.userId) } }))
+      .sort(
+        (a, b) => b.revenuePiastres - a.revenuePiastres || a.user.name.localeCompare(b.user.name),
+      ),
     commissions: rows.map((r) => ({
       id: r.id,
       month: r.month,
       status: r.status,
       user: r.user,
+      outcome: r.outcome as CommissionOutcome,
+      revenuePiastres: r.revenuePiastres,
+      targetPiastres: r.targetPiastres,
       computedPiastres: r.computedPiastres,
       amountPiastres: r.amountPiastres,
       adjustReason: r.adjustReason,
@@ -554,6 +727,10 @@ export async function listCommissions(
         label: dealNumber(l.deal.number),
         company: l.deal.company.brandName,
         monthIndex: l.monthIndex,
+        qualified: l.qualified,
+        activeMonths: l.activeMonths,
+        qualifiedMonth: l.qualifiedMonth,
+        qualifyMonths: l.deal.qualifyMonths,
         feesPiastres: l.feesPiastres,
         rateBp: l.rateBp,
         amountPiastres: l.amountPiastres,
