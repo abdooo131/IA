@@ -11,7 +11,14 @@ import { useLocale, useT } from '@/parcels/lib/i18n';
 interface MyShift {
   date: string;
   linked: boolean;
-  shift: { id: string; startAt: string; status: string; checkInAt: string | null; lateMinutes: number; replacesShiftId: string | null } | null;
+  shift: {
+    id: string;
+    startAt: string;
+    status: string;
+    checkInAt: string | null;
+    lateMinutes: number;
+    replacesShiftId: string | null;
+  } | null;
 }
 
 function where(): Promise<{ lat: number; lng: number } | null> {
@@ -55,7 +62,11 @@ export function CheckInGate({ children }: { children: ReactNode }) {
     );
   }
   if (s && (s.status === 'NOT_COMING' || s.status === 'REPLACED')) {
-    return <Alert tone="warning">{t('Your agent reported you as not coming today. Call your agent')}</Alert>;
+    return (
+      <Alert tone="warning">
+        {t('Your agent reported you as not coming today. Call your agent')}
+      </Alert>
+    );
   }
 
   const pick = async (file: File | undefined) => {
@@ -87,19 +98,45 @@ export function CheckInGate({ children }: { children: ReactNode }) {
     <Card title={t('Check in to start your day')}>
       <div className="space-y-4">
         <p className="text-body-sm text-text-muted">
-          {s ? t('Your shift starts at {time}.', { time: clock(s.startAt, locale) }) : t('No shift is planned for you today.')} {t('Take a photo of yourself at the hub to check in.')}
+          {s
+            ? t('Your shift starts at {time}.', { time: clock(s.startAt, locale) })
+            : t('No shift is planned for you today.')}{' '}
+          {t('Take a photo of yourself at the hub to check in.')}
         </p>
         {s?.replacesShiftId && <Alert tone="info">{t('You are covering for someone today')}</Alert>}
         {error && <Alert>{error}</Alert>}
         {preview ? (
-          <img src={preview} alt={t('Your check in photo')} className="mx-auto max-h-72 rounded-lg" />
+          <img
+            src={preview}
+            alt={t('Your check in photo')}
+            className="mx-auto max-h-72 rounded-lg"
+          />
         ) : null}
         <div className="flex flex-col gap-2">
-          <label className={preview ? 'btn-secondary cursor-pointer' : 'btn-primary min-h-12 cursor-pointer text-body'}>
+          <label
+            className={
+              preview
+                ? 'btn-secondary cursor-pointer'
+                : 'btn-primary min-h-12 cursor-pointer text-body'
+            }
+          >
             {preview ? t('Take another photo') : t('Take photo')}
-            <input type="file" accept="image/*" capture="user" className="sr-only" onChange={(e) => { void pick(e.target.files?.[0]); e.target.value = ''; }} />
+            <input
+              type="file"
+              accept="image/*"
+              capture="user"
+              className="sr-only"
+              onChange={(e) => {
+                void pick(e.target.files?.[0]);
+                e.target.value = '';
+              }}
+            />
           </label>
-          {preview && <Button className="min-h-12 text-body" disabled={busy} onClick={() => void send()}>{busy ? t('Checking in…') : t('Check in')}</Button>}
+          {preview && (
+            <Button className="min-h-12 text-body" disabled={busy} onClick={() => void send()}>
+              {busy ? t('Checking in…') : t('Check in')}
+            </Button>
+          )}
         </div>
       </div>
     </Card>

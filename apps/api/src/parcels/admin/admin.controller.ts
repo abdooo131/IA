@@ -34,13 +34,21 @@ export class AdminController {
 
   /** Create a parcel on behalf of a merchant. */
   @Post('merchants/:merchantId/shipments')
-  createFor(@CurrentUser() u: SessionUser, @Param('merchantId', ParseIdPipe) merchantId: string, @Body() body: unknown) {
+  createFor(
+    @CurrentUser() u: SessionUser,
+    @Param('merchantId', ParseIdPipe) merchantId: string,
+    @Body() body: unknown,
+  ) {
     return this.merchants.create(merchantId, body, u.id);
   }
 
   @Post('shipments/:id/lost')
   @HttpCode(200)
-  async lost(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: { note?: string }) {
+  async lost(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: { note?: string },
+  ) {
     await this.admin.markLost(id, u, String(body?.note ?? ''));
     return { ok: true };
   }
@@ -56,7 +64,11 @@ export class AdminController {
   }
 
   @Put('hubs/:id')
-  updateHub(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  updateHub(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.admin.saveHub(id, body, u);
   }
 
@@ -101,7 +113,11 @@ export class AdminController {
   }
 
   @Put('governorates/:code')
-  saveGovernorate(@CurrentUser() u: SessionUser, @Param('code') code: string, @Body() body: unknown) {
+  saveGovernorate(
+    @CurrentUser() u: SessionUser,
+    @Param('code') code: string,
+    @Body() body: unknown,
+  ) {
     return this.admin.saveGovernorate(code, body, u);
   }
 
@@ -111,7 +127,11 @@ export class AdminController {
   }
 
   @Put('areas/:id')
-  updateArea(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  updateArea(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.admin.saveArea(id, body, u);
   }
 
@@ -126,7 +146,11 @@ export class AdminController {
   }
 
   @Put('merchants/:id')
-  updateMerchant(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  updateMerchant(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.admin.saveMerchant(id, body, u);
   }
 
@@ -141,7 +165,11 @@ export class AdminController {
   }
 
   @Put('users/:id')
-  async updateUser(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  async updateUser(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     await this.admin.updateUser(id, body, u);
     return { ok: true };
   }
@@ -152,7 +180,11 @@ export class AdminController {
   }
 
   @Put('settings/:key')
-  async saveSetting(@CurrentUser() u: SessionUser, @Param('key') key: string, @Body() body: { value?: unknown }) {
+  async saveSetting(
+    @CurrentUser() u: SessionUser,
+    @Param('key') key: string,
+    @Body() body: { value?: unknown },
+  ) {
     await this.admin.saveSetting(key, body?.value, u);
     return { ok: true };
   }
@@ -166,7 +198,6 @@ export class AdminController {
   statement(@Param('id', ParseIdPipe) id: string) {
     return this.admin.statement(id);
   }
-
 
   @Get('courier-cash')
   courierCash() {

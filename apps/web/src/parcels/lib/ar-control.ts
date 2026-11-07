@@ -7,14 +7,16 @@ export const AR_CONTROL: Record<string, string> = {
   'Why should this penalty be reversed?': 'لماذا يجب إلغاء هذا الجزاء؟',
   'Appeal before {time}': 'تظلم قبل {time}',
   'Appeal sent': 'تم إرسال التظلم',
-  'A ticket waits before its penalty applies, so operations can cancel it. After that the courier or agent can appeal.': 'التذكرة تنتظر قبل تطبيق الجزاء حتى يمكن للتشغيل إلغاؤها، وبعدها يمكن للمندوب أو الوكيل التظلم.',
+  'A ticket waits before its penalty applies, so operations can cancel it. After that the courier or agent can appeal.':
+    'التذكرة تنتظر قبل تطبيق الجزاء حتى يمكن للتشغيل إلغاؤها، وبعدها يمكن للمندوب أو الوكيل التظلم.',
   Waiting: 'في الانتظار',
   Appealed: 'تم التظلم',
   'Penalty applied': 'تم تطبيق الجزاء',
   'Appeal refused': 'رفض التظلم',
   Reversed: 'تم الإلغاء',
   'New ticket': 'تذكرة جديدة',
-  'Optional. With no courier chosen, the last person who scanned it is held responsible': 'اختياري. بدون اختيار مندوب يتحمل المسؤولية آخر من مسح الشحنة',
+  'Optional. With no courier chosen, the last person who scanned it is held responsible':
+    'اختياري. بدون اختيار مندوب يتحمل المسؤولية آخر من مسح الشحنة',
   'From the parcel': 'من الشحنة',
   'Penalty (EGP)': 'الجزاء (ج.م)',
   'What happened': 'ماذا حدث',
@@ -40,7 +42,8 @@ export const AR_CONTROL: Record<string, string> = {
   'Customer complaint': 'شكوى عميل',
   'Pallet damaged': 'طبلية تالفة',
   'Lost and damaged': 'المفقود والتالف',
-  'A missing parcel is searched for before the loss is final; scanning it anywhere ends the search': 'يتم البحث عن الشحنة المفقودة قبل اعتبار الفقد نهائيا، ومسحها في أي مكان ينهي البحث',
+  'A missing parcel is searched for before the loss is final; scanning it anywhere ends the search':
+    'يتم البحث عن الشحنة المفقودة قبل اعتبار الفقد نهائيا، ومسحها في أي مكان ينهي البحث',
   'Nothing lost or damaged': 'لا يوجد مفقود أو تالف',
   State: 'الوضع',
   'Held responsible': 'المسؤول',
@@ -48,10 +51,13 @@ export const AR_CONTROL: Record<string, string> = {
   'Lost, merchant paid {amount}': 'مفقودة، تم تعويض التاجر {amount}',
   Damaged: 'تالفة',
   'Nobody on record': 'لا أحد مسجل',
-  'Tickets against your staff. You can appeal a penalty within the appeal window.': 'تذاكر ضد موظفيك. يمكنك التظلم من الجزاء خلال مهلة التظلم.',
-  'Tickets appear here when operations open one against your staff': 'تظهر التذاكر هنا عندما يفتح التشغيل تذكرة ضد موظفيك',
+  'Tickets against your staff. You can appeal a penalty within the appeal window.':
+    'تذاكر ضد موظفيك. يمكنك التظلم من الجزاء خلال مهلة التظلم.',
+  'Tickets appear here when operations open one against your staff':
+    'تظهر التذاكر هنا عندما يفتح التشغيل تذكرة ضد موظفيك',
   'Report damage': 'الإبلاغ عن تلف',
-  'Scan the damaged parcel, say what is wrong and take a photo. The person who handled it before you is recorded.': 'امسح الشحنة التالفة واكتب المشكلة والتقط صورة. يسجل من تعامل معها قبلك.',
+  'Scan the damaged parcel, say what is wrong and take a photo. The person who handled it before you is recorded.':
+    'امسح الشحنة التالفة واكتب المشكلة والتقط صورة. يسجل من تعامل معها قبلك.',
   'What is damaged': 'ما التالف',
   'Photo of the damage': 'صورة التلف',
   'Take a photo of the damage': 'التقط صورة للتلف',
@@ -98,13 +104,16 @@ export const AR_CONTROL: Record<string, string> = {
   'Fraud check: repeat refuser': 'فحص احتيال: عميل يرفض كثيرا',
   'Fraud check: cash shortages': 'فحص احتيال: عجز نقدية متكرر',
   'Search time for lost parcels (hours)': 'مدة البحث عن المفقود (ساعات)',
-  'How long a missing parcel is searched for before the loss is final': 'مدة البحث عن الشحنة قبل اعتبار الفقد نهائيا',
+  'How long a missing parcel is searched for before the loss is final':
+    'مدة البحث عن الشحنة قبل اعتبار الفقد نهائيا',
   'Lost parcel compensation cap': 'أقصى تعويض للشحنة المفقودة',
   'Most we pay a merchant for one lost parcel': 'أقصى مبلغ ندفعه للتاجر عن شحنة مفقودة',
   'Ticket waiting time (hours)': 'مهلة التذكرة (ساعات)',
-  'Time operations have to cancel a quality ticket before its penalty applies': 'المهلة المتاحة للتشغيل لإلغاء التذكرة قبل تطبيق الجزاء',
+  'Time operations have to cancel a quality ticket before its penalty applies':
+    'المهلة المتاحة للتشغيل لإلغاء التذكرة قبل تطبيق الجزاء',
   'Appeal window (hours)': 'مهلة التظلم (ساعات)',
   'Time a courier or agent has to appeal a penalty': 'المهلة المتاحة للمندوب أو الوكيل للتظلم',
   'Failed attempts fraud check': 'فحص المحاولات الفاشلة',
-  'Failed attempts by one courier in a day that raise a check': 'عدد المحاولات الفاشلة للمندوب في اليوم الذي يستدعي الفحص',
+  'Failed attempts by one courier in a day that raise a check':
+    'عدد المحاولات الفاشلة للمندوب في اليوم الذي يستدعي الفحص',
 };

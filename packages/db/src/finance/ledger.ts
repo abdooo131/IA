@@ -70,18 +70,90 @@ const SYSTEM_ACCOUNTS: Record<
   SystemAccountKey,
   { type: LedgerAccountType; group: number; code: string; nameEn: string; nameAr: string }
 > = {
-  parcel_shipping_revenue: { type: 'revenue', group: 4300, code: '4301', nameEn: 'Parcel shipping', nameAr: 'إيرادات شحن الطرود' },
-  parcel_cod_fee_revenue: { type: 'revenue', group: 4300, code: '4302', nameEn: 'Parcel COD fees', nameAr: 'رسوم تحصيل الطرود' },
-  parcel_return_fee_revenue: { type: 'revenue', group: 4300, code: '4303', nameEn: 'Parcel return fees', nameAr: 'رسوم مرتجعات الطرود' },
-  parcel_cashout_fee_revenue: { type: 'revenue', group: 4300, code: '4304', nameEn: 'Merchant cash out fees', nameAr: 'رسوم سحب التجار' },
-  parcel_packaging_sales: { type: 'revenue', group: 4300, code: '4305', nameEn: 'Packaging sold to merchants', nameAr: 'مبيعات مواد التغليف للتجار' },
-  parcel_other_income: { type: 'other_income', group: 4300, code: '4306', nameEn: 'Network penalties and cash over', nameAr: 'جزاءات وزيادة نقدية الشبكة' },
-  parcel_courier_pay: { type: 'expense', group: 5150, code: '5151', nameEn: 'Courier pay', nameAr: 'أجور المناديب' },
-  parcel_agent_commission: { type: 'expense', group: 5150, code: '5152', nameEn: 'Agent commission', nameAr: 'عمولة الوكلاء' },
-  parcel_vehicle_rent: { type: 'expense', group: 5150, code: '5153', nameEn: 'Vehicle rent', nameAr: 'إيجار المركبات' },
-  parcel_special_vehicles: { type: 'expense', group: 5150, code: '5154', nameEn: 'Special vehicles', nameAr: 'المركبات الخاصة' },
-  parcel_lost_parcels: { type: 'expense', group: 5150, code: '5155', nameEn: 'Lost and damaged parcels', nameAr: 'شحنات مفقودة وتالفة' },
-  parcel_packaging_cost: { type: 'expense', group: 5150, code: '5156', nameEn: 'Cost of packaging sold', nameAr: 'تكلفة مواد التغليف المباعة' },
+  parcel_shipping_revenue: {
+    type: 'revenue',
+    group: 4300,
+    code: '4301',
+    nameEn: 'Parcel shipping',
+    nameAr: 'إيرادات شحن الطرود',
+  },
+  parcel_cod_fee_revenue: {
+    type: 'revenue',
+    group: 4300,
+    code: '4302',
+    nameEn: 'Parcel COD fees',
+    nameAr: 'رسوم تحصيل الطرود',
+  },
+  parcel_return_fee_revenue: {
+    type: 'revenue',
+    group: 4300,
+    code: '4303',
+    nameEn: 'Parcel return fees',
+    nameAr: 'رسوم مرتجعات الطرود',
+  },
+  parcel_cashout_fee_revenue: {
+    type: 'revenue',
+    group: 4300,
+    code: '4304',
+    nameEn: 'Merchant cash out fees',
+    nameAr: 'رسوم سحب التجار',
+  },
+  parcel_packaging_sales: {
+    type: 'revenue',
+    group: 4300,
+    code: '4305',
+    nameEn: 'Packaging sold to merchants',
+    nameAr: 'مبيعات مواد التغليف للتجار',
+  },
+  parcel_other_income: {
+    type: 'other_income',
+    group: 4300,
+    code: '4306',
+    nameEn: 'Network penalties and cash over',
+    nameAr: 'جزاءات وزيادة نقدية الشبكة',
+  },
+  parcel_courier_pay: {
+    type: 'expense',
+    group: 5150,
+    code: '5151',
+    nameEn: 'Courier pay',
+    nameAr: 'أجور المناديب',
+  },
+  parcel_agent_commission: {
+    type: 'expense',
+    group: 5150,
+    code: '5152',
+    nameEn: 'Agent commission',
+    nameAr: 'عمولة الوكلاء',
+  },
+  parcel_vehicle_rent: {
+    type: 'expense',
+    group: 5150,
+    code: '5153',
+    nameEn: 'Vehicle rent',
+    nameAr: 'إيجار المركبات',
+  },
+  parcel_special_vehicles: {
+    type: 'expense',
+    group: 5150,
+    code: '5154',
+    nameEn: 'Special vehicles',
+    nameAr: 'المركبات الخاصة',
+  },
+  parcel_lost_parcels: {
+    type: 'expense',
+    group: 5150,
+    code: '5155',
+    nameEn: 'Lost and damaged parcels',
+    nameAr: 'شحنات مفقودة وتالفة',
+  },
+  parcel_packaging_cost: {
+    type: 'expense',
+    group: 5150,
+    code: '5156',
+    nameEn: 'Cost of packaging sold',
+    nameAr: 'تكلفة مواد التغليف المباعة',
+  },
   bank: {
     type: 'bank',
     group: 1100,
@@ -710,17 +782,43 @@ async function costCenterFor(tx: Tx, darkStoreId: string | null, hubId: string |
   if (darkStoreId) {
     const found = await tx.costCenter.findUnique({ where: { darkStoreId } });
     if (found) return found.id;
-    const store = await tx.darkStore.findUnique({ where: { id: darkStoreId }, select: { code: true, nameEn: true, nameAr: true } });
+    const store = await tx.darkStore.findUnique({
+      where: { id: darkStoreId },
+      select: { code: true, nameEn: true, nameAr: true },
+    });
     if (!store) return null;
-    const made = await tx.costCenter.upsert({ where: { darkStoreId }, update: {}, create: { code: `DS-${store.code}`, nameEn: store.nameEn, nameAr: store.nameAr, company: 'shiply_now', darkStoreId } });
+    const made = await tx.costCenter.upsert({
+      where: { darkStoreId },
+      update: {},
+      create: {
+        code: `DS-${store.code}`,
+        nameEn: store.nameEn,
+        nameAr: store.nameAr,
+        company: 'shiply_now',
+        darkStoreId,
+      },
+    });
     return made.id;
   }
   if (hubId) {
     const found = await tx.costCenter.findUnique({ where: { hubId } });
     if (found) return found.id;
-    const hub = await tx.hub.findUnique({ where: { id: hubId }, select: { code: true, name: true } });
+    const hub = await tx.hub.findUnique({
+      where: { id: hubId },
+      select: { code: true, name: true },
+    });
     if (!hub) return null;
-    const made = await tx.costCenter.upsert({ where: { hubId }, update: {}, create: { code: `NW-${hub.code}`, nameEn: hub.name, nameAr: hub.name, company: 'shiply', hubId } });
+    const made = await tx.costCenter.upsert({
+      where: { hubId },
+      update: {},
+      create: {
+        code: `NW-${hub.code}`,
+        nameEn: hub.name,
+        nameAr: hub.name,
+        company: 'shiply',
+        hubId,
+      },
+    });
     return made.id;
   }
   return null;

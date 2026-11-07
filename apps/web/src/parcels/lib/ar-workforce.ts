@@ -16,7 +16,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   'Agent code {code}': 'كود الوكيل {code}',
   'Agent code': 'كود الوكيل',
   'Agent name': 'اسم الوكيل',
-  'Companies that supply pickup and delivery staff and vehicles': 'شركات توفر موظفي الاستلام والتوصيل والمركبات',
+  'Companies that supply pickup and delivery staff and vehicles':
+    'شركات توفر موظفي الاستلام والتوصيل والمركبات',
   'Add agent': 'إضافة وكيل',
   'New agent': 'وكيل جديد',
   'Create agent': 'إنشاء الوكيل',
@@ -50,7 +51,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   'The file is larger than 5 MB': 'الملف أكبر من 5 ميجابايت',
   'Agent portal logins': 'حسابات بوابة الوكيل',
   'Create login': 'إنشاء حساب',
-  'This agent is inactive. Staff cannot join with its code': 'هذا الوكيل غير نشط. لا يمكن للموظفين التسجيل بكوده',
+  'This agent is inactive. Staff cannot join with its code':
+    'هذا الوكيل غير نشط. لا يمكن للموظفين التسجيل بكوده',
   Optional: 'اختياري',
   Other: 'أخرى',
 
@@ -61,8 +63,10 @@ export const AR_WORKFORCE: Record<string, string> = {
   'Waiting for approval ({count})': 'في انتظار الموافقة ({count})',
   'Add staff': 'إضافة موظف',
   'No staff yet': 'لا يوجد موظفون بعد',
-  'Staff can also register themselves on the join page with the code': 'يمكن للموظفين التسجيل بأنفسهم من صفحة الانضمام بالكود',
-  'Approve new staff, choose their hub, shift and work days': 'وافق على الموظفين الجدد واختر المركز والوردية وأيام العمل',
+  'Staff can also register themselves on the join page with the code':
+    'يمكن للموظفين التسجيل بأنفسهم من صفحة الانضمام بالكود',
+  'Approve new staff, choose their hub, shift and work days':
+    'وافق على الموظفين الجدد واختر المركز والوردية وأيام العمل',
   'Works as': 'يعمل في',
   Pickup: 'الاستلام',
   Delivery: 'التوصيل',
@@ -91,7 +95,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   Kind: 'النوع',
   Fixed: 'ثابتة',
   Special: 'خاصة',
-  'Fixed vehicles are paid monthly; special ones per request': 'المركبات الثابتة بإيجار شهري والخاصة بالطلب',
+  'Fixed vehicles are paid monthly; special ones per request':
+    'المركبات الثابتة بإيجار شهري والخاصة بالطلب',
   'Monthly rent (EGP)': 'الإيجار الشهري (ج.م)',
   'Capacity (parcels)': 'السعة (شحنة)',
   Capacity: 'السعة',
@@ -101,7 +106,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   'Pickup truck': 'ربع نقل',
   Car: 'سيارة',
   Motorcycle: 'موتوسيكل',
-  'Your fleet and special vehicle requests from operations': 'أسطولك وطلبات المركبات الخاصة من التشغيل',
+  'Your fleet and special vehicle requests from operations':
+    'أسطولك وطلبات المركبات الخاصة من التشغيل',
 
   // Attendance
   'Attendance today': 'الحضور اليوم',
@@ -122,11 +128,13 @@ export const AR_WORKFORCE: Record<string, string> = {
   '{name} marked late': 'تم تسجيل {name} متأخرا',
   'Send a replacement for {name}': 'أرسل بديلا عن {name}',
   'Choose a person': 'اختر شخصا',
-  'Everyone else works today. Add or approve someone on the Staff page': 'كل الموظفين الآخرين يعملون اليوم. أضف موظفا أو وافق على أحد من صفحة الموظفين',
+  'Everyone else works today. Add or approve someone on the Staff page':
+    'كل الموظفين الآخرين يعملون اليوم. أضف موظفا أو وافق على أحد من صفحة الموظفين',
   'Replacement sent': 'تم إرسال البديل',
   Send: 'إرسال',
   'Send replacement': 'إرسال بديل',
-  'Who checked in, who is late, and replacements still owed by agents': 'من سجل حضوره ومن تأخر والبدلاء المطلوبون من الوكلاء',
+  'Who checked in, who is late, and replacements still owed by agents':
+    'من سجل حضوره ومن تأخر والبدلاء المطلوبون من الوكلاء',
   'Check now': 'افحص الآن',
   'All agents': 'كل الوكلاء',
   'Shifts on {date}': 'ورديات {date}',
@@ -135,11 +143,14 @@ export const AR_WORKFORCE: Record<string, string> = {
   // Alerts
   'Running late': 'متأخر',
   '{name} joined with your code and is waiting for approval': '{name} سجل بكودك وينتظر الموافقة',
-  'Operations asked for a vehicle with driver on {date} ({name})': 'طلب التشغيل مركبة بسائق يوم {date} ({name})',
-  '{name} has not checked in yet. Late or not coming?': '{name} لم يسجل حضوره بعد. متأخر أم لن يحضر؟',
+  'Operations asked for a vehicle with driver on {date} ({name})':
+    'طلب التشغيل مركبة بسائق يوم {date} ({name})',
+  '{name} has not checked in yet. Late or not coming?':
+    '{name} لم يسجل حضوره بعد. متأخر أم لن يحضر؟',
   '{name} said late but has still not checked in': '{name} أبلغ بالتأخير ولم يسجل حضوره حتى الآن',
   'Send a replacement for {name} before {time}': 'أرسل بديلا عن {name} قبل الساعة {time}',
-  '{agent} did not send a replacement for {name} in time': '{agent} لم يرسل بديلا عن {name} في الموعد',
+  '{agent} did not send a replacement for {name} in time':
+    '{agent} لم يرسل بديلا عن {name} في الموعد',
   'Open alerts ({count})': 'تنبيهات مفتوحة ({count})',
   'No open alerts': 'لا توجد تنبيهات مفتوحة',
   'Mark done': 'تم',
@@ -147,7 +158,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   'Vehicle requested': 'طلب مركبة',
   'Late and still missing': 'متأخر ولم يحضر بعد',
   'Replacement needed': 'مطلوب بديل',
-  'Attendance, approvals and vehicle requests that need someone to act': 'الحضور والموافقات وطلبات المركبات التي تحتاج إجراء',
+  'Attendance, approvals and vehicle requests that need someone to act':
+    'الحضور والموافقات وطلبات المركبات التي تحتاج إجراء',
   'Urgent ({count})': 'عاجل ({count})',
   '{count} alerts': '{count} تنبيه',
   Open: 'مفتوحة',
@@ -169,7 +181,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   'Merchant special pickup': 'استلام خاص لتاجر',
   'Vehicle broke down': 'عطل في المركبة',
   'Vehicle full': 'المركبة ممتلئة',
-  'Ask an agent for a vehicle with a driver: special pickups, breakdowns, full vehicles': 'اطلب من وكيل مركبة بسائق: استلام خاص أو عطل أو مركبة ممتلئة',
+  'Ask an agent for a vehicle with a driver: special pickups, breakdowns, full vehicles':
+    'اطلب من وكيل مركبة بسائق: استلام خاص أو عطل أو مركبة ممتلئة',
   'Request a vehicle': 'طلب مركبة',
   'New request': 'طلب جديد',
   'Choose an agent': 'اختر وكيلا',
@@ -181,8 +194,10 @@ export const AR_WORKFORCE: Record<string, string> = {
 
   // Join and check in
   'Join as a courier': 'انضم كمندوب',
-  'Use the code your agent gave you. Your agent approves your account before you can sign in.': 'استخدم الكود الذي أعطاه لك الوكيل. يوافق الوكيل على حسابك قبل أن تتمكن من الدخول.',
-  'Registered with {agent}. You can sign in once your agent approves you.': 'تم التسجيل مع {agent}. يمكنك الدخول بعد موافقة الوكيل.',
+  'Use the code your agent gave you. Your agent approves your account before you can sign in.':
+    'استخدم الكود الذي أعطاه لك الوكيل. يوافق الوكيل على حسابك قبل أن تتمكن من الدخول.',
+  'Registered with {agent}. You can sign in once your agent approves you.':
+    'تم التسجيل مع {agent}. يمكنك الدخول بعد موافقة الوكيل.',
   'Go to sign in': 'اذهب لتسجيل الدخول',
   'Full name': 'الاسم بالكامل',
   'Mobile number': 'رقم الموبايل',
@@ -193,7 +208,8 @@ export const AR_WORKFORCE: Record<string, string> = {
   'Courier with an agent code?': 'مندوب لديك كود وكيل؟',
   'Join here': 'انضم من هنا',
   'Checked in at {time}': 'سجلت الحضور الساعة {time}',
-  'Your agent reported you as not coming today. Call your agent': 'أبلغ الوكيل أنك لن تحضر اليوم. اتصل بالوكيل',
+  'Your agent reported you as not coming today. Call your agent':
+    'أبلغ الوكيل أنك لن تحضر اليوم. اتصل بالوكيل',
   'Could not read the photo. Try again': 'تعذرت قراءة الصورة. حاول مرة أخرى',
   'Check in to start your day': 'سجل حضورك لتبدأ يومك',
   'Your shift starts at {time}.': 'ورديتك تبدأ الساعة {time}.',
@@ -208,16 +224,20 @@ export const AR_WORKFORCE: Record<string, string> = {
 
   // Settings
   'Handover alert (hours)': 'تنبيه التسليم (ساعات)',
-  'How long a parcel may wait between two teams before it shows as late': 'المدة التي يمكن أن تنتظرها الشحنة بين فريقين قبل أن تظهر متأخرة',
+  'How long a parcel may wait between two teams before it shows as late':
+    'المدة التي يمكن أن تنتظرها الشحنة بين فريقين قبل أن تظهر متأخرة',
   'Default agent commission': 'عمولة الوكيل الافتراضية',
   'Used for agents with no commission of their own': 'تستخدم للوكلاء بدون عمولة خاصة',
   'Attendance alert (minutes)': 'تنبيه الحضور (دقائق)',
-  'Minutes after the shift starts with no check in before the agent is asked': 'الدقائق بعد بداية الوردية بدون حضور قبل سؤال الوكيل',
+  'Minutes after the shift starts with no check in before the agent is asked':
+    'الدقائق بعد بداية الوردية بدون حضور قبل سؤال الوكيل',
   'Replacement window (minutes)': 'مهلة البديل (دقائق)',
-  'Time an agent has to send someone after saying a person is not coming': 'المهلة المتاحة للوكيل لإرسال بديل بعد الإبلاغ بعدم الحضور',
+  'Time an agent has to send someone after saying a person is not coming':
+    'المهلة المتاحة للوكيل لإرسال بديل بعد الإبلاغ بعدم الحضور',
 
   // Messages from the server shown as is
   'Wrong email, phone or password': 'البريد أو الهاتف أو كلمة المرور خطأ',
-  'This agent code is not valid. Ask your agent for the right code': 'كود الوكيل غير صحيح. اطلب الكود الصحيح من الوكيل',
+  'This agent code is not valid. Ask your agent for the right code':
+    'كود الوكيل غير صحيح. اطلب الكود الصحيح من الوكيل',
   'This phone number already has an account': 'رقم الهاتف هذا له حساب بالفعل',
 };

@@ -3,7 +3,16 @@
 import { formatEgp } from '@shiplynow/shared/parcels';
 import type { PrismaService, Tx } from './prisma.service';
 
-type Template = 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'ATTEMPT_FAILED' | 'OTP' | 'POSTPONED' | 'DELIVERY_CODE' | 'RETURN_CODE' | 'RETURN_PICKUP' | 'PACKAGING_CODE';
+type Template =
+  | 'OUT_FOR_DELIVERY'
+  | 'DELIVERED'
+  | 'ATTEMPT_FAILED'
+  | 'OTP'
+  | 'POSTPONED'
+  | 'DELIVERY_CODE'
+  | 'RETURN_CODE'
+  | 'RETURN_PICKUP'
+  | 'PACKAGING_CODE';
 
 /** Arabic first: most customers read Arabic. Each message carries the tracking link. */
 function render(t: Template, v: Record<string, string>) {
@@ -30,18 +39,53 @@ function render(t: Template, v: Record<string, string>) {
 }
 
 async function setting(db: Tx | PrismaService, key: string, fallback: string) {
-  const row = await db.setting.findUnique({ where: { key_scope: { key: `parcels.${key}`, scope: 'global' } } });
+  const row = await db.setting.findUnique({
+    where: { key_scope: { key: `parcels.${key}`, scope: 'global' } },
+  });
   return typeof row?.value === 'string' ? row.value : fallback;
 }
 
-export async function queueMessage(db: Tx | PrismaService, a: { to: string; template: Template; vars: Record<string, string>; shipmentId?: string | null }) {
-  const channel = a.template === 'OTP' || a.template === 'DELIVERY_CODE' || a.template === 'RETURN_CODE' || a.template === 'PACKAGING_CODE' ? 'SMS' : await setting(db, 'messages.channel', 'WHATSAPP');
-  return db.message.create({ data: { channel, to: a.to, template: a.template, body: render(a.template, a.vars), shipmentId: a.shipmentId ?? null } });
+export async function queueMessage(
+  db: Tx | PrismaService,
+  a: { to: string; template: Template; vars: Record<string, string>; shipmentId?: string | null },
+) {
+  const channel =
+    a.template === 'OTP' ||
+    a.template === 'DELIVERY_CODE' ||
+    a.template === 'RETURN_CODE' ||
+    a.template === 'PACKAGING_CODE'
+      ? 'SMS'
+      : await setting(db, 'messages.channel', 'WHATSAPP');
+  return db.message.create({
+    data: {
+      channel,
+      to: a.to,
+      template: a.template,
+      body: render(a.template, a.vars),
+      shipmentId: a.shipmentId ?? null,
+    },
+  });
 }
 
 /** The customer message for a parcel event, when there is one for it. */
-export async function queueParcelMessage(db: Tx | PrismaService, shipmentId: string, template: Exclude<Template, 'OTP'>, extra: Record<string, string> = {}) {
-  const s = await db.shipment.findUnique({ where: { id: shipmentId }, select: { id: true, trackingNumber: true, customerPhone: true, codAmount: true, direction: true, kind: true, merchant: { select: { name: true } } } });
+export async function queueParcelMessage(
+  db: Tx | PrismaService,
+  shipmentId: string,
+  template: Exclude<Template, 'OTP'>,
+  extra: Record<string, string> = {},
+) {
+  const s = await db.shipment.findUnique({
+    where: { id: shipmentId },
+    select: {
+      id: true,
+      trackingNumber: true,
+      customerPhone: true,
+      codAmount: true,
+      direction: true,
+      kind: true,
+      merchant: { select: { name: true } },
+    },
+  });
   if (!s || s.direction !== 'FORWARD') return null;
   if (s.kind === 'CUSTOMER_RETURN') {
     // A return we collect from the customer: only the "courier is coming" message makes sense.
@@ -53,6 +97,12 @@ export async function queueParcelMessage(db: Tx | PrismaService, shipmentId: str
     to: s.customerPhone,
     template,
     shipmentId: s.id,
-    vars: { store: s.merchant.name, number: s.trackingNumber, cod: s.codAmount ? formatEgp(s.codAmount).replace(' EGP', ' جنيه') : 'لا يوجد مبلغ للدفع', link: `${base}/${s.trackingNumber}`, ...extra },
+    vars: {
+      store: s.merchant.name,
+      number: s.trackingNumber,
+      cod: s.codAmount ? formatEgp(s.codAmount).replace(' EGP', ' جنيه') : 'لا يوجد مبلغ للدفع',
+      link: `${base}/${s.trackingNumber}`,
+      ...extra,
+    },
   });
 }

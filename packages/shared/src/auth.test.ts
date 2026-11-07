@@ -18,7 +18,16 @@ describe('loginSchema', () => {
 
 describe('roles', () => {
   it('has the Shiply Now roles and the parcel network roles', () => {
-    expect(ROLES).toEqual(['admin', 'merchant', 'store_staff', 'rider', 'finance', 'hub_staff', 'courier', 'agent']);
+    expect(ROLES).toEqual([
+      'admin',
+      'merchant',
+      'store_staff',
+      'rider',
+      'finance',
+      'hub_staff',
+      'courier',
+      'agent',
+    ]);
   });
 
   it('guards role strings', () => {

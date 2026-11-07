@@ -27,11 +27,33 @@ export async function priceFor(
   db: Tx | PrismaService,
   core: ShipmentsCore,
   s: SettingValues,
-  a: { merchantId: string; discountBp: number; governorateCode: string; areaId: string | null; size: ParcelSize; allowOpen: boolean; exchange: boolean },
+  a: {
+    merchantId: string;
+    discountBp: number;
+    governorateCode: string;
+    areaId: string | null;
+    size: ParcelSize;
+    allowOpen: boolean;
+    exchange: boolean;
+  },
 ) {
   const { hubId, zone } = await core.deliveryHubFor(db as Tx, a.governorateCode, a.areaId);
-  const agreed = await db.merchantPrice.findUnique({ where: { merchantId_zoneCode_size: { merchantId: a.merchantId, zoneCode: zone.code, size: a.size } } });
-  const discountBp = a.discountBp > 0 ? a.discountBp : (await tierFor(db, a.merchantId)).tier?.discountBp ?? 0;
-  const q = quote({ zone, size: a.size, agreedPrice: agreed?.price ?? null, discountBp, allowOpen: a.allowOpen, openFee: s['fees.open_package'], exchange: a.exchange, exchangeBp: s['fees.exchange_bp'] });
+  const agreed = await db.merchantPrice.findUnique({
+    where: {
+      merchantId_zoneCode_size: { merchantId: a.merchantId, zoneCode: zone.code, size: a.size },
+    },
+  });
+  const discountBp =
+    a.discountBp > 0 ? a.discountBp : ((await tierFor(db, a.merchantId)).tier?.discountBp ?? 0);
+  const q = quote({
+    zone,
+    size: a.size,
+    agreedPrice: agreed?.price ?? null,
+    discountBp,
+    allowOpen: a.allowOpen,
+    openFee: s['fees.open_package'],
+    exchange: a.exchange,
+    exchangeBp: s['fees.exchange_bp'],
+  });
   return { hubId, zone, discountBp, agreed: !!agreed, ...q };
 }

@@ -31,7 +31,9 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (me.role !== 'ADMIN') return;
-    api<Hub[]>('/admin/hubs').then(setHubs).catch(() => setHubs([]));
+    api<Hub[]>('/admin/hubs')
+      .then(setHubs)
+      .catch(() => setHubs([]));
     let saved: string | null = null;
     try {
       saved = localStorage.getItem('shiply.hub');
@@ -52,7 +54,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   };
 
   if (me.role === 'HUB_STAFF') {
-    if (!me.hub) return <Card>{t("Your account is not linked to a hub. Ask an admin.")}</Card>;
+    if (!me.hub) return <Card>{t('Your account is not linked to a hub. Ask an admin.')}</Card>;
     return <HubCtx.Provider value={me.hub}>{children}</HubCtx.Provider>;
   }
   if (!hubs) return <Loading />;
@@ -60,16 +62,25 @@ export function HubProvider({ children }: { children: ReactNode }) {
   return (
     <>
       <div className="no-print mb-4 max-w-sm">
-        <Field label={t("Working in")}>
+        <Field label={t('Working in')}>
           <Select value={hub?.id ?? ''} onChange={(e) => choose(e.target.value)}>
-            <option value="" disabled>{t("Choose")}</option>
+            <option value="" disabled>
+              {t('Choose')}
+            </option>
             {hubs.map((h) => (
-              <option key={h.id} value={h.id}>{h.code} · {h.name}{h.isSorting ? ` ${t('(sorting facility)')}` : ''}</option>
+              <option key={h.id} value={h.id}>
+                {h.code} · {h.name}
+                {h.isSorting ? ` ${t('(sorting facility)')}` : ''}
+              </option>
             ))}
           </Select>
         </Field>
       </div>
-      {hub ? <HubCtx.Provider value={hub}>{children}</HubCtx.Provider> : <Card>{t("Choose where you are working.")}</Card>}
+      {hub ? (
+        <HubCtx.Provider value={hub}>{children}</HubCtx.Provider>
+      ) : (
+        <Card>{t('Choose where you are working.')}</Card>
+      )}
     </>
   );
 }

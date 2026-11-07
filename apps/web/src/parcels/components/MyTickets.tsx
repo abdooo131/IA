@@ -18,17 +18,36 @@ export function MyTickets({ showWho = false }: { showWho?: boolean }) {
         {r.view}
         <ul className="divide-y divide-line text-body-sm">
           {list.data.map((x) => {
-            const canAppeal = x.status === 'CONFIRMED' && !!x.appealUntil && new Date(x.appealUntil) > new Date();
+            const canAppeal =
+              x.status === 'CONFIRMED' && !!x.appealUntil && new Date(x.appealUntil) > new Date();
             return (
               <li key={x.id} className="space-y-1 py-2">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="font-bold">{t(TICKET_KIND[x.kind] ?? x.kind)} <span className="ltr-iso text-caption text-text-muted">{x.code}</span></span>
+                  <span className="font-bold">
+                    {t(TICKET_KIND[x.kind] ?? x.kind)}{' '}
+                    <span className="ltr-iso text-caption text-text-muted">{x.code}</span>
+                  </span>
                   <TicketStatus status={x.status} />
                 </div>
-                <p className="text-caption">{showWho && x.courierName ? `${x.courierName} · ` : ''}{x.description}</p>
-                {x.penalty > 0 && <p className="text-caption">{t('Penalty')}: <span className="font-bold">{egp(x.penalty)}</span>{x.status === 'OPEN' && ` · ${t('Applies {time}', { time: dateTime(x.confirmAt) })}`}</p>}
+                <p className="text-caption">
+                  {showWho && x.courierName ? `${x.courierName} · ` : ''}
+                  {x.description}
+                </p>
+                {x.penalty > 0 && (
+                  <p className="text-caption">
+                    {t('Penalty')}: <span className="font-bold">{egp(x.penalty)}</span>
+                    {x.status === 'OPEN' &&
+                      ` · ${t('Applies {time}', { time: dateTime(x.confirmAt) })}`}
+                  </p>
+                )}
                 {canAppeal && (
-                  <Button tone="secondary" onClick={() => { const text = window.prompt(t('Why should this penalty be reversed?')); if (text) void r.call(`/my/tickets/${x.id}/appeal`, { text }, 'Appeal sent'); }}>
+                  <Button
+                    tone="secondary"
+                    onClick={() => {
+                      const text = window.prompt(t('Why should this penalty be reversed?'));
+                      if (text) void r.call(`/my/tickets/${x.id}/appeal`, { text }, 'Appeal sent');
+                    }}
+                  >
                     {t('Appeal before {time}', { time: dateTime(x.appealUntil) })}
                   </Button>
                 )}

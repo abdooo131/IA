@@ -13,16 +13,32 @@ export async function toJpeg(file: File, max = 1280): Promise<string> {
 }
 
 /** A button that opens the camera (or picks a picture) and shows the photo taken. */
-export function PhotoButton({ value, onChange, label }: { value: string | null; onChange: (dataUrl: string) => void; label?: string }) {
+export function PhotoButton({
+  value,
+  onChange,
+  label,
+}: {
+  value: string | null;
+  onChange: (dataUrl: string) => void;
+  label?: string;
+}) {
   const t = useT();
   return (
     <div className="flex items-center gap-3">
-      {value && (
-        <img src={value} alt="" className="h-16 w-16 rounded-md object-cover" />
-      )}
+      {value && <img src={value} alt="" className="h-16 w-16 rounded-md object-cover" />}
       <label className="btn-secondary cursor-pointer">
-        {value ? t('Take another photo') : label ?? t('Take photo')}
-        <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={(e) => { const f = e.target.files?.[0]; if (f) void toJpeg(f).then(onChange); e.target.value = ''; }} />
+        {value ? t('Take another photo') : (label ?? t('Take photo'))}
+        <input
+          type="file"
+          accept="image/*"
+          capture="environment"
+          className="sr-only"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void toJpeg(f).then(onChange);
+            e.target.value = '';
+          }}
+        />
       </label>
     </div>
   );

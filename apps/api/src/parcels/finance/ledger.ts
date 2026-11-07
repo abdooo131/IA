@@ -53,7 +53,10 @@ const SYSTEM: Record<string, System> = {
 };
 
 /** Shiply Now's account for one of the network's account codes and parties. */
-export function accountRef(code: string, party?: { type: PartyType; id: string } | null): AccountRef {
+export function accountRef(
+  code: string,
+  party?: { type: PartyType; id: string } | null,
+): AccountRef {
   const need = (type: PartyType) => {
     if (party?.type !== type) throw new Error(`account ${code} needs a ${type} party`);
     return party.id;
@@ -95,17 +98,25 @@ export async function post(tx: Tx, e: EntryInput) {
   for (const l of lines) {
     const d = l.debit ?? 0;
     const c = l.credit ?? 0;
-    if (!Number.isInteger(d) || !Number.isInteger(c) || d < 0 || c < 0 || (d > 0 && c > 0)) throw new Error(`bad journal line on ${l.account}`);
+    if (!Number.isInteger(d) || !Number.isInteger(c) || d < 0 || c < 0 || (d > 0 && c > 0))
+      throw new Error(`bad journal line on ${l.account}`);
     debit += d;
     credit += c;
   }
-  if (debit !== credit) throw new DomainError('unbalanced', `Debits ${debit} and credits ${credit} do not match`, 422);
+  if (debit !== credit)
+    throw new DomainError('unbalanced', `Debits ${debit} and credits ${credit} do not match`, 422);
   const merchantId = lines.find((l) => l.party?.type === 'MERCHANT')?.party?.id ?? null;
   // The cost center: the hub named, else the courier's hub, else the merchant's facility.
   let hubId = e.hubId ?? lines.find((l) => l.party?.type === 'HUB')?.party?.id ?? null;
   const courierId = lines.find((l) => l.party?.type === 'COURIER')?.party?.id;
-  if (!hubId && courierId) hubId = (await tx.user.findUnique({ where: { id: courierId }, select: { hubId: true } }))?.hubId ?? null;
-  if (!hubId && merchantId) hubId = (await tx.merchant.findUnique({ where: { id: merchantId }, select: { homeHubId: true } }))?.homeHubId ?? null;
+  if (!hubId && courierId)
+    hubId =
+      (await tx.user.findUnique({ where: { id: courierId }, select: { hubId: true } }))?.hubId ??
+      null;
+  if (!hubId && merchantId)
+    hubId =
+      (await tx.merchant.findUnique({ where: { id: merchantId }, select: { homeHubId: true } }))
+        ?.homeHubId ?? null;
   return postEntry(tx, {
     kind: `parcels.${e.source.toLowerCase()}`,
     idempotencyKey: `parcels:${e.key ?? randomUUID()}`,
@@ -124,16 +135,30 @@ export async function post(tx: Tx, e: EntryInput) {
 }
 
 /** Debits minus credits on an account, for one party or all of them. */
-export async function rawBalance(db: Tx | PrismaService, account: string, party?: { type: PartyType; id: string }, through?: string) {
+export async function rawBalance(
+  db: Tx | PrismaService,
+  account: string,
+  party?: { type: PartyType; id: string },
+  through?: string,
+) {
   if (!party && ['1100', '1200', '2100', '2200', '2300', '2500'].includes(account)) {
     const all = await partyBalances(db, account);
     return [...all.values()].reduce((s, v) => s + v, 0);
   }
-  const before = through ? new Date(new Date(`${through}T00:00:00+02:00`).getTime() + 24 * 3600e3) : undefined;
+  const before = through
+    ? new Date(new Date(`${through}T00:00:00+02:00`).getTime() + 24 * 3600e3)
+    : undefined;
   return balanceOf(db, accountRef(account, party), before);
 }
 
-const TYPE_OF: Record<string, { type: 'hub_safe' | 'courier_cash' | 'merchant' | 'courier_wallet' | 'agent_payable' | 'supplier'; owner: 'hubId' | 'userId' | 'merchantId' | 'agentId' | 'supplierId' }> = {
+const TYPE_OF: Record<
+  string,
+  {
+    type:
+      'hub_safe' | 'courier_cash' | 'merchant' | 'courier_wallet' | 'agent_payable' | 'supplier';
+    owner: 'hubId' | 'userId' | 'merchantId' | 'agentId' | 'supplierId';
+  }
+> = {
   '1100': { type: 'hub_safe', owner: 'hubId' },
   '1200': { type: 'courier_cash', owner: 'userId' },
   '2100': { type: 'merchant', owner: 'merchantId' },
@@ -143,12 +168,29 @@ const TYPE_OF: Record<string, { type: 'hub_safe' | 'courier_cash' | 'merchant' |
 };
 
 /** Balance of every party on one wallet account, as a map of party id to debits minus credits. */
-export async function partyBalances(db: Tx | PrismaService, account: string): Promise<Map<string, number>> {
+export async function partyBalances(
+  db: Tx | PrismaService,
+  account: string,
+): Promise<Map<string, number>> {
   const t = TYPE_OF[account];
   if (!t) throw new Error(`account ${account} has no parties`);
-  const accounts = await db.ledgerAccount.findMany({ where: { type: t.type }, select: { id: true, hubId: true, userId: true, merchantId: true, agentId: true, supplierId: true } });
+  const accounts = await db.ledgerAccount.findMany({
+    where: { type: t.type },
+    select: {
+      id: true,
+      hubId: true,
+      userId: true,
+      merchantId: true,
+      agentId: true,
+      supplierId: true,
+    },
+  });
   if (!accounts.length) return new Map();
-  const sums = await db.ledgerLine.groupBy({ by: ['accountId'], where: { accountId: { in: accounts.map((a) => a.id) } }, _sum: { amountPiastres: true } });
+  const sums = await db.ledgerLine.groupBy({
+    by: ['accountId'],
+    where: { accountId: { in: accounts.map((a) => a.id) } },
+    _sum: { amountPiastres: true },
+  });
   const owner = new Map(accounts.map((a) => [a.id, a[t.owner]]));
   const out = new Map<string, number>();
   for (const s of sums) {

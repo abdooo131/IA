@@ -46,7 +46,11 @@ async function loadParcel(id: string): Promise<ParcelForLabel> {
 function Labels() {
   const t = useT();
   const params = useSearchParams();
-  const ids = (params.get('ids') ?? '').split(',').map((s) => s.trim()).filter((s) => /^[0-9a-f-]{36}$/i.test(s)).slice(0, 200);
+  const ids = (params.get('ids') ?? '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => /^[0-9a-f-]{36}$/i.test(s))
+    .slice(0, 200);
   const [labels, setLabels] = useState<LabelData[] | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const key = ids.join(',');
@@ -60,12 +64,16 @@ function Labels() {
       for (const id of key ? key.split(',') : []) {
         try {
           const p = await loadParcel(id);
-          const area = govs.find((g) => g.code === p.governorateCode)?.areas.find((a) => a.id === p.areaId);
+          const area = govs
+            .find((g) => g.code === p.governorateCode)
+            ?.areas.find((a) => a.id === p.areaId);
           const hubCode = p.hubCodes?.[p.destinationHubId];
           out.push({
             trackingNumber: p.trackingNumber,
             route: hubCode ?? p.governorateCode,
-            routeDetail: hubCode ? `${p.governorateCode}${area ? ` · ${area.nameEn}` : ''}` : area?.nameEn,
+            routeDetail: hubCode
+              ? `${p.governorateCode}${area ? ` · ${area.nameEn}` : ''}`
+              : area?.nameEn,
             merchantName: p.merchant?.name,
             customerName: p.customerName,
             customerPhone: p.customerPhone,
@@ -90,7 +98,12 @@ function Labels() {
     };
   }, [key]);
 
-  if (ids.length === 0) return <div className="p-6"><Alert>{t('No parcels chosen. Select parcels in the list, then print labels.')}</Alert></div>;
+  if (ids.length === 0)
+    return (
+      <div className="p-6">
+        <Alert>{t('No parcels chosen. Select parcels in the list, then print labels.')}</Alert>
+      </div>
+    );
   if (!labels) return <Loading />;
 
   return (
@@ -99,7 +112,9 @@ function Labels() {
       <div className="no-print sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
         <div className="flex items-center gap-4">
           <Logo />
-          <span className="text-body-sm font-bold">{t('{n} labels', { n: labels.length })} · <span className="ltr-iso">100 × 150 mm</span></span>
+          <span className="text-body-sm font-bold">
+            {t('{n} labels', { n: labels.length })} · <span className="ltr-iso">100 × 150 mm</span>
+          </span>
         </div>
         <Button onClick={() => window.print()} disabled={labels.length === 0}>
           <Icon name="print" size={18} />
@@ -108,7 +123,9 @@ function Labels() {
       </div>
       {errors.length > 0 && (
         <div className="no-print mx-auto max-w-md p-4">
-          <Alert>{t('{n} labels could not be loaded:', { n: errors.length })} {errors.join('; ')}</Alert>
+          <Alert>
+            {t('{n} labels could not be loaded:', { n: errors.length })} {errors.join('; ')}
+          </Alert>
         </div>
       )}
       <div className="space-y-4 py-4 print:space-y-0 print:py-0">

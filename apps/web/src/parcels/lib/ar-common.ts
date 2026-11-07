@@ -7,7 +7,8 @@ export const AR_COMMON: Record<string, string> = {
   Password: 'كلمة المرور',
   'Wrong email or password': 'البريد الإلكتروني أو كلمة المرور غير صحيحة',
   'Next day delivery, from order to doorstep.': 'توصيل في اليوم التالي، من الطلب حتى باب العميل.',
-  'Pickups, sorting facilities, line haul and last mile in one system.': 'الاستلام ومراكز الفرز والنقل بين المدن والتوصيل الأخير في نظام واحد.',
+  'Pickups, sorting facilities, line haul and last mile in one system.':
+    'الاستلام ومراكز الفرز والنقل بين المدن والتوصيل الأخير في نظام واحد.',
   'Waiting for a parcel?': 'تنتظر شحنة؟',
   'Track it here': 'تتبعها هنا',
   Menu: 'القائمة',

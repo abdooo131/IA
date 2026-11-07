@@ -22,7 +22,8 @@ export function useT() {
   return useCallback(
     (text: string, vars?: Record<string, string | number>) => {
       let out = locale === 'ar' ? (AR[text] ?? text) : text;
-      if (vars) for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v));
+      if (vars)
+        for (const [k, v] of Object.entries(vars)) out = out.replaceAll(`{${k}}`, String(v));
       return out;
     },
     [locale],

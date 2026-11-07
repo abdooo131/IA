@@ -7,8 +7,12 @@ import { DomainError } from '../common/errors';
 import { PrismaService } from '../common/prisma.service';
 import { MerchantService } from './merchant.service';
 
-function merchantOf(user: SessionUser, right?: 'orders' | 'pickups' | 'money' | 'settings'): string {
-  if (!user.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
+function merchantOf(
+  user: SessionUser,
+  right?: 'orders' | 'pickups' | 'money' | 'settings',
+): string {
+  if (!user.merchantId)
+    throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
   if (right) assertMerchantRight(user, right);
   return user.merchantId;
 }
@@ -51,7 +55,11 @@ export class MerchantController {
 
   @Post('shipments/:id/decision')
   @HttpCode(200)
-  async decide(@CurrentUser() user: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  async decide(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     await this.service.decide(merchantOf(user, 'orders'), id, body, user.id);
     return { ok: true };
   }
@@ -80,7 +88,11 @@ export class MerchantController {
 
   @Get('profile')
   profile(@CurrentUser() user: SessionUser) {
-    return this.prisma.merchant.findUniqueOrThrow({ where: { id: merchantOf(user) }, omit: { logo: true }, include: { homeHub: true } });
+    return this.prisma.merchant.findUniqueOrThrow({
+      where: { id: merchantOf(user) },
+      omit: { logo: true },
+      include: { homeHub: true },
+    });
   }
 }
 
@@ -91,7 +103,8 @@ export class MerchantDeskController {
   constructor(private readonly desk: MerchantDeskService) {}
 
   private owner(user: SessionUser) {
-    if (!user.merchantOwner) throw new DomainError('forbidden', 'Only the account owner can manage the team', 403);
+    if (!user.merchantOwner)
+      throw new DomainError('forbidden', 'Only the account owner can manage the team', 403);
     return merchantOf(user);
   }
 
@@ -107,7 +120,11 @@ export class MerchantDeskController {
 
   @Put('team/:id')
   @HttpCode(200)
-  updateMember(@CurrentUser() user: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  updateMember(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.desk.saveTeamMember(this.owner(user), id, body, user);
   }
 
@@ -119,7 +136,13 @@ export class MerchantDeskController {
 
   @Get('recurring-pickup')
   async recurring(@CurrentUser() user: SessionUser) {
-    return (await this.desk.recurring(merchantOf(user, 'pickups'))) ?? { weekdays: [], active: false, notes: '' };
+    return (
+      (await this.desk.recurring(merchantOf(user, 'pickups'))) ?? {
+        weekdays: [],
+        active: false,
+        notes: '',
+      }
+    );
   }
 
   @Put('recurring-pickup')
@@ -193,8 +216,13 @@ export class AdminDeskController {
 
   @Post('merchants/:id/signup/:decision')
   @HttpCode(200)
-  decide(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('decision') d: string) {
-    if (d !== 'approve' && d !== 'reject') throw new DomainError('invalid_input', 'Use approve or reject', 422);
+  decide(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('decision') d: string,
+  ) {
+    if (d !== 'approve' && d !== 'reject')
+      throw new DomainError('invalid_input', 'Use approve or reject', 422);
     return this.desk.decideSignup(id, d === 'approve', u);
   }
 
@@ -216,7 +244,11 @@ export class AdminDeskController {
 
   @Put('merchants/:id/prices')
   @HttpCode(200)
-  savePrices(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  savePrices(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.desk.saveMerchantPrices(id, body, u);
   }
 

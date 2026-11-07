@@ -14,8 +14,12 @@ export default function AdminInvoice() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between print:hidden">
-        <Link href="/parcels/admin/money/invoices" className="text-body-sm font-bold text-link">← {t('Tax invoices')}</Link>
-        <Button tone="secondary" onClick={() => window.print()}>{t('Print')}</Button>
+        <Link href="/parcels/admin/money/invoices" className="text-body-sm font-bold text-link">
+          ← {t('Tax invoices')}
+        </Link>
+        <Button tone="secondary" onClick={() => window.print()}>
+          {t('Print')}
+        </Button>
       </div>
       <InvoiceView inv={inv.data} />
     </div>

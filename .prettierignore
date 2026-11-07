@@ -9,3 +9,4 @@ apps/web/public/
 apps/web/src/styles/shiply-tokens.css
 apps/web/src/styles/shiply.tailwind.js
 CLAUDE.md
+shiply-core/

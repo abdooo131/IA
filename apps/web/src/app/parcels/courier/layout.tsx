@@ -18,7 +18,11 @@ function Location() {
   const state = useLocationPing();
   useEffect(() => registerOfflineShell(), []);
   if (state !== 'denied') return null;
-  return <p className="mb-3 rounded-md bg-status-needs-action/10 px-3 py-2 text-caption font-semibold text-status-needs-action">{t('Location is blocked. Allow it in the browser so the hub can see where you are')}</p>;
+  return (
+    <p className="mb-3 rounded-md bg-status-needs-action/10 px-3 py-2 text-caption font-semibold text-status-needs-action">
+      {t('Location is blocked. Allow it in the browser so the hub can see where you are')}
+    </p>
+  );
 }
 
 export default function CourierLayout({ children }: { children: React.ReactNode }) {

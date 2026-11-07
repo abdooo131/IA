@@ -77,8 +77,16 @@ describe('routing through several facilities', () => {
     ['PSDH', { id: 'PSDH', isSorting: false, parentId: 'PSD' }],
     ['FARH', { id: 'FARH', isSorting: false, parentId: 'FAR' }],
   ]);
-  const both = (a: string, b: string) => [{ fromId: a, toId: b }, { fromId: b, toId: a }];
-  const links = [...both('OBR', 'TNT'), ...both('TNT', 'MNS'), ...both('MNS', 'PSD'), ...both('PSD', 'FAR')];
+  const both = (a: string, b: string) => [
+    { fromId: a, toId: b },
+    { fromId: b, toId: a },
+  ];
+  const links = [
+    ...both('OBR', 'TNT'),
+    ...both('TNT', 'MNS'),
+    ...both('MNS', 'PSD'),
+    ...both('PSD', 'FAR'),
+  ];
   it('finds the fewest legs, with at most two facilities in between', () => {
     expect(facilityPath('OBR', 'OBR', links)).toEqual(['OBR']);
     expect(facilityPath('OBR', 'MNS', links)).toEqual(['OBR', 'TNT', 'MNS']);
@@ -87,12 +95,39 @@ describe('routing through several facilities', () => {
     expect(facilityPath('OBR', 'FAR', [])).toEqual(['OBR', 'FAR']); // no links set up: direct
   });
   it('plans the whole way and moves one step at a time', () => {
-    expect(planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'PSDH' }, hubs, links)).toEqual(['OBR', 'TNT', 'MNS', 'PSD', 'PSDH']);
-    expect(planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'GIZ' }, hubs, links)).toEqual(['OBR', 'GIZ']);
-    expect(planRoute({ direction: 'RETURN', originHubId: 'OBR', destinationHubId: 'MNSH' }, hubs, links)).toEqual(['MNSH', 'MNS', 'TNT', 'OBR']);
-    expect(planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'FARH' }, hubs, links)).toBeNull();
-    const hop = (here: string) => nextHop({ direction: 'FORWARD', currentHubId: here, originHubId: 'OBR', destinationHubId: 'PSDH' }, hubs, links);
-    expect(['OBR', 'TNT', 'MNS', 'PSD', 'PSDH'].map(hop)).toEqual(['TNT', 'MNS', 'PSD', 'PSDH', null]);
+    expect(
+      planRoute(
+        { direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'PSDH' },
+        hubs,
+        links,
+      ),
+    ).toEqual(['OBR', 'TNT', 'MNS', 'PSD', 'PSDH']);
+    expect(
+      planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'GIZ' }, hubs, links),
+    ).toEqual(['OBR', 'GIZ']);
+    expect(
+      planRoute({ direction: 'RETURN', originHubId: 'OBR', destinationHubId: 'MNSH' }, hubs, links),
+    ).toEqual(['MNSH', 'MNS', 'TNT', 'OBR']);
+    expect(
+      planRoute(
+        { direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'FARH' },
+        hubs,
+        links,
+      ),
+    ).toBeNull();
+    const hop = (here: string) =>
+      nextHop(
+        { direction: 'FORWARD', currentHubId: here, originHubId: 'OBR', destinationHubId: 'PSDH' },
+        hubs,
+        links,
+      );
+    expect(['OBR', 'TNT', 'MNS', 'PSD', 'PSDH'].map(hop)).toEqual([
+      'TNT',
+      'MNS',
+      'PSD',
+      'PSDH',
+      null,
+    ]);
   });
 });
 
@@ -115,7 +150,14 @@ describe('promise dates', () => {
 });
 
 describe('pricing', () => {
-  const zone = { priceS: 6000, priceM: 7000, priceL: 9000, priceXL: 12000, priceXXL: 16000, priceBulky: 24000 };
+  const zone = {
+    priceS: 6000,
+    priceM: 7000,
+    priceL: 9000,
+    priceXL: 12000,
+    priceXXL: 16000,
+    priceBulky: 24000,
+  };
   const fees = { codFeeBp: 100, codFreeAmount: 300000, returnFeeBp: 5000 };
   it('applies size and merchant discount', () => {
     expect(shippingFee(zone, 'M', 0)).toBe(7000);
@@ -181,9 +223,47 @@ describe('splitVat', () => {
 describe('quote', () => {
   it('list price with tier discount, open fee and exchange surcharge; an agreed price takes no discount', async () => {
     const { quote } = await import('./pricing');
-    const zone = { priceS: 5000, priceM: 6000, priceL: 7500, priceXL: 10000, priceXXL: 14000, priceBulky: 20000 };
-    expect(quote({ zone, size: 'M', discountBp: 1000, allowOpen: true, openFee: 500, exchange: false, exchangeBp: 5000 })).toEqual({ basePrice: 6000, discount: 600, openFee: 500, exchangeFee: 0, shippingFee: 5900 });
-    expect(quote({ zone, size: 'BULKY', discountBp: 0, allowOpen: false, openFee: 500, exchange: true, exchangeBp: 5000 }).shippingFee).toBe(30000);
-    expect(quote({ zone, size: 'M', agreedPrice: 4500, discountBp: 1000, allowOpen: false, openFee: 500, exchange: false, exchangeBp: 5000 }).shippingFee).toBe(4500);
+    const zone = {
+      priceS: 5000,
+      priceM: 6000,
+      priceL: 7500,
+      priceXL: 10000,
+      priceXXL: 14000,
+      priceBulky: 20000,
+    };
+    expect(
+      quote({
+        zone,
+        size: 'M',
+        discountBp: 1000,
+        allowOpen: true,
+        openFee: 500,
+        exchange: false,
+        exchangeBp: 5000,
+      }),
+    ).toEqual({ basePrice: 6000, discount: 600, openFee: 500, exchangeFee: 0, shippingFee: 5900 });
+    expect(
+      quote({
+        zone,
+        size: 'BULKY',
+        discountBp: 0,
+        allowOpen: false,
+        openFee: 500,
+        exchange: true,
+        exchangeBp: 5000,
+      }).shippingFee,
+    ).toBe(30000);
+    expect(
+      quote({
+        zone,
+        size: 'M',
+        agreedPrice: 4500,
+        discountBp: 1000,
+        allowOpen: false,
+        openFee: 500,
+        exchange: false,
+        exchangeBp: 5000,
+      }).shippingFee,
+    ).toBe(4500);
   });
 });

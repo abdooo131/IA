@@ -15,7 +15,8 @@ export class DomainError extends HttpException {
 }
 
 export const notFound = (what: string) => new DomainError('not_found', `${what} not found`, 404);
-export const forbidden = (message = 'You cannot do this') => new DomainError('forbidden', message, 403);
+export const forbidden = (message = 'You cannot do this') =>
+  new DomainError('forbidden', message, 403);
 
 @Catch()
 export class ErrorFilter implements ExceptionFilter {
@@ -28,8 +29,14 @@ export class ErrorFilter implements ExceptionFilter {
     if (error instanceof HttpException) {
       const status = error.getStatus();
       const body = error.getResponse();
-      const message = typeof body === 'string' ? body : ((body as { message?: unknown }).message ?? error.message);
-      res.status(status).json({ error: 'http_error', message: Array.isArray(message) ? message.join(', ') : String(message) });
+      const message =
+        typeof body === 'string'
+          ? body
+          : ((body as { message?: unknown }).message ?? error.message);
+      res.status(status).json({
+        error: 'http_error',
+        message: Array.isArray(message) ? message.join(', ') : String(message),
+      });
       return;
     }
     console.error(error);

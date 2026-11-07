@@ -15,7 +15,11 @@ export class CourierController {
 
   @Post('pickups/:id/collect')
   @HttpCode(200)
-  collect(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  collect(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.courier.collect(u, id, body);
   }
 
@@ -32,19 +36,31 @@ export class CourierController {
 
   @Post('stops/:itemId/deliver')
   @HttpCode(200)
-  deliver(@CurrentUser() u: SessionUser, @Param('itemId', ParseIdPipe) itemId: string, @Body() body: unknown) {
+  deliver(
+    @CurrentUser() u: SessionUser,
+    @Param('itemId', ParseIdPipe) itemId: string,
+    @Body() body: unknown,
+  ) {
     return this.courier.deliver(u, itemId, body);
   }
 
   @Post('stops/:itemId/fail')
   @HttpCode(200)
-  fail(@CurrentUser() u: SessionUser, @Param('itemId', ParseIdPipe) itemId: string, @Body() body: unknown) {
+  fail(
+    @CurrentUser() u: SessionUser,
+    @Param('itemId', ParseIdPipe) itemId: string,
+    @Body() body: unknown,
+  ) {
     return this.courier.fail(u, itemId, body);
   }
 
   @Post('stops/:itemId/collect-return')
   @HttpCode(200)
-  collectReturn(@CurrentUser() u: SessionUser, @Param('itemId', ParseIdPipe) itemId: string, @Body() body: unknown) {
+  collectReturn(
+    @CurrentUser() u: SessionUser,
+    @Param('itemId', ParseIdPipe) itemId: string,
+    @Body() body: unknown,
+  ) {
     return this.courier.collectReturn(u, itemId, body);
   }
 

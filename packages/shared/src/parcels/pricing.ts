@@ -10,11 +10,25 @@ export interface ZonePrices {
   priceBulky: number;
 }
 
-export const SIZE_LABELS: Record<ParcelSize, string> = { S: 'Small', M: 'Medium', L: 'Large', XL: 'Extra large', XXL: 'Double extra large', BULKY: 'Bulky' };
+export const SIZE_LABELS: Record<ParcelSize, string> = {
+  S: 'Small',
+  M: 'Medium',
+  L: 'Large',
+  XL: 'Extra large',
+  XXL: 'Double extra large',
+  BULKY: 'Bulky',
+};
 
 /** The zone's list price for a size. */
 export function listPrice(zone: ZonePrices, size: ParcelSize): number {
-  return { S: zone.priceS, M: zone.priceM, L: zone.priceL, XL: zone.priceXL, XXL: zone.priceXXL, BULKY: zone.priceBulky }[size];
+  return {
+    S: zone.priceS,
+    M: zone.priceM,
+    L: zone.priceL,
+    XL: zone.priceXL,
+    XXL: zone.priceXXL,
+    BULKY: zone.priceBulky,
+  }[size];
 }
 
 export interface PriceQuote {
@@ -31,7 +45,16 @@ export interface PriceQuote {
  * takes no discount; otherwise the merchant's own discount, or their volume tier's, applies.
  * Extras: a fee when the customer may open the parcel, and a share of the price for an exchange.
  */
-export function quote(a: { zone: ZonePrices; size: ParcelSize; agreedPrice?: number | null; discountBp: number; allowOpen: boolean; openFee: number; exchange: boolean; exchangeBp: number }): PriceQuote {
+export function quote(a: {
+  zone: ZonePrices;
+  size: ParcelSize;
+  agreedPrice?: number | null;
+  discountBp: number;
+  allowOpen: boolean;
+  openFee: number;
+  exchange: boolean;
+  exchangeBp: number;
+}): PriceQuote {
   const basePrice = a.agreedPrice ?? listPrice(a.zone, a.size);
   const discount = a.agreedPrice != null ? 0 : applyBp(basePrice, a.discountBp);
   const net = basePrice - discount;
@@ -46,7 +69,11 @@ export interface FeeSettings {
   returnFeeBp: number;
 }
 
-export function shippingFee(zone: ZonePrices, size: ParcelSize, merchantDiscountBp: number): number {
+export function shippingFee(
+  zone: ZonePrices,
+  size: ParcelSize,
+  merchantDiscountBp: number,
+): number {
   const base = listPrice(zone, size);
   return base - applyBp(base, merchantDiscountBp);
 }

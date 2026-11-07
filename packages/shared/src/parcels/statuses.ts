@@ -44,7 +44,13 @@ export type Direction = (typeof DIRECTIONS)[number];
 export const TERMINAL_STATUSES: readonly ShipmentStatus[] = ['DELIVERED', 'RETURNED', 'CANCELLED'];
 
 /** Parcels physically inside a hub or facility (not on the road, not with a courier). */
-export const IN_BUILDING: readonly ShipmentStatus[] = ['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB', 'ON_HOLD'];
+export const IN_BUILDING: readonly ShipmentStatus[] = [
+  'AT_INBOUND',
+  'SORTED',
+  'AT_OUTBOUND',
+  'AT_HUB',
+  'ON_HOLD',
+];
 
 // A status may "move" to itself: the direction or the location changed, the status did not.
 export const ALLOWED_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus[]> = {
@@ -113,7 +119,11 @@ export type Role = (typeof ROLES)[number];
 /** Teams inside a sorting facility. Staff with no team (supervisors) can work every station. */
 export const TEAMS = ['INBOUND', 'SORTING', 'OUTBOUND'] as const;
 export type Team = (typeof TEAMS)[number];
-export const TEAM_LABELS: Record<Team, string> = { INBOUND: 'Inbound team', SORTING: 'Sorting team', OUTBOUND: 'Outbound team' };
+export const TEAM_LABELS: Record<Team, string> = {
+  INBOUND: 'Inbound team',
+  SORTING: 'Sorting team',
+  OUTBOUND: 'Outbound team',
+};
 
 export const STATUS_LABELS_AR: Record<ShipmentStatus, string> = {
   CREATED: 'تم الإنشاء',
@@ -143,4 +153,8 @@ export const FAIL_REASON_LABELS_AR: Record<FailReason, string> = {
   OTHER: 'أخرى',
 };
 
-export const TEAM_LABELS_AR: Record<Team, string> = { INBOUND: 'فريق الاستلام', SORTING: 'فريق الفرز', OUTBOUND: 'فريق الإرسال' };
+export const TEAM_LABELS_AR: Record<Team, string> = {
+  INBOUND: 'فريق الاستلام',
+  SORTING: 'فريق الفرز',
+  OUTBOUND: 'فريق الإرسال',
+};

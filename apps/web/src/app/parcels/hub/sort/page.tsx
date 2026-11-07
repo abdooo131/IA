@@ -22,7 +22,13 @@ export default function SortPage() {
   if (!hub.isSorting) {
     return (
       <>
-        <PageHeader eyebrow={t('Last mile hub')} title={`${t('Send back')} · ${hub.name}`} subtitle={t('Scan each return into the bag for the sorting facility, seal it, then send it on a truck from Trips.')} />
+        <PageHeader
+          eyebrow={t('Last mile hub')}
+          title={`${t('Send back')} · ${hub.name}`}
+          subtitle={t(
+            'Scan each return into the bag for the sorting facility, seal it, then send it on a truck from Trips.',
+          )}
+        />
         <OutboundBags />
       </>
     );
@@ -34,11 +40,23 @@ export default function SortPage() {
       <PageHeader
         eyebrow={t('Sorting facility')}
         title={`${t('Sorting')} · ${hub.name}`}
-        subtitle={t('Sorting team: scan each parcel inbound handed over. The screen shows its lane; put it there. The outbound team scans it from the lane into a bag, which completes the handover.')}
+        subtitle={t(
+          'Sorting team: scan each parcel inbound handed over. The screen shows its lane; put it there. The outbound team scans it from the lane into a bag, which completes the handover.',
+        )}
       />
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-        <StatCard label={t('Parcels on lanes')} value={String(list.reduce((n, l) => n + l.parcels, 0))} icon="packaging" tone="in-progress" />
-        <StatCard label={t('Lanes in use')} value={String(list.length)} icon="route" tone="heading-to-customer" />
+        <StatCard
+          label={t('Parcels on lanes')}
+          value={String(list.reduce((n, l) => n + l.parcels, 0))}
+          icon="packaging"
+          tone="in-progress"
+        />
+        <StatCard
+          label={t('Lanes in use')}
+          value={String(list.length)}
+          icon="route"
+          tone="heading-to-customer"
+        />
       </div>
       <Card title={t('Sort a parcel')}>
         <ScanBox
@@ -46,13 +64,25 @@ export default function SortPage() {
           onScan={async (code) => {
             const r = await api(`/hubs/${hub.id}/sort`, { body: { code } });
             void lanes.reload();
-            if (!r.lane) return { big: t('RETURN'), tone: 'return' as const, text: t('Return shelf for {merchant}', { merchant: r.next?.merchantName ?? '' }) };
-            return { big: r.lane, text: t('Put it on lane {code} ({hub})', { code: r.lane, hub: r.next.hubName }) };
+            if (!r.lane)
+              return {
+                big: t('RETURN'),
+                tone: 'return' as const,
+                text: t('Return shelf for {merchant}', { merchant: r.next?.merchantName ?? '' }),
+              };
+            return {
+              big: r.lane,
+              text: t('Put it on lane {code} ({hub})', { code: r.lane, hub: r.next.hubName }),
+            };
           }}
         />
       </Card>
       <Card title={t('Lanes waiting for outbound')} className="mt-4">
-        {!lanes.data ? <Loading /> : list.length === 0 ? <Empty>{t('All lanes are empty.')}</Empty> : (
+        {!lanes.data ? (
+          <Loading />
+        ) : list.length === 0 ? (
+          <Empty>{t('All lanes are empty.')}</Empty>
+        ) : (
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {list.map((l) => (
               <div key={l.hubId} className="rounded-xl bg-surface-raised p-4 text-center">

@@ -7,11 +7,29 @@ import { useLocale, useT } from '@/parcels/lib/i18n';
  */
 export const WORKFLOWS = {
   parcel: {
-    path: ['CREATED', 'PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED'],
+    path: [
+      'CREATED',
+      'PICKED_UP',
+      'AT_INBOUND',
+      'SORTED',
+      'AT_OUTBOUND',
+      'IN_TRANSIT',
+      'AT_HUB',
+      'OUT_FOR_DELIVERY',
+      'DELIVERED',
+    ],
     side: ['ATTEMPT_FAILED', 'ON_HOLD', 'RETURNED', 'CANCELLED', 'LOST'],
   },
   returnParcel: {
-    path: ['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'OUT_FOR_DELIVERY', 'RETURNED'],
+    path: [
+      'AT_INBOUND',
+      'SORTED',
+      'AT_OUTBOUND',
+      'IN_TRANSIT',
+      'AT_HUB',
+      'OUT_FOR_DELIVERY',
+      'RETURNED',
+    ],
     side: ['ATTEMPT_FAILED', 'ON_HOLD', 'LOST'],
   },
   payout: { path: ['PENDING_APPROVAL', 'APPROVED', 'PAID'], side: ['CANCELLED'] },
@@ -19,7 +37,13 @@ export const WORKFLOWS = {
 } as const;
 export type WorkflowName = keyof typeof WORKFLOWS;
 
-const LABELS: Record<string, string> = { PENDING_APPROVAL: 'Waiting for approval', APPROVED: 'Approved', PAID: 'Paid', REJECTED: 'Rejected', CANCELLED: 'Cancelled' };
+const LABELS: Record<string, string> = {
+  PENDING_APPROVAL: 'Waiting for approval',
+  APPROVED: 'Approved',
+  PAID: 'Paid',
+  REJECTED: 'Rejected',
+  CANCELLED: 'Cancelled',
+};
 
 /**
  * Where a record is on its path, like a form's status bar: done steps ticked, the current one
@@ -33,9 +57,15 @@ export function StatusBar({ flow, status }: { flow: WorkflowName; status: string
   const steps = path as readonly string[];
   const off = (side as readonly string[]).includes(status);
   const at = steps.indexOf(status);
-  const label = (s: string) => (LABELS[s] ? t(LABELS[s]!) : ((locale === 'ar' ? STATUS_LABELS_AR : STATUS_LABELS)[s as ShipmentStatus] ?? s));
+  const label = (s: string) =>
+    LABELS[s]
+      ? t(LABELS[s]!)
+      : ((locale === 'ar' ? STATUS_LABELS_AR : STATUS_LABELS)[s as ShipmentStatus] ?? s);
   return (
-    <ol className="mt-3 flex max-w-full overflow-x-auto rounded-lg border border-line bg-surface text-caption" aria-label={t('Status')}>
+    <ol
+      className="mt-3 flex max-w-full overflow-x-auto rounded-lg border border-line bg-surface text-caption"
+      aria-label={t('Status')}
+    >
       {steps.map((s, i) => {
         const done = !off && at > i;
         const current = !off && at === i;
@@ -45,7 +75,11 @@ export function StatusBar({ flow, status }: { flow: WorkflowName; status: string
             key={s}
             aria-current={current ? 'step' : undefined}
             className={`flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-2 ${far ? 'max-sm:hidden' : ''} ${i > 0 ? 'border-s border-line' : ''} ${
-              current ? 'bg-primary font-bold text-on-primary' : done ? 'text-text' : 'text-text-muted'
+              current
+                ? 'bg-primary font-bold text-on-primary'
+                : done
+                  ? 'text-text'
+                  : 'text-text-muted'
             }`}
           >
             {done && <span aria-hidden>✓</span>}
@@ -53,7 +87,14 @@ export function StatusBar({ flow, status }: { flow: WorkflowName; status: string
           </li>
         );
       })}
-      {off && <li aria-current="step" className="flex shrink-0 items-center whitespace-nowrap border-s border-line bg-danger px-3 py-2 font-bold text-on-primary">{label(status)}</li>}
+      {off && (
+        <li
+          aria-current="step"
+          className="flex shrink-0 items-center whitespace-nowrap border-s border-line bg-danger px-3 py-2 font-bold text-on-primary"
+        >
+          {label(status)}
+        </li>
+      )}
     </ol>
   );
 }

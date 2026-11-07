@@ -10,11 +10,15 @@ process.env.SHIPLY_JOBS = 'off';
 let app: INestApplication;
 let prisma: any;
 type Client = ReturnType<typeof request.agent>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 const as: Record<string, any> = {};
 const hubs: Record<string, string> = {};
 const users: Record<string, string> = {};
-const RECEIPT = { fileName: 'receipt.jpg', mime: 'image/jpeg', dataBase64: Buffer.from('fake receipt image').toString('base64') };
+const RECEIPT = {
+  fileName: 'receipt.jpg',
+  mime: 'image/jpeg',
+  dataBase64: Buffer.from('fake receipt image').toString('base64'),
+};
 
 async function login(id: string, password = 'demo123456'): Promise<Client> {
   const c = request.agent(app.getHttpServer());
@@ -25,7 +29,8 @@ async function login(id: string, password = 'demo123456'): Promise<Client> {
 
 async function ok<T = any>(req: request.Test, status = 200): Promise<T> {
   const res = await req;
-  if (res.status !== status) throw new Error(`Expected ${status}, got ${res.status}: ${JSON.stringify(res.body)}`);
+  if (res.status !== status)
+    throw new Error(`Expected ${status}, got ${res.status}: ${JSON.stringify(res.body)}`);
   return res.body as T;
 }
 
@@ -46,7 +51,7 @@ function lastMonth() {
 }
 
 beforeAll(async () => {
-    const { PrismaService } = await import('../../src/parcels/common/prisma.service');
+  const { PrismaService } = await import('../../src/parcels/common/prisma.service');
   app = await createNetworkApp();
   prisma = app.get(PrismaService);
   as.admin = await login('admin@shiply.local', 'admin12345');
@@ -57,7 +62,8 @@ beforeAll(async () => {
   as.courierObr = await login('courier.obr@shiply.local');
   as.delta = await login('agent@deltariders.example');
   for (const h of await ok(as.admin.get('/parcels/admin/hubs'))) hubs[h.code] = h.id;
-  for (const u of await ok(as.admin.get('/parcels/admin/users'))) if (u.email) users[u.email] = u.id;
+  for (const u of await ok(as.admin.get('/parcels/admin/users')))
+    if (u.email) users[u.email] = u.id;
 });
 
 afterAll(async () => {
@@ -70,18 +76,50 @@ describe('money', () => {
 
   it('a delivery books the cash with the courier, the merchant balance and our revenue', async () => {
     const locs = await ok(as.merchant!.get('/parcels/reference/locations'));
-    const dokki = locs.find((g: any) => g.code === 'EG-GZ').areas.find((a: any) => a.nameEn === 'Dokki');
+    const dokki = locs
+      .find((g: any) => g.code === 'EG-GZ')
+      .areas.find((a: any) => a.nameEn === 'Dokki');
     for (const cod of [50000, 30000]) {
-      parcels.push(await ok(as.merchant!.post('/parcels/merchant/shipments').send({ customerName: 'Mona', customerPhone: '01012345678', address: '5 Tahrir St', governorateCode: 'EG-GZ', areaId: dokki.id, codAmount: cod }), 201));
+      parcels.push(
+        await ok(
+          as.merchant!.post('/parcels/merchant/shipments').send({
+            customerName: 'Mona',
+            customerPhone: '01012345678',
+            address: '5 Tahrir St',
+            governorateCode: 'EG-GZ',
+            areaId: dokki.id,
+            codAmount: cod,
+          }),
+          201,
+        ),
+      );
     }
     // Skip the line haul (covered by the flow test): put both parcels on the Giza shelf.
-    await prisma.shipment.updateMany({ where: { id: { in: parcels.map((p) => p.id) } }, data: { status: 'AT_HUB', currentHubId: hubs.GIZ } });
+    await prisma.shipment.updateMany({
+      where: { id: { in: parcels.map((p) => p.id) } },
+      data: { status: 'AT_HUB', currentHubId: hubs.GIZ },
+    });
 
-    run = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] }), 201);
-    for (const p of parcels) await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/add`).send({ code: p.trackingNumber }));
+    run = await ok(
+      as
+        .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`)
+        .send({ courierId: users['courier.giz@shiply.local'] }),
+      201,
+    );
+    for (const p of parcels)
+      await ok(
+        as
+          .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/add`)
+          .send({ code: p.trackingNumber }),
+      );
     await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/start`));
     const mine = await ok(as.courierGiz!.get('/parcels/courier/run'));
-    for (const item of mine.items) await ok(as.courierGiz!.post(`/parcels/courier/stops/${item.id}/deliver`).send({ codCollected: item.shipment.codAmount }));
+    for (const item of mine.items)
+      await ok(
+        as
+          .courierGiz!.post(`/parcels/courier/stops/${item.id}/deliver`)
+          .send({ codCollected: item.shipment.codAmount }),
+      );
 
     const w = await wallet(users['courier.giz@shiply.local']!);
     expect(w.cashToHandIn).toBe(80000);
@@ -94,13 +132,20 @@ describe('money', () => {
   });
 
   it('cash paid in through Fawry lowers what the hub expects; a short run freezes the courier', async () => {
-    const pi = await ok(as.courierGiz!.post('/parcels/courier/pay-ins').send({ amount: 30000, reference: 'FWR-123', runId: run.id, receipt: RECEIPT }), 201);
+    const pi = await ok(
+      as
+        .courierGiz!.post('/parcels/courier/pay-ins')
+        .send({ amount: 30000, reference: 'FWR-123', runId: run.id, receipt: RECEIPT }),
+      201,
+    );
     await ok(as.finance!.post(`/parcels/finance/pay-ins/${pi.id}/approve`));
     expect((await as.finance!.post(`/parcels/finance/pay-ins/${pi.id}/approve`)).status).toBe(409);
     const receipt = await as.admin!.get(`/parcels/finance/pay-ins/${pi.id}/receipt`);
     expect(receipt.headers['content-type']).toContain('image/jpeg');
 
-    const closed = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/close`).send({ cashReceived: 40000 }));
+    const closed = await ok(
+      as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/close`).send({ cashReceived: 40000 }),
+    );
     expect(closed.due).toBe(50000);
     expect(closed.short).toBe(10000);
 
@@ -108,18 +153,40 @@ describe('money', () => {
     expect(w.cashToHandIn).toBe(0);
     expect(w.wallet).toBe(4000 - 10000);
     expect(w.frozen).toBe(true);
-    const blocked = await as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] });
+    const blocked = await as
+      .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`)
+      .send({ courierId: users['courier.giz@shiply.local'] });
     expect(blocked.status).toBe(409);
     expect(blocked.body.error).toBe('courier_frozen');
 
     // Finance lets him work today, with a reason.
-    expect((await as.admin!.post(`/parcels/finance/couriers/${users['courier.giz@shiply.local']}/unfreeze`).send({ reason: 'x' })).status).toBe(422);
-    await ok(as.admin!.post(`/parcels/finance/couriers/${users['courier.giz@shiply.local']}/unfreeze`).send({ reason: 'Promised to recharge tonight', hours: 12 }));
-    const again = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] }), 201);
+    expect(
+      (
+        await as
+          .admin!.post(`/parcels/finance/couriers/${users['courier.giz@shiply.local']}/unfreeze`)
+          .send({ reason: 'x' })
+      ).status,
+    ).toBe(422);
+    await ok(
+      as
+        .admin!.post(`/parcels/finance/couriers/${users['courier.giz@shiply.local']}/unfreeze`)
+        .send({ reason: 'Promised to recharge tonight', hours: 12 }),
+    );
+    const again = await ok(
+      as
+        .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`)
+        .send({ courierId: users['courier.giz@shiply.local'] }),
+      201,
+    );
     await prisma.run.delete({ where: { id: again.id } });
 
     // He recharges 6,000 piastres through Fawry: the wallet is back to zero.
-    const rc = await ok(as.courierGiz!.post('/parcels/courier/pay-ins').send({ amount: 6000, purpose: 'RECHARGE', reference: 'FWR-777', receipt: RECEIPT }), 201);
+    const rc = await ok(
+      as
+        .courierGiz!.post('/parcels/courier/pay-ins')
+        .send({ amount: 6000, purpose: 'RECHARGE', reference: 'FWR-777', receipt: RECEIPT }),
+      201,
+    );
     await ok(as.finance!.post(`/parcels/finance/pay-ins/${rc.id}/approve`));
     expect((await wallet(users['courier.giz@shiply.local']!)).wallet).toBe(0);
     await balanced();
@@ -128,54 +195,118 @@ describe('money', () => {
   it('the hub safe goes to the bank, confirmed by finance', async () => {
     const safe = await ok(as.giz!.get(`/parcels/hubs/${hubs.GIZ}/safe`));
     expect(safe.balance).toBe(40000);
-    expect((await as.giz!.post(`/parcels/hubs/${hubs.GIZ}/safe/deposits`).send({ amount: 50000, reference: 'CIB slip 1' })).status).toBe(422);
-    const dep = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/safe/deposits`).send({ amount: 40000, reference: 'CIB slip 1', receipt: RECEIPT }), 201);
-    expect((await as.giz!.post(`/parcels/hubs/${hubs.GIZ}/safe/deposits`).send({ amount: 1, reference: 'again' })).status).toBe(422); // all of it is waiting already
+    expect(
+      (
+        await as
+          .giz!.post(`/parcels/hubs/${hubs.GIZ}/safe/deposits`)
+          .send({ amount: 50000, reference: 'CIB slip 1' })
+      ).status,
+    ).toBe(422);
+    const dep = await ok(
+      as
+        .giz!.post(`/parcels/hubs/${hubs.GIZ}/safe/deposits`)
+        .send({ amount: 40000, reference: 'CIB slip 1', receipt: RECEIPT }),
+      201,
+    );
+    expect(
+      (
+        await as
+          .giz!.post(`/parcels/hubs/${hubs.GIZ}/safe/deposits`)
+          .send({ amount: 1, reference: 'again' })
+      ).status,
+    ).toBe(422); // all of it is waiting already
     await ok(as.admin!.post(`/parcels/finance/deposits/${dep.id}/approve`));
     expect((await ok(as.giz!.get(`/parcels/hubs/${hubs.GIZ}/safe`))).balance).toBe(0);
   });
 
   it('company paid couriers withdraw only after the freeze, with approval', async () => {
     const obr = users['courier.obr@shiply.local']!;
-    await ok(as.admin!.post(`/parcels/finance/couriers/${obr}/adjust`).send({ kind: 'BONUS', amount: 50000, note: 'Best pickup courier of the week' }), 201);
+    await ok(
+      as
+        .admin!.post(`/parcels/finance/couriers/${obr}/adjust`)
+        .send({ kind: 'BONUS', amount: 50000, note: 'Best pickup courier of the week' }),
+      201,
+    );
     let w = await wallet(obr);
     expect(w.paidByAgent).toBe(false); // pickup staff are paid by the company (setting)
     expect(w.wallet).toBe(50000);
     expect(w.withdrawable).toBe(0); // frozen for 3 days
-    expect((await as.courierObr!.post('/parcels/courier/withdrawals').send({ amount: 20000, method: 'InstaPay 01000000100' })).status).toBe(422);
+    expect(
+      (
+        await as
+          .courierObr!.post('/parcels/courier/withdrawals')
+          .send({ amount: 20000, method: 'InstaPay 01000000100' })
+      ).status,
+    ).toBe(422);
 
-    await prisma.courierEarning.updateMany({ where: { courierId: obr }, data: { availableAt: new Date(Date.now() - 1000) } });
+    await prisma.courierEarning.updateMany({
+      where: { courierId: obr },
+      data: { availableAt: new Date(Date.now() - 1000) },
+    });
     w = await wallet(obr);
     expect(w.withdrawable).toBe(50000);
-    const wd = await ok(as.courierObr!.post('/parcels/courier/withdrawals').send({ amount: 20000, method: 'InstaPay 01000000100' }), 201);
+    const wd = await ok(
+      as
+        .courierObr!.post('/parcels/courier/withdrawals')
+        .send({ amount: 20000, method: 'InstaPay 01000000100' }),
+      201,
+    );
     expect((await as.admin!.post(`/parcels/finance/withdrawals/${wd.id}/paid`)).status).toBe(409); // approve first
     await ok(as.admin!.post(`/parcels/finance/withdrawals/${wd.id}/approve`));
     await ok(as.finance!.post(`/parcels/finance/withdrawals/${wd.id}/paid`));
     expect((await wallet(obr)).wallet).toBe(30000);
 
     // Delivery staff of an agent cannot withdraw: their agent is paid.
-    expect((await as.courierGiz!.post('/parcels/courier/withdrawals').send({ amount: 100, method: 'InstaPay 0100' })).status).toBe(409);
+    expect(
+      (
+        await as
+          .courierGiz!.post('/parcels/courier/withdrawals')
+          .send({ amount: 100, method: 'InstaPay 0100' })
+      ).status,
+    ).toBe(409);
   });
 
   it('agent month end: staff pay with commission on work only, invoice before payment', async () => {
     const giz = users['courier.giz@shiply.local']!;
     const month = lastMonth();
     // Pretend the work happened last month.
-    await prisma.courierEarning.updateMany({ where: { courierId: giz }, data: { date: `${month}-15` } });
+    await prisma.courierEarning.updateMany({
+      where: { courierId: giz },
+      data: { date: `${month}-15` },
+    });
     const agentId = (await ok(as.delta!.get('/parcels/auth/me'))).agentId;
-    const preview = await ok(as.admin!.get(`/parcels/finance/settlements/preview?agentId=${agentId}&month=${month}`));
+    const preview = await ok(
+      as.admin!.get(`/parcels/finance/settlements/preview?agentId=${agentId}&month=${month}`),
+    );
     // Work 4,000; shortage −10,000 and recharge +6,000 cancel out; commission 15% of the work only.
     expect(preview.staffPay).toBe(4000 - 10000 + 6000);
     expect(preview.commission).toBe(600);
     expect(preview.total).toBe(600);
 
-    expect((await as.admin!.post('/parcels/finance/settlements').send({ agentId, month: new Date().toISOString().slice(0, 7) })).status).toBe(422); // month not over
-    const x = await ok(as.admin!.post('/parcels/finance/settlements').send({ agentId, month }), 201);
+    expect(
+      (
+        await as
+          .admin!.post('/parcels/finance/settlements')
+          .send({ agentId, month: new Date().toISOString().slice(0, 7) })
+      ).status,
+    ).toBe(422); // month not over
+    const x = await ok(
+      as.admin!.post('/parcels/finance/settlements').send({ agentId, month }),
+      201,
+    );
     expect((await as.admin!.post(`/parcels/finance/settlements/${x.id}/approve`)).status).toBe(403);
     await ok(as.finance!.post(`/parcels/finance/settlements/${x.id}/approve`));
     expect((await as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`)).status).toBe(422); // no invoice yet
-    await ok(as.delta!.post(`/parcels/agent/settlements/${x.id}/invoice`).send({ fileName: 'invoice.pdf', mime: 'application/pdf', dataBase64: Buffer.from('%PDF-1.4').toString('base64') }));
-    await ok(as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`).send({ reference: 'CIB 5' }));
+    await ok(
+      as.delta!.post(`/parcels/agent/settlements/${x.id}/invoice`).send({
+        fileName: 'invoice.pdf',
+        mime: 'application/pdf',
+        dataBase64: Buffer.from('%PDF-1.4').toString('base64'),
+      }),
+    );
+    await ok(
+      as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`).send({ reference: 'CIB 5' }),
+    );
     const agents = await ok(as.admin!.get('/parcels/finance/wallets/AGENT'));
     expect(agents.find((a: any) => a.id === agentId)).toBeUndefined(); // paid to zero
     expect((await wallet(giz)).wallet).toBe(0); // moved to the agent
@@ -191,8 +322,12 @@ describe('money', () => {
     expect(lines.length).toBeGreaterThan(0);
     expect(lines.every((l: any) => l.company === 'shiply')).toBe(true);
     expect(lines.every((l: any) => l.hubId && l.costCenterId)).toBe(true);
-    const centers = await prisma.costCenter.findMany({ where: { id: { in: lines.map((l: any) => l.costCenterId) } } });
-    expect(centers.every((c: any) => c.company === 'shiply' && c.code.startsWith('NW-'))).toBe(true);
+    const centers = await prisma.costCenter.findMany({
+      where: { id: { in: lines.map((l: any) => l.costCenterId) } },
+    });
+    expect(centers.every((c: any) => c.company === 'shiply' && c.code.startsWith('NW-'))).toBe(
+      true,
+    );
     const revenue = -lines.reduce((n: number, l: any) => n + l.amountPiastres, 0);
     expect(revenue).toBeGreaterThan(0);
     const { bs } = await balanced();

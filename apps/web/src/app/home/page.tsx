@@ -70,7 +70,9 @@ export default async function HomePage() {
                   <Link href={PARCELS_TILE.href} className={tile}>
                     <AppTileIcon app={PARCELS_TILE} size="lg" />
                     <span className="text-body font-bold">{t('names.parcels')}</span>
-                    <span className="text-caption text-text-muted">{t('descriptions.parcels')}</span>
+                    <span className="text-caption text-text-muted">
+                      {t('descriptions.parcels')}
+                    </span>
                   </Link>
                 </li>
               )}

@@ -48,20 +48,34 @@ export function AccountMenu({ up = false, compact = false }: { up?: boolean; com
         title={compact ? t('Settings') : undefined}
         className="flex h-11 shrink-0 items-center gap-2 rounded-md border border-line bg-surface px-3 text-body-sm font-bold text-text"
       >
-        <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+        <svg
+          aria-hidden="true"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.75"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
           <circle cx="12" cy="12" r="3" />
           <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
         </svg>
         {!compact && t('Settings')}
       </button>
       {open && (
-        <div className={`absolute end-0 z-50 w-64 space-y-3 rounded-lg border border-line bg-surface p-4 text-text shadow-lg ${up ? 'bottom-full mb-2' : 'top-full mt-2'}`}>
+        <div
+          className={`absolute end-0 z-50 w-64 space-y-3 rounded-lg border border-line bg-surface p-4 text-text shadow-lg ${up ? 'bottom-full mb-2' : 'top-full mt-2'}`}
+        >
           <div className="min-w-0">
             <p className="truncate text-body-sm font-bold">{me.name}</p>
             <p className="truncate text-caption text-text-muted">{role}</p>
           </div>
           <PreferencesMenu />
-          <button type="button" onClick={() => void signOut()} className="btn-secondary w-full">{t('Sign out')}</button>
+          <button type="button" onClick={() => void signOut()} className="btn-secondary w-full">
+            {t('Sign out')}
+          </button>
         </div>
       )}
     </div>

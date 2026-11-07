@@ -77,20 +77,41 @@ export class MerchantService {
   async create(merchantId: string, input: unknown, userId: string): Promise<Shipment> {
     const data = parse(ShipmentInput, input);
     const phone = normalizeEgyptPhone(data.customerPhone);
-    if (!phone) throw new DomainError('invalid_input', 'Customer phone must be an Egyptian mobile number', 422);
+    if (!phone)
+      throw new DomainError(
+        'invalid_input',
+        'Customer phone must be an Egyptian mobile number',
+        422,
+      );
     return this.prisma.tx(async (tx) => {
       const merchant = await tx.merchant.findUnique({ where: { id: merchantId } });
-      if (!merchant || !merchant.isActive) throw new DomainError('forbidden', 'This merchant account is not active', 403);
-      if (merchant.approval !== 'approved') throw new DomainError('forbidden', 'This merchant account is waiting for approval', 403);
-      if (!merchant.homeHubId || !merchant.governorateCode) throw new DomainError('no_pickup_address', 'Add your pickup address before sending parcels', 422);
+      if (!merchant || !merchant.isActive)
+        throw new DomainError('forbidden', 'This merchant account is not active', 403);
+      if (merchant.approval !== 'approved')
+        throw new DomainError('forbidden', 'This merchant account is waiting for approval', 403);
+      if (!merchant.homeHubId || !merchant.governorateCode)
+        throw new DomainError(
+          'no_pickup_address',
+          'Add your pickup address before sending parcels',
+          422,
+        );
       const home = { homeHubId: merchant.homeHubId, governorateCode: merchant.governorateCode };
       const settings = await this.settings.all(tx);
       if (data.customerReturn && (data.codAmount > 0 || data.exchange || data.allowOpen)) {
-        throw new DomainError('invalid_input', 'A return from a customer has no cash to collect, no exchange and no opening', 422);
+        throw new DomainError(
+          'invalid_input',
+          'A return from a customer has no cash to collect, no exchange and no opening',
+          422,
+        );
       }
       const price = await priceFor(tx, this.core, settings, {
-        merchantId, discountBp: merchant.discountBp, governorateCode: data.governorateCode, areaId: data.areaId ?? null,
-        size: data.size as ParcelSize, allowOpen: data.allowOpen, exchange: data.exchange,
+        merchantId,
+        discountBp: merchant.discountBp,
+        governorateCode: data.governorateCode,
+        areaId: data.areaId ?? null,
+        size: data.size as ParcelSize,
+        allowOpen: data.allowOpen,
+        exchange: data.exchange,
       });
       const hubId = price.hubId;
       // We pick up only where we deliver: a merchant outside our area cannot send yet.
@@ -98,13 +119,21 @@ export class MerchantService {
         throw new DomainError('not_served', 'We do not pick up from your area yet', 422);
       });
       // The whole way, planned now: a return from a customer travels the other way.
-      const route = await this.core.plan(tx, data.customerReturn ? 'RETURN' : 'FORWARD', home.homeHubId, hubId);
+      const route = await this.core.plan(
+        tx,
+        data.customerReturn ? 'RETURN' : 'FORWARD',
+        home.homeHubId,
+        hubId,
+      );
       const cod = codFee(data.codAmount, {
         codFeeBp: settings['fees.cod_fee_bp'],
         codFreeAmount: settings['fees.cod_free_amount'],
         returnFeeBp: settings['fees.return_fee_bp'],
       });
-      const trackingNumber = makeTrackingNumber(settings['tracking.prefix'], await nextNumber(tx, 'tracking_seq'));
+      const trackingNumber = makeTrackingNumber(
+        settings['tracking.prefix'],
+        await nextNumber(tx, 'tracking_seq'),
+      );
       const shipment = await tx.shipment.create({
         data: {
           trackingNumber,
@@ -133,9 +162,16 @@ export class MerchantService {
         },
       });
       await tx.shipmentEvent.create({
-        data: { shipmentId: shipment.id, type: 'CREATED', toStatus: 'CREATED', userId, note: data.customerReturn ? 'Return to collect from the customer' : '' },
+        data: {
+          shipmentId: shipment.id,
+          type: 'CREATED',
+          toStatus: 'CREATED',
+          userId,
+          note: data.customerReturn ? 'Return to collect from the customer' : '',
+        },
       });
-      if (!data.customerReturn && settings['pickups.auto_request'] === 'ON') await this.autoPickup(tx, { id: merchant.id, homeHubId: home.homeHubId }, settings);
+      if (!data.customerReturn && settings['pickups.auto_request'] === 'ON')
+        await this.autoPickup(tx, { id: merchant.id, homeHubId: home.homeHubId }, settings);
       await queueShipmentWebhooks(tx, shipment.id, null, 'CREATED');
       return shipment;
     });
@@ -143,8 +179,10 @@ export class MerchantService {
 
   /** CSV upload: every row is its own transaction, so one bad row never blocks the rest. */
   async createMany(merchantId: string, rows: unknown, userId: string) {
-    if (!Array.isArray(rows) || rows.length === 0) throw new DomainError('invalid_input', 'No rows to import', 422);
-    if (rows.length > 500) throw new DomainError('invalid_input', 'Upload at most 500 rows at a time', 422);
+    if (!Array.isArray(rows) || rows.length === 0)
+      throw new DomainError('invalid_input', 'No rows to import', 422);
+    if (rows.length > 500)
+      throw new DomainError('invalid_input', 'Upload at most 500 rows at a time', 422);
     const created: { row: number; trackingNumber: string }[] = [];
     const failed: { row: number; message: string }[] = [];
     for (const [i, row] of rows.entries()) {
@@ -152,7 +190,10 @@ export class MerchantService {
         const s = await this.create(merchantId, row, userId);
         created.push({ row: i + 1, trackingNumber: s.trackingNumber });
       } catch (e) {
-        failed.push({ row: i + 1, message: e instanceof DomainError ? e.message : 'Could not create this row' });
+        failed.push({
+          row: i + 1,
+          message: e instanceof DomainError ? e.message : 'Could not create this row',
+        });
       }
     }
     return { created, failed };
@@ -173,11 +214,22 @@ export class MerchantService {
     }
     const take = 50;
     const [items, total, counts] = await Promise.all([
-      this.prisma.shipment.findMany({ where, orderBy: { createdAt: 'desc' }, take, skip: (q.page - 1) * take }),
+      this.prisma.shipment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        take,
+        skip: (q.page - 1) * take,
+      }),
       this.prisma.shipment.count({ where }),
       this.prisma.shipment.groupBy({ by: ['status'], where: { merchantId }, _count: true }),
     ]);
-    return { items, total, page: q.page, pageSize: take, counts: Object.fromEntries(counts.map((c) => [c.status, c._count])) };
+    return {
+      items,
+      total,
+      page: q.page,
+      pageSize: take,
+      counts: Object.fromEntries(counts.map((c) => [c.status, c._count])),
+    };
   }
 
   async get(merchantId: string, id: string) {
@@ -194,9 +246,19 @@ export class MerchantService {
       const s = await tx.shipment.findFirst({ where: { id, merchantId } });
       if (!s) throw notFound('Parcel');
       if (s.status !== 'CREATED') {
-        throw new DomainError('bad_status', 'Only parcels we have not picked up yet can be cancelled. Ask for a return instead', 409);
+        throw new DomainError(
+          'bad_status',
+          'Only parcels we have not picked up yet can be cancelled. Ask for a return instead',
+          409,
+        );
       }
-      await this.core.move(tx, s, 'CANCELLED', { closedAt: new Date() }, { type: 'CANCELLED', userId });
+      await this.core.move(
+        tx,
+        s,
+        'CANCELLED',
+        { closedAt: new Date() },
+        { type: 'CANCELLED', userId },
+      );
     });
   }
 
@@ -207,7 +269,11 @@ export class MerchantService {
       const s = await tx.shipment.findFirst({ where: { id, merchantId } });
       if (!s) throw notFound('Parcel');
       if (d.decision === 'RETURN') {
-        await requestReturn(tx, this.core, s, { type: 'RETURN_REQUESTED', userId, note: d.note || 'Merchant asked for the parcel back' });
+        await requestReturn(tx, this.core, s, {
+          type: 'RETURN_REQUESTED',
+          userId,
+          note: d.note || 'Merchant asked for the parcel back',
+        });
         return;
       }
       if (s.status !== 'ON_HOLD' || s.direction !== 'FORWARD') {
@@ -217,7 +283,12 @@ export class MerchantService {
       const changes: string[] = [];
       if (d.customerPhone) {
         const phone = normalizeEgyptPhone(d.customerPhone);
-        if (!phone) throw new DomainError('invalid_input', 'Customer phone must be an Egyptian mobile number', 422);
+        if (!phone)
+          throw new DomainError(
+            'invalid_input',
+            'Customer phone must be an Egyptian mobile number',
+            422,
+          );
         patch.customerPhone = phone;
         changes.push('phone');
       }
@@ -237,38 +308,80 @@ export class MerchantService {
         patch.destinationHubId = hubId;
         changes.push('area');
       }
-      const note = [changes.length ? `Updated ${changes.join(', ')}` : '', d.note].filter(Boolean).join('. ');
+      const note = [changes.length ? `Updated ${changes.join(', ')}` : '', d.note]
+        .filter(Boolean)
+        .join('. ');
       await this.core.move(tx, s, 'AT_HUB', patch, { type: 'REATTEMPT_REQUESTED', userId, note });
     });
   }
 
   /** Books a pickup for parcels waiting at the merchant when none is booked yet: today before the cutoff, else the next working day. */
-  private async autoPickup(tx: Tx, merchant: { id: string; homeHubId: string }, settings: SettingValues) {
+  private async autoPickup(
+    tx: Tx,
+    merchant: { id: string; homeHubId: string },
+    settings: SettingValues,
+  ) {
     const clock = cairoClock(new Date());
-    const open = await tx.pickup.findFirst({ where: { merchantId: merchant.id, date: { gte: clock.date }, status: { in: ['REQUESTED', 'ASSIGNED'] } }, orderBy: { date: 'asc' } });
+    const open = await tx.pickup.findFirst({
+      where: {
+        merchantId: merchant.id,
+        date: { gte: clock.date },
+        status: { in: ['REQUESTED', 'ASSIGNED'] },
+      },
+      orderBy: { date: 'asc' },
+    });
     if (open) {
-      if (open.status === 'REQUESTED') await tx.pickup.update({ where: { id: open.id }, data: { expectedCount: { increment: 1 } } });
+      if (open.status === 'REQUESTED')
+        await tx.pickup.update({
+          where: { id: open.id },
+          data: { expectedCount: { increment: 1 } },
+        });
       return;
     }
     const weekend = settings['promise.weekend_days'];
-    const beforeCutoff = clock.minutes < parseTime(settings['promise.cutoff']) && !weekend.includes(clock.weekday);
+    const beforeCutoff =
+      clock.minutes < parseTime(settings['promise.cutoff']) && !weekend.includes(clock.weekday);
     const date = beforeCutoff ? clock.date : addBusinessDays(clock.date, 1, weekend);
-    await tx.pickup.create({ data: { code: await nextCode(tx, 'pickup_seq', 'PU'), merchantId: merchant.id, hubId: merchant.homeHubId, date, expectedCount: 1, auto: true, notes: 'Booked automatically' } });
+    await tx.pickup.create({
+      data: {
+        code: await nextCode(tx, 'pickup_seq', 'PU'),
+        merchantId: merchant.id,
+        hubId: merchant.homeHubId,
+        date,
+        expectedCount: 1,
+        auto: true,
+        notes: 'Booked automatically',
+      },
+    });
   }
 
   async requestPickup(merchantId: string, input: unknown, userId: string) {
     const d = parse(PickupInput, input);
-    if (d.date < todayInCairo()) throw new DomainError('invalid_input', 'Pick a date from today on', 422);
+    if (d.date < todayInCairo())
+      throw new DomainError('invalid_input', 'Pick a date from today on', 422);
     return this.prisma.tx(async (tx) => {
       const merchant = await tx.merchant.findUniqueOrThrow({ where: { id: merchantId } });
-      if (!merchant.homeHubId) throw new DomainError('no_pickup_address', 'Add your pickup address before asking for a pickup', 422);
+      if (!merchant.homeHubId)
+        throw new DomainError(
+          'no_pickup_address',
+          'Add your pickup address before asking for a pickup',
+          422,
+        );
       const homeHubId = merchant.homeHubId;
       const open = await tx.pickup.findFirst({
         where: { merchantId, date: d.date, status: { in: ['REQUESTED', 'ASSIGNED'] } },
       });
-      if (open) throw new DomainError('duplicate', `You already have pickup ${open.code} on that day`, 409);
-      const waiting = await tx.shipment.count({ where: { merchantId, status: 'CREATED', kind: { not: 'CUSTOMER_RETURN' } } });
-      if (waiting === 0) throw new DomainError('invalid_input', 'Create your parcels first, then ask for a pickup', 422);
+      if (open)
+        throw new DomainError('duplicate', `You already have pickup ${open.code} on that day`, 409);
+      const waiting = await tx.shipment.count({
+        where: { merchantId, status: 'CREATED', kind: { not: 'CUSTOMER_RETURN' } },
+      });
+      if (waiting === 0)
+        throw new DomainError(
+          'invalid_input',
+          'Create your parcels first, then ask for a pickup',
+          422,
+        );
       const pickup = await tx.pickup.create({
         data: {
           code: await nextCode(tx, 'pickup_seq', 'PU'),
@@ -279,13 +392,24 @@ export class MerchantService {
           notes: d.notes,
         },
       });
-      await tx.auditLog.create({ data: { actorUserId: userId, action: 'PICKUP_REQUESTED', entityType: 'pickup', entityId: pickup.id } });
+      await tx.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: 'PICKUP_REQUESTED',
+          entityType: 'pickup',
+          entityId: pickup.id,
+        },
+      });
       return pickup;
     });
   }
 
   async pickups(merchantId: string) {
-    return this.prisma.pickup.findMany({ where: { merchantId }, orderBy: { createdAt: 'desc' }, take: 50 });
+    return this.prisma.pickup.findMany({
+      where: { merchantId },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    });
   }
 
   async cancelPickup(merchantId: string, id: string) {
@@ -293,7 +417,8 @@ export class MerchantService {
       where: { id, merchantId, status: { in: ['REQUESTED', 'ASSIGNED'] } },
       data: { status: 'CANCELLED' },
     });
-    if (result.count !== 1) throw new DomainError('bad_status', 'This pickup can no longer be cancelled', 409);
+    if (result.count !== 1)
+      throw new DomainError('bad_status', 'This pickup can no longer be cancelled', 409);
   }
 
   async statement(merchantId: string) {
@@ -308,12 +433,33 @@ export async function requestReturn(
   s: Shipment,
   event: { type: string; userId: string; note: string },
 ) {
-  if (s.direction === 'RETURN') throw new DomainError('bad_status', 'This parcel is already coming back', 409);
-  if (s.status === 'CREATED') throw new DomainError('bad_status', 'We have not picked this parcel up yet. Cancel it instead', 409);
-  if (!['PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'ON_HOLD'].includes(s.status)) {
+  if (s.direction === 'RETURN')
+    throw new DomainError('bad_status', 'This parcel is already coming back', 409);
+  if (s.status === 'CREATED')
+    throw new DomainError(
+      'bad_status',
+      'We have not picked this parcel up yet. Cancel it instead',
+      409,
+    );
+  if (
+    ![
+      'PICKED_UP',
+      'AT_INBOUND',
+      'SORTED',
+      'AT_OUTBOUND',
+      'IN_TRANSIT',
+      'AT_HUB',
+      'ON_HOLD',
+    ].includes(s.status)
+  ) {
     throw new DomainError('bad_status', 'This parcel cannot be returned now', 409);
   }
-  if (s.runId) throw new DomainError('bad_status', 'This parcel is loaded on a courier run. Ask the hub to take it off first', 409);
+  if (s.runId)
+    throw new DomainError(
+      'bad_status',
+      'This parcel is loaded on a courier run. Ask the hub to take it off first',
+      409,
+    );
   const patch: Partial<Shipment> = { direction: 'RETURN', holdReason: null };
   let to: Shipment['status'] = s.status === 'ON_HOLD' ? 'AT_HUB' : s.status;
   const here = s.currentHubId ? await tx.hub.findUnique({ where: { id: s.currentHubId } }) : null;
@@ -338,14 +484,29 @@ export async function merchantStatement(prisma: PrismaService, merchantId: strin
   const codTotal = open.reduce((sum, s) => sum + s.codCollected, 0);
   const feesTotal = open.reduce((sum, s) => sum + feesOf(s), 0);
   const pendingCash = await prisma.shipment.aggregate({
-    where: { merchantId, status: 'DELIVERED', payoutId: null, id: { notIn: open.map((s) => s.id) } },
+    where: {
+      merchantId,
+      status: 'DELIVERED',
+      payoutId: null,
+      id: { notIn: open.map((s) => s.id) },
+    },
     _sum: { codCollected: true },
   });
-  const payouts = await prisma.payout.findMany({ where: { merchantId }, orderBy: { createdAt: 'desc' }, take: 20 });
+  const payouts = await prisma.payout.findMany({
+    where: { merchantId },
+    orderBy: { createdAt: 'desc' },
+    take: 20,
+  });
   const m = await prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } });
   return {
     // Bank details and payouts are Shiply Now's: one payout run pays both services.
-    bank: { bankName: m.bankName ?? '', accountName: m.beneficiaryName ?? '', iban: m.iban ? `•••• ${m.iban.slice(-4)}` : '', changePending: false, payoutSchedule: m.payoutSchedule },
+    bank: {
+      bankName: m.bankName ?? '',
+      accountName: m.beneficiaryName ?? '',
+      iban: m.iban ? `•••• ${m.iban.slice(-4)}` : '',
+      changePending: false,
+      payoutSchedule: m.payoutSchedule,
+    },
     shipments: open.map((s) => ({
       id: s.id,
       trackingNumber: s.trackingNumber,
@@ -358,11 +519,20 @@ export async function merchantStatement(prisma: PrismaService, merchantId: strin
     feesTotal,
     balance: codTotal - feesTotal,
     cashStillWithCouriers: pendingCash._sum.codCollected ?? 0,
-    payouts: payouts.map((p) => ({ id: p.id, code: `PO-${p.number}`, amount: p.amountPiastres, status: p.status.toUpperCase(), createdAt: p.createdAt, paidAt: p.paidAt })),
+    payouts: payouts.map((p) => ({
+      id: p.id,
+      code: `PO-${p.number}`,
+      amount: p.amountPiastres,
+      status: p.status.toUpperCase(),
+      createdAt: p.createdAt,
+      paidAt: p.paidAt,
+    })),
   };
 }
 
-export function feesOf(s: Pick<Shipment, 'status' | 'shippingFee' | 'codFee' | 'returnFee'>): number {
+export function feesOf(
+  s: Pick<Shipment, 'status' | 'shippingFee' | 'codFee' | 'returnFee'>,
+): number {
   if (s.status === 'DELIVERED') return s.shippingFee + s.codFee;
   if (s.status === 'RETURNED') return s.shippingFee + s.returnFee;
   return 0;

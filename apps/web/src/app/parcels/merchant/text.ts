@@ -1,5 +1,11 @@
 'use client';
-import { FAIL_REASONS, FAIL_REASON_LABELS_AR, STATUS_LABELS_AR, type FailReason, type ShipmentStatus } from '@shiplynow/shared/parcels';
+import {
+  FAIL_REASONS,
+  FAIL_REASON_LABELS_AR,
+  STATUS_LABELS_AR,
+  type FailReason,
+  type ShipmentStatus,
+} from '@shiplynow/shared/parcels';
 import { useCallback } from 'react';
 import { statusLabel } from '@/parcels/lib/format';
 import { useLocale } from '@/parcels/lib/i18n';
@@ -8,7 +14,10 @@ import { useLocale } from '@/parcels/lib/i18n';
 export function useStatusText() {
   const locale = useLocale();
   return useCallback(
-    (status: string) => (locale === 'ar' ? STATUS_LABELS_AR[status as ShipmentStatus] ?? status : statusLabel(status)),
+    (status: string) =>
+      locale === 'ar'
+        ? (STATUS_LABELS_AR[status as ShipmentStatus] ?? status)
+        : statusLabel(status),
     [locale],
   );
 }

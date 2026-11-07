@@ -10,13 +10,83 @@ const EGP = 100;
 
 // Placeholder prices (VAT included) until the business sends the real price list.
 const ZONES = [
-  { code: 'GC', name: 'Greater Cairo', transitDays: 1, priceS: 50 * EGP, priceM: 60 * EGP, priceL: 75 * EGP, priceXL: 100 * EGP, priceXXL: 140 * EGP, priceBulky: 200 * EGP },
-  { code: 'ALX', name: 'Alexandria', transitDays: 1, priceS: 60 * EGP, priceM: 70 * EGP, priceL: 85 * EGP, priceXL: 110 * EGP, priceXXL: 150 * EGP, priceBulky: 220 * EGP },
-  { code: 'DELTA', name: 'Delta', transitDays: 2, priceS: 65 * EGP, priceM: 75 * EGP, priceL: 90 * EGP, priceXL: 120 * EGP, priceXXL: 165 * EGP, priceBulky: 240 * EGP },
-  { code: 'CANAL', name: 'Canal cities', transitDays: 2, priceS: 65 * EGP, priceM: 75 * EGP, priceL: 90 * EGP, priceXL: 120 * EGP, priceXXL: 165 * EGP, priceBulky: 240 * EGP },
-  { code: 'UPPER', name: 'Upper Egypt', transitDays: 2, priceS: 75 * EGP, priceM: 85 * EGP, priceL: 100 * EGP, priceXL: 135 * EGP, priceXXL: 185 * EGP, priceBulky: 270 * EGP },
-  { code: 'RED_SEA', name: 'Red Sea and Sinai', transitDays: 3, priceS: 85 * EGP, priceM: 95 * EGP, priceL: 115 * EGP, priceXL: 150 * EGP, priceXXL: 205 * EGP, priceBulky: 300 * EGP },
-  { code: 'REMOTE', name: 'Remote areas', transitDays: 3, priceS: 90 * EGP, priceM: 100 * EGP, priceL: 120 * EGP, priceXL: 160 * EGP, priceXXL: 220 * EGP, priceBulky: 320 * EGP },
+  {
+    code: 'GC',
+    name: 'Greater Cairo',
+    transitDays: 1,
+    priceS: 50 * EGP,
+    priceM: 60 * EGP,
+    priceL: 75 * EGP,
+    priceXL: 100 * EGP,
+    priceXXL: 140 * EGP,
+    priceBulky: 200 * EGP,
+  },
+  {
+    code: 'ALX',
+    name: 'Alexandria',
+    transitDays: 1,
+    priceS: 60 * EGP,
+    priceM: 70 * EGP,
+    priceL: 85 * EGP,
+    priceXL: 110 * EGP,
+    priceXXL: 150 * EGP,
+    priceBulky: 220 * EGP,
+  },
+  {
+    code: 'DELTA',
+    name: 'Delta',
+    transitDays: 2,
+    priceS: 65 * EGP,
+    priceM: 75 * EGP,
+    priceL: 90 * EGP,
+    priceXL: 120 * EGP,
+    priceXXL: 165 * EGP,
+    priceBulky: 240 * EGP,
+  },
+  {
+    code: 'CANAL',
+    name: 'Canal cities',
+    transitDays: 2,
+    priceS: 65 * EGP,
+    priceM: 75 * EGP,
+    priceL: 90 * EGP,
+    priceXL: 120 * EGP,
+    priceXXL: 165 * EGP,
+    priceBulky: 240 * EGP,
+  },
+  {
+    code: 'UPPER',
+    name: 'Upper Egypt',
+    transitDays: 2,
+    priceS: 75 * EGP,
+    priceM: 85 * EGP,
+    priceL: 100 * EGP,
+    priceXL: 135 * EGP,
+    priceXXL: 185 * EGP,
+    priceBulky: 270 * EGP,
+  },
+  {
+    code: 'RED_SEA',
+    name: 'Red Sea and Sinai',
+    transitDays: 3,
+    priceS: 85 * EGP,
+    priceM: 95 * EGP,
+    priceL: 115 * EGP,
+    priceXL: 150 * EGP,
+    priceXXL: 205 * EGP,
+    priceBulky: 300 * EGP,
+  },
+  {
+    code: 'REMOTE',
+    name: 'Remote areas',
+    transitDays: 3,
+    priceS: 90 * EGP,
+    priceM: 100 * EGP,
+    priceL: 120 * EGP,
+    priceXL: 160 * EGP,
+    priceXXL: 220 * EGP,
+    priceBulky: 320 * EGP,
+  },
 ];
 
 const TIERS = [
@@ -58,8 +128,20 @@ const GOVERNORATES: [string, string, string | null, number, number][] = [
 ];
 
 const FACILITIES = [
-  { code: 'OBR', name: 'Obour Sorting Center', address: 'Obour City, Industrial Zone', lat: 30.228, lng: 31.479 },
-  { code: 'ALXSF', name: 'Alexandria Sorting Center', address: 'Amreya, Alexandria', lat: 31.057, lng: 29.8 },
+  {
+    code: 'OBR',
+    name: 'Obour Sorting Center',
+    address: 'Obour City, Industrial Zone',
+    lat: 30.228,
+    lng: 31.479,
+  },
+  {
+    code: 'ALXSF',
+    name: 'Alexandria Sorting Center',
+    address: 'Amreya, Alexandria',
+    lat: 31.057,
+    lng: 29.8,
+  },
 ];
 
 const LAST_MILE = [
@@ -104,27 +186,40 @@ export interface NetworkSeedOptions {
 
 export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOptions = {}) {
   const log = options.log ?? (() => undefined);
-  for (const z of ZONES) await prisma.pricingZone.upsert({ where: { code: z.code }, update: {}, create: z });
+  for (const z of ZONES)
+    await prisma.pricingZone.upsert({ where: { code: z.code }, update: {}, create: z });
   if ((await prisma.priceTier.count()) === 0) await prisma.priceTier.createMany({ data: TIERS });
 
   const hubIds = new Map<string, string>();
   const facilities = [];
   for (const f of FACILITIES) {
-    const hub = await prisma.hub.upsert({ where: { code: f.code }, update: {}, create: { ...f, isSorting: true } });
+    const hub = await prisma.hub.upsert({
+      where: { code: f.code },
+      update: {},
+      create: { ...f, isSorting: true },
+    });
     hubIds.set(f.code, hub.id);
     facilities.push(hub);
   }
   for (const h of LAST_MILE) {
     const parent = nearest(h, facilities)!;
-    const hub = await prisma.hub.upsert({ where: { code: h.code }, update: {}, create: { ...h, isSorting: false, parentId: parent.id } });
+    const hub = await prisma.hub.upsert({
+      where: { code: h.code },
+      update: {},
+      create: { ...h, isSorting: false, parentId: parent.id },
+    });
     hubIds.set(h.code, hub.id);
   }
   const hubId = (code: string | null) => (code ? hubIds.get(code)! : null);
-  const served = (gov: string, hub: string | null) => (options.everywhere || LAUNCH.has(gov) ? hubId(hub) : null);
+  const served = (gov: string, hub: string | null) =>
+    options.everywhere || LAUNCH.has(gov) ? hubId(hub) : null;
 
   // Only fills what is empty, so coverage changed on the network page is kept.
   for (const [code, zoneCode, hub, lat, lng] of GOVERNORATES) {
-    await prisma.governorate.updateMany({ where: { code, zoneCode: null }, data: { zoneCode, hubId: served(code, hub), lat, lng } });
+    await prisma.governorate.updateMany({
+      where: { code, zoneCode: null },
+      data: { zoneCode, hubId: served(code, hub), lat, lng },
+    });
   }
   for (const [governorateCode, nameEn, nameAr, hub, lat, lng] of AREAS) {
     await prisma.networkArea.upsert({
@@ -135,74 +230,197 @@ export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOpti
   }
   if (options.everywhere && (await prisma.lineHaulLink.count()) === 0) {
     const ids = FACILITIES.map((f) => hubIds.get(f.code)!);
-    for (const a of ids) for (const b of ids) if (a !== b) await prisma.lineHaulLink.create({ data: { fromId: a, toId: b } });
+    for (const a of ids)
+      for (const b of ids)
+        if (a !== b) await prisma.lineHaulLink.create({ data: { fromId: a, toId: b } });
   }
   for (const [key, def] of Object.entries(SETTINGS)) {
     const id = { key: `parcels.${key}`, scope: 'global' };
-    await prisma.setting.upsert({ where: { key_scope: id }, update: {}, create: { ...id, value: def.default as never } });
+    await prisma.setting.upsert({
+      where: { key_scope: id },
+      update: {},
+      create: { ...id, value: def.default as never },
+    });
   }
-  log(`Parcel network: ${FACILITIES.length} sorting facilities, ${LAST_MILE.length} hubs, ${ZONES.length} price zones`);
+  log(
+    `Parcel network: ${FACILITIES.length} sorting facilities, ${LAST_MILE.length} hubs, ${ZONES.length} price zones`,
+  );
 
   const password = options.demoPassword;
   if (!password) return;
   const hash = await hashPassword(password);
   const addUser = async (data: {
-    email: string; name: string; role: 'admin' | 'hub_staff' | 'courier' | 'merchant' | 'agent'; team?: 'INBOUND' | 'SORTING' | 'OUTBOUND';
-    phone?: string; hubId?: string | null; merchantId?: string | null; agentId?: string | null; courierType?: 'PICKUP' | 'DELIVERY';
+    email: string;
+    name: string;
+    role: 'admin' | 'hub_staff' | 'courier' | 'merchant' | 'agent';
+    team?: 'INBOUND' | 'SORTING' | 'OUTBOUND';
+    phone?: string;
+    hubId?: string | null;
+    merchantId?: string | null;
+    agentId?: string | null;
+    courierType?: 'PICKUP' | 'DELIVERY';
   }) => {
     if (await prisma.user.findUnique({ where: { email: data.email } })) return;
-    await prisma.user.create({ data: { ...data, phone: data.phone ?? null, merchantRole: data.role === 'merchant' ? 'owner' : null, passwordHash: hash } });
+    await prisma.user.create({
+      data: {
+        ...data,
+        phone: data.phone ?? null,
+        merchantRole: data.role === 'merchant' ? 'owner' : null,
+        passwordHash: hash,
+      },
+    });
   };
 
   await addUser({ email: 'finance@shiply.local', name: 'Finance', role: 'admin' });
   const pickupAgent = await prisma.agent.upsert({
     where: { code: 'AGCAIRO' },
     update: {},
-    create: { code: 'AGCAIRO', name: 'Cairo Movers', phone: '+201005550001', email: 'ops@cairomovers.example', supplies: 'PICKUP', bankName: 'CIB', bankAccountName: 'Cairo Movers LLC' },
+    create: {
+      code: 'AGCAIRO',
+      name: 'Cairo Movers',
+      phone: '+201005550001',
+      email: 'ops@cairomovers.example',
+      supplies: 'PICKUP',
+      bankName: 'CIB',
+      bankAccountName: 'Cairo Movers LLC',
+    },
   });
   const deliveryAgent = await prisma.agent.upsert({
     where: { code: 'AGDELTA' },
     update: {},
-    create: { code: 'AGDELTA', name: 'Delta Riders', phone: '+201005550002', email: 'ops@deltariders.example', supplies: 'DELIVERY', bankName: 'NBE', bankAccountName: 'Delta Riders' },
+    create: {
+      code: 'AGDELTA',
+      name: 'Delta Riders',
+      phone: '+201005550002',
+      email: 'ops@deltariders.example',
+      supplies: 'DELIVERY',
+      bankName: 'NBE',
+      bankAccountName: 'Delta Riders',
+    },
   });
   if (!(await prisma.vehicle.findUnique({ where: { plate: 'ق ط ر 1234' } }))) {
-    await prisma.vehicle.create({ data: { agentId: pickupAgent.id, plate: 'ق ط ر 1234', kind: 'VAN', contract: 'FIXED', monthlyRent: 1_500_000, capacityParcels: 400 } });
+    await prisma.vehicle.create({
+      data: {
+        agentId: pickupAgent.id,
+        plate: 'ق ط ر 1234',
+        kind: 'VAN',
+        contract: 'FIXED',
+        monthlyRent: 1_500_000,
+        capacityParcels: 400,
+      },
+    });
   }
-  await addUser({ email: 'agent@cairomovers.example', name: 'Cairo Movers', role: 'agent', agentId: pickupAgent.id, phone: pickupAgent.phone });
-  await addUser({ email: 'agent@deltariders.example', name: 'Delta Riders', role: 'agent', agentId: deliveryAgent.id, phone: deliveryAgent.phone });
+  await addUser({
+    email: 'agent@cairomovers.example',
+    name: 'Cairo Movers',
+    role: 'agent',
+    agentId: pickupAgent.id,
+    phone: pickupAgent.phone,
+  });
+  await addUser({
+    email: 'agent@deltariders.example',
+    name: 'Delta Riders',
+    role: 'agent',
+    agentId: deliveryAgent.id,
+    phone: deliveryAgent.phone,
+  });
   let phoneNo = 100;
   const nextPhone = () => `+2010900${String(phoneNo++).padStart(5, '0')}`;
   const slug = (code: string) => code.toLowerCase().replace(/[^a-z]/g, '');
   for (const f of FACILITIES) {
     const id = hubId(f.code);
-    await addUser({ email: `staff.${slug(f.code)}@shiply.local`, name: `${f.name} supervisor`, role: 'hub_staff', hubId: id });
+    await addUser({
+      email: `staff.${slug(f.code)}@shiply.local`,
+      name: `${f.name} supervisor`,
+      role: 'hub_staff',
+      hubId: id,
+    });
     for (const team of ['INBOUND', 'SORTING', 'OUTBOUND'] as const) {
-      await addUser({ email: `${team.toLowerCase()}.${slug(f.code)}@shiply.local`, name: `${f.name} ${team.toLowerCase()}`, role: 'hub_staff', team, hubId: id });
+      await addUser({
+        email: `${team.toLowerCase()}.${slug(f.code)}@shiply.local`,
+        name: `${f.name} ${team.toLowerCase()}`,
+        role: 'hub_staff',
+        team,
+        hubId: id,
+      });
     }
-    await addUser({ email: `courier.${slug(f.code)}@shiply.local`, name: `${f.name} pickup courier`, role: 'courier', hubId: id, phone: nextPhone(), agentId: pickupAgent.id, courierType: 'PICKUP' });
+    await addUser({
+      email: `courier.${slug(f.code)}@shiply.local`,
+      name: `${f.name} pickup courier`,
+      role: 'courier',
+      hubId: id,
+      phone: nextPhone(),
+      agentId: pickupAgent.id,
+      courierType: 'PICKUP',
+    });
   }
   for (const h of LAST_MILE) {
-    await addUser({ email: `staff.${slug(h.code)}@shiply.local`, name: `${h.name} staff`, role: 'hub_staff', hubId: hubId(h.code) });
-    await addUser({ email: `courier.${slug(h.code)}@shiply.local`, name: `${h.name} courier`, role: 'courier', hubId: hubId(h.code), phone: nextPhone(), agentId: deliveryAgent.id, courierType: 'DELIVERY' });
+    await addUser({
+      email: `staff.${slug(h.code)}@shiply.local`,
+      name: `${h.name} staff`,
+      role: 'hub_staff',
+      hubId: hubId(h.code),
+    });
+    await addUser({
+      email: `courier.${slug(h.code)}@shiply.local`,
+      name: `${h.name} courier`,
+      role: 'courier',
+      hubId: hubId(h.code),
+      phone: nextPhone(),
+      agentId: deliveryAgent.id,
+      courierType: 'DELIVERY',
+    });
   }
   const area = await prisma.networkArea.findFirst({ where: { nameEn: 'Heliopolis' } });
   const facility = nearest({ lat: area!.lat!, lng: area!.lng! }, facilities)!;
   // Shiply Now's seed already has Eve Chantelle: the network adds its pickup details to it.
-  const eveFields = { code: 'EVE', pickupAddress: '12 Baghdad St, Heliopolis', governorateCode: 'EG-C', areaId: area?.id ?? null, homeHubId: facility.id };
+  const eveFields = {
+    code: 'EVE',
+    pickupAddress: '12 Baghdad St, Heliopolis',
+    governorateCode: 'EG-C',
+    areaId: area?.id ?? null,
+    homeHubId: facility.id,
+  };
   const existingEve =
-    (await prisma.merchant.findUnique({ where: { code: 'EVE' } })) ?? (await prisma.merchant.findFirst({ where: { name: 'Eve Chantelle' } }));
+    (await prisma.merchant.findUnique({ where: { code: 'EVE' } })) ??
+    (await prisma.merchant.findFirst({ where: { name: 'Eve Chantelle' } }));
   const eve = existingEve
     ? existingEve.code
       ? existingEve
       : await prisma.merchant.update({ where: { id: existingEve.id }, data: eveFields })
-    : await prisma.merchant.create({ data: { ...eveFields, name: 'Eve Chantelle', contactPhone: '+201001234567', contactEmail: 'ops@evechantelle.example' } });
-  await addUser({ email: 'merchant@evechantelle.example', name: 'Eve Chantelle', role: 'merchant', merchantId: eve.id });
+    : await prisma.merchant.create({
+        data: {
+          ...eveFields,
+          name: 'Eve Chantelle',
+          contactPhone: '+201001234567',
+          contactEmail: 'ops@evechantelle.example',
+        },
+      });
+  await addUser({
+    email: 'merchant@evechantelle.example',
+    name: 'Eve Chantelle',
+    role: 'merchant',
+    merchantId: eve.id,
+  });
   const alx = await prisma.governorate.findUniqueOrThrow({ where: { code: 'EG-ALX' } });
   const nile = await prisma.merchant.upsert({
     where: { code: 'NILE' },
     update: {},
-    create: { code: 'NILE', name: 'Nile Home', contactPhone: '+201101234567', contactEmail: 'orders@nilehome.example', pickupAddress: '40 Fouad St, Alexandria', governorateCode: 'EG-ALX', homeHubId: nearest(alx, facilities)!.id },
+    create: {
+      code: 'NILE',
+      name: 'Nile Home',
+      contactPhone: '+201101234567',
+      contactEmail: 'orders@nilehome.example',
+      pickupAddress: '40 Fouad St, Alexandria',
+      governorateCode: 'EG-ALX',
+      homeHubId: nearest(alx, facilities)!.id,
+    },
   });
-  await addUser({ email: 'merchant@nilehome.example', name: 'Nile Home', role: 'merchant', merchantId: nile.id });
+  await addUser({
+    email: 'merchant@nilehome.example',
+    name: 'Nile Home',
+    role: 'merchant',
+    merchantId: nile.id,
+  });
   log('Parcel network demo: agents, hub staff, couriers, two merchants');
 }

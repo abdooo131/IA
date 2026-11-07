@@ -14,7 +14,8 @@ export const AR_BOOKS: Record<string, string> = {
   'VAT {rate}%': 'ضريبة القيمة المضافة {rate}%',
   VAT: 'ضريبة القيمة المضافة',
   'Amount to credit back, in EGP, VAT included': 'المبلغ المرتد بالجنيه شاملا الضريبة',
-  'One invoice per merchant per month, numbered once. Credit notes need a second person.': 'فاتورة واحدة لكل تاجر كل شهر برقم لا يتكرر. الإشعارات الدائنة تحتاج اعتماد شخص ثان.',
+  'One invoice per merchant per month, numbered once. Credit notes need a second person.':
+    'فاتورة واحدة لكل تاجر كل شهر برقم لا يتكرر. الإشعارات الدائنة تحتاج اعتماد شخص ثان.',
   '{count} invoices issued': 'تم إصدار {count} فاتورة',
   'Issue invoices': 'إصدار الفواتير',
   'No invoices for this month': 'لا توجد فواتير لهذا الشهر',
@@ -30,9 +31,12 @@ export const AR_BOOKS: Record<string, string> = {
   'File downloaded': 'تم تنزيل الملف',
   'Accepted by ETA': 'مقبول من المنظومة',
   'Credit note saved. Someone else must approve it': 'تم حفظ الإشعار الدائن. يجب أن يعتمده شخص آخر',
-  'Sending to the tax authority needs the company ETA client id, secret and signing token. Until then download the file and upload it on the ETA portal.': 'الإرسال لمصلحة الضرائب يحتاج بيانات الشركة على المنظومة وتوكن التوقيع. حتى ذلك الحين نزل الملف وارفعه على بوابة المنظومة.',
-  'Our monthly tax invoice for the delivery services, with VAT': 'فاتورتنا الضريبية الشهرية لخدمات التوصيل شاملة الضريبة',
-  'Monthly invoices, credit notes and the ETA file': 'الفواتير الشهرية والإشعارات الدائنة وملف المنظومة',
+  'Sending to the tax authority needs the company ETA client id, secret and signing token. Until then download the file and upload it on the ETA portal.':
+    'الإرسال لمصلحة الضرائب يحتاج بيانات الشركة على المنظومة وتوكن التوقيع. حتى ذلك الحين نزل الملف وارفعه على بوابة المنظومة.',
+  'Our monthly tax invoice for the delivery services, with VAT':
+    'فاتورتنا الضريبية الشهرية لخدمات التوصيل شاملة الضريبة',
+  'Monthly invoices, credit notes and the ETA file':
+    'الفواتير الشهرية والإشعارات الدائنة وملف المنظومة',
   Print: 'طباعة',
   Suppliers: 'الموردون',
   'Who we buy from, and what we owe each one': 'من نشتري منهم وما نستحقه لكل منهم',
@@ -40,7 +44,8 @@ export const AR_BOOKS: Record<string, string> = {
   'No suppliers yet': 'لا يوجد موردون بعد',
   'We owe': 'المستحق علينا',
   Bills: 'فواتير الموردين',
-  'Supplier invoices: booked when a second person approves, paid by their due date': 'فواتير الموردين: تقيد عند اعتماد شخص ثان وتدفع في موعد استحقاقها',
+  'Supplier invoices: booked when a second person approves, paid by their due date':
+    'فواتير الموردين: تقيد عند اعتماد شخص ثان وتدفع في موعد استحقاقها',
   'Supplier invoices with VAT and withholding': 'فواتير الموردين بالضريبة والخصم',
   'New bill': 'فاتورة مورد جديدة',
   'Choose a supplier': 'اختر موردا',
@@ -64,7 +69,8 @@ export const AR_BOOKS: Record<string, string> = {
   'Skipped lines': 'أسطر تم تجاهلها',
   'Bank matching': 'مطابقة البنك',
   'The bank statement against our books': 'كشف البنك أمام دفاترنا',
-  'Import the bank statement (CSV with date, description, amount or debit and credit). Lines match our books by amount and date.': 'استورد كشف البنك (ملف CSV فيه التاريخ والبيان والمبلغ أو المدين والدائن). الأسطر تطابق دفاترنا بالمبلغ والتاريخ.',
+  'Import the bank statement (CSV with date, description, amount or debit and credit). Lines match our books by amount and date.':
+    'استورد كشف البنك (ملف CSV فيه التاريخ والبيان والمبلغ أو المدين والدائن). الأسطر تطابق دفاترنا بالمبلغ والتاريخ.',
   'Import statement': 'استيراد الكشف',
   '{matched} matched': 'تمت مطابقة {matched}',
   'Match again': 'طابق مرة أخرى',
@@ -86,7 +92,8 @@ export const AR_BOOKS: Record<string, string> = {
   'Paid and booked': 'تم الدفع والقيد',
   Taxes: 'الضرائب',
   'VAT and withholding tax': 'ضريبة القيمة المضافة والخصم والإضافة',
-  'VAT on our fees against VAT on purchases, and withholding tax held from suppliers': 'الضريبة على رسومنا أمام الضريبة على المشتريات، وضريبة الخصم المحجوزة من الموردين',
+  'VAT on our fees against VAT on purchases, and withholding tax held from suppliers':
+    'الضريبة على رسومنا أمام الضريبة على المشتريات، وضريبة الخصم المحجوزة من الموردين',
   'VAT on sales': 'ضريبة المبيعات',
   'VAT paid on purchases': 'ضريبة المشتريات',
   'VAT to pay': 'الضريبة المستحقة',
@@ -100,12 +107,14 @@ export const AR_BOOKS: Record<string, string> = {
   'Nothing in this period': 'لا شيء في هذه الفترة',
   'Revenue before VAT': 'الإيراد قبل الضريبة',
   'Profit per merchant, hub and courier': 'الربح لكل تاجر ومركز ومندوب',
-  'Fees before VAT against courier pay; hubs also carry their own expenses and bills': 'الرسوم قبل الضريبة أمام أجور المندوبين، والمراكز تتحمل مصروفاتها أيضا',
+  'Fees before VAT against courier pay; hubs also carry their own expenses and bills':
+    'الرسوم قبل الضريبة أمام أجور المندوبين، والمراكز تتحمل مصروفاتها أيضا',
   'Courier pay': 'أجور المندوبين',
   Hubs: 'المراكز',
   'Courier pay and hub costs': 'أجور المندوبين وتكاليف المركز',
   'Cash flow': 'التدفق النقدي',
-  'Money in and out of the bank and the hub safes, by what moved it': 'الأموال الداخلة والخارجة من البنك والخزائن حسب سببها',
+  'Money in and out of the bank and the hub safes, by what moved it':
+    'الأموال الداخلة والخارجة من البنك والخزائن حسب سببها',
   Group: 'المجموعة',
   Operating: 'التشغيل',
   'Moved between bank and safes': 'بين البنك والخزائن',
@@ -123,10 +132,12 @@ export const AR_BOOKS: Record<string, string> = {
   'Safe to bank': 'من الخزينة للبنك',
   'Opening balances and owner': 'الأرصدة الافتتاحية والمالك',
   Budgets: 'الموازنات',
-  'What we plan to earn and spend each month, against what happened': 'ما نخطط لكسبه وإنفاقه كل شهر أمام ما حدث فعلا',
+  'What we plan to earn and spend each month, against what happened':
+    'ما نخطط لكسبه وإنفاقه كل شهر أمام ما حدث فعلا',
   'Budget (EGP)': 'الموازنة (ج.م)',
   Actual: 'الفعلي',
-  'Money paid to agents before month end; it comes off their next settlement': 'أموال تدفع للوكلاء قبل نهاية الشهر وتخصم من تسويتهم القادمة',
+  'Money paid to agents before month end; it comes off their next settlement':
+    'أموال تدفع للوكلاء قبل نهاية الشهر وتخصم من تسويتهم القادمة',
   'No advances yet': 'لا توجد سلف بعد',
   Advance: 'السلفة',
   'Taken off a settlement': 'خصمت من تسوية',
@@ -146,11 +157,14 @@ export const AR_BOOKS: Record<string, string> = {
   'ETA item code': 'كود الخدمة في المنظومة',
   'The code registered for our delivery service': 'الكود المسجل لخدمة التوصيل',
   'VAT rate': 'نسبة ضريبة القيمة المضافة',
-  'Our prices include it; the books split it out of every fee': 'أسعارنا شاملة لها، والدفاتر تفصلها من كل رسم',
+  'Our prices include it; the books split it out of every fee':
+    'أسعارنا شاملة لها، والدفاتر تفصلها من كل رسم',
   'Agent advance limit': 'حد سلفة الوكيل',
-  'Share of the month so far an agent may take early': 'نسبة ما يستحقه الوكيل حتى الآن ويمكن أخذها مبكرا',
+  'Share of the month so far an agent may take early':
+    'نسبة ما يستحقه الوكيل حتى الآن ويمكن أخذها مبكرا',
   'Courier cash limit': 'حد نقدية المندوب',
   'Cash a courier may hold before an alert': 'أقصى نقدية مع المندوب قبل التنبيه',
   'Hub safe limit': 'حد خزينة المركز',
-  'Cash a hub safe may hold before it must go to the bank': 'أقصى نقدية في الخزينة قبل الإيداع في البنك',
+  'Cash a hub safe may hold before it must go to the bank':
+    'أقصى نقدية في الخزينة قبل الإيداع في البنك',
 };

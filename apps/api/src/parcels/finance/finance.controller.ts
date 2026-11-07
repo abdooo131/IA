@@ -1,7 +1,7 @@
 import { ParseIdPipe } from '../common/id.pipe';
-import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, Roles, assertHubAccess, assertMerchantRight, type SessionUser } from '../auth/auth';
+import { CurrentUser, Roles, assertHubAccess, type SessionUser } from '../auth/auth';
 import { DomainError } from '../common/errors';
 import { BooksService } from './books.service';
 import { FinanceService } from './finance.service';
@@ -19,7 +19,8 @@ function sendFile(res: Response, f: { data: Uint8Array; mime: string; name: stri
 
 const yes = (v: string) => v === 'approve';
 function decision(v: string) {
-  if (v !== 'approve' && v !== 'reject') throw new DomainError('invalid_input', 'Use approve or reject', 422);
+  if (v !== 'approve' && v !== 'reject')
+    throw new DomainError('invalid_input', 'Use approve or reject', 422);
   return yes(v);
 }
 
@@ -43,7 +44,10 @@ export class FinanceController {
   @Get('reports/balance-sheet')
   async balanceSheet() {
     const bs = await balanceSheet(this.prisma, cairoDay(new Date()));
-    return { ...bs, balanced: bs.totalAssetsPiastres === bs.totalLiabilitiesPiastres + bs.totalEquityPiastres };
+    return {
+      ...bs,
+      balanced: bs.totalAssetsPiastres === bs.totalLiabilitiesPiastres + bs.totalEquityPiastres,
+    };
   }
 
   // suppliers and bills
@@ -63,7 +67,11 @@ export class FinanceController {
 
   @Post('advances/:id/:decision')
   @HttpCode(200)
-  advance(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('decision') d: string) {
+  advance(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('decision') d: string,
+  ) {
     if (d === 'paid') return this.b.payAdvance(id, u);
     return this.b.decideAdvance(id, decision(d), u);
   }
@@ -86,13 +94,21 @@ export class FinanceController {
   }
 
   @Post('couriers/:id/adjust')
-  adjust(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  adjust(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.f.adjustCourier(id, body, u);
   }
 
   @Post('couriers/:id/unfreeze')
   @HttpCode(200)
-  unfreeze(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  unfreeze(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.f.unfreeze(id, body, u);
   }
 
@@ -103,7 +119,12 @@ export class FinanceController {
 
   @Post('withdrawals/:id/:decision')
   @HttpCode(200)
-  withdrawal(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('decision') d: string, @Body() body: unknown) {
+  withdrawal(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('decision') d: string,
+    @Body() body: unknown,
+  ) {
     if (d === 'paid') return this.f.payWithdrawal(id, u);
     return this.f.decideWithdrawal(id, decision(d), body, u);
   }
@@ -120,7 +141,12 @@ export class FinanceController {
 
   @Post('pay-ins/:id/:decision')
   @HttpCode(200)
-  payIn(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('decision') d: string, @Body() body: unknown) {
+  payIn(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('decision') d: string,
+    @Body() body: unknown,
+  ) {
     return this.f.decidePayIn(id, decision(d), body, u);
   }
 
@@ -137,7 +163,12 @@ export class FinanceController {
 
   @Post('deposits/:id/:decision')
   @HttpCode(200)
-  deposit(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('decision') d: string, @Body() body: unknown) {
+  deposit(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('decision') d: string,
+    @Body() body: unknown,
+  ) {
     return this.f.decideDeposit(id, decision(d), body, u);
   }
 
@@ -159,7 +190,11 @@ export class FinanceController {
 
   @Post('settlements/:id/invoice')
   @HttpCode(200)
-  uploadInvoice(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  uploadInvoice(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.f.uploadInvoice(id, body, u);
   }
 
@@ -170,7 +205,12 @@ export class FinanceController {
 
   @Post('settlements/:id/:decision')
   @HttpCode(200)
-  settlement(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('decision') d: string, @Body() body: unknown) {
+  settlement(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('decision') d: string,
+    @Body() body: unknown,
+  ) {
     if (d === 'paid') return this.f.paySettlement(id, body, u);
     return this.f.approveSettlement(id, decision(d), u);
   }
@@ -179,7 +219,8 @@ export class FinanceController {
   // reports
   @Get('wallets/:kind')
   wallets(@Param('kind') kind: string) {
-    if (!['MERCHANT', 'COURIER', 'AGENT', 'HUB', 'SUPPLIER'].includes(kind)) throw new DomainError('invalid_input', 'Unknown wallet kind', 422);
+    if (!['MERCHANT', 'COURIER', 'AGENT', 'HUB', 'SUPPLIER'].includes(kind))
+      throw new DomainError('invalid_input', 'Unknown wallet kind', 422);
     return this.f.wallets(kind as 'MERCHANT');
   }
 }
@@ -206,7 +247,11 @@ export class CourierMoneyController {
   }
 
   @Get('pay-ins/:id/receipt')
-  async receipt(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Res() res: Response) {
+  async receipt(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Res() res: Response,
+  ) {
     sendFile(res, await this.f.payInReceipt(id, u.id));
   }
 }
@@ -224,7 +269,11 @@ export class HubSafeController {
   }
 
   @Post('deposits')
-  deposit(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  deposit(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.f.createDeposit(hubId, body, u);
   }
@@ -251,7 +300,8 @@ export class AgentMoneyController {
   }
 
   private agent(u: SessionUser) {
-    if (!u.agentId) throw new DomainError('forbidden', 'Your account is not linked to an agent', 403);
+    if (!u.agentId)
+      throw new DomainError('forbidden', 'Your account is not linked to an agent', 403);
     return u.agentId;
   }
 
@@ -262,12 +312,20 @@ export class AgentMoneyController {
 
   @Post('settlements/:id/invoice')
   @HttpCode(200)
-  upload(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  upload(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.f.uploadInvoice(id, body, u, this.agent(u));
   }
 
   @Get('settlements/:id/invoice')
-  async invoice(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Res() res: Response) {
+  async invoice(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Res() res: Response,
+  ) {
     sendFile(res, await this.f.invoice(id, this.agent(u)));
   }
 }

@@ -25,8 +25,18 @@ export default function TrackPage() {
           if (n) router.push(`/parcels/track/${encodeURIComponent(n)}`);
         }}
       >
-        <label htmlFor="tn" className="mb-1 block text-caption font-semibold">{t('Tracking number')}</label>
-        <Input id="tn" dir="ltr" autoFocus placeholder="SHP0000010005" value={number} onChange={(e) => setNumber(e.target.value)} className="font-mono uppercase" />
+        <label htmlFor="tn" className="mb-1 block text-caption font-semibold">
+          {t('Tracking number')}
+        </label>
+        <Input
+          id="tn"
+          dir="ltr"
+          autoFocus
+          placeholder="SHP0000010005"
+          value={number}
+          onChange={(e) => setNumber(e.target.value)}
+          className="font-mono uppercase"
+        />
         <Button type="submit" className="mt-4 w-full" disabled={!number.trim()}>
           <Icon name="search" size={18} />
           {t('Track')}

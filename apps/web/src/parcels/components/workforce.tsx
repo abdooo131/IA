@@ -3,7 +3,18 @@
 // attendance, alerts and special vehicle requests. `base` is the API path that owns them
 // ('/agent' for the agent, '/admin/agents/<id>' for operations).
 import { useMemo, useState } from 'react';
-import { Alert, Badge, Button, Card, Empty, Field, Input, Select, Table, Td } from '@/parcels/components/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Empty,
+  Field,
+  Input,
+  Select,
+  Table,
+  Td,
+} from '@/parcels/components/ui';
 import { api, errorMessage } from '@/parcels/lib/api';
 import { dateTime, egp } from '@/parcels/lib/format';
 import { useLoad } from '@/parcels/lib/hooks';
@@ -52,7 +63,13 @@ export interface ShiftRow {
   replacementShiftId: string | null;
   replacesShiftId: string | null;
   agentId: string;
-  courier: { id: string; name: string; phone: string; courierType: string | null; hub: { code: string } | null };
+  courier: {
+    id: string;
+    name: string;
+    phone: string;
+    courierType: string | null;
+    hub: { code: string } | null;
+  };
   agent: { name: string };
 }
 
@@ -148,15 +165,40 @@ export const ALERT_LABEL: Record<string, string> = {
   FRAUD_REPEAT_REFUSER: 'Fraud check: repeat refuser',
   FRAUD_CASH_SHORT: 'Fraud check: cash shortages',
 };
-export const VEHICLE_KIND: Record<string, string> = { VAN: 'Van', BOX_TRUCK: 'Box truck', PICKUP_TRUCK: 'Pickup truck', CAR: 'Car', MOTORCYCLE: 'Motorcycle' };
-export const REQUEST_REASON: Record<string, string> = { MERCHANT_SPECIAL: 'Merchant special pickup', BREAKDOWN: 'Vehicle broke down', VEHICLE_FULL: 'Vehicle full', OTHER: 'Other' };
-const REQUEST_TONE: Record<VehicleRequestRow['status'], 'amber' | 'blue' | 'green' | 'slate'> = { REQUESTED: 'amber', PROVIDED: 'blue', DONE: 'green', CANCELLED: 'slate' };
-export const REQUEST_STATUS: Record<VehicleRequestRow['status'], string> = { REQUESTED: 'Requested', PROVIDED: 'Provided', DONE: 'Done', CANCELLED: 'Cancelled' };
+export const VEHICLE_KIND: Record<string, string> = {
+  VAN: 'Van',
+  BOX_TRUCK: 'Box truck',
+  PICKUP_TRUCK: 'Pickup truck',
+  CAR: 'Car',
+  MOTORCYCLE: 'Motorcycle',
+};
+export const REQUEST_REASON: Record<string, string> = {
+  MERCHANT_SPECIAL: 'Merchant special pickup',
+  BREAKDOWN: 'Vehicle broke down',
+  VEHICLE_FULL: 'Vehicle full',
+  OTHER: 'Other',
+};
+const REQUEST_TONE: Record<VehicleRequestRow['status'], 'amber' | 'blue' | 'green' | 'slate'> = {
+  REQUESTED: 'amber',
+  PROVIDED: 'blue',
+  DONE: 'green',
+  CANCELLED: 'slate',
+};
+export const REQUEST_STATUS: Record<VehicleRequestRow['status'], string> = {
+  REQUESTED: 'Requested',
+  PROVIDED: 'Provided',
+  DONE: 'Done',
+  CANCELLED: 'Cancelled',
+};
 
 /** Time in Cairo, HH:MM. */
 export function clock(value: string | null | undefined, locale: string): string {
   if (!value) return '';
-  return new Date(value).toLocaleTimeString(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', { timeZone: 'Africa/Cairo', hour: '2-digit', minute: '2-digit' });
+  return new Date(value).toLocaleTimeString(locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB', {
+    timeZone: 'Africa/Cairo',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 function Msg({ msg }: { msg: { ok: boolean; text: string } | null }) {
@@ -195,7 +237,21 @@ function toForm(s: Staff | null, supplies: string): StaffForm {
   };
 }
 
-function StaffEditor({ base, supplies, staff, vehicles, onDone, onCancel }: { base: string; supplies: string; staff: Staff | null; vehicles: Vehicle[]; onDone: (text: string) => void; onCancel: () => void }) {
+function StaffEditor({
+  base,
+  supplies,
+  staff,
+  vehicles,
+  onDone,
+  onCancel,
+}: {
+  base: string;
+  supplies: string;
+  staff: Staff | null;
+  vehicles: Vehicle[];
+  onDone: (text: string) => void;
+  onCancel: () => void;
+}) {
   const t = useT();
   const locale = useLocale();
   const hubs = useLoad<HubRef[]>('/reference/hubs');
@@ -203,9 +259,16 @@ function StaffEditor({ base, supplies, staff, vehicles, onDone, onCancel }: { ba
   const [f, setF] = useState<StaffForm>(() => toForm(staff, supplies));
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const hubChoices = (hubs.data ?? []).filter((h) => (f.courierType === 'PICKUP' ? h.isSorting : !h.isSorting));
+  const hubChoices = (hubs.data ?? []).filter((h) =>
+    f.courierType === 'PICKUP' ? h.isSorting : !h.isSorting,
+  );
   const areas = useMemo(
-    () => (locations.data ?? []).flatMap((g) => g.areas.filter((a) => f.hubId && a.hubId === f.hubId).map((a) => ({ id: a.id, name: locale === 'ar' ? a.nameAr : a.nameEn }))),
+    () =>
+      (locations.data ?? []).flatMap((g) =>
+        g.areas
+          .filter((a) => f.hubId && a.hubId === f.hubId)
+          .map((a) => ({ id: a.id, name: locale === 'ar' ? a.nameAr : a.nameEn })),
+      ),
     [locations.data, f.hubId, locale],
   );
 
@@ -229,53 +292,122 @@ function StaffEditor({ base, supplies, staff, vehicles, onDone, onCancel }: { ba
       };
       if (staff) await api(`${base}/staff/${staff.id}`, { method: 'PUT', body });
       else await api(`${base}/staff`, { body });
-      onDone(staff?.pendingApproval && f.hubId ? t('{name} is approved', { name: f.name }) : t('Saved {name}', { name: f.name }));
+      onDone(
+        staff?.pendingApproval && f.hubId
+          ? t('{name} is approved', { name: f.name })
+          : t('Saved {name}', { name: f.name }),
+      );
     } catch (err) {
       setError(errorMessage(err));
       setBusy(false);
     }
   };
 
-  const toggleDay = (d: number) => setF({ ...f, workDays: f.workDays.includes(d) ? f.workDays.filter((x) => x !== d) : [...f.workDays, d].sort() });
-  const toggleArea = (id: string) => setF({ ...f, areaIds: f.areaIds.includes(id) ? f.areaIds.filter((x) => x !== id) : [...f.areaIds, id] });
+  const toggleDay = (d: number) =>
+    setF({
+      ...f,
+      workDays: f.workDays.includes(d)
+        ? f.workDays.filter((x) => x !== d)
+        : [...f.workDays, d].sort(),
+    });
+  const toggleArea = (id: string) =>
+    setF({
+      ...f,
+      areaIds: f.areaIds.includes(id) ? f.areaIds.filter((x) => x !== id) : [...f.areaIds, id],
+    });
 
   return (
     <form onSubmit={save} className="space-y-4 rounded-lg border border-line bg-surface-raised p-4">
       {error && <Alert>{error}</Alert>}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Field label={t('Name')}>
-          <Input required minLength={2} value={f.name} onChange={(e) => setF({ ...f, name: e.target.value })} />
+          <Input
+            required
+            minLength={2}
+            value={f.name}
+            onChange={(e) => setF({ ...f, name: e.target.value })}
+          />
         </Field>
         <Field label={t('Phone')}>
-          <Input required inputMode="tel" className="ltr-iso" value={f.phone} onChange={(e) => setF({ ...f, phone: e.target.value })} />
+          <Input
+            required
+            inputMode="tel"
+            className="ltr-iso"
+            value={f.phone}
+            onChange={(e) => setF({ ...f, phone: e.target.value })}
+          />
         </Field>
-        <Field label={t('Password')} hint={staff ? t('Leave empty to keep the current password') : t('8 characters or more')}>
-          <Input type="password" minLength={8} required={!staff} autoComplete="new-password" value={f.password} onChange={(e) => setF({ ...f, password: e.target.value })} />
+        <Field
+          label={t('Password')}
+          hint={staff ? t('Leave empty to keep the current password') : t('8 characters or more')}
+        >
+          <Input
+            type="password"
+            minLength={8}
+            required={!staff}
+            autoComplete="new-password"
+            value={f.password}
+            onChange={(e) => setF({ ...f, password: e.target.value })}
+          />
         </Field>
         <Field label={t('Works as')}>
-          <Select value={f.courierType} disabled={supplies !== 'BOTH'} onChange={(e) => setF({ ...f, courierType: e.target.value as StaffForm['courierType'], hubId: '', vehicleId: '', areaIds: [] })}>
+          <Select
+            value={f.courierType}
+            disabled={supplies !== 'BOTH'}
+            onChange={(e) =>
+              setF({
+                ...f,
+                courierType: e.target.value as StaffForm['courierType'],
+                hubId: '',
+                vehicleId: '',
+                areaIds: [],
+              })
+            }
+          >
             <option value="PICKUP">{t('Pickup')}</option>
             <option value="DELIVERY">{t('Delivery')}</option>
           </Select>
         </Field>
-        <Field label={t('Hub')} hint={f.courierType === 'PICKUP' ? t('Pickup staff work from a sorting facility') : t('Delivery staff work from a last mile hub')}>
-          <Select value={f.hubId} onChange={(e) => setF({ ...f, hubId: e.target.value, areaIds: [] })}>
+        <Field
+          label={t('Hub')}
+          hint={
+            f.courierType === 'PICKUP'
+              ? t('Pickup staff work from a sorting facility')
+              : t('Delivery staff work from a last mile hub')
+          }
+        >
+          <Select
+            value={f.hubId}
+            onChange={(e) => setF({ ...f, hubId: e.target.value, areaIds: [] })}
+          >
             <option value="">{t('Not assigned yet')}</option>
             {hubChoices.map((h) => (
-              <option key={h.id} value={h.id}>{h.code} · {h.name}</option>
+              <option key={h.id} value={h.id}>
+                {h.code} · {h.name}
+              </option>
             ))}
           </Select>
         </Field>
         <Field label={t('Shift starts')}>
-          <Input type="time" required value={f.shiftStart} onChange={(e) => setF({ ...f, shiftStart: e.target.value })} className="ltr-iso" />
+          <Input
+            type="time"
+            required
+            value={f.shiftStart}
+            onChange={(e) => setF({ ...f, shiftStart: e.target.value })}
+            className="ltr-iso"
+          />
         </Field>
         {f.courierType === 'PICKUP' && (
           <Field label={t('Vehicle')}>
             <Select value={f.vehicleId} onChange={(e) => setF({ ...f, vehicleId: e.target.value })}>
               <option value="">{t('No vehicle')}</option>
-              {vehicles.filter((v) => v.active).map((v) => (
-                <option key={v.id} value={v.id}>{v.plate} · {t(VEHICLE_KIND[v.kind] ?? v.kind)}</option>
-              ))}
+              {vehicles
+                .filter((v) => v.active)
+                .map((v) => (
+                  <option key={v.id} value={v.id}>
+                    {v.plate} · {t(VEHICLE_KIND[v.kind] ?? v.kind)}
+                  </option>
+                ))}
             </Select>
           </Field>
         )}
@@ -283,8 +415,16 @@ function StaffEditor({ base, supplies, staff, vehicles, onDone, onCancel }: { ba
       <Field label={t('Work days')}>
         <div className="flex flex-wrap gap-2">
           {DAY_NAMES.map((d, i) => (
-            <label key={d} className={`flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-body-sm ${f.workDays.includes(i) ? 'border-accent bg-selected-bg font-bold' : 'border-line'}`}>
-              <input type="checkbox" className="sr-only" checked={f.workDays.includes(i)} onChange={() => toggleDay(i)} />
+            <label
+              key={d}
+              className={`flex min-h-9 cursor-pointer items-center gap-2 rounded-md border px-3 text-body-sm ${f.workDays.includes(i) ? 'border-accent bg-selected-bg font-bold' : 'border-line'}`}
+            >
+              <input
+                type="checkbox"
+                className="sr-only"
+                checked={f.workDays.includes(i)}
+                onChange={() => toggleDay(i)}
+              />
               {t(d)}
             </label>
           ))}
@@ -294,8 +434,16 @@ function StaffEditor({ base, supplies, staff, vehicles, onDone, onCancel }: { ba
         <Field label={t('Areas they cover')} hint={t('Leave empty to cover the whole hub')}>
           <div className="flex flex-wrap gap-2">
             {areas.map((a) => (
-              <label key={a.id} className={`flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-body-sm ${f.areaIds.includes(a.id) ? 'border-accent bg-selected-bg font-bold' : 'border-line'}`}>
-                <input type="checkbox" className="sr-only" checked={f.areaIds.includes(a.id)} onChange={() => toggleArea(a.id)} />
+              <label
+                key={a.id}
+                className={`flex min-h-9 cursor-pointer items-center rounded-md border px-3 text-body-sm ${f.areaIds.includes(a.id) ? 'border-accent bg-selected-bg font-bold' : 'border-line'}`}
+              >
+                <input
+                  type="checkbox"
+                  className="sr-only"
+                  checked={f.areaIds.includes(a.id)}
+                  onChange={() => toggleArea(a.id)}
+                />
                 {a.name}
               </label>
             ))}
@@ -305,33 +453,55 @@ function StaffEditor({ base, supplies, staff, vehicles, onDone, onCancel }: { ba
       <div className="flex flex-wrap gap-4">
         {f.courierType === 'PICKUP' && (
           <label className="flex items-center gap-2 text-body-sm">
-            <input type="checkbox" checked={f.hubToHub} onChange={(e) => setF({ ...f, hubToHub: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={f.hubToHub}
+              onChange={(e) => setF({ ...f, hubToHub: e.target.checked })}
+            />
             {t('Also drives hub to hub')}
           </label>
         )}
         {staff && !staff.pendingApproval && (
           <label className="flex items-center gap-2 text-body-sm">
-            <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={f.active}
+              onChange={(e) => setF({ ...f, active: e.target.checked })}
+            />
             {t('Active')}
           </label>
         )}
       </div>
       <div className="flex gap-2">
-        <Button type="submit" disabled={busy}>{staff?.pendingApproval ? (f.hubId ? t('Approve') : t('Save')) : t('Save')}</Button>
-        <Button type="button" tone="ghost" onClick={onCancel}>{t('Cancel')}</Button>
+        <Button type="submit" disabled={busy}>
+          {staff?.pendingApproval ? (f.hubId ? t('Approve') : t('Save')) : t('Save')}
+        </Button>
+        <Button type="button" tone="ghost" onClick={onCancel}>
+          {t('Cancel')}
+        </Button>
       </div>
     </form>
   );
 }
 
-export function StaffPanel({ base, supplies, joinCode }: { base: string; supplies: string; joinCode?: string }) {
+export function StaffPanel({
+  base,
+  supplies,
+  joinCode,
+}: {
+  base: string;
+  supplies: string;
+  joinCode?: string;
+}) {
   const t = useT();
   const staff = useLoad<Staff[]>(`${base}/staff`);
   const vehicles = useLoad<Vehicle[]>(`${base}/vehicles`);
   const [editing, setEditing] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [filter, setFilter] = useState('');
-  const list = (staff.data ?? []).filter((s) => !filter || (filter === 'PENDING' ? s.pendingApproval : s.courierType === filter));
+  const list = (staff.data ?? []).filter(
+    (s) => !filter || (filter === 'PENDING' ? s.pendingApproval : s.courierType === filter),
+  );
   const pending = (staff.data ?? []).filter((s) => s.pendingApproval).length;
 
   const done = async (text: string) => {
@@ -347,23 +517,40 @@ export function StaffPanel({ base, supplies, joinCode }: { base: string; supplie
         <div className="flex gap-2">
           <Select value={filter} onChange={(e) => setFilter(e.target.value)}>
             <option value="">{t('Everyone')}</option>
-            <option value="PENDING">{t('Waiting for approval ({count})', { count: pending })}</option>
+            <option value="PENDING">
+              {t('Waiting for approval ({count})', { count: pending })}
+            </option>
             <option value="PICKUP">{t('Pickup')}</option>
             <option value="DELIVERY">{t('Delivery')}</option>
           </Select>
-          <Button className="whitespace-nowrap" onClick={() => setEditing(editing === 'new' ? null : 'new')}>{editing === 'new' ? t('Close') : t('Add staff')}</Button>
+          <Button
+            className="whitespace-nowrap"
+            onClick={() => setEditing(editing === 'new' ? null : 'new')}
+          >
+            {editing === 'new' ? t('Close') : t('Add staff')}
+          </Button>
         </div>
       }
     >
       <div className="space-y-3">
         {joinCode && (
           <p className="text-body-sm text-text-muted">
-            {t('Staff can also register themselves on the join page with the code')} <span className="ltr-iso font-bold text-text">{joinCode}</span>
+            {t('Staff can also register themselves on the join page with the code')}{' '}
+            <span className="ltr-iso font-bold text-text">{joinCode}</span>
           </p>
         )}
         <Msg msg={msg} />
         {staff.error && <Alert>{staff.error}</Alert>}
-        {editing === 'new' && <StaffEditor base={base} supplies={supplies} staff={null} vehicles={vehicles.data ?? []} onDone={done} onCancel={() => setEditing(null)} />}
+        {editing === 'new' && (
+          <StaffEditor
+            base={base}
+            supplies={supplies}
+            staff={null}
+            vehicles={vehicles.data ?? []}
+            onDone={done}
+            onCancel={() => setEditing(null)}
+          />
+        )}
         {staff.data && list.length === 0 && <Empty>{t('No staff yet')}</Empty>}
         {list.length > 0 && (
           <Table head={[t('Name'), t('Works as'), t('Hub'), t('Shift'), t('Status'), '']}>
@@ -371,7 +558,14 @@ export function StaffPanel({ base, supplies, joinCode }: { base: string; supplie
               editing === s.id ? (
                 <tr key={s.id}>
                   <td colSpan={6} className="p-2">
-                    <StaffEditor base={base} supplies={supplies} staff={s} vehicles={vehicles.data ?? []} onDone={done} onCancel={() => setEditing(null)} />
+                    <StaffEditor
+                      base={base}
+                      supplies={supplies}
+                      staff={s}
+                      vehicles={vehicles.data ?? []}
+                      onDone={done}
+                      onCancel={() => setEditing(null)}
+                    />
                   </td>
                 </tr>
               ) : (
@@ -383,18 +577,35 @@ export function StaffPanel({ base, supplies, joinCode }: { base: string; supplie
                   <Td>
                     {s.courierType ? t(TYPE_LABEL[s.courierType]!) : ''}
                     {s.hubToHub && <div className="text-caption text-link">{t('Hub to hub')}</div>}
-                    {s.vehicle && <div className="ltr-iso text-caption text-text-muted">{s.vehicle.plate}</div>}
+                    {s.vehicle && (
+                      <div className="ltr-iso text-caption text-text-muted">{s.vehicle.plate}</div>
+                    )}
                   </Td>
-                  <Td><span className="ltr-iso">{s.hub?.code ?? ''}</span></Td>
+                  <Td>
+                    <span className="ltr-iso">{s.hub?.code ?? ''}</span>
+                  </Td>
                   <Td>
                     <span className="ltr-iso">{s.shiftStart}</span>
-                    <div className="text-caption text-text-muted">{s.workDays.map((d) => t(DAY_NAMES[d]!)).join(' ')}</div>
+                    <div className="text-caption text-text-muted">
+                      {s.workDays.map((d) => t(DAY_NAMES[d]!)).join(' ')}
+                    </div>
                   </Td>
                   <Td>
-                    {s.pendingApproval ? <Badge tone="amber">{t('Waiting for approval')}</Badge> : s.active ? <Badge tone="green">{t('Active')}</Badge> : <Badge tone="red">{t('Inactive')}</Badge>}
+                    {s.pendingApproval ? (
+                      <Badge tone="amber">{t('Waiting for approval')}</Badge>
+                    ) : s.active ? (
+                      <Badge tone="green">{t('Active')}</Badge>
+                    ) : (
+                      <Badge tone="red">{t('Inactive')}</Badge>
+                    )}
                   </Td>
                   <Td>
-                    <Button tone={s.pendingApproval ? 'primary' : 'ghost'} onClick={() => setEditing(s.id)}>{s.pendingApproval ? t('Review') : t('Edit')}</Button>
+                    <Button
+                      tone={s.pendingApproval ? 'primary' : 'ghost'}
+                      onClick={() => setEditing(s.id)}
+                    >
+                      {s.pendingApproval ? t('Review') : t('Edit')}
+                    </Button>
                   </Td>
                 </tr>
               ),
@@ -408,7 +619,14 @@ export function StaffPanel({ base, supplies, joinCode }: { base: string; supplie
 
 // ------------------------------------------------------------------ vehicles
 
-const emptyVehicle = { plate: '', kind: 'VAN', contract: 'FIXED' as 'FIXED' | 'SPECIAL', rent: '', capacity: '', active: true };
+const emptyVehicle = {
+  plate: '',
+  kind: 'VAN',
+  contract: 'FIXED' as 'FIXED' | 'SPECIAL',
+  rent: '',
+  capacity: '',
+  active: true,
+};
 
 export function VehiclesPanel({ base }: { base: string }) {
   const t = useT();
@@ -419,14 +637,32 @@ export function VehiclesPanel({ base }: { base: string }) {
 
   const open = (v: Vehicle | null) => {
     setEditing(v?.id ?? 'new');
-    setF(v ? { plate: v.plate, kind: v.kind, contract: v.contract, rent: v.monthlyRent ? String(v.monthlyRent / 100) : '', capacity: v.capacityParcels ? String(v.capacityParcels) : '', active: v.active } : emptyVehicle);
+    setF(
+      v
+        ? {
+            plate: v.plate,
+            kind: v.kind,
+            contract: v.contract,
+            rent: v.monthlyRent ? String(v.monthlyRent / 100) : '',
+            capacity: v.capacityParcels ? String(v.capacityParcels) : '',
+            active: v.active,
+          }
+        : emptyVehicle,
+    );
   };
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setMsg(null);
     try {
-      const body = { plate: f.plate, kind: f.kind, contract: f.contract, monthlyRent: Math.round(Number(f.rent || 0) * 100), capacityParcels: f.capacity ? Number(f.capacity) : null, active: f.active };
+      const body = {
+        plate: f.plate,
+        kind: f.kind,
+        contract: f.contract,
+        monthlyRent: Math.round(Number(f.rent || 0) * 100),
+        capacityParcels: f.capacity ? Number(f.capacity) : null,
+        active: f.active,
+      };
       if (editing === 'new') await api(`${base}/vehicles`, { body });
       else await api(`${base}/vehicles/${editing}`, { method: 'PUT', body });
       setMsg({ ok: true, text: t('Saved {name}', { name: f.plate }) });
@@ -438,37 +674,73 @@ export function VehiclesPanel({ base }: { base: string }) {
   };
 
   return (
-    <Card title={t('Vehicles')} actions={<Button onClick={() => (editing ? setEditing(null) : open(null))}>{editing ? t('Close') : t('Add vehicle')}</Button>}>
+    <Card
+      title={t('Vehicles')}
+      actions={
+        <Button onClick={() => (editing ? setEditing(null) : open(null))}>
+          {editing ? t('Close') : t('Add vehicle')}
+        </Button>
+      }
+    >
       <div className="space-y-3">
         <Msg msg={msg} />
         {editing && (
-          <form onSubmit={save} className="grid gap-3 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3">
+          <form
+            onSubmit={save}
+            className="grid gap-3 rounded-lg border border-line bg-surface-raised p-4 sm:grid-cols-2 lg:grid-cols-3"
+          >
             <Field label={t('Plate')}>
-              <Input required value={f.plate} onChange={(e) => setF({ ...f, plate: e.target.value })} />
+              <Input
+                required
+                value={f.plate}
+                onChange={(e) => setF({ ...f, plate: e.target.value })}
+              />
             </Field>
             <Field label={t('Kind')}>
               <Select value={f.kind} onChange={(e) => setF({ ...f, kind: e.target.value })}>
                 {Object.entries(VEHICLE_KIND).map(([k, v]) => (
-                  <option key={k} value={k}>{t(v)}</option>
+                  <option key={k} value={k}>
+                    {t(v)}
+                  </option>
                 ))}
               </Select>
             </Field>
-            <Field label={t('Contract')} hint={t('Fixed vehicles are paid monthly; special ones per request')}>
-              <Select value={f.contract} onChange={(e) => setF({ ...f, contract: e.target.value as 'FIXED' | 'SPECIAL' })}>
+            <Field
+              label={t('Contract')}
+              hint={t('Fixed vehicles are paid monthly; special ones per request')}
+            >
+              <Select
+                value={f.contract}
+                onChange={(e) => setF({ ...f, contract: e.target.value as 'FIXED' | 'SPECIAL' })}
+              >
                 <option value="FIXED">{t('Fixed')}</option>
                 <option value="SPECIAL">{t('Special')}</option>
               </Select>
             </Field>
             {f.contract === 'FIXED' && (
               <Field label={t('Monthly rent (EGP)')}>
-                <Input inputMode="decimal" className="ltr-iso" value={f.rent} onChange={(e) => setF({ ...f, rent: e.target.value })} />
+                <Input
+                  inputMode="decimal"
+                  className="ltr-iso"
+                  value={f.rent}
+                  onChange={(e) => setF({ ...f, rent: e.target.value })}
+                />
               </Field>
             )}
             <Field label={t('Capacity (parcels)')}>
-              <Input inputMode="numeric" className="ltr-iso" value={f.capacity} onChange={(e) => setF({ ...f, capacity: e.target.value })} />
+              <Input
+                inputMode="numeric"
+                className="ltr-iso"
+                value={f.capacity}
+                onChange={(e) => setF({ ...f, capacity: e.target.value })}
+              />
             </Field>
             <label className="flex items-center gap-2 self-end text-body-sm">
-              <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
+              <input
+                type="checkbox"
+                checked={f.active}
+                onChange={(e) => setF({ ...f, active: e.target.checked })}
+              />
               {t('Active')}
             </label>
             <div className="sm:col-span-2 lg:col-span-3">
@@ -481,12 +753,25 @@ export function VehiclesPanel({ base }: { base: string }) {
           <Table head={[t('Plate'), t('Kind'), t('Contract'), t('Capacity'), t('Driven by'), '']}>
             {vehicles.data.map((v) => (
               <tr key={v.id}>
-                <Td><span className="ltr-iso font-bold">{v.plate}</span>{!v.active && <span className="ms-2"><Badge tone="red">{t('Inactive')}</Badge></span>}</Td>
+                <Td>
+                  <span className="ltr-iso font-bold">{v.plate}</span>
+                  {!v.active && (
+                    <span className="ms-2">
+                      <Badge tone="red">{t('Inactive')}</Badge>
+                    </span>
+                  )}
+                </Td>
                 <Td>{t(VEHICLE_KIND[v.kind] ?? v.kind)}</Td>
-                <Td>{v.contract === 'FIXED' ? `${t('Fixed')} · ${egp(v.monthlyRent)}` : t('Special')}</Td>
+                <Td>
+                  {v.contract === 'FIXED' ? `${t('Fixed')} · ${egp(v.monthlyRent)}` : t('Special')}
+                </Td>
                 <Td>{v.capacityParcels ?? ''}</Td>
                 <Td>{v.users.map((u) => u.name).join(', ')}</Td>
-                <Td><Button tone="ghost" onClick={() => open(v)}>{t('Edit')}</Button></Td>
+                <Td>
+                  <Button tone="ghost" onClick={() => open(v)}>
+                    {t('Edit')}
+                  </Button>
+                </Td>
               </tr>
             ))}
           </Table>
@@ -501,14 +786,32 @@ export function VehiclesPanel({ base }: { base: string }) {
 function Countdown({ until }: { until: string }) {
   const t = useT();
   const mins = Math.round((new Date(until).getTime() - Date.now()) / 60000);
-  return mins >= 0 ? <Badge tone="amber">{t('{count} min left', { count: mins })}</Badge> : <Badge tone="red">{t('Overdue by {count} min', { count: -mins })}</Badge>;
+  return mins >= 0 ? (
+    <Badge tone="amber">{t('{count} min left', { count: mins })}</Badge>
+  ) : (
+    <Badge tone="red">{t('Overdue by {count} min', { count: -mins })}</Badge>
+  );
 }
 
 /**
  * Today's shifts. With `answerBase` (the agent portal) each missing person can be marked late or
  * not coming, and a replacement can be sent. Without it the board is read only (operations).
  */
-export function AttendanceBoard({ shifts, staff, answerBase, photoBase, onChange, showAgent }: { shifts: ShiftRow[]; staff?: Staff[]; answerBase?: string; photoBase?: string; onChange?: () => void; showAgent?: boolean }) {
+export function AttendanceBoard({
+  shifts,
+  staff,
+  answerBase,
+  photoBase,
+  onChange,
+  showAgent,
+}: {
+  shifts: ShiftRow[];
+  staff?: Staff[];
+  answerBase?: string;
+  photoBase?: string;
+  onChange?: () => void;
+  showAgent?: boolean;
+}) {
   const t = useT();
   const locale = useLocale();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
@@ -530,76 +833,180 @@ export function AttendanceBoard({ shifts, staff, answerBase, photoBase, onChange
     }
   };
 
-  const busyToday = new Set(shifts.filter((s) => s.status !== 'NOT_COMING' && s.status !== 'REPLACED').map((s) => s.courier.id));
+  const busyToday = new Set(
+    shifts
+      .filter((s) => s.status !== 'NOT_COMING' && s.status !== 'REPLACED')
+      .map((s) => s.courier.id),
+  );
   const now = Date.now();
 
   if (shifts.length === 0) return <Empty>{t('No shifts today')}</Empty>;
   return (
     <div className="space-y-3">
       <Msg msg={msg} />
-      <Table head={[t('Name'), ...(showAgent ? [t('Agent')] : []), t('Starts'), t('Status'), t('Checked in'), '']}>
+      <Table
+        head={[
+          t('Name'),
+          ...(showAgent ? [t('Agent')] : []),
+          t('Starts'),
+          t('Status'),
+          t('Checked in'),
+          '',
+        ]}
+      >
         {shifts.map((s) => {
-          const missing = !s.checkInAt && (s.status === 'SCHEDULED' || s.status === 'LATE_NOTICE') && new Date(s.startAt).getTime() < now;
-          const candidates = (staff ?? []).filter((p) => p.active && p.courierType === s.courier.courierType && p.id !== s.courier.id && !busyToday.has(p.id));
+          const missing =
+            !s.checkInAt &&
+            (s.status === 'SCHEDULED' || s.status === 'LATE_NOTICE') &&
+            new Date(s.startAt).getTime() < now;
+          const candidates = (staff ?? []).filter(
+            (p) =>
+              p.active &&
+              p.courierType === s.courier.courierType &&
+              p.id !== s.courier.id &&
+              !busyToday.has(p.id),
+          );
           return (
-            <tr key={s.id} className={s.replacementOverdue && !s.replacementShiftId ? 'bg-danger/10' : undefined}>
+            <tr
+              key={s.id}
+              className={s.replacementOverdue && !s.replacementShiftId ? 'bg-danger/10' : undefined}
+            >
               <Td>
                 {s.courier.name}
                 <div className="text-caption text-text-muted">
-                  {s.courier.courierType ? t(TYPE_LABEL[s.courier.courierType]!) : ''} <span className="ltr-iso">{s.courier.hub?.code ?? ''}</span>
-                  {s.replacesShiftId && <span className="ms-1 font-bold text-link">{t('Replacement')}</span>}
+                  {s.courier.courierType ? t(TYPE_LABEL[s.courier.courierType]!) : ''}{' '}
+                  <span className="ltr-iso">{s.courier.hub?.code ?? ''}</span>
+                  {s.replacesShiftId && (
+                    <span className="ms-1 font-bold text-link">{t('Replacement')}</span>
+                  )}
                 </div>
               </Td>
               {showAgent && <Td>{s.agent.name}</Td>}
-              <Td><span className="ltr-iso">{clock(s.startAt, locale)}</span></Td>
+              <Td>
+                <span className="ltr-iso">{clock(s.startAt, locale)}</span>
+              </Td>
               <Td>
                 <div className="flex flex-wrap items-center gap-1">
-                  <Badge tone={missing && s.status === 'SCHEDULED' ? 'red' : SHIFT_TONE[s.status]}>{t(SHIFT_LABEL[s.status])}</Badge>
-                  {s.status === 'LATE_NOTICE' && s.expectedAt && <span className="text-caption">{t('expected {time}', { time: clock(s.expectedAt, locale) })}</span>}
-                  {s.status === 'NOT_COMING' && !s.replacementShiftId && s.replacementDeadline && <Countdown until={s.replacementDeadline} />}
+                  <Badge tone={missing && s.status === 'SCHEDULED' ? 'red' : SHIFT_TONE[s.status]}>
+                    {t(SHIFT_LABEL[s.status])}
+                  </Badge>
+                  {s.status === 'LATE_NOTICE' && s.expectedAt && (
+                    <span className="text-caption">
+                      {t('expected {time}', { time: clock(s.expectedAt, locale) })}
+                    </span>
+                  )}
+                  {s.status === 'NOT_COMING' && !s.replacementShiftId && s.replacementDeadline && (
+                    <Countdown until={s.replacementDeadline} />
+                  )}
                 </div>
               </Td>
               <Td>
                 {s.checkInAt ? (
                   <span>
                     <span className="ltr-iso">{clock(s.checkInAt, locale)}</span>
-                    {s.lateMinutes > 0 && <span className="ms-1 text-caption text-text-muted">{t('{count} min late', { count: s.lateMinutes })}</span>}
+                    {s.lateMinutes > 0 && (
+                      <span className="ms-1 text-caption text-text-muted">
+                        {t('{count} min late', { count: s.lateMinutes })}
+                      </span>
+                    )}
                     {photoBase && (
-                      <a className="ms-2 text-caption font-bold text-link" href={`/api/parcels${photoBase}/${s.id}/photo`} target="_blank" rel="noreferrer">{t('Photo')}</a>
+                      <a
+                        className="ms-2 text-caption font-bold text-link"
+                        href={`/api/parcels${photoBase}/${s.id}/photo`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {t('Photo')}
+                      </a>
                     )}
                   </span>
-                ) : ''}
+                ) : (
+                  ''
+                )}
               </Td>
               <Td>
                 {answerBase && missing && (
                   <div className="flex flex-wrap gap-1">
                     {lateFor === s.id ? (
                       <span className="flex items-center gap-1">
-                        <Input type="time" value={lateTime} onChange={(e) => setLateTime(e.target.value)} className="ltr-iso w-28" />
-                        <Button onClick={() => act(`/shifts/${s.id}/answer`, { answer: 'LATE', expectedTime: lateTime }, t('{name} marked late', { name: s.courier.name }))}>{t('Save')}</Button>
+                        <Input
+                          type="time"
+                          value={lateTime}
+                          onChange={(e) => setLateTime(e.target.value)}
+                          className="ltr-iso w-28"
+                        />
+                        <Button
+                          onClick={() =>
+                            act(
+                              `/shifts/${s.id}/answer`,
+                              { answer: 'LATE', expectedTime: lateTime },
+                              t('{name} marked late', { name: s.courier.name }),
+                            )
+                          }
+                        >
+                          {t('Save')}
+                        </Button>
                       </span>
                     ) : (
-                      <Button tone="secondary" onClick={() => setLateFor(s.id)}>{t('Running late')}</Button>
+                      <Button tone="secondary" onClick={() => setLateFor(s.id)}>
+                        {t('Running late')}
+                      </Button>
                     )}
-                    <Button tone="ghost" onClick={() => act(`/shifts/${s.id}/answer`, { answer: 'NOT_COMING' }, t('Send a replacement for {name}', { name: s.courier.name }))}>{t('Not coming')}</Button>
+                    <Button
+                      tone="ghost"
+                      onClick={() =>
+                        act(
+                          `/shifts/${s.id}/answer`,
+                          { answer: 'NOT_COMING' },
+                          t('Send a replacement for {name}', { name: s.courier.name }),
+                        )
+                      }
+                    >
+                      {t('Not coming')}
+                    </Button>
                   </div>
                 )}
-                {answerBase && s.status === 'NOT_COMING' && !s.replacementShiftId && (
-                  replaceFor === s.id ? (
+                {answerBase &&
+                  s.status === 'NOT_COMING' &&
+                  !s.replacementShiftId &&
+                  (replaceFor === s.id ? (
                     <span className="flex items-center gap-1">
                       <Select value={replacement} onChange={(e) => setReplacement(e.target.value)}>
                         <option value="">{t('Choose a person')}</option>
                         {candidates.map((p) => (
-                          <option key={p.id} value={p.id}>{p.name} {p.hub ? `· ${p.hub.code}` : ''}</option>
+                          <option key={p.id} value={p.id}>
+                            {p.name} {p.hub ? `· ${p.hub.code}` : ''}
+                          </option>
                         ))}
                       </Select>
-                      <Button disabled={!replacement} onClick={() => act(`/shifts/${s.id}/replacement`, { courierId: replacement }, t('Replacement sent'))}>{t('Send')}</Button>
-                      {candidates.length === 0 && <span className="text-caption text-text-muted">{t('Everyone else works today. Add or approve someone on the Staff page')}</span>}
+                      <Button
+                        disabled={!replacement}
+                        onClick={() =>
+                          act(
+                            `/shifts/${s.id}/replacement`,
+                            { courierId: replacement },
+                            t('Replacement sent'),
+                          )
+                        }
+                      >
+                        {t('Send')}
+                      </Button>
+                      {candidates.length === 0 && (
+                        <span className="text-caption text-text-muted">
+                          {t('Everyone else works today. Add or approve someone on the Staff page')}
+                        </span>
+                      )}
                     </span>
                   ) : (
-                    <Button onClick={() => { setReplaceFor(s.id); setReplacement(''); }}>{t('Send replacement')}</Button>
-                  )
-                )}
+                    <Button
+                      onClick={() => {
+                        setReplaceFor(s.id);
+                        setReplacement('');
+                      }}
+                    >
+                      {t('Send replacement')}
+                    </Button>
+                  ))}
               </Td>
             </tr>
           );
@@ -611,7 +1018,15 @@ export function AttendanceBoard({ shifts, staff, answerBase, photoBase, onChange
 
 // ------------------------------------------------------------------ alerts
 
-export function AlertsList({ base, alerts, onChange }: { base: string; alerts: AlertRow[]; onChange: () => void }) {
+export function AlertsList({
+  base,
+  alerts,
+  onChange,
+}: {
+  base: string;
+  alerts: AlertRow[];
+  onChange: () => void;
+}) {
   const t = useT();
   const locale = useLocale();
   const [error, setError] = useState<string | null>(null);
@@ -633,14 +1048,27 @@ export function AlertsList({ base, alerts, onChange }: { base: string; alerts: A
           <li key={a.id} className="flex flex-wrap items-start justify-between gap-2 py-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <Badge tone={a.severity === 'high' ? 'red' : 'amber'}>{t(ALERT_LABEL[a.kind] ?? a.kind)}</Badge>
+                <Badge tone={a.severity === 'high' ? 'red' : 'amber'}>
+                  {t(ALERT_LABEL[a.kind] ?? a.kind)}
+                </Badge>
                 <span className="text-caption text-text-muted">{dateTime(a.createdAt)}</span>
               </div>
               <p className="mt-1 text-body-sm">
-                {ALERT_TEXT[a.kind] && a.subject ? t(ALERT_TEXT[a.kind]!, { name: a.subject, agent: a.agentName ?? '', date: a.date ?? '', time: clock(a.deadline, locale) }) : a.message}
+                {ALERT_TEXT[a.kind] && a.subject
+                  ? t(ALERT_TEXT[a.kind]!, {
+                      name: a.subject,
+                      agent: a.agentName ?? '',
+                      date: a.date ?? '',
+                      time: clock(a.deadline, locale),
+                    })
+                  : a.message}
               </p>
             </div>
-            {a.status === 'OPEN' && <Button tone="ghost" onClick={() => void resolve(a)}>{t('Mark done')}</Button>}
+            {a.status === 'OPEN' && (
+              <Button tone="ghost" onClick={() => void resolve(a)}>
+                {t('Mark done')}
+              </Button>
+            )}
           </li>
         ))}
       </ul>
@@ -650,7 +1078,21 @@ export function AlertsList({ base, alerts, onChange }: { base: string; alerts: A
 
 // ------------------------------------------------------------------ vehicle requests
 
-export function VehicleRequestsTable({ rows, vehicles, provideBase, closeBase, onChange, showAgent }: { rows: VehicleRequestRow[]; vehicles?: Vehicle[]; provideBase?: string; closeBase?: string; onChange: () => void; showAgent?: boolean }) {
+export function VehicleRequestsTable({
+  rows,
+  vehicles,
+  provideBase,
+  closeBase,
+  onChange,
+  showAgent,
+}: {
+  rows: VehicleRequestRow[];
+  vehicles?: Vehicle[];
+  provideBase?: string;
+  closeBase?: string;
+  onChange: () => void;
+  showAgent?: boolean;
+}) {
   const t = useT();
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [providing, setProviding] = useState<string | null>(null);
@@ -672,51 +1114,117 @@ export function VehicleRequestsTable({ rows, vehicles, provideBase, closeBase, o
   return (
     <div className="space-y-3">
       <Msg msg={msg} />
-      <Table head={[t('Request'), ...(showAgent ? [t('Agent')] : []), t('Date'), t('Price'), t('Status'), t('Driver'), '']}>
+      <Table
+        head={[
+          t('Request'),
+          ...(showAgent ? [t('Agent')] : []),
+          t('Date'),
+          t('Price'),
+          t('Status'),
+          t('Driver'),
+          '',
+        ]}
+      >
         {rows.map((r) => (
           <tr key={r.id}>
             <Td>
               <span className="ltr-iso font-bold">{r.code}</span>
-              <div className="text-caption text-text-muted">{t(REQUEST_REASON[r.reason] ?? r.reason)}</div>
+              <div className="text-caption text-text-muted">
+                {t(REQUEST_REASON[r.reason] ?? r.reason)}
+              </div>
               {r.notes && <div className="text-caption">{r.notes}</div>}
             </Td>
             {showAgent && <Td>{r.agent.name}</Td>}
-            <Td><span className="ltr-iso">{r.date}</span></Td>
-            <Td>{egp(r.price)}</Td>
-            <Td><Badge tone={REQUEST_TONE[r.status]}>{t(REQUEST_STATUS[r.status])}</Badge></Td>
             <Td>
-              {r.driverName ?? ''}
-              {r.driverPhone && <div className="ltr-iso text-caption text-text-muted">{r.driverPhone}</div>}
-              {r.vehicle && <div className="ltr-iso text-caption text-text-muted">{r.vehicle.plate}</div>}
+              <span className="ltr-iso">{r.date}</span>
+            </Td>
+            <Td>{egp(r.price)}</Td>
+            <Td>
+              <Badge tone={REQUEST_TONE[r.status]}>{t(REQUEST_STATUS[r.status])}</Badge>
             </Td>
             <Td>
-              {provideBase && r.status === 'REQUESTED' && (
-                providing === r.id ? (
+              {r.driverName ?? ''}
+              {r.driverPhone && (
+                <div className="ltr-iso text-caption text-text-muted">{r.driverPhone}</div>
+              )}
+              {r.vehicle && (
+                <div className="ltr-iso text-caption text-text-muted">{r.vehicle.plate}</div>
+              )}
+            </Td>
+            <Td>
+              {provideBase &&
+                r.status === 'REQUESTED' &&
+                (providing === r.id ? (
                   <form
                     className="flex flex-col gap-1"
                     onSubmit={(e) => {
                       e.preventDefault();
-                      void call(`${provideBase}/${r.id}/provide`, { vehicleId: p.vehicleId || null, driverName: p.driverName, driverPhone: p.driverPhone }, t('Vehicle provided'));
+                      void call(
+                        `${provideBase}/${r.id}/provide`,
+                        {
+                          vehicleId: p.vehicleId || null,
+                          driverName: p.driverName,
+                          driverPhone: p.driverPhone,
+                        },
+                        t('Vehicle provided'),
+                      );
                     }}
                   >
-                    <Select value={p.vehicleId} onChange={(e) => setP({ ...p, vehicleId: e.target.value })}>
+                    <Select
+                      value={p.vehicleId}
+                      onChange={(e) => setP({ ...p, vehicleId: e.target.value })}
+                    >
                       <option value="">{t('Another vehicle')}</option>
-                      {(vehicles ?? []).filter((v) => v.active).map((v) => (
-                        <option key={v.id} value={v.id}>{v.plate}</option>
-                      ))}
+                      {(vehicles ?? [])
+                        .filter((v) => v.active)
+                        .map((v) => (
+                          <option key={v.id} value={v.id}>
+                            {v.plate}
+                          </option>
+                        ))}
                     </Select>
-                    <Input required placeholder={t('Driver name')} value={p.driverName} onChange={(e) => setP({ ...p, driverName: e.target.value })} />
-                    <Input required placeholder={t('Driver phone')} inputMode="tel" className="ltr-iso" value={p.driverPhone} onChange={(e) => setP({ ...p, driverPhone: e.target.value })} />
+                    <Input
+                      required
+                      placeholder={t('Driver name')}
+                      value={p.driverName}
+                      onChange={(e) => setP({ ...p, driverName: e.target.value })}
+                    />
+                    <Input
+                      required
+                      placeholder={t('Driver phone')}
+                      inputMode="tel"
+                      className="ltr-iso"
+                      value={p.driverPhone}
+                      onChange={(e) => setP({ ...p, driverPhone: e.target.value })}
+                    />
                     <Button type="submit">{t('Send vehicle')}</Button>
                   </form>
                 ) : (
-                  <Button onClick={() => { setProviding(r.id); setP({ vehicleId: '', driverName: '', driverPhone: '' }); }}>{t('Provide')}</Button>
-                )
-              )}
+                  <Button
+                    onClick={() => {
+                      setProviding(r.id);
+                      setP({ vehicleId: '', driverName: '', driverPhone: '' });
+                    }}
+                  >
+                    {t('Provide')}
+                  </Button>
+                ))}
               {closeBase && (r.status === 'PROVIDED' || r.status === 'REQUESTED') && (
                 <div className="flex gap-1">
-                  {r.status === 'PROVIDED' && <Button tone="secondary" onClick={() => void call(`${closeBase}/${r.id}/done`, {}, t('Marked done'))}>{t('Done')}</Button>}
-                  <Button tone="ghost" onClick={() => void call(`${closeBase}/${r.id}/cancel`, {}, t('Cancelled'))}>{t('Cancel')}</Button>
+                  {r.status === 'PROVIDED' && (
+                    <Button
+                      tone="secondary"
+                      onClick={() => void call(`${closeBase}/${r.id}/done`, {}, t('Marked done'))}
+                    >
+                      {t('Done')}
+                    </Button>
+                  )}
+                  <Button
+                    tone="ghost"
+                    onClick={() => void call(`${closeBase}/${r.id}/cancel`, {}, t('Cancelled'))}
+                  >
+                    {t('Cancel')}
+                  </Button>
                 </div>
               )}
             </Td>

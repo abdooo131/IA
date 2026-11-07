@@ -12,7 +12,10 @@ export class ApiError extends Error {
 
 /** Calls the API through the /api proxy. Throws ApiError with a message safe to show. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- screens type what they read
-export async function api<T = any>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T = any>(
+  path: string,
+  opts: { method?: string; body?: unknown } = {},
+): Promise<T> {
   const res = await fetch(`${path.startsWith('/auth/logout') ? '/api' : '/api/parcels'}${path}`, {
     method: opts.method ?? (opts.body === undefined ? 'GET' : 'POST'),
     headers: opts.body === undefined ? undefined : { 'content-type': 'application/json' },
@@ -23,7 +26,11 @@ export async function api<T = any>(path: string, opts: { method?: string; body?:
   const text = await res.text();
   const data = text ? JSON.parse(text) : null;
   if (!res.ok) {
-    if (res.status === 401 && typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+    if (
+      res.status === 401 &&
+      typeof window !== 'undefined' &&
+      !window.location.pathname.startsWith('/login')
+    ) {
       window.location.href = `/login?next=${encodeURIComponent(window.location.pathname)}`;
     }
     throw new ApiError(res.status, data?.error ?? 'error', data?.message ?? 'Something went wrong');

@@ -61,7 +61,11 @@ export class ShipmentsCore {
       data: { ...data, status: to },
     });
     if (result.count !== 1) {
-      throw new DomainError('conflict', `${shipment.trackingNumber} was just changed by someone else. Scan it again`, 409);
+      throw new DomainError(
+        'conflict',
+        `${shipment.trackingNumber} was just changed by someone else. Scan it again`,
+        409,
+      );
     }
     // Tell the customer at the moments that matter to them.
     if (to === 'OUT_FOR_DELIVERY' || to === 'DELIVERED' || to === 'ATTEMPT_FAILED') {
@@ -79,7 +83,8 @@ export class ShipmentsCore {
       },
     });
     // The merchant's own systems hear about every change of status.
-    if (shipment.status !== to) await queueShipmentWebhooks(tx, shipment.id, shipment.status, event.type, event.note);
+    if (shipment.status !== to)
+      await queueShipmentWebhooks(tx, shipment.id, shipment.status, event.type, event.note);
     // A parcel made from a Shopify order tells Shopify when it ships and when cash is collected.
     if (shipment.status !== to) await queueShopifyTasks(tx, shipment.id, to);
   }
@@ -99,7 +104,9 @@ export class ShipmentsCore {
   /** Every place in the network and the truck routes between facilities. */
   async network(tx: Tx): Promise<Network> {
     const [hubs, links] = await Promise.all([
-      tx.hub.findMany({ select: { id: true, code: true, name: true, isSorting: true, parentId: true } }),
+      tx.hub.findMany({
+        select: { id: true, code: true, name: true, isSorting: true, parentId: true },
+      }),
       tx.lineHaulLink.findMany({ where: { active: true }, select: { fromId: true, toId: true } }),
     ]);
     return Object.assign(new Map(hubs.map((h) => [h.id, h])), { links });
@@ -109,7 +116,13 @@ export class ShipmentsCore {
    * The planned way for a new parcel, as place codes. Refuses one we cannot carry because no
    * chain of trucks joins the two facilities.
    */
-  async plan(tx: Tx, direction: Direction, originHubId: string, destinationHubId: string, net?: Network) {
+  async plan(
+    tx: Tx,
+    direction: Direction,
+    originHubId: string,
+    destinationHubId: string,
+    net?: Network,
+  ) {
     const n = net ?? (await this.network(tx));
     const ids = planRoute({ direction, originHubId, destinationHubId }, n, n.links);
     if (!ids) {
@@ -139,7 +152,10 @@ export class ShipmentsCore {
 
   /** The hub that delivers to an address: the area's hub, else the governorate's. */
   async deliveryHubFor(tx: Tx, governorateCode: string, areaId: string | null) {
-    const gov = await tx.governorate.findUnique({ where: { code: governorateCode }, include: { zone: true } });
+    const gov = await tx.governorate.findUnique({
+      where: { code: governorateCode },
+      include: { zone: true },
+    });
     if (!gov) throw new DomainError('invalid_input', 'Unknown governorate', 422);
     let hubId = gov.hubId;
     if (areaId) {
@@ -151,32 +167,56 @@ export class ShipmentsCore {
     }
     if (!hubId) throw new DomainError('not_served', `We do not deliver to ${gov.nameEn} yet`, 422);
     const hub = await tx.hub.findUnique({ where: { id: hubId } });
-    if (!hub || !hub.active || hub.isSorting) throw new DomainError('not_served', `No active last mile hub delivers to ${gov.nameEn}`, 422);
+    if (!hub || !hub.active || hub.isSorting)
+      throw new DomainError('not_served', `No active last mile hub delivers to ${gov.nameEn}`, 422);
     if (!gov.zone) throw new DomainError('not_served', `${gov.nameEn} has no price zone yet`, 422);
     return { hubId, zone: gov.zone };
   }
 
   /** Promised delivery date, fixed when the parcel first enters our network. */
-  async promiseFor(tx: Tx, shipment: Pick<Shipment, 'governorateCode'>, at: Date, settings: SettingValues) {
-    const gov = await tx.governorate.findUniqueOrThrow({ where: { code: shipment.governorateCode }, include: { zone: true } });
-    return promisedDate(at, gov.zone?.transitDays ?? 1, settings['promise.cutoff'], settings['promise.weekend_days']);
+  async promiseFor(
+    tx: Tx,
+    shipment: Pick<Shipment, 'governorateCode'>,
+    at: Date,
+    settings: SettingValues,
+  ) {
+    const gov = await tx.governorate.findUniqueOrThrow({
+      where: { code: shipment.governorateCode },
+      include: { zone: true },
+    });
+    return promisedDate(
+      at,
+      gov.zone?.transitDays ?? 1,
+      settings['promise.cutoff'],
+      settings['promise.weekend_days'],
+    );
   }
 
   /** What should physically happen next to a parcel sitting in a hub or facility. */
   async nextStep(
     tx: Tx,
-    s: Pick<Shipment, 'status' | 'direction' | 'currentHubId' | 'originHubId' | 'destinationHubId' | 'holdReason'>,
+    s: Pick<
+      Shipment,
+      'status' | 'direction' | 'currentHubId' | 'originHubId' | 'destinationHubId' | 'holdReason'
+    >,
     net?: Network,
   ): Promise<NextStep> {
     if (s.status === 'ON_HOLD') return { kind: 'HOLD', reason: s.holdReason };
-    if (!['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB'].includes(s.status) || !s.currentHubId) return { kind: 'NONE' };
+    if (!['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB'].includes(s.status) || !s.currentHubId)
+      return { kind: 'NONE' };
     const hubs = net ?? (await this.network(tx));
     const hop = nextHop(
-      { direction: s.direction as Direction, currentHubId: s.currentHubId, originHubId: s.originHubId, destinationHubId: s.destinationHubId },
+      {
+        direction: s.direction as Direction,
+        currentHubId: s.currentHubId,
+        originHubId: s.originHubId,
+        destinationHubId: s.destinationHubId,
+      },
       hubs,
       hubs.links,
     );
-    if (hop === null) return s.direction === 'FORWARD' ? { kind: 'DELIVER' } : { kind: 'RETURN_TO_MERCHANT' };
+    if (hop === null)
+      return s.direction === 'FORWARD' ? { kind: 'DELIVER' } : { kind: 'RETURN_TO_MERCHANT' };
     const hub = hubs.get(hop)!;
     return { kind: 'SEND', hubId: hub.id, hubCode: hub.code, hubName: hub.name };
   }

@@ -1,5 +1,21 @@
 import { ParseIdPipe } from '../common/id.pipe';
-import { Body, Controller, Delete, Get, Headers, HttpCode, Injectable, OnModuleDestroy, OnModuleInit, Param, Post, Put, Query, Res, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  HttpCode,
+  Injectable,
+  OnModuleDestroy,
+  OnModuleInit,
+  Param,
+  Post,
+  Put,
+  Query,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser, Public, Roles, type SessionUser } from '../auth/auth';
 import { PrismaService } from '../common/prisma.service';
@@ -31,14 +47,24 @@ export class V1Controller {
   }
 
   @Post('shipments')
-  async create(@Caller() c: ApiCaller, @Body() body: unknown, @Headers('idempotency-key') key: string | undefined, @Res() res: Response) {
+  async create(
+    @Caller() c: ApiCaller,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: string | undefined,
+    @Res() res: Response,
+  ) {
     const r = await this.v1.once(c, key, () => this.v1.create(c, body));
     if (r.replay) res.setHeader('Idempotent-Replayed', 'true');
     res.status(r.status).json(r.body);
   }
 
   @Post('shipments/bulk')
-  async bulk(@Caller() c: ApiCaller, @Body() body: unknown, @Headers('idempotency-key') key: string | undefined, @Res() res: Response) {
+  async bulk(
+    @Caller() c: ApiCaller,
+    @Body() body: unknown,
+    @Headers('idempotency-key') key: string | undefined,
+    @Res() res: Response,
+  ) {
     const r = await this.v1.once(c, key, () => this.v1.createMany(c, body));
     if (r.replay) res.setHeader('Idempotent-Replayed', 'true');
     res.status(r.status).json(r.body);
@@ -110,7 +136,11 @@ export class DeveloperController {
   }
 
   @Put('webhooks/:id')
-  updateHook(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  updateHook(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.dev.saveHook(u, id, body);
   }
 

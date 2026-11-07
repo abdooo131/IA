@@ -12,11 +12,21 @@ export function PreferencesMenu() {
   useEffect(() => setTheme(document.documentElement.dataset.theme ?? 'system'), []);
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <select aria-label={t('Language')} className={selectClass} value={locale} onChange={(e) => setPreference('shiply_locale', e.target.value)}>
+      <select
+        aria-label={t('Language')}
+        className={selectClass}
+        value={locale}
+        onChange={(e) => setPreference('shiply_locale', e.target.value)}
+      >
         <option value="en">English</option>
         <option value="ar">العربية</option>
       </select>
-      <select aria-label={t('Theme')} className={selectClass} value={theme} onChange={(e) => setPreference('shiply_theme', e.target.value)}>
+      <select
+        aria-label={t('Theme')}
+        className={selectClass}
+        value={theme}
+        onChange={(e) => setPreference('shiply_theme', e.target.value)}
+      >
         <option value="system">{t('System')}</option>
         <option value="light">{t('Light')}</option>
         <option value="dark">{t('Dark')}</option>

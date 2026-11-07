@@ -3,9 +3,27 @@ import { RouteChain } from '@/parcels/components/RouteChain';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { FAIL_REASONS, FAIL_REASON_LABELS_AR, STATUS_LABELS_AR, isTerminal, type FailReason, type ShipmentStatus } from '@shiplynow/shared/parcels';
+import {
+  FAIL_REASONS,
+  FAIL_REASON_LABELS_AR,
+  STATUS_LABELS_AR,
+  isTerminal,
+  type FailReason,
+  type ShipmentStatus,
+} from '@shiplynow/shared/parcels';
 import { StatusBar } from '@/parcels/components/StatusBar';
-import { Alert, Badge, Button, Card, Loading, PageHeader, StatusBadge, Table, Td, cx } from '@/parcels/components/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Loading,
+  PageHeader,
+  StatusBadge,
+  Table,
+  Td,
+  cx,
+} from '@/parcels/components/ui';
 import { api, errorMessage } from '@/parcels/lib/api';
 import { dateTime, egp, shortDate, statusLabel } from '@/parcels/lib/format';
 import { useLoad } from '@/parcels/lib/hooks';
@@ -44,8 +62,26 @@ interface Detail {
   hubCodes: Record<string, string>;
   route?: string[];
   next: { kind: string; hubCode?: string; hubName?: string; reason?: string | null };
-  events: { id: string; type: string; fromStatus: string | null; toStatus: string; hubCode: string | null; userName: string | null; note: string; createdAt: string }[];
-  runItems: { id: string; direction: string; result: string; failReason: string | null; codCollected: number; recipient: string; resolvedAt: string | null; run: { code: string; date: string } }[];
+  events: {
+    id: string;
+    type: string;
+    fromStatus: string | null;
+    toStatus: string;
+    hubCode: string | null;
+    userName: string | null;
+    note: string;
+    createdAt: string;
+  }[];
+  runItems: {
+    id: string;
+    direction: string;
+    result: string;
+    failReason: string | null;
+    codCollected: number;
+    recipient: string;
+    resolvedAt: string | null;
+    run: { code: string; date: string };
+  }[];
 }
 
 /** Plain words for each history event. */
@@ -107,29 +143,42 @@ export default function ShipmentDetail() {
     if (!code) return '';
     if (code === 'NOT_ATTEMPTED') return t('Not attempted');
     if (locale === 'ar') return FAIL_REASON_LABELS_AR[code as FailReason] ?? code;
-    return (FAIL_REASONS as Record<string, { label: string }>)[code]?.label ?? code.replace(/_/g, ' ').toLowerCase();
+    return (
+      (FAIL_REASONS as Record<string, { label: string }>)[code]?.label ??
+      code.replace(/_/g, ' ').toLowerCase()
+    );
   };
-  const status = (s: string, direction?: string) => (locale === 'ar' ? STATUS_LABELS_AR[s as ShipmentStatus] ?? s : statusLabel(s, direction));
+  const status = (s: string, direction?: string) =>
+    locale === 'ar' ? (STATUS_LABELS_AR[s as ShipmentStatus] ?? s) : statusLabel(s, direction);
   const nextText = () => {
     switch (d.next.kind) {
       case 'SEND':
-        return t('Sort into a bag for {name} ({code})', { name: d.next.hubName ?? '', code: d.next.hubCode ?? '' });
+        return t('Sort into a bag for {name} ({code})', {
+          name: d.next.hubName ?? '',
+          code: d.next.hubCode ?? '',
+        });
       case 'DELIVER':
         return t('Ready to go out on a delivery run');
       case 'RETURN_TO_MERCHANT':
         return t('Ready to go back to the merchant on a run');
       case 'HOLD':
-        return t('Waiting for the merchant: {reason}', { reason: reasonLabel(d.next.reason ?? null) });
+        return t('Waiting for the merchant: {reason}', {
+          reason: reasonLabel(d.next.reason ?? null),
+        });
       default:
-        return isTerminal(d.status as ShipmentStatus) ? t('Closed') : t('Moving; nothing to do in a hub right now');
+        return isTerminal(d.status as ShipmentStatus)
+          ? t('Closed')
+          : t('Moving; nothing to do in a hub right now');
     }
   };
-  const hub = (hubId: string | null) => (hubId ? d.hubCodes[hubId] ?? '' : '');
+  const hub = (hubId: string | null) => (hubId ? (d.hubCodes[hubId] ?? '') : '');
   const canMarkLost = !isTerminal(d.status as ShipmentStatus) && d.status !== 'LOST';
   const events = [...d.events].reverse();
 
   const markLost = async () => {
-    const note = window.prompt(t('Mark {code} as lost? Write what happened.', { code: d.trackingNumber }));
+    const note = window.prompt(
+      t('Mark {code} as lost? Write what happened.', { code: d.trackingNumber }),
+    );
     if (note === null) return;
     setBusy(true);
     setActionError(null);
@@ -145,8 +194,14 @@ export default function ShipmentDetail() {
 
   return (
     <div className="space-y-5">
-      <Link href="/parcels/admin/shipments" className="inline-flex items-center gap-1 text-body-sm font-bold text-link">
-        <span aria-hidden="true" className="rtl:rotate-180">←</span> {t('Parcels')}
+      <Link
+        href="/parcels/admin/shipments"
+        className="inline-flex items-center gap-1 text-body-sm font-bold text-link"
+      >
+        <span aria-hidden="true" className="rtl:rotate-180">
+          ←
+        </span>{' '}
+        {t('Parcels')}
       </Link>
       <PageHeader
         eyebrow={t('Parcel')}
@@ -158,7 +213,13 @@ export default function ShipmentDetail() {
             {d.payoutId && <Badge tone="green">{t('Paid out')}</Badge>}
           </span>
         }
-        actions={canMarkLost && <Button tone="danger" disabled={busy} onClick={markLost}>{t('Mark lost')}</Button>}
+        actions={
+          canMarkLost && (
+            <Button tone="danger" disabled={busy} onClick={markLost}>
+              {t('Mark lost')}
+            </Button>
+          )
+        }
       />
       <StatusBar flow={d.direction === 'RETURN' ? 'returnParcel' : 'parcel'} status={d.status} />
       {actionError && <Alert>{actionError}</Alert>}
@@ -169,35 +230,69 @@ export default function ShipmentDetail() {
       <div className="grid gap-5 lg:grid-cols-3">
         <Card title={t('Customer')}>
           <Row label={t('Name')}>{d.customerName}</Row>
-          <Row label={t('Phone')}><span className="ltr-iso">{d.customerPhone}</span></Row>
+          <Row label={t('Phone')}>
+            <span className="ltr-iso">{d.customerPhone}</span>
+          </Row>
           <Row label={t('Address')}>{d.address}</Row>
-          <Row label={t('Governorate')}><span className="ltr-iso">{d.governorateCode}</span></Row>
+          <Row label={t('Governorate')}>
+            <span className="ltr-iso">{d.governorateCode}</span>
+          </Row>
           <Row label={t('Can open parcel')}>{d.allowOpen ? t('Yes') : t('No')}</Row>
           {d.notes && <Row label={t('Notes')}>{d.notes}</Row>}
         </Card>
         <Card title={t('Parcel')}>
           <Row label={t('Merchant')}>{d.merchant.name}</Row>
-          {d.merchantRef && <Row label={t('Merchant ref')}><span className="ltr-iso">{d.merchantRef}</span></Row>}
+          {d.merchantRef && (
+            <Row label={t('Merchant ref')}>
+              <span className="ltr-iso">{d.merchantRef}</span>
+            </Row>
+          )}
           <Row label={t('Size')}>{d.size}</Row>
           {d.description && <Row label={t('Contents')}>{d.description}</Row>}
           <Row label={t('Route')}>
-            {d.route?.length ? <RouteChain route={d.route} here={hub(d.currentHubId) || null} done={['DELIVERED', 'RETURNED'].includes(d.status)} /> : <span className="ltr-iso">{hub(d.originHubId)} → {hub(d.destinationHubId)}</span>}
+            {d.route?.length ? (
+              <RouteChain
+                route={d.route}
+                here={hub(d.currentHubId) || null}
+                done={['DELIVERED', 'RETURNED'].includes(d.status)}
+              />
+            ) : (
+              <span className="ltr-iso">
+                {hub(d.originHubId)} → {hub(d.destinationHubId)}
+              </span>
+            )}
           </Row>
           <Row label={t('Now at')}>{hub(d.currentHubId) || status(d.status, d.direction)}</Row>
-          <Row label={t('Promised')}>{shortDate(d.promisedDate) || t('Set when it enters the network')}</Row>
+          <Row label={t('Promised')}>
+            {shortDate(d.promisedDate) || t('Set when it enters the network')}
+          </Row>
           <Row label={t('Attempts')}>
             <span className="tabular">{d.attempts}</span>
-            {d.lastFailReason && <span className="ms-1 font-normal text-text-muted">({reasonLabel(d.lastFailReason)})</span>}
+            {d.lastFailReason && (
+              <span className="ms-1 font-normal text-text-muted">
+                ({reasonLabel(d.lastFailReason)})
+              </span>
+            )}
           </Row>
           <Row label={t('Created')}>{dateTime(d.createdAt)}</Row>
           {d.deliveredAt && <Row label={t('Delivered')}>{dateTime(d.deliveredAt)}</Row>}
         </Card>
         <Card title={t('Money')}>
-          <Row label={t('COD to collect')}><span className="tabular ltr-iso">{egp(d.codAmount)}</span></Row>
-          <Row label={t('COD collected')}><span className="tabular ltr-iso">{egp(d.codCollected)}</span></Row>
-          <Row label={t('Shipping fee')}><span className="tabular ltr-iso">{egp(d.shippingFee)}</span></Row>
-          <Row label={t('COD fee')}><span className="tabular ltr-iso">{egp(d.codFee)}</span></Row>
-          <Row label={t('Return fee')}><span className="tabular ltr-iso">{egp(d.returnFee)}</span></Row>
+          <Row label={t('COD to collect')}>
+            <span className="tabular ltr-iso">{egp(d.codAmount)}</span>
+          </Row>
+          <Row label={t('COD collected')}>
+            <span className="tabular ltr-iso">{egp(d.codCollected)}</span>
+          </Row>
+          <Row label={t('Shipping fee')}>
+            <span className="tabular ltr-iso">{egp(d.shippingFee)}</span>
+          </Row>
+          <Row label={t('COD fee')}>
+            <span className="tabular ltr-iso">{egp(d.codFee)}</span>
+          </Row>
+          <Row label={t('Return fee')}>
+            <span className="tabular ltr-iso">{egp(d.returnFee)}</span>
+          </Row>
         </Card>
       </div>
 
@@ -207,11 +302,20 @@ export default function ShipmentDetail() {
             <li key={e.id} className="relative">
               <span
                 aria-hidden="true"
-                className={cx('absolute -start-[33px] top-1 h-4 w-4 rounded-pill ring-4 ring-surface', i === 0 ? 'bg-accent' : 'bg-line-strong')}
+                className={cx(
+                  'absolute -start-[33px] top-1 h-4 w-4 rounded-pill ring-4 ring-surface',
+                  i === 0 ? 'bg-accent' : 'bg-line-strong',
+                )}
               />
               <div className="flex flex-wrap items-center gap-2 text-body-sm">
-                <span className="font-bold">{t(EVENT_TEXT[e.type] ?? e.type.replace(/_/g, ' ').toLowerCase())}</span>
-                {e.hubCode && <Badge tone="blue"><span className="ltr-iso">{e.hubCode}</span></Badge>}
+                <span className="font-bold">
+                  {t(EVENT_TEXT[e.type] ?? e.type.replace(/_/g, ' ').toLowerCase())}
+                </span>
+                {e.hubCode && (
+                  <Badge tone="blue">
+                    <span className="ltr-iso">{e.hubCode}</span>
+                  </Badge>
+                )}
                 {e.fromStatus && e.fromStatus !== e.toStatus && (
                   <span className="text-caption text-text-muted">
                     {status(e.fromStatus)} → {status(e.toStatus)}
@@ -230,15 +334,37 @@ export default function ShipmentDetail() {
 
       {d.runItems.length > 0 && (
         <Card title={t('Courier runs')}>
-          <Table head={[t('Run'), t('Date'), t('Type'), t('Result'), t('Reason'), t('Cash'), t('Received by'), t('Time')]}>
+          <Table
+            head={[
+              t('Run'),
+              t('Date'),
+              t('Type'),
+              t('Result'),
+              t('Reason'),
+              t('Cash'),
+              t('Received by'),
+              t('Time'),
+            ]}
+          >
             {d.runItems.map((r) => (
               <tr key={r.id}>
                 <Td className="ltr-iso font-bold">{r.run.code}</Td>
                 <Td>{shortDate(r.run.date)}</Td>
                 <Td>{r.direction === 'RETURN' ? t('Return') : t('Delivery')}</Td>
                 <Td>
-                  <Badge tone={r.result === 'FAILED' ? 'red' : r.result === 'PENDING' ? 'amber' : 'green'}>
-                    {t({ FAILED: 'Failed', PENDING: 'Pending', DELIVERED: 'Delivered', RETURNED: 'Returned' }[r.result] ?? r.result)}
+                  <Badge
+                    tone={
+                      r.result === 'FAILED' ? 'red' : r.result === 'PENDING' ? 'amber' : 'green'
+                    }
+                  >
+                    {t(
+                      {
+                        FAILED: 'Failed',
+                        PENDING: 'Pending',
+                        DELIVERED: 'Delivered',
+                        RETURNED: 'Returned',
+                      }[r.result] ?? r.result,
+                    )}
                   </Badge>
                 </Td>
                 <Td>{reasonLabel(r.failReason)}</Td>

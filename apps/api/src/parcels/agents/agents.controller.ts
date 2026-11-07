@@ -8,7 +8,10 @@ import { parse } from '../common/validate';
 import { AgentsService } from './agents.service';
 
 const ResolveBody = z.object({ note: z.string().trim().max(300).default('') });
-const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional();
+const DATE = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/)
+  .optional();
 
 function sendFile(res: Response, mime: string, data: Uint8Array, fileName: string) {
   res.setHeader('Content-Type', mime);
@@ -45,23 +48,39 @@ export class AdminAgentsController {
   }
 
   @Put('agents/:id')
-  update(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  update(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.saveAgent(id, body, u);
   }
 
   @Post('agents/:id/documents')
-  addDocument(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  addDocument(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.addDocument(id, body, u);
   }
 
   @Get('agents/:id/documents/:docId')
-  async document(@Param('id', ParseIdPipe) id: string, @Param('docId', ParseIdPipe) docId: string, @Res() res: Response) {
+  async document(
+    @Param('id', ParseIdPipe) id: string,
+    @Param('docId', ParseIdPipe) docId: string,
+    @Res() res: Response,
+  ) {
     const d = await this.agents.getDocument(id, docId);
     sendFile(res, d.mime, d.data, d.fileName);
   }
 
   @Post('agents/:id/logins')
-  createLogin(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  createLogin(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.createAgentLogin(id, body, u);
   }
 
@@ -71,13 +90,22 @@ export class AdminAgentsController {
   }
 
   @Post('agents/:id/staff')
-  createStaff(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  createStaff(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.createStaff(id, body, u);
   }
 
   @Put('agents/:id/staff/:staffId')
   @HttpCode(200)
-  updateStaff(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('staffId', ParseIdPipe) staffId: string, @Body() body: unknown) {
+  updateStaff(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('staffId', ParseIdPipe) staffId: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.updateStaff(id, staffId, body, u);
   }
 
@@ -87,12 +115,21 @@ export class AdminAgentsController {
   }
 
   @Post('agents/:id/vehicles')
-  addVehicle(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  addVehicle(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.saveVehicle(id, null, body, u);
   }
 
   @Put('agents/:id/vehicles/:vehicleId')
-  updateVehicle(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Param('vehicleId', ParseIdPipe) vehicleId: string, @Body() body: unknown) {
+  updateVehicle(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Param('vehicleId', ParseIdPipe) vehicleId: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.saveVehicle(id, vehicleId, body, u);
   }
 
@@ -131,12 +168,19 @@ export class AdminAgentsController {
 
   @Get('alerts')
   alerts(@Query('status') status?: string, @Query('agentId') agentId?: string) {
-    return this.agents.alerts({ status: status === 'RESOLVED' ? 'RESOLVED' : 'OPEN', agentId: agentId || undefined });
+    return this.agents.alerts({
+      status: status === 'RESOLVED' ? 'RESOLVED' : 'OPEN',
+      agentId: agentId || undefined,
+    });
   }
 
   @Post('alerts/:id/resolve')
   @HttpCode(200)
-  resolve(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  resolve(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.resolveAlert(id, parse(ResolveBody, body ?? {}).note, u);
   }
 
@@ -171,7 +215,11 @@ export class AgentPortalController {
 
   @Put('staff/:staffId')
   @HttpCode(200)
-  updateStaff(@CurrentUser() u: SessionUser, @Param('staffId', ParseIdPipe) staffId: string, @Body() body: unknown) {
+  updateStaff(
+    @CurrentUser() u: SessionUser,
+    @Param('staffId', ParseIdPipe) staffId: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.updateStaff(agentOf(u), staffId, body, u);
   }
 
@@ -186,7 +234,11 @@ export class AgentPortalController {
   }
 
   @Put('vehicles/:vehicleId')
-  updateVehicle(@CurrentUser() u: SessionUser, @Param('vehicleId', ParseIdPipe) vehicleId: string, @Body() body: unknown) {
+  updateVehicle(
+    @CurrentUser() u: SessionUser,
+    @Param('vehicleId', ParseIdPipe) vehicleId: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.saveVehicle(agentOf(u), vehicleId, body, u);
   }
 
@@ -197,13 +249,21 @@ export class AgentPortalController {
 
   @Post('shifts/:shiftId/answer')
   @HttpCode(200)
-  answer(@CurrentUser() u: SessionUser, @Param('shiftId', ParseIdPipe) shiftId: string, @Body() body: unknown) {
+  answer(
+    @CurrentUser() u: SessionUser,
+    @Param('shiftId', ParseIdPipe) shiftId: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.answerShift(agentOf(u), shiftId, body, u);
   }
 
   @Post('shifts/:shiftId/replacement')
   @HttpCode(200)
-  replacement(@CurrentUser() u: SessionUser, @Param('shiftId', ParseIdPipe) shiftId: string, @Body() body: unknown) {
+  replacement(
+    @CurrentUser() u: SessionUser,
+    @Param('shiftId', ParseIdPipe) shiftId: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.assignReplacement(agentOf(u), shiftId, body, u);
   }
 
@@ -214,18 +274,29 @@ export class AgentPortalController {
 
   @Post('vehicle-requests/:id/provide')
   @HttpCode(200)
-  provide(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  provide(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.provideVehicle(agentOf(u), id, body, u);
   }
 
   @Get('alerts')
   alerts(@CurrentUser() u: SessionUser, @Query('status') status?: string) {
-    return this.agents.alerts({ agentId: agentOf(u), status: status === 'RESOLVED' ? 'RESOLVED' : 'OPEN' });
+    return this.agents.alerts({
+      agentId: agentOf(u),
+      status: status === 'RESOLVED' ? 'RESOLVED' : 'OPEN',
+    });
   }
 
   @Post('alerts/:id/resolve')
   @HttpCode(200)
-  resolve(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  resolve(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.agents.resolveAlert(id, parse(ResolveBody, body ?? {}).note, u, agentOf(u));
   }
 }

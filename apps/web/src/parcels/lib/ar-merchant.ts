@@ -9,7 +9,8 @@ export const AR_MERCHANT: Record<string, string> = {
   Delivered: 'تم التوصيل',
   'Returned to you': 'رجعت لك',
   All: 'الكل',
-  'Tracking number, customer name, phone or your reference': 'رقم التتبع أو اسم العميل أو الهاتف أو المرجع الخاص بك',
+  'Tracking number, customer name, phone or your reference':
+    'رقم التتبع أو اسم العميل أو الهاتف أو المرجع الخاص بك',
   'No parcels here yet.': 'لا توجد شحنات هنا بعد.',
   Select: 'اختيار',
   'Select all new parcels': 'اختيار كل الشحنات الجديدة',
@@ -47,11 +48,13 @@ export const AR_MERCHANT: Record<string, string> = {
   'Cancel this parcel? This cannot be undone.': 'إلغاء هذه الشحنة؟ لا يمكن التراجع عن ذلك.',
   'Return to me': 'إرجاعها لي',
   'The parcel is coming back to you': 'الشحنة في طريقها إليك',
-  'Bring this parcel back to you instead of delivering it? A return fee applies.': 'إرجاع الشحنة لك بدل توصيلها؟ سيتم احتساب رسوم إرجاع.',
+  'Bring this parcel back to you instead of delivering it? A return fee applies.':
+    'إرجاع الشحنة لك بدل توصيلها؟ سيتم احتساب رسوم إرجاع.',
   History: 'السجل',
   'Your decision is needed': 'مطلوب قرارك',
   'The courier could not deliver this parcel:': 'المندوب لم يستطع توصيل هذه الشحنة:',
-  'It is waiting at our hub. Fix the details and try again, or bring it back to you.': 'الشحنة في مركزنا. صحح البيانات وحاول مرة أخرى، أو أرجعها لك.',
+  'It is waiting at our hub. Fix the details and try again, or bring it back to you.':
+    'الشحنة في مركزنا. صحح البيانات وحاول مرة أخرى، أو أرجعها لك.',
   'Correct mobile': 'الموبايل الصحيح',
   'Now {phone}': 'الحالي {phone}',
   'Only if it changed': 'فقط إذا تغيرت',
@@ -66,9 +69,11 @@ export const AR_MERCHANT: Record<string, string> = {
   Returning: 'راجعة',
 
   // New parcel
-  'Create one parcel, or upload many from a spreadsheet': 'أنشئ شحنة واحدة، أو ارفع شحنات كثيرة من ملف',
+  'Create one parcel, or upload many from a spreadsheet':
+    'أنشئ شحنة واحدة، أو ارفع شحنات كثيرة من ملف',
   'One parcel': 'شحنة واحدة',
-  'COD must be an amount in EGP, like 450 or 450.50': 'التحصيل لازم يكون مبلغ بالجنيه، مثل 450 أو 450.50',
+  'COD must be an amount in EGP, like 450 or 450.50':
+    'التحصيل لازم يكون مبلغ بالجنيه، مثل 450 أو 450.50',
   'Customer name': 'اسم العميل',
   'Customer mobile': 'موبايل العميل',
   'Egyptian mobile, like 01012345678': 'رقم موبايل مصري، مثل 01012345678',
@@ -90,7 +95,8 @@ export const AR_MERCHANT: Record<string, string> = {
   'Save your sheet as CSV. Governorate can be the code (GIZ) or the English name. COD is in EGP. Up to 500 rows at a time.':
     'احفظ الملف بصيغة CSV. المحافظة تكتب بالكود (GIZ) أو بالاسم الإنجليزي. التحصيل بالجنيه. حتى 500 صف في المرة.',
   'The file has no parcel rows': 'الملف لا يحتوي على شحنات',
-  'Missing columns: {cols}. Download the template to see the format': 'أعمدة ناقصة: {cols}. نزل النموذج لترى الشكل المطلوب',
+  'Missing columns: {cols}. Download the template to see the format':
+    'أعمدة ناقصة: {cols}. نزل النموذج لترى الشكل المطلوب',
   'Unknown governorate "{v}"': 'محافظة غير معروفة "{v}"',
   'Unknown area "{v}" in {gov}': 'منطقة غير معروفة "{v}" في {gov}',
   'COD "{v}" is not an amount in EGP': 'التحصيل "{v}" ليس مبلغا بالجنيه',
@@ -116,7 +122,8 @@ export const AR_MERCHANT: Record<string, string> = {
   'Request pickup': 'اطلب استلام',
   'All parcels you created and we have not collected yet will be picked up. Parcels collected before the daily cutoff are promised for the next working day.':
     'سيتم استلام كل الشحنات التي أنشأتها ولم نستلمها بعد. الشحنات المستلمة قبل موعد الإغلاق اليومي تصل في يوم العمل التالي.',
-  'Pickup {code} requested for {date} with {n} parcels': 'تم طلب الاستلام {code} يوم {date} لعدد {n} شحنة',
+  'Pickup {code} requested for {date} with {n} parcels':
+    'تم طلب الاستلام {code} يوم {date} لعدد {n} شحنة',
   'Cancel pickup {code}?': 'إلغاء طلب الاستلام {code}؟',
   'Your pickups': 'طلبات الاستلام',
   'No pickups yet.': 'لا توجد طلبات استلام بعد.',
@@ -148,7 +155,8 @@ export const AR_MERCHANT: Record<string, string> = {
   Reference: 'المرجع',
 
   // Labels
-  'No parcels chosen. Select parcels in the list, then print labels.': 'لم يتم اختيار شحنات. اختر الشحنات من القائمة ثم اطبع البوليصات.',
+  'No parcels chosen. Select parcels in the list, then print labels.':
+    'لم يتم اختيار شحنات. اختر الشحنات من القائمة ثم اطبع البوليصات.',
   '{n} labels': '{n} بوليصة',
   Print: 'طباعة',
   '{n} labels could not be loaded:': 'تعذر تحميل {n} بوليصة:',
@@ -158,7 +166,8 @@ export const AR_MERCHANT: Record<string, string> = {
   'Shiply next day delivery': 'شيبلي، توصيل في اليوم التالي',
   Track: 'تتبع',
   'We could not find this parcel': 'لم نجد هذه الشحنة',
-  'Check the number on your message from the store and try again:': 'راجع الرقم في رسالة المتجر وحاول مرة أخرى:',
+  'Check the number on your message from the store and try again:':
+    'راجع الرقم في رسالة المتجر وحاول مرة أخرى:',
   'Try another number': 'جرب رقما آخر',
   'Your order from {store}': 'طلبك من {store}',
   'Returning to the store': 'راجعة إلى المتجر',

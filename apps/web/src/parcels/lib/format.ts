@@ -11,12 +11,22 @@ export const egp = (piastres: number | null | undefined) => {
 
 export function dateTime(value: string | Date | null | undefined): string {
   if (!value) return '';
-  return new Intl.DateTimeFormat(dateLocale(), { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  return new Intl.DateTimeFormat(dateLocale(), {
+    timeZone: 'Africa/Cairo',
+    day: '2-digit',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(new Date(value));
 }
 
 export function shortDate(value: string | null | undefined): string {
   if (!value) return '';
-  return new Intl.DateTimeFormat(dateLocale(), { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`));
+  return new Intl.DateTimeFormat(dateLocale(), {
+    day: '2-digit',
+    month: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(`${value}T12:00:00Z`));
 }
 
 export function todayCairo(): string {
@@ -25,7 +35,9 @@ export function todayCairo(): string {
 
 export function statusLabel(status: string, direction?: string): string {
   if (direction === 'RETURN' && !['DELIVERED', 'RETURNED', 'CANCELLED'].includes(status)) {
-    return status === 'OUT_FOR_DELIVERY' ? 'Out for return' : `Returning · ${STATUS_LABELS[status as ShipmentStatus] ?? status}`;
+    return status === 'OUT_FOR_DELIVERY'
+      ? 'Out for return'
+      : `Returning · ${STATUS_LABELS[status as ShipmentStatus] ?? status}`;
   }
   return STATUS_LABELS[status as ShipmentStatus] ?? status;
 }

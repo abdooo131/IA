@@ -13,7 +13,13 @@ export function tileInk(hex: string) {
 }
 
 /** An app's square: its icon on the app's own brand color (home tiles and the top bar). */
-export function AppTileIcon({ app, size }: { app: Pick<AppDef, 'icon' | 'color'>; size: 'sm' | 'lg' }) {
+export function AppTileIcon({
+  app,
+  size,
+}: {
+  app: Pick<AppDef, 'icon' | 'color'>;
+  size: 'sm' | 'lg';
+}) {
   const box = size === 'lg' ? 'h-16 w-16 rounded-xl' : 'h-7 w-7 rounded-md';
   return (
     <span

@@ -39,8 +39,10 @@ export const AR_OPS: Record<string, string> = {
     'الرحلة عربية واحدة تحمل شنطا مقفولة. حمّل الشنط بمسحها ثم سجّل خروج الرحلة.',
   'Merchants nearest this facility ask for pickups. Give each one to a first mile courier; the inbound team receives the parcels.':
     'التجار الأقرب لهذا المركز يطلبون الاستلام. أعط كل طلب لمندوب استلام، وفريق الاستلام يستقبل الشحنات.',
-  'First mile couriers hand returns back to merchants from the return shelf.': 'مناديب الاستلام يسلّمون المرتجعات للتجار من رف المرتجعات.',
-  'One run is one courier for the day: deliveries to consumers and any returns.': 'المشوار هو مندوب واحد لليوم: توصيل للعملاء وأي مرتجعات.',
+  'First mile couriers hand returns back to merchants from the return shelf.':
+    'مناديب الاستلام يسلّمون المرتجعات للتجار من رف المرتجعات.',
+  'One run is one courier for the day: deliveries to consumers and any returns.':
+    'المشوار هو مندوب واحد لليوم: توصيل للعملاء وأي مرتجعات.',
   'At the merchant, scan every parcel label before it goes in your vehicle, then take them to the sorting facility.':
     'عند التاجر امسح ملصق كل شحنة قبل وضعها في العربية، ثم خذها لمركز الفرز.',
 
@@ -65,13 +67,17 @@ export const AR_OPS: Record<string, string> = {
 
   // groups from the server
   'Received, waiting for sorting': 'تم الاستلام، في انتظار الفرز',
-  'Inbound team has scanned these in. Sorting team scans each into its bag.': 'فريق الاستلام مسحها. فريق الفرز يمسح كل شحنة في شنطتها.',
+  'Inbound team has scanned these in. Sorting team scans each into its bag.':
+    'فريق الاستلام مسحها. فريق الفرز يمسح كل شحنة في شنطتها.',
   'Sorted into bags': 'تم فرزها في شنط',
-  'In open or sealed bags. Seal full bags and hand them to outbound.': 'في شنط مفتوحة أو مقفولة. اقفل الشنط الممتلئة وسلّمها للإرسال.',
+  'In open or sealed bags. Seal full bags and hand them to outbound.':
+    'في شنط مفتوحة أو مقفولة. اقفل الشنط الممتلئة وسلّمها للإرسال.',
   'With outbound, waiting for a truck': 'مع فريق الإرسال، في انتظار عربية',
-  'Bags the outbound team accepted. Load them on a trip.': 'شنط استلمها فريق الإرسال. حمّلها على رحلة.',
+  'Bags the outbound team accepted. Load them on a trip.':
+    'شنط استلمها فريق الإرسال. حمّلها على رحلة.',
   'Return shelf': 'رف المرتجعات',
-  'Going back to merchants of this facility. Load on a pickup courier run.': 'راجعة لتجار هذا المركز. حمّلها على مشوار مندوب استلام.',
+  'Going back to merchants of this facility. Load on a pickup courier run.':
+    'راجعة لتجار هذا المركز. حمّلها على مشوار مندوب استلام.',
   'Loaded on courier runs': 'محملة على مشاوير المناديب',
   'On a run that has not left yet.': 'على مشوار لم يخرج بعد.',
   'Ready for delivery': 'جاهزة للتوصيل',
@@ -79,7 +85,8 @@ export const AR_OPS: Record<string, string> = {
   'On hold': 'معلقة',
   'Waiting for the merchant to decide.': 'في انتظار قرار التاجر.',
   'To send back to the sorting facility': 'للإرجاع لمركز الفرز',
-  'Returns and rerouted parcels. Scan them into a bag on Send back.': 'مرتجعات وشحنات محولة. امسحها في شنطة من صفحة الإرجاع.',
+  'Returns and rerouted parcels. Scan them into a bag on Send back.':
+    'مرتجعات وشحنات محولة. امسحها في شنطة من صفحة الإرجاع.',
   'In bags': 'في شنط',
   'In a bag that has not left yet.': 'في شنطة لم تخرج بعد.',
 
@@ -93,9 +100,11 @@ export const AR_OPS: Record<string, string> = {
   'Back from courier, not attempted': 'رجعت من المندوب بدون محاولة',
   'Back from courier. Ready for another attempt': 'رجعت من المندوب. جاهزة لمحاولة أخرى',
   'Back from courier. On hold until the merchant decides': 'رجعت من المندوب. معلقة حتى يقرر التاجر',
-  'Back from courier. Return to merchant will be tried again': 'رجعت من المندوب. سيعاد تسليمها للتاجر',
+  'Back from courier. Return to merchant will be tried again':
+    'رجعت من المندوب. سيعاد تسليمها للتاجر',
   'The system had this parcel somewhere else': 'النظام كان مسجّل الشحنة في مكان آخر',
-  'This merchant belongs to another sorting facility. The system will route it': 'هذا التاجر تابع لمركز فرز آخر. النظام سيحدد مسارها',
+  'This merchant belongs to another sorting facility. The system will route it':
+    'هذا التاجر تابع لمركز فرز آخر. النظام سيحدد مسارها',
   'Please sign in': 'من فضلك سجّل الدخول',
 
   // sorting
@@ -182,14 +191,18 @@ export const AR_OPS: Record<string, string> = {
   'Added as a return to merchant': 'أضيفت كمرتجع للتاجر',
   'Added for delivery': 'أضيفت للتوصيل',
   'End of day': 'نهاية اليوم',
-  'Scan every failed or undelivered parcel back in on the Receive page.': 'امسح كل شحنة فاشلة أو لم تُسلّم في صفحة الاستلام.',
-  'Count the cash and type what the courier handed over.': 'عد النقدية واكتب المبلغ الذي سلّمه المندوب.',
+  'Scan every failed or undelivered parcel back in on the Receive page.':
+    'امسح كل شحنة فاشلة أو لم تُسلّم في صفحة الاستلام.',
+  'Count the cash and type what the courier handed over.':
+    'عد النقدية واكتب المبلغ الذي سلّمه المندوب.',
   'Still with the courier': 'ما زالت مع المندوب',
   'Cash received (EGP)': 'النقدية المستلمة (جنيه)',
   'Close run': 'إغلاق المشوار',
   'Run closed. Cash matches.': 'تم إغلاق المشوار. النقدية مطابقة.',
-  'Run closed. Cash difference {amount} recorded against the courier.': 'تم إغلاق المشوار. تم تسجيل فرق {amount} على المندوب.',
-  'Type the cash amount in EGP, for example 1250 or 1250.50': 'اكتب المبلغ بالجنيه، مثال 1250 أو 1250.50',
+  'Run closed. Cash difference {amount} recorded against the courier.':
+    'تم إغلاق المشوار. تم تسجيل فرق {amount} على المندوب.',
+  'Type the cash amount in EGP, for example 1250 or 1250.50':
+    'اكتب المبلغ بالجنيه، مثال 1250 أو 1250.50',
   'Expected {a}, received {b}.': 'المتوقع {a}، المستلم {b}.',
   Difference: 'الفرق',
   Type: 'النوع',
@@ -207,7 +220,8 @@ export const AR_OPS: Record<string, string> = {
   '{a} of {b} stops left': 'متبقي {a} من {b} محطة',
   'The hub is still loading your parcels.': 'المركز ما زال يحمّل شحناتك.',
   'Wait until the hub marks the run as leaving.': 'انتظر حتى يسجل المركز خروج المشوار.',
-  'You have no run right now. The hub will load one for you.': 'لا يوجد مشوار لك الآن. المركز سيحمّل لك مشوارا.',
+  'You have no run right now. The hub will load one for you.':
+    'لا يوجد مشوار لك الآن. المركز سيحمّل لك مشوارا.',
   'Return to merchant': 'إرجاع للتاجر',
   'Attempt {n}': 'المحاولة {n}',
   Collect: 'حصّل',
@@ -236,9 +250,11 @@ export const AR_OPS: Record<string, string> = {
   'Choose where you are working.': 'اختر مكان عملك.',
   '(sorting facility)': '(مركز فرز)',
   'Handover check': 'متابعة التسليم',
-  'Control': 'المتابعة',
-  'Scan each return into the bag for the sorting facility, seal it, then send it on a truck from Trips.': 'امسح كل مرتجع في شنطة مركز الفرز، اقفلها، ثم أرسلها على عربية من صفحة الرحلات.',
-  'Sorting team: scan each parcel inbound handed over. The screen shows its lane; put it there. The outbound team scans it from the lane into a bag, which completes the handover.': 'فريق الفرز: امسح كل شحنة سلّمها الاستلام. الشاشة توضح خطها، ضعها عليه. فريق الإرسال يمسحها من الخط إلى الشنطة، وبهذا يكتمل التسليم.',
+  Control: 'المتابعة',
+  'Scan each return into the bag for the sorting facility, seal it, then send it on a truck from Trips.':
+    'امسح كل مرتجع في شنطة مركز الفرز، اقفلها، ثم أرسلها على عربية من صفحة الرحلات.',
+  'Sorting team: scan each parcel inbound handed over. The screen shows its lane; put it there. The outbound team scans it from the lane into a bag, which completes the handover.':
+    'فريق الفرز: امسح كل شحنة سلّمها الاستلام. الشاشة توضح خطها، ضعها عليه. فريق الإرسال يمسحها من الخط إلى الشنطة، وبهذا يكتمل التسليم.',
   'Parcels on lanes': 'شحنات على الخطوط',
   'Lanes in use': 'خطوط مستخدمة',
   'Put it on lane {code} ({hub})': 'ضعها على خط {code} ({hub})',
@@ -249,37 +265,40 @@ export const AR_OPS: Record<string, string> = {
   'Return parcel': 'شحنة مرتجعة',
   'Bag {bag} for {hub} · {n} parcels': 'شنطة {bag} إلى {hub} · {n} شحنة',
   'Still on lanes, not handed over to outbound': 'ما زالت على الخطوط ولم تُسلّم للإرسال',
-  'Bags': 'الشنط',
+  Bags: 'الشنط',
   'No bags yet. Scanning a parcel opens one.': 'لا توجد شنط بعد. مسح أول شحنة يفتح شنطة.',
   'Sealed, on a truck': 'مقفولة، على عربية',
   'Sealed, ready to load': 'مقفولة، جاهزة للتحميل',
-  'Outbound team: scan each parcel from its lane into its bag (this completes the handover from sorting), seal the bag, load it on the truck and mark the truck as leaving.': 'فريق الإرسال: امسح كل شحنة من خطها إلى شنطتها (وبهذا يكتمل التسليم من الفرز)، اقفل الشنطة، حمّلها على العربية وسجّل خروجها.',
+  'Outbound team: scan each parcel from its lane into its bag (this completes the handover from sorting), seal the bag, load it on the truck and mark the truck as leaving.':
+    'فريق الإرسال: امسح كل شحنة من خطها إلى شنطتها (وبهذا يكتمل التسليم من الفرز)، اقفل الشنطة، حمّلها على العربية وسجّل خروجها.',
   'Bag opened. Scan each of its {n} parcels': 'تم فتح الشنطة. امسح كل شحنة من {n} شحنة',
-  '{n} parcels were not scanned. Close the bag and mark them lost?': '{n} شحنة لم يتم مسحها. إغلاق الشنطة وتسجيلها كمفقودة؟',
+  '{n} parcels were not scanned. Close the bag and mark them lost?':
+    '{n} شحنة لم يتم مسحها. إغلاق الشنطة وتسجيلها كمفقودة؟',
   'Bag closed. Marked lost': 'تم إغلاق الشنطة. سُجلت كمفقودة',
   'Bag closed, nothing missing': 'تم إغلاق الشنطة، لا يوجد نقص',
   'Bags being checked': 'شنط تحت المراجعة',
-  'opened': 'فُتحت',
+  opened: 'فُتحت',
   'All parcels scanned': 'تم مسح كل الشحنات',
   'Not scanned yet': 'لم تُمسح بعد',
   'Close bag': 'إغلاق الشنطة',
-  'Every parcel is scanned at each handover. Here is what is waiting between two teams; red means it waited more than {h} hours.': 'كل شحنة تُمسح عند كل تسليم. هنا ما ينتظر بين فريقين، والأحمر يعني أنه انتظر أكثر من {h} ساعات.',
+  'Every parcel is scanned at each handover. Here is what is waiting between two teams; red means it waited more than {h} hours.':
+    'كل شحنة تُمسح عند كل تسليم. هنا ما ينتظر بين فريقين، والأحمر يعني أنه انتظر أكثر من {h} ساعات.',
   '{n} late': '{n} متأخرة',
   'On time': 'في الموعد',
-  'Waiting': 'مدة الانتظار',
+  Waiting: 'مدة الانتظار',
   'Nothing is waiting between teams.': 'لا يوجد شيء ينتظر بين الفرق.',
   'Marked lost here in the last 7 days': 'سُجلت مفقودة هنا خلال آخر 7 أيام',
   'No lost parcels.': 'لا توجد شحنات مفقودة.',
-  'Now': 'الآن',
+  Now: 'الآن',
   'What happened': 'ماذا حدث',
-  'When': 'متى',
+  When: 'متى',
   '{n} min': '{n} دقيقة',
   '{h} h {m} min': '{h} ساعة {m} دقيقة',
   'First mile courier': 'مندوب الاستلام',
   'Inbound team': 'فريق الاستلام',
   'Sorting team': 'فريق الفرز',
   'Outbound team': 'فريق الإرسال',
-  'Truck': 'العربية',
+  Truck: 'العربية',
   'Hub staff': 'موظف المركز',
   'Picked up, not received by inbound': 'تم استلامها من التاجر ولم يستلمها فريق الاستلام',
   'Received, not sorted yet': 'تم استلامها ولم تُفرز بعد',
@@ -288,9 +307,13 @@ export const AR_OPS: Record<string, string> = {
   'In bags, not on a truck yet': 'في شنط ولم تُحمّل على عربية',
   'Bag arrived, parcel not scanned in': 'وصلت الشنطة ولم تُمسح الشحنة',
   'Sorted on lanes, waiting for outbound': 'على الخطوط في انتظار الإرسال',
-  'Sorting put these on the lane for their next place. Outbound scans each one into its bag.': 'الفرز وضعها على خط وجهتها التالية. الإرسال يمسح كل واحدة في شنطتها.',
+  'Sorting put these on the lane for their next place. Outbound scans each one into its bag.':
+    'الفرز وضعها على خط وجهتها التالية. الإرسال يمسح كل واحدة في شنطتها.',
   'In outbound bags, waiting for a truck': 'في شنط الإرسال في انتظار عربية',
-  'Outbound scanned these into bags. Seal the bags and load the truck.': 'الإرسال مسحها في الشنط. اقفل الشنط وحمّل العربية.',
-  'Returns and rerouted parcels. Scan each one into the bag on Send back.': 'مرتجعات وشحنات محولة. امسح كل واحدة في الشنطة من صفحة الإرجاع.',
-  'This parcel was on another lane. The system put it in the right bag': 'هذه الشحنة كانت على خط آخر. النظام وضعها في الشنطة الصحيحة',
+  'Outbound scanned these into bags. Seal the bags and load the truck.':
+    'الإرسال مسحها في الشنط. اقفل الشنط وحمّل العربية.',
+  'Returns and rerouted parcels. Scan each one into the bag on Send back.':
+    'مرتجعات وشحنات محولة. امسح كل واحدة في الشنطة من صفحة الإرجاع.',
+  'This parcel was on another lane. The system put it in the right bag':
+    'هذه الشحنة كانت على خط آخر. النظام وضعها في الشنطة الصحيحة',
 };

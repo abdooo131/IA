@@ -1,6 +1,11 @@
 // API keys: "Authorization: Bearer shp_live_..." (or the X-Api-Key header). A key belongs to one
 // merchant and is LIVE or TEST. Each key may make a fixed number of calls a minute.
-import { type CanActivate, createParamDecorator, type ExecutionContext, Injectable } from '@nestjs/common';
+import {
+  type CanActivate,
+  createParamDecorator,
+  type ExecutionContext,
+  Injectable,
+} from '@nestjs/common';
 import { createHash, randomBytes } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { DomainError } from '../common/errors';
@@ -49,18 +54,35 @@ export class ApiKeyGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<Request & { api?: ApiCaller }>();
     const res = ctx.switchToHttp().getResponse<Response>();
     const header = req.headers.authorization ?? '';
-    const raw = header.startsWith('Bearer ') ? header.slice(7).trim() : String(req.headers['x-api-key'] ?? '').trim();
-    if (!raw.startsWith('shp_')) throw new DomainError('unauthenticated', 'Send your API key as "Authorization: Bearer shp_..."', 401);
+    const raw = header.startsWith('Bearer ')
+      ? header.slice(7).trim()
+      : String(req.headers['x-api-key'] ?? '').trim();
+    if (!raw.startsWith('shp_'))
+      throw new DomainError(
+        'unauthenticated',
+        'Send your API key as "Authorization: Bearer shp_..."',
+        401,
+      );
     const key = await this.prisma.apiKey.findUnique({ where: { keyHash: hashKey(raw) } });
-    if (!key || key.revokedAt) throw new DomainError('unauthenticated', 'This API key is not valid', 401);
-    const m = await this.prisma.merchant.findUnique({ where: { id: key.merchantId }, select: { isActive: true, approval: true } });
-    if (!m?.isActive || m.approval !== 'approved') throw new DomainError('forbidden', 'This merchant account is not active', 403);
+    if (!key || key.revokedAt)
+      throw new DomainError('unauthenticated', 'This API key is not valid', 401);
+    const m = await this.prisma.merchant.findUnique({
+      where: { id: key.merchantId },
+      select: { isActive: true, approval: true },
+    });
+    if (!m?.isActive || m.approval !== 'approved')
+      throw new DomainError('forbidden', 'This merchant account is not active', 403);
     rateLimit(key.id, res);
     // Updating the last use at most once a minute keeps busy keys from writing on every call.
     if (!key.lastUsedAt || Date.now() - key.lastUsedAt.getTime() > 60_000) {
       await this.prisma.apiKey.update({ where: { id: key.id }, data: { lastUsedAt: new Date() } });
     }
-    req.api = { keyId: key.id, merchantId: key.merchantId, mode: key.mode as 'LIVE' | 'TEST', userId: key.createdById };
+    req.api = {
+      keyId: key.id,
+      merchantId: key.merchantId,
+      mode: key.mode as 'LIVE' | 'TEST',
+      userId: key.createdById,
+    };
     return true;
   }
 }

@@ -284,7 +284,11 @@ async function seedSamples(
 
   // The Shiply parcel network: hubs, price zones, coverage and its demo people.
   if (options.network) {
-    await seedNetwork(prisma, { demoPassword: options.networkDemo ? options.demoPassword : undefined, everywhere: options.networkEverywhere, log });
+    await seedNetwork(prisma, {
+      demoPassword: options.networkDemo ? options.demoPassword : undefined,
+      everywhere: options.networkEverywhere,
+      log,
+    });
   }
   return merchant.id;
 }

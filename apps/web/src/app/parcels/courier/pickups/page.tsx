@@ -8,7 +8,16 @@ import { egp, shortDate } from '@/parcels/lib/format';
 import { useLoad } from '@/parcels/lib/hooks';
 import { useT } from '@/parcels/lib/i18n';
 
-type Pickup = { id: string; code: string; date: string; status: string; expectedCount: number; collected: number; notes: string; merchant: { name: string; phone: string; pickupAddress: string } };
+type Pickup = {
+  id: string;
+  code: string;
+  date: string;
+  status: string;
+  expectedCount: number;
+  collected: number;
+  notes: string;
+  merchant: { name: string; phone: string; pickupAddress: string };
+};
 
 export default function CourierPickupsPage() {
   const t = useT();
@@ -28,17 +37,55 @@ export default function CourierPickupsPage() {
   return (
     <>
       <h1 className="text-h2">{t('Pickups')}</h1>
-      <p className="mb-4 mt-1 text-body-sm text-text-muted">{t('At the merchant, scan every parcel label before it goes in your vehicle, then take them to the sorting facility.')}</p>
-      {error && <div className="mb-4"><Alert>{error}</Alert></div>}
-      {!pickups.data ? <Loading /> : pickups.data.length === 0 ? <Empty>{t('No pickups for you.')}</Empty> : (
+      <p className="mb-4 mt-1 text-body-sm text-text-muted">
+        {t(
+          'At the merchant, scan every parcel label before it goes in your vehicle, then take them to the sorting facility.',
+        )}
+      </p>
+      {error && (
+        <div className="mb-4">
+          <Alert>{error}</Alert>
+        </div>
+      )}
+      {!pickups.data ? (
+        <Loading />
+      ) : pickups.data.length === 0 ? (
+        <Empty>{t('No pickups for you.')}</Empty>
+      ) : (
         <div className="space-y-4">
           {pickups.data.map((p) => (
-            <Card key={p.id} title={p.merchant.name} actions={<Badge tone={p.status === 'ASSIGNED' ? 'amber' : 'green'}>{p.status === 'ASSIGNED' ? t('To collect') : t('Take to the facility')}</Badge>}>
-              <p className="flex gap-2 text-body-sm"><Icon name="store" size={18} className="text-text-muted" />{p.merchant.pickupAddress}</p>
-              <p className="mt-1 text-caption text-text-muted">{shortDate(p.date)} · <span className="ltr-iso">{p.code}</span> · {t('About {n} parcels', { n: p.expectedCount })}{p.notes ? ` · ${p.notes}` : ''}</p>
+            <Card
+              key={p.id}
+              title={p.merchant.name}
+              actions={
+                <Badge tone={p.status === 'ASSIGNED' ? 'amber' : 'green'}>
+                  {p.status === 'ASSIGNED' ? t('To collect') : t('Take to the facility')}
+                </Badge>
+              }
+            >
+              <p className="flex gap-2 text-body-sm">
+                <Icon name="store" size={18} className="text-text-muted" />
+                {p.merchant.pickupAddress}
+              </p>
+              <p className="mt-1 text-caption text-text-muted">
+                {shortDate(p.date)} · <span className="ltr-iso">{p.code}</span> ·{' '}
+                {t('About {n} parcels', { n: p.expectedCount })}
+                {p.notes ? ` · ${p.notes}` : ''}
+              </p>
               <div className="mt-3 grid grid-cols-2 gap-2">
-                <a href={`tel:${p.merchant.phone}`} className="btn-secondary min-h-11"><Icon name="support" size={18} />{t('Call')}</a>
-                <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.merchant.pickupAddress)}`} target="_blank" rel="noreferrer" className="btn-secondary min-h-11"><Icon name="route" size={18} />{t('Map')}</a>
+                <a href={`tel:${p.merchant.phone}`} className="btn-secondary min-h-11">
+                  <Icon name="support" size={18} />
+                  {t('Call')}
+                </a>
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(p.merchant.pickupAddress)}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-secondary min-h-11"
+                >
+                  <Icon name="route" size={18} />
+                  {t('Map')}
+                </a>
               </div>
               <div className="mt-3 flex items-center justify-between rounded-md bg-surface-raised px-3 py-2">
                 <span className="text-body-sm">{t('Collected')}</span>
@@ -55,7 +102,14 @@ export default function CourierPickupsPage() {
                       return { big: String(p.collected + 1), text: t(r.message) };
                     }}
                   />
-                  <Button className="w-full min-h-12" tone="accent" disabled={p.collected === 0} onClick={() => void finish(p)}>{t('Done, leaving the merchant')}</Button>
+                  <Button
+                    className="w-full min-h-12"
+                    tone="accent"
+                    disabled={p.collected === 0}
+                    onClick={() => void finish(p)}
+                  >
+                    {t('Done, leaving the merchant')}
+                  </Button>
                 </div>
               )}
             </Card>
@@ -67,7 +121,15 @@ export default function CourierPickupsPage() {
   );
 }
 
-interface PackOrder { id: string; code: string; payment: string; total: number; notes: string; merchant: { name: string; phone: string; pickupAddress: string }; lines: { id: string; qty: number; product: { name: string; unit: string } }[] }
+interface PackOrder {
+  id: string;
+  code: string;
+  payment: string;
+  total: number;
+  notes: string;
+  merchant: { name: string; phone: string; pickupAddress: string };
+  lines: { id: string; qty: number; product: { name: string; unit: string } }[];
+}
 
 function PackagingStop({ o, onDone }: { o: PackOrder; onDone: () => void }) {
   const t = useT();
@@ -88,26 +150,80 @@ function PackagingStop({ o, onDone }: { o: PackOrder; onDone: () => void }) {
     }
   };
   return (
-    <Card title={o.merchant.name} actions={<Badge tone="blue">{t('Packaging to hand over')}</Badge>}>
-      <p className="flex gap-2 text-body-sm"><Icon name="packaging" size={18} className="text-text-muted" />{o.merchant.pickupAddress}</p>
-      <ul className="mt-2 text-body-sm">{o.lines.map((l) => <li key={l.id}><span className="tabular font-bold">{l.qty} ×</span> {l.product.name} <span className="text-caption text-text-muted">{l.product.unit}</span></li>)}</ul>
+    <Card
+      title={o.merchant.name}
+      actions={<Badge tone="blue">{t('Packaging to hand over')}</Badge>}
+    >
+      <p className="flex gap-2 text-body-sm">
+        <Icon name="packaging" size={18} className="text-text-muted" />
+        {o.merchant.pickupAddress}
+      </p>
+      <ul className="mt-2 text-body-sm">
+        {o.lines.map((l) => (
+          <li key={l.id}>
+            <span className="tabular font-bold">{l.qty} ×</span> {l.product.name}{' '}
+            <span className="text-caption text-text-muted">{l.product.unit}</span>
+          </li>
+        ))}
+      </ul>
       {o.notes && <p className="mt-1 text-caption text-text-muted">{o.notes}</p>}
       <div className="mt-3 flex items-center justify-between rounded-md bg-surface-raised px-3 py-2">
-        <span className="text-body-sm">{o.payment === 'CASH' ? t('Collect') : t('Paid from their balance')}</span>
-        {o.payment === 'CASH' && <span className="tabular ltr-iso text-number-lg">{egp(o.total)}</span>}
+        <span className="text-body-sm">
+          {o.payment === 'CASH' ? t('Collect') : t('Paid from their balance')}
+        </span>
+        {o.payment === 'CASH' && (
+          <span className="tabular ltr-iso text-number-lg">{egp(o.total)}</span>
+        )}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
-        <a href={`tel:${o.merchant.phone}`} className="btn-secondary min-h-11"><Icon name="support" size={18} />{t('Call')}</a>
-        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.merchant.pickupAddress)}`} target="_blank" rel="noreferrer" className="btn-secondary min-h-11"><Icon name="route" size={18} />{t('Map')}</a>
+        <a href={`tel:${o.merchant.phone}`} className="btn-secondary min-h-11">
+          <Icon name="support" size={18} />
+          {t('Call')}
+        </a>
+        <a
+          href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.merchant.pickupAddress)}`}
+          target="_blank"
+          rel="noreferrer"
+          className="btn-secondary min-h-11"
+        >
+          <Icon name="route" size={18} />
+          {t('Map')}
+        </a>
       </div>
-      {msg && <div className="mt-3"><Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert></div>}
-      <Field label={t('Code from the merchant')} hint={t('Ask for the 4 numbers in their SMS only after they have the parcel')}>
+      {msg && (
+        <div className="mt-3">
+          <Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>
+        </div>
+      )}
+      <Field
+        label={t('Code from the merchant')}
+        hint={t('Ask for the 4 numbers in their SMS only after they have the parcel')}
+      >
         <div className="flex gap-2">
-          <Input inputMode="numeric" maxLength={4} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className="ltr-iso text-center text-h3 tracking-[0.4em]" />
-          <Button tone="secondary" disabled={busy} onClick={() => void call(`/courier/packaging/${o.id}/send-code`, {})}>{t('Send again')}</Button>
+          <Input
+            inputMode="numeric"
+            maxLength={4}
+            value={code}
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
+            className="ltr-iso text-center text-h3 tracking-[0.4em]"
+          />
+          <Button
+            tone="secondary"
+            disabled={busy}
+            onClick={() => void call(`/courier/packaging/${o.id}/send-code`, {})}
+          >
+            {t('Send again')}
+          </Button>
         </div>
       </Field>
-      <Button className="mt-3 min-h-12 w-full" tone="accent" disabled={busy || code.length !== 4} onClick={() => void call(`/courier/packaging/${o.id}/deliver`, { code }, onDone)}>{t('Handed over')}</Button>
+      <Button
+        className="mt-3 min-h-12 w-full"
+        tone="accent"
+        disabled={busy || code.length !== 4}
+        onClick={() => void call(`/courier/packaging/${o.id}/deliver`, { code }, onDone)}
+      >
+        {t('Handed over')}
+      </Button>
     </Card>
   );
 }
@@ -120,7 +236,9 @@ function PackagingToHand() {
   return (
     <div className="mt-6 space-y-4">
       <h2 className="text-h3">{t('Packaging to hand over')}</h2>
-      {list.data.map((o) => <PackagingStop key={o.id} o={o} onDone={() => setTimeout(() => void list.reload(), 1200)} />)}
+      {list.data.map((o) => (
+        <PackagingStop key={o.id} o={o} onDone={() => setTimeout(() => void list.reload(), 1200)} />
+      ))}
     </div>
   );
 }

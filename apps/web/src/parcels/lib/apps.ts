@@ -39,7 +39,11 @@ function hubMenus(me: Me | null): AppMenu[] {
       {
         label: 'Send out',
         pages: [
-          { href: '/parcels/hub/sort', label: 'Send back', hint: 'Returns into the bag for the facility' },
+          {
+            href: '/parcels/hub/sort',
+            label: 'Send back',
+            hint: 'Returns into the bag for the facility',
+          },
           { href: '/parcels/hub/trips', label: 'Trips' },
         ],
       },
@@ -73,7 +77,12 @@ function hubMenus(me: Me | null): AppMenu[] {
   }
   menus.push({
     label: 'Control',
-    pages: [{ href: '/parcels/hub/check', label: 'Handover check' }, { href: '/parcels/hub/damage', label: 'Report damage' }, { href: '/parcels/hub/packaging', label: 'Packaging orders' }, ...(team ? [] : [{ href: '/parcels/hub/safe', label: 'Hub safe' }])],
+    pages: [
+      { href: '/parcels/hub/check', label: 'Handover check' },
+      { href: '/parcels/hub/damage', label: 'Report damage' },
+      { href: '/parcels/hub/packaging', label: 'Packaging orders' },
+      ...(team ? [] : [{ href: '/parcels/hub/safe', label: 'Hub safe' }]),
+    ],
   });
   return menus;
 }
@@ -92,14 +101,43 @@ export function allApps(me: Me | null): AppDef[] {
         {
           label: 'Control',
           pages: [
-            { href: '/parcels/admin/alerts', label: 'Alerts', hint: 'Everything waiting for someone to act' },
-            { href: '/parcels/admin/live', label: 'Couriers on the road', hint: 'Where each courier is and how far their run is' },
-            { href: '/parcels/admin/attempts', label: 'Check failed attempts', hint: 'Call the customer and confirm what the courier recorded' },
-            { href: '/parcels/admin/qc', label: 'Quality tickets', hint: 'Penalties with a waiting time and an appeal' },
-            { href: '/parcels/admin/lost', label: 'Lost and damaged', hint: 'Parcels in search, losses paid, damage' },
+            {
+              href: '/parcels/admin/alerts',
+              label: 'Alerts',
+              hint: 'Everything waiting for someone to act',
+            },
+            {
+              href: '/parcels/admin/live',
+              label: 'Couriers on the road',
+              hint: 'Where each courier is and how far their run is',
+            },
+            {
+              href: '/parcels/admin/attempts',
+              label: 'Check failed attempts',
+              hint: 'Call the customer and confirm what the courier recorded',
+            },
+            {
+              href: '/parcels/admin/qc',
+              label: 'Quality tickets',
+              hint: 'Penalties with a waiting time and an appeal',
+            },
+            {
+              href: '/parcels/admin/lost',
+              label: 'Lost and damaged',
+              hint: 'Parcels in search, losses paid, damage',
+            },
           ],
         },
-        { label: 'Configuration', pages: [{ href: '/parcels/admin/network', label: 'Network', hint: 'Sorting facilities, hubs and areas' }] },
+        {
+          label: 'Configuration',
+          pages: [
+            {
+              href: '/parcels/admin/network',
+              label: 'Network',
+              hint: 'Sorting facilities, hubs and areas',
+            },
+          ],
+        },
       ],
     },
     {
@@ -118,8 +156,14 @@ export function allApps(me: Me | null): AppDef[] {
       color: '#BE185D',
       menus: [
         { label: 'Agents', pages: [{ href: '/parcels/admin/agents', label: 'Agents' }] },
-        { label: 'Attendance', pages: [{ href: '/parcels/admin/attendance', label: 'Attendance' }] },
-        { label: 'Vehicle requests', pages: [{ href: '/parcels/admin/vehicle-requests', label: 'Vehicle requests' }] },
+        {
+          label: 'Attendance',
+          pages: [{ href: '/parcels/admin/attendance', label: 'Attendance' }],
+        },
+        {
+          label: 'Vehicle requests',
+          pages: [{ href: '/parcels/admin/vehicle-requests', label: 'Vehicle requests' }],
+        },
       ],
     },
     {
@@ -134,12 +178,33 @@ export function allApps(me: Me | null): AppDef[] {
         {
           label: 'Packaging shop',
           pages: [
-            { href: '/parcels/admin/shop/orders', label: 'Packaging orders', hint: 'Pack, hand to a courier, follow delivery' },
-            { href: '/parcels/admin/shop/products', label: 'Products and stock', hint: 'Prices, stock counts, low stock' },
-            { href: '/parcels/admin/shop/purchase-orders', label: 'Purchase orders', hint: 'Buy from suppliers and receive the goods' },
+            {
+              href: '/parcels/admin/shop/orders',
+              label: 'Packaging orders',
+              hint: 'Pack, hand to a courier, follow delivery',
+            },
+            {
+              href: '/parcels/admin/shop/products',
+              label: 'Products and stock',
+              hint: 'Prices, stock counts, low stock',
+            },
+            {
+              href: '/parcels/admin/shop/purchase-orders',
+              label: 'Purchase orders',
+              hint: 'Buy from suppliers and receive the goods',
+            },
           ],
         },
-        { label: 'Configuration', pages: [{ href: '/parcels/admin/price-tiers', label: 'Price tiers', hint: 'Monthly volume discounts' }] },
+        {
+          label: 'Configuration',
+          pages: [
+            {
+              href: '/parcels/admin/price-tiers',
+              label: 'Price tiers',
+              hint: 'Monthly volume discounts',
+            },
+          ],
+        },
       ],
     },
     {
@@ -149,20 +214,48 @@ export function allApps(me: Me | null): AppDef[] {
       icon: 'wallet',
       color: '#15803D',
       menus: [
-        { label: 'Dashboard', pages: [{ href: '/parcels/admin/money', label: 'Overview', exact: true }] },
+        {
+          label: 'Dashboard',
+          pages: [{ href: '/parcels/admin/money', label: 'Overview', exact: true }],
+        },
         {
           label: 'Merchants',
           pages: [
-            { href: '/parcels/admin/money/payouts', label: 'Payouts', hint: 'Balances, approvals and the bank file' },
-            { href: '/parcels/admin/money/invoices', label: 'Tax invoices', hint: 'Monthly invoices, credit notes and the ETA file' },
+            {
+              href: '/parcels/admin/money/payouts',
+              label: 'Payouts',
+              hint: 'Balances, approvals and the bank file',
+            },
+            {
+              href: '/parcels/admin/money/invoices',
+              label: 'Tax invoices',
+              hint: 'Monthly invoices, credit notes and the ETA file',
+            },
           ],
         },
-        { label: 'Couriers', pages: [{ href: '/parcels/admin/money/couriers', label: 'Courier wallets', hint: 'Fawry pay ins and withdrawals' }] },
+        {
+          label: 'Couriers',
+          pages: [
+            {
+              href: '/parcels/admin/money/couriers',
+              label: 'Courier wallets',
+              hint: 'Fawry pay ins and withdrawals',
+            },
+          ],
+        },
         {
           label: 'Cash and bank',
           pages: [
-            { href: '/parcels/admin/money/safes', label: 'Hub safes', hint: 'Deposits to the bank' },
-            { href: '/parcels/admin/money/bank', label: 'Bank matching', hint: 'The bank statement against our books' },
+            {
+              href: '/parcels/admin/money/safes',
+              label: 'Hub safes',
+              hint: 'Deposits to the bank',
+            },
+            {
+              href: '/parcels/admin/money/bank',
+              label: 'Bank matching',
+              hint: 'The bank statement against our books',
+            },
           ],
         },
         {
@@ -175,7 +268,11 @@ export function allApps(me: Me | null): AppDef[] {
         {
           label: 'Vendors',
           pages: [
-            { href: '/parcels/admin/money/bills', label: 'Bills', hint: 'Supplier invoices with VAT and withholding' },
+            {
+              href: '/parcels/admin/money/bills',
+              label: 'Bills',
+              hint: 'Supplier invoices with VAT and withholding',
+            },
             { href: '/parcels/admin/money/suppliers', label: 'Suppliers' },
             { href: '/parcels/admin/money/expenses', label: 'Expenses', hint: 'Paid on the spot' },
           ],
@@ -183,7 +280,11 @@ export function allApps(me: Me | null): AppDef[] {
         {
           label: 'Reporting',
           pages: [
-            { href: '/parcels/admin/money/books', label: 'Books and reports', hint: 'Profit and loss, balance sheet, journal' },
+            {
+              href: '/parcels/admin/money/books',
+              label: 'Books and reports',
+              hint: 'Profit and loss, balance sheet, journal',
+            },
             { href: '/parcels/admin/money/profit', label: 'Profit per merchant, hub and courier' },
             { href: '/parcels/admin/money/cash-flow', label: 'Cash flow' },
             { href: '/parcels/admin/money/budgets', label: 'Budgets' },
@@ -201,7 +302,12 @@ export function allApps(me: Me | null): AppDef[] {
       menus: [
         { label: 'Users', pages: [{ href: '/parcels/admin/users', label: 'Users' }] },
         { label: 'Settings', pages: [{ href: '/parcels/admin/settings', label: 'Settings' }] },
-        { label: 'Messages', pages: [{ href: '/parcels/admin/messages', label: 'Messages', hint: 'SMS and WhatsApp outbox' }] },
+        {
+          label: 'Messages',
+          pages: [
+            { href: '/parcels/admin/messages', label: 'Messages', hint: 'SMS and WhatsApp outbox' },
+          ],
+        },
       ],
     },
   ];
@@ -216,23 +322,30 @@ export function appsFor(me: Me | null): AppDef[] {
   return [];
 }
 
-const under = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+const under = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
 
 export function pageMatches(page: AppPage, pathname: string) {
   return page.exact ? pathname === page.href : under(pathname, page.href);
 }
 
 /** The app and page a path belongs to: the page with the longest matching address wins. */
-export function locate(apps: AppDef[], pathname: string): { app: AppDef; page: AppPage | null } | null {
+export function locate(
+  apps: AppDef[],
+  pathname: string,
+): { app: AppDef; page: AppPage | null } | null {
   let best: { app: AppDef; page: AppPage } | null = null;
   for (const app of apps)
     for (const menu of app.menus)
       for (const page of menu.pages)
-        if (pageMatches(page, pathname) && (!best || page.href.length > best.page.href.length)) best = { app, page };
+        if (pageMatches(page, pathname) && (!best || page.href.length > best.page.href.length))
+          best = { app, page };
   if (best) return best;
   // A page on no menu still shows its area's app (a parcel inside Parcels, an agent inside Agents).
-  if (under(pathname, '/admin/money')) return { app: apps.find((a) => a.id === 'accounting') ?? apps[0]!, page: null };
-  if (under(pathname, '/hub')) return { app: apps.find((a) => a.id === 'hub') ?? apps[0]!, page: null };
+  if (under(pathname, '/admin/money'))
+    return { app: apps.find((a) => a.id === 'accounting') ?? apps[0]!, page: null };
+  if (under(pathname, '/hub'))
+    return { app: apps.find((a) => a.id === 'hub') ?? apps[0]!, page: null };
   if (apps[0]) return { app: apps[0], page: null };
   return null;
 }

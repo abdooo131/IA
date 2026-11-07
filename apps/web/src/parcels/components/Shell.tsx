@@ -54,9 +54,20 @@ export function useRoleText() {
   const t = useT();
   const locale = useLocale();
   const role = me.team
-    ? locale === 'ar' ? TEAM_LABELS_AR[me.team] : TEAM_LABELS[me.team]
-    : me.role === 'HUB_STAFF' && me.hub?.isSorting ? t('Supervisor')
-    : t({ ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant', AGENT: 'Agent' }[me.role]);
+    ? locale === 'ar'
+      ? TEAM_LABELS_AR[me.team]
+      : TEAM_LABELS[me.team]
+    : me.role === 'HUB_STAFF' && me.hub?.isSorting
+      ? t('Supervisor')
+      : t(
+          {
+            ADMIN: 'Admin',
+            HUB_STAFF: 'Hub staff',
+            COURIER: 'Courier',
+            MERCHANT: 'Merchant',
+            AGENT: 'Agent',
+          }[me.role],
+        );
   const place = me.hub?.name ?? me.merchant?.name ?? me.agent?.name;
   return place ? `${role} · ${place}` : role;
 }
@@ -79,16 +90,26 @@ export function Session({ roles, children }: { roles: Me['role'][]; children: Re
   return <MeContext.Provider value={me}>{children}</MeContext.Provider>;
 }
 
-function AppFrame({ badges, children }: { badges: (me: Me) => Promise<Record<string, number>>; children: ReactNode }) {
+function AppFrame({
+  badges,
+  children,
+}: {
+  badges: (me: Me) => Promise<Record<string, number>>;
+  children: ReactNode;
+}) {
   const me = useMe();
   const [counts, setCounts] = useState<Record<string, number>>({});
   useEffect(() => {
-    badges(me).then(setCounts).catch(() => undefined);
+    badges(me)
+      .then(setCounts)
+      .catch(() => undefined);
   }, [me, badges]);
   return (
     <div className="min-h-dvh">
       <AppBar apps={appsFor(me)} badges={counts} />
-      <main className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-6 lg:py-8 print:max-w-none print:p-0">{children}</main>
+      <main className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-6 lg:py-8 print:max-w-none print:p-0">
+        {children}
+      </main>
     </div>
   );
 }
@@ -96,7 +117,15 @@ function AppFrame({ badges, children }: { badges: (me: Me) => Promise<Record<str
 const noBadges = async () => ({});
 
 /** The frame of the team apps, as in Shiply Now: the app's menu bar across the top, the page below. */
-export function AppShell({ roles, badges = noBadges, children }: { roles: Me['role'][]; badges?: (me: Me) => Promise<Record<string, number>>; children: ReactNode }) {
+export function AppShell({
+  roles,
+  badges = noBadges,
+  children,
+}: {
+  roles: Me['role'][];
+  badges?: (me: Me) => Promise<Record<string, number>>;
+  children: ReactNode;
+}) {
   return (
     <Session roles={roles}>
       <AppFrame badges={badges}>{children}</AppFrame>
@@ -125,14 +154,24 @@ function DeskFrame({ groups, children }: { groups: (me: Me) => NavGroup[]; child
         />
       </div>
       <main className="min-w-0 flex-1">
-        <div className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-6 lg:py-8 print:max-w-none print:p-0">{children}</div>
+        <div className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-6 lg:py-8 print:max-w-none print:p-0">
+          {children}
+        </div>
       </main>
     </div>
   );
 }
 
 /** The frame of the merchant and agent desks, as in Shiply Now: the side menu, the page beside it. */
-export function DeskShell({ roles, groups, children }: { roles: Me['role'][]; groups: (me: Me) => NavGroup[]; children: ReactNode }) {
+export function DeskShell({
+  roles,
+  groups,
+  children,
+}: {
+  roles: Me['role'][];
+  groups: (me: Me) => NavGroup[];
+  children: ReactNode;
+}) {
   return (
     <Session roles={roles}>
       <DeskFrame groups={groups}>{children}</DeskFrame>
@@ -141,7 +180,15 @@ export function DeskShell({ roles, groups, children }: { roles: Me['role'][]; gr
 }
 
 /** The phone screens (couriers), as in Shiply Now's store and rider screens: header, page, tabs. */
-export function PhoneShell({ roles, tabs, children }: { roles: Me['role'][]; tabs: Tab[]; children: ReactNode }) {
+export function PhoneShell({
+  roles,
+  tabs,
+  children,
+}: {
+  roles: Me['role'][];
+  tabs: Tab[];
+  children: ReactNode;
+}) {
   const t = useT();
   return (
     <Session roles={roles}>

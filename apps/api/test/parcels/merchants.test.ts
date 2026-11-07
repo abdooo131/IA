@@ -11,7 +11,7 @@ let app: INestApplication;
 let prisma: any;
 let desk: any;
 type Client = ReturnType<typeof request.agent>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 const as: Record<string, any> = {};
 const hubs: Record<string, string> = {};
 const users: Record<string, string> = {};
@@ -28,15 +28,27 @@ async function login(id: string, password = 'demo123456', status = 200): Promise
 
 async function ok<T = any>(req: request.Test, status = 200): Promise<T> {
   const res = await req;
-  if (res.status !== status) throw new Error(`Expected ${status}, got ${res.status}: ${JSON.stringify(res.body)}`);
+  if (res.status !== status)
+    throw new Error(`Expected ${status}, got ${res.status}: ${JSON.stringify(res.body)}`);
   return res.body as T;
 }
 
 const parcel = (extra: object = {}) =>
-  ok(as.merchant!.post('/parcels/merchant/shipments').send({ customerName: 'Mona', customerPhone: '01012345678', address: '5 Tahrir St', governorateCode: 'EG-GZ', areaId: dokki.id, codAmount: 30000, ...extra }), 201);
+  ok(
+    as.merchant!.post('/parcels/merchant/shipments').send({
+      customerName: 'Mona',
+      customerPhone: '01012345678',
+      address: '5 Tahrir St',
+      governorateCode: 'EG-GZ',
+      areaId: dokki.id,
+      codAmount: 30000,
+      ...extra,
+    }),
+    201,
+  );
 
 beforeAll(async () => {
-    const { PrismaService } = await import('../../src/parcels/common/prisma.service');
+  const { PrismaService } = await import('../../src/parcels/common/prisma.service');
   const { MerchantDeskService } = await import('../../src/parcels/merchant/desk.service');
   app = await createNetworkApp();
   prisma = app.get(PrismaService);
@@ -46,7 +58,8 @@ beforeAll(async () => {
   as.giz = await login('staff.giz@shiply.local');
   as.courierGiz = await login('courier.giz@shiply.local');
   for (const h of await ok(as.admin.get('/parcels/admin/hubs'))) hubs[h.code] = h.id;
-  for (const u of await ok(as.admin.get('/parcels/admin/users'))) if (u.email) users[u.email] = u.id;
+  for (const u of await ok(as.admin.get('/parcels/admin/users')))
+    if (u.email) users[u.email] = u.id;
   merchantId = (await ok(as.merchant.get('/parcels/auth/me'))).merchantId;
   const locs = await ok(as.merchant.get('/parcels/reference/locations'));
   dokki = locs.find((g: any) => g.code === 'EG-GZ').areas.find((a: any) => a.nameEn === 'Dokki');
@@ -58,7 +71,12 @@ afterAll(async () => {
 
 describe('merchants and customers', () => {
   it('prices: list price, open package fee, exchange surcharge, agreed price, volume tier', async () => {
-    const q = (extra = '') => ok(as.merchant!.get(`/parcels/merchant/quote?governorateCode=EG-GZ&areaId=${dokki.id}&size=M${extra}`));
+    const q = (extra = '') =>
+      ok(
+        as.merchant!.get(
+          `/parcels/merchant/quote?governorateCode=EG-GZ&areaId=${dokki.id}&size=M${extra}`,
+        ),
+      );
     const base = await q();
     expect(base.basePrice).toBe(6000);
     expect(base.shippingFee).toBe(6000);
@@ -66,7 +84,11 @@ describe('merchants and customers', () => {
     expect((await q('&allowOpen=true')).shippingFee).toBe(6500);
     expect((await q('&exchange=true')).shippingFee).toBe(9000);
 
-    await ok(as.admin!.put(`/parcels/admin/merchants/${merchantId}/prices`).send({ prices: [{ zoneCode: 'GC', size: 'M', price: 4500 }] }));
+    await ok(
+      as
+        .admin!.put(`/parcels/admin/merchants/${merchantId}/prices`)
+        .send({ prices: [{ zoneCode: 'GC', size: 'M', price: 4500 }] }),
+    );
     const agreed = await q();
     expect(agreed.shippingFee).toBe(4500);
     expect(agreed.agreed).toBe(true);
@@ -74,10 +96,21 @@ describe('merchants and customers', () => {
     expect(p.shippingFee).toBe(5000);
     expect(p.basePrice).toBe(4500);
     expect(p.openFee).toBe(500);
-    await ok(as.admin!.put(`/parcels/admin/merchants/${merchantId}/prices`).send({ prices: [{ zoneCode: 'GC', size: 'M', price: null }] }));
+    await ok(
+      as
+        .admin!.put(`/parcels/admin/merchants/${merchantId}/prices`)
+        .send({ prices: [{ zoneCode: 'GC', size: 'M', price: null }] }),
+    );
 
     // One parcel last month puts the merchant in a tier that starts at 1.
-    await ok(as.admin!.put('/parcels/admin/price-tiers').send({ tiers: [{ name: 'Starter', minParcels: 0, discountBp: 0 }, { name: 'Busy', minParcels: 1, discountBp: 1000 }] }));
+    await ok(
+      as.admin!.put('/parcels/admin/price-tiers').send({
+        tiers: [
+          { name: 'Starter', minParcels: 0, discountBp: 0 },
+          { name: 'Busy', minParcels: 1, discountBp: 1000 },
+        ],
+      }),
+    );
     const d = new Date();
     d.setUTCDate(10);
     d.setUTCMonth(d.getUTCMonth() - 1);
@@ -92,23 +125,56 @@ describe('merchants and customers', () => {
     const x = await parcel({ exchange: true });
     expect(x.kind).toBe('EXCHANGE');
     expect(x.exchangeFee).toBeGreaterThan(0);
-    await prisma.shipment.update({ where: { id: x.id }, data: { status: 'AT_HUB', currentHubId: hubs.GIZ } });
-    const run = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] }), 201);
-    await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/add`).send({ code: x.trackingNumber }));
+    await prisma.shipment.update({
+      where: { id: x.id },
+      data: { status: 'AT_HUB', currentHubId: hubs.GIZ },
+    });
+    const run = await ok(
+      as
+        .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`)
+        .send({ courierId: users['courier.giz@shiply.local'] }),
+      201,
+    );
+    await ok(
+      as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/add`).send({ code: x.trackingNumber }),
+    );
     await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/start`));
     // The customer gets a message when it goes out.
     const out = await ok(as.admin!.get('/parcels/admin/messages'));
-    expect(out.some((m: any) => m.template === 'OUT_FOR_DELIVERY' && m.shipmentId === x.id && m.status === 'QUEUED')).toBe(true);
+    expect(
+      out.some(
+        (m: any) =>
+          m.template === 'OUT_FOR_DELIVERY' && m.shipmentId === x.id && m.status === 'QUEUED',
+      ),
+    ).toBe(true);
 
     const stop = (await ok(as.courierGiz!.get('/parcels/courier/run'))).items[0];
-    const r = await ok(as.courierGiz!.post(`/parcels/courier/stops/${stop.id}/deliver`).send({ codCollected: 30000 }));
+    const r = await ok(
+      as
+        .courierGiz!.post(`/parcels/courier/stops/${stop.id}/deliver`)
+        .send({ codCollected: 30000 }),
+    );
     expect(r.exchangeReturn).toBeDefined();
-    expect((await ok(as.admin!.get('/parcels/admin/messages'))).some((m: any) => m.template === 'DELIVERED' && m.shipmentId === x.id)).toBe(true);
+    expect(
+      (await ok(as.admin!.get('/parcels/admin/messages'))).some(
+        (m: any) => m.template === 'DELIVERED' && m.shipmentId === x.id,
+      ),
+    ).toBe(true);
     // The run cannot close until the old item is scanned in at the hub.
-    expect((await as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/close`).send({ cashReceived: 30000 })).status).toBe(409);
-    const back = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/inbound`).send({ code: r.exchangeReturn }));
+    expect(
+      (
+        await as
+          .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/close`)
+          .send({ cashReceived: 30000 })
+      ).status,
+    ).toBe(409);
+    const back = await ok(
+      as.giz!.post(`/parcels/hubs/${hubs.GIZ}/inbound`).send({ code: r.exchangeReturn }),
+    );
     expect(back.message).toContain('Exchange');
-    await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/close`).send({ cashReceived: 30000 }));
+    await ok(
+      as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/close`).send({ cashReceived: 30000 }),
+    );
     const ret = await prisma.shipment.findUnique({ where: { trackingNumber: r.exchangeReturn } });
     expect(ret.direction).toBe('RETURN');
     expect(ret.kind).toBe('EXCHANGE_RETURN');
@@ -117,25 +183,66 @@ describe('merchants and customers', () => {
 
   it('a business signs up with a phone code and waits for approval', async () => {
     await ok(pub().post('/parcels/auth/signup/code').send({ phone: '01155544433' }));
-    const msg = await prisma.message.findFirst({ where: { to: '+201155544433', template: 'OTP' }, orderBy: { createdAt: 'desc' } });
+    const msg = await prisma.message.findFirst({
+      where: { to: '+201155544433', template: 'OTP' },
+      orderBy: { createdAt: 'desc' },
+    });
     const code = /(\d{6})/.exec(msg.body)![1];
-    const form = { phone: '01155544433', businessName: 'Cairo Gifts', contactName: 'Sara Adel', email: 'sara@cairogifts.example', password: 'gifts12345', pickupAddress: '10 Abbas St, Nasr City', governorateCode: 'EG-C' };
+    const form = {
+      phone: '01155544433',
+      businessName: 'Cairo Gifts',
+      contactName: 'Sara Adel',
+      email: 'sara@cairogifts.example',
+      password: 'gifts12345',
+      pickupAddress: '10 Abbas St, Nasr City',
+      governorateCode: 'EG-C',
+    };
     const wrong = code === '000000' ? '111111' : '000000';
-    expect((await pub().post('/parcels/auth/signup').send({ ...form, code: wrong })).status).toBe(422);
-    const r = await ok(pub().post('/parcels/auth/signup').send({ ...form, code }), 201);
-    expect((await pub().post('/parcels/auth/signup').send({ ...form, email: 'other@x.example', code })).status).toBe(422); // code used
+    expect(
+      (
+        await pub()
+          .post('/parcels/auth/signup')
+          .send({ ...form, code: wrong })
+      ).status,
+    ).toBe(422);
+    const r = await ok(
+      pub()
+        .post('/parcels/auth/signup')
+        .send({ ...form, code }),
+      201,
+    );
+    expect(
+      (
+        await pub()
+          .post('/parcels/auth/signup')
+          .send({ ...form, email: 'other@x.example', code })
+      ).status,
+    ).toBe(422); // code used
     await login('sara@cairogifts.example', 'gifts12345', 403); // not approved yet (account_pending)
-    expect((await ok(as.admin!.get('/parcels/admin/signups'))).some((m: any) => m.id === r.id)).toBe(true);
+    expect(
+      (await ok(as.admin!.get('/parcels/admin/signups'))).some((m: any) => m.id === r.id),
+    ).toBe(true);
     await ok(as.admin!.post(`/parcels/admin/merchants/${r.id}/signup/approve`));
     const sara = await login('sara@cairogifts.example', 'gifts12345');
     const me = await ok(sara.get('/parcels/merchant/profile'));
     expect(me.homeHub.isSorting).toBe(true);
-    for (let i = 0; i < 2; i++) await ok(pub().post('/parcels/auth/signup/code').send({ phone: '01155544433' }));
-    expect((await pub().post('/parcels/auth/signup/code').send({ phone: '01155544433' })).status).toBe(429);
+    for (let i = 0; i < 2; i++)
+      await ok(pub().post('/parcels/auth/signup/code').send({ phone: '01155544433' }));
+    expect(
+      (await pub().post('/parcels/auth/signup/code').send({ phone: '01155544433' })).status,
+    ).toBe(429);
   });
 
   it('team members only work where they have the right', async () => {
-    await ok(as.merchant!.post('/parcels/merchant/team').send({ name: 'Hany', email: 'hany@evechantelle.example', password: 'hany12345', rights: ['orders'] }), 201);
+    await ok(
+      as.merchant!.post('/parcels/merchant/team').send({
+        name: 'Hany',
+        email: 'hany@evechantelle.example',
+        password: 'hany12345',
+        rights: ['orders'],
+      }),
+      201,
+    );
     const hany = await login('hany@evechantelle.example', 'hany12345');
     await ok(hany.get('/parcels/merchant/shipments'));
     expect((await hany.get('/parcels/merchant/statement')).status).toBe(403);
@@ -145,40 +252,99 @@ describe('merchants and customers', () => {
 
   it('the customer postpones, confirms, cancels and rates on the tracking page; the logo shows', async () => {
     const png = Buffer.from('89504e470d0a1a0a0000000d49484452', 'hex').toString('base64');
-    await ok(as.merchant!.put('/parcels/merchant/logo').send({ mime: 'image/png', dataBase64: png }));
+    await ok(
+      as.merchant!.put('/parcels/merchant/logo').send({ mime: 'image/png', dataBase64: png }),
+    );
     const p = await parcel();
     const logo = await pub().get(`/parcels/track/${p.trackingNumber}/logo`);
     expect(logo.status).toBe(200);
     expect(logo.headers['content-type']).toContain('image/png');
     expect((await ok(pub().get(`/parcels/track/${p.trackingNumber}`))).hasLogo).toBe(true);
 
-    expect((await pub().post(`/parcels/track/${p.trackingNumber}/action`).send({ action: 'CONFIRM', phoneLast4: '9999' })).status).toBe(404);
-    await ok(pub().post(`/parcels/track/${p.trackingNumber}/action`).send({ action: 'CONFIRM', phoneLast4: '5678', note: 'Third floor, ring twice' }));
+    expect(
+      (
+        await pub()
+          .post(`/parcels/track/${p.trackingNumber}/action`)
+          .send({ action: 'CONFIRM', phoneLast4: '9999' })
+      ).status,
+    ).toBe(404);
+    await ok(
+      pub()
+        .post(`/parcels/track/${p.trackingNumber}/action`)
+        .send({ action: 'CONFIRM', phoneLast4: '5678', note: 'Third floor, ring twice' }),
+    );
     const tomorrow = new Date(Date.now() + 26 * 3600e3).toISOString().slice(0, 10);
-    await ok(pub().post(`/parcels/track/${p.trackingNumber}/action`).send({ action: 'POSTPONE', phoneLast4: '5678', date: tomorrow }));
+    await ok(
+      pub()
+        .post(`/parcels/track/${p.trackingNumber}/action`)
+        .send({ action: 'POSTPONE', phoneLast4: '5678', date: tomorrow }),
+    );
     // On the shelf until that day: it cannot go out today.
-    await prisma.shipment.update({ where: { id: p.id }, data: { status: 'AT_HUB', currentHubId: hubs.GIZ } });
-    await prisma.run.updateMany({ where: { courierId: users['courier.giz@shiply.local'] }, data: { status: 'CLOSED' } });
-    const run = await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] }), 201);
-    const blocked = await as.giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/add`).send({ code: p.trackingNumber });
+    await prisma.shipment.update({
+      where: { id: p.id },
+      data: { status: 'AT_HUB', currentHubId: hubs.GIZ },
+    });
+    await prisma.run.updateMany({
+      where: { courierId: users['courier.giz@shiply.local'] },
+      data: { status: 'CLOSED' },
+    });
+    const run = await ok(
+      as
+        .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs`)
+        .send({ courierId: users['courier.giz@shiply.local'] }),
+      201,
+    );
+    const blocked = await as
+      .giz!.post(`/parcels/hubs/${hubs.GIZ}/runs/${run.id}/add`)
+      .send({ code: p.trackingNumber });
     expect(blocked.status).toBe(409);
     expect(blocked.body.error).toBe('postponed');
 
     const c = await parcel();
-    await ok(pub().post(`/parcels/track/${c.trackingNumber}/action`).send({ action: 'CANCEL', phoneLast4: '5678', note: 'Bought it elsewhere' }));
-    expect((await ok(as.admin!.get('/parcels/admin/alerts'))).some((a: any) => a.kind === 'CUSTOMER_CANCELLED')).toBe(true);
+    await ok(
+      pub()
+        .post(`/parcels/track/${c.trackingNumber}/action`)
+        .send({ action: 'CANCEL', phoneLast4: '5678', note: 'Bought it elsewhere' }),
+    );
+    expect(
+      (await ok(as.admin!.get('/parcels/admin/alerts'))).some(
+        (a: any) => a.kind === 'CUSTOMER_CANCELLED',
+      ),
+    ).toBe(true);
 
-    const delivered = await prisma.shipment.findFirst({ where: { merchantId, status: 'DELIVERED' } });
-    await ok(pub().post(`/parcels/track/${delivered.trackingNumber}/action`).send({ action: 'RATE', phoneLast4: '5678', rating: 2, note: 'Late' }));
-    expect((await pub().post(`/parcels/track/${delivered.trackingNumber}/action`).send({ action: 'RATE', phoneLast4: '5678', rating: 5 })).status).toBe(409);
-    expect((await ok(as.admin!.get('/parcels/admin/alerts'))).some((a: any) => a.kind === 'LOW_RATING')).toBe(true);
+    const delivered = await prisma.shipment.findFirst({
+      where: { merchantId, status: 'DELIVERED' },
+    });
+    await ok(
+      pub()
+        .post(`/parcels/track/${delivered.trackingNumber}/action`)
+        .send({ action: 'RATE', phoneLast4: '5678', rating: 2, note: 'Late' }),
+    );
+    expect(
+      (
+        await pub()
+          .post(`/parcels/track/${delivered.trackingNumber}/action`)
+          .send({ action: 'RATE', phoneLast4: '5678', rating: 5 })
+      ).status,
+    ).toBe(409);
+    expect(
+      (await ok(as.admin!.get('/parcels/admin/alerts'))).some((a: any) => a.kind === 'LOW_RATING'),
+    ).toBe(true);
   });
 
   it('recurring pickups are booked on their days, once', async () => {
-    await ok(as.merchant!.put('/parcels/merchant/recurring-pickup').send({ weekdays: [0, 1, 2, 3, 4, 5, 6], notes: 'Every day at 2pm' }));
+    await ok(
+      as
+        .merchant!.put('/parcels/merchant/recurring-pickup')
+        .send({ weekdays: [0, 1, 2, 3, 4, 5, 6], notes: 'Every day at 2pm' }),
+    );
     expect(await desk.createRecurringPickups()).toBe(1);
     expect(await desk.createRecurringPickups()).toBe(0);
-    expect((await ok(as.merchant!.get('/parcels/merchant/pickups'))).some((p: any) => p.notes === 'Every day at 2pm')).toBe(true);
+    expect(
+      (await ok(as.merchant!.get('/parcels/merchant/pickups'))).some(
+        (p: any) => p.notes === 'Every day at 2pm',
+      ),
+    ).toBe(true);
   });
 
   it('analytics: delivered, rate, cost per order', async () => {

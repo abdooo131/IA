@@ -31,7 +31,11 @@ export function addDays(date: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export function addBusinessDays(date: string, days: number, weekendDays: readonly number[]): string {
+export function addBusinessDays(
+  date: string,
+  days: number,
+  weekendDays: readonly number[],
+): string {
   let current = date;
   let left = days;
   while (left > 0) {
@@ -66,7 +70,10 @@ export function promisedDate(
 
 /** Minutes Cairo is ahead of UTC at a given instant (120 in winter, 180 in summer). */
 export function cairoOffsetMinutes(at: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: BUSINESS_TZ, timeZoneName: 'longOffset' }).formatToParts(at);
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: BUSINESS_TZ,
+    timeZoneName: 'longOffset',
+  }).formatToParts(at);
   const name = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+02:00';
   const m = /GMT([+-])(\d{2}):?(\d{2})?/.exec(name);
   if (!m) return 120;

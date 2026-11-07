@@ -28,7 +28,7 @@ const TONE: Record<string, 'amber' | 'blue' | 'green' | 'red' | 'slate'> = {
 export function RequestBadge({ status, posted }: { status: string; posted?: boolean }) {
   const t = useT();
   // Expenses and journals use PAID to mean posted to the books.
-  const label = posted && status === 'PAID' ? 'Posted' : REQUEST_LABEL[status] ?? status;
+  const label = posted && status === 'PAID' ? 'Posted' : (REQUEST_LABEL[status] ?? status);
   return <Badge tone={TONE[status] ?? 'slate'}>{t(label)}</Badge>;
 }
 
@@ -42,15 +42,35 @@ export function readFile(file: File): Promise<FileBody> {
   return new Promise((resolve, reject) => {
     if (file.size > 5 * 1024 * 1024) return reject(new Error('The file is larger than 5 MB'));
     const r = new FileReader();
-    r.onload = () => resolve({ fileName: file.name, mime: file.type, dataBase64: String(r.result) });
+    r.onload = () =>
+      resolve({ fileName: file.name, mime: file.type, dataBase64: String(r.result) });
     r.onerror = () => reject(new Error('Could not read the file'));
     r.readAsDataURL(file);
   });
 }
 
 /** Amount typed in pounds ("125.50"), kept as text, turned into piastres on submit. */
-export function MoneyInput({ value, onChange, required, placeholder }: { value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string }) {
-  return <Input inputMode="decimal" required={required} placeholder={placeholder ?? '0.00'} className="ltr-iso" value={value} onChange={(e) => onChange(e.target.value)} />;
+export function MoneyInput({
+  value,
+  onChange,
+  required,
+  placeholder,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <Input
+      inputMode="decimal"
+      required={required}
+      placeholder={placeholder ?? '0.00'}
+      className="ltr-iso"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    />
+  );
 }
 
 export function toPiastres(text: string): number {
@@ -79,7 +99,8 @@ export function useRunner(reload?: () => unknown) {
       setBusy(false);
     }
   };
-  const call = (path: string, body: unknown = {}, okText = 'Done') => run(() => api(path, { body }), okText);
+  const call = (path: string, body: unknown = {}, okText = 'Done') =>
+    run(() => api(path, { body }), okText);
   const view = msg ? <Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert> : null;
   return { run, call, view, busy, setMsg };
 }
@@ -87,10 +108,10 @@ export function useRunner(reload?: () => unknown) {
 /** Downloads a file from the API under the name given. */
 export async function downloadFile(path: string, name: string) {
   const res = await fetch(`/api/parcels${path}`, { credentials: 'same-origin' });
-  if (!res.ok) throw new Error((await res.json().catch(() => null))?.message ?? 'Could not download');
+  if (!res.ok)
+    throw new Error((await res.json().catch(() => null))?.message ?? 'Could not download');
   const a = document.createElement('a');
   a.href = URL.createObjectURL(await res.blob());
   a.download = name;
   a.click();
 }
-

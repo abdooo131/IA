@@ -8,7 +8,8 @@ import { appsFor } from '@/parcels/lib/apps';
 import { useT } from '@/parcels/lib/i18n';
 
 const ROLES: Me['role'][] = ['ADMIN', 'HUB_STAFF'];
-const tile = 'flex h-full flex-col items-center gap-3 rounded-xl border border-line bg-surface px-3 py-6 text-center hover:border-primary hover:shadow-md';
+const tile =
+  'flex h-full flex-col items-center gap-3 rounded-xl border border-line bg-surface px-3 py-6 text-center hover:border-primary hover:shadow-md';
 
 function Home() {
   const t = useT();
@@ -24,7 +25,9 @@ function Home() {
       </header>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center px-4 py-12">
         <h1 className="text-h2">{t('Hello {name}', { name: me.name })}</h1>
-        <p className="mt-1 text-center text-body-sm text-text-muted">{t('Pick an app. The grid button at the top left of every app brings you back here.')}</p>
+        <p className="mt-1 text-center text-body-sm text-text-muted">
+          {t('Pick an app. The grid button at the top left of every app brings you back here.')}
+        </p>
         <ul className="mt-10 grid w-full grid-cols-2 gap-4 sm:grid-cols-3">
           {apps.map((app) => (
             <li key={app.id}>

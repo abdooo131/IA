@@ -59,7 +59,9 @@ export function setupApp(app: INestApplication) {
   app.use('/parcels/integrations/shopify/webhooks', raw({ type: () => true, limit: '1mb' }));
   // Wrapped: Nest skips its own JSON parser when a middleware named jsonParser already exists.
   const parcelsJson = json({ limit: '8mb' });
-  app.use('/parcels', (req: Request, res: Response, next: NextFunction) => parcelsJson(req, res, next));
+  app.use('/parcels', (req: Request, res: Response, next: NextFunction) =>
+    parcelsJson(req, res, next),
+  );
   app.use(
     ['/shopify/fs', '/shopify/webhooks', '/shopify/rates'],
     raw({ type: () => true, limit: '1mb' }),

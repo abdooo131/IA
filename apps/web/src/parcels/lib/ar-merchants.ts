@@ -17,7 +17,8 @@ export const AR_MERCHANTS: Record<string, string> = {
   Growing: 'نمو',
   Established: 'ثابت',
   'Key account': 'عميل رئيسي',
-  'Exchange: the courier brings the old item back in the same visit': 'استبدال: المندوب يرجع القطعة القديمة في نفس الزيارة',
+  'Exchange: the courier brings the old item back in the same visit':
+    'استبدال: المندوب يرجع القطعة القديمة في نفس الزيارة',
   'Shipping price': 'سعر الشحن',
   '{n} days': '{n} يوم',
   'List price': 'السعر الأساسي',
@@ -38,7 +39,8 @@ export const AR_MERCHANTS: Record<string, string> = {
   'Thank you for your rating': 'شكرا على تقييمك',
   'Thank you. The courier will see your note': 'شكرا. سيرى المندوب ملاحظتك',
   'We told the store. They will contact you': 'أبلغنا المتجر وسيتواصل معك',
-  'Open an account in a few minutes. We call you to switch it on.': 'افتح حسابك في دقائق، وسنتصل بك لتفعيله.',
+  'Open an account in a few minutes. We call you to switch it on.':
+    'افتح حسابك في دقائق، وسنتصل بك لتفعيله.',
   'Open a merchant account': 'فتح حساب تاجر',
   'We send a 6 digit code to it': 'سنرسل له كودا من 6 أرقام',
   'Send the code': 'أرسل الكود',
@@ -67,13 +69,16 @@ export const AR_MERCHANTS: Record<string, string> = {
   'Fees on closed parcels': 'رسوم الشحنات المنتهية',
   'of which VAT': 'منها ضريبة',
   'My prices': 'أسعاري',
-  'Shipping per parcel, VAT included. The more you ship, the lower your tier price next month.': 'سعر الشحن للشحنة شامل الضريبة. كلما شحنت أكثر قل سعرك الشهر القادم.',
+  'Shipping per parcel, VAT included. The more you ship, the lower your tier price next month.':
+    'سعر الشحن للشحنة شامل الضريبة. كلما شحنت أكثر قل سعرك الشهر القادم.',
   'Your agreed discount: {pct}%': 'خصمك المتفق عليه: {pct}%',
-  'Your tier: {name} ({pct}% off), from {n} parcels last month': 'فئتك: {name} (خصم {pct}%) من {n} شحنة الشهر الماضي',
+  'Your tier: {name} ({pct}% off), from {n} parcels last month':
+    'فئتك: {name} (خصم {pct}%) من {n} شحنة الشهر الماضي',
   Agreed: 'متفق عليه',
   Team: 'الفريق',
   'Only the account owner can manage the team': 'صاحب الحساب فقط يدير الفريق',
-  'Give your staff their own sign in, with only the parts they need': 'أعط موظفيك دخولا خاصا بهم بما يحتاجونه فقط',
+  'Give your staff their own sign in, with only the parts they need':
+    'أعط موظفيك دخولا خاصا بهم بما يحتاجونه فقط',
   'Add a team member': 'إضافة عضو للفريق',
   'Team member added': 'تمت إضافة العضو',
   'Can open': 'يمكنه فتح',
@@ -87,7 +92,8 @@ export const AR_MERCHANTS: Record<string, string> = {
   'PNG, JPG or WebP, under 500 KB': 'PNG أو JPG أو WebP أقل من 500 كيلوبايت',
   'Logo saved. Customers see it on the tracking page': 'تم حفظ الشعار. يراه العملاء في صفحة التتبع',
   'Regular pickups': 'استلام ثابت',
-  'On these days we book a pickup for you each morning, when you have parcels waiting': 'في هذه الأيام نحجز لك استلاما كل صباح إذا كانت لديك شحنات جاهزة',
+  'On these days we book a pickup for you each morning, when you have parcels waiting':
+    'في هذه الأيام نحجز لك استلاما كل صباح إذا كانت لديك شحنات جاهزة',
   'Notes for the pickup courier': 'ملاحظات لمندوب الاستلام',
   On: 'مفعل',
   'From the customer': 'من العميل',
@@ -95,7 +101,8 @@ export const AR_MERCHANTS: Record<string, string> = {
   'Rated {n} of 5': 'قيّم {n} من 5',
   'Merchant sign ups': 'تسجيلات التجار',
   'Sign ups': 'التسجيلات',
-  'Call the business, then approve. Their phone was checked with a code': 'اتصل بالنشاط ثم وافق. تم التحقق من الهاتف بكود',
+  'Call the business, then approve. Their phone was checked with a code':
+    'اتصل بالنشاط ثم وافق. تم التحقق من الهاتف بكود',
   'No sign ups waiting': 'لا توجد تسجيلات في الانتظار',
   'Approved. They can sign in now': 'تمت الموافقة. يمكنهم الدخول الآن',
   Business: 'النشاط',
@@ -103,16 +110,19 @@ export const AR_MERCHANTS: Record<string, string> = {
   'Signed up': 'تاريخ التسجيل',
   'Price tiers': 'فئات الأسعار',
   'Monthly volume discounts': 'خصومات حسب الكمية الشهرية',
-  'A merchant without an agreed discount gets the tier their parcels last month reached': 'التاجر بدون خصم متفق عليه يأخذ الفئة التي وصلت لها شحناته الشهر الماضي',
+  'A merchant without an agreed discount gets the tier their parcels last month reached':
+    'التاجر بدون خصم متفق عليه يأخذ الفئة التي وصلت لها شحناته الشهر الماضي',
   'From parcels a month': 'من عدد شحنات شهريا',
   'Discount %': 'الخصم %',
   'Add tier': 'إضافة فئة',
   Remove: 'حذف',
   'Agreed prices': 'الأسعار المتفق عليها',
-  'Fill a cell to agree a price for that zone and size, VAT included. Empty cells use the list price with their discount or tier': 'املأ الخانة لتتفق على سعر لهذه المنطقة والحجم شامل الضريبة. الخانات الفارغة تستخدم السعر الأساسي مع الخصم أو الفئة',
+  'Fill a cell to agree a price for that zone and size, VAT included. Empty cells use the list price with their discount or tier':
+    'املأ الخانة لتتفق على سعر لهذه المنطقة والحجم شامل الضريبة. الخانات الفارغة تستخدم السعر الأساسي مع الخصم أو الفئة',
   Messages: 'الرسائل',
   'SMS and WhatsApp outbox': 'صندوق رسائل SMS وواتساب',
-  'Customer messages and sign up codes. Until an SMS or WhatsApp provider is connected they stay queued here': 'رسائل العملاء وأكواد التسجيل. تبقى في الانتظار هنا حتى ربط مزود SMS أو واتساب',
+  'Customer messages and sign up codes. Until an SMS or WhatsApp provider is connected they stay queued here':
+    'رسائل العملاء وأكواد التسجيل. تبقى في الانتظار هنا حتى ربط مزود SMS أو واتساب',
   Queued: 'في الانتظار',
   Sent: 'أرسلت',
   Failed: 'فشلت',
@@ -128,7 +138,8 @@ export const AR_MERCHANTS: Record<string, string> = {
   'Open package fee ': 'رسوم فتح الشحنة',
   'Exchange surcharge': 'رسوم الاستبدال',
   'Share of shipping added to an exchange parcel': 'نسبة من الشحن تضاف لشحنة الاستبدال',
-  'Added when the customer may open the parcel before paying': 'تضاف عندما يسمح للعميل بفتح الشحنة قبل الدفع',
+  'Added when the customer may open the parcel before paying':
+    'تضاف عندما يسمح للعميل بفتح الشحنة قبل الدفع',
   'Customer messages by': 'رسائل العملاء عبر',
   'WhatsApp or SMS': 'واتساب أو SMS',
   'Tracking page address': 'عنوان صفحة التتبع',

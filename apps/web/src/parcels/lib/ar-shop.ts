@@ -9,7 +9,8 @@ export const AR_SHOP: Record<string, string> = {
   'Buy from suppliers and receive the goods': 'الشراء من الموردين واستلام البضاعة',
 
   // merchant shop
-  'Flyers, boxes and tape from our stock, delivered to your pickup address': 'أكياس وكراتين وشريط لاصق من مخزوننا، توصل لعنوان الاستلام',
+  'Flyers, boxes and tape from our stock, delivered to your pickup address':
+    'أكياس وكراتين وشريط لاصق من مخزوننا، توصل لعنوان الاستلام',
   'The packaging shop is closed right now': 'متجر مواد التغليف مغلق الآن',
   'Nothing for sale yet': 'لا توجد منتجات للبيع بعد',
   'Out of stock': 'نفدت الكمية',
@@ -28,13 +29,16 @@ export const AR_SHOP: Record<string, string> = {
   'From my balance ({amount})': 'من رصيدي ({amount})',
   'Best time to deliver': 'أفضل وقت للتوصيل',
   'Place order': 'اطلب الآن',
-  'Order placed. We will send you a code by SMS when it is on its way': 'تم الطلب. سنرسل لك كودا برسالة عندما يكون في الطريق',
+  'Order placed. We will send you a code by SMS when it is on its way':
+    'تم الطلب. سنرسل لك كودا برسالة عندما يكون في الطريق',
   'My packaging orders': 'طلباتي من مواد التغليف',
   'No orders yet': 'لا توجد طلبات بعد',
   'Cash at delivery': 'كاش عند الاستلام',
   'From the balance': 'من الرصيد',
-  'Your balance does not cover this order. Choose cash at delivery': 'رصيدك لا يكفي هذا الطلب. اختر الدفع كاش عند الاستلام',
-  'This order is already being prepared. Ask support to cancel it': 'الطلب قيد التجهيز. اطلب من الدعم إلغاءه',
+  'Your balance does not cover this order. Choose cash at delivery':
+    'رصيدك لا يكفي هذا الطلب. اختر الدفع كاش عند الاستلام',
+  'This order is already being prepared. Ask support to cancel it':
+    'الطلب قيد التجهيز. اطلب من الدعم إلغاءه',
   'A product is no longer sold': 'منتج لم يعد متاحا للبيع',
 
   // order states
@@ -51,8 +55,10 @@ export const AR_SHOP: Record<string, string> = {
   'Packed. Give it to a courier': 'تم التجهيز. سلّمه لمندوب',
   'With the courier. The merchant got the code by SMS': 'مع المندوب. وصل التاجر الكود برسالة',
   'Cancelled. The stock is back on the shelf': 'تم الإلغاء. رجعت الكمية للمخزون',
-  'Merchants order from the shop in their panel. Pack, hand to a courier; the merchant gives the courier the code from their SMS': 'التجار يطلبون من المتجر في لوحتهم. جهّز الطلب وسلّمه لمندوب، والتاجر يعطي المندوب الكود من رسالته',
-  'Pack each order from the shelf and give it to the courier going to that merchant': 'جهّز كل طلب من الرف وسلّمه للمندوب المتجه لهذا التاجر',
+  'Merchants order from the shop in their panel. Pack, hand to a courier; the merchant gives the courier the code from their SMS':
+    'التجار يطلبون من المتجر في لوحتهم. جهّز الطلب وسلّمه لمندوب، والتاجر يعطي المندوب الكود من رسالته',
+  'Pack each order from the shelf and give it to the courier going to that merchant':
+    'جهّز كل طلب من الرف وسلّمه للمندوب المتجه لهذا التاجر',
   'Packaging order {code} to prepare': 'طلب مواد تغليف {code} للتجهيز',
 
   // courier
@@ -61,7 +67,8 @@ export const AR_SHOP: Record<string, string> = {
   'Handed over': 'تم التسليم',
   'A new code is on its way to the merchant': 'تم إرسال كود جديد للتاجر',
   'Three codes were already sent for this order today': 'تم إرسال ثلاثة أكواد لهذا الطلب اليوم',
-  'Wrong code. Ask the merchant for the code in the SMS': 'الكود غلط. اطلب من التاجر الكود الموجود في الرسالة',
+  'Wrong code. Ask the merchant for the code in the SMS':
+    'الكود غلط. اطلب من التاجر الكود الموجود في الرسالة',
   'The code has expired. Send a new one to the merchant': 'الكود انتهى. أرسل كودا جديدا للتاجر',
 
   // products
@@ -91,7 +98,8 @@ export const AR_SHOP: Record<string, string> = {
   'Not enough {name} in stock': 'الكمية غير كافية من {name}',
 
   // purchase orders
-  'Buy packaging from suppliers. Receiving the goods adds the stock and raises the supplier bill': 'اشترِ مواد التغليف من الموردين. استلام البضاعة يضيف المخزون وينشئ فاتورة المورد',
+  'Buy packaging from suppliers. Receiving the goods adds the stock and raises the supplier bill':
+    'اشترِ مواد التغليف من الموردين. استلام البضاعة يضيف المخزون وينشئ فاتورة المورد',
   'New purchase order': 'أمر شراء جديد',
   'No purchase orders yet': 'لا توجد أوامر شراء بعد',
   Supplier: 'المورد',
@@ -114,16 +122,20 @@ export const AR_SHOP: Record<string, string> = {
   '{n} still expected': 'متبقي {n}',
   'Supplier invoice number': 'رقم فاتورة المورد',
   'The supplier charges VAT': 'المورد يحتسب ضريبة القيمة المضافة',
-  'The stock goes up now. A bill for the supplier is raised and books when a second person approves it.': 'المخزون يزيد الآن. تُنشأ فاتورة للمورد وتُسجل في الدفاتر عند موافقة شخص ثانٍ.',
+  'The stock goes up now. A bill for the supplier is raised and books when a second person approves it.':
+    'المخزون يزيد الآن. تُنشأ فاتورة للمورد وتُسجل في الدفاتر عند موافقة شخص ثانٍ.',
   'Stock updated. The bill waits for approval': 'تم تحديث المخزون. الفاتورة في انتظار الموافقة',
   'each before VAT': 'للوحدة قبل الضريبة',
   'Mark the order as sent to the supplier first': 'سجّل أن الأمر أُرسل للمورد أولا',
   'Goods were already received on this order': 'تم استلام بضاعة على هذا الأمر بالفعل',
 
   // settings
-  'Merchants can order packaging from the shop in their panel': 'التجار يمكنهم طلب مواد التغليف من المتجر في لوحتهم',
+  'Merchants can order packaging from the shop in their panel':
+    'التجار يمكنهم طلب مواد التغليف من المتجر في لوحتهم',
   'Packaging delivery price': 'سعر توصيل مواد التغليف',
-  'What delivering one packaging order costs the merchant, VAT included': 'تكلفة توصيل طلب مواد تغليف واحد على التاجر شاملة الضريبة',
+  'What delivering one packaging order costs the merchant, VAT included':
+    'تكلفة توصيل طلب مواد تغليف واحد على التاجر شاملة الضريبة',
   'Free packaging delivery from': 'توصيل مواد التغليف مجانا من',
-  'Orders from this amount are delivered free (0 means never)': 'الطلبات من هذا المبلغ توصل مجانا (0 يعني أبدا)',
+  'Orders from this amount are delivered free (0 means never)':
+    'الطلبات من هذا المبلغ توصل مجانا (0 يعني أبدا)',
 };

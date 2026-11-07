@@ -1,5 +1,17 @@
 import { ParseIdPipe } from '../common/id.pipe';
-import { Body, Controller, Get, Headers, HttpCode, Param, Post, Put, Query, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Headers,
+  HttpCode,
+  Param,
+  Post,
+  Put,
+  Query,
+  Req,
+  Res,
+} from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { CurrentUser, Public, Roles, type SessionUser } from '../auth/auth';
 import { ShopifyService } from './shopify.service';
@@ -34,7 +46,11 @@ export class ShopifyPublicController {
 
   @Post('webhooks')
   @HttpCode(200)
-  webhook(@Req() req: Request & { rawBody?: Buffer }, @Headers() headers: Record<string, string>, @Body() body: unknown) {
+  webhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Headers() headers: Record<string, string>,
+    @Body() body: unknown,
+  ) {
     // The app reads this path's body as raw bytes (setup-app.ts): the signature covers them exactly.
     const raw = Buffer.isBuffer(body) ? body : req.rawBody;
     let parsed: unknown = body;
@@ -90,7 +106,11 @@ export class ShopifyMerchantController {
 
   @Post('orders/:id/create')
   @HttpCode(200)
-  create(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  create(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.shopify.createFromOrder(u, id, body);
   }
 

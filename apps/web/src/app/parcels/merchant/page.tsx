@@ -3,7 +3,19 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { Icon } from '@/parcels/components/Icon';
 import { StatCard } from '@/parcels/components/StatCard';
-import { Alert, Button, Card, Empty, Input, Loading, PageHeader, StatusBadge, Table, Td, cx } from '@/parcels/components/ui';
+import {
+  Alert,
+  Button,
+  Card,
+  Empty,
+  Input,
+  Loading,
+  PageHeader,
+  StatusBadge,
+  Table,
+  Td,
+  cx,
+} from '@/parcels/components/ui';
 import { egp, shortDate } from '@/parcels/lib/format';
 import { useLoad } from '@/parcels/lib/hooks';
 import { useT } from '@/parcels/lib/i18n';
@@ -29,8 +41,27 @@ interface ListResult {
   counts: Record<string, number>;
 }
 
-const CHIPS = ['CREATED', 'PICKED_UP', 'AT_INBOUND', 'IN_TRANSIT', 'AT_HUB', 'OUT_FOR_DELIVERY', 'DELIVERED', 'RETURNED', 'CANCELLED'];
-const MOVING = ['PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'OUT_FOR_DELIVERY', 'ATTEMPT_FAILED'];
+const CHIPS = [
+  'CREATED',
+  'PICKED_UP',
+  'AT_INBOUND',
+  'IN_TRANSIT',
+  'AT_HUB',
+  'OUT_FOR_DELIVERY',
+  'DELIVERED',
+  'RETURNED',
+  'CANCELLED',
+];
+const MOVING = [
+  'PICKED_UP',
+  'AT_INBOUND',
+  'SORTED',
+  'AT_OUTBOUND',
+  'IN_TRANSIT',
+  'AT_HUB',
+  'OUT_FOR_DELIVERY',
+  'ATTEMPT_FAILED',
+];
 
 export default function ParcelsPage() {
   const t = useT();
@@ -92,11 +123,27 @@ export default function ParcelsPage() {
 
       <div className="mb-6 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <button type="button" className="text-start" onClick={() => pick('ACTION')}>
-          <StatCard label={t('Needs your action')} value={String(onHold)} tone="needs-action" icon="alert" alert={onHold > 0} />
+          <StatCard
+            label={t('Needs your action')}
+            value={String(onHold)}
+            tone="needs-action"
+            icon="alert"
+            alert={onHold > 0}
+          />
         </button>
         <StatCard label={t('On the way')} value={String(moving)} tone="in-progress" icon="route" />
-        <StatCard label={t('Delivered')} value={String(counts.DELIVERED ?? 0)} tone="delivered" icon="delivered" />
-        <StatCard label={t('Returned to you')} value={String(counts.RETURNED ?? 0)} tone="returning" icon="returns" />
+        <StatCard
+          label={t('Delivered')}
+          value={String(counts.DELIVERED ?? 0)}
+          tone="delivered"
+          icon="delivered"
+        />
+        <StatCard
+          label={t('Returned to you')}
+          value={String(counts.RETURNED ?? 0)}
+          tone="returning"
+          icon="returns"
+        />
       </div>
 
       <div className="mb-4 flex flex-wrap gap-2">
@@ -121,7 +168,11 @@ export default function ParcelsPage() {
           setPage(1);
         }}
       >
-        <Input placeholder={t('Tracking number, customer name, phone or your reference')} value={q} onChange={(e) => setQ(e.target.value)} />
+        <Input
+          placeholder={t('Tracking number, customer name, phone or your reference')}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+        />
         <Button type="submit" tone="secondary">
           <Icon name="search" size={18} />
           {t('Search')}
@@ -150,7 +201,9 @@ export default function ParcelsPage() {
                   />
                   <Link href={`/parcels/merchant/${p.id}`} className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="ltr-iso font-mono text-body-sm font-bold text-link">{p.trackingNumber}</span>
+                      <span className="ltr-iso font-mono text-body-sm font-bold text-link">
+                        {p.trackingNumber}
+                      </span>
                       <StatusBadge status={p.status} direction={p.direction} />
                     </div>
                     <div className="mt-1 truncate text-body-sm">
@@ -161,7 +214,8 @@ export default function ParcelsPage() {
                       {p.promisedDate ? (
                         <>
                           {' · '}
-                          {t('Promised')} <span className="ltr-iso">{shortDate(p.promisedDate)}</span>
+                          {t('Promised')}{' '}
+                          <span className="ltr-iso">{shortDate(p.promisedDate)}</span>
                         </>
                       ) : null}
                     </div>
@@ -179,7 +233,9 @@ export default function ParcelsPage() {
                     aria-label={t('Select all new parcels')}
                     checked={allSelected}
                     disabled={printable.length === 0}
-                    onChange={() => setSelected(allSelected ? new Set() : new Set(printable.map((p) => p.id)))}
+                    onChange={() =>
+                      setSelected(allSelected ? new Set() : new Set(printable.map((p) => p.id)))
+                    }
                   />,
                   t('Tracking'),
                   t('Customer'),
@@ -193,14 +249,27 @@ export default function ParcelsPage() {
                 {data.items.map((p) => (
                   <tr key={p.id} className="hover:bg-surface-raised">
                     <Td>
-                      <input type="checkbox" aria-label={`${t('Select')} ${p.trackingNumber}`} disabled={p.status !== 'CREATED'} checked={selected.has(p.id)} onChange={() => toggle(p.id)} />
+                      <input
+                        type="checkbox"
+                        aria-label={`${t('Select')} ${p.trackingNumber}`}
+                        disabled={p.status !== 'CREATED'}
+                        checked={selected.has(p.id)}
+                        onChange={() => toggle(p.id)}
+                      />
                     </Td>
                     <Td>
-                      <Link href={`/parcels/merchant/${p.id}`} className="ltr-iso font-mono font-bold text-link hover:underline">{p.trackingNumber}</Link>
+                      <Link
+                        href={`/parcels/merchant/${p.id}`}
+                        className="ltr-iso font-mono font-bold text-link hover:underline"
+                      >
+                        {p.trackingNumber}
+                      </Link>
                     </Td>
                     <Td>{p.customerName}</Td>
                     <Td>{p.governorateCode}</Td>
-                    <Td><StatusBadge status={p.status} direction={p.direction} /></Td>
+                    <Td>
+                      <StatusBadge status={p.status} direction={p.direction} />
+                    </Td>
                     <Td className="tabular ltr-iso">{egp(p.codAmount)}</Td>
                     <Td className="ltr-iso">{shortDate(p.promisedDate)}</Td>
                     <Td className="text-text-muted">{p.merchantRef}</Td>
@@ -209,10 +278,24 @@ export default function ParcelsPage() {
               </Table>
             </div>
             <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-body-sm text-text-muted">
-              <span>{t('{total} parcels · page {page} of {pages}', { total: data.total, page: data.page, pages })}</span>
+              <span>
+                {t('{total} parcels · page {page} of {pages}', {
+                  total: data.total,
+                  page: data.page,
+                  pages,
+                })}
+              </span>
               <div className="flex gap-2">
-                <Button tone="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>{t('Previous')}</Button>
-                <Button tone="secondary" disabled={page >= pages} onClick={() => setPage((p) => p + 1)}>{t('Next')}</Button>
+                <Button tone="secondary" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+                  {t('Previous')}
+                </Button>
+                <Button
+                  tone="secondary"
+                  disabled={page >= pages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  {t('Next')}
+                </Button>
               </div>
             </div>
           </>
@@ -222,14 +305,28 @@ export default function ParcelsPage() {
   );
 }
 
-function Chip({ active, warn, onClick, children }: { active: boolean; warn?: boolean; onClick: () => void; children: React.ReactNode }) {
+function Chip({
+  active,
+  warn,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  warn?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       className={cx(
         'inline-flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-caption font-bold',
-        active ? 'bg-primary text-on-primary' : warn ? 'bg-accent text-on-accent' : 'bg-surface text-text ring-1 ring-inset ring-line-strong hover:bg-surface-raised',
+        active
+          ? 'bg-primary text-on-primary'
+          : warn
+            ? 'bg-accent text-on-accent'
+            : 'bg-surface text-text ring-1 ring-inset ring-line-strong hover:bg-surface-raised',
       )}
     >
       {children}

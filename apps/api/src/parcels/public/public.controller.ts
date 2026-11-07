@@ -35,7 +35,10 @@ export class PublicController {
   async track(@Param('number') number: string) {
     const s = await this.prisma.shipment.findUnique({
       where: { trackingNumber: normalizeCode(number) },
-      include: { merchant: { select: { name: true, logoMime: true } }, events: { orderBy: { createdAt: 'asc' } } },
+      include: {
+        merchant: { select: { name: true, logoMime: true } },
+        events: { orderBy: { createdAt: 'asc' } },
+      },
     });
     if (!s) throw notFound('Parcel');
     const hubs = new Map((await this.prisma.hub.findMany()).map((h) => [h.id, h.name]));
@@ -46,24 +49,36 @@ export class PublicController {
       hasLogo: !!s.merchant.logoMime,
       kind: s.kind,
       deliverOn: s.deliverOn,
-      canAct: s.direction === 'FORWARD' && open && s.status !== 'OUT_FOR_DELIVERY' && s.status !== 'LOST',
+      canAct:
+        s.direction === 'FORWARD' && open && s.status !== 'OUT_FOR_DELIVERY' && s.status !== 'LOST',
       canRate: s.status === 'DELIVERED' && !s.rating,
       rating: s.rating,
-      courier: s.status === 'OUT_FOR_DELIVERY' && s.runId ? await this.courierFirstName(s.runId) : null,
+      courier:
+        s.status === 'OUT_FOR_DELIVERY' && s.runId ? await this.courierFirstName(s.runId) : null,
       status: s.status,
-      statusLabel: s.direction === 'RETURN' && open ? 'Returning to the store' : STATUS_LABELS[s.status],
+      statusLabel:
+        s.direction === 'RETURN' && open ? 'Returning to the store' : STATUS_LABELS[s.status],
       promisedDate: s.direction === 'FORWARD' ? s.promisedDate : null,
       codToPrepare: s.direction === 'FORWARD' && open ? s.codAmount : 0,
       events: s.events
         .filter((e) => CUSTOMER_EVENTS[e.type])
-        .map((e) => ({ at: e.createdAt, text: CUSTOMER_EVENTS[e.type], place: e.hubId ? hubs.get(e.hubId) ?? null : null })),
+        .map((e) => ({
+          at: e.createdAt,
+          text: CUSTOMER_EVENTS[e.type],
+          place: e.hubId ? (hubs.get(e.hubId) ?? null) : null,
+        })),
     };
   }
 
   /** Only the first name: enough for the customer to know who is coming. */
   private async courierFirstName(runId: string) {
-    const run = await this.prisma.run.findUnique({ where: { id: runId }, select: { courierId: true } });
-    const u = run ? await this.prisma.user.findUnique({ where: { id: run.courierId }, select: { name: true } }) : null;
+    const run = await this.prisma.run.findUnique({
+      where: { id: runId },
+      select: { courierId: true },
+    });
+    const u = run
+      ? await this.prisma.user.findUnique({ where: { id: run.courierId }, select: { name: true } })
+      : null;
     return u ? u.name.split(' ')[0] : null;
   }
 
@@ -71,21 +86,33 @@ export class PublicController {
   @Public()
   @Get('reference/locations')
   async locations() {
-    const govs = await this.prisma.governorate.findMany({ include: { areas: { orderBy: { nameEn: 'asc' } } }, orderBy: { nameEn: 'asc' } });
+    const govs = await this.prisma.governorate.findMany({
+      include: { areas: { orderBy: { nameEn: 'asc' } } },
+      orderBy: { nameEn: 'asc' },
+    });
     return govs.map((g) => ({
       code: g.code,
       nameEn: g.nameEn,
       nameAr: g.nameAr,
       served: g.hubId !== null || g.areas.some((a) => a.hubId),
       hubId: g.hubId,
-      areas: g.areas.map((a) => ({ id: a.id, nameEn: a.nameEn, nameAr: a.nameAr, hubId: a.hubId ?? g.hubId })),
+      areas: g.areas.map((a) => ({
+        id: a.id,
+        nameEn: a.nameEn,
+        nameAr: a.nameAr,
+        hubId: a.hubId ?? g.hubId,
+      })),
     }));
   }
 
   /** Hub names for hub staff picking a trip destination. Signed in users only. */
   @Get('reference/hubs')
   hubs() {
-    return this.prisma.hub.findMany({ where: { active: true }, select: { id: true, code: true, name: true, isSorting: true }, orderBy: [{ isSorting: 'desc' }, { code: 'asc' }] });
+    return this.prisma.hub.findMany({
+      where: { active: true },
+      select: { id: true, code: true, name: true, isSorting: true },
+      orderBy: [{ isSorting: 'desc' }, { code: 'asc' }],
+    });
   }
 
   @Public()

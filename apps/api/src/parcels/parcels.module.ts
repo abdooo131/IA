@@ -5,7 +5,12 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AdminController } from './admin/admin.controller';
 import { AdminService } from './admin/admin.service';
-import { AdminAgentsController, AgentPortalController, CourierShiftController, JoinController } from './agents/agents.controller';
+import {
+  AdminAgentsController,
+  AgentPortalController,
+  CourierShiftController,
+  JoinController,
+} from './agents/agents.controller';
 import { AgentsService } from './agents/agents.service';
 import { ApiKeyGuard } from './api/api-key';
 import { DeveloperService } from './api/developer.service';
@@ -15,29 +20,66 @@ import { ParcelsGuard } from './auth/auth';
 import { AuthController } from './auth/auth.controller';
 import { PrismaService } from './common/prisma.service';
 import { SettingsService } from './common/settings.service';
-import { ControlController, HubControlController, TicketAppealController } from './control/control.controller';
+import {
+  ControlController,
+  HubControlController,
+  TicketAppealController,
+} from './control/control.controller';
 import { ControlService } from './control/control.service';
 import { ShipmentsCore } from './core/shipments.core';
 import { CourierController } from './courier/courier.controller';
 import { CourierService } from './courier/courier.service';
 import { BooksService } from './finance/books.service';
-import { AgentMoneyController, CourierMoneyController, FinanceController, HubSafeController } from './finance/finance.controller';
+import {
+  AgentMoneyController,
+  CourierMoneyController,
+  FinanceController,
+  HubSafeController,
+} from './finance/finance.controller';
 import { FinanceService } from './finance/finance.service';
 import { HubController } from './hub/hub.controller';
 import { HubService } from './hub/hub.service';
-import { ShopifyMerchantController, ShopifyPublicController } from './integrations/shopify.controller';
+import {
+  ShopifyMerchantController,
+  ShopifyPublicController,
+} from './integrations/shopify.controller';
 import { ShopifyService } from './integrations/shopify.service';
 import { MerchantDeskService } from './merchant/desk.service';
-import { AdminDeskController, MerchantController, MerchantDeskController, PublicDeskController } from './merchant/merchant.controller';
+import {
+  AdminDeskController,
+  MerchantController,
+  MerchantDeskController,
+  PublicDeskController,
+} from './merchant/merchant.controller';
 import { MerchantService } from './merchant/merchant.service';
 import { PublicController } from './public/public.controller';
 
 @Module({
   controllers: [
-    AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController,
-    CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, ControlController,
-    HubControlController, TicketAppealController, MerchantDeskController, PublicDeskController, AdminDeskController, V1Controller, DeveloperController,
-    ShopifyPublicController, ShopifyMerchantController,
+    AuthController,
+    MerchantController,
+    HubController,
+    CourierController,
+    AdminController,
+    PublicController,
+    AdminAgentsController,
+    AgentPortalController,
+    CourierShiftController,
+    JoinController,
+    FinanceController,
+    CourierMoneyController,
+    HubSafeController,
+    AgentMoneyController,
+    ControlController,
+    HubControlController,
+    TicketAppealController,
+    MerchantDeskController,
+    PublicDeskController,
+    AdminDeskController,
+    V1Controller,
+    DeveloperController,
+    ShopifyPublicController,
+    ShopifyMerchantController,
   ],
   providers: [
     PrismaService,

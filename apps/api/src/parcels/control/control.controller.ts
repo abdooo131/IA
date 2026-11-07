@@ -40,7 +40,11 @@ export class ControlController {
 
   @Post('attempts/:id/review')
   @HttpCode(200)
-  review(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  review(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.c.reviewAttempt(id, body, u);
   }
 
@@ -61,19 +65,31 @@ export class ControlController {
 
   @Put('tickets/:id/penalty')
   @HttpCode(200)
-  penalty(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  penalty(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.c.setPenalty(id, body, u);
   }
 
   @Post('tickets/:id/override')
   @HttpCode(200)
-  override(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  override(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.c.override(id, body, u);
   }
 
   @Post('tickets/:id/decide')
   @HttpCode(200)
-  decide(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  decide(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.c.decideAppeal(id, body, u);
   }
 
@@ -88,7 +104,11 @@ export class ControlController {
   }
 
   @Get('pallets/:id/photo/:which')
-  async palletPhoto(@Param('id', ParseIdPipe) id: string, @Param('which') which: string, @Res() res: Response) {
+  async palletPhoto(
+    @Param('id', ParseIdPipe) id: string,
+    @Param('which') which: string,
+    @Res() res: Response,
+  ) {
     sendFile(res, await this.c.palletPhoto(id, which === 'in' ? 'in' : 'out'));
   }
 
@@ -108,7 +128,11 @@ export class HubControlController {
 
   @Post('damaged')
   @HttpCode(200)
-  damaged(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  damaged(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.reportDamage(hubId, body, u);
   }
@@ -120,48 +144,81 @@ export class HubControlController {
   }
 
   @Post('pallets')
-  createPallet(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  createPallet(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.createPallet(hubId, body, u);
   }
 
   @Post('pallets/:palletId/bags')
   @HttpCode(200)
-  addBag(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('palletId', ParseIdPipe) palletId: string, @Body() body: unknown) {
+  addBag(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('palletId', ParseIdPipe) palletId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.addBag(hubId, palletId, body, u);
   }
 
   @Post('pallets/:palletId/remove')
   @HttpCode(200)
-  removeBag(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('palletId', ParseIdPipe) palletId: string, @Body() body: unknown) {
+  removeBag(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('palletId', ParseIdPipe) palletId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.removeBag(hubId, palletId, body, u);
   }
 
   @Post('pallets/:palletId/seal')
   @HttpCode(200)
-  seal(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('palletId', ParseIdPipe) palletId: string, @Body() body: unknown) {
+  seal(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('palletId', ParseIdPipe) palletId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.sealPallet(hubId, palletId, body, u);
   }
 
   @Post('pallets/:palletId/receive')
   @HttpCode(200)
-  receive(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('palletId', ParseIdPipe) palletId: string, @Body() body: unknown) {
+  receive(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('palletId', ParseIdPipe) palletId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.receivePallet(hubId, palletId, body, u);
   }
 
   @Post('trips/:tripId/load-pallet')
   @HttpCode(200)
-  loadPallet(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('tripId', ParseIdPipe) tripId: string, @Body() body: unknown) {
+  loadPallet(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('tripId', ParseIdPipe) tripId: string,
+    @Body() body: unknown,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.loadPallet(hubId, tripId, body, u);
   }
 
   @Get('trips/:tripId/manifest')
-  manifest(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('tripId', ParseIdPipe) tripId: string) {
+  manifest(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('tripId', ParseIdPipe) tripId: string,
+  ) {
     assertHubAccess(u, hubId);
     return this.c.manifest(tripId);
   }
@@ -175,12 +232,18 @@ export class TicketAppealController {
 
   @Get('my/tickets')
   mine(@CurrentUser() u: SessionUser) {
-    return u.role === 'COURIER' ? this.c.tickets({ courierId: u.id }) : this.c.tickets({ agentId: u.agentId ?? 'none' });
+    return u.role === 'COURIER'
+      ? this.c.tickets({ courierId: u.id })
+      : this.c.tickets({ agentId: u.agentId ?? 'none' });
   }
 
   @Post('my/tickets/:id/appeal')
   @HttpCode(200)
-  appeal(@CurrentUser() u: SessionUser, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  appeal(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     return this.c.appeal(id, body, u);
   }
 }

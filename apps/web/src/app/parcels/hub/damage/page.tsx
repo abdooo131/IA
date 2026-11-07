@@ -17,7 +17,12 @@ export default function DamagePage() {
   const [photo, setPhoto] = useState<string | null>(null);
   return (
     <div className="mx-auto max-w-xl space-y-5">
-      <PageHeader title={t('Report damage')} subtitle={t('Scan the damaged parcel, say what is wrong and take a photo. The person who handled it before you is recorded.')} />
+      <PageHeader
+        title={t('Report damage')}
+        subtitle={t(
+          'Scan the damaged parcel, say what is wrong and take a photo. The person who handled it before you is recorded.',
+        )}
+      />
       {r.view}
       <Card>
         <form
@@ -26,7 +31,9 @@ export default function DamagePage() {
             e.preventDefault();
             void r.run(async () => {
               if (!photo) throw new Error('Take a photo of the damage');
-              const x = await api<{ message: string }>(`/hubs/${hub.id}/damaged`, { body: { code, note, photo: photoBody(photo) } });
+              const x = await api<{ message: string }>(`/hubs/${hub.id}/damaged`, {
+                body: { code, note, photo: photoBody(photo) },
+              });
               r.setMsg({ ok: true, text: x.message });
               setCode('');
               setNote('');
@@ -34,10 +41,27 @@ export default function DamagePage() {
             }, 'Saved');
           }}
         >
-          <Field label={t('Parcel tracking number')}><Input required autoFocus className="ltr-iso" value={code} onChange={(e) => setCode(e.target.value)} /></Field>
-          <Field label={t('What is damaged')}><Textarea required minLength={3} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+          <Field label={t('Parcel tracking number')}>
+            <Input
+              required
+              autoFocus
+              className="ltr-iso"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+            />
+          </Field>
+          <Field label={t('What is damaged')}>
+            <Textarea
+              required
+              minLength={3}
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </Field>
           <PhotoButton value={photo} onChange={setPhoto} label={t('Photo of the damage')} />
-          <Button type="submit" className="min-h-12 w-full" disabled={r.busy}>{t('Report damage')}</Button>
+          <Button type="submit" className="min-h-12 w-full" disabled={r.busy}>
+            {t('Report damage')}
+          </Button>
         </form>
       </Card>
     </div>

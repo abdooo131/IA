@@ -22,7 +22,10 @@ const courier = (id: string) => ({ type: 'COURIER' as const, id });
 const merchant = (id: string) => ({ type: 'MERCHANT' as const, id });
 
 /** Staff whose pay goes to their agent at month end instead of their own withdrawals. */
-export function paidByAgent(u: { agentId: string | null; courierType: string | null }, s: SettingValues): boolean {
+export function paidByAgent(
+  u: { agentId: string | null; courierType: string | null },
+  s: SettingValues,
+): boolean {
   if (!u.agentId) return false;
   return u.courierType !== 'PICKUP' || s['pay.pickup_paid_by'] === 'AGENT';
 }
@@ -41,7 +44,10 @@ export async function earn(
     userId?: string | null;
     date?: string;
     /** The other side of the entry: where the money comes from (or goes to, for a deduction). Default: courier pay, or other income for penalties. */
-    contra?: { account: string; party?: { type: 'COURIER' | 'HUB' | 'AGENT' | 'MERCHANT'; id: string } };
+    contra?: {
+      account: string;
+      party?: { type: 'COURIER' | 'HUB' | 'AGENT' | 'MERCHANT'; id: string };
+    };
   },
 ) {
   const points = a.points ?? 0;
@@ -49,14 +55,35 @@ export async function earn(
   if (amount === 0 && points === 0) return null;
   const date = a.date ?? todayInCairo();
   if (a.shipmentId) {
-    const done = await tx.courierEarning.findUnique({ where: { courierId_kind_shipmentId: { courierId: a.courierId, kind: a.kind, shipmentId: a.shipmentId } } });
+    const done = await tx.courierEarning.findUnique({
+      where: {
+        courierId_kind_shipmentId: {
+          courierId: a.courierId,
+          kind: a.kind,
+          shipmentId: a.shipmentId,
+        },
+      },
+    });
     if (done) return done;
   }
-  const u = await tx.user.findUniqueOrThrow({ where: { id: a.courierId }, select: { agentId: true } });
+  const u = await tx.user.findUniqueOrThrow({
+    where: { id: a.courierId },
+    select: { agentId: true },
+  });
   const e = await tx.courierEarning.create({
     data: {
-      courierId: a.courierId, agentId: u.agentId, kind: a.kind, points, amount, shipmentId: a.shipmentId ?? null, date,
-      availableAt: new Date(Date.now() + (amount > 0 && !a.contra ? s['pay.freeze_days'] * DAY : 0)), note: (a.note ?? '').slice(0, 200), createdById: a.userId ?? null,
+      courierId: a.courierId,
+      agentId: u.agentId,
+      kind: a.kind,
+      points,
+      amount,
+      shipmentId: a.shipmentId ?? null,
+      date,
+      availableAt: new Date(
+        Date.now() + (amount > 0 && !a.contra ? s['pay.freeze_days'] * DAY : 0),
+      ),
+      note: (a.note ?? '').slice(0, 200),
+      createdById: a.userId ?? null,
     },
   });
   const positive = amount > 0;
@@ -68,21 +95,33 @@ export async function earn(
     userId: a.userId,
     lines: positive
       ? [
-          a.contra ? { account: a.contra.account, party: a.contra.party ?? null, debit: amount } : { account: ACCOUNTS.COURIER_PAY.code, debit: amount },
+          a.contra
+            ? { account: a.contra.account, party: a.contra.party ?? null, debit: amount }
+            : { account: ACCOUNTS.COURIER_PAY.code, debit: amount },
           { account: ACCOUNTS.COURIER_WALLET.code, party: courier(a.courierId), credit: amount },
         ]
       : [
           { account: ACCOUNTS.COURIER_WALLET.code, party: courier(a.courierId), debit: -amount },
           a.contra
             ? { account: a.contra.account, party: a.contra.party ?? null, credit: -amount }
-            : { account: a.kind === 'PENALTY' ? ACCOUNTS.OTHER_INCOME.code : ACCOUNTS.COURIER_PAY.code, credit: -amount },
+            : {
+                account:
+                  a.kind === 'PENALTY' ? ACCOUNTS.OTHER_INCOME.code : ACCOUNTS.COURIER_PAY.code,
+                credit: -amount,
+              },
         ],
   });
   return e;
 }
 
 /** Customer paid the courier: the cash is the courier's to hand in, the merchant is owed it less our fees. */
-export async function postDelivered(tx: Tx, s: SettingValues, p: Shipment, courierId: string, userId: string) {
+export async function postDelivered(
+  tx: Tx,
+  s: SettingValues,
+  p: Shipment,
+  courierId: string,
+  userId: string,
+) {
   await post(tx, {
     memo: `Delivered ${p.trackingNumber}`,
     source: 'DELIVERED',
@@ -90,19 +129,43 @@ export async function postDelivered(tx: Tx, s: SettingValues, p: Shipment, couri
     userId,
     lines: [
       { account: ACCOUNTS.COURIER_CASH.code, party: courier(courierId), debit: p.codCollected },
-      { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), credit: p.codCollected, memo: 'Cash collected' },
-      { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), debit: p.shippingFee + p.codFee, memo: 'Fees' },
+      {
+        account: ACCOUNTS.MERCHANT_WALLET.code,
+        party: merchant(p.merchantId),
+        credit: p.codCollected,
+        memo: 'Cash collected',
+      },
+      {
+        account: ACCOUNTS.MERCHANT_WALLET.code,
+        party: merchant(p.merchantId),
+        debit: p.shippingFee + p.codFee,
+        memo: 'Fees',
+      },
       ...revenueLines(s, [
         { account: ACCOUNTS.SHIPPING_REVENUE.code, amount: p.shippingFee },
         { account: ACCOUNTS.COD_FEE_REVENUE.code, amount: p.codFee },
       ]),
     ],
   });
-  await earn(tx, s, { courierId, kind: 'DELIVERY', points: s['pay.points_delivery'], shipmentId: p.id, note: p.trackingNumber, userId });
+  await earn(tx, s, {
+    courierId,
+    kind: 'DELIVERY',
+    points: s['pay.points_delivery'],
+    shipmentId: p.id,
+    note: p.trackingNumber,
+    userId,
+  });
 }
 
 /** FlexShip: the customer refused but paid the shipping. The courier holds the cash; it goes to the merchant. */
-export async function postFlexPaid(tx: Tx, p: Shipment, itemId: string, amount: number, courierId: string, userId: string) {
+export async function postFlexPaid(
+  tx: Tx,
+  p: Shipment,
+  itemId: string,
+  amount: number,
+  courierId: string,
+  userId: string,
+) {
   await post(tx, {
     memo: `FlexShip ${p.trackingNumber}`,
     source: 'FLEX_PAID',
@@ -110,32 +173,68 @@ export async function postFlexPaid(tx: Tx, p: Shipment, itemId: string, amount: 
     userId,
     lines: [
       { account: ACCOUNTS.COURIER_CASH.code, party: courier(courierId), debit: amount },
-      { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), credit: amount, memo: 'Shipping paid by the customer who refused' },
+      {
+        account: ACCOUNTS.MERCHANT_WALLET.code,
+        party: merchant(p.merchantId),
+        credit: amount,
+        memo: 'Shipping paid by the customer who refused',
+      },
     ],
   });
 }
 
 /** Handed back to the merchant: we charge shipping and the return fee. */
-export async function postReturned(tx: Tx, s: SettingValues, p: Shipment, courierId: string, userId: string) {
+export async function postReturned(
+  tx: Tx,
+  s: SettingValues,
+  p: Shipment,
+  courierId: string,
+  userId: string,
+) {
   await post(tx, {
     memo: `Returned ${p.trackingNumber}`,
     source: 'RETURNED',
     key: `RETURNED:${p.id}`,
     userId,
     lines: [
-      { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), debit: p.shippingFee + p.returnFee, memo: 'Shipping and return fee' },
+      {
+        account: ACCOUNTS.MERCHANT_WALLET.code,
+        party: merchant(p.merchantId),
+        debit: p.shippingFee + p.returnFee,
+        memo: 'Shipping and return fee',
+      },
       ...revenueLines(s, [
         { account: ACCOUNTS.SHIPPING_REVENUE.code, amount: p.shippingFee },
         { account: ACCOUNTS.RETURN_FEE_REVENUE.code, amount: p.returnFee },
       ]),
     ],
   });
-  await earn(tx, s, { courierId, kind: 'RETURN', points: s['pay.points_return'], shipmentId: p.id, note: p.trackingNumber, userId });
+  await earn(tx, s, {
+    courierId,
+    kind: 'RETURN',
+    points: s['pay.points_return'],
+    shipmentId: p.id,
+    note: p.trackingNumber,
+    userId,
+  });
 }
 
 /** The facility received a parcel the pickup courier collected. */
-export async function postPickupReceived(tx: Tx, s: SettingValues, p: Shipment, pickupCourierId: string, userId: string) {
-  await earn(tx, s, { courierId: pickupCourierId, kind: 'PICKUP', points: s['pay.points_pickup_parcel'], shipmentId: p.id, note: p.trackingNumber, userId });
+export async function postPickupReceived(
+  tx: Tx,
+  s: SettingValues,
+  p: Shipment,
+  pickupCourierId: string,
+  userId: string,
+) {
+  await earn(tx, s, {
+    courierId: pickupCourierId,
+    kind: 'PICKUP',
+    points: s['pay.points_pickup_parcel'],
+    shipmentId: p.id,
+    note: p.trackingNumber,
+    userId,
+  });
 }
 
 /**
@@ -143,7 +242,14 @@ export async function postPickupReceived(tx: Tx, s: SettingValues, p: Shipment, 
  * short comes out of the courier's wallet, anything over is other income.
  * `due` is the run's cash less what the courier already paid in through Fawry for it.
  */
-export async function postRunClosed(tx: Tx, s: SettingValues, run: { id: string; code: string; hubId: string; courierId: string; date: string }, due: number, received: number, userId: string) {
+export async function postRunClosed(
+  tx: Tx,
+  s: SettingValues,
+  run: { id: string; code: string; hubId: string; courierId: string; date: string },
+  due: number,
+  received: number,
+  userId: string,
+) {
   const moved = Math.min(due, received);
   const short = Math.max(0, due - received);
   const over = Math.max(0, received - due);
@@ -161,7 +267,12 @@ export async function postRunClosed(tx: Tx, s: SettingValues, run: { id: string;
   // Cash short comes out of the courier's wallet: the courier no longer holds it, they owe it.
   if (short > 0) {
     await earn(tx, s, {
-      courierId: run.courierId, kind: 'PENALTY', amount: -short, note: `Cash short on run ${run.code}`, userId, date: run.date,
+      courierId: run.courierId,
+      kind: 'PENALTY',
+      amount: -short,
+      note: `Cash short on run ${run.code}`,
+      userId,
+      date: run.date,
       contra: { account: ACCOUNTS.COURIER_CASH.code, party: courier(run.courierId) },
     });
   }
@@ -170,10 +281,22 @@ export async function postRunClosed(tx: Tx, s: SettingValues, run: { id: string;
   if (target > 0 && s['pay.daily_bonus_points'] > 0) {
     const today = run.date;
     const [done, already] = await Promise.all([
-      tx.courierEarning.count({ where: { courierId: run.courierId, kind: 'DELIVERY', date: today } }),
-      tx.courierEarning.findFirst({ where: { courierId: run.courierId, kind: 'BONUS', date: today, note: 'Daily bonus' } }),
+      tx.courierEarning.count({
+        where: { courierId: run.courierId, kind: 'DELIVERY', date: today },
+      }),
+      tx.courierEarning.findFirst({
+        where: { courierId: run.courierId, kind: 'BONUS', date: today, note: 'Daily bonus' },
+      }),
     ]);
-    if (done >= target && !already) await earn(tx, s, { courierId: run.courierId, kind: 'BONUS', points: s['pay.daily_bonus_points'], note: 'Daily bonus', userId, date: today });
+    if (done >= target && !already)
+      await earn(tx, s, {
+        courierId: run.courierId,
+        kind: 'BONUS',
+        points: s['pay.daily_bonus_points'],
+        note: 'Daily bonus',
+        userId,
+        date: today,
+      });
   }
   return { short, over };
 }
@@ -183,8 +306,14 @@ export async function courierStanding(db: Tx | PrismaService, s: SettingValues, 
   const [walletRaw, cashRaw, frozen, u] = await Promise.all([
     rawBalance(db, ACCOUNTS.COURIER_WALLET.code, courier(courierId)),
     rawBalance(db, ACCOUNTS.COURIER_CASH.code, courier(courierId)),
-    db.courierEarning.aggregate({ where: { courierId, amount: { gt: 0 }, availableAt: { gt: new Date() }, settlementId: null }, _sum: { amount: true } }),
-    db.user.findUniqueOrThrow({ where: { id: courierId }, select: { agentId: true, courierType: true, unfreezeUntil: true, unfreezeReason: true } }),
+    db.courierEarning.aggregate({
+      where: { courierId, amount: { gt: 0 }, availableAt: { gt: new Date() }, settlementId: null },
+      _sum: { amount: true },
+    }),
+    db.user.findUniqueOrThrow({
+      where: { id: courierId },
+      select: { agentId: true, courierType: true, unfreezeUntil: true, unfreezeReason: true },
+    }),
   ]);
   const wallet = -walletRaw;
   const notYet = frozen._sum.amount ?? 0;

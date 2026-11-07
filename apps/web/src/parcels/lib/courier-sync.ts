@@ -22,14 +22,23 @@ export function useLocationPing() {
     if (typeof navigator === 'undefined' || !navigator.geolocation) return;
     let every = 60;
     let lastSent = 0;
-    api<{ pingSeconds: number }>('/courier/config').then((c) => (every = c.pingSeconds)).catch(() => undefined);
+    api<{ pingSeconds: number }>('/courier/config')
+      .then((c) => (every = c.pingSeconds))
+      .catch(() => undefined);
     const watch = navigator.geolocation.watchPosition(
       (p) => {
-        fix = { lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, at: Date.now() };
+        fix = {
+          lat: p.coords.latitude,
+          lng: p.coords.longitude,
+          accuracy: p.coords.accuracy,
+          at: Date.now(),
+        };
         setState('on');
         if (Date.now() - lastSent >= every * 1000) {
           lastSent = Date.now();
-          api('/courier/ping', { body: { lat: fix.lat, lng: fix.lng, accuracy: Math.round(fix.accuracy) } }).catch(() => (lastSent = 0));
+          api('/courier/ping', {
+            body: { lat: fix.lat, lng: fix.lng, accuracy: Math.round(fix.accuracy) },
+          }).catch(() => (lastSent = 0));
         }
       },
       (e) => setState(e.code === e.PERMISSION_DENIED ? 'denied' : 'off'),
@@ -89,14 +98,22 @@ function offline(e: unknown) {
  * Sends a stop result. With no signal it is kept on the phone and sent later, and the screen
  * shows the stop as done meanwhile. Errors from the server (wrong amount, wrong code) still show.
  */
-export async function sendStop(itemId: string, action: string, body: unknown, result: string): Promise<'sent' | 'queued'> {
+export async function sendStop(
+  itemId: string,
+  action: string,
+  body: unknown,
+  result: string,
+): Promise<'sent' | 'queued'> {
   const path = `/courier/stops/${itemId}/${action}`;
   try {
     await api(path, { body });
     return 'sent';
   } catch (e) {
     if (!offline(e)) throw e;
-    if (!write(QUEUE, [...queued(), { path, body, itemId, result, at: Date.now() }])) throw new Error('No signal, and the phone has no room to keep this. Try again when you have signal');
+    if (!write(QUEUE, [...queued(), { path, body, itemId, result, at: Date.now() }]))
+      throw new Error(
+        'No signal, and the phone has no room to keep this. Try again when you have signal',
+      );
     window.dispatchEvent(new Event(EVENT));
     return 'queued';
   }
@@ -156,10 +173,12 @@ export function useQueue(onFlushed?: () => void) {
 
 /** Keeps the last run on the phone so it can still be read with no signal. */
 export const saveRun = (run: unknown) => write(RUN, { run, at: Date.now() });
-export const savedRun = <T,>() => read<{ run: T; at: number } | null>(RUN, null);
+export const savedRun = <T>() => read<{ run: T; at: number } | null>(RUN, null);
 
 /** Opens the app shell from the phone's cache when there is no signal. */
 export function registerOfflineShell() {
   if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
-  navigator.serviceWorker.register('/parcels-sw.js', { scope: '/parcels/courier' }).catch(() => undefined);
+  navigator.serviceWorker
+    .register('/parcels-sw.js', { scope: '/parcels/courier' })
+    .catch(() => undefined);
 }

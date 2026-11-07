@@ -20,12 +20,19 @@ export interface NavGroup {
   items: NavItem[];
 }
 
-const under = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);
+const under = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
 
 /** The most specific link wins, so a page inside a section lights only that section. */
 function isActive(item: NavItem, pathname: string, all: NavItem[]) {
   if (item.exact) return pathname === item.href;
-  return under(pathname, item.href) && !all.some((o) => o.href.length > item.href.length && o.href.startsWith(item.href) && under(pathname, o.href));
+  return (
+    under(pathname, item.href) &&
+    !all.some(
+      (o) =>
+        o.href.length > item.href.length && o.href.startsWith(item.href) && under(pathname, o.href),
+    )
+  );
 }
 
 const OPEN_KEY = 'shiply_nav_open';
@@ -74,7 +81,12 @@ function Links({ groups, onPick }: { groups: NavGroup[]; onPick?: () => void }) 
               >
                 {t(group.label)}
                 {!current && !fixed && (
-                  <span aria-hidden="true" className={`transition-transform ${open ? 'rotate-90' : ''}`}>›</span>
+                  <span
+                    aria-hidden="true"
+                    className={`transition-transform ${open ? 'rotate-90' : ''}`}
+                  >
+                    ›
+                  </span>
                 )}
               </button>
             )}
@@ -90,10 +102,19 @@ function Links({ groups, onPick }: { groups: NavGroup[]; onPick?: () => void }) 
                         aria-current={active ? 'page' : undefined}
                         className={`relative flex min-h-10 items-center gap-3 rounded-md px-3 text-body-sm font-semibold ${active ? 'bg-selected-bg text-link' : 'text-text hover:bg-surface-raised'}`}
                       >
-                        {active && <span aria-hidden="true" className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-accent" />}
+                        {active && (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-accent"
+                          />
+                        )}
                         <Icon name={item.icon} size={20} selected={active} />
                         <span className="flex-1 truncate">{t(item.label)}</span>
-                        {!!item.badge && <span className="ltr-iso rounded-pill bg-status-needs-action px-2 text-caption font-bold text-white">{item.badge}</span>}
+                        {!!item.badge && (
+                          <span className="ltr-iso rounded-pill bg-status-needs-action px-2 text-caption font-bold text-white">
+                            {item.badge}
+                          </span>
+                        )}
                       </Link>
                     </li>
                   );
@@ -111,7 +132,15 @@ function Links({ groups, onPick }: { groups: NavGroup[]; onPick?: () => void }) 
  * The desk sidebar from Shiply Now: fixed at 232 px on wide screens, a slide in menu on phones.
  * `brand` is the logo and `footer` holds the person's name and the gear menu.
  */
-export function SideNav({ groups, brand, footer }: { groups: NavGroup[]; brand: ReactNode; footer: ReactNode }) {
+export function SideNav({
+  groups,
+  brand,
+  footer,
+}: {
+  groups: NavGroup[];
+  brand: ReactNode;
+  footer: ReactNode;
+}) {
   const t = useT();
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -127,14 +156,35 @@ export function SideNav({ groups, brand, footer }: { groups: NavGroup[]; brand: 
     <>
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface px-4 lg:hidden">
         {brand}
-        <button type="button" onClick={() => setOpen(true)} aria-expanded={open} aria-controls="side-nav" className="flex h-11 items-center gap-2 rounded-md border border-line px-3 text-body-sm font-bold">
-          <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          aria-expanded={open}
+          aria-controls="side-nav"
+          className="flex h-11 items-center gap-2 rounded-md border border-line px-3 text-body-sm font-bold"
+        >
+          <svg
+            aria-hidden="true"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.75"
+            strokeLinecap="round"
+          >
             <path d="M4 7h16M4 12h16M4 17h16" />
           </svg>
           {t('Menu')}
         </button>
       </div>
-      {open && <div className="fixed inset-0 z-40 bg-[rgba(8,35,65,0.5)] lg:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
+      {open && (
+        <div
+          className="fixed inset-0 z-40 bg-[rgba(8,35,65,0.5)] lg:hidden"
+          onClick={() => setOpen(false)}
+          aria-hidden="true"
+        />
+      )}
       <aside
         id="side-nav"
         aria-label={t('Menu')}
@@ -144,8 +194,22 @@ export function SideNav({ groups, brand, footer }: { groups: NavGroup[]; brand: 
       >
         <div className="flex h-16 items-center justify-between px-5">
           {brand}
-          <button type="button" onClick={() => setOpen(false)} aria-label={t('Close')} className="flex h-11 w-11 items-center justify-center rounded-md lg:hidden">
-            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round">
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            aria-label={t('Close')}
+            className="flex h-11 w-11 items-center justify-center rounded-md lg:hidden"
+          >
+            <svg
+              aria-hidden="true"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+            >
               <path d="M6 6l12 12M18 6L6 18" />
             </svg>
           </button>

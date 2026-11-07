@@ -1,6 +1,18 @@
 import type { Tx } from './prisma.service';
 
-const SEQUENCES = ['tracking_seq', 'pickup_seq', 'bag_seq', 'trip_seq', 'run_seq', 'payout_seq', 'money_seq', 'invoice_seq', 'control_seq', 'shop_seq', 'sandbox_seq'] as const;
+const SEQUENCES = [
+  'tracking_seq',
+  'pickup_seq',
+  'bag_seq',
+  'trip_seq',
+  'run_seq',
+  'payout_seq',
+  'money_seq',
+  'invoice_seq',
+  'control_seq',
+  'shop_seq',
+  'sandbox_seq',
+] as const;
 type Sequence = (typeof SEQUENCES)[number];
 
 export async function nextNumber(tx: Tx, seq: Sequence): Promise<number> {
@@ -9,6 +21,10 @@ export async function nextNumber(tx: Tx, seq: Sequence): Promise<number> {
   return Number(rows[0]!.n);
 }
 
-export async function nextCode(tx: Tx, seq: Exclude<Sequence, 'tracking_seq'>, prefix: string): Promise<string> {
+export async function nextCode(
+  tx: Tx,
+  seq: Exclude<Sequence, 'tracking_seq'>,
+  prefix: string,
+): Promise<string> {
   return `${prefix}${String(await nextNumber(tx, seq)).padStart(5, '0')}`;
 }

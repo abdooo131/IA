@@ -22,10 +22,20 @@ export interface AgentProfile {
   active: boolean;
 }
 
-export const SUPPLIES_LABEL = { PICKUP: 'Pickup staff', DELIVERY: 'Delivery staff', BOTH: 'Pickup and delivery staff' } as const;
+export const SUPPLIES_LABEL = {
+  PICKUP: 'Pickup staff',
+  DELIVERY: 'Delivery staff',
+  BOTH: 'Pickup and delivery staff',
+} as const;
 
 /** Create or edit an agent's profile: contact, papers, bank account and commission. */
-export function AgentForm({ agent, onSaved }: { agent: AgentProfile | null; onSaved: (a: AgentProfile) => void }) {
+export function AgentForm({
+  agent,
+  onSaved,
+}: {
+  agent: AgentProfile | null;
+  onSaved: (a: AgentProfile) => void;
+}) {
   const t = useT();
   const [f, setF] = useState({
     name: agent?.name ?? '',
@@ -43,7 +53,8 @@ export function AgentForm({ agent, onSaved }: { agent: AgentProfile | null; onSa
   });
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => setF({ ...f, [k]: e.target.value });
+  const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setF({ ...f, [k]: e.target.value });
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,8 +62,14 @@ export function AgentForm({ agent, onSaved }: { agent: AgentProfile | null; onSa
     setError(null);
     try {
       const { commission, ...rest } = f;
-      const body = { ...rest, commissionBp: commission === '' ? null : Math.round(Number(commission) * 100) };
-      const saved = await api<AgentProfile>(agent ? `/admin/agents/${agent.id}` : '/admin/agents', { method: agent ? 'PUT' : 'POST', body });
+      const body = {
+        ...rest,
+        commissionBp: commission === '' ? null : Math.round(Number(commission) * 100),
+      };
+      const saved = await api<AgentProfile>(agent ? `/admin/agents/${agent.id}` : '/admin/agents', {
+        method: agent ? 'PUT' : 'POST',
+        body,
+      });
       onSaved(saved);
     } catch (err) {
       setError(errorMessage(err));
@@ -69,7 +86,13 @@ export function AgentForm({ agent, onSaved }: { agent: AgentProfile | null; onSa
           <Input required minLength={2} value={f.name} onChange={set('name')} />
         </Field>
         <Field label={t('Phone')}>
-          <Input required inputMode="tel" className="ltr-iso" value={f.phone} onChange={set('phone')} />
+          <Input
+            required
+            inputMode="tel"
+            className="ltr-iso"
+            value={f.phone}
+            onChange={set('phone')}
+          />
         </Field>
         <Field label={t('Email')} hint={t('Optional')}>
           <Input type="email" className="ltr-iso" value={f.email} onChange={set('email')} />
@@ -77,15 +100,26 @@ export function AgentForm({ agent, onSaved }: { agent: AgentProfile | null; onSa
         <Field label={t('Supplies')}>
           <Select value={f.supplies} onChange={set('supplies')}>
             {Object.entries(SUPPLIES_LABEL).map(([k, v]) => (
-              <option key={k} value={k}>{t(v)}</option>
+              <option key={k} value={k}>
+                {t(v)}
+              </option>
             ))}
           </Select>
         </Field>
         <Field label={t('National ID number')}>
-          <Input inputMode="numeric" className="ltr-iso" value={f.nationalIdNo} onChange={set('nationalIdNo')} />
+          <Input
+            inputMode="numeric"
+            className="ltr-iso"
+            value={f.nationalIdNo}
+            onChange={set('nationalIdNo')}
+          />
         </Field>
         <Field label={t('Commercial register')}>
-          <Input className="ltr-iso" value={f.commercialRegister} onChange={set('commercialRegister')} />
+          <Input
+            className="ltr-iso"
+            value={f.commercialRegister}
+            onChange={set('commercialRegister')}
+          />
         </Field>
         <Field label={t('Tax card')}>
           <Input className="ltr-iso" value={f.taxCardNo} onChange={set('taxCardNo')} />
@@ -99,17 +133,35 @@ export function AgentForm({ agent, onSaved }: { agent: AgentProfile | null; onSa
         <Field label="IBAN" hint={t('EG followed by 27 digits')}>
           <Input className="ltr-iso" value={f.iban} onChange={set('iban')} />
         </Field>
-        <Field label={t('Commission %')} hint={agent ? t('Empty uses the default ({value}%)', { value: agent.effectiveCommissionBp / 100 }) : t('Empty uses the default in Settings')}>
-          <Input inputMode="decimal" className="ltr-iso" value={f.commission} onChange={set('commission')} />
+        <Field
+          label={t('Commission %')}
+          hint={
+            agent
+              ? t('Empty uses the default ({value}%)', { value: agent.effectiveCommissionBp / 100 })
+              : t('Empty uses the default in Settings')
+          }
+        >
+          <Input
+            inputMode="decimal"
+            className="ltr-iso"
+            value={f.commission}
+            onChange={set('commission')}
+          />
         </Field>
         {agent && (
           <label className="flex items-center gap-2 self-end text-body-sm">
-            <input type="checkbox" checked={f.active} onChange={(e) => setF({ ...f, active: e.target.checked })} />
+            <input
+              type="checkbox"
+              checked={f.active}
+              onChange={(e) => setF({ ...f, active: e.target.checked })}
+            />
             {t('Active')}
           </label>
         )}
       </div>
-      <Button type="submit" disabled={busy}>{agent ? t('Save') : t('Create agent')}</Button>
+      <Button type="submit" disabled={busy}>
+        {agent ? t('Save') : t('Create agent')}
+      </Button>
     </form>
   );
 }

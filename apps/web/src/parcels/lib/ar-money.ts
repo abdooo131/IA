@@ -20,9 +20,11 @@ export const AR_MONEY: Record<string, string> = {
   Workforce: 'القوى العاملة',
   'All apps': 'كل التطبيقات',
   'Hello {name}': 'أهلاً {name}',
-  'Pick an app. The grid button at the top left of every app brings you back here.': 'اختر تطبيقاً. زر الشبكة أعلى يسار كل تطبيق يعيدك إلى هنا.',
+  'Pick an app. The grid button at the top left of every app brings you back here.':
+    'اختر تطبيقاً. زر الشبكة أعلى يسار كل تطبيق يعيدك إلى هنا.',
   'Parcels across the network, the day at a glance': 'الشحنات في الشبكة ويومك في لمحة',
-  'Inbound, sorting, outbound, couriers and the safe': 'الاستلام والفرز والإرسال والمندوبون والخزينة',
+  'Inbound, sorting, outbound, couriers and the safe':
+    'الاستلام والفرز والإرسال والمندوبون والخزينة',
   'Agents, their staff, attendance and vehicles': 'الوكلاء وموظفوهم والحضور والمركبات',
   'Merchant accounts, prices and pickup facilities': 'حسابات التجار والأسعار ومراكز الاستلام',
   'Books, wallets, payouts and month end': 'الدفاتر والمحافظ والمدفوعات ونهاية الشهر',
@@ -68,7 +70,8 @@ export const AR_MONEY: Record<string, string> = {
   'Books closed through {date}': 'الدفاتر مقفلة حتى {date}',
   'Books are closed through {date}': 'الدفاتر مقفلة حتى {date}',
   'Books are open': 'الدفاتر مفتوحة',
-  'The books do not balance. Call the developer before posting anything else.': 'الدفاتر غير متوازنة. اتصل بالمطور قبل قيد أي شيء آخر.',
+  'The books do not balance. Call the developer before posting anything else.':
+    'الدفاتر غير متوازنة. اتصل بالمطور قبل قيد أي شيء آخر.',
   'In hub safes': 'في خزائن المراكز',
   'Owed to merchants': 'مستحق للتجار',
   'Owed to agents': 'مستحق للوكلاء',
@@ -98,7 +101,8 @@ export const AR_MONEY: Record<string, string> = {
   Account: 'الحساب',
 
   // Payouts
-  'Cash collected minus our fees, paid on each merchant’s payout days. One person creates, another approves.': 'النقدية المحصلة ناقص رسومنا، تدفع في أيام الدفع لكل تاجر. شخص ينشئ وآخر يعتمد.',
+  'Cash collected minus our fees, paid on each merchant’s payout days. One person creates, another approves.':
+    'النقدية المحصلة ناقص رسومنا، تدفع في أيام الدفع لكل تاجر. شخص ينشئ وآخر يعتمد.',
   'Bank file (CIB)': 'ملف البنك (CIB)',
   'Create today’s payouts ({count})': 'إنشاء مدفوعات اليوم ({count})',
   'Bank account changes waiting': 'تغييرات حسابات بنكية في الانتظار',
@@ -124,13 +128,15 @@ export const AR_MONEY: Record<string, string> = {
   'Payout created. Someone else must approve it': 'تم إنشاء الدفعة. يجب أن يعتمدها شخص آخر',
   'Bank account changed': 'تم تغيير الحساب البنكي',
   'Change rejected': 'تم رفض التغيير',
-  'Saved. A change to an existing account waits for a second person': 'تم الحفظ. تغيير حساب موجود ينتظر اعتماد شخص ثان',
+  'Saved. A change to an existing account waits for a second person':
+    'تم الحفظ. تغيير حساب موجود ينتظر اعتماد شخص ثان',
   Approved: 'تم الاعتماد',
   'Approved and booked': 'تم الاعتماد والقيد',
   'Marked paid': 'تم تسجيل الدفع',
 
   // Couriers
-  'Points earned, deductions, Fawry pay ins and withdrawals': 'النقاط المكتسبة والخصومات وإيداعات فوري والسحوبات',
+  'Points earned, deductions, Fawry pay ins and withdrawals':
+    'النقاط المكتسبة والخصومات وإيداعات فوري والسحوبات',
   'Fawry pay ins to check ({count})': 'إيداعات فوري للمراجعة ({count})',
   'Nothing to check': 'لا يوجد شيء للمراجعة',
   'Pay in': 'إيداع',
@@ -168,10 +174,12 @@ export const AR_MONEY: Record<string, string> = {
   What: 'البيان',
 
   // Courier app
-  'Your wallet is negative. Recharge through Fawry before your next run, or ask finance.': 'محفظتك بالسالب. اشحنها عن طريق فوري قبل جولتك القادمة أو كلم المالية.',
+  'Your wallet is negative. Recharge through Fawry before your next run, or ask finance.':
+    'محفظتك بالسالب. اشحنها عن طريق فوري قبل جولتك القادمة أو كلم المالية.',
   'Your agent pays you at the end of the month.': 'الوكيل يدفع لك في نهاية الشهر.',
   'Can withdraw now': 'متاح للسحب الآن',
-  'Earnings can be withdrawn {days} days after you earn them. Waiting: {amount}': 'يمكن سحب المكسب بعد {days} أيام. في الانتظار: {amount}',
+  'Earnings can be withdrawn {days} days after you earn them. Waiting: {amount}':
+    'يمكن سحب المكسب بعد {days} أيام. في الانتظار: {amount}',
   'Pay in through Fawry': 'الإيداع عن طريق فوري',
   'What for': 'عن ماذا',
   'Cash from my run {code}': 'نقدية جولتي {code}',
@@ -196,8 +204,10 @@ export const AR_MONEY: Record<string, string> = {
   'Enter an amount like 125 or 125.50': 'أدخل مبلغا مثل 125 أو 125.50',
 
   // Hub safe
-  'Cash handed in by couriers at each hub, and its trip to the bank': 'النقدية التي سلمها المندوبون في كل مركز وإيداعها في البنك',
-  'Cash from closed courier runs, and deposits to the bank': 'نقدية الجولات المغلقة والإيداع في البنك',
+  'Cash handed in by couriers at each hub, and its trip to the bank':
+    'النقدية التي سلمها المندوبون في كل مركز وإيداعها في البنك',
+  'Cash from closed courier runs, and deposits to the bank':
+    'نقدية الجولات المغلقة والإيداع في البنك',
   'Deposits to confirm ({count})': 'إيداعات للتأكيد ({count})',
   'Nothing to confirm': 'لا يوجد شيء للتأكيد',
   Deposit: 'إيداع',
@@ -217,8 +227,10 @@ export const AR_MONEY: Record<string, string> = {
   'Change file': 'تغيير الملف',
 
   // Agent settlements
-  'Month end: staff pay, commission and vehicles, minus deductions. Paid after the agent’s invoice.': 'نهاية الشهر: أجور الموظفين والعمولة والمركبات ناقص الخصومات. تدفع بعد فاتورة الوكيل.',
-  'Staff pay, commission and vehicles for each month. Upload your invoice to be paid.': 'أجور الموظفين والعمولة والمركبات لكل شهر. ارفع فاتورتك ليتم الدفع.',
+  'Month end: staff pay, commission and vehicles, minus deductions. Paid after the agent’s invoice.':
+    'نهاية الشهر: أجور الموظفين والعمولة والمركبات ناقص الخصومات. تدفع بعد فاتورة الوكيل.',
+  'Staff pay, commission and vehicles for each month. Upload your invoice to be paid.':
+    'أجور الموظفين والعمولة والمركبات لكل شهر. ارفع فاتورتك ليتم الدفع.',
   'Work out a month': 'احسب شهرا',
   Month: 'الشهر',
   Show: 'عرض',
@@ -241,7 +253,8 @@ export const AR_MONEY: Record<string, string> = {
   Deductions: 'الخصومات',
 
   // Expenses
-  'Rent, fuel, supplies and other costs. Booked when a second person approves.': 'الإيجار والوقود والمستلزمات وغيرها. تقيد عند اعتماد شخص ثان.',
+  'Rent, fuel, supplies and other costs. Booked when a second person approves.':
+    'الإيجار والوقود والمستلزمات وغيرها. تقيد عند اعتماد شخص ثان.',
   'New expense': 'مصروف جديد',
   'Paid from': 'دفع من',
   'A hub safe': 'خزينة مركز',
@@ -278,29 +291,34 @@ export const AR_MONEY: Record<string, string> = {
   Credit: 'دائن',
   'All accounts': 'كل الحسابات',
   'No entries': 'لا توجد قيود',
-  'For opening balances and corrections. Wallet accounts (merchants, couriers, agents, hubs) are changed through their own screens.': 'للأرصدة الافتتاحية والتصحيحات. حسابات المحافظ (التجار والمندوبين والوكلاء والمراكز) تتغير من شاشاتها.',
+  'For opening balances and corrections. Wallet accounts (merchants, couriers, agents, hubs) are changed through their own screens.':
+    'للأرصدة الافتتاحية والتصحيحات. حسابات المحافظ (التجار والمندوبين والوكلاء والمراكز) تتغير من شاشاتها.',
   'What is this entry for?': 'ما سبب هذا القيد؟',
   'Add line': 'إضافة سطر',
   'Save journal': 'حفظ القيد',
   'Journal saved. Someone else must approve it': 'تم حفظ القيد. يجب أن يعتمده شخص آخر',
-  'Closing a day stops anything being posted on or before it. Do it each morning for the day before, after the cash is counted.': 'إقفال يوم يمنع أي قيد في هذا اليوم أو قبله. افعله كل صباح لليوم السابق بعد عد النقدية.',
+  'Closing a day stops anything being posted on or before it. Do it each morning for the day before, after the cash is counted.':
+    'إقفال يوم يمنع أي قيد في هذا اليوم أو قبله. افعله كل صباح لليوم السابق بعد عد النقدية.',
   'Close through': 'إقفال حتى',
   Close: 'إقفال',
-  'Close the books through {date}? This cannot be undone.': 'إقفال الدفاتر حتى {date}؟ لا يمكن التراجع.',
+  'Close the books through {date}? This cannot be undone.':
+    'إقفال الدفاتر حتى {date}؟ لا يمكن التراجع.',
   'Books closed': 'تم إقفال الدفاتر',
 
   // Merchant
   'Where we pay you': 'أين ندفع لك',
   'Add bank account': 'إضافة حساب بنكي',
   'Add your bank account so we can pay you': 'أضف حسابك البنكي حتى نتمكن من الدفع لك',
-  'Your new bank account is waiting for our finance team to approve it': 'حسابك البنكي الجديد في انتظار اعتماد فريق المالية',
+  'Your new bank account is waiting for our finance team to approve it':
+    'حسابك البنكي الجديد في انتظار اعتماد فريق المالية',
   'Sent. Our finance team approves bank changes': 'تم الإرسال. فريق المالية يعتمد تغييرات الحسابات',
 
   // Settings
   'Cash out fee': 'رسوم السحب',
   'Taken from each merchant payout': 'تخصم من كل دفعة للتاجر',
   'Late replacement penalty': 'غرامة تأخر البديل',
-  'Charged to the agent each time a replacement comes late or never': 'تحسب على الوكيل كل مرة يتأخر البديل أو لا يأتي',
+  'Charged to the agent each time a replacement comes late or never':
+    'تحسب على الوكيل كل مرة يتأخر البديل أو لا يأتي',
   'Point value': 'قيمة النقطة',
   'What one courier point is worth': 'قيمة نقطة المندوب الواحدة',
   'Points per delivery': 'نقاط كل توصيل',
@@ -308,15 +326,18 @@ export const AR_MONEY: Record<string, string> = {
   'Points per return': 'نقاط كل مرتجع',
   'Each parcel handed back to a merchant': 'كل شحنة ترجع للتاجر',
   'Points per picked up parcel': 'نقاط كل شحنة مستلمة',
-  'Each parcel the facility receives from a pickup courier': 'كل شحنة يستلمها مركز الفرز من مندوب الاستلام',
+  'Each parcel the facility receives from a pickup courier':
+    'كل شحنة يستلمها مركز الفرز من مندوب الاستلام',
   'Daily bonus target': 'هدف المكافأة اليومية',
-  'Deliveries in one day that earn the bonus (0 = no bonus)': 'عدد التوصيلات في اليوم للحصول على المكافأة (0 = بدون)',
+  'Deliveries in one day that earn the bonus (0 = no bonus)':
+    'عدد التوصيلات في اليوم للحصول على المكافأة (0 = بدون)',
   'Daily bonus points': 'نقاط المكافأة اليومية',
   'Points for reaching the daily target': 'النقاط عند الوصول للهدف اليومي',
   'Earnings freeze (days)': 'تجميد المكسب (أيام)',
   'Days before a courier can withdraw what they earned': 'الأيام قبل أن يستطيع المندوب سحب ما كسبه',
   'Pickup staff paid by': 'من يدفع لموظفي الاستلام',
-  'The company pays them directly, or their agent at month end': 'الشركة مباشرة أو الوكيل في نهاية الشهر',
+  'The company pays them directly, or their agent at month end':
+    'الشركة مباشرة أو الوكيل في نهاية الشهر',
   'The company': 'الشركة',
   'Their agent': 'الوكيل',
 

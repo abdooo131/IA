@@ -14,7 +14,6 @@ export default function AlertsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-       
         title={t('Alerts')}
         subtitle={t('Attendance, approvals and vehicle requests that need someone to act')}
         actions={

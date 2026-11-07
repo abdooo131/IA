@@ -37,7 +37,8 @@ function beep(ok: boolean) {
 }
 
 function asOutcome(r: ReactNode | ScanOutcome): ScanOutcome {
-  if (r && typeof r === 'object' && !isValidElement(r) && 'text' in (r as object)) return r as ScanOutcome;
+  if (r && typeof r === 'object' && !isValidElement(r) && 'text' in (r as object))
+    return r as ScanOutcome;
   return { text: r as ReactNode };
 }
 
@@ -79,10 +80,22 @@ export function ScanBox({
     try {
       const outcome = asOutcome(await onScan(code));
       beep(true);
-      setLines((l) => [{ ok: true, code: code.toUpperCase(), outcome, at: Date.now() }, ...l].slice(0, 50));
+      setLines((l) =>
+        [{ ok: true, code: code.toUpperCase(), outcome, at: Date.now() }, ...l].slice(0, 50),
+      );
     } catch (e) {
       beep(false);
-      setLines((l) => [{ ok: false, code: code.toUpperCase(), outcome: { text: t(errorMessage(e)) }, at: Date.now() }, ...l].slice(0, 50));
+      setLines((l) =>
+        [
+          {
+            ok: false,
+            code: code.toUpperCase(),
+            outcome: { text: t(errorMessage(e)) },
+            at: Date.now(),
+          },
+          ...l,
+        ].slice(0, 50),
+      );
     } finally {
       setBusy(false);
       input.current?.focus();
@@ -105,8 +118,14 @@ export function ScanBox({
   return (
     <div>
       <div className="mb-1 flex items-center justify-between gap-2">
-        <label className="text-caption font-semibold" htmlFor={id}>{label}</label>
-        {okCount > 0 && <span className="tabular rounded-pill bg-selected-bg px-2 text-caption font-bold text-link">{t('{n} scanned', { n: okCount })}</span>}
+        <label className="text-caption font-semibold" htmlFor={id}>
+          {label}
+        </label>
+        {okCount > 0 && (
+          <span className="tabular rounded-pill bg-selected-bg px-2 text-caption font-bold text-link">
+            {t('{n} scanned', { n: okCount })}
+          </span>
+        )}
       </div>
       <form
         onSubmit={(e) => {
@@ -116,7 +135,9 @@ export function ScanBox({
         className="flex gap-2"
       >
         <div className="relative flex-1">
-          <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-text-muted"><Icon name="scan" size={22} /></span>
+          <span className="pointer-events-none absolute inset-y-0 start-3 flex items-center text-text-muted">
+            <Icon name="scan" size={22} />
+          </span>
           <input
             id={id}
             ref={input}
@@ -129,32 +150,71 @@ export function ScanBox({
             onChange={(e) => setValue(e.target.value)}
             placeholder={placeholder ?? t('Scan or type a code, then Enter')}
             dir="ltr"
-            className={cx('field ps-11 font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal', lg ? 'min-h-14 text-h3' : 'min-h-12 text-body')}
+            className={cx(
+              'field ps-11 font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal',
+              lg ? 'min-h-14 text-h3' : 'min-h-12 text-body',
+            )}
           />
         </div>
         {canCamera && (
-          <button type="button" disabled={busy || disabled} onClick={() => setCamera(true)} className={cx('btn-secondary', lg ? 'min-h-14 px-4' : 'min-h-12 px-3')} aria-label={t('Scan with the camera')} title={t('Scan with the camera')}>
+          <button
+            type="button"
+            disabled={busy || disabled}
+            onClick={() => setCamera(true)}
+            className={cx('btn-secondary', lg ? 'min-h-14 px-4' : 'min-h-12 px-3')}
+            aria-label={t('Scan with the camera')}
+            title={t('Scan with the camera')}
+          >
             <Icon name="scan" size={22} />
           </button>
         )}
-        <button type="submit" disabled={busy || disabled || !value.trim()} className={cx('btn-primary', lg ? 'min-h-14 px-6' : 'min-h-12')}>
+        <button
+          type="submit"
+          disabled={busy || disabled || !value.trim()}
+          className={cx('btn-primary', lg ? 'min-h-14 px-6' : 'min-h-12')}
+        >
           {busy ? '…' : t('Go')}
         </button>
       </form>
-      {camera && <CameraScanner onClose={() => setCamera(false)} onCode={(code) => { setCamera(false); void submit(code); }} />}
+      {camera && (
+        <CameraScanner
+          onClose={() => setCamera(false)}
+          onCode={(code) => {
+            setCamera(false);
+            void submit(code);
+          }}
+        />
+      )}
       {last && (
         <div className={cx('mt-4 rounded-xl border-s-8 p-4 shadow-md', panel)} role="status">
           <div className="flex flex-wrap items-center gap-4">
             {last.ok && last.outcome.big && (
-              <span className={cx('ltr-iso rounded-lg px-4 py-2 text-h1 font-extrabold', last.outcome.tone === 'return' ? 'bg-status-returning text-white' : last.outcome.tone === 'hold' ? 'bg-status-needs-action text-white' : 'bg-accent text-on-accent')}>
+              <span
+                className={cx(
+                  'ltr-iso rounded-lg px-4 py-2 text-h1 font-extrabold',
+                  last.outcome.tone === 'return'
+                    ? 'bg-status-returning text-white'
+                    : last.outcome.tone === 'hold'
+                      ? 'bg-status-needs-action text-white'
+                      : 'bg-accent text-on-accent',
+                )}
+              >
                 {last.outcome.big}
               </span>
             )}
-            {!last.ok && <span className="rounded-lg bg-danger px-4 py-2 text-h3 font-extrabold text-white">{t('Stop')}</span>}
+            {!last.ok && (
+              <span className="rounded-lg bg-danger px-4 py-2 text-h3 font-extrabold text-white">
+                {t('Stop')}
+              </span>
+            )}
             <div className="min-w-0 flex-1">
               <div className="ltr-iso font-mono text-caption text-text-muted">{last.code}</div>
               <div className="mt-0.5 text-body font-semibold">{last.outcome.text}</div>
-              {last.outcome.warn && <div className="mt-1 text-body-sm font-semibold text-status-needs-action">{last.outcome.warn}</div>}
+              {last.outcome.warn && (
+                <div className="mt-1 text-body-sm font-semibold text-status-needs-action">
+                  {last.outcome.warn}
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -162,8 +222,16 @@ export function ScanBox({
       {lines.length > 1 && (
         <ul className="mt-3 max-h-64 space-y-1 overflow-y-auto">
           {lines.slice(1).map((l) => (
-            <li key={l.at} className="flex items-center gap-2 rounded-md bg-surface-raised px-2 py-1.5 text-caption">
-              <span className={cx('h-2 w-2 shrink-0 rounded-pill', l.ok ? 'bg-status-delivered' : 'bg-danger')} />
+            <li
+              key={l.at}
+              className="flex items-center gap-2 rounded-md bg-surface-raised px-2 py-1.5 text-caption"
+            >
+              <span
+                className={cx(
+                  'h-2 w-2 shrink-0 rounded-pill',
+                  l.ok ? 'bg-status-delivered' : 'bg-danger',
+                )}
+              />
               <span className="ltr-iso font-mono">{l.code}</span>
               {l.outcome.big && <span className="ltr-iso font-bold">{l.outcome.big}</span>}
               <span className="truncate text-text-muted">{l.outcome.text}</span>

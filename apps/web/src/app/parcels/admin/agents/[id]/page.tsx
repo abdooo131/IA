@@ -1,7 +1,20 @@
 'use client';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, PageHeader, Select, Table, Td } from '@/parcels/components/ui';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Empty,
+  Field,
+  Input,
+  Loading,
+  PageHeader,
+  Select,
+  Table,
+  Td,
+} from '@/parcels/components/ui';
 import { StaffPanel, VehiclesPanel } from '@/parcels/components/workforce';
 import { api, errorMessage } from '@/parcels/lib/api';
 import { dateTime } from '@/parcels/lib/format';
@@ -10,11 +23,24 @@ import { useT } from '@/parcels/lib/i18n';
 import { AgentForm, SUPPLIES_LABEL, type AgentProfile } from '../AgentForm';
 
 type Detail = AgentProfile & {
-  documents: { id: string; kind: string; fileName: string; mime: string; size: number; createdAt: string }[];
+  documents: {
+    id: string;
+    kind: string;
+    fileName: string;
+    mime: string;
+    size: number;
+    createdAt: string;
+  }[];
   logins: { id: string; name: string; email: string | null; active: boolean }[];
 };
 
-const DOC_KIND: Record<string, string> = { NATIONAL_ID: 'National ID', COMMERCIAL_REGISTER: 'Commercial register', TAX_CARD: 'Tax card', CONTRACT: 'Contract', OTHER: 'Other' };
+const DOC_KIND: Record<string, string> = {
+  NATIONAL_ID: 'National ID',
+  COMMERCIAL_REGISTER: 'Commercial register',
+  TAX_CARD: 'Tax card',
+  CONTRACT: 'Contract',
+  OTHER: 'Other',
+};
 
 function readBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -42,7 +68,14 @@ export default function AgentDetail() {
     setMsg(null);
     try {
       if (file.size > 5 * 1024 * 1024) throw new Error(t('The file is larger than 5 MB'));
-      await api(`/admin/agents/${id}/documents`, { body: { kind: docKind, fileName: file.name, mime: file.type, dataBase64: await readBase64(file) } });
+      await api(`/admin/agents/${id}/documents`, {
+        body: {
+          kind: docKind,
+          fileName: file.name,
+          mime: file.type,
+          dataBase64: await readBase64(file),
+        },
+      });
       setMsg({ ok: true, text: t('Uploaded {name}', { name: file.name }) });
       await agent.reload();
     } catch (err) {
@@ -69,13 +102,26 @@ export default function AgentDetail() {
         eyebrow={t('Agent code {code}', { code: a.code })}
         title={a.name}
         subtitle={`${t(SUPPLIES_LABEL[a.supplies])} · ${t('Commission')} ${a.effectiveCommissionBp / 100}%`}
-        actions={<Button tone="secondary" onClick={() => setEditing((x) => !x)}>{editing ? t('Close') : t('Edit profile')}</Button>}
+        actions={
+          <Button tone="secondary" onClick={() => setEditing((x) => !x)}>
+            {editing ? t('Close') : t('Edit profile')}
+          </Button>
+        }
       />
       {msg && <Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
-      {!a.active && <Alert tone="warning">{t('This agent is inactive. Staff cannot join with its code')}</Alert>}
+      {!a.active && (
+        <Alert tone="warning">{t('This agent is inactive. Staff cannot join with its code')}</Alert>
+      )}
       {editing ? (
         <Card title={t('Profile')}>
-          <AgentForm agent={a} onSaved={() => { setEditing(false); setMsg({ ok: true, text: t('Saved {name}', { name: a.name }) }); void agent.reload(); }} />
+          <AgentForm
+            agent={a}
+            onSaved={() => {
+              setEditing(false);
+              setMsg({ ok: true, text: t('Saved {name}', { name: a.name }) });
+              void agent.reload();
+            }}
+          />
         </Card>
       ) : (
         <Card title={t('Profile')}>
@@ -104,13 +150,23 @@ export default function AgentDetail() {
               <Field label={t('Kind')}>
                 <Select value={docKind} onChange={(e) => setDocKind(e.target.value)}>
                   {Object.entries(DOC_KIND).map(([k, v]) => (
-                    <option key={k} value={k}>{t(v)}</option>
+                    <option key={k} value={k}>
+                      {t(v)}
+                    </option>
                   ))}
                 </Select>
               </Field>
               <label className="btn-secondary cursor-pointer">
                 {t('Upload file')}
-                <input type="file" accept="image/jpeg,image/png,image/webp,application/pdf" className="sr-only" onChange={(e) => { void upload(e.target.files?.[0]); e.target.value = ''; }} />
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,application/pdf"
+                  className="sr-only"
+                  onChange={(e) => {
+                    void upload(e.target.files?.[0]);
+                    e.target.value = '';
+                  }}
+                />
               </label>
             </div>
             {a.documents.length === 0 ? (
@@ -118,10 +174,20 @@ export default function AgentDetail() {
             ) : (
               <ul className="divide-y divide-line">
                 {a.documents.map((d) => (
-                  <li key={d.id} className="flex items-center justify-between gap-2 py-2 text-body-sm">
+                  <li
+                    key={d.id}
+                    className="flex items-center justify-between gap-2 py-2 text-body-sm"
+                  >
                     <span>
                       <Badge tone="blue">{t(DOC_KIND[d.kind] ?? d.kind)}</Badge>
-                      <a href={`/api/parcels/admin/agents/${id}/documents/${d.id}`} target="_blank" rel="noreferrer" className="ms-2 font-bold text-link">{d.fileName}</a>
+                      <a
+                        href={`/api/parcels/admin/agents/${id}/documents/${d.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="ms-2 font-bold text-link"
+                      >
+                        {d.fileName}
+                      </a>
                     </span>
                     <span className="text-caption text-text-muted">{dateTime(d.createdAt)}</span>
                   </li>
@@ -137,16 +203,45 @@ export default function AgentDetail() {
                 {a.logins.map((l) => (
                   <tr key={l.id}>
                     <Td>{l.name}</Td>
-                    <Td><span className="ltr-iso">{l.email}</span></Td>
-                    <Td>{l.active ? <Badge tone="green">{t('Active')}</Badge> : <Badge tone="red">{t('Inactive')}</Badge>}</Td>
+                    <Td>
+                      <span className="ltr-iso">{l.email}</span>
+                    </Td>
+                    <Td>
+                      {l.active ? (
+                        <Badge tone="green">{t('Active')}</Badge>
+                      ) : (
+                        <Badge tone="red">{t('Inactive')}</Badge>
+                      )}
+                    </Td>
                   </tr>
                 ))}
               </Table>
             )}
             <form onSubmit={addLogin} className="grid gap-2 sm:grid-cols-3">
-              <Input required minLength={2} placeholder={t('Name')} value={login.name} onChange={(e) => setLogin({ ...login, name: e.target.value })} />
-              <Input required type="email" placeholder={t('Email')} className="ltr-iso" value={login.email} onChange={(e) => setLogin({ ...login, email: e.target.value })} />
-              <Input required type="password" minLength={8} autoComplete="new-password" placeholder={t('Password')} value={login.password} onChange={(e) => setLogin({ ...login, password: e.target.value })} />
+              <Input
+                required
+                minLength={2}
+                placeholder={t('Name')}
+                value={login.name}
+                onChange={(e) => setLogin({ ...login, name: e.target.value })}
+              />
+              <Input
+                required
+                type="email"
+                placeholder={t('Email')}
+                className="ltr-iso"
+                value={login.email}
+                onChange={(e) => setLogin({ ...login, email: e.target.value })}
+              />
+              <Input
+                required
+                type="password"
+                minLength={8}
+                autoComplete="new-password"
+                placeholder={t('Password')}
+                value={login.password}
+                onChange={(e) => setLogin({ ...login, password: e.target.value })}
+              />
               <div className="sm:col-span-3">
                 <Button type="submit">{t('Create login')}</Button>
               </div>

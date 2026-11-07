@@ -5,7 +5,8 @@ import { DomainError } from './errors';
 @Injectable()
 export class ParseIdPipe implements PipeTransform<string, string> {
   transform(value: string) {
-    if (typeof value !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(value)) throw new DomainError('invalid_input', 'Not a valid id', 400);
+    if (typeof value !== 'string' || !/^[A-Za-z0-9-]{8,64}$/.test(value))
+      throw new DomainError('invalid_input', 'Not a valid id', 400);
     return value;
   }
 }

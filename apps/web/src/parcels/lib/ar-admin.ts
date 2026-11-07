@@ -120,15 +120,18 @@ export const AR_ADMIN: Record<string, string> = {
 
   // Network
   Add: 'إضافة',
-  'Type the map position, for example 30.0566 and 31.3301': 'اكتب الموقع على الخريطة، مثلا 30.0566 و 31.3301',
+  'Type the map position, for example 30.0566 and 31.3301':
+    'اكتب الموقع على الخريطة، مثلا 30.0566 و 31.3301',
   '2 to 10 letters, digits or dashes': 'من 2 إلى 10 حروف أو أرقام أو شرطات',
   Latitude: 'خط العرض',
   'From Google Maps, for example 30.0566': 'من خرائط جوجل، مثلا 30.0566',
   Longitude: 'خط الطول',
   'For example 31.3301': 'مثلا 31.3301',
-  'Sorting facility (inbound, sorting and outbound teams; receives pickups)': 'مركز فرز (فرق الاستلام والفرز والإرسال؛ يستقبل شحنات التجار)',
+  'Sorting facility (inbound, sorting and outbound teams; receives pickups)':
+    'مركز فرز (فرق الاستلام والفرز والإرسال؛ يستقبل شحنات التجار)',
   'Fed by sorting facility': 'مركز الفرز المغذي',
-  'Leave on Nearest to let the system pick by distance': 'اتركه على الأقرب ليختار النظام حسب المسافة',
+  'Leave on Nearest to let the system pick by distance':
+    'اتركه على الأقرب ليختار النظام حسب المسافة',
   Nearest: 'الأقرب',
   Active: 'نشط',
   Inactive: 'غير نشط',
@@ -148,9 +151,11 @@ export const AR_ADMIN: Record<string, string> = {
   'Area (Arabic)': 'المنطقة (بالعربية)',
   Hub: 'المركز',
   'Add area': 'إضافة منطقة',
-  'Sorting facilities, last mile hubs, pricing zones and which hub delivers where': 'مراكز الفرز ومراكز التوصيل الأخير ومناطق التسعير وأي مركز يوصل لأي مكان',
+  'Sorting facilities, last mile hubs, pricing zones and which hub delivers where':
+    'مراكز الفرز ومراكز التوصيل الأخير ومناطق التسعير وأي مركز يوصل لأي مكان',
   'Zones and prices (EGP)': 'المناطق والأسعار (جنيه)',
-  'Transit days are business days from the day the parcel enters our network, before the daily cutoff.': 'أيام النقل هي أيام عمل من يوم دخول الشحنة لشبكتنا قبل موعد الإغلاق اليومي.',
+  'Transit days are business days from the day the parcel enters our network, before the daily cutoff.':
+    'أيام النقل هي أيام عمل من يوم دخول الشحنة لشبكتنا قبل موعد الإغلاق اليومي.',
   Days: 'الأيام',
   Small: 'صغير',
   Medium: 'متوسط',
@@ -172,7 +177,8 @@ export const AR_ADMIN: Record<string, string> = {
   Area: 'المنطقة',
   'Not set': 'غير محدد',
   'Pickup sorting facility': 'مركز الفرز للاستلام',
-  'Chosen by the system: the facility nearest the pickup area': 'يختاره النظام: أقرب مركز فرز لمنطقة الاستلام',
+  'Chosen by the system: the facility nearest the pickup area':
+    'يختاره النظام: أقرب مركز فرز لمنطقة الاستلام',
   'Shipping discount (%)': 'خصم الشحن (%)',
   'Create merchant': 'إنشاء التاجر',
   'Pickup facility': 'مركز الاستلام',
@@ -183,13 +189,15 @@ export const AR_ADMIN: Record<string, string> = {
   'Account created for {email}': 'تم إنشاء الحساب لـ {email}',
   'New password for {email} (8 characters or more)': 'كلمة مرور جديدة لـ {email} (8 حروف أو أكثر)',
   'Password changed for {email}': 'تم تغيير كلمة المرور لـ {email}',
-  'Admins, facility teams, hub staff, couriers and merchant logins': 'المديرون وفرق المراكز وموظفو المراكز والمندوبون وحسابات التجار',
+  'Admins, facility teams, hub staff, couriers and merchant logins':
+    'المديرون وفرق المراكز وموظفو المراكز والمندوبون وحسابات التجار',
   'Add user': 'إضافة مستخدم',
   'New user': 'مستخدم جديد',
   Role: 'الدور',
   'Choose a hub': 'اختر المركز',
   Team: 'الفريق',
-  'A team member sees only their station. A supervisor sees every station': 'عضو الفريق يرى محطته فقط. المشرف يرى كل المحطات',
+  'A team member sees only their station. A supervisor sees every station':
+    'عضو الفريق يرى محطته فقط. المشرف يرى كل المحطات',
   'Supervisor (all stations)': 'مشرف (كل المحطات)',
   'Choose a merchant': 'اختر التاجر',
   'Egyptian mobile, optional': 'موبايل مصري، اختياري',
@@ -233,11 +241,13 @@ export const AR_ADMIN: Record<string, string> = {
 
   // Settings
   'Daily cutoff': 'موعد الإغلاق اليومي',
-  'Parcels entering after this time count from tomorrow': 'الشحنات التي تدخل بعد هذا الوقت تحسب من الغد',
+  'Parcels entering after this time count from tomorrow':
+    'الشحنات التي تدخل بعد هذا الوقت تحسب من الغد',
   'Days with no deliveries': 'أيام بدون توصيل',
   'Skipped when counting the promised date': 'لا تحسب عند تحديد موعد التوصيل',
   'Delivery attempts': 'محاولات التوصيل',
-  'Failed attempts before the parcel goes back to the merchant': 'عدد المحاولات الفاشلة قبل إرجاع الشحنة للتاجر',
+  'Failed attempts before the parcel goes back to the merchant':
+    'عدد المحاولات الفاشلة قبل إرجاع الشحنة للتاجر',
   'Charged on cash above the free amount': 'تحسب على النقدية فوق الحد المعفي',
   'COD free amount': 'حد التحصيل المعفي',
   'Cash we collect with no COD fee': 'النقدية التي نحصلها بدون رسوم تحصيل',
@@ -248,7 +258,8 @@ export const AR_ADMIN: Record<string, string> = {
   'Cash difference that raises an alert': 'فرق النقدية الذي يطلق تنبيها',
   'Check the value': 'راجع القيمة',
   EGP: 'جنيه',
-  'Business rules used by every facility, hub and courier. Changes apply to new actions at once.': 'قواعد العمل المستخدمة في كل مركز ومندوب. التغييرات تطبق فورا على العمليات الجديدة.',
+  'Business rules used by every facility, hub and courier. Changes apply to new actions at once.':
+    'قواعد العمل المستخدمة في كل مركز ومندوب. التغييرات تطبق فورا على العمليات الجديدة.',
   Sun: 'الأحد',
   Mon: 'الإثنين',
   Tue: 'الثلاثاء',

@@ -16,7 +16,11 @@ export class HubController {
 
   @Post('inbound')
   @HttpCode(200)
-  inbound(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  inbound(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.inbound(this.check(u, hubId), body, u);
   }
 
@@ -27,7 +31,11 @@ export class HubController {
 
   @Post('outbound/bag')
   @HttpCode(200)
-  bagParcel(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  bagParcel(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.bagParcel(this.check(u, hubId), body, u);
   }
 
@@ -43,7 +51,11 @@ export class HubController {
 
   @Post('bags/:bagId/check')
   @HttpCode(200)
-  checkBag(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('bagId', ParseIdPipe) bagId: string) {
+  checkBag(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('bagId', ParseIdPipe) bagId: string,
+  ) {
     return this.hub.checkBag(this.check(u, hubId), bagId, u);
   }
 
@@ -58,13 +70,25 @@ export class HubController {
   }
 
   @Get('pickups')
-  pickups(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Query('date') date?: string) {
-    return this.hub.pickups(this.check(u, hubId), date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined);
+  pickups(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Query('date') date?: string,
+  ) {
+    return this.hub.pickups(
+      this.check(u, hubId),
+      date && /^\d{4}-\d{2}-\d{2}$/.test(date) ? date : undefined,
+    );
   }
 
   @Post('pickups/:id/assign')
   @HttpCode(200)
-  async assign(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('id', ParseIdPipe) id: string, @Body() body: unknown) {
+  async assign(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
     await this.hub.assignPickup(this.check(u, hubId), id, body, u);
     return { ok: true };
   }
@@ -76,7 +100,11 @@ export class HubController {
 
   @Post('sort')
   @HttpCode(200)
-  sort(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  sort(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.sort(this.check(u, hubId), body, u);
   }
 
@@ -86,27 +114,44 @@ export class HubController {
   }
 
   @Get('bags/:bagId')
-  bag(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('bagId', ParseIdPipe) bagId: string) {
+  bag(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('bagId', ParseIdPipe) bagId: string,
+  ) {
     return this.hub.bag(this.check(u, hubId), bagId);
   }
 
   @Post('bags/:bagId/remove')
   @HttpCode(200)
-  async removeFromBag(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('bagId', ParseIdPipe) bagId: string, @Body() body: unknown) {
+  async removeFromBag(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('bagId', ParseIdPipe) bagId: string,
+    @Body() body: unknown,
+  ) {
     await this.hub.removeFromBag(this.check(u, hubId), bagId, body, u);
     return { ok: true };
   }
 
   @Post('bags/:bagId/seal')
   @HttpCode(200)
-  async seal(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('bagId', ParseIdPipe) bagId: string) {
+  async seal(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('bagId', ParseIdPipe) bagId: string,
+  ) {
     await this.hub.sealBag(this.check(u, hubId), bagId, u);
     return { ok: true };
   }
 
   @Post('receive-bag')
   @HttpCode(200)
-  receiveBag(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  receiveBag(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.receiveBag(this.check(u, hubId), body, u);
   }
 
@@ -116,32 +161,54 @@ export class HubController {
   }
 
   @Post('trips')
-  createTrip(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  createTrip(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.createTrip(this.check(u, hubId), body, u);
   }
 
   @Post('trips/:tripId/load')
   @HttpCode(200)
-  load(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('tripId', ParseIdPipe) tripId: string, @Body() body: unknown) {
+  load(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('tripId', ParseIdPipe) tripId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.loadBag(this.check(u, hubId), tripId, body, u);
   }
 
   @Post('trips/:tripId/unload')
   @HttpCode(200)
-  async unload(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('tripId', ParseIdPipe) tripId: string, @Body() body: unknown) {
+  async unload(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('tripId', ParseIdPipe) tripId: string,
+    @Body() body: unknown,
+  ) {
     await this.hub.unloadBag(this.check(u, hubId), tripId, body, u);
     return { ok: true };
   }
 
   @Post('trips/:tripId/depart')
   @HttpCode(200)
-  depart(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('tripId', ParseIdPipe) tripId: string) {
+  depart(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('tripId', ParseIdPipe) tripId: string,
+  ) {
     return this.hub.depart(this.check(u, hubId), tripId, u);
   }
 
   @Post('trips/:tripId/close')
   @HttpCode(200)
-  closeTrip(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('tripId', ParseIdPipe) tripId: string) {
+  closeTrip(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('tripId', ParseIdPipe) tripId: string,
+  ) {
     return this.hub.closeTrip(this.check(u, hubId), tripId, u);
   }
 
@@ -156,37 +223,64 @@ export class HubController {
   }
 
   @Get('runs/:runId')
-  run(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('runId', ParseIdPipe) runId: string) {
+  run(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('runId', ParseIdPipe) runId: string,
+  ) {
     return this.hub.run(this.check(u, hubId), runId);
   }
 
   @Post('runs')
-  createRun(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Body() body: unknown) {
+  createRun(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.createRun(this.check(u, hubId), body, u);
   }
 
   @Post('runs/:runId/add')
   @HttpCode(200)
-  add(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('runId', ParseIdPipe) runId: string, @Body() body: unknown) {
+  add(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('runId', ParseIdPipe) runId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.addToRun(this.check(u, hubId), runId, body, u);
   }
 
   @Post('runs/:runId/remove')
   @HttpCode(200)
-  async remove(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('runId', ParseIdPipe) runId: string, @Body() body: unknown) {
+  async remove(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('runId', ParseIdPipe) runId: string,
+    @Body() body: unknown,
+  ) {
     await this.hub.removeFromRun(this.check(u, hubId), runId, body, u);
     return { ok: true };
   }
 
   @Post('runs/:runId/start')
   @HttpCode(200)
-  start(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('runId', ParseIdPipe) runId: string) {
+  start(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('runId', ParseIdPipe) runId: string,
+  ) {
     return this.hub.startRun(this.check(u, hubId), runId, u);
   }
 
   @Post('runs/:runId/close')
   @HttpCode(200)
-  close(@CurrentUser() u: SessionUser, @Param('hubId', ParseIdPipe) hubId: string, @Param('runId', ParseIdPipe) runId: string, @Body() body: unknown) {
+  close(
+    @CurrentUser() u: SessionUser,
+    @Param('hubId', ParseIdPipe) hubId: string,
+    @Param('runId', ParseIdPipe) runId: string,
+    @Body() body: unknown,
+  ) {
     return this.hub.closeRun(this.check(u, hubId), runId, body, u);
   }
 }

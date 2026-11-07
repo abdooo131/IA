@@ -69,12 +69,23 @@ Their ids switch to Shiply Now's style (cuid).
 ## Order of work
 
 1. Done: Shiply Now brought into this branch; both run side by side.
-2. Database: Core tables into Shiply Now's schema as mapped above; companies and cost centers.
-3. API: Core modules into apps/api one by one (network and parcels, hub floor, couriers and
-   agents, quality, merchant tools and the API, Shopify), each with its tests passing here.
-4. Web: Core screens into apps/web; one apps home with both services.
-5. Books: Core postings onto the shared ledger; P&L combined, per company, per cost center.
+2. Done: Core tables in Shiply Now's schema (migrations 20270101000000_parcels_network and
+   20270101000100_companies_cost_centers); companies and cost centers.
+3. Done: Core's API is apps/api/src/parcels, served under /parcels (RouterModule). Sign in is
+   Shiply Now's (one login, email or Egyptian mobile); ParcelsGuard maps roles for the network
+   routes. The 69 network tests run in apps/api/test/parcels against Shiply Now's test database.
+   Payouts, expenses, journals, closing the books and full reports are Shiply Now's Accounting
+   for both companies; the network keeps courier wallets, pay ins, hub safes, agent settlements
+   and advances, and shows the combined trial balance and balance sheet.
+4. Done in part: Core screens are apps/web/src/app/parcels (network code in src/parcels). Hub
+   staff, couriers and agents land on /parcels/hub, /parcels/courier and /parcels/agent;
+   admins and finance open the Parcel network tile on /home. Still to do: one shared shell and
+   menus, and the merchant area showing both services.
+5. Done in part: network postings go to the shared ledger as company shiply, each line on the
+   cost center of its hub (named hub, else the courier's hub, else the merchant's facility).
+   Still to do: P&L views per company and cost center in Accounting.
 6. Shopify: one app, two actions (60 minutes, next day).
 7. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.
-8. Delete `shiply-core/`.
+8. Merge Core's packaging shop with Shiply Now's packaging and purchase orders; one alerts list.
+9. Delete `shiply-core/`.
