@@ -430,6 +430,8 @@ model Merchant {
   bankName        String   @default("") @map("bank_name")
   bankAccountName String   @default("") @map("bank_account_name")
   iban            String   @default("")
+  /// Tax registration number, for tax invoices (empty for a person, not a company).
+  taxId           String   @default("") @map("tax_id")
   pendingBank     Json?    @map("pending_bank")
   pendingBankById String?  @map("pending_bank_by_id") @db.Uuid
   /// Weekdays the merchant is paid (0 Sunday ... 6 Saturday).
@@ -665,6 +667,7 @@ enum PartyType {
   COURIER
   AGENT
   HUB
+  SUPPLIER
 }
 
 model Account {
@@ -853,6 +856,8 @@ model AgentSettlement {
   vehicleRent     Int           @map("vehicle_rent")
   specialVehicles Int           @map("special_vehicles")
   penalties       Int
+  /// Advances already paid to the agent this month, taken off the payment.
+  advances        Int           @default(0)
   total           Int
   details         Json
   status          RequestStatus @default(PENDING_APPROVAL)
@@ -927,4 +932,145 @@ model AuditLog {
 
   @@index([entity, entityId])
   @@map("audit_log")
+}
+
+// ---------------------------------------------------------------- tax, suppliers, bank, budgets
+
+/// A tax invoice (monthly, per merchant) or a credit note against one. Numbers never repeat.
+model TaxInvoice {
+  id           String   @id @default(uuid()) @db.Uuid
+  number       String   @unique
+  /// INVOICE or CREDIT_NOTE
+  kind         String
+  merchantId   String   @map("merchant_id") @db.Uuid
+  /// YYYY-MM the invoice covers
+  month        String
+  issueDate    String   @map("issue_date")
+  net          Int
+  vat          Int
+  total        Int
+  lines        Json
+  /// For a credit note: the invoice it corrects, and why.
+  refInvoiceId String?  @map("ref_invoice_id") @db.Uuid
+  reason       String   @default("")
+  /// ISSUED; credit notes start PENDING_APPROVAL; REJECTED ones never posted.
+  status       String   @default("ISSUED")
+  /// NOT_SENT, EXPORTED (ETA file downloaded), SUBMITTED (accepted by ETA)
+  etaStatus    String   @default("NOT_SENT") @map("eta_status")
+  etaUuid      String   @default("") @map("eta_uuid")
+  createdById  String   @map("created_by_id") @db.Uuid
+  approvedById String?  @map("approved_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([merchantId, month])
+  @@map("tax_invoices")
+}
+
+model Supplier {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  taxId     String   @default("") @map("tax_id")
+  phone     String   @default("")
+  email     String   @default("")
+  bankName  String   @default("") @map("bank_name")
+  iban      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  bills Bill[]
+
+  @@map("suppliers")
+}
+
+/// A supplier's invoice: booked when a second person approves, paid later.
+model Bill {
+  id           String        @id @default(uuid()) @db.Uuid
+  code         String        @unique
+  supplierId   String        @map("supplier_id") @db.Uuid
+  supplier     Supplier      @relation(fields: [supplierId], references: [id])
+  /// The supplier's own invoice number.
+  number       String        @default("")
+  date         String
+  dueDate      String        @map("due_date")
+  accountCode  String        @map("account_code")
+  net          Int
+  vat          Int
+  whtBp        Int           @default(0) @map("wht_bp")
+  wht          Int           @default(0)
+  /// net + vat
+  total        Int
+  /// What we pay the supplier: total minus withholding tax.
+  payable      Int
+  hubId        String?       @map("hub_id") @db.Uuid
+  note         String        @default("")
+  attachment   Bytes?
+  mime         String        @default("")
+  status       RequestStatus @default(PENDING_APPROVAL)
+  createdById  String        @map("created_by_id") @db.Uuid
+  approvedById String?       @map("approved_by_id") @db.Uuid
+  paidAt       DateTime?     @map("paid_at")
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@index([status])
+  @@map("bills")
+}
+
+model BankImport {
+  id          String   @id @default(uuid()) @db.Uuid
+  fileName    String   @map("file_name")
+  rows        Int
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  lines BankLine[]
+
+  @@map("bank_imports")
+}
+
+/// One line of the bank's statement, matched to a bank line in our books.
+model BankLine {
+  id            String     @id @default(uuid()) @db.Uuid
+  importId      String     @map("import_id") @db.Uuid
+  import        BankImport @relation(fields: [importId], references: [id])
+  date          String
+  description   String
+  reference     String     @default("")
+  /// Money in is positive, money out negative (piastres).
+  amount        Int
+  /// The journal line on the bank account it matches.
+  matchedLineId String?    @unique @map("matched_line_id") @db.Uuid
+  matchedById   String?    @map("matched_by_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at")
+
+  @@index([date])
+  @@map("bank_lines")
+}
+
+model Budget {
+  id          String @id @default(uuid()) @db.Uuid
+  accountCode String @map("account_code")
+  /// YYYY-MM
+  month       String
+  amount      Int
+
+  @@unique([accountCode, month])
+  @@map("budgets")
+}
+
+/// Money paid to an agent before month end, taken off their next settlement.
+model AgentAdvance {
+  id            String        @id @default(uuid()) @db.Uuid
+  code          String        @unique
+  agentId       String        @map("agent_id") @db.Uuid
+  amount        Int
+  status        RequestStatus @default(PENDING_APPROVAL)
+  note          String        @default("")
+  requestedById String        @map("requested_by_id") @db.Uuid
+  approvedById  String?       @map("approved_by_id") @db.Uuid
+  settlementId  String?       @map("settlement_id") @db.Uuid
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@map("agent_advances")
 }

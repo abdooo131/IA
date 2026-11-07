@@ -1,6 +1,6 @@
 import type { Tx } from './prisma.service';
 
-const SEQUENCES = ['tracking_seq', 'pickup_seq', 'bag_seq', 'trip_seq', 'run_seq', 'payout_seq', 'money_seq'] as const;
+const SEQUENCES = ['tracking_seq', 'pickup_seq', 'bag_seq', 'trip_seq', 'run_seq', 'payout_seq', 'money_seq', 'invoice_seq'] as const;
 type Sequence = (typeof SEQUENCES)[number];
 
 export async function nextNumber(tx: Tx, seq: Sequence): Promise<number> {

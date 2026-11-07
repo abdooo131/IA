@@ -2,7 +2,7 @@
 
 export interface SettingDef {
   label: string;
-  kind: 'int' | 'money' | 'bp' | 'time' | 'text' | 'weekdays' | 'choice' | 'date';
+  kind: 'int' | 'money' | 'bp' | 'time' | 'text' | 'weekdays' | 'choice' | 'date' | 'longtext';
   default: number | string | number[];
   /** For kind 'choice': the allowed values. */
   options?: readonly string[];
@@ -31,6 +31,15 @@ export const SETTINGS = {
   'pay.freeze_days': { label: 'Days before courier earnings can be withdrawn', kind: 'int', default: 3 },
   'pay.pickup_paid_by': { label: 'Who pays pickup staff: the company directly, or their agent at month end', kind: 'choice', default: 'COMPANY', options: ['COMPANY', 'AGENT'] },
   'books.closed_through': { label: 'Books are closed through this date: nothing can be posted on or before it', kind: 'date', default: '' },
+  'tax.vat_bp': { label: 'VAT rate in basis points (1400 = 14%). Our prices include it', kind: 'bp', default: 1400 },
+  'company.name': { label: 'Company name on tax invoices', kind: 'longtext', default: 'Shiply' },
+  'company.tax_id': { label: 'Company tax registration number', kind: 'longtext', default: '' },
+  'company.address': { label: 'Company address on tax invoices', kind: 'longtext', default: 'Cairo, Egypt' },
+  'company.activity_code': { label: 'ETA activity code', kind: 'longtext', default: '5320' },
+  'company.item_code': { label: 'ETA item code for delivery services', kind: 'longtext', default: '' },
+  'agents.advance_max_bp': { label: 'Share of the month so far an agent may take as an advance (5000 = 50%)', kind: 'bp', default: 5000 },
+  'cash.courier_limit': { label: 'Most cash a courier may hold before an alert (piastres)', kind: 'money', default: 500000 },
+  'cash.safe_limit': { label: 'Most cash a hub safe may hold before an alert (piastres)', kind: 'money', default: 5000000 },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

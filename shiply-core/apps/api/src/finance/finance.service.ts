@@ -11,7 +11,7 @@ import { parse } from '../common/validate';
 import { todayInCairo } from '../core/shipments.core';
 import { feesOf, settleable } from '../merchant/merchant.service';
 import { partyBalances, post, rawBalance, type Line } from './ledger';
-import { courierStanding, earn, paidByAgent } from './postings';
+import { courierStanding, earn, paidByAgent, revenueLines } from './postings';
 
 const MAX_FILE = 5 * 1024 * 1024;
 const DATE = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use a date like 2026-11-07');
@@ -265,7 +265,7 @@ export class FinanceService {
         lines: [
           { account: ACCOUNTS.MERCHANT_WALLET.code, party: { type: 'MERCHANT', id: p.merchantId }, debit: p.amount + p.payoutFee },
           { account: ACCOUNTS.BANK.code, credit: p.amount, memo: reference || p.reference },
-          { account: ACCOUNTS.PAYOUT_FEE_REVENUE.code, credit: p.payoutFee },
+          ...revenueLines(await this.settings.all(tx), [{ account: ACCOUNTS.PAYOUT_FEE_REVENUE.code, amount: p.payoutFee }]),
         ],
       });
       await this.audit(tx, user, 'PAYOUT_PAID', 'payout', id, { amount: p.amount });
@@ -284,7 +284,8 @@ export class FinanceService {
     for (const x of settlements) {
       const a = agents.get(x.agentId);
       if (!a?.iban) continue;
-      rows.push([a.bankAccountName || a.name, a.iban, a.bankName, (x.total / 100).toFixed(2), 'EGP', x.code]);
+      if (x.total - x.advances <= 0) continue;
+      rows.push([a.bankAccountName || a.name, a.iban, a.bankName, ((x.total - x.advances) / 100).toFixed(2), 'EGP', x.code]);
     }
     return { csv: rows.map((r) => r.map(csvCell).join(',')).join('\r\n') + '\r\n', count: rows.length - 1 };
   }
@@ -591,10 +592,14 @@ export class FinanceService {
       if (exists && exists.status !== 'REJECTED') throw new DomainError('duplicate', `This month is already in settlement ${exists.code}`, 409);
       if (exists) await tx.agentSettlement.delete({ where: { id: exists.id } });
       const c = await this.computeSettlement(tx, d.agentId, d.month);
+      // Advances paid and not yet taken off a settlement come off this payment.
+      const adv = await tx.agentAdvance.findMany({ where: { agentId: d.agentId, status: 'PAID', settlementId: null }, select: { id: true, amount: true } });
+      const advances = adv.reduce((n, a) => n + a.amount, 0);
       const x = await tx.agentSettlement.create({
         data: {
           code: await nextCode(tx, 'money_seq', 'AS'), agentId: d.agentId, month: d.month, staffPay: c.staffPay, commissionBp: c.commissionBp, commission: c.commission,
-          vehicleRent: c.vehicleRent, specialVehicles: c.specialVehicles, penalties: c.penalties, total: c.total, details: c.details as never, createdById: user.id,
+          vehicleRent: c.vehicleRent, specialVehicles: c.specialVehicles, penalties: c.penalties, total: c.total, advances,
+          details: { ...c.details, advanceIds: adv.map((a) => a.id) } as never, createdById: user.id,
         },
         omit: { invoice: true },
       });
@@ -634,7 +639,8 @@ export class FinanceService {
       const r = await tx.agentSettlement.updateMany({ where: { id, status: 'PENDING_APPROVAL' }, data: { status: approve ? 'APPROVED' : 'REJECTED', approvedById: user.id } });
       if (r.count !== 1) throw new DomainError('bad_status', 'This settlement is not waiting for approval', 409);
       if (!approve) return;
-      const details = x.details as { perStaff: { courierId: string; work: number; other: number }[]; earningIds: string[] };
+      const details = x.details as { perStaff: { courierId: string; work: number; other: number }[]; earningIds: string[]; advanceIds?: string[] };
+      if (details.advanceIds?.length) await tx.agentAdvance.updateMany({ where: { id: { in: details.advanceIds } }, data: { settlementId: x.id } });
       const taken = await tx.courierEarning.updateMany({ where: { id: { in: details.earningIds }, settlementId: null }, data: { settlementId: x.id } });
       if (taken.count !== details.earningIds.length) throw new DomainError('conflict', 'Some of these earnings changed. Reject this settlement and create it again', 409);
       const agent = { type: 'AGENT' as const, id: x.agentId };
@@ -668,10 +674,11 @@ export class FinanceService {
   async paySettlement(id: string, body: unknown, user: SessionUser) {
     const { reference } = parse(ReferenceInput, body ?? {});
     await this.prisma.tx(async (tx) => {
-      const x = await tx.agentSettlement.findUnique({ where: { id }, select: { id: true, code: true, agentId: true, total: true, status: true, invoiceName: true } });
+      const x = await tx.agentSettlement.findUnique({ where: { id }, select: { id: true, code: true, agentId: true, total: true, advances: true, status: true, invoiceName: true } });
       if (!x || x.status !== 'APPROVED') throw new DomainError('bad_status', 'Approve the settlement before paying it', 409);
       if (!x.invoiceName) throw new DomainError('no_invoice', "Upload the agent's invoice before paying", 422);
-      if (x.total <= 0) throw new DomainError('invalid_input', 'The agent owes us this month; nothing to pay', 422);
+      const pay = x.total - x.advances;
+      if (pay <= 0) throw new DomainError('invalid_input', 'After advances the agent owes us this month; nothing to pay', 422);
       await tx.agentSettlement.update({ where: { id }, data: { status: 'PAID', paidAt: new Date() } });
       await post(tx, {
         memo: `Paid agent settlement ${x.code}`,
@@ -679,11 +686,11 @@ export class FinanceService {
         key: `AGENT_PAYMENT:${x.id}`,
         userId: user.id,
         lines: [
-          { account: ACCOUNTS.AGENT_PAYABLE.code, party: { type: 'AGENT', id: x.agentId }, debit: x.total },
-          { account: ACCOUNTS.BANK.code, credit: x.total, memo: reference },
+          { account: ACCOUNTS.AGENT_PAYABLE.code, party: { type: 'AGENT', id: x.agentId }, debit: pay },
+          { account: ACCOUNTS.BANK.code, credit: pay, memo: reference },
         ],
       });
-      await this.audit(tx, user, 'SETTLEMENT_PAID', 'agent_settlement', id, { total: x.total, reference });
+      await this.audit(tx, user, 'SETTLEMENT_PAID', 'agent_settlement', id, { total: x.total, advances: x.advances, paid: pay, reference });
     });
   }
 
@@ -912,13 +919,14 @@ export class FinanceService {
 
   /** Balances on every wallet account, with names. */
   async wallets(kind: PartyType) {
-    const account = { MERCHANT: ACCOUNTS.MERCHANT_WALLET, COURIER: ACCOUNTS.COURIER_WALLET, AGENT: ACCOUNTS.AGENT_PAYABLE, HUB: ACCOUNTS.HUB_SAFE }[kind];
+    const account = { MERCHANT: ACCOUNTS.MERCHANT_WALLET, COURIER: ACCOUNTS.COURIER_WALLET, AGENT: ACCOUNTS.AGENT_PAYABLE, HUB: ACCOUNTS.HUB_SAFE, SUPPLIER: ACCOUNTS.SUPPLIER_PAYABLE }[kind];
     const balances = await partyBalances(this.prisma, account.code);
     const ids = [...balances.keys()];
     const names =
       kind === 'MERCHANT' ? await this.prisma.merchant.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
       : kind === 'AGENT' ? await this.prisma.agent.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
       : kind === 'HUB' ? await this.prisma.hub.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
+      : kind === 'SUPPLIER' ? await this.prisma.supplier.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })
       : await this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } });
     const nameOf = new Map(names.map((n) => [n.id, n.name]));
     const sign = normalBalance(account.type) === 'DEBIT' ? 1 : -1;
@@ -927,7 +935,7 @@ export class FinanceService {
 
   /** Everything waiting for someone in finance, for the inbox at the top of the money page. */
   async inbox(user: SessionUser) {
-    const [payouts, withdrawals, payIns, deposits, settlements, expenses, journals, bankChanges] = await Promise.all([
+    const [payouts, withdrawals, payIns, deposits, settlements, expenses, journals, bankChanges, bills, creditNotes, advances] = await Promise.all([
       this.prisma.payout.findMany({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } }, select: { id: true, code: true, amount: true, status: true, createdById: true, merchant: { select: { name: true } } } }),
       this.prisma.withdrawal.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
       this.prisma.payIn.count({ where: { status: 'SUBMITTED' } }),
@@ -936,6 +944,9 @@ export class FinanceService {
       this.prisma.expense.count({ where: { status: 'PENDING_APPROVAL' } }),
       this.prisma.journalDraft.count({ where: { status: 'PENDING_APPROVAL' } }),
       this.prisma.merchant.findMany({ where: { NOT: { pendingBankById: null } }, select: { id: true, name: true, pendingBank: true, pendingBankById: true } }),
+      this.prisma.bill.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
+      this.prisma.taxInvoice.count({ where: { status: 'PENDING_APPROVAL' } }),
+      this.prisma.agentAdvance.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
     ]);
     const s = await this.settings.all();
     const { debit, credit } = await this.totals();
@@ -943,7 +954,7 @@ export class FinanceService {
       payoutsToApprove: payouts.filter((p) => p.status === 'PENDING_APPROVAL').length,
       payoutsYouCanApprove: payouts.filter((p) => p.status === 'PENDING_APPROVAL' && p.createdById !== user.id).length,
       payoutsToPay: payouts.filter((p) => p.status === 'APPROVED').length,
-      withdrawals, payIns, deposits, settlements, expenses, journals,
+      withdrawals, payIns, deposits, settlements, expenses, journals, bills, creditNotes, advances,
       bankChanges: bankChanges.map((m) => ({ merchantId: m.id, name: m.name, pending: m.pendingBank, mine: m.pendingBankById === user.id })),
       closedThrough: s['books.closed_through'],
       balanced: debit === credit,

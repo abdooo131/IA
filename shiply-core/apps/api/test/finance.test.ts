@@ -203,7 +203,7 @@ describe('money', () => {
     const pnl = await ok(as.admin!.get('/finance/reports/profit-and-loss'));
     expect(pnl.expenses.find((r: any) => r.code === '5210').balance).toBe(1000000);
     const revenue = pnl.income.find((r: any) => r.code === '4000').balance;
-    expect(revenue).toBe(parcels.reduce((n, p) => n + p.shippingFee, 0));
+    expect(revenue).toBe(parcels.reduce((n, p) => n + Math.round((p.shippingFee * 10000) / 11400), 0)); // before 14% VAT
     expect(pnl.profit).toBe(pnl.totalIncome - pnl.totalExpenses);
     const { bs } = await balanced();
     expect(bs.totalAssets).toBe(bs.totalLiabilities + bs.totalEquity);

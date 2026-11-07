@@ -3,7 +3,7 @@
 // (a merchant, courier, agent or hub), so one account holds every wallet of its kind.
 
 export type AccountType = 'ASSET' | 'LIABILITY' | 'EQUITY' | 'INCOME' | 'EXPENSE';
-export type PartyType = 'MERCHANT' | 'COURIER' | 'AGENT' | 'HUB';
+export type PartyType = 'MERCHANT' | 'COURIER' | 'AGENT' | 'HUB' | 'SUPPLIER';
 
 export interface AccountDef {
   code: string;
@@ -17,9 +17,13 @@ export const ACCOUNTS = {
   BANK: { code: '1000', name: 'Bank', nameAr: 'البنك', type: 'ASSET' },
   HUB_SAFE: { code: '1100', name: 'Hub safes', nameAr: 'خزائن المراكز', type: 'ASSET', party: 'HUB' },
   COURIER_CASH: { code: '1200', name: 'Cash with couriers', nameAr: 'نقدية مع المندوبين', type: 'ASSET', party: 'COURIER' },
+  VAT_INPUT: { code: '1500', name: 'VAT paid on purchases', nameAr: 'ضريبة القيمة المضافة على المشتريات', type: 'ASSET' },
   MERCHANT_WALLET: { code: '2100', name: 'Merchant balances', nameAr: 'أرصدة التجار', type: 'LIABILITY', party: 'MERCHANT' },
   COURIER_WALLET: { code: '2200', name: 'Courier wallets', nameAr: 'محافظ المندوبين', type: 'LIABILITY', party: 'COURIER' },
   AGENT_PAYABLE: { code: '2300', name: 'Owed to agents', nameAr: 'مستحقات الوكلاء', type: 'LIABILITY', party: 'AGENT' },
+  VAT_OUTPUT: { code: '2400', name: 'VAT on sales', nameAr: 'ضريبة القيمة المضافة على المبيعات', type: 'LIABILITY' },
+  WHT_PAYABLE: { code: '2410', name: 'Withholding tax to pay', nameAr: 'ضريبة الخصم والإضافة المستحقة', type: 'LIABILITY' },
+  SUPPLIER_PAYABLE: { code: '2500', name: 'Owed to suppliers', nameAr: 'مستحق للموردين', type: 'LIABILITY', party: 'SUPPLIER' },
   EQUITY: { code: '3000', name: 'Owner equity and opening balances', nameAr: 'حقوق الملكية والأرصدة الافتتاحية', type: 'EQUITY' },
   SHIPPING_REVENUE: { code: '4000', name: 'Shipping revenue', nameAr: 'إيرادات الشحن', type: 'INCOME' },
   COD_FEE_REVENUE: { code: '4010', name: 'COD fee revenue', nameAr: 'إيرادات رسوم التحصيل', type: 'INCOME' },
@@ -35,6 +39,7 @@ export const ACCOUNTS = {
   SALARIES: { code: '5230', name: 'Salaries', nameAr: 'المرتبات', type: 'EXPENSE' },
   FUEL: { code: '5240', name: 'Fuel and transport', nameAr: 'الوقود والمواصلات', type: 'EXPENSE' },
   SUPPLIES: { code: '5250', name: 'Packaging and supplies', nameAr: 'مواد التغليف والمستلزمات', type: 'EXPENSE' },
+  BANK_CHARGES: { code: '5260', name: 'Bank charges', nameAr: 'مصاريف بنكية', type: 'EXPENSE' },
   OTHER_EXPENSES: { code: '5290', name: 'Other expenses', nameAr: 'مصروفات أخرى', type: 'EXPENSE' },
 } as const satisfies Record<string, AccountDef>;
 

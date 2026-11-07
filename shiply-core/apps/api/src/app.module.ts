@@ -6,6 +6,7 @@ import { AdminService } from './admin/admin.service';
 import { AdminAgentsController, AgentPortalController, CourierShiftController, JoinController } from './agents/agents.controller';
 import { AgentsService } from './agents/agents.service';
 import { AgentMoneyController, CourierMoneyController, FinanceController, HubSafeController, MerchantBankController } from './finance/finance.controller';
+import { BooksService } from './finance/books.service';
 import { FinanceService } from './finance/finance.service';
 import { AuthGuard } from './auth/auth';
 import { AuthController } from './auth/auth.controller';
@@ -40,6 +41,7 @@ function jwtSecret(): string {
     AdminService,
     AgentsService,
     FinanceService,
+    BooksService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_FILTER, useClass: ErrorFilter },
   ],

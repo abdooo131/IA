@@ -24,3 +24,11 @@ export function formatEgp(piastres: number): string {
   const frac = String(abs % 100).padStart(2, '0');
   return `${negative ? '−' : ''}${whole}.${frac} EGP`;
 }
+
+/** Splits a price that includes VAT into the amount before VAT and the VAT, in whole piastres. */
+export function splitVat(gross: number, vatBp: number): { net: number; vat: number } {
+  if (!Number.isInteger(gross) || !Number.isInteger(vatBp)) throw new Error('splitVat needs integers');
+  if (gross === 0 || vatBp === 0) return { net: gross, vat: 0 };
+  const net = Math.round((gross * 10000) / (10000 + vatBp));
+  return { net, vat: gross - net };
+}

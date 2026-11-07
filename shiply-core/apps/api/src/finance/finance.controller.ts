@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query
 import type { Response } from 'express';
 import { CurrentUser, Roles, assertHubAccess, type SessionUser } from '../auth/auth';
 import { DomainError } from '../common/errors';
+import { BooksService } from './books.service';
 import { FinanceService } from './finance.service';
 
 function sendFile(res: Response, f: { data: Uint8Array; mime: string; name: string }) {
@@ -22,7 +23,177 @@ function decision(v: string) {
 @Controller('finance')
 @Roles('ADMIN')
 export class FinanceController {
-  constructor(private readonly f: FinanceService) {}
+  constructor(
+    private readonly f: FinanceService,
+    private readonly b: BooksService,
+  ) {}
+
+  // tax invoices and credit notes
+  @Post('invoices/issue')
+  @HttpCode(200)
+  issue(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.issueInvoices(body, u);
+  }
+
+  @Get('invoices')
+  invoices(@Query('month') month?: string, @Query('merchantId') merchantId?: string) {
+    return this.b.invoices({ month: month || undefined, merchantId: merchantId || undefined });
+  }
+
+  @Get('invoices/:id')
+  taxInvoice(@Param('id', ParseUUIDPipe) id: string) {
+    return this.b.invoice(id);
+  }
+
+  @Get('invoices/:id/eta')
+  async eta(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    const doc = await this.b.etaDocument(id, u);
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="eta-${id.slice(0, 8)}.json"`);
+    res.send(JSON.stringify(doc, null, 2));
+  }
+
+  @Post('credit-notes')
+  creditNote(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.createCreditNote(body, u);
+  }
+
+  @Post('credit-notes/:id/:decision')
+  @HttpCode(200)
+  creditNoteDecision(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Param('decision') d: string) {
+    return this.b.decideCreditNote(id, decision(d), u);
+  }
+
+  @Get('reports/vat')
+  vat(@Query('month') month?: string) {
+    return this.b.vatReport(month || undefined);
+  }
+
+  @Post('tax/vat-payment')
+  @HttpCode(200)
+  payVat(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.payVat(body, u);
+  }
+
+  @Post('tax/wht-payment')
+  @HttpCode(200)
+  payWht(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.payWithholding(body, u);
+  }
+
+  // suppliers and bills
+  @Get('suppliers')
+  suppliers() {
+    return this.b.suppliers();
+  }
+
+  @Post('suppliers')
+  addSupplier(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.saveSupplier(null, body, u);
+  }
+
+  @Put('suppliers/:id')
+  updateSupplier(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.b.saveSupplier(id, body, u);
+  }
+
+  @Get('bills')
+  bills(@Query('status') status?: string) {
+    return this.b.bills(status || undefined);
+  }
+
+  @Post('bills')
+  addBill(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.createBill(body, u);
+  }
+
+  @Get('bills/:id/file')
+  async billFile(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    sendFile(res, await this.b.billFile(id));
+  }
+
+  @Post('bills/:id/:decision')
+  @HttpCode(200)
+  bill(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Param('decision') d: string, @Body() body: unknown) {
+    if (d === 'paid') return this.b.payBill(id, body, u);
+    return this.b.decideBill(id, decision(d), u);
+  }
+
+  // bank statement
+  @Get('bank')
+  reconciliation() {
+    return this.b.reconciliation();
+  }
+
+  @Post('bank/import')
+  importBank(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.importStatement(body, u);
+  }
+
+  @Post('bank/auto-match')
+  @HttpCode(200)
+  async autoMatch() {
+    return { matched: await this.b.autoMatch() };
+  }
+
+  @Post('bank/:id/match')
+  @HttpCode(200)
+  match(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.b.matchLine(id, body, u);
+  }
+
+  @Post('bank/:id/unmatch')
+  @HttpCode(200)
+  unmatch(@Param('id', ParseUUIDPipe) id: string) {
+    return this.b.unmatchLine(id);
+  }
+
+  @Post('bank/:id/book')
+  @HttpCode(200)
+  book(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.b.bookLine(id, body, u);
+  }
+
+  // more reports
+  @Get('reports/cash-flow')
+  cashFlow(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.b.cashFlow(from || undefined, to || undefined);
+  }
+
+  @Get('reports/profit')
+  profit(@Query('from') from?: string, @Query('to') to?: string) {
+    return this.b.profit(from || undefined, to || undefined);
+  }
+
+  @Get('budgets')
+  budgets(@Query('month') month?: string) {
+    return this.b.budgets(month || undefined);
+  }
+
+  @Put('budgets')
+  @HttpCode(200)
+  saveBudgets(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.saveBudgets(body, u);
+  }
+
+  @Post('jobs/cash-limits')
+  @HttpCode(200)
+  cashLimits() {
+    return this.b.cashLimitCheck();
+  }
+
+  // agent advances
+  @Get('advances')
+  advances(@Query('agentId') agentId?: string) {
+    return this.b.advances(agentId || undefined);
+  }
+
+  @Post('advances/:id/:decision')
+  @HttpCode(200)
+  advance(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Param('decision') d: string) {
+    if (d === 'paid') return this.b.payAdvance(id, u);
+    return this.b.decideAdvance(id, decision(d), u);
+  }
 
   @Get('inbox')
   inbox(@CurrentUser() u: SessionUser) {
@@ -278,7 +449,7 @@ export class FinanceController {
 
   @Get('wallets/:kind')
   wallets(@Param('kind') kind: string) {
-    if (!['MERCHANT', 'COURIER', 'AGENT', 'HUB'].includes(kind)) throw new DomainError('invalid_input', 'Unknown wallet kind', 422);
+    if (!['MERCHANT', 'COURIER', 'AGENT', 'HUB', 'SUPPLIER'].includes(kind)) throw new DomainError('invalid_input', 'Unknown wallet kind', 422);
     return this.f.wallets(kind as 'MERCHANT');
   }
 }
@@ -329,41 +500,70 @@ export class HubSafeController {
   }
 }
 
-/** The agent sees their month end settlements and uploads their invoice. */
-@Controller('agent/settlements')
+/** The agent sees their month end settlements, uploads their invoice, and asks for advances. */
+@Controller('agent')
 @Roles('AGENT')
 export class AgentMoneyController {
-  constructor(private readonly f: FinanceService) {}
+  constructor(
+    private readonly f: FinanceService,
+    private readonly b: BooksService,
+  ) {}
+
+  @Get('advances')
+  async advances(@CurrentUser() u: SessionUser) {
+    const agentId = this.agent(u);
+    return { room: await this.b.advanceRoom(agentId), list: await this.b.advances(agentId) };
+  }
+
+  @Post('advances')
+  requestAdvance(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.b.requestAdvance(this.agent(u), body, u);
+  }
 
   private agent(u: SessionUser) {
     if (!u.agentId) throw new DomainError('forbidden', 'Your account is not linked to an agent', 403);
     return u.agentId;
   }
 
-  @Get()
+  @Get('settlements')
   list(@CurrentUser() u: SessionUser) {
     return this.f.settlements(this.agent(u));
   }
 
-  @Post(':id/invoice')
+  @Post('settlements/:id/invoice')
   @HttpCode(200)
   upload(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
     return this.f.uploadInvoice(id, body, u, this.agent(u));
   }
 
-  @Get(':id/invoice')
+  @Get('settlements/:id/invoice')
   async invoice(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
     sendFile(res, await this.f.invoice(id, this.agent(u)));
   }
 }
 
-/** A merchant asks to change where they are paid; finance approves. */
-@Controller('merchant/bank')
+/** A merchant asks to change where they are paid (finance approves), and reads their tax invoices. */
+@Controller('merchant')
 @Roles('MERCHANT')
 export class MerchantBankController {
-  constructor(private readonly f: FinanceService) {}
+  constructor(
+    private readonly f: FinanceService,
+    private readonly b: BooksService,
+  ) {}
 
-  @Put()
+  @Get('invoices')
+  invoices(@CurrentUser() u: SessionUser) {
+    if (!u.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
+    return this.b.invoices({ merchantId: u.merchantId });
+  }
+
+  @Get('invoices/:id')
+  invoice(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
+    if (!u.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
+    return this.b.invoice(id, u.merchantId);
+  }
+
+  @Put('bank')
   @HttpCode(200)
   set(@CurrentUser() u: SessionUser, @Body() body: unknown) {
     if (!u.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);

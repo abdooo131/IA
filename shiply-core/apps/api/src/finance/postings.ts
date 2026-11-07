@@ -1,12 +1,23 @@
 // How operations land in the books. Called inside the same transaction as the operation,
 // so a parcel is never delivered without its money being recorded, and never twice.
 import type { EarningKind, Shipment } from '@shiply/db';
-import { ACCOUNTS, type SettingValues } from '@shiply/shared';
+import { ACCOUNTS, splitVat, type SettingValues } from '@shiply/shared';
 import type { PrismaService, Tx } from '../common/prisma.service';
 import { todayInCairo } from '../core/shipments.core';
 import { post, rawBalance } from './ledger';
 
 const DAY = 24 * 3600 * 1000;
+
+/** Revenue lines for fees that include VAT: the amount before VAT to its revenue account, the VAT to VAT on sales. */
+export function revenueLines(s: SettingValues, fees: { account: string; amount: number }[]) {
+  let vat = 0;
+  const lines = fees.map((f) => {
+    const x = splitVat(f.amount, s['tax.vat_bp']);
+    vat += x.vat;
+    return { account: f.account, credit: x.net };
+  });
+  return [...lines, { account: ACCOUNTS.VAT_OUTPUT.code, credit: vat }];
+}
 const courier = (id: string) => ({ type: 'COURIER' as const, id });
 const merchant = (id: string) => ({ type: 'MERCHANT' as const, id });
 
@@ -81,8 +92,10 @@ export async function postDelivered(tx: Tx, s: SettingValues, p: Shipment, couri
       { account: ACCOUNTS.COURIER_CASH.code, party: courier(courierId), debit: p.codCollected },
       { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), credit: p.codCollected, memo: 'Cash collected' },
       { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), debit: p.shippingFee + p.codFee, memo: 'Fees' },
-      { account: ACCOUNTS.SHIPPING_REVENUE.code, credit: p.shippingFee },
-      { account: ACCOUNTS.COD_FEE_REVENUE.code, credit: p.codFee },
+      ...revenueLines(s, [
+        { account: ACCOUNTS.SHIPPING_REVENUE.code, amount: p.shippingFee },
+        { account: ACCOUNTS.COD_FEE_REVENUE.code, amount: p.codFee },
+      ]),
     ],
   });
   await earn(tx, s, { courierId, kind: 'DELIVERY', points: s['pay.points_delivery'], shipmentId: p.id, note: p.trackingNumber, userId });
@@ -97,8 +110,10 @@ export async function postReturned(tx: Tx, s: SettingValues, p: Shipment, courie
     userId,
     lines: [
       { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), debit: p.shippingFee + p.returnFee, memo: 'Shipping and return fee' },
-      { account: ACCOUNTS.SHIPPING_REVENUE.code, credit: p.shippingFee },
-      { account: ACCOUNTS.RETURN_FEE_REVENUE.code, credit: p.returnFee },
+      ...revenueLines(s, [
+        { account: ACCOUNTS.SHIPPING_REVENUE.code, amount: p.shippingFee },
+        { account: ACCOUNTS.RETURN_FEE_REVENUE.code, amount: p.returnFee },
+      ]),
     ],
   });
   await earn(tx, s, { courierId, kind: 'RETURN', points: s['pay.points_return'], shipmentId: p.id, note: p.trackingNumber, userId });

@@ -133,3 +133,14 @@ describe('shift times', () => {
     expect(cairoTimeToUtc('2026-07-08', '09:00').toISOString()).toBe('2026-07-08T06:00:00.000Z'); // summer, UTC+3
   });
 });
+
+describe('splitVat', () => {
+  it('takes 14% VAT out of a price that includes it', async () => {
+    const { splitVat } = await import('./money');
+    expect(splitVat(11400, 1400)).toEqual({ net: 10000, vat: 1400 });
+    expect(splitVat(6000, 1400)).toEqual({ net: 5263, vat: 737 });
+    expect(splitVat(0, 1400)).toEqual({ net: 0, vat: 0 });
+    const s = splitVat(999, 1400);
+    expect(s.net + s.vat).toBe(999);
+  });
+});
