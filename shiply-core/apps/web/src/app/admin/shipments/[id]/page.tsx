@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { FAIL_REASONS, FAIL_REASON_LABELS_AR, STATUS_LABELS_AR, isTerminal, type FailReason, type ShipmentStatus } from '@shiply/shared';
+import { StatusBar } from '@/components/StatusBar';
 import { Alert, Badge, Button, Card, Loading, PageHeader, StatusBadge, Table, Td, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, egp, shortDate, statusLabel } from '@/lib/format';
@@ -157,6 +158,7 @@ export default function ShipmentDetail() {
         }
         actions={canMarkLost && <Button tone="danger" disabled={busy} onClick={markLost}>{t('Mark lost')}</Button>}
       />
+      <StatusBar flow={d.direction === 'RETURN' ? 'returnParcel' : 'parcel'} status={d.status} />
       {actionError && <Alert>{actionError}</Alert>}
       <Alert tone="info">
         <span className="font-bold">{t('Next step:')}</span> {nextText()}

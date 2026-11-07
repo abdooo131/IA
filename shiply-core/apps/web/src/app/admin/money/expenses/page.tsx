@@ -28,7 +28,7 @@ export default function ExpensesPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Money')} title={t('Expenses')} subtitle={t('Rent, fuel, supplies and other costs. Booked when a second person approves.')} />
+      <PageHeader title={t('Expenses')} subtitle={t('Rent, fuel, supplies and other costs. Booked when a second person approves.')} />
       {r.view}
       <Card title={t('New expense')}>
         <form

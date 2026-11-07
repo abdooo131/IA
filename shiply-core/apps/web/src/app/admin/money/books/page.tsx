@@ -220,7 +220,7 @@ export default function BooksPage() {
   const accounts = useLoad<Account[]>('/finance/accounts');
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Money')} title={t('Books and reports')} subtitle={t('Every movement of money, double entry, append only')} />
+      <PageHeader title={t('Books and reports')} subtitle={t('Every movement of money, double entry, append only')} />
       <div className="flex flex-wrap gap-1">
         {TABS.map((x) => (
           <button key={x} type="button" onClick={() => setTab(x)} className={`min-h-9 rounded-pill px-3 text-body-sm font-semibold ${tab === x ? 'bg-primary text-on-primary' : 'bg-surface text-text hover:bg-surface-raised'}`}>{t(x)}</button>

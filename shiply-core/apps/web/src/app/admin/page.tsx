@@ -37,7 +37,7 @@ export default function AdminDashboard() {
   const code = (id: string | null) => data.hubs.find((h) => h.id === id)?.code ?? '';
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={t('Admin')} title={t('Dashboard')} subtitle={t('Today, {date}', { date: shortDate(data.today) })} />
+      <PageHeader title={t('Dashboard')} subtitle={t('Today, {date}', { date: shortDate(data.today) })} />
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <StatCard icon="new" tone="new" label={t('Entered today')} value={n(data.enteredToday)} hint={t('Picked up or dropped off')} />
         <StatCard icon="delivered" tone="delivered" label={t('Delivered today')} value={n(data.deliveredToday)} />

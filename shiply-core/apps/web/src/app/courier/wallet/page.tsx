@@ -1,5 +1,6 @@
 'use client';
 import { useState } from 'react';
+import { WalletCard } from '@/components/WalletCard';
 import { MoneyInput, RequestBadge, toPiastres, useRunner } from '@/components/money';
 import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, Select } from '@/components/ui';
 import { api } from '@/lib/api';
@@ -41,22 +42,15 @@ export default function CourierWallet() {
       {r.view}
       {d.frozen && <Alert>{t('Your wallet is negative. Recharge through Fawry before your next run, or ask finance.')}</Alert>}
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl bg-surface p-4 shadow-sm">
-          <p className="text-caption text-text-muted">{t('Wallet')}</p>
-          <p className={`tabular ltr-iso text-number-lg ${d.wallet < 0 ? 'text-danger' : ''}`}>{egp(d.wallet)}</p>
+        <div className="col-span-2">
+          <WalletCard large icon="wallet" label={t('Wallet')} value={egp(d.wallet)} hint={d.paidByAgent ? t('Your agent pays you at the end of the month.') : `${t('Can withdraw now')}: ${egp(d.withdrawable)}`} />
         </div>
-        <div className="rounded-xl bg-surface p-4 shadow-sm">
-          <p className="text-caption text-text-muted">{t('Cash to hand in')}</p>
-          <p className="tabular ltr-iso text-number-lg">{egp(d.cashToHandIn)}</p>
+        <div className="col-span-2">
+          <WalletCard icon="cash" label={t('Cash to hand in')} value={egp(d.cashToHandIn)} />
         </div>
-        <div className="col-span-2 rounded-xl bg-surface p-4 text-body-sm shadow-sm">
-          {d.paidByAgent ? t('Your agent pays you at the end of the month.') : (
-            <>
-              <p>{t('Can withdraw now')}: <span className="font-bold">{egp(d.withdrawable)}</span></p>
-              <p className="text-caption text-text-muted">{t('Earnings can be withdrawn {days} days after you earn them. Waiting: {amount}', { days: d.freezeDays, amount: egp(d.notYetAvailable) })}</p>
-            </>
-          )}
-        </div>
+        {!d.paidByAgent && (
+          <p className="col-span-2 text-caption text-text-muted">{t('Earnings can be withdrawn {days} days after you earn them. Waiting: {amount}', { days: d.freezeDays, amount: egp(d.notYetAvailable) })}</p>
+        )}
       </div>
 
       <Card title={t('Pay in through Fawry')}>

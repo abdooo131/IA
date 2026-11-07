@@ -84,7 +84,7 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Setup')} title={t('Users')} subtitle={t('Admins, facility teams, hub staff, couriers and merchant logins')} actions={<Button onClick={() => setCreating((c) => !c)}>{creating ? t('Close') : t('Add user')}</Button>} />
+      <PageHeader title={t('Users')} subtitle={t('Admins, facility teams, hub staff, couriers and merchant logins')} actions={<Button onClick={() => setCreating((c) => !c)}>{creating ? t('Close') : t('Add user')}</Button>} />
       {msg && <Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
       {creating && (
         <Card title={t('New user')}>

@@ -37,7 +37,7 @@ export default function AttendancePage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        eyebrow={t('Workforce')}
+       
         title={t('Attendance')}
         subtitle={t('Who checked in, who is late, and replacements still owed by agents')}
         actions={<Button tone="secondary" onClick={() => void runCheck()}>{t('Check now')}</Button>}

@@ -11,7 +11,7 @@ Read [docs/FLOW.md](docs/FLOW.md) for how a parcel moves and who does what.
 | Path | What |
 | --- | --- |
 | `apps/api` | NestJS REST API on port 4100 |
-| `apps/web` | Next.js web app on port 3100: `/admin`, `/hub`, `/courier`, `/merchant`, `/track` |
+| `apps/web` | Next.js web app on port 3100, built on the Shiply Now frames: team members land on `/home` (app tiles: Operations, Hub floor, Workforce, Merchants, Accounting, Settings) and work inside each app's top menu bar; merchants and agents get the side menu desk; couriers get the phone screens with bottom tabs; `/track` is public |
 | `packages/db` | Prisma schema, migrations and seed |
 | `packages/shared` | Statuses, routing, pricing, dates and money rules shared by every app |
 | `scripts/demo.mjs` | Pushes demo parcels through every stage using the real API |

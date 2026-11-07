@@ -149,7 +149,7 @@ export default function SettingsPage() {
   if (!data) return <Loading />;
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Setup')} title={t('Settings')} subtitle={t('Business rules used by every facility, hub and courier. Changes apply to new actions at once.')} />
+      <PageHeader title={t('Settings')} subtitle={t('Business rules used by every facility, hub and courier. Changes apply to new actions at once.')} />
       <Card>
         {(Object.keys(LABELS) as Editable[]).map((key) => (
           <SettingRow key={`${key}-${JSON.stringify(data[key])}`} name={key} value={data[key]} onSaved={reload} />

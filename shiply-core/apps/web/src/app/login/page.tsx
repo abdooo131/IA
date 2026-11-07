@@ -6,7 +6,8 @@ import { Logo, LogoOnColor } from '@/components/Logo';
 import { HOME_BY_ROLE, type Me } from '@/components/Shell';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { setPreference, useLocale, useT } from '@/lib/i18n';
+import { PreferencesMenu } from '@/components/PreferencesMenu';
+import { useT } from '@/lib/i18n';
 
 function LoginForm() {
   const router = useRouter();
@@ -48,41 +49,35 @@ function LoginForm() {
 
 export default function LoginPage() {
   const t = useT();
-  const locale = useLocale();
   return (
     <div className="flex min-h-dvh bg-bg">
-      <aside className="shiply-route relative hidden w-[44%] max-w-[560px] flex-col overflow-hidden p-10 text-shiply-cream lg:flex">
+      <aside className="shiply-route relative hidden w-[44%] max-w-[560px] flex-col overflow-hidden border-e border-line p-10 text-shiply-cream lg:flex">
         <div className="self-start"><LogoOnColor /></div>
         <div className="mt-auto max-w-sm">
-          <p className="text-label uppercase text-shiply-lime">{t('Shiply Core')}</p>
-          <p className="mt-3 text-h1">{t('Next day delivery, from order to doorstep.')}</p>
+          <p className="text-h1">{t('Next day delivery, from order to doorstep.')}</p>
           <p className="mt-4 text-body-lg opacity-90">{t('Pickups, sorting facilities, line haul and last mile in one system.')}</p>
         </div>
       </aside>
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center justify-between px-4 py-3 lg:justify-end">
-          <span className="lg:hidden"><Logo /></span>
-          <button type="button" className="btn-ghost min-h-9 text-caption" onClick={() => setPreference('shiply_locale', locale === 'ar' ? 'en' : 'ar')}>
-            {locale === 'ar' ? 'English' : 'العربية'}
-          </button>
-        </div>
-        <div className="flex flex-1 items-center justify-center px-4 pb-16">
-          <div className="w-full max-w-sm">
-            <h1 className="text-h2">{t('Sign in')}</h1>
-            <p className="mb-6 mt-1 text-body-sm text-text-muted">{t('Pickups, sorting facilities, line haul and last mile in one system.')}</p>
-            <div className="rounded-xl bg-surface p-6 shadow-md">
+        <div className="flex justify-end px-4 py-3"><PreferencesMenu /></div>
+        <main className="flex flex-1 items-start justify-center px-4 pb-12 pt-6 sm:items-center">
+          <div className="w-full max-w-sm rounded-xl border border-line bg-surface p-6 shadow-md sm:p-8">
+            <Logo size="lg" />
+            <h1 className="mt-6 text-h3">{t('Sign in')}</h1>
+            <p className="mt-1 text-body-sm text-text-muted">{t('Use your email or phone number')}</p>
+            <div className="mt-5">
               <Suspense>
                 <LoginForm />
               </Suspense>
             </div>
-            <p className="mt-5 text-center text-body-sm text-text-muted">
-              {t('Waiting for a parcel?')} <Link href="/track" className="font-bold text-link">{t('Track it here')}</Link>
+            <p className="mt-6 text-center text-body-sm text-text-muted">
+              {t('Courier with an agent code?')} <Link href="/join" className="font-bold text-link underline">{t('Join here')}</Link>
             </p>
             <p className="mt-2 text-center text-body-sm text-text-muted">
-              {t('Courier with an agent code?')} <Link href="/join" className="font-bold text-link">{t('Join here')}</Link>
+              {t('Waiting for a parcel?')} <Link href="/track" className="font-bold text-link underline">{t('Track it here')}</Link>
             </p>
           </div>
-        </div>
+        </main>
       </div>
     </div>
   );

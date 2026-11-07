@@ -104,7 +104,7 @@ export default function CourierWalletsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Money')} title={t('Courier wallets')} subtitle={t('Points earned, deductions, Fawry pay ins and withdrawals')} />
+      <PageHeader title={t('Courier wallets')} subtitle={t('Points earned, deductions, Fawry pay ins and withdrawals')} />
       {r.view}
       <Card title={t('Fawry pay ins to check ({count})', { count: payIns.data?.length ?? 0 })}>
         {(payIns.data ?? []).length === 0 ? (

@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { StatCard } from '@/components/StatCard';
+import { WalletCard } from '@/components/WalletCard';
 import { Alert, Card, Empty, Loading, PageHeader, Table, Td } from '@/components/ui';
 import { dateTime, egp } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
@@ -56,32 +57,36 @@ export default function MoneyOverview() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Money')} title={t('Money overview')} subtitle={i.closedThrough ? t('Books closed through {date}', { date: i.closedThrough }) : t('Books are open')} />
-      {!i.balanced && <Alert>{t('The books do not balance. Call the developer before posting anything else.')}</Alert>}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatCard label={t('Bank')} value={egp(bal('1000'))} icon="wallet" />
-        <StatCard label={t('In hub safes')} value={egp(bal('1100'))} icon="invoice" tone="in-progress" />
-        <StatCard label={t('Cash with couriers')} value={egp(bal('1200'))} icon="courier" tone="needs-action" />
-        <StatCard label={t('Owed to merchants')} value={egp(bal('2100'))} icon="store" tone="returning" />
-        <StatCard label={t('Courier wallets')} value={egp(bal('2200'))} icon="cash" />
-        <StatCard label={t('Owed to agents')} value={egp(bal('2300'))} icon="points" />
-        <StatCard label={t('Revenue this month')} value={egp(pnl.data.totalIncome)} icon="analytics" tone="delivered" />
-        <StatCard label={t('Profit this month')} value={egp(pnl.data.profit)} icon="analytics" tone={pnl.data.profit >= 0 ? 'delivered' : 'needs-action'} />
-      </div>
-      <Card title={t('Waiting for finance')}>
-        {tasks.length === 0 ? (
-          <Empty>{t('Nothing is waiting')}</Empty>
-        ) : (
-          <ul className="divide-y divide-line">
+      <PageHeader title={t('Money overview')} subtitle={i.closedThrough ? t('Books closed through {date}', { date: i.closedThrough }) : t('Books are open')} />
+      {tasks.length > 0 && (
+        <section className="rounded-lg border border-status-needs-action bg-surface p-4">
+          <h2 className="text-body font-bold">{t('Needs your attention')}</h2>
+          <ul className="mt-2 space-y-1 text-body-sm">
             {tasks.map((x) => (
-              <li key={x.label} className="flex items-center justify-between py-2.5">
-                <Link href={x.href} className="font-semibold text-link">{t(x.label)}</Link>
-                <span className="tabular ltr-iso rounded-pill bg-selected-bg px-2.5 py-0.5 font-bold">{x.n}</span>
-              </li>
+              <li key={x.label}><Link href={x.href} className="font-bold text-link">{t(x.label)}: <span className="ltr-iso">{x.n}</span></Link></li>
             ))}
           </ul>
-        )}
-      </Card>
+        </section>
+      )}
+      {!i.balanced && <Alert>{t('The books do not balance. Call the developer before posting anything else.')}</Alert>}
+      <section>
+        <h2 className="text-h3">{t('Wallets')}</h2>
+        <div className="mt-3 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          <WalletCard icon="payout" label={t('Owed to merchants')} value={egp(bal('2100'))} />
+          <WalletCard icon="courier" label={t('Cash with couriers')} value={egp(bal('1200'))} />
+          <WalletCard icon="store" label={t('In hub safes')} value={egp(bal('1100'))} />
+          <WalletCard icon="cash" label={t('Courier wallets')} value={egp(bal('2200'))} />
+          <WalletCard icon="points" label={t('Owed to agents')} value={egp(bal('2300'))} />
+        </div>
+      </section>
+      <section>
+        <h2 className="text-h3">{t('Company')}</h2>
+        <div className="mt-3 grid grid-cols-2 gap-4 md:grid-cols-3">
+          <StatCard label={t('Bank')} value={egp(bal('1000'))} icon="wallet" />
+          <StatCard label={t('Revenue this month')} value={egp(pnl.data.totalIncome)} icon="analytics" tone="delivered" />
+          <StatCard label={t('Profit this month')} value={egp(pnl.data.profit)} icon="analytics" tone={pnl.data.profit >= 0 ? 'delivered' : 'needs-action'} alert={pnl.data.profit < 0} />
+        </div>
+      </section>
       <div className="grid gap-5 lg:grid-cols-2">
         <Card title={t('Cash still with couriers')}>
           {aging.data.couriers.length === 0 ? (

@@ -328,7 +328,7 @@ export default function NetworkPage() {
 
   return (
     <div className="space-y-6">
-      <PageHeader eyebrow={t('Setup')} title={t('Network')} subtitle={t('Sorting facilities, last mile hubs, pricing zones and which hub delivers where')} />
+      <PageHeader title={t('Network')} subtitle={t('Sorting facilities, last mile hubs, pricing zones and which hub delivers where')} />
       <HubsCard hubs={hubs.data} reload={hubs.reload} />
       <Card title={t('Zones and prices (EGP)')}>
         <p className="mb-3 text-body-sm text-text-muted">{t('Transit days are business days from the day the parcel enters our network, before the daily cutoff.')}</p>

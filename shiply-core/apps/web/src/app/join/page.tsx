@@ -4,12 +4,12 @@ import { useState } from 'react';
 import { Logo } from '@/components/Logo';
 import { Alert, Button, Field, Input, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { setPreference, useLocale, useT } from '@/lib/i18n';
+import { PreferencesMenu } from '@/components/PreferencesMenu';
+import { useT } from '@/lib/i18n';
 
 /** Public: a courier registers with the code their agent gave them, then waits for approval. */
 export default function JoinPage() {
   const t = useT();
-  const locale = useLocale();
   const [f, setF] = useState({ agentCode: '', name: '', phone: '', password: '', courierType: 'DELIVERY' });
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -33,15 +33,13 @@ export default function JoinPage() {
     <div className="flex min-h-dvh flex-col bg-bg">
       <div className="flex items-center justify-between px-4 py-3">
         <Logo />
-        <button type="button" className="btn-ghost min-h-9 text-caption" onClick={() => setPreference('shiply_locale', locale === 'ar' ? 'en' : 'ar')}>
-          {locale === 'ar' ? 'English' : 'العربية'}
-        </button>
+        <PreferencesMenu />
       </div>
       <div className="flex flex-1 items-center justify-center px-4 pb-16">
         <div className="w-full max-w-sm">
           <h1 className="text-h2">{t('Join as a courier')}</h1>
           <p className="mb-6 mt-1 text-body-sm text-text-muted">{t('Use the code your agent gave you. Your agent approves your account before you can sign in.')}</p>
-          <div className="rounded-xl bg-surface p-6 shadow-md">
+          <div className="rounded-xl border border-line bg-surface p-6 shadow-md sm:p-8">
             {done ? (
               <div className="space-y-4">
                 <Alert tone="success">{t('Registered with {agent}. You can sign in once your agent approves you.', { agent: done })}</Alert>

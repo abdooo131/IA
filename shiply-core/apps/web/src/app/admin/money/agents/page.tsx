@@ -34,7 +34,7 @@ export default function AgentSettlementsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Money')} title={t('Agent settlements')} subtitle={t('Month end: staff pay, commission and vehicles, minus deductions. Paid after the agent’s invoice.')} />
+      <PageHeader title={t('Agent settlements')} subtitle={t('Month end: staff pay, commission and vehicles, minus deductions. Paid after the agent’s invoice.')} />
       {r.view}
       <Card title={t('Work out a month')}>
         <div className="flex flex-wrap items-end gap-2">

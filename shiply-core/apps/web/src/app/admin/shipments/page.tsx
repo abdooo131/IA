@@ -49,7 +49,7 @@ function ShipmentsList() {
 
   return (
     <div className="space-y-4">
-      <PageHeader eyebrow={t('Admin')} title={t('Parcels')} subtitle={data ? t('{count} found', { count: data.total }) : undefined} />
+      <PageHeader title={t('Parcels')} subtitle={data ? t('{count} found', { count: data.total }) : undefined} />
       <Card>
         <form
           className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"

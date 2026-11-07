@@ -34,7 +34,7 @@ export default function VehicleRequestsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Workforce')} title={t('Vehicle requests')} subtitle={t('Ask an agent for a vehicle with a driver: special pickups, breakdowns, full vehicles')} actions={<Button onClick={() => setOpen((o) => !o)}>{open ? t('Close') : t('Request a vehicle')}</Button>} />
+      <PageHeader title={t('Vehicle requests')} subtitle={t('Ask an agent for a vehicle with a driver: special pickups, breakdowns, full vehicles')} actions={<Button onClick={() => setOpen((o) => !o)}>{open ? t('Close') : t('Request a vehicle')}</Button>} />
       {msg && <Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert>}
       {open && (
         <Card title={t('New request')}>

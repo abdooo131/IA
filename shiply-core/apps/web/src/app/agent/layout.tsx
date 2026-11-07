@@ -1,18 +1,24 @@
 'use client';
-import { Shell, type Me, type NavItem } from '@/components/Shell';
+import { DeskShell, type Me, type NavGroup } from '@/components/Shell';
 
-const NAV: NavItem[] = [
-  { href: '/agent', label: 'Today', icon: 'home' },
-  { href: '/agent/staff', label: 'Staff', icon: 'customers' },
-  { href: '/agent/vehicles', label: 'Vehicles', icon: 'route' },
-  { href: '/agent/settlements', label: 'Monthly settlements', icon: 'wallet' },
-];
 const ROLES: Me['role'][] = ['AGENT'];
+
+const groups = (me: Me): NavGroup[] => [
+  {
+    label: me.agent?.name,
+    items: [
+      { href: '/agent', label: 'Today', icon: 'home', exact: true },
+      { href: '/agent/staff', label: 'Staff', icon: 'customers' },
+      { href: '/agent/vehicles', label: 'Vehicles', icon: 'route' },
+      { href: '/agent/settlements', label: 'Monthly settlements', icon: 'wallet' },
+    ],
+  },
+];
 
 export default function AgentLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Shell roles={ROLES} nav={NAV} area="Agent">
+    <DeskShell roles={ROLES} groups={groups}>
       {children}
-    </Shell>
+    </DeskShell>
   );
 }

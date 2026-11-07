@@ -74,7 +74,7 @@ export default function PayoutsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        eyebrow={t('Money')}
+       
         title={t('Merchant payouts')}
         subtitle={t('Cash collected minus our fees, paid on each merchant’s payout days. One person creates, another approves.')}
         actions={

@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
+import { StatusBar } from '@/components/StatusBar';
 import { Alert, Button, Card, Field, Input, Loading, PageHeader, Select, StatusBadge, Textarea } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, egp, shortDate } from '@/lib/format';
@@ -113,6 +114,7 @@ export default function ParcelPage() {
         }
       />
 
+      <StatusBar flow={p.direction === 'RETURN' ? 'returnParcel' : 'parcel'} status={p.status} />
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={p.status} direction={p.direction} />
         {p.promisedDate && p.direction === 'FORWARD' && (

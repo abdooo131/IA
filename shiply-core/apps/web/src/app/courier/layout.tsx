@@ -1,19 +1,18 @@
 'use client';
-import { Shell , type NavItem } from '@/components/Shell';
+import { PhoneShell, type Me, type Tab } from '@/components/Shell';
 import { CheckInGate } from './CheckInGate';
 
-const NAV: NavItem[] = [
-  { href: '/courier', label: 'My run', icon: 'route' },
+const ROLES: Me['role'][] = ['COURIER'];
+const TABS: Tab[] = [
+  { href: '/courier', label: 'My run', icon: 'route', exact: true },
   { href: '/courier/pickups', label: 'Pickups', icon: 'pickups' },
-  { href: '/courier/wallet', label: 'My wallet', icon: 'wallet' },
+  { href: '/courier/wallet', label: 'Wallet', icon: 'wallet' },
 ];
 
 export default function CourierLayout({ children }: { children: React.ReactNode }) {
   return (
-    <Shell roles={['COURIER']} nav={NAV} area="Courier">
-      <div className="mx-auto max-w-xl">
-        <CheckInGate>{children}</CheckInGate>
-      </div>
-    </Shell>
+    <PhoneShell roles={ROLES} tabs={TABS}>
+      <CheckInGate>{children}</CheckInGate>
+    </PhoneShell>
   );
 }

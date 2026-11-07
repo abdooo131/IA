@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { StatCard } from '@/components/StatCard';
+import { WalletCard } from '@/components/WalletCard';
 import { useState } from 'react';
 import { RequestBadge, useRunner } from '@/components/money';
 import { Alert, Button, Card, Empty, Field, Input, Loading, PageHeader, StatusBadge, Table, Td } from '@/components/ui';
@@ -65,11 +66,7 @@ export default function StatementPage() {
     <div className="space-y-5">
       <PageHeader eyebrow={t('Merchant')} title={t('Money')} subtitle={t('Cash we collected for you, minus our fees')} />
 
-      <section className="shiply-route overflow-hidden rounded-xl p-6 text-white shadow-md sm:p-8">
-        <p className="text-label uppercase text-accent">{t('Next payout')}</p>
-        <p className="tabular ltr-iso mt-2 text-h1 sm:text-display">{egp(data.balance)}</p>
-        <p className="mt-2 text-body-sm opacity-90">{data.balance < 0 ? t('You owe this to Shiply') : t('Ready to be paid to you')}</p>
-      </section>
+      <WalletCard large icon="wallet" label={t('Next payout')} value={egp(data.balance)} hint={data.balance < 0 ? t('You owe this to Shiply') : t('Ready to be paid to you')} />
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <StatCard label={t('Cash collected')} value={egp(data.codTotal)} icon="cash" tone="delivered" />

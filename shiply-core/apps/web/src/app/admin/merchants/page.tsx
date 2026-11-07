@@ -130,7 +130,7 @@ export default function MerchantsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Setup')} title={t('Merchants')} subtitle={t('{count} merchants', { count: merchants.data.length })} actions={<Button onClick={() => edit(null)}>{t('Add merchant')}</Button>} />
+      <PageHeader title={t('Merchants')} subtitle={t('{count} merchants', { count: merchants.data.length })} actions={<Button onClick={() => edit(null)}>{t('Add merchant')}</Button>} />
       {editing && (
         <Card title={editing === 'new' ? t('New merchant') : t('Edit merchant')}>
           <form onSubmit={save} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

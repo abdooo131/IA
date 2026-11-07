@@ -14,7 +14,7 @@ export default function AlertsPage() {
   return (
     <div className="space-y-5">
       <PageHeader
-        eyebrow={t('Workforce')}
+       
         title={t('Alerts')}
         subtitle={t('Attendance, approvals and vehicle requests that need someone to act')}
         actions={

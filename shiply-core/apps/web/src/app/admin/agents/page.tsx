@@ -17,7 +17,7 @@ export default function AgentsPage() {
   if (!agents.data) return agents.error ? <Alert>{agents.error}</Alert> : <Loading />;
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Workforce')} title={t('Agents')} subtitle={t('Companies that supply pickup and delivery staff and vehicles')} actions={<Button onClick={() => setCreating((c) => !c)}>{creating ? t('Close') : t('Add agent')}</Button>} />
+      <PageHeader title={t('Agents')} subtitle={t('Companies that supply pickup and delivery staff and vehicles')} actions={<Button onClick={() => setCreating((c) => !c)}>{creating ? t('Close') : t('Add agent')}</Button>} />
       {creating && (
         <Card title={t('New agent')}>
           <AgentForm agent={null} onSaved={(a) => router.push(`/admin/agents/${a.id}`)} />

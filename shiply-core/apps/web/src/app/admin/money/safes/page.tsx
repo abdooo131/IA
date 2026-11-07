@@ -16,7 +16,7 @@ export default function SafesPage() {
   const waiting = deposits.data.filter((d) => d.status === 'SUBMITTED');
   return (
     <div className="space-y-5">
-      <PageHeader eyebrow={t('Money')} title={t('Hub safes')} subtitle={t('Cash handed in by couriers at each hub, and its trip to the bank')} />
+      <PageHeader title={t('Hub safes')} subtitle={t('Cash handed in by couriers at each hub, and its trip to the bank')} />
       {r.view}
       <Card title={t('Deposits to confirm ({count})', { count: waiting.length })}>
         {waiting.length === 0 ? (
