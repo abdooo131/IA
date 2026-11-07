@@ -29,6 +29,7 @@ function StopCard({ stop, onDone }: { stop: Stop; onDone: () => void }) {
   const [busy, setBusy] = useState(false);
   const s = stop.shipment;
   const isReturn = stop.direction === 'RETURN';
+  const done = stop.result !== 'PENDING';
   const who = isReturn ? s.merchant.name : s.customerName;
   const phone = isReturn ? s.merchant.phone : s.customerPhone;
   const address = isReturn ? s.merchant.pickupAddress : s.address;
@@ -45,7 +46,6 @@ function StopCard({ stop, onDone }: { stop: Stop; onDone: () => void }) {
     }
   };
 
-  const done = stop.result !== 'PENDING';
   return (
     <Card className={done ? 'opacity-70' : ''}>
       <div className="flex items-start justify-between gap-2">
@@ -53,7 +53,7 @@ function StopCard({ stop, onDone }: { stop: Stop; onDone: () => void }) {
           <div className="text-base font-semibold">{who}</div>
           <div className="font-mono text-xs text-slate-500">{s.trackingNumber}</div>
         </div>
-        {isReturn ? <Badge tone="red">Return to merchant</Badge> : s.attempts > 0 ? <Badge tone="amber">Attempt {s.attempts + 1}</Badge> : null}
+        {isReturn ? <Badge tone="red">Return to merchant</Badge> : !done && s.attempts > 0 ? <Badge tone="amber">Attempt {s.attempts + 1}</Badge> : null}
       </div>
       <p className="mt-2 text-sm">{address}</p>
       {!isReturn && (s.description || s.notes) && <p className="mt-1 text-xs text-slate-600">{[s.description, s.notes].filter(Boolean).join(' · ')}</p>}

@@ -48,6 +48,7 @@ export default function ReceivePage() {
           <ScanBox
             label="Bag code from a line haul trip"
             placeholder="BG00123"
+            autoFocus={false}
             onScan={async (code) => {
               const r = await api(`/hubs/${hub.id}/receive-bag`, { body: { code } });
               void reload();

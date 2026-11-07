@@ -1,5 +1,5 @@
 'use client';
-import { useRef, useState, type ReactNode } from 'react';
+import { useId, useRef, useState, type ReactNode } from 'react';
 import { errorMessage } from '@/lib/api';
 import { cx } from './ui';
 
@@ -34,12 +34,15 @@ export function ScanBox({
   placeholder = 'Scan or type a code, then Enter',
   onScan,
   disabled,
+  autoFocus = true,
 }: {
   label: string;
   placeholder?: string;
   onScan: (code: string) => Promise<ReactNode>;
   disabled?: boolean;
+  autoFocus?: boolean;
 }) {
+  const id = useId();
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [lines, setLines] = useState<ScanLine[]>([]);
@@ -66,7 +69,7 @@ export function ScanBox({
   const last = lines[0];
   return (
     <div>
-      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="scan">{label}</label>
+      <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor={id}>{label}</label>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -75,9 +78,9 @@ export function ScanBox({
         className="flex gap-2"
       >
         <input
-          id="scan"
+          id={id}
           ref={input}
-          autoFocus
+          autoFocus={autoFocus}
           autoComplete="off"
           autoCapitalize="characters"
           spellCheck={false}

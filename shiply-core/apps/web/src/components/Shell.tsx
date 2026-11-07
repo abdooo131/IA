@@ -37,14 +37,17 @@ export function Shell({ roles, nav, area, children }: { roles: Me['role'][]; nav
   const router = useRouter();
   const pathname = usePathname();
 
+  // Depend on the role names, not the array, so a layout passing a new array each render
+  // does not reload the user in a loop.
+  const roleKey = roles.join(',');
   useEffect(() => {
     api<Me>('/auth/me')
       .then((user) => {
-        if (!roles.includes(user.role)) router.replace(HOME_BY_ROLE[user.role]);
+        if (!roleKey.split(',').includes(user.role)) router.replace(HOME_BY_ROLE[user.role]);
         else setMe(user);
       })
       .catch(() => undefined);
-  }, [roles, router]);
+  }, [roleKey, router]);
 
   useEffect(() => setOpen(false), [pathname]);
 
