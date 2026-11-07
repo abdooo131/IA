@@ -3,6 +3,7 @@ import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { Alert, Button, Card, Loading } from '@/components/ui';
 import { clock } from '@/components/workforce';
+import { toJpeg } from '@/components/PhotoButton';
 import { api, errorMessage } from '@/lib/api';
 import { useLoad } from '@/lib/hooks';
 import { useLocale, useT } from '@/lib/i18n';
@@ -11,17 +12,6 @@ interface MyShift {
   date: string;
   linked: boolean;
   shift: { id: string; startAt: string; status: string; checkInAt: string | null; lateMinutes: number; replacesShiftId: string | null } | null;
-}
-
-/** Shrinks a camera photo to at most 960 px and JPEG, so the upload stays small. */
-export async function toJpeg(file: File): Promise<string> {
-  const bitmap = await createImageBitmap(file);
-  const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
-  const canvas = document.createElement('canvas');
-  canvas.width = Math.round(bitmap.width * scale);
-  canvas.height = Math.round(bitmap.height * scale);
-  canvas.getContext('2d')!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-  return canvas.toDataURL('image/jpeg', 0.8);
 }
 
 function where(): Promise<{ lat: number; lng: number } | null> {

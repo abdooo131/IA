@@ -11,6 +11,7 @@ const groups = (me: Me): NavGroup[] => [
       { href: '/agent/staff', label: 'Staff', icon: 'customers' },
       { href: '/agent/vehicles', label: 'Vehicles', icon: 'route' },
       { href: '/agent/settlements', label: 'Monthly settlements', icon: 'wallet' },
+      { href: '/agent/tickets', label: 'Quality tickets', icon: 'alert' },
     ],
   },
 ];

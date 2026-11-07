@@ -76,6 +76,25 @@ Operations can ask an agent for a vehicle with a driver (special merchant pickup
 vehicle) at an agreed price. The agent answers with the driver and vehicle; operations close it
 when the job is done.
 
+## Control
+
+1. **Lost parcels**: a missing parcel (left out of a bag, or marked lost) is searched for 48 hours.
+   A quality ticket opens against whoever scanned it last; its penalty (the COD value up to a cap,
+   for couriers) waits. Scanning the parcel anywhere ends the search and cancels the ticket. If
+   it is not found, the merchant is compensated and the penalty lands; if it turns up later both
+   are reversed.
+2. **Quality tickets** (damage, fake attempt, late or wrong scan, complaint): operations can
+   cancel a ticket for 24 hours; then the penalty applies and the courier or their agent can
+   appeal for 48 hours; operations accept or refuse the appeal.
+3. **Pallets**: outbound puts sealed bags for one place on a pallet (master waybill), seals it with
+   a seal number and a photo, and scans it onto the truck. The receiving hub records its condition
+   with a photo; a damaged pallet opens a ticket. Every trip prints a manifest; a back haul links
+   the vehicle's return trip to the one it came on.
+4. **Damage**: hub staff scan a damaged parcel with a note and a photo.
+5. **Checks every few minutes**: an hour after cutoff, parcels and bags still in a facility raise
+   an alert; fraud checks flag a courier with too many failed attempts in a day, three failures
+   within five minutes, repeated cash shortages, and customers who refuse again and again.
+
 ## Money
 
 Every money movement is a double entry in the books (`journal_entries`, `journal_lines`), which

@@ -47,6 +47,7 @@ function hubMenus(me: Me | null): AppMenu[] {
         label: 'Control',
         pages: [
           { href: '/hub/check', label: 'Handover check' },
+          { href: '/hub/damage', label: 'Report damage' },
           { href: '/hub/safe', label: 'Hub safe' },
         ],
       },
@@ -71,7 +72,7 @@ function hubMenus(me: Me | null): AppMenu[] {
   }
   menus.push({
     label: 'Control',
-    pages: [{ href: '/hub/check', label: 'Handover check' }, ...(team ? [] : [{ href: '/hub/safe', label: 'Hub safe' }])],
+    pages: [{ href: '/hub/check', label: 'Handover check' }, { href: '/hub/damage', label: 'Report damage' }, ...(team ? [] : [{ href: '/hub/safe', label: 'Hub safe' }])],
   });
   return menus;
 }
@@ -87,6 +88,14 @@ export function allApps(me: Me | null): AppDef[] {
       menus: [
         { label: 'Dashboard', pages: [{ href: '/admin', label: 'Overview', exact: true }] },
         { label: 'Parcels', pages: [{ href: '/admin/shipments', label: 'Parcels' }] },
+        {
+          label: 'Control',
+          pages: [
+            { href: '/admin/alerts', label: 'Alerts', hint: 'Everything waiting for someone to act' },
+            { href: '/admin/qc', label: 'Quality tickets', hint: 'Penalties with a waiting time and an appeal' },
+            { href: '/admin/lost', label: 'Lost and damaged', hint: 'Parcels in search, losses paid, damage' },
+          ],
+        },
         { label: 'Configuration', pages: [{ href: '/admin/network', label: 'Network', hint: 'Sorting facilities, hubs and areas' }] },
       ],
     },
@@ -107,7 +116,6 @@ export function allApps(me: Me | null): AppDef[] {
       menus: [
         { label: 'Agents', pages: [{ href: '/admin/agents', label: 'Agents' }] },
         { label: 'Attendance', pages: [{ href: '/admin/attendance', label: 'Attendance' }] },
-        { label: 'Alerts', pages: [{ href: '/admin/alerts', label: 'Alerts' }] },
         { label: 'Vehicle requests', pages: [{ href: '/admin/vehicle-requests', label: 'Vehicle requests' }] },
       ],
     },

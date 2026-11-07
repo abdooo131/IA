@@ -10,6 +10,7 @@ import { api, errorMessage } from '@/lib/api';
 import { dateTime, egp, shortDate } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
 import { nextOutcome } from '@/lib/hub';
+import { IncomingPallets } from './trips/Pallets';
 import { useLocale, useT } from '@/lib/i18n';
 
 type Row = { id: string; trackingNumber: string; merchant: string; customerName: string; governorateCode: string; codAmount: number; attempts: number; promisedDate: string | null; direction: string; holdReason: string | null; nextHub: string | null };
@@ -159,6 +160,7 @@ export default function InboundPage() {
       </div>
 
       <OpenBags key={arrivalsKey} hubId={hub.id} onChange={() => void reload()} />
+      <IncomingPallets />
       <IncomingTrucks hubId={hub.id} onChange={() => void reload()} />
 
       <h2 className="mb-3 mt-8 text-h3">{t('In this building now')}</h2>

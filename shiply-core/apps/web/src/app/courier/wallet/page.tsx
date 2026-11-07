@@ -1,13 +1,14 @@
 'use client';
 import { useState } from 'react';
 import { WalletCard } from '@/components/WalletCard';
+import { MyTickets } from '@/components/MyTickets';
 import { MoneyInput, RequestBadge, toPiastres, useRunner } from '@/components/money';
 import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, Select } from '@/components/ui';
 import { api } from '@/lib/api';
 import { dateTime, egp } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
-import { toJpeg } from '../CheckInGate';
+import { toJpeg } from '@/components/PhotoButton';
 
 interface Wallet {
   wallet: number;
@@ -129,6 +130,8 @@ export default function CourierWallet() {
           </ul>
         </Card>
       )}
+
+      <MyTickets />
 
       <Card title={t('What I earned')}>
         {d.earnings.length === 0 ? <Empty>{t('Nothing yet')}</Empty> : (

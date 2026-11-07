@@ -42,6 +42,11 @@ const LABELS: Record<Editable, [string, string]> = {
   'company.item_code': ['ETA item code', 'The code registered for our delivery service'],
   'agents.advance_max_bp': ['Agent advance limit', 'Share of the month so far an agent may take early'],
   'cash.courier_limit': ['Courier cash limit', 'Cash a courier may hold before an alert'],
+  'lost.search_hours': ['Search time for lost parcels (hours)', 'How long a missing parcel is searched for before the loss is final'],
+  'lost.compensation_cap': ['Lost parcel compensation cap', 'Most we pay a merchant for one lost parcel'],
+  'qc.override_hours': ['Ticket waiting time (hours)', 'Time operations have to cancel a quality ticket before its penalty applies'],
+  'qc.appeal_hours': ['Appeal window (hours)', 'Time a courier or agent has to appeal a penalty'],
+  'fraud.max_failed_per_day': ['Failed attempts fraud check', 'Failed attempts by one courier in a day that raise a check'],
   'cash.safe_limit': ['Hub safe limit', 'Cash a hub safe may hold before it must go to the bank'],
 };
 

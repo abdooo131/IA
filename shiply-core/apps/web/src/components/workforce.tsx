@@ -136,6 +136,17 @@ export const ALERT_LABEL: Record<string, string> = {
   REPLACEMENT_OVERDUE: 'Replacement overdue',
   CASH_LIMIT_COURIER: 'Courier over cash limit',
   CASH_LIMIT_SAFE: 'Safe over cash limit',
+  PARCEL_IN_SEARCH: 'Parcel in search',
+  PARCEL_DAMAGED: 'Parcel damaged',
+  PALLET_DAMAGED: 'Pallet damaged',
+  CUTOFF_MISSED: 'Missed the cutoff',
+  QC_TICKET: 'Quality ticket',
+  QC_PENALTY: 'Penalty applied',
+  QC_APPEAL: 'Appeal to decide',
+  FRAUD_FAILED_SPIKE: 'Fraud check: many failures',
+  FRAUD_QUICK_FAILS: 'Fraud check: quick failures',
+  FRAUD_REPEAT_REFUSER: 'Fraud check: repeat refuser',
+  FRAUD_CASH_SHORT: 'Fraud check: cash shortages',
 };
 export const VEHICLE_KIND: Record<string, string> = { VAN: 'Van', BOX_TRUCK: 'Box truck', PICKUP_TRUCK: 'Pickup truck', CAR: 'Car', MOTORCYCLE: 'Motorcycle' };
 export const REQUEST_REASON: Record<string, string> = { MERCHANT_SPECIAL: 'Merchant special pickup', BREAKDOWN: 'Vehicle broke down', VEHICLE_FULL: 'Vehicle full', OTHER: 'Other' };
