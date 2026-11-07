@@ -92,6 +92,8 @@ export function allApps(me: Me | null): AppDef[] {
           label: 'Control',
           pages: [
             { href: '/admin/alerts', label: 'Alerts', hint: 'Everything waiting for someone to act' },
+            { href: '/admin/live', label: 'Couriers on the road', hint: 'Where each courier is and how far their run is' },
+            { href: '/admin/attempts', label: 'Check failed attempts', hint: 'Call the customer and confirm what the courier recorded' },
             { href: '/admin/qc', label: 'Quality tickets', hint: 'Penalties with a waiting time and an appeal' },
             { href: '/admin/lost', label: 'Lost and damaged', hint: 'Parcels in search, losses paid, damage' },
           ],

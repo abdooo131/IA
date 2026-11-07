@@ -22,6 +22,7 @@ const EMPTY = {
   notes: '',
   allowOpen: false,
   exchange: false,
+  customerReturn: false,
   merchantRef: '',
 };
 
@@ -77,11 +78,12 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
           areaId: f.areaId || null,
           address: f.address,
           size: f.size,
-          codAmount: cod,
+          codAmount: f.customerReturn ? 0 : cod,
           description: f.description,
           notes: f.notes,
-          allowOpen: f.allowOpen,
-          exchange: f.exchange,
+          allowOpen: f.customerReturn ? false : f.allowOpen,
+          exchange: f.customerReturn ? false : f.exchange,
+          customerReturn: f.customerReturn,
           merchantRef: f.merchantRef,
         },
       });
@@ -161,6 +163,10 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
         <label className="flex items-center gap-2 text-body-sm sm:col-span-2">
           <input type="checkbox" className="h-5 w-5" checked={f.exchange} onChange={(e) => set('exchange', e.target.checked)} />
           {t('Exchange: the courier brings the old item back in the same visit')}
+        </label>
+        <label className="flex items-center gap-2 text-body-sm sm:col-span-2">
+          <input type="checkbox" className="h-5 w-5" checked={f.customerReturn} onChange={(e) => set('customerReturn', e.target.checked)} />
+          {t('Return from a customer: the courier collects the item from them and brings it to you')}
         </label>
         {price && (
           <div className="rounded-lg border border-line bg-surface-raised p-4 text-body-sm sm:col-span-2">

@@ -1,7 +1,8 @@
 'use client';
-import { isValidElement, useId, useRef, useState, type ReactNode } from 'react';
+import { isValidElement, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { errorMessage } from '@/lib/api';
 import { useT } from '@/lib/i18n';
+import { CameraScanner, cameraScanSupported } from './CameraScanner';
 import { Icon } from './Icon';
 import { cx } from './ui';
 
@@ -65,10 +66,13 @@ export function ScanBox({
   const [value, setValue] = useState('');
   const [busy, setBusy] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
+  const [camera, setCamera] = useState(false);
+  const [canCamera, setCanCamera] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  useEffect(() => setCanCamera(cameraScanSupported()), []);
 
-  const submit = async () => {
-    const code = value.trim();
+  const submit = async (typed?: string) => {
+    const code = (typed ?? value).trim();
     if (!code || busy) return;
     setBusy(true);
     setValue('');
@@ -128,10 +132,16 @@ export function ScanBox({
             className={cx('field ps-11 font-mono uppercase tracking-wider placeholder:font-sans placeholder:normal-case placeholder:tracking-normal', lg ? 'min-h-14 text-h3' : 'min-h-12 text-body')}
           />
         </div>
+        {canCamera && (
+          <button type="button" disabled={busy || disabled} onClick={() => setCamera(true)} className={cx('btn-secondary', lg ? 'min-h-14 px-4' : 'min-h-12 px-3')} aria-label={t('Scan with the camera')} title={t('Scan with the camera')}>
+            <Icon name="scan" size={22} />
+          </button>
+        )}
         <button type="submit" disabled={busy || disabled || !value.trim()} className={cx('btn-primary', lg ? 'min-h-14 px-6' : 'min-h-12')}>
           {busy ? '…' : t('Go')}
         </button>
       </form>
+      {camera && <CameraScanner onClose={() => setCamera(false)} onCode={(code) => { setCamera(false); void submit(code); }} />}
       {last && (
         <div className={cx('mt-4 rounded-xl border-s-8 p-4 shadow-md', panel)} role="status">
           <div className="flex flex-wrap items-center gap-4">

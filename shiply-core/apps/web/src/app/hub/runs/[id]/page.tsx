@@ -14,6 +14,40 @@ import { useLocale, useT } from '@/lib/i18n';
 type Item = { id: string; direction: string; result: string; failReason: string | null; codCollected: number; backAtHub: boolean; shipment: { trackingNumber: string; customerName: string; address: string; codAmount: number; status: string } };
 type Run = { id: string; code: string; status: string; cashExpected: number; cashReceived: number | null; items: Item[] };
 
+interface Waiting { id: string; trackingNumber: string; customerName: string; address: string; attempts: number; runId: string | null; description: string; merchant: { name: string } }
+
+/** Returns customers asked to send back: nothing to scan, the courier collects them on the way. */
+function CustomerReturns({ hubId, runId, onAdded }: { hubId: string; runId: string; onAdded: () => void }) {
+  const t = useT();
+  const list = useLoad<Waiting[]>(`/hubs/${hubId}/customer-returns`);
+  const [error, setError] = useState<string | null>(null);
+  const free = (list.data ?? []).filter((w) => !w.runId);
+  if (free.length === 0) return null;
+  return (
+    <div className="mt-5 border-t border-border pt-4">
+      <p className="text-body-sm font-semibold">{t('Returns to collect from customers ({n})', { n: free.length })}</p>
+      {error && <div className="mt-2"><Alert>{error}</Alert></div>}
+      <ul className="mt-2 space-y-2">
+        {free.map((w) => (
+          <li key={w.id} className="flex items-center justify-between gap-3 rounded-md bg-surface-raised px-3 py-2 text-body-sm">
+            <span className="min-w-0"><span className="ltr-iso font-mono">{w.trackingNumber}</span> · {w.customerName} · {w.merchant.name}<span className="block truncate text-caption text-text-muted">{w.address}{w.attempts ? ` · ${t('Visit {n}', { n: w.attempts + 1 })}` : ''}</span></span>
+            <Button tone="secondary" onClick={async () => {
+              setError(null);
+              try {
+                await api(`/hubs/${hubId}/runs/${runId}/add`, { body: { code: w.trackingNumber } });
+                await list.reload();
+                onAdded();
+              } catch (e) {
+                setError(t(errorMessage(e)));
+              }
+            }}>{t('Add to run')}</Button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default function RunPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const hub = useHub();
@@ -78,9 +112,10 @@ export default function RunPage({ params }: { params: Promise<{ id: string }> })
             onScan={async (code) => {
               const res = await api(`/hubs/${hub.id}/runs/${id}/add`, { body: { code } });
               void run.reload();
-              return res.direction === 'RETURN' ? { big: t('RETURN'), tone: 'return' as const, text: t('Added as a return to merchant') } : { big: String(r.items.length + 1), text: t('Added for delivery') };
+              return res.direction === 'RETURN' ? { big: t('RETURN'), tone: 'return' as const, text: t('Added as a return to merchant') } : { big: String(r.items.length + 1), text: t(res.message) };
             }}
           />
+          <CustomerReturns hubId={hub.id} runId={id} onAdded={() => void run.reload()} />
         </Card>
       )}
 

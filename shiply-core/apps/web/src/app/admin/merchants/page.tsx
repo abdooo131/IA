@@ -18,6 +18,7 @@ interface Merchant {
   homeHubId: string;
   discountBp: number;
   active: boolean;
+  flexShip: boolean;
   homeHub: { code: string };
   _count: { shipments: number };
 }
@@ -34,7 +35,7 @@ interface Location {
   areas: { id: string; nameEn: string }[];
 }
 
-const emptyForm = { code: '', name: '', phone: '', email: '', pickupAddress: '', governorateCode: 'CAI', areaId: '', homeHubId: '', discount: '0', active: true };
+const emptyForm = { code: '', name: '', phone: '', email: '', pickupAddress: '', governorateCode: 'CAI', areaId: '', homeHubId: '', discount: '0', active: true, flexShip: false };
 
 function LoginForm({ merchant, onDone }: { merchant: Merchant; onDone: () => void }) {
   const t = useT();
@@ -100,7 +101,7 @@ export default function MerchantsPage() {
     setEditing(m ? m.id : 'new');
     setForm(
       m
-        ? { code: m.code, name: m.name, phone: m.phone, email: m.email, pickupAddress: m.pickupAddress, governorateCode: m.governorateCode, areaId: m.areaId ?? '', homeHubId: m.homeHubId, discount: String(m.discountBp / 100), active: m.active }
+        ? { code: m.code, name: m.name, phone: m.phone, email: m.email, pickupAddress: m.pickupAddress, governorateCode: m.governorateCode, areaId: m.areaId ?? '', homeHubId: m.homeHubId, discount: String(m.discountBp / 100), active: m.active, flexShip: m.flexShip }
         : emptyForm,
     );
   };
@@ -176,6 +177,10 @@ export default function MerchantsPage() {
             <label className="flex items-center gap-2 self-end pb-2 text-body-sm">
               <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
               {t('Active')}
+            </label>
+            <label className="flex items-center gap-2 self-end pb-2 text-body-sm">
+              <input type="checkbox" checked={form.flexShip} onChange={(e) => setForm({ ...form, flexShip: e.target.checked })} />
+              {t('FlexShip: a customer who refuses may pay the shipping')}
             </label>
             <div className="flex gap-2 sm:col-span-2 lg:col-span-3">
               <Button type="submit" disabled={busy}>{editing === 'new' ? t('Create merchant') : t('Save')}</Button>
