@@ -64,6 +64,12 @@ export class PublicController {
     }));
   }
 
+  /** Hub names for hub staff picking a trip destination. Signed in users only. */
+  @Get('reference/hubs')
+  hubs() {
+    return this.prisma.hub.findMany({ where: { active: true }, select: { id: true, code: true, name: true, isSorting: true }, orderBy: [{ isSorting: 'desc' }, { code: 'asc' }] });
+  }
+
   @Public()
   @Get('health')
   health() {
