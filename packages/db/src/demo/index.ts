@@ -666,6 +666,9 @@ async function simulate(
   const avail = new Map<string, number>();
   const key = (storeId: string, skuId: string) => `${storeId}:${skuId}`;
   const now = () => simNow();
+  // Moves this store's clock forward, never past the real time (a step near now would otherwise
+  // throw, so the short demo of the tests depended on the time of day).
+  const ahead = (ms: number) => setContextClock(Math.min(now().getTime() + ms, realNow()));
   const minutesLater = (m: number) => now().getTime() + Math.round(m * MIN);
   const lateWindows: { from: number; to: number }[] = [];
   const pendingHandovers: string[] = [];
@@ -740,7 +743,7 @@ async function simulate(
         }
         if (lines.size === 0) continue;
         const destCode = w.hub?.id === dest ? w.hub.code : storeOf.get(dest)!.code;
-        setContextClock(now().getTime() + rnd.int(3, 12) * MIN);
+        ahead(rnd.int(3, 12) * MIN);
         const manifest = await createManifest(db, {
           merchantId: m.id,
           darkStoreId: dest,
@@ -773,7 +776,7 @@ async function simulate(
         const roll = first ? 1 : rnd.next();
         const qty = roll < 0.03 ? Math.max(1, expected - 1) : roll < 0.06 ? expected + 1 : expected;
         first = false;
-        setContextClock(now().getTime() + rnd.int(8, 20) * 1000);
+        ahead(rnd.int(8, 20) * 1000);
         await receiveOnManifest(db, {
           manifestId: mf.id,
           darkStoreId: mf.dest,
@@ -785,10 +788,10 @@ async function simulate(
         mf.lines.set(skuId, qty);
       }
       await closeManifest(db, { manifestId: mf.id, darkStoreId: mf.dest, actorUserId: staffId });
-      setContextClock(now().getTime() + 5 * MIN);
+      ahead(5 * MIN);
       const bins = isHub ? hub! : storeOf.get(mf.dest)!;
       for (const [skuId, qty] of mf.lines) {
-        setContextClock(now().getTime() + 15_000);
+        ahead(15_000);
         await putAway(
           mf.dest,
           bins.receivingBinId!,
@@ -814,7 +817,7 @@ async function simulate(
         lines.push({ skuId, quantity });
       }
       if (lines.length === 0) continue;
-      setContextClock(now().getTime() + 5 * MIN);
+      ahead(5 * MIN);
       const transfer = await createTransfer(db, {
         fromId: hub.id,
         toId: storeId,
@@ -823,7 +826,7 @@ async function simulate(
         actorUserId: w.admin,
       });
       for (const l of lines) {
-        setContextClock(now().getTime() + 20_000);
+        ahead(20_000);
         await pickForTransfer(db, {
           transferId: transfer.id,
           darkStoreId: hub.id,
@@ -838,9 +841,9 @@ async function simulate(
         darkStoreId: hub.id,
         actorUserId: w.admin,
       });
-      setContextClock(now().getTime() + rnd.int(35, 60) * MIN);
+      ahead(rnd.int(35, 60) * MIN);
       for (const l of lines) {
-        setContextClock(now().getTime() + 15_000);
+        ahead(15_000);
         await receiveTransfer(db, {
           transferId: transfer.id,
           darkStoreId: storeId,
@@ -856,7 +859,7 @@ async function simulate(
         actorUserId: store.staffId,
       });
       for (const l of lines) {
-        setContextClock(now().getTime() + 15_000);
+        ahead(15_000);
         await putAway(
           storeId,
           store.receivingBinId,
@@ -1011,7 +1014,7 @@ async function simulate(
 
   async function pick(o: Live) {
     for (const [i, item] of o.items.entries()) {
-      setContextClock(now().getTime() + Math.round(rnd.between(0.5, 2) * MIN));
+      ahead(Math.round(rnd.between(0.5, 2) * MIN));
       const last = i === o.items.length - 1;
       if (o.outcome === 'missing' && last) {
         await markItemMissing(db, {
@@ -1152,7 +1155,7 @@ async function simulate(
     if (reason === 'no_answer') {
       const calls = await getSetting(db, 'delivery.min_calls_no_answer', o.store.id);
       for (let i = 0; i < calls; i++) {
-        setContextClock(now().getTime() + rnd.int(60, 150) * 1000);
+        ahead(rnd.int(60, 150) * 1000);
         await recordDeliveryCall(db, { deliveryId: delivery.id, riderUserId: rider.userId });
       }
       photoId = (await photo('delivery', DOOR_PHOTO_JPEG, rider.userId)).id;
@@ -1401,7 +1404,7 @@ async function simulate(
           });
           if (await payoutNeedsApproval(db, payout.amountPiastres))
             await approvePayout(db, { payoutId: payout.id, actorUserId: w.approver });
-          setContextClock(now().getTime() + 40 * MIN);
+          ahead(40 * MIN);
           await markPayoutPaid(db, {
             payoutId: payout.id,
             reference: `CIB-PAY-${day.replace(/-/g, '')}-${payout.number}`,
@@ -1534,7 +1537,7 @@ async function simulate(
             });
             if (handover.status === 'pending') pendingHandovers.push(handover.id);
             c.handovers++;
-            setContextClock(now().getTime() + rnd.int(2, 6) * MIN);
+            ahead(rnd.int(2, 6) * MIN);
           }
         const storage = await accrueStorage(db, day);
         if (storage.charged > 0) c.storageDays++;
@@ -1563,9 +1566,9 @@ async function simulate(
       actorUserId: merchant.actorId,
     });
     for (const x of stocked) avail.set(key(store.id, x.k.id), x.have - 2);
-    setContextClock(now().getTime() + 50 * MIN);
+    ahead(50 * MIN);
     for (const x of stocked) {
-      setContextClock(now().getTime() + 40_000);
+      ahead(40_000);
       await pickForReturn(db, {
         returnId: ret.id,
         darkStoreId: store.id,
@@ -1575,7 +1578,7 @@ async function simulate(
         idempotencyKey: `demo:${ret.id}:${x.k.id}`,
       });
     }
-    setContextClock(now().getTime() + 90 * MIN);
+    ahead(90 * MIN);
     await handOverReturn(db, {
       returnId: ret.id,
       darkStoreId: store.id,
@@ -1603,7 +1606,7 @@ async function simulate(
       });
       if (!units || (avail.get(key(r.store.id, units.skuId)) ?? 0) < 2) continue;
       avail.set(key(r.store.id, units.skuId), (avail.get(key(r.store.id, units.skuId)) ?? 0) - 1);
-      setContextClock(now().getTime() + 20 * MIN);
+      ahead(20 * MIN);
       const { report } = await reportDamage(db, {
         darkStoreId: r.store.id,
         skuId: units.skuId,
@@ -1615,7 +1618,7 @@ async function simulate(
         idempotencyKey: `demo:damage:${r.store.id}:${units.skuId}`,
       });
       if (r.settle) {
-        setContextClock(now().getTime() + 120 * MIN);
+        ahead(120 * MIN);
         await settleDamage(db, {
           reportId: report.id,
           cause: r.cause,
