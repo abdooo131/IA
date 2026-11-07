@@ -1,9 +1,9 @@
 'use client';
-import { Shell } from '@/components/Shell';
+import { Shell , type NavItem } from '@/components/Shell';
 
-const NAV = [
-  { href: '/courier', label: 'My run' },
-  { href: '/courier/pickups', label: 'Pickups' },
+const NAV: NavItem[] = [
+  { href: '/courier', label: 'My run', icon: 'route' },
+  { href: '/courier/pickups', label: 'Pickups', icon: 'pickups' },
 ];
 
 export default function CourierLayout({ children }: { children: React.ReactNode }) {

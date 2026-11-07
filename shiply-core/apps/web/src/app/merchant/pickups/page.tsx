@@ -4,6 +4,8 @@ import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, PageHeader, T
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, shortDate, todayCairo } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
+import { Icon } from '@/components/Icon';
+import { useT } from '@/lib/i18n';
 
 interface Pickup {
   id: string;
@@ -20,11 +22,12 @@ const STATUS: Record<Pickup['status'], { label: string; tone: 'slate' | 'blue' |
   REQUESTED: { label: 'Requested', tone: 'slate' },
   ASSIGNED: { label: 'Courier assigned', tone: 'blue' },
   COLLECTED: { label: 'Collected', tone: 'amber' },
-  RECEIVED: { label: 'At our hub', tone: 'green' },
+  RECEIVED: { label: 'At our sorting facility', tone: 'green' },
   CANCELLED: { label: 'Cancelled', tone: 'red' },
 };
 
 export default function PickupsPage() {
+  const t = useT();
   const { data, error, loading, reload } = useLoad<Pickup[]>('/merchant/pickups');
   const [date, setDate] = useState(todayCairo());
   const [notes, setNotes] = useState('');
@@ -37,7 +40,7 @@ export default function PickupsPage() {
     setMsg(null);
     try {
       const p = await api<Pickup>('/merchant/pickups', { body: { date, notes } });
-      setMsg({ tone: 'success', text: `Pickup ${p.code} requested for ${shortDate(p.date)} with ${p.expectedCount} parcels` });
+      setMsg({ tone: 'success', text: t('Pickup {code} requested for {date} with {n} parcels', { code: p.code, date: shortDate(p.date), n: p.expectedCount }) });
       setNotes('');
       await reload();
     } catch (err) {
@@ -48,7 +51,7 @@ export default function PickupsPage() {
   };
 
   const cancel = async (p: Pickup) => {
-    if (!window.confirm(`Cancel pickup ${p.code}?`)) return;
+    if (!window.confirm(t('Cancel pickup {code}?', { code: p.code }))) return;
     try {
       await api(`/merchant/pickups/${p.id}/cancel`, { body: {} });
       await reload();
@@ -59,38 +62,38 @@ export default function PickupsPage() {
 
   return (
     <div className="space-y-5">
-      <PageHeader title="Pickups" subtitle="Ask a courier to collect your new parcels" />
-      <Card title="Request a pickup">
+      <PageHeader eyebrow={t('Merchant')} title={t('Pickups')} subtitle={t('Ask a courier to collect your new parcels. They go to your nearest Shiply sorting facility.')} />
+      <Card title={<span className="flex items-center gap-2"><Icon name="pickups" size={22} className="text-link" />{t('Request a pickup')}</span>}>
         {msg && <div className="mb-4"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
         <form onSubmit={request} className="grid gap-4 sm:grid-cols-[200px_1fr_auto] sm:items-end">
-          <Field label="Day">
-            <Input type="date" required min={todayCairo()} value={date} onChange={(e) => setDate(e.target.value)} />
+          <Field label={t('Day')}>
+            <Input type="date" dir="ltr" required min={todayCairo()} value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
-          <Field label="Notes for the courier">
-            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Gate, floor, best time…" />
+          <Field label={t('Notes for the courier')}>
+            <Input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder={t('Gate, floor, best time…')} />
           </Field>
-          <Button type="submit" disabled={busy}>{busy ? 'Requesting…' : 'Request pickup'}</Button>
+          <Button type="submit" disabled={busy}>{busy ? t('Requesting…') : t('Request pickup')}</Button>
         </form>
-        <p className="mt-3 text-xs text-slate-500">All parcels you created and we have not collected yet will be picked up. Parcels collected before the daily cutoff are promised for the next working day.</p>
+        <p className="mt-3 text-caption text-text-muted">{t('All parcels you created and we have not collected yet will be picked up. Parcels collected before the daily cutoff are promised for the next working day.')}</p>
       </Card>
-      <Card title="Your pickups">
+      <Card title={t('Your pickups')}>
         {error && <Alert>{error}</Alert>}
         {loading && !data ? (
           <Loading />
         ) : !data || data.length === 0 ? (
-          <Empty>No pickups yet.</Empty>
+          <Empty>{t('No pickups yet.')}</Empty>
         ) : (
-          <Table head={['Code', 'Day', 'Status', 'Parcels', 'Collected', '']}>
+          <Table head={[t('Code'), t('Day'), t('Status'), t('Parcels'), t('Collected'), '']}>
             {data.map((p) => (
               <tr key={p.id}>
-                <Td className="font-mono font-semibold">{p.code}</Td>
-                <Td>{shortDate(p.date)}</Td>
-                <Td><Badge tone={STATUS[p.status].tone}>{STATUS[p.status].label}</Badge></Td>
-                <Td className="tabular-nums">{p.expectedCount}</Td>
-                <Td>{dateTime(p.collectedAt)}</Td>
+                <Td className="ltr-iso font-mono font-bold">{p.code}</Td>
+                <Td className="ltr-iso">{shortDate(p.date)}</Td>
+                <Td><Badge tone={STATUS[p.status].tone}>{t(STATUS[p.status].label)}</Badge></Td>
+                <Td className="tabular">{p.expectedCount}</Td>
+                <Td className="ltr-iso">{dateTime(p.collectedAt)}</Td>
                 <Td>
                   {(p.status === 'REQUESTED' || p.status === 'ASSIGNED') && (
-                    <Button tone="ghost" onClick={() => void cancel(p)}>Cancel</Button>
+                    <Button tone="ghost" onClick={() => void cancel(p)}>{t('Cancel')}</Button>
                   )}
                 </Td>
               </tr>

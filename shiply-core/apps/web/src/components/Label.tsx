@@ -29,11 +29,11 @@ export function Label({ data }: { data: LabelData }) {
   }, [data.trackingNumber]);
 
   return (
-    <div className="label mx-auto flex flex-col overflow-hidden bg-white text-black ring-1 ring-slate-300 print:ring-0" style={{ width: '100mm', height: '150mm', padding: '4mm' }}>
+    <div dir="ltr" className="label mx-auto flex flex-col overflow-hidden bg-white text-black shadow-md ring-1 ring-line print:shadow-none print:ring-0" style={{ width: '100mm', height: '150mm', padding: '4mm' }}>
       <div className="flex items-start justify-between border-b-2 border-black pb-2">
         <div>
-          <div className="text-lg font-black leading-none">Shiply</div>
-          <div className="text-[10px] font-semibold uppercase tracking-wide">Next day delivery</div>
+          <img src="/brand/logo-horizontal-primary.svg" alt="Shiply" className="h-[7mm] w-auto" />
+          <div className="mt-1 text-[10px] font-semibold uppercase tracking-wide">Next day delivery</div>
         </div>
         <div className="text-right">
           <div className="text-4xl font-black leading-none">{data.route}</div>

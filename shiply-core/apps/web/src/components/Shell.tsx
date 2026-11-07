@@ -2,8 +2,11 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
-import { TEAM_LABELS } from '@shiply/shared';
+import { TEAM_LABELS, TEAM_LABELS_AR } from '@shiply/shared';
 import { api } from '@/lib/api';
+import { setPreference, useLocale, useT } from '@/lib/i18n';
+import { Icon, type IconName } from './Icon';
+import { Logo } from './Logo';
 import { cx, Loading } from './ui';
 
 export interface Me {
@@ -32,18 +35,54 @@ export const HOME_BY_ROLE: Record<Me['role'], string> = {
   MERCHANT: '/merchant',
 };
 
-/** App frame: loads the signed in user, checks the role, shows the navigation. */
-type NavItem = { href: string; label: string };
+export interface NavItem {
+  href: string;
+  label: string;
+  icon: IconName;
+  /** Group heading in the side menu. */
+  group?: string;
+}
 
-/** `nav` may depend on who is signed in (a facility team sees only its station). */
+function isActive(href: string, pathname: string, first: boolean) {
+  if (first) return pathname === href;
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function Prefs() {
+  const t = useT();
+  const locale = useLocale();
+  const [theme, setTheme] = useState('system');
+  useEffect(() => {
+    setTheme(document.documentElement.dataset.theme ?? 'system');
+  }, []);
+  return (
+    <div className="mt-3 grid grid-cols-2 gap-2">
+      <select className="field min-h-9 py-1 text-caption" value={locale} onChange={(e) => setPreference('shiply_locale', e.target.value)} aria-label={t('Language')}>
+        <option value="en">English</option>
+        <option value="ar">العربية</option>
+      </select>
+      <select className="field min-h-9 py-1 text-caption" value={theme} onChange={(e) => setPreference('shiply_theme', e.target.value)} aria-label={t('Theme')}>
+        <option value="system">{t('System')}</option>
+        <option value="light">{t('Light')}</option>
+        <option value="dark">{t('Dark')}</option>
+      </select>
+    </div>
+  );
+}
+
+/**
+ * App frame after Shiply Now: a Navy side menu with the brand icons on wide screens, a top bar
+ * with a slide in menu on phones. Loads the signed in user and checks the role.
+ */
 export function Shell({ roles, nav: navFor, area, children }: { roles: Me['role'][]; nav: NavItem[] | ((me: Me) => NavItem[]); area: string; children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
+  const t = useT();
+  const locale = useLocale();
 
-  // Depend on the role names, not the array, so a layout passing a new array each render
-  // does not reload the user in a loop.
+  // Depend on the role names, not the array, so a new array each render does not reload in a loop.
   const roleKey = roles.join(',');
   useEffect(() => {
     api<Me>('/auth/me')
@@ -58,59 +97,85 @@ export function Shell({ roles, nav: navFor, area, children }: { roles: Me['role'
 
   if (!me) return <Loading />;
   const nav = typeof navFor === 'function' ? navFor(me) : navFor;
+  const groups: { label?: string; items: NavItem[] }[] = [];
+  for (const item of nav) {
+    const last = groups.at(-1);
+    if (last && last.label === item.group) last.items.push(item);
+    else groups.push({ label: item.group, items: [item] });
+  }
 
   const logout = async () => {
     await api('/auth/logout', { method: 'POST', body: {} });
     router.replace('/login');
   };
 
-  const isActive = (href: string) => (href === nav[0]?.href ? pathname === href : pathname.startsWith(href));
+  const roleText = me.team
+    ? locale === 'ar' ? TEAM_LABELS_AR[me.team] : TEAM_LABELS[me.team]
+    : me.role === 'HUB_STAFF' && me.hub?.isSorting ? t('Supervisor')
+    : t({ ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant' }[me.role]);
 
   return (
     <MeContext.Provider value={me}>
-      <header className="no-print sticky top-0 z-20 border-b border-slate-200 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3">
-          <Link href={nav[0]?.href ?? '/'} className="flex items-center gap-2">
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm font-black text-white">S</span>
-            <span className="text-sm font-bold leading-tight">
-              Shiply Core
-              <span className="block text-xs font-medium text-slate-500">{area}</span>
-            </span>
-          </Link>
-          <nav className="ml-4 hidden flex-1 gap-1 lg:flex">
-            {nav.map((n) => (
-              <Link key={n.href} href={n.href} className={cx('rounded-lg px-3 py-2 text-sm font-medium', isActive(n.href) ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100')}>
-                {n.label}
-              </Link>
-            ))}
-          </nav>
-          <div className="ml-auto hidden items-center gap-3 lg:flex">
-            <span className="text-right text-xs text-slate-600">
-              <span className="block font-semibold text-slate-800">{me.name}</span>
-              {me.hub?.name ?? me.merchant?.name ?? me.email}
-              {me.team && <span className="block font-semibold text-brand-700">{TEAM_LABELS[me.team]}</span>}
-            </span>
-            <button onClick={logout} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Sign out</button>
-          </div>
-          <button onClick={() => setOpen((o) => !o)} className="ml-auto rounded-lg p-2 text-slate-700 ring-1 ring-slate-300 lg:hidden" aria-label="Menu" aria-expanded={open}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 5h14M3 10h14M3 15h14" /></svg>
+      <div className="min-h-dvh lg:flex">
+        <div className="no-print sticky top-0 z-30 flex h-14 items-center justify-between border-b border-line bg-surface px-4 lg:hidden">
+          <Logo />
+          <button type="button" onClick={() => setOpen(true)} aria-expanded={open} className="flex h-11 items-center gap-2 rounded-md border border-line px-3 text-body-sm font-bold">
+            <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><path d="M4 7h16M4 12h16M4 17h16" /></svg>
+            {t('Menu')}
           </button>
         </div>
-        {open && (
-          <nav className="border-t border-slate-200 px-4 py-2 lg:hidden">
-            {nav.map((n) => (
-              <Link key={n.href} href={n.href} className={cx('block rounded-lg px-3 py-3 text-sm font-medium', isActive(n.href) ? 'bg-brand-50 text-brand-700' : 'text-slate-700')}>
-                {n.label}
-              </Link>
+        {open && <div className="fixed inset-0 z-40 bg-[rgba(8,35,65,0.5)] lg:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
+        <aside
+          aria-label={t('Menu')}
+          className={cx(
+            'no-print shiply-on-navy fixed inset-y-0 start-0 z-50 flex w-[272px] max-w-[85vw] flex-col border-e border-line bg-surface text-text shadow-lg transition-transform lg:sticky lg:top-0 lg:z-auto lg:h-dvh lg:w-[240px] lg:shadow-none',
+            open ? '' : 'max-lg:ltr:-translate-x-full max-lg:rtl:translate-x-full',
+          )}
+        >
+          <div className="flex h-16 items-center justify-between px-5">
+            <Link href={nav[0]?.href ?? '/'}><Logo /></Link>
+            <button type="button" onClick={() => setOpen(false)} aria-label={t('Close')} className="flex h-11 w-11 items-center justify-center rounded-md lg:hidden">
+              <svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round"><path d="M6 6l12 12M18 6L6 18" /></svg>
+            </button>
+          </div>
+          <p className="px-6 pb-2 text-label uppercase text-accent">{t(area)}</p>
+          <nav className="flex-1 overflow-y-auto px-3 py-2">
+            {groups.map((g, gi) => (
+              <div key={gi} className="mb-3">
+                {g.label && <p className="px-3 pb-1 pt-2 text-label uppercase text-text-muted">{t(g.label)}</p>}
+                <ul className="space-y-0.5">
+                  {g.items.map((item) => {
+                    const active = isActive(item.href, pathname, item.href === nav[0]?.href);
+                    return (
+                      <li key={item.href}>
+                        <Link
+                          href={item.href}
+                          aria-current={active ? 'page' : undefined}
+                          className={cx('relative flex min-h-10 items-center gap-3 rounded-md px-3 text-body-sm font-semibold', active ? 'bg-selected-bg text-link' : 'text-text hover:bg-surface-raised')}
+                        >
+                          {active && <span aria-hidden="true" className="absolute inset-y-1.5 start-0 w-1 rounded-e bg-accent" />}
+                          <Icon name={item.icon} size={20} selected={active} />
+                          <span className="flex-1 truncate">{t(item.label)}</span>
+                        </Link>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
             ))}
-            <div className="mt-2 flex items-center justify-between border-t border-slate-100 px-3 pt-3 text-sm">
-              <span className="text-slate-600">{me.name}</span>
-              <button onClick={logout} className="font-medium text-rose-700">Sign out</button>
-            </div>
           </nav>
-        )}
-      </header>
-      <main className="mx-auto max-w-7xl px-4 py-5 sm:py-6">{children}</main>
+          <div className="border-t border-line p-4">
+            <p className="truncate text-body-sm font-bold">{me.name}</p>
+            <p className="truncate text-caption text-text-muted">{me.hub?.name ?? me.merchant?.name ?? me.email}</p>
+            <p className="truncate text-caption font-bold text-accent">{roleText}</p>
+            <Prefs />
+            <button type="button" onClick={() => void logout()} className="btn-secondary mt-3 min-h-9 w-full text-caption">{t('Sign out')}</button>
+          </div>
+        </aside>
+        <main className="min-w-0 flex-1">
+          <div className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-8 lg:py-8 print:max-w-none print:p-0">{children}</div>
+        </main>
+      </div>
     </MeContext.Provider>
   );
 }

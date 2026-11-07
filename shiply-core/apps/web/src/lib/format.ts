@@ -1,15 +1,22 @@
 import { STATUS_LABELS, formatEgp, type ShipmentStatus } from '@shiply/shared';
 
-export const egp = (piastres: number | null | undefined) => formatEgp(piastres ?? 0);
+/** Arabic pages (html lang="ar") show Arabic month names and the ج.م currency sign, with Latin digits. */
+const isArabic = () => typeof document !== 'undefined' && document.documentElement.lang === 'ar';
+const dateLocale = () => (isArabic() ? 'ar-EG-u-nu-latn' : 'en-GB');
+
+export const egp = (piastres: number | null | undefined) => {
+  const text = formatEgp(piastres ?? 0);
+  return isArabic() ? text.replace(' EGP', ' ج.م') : text;
+};
 
 export function dateTime(value: string | Date | null | undefined): string {
   if (!value) return '';
-  return new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
+  return new Intl.DateTimeFormat(dateLocale(), { timeZone: 'Africa/Cairo', day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).format(new Date(value));
 }
 
 export function shortDate(value: string | null | undefined): string {
   if (!value) return '';
-  return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`));
+  return new Intl.DateTimeFormat(dateLocale(), { day: '2-digit', month: 'short', timeZone: 'UTC' }).format(new Date(`${value}T12:00:00Z`));
 }
 
 export function todayCairo(): string {

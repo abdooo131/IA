@@ -2,13 +2,16 @@
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
+import { Logo, LogoOnColor } from '@/components/Logo';
 import { HOME_BY_ROLE, type Me } from '@/components/Shell';
 import { Alert, Button, Field, Input } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { setPreference, useLocale, useT } from '@/lib/i18n';
 
 function LoginForm() {
   const router = useRouter();
   const params = useSearchParams();
+  const t = useT();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +27,7 @@ function LoginForm() {
       const next = params.get('next');
       router.replace(next && next.startsWith('/') && !next.startsWith('//') ? next : HOME_BY_ROLE[me.role]);
     } catch (err) {
-      setError(errorMessage(err));
+      setError(t(errorMessage(err)));
       setBusy(false);
     }
   };
@@ -32,36 +35,51 @@ function LoginForm() {
   return (
     <form onSubmit={submit} className="space-y-4">
       {error && <Alert>{error}</Alert>}
-      <Field label="Email">
-        <Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} />
+      <Field label={t('Email')}>
+        <Input type="email" autoComplete="username" required value={email} onChange={(e) => setEmail(e.target.value)} className="ltr-iso" />
       </Field>
-      <Field label="Password">
+      <Field label={t('Password')}>
         <Input type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
       </Field>
-      <Button type="submit" disabled={busy} className="w-full">{busy ? 'Signing in…' : 'Sign in'}</Button>
+      <Button type="submit" disabled={busy} className="w-full min-h-12 text-body">{busy ? t('Signing in…') : t('Sign in')}</Button>
     </form>
   );
 }
 
 export default function LoginPage() {
+  const t = useT();
+  const locale = useLocale();
   return (
-    <div className="flex min-h-screen items-center justify-center px-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex items-center gap-3">
-          <span className="grid h-10 w-10 place-items-center rounded-xl bg-brand-600 text-lg font-black text-white">S</span>
-          <div>
-            <h1 className="text-lg font-bold">Shiply Core</h1>
-            <p className="text-sm text-slate-600">Next day parcel delivery</p>
+    <div className="flex min-h-dvh bg-bg">
+      <aside className="shiply-route relative hidden w-[44%] max-w-[560px] flex-col overflow-hidden p-10 text-shiply-cream lg:flex">
+        <div className="self-start"><LogoOnColor /></div>
+        <div className="mt-auto max-w-sm">
+          <p className="text-label uppercase text-shiply-lime">{t('Shiply Core')}</p>
+          <p className="mt-3 text-h1">{t('Next day delivery, from order to doorstep.')}</p>
+          <p className="mt-4 text-body-lg opacity-90">{t('Pickups, sorting facilities, line haul and last mile in one system.')}</p>
+        </div>
+      </aside>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center justify-between px-4 py-3 lg:justify-end">
+          <span className="lg:hidden"><Logo /></span>
+          <button type="button" className="btn-ghost min-h-9 text-caption" onClick={() => setPreference('shiply_locale', locale === 'ar' ? 'en' : 'ar')}>
+            {locale === 'ar' ? 'English' : 'العربية'}
+          </button>
+        </div>
+        <div className="flex flex-1 items-center justify-center px-4 pb-16">
+          <div className="w-full max-w-sm">
+            <h1 className="text-h2">{t('Sign in')}</h1>
+            <p className="mb-6 mt-1 text-body-sm text-text-muted">{t('Pickups, sorting facilities, line haul and last mile in one system.')}</p>
+            <div className="rounded-xl bg-surface p-6 shadow-md">
+              <Suspense>
+                <LoginForm />
+              </Suspense>
+            </div>
+            <p className="mt-5 text-center text-body-sm text-text-muted">
+              {t('Waiting for a parcel?')} <Link href="/track" className="font-bold text-link">{t('Track it here')}</Link>
+            </p>
           </div>
         </div>
-        <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <Suspense>
-            <LoginForm />
-          </Suspense>
-        </div>
-        <p className="mt-4 text-center text-sm text-slate-600">
-          Waiting for a parcel? <Link href="/track" className="font-semibold text-brand-700">Track it here</Link>
-        </p>
       </div>
     </div>
   );

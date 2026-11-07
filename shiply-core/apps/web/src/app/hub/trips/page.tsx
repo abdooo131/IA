@@ -2,21 +2,25 @@
 import { useState } from 'react';
 import { useHub } from '@/components/HubContext';
 import { ScanBox } from '@/components/ScanBox';
+import { StatCard } from '@/components/StatCard';
 import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, PageHeader, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
+import { useT } from '@/lib/i18n';
 
 type Trip = { id: string; code: string; originHubId: string; destinationHubId: string; vehicle: string; driverName: string; status: string; departedAt: string | null; outgoing: boolean; bags: { id: string; code: string; status: string }[] };
 type Hub = { id: string; code: string; name: string };
+type Bag = { id: string; code: string; status: string; originHubId: string; destinationHubId: string; parcels: number; tripId: string | null };
 
-export default function TripsPage() {
+export default function OutboundPage() {
   const hub = useHub();
+  const t = useT();
   const trips = useLoad<Trip[]>(`/hubs/${hub.id}/trips`);
   const hubs = useLoad<Hub[]>('/reference/hubs');
-  const bags = useLoad<{ id: string; code: string; status: string; originHubId: string; destinationHubId: string; parcels: number; tripId: string | null }[]>(`/hubs/${hub.id}/bags`);
+  const bags = useLoad<Bag[]>(`/hubs/${hub.id}/bags`);
   const [form, setForm] = useState({ destinationHubId: '', vehicle: '', driverName: '' });
-  const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string } | null>(null);
+  const [msg, setMsg] = useState<{ tone: 'error' | 'success' | 'warning'; text: string } | null>(null);
   const code = (id: string) => hubs.data?.find((h) => h.id === id)?.code ?? '';
 
   const act = async (fn: () => Promise<unknown>, ok: string) => {
@@ -24,87 +28,107 @@ export default function TripsPage() {
     try {
       await fn();
       setMsg({ tone: 'success', text: ok });
-      await trips.reload();
+      await Promise.all([trips.reload(), bags.reload()]);
     } catch (e) {
-      setMsg({ tone: 'error', text: errorMessage(e) });
+      setMsg({ tone: 'error', text: t(errorMessage(e)) });
     }
   };
 
-  const outgoing = (trips.data ?? []).filter((t) => t.outgoing);
-  const incoming = (trips.data ?? []).filter((t) => !t.outgoing);
+  const mine = (bags.data ?? []).filter((b) => b.originHubId === hub.id && b.status !== 'OPEN');
+  const waiting = mine.filter((b) => b.status === 'SEALED');
+  const ready = mine.filter((b) => b.status === 'HANDED_OVER' && !b.tripId);
+  const outgoing = (trips.data ?? []).filter((x) => x.outgoing);
+  // Suggest the destination of the first bag ready to load.
+  const suggested = (ready[0] ?? waiting[0])?.destinationHubId;
 
   return (
     <>
       <PageHeader
-        title={hub.isSorting ? `Outbound · ${hub.name}` : `Trips · ${hub.name}`}
+        eyebrow={hub.isSorting ? t('Sorting facility') : t('Last mile hub')}
+        title={`${hub.isSorting ? t('Outbound') : t('Trips')} · ${hub.name}`}
         subtitle={hub.isSorting
-          ? 'Outbound team: scan each sealed bag to take it over from sorting, then load it on the truck for its destination and mark the truck as leaving.'
-          : 'A trip is one vehicle carrying sealed bags. Load bags by scanning them, then mark the trip as leaving.'}
+          ? t('Outbound team: scan each sealed bag to take it over from sorting, load it on the truck for its destination and mark the truck as leaving.')
+          : t('A trip is one vehicle carrying sealed bags. Load bags by scanning them, then mark the trip as leaving.')}
       />
+      <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
+        {hub.isSorting && <StatCard label={t('Sealed, waiting for outbound')} value={String(waiting.length)} icon="packaging" tone="needs-action" alert={waiting.length > 0} />}
+        <StatCard label={t('Bags ready to load')} value={String(hub.isSorting ? ready.length : waiting.length)} icon="route" tone="heading-to-customer" />
+        <StatCard label={t('Trucks loading')} value={String(outgoing.filter((x) => x.status === 'LOADING').length)} icon="schedule" tone="in-progress" />
+      </div>
       {msg && <div className="mb-4"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
+
       {hub.isSorting && (
-        <Card title="Take over bags from sorting" className="mb-4">
+        <Card title={t('Take over bags from sorting')} className="mb-4">
           <ScanBox
-            label="Sealed bag code"
+            label={t('Sealed bag code')}
             placeholder="BG00123"
             onScan={async (c) => {
               const r = await api(`/hubs/${hub.id}/outbound/accept`, { body: { code: c } });
               void bags.reload();
-              return r.message;
+              return { big: r.destination ?? r.bag, text: t('Bag {bag} accepted with {n} parcels', { bag: r.bag, n: r.parcels }) };
             }}
           />
-          {(bags.data ?? []).filter((b) => b.originHubId === hub.id && b.status !== 'OPEN').length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2 text-sm">
-              {(bags.data ?? []).filter((b) => b.originHubId === hub.id && b.status !== 'OPEN').map((b) => (
-                <Badge key={b.id} tone={b.status === 'SEALED' ? 'amber' : 'green'}>{b.code} → {code(b.destinationHubId)} · {b.parcels} · {b.status === 'SEALED' ? 'waiting' : b.tripId ? 'loaded' : 'ready to load'}</Badge>
+          {mine.length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2">
+              {mine.map((b) => (
+                <Badge key={b.id} tone={b.status === 'SEALED' ? 'amber' : b.tripId ? 'blue' : 'green'}>
+                  <span className="ltr-iso">{b.code} → {code(b.destinationHubId)} · {b.parcels}</span>&nbsp;· {b.status === 'SEALED' ? t('waiting') : b.tripId ? t('loaded') : t('ready to load')}
+                </Badge>
               ))}
             </div>
           )}
         </Card>
       )}
-      <Card title="New trip">
+
+      <Card title={t('New truck')}>
         <form
           className="grid gap-3 sm:grid-cols-4 sm:items-end"
           onSubmit={(e) => {
             e.preventDefault();
-            void act(() => api(`/hubs/${hub.id}/trips`, { body: form }), 'Trip created. Scan its bags below.');
+            void act(() => api(`/hubs/${hub.id}/trips`, { body: { ...form, destinationHubId: form.destinationHubId || suggested } }), t('Truck created. Scan its bags below.'));
           }}
         >
-          <Field label="Going to">
-            <Select required value={form.destinationHubId} onChange={(e) => setForm({ ...form, destinationHubId: e.target.value })}>
-              <option value="">Choose hub</option>
+          <Field label={t('Going to')}>
+            <Select required value={form.destinationHubId || suggested || ''} onChange={(e) => setForm({ ...form, destinationHubId: e.target.value })}>
+              <option value="">{t('Choose')}</option>
               {hubs.data?.filter((h) => h.id !== hub.id).map((h) => <option key={h.id} value={h.id}>{h.code} · {h.name}</option>)}
             </Select>
           </Field>
-          <Field label="Vehicle plate"><Input value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} /></Field>
-          <Field label="Driver"><Input value={form.driverName} onChange={(e) => setForm({ ...form, driverName: e.target.value })} /></Field>
-          <Button type="submit">Create trip</Button>
+          <Field label={t('Vehicle plate')}><Input value={form.vehicle} onChange={(e) => setForm({ ...form, vehicle: e.target.value })} /></Field>
+          <Field label={t('Driver')}><Input value={form.driverName} onChange={(e) => setForm({ ...form, driverName: e.target.value })} /></Field>
+          <Button type="submit">{t('Create truck')}</Button>
         </form>
       </Card>
 
-      <h2 className="mb-3 mt-6 text-lg font-semibold">Leaving this hub</h2>
-      {!trips.data ? <Loading /> : outgoing.length === 0 ? <Empty>No trips loading or on the road.</Empty> : (
+      <h2 className="mb-3 mt-8 text-h3">{t('Leaving here')}</h2>
+      {!trips.data ? <Loading /> : outgoing.length === 0 ? <Empty>{t('No trucks loading or on the road.')}</Empty> : (
         <div className="grid gap-4 lg:grid-cols-2">
-          {outgoing.map((t) => (
-            <Card key={t.id} title={<span className="font-mono">{t.code} → {code(t.destinationHubId)}</span>} actions={<Badge tone={t.status === 'LOADING' ? 'amber' : 'blue'}>{t.status === 'LOADING' ? 'Loading' : `Left ${dateTime(t.departedAt)}`}</Badge>}>
-              <p className="mb-3 text-sm text-slate-600">{[t.vehicle, t.driverName].filter(Boolean).join(' · ') || 'No vehicle details'}</p>
+          {outgoing.map((tr) => (
+            <Card
+              key={tr.id}
+              title={<span className="ltr-iso">{tr.code} → {code(tr.destinationHubId)}</span>}
+              actions={<Badge tone={tr.status === 'LOADING' ? 'amber' : 'blue'}>{tr.status === 'LOADING' ? t('Loading') : `${t('Left')} ${dateTime(tr.departedAt)}`}</Badge>}
+            >
+              <p className="mb-3 text-body-sm text-text-muted">{[tr.vehicle, tr.driverName].filter(Boolean).join(' · ') || t('No vehicle details')}</p>
               <div className="mb-3 flex flex-wrap gap-2">
-                {t.bags.length === 0 ? <span className="text-sm text-slate-500">No bags loaded</span> : t.bags.map((b) => <Badge key={b.id}>{b.code}</Badge>)}
+                {tr.bags.length === 0 ? <span className="text-body-sm text-text-muted">{t('No bags loaded')}</span> : tr.bags.map((b) => <Badge key={b.id}><span className="ltr-iso">{b.code}</span></Badge>)}
               </div>
-              {t.status === 'LOADING' && (
+              {tr.status === 'LOADING' && (
                 <>
                   <ScanBox
-                    label="Scan a sealed bag to load it"
+                    size="md"
+                    autoFocus={false}
+                    label={t('Scan a bag to load it')}
                     placeholder="BG00123"
                     onScan={async (c) => {
-                      const r = await api(`/hubs/${hub.id}/trips/${t.id}/load`, { body: { code: c } });
+                      const r = await api(`/hubs/${hub.id}/trips/${tr.id}/load`, { body: { code: c } });
                       void trips.reload();
                       void bags.reload();
-                      return r.message;
+                      return { big: r.bag, text: t('Loaded') };
                     }}
                   />
-                  <Button className="mt-3 w-full" tone="success" disabled={t.bags.length === 0} onClick={() => void act(() => api(`/hubs/${hub.id}/trips/${t.id}/depart`, { body: {} }), `Trip ${t.code} departed`)}>
-                    Truck is leaving now
+                  <Button className="mt-3 w-full min-h-12" tone="accent" disabled={tr.bags.length === 0} onClick={() => void act(() => api(`/hubs/${hub.id}/trips/${tr.id}/depart`, { body: {} }), t('Truck {code} left', { code: tr.code }))}>
+                    {t('Truck is leaving now')}
                   </Button>
                 </>
               )}
@@ -113,31 +137,6 @@ export default function TripsPage() {
         </div>
       )}
 
-      <h2 className="mb-3 mt-6 text-lg font-semibold">Coming to this hub</h2>
-      {incoming.length === 0 ? <Empty>No trips on the way here.</Empty> : (
-        <div className="grid gap-4 lg:grid-cols-2">
-          {incoming.map((t) => {
-            const left = t.bags.filter((b) => b.status !== 'RECEIVED');
-            return (
-              <Card key={t.id} title={<span className="font-mono">{t.code} from {code(t.originHubId)}</span>} actions={<Badge tone="blue">Left {dateTime(t.departedAt)}</Badge>}>
-                <p className="mb-2 text-sm">Bags still to receive: {left.length === 0 ? 'none' : left.map((b) => b.code).join(', ')}</p>
-                <p className="mb-3 text-xs text-slate-500">{hub.isSorting ? 'Inbound team scans the bags on the Inbound page.' : 'Scan the bags on the Receive page.'} When something is missing, close the trip so the missing bags show up for follow up.</p>
-                <Button
-                  tone="secondary"
-                  onClick={() =>
-                    void act(async () => {
-                      const r = await api(`/hubs/${hub.id}/trips/${t.id}/close`, { body: {} });
-                      if (r.missing.length) throw new Error(`Trip closed. Missing bags: ${r.missing.join(', ')}`);
-                    }, 'Trip closed, nothing missing')
-                  }
-                >
-                  Close trip
-                </Button>
-              </Card>
-            );
-          })}
-        </div>
-      )}
     </>
   );
 }

@@ -111,3 +111,33 @@ export type Role = (typeof ROLES)[number];
 export const TEAMS = ['INBOUND', 'SORTING', 'OUTBOUND'] as const;
 export type Team = (typeof TEAMS)[number];
 export const TEAM_LABELS: Record<Team, string> = { INBOUND: 'Inbound team', SORTING: 'Sorting team', OUTBOUND: 'Outbound team' };
+
+export const STATUS_LABELS_AR: Record<ShipmentStatus, string> = {
+  CREATED: 'تم الإنشاء',
+  PICKED_UP: 'تم الاستلام من التاجر',
+  AT_INBOUND: 'في الاستلام',
+  SORTED: 'تم الفرز',
+  AT_OUTBOUND: 'في الإرسال',
+  IN_TRANSIT: 'في الطريق',
+  AT_HUB: 'في المركز',
+  ON_HOLD: 'معلق',
+  OUT_FOR_DELIVERY: 'خرج للتوصيل',
+  ATTEMPT_FAILED: 'محاولة فاشلة',
+  DELIVERED: 'تم التوصيل',
+  RETURNED: 'تم الإرجاع للتاجر',
+  CANCELLED: 'ملغي',
+  LOST: 'مفقود',
+};
+
+export const FAIL_REASON_LABELS_AR: Record<FailReason, string> = {
+  NO_ANSWER: 'العميل لم يرد',
+  NOT_AVAILABLE: 'العميل غير متاح',
+  POSTPONED: 'العميل طلب يوما آخر',
+  CANNOT_PAY: 'العميل لا يستطيع الدفع الآن',
+  WRONG_ADDRESS: 'العنوان خطأ أو غير كامل',
+  WRONG_PHONE: 'رقم الهاتف خطأ',
+  REFUSED: 'العميل رفض الشحنة',
+  OTHER: 'أخرى',
+};
+
+export const TEAM_LABELS_AR: Record<Team, string> = { INBOUND: 'فريق الاستلام', SORTING: 'فريق الفرز', OUTBOUND: 'فريق الإرسال' };

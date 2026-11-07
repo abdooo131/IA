@@ -1,10 +1,12 @@
 'use client';
-import { FAIL_REASON_CODES, FAIL_REASONS, egpToPiastres } from '@shiply/shared';
+import { FAIL_REASON_CODES, FAIL_REASON_LABELS_AR, FAIL_REASONS, egpToPiastres } from '@shiply/shared';
 import { useState } from 'react';
-import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, PageHeader, Select, Textarea } from '@/components/ui';
+import { Icon } from '@/components/Icon';
+import { Alert, Badge, Button, Card, Empty, Field, Input, Loading, Select, Textarea, cx } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { egp } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
+import { useLocale, useT } from '@/lib/i18n';
 
 type Stop = {
   id: string;
@@ -19,7 +21,9 @@ type Stop = {
 };
 type Run = { id: string; code: string; status: string; cashCollected: number; items: Stop[] };
 
-function StopCard({ stop, onDone }: { stop: Stop; onDone: () => void }) {
+function StopCard({ stop, n, onDone }: { stop: Stop; n: number; onDone: () => void }) {
+  const t = useT();
+  const locale = useLocale();
   const [mode, setMode] = useState<'idle' | 'deliver' | 'fail'>('idle');
   const [cash, setCash] = useState('');
   const [recipient, setRecipient] = useState('');
@@ -41,76 +45,76 @@ function StopCard({ stop, onDone }: { stop: Stop; onDone: () => void }) {
       await api(`/courier/stops/${stop.id}/${path}`, { body });
       onDone();
     } catch (e) {
-      setError(errorMessage(e));
+      setError(t(errorMessage(e)));
       setBusy(false);
     }
   };
 
   return (
-    <Card className={done ? 'opacity-70' : ''}>
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <div className="text-base font-semibold">{who}</div>
-          <div className="font-mono text-xs text-slate-500">{s.trackingNumber}</div>
+    <Card className={cx(done && 'opacity-70')}>
+      <div className="flex items-start gap-3">
+        <span className={cx('grid h-9 w-9 shrink-0 place-items-center rounded-pill text-body-sm font-extrabold', done ? 'bg-surface-raised text-text-muted' : 'bg-accent text-on-accent')}>{n}</span>
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <p className="text-h3">{who}</p>
+            {isReturn ? <Badge tone="red">{t('Return to merchant')}</Badge> : !done && s.attempts > 0 ? <Badge tone="amber">{t('Attempt {n}', { n: s.attempts + 1 })}</Badge> : null}
+          </div>
+          <p className="ltr-iso font-mono text-caption text-text-muted">{s.trackingNumber}</p>
+          <p className="mt-2 text-body-sm">{address}</p>
+          {!isReturn && (s.description || s.notes) && <p className="mt-1 text-caption text-text-muted">{[s.description, s.notes].filter(Boolean).join(' · ')}</p>}
         </div>
-        {isReturn ? <Badge tone="red">Return to merchant</Badge> : !done && s.attempts > 0 ? <Badge tone="amber">Attempt {s.attempts + 1}</Badge> : null}
       </div>
-      <p className="mt-2 text-sm">{address}</p>
-      {!isReturn && (s.description || s.notes) && <p className="mt-1 text-xs text-slate-600">{[s.description, s.notes].filter(Boolean).join(' · ')}</p>}
-      <div className="mt-3 flex flex-wrap gap-2">
-        <a href={`tel:${phone}`} className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold">Call</a>
-        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" className="rounded-lg bg-slate-100 px-3 py-2 text-sm font-semibold">Map</a>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <a href={`tel:${phone}`} className="btn-secondary min-h-11"><Icon name="support" size={18} />{t('Call')}</a>
+        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`} target="_blank" rel="noreferrer" className="btn-secondary min-h-11"><Icon name="route" size={18} />{t('Map')}</a>
       </div>
       {!isReturn && (
-        <div className="mt-3 rounded-lg bg-amber-50 px-3 py-2 text-sm">
-          {s.codAmount > 0 ? <>Collect <strong className="text-lg">{egp(s.codAmount)}</strong></> : 'Nothing to collect'}
-          {s.allowOpen && <span className="ml-2 text-xs">Customer may open the parcel</span>}
+        <div className="mt-3 flex items-center justify-between rounded-md bg-surface-raised px-3 py-2">
+          <span className="text-body-sm">{s.codAmount > 0 ? t('Collect') : t('Nothing to collect')}</span>
+          {s.codAmount > 0 && <span className="tabular ltr-iso text-number-lg">{egp(s.codAmount)}</span>}
         </div>
       )}
+      {!isReturn && s.allowOpen && <p className="mt-1 text-caption text-text-muted">{t('Customer may open the parcel')}</p>}
 
       {done ? (
-        <div className="mt-3"><Badge tone={stop.result === 'FAILED' ? 'red' : 'green'}>{stop.result === 'FAILED' ? 'Failed, bring it back to the hub' : stop.result === 'RETURNED' ? 'Returned' : `Delivered, ${egp(stop.codCollected)} collected`}</Badge></div>
+        <div className="mt-3">
+          <Badge tone={stop.result === 'FAILED' ? 'red' : 'green'}>{stop.result === 'FAILED' ? t('Failed, bring it back to the hub') : stop.result === 'RETURNED' ? t('Returned') : t('Delivered, {amount} collected', { amount: egp(stop.codCollected) })}</Badge>
+        </div>
       ) : (
         <div className="mt-4 space-y-3">
           {error && <Alert>{error}</Alert>}
           {mode === 'idle' && (
             <div className="grid grid-cols-2 gap-2">
-              <Button tone="success" className="min-h-12" onClick={() => { setMode('deliver'); setCash(isReturn ? '0' : String(s.codAmount / 100)); }}>{isReturn ? 'Handed back' : 'Delivered'}</Button>
-              <Button tone="secondary" className="min-h-12" onClick={() => setMode('fail')}>Could not</Button>
+              <Button tone="primary" className="min-h-12" onClick={() => { setMode('deliver'); setCash(isReturn ? '0' : String(s.codAmount / 100)); }}>{isReturn ? t('Handed back') : t('Delivered')}</Button>
+              <Button tone="secondary" className="min-h-12" onClick={() => setMode('fail')}>{t('Could not')}</Button>
             </div>
           )}
           {mode === 'deliver' && (
             <>
-              {!isReturn && <Field label="Cash collected (EGP)" hint="Must be the full amount"><Input inputMode="decimal" value={cash} onChange={(e) => setCash(e.target.value)} /></Field>}
-              <Field label="Received by"><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder="Name of the person" /></Field>
+              {!isReturn && <Field label={t('Cash collected (EGP)')} hint={t('Must be the full amount')}><Input inputMode="decimal" value={cash} onChange={(e) => setCash(e.target.value)} className="ltr-iso" /></Field>}
+              <Field label={t('Received by')}><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder={t('Name of the person')} /></Field>
               <div className="grid grid-cols-2 gap-2">
-                <Button tone="secondary" onClick={() => setMode('idle')}>Back</Button>
-                <Button
-                  tone="success"
-                  disabled={busy}
-                  onClick={() => {
-                    const value = isReturn ? 0 : egpToPiastres(cash || '0');
-                    if (value === null) return setError('Type the amount in EGP');
-                    void send('deliver', { codCollected: value, recipient });
-                  }}
-                >
-                  Confirm
-                </Button>
+                <Button tone="secondary" onClick={() => setMode('idle')}>{t('Back')}</Button>
+                <Button tone="accent" disabled={busy} onClick={() => {
+                  const value = isReturn ? 0 : egpToPiastres(cash || '0');
+                  if (value === null) return setError(t('Type the amount in EGP'));
+                  void send('deliver', { codCollected: value, recipient });
+                }}>{t('Confirm')}</Button>
               </div>
             </>
           )}
           {mode === 'fail' && (
             <>
-              <Field label="What happened?">
+              <Field label={t('What happened?')}>
                 <Select value={reason} onChange={(e) => setReason(e.target.value)}>
-                  <option value="">Choose a reason</option>
-                  {FAIL_REASON_CODES.map((c) => <option key={c} value={c}>{FAIL_REASONS[c].label}</option>)}
+                  <option value="">{t('Choose a reason')}</option>
+                  {FAIL_REASON_CODES.map((c) => <option key={c} value={c}>{locale === 'ar' ? FAIL_REASON_LABELS_AR[c] : FAIL_REASONS[c].label}</option>)}
                 </Select>
               </Field>
-              <Field label="Note"><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+              <Field label={t('Notes')}><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
               <div className="grid grid-cols-2 gap-2">
-                <Button tone="secondary" onClick={() => setMode('idle')}>Back</Button>
-                <Button tone="danger" disabled={busy || !reason} onClick={() => void send('fail', { reason, note })}>Record attempt</Button>
+                <Button tone="secondary" onClick={() => setMode('idle')}>{t('Back')}</Button>
+                <Button tone="danger" disabled={busy || !reason} onClick={() => void send('fail', { reason, note })}>{t('Record attempt')}</Button>
               </div>
             </>
           )}
@@ -121,21 +125,36 @@ function StopCard({ stop, onDone }: { stop: Stop; onDone: () => void }) {
 }
 
 export default function CourierRunPage() {
+  const t = useT();
   const run = useLoad<Run | null>('/courier/run');
   if (run.loading && !run.data) return <Loading />;
   const r = run.data;
-  if (!r) return (<><PageHeader title="My run" /><Empty>You have no run right now. The hub will load one for you.</Empty></>);
+  if (!r) return (
+    <div className="space-y-4">
+      <h1 className="text-h2">{t('My run')}</h1>
+      <Empty>{t('You have no run right now. The hub will load one for you.')}</Empty>
+    </div>
+  );
   const pending = r.items.filter((i) => i.result === 'PENDING').length;
+  const sorted = [...r.items].sort((a, b) => Number(a.result !== 'PENDING') - Number(b.result !== 'PENDING'));
   return (
     <>
-      <PageHeader title={`Run ${r.code}`} subtitle={r.status === 'LOADING' ? 'The hub is still loading your parcels.' : `${pending} of ${r.items.length} stops left`} />
-      <div className="mb-4 rounded-xl bg-brand-600 p-4 text-white">
-        <div className="text-xs uppercase tracking-wide opacity-80">Cash you are carrying</div>
-        <div className="text-2xl font-bold">{egp(r.cashCollected)}</div>
+      <div className="shiply-route mb-4 rounded-xl p-5 text-shiply-cream shadow-md">
+        <p className="text-label uppercase text-shiply-lime">{t('Run')} <span className="ltr-iso">{r.code}</span></p>
+        <p className="mt-2 text-h2">{r.status === 'LOADING' ? t('The hub is still loading your parcels.') : t('{a} of {b} stops left', { a: pending, b: r.items.length })}</p>
+        <div className="mt-4 flex items-end justify-between">
+          <div>
+            <p className="text-caption opacity-80">{t('Cash you are carrying')}</p>
+            <p className="tabular ltr-iso text-number-lg">{egp(r.cashCollected)}</p>
+          </div>
+          <div className="h-2 w-32 overflow-hidden rounded-pill bg-white/20">
+            <div className="h-full bg-shiply-lime" style={{ width: `${r.items.length ? ((r.items.length - pending) / r.items.length) * 100 : 0}%` }} />
+          </div>
+        </div>
       </div>
-      {r.status === 'LOADING' ? <Empty>Wait until the hub marks the run as leaving.</Empty> : (
+      {r.status === 'LOADING' ? <Empty>{t('Wait until the hub marks the run as leaving.')}</Empty> : (
         <div className="space-y-3">
-          {[...r.items].sort((a, b) => Number(a.result !== 'PENDING') - Number(b.result !== 'PENDING')).map((i) => <StopCard key={i.id} stop={i} onDone={() => void run.reload()} />)}
+          {sorted.map((i, idx) => <StopCard key={i.id} stop={i} n={idx + 1} onDone={() => void run.reload()} />)}
         </div>
       )}
     </>

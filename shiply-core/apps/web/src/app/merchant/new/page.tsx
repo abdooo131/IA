@@ -5,6 +5,8 @@ import { PARCEL_SIZES, egpToPiastres } from '@shiply/shared';
 import { Alert, Button, Card, Field, Input, PageHeader, Select, Table, Td, Textarea } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { parseCsv } from '@/lib/format';
+import { Icon } from '@/components/Icon';
+import { useLocale, useT } from '@/lib/i18n';
 import { useLocations, type Governorate } from '../locations';
 
 const EMPTY = {
@@ -26,9 +28,10 @@ const CSV_SAMPLE = ['Mona Ali', '01012345678', '5 Tahrir St, Dokki', 'GIZ', 'Dok
 
 export default function NewParcelPage() {
   const { data: govs } = useLocations();
+  const t = useT();
   return (
     <div className="space-y-6">
-      <PageHeader title="New parcel" subtitle="Create one parcel, or upload many from a spreadsheet" />
+      <PageHeader eyebrow={t('Merchant')} title={t('New parcel')} subtitle={t('Create one parcel, or upload many from a spreadsheet')} />
       <SingleForm govs={govs ?? []} />
       <CsvUpload govs={govs ?? []} />
     </div>
@@ -36,6 +39,9 @@ export default function NewParcelPage() {
 }
 
 function SingleForm({ govs }: { govs: Governorate[] }) {
+  const t = useT();
+  const locale = useLocale();
+  const name = (x: { nameEn: string; nameAr: string }) => (locale === 'ar' ? x.nameAr : x.nameEn);
   const [f, setF] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -48,7 +54,7 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
     setError(null);
     const cod = f.cod.trim() === '' ? 0 : egpToPiastres(f.cod);
     if (cod === null) {
-      setError('COD must be an amount in EGP, like 450 or 450.50');
+      setError(t('COD must be an amount in EGP, like 450 or 450.50'));
       return;
     }
     setBusy(true);
@@ -78,71 +84,71 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
   };
 
   return (
-    <Card title="One parcel">
+    <Card title={<span className="flex items-center gap-2"><Icon name="create" size={22} className="text-link" />{t('One parcel')}</span>}>
       {created && (
         <div className="mb-4">
           <Alert tone="success">
-            Created <span className="font-mono font-semibold">{created.trackingNumber}</span>.{' '}
-            <a href={`/labels?ids=${created.id}`} target="_blank" rel="noreferrer" className="font-semibold underline">Print label</a>
+            {t('Created')} <span className="ltr-iso font-mono font-bold">{created.trackingNumber}</span>.{' '}
+            <a href={`/labels?ids=${created.id}`} target="_blank" rel="noreferrer" className="font-bold text-link underline">{t('Print label')}</a>
             {' · '}
-            <Link href={`/merchant/${created.id}`} className="font-semibold underline">Open</Link>
+            <Link href={`/merchant/${created.id}`} className="font-bold text-link underline">{t('Open')}</Link>
           </Alert>
         </div>
       )}
       {error && <div className="mb-4"><Alert>{error}</Alert></div>}
       <form onSubmit={submit} className="grid gap-4 sm:grid-cols-2">
-        <Field label="Customer name">
+        <Field label={t('Customer name')}>
           <Input required value={f.customerName} onChange={(e) => set('customerName', e.target.value)} />
         </Field>
-        <Field label="Customer mobile" hint="Egyptian mobile, like 01012345678">
-          <Input required inputMode="tel" value={f.customerPhone} onChange={(e) => set('customerPhone', e.target.value)} />
+        <Field label={t('Customer mobile')} hint={t('Egyptian mobile, like 01012345678')}>
+          <Input required inputMode="tel" dir="ltr" value={f.customerPhone} onChange={(e) => set('customerPhone', e.target.value)} />
         </Field>
-        <Field label="Governorate">
+        <Field label={t('Governorate')}>
           <Select required value={f.governorateCode} onChange={(e) => setF((cur) => ({ ...cur, governorateCode: e.target.value, areaId: '' }))}>
-            <option value="">Choose…</option>
+            <option value="">{t('Choose…')}</option>
             {govs.map((g) => (
               <option key={g.code} value={g.code} disabled={!g.served}>
-                {g.nameEn}{g.served ? '' : ' (not served yet)'}
+                {name(g)}{g.served ? '' : ` (${t('not served yet')})`}
               </option>
             ))}
           </Select>
         </Field>
-        <Field label="Area" hint="Optional">
+        <Field label={t('Area')} hint={t('Optional')}>
           <Select value={f.areaId} onChange={(e) => set('areaId', e.target.value)} disabled={!gov || gov.areas.length === 0}>
-            <option value="">{gov && gov.areas.length ? 'Any area' : 'No areas listed'}</option>
+            <option value="">{gov && gov.areas.length ? t('Any area') : t('No areas listed')}</option>
             {gov?.areas.map((a) => (
-              <option key={a.id} value={a.id}>{a.nameEn}</option>
+              <option key={a.id} value={a.id}>{name(a)}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Address" className="sm:col-span-2">
+        <Field label={t('Address')} className="sm:col-span-2">
           <Textarea required rows={2} value={f.address} onChange={(e) => set('address', e.target.value)} />
         </Field>
-        <Field label="Size">
+        <Field label={t('Size')}>
           <Select value={f.size} onChange={(e) => set('size', e.target.value)}>
             {PARCEL_SIZES.map((s) => (
               <option key={s} value={s}>{s}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Cash to collect (EGP)" hint="Leave empty if already paid">
-          <Input inputMode="decimal" value={f.cod} onChange={(e) => set('cod', e.target.value)} placeholder="0" />
+        <Field label={t('Cash to collect (EGP)')} hint={t('Leave empty if already paid')}>
+          <Input inputMode="decimal" dir="ltr" value={f.cod} onChange={(e) => set('cod', e.target.value)} placeholder="0" />
         </Field>
-        <Field label="What is inside">
+        <Field label={t('What is inside')}>
           <Input value={f.description} onChange={(e) => set('description', e.target.value)} />
         </Field>
-        <Field label="Your reference" hint="Order number in your store">
+        <Field label={t('Your reference')} hint={t('Order number in your store')}>
           <Input value={f.merchantRef} onChange={(e) => set('merchantRef', e.target.value)} />
         </Field>
-        <Field label="Notes for the courier" className="sm:col-span-2">
+        <Field label={t('Notes for the courier')} className="sm:col-span-2">
           <Input value={f.notes} onChange={(e) => set('notes', e.target.value)} />
         </Field>
-        <label className="flex items-center gap-2 text-sm text-slate-700 sm:col-span-2">
+        <label className="flex items-center gap-2 text-body-sm sm:col-span-2">
           <input type="checkbox" className="h-5 w-5" checked={f.allowOpen} onChange={(e) => set('allowOpen', e.target.checked)} />
-          Customer may open the parcel before paying
+          {t('Customer may open the parcel before paying')}
         </label>
         <div className="sm:col-span-2">
-          <Button type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create parcel'}</Button>
+          <Button type="submit" disabled={busy}>{busy ? t('Creating…') : t('Create parcel')}</Button>
         </div>
       </form>
     </Card>
@@ -155,6 +161,7 @@ interface BulkResult {
 }
 
 function CsvUpload({ govs }: { govs: Governorate[] }) {
+  const t = useT();
   const [rows, setRows] = useState<Record<string, unknown>[] | null>(null);
   const [problems, setProblems] = useState<{ row: number; message: string }[]>([]);
   const [fileName, setFileName] = useState('');
@@ -181,13 +188,13 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
     setFileName(file.name);
     const table = parseCsv((await file.text()).replace(/^﻿/, ''));
     if (table.length < 2) {
-      setError('The file has no parcel rows');
+      setError(t('The file has no parcel rows'));
       return;
     }
     const header = table[0]!.map((h) => h.trim());
     const missing = ['customerName', 'customerPhone', 'address', 'governorate'].filter((h) => !header.includes(h));
     if (missing.length) {
-      setError(`Missing columns: ${missing.join(', ')}. Download the template to see the format`);
+      setError(t('Missing columns: {cols}. Download the template to see the format', { cols: missing.join(', ') }));
       return;
     }
     const out: Record<string, unknown>[] = [];
@@ -202,9 +209,9 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
       const cod = codText === '' ? 0 : egpToPiastres(codText);
       const sizeText = get('size').toUpperCase() || 'M';
       // Rows we can check here are reported now; the server checks the rest.
-      if (!gov) bad.push({ row: i + 1, message: `Unknown governorate "${get('governorate')}"` });
-      else if (areaText && !area) bad.push({ row: i + 1, message: `Unknown area "${get('area')}" in ${gov.nameEn}` });
-      else if (cod === null) bad.push({ row: i + 1, message: `COD "${codText}" is not an amount in EGP` });
+      if (!gov) bad.push({ row: i + 1, message: t('Unknown governorate "{v}"', { v: get('governorate') }) });
+      else if (areaText && !area) bad.push({ row: i + 1, message: t('Unknown area "{v}" in {gov}', { v: get('area'), gov: gov.nameEn }) });
+      else if (cod === null) bad.push({ row: i + 1, message: t('COD "{v}" is not an amount in EGP', { v: codText }) });
       out.push({
         customerName: get('customerName'),
         customerPhone: get('customerPhone'),
@@ -245,38 +252,41 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
   };
 
   return (
-    <Card title="Upload a spreadsheet" actions={<Button tone="ghost" onClick={downloadTemplate}>Download template</Button>}>
-      <p className="mb-3 text-sm text-slate-600">
-        Save your sheet as CSV. Governorate can be the code (GIZ) or the English name. COD is in EGP. Up to 500 rows at a time.
+    <Card
+      title={<span className="flex items-center gap-2"><Icon name="inventory" size={22} className="text-link" />{t('Upload a spreadsheet')}</span>}
+      actions={<Button tone="ghost" onClick={downloadTemplate}>{t('Download template')}</Button>}
+    >
+      <p className="mb-3 text-body-sm text-text-muted">
+        {t('Save your sheet as CSV. Governorate can be the code (GIZ) or the English name. COD is in EGP. Up to 500 rows at a time.')}
       </p>
       <input
         type="file"
         accept=".csv,text/csv"
         onChange={(e) => void onFile(e.target.files?.[0])}
-        className="block w-full text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-brand-50 file:px-4 file:py-2 file:font-semibold file:text-brand-700"
+        className="block w-full text-body-sm file:me-3 file:rounded-md file:border-0 file:bg-selected-bg file:px-4 file:py-2 file:font-bold file:text-link"
       />
       {error && <div className="mt-3"><Alert>{error}</Alert></div>}
       {rows && (
         <div className="mt-4 space-y-3">
           <Alert tone={problems.length ? 'warning' : 'info'}>
-            {fileName}: {rows.length} rows found{problems.length ? `, ${problems.length} with problems that will be skipped` : ''}.
+            {fileName}: {t('{n} rows found', { n: rows.length })}{problems.length ? `, ${t('{n} with problems that will be skipped', { n: problems.length })}` : ''}.
           </Alert>
           {problems.length > 0 && <RowList items={problems.map((p) => ({ row: p.row, text: p.message }))} bad />}
           <Button onClick={upload} disabled={busy || rows.length === problems.length}>
-            {busy ? 'Uploading…' : `Create ${rows.length - problems.length} parcels`}
+            {busy ? t('Uploading…') : t('Create {n} parcels', { n: rows.length - problems.length })}
           </Button>
         </div>
       )}
       {result && (
         <div className="mt-4 space-y-3">
           <Alert tone={result.failed.length ? 'warning' : 'success'}>
-            {result.created.length} parcels created{result.failed.length ? `, ${result.failed.length} rows failed` : ''}.
+            {t('{n} parcels created', { n: result.created.length })}{result.failed.length ? `, ${t('{n} rows failed', { n: result.failed.length })}` : ''}.
           </Alert>
           {result.failed.length > 0 && <RowList items={result.failed.map((f) => ({ row: f.row, text: f.message }))} bad />}
           {result.created.length > 0 && <RowList items={result.created.map((c) => ({ row: c.row, text: c.trackingNumber }))} />}
           {result.created.length > 0 && (
-            <p className="text-sm text-slate-600">
-              Print their labels from the <Link href="/merchant" className="font-semibold text-brand-700 underline">parcels list</Link>.
+            <p className="text-body-sm text-text-muted">
+              {t('Print their labels from the')} <Link href="/merchant" className="font-bold text-link underline">{t('parcels list')}</Link>.
             </p>
           )}
         </div>
@@ -286,13 +296,14 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
 }
 
 function RowList({ items, bad }: { items: { row: number; text: string }[]; bad?: boolean }) {
+  const t = useT();
   return (
-    <div className="max-h-64 overflow-y-auto rounded-lg ring-1 ring-slate-200">
-      <Table head={['Row', bad ? 'Problem' : 'Tracking number']}>
+    <div className="max-h-64 overflow-y-auto rounded-md ring-1 ring-line">
+      <Table head={[t('Row'), bad ? t('Problem') : t('Tracking number')]}>
         {items.map((i) => (
           <tr key={`${i.row}${i.text}`}>
-            <Td className="tabular-nums">{i.row}</Td>
-            <Td className={bad ? 'whitespace-normal text-rose-700' : 'font-mono'}>{i.text}</Td>
+            <Td className="tabular">{i.row}</Td>
+            <Td className={bad ? 'whitespace-normal font-semibold text-danger' : 'ltr-iso font-mono'}>{i.text}</Td>
           </tr>
         ))}
       </Table>

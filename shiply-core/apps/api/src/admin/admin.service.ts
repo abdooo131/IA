@@ -129,6 +129,26 @@ export class AdminService {
     };
   }
 
+  /** Parcels entering the network, delivered, returned and failed attempts per Cairo day. */
+  async trend(daysRaw: unknown) {
+    const days = Math.min(60, Math.max(7, Number(daysRaw) || 14));
+    const today = todayInCairo();
+    const from = new Date(`${today}T00:00:00+02:00`);
+    from.setUTCDate(from.getUTCDate() - (days - 1));
+    const rows = await this.prisma.$queryRaw<{ day: string; kind: string; n: bigint }[]>`
+      SELECT to_char(created_at AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') AS day, type AS kind, count(*) AS n
+      FROM shipment_events
+      WHERE created_at >= ${from} AND type IN ('PICKED_UP', 'DROPPED_OFF', 'DELIVERED', 'RETURNED', 'ATTEMPT_FAILED')
+      GROUP BY 1, 2`;
+    const out: { date: string; entered: number; delivered: number; returned: number; failed: number }[] = [];
+    for (let i = 0; i < days; i++) {
+      const d = new Date(from.getTime() + i * 864e5 + 12 * 36e5).toISOString().slice(0, 10);
+      const get = (...kinds: string[]) => rows.filter((r) => r.day === d && kinds.includes(r.kind)).reduce((n, r) => n + Number(r.n), 0);
+      out.push({ date: d, entered: get('PICKED_UP', 'DROPPED_OFF'), delivered: get('DELIVERED'), returned: get('RETURNED'), failed: get('ATTEMPT_FAILED') });
+    }
+    return out;
+  }
+
   // ---------------------------------------------------------------- parcels
 
   async search(query: unknown) {

@@ -30,6 +30,39 @@ export const EVENT_TEXT: Record<string, string> = {
   FOUND: 'Found',
 };
 
-export function eventText(type: string): string {
+export const EVENT_TEXT_AR: Record<string, string> = {
+  CREATED: 'تم إنشاء الشحنة',
+  CANCELLED: 'تم الإلغاء',
+  PICKED_UP: 'استلمها مندوبنا',
+  DROPPED_OFF: 'تم تسليمها في مركز الفرز',
+  RECEIVED_FROM_PICKUP: 'وصلت مركز الفرز',
+  SORTED: 'تم فرزها في كيس',
+  HANDED_TO_OUTBOUND: 'جاهزة للخروج من مركز الفرز',
+  RETURN_SHELF: 'جاهزة للتسليم لك',
+  BAGGED: 'تم فرزها في كيس',
+  UNBAGGED: 'خرجت من الكيس',
+  DEPARTED: 'خرجت في رحلة نقل',
+  RECEIVED_FROM_TRANSFER: 'وصلت مركزا',
+  UNEXPECTED_ARRIVAL: 'وصلت مركزا',
+  LOADED_ON_RUN: 'تم تحميلها للتوصيل',
+  REMOVED_FROM_RUN: 'أزيلت من خط التوصيل',
+  OUT_FOR_DELIVERY: 'خرجت للتوصيل',
+  OUT_FOR_RETURN: 'خرجت لإرجاعها لك',
+  DELIVERED: 'تم التوصيل',
+  ATTEMPT_FAILED: 'فشلت محاولة التوصيل',
+  RETURN_ATTEMPT_FAILED: 'فشلت محاولة الإرجاع',
+  NOT_ATTEMPTED: 'رجعت المركز دون محاولة',
+  BACK_FROM_COURIER: 'رجعت المركز من المندوب',
+  ON_HOLD: 'معلقة في انتظار قرارك',
+  REATTEMPT_REQUESTED: 'طلبت المحاولة مرة أخرى',
+  RETURN_REQUESTED: 'تم طلب الإرجاع',
+  RETURN_STARTED: 'في الطريق إليك',
+  RETURNED: 'تم إرجاعها لك',
+  MARKED_LOST: 'تم تسجيلها مفقودة',
+  FOUND: 'تم العثور عليها',
+};
+
+export function eventText(type: string, locale: 'en' | 'ar' = 'en'): string {
+  if (locale === 'ar' && EVENT_TEXT_AR[type]) return EVENT_TEXT_AR[type];
   return EVENT_TEXT[type] ?? type.toLowerCase().replace(/_/g, ' ');
 }

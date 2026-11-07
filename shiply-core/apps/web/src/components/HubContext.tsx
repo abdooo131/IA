@@ -2,6 +2,7 @@
 import { useRouter, useSearchParams } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n';
 import { useMe } from './Shell';
 import { Card, Field, Loading, Select } from './ui';
 
@@ -22,6 +23,7 @@ export function useHub(): Hub {
 /** Hub staff always work in their own hub. Admin picks one, remembered for this browser. */
 export function HubProvider({ children }: { children: ReactNode }) {
   const me = useMe();
+  const t = useT();
   const params = useSearchParams();
   const router = useRouter();
   const [hubs, setHubs] = useState<Hub[] | null>(null);
@@ -50,7 +52,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
   };
 
   if (me.role === 'HUB_STAFF') {
-    if (!me.hub) return <Card>Your account is not linked to a hub. Ask an admin.</Card>;
+    if (!me.hub) return <Card>{t("Your account is not linked to a hub. Ask an admin.")}</Card>;
     return <HubCtx.Provider value={me.hub}>{children}</HubCtx.Provider>;
   }
   if (!hubs) return <Loading />;
@@ -58,16 +60,16 @@ export function HubProvider({ children }: { children: ReactNode }) {
   return (
     <>
       <div className="no-print mb-4 max-w-sm">
-        <Field label="Working in hub">
+        <Field label={t("Working in")}>
           <Select value={hub?.id ?? ''} onChange={(e) => choose(e.target.value)}>
-            <option value="" disabled>Choose a hub</option>
+            <option value="" disabled>{t("Choose")}</option>
             {hubs.map((h) => (
-              <option key={h.id} value={h.id}>{h.code} · {h.name}{h.isSorting ? ' (sorting facility)' : ''}</option>
+              <option key={h.id} value={h.id}>{h.code} · {h.name}{h.isSorting ? ` ${t('(sorting facility)')}` : ''}</option>
             ))}
           </Select>
         </Field>
       </div>
-      {hub ? <HubCtx.Provider value={hub}>{children}</HubCtx.Provider> : <Card>Choose the hub you are working in.</Card>}
+      {hub ? <HubCtx.Provider value={hub}>{children}</HubCtx.Provider> : <Card>{t("Choose where you are working.")}</Card>}
     </>
   );
 }

@@ -4,6 +4,9 @@ import { Suspense, useEffect, useState } from 'react';
 import { Label, type LabelData } from '@/components/Label';
 import { Alert, Button, Loading } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
+import { Icon } from '@/components/Icon';
+import { Logo } from '@/components/Logo';
+import { useT } from '@/lib/i18n';
 
 interface ParcelForLabel {
   id: string;
@@ -41,6 +44,7 @@ async function loadParcel(id: string): Promise<ParcelForLabel> {
 }
 
 function Labels() {
+  const t = useT();
   const params = useSearchParams();
   const ids = (params.get('ids') ?? '').split(',').map((s) => s.trim()).filter((s) => /^[0-9a-f-]{36}$/i.test(s)).slice(0, 200);
   const [labels, setLabels] = useState<LabelData[] | null>(null);
@@ -86,19 +90,25 @@ function Labels() {
     };
   }, [key]);
 
-  if (ids.length === 0) return <div className="p-6"><Alert>No parcels chosen. Select parcels in the list, then print labels.</Alert></div>;
+  if (ids.length === 0) return <div className="p-6"><Alert>{t('No parcels chosen. Select parcels in the list, then print labels.')}</Alert></div>;
   if (!labels) return <Loading />;
 
   return (
-    <div className="min-h-screen bg-slate-100 print:bg-white">
+    <div className="min-h-screen bg-bg print:bg-white">
       <style>{`@page { size: 100mm 150mm; margin: 0; } @media print { .label { page-break-after: always; break-after: page; } } @media screen and (max-width: 420px) { .label { zoom: 0.88; } }`}</style>
-      <div className="no-print sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-4 py-3">
-        <span className="text-sm font-semibold">{labels.length} label{labels.length === 1 ? '' : 's'} · 100 × 150 mm</span>
-        <Button onClick={() => window.print()} disabled={labels.length === 0}>Print</Button>
+      <div className="no-print sticky top-0 z-10 flex flex-wrap items-center justify-between gap-3 border-b border-line bg-surface px-4 py-3">
+        <div className="flex items-center gap-4">
+          <Logo />
+          <span className="text-body-sm font-bold">{t('{n} labels', { n: labels.length })} · <span className="ltr-iso">100 × 150 mm</span></span>
+        </div>
+        <Button onClick={() => window.print()} disabled={labels.length === 0}>
+          <Icon name="print" size={18} />
+          {t('Print')}
+        </Button>
       </div>
       {errors.length > 0 && (
         <div className="no-print mx-auto max-w-md p-4">
-          <Alert>{errors.length} label(s) could not be loaded: {errors.join('; ')}</Alert>
+          <Alert>{t('{n} labels could not be loaded:', { n: errors.length })} {errors.join('; ')}</Alert>
         </div>
       )}
       <div className="space-y-4 py-4 print:space-y-0 print:py-0">

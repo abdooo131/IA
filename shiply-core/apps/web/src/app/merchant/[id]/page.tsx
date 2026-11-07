@@ -2,13 +2,15 @@
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
-import { FAIL_REASONS } from '@shiply/shared';
+import { Icon } from '@/components/Icon';
 import { Alert, Button, Card, Field, Input, Loading, PageHeader, Select, StatusBadge, Textarea } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { dateTime, egp, shortDate } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
+import { useLocale, useT } from '@/lib/i18n';
 import { eventText } from '../events';
-import { useLocations } from '../locations';
+import { useLocations, type Governorate } from '../locations';
+import { useReasonText } from '../text';
 
 interface Event {
   id: string;
@@ -46,9 +48,11 @@ interface Parcel {
   events: Event[];
 }
 
-const reasonLabel = (code: string | null) => (code ? (FAIL_REASONS as Record<string, { label: string }>)[code]?.label ?? code : '');
+const RETURNABLE = ['PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'ON_HOLD'];
 
 export default function ParcelPage() {
+  const t = useT();
+  const locale = useLocale();
   const { id } = useParams<{ id: string }>();
   const { data: p, error, loading, reload } = useLoad<Parcel>(`/merchant/shipments/${id}`);
   const { data: govs } = useLocations();
@@ -57,11 +61,12 @@ export default function ParcelPage() {
   const [done, setDone] = useState<string | null>(null);
 
   if (loading && !p) return <Loading />;
-  if (error || !p) return <Alert>{error ?? 'Parcel not found'}</Alert>;
+  if (error || !p) return <Alert>{error ?? t('Parcel not found')}</Alert>;
 
   const gov = govs?.find((g) => g.code === p.governorateCode);
   const area = gov?.areas.find((a) => a.id === p.areaId);
-  const canReturn = p.direction === 'FORWARD' && ['PICKED_UP', 'AT_HUB', 'IN_TRANSIT', 'ON_HOLD'].includes(p.status);
+  const canReturn = p.direction === 'FORWARD' && RETURNABLE.includes(p.status);
+  const name = (x: { nameEn: string; nameAr: string } | undefined) => (x ? (locale === 'ar' ? x.nameAr : x.nameEn) : '');
 
   const act = async (path: string, body: unknown, message: string, confirmText?: string) => {
     if (confirmText && !window.confirm(confirmText)) return;
@@ -79,28 +84,43 @@ export default function ParcelPage() {
     }
   };
 
-  const fees =
-    p.status === 'RETURNED' ? p.shippingFee + p.returnFee : p.status === 'DELIVERED' ? p.shippingFee + p.codFee : p.shippingFee + p.codFee;
+  const fees = p.status === 'RETURNED' ? p.shippingFee + p.returnFee : p.shippingFee + p.codFee;
 
   return (
     <div className="space-y-5">
       <PageHeader
+        eyebrow={t('Parcel')}
         title={p.trackingNumber}
-        subtitle={<>Created {dateTime(p.createdAt)}{p.merchantRef ? ` · Your ref ${p.merchantRef}` : ''}</>}
+        subtitle={
+          <>
+            {t('Created')} <span className="ltr-iso">{dateTime(p.createdAt)}</span>
+            {p.merchantRef ? (
+              <>
+                {' · '}
+                {t('Your ref')} {p.merchantRef}
+              </>
+            ) : null}
+          </>
+        }
         actions={
           <>
-            <a href={`/labels?ids=${p.id}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center rounded-lg bg-white px-4 text-sm font-semibold text-slate-800 ring-1 ring-inset ring-slate-300 hover:bg-slate-50">
-              Print label
+            <a href={`/labels?ids=${p.id}`} target="_blank" rel="noreferrer" className="btn-secondary">
+              <Icon name="print" size={18} />
+              {t('Print label')}
             </a>
-            <Link href="/merchant" className="inline-flex min-h-10 items-center rounded-lg px-4 text-sm font-semibold text-brand-700 hover:bg-brand-50">Back</Link>
+            <Link href="/merchant" className="btn-ghost">{t('Back')}</Link>
           </>
         }
       />
 
       <div className="flex flex-wrap items-center gap-3">
         <StatusBadge status={p.status} direction={p.direction} />
-        {p.promisedDate && p.direction === 'FORWARD' && <span className="text-sm text-slate-600">Promised for {shortDate(p.promisedDate)}</span>}
-        {p.attempts > 0 && <span className="text-sm text-slate-600">{p.attempts} failed attempt{p.attempts > 1 ? 's' : ''}</span>}
+        {p.promisedDate && p.direction === 'FORWARD' && (
+          <span className="text-body-sm text-text-muted">
+            {t('Promised for')} <span className="ltr-iso font-bold text-text">{shortDate(p.promisedDate)}</span>
+          </span>
+        )}
+        {p.attempts > 0 && <span className="text-body-sm text-text-muted">{t('{n} failed attempts', { n: p.attempts })}</span>}
       </div>
 
       {done && <Alert tone="success">{done}</Alert>}
@@ -111,56 +131,64 @@ export default function ParcelPage() {
       )}
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <Card title="Customer" className="lg:col-span-2">
-          <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            <Item label="Name">{p.customerName}</Item>
-            <Item label="Mobile"><a href={`tel:${p.customerPhone}`} className="text-brand-700">{p.customerPhone}</a></Item>
-            <Item label="Address" wide>{p.address}</Item>
-            <Item label="Governorate">{gov?.nameEn ?? p.governorateCode}{area ? ` · ${area.nameEn}` : ''}</Item>
-            <Item label="Size">{p.size}</Item>
-            {p.description && <Item label="Contents">{p.description}</Item>}
-            <Item label="Opening allowed">{p.allowOpen ? 'Yes' : 'No'}</Item>
-            {p.notes && <Item label="Notes" wide>{p.notes}</Item>}
+        <Card title={t('Customer')} className="lg:col-span-2">
+          <dl className="grid gap-4 text-body-sm sm:grid-cols-2">
+            <Item label={t('Name')}>{p.customerName}</Item>
+            <Item label={t('Mobile')}><a href={`tel:${p.customerPhone}`} className="ltr-iso text-link">{p.customerPhone}</a></Item>
+            <Item label={t('Address')} wide>{p.address}</Item>
+            <Item label={t('Governorate')}>{name(gov) || p.governorateCode}{area ? ` · ${name(area)}` : ''}</Item>
+            <Item label={t('Size')}>{p.size}</Item>
+            {p.description && <Item label={t('Contents')}>{p.description}</Item>}
+            <Item label={t('Opening allowed')}>{p.allowOpen ? t('Yes') : t('No')}</Item>
+            {p.notes && <Item label={t('Notes')} wide>{p.notes}</Item>}
           </dl>
         </Card>
-        <Card title="Money">
-          <dl className="space-y-2 text-sm">
-            <Row label="Cash to collect">{egp(p.codAmount)}</Row>
-            {p.status === 'DELIVERED' && <Row label="Collected">{egp(p.codCollected)}</Row>}
-            <Row label="Shipping fee">{egp(p.shippingFee)}</Row>
-            {p.status !== 'RETURNED' && p.codFee > 0 && <Row label="COD fee">{egp(p.codFee)}</Row>}
-            {p.status === 'RETURNED' && <Row label="Return fee">{egp(p.returnFee)}</Row>}
-            <Row label="Total fees" strong>{egp(fees)}</Row>
-            {p.payoutId && <p className="pt-2 text-xs text-emerald-700">Settled in a payout</p>}
+        <Card title={t('Money')}>
+          <dl className="space-y-2 text-body-sm">
+            <Row label={t('Cash to collect')}>{egp(p.codAmount)}</Row>
+            {p.status === 'DELIVERED' && <Row label={t('Collected')}>{egp(p.codCollected)}</Row>}
+            <Row label={t('Shipping fee')}>{egp(p.shippingFee)}</Row>
+            {p.status !== 'RETURNED' && p.codFee > 0 && <Row label={t('COD fee')}>{egp(p.codFee)}</Row>}
+            {p.status === 'RETURNED' && <Row label={t('Return fee')}>{egp(p.returnFee)}</Row>}
+            <Row label={t('Total fees')} strong>{egp(fees)}</Row>
+            {p.payoutId && <p className="pt-2 text-caption font-bold text-status-delivered">{t('Settled in a payout')}</p>}
           </dl>
         </Card>
       </div>
 
       {(p.status === 'CREATED' || canReturn) && p.status !== 'ON_HOLD' && (
-        <Card title="Actions">
+        <Card title={t('Actions')}>
           <div className="flex flex-wrap gap-2">
             {p.status === 'CREATED' && (
-              <Button tone="danger" disabled={busy} onClick={() => act('cancel', {}, 'Parcel cancelled', 'Cancel this parcel? This cannot be undone.')}>
-                Cancel parcel
+              <Button tone="danger" disabled={busy} onClick={() => act('cancel', {}, t('Parcel cancelled'), t('Cancel this parcel? This cannot be undone.'))}>
+                {t('Cancel parcel')}
               </Button>
             )}
             {canReturn && (
-              <Button tone="secondary" disabled={busy} onClick={() => act('decision', { decision: 'RETURN' }, 'The parcel is coming back to you', 'Bring this parcel back to you instead of delivering it? A return fee applies.')}>
-                Return to me
+              <Button
+                tone="secondary"
+                disabled={busy}
+                onClick={() => act('decision', { decision: 'RETURN' }, t('The parcel is coming back to you'), t('Bring this parcel back to you instead of delivering it? A return fee applies.'))}
+              >
+                <Icon name="returns" size={18} />
+                {t('Return to me')}
               </Button>
             )}
           </div>
         </Card>
       )}
 
-      <Card title="History">
-        <ol className="relative space-y-4 border-l-2 border-slate-200 pl-5">
+      <Card title={t('History')}>
+        <ol className="relative space-y-5 border-s-2 border-line ps-6">
           {[...p.events].reverse().map((e, i) => (
             <li key={e.id} className="relative">
-              <span className={`absolute -left-[27px] top-1 h-3 w-3 rounded-full ${i === 0 ? 'bg-brand-600' : 'bg-slate-300'}`} />
-              <div className="text-sm font-medium text-slate-900">{eventText(e.type)}</div>
-              {e.note && <div className="text-sm text-slate-600">{e.note}</div>}
-              <div className="text-xs text-slate-500">{dateTime(e.createdAt)}</div>
+              <span
+                aria-hidden="true"
+                className={`absolute -start-[31px] top-1 h-3.5 w-3.5 rounded-pill ring-4 ring-surface ${i === 0 ? 'bg-primary' : 'bg-line-strong'}`}
+              />
+              <div className={`text-body-sm ${i === 0 ? 'font-bold' : 'font-semibold'}`}>{eventText(e.type, locale)}</div>
+              {e.note && <div className="text-body-sm text-text-muted">{e.note}</div>}
+              <div className="ltr-iso text-caption text-text-muted">{dateTime(e.createdAt)}</div>
             </li>
           ))}
         </ol>
@@ -177,15 +205,19 @@ function DecisionPanel({
 }: {
   parcel: Parcel;
   busy: boolean;
-  govs: { code: string; nameEn: string; served: boolean; areas: { id: string; nameEn: string }[] }[];
+  govs: Governorate[];
   onDecide: (body: unknown, message: string) => void;
 }) {
+  const t = useT();
+  const locale = useLocale();
+  const reasonText = useReasonText();
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [governorateCode, setGovernorateCode] = useState('');
   const [areaId, setAreaId] = useState('');
   const [note, setNote] = useState('');
   const gov = govs.find((g) => g.code === (governorateCode || parcel.governorateCode));
+  const name = (x: { nameEn: string; nameAr: string }) => (locale === 'ar' ? x.nameAr : x.nameEn);
 
   const tryAgain = () => {
     const body: Record<string, unknown> = { decision: 'REATTEMPT', note };
@@ -195,65 +227,73 @@ function DecisionPanel({
       body.governorateCode = governorateCode;
       body.areaId = areaId || null;
     } else if (areaId) body.areaId = areaId;
-    onDecide(body, 'We will try to deliver it again');
+    onDecide(body, t('We will try to deliver it again'));
   };
 
   return (
-    <Card title="Your decision is needed" className="ring-2 ring-amber-300">
-      <p className="mb-4 text-sm text-slate-700">
-        The courier could not deliver this parcel: <strong>{reasonLabel(parcel.holdReason ?? parcel.lastFailReason)}</strong>. It is waiting at our hub. Fix the details and try again, or bring it back to you.
+    <section className="rounded-xl border-2 border-accent bg-surface p-4 shadow-md sm:p-5">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="flex h-10 w-10 items-center justify-center rounded-pill bg-accent text-on-accent">
+          <Icon name="alert" size={22} />
+        </span>
+        <h2 className="text-h3">{t('Your decision is needed')}</h2>
+      </div>
+      <p className="mb-4 text-body-sm">
+        {t('The courier could not deliver this parcel:')} <strong>{reasonText(parcel.holdReason ?? parcel.lastFailReason)}</strong>.{' '}
+        {t('It is waiting at our hub. Fix the details and try again, or bring it back to you.')}
       </p>
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Correct mobile" hint={`Now ${parcel.customerPhone}`}>
-          <Input inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)} />
+        <Field label={t('Correct mobile')} hint={t('Now {phone}', { phone: parcel.customerPhone })}>
+          <Input inputMode="tel" dir="ltr" value={phone} onChange={(e) => setPhone(e.target.value)} />
         </Field>
-        <Field label="Governorate" hint="Only if it changed">
+        <Field label={t('Governorate')} hint={t('Only if it changed')}>
           <Select value={governorateCode} onChange={(e) => { setGovernorateCode(e.target.value); setAreaId(''); }}>
-            <option value="">Keep {parcel.governorateCode}</option>
+            <option value="">{t('Keep {code}', { code: parcel.governorateCode })}</option>
             {govs.map((g) => (
-              <option key={g.code} value={g.code} disabled={!g.served}>{g.nameEn}</option>
+              <option key={g.code} value={g.code} disabled={!g.served}>{name(g)}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Area">
+        <Field label={t('Area')}>
           <Select value={areaId} onChange={(e) => setAreaId(e.target.value)} disabled={!gov || gov.areas.length === 0}>
-            <option value="">{governorateCode ? 'Any area' : 'Keep current area'}</option>
+            <option value="">{governorateCode ? t('Any area') : t('Keep current area')}</option>
             {gov?.areas.map((a) => (
-              <option key={a.id} value={a.id}>{a.nameEn}</option>
+              <option key={a.id} value={a.id}>{name(a)}</option>
             ))}
           </Select>
         </Field>
-        <Field label="Note for the courier">
+        <Field label={t('Note for the courier')}>
           <Input value={note} onChange={(e) => setNote(e.target.value)} />
         </Field>
-        <Field label="Correct address" className="sm:col-span-2" hint="Leave empty to keep it">
+        <Field label={t('Correct address')} className="sm:col-span-2" hint={t('Leave empty to keep it')}>
           <Textarea rows={2} value={address} onChange={(e) => setAddress(e.target.value)} placeholder={parcel.address} />
         </Field>
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
-        <Button disabled={busy} onClick={tryAgain}>Try again</Button>
-        <Button tone="secondary" disabled={busy} onClick={() => onDecide({ decision: 'RETURN', note }, 'The parcel is coming back to you')}>
-          Return to me
+        <Button tone="accent" disabled={busy} onClick={tryAgain}>{t('Try again')}</Button>
+        <Button tone="secondary" disabled={busy} onClick={() => onDecide({ decision: 'RETURN', note }, t('The parcel is coming back to you'))}>
+          <Icon name="returns" size={18} />
+          {t('Return to me')}
         </Button>
       </div>
-    </Card>
+    </section>
   );
 }
 
 function Item({ label, children, wide }: { label: string; children: React.ReactNode; wide?: boolean }) {
   return (
     <div className={wide ? 'sm:col-span-2' : ''}>
-      <dt className="text-xs font-medium uppercase tracking-wide text-slate-500">{label}</dt>
-      <dd className="mt-0.5 break-words text-slate-900">{children}</dd>
+      <dt className="text-label uppercase text-text-muted">{label}</dt>
+      <dd className="mt-1 break-words">{children}</dd>
     </div>
   );
 }
 
 function Row({ label, children, strong }: { label: string; children: React.ReactNode; strong?: boolean }) {
   return (
-    <div className={`flex justify-between gap-3 ${strong ? 'border-t border-slate-200 pt-2 font-semibold' : ''}`}>
-      <dt className="text-slate-600">{label}</dt>
-      <dd className="tabular-nums">{children}</dd>
+    <div className={`flex justify-between gap-3 ${strong ? 'border-t border-line pt-2 font-bold' : ''}`}>
+      <dt className="text-text-muted">{label}</dt>
+      <dd className="tabular ltr-iso">{children}</dd>
     </div>
   );
 }

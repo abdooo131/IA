@@ -1,10 +1,14 @@
 'use client';
+import { STATUS_LABELS_AR, type ShipmentStatus } from '@shiply/shared';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { Icon, type IconName } from '@/components/Icon';
 import { Loading, cx } from '@/components/ui';
 import { api } from '@/lib/api';
 import { dateTime, egp, shortDate } from '@/lib/format';
+import { useLocale, useT } from '@/lib/i18n';
+import { TrackFrame } from '../TrackFrame';
 
 interface Tracking {
   trackingNumber: string;
@@ -16,14 +20,16 @@ interface Tracking {
   events: { at: string; text: string; place: string | null }[];
 }
 
-const TONE: Record<string, string> = {
-  DELIVERED: 'bg-emerald-600',
-  RETURNED: 'bg-rose-600',
-  CANCELLED: 'bg-slate-500',
-  OUT_FOR_DELIVERY: 'bg-blue-600',
+const ICON: Record<string, IconName> = {
+  DELIVERED: 'delivered',
+  RETURNED: 'returns',
+  OUT_FOR_DELIVERY: 'courier',
+  CANCELLED: 'alert',
 };
 
 export default function TrackingResult() {
+  const t = useT();
+  const locale = useLocale();
   const { number } = useParams<{ number: string }>();
   const [data, setData] = useState<Tracking | null>(null);
   const [missing, setMissing] = useState(false);
@@ -34,62 +40,71 @@ export default function TrackingResult() {
       .catch(() => setMissing(true));
   }, [number]);
 
+  const returning = data?.statusLabel === 'Returning to the store';
+  const label = !data ? '' : locale !== 'ar' ? data.statusLabel : returning ? t('Returning to the store') : STATUS_LABELS_AR[data.status as ShipmentStatus] ?? data.statusLabel;
+
   return (
-    <div className="mx-auto min-h-screen max-w-lg px-4 py-6">
-      <Link href="/track" className="mb-5 flex items-center gap-2 text-sm font-semibold text-brand-700">
-        <span className="grid h-8 w-8 place-items-center rounded-lg bg-brand-600 text-sm font-black text-white">S</span>
-        Shiply tracking
-      </Link>
+    <TrackFrame>
       {missing ? (
-        <div className="rounded-xl bg-white p-6 text-center shadow-sm ring-1 ring-slate-200">
-          <h1 className="text-lg font-bold">We could not find this parcel</h1>
-          <p className="mt-2 text-sm text-slate-600">
-            Check the number <span className="font-mono font-semibold">{decodeURIComponent(number)}</span> on your message from the store and try again.
+        <div className="rounded-xl bg-surface p-6 text-center shadow-sm">
+          <Icon name="search" size={32} className="mx-auto text-text-muted" />
+          <h1 className="mt-3 text-h3">{t('We could not find this parcel')}</h1>
+          <p className="mt-2 text-body-sm text-text-muted">
+            {t('Check the number on your message from the store and try again:')}{' '}
+            <span className="ltr-iso font-mono font-bold text-text">{decodeURIComponent(number)}</span>
           </p>
-          <Link href="/track" className="mt-4 inline-block rounded-lg bg-brand-600 px-4 py-2 text-sm font-semibold text-white">Try another number</Link>
+          <Link href="/track" className="btn-primary mt-5">{t('Try another number')}</Link>
         </div>
       ) : !data ? (
         <Loading />
       ) : (
         <div className="space-y-4">
-          <div className={cx('rounded-xl p-5 text-white shadow-sm', TONE[data.status] ?? 'bg-brand-600')}>
-            <div className="text-sm opacity-90">Your order from {data.store}</div>
-            <div className="mt-1 text-2xl font-bold">{data.statusLabel}</div>
-            <div className="mt-1 font-mono text-sm opacity-90">{data.trackingNumber}</div>
-          </div>
+          <section className="shiply-route overflow-hidden rounded-xl p-6 text-white shadow-md">
+            <div className="flex items-start justify-between gap-3">
+              <p className="text-body-sm opacity-90">{t('Your order from {store}', { store: data.store })}</p>
+              <Icon name={ICON[data.status] ?? (returning ? 'returns' : 'tracking')} size={28} className="text-accent" />
+            </div>
+            <h1 className="mt-3 text-h1">{label}</h1>
+            <p className="ltr-iso mt-3 inline-block rounded-pill bg-white/10 px-3 py-1 font-mono text-caption">{data.trackingNumber}</p>
+          </section>
           {(data.promisedDate || data.codToPrepare > 0) && (
             <div className="grid grid-cols-2 gap-3">
               {data.promisedDate && (
-                <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Expected</div>
-                  <div className="mt-1 text-lg font-bold">{shortDate(data.promisedDate)}</div>
+                <div className="rounded-xl bg-surface p-4 shadow-sm">
+                  <Icon name="schedule" size={22} className="text-link" />
+                  <div className="mt-3 text-label uppercase text-text-muted">{t('Expected')}</div>
+                  <div className="ltr-iso mt-1 text-h3">{shortDate(data.promisedDate)}</div>
                 </div>
               )}
               {data.codToPrepare > 0 && (
-                <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-slate-200">
-                  <div className="text-xs font-medium uppercase tracking-wide text-slate-500">Cash to prepare</div>
-                  <div className="mt-1 text-lg font-bold">{egp(data.codToPrepare)}</div>
+                <div className="rounded-xl border-2 border-accent bg-surface p-4 shadow-sm">
+                  <Icon name="cash" size={22} className="text-link" />
+                  <div className="mt-3 text-label uppercase text-text-muted">{t('Cash to prepare')}</div>
+                  <div className="tabular ltr-iso mt-1 text-h3">{egp(data.codToPrepare)}</div>
                 </div>
               )}
             </div>
           )}
-          <div className="rounded-xl bg-white p-5 shadow-sm ring-1 ring-slate-200">
-            <h2 className="mb-4 text-sm font-semibold text-slate-900">Journey</h2>
-            <ol className="relative space-y-4 border-l-2 border-slate-200 pl-5">
+          <section className="rounded-xl bg-surface p-5 shadow-sm">
+            <h2 className="mb-5 text-h3">{t('Journey')}</h2>
+            <ol className="relative space-y-5 border-s-2 border-line ps-6">
               {[...data.events].reverse().map((e, i) => (
                 <li key={`${e.at}${i}`} className="relative">
-                  <span className={cx('absolute -left-[27px] top-1 h-3 w-3 rounded-full', i === 0 ? 'bg-brand-600' : 'bg-slate-300')} />
-                  <div className="text-sm font-medium">{e.text}</div>
-                  <div className="text-xs text-slate-500">
-                    {dateTime(e.at)}
+                  <span
+                    aria-hidden="true"
+                    className={cx('absolute -start-[31px] top-1 h-3.5 w-3.5 rounded-pill ring-4 ring-surface', i === 0 ? 'bg-primary' : 'bg-line-strong')}
+                  />
+                  <div className={cx('text-body-sm', i === 0 ? 'font-bold' : 'font-semibold')}>{t(e.text)}</div>
+                  <div className="text-caption text-text-muted">
+                    <span className="ltr-iso">{dateTime(e.at)}</span>
                     {e.place ? ` · ${e.place}` : ''}
                   </div>
                 </li>
               ))}
             </ol>
-          </div>
+          </section>
         </div>
       )}
-    </div>
+    </TrackFrame>
   );
 }

@@ -1,15 +1,15 @@
 'use client';
-import { Shell, type Me } from '@/components/Shell';
+import { Shell, type Me , type NavItem } from '@/components/Shell';
 
-const NAV = [
-  { href: '/admin', label: 'Dashboard' },
-  { href: '/admin/shipments', label: 'Parcels' },
-  { href: '/hub', label: 'Hub ops' },
-  { href: '/admin/network', label: 'Network' },
-  { href: '/admin/merchants', label: 'Merchants' },
-  { href: '/admin/users', label: 'Users' },
-  { href: '/admin/money', label: 'Money' },
-  { href: '/admin/settings', label: 'Settings' },
+const NAV: NavItem[] = [
+  { href: '/admin', label: 'Dashboard', icon: 'home' },
+  { href: '/admin/shipments', label: 'Parcels', icon: 'orders' },
+  { href: '/hub', label: 'Operations', icon: 'scan' },
+  { href: '/admin/money', label: 'Money', icon: 'wallet' },
+  { href: '/admin/network', label: 'Network', icon: 'route', group: 'Setup' },
+  { href: '/admin/merchants', label: 'Merchants', icon: 'store', group: 'Setup' },
+  { href: '/admin/users', label: 'Users', icon: 'customers', group: 'Setup' },
+  { href: '/admin/settings', label: 'Settings', icon: 'settings', group: 'Setup' },
 ];
 const ROLES: Me['role'][] = ['ADMIN'];
 

@@ -16,6 +16,11 @@ export class AdminController {
     return this.admin.dashboard();
   }
 
+  @Get('trend')
+  trend(@Query('days') days?: string) {
+    return this.admin.trend(days);
+  }
+
   @Get('shipments')
   search(@Query() q: unknown) {
     return this.admin.search(q);
