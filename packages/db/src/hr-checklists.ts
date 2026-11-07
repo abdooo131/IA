@@ -137,7 +137,7 @@ export function updateChecklistTemplate(
 }
 
 /** The template for a person: their position's, else the default of the kind. */
-async function templateFor(tx: Tx, kind: ChecklistKind, positionId: string | null) {
+export async function templateFor(tx: Tx, kind: ChecklistKind, positionId: string | null) {
   const own = positionId
     ? await tx.checklistTemplate.findFirst({
         where: { kind, positionId, isActive: true },

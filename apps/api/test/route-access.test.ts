@@ -20,6 +20,8 @@ const ANY_SIGNED_IN = new Set([
   // document (HR verifies it), their photo; managers see their team without pay.
   'me/employee',
   'me/employee/history',
+  // HR phase 2: what HR asked the person to send (their own file only).
+  'me/employee/reminders',
   'me/employee/documents/:documentId',
   // My attendance: a person's own Clock in, Clock out and days (merchants have no file).
   'me/attendance',

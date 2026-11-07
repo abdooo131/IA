@@ -190,6 +190,11 @@ export const PUSH_TEXT = {
     en: ['Document runs out: {person}', '{document} runs out on {date}.'],
     ar: ['مستند سينتهي: {person}', '{document} ينتهي يوم {date}.'],
   },
+  // HR phase 2: HR asked the person for a missing or expiring document.
+  document_reminder: {
+    en: ['HR needs a document from you', 'Please send {document}: open My HR to upload it.'],
+    ar: ['شؤون العاملين تحتاج مستندًا منك', 'من فضلك أرسل {document}: افتح ملفي لرفعه.'],
+  },
   document_expired_hr: {
     en: ['Document ran out: {person}', '{document} ran out on {date}.'],
     ar: ['مستند انتهى: {person}', '{document} انتهى يوم {date}.'],

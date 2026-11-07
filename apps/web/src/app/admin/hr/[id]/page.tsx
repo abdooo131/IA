@@ -12,6 +12,7 @@ import { FlagChip } from '@/components/hr/FlagChip';
 import { btnPrimary, btnSecondary, EmptyState, TabLinks } from '@/components/hr/HrPage';
 import { EmploymentPanel, SalaryPackagePanel } from '@/components/hr/PayPanels';
 import { PhotoEditor } from '@/components/hr/PhotoEditor';
+import { SetupLinkButton } from '@/components/hr/SetupLinkButton';
 import { TeamPanel } from '@/components/hr/TeamPanel';
 import { BalanceCards } from '@/components/hr/leave/MyLeaveView';
 import { LeaveRequestForm } from '@/components/hr/leave/LeaveRequestForm';
@@ -138,6 +139,11 @@ export default async function EmployeePage({
           {t('file.changeStatus')}
         </Link>
       )}
+      {canManage && !gone && (
+        <Link href={`/admin/hr/${id}/leaving`} className={btnSecondary}>
+          {t('file.startLeaving')}
+        </Link>
+      )}
       {canUse && (
         <Link href={href('job', '#edit')} className={btnPrimary}>
           {t('file.edit')}
@@ -174,6 +180,15 @@ export default async function EmployeePage({
           {file.flags.map((f) => (
             <FlagChip key={f} flag={f} label={t(`flags.${f}`)} />
           ))}
+        </p>
+      )}
+
+      {file.login === 'pending' && !gone && (
+        <SetupLinkButton employeeId={file.id} canUse={canUse} />
+      )}
+      {file.exit && !file.exit.disabledAt && !file.exit.cancelledAt && gone && (
+        <p className="mt-4 rounded-lg border border-line bg-surface p-4 text-body-sm">
+          {t('file.accountClosesOn', { date: isoToDayFirst(file.exit.lastDay) })}
         </p>
       )}
 
@@ -448,7 +463,12 @@ async function OverviewTab({ file, canManage }: { file: File; canManage: boolean
       </Card>
       {canManage && (
         <div id="status" className="scroll-mt-20 lg:col-span-3">
-          <EmployeeStatusPanel employeeId={file.id} status={file.status} today={today} />
+          <EmployeeStatusPanel
+            employeeId={file.id}
+            status={file.status}
+            today={today}
+            leavingHref={file.status === 'left' ? null : `/admin/hr/${file.id}/leaving`}
+          />
         </div>
       )}
     </div>

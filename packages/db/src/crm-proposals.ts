@@ -706,16 +706,18 @@ export async function declineProposal(
 const hashToken = (token: string) => createHash('sha256').update(token).digest('hex');
 
 /**
- * A one time link for a new owner to choose their password (sales.setup_link_days). Earlier
- * unused links of the person stop working. Returns the token, shown once.
+ * A one time link for a new owner to choose their password (sales.setup_link_days; the new
+ * hire wizard passes hr.setup_link_days). Earlier unused links of the person stop working.
+ * Returns the token, shown once.
  */
 export async function issueSetupToken(
   tx: Tx,
   userId: string,
   actorUserId: string | null,
   now: Date = new Date(),
+  validDays?: number,
 ) {
-  const days = await getSetting(tx, 'sales.setup_link_days');
+  const days = validDays ?? (await getSetting(tx, 'sales.setup_link_days'));
   await tx.userSetupToken.updateMany({
     where: { userId, usedAt: null },
     data: { expiresAt: now },

@@ -5,10 +5,12 @@ import { StatCard } from '@/components/StatCard';
 import { Avatar } from '@/components/hr/Avatar';
 import { btnPrimary, btnSecondary, HrPageHeader } from '@/components/hr/HrPage';
 import { type AdminStore, localized } from '@/lib/admin-types';
-import { apiGet, getMyProfile } from '@/lib/api-server';
+import { apiGet, apiTry, getMyProfile } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import type { HrOverview } from '@/lib/hr-overview-types';
 import { employeeName } from '@/lib/hr-types';
+import type { HireDraftRow, NeedsOwnerRow, PayPendingRow } from '@/lib/hr-phase2';
+import { canDo } from '@shiplynow/shared';
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +87,14 @@ export default async function HrHomePage() {
     getTranslations('hr'),
     getLocale(),
   ]);
+  // HR phase 2: drafts to finish, things leavers looked after, hires waiting for their pay.
+  const canUse = canDo(profile, 'hr', 'use');
+  const [drafts, owners, payPending, t2] = await Promise.all([
+    canUse ? apiTry<HireDraftRow[]>('/hr/hire-drafts') : null,
+    apiTry<{ rows: NeedsOwnerRow[] }>('/hr/reassignments'),
+    profile?.salaries ? apiTry<PayPendingRow[]>('/hr/hire-drafts/pay-pending') : null,
+    getTranslations('hr2'),
+  ]);
   const name = (p: { nameEn: string; nameAr: string | null }) => employeeName(p, locale);
   const day = (d: string) => <span className="ltr-iso">{isoToDayFirst(d)}</span>;
   const limited = profile && !profile.allStores;
@@ -117,9 +127,14 @@ export default async function HrHomePage() {
             <Link href="/admin/hr" className={btnSecondary}>
               {t('home.openList')}
             </Link>
-            <Link href="/admin/hr/attendance" className={btnPrimary}>
+            <Link href="/admin/hr/attendance" className={btnSecondary}>
               {t('home.openToday')}
             </Link>
+            {canUse && (
+              <Link href="/admin/hr/hire" className={btnPrimary}>
+                {t2('newHire')}
+              </Link>
+            )}
           </>
         }
       />
@@ -129,6 +144,68 @@ export default async function HrHomePage() {
             name: locale === 'ar' ? o.now.holiday.nameAr : o.now.holiday.nameEn,
           })}
         </p>
+      )}
+
+      {((drafts?.length ?? 0) > 0 ||
+        (owners?.rows.length ?? 0) > 0 ||
+        (payPending?.length ?? 0) > 0) && (
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          {drafts && drafts.length > 0 && (
+            <Card title={t2('home.drafts', { count: drafts.length })}>
+              <ul className="divide-y divide-line">
+                {drafts.slice(0, 6).map((d) => (
+                  <li key={d.id} className="flex items-center justify-between gap-2 py-2">
+                    <span className="min-w-0">
+                      <span className="block truncate font-bold">
+                        {(locale === 'ar' && d.nameAr) || d.name || t2('home.noName')}
+                      </span>
+                      <span className="block truncate text-caption text-text-muted">
+                        {t2('home.draftLine', { step: t2(`steps.${d.step}`), by: d.createdBy })}
+                      </span>
+                    </span>
+                    <Link
+                      href={`/admin/hr/hire/${d.id}`}
+                      className="shrink-0 text-body-sm font-bold text-link"
+                    >
+                      {t2('home.continue')}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {owners && owners.rows.length > 0 && (
+            <Card
+              title={t2('home.needsOwner', { count: owners.rows.length })}
+              action={{ href: '/admin/hr/needs-owner', label: t2('home.giveOwners') }}
+            >
+              <ul className="space-y-1.5">
+                {owners.rows.slice(0, 5).map((r) => (
+                  <li key={r.id} className="flex justify-between gap-2 text-body-sm">
+                    <span className="min-w-0 truncate">{r.label}</span>
+                    <span className="shrink-0 text-caption text-text-muted">
+                      {t2(`kinds.${r.kind}`)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+          {payPending && payPending.length > 0 && (
+            <Card title={t2('home.payPending', { count: payPending.length })}>
+              <ul className="space-y-1.5">
+                {payPending.slice(0, 6).map((e) => (
+                  <li key={e.id} className="flex justify-between gap-2 text-body-sm">
+                    <Link href={`/admin/hr/${e.id}?tab=pay`} className="min-w-0 truncate text-link">
+                      {name(e)}
+                    </Link>
+                    <span className="ltr-iso shrink-0 text-caption text-text-muted">{e.code}</span>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </div>
       )}
 
       <h2 className="mt-6 text-h3">{t('home.rightNow')}</h2>

@@ -114,11 +114,12 @@ Next.js 15 App Router, next-intl (en, ar with RTL), Tailwind with the Brand v2 t
     /admin/...             Operations, Inventory, Merchants, Customers, HR, Sales, Settings apps
     /admin/hr/...          HR app: the HR home (/overview, the app's first page), the employee
                            list and files (?tab=), one Organisation and one Attendance setup page
-                           (HR phase 1)
+                           (HR phase 1); /hire (new hire wizard), /<id>/leaving (leaving wizard),
+                           /needs-owner and /documents/calendar (HR phase 2)
     /admin/sales/...       Sales app: pipeline board and list, leads, My day, companies, deals,
                            proposals, dashboard, targets, commission
     /p/<token>             a brand's proposal (public, Accept or Decline)
-    /setup/<token>         a new merchant owner chooses a password (public, one time)
+    /setup/<token>         a new merchant owner or new hire chooses a password (public, one time)
     /finance/...           Accounting app
     /store/<storeId>/...   store staff screens (phone first, barcode scanning with the camera)
     /rider                 rider app (phone first)
@@ -249,13 +250,17 @@ Cr 1402 with the store and order tags; low and short packaging raise alerts, pac
 blocked.
 
 People:
-an account is created in Settings > Users with a job role → its HR file opens with the
-onboarding checklist → documents are uploaded and verified → the person clocks in and out by
+HR hires a person through the new hire wizard (or an account is created in Settings > Users
+with a job role) → the login, access, HR file, salary package, documents, roster and onboarding
+checklist are made in one transaction and the person opens their one time setup link →
+documents are uploaded and verified (HR reminds people of missing ones) → the person clocks in and out by
 location against their shift → attendance days close automatically (suggesting violations for
 lateness and absence) → leave is asked from My HR and approved by the manager then HR →
 violations climb their ladder, may be appealed once and become final → the monthly payroll run
 reads HR salary packages, takes unpaid leave days and final deductions once, and books it in
-accounting.
+accounting → when someone leaves, the leaving wizard sets the last day and reason, starts
+offboarding, keeps the final settlement figures for payroll, hands over what they looked after
+and the job closes their account at the end of the last day.
 
 ## 9. Access control
 
@@ -317,7 +322,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
   low stock) and calls notify(userIds, type, text) for the people who may open the page it
   links to: store staff of that store (store use), riders, accounting use, operations manage
   (paging alerts), merchants manage (sign ups), the merchant's account manager, HR use and the
-  person (documents), the manager in force, HR use and HR manage and the person (leave requests,
+  person (documents; the person also when HR reminds them of a document), the manager in force, HR use and HR manage and the person (leave requests,
   attendance fixes, violations and appeals, termination reviews), the ticket's other person,
   merchant users with the orders, money or stock
   right, sales managers (website leads, the leads queue) and the owner of a deal or follow up

@@ -101,7 +101,7 @@ interface Placement {
 }
 
 /** A department and every department above it (a rule for Operations covers Dark stores). */
-async function departmentChains(db: Db) {
+export async function departmentChains(db: Db) {
   const rows = await db.department.findMany({ select: { id: true, parentId: true } });
   const parent = new Map(rows.map((d) => [d.id, d.parentId]));
   return (id: string | null) => {

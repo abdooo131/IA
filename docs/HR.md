@@ -1,4 +1,4 @@
-# HR module (plan approved; step 1 built, then HR v2; step 2 built; phase 3 built; phase 1 usability built)
+# HR module (plan approved; step 1 built, then HR v2; step 2 built; phase 3 built; phase 1 usability built; phase 2 guided flows built)
 
 Decisions taken by the owner on 2026-11-06: attendance by a Clock in button with a location
 check, violations from a penalty list that reaches payroll, leave by requests and balances,
@@ -481,6 +481,137 @@ schema change: everything reads what the files and records already hold.
   (chosen: the Configuration pages).
 - Every HR page uses one header (title, a plain one or two line explanation, the main action)
   and lists that can be empty show what the page is for and the first action.
+
+## Phase 2 as built (guided flows instead of many forms)
+
+Agreed with the owner on 2026-11-07; decisions taken while building are marked (chosen). The
+domain logic lives in packages/db (hr-hire.ts, hr-exit.ts, hr-reminders.ts), the pure step and
+settlement rules in packages/shared/src/hr-phase2.ts (unit tested), the routes in
+apps/api/src/hr/hr-flows.controller.ts. Migration `20261230090000_hr_phase2`.
+
+### New hire wizard (HR use)
+
+- `/admin/hr/hire` (the "New hire" button on the HR home and the employee list, and a menu
+  entry): one form in steps with a progress bar, Back and Next: Person, Job, Pay, Documents,
+  System access, Review and create. Each Next checks the step (`hireStepIssues`, the same rule
+  the server runs again at create) and saves the draft (`hire_drafts`: the step, what was typed
+  so far as JSON, who started it), so HR can stop ("Save and finish later") and come back from
+  the HR home's "Hires to finish" card (`GET /hr/hire-drafts`). The first save gives the draft
+  its address (`/admin/hr/hire/<draftId>?step=`). A draft can be thrown away with its files.
+- Person: names (English required, Arabic), the mobile (Egyptian rules, stored +20), email,
+  national ID (14 digits), birth date (not in the future), address, emergency contact and the
+  photo (phone camera or a file, the same square editor as the file; kept on the draft until
+  create). The file has no gender field, so none is asked (chosen).
+- Job: account kind (team member or rider; picking rider fills the Rider position), department,
+  position (its grade range shown; picking one fills the department), grade (only the range),
+  manager (empty follows the department head chain, which the list names), stores (riders
+  exactly one; team members any, none is the office), hire date, employment (employee or
+  outsourced with the staffing company), contract type and end, probation end (empty: the hire
+  date plus `hr.probation_months`, shown as a hint), default shift and the rider badge.
+- Pay (only with the salaries switch, and only for employees): basic, insured wage, allowances
+  and the salary bank account; the package starts on the hire date. Without the switch the step
+  is skipped: the person is created with `hire_drafts.pay_pending` and listed for people with
+  salaries on the HR home ("New hires wait for pay", `GET /hr/hire-drafts/pay-pending`) until a
+  package exists. Someone without the switch cannot save pay (`salaries_required`) and cannot
+  create a draft that holds pay typed by someone else, so it is never dropped silently (chosen).
+- Documents: the types required for this employment, department (and the ones above it) and
+  position are listed as a checklist (Added or Later, `GET /hr/hire-drafts/:id/required-documents`).
+  Files are added with the drop area (several at once, the phone camera, one tap per file to
+  pick its type from the missing ones, the expiry date when the type has one) and kept on the
+  draft (`hire_draft_files`), checked like any upload (formats, size, first bytes, expiry).
+- System access: a login or none ("for people who never use the system"); riders always have a
+  login. A login takes the email, a job role (prefilled from the position when a default
+  position maps to one, `POSITION_JOB_ROLES`: Picker → Store staff, HR manager → HR manager...;
+  positions HR adds later have none and HR picks one), the store scope (every store or listed
+  ones) and the two switches (named customer profiles, salaries). The account kind follows the
+  job role (chosen): store roles (store staff, hub staff, QC agent, store manager) sign in as
+  store staff of the first store, finance roles (accountant, finance officer and manager) as
+  finance, the rest as admin; riders as riders with their badge.
+- Who may give what (chosen, docs/ACCESS.md): settings manage (the Owner job role) only by
+  someone who holds it (`access_needs_settings`); the salaries switch only by someone who has it;
+  named customer profiles by someone who has them or settings manage; a person limited to some
+  stores hires only into their stores and gives only those stores.
+- Review and create (`POST /hr/hire-drafts/:id/create` with an idempotency key): ONE
+  transaction makes the user (inactive, a random password nobody knows), the rider row, the
+  access profile, the employee file (EMP number, probation filled in), the salary package, the
+  photo and documents (verified: HR saw them), the roster for two weeks from the hire day (or
+  today) from the default shift, and the onboarding checklist from the position's template
+  (document tasks tick themselves). A login gets a one time setup link (`user_setup_tokens`,
+  valid `hr.setup_link_days`, default 7): the answer carries it once, HR copies it and sends it;
+  the person opens `/setup/<token>`, chooses a password and the account opens. The same key
+  answers the same file without a new link; a second create of the same draft is refused
+  (`draft_already_created`). Audited `user.create` and `employee.hire`; the draft's files are
+  deleted and its pay figures cleared once they are on the file.
+- People without a login get an account that can never sign in (inactive, an address at
+  `no-login.shiplynow.invalid`, no access profile, no link) because every file belongs to an
+  account (chosen).
+- The file shows "Waiting for their password" while the login's link is unused, with "New setup
+  link" (`POST /hr/employees/:id/setup-link`, HR use): earlier links stop working, the new one is
+  shown once.
+
+### Leaving wizard (HR manage)
+
+- "Start leaving" on the file (quick actions and inside Change status, which keeps the plain
+  status change) opens `/admin/hr/<id>/leaving`: Last day and reason, Company items, Final
+  settlement, Hand over, Review.
+- Last day and reason: resignation, termination, end of contract or other (with a note). The
+  notice date is checked against `hr.notice_days` (default 30): days given and days short are
+  shown and kept on the exit; a short notice does not block (chosen).
+- Company items: the tasks of the offboarding template for the position (else the default).
+  Ticked ones are done on the offboarding checklist the confirmation starts; the rest stay open.
+- Final settlement (read only, `exitSettlement` in packages/shared, unit tested): days worked in
+  the last month (from the 1st or the hire day) and their pay (a whole month is the basic),
+  unused annual leave on the last day, paid when `hr.pay_unused_leave_on_exit` is 1 (default),
+  or leave taken ahead, unpaid leave days and final violation deductions no salary run took, the
+  staff advance still owed (the 1500 wallet in the ledger) and sales commission worked out and
+  not paid (draft or approved, target hit), with an estimate before tax and insurance. A day of
+  pay is basic ÷ `hr.payroll_days_per_month`. Amounts need the salaries switch (the days show
+  without it); outsourced people have no amounts (their company pays). The figures are kept on
+  the exit (`employee_exits.settlement`) for payroll; nothing is paid here (the salary run and
+  Accounting do that as before).
+- Hand over: everything the person looks after: people they manage (the manager on the file),
+  departments they head, merchants they are account manager of, open deals and companies they
+  own. HR picks a new owner for each (a person for managers and heads, a team member with
+  merchants access or sales use for the rest) or leaves it for later.
+- Confirm (`POST /hr/employees/:id/leaving`, idempotency key) in ONE transaction: the file
+  becomes left with the last day and the reason, each thing gets its chosen owner or none (a
+  manager falls back to the department chain, a deal goes back to the sales queue) and each one
+  is kept as a `reassignments` row (open ones are listed under "Needs a new owner" on the HR home
+  and at `/admin/hr/needs-owner`, where HR manage gives them later), offboarding starts from the
+  last day, and the account is scheduled to close at the end of the last day (Cairo); a last day
+  already over closes it at once. Refused for oneself, before the hire day, for someone who left
+  and for the last person who keeps settings manage. Audited `employee.exit` (and each new owner
+  on its own record).
+- The API job (with the attendance close, every ten minutes) disables each due account once
+  (`runExitDisables`, each exit claimed once), signs the person out everywhere (refresh tokens
+  revoked) and audits `user.disable_on_exit`. If HR set the person back to active before then,
+  nothing is disabled and the exit is marked cancelled.
+
+### Easier documents
+
+- The file's Documents tab (HR use) and the documents page have a drop area: several files at
+  once, the phone camera, and for each file one tap on one of the person's missing types (or
+  another type); photos are shrunk on the phone as before. On the documents page HR first picks
+  a person from those with something missing.
+- Remind (HR use): on a missing, refused, expired or expiring document, and "Remind of
+  everything missing" per person. A reminder is a `document_reminders` row (once per person,
+  type and Cairo day; a second tap the same day sends nothing), a push notification to the
+  person (type `document_expiring`, text `document_reminder`, opening My HR) and a notice at the
+  top of My HR ("HR asked you for", the last 14 days, while still not in order). Audited
+  `employee.document_remind`.
+- Expiry calendar (`/admin/hr/documents/calendar`, HR view, `GET /hr/documents/expiring?month=`):
+  a month grid (Saturday first) with the count of documents running out each day, then the list
+  day by day with each person's file a tap away; confidential types only with HR use, inside the
+  person's stores.
+
+### Screens and menus
+
+- HR home: "New hire" button, and cards for hires to finish, things needing a new owner and new
+  hires waiting for pay (each shown only when there is something).
+- Employees menu: Employee list, New hire (HR use), Org chart, Documents to check, Expiry
+  calendar, Joining and leaving checklists, Needs a new owner.
+- Settings (HR configuration): `hr.setup_link_days`, `hr.notice_days`,
+  `hr.pay_unused_leave_on_exit`.
 
 ## Build order
 

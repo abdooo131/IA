@@ -172,6 +172,11 @@ is theirs.
 - HR phase 1 (usability): no new column. The HR home (`GET /hr/overview`), the employee list
   (`GET /hr/directory`) and a file's completeness are hr view, inside the person's stores like
   every HR list; the inbox counts on the home follow the inbox's own rules.
+- HR phase 2 (guided flows): no new column. The new hire wizard (drafts, their photo and
+  documents, create, a new setup link) is hr use; its pay step and the "waiting for pay" list
+  need `salaries`. The leaving wizard, its preview and giving a leaver's things a new owner are
+  hr manage; the "Needs a new owner" list and the expiry calendar are hr view; document
+  reminders are hr use. Everything stays inside the person's stores.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or
   Finance manager (approve).
 - store_staff → Store staff for their own store.
@@ -247,3 +252,10 @@ wants otherwise.
   (`/me/team-leave-calendar`), whatever their access profile. HR items in the inbox follow the
   person's HR level read fresh (use: the HR step and suggestions; manage: appeals). People
   limited to listed stores see and act on those stores' people only (`store_not_allowed`).
+- HR phase 2, the new hire wizard's access step (decided while building): HR use may create a
+  login and pick its job role, store scope and switches, but settings manage (the Owner job
+  role) is given only by someone who holds settings manage (`access_needs_settings`), the
+  salaries switch only by someone who has it (`salaries_required`), named customer profiles only
+  by someone who has them or settings manage, and a person limited to some stores hires only
+  into their stores and gives only those (`store_not_allowed`). Changing access afterwards stays
+  in Settings > Users (settings manage).

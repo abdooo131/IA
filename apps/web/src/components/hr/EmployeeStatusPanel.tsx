@@ -2,6 +2,7 @@
 
 import { EMPLOYEE_STATUSES, type EmployeeStatus } from '@shiplynow/shared';
 import { useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { DateInput } from '@/components/DateInput';
@@ -25,11 +26,15 @@ export function EmployeeStatusPanel({
   employeeId,
   status,
   today,
+  leavingHref = null,
 }: {
   employeeId: string;
   status: EmployeeStatus;
   today: string;
+  /** HR phase 2: the leaving wizard, the guided way to mark someone as left */
+  leavingHref?: string | null;
 }) {
+  const t2 = useTranslations('hr2');
   const t = useTranslations('hr');
   const router = useRouter();
   const [next, setNext] = useState<EmployeeStatus>(status);
@@ -59,6 +64,17 @@ export function EmployeeStatusPanel({
       <h2 id="status" className="text-h3">
         {t('changeStatus')}
       </h2>
+      {leavingHref && (
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md border border-line bg-surface-raised p-3">
+          <p className="min-w-0 text-body-sm">{t2('leaving.statusHint')}</p>
+          <Link
+            href={leavingHref}
+            className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-body-sm font-bold text-on-primary"
+          >
+            {t2('leaving.start')}
+          </Link>
+        </div>
+      )}
       <div className="mt-3 grid gap-3 sm:grid-cols-3">
         <label className="block text-caption">
           {t('status')}

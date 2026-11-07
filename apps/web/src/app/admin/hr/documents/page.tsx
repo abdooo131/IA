@@ -1,8 +1,8 @@
-import { CHECKLIST_STATES } from '@shiplynow/shared';
+import { canDo, CHECKLIST_STATES } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { StateChip } from '@/components/hr/DocumentsPanel';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import {
   departmentOptions,
@@ -13,7 +13,8 @@ import {
   type MissingDocumentRow,
   type PendingDocument,
 } from '@/lib/hr-types';
-import { HrPageHeader } from '@/components/hr/HrPage';
+import { btnSecondary, HrPageHeader } from '@/components/hr/HrPage';
+import { UploadForPerson } from '@/components/hr/UploadForPerson';
 
 export const dynamic = 'force-dynamic';
 const field = 'h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
@@ -42,10 +43,32 @@ export default async function HrDocumentsPage({
   ]);
   const name = (x: { nameEn: string; nameAr: string }) => (locale === 'ar' ? x.nameAr : x.nameEn);
   const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
-  const people = new Set(missing.map((m) => m.employee.id)).size;
+  const count = new Set(missing.map((m) => m.employee.id)).size;
+  const canUse = canDo(await getMyProfile(), 'hr', 'use');
+  // HR phase 2: everyone with something missing, with what they miss, to upload in one go.
+  const people = [...new Set(missing.map((m) => m.employee.id))].map((id) => {
+    const rows = missing.filter((m) => m.employee.id === id);
+    return {
+      id,
+      name: employeeName(rows[0]!.employee, locale),
+      code: employeeCodeOf(rows[0]!.employee.number),
+      missing: rows
+        .filter((m) => ['missing', 'rejected', 'expired', 'expiring'].includes(m.state))
+        .map((m) => m.type.id),
+    };
+  });
   return (
     <>
-      <HrPageHeader title={t('docsTitle')} intro={t('docsIntro')} />
+      <HrPageHeader
+        title={t('docsTitle')}
+        intro={t('docsIntro')}
+        actions={
+          <Link href="/admin/hr/documents/calendar" className={btnSecondary}>
+            {t('expiryCalendar')}
+          </Link>
+        }
+      />
+      {canUse && people.length > 0 && <UploadForPerson people={people} types={types} />}
 
       <section className="mt-4 rounded-lg border border-line bg-surface" aria-labelledby="pending">
         <h2 id="pending" className="border-b border-line p-4 text-h3">
@@ -146,7 +169,7 @@ export default async function HrDocumentsPage({
           </div>
         </form>
         <p className="mt-2 text-caption text-text-muted">
-          {t('missingSummary', { rows: missing.length, people })}
+          {t('missingSummary', { rows: missing.length, people: count })}
         </p>
         {missing.length === 0 ? (
           <p className="mt-3 text-body-sm">{t('missingEmpty')}</p>

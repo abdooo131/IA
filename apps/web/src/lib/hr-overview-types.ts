@@ -1,3 +1,4 @@
+import type { ExitView } from './hr-phase2';
 import type { EmployeeFlag, FileCompleteness } from '@shiplynow/shared';
 import type { EmployeeRow } from './hr-types';
 
@@ -106,4 +107,8 @@ export interface FileExtras {
   flags: EmployeeFlag[];
   probationEnd: string | null;
   openViolations: number;
+  /** HR phase 2: the login waits for its setup link (pending), works, is off, or none at all */
+  login?: 'active' | 'pending' | 'disabled' | 'none';
+  /** HR phase 2: the latest exit through the leaving wizard */
+  exit?: ExitView | null;
 }

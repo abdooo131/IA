@@ -31,12 +31,18 @@ export function setupApp(app: INestApplication) {
       // HR phase 3: a leave request's note (medical note) and a violation's evidence.
       /^\/(hr|me)\/leave\/requests\/[^/]+\/document$/,
       /^\/hr\/violations\/[^/]+\/evidence$/,
+      // HR phase 2: documents added in the new hire wizard.
+      /^\/hr\/hire-drafts\/[^/]+\/files$/,
     ],
     raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], limit: '3100kb' }),
   );
   // The square employee photo, made on the phone (at most 1 MB).
   app.use(
-    [/^\/hr\/employees\/[^/]+\/photo$/, /^\/me\/employee\/photo$/],
+    [
+      /^\/hr\/employees\/[^/]+\/photo$/,
+      /^\/me\/employee\/photo$/,
+      /^\/hr\/hire-drafts\/[^/]+\/photo$/,
+    ],
     raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1100kb' }),
   );
   // Bank statement files (Excel or CSV) are read as the raw file.

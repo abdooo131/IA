@@ -135,6 +135,27 @@ Also inside the app: settings menu (top of every screen), Help.
 - A person is missing from payroll: open their Pay tab and set the package.
 - An old link to Departments, Positions, Grades, Shifts or Holidays opens the new setup page on the right tab.
 
+### Hiring and leaving (HR)
+
+1. New hire (HR home or Employee list): fill Person, Job, Pay (only with the salaries switch), Documents, System access, then Review. Every Next saves a draft; Save and finish later keeps it under Hires to finish on the HR home.
+2. Documents step: drop several files at once or take photos with the phone, then tap the type of each from the list of what this job needs. Anything missing can come later.
+3. System access: give a login (the job role comes from the position; pick the stores) or no login for people who never use the system. Riders always get a login.
+4. Create: copy the one time setup link at once and send it to the person; they open it to choose their password. Lost it? Their file shows Waiting for their password with New setup link.
+5. Someone leaving: on the file, Start leaving. Pick the last working day and the reason, the notice date, tick the company items returned, read the settlement figures for payroll, give their people, department, merchants and deals to someone (or later), then Confirm.
+6. Their account closes by itself at the end of the last day. Anything left for later shows under Needs a new owner on the HR home; give each one an owner.
+7. Documents: on a file tap Remind on a missing or expiring document (or Remind of everything missing); the person gets a notification and a notice in My HR, once a day. Documents, Expiry calendar shows what runs out each day of the month.
+
+**Check it went right**
+
+- No hire waits under Hires to finish for more than a day; Needs a new owner is empty; every new hire opened their setup link within the week.
+
+**If something is wrong**
+
+- The pay step is missing: you do not have the salaries switch; the HR manager adds the package (New hires wait for pay on the HR home).
+- Only someone with settings manage can give the Owner job role; ask them, or pick another role.
+- Email or mobile already used: the person may already have an account; search the employee list first.
+- The leaving wizard refuses the last owner: give settings manage to someone else first.
+
 ### Users and settings
 
 1. Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.
@@ -301,6 +322,27 @@ Also inside the app: settings menu (top of every screen), Help.
 - اترفض بسبب دايرة مديرين: حد هيبقى مدير نفسه من خلال السلسلة؛ حدد المدير في الملف بدل كده.
 - حد مش ظاهر في المرتبات: افتح تبويب الراتب وحدد الحزمة.
 - لينك قديم للأقسام أو الوظائف أو الدرجات أو الورديات أو الإجازات الرسمية بيفتح صفحة الإعداد الجديدة على التبويب الصح.
+
+### التعيين والمغادرة (الموارد البشرية)
+
+1. تعيين جديد (من الصفحة الرئيسية للموارد البشرية أو قائمة الموظفين): املا البيانات الشخصية والوظيفة والراتب (بصلاحية المرتبات بس) والمستندات والدخول على النظام وبعدين المراجعة. كل التالي بيحفظ مسودة؛ احفظ وكمّل بعدين بيخليها تحت تعيينات لم تكتمل في الصفحة الرئيسية.
+2. خطوة المستندات: اسحب أكتر من ملف مرة واحدة أو صوّر بالموبايل، وبعدين اختار نوع كل واحد من قائمة اللي الوظيفة محتاجاه. أي ناقص ممكن ييجي بعدين.
+3. الدخول على النظام: ادّي حساب دخول (الدور الوظيفي بييجي من الوظيفة؛ اختار المخازن) أو من غير دخول للي مش بيستخدموا النظام. المناديب دايمًا ليهم حساب دخول.
+4. إنشاء: انسخ رابط الإعداد اللي بيظهر مرة واحدة على طول وابعته للشخص؛ بيفتحه ويختار كلمة السر. ضاع؟ ملفه بيقول بانتظار اختيار كلمة المرور وفيه رابط إعداد جديد.
+5. حد ماشي: من الملف، بدء إنهاء الخدمة. اختار آخر يوم شغل والسبب وتاريخ الإخطار، علّم على العهدة اللي اتسلمت، اقرا أرقام المخالصة للمرتبات، سلّم الناس والقسم والتجار والصفقات لحد (أو بعدين)، وبعدين أكّد.
+6. حسابه بيتقفل لوحده في نهاية آخر يوم. أي حاجة اتسابت لبعدين بتظهر تحت يحتاج مسؤولًا جديدًا في الصفحة الرئيسية؛ ادّي كل واحدة لمسؤول.
+7. المستندات: في الملف اضغط تذكير على مستند ناقص أو هيخلص (أو التذكير بكل النواقص)؛ الشخص بيوصله إشعار وتنبيه في ملفي، مرة واحدة في اليوم. المستندات، تقويم الانتهاء بيوريك اللي بيخلص كل يوم في الشهر.
+
+**اتأكد إنها مشيت صح**
+
+- مفيش تعيين مستني تحت تعيينات لم تكتمل أكتر من يوم؛ يحتاج مسؤولًا جديدًا فاضية؛ وكل موظف جديد فتح رابط الإعداد في نفس الأسبوع.
+
+**لو فيه مشكلة**
+
+- خطوة الراتب مش ظاهرة: معندكش صلاحية المرتبات؛ مدير الموارد البشرية بيضيف الحزمة (تعيينات جديدة بانتظار الراتب في الصفحة الرئيسية).
+- دور المالك بيدّيه بس اللي معاه إدارة الإعدادات؛ اطلب منه أو اختار دور تاني.
+- الإيميل أو الموبايل مستخدم: ممكن الشخص له حساب أصلًا؛ دوّر في قائمة الموظفين الأول.
+- معالج إنهاء الخدمة رافض لأنه آخر مالك: ادّي إدارة الإعدادات لحد تاني الأول.
 
 ### المستخدمين والإعدادات
 

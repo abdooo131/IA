@@ -484,7 +484,10 @@
         "hr__leave_backdate_days": "How many days back a leave request may start",
         "hr__payroll_days_per_month": "A day of pay is the basic salary divided by",
         "hr__violation_period_days": "Violations of a type count on the ladder for (days)",
-        "hr__appeal_days": "Days to appeal a violation"
+        "hr__appeal_days": "Days to appeal a violation",
+        "hr__setup_link_days": "New hire's password link valid for (days)",
+        "hr__notice_days": "Notice period checked when someone leaves (days)",
+        "hr__pay_unused_leave_on_exit": "Pay unused annual leave when someone leaves (1 yes, 0 no)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -4381,6 +4384,27 @@
             ]
           },
           {
+            "title": "Hiring and leaving (HR)",
+            "steps": [
+              "New hire (HR home or Employee list): fill Person, Job, Pay (only with the salaries switch), Documents, System access, then Review. Every Next saves a draft; Save and finish later keeps it under Hires to finish on the HR home.",
+              "Documents step: drop several files at once or take photos with the phone, then tap the type of each from the list of what this job needs. Anything missing can come later.",
+              "System access: give a login (the job role comes from the position; pick the stores) or no login for people who never use the system. Riders always get a login.",
+              "Create: copy the one time setup link at once and send it to the person; they open it to choose their password. Lost it? Their file shows Waiting for their password with New setup link.",
+              "Someone leaving: on the file, Start leaving. Pick the last working day and the reason, the notice date, tick the company items returned, read the settlement figures for payroll, give their people, department, merchants and deals to someone (or later), then Confirm.",
+              "Their account closes by itself at the end of the last day. Anything left for later shows under Needs a new owner on the HR home; give each one an owner.",
+              "Documents: on a file tap Remind on a missing or expiring document (or Remind of everything missing); the person gets a notification and a notice in My HR, once a day. Documents, Expiry calendar shows what runs out each day of the month."
+            ],
+            "check": [
+              "No hire waits under Hires to finish for more than a day; Needs a new owner is empty; every new hire opened their setup link within the week."
+            ],
+            "problems": [
+              "The pay step is missing: you do not have the salaries switch; the HR manager adds the package (New hires wait for pay on the HR home).",
+              "Only someone with settings manage can give the Owner job role; ask them, or pick another role.",
+              "Email or mobile already used: the person may already have an account; search the employee list first.",
+              "The leaving wizard refuses the last owner: give settings manage to someone else first."
+            ]
+          },
+          {
             "title": "Users and settings",
             "steps": [
               "Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.",
@@ -5099,7 +5123,10 @@
       "hrOverview": "HR home",
       "employeeList": "Employee list",
       "organisation": "Organisation",
-      "attendanceSetup": "Attendance setup"
+      "attendanceSetup": "Attendance setup",
+      "newHire": "New hire",
+      "expiryCalendar": "Expiry calendar",
+      "needsOwner": "Needs a new owner"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -5276,7 +5303,8 @@
       "document_too_large": "The file is larger than 3 MB.",
       "document_not_readable": "The file does not look like a photo or a PDF.",
       "expires_before_issued": "The document cannot run out before it was issued."
-    }
+    },
+    "newHire": "New hire"
   },
   "attendance": {
     "title": "Attendance",
@@ -5825,7 +5853,13 @@
     "myExpiringHint": "Still valid. Send the renewed one when you have it.",
     "annualLeaveDays": "Annual leave days a year",
     "annualLeaveShort": "{days} days annual leave",
-    "openEmptyHint": "A joining checklist starts when someone gets an account; a leaving one when a file is marked as left."
+    "openEmptyHint": "A joining checklist starts when someone gets an account; a leaving one when a file is marked as left.",
+    "reminded": "{count, plural, one {Reminder sent.} other {# reminders sent.}}",
+    "remindedAlready": "Already reminded today; they get one reminder a day.",
+    "remindAllHint": "{count, plural, one {1 required document is not in order.} other {# required documents are not in order.}}",
+    "remindAll": "Remind of everything missing",
+    "remind": "Remind",
+    "expiryCalendar": "Expiry calendar"
   },
   "push": {
     "back": "Back",
@@ -8048,7 +8082,9 @@
       "complete": "File {percent}% complete",
       "missingIntro": "Still missing:",
       "documentsLine": "{done} of {required} required documents on file.",
-      "probationFromHire": "From the hire date and the probation months setting"
+      "probationFromHire": "From the hire date and the probation months setting",
+      "startLeaving": "Start leaving",
+      "accountClosesOn": "Leaving: the account closes at the end of {date}."
     },
     "job": {
       "now": "Where they work now",
@@ -8125,6 +8161,337 @@
         "shifts": "Shifts",
         "holidays": "Official holidays"
       }
+    }
+  },
+  "hr2": {
+    "title": "New hire",
+    "titleFor": "New hire: {name}",
+    "intro": "One guided form: fill a step, press Next, and it is saved as a draft you can come back to from the HR home.",
+    "backHome": "Back to the HR home",
+    "newHire": "New hire",
+    "stepOf": "Step {n} of {total}",
+    "progress": "How far through",
+    "steps": {
+      "person": "Person",
+      "job": "Job",
+      "pay": "Pay",
+      "documents": "Documents",
+      "access": "System access",
+      "review": "Review and create"
+    },
+    "intros": {
+      "person": "Who is joining: names in both languages, the mobile they use, and who to call in an emergency.",
+      "job": "Where they work and how they are employed. The manager comes from the department head unless you pick someone.",
+      "pay": "The salary package from the hire day, and the bank account the salary goes to.",
+      "documents": "The documents this job needs. Add what you have now (drop several files or take photos); the rest can come later.",
+      "access": "Whether they sign in to Shiply and what they may open. They choose their own password through a one time link.",
+      "review": "Check everything once. Create makes the login, the file, the pay, the documents, the roster and the joining checklist together."
+    },
+    "back": "Back",
+    "next": "Next",
+    "create": "Create",
+    "creating": "Working…",
+    "edit": "Edit",
+    "saveForLater": "Save and finish later",
+    "savedAt": "Draft saved.",
+    "discard": "Throw away",
+    "discardConfirm": "Throw this draft away, with the photo and documents added to it?",
+    "loading": "Loading…",
+    "fixIssues": "{count, plural, one {One thing needs fixing} other {# things need fixing}} before going on.",
+    "payByManager": "You do not see salaries: the pay step is skipped and an HR manager with salaries adds the package after.",
+    "createHint": "Nothing is created until you press Create. Pressing it twice creates the person once.",
+    "draftDone": "This draft was already used: the person has a file.",
+    "draftDiscarded": "This draft was thrown away.",
+    "person": {
+      "addPhoto": "Add a photo",
+      "photoHint": "A square photo of the face, taken with the phone or chosen from a file.",
+      "mobileHint": "An Egyptian mobile: 010, 011, 012 or 015.",
+      "emailHint": "Needed if they will sign in to Shiply."
+    },
+    "job": {
+      "kind": "Account kind",
+      "kinds": {
+        "team": "Team member",
+        "rider": "Rider"
+      },
+      "kindHints": {
+        "team": "Store, hub or office staff",
+        "rider": "Delivers orders with the rider app"
+      },
+      "gradeRange": "Grades for this position: {from} to {to}",
+      "managerHint": "Leave it on the department to follow the department head chain.",
+      "managerDefault": "From the department: {name}",
+      "managerNone": "From the department (no head yet)",
+      "fromChain": "From the department",
+      "store": "Store",
+      "stores": "Stores",
+      "storesHint": "Where they work. None means the office.",
+      "staffingCompany": "Outsourcing company",
+      "probationDefault": "Empty: {date} ({months} months from the hire day).",
+      "probationAuto": "From the hire day",
+      "shift": "Default shift",
+      "shiftHint": "Their roster for the next two weeks is planned from it.",
+      "noShift": "No shift (no roster)",
+      "badge": "Rider badge",
+      "badgeHint": "Printed on the badge card and scanned at hand over.",
+      "titleHint": "Optional: a title shown when the position is not enough."
+    },
+    "pay": {
+      "basic": "Basic salary (EGP a month)",
+      "fromHire": "Paid from the hire day, {date}.",
+      "insured": "Insured wage (EGP)",
+      "insuredHint": "Empty: social insurance counts the gross.",
+      "allowances": "Allowances",
+      "kind": "Kind",
+      "label": "Label",
+      "amount": "Amount (EGP)",
+      "remove": "Remove",
+      "addAllowance": "+ Add an allowance",
+      "gross": "Gross a month",
+      "bank": "Salary bank account"
+    },
+    "docs": {
+      "checklist": "Required for this job",
+      "noneRequired": "No document is required for this job.",
+      "added": "Added",
+      "later": "Later",
+      "laterHint": "Anything not added now shows on the file as missing, and you can remind the person.",
+      "addedCount": "Documents added",
+      "dropTitle": "Add several documents at once",
+      "dropZone": "Drop files here",
+      "dropHint": "Drop photos or PDFs here, take photos with the phone, or choose files. Then tap the type of each.",
+      "chooseFiles": "Choose files",
+      "whichType": "Which document is this?",
+      "otherType": "Another type…",
+      "removeFile": "Remove",
+      "sent": "Sent",
+      "sending": "Sending…",
+      "sendAll": "{count, plural, one {Upload the file} other {Upload # files}}",
+      "pickTypes": "Tap the type of every file first.",
+      "pickDates": "Some documents need their expiry date.",
+      "forPersonTitle": "Upload for someone",
+      "forPersonIntro": "Pick a person with documents missing, drop their files and tap what each one is.",
+      "person": "Person",
+      "missingCount": "{count, plural, =0 {nothing missing} one {1 missing} other {# missing}}"
+    },
+    "access": {
+      "loginQuestion": "Will they use Shiply?",
+      "withLogin": "Gets a login",
+      "withLoginHint": "They choose their password through a one time link you hand them.",
+      "noLogin": "No login",
+      "noLoginHint": "For people who never use the system. HR keeps their file.",
+      "riderLogin": "Riders always sign in to the rider app with their email.",
+      "login": "Login",
+      "emailHint": "They sign in with this address.",
+      "jobRole": "Job role",
+      "fromPosition": "Filled from the position; change it if needed.",
+      "storeScope": "Stores they see",
+      "allStores": "Every store",
+      "listedStores": "Only these stores",
+      "switches": "Extra rights",
+      "customerData": "Named customer profiles",
+      "salaries": "Salaries and payslips",
+      "summary": "What {role} opens"
+    },
+    "done": {
+      "title": "{name} joined as {code}",
+      "body": "The file, the joining checklist and everything you added are ready.",
+      "linkTitle": "One time setup link",
+      "linkHint": "Copy it now and send it to them: it is shown only once. They open it to choose their password.",
+      "copy": "Copy the link",
+      "copied": "Copied",
+      "repeated": "This person was already created. Make a new setup link from their file if they need one.",
+      "noLogin": "No login was made: they do not use the system.",
+      "payPending": "Their salary package is waiting for an HR manager with salaries.",
+      "openFile": "Open the file",
+      "another": "Hire someone else"
+    },
+    "setup": {
+      "pendingTitle": "Waiting for their password",
+      "pendingBody": "This person has a login but has not chosen a password yet. A new link stops the old one working.",
+      "newLink": "New setup link"
+    },
+    "leaving": {
+      "title": "Leaving: {name}",
+      "intro": "Step by step: the last day and reason, company items, the final settlement for payroll, and who takes over what they looked after.",
+      "backFile": "Back to the file",
+      "start": "Start leaving",
+      "statusHint": "Someone leaving? The leaving wizard checks the notice, the items, the settlement and their work.",
+      "steps": {
+        "day": "Last day and reason",
+        "items": "Company items",
+        "settlement": "Final settlement",
+        "owners": "Hand over",
+        "review": "Review"
+      },
+      "intros": {
+        "day": "The last working day closes their account at the end of that day.",
+        "items": "Tick what they already gave back. The rest stays on the leaving checklist.",
+        "settlement": "Figures for the salary run, worked out from their file, leave and records. Nothing is paid here.",
+        "owners": "People, departments, merchants, deals and companies they looked after. Choose who takes each over, or later.",
+        "review": "Check and confirm."
+      },
+      "lastDay": "Last working day",
+      "reason": "Reason",
+      "reasons": {
+        "resignation": "Resignation",
+        "termination": "Termination",
+        "end_of_contract": "End of contract",
+        "other": "Other"
+      },
+      "note": "Note",
+      "noticeGivenOn": "Notice given on",
+      "noticeAfter": "The notice cannot come after the last day.",
+      "noticeTitle": "Notice period: {days} days",
+      "noticeNone": "No notice recorded.",
+      "noticeOk": "{given} days of notice: enough.",
+      "noticeShort": "{given} days of notice: {short} days short.",
+      "noticeShortShort": "{short} days short",
+      "noticeEnough": "Enough",
+      "noticeAfterNext": "Checked when you press Next.",
+      "notice": "Notice",
+      "noItems": "The leaving checklist has no company items.",
+      "itemsHint": "Every item becomes a task on the leaving checklist; ticked ones are already done.",
+      "itemsReturned": "Items returned",
+      "nothingOwned": "They do not look after anyone or anything: nothing to hand over.",
+      "newOwner": "New owner",
+      "later": "Choose later",
+      "ownersHint": "Anything left for later shows under Needs a new owner on the HR home.",
+      "handedOver": "Handed over now",
+      "person": "Person",
+      "reviewHint": "Confirming marks them as left from {date}, starts the leaving checklist and closes their account at the end of that day.",
+      "pastDay": "The last day is over: the account closes at once.",
+      "confirm": "Confirm leaving",
+      "confirmQuestion": "Mark this person as leaving? This cannot be undone here.",
+      "cancel": "Cancel",
+      "doneTitle": "{name} is leaving",
+      "closesOn": "Their account closes at the end of {date}.",
+      "closedNow": "Their account is closed and they are signed out everywhere.",
+      "offboardingStarted": "The leaving checklist has started.",
+      "stillOpen": "{count, plural, one {One thing still needs} other {# things still need}} a new owner.",
+      "openFile": "Open the leaving checklist",
+      "openNeedsOwner": "Give them owners",
+      "owners": {
+        "hr": "HR",
+        "manager": "Manager",
+        "employee": "Employee",
+        "it": "IT",
+        "finance": "Finance",
+        "store": "Store"
+      }
+    },
+    "settle": {
+      "item": "Item",
+      "days": "Days",
+      "amount": "Amount",
+      "daysWorked": "Days worked in the last month (from {from})",
+      "leaveToPay": "Unused annual leave to pay",
+      "leaveAhead": "Annual leave taken ahead",
+      "unpaid": "Unpaid leave not taken yet",
+      "deductions": "{count, plural, =0 {Violation deductions} one {1 violation deduction} other {# violation deductions}}",
+      "advance": "Staff advance to take back",
+      "commission": "Sales commission still owed",
+      "net": "Estimate before tax and insurance",
+      "hint": "The salary run pays and takes these; tax and insurance come off there.",
+      "noMoney": "Amounts need the salaries switch; the days are shown.",
+      "outsourced": "Hired through an outsourcing company: their company pays them. Deductions are listed for the company."
+    },
+    "kinds": {
+      "manager_of": "Manages",
+      "department_head": "Department head",
+      "account_manager": "Account manager",
+      "deal_owner": "Deal owner",
+      "company_owner": "Company owner"
+    },
+    "needsOwner": {
+      "title": "Needs a new owner",
+      "intro": "What people who left looked after and nobody owns yet. Give each one to someone.",
+      "empty": "Everything has an owner",
+      "emptyBody": "When someone leaves, anything they looked after and nobody took over shows here.",
+      "leftBy": "From",
+      "give": "Give",
+      "manageOnly": "HR manage gives these to someone."
+    },
+    "calendar": {
+      "title": "Expiry calendar",
+      "intro": "Documents running out each day of the month. Tap a day or a person to act.",
+      "back": "Back to documents",
+      "months": "Months",
+      "previous": "Previous month",
+      "next": "Next month",
+      "count": "{count, plural, one {1 document} other {# documents}}",
+      "empty": "Nothing runs out this month",
+      "emptyBody": "Documents with an expiry date show on the day they run out."
+    },
+    "home": {
+      "drafts": "{count, plural, one {Hire to finish} other {# hires to finish}}",
+      "draftLine": "At {step} · {by}",
+      "noName": "No name yet",
+      "continue": "Continue",
+      "needsOwner": "{count, plural, one {1 thing needs a new owner} other {# things need a new owner}}",
+      "giveOwners": "Give them owners",
+      "payPending": "{count, plural, one {1 new hire waits for pay} other {# new hires wait for pay}}"
+    },
+    "my": {
+      "askTitle": "HR asked you for",
+      "askedBy": "{name} asked on {date}",
+      "sendNow": "Send it",
+      "bringToHr": "Bring it to HR"
+    },
+    "issues": {
+      "required": "Fill this in.",
+      "too_short": "Too short.",
+      "invalid_egyptian_phone": "Enter an Egyptian mobile (010, 011, 012 or 015).",
+      "invalid_email": "Enter a valid email.",
+      "invalid_national_id": "A national ID has 14 digits.",
+      "invalid_date": "Enter a date as dd/mm/yyyy.",
+      "in_future": "This date is in the future.",
+      "one_store": "Pick one store.",
+      "invalid_badge_code": "3 to 20 letters, digits or dashes.",
+      "before_hire": "This is before the hire day.",
+      "invalid_iban": "An Egyptian IBAN is EG and 27 digits.",
+      "required_for_login": "A login needs an email."
+    },
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "network": "No connection. Try again.",
+      "validation_failed": "Some values are not valid.",
+      "no_access": "You cannot do this.",
+      "salaries_required": "Pay needs the salaries switch.",
+      "access_needs_settings": "Only someone with settings manage can give these rights.",
+      "store_not_allowed": "That store is not one of yours.",
+      "draft_incomplete": "Some steps are not complete yet.",
+      "draft_closed": "This draft was already used or thrown away.",
+      "draft_already_created": "This person was already created.",
+      "draft_not_found": "This draft does not exist.",
+      "email_taken": "Someone already uses this email.",
+      "phone_taken": "Someone already uses this mobile.",
+      "badge_taken": "Another rider has this badge.",
+      "dark_store_required": "Pick the store they work in.",
+      "grade_outside_position": "That grade is outside the position's range.",
+      "manager_not_found": "That manager is not available.",
+      "manager_loop": "That manager would report to this person.",
+      "shift_not_found": "That shift is not available.",
+      "staffing_company_not_found": "That outsourcing company is not available.",
+      "position_not_found": "That position does not exist.",
+      "department_not_found": "That department does not exist.",
+      "expiry_required": "This document needs its expiry date.",
+      "document_type_not_allowed": "This kind of file is not accepted for this document.",
+      "document_too_large": "The file is too large.",
+      "document_not_readable": "The file could not be read.",
+      "photo_too_large": "The photo is too large.",
+      "employee_left": "This person already left.",
+      "cannot_leave_self": "You cannot mark yourself as leaving.",
+      "left_before_hire": "The last day is before the hire day.",
+      "last_owner": "This is the last person who manages settings: give someone else that right first.",
+      "owner_not_allowed": "That person cannot take this over.",
+      "already_reassigned": "This already has a new owner.",
+      "login_already_active": "They already chose their password.",
+      "no_login": "This person has no login.",
+      "login_not_pending": "This login was not made by the new hire wizard.",
+      "idempotency_key_reused": "Refresh the page and try again.",
+      "document_in_order": "This document is in order.",
+      "manager_is_self": "Someone cannot be their own manager."
     }
   }
 }

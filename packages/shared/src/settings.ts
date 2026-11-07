@@ -658,6 +658,27 @@ export const SETTING_DEFINITIONS = {
       'Days a person has to appeal a violation; without an appeal it becomes final after them',
     override: 'none',
   },
+  // HR phase 2 (docs/HR.md "Phase 2 as built"): the hire and leaving wizards.
+  'hr.setup_link_days': {
+    schema: z.number().int().min(1).max(90),
+    default: 7,
+    description: "Days a new hire's one time link to choose a password stays valid",
+    override: 'none',
+  },
+  'hr.notice_days': {
+    schema: z.number().int().min(0).max(180),
+    default: 30,
+    description:
+      'Notice period (days) the leaving wizard checks between the notice and the last working day',
+    override: 'none',
+  },
+  'hr.pay_unused_leave_on_exit': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      '1: unused annual leave days are paid in the final settlement; 0: they are not paid',
+    override: 'none',
+  },
   'finance.rider_cash_limit_piastres': {
     schema: piastres,
     default: 500_000,

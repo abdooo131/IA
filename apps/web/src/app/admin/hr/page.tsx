@@ -100,8 +100,13 @@ export default async function EmployeesPage({
               {tp('exportCsv')}
             </a>
             {canDo(profile, 'settings', 'manage') && (
-              <Link href="/admin/users" className={btnPrimary}>
+              <Link href="/admin/users" className={btnSecondary}>
                 {t('list.addPerson')}
+              </Link>
+            )}
+            {canDo(profile, 'hr', 'use') && (
+              <Link href="/admin/hr/hire" className={btnPrimary}>
+                {th('newHire')}
               </Link>
             )}
           </>

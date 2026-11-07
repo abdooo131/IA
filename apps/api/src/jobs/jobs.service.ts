@@ -15,6 +15,7 @@ import {
   checkRiderCashOverdue,
   closeAttendanceDays,
   runViolationJobs,
+  runExitDisables,
   crmReminders,
   checkFailedDeliveries,
   flagLateOrders,
@@ -195,7 +196,11 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       const hr = await runViolationJobs(this.prisma, now);
       if (hr.finalized + hr.suggested > 0)
         this.log.log(`Violations: ${hr.finalized} final, ${hr.suggested} suggested`);
-      return { ...result, ...hr };
+      // HR phase 2: leavers' accounts close at the end of their last day (each exit once).
+      const exits = await runExitDisables(this.prisma, now);
+      if (exits.disabled + exits.cancelled > 0)
+        this.log.log(`Leavers: ${exits.disabled} accounts disabled, ${exits.cancelled} kept`);
+      return { ...result, ...hr, exits };
     } catch (error) {
       await this.reporter.report('job: attendance close', error);
       return null;

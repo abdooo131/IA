@@ -229,9 +229,13 @@ export const APPS: AppDef[] = [
         label: 'employees',
         pages: [
           { href: '/admin/hr', label: 'employeeList' },
+          // HR phase 2: the new hire wizard (HR use) and leavers' things without an owner.
+          { href: '/admin/hr/hire', label: 'newHire', need: { level: 'use' } },
           { href: '/admin/hr/org', label: 'orgChart' },
           { href: '/admin/hr/documents', label: 'hrDocuments' },
+          { href: '/admin/hr/documents/calendar', label: 'expiryCalendar' },
           { href: '/admin/hr/checklists', label: 'hrChecklists' },
+          { href: '/admin/hr/needs-owner', label: 'needsOwner' },
         ],
       },
       {

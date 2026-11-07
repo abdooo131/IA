@@ -200,6 +200,10 @@ export async function freshStart(
       await run('leave days', 'DELETE FROM leave_request_days');
       await run('leave requests', 'DELETE FROM leave_requests');
       await run('leave adjustments', 'DELETE FROM leave_adjustments');
+      // HR phase 2: hire drafts (with their files), exits (with reassignments) and reminders.
+      await run('hire drafts', 'DELETE FROM hire_drafts');
+      await run('employee exits', 'DELETE FROM employee_exits');
+      await run('document reminders', 'DELETE FROM document_reminders');
 
       // Party wallets of everyone who goes (all riders and suppliers), then riders.
       await run(

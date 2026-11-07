@@ -23,6 +23,7 @@ import {
   getOwnEmployee,
   isInTeam,
   listEmployeeDocuments,
+  myDocumentReminders,
   setEmployeePhoto,
   teamOf,
 } from '@shiplynow/db';
@@ -68,6 +69,13 @@ export class MyEmployeeController {
       checklists,
       team: { direct: team.direct, total: team.total },
     };
+  }
+
+  /** HR phase 2: documents HR asked for in the last 14 days and still not in order. */
+  @Get('employee/reminders')
+  async reminders(@CurrentUser() user: AccessTokenClaims) {
+    await this.mine(user.sub);
+    return myDocumentReminders(this.prisma, user.sub);
   }
 
   @Get('employee/history')

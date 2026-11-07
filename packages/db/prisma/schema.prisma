@@ -162,6 +162,9 @@ model User {
   crmCommissionsApproved CrmCommission[]          @relation("crm_commission_approved_by")
   setupTokens            UserSetupToken[]         @relation("user_setup_token_user")
   setupTokensMade        UserSetupToken[]         @relation("user_setup_token_created_by")
+  hireDrafts             HireDraft[]              @relation("hire_draft_created_by")
+  exitsRecorded          EmployeeExit[]           @relation("employee_exit_created_by")
+  remindersSent          DocumentReminder[]       @relation("document_reminder_created_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -2675,6 +2678,9 @@ model Employee {
   violations       Violation[]
   suggestions      ViolationSuggestion[]
   corrections      AttendanceCorrection[]
+  exits            EmployeeExit[]
+  reminders        DocumentReminder[]
+  hireDraft        HireDraft?
 
   @@index([homeStoreId])
   @@index([status])
@@ -4360,4 +4366,140 @@ model AttendanceCorrection {
   @@index([employeeId, day])
   @@index([status])
   @@map("attendance_corrections")
+}
+
+// ─── HR phase 2: guided flows (docs/HR.md "Phase 2 as built") ──────────────────
+
+enum HireDraftStatus {
+  open
+  done
+  discarded
+
+  @@map("hire_draft_status")
+}
+
+/// A new hire being filled in step by step (the wizard saves between steps, so HR can come
+/// back). Creating it makes the account, the file and the rest in one transaction.
+model HireDraft {
+  id             String          @id @default(cuid())
+  status         HireDraftStatus @default(open)
+  /// The step HR stopped at (person, job, pay, documents, access, review)
+  step           String          @default("person")
+  /// What the steps hold so far (packages/shared hireDraftDataSchema)
+  data           Json            @default("{}")
+  createdById    String          @map("created_by_id")
+  /// The file made from it
+  employeeId     String?         @unique @map("employee_id")
+  /// The key of the create call, so a retry answers the same file
+  idempotencyKey String?         @unique @map("idempotency_key")
+  /// Created without the pay step (no salaries switch): an HR manager with salaries adds it
+  payPending     Boolean         @default(false) @map("pay_pending")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  createdBy User            @relation("hire_draft_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  employee  Employee?       @relation(fields: [employeeId], references: [id], onDelete: SetNull)
+  files     HireDraftFile[]
+
+  @@index([status])
+  @@map("hire_drafts")
+}
+
+/// A photo or document added to a draft before the file exists; copied to the file on create.
+model HireDraftFile {
+  id          String    @id @default(cuid())
+  draftId     String    @map("draft_id")
+  /// photo or document
+  kind        String
+  typeId      String?   @map("type_id")
+  title       String?
+  issuedOn    DateTime? @map("issued_on") @db.Date
+  expiresOn   DateTime? @map("expires_on") @db.Date
+  contentType String    @map("content_type")
+  data        Bytes
+  sizeBytes   Int       @map("size_bytes")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  draft HireDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+
+  @@index([draftId])
+  @@map("hire_draft_files")
+}
+
+/// A person leaving through the leaving wizard: the last day, the reason, the notice check, the
+/// settlement figures handed to payroll and when the account is disabled.
+model EmployeeExit {
+  id             String    @id @default(cuid())
+  employeeId     String    @map("employee_id")
+  lastDay        DateTime  @map("last_day") @db.Date
+  /// resignation, termination, end_of_contract, other
+  reason         String
+  note           String?
+  noticeGivenOn  DateTime? @map("notice_given_on") @db.Date
+  /// hr.notice_days when it was recorded
+  noticeDays     Int       @map("notice_days")
+  /// Days the notice falls short of noticeDays (0: enough)
+  noticeShortBy  Int       @default(0) @map("notice_short_by")
+  /// Company items ticked as returned (titles of the offboarding tasks)
+  itemsReturned  String[]  @default([]) @map("items_returned")
+  /// The settlement figures at confirmation (money read only with the salaries switch)
+  settlement     Json
+  /// The end of the last day (Cairo): the job disables the account then
+  disableAt      DateTime  @map("disable_at")
+  disabledAt     DateTime? @map("disabled_at")
+  /// The person came back before the account was disabled: nothing was disabled
+  cancelledAt    DateTime? @map("cancelled_at")
+  createdById    String    @map("created_by_id")
+  idempotencyKey String    @unique @map("idempotency_key")
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  employee      Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  createdBy     User           @relation("employee_exit_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  reassignments Reassignment[]
+
+  @@index([employeeId])
+  @@index([disabledAt, disableAt])
+  @@map("employee_exits")
+}
+
+/// Something a leaver looked after (people they managed, a department they headed, merchants,
+/// deals, companies) that was unassigned and needs a new owner, or got one in the wizard.
+model Reassignment {
+  id           String    @id @default(cuid())
+  exitId       String    @map("exit_id")
+  /// manager_of, department_head, account_manager, deal_owner, company_owner
+  kind         String
+  entityId     String    @map("entity_id")
+  label        String
+  /// The new owner (an employee for manager_of and department_head, else a user)
+  newOwnerId   String?   @map("new_owner_id")
+  resolvedAt   DateTime? @map("resolved_at")
+  resolvedById String?   @map("resolved_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  exit EmployeeExit @relation(fields: [exitId], references: [id], onDelete: Cascade)
+
+  @@unique([exitId, kind, entityId])
+  @@index([resolvedAt])
+  @@map("reassignments")
+}
+
+/// HR asked a person to send a missing or expiring document (once per type and Cairo day):
+/// a push notification and a notice in My HR.
+model DocumentReminder {
+  id          String   @id @default(cuid())
+  employeeId  String   @map("employee_id")
+  typeId      String   @map("type_id")
+  day         DateTime @db.Date
+  /// The state the document was in (missing, rejected, expiring, expired)
+  state       String
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  employee  Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  createdBy User     @relation("document_reminder_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([employeeId, typeId, day])
+  @@index([createdAt])
+  @@map("document_reminders")
 }

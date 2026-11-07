@@ -14,6 +14,11 @@ import type {
   EmployeeDocument,
 } from '@/lib/hr-types';
 import { shrinkPhoto } from '@/lib/photo';
+import type { UploadType } from '@/lib/hr-phase2';
+import { MultiUpload } from './MultiUpload';
+
+/** States HR may remind the person about (HR phase 2). */
+const REMINDABLE: DocumentState[] = ['missing', 'rejected', 'expired', 'expiring'];
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
@@ -155,6 +160,39 @@ export function DocumentsPanel({
     (ty) => ty.isActive && !shown.some((i) => i.type.id === ty.id && !ty.multiple),
   );
 
+  // HR phase 2: several files at once, each given a type from what the person is missing.
+  const missingTypes = shown.filter((i) => REMINDABLE.includes(i.state)).map((i) => i.type);
+  const uploadTypes: UploadType[] = [
+    ...missingTypes.map((ty) => ({ ...ty, suggested: true })),
+    ...(types ?? [])
+      .filter((ty) => ty.isActive && !missingTypes.some((m) => m.id === ty.id))
+      .map((ty) => ({
+        id: ty.id,
+        nameEn: ty.nameEn,
+        nameAr: ty.nameAr,
+        hasExpiry: ty.hasExpiry,
+        allowedTypes: ty.allowedTypes,
+        maxBytes: ty.maxBytes,
+        suggested: false,
+      })),
+  ];
+  const remindableCount = shown.filter((i) => i.required && REMINDABLE.includes(i.state)).length;
+
+  async function remind(typeId: string | null) {
+    if (mode.kind !== 'hr') return;
+    setBusy(true);
+    setError(null);
+    const result = await apiSend<{ sent: boolean | number; alreadyToday: boolean | number }>(
+      'POST',
+      `/hr/employees/${mode.employeeId}/documents/${typeId ? 'remind' : 'remind-all'}`,
+      typeId ? { typeId } : undefined,
+    );
+    setBusy(false);
+    if (!result.ok) return fail(result.error);
+    const sent = Number(result.data.sent);
+    setNotice(sent > 0 ? t('reminded', { count: sent }) : t('remindedAlready'));
+  }
+
   const docLine = (d: EmployeeDocument, current: boolean) => (
     <div className="flex flex-wrap items-start justify-between gap-2">
       <div className="min-w-0 text-caption text-text-muted">
@@ -236,6 +274,32 @@ export function DocumentsPanel({
         />
       </div>
 
+      {mode.kind === 'hr' && mode.canUse && (
+        <>
+          <MultiUpload
+            uploadPath={base}
+            types={uploadTypes}
+            onUploaded={() => {
+              setNotice(t('uploaded'));
+              router.refresh();
+            }}
+          />
+          {remindableCount > 0 && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-surface p-3">
+              <span className="text-body-sm">{t('remindAllHint', { count: remindableCount })}</span>
+              <button
+                type="button"
+                className={button}
+                disabled={busy}
+                onClick={() => void remind(null)}
+              >
+                {t('remindAll')}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
       {shown.length === 0 ? (
         <p className="text-body-sm text-text-muted">{t('noDocuments')}</p>
       ) : (
@@ -264,8 +328,18 @@ export function DocumentsPanel({
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <StateChip state={item.state} />
+                    {mode.kind === 'hr' && mode.canUse && REMINDABLE.includes(item.state) && (
+                      <button
+                        type="button"
+                        className={button}
+                        disabled={busy}
+                        onClick={() => void remind(item.type.id)}
+                      >
+                        {t('remind')}
+                      </button>
+                    )}
                     {canUpload && (mode.kind === 'hr' || selfCan(item)) && (
                       <button
                         type="button"

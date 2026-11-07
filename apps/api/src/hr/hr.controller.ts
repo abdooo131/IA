@@ -30,6 +30,8 @@ import {
   getEmployee,
   getEmployeeDocument,
   hrOverview,
+  latestExit,
+  loginStateOf,
   listDocumentAlerts,
   listEmployeeDocuments,
   listEmployees,
@@ -278,7 +280,7 @@ export class HrController {
       scope: limitedStores(access),
       bank: access.salaries,
     });
-    const [documents, team, whole, flags] = await Promise.all([
+    const [documents, team, whole, flags, login, exit] = await Promise.all([
       documentChecklist(this.prisma, id, { confidential: confidential(access) }),
       teamOf(this.prisma, id),
       employeeFileCompleteness(this.prisma, id, {
@@ -287,6 +289,9 @@ export class HrController {
         bank: access.salaries,
       }),
       employeeFlagsFor(this.prisma, [file], this.clock.now()),
+      // HR phase 2: whether the login waits for its setup link, and the latest exit.
+      loginStateOf(this.prisma, file.user.id),
+      latestExit(this.prisma, id, access.salaries),
     ]);
     const extra = flags.get(id)!;
     return {
@@ -302,6 +307,8 @@ export class HrController {
       probationEnd: extra.probationEndsOn,
       openViolations: extra.openViolations,
       team: { direct: team.direct, total: team.total },
+      login,
+      exit,
       salary: access.salaries ? await currentPackage(this.prisma, id) : null,
       canSeePay: access.salaries,
     };

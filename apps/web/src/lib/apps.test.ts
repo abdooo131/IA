@@ -78,9 +78,12 @@ describe('appsFor', () => {
     expect(pages('hr_officer')).toEqual([
       '/admin/hr/overview',
       '/admin/hr',
+      '/admin/hr/hire',
       '/admin/hr/org',
       '/admin/hr/documents',
+      '/admin/hr/documents/calendar',
       '/admin/hr/checklists',
+      '/admin/hr/needs-owner',
       '/admin/hr/attendance',
       '/admin/hr/attendance/days',
       '/admin/hr/roster',
@@ -97,6 +100,9 @@ describe('appsFor', () => {
       '/admin/hr/document-types',
       '/admin/hr/checklist-templates',
     ]);
+    // HR phase 2: the new hire wizard needs HR use; HR view sees the lists only.
+    expect(pages('store_manager')).not.toContain('/admin/hr/hire');
+    expect(pages('store_manager')).toContain('/admin/hr/needs-owner');
     // HR manager adds the salaries switch, still no accounting.
     expect(appsFor(profile('hr_manager')).map((a) => a.id)).toEqual(['hr']);
     expect(pages('owner')).toContain('/admin/settings/hr');

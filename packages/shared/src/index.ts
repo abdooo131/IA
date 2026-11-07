@@ -26,3 +26,4 @@ export * from './crm';
 export * from './crm-sales';
 export * from './hr-leave';
 export * from './hr-phase1';
+export * from './hr-phase2';

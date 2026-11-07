@@ -296,6 +296,7 @@ export async function dispatchPush(
     lowStock,
     crmEvents,
     hrEvents,
+    documentReminders,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -1506,4 +1507,42 @@ const hrEvents: Source = async (db, since) => {
     });
   }
   return list;
+};
+
+// ─── HR phase 2 ─────────────────────────────────────────────────────────────────
+
+/** HR asked a person for a missing or expiring document (once per type and day). */
+const documentReminders: Source = async (db, since) => {
+  const rows = await db.documentReminder.findMany({
+    where: { createdAt: { gte: since } },
+    select: {
+      id: true,
+      employee: { select: { userId: true } },
+      typeId: true,
+    },
+    take: 300,
+  });
+  if (rows.length === 0) return [];
+  const types = new Map(
+    (
+      await db.employeeDocumentType.findMany({
+        where: { id: { in: [...new Set(rows.map((r) => r.typeId))] } },
+        select: { id: true, nameEn: true, nameAr: true },
+      })
+    ).map((t) => [t.id, t]),
+  );
+  return rows.map((r) => ({
+    key: `document_reminder:${r.id}`,
+    make: async () => {
+      const t = types.get(r.typeId);
+      return {
+        userIds: [r.employee.userId],
+        type: 'document_expiring' as const,
+        text: 'document_reminder' as const,
+        vars: { document: t ? named(t) : '' },
+        url: '/my-file',
+        tag: `document-reminder-${r.typeId}`,
+      };
+    },
+  }));
 };

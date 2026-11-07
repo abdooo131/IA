@@ -288,3 +288,7 @@ export {
   requestCorrection,
   teamEmployeeIds,
 } from './hr-inbox';
+// HR phase 2 (docs/HR.md "Phase 2 as built"): the hire and leaving wizards, reminders.
+export * from './hr-hire';
+export * from './hr-exit';
+export * from './hr-reminders';

@@ -20,6 +20,7 @@ import type {
   EmployeeFile,
 } from '@/lib/hr-types';
 import { getCurrentUser } from '@/lib/server-session';
+import type { ReminderRow } from '@/lib/hr-phase2';
 
 export const dynamic = 'force-dynamic';
 
@@ -48,13 +49,16 @@ export default async function MyFilePage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/my-file');
   if (user.role === 'merchant') redirect('/merchant');
-  const [file, t, tp, locale, t3, badges] = await Promise.all([
+  const [file, t, tp, locale, t3, badges, reminders, t2] = await Promise.all([
     apiGet<MyFile>('/me/employee'),
     getTranslations('hr'),
     getTranslations('people'),
     getLocale(),
     getTranslations('hr3'),
     apiTry<{ inbox: number }>('/me/hr-badges'),
+    // HR phase 2: what HR asked this person to send.
+    apiTry<ReminderRow[]>('/me/employee/reminders'),
+    getTranslations('hr2'),
   ]);
   const day = (d: string | null) =>
     d ? <span className="ltr-iso">{isoToDayFirst(d)}</span> : null;
@@ -89,6 +93,37 @@ export default async function MyFilePage() {
             />
           }
         />
+
+        {reminders && reminders.length > 0 && (
+          <section
+            className="mt-4 rounded-lg border border-status-needs-action bg-surface p-4"
+            aria-labelledby="hr-asks"
+          >
+            <h2 id="hr-asks" className="text-body font-bold">
+              {t2('my.askTitle')}
+            </h2>
+            <ul className="mt-2 space-y-1.5">
+              {reminders.map((r) => (
+                <li
+                  key={r.id}
+                  className="flex flex-wrap items-center justify-between gap-2 text-body-sm"
+                >
+                  <span className="min-w-0">
+                    <span className="font-bold">
+                      {locale === 'ar' ? r.type.nameAr : r.type.nameEn}
+                    </span>
+                    <span className="block text-caption text-text-muted">
+                      {t2('my.askedBy', { name: r.by, date: isoToDayFirst(r.day) })}
+                    </span>
+                  </span>
+                  <a href="#me-docs" className="text-body-sm font-bold text-link">
+                    {r.type.selfUpload ? t2('my.sendNow') : t2('my.bringToHr')}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <div className="mt-4">
           <ClockCard />
