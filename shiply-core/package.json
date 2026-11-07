@@ -1,0 +1,23 @@
+{
+  "name": "shiply-core",
+  "private": true,
+  "packageManager": "pnpm@10.28.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build:packages": "pnpm --filter @shiply/shared build && pnpm --filter @shiply/db build",
+    "build": "pnpm build:packages && pnpm --filter @shiply/api build && pnpm --filter @shiply/web build",
+    "dev": "pnpm build:packages && pnpm --parallel --filter @shiply/api --filter @shiply/web dev",
+    "typecheck": "pnpm build:packages && pnpm -r typecheck",
+    "test": "pnpm build:packages && pnpm -r --workspace-concurrency=1 test",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "pnpm --filter @shiply/db migrate:dev",
+    "db:deploy": "pnpm --filter @shiply/db migrate:deploy",
+    "db:seed": "pnpm build:packages && pnpm --filter @shiply/db seed"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

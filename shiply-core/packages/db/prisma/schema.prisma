@@ -1,0 +1,374 @@
+// Shiply Core: parcel management for next day delivery.
+// Money columns are integer piastres. Status changes are written to shipment_events (append only).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  HUB_STAFF
+  COURIER
+  MERCHANT
+}
+
+enum ShipmentStatus {
+  CREATED
+  PICKED_UP
+  AT_HUB
+  ON_HOLD
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  ATTEMPT_FAILED
+  DELIVERED
+  RETURNED
+  CANCELLED
+  LOST
+}
+
+enum Direction {
+  FORWARD
+  RETURN
+}
+
+enum ParcelSize {
+  S
+  M
+  L
+  XL
+}
+
+enum PickupStatus {
+  REQUESTED
+  ASSIGNED
+  COLLECTED
+  RECEIVED
+  CANCELLED
+}
+
+enum BagStatus {
+  OPEN
+  SEALED
+  IN_TRANSIT
+  RECEIVED
+}
+
+enum TripStatus {
+  LOADING
+  IN_TRANSIT
+  ARRIVED
+}
+
+enum RunStatus {
+  LOADING
+  OUT
+  CLOSED
+}
+
+enum RunItemResult {
+  PENDING
+  DELIVERED
+  RETURNED
+  FAILED
+}
+
+model Hub {
+  id        String   @id @default(uuid()) @db.Uuid
+  code      String   @unique
+  name      String
+  address   String   @default("")
+  isSorting Boolean  @default(false) @map("is_sorting")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  governorates   Governorate[]
+  areas          Area[]
+  users          User[]
+  merchants      Merchant[]
+  @@map("hubs")
+}
+
+/// Pricing and promise zone, e.g. Greater Cairo next day, Delta two days.
+model Zone {
+  code        String @id
+  name        String
+  transitDays Int    @map("transit_days")
+  priceS      Int    @map("price_s")
+  priceM      Int    @map("price_m")
+  priceL      Int    @map("price_l")
+  priceXL     Int    @map("price_xl")
+
+  governorates Governorate[]
+  @@map("zones")
+}
+
+model Governorate {
+  code      String  @id
+  nameEn    String  @map("name_en")
+  nameAr    String  @map("name_ar")
+  zoneCode  String  @map("zone_code")
+  zone      Zone    @relation(fields: [zoneCode], references: [code])
+  /// Hub that delivers here when the area has no hub of its own. Null means we do not serve it yet.
+  hubId     String? @map("hub_id") @db.Uuid
+  hub       Hub?    @relation(fields: [hubId], references: [id])
+
+  areas Area[]
+  @@map("governorates")
+}
+
+model Area {
+  id              String      @id @default(uuid()) @db.Uuid
+  governorateCode String      @map("governorate_code")
+  governorate     Governorate @relation(fields: [governorateCode], references: [code])
+  nameEn          String      @map("name_en")
+  nameAr          String      @map("name_ar")
+  hubId           String?     @map("hub_id") @db.Uuid
+  hub             Hub?        @relation(fields: [hubId], references: [id])
+
+  @@unique([governorateCode, nameEn])
+  @@map("areas")
+}
+
+model User {
+  id           String    @id @default(uuid()) @db.Uuid
+  email        String    @unique
+  name         String
+  phone        String    @default("")
+  passwordHash String    @map("password_hash")
+  role         Role
+  hubId        String?   @map("hub_id") @db.Uuid
+  hub          Hub?      @relation(fields: [hubId], references: [id])
+  merchantId   String?   @map("merchant_id") @db.Uuid
+  merchant     Merchant? @relation(fields: [merchantId], references: [id])
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@map("users")
+}
+
+model Merchant {
+  id              String   @id @default(uuid()) @db.Uuid
+  code            String   @unique
+  name            String
+  phone           String
+  email           String   @default("")
+  pickupAddress   String   @map("pickup_address")
+  governorateCode String   @map("governorate_code")
+  areaId          String?  @map("area_id") @db.Uuid
+  /// Hub that picks up from this merchant and that returns go back to.
+  homeHubId       String   @map("home_hub_id") @db.Uuid
+  homeHub         Hub      @relation(fields: [homeHubId], references: [id])
+  discountBp      Int      @default(0) @map("discount_bp")
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  users     User[]
+  shipments Shipment[]
+  pickups   Pickup[]
+  payouts   Payout[]
+  @@map("merchants")
+}
+
+model Shipment {
+  id               String         @id @default(uuid()) @db.Uuid
+  trackingNumber   String         @unique @map("tracking_number")
+  merchantId       String         @map("merchant_id") @db.Uuid
+  merchant         Merchant       @relation(fields: [merchantId], references: [id])
+  merchantRef      String         @default("") @map("merchant_ref")
+  customerName     String         @map("customer_name")
+  customerPhone    String         @map("customer_phone")
+  address          String
+  governorateCode  String         @map("governorate_code")
+  areaId           String?        @map("area_id") @db.Uuid
+  size             ParcelSize     @default(M)
+  description      String         @default("")
+  notes            String         @default("")
+  allowOpen        Boolean        @default(false) @map("allow_open")
+  codAmount        Int            @default(0) @map("cod_amount")
+
+  status           ShipmentStatus @default(CREATED)
+  direction        Direction      @default(FORWARD)
+  originHubId      String         @map("origin_hub_id") @db.Uuid
+  destinationHubId String         @map("destination_hub_id") @db.Uuid
+  currentHubId     String?        @map("current_hub_id") @db.Uuid
+  pickupId         String?        @map("pickup_id") @db.Uuid
+  bagId            String?        @map("bag_id") @db.Uuid
+  runId            String?        @map("run_id") @db.Uuid
+
+  attempts         Int            @default(0)
+  lastFailReason   String?        @map("last_fail_reason")
+  holdReason       String?        @map("hold_reason")
+  promisedDate     String?        @map("promised_date")
+
+  shippingFee      Int            @map("shipping_fee")
+  codFee           Int            @map("cod_fee")
+  returnFee        Int            @default(0) @map("return_fee")
+  codCollected     Int            @default(0) @map("cod_collected")
+  payoutId         String?        @map("payout_id") @db.Uuid
+  payout           Payout?        @relation(fields: [payoutId], references: [id])
+
+  enteredAt        DateTime?      @map("entered_at")
+  deliveredAt      DateTime?      @map("delivered_at")
+  closedAt         DateTime?      @map("closed_at")
+  createdAt        DateTime       @default(now()) @map("created_at")
+  updatedAt        DateTime       @updatedAt @map("updated_at")
+
+  events   ShipmentEvent[]
+  runItems RunItem[]
+
+  @@index([merchantId, createdAt])
+  @@index([status, currentHubId])
+  @@index([bagId])
+  @@index([runId])
+  @@index([pickupId])
+  @@map("shipments")
+}
+
+/// Append only. A trigger rejects UPDATE and DELETE.
+model ShipmentEvent {
+  id         String         @id @default(uuid()) @db.Uuid
+  shipmentId String         @map("shipment_id") @db.Uuid
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id])
+  type       String
+  fromStatus ShipmentStatus? @map("from_status")
+  toStatus   ShipmentStatus  @map("to_status")
+  hubId      String?        @map("hub_id") @db.Uuid
+  userId     String?        @map("user_id") @db.Uuid
+  note       String         @default("")
+  createdAt  DateTime       @default(now()) @map("created_at")
+
+  @@index([shipmentId, createdAt])
+  @@map("shipment_events")
+}
+
+model Pickup {
+  id            String       @id @default(uuid()) @db.Uuid
+  code          String       @unique
+  merchantId    String       @map("merchant_id") @db.Uuid
+  merchant      Merchant     @relation(fields: [merchantId], references: [id])
+  hubId         String       @map("hub_id") @db.Uuid
+  date          String
+  status        PickupStatus @default(REQUESTED)
+  courierId     String?      @map("courier_id") @db.Uuid
+  expectedCount Int          @default(0) @map("expected_count")
+  notes         String       @default("")
+  collectedAt   DateTime?    @map("collected_at")
+  receivedAt    DateTime?    @map("received_at")
+  createdAt     DateTime     @default(now()) @map("created_at")
+
+  @@index([hubId, date])
+  @@map("pickups")
+}
+
+model Bag {
+  id               String    @id @default(uuid()) @db.Uuid
+  code             String    @unique
+  originHubId      String    @map("origin_hub_id") @db.Uuid
+  destinationHubId String    @map("destination_hub_id") @db.Uuid
+  status           BagStatus @default(OPEN)
+  tripId           String?   @map("trip_id") @db.Uuid
+  trip             Trip?     @relation(fields: [tripId], references: [id])
+  sealedAt         DateTime? @map("sealed_at")
+  receivedAt       DateTime? @map("received_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([originHubId, status])
+  @@map("bags")
+}
+
+/// A line haul vehicle moving sealed bags from one hub to another.
+model Trip {
+  id               String     @id @default(uuid()) @db.Uuid
+  code             String     @unique
+  originHubId      String     @map("origin_hub_id") @db.Uuid
+  destinationHubId String     @map("destination_hub_id") @db.Uuid
+  vehicle          String     @default("")
+  driverName       String     @default("") @map("driver_name")
+  status           TripStatus @default(LOADING)
+  departedAt       DateTime?  @map("departed_at")
+  arrivedAt        DateTime?  @map("arrived_at")
+  createdAt        DateTime   @default(now()) @map("created_at")
+
+  bags Bag[]
+  @@map("trips")
+}
+
+/// A courier's delivery run for one day from one hub. Can carry deliveries and returns.
+model Run {
+  id           String    @id @default(uuid()) @db.Uuid
+  code         String    @unique
+  hubId        String    @map("hub_id") @db.Uuid
+  courierId    String    @map("courier_id") @db.Uuid
+  date         String
+  status       RunStatus @default(LOADING)
+  cashExpected Int       @default(0) @map("cash_expected")
+  cashReceived Int?      @map("cash_received")
+  startedAt    DateTime? @map("started_at")
+  closedAt     DateTime? @map("closed_at")
+  closedById   String?   @map("closed_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  items RunItem[]
+  @@index([courierId, status])
+  @@map("runs")
+}
+
+model RunItem {
+  id           String        @id @default(uuid()) @db.Uuid
+  runId        String        @map("run_id") @db.Uuid
+  run          Run           @relation(fields: [runId], references: [id])
+  shipmentId   String        @map("shipment_id") @db.Uuid
+  shipment     Shipment      @relation(fields: [shipmentId], references: [id])
+  direction    Direction
+  result       RunItemResult @default(PENDING)
+  failReason   String?       @map("fail_reason")
+  codCollected Int           @default(0) @map("cod_collected")
+  recipient    String        @default("")
+  backAtHub    Boolean       @default(false) @map("back_at_hub")
+  resolvedAt   DateTime?     @map("resolved_at")
+
+  @@unique([runId, shipmentId])
+  @@map("run_items")
+}
+
+model Payout {
+  id         String   @id @default(uuid()) @db.Uuid
+  code       String   @unique
+  merchantId String   @map("merchant_id") @db.Uuid
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+  codTotal   Int      @map("cod_total")
+  feesTotal  Int      @map("fees_total")
+  amount     Int
+  reference  String   @default("")
+  createdById String  @map("created_by_id") @db.Uuid
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  shipments Shipment[]
+  @@map("payouts")
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model AuditLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String?  @map("user_id") @db.Uuid
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  data      Json     @default("{}")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([entity, entityId])
+  @@map("audit_log")
+}
