@@ -101,6 +101,20 @@ export async function postDelivered(tx: Tx, s: SettingValues, p: Shipment, couri
   await earn(tx, s, { courierId, kind: 'DELIVERY', points: s['pay.points_delivery'], shipmentId: p.id, note: p.trackingNumber, userId });
 }
 
+/** FlexShip: the customer refused but paid the shipping. The courier holds the cash; it goes to the merchant. */
+export async function postFlexPaid(tx: Tx, p: Shipment, itemId: string, amount: number, courierId: string, userId: string) {
+  await post(tx, {
+    memo: `FlexShip ${p.trackingNumber}`,
+    source: 'FLEX_PAID',
+    key: `FLEX:${itemId}`,
+    userId,
+    lines: [
+      { account: ACCOUNTS.COURIER_CASH.code, party: courier(courierId), debit: amount },
+      { account: ACCOUNTS.MERCHANT_WALLET.code, party: merchant(p.merchantId), credit: amount, memo: 'Shipping paid by the customer who refused' },
+    ],
+  });
+}
+
 /** Handed back to the merchant: we charge shipping and the return fee. */
 export async function postReturned(tx: Tx, s: SettingValues, p: Shipment, courierId: string, userId: string) {
   await post(tx, {

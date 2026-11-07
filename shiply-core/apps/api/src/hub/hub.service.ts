@@ -9,6 +9,7 @@ import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo, type NextStep } from '../core/shipments.core';
+import { sendDeliveryCode } from '../common/delivery-code';
 import { formatEgp } from '@shiply/shared';
 import { courierStanding, postPickupReceived, postRunClosed } from '../finance/postings';
 import { onFound, onLost } from '../control/lost';
@@ -155,6 +156,10 @@ export class HubService {
     const ev = { hubId: hub.id, userId: user.id };
     const base = { currentHubId: hub.id, runId: null };
 
+    if (s.direction === 'RETURN' && item.failReason === 'CUSTOMER_RETURN') {
+      await this.core.move(tx, s, 'AT_HUB', base, { ...ev, type: 'BACK_FROM_COURIER', note: 'Return collected from the customer, going back to the merchant' });
+      return 'Customer return received. It goes back to the merchant';
+    }
     if (s.direction === 'RETURN' && item.failReason === 'EXCHANGE') {
       await this.core.move(tx, s, 'AT_HUB', base, { ...ev, type: 'BACK_FROM_COURIER', note: 'Exchange item from the customer, going back to the merchant' });
       return 'Exchange item received. It goes back to the merchant';
@@ -664,6 +669,16 @@ export class HubService {
     });
   }
 
+  /** Returns customers asked to send back, waiting for a courier from this hub to collect them. */
+  customerReturns(hubId: string) {
+    return this.prisma.shipment.findMany({
+      where: { kind: 'CUSTOMER_RETURN', status: 'CREATED', destinationHubId: hubId },
+      select: { id: true, trackingNumber: true, customerName: true, customerPhone: true, address: true, governorateCode: true, attempts: true, runId: true, description: true, createdAt: true, merchant: { select: { name: true } } },
+      orderBy: { createdAt: 'asc' },
+      take: 300,
+    });
+  }
+
   async addToRun(hubId: string, runId: string, body: unknown, user: SessionUser) {
     const { code } = parse(Code, body);
     return this.prisma.tx(async (tx) => {
@@ -672,6 +687,15 @@ export class HubService {
       if (!run || run.hubId !== hubId) throw notFound('Run');
       if (run.status !== 'LOADING') throw new DomainError('bad_status', 'This run already left', 409);
       const s = await this.core.findByCode(tx, code, settings['tracking.prefix']);
+      if (s.kind === 'CUSTOMER_RETURN' && s.status === 'CREATED') {
+        // Nothing to put on the shelf: the courier goes to the customer to collect it.
+        if (s.destinationHubId !== hubId) throw new DomainError('wrong_hub', `${s.trackingNumber} is collected by another hub`, 409);
+        if (s.runId) throw new DomainError('bad_status', `${s.trackingNumber} is already on a run`, 409);
+        await tx.runItem.create({ data: { runId, shipmentId: s.id, direction: 'FORWARD' } });
+        await tx.shipment.update({ where: { id: s.id }, data: { runId } });
+        await tx.shipmentEvent.create({ data: { shipmentId: s.id, type: 'LOADED_ON_RUN', fromStatus: 'CREATED', toStatus: 'CREATED', hubId, userId: user.id, note: `Run ${run.code}: collect from the customer` } });
+        return { trackingNumber: s.trackingNumber, direction: 'FORWARD', message: 'Added: collect the return from the customer' };
+      }
       if (s.status !== 'AT_HUB' || s.currentHubId !== hubId) throw new DomainError('bad_status', `${s.trackingNumber} is not ready here`, 409);
       if (s.runId) throw new DomainError('bad_status', `${s.trackingNumber} is already on a run`, 409);
       if (s.bagId) throw new DomainError('bad_status', `${s.trackingNumber} is in a bag. Take it out first`, 409);
@@ -694,6 +718,11 @@ export class HubService {
       const s = await this.core.findByCode(tx, code, settings['tracking.prefix']);
       if (s.runId !== runId) throw new DomainError('bad_status', `${s.trackingNumber} is not on this run`, 409);
       await tx.runItem.delete({ where: { runId_shipmentId: { runId, shipmentId: s.id } } });
+      if (s.status === 'CREATED') {
+        await tx.shipment.update({ where: { id: s.id }, data: { runId: null } });
+        await tx.shipmentEvent.create({ data: { shipmentId: s.id, type: 'REMOVED_FROM_RUN', fromStatus: 'CREATED', toStatus: 'CREATED', hubId, userId: user.id, note: `Run ${run.code}` } });
+        return;
+      }
       await this.core.move(tx, s, 'AT_HUB', { runId: null }, { type: 'REMOVED_FROM_RUN', hubId, userId: user.id, note: `Run ${run.code}` });
     });
   }
@@ -709,7 +738,12 @@ export class HubService {
         await this.core.move(tx, s, 'OUT_FOR_DELIVERY', { currentHubId: null }, { type: s.direction === 'RETURN' ? 'OUT_FOR_RETURN' : 'OUT_FOR_DELIVERY', hubId, userId: user.id, note: `Run ${run.code}` });
       }
       await tx.run.update({ where: { id: runId }, data: { status: 'OUT', startedAt: new Date() } });
-      return { parcels: parcels.length };
+      // Each receiver gets the code they will give the courier at the door.
+      let codes = 0;
+      if ((await this.settings.all(tx))['delivery.code_required'] === 'ON') {
+        for (const s of parcels) if (s.kind !== 'CUSTOMER_RETURN' && (await sendDeliveryCode(tx, s.id))) codes++;
+      }
+      return { parcels: parcels.length, codes };
     });
   }
 

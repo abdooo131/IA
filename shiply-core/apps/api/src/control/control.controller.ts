@@ -32,6 +32,32 @@ export class ControlController {
     sendFile(res, await this.c.ticketPhoto(id));
   }
 
+  @Get('attempts')
+  attempts(@Query('status') status?: string) {
+    return this.c.attempts({ status });
+  }
+
+  @Post('attempts/:id/review')
+  @HttpCode(200)
+  review(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {
+    return this.c.reviewAttempt(id, body, u);
+  }
+
+  @Get('stops/:id/photo')
+  async stopPhoto(@Param('id', ParseUUIDPipe) id: string, @Res() res: Response) {
+    sendFile(res, await this.c.stopPhoto(id));
+  }
+
+  @Get('couriers/live')
+  live() {
+    return this.c.liveCouriers();
+  }
+
+  @Get('couriers/:id/trail')
+  trail(@Param('id', ParseUUIDPipe) id: string, @Query('date') date: string) {
+    return this.c.trail(id, date ?? '');
+  }
+
   @Put('tickets/:id/penalty')
   @HttpCode(200)
   penalty(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: unknown) {

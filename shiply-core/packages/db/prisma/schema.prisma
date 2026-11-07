@@ -445,6 +445,8 @@ model Merchant {
   status          String   @default("ACTIVE")
   logo            Bytes?
   logoMime        String   @default("") @map("logo_mime")
+  /// FlexShip: a customer who refuses the parcel may pay the shipping instead of the merchant.
+  flexShip        Boolean  @default(false) @map("flex_ship")
   pendingBank     Json?    @map("pending_bank")
   pendingBankById String?  @map("pending_bank_by_id") @db.Uuid
   /// Weekdays the merchant is paid (0 Sunday ... 6 Saturday).
@@ -566,6 +568,8 @@ model Pickup {
   expectedCount Int          @default(0) @map("expected_count")
   notes         String       @default("")
   collectedAt   DateTime?    @map("collected_at")
+  /// Made by the system because the merchant had parcels waiting and no pickup booked.
+  auto          Boolean      @default(false)
   receivedAt    DateTime?    @map("received_at")
   createdAt     DateTime     @default(now()) @map("created_at")
 
@@ -647,6 +651,21 @@ model RunItem {
   recipient    String        @default("")
   backAtHub    Boolean       @default(false) @map("back_at_hub")
   resolvedAt   DateTime?     @map("resolved_at")
+  /// Where the courier stood when they recorded the result.
+  lat          Float?
+  lng          Float?
+  /// Photo of a return taken in front of the customer, or proof of delivery.
+  photo        Bytes?
+  photoMime    String        @default("") @map("photo_mime")
+  /// The receiver gave the courier the code sent to their phone.
+  codeChecked  Boolean       @default(false) @map("code_checked")
+  /// FlexShip: shipping the refusing customer paid, included in codCollected.
+  flexPaid     Int           @default(0) @map("flex_paid")
+  /// Quality check of a failed attempt: GENUINE or FAKE.
+  reviewVerdict String?      @map("review_verdict")
+  reviewNote   String        @default("") @map("review_note")
+  reviewedById String?       @map("reviewed_by_id") @db.Uuid
+  reviewedAt   DateTime?     @map("reviewed_at")
 
   @@unique([runId, shipmentId])
   @@map("run_items")
@@ -1259,4 +1278,18 @@ model Message {
   @@index([status])
   @@index([shipmentId])
   @@map("messages")
+}
+
+/// Where a courier was, sent by their phone every minute or so while working.
+model CourierPing {
+  id       String   @id @default(uuid()) @db.Uuid
+  userId   String   @map("user_id") @db.Uuid
+  lat      Float
+  lng      Float
+  accuracy Float?
+  at       DateTime @default(now())
+
+  @@index([userId, at])
+  @@index([at])
+  @@map("courier_pings")
 }

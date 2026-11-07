@@ -49,6 +49,9 @@ export const SETTINGS = {
   'fees.exchange_bp': { label: 'Exchange surcharge as basis points of shipping (5000 = 50%)', kind: 'bp', default: 5000 },
   'messages.channel': { label: 'How customers get messages', kind: 'choice', default: 'WHATSAPP', options: ['WHATSAPP', 'SMS'] },
   'tracking.base_url': { label: 'Public tracking page address in messages', kind: 'longtext', default: 'https://track.shiply.example/t' },
+  'delivery.code_required': { label: 'The receiver must give the code sent to their phone before the courier can hand over', kind: 'choice', default: 'ON', options: ['ON', 'OFF'] },
+  'courier.ping_seconds': { label: 'Seconds between location updates from a working courier phone', kind: 'int', default: 60 },
+  'pickups.auto_request': { label: 'Book a pickup automatically when a merchant creates parcels and has none booked', kind: 'choice', default: 'ON', options: ['ON', 'OFF'] },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

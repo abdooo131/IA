@@ -62,6 +62,7 @@ const MerchantInput = z.object({
   areaId: z.string().uuid().nullish(),
   discountBp: z.number().int().min(0).max(5000).default(0),
   active: z.boolean().default(true),
+  flexShip: z.boolean().default(false),
 });
 
 const UserInput = z.object({

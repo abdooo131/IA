@@ -48,7 +48,8 @@ export const IN_BUILDING: readonly ShipmentStatus[] = ['AT_INBOUND', 'SORTED', '
 
 // A status may "move" to itself: the direction or the location changed, the status did not.
 export const ALLOWED_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus[]> = {
-  CREATED: ['PICKED_UP', 'AT_INBOUND', 'CANCELLED'],
+  // OUT_FOR_DELIVERY and back to CREATED only for a return the courier collects from the customer.
+  CREATED: ['PICKED_UP', 'AT_INBOUND', 'CANCELLED', 'OUT_FOR_DELIVERY'],
   PICKED_UP: ['PICKED_UP', 'AT_INBOUND', 'LOST'],
   AT_INBOUND: ['AT_INBOUND', 'SORTED', 'AT_HUB', 'LOST'],
   SORTED: ['SORTED', 'AT_INBOUND', 'AT_HUB', 'AT_OUTBOUND', 'LOST'],
@@ -56,7 +57,7 @@ export const ALLOWED_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus
   IN_TRANSIT: ['IN_TRANSIT', 'AT_INBOUND', 'AT_HUB', 'LOST'],
   AT_HUB: ['AT_HUB', 'AT_OUTBOUND', 'OUT_FOR_DELIVERY', 'ON_HOLD', 'LOST'],
   ON_HOLD: ['AT_HUB', 'ON_HOLD', 'LOST'],
-  OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED', 'ATTEMPT_FAILED', 'AT_HUB', 'LOST'],
+  OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED', 'ATTEMPT_FAILED', 'AT_HUB', 'LOST', 'CREATED'],
   ATTEMPT_FAILED: ['AT_HUB', 'ON_HOLD', 'LOST'],
   DELIVERED: [],
   RETURNED: [],

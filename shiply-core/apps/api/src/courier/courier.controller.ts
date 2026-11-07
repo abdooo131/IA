@@ -40,4 +40,33 @@ export class CourierController {
   fail(@CurrentUser() u: SessionUser, @Param('itemId', ParseUUIDPipe) itemId: string, @Body() body: unknown) {
     return this.courier.fail(u, itemId, body);
   }
+
+  @Post('stops/:itemId/collect-return')
+  @HttpCode(200)
+  collectReturn(@CurrentUser() u: SessionUser, @Param('itemId', ParseUUIDPipe) itemId: string, @Body() body: unknown) {
+    return this.courier.collectReturn(u, itemId, body);
+  }
+
+  @Post('stops/:itemId/send-code')
+  @HttpCode(200)
+  sendCode(@CurrentUser() u: SessionUser, @Param('itemId', ParseUUIDPipe) itemId: string) {
+    return this.courier.resendCode(u, itemId);
+  }
+
+  @Get('config')
+  config() {
+    return this.courier.config();
+  }
+
+  @Post('ping')
+  @HttpCode(200)
+  ping(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.courier.ping(u, body);
+  }
+
+  @Post('vehicle-problem')
+  @HttpCode(200)
+  vehicleProblem(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.courier.vehicleProblem(u, body);
+  }
 }

@@ -149,6 +149,11 @@ export class HubController {
     return this.hub.runs(this.check(u, hubId));
   }
 
+  @Get('customer-returns')
+  customerReturns(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string) {
+    return this.hub.customerReturns(this.check(u, hubId));
+  }
+
   @Get('runs/:runId')
   run(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Param('runId', ParseUUIDPipe) runId: string) {
     return this.hub.run(this.check(u, hubId), runId);

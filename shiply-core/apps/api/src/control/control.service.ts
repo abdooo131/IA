@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ACCOUNTS, cairoClock, normalizeCode } from '@shiply/shared';
+import { ACCOUNTS, FAIL_REASONS, cairoClock, cairoTimeToUtc, normalizeCode } from '@shiply/shared';
 import { z } from 'zod';
 import { openAlert } from '../agents/alerts';
 import { assertTeam, type SessionUser } from '../auth/auth';
@@ -30,6 +30,7 @@ const ReasonInput = z.object({ reason: z.string().trim().min(5, 'Write the reaso
 const AppealInput = z.object({ text: z.string().trim().min(10, 'Explain why in a sentence or two').max(1000) });
 const DecisionInput = z.object({ decision: z.enum(['UPHOLD', 'REVERSE']), note: z.string().trim().min(3).max(300) });
 const PenaltyInput = z.object({ penalty: z.number().int().min(0).max(100_000_000) });
+const ReviewInput = z.object({ verdict: z.enum(['GENUINE', 'FAKE']), note: z.string().trim().max(300).default(''), penalty: z.number().int().min(0).max(100_000_000).default(0) });
 const DamageInput = z.object({ code: z.string().trim().min(3).max(40), note: z.string().trim().min(3, 'Say what is damaged').max(300), photo: PHOTO });
 const PalletInput = z.object({ destinationHubId: z.string().uuid() });
 const CodeInput = z.object({ code: z.string().trim().min(3).max(40) });
@@ -78,6 +79,8 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
     const confirmed = await this.confirmTickets(at);
     const cutoff = await this.cutoffCheck(at);
     const fraud = await this.fraudChecks(at);
+    // Courier locations are kept for 30 days.
+    await this.prisma.courierPing.deleteMany({ where: { at: { lt: new Date(at.getTime() - 30 * 24 * HOUR) } } });
     return { lost, confirmed, cutoff, fraud };
   }
 
@@ -249,6 +252,106 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
       hubCode: r.hubId ? hc.get(r.hubId) ?? '' : '',
       hasPhoto: !!r.photoMime,
     }));
+  }
+
+  // ---------------------------------------------------------------- checking failed attempts
+
+  /** Every failed attempt and postponement of the last week, for QC to call the customer and check. */
+  async attempts(query: { status?: string }) {
+    const done = query.status === 'done';
+    const rows = await this.prisma.runItem.findMany({
+      where: { result: 'FAILED', failReason: { notIn: ['EXCHANGE', 'CUSTOMER_RETURN'] }, resolvedAt: { gte: new Date(Date.now() - 7 * 24 * HOUR) }, reviewVerdict: done ? { not: null } : null },
+      omit: { photo: true },
+      include: {
+        run: { select: { code: true, courierId: true, hubId: true } },
+        shipment: { select: { id: true, trackingNumber: true, customerName: true, customerPhone: true, address: true, governorateCode: true, attempts: true, deliverOn: true, merchant: { select: { name: true } } } },
+      },
+      orderBy: { resolvedAt: 'desc' },
+      take: 300,
+    });
+    const [people, hubs, events] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: [...new Set(rows.flatMap((r) => [r.run.courierId, r.reviewedById]).filter((x): x is string => !!x))] } }, select: { id: true, name: true, phone: true } }),
+      this.prisma.hub.findMany({ select: { id: true, code: true } }),
+      this.prisma.shipmentEvent.findMany({
+        where: { shipmentId: { in: rows.map((r) => r.shipmentId) }, type: { in: ['ATTEMPT_FAILED', 'RETURN_ATTEMPT_FAILED'] } },
+        select: { shipmentId: true, note: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+    const person = new Map(people.map((p) => [p.id, p]));
+    const hub = new Map(hubs.map((h) => [h.id, h.code]));
+    return rows.map((r) => {
+      const ev = events.find((e) => e.shipmentId === r.shipmentId && r.resolvedAt && Math.abs(e.createdAt.getTime() - r.resolvedAt.getTime()) < 60_000);
+      return {
+        id: r.id, direction: r.direction, reason: r.failReason, reasonLabel: FAIL_REASONS[r.failReason as keyof typeof FAIL_REASONS]?.label ?? r.failReason,
+        note: ev?.note ?? '', at: r.resolvedAt, lat: r.lat, lng: r.lng, flexPaid: r.flexPaid,
+        verdict: r.reviewVerdict, reviewNote: r.reviewNote, reviewedBy: r.reviewedById ? person.get(r.reviewedById)?.name ?? '' : '', reviewedAt: r.reviewedAt,
+        run: r.run.code, hub: hub.get(r.run.hubId) ?? '', courier: person.get(r.run.courierId) ?? null, courierId: r.run.courierId, parcel: r.shipment,
+      };
+    });
+  }
+
+  /** GENUINE closes the check. FAKE also opens a FAKE_ATTEMPT ticket with the penalty, which waits like any ticket. */
+  async reviewAttempt(itemId: string, body: unknown, user: SessionUser) {
+    const d = parse(ReviewInput, body);
+    const item = await this.prisma.runItem.findUnique({ where: { id: itemId }, omit: { photo: true }, include: { run: true, shipment: { select: { trackingNumber: true } } } });
+    if (!item || item.result !== 'FAILED') throw notFound('Attempt');
+    if (item.reviewVerdict) throw new DomainError('bad_status', 'This attempt was already checked', 409);
+    if (d.verdict === 'FAKE' && d.note.length < 3) throw new DomainError('invalid_input', 'Say what the customer told you', 422);
+    const r = await this.prisma.runItem.updateMany({ where: { id: itemId, reviewVerdict: null }, data: { reviewVerdict: d.verdict, reviewNote: d.note, reviewedById: user.id, reviewedAt: new Date() } });
+    if (r.count !== 1) throw new DomainError('bad_status', 'This attempt was already checked', 409);
+    if (d.verdict === 'GENUINE') return { message: 'Marked as genuine' };
+    const label = FAIL_REASONS[item.failReason as keyof typeof FAIL_REASONS]?.label ?? item.failReason;
+    const t = await this.createTicket({ kind: 'FAKE_ATTEMPT', shipmentCode: item.shipment.trackingNumber, courierId: item.run.courierId, penalty: d.penalty, description: `Fake attempt on ${item.shipment.trackingNumber} (${label}): ${d.note}` }, user);
+    return { message: `Ticket ${t.code} opened`, ticket: t.code };
+  }
+
+  async stopPhoto(itemId: string) {
+    const r = await this.prisma.runItem.findUnique({ where: { id: itemId }, select: { photo: true, photoMime: true, shipment: { select: { trackingNumber: true } } } });
+    if (!r?.photo) throw notFound('Photo');
+    return { data: r.photo, mime: r.photoMime, name: r.shipment.trackingNumber };
+  }
+
+  // ---------------------------------------------------------------- couriers on the road
+
+  /** The last known place of every courier seen in the last 12 hours, with their run progress. */
+  async liveCouriers() {
+    const since = new Date(Date.now() - 12 * HOUR);
+    const pings = await this.prisma.$queryRaw<{ user_id: string; lat: number; lng: number; accuracy: number | null; at: Date }[]>`
+      SELECT DISTINCT ON (user_id) user_id, lat, lng, accuracy, at FROM courier_pings WHERE at >= ${since} ORDER BY user_id, at DESC`;
+    const ids = pings.map((p) => p.user_id);
+    const [people, runs] = await Promise.all([
+      this.prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, phone: true, agent: { select: { name: true } }, hub: { select: { code: true } } } }),
+      this.prisma.run.findMany({ where: { courierId: { in: ids }, status: { in: ['LOADING', 'OUT'] } }, select: { courierId: true, code: true, status: true, items: { select: { result: true, codCollected: true } } } }),
+    ]);
+    const person = new Map(people.map((p) => [p.id, p]));
+    return pings
+      .map((p) => {
+        const u = person.get(p.user_id);
+        const run = runs.find((r) => r.courierId === p.user_id);
+        return {
+          courierId: p.user_id, name: u?.name ?? '', phone: u?.phone ?? '', agent: u?.agent?.name ?? '', hub: u?.hub?.code ?? '',
+          lat: p.lat, lng: p.lng, accuracy: p.accuracy, at: p.at,
+          run: run ? { code: run.code, status: run.status, total: run.items.length, open: run.items.filter((i) => i.result === 'PENDING').length, cash: run.items.reduce((s, i) => s + i.codCollected, 0) } : null,
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  /** Where a courier went on one day, and where each stop was recorded. */
+  async trail(courierId: string, date: string) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new DomainError('invalid_input', 'Pick a date', 422);
+    const from = cairoTimeToUtc(date, '00:00');
+    const to = new Date(from.getTime() + 24 * HOUR);
+    const [pings, stops] = await Promise.all([
+      this.prisma.courierPing.findMany({ where: { userId: courierId, at: { gte: from, lt: to } }, select: { lat: true, lng: true, at: true }, orderBy: { at: 'asc' }, take: 3000 }),
+      this.prisma.runItem.findMany({
+        where: { run: { courierId }, resolvedAt: { gte: from, lt: to } },
+        select: { id: true, result: true, failReason: true, lat: true, lng: true, resolvedAt: true, codeChecked: true, photoMime: true, shipment: { select: { trackingNumber: true, address: true } } },
+        orderBy: { resolvedAt: 'asc' },
+      }),
+    ]);
+    return { pings, stops: stops.map(({ photoMime, ...s }) => ({ ...s, hasPhoto: !!photoMime })) };
   }
 
   async ticketPhoto(id: string) {

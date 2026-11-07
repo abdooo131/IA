@@ -7,7 +7,8 @@ const SERVER = process.env.TEST_DATABASE_SERVER ?? 'postgresql://shiply:shiply@l
 const NAME = `shiply_test_${Date.now()}_${process.pid}`;
 export const TEST_DB = `${SERVER}/${NAME}`;
 
-export async function createTestDatabase() {
+/** Older suites hand parcels over without the receiver's code and book pickups by hand; the driver suite keeps both on. */
+export async function createTestDatabase(opts: { driver?: boolean } = {}) {
   const admin = new PrismaClient({ datasourceUrl: `${SERVER}/postgres` });
   await admin.$executeRawUnsafe(`CREATE DATABASE "${NAME}"`);
   await admin.$disconnect();
@@ -21,6 +22,11 @@ export async function createTestDatabase() {
   };
   execSync('pnpm exec prisma migrate deploy', { cwd: dbDir, env, stdio: 'pipe' });
   execSync('pnpm exec tsx prisma/seed.ts', { cwd: dbDir, env, stdio: 'pipe' });
+  if (!opts.driver) {
+    const db = new PrismaClient({ datasourceUrl: TEST_DB });
+    for (const key of ['delivery.code_required', 'pickups.auto_request']) await db.setting.upsert({ where: { key }, update: { value: 'OFF' }, create: { key, value: 'OFF' } });
+    await db.$disconnect();
+  }
 }
 
 /** Removes only the database this run created. */

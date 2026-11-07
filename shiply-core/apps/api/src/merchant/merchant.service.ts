@@ -6,6 +6,10 @@ import {
   makeTrackingNumber,
   normalizeEgyptPhone,
   type ParcelSize,
+  type SettingValues,
+  addBusinessDays,
+  cairoClock,
+  parseTime,
 } from '@shiply/shared';
 import { z } from 'zod';
 import { nextCode, nextNumber } from '../common/codes';
@@ -32,6 +36,8 @@ export const ShipmentInput = z.object({
   merchantRef: z.string().trim().max(60).default(''),
   /** Deliver the new item and bring the old one back in the same visit. */
   exchange: z.boolean().default(false),
+  /** A return: the courier collects it from the customer and brings it to the merchant. */
+  customerReturn: z.boolean().default(false),
 });
 export type ShipmentInputT = z.infer<typeof ShipmentInput>;
 
@@ -76,6 +82,9 @@ export class MerchantService {
       if (!merchant || !merchant.active) throw new DomainError('forbidden', 'This merchant account is not active', 403);
       if (merchant.status !== 'ACTIVE') throw new DomainError('forbidden', 'This merchant account is waiting for approval', 403);
       const settings = await this.settings.all(tx);
+      if (data.customerReturn && (data.codAmount > 0 || data.exchange || data.allowOpen)) {
+        throw new DomainError('invalid_input', 'A return from a customer has no cash to collect, no exchange and no opening', 422);
+      }
       const price = await priceFor(tx, this.core, settings, {
         merchantId, discountBp: merchant.discountBp, governorateCode: data.governorateCode, areaId: data.areaId ?? null,
         size: data.size as ParcelSize, allowOpen: data.allowOpen, exchange: data.exchange,
@@ -109,13 +118,14 @@ export class MerchantService {
           discount: price.discount,
           openFee: price.openFee,
           exchangeFee: price.exchangeFee,
-          kind: data.exchange ? 'EXCHANGE' : 'NORMAL',
+          kind: data.customerReturn ? 'CUSTOMER_RETURN' : data.exchange ? 'EXCHANGE' : 'NORMAL',
           codFee: cod,
         },
       });
       await tx.shipmentEvent.create({
-        data: { shipmentId: shipment.id, type: 'CREATED', toStatus: 'CREATED', userId },
+        data: { shipmentId: shipment.id, type: 'CREATED', toStatus: 'CREATED', userId, note: data.customerReturn ? 'Return to collect from the customer' : '' },
       });
+      if (!data.customerReturn && settings['pickups.auto_request'] === 'ON') await this.autoPickup(tx, merchant, settings);
       return shipment;
     });
   }
@@ -221,6 +231,20 @@ export class MerchantService {
     });
   }
 
+  /** Books a pickup for parcels waiting at the merchant when none is booked yet: today before the cutoff, else the next working day. */
+  private async autoPickup(tx: Tx, merchant: { id: string; homeHubId: string }, settings: SettingValues) {
+    const clock = cairoClock(new Date());
+    const open = await tx.pickup.findFirst({ where: { merchantId: merchant.id, date: { gte: clock.date }, status: { in: ['REQUESTED', 'ASSIGNED'] } }, orderBy: { date: 'asc' } });
+    if (open) {
+      if (open.status === 'REQUESTED') await tx.pickup.update({ where: { id: open.id }, data: { expectedCount: { increment: 1 } } });
+      return;
+    }
+    const weekend = settings['promise.weekend_days'];
+    const beforeCutoff = clock.minutes < parseTime(settings['promise.cutoff']) && !weekend.includes(clock.weekday);
+    const date = beforeCutoff ? clock.date : addBusinessDays(clock.date, 1, weekend);
+    await tx.pickup.create({ data: { code: await nextCode(tx, 'pickup_seq', 'PU'), merchantId: merchant.id, hubId: merchant.homeHubId, date, expectedCount: 1, auto: true, notes: 'Booked automatically' } });
+  }
+
   async requestPickup(merchantId: string, input: unknown, userId: string) {
     const d = parse(PickupInput, input);
     if (d.date < todayInCairo()) throw new DomainError('invalid_input', 'Pick a date from today on', 422);
@@ -230,7 +254,7 @@ export class MerchantService {
         where: { merchantId, date: d.date, status: { in: ['REQUESTED', 'ASSIGNED'] } },
       });
       if (open) throw new DomainError('duplicate', `You already have pickup ${open.code} on that day`, 409);
-      const waiting = await tx.shipment.count({ where: { merchantId, status: 'CREATED' } });
+      const waiting = await tx.shipment.count({ where: { merchantId, status: 'CREATED', kind: { not: 'CUSTOMER_RETURN' } } });
       if (waiting === 0) throw new DomainError('invalid_input', 'Create your parcels first, then ask for a pickup', 422);
       const pickup = await tx.pickup.create({
         data: {
