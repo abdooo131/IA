@@ -68,6 +68,15 @@ What each app covers:
   need `salaries` (read with view, change with use). HR owns people: Accounting reads packages to
   pay them and cannot change them. Clocking in and out and reading one's own attendance need no
   access (every team member and rider).
+  HR phase 3: view also reads leave requests, the leave calendar and balances, leave and
+  violation types, violations, suggested violations and attendance correction requests; use
+  asks for leave for someone (with the balance and backdate overrides), approves or refuses at
+  the HR step, cancels approved leave, adjusts balances with a reason, records violations (and
+  their evidence), confirms or dismisses suggestions and applies or refuses attendance fixes;
+  manage edits leave types and violation ladders and decides appeals (upholds or cancels; never
+  a violation they recorded: `same_person`). Nobody decides on their own request or violation
+  (`own_request`, `own_violation`). Deduction amounts computed by the salary run stay with the
+  salaries switch (payroll and payslips); the penalties themselves are HR data.
 - **sales**: the CRM (docs/SALES.md): leads from the website form and sign ups, the pipeline,
   deals, companies, contacts, activities and My day. view reads, use adds leads and companies,
   moves deals, logs and plans activities; manage sees every deal whatever `own_deals_only`
@@ -158,6 +167,8 @@ is theirs.
   (`won_by_id`).
 - HR step 2: Store managers get hr view (their stores' attendance board, roster and days); the
   migration raises existing Store manager profiles from none to view.
+- HR phase 3: no new column; the hr levels above cover leave and violations. Store managers (hr
+  view) read their stores' leave and violations and approve only as managers in force.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or
   Finance manager (approve).
 - store_staff → Store staff for their own store.
@@ -223,3 +234,13 @@ wants otherwise.
   The cash position is accounting view; a person limited to some stores sees only those stores'
   boxes and riders, without banks, merchants, bills or the net position. The month end
   checklist is accounting view to read and use to tick or untick an item.
+- HR phase 3 (leave, violations, inbox): every team member and rider asks for leave, reads their
+  balances, appeals their own violations and asks to fix an attendance day from My HR without
+  any access level (`/me/leave`, `/me/violations`, `/me/corrections`; merchants get 404).
+  Managers (anyone with people below them by the manager in force) approve or refuse the first
+  step of their direct reports' leave and attendance fixes from the inbox (`/me/inbox`,
+  `/me/inbox/...`; anyone else gets `not_your_team`), read their team's requests
+  (`/me/team-leave/:id`, direct and indirect) and their team's leave calendar
+  (`/me/team-leave-calendar`), whatever their access profile. HR items in the inbox follow the
+  person's HR level read fresh (use: the HR step and suggestions; manage: appeals). People
+  limited to listed stores see and act on those stores' people only (`store_not_allowed`).

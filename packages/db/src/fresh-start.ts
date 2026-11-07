@@ -193,6 +193,13 @@ export async function freshStart(
       await run('punches', 'DELETE FROM punches');
       await run('attendance days', 'DELETE FROM attendance_days');
       await run('roster days', 'DELETE FROM roster_days');
+      // HR phase 3 activity (the leave and violation types stay).
+      await run('violation suggestions', 'DELETE FROM violation_suggestions');
+      await run('violations', 'DELETE FROM violations');
+      await run('attendance corrections', 'DELETE FROM attendance_corrections');
+      await run('leave days', 'DELETE FROM leave_request_days');
+      await run('leave requests', 'DELETE FROM leave_requests');
+      await run('leave adjustments', 'DELETE FROM leave_adjustments');
 
       // Party wallets of everyone who goes (all riders and suppliers), then riders.
       await run(

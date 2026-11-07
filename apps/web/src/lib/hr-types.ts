@@ -278,6 +278,8 @@ export interface DepartmentRow extends DepartmentRef {
 export interface GradeRow extends GradeRef {
   bandMinPiastres: number | null;
   bandMaxPiastres: number | null;
+  /** Yearly annual leave days (HR phase 3) */
+  annualLeaveDays: number | null;
   isActive: boolean;
   people: number;
 }
@@ -290,6 +292,7 @@ export interface PositionRow {
   minGradeId: string | null;
   maxGradeId: string | null;
   headcountPlanned: number;
+  annualLeaveDays: number | null;
   isActive: boolean;
   department: DepartmentRef;
   minGrade: GradeRef | null;

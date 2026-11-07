@@ -139,6 +139,8 @@ describe('push notifications', () => {
       'ticket',
       'attendance_late',
       'document_expiring',
+      'hr_request',
+      'hr_update',
     ]);
   });
 

@@ -9,6 +9,7 @@ import {
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { employmentOf, packageGross, packageInForce } from '../hr-pay';
+import { type HrPayItem, hrPayrollItems, markHrPayrollItems } from '../hr-inbox';
 import { markCommissionsPaid, payableCommissions } from '../crm-sales';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
@@ -244,6 +245,7 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
     note?: string;
     /** Approved sales commission paid with this salary (docs/SALES.md 11) */
     commissionIds: string[];
+    hrPayItems: HrPayItem[];
   })[] = [];
   for (const l of input.lines) {
     const { user, tags } = await personTags(db as Tx, l.userId);
@@ -262,7 +264,16 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
     // Accounting reads it and never changes it.
     const commissions = await payableCommissions(db, user.id, input.month);
     const commission = commissions.reduce((s, c) => s + c.amountPiastres, 0);
-    const gross = base + bonus + commission - deduction;
+    // HR phase 3: unpaid leave days and final violation deductions not taken yet reduce the
+    // gross before tax (a day of pay is the basic over hr.payroll_days_per_month).
+    const hr = file.id
+      ? await hrPayrollItems(db, {
+          employeeId: file.id,
+          monthEnd: monthEnd(input.month),
+          basicPiastres: salary?.basicPiastres ?? base,
+        })
+      : { items: [], totalPiastres: 0 };
+    const gross = base + bonus + commission - deduction - hr.totalPiastres;
     if (gross < 0) throw new DomainError('net_below_zero', 400);
     const slip = monthlyPayslip({ gross, insuredWage: salary?.insuredWagePiastres ?? null }, rules);
     const owed = await balanceOf(db, { type: 'staff_advance', userId: user.id });
@@ -278,6 +289,14 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
       commission,
       commissionIds: commissions.map((c) => c.id),
       deduction,
+      hrDeduction: hr.totalPiastres,
+      hrItems: hr.items.map((i) => ({
+        kind: i.kind,
+        label: i.label,
+        days: i.days,
+        amountPiastres: i.amountPiastres,
+      })),
+      hrPayItems: hr.items,
       gross,
       insuredWage: slip.insuredWage,
       siEmployee: slip.siEmployee,
@@ -361,6 +380,8 @@ export function runPayroll(db: Db, input: PayrollInput) {
           bonus: r.bonus,
           commission: r.commission,
           deduction: r.deduction,
+          hrDeduction: r.hrDeduction,
+          hrItems: r.hrItems,
           gross: r.gross,
           insuredWage: r.insuredWage,
           siEmployee: r.siEmployee,
@@ -375,6 +396,7 @@ export function runPayroll(db: Db, input: PayrollInput) {
       lines,
     });
     if (!entry) throw new DomainError('nothing_to_pay', 400);
+    for (const r of plan.rows) await markHrPayrollItems(tx, r.hrPayItems, entry.id);
     await markCommissionsPaid(
       tx,
       plan.rows.flatMap((r) => r.commissionIds),
@@ -401,6 +423,9 @@ export interface PayslipRow {
   /** Sales commission paid with the salary */
   commission: number;
   deduction: number;
+  /** Unpaid leave and final violation deductions from HR (phase 3), before tax */
+  hrDeduction: number;
+  hrItems: { kind: string; label: string; days: number | null; amountPiastres: number }[];
   gross: number;
   insuredWage: number;
   siEmployee: number;
@@ -428,6 +453,8 @@ export async function payslips(db: Db, month: string) {
       base: p.base ?? p.gross,
       bonus: p.bonus ?? 0,
       commission: p.commission ?? 0,
+      hrDeduction: p.hrDeduction ?? 0,
+      hrItems: p.hrItems ?? [],
       insuredWage: p.insuredWage ?? 0,
       siEmployee: p.siEmployee ?? 0,
       siEmployer: p.siEmployer ?? 0,

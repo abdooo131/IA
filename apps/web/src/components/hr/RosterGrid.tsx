@@ -180,6 +180,14 @@ export function RosterGrid({
                         ) : (
                           <span className="ltr-iso">{text}</span>
                         )}
+                        {p.leave?.[i] && (
+                          <span className="mt-1 block rounded-sm bg-primary px-1 text-caption font-bold text-on-primary">
+                            {t('onLeaveCell', {
+                              type: locale === 'ar' ? p.leave[i]!.nameAr : p.leave[i]!.nameEn,
+                            })}
+                            {p.leave[i]!.fraction < 1 && ' ½'}
+                          </span>
+                        )}
                       </td>
                     );
                   })}

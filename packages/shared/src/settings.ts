@@ -599,6 +599,65 @@ export const SETTING_DEFINITIONS = {
     description: '1: a rider who is not clocked in cannot be handed orders',
     override: 'store',
   },
+  'hr.default_annual_leave_days': {
+    schema: z.number().int().min(0).max(60),
+    default: 21,
+    description:
+      'Annual leave days a year when neither the position nor the grade sets them (HR confirms the legal minimum, more after 10 years or age 50)',
+    override: 'none',
+  },
+  'hr.casual_leave_days': {
+    schema: z.number().int().min(0).max(30),
+    default: 6,
+    description: 'Casual leave days a year; they come off the annual balance',
+    override: 'none',
+  },
+  'hr.leave_year_start_month': {
+    schema: z.number().int().min(1).max(12),
+    default: 1,
+    description: 'Month the leave year starts (1 is January: the calendar year)',
+    override: 'none',
+  },
+  'hr.leave_accrual_monthly': {
+    schema: z.number().int().min(0).max(1),
+    default: 0,
+    description:
+      '0: the year’s annual leave is granted at its start; 1: it is earned month by month',
+    override: 'none',
+  },
+  'hr.leave_carry_over_days': {
+    schema: z.number().int().min(0).max(60),
+    default: 0,
+    description: 'Unused annual leave days carried into the next leave year (at most)',
+    override: 'none',
+  },
+  'hr.leave_backdate_days': {
+    schema: z.number().int().min(0).max(60),
+    default: 7,
+    description: 'How many days back a leave request may start (HR may go further)',
+    override: 'none',
+  },
+  'hr.payroll_days_per_month': {
+    schema: z.number().int().min(20).max(31),
+    default: 30,
+    description:
+      'A day of pay is the basic salary divided by this (unpaid leave and deductions in days)',
+    override: 'none',
+  },
+  'hr.violation_period_days': {
+    schema: z.number().int().min(1).max(730),
+    default: 180,
+    description:
+      'Violations of the same type inside this many days climb the penalty ladder; older ones no longer count',
+    override: 'none',
+  },
+  'hr.appeal_days': {
+    schema: z.number().int().min(0).max(30),
+    default: 3,
+    description:
+      'Days a person has to appeal a violation; without an appeal it becomes final after them',
+    override: 'none',
+  },
   'finance.rider_cash_limit_piastres': {
     schema: piastres,
     default: 500_000,

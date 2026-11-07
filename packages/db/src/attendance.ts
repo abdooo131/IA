@@ -333,12 +333,30 @@ export async function getRoster(
     },
     orderBy: [{ nameEn: 'asc' }],
   });
-  const [shifts, holidays] = await Promise.all([
+  const [shifts, holidays, leave] = await Promise.all([
     listShifts(db),
     db.holiday.findMany({
       where: { day: { gte: dayDate(days[0]!), lte: dayDate(days[6]!) } },
     }),
+    // Approved leave shows on the roster (HR phase 3).
+    db.leaveRequestDay.findMany({
+      where: {
+        employeeId: { in: people.map((p) => p.id) },
+        day: { gte: dayDate(days[0]!), lte: dayDate(days[6]!) },
+        request: { status: 'approved' },
+      },
+      select: {
+        employeeId: true,
+        day: true,
+        fraction: true,
+        request: { select: { type: { select: { code: true, nameEn: true, nameAr: true } } } },
+      },
+    }),
   ]);
+  const leaveOf = (employeeId: string, d: string) => {
+    const l = leave.find((x) => x.employeeId === employeeId && dayText(x.day) === d);
+    return l ? { fraction: Number(l.fraction), ...l.request.type } : null;
+  };
   return {
     from,
     days,
@@ -352,6 +370,7 @@ export async function getRoster(
       role: p.user.role,
       status: p.status,
       defaultShiftId: p.defaultShiftId,
+      leave: days.map((d) => leaveOf(p.id, d)),
       cells: days.map((d) => {
         const r = p.rosterDays.find((x) => dayText(x.day) === d);
         if (!r) return null;
@@ -561,6 +580,8 @@ interface DayContext {
   row: RosterRow | null;
   plan: Plan | null;
   holiday: boolean;
+  /** Approved leave on the day (HR phase 3): 1 a full day, 0.5 a half day, 0 none */
+  leave: number;
   sessions: Session[];
   /** Every punch read around the day (also voided ones), for the detail screen */
   punches: Prisma.PunchGetPayload<object>[];
@@ -591,7 +612,29 @@ async function loadDay(db: Db, employeeId: string, day: string): Promise<DayCont
   const sessions = pairSessions(valid).filter((s) => sessionDay(s.in.at, plans) === day);
   const row = rows.find((r) => dayText(r.day) === day) ?? null;
   const holiday = !!(await db.holiday.findUnique({ where: { day: dayDate(day) } }));
-  return { employee, row, plan: planOf(row), holiday, sessions, punches };
+  const leave = await leaveFractionOn(db, employeeId, day);
+  return { employee, row, plan: planOf(row), holiday, leave, sessions, punches };
+}
+
+/**
+ * Approved leave on a day (HR phase 3): the largest fraction of an approved request's day
+ * row (a full day 1, a half day 0.5), else 0.
+ */
+export async function leaveFractionOn(db: Db, employeeId: string, day: string) {
+  const rows = await db.leaveRequestDay.findMany({
+    where: { employeeId, day: dayDate(day), request: { status: 'approved' } },
+    select: { fraction: true },
+  });
+  return rows.reduce((max, r) => Math.max(max, Number(r.fraction)), 0);
+}
+
+/**
+ * On leave: the file says so, or approved leave covers the day (a half day only when the
+ * person did not come in; otherwise the worked half is judged as usual).
+ */
+function isOnLeave(ctx: { employee: { status: string }; leave: number; sessions: Session[] }) {
+  if (ctx.employee.status === 'on_leave') return true;
+  return ctx.leave >= 1 || (ctx.leave > 0 && ctx.sessions.length === 0);
 }
 
 interface Rules {
@@ -716,7 +759,7 @@ async function closeDayTx(
     plan: ctx.plan,
     planned: !!ctx.row,
     holiday: ctx.holiday,
-    onLeave: ctx.employee.status === 'on_leave',
+    onLeave: isOnLeave(ctx),
     sessions: ctx.sessions,
     rules: await rulesOf(tx),
   });
@@ -755,6 +798,20 @@ export function closeAttendanceDay(
       force: input.force,
     }),
   );
+}
+
+/**
+ * Builds again the closed days of a person among `days` (leave approved or cancelled, HR phase
+ * 3). Days not closed yet are left to the daily close.
+ */
+export async function rebuildAttendanceDays(tx: Tx, employeeId: string, days: string[], now: Date) {
+  if (days.length === 0) return 0;
+  const closed = await tx.attendanceDay.findMany({
+    where: { employeeId, day: { in: days.map(dayDate) } },
+    select: { day: true },
+  });
+  for (const c of closed) await closeDayTx(tx, employeeId, dayText(c.day), now, { force: true });
+  return closed.length;
 }
 
 /**
@@ -1061,6 +1118,14 @@ export async function attendanceBoard(
     db.holiday.findUnique({ where: { day: dayDate(today) } }),
     getSetting(db, 'hr.late_grace_minutes'),
   ]);
+  const leaveToday = new Set(
+    (
+      await db.leaveRequestDay.findMany({
+        where: { employeeId: { in: ids }, day: dayDate(today), request: { status: 'approved' } },
+        select: { employeeId: true },
+      })
+    ).map((l) => l.employeeId),
+  );
   const board = people.map((p) => {
     const mine = rows.filter((r) => r.employeeId === p.id);
     const plans = new Map<string, Plan | null>();
@@ -1073,7 +1138,8 @@ export async function attendanceBoard(
     const firstIn = sessions[0]?.in.at ?? null;
     const late = plan && firstIn ? Math.max(0, minutesBetween(plan.start, firstIn)) : 0;
     let state: BoardState;
-    if (p.status === 'on_leave') state = 'on_leave';
+    if (p.status === 'on_leave' || (leaveToday.has(p.id) && !clockedIn && !sessions.length))
+      state = 'on_leave';
     else if (clockedIn) state = late > grace ? 'late_in' : 'in';
     else if (sessions.length > 0) state = 'left';
     else if (holiday) state = 'holiday';
@@ -1296,7 +1362,7 @@ export function setDayStatus(
         plan: ctx.plan,
         planned: !!ctx.row,
         holiday: ctx.holiday,
-        onLeave: e.status === 'on_leave',
+        onLeave: isOnLeave({ employee: e, leave: ctx.leave, sessions: ctx.sessions }),
         sessions: ctx.sessions,
         rules: await rulesOf(tx),
       });

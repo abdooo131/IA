@@ -35,6 +35,27 @@ Also inside the app: settings menu (top of every screen), Help.
 - A person cannot clock in (too far): check their store on the file, the store's location and hr.clock_radius_m.
 - Office staff cannot clock in: set hr.office_lat and hr.office_lng.
 
+### Leave and violations (HR)
+
+1. HR, Configuration: set annual leave days on each grade (a position may override it); HR settings hold the default 21 days, casual days, the leave year, monthly or yearly accrual, carry over, how far back a request may start, the days per month of pay, the violation period and the appeal days.
+2. HR, Leave, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Violations, Violation types: each ladder of penalties.
+3. HR, Inbox every morning: approve or refuse leave at the HR step (the manager already approved), apply or refuse attendance fixes, decide appeals of violations you did not record.
+4. HR, Leave, Requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.
+5. HR, Leave, Balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.
+6. HR, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.
+7. For outsourcing companies lists final deductions of outsourced people: send them to their company each month.
+
+**Check it went right**
+
+- The Inbox count is zero by noon; suggested violations are handled within two days.
+- Before payroll: every leave request of the month is decided, so unpaid days reach the run.
+
+**If something is wrong**
+
+- A request is stuck at the manager: the manager in force is shown on the request; remind them or fix the manager on the file.
+- A suggestion is wrong (the person was on leave): correct the attendance day or approve the leave; the suggestion falls away.
+- Termination review alert: never automatic; review the file with the owner and decide.
+
 ### Stores, hubs and zones
 
 1. Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.
@@ -177,6 +198,27 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - حد مش عارف يسجل حضور (بعيد): راجع مخزنه في الملف ومكان المخزن و hr.clock_radius_m.
 - موظفين المكتب مش عارفين يسجلوا: حدد hr.office_lat و hr.office_lng.
+
+### الإجازات والمخالفات (شؤون العاملين)
+
+1. شؤون العاملين، الإعدادات: حدد أيام الإجازة الاعتيادية لكل درجة (والوظيفة ممكن تغيرها)؛ وإعدادات شؤون العاملين فيها الافتراضي 21 يوم، أيام العارضة، سنة الإجازات، الاستحقاق شهري أو سنوي، الترحيل، أقصى رجوع للخلف للطلب، أيام الشهر لحساب أجر اليوم، مدة المخالفات وأيام التظلم.
+2. شؤون العاملين، الإجازات، أنواع الإجازات: كل نوع بيسمح بإيه (بأجر، أنهي رصيد، مستند لأكتر من كام يوم، أقصى أيام، الإخطار، الموظف يطلبها). المخالفات، أنواع المخالفات: سلم الجزاءات لكل نوع.
+3. شؤون العاملين، الوارد كل صبح: وافق أو ارفض الإجازات في مرحلة شؤون العاملين (المدير وافق خلاص)، نفّذ أو ارفض تصحيحات الحضور، وابت في التظلمات من المخالفات اللي ما سجلتهاش.
+4. شؤون العاملين، الإجازات، الطلبات: اطلب إجازة لموظف لو مش قادر (تقدر تسمح بأكتر من الرصيد والأيام الزيادة بدون أجر، أو بداية أقدم). الغي إجازة موافق عليها بسبب قبل ما المرتبات تاخدها.
+5. شؤون العاملين، الإجازات، الأرصدة: عدّل رصيد بسبب (إجازة قديمة، تصحيح)؛ والتقويم بيوري مين في إجازة حسب القسم والمخزن.
+6. شؤون العاملين، المخالفات: سجّل مخالفة؛ السلم بيختار الدرجة من المخالفات السابقة في المدة (غيرها بسبب بس). ارفع صورة أو PDF كإثبات. المقترحة فيها التأخير والغياب من الحضور: أكّد أو تجاهل كل واحدة.
+7. لشركات توريد العمالة فيها الخصومات النهائية للعمالة الخارجية: ابعتها لشركتهم كل شهر.
+
+**اتأكد إنها مشيت صح**
+
+- عداد الوارد صفر قبل الضهر؛ والمخالفات المقترحة بتتراجع في خلال يومين.
+- قبل المرتبات: كل طلبات إجازة الشهر اتقررت، عشان الأيام بدون أجر تدخل المسير.
+
+**لو فيه مشكلة**
+
+- طلب واقف عند المدير: المدير الحالي مكتوب على الطلب؛ فكّره أو صحح المدير في الملف.
+- اقتراح غلط (الموظف كان في إجازة): صحح يوم الحضور أو وافق على الإجازة؛ والاقتراح هيختفي.
+- تنبيه مراجعة إنهاء الخدمة: عمره ما بيحصل لوحده؛ راجع الملف مع المالك وقرر.
 
 ### الفروع والمراكز والمناطق
 

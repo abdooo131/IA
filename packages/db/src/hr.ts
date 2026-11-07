@@ -697,11 +697,21 @@ export async function employeeHistory(
   input: { employeeId: string; scope: StoreScope; pay: boolean },
 ) {
   const e = await loadFile(db, input.employeeId, input.scope);
+  // HR phase 3: the person's leave requests, violations and attendance fixes are in the timeline.
+  const [leave, violations, corrections] = await Promise.all([
+    db.leaveRequest.findMany({ where: { employeeId: e.id }, select: { id: true } }),
+    db.violation.findMany({ where: { employeeId: e.id }, select: { id: true } }),
+    db.attendanceCorrection.findMany({ where: { employeeId: e.id }, select: { id: true } }),
+  ]);
+  const ids = (rows: { id: string }[]) => rows.map((r) => r.id);
   const rows = await db.auditLog.findMany({
     where: {
       OR: [
         { entityType: 'employee', entityId: e.id },
         { entityType: 'user', entityId: e.userId },
+        { entityType: 'leave_request', entityId: { in: ids(leave) } },
+        { entityType: 'violation', entityId: { in: ids(violations) } },
+        { entityType: 'attendance_correction', entityId: { in: ids(corrections) } },
       ],
       ...(input.pay ? {} : { action: { notIn: PAY_ACTIONS } }),
     },

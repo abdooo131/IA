@@ -50,6 +50,11 @@ const HISTORY_APPS: Record<string, readonly AccessApp[]> = {
   company_profile: ['accounting'],
   books: ['accounting'],
   employee: ['hr'],
+  leave_request: ['hr'],
+  leave_type: ['hr'],
+  violation: ['hr'],
+  violation_type: ['hr'],
+  attendance_correction: ['hr'],
   cheque: ['accounting'],
   merchant_contract: ['merchants', 'accounting'],
 };

@@ -494,6 +494,198 @@ export async function ensureHrDefaults(db: Db) {
     });
     added++;
   }
+  added += await ensureLeaveAndViolationDefaults(db);
+  return added;
+}
+
+// HR phase 3: leave types and violation types with their ladders (the migration adds the same
+// rows with the same ids). HR confirms the legal values; only missing codes are added.
+interface LeaveTypeRow {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  paid: boolean;
+  balance: 'annual' | 'own' | 'none';
+  casualAllowance?: boolean;
+  documentAboveDays?: number;
+  maxDaysPerRequest?: number;
+  noticeDays: number;
+  sort: number;
+}
+export const DEFAULT_LEAVE_TYPES: LeaveTypeRow[] = [
+  {
+    id: 'leavetype_annual',
+    code: 'annual',
+    nameEn: 'Annual leave',
+    nameAr: 'إجازة اعتيادية',
+    paid: true,
+    balance: 'annual',
+    noticeDays: 2,
+    sort: 1,
+  },
+  {
+    id: 'leavetype_casual',
+    code: 'casual',
+    nameEn: 'Casual leave',
+    nameAr: 'إجازة عارضة',
+    paid: true,
+    balance: 'annual',
+    casualAllowance: true,
+    maxDaysPerRequest: 2,
+    noticeDays: 0,
+    sort: 2,
+  },
+  {
+    id: 'leavetype_sick',
+    code: 'sick',
+    nameEn: 'Sick leave',
+    nameAr: 'إجازة مرضية',
+    paid: true,
+    balance: 'none',
+    documentAboveDays: 1,
+    noticeDays: 0,
+    sort: 3,
+  },
+  {
+    id: 'leavetype_unpaid',
+    code: 'unpaid',
+    nameEn: 'Unpaid leave',
+    nameAr: 'إجازة بدون أجر',
+    paid: false,
+    balance: 'none',
+    noticeDays: 7,
+    sort: 4,
+  },
+];
+
+type Step = [
+  penalty:
+    | 'verbal_warning'
+    | 'written_warning'
+    | 'deduction_days'
+    | 'deduction_amount'
+    | 'suspension_days'
+    | 'termination_review',
+  days?: number,
+];
+interface ViolationTypeRow {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  category: 'attendance' | 'conduct' | 'cash' | 'damage' | 'safety';
+  steps: Step[];
+  sort: number;
+}
+export const DEFAULT_VIOLATION_TYPES: ViolationTypeRow[] = [
+  {
+    id: 'vtype_late_arrival',
+    code: 'late_arrival',
+    nameEn: 'Late arrival',
+    nameAr: 'التأخير عن موعد الحضور',
+    category: 'attendance',
+    steps: [
+      ['written_warning'],
+      ['deduction_days', 0.25],
+      ['deduction_days', 0.5],
+      ['deduction_days', 1],
+    ],
+    sort: 1,
+  },
+  {
+    id: 'vtype_absence',
+    code: 'absence_without_leave',
+    nameEn: 'Absence without leave',
+    nameAr: 'الغياب بدون إذن',
+    category: 'attendance',
+    steps: [
+      ['deduction_days', 1],
+      ['deduction_days', 2],
+      ['deduction_days', 3],
+      ['termination_review'],
+    ],
+    sort: 2,
+  },
+  {
+    id: 'vtype_cash_shortage',
+    code: 'cash_shortage',
+    nameEn: 'Cash shortage',
+    nameAr: 'عجز في النقدية',
+    category: 'cash',
+    steps: [['deduction_amount']],
+    sort: 3,
+  },
+  {
+    id: 'vtype_damage',
+    code: 'damage_negligence',
+    nameEn: 'Damage by negligence',
+    nameAr: 'إتلاف بإهمال',
+    category: 'damage',
+    steps: [['deduction_amount']],
+    sort: 4,
+  },
+  {
+    id: 'vtype_misconduct',
+    code: 'misconduct',
+    nameEn: 'Misconduct',
+    nameAr: 'سوء السلوك',
+    category: 'conduct',
+    steps: [
+      ['written_warning'],
+      ['deduction_days', 1],
+      ['deduction_days', 3],
+      ['termination_review'],
+    ],
+    sort: 5,
+  },
+];
+
+async function ensureLeaveAndViolationDefaults(db: Db) {
+  let added = 0;
+  for (const t of DEFAULT_LEAVE_TYPES) {
+    if (await db.leaveType.findUnique({ where: { code: t.code } })) continue;
+    if (await db.leaveType.findUnique({ where: { id: t.id } })) continue;
+    await db.leaveType.create({
+      data: {
+        id: t.id,
+        code: t.code,
+        nameEn: t.nameEn,
+        nameAr: t.nameAr,
+        paid: t.paid,
+        balance: t.balance,
+        casualAllowance: t.casualAllowance ?? false,
+        documentAboveDays: t.documentAboveDays ?? null,
+        maxDaysPerRequest: t.maxDaysPerRequest ?? null,
+        noticeDays: t.noticeDays,
+        sort: t.sort,
+      },
+    });
+    added++;
+  }
+  for (const t of DEFAULT_VIOLATION_TYPES) {
+    if (await db.violationType.findUnique({ where: { code: t.code } })) continue;
+    if (await db.violationType.findUnique({ where: { id: t.id } })) continue;
+    await db.violationType.create({
+      data: {
+        id: t.id,
+        code: t.code,
+        nameEn: t.nameEn,
+        nameAr: t.nameAr,
+        category: t.category,
+        sort: t.sort,
+        steps: {
+          create: t.steps.map(([penalty, days], i) => ({
+            id: `vstep_${t.id.slice('vtype_'.length)}_${i + 1}`,
+            step: i + 1,
+            penalty,
+            days: days ?? null,
+          })),
+        },
+      },
+    });
+    added++;
+  }
   return added;
 }
 

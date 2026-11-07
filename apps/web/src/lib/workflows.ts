@@ -29,6 +29,14 @@ export const WORKFLOWS = {
     path: ['new', 'contacted', 'meeting', 'proposal', 'negotiation', 'won'],
     side: ['lost'],
   },
+  // HR phase 3: leave asks the manager, then HR; a violation may be appealed once; a fix to an
+  // attendance day goes from the manager to HR, who applies it.
+  leave: { path: ['pending_manager', 'pending_hr', 'approved'], side: ['rejected', 'cancelled'] },
+  violation: { path: ['recorded', 'appealed', 'final'], side: ['cancelled'] },
+  correction: {
+    path: ['pending_manager', 'pending_hr', 'applied'],
+    side: ['rejected', 'cancelled'],
+  },
   purchase_order: {
     path: ['requested', 'approved', 'ordered', 'received', 'billed', 'closed'],
     side: ['rejected', 'cancelled'],

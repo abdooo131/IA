@@ -319,7 +319,16 @@ export function GradesEditor({ rows, canManage }: { rows: GradeRow[]; canManage:
   const save = useSave();
   const [editing, setEditing] = useState<string | null>(null);
   const egp = (p: number | null) => (p === null ? '' : formatEgp(p).replace(/,/g, ''));
-  const blank = { code: '', nameEn: '', nameAr: '', rank: '', min: '', max: '', isActive: true };
+  const blank = {
+    code: '',
+    nameEn: '',
+    nameAr: '',
+    rank: '',
+    min: '',
+    max: '',
+    leave: '',
+    isActive: true,
+  };
   const [form, setForm] = useState(blank);
   const start = (g: GradeRow | null) => {
     setEditing(g?.id ?? 'new');
@@ -332,6 +341,7 @@ export function GradesEditor({ rows, canManage }: { rows: GradeRow[]; canManage:
             rank: String(g.rank),
             min: egp(g.bandMinPiastres),
             max: egp(g.bandMaxPiastres),
+            leave: g.annualLeaveDays == null ? '' : String(g.annualLeaveDays),
             isActive: g.isActive,
           }
         : { ...blank, rank: String((rows.at(-1)?.rank ?? 0) + 1) },
@@ -344,6 +354,7 @@ export function GradesEditor({ rows, canManage }: { rows: GradeRow[]; canManage:
       rank: Number(form.rank),
       bandMinPiastres: form.min.trim() ? parseEgp(form.min) : null,
       bandMaxPiastres: form.max.trim() ? parseEgp(form.max) : null,
+      annualLeaveDays: form.leave.trim() ? Number(form.leave) : null,
       isActive: form.isActive,
     };
     const ok =
@@ -412,6 +423,16 @@ export function GradesEditor({ rows, canManage }: { rows: GradeRow[]; canManage:
           className={field}
         />
       </label>
+      <label className="block text-caption">
+        {t('annualLeaveDays')}
+        <input
+          value={form.leave}
+          onChange={(e) => setForm({ ...form, leave: e.target.value })}
+          inputMode="numeric"
+          dir="ltr"
+          className={field}
+        />
+      </label>
       <label className="flex items-center gap-2 self-end pb-2 text-body-sm">
         <input
           type="checkbox"
@@ -463,6 +484,12 @@ export function GradesEditor({ rows, canManage }: { rows: GradeRow[]; canManage:
                         max: g.bandMaxPiastres != null ? formatEgp(g.bandMaxPiastres) : '–',
                       })
                     : t('noBand')}
+                  {g.annualLeaveDays != null && (
+                    <>
+                      {' · '}
+                      {t('annualLeaveShort', { days: g.annualLeaveDays })}
+                    </>
+                  )}
                   {' · '}
                   {t('peopleCount', { count: g.people })}
                 </span>
@@ -528,6 +555,7 @@ export function PositionsEditor({
     minGradeId: '',
     maxGradeId: '',
     planned: '0',
+    leave: '',
     isActive: true,
   };
   const [form, setForm] = useState(blank);
@@ -544,6 +572,7 @@ export function PositionsEditor({
             minGradeId: p.minGradeId ?? '',
             maxGradeId: p.maxGradeId ?? '',
             planned: String(p.headcountPlanned),
+            leave: p.annualLeaveDays == null ? '' : String(p.annualLeaveDays),
             isActive: p.isActive,
           }
         : blank,
@@ -557,6 +586,7 @@ export function PositionsEditor({
       minGradeId: form.minGradeId || null,
       maxGradeId: form.maxGradeId || null,
       headcountPlanned: Number(form.planned) || 0,
+      annualLeaveDays: form.leave.trim() ? Number(form.leave) : null,
       isActive: form.isActive,
     };
     const ok =
@@ -640,6 +670,16 @@ export function PositionsEditor({
           className={field}
         />
       </label>
+      <label className="block text-caption">
+        {t('annualLeaveDays')}
+        <input
+          value={form.leave}
+          onChange={(e) => setForm({ ...form, leave: e.target.value })}
+          inputMode="numeric"
+          dir="ltr"
+          className={field}
+        />
+      </label>
       <label className="flex items-center gap-2 self-end pb-2 text-body-sm">
         <input
           type="checkbox"
@@ -692,6 +732,11 @@ export function PositionsEditor({
                   <span className="font-bold">{locale === 'ar' ? p.titleAr : p.titleEn}</span>
                   <span className="ltr-iso ms-2 text-caption text-text-muted">{p.code}</span>
                   <ActiveChip active={p.isActive} />
+                  {p.annualLeaveDays != null && (
+                    <span className="block text-caption text-text-muted">
+                      {t('annualLeaveShort', { days: p.annualLeaveDays })}
+                    </span>
+                  )}
                   {editing === p.id && editor}
                 </td>
                 {editing !== p.id && (

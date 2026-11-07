@@ -24,3 +24,4 @@ export * from './purchasing';
 export * from './site';
 export * from './crm';
 export * from './crm-sales';
+export * from './hr-leave';

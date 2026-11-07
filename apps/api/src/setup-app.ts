@@ -25,7 +25,13 @@ export function setupApp(app: INestApplication) {
   app.use('/photos', raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1600kb' }));
   // Employee documents are uploaded as the raw photo or PDF (at most 3 MB).
   app.use(
-    [/^\/hr\/employees\/[^/]+\/documents$/, /^\/me\/employee\/documents$/],
+    [
+      /^\/hr\/employees\/[^/]+\/documents$/,
+      /^\/me\/employee\/documents$/,
+      // HR phase 3: a leave request's note (medical note) and a violation's evidence.
+      /^\/(hr|me)\/leave\/requests\/[^/]+\/document$/,
+      /^\/hr\/violations\/[^/]+\/evidence$/,
+    ],
     raw({ type: ['image/jpeg', 'image/png', 'image/webp', 'application/pdf'], limit: '3100kb' }),
   );
   // The square employee photo, made on the phone (at most 1 MB).

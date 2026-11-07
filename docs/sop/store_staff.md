@@ -37,6 +37,26 @@ Also inside the app: settings menu (top of every screen), Help.
 - Location blocked: allow location for the site in the browser settings.
 - Phone dead or forgotten: tell your store lead; HR adds the punch with a reason. A forgotten clock out is closed at your shift end and flagged.
 
+### Leave, violations and attendance fixes
+
+1. Open the Settings menu, then My HR. Leave shows how many annual days you have left and your other leave.
+2. To ask for leave: choose the type, the dates (or a half day), write a note and send. Attach a medical note when the type asks for one. Ask early: some types need days of notice.
+3. Your manager approves first, then HR. You get a notification at each step; a request still waiting can be cancelled from the list.
+4. Violations shows anything recorded for you and its penalty. If you disagree, tap Appeal and write why, within the days shown; you can appeal once.
+5. A day that is wrong (forgot to clock in, phone dead): Attendance fixes, choose the day, the right times and what happened. Your manager approves, then HR fixes the day.
+6. If you manage people: Inbox lists your team's leave and fixes; approve or refuse with a reason. The team's leave calendar is below.
+
+**Check it went right**
+
+- The request shows Approved and the days appear on your roster as leave.
+- An appeal shows Appealed until HR decides; the decision comes as a notification.
+
+**If something is wrong**
+
+- More than the balance: ask fewer days, or ask HR (they may give unpaid days).
+- The dates overlap another request: cancel the old one first.
+- Your manager is away: ask HR; they can refuse or wait, and HR asks for leave on your behalf when needed.
+
 ### Receive a merchant shipment
 
 1. Ask the driver for the merchant's shipment reference. No shipment in Receive for that merchant means no receiving: call admin.
@@ -243,6 +263,26 @@ Also inside the app: settings menu (top of every screen), Help.
 - بعيد أو المكان مش دقيق: اطلع برة أو قرب من شباك وشغّل الـ GPS وجرب تاني.
 - اللوكيشن مقفول: افتحه للموقع من إعدادات المتصفح.
 - الموبايل فاصل أو نسيته: قول لمسؤول المخزن؛ الموارد البشرية تضيف التسجيل بسبب. لو نسيت الانصراف اليوم بيتقفل على نهاية ورديتك ويتعلّم.
+
+### الإجازات والمخالفات وتصحيح الحضور
+
+1. افتح قائمة الإعدادات وبعدين ملفي. الإجازات بتوريك فاضل لك كام يوم اعتيادي وباقي إجازاتك.
+2. عشان تطلب إجازة: اختار النوع والتواريخ (أو نص يوم)، اكتب ملاحظة وابعت. ارفع الشهادة الطبية لو النوع طالبها. اطلب بدري: فيه أنواع محتاجة إخطار قبلها بأيام.
+3. مديرك بيوافق الأول وبعدين شؤون العاملين. بيوصلك إشعار في كل خطوة؛ والطلب اللي لسه مستني تقدر تلغيه من القائمة.
+4. المخالفات بتوريك أي حاجة اتسجلت عليك وجزاءها. لو مش موافق اضغط تظلم واكتب السبب في خلال الأيام المكتوبة؛ التظلم مرة واحدة بس.
+5. يوم متسجل غلط (نسيت تسجل حضور، الموبايل فصل): تصحيح الحضور، اختار اليوم والأوقات الصح واكتب اللي حصل. مديرك يوافق وبعدين شؤون العاملين تصلح اليوم.
+6. لو بتدير ناس: الوارد فيه إجازات وتصحيحات فريقك؛ وافق أو ارفض بسبب. وتقويم إجازات الفريق تحته.
+
+**اتأكد إنها مشيت صح**
+
+- الطلب بيقول موافق عليه والأيام بتظهر في جدولك كإجازة.
+- التظلم بيقول متظلم منها لحد ما شؤون العاملين تقرر؛ والقرار بيوصلك إشعار.
+
+**لو فيه مشكلة**
+
+- أكتر من الرصيد: اطلب أيام أقل، أو كلم شؤون العاملين (ممكن يدّوك أيام بدون أجر).
+- التواريخ متداخلة مع طلب تاني: الغي القديم الأول.
+- مديرك مش موجود: كلم شؤون العاملين؛ وهما يقدروا يطلبوا الإجازة نيابة عنك لو لازم.
 
 ### استلام شحنة تاجر
 

@@ -1,5 +1,6 @@
 import { addDays, cairoDay } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
+import { Fragment } from 'react';
 import { Amount } from '@/components/finance/Amount';
 import { PrintButton } from '@/components/finance/PrintButton';
 import { apiGet } from '@/lib/api-server';
@@ -62,6 +63,11 @@ export default async function PayslipsPage({
                   {p.bonus > 0 && row(t('bonus'), p.bonus)}
                   {(p.commission ?? 0) > 0 && row(t('commission'), p.commission ?? 0)}
                   {p.deduction > 0 && row(t('deduction'), -p.deduction)}
+                  {(p.hrItems ?? []).map((i, n) => (
+                    <Fragment key={n}>
+                      {row(t('hrDeductionLine', { label: i.label }), -i.amountPiastres)}
+                    </Fragment>
+                  ))}
                   {row(t('gross'), p.gross, true)}
                   {row(
                     t('insuranceOn', { amount: (p.insuredWage / 100).toFixed(2) }),

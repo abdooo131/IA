@@ -319,6 +319,9 @@ export interface PayslipRun {
     bonus: number;
     /** Sales commission paid with the salary (older runs have none) */
     commission?: number;
+    /** Unpaid leave and final penalties from HR (HR phase 3; older runs have none) */
+    hrDeduction?: number;
+    hrItems?: { kind: string; label: string; days: number | null; amountPiastres: number }[];
     deduction: number;
     gross: number;
     insuredWage: number;

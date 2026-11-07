@@ -40,6 +40,24 @@ describe('appsFor', () => {
     expect(canOpenStoreScreens(profile('store_manager'))).toBe(true);
   });
 
+  it('puts leave, violations and the inbox in the HR app', () => {
+    expect(pages('hr_officer')).toEqual(
+      expect.arrayContaining([
+        '/admin/hr/leave',
+        '/admin/hr/leave/calendar',
+        '/admin/hr/leave/balances',
+        '/admin/hr/leave/types',
+        '/admin/hr/violations',
+        '/admin/hr/violations/suggested',
+        '/admin/hr/violations/types',
+        '/admin/hr/inbox',
+      ]),
+    );
+    expect(locate('/admin/hr/leave/abc')?.page?.href).toBe('/admin/hr/leave');
+    expect(locate('/admin/hr/violations/suggested')?.page?.label).toBe('suggestedViolations');
+    expect(pages('accountant')).not.toContain('/admin/hr/leave');
+  });
+
   it('gives store staff no apps, only the store screens', () => {
     expect(appsFor(profile('store_staff'))).toEqual([]);
     expect(canOpenStoreScreens(profile('store_staff'))).toBe(true);
@@ -63,6 +81,14 @@ describe('appsFor', () => {
       '/admin/hr/attendance',
       '/admin/hr/attendance/days',
       '/admin/hr/roster',
+      '/admin/hr/leave',
+      '/admin/hr/leave/calendar',
+      '/admin/hr/leave/balances',
+      '/admin/hr/leave/types',
+      '/admin/hr/violations',
+      '/admin/hr/violations/suggested',
+      '/admin/hr/violations/types',
+      '/admin/hr/inbox',
       '/admin/hr/documents',
       '/admin/hr/checklists',
       '/admin/hr/departments',

@@ -31,6 +31,27 @@ const ANY_SIGNED_IN = new Set([
   'me/team/:employeeId',
   // A person's photo: themself, their managers and HR view (checked inside).
   'people/:employeeId/photo',
+  // HR phase 3: a person's own leave, violations (appeal) and attendance fixes, and the manager
+  // inbox (their direct reports only, checked inside; HR items need HR access read fresh).
+  'me/leave',
+  'me/leave/requests',
+  'me/leave/requests/:id',
+  'me/leave/requests/:id/cancel',
+  'me/leave/requests/:id/document',
+  'me/violations',
+  'me/violations/:id',
+  'me/violations/:id/evidence',
+  'me/violations/:id/appeal',
+  'me/corrections',
+  'me/corrections/:id/cancel',
+  'me/inbox',
+  'me/hr-badges',
+  'me/inbox/leave/:id/approve',
+  'me/inbox/leave/:id/reject',
+  'me/inbox/corrections/:id/approve',
+  'me/inbox/corrections/:id/reject',
+  'me/team-leave/:id',
+  'me/team-leave-calendar',
   // Notifications: a person's own devices, switches and test (each call touches only their rows).
   'me/push/',
   'me/push/subscriptions',

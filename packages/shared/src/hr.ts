@@ -219,6 +219,9 @@ export const departmentUpdateSchema = departmentSchema.partial().omit({ code: tr
 export type DepartmentUpdateBody = z.infer<typeof departmentUpdateSchema>;
 
 const band = z.number().int().min(0).max(1_000_000_000).nullable().optional();
+/** Yearly annual leave days of a grade or position (HR phase 3); null: not set */
+const annualLeaveDays = z.number().int().min(0).max(60).nullable().optional();
+
 export const gradeSchema = z
   .object({
     code: codeSchema,
@@ -226,6 +229,7 @@ export const gradeSchema = z
     rank: z.number().int().min(1).max(99),
     bandMinPiastres: band,
     bandMaxPiastres: band,
+    annualLeaveDays,
     isActive: z.boolean().optional(),
   })
   .refine(
@@ -245,6 +249,7 @@ export const gradeUpdateSchema = z.object({
   rank: z.number().int().min(1).max(99).optional(),
   bandMinPiastres: band,
   bandMaxPiastres: band,
+  annualLeaveDays,
   isActive: z.boolean().optional(),
 });
 export type GradeUpdateBody = z.infer<typeof gradeUpdateSchema>;
@@ -257,6 +262,7 @@ export const positionSchema = z.object({
   minGradeId: optionalId,
   maxGradeId: optionalId,
   headcountPlanned: z.number().int().min(0).max(10_000).default(0),
+  annualLeaveDays,
   isActive: z.boolean().optional(),
 });
 export type PositionBody = z.infer<typeof positionSchema>;

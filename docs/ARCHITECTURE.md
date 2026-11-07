@@ -79,7 +79,9 @@ Modules under apps/api/src:
     packaging   packaging items, stock per store, recipes, buying, adjusting and counting
     email       merchant email outbox, billing email settings, Mailer boundary (SMTP)
     hr          employee files, documents, org chart, departments, grades, positions,
-                checklists, attendance, shifts, roster, holidays
+                checklists, attendance, shifts, roster, holidays, leave (types, requests,
+                balances, calendar), violations (ladders, appeals, suggestions), attendance
+                correction requests, the manager inbox
     sales       sales CRM: leads, pipeline, deals, companies, contacts, activities, My day,
                 proposals (and their public page), targets, dashboard, commission, owner
                 setup links
@@ -118,7 +120,8 @@ Next.js 15 App Router, next-intl (en, ar with RTL), Tailwind with the Brand v2 t
     /store/<storeId>/...   store staff screens (phone first, barcode scanning with the camera)
     /rider                 rider app (phone first)
     /merchant/...          merchant area (sidebar layout)
-    /my-file               the person's own HR file, attendance and documents
+    /my-file               the person's own HR file, attendance and documents; /my-file/leave,
+                           /violations, /corrections and /inbox (HR phase 3)
     /tickets, /help        tickets and role SOPs
     /t/<token>             public order tracking page
 
@@ -183,7 +186,9 @@ Main groups of tables:
     People        users, user_access, user_stores, refresh_tokens, employees, departments,
                   grades, job_positions, employee_photos, employee_documents and types,
                   salary_packages, salary_allowances, checklists, shifts, roster_days,
-                  holidays, punches, attendance_days
+                  holidays, punches, attendance_days, leave_types, leave_requests,
+                  leave_request_days, leave_adjustments, violation_types, violation_steps,
+                  violations, violation_suggestions, attendance_corrections
     Customers     customers, customer_aliases, shop_customers, shop_orders, shop_products,
                   shop_data_syncs
     Sales         crm_companies, crm_contacts, crm_deals, crm_deal_stage_history (append
@@ -243,8 +248,11 @@ blocked.
 People:
 an account is created in Settings > Users with a job role → its HR file opens with the
 onboarding checklist → documents are uploaded and verified → the person clocks in and out by
-location against their shift → attendance days close automatically → the monthly payroll run
-reads HR salary packages and books it in accounting.
+location against their shift → attendance days close automatically (suggesting violations for
+lateness and absence) → leave is asked from My HR and approved by the manager then HR →
+violations climb their ladder, may be appealed once and become final → the monthly payroll run
+reads HR salary packages, takes unpaid leave days and final deductions once, and books it in
+accounting.
 
 ## 9. Access control
 
@@ -267,7 +275,8 @@ one instance acts, and each has an idempotency key so running twice changes noth
     customer linking (our orders to customer profiles)
     ticket reminders
     document expiry alerts
-    attendance roster planning and daily close
+    attendance roster planning and daily close, then violations past their appeal window
+    made final and suggested violations from the closed days
     automatic refill drafts
     daily storage fees
     rider cash overdue alerts (every ten minutes, one per rider and Cairo day)
@@ -305,7 +314,9 @@ one instance acts, and each has an idempotency key so running twice changes noth
   low stock) and calls notify(userIds, type, text) for the people who may open the page it
   links to: store staff of that store (store use), riders, accounting use, operations manage
   (paging alerts), merchants manage (sign ups), the merchant's account manager, HR use and the
-  person (documents), the ticket's other person, merchant users with the orders, money or stock
+  person (documents), the manager in force, HR use and HR manage and the person (leave requests,
+  attendance fixes, violations and appeals, termination reviews), the ticket's other person,
+  merchant users with the orders, money or stock
   right, sales managers (website leads, the leads queue) and the owner of a deal or follow up
   (deal given to them, follow up due or overdue, deal stuck in a stage), sales managers
   (a proposal's discount waiting for approval) and the proposal's maker or the deal's owner

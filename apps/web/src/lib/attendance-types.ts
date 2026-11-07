@@ -124,6 +124,8 @@ export interface Roster {
     status: string;
     defaultShiftId: string | null;
     cells: (RosterCell | null)[];
+    /** Approved leave per day (HR phase 3) */
+    leave?: ({ fraction: number; code: string; nameEn: string; nameAr: string } | null)[];
   })[];
 }
 

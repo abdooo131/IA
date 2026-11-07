@@ -234,6 +234,25 @@ export const APPS: AppDef[] = [
           { href: '/admin/hr/roster', label: 'roster' },
         ],
       },
+      // HR phase 3: leave, violations and the inbox of what waits for HR.
+      {
+        label: 'leave',
+        pages: [
+          { href: '/admin/hr/leave', label: 'leaveRequests' },
+          { href: '/admin/hr/leave/calendar', label: 'leaveCalendar' },
+          { href: '/admin/hr/leave/balances', label: 'leaveBalances' },
+          { href: '/admin/hr/leave/types', label: 'leaveTypes' },
+        ],
+      },
+      {
+        label: 'violations',
+        pages: [
+          { href: '/admin/hr/violations', label: 'violations' },
+          { href: '/admin/hr/violations/suggested', label: 'suggestedViolations' },
+          { href: '/admin/hr/violations/types', label: 'violationTypes' },
+        ],
+      },
+      { label: 'hrInbox', pages: [{ href: '/admin/hr/inbox', label: 'hrInbox' }] },
       {
         label: 'hrDocuments',
         pages: [

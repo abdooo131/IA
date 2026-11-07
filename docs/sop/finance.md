@@ -120,6 +120,20 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Someone is missing from the run: HR has not set their salary package yet; ask HR (a ticket to the HR manager).
 
+### HR deductions in the salary run
+
+1. The run brings HR's items by itself: unpaid leave days and final violation deductions not taken yet, each listed per person under HR deductions.
+2. A day of pay is the basic salary divided by the HR setting (30 by default); the deductions lower the gross before tax.
+3. Each item is taken once: the run marks it, so the next month never takes it again.
+
+**Check it went right**
+
+- The payslip shows the HR deduction lines next to the gross.
+
+**If something is wrong**
+
+- A deduction looks wrong: do not change it in the run; ask HR, who cancel or correct the violation or the leave before you run.
+
 ### Supplier bills
 
 1. Suppliers and bills: add the supplier once with their tax id and withholding % (ask the accountant).
@@ -507,6 +521,20 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - حد مش ظاهر في المرتبات: الموارد البشرية لسه ما حددتش حزمة مرتبه؛ ابعت تذكرة لمدير الموارد البشرية.
+
+### خصومات شؤون العاملين في المسير
+
+1. المسير بيجيب بنود شؤون العاملين لوحده: أيام الإجازة بدون أجر وخصومات المخالفات النهائية اللي لسه ما اتاخدتش، كل واحدة مكتوبة للموظف تحت خصومات شؤون العاملين.
+2. أجر اليوم هو المرتب الأساسي مقسوم على إعداد شؤون العاملين (30 افتراضيًا)؛ والخصومات بتقلل الإجمالي قبل الضريبة.
+3. كل بند بيتاخد مرة واحدة: المسير بيعلّمه، فالشهر الجاي عمره ما ياخده تاني.
+
+**اتأكد إنها مشيت صح**
+
+- قسيمة المرتب فيها بنود خصم شؤون العاملين جنب الإجمالي.
+
+**لو فيه مشكلة**
+
+- خصم شكله غلط: ما تغيروش في المسير؛ كلم شؤون العاملين يلغوا أو يصححوا المخالفة أو الإجازة قبل ما تشغل المسير.
 
 ### فواتير الموردين
 

@@ -420,6 +420,7 @@ const gradeSnapshot = (g: Prisma.GradeGetPayload<object>) => ({
   rank: g.rank,
   bandMinPiastres: g.bandMinPiastres,
   bandMaxPiastres: g.bandMaxPiastres,
+  annualLeaveDays: g.annualLeaveDays,
   isActive: g.isActive,
 });
 
@@ -437,6 +438,7 @@ export function createGrade(db: Db, input: { body: GradeBody; actorUserId: strin
         rank: input.body.rank,
         bandMinPiastres: input.body.bandMinPiastres ?? null,
         bandMaxPiastres: input.body.bandMaxPiastres ?? null,
+        annualLeaveDays: input.body.annualLeaveDays ?? null,
         isActive: input.body.isActive ?? true,
       },
     });
@@ -479,6 +481,7 @@ export function updateGrade(
         rank: input.body.rank,
         bandMinPiastres: input.body.bandMinPiastres,
         bandMaxPiastres: input.body.bandMaxPiastres,
+        annualLeaveDays: input.body.annualLeaveDays,
         isActive: input.body.isActive,
       },
     });
@@ -565,6 +568,7 @@ const positionSnapshot = (p: Prisma.JobPositionGetPayload<object>) => ({
   minGradeId: p.minGradeId,
   maxGradeId: p.maxGradeId,
   headcountPlanned: p.headcountPlanned,
+  annualLeaveDays: p.annualLeaveDays,
   isActive: p.isActive,
 });
 
@@ -582,6 +586,7 @@ export function createPosition(db: Db, input: { body: PositionBody; actorUserId:
         minGradeId: input.body.minGradeId ?? null,
         maxGradeId: input.body.maxGradeId ?? null,
         headcountPlanned: input.body.headcountPlanned,
+        annualLeaveDays: input.body.annualLeaveDays ?? null,
         isActive: input.body.isActive ?? true,
       },
     });
@@ -613,6 +618,7 @@ export function updatePosition(
         minGradeId: input.body.minGradeId,
         maxGradeId: input.body.maxGradeId,
         headcountPlanned: input.body.headcountPlanned,
+        annualLeaveDays: input.body.annualLeaveDays,
         isActive: input.body.isActive,
       },
     });

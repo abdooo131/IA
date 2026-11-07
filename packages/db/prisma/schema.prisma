@@ -2652,23 +2652,29 @@ model Employee {
   createdAt             DateTime       @default(now()) @map("created_at")
   updatedAt             DateTime       @updatedAt @map("updated_at")
 
-  user             User                @relation(fields: [userId], references: [id], onDelete: Restrict)
-  manager          Employee?           @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
-  reports          Employee[]          @relation("employee_manager")
-  homeStore        DarkStore?          @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
-  department       Department?         @relation("department_members", fields: [departmentId], references: [id], onDelete: Restrict)
-  position         JobPosition?        @relation(fields: [positionId], references: [id], onDelete: Restrict)
-  grade            Grade?              @relation(fields: [gradeId], references: [id], onDelete: Restrict)
-  staffingSupplier Supplier?           @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
-  headOf           Department[]        @relation("department_head")
+  user             User                   @relation(fields: [userId], references: [id], onDelete: Restrict)
+  manager          Employee?              @relation("employee_manager", fields: [managerId], references: [id], onDelete: SetNull)
+  reports          Employee[]             @relation("employee_manager")
+  homeStore        DarkStore?             @relation(fields: [homeStoreId], references: [id], onDelete: Restrict)
+  department       Department?            @relation("department_members", fields: [departmentId], references: [id], onDelete: Restrict)
+  position         JobPosition?           @relation(fields: [positionId], references: [id], onDelete: Restrict)
+  grade            Grade?                 @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  staffingSupplier Supplier?              @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
+  headOf           Department[]           @relation("department_head")
   documents        EmployeeDocument[]
   photo            EmployeePhoto?
   salaryPackages   SalaryPackage[]
   checklists       EmployeeChecklist[]
-  defaultShift     Shift?              @relation(fields: [defaultShiftId], references: [id], onDelete: SetNull)
+  defaultShift     Shift?                 @relation(fields: [defaultShiftId], references: [id], onDelete: SetNull)
   rosterDays       RosterDay[]
   punches          Punch[]
   attendanceDays   AttendanceDay[]
+  leaveRequests    LeaveRequest[]
+  leaveDays        LeaveRequestDay[]
+  leaveAdjustments LeaveAdjustment[]
+  violations       Violation[]
+  suggestions      ViolationSuggestion[]
+  corrections      AttendanceCorrection[]
 
   @@index([homeStoreId])
   @@index([status])
@@ -2725,6 +2731,8 @@ model Grade {
   rank            Int      @unique
   bandMinPiastres Int?     @map("band_min_piastres")
   bandMaxPiastres Int?     @map("band_max_piastres")
+  /// Yearly annual leave days of this grade (HR phase 3); a position may override it
+  annualLeaveDays Int?     @map("annual_leave_days")
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -2746,6 +2754,8 @@ model JobPosition {
   minGradeId       String?  @map("min_grade_id")
   maxGradeId       String?  @map("max_grade_id")
   headcountPlanned Int      @default(0) @map("headcount_planned")
+  /// Yearly annual leave days of this position, over the grade's (HR phase 3)
+  annualLeaveDays  Int?     @map("annual_leave_days")
   isActive         Boolean  @default(true) @map("is_active")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
@@ -4030,4 +4040,324 @@ model UserSetupToken {
 
   @@index([userId])
   @@map("user_setup_tokens")
+}
+
+// ─── HR phase 3: leave, violations, corrections (docs/HR.md "Phase 3 as built") ──
+
+/// annual: the days come off the annual balance; own: the type keeps its own yearly
+/// allowance; none: no balance (unpaid leave)
+enum LeaveBalanceKind {
+  annual
+  own
+  none
+
+  @@map("leave_balance_kind")
+}
+
+/// A kind of leave HR manages (annual, casual, sick, unpaid, maternity...).
+model LeaveType {
+  id                String           @id @default(cuid())
+  code              String           @unique
+  nameEn            String           @map("name_en")
+  nameAr            String           @map("name_ar")
+  paid              Boolean          @default(true)
+  balance           LeaveBalanceKind @default(annual)
+  /// own: the yearly allowance; annual: an optional yearly cap inside the annual balance
+  yearlyDays        Decimal?         @map("yearly_days") @db.Decimal(6, 2)
+  /// The allowance (own) or the cap (annual) is the setting hr.casual_leave_days
+  casualAllowance   Boolean          @default(false) @map("casual_allowance")
+  /// A document is needed when a request is longer than this many days (0: always; null: never)
+  documentAboveDays Int?             @map("document_above_days")
+  maxDaysPerRequest Int?             @map("max_days_per_request")
+  noticeDays        Int              @default(0) @map("notice_days")
+  /// Employees may ask for it themselves from My HR (otherwise HR asks for them)
+  selfRequest       Boolean          @default(true) @map("self_request")
+  isActive          Boolean          @default(true) @map("is_active")
+  sort              Int              @default(0)
+  createdAt         DateTime         @default(now()) @map("created_at")
+  updatedAt         DateTime         @updatedAt @map("updated_at")
+
+  requests    LeaveRequest[]
+  adjustments LeaveAdjustment[]
+
+  @@map("leave_types")
+}
+
+enum LeaveRequestStatus {
+  pending_manager
+  pending_hr
+  approved
+  rejected
+  cancelled
+
+  @@map("leave_request_status")
+}
+
+/// A leave request (LV-000001): the person's manager approves first, then HR.
+model LeaveRequest {
+  id                  String             @id @default(cuid())
+  number              Int                @unique @default(autoincrement())
+  employeeId          String             @map("employee_id")
+  typeId              String             @map("type_id")
+  fromDay             DateTime           @map("from_day") @db.Date
+  toDay               DateTime           @map("to_day") @db.Date
+  halfDay             Boolean            @default(false) @map("half_day")
+  /// Working days asked for (weekends, days off and holidays not counted)
+  days                Decimal            @db.Decimal(6, 2)
+  note                String?
+  status              LeaveRequestStatus
+  /// The manager in force when asked (null: straight to HR)
+  managerEmployeeId   String?            @map("manager_employee_id")
+  requestedById       String             @map("requested_by_id")
+  /// HR asked for the person (on their behalf)
+  onBehalf            Boolean            @default(false) @map("on_behalf")
+  /// HR allowed it above the balance (the days beyond it are unpaid) or further back
+  overrideBalance     Boolean            @default(false) @map("override_balance")
+  overrideBackdate    Boolean            @default(false) @map("override_backdate")
+  documentContentType String?            @map("document_content_type")
+  documentData        Bytes?             @map("document_data")
+  documentName        String?            @map("document_name")
+  managerDecidedById  String?            @map("manager_decided_by_id")
+  managerDecidedAt    DateTime?          @map("manager_decided_at")
+  hrDecidedById       String?            @map("hr_decided_by_id")
+  hrDecidedAt         DateTime?          @map("hr_decided_at")
+  rejectedById        String?            @map("rejected_by_id")
+  rejectedAt          DateTime?          @map("rejected_at")
+  rejectReason        String?            @map("reject_reason")
+  cancelledById       String?            @map("cancelled_by_id")
+  cancelledAt         DateTime?          @map("cancelled_at")
+  cancelReason        String?            @map("cancel_reason")
+  idempotencyKey      String?            @unique @map("idempotency_key")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  employee Employee          @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  type     LeaveType         @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  dayRows  LeaveRequestDay[]
+
+  @@index([employeeId, fromDay])
+  @@index([status])
+  @@map("leave_requests")
+}
+
+/// One working day of a leave request (a half day is 0.5). Paid is fixed when HR approves:
+/// unpaid types and days beyond the balance are unpaid and reach the payroll run once.
+model LeaveRequestDay {
+  id                String   @id @default(cuid())
+  requestId         String   @map("request_id")
+  employeeId        String   @map("employee_id")
+  day               DateTime @db.Date
+  fraction          Decimal  @db.Decimal(3, 2)
+  paid              Boolean  @default(true)
+  /// The salary run that took this unpaid day (once only) and how much it took
+  payrollEntryId    String?  @map("payroll_entry_id")
+  deductionPiastres Int?     @map("deduction_piastres")
+
+  request  LeaveRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  employee Employee     @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@unique([requestId, day])
+  @@index([employeeId, day])
+  @@map("leave_request_days")
+}
+
+/// A change HR makes to a balance with a reason (never edited: a correction is another row).
+/// No type: the annual balance.
+model LeaveAdjustment {
+  id          String   @id @default(cuid())
+  employeeId  String   @map("employee_id")
+  typeId      String?  @map("type_id")
+  /// The leave year it changes (the calendar year the leave year starts in)
+  year        Int
+  days        Decimal  @db.Decimal(6, 2)
+  reason      String
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  employee Employee   @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  type     LeaveType? @relation(fields: [typeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, year])
+  @@map("leave_adjustments")
+}
+
+enum ViolationCategory {
+  attendance
+  conduct
+  cash
+  damage
+  safety
+
+  @@map("violation_category")
+}
+
+enum PenaltyKind {
+  verbal_warning
+  written_warning
+  deduction_days
+  deduction_amount
+  suspension_days
+  termination_review
+
+  @@map("penalty_kind")
+}
+
+/// A violation HR manages, with its escalation ladder.
+model ViolationType {
+  id        String            @id @default(cuid())
+  code      String            @unique
+  nameEn    String            @map("name_en")
+  nameAr    String            @map("name_ar")
+  category  ViolationCategory
+  isActive  Boolean           @default(true) @map("is_active")
+  sort      Int               @default(0)
+  createdAt DateTime          @default(now()) @map("created_at")
+  updatedAt DateTime          @updatedAt @map("updated_at")
+
+  steps       ViolationStep[]
+  violations  Violation[]
+  suggestions ViolationSuggestion[]
+
+  @@map("violation_types")
+}
+
+/// The penalty of the nth violation of a type inside hr.violation_period_days.
+model ViolationStep {
+  id             String      @id @default(cuid())
+  typeId         String      @map("type_id")
+  step           Int
+  penalty        PenaltyKind
+  /// deduction_days and suspension_days (0.25 allowed)
+  days           Decimal?    @db.Decimal(6, 2)
+  /// deduction_amount; null: the amount is entered when recording (a cash shortage)
+  amountPiastres Int?        @map("amount_piastres")
+
+  type ViolationType @relation(fields: [typeId], references: [id], onDelete: Cascade)
+
+  @@unique([typeId, step])
+  @@map("violation_steps")
+}
+
+enum ViolationStatus {
+  recorded
+  appealed
+  final
+  cancelled
+
+  @@map("violation_status")
+}
+
+/// A violation recorded for a person (VIO-000001), with the penalty of its ladder step.
+model Violation {
+  id                  String          @id @default(cuid())
+  number              Int             @unique @default(autoincrement())
+  employeeId          String          @map("employee_id")
+  typeId              String          @map("type_id")
+  occurredOn          DateTime        @map("occurred_on") @db.Date
+  description         String
+  /// The step the ladder gave, and the one applied (HR may change it with a reason)
+  suggestedStep       Int             @map("suggested_step")
+  step                Int
+  stepReason          String?         @map("step_reason")
+  penalty             PenaltyKind
+  days                Decimal?        @db.Decimal(6, 2)
+  amountPiastres      Int?            @map("amount_piastres")
+  status              ViolationStatus @default(recorded)
+  recordedById        String          @map("recorded_by_id")
+  recordedAt          DateTime        @default(now()) @map("recorded_at")
+  appealReason        String?         @map("appeal_reason")
+  appealedAt          DateTime?       @map("appealed_at")
+  /// upheld or cancelled by HR manage (never the person who recorded it)
+  decision            String?
+  decisionNote        String?         @map("decision_note")
+  decidedById         String?         @map("decided_by_id")
+  decidedAt           DateTime?       @map("decided_at")
+  finalAt             DateTime?       @map("final_at")
+  evidenceContentType String?         @map("evidence_content_type")
+  evidenceData        Bytes?          @map("evidence_data")
+  evidenceName        String?         @map("evidence_name")
+  /// The salary run that took the deduction (once only) and how much it took
+  payrollEntryId      String?         @map("payroll_entry_id")
+  deductionPiastres   Int?            @map("deduction_piastres")
+  idempotencyKey      String?         @unique @map("idempotency_key")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
+
+  employee   Employee             @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  type       ViolationType        @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  suggestion ViolationSuggestion?
+
+  @@index([employeeId, typeId, occurredOn])
+  @@index([status])
+  @@map("violations")
+}
+
+/// A violation the attendance close suggests (late past the grace, or absent without leave):
+/// one per person and day; HR confirms it onto the ladder or dismisses it.
+model ViolationSuggestion {
+  id          String    @id @default(cuid())
+  employeeId  String    @map("employee_id")
+  day         DateTime  @db.Date
+  /// late or absent
+  kind        String
+  lateMinutes Int       @default(0) @map("late_minutes")
+  typeId      String?   @map("type_id")
+  /// open, confirmed, dismissed
+  status      String    @default("open")
+  violationId String?   @unique @map("violation_id")
+  decidedById String?   @map("decided_by_id")
+  decidedAt   DateTime? @map("decided_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  employee  Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  type      ViolationType? @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  violation Violation?     @relation(fields: [violationId], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, day])
+  @@index([status])
+  @@map("violation_suggestions")
+}
+
+enum CorrectionStatus {
+  pending_manager
+  pending_hr
+  applied
+  rejected
+  cancelled
+
+  @@map("correction_status")
+}
+
+/// A person asks to fix a day (COR-000001): their manager approves, then HR applies it
+/// through the attendance corrections (manual punches).
+model AttendanceCorrection {
+  id                 String           @id @default(cuid())
+  number             Int              @unique @default(autoincrement())
+  employeeId         String           @map("employee_id")
+  day                DateTime         @db.Date
+  problem            String
+  proposedIn         DateTime?        @map("proposed_in")
+  proposedOut        DateTime?        @map("proposed_out")
+  status             CorrectionStatus
+  managerEmployeeId  String?          @map("manager_employee_id")
+  requestedById      String           @map("requested_by_id")
+  managerDecidedById String?          @map("manager_decided_by_id")
+  managerDecidedAt   DateTime?        @map("manager_decided_at")
+  hrDecidedById      String?          @map("hr_decided_by_id")
+  hrDecidedAt        DateTime?        @map("hr_decided_at")
+  rejectedById       String?          @map("rejected_by_id")
+  rejectedAt         DateTime?        @map("rejected_at")
+  rejectReason       String?          @map("reject_reason")
+  cancelledAt        DateTime?        @map("cancelled_at")
+  /// The punches HR added when applying it
+  punchIds           String[]         @default([]) @map("punch_ids")
+  idempotencyKey     String?          @unique @map("idempotency_key")
+  createdAt          DateTime         @default(now()) @map("created_at")
+  updatedAt          DateTime         @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, day])
+  @@index([status])
+  @@map("attendance_corrections")
 }

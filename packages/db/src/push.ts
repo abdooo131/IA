@@ -295,6 +295,7 @@ export async function dispatchPush(
     merchantEvents,
     lowStock,
     crmEvents,
+    hrEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -1202,6 +1203,307 @@ const crmEvents: Source = async (db, since) => {
           vars,
         }),
       });
+  }
+  return list;
+};
+
+// ─── HR phase 3 ─────────────────────────────────────────────────────────────────
+
+/**
+ * Leave requests, attendance fixes and violations (HR phase 3): the next approver hears that
+ * something waits (the manager in force, then HR use of the person's stores; appeals reach HR
+ * manage), and the person hears each decision about their own request or violation.
+ */
+const hrEvents: Source = async (db, since) => {
+  const list: Candidate[] = [];
+  const after = (at: Date | null | undefined) => !!at && at >= since;
+  const userOf = async (employeeId: string | null) =>
+    employeeId
+      ? ((await db.employee.findUnique({ where: { id: employeeId }, select: { userId: true } }))
+          ?.userId ?? null)
+      : null;
+  const hrOf = async (storeId: string | null, level: 'use' | 'manage', ...drop: string[]) =>
+    without(await teamWith(db, 'hr', level, { storeId }), ...drop);
+  const day = (d: Date) => d.toISOString().slice(0, 10);
+
+  const leave = await db.leaveRequest.findMany({
+    where: { updatedAt: { gte: since } },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      days: true,
+      fromDay: true,
+      toDay: true,
+      createdAt: true,
+      managerEmployeeId: true,
+      managerDecidedAt: true,
+      hrDecidedAt: true,
+      rejectedAt: true,
+      rejectReason: true,
+      cancelledAt: true,
+      cancelledById: true,
+      cancelReason: true,
+      type: { select: { nameEn: true, nameAr: true } },
+      employee: { select: { userId: true, nameEn: true, nameAr: true, homeStoreId: true } },
+    },
+    take: 300,
+  });
+  for (const r of leave) {
+    const vars: PushVars = {
+      person: { en: r.employee.nameEn, ar: r.employee.nameAr ?? r.employee.nameEn },
+      type: named(r.type),
+      days: Number(r.days),
+      from: day(r.fromDay),
+      to: day(r.toDay),
+      reason: r.rejectReason ?? r.cancelReason ?? '',
+    };
+    const me = r.employee.userId;
+    const tag = `leave-${r.id}`;
+    if (after(r.createdAt) && r.managerEmployeeId)
+      list.push({
+        key: `leave_new:${r.id}`,
+        make: async () => {
+          const manager = await userOf(r.managerEmployeeId);
+          return {
+            userIds: manager ? without([manager], me) : [],
+            type: 'hr_request',
+            text: 'leave_waiting_manager',
+            vars,
+            url: '/my-file/inbox',
+            tag,
+          };
+        },
+      });
+    const atHr = r.managerEmployeeId ? r.managerDecidedAt : r.createdAt;
+    if (after(atHr) && (r.status === 'pending_hr' || r.hrDecidedAt))
+      list.push({
+        key: `leave_hr:${r.id}`,
+        make: async () => ({
+          userIds: await hrOf(r.employee.homeStoreId, 'use', me),
+          type: 'hr_request',
+          text: 'leave_waiting_hr',
+          vars,
+          url: `/admin/hr/leave/${r.id}`,
+          tag,
+        }),
+      });
+    if (r.managerEmployeeId && after(r.managerDecidedAt) && r.status !== 'rejected')
+      list.push({
+        key: `leave_mgr_ok:${r.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: 'leave_manager_approved',
+          vars,
+          url: '/my-file/leave',
+          tag,
+        }),
+      });
+    if (r.status === 'approved' && after(r.hrDecidedAt))
+      list.push({
+        key: `leave_ok:${r.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: 'leave_approved',
+          vars,
+          url: '/my-file/leave',
+          tag,
+        }),
+      });
+    if (r.status === 'rejected' && after(r.rejectedAt))
+      list.push({
+        key: `leave_no:${r.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: 'leave_rejected',
+          vars,
+          url: '/my-file/leave',
+          tag,
+        }),
+      });
+    if (r.status === 'cancelled' && after(r.cancelledAt) && r.cancelledById !== me)
+      list.push({
+        key: `leave_cancel:${r.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: 'leave_cancelled',
+          vars,
+          url: '/my-file/leave',
+          tag,
+        }),
+      });
+  }
+
+  const corrections = await db.attendanceCorrection.findMany({
+    where: { updatedAt: { gte: since } },
+    select: {
+      id: true,
+      status: true,
+      day: true,
+      problem: true,
+      createdAt: true,
+      managerEmployeeId: true,
+      managerDecidedAt: true,
+      hrDecidedAt: true,
+      rejectedAt: true,
+      rejectReason: true,
+      employee: { select: { userId: true, nameEn: true, nameAr: true, homeStoreId: true } },
+    },
+    take: 300,
+  });
+  for (const c of corrections) {
+    const me = c.employee.userId;
+    const vars: PushVars = {
+      person: { en: c.employee.nameEn, ar: c.employee.nameAr ?? c.employee.nameEn },
+      day: day(c.day),
+      problem: c.problem,
+      reason: c.rejectReason ?? '',
+    };
+    const tag = `correction-${c.id}`;
+    if (after(c.createdAt) && c.managerEmployeeId)
+      list.push({
+        key: `correction_new:${c.id}`,
+        make: async () => {
+          const manager = await userOf(c.managerEmployeeId);
+          return {
+            userIds: manager ? without([manager], me) : [],
+            type: 'hr_request',
+            text: 'correction_waiting_manager',
+            vars,
+            url: '/my-file/inbox',
+            tag,
+          };
+        },
+      });
+    const atHr = c.managerEmployeeId ? c.managerDecidedAt : c.createdAt;
+    if (after(atHr) && (c.status === 'pending_hr' || c.hrDecidedAt))
+      list.push({
+        key: `correction_hr:${c.id}`,
+        make: async () => ({
+          userIds: await hrOf(c.employee.homeStoreId, 'use', me),
+          type: 'hr_request',
+          text: 'correction_waiting_hr',
+          vars,
+          url: '/admin/hr/inbox',
+          tag,
+        }),
+      });
+    if (
+      (c.status === 'applied' && after(c.hrDecidedAt)) ||
+      (c.status === 'rejected' && after(c.rejectedAt))
+    )
+      list.push({
+        key: `correction_done:${c.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: c.status === 'applied' ? 'correction_applied' : 'correction_rejected',
+          vars,
+          url: '/my-file/corrections',
+          tag,
+        }),
+      });
+  }
+
+  const violations = await db.violation.findMany({
+    where: { updatedAt: { gte: since } },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      occurredOn: true,
+      recordedAt: true,
+      recordedById: true,
+      appealedAt: true,
+      appealReason: true,
+      decision: true,
+      decisionNote: true,
+      decidedAt: true,
+      type: { select: { nameEn: true, nameAr: true } },
+      employee: { select: { userId: true, nameEn: true, nameAr: true, homeStoreId: true } },
+    },
+    take: 300,
+  });
+  const appealDays = await getSetting(db, 'hr.appeal_days');
+  for (const v of violations) {
+    const me = v.employee.userId;
+    const number = `VIO-${String(v.number).padStart(6, '0')}`;
+    const vars: PushVars = {
+      person: { en: v.employee.nameEn, ar: v.employee.nameAr ?? v.employee.nameEn },
+      type: named(v.type),
+      day: day(v.occurredOn),
+      days: appealDays,
+      number,
+      reason: v.appealReason ?? '',
+      note: v.decisionNote ?? '',
+    };
+    const tag = `violation-${v.id}`;
+    if (after(v.recordedAt))
+      list.push({
+        key: `violation_rec:${v.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: 'violation_recorded',
+          vars,
+          url: '/my-file/violations',
+          tag,
+        }),
+      });
+    if (after(v.appealedAt))
+      list.push({
+        key: `violation_appeal:${v.id}`,
+        make: async () => ({
+          userIds: await hrOf(v.employee.homeStoreId, 'manage', me, v.recordedById),
+          type: 'hr_request',
+          text: 'violation_appealed',
+          vars,
+          url: `/admin/hr/violations/${v.id}`,
+          tag,
+        }),
+      });
+    if (after(v.decidedAt) && v.decision)
+      list.push({
+        key: `violation_decided:${v.id}`,
+        make: async () => ({
+          userIds: [me],
+          type: 'hr_update',
+          text: v.decision === 'upheld' ? 'violation_upheld' : 'violation_cancelled',
+          vars,
+          url: '/my-file/violations',
+          tag,
+        }),
+      });
+  }
+  // A ladder that reached termination review flags HR managers (never decided by itself).
+  const reviews = await db.alert.findMany({
+    where: { type: 'hr_termination_review', createdAt: { gte: since } },
+    select: { id: true, darkStoreId: true, data: true },
+    take: 100,
+  });
+  for (const a of reviews) {
+    const data = (a.data ?? {}) as Record<string, unknown>;
+    list.push({
+      key: `alert:${a.id}:hr`,
+      make: async () => ({
+        userIds: await hrOf(a.darkStoreId, 'manage'),
+        type: 'hr_request',
+        text: 'violation_termination_review',
+        vars: {
+          person: { en: String(data.nameEn ?? ''), ar: String(data.nameAr ?? data.nameEn ?? '') },
+          number: String(data.number ?? ''),
+        },
+        url: data.violationId
+          ? `/admin/hr/violations/${String(data.violationId)}`
+          : '/admin/hr/violations',
+        tag: `alert-${a.id}`,
+        urgent: true,
+      }),
+    });
   }
   return list;
 };

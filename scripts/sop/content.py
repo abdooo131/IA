@@ -1397,3 +1397,98 @@ AR["sales"] = {
        "محظورة: اسمح بالإشعارات للموقع من إعدادات المتصفح أو الموبايل وفعّلها تاني."]}
   ]
 }
+
+# HR phase 3 (docs/HR.md "Phase 3 as built"): leave, violations, attendance fixes and the inbox.
+# Every employee (store staff and riders) asks from My HR; managers approve first; HR (admin)
+# approves second, records violations and decides appeals; finance sees HR's deductions in the
+# salary run.
+_SELF_EN = {
+  "title": "Leave, violations and attendance fixes",
+  "steps": [
+    "Open the Settings menu, then My HR. Leave shows how many annual days you have left and your other leave.",
+    "To ask for leave: choose the type, the dates (or a half day), write a note and send. Attach a medical note when the type asks for one. Ask early: some types need days of notice.",
+    "Your manager approves first, then HR. You get a notification at each step; a request still waiting can be cancelled from the list.",
+    "Violations shows anything recorded for you and its penalty. If you disagree, tap Appeal and write why, within the days shown; you can appeal once.",
+    "A day that is wrong (forgot to clock in, phone dead): Attendance fixes, choose the day, the right times and what happened. Your manager approves, then HR fixes the day.",
+    "If you manage people: Inbox lists your team's leave and fixes; approve or refuse with a reason. The team's leave calendar is below."],
+  "check": [
+    "The request shows Approved and the days appear on your roster as leave.",
+    "An appeal shows Appealed until HR decides; the decision comes as a notification."],
+  "problems": [
+    "More than the balance: ask fewer days, or ask HR (they may give unpaid days).",
+    "The dates overlap another request: cancel the old one first.",
+    "Your manager is away: ask HR; they can refuse or wait, and HR asks for leave on your behalf when needed."]}
+_SELF_AR = {
+  "title": "الإجازات والمخالفات وتصحيح الحضور",
+  "steps": [
+    "افتح قائمة الإعدادات وبعدين ملفي. الإجازات بتوريك فاضل لك كام يوم اعتيادي وباقي إجازاتك.",
+    "عشان تطلب إجازة: اختار النوع والتواريخ (أو نص يوم)، اكتب ملاحظة وابعت. ارفع الشهادة الطبية لو النوع طالبها. اطلب بدري: فيه أنواع محتاجة إخطار قبلها بأيام.",
+    "مديرك بيوافق الأول وبعدين شؤون العاملين. بيوصلك إشعار في كل خطوة؛ والطلب اللي لسه مستني تقدر تلغيه من القائمة.",
+    "المخالفات بتوريك أي حاجة اتسجلت عليك وجزاءها. لو مش موافق اضغط تظلم واكتب السبب في خلال الأيام المكتوبة؛ التظلم مرة واحدة بس.",
+    "يوم متسجل غلط (نسيت تسجل حضور، الموبايل فصل): تصحيح الحضور، اختار اليوم والأوقات الصح واكتب اللي حصل. مديرك يوافق وبعدين شؤون العاملين تصلح اليوم.",
+    "لو بتدير ناس: الوارد فيه إجازات وتصحيحات فريقك؛ وافق أو ارفض بسبب. وتقويم إجازات الفريق تحته."],
+  "check": [
+    "الطلب بيقول موافق عليه والأيام بتظهر في جدولك كإجازة.",
+    "التظلم بيقول متظلم منها لحد ما شؤون العاملين تقرر؛ والقرار بيوصلك إشعار."],
+  "problems": [
+    "أكتر من الرصيد: اطلب أيام أقل، أو كلم شؤون العاملين (ممكن يدّوك أيام بدون أجر).",
+    "التواريخ متداخلة مع طلب تاني: الغي القديم الأول.",
+    "مديرك مش موجود: كلم شؤون العاملين؛ وهما يقدروا يطلبوا الإجازة نيابة عنك لو لازم."]}
+for _role in ("store_staff", "rider"):
+  _insert_after(_role, "Clock in and out", "تسجيل الحضور والانصراف", dict(_SELF_EN), dict(_SELF_AR))
+
+_insert_after(
+  "admin", "Attendance and shifts", "الحضور والورديات",
+  {"title": "Leave and violations (HR)",
+   "steps": [
+     "HR, Configuration: set annual leave days on each grade (a position may override it); HR settings hold the default 21 days, casual days, the leave year, monthly or yearly accrual, carry over, how far back a request may start, the days per month of pay, the violation period and the appeal days.",
+     "HR, Leave, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Violations, Violation types: each ladder of penalties.",
+     "HR, Inbox every morning: approve or refuse leave at the HR step (the manager already approved), apply or refuse attendance fixes, decide appeals of violations you did not record.",
+     "HR, Leave, Requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.",
+     "HR, Leave, Balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.",
+     "HR, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.",
+     "For outsourcing companies lists final deductions of outsourced people: send them to their company each month."],
+   "check": [
+     "The Inbox count is zero by noon; suggested violations are handled within two days.",
+     "Before payroll: every leave request of the month is decided, so unpaid days reach the run."],
+   "problems": [
+     "A request is stuck at the manager: the manager in force is shown on the request; remind them or fix the manager on the file.",
+     "A suggestion is wrong (the person was on leave): correct the attendance day or approve the leave; the suggestion falls away.",
+     "Termination review alert: never automatic; review the file with the owner and decide."]},
+  {"title": "الإجازات والمخالفات (شؤون العاملين)",
+   "steps": [
+     "شؤون العاملين، الإعدادات: حدد أيام الإجازة الاعتيادية لكل درجة (والوظيفة ممكن تغيرها)؛ وإعدادات شؤون العاملين فيها الافتراضي 21 يوم، أيام العارضة، سنة الإجازات، الاستحقاق شهري أو سنوي، الترحيل، أقصى رجوع للخلف للطلب، أيام الشهر لحساب أجر اليوم، مدة المخالفات وأيام التظلم.",
+     "شؤون العاملين، الإجازات، أنواع الإجازات: كل نوع بيسمح بإيه (بأجر، أنهي رصيد، مستند لأكتر من كام يوم، أقصى أيام، الإخطار، الموظف يطلبها). المخالفات، أنواع المخالفات: سلم الجزاءات لكل نوع.",
+     "شؤون العاملين، الوارد كل صبح: وافق أو ارفض الإجازات في مرحلة شؤون العاملين (المدير وافق خلاص)، نفّذ أو ارفض تصحيحات الحضور، وابت في التظلمات من المخالفات اللي ما سجلتهاش.",
+     "شؤون العاملين، الإجازات، الطلبات: اطلب إجازة لموظف لو مش قادر (تقدر تسمح بأكتر من الرصيد والأيام الزيادة بدون أجر، أو بداية أقدم). الغي إجازة موافق عليها بسبب قبل ما المرتبات تاخدها.",
+     "شؤون العاملين، الإجازات، الأرصدة: عدّل رصيد بسبب (إجازة قديمة، تصحيح)؛ والتقويم بيوري مين في إجازة حسب القسم والمخزن.",
+     "شؤون العاملين، المخالفات: سجّل مخالفة؛ السلم بيختار الدرجة من المخالفات السابقة في المدة (غيرها بسبب بس). ارفع صورة أو PDF كإثبات. المقترحة فيها التأخير والغياب من الحضور: أكّد أو تجاهل كل واحدة.",
+     "لشركات توريد العمالة فيها الخصومات النهائية للعمالة الخارجية: ابعتها لشركتهم كل شهر."],
+   "check": [
+     "عداد الوارد صفر قبل الضهر؛ والمخالفات المقترحة بتتراجع في خلال يومين.",
+     "قبل المرتبات: كل طلبات إجازة الشهر اتقررت، عشان الأيام بدون أجر تدخل المسير."],
+   "problems": [
+     "طلب واقف عند المدير: المدير الحالي مكتوب على الطلب؛ فكّره أو صحح المدير في الملف.",
+     "اقتراح غلط (الموظف كان في إجازة): صحح يوم الحضور أو وافق على الإجازة؛ والاقتراح هيختفي.",
+     "تنبيه مراجعة إنهاء الخدمة: عمره ما بيحصل لوحده؛ راجع الملف مع المالك وقرر."]})
+
+_insert_after(
+  "finance", "Salaries and advances", "المرتبات والسلف",
+  {"title": "HR deductions in the salary run",
+   "steps": [
+     "The run brings HR's items by itself: unpaid leave days and final violation deductions not taken yet, each listed per person under HR deductions.",
+     "A day of pay is the basic salary divided by the HR setting (30 by default); the deductions lower the gross before tax.",
+     "Each item is taken once: the run marks it, so the next month never takes it again."],
+   "check": [
+     "The payslip shows the HR deduction lines next to the gross."],
+   "problems": [
+     "A deduction looks wrong: do not change it in the run; ask HR, who cancel or correct the violation or the leave before you run."]},
+  {"title": "خصومات شؤون العاملين في المسير",
+   "steps": [
+     "المسير بيجيب بنود شؤون العاملين لوحده: أيام الإجازة بدون أجر وخصومات المخالفات النهائية اللي لسه ما اتاخدتش، كل واحدة مكتوبة للموظف تحت خصومات شؤون العاملين.",
+     "أجر اليوم هو المرتب الأساسي مقسوم على إعداد شؤون العاملين (30 افتراضيًا)؛ والخصومات بتقلل الإجمالي قبل الضريبة.",
+     "كل بند بيتاخد مرة واحدة: المسير بيعلّمه، فالشهر الجاي عمره ما ياخده تاني."],
+   "check": [
+     "قسيمة المرتب فيها بنود خصم شؤون العاملين جنب الإجمالي."],
+   "problems": [
+     "خصم شكله غلط: ما تغيروش في المسير؛ كلم شؤون العاملين يلغوا أو يصححوا المخالفة أو الإجازة قبل ما تشغل المسير."]})

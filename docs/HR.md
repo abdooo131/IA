@@ -1,4 +1,4 @@
-# HR module (plan approved; step 1 built, then HR v2; step 2 built)
+# HR module (plan approved; step 1 built, then HR v2; step 2 built; phase 3 built)
 
 Decisions taken by the owner on 2026-11-06: attendance by a Clock in button with a location
 check, violations from a penalty list that reaches payroll, leave by requests and balances,
@@ -290,14 +290,133 @@ Documents need more development, and employees need an image." HR v2 answers it.
   planned. The demo month plans from its first day and simulates punches at each store (most
   on time, some late, a few absent or forgetting to clock out), then closes the days.
 
+## Phase 3 as built (leave, violations, inbox, self service)
+
+Agreed with the owner on 2026-11-07; decisions taken while building are marked (chosen).
+
+### Leave
+
+- Data: `leave_types` (names, paid, balance `annual` | `own` | `none`, yearly days, casual
+  allowance flag, document needed above N days (0 always, empty never), most days per request,
+  notice days, self request, in use), `leave_requests` (LV-000001: type, from, to, half day,
+  working days, note, status, manager in force when asked, who asked, on behalf, HR overrides,
+  the attached note, every decision with who and when, idempotency key), `leave_request_days`
+  (one row per working day: fraction 1 or 0.5, paid, the salary run that took it and how much)
+  and `leave_adjustments` (HR's changes to a balance: person, type or annual, leave year, days
+  plus or minus, reason, who). Grades and positions got `annual_leave_days`.
+- Seeded types (the migration and the seed, HR confirms): Annual (paid, 2 days notice), Casual
+  (paid, counts against annual, capped by `hr.casual_leave_days`, at most 2 days at a time),
+  Sick (paid, no balance, a document above 1 day), Unpaid (no balance, 7 days notice). Types
+  such as maternity, hajj or bereavement are added by HR (chosen: not seeded, their legal rules
+  differ by case).
+- Entitlement: the position's annual days, else the grade's, else
+  `hr.default_annual_leave_days` (21). A joiner's first leave year is prorated by whole months
+  from the hire month (rounded down to a half day). `hr.leave_accrual_monthly` 0 grants the
+  year at its start, 1 earns it month by month (the months started so far). The leave year
+  starts in `hr.leave_year_start_month` (1). What is left at a year's end carries over up to
+  `hr.leave_carry_over_days` (0). (Chosen: settings hold numbers only, so the owner's
+  `hr.leave_accrual monthly|yearly` became `hr.leave_accrual_monthly` 0/1.)
+- Balances are never stored: annual = entitlement + carried in + adjustments − approved paid days
+  of every type counted against annual (casual included); a type with its own allowance is
+  allowance + its adjustments − its approved days; waiting days are shown apart and are reserved
+  when a new request is checked. Casual leave must fit both its own cap and the annual balance.
+- Working days: the person's roster (a shift counts, a day off not), else their default shift's
+  weekdays, else Sunday to Thursday (chosen for office people without either); official holidays
+  never count. A half day is one day only and counts 0.5.
+- Requests: from My HR (types that allow it, with their notice) or by HR for someone (no notice;
+  HR may allow more than the balance, the extra days being unpaid, and a start further back than
+  `hr.leave_backdate_days` (7)). Refused: overlaps with a waiting or approved request, more than
+  the balance (except types without one), more days than the type allows, no working day.
+- Approval in two steps: the manager in force (HR v2: set on the file, else the department head
+  chain) approves or refuses with a reason, then HR (hr use) approves, or refuses at either step.
+  Without a manager in force a request goes straight to HR. Nobody decides on their own request
+  (`own_request`); only the current manager in force decides the first step (`not_your_team`).
+  HR's approval checks the document (`document_required`) and the balance again, then fixes
+  which days are paid (unpaid types, and days beyond the balance when HR allowed that).
+- Cancelling: the person while it waits; after approval only HR, with a reason, as long as no
+  day reached a salary run (`leave_in_payroll`). The balance comes back by itself.
+- Effects: approved days show on the roster (a "Leave" tag in the cell), the Today board shows
+  the person on leave, and closed attendance days in the period are built again as on leave (a
+  half day only when the person did not come in). Unpaid days reach the salary run once.
+
+### Violations and penalties
+
+- Data: `violation_types` (names, category: attendance, conduct, cash, damage, safety, in use)
+  with `violation_steps` (the ladder: verbal or written warning, deduction in days of basic pay
+  (quarters allowed), deduction in EGP (fixed, or entered when recording), suspension days,
+  termination review), `violations` (VIO-000001: person, type, day, description, the step the
+  ladder gave and the one applied with HR's reason, penalty, status, appeal, decision, evidence
+  photo or PDF, the salary run that took it and how much) and `violation_suggestions`.
+- Seeded ladders as the owner listed (late arrival: written warning, 0.25, 0.5, 1 day; absence
+  without leave: 1, 2, 3 days, termination review; cash shortage and damage by negligence: the
+  amount entered; misconduct: written warning, 1 day, 3 days, termination review). HR edits them;
+  a changed ladder applies to new violations only.
+- Recording (hr use): the step is one past the person's violations of that type (not cancelled)
+  dated inside `hr.violation_period_days` (180) up to the day, staying on the last step; HR may
+  choose another step with a reason. A termination review step raises one
+  `hr_termination_review` alert for HR managers (no automatic termination).
+- Status: recorded (the person is told) → appealed (once, by the person from My HR, with a reason,
+  within `hr.appeal_days` (3) of the recording) → decided by HR manage who did not record it
+  (`same_person`): upheld makes it final, cancelled ends it. Without an appeal the API's job makes
+  it final once the window is over. HR manage may also decide a recorded one at once.
+- Payroll: the month's salary run takes, for each employee, the final deductions not taken yet
+  (made final before the month's end) and the unpaid leave days up to the month's end. A day of
+  pay is the basic salary of the package in force ÷ `hr.payroll_days_per_month` (30). They reduce
+  the gross before tax (chosen, as the owner asked: kept simple; the payslip lists each item);
+  each row is marked with the run so it is taken once. People hired through an outsourcing
+  company are never in the run: their final deductions are listed under "For outsourcing
+  companies" for HR to tell the company. Suspension days are recorded only (chosen: no pay
+  effect until HR confirms how suspension is paid).
+- From attendance: the attendance job (every ten minutes) also suggests one violation per person
+  and closed day, late past `hr.late_grace_minutes` or absent (approved leave makes a day on
+  leave, never absent), with the late arrival or absence type. A day corrected since drops its
+  open suggestion. HR confirms one (it is recorded on the ladder) or dismisses it in one tap.
+  (Chosen: the existing `hr.late_grace_minutes` (10) is used, not a second grace of 15; HR can
+  set it to 15.)
+
+### Attendance corrections and the inbox
+
+- `attendance_corrections` (COR-000001): the person asks from My HR for one day (what is wrong,
+  the times it should show; an out at or before the in is the next day), one open request per
+  day. The manager in force approves (or refuses with a reason), then HR (hr use) applies it
+  through the existing corrections: a manual punch for each time, with the request number and
+  the person's words as the reason, and the day is built again. HR may change the times.
+- The inbox (`GET /me/inbox`, `/admin/hr/inbox` and `/my-file/inbox`): a manager sees their
+  direct reports' leave and corrections at the first step, HR use sees the HR step of everyone
+  in their stores and the number of open suggestions, HR manage sees appeals (not those they
+  recorded). Nobody sees their own requests there. The HR menu shows the inbox count and the
+  open suggestions; My HR shows the inbox count.
+- Push (types `hr_request` and `hr_update`, every team member and rider): the next approver
+  (the manager, then HR use of the person's stores; appeals to HR manage) and the requester at
+  each decision; a recorded violation reaches the person; termination reviews reach HR manage.
+
+### Self service (My HR)
+
+- `/my-file/leave`: balances of the leave year, asking for leave (with a note or a medical
+  document), my requests with cancel and attach. `/my-file/violations`: my violations, penalty
+  and status, Appeal while the window is open. `/my-file/corrections`: ask to fix a day and
+  follow it. `/my-file/inbox`: the manager inbox and my team's leave calendar.
+- Payslips are not shown to the person: no payslip view for employees exists yet (the payroll
+  run keeps them for Accounting with the salaries switch).
+
+### Screens
+
+- HR app menus: Leave (Requests, Calendar, Balances, Leave types), Violations (Violations with
+  tabs Appealed, Final, For outsourcing companies and Suggested; Suggested; Violation types),
+  Inbox. A request and a violation open as documents with a status bar and their history.
+- The leave calendar is a month grid of people by day (approved filled, waiting dashed, half
+  days ½, weekends and holidays shaded), filtered by department (with those below it) and store;
+  it scrolls sideways inside its box and phones also get a list of days.
+- Grades and positions edit their annual leave days.
+
 ## Build order
 
 1. Employee files, documents, HR app and access, history (about 2 sessions). Built, with
    account managers (part of 5). Then HR v2 (above): organisation, grades, positions, org
    chart, photo, developed documents, onboarding, salary package and employment moved to HR.
 2. Shifts, Clock in with location, attendance days and the manager board (2 sessions). Built.
-3. Leave requests and balances (1 session).
-4. Penalty list, violations, payroll link (1 to 2 sessions).
+3. Leave requests and balances (1 session). Built in phase 3.
+4. Penalty list, violations, payroll link (1 to 2 sessions). Built in phase 3.
 5. Account managers (1 session) and QC queue and scores (1 to 2 sessions).
 
 Each step is tested, committed and put online on its own.

@@ -26,6 +26,8 @@ export const PUSH_TYPES = [
   'crm_lead',
   'crm_followup',
   'crm_proposal',
+  'hr_request',
+  'hr_update',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -45,7 +47,15 @@ export function pushTypesFor(me: MyAccess): PushType[] {
     if (me.rights.includes('stock')) list.push('merchant_low_stock');
     return list;
   }
-  if (me.kind === 'rider') return ['rider_order', 'ticket', 'attendance_late', 'document_expiring'];
+  if (me.kind === 'rider')
+    return [
+      'rider_order',
+      'ticket',
+      'attendance_late',
+      'document_expiring',
+      'hr_request',
+      'hr_update',
+    ];
   const p: AccessProfile = me.profile;
   const list: PushType[] = [];
   if (canDo(p, 'store', 'use')) list.push('order_new', 'order_late', 'stock_arriving');
@@ -57,7 +67,9 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   // Sales CRM: website leads reach the sales managers' queue; reps hear about their deals.
   if (canDo(p, 'sales', 'manage')) list.push('site_lead');
   if (canDo(p, 'sales', 'use')) list.push('crm_lead', 'crm_followup', 'crm_proposal');
-  list.push('ticket', 'attendance_late', 'document_expiring');
+  // HR phase 3: what waits for a manager or HR (leave, attendance fixes, appeals), and news
+  // about one's own requests and violations.
+  list.push('ticket', 'attendance_late', 'document_expiring', 'hr_request', 'hr_update');
   return list;
 }
 
@@ -250,6 +262,69 @@ export const PUSH_TEXT = {
   crm_proposal_declined: {
     en: ['{company} declined {number}', '{name} declined the proposal.'],
     ar: ['{company} رفض {number}', 'رفض {name} العرض.'],
+  },
+  leave_waiting_manager: {
+    en: ['Leave request from {person}', '{type}: {days} days from {from}. Approve or refuse it.'],
+    ar: ['طلب إجازة من {person}', '{type}: {days} يوم من {from}. وافق عليه أو ارفضه.'],
+  },
+  leave_waiting_hr: {
+    en: ['Leave to approve: {person}', '{type}: {days} days from {from}.'],
+    ar: ['إجازة للموافقة: {person}', '{type}: {days} يوم من {from}.'],
+  },
+  leave_manager_approved: {
+    en: ['Your manager approved your leave', '{type} from {from} now waits for HR.'],
+    ar: ['وافق مديرك على إجازتك', '{type} من {from} في انتظار شؤون العاملين.'],
+  },
+  leave_approved: {
+    en: ['Leave approved', '{type} from {from} to {to} is approved.'],
+    ar: ['تمت الموافقة على الإجازة', '{type} من {from} إلى {to} موافق عليها.'],
+  },
+  leave_rejected: {
+    en: ['Leave refused', '{type} from {from}: {reason}'],
+    ar: ['تم رفض الإجازة', '{type} من {from}: {reason}'],
+  },
+  leave_cancelled: {
+    en: ['Leave cancelled', '{type} from {from} was cancelled: {reason}'],
+    ar: ['تم إلغاء الإجازة', 'تم إلغاء {type} من {from}: {reason}'],
+  },
+  violation_recorded: {
+    en: [
+      'A violation was recorded',
+      '{type} on {day}. You may appeal within {days} days in My HR.',
+    ],
+    ar: ['تم تسجيل مخالفة', '{type} يوم {day}. يمكنك التظلم خلال {days} أيام من ملفي.'],
+  },
+  violation_appealed: {
+    en: ['Appeal to decide: {person}', '{number} {type}: {reason}'],
+    ar: ['تظلم للبت فيه: {person}', '{number} {type}: {reason}'],
+  },
+  violation_upheld: {
+    en: ['Your appeal was refused', '{number}: the penalty stays. {note}'],
+    ar: ['تم رفض تظلمك', '{number}: الجزاء قائم. {note}'],
+  },
+  violation_cancelled: {
+    en: ['Violation cancelled', '{number} was cancelled. {note}'],
+    ar: ['تم إلغاء المخالفة', 'تم إلغاء {number}. {note}'],
+  },
+  violation_termination_review: {
+    en: ['Termination review: {person}', '{number} reached the last step of its ladder.'],
+    ar: ['مراجعة إنهاء خدمة: {person}', '{number} وصلت لآخر درجة في سلم الجزاءات.'],
+  },
+  correction_waiting_manager: {
+    en: ['Attendance fix from {person}', '{day}: {problem}'],
+    ar: ['طلب تصحيح حضور من {person}', '{day}: {problem}'],
+  },
+  correction_waiting_hr: {
+    en: ['Attendance fix to apply: {person}', '{day}: {problem}'],
+    ar: ['تصحيح حضور للتنفيذ: {person}', '{day}: {problem}'],
+  },
+  correction_applied: {
+    en: ['Your attendance was fixed', '{day} was corrected.'],
+    ar: ['تم تصحيح حضورك', 'تم تصحيح يوم {day}.'],
+  },
+  correction_rejected: {
+    en: ['Attendance fix refused', '{day}: {reason}'],
+    ar: ['تم رفض تصحيح الحضور', '{day}: {reason}'],
   },
 } as const satisfies Record<string, Record<PushLang, readonly [string, string]>>;
 export type PushTextKey = keyof typeof PUSH_TEXT;

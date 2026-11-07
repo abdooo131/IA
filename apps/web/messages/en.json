@@ -369,7 +369,8 @@
         "email_failed": "Email to merchant failed",
         "site_lead": "New website lead: {name}",
         "crm_followup_overdue": "Sales follow up overdue: {company}, {subject} ({owner})",
-        "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days"
+        "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
+        "hr_termination_review": "{nameEn}: {number} reached termination review"
       },
       "handledBy": "Handled by {name}"
     },
@@ -474,7 +475,16 @@
         "sales__commission_bp": "Commission on counted fees when the target is hit (%)",
         "sales__commission_months": "A won merchant counts for (months from the win, 0 no end)",
         "sales__setup_link_days": "New owner's password link valid for (days)",
-        "sales__qualify_active_months": "Months with delivered orders before a won merchant counts"
+        "sales__qualify_active_months": "Months with delivered orders before a won merchant counts",
+        "hr__default_annual_leave_days": "Annual leave days a year when the position and grade set none",
+        "hr__casual_leave_days": "Casual leave days a year (inside annual leave)",
+        "hr__leave_year_start_month": "Month the leave year starts (1 January)",
+        "hr__leave_accrual_monthly": "Annual leave earned month by month (1 yes, 0 granted at the start)",
+        "hr__leave_carry_over_days": "Unused annual days carried into the next year (at most)",
+        "hr__leave_backdate_days": "How many days back a leave request may start",
+        "hr__payroll_days_per_month": "A day of pay is the basic salary divided by",
+        "hr__violation_period_days": "Violations of a type count on the ladder for (days)",
+        "hr__appeal_days": "Days to appeal a violation"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -2440,7 +2450,9 @@
       "commissionsTitle": "Sales commission to pay",
       "commissionsHint": "Approved by the sales manager for people hired through an outsourcing company. Paid as a direct bonus from the account chosen in \"Bonus\"; employees get theirs with the salary.",
       "payCommission": "Pay as bonus",
-      "commission": "Sales commission"
+      "commission": "Sales commission",
+      "withHrDeduction": "Less {amount} EGP from HR (unpaid leave, penalties)",
+      "hrDeductionLine": "HR: {label}"
     },
     "payables": {
       "billsTitle": "Suppliers and bills",
@@ -3495,6 +3507,26 @@
             ]
           },
           {
+            "title": "Leave, violations and attendance fixes",
+            "steps": [
+              "Open the Settings menu, then My HR. Leave shows how many annual days you have left and your other leave.",
+              "To ask for leave: choose the type, the dates (or a half day), write a note and send. Attach a medical note when the type asks for one. Ask early: some types need days of notice.",
+              "Your manager approves first, then HR. You get a notification at each step; a request still waiting can be cancelled from the list.",
+              "Violations shows anything recorded for you and its penalty. If you disagree, tap Appeal and write why, within the days shown; you can appeal once.",
+              "A day that is wrong (forgot to clock in, phone dead): Attendance fixes, choose the day, the right times and what happened. Your manager approves, then HR fixes the day.",
+              "If you manage people: Inbox lists your team's leave and fixes; approve or refuse with a reason. The team's leave calendar is below."
+            ],
+            "check": [
+              "The request shows Approved and the days appear on your roster as leave.",
+              "An appeal shows Appealed until HR decides; the decision comes as a notification."
+            ],
+            "problems": [
+              "More than the balance: ask fewer days, or ask HR (they may give unpaid days).",
+              "The dates overlap another request: cancel the old one first.",
+              "Your manager is away: ask HR; they can refuse or wait, and HR asks for leave on your behalf when needed."
+            ]
+          },
+          {
             "title": "Receive a merchant shipment",
             "steps": [
               "Ask the driver for the merchant's shipment reference. No shipment in Receive for that merchant means no receiving: call admin.",
@@ -3691,6 +3723,26 @@
             "problems": [
               "Store says you are not clocked in when handing you an order: clock in first (some stores require it).",
               "Too far or not precise: go to the store, turn on GPS and try again; if it still fails call the store lead."
+            ]
+          },
+          {
+            "title": "Leave, violations and attendance fixes",
+            "steps": [
+              "Open the Settings menu, then My HR. Leave shows how many annual days you have left and your other leave.",
+              "To ask for leave: choose the type, the dates (or a half day), write a note and send. Attach a medical note when the type asks for one. Ask early: some types need days of notice.",
+              "Your manager approves first, then HR. You get a notification at each step; a request still waiting can be cancelled from the list.",
+              "Violations shows anything recorded for you and its penalty. If you disagree, tap Appeal and write why, within the days shown; you can appeal once.",
+              "A day that is wrong (forgot to clock in, phone dead): Attendance fixes, choose the day, the right times and what happened. Your manager approves, then HR fixes the day.",
+              "If you manage people: Inbox lists your team's leave and fixes; approve or refuse with a reason. The team's leave calendar is below."
+            ],
+            "check": [
+              "The request shows Approved and the days appear on your roster as leave.",
+              "An appeal shows Appealed until HR decides; the decision comes as a notification."
+            ],
+            "problems": [
+              "More than the balance: ask fewer days, or ask HR (they may give unpaid days).",
+              "The dates overlap another request: cancel the old one first.",
+              "Your manager is away: ask HR; they can refuse or wait, and HR asks for leave on your behalf when needed."
             ]
           },
           {
@@ -3947,6 +3999,18 @@
             ],
             "problems": [
               "Someone is missing from the run: HR has not set their salary package yet; ask HR (a ticket to the HR manager)."
+            ]
+          },
+          {
+            "title": "HR deductions in the salary run",
+            "steps": [
+              "The run brings HR's items by itself: unpaid leave days and final violation deductions not taken yet, each listed per person under HR deductions.",
+              "A day of pay is the basic salary divided by the HR setting (30 by default); the deductions lower the gross before tax.",
+              "Each item is taken once: the run marks it, so the next month never takes it again."
+            ],
+            "check": ["The payslip shows the HR deduction lines next to the gross."],
+            "problems": [
+              "A deduction looks wrong: do not change it in the run; ask HR, who cancel or correct the violation or the leave before you run."
             ]
           },
           {
@@ -4225,6 +4289,27 @@
             ]
           },
           {
+            "title": "Leave and violations (HR)",
+            "steps": [
+              "HR, Configuration: set annual leave days on each grade (a position may override it); HR settings hold the default 21 days, casual days, the leave year, monthly or yearly accrual, carry over, how far back a request may start, the days per month of pay, the violation period and the appeal days.",
+              "HR, Leave, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Violations, Violation types: each ladder of penalties.",
+              "HR, Inbox every morning: approve or refuse leave at the HR step (the manager already approved), apply or refuse attendance fixes, decide appeals of violations you did not record.",
+              "HR, Leave, Requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.",
+              "HR, Leave, Balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.",
+              "HR, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.",
+              "For outsourcing companies lists final deductions of outsourced people: send them to their company each month."
+            ],
+            "check": [
+              "The Inbox count is zero by noon; suggested violations are handled within two days.",
+              "Before payroll: every leave request of the month is decided, so unpaid days reach the run."
+            ],
+            "problems": [
+              "A request is stuck at the manager: the manager in force is shown on the request; remind them or fix the manager on the file.",
+              "A suggestion is wrong (the person was on leave): correct the attendance day or approve the leave; the suggestion falls away.",
+              "Termination review alert: never automatic; review the file with the owner and decide."
+            ]
+          },
+          {
             "title": "Stores, hubs and zones",
             "steps": [
               "Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.",
@@ -4481,7 +4566,13 @@
       "proposal": "Proposal",
       "negotiation": "Negotiation",
       "won": "Won",
-      "lost": "Lost"
+      "lost": "Lost",
+      "pending_manager": "Manager",
+      "pending_hr": "HR",
+      "applied": "Applied",
+      "recorded": "Recorded",
+      "appealed": "Appealed",
+      "final": "Final"
     }
   },
   "tickets": {
@@ -4900,7 +4991,10 @@
       "proposals": "Proposals",
       "salesDashboard": "Dashboard",
       "targets": "Targets",
-      "commission": "Commission"
+      "commission": "Commission",
+      "leave": "Leave",
+      "violations": "Violations",
+      "hrInbox": "Inbox"
     },
     "pages": {
       "overview": "Overview",
@@ -4987,7 +5081,15 @@
       "proposals": "Proposals",
       "salesDashboard": "Sales dashboard",
       "targets": "Targets",
-      "commission": "Commission"
+      "commission": "Commission",
+      "leaveRequests": "Requests",
+      "leaveCalendar": "Calendar",
+      "leaveBalances": "Balances",
+      "leaveTypes": "Leave types",
+      "violations": "Violations",
+      "suggestedViolations": "Suggested",
+      "violationTypes": "Violation types",
+      "hrInbox": "Inbox"
     }
   },
   "hr": {
@@ -5341,7 +5443,8 @@
       "validation_failed": "Pick a day and write both names.",
       "generic": "Something went wrong. Try again."
     },
-    "officeName": "Office"
+    "officeName": "Office",
+    "onLeaveCell": "Leave: {type}"
   },
   "people": {
     "directoryTitle": "Employees",
@@ -5698,7 +5801,9 @@
     },
     "fit": "Fit",
     "myExpiring": "{count, plural, one {# document expires soon} other {# documents expire soon}}",
-    "myExpiringHint": "Still valid. Send the renewed one when you have it."
+    "myExpiringHint": "Still valid. Send the renewed one when you have it.",
+    "annualLeaveDays": "Annual leave days a year",
+    "annualLeaveShort": "{days} days annual leave"
   },
   "push": {
     "back": "Back",
@@ -5837,6 +5942,14 @@
       "crm_proposal": {
         "name": "Sales proposals",
         "hint": "A discount waits for your approval, or a brand accepted or declined a proposal."
+      },
+      "hr_request": {
+        "name": "Waiting for you in HR",
+        "hint": "Leave, attendance fixes or appeals you approve or decide."
+      },
+      "hr_update": {
+        "name": "Your leave and violations",
+        "hint": "A decision on your request, or a violation recorded for you."
       }
     }
   },
@@ -7444,5 +7557,345 @@
     "error": "Something went wrong. Try again.",
     "done": "Your account is open. Sign in with your email and the password you chose.",
     "signIn": "Sign in"
+  },
+  "hr3": {
+    "number": "Number",
+    "person": "Person",
+    "type": "Type",
+    "dates": "Dates",
+    "date": "Date",
+    "day": "Day",
+    "days": "Days",
+    "daysCount": "{days, select, 1 {1 day} other {{days} days}}",
+    "status": "Status",
+    "store": "Store",
+    "office": "Office",
+    "department": "Department",
+    "allDepartments": "All departments",
+    "allStores": "All stores",
+    "filters": "Filters",
+    "apply": "Apply",
+    "year": "Year",
+    "from": "From",
+    "to": "To",
+    "note": "Note",
+    "reason": "Reason",
+    "description": "What happened",
+    "manager": "Manager",
+    "noManager": "No manager: straight to HR",
+    "requestedBy": "Asked by",
+    "onBehalf": "on their behalf",
+    "document": "Document",
+    "openDocument": "Open the document",
+    "notNeeded": "Not needed",
+    "documentMissing": "Document still missing",
+    "none": "None",
+    "halfDay": "Half day",
+    "halfDayOption": "Half a day",
+    "unpaid": "unpaid",
+    "paid": "Paid",
+    "inPayroll": "Taken in the salary run",
+    "choosePerson": "Choose a person",
+    "code": "Code",
+    "nameEn": "Name (English)",
+    "nameAr": "Name (Arabic)",
+    "active": "In use",
+    "inactive": "Not in use",
+    "save": "Save",
+    "saved": "Saved.",
+    "cancel": "Cancel",
+    "edit": "Edit",
+    "remove": "Remove",
+    "approve": "Approve",
+    "reject": "Refuse",
+    "confirm": "Confirm",
+    "dismiss": "Dismiss",
+    "dismissed": "Dismissed.",
+    "attach": "Attach a file",
+    "attached": "File attached.",
+    "attachNote": "Attach a note",
+    "replaceNote": "Replace the note",
+    "rejectReason": "Why it is refused",
+    "cancelReason": "Why it is cancelled",
+    "confirmReject": "Refuse it",
+    "confirmCancel": "Cancel it",
+    "cancelRequest": "Cancel",
+    "sendRequest": "Send the request",
+    "requestSent": "Sent. You can follow it below.",
+    "requestsTitle": "Leave requests",
+    "requestsIntro": "Requests go to the person's manager first, then to HR. Approved leave shows on the roster and the attendance days, and unpaid days reach the salary run once.",
+    "tabs": {
+      "pending": "Waiting",
+      "pending_hr": "Waiting for HR",
+      "approved": "Approved",
+      "all": "All"
+    },
+    "noRequests": "No leave requests here.",
+    "askForSomeone": "Ask for leave for someone",
+    "askForSomeoneHint": "HR may go past the balance (the days beyond it are unpaid) or further back than allowed. The request still goes to the person's manager first.",
+    "overrideBalance": "Allow more than the balance (the extra days are unpaid)",
+    "overrideBackdate": "Allow a start further back than the limit",
+    "noticeHint": "Ask {days} days ahead",
+    "maxHint": "At most {days} days at a time",
+    "balanceHint": "Counted against the balance",
+    "noBalanceHint": "No balance: it is not counted against one",
+    "documentAlways": "A document is needed",
+    "documentAbove": "A document is needed above {days} days",
+    "backToRequests": "All leave requests",
+    "daysTitle": "Working days",
+    "unpaidDays": "{days} unpaid days",
+    "waitsForManager": "Waiting for {name} (the manager) to approve first.",
+    "balanceTitle": "Balance {year}",
+    "entitlement": "Entitlement",
+    "carriedIn": "Carried in",
+    "adjustments": "Adjustments",
+    "taken": "Taken",
+    "pending": "Waiting",
+    "remaining": "Left",
+    "typeBalance": "{type}: {taken} of {of} days used this year",
+    "trail": "Who did what",
+    "trailAsked": "Asked by {name}",
+    "trailManager": "Approved by the manager, {name}",
+    "trailHr": "Approved by HR, {name}",
+    "trailRejected": "Refused by {name}",
+    "trailCancelled": "Cancelled by {name}",
+    "calendarTitle": "Leave calendar",
+    "calendarIntro": "Who is off when. Filled squares are approved leave, dashed ones still wait; Fridays, Saturdays and holidays are shaded.",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "nobodyOff": "Nobody is off this month.",
+    "legendApproved": "Approved",
+    "legendPending": "Waiting",
+    "legendWeekend": "Weekend or holiday",
+    "balancesTitle": "Leave balances",
+    "balancesIntro": "Each person's annual leave for the leave year: the yearly days (from the position, else the grade, else the HR setting), prorated for joiners, plus what was carried in and HR's adjustments, minus what was taken.",
+    "yearly": "Yearly days",
+    "otherLeave": "Other leave",
+    "sources": {
+      "position": "position",
+      "grade": "grade",
+      "default": "default"
+    },
+    "adjustTitle": "Adjust a balance ({year})",
+    "adjustHint": "Each adjustment is kept with its reason and the person who made it; a correction is a new adjustment.",
+    "balance": "Balance",
+    "annualBalance": "Annual leave",
+    "daysPlusMinus": "Days (+ or −, half days allowed)",
+    "saveAdjustment": "Save the adjustment",
+    "typesTitle": "Leave types",
+    "typesIntro": "What each type of leave allows. The annual days, casual days, leave year, accrual, carry over and how far back a request may start are HR settings.",
+    "addType": "Add a leave type",
+    "rules": "Rules",
+    "yearlyDays": "Days a year (own allowance, or a cap inside annual)",
+    "casualAllowance": "Its days a year are the casual leave setting",
+    "documentAboveDays": "Document needed above (days, 0 always, empty never)",
+    "maxDaysPerRequest": "Most days in one request",
+    "noticeDays": "Notice (days ahead)",
+    "selfRequest": "People may ask for it themselves",
+    "balances": {
+      "annual": "Counts against annual leave",
+      "own": "Has its own yearly days",
+      "none": "No balance"
+    },
+    "fromAnnual": "Counts against annual leave",
+    "fromAnnualCasual": "Counts against annual leave, up to the casual days a year",
+    "ownAllowance": "Own allowance: {days} days a year",
+    "casualSetting": "the casual leave setting",
+    "noBalance": "No balance",
+    "hrOnly": "HR asks for it",
+    "violationsTitle": "Violations",
+    "violationsIntro": "Each violation takes the next step of its type's ladder from the person's earlier ones in the period. The person is told and may appeal once; without an appeal it becomes final after the appeal days. Final deductions reach the salary run once.",
+    "violationTabs": {
+      "all": "All",
+      "appealed": "Appealed",
+      "final": "Final",
+      "supplier": "For outsourcing companies",
+      "suggested": "Suggested"
+    },
+    "supplierIntro": "Final deductions of people hired through an outsourcing company are not taken from our payroll: tell their company.",
+    "noViolations": "No violations here.",
+    "violation": "Violation",
+    "penalty": "Penalty",
+    "step": "Step",
+    "stepOf": "Step {step}",
+    "tellCompany": "Tell {company}",
+    "recordViolation": "Record a violation",
+    "recorded": "Recorded.",
+    "ladderSays": "The ladder gives step {step} ({prior} earlier in the period):",
+    "changeStep": "Another step",
+    "ladderStep": "As the ladder says",
+    "stepReason": "Why another step",
+    "amountEgp": "Amount (EGP)",
+    "amountEgpOptional": "Amount (EGP, empty: entered when recording)",
+    "evidence": "Evidence (photo or PDF)",
+    "addEvidence": "Add evidence",
+    "backToViolations": "All violations",
+    "stepChanged": "The ladder said step {step}: {reason}",
+    "recordedBy": "Recorded by",
+    "appealWindow": "Appeal",
+    "appealUntil": "Can be appealed until {at}",
+    "finalAt": "Final since {at}",
+    "appealReason": "Why you disagree",
+    "decision": "Decision",
+    "decisions": {
+      "upheld": "Upheld",
+      "cancelled": "Cancelled"
+    },
+    "decideAppeal": "Decide the appeal",
+    "decideNow": "Decide now",
+    "decisionNote": "Your note (the person sees it)",
+    "uphold": "Uphold",
+    "cancelViolation": "Cancel the violation",
+    "notYourDecision": "You recorded this violation: another HR manager decides it.",
+    "ladderHistory": "Earlier of this type",
+    "firstOfType": "The first of its type for this person.",
+    "penalties": {
+      "verbal_warning": "Verbal warning",
+      "written_warning": "Written warning",
+      "deduction_days": "Pay for {days} days deducted",
+      "deduction_amount": "{amount} EGP deducted",
+      "deduction_amount_entered": "Deduction of the amount entered",
+      "suspension_days": "{days} days of suspension",
+      "termination_review": "Termination review by HR"
+    },
+    "penaltyKinds": {
+      "verbal_warning": "Verbal warning",
+      "written_warning": "Written warning",
+      "deduction_days": "Deduction in days of pay",
+      "deduction_amount": "Deduction in EGP",
+      "suspension_days": "Suspension in days",
+      "termination_review": "Termination review"
+    },
+    "suggestedTitle": "Suggested violations",
+    "suggestedIntro": "Closed attendance days late past the grace, or absent without approved leave, suggest one violation per person and day. Confirm one to record it on the ladder, or dismiss it.",
+    "noSuggestions": "Nothing suggested right now.",
+    "lateBy": "Late {minutes} min",
+    "absentDay": "Absent",
+    "noTypeYet": "No violation type for it",
+    "openDay": "Open the day",
+    "violationTypesTitle": "Violation types",
+    "violationTypesIntro": "Each type has a ladder: the first violation in the period gets step 1, the next step 2, and so on, staying on the last step. Changes apply to new violations only.",
+    "periodHint": "The period is {days} days (HR setting).",
+    "addViolationType": "Add a violation type",
+    "category": "Category",
+    "categories": {
+      "attendance": "Attendance",
+      "conduct": "Conduct",
+      "cash": "Cash",
+      "damage": "Damage",
+      "safety": "Safety"
+    },
+    "ladder": "Ladder",
+    "addStep": "Add a step",
+    "inboxTitle": "Inbox",
+    "inboxIntro": "Everything waiting for you: leave and attendance fixes of your team, the HR step of everyone's requests, and appeals to decide.",
+    "myInboxIntro": "What your team asks for waits here for you first; HR decides after you.",
+    "inboxEmpty": "Nothing waits for you.",
+    "asManager": "From your team",
+    "asHr": "Waiting for HR",
+    "appeals": "Appeals to decide",
+    "kindLeave": "Leave",
+    "kindCorrection": "Attendance fix",
+    "suggestionsWaiting": "{count} suggested violations to look at",
+    "teamCalendar": "Your team's leave",
+    "myHrSections": "My HR",
+    "sections": {
+      "myFile": "My file",
+      "myLeave": "Leave",
+      "myViolations": "Violations",
+      "myCorrections": "Attendance fixes",
+      "myInbox": "Inbox",
+      "myLeaveHint": "Balances and requests",
+      "myViolationsHint": "Penalties and appeals",
+      "myCorrectionsHint": "Ask to fix a day",
+      "myInboxHint": "What waits for you"
+    },
+    "myLeaveTitle": "My leave",
+    "myLeaveIntro": "Your balances for this leave year and your requests. Your manager approves first, then HR.",
+    "annualLeft": "Annual leave left ({year})",
+    "annualLine": "{entitlement} this year, {carried} carried in, {adjustments} adjusted, {taken} taken, {pending} waiting",
+    "accruesMonthly": "Your annual leave is earned month by month.",
+    "takenLine": "{taken} taken, {pending} waiting",
+    "askLeave": "Ask for leave",
+    "myRequests": "My requests",
+    "myViolationsTitle": "My violations",
+    "myViolationsIntro": "What was recorded and its penalty. You may appeal each one once, within {days} days.",
+    "appeal": "Appeal",
+    "sendAppeal": "Send the appeal",
+    "appealSent": "Appeal sent: HR decides.",
+    "myCorrectionsTitle": "Attendance fixes",
+    "myCorrectionsIntro": "If a day of yours is wrong (forgot to clock in, the phone died), say what happened and the right times. Your manager approves, then HR fixes the day.",
+    "askCorrection": "Ask to fix a day",
+    "proposedIn": "Came in at",
+    "proposedOut": "Left at",
+    "whatIsWrong": "What is wrong",
+    "myCorrections": "My requests",
+    "noCorrections": "No requests yet.",
+    "states": {
+      "pending_manager": "Waiting for the manager",
+      "pending_hr": "Waiting for HR",
+      "approved": "Approved",
+      "rejected": "Refused",
+      "cancelled": "Cancelled",
+      "recorded": "Recorded",
+      "appealed": "Appealed",
+      "final": "Final",
+      "open": "To look at",
+      "confirmed": "Confirmed",
+      "dismissed": "Dismissed",
+      "applied": "Applied"
+    },
+    "errors": {
+      "generic": "That did not work. Try again.",
+      "network": "No connection. Try again.",
+      "validation_failed": "Check the fields.",
+      "no_access": "You do not have access to this.",
+      "store_not_allowed": "This person works at a store you do not have.",
+      "employee_not_found": "No employee file.",
+      "employee_not_active": "This person is suspended or has left.",
+      "employee_left": "This person has left.",
+      "leave_type_not_found": "This leave type is not in use.",
+      "leave_type_hr_only": "HR asks for this type of leave for you.",
+      "leave_overlap": "It overlaps request {number}.",
+      "leave_above_balance": "More than the balance: {available} days left.",
+      "leave_notice": "This leave must be asked {days} days ahead.",
+      "leave_too_far_back": "It may start at most {days} days back.",
+      "leave_too_long": "At most {days} days at a time.",
+      "no_working_days": "There is no working day in these dates.",
+      "half_day_one_day": "A half day is one day only.",
+      "invalid_range": "The end is before the start.",
+      "range_too_long": "At most a year at a time.",
+      "own_request": "Nobody decides on their own request.",
+      "not_your_team": "Only the person's manager decides at this step.",
+      "leave_not_waiting": "This request is no longer waiting.",
+      "reason_required": "Write a reason.",
+      "document_required": "The document is needed before HR approves.",
+      "approved_leave_hr_only": "Only HR can cancel approved leave.",
+      "leave_in_payroll": "Its days are already in a salary run.",
+      "document_type_not_allowed": "Send a photo (JPEG, PNG, WebP) or a PDF.",
+      "document_too_large": "The file is too large (3 MB at most).",
+      "code_taken": "This code is taken.",
+      "allowance_required": "Give the days a year of its own allowance.",
+      "type_has_no_balance": "This type has no balance.",
+      "amount_required": "Enter the amount.",
+      "invalid_step": "This ladder has no such step.",
+      "own_violation": "Nobody records or decides their own violation.",
+      "day_in_future": "That day has not come yet.",
+      "same_person": "Another HR manager decides a violation you recorded.",
+      "violation_closed": "This violation is already decided.",
+      "violation_not_found": "Violation not found.",
+      "violation_type_not_found": "Choose a violation type.",
+      "already_appealed": "You already appealed.",
+      "appeal_closed": "The appeal time is over.",
+      "suggestion_closed": "Already confirmed or dismissed.",
+      "correction_open": "Request {number} for this day still waits.",
+      "correction_not_waiting": "This request is no longer waiting.",
+      "punch_in_future": "That time has not come yet.",
+      "times_required": "Give at least one time.",
+      "idempotency_key_reused": "Refresh the page and try again.",
+      "hr_item_already_paid": "Already taken in a salary run."
+    },
+    "appealedOn": "Appealed on {at}",
+    "appealByPerson": "The person's appeal"
   }
 }

@@ -48,6 +48,8 @@ describe('push notifications', () => {
       'ticket',
       'attendance_late',
       'document_expiring',
+      'hr_request',
+      'hr_update',
     ]);
     const finance = { ...NO_ACCESS, ...JOB_ROLE_TEMPLATES.accountant };
     expect(pushTypesFor({ kind: 'team', role: 'finance', profile: finance })).not.toContain(

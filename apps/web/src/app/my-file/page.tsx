@@ -11,7 +11,7 @@ import { EmployeeHeader } from '@/components/hr/EmployeeHeader';
 import { PhotoEditor } from '@/components/hr/PhotoEditor';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { homeFor } from '@/lib/access';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, apiTry } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import type {
   DocumentChecklist,
@@ -48,11 +48,13 @@ export default async function MyFilePage() {
   const user = await getCurrentUser();
   if (!user) redirect('/login?next=/my-file');
   if (user.role === 'merchant') redirect('/merchant');
-  const [file, t, tp, locale] = await Promise.all([
+  const [file, t, tp, locale, t3, badges] = await Promise.all([
     apiGet<MyFile>('/me/employee'),
     getTranslations('hr'),
     getTranslations('people'),
     getLocale(),
+    getTranslations('hr3'),
+    apiTry<{ inbox: number }>('/me/hr-badges'),
   ]);
   const day = (d: string | null) =>
     d ? <span className="ltr-iso">{isoToDayFirst(d)}</span> : null;
@@ -91,6 +93,36 @@ export default async function MyFilePage() {
         <div className="mt-4">
           <ClockCard />
         </div>
+
+        <nav
+          className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4"
+          aria-label={t3('myHrSections')}
+        >
+          {(
+            [
+              ['/my-file/leave', 'myLeave', 'myLeaveHint'],
+              ['/my-file/violations', 'myViolations', 'myViolationsHint'],
+              ['/my-file/corrections', 'myCorrections', 'myCorrectionsHint'],
+              ['/my-file/inbox', 'myInbox', 'myInboxHint'],
+            ] as const
+          ).map(([href, key, hint]) => (
+            <Link
+              key={href}
+              href={href}
+              className="rounded-lg border border-line bg-surface p-4 hover:border-primary"
+            >
+              <span className="flex items-center gap-2 font-bold">
+                {t3(`sections.${key}`)}
+                {key === 'myInbox' && (badges?.inbox ?? 0) > 0 && (
+                  <span className="ltr-iso rounded-pill bg-status-needs-action px-2 text-caption text-white">
+                    {badges!.inbox}
+                  </span>
+                )}
+              </span>
+              <span className="text-caption text-text-muted">{t3(`sections.${hint}`)}</span>
+            </Link>
+          ))}
+        </nav>
 
         {(todo.length > 0 || expiring.length > 0 || file.team.total > 0) && (
           <div className="mt-4 grid gap-3 sm:grid-cols-2">

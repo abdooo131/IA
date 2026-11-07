@@ -55,6 +55,8 @@ interface PreviewRow {
   name: string;
   /** Approved sales commission taken with this salary */
   commission: number;
+  /** Unpaid leave and final penalties HR hands to the run (HR phase 3) */
+  hrDeduction: number;
   gross: number;
   siEmployee: number;
   siEmployer: number;
@@ -454,6 +456,11 @@ export function Payroll({
                         {r.commission > 0 && (
                           <span className="block text-caption text-text-muted">
                             {t('withCommission', { amount: formatEgp(r.commission) })}
+                          </span>
+                        )}
+                        {r.hrDeduction > 0 && (
+                          <span className="block text-caption text-text-muted">
+                            {t('withHrDeduction', { amount: formatEgp(r.hrDeduction) })}
                           </span>
                         )}
                       </td>

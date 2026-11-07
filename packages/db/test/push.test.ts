@@ -234,6 +234,85 @@ describe('push notifications', () => {
     expect(hr[0]!.message.title).toBe('Document runs out: Staff One');
   });
 
+  it('tells the manager, then HR, then the person about leave, and the person about violations', async () => {
+    const boss = await prisma.employee.create({
+      data: { userId: users.owner!, nameEn: 'Boss', nameAr: 'المدير' },
+    });
+    const staff = await prisma.employee.create({
+      data: {
+        userId: users.staff!,
+        nameEn: 'Staff One',
+        nameAr: 'موظف',
+        homeStoreId: fx.store.id,
+        managerId: boss.id,
+      },
+    });
+    const type = await prisma.leaveType.create({
+      data: { code: 'annual', nameEn: 'Annual leave', nameAr: 'اعتيادية', balance: 'annual' },
+    });
+    const request = await prisma.leaveRequest.create({
+      data: {
+        employeeId: staff.id,
+        typeId: type.id,
+        fromDay: new Date('2026-12-06T00:00:00Z'),
+        toDay: new Date('2026-12-07T00:00:00Z'),
+        days: 2,
+        status: 'pending_manager',
+        managerEmployeeId: boss.id,
+        requestedById: users.staff!,
+        createdAt: ago(2),
+      },
+    });
+    await run();
+    const asked = push.sent.filter((s) => s.message.tag === `leave-${request.id}`);
+    expect(asked.map((s) => s.endpoint.split('/').pop())).toEqual(['owner']);
+    expect(asked[0]!.message.title).toBe('Leave request from Staff One');
+    expect(asked[0]!.message.url).toBe('/my-file/inbox');
+
+    // The manager approves: HR (use, the store's) hears, and the person in Arabic.
+    push.sent = [];
+    await prisma.leaveRequest.update({
+      where: { id: request.id },
+      data: { status: 'pending_hr', managerDecidedAt: ago(1), managerDecidedById: users.owner },
+    });
+    await run();
+    const next = push.sent.filter((s) => s.message.tag === `leave-${request.id}`);
+    expect(next.map((s) => s.endpoint.split('/').pop()).sort()).toEqual(['hr', 'owner', 'staff']);
+    expect(next.find((s) => s.endpoint.endsWith('staff'))!.message.title).toBe(
+      'وافق مديرك على إجازتك',
+    );
+    // Running again sends nothing twice.
+    push.sent = [];
+    await run();
+    expect(push.sent.filter((s) => s.message.tag === `leave-${request.id}`)).toEqual([]);
+
+    const vtype = await prisma.violationType.create({
+      data: {
+        code: 'late_arrival',
+        nameEn: 'Late arrival',
+        nameAr: 'تأخير',
+        category: 'attendance',
+      },
+    });
+    const v = await prisma.violation.create({
+      data: {
+        employeeId: staff.id,
+        typeId: vtype.id,
+        occurredOn: new Date('2026-11-01T00:00:00Z'),
+        description: 'Late',
+        suggestedStep: 1,
+        step: 1,
+        penalty: 'written_warning',
+        recordedById: users.hr!,
+        recordedAt: ago(1),
+      },
+    });
+    await run();
+    const told = push.sent.filter((s) => s.message.tag === `violation-${v.id}`);
+    expect(told.map((s) => s.endpoint.split('/').pop())).toEqual(['staff']);
+    expect(told[0]!.message.url).toBe('/my-file/violations');
+  });
+
   it('tells the sales managers about a website lead waiting in their queue', async () => {
     await prisma.alert.create({
       data: { type: 'site_lead', key: 'site_lead:x', data: { leadId: 'x', name: 'Mona Adel' } },
