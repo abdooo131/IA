@@ -8,7 +8,8 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
   const base = process.env.API_URL ?? 'http://localhost:4100';
   const url = `${base}/${path.map(encodeURIComponent).join('/')}${req.nextUrl.search}`;
   const headers = new Headers();
-  for (const name of ['content-type', 'cookie', 'accept']) {
+  // The merchant API signs in with a key header instead of the cookie.
+  for (const name of ['content-type', 'cookie', 'accept', 'authorization', 'x-api-key', 'idempotency-key']) {
     const v = req.headers.get(name);
     if (v) headers.set(name, v);
   }
@@ -17,6 +18,10 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
   const out = new Headers();
   const type = res.headers.get('content-type');
   if (type) out.set('content-type', type);
+  for (const name of ['retry-after', 'x-ratelimit-remaining', 'idempotent-replayed', 'content-disposition', 'cache-control']) {
+    const v = res.headers.get(name);
+    if (v) out.set(name, v);
+  }
   for (const c of res.headers.getSetCookie()) out.append('set-cookie', c);
   return new Response(res.body, { status: res.status, headers: out });
 }

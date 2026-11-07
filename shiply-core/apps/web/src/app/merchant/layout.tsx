@@ -16,6 +16,7 @@ const groups = (me: Me): NavGroup[] => {
     { href: '/merchant/analytics', label: 'Analytics', icon: 'analytics', show: true },
     { href: '/merchant/prices', label: 'My prices', icon: 'points', show: true },
     { href: '/merchant/team', label: 'Team', icon: 'customers', show: me.merchantOwner },
+    { href: '/merchant/developer', label: 'Developers', icon: 'international', show: can('settings') },
     { href: '/merchant/settings', label: 'Settings', icon: 'settings', show: can('settings') || can('pickups') },
   ];
   return [{ label: me.merchant?.name, items: items.filter((i) => i.show).map(({ show: _s, ...i }) => i) }];
