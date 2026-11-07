@@ -2241,7 +2241,10 @@
       "groups": {
         "g1300": "Cash with riders",
         "g2100": "Merchant balances",
-        "g2200": "Rider bonuses owed"
+        "g2200": "Rider bonuses owed",
+        "g1500": "Staff advances",
+        "g2500": "Supplier balances",
+        "g2600": "Merchant security deposits"
       }
     },
     "sentForApproval": "Saved and sent for approval. A second person must approve it before it is posted.",

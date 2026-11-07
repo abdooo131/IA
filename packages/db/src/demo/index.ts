@@ -1053,13 +1053,14 @@ async function simulate(
       return;
     }
     const at = now();
-    const give = () =>
+    const give = (cashOverrideReason?: string) =>
       handToRider(db, {
         orderId: o.id,
         darkStoreId: o.store.id,
         badgeCode: rider.badge,
         actorUserId: o.store.staffId,
         now: at,
+        cashOverrideReason,
       });
     try {
       await give();
@@ -1075,7 +1076,13 @@ async function simulate(
           receivedById: o.store.staffId,
           idempotencyKey: `demo:handover-limit:${rider.id}:${at.getTime()}`,
         });
-      await give();
+      try {
+        await give();
+      } catch (again) {
+        // Still over with the cash orders the rider carries: the store manager lets it go.
+        if (!(again instanceof DomainError) || again.code !== 'rider_cash_limit') throw again;
+        await give('Rider carries several cash orders on this trip');
+      }
     }
     const late = rnd.chance(0.1);
     const ride = late ? rnd.between(42, 62) : rnd.between(9, 30);
