@@ -499,6 +499,19 @@ const alertEvents: Source = async (db, since) => {
         }),
       });
     }
+    if (a.type === 'site_lead') {
+      list.push({
+        key: `alert:${a.id}:lead`,
+        make: async () => ({
+          userIds: await teamWith(db, 'merchants', 'use'),
+          type: 'site_lead',
+          text: 'site_lead',
+          vars: { name: String(data.name ?? '') },
+          url: '/admin/leads',
+          tag: `lead-${a.id}`,
+        }),
+      });
+    }
     if (a.type === 'document_expiring' || a.type === 'document_expired') {
       const expired = a.type === 'document_expired';
       const docVars: PushVars = {

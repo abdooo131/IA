@@ -127,6 +127,13 @@ export {
   type SettleDamageInput,
 } from './damage';
 export { decideSignUp, onboardingSteps, signUpMerchant, type SignUpInput } from './signup';
+export {
+  createSiteLead,
+  findSiteLeadByKey,
+  listSiteLeads,
+  type SiteLeadRow,
+  updateSiteLead,
+} from './site-leads';
 export { addShelves, createLocation, listHubs, type CreateLocationInput } from './locations';
 export {
   approveTransfer,

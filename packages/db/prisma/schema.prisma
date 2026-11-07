@@ -93,6 +93,7 @@ model User {
   ticketsAssigned   Ticket[]          @relation("ticket_assignee")
   ticketMessages    TicketMessage[]
   orderNotes        OrderNote[]       @relation("order_note_author")
+  siteLeadsHandled  SiteLead[]        @relation("site_lead_handled_by")
   damageSettled     DamageReport[]    @relation("damage_settled_by")
   transfersCreated  Transfer[]        @relation("transfer_created_by")
   transfersApproved Transfer[]        @relation("transfer_approved_by")
@@ -1147,6 +1148,35 @@ model OrderNote {
 
   @@index([orderId, audience, createdAt])
   @@map("order_notes")
+}
+
+/// A merchant who asked for rates through the contact form of the public website.
+model SiteLead {
+  id             String   @id @default(cuid())
+  name           String
+  /// +20 and 10 digits when it is a valid Egyptian mobile, otherwise kept as typed
+  phone          String
+  phoneValid     Boolean  @map("phone_valid")
+  website        String?
+  /// under_300, 300_1000, 1000_5000 or over_5000 orders a month
+  ordersBand     String   @map("orders_band")
+  /// The site language the visitor used (en or ar)
+  locale         String
+  /// new, contacted, won or lost
+  status         String   @default("new")
+  note           String?
+  /// The form's key for one submission, so a double tap creates one lead
+  idempotencyKey String   @unique @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+  /// Who last changed its status or note
+  handledById    String?  @map("handled_by_id")
+
+  handledBy User? @relation("site_lead_handled_by", fields: [handledById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+  @@map("site_leads")
 }
 
 /// The customer's 1 to 5 star rating, given once from the tracking page after delivery

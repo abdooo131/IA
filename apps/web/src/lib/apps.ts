@@ -108,6 +108,8 @@ export const APPS: AppDef[] = [
     access: 'merchants',
     menus: [
       { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
+      // Merchants who asked for rates on the public website (merchants view; use edits them).
+      { label: 'leads', pages: [{ href: '/admin/leads', label: 'leads' }] },
       { label: 'products', pages: [{ href: '/admin/products', label: 'products' }] },
       { label: 'shopify', pages: [{ href: '/admin/shopify', label: 'shopifyStores' }] },
       { label: 'configuration', pages: [settings('merchants')] },

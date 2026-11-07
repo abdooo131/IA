@@ -54,7 +54,16 @@ export class LoginThrottleService {
 
   /** Merchant sign ups: at most 5 per address in the window, counted whether or not they work. */
   signUp(address: string | null) {
-    const key = `signup:${address ?? 'unknown'}`;
+    this.perAddress('signup', address);
+  }
+
+  /** Website contact form leads: the same 5 per address in the window. */
+  siteLead(address: string | null) {
+    this.perAddress('site_lead', address);
+  }
+
+  private perAddress(kind: string, address: string | null) {
+    const key = `${kind}:${address ?? 'unknown'}`;
     const list = this.recent(key);
     if (list.length >= 5) {
       const retryAfterSeconds = Math.ceil((list[0]! + WINDOW_MS - this.now()) / 1000);

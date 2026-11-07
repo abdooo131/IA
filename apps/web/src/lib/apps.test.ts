@@ -91,4 +91,11 @@ describe('canOpenPath', () => {
     expect(canOpenPath(profile('owner'), '/admin/users')).toBe(true);
     expect(canOpenPath(profile('store_manager'), '/admin/unknown')).toBe(true);
   });
+
+  it('opens the website leads to people with merchants view', () => {
+    expect(pages('accountant')).toContain('/admin/leads');
+    expect(pages('account_manager')).toContain('/admin/leads');
+    expect(canOpenPath(profile('hr_officer'), '/admin/leads')).toBe(false);
+    expect(canOpenPath(profile('store_manager'), '/admin/leads')).toBe(false);
+  });
 });

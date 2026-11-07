@@ -234,6 +234,16 @@ describe('push notifications', () => {
     expect(hr[0]!.message.title).toBe('Document runs out: Staff One');
   });
 
+  it('tells people who follow merchants up about a website lead', async () => {
+    await prisma.alert.create({
+      data: { type: 'site_lead', key: 'site_lead:x', data: { leadId: 'x', name: 'Mona Adel' } },
+    });
+    await run();
+    const lead = push.sent.filter((s) => s.message.url === '/admin/leads');
+    expect(lead.map((s) => s.endpoint.split('/').pop()).sort()).toEqual(['am', 'owner']);
+    expect(lead[0]!.message.body).toBe('Mona Adel asked for rates.');
+  });
+
   it('tells store staff about shipments and transfers coming to them', async () => {
     const manifest = await prisma.inboundManifest.create({
       data: { darkStoreId: fx.other.id, merchantId: fx.merchant.id, reference: 'ASN-7' },

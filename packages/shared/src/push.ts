@@ -14,6 +14,7 @@ export const PUSH_TYPES = [
   'cash_difference',
   'ops_alert',
   'merchant_signup',
+  'site_lead',
   'merchant_alert',
   'ticket',
   'attendance_late',
@@ -49,7 +50,7 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   if (canDo(p, 'store', 'manage') || canDo(p, 'accounting', 'use')) list.push('rider_cash_overdue');
   if (canDo(p, 'operations', 'manage')) list.push('ops_alert');
   if (canDo(p, 'merchants', 'manage')) list.push('merchant_signup');
-  if (canDo(p, 'merchants', 'use')) list.push('merchant_alert');
+  if (canDo(p, 'merchants', 'use')) list.push('site_lead', 'merchant_alert');
   list.push('ticket', 'attendance_late', 'document_expiring');
   return list;
 }
@@ -142,6 +143,10 @@ export const PUSH_TEXT = {
   merchant_signup: {
     en: ['New merchant sign up', '{name} signed up.'],
     ar: ['تسجيل تاجر جديد', '{name} سجّل حسابًا جديدًا.'],
+  },
+  site_lead: {
+    en: ['New lead from the website', '{name} asked for rates.'],
+    ar: ['عميل جديد من الموقع', '{name} طلب الأسعار.'],
   },
   ticket_new: {
     en: ['Ticket {number}: {title}', '{name} opened a ticket for you.'],

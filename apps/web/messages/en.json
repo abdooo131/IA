@@ -366,7 +366,8 @@
         "merchant_over_credit_limit": "{name} owes {owes} EGP, over the credit limit of {limit} EGP: new shipments are refused",
         "packaging_low": "Packaging running low",
         "packaging_short": "Order packed without enough packaging",
-        "email_failed": "Email to merchant failed"
+        "email_failed": "Email to merchant failed",
+        "site_lead": "New website lead: {name}"
       },
       "handledBy": "Handled by {name}"
     },
@@ -1022,6 +1023,33 @@
         "field_shelves": "Shelves: a number from 1 to 200.",
         "field_coordinates": "Location: latitude must be between 22 and 32 and longitude between 24 and 37 (Cairo is about 30.04 and 31.24). You can paste both from Google Maps into the latitude box."
       }
+    },
+    "leads": {
+      "title": "Website leads",
+      "intro": "Merchants who asked for rates on the website, newest first.",
+      "all": "All",
+      "statuses": {
+        "new": "New",
+        "contacted": "Contacted",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "empty": "No leads here yet.",
+      "phoneFlag": "Not an Egyptian mobile, kept as typed",
+      "website": "Website",
+      "orders": "Orders a month",
+      "language": "Site language",
+      "languages": {
+        "en": "English",
+        "ar": "Arabic"
+      },
+      "received": "Received {date}",
+      "status": "Status",
+      "note": "Note",
+      "save": "Save",
+      "saved": "Saved",
+      "handledBy": "Last changed by {name}",
+      "error": "Could not save. Try again."
     }
   },
   "scan": {
@@ -4744,7 +4772,8 @@
       "tickets": "Tickets",
       "attendance": "Attendance",
       "hrDocuments": "Documents",
-      "packaging": "Packaging"
+      "packaging": "Packaging",
+      "leads": "Leads"
     },
     "pages": {
       "overview": "Overview",
@@ -4821,7 +4850,8 @@
       "merchantProfit": "Profit per merchant",
       "packaging": "Packaging stock",
       "purchaseOrders": "Purchase orders",
-      "emails": "Emails to merchants"
+      "emails": "Emails to merchants",
+      "leads": "Website leads"
     }
   },
   "hr": {
@@ -5655,6 +5685,10 @@
       "rider_cash_overdue": {
         "name": "Rider cash not handed in",
         "hint": "A rider at your store has held cash longer than allowed."
+      },
+      "site_lead": {
+        "name": "Website leads",
+        "hint": "A merchant asked for rates on the website."
       }
     }
   },
@@ -6284,6 +6318,241 @@
       "close": "Close the order",
       "cancelOrder": "Cancel the order",
       "closedMsg": "Done."
+    }
+  },
+  "site": {
+    "meta": {
+      "title": "Shiply · 60 minute delivery in Cairo",
+      "description": "Shiply keeps your stock in small stores close to your customers. When someone orders, we pick, pack and deliver within 60 minutes, collect the cash and pay you on your schedule.",
+      "ogAlt": "Shiply, 60 minute delivery for online brands in Cairo"
+    },
+    "brand": "Shiply",
+    "nav": {
+      "services": "Services",
+      "how": "How it works",
+      "quality": "Quality",
+      "money": "Cash and payouts",
+      "speed": "Why 60 minutes",
+      "faq": "Questions",
+      "mainLabel": "Main",
+      "footerLabel": "Footer",
+      "signIn": "Sign in",
+      "cta": "Start selling",
+      "language": "Language",
+      "otherLanguage": "العربية"
+    },
+    "hero": {
+      "eyebrow": "Delivery for online brands in Cairo",
+      "titleLine1": "Ordered at 2:04.",
+      "titleLine2": "At the door by <clock>2:51</clock>.",
+      "lead": "Shiply keeps your stock in small stores close to your customers. When someone orders, we pick, pack and deliver within 60 minutes, collect the cash and pay you on your schedule.",
+      "cta1": "Start selling with Shiply",
+      "cta2": "See how it works",
+      "noteTag": "Shopify",
+      "note": "Connects to your store in minutes. Stock, checkout and tracking stay in sync."
+    },
+    "ticket": {
+      "label": "Example order",
+      "number": "SN100248",
+      "store": "Sent from the store nearest your customer",
+      "cod": "Cash on delivery",
+      "of": "minutes of 60",
+      "s1": "Order received",
+      "s2": "Picked by scan",
+      "s3": "Packed with photo",
+      "s4": "Rider on the way",
+      "s5": "Delivered, cash collected",
+      "t1": "2:04",
+      "t2": "2:11",
+      "t3": "2:15",
+      "t4": "2:19",
+      "t5": "2:51",
+      "collected": "Cash collected and on its way to you",
+      "check": "✓",
+      "sample": "Example order"
+    },
+    "strip": {
+      "s1": "<b>60 minutes</b> from order to door",
+      "s2": "<b>Live map</b> your customers can follow",
+      "s3": "<b>Cash collected</b> and paid out on your schedule",
+      "s4": "<b>Arabic and English</b> for you and your customers"
+    },
+    "stats": {
+      "v1": "60",
+      "min": "min",
+      "l1": "Delivery promise, from order to door",
+      "v2": "94.37%",
+      "l2": "Delivered on the first try",
+      "v3": "98.76%",
+      "l3": "Delivered on time",
+      "v4": "4.95",
+      "of5": "/5",
+      "l4": "Average customer rating"
+    },
+    "services": {
+      "eyebrow": "What we do",
+      "title": "Everything after the customer taps Buy",
+      "lead": "You sell. We hold the stock, move it, deliver it and bring the money back, with one dashboard that shows every order and every pound.",
+      "f1t": "60 minute delivery",
+      "f1p": "Your customer chooses the 60 minute option at checkout. The nearest dark store picks the order by scan, packs it with a photo and hands it to a rider. They can follow the rider live on a tracking page.",
+      "big": "60",
+      "minShort": " min",
+      "f2t": "Storage in dark stores",
+      "f2p": "Send your stock to us once. We count it, shelve it by barcode and keep every store full before it runs low.",
+      "f3t": "Cash on delivery",
+      "f3p": "Riders collect the exact amount. Every pound is counted at the store and paid into your bank daily, twice a week or weekly.",
+      "f4t": "Shopify connection",
+      "f4p": "Stock levels, the 60 minute rate at checkout, an area picker on your store and tracking links, all from one app.",
+      "f5t": "Returns and second tries",
+      "f5p": "Missed deliveries come back to the store and go out again. When you want stock back, we pick it and hand it over.",
+      "f6t": "Your numbers in one place",
+      "f6p": "Orders, stock per store, wallet, statements and tax invoices in your merchant dashboard, in Arabic or English."
+    },
+    "how": {
+      "eyebrow": "How it works",
+      "title": "From your warehouse to your bank account",
+      "h1w": "Once",
+      "h1t": "Connect your store",
+      "h1p": "Sign up, link Shopify and set your 60 minute price.",
+      "h2w": "Each restock",
+      "h2t": "Send us stock",
+      "h2p": "Book a shipment. We receive it and check every unit against your list.",
+      "h3w": "Every night",
+      "h3t": "We place it near buyers",
+      "h3p": "Each dark store is refilled to the level its area sells.",
+      "h4w": "Every order",
+      "h4t": "We deliver in 60 minutes",
+      "h4p": "Pick, pack, ride, and the cash comes back with the rider.",
+      "h5w": "Your schedule",
+      "h5t": "You get paid",
+      "h5p": "A bank transfer with a statement of every order and fee."
+    },
+    "money": {
+      "eyebrow": "Cash and payouts",
+      "title": "Your money, counted twice and shown to the pound",
+      "m1": "Every cash order is checked against what the rider hands in at the store.",
+      "m2": "You choose daily, twice a week or weekly payouts to your bank.",
+      "m3": "Each payout comes with a statement and a monthly tax invoice.",
+      "m4": "Two people approve every payout before it leaves our bank.",
+      "scheduleLabel": "Payout schedule",
+      "pLbl": "You choose when you get paid",
+      "p1": "Daily",
+      "p1s": "Every working day",
+      "p2": "Twice a week",
+      "p2s": "Sunday and Wednesday",
+      "p3": "Weekly",
+      "p3s": "Every Sunday",
+      "d1": "Bank transfer",
+      "d2": "Statement of every order",
+      "d3": "Monthly tax invoice"
+    },
+    "speed": {
+      "eyebrow": "Why 60 minutes",
+      "title": "Next day used to be fast",
+      "lead": "People buy on impulse and cool off by tomorrow. When the order arrives while they still want it, fewer cancel, fewer refuse at the door, and more come back.",
+      "r1": "Usual courier",
+      "r1s": "1 to 3 days",
+      "r2": "Shiply",
+      "r2s": "Within 60 minutes",
+      "w1t": "Fewer refusals",
+      "w1p": "The customer is home and still excited when the rider rings.",
+      "w2t": "More repeat orders",
+      "w2p": "Speed becomes the reason they buy from you and not the other shop.",
+      "w3t": "A brand that feels close",
+      "w3p": "Your online store delivers like the pharmacy down the street."
+    },
+    "quality": {
+      "eyebrow": "Checked at every step",
+      "title": "The right item, in perfect shape, to the right person",
+      "lead": "Speed only matters when nothing goes wrong. Every order passes four checks before the customer holds it.",
+      "q1t": "Picked by barcode",
+      "q1p": "Staff scan every item. A wrong product or size cannot leave the shelf.",
+      "q2t": "Packed on camera",
+      "q2p": "A photo of every packed order is kept, so you can see exactly what went out.",
+      "q3t": "Handed over with proof",
+      "q3p": "The customer gives a 4 digit code or the rider takes a photo at the door.",
+      "q4t": "Cash counted twice",
+      "q4p": "The rider records the cash collected, and the store counts it again."
+    },
+    "customer": {
+      "label": "Example tracking page",
+      "phT": "Your order is on the way",
+      "phEta": "Arriving in about 12 minutes",
+      "phRider": "Your rider",
+      "riderName": "Ahmed",
+      "phCode": "Delivery code",
+      "code": "4 8 2 7",
+      "phCash": "Cash to prepare",
+      "phCashV": "Shown on your link",
+      "phRate": "How was your delivery?",
+      "stars": "★★★★★",
+      "sample": "Example tracking page",
+      "eyebrow": "What your customer sees",
+      "title": "A delivery your customers will tell their friends about",
+      "cu1": "A live map of the rider, from the store to their door.",
+      "cu2": "A clear status at every step: packed, on the way, delivered.",
+      "cu3": "A private code so nobody else can take their parcel.",
+      "cu4": "A one tap rating, so you hear about every delivery."
+    },
+    "shopify": {
+      "eyebrow": "Built for Shopify",
+      "title": "Your store keeps working the way it does today",
+      "sh1t": "Real stock, everywhere",
+      "sh1p": "What each dark store holds shows in Shopify within a minute, so you never sell what is not there.",
+      "sh2t": "A 60 minute rate at checkout",
+      "sh2p": "It appears only when the address is in our area, the store is open and every item is in stock.",
+      "sh3t": "Tracking your customers trust",
+      "sh3p": "They get a link with the rider on a map, a delivery code and a one tap rating."
+    },
+    "faq": {
+      "eyebrow": "Questions merchants ask",
+      "title": "Before you send us your first box",
+      "q1": "How much does it cost?",
+      "a1": "A fee per delivered order, a small share of cash collected, and storage per unit. We agree your rates before you start, and every fee shows on your statement.",
+      "q2": "What if an item is not in the store?",
+      "a2": "The 60 minute option does not show at checkout for that customer, so they are never promised what we cannot deliver.",
+      "q3": "What happens when the customer does not answer?",
+      "a3": "The rider calls, takes a photo at the door and brings the order back. We try again or return it to you, as you choose.",
+      "q4": "Who sets the delivery price my customer pays?",
+      "a4": "You do. The 60 minute price is yours and the money stays with you.",
+      "q5": "Do I need Shopify?",
+      "a5": "Shopify gives you the full connection. You can also create orders by hand from your dashboard."
+    },
+    "contact": {
+      "title": "Give your customers their order today, not next week",
+      "lead": "Tell us about your store. We reply within one working day with your rates and a start date.",
+      "name": "Your name",
+      "phone": "Mobile",
+      "phonePlaceholder": "010 0000 0000",
+      "store": "Store website",
+      "storePlaceholder": "yourstore.com",
+      "orders": "Orders a month in Cairo",
+      "bands": {
+        "under_300": "Under 300",
+        "300_1000": "300 to 1,000",
+        "1000_5000": "1,000 to 5,000",
+        "over_5000": "Over 5,000"
+      },
+      "send": "Get my rates",
+      "sending": "Sending…",
+      "done": "Thanks. We have your details and will reply within one working day with your rates.",
+      "accountPrompt": "Rather set up your account yourself?",
+      "createAccount": "Create an account",
+      "errors": {
+        "name_required": "Please write your name.",
+        "name_too_long": "That name is too long.",
+        "phone_required": "Please write your mobile number.",
+        "phone_short": "That number looks too short.",
+        "phone_too_long": "That number is too long.",
+        "website_too_long": "That address is too long.",
+        "orders_band_required": "Please pick how many orders you get a month.",
+        "too_many_attempts": "Too many messages from this connection. Please try again in a few minutes.",
+        "generic": "We could not send it. Check your connection and try again."
+      }
+    },
+    "footer": {
+      "signIn": "Merchant sign in",
+      "copy": "© 2026 Shiply. Cairo, Egypt."
     }
   }
 }

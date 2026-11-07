@@ -46,8 +46,9 @@ What each app covers:
   hubs, area import and address approvals, cancelling after pick.
 - **inventory**: stock, shipments, transfers, returns, damage reports, counts, refill.
   manage: approve or cancel transfers and refill drafts, approve counts, settle damage.
-- **merchants**: merchants, products, Shopify stores and apps. manage: approve sign ups,
-  link, connect or disconnect Shopify, add apps, fees per merchant.
+- **merchants**: merchants, products, Shopify stores and apps, and the leads from the public
+  website (/admin/leads: view lists them, use changes their status and note). manage: approve
+  sign ups, link, connect or disconnect Shopify, add apps, fees per merchant.
 - **customers**: market data and customer summaries. Named profiles also need
   `customer_data`. manage: merge profiles.
 - **accounting**: everything under `/finance`. view = reports only, use = prepare, manage =
