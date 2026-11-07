@@ -209,7 +209,7 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
       if (p && !courierId && !hubId) {
         const who = await lastHolder(tx, p.id);
         responsibleId = who?.id ?? null;
-        if (who?.role === 'COURIER') courierId = who.id;
+        if (who?.role === 'courier') courierId = who.id;
         hubId = who?.eventHubId ?? who?.hubId ?? null;
       }
       const courier = courierId ? await tx.user.findFirst({ where: { id: courierId, role: 'courier' } }) : null;
@@ -430,7 +430,7 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
       await tx.shipmentEvent.create({ data: { shipmentId: p.id, type: 'DAMAGED', fromStatus: p.status, toStatus: p.status, hubId, userId: user.id, note: d.note } });
       // Whoever handled it before this hub's scan is held responsible.
       const who = await lastHolder(tx, p.id, user.id);
-      const courier = who?.role === 'COURIER' ? who : null;
+      const courier = who?.role === 'courier' ? who : null;
       const t = await tx.qcTicket.create({
         data: {
           code: await newTicketCode(tx), kind: 'DAMAGED', shipmentId: p.id, courierId: courier?.id ?? null, agentId: courier?.agentId ?? null, hubId: who?.eventHubId ?? hubId,

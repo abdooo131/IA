@@ -80,8 +80,10 @@ export class MerchantService {
     if (!phone) throw new DomainError('invalid_input', 'Customer phone must be an Egyptian mobile number', 422);
     return this.prisma.tx(async (tx) => {
       const merchant = await tx.merchant.findUnique({ where: { id: merchantId } });
-      if (!merchant || !merchant.active) throw new DomainError('forbidden', 'This merchant account is not active', 403);
-      if (merchant.status !== 'ACTIVE') throw new DomainError('forbidden', 'This merchant account is waiting for approval', 403);
+      if (!merchant || !merchant.isActive) throw new DomainError('forbidden', 'This merchant account is not active', 403);
+      if (merchant.approval !== 'approved') throw new DomainError('forbidden', 'This merchant account is waiting for approval', 403);
+      if (!merchant.homeHubId || !merchant.governorateCode) throw new DomainError('no_pickup_address', 'Add your pickup address before sending parcels', 422);
+      const home = { homeHubId: merchant.homeHubId, governorateCode: merchant.governorateCode };
       const settings = await this.settings.all(tx);
       if (data.customerReturn && (data.codAmount > 0 || data.exchange || data.allowOpen)) {
         throw new DomainError('invalid_input', 'A return from a customer has no cash to collect, no exchange and no opening', 422);
@@ -92,11 +94,11 @@ export class MerchantService {
       });
       const hubId = price.hubId;
       // We pick up only where we deliver: a merchant outside our area cannot send yet.
-      await this.core.deliveryHubFor(tx, merchant.governorateCode, merchant.areaId).catch(() => {
+      await this.core.deliveryHubFor(tx, home.governorateCode, merchant.areaId).catch(() => {
         throw new DomainError('not_served', 'We do not pick up from your area yet', 422);
       });
       // The whole way, planned now: a return from a customer travels the other way.
-      const route = await this.core.plan(tx, data.customerReturn ? 'RETURN' : 'FORWARD', merchant.homeHubId, hubId);
+      const route = await this.core.plan(tx, data.customerReturn ? 'RETURN' : 'FORWARD', home.homeHubId, hubId);
       const cod = codFee(data.codAmount, {
         codFeeBp: settings['fees.cod_fee_bp'],
         codFreeAmount: settings['fees.cod_free_amount'],
@@ -118,7 +120,7 @@ export class MerchantService {
           notes: data.notes,
           allowOpen: data.allowOpen,
           codAmount: data.codAmount,
-          originHubId: merchant.homeHubId,
+          originHubId: home.homeHubId,
           destinationHubId: hubId,
           shippingFee: price.shippingFee,
           basePrice: price.basePrice,
@@ -133,7 +135,7 @@ export class MerchantService {
       await tx.shipmentEvent.create({
         data: { shipmentId: shipment.id, type: 'CREATED', toStatus: 'CREATED', userId, note: data.customerReturn ? 'Return to collect from the customer' : '' },
       });
-      if (!data.customerReturn && settings['pickups.auto_request'] === 'ON') await this.autoPickup(tx, merchant, settings);
+      if (!data.customerReturn && settings['pickups.auto_request'] === 'ON') await this.autoPickup(tx, { id: merchant.id, homeHubId: home.homeHubId }, settings);
       await queueShipmentWebhooks(tx, shipment.id, null, 'CREATED');
       return shipment;
     });
@@ -259,6 +261,8 @@ export class MerchantService {
     if (d.date < todayInCairo()) throw new DomainError('invalid_input', 'Pick a date from today on', 422);
     return this.prisma.tx(async (tx) => {
       const merchant = await tx.merchant.findUniqueOrThrow({ where: { id: merchantId } });
+      if (!merchant.homeHubId) throw new DomainError('no_pickup_address', 'Add your pickup address before asking for a pickup', 422);
+      const homeHubId = merchant.homeHubId;
       const open = await tx.pickup.findFirst({
         where: { merchantId, date: d.date, status: { in: ['REQUESTED', 'ASSIGNED'] } },
       });
@@ -269,7 +273,7 @@ export class MerchantService {
         data: {
           code: await nextCode(tx, 'pickup_seq', 'PU'),
           merchantId,
-          hubId: merchant.homeHubId,
+          hubId: homeHubId,
           date: d.date,
           expectedCount: waiting,
           notes: d.notes,
@@ -340,7 +344,8 @@ export async function merchantStatement(prisma: PrismaService, merchantId: strin
   const payouts = await prisma.payout.findMany({ where: { merchantId }, orderBy: { createdAt: 'desc' }, take: 20 });
   const m = await prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } });
   return {
-    bank: { bankName: m.bankName, accountName: m.bankAccountName, iban: m.iban ? `•••• ${m.iban.slice(-4)}` : '', changePending: !!m.pendingBank, payoutDays: m.payoutDays },
+    // Bank details and payouts are Shiply Now's: one payout run pays both services.
+    bank: { bankName: m.bankName ?? '', accountName: m.beneficiaryName ?? '', iban: m.iban ? `•••• ${m.iban.slice(-4)}` : '', changePending: false, payoutSchedule: m.payoutSchedule },
     shipments: open.map((s) => ({
       id: s.id,
       trackingNumber: s.trackingNumber,
@@ -353,7 +358,7 @@ export async function merchantStatement(prisma: PrismaService, merchantId: strin
     feesTotal,
     balance: codTotal - feesTotal,
     cashStillWithCouriers: pendingCash._sum.codCollected ?? 0,
-    payouts,
+    payouts: payouts.map((p) => ({ id: p.id, code: `PO-${p.number}`, amount: p.amountPiastres, status: p.status.toUpperCase(), createdAt: p.createdAt, paidAt: p.paidAt })),
   };
 }
 

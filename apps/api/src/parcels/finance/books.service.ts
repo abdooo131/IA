@@ -147,34 +147,7 @@ export class BooksService implements OnModuleInit, OnModuleDestroy {
 
   // ---------------------------------------------------------------- tax invoices
 
-  /** What a merchant was charged in a month, parcel by parcel, split into amount before VAT and VAT. */
-  private async chargesFor(db: Tx | PrismaService, merchantId: string, month: string) {
-    const s = await this.settings.all(db);
-    const at = monthInstants(month);
-    const [delivered, returned, payouts] = await Promise.all([
-      db.shipment.findMany({ where: { merchantId, status: 'DELIVERED', deliveredAt: at }, select: { shippingFee: true, codFee: true } }),
-      db.shipment.findMany({ where: { merchantId, status: 'RETURNED', closedAt: at }, select: { shippingFee: true, returnFee: true } }),
-      db.payout.findMany({ where: { merchantId, status: 'PAID', paidAt: at }, select: { payoutFee: true } }),
-    ]);
-    const bp = s['tax.vat_bp'];
-    const line = (description: string, descriptionAr: string, quantity: number, amounts: number[]) => {
-      let net = 0;
-      let vat = 0;
-      for (const a of amounts) {
-        const x = splitVat(a, bp);
-        net += x.net;
-        vat += x.vat;
-      }
-      return { description, descriptionAr, quantity, net, vat, total: net + vat };
-    };
-    const lines = [
-      line('Delivery service', 'خدمة التوصيل', delivered.length + returned.length, [...delivered.map((p) => p.shippingFee), ...returned.map((p) => p.shippingFee)]),
-      line('Cash on delivery collection', 'خدمة التحصيل', delivered.filter((p) => p.codFee > 0).length, delivered.map((p) => p.codFee)),
-      line('Return to merchant', 'إرجاع للتاجر', returned.length, returned.map((p) => p.returnFee)),
-      line('Cash out fee', 'رسوم السحب', payouts.filter((p) => p.payoutFee > 0).length, payouts.map((p) => p.payoutFee)),
-    ].filter((l) => l.total > 0);
-    return { lines, vatBp: bp, net: lines.reduce((n, l) => n + l.net, 0), vat: lines.reduce((n, l) => n + l.vat, 0) };
-  }
+
 
   /** Issues one invoice per merchant for a month that has ended. Running it again issues only the missing ones. */
   /** A credit note gives money back to the merchant against an invoice; a second person approves it. */

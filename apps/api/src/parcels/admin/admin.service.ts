@@ -1,3 +1,4 @@
+import { dbRole } from '../auth/auth';
 import { Injectable } from '@nestjs/common';
 import { hashPassword, type Prisma, type ShipmentStatus } from '@shiplynow/db';
 import { ROLES, SHIPMENT_STATUSES, TEAMS, normalizeEgyptPhone } from '@shiplynow/shared/parcels';
@@ -188,7 +189,7 @@ export class AdminService {
     const s = await this.prisma.shipment.findUnique({
       where: { id },
       include: {
-        merchant: { select: { id: true, name: true, code: true, phone: true } },
+        merchant: { select: { id: true, name: true, code: true, contactPhone: true } },
         events: { orderBy: { createdAt: 'asc' } },
         runItems: { include: { run: { select: { code: true, courierId: true, date: true } } } },
       },
@@ -306,14 +307,15 @@ export class AdminService {
     if (q.merchantId) {
       const m = await this.prisma.merchant.findUnique({ where: { id: q.merchantId }, include: { homeHub: true } });
       if (!m) throw notFound('Merchant');
+      if (!m.homeHub || !m.governorateCode) return { ok: false, reason: 'This merchant has no pickup address in the network yet', from: m.name };
       origin = m.homeHub;
       from = `${m.name}, ${m.pickupAddress}`;
       const pickup = await this.core.deliveryHubFor(this.prisma as never, m.governorateCode, m.areaId).then(() => true, () => false);
       if (!pickup) return { ok: false, reason: `We do not pick up from ${m.governorateCode} yet`, from };
     } else {
-      const point = await this.core.pointOf(this.prisma as never, q.fromGovernorate ?? 'CAI', q.fromAreaId ?? null);
+      const point = await this.core.pointOf(this.prisma as never, q.fromGovernorate ?? 'EG-C', q.fromAreaId ?? null);
       origin = await this.core.nearestFacility(this.prisma as never, point);
-      from = q.fromGovernorate ?? 'CAI';
+      from = q.fromGovernorate ?? 'EG-C';
     }
     try {
       const dest = await this.core.deliveryHubFor(this.prisma as never, q.governorateCode, q.areaId ?? null);
@@ -389,7 +391,7 @@ export class AdminService {
 
   users() {
     return this.prisma.user.findMany({
-      select: { id: true, email: true, name: true, phone: true, role: true, team: true, active: true, hubId: true, merchantId: true, hub: { select: { code: true } }, merchant: { select: { name: true } } },
+      select: { id: true, email: true, name: true, phone: true, role: true, team: true, isActive: true, hubId: true, merchantId: true, hub: { select: { code: true } }, merchant: { select: { name: true } } },
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
     });
   }
@@ -405,14 +407,14 @@ export class AdminService {
       data: {
         email: d.email,
         name: d.name,
-        phone,
-        role: d.role,
+        phone: phone || null,
+        role: dbRole(d.role),
+        merchantRole: d.role === 'MERCHANT' ? 'owner' : null,
         passwordHash: await hashPassword(d.password),
         hubId: d.role === 'HUB_STAFF' || d.role === 'COURIER' ? d.hubId : null,
         team: d.role === 'HUB_STAFF' ? (d.team ?? null) : null,
         merchantId: d.role === 'MERCHANT' ? d.merchantId : null,
         // A login made by operations for a merchant is that merchant's owner.
-        merchantOwner: d.role === 'MERCHANT',
       },
     });
     await this.audit(user, 'USER_CREATED', 'user', created.id, { email: d.email, role: d.role });
@@ -424,7 +426,7 @@ export class AdminService {
     if (id === user.id && d.active === false) throw new DomainError('invalid_input', 'You cannot deactivate your own account', 422);
     const data: Prisma.UserUpdateInput = {};
     if (d.name) data.name = d.name;
-    if (d.active !== undefined) data.active = d.active;
+    if (d.active !== undefined) data.isActive = d.active;
     if (d.password) data.passwordHash = await hashPassword(d.password);
     if (d.hubId !== undefined) data.hub = d.hubId ? { connect: { id: d.hubId } } : { disconnect: true };
     if (d.team !== undefined) data.team = d.team ?? null;

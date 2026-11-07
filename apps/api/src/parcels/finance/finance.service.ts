@@ -155,7 +155,7 @@ export class FinanceService {
   async courierWallet(courierId: string) {
     const s = await this.settings.all();
     const u = await this.prisma.user.findUnique({ where: { id: courierId }, select: { id: true, name: true, role: true } });
-    if (!u || u.role !== 'COURIER') throw notFound('Courier');
+    if (!u || u.role !== 'courier') throw notFound('Courier');
     const [standing, earnings, withdrawals, payIns] = await Promise.all([
       courierStanding(this.prisma, s, courierId),
       this.prisma.courierEarning.findMany({ where: { courierId }, orderBy: { createdAt: 'desc' }, take: 100 }),
@@ -540,28 +540,6 @@ export class FinanceService {
 
   // ---------------------------------------------------------------- manual journals and closing
 
-  /** Nothing can be posted on or before the closed date afterwards. Closing moves forward only. */
-  private async totals(through?: string) {
-    const r = await this.prisma.journalLine.aggregate({ where: through ? { entry: { date: { lte: through } } } : {}, _sum: { debit: true, credit: true } });
-    return { debit: r._sum.debit ?? 0, credit: r._sum.credit ?? 0 };
-  }
-
-  // ---------------------------------------------------------------- reports
-
-  private async accountTotals(where: Prisma.JournalLineWhereInput) {
-    const [accounts, sums] = await Promise.all([
-      this.prisma.account.findMany({ orderBy: { code: 'asc' } }),
-      this.prisma.journalLine.groupBy({ by: ['accountCode'], where, _sum: { debit: true, credit: true } }),
-    ]);
-    return accounts.map((a) => {
-      const row = sums.find((x) => x.accountCode === a.code);
-      const debit = row?._sum.debit ?? 0;
-      const credit = row?._sum.credit ?? 0;
-      const balance = normalBalance(a.type) === 'DEBIT' ? debit - credit : credit - debit;
-      return { code: a.code, name: a.name, nameAr: a.nameAr, type: a.type, debit, credit, balance };
-    });
-  }
-
   /** How old the money is that we still hold: cash with couriers, and what merchants are waiting for. */
   /** Balances on every wallet account, with names. */
   async wallets(kind: PartyType) {
@@ -579,31 +557,22 @@ export class FinanceService {
     return ids.map((id) => ({ id, name: nameOf.get(id) ?? '', balance: sign * (balances.get(id) ?? 0) })).filter((r) => r.balance !== 0).sort((a, b) => b.balance - a.balance);
   }
 
-  /** Everything waiting for someone in finance, for the inbox at the top of the money page. */
-  async inbox(user: SessionUser) {
-    const [payouts, withdrawals, payIns, deposits, settlements, expenses, journals, bankChanges, bills, creditNotes, advances] = await Promise.all([
-      this.prisma.payout.findMany({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } }, select: { id: true, code: true, amount: true, status: true, createdById: true, merchant: { select: { name: true } } } }),
+  /**
+   * Network money waiting for someone in finance. Payouts, expenses, journals, bills and tax
+   * documents are Shiply Now's finance and wait in its inbox; their counts here stay zero.
+   */
+  async inbox(_user: SessionUser) {
+    const [withdrawals, payIns, deposits, settlements, advances] = await Promise.all([
       this.prisma.withdrawal.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
       this.prisma.payIn.count({ where: { status: 'SUBMITTED' } }),
       this.prisma.safeDeposit.count({ where: { status: 'SUBMITTED' } }),
       this.prisma.agentSettlement.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
-      this.prisma.expense.count({ where: { status: 'PENDING_APPROVAL' } }),
-      this.prisma.journalDraft.count({ where: { status: 'PENDING_APPROVAL' } }),
-      this.prisma.merchant.findMany({ where: { NOT: { pendingBankById: null } }, select: { id: true, name: true, pendingBank: true, pendingBankById: true } }),
-      this.prisma.bill.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
-      this.prisma.taxInvoice.count({ where: { status: 'PENDING_APPROVAL' } }),
       this.prisma.agentAdvance.count({ where: { status: { in: ['PENDING_APPROVAL', 'APPROVED'] } } }),
     ]);
-    const s = await this.settings.all();
-    const { debit, credit } = await this.totals();
     return {
-      payoutsToApprove: payouts.filter((p) => p.status === 'PENDING_APPROVAL').length,
-      payoutsYouCanApprove: payouts.filter((p) => p.status === 'PENDING_APPROVAL' && p.createdById !== user.id).length,
-      payoutsToPay: payouts.filter((p) => p.status === 'APPROVED').length,
-      withdrawals, payIns, deposits, settlements, expenses, journals, bills, creditNotes, advances,
-      bankChanges: bankChanges.map((m) => ({ merchantId: m.id, name: m.name, pending: m.pendingBank, mine: m.pendingBankById === user.id })),
-      closedThrough: s['books.closed_through'],
-      balanced: debit === credit,
+      payoutsToApprove: 0, payoutsYouCanApprove: 0, payoutsToPay: 0,
+      withdrawals, payIns, deposits, settlements, expenses: 0, journals: 0, bills: 0, creditNotes: 0, advances,
+      bankChanges: [], closedThrough: '', balanced: true,
     };
   }
 }

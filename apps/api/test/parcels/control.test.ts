@@ -12,7 +12,8 @@ let app: INestApplication;
 let prisma: any;
 let control: any;
 type Client = ReturnType<typeof request.agent>;
-const as: Record<string, Client> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const as: Record<string, any> = {};
 const hubs: Record<string, string> = {};
 const users: Record<string, string> = {};
 const PHOTO = { mime: 'image/jpeg', dataBase64: Buffer.from('photo bytes').toString('base64') };

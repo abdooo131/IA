@@ -152,13 +152,14 @@ export class ShipmentsCore {
     if (!hubId) throw new DomainError('not_served', `We do not deliver to ${gov.nameEn} yet`, 422);
     const hub = await tx.hub.findUnique({ where: { id: hubId } });
     if (!hub || !hub.active || hub.isSorting) throw new DomainError('not_served', `No active last mile hub delivers to ${gov.nameEn}`, 422);
+    if (!gov.zone) throw new DomainError('not_served', `${gov.nameEn} has no price zone yet`, 422);
     return { hubId, zone: gov.zone };
   }
 
   /** Promised delivery date, fixed when the parcel first enters our network. */
   async promiseFor(tx: Tx, shipment: Pick<Shipment, 'governorateCode'>, at: Date, settings: SettingValues) {
     const gov = await tx.governorate.findUniqueOrThrow({ where: { code: shipment.governorateCode }, include: { zone: true } });
-    return promisedDate(at, gov.zone.transitDays, settings['promise.cutoff'], settings['promise.weekend_days']);
+    return promisedDate(at, gov.zone?.transitDays ?? 1, settings['promise.cutoff'], settings['promise.weekend_days']);
   }
 
   /** What should physically happen next to a parcel sitting in a hub or facility. */

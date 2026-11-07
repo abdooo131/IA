@@ -66,7 +66,7 @@ export class CourierService {
   async pickups(user: SessionUser) {
     const pickups = await this.prisma.pickup.findMany({
       where: { courierId: user.id, status: { in: ['ASSIGNED', 'COLLECTED'] } },
-      include: { merchant: { select: { name: true, phone: true, pickupAddress: true } } },
+      include: { merchant: { select: { name: true, contactPhone: true, pickupAddress: true } } },
       orderBy: { date: 'asc' },
     });
     const collected = await this.prisma.shipment.groupBy({
@@ -123,7 +123,7 @@ export class CourierService {
               select: {
                 id: true, trackingNumber: true, customerName: true, customerPhone: true, address: true,
                 governorateCode: true, codAmount: true, allowOpen: true, notes: true, description: true,
-                attempts: true, status: true, kind: true, customerNote: true, deliverOn: true, shippingFee: true, merchant: { select: { name: true, phone: true, pickupAddress: true, flexShip: true } },
+                attempts: true, status: true, kind: true, customerNote: true, deliverOn: true, shippingFee: true, merchant: { select: { name: true, contactPhone: true, pickupAddress: true, flexShip: true } },
               },
             },
           },

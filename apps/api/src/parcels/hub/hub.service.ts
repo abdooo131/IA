@@ -373,7 +373,7 @@ export class HubService {
   async pickups(hubId: string, date?: string) {
     return this.prisma.pickup.findMany({
       where: { hubId, ...(date ? { date } : { status: { in: ['REQUESTED', 'ASSIGNED', 'COLLECTED'] } }) },
-      include: { merchant: { select: { name: true, phone: true, pickupAddress: true } } },
+      include: { merchant: { select: { name: true, contactPhone: true, pickupAddress: true } } },
       orderBy: [{ date: 'asc' }, { createdAt: 'asc' }],
     });
   }
@@ -615,12 +615,12 @@ export class HubService {
   // ---------------------------------------------------------------- courier runs
 
   async couriers(hubId: string) {
-    return this.prisma.user.findMany({ where: { hubId, role: 'courier', active: true }, select: { id: true, name: true, phone: true }, orderBy: { name: 'asc' } });
+    return this.prisma.user.findMany({ where: { hubId, role: 'courier', isActive: true }, select: { id: true, name: true, phone: true }, orderBy: { name: 'asc' } });
   }
 
   private async assertCourier(courierId: string, hubId: string) {
     const courier = await this.prisma.user.findUnique({ where: { id: courierId } });
-    if (!courier || courier.role !== 'COURIER' || !courier.active || courier.hubId !== hubId) {
+    if (!courier || courier.role !== 'courier' || !courier.isActive || courier.hubId !== hubId) {
       throw new DomainError('invalid_input', 'Pick an active courier from this place', 422);
     }
   }

@@ -140,7 +140,7 @@ export class ShopifyService implements OnModuleInit, OnModuleDestroy {
   // ---------------------------------------------------------------- orders
 
   private async owner(merchantId: string) {
-    const u = await this.prisma.user.findFirst({ where: { merchantId, merchantRole: 'owner', active: true }, select: { id: true } });
+    const u = await this.prisma.user.findFirst({ where: { merchantId, merchantRole: 'owner', isActive: true }, select: { id: true } });
     if (!u) throw new DomainError('invalid_input', 'This merchant has no active owner login', 409);
     return u.id;
   }

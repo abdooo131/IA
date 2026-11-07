@@ -35,7 +35,17 @@ export class ShopifyPublicController {
   @Post('webhooks')
   @HttpCode(200)
   webhook(@Req() req: Request & { rawBody?: Buffer }, @Headers() headers: Record<string, string>, @Body() body: unknown) {
-    return this.shopify.webhook(req.rawBody, headers, body);
+    // The app reads this path's body as raw bytes (setup-app.ts): the signature covers them exactly.
+    const raw = Buffer.isBuffer(body) ? body : req.rawBody;
+    let parsed: unknown = body;
+    if (Buffer.isBuffer(body)) {
+      try {
+        parsed = JSON.parse(body.toString('utf8'));
+      } catch {
+        parsed = {};
+      }
+    }
+    return this.shopify.webhook(raw, headers, parsed);
   }
 }
 

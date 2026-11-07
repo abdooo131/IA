@@ -250,8 +250,8 @@ describe('shopify', () => {
 
     const res = await request(app.getHttpServer()).get(`/parcels/integrations/shopify/ship?${signedIds(['6001', '6002', '6003'])}`);
     expect(res.status).toBe(302);
-    expect(res.headers.location.split('?')[1]).toContain('token=');
-    const token = decodeURIComponent(new URL(res.headers.location).searchParams.get('token')!);
+    expect(res.headers.location!.split('?')[1]).toContain('token=');
+    const token = decodeURIComponent(new URL(res.headers.location!).searchParams.get('token')!);
     const view = await ok(request(app.getHttpServer()).get('/parcels/integrations/shopify/ship/orders').query({ token }));
     expect(view.merchant).toBe('Eve Chantelle');
     expect(view.orders.length).toBe(3);

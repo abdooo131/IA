@@ -35,7 +35,7 @@ export async function onLost(tx: Tx, s: SettingValues, p: Pick<Shipment, 'id' | 
   const searchUntil = new Date(Date.now() + s['lost.search_hours'] * HOUR);
   await tx.shipment.update({ where: { id: p.id }, data: { searchUntil } });
   const who = await lastHolder(tx, p.id);
-  const courier = who?.role === 'COURIER' ? who : null;
+  const courier = who?.role === 'courier' ? who : null;
   const value = Math.min(p.codAmount, s['lost.compensation_cap']);
   await tx.qcTicket.create({
     data: {

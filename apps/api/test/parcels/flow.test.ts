@@ -9,7 +9,8 @@ process.env.SHIPLY_JOBS = 'off';
 
 let app: INestApplication;
 type Agent = ReturnType<typeof request.agent>;
-const as: Record<string, Agent> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const as: Record<string, any> = {};
 const hubs: Record<string, string> = {};
 const users: Record<string, string> = {};
 
@@ -90,7 +91,8 @@ afterAll(async () => {
 });
 
 describe('company flow', () => {
-  const p: Record<string, { id: string; trackingNumber: string }> = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const p: Record<string, any> = {};
 
   it('the network is built from map distance', async () => {
     const all = await ok(as.admin.get('/parcels/admin/hubs'));
@@ -249,10 +251,9 @@ describe('company flow', () => {
   });
 
   it('history cannot be edited', async () => {
-    const { PrismaClient } = await import('@shiply/db');
-    const db = new PrismaClient({ datasourceUrl: TEST_DB });
-    await expect(db.$executeRawUnsafe(`UPDATE shipment_events SET note = 'x'`)).rejects.toThrow(/append only/);
-    await db.$disconnect();
+    const { PrismaService } = await import('../../src/prisma/prisma.service');
+    const db = app.get(PrismaService);
+    await expect(db.$executeRawUnsafe(`UPDATE shipment_events SET note = 'x'`)).rejects.toThrow(/append/i);
   });
 });
 

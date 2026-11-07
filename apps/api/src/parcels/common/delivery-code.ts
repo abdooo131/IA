@@ -15,10 +15,10 @@ const MAX_SENDS = 3;
 export async function sendDeliveryCode(tx: Tx, shipmentId: string) {
   const s = await tx.shipment.findUniqueOrThrow({
     where: { id: shipmentId },
-    select: { id: true, trackingNumber: true, customerPhone: true, direction: true, kind: true, merchant: { select: { name: true, phone: true } } },
+    select: { id: true, trackingNumber: true, customerPhone: true, direction: true, kind: true, merchant: { select: { name: true, contactPhone: true } } },
   });
   const forward = s.direction === 'FORWARD';
-  const phone = forward ? s.customerPhone : s.merchant.phone;
+  const phone = forward ? s.customerPhone : (s.merchant.contactPhone ?? '');
   const sent = await tx.otpCode.count({ where: { purpose: purpose(s.id), createdAt: { gte: new Date(Date.now() - VALID_HOURS * 3600e3) } } });
   if (sent >= MAX_SENDS) return false;
   const code = String(randomInt(1000, 10000));

@@ -24,6 +24,11 @@ function decision(v: string) {
 @Controller('finance')
 @Roles('ADMIN')
 export class FinanceController {
+  constructor(
+    private readonly f: FinanceService,
+    private readonly b: BooksService,
+  ) {}
+
   // suppliers and bills
   // bank statement
   // more reports

@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { hashPassword, type Prisma, type Shift } from '@shiplynow/db';
+import { hashPassword, type Prisma, type CourierShift } from '@shiplynow/db';
 import { cairoClock, cairoTimeToUtc, normalizeEgyptPhone } from '@shiplynow/shared/parcels';
 import { randomInt } from 'node:crypto';
 import { z } from 'zod';
@@ -119,10 +119,16 @@ function phoneOrFail(input: string, what = 'Phone'): string {
   return phone;
 }
 
+/**
+ * Couriers sign in with their phone, but every account in Shiply Now has an email. Phone only
+ * accounts get one that can never receive mail.
+ */
+export const phoneEmail = (phone: string) => `${phone.replace(/\D/g, '')}@phone.shiply.invalid`;
+
 const STAFF_SELECT = {
   id: true, name: true, phone: true, email: true, courierType: true, hubId: true, hubToHub: true, shiftStart: true, workDays: true,
-  vehicleId: true, pendingApproval: true, active: true, createdAt: true, agentId: true,
-  hub: { select: { code: true, name: true } }, vehicle: { select: { plate: true } }, areas: { select: { areaId: true } },
+  vehicleId: true, pendingApproval: true, isActive: true, createdAt: true, agentId: true,
+  hub: { select: { code: true, name: true } }, vehicle: { select: { plate: true } }, courierAreas: { select: { areaId: true } },
 } satisfies Prisma.UserSelect;
 
 /**
@@ -178,7 +184,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
     });
     if (!agent) throw notFound('Agent');
     const [logins, staff] = await Promise.all([
-      this.prisma.user.findMany({ where: { agentId: id, role: 'agent' }, select: { id: true, name: true, email: true, active: true } }),
+      this.prisma.user.findMany({ where: { agentId: id, role: 'agent' }, select: { id: true, name: true, email: true, isActive: true } }),
       this.prisma.user.findMany({ where: { agentId: id, role: 'courier' }, select: STAFF_SELECT, orderBy: { name: 'asc' } }),
     ]);
     const defaultBp = (await this.settings.all())['agents.default_commission_bp'];
@@ -238,7 +244,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
     }
     if (await this.prisma.user.findFirst({ where: { phone, role: 'courier' } })) throw new DomainError('duplicate', 'This phone number already has an account', 409);
     const u = await this.prisma.user.create({
-      data: { name: d.name, phone, role: 'courier', courierType: d.courierType, agentId: agent.id, pendingApproval: true, active: false, passwordHash: await hashPassword(d.password) },
+      data: { email: phoneEmail(phone), name: d.name, phone, role: 'courier', courierType: d.courierType, agentId: agent.id, pendingApproval: true, isActive: false, passwordHash: await hashPassword(d.password) },
     });
     await openAlert(this.prisma, { kind: 'STAFF_WAITING_APPROVAL', entity: 'user', entityId: u.id, agentId: agent.id, message: `${d.name} joined with your code and is waiting for approval` });
     return { id: u.id, agentName: agent.name, message: 'Registered. Your agent will approve your account' };
@@ -278,9 +284,9 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
     if (await this.prisma.user.findFirst({ where: { phone, role: 'courier' } })) throw new DomainError('duplicate', 'This phone number already has an account', 409);
     const u = await this.prisma.user.create({
       data: {
-        name: d.name, phone, role: 'courier', courierType: d.courierType, agentId, hubId: d.hubId ?? null, hubToHub: d.hubToHub, shiftStart: d.shiftStart,
-        workDays: d.workDays, vehicleId: d.vehicleId ?? null, active: !!d.hubId, pendingApproval: !d.hubId, passwordHash: await hashPassword(d.password),
-        areas: { create: d.areaIds.map((areaId) => ({ areaId })) },
+        email: phoneEmail(phone), name: d.name, phone, role: 'courier', courierType: d.courierType, agentId, hubId: d.hubId ?? null, hubToHub: d.hubToHub, shiftStart: d.shiftStart,
+        workDays: d.workDays, vehicleId: d.vehicleId ?? null, isActive: !!d.hubId, pendingApproval: !d.hubId, passwordHash: await hashPassword(d.password),
+        courierAreas: { create: d.areaIds.map((areaId) => ({ areaId })) },
       },
     });
     await this.prisma.auditLog.create({ data: { actorUserId: user.id, action: 'STAFF_CREATED', entityType: 'user', entityId: u.id, after: { agentId, courierType: d.courierType } } });
@@ -301,9 +307,9 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
         where: { id: staffId },
         data: {
           name: d.name, phone, courierType: d.courierType, hubId: d.hubId ?? null, hubToHub: d.hubToHub, shiftStart: d.shiftStart, workDays: d.workDays,
-          vehicleId: d.vehicleId ?? null, active: approving ? true : (d.active ?? current.active), pendingApproval: approving ? false : current.pendingApproval,
+          vehicleId: d.vehicleId ?? null, isActive: approving ? true : (d.active ?? current.isActive), pendingApproval: approving ? false : current.pendingApproval,
           ...(d.password ? { passwordHash: await hashPassword(d.password) } : {}),
-          areas: { create: d.areaIds.map((areaId) => ({ areaId })) },
+          courierAreas: { create: d.areaIds.map((areaId) => ({ areaId })) },
         },
       }),
     ]);
@@ -370,7 +376,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
   /** Makes sure today's shift exists for every active courier who works today. */
   async ensureShifts(at = new Date()) {
     const { date, weekday } = cairoClock(at);
-    const couriers = await this.prisma.user.findMany({ where: { role: 'courier', active: true, agentId: { not: null }, workDays: { has: weekday } }, select: { id: true, agentId: true, shiftStart: true } });
+    const couriers = await this.prisma.user.findMany({ where: { role: 'courier', isActive: true, agentId: { not: null }, workDays: { has: weekday } }, select: { id: true, agentId: true, shiftStart: true } });
     if (couriers.length === 0) return 0;
     const res = await this.prisma.courierShift.createMany({
       data: couriers.map((c) => ({ courierId: c.id, agentId: c.agentId!, date, startAt: cairoTimeToUtc(date, c.shiftStart) })),
@@ -457,7 +463,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
       if (!s) throw notFound('Shift');
       if (s.status !== 'NOT_COMING') throw new DomainError('bad_status', 'Say the person is not coming first', 409);
       if (s.replacementShiftId) throw new DomainError('bad_status', 'A replacement is already assigned', 409);
-      const r = await tx.user.findFirst({ where: { id: courierId, agentId, role: 'courier', active: true } });
+      const r = await tx.user.findFirst({ where: { id: courierId, agentId, role: 'courier', isActive: true } });
       if (!r) throw new DomainError('invalid_input', 'Pick one of your active staff', 422);
       if (r.id === s.courierId) throw new DomainError('invalid_input', 'Pick someone else', 422);
       if (r.courierType !== s.courier.courierType) throw new DomainError('invalid_input', `Pick ${s.courier.courierType === 'PICKUP' ? 'pickup' : 'delivery'} staff`, 422);
@@ -487,7 +493,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
   }
 
   /** Check in with a photo (kept only, not used for identity checks yet). */
-  async checkIn(user: SessionUser, body: unknown): Promise<Shift> {
+  async checkIn(user: SessionUser, body: unknown): Promise<CourierShift> {
     const d = parse(CheckInInput, body);
     const photo = decode(d.photoBase64, MAX_PHOTO_BYTES, 'The photo');
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.id } });
@@ -547,19 +553,19 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
     const date = todayInCairo();
     const agent = await this.prisma.agent.findUniqueOrThrow({ where: { id: agentId } });
     const [staff, vehicles, shifts, alerts, requests] = await Promise.all([
-      this.prisma.user.groupBy({ by: ['courierType', 'pendingApproval', 'active'], where: { agentId, role: 'courier' }, _count: true }),
+      this.prisma.user.groupBy({ by: ['courierType', 'pendingApproval', 'isActive'], where: { agentId, role: 'courier' }, _count: true }),
       this.prisma.vehicle.count({ where: { agentId, active: true } }),
       this.prisma.courierShift.groupBy({ by: ['status'], where: { agentId, date }, _count: true }),
       this.prisma.networkAlert.count({ where: { agentId, status: 'OPEN' } }),
       this.prisma.vehicleRequest.count({ where: { agentId, status: 'REQUESTED' } }),
     ]);
     const defaultBp = (await this.settings.all())['agents.default_commission_bp'];
-    const count = (pred: (s: (typeof staff)[number]) => boolean) => staff.filter(pred).reduce((n, s) => n + s._count, 0);
+    const count = (pred: (s: (typeof staff)[number]) => boolean) => staff.filter(pred).reduce((n, s) => n + (s._count as number), 0);
     return {
       agent: { id: agent.id, code: agent.code, name: agent.name, supplies: agent.supplies, commissionBp: agent.commissionBp ?? defaultBp },
       date,
-      pickupStaff: count((s) => s.courierType === 'PICKUP' && s.active),
-      deliveryStaff: count((s) => s.courierType === 'DELIVERY' && s.active),
+      pickupStaff: count((s) => s.courierType === 'PICKUP' && s.isActive),
+      deliveryStaff: count((s) => s.courierType === 'DELIVERY' && s.isActive),
       pending: count((s) => s.pendingApproval),
       vehicles,
       shifts: Object.fromEntries(shifts.map((s) => [s.status, s._count])),

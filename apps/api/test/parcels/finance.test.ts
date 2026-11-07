@@ -10,7 +10,8 @@ process.env.SHIPLY_JOBS = 'off';
 let app: INestApplication;
 let prisma: any;
 type Client = ReturnType<typeof request.agent>;
-const as: Record<string, Client> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const as: Record<string, any> = {};
 const hubs: Record<string, string> = {};
 const users: Record<string, string> = {};
 const RECEIPT = { fileName: 'receipt.jpg', mime: 'image/jpeg', dataBase64: Buffer.from('fake receipt image').toString('base64') };

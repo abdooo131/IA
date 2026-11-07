@@ -52,8 +52,8 @@ export class ApiKeyGuard implements CanActivate {
     if (!raw.startsWith('shp_')) throw new DomainError('unauthenticated', 'Send your API key as "Authorization: Bearer shp_..."', 401);
     const key = await this.prisma.apiKey.findUnique({ where: { keyHash: hashKey(raw) } });
     if (!key || key.revokedAt) throw new DomainError('unauthenticated', 'This API key is not valid', 401);
-    const m = await this.prisma.merchant.findUnique({ where: { id: key.merchantId }, select: { active: true, status: true } });
-    if (!m?.active || m.status !== 'ACTIVE') throw new DomainError('forbidden', 'This merchant account is not active', 403);
+    const m = await this.prisma.merchant.findUnique({ where: { id: key.merchantId }, select: { isActive: true, approval: true } });
+    if (!m?.isActive || m.approval !== 'approved') throw new DomainError('forbidden', 'This merchant account is not active', 403);
     rateLimit(key.id, res);
     // Updating the last use at most once a minute keeps busy keys from writing on every call.
     if (!key.lastUsedAt || Date.now() - key.lastUsedAt.getTime() > 60_000) {

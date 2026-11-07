@@ -133,11 +133,11 @@ export class MerchantDeskService implements OnModuleInit, OnModuleDestroy {
       for (let i = 2; await tx.merchant.findUnique({ where: { code } }); i++) code = `${base}${i}`;
       const m = await tx.merchant.create({
         data: {
-          code, name: d.businessName, contactName: d.contactName, phone, email: d.email, pickupAddress: d.pickupAddress, governorateCode: d.governorateCode,
-          areaId: d.areaId ?? null, homeHubId: home.id, taxId: d.taxId, status: 'PENDING', active: false,
+          code, name: d.businessName, contactName: d.contactName, contactPhone: phone, contactEmail: d.email, pickupAddress: d.pickupAddress, governorateCode: d.governorateCode,
+          areaId: d.areaId ?? null, homeHubId: home.id, taxRegistrationNumber: d.taxId, approval: 'pending', isActive: false,
         },
       });
-      await tx.user.create({ data: { email: d.email, name: d.contactName, phone, role: 'merchant', merchantId: m.id, merchantRole: 'owner', active: false, passwordHash } });
+      await tx.user.create({ data: { email: d.email, name: d.contactName, phone, role: 'merchant', merchantId: m.id, merchantRole: 'owner', isActive: false, passwordHash } });
       await openAlert(tx, { kind: 'MERCHANT_SIGNUP', entity: 'merchant', entityId: m.id, message: `${d.businessName} signed up and waits for approval` });
       return { id: m.id, message: 'Thank you. We will call you and switch on your account' };
     });
@@ -146,22 +146,23 @@ export class MerchantDeskService implements OnModuleInit, OnModuleDestroy {
   async decideSignup(merchantId: string, approve: boolean, user: SessionUser) {
     await this.prisma.tx(async (tx) => {
       const m = await tx.merchant.findUnique({ where: { id: merchantId } });
-      if (!m || m.status !== 'PENDING') throw new DomainError('bad_status', 'This merchant is not waiting for approval', 409);
-      await tx.merchant.update({ where: { id: merchantId }, data: { status: approve ? 'ACTIVE' : 'REJECTED', active: approve } });
-      await tx.user.updateMany({ where: { merchantId }, data: { active: approve } });
+      if (!m || m.approval !== 'pending') throw new DomainError('bad_status', 'This merchant is not waiting for approval', 409);
+      await tx.merchant.update({ where: { id: merchantId }, data: { approval: approve ? 'approved' : 'rejected', isActive: approve } });
+      await tx.user.updateMany({ where: { merchantId }, data: { isActive: approve } });
       await tx.networkAlert.updateMany({ where: { entity: 'merchant', entityId: merchantId, status: 'OPEN' }, data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedById: user.id, note: approve ? 'Approved' : 'Rejected' } });
       await tx.auditLog.create({ data: { actorUserId: user.id, action: approve ? 'MERCHANT_APPROVED' : 'MERCHANT_REJECTED', entityType: 'merchant', entityId: merchantId } });
     });
   }
 
   pendingSignups() {
-    return this.prisma.merchant.findMany({ where: { status: 'PENDING' }, omit: { logo: true }, orderBy: { createdAt: 'asc' } });
+    return this.prisma.merchant.findMany({ where: { approval: 'pending' }, omit: { logo: true }, orderBy: { createdAt: 'asc' } });
   }
 
   // ---------------------------------------------------------------- team
 
   async team(merchantId: string) {
-    return this.prisma.user.findMany({ where: { merchantId, role: 'merchant' }, select: { id: true, name: true, email: true, phone: true, merchantRole: 'owner', merchantRights: true, active: true }, orderBy: { createdAt: 'asc' } });
+    const rows = await this.prisma.user.findMany({ where: { merchantId, role: 'merchant' }, select: { id: true, name: true, email: true, phone: true, merchantRole: true, merchantRights: true, isActive: true }, orderBy: { createdAt: 'asc' } });
+    return rows.map(({ merchantRole, isActive, ...r }) => ({ ...r, merchantOwner: merchantRole === 'owner', active: isActive }));
   }
 
   async saveTeamMember(merchantId: string, id: string | null, body: unknown, user: SessionUser) {
@@ -169,13 +170,13 @@ export class MerchantDeskService implements OnModuleInit, OnModuleDestroy {
     if (id) {
       const u = await this.prisma.user.findFirst({ where: { id, merchantId, role: 'merchant' } });
       if (!u) throw notFound('Team member');
-      if (u.merchantOwner) throw new DomainError('forbidden', 'The owner always has every right', 403);
-      await this.prisma.user.update({ where: { id }, data: { name: d.name, phone: d.phone, merchantRights: d.rights, active: d.active, ...(d.password ? { passwordHash: await hashPassword(d.password) } : {}) } });
+      if (u.merchantRole === 'owner') throw new DomainError('forbidden', 'The owner always has every right', 403);
+      await this.prisma.user.update({ where: { id }, data: { name: d.name, phone: d.phone || null, merchantRights: d.rights, isActive: d.active, ...(d.password ? { passwordHash: await hashPassword(d.password) } : {}) } });
       return { id };
     }
     if (!d.password) throw new DomainError('invalid_input', 'Set a password of 8 characters or more', 422);
     if (await this.prisma.user.findUnique({ where: { email: d.email } })) throw new DomainError('duplicate', 'That email already has an account', 409);
-    const u = await this.prisma.user.create({ data: { email: d.email, name: d.name, phone: d.phone, role: 'merchant', merchantId, merchantRights: d.rights, active: d.active, passwordHash: await hashPassword(d.password) } });
+    const u = await this.prisma.user.create({ data: { email: d.email, name: d.name, phone: d.phone || null, role: 'merchant', merchantId, merchantRights: d.rights, isActive: d.active, passwordHash: await hashPassword(d.password) } }).then((u) => u);
     await this.prisma.auditLog.create({ data: { actorUserId: user.id, action: 'MERCHANT_TEAM_ADDED', entityType: 'user', entityId: u.id, after: { rights: d.rights } } });
     return { id: u.id };
   }

@@ -7,7 +7,7 @@ export class DomainError extends HttpException {
   constructor(
     public readonly code: string,
     message: string,
-    public readonly status = 400,
+    status = 400,
   ) {
     super({ error: code, message }, status);
     this.message = message;
@@ -22,7 +22,7 @@ export class ErrorFilter implements ExceptionFilter {
   catch(error: unknown, host: ArgumentsHost) {
     const res = host.switchToHttp().getResponse<Response>();
     if (error instanceof DomainError) {
-      res.status(error.status).json({ error: error.code, message: error.message });
+      res.status(error.getStatus()).json({ error: error.code, message: error.message });
       return;
     }
     if (error instanceof HttpException) {

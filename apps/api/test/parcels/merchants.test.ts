@@ -11,7 +11,8 @@ let app: INestApplication;
 let prisma: any;
 let desk: any;
 type Client = ReturnType<typeof request.agent>;
-const as: Record<string, Client> = {};
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const as: Record<string, any> = {};
 const hubs: Record<string, string> = {};
 const users: Record<string, string> = {};
 let dokki: any;
