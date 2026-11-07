@@ -105,73 +105,72 @@ model User {
   storeAreasCreated StoreArea[]       @relation("store_area_created_by")
   settingChanges    Setting[]
 
-  ledgerEntries          LedgerEntry[]             @relation("ledger_entry_created_by")
-  handoversReceived      CashHandover[]            @relation("handover_received_by")
-  handoversReviewed      CashHandover[]            @relation("handover_reviewed_by")
-  payoutsCreated         Payout[]                  @relation("payout_created_by")
-  payoutsPaid            Payout[]                  @relation("payout_paid_by")
-  payoutsApproved        Payout[]                  @relation("payout_approved_by")
-  booksLocks             BooksLock[]
-  financeRequests        FinanceRequest[]          @relation("finance_request_by")
-  financeDecisions       FinanceRequest[]          @relation("finance_request_decided_by")
-  financeReceipts        FinanceReceipt[]
-  advanceAccounts        LedgerAccount[]           @relation("ledger_account_user")
-  ledgerLines            LedgerLine[]              @relation("ledger_line_user")
-  suppliers              Supplier[]
-  billsFor               Bill[]                    @relation("bill_person")
-  chequesCreated         Cheque[]                  @relation("cheque_created_by")
-  contractsCreated       MerchantContract[]        @relation("contract_created_by")
-  contractVersionsMade   MerchantContractVersion[] @relation("contract_version_created_by")
-  contractVersionsActive MerchantContractVersion[] @relation("contract_version_activated_by")
-  contractFiles          MerchantContractFile[]    @relation("contract_file_uploaded_by")
-  bankStatements         BankStatement[]
-  taxInvoicesMade        TaxInvoice[]              @relation("tax_invoice_created_by")
-  bankLinesDecided       BankStatementLine[]       @relation("bank_line_decided_by")
-  budgetsSet             Budget[]                  @relation("budget_updated_by")
-  bills                  Bill[]
-  recurringEntries       RecurringEntry[]
-  prepayments            Prepayment[]
-  fixedAssets            FixedAsset[]
-  access                 UserAccess?
-  accessStores           UserStore[]
-  employee               Employee?
-  documentsUploaded      EmployeeDocument[]        @relation("employee_document_uploaded_by")
-  documentsReviewed      EmployeeDocument[]        @relation("employee_document_reviewed_by")
-  salaryPackagesSet      SalaryPackage[]           @relation("salary_package_created_by")
-  checklistsStarted      EmployeeChecklist[]       @relation("employee_checklist_created_by")
-  checklistTasksDone     EmployeeChecklistTask[]   @relation("employee_checklist_task_done_by")
-  merchantsManaged       Merchant[]                @relation("merchant_account_manager")
-  pushSubscriptions      PushSubscription[]
-  notificationPrefs      NotificationPreference[]
-  pettyCashCreated       PettyCashExpense[]        @relation("petty_cash_created_by")
-  pettyCashReversed      PettyCashExpense[]        @relation("petty_cash_reversed_by")
-  monthEndMarks          MonthEndMark[]
-  purchaseOrdersAsked    PurchaseOrder[]           @relation("purchase_order_requested_by")
-  purchaseOrdersDecided  PurchaseOrder[]           @relation("purchase_order_decided_by")
-  crmCompaniesOwned      CrmCompany[]              @relation("crm_company_owner")
-  crmDealsOwned          CrmDeal[]                 @relation("crm_deal_owner")
-  crmActivitiesOwned     CrmActivity[]             @relation("crm_activity_owner")
-  crmActivitiesCreated   CrmActivity[]             @relation("crm_activity_created_by")
-  crmStageChanges        CrmDealStageHistory[]
-  crmDealsWon            CrmDeal[]                 @relation("crm_deal_won_by")
-  crmProposalsMade       CrmProposal[]             @relation("crm_proposal_created_by")
-  crmProposalsApproved   CrmProposal[]             @relation("crm_proposal_approved_by")
-  crmProposalsSent       CrmProposal[]             @relation("crm_proposal_sent_by")
-  crmProposalsConfirmed  CrmProposal[]             @relation("crm_proposal_confirmed_by")
-  crmTargets             CrmTarget[]               @relation("crm_target_user")
-  crmTargetsSet          CrmTarget[]               @relation("crm_target_updated_by")
-  crmCommissions         CrmCommission[]           @relation("crm_commission_user")
-  crmCommissionsAdjusted CrmCommission[]           @relation("crm_commission_adjusted_by")
-  crmCommissionsApproved CrmCommission[]           @relation("crm_commission_approved_by")
-  setupTokens            UserSetupToken[]          @relation("user_setup_token_user")
-  setupTokensMade        UserSetupToken[]          @relation("user_setup_token_created_by")
-  hireDrafts             HireDraft[]               @relation("hire_draft_created_by")
-  exitsRecorded          EmployeeExit[]            @relation("employee_exit_created_by")
-  remindersSent          DocumentReminder[]        @relation("document_reminder_created_by")
-  riderWithdrawalsApproved RiderWithdrawal[]        @relation("rider_withdrawal_approved_by")
-  riderWithdrawalsPaid     RiderWithdrawal[]        @relation("rider_withdrawal_paid_by")
-  riderWithdrawalsRejected RiderWithdrawal[]        @relation("rider_withdrawal_rejected_by")
-  contractsUpdated         MerchantContract[]       @relation("contract_updated_by")
+  ledgerEntries            LedgerEntry[]             @relation("ledger_entry_created_by")
+  handoversReceived        CashHandover[]            @relation("handover_received_by")
+  handoversReviewed        CashHandover[]            @relation("handover_reviewed_by")
+  payoutsCreated           Payout[]                  @relation("payout_created_by")
+  payoutsPaid              Payout[]                  @relation("payout_paid_by")
+  payoutsApproved          Payout[]                  @relation("payout_approved_by")
+  booksLocks               BooksLock[]
+  financeRequests          FinanceRequest[]          @relation("finance_request_by")
+  financeDecisions         FinanceRequest[]          @relation("finance_request_decided_by")
+  financeReceipts          FinanceReceipt[]
+  advanceAccounts          LedgerAccount[]           @relation("ledger_account_user")
+  ledgerLines              LedgerLine[]              @relation("ledger_line_user")
+  suppliers                Supplier[]
+  billsFor                 Bill[]                    @relation("bill_person")
+  chequesCreated           Cheque[]                  @relation("cheque_created_by")
+  contractsCreated         MerchantContract[]        @relation("contract_created_by")
+  contractVersionsMade     MerchantContractVersion[] @relation("contract_version_created_by")
+  contractVersionsActive   MerchantContractVersion[] @relation("contract_version_activated_by")
+  contractFiles            MerchantContractFile[]    @relation("contract_file_uploaded_by")
+  bankStatements           BankStatement[]
+  taxInvoicesMade          TaxInvoice[]              @relation("tax_invoice_created_by")
+  bankLinesDecided         BankStatementLine[]       @relation("bank_line_decided_by")
+  budgetsSet               Budget[]                  @relation("budget_updated_by")
+  bills                    Bill[]
+  recurringEntries         RecurringEntry[]
+  prepayments              Prepayment[]
+  fixedAssets              FixedAsset[]
+  access                   UserAccess?
+  accessStores             UserStore[]
+  employee                 Employee?
+  documentsUploaded        EmployeeDocument[]        @relation("employee_document_uploaded_by")
+  documentsReviewed        EmployeeDocument[]        @relation("employee_document_reviewed_by")
+  salaryPackagesSet        SalaryPackage[]           @relation("salary_package_created_by")
+  checklistsStarted        EmployeeChecklist[]       @relation("employee_checklist_created_by")
+  checklistTasksDone       EmployeeChecklistTask[]   @relation("employee_checklist_task_done_by")
+  merchantsManaged         Merchant[]                @relation("merchant_account_manager")
+  pushSubscriptions        PushSubscription[]
+  notificationPrefs        NotificationPreference[]
+  pettyCashCreated         PettyCashExpense[]        @relation("petty_cash_created_by")
+  pettyCashReversed        PettyCashExpense[]        @relation("petty_cash_reversed_by")
+  monthEndMarks            MonthEndMark[]
+  purchaseOrdersAsked      PurchaseOrder[]           @relation("purchase_order_requested_by")
+  purchaseOrdersDecided    PurchaseOrder[]           @relation("purchase_order_decided_by")
+  crmCompaniesOwned        CrmCompany[]              @relation("crm_company_owner")
+  crmDealsOwned            CrmDeal[]                 @relation("crm_deal_owner")
+  crmActivitiesOwned       CrmActivity[]             @relation("crm_activity_owner")
+  crmActivitiesCreated     CrmActivity[]             @relation("crm_activity_created_by")
+  crmStageChanges          CrmDealStageHistory[]
+  crmDealsWon              CrmDeal[]                 @relation("crm_deal_won_by")
+  crmProposalsMade         CrmProposal[]             @relation("crm_proposal_created_by")
+  crmProposalsApproved     CrmProposal[]             @relation("crm_proposal_approved_by")
+  crmProposalsSent         CrmProposal[]             @relation("crm_proposal_sent_by")
+  crmProposalsConfirmed    CrmProposal[]             @relation("crm_proposal_confirmed_by")
+  crmTargets               CrmTarget[]               @relation("crm_target_user")
+  crmTargetsSet            CrmTarget[]               @relation("crm_target_updated_by")
+  crmCommissions           CrmCommission[]           @relation("crm_commission_user")
+  crmCommissionsAdjusted   CrmCommission[]           @relation("crm_commission_adjusted_by")
+  crmCommissionsApproved   CrmCommission[]           @relation("crm_commission_approved_by")
+  setupTokens              UserSetupToken[]          @relation("user_setup_token_user")
+  setupTokensMade          UserSetupToken[]          @relation("user_setup_token_created_by")
+  hireDrafts               HireDraft[]               @relation("hire_draft_created_by")
+  exitsRecorded            EmployeeExit[]            @relation("employee_exit_created_by")
+  remindersSent            DocumentReminder[]        @relation("document_reminder_created_by")
+  riderWithdrawalsApproved RiderWithdrawal[]         @relation("rider_withdrawal_approved_by")
+  riderWithdrawalsPaid     RiderWithdrawal[]         @relation("rider_withdrawal_paid_by")
+  riderWithdrawalsRejected RiderWithdrawal[]         @relation("rider_withdrawal_rejected_by")
 
   @@index([darkStoreId])
   @@index([merchantId])

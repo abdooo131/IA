@@ -7,8 +7,6 @@ import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
 import { queuePayoutEmails } from '../email';
 import { payoutMinimumFor } from './contracts';
 import { cairoDay } from '@shiplynow/shared';
-
-type Tx = Prisma.TransactionClient;
 import { chargeShortageToRider } from './rider-wallet';
 
 /** Flips a sign without producing -0. */
