@@ -1,11 +1,20 @@
 'use client';
 
-import { exampleMonth, type ProposalFees, proposalApproval } from '@shiplynow/shared';
+import {
+  CONTRACT_PRICE_KEYS,
+  type ContractPriceKey,
+  exampleMonth,
+  PAYOUT_SCHEDULES,
+  type PayoutScheduleName,
+  type ProposalFees,
+  proposalApproval,
+} from '@shiplynow/shared';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
 import { apiSend } from '@/lib/api-client';
+import { isPercent, newTierRow, parseTierRows, type TierRow, tierRowsFrom } from '@/lib/contracts';
 import { formatCount, formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import {
@@ -16,11 +25,8 @@ import {
   parseCount,
   parseFee,
   parseMoney,
-  parseTiers,
   PROPOSAL_FEE_KEYS,
   type ProposalView,
-  type TierInput,
-  tierRows,
 } from '@/lib/sales-part2';
 
 const field = 'h-10 w-full rounded-md border border-line-strong bg-surface px-3 text-body-sm';
@@ -66,7 +72,11 @@ export function ProposalForm({
     months: proposal?.contractMonths ? String(proposal.contractMonths) : '12',
     notice: String(proposal?.noticeDays ?? 30),
     terms: proposal?.terms ?? '',
-    tiers: tierRows(proposal?.tiers ?? []),
+    tiers: tierRowsFrom(proposal?.tiers ?? []) as TierRow[],
+    payoutSchedule: (proposal?.payoutSchedule ?? '') as '' | PayoutScheduleName,
+    minimumPayout: egpInput(proposal?.minimumPayoutPiastres ?? null),
+    promise: proposal?.promiseMinutes ? String(proposal.promiseMinutes) : '',
+    attempts: proposal?.deliveryAttempts ? String(proposal.deliveryAttempts) : '',
   };
   const [v, setV] = useState(start);
   const [busy, setBusy] = useState(false);
@@ -82,8 +92,14 @@ export function ProposalForm({
       if (value === null) return null;
       out[k] = value;
     }
-    const tiers = parseTiers(v.tiers);
+    const tiers = parseTierRows(v.tiers);
     const orders = parseCount(v.orders);
+    const minimumPayout = parseMoney(v.minimumPayout);
+    const promise = parseCount(v.promise);
+    const attempts = parseCount(v.attempts);
+    if (Number.isNaN(minimumPayout) || Number.isNaN(promise) || Number.isNaN(attempts)) return null;
+    if (promise !== null && (promise < 10 || promise > 1440)) return null;
+    if (attempts !== null && (attempts < 1 || attempts > 10)) return null;
     const months = parseCount(v.months);
     const notice = parseCount(v.notice);
     const average = parseMoney(v.average);
@@ -106,6 +122,10 @@ export function ProposalForm({
       contractMonths: months,
       noticeDays: notice,
       terms: v.terms,
+      payoutSchedule: v.payoutSchedule || null,
+      minimumPayoutPiastres: minimumPayout,
+      promiseMinutes: promise,
+      deliveryAttempts: attempts,
     };
   })();
   const approval = parsed ? proposalApproval(parsed, defaults, maxDiscountBp) : null;
@@ -125,8 +145,17 @@ export function ProposalForm({
 
   const setFee = (k: keyof ProposalFees, text: string) =>
     setV({ ...v, fees: { ...v.fees, [k]: text } });
-  const setTier = (i: number, patch: Partial<TierInput>) =>
-    setV({ ...v, tiers: v.tiers.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
+  const setTier = (i: number, k: 'fromOrder' | ContractPriceKey, text: string) =>
+    setV({
+      ...v,
+      tiers: v.tiers.map((r, j) =>
+        j !== i
+          ? r
+          : k === 'fromOrder'
+            ? { ...r, fromOrder: text }
+            : { ...r, values: { ...r.values, [k]: text } },
+      ),
+    });
 
   return (
     <form
@@ -168,58 +197,93 @@ export function ProposalForm({
       <fieldset>
         <legend className="text-body-sm font-bold">{t('tiers')}</legend>
         <p className="text-caption text-text-muted">{t('tiersHint')}</p>
-        <div className="mt-2 space-y-2">
+        <ul className="mt-2 space-y-2">
           {v.tiers.map((r, i) => (
-            <div key={i} className="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
-              <label className="text-caption">
-                {t('tierFrom')}
-                <input
-                  className={field}
-                  inputMode="numeric"
-                  dir="ltr"
-                  value={r.fromOrder}
-                  onChange={(e) => setTier(i, { fromOrder: e.target.value })}
-                />
-              </label>
-              <label className="text-caption">
-                {t('tierFixed')}
-                <input
-                  className={field}
-                  inputMode="decimal"
-                  dir="ltr"
-                  value={r.fixed}
-                  onChange={(e) => setTier(i, { fixed: e.target.value })}
-                />
-              </label>
-              <label className="text-caption">
-                {t('tierPercent')}
-                <input
-                  className={field}
-                  inputMode="decimal"
-                  dir="ltr"
-                  value={r.percent}
-                  onChange={(e) => setTier(i, { percent: e.target.value })}
-                />
-              </label>
-              <button
-                type="button"
-                className="h-10 rounded-md px-2 text-body-sm text-danger"
-                onClick={() => setV({ ...v, tiers: v.tiers.filter((_, j) => j !== i) })}
-              >
-                {t('removeTier')}
-              </button>
-            </div>
+            <li key={i} className="space-y-2 rounded-md border border-line p-3">
+              <div className="flex flex-wrap items-end justify-between gap-2">
+                <label className="text-caption">
+                  {t('tierFrom')}
+                  <input
+                    className={`${field} max-w-[8rem]`}
+                    inputMode="numeric"
+                    dir="ltr"
+                    value={r.fromOrder}
+                    onChange={(e) => setTier(i, 'fromOrder', e.target.value)}
+                  />
+                </label>
+                <button
+                  type="button"
+                  className="h-10 rounded-md px-2 text-body-sm text-danger"
+                  onClick={() => setV({ ...v, tiers: v.tiers.filter((_, j) => j !== i) })}
+                >
+                  {t('removeTier')}
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                {CONTRACT_PRICE_KEYS.map((k) => (
+                  <label key={k} className="min-w-0 text-caption">
+                    {t(`fees.${k}`)} ({isPercent(k) ? '%' : t('egp')})
+                    <input
+                      className={field}
+                      inputMode="decimal"
+                      dir="ltr"
+                      placeholder="–"
+                      value={r.values[k]}
+                      onChange={(e) => setTier(i, k, e.target.value)}
+                    />
+                  </label>
+                ))}
+              </div>
+            </li>
           ))}
-        </div>
+        </ul>
         <button
           type="button"
           className="btn-secondary mt-2"
-          onClick={() =>
-            setV({ ...v, tiers: [...v.tiers, { fromOrder: '', fixed: '', percent: '' }] })
-          }
+          onClick={() => setV({ ...v, tiers: [...v.tiers, newTierRow(v.tiers)] })}
         >
           {t('addTier')}
         </button>
+      </fieldset>
+
+      <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <legend className="mb-2 text-body-sm font-bold">{t('paymentAndPromises')}</legend>
+        <label className="text-body-sm">
+          <span className="font-semibold">{t('payoutSchedule')}</span>
+          <select
+            className={`${field} mt-1`}
+            value={v.payoutSchedule}
+            onChange={(e) =>
+              setV({ ...v, payoutSchedule: e.target.value as '' | PayoutScheduleName })
+            }
+          >
+            <option value="">{t('payoutOwnChoice')}</option>
+            {PAYOUT_SCHEDULES.map((s) => (
+              <option key={s} value={s}>
+                {t(`schedules.${s}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+        {(
+          [
+            ['minimumPayout', t('minimumPayout'), 'decimal'],
+            ['promise', t('promiseMinutes'), 'numeric'],
+            ['attempts', t('deliveryAttempts'), 'numeric'],
+          ] as const
+        ).map(([name, label, mode]) => (
+          <label key={name} className="text-body-sm">
+            <span className="font-semibold">{label}</span>
+            <input
+              className={`${field} mt-1`}
+              inputMode={mode}
+              dir="ltr"
+              placeholder={t('standardPlaceholder')}
+              value={v[name]}
+              onChange={(e) => setV({ ...v, [name]: e.target.value })}
+            />
+          </label>
+        ))}
       </fieldset>
 
       <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

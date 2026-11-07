@@ -33,6 +33,7 @@ import {
   submitPayroll,
 } from '../finance';
 import { accrueStorage } from '../finance/postings';
+import { contractPricesAt } from '../finance/contracts';
 import { closeManifest, createManifest, receiveOnManifest } from '../inbound';
 import {
   acceptOrder,
@@ -51,7 +52,7 @@ import {
 } from '../orders';
 import { savePhoto } from '../photos';
 import { createReturn, handOverReturn, pickForReturn } from '../returns';
-import { getMerchantSetting, getSetting, setSetting } from '../settings';
+import { getSetting, setSetting } from '../settings';
 import { move } from '../stock';
 import { rateOrder } from '../tracking';
 import {
@@ -1635,7 +1636,9 @@ async function simulate(
   await sim.run();
   c.skippedEvents = sim.skipped;
   // A sanity read for the report.
-  c.feeSettingFixed = await getMerchantSetting(db, 'fee.order_fixed_piastres', w.merchants[0]!.id);
+  c.feeSettingFixed = (
+    await contractPricesAt(db, { merchantId: w.merchants[0]!.id, at: new Date() })
+  ).prices.orderFixedPiastres;
   return c;
 }
 

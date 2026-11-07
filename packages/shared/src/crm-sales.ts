@@ -1,8 +1,18 @@
 import { z } from 'zod';
-import { bpShare, contractTierSchema, type ContractTier, tierFor } from './contracts';
+import {
+  bpShare,
+  CONTRACT_PRICE_KEYS,
+  CONTRACT_PRICES,
+  type ContractPriceKey,
+  contractTierSchema,
+  type ContractTier,
+  resolvePrices,
+  tierFor,
+  tierValue,
+} from './contracts';
+import { PAYOUT_SCHEDULES } from './finance';
 import { shiftMonth } from './cash-control';
 import { addDays, isCalendarDay } from './hours';
-import type { SettingKey } from './settings';
 
 // Sales CRM part 2 (docs/SALES.md): proposals sent to a brand as a link they accept online,
 // monthly targets per rep, the sales dashboard and commission on the fees of won merchants.
@@ -27,18 +37,12 @@ export function proposalNumber(n: number) {
   return `PRO-${String(n).padStart(6, '0')}`;
 }
 
-/** The fees a proposal offers, each with the fee setting it starts from. */
-export const PROPOSAL_FEES = {
-  orderFixedPiastres: 'fee.order_fixed_piastres',
-  orderPercentBp: 'fee.order_percent_bp',
-  codPercentBp: 'fee.cod_percent_bp',
-  failedDeliveryPiastres: 'fee.failed_delivery_piastres',
-  receivingPerUnitPiastres: 'fee.receiving_per_unit_piastres',
-  storagePerUnitMonthPiastres: 'fee.storage_per_unit_month_piastres',
-  returnPerUnitPiastres: 'fee.return_per_unit_piastres',
-} as const satisfies Record<string, SettingKey>;
-export type ProposalFee = keyof typeof PROPOSAL_FEES;
-export const PROPOSAL_FEE_KEYS = Object.keys(PROPOSAL_FEES) as ProposalFee[];
+/** The fees a proposal offers, each with the fee setting it starts from (the contract's prices). */
+export const PROPOSAL_FEES = Object.fromEntries(
+  CONTRACT_PRICE_KEYS.map((k) => [k, CONTRACT_PRICES[k].setting]),
+) as { [K in ContractPriceKey]: (typeof CONTRACT_PRICES)[K]['setting'] };
+export type ProposalFee = ContractPriceKey;
+export const PROPOSAL_FEE_KEYS: ProposalFee[] = [...CONTRACT_PRICE_KEYS];
 export type ProposalFees = Record<ProposalFee, number>;
 
 const money = z.number().int().min(0).max(1_000_000_000);
@@ -73,6 +77,11 @@ const proposalFields = {
   noticeDays: z.number().int().min(0).max(3650),
   terms: text(4000),
   tiers: z.array(contractTierSchema).max(20),
+  /** Payment terms and promises, carried into the contract as they are */
+  payoutSchedule: z.enum(PAYOUT_SCHEDULES).nullable(),
+  minimumPayoutPiastres: money.nullable(),
+  promiseMinutes: z.number().int().min(10).max(1440).nullable(),
+  deliveryAttempts: z.number().int().min(1).max(10).nullable(),
 };
 const tiersOnce = (v: { tiers?: { fromOrder: number }[] }) =>
   !v.tiers || new Set(v.tiers.map((t) => t.fromOrder)).size === v.tiers.length;
@@ -138,18 +147,12 @@ export function proposalDiscounts(
     field: k,
     discountBp: discountBp(p[k], list[k]),
   }));
-  for (const t of p.tiers) {
-    if (t.fixedFeePiastres !== null)
-      out.push({
-        field: `tier${t.fromOrder}.fixed`,
-        discountBp: discountBp(t.fixedFeePiastres, list.orderFixedPiastres),
-      });
-    if (t.percentBp !== null)
-      out.push({
-        field: `tier${t.fromOrder}.percent`,
-        discountBp: discountBp(t.percentBp, list.orderPercentBp),
-      });
-  }
+  for (const t of p.tiers)
+    for (const k of PROPOSAL_FEE_KEYS) {
+      const value = tierValue(t, k);
+      if (value !== null)
+        out.push({ field: `tier${t.fromOrder}.${k}`, discountBp: discountBp(value, list[k]) });
+    }
   return out;
 }
 
@@ -170,7 +173,7 @@ export function proposalApproval(
  * Before VAT. Without an average order value the percent parts count as zero.
  */
 export function exampleMonth(
-  p: Pick<ProposalFees, 'orderFixedPiastres' | 'orderPercentBp' | 'codPercentBp'> & {
+  p: ProposalFees & {
     expectedMonthlyOrders: number | null;
     averageOrderPiastres: number | null;
     minimumMonthlyFeePiastres: number | null;
@@ -179,20 +182,19 @@ export function exampleMonth(
 ) {
   const orders = p.expectedMonthlyOrders ?? 0;
   const average = p.averageOrderPiastres ?? 0;
-  // The order fee changes only where a band starts: walk the bands, not every order.
+  // The fees change only where a band starts: walk the bands, not every order.
   const starts = [1, ...p.tiers.map((t) => t.fromOrder).filter((n) => n > 1 && n <= orders)].sort(
     (a, b) => a - b,
   );
   let orderFees = 0;
+  let codFees = 0;
   for (const [i, from] of starts.entries()) {
     const to = i + 1 < starts.length ? starts[i + 1]! - 1 : orders;
     const count = Math.max(0, to - from + 1);
-    const tier = tierFor(p.tiers, from);
-    const fixed = tier?.fixedFeePiastres ?? p.orderFixedPiastres;
-    const percent = tier?.percentBp ?? p.orderPercentBp;
-    orderFees += count * (fixed + bpShare(average, percent));
+    const prices = resolvePrices(null, tierFor(p.tiers, from), p);
+    orderFees += count * (prices.orderFixedPiastres + bpShare(average, prices.orderPercentBp));
+    codFees += count * bpShare(average, prices.codPercentBp);
   }
-  const codFees = orders * bpShare(average, p.codPercentBp);
   const beforeMinimum = orderFees + codFees;
   const minimumTopUp = p.minimumMonthlyFeePiastres
     ? Math.max(0, p.minimumMonthlyFeePiastres - beforeMinimum)

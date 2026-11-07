@@ -1,6 +1,7 @@
 import type { OrderStatus, Prisma } from '@prisma/client';
 import { currentStageDue } from '@shiplynow/shared';
 import type { Db } from './client';
+import { deliveryAttemptsFor } from './finance/contracts';
 import { getSetting } from './settings';
 
 const listInclude = {
@@ -142,7 +143,11 @@ export async function getOrderDetail(db: Db, orderId: string) {
   });
   if (!o) return null;
   const summary = summarize(o, await slaFor(db, o.darkStoreId), new Date());
-  const maxAttempts = await getSetting(db, 'delivery.max_attempts', o.darkStoreId);
+  const maxAttempts = await deliveryAttemptsFor(db, {
+    merchantId: o.merchantId,
+    darkStoreId: o.darkStoreId,
+    at: o.createdAt,
+  });
   // Where each still needed unit can be picked from, fullest shelf first.
   const shelves = await db.binStock.findMany({
     where: {

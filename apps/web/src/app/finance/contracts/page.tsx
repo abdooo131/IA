@@ -10,7 +10,12 @@ export const dynamic = 'force-dynamic';
 
 interface ContractRow {
   merchant: { id: string; name: string };
-  startDate: string;
+  contract: string;
+  /** The version in force today, for example CTR-000001 v2 (null: none yet) */
+  version: string | null;
+  hasDraft: boolean;
+  ownPrices: number;
+  startDate: string | null;
   endDate: string | null;
   noticeBy: string | null;
   inForce: boolean;
@@ -70,6 +75,10 @@ export default async function FinanceContractsPage() {
                     ) : (
                       r.merchant.name
                     )}
+                    <span className="ltr-iso block text-caption text-text-muted">
+                      {r.version ?? r.contract}
+                      {r.hasDraft && ` · ${t('draft')}`}
+                    </span>
                     {r.overCreditLimit && (
                       <span className="block text-caption font-bold text-danger">
                         {t('overLimit')}
@@ -77,7 +86,7 @@ export default async function FinanceContractsPage() {
                     )}
                   </td>
                   <td className={`${td} ltr-iso`}>
-                    {isoToDayFirst(r.startDate)} →{' '}
+                    {r.startDate ? isoToDayFirst(r.startDate) : '–'} →{' '}
                     {r.endDate ? isoToDayFirst(r.endDate) : t('noEnd')}
                     {r.noticeBy && (
                       <span className="block text-caption text-text-muted">

@@ -177,6 +177,9 @@ Main groups of tables:
     Places        dark_stores (stores and hubs), bins, zones, store_areas, geo_areas,
                   geocode_cache, delivered_points, settings
     Catalog       merchants, skus, shopify_shops, shopify_apps, shopify_locations
+    Contracts     merchant_contracts (CTR-, one per merchant), merchant_contract_versions
+                  (frozen once activated), merchant_contract_version_tiers,
+                  merchant_contract_files (signed copies, bytea)
     Stock         stock_levels, bin_stock, stock_movements (append only), inbound_manifests,
                   stock_counts, transfers, stock_targets, merchant_returns, damage_reports
     Orders        orders, order_items, order_events (append only), deliveries, riders, photos,
@@ -238,6 +241,22 @@ weekly payouts to merchants (prepared, approved by a second person, marked paid)
 invoices and ETA e-invoices → bank statement matching → the month end checklist →
 monthly closing. Payout and invoice
 emails go to the merchant through the email outbox.
+
+Merchant contracts (v2):
+merchants manage writes a draft version of a merchant's contract on /admin/merchants/<id>
+(Contract tab): every price beside the standard one (empty is the standard price, the global
+fee setting), volume tiers on any fee, payment terms (payout schedule, minimum payout, bank
+account, monthly minimum, deposit, credit limit), promises (delivery promise, attempts, stores,
+areas), dates and terms → activates it from today or a later day (never before the last
+version, never in closed books; audited before and after) → every charge (order and COD fee on
+the delivery day, failed delivery, receiving, storage day, return, the monthly minimum, payout
+minimum, attempts, credit limit) reads the version in force that Cairo day, field by field
+(contractPricesAt in packages/db/src/finance/contracts.ts) → a version taking effect sets the
+agreed payout schedule on the merchant (once; the merchant may change it, the contract flags
+it) → signed copies are attached and the contract prints as a PDF in English or Arabic
+(pdfkit on the API, apps/api/src/common/pdf.ts lays words out right to left itself; fonts in
+apps/api/assets/fonts) → the merchant reads it at /merchant/contract. A won sales proposal
+makes and activates a version through the same functions.
 
 Packaging and purchasing:
 finance raises a purchase order (PO-000001) to a supplier → approved at once below

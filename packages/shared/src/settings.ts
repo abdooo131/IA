@@ -323,44 +323,58 @@ export const SETTING_DEFINITIONS = {
   'fee.order_fixed_piastres': {
     schema: piastres,
     default: 0,
-    description: 'Fixed fee per delivered order, in piastres',
-    override: 'merchant',
+    description:
+      'Fixed fee per delivered order (standard price; a merchant contract may set its own)',
+    override: 'none',
   },
   'fee.order_percent_bp': {
     schema: basisPoints,
     default: 0,
-    description: 'Fee per delivered order as a share of the products value, in basis points',
-    override: 'merchant',
+    description:
+      'Fee per delivered order as a share of the products value (standard price; a merchant contract may set its own)',
+    override: 'none',
   },
   'fee.cod_percent_bp': {
     schema: basisPoints,
     default: 0,
-    description: 'COD handling fee as a share of the cash collected, in basis points',
-    override: 'merchant',
+    description:
+      'COD handling fee as a share of the cash collected (standard price; a merchant contract may set its own)',
+    override: 'none',
   },
   'fee.failed_delivery_piastres': {
     schema: piastres,
     default: 0,
-    description: 'Fee when a delivery fails and the goods come back, in piastres',
-    override: 'merchant',
+    description:
+      'Fee when a delivery fails and the goods come back (standard price; a merchant contract may set its own)',
+    override: 'none',
   },
   'fee.receiving_per_unit_piastres': {
     schema: piastres,
     default: 0,
-    description: 'Fee per unit received from a merchant shipment, in piastres',
-    override: 'merchant',
+    description:
+      'Fee per unit received from a merchant shipment (standard price; a merchant contract may set its own)',
+    override: 'none',
   },
   'fee.storage_per_unit_month_piastres': {
     schema: piastres,
     default: 0,
-    description: 'Storage fee per unit per month, charged daily on units in stock, in piastres',
-    override: 'merchant',
+    description:
+      'Storage fee per unit per month, charged daily on units in stock (standard price; a merchant contract may set its own)',
+    override: 'none',
   },
   'fee.return_per_unit_piastres': {
     schema: piastres,
     default: 0,
-    description: 'Fee per unit returned to the merchant from a dark store, in piastres',
-    override: 'merchant',
+    description:
+      'Fee per unit returned to the merchant from a dark store (standard price; a merchant contract may set its own)',
+    override: 'none',
+  },
+  'finance.payout_minimum_piastres': {
+    schema: piastres,
+    default: 0,
+    description:
+      'Payouts wait until we owe a merchant at least this (standard; a contract may set its own)',
+    override: 'none',
   },
   'fee.vat_bp': {
     schema: basisPoints,
@@ -746,7 +760,7 @@ export const SETTING_DEFINITIONS = {
     default: number;
     description: string;
     /** Which per scope value is allowed besides the global one */
-    override: 'store' | 'merchant' | 'none';
+    override: 'store' | 'none';
   }
 >;
 
@@ -756,7 +770,10 @@ export const SETTING_KEYS = Object.keys(SETTING_DEFINITIONS) as SettingKey[];
 
 export const GLOBAL_SCOPE = 'global';
 
-/** Settings scope for one merchant's own value, for example a negotiated fee. */
+/**
+ * The settings scope merchant fee values used before merchant contracts v2 (their prices now
+ * live in the contract; the migration moved them and deleted the rows).
+ */
 export function merchantScope(merchantId: string) {
   return `merchant:${merchantId}`;
 }

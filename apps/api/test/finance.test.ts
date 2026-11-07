@@ -4,7 +4,7 @@ import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, FixedClock, resetAndSeed } from './helpers';
+import { createTestApp, FixedClock, resetAndSeed, contractPrices } from './helpers';
 
 const DEMO = 'demo-password-1';
 const NOON_CAIRO = new Date('2026-01-14T10:00:00Z');
@@ -106,12 +106,12 @@ describe('finance', () => {
     const admin = await agent('admin@test.eg', 'admin-password-1');
     // Merchant specific order fee of 40.00 EGP plus 2%; 14% VAT; 10.00 EGP rider bonus.
     for (const [key, value, scope] of [
-      ['fee.order_fixed_piastres', 4000, `merchant:${merchantId}`],
       ['fee.order_percent_bp', 200, 'global'],
       ['fee.vat_bp', 1400, 'global'],
       ['rider.bonus_per_delivery_piastres', 1000, 'global'],
     ] as const)
       await admin.put('/admin/settings').send({ key, value, scope }).expect(200);
+    await contractPrices(admin, merchantId, { orderFixedPiastres: 4000 });
     await admin
       .put('/admin/settings')
       .send({ key: 'fee.vat_bp', scope: `merchant:${merchantId}`, value: 0 })

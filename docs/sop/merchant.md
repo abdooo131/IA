@@ -51,10 +51,12 @@ Also inside the app: settings menu (top of every screen), Help.
 1. Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.
 2. You can cancel only new or accepted orders.
 3. Wallet shows what we owe you; payouts go to your bank on your schedule.
+4. Contract shows your agreement with Shiply: every price beside the standard one, volume tiers, payment terms, promises and dates. Download it as a PDF in English or Arabic; earlier versions stay in Versions.
 
 **Check it went right**
 
 - Each payout shows a bank reference.
+- The fees on your statement match the prices of the contract version in force that day.
 
 **If something is wrong**
 
@@ -144,10 +146,12 @@ Also inside the app: settings menu (top of every screen), Help.
 1. طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد: دوّر على حي العميل، ولو تعرف العمارة حط علامة على الخريطة. الفورم بيقولك على طول إذا كان الفرع يقدر ياخده.
 2. تقدر تلغي الطلبات الجديدة أو المقبولة بس.
 3. المحفظة بتوري لك عندنا كام؛ التحويلات بتنزل البنك على مواعيدك.
+4. العقد بيوريك اتفاقك مع شيبلي: كل سعر جنب السعر القياسي، وشرائح الحجم، وشروط الدفع، والالتزامات والتواريخ. نزله PDF عربي أو إنجليزي؛ والإصدارات القديمة موجودة في الإصدارات.
 
 **اتأكد إنها مشيت صح**
 
 - كل تحويل ليه رقم مرجع من البنك.
+- الرسوم في كشف حسابك مطابقة لأسعار إصدار العقد الساري في اليوم ده.
 
 **لو فيه مشكلة**
 

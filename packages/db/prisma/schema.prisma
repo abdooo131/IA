@@ -105,26 +105,29 @@ model User {
   storeAreasCreated StoreArea[]       @relation("store_area_created_by")
   settingChanges    Setting[]
 
-  ledgerEntries          LedgerEntry[]            @relation("ledger_entry_created_by")
-  handoversReceived      CashHandover[]           @relation("handover_received_by")
-  handoversReviewed      CashHandover[]           @relation("handover_reviewed_by")
-  payoutsCreated         Payout[]                 @relation("payout_created_by")
-  payoutsPaid            Payout[]                 @relation("payout_paid_by")
-  payoutsApproved        Payout[]                 @relation("payout_approved_by")
+  ledgerEntries          LedgerEntry[]             @relation("ledger_entry_created_by")
+  handoversReceived      CashHandover[]            @relation("handover_received_by")
+  handoversReviewed      CashHandover[]            @relation("handover_reviewed_by")
+  payoutsCreated         Payout[]                  @relation("payout_created_by")
+  payoutsPaid            Payout[]                  @relation("payout_paid_by")
+  payoutsApproved        Payout[]                  @relation("payout_approved_by")
   booksLocks             BooksLock[]
-  financeRequests        FinanceRequest[]         @relation("finance_request_by")
-  financeDecisions       FinanceRequest[]         @relation("finance_request_decided_by")
+  financeRequests        FinanceRequest[]          @relation("finance_request_by")
+  financeDecisions       FinanceRequest[]          @relation("finance_request_decided_by")
   financeReceipts        FinanceReceipt[]
-  advanceAccounts        LedgerAccount[]          @relation("ledger_account_user")
-  ledgerLines            LedgerLine[]             @relation("ledger_line_user")
+  advanceAccounts        LedgerAccount[]           @relation("ledger_account_user")
+  ledgerLines            LedgerLine[]              @relation("ledger_line_user")
   suppliers              Supplier[]
-  billsFor               Bill[]                   @relation("bill_person")
-  chequesCreated         Cheque[]                 @relation("cheque_created_by")
-  contractsUpdated       MerchantContract[]       @relation("contract_updated_by")
+  billsFor               Bill[]                    @relation("bill_person")
+  chequesCreated         Cheque[]                  @relation("cheque_created_by")
+  contractsCreated       MerchantContract[]        @relation("contract_created_by")
+  contractVersionsMade   MerchantContractVersion[] @relation("contract_version_created_by")
+  contractVersionsActive MerchantContractVersion[] @relation("contract_version_activated_by")
+  contractFiles          MerchantContractFile[]    @relation("contract_file_uploaded_by")
   bankStatements         BankStatement[]
-  taxInvoicesMade        TaxInvoice[]             @relation("tax_invoice_created_by")
-  bankLinesDecided       BankStatementLine[]      @relation("bank_line_decided_by")
-  budgetsSet             Budget[]                 @relation("budget_updated_by")
+  taxInvoicesMade        TaxInvoice[]              @relation("tax_invoice_created_by")
+  bankLinesDecided       BankStatementLine[]       @relation("bank_line_decided_by")
+  budgetsSet             Budget[]                  @relation("budget_updated_by")
   bills                  Bill[]
   recurringEntries       RecurringEntry[]
   prepayments            Prepayment[]
@@ -132,39 +135,39 @@ model User {
   access                 UserAccess?
   accessStores           UserStore[]
   employee               Employee?
-  documentsUploaded      EmployeeDocument[]       @relation("employee_document_uploaded_by")
-  documentsReviewed      EmployeeDocument[]       @relation("employee_document_reviewed_by")
-  salaryPackagesSet      SalaryPackage[]          @relation("salary_package_created_by")
-  checklistsStarted      EmployeeChecklist[]      @relation("employee_checklist_created_by")
-  checklistTasksDone     EmployeeChecklistTask[]  @relation("employee_checklist_task_done_by")
-  merchantsManaged       Merchant[]               @relation("merchant_account_manager")
+  documentsUploaded      EmployeeDocument[]        @relation("employee_document_uploaded_by")
+  documentsReviewed      EmployeeDocument[]        @relation("employee_document_reviewed_by")
+  salaryPackagesSet      SalaryPackage[]           @relation("salary_package_created_by")
+  checklistsStarted      EmployeeChecklist[]       @relation("employee_checklist_created_by")
+  checklistTasksDone     EmployeeChecklistTask[]   @relation("employee_checklist_task_done_by")
+  merchantsManaged       Merchant[]                @relation("merchant_account_manager")
   pushSubscriptions      PushSubscription[]
   notificationPrefs      NotificationPreference[]
-  pettyCashCreated       PettyCashExpense[]       @relation("petty_cash_created_by")
-  pettyCashReversed      PettyCashExpense[]       @relation("petty_cash_reversed_by")
+  pettyCashCreated       PettyCashExpense[]        @relation("petty_cash_created_by")
+  pettyCashReversed      PettyCashExpense[]        @relation("petty_cash_reversed_by")
   monthEndMarks          MonthEndMark[]
-  purchaseOrdersAsked    PurchaseOrder[]          @relation("purchase_order_requested_by")
-  purchaseOrdersDecided  PurchaseOrder[]          @relation("purchase_order_decided_by")
-  crmCompaniesOwned      CrmCompany[]             @relation("crm_company_owner")
-  crmDealsOwned          CrmDeal[]                @relation("crm_deal_owner")
-  crmActivitiesOwned     CrmActivity[]            @relation("crm_activity_owner")
-  crmActivitiesCreated   CrmActivity[]            @relation("crm_activity_created_by")
+  purchaseOrdersAsked    PurchaseOrder[]           @relation("purchase_order_requested_by")
+  purchaseOrdersDecided  PurchaseOrder[]           @relation("purchase_order_decided_by")
+  crmCompaniesOwned      CrmCompany[]              @relation("crm_company_owner")
+  crmDealsOwned          CrmDeal[]                 @relation("crm_deal_owner")
+  crmActivitiesOwned     CrmActivity[]             @relation("crm_activity_owner")
+  crmActivitiesCreated   CrmActivity[]             @relation("crm_activity_created_by")
   crmStageChanges        CrmDealStageHistory[]
-  crmDealsWon            CrmDeal[]                @relation("crm_deal_won_by")
-  crmProposalsMade       CrmProposal[]            @relation("crm_proposal_created_by")
-  crmProposalsApproved   CrmProposal[]            @relation("crm_proposal_approved_by")
-  crmProposalsSent       CrmProposal[]            @relation("crm_proposal_sent_by")
-  crmProposalsConfirmed  CrmProposal[]            @relation("crm_proposal_confirmed_by")
-  crmTargets             CrmTarget[]              @relation("crm_target_user")
-  crmTargetsSet          CrmTarget[]              @relation("crm_target_updated_by")
-  crmCommissions         CrmCommission[]          @relation("crm_commission_user")
-  crmCommissionsAdjusted CrmCommission[]          @relation("crm_commission_adjusted_by")
-  crmCommissionsApproved CrmCommission[]          @relation("crm_commission_approved_by")
-  setupTokens            UserSetupToken[]         @relation("user_setup_token_user")
-  setupTokensMade        UserSetupToken[]         @relation("user_setup_token_created_by")
-  hireDrafts             HireDraft[]              @relation("hire_draft_created_by")
-  exitsRecorded          EmployeeExit[]           @relation("employee_exit_created_by")
-  remindersSent          DocumentReminder[]       @relation("document_reminder_created_by")
+  crmDealsWon            CrmDeal[]                 @relation("crm_deal_won_by")
+  crmProposalsMade       CrmProposal[]             @relation("crm_proposal_created_by")
+  crmProposalsApproved   CrmProposal[]             @relation("crm_proposal_approved_by")
+  crmProposalsSent       CrmProposal[]             @relation("crm_proposal_sent_by")
+  crmProposalsConfirmed  CrmProposal[]             @relation("crm_proposal_confirmed_by")
+  crmTargets             CrmTarget[]               @relation("crm_target_user")
+  crmTargetsSet          CrmTarget[]               @relation("crm_target_updated_by")
+  crmCommissions         CrmCommission[]           @relation("crm_commission_user")
+  crmCommissionsAdjusted CrmCommission[]           @relation("crm_commission_adjusted_by")
+  crmCommissionsApproved CrmCommission[]           @relation("crm_commission_approved_by")
+  setupTokens            UserSetupToken[]          @relation("user_setup_token_user")
+  setupTokensMade        UserSetupToken[]          @relation("user_setup_token_created_by")
+  hireDrafts             HireDraft[]               @relation("hire_draft_created_by")
+  exitsRecorded          EmployeeExit[]            @relation("employee_exit_created_by")
+  remindersSent          DocumentReminder[]        @relation("document_reminder_created_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -3374,46 +3377,145 @@ model Cheque {
   @@map("cheques")
 }
 
-/// A merchant's contract: dates, volume tiers on the order fee, a monthly minimum, the
-/// security deposit agreed and a credit limit. Fees not set here come from settings.
+/// A merchant's contract (merchant contracts v2): one per merchant, numbered CTR-000001
+/// (gapless), made of versions. The version in force on a day holds every price, tier,
+/// payment term and promise of the deal; charges read it for the day of their event.
 model MerchantContract {
-  id                        String    @id @default(cuid())
-  merchantId                String    @unique @map("merchant_id")
-  startDate                 DateTime  @map("start_date") @db.Date
-  endDate                   DateTime? @map("end_date") @db.Date
-  /// Days of notice either side gives to end the contract
-  noticeDays                Int       @map("notice_days")
-  /// Fees booked for a month are topped up to this at month end (null: no minimum)
-  minimumMonthlyFeePiastres Int?      @map("minimum_monthly_fee_piastres")
-  /// The security deposit agreed; what we really hold is the deposit wallet's balance
-  securityDepositPiastres   Int?      @map("security_deposit_piastres")
-  /// Shipments are refused while the merchant owes us more than this (null: no limit)
-  creditLimitPiastres       Int?      @map("credit_limit_piastres")
-  note                      String?
-  updatedById               String    @map("updated_by_id")
-  createdAt                 DateTime  @default(now()) @map("created_at")
-  updatedAt                 DateTime  @updatedAt @map("updated_at")
+  id          String   @id @default(cuid())
+  merchantId  String   @unique @map("merchant_id")
+  number      Int      @unique
+  /// null: made by the migration from the earlier contract and fee settings
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
 
-  merchant  Merchant               @relation(fields: [merchantId], references: [id], onDelete: Restrict)
-  updatedBy User                   @relation("contract_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
-  tiers     MerchantContractTier[]
+  merchant  Merchant                  @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  createdBy User?                     @relation("contract_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  versions  MerchantContractVersion[]
+  files     MerchantContractFile[]
 
   @@map("merchant_contracts")
 }
 
-/// From the nth delivered order of a Cairo month, the order fee uses these values (null: the
-/// setting). The order that crosses into a band and every later one pay the band's fee.
-model MerchantContractTier {
-  id               String @id @default(cuid())
-  contractId       String @map("contract_id")
-  fromOrder        Int    @map("from_order")
-  fixedFeePiastres Int?   @map("fixed_fee_piastres")
-  percentBp        Int?   @map("percent_bp")
+enum ContractVersionStatus {
+  /// Being written; changes nothing until activated
+  draft
+  /// Activated: in force from effective_from until a later version takes effect
+  active
+  /// A later version was activated after it
+  superseded
 
-  contract MerchantContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  @@map("contract_version_status")
+}
 
-  @@unique([contractId, fromOrder])
-  @@map("merchant_contract_tiers")
+/// One version of a merchant's contract. Prices left empty are the standard price (the
+/// global fee setting). Once activated a version is never changed.
+model MerchantContractVersion {
+  id                          String                @id @default(cuid())
+  contractId                  String                @map("contract_id")
+  version                     Int
+  status                      ContractVersionStatus @default(draft)
+  /// The Cairo day it takes effect (planned on a draft, fixed when activated)
+  effectiveFrom               DateTime?             @map("effective_from") @db.Date
+  // Prices (null: the standard price)
+  orderFixedPiastres          Int?                  @map("order_fixed_piastres")
+  orderPercentBp              Int?                  @map("order_percent_bp")
+  codPercentBp                Int?                  @map("cod_percent_bp")
+  failedDeliveryPiastres      Int?                  @map("failed_delivery_piastres")
+  receivingPerUnitPiastres    Int?                  @map("receiving_per_unit_piastres")
+  storagePerUnitMonthPiastres Int?                  @map("storage_per_unit_month_piastres")
+  returnPerUnitPiastres       Int?                  @map("return_per_unit_piastres")
+  // Payment terms
+  /// The agreed schedule, set on the merchant when the version takes effect (null: theirs)
+  payoutSchedule              PayoutSchedule?       @map("payout_schedule")
+  /// When the agreed schedule was set on the merchant
+  scheduleAppliedAt           DateTime?             @map("schedule_applied_at")
+  /// Payouts wait until we owe at least this (null: finance.payout_minimum_piastres)
+  minimumPayoutPiastres       Int?                  @map("minimum_payout_piastres")
+  /// Fees booked for a month are topped up to this at month end (null: no minimum)
+  minimumMonthlyFeePiastres   Int?                  @map("minimum_monthly_fee_piastres")
+  /// The security deposit agreed; what we really hold is the deposit wallet's balance
+  securityDepositPiastres     Int?                  @map("security_deposit_piastres")
+  /// Shipments are refused while the merchant owes us more than this (null: no limit)
+  creditLimitPiastres         Int?                  @map("credit_limit_piastres")
+  // Service promises
+  /// Informative (null: sla.promise_minutes)
+  promiseMinutes              Int?                  @map("promise_minutes")
+  /// Delivery attempts included; the merchant's orders use it (null: delivery.max_attempts)
+  deliveryAttempts            Int?                  @map("delivery_attempts")
+  /// Informative: the stores agreed
+  storeIds                    String[]              @default([]) @map("store_ids")
+  coverageNote                String?               @map("coverage_note")
+  /// Special terms, shown to the merchant and printed
+  terms                       String?
+  /// For the team only
+  internalNote                String?               @map("internal_note")
+  // Dates
+  startDate                   DateTime              @map("start_date") @db.Date
+  endDate                     DateTime?             @map("end_date") @db.Date
+  /// Days of notice either side gives to end the contract
+  noticeDays                  Int                   @map("notice_days")
+  /// Where it came from: migration, a proposal (PRO-000001), or empty (typed)
+  source                      String?
+  createdById                 String?               @map("created_by_id")
+  activatedById               String?               @map("activated_by_id")
+  activatedAt                 DateTime?             @map("activated_at")
+  supersededAt                DateTime?             @map("superseded_at")
+  idempotencyKey              String?               @unique @map("idempotency_key")
+  createdAt                   DateTime              @default(now()) @map("created_at")
+  updatedAt                   DateTime              @updatedAt @map("updated_at")
+
+  contract    MerchantContract              @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  createdBy   User?                         @relation("contract_version_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  activatedBy User?                         @relation("contract_version_activated_by", fields: [activatedById], references: [id], onDelete: Restrict)
+  tiers       MerchantContractVersionTier[]
+  files       MerchantContractFile[]
+
+  @@unique([contractId, version])
+  @@index([contractId, status, effectiveFrom])
+  @@map("merchant_contract_versions")
+}
+
+/// From the nth delivered order of a Cairo month, the values set here replace the version's
+/// prices (null: the version's). The order that crosses into a band and every later one pay
+/// the band's price; other charges use the band the next delivered order would fall in.
+model MerchantContractVersionTier {
+  id                          String @id @default(cuid())
+  versionId                   String @map("version_id")
+  fromOrder                   Int    @map("from_order")
+  fixedFeePiastres            Int?   @map("fixed_fee_piastres")
+  percentBp                   Int?   @map("percent_bp")
+  codPercentBp                Int?   @map("cod_percent_bp")
+  failedDeliveryPiastres      Int?   @map("failed_delivery_piastres")
+  receivingPerUnitPiastres    Int?   @map("receiving_per_unit_piastres")
+  storagePerUnitMonthPiastres Int?   @map("storage_per_unit_month_piastres")
+  returnPerUnitPiastres       Int?   @map("return_per_unit_piastres")
+
+  version MerchantContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@unique([versionId, fromOrder])
+  @@map("merchant_contract_version_tiers")
+}
+
+/// Signed contract files (PDF, JPG or PNG, at most 5 MB), kept in Postgres like other files.
+model MerchantContractFile {
+  id           String   @id @default(cuid())
+  contractId   String   @map("contract_id")
+  /// The version it signs (null: the contract as a whole)
+  versionId    String?  @map("version_id")
+  fileName     String   @map("file_name")
+  contentType  String   @map("content_type")
+  sizeBytes    Int      @map("size_bytes")
+  data         Bytes
+  uploadedById String?  @map("uploaded_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  contract   MerchantContract         @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  version    MerchantContractVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  uploadedBy User?                    @relation("contract_file_uploaded_by", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([contractId])
+  @@map("merchant_contract_files")
 }
 
 // ─── Email ─────────────────────────────────────────────────────────────────────
@@ -3889,6 +3991,11 @@ model CrmProposal {
   contractMonths              Int?              @map("contract_months")
   noticeDays                  Int               @map("notice_days")
   terms                       String?
+  /// Payment terms and promises carried into the contract (null: standard)
+  payoutSchedule              PayoutSchedule?   @map("payout_schedule")
+  minimumPayoutPiastres       Int?              @map("minimum_payout_piastres")
+  promiseMinutes              Int?              @map("promise_minutes")
+  deliveryAttempts            Int?              @map("delivery_attempts")
   /// The largest discount against the fee settings, in basis points
   maxDiscountBp               Int               @default(0) @map("max_discount_bp")
   /// A discount past sales.max_discount_bp: a sales manager approves before it is sent
@@ -3931,13 +4038,18 @@ model CrmProposal {
   @@map("crm_proposals")
 }
 
-/// Volume tiers offered on the order fee, as merchant_contract_tiers.
+/// Volume tiers offered on every fee, as merchant_contract_version_tiers.
 model CrmProposalTier {
-  id               String @id @default(cuid())
-  proposalId       String @map("proposal_id")
-  fromOrder        Int    @map("from_order")
-  fixedFeePiastres Int?   @map("fixed_fee_piastres")
-  percentBp        Int?   @map("percent_bp")
+  id                          String @id @default(cuid())
+  proposalId                  String @map("proposal_id")
+  fromOrder                   Int    @map("from_order")
+  fixedFeePiastres            Int?   @map("fixed_fee_piastres")
+  percentBp                   Int?   @map("percent_bp")
+  codPercentBp                Int?   @map("cod_percent_bp")
+  failedDeliveryPiastres      Int?   @map("failed_delivery_piastres")
+  receivingPerUnitPiastres    Int?   @map("receiving_per_unit_piastres")
+  storagePerUnitMonthPiastres Int?   @map("storage_per_unit_month_piastres")
+  returnPerUnitPiastres       Int?   @map("return_per_unit_piastres")
 
   proposal CrmProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 

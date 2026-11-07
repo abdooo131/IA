@@ -3,6 +3,7 @@ import {
   type CommissionStatus,
   type ContractTier,
   type CrmStage,
+  type PayoutScheduleName,
   type ProposalFee,
   type ProposalFees,
   type ProposalStatus,
@@ -31,6 +32,10 @@ export interface ProposalView {
   contractMonths: number | null;
   noticeDays: number;
   terms: string | null;
+  payoutSchedule: PayoutScheduleName | null;
+  minimumPayoutPiastres: number | null;
+  promiseMinutes: number | null;
+  deliveryAttempts: number | null;
   tiers: ContractTier[];
   maxDiscountBp: number;
   needsApproval: boolean;
@@ -106,6 +111,10 @@ export interface PublicProposal {
   contractMonths: number | null;
   noticeDays: number;
   terms: string | null;
+  payoutSchedule: PayoutScheduleName | null;
+  minimumPayoutPiastres: number | null;
+  promiseMinutes: number | null;
+  deliveryAttempts: number | null;
   vatBp: number;
   sentAt: string | null;
   validUntil: string | null;
@@ -155,39 +164,6 @@ export function parseCount(text: string): number | null {
 export function parseMoney(text: string): number | null {
   if (text.trim() === '') return null;
   return parseEgp(text) ?? Number.NaN;
-}
-
-export interface TierInput {
-  fromOrder: string;
-  fixed: string;
-  percent: string;
-}
-
-/** The tiers typed in the form, checked: each needs its first order and a fee. */
-export function parseTiers(rows: TierInput[]): ContractTier[] | null {
-  const out: ContractTier[] = [];
-  for (const r of rows) {
-    if (!r.fromOrder.trim() && !r.fixed.trim() && !r.percent.trim()) continue;
-    const from = parseCount(r.fromOrder);
-    const fixed = r.fixed.trim() ? parseEgp(r.fixed) : null;
-    const percent = r.percent.trim() ? parsePercentBp(r.percent) : null;
-    if (from === null || Number.isNaN(from) || from < 1) return null;
-    if (r.fixed.trim() && fixed === null) return null;
-    if (r.percent.trim() && percent === null) return null;
-    if (fixed === null && percent === null) return null;
-    out.push({ fromOrder: from, fixedFeePiastres: fixed, percentBp: percent });
-  }
-  if (new Set(out.map((t) => t.fromOrder)).size !== out.length) return null;
-  return out.sort((a, b) => a.fromOrder - b.fromOrder);
-}
-
-/** The tiers back as form rows. */
-export function tierRows(tiers: ContractTier[]): TierInput[] {
-  return tiers.map((t) => ({
-    fromOrder: String(t.fromOrder),
-    fixed: egpInput(t.fixedFeePiastres),
-    percent: t.percentBp === null ? '' : bpText(t.percentBp),
-  }));
 }
 
 /** The fee field as the form shows it. */

@@ -43,7 +43,8 @@ import {
   runPayroll,
 } from '../src/finance';
 import { setEmployment, setSalary } from '../src/hr-pay';
-import { getMerchantSetting, setSetting } from '../src/settings';
+import { setSetting } from '../src/settings';
+import { contractPricesAt } from '../src/finance/contracts';
 import { prisma, resetDatabase } from './helpers';
 
 let manager: CrmActor;
@@ -103,7 +104,12 @@ async function acceptedDeal(actor: CrmActor, brand: string, extra = {}) {
     {
       dealId: deal.id,
       idempotencyKey: key(),
-      tiers: [{ fromOrder: 501, fixedFeePiastres: 1800, percentBp: null }],
+      tiers: [{ fromOrder: 501, fixedFeePiastres: 1800, codPercentBp: 140 }],
+      payoutSchedule: 'twice_weekly',
+      minimumPayoutPiastres: 50_000,
+      promiseMinutes: 90,
+      deliveryAttempts: 3,
+      terms: 'Packaging included',
       minimumMonthlyFeePiastres: 1_000_000,
       securityDepositPiastres: 500_000,
       creditLimitPiastres: 2_000_000,
@@ -241,7 +247,7 @@ describe('proposals', () => {
       where: { id: result.merchantId },
       include: {
         users: true,
-        contract: { include: { tiers: true } },
+        contract: { include: { versions: { include: { tiers: true } } } },
         crmCompanies: true,
       },
     });
@@ -259,22 +265,48 @@ describe('proposals', () => {
         isActive: false,
       }),
     ]);
-    expect(merchant.contract).toMatchObject({
+    // Version 1 of the contract holds every term of the proposal, activated from its start.
+    expect(merchant.contract!.number).toBe(1);
+    const [v1] = merchant.contract!.versions;
+    expect(v1).toMatchObject({
+      version: 1,
+      status: 'active',
+      source: proposal.label,
+      orderFixedPiastres: 1700,
+      orderPercentBp: 100,
+      codPercentBp: 150,
+      failedDeliveryPiastres: 1500,
+      payoutSchedule: 'twice_weekly',
+      minimumPayoutPiastres: 50_000,
+      promiseMinutes: 90,
+      deliveryAttempts: 3,
+      terms: 'Packaging included',
       noticeDays: 60,
       minimumMonthlyFeePiastres: 1_000_000,
       securityDepositPiastres: 500_000,
       creditLimitPiastres: 2_000_000,
     });
-    expect(merchant.contract!.startDate.toISOString().slice(0, 10)).toBe('2026-12-01');
-    expect(merchant.contract!.endDate!.toISOString().slice(0, 10)).toBe('2027-11-30');
-    expect(merchant.contract!.tiers).toEqual([
-      expect.objectContaining({ fromOrder: 501, fixedFeePiastres: 1800, percentBp: null }),
+    expect(v1!.startDate.toISOString().slice(0, 10)).toBe('2026-12-01');
+    expect(v1!.effectiveFrom!.toISOString().slice(0, 10)).toBe('2026-12-01');
+    expect(v1!.endDate!.toISOString().slice(0, 10)).toBe('2027-11-30');
+    expect(v1!.tiers).toEqual([
+      expect.objectContaining({
+        fromOrder: 501,
+        fixedFeePiastres: 1800,
+        percentBp: null,
+        codPercentBp: 140,
+      }),
     ]);
     expect(merchant.crmCompanies).toHaveLength(1);
-    expect(await getMerchantSetting(prisma, 'fee.order_fixed_piastres', merchant.id)).toBe(1700);
-    expect(await getMerchantSetting(prisma, 'fee.failed_delivery_piastres', merchant.id)).toBe(
-      1500,
-    );
+    // From its first day the contract prices the merchant's charges (no fee settings).
+    const prices = (
+      await contractPricesAt(prisma, {
+        merchantId: merchant.id,
+        at: new Date('2026-12-02T10:00:00Z'),
+      })
+    ).prices;
+    expect(prices).toMatchObject({ orderFixedPiastres: 1700, failedDeliveryPiastres: 1500 });
+    expect(await prisma.setting.count({ where: { scope: { startsWith: 'merchant:' } } })).toBe(0);
     const won = await prisma.crmDeal.findUniqueOrThrow({ where: { id: deal.id } });
     expect(won).toMatchObject({
       stage: 'won',

@@ -103,6 +103,11 @@ export function SettingsEditor({ initial, app }: { initial: SettingsList; app: A
           ))}
         </nav>
       )}
+      {tab === 'fees' && (
+        <p className="mt-4 rounded-lg border border-line bg-surface p-3 text-body-sm text-text-muted">
+          {t('merchantPricesInContract')}
+        </p>
+      )}
       <ul className="mt-6 space-y-4">
         {data.settings
           .filter((s) => tabOf(s.key) === tab)
@@ -131,12 +136,11 @@ function SettingCard({
   const unit = unitOf(setting.key);
 
   // Where this setting may differ from the global value.
+  // A merchant's own prices live in their contract (merchant contracts v2), never here.
   const targets =
     setting.override === 'store'
       ? list.stores.map((s) => ({ scope: s.id, label: localized(s, locale) }))
-      : setting.override === 'merchant'
-        ? list.merchants.map((m) => ({ scope: `merchant:${m.id}`, label: m.name }))
-        : [];
+      : [];
   const labelOf = (scope: string) => targets.find((x) => x.scope === scope)?.label ?? scope;
 
   async function save(scope: string, raw: string | null) {
@@ -212,7 +216,7 @@ function SettingCard({
       {free.length > 0 && (
         <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-line pt-3">
           <label className="text-caption text-text-muted" htmlFor={`add-${setting.key}`}>
-            {setting.override === 'merchant' ? t('addMerchantOverride') : t('addOverride')}
+            {t('addOverride')}
           </label>
           <select
             id={`add-${setting.key}`}
@@ -220,9 +224,7 @@ function SettingCard({
             onChange={(e) => setNewScope(e.target.value)}
             className="h-10 rounded-md border border-line bg-surface px-2 text-body-sm"
           >
-            <option value="">
-              {setting.override === 'merchant' ? t('chooseMerchant') : t('chooseStore')}
-            </option>
+            <option value="">{t('chooseStore')}</option>
             {free.map((x) => (
               <option key={x.scope} value={x.scope}>
                 {x.label}
@@ -273,7 +275,7 @@ function ValueEditor(props: {
   value: string;
   unit: Unit;
   busy: boolean;
-  /** A new store or merchant value may start equal to the global one and still be saved */
+  /** A new store value may start equal to the global one and still be saved */
   fresh?: boolean;
   onSave(value: string): void;
   onRemove?(): void;

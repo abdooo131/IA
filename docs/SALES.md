@@ -187,13 +187,15 @@ Screens: apps/web/src/app/admin/sales, components/sales, lib/sales.ts.
   version, which makes the old link answer "replaced".
 - **Values**: every fee starts from its global setting and the rep may change it: fee per
   delivered order (fixed and share of the products value), COD fee, failed delivery, receiving
-  per unit, storage per unit per month, return per unit. Volume tiers on the order fee, the
-  monthly minimum, the security deposit and the credit limit work exactly like
-  `merchant_contracts`; contract start (empty: the day the rep confirms), length in months
-  (empty: no end) and notice days; free text terms; orders a month and average order value for
-  the example month.
-- **Discount rule**: the discount of each fee (and each tier's fixed fee and share, against the
-  order fee settings) is `(setting − offered) / setting`. When the largest is above
+  per unit, storage per unit per month, return per unit. Volume tiers on every fee (from the
+  nth delivered order of the month, any of the seven prices), the payout schedule and minimum
+  payout, the delivery promise and attempts included, the monthly minimum, the security deposit
+  and the credit limit work exactly like a merchant contract version (merchant contracts v2,
+  CLAUDE.md); contract start (empty: the day the rep confirms), length in months (empty: no end)
+  and notice days; free text terms; orders a month and average order value for the example
+  month.
+- **Discount rule**: the discount of each fee (and each price a tier sets, against that fee's
+  setting) is `(setting − offered) / setting`. When the largest is above
   `sales.max_discount_bp` (default 2000 = 20%) the proposal needs a sales manager's approval
   before it can be sent (`approval_required`). The rep asks (Ask a manager to approve, pushed
   to the managers); a manager who did not make it approves (`same_person` otherwise). Changing
@@ -219,15 +221,20 @@ Screens: apps/web/src/app/admin/sales, components/sales, lib/sales.ts.
     `sales.setup_link_days`, default 7). The link is shown to the rep once to send to the
     owner (no email is sent); the rep can make a new one from the deal while the owner has not
     used it (earlier links stop working). Choosing a password opens the account,
-  - the merchant contract (start, end from the length, notice, tiers, minimum, deposit, credit
-    limit) through the same `saveContract` as admin, and every proposal fee as the merchant's own
-    fee setting (scope `merchant:<id>`),
+  - the merchant's contract: a version holding every term of the proposal (all seven prices,
+    tiers on every fee, payout schedule and minimum payout, promise and attempts, minimum,
+    deposit, credit limit, start, end from the length, notice, terms; the proposal and deal
+    numbers as its internal note, `source` the proposal number) made through the same
+    `createContractDraft` as merchants manage and activated at once from the contract start
+    (today at the earliest) through `activateContractVersion`. A new merchant gets CTR- version
+    1; an existing merchant (a sign up, or a later deal) a new version, and a draft someone left
+    open on its contract gives way to the signed proposal,
   - the deal's owner as the merchant's account manager (a sales manager can change it on the
     deal),
   - company and deal linked to the merchant, the deal won (with the owner at the win and the
     commission terms), its stale alerts handled,
-  - every step audited (merchant.create, user.create, merchant.contract_create, settings.update,
-    crm_deal.won).
+  - every step audited (merchant.create, user.create, merchant.contract_create,
+    merchant.contract_draft, merchant.contract_activate, crm_deal.won).
   Confirming again changes nothing; any failure (for example the owner's email already used:
   `email_taken`) leaves nothing behind.
 
@@ -360,8 +367,8 @@ packages/db/src/finance/payroll.ts.
 - The example month assumes every order is cash on delivery.
 - Commission is paid in the first salary run at or after the commission's month once approved
   (a late approval goes into a later run, never lost).
-- A proposal's fees become the merchant's own fee settings even where they equal today's global
-  value, so a later change of the global fee does not change an agreed contract.
+- A proposal's fees become the contract version's own prices even where they equal today's
+  global value, so a later change of the global fee does not change an agreed contract.
 - Notice days default to 30 when the rep leaves it empty.
 - Commission against the target (choices made while building it):
   - "Active" counts orders delivered from the moment of the win (a delivery earlier in the win

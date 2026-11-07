@@ -1,4 +1,4 @@
-import { exampleMonth, proposalApproval } from '@shiplynow/shared';
+import { exampleMonth, makeTier, proposalApproval } from '@shiplynow/shared';
 import { describe, expect, it } from 'vitest';
 import {
   bpText,
@@ -6,13 +6,11 @@ import {
   monthNeighbours,
   parseFee,
   parsePercentBp,
-  parseTiers,
   pickMonth,
   progressWidth,
   proposalActions,
   proposalLink,
   setupLink,
-  tierRows,
 } from './sales-part2';
 
 const list = {
@@ -46,29 +44,6 @@ describe('proposal form values', () => {
     expect(parseFee('orderPercentBp', '2')).toBe(200);
   });
 
-  it('checks volume tiers: a first order and a fee each, never twice', () => {
-    expect(
-      parseTiers([
-        { fromOrder: '1001', fixed: '15', percent: '' },
-        { fromOrder: '501', fixed: '', percent: '0.5' },
-        { fromOrder: '', fixed: '', percent: '' },
-      ]),
-    ).toEqual([
-      { fromOrder: 501, fixedFeePiastres: null, percentBp: 50 },
-      { fromOrder: 1001, fixedFeePiastres: 1500, percentBp: null },
-    ]);
-    expect(parseTiers([{ fromOrder: '10', fixed: '', percent: '' }])).toBeNull();
-    expect(
-      parseTiers([
-        { fromOrder: '10', fixed: '1', percent: '' },
-        { fromOrder: '10', fixed: '2', percent: '' },
-      ]),
-    ).toBeNull();
-    expect(tierRows([{ fromOrder: 501, fixedFeePiastres: 1800, percentBp: null }])).toEqual([
-      { fromOrder: '501', fixed: '18.00', percent: '' },
-    ]);
-  });
-
   it('flags a discount past the limit, tiers included', () => {
     expect(proposalApproval({ ...list, tiers: [] }, list, 2000).needsApproval).toBe(false);
     expect(proposalApproval({ ...list, orderFixedPiastres: 1600, tiers: [] }, list, 2000)).toEqual({
@@ -76,11 +51,7 @@ describe('proposal form values', () => {
       needsApproval: false,
     });
     expect(
-      proposalApproval(
-        { ...list, tiers: [{ fromOrder: 100, fixedFeePiastres: 1000, percentBp: null }] },
-        list,
-        2000,
-      ),
+      proposalApproval({ ...list, tiers: [makeTier(100, { fixedFeePiastres: 1000 })] }, list, 2000),
     ).toEqual({ maxDiscountBp: 5000, needsApproval: true });
   });
 
@@ -90,7 +61,7 @@ describe('proposal form values', () => {
       expectedMonthlyOrders: 1000,
       averageOrderPiastres: 50_000,
       minimumMonthlyFeePiastres: null,
-      tiers: [{ fromOrder: 501, fixedFeePiastres: 1500, percentBp: null }],
+      tiers: [makeTier(501, { fixedFeePiastres: 1500 })],
     });
     // 500 × (20 + 5) + 500 × (15 + 5) = 22,500 EGP; COD 1.5% of 500 EGP × 1,000 = 7,500 EGP.
     expect(month).toMatchObject({

@@ -76,6 +76,7 @@ Also inside the app: settings menu (top of every screen), Help.
 **If something is wrong**
 
 - Amount looks wrong: cancel the draft with a note and open a ticket to admin.
+- A merchant is skipped with below_payout_minimum: we owe them less than the minimum payout of their contract (else Accounting's payout minimum setting); it waits until the balance reaches it.
 
 ### Approvals and receipts
 
@@ -284,7 +285,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Merchant contracts, deposits and profitability
 
-1. Merchant contracts: read each merchant's terms, the deposit we hold and their balance against the credit limit.
+1. Merchant contracts: read each merchant's contract version in force, the deposit we hold and their balance against the credit limit; the merchant's name opens the whole contract (prices, tiers, payment terms) in Merchants.
 2. Security deposit: Deposit on the merchant's row, Received or Paid back, through our bank or the merchant's balance; a second person approves it.
 3. The monthly minimum is topped up by itself on the 1st for the month before (Monthly minimum top up in the journal and on the invoice).
 4. Profit per merchant: open a month, then a merchant to see fees by kind, costs and margin per order; use What if to try other fees on the same month before talking to the merchant.
@@ -478,6 +479,7 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - المبلغ شكله غلط: الغي المسودة بملاحظة وافتح تذكرة للأدمن.
+- تاجر اتساب برسالة below_payout_minimum: المستحق له أقل من الحد الأدنى للتحويل في عقده (أو إعداد الحد الأدنى في الحسابات)؛ بيستنى لحد ما الرصيد يوصله.
 
 ### الموافقات والإيصالات
 
@@ -686,7 +688,7 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### عقود التجار والتأمينات والربحية
 
-1. عقود التجار: اقرا شروط كل تاجر والتأمين اللي معانا ورصيده مقارنة بحد الائتمان.
+1. عقود التجار: اقرا إصدار العقد الساري لكل تاجر والتأمين اللي معانا ورصيده مقارنة بحد الائتمان؛ واسم التاجر بيفتح العقد كله (الأسعار والشرائح وشروط الدفع) في التجار.
 2. التأمين: التأمين في صف التاجر، استلام أو رد، عن طريق البنك أو رصيد التاجر؛ شخص تاني يوافق.
 3. الحد الأدنى الشهري بيتكمل لوحده يوم 1 للشهر اللي فات (استكمال الحد الأدنى الشهري في اليومية وفي الفاتورة).
 4. الربح لكل تاجر: افتح شهر، وبعدين تاجر تشوف الرسوم حسب النوع والتكاليف والهامش لكل طلب؛ واستخدم ماذا لو تجرب رسوم تانية على نفس الشهر قبل ما تكلم التاجر.

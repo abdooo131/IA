@@ -196,8 +196,18 @@ wants otherwise.
   a profile row opens nothing. A profile limited to listed stores needs at least one store
   (`stores_required`).
 - Settings: every team member may read the settings (their app pages show them); changing one
-  needs settings manage, except a merchant's own fees (`merchant:<id>` scope), which merchants
-  manage may also change.
+  needs settings manage. A merchant's own prices and terms are no longer settings (merchant
+  contracts v2): the `merchant:<id>` scope is refused (`scope_not_allowed`).
+- Merchant contracts (v2): merchants view and accounting view read a merchant's contract, its
+  versions, signed files and printed copies (`/admin/merchants/:id/contract*`); only merchants
+  manage writes drafts, activates them (audited with before and after), attaches or removes
+  signed files and edits the payout bank account from the contract (`PUT
+  /admin/merchants/:id/bank`; Accounting keeps its own `PUT /finance/merchants/:id/bank`).
+  Payment terms are part of the version, so they follow the same rule: Accounting reads them
+  but does not activate a version (choice to confirm with the owner). People limited to their
+  own merchants (`own_merchants_only`) reach only those merchants' contracts. The merchant's
+  users with the money right read their own contract and its PDF (`/merchant/contract`,
+  `/merchant/contract/pdf`), never drafts, signed files or the team's internal note.
 - Owner only, as before: posting opening balances and creating the e-invoice signer key need
   accounting manage and settings manage. Reopening closed books (moving the lock date back)
   needs settings manage.

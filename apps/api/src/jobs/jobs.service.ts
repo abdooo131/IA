@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   accrueStorage,
+  applyContractSchedules,
   chargeMinimumFees,
   computeCommissions,
   expireProposals,
@@ -402,8 +403,9 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   /**
-   * Once a Cairo day: tops last month's fees up to each merchant contract's minimum. Keyed per
-   * merchant and month, so the days after the first change nothing.
+   * Once a Cairo day: sets the agreed payout schedule of contract versions that took effect
+   * (once per version), then tops last month's fees up to each merchant contract's minimum.
+   * Keyed per merchant and month, so the days after the first change nothing.
    */
   async runContractMinimums(now: Date = new Date()) {
     const day = cairoDay(now);
@@ -417,6 +419,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
             { locked: boolean },
           ];
           if (!locked) return null;
+          await applyContractSchedules(tx, now);
           return chargeMinimumFees(tx, now);
         },
         { timeout: 60_000 },

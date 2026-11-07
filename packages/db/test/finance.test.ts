@@ -1,9 +1,12 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { changeSetting, createUser } from '../src/admin-ops';
+import { cairoDay, contractVersionSchema } from '@shiplynow/shared';
 import {
   accrueStorage,
+  activateContractVersion,
   balanceOf,
   cancelPayout,
+  createContractDraft,
   createPayout,
   financeWallets,
   markPayoutPaid,
@@ -195,8 +198,41 @@ describe('fees on orders', () => {
     expect(tb.totalDebitPiastres).toBe(tb.totalCreditPiastres);
   });
 
-  it('uses a merchant own fee when one is set', async () => {
-    await set('fee.order_fixed_piastres', 2000, `merchant:${f.merchant.id}`);
+  it("uses the merchant's contract price when one is set, never a merchant setting", async () => {
+    // A merchant's own price lives in their contract (merchant contracts v2).
+    await expect(
+      set('fee.order_fixed_piastres', 2000, `merchant:${f.merchant.id}`),
+    ).rejects.toThrow('scope_not_allowed');
+    const draft = await createContractDraft(prisma, {
+      merchantId: f.merchant.id,
+      actorUserId: admin,
+      body: contractVersionSchema.parse({
+        orderFixedPiastres: 2000,
+        orderPercentBp: null,
+        codPercentBp: null,
+        failedDeliveryPiastres: null,
+        receivingPerUnitPiastres: null,
+        storagePerUnitMonthPiastres: null,
+        returnPerUnitPiastres: null,
+        payoutSchedule: null,
+        minimumPayoutPiastres: null,
+        minimumMonthlyFeePiastres: null,
+        securityDepositPiastres: null,
+        creditLimitPiastres: null,
+        promiseMinutes: null,
+        deliveryAttempts: null,
+        startDate: cairoDay(new Date()),
+        endDate: null,
+        noticeDays: 30,
+        tiers: [],
+      }),
+    });
+    await activateContractVersion(prisma, {
+      merchantId: f.merchant.id,
+      versionId: draft.id,
+      effectiveFrom: cairoDay(new Date()),
+      actorUserId: admin,
+    });
     await deliver(1);
     const fee = await prisma.ledgerEntry.findFirstOrThrow({ where: { kind: 'order_fee' } });
     expect(fee.data).toMatchObject({ fixedPiastres: 2000 });

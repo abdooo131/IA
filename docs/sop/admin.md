@@ -88,13 +88,17 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### Merchant contracts
 
-1. Merchants: open a merchant (Contract and profit), then Edit contract: start and end dates, notice days, monthly minimum, security deposit, credit limit and volume tiers (from the nth delivered order of the month, a fixed fee and/or a share of products).
-2. Tiers apply from the order that crosses the band, never to earlier orders of the month; empty values use the fee settings.
-3. With Accounting access, the same page shows this month's fees, costs and margin; Details opens the what if.
+1. Merchants: open a merchant; the tabs are Overview, Contract, Shopify, Products and stock, Users, Profit (with Accounting) and History.
+2. Contract, Edit (new version): every price beside the standard one (leave empty for the standard price), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.
+3. Check the draft with the calculator (a cash order, a month of orders and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.
+4. Attach the signed copy (PDF, JPG or PNG up to 5 MB) under Signed copies, and print the contract in English or Arabic from PDF English / PDF عربي.
+5. The payout bank account is edited from the contract's payment terms.
+6. Tiers apply from the order that crosses the band, never to earlier orders of the month; unit fees and failed deliveries use the band of the next delivered order.
 
 **Check it went right**
 
-- The merchant sees the contract read only under Contract; the History panel shows every change.
+- The merchant sees the contract in force read only under Contract (with the PDF); History shows every draft, activation and file.
+- Accounting's fee settings are only the standard prices: a merchant's own price is in their contract.
 
 **If something is wrong**
 
@@ -276,13 +280,17 @@ Also inside the app: settings menu (top of every screen), Help.
 
 ### عقود التجار
 
-1. التجار: افتح التاجر (العقد والربحية)، وبعدين تعديل العقد: تاريخ البداية والنهاية، أيام الإخطار، الحد الأدنى الشهري، التأمين، حد الائتمان وشرائح الحجم (من الطلب رقم n اللي اتوصل في الشهر، رسم ثابت و/أو نسبة من البضاعة).
-2. الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ والقيم الفاضية من إعدادات الرسوم.
-3. لو عندك صلاحية الحسابات، نفس الصفحة بتوريك رسوم الشهر وتكاليفه والهامش؛ والتفاصيل بتفتح ماذا لو.
+1. التجار: افتح التاجر؛ التبويبات: نظرة عامة، العقد، شوبيفاي، المنتجات والمخزون، المستخدمون، الربحية (مع الحسابات) والسجل.
+2. العقد، تعديل (إصدار جديد): كل سعر جنب السعر القياسي (سيبه فاضي للسعر القياسي)، وشرائح الحجم على أي رسم (الطلبات في الشهر: من الطلب رقم n، والأسعار اللي بتتغير)، وشروط الدفع (مواعيد التحويل، الحد الأدنى للتحويل، الحد الأدنى الشهري، التأمين، حد الائتمان)، والالتزامات (مدة التوصيل، المحاولات، المخازن، المناطق)، والتواريخ والشروط الخاصة وملاحظة داخلية. حفظ المسودة مش بيغير حاجة لسه.
+3. راجع المسودة بالحاسبة (طلب نقدي، وشهر طلبات ووحدات)، وبعدين فعلها من النهارده أو يوم بعده. الرسوم من اليوم ده بتتحسب بالإصدار الجديد؛ والإصدارات القديمة موجودة في الإصدارات وبتتطبع زي ما هي.
+4. ارفع النسخة الموقعة (PDF أو JPG أو PNG لحد 5 ميجا) في النسخ الموقعة، واطبع العقد عربي أو إنجليزي من PDF عربي / PDF English.
+5. الحساب البنكي للتحويلات بيتعدل من شروط الدفع في العقد.
+6. الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ ورسوم الوحدات والتوصيل الفاشل بتاخد شريحة الطلب الجاي.
 
 **اتأكد إنها مشيت صح**
 
-- التاجر بيشوف العقد للعرض بس تحت العقد؛ ولوحة السجل بتوري كل تغيير.
+- التاجر بيشوف العقد الساري للعرض بس تحت العقد (مع الـPDF)؛ والسجل بيوري كل مسودة وتفعيل وملف.
+- إعدادات الرسوم في الحسابات هي الأسعار القياسية بس: سعر التاجر الخاص في عقده.
 
 **لو فيه مشكلة**
 

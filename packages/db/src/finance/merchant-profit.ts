@@ -1,7 +1,7 @@
-import { addDays, cairoDayStart, type WhatIfBase } from '@shiplynow/shared';
+import { addDays, cairoDay, cairoDayStart, type WhatIfBase } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
-import { getMerchantSetting } from '../settings';
+import { contractPricesAt, versionInForce } from './contracts';
 import { addMonths } from './assets';
 
 // What each merchant earns us in a Cairo month, against what serving them costs:
@@ -257,9 +257,14 @@ export async function merchantProfitability(
 export async function merchantProfitDetail(db: Db, input: { month: string; merchantId: string }) {
   const { rows } = await merchantProfitability(db, input);
   const row = rows[0]!;
-  const contract = await db.merchantContract.findUnique({
-    where: { merchantId: input.merchantId },
-    include: { tiers: { orderBy: { fromOrder: 'asc' } } },
+  // The contract in force on the month's last day (or today, for the month running).
+  const lastDay = addDays(`${addMonths(input.month, 1)}-01`, -1);
+  const today = cairoDay(new Date());
+  const day = lastDay < today ? lastDay : today;
+  const version = await versionInForce(db, input.merchantId, day);
+  const { prices } = await contractPricesAt(db, {
+    merchantId: input.merchantId,
+    at: cairoDayStart(day),
   });
   const base: WhatIfBase = {
     deliveredOrders: row.deliveredOrders,
@@ -278,22 +283,25 @@ export async function merchantProfitDetail(db: Db, input: { month: string; merch
     stores: row.stores.map((s) => ({ ...s, store: stores.find((x) => x.id === s.darkStoreId) })),
     base,
     current: {
-      orderFixedPiastres: await getMerchantSetting(
-        db,
-        'fee.order_fixed_piastres',
-        input.merchantId,
-      ),
-      orderPercentBp: await getMerchantSetting(db, 'fee.order_percent_bp', input.merchantId),
-      codPercentBp: await getMerchantSetting(db, 'fee.cod_percent_bp', input.merchantId),
-      minimumPiastres: contract?.minimumMonthlyFeePiastres ?? null,
+      // The version's prices before any band (the what if leaves tiers out).
+      orderFixedPiastres: version?.orderFixedPiastres ?? prices.orderFixedPiastres,
+      orderPercentBp: version?.orderPercentBp ?? prices.orderPercentBp,
+      codPercentBp: version?.codPercentBp ?? prices.codPercentBp,
+      minimumPiastres: version?.minimumMonthlyFeePiastres ?? null,
     },
     tiers:
-      contract?.tiers.map((t) => ({
+      version?.tiers.map((t) => ({
         fromOrder: t.fromOrder,
         fixedFeePiastres: t.fixedFeePiastres,
         percentBp: t.percentBp,
+        codPercentBp: t.codPercentBp,
+        failedDeliveryPiastres: t.failedDeliveryPiastres,
+        receivingPerUnitPiastres: t.receivingPerUnitPiastres,
+        storagePerUnitMonthPiastres: t.storagePerUnitMonthPiastres,
+        returnPerUnitPiastres: t.returnPerUnitPiastres,
       })) ?? [],
+    contract: version ? { id: version.id, version: version.version } : null,
     previousMonth: addMonths(input.month, -1),
-    lastDay: addDays(`${addMonths(input.month, 1)}-01`, -1),
+    lastDay,
   };
 }

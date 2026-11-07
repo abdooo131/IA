@@ -52,7 +52,7 @@ export interface SettingRow {
   globalUpdatedAt: string | null;
   globalUpdatedBy: string | null;
   /** Which per scope value is allowed: per store, per merchant, or none */
-  override: 'store' | 'merchant' | 'none';
+  override: 'store' | 'none';
   overrides: {
     scope: string;
     darkStoreId: string | null;

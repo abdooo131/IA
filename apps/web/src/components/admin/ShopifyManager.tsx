@@ -143,7 +143,7 @@ function CopyLink({ url }: { url: string }) {
  * What stands between this store and 60 minute orders reaching us, step by step, with what to
  * do for each missing step, then the last request Shopify sent and the last order made.
  */
-function Readiness({ shop }: { shop: ShopifyOverview['shops'][number] }) {
+export function Readiness({ shop }: { shop: ShopifyOverview['shops'][number] }) {
   const t = useTranslations('admin.shopify');
   const locale = useLocale();
   const r = shop.readiness;

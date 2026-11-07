@@ -1,9 +1,17 @@
-import { addDays, cairoDay, whatIf } from '@shiplynow/shared';
+import {
+  addDays,
+  cairoDay,
+  contractVersionSchema,
+  type ContractVersionInput,
+  whatIf,
+} from '@shiplynow/shared';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { changeSetting, createUser } from '../src/admin-ops';
 import {
+  activateContractVersion,
   balanceOf,
   chargeMinimumFees,
+  createContractDraft,
   depositHeld,
   ensureDefaultAccounts,
   getContract,
@@ -15,7 +23,6 @@ import {
   recordDeposit,
   recordExpense,
   recordMerchantAdjustment,
-  saveContract,
   submitDeposit,
 } from '../src/finance';
 import { createManifest } from '../src/inbound';
@@ -119,9 +126,20 @@ const orderFees = async () =>
     })
   ).map((e) => -e.lines.find((l) => l.account.type === 'revenue')!.amountPiastres);
 
-const contract = (over: Partial<Parameters<typeof saveContract>[1]> = {}) =>
-  saveContract(prisma, {
-    merchantId: f.merchant.id,
+/** A contract version made and activated, in force from 60 days ago. */
+async function contract(over: Partial<ContractVersionInput> = {}) {
+  const body = contractVersionSchema.parse({
+    orderFixedPiastres: null,
+    orderPercentBp: null,
+    codPercentBp: null,
+    failedDeliveryPiastres: null,
+    receivingPerUnitPiastres: null,
+    storagePerUnitMonthPiastres: null,
+    returnPerUnitPiastres: null,
+    payoutSchedule: null,
+    minimumPayoutPiastres: null,
+    promiseMinutes: null,
+    deliveryAttempts: null,
     startDate: addDays(today(), -60),
     endDate: null,
     noticeDays: 30,
@@ -129,9 +147,21 @@ const contract = (over: Partial<Parameters<typeof saveContract>[1]> = {}) =>
     securityDepositPiastres: null,
     creditLimitPiastres: null,
     tiers: [],
-    actorUserId: admin,
     ...over,
   });
+  const draft = await createContractDraft(prisma, {
+    merchantId: f.merchant.id,
+    body,
+    actorUserId: admin,
+  });
+  return activateContractVersion(prisma, {
+    merchantId: f.merchant.id,
+    versionId: draft.id,
+    effectiveFrom: addDays(today(), -60),
+    actorUserId: admin,
+    allowPast: true,
+  });
+}
 
 describe('volume tiers', () => {
   it('charges the band of the order that crosses it and every later order, never earlier ones', async () => {

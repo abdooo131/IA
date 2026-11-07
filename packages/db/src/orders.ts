@@ -12,6 +12,7 @@ import {
 } from '@shiplynow/shared';
 import { postDeliveryCompleted, postDeliveryFailed } from './finance/postings';
 import { checkRiderCashLimit } from './finance/cash-control';
+import { deliveryAttemptsFor } from './finance/contracts';
 import { isClockedIn } from './attendance';
 import { consumePackagingForOrder } from './packaging';
 import { recordAudit } from './audit';
@@ -867,7 +868,12 @@ export function failDelivery(db: Db, input: FailDeliveryInput) {
       },
     });
     const attempts = await tx.delivery.count({ where: { orderId: order.id, status: 'failed' } });
-    const maxAttempts = await getSetting(tx, 'delivery.max_attempts', order.darkStoreId);
+    // The merchant's contract may include more (or fewer) attempts than the store's setting.
+    const maxAttempts = await deliveryAttemptsFor(tx, {
+      merchantId: order.merchantId,
+      darkStoreId: order.darkStoreId,
+      at: order.createdAt,
+    });
     const retry = attempts < maxAttempts && !FINAL_FAILURE_REASONS.includes(input.reason);
     const details = {
       reason: input.reason,

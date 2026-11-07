@@ -6,8 +6,9 @@ import {
   contractEndDay,
   dealNumber,
   exampleMonth,
+  CONTRACT_TIER_KEYS,
+  type ContractTier,
   latinDigits,
-  merchantScope,
   normalizeEgyptianPhone,
   PROPOSAL_FEE_KEYS,
   PROPOSAL_FEES,
@@ -30,11 +31,11 @@ import {
   winTerms,
 } from './crm';
 import { DomainError } from './domain-error';
-import { saveContract } from './finance/contracts';
+import { activateContractVersion, createContractDraft } from './finance/contracts';
 import { nextNumber } from './finance/ledger';
 import { setAccountManager } from './hr';
 import { hashPassword } from './password';
-import { getSetting, setSetting } from './settings';
+import { getSetting } from './settings';
 
 type Tx = Prisma.TransactionClient;
 
@@ -48,9 +49,11 @@ type Tx = Prisma.TransactionClient;
 //   A new version of a deal's proposal supersedes the open ones (draft, sent, viewed, accepted).
 //
 // Confirming runs in one transaction: the merchant (approved) from the company, its owner login
-// (inactive until they choose a password through a one time link), the merchant contract and
-// the fee settings from the proposal's terms, the deal's owner as account manager, company and
-// deal linked to the merchant and the deal won. A won deal with a merchant never leaves won.
+// (inactive until they choose a password through a one time link), a contract version holding
+// every term of the proposal (prices, tiers on every fee, payment terms, promises, dates and
+// notes; version 1, or a new version for an existing merchant) activated from the contract
+// start, the deal's owner as account manager, company and deal linked to the merchant and the
+// deal won. A won deal with a merchant never leaves won.
 
 const PUBLIC_STATUSES_OPEN = ['sent', 'viewed'] as const;
 const DAY = (d: Date) => d.toISOString().slice(0, 10);
@@ -73,14 +76,12 @@ const proposalInclude = {
 } satisfies Prisma.CrmProposalInclude;
 type ProposalRow = Prisma.CrmProposalGetPayload<{ include: typeof proposalInclude }>;
 
-function tiersOf(p: {
-  tiers: { fromOrder: number; fixedFeePiastres: number | null; percentBp: number | null }[];
-}) {
-  return p.tiers.map((t) => ({
-    fromOrder: t.fromOrder,
-    fixedFeePiastres: t.fixedFeePiastres,
-    percentBp: t.percentBp,
-  }));
+function tiersOf(p: { tiers: readonly ContractTier[] }): ContractTier[] {
+  return p.tiers.map((t) => {
+    const tier = { fromOrder: t.fromOrder } as ContractTier;
+    for (const k of CONTRACT_TIER_KEYS) tier[k] = t[k] ?? null;
+    return tier;
+  });
 }
 
 function feesOf(p: ProposalFees): ProposalFees {
@@ -109,6 +110,10 @@ function toView(p: ProposalRow) {
     contractMonths: p.contractMonths,
     noticeDays: p.noticeDays,
     terms: p.terms,
+    payoutSchedule: p.payoutSchedule,
+    minimumPayoutPiastres: p.minimumPayoutPiastres,
+    promiseMinutes: p.promiseMinutes,
+    deliveryAttempts: p.deliveryAttempts,
     tiers,
     maxDiscountBp: p.maxDiscountBp,
     needsApproval: p.needsApproval,
@@ -233,12 +238,7 @@ export async function dealProposals(db: Db, dealId: string, actor: CrmActor) {
 // ─── creating and editing ────────────────────────────────────────────────────────
 
 /** The proposal's values after a change, with its discount check worked out again. */
-async function priced(
-  tx: Db,
-  values: ProposalFees & {
-    tiers: { fromOrder: number; fixedFeePiastres: number | null; percentBp: number | null }[];
-  },
-) {
+async function priced(tx: Db, values: ProposalFees & { tiers: readonly ContractTier[] }) {
   const list = await proposalFeeList(tx);
   const max = await getSetting(tx, 'sales.max_discount_bp');
   return proposalApproval(values, list, max);
@@ -297,6 +297,10 @@ export async function createProposal(
         contractMonths: body.contractMonths ?? null,
         noticeDays: body.noticeDays ?? 30,
         terms: body.terms ?? null,
+        payoutSchedule: body.payoutSchedule ?? null,
+        minimumPayoutPiastres: body.minimumPayoutPiastres ?? null,
+        promiseMinutes: body.promiseMinutes ?? null,
+        deliveryAttempts: body.deliveryAttempts ?? null,
         maxDiscountBp: approval.maxDiscountBp,
         needsApproval: approval.needsApproval,
         createdById: actor.userId,
@@ -369,6 +373,10 @@ export async function updateProposal(
         contractMonths: body.contractMonths,
         noticeDays: body.noticeDays,
         terms: body.terms,
+        payoutSchedule: body.payoutSchedule,
+        minimumPayoutPiastres: body.minimumPayoutPiastres,
+        promiseMinutes: body.promiseMinutes,
+        deliveryAttempts: body.deliveryAttempts,
         maxDiscountBp: approval.maxDiscountBp,
         needsApproval: approval.needsApproval,
         // A new price is a new question for the manager.
@@ -601,6 +609,10 @@ export async function publicProposal(db: Db, token: string, now: Date = new Date
       contractMonths: full.contractMonths,
       noticeDays: full.noticeDays,
       terms: full.terms,
+      payoutSchedule: full.payoutSchedule,
+      minimumPayoutPiastres: full.minimumPayoutPiastres,
+      promiseMinutes: full.promiseMinutes,
+      deliveryAttempts: full.deliveryAttempts,
       vatBp: await getSetting(tx, 'fee.vat_bp'),
       sentAt: full.sentAt,
       validUntil: full.validUntil ? DAY(full.validUntil) : null,
@@ -866,27 +878,49 @@ export async function confirmProposal(
         });
       }
 
-      // The contract and the merchant's own fee values.
-      const start = fresh.contractStartDate ? DAY(fresh.contractStartDate) : cairoDay(now);
-      await saveContract(tx, {
+      // The contract: a version holding every term of the proposal, through the same code as
+      // merchants manage, activated from the contract start (today at the earliest). A draft
+      // someone left on an existing merchant's contract gives way to the signed proposal.
+      const today = cairoDay(now);
+      const start = fresh.contractStartDate ? DAY(fresh.contractStartDate) : today;
+      const existing = await tx.merchantContract.findUnique({ where: { merchantId } });
+      if (existing) {
+        const draft = await tx.merchantContractVersion.findFirst({
+          where: { contractId: existing.id, status: 'draft' },
+        });
+        if (draft) await tx.merchantContractVersion.delete({ where: { id: draft.id } });
+      }
+      const version = await createContractDraft(tx, {
         merchantId,
         actorUserId: actor.userId,
-        startDate: start,
-        endDate: contractEndDay(start, fresh.contractMonths),
-        noticeDays: fresh.noticeDays,
-        minimumMonthlyFeePiastres: fresh.minimumMonthlyFeePiastres,
-        securityDepositPiastres: fresh.securityDepositPiastres,
-        creditLimitPiastres: fresh.creditLimitPiastres,
-        note: `${proposalNumber(fresh.number)} · ${dealNumber(deal.number)}`,
-        tiers: tiersOf(fresh),
+        source: proposalNumber(fresh.number),
+        body: {
+          ...feesOf(fresh),
+          tiers: tiersOf(fresh),
+          payoutSchedule: fresh.payoutSchedule,
+          minimumPayoutPiastres: fresh.minimumPayoutPiastres,
+          minimumMonthlyFeePiastres: fresh.minimumMonthlyFeePiastres,
+          securityDepositPiastres: fresh.securityDepositPiastres,
+          creditLimitPiastres: fresh.creditLimitPiastres,
+          promiseMinutes: fresh.promiseMinutes,
+          deliveryAttempts: fresh.deliveryAttempts,
+          storeIds: [],
+          coverageNote: null,
+          terms: fresh.terms,
+          internalNote: `${proposalNumber(fresh.number)} · ${dealNumber(deal.number)}`,
+          startDate: start,
+          endDate: contractEndDay(start, fresh.contractMonths),
+          noticeDays: fresh.noticeDays,
+          effectiveFrom: start > today ? start : today,
+        },
       });
-      for (const k of PROPOSAL_FEE_KEYS)
-        await setSetting(tx, {
-          key: PROPOSAL_FEES[k],
-          value: fresh[k],
-          scope: merchantScope(merchantId),
-          actorUserId: actor.userId,
-        });
+      await activateContractVersion(tx, {
+        merchantId,
+        versionId: version.id,
+        effectiveFrom: start > today ? start : today,
+        actorUserId: actor.userId,
+        now,
+      });
 
       // Company and deal linked, the deal won.
       if (deal.company.merchantId !== merchantId)

@@ -67,7 +67,7 @@ export {
   type OrderNoteView,
 } from './order-extras';
 export { hashPassword, verifyPassword } from './password';
-export { getMerchantSetting, getSetting, setSetting } from './settings';
+export { getSetting, setSetting } from './settings';
 export * from './stock';
 export { seed, type SeedOptions } from './seed';
 export {
@@ -292,3 +292,4 @@ export {
 export * from './hr-hire';
 export * from './hr-exit';
 export * from './hr-reminders';
+export { type MerchantOverview, merchantOverview } from './merchant-overview';

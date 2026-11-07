@@ -518,7 +518,8 @@
         "merchants": "Merchant sign ups",
         "hr": "Employee files",
         "sales": "Sales"
-      }
+      },
+      "merchantPricesInContract": "These are the standard prices. A merchant's own prices, tiers and terms are set in their contract (Merchants, open the merchant, Contract)."
     },
     "audit": {
       "title": "Audit log",
@@ -873,7 +874,7 @@
       },
       "accountManager": "Account manager",
       "noAccountManager": "None",
-      "open": "Contract and profit"
+      "open": "Open"
     },
     "productsEdit": {
       "new": "Add product",
@@ -1066,6 +1067,81 @@
         "field_addressAr": "Arabic address: at least 5 letters.",
         "field_shelves": "Shelves: a number from 1 to 200.",
         "field_coordinates": "Location: latitude must be between 22 and 32 and longitude between 24 and 37 (Cairo is about 30.04 and 31.24). You can paste both from Google Maps into the latitude box."
+      }
+    },
+    "merchantPage": {
+      "tabsLabel": "Merchant sections",
+      "tabs": {
+        "overview": "Overview",
+        "contract": "Contract",
+        "shopify": "Shopify",
+        "products": "Products and stock",
+        "users": "Users",
+        "profit": "Profit",
+        "history": "History"
+      },
+      "active": "Active",
+      "paused": "Paused",
+      "approval": {
+        "pending": "waiting for approval",
+        "approved": "approved",
+        "rejected": "rejected"
+      },
+      "overview": {
+        "who": "The merchant",
+        "accountManager": "Account manager",
+        "since": "With us since",
+        "email": "Contact email",
+        "phone": "Contact mobile",
+        "none": "–",
+        "onboarding": "Getting started",
+        "done": "done",
+        "notDone": "not done yet",
+        "month": "This month ({month})",
+        "placed": "Orders placed",
+        "delivered": "Orders delivered",
+        "fees": "Fees (before VAT)",
+        "owed": "Balance (we owe them)",
+        "contract": "Contract",
+        "contractInForce": "{label} is in force.",
+        "noContract": "No contract yet: standard prices apply.",
+        "draftWaiting": "Draft {label} waits to be activated.",
+        "openContract": "Open the contract"
+      },
+      "onboarding": {
+        "products": "Products added",
+        "price": "60 minute price set",
+        "shopify": "Shopify connected",
+        "shipment": "First shipment sent"
+      },
+      "products": {
+        "skus": "Products",
+        "active": "Active products",
+        "shipments": "Open shipments",
+        "returns": "Open returns",
+        "stock": "Units with us",
+        "noStock": "No units in our stores yet.",
+        "units": "{onHand} on shelves, {reserved} reserved",
+        "openProducts": "Products",
+        "openShipments": "Shipments",
+        "openStock": "Stock"
+      },
+      "users": {
+        "none": "No users yet.",
+        "role": {
+          "owner": "Owner",
+          "member": "Member"
+        },
+        "hint": "The merchant's owner manages their team in the merchant area (Team)."
+      },
+      "shopify": {
+        "none": "No Shopify store linked yet.",
+        "open": "Open Shopify stores",
+        "status": {
+          "pending": "Waiting for the install",
+          "active": "Connected",
+          "uninstalled": "Uninstalled"
+        }
       }
     }
   },
@@ -2177,7 +2253,8 @@
         "tier_twice": "Each band needs its own starting order.",
         "tier_empty": "Give each band a fixed fee, a percentage or both.",
         "payout_not_found": "Payout not found.",
-        "commission_not_payable": "This commission is not approved, already paid, or for another amount."
+        "commission_not_payable": "This commission is not approved, already paid, or for another amount.",
+        "below_payout_minimum": "What we owe is below the payout minimum of the merchant's contract; it waits until it reaches it."
       }
     },
     "riders": {
@@ -3024,7 +3101,8 @@
       "reference": "Reference",
       "submit": "Record",
       "open": "Open",
-      "noEnd": "Open ended"
+      "noEnd": "Open ended",
+      "draft": "draft waiting"
     },
     "merchantProfit": {
       "title": "Profit per merchant",
@@ -3856,9 +3934,13 @@
             "steps": [
               "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.",
               "You can cancel only new or accepted orders.",
-              "Wallet shows what we owe you; payouts go to your bank on your schedule."
+              "Wallet shows what we owe you; payouts go to your bank on your schedule.",
+              "Contract shows your agreement with Shiply: every price beside the standard one, volume tiers, payment terms, promises and dates. Download it as a PDF in English or Arabic; earlier versions stay in Versions."
             ],
-            "check": ["Each payout shows a bank reference."],
+            "check": [
+              "Each payout shows a bank reference.",
+              "The fees on your statement match the prices of the contract version in force that day."
+            ],
             "problems": [
               "A payout looks wrong: download the statement for the period and send it with your question."
             ]
@@ -3962,7 +4044,8 @@
             ],
             "check": ["The payout shows Paid; the merchant's balance dropped by the amount."],
             "problems": [
-              "Amount looks wrong: cancel the draft with a note and open a ticket to admin."
+              "Amount looks wrong: cancel the draft with a note and open a ticket to admin.",
+              "A merchant is skipped with below_payout_minimum: we owe them less than the minimum payout of their contract (else Accounting's payout minimum setting); it waits until the balance reaches it."
             ]
           },
           {
@@ -4143,7 +4226,7 @@
           {
             "title": "Merchant contracts, deposits and profitability",
             "steps": [
-              "Merchant contracts: read each merchant's terms, the deposit we hold and their balance against the credit limit.",
+              "Merchant contracts: read each merchant's contract version in force, the deposit we hold and their balance against the credit limit; the merchant's name opens the whole contract (prices, tiers, payment terms) in Merchants.",
               "Security deposit: Deposit on the merchant's row, Received or Paid back, through our bank or the merchant's balance; a second person approves it.",
               "The monthly minimum is topped up by itself on the 1st for the month before (Monthly minimum top up in the journal and on the invoice).",
               "Profit per merchant: open a month, then a merchant to see fees by kind, costs and margin per order; use What if to try other fees on the same month before talking to the merchant."
@@ -4341,12 +4424,16 @@
           {
             "title": "Merchant contracts",
             "steps": [
-              "Merchants: open a merchant (Contract and profit), then Edit contract: start and end dates, notice days, monthly minimum, security deposit, credit limit and volume tiers (from the nth delivered order of the month, a fixed fee and/or a share of products).",
-              "Tiers apply from the order that crosses the band, never to earlier orders of the month; empty values use the fee settings.",
-              "With Accounting access, the same page shows this month's fees, costs and margin; Details opens the what if."
+              "Merchants: open a merchant; the tabs are Overview, Contract, Shopify, Products and stock, Users, Profit (with Accounting) and History.",
+              "Contract, Edit (new version): every price beside the standard one (leave empty for the standard price), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.",
+              "Check the draft with the calculator (a cash order, a month of orders and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.",
+              "Attach the signed copy (PDF, JPG or PNG up to 5 MB) under Signed copies, and print the contract in English or Arabic from PDF English / PDF عربي.",
+              "The payout bank account is edited from the contract's payment terms.",
+              "Tiers apply from the order that crosses the band, never to earlier orders of the month; unit fees and failed deliveries use the band of the next delivered order."
             ],
             "check": [
-              "The merchant sees the contract read only under Contract; the History panel shows every change."
+              "The merchant sees the contract in force read only under Contract (with the PDF); History shows every draft, activation and file.",
+              "Accounting's fee settings are only the standard prices: a merchant's own price is in their contract."
             ],
             "problems": [
               "Shipments refused for a merchant over the credit limit: the alert names the balance; finance records the payment or you raise the limit with the owner's agreement."
@@ -4475,7 +4562,7 @@
             "title": "Make and send a proposal",
             "steps": [
               "On the deal, in Proposals, tap New proposal. The rates start from our current fees.",
-              "Change the rates you agreed, add volume tiers if any, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
+              "Change the rates you agreed, add volume tiers on any fee if any, the payout schedule and minimum payout, the delivery promise and attempts, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
               "If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.",
               "Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.",
               "To change a sent proposal, make a New version: the old link stops working."
@@ -4493,7 +4580,7 @@
             "steps": [
               "When the brand accepts you get a notification. Open the deal.",
               "Tap Confirm and open the merchant. Check the owner's name, email (their login) and mobile.",
-              "Tap Confirm. The deal is won, the merchant, its contract and fees and the owner's login are made in one step.",
+              "Tap Confirm. The deal is won; the merchant, its contract version (every price, tier and term of the proposal, in force from the contract start) and the owner's login are made in one step.",
               "Copy the setup link that appears and send it to the owner: it works once and is shown only now."
             ],
             "check": [
@@ -6390,40 +6477,198 @@
   },
   "contracts": {
     "title": "Contract",
-    "none": "No contract yet: fees come from the settings.",
-    "start": "Start",
-    "end": "End (empty: open ended)",
-    "notice": "Notice (days)",
-    "noticeBy": "Last day to give notice: {day}",
-    "minimum": "Monthly minimum fee (EGP)",
-    "minimumHint": "Fees booked for a month are topped up to this when the month ends, shared by the days the contract was in force.",
-    "deposit": "Security deposit (EGP)",
-    "creditLimit": "Credit limit (EGP)",
-    "creditLimitHint": "While the merchant owes more than this, new shipments are refused. Empty: no limit.",
-    "note": "Internal note",
-    "tiers": "Volume tiers on the order fee",
-    "tiersHint": "From the nth delivered order in a Cairo month the band's fee applies, to that order and every later one; earlier orders keep their fee (no rebate). Empty values use the settings.",
+    "create": "Write the contract",
+    "edit": "Edit (new version)",
+    "noContract": "No contract yet: this merchant pays the standard prices. Write the contract to set their own prices and terms.",
+    "noContractMerchant": "No contract yet: Shiply's standard prices apply. Ask your account manager.",
+    "readOnly": "Read only: Shiply changes your contract. Ask your account manager about a change.",
+    "backToCurrent": "Back to the version in force",
+    "status": {
+      "draft": "Draft",
+      "in_force": "In force",
+      "scheduled": "Takes effect later",
+      "superseded": "Replaced",
+      "ended": "Ended"
+    },
+    "effectiveFrom": "In force from {day}",
+    "notActivated": "Draft: changes nothing until it is activated",
+    "activatedBy": "activated by {name}",
+    "scheduledNote": "{label} is agreed and takes effect on {day}.",
+    "printEn": "PDF English",
+    "printAr": "PDF عربي",
+    "sections": {
+      "prices": "Prices",
+      "tiers": "Volume tiers",
+      "payment": "Payment terms",
+      "promises": "Service promises",
+      "dates": "Dates",
+      "terms": "Special terms",
+      "internal": "Internal note (team only)"
+    },
+    "fee": "Fee",
+    "standard": "Standard",
+    "agreed": "This merchant",
+    "asStandard": "Standard",
+    "fees": {
+      "orderFixedPiastres": "Order fee, fixed",
+      "orderPercentBp": "Order fee, share of products",
+      "codPercentBp": "Cash on delivery fee",
+      "failedDeliveryPiastres": "Failed delivery fee",
+      "receivingPerUnitPiastres": "Receiving",
+      "storagePerUnitMonthPiastres": "Storage",
+      "returnPerUnitPiastres": "Return to merchant"
+    },
+    "units": {
+      "orderFixedPiastres": "per delivered order",
+      "orderPercentBp": "of the products value",
+      "codPercentBp": "of the cash collected",
+      "failedDeliveryPiastres": "per failed delivery",
+      "receivingPerUnitPiastres": "per unit received",
+      "storagePerUnitMonthPiastres": "per unit a month, charged daily",
+      "returnPerUnitPiastres": "per unit returned"
+    },
+    "vat": "VAT on fees",
+    "vatHint": "A global setting, the same for every merchant",
+    "vatSame": "Same for everyone",
+    "packaging": "Packaging",
+    "packagingHint": "Bags, boxes and labels are ours, never charged",
+    "included": "Included",
+    "tiersTitle": "Orders a month: from → prices",
     "fromOrder": "From order",
-    "fixed": "Fixed (EGP)",
-    "percent": "Share of products (%)",
-    "addTier": "Add band",
-    "remove": "Remove",
-    "save": "Save contract",
-    "saved": "Contract saved.",
-    "edit": "Edit contract",
-    "readOnly": "Read only: Shiply changes your contract.",
-    "inForce": "In force",
-    "notInForce": "Not in force today",
-    "settingsFees": "Fees from settings: {fixed} EGP per order plus {percent}% of products, COD {cod}%",
+    "noTiers": "No volume tiers: the prices above apply to every order.",
+    "tiersRule": "Delivered orders of the Cairo month. The order that reaches a band and every later order pay the band's prices; earlier orders are never charged again. Unit fees and failed deliveries use the band of the next delivered order. An empty box is the price above.",
+    "payoutSchedule": "Payout schedule",
+    "schedules": {
+      "daily": "Daily",
+      "twice_weekly": "Twice a week (Sunday and Wednesday)",
+      "weekly": "Weekly (Sunday)"
+    },
+    "ownChoice": "The merchant's own choice",
+    "scheduleDiffers": "The merchant changed it to: {schedule}",
+    "differs": "Changed by the merchant",
+    "minimumPayout": "Minimum payout",
+    "standardValue": "Standard value",
+    "bank": "Bank account for payouts",
+    "noBank": "Not given yet",
+    "bankEdit": "Edit",
+    "bankName": "Bank",
+    "beneficiary": "Account holder",
+    "accountNumber": "Account number",
+    "iban": "IBAN (EG + 27 digits)",
+    "bankSave": "Save bank account",
+    "cancel": "Cancel",
+    "minimumFee": "Monthly minimum fee",
+    "minimumFeeHint": "A month's fees (before VAT) are topped up to this when the month ends, shared by the days in force.",
+    "deposit": "Security deposit",
+    "held": "Held now: {amount} EGP",
+    "creditLimit": "Credit limit",
+    "creditLimitHint": "While the merchant owes more than this, new shipments are refused. Empty: no limit.",
+    "none": "None",
+    "promise": "Delivery promise",
+    "minutes": "{n} minutes",
+    "informative": "For information",
+    "attempts": "Delivery attempts included",
+    "stores": "Dark stores",
+    "allStores": "Every dark store whose zone covers the customer",
+    "areas": "Areas covered",
+    "start": "Start",
+    "end": "End",
+    "openEnded": "No end date",
+    "notice": "Notice to end",
+    "days": "{n} days",
+    "noticeBy": "Last day to give notice: {day}",
+    "noTerms": "None.",
     "monthSoFar": "{count} delivered orders this month",
-    "nextBand": "Next order falls in the band from order {from}",
-    "held": "Deposit held: {amount} EGP",
+    "nextBand": "The next order falls in the band from order {from}",
     "owed": "Balance: {amount} EGP",
     "overLimit": "Over the credit limit: new shipments are refused.",
-    "empty": "–",
-    "openEnded": "Open ended",
+    "calc": {
+      "title": "What it costs",
+      "orderValue": "Order value (EGP)",
+      "orders": "Orders a month",
+      "units": "Units stored",
+      "oneOrder": "A <value></value> EGP cash order costs <total></total> EGP: <fees></fees> in fees plus <vat></vat> VAT.",
+      "month": "A month of <orders></orders> orders with <units></units> units stored costs about <total></total> EGP with VAT.",
+      "orderFees": "Order fees",
+      "codFees": "COD fees",
+      "storage": "Storage",
+      "minimumTopUp": "Minimum top up",
+      "vat": "VAT",
+      "perOrder": "Per order",
+      "note": "An estimate: every order paid cash at that value, orders spread evenly over 30 days, tiers band by band. Receiving, returns and failed deliveries come on top."
+    },
+    "versions": {
+      "title": "Versions",
+      "empty": "No version activated yet.",
+      "view": "View",
+      "activated": "activated by {name}, {time}",
+      "system": "the system",
+      "fromMigration": "from the earlier contract and fee settings",
+      "fromProposal": "from proposal {number}"
+    },
+    "files": {
+      "title": "Signed copies",
+      "empty": "No signed copy attached yet.",
+      "upload": "Attach a signed copy",
+      "version": "It signs",
+      "whole": "The contract",
+      "signs": "signs version {version}",
+      "remove": "Remove",
+      "confirmRemove": "Remove this file?",
+      "hint": "PDF, JPG or PNG, at most 5 MB."
+    },
+    "draft": {
+      "title": "Draft {label}",
+      "intro": "Nothing changes until the draft is activated. Check it, then activate it from today or a later day.",
+      "activateOn": "Takes effect on",
+      "activate": "Activate",
+      "activateHint": "Today or later, never before the last version's day and never inside closed books. Charges from that day use the new prices.",
+      "edit": "Edit draft",
+      "delete": "Throw away",
+      "confirmDelete": "Throw this draft away?",
+      "confirmActivate": "Activate this version from {day}? Every charge from that day uses it.",
+      "preview": "See the draft as a document"
+    },
+    "form": {
+      "title": "New version",
+      "editDraft": "Edit draft {label}",
+      "intro": "Every term of the deal in one place. It is saved as a draft and changes nothing until it is activated.",
+      "pricesHint": "Leave a price empty for the standard price (it then follows the setting).",
+      "vatAndPackaging": "VAT is the same for every merchant; packaging is always included.",
+      "tiersHint": "From the nth delivered order of a Cairo month the band's prices apply, to that order and every later one. Set only the prices that change; an empty box keeps the price above.",
+      "addTier": "Add a band",
+      "removeTier": "Remove band",
+      "scheduleHint": "Set on the merchant when the version takes effect; they may change it later.",
+      "standardIs": "Empty: the standard {value}",
+      "attemptsHint": "Empty: the store's setting ({n}). The merchant's orders get this many attempts.",
+      "storesHint": "For information. None ticked: every store whose zone covers the customer.",
+      "bankHint": "The payout bank account is shown in the contract and edited there once it is in force.",
+      "endOptional": "End (optional)",
+      "noticeDays": "Notice (days)",
+      "plannedFrom": "Planned start",
+      "plannedFromHint": "Chosen again when it is activated.",
+      "termsLabel": "Special terms (shown to the merchant and printed)",
+      "termsHint": "Anything else agreed, in plain words.",
+      "save": "Save draft"
+    },
     "errors": {
-      "validation_failed": "Check the dates and the bands (each band once, with a fee).",
+      "price": "A price is not a valid amount or percent.",
+      "tiers": "Check the bands: each needs its first order (once) and at least one price.",
+      "money": "An amount is not valid.",
+      "promise": "The delivery promise is between 10 and 1440 minutes.",
+      "attempts": "Delivery attempts are between 1 and 10.",
+      "notice": "Notice is a number of days.",
+      "dates": "The end comes after the start.",
+      "validation_failed": "Check the fields.",
+      "contract_draft_exists": "A draft is already open: continue it.",
+      "contract_version_not_draft": "This version is already active and cannot change.",
+      "effective_before_today": "A version takes effect today or later.",
+      "effective_before_last_version": "It cannot take effect before the last version's day.",
+      "books_closed": "That day is inside closed books.",
+      "effective_after_end": "It cannot take effect after the contract's end.",
+      "file_type_not_allowed": "Only PDF, JPG or PNG files.",
+      "file_too_large": "The file is larger than 5 MB.",
+      "invalid_iban": "An IBAN is EG followed by 27 digits.",
       "generic": "Could not save. Try again."
     }
   },
@@ -7297,7 +7542,8 @@
       "month_not_over": "That month is not over yet.",
       "invalid_month": "Pick a month.",
       "tier_twice": "Two tiers start at the same order.",
-      "tier_empty": "Each tier needs a fee."
+      "tier_empty": "Each tier needs a fee.",
+      "effective_before_last_version": "The merchant already has a contract version starting later; change the contract start."
     },
     "proposals": {
       "title": "Proposals",
@@ -7319,7 +7565,7 @@
         "returnPerUnitPiastres": "Return to the merchant, per unit"
       },
       "tiers": "Volume tiers",
-      "tiersHint": "From the nth delivered order of a month, the order fee changes. Leave a box empty to keep the rate above.",
+      "tiersHint": "From the nth delivered order of a month, the prices you set change for that order and every later one. Leave a box empty to keep the rate above.",
       "tierFrom": "From order",
       "tierFixed": "Fee per order (EGP)",
       "tierPercent": "Share (%)",
@@ -7395,7 +7641,19 @@
       "orderFee": "Order fee",
       "exampleTotal": "Example month",
       "validUntilShort": "Open until",
-      "owner": "Owner"
+      "owner": "Owner",
+      "paymentAndPromises": "Payment terms and promises",
+      "payoutSchedule": "Payout schedule",
+      "payoutOwnChoice": "The merchant chooses",
+      "schedules": {
+        "daily": "Daily",
+        "twice_weekly": "Twice a week (Sunday and Wednesday)",
+        "weekly": "Weekly (Sunday)"
+      },
+      "minimumPayout": "Minimum payout, EGP",
+      "promiseMinutes": "Delivery promise (minutes)",
+      "deliveryAttempts": "Delivery attempts included",
+      "standardPlaceholder": "Standard"
     },
     "numbers": {
       "month": "Month",
@@ -7545,8 +7803,8 @@
     "storageFeeHint": "Charged day by day on the units in stock.",
     "returnFee": "Returning stock to you",
     "tiersTitle": "Volume tiers",
-    "tiersHint": "The more orders in a month, the lower the order fee: from the order that reaches a tier, every later order of that month pays the tier fee.",
-    "tierLine": "From order number {from} of the month: {fee} an order",
+    "tiersHint": "The more orders in a month, the lower the prices: from the order that reaches a tier, every later order of that month pays the tier's prices.",
+    "tierLine": "From order number {from} of the month: {fee}",
     "exampleTitle": "An example month",
     "exampleIntro": "With {orders} orders a month of {average} each, all paid cash on delivery:",
     "exampleIntroNoAverage": "With {orders} orders a month, all paid cash on delivery:",
@@ -7596,7 +7854,25 @@
       "proposal_not_found": "This proposal link is not valid.",
       "too_many_attempts": "Too many tries. Wait a few minutes.",
       "validation_failed": "Write your name and title."
-    }
+    },
+    "tierFees": {
+      "orderFixedPiastres": "order fee",
+      "orderPercentBp": "share of products",
+      "codPercentBp": "cash on delivery fee",
+      "failedDeliveryPiastres": "failed delivery",
+      "receivingPerUnitPiastres": "receiving per unit",
+      "storagePerUnitMonthPiastres": "storage per unit a month",
+      "returnPerUnitPiastres": "return per unit"
+    },
+    "schedules": {
+      "daily": "Daily",
+      "twice_weekly": "Twice a week (Sunday and Wednesday)",
+      "weekly": "Weekly (Sunday)"
+    },
+    "minimumPayout": "Minimum payout",
+    "promise": "Delivery promise",
+    "minutes": "{n} minutes",
+    "attempts": "Delivery attempts included"
   },
   "setupPage": {
     "pageTitle": "Choose your password",

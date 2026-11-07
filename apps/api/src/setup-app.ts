@@ -45,6 +45,11 @@ export function setupApp(app: INestApplication) {
     ],
     raw({ type: ['image/jpeg', 'image/png', 'image/webp'], limit: '1100kb' }),
   );
+  // Signed merchant contracts: the raw PDF or photo (at most 5 MB).
+  app.use(
+    /^\/admin\/merchants\/[^/]+\/contract\/files$/,
+    raw({ type: ['image/jpeg', 'image/png', 'application/pdf'], limit: '5200kb' }),
+  );
   // Bank statement files (Excel or CSV) are read as the raw file.
   app.use('/finance/bank-statements/read', raw({ type: () => true, limit: '5mb' }));
   // Shopify signs the exact bytes it sends, so its callbacks keep the raw body.

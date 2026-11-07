@@ -221,9 +221,11 @@ EN = {
        "steps": [
          "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.",
          "You can cancel only new or accepted orders.",
-         "Wallet shows what we owe you; payouts go to your bank on your schedule."],
+         "Wallet shows what we owe you; payouts go to your bank on your schedule.",
+         "Contract shows your agreement with Shiply: every price beside the standard one, volume tiers, payment terms, promises and dates. Download it as a PDF in English or Arabic; earlier versions stay in Versions."],
        "check": [
-         "Each payout shows a bank reference."],
+         "Each payout shows a bank reference.",
+         "The fees on your statement match the prices of the contract version in force that day."],
        "problems": [
          "A payout looks wrong: download the statement for the period and send it with your question."]},
       {"title": "Your team",
@@ -288,7 +290,8 @@ EN = {
        "check": [
          "The payout shows Paid; the merchant's balance dropped by the amount."],
        "problems": [
-         "Amount looks wrong: cancel the draft with a note and open a ticket to admin."]},
+         "Amount looks wrong: cancel the draft with a note and open a ticket to admin.",
+         "A merchant is skipped with below_payout_minimum: we owe them less than the minimum payout of their contract (else Accounting's payout minimum setting); it waits until the balance reaches it."]},
       {"title": "Approvals and receipts",
        "steps": [
          "Approvals: every money in claim, and money out from the approval limit, waits here for a second person.",
@@ -417,7 +420,7 @@ EN = {
          "The bill was paid in part meanwhile and the cheque no longer fits: cancel it and write a new one."]},
       {"title": "Merchant contracts, deposits and profitability",
        "steps": [
-         "Merchant contracts: read each merchant's terms, the deposit we hold and their balance against the credit limit.",
+         "Merchant contracts: read each merchant's contract version in force, the deposit we hold and their balance against the credit limit; the merchant's name opens the whole contract (prices, tiers, payment terms) in Merchants.",
          "Security deposit: Deposit on the merchant's row, Received or Paid back, through our bank or the merchant's balance; a second person approves it.",
          "The monthly minimum is topped up by itself on the 1st for the month before (Monthly minimum top up in the journal and on the invoice).",
          "Profit per merchant: open a month, then a merchant to see fees by kind, costs and margin per order; use What if to try other fees on the same month before talking to the merchant."],
@@ -509,11 +512,15 @@ EN = {
          "A merchant moved to a new Shopify store: Disconnect store, then link the new one."]},
       {"title": "Merchant contracts",
        "steps": [
-         "Merchants: open a merchant (Contract and profit), then Edit contract: start and end dates, notice days, monthly minimum, security deposit, credit limit and volume tiers (from the nth delivered order of the month, a fixed fee and/or a share of products).",
-         "Tiers apply from the order that crosses the band, never to earlier orders of the month; empty values use the fee settings.",
-         "With Accounting access, the same page shows this month's fees, costs and margin; Details opens the what if."],
+         "Merchants: open a merchant; the tabs are Overview, Contract, Shopify, Products and stock, Users, Profit (with Accounting) and History.",
+         "Contract, Edit (new version): every price beside the standard one (leave empty for the standard price), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.",
+         "Check the draft with the calculator (a cash order, a month of orders and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.",
+         "Attach the signed copy (PDF, JPG or PNG up to 5 MB) under Signed copies, and print the contract in English or Arabic from PDF English / PDF عربي.",
+         "The payout bank account is edited from the contract's payment terms.",
+         "Tiers apply from the order that crosses the band, never to earlier orders of the month; unit fees and failed deliveries use the band of the next delivered order."],
        "check": [
-         "The merchant sees the contract read only under Contract; the History panel shows every change."],
+         "The merchant sees the contract in force read only under Contract (with the PDF); History shows every draft, activation and file.",
+         "Accounting's fee settings are only the standard prices: a merchant's own price is in their contract."],
        "problems": [
          "Shipments refused for a merchant over the credit limit: the alert names the balance; finance records the payment or you raise the limit with the owner's agreement."]},
       {"title": "Stock",
@@ -785,9 +792,11 @@ AR = {
        "steps": [
          "طلبات شوبيفاي اللي فيها الـ60 دقيقة بتيجي لوحدها؛ وتقدر تضيف طلب من طلب جديد: دوّر على حي العميل، ولو تعرف العمارة حط علامة على الخريطة. الفورم بيقولك على طول إذا كان الفرع يقدر ياخده.",
          "تقدر تلغي الطلبات الجديدة أو المقبولة بس.",
-         "المحفظة بتوري لك عندنا كام؛ التحويلات بتنزل البنك على مواعيدك."],
+         "المحفظة بتوري لك عندنا كام؛ التحويلات بتنزل البنك على مواعيدك.",
+         "العقد بيوريك اتفاقك مع شيبلي: كل سعر جنب السعر القياسي، وشرائح الحجم، وشروط الدفع، والالتزامات والتواريخ. نزله PDF عربي أو إنجليزي؛ والإصدارات القديمة موجودة في الإصدارات."],
        "check": [
-         "كل تحويل ليه رقم مرجع من البنك."],
+         "كل تحويل ليه رقم مرجع من البنك.",
+         "الرسوم في كشف حسابك مطابقة لأسعار إصدار العقد الساري في اليوم ده."],
        "problems": [
          "تحويل شكله غلط: نزل كشف الحساب للفترة وابعته مع سؤالك."]},
       {"title": "فريقك",
@@ -852,7 +861,8 @@ AR = {
        "check": [
          "التحويل بيقول اتدفع؛ رصيد التاجر قل بالمبلغ."],
        "problems": [
-         "المبلغ شكله غلط: الغي المسودة بملاحظة وافتح تذكرة للأدمن."]},
+         "المبلغ شكله غلط: الغي المسودة بملاحظة وافتح تذكرة للأدمن.",
+         "تاجر اتساب برسالة below_payout_minimum: المستحق له أقل من الحد الأدنى للتحويل في عقده (أو إعداد الحد الأدنى في الحسابات)؛ بيستنى لحد ما الرصيد يوصله."]},
       {"title": "الموافقات والإيصالات",
        "steps": [
          "الموافقات: كل فلوس داخلة، وكل فلوس خارجة من حد الموافقة، بتستنى هنا شخص تاني.",
@@ -981,7 +991,7 @@ AR = {
          "الفاتورة اتدفع جزء منها في النص والشيك مبقاش مناسب: ألغيه واكتب شيك جديد."]},
       {"title": "عقود التجار والتأمينات والربحية",
        "steps": [
-         "عقود التجار: اقرا شروط كل تاجر والتأمين اللي معانا ورصيده مقارنة بحد الائتمان.",
+         "عقود التجار: اقرا إصدار العقد الساري لكل تاجر والتأمين اللي معانا ورصيده مقارنة بحد الائتمان؛ واسم التاجر بيفتح العقد كله (الأسعار والشرائح وشروط الدفع) في التجار.",
          "التأمين: التأمين في صف التاجر، استلام أو رد، عن طريق البنك أو رصيد التاجر؛ شخص تاني يوافق.",
          "الحد الأدنى الشهري بيتكمل لوحده يوم 1 للشهر اللي فات (استكمال الحد الأدنى الشهري في اليومية وفي الفاتورة).",
          "الربح لكل تاجر: افتح شهر، وبعدين تاجر تشوف الرسوم حسب النوع والتكاليف والهامش لكل طلب؛ واستخدم ماذا لو تجرب رسوم تانية على نفس الشهر قبل ما تكلم التاجر."],
@@ -1073,11 +1083,15 @@ AR = {
          "تاجر نقل لمتجر شوبيفاي جديد: افصل المتجر وبعدين اربط الجديد."]},
       {"title": "عقود التجار",
        "steps": [
-         "التجار: افتح التاجر (العقد والربحية)، وبعدين تعديل العقد: تاريخ البداية والنهاية، أيام الإخطار، الحد الأدنى الشهري، التأمين، حد الائتمان وشرائح الحجم (من الطلب رقم n اللي اتوصل في الشهر، رسم ثابت و/أو نسبة من البضاعة).",
-         "الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ والقيم الفاضية من إعدادات الرسوم.",
-         "لو عندك صلاحية الحسابات، نفس الصفحة بتوريك رسوم الشهر وتكاليفه والهامش؛ والتفاصيل بتفتح ماذا لو."],
+         "التجار: افتح التاجر؛ التبويبات: نظرة عامة، العقد، شوبيفاي، المنتجات والمخزون، المستخدمون، الربحية (مع الحسابات) والسجل.",
+         "العقد، تعديل (إصدار جديد): كل سعر جنب السعر القياسي (سيبه فاضي للسعر القياسي)، وشرائح الحجم على أي رسم (الطلبات في الشهر: من الطلب رقم n، والأسعار اللي بتتغير)، وشروط الدفع (مواعيد التحويل، الحد الأدنى للتحويل، الحد الأدنى الشهري، التأمين، حد الائتمان)، والالتزامات (مدة التوصيل، المحاولات، المخازن، المناطق)، والتواريخ والشروط الخاصة وملاحظة داخلية. حفظ المسودة مش بيغير حاجة لسه.",
+         "راجع المسودة بالحاسبة (طلب نقدي، وشهر طلبات ووحدات)، وبعدين فعلها من النهارده أو يوم بعده. الرسوم من اليوم ده بتتحسب بالإصدار الجديد؛ والإصدارات القديمة موجودة في الإصدارات وبتتطبع زي ما هي.",
+         "ارفع النسخة الموقعة (PDF أو JPG أو PNG لحد 5 ميجا) في النسخ الموقعة، واطبع العقد عربي أو إنجليزي من PDF عربي / PDF English.",
+         "الحساب البنكي للتحويلات بيتعدل من شروط الدفع في العقد.",
+         "الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ ورسوم الوحدات والتوصيل الفاشل بتاخد شريحة الطلب الجاي."],
        "check": [
-         "التاجر بيشوف العقد للعرض بس تحت العقد؛ ولوحة السجل بتوري كل تغيير."],
+         "التاجر بيشوف العقد الساري للعرض بس تحت العقد (مع الـPDF)؛ والسجل بيوري كل مسودة وتفعيل وملف.",
+         "إعدادات الرسوم في الحسابات هي الأسعار القياسية بس: سعر التاجر الخاص في عقده."],
        "problems": [
          "شحنات مرفوضة لتاجر متجاوز حد الائتمان: التنبيه فيه الرصيد؛ الحسابات تسجل الدفع أو انت ترفع الحد بموافقة المالك."]},
       {"title": "المخزون",
@@ -1310,7 +1324,7 @@ EN["sales"] = {
     {"title": "Make and send a proposal",
      "steps": [
        "On the deal, in Proposals, tap New proposal. The rates start from our current fees.",
-       "Change the rates you agreed, add volume tiers if any, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
+       "Change the rates you agreed, add volume tiers on any fee if any, the payout schedule and minimum payout, the delivery promise and attempts, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
        "If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.",
        "Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.",
        "To change a sent proposal, make a New version: the old link stops working."],
@@ -1323,7 +1337,7 @@ EN["sales"] = {
      "steps": [
        "When the brand accepts you get a notification. Open the deal.",
        "Tap Confirm and open the merchant. Check the owner's name, email (their login) and mobile.",
-       "Tap Confirm. The deal is won, the merchant, its contract and fees and the owner's login are made in one step.",
+       "Tap Confirm. The deal is won; the merchant, its contract version (every price, tier and term of the proposal, in force from the contract start) and the owner's login are made in one step.",
        "Copy the setup link that appears and send it to the owner: it works once and is shown only now."],
      "check": [
        "The deal shows Won and the merchant's name; the merchant's page shows its contract.",
@@ -1389,7 +1403,7 @@ AR["sales"] = {
     {"title": "اعمل عرض وابعته",
      "steps": [
        "على الصفقة، في العروض، اضغط عرض جديد. الأسعار بتبدأ من رسومنا الحالية.",
-       "غيّر الأسعار اللي اتفقتوا عليها، وضيف شرائح الكمية لو فيه، والطلبات في الشهر ومتوسط قيمة الطلب للشهر المثال، والحد الأدنى والتأمين وحد الائتمان وبداية العقد ومدته والإخطار.",
+       "غيّر الأسعار اللي اتفقتوا عليها، وضيف شرائح الكمية على أي رسم لو فيه، ومواعيد التحويل والحد الأدنى للتحويل، ومدة التوصيل والمحاولات، والطلبات في الشهر ومتوسط قيمة الطلب للشهر المثال، والحد الأدنى والتأمين وحد الائتمان وبداية العقد ومدته والإخطار.",
        "لو الشاشة قالت إن الخصم فوق الحد، احفظ واضغط اطلب موافقة المدير. استنى إشعار الموافقة.",
        "اضغط إرسال. الصفقة بتروح مرحلة العرض. اضغط نسخ الرابط وابعته للعلامة على واتساب أو الإيميل.",
        "عشان تغيّر عرض اتبعت، اعمل نسخة جديدة: الرابط القديم بيبطل."],
@@ -1402,7 +1416,7 @@ AR["sales"] = {
      "steps": [
        "لما العلامة تقبل بيوصلك إشعار. افتح الصفقة.",
        "اضغط تأكيد وفتح حساب التاجر. راجع اسم المالك وبريده (للدخول) وموبايله.",
-       "اضغط تأكيد. الصفقة بتتكسب، والتاجر وعقده ورسومه وحساب المالك بيتعملوا في خطوة واحدة.",
+       "اضغط تأكيد. الصفقة بتتكسب، والتاجر وإصدار عقده (كل أسعار وشرائح وشروط العرض، ساري من بداية العقد) وحساب المالك بيتعملوا في خطوة واحدة.",
        "انسخ رابط الإعداد اللي بيظهر وابعته للمالك: بيشتغل مرة واحدة وبيظهر دلوقتي بس."],
      "check": [
        "الصفقة مكتوب عليها تم الفوز واسم التاجر؛ وصفحة التاجر فيها العقد.",

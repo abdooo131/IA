@@ -2,8 +2,8 @@ import type { Prisma } from '@prisma/client';
 import { cairoDay, cairoDayStart, addDays } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
-import { getMerchantSetting, getSetting } from '../settings';
-import { orderFeeTerms } from './contracts';
+import { getSetting } from '../settings';
+import { contractPricesAt, standardPrices } from './contracts';
 import { type AccountRef, post, share } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -24,7 +24,8 @@ async function feeLines(tx: Tx, merchantId: string, fee: number) {
 
 /**
  * A delivered order: the cash the rider collected now belongs to the merchant, we charge
- * the order fee (fixed plus a share of the products value) and the COD fee, and the rider
+ * the order fee (fixed plus a share of the products value) and the COD fee at the prices of
+ * the merchant's contract (merchant contracts v2), and the rider
  * earns the delivery bonus. Each part has its own key, so posting twice changes nothing.
  */
 export async function postDeliveryCompleted(
@@ -57,10 +58,11 @@ export async function postDeliveryCompleted(
   });
 
   const products = order.items.reduce((s, i) => s + i.pickedQty * i.unitPricePiastres, 0);
-  // The merchant's contract band for this order's place in the month, else the settings.
-  const terms = await orderFeeTerms(tx, { merchantId, orderId: order.id, at: input.now });
-  const fixed = terms.fixedPiastres;
-  const percent = terms.percentBp;
+  // The contract in force on the delivery day, at the band of this order's place in the
+  // month, field by field down to the standard price.
+  const terms = await contractPricesAt(tx, { merchantId, orderId: order.id, at: input.now });
+  const fixed = terms.prices.orderFixedPiastres;
+  const percent = terms.prices.orderPercentBp;
   const orderFee = fixed + share(products, percent);
   await post(tx, {
     ...base,
@@ -75,7 +77,7 @@ export async function postDeliveryCompleted(
     lines: await feeLines(tx, merchantId, orderFee),
   });
 
-  const codBp = await getMerchantSetting(tx, 'fee.cod_percent_bp', merchantId);
+  const codBp = terms.prices.codPercentBp;
   await post(tx, {
     ...base,
     kind: 'cod_fee',
@@ -107,7 +109,8 @@ export async function postDeliveryFailed(
     include: { order: true },
   });
   const merchantId = delivery.order.merchantId;
-  const fee = await getMerchantSetting(tx, 'fee.failed_delivery_piastres', merchantId);
+  const { prices } = await contractPricesAt(tx, { merchantId, at: input.now });
+  const fee = prices.failedDeliveryPiastres;
   await post(tx, {
     kind: 'failed_fee',
     idempotencyKey: `order:${delivery.orderId}:failed_fee`,
@@ -130,11 +133,11 @@ export async function postReceivingFee(
     include: { lines: true },
   });
   const units = manifest.lines.reduce((s, l) => s + l.receivedQty, 0);
-  const perUnit = await getMerchantSetting(
-    tx,
-    'fee.receiving_per_unit_piastres',
-    manifest.merchantId,
-  );
+  const { prices } = await contractPricesAt(tx, {
+    merchantId: manifest.merchantId,
+    at: input.now,
+  });
+  const perUnit = prices.receivingPerUnitPiastres;
   await post(tx, {
     kind: 'receiving_fee',
     idempotencyKey: `manifest:${manifest.id}:receiving_fee`,
@@ -157,7 +160,8 @@ export async function postReturnFee(
     include: { lines: true },
   });
   const units = ret.lines.reduce((s, l) => s + l.pickedQty, 0);
-  const perUnit = await getMerchantSetting(tx, 'fee.return_per_unit_piastres', ret.merchantId);
+  const { prices } = await contractPricesAt(tx, { merchantId: ret.merchantId, at: input.now });
+  const perUnit = prices.returnPerUnitPiastres;
   await post(tx, {
     kind: 'return_fee',
     idempotencyKey: `return:${ret.id}:return_fee`,
@@ -200,12 +204,15 @@ export async function accrueStorage(db: Db, day: string) {
   // The entry belongs to the last moment of that day, so statements put it on that day.
   const occurredAt = new Date(cairoDayStart(addDays(day, 1)).getTime() - 1);
   let charged = 0;
+  const standard = await standardPrices(db);
   for (const u of units.values()) {
-    const monthly = await getMerchantSetting(
-      db,
-      'fee.storage_per_unit_month_piastres',
-      u.merchantId,
-    );
+    // The contract in force that day, at the band the month's deliveries reached by its end.
+    const { prices } = await contractPricesAt(db, {
+      merchantId: u.merchantId,
+      at: occurredAt,
+      standard,
+    });
+    const monthly = prices.storagePerUnitMonthPiastres;
     const fee = Math.floor((u.units * monthly + Math.floor(daysInMonth / 2)) / daysInMonth);
     if (fee <= 0) continue;
     const vat = share(fee, await getSetting(db, 'fee.vat_bp'));

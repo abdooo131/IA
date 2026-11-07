@@ -4,7 +4,7 @@ import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, FixedClock, resetAndSeed } from './helpers';
+import { createTestApp, FixedClock, resetAndSeed, contractPrices } from './helpers';
 
 const DEMO = 'demo-password-1';
 const NOON_CAIRO = new Date('2026-01-14T10:00:00Z');
@@ -132,12 +132,12 @@ describe('order page: notes, money and what each viewer sees', () => {
   it('breaks down the fees from the ledger and follows the money to the payout', async () => {
     const admin = await agent('admin@test.eg', 'admin-password-1');
     for (const [key, value, scope] of [
-      ['fee.order_fixed_piastres', 4000, `merchant:${merchantId}`],
       ['fee.order_percent_bp', 200, 'global'],
       ['fee.cod_percent_bp', 100, 'global'],
       ['fee.vat_bp', 1400, 'global'],
     ] as const)
       await admin.put('/admin/settings').send({ key, value, scope }).expect(200);
+    await contractPrices(admin, merchantId, { orderFixedPiastres: 4000 });
 
     const { merchant, sku, id } = await placeOrder();
     const before = await merchant.get(`/merchant/orders/${id}/money`).expect(200);

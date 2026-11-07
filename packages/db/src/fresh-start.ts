@@ -25,6 +25,8 @@ const GUARDED_TABLES = [
   'tax_invoice_lines',
   'ticket_messages',
   'crm_deal_stage_history',
+  'merchant_contract_versions',
+  'merchant_contract_version_tiers',
 ];
 
 export type TableCounts = Record<string, number>;
@@ -296,6 +298,35 @@ export async function freshStart(
         'DELETE FROM shopify_apps WHERE id NOT IN (SELECT app_id FROM shopify_shops WHERE app_id IS NOT NULL)',
       );
       await run('customers', 'DELETE FROM customers WHERE id NOT IN (SELECT id FROM fs_customers)');
+
+      // Contracts of the merchants who go (their versions are frozen once activated).
+      const goneContract = `contract_id IN (SELECT id FROM merchant_contracts
+           WHERE merchant_id NOT IN (SELECT id FROM fs_merchants))`;
+      await run('contract files', `DELETE FROM merchant_contract_files WHERE ${goneContract}`);
+      await run(
+        'contract tiers',
+        `DELETE FROM merchant_contract_version_tiers WHERE version_id IN
+           (SELECT id FROM merchant_contract_versions WHERE ${goneContract})`,
+      );
+      await run(
+        'contract versions',
+        `DELETE FROM merchant_contract_versions WHERE ${goneContract}`,
+      );
+      await run(
+        'contracts',
+        'DELETE FROM merchant_contracts WHERE merchant_id NOT IN (SELECT id FROM fs_merchants)',
+      );
+      // Kept contracts lose links to people who go.
+      for (const [table, column] of [
+        ['merchant_contracts', 'created_by_id'],
+        ['merchant_contract_versions', 'created_by_id'],
+        ['merchant_contract_versions', 'activated_by_id'],
+        ['merchant_contract_files', 'uploaded_by_id'],
+      ] as const)
+        await run(
+          `${table}.${column} cleared`,
+          `UPDATE ${table} SET ${column} = NULL WHERE ${gone(column, 'fs_users')}`,
+        );
 
       // Catalog, accounts and merchants.
       await run('skus', 'DELETE FROM skus WHERE merchant_id NOT IN (SELECT id FROM fs_merchants)');

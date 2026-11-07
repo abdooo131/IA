@@ -1,3 +1,4 @@
+import { cairoDay } from '@shiplynow/shared';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import { hashPassword, type Role, seed, writeAccess } from '@shiplynow/db';
@@ -125,4 +126,48 @@ export function cookieValue(setCookie: string[] | string | undefined, name: stri
   const list = Array.isArray(setCookie) ? setCookie : setCookie ? [setCookie] : [];
   const match = list.find((c) => c.startsWith(`${name}=`));
   return match?.split(';')[0]?.slice(name.length + 1);
+}
+
+/**
+ * Gives a merchant its own prices through a contract version activated today (merchant
+ * contracts v2: a merchant's own price lives in the contract, never in settings).
+ */
+export async function contractPrices(
+  admin: {
+    post: (url: string) => {
+      send: (body: object) => { expect: (s: number) => Promise<{ body: { id: string } }> };
+    };
+  },
+  merchantId: string,
+  prices: Record<string, number>,
+) {
+  const today = cairoDay(new Date());
+  const draft = await admin
+    .post(`/admin/merchants/${merchantId}/contract/versions`)
+    .send({
+      orderFixedPiastres: null,
+      orderPercentBp: null,
+      codPercentBp: null,
+      failedDeliveryPiastres: null,
+      receivingPerUnitPiastres: null,
+      storagePerUnitMonthPiastres: null,
+      returnPerUnitPiastres: null,
+      payoutSchedule: null,
+      minimumPayoutPiastres: null,
+      minimumMonthlyFeePiastres: null,
+      securityDepositPiastres: null,
+      creditLimitPiastres: null,
+      promiseMinutes: null,
+      deliveryAttempts: null,
+      startDate: today,
+      endDate: null,
+      noticeDays: 30,
+      tiers: [],
+      ...prices,
+    })
+    .expect(201);
+  await admin
+    .post(`/admin/merchants/${merchantId}/contract/versions/${draft.body.id}/activate`)
+    .send({ effectiveFrom: today })
+    .expect(201);
 }

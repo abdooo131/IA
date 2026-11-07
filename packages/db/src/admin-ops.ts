@@ -3,7 +3,6 @@ import {
   type CreateUserBody,
   GLOBAL_SCOPE,
   type MerchantBody,
-  merchantScope,
   SETTING_DEFINITIONS,
   SETTING_KEYS,
   type SettingKey,
@@ -574,12 +573,15 @@ export async function listSettings(db: Db) {
         global: global ? valid(global.value) : null,
         globalUpdatedAt: global?.updatedAt ?? null,
         globalUpdatedBy: global?.updatedBy?.name ?? null,
+        // Merchant prices live in each merchant's contract, never in settings.
         overrides: rows
-          .filter((r) => r.key === key && r.scope !== GLOBAL_SCOPE)
+          .filter(
+            (r) => r.key === key && r.scope !== GLOBAL_SCOPE && !r.scope.startsWith('merchant:'),
+          )
           .map((r) => ({
             scope: r.scope,
-            darkStoreId: r.scope.startsWith('merchant:') ? null : r.scope,
-            merchantId: r.scope.startsWith('merchant:') ? r.scope.slice('merchant:'.length) : null,
+            darkStoreId: r.scope,
+            merchantId: null,
             value: valid(r.value),
             updatedAt: r.updatedAt,
             updatedBy: r.updatedBy?.name ?? null,
@@ -595,19 +597,13 @@ export async function changeSetting(
   input: { key: SettingKey; scope: string; value: number | null; actorUserId: Actor },
 ) {
   if (input.scope !== GLOBAL_SCOPE) {
-    // Each setting allows one kind of override: per store (SLA, capacity) or per merchant (fees).
+    // Some settings allow a per store value (SLA, capacity). A merchant's own prices and
+    // terms live in their contract (merchant contracts v2), so a merchant scope is refused.
     const kind = SETTING_DEFINITIONS[input.key].override;
-    if (input.scope.startsWith('merchant:')) {
-      if (kind !== 'merchant') throw new DomainError('scope_not_allowed', 400);
-      const id = input.scope.slice('merchant:'.length);
-      const merchant = await db.merchant.findUnique({ where: { id } });
-      if (!merchant || merchantScope(merchant.id) !== input.scope)
-        throw new DomainError('merchant_not_found', 404);
-    } else {
-      if (kind !== 'store') throw new DomainError('scope_not_allowed', 400);
-      const store = await db.darkStore.findUnique({ where: { id: input.scope } });
-      if (!store) throw new DomainError('dark_store_not_found', 404);
-    }
+    if (kind !== 'store' || input.scope.startsWith('merchant:'))
+      throw new DomainError('scope_not_allowed', 400);
+    const store = await db.darkStore.findUnique({ where: { id: input.scope } });
+    if (!store) throw new DomainError('dark_store_not_found', 404);
   }
   if (input.value !== null) {
     const parsed = SETTING_DEFINITIONS[input.key].schema.safeParse(input.value);

@@ -3,15 +3,28 @@ import {
   addDays,
   cairoDay,
   cairoDayStart,
-  type ContractBody,
+  CONTRACT_FILE_MAX_BYTES,
+  CONTRACT_FILE_TYPES,
+  CONTRACT_PRICE_KEYS,
+  CONTRACT_PRICES,
+  CONTRACT_TIER_KEYS,
+  contractLabel,
+  type ContractPrices,
+  type ContractPriceValues,
+  type ContractTier,
+  type ContractVersionBody,
+  contractVersionLabel,
   type DepositBody,
   egpText,
+  type PayoutScheduleName,
+  resolvePrices,
   tierFor,
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
-import { getMerchantSetting, getSetting } from '../settings';
+import { looksLike } from '../hr-documents';
+import { getSetting } from '../settings';
 import { addMonths } from './assets';
 import { eventTime } from './books';
 import { submitMovement } from './controls';
@@ -21,15 +34,24 @@ import { accrueStorage, lastClosedDay } from './postings';
 
 type Tx = Prisma.TransactionClient;
 
-// Merchant contracts on top of the fee settings:
+// Merchant contracts v2 (CLAUDE.md "Merchant contracts v2"): one contract per merchant
+// (CTR-000001, gapless) made of versions. A version holds every price (empty: the standard
+// price, the global fee setting), volume tiers on every fee, payment terms, service promises,
+// dates and notes. Merchants manage writes a draft and activates it with an effective from
+// day (today or later, never before the last activation, never in closed books). Every charge
+// reads the version in force on the day of its event, field by field:
 //
-// - Volume tiers: the order fee (fixed and share of products) follows the band of the
-//   merchant's delivered orders in the Cairo month so far. The order that crosses into a band
-//   pays the new band's fee and so does every later one; earlier orders are never charged
-//   again (no rebate at month end). A tier value left empty falls back to the setting.
+// - Volume tiers: a delivered order's fees follow the band of its place among the merchant's
+//   delivered orders of the Cairo month (this one included). The order that crosses into a
+//   band pays the band's price and so does every later one; earlier orders are never charged
+//   again. Other charges (failed delivery, receiving, storage, return) use the band the next
+//   delivered order would fall in at the moment of the charge. Tiers count only between the
+//   version's start and end dates; its prices hold from its effective day until a later
+//   version takes effect (an ended contract keeps its prices until it is replaced).
 // - Monthly minimum: once a month is over, fees booked for it (before VAT) are topped up to
-//   the minimum, shared out by the days the contract was in force (minimum_fee, once per
-//   merchant and month).
+//   the minimum of each day's version, shared out by the days between start and end.
+// - Payout minimum: a payout waits until we owe at least the minimum.
+// - Delivery attempts: the merchant's orders get the version's attempts, else the store's.
 // - Security deposit: held in the merchant's 2600 deposit wallet, received and paid back by
 //   bank, by cheque or through the merchant's balance.
 // - Credit limit: while the merchant owes us more than the limit, new shipments are refused
@@ -40,227 +62,871 @@ const dayText = (d: Date) => d.toISOString().slice(0, 10);
 const dateOf = (day: string) => new Date(`${day}T00:00:00Z`);
 const monthStart = (month: string) => cairoDayStart(`${month}-01`);
 
-/** Whether a contract covers a Cairo day. */
-const inForce = (c: { startDate: Date; endDate: Date | null }, day: string) =>
-  dayText(c.startDate) <= day && (!c.endDate || dayText(c.endDate) >= day);
+const versionInclude = {
+  tiers: { orderBy: { fromOrder: 'asc' } },
+  contract: { select: { number: true, merchantId: true } },
+  createdBy: { select: { name: true } },
+  activatedBy: { select: { name: true } },
+} as const satisfies Prisma.MerchantContractVersionInclude;
+type VersionRow = Prisma.MerchantContractVersionGetPayload<{ include: typeof versionInclude }>;
 
-// ─── the contract ────────────────────────────────────────────────────────────────
+/** Whether a version's contract dates cover a Cairo day (tiers and the minimum count then). */
+const covers = (v: { startDate: Date; endDate: Date | null }, day: string) =>
+  dayText(v.startDate) <= day && (!v.endDate || dayText(v.endDate) >= day);
+
+/** The standard price of every fee: the global fee settings. */
+export async function standardPrices(db: Db): Promise<ContractPrices> {
+  const out = {} as ContractPrices;
+  for (const k of CONTRACT_PRICE_KEYS) out[k] = await getSetting(db, CONTRACT_PRICES[k].setting);
+  return out;
+}
+
+/** A version's own prices (null: standard). */
+function pricesOf(v: Pick<VersionRow, keyof ContractPriceValues>): ContractPriceValues {
+  const out = {} as ContractPriceValues;
+  for (const k of CONTRACT_PRICE_KEYS) out[k] = v[k];
+  return out;
+}
+
+function tiersOf(rows: readonly ContractTier[]): ContractTier[] {
+  return rows.map((t) => {
+    const tier = { fromOrder: t.fromOrder } as ContractTier;
+    for (const k of CONTRACT_TIER_KEYS) tier[k] = t[k];
+    return tier;
+  });
+}
+
+/**
+ * The version in force for a merchant on a Cairo day: the activated version with the latest
+ * effective day not after it (a later version number wins a tie). null: none, standard prices.
+ */
+export function versionInForce(db: Db, merchantId: string, day: string) {
+  return db.merchantContractVersion.findFirst({
+    where: {
+      contract: { merchantId },
+      status: { in: ['active', 'superseded'] },
+      effectiveFrom: { lte: dateOf(day) },
+    },
+    orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+    include: versionInclude,
+  });
+}
+
+/** Delivered orders of the merchant in the Cairo month of a moment, up to that moment. */
+function deliveredInMonth(db: Db, merchantId: string, at: Date, exceptOrderId?: string) {
+  return db.order.count({
+    where: {
+      merchantId,
+      status: 'delivered',
+      deliveredAt: { gte: monthStart(cairoDay(at).slice(0, 7)), lte: at },
+      ...(exceptOrderId && { id: { not: exceptOrderId } }),
+    },
+  });
+}
+
+/**
+ * The price of every fee for a merchant at a moment: the version in force that Cairo day,
+ * its band (for a delivered order, the order's place in the month; for anything else, the
+ * place the next delivered order would take), field by field down to the standard price.
+ * For a delivered order the merchant is locked so two deliveries at once count in turn.
+ */
+export async function contractPricesAt(
+  db: Db,
+  input: { merchantId: string; at: Date; orderId?: string; standard?: ContractPrices },
+) {
+  const day = cairoDay(input.at);
+  return pricesForDay(db, {
+    merchantId: input.merchantId,
+    day,
+    standard: input.standard,
+    nth: async () => {
+      if (input.orderId)
+        await db.$queryRaw`SELECT id FROM merchants WHERE id = ${input.merchantId} FOR UPDATE`;
+      return (await deliveredInMonth(db, input.merchantId, input.at, input.orderId)) + 1;
+    },
+  });
+}
+
+/**
+ * The prices of a Cairo day for the nth delivered order of its month (the place is only
+ * worked out when the version in force has tiers and its dates cover the day).
+ */
+export async function pricesForDay(
+  db: Db,
+  input: {
+    merchantId: string;
+    day: string;
+    nth: number | (() => Promise<number>);
+    standard?: ContractPrices;
+  },
+) {
+  const standard = input.standard ?? (await standardPrices(db));
+  const version = await versionInForce(db, input.merchantId, input.day);
+  let tier: ContractTier | null = null;
+  let nth: number | null = null;
+  if (version && version.tiers.length && covers(version, input.day)) {
+    nth = typeof input.nth === 'number' ? input.nth : await input.nth();
+    tier = tierFor(version.tiers, nth);
+  }
+  return {
+    prices: resolvePrices(version, tier, standard),
+    versionId: version?.id ?? null,
+    contract: version ? contractVersionLabel(version.contract.number, version.version) : null,
+    tierFrom: tier?.fromOrder ?? null,
+    nth,
+  };
+}
+
+/** Payouts wait until we owe the merchant at least this (the contract's, else the setting). */
+export async function payoutMinimumFor(db: Db, merchantId: string, day: string) {
+  const v = await versionInForce(db, merchantId, day);
+  return v?.minimumPayoutPiastres ?? (await getSetting(db, 'finance.payout_minimum_piastres'));
+}
+
+/** Delivery attempts a merchant's order gets: the contract's, else the store's setting. */
+export async function deliveryAttemptsFor(
+  db: Db,
+  input: { merchantId: string; darkStoreId: string; at: Date },
+) {
+  const v = await versionInForce(db, input.merchantId, cairoDay(input.at));
+  return v?.deliveryAttempts ?? (await getSetting(db, 'delivery.max_attempts', input.darkStoreId));
+}
+
+// ─── the contract as people read it ──────────────────────────────────────────────
+
+export type VersionDisplayStatus = 'draft' | 'in_force' | 'scheduled' | 'superseded' | 'ended';
+
+/** One version as the screens and the printed contract show it. */
+function versionView(v: VersionRow, inForceId: string | null, today: string) {
+  const effective = v.effectiveFrom ? dayText(v.effectiveFrom) : null;
+  const display: VersionDisplayStatus =
+    v.status === 'draft'
+      ? 'draft'
+      : v.id === inForceId
+        ? v.endDate && dayText(v.endDate) < today
+          ? 'ended'
+          : 'in_force'
+        : effective && effective > today
+          ? 'scheduled'
+          : 'superseded';
+  return {
+    id: v.id,
+    version: v.version,
+    label: contractVersionLabel(v.contract.number, v.version),
+    status: v.status,
+    displayStatus: display,
+    effectiveFrom: effective,
+    prices: pricesOf(v),
+    tiers: tiersOf(v.tiers),
+    payoutSchedule: v.payoutSchedule as PayoutScheduleName | null,
+    minimumPayoutPiastres: v.minimumPayoutPiastres,
+    minimumMonthlyFeePiastres: v.minimumMonthlyFeePiastres,
+    securityDepositPiastres: v.securityDepositPiastres,
+    creditLimitPiastres: v.creditLimitPiastres,
+    promiseMinutes: v.promiseMinutes,
+    deliveryAttempts: v.deliveryAttempts,
+    storeIds: v.storeIds,
+    coverageNote: v.coverageNote,
+    terms: v.terms,
+    internalNote: v.internalNote,
+    startDate: dayText(v.startDate),
+    endDate: v.endDate ? dayText(v.endDate) : null,
+    noticeDays: v.noticeDays,
+    /** The last day to give notice to end it on its end date */
+    noticeBy: v.endDate ? addDays(dayText(v.endDate), negate(v.noticeDays)) : null,
+    source: v.source,
+    createdAt: v.createdAt,
+    createdBy: v.createdBy?.name ?? null,
+    activatedAt: v.activatedAt,
+    activatedBy: v.activatedBy?.name ?? null,
+  };
+}
+export type ContractVersionView = ReturnType<typeof versionView>;
 
 /** The security deposit we hold for a merchant. */
 export async function depositHeld(db: Db, merchantId: string) {
   return negate(await balanceOf(db, { type: 'merchant_deposit', merchantId }));
 }
 
-/** A merchant's contract, what we hold and owe, and where the month stands on the tiers. */
+/**
+ * A merchant's contract: the version in force today, one waiting to take effect, the draft,
+ * every version, the signed files, the standard prices beside them, and where the month and
+ * the merchant's balance stand.
+ */
 export async function getContract(db: Db, merchantId: string, now: Date = new Date()) {
   const merchant = await db.merchant.findUnique({
     where: { id: merchantId },
-    select: { id: true, name: true },
+    select: {
+      id: true,
+      name: true,
+      legalName: true,
+      taxRegistrationNumber: true,
+      contactEmail: true,
+      contactPhone: true,
+      payoutSchedule: true,
+      bankName: true,
+      bankAccountNumber: true,
+      iban: true,
+      beneficiaryName: true,
+    },
   });
   if (!merchant) throw new DomainError('merchant_not_found', 404);
+  const today = cairoDay(now);
   const contract = await db.merchantContract.findUnique({
     where: { merchantId },
-    include: { tiers: { orderBy: { fromOrder: 'asc' } }, updatedBy: { select: { name: true } } },
-  });
-  const today = cairoDay(now);
-  const delivered = await db.order.count({
-    where: {
-      merchantId,
-      status: 'delivered',
-      deliveredAt: { gte: monthStart(today.slice(0, 7)), lte: now },
+    include: {
+      versions: { include: versionInclude, orderBy: { version: 'desc' } },
+      files: {
+        select: {
+          id: true,
+          fileName: true,
+          contentType: true,
+          sizeBytes: true,
+          versionId: true,
+          createdAt: true,
+          uploadedBy: { select: { name: true } },
+          version: { select: { version: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      },
     },
   });
+  const inForce = await versionInForce(db, merchantId, today);
+  const views = (contract?.versions ?? []).map((v) => versionView(v, inForce?.id ?? null, today));
+  const current = views.find((v) => v.id === inForce?.id) ?? null;
+  const scheduled = views.filter((v) => v.displayStatus === 'scheduled');
+  const delivered = await deliveredInMonth(db, merchantId, now);
   const owed = await merchantOwed(db, merchantId);
-  const tier = contract && inForce(contract, today) ? tierFor(contract.tiers, delivered + 1) : null;
+  const tier =
+    inForce && covers(inForce, today) ? tierFor(tiersOf(inForce.tiers), delivered + 1) : null;
+  const stores = await db.darkStore.findMany({
+    where: { kind: 'dark_store' },
+    select: { id: true, code: true, nameEn: true, nameAr: true },
+    orderBy: { code: 'asc' },
+  });
+  const creditLimit = inForce?.creditLimitPiastres ?? null;
   return {
-    merchant,
-    contract: contract
-      ? {
-          startDate: dayText(contract.startDate),
-          endDate: contract.endDate ? dayText(contract.endDate) : null,
-          noticeDays: contract.noticeDays,
-          /** The last day to give notice to end it on its end date */
-          noticeBy: contract.endDate
-            ? addDays(dayText(contract.endDate), negate(contract.noticeDays))
-            : null,
-          minimumMonthlyFeePiastres: contract.minimumMonthlyFeePiastres,
-          securityDepositPiastres: contract.securityDepositPiastres,
-          creditLimitPiastres: contract.creditLimitPiastres,
-          note: contract.note,
-          tiers: contract.tiers.map((t) => ({
-            fromOrder: t.fromOrder,
-            fixedFeePiastres: t.fixedFeePiastres,
-            percentBp: t.percentBp,
-          })),
-          inForce: inForce(contract, today),
-          updatedAt: contract.updatedAt,
-          updatedBy: contract.updatedBy.name,
-        }
-      : null,
-    /** Fee settings for this merchant (their own value, else the global one) */
-    settings: {
-      orderFixedPiastres: await getMerchantSetting(db, 'fee.order_fixed_piastres', merchantId),
-      orderPercentBp: await getMerchantSetting(db, 'fee.order_percent_bp', merchantId),
-      codPercentBp: await getMerchantSetting(db, 'fee.cod_percent_bp', merchantId),
+    merchant: {
+      id: merchant.id,
+      name: merchant.name,
+      legalName: merchant.legalName,
+      taxRegistrationNumber: merchant.taxRegistrationNumber,
+      contactEmail: merchant.contactEmail,
+      contactPhone: merchant.contactPhone,
+      payoutSchedule: merchant.payoutSchedule as PayoutScheduleName,
+      bank: {
+        bankName: merchant.bankName,
+        bankAccountNumber: merchant.bankAccountNumber,
+        iban: merchant.iban,
+        beneficiaryName: merchant.beneficiaryName,
+      },
     },
+    contract: contract
+      ? { id: contract.id, number: contract.number, label: contractLabel(contract.number) }
+      : null,
+    current,
+    /** Activated versions that take effect later (the latest is the next one) */
+    scheduled: scheduled.sort((a, b) => (a.effectiveFrom! < b.effectiveFrom! ? -1 : 1)),
+    draft: views.find((v) => v.status === 'draft') ?? null,
+    versions: views,
+    files: (contract?.files ?? []).map((f) => ({
+      id: f.id,
+      fileName: f.fileName,
+      contentType: f.contentType,
+      sizeBytes: f.sizeBytes,
+      versionId: f.versionId,
+      version: f.version?.version ?? null,
+      uploadedBy: f.uploadedBy?.name ?? null,
+      createdAt: f.createdAt,
+    })),
+    standard: await standardPrices(db),
+    vatBp: await getSetting(db, 'fee.vat_bp'),
+    standardTerms: {
+      minimumPayoutPiastres: await getSetting(db, 'finance.payout_minimum_piastres'),
+      deliveryAttempts: await getSetting(db, 'delivery.max_attempts'),
+      promiseMinutes: await getSetting(db, 'sla.promise_minutes'),
+    },
+    stores,
     deliveredThisMonth: delivered,
     /** The band the next delivered order falls in */
     nextOrderTier: tier,
     depositHeldPiastres: await depositHeld(db, merchantId),
     owedPiastres: owed,
-    overCreditLimit:
-      contract?.creditLimitPiastres != null && owed < negate(contract.creditLimitPiastres),
+    overCreditLimit: creditLimit != null && owed < negate(creditLimit),
+    /** The merchant chose another payout schedule than the one agreed */
+    scheduleDiffers:
+      current?.payoutSchedule != null && current.payoutSchedule !== merchant.payoutSchedule,
+  };
+}
+export type ContractOverview = Awaited<ReturnType<typeof getContract>>;
+
+/** The same view without what stays with Shiply (internal notes, drafts, who did what). */
+export function merchantContractView(view: ContractOverview) {
+  const strip = <T extends ContractVersionView | null>(v: T): T =>
+    (v ? { ...v, internalNote: null, createdBy: null, activatedBy: null } : v) as T;
+  return {
+    ...view,
+    current: strip(view.current),
+    scheduled: view.scheduled.map(strip),
+    draft: null,
+    versions: view.versions.filter((v) => v.status !== 'draft').map(strip),
+    files: [],
+    owedPiastres: null,
   };
 }
 
-/** Saves a merchant's contract (merchants manage). Tiers are replaced as a whole; audited. */
-export async function saveContract(
+/** One version (or the one in force today) with what the printed contract needs. */
+export async function contractForPrint(
   db: Db,
-  input: ContractBody & { merchantId: string; actorUserId: string },
+  input: { merchantId: string; versionId?: string | null; now?: Date; merchantCopy?: boolean },
+) {
+  const view = await getContract(db, input.merchantId, input.now);
+  const version = input.versionId
+    ? view.versions.find((v) => v.id === input.versionId)
+    : (view.current ?? view.scheduled[0]);
+  if (!version || !view.contract) throw new DomainError('contract_version_not_found', 404);
+  if (input.merchantCopy && version.status === 'draft')
+    throw new DomainError('contract_version_not_found', 404);
+  const company = await db.companyProfile.upsert({
+    where: { id: 'company' },
+    create: {},
+    update: {},
+  });
+  const merchant = await db.merchant.findUniqueOrThrow({
+    where: { id: input.merchantId },
+    select: {
+      name: true,
+      legalName: true,
+      taxRegistrationNumber: true,
+      taxGovernorate: true,
+      taxRegionCity: true,
+      taxStreet: true,
+      taxBuildingNumber: true,
+      contactEmail: true,
+      contactPhone: true,
+    },
+  });
+  return {
+    contract: view.contract,
+    version: input.merchantCopy ? { ...version, internalNote: null } : version,
+    merchant: { ...merchant, bank: view.merchant.bank },
+    company: {
+      legalNameEn: company.legalNameEn,
+      legalNameAr: company.legalNameAr,
+      taxRegistrationNumber: company.taxRegistrationNumber,
+      address: [company.buildingNumber, company.street, company.regionCity, company.governorate]
+        .filter(Boolean)
+        .join(', '),
+    },
+    standard: view.standard,
+    standardTerms: view.standardTerms,
+    vatBp: view.vatBp,
+    stores: view.stores.filter((s) => version.storeIds.includes(s.id)),
+  };
+}
+export type ContractPrint = Awaited<ReturnType<typeof contractForPrint>>;
+
+// ─── writing versions ────────────────────────────────────────────────────────────
+
+/** The columns of a version from what merchants manage typed. */
+function versionData(body: ContractVersionBody) {
+  return {
+    orderFixedPiastres: body.orderFixedPiastres,
+    orderPercentBp: body.orderPercentBp,
+    codPercentBp: body.codPercentBp,
+    failedDeliveryPiastres: body.failedDeliveryPiastres,
+    receivingPerUnitPiastres: body.receivingPerUnitPiastres,
+    storagePerUnitMonthPiastres: body.storagePerUnitMonthPiastres,
+    returnPerUnitPiastres: body.returnPerUnitPiastres,
+    payoutSchedule: body.payoutSchedule,
+    minimumPayoutPiastres: body.minimumPayoutPiastres,
+    minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres,
+    securityDepositPiastres: body.securityDepositPiastres,
+    creditLimitPiastres: body.creditLimitPiastres,
+    promiseMinutes: body.promiseMinutes,
+    deliveryAttempts: body.deliveryAttempts,
+    storeIds: [...new Set(body.storeIds)],
+    coverageNote: body.coverageNote ?? null,
+    terms: body.terms ?? null,
+    internalNote: body.internalNote ?? null,
+    startDate: dateOf(body.startDate),
+    endDate: body.endDate ? dateOf(body.endDate) : null,
+    noticeDays: body.noticeDays,
+    effectiveFrom: body.effectiveFrom ? dateOf(body.effectiveFrom) : null,
+  };
+}
+
+/** A version's terms in one flat object, for the audit log's before and after. */
+function auditTerms(v: ContractVersionView) {
+  const tiers = v.tiers
+    .map(
+      (t) =>
+        `${t.fromOrder}+: ${CONTRACT_TIER_KEYS.filter((k) => t[k] !== null)
+          .map((k) => `${k}=${t[k]}`)
+          .join(' ')}`,
+    )
+    .join('; ');
+  return {
+    version: v.label,
+    effectiveFrom: v.effectiveFrom,
+    ...v.prices,
+    tiers,
+    payoutSchedule: v.payoutSchedule,
+    minimumPayout: v.minimumPayoutPiastres,
+    minimum: v.minimumMonthlyFeePiastres,
+    deposit: v.securityDepositPiastres,
+    creditLimit: v.creditLimitPiastres,
+    promiseMinutes: v.promiseMinutes,
+    deliveryAttempts: v.deliveryAttempts,
+    storeIds: v.storeIds.join(','),
+    startDate: v.startDate,
+    endDate: v.endDate,
+    noticeDays: v.noticeDays,
+    terms: v.terms,
+  };
+}
+
+async function loadVersion(db: Db, merchantId: string, versionId: string) {
+  const v = await db.merchantContractVersion.findUnique({
+    where: { id: versionId },
+    include: versionInclude,
+  });
+  if (!v || v.contract.merchantId !== merchantId)
+    throw new DomainError('contract_version_not_found', 404);
+  return v;
+}
+
+async function lockMerchant(tx: Tx, merchantId: string) {
+  await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${merchantId} FOR UPDATE`;
+  const merchant = await tx.merchant.findUnique({ where: { id: merchantId } });
+  if (!merchant) throw new DomainError('merchant_not_found', 404);
+  return merchant;
+}
+
+/**
+ * A new draft version (merchants manage). The merchant's contract is opened (CTR-, gapless)
+ * with its first draft. One draft at a time; an idempotency key makes a repeat return it.
+ */
+export function createContractDraft(
+  db: Db,
+  input: {
+    merchantId: string;
+    body: ContractVersionBody;
+    actorUserId: string;
+    idempotencyKey?: string;
+    source?: string | null;
+  },
 ) {
   return inTransaction(db, async (tx) => {
-    const merchant = await tx.merchant.findUnique({ where: { id: input.merchantId } });
-    if (!merchant) throw new DomainError('merchant_not_found', 404);
-    const before = await tx.merchantContract.findUnique({
-      where: { merchantId: merchant.id },
-      include: { tiers: { orderBy: { fromOrder: 'asc' } } },
-    });
-    const data = {
-      startDate: dateOf(input.startDate),
-      endDate: input.endDate ? dateOf(input.endDate) : null,
-      noticeDays: input.noticeDays,
-      minimumMonthlyFeePiastres: input.minimumMonthlyFeePiastres,
-      securityDepositPiastres: input.securityDepositPiastres,
-      creditLimitPiastres: input.creditLimitPiastres,
-      note: input.note ?? null,
-      updatedById: input.actorUserId,
-    };
-    const contract = await tx.merchantContract.upsert({
-      where: { merchantId: merchant.id },
-      create: { merchantId: merchant.id, ...data },
-      update: data,
-    });
-    await tx.merchantContractTier.deleteMany({ where: { contractId: contract.id } });
-    const tiers = [...input.tiers].sort((a, b) => a.fromOrder - b.fromOrder);
-    if (tiers.length)
-      await tx.merchantContractTier.createMany({
-        data: tiers.map((t) => ({ contractId: contract.id, ...t })),
+    if (input.idempotencyKey) {
+      const seen = await tx.merchantContractVersion.findUnique({
+        where: { idempotencyKey: input.idempotencyKey },
+        include: { contract: true },
       });
-    const view = (c: typeof data, t: typeof tiers) => ({
-      startDate: dayText(c.startDate),
-      endDate: c.endDate ? dayText(c.endDate) : null,
-      noticeDays: c.noticeDays,
-      minimum: c.minimumMonthlyFeePiastres,
-      deposit: c.securityDepositPiastres,
-      creditLimit: c.creditLimitPiastres,
-      tiers: t
-        .map((x) => `${x.fromOrder}+: ${x.fixedFeePiastres ?? '-'} / ${x.percentBp ?? '-'}bp`)
-        .join(', '),
+      if (seen) {
+        if (seen.contract.merchantId !== input.merchantId)
+          throw new DomainError('idempotency_key_reused');
+        return seen;
+      }
+    }
+    await lockMerchant(tx, input.merchantId);
+    let contract = await tx.merchantContract.findUnique({
+      where: { merchantId: input.merchantId },
+    });
+    if (!contract) {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('number:merchant_contracts'))`;
+      const [{ max }] = (await tx.$queryRaw<{ max: number | null }[]>`
+        SELECT MAX("number") AS max FROM merchant_contracts`) as [{ max: number | null }];
+      contract = await tx.merchantContract.create({
+        data: {
+          merchantId: input.merchantId,
+          number: (max ?? 0) + 1,
+          createdById: input.actorUserId,
+        },
+      });
+      await recordAudit(tx, {
+        actorUserId: input.actorUserId,
+        action: 'merchant.contract_create',
+        entityType: 'merchant_contract',
+        entityId: input.merchantId,
+        after: { contract: contractLabel(contract.number) },
+      });
+    }
+    const draft = await tx.merchantContractVersion.findFirst({
+      where: { contractId: contract.id, status: 'draft' },
+    });
+    if (draft) throw new DomainError('contract_draft_exists', 409, { versionId: draft.id });
+    const last = await tx.merchantContractVersion.aggregate({
+      where: { contractId: contract.id },
+      _max: { version: true },
+    });
+    const created = await tx.merchantContractVersion.create({
+      data: {
+        contractId: contract.id,
+        version: (last._max.version ?? 0) + 1,
+        status: 'draft',
+        ...versionData(input.body),
+        source: input.source ?? null,
+        createdById: input.actorUserId,
+        idempotencyKey: input.idempotencyKey ?? null,
+        tiers: { create: tiersOf(input.body.tiers) },
+      },
+      include: versionInclude,
     });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
-      action: before ? 'merchant.contract_update' : 'merchant.contract_create',
+      action: 'merchant.contract_draft',
       entityType: 'merchant_contract',
-      entityId: merchant.id,
-      before: before ? view(before, before.tiers) : undefined,
-      after: view(data, tiers),
+      entityId: input.merchantId,
+      after: auditTerms(versionView(created, null, cairoDay(new Date()))),
     });
-    return contract;
+    return created;
   });
 }
 
-/** Every contract with what we hold and owe, for Accounting. */
+/** Changes a draft (merchants manage). Activated versions never change. */
+export function updateContractDraft(
+  db: Db,
+  input: { merchantId: string; versionId: string; body: ContractVersionBody; actorUserId: string },
+) {
+  return inTransaction(db, async (tx) => {
+    await lockMerchant(tx, input.merchantId);
+    const before = await loadVersion(tx, input.merchantId, input.versionId);
+    if (before.status !== 'draft') throw new DomainError('contract_version_not_draft');
+    await tx.merchantContractVersionTier.deleteMany({ where: { versionId: before.id } });
+    const after = await tx.merchantContractVersion.update({
+      where: { id: before.id },
+      data: { ...versionData(input.body), tiers: { create: tiersOf(input.body.tiers) } },
+      include: versionInclude,
+    });
+    const today = cairoDay(new Date());
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'merchant.contract_draft_update',
+      entityType: 'merchant_contract',
+      entityId: input.merchantId,
+      before: auditTerms(versionView(before, null, today)),
+      after: auditTerms(versionView(after, null, today)),
+    });
+    return after;
+  });
+}
+
+/** Throws a draft away (merchants manage). */
+export function deleteContractDraft(
+  db: Db,
+  input: { merchantId: string; versionId: string; actorUserId: string },
+) {
+  return inTransaction(db, async (tx) => {
+    await lockMerchant(tx, input.merchantId);
+    const v = await loadVersion(tx, input.merchantId, input.versionId);
+    if (v.status !== 'draft') throw new DomainError('contract_version_not_draft');
+    await tx.merchantContractFile.updateMany({
+      where: { versionId: v.id },
+      data: { versionId: null },
+    });
+    await tx.merchantContractVersion.delete({ where: { id: v.id } });
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'merchant.contract_draft_delete',
+      entityType: 'merchant_contract',
+      entityId: input.merchantId,
+      before: auditTerms(versionView(v, null, cairoDay(new Date()))),
+    });
+    return { deleted: true };
+  });
+}
+
+/** Sets the agreed payout schedule on the merchant (audited), once per version. */
+async function applySchedule(
+  tx: Tx,
+  v: { id: string; payoutSchedule: PayoutScheduleName | null; label: string },
+  merchantId: string,
+  actorUserId: string | null,
+  now: Date,
+) {
+  if (!v.payoutSchedule) return;
+  const merchant = await tx.merchant.findUniqueOrThrow({ where: { id: merchantId } });
+  await tx.merchantContractVersion.update({
+    where: { id: v.id },
+    data: { scheduleAppliedAt: now },
+  });
+  if (merchant.payoutSchedule === v.payoutSchedule) return;
+  await tx.merchant.update({
+    where: { id: merchantId },
+    data: { payoutSchedule: v.payoutSchedule },
+  });
+  await recordAudit(tx, {
+    actorUserId,
+    action: 'finance.payout_schedule',
+    entityType: 'merchant',
+    entityId: merchantId,
+    before: { payoutSchedule: merchant.payoutSchedule },
+    after: { payoutSchedule: v.payoutSchedule, contract: v.label },
+  });
+}
+
+/**
+ * Activates a draft from a Cairo day: today or later, never before the last activated
+ * version's day, never inside closed books. The version before it is superseded. Taking effect
+ * today sets the agreed payout schedule at once; a later day leaves it to the daily job.
+ */
+export function activateContractVersion(
+  db: Db,
+  input: {
+    merchantId: string;
+    versionId: string;
+    effectiveFrom: string;
+    actorUserId: string;
+    now?: Date;
+    /** The migration and tests only: allow a day before today */
+    allowPast?: boolean;
+  },
+) {
+  const now = input.now ?? new Date();
+  const today = cairoDay(now);
+  return inTransaction(db, async (tx) => {
+    await lockMerchant(tx, input.merchantId);
+    const v = await loadVersion(tx, input.merchantId, input.versionId);
+    if (v.status !== 'draft') throw new DomainError('contract_version_not_draft');
+    if (!input.allowPast && input.effectiveFrom < today)
+      throw new DomainError('effective_before_today', 400);
+    const last = await tx.merchantContractVersion.findFirst({
+      where: { contractId: v.contractId, status: { in: ['active', 'superseded'] } },
+      orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+      include: versionInclude,
+    });
+    if (last?.effectiveFrom && input.effectiveFrom < dayText(last.effectiveFrom))
+      throw new DomainError('effective_before_last_version', 409, {
+        lastEffectiveFrom: dayText(last.effectiveFrom),
+      });
+    const lock = await tx.booksLock.findUnique({ where: { id: 'books' } });
+    if (lock && cairoDayStart(input.effectiveFrom) < lock.lockedBefore)
+      throw new DomainError('books_closed');
+    if (v.endDate && dayText(v.endDate) < input.effectiveFrom)
+      throw new DomainError('effective_after_end', 400);
+    const inForceBefore = await versionInForce(tx, input.merchantId, today);
+    const activated = await tx.merchantContractVersion.update({
+      where: { id: v.id },
+      data: {
+        status: 'active',
+        effectiveFrom: dateOf(input.effectiveFrom),
+        activatedById: input.actorUserId,
+        activatedAt: now,
+      },
+      include: versionInclude,
+    });
+    await tx.merchantContractVersion.updateMany({
+      where: { contractId: v.contractId, status: 'active', id: { not: v.id } },
+      data: { status: 'superseded', supersededAt: now },
+    });
+    const view = versionView(activated, null, today);
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'merchant.contract_activate',
+      entityType: 'merchant_contract',
+      entityId: input.merchantId,
+      before: inForceBefore ? auditTerms(versionView(inForceBefore, null, today)) : null,
+      after: auditTerms(view),
+    });
+    if (input.effectiveFrom <= today)
+      await applySchedule(tx, view, input.merchantId, input.actorUserId, now);
+    return activated;
+  });
+}
+
+/**
+ * Sets the agreed payout schedule of every version that took effect since (daily job). Each
+ * version does it once; the merchant may change it afterwards (the contract flags it).
+ */
+export async function applyContractSchedules(db: Db, now: Date = new Date()) {
+  const today = cairoDay(now);
+  const waiting = await db.merchantContractVersion.findMany({
+    where: {
+      status: 'active',
+      scheduleAppliedAt: null,
+      payoutSchedule: { not: null },
+      effectiveFrom: { lte: dateOf(today) },
+    },
+    include: versionInclude,
+  });
+  let applied = 0;
+  for (const v of waiting)
+    await inTransaction(db, async (tx) => {
+      const inForce = await versionInForce(tx, v.contract.merchantId, today);
+      if (inForce?.id !== v.id) return;
+      await applySchedule(tx, versionView(v, v.id, today), v.contract.merchantId, null, now);
+      applied++;
+    });
+  return { applied };
+}
+
+// ─── signed files ────────────────────────────────────────────────────────────────
+
+/** Attaches a signed contract file (PDF, JPG or PNG, at most 5 MB); audited. */
+export async function addContractFile(
+  db: Db,
+  input: {
+    merchantId: string;
+    versionId?: string | null;
+    fileName: string;
+    contentType: string;
+    data: Buffer;
+    actorUserId: string;
+  },
+) {
+  if (!(CONTRACT_FILE_TYPES as readonly string[]).includes(input.contentType))
+    throw new DomainError('file_type_not_allowed', 400);
+  if (!input.data.length || input.data.length > CONTRACT_FILE_MAX_BYTES)
+    throw new DomainError('file_too_large', 400);
+  if (!looksLike(input.contentType, input.data))
+    throw new DomainError('file_type_not_allowed', 400);
+  return inTransaction(db, async (tx) => {
+    const contract = await tx.merchantContract.findUnique({
+      where: { merchantId: input.merchantId },
+    });
+    if (!contract) throw new DomainError('contract_not_found', 404);
+    if (input.versionId) await loadVersion(tx, input.merchantId, input.versionId);
+    const file = await tx.merchantContractFile.create({
+      data: {
+        contractId: contract.id,
+        versionId: input.versionId ?? null,
+        fileName: input.fileName,
+        contentType: input.contentType,
+        sizeBytes: input.data.length,
+        data: new Uint8Array(input.data),
+        uploadedById: input.actorUserId,
+      },
+      select: { id: true, fileName: true, sizeBytes: true },
+    });
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'merchant.contract_file_add',
+      entityType: 'merchant_contract',
+      entityId: input.merchantId,
+      after: { file: file.fileName, bytes: file.sizeBytes, versionId: input.versionId ?? null },
+    });
+    return file;
+  });
+}
+
+export async function getContractFile(db: Db, merchantId: string, fileId: string) {
+  const file = await db.merchantContractFile.findUnique({
+    where: { id: fileId },
+    include: { contract: { select: { merchantId: true } } },
+  });
+  if (!file || file.contract.merchantId !== merchantId)
+    throw new DomainError('contract_file_not_found', 404);
+  return file;
+}
+
+/** Removes a file attached by mistake (merchants manage); audited. */
+export function deleteContractFile(
+  db: Db,
+  input: { merchantId: string; fileId: string; actorUserId: string },
+) {
+  return inTransaction(db, async (tx) => {
+    const file = await getContractFile(tx, input.merchantId, input.fileId);
+    await tx.merchantContractFile.delete({ where: { id: file.id } });
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'merchant.contract_file_delete',
+      entityType: 'merchant_contract',
+      entityId: input.merchantId,
+      before: { file: file.fileName, bytes: file.sizeBytes },
+    });
+    return { deleted: true };
+  });
+}
+
+/** Every merchant contract with the version in force, what we hold and owe, for Accounting. */
 export async function listContracts(db: Db, now: Date = new Date()) {
   const rows = await db.merchantContract.findMany({
-    include: { merchant: { select: { id: true, name: true } }, tiers: true },
+    include: { merchant: { select: { id: true, name: true } } },
     orderBy: { merchant: { name: 'asc' } },
   });
   const today = cairoDay(now);
   const result = [];
   for (const c of rows) {
+    const v = await versionInForce(db, c.merchantId, today);
+    const draft = await db.merchantContractVersion.count({
+      where: { contractId: c.id, status: 'draft' },
+    });
     const owed = await merchantOwed(db, c.merchantId);
+    const limit = v?.creditLimitPiastres ?? null;
     result.push({
       merchant: c.merchant,
-      startDate: dayText(c.startDate),
-      endDate: c.endDate ? dayText(c.endDate) : null,
-      noticeBy: c.endDate ? addDays(dayText(c.endDate), negate(c.noticeDays)) : null,
-      inForce: inForce(c, today),
-      tiers: c.tiers.length,
-      minimumMonthlyFeePiastres: c.minimumMonthlyFeePiastres,
-      securityDepositPiastres: c.securityDepositPiastres,
+      contract: contractLabel(c.number),
+      version: v ? contractVersionLabel(c.number, v.version) : null,
+      effectiveFrom: v?.effectiveFrom ? dayText(v.effectiveFrom) : null,
+      startDate: v ? dayText(v.startDate) : null,
+      endDate: v?.endDate ? dayText(v.endDate) : null,
+      noticeBy: v?.endDate ? addDays(dayText(v.endDate), negate(v.noticeDays)) : null,
+      inForce: !!v && covers(v, today),
+      hasDraft: draft > 0,
+      tiers: v?.tiers.length ?? 0,
+      ownPrices: v ? CONTRACT_PRICE_KEYS.filter((k) => v[k] !== null).length : 0,
+      minimumMonthlyFeePiastres: v?.minimumMonthlyFeePiastres ?? null,
+      securityDepositPiastres: v?.securityDepositPiastres ?? null,
       depositHeldPiastres: await depositHeld(db, c.merchantId),
-      creditLimitPiastres: c.creditLimitPiastres,
+      creditLimitPiastres: limit,
       owedPiastres: owed,
-      overCreditLimit: c.creditLimitPiastres != null && owed < negate(c.creditLimitPiastres),
+      overCreditLimit: limit != null && owed < negate(limit),
     });
   }
   return result;
 }
 
-// ─── fees from the contract ──────────────────────────────────────────────────────
+// ─── monthly minimum ─────────────────────────────────────────────────────────────
 
 /**
- * The order fee values for a delivered order: the contract's band for the order's place
- * among the merchant's delivered orders of the Cairo month (this one included), else the
- * merchant's fee settings. Locks the merchant so two deliveries at once count in turn.
+ * A merchant's minimum for a month: each day counts the minimum of the version in force that
+ * day when its dates cover it, shared out by the days of the month.
  */
-export async function orderFeeTerms(
-  tx: Tx,
-  input: { merchantId: string; orderId: string; at: Date },
-) {
-  const fixedSetting = await getMerchantSetting(tx, 'fee.order_fixed_piastres', input.merchantId);
-  const percentSetting = await getMerchantSetting(tx, 'fee.order_percent_bp', input.merchantId);
-  const day = cairoDay(input.at);
-  const contract = await tx.merchantContract.findUnique({
-    where: { merchantId: input.merchantId },
-    include: { tiers: true },
-  });
-  if (!contract || !contract.tiers.length || !inForce(contract, day))
-    return { fixedPiastres: fixedSetting, percentBp: percentSetting, tierFrom: null, nth: null };
-  await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${input.merchantId} FOR UPDATE`;
-  const before = await tx.order.count({
-    where: {
-      merchantId: input.merchantId,
-      status: 'delivered',
-      deliveredAt: { gte: monthStart(day.slice(0, 7)), lte: input.at },
-      id: { not: input.orderId },
-    },
-  });
-  const nth = before + 1;
-  const tier = tierFor(contract.tiers, nth);
-  return {
-    fixedPiastres: tier?.fixedFeePiastres ?? fixedSetting,
-    percentBp: tier?.percentBp ?? percentSetting,
-    tierFrom: tier?.fromOrder ?? null,
-    nth,
-  };
+export async function minimumForMonth(db: Db, merchantId: string, month: string) {
+  const first = `${month}-01`;
+  const last = addDays(`${addMonths(month, 1)}-01`, -1);
+  const daysInMonth = Number(last.slice(8, 10));
+  let sum = 0;
+  let days = 0;
+  for (let d = first; d <= last; d = addDays(d, 1)) {
+    const v = await versionInForce(db, merchantId, d);
+    if (!v || !v.minimumMonthlyFeePiastres || !covers(v, d)) continue;
+    sum += v.minimumMonthlyFeePiastres;
+    days++;
+  }
+  return { minimum: days ? Math.round(sum / daysInMonth) : 0, days, daysInMonth };
 }
 
 /**
- * Tops up last month's fees to each contract's minimum, once per merchant and month. The
- * minimum is shared out by the days the contract was in force in the month; fees counted are
- * every fee booked to the merchant for the month (before VAT). A month inside closed books is
- * skipped. On the first day after the month, the last day's storage is charged first.
+ * Tops up last month's fees to the contract's minimum, once per merchant and month. Each day
+ * counts the minimum of the version in force that day when its dates cover it (a minimum is
+ * shared out by days); fees counted are every fee booked to the merchant for the month (before
+ * VAT). A month inside closed books is skipped. On the first day after the month, the last
+ * day's storage is charged first.
  */
 export async function chargeMinimumFees(db: Db, now: Date = new Date()) {
   const today = cairoDay(now);
   const month = addMonths(today.slice(0, 7), -1);
-  const first = `${month}-01`;
   const last = addDays(`${today.slice(0, 7)}-01`, -1);
   if (lastClosedDay(now) === last) await accrueStorage(db, last);
   const from = monthStart(month);
   const to = cairoDayStart(addDays(last, 1));
-  const daysInMonth = Number(last.slice(8, 10));
   const contracts = await db.merchantContract.findMany({
-    where: { minimumMonthlyFeePiastres: { gt: 0 } },
+    where: {
+      versions: {
+        some: {
+          status: { in: ['active', 'superseded'] },
+          minimumMonthlyFeePiastres: { gt: 0 },
+          effectiveFrom: { lte: dateOf(last) },
+        },
+      },
+    },
   });
   let charged = 0;
   for (const c of contracts) {
-    const start = dayText(c.startDate) > first ? dayText(c.startDate) : first;
-    const end = c.endDate && dayText(c.endDate) < last ? dayText(c.endDate) : last;
-    if (start > end) continue;
-    const days = Number(end.slice(8, 10)) - Number(start.slice(8, 10)) + 1;
-    const minimum = Math.round((c.minimumMonthlyFeePiastres! * days) / daysInMonth);
+    const { minimum, days, daysInMonth } = await minimumForMonth(db, c.merchantId, month);
+    if (days === 0) continue;
     const fees = await feesBooked(db, c.merchantId, from, to);
     const topUp = minimum - fees;
     if (topUp <= 0) continue;
@@ -306,13 +972,15 @@ async function feesBooked(db: Db, merchantId: string, from: Date, to: Date) {
  * raising one alert a day. Call it before the shipment's own transaction so the alert stays.
  */
 export async function assertWithinCreditLimit(db: Db, merchantId: string, now: Date = new Date()) {
-  const contract = await db.merchantContract.findUnique({
-    where: { merchantId },
-    include: { merchant: { select: { name: true } } },
-  });
-  if (!contract || contract.creditLimitPiastres == null) return;
+  const version = await versionInForce(db, merchantId, cairoDay(now));
+  const limit = version?.creditLimitPiastres ?? null;
+  if (limit == null) return;
   const owed = await merchantOwed(db, merchantId);
-  if (owed >= negate(contract.creditLimitPiastres)) return;
+  if (owed >= negate(limit)) return;
+  const merchant = await db.merchant.findUniqueOrThrow({
+    where: { id: merchantId },
+    select: { name: true },
+  });
   await db.alert.createMany({
     data: [
       {
@@ -320,9 +988,9 @@ export async function assertWithinCreditLimit(db: Db, merchantId: string, now: D
         key: `credit_limit:${merchantId}:${cairoDay(now)}`,
         merchantId,
         data: {
-          name: contract.merchant.name,
+          name: merchant.name,
           owes: egpText(negate(owed)),
-          limit: egpText(contract.creditLimitPiastres),
+          limit: egpText(limit),
         },
       },
     ],
@@ -330,7 +998,7 @@ export async function assertWithinCreditLimit(db: Db, merchantId: string, now: D
   });
   throw new DomainError('merchant_over_credit_limit', 409, {
     owesPiastres: negate(owed),
-    limitPiastres: contract.creditLimitPiastres,
+    limitPiastres: limit,
   });
 }
 

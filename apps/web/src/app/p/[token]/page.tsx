@@ -1,3 +1,4 @@
+import { CONTRACT_PRICE_KEYS, CONTRACT_PRICES, tierValue } from '@shiplynow/shared';
 import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Logo } from '@/components/Logo';
@@ -118,15 +119,12 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
                       <li key={tier.fromOrder}>
                         {t('tierLine', {
                           from: formatCount(tier.fromOrder),
-                          fee:
-                            tier.fixedFeePiastres !== null && tier.percentBp !== null
-                              ? t('orderFeeBoth', {
-                                  fixed: egp(tier.fixedFeePiastres),
-                                  percent: pct(tier.percentBp),
-                                })
-                              : tier.fixedFeePiastres !== null
-                                ? egp(tier.fixedFeePiastres)
-                                : t('percentOfProducts', { percent: pct(tier.percentBp!) }),
+                          fee: CONTRACT_PRICE_KEYS.filter((k) => tierValue(tier, k) !== null)
+                            .map((k) => {
+                              const value = tierValue(tier, k)!;
+                              return `${t(`tierFees.${k}`)} ${CONTRACT_PRICES[k].unit === 'bp' ? pct(value) : egp(value)}`;
+                            })
+                            .join(' · '),
                         })}
                       </li>
                     ))}
@@ -212,7 +210,15 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
                 {p.creditLimitPiastres
                   ? row(t('creditLimit'), egp(p.creditLimitPiastres), t('creditLimitHint'))
                   : null}
-                {row(t('payouts'), t('payoutsValue'))}
+                {row(
+                  t('payouts'),
+                  p.payoutSchedule ? t(`schedules.${p.payoutSchedule}`) : t('payoutsValue'),
+                )}
+                {p.minimumPayoutPiastres
+                  ? row(t('minimumPayout'), egp(p.minimumPayoutPiastres))
+                  : null}
+                {p.promiseMinutes ? row(t('promise'), t('minutes', { n: p.promiseMinutes })) : null}
+                {p.deliveryAttempts ? row(t('attempts'), String(p.deliveryAttempts)) : null}
               </dl>
               {p.terms && <p className="mt-3 whitespace-pre-line text-body-sm">{p.terms}</p>}
             </section>

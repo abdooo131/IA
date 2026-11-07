@@ -5,6 +5,8 @@ import { DomainError } from '../domain-error';
 import { payoutNeedsApproval } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
 import { queuePayoutEmails } from '../email';
+import { payoutMinimumFor } from './contracts';
+import { cairoDay } from '@shiplynow/shared';
 
 type Tx = Prisma.TransactionClient;
 
@@ -224,6 +226,8 @@ export function payoutDueOn(schedule: PayoutSchedule, weekday: number) {
 /**
  * Prepares a payout of what we owe the merchant up to the cutoff. One open draft per
  * merchant at a time, so nothing is ever paid twice. Nothing moves until it is marked paid.
+ * A merchant owed less than the payout minimum (their contract's, else
+ * finance.payout_minimum_piastres) waits until the balance reaches it.
  */
 export function createPayout(
   db: Db,
@@ -239,6 +243,13 @@ export function createPayout(
     // Never pay more than is owed now, in case fees were posted after the cutoff.
     const amount = Math.min(owedAtCutoff, await merchantOwed(tx, merchant.id));
     if (amount <= 0) throw new DomainError('nothing_to_pay');
+    const cutoffDay = cairoDay(new Date(input.cutoffAt.getTime() - 1));
+    const minimum = await payoutMinimumFor(tx, merchant.id, cutoffDay);
+    if (amount < minimum)
+      throw new DomainError('below_payout_minimum', 409, {
+        amountPiastres: amount,
+        minimumPiastres: minimum,
+      });
     const payout = await tx.payout.create({
       data: {
         number: await nextNumber(tx, 'payouts'),

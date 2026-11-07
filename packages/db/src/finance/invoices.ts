@@ -472,7 +472,9 @@ export async function etaReadiness(db: Db) {
   const codes = p.itemCodes as Record<string, string>;
   // The monthly minimum needs its item code only once some contract has a minimum.
   const minimumUsed =
-    (await db.merchantContract.count({ where: { minimumMonthlyFeePiastres: { gt: 0 } } })) > 0;
+    (await db.merchantContractVersion.count({
+      where: { status: { not: 'draft' }, minimumMonthlyFeePiastres: { gt: 0 } },
+    })) > 0;
   const missingCodes = Object.keys(FEE_KINDS).filter(
     (k) => !codes[k] && (k !== 'minimum_fee' || minimumUsed),
   );

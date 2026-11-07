@@ -108,36 +108,67 @@ describe('cheques, merchant contracts and profitability end to end', () => {
     const mid = await merchantId();
     const today = cairoDay(new Date());
     const body = {
+      orderFixedPiastres: null,
+      orderPercentBp: null,
+      codPercentBp: null,
+      failedDeliveryPiastres: null,
+      receivingPerUnitPiastres: null,
+      storagePerUnitMonthPiastres: null,
+      returnPerUnitPiastres: null,
+      payoutSchedule: null,
+      minimumPayoutPiastres: null,
+      promiseMinutes: null,
+      deliveryAttempts: null,
       startDate: addDays(today, -10),
       endDate: addDays(today, 355),
       noticeDays: 60,
       minimumMonthlyFeePiastres: 500_000,
       securityDepositPiastres: 1_000_000,
       creditLimitPiastres: 0,
-      note: 'Signed by the owner',
+      internalNote: 'Signed by the owner',
       tiers: [
-        { fromOrder: 1, fixedFeePiastres: 2_500, percentBp: null },
+        { fromOrder: 1, fixedFeePiastres: 2_500 },
         { fromOrder: 101, fixedFeePiastres: 2_000, percentBp: 50 },
       ],
     };
-    // Accounting reads contracts; only merchants manage changes them.
-    await finance.put(`/admin/merchants/${mid}/contract`).send(body).expect(403);
+    // Accounting reads contracts; only merchants manage writes and activates versions.
+    await finance.post(`/admin/merchants/${mid}/contract/versions`).send(body).expect(403);
     await admin
-      .put(`/admin/merchants/${mid}/contract`)
-      .send({
-        ...body,
-        tiers: [...body.tiers, { fromOrder: 1, fixedFeePiastres: 1, percentBp: null }],
-      })
+      .post(`/admin/merchants/${mid}/contract/versions`)
+      .send({ ...body, tiers: [...body.tiers, { fromOrder: 1, fixedFeePiastres: 1 }] })
       .expect(400);
-    const saved = await admin.put(`/admin/merchants/${mid}/contract`).send(body).expect(200);
-    expect(saved.body.contract).toMatchObject({ noticeDays: 60, noticeBy: addDays(today, 295) });
+    const draft = await admin
+      .post(`/admin/merchants/${mid}/contract/versions`)
+      .send({ ...body, idempotencyKey: key() })
+      .expect(201);
+    await finance
+      .post(`/admin/merchants/${mid}/contract/versions/${draft.body.id}/activate`)
+      .send({ effectiveFrom: today })
+      .expect(403);
+    const saved = await admin
+      .post(`/admin/merchants/${mid}/contract/versions/${draft.body.id}/activate`)
+      .send({ effectiveFrom: today })
+      .expect(201);
+    expect(saved.body.current).toMatchObject({
+      noticeDays: 60,
+      noticeBy: addDays(today, 295),
+      effectiveFrom: today,
+    });
     expect(
-      (await finance.get(`/admin/merchants/${mid}/contract`).expect(200)).body.contract.tiers,
+      (await finance.get(`/admin/merchants/${mid}/contract`).expect(200)).body.current.tiers,
     ).toHaveLength(2);
     const listed = await finance.get('/finance/contracts').expect(200);
-    expect(listed.body[0]).toMatchObject({ creditLimitPiastres: 0, depositHeldPiastres: 0 });
+    expect(
+      listed.body.find((r: { merchant: { id: string } }) => r.merchant.id === mid),
+    ).toMatchObject({
+      creditLimitPiastres: 0,
+      depositHeldPiastres: 0,
+    });
     const mine = await merchant.get('/merchant/contract').expect(200);
-    expect(mine.body.contract).toMatchObject({ minimumMonthlyFeePiastres: 500_000, note: null });
+    expect(mine.body.current).toMatchObject({
+      minimumMonthlyFeePiastres: 500_000,
+      internalNote: null,
+    });
 
     const deposit = await finance
       .post(`/finance/merchants/${mid}/deposit`)
