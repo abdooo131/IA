@@ -1,0 +1,76 @@
+import { z } from 'zod';
+
+const booleanString = z
+  .enum(['true', 'false'])
+  .default('false')
+  .transform((value) => value === 'true');
+
+export const envSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+  API_PORT: z.coerce.number().int().positive().default(4000),
+  DATABASE_URL: z.string().url(),
+  WEB_ORIGIN: z.string().url().default('http://localhost:3000'),
+  JWT_ACCESS_SECRET: z.string().min(32, 'JWT_ACCESS_SECRET must be at least 32 characters'),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().positive().default(900),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().positive().default(30),
+  COOKIE_SECURE: booleanString,
+  /** Optional. Without it, address lookups answer geocoding_not_configured. */
+  GOOGLE_MAPS_API_KEY: z.string().optional(),
+  /** Set to osm to use OpenStreetMap when there is no Google key (local testing only). */
+  GEOCODER: z.enum(['google', 'osm']).default('google'),
+  /** OpenStreetMap's Overpass service, used by admin's area map import */
+  OVERPASS_URL: z.string().url().default('https://overpass-api.de/api/interpreter'),
+  /** Slack app bot token (xoxb-...). Without it tickets stay inside Shiply. */
+  SLACK_BOT_TOKEN: z.string().optional(),
+  /** The e-invoice system's API client (from the ETA portal); empty means nothing is sent */
+  ETA_CLIENT_ID: z.string().optional(),
+  ETA_CLIENT_SECRET: z.string().optional(),
+  /** preprod (the tax authority's test system) or production */
+  ETA_ENV: z.enum(['preprod', 'production']).optional(),
+  /** Slack app signing secret: proves events and button taps come from Slack */
+  SLACK_SIGNING_SECRET: z.string().optional(),
+  /**
+   * Web push (phone and browser notifications). All three or nothing is sent and the
+   * Notifications page hides the switch. Make a pair with: npx web-push generate-vapid-keys
+   */
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  /** Who the push services contact about our messages: mailto:ops@example.com */
+  VAPID_SUBJECT: z
+    .string()
+    .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://')
+    .optional()
+    .or(z.literal('')),
+  /**
+   * Email to merchants (statements, invoices, payout notices) through any SMTP service
+   * (Amazon SES, Mailgun, Brevo, Google Workspace...). Without SMTP_HOST and SMTP_FROM
+   * nothing is sent and the outbox waits.
+   */
+  SMTP_HOST: z.string().optional(),
+  /** 587 (STARTTLS, the default) or 465 (TLS) */
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  /** The sender, for example "Shiply Now <billing@shiply.example>" */
+  SMTP_FROM: z.string().optional(),
+  /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */
+  JOBS_ENABLED: z.enum(['true', 'false']).optional(),
+  /** Shopify app client ID (not secret). Without it the Shopify connection stays off. */
+  SHOPIFY_API_KEY: z.string().optional(),
+  /** Shopify app client secret: signs Shopify's requests and protects stored tokens */
+  SHOPIFY_API_SECRET: z.string().optional(),
+  SHOPIFY_API_VERSION: z.string().default('2026-10'),
+  /** More install permissions once Shopify approves them, comma separated (read_all_orders) */
+  SHOPIFY_EXTRA_SCOPES: z.string().optional(),
+});
+
+export type Env = z.infer<typeof envSchema>;
+
+export function validateEnv(raw: Record<string, unknown>): Env {
+  const result = envSchema.safeParse(raw);
+  if (!result.success) {
+    const problems = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`);
+    throw new Error(`Invalid environment:\n  ${problems.join('\n  ')}`);
+  }
+  return result.data;
+}

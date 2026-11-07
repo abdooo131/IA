@@ -1,0 +1,45 @@
+import { HistoryController } from './history.controller';
+import { RecordsController } from './records.controller';
+import { Module } from '@nestjs/common';
+import { CoverageModule } from '../coverage/coverage.module';
+import { AdminCatalogController } from './admin-catalog.controller';
+import { AdminCountsController } from './admin-counts.controller';
+import { AdminDashboardController } from './admin-dashboard.controller';
+import { AdminMerchantsController } from './admin-merchants.controller';
+import { AdminContractsController } from './admin-contracts.controller';
+import { AdminSettingsController } from './admin-settings.controller';
+import { AdminAccessController, AdminUsersController } from './admin-users.controller';
+import { AdminManifestsController } from './admin-manifests.controller';
+import { AdminOrdersController } from './admin-orders.controller';
+import { OrdersModule } from '../orders/orders.module';
+import { AdminStoresController } from './admin-stores.controller';
+import { AdminZonesController } from './admin-zones.controller';
+import { AdminReturnsController } from './admin-returns.controller';
+import { AdminDamageController } from './admin-damage.controller';
+import { AdminTransfersController } from './admin-transfers.controller';
+import { AdminRefillController } from './admin-refill.controller';
+
+@Module({
+  imports: [CoverageModule, OrdersModule],
+  controllers: [
+    AdminStoresController,
+    AdminCatalogController,
+    AdminZonesController,
+    AdminCountsController,
+    AdminManifestsController,
+    AdminOrdersController,
+    AdminDashboardController,
+    AdminSettingsController,
+    AdminUsersController,
+    AdminAccessController,
+    AdminMerchantsController,
+    AdminContractsController,
+    AdminReturnsController,
+    AdminDamageController,
+    AdminTransfersController,
+    AdminRefillController,
+    HistoryController,
+    RecordsController,
+  ],
+})
+export class AdminModule {}

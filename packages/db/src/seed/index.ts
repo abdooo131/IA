@@ -1,0 +1,279 @@
+import { ensureLostReasons } from '../crm';
+import { ensureDefaultAccounts } from '../finance';
+import { prepareAreaMap, loadBaseAreas } from '../geo';
+import type { PrismaClient } from '@prisma/client';
+import {
+  cairoDay,
+  GLOBAL_SCOPE,
+  JOB_ROLE_TEMPLATES,
+  type JobRole,
+  passwordSchema,
+  SETTING_DEFINITIONS,
+  SETTING_KEYS,
+} from '@shiplynow/shared';
+import { writeAccess } from '../access';
+import { ensureStoreShifts } from '../attendance';
+import { ensureEmployees } from '../hr';
+import { ensureHrDefaults, placeSeedPeople } from '../hr-defaults';
+import { freshStartDone } from '../fresh-start';
+import { hashPassword } from '../password';
+import { move, receive } from '../stock';
+import { setZoneArea } from '../zones';
+import {
+  BINS,
+  DEFAULT_HOURS,
+  DEMO_USERS,
+  ean13,
+  GOVERNORATES,
+  MERCHANT,
+  openingStock,
+  SKUS,
+  STORE_GOVERNORATE_ID,
+  STORES,
+} from './data';
+
+/** Gives a seeded team member a job role's access, only when they have none yet. */
+async function ensureAccess(
+  prisma: PrismaClient,
+  userId: string,
+  jobRole: JobRole,
+  storeIds: string[],
+) {
+  const existing = await prisma.userAccess.findUnique({ where: { userId } });
+  if (existing) return;
+  await prisma.$transaction((tx) =>
+    writeAccess(tx, userId, { ...JOB_ROLE_TEMPLATES[jobRole], jobRole }, storeIds),
+  );
+}
+
+export interface SeedOptions {
+  admin: { email: string; password: string; name: string };
+  /** Password for the demo store staff and riders */
+  demoPassword: string;
+  log?: (message: string) => void;
+  /** Load the Greater Cairo area map for the address engine (default on; tests skip it) */
+  areas?: boolean;
+}
+
+/**
+ * Loads the pilot reference and sample data. Safe to run any number of times: rows are
+ * only created when missing, so anything edited in admin is never overwritten, and stock
+ * goes in through the stock functions with idempotency keys.
+ */
+export async function seed(prisma: PrismaClient, options: SeedOptions) {
+  const log = options.log ?? (() => undefined);
+  passwordSchema.parse(options.admin.password);
+  passwordSchema.parse(options.demoPassword);
+
+  for (const g of GOVERNORATES) {
+    await prisma.governorate.upsert({ where: { id: g.id }, update: {}, create: g });
+  }
+  log(`Governorates: ${GOVERNORATES.length}`);
+
+  const adminEmail = options.admin.email.trim().toLowerCase();
+  const admin = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {},
+    create: {
+      email: adminEmail,
+      name: options.admin.name,
+      role: 'admin',
+      passwordHash: await hashPassword(options.admin.password),
+    },
+  });
+  await ensureAccess(prisma, admin.id, 'owner', []);
+  log(`Admin: ${admin.email}`);
+
+  for (const key of SETTING_KEYS) {
+    const def = SETTING_DEFINITIONS[key];
+    await prisma.setting.upsert({
+      where: { key_scope: { key, scope: GLOBAL_SCOPE } },
+      update: {},
+      create: { key, scope: GLOBAL_SCOPE, value: def.default, description: def.description },
+    });
+  }
+  log(`Settings: ${SETTING_KEYS.length}`);
+
+  // Sales CRM: the lost reasons the list starts with (only missing ones).
+  await ensureLostReasons(prisma);
+
+  const stores = new Map<string, string>();
+  for (const s of STORES) {
+    const store = await prisma.darkStore.upsert({
+      where: { code: s.code },
+      update: {},
+      create: {
+        code: s.code,
+        nameEn: s.nameEn,
+        nameAr: s.nameAr,
+        addressEn: s.addressEn,
+        addressAr: s.addressAr,
+        latitude: s.latitude,
+        longitude: s.longitude,
+        governorateId: STORE_GOVERNORATE_ID,
+      },
+    });
+    stores.set(s.code, store.id);
+
+    for (let weekday = 0; weekday < 7; weekday++) {
+      await prisma.storeHours.upsert({
+        where: { darkStoreId_weekday: { darkStoreId: store.id, weekday } },
+        update: {},
+        create: { darkStoreId: store.id, weekday, ...DEFAULT_HOURS },
+      });
+    }
+
+    for (const z of s.zones) {
+      const zone = await prisma.zone.upsert({
+        where: { darkStoreId_code: { darkStoreId: store.id, code: z.code } },
+        update: {},
+        create: {
+          darkStoreId: store.id,
+          code: z.code,
+          nameEn: z.nameEn,
+          nameAr: z.nameAr,
+          governorateId: STORE_GOVERNORATE_ID,
+        },
+      });
+      const [{ hasArea }] = (await prisma.$queryRaw<{ hasArea: boolean }[]>`
+        SELECT area IS NOT NULL AS "hasArea" FROM zones WHERE id = ${zone.id}`) as [
+        { hasArea: boolean },
+      ];
+      if (!hasArea) await setZoneArea(prisma, zone.id, z.area);
+    }
+
+    for (const b of BINS) {
+      await prisma.bin.upsert({
+        where: { darkStoreId_code: { darkStoreId: store.id, code: b.code } },
+        update: {},
+        create: { darkStoreId: store.id, code: b.code, type: b.type },
+      });
+    }
+  }
+  log(`Dark stores: ${STORES.map((s) => s.code).join(', ')}`);
+
+  // After the one time fresh start (src/fresh-start.ts) the database holds real data only:
+  // the sample merchant, its products, the sample team and the opening stock stay out.
+  const samples = !(await freshStartDone(prisma));
+  const merchantId = samples ? await seedSamples(prisma, admin.id, stores, options, log) : null;
+  if (!samples) log('Fresh start done: no sample merchant, people or stock');
+  const files = await ensureEmployees(prisma);
+  if (files > 0) log(`Employee files opened: ${files}`);
+  // Two store shifts (10:00 to 16:00 and 16:00 to 22:00) and the coming two weeks' roster.
+  const shifts = await ensureStoreShifts(prisma, cairoDay(new Date()));
+  if (shifts.created + shifts.assigned > 0)
+    log(`Shifts: ${shifts.created} created, ${shifts.assigned} people planned`);
+  // HR structure (docs/HR.md): departments, grades, positions, document types, checklists.
+  const hrRows = await ensureHrDefaults(prisma);
+  if (hrRows > 0) log(`HR structure: ${hrRows} rows added`);
+  const placed = await placeSeedPeople(prisma);
+  if (placed > 0) log(`People placed in the organisation: ${placed}`);
+
+  await ensureDefaultAccounts(prisma);
+  log('Chart of accounts: CIB bank, owner money and expense categories ready');
+
+  if (options.areas !== false) {
+    const loaded = await loadBaseAreas(prisma);
+    const prepared = await prepareAreaMap(prisma);
+    log(
+      `Area map: ${loaded.areas} areas of Greater Cairo, cleaned, plus the names people use; ` +
+        `zones from areas: ${prepared.outlines.done ? `${prepared.outlines.assigned} assigned` : 'unchanged'}`,
+    );
+  }
+
+  return { adminId: admin.id, merchantId, stores };
+}
+
+/** The sample merchant, its products, the sample team, their HR files and opening stock. */
+async function seedSamples(
+  prisma: PrismaClient,
+  adminId: string,
+  stores: Map<string, string>,
+  options: SeedOptions,
+  log: (message: string) => void,
+) {
+  const merchant =
+    (await prisma.merchant.findFirst({ where: { name: MERCHANT.name } })) ??
+    (await prisma.merchant.create({ data: MERCHANT }));
+
+  const skuIds: string[] = [];
+  for (const [i, s] of SKUS.entries()) {
+    const sku = await prisma.sku.upsert({
+      where: { merchantId_sku: { merchantId: merchant.id, sku: s.sku } },
+      update: {},
+      create: {
+        ...s,
+        merchantId: merchant.id,
+        barcode: ean13(`6221234${String(i + 1).padStart(5, '0')}`),
+      },
+    });
+    skuIds.push(sku.id);
+  }
+  log(`Merchant: ${merchant.name} with ${SKUS.length} SKUs`);
+
+  const demoHash = await hashPassword(options.demoPassword);
+  for (const u of DEMO_USERS) {
+    const darkStoreId = u.storeCode ? stores.get(u.storeCode)! : null;
+    const user = await prisma.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        name: u.name,
+        phone: u.phone,
+        role: u.role,
+        darkStoreId,
+        merchantId: u.role === 'merchant' ? merchant.id : null,
+        merchantRole: u.role === 'merchant' ? 'owner' : null,
+        passwordHash: demoHash,
+      },
+    });
+    if (u.role === 'store_staff' && darkStoreId)
+      await ensureAccess(prisma, user.id, 'store_staff', [darkStoreId]);
+    if (u.role === 'finance') await ensureAccess(prisma, user.id, 'finance_manager', []);
+    if (u.role === 'rider' && u.badgeCode && darkStoreId) {
+      await prisma.rider.upsert({
+        where: { userId: user.id },
+        update: {},
+        create: { userId: user.id, darkStoreId, badgeCode: u.badgeCode },
+      });
+    }
+  }
+  log(`Demo users: ${DEMO_USERS.length}`);
+
+  // Opening stock goes through the real stock functions: receive, then put away.
+  let movements = 0;
+  for (const s of STORES) {
+    const darkStoreId = stores.get(s.code)!;
+    const bins = await prisma.bin.findMany({ where: { darkStoreId } });
+    const receiving = bins.find((b) => b.code === 'RCV-01')!;
+    const shelves = bins
+      .filter((b) => b.type === 'pickable')
+      .sort((a, b) => a.code.localeCompare(b.code));
+    for (const [i, skuId] of skuIds.entries()) {
+      const quantity = openingStock(s.code, i);
+      if (quantity === 0) continue;
+      const sku = SKUS[i]!.sku;
+      const received = await receive(prisma, {
+        skuId,
+        binId: receiving.id,
+        quantity,
+        actorUserId: adminId,
+        reason: 'opening_stock',
+        idempotencyKey: `seed:receive:${s.code}:${sku}`,
+      });
+      const putAway = await move(prisma, {
+        skuId,
+        fromBinId: receiving.id,
+        toBinId: shelves[i % shelves.length]!.id,
+        quantity,
+        actorUserId: adminId,
+        reason: 'put_away',
+        idempotencyKey: `seed:putaway:${s.code}:${sku}`,
+      });
+      movements += Number(!received.replayed) + Number(!putAway.replayed);
+    }
+  }
+  log(`Opening stock: ${movements} new movements`);
+  return merchant.id;
+}
