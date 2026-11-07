@@ -52,6 +52,9 @@ export const SETTINGS = {
   'delivery.code_required': { label: 'The receiver must give the code sent to their phone before the courier can hand over', kind: 'choice', default: 'ON', options: ['ON', 'OFF'] },
   'courier.ping_seconds': { label: 'Seconds between location updates from a working courier phone', kind: 'int', default: 60 },
   'pickups.auto_request': { label: 'Book a pickup automatically when a merchant creates parcels and has none booked', kind: 'choice', default: 'ON', options: ['ON', 'OFF'] },
+  'shop.open': { label: 'Merchants can order packaging from the shop in their panel', kind: 'choice', default: 'ON', options: ['ON', 'OFF'] },
+  'fees.packaging_delivery': { label: 'Delivery price of a packaging order, VAT included (piastres)', kind: 'money', default: 2000 },
+  'shop.free_delivery_from': { label: 'Packaging orders from this amount are delivered free (piastres, 0 = never)', kind: 'money', default: 0 },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

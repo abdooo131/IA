@@ -3,7 +3,7 @@
 import { formatEgp } from '@shiply/shared';
 import type { PrismaService, Tx } from './prisma.service';
 
-type Template = 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'ATTEMPT_FAILED' | 'OTP' | 'POSTPONED' | 'DELIVERY_CODE' | 'RETURN_CODE' | 'RETURN_PICKUP';
+type Template = 'OUT_FOR_DELIVERY' | 'DELIVERED' | 'ATTEMPT_FAILED' | 'OTP' | 'POSTPONED' | 'DELIVERY_CODE' | 'RETURN_CODE' | 'RETURN_PICKUP' | 'PACKAGING_CODE';
 
 /** Arabic first: most customers read Arabic. Each message carries the tracking link. */
 function render(t: Template, v: Record<string, string>) {
@@ -20,6 +20,8 @@ function render(t: Template, v: Record<string, string>) {
       return `${v.store}: كود استلام شحنتك ${v.number} هو ${v.code}. أعطه للمندوب فقط بعد أن تستلم الشحنة.`;
     case 'RETURN_CODE':
       return `Shiply: كود استلام المرتجع ${v.number} هو ${v.code}. أعطه للمندوب فقط بعد أن تستلم الشحنة.`;
+    case 'PACKAGING_CODE':
+      return `Shiply: طلب مواد التغليف ${v.number} في الطريق إليك. كود الاستلام ${v.code}. أعطه للمندوب فقط بعد أن تستلم الطلب.`;
     case 'RETURN_PICKUP':
       return `${v.store}: المندوب سيأتي اليوم لاستلام المرتجع ${v.number}. جهز المنتج في غلافه. ${v.link}`;
     case 'OTP':
@@ -33,7 +35,7 @@ async function setting(db: Tx | PrismaService, key: string, fallback: string) {
 }
 
 export async function queueMessage(db: Tx | PrismaService, a: { to: string; template: Template; vars: Record<string, string>; shipmentId?: string | null }) {
-  const channel = a.template === 'OTP' || a.template === 'DELIVERY_CODE' || a.template === 'RETURN_CODE' ? 'SMS' : await setting(db, 'messages.channel', 'WHATSAPP');
+  const channel = a.template === 'OTP' || a.template === 'DELIVERY_CODE' || a.template === 'RETURN_CODE' || a.template === 'PACKAGING_CODE' ? 'SMS' : await setting(db, 'messages.channel', 'WHATSAPP');
   return db.message.create({ data: { channel, to: a.to, template: a.template, body: render(a.template, a.vars), shipmentId: a.shipmentId ?? null } });
 }
 

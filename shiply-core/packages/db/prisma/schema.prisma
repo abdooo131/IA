@@ -1033,7 +1033,8 @@ model Supplier {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
-  bills Bill[]
+  bills          Bill[]
+  purchaseOrders PurchaseOrder[]
 
   @@map("suppliers")
 }
@@ -1292,4 +1293,151 @@ model CourierPing {
   @@index([userId, at])
   @@index([at])
   @@map("courier_pings")
+}
+
+/// Packaging Shiply keeps in stock and sells to merchants from the shop in their panel.
+model PackagingProduct {
+  id          String   @id @default(uuid()) @db.Uuid
+  sku         String   @unique
+  name        String
+  nameAr      String   @default("") @map("name_ar")
+  description String   @default("")
+  /// What one unit is, for example "Pack of 50".
+  unit        String   @default("")
+  /// Selling price of one unit, VAT included (piastres).
+  price       Int
+  /// Average cost of one unit before VAT, updated on every purchase (piastres).
+  cost        Int      @default(0)
+  stock       Int      @default(0)
+  /// At or below this, operations get a low stock alert.
+  minStock    Int      @default(0) @map("min_stock")
+  active      Boolean  @default(true)
+  photo       Bytes?
+  photoMime   String   @default("") @map("photo_mime")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  moves      StockMove[]
+  poLines    PurchaseOrderLine[]
+  orderLines PackagingOrderLine[]
+
+  @@map("packaging_products")
+}
+
+enum StockMoveKind {
+  PURCHASE
+  SALE
+  CANCELLED_SALE
+  ADJUST
+}
+
+/// Every change to a product's stock, so the count can always be explained.
+model StockMove {
+  id        String           @id @default(uuid()) @db.Uuid
+  productId String           @map("product_id") @db.Uuid
+  product   PackagingProduct @relation(fields: [productId], references: [id])
+  kind      StockMoveKind
+  qty       Int
+  unitCost  Int              @default(0) @map("unit_cost")
+  ref       String           @default("")
+  note      String           @default("")
+  userId    String           @map("user_id") @db.Uuid
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  @@index([productId, createdAt])
+  @@map("stock_moves")
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
+/// What we order from a supplier. Receiving it adds the stock and raises the supplier's bill.
+model PurchaseOrder {
+  id          String              @id @default(uuid()) @db.Uuid
+  code        String              @unique
+  supplierId  String              @map("supplier_id") @db.Uuid
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  status      PurchaseOrderStatus @default(DRAFT)
+  expectedOn  String?             @map("expected_on")
+  notes       String              @default("")
+  /// Sum of the lines before VAT (piastres).
+  net         Int                 @default(0)
+  billId      String?             @map("bill_id") @db.Uuid
+  createdById String              @map("created_by_id") @db.Uuid
+  orderedAt   DateTime?           @map("ordered_at")
+  receivedAt  DateTime?           @map("received_at")
+  createdAt   DateTime            @default(now()) @map("created_at")
+
+  lines PurchaseOrderLine[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderLine {
+  id          String           @id @default(uuid()) @db.Uuid
+  poId        String           @map("po_id") @db.Uuid
+  po          PurchaseOrder    @relation(fields: [poId], references: [id], onDelete: Cascade)
+  productId   String           @map("product_id") @db.Uuid
+  product     PackagingProduct @relation(fields: [productId], references: [id])
+  qty         Int
+  /// Before VAT (piastres).
+  unitCost    Int              @map("unit_cost")
+  receivedQty Int              @default(0) @map("received_qty")
+
+  @@map("purchase_order_lines")
+}
+
+enum PackagingOrderStatus {
+  PLACED
+  PACKED
+  OUT
+  DELIVERED
+  CANCELLED
+}
+
+/// A merchant's packaging order. Delivered like an order, for the delivery price in the settings.
+model PackagingOrder {
+  id          String               @id @default(uuid()) @db.Uuid
+  code        String               @unique
+  merchantId  String               @map("merchant_id") @db.Uuid
+  hubId       String               @map("hub_id") @db.Uuid
+  status      PackagingOrderStatus @default(PLACED)
+  /// WALLET: taken from the merchant balance. CASH: the courier collects it at the door.
+  payment     String
+  goodsTotal  Int                  @map("goods_total")
+  deliveryFee Int                  @map("delivery_fee")
+  total       Int
+  courierId   String?              @map("courier_id") @db.Uuid
+  notes       String               @default("")
+  codeChecked Boolean              @default(false) @map("code_checked")
+  placedById  String               @map("placed_by_id") @db.Uuid
+  packedAt    DateTime?            @map("packed_at")
+  outAt       DateTime?            @map("out_at")
+  deliveredAt DateTime?            @map("delivered_at")
+  cancelReason String              @default("") @map("cancel_reason")
+  createdAt   DateTime             @default(now()) @map("created_at")
+
+  lines PackagingOrderLine[]
+
+  @@index([merchantId, createdAt])
+  @@index([status])
+  @@map("packaging_orders")
+}
+
+model PackagingOrderLine {
+  id        String           @id @default(uuid()) @db.Uuid
+  orderId   String           @map("order_id") @db.Uuid
+  order     PackagingOrder   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String           @map("product_id") @db.Uuid
+  product   PackagingProduct @relation(fields: [productId], references: [id])
+  qty       Int
+  /// VAT included (piastres).
+  unitPrice Int              @map("unit_price")
+  /// Average cost when sold, before VAT (piastres).
+  unitCost  Int              @map("unit_cost")
+
+  @@map("packaging_order_lines")
 }

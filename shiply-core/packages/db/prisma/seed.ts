@@ -236,6 +236,20 @@ async function main() {
       },
     });
     await addUser({ email: 'merchant@nilehome.example', name: 'Nile Home', role: 'MERCHANT', password: demoPassword, merchantId: nile.id });
+
+    // Packaging for the shop. Stock comes in through purchase orders, so it starts at zero.
+    if (!(await prisma.supplier.findFirst({ where: { name: 'Cairo Packaging Co' } }))) {
+      await prisma.supplier.create({ data: { name: 'Cairo Packaging Co', phone: '+201001112223', taxId: '100-200-300' } });
+    }
+    const packaging = [
+      { sku: 'FLY-S', name: 'Flyer bags, small', nameAr: 'أكياس شحن صغيرة', unit: 'Pack of 100', price: 9000, minStock: 20 },
+      { sku: 'FLY-M', name: 'Flyer bags, medium', nameAr: 'أكياس شحن متوسطة', unit: 'Pack of 100', price: 12000, minStock: 20 },
+      { sku: 'FLY-L', name: 'Flyer bags, large', nameAr: 'أكياس شحن كبيرة', unit: 'Pack of 50', price: 11000, minStock: 10 },
+      { sku: 'BOX-M', name: 'Carton box, medium', nameAr: 'كرتونة متوسطة', unit: 'Pack of 20', price: 16000, minStock: 10 },
+      { sku: 'TAPE', name: 'Packing tape', nameAr: 'شريط لاصق', unit: 'Roll', price: 2500, minStock: 30 },
+      { sku: 'BUBBLE', name: 'Bubble wrap', nameAr: 'غلاف فقاعات', unit: 'Roll of 10 m', price: 6000, minStock: 10 },
+    ];
+    for (const p of packaging) await prisma.packagingProduct.upsert({ where: { sku: p.sku }, update: {}, create: p });
   }
 
   console.log('Seed done.');
