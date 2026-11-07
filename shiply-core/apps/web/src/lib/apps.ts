@@ -48,6 +48,7 @@ function hubMenus(me: Me | null): AppMenu[] {
         pages: [
           { href: '/hub/check', label: 'Handover check' },
           { href: '/hub/damage', label: 'Report damage' },
+          { href: '/hub/packaging', label: 'Packaging orders' },
           { href: '/hub/safe', label: 'Hub safe' },
         ],
       },
@@ -72,7 +73,7 @@ function hubMenus(me: Me | null): AppMenu[] {
   }
   menus.push({
     label: 'Control',
-    pages: [{ href: '/hub/check', label: 'Handover check' }, { href: '/hub/damage', label: 'Report damage' }, ...(team ? [] : [{ href: '/hub/safe', label: 'Hub safe' }])],
+    pages: [{ href: '/hub/check', label: 'Handover check' }, { href: '/hub/damage', label: 'Report damage' }, { href: '/hub/packaging', label: 'Packaging orders' }, ...(team ? [] : [{ href: '/hub/safe', label: 'Hub safe' }])],
   });
   return menus;
 }
@@ -130,6 +131,14 @@ export function allApps(me: Me | null): AppDef[] {
       menus: [
         { label: 'Merchants', pages: [{ href: '/admin/merchants', label: 'Merchants' }] },
         { label: 'Sign ups', pages: [{ href: '/admin/signups', label: 'Sign ups' }] },
+        {
+          label: 'Packaging shop',
+          pages: [
+            { href: '/admin/shop/orders', label: 'Packaging orders', hint: 'Pack, hand to a courier, follow delivery' },
+            { href: '/admin/shop/products', label: 'Products and stock', hint: 'Prices, stock counts, low stock' },
+            { href: '/admin/shop/purchase-orders', label: 'Purchase orders', hint: 'Buy from suppliers and receive the goods' },
+          ],
+        },
         { label: 'Configuration', pages: [{ href: '/admin/price-tiers', label: 'Price tiers', hint: 'Monthly volume discounts' }] },
       ],
     },

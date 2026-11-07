@@ -12,6 +12,7 @@ const groups = (me: Me): NavGroup[] => {
     { href: '/merchant/pickups', label: 'Pickups', icon: 'pickups', show: can('pickups') },
     { href: '/merchant/statement', label: 'Money', icon: 'wallet', show: can('money') },
     { href: '/merchant/invoices', label: 'Tax invoices', icon: 'invoice', show: can('money') },
+    { href: '/merchant/shop', label: 'Packaging shop', icon: 'packaging', show: can('orders') },
     { href: '/merchant/analytics', label: 'Analytics', icon: 'analytics', show: true },
     { href: '/merchant/prices', label: 'My prices', icon: 'points', show: true },
     { href: '/merchant/team', label: 'Team', icon: 'customers', show: me.merchantOwner },

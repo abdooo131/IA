@@ -2,9 +2,9 @@
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
 import { ScanBox } from '@/components/ScanBox';
-import { Alert, Badge, Button, Card, Empty, Loading } from '@/components/ui';
+import { Alert, Badge, Button, Card, Empty, Field, Input, Loading } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
-import { shortDate } from '@/lib/format';
+import { egp, shortDate } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
 
@@ -62,6 +62,65 @@ export default function CourierPickupsPage() {
           ))}
         </div>
       )}
+      <PackagingToHand />
     </>
+  );
+}
+
+interface PackOrder { id: string; code: string; payment: string; total: number; notes: string; merchant: { name: string; phone: string; pickupAddress: string }; lines: { id: string; qty: number; product: { name: string; unit: string } }[] }
+
+function PackagingStop({ o, onDone }: { o: PackOrder; onDone: () => void }) {
+  const t = useT();
+  const [code, setCode] = useState('');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const call = async (path: string, body: unknown, after?: () => void) => {
+    setBusy(true);
+    setMsg(null);
+    try {
+      const r = await api<{ message: string }>(path, { body });
+      setMsg({ ok: true, text: t(r.message) });
+      after?.();
+    } catch (e) {
+      setMsg({ ok: false, text: t(errorMessage(e)) });
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Card title={o.merchant.name} actions={<Badge tone="blue">{t('Packaging to hand over')}</Badge>}>
+      <p className="flex gap-2 text-body-sm"><Icon name="packaging" size={18} className="text-text-muted" />{o.merchant.pickupAddress}</p>
+      <ul className="mt-2 text-body-sm">{o.lines.map((l) => <li key={l.id}><span className="tabular font-bold">{l.qty} ×</span> {l.product.name} <span className="text-caption text-text-muted">{l.product.unit}</span></li>)}</ul>
+      {o.notes && <p className="mt-1 text-caption text-text-muted">{o.notes}</p>}
+      <div className="mt-3 flex items-center justify-between rounded-md bg-surface-raised px-3 py-2">
+        <span className="text-body-sm">{o.payment === 'CASH' ? t('Collect') : t('Paid from their balance')}</span>
+        {o.payment === 'CASH' && <span className="tabular ltr-iso text-number-lg">{egp(o.total)}</span>}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-2">
+        <a href={`tel:${o.merchant.phone}`} className="btn-secondary min-h-11"><Icon name="support" size={18} />{t('Call')}</a>
+        <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.merchant.pickupAddress)}`} target="_blank" rel="noreferrer" className="btn-secondary min-h-11"><Icon name="route" size={18} />{t('Map')}</a>
+      </div>
+      {msg && <div className="mt-3"><Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert></div>}
+      <Field label={t('Code from the merchant')} hint={t('Ask for the 4 numbers in their SMS only after they have the parcel')}>
+        <div className="flex gap-2">
+          <Input inputMode="numeric" maxLength={4} value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))} className="ltr-iso text-center text-h3 tracking-[0.4em]" />
+          <Button tone="secondary" disabled={busy} onClick={() => void call(`/courier/packaging/${o.id}/send-code`, {})}>{t('Send again')}</Button>
+        </div>
+      </Field>
+      <Button className="mt-3 min-h-12 w-full" tone="accent" disabled={busy || code.length !== 4} onClick={() => void call(`/courier/packaging/${o.id}/deliver`, { code }, onDone)}>{t('Handed over')}</Button>
+    </Card>
+  );
+}
+
+/** Packaging orders this courier carries to merchants. */
+function PackagingToHand() {
+  const t = useT();
+  const list = useLoad<PackOrder[]>('/courier/packaging');
+  if (!list.data || list.data.length === 0) return null;
+  return (
+    <div className="mt-6 space-y-4">
+      <h2 className="text-h3">{t('Packaging to hand over')}</h2>
+      {list.data.map((o) => <PackagingStop key={o.id} o={o} onDone={() => setTimeout(() => void list.reload(), 1200)} />)}
+    </div>
   );
 }
