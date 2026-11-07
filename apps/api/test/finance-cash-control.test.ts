@@ -34,6 +34,7 @@ describe('cash controls', () => {
     await app.close();
   });
   beforeEach(async () => {
+    clock.set(NOON_CAIRO);
     const seeded = await resetAndSeed(prisma);
     ncr = seeded.stores.get('NCR')!;
     maadi = seeded.stores.get('MAA')!;
@@ -261,6 +262,8 @@ describe('cash controls', () => {
     const admin = await agent('admin@test.eg', 'admin-password-1');
     const staff = await agent('staff.newcairo@shiplynow.local');
     await deliver(staff);
+    // The rider app stamps the cash with the real time, so read its age from the real time too.
+    clock.set(new Date());
     const position = await admin.get('/finance/cash-position').expect(200);
     expect(position.body.scope).toBe('all');
     expect(position.body.riders.totalPiastres).toBe(68_000);
