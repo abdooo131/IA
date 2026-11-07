@@ -165,10 +165,11 @@ model Hub {
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
-  governorates   Governorate[]
-  areas          Area[]
-  users          User[]
-  merchants      Merchant[]
+  governorates Governorate[]
+  areas        Area[]
+  users        User[]
+  merchants    Merchant[]
+
   @@map("hubs")
 }
 
@@ -183,35 +184,37 @@ model Zone {
   priceXL     Int    @map("price_xl")
 
   governorates Governorate[]
+
   @@map("zones")
 }
 
 model Governorate {
-  code      String  @id
-  nameEn    String  @map("name_en")
-  nameAr    String  @map("name_ar")
-  zoneCode  String  @map("zone_code")
-  zone      Zone    @relation(fields: [zoneCode], references: [code])
-  lat       Float   @default(0)
-  lng       Float   @default(0)
+  code     String  @id
+  nameEn   String  @map("name_en")
+  nameAr   String  @map("name_ar")
+  zoneCode String  @map("zone_code")
+  zone     Zone    @relation(fields: [zoneCode], references: [code])
+  lat      Float   @default(0)
+  lng      Float   @default(0)
   /// Hub that delivers here when the area has no hub of its own. Null means we do not serve it yet.
-  hubId     String? @map("hub_id") @db.Uuid
-  hub       Hub?    @relation(fields: [hubId], references: [id])
+  hubId    String? @map("hub_id") @db.Uuid
+  hub      Hub?    @relation(fields: [hubId], references: [id])
 
   areas Area[]
+
   @@map("governorates")
 }
 
 model Area {
-  id              String      @id @default(uuid()) @db.Uuid
-  governorateCode String      @map("governorate_code")
-  governorate     Governorate @relation(fields: [governorateCode], references: [code])
-  nameEn          String      @map("name_en")
-  nameAr          String      @map("name_ar")
+  id              String        @id @default(uuid()) @db.Uuid
+  governorateCode String        @map("governorate_code")
+  governorate     Governorate   @relation(fields: [governorateCode], references: [code])
+  nameEn          String        @map("name_en")
+  nameAr          String        @map("name_ar")
   lat             Float?
   lng             Float?
-  hubId           String?     @map("hub_id") @db.Uuid
-  hub             Hub?        @relation(fields: [hubId], references: [id])
+  hubId           String?       @map("hub_id") @db.Uuid
+  hub             Hub?          @relation(fields: [hubId], references: [id])
   couriers        CourierArea[]
 
   @@unique([governorateCode, nameEn])
@@ -219,37 +222,40 @@ model Area {
 }
 
 model User {
-  id           String    @id @default(uuid()) @db.Uuid
+  id              String       @id @default(uuid()) @db.Uuid
   /// Couriers who join with an agent code sign in with their phone; email is optional for them.
-  email        String?   @unique
-  name         String
-  phone        String    @default("")
-  passwordHash String    @map("password_hash")
-  role         Role
+  email           String?      @unique
+  name            String
+  phone           String       @default("")
+  passwordHash    String       @map("password_hash")
+  role            Role
   /// Inside a sorting facility: the team this person works in. Null = every station (supervisor).
-  team         Team?
-  hubId        String?   @map("hub_id") @db.Uuid
-  hub          Hub?      @relation(fields: [hubId], references: [id])
-  merchantId   String?   @map("merchant_id") @db.Uuid
-  merchant     Merchant? @relation(fields: [merchantId], references: [id])
+  team            Team?
+  hubId           String?      @map("hub_id") @db.Uuid
+  hub             Hub?         @relation(fields: [hubId], references: [id])
+  merchantId      String?      @map("merchant_id") @db.Uuid
+  merchant        Merchant?    @relation(fields: [merchantId], references: [id])
   /// The agent this person works for (couriers) or represents (agent logins).
-  agentId      String?   @map("agent_id") @db.Uuid
-  agent        Agent?    @relation(fields: [agentId], references: [id])
-  courierType  CourierType? @map("courier_type")
+  agentId         String?      @map("agent_id") @db.Uuid
+  agent           Agent?       @relation(fields: [agentId], references: [id])
+  courierType     CourierType? @map("courier_type")
   /// A pickup courier registered with their agent to move pallets between hubs.
-  hubToHub     Boolean   @default(false) @map("hub_to_hub")
+  hubToHub        Boolean      @default(false) @map("hub_to_hub")
   /// Shift start in Cairo time (HH:MM) and working weekdays (0 Sunday ... 6 Saturday).
-  shiftStart   String    @default("09:00") @map("shift_start")
-  workDays     Int[]     @default([0, 1, 2, 3, 4, 6]) @map("work_days")
-  vehicleId    String?   @map("vehicle_id") @db.Uuid
-  vehicle      Vehicle?  @relation(fields: [vehicleId], references: [id])
+  shiftStart      String       @default("09:00") @map("shift_start")
+  workDays        Int[]        @default([0, 1, 2, 3, 4, 6]) @map("work_days")
+  vehicleId       String?      @map("vehicle_id") @db.Uuid
+  vehicle         Vehicle?     @relation(fields: [vehicleId], references: [id])
   /// Joined with an agent code and waiting for the agent to approve.
-  pendingApproval Boolean @default(false) @map("pending_approval")
-  active       Boolean   @default(true)
-  createdAt    DateTime  @default(now()) @map("created_at")
+  pendingApproval Boolean      @default(false) @map("pending_approval")
+  /// A courier with a negative wallet is frozen; operations can let them work until this time.
+  unfreezeUntil   DateTime?    @map("unfreeze_until")
+  unfreezeReason  String       @default("") @map("unfreeze_reason")
+  active          Boolean      @default(true)
+  createdAt       DateTime     @default(now()) @map("created_at")
 
-  areas        CourierArea[]
-  shifts       Shift[]   @relation("ShiftCourier")
+  areas  CourierArea[]
+  shifts Shift[]       @relation("ShiftCourier")
 
   @@index([agentId])
   @@map("users")
@@ -280,6 +286,7 @@ model Agent {
   vehicles        Vehicle[]
   vehicleRequests VehicleRequest[]
   shifts          Shift[]
+
   @@map("agents")
 }
 
@@ -324,6 +331,7 @@ model Vehicle {
 
   users    User[]
   requests VehicleRequest[]
+
   @@map("vehicles")
 }
 
@@ -418,6 +426,14 @@ model Merchant {
   homeHubId       String   @map("home_hub_id") @db.Uuid
   homeHub         Hub      @relation(fields: [homeHubId], references: [id])
   discountBp      Int      @default(0) @map("discount_bp")
+  /// Where payouts go. Once set, a change waits for a second person to approve it.
+  bankName        String   @default("") @map("bank_name")
+  bankAccountName String   @default("") @map("bank_account_name")
+  iban            String   @default("")
+  pendingBank     Json?    @map("pending_bank")
+  pendingBankById String?  @map("pending_bank_by_id") @db.Uuid
+  /// Weekdays the merchant is paid (0 Sunday ... 6 Saturday).
+  payoutDays      Int[]    @default([0, 3]) @map("payout_days")
   active          Boolean  @default(true)
   createdAt       DateTime @default(now()) @map("created_at")
 
@@ -425,25 +441,26 @@ model Merchant {
   shipments Shipment[]
   pickups   Pickup[]
   payouts   Payout[]
+
   @@map("merchants")
 }
 
 model Shipment {
-  id               String         @id @default(uuid()) @db.Uuid
-  trackingNumber   String         @unique @map("tracking_number")
-  merchantId       String         @map("merchant_id") @db.Uuid
-  merchant         Merchant       @relation(fields: [merchantId], references: [id])
-  merchantRef      String         @default("") @map("merchant_ref")
-  customerName     String         @map("customer_name")
-  customerPhone    String         @map("customer_phone")
-  address          String
-  governorateCode  String         @map("governorate_code")
-  areaId           String?        @map("area_id") @db.Uuid
-  size             ParcelSize     @default(M)
-  description      String         @default("")
-  notes            String         @default("")
-  allowOpen        Boolean        @default(false) @map("allow_open")
-  codAmount        Int            @default(0) @map("cod_amount")
+  id              String     @id @default(uuid()) @db.Uuid
+  trackingNumber  String     @unique @map("tracking_number")
+  merchantId      String     @map("merchant_id") @db.Uuid
+  merchant        Merchant   @relation(fields: [merchantId], references: [id])
+  merchantRef     String     @default("") @map("merchant_ref")
+  customerName    String     @map("customer_name")
+  customerPhone   String     @map("customer_phone")
+  address         String
+  governorateCode String     @map("governorate_code")
+  areaId          String?    @map("area_id") @db.Uuid
+  size            ParcelSize @default(M)
+  description     String     @default("")
+  notes           String     @default("")
+  allowOpen       Boolean    @default(false) @map("allow_open")
+  codAmount       Int        @default(0) @map("cod_amount")
 
   status           ShipmentStatus @default(CREATED)
   direction        Direction      @default(FORWARD)
@@ -456,23 +473,23 @@ model Shipment {
   laneHubId        String?        @map("lane_hub_id") @db.Uuid
   runId            String?        @map("run_id") @db.Uuid
 
-  attempts         Int            @default(0)
-  lastFailReason   String?        @map("last_fail_reason")
-  holdReason       String?        @map("hold_reason")
-  promisedDate     String?        @map("promised_date")
+  attempts       Int     @default(0)
+  lastFailReason String? @map("last_fail_reason")
+  holdReason     String? @map("hold_reason")
+  promisedDate   String? @map("promised_date")
 
-  shippingFee      Int            @map("shipping_fee")
-  codFee           Int            @map("cod_fee")
-  returnFee        Int            @default(0) @map("return_fee")
-  codCollected     Int            @default(0) @map("cod_collected")
-  payoutId         String?        @map("payout_id") @db.Uuid
-  payout           Payout?        @relation(fields: [payoutId], references: [id])
+  shippingFee  Int     @map("shipping_fee")
+  codFee       Int     @map("cod_fee")
+  returnFee    Int     @default(0) @map("return_fee")
+  codCollected Int     @default(0) @map("cod_collected")
+  payoutId     String? @map("payout_id") @db.Uuid
+  payout       Payout? @relation(fields: [payoutId], references: [id])
 
-  enteredAt        DateTime?      @map("entered_at")
-  deliveredAt      DateTime?      @map("delivered_at")
-  closedAt         DateTime?      @map("closed_at")
-  createdAt        DateTime       @default(now()) @map("created_at")
-  updatedAt        DateTime       @updatedAt @map("updated_at")
+  enteredAt   DateTime? @map("entered_at")
+  deliveredAt DateTime? @map("delivered_at")
+  closedAt    DateTime? @map("closed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
 
   events   ShipmentEvent[]
   runItems RunItem[]
@@ -487,16 +504,16 @@ model Shipment {
 
 /// Append only. A trigger rejects UPDATE and DELETE.
 model ShipmentEvent {
-  id         String         @id @default(uuid()) @db.Uuid
-  shipmentId String         @map("shipment_id") @db.Uuid
-  shipment   Shipment       @relation(fields: [shipmentId], references: [id])
+  id         String          @id @default(uuid()) @db.Uuid
+  shipmentId String          @map("shipment_id") @db.Uuid
+  shipment   Shipment        @relation(fields: [shipmentId], references: [id])
   type       String
   fromStatus ShipmentStatus? @map("from_status")
   toStatus   ShipmentStatus  @map("to_status")
-  hubId      String?        @map("hub_id") @db.Uuid
-  userId     String?        @map("user_id") @db.Uuid
-  note       String         @default("")
-  createdAt  DateTime       @default(now()) @map("created_at")
+  hubId      String?         @map("hub_id") @db.Uuid
+  userId     String?         @map("user_id") @db.Uuid
+  note       String          @default("")
+  createdAt  DateTime        @default(now()) @map("created_at")
 
   @@index([shipmentId, createdAt])
   @@map("shipment_events")
@@ -553,6 +570,7 @@ model Trip {
   createdAt        DateTime   @default(now()) @map("created_at")
 
   bags Bag[]
+
   @@map("trips")
 }
 
@@ -572,6 +590,7 @@ model Run {
   createdAt    DateTime  @default(now()) @map("created_at")
 
   items RunItem[]
+
   @@index([courierId, status])
   @@map("runs")
 }
@@ -595,19 +614,298 @@ model RunItem {
 }
 
 model Payout {
-  id         String   @id @default(uuid()) @db.Uuid
-  code       String   @unique
-  merchantId String   @map("merchant_id") @db.Uuid
-  merchant   Merchant @relation(fields: [merchantId], references: [id])
-  codTotal   Int      @map("cod_total")
-  feesTotal  Int      @map("fees_total")
-  amount     Int
-  reference  String   @default("")
-  createdById String  @map("created_by_id") @db.Uuid
-  createdAt  DateTime @default(now()) @map("created_at")
+  id           String       @id @default(uuid()) @db.Uuid
+  code         String       @unique
+  merchantId   String       @map("merchant_id") @db.Uuid
+  merchant     Merchant     @relation(fields: [merchantId], references: [id])
+  codTotal     Int          @map("cod_total")
+  feesTotal    Int          @map("fees_total")
+  /// Cash out fee kept by Shiply from this payout.
+  payoutFee    Int          @default(0) @map("payout_fee")
+  /// What the merchant receives: cash collected minus fees minus the cash out fee.
+  amount       Int
+  status       PayoutStatus @default(PENDING_APPROVAL)
+  bankName     String       @default("") @map("bank_name")
+  accountName  String       @default("") @map("account_name")
+  iban         String       @default("")
+  reference    String       @default("")
+  createdById  String       @map("created_by_id") @db.Uuid
+  approvedById String?      @map("approved_by_id") @db.Uuid
+  approvedAt   DateTime?    @map("approved_at")
+  paidById     String?      @map("paid_by_id") @db.Uuid
+  paidAt       DateTime?    @map("paid_at")
+  createdAt    DateTime     @default(now()) @map("created_at")
 
   shipments Shipment[]
+
+  @@index([status])
   @@map("payouts")
+}
+
+enum PayoutStatus {
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+// ---------------------------------------------------------------- accounting
+
+enum AccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  INCOME
+  EXPENSE
+}
+
+/// Who a line belongs to, so one control account holds every merchant's (or courier's) wallet.
+enum PartyType {
+  MERCHANT
+  COURIER
+  AGENT
+  HUB
+}
+
+model Account {
+  code      String      @id
+  name      String
+  nameAr    String      @map("name_ar")
+  type      AccountType
+  /// Lines on this account must name a party of this type (wallet accounts).
+  party     PartyType?
+  /// Built in accounts the system posts to; they cannot be removed.
+  system    Boolean     @default(false)
+  active    Boolean     @default(true)
+  createdAt DateTime    @default(now()) @map("created_at")
+
+  lines JournalLine[]
+
+  @@map("accounts")
+}
+
+/// Append only. Corrections are new entries. A database check makes every entry balance.
+model JournalEntry {
+  id          String   @id @default(uuid()) @db.Uuid
+  number      Int      @unique @default(autoincrement())
+  /// Business date in Cairo (YYYY-MM-DD).
+  date        String
+  memo        String
+  source      String
+  /// Stops the same event being posted twice, for example DELIVERED:<parcel id>.
+  key         String?  @unique
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  lines JournalLine[]
+
+  @@index([date])
+  @@index([source])
+  @@map("journal_entries")
+}
+
+model JournalLine {
+  id          String       @id @default(uuid()) @db.Uuid
+  entryId     String       @map("entry_id") @db.Uuid
+  entry       JournalEntry @relation(fields: [entryId], references: [id])
+  accountCode String       @map("account_code")
+  account     Account      @relation(fields: [accountCode], references: [code])
+  partyType   PartyType?   @map("party_type")
+  partyId     String?      @map("party_id") @db.Uuid
+  debit       Int          @default(0)
+  credit      Int          @default(0)
+  memo        String       @default("")
+
+  @@index([accountCode, partyType, partyId])
+  @@index([entryId])
+  @@map("journal_lines")
+}
+
+enum EarningKind {
+  DELIVERY
+  RETURN
+  PICKUP
+  BONUS
+  PENALTY
+  ADJUSTMENT
+}
+
+/// What a courier earned (or lost), in points and money. Money becomes withdrawable after the freeze.
+model CourierEarning {
+  id           String      @id @default(uuid()) @db.Uuid
+  courierId    String      @map("courier_id") @db.Uuid
+  /// The agent the courier worked for at the time; their month end settlement takes it.
+  agentId      String?     @map("agent_id") @db.Uuid
+  kind         EarningKind
+  points       Int         @default(0)
+  amount       Int
+  shipmentId   String?     @map("shipment_id") @db.Uuid
+  date         String
+  availableAt  DateTime    @map("available_at")
+  settlementId String?     @map("settlement_id") @db.Uuid
+  note         String      @default("")
+  createdById  String?     @map("created_by_id") @db.Uuid
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@unique([courierId, kind, shipmentId])
+  @@index([courierId, date])
+  @@index([agentId, date])
+  @@map("courier_earnings")
+}
+
+enum RequestStatus {
+  PENDING_APPROVAL
+  APPROVED
+  PAID
+  REJECTED
+}
+
+/// A courier takes money out of their wallet. A second person approves, finance pays.
+model Withdrawal {
+  id            String        @id @default(uuid()) @db.Uuid
+  code          String        @unique
+  courierId     String        @map("courier_id") @db.Uuid
+  amount        Int
+  method        String        @default("")
+  status        RequestStatus @default(PENDING_APPROVAL)
+  note          String        @default("")
+  requestedById String        @map("requested_by_id") @db.Uuid
+  approvedById  String?       @map("approved_by_id") @db.Uuid
+  paidAt        DateTime?     @map("paid_at")
+  createdAt     DateTime      @default(now()) @map("created_at")
+
+  @@index([courierId])
+  @@map("withdrawals")
+}
+
+enum PayInChannel {
+  FAWRY
+  BASATA
+  BANK_TRANSFER
+}
+
+enum PayInPurpose {
+  /// Cash collected on a run, paid in instead of handed over at the hub.
+  CASH
+  /// Money a courier pays to bring a negative wallet back up.
+  RECHARGE
+}
+
+enum CheckStatus {
+  SUBMITTED
+  CONFIRMED
+  REJECTED
+}
+
+/// A courier pays money in through Fawry (or another channel) and uploads the receipt.
+model PayIn {
+  id          String       @id @default(uuid()) @db.Uuid
+  code        String       @unique
+  courierId   String       @map("courier_id") @db.Uuid
+  runId       String?      @map("run_id") @db.Uuid
+  amount      Int
+  channel     PayInChannel @default(FAWRY)
+  purpose     PayInPurpose @default(CASH)
+  reference   String
+  receipt     Bytes?
+  receiptMime String       @default("") @map("receipt_mime")
+  status      CheckStatus  @default(SUBMITTED)
+  note        String       @default("")
+  checkedById String?      @map("checked_by_id") @db.Uuid
+  checkedAt   DateTime?    @map("checked_at")
+  createdAt   DateTime     @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([runId])
+  @@map("pay_ins")
+}
+
+/// Hub staff take cash from the hub safe to the bank; finance confirms it arrived.
+model SafeDeposit {
+  id          String      @id @default(uuid()) @db.Uuid
+  code        String      @unique
+  hubId       String      @map("hub_id") @db.Uuid
+  amount      Int
+  reference   String
+  receipt     Bytes?
+  receiptMime String      @default("") @map("receipt_mime")
+  status      CheckStatus @default(SUBMITTED)
+  note        String      @default("")
+  createdById String      @map("created_by_id") @db.Uuid
+  checkedById String?     @map("checked_by_id") @db.Uuid
+  checkedAt   DateTime?   @map("checked_at")
+  createdAt   DateTime    @default(now()) @map("created_at")
+
+  @@index([hubId, status])
+  @@map("safe_deposits")
+}
+
+/// What an agent is owed for one month: staff pay, commission, vehicles, minus penalties.
+model AgentSettlement {
+  id              String        @id @default(uuid()) @db.Uuid
+  code            String        @unique
+  agentId         String        @map("agent_id") @db.Uuid
+  /// YYYY-MM
+  month           String
+  staffPay        Int           @map("staff_pay")
+  commissionBp    Int           @map("commission_bp")
+  commission      Int
+  vehicleRent     Int           @map("vehicle_rent")
+  specialVehicles Int           @map("special_vehicles")
+  penalties       Int
+  total           Int
+  details         Json
+  status          RequestStatus @default(PENDING_APPROVAL)
+  invoice         Bytes?
+  invoiceName     String        @default("") @map("invoice_name")
+  invoiceMime     String        @default("") @map("invoice_mime")
+  createdById     String        @map("created_by_id") @db.Uuid
+  approvedById    String?       @map("approved_by_id") @db.Uuid
+  paidAt          DateTime?     @map("paid_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  @@unique([agentId, month])
+  @@map("agent_settlements")
+}
+
+enum PaidFrom {
+  BANK
+  HUB_SAFE
+}
+
+model Expense {
+  id           String        @id @default(uuid()) @db.Uuid
+  code         String        @unique
+  date         String
+  accountCode  String        @map("account_code")
+  amount       Int
+  paidFrom     PaidFrom      @default(BANK) @map("paid_from")
+  hubId        String?       @map("hub_id") @db.Uuid
+  supplier     String        @default("")
+  note         String        @default("")
+  receipt      Bytes?
+  receiptMime  String        @default("") @map("receipt_mime")
+  status       RequestStatus @default(PENDING_APPROVAL)
+  createdById  String        @map("created_by_id") @db.Uuid
+  approvedById String?       @map("approved_by_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@map("expenses")
+}
+
+/// A hand written journal (opening balances, corrections) waiting for a second person.
+model JournalDraft {
+  id           String        @id @default(uuid()) @db.Uuid
+  date         String
+  memo         String
+  lines        Json
+  status       RequestStatus @default(PENDING_APPROVAL)
+  entryId      String?       @map("entry_id") @db.Uuid
+  createdById  String        @map("created_by_id") @db.Uuid
+  approvedById String?       @map("approved_by_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+
+  @@map("journal_drafts")
 }
 
 model Setting {

@@ -68,7 +68,7 @@ describe('agents and workforce', () => {
     expect(file.headers['content-type']).toContain('application/pdf');
 
     const full = await ok(admin.get(`/admin/agents/${agent.id}`));
-    expect(full.effectiveCommissionBp).toBe(1000); // default from settings
+    expect(full.effectiveCommissionBp).toBe(1500); // default from settings (15%)
     expect(full.documents).toHaveLength(1);
 
     await ok(admin.post(`/admin/agents/${agent.id}/logins`).send({ name: 'Giza Fleet owner', email: 'owner@gizafleet.example', password: 'fleet12345' }), 201);

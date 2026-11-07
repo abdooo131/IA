@@ -377,27 +377,6 @@ export class AdminService {
     return merchantStatement(this.prisma, merchantId);
   }
 
-  /** Settle everything that is ready for one merchant. The bank transfer itself is done outside. */
-  async createPayout(merchantId: string, reference: string, user: SessionUser) {
-    return this.prisma.tx(async (tx) => {
-      const open = await settleable(tx, merchantId);
-      if (open.length === 0) throw new DomainError('invalid_input', 'Nothing to settle for this merchant yet', 422);
-      const codTotal = open.reduce((n, s) => n + s.codCollected, 0);
-      const feesTotal = open.reduce((n, s) => n + feesOf(s), 0);
-      const payout = await tx.payout.create({
-        data: { code: await nextCode(tx, 'payout_seq', 'PO'), merchantId, codTotal, feesTotal, amount: codTotal - feesTotal, reference: reference.slice(0, 120), createdById: user.id },
-      });
-      const r = await tx.shipment.updateMany({ where: { id: { in: open.map((s) => s.id) }, payoutId: null }, data: { payoutId: payout.id } });
-      if (r.count !== open.length) throw new DomainError('conflict', 'Someone settled some of these parcels just now. Try again', 409);
-      await this.audit(user, 'PAYOUT_CREATED', 'payout', payout.id, { merchantId, amount: payout.amount, parcels: open.length });
-      return payout;
-    });
-  }
-
-  payouts() {
-    return this.prisma.payout.findMany({ include: { merchant: { select: { name: true } }, _count: { select: { shipments: true } } }, orderBy: { createdAt: 'desc' }, take: 100 });
-  }
-
   async courierCash() {
     const runs = await this.prisma.run.findMany({ where: { status: 'CLOSED' }, orderBy: { closedAt: 'desc' }, take: 200 });
     const users = new Map((await this.prisma.user.findMany({ where: { role: 'COURIER' }, select: { id: true, name: true } })).map((u) => [u.id, u.name]));

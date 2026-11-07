@@ -1,6 +1,6 @@
 // Starting data. Safe to run again: it only adds what is missing and never overwrites edits.
 import { PrismaClient } from '@prisma/client';
-import { SETTINGS, nearest } from '@shiply/shared';
+import { ACCOUNT_LIST, SETTINGS, nearest } from '@shiply/shared';
 import { hashPassword } from '../src/password';
 
 const prisma = new PrismaClient();
@@ -125,6 +125,15 @@ async function main() {
     await prisma.setting.upsert({ where: { key }, update: {}, create: { key, value: def.default as never } });
   }
 
+  // Chart of accounts: the built in accounts the system posts to.
+  for (const a of ACCOUNT_LIST) {
+    await prisma.account.upsert({
+      where: { code: a.code },
+      update: { name: a.name, nameAr: a.nameAr, type: a.type, party: a.party ?? null, system: true },
+      create: { code: a.code, name: a.name, nameAr: a.nameAr, type: a.type, party: a.party ?? null, system: true },
+    });
+  }
+
   const addUser = async (data: {
     email: string;
     name: string;
@@ -146,6 +155,8 @@ async function main() {
   await addUser({ email: adminEmail.toLowerCase(), name: 'Admin', role: 'ADMIN', password: adminPassword });
 
   if (demoPassword) {
+    // A second admin, so money moves can be approved by a different person.
+    await addUser({ email: 'finance@shiply.local', name: 'Finance', role: 'ADMIN', password: demoPassword });
     // Two demo agents: one supplies pickup staff (work from sorting facilities), one supplies
     // delivery staff (work from last mile hubs). Couriers join with the agent's code.
     const pickupAgent = await prisma.agent.upsert({

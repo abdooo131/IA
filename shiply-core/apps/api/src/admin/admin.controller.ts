@@ -141,15 +141,6 @@ export class AdminController {
     return this.admin.statement(id);
   }
 
-  @Post('merchants/:id/payouts')
-  payout(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string, @Body() body: { reference?: string }) {
-    return this.admin.createPayout(id, String(body?.reference ?? ''), u);
-  }
-
-  @Get('payouts')
-  payouts() {
-    return this.admin.payouts();
-  }
 
   @Get('courier-cash')
   courierCash() {

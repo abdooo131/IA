@@ -9,6 +9,8 @@ import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo, type NextStep } from '../core/shipments.core';
+import { formatEgp } from '@shiply/shared';
+import { courierStanding, postPickupReceived, postRunClosed } from '../finance/postings';
 
 const Code = z.object({ code: z.string().trim().min(3).max(40) });
 const TripInput = z.object({
@@ -86,7 +88,11 @@ export class HubService {
             patch.promisedDate = await this.core.promiseFor(tx, s, now, settings);
           }
           await this.core.move(tx, s, 'AT_INBOUND', patch, { ...ev, type: s.status === 'CREATED' ? 'DROPPED_OFF' : 'RECEIVED_FROM_PICKUP', note: warning ?? '' });
-          if (s.pickupId) await this.completePickupIfDone(tx, s.pickupId);
+          if (s.pickupId) {
+            await this.completePickupIfDone(tx, s.pickupId);
+            const pickup = s.status === 'PICKED_UP' ? await tx.pickup.findUnique({ where: { id: s.pickupId } }) : null;
+            if (pickup?.courierId) await postPickupReceived(tx, settings, s, pickup.courierId, user.id);
+          }
           message = s.status === 'CREATED' ? 'Merchant drop off received' : 'Received from pickup courier';
           break;
         }
@@ -629,6 +635,10 @@ export class HubService {
   async createRun(hubId: string, body: unknown, user: SessionUser) {
     const { courierId } = parse(RunInput, body);
     await this.assertCourier(courierId, hubId);
+    const standing = await courierStanding(this.prisma, await this.settings.all(), courierId);
+    if (standing.frozen) {
+      throw new DomainError('courier_frozen', `This courier's wallet is negative (${formatEgp(standing.wallet)}). They must recharge, or finance can let them work with a reason`, 409);
+    }
     return this.prisma.tx(async (tx) => {
       const active = await tx.run.findFirst({ where: { courierId, status: { in: ['LOADING', 'OUT'] } } });
       if (active) throw new DomainError('duplicate', `This courier still has run ${active.code} open`, 409);
@@ -701,9 +711,14 @@ export class HubService {
         throw new DomainError('parcels_missing', `Scan these parcels back in first: ${notBack.map((i) => i.shipment.trackingNumber).join(', ')}`, 409);
       }
       const expected = run.items.reduce((sum, i) => sum + i.codCollected, 0);
+      // Cash the courier already paid in through Fawry for this run is not expected at the hub.
+      const paid = await tx.payIn.aggregate({ where: { runId, purpose: 'CASH', status: 'CONFIRMED' }, _sum: { amount: true } });
+      const paidIn = paid._sum.amount ?? 0;
+      const due = Math.max(0, expected - paidIn);
       await tx.run.update({ where: { id: runId }, data: { status: 'CLOSED', cashExpected: expected, cashReceived, closedAt: new Date(), closedById: user.id } });
-      await tx.auditLog.create({ data: { userId: user.id, action: 'RUN_CLOSED', entity: 'run', entityId: runId, data: { expected, cashReceived } } });
-      return { expected, received: cashReceived, difference: cashReceived - expected };
+      await tx.auditLog.create({ data: { userId: user.id, action: 'RUN_CLOSED', entity: 'run', entityId: runId, data: { expected, paidIn, cashReceived } } });
+      const money = await postRunClosed(tx, await this.settings.all(tx), run, due, cashReceived, user.id);
+      return { expected, paidIn, due, received: cashReceived, difference: cashReceived - due, ...money };
     });
   }
 }

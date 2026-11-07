@@ -22,6 +22,8 @@ export class SettingsService {
       (def.kind === 'text' && typeof value === 'string' && /^[A-Z]{2,5}$/.test(value)) ||
       (['int', 'money', 'bp'].includes(def.kind) && Number.isInteger(value) && (value as number) >= 0 &&
         (def.kind !== 'bp' || (value as number) <= 10000)) ||
+      (def.kind === 'choice' && typeof value === 'string' && ((def as { options?: readonly string[] }).options ?? []).includes(value)) ||
+      (def.kind === 'date' && typeof value === 'string' && (value === '' || /^\d{4}-\d{2}-\d{2}$/.test(value))) ||
       (def.kind === 'weekdays' && Array.isArray(value) && value.length < 7 &&
         value.every((d) => Number.isInteger(d) && d >= 0 && d <= 6));
     if (!ok) throw new DomainError('invalid_input', `Bad value for ${def.label}`, 422);

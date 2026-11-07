@@ -5,6 +5,8 @@ import { AdminController } from './admin/admin.controller';
 import { AdminService } from './admin/admin.service';
 import { AdminAgentsController, AgentPortalController, CourierShiftController, JoinController } from './agents/agents.controller';
 import { AgentsService } from './agents/agents.service';
+import { AgentMoneyController, CourierMoneyController, FinanceController, HubSafeController, MerchantBankController } from './finance/finance.controller';
+import { FinanceService } from './finance/finance.service';
 import { AuthGuard } from './auth/auth';
 import { AuthController } from './auth/auth.controller';
 import { ErrorFilter } from './common/errors';
@@ -27,7 +29,7 @@ function jwtSecret(): string {
 
 @Module({
   imports: [JwtModule.registerAsync({ global: true, useFactory: () => ({ secret: jwtSecret(), signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }) })],
-  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController],
+  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController],
   providers: [
     PrismaService,
     SettingsService,
@@ -37,6 +39,7 @@ function jwtSecret(): string {
     CourierService,
     AdminService,
     AgentsService,
+    FinanceService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_FILTER, useClass: ErrorFilter },
   ],

@@ -8,6 +8,7 @@ import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { ShipmentsCore } from '../core/shipments.core';
+import { postDelivered, postReturned } from '../finance/postings';
 
 const Code = z.object({ code: z.string().trim().min(3).max(40) });
 const DeliverInput = z.object({
@@ -124,6 +125,7 @@ export class CourierService {
         });
         await tx.runItem.update({ where: { id: item.id }, data: { result: 'RETURNED', recipient: d.recipient, resolvedAt: now } });
         await this.core.move(tx, s, 'RETURNED', { runId: null, returnFee: fee, closedAt: now, codFee: 0 }, { type: 'RETURNED', userId: user.id, hubId: item.run.hubId, note: d.recipient ? `Received by ${d.recipient}` : '' });
+        await postReturned(tx, settings, { ...s, returnFee: fee, codFee: 0 }, user.id, user.id);
         return { message: 'Returned to merchant' };
       }
       if (d.codCollected !== s.codAmount) {
@@ -131,6 +133,7 @@ export class CourierService {
       }
       await tx.runItem.update({ where: { id: item.id }, data: { result: 'DELIVERED', codCollected: d.codCollected, recipient: d.recipient, resolvedAt: now } });
       await this.core.move(tx, s, 'DELIVERED', { runId: null, codCollected: d.codCollected, deliveredAt: now, closedAt: now }, { type: 'DELIVERED', userId: user.id, hubId: item.run.hubId, note: d.recipient ? `Received by ${d.recipient}` : '' });
+      await postDelivered(tx, await this.settings.all(tx), { ...s, codCollected: d.codCollected }, user.id, user.id);
       return { message: 'Delivered' };
     });
   }

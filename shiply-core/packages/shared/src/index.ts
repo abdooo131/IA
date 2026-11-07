@@ -6,3 +6,4 @@ export * from './dates';
 export * from './pricing';
 export * from './settings';
 export * from './phone';
+export * from './accounts';

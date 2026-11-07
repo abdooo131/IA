@@ -225,14 +225,27 @@ describe('company flow', () => {
     await ok(as['staff.obr']!.post(`/hubs/${hubs.OBR}/runs/${run.id}/close`).send({ cashReceived: 0 }));
     const done = await show(p.refused.id);
     expect(done.status).toBe('RETURNED');
-    expect(done.returnFee).toBe(3000);
+    expect(done.returnFee).toBe(3600); // 60% of shipping
   });
 
   it('statement and payout', async () => {
     const st = await ok(as.merchant.get('/merchant/statement'));
-    expect(st.balance).toBe(50000 - 6000 - (6000 + 3000));
+    expect(st.balance).toBe(50000 - 6000 - (6000 + 3600));
     const merchantId = (await ok(as.merchant.get('/auth/me'))).merchantId;
-    expect((await ok(as.admin.post(`/admin/merchants/${merchantId}/payouts`).send({ reference: 'TX1' }), 201)).amount).toBe(35000);
+    // No bank account yet: no payout.
+    expect((await as.admin.post(`/finance/merchants/${merchantId}/payouts`).send({})).status).toBe(422);
+    await ok(as.merchant.put('/merchant/bank').send({ bankName: 'CIB', bankAccountName: 'Eve Chantelle', iban: 'EG' + '1'.repeat(27) }));
+    const payout = await ok(as.admin.post(`/finance/merchants/${merchantId}/payouts`).send({ reference: 'TX1' }), 201);
+    expect(payout.amount).toBe(34400);
+    // The same person cannot approve it.
+    expect((await as.admin.post(`/finance/payouts/${payout.id}/approve`)).status).toBe(403);
+    const finance = await login('finance@shiply.local');
+    await ok(finance.post(`/finance/payouts/${payout.id}/approve`));
+    await ok(as.admin.post(`/finance/payouts/${payout.id}/paid`).send({ reference: 'CIB 991' }));
+    const tb = await ok(as.admin.get('/finance/reports/trial-balance'));
+    expect(tb.balanced).toBe(true);
+    const merchants = await ok(as.admin.get('/finance/wallets/MERCHANT'));
+    expect(merchants.find((m: any) => m.id === merchantId)).toBeUndefined(); // paid to zero
   });
 
   it('public tracking shows the journey without personal data', async () => {
