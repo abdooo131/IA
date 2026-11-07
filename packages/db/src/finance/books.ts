@@ -745,7 +745,12 @@ export async function profitAndLoss(db: Db, from: Date, to: Date, scope: BookSco
  */
 export async function profitByCostCenter(db: Db, from: Date, to: Date) {
   const rows = await db.$queryRaw<
-    { company: 'shiply_now' | 'shiply'; cost_center_id: string | null; income: bigint; expenses: bigint }[]
+    {
+      company: 'shiply_now' | 'shiply';
+      cost_center_id: string | null;
+      income: bigint;
+      expenses: bigint;
+    }[]
   >`
     SELECT l.company::text AS company, l.cost_center_id,
       COALESCE(SUM(CASE WHEN a.category = 'revenue' THEN -l.amount_piastres END), 0) AS income,
@@ -773,12 +778,19 @@ export async function profitByCostCenter(db: Db, from: Date, to: Date) {
       profitPiastres: income - expenses,
     };
   });
-  lines.sort((a, b) => a.company.localeCompare(b.company) || (a.code ?? '~').localeCompare(b.code ?? '~'));
+  lines.sort(
+    (a, b) => a.company.localeCompare(b.company) || (a.code ?? '~').localeCompare(b.code ?? '~'),
+  );
   const companies = (['shiply_now', 'shiply'] as const).map((company) => {
     const mine = lines.filter((l) => l.company === company);
     const income = mine.reduce((n, l) => n + l.incomePiastres, 0);
     const expenses = mine.reduce((n, l) => n + l.expensesPiastres, 0);
-    return { company, incomePiastres: income, expensesPiastres: expenses, profitPiastres: income - expenses };
+    return {
+      company,
+      incomePiastres: income,
+      expensesPiastres: expenses,
+      profitPiastres: income - expenses,
+    };
   });
   const income = companies.reduce((n, c) => n + c.incomePiastres, 0);
   const expenses = companies.reduce((n, c) => n + c.expensesPiastres, 0);
@@ -787,7 +799,11 @@ export async function profitByCostCenter(db: Db, from: Date, to: Date) {
     to,
     companies,
     costCenters: lines,
-    group: { incomePiastres: income, expensesPiastres: expenses, profitPiastres: income - expenses },
+    group: {
+      incomePiastres: income,
+      expensesPiastres: expenses,
+      profitPiastres: income - expenses,
+    },
   };
 }
 

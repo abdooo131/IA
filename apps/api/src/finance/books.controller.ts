@@ -229,7 +229,11 @@ export class BooksController {
   @Get('profit-and-loss')
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
-  @ApiQuery({ name: 'company', required: false, description: 'shiply_now or shiply; both when empty' })
+  @ApiQuery({
+    name: 'company',
+    required: false,
+    description: 'shiply_now or shiply; both when empty',
+  })
   @ApiQuery({ name: 'costCenter', required: false, description: 'A cost center id' })
   profit(
     @Query('from') from?: string,
