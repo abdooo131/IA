@@ -1,3 +1,4 @@
+import { ensureLostReasons } from '../crm';
 import { ensureDefaultAccounts } from '../finance';
 import { prepareAreaMap, loadBaseAreas } from '../geo';
 import type { PrismaClient } from '@prisma/client';
@@ -92,6 +93,9 @@ export async function seed(prisma: PrismaClient, options: SeedOptions) {
     });
   }
   log(`Settings: ${SETTING_KEYS.length}`);
+
+  // Sales CRM: the lost reasons the list starts with (only missing ones).
+  await ensureLostReasons(prisma);
 
   const stores = new Map<string, string>();
   for (const s of STORES) {

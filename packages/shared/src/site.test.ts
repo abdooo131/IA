@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { latinDigits, siteLeadFieldErrors, siteLeadSchema, siteLeadUpdateSchema } from './site';
+import { latinDigits, siteLeadFieldErrors, siteLeadSchema } from './site';
 
 const lead = {
   name: 'Mona Adel',
@@ -31,12 +31,5 @@ describe('site lead form', () => {
   it('reads Arabic-Indic digits', () => {
     expect(latinDigits('٠١٠١٢٣٤٥٦٧٨')).toBe('01012345678');
     expect(siteLeadFieldErrors({ ...lead, phone: '٠١٠١٢٣٤٥٦٧٨' })).toBeNull();
-  });
-
-  it('updates a status, a note or both, never nothing', () => {
-    expect(siteLeadUpdateSchema.parse({ status: 'won' })).toEqual({ status: 'won' });
-    expect(siteLeadUpdateSchema.parse({ note: ' ' })).toEqual({ note: null });
-    expect(siteLeadUpdateSchema.safeParse({}).success).toBe(false);
-    expect(siteLeadUpdateSchema.safeParse({ status: 'maybe' }).success).toBe(false);
   });
 });

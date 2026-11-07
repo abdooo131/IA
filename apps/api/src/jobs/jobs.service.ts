@@ -12,6 +12,7 @@ import {
   checkDocumentExpiry,
   checkRiderCashOverdue,
   closeAttendanceDays,
+  crmReminders,
   checkFailedDeliveries,
   flagLateOrders,
   getSetting,
@@ -97,6 +98,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runAttendanceClose();
       void this.runRiderCashCheck();
       void this.runEmails();
+      void this.runCrmReminders();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -206,6 +208,24 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: rider cash', error);
+      return null;
+    }
+  }
+
+  /**
+   * Sales CRM reminders (docs/SALES.md): follow ups that became due (the push dispatcher tells
+   * their owner), one crm_followup_overdue alert per follow up past sales.overdue_minutes and one
+   * crm_deal_stale alert per deal and stage past sales.stale_days. Every mark and alert is
+   * claimed once in the database, so overlaps and other instances change nothing.
+   */
+  async runCrmReminders(now: Date = new Date()) {
+    try {
+      const result = await crmReminders(this.prisma, now);
+      if (result.overdue + result.stale > 0)
+        this.log.log(`Sales: ${result.overdue} overdue follow ups, ${result.stale} stale deals`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: sales reminders', error);
       return null;
     }
   }

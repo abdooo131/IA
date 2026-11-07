@@ -349,6 +349,20 @@ export function AccessEditor({
           <label className="flex items-start gap-2 text-body-sm">
             <input
               type="checkbox"
+              checked={values.ownDealsOnly}
+              onChange={(e) => set({ ownDealsOnly: e.target.checked })}
+              className="mt-0.5 h-4 w-4"
+            />
+            <span>
+              <span className="font-semibold">{t('access.ownDealsOnly')}</span>
+              <span className="block text-caption text-text-muted">
+                {t('access.ownDealsOnlyHint')}
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-body-sm">
+            <input
+              type="checkbox"
               checked={values.salaries}
               onChange={(e) => set({ salaries: e.target.checked })}
               className="mt-0.5 h-4 w-4"

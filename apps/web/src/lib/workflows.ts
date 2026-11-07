@@ -25,6 +25,10 @@ export const WORKFLOWS = {
     path: ['awaiting_approval', 'issued', 'cleared'],
     side: ['bounced', 'cancelled'],
   },
+  deal: {
+    path: ['new', 'contacted', 'meeting', 'proposal', 'negotiation', 'won'],
+    side: ['lost'],
+  },
   purchase_order: {
     path: ['requested', 'approved', 'ordered', 'received', 'billed', 'closed'],
     side: ['rejected', 'cancelled'],

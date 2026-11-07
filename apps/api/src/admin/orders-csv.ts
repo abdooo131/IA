@@ -34,7 +34,7 @@ const cairo = new Intl.DateTimeFormat('en-GB', {
   hourCycle: 'h23',
 });
 
-function when(value: Date | string | null) {
+export function when(value: Date | string | null) {
   if (!value) return '';
   const p = Object.fromEntries(cairo.formatToParts(new Date(value)).map((x) => [x.type, x.value]));
   return `${p.year}-${p.month}-${p.day} ${p.hour}:${p.minute}`;
@@ -47,7 +47,7 @@ export function egp(piastres: number) {
   return `${sign}${Math.floor(abs / 100)}.${String(abs % 100).padStart(2, '0')}`;
 }
 
-function cell(value: string | number | boolean) {
+export function cell(value: string | number | boolean) {
   const text = String(value);
   // Quote anything with separators, and neutralise formula prefixes so Excel never runs them.
   // A plain number (also negative, like -60.42) stays a number Excel can add up.
@@ -56,7 +56,7 @@ function cell(value: string | number | boolean) {
 }
 
 /** Byte order mark: tells Excel the file is UTF-8 so Arabic names show correctly. */
-const BOM = String.fromCharCode(0xfeff);
+export const BOM = String.fromCharCode(0xfeff);
 
 export function ordersCsv(orders: OrderSummary[]): string {
   const lines = [COLUMNS.join(',')];

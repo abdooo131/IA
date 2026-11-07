@@ -48,11 +48,13 @@ function toProfile(
     customers: row.customers,
     accounting: row.accounting,
     hr: row.hr,
+    sales: row.sales,
     settings: row.settings,
     allStores: row.allStores,
     customerData: row.customerData,
     salaries: row.salaries,
     ownMerchantsOnly: row.ownMerchantsOnly,
+    ownDealsOnly: row.ownDealsOnly,
     storeIds: [...storeIds].sort(),
     merchantIds: row.ownMerchantsOnly ? [...merchantIds].sort() : [],
   };
@@ -159,11 +161,13 @@ export async function writeAccess(
     customers: values.customers,
     accounting: values.accounting,
     hr: values.hr,
+    sales: values.sales,
     settings: values.settings,
     allStores: values.allStores,
     customerData: values.customerData,
     salaries: values.salaries,
     ownMerchantsOnly: values.ownMerchantsOnly,
+    ownDealsOnly: values.ownDealsOnly,
   };
   await tx.userAccess.upsert({ where: { userId }, update: data, create: { userId, ...data } });
   await tx.userStore.deleteMany({ where: { userId } });

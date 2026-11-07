@@ -23,6 +23,8 @@ export const PUSH_TYPES = [
   'merchant_payout',
   'merchant_low_stock',
   'rider_cash_overdue',
+  'crm_lead',
+  'crm_followup',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -50,7 +52,10 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   if (canDo(p, 'store', 'manage') || canDo(p, 'accounting', 'use')) list.push('rider_cash_overdue');
   if (canDo(p, 'operations', 'manage')) list.push('ops_alert');
   if (canDo(p, 'merchants', 'manage')) list.push('merchant_signup');
-  if (canDo(p, 'merchants', 'use')) list.push('site_lead', 'merchant_alert');
+  if (canDo(p, 'merchants', 'use')) list.push('merchant_alert');
+  // Sales CRM: website leads reach the sales managers' queue; reps hear about their deals.
+  if (canDo(p, 'sales', 'manage')) list.push('site_lead');
+  if (canDo(p, 'sales', 'use')) list.push('crm_lead', 'crm_followup');
   list.push('ticket', 'attendance_late', 'document_expiring');
   return list;
 }
@@ -208,6 +213,26 @@ export const PUSH_TEXT = {
       'نقدية لم تُسلَّم: {rider}',
       '{rider} في {store} معه {amount} جنيه منذ أكثر من {hours} ساعة.',
     ],
+  },
+  crm_lead_assigned: {
+    en: ['Deal {number} is yours', '{company}: {name} gave you this deal.'],
+    ar: ['الصفقة {number} لك', '{company}: {name} أسند إليك هذه الصفقة.'],
+  },
+  crm_lead_new: {
+    en: ['New lead: {company}', 'A new lead waits to be assigned.'],
+    ar: ['عميل محتمل جديد: {company}', 'عميل محتمل جديد ينتظر التوزيع.'],
+  },
+  crm_followup_due: {
+    en: ['Follow up now: {company}', '{subject}'],
+    ar: ['متابعة الآن: {company}', '{subject}'],
+  },
+  crm_followup_overdue: {
+    en: ['Follow up overdue: {company}', '{subject} was due {minutes} min ago.'],
+    ar: ['متابعة متأخرة: {company}', '{subject} كان موعدها منذ {minutes} دقيقة.'],
+  },
+  crm_deal_stale: {
+    en: ['Deal {number} is stuck', '{company} has been in one stage for {days} days.'],
+    ar: ['الصفقة {number} متوقفة', '{company} في نفس المرحلة منذ {days} يومًا.'],
   },
 } as const satisfies Record<string, Record<PushLang, readonly [string, string]>>;
 export type PushTextKey = keyof typeof PUSH_TEXT;

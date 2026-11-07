@@ -55,7 +55,6 @@ describe('website leads', () => {
       website: 'monastore.com',
       ordersBand: '300_1000',
       locale: 'ar',
-      status: 'new',
     });
     // A double tap sends the same key: one lead, one alert.
     const again = await web.post('/site/leads').send(lead).expect(201);
@@ -105,53 +104,27 @@ describe('website leads', () => {
       .expect(201);
   });
 
-  it('lists leads for merchants view and lets merchants use follow them up', async () => {
+  it('opens a deal in the Sales leads queue, read with sales access only', async () => {
     const web = request(app.getHttpServer());
     const first = await web.post('/site/leads').send(lead).expect(201);
-    await web
-      .post('/site/leads')
-      .send({ ...lead, name: 'Karim Said', idempotencyKey: 'lead-key-0009' })
-      .expect(201);
-
     const admin = await signIn('admin@test.eg', 'admin-password-1');
-    const list = await admin.get('/admin/site-leads').expect(200);
-    expect(list.body.map((l: { name: string }) => l.name)).toEqual(['Karim Said', 'Mona Adel']);
-
-    const updated = await admin
-      .patch(`/admin/site-leads/${first.body.id}`)
-      .send({ status: 'contacted', note: 'Called, sending rates' })
-      .expect(200);
-    expect(updated.body).toMatchObject({
-      status: 'contacted',
-      note: 'Called, sending rates',
-      handledBy: { name: 'Admin' },
+    const queue = await admin.get('/sales/deals?unassigned=true').expect(200);
+    expect(queue.body).toHaveLength(1);
+    expect(queue.body[0]).toMatchObject({
+      stage: 'new',
+      owner: null,
+      expectedMonthlyOrders: 650,
+      company: { brandName: 'monastore.com', source: 'website_form' },
     });
-    const contacted = await admin.get('/admin/site-leads?status=contacted').expect(200);
-    expect(contacted.body).toHaveLength(1);
-    const audit = await prisma.auditLog.findFirstOrThrow({ where: { action: 'site_lead.update' } });
-    expect(audit).toMatchObject({
-      entityId: first.body.id,
-      before: { status: 'new', note: null },
-      after: { status: 'contacted', note: 'Called, sending rates' },
+    const company = await prisma.crmCompany.findUniqueOrThrow({
+      where: { siteLeadId: first.body.id },
+      include: { contacts: true },
     });
-    // Following the lead up handles its alert.
-    const alert = await prisma.alert.findUniqueOrThrow({
-      where: { key: `site_lead:${first.body.id}` },
-    });
-    expect(alert.resolvedAt).not.toBeNull();
-    await admin.patch(`/admin/site-leads/${first.body.id}`).send({}).expect(400);
-    await admin.patch('/admin/site-leads/nope').send({ status: 'won' }).expect(404);
-
-    // Merchants view reads but cannot change; no merchants access reads nothing.
+    expect(company.contacts[0]).toMatchObject({ name: 'Mona Adel', phone: '+201012345678' });
+    // The old Merchants leads page is gone; people without sales access read nothing.
+    await admin.get('/admin/site-leads').expect(404);
     const viewer = await member('accountant@test.eg', 'accountant');
-    await viewer.get('/admin/site-leads').expect(200);
-    const refused = await viewer
-      .patch(`/admin/site-leads/${first.body.id}`)
-      .send({ status: 'won' })
-      .expect(403);
-    expect(refused.body.error).toBe('no_access');
-    const hr = await member('hr@test.eg', 'hr_officer');
-    expect((await hr.get('/admin/site-leads').expect(403)).body.error).toBe('no_access');
-    await request(app.getHttpServer()).get('/admin/site-leads').expect(401);
+    expect((await viewer.get('/sales/deals').expect(403)).body.error).toBe('no_access');
+    await request(app.getHttpServer()).get('/sales/deals').expect(401);
   });
 });

@@ -22,6 +22,7 @@ import { PushModule } from './push/push.module';
 import { EmailModule } from './email/email.module';
 import { PackagingModule } from './packaging/packaging.module';
 import { SiteModule } from './site/site.module';
+import { SalesModule } from './sales/sales.module';
 import { MeController } from './users/me.controller';
 import { UsersController } from './users/users.controller';
 
@@ -52,6 +53,7 @@ import { UsersController } from './users/users.controller';
     EmailModule,
     PackagingModule,
     SiteModule,
+    SalesModule,
   ],
   controllers: [HealthController, UsersController, MeController],
 })

@@ -231,10 +231,15 @@ export class AdminOrdersController {
         ...(open !== 'false' && { resolvedAt: null }),
         // People limited to some stores see only those stores' alerts.
         darkStoreId: storeFilter(access),
-        // Employee document alerts belong to HR.
-        ...(!canDo(access, 'hr', 'view') && {
-          type: { notIn: ['document_expiring', 'document_expired'] },
-        }),
+        // Employee document alerts belong to HR, sales follow ups to the sales managers.
+        type: {
+          notIn: [
+            ...(!canDo(access, 'hr', 'view') ? ['document_expiring', 'document_expired'] : []),
+            ...(!canDo(access, 'sales', 'manage')
+              ? ['crm_followup_overdue', 'crm_deal_stale']
+              : []),
+          ],
+        },
         // Account managers get the alerts of their merchants (docs/HR.md 5).
         ...(merchants && {
           OR: [{ merchantId: merchants }, { order: { merchantId: merchants } }],

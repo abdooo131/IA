@@ -15,6 +15,7 @@ export const ACCESS_APPS = [
   'customers',
   'accounting',
   'hr',
+  'sales',
   'settings',
 ] as const;
 export type AccessApp = (typeof ACCESS_APPS)[number];
@@ -31,6 +32,7 @@ export const APP_LEVELS: Record<AccessApp, readonly AccessLevel[]> = {
   customers: ['none', 'view', 'use', 'manage'],
   accounting: ['none', 'view', 'use', 'manage'],
   hr: ['none', 'view', 'use', 'manage'],
+  sales: ['none', 'view', 'use', 'manage'],
   settings: ['none', 'manage'],
 };
 
@@ -49,6 +51,8 @@ export interface AccessTemplate extends AppLevels {
   salaries: boolean;
   /** Account managers: only the merchants whose account manager they are (docs/HR.md 5) */
   ownMerchantsOnly: boolean;
+  /** Sales reps: only their own companies, deals and activities (docs/SALES.md) */
+  ownDealsOnly: boolean;
 }
 
 export const JOB_ROLES = [
@@ -66,6 +70,8 @@ export const JOB_ROLES = [
   'hr_manager',
   'account_manager',
   'qc_agent',
+  'sales_rep',
+  'sales_manager',
 ] as const;
 export type JobRole = (typeof JOB_ROLES)[number];
 export type JobRoleLabel = JobRole | 'custom';
@@ -78,6 +84,7 @@ type Levels = [
   customers: AccessLevel,
   accounting: AccessLevel,
   hr: AccessLevel,
+  sales: AccessLevel,
   settings: AccessLevel,
 ];
 
@@ -87,8 +94,10 @@ function template(
   customerData: boolean,
   salaries: boolean,
   ownMerchantsOnly = false,
+  ownDealsOnly = false,
 ): AccessTemplate {
-  const [store, operations, inventory, merchants, customers, accounting, hr, settings] = levels;
+  const [store, operations, inventory, merchants, customers, accounting, hr, sales, settings] =
+    levels;
   return {
     store,
     operations,
@@ -97,98 +106,115 @@ function template(
     customers,
     accounting,
     hr,
+    sales,
     settings,
     allStores,
     customerData,
     salaries,
     ownMerchantsOnly,
+    ownDealsOnly,
   };
 }
 
 /** The job roles table of docs/ACCESS.md, column for column. */
 export const JOB_ROLE_TEMPLATES: Record<JobRole, AccessTemplate> = {
   owner: template(
-    ['manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage'],
+    ['manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage', 'manage'],
     true,
     true,
     true,
   ),
   operations_manager: template(
-    ['manage', 'manage', 'manage', 'view', 'view', 'none', 'none', 'none'],
+    ['manage', 'manage', 'manage', 'view', 'view', 'none', 'none', 'none', 'none'],
     true,
     false,
     false,
   ),
   store_manager: template(
-    ['manage', 'use', 'use', 'none', 'none', 'none', 'view', 'none'],
+    ['manage', 'use', 'use', 'none', 'none', 'none', 'view', 'none', 'none'],
     false,
     false,
     false,
   ),
   store_staff: template(
-    ['use', 'none', 'none', 'none', 'none', 'none', 'none', 'none'],
+    ['use', 'none', 'none', 'none', 'none', 'none', 'none', 'none', 'none'],
     false,
     false,
     false,
   ),
   hub_staff: template(
-    ['use', 'none', 'view', 'none', 'none', 'none', 'none', 'none'],
+    ['use', 'none', 'view', 'none', 'none', 'none', 'none', 'none', 'none'],
     false,
     false,
     false,
   ),
   dispatcher: template(
-    ['use', 'use', 'view', 'none', 'none', 'none', 'none', 'none'],
+    ['use', 'use', 'view', 'none', 'none', 'none', 'none', 'none', 'none'],
     true,
     false,
     false,
   ),
   customer_service: template(
-    ['none', 'use', 'view', 'view', 'view', 'none', 'none', 'none'],
+    ['none', 'use', 'view', 'view', 'view', 'none', 'none', 'none', 'none'],
     true,
     true,
     false,
   ),
   accountant: template(
-    ['none', 'view', 'view', 'view', 'none', 'view', 'none', 'none'],
+    ['none', 'view', 'view', 'view', 'none', 'view', 'none', 'none', 'none'],
     true,
     false,
     false,
   ),
   finance_officer: template(
-    ['none', 'view', 'view', 'view', 'none', 'use', 'none', 'none'],
+    ['none', 'view', 'view', 'view', 'none', 'use', 'none', 'none', 'none'],
     true,
     false,
     false,
   ),
   finance_manager: template(
-    ['none', 'view', 'view', 'view', 'none', 'manage', 'none', 'none'],
+    ['none', 'view', 'view', 'view', 'none', 'manage', 'none', 'none', 'none'],
     true,
     false,
     true,
   ),
   hr_officer: template(
-    ['none', 'none', 'none', 'none', 'none', 'none', 'manage', 'none'],
+    ['none', 'none', 'none', 'none', 'none', 'none', 'manage', 'none', 'none'],
     true,
     false,
     false,
   ),
   // HR v2: HR manager keeps salary packages (hr manage with salaries); no accounting.
   hr_manager: template(
-    ['none', 'none', 'none', 'none', 'none', 'none', 'manage', 'none'],
+    ['none', 'none', 'none', 'none', 'none', 'none', 'manage', 'none', 'none'],
     true,
     false,
     true,
   ),
   account_manager: template(
-    ['none', 'view', 'view', 'use', 'view', 'none', 'none', 'none'],
+    ['none', 'view', 'view', 'use', 'view', 'none', 'none', 'none', 'none'],
     true,
     false,
     false,
     true,
   ),
+  // Sales CRM (docs/SALES.md): reps work their own deals; managers see all and assign.
+  sales_rep: template(
+    ['none', 'none', 'none', 'view', 'none', 'none', 'none', 'use', 'none'],
+    true,
+    false,
+    false,
+    false,
+    true,
+  ),
+  sales_manager: template(
+    ['none', 'none', 'none', 'view', 'none', 'none', 'none', 'manage', 'none'],
+    true,
+    false,
+    false,
+  ),
   qc_agent: template(
-    ['use', 'none', 'view', 'none', 'none', 'none', 'none', 'none'],
+    ['use', 'none', 'view', 'none', 'none', 'none', 'none', 'none', 'none'],
     false,
     false,
     false,
@@ -213,11 +239,13 @@ export const NO_ACCESS: AccessProfile = {
   customers: 'none',
   accounting: 'none',
   hr: 'none',
+  sales: 'none',
   settings: 'none',
   allStores: false,
   customerData: false,
   salaries: false,
   ownMerchantsOnly: false,
+  ownDealsOnly: false,
   storeIds: [],
   merchantIds: [],
 };
@@ -260,7 +288,8 @@ function sameValues(t: AccessTemplate, values: AccessTemplate) {
     t.allStores === values.allStores &&
     t.customerData === values.customerData &&
     t.salaries === values.salaries &&
-    t.ownMerchantsOnly === values.ownMerchantsOnly
+    t.ownMerchantsOnly === values.ownMerchantsOnly &&
+    t.ownDealsOnly === values.ownDealsOnly
   );
 }
 
@@ -301,11 +330,13 @@ export const setAccessSchema = z.union([
     customers: levelFor('customers'),
     accounting: levelFor('accounting'),
     hr: levelFor('hr').default('none'),
+    sales: levelFor('sales').default('none'),
     settings: levelFor('settings'),
     allStores: z.boolean(),
     customerData: z.boolean(),
     salaries: z.boolean(),
     ownMerchantsOnly: z.boolean().default(false),
+    ownDealsOnly: z.boolean().default(false),
     storeIds: storeIdsSchema.optional(),
   }),
 ]);

@@ -2,7 +2,7 @@
 
 Plain description of how the service is built, what runs where, and how the parts talk.
 Business rules and every decision live in CLAUDE.md; the detailed specs are in docs/ACCESS.md,
-docs/ZONES.md, docs/HR.md, docs/SHOPIFY_DATA.md, docs/ETA.md and docs/DEPLOY.md.
+docs/ZONES.md, docs/HR.md, docs/SALES.md, docs/SHOPIFY_DATA.md, docs/ETA.md and docs/DEPLOY.md.
 
 ## 1. What the service does
 
@@ -10,7 +10,7 @@ Shiply Now delivers Shopify merchants' orders within 60 minutes from small dark 
 Greater Cairo. Merchants send stock in advance (through a sorting hub), the system keeps it
 per store and shelf, Shopify sends the orders, store staff pick and pack them, riders deliver
 and collect cash, and finance settles money with merchants. Around that core it runs HR,
-accounting, customer data and internal tickets for the company.
+accounting, customer data, the sales CRM and internal tickets for the company.
 
 ## 2. Pieces at a glance
 
@@ -80,6 +80,8 @@ Modules under apps/api/src:
     email       merchant email outbox, billing email settings, Mailer boundary (SMTP)
     hr          employee files, documents, org chart, departments, grades, positions,
                 checklists, attendance, shifts, roster, holidays
+    sales       sales CRM: leads, pipeline, deals, companies, contacts, activities, My day
+    site        the public website's contact form
     tickets     internal tickets and Slack bridge
     shopify     OAuth install, webhooks, fulfillment service callbacks, carrier rates,
                 app proxy (widget and area page), data exports, outbox
@@ -102,8 +104,10 @@ Next.js 15 App Router, next-intl (en, ar with RTL), Tailwind with the Brand v2 t
     /                      public website for signed out visitors (signed in: own area)
     /login, /signup        sign in and merchant sign up
     /home                  app tiles (Operations, Inventory, Merchants, Customers,
-                           Accounting, HR, Settings, Store screens), only what the person may open
-    /admin/...             Operations, Inventory, Merchants, Customers, HR, Settings apps
+                           Accounting, HR, Sales, Settings, Store screens), only what the person
+                           may open
+    /admin/...             Operations, Inventory, Merchants, Customers, HR, Sales, Settings apps
+    /admin/sales/...       Sales app: pipeline board and list, leads, My day, companies, deals
     /finance/...           Accounting app
     /store/<storeId>/...   store staff screens (phone first, barcode scanning with the camera)
     /rider                 rider app (phone first)
@@ -132,12 +136,11 @@ balances or internal numbers. The middleware does not cover `/`, so it needs no 
 The contact form posts to POST /site/leads (public, zod `siteLeadSchema` in packages/shared,
 5 per address in 15 minutes by the last X-Forwarded-For entry, like auth/signup). The form's
 idempotency key makes a double tap one lead. A valid Egyptian mobile is stored as +20 and 10
-digits; anything else is kept as typed with `phone_valid` false. The lead (site_leads) and
-one `site_lead` alert are written in one transaction and audited (site_lead.create); the alert
-pushes to people with merchants use. Admin follows leads up at /admin/leads in the Merchants
-app (GET /admin/site-leads with merchants view, PATCH /admin/site-leads/:id with merchants use:
-status new, contacted, won or lost and a note, audited site_lead.update; a status past new
-marks the alert handled).
+digits; anything else is kept as typed with `phone_valid` false. The lead (site_leads, the raw
+submission), its Sales CRM company, contact and deal at stage new, and one `site_lead` alert are
+written in one transaction and audited (site_lead.create); the alert pushes to the sales
+managers (or the rep the round robin chose). The follow up happens in the Sales app
+(/admin/sales/leads, docs/SALES.md); /admin/leads redirects there.
 
 ## 7. Database (packages/db)
 
@@ -164,6 +167,8 @@ Main groups of tables:
                   holidays, punches, attendance_days
     Customers     customers, customer_aliases, shop_customers, shop_orders, shop_products,
                   shop_data_syncs
+    Sales         crm_companies, crm_contacts, crm_deals, crm_deal_stage_history (append
+                  only), crm_activities, crm_lost_reasons, site_leads (website form intake)
     Other         audit_log (append only), alerts, notifications, tickets, ticket_messages
 
 Hard rules enforced by the database as well as the code: money in integer piastres, no
@@ -224,8 +229,8 @@ reads HR salary packages and books it in accounting.
 
 Roles on the account: admin, finance, store_staff (team members), rider, merchant.
 Team members have an access profile per app (none, view, use, manage) for store screens,
-operations, inventory, merchants, customers, accounting, HR and settings, plus the stores they
-cover and two switches (customer data, salaries). Job roles fill the profile in one click.
+operations, inventory, merchants, customers, accounting, HR, sales and settings, plus the stores
+they cover and the switches (customer data, salaries, own merchants only, own deals only). Job roles fill the profile in one click.
 Merchant users are owners or members with rights (orders, stock, money, settings).
 The API checks every route; menus only hide what the API would refuse anyway. Details in
 docs/ACCESS.md.
@@ -249,6 +254,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
     ETA e-invoice submission and status (every minute, only when configured)
     web push dispatcher (every 10 seconds, only when the VAPID keys are set)
     email outbox sender (every 30 seconds, only when SMTP is set)
+    sales reminders (follow ups due, crm_followup_overdue and crm_deal_stale alerts)
 
 ## 11. Integrations
 
@@ -276,7 +282,8 @@ one instance acts, and each has an idempotency key so running twice changes noth
   links to: store staff of that store (store use), riders, accounting use, operations manage
   (paging alerts), merchants manage (sign ups), the merchant's account manager, HR use and the
   person (documents), the ticket's other person, merchant users with the orders, money or stock
-  right. Each event key is claimed in push_sent first (kept two days), so overlaps and other
+  right, sales managers (website leads, the leads queue) and the owner of a deal or follow up
+  (deal given to them, follow up due or overdue, deal stuck in a stage). Each event key is claimed in push_sent first (kept two days), so overlaps and other
   instances send it once; a failed send is counted on the device and reported through
   ErrorReporter, never failing the action. Words are in packages/shared/src/push.ts (en, ar,
   in the device's language). public/sw.js shows the notification and opens or focuses its page;

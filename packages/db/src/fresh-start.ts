@@ -24,6 +24,7 @@ const GUARDED_TABLES = [
   'tax_invoices',
   'tax_invoice_lines',
   'ticket_messages',
+  'crm_deal_stage_history',
 ];
 
 export type TableCounts = Record<string, number>;
@@ -171,6 +172,11 @@ export async function freshStart(
       await run('stock levels', 'DELETE FROM stock_levels');
 
       // Communication, history and attendance.
+      await run('crm activities', 'DELETE FROM crm_activities');
+      await run('crm stage history', 'DELETE FROM crm_deal_stage_history');
+      await run('crm deals', 'DELETE FROM crm_deals');
+      await run('crm contacts', 'DELETE FROM crm_contacts');
+      await run('crm companies', 'DELETE FROM crm_companies');
       await run('ticket messages', 'DELETE FROM ticket_messages');
       await run('tickets', 'DELETE FROM tickets');
       await run('notifications', 'DELETE FROM notifications');

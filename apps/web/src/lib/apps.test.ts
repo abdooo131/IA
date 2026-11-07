@@ -1,6 +1,6 @@
 import { JOB_ROLE_TEMPLATES, type JobRole, NO_ACCESS } from '@shiplynow/shared';
 import { describe, expect, it } from 'vitest';
-import { appsFor, canOpenPath, canOpenStoreScreens } from './apps';
+import { appsFor, canOpenPath, canOpenStoreScreens, locate } from './apps';
 
 const profile = (role: JobRole) => ({
   ...JOB_ROLE_TEMPLATES[role],
@@ -21,6 +21,7 @@ describe('appsFor', () => {
       'customers',
       'accounting',
       'hr',
+      'sales',
       'system',
     ]);
     expect(pages('owner')).toContain('/finance/opening');
@@ -92,10 +93,23 @@ describe('canOpenPath', () => {
     expect(canOpenPath(profile('store_manager'), '/admin/unknown')).toBe(true);
   });
 
-  it('opens the website leads to people with merchants view', () => {
-    expect(pages('accountant')).toContain('/admin/leads');
-    expect(pages('account_manager')).toContain('/admin/leads');
-    expect(canOpenPath(profile('hr_officer'), '/admin/leads')).toBe(false);
-    expect(canOpenPath(profile('store_manager'), '/admin/leads')).toBe(false);
+  it('opens the Sales app to sales people, its configuration to managers', () => {
+    expect(pages('sales_rep')).toEqual(
+      expect.arrayContaining([
+        '/admin/sales/pipeline',
+        '/admin/sales/deals',
+        '/admin/sales/leads',
+        '/admin/sales/my-day',
+        '/admin/sales/companies',
+      ]),
+    );
+    expect(pages('sales_rep')).not.toContain('/admin/sales/lost-reasons');
+    expect(pages('sales_manager')).toContain('/admin/sales/lost-reasons');
+    expect(pages('accountant')).not.toContain('/admin/sales/leads');
+    expect(canOpenPath(profile('hr_officer'), '/admin/sales/pipeline')).toBe(false);
+    expect(canOpenPath(profile('sales_rep'), '/admin/sales/deals/abc')).toBe(true);
+    // Leads moved from Merchants to Sales.
+    expect(pages('account_manager')).not.toContain('/admin/leads');
+    expect(locate('/admin/sales/new')?.app.id).toBe('sales');
   });
 });

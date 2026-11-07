@@ -93,7 +93,6 @@ model User {
   ticketsAssigned   Ticket[]          @relation("ticket_assignee")
   ticketMessages    TicketMessage[]
   orderNotes        OrderNote[]       @relation("order_note_author")
-  siteLeadsHandled  SiteLead[]        @relation("site_lead_handled_by")
   damageSettled     DamageReport[]    @relation("damage_settled_by")
   transfersCreated  Transfer[]        @relation("transfer_created_by")
   transfersApproved Transfer[]        @relation("transfer_approved_by")
@@ -146,6 +145,11 @@ model User {
   monthEndMarks         MonthEndMark[]
   purchaseOrdersAsked   PurchaseOrder[]          @relation("purchase_order_requested_by")
   purchaseOrdersDecided PurchaseOrder[]          @relation("purchase_order_decided_by")
+  crmCompaniesOwned     CrmCompany[]             @relation("crm_company_owner")
+  crmDealsOwned         CrmDeal[]                @relation("crm_deal_owner")
+  crmActivitiesOwned    CrmActivity[]            @relation("crm_activity_owner")
+  crmActivitiesCreated  CrmActivity[]            @relation("crm_activity_created_by")
+  crmStageChanges       CrmDealStageHistory[]
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -165,6 +169,8 @@ model UserAccess {
   customers        AccessLevel @default(none)
   accounting       AccessLevel @default(none)
   hr               AccessLevel @default(none)
+  /// Sales CRM (docs/SALES.md)
+  sales            AccessLevel @default(none)
   settings         AccessLevel @default(none)
   /// true: every store; false: only the stores in user_stores
   allStores        Boolean     @default(false) @map("all_stores")
@@ -174,6 +180,8 @@ model UserAccess {
   salaries         Boolean     @default(false)
   /// Account managers: only the merchants whose account manager they are
   ownMerchantsOnly Boolean     @default(false) @map("own_merchants_only")
+  /// Sales reps: only their own companies, deals and activities
+  ownDealsOnly     Boolean     @default(false) @map("own_deals_only")
   updatedAt        DateTime    @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -408,6 +416,9 @@ model Merchant {
 
   contract MerchantContract?
   cheques  Cheque[]
+
+  crmCompanies CrmCompany[]
+  crmDeals     CrmDeal[]
 
   @@index([accountManagerId])
   @@map("merchants")
@@ -1162,19 +1173,13 @@ model SiteLead {
   ordersBand     String   @map("orders_band")
   /// The site language the visitor used (en or ar)
   locale         String
-  /// new, contacted, won or lost
-  status         String   @default("new")
-  note           String?
   /// The form's key for one submission, so a double tap creates one lead
   idempotencyKey String   @unique @map("idempotency_key")
   createdAt      DateTime @default(now()) @map("created_at")
-  updatedAt      DateTime @updatedAt @map("updated_at")
-  /// Who last changed its status or note
-  handledById    String?  @map("handled_by_id")
 
-  handledBy User? @relation("site_lead_handled_by", fields: [handledById], references: [id], onDelete: SetNull)
+  /// The CRM company (and its deal) the submission opened; follow up lives there (docs/SALES.md)
+  crmCompany CrmCompany?
 
-  @@index([status, createdAt])
   @@index([createdAt])
   @@map("site_leads")
 }
@@ -3597,4 +3602,195 @@ model PurchaseOrderReceipt {
 
   @@index([purchaseOrderId])
   @@map("purchase_order_receipts")
+}
+
+// ─── Sales CRM (docs/SALES.md) ────────────────────────────────────────────────
+
+enum CrmSource {
+  website_form
+  signup
+  manual
+  referral
+  event
+  other
+
+  @@map("crm_source")
+}
+
+enum CrmStage {
+  new
+  contacted
+  meeting
+  proposal
+  negotiation
+  won
+  lost
+
+  @@map("crm_stage")
+}
+
+enum CrmActivityType {
+  call
+  meeting
+  whatsapp
+  email
+  note
+  task
+
+  @@map("crm_activity_type")
+}
+
+/// A brand we sell to. Leads from the website form and sign ups open one by themselves.
+model CrmCompany {
+  id                    String    @id @default(cuid())
+  brandName             String    @map("brand_name")
+  website               String?
+  shopDomain            String?   @map("shop_domain")
+  category              String?
+  city                  String?
+  expectedMonthlyOrders Int?      @map("expected_monthly_orders")
+  source                CrmSource
+  note                  String?
+  /// The rep who looks after the company (null: the sales managers' queue)
+  ownerId               String?   @map("owner_id")
+  /// The merchant once the company signed up or was won
+  merchantId            String?   @map("merchant_id")
+  /// The website form submission that opened it
+  siteLeadId            String?   @unique @map("site_lead_id")
+  idempotencyKey        String?   @unique @map("idempotency_key")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  owner      User?         @relation("crm_company_owner", fields: [ownerId], references: [id], onDelete: Restrict)
+  merchant   Merchant?     @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  siteLead   SiteLead?     @relation(fields: [siteLeadId], references: [id], onDelete: Restrict)
+  contacts   CrmContact[]
+  deals      CrmDeal[]
+  activities CrmActivity[]
+
+  @@index([ownerId])
+  @@index([merchantId])
+  @@index([brandName])
+  @@map("crm_companies")
+}
+
+/// A person at a company. A phone that is not a valid Egyptian mobile is kept as typed.
+model CrmContact {
+  id         String   @id @default(cuid())
+  companyId  String   @map("company_id")
+  name       String
+  role       String?
+  phone      String?
+  phoneValid Boolean  @default(false) @map("phone_valid")
+  email      String?
+  whatsapp   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  company CrmCompany @relation(fields: [companyId], references: [id], onDelete: Restrict)
+
+  @@index([companyId])
+  @@map("crm_contacts")
+}
+
+/// A sales opportunity walking the pipeline (DEAL-000001, gapless).
+model CrmDeal {
+  id                         String    @id @default(cuid())
+  number                     Int       @unique
+  companyId                  String    @map("company_id")
+  title                      String?
+  ownerId                    String?   @map("owner_id")
+  /// When the current owner got it (pushes "this deal is yours")
+  ownerAssignedAt            DateTime? @map("owner_assigned_at")
+  ownerAssignedById          String?   @map("owner_assigned_by_id")
+  /// Given by the round robin (sales.auto_assign), so the next lead goes to the next rep
+  autoAssigned               Boolean   @default(false) @map("auto_assigned")
+  stage                      CrmStage  @default(new)
+  expectedMonthlyOrders      Int?      @map("expected_monthly_orders")
+  expectedMonthlyFeePiastres Int?      @map("expected_monthly_fee_piastres")
+  expectedCloseDate          DateTime? @map("expected_close_date") @db.Date
+  /// A code of crm_lost_reasons, or "other" with lost_note
+  lostReason                 String?   @map("lost_reason")
+  lostNote                   String?   @map("lost_note")
+  stageChangedAt             DateTime  @default(now()) @map("stage_changed_at")
+  wonAt                      DateTime? @map("won_at")
+  lostAt                     DateTime? @map("lost_at")
+  merchantId                 String?   @map("merchant_id")
+  idempotencyKey             String?   @unique @map("idempotency_key")
+  createdById                String?   @map("created_by_id")
+  createdAt                  DateTime  @default(now()) @map("created_at")
+  updatedAt                  DateTime  @updatedAt @map("updated_at")
+
+  company    CrmCompany            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  owner      User?                 @relation("crm_deal_owner", fields: [ownerId], references: [id], onDelete: Restrict)
+  merchant   Merchant?             @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  history    CrmDealStageHistory[]
+  activities CrmActivity[]
+
+  @@index([ownerId, stage])
+  @@index([stage, stageChangedAt])
+  @@index([companyId])
+  @@map("crm_deals")
+}
+
+/// Every stage a deal entered (append only).
+model CrmDealStageHistory {
+  id          String    @id @default(cuid())
+  dealId      String    @map("deal_id")
+  fromStage   CrmStage? @map("from_stage")
+  toStage     CrmStage  @map("to_stage")
+  changedById String?   @map("changed_by_id")
+  changedAt   DateTime  @default(now()) @map("changed_at")
+  lostReason  String?   @map("lost_reason")
+  note        String?
+
+  deal      CrmDeal @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  changedBy User?   @relation(fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([dealId, changedAt])
+  @@map("crm_deal_stage_history")
+}
+
+/// A call, meeting, message, note or task. Open with a due date it is a planned next step.
+model CrmActivity {
+  id             String          @id @default(cuid())
+  companyId      String          @map("company_id")
+  dealId         String?         @map("deal_id")
+  type           CrmActivityType
+  subject        String
+  notes          String?
+  dueAt          DateTime?       @map("due_at")
+  doneAt         DateTime?       @map("done_at")
+  outcome        String?
+  ownerId        String          @map("owner_id")
+  createdById    String?         @map("created_by_id")
+  /// Set by the reminder job when the owner was told it is due (sent once)
+  dueNotifiedAt  DateTime?       @map("due_notified_at")
+  idempotencyKey String?         @unique @map("idempotency_key")
+  createdAt      DateTime        @default(now()) @map("created_at")
+  updatedAt      DateTime        @updatedAt @map("updated_at")
+
+  company   CrmCompany @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  deal      CrmDeal?   @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  owner     User       @relation("crm_activity_owner", fields: [ownerId], references: [id], onDelete: Restrict)
+  createdBy User?      @relation("crm_activity_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([ownerId, doneAt, dueAt])
+  @@index([dealId, doneAt])
+  @@index([companyId])
+  @@index([doneAt, dueAt])
+  @@map("crm_activities")
+}
+
+/// The reasons a deal can be lost (sales managers edit the list; "other" needs a note).
+model CrmLostReason {
+  code      String   @id
+  labelEn   String   @map("label_en")
+  labelAr   String   @map("label_ar")
+  active    Boolean  @default(true)
+  sortOrder Int      @default(0) @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("crm_lost_reasons")
 }

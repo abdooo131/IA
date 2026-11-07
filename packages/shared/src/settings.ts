@@ -394,6 +394,27 @@ export const SETTING_DEFINITIONS = {
       'New merchants who sign up are approved at once (1) or wait for admin approval (0)',
     override: 'none',
   },
+  'sales.auto_assign': {
+    schema: z.number().int().min(0).max(1),
+    default: 0,
+    description:
+      'New leads wait unassigned for the sales manager (0) or go round robin to the active sales reps (1)',
+    override: 'none',
+  },
+  'sales.overdue_minutes': {
+    schema: minutes,
+    default: 60,
+    description:
+      'Minutes a sales follow up may stay open after it was due before its owner and the sales managers are alerted',
+    override: 'none',
+  },
+  'sales.stale_days': {
+    schema: z.number().int().min(1).max(365),
+    default: 14,
+    description:
+      'Days a deal may sit in one stage before it is flagged as stale (one alert per stage)',
+    override: 'none',
+  },
   'ticket.normal_answer_minutes': {
     schema: minutes,
     default: 120,

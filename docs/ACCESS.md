@@ -27,11 +27,13 @@ One row per team member (`user_access`):
 | `customers` | none, view, use, manage |
 | `accounting` | none, view, use, manage (view, prepare, approve in finance words) |
 | `hr` | none, view, use, manage |
+| `sales` | none, view, use, manage |
 | `settings` | none, manage |
 | `all_stores` | true, or the listed stores only (`user_stores`) |
 | `customer_data` | may open named customer profiles (off unless given) |
 | `salaries` | may see salaries, payslips and the payroll run (off unless given) |
 | `own_merchants_only` | account managers: only the merchants whose account manager they are |
+| `own_deals_only` | sales reps: only their own companies, deals and activities (docs/SALES.md) |
 
 Levels are ordered none < view < use < manage. A GET needs view, a change needs use, and
 routes that approve, close, undo or configure need manage.
@@ -46,9 +48,9 @@ What each app covers:
   hubs, area import and address approvals, cancelling after pick.
 - **inventory**: stock, shipments, transfers, returns, damage reports, counts, refill.
   manage: approve or cancel transfers and refill drafts, approve counts, settle damage.
-- **merchants**: merchants, products, Shopify stores and apps, and the leads from the public
-  website (/admin/leads: view lists them, use changes their status and note). manage: approve
-  sign ups, link, connect or disconnect Shopify, add apps, fees per merchant.
+- **merchants**: merchants, products, Shopify stores and apps. manage: approve sign ups, link,
+  connect or disconnect Shopify, add apps, fees per merchant. (The website leads moved to the
+  Sales app.)
 - **customers**: market data and customer summaries. Named profiles also need
   `customer_data`. manage: merge profiles.
 - **accounting**: everything under `/finance`. view = reports only, use = prepare, manage =
@@ -66,6 +68,12 @@ What each app covers:
   need `salaries` (read with view, change with use). HR owns people: Accounting reads packages to
   pay them and cannot change them. Clocking in and out and reading one's own attendance need no
   access (every team member and rider).
+- **sales**: the CRM (docs/SALES.md): leads from the website form and sign ups, the pipeline,
+  deals, companies, contacts, activities and My day. view reads, use adds leads and companies,
+  moves deals, logs and plans activities; manage sees every deal whatever `own_deals_only`
+  says, gives deals to reps (or back to the queue) and edits the lost reasons. With
+  `own_deals_only` any route naming another person's record answers 403
+  `{ error: 'deal_not_allowed' }`. The sales settings page needs settings manage like every app.
 - **settings**: users and access, audit log, ticket settings, and the settings pages of every
   app (a setting is changed with settings manage).
 
@@ -75,22 +83,24 @@ screens, orders, stock, transfers, cash, alerts and the live board are filtered 
 
 ## Job roles (templates)
 
-| Job role | store | operations | inventory | merchants | customers | accounting | hr | settings | stores | customer data | salaries | own merchants only |
-|---|---|---|---|---|---|---|---|---|---|---|---|---|
-| Owner | manage | manage | manage | manage | manage | manage | manage | manage | all | yes | yes | no |
-| Operations manager | manage | manage | manage | view | view | none | none | none | all | no | no | no |
-| Store manager | manage | use | use | none | none | none | view | none | listed | no | no | no |
-| Store staff | use | none | none | none | none | none | none | none | listed | no | no | no |
-| Hub staff | use | none | view | none | none | none | none | none | listed | no | no | no |
-| Dispatcher | use | use | view | none | none | none | none | none | all | no | no | no |
-| Customer service | none | use | view | view | view | none | none | none | all | yes | no | no |
-| Accountant | none | view | view | view | none | view | none | none | all | no | no | no |
-| Finance officer | none | view | view | view | none | use | none | none | all | no | no | no |
-| Finance manager | none | view | view | view | none | manage | none | none | all | no | yes | no |
-| HR officer | none | none | none | none | none | none | manage | none | all | no | no | no |
-| HR manager | none | none | none | none | none | none | manage | none | all | no | yes | no |
-| Account manager | none | view | view | use | view | none | none | none | all | no | no | yes |
-| QC agent | use | none | view | none | none | none | none | none | listed | no | no | no |
+| Job role | store | operations | inventory | merchants | customers | accounting | hr | sales | settings | stores | customer data | salaries | own merchants only | own deals only |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Owner | manage | manage | manage | manage | manage | manage | manage | manage | manage | all | yes | yes | no | no |
+| Operations manager | manage | manage | manage | view | view | none | none | none | none | all | no | no | no | no |
+| Store manager | manage | use | use | none | none | none | view | none | none | listed | no | no | no | no |
+| Store staff | use | none | none | none | none | none | none | none | none | listed | no | no | no | no |
+| Hub staff | use | none | view | none | none | none | none | none | none | listed | no | no | no | no |
+| Dispatcher | use | use | view | none | none | none | none | none | none | all | no | no | no | no |
+| Customer service | none | use | view | view | view | none | none | none | none | all | yes | no | no | no |
+| Accountant | none | view | view | view | none | view | none | none | none | all | no | no | no | no |
+| Finance officer | none | view | view | view | none | use | none | none | none | all | no | no | no | no |
+| Finance manager | none | view | view | view | none | manage | none | none | none | all | no | yes | no | no |
+| HR officer | none | none | none | none | none | none | manage | none | none | all | no | no | no | no |
+| HR manager | none | none | none | none | none | none | manage | none | none | all | no | yes | no | no |
+| Account manager | none | view | view | use | view | none | none | none | none | all | no | no | yes | no |
+| QC agent | use | none | view | none | none | none | none | none | none | listed | no | no | no | no |
+| Sales rep | none | none | none | view | none | none | none | use | none | all | no | no | no | yes |
+| Sales manager | none | none | none | view | none | none | none | manage | none | all | no | no | no | no |
 
 QC agent holds the same values as Hub staff until the QC queue (HR step 5) gives it its own
 screens; the stored job role label keeps them apart.
@@ -132,6 +142,8 @@ is theirs.
 - admin → Owner profile.
 - HR step 1: the new hr column starts at manage for the Owner job role and none for everyone
   else; `own_merchants_only` starts off.
+- Sales CRM part 1: the new sales column starts at manage for every profile with settings
+  manage (owners) and none for everyone else; `own_deals_only` starts off.
 - HR step 2: Store managers get hr view (their stores' attendance board, roster and days); the
   migration raises existing Store manager profiles from none to view.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or

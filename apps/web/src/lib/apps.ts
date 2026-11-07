@@ -48,6 +48,7 @@ export const SETTINGS_APPS = [
   'customers',
   'accounting',
   'hr',
+  'sales',
   'system',
 ] as const;
 export type AppId = (typeof SETTINGS_APPS)[number];
@@ -108,8 +109,6 @@ export const APPS: AppDef[] = [
     access: 'merchants',
     menus: [
       { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
-      // Merchants who asked for rates on the public website (merchants view; use edits them).
-      { label: 'leads', pages: [{ href: '/admin/leads', label: 'leads' }] },
       { label: 'products', pages: [{ href: '/admin/products', label: 'products' }] },
       { label: 'shopify', pages: [{ href: '/admin/shopify', label: 'shopifyStores' }] },
       { label: 'configuration', pages: [settings('merchants')] },
@@ -258,6 +257,32 @@ export const APPS: AppDef[] = [
     ],
   },
   {
+    // Sales CRM (docs/SALES.md): view reads, use works deals, manage assigns and configures.
+    id: 'sales',
+    icon: 'analytics',
+    color: '#B91C1C',
+    access: 'sales',
+    menus: [
+      {
+        label: 'pipeline',
+        pages: [
+          { href: '/admin/sales/pipeline', label: 'pipelineBoard' },
+          { href: '/admin/sales/deals', label: 'pipelineList' },
+        ],
+      },
+      { label: 'leads', pages: [{ href: '/admin/sales/leads', label: 'leads' }] },
+      { label: 'myDay', pages: [{ href: '/admin/sales/my-day', label: 'myDay' }] },
+      { label: 'companies', pages: [{ href: '/admin/sales/companies', label: 'companies' }] },
+      {
+        label: 'configuration',
+        pages: [
+          { href: '/admin/sales/lost-reasons', label: 'lostReasons', need: { level: 'manage' } },
+          settings('sales'),
+        ],
+      },
+    ],
+  },
+  {
     id: 'system',
     icon: 'settings',
     color: '#475569',
@@ -296,6 +321,8 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
   // A page not on any menu still shows its area's app.
   if (under(pathname, '/finance'))
     return { app: APPS.find((a) => a.id === 'accounting')!, page: null };
+  if (under(pathname, '/admin/sales'))
+    return { app: APPS.find((a) => a.id === 'sales')!, page: null };
   if (under(pathname, '/admin')) return { app: APPS[0]!, page: null };
   return null;
 }

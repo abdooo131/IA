@@ -2,6 +2,7 @@ import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
 import { mapUnique } from './admin-ops';
+import { leadFromSignup } from './crm';
 import { notifyMerchant } from './notifications';
 import { hashPassword } from './password';
 import { getSetting } from './settings';
@@ -60,6 +61,15 @@ export function signUpMerchant(db: Db, input: SignUpInput) {
             autoApproved: auto,
           },
         },
+      });
+      // Sales follows every sign up up as a lead (docs/SALES.md).
+      await leadFromSignup(tx, {
+        merchantId: merchant.id,
+        businessName: input.businessName,
+        contactName: input.contactName,
+        email: input.email,
+        phone: input.phone,
+        shopDomain: input.shopDomain ?? null,
       });
       await recordAudit(tx, {
         actorUserId: null,

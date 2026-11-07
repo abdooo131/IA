@@ -3,6 +3,7 @@ import {
   type AccessApp,
   type AccessLevel,
   cairoDay,
+  dealNumber,
   egpText,
   merchantRightsOf,
   type MerchantRightName,
@@ -292,6 +293,7 @@ export async function dispatchPush(
     attendanceEvents,
     merchantEvents,
     lowStock,
+    crmEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -499,17 +501,53 @@ const alertEvents: Source = async (db, since) => {
         }),
       });
     }
+    // Sales CRM (docs/SALES.md): website leads to the sales managers' queue (or the rep the
+    // round robin gave it to), overdue follow ups and stale deals to their owner.
     if (a.type === 'site_lead') {
       list.push({
         key: `alert:${a.id}:lead`,
-        make: async () => ({
-          userIds: await teamWith(db, 'merchants', 'use'),
-          type: 'site_lead',
-          text: 'site_lead',
-          vars: { name: String(data.name ?? '') },
-          url: '/admin/leads',
-          tag: `lead-${a.id}`,
-        }),
+        make: async () => {
+          const dealId = typeof data.dealId === 'string' ? data.dealId : null;
+          const deal = dealId
+            ? await db.crmDeal.findUnique({ where: { id: dealId }, select: { ownerId: true } })
+            : null;
+          return {
+            userIds: deal?.ownerId
+              ? await salesCanOpen(db, [deal.ownerId])
+              : await teamWith(db, 'sales', 'manage'),
+            type: 'site_lead',
+            text: 'site_lead',
+            vars: { name: String(data.name ?? '') },
+            url: dealId ? `/admin/sales/deals/${dealId}` : '/admin/sales/leads',
+            tag: `lead-${a.id}`,
+          };
+        },
+      });
+    }
+    if (a.type === 'crm_followup_overdue' || a.type === 'crm_deal_stale') {
+      const stale = a.type === 'crm_deal_stale';
+      list.push({
+        key: `alert:${a.id}:crm`,
+        make: async () => {
+          const ownerId = typeof data.ownerId === 'string' ? data.ownerId : null;
+          const dealId = typeof data.dealId === 'string' ? data.dealId : null;
+          return {
+            userIds: ownerId
+              ? await salesCanOpen(db, [ownerId])
+              : await teamWith(db, 'sales', 'manage'),
+            type: 'crm_followup',
+            text: stale ? 'crm_deal_stale' : 'crm_followup_overdue',
+            vars: {
+              number: String(data.number ?? ''),
+              company: String(data.company ?? ''),
+              subject: String(data.subject ?? ''),
+              minutes: String(data.minutes ?? ''),
+              days: String(data.days ?? ''),
+            },
+            url: dealId ? `/admin/sales/deals/${dealId}` : '/admin/sales/my-day',
+            tag: stale ? `crm-deal-${dealId}` : `crm-activity-${String(data.activityId ?? a.id)}`,
+          };
+        },
       });
     }
     if (a.type === 'document_expiring' || a.type === 'document_expired') {
@@ -984,3 +1022,103 @@ export function setPushPreference(db: Db, userId: string, type: PushType, enable
     update: { enabled },
   });
 }
+
+/** The given people who may still open sales records (an owner who lost sales access hears nothing). */
+async function salesCanOpen(db: Db, userIds: string[]) {
+  const allowed = new Set(await teamWith(db, 'sales', 'view'));
+  return userIds.filter((id) => allowed.has(id));
+}
+
+/**
+ * Sales CRM: a deal given to a rep (by a manager or the round robin), a new lead waiting in the
+ * managers' queue (website leads are told through their alert) and a follow up that just became
+ * due (marked by the reminder job).
+ */
+const crmEvents: Source = async (db, since) => {
+  const list: Candidate[] = [];
+  const assigned = await db.crmDeal.findMany({
+    where: { ownerAssignedAt: { gte: since }, ownerId: { not: null } },
+    select: {
+      id: true,
+      number: true,
+      ownerId: true,
+      ownerAssignedAt: true,
+      ownerAssignedById: true,
+      company: { select: { brandName: true } },
+    },
+    take: 200,
+  });
+  for (const d of assigned) {
+    if (d.ownerAssignedById === d.ownerId) continue;
+    list.push({
+      key: `crm_assigned:${d.id}:${d.ownerAssignedAt!.getTime()}`,
+      make: async () => {
+        const by = d.ownerAssignedById
+          ? await db.user.findUnique({
+              where: { id: d.ownerAssignedById },
+              select: { name: true },
+            })
+          : null;
+        return {
+          userIds: await salesCanOpen(db, [d.ownerId!]),
+          type: 'crm_lead',
+          text: 'crm_lead_assigned',
+          vars: {
+            number: dealNumber(d.number),
+            company: d.company.brandName,
+            name: by?.name ?? 'Shiply',
+          },
+          url: `/admin/sales/deals/${d.id}`,
+          tag: `crm-deal-${d.id}`,
+        };
+      },
+    });
+  }
+  const queued = await db.crmDeal.findMany({
+    where: {
+      createdAt: { gte: since },
+      ownerId: null,
+      company: { source: { not: 'website_form' } },
+    },
+    select: { id: true, company: { select: { brandName: true } } },
+    take: 200,
+  });
+  for (const d of queued)
+    list.push({
+      key: `crm_lead_new:${d.id}`,
+      make: async () => ({
+        userIds: await teamWith(db, 'sales', 'manage'),
+        type: 'crm_lead',
+        text: 'crm_lead_new',
+        vars: { company: d.company.brandName },
+        url: `/admin/sales/deals/${d.id}`,
+        tag: `crm-deal-${d.id}`,
+      }),
+    });
+  const due = await db.crmActivity.findMany({
+    where: { dueNotifiedAt: { gte: since }, doneAt: null },
+    select: {
+      id: true,
+      subject: true,
+      ownerId: true,
+      dealId: true,
+      companyId: true,
+      company: { select: { brandName: true } },
+    },
+    take: 300,
+  });
+  for (const a of due)
+    list.push({
+      key: `crm_due:${a.id}`,
+      make: async () => ({
+        userIds: await salesCanOpen(db, [a.ownerId]),
+        type: 'crm_followup',
+        text: 'crm_followup_due',
+        vars: { company: a.company.brandName, subject: a.subject },
+        url: a.dealId ? `/admin/sales/deals/${a.dealId}` : `/admin/sales/companies/${a.companyId}`,
+        tag: `crm-activity-${a.id}`,
+        urgent: true,
+      }),
+    });
+  return list;
+};

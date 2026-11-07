@@ -50,6 +50,7 @@ type Tab =
   | 'money'
   | 'tickets'
   | 'hr'
+  | 'sales'
   | 'other';
 /** Each app's Configuration shows only its own settings. */
 const APP_TABS: Record<AppId, Tab[]> = {
@@ -59,6 +60,7 @@ const APP_TABS: Record<AppId, Tab[]> = {
   customers: ['customers'],
   accounting: ['fees', 'payroll', 'money'],
   hr: ['hr'],
+  sales: ['sales'],
   system: ['tickets', 'other'],
 };
 function tabOf(key: string): Tab {
@@ -71,6 +73,7 @@ function tabOf(key: string): Tab {
   if (key.startsWith('customer.')) return 'customers';
   if (key.startsWith('ticket.')) return 'tickets';
   if (key.startsWith('hr.')) return 'hr';
+  if (key.startsWith('sales.')) return 'sales';
   return 'other';
 }
 

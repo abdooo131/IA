@@ -23,26 +23,209 @@ describe('job role templates', () => {
         t.customerData,
         t.salaries,
         t.ownMerchantsOnly,
+        t.ownDealsOnly,
       ];
     };
     const M = 'manage';
     const U = 'use';
     const V = 'view';
     const N = 'none';
-    expect(row('owner')).toEqual([M, M, M, M, M, M, M, M, true, true, true, false]);
-    expect(row('operations_manager')).toEqual([M, M, M, V, V, N, N, N, true, false, false, false]);
-    expect(row('store_manager')).toEqual([M, U, U, N, N, N, V, N, false, false, false, false]);
-    expect(row('store_staff')).toEqual([U, N, N, N, N, N, N, N, false, false, false, false]);
-    expect(row('hub_staff')).toEqual([U, N, V, N, N, N, N, N, false, false, false, false]);
-    expect(row('dispatcher')).toEqual([U, U, V, N, N, N, N, N, true, false, false, false]);
-    expect(row('customer_service')).toEqual([N, U, V, V, V, N, N, N, true, true, false, false]);
-    expect(row('accountant')).toEqual([N, V, V, V, N, V, N, N, true, false, false, false]);
-    expect(row('finance_officer')).toEqual([N, V, V, V, N, U, N, N, true, false, false, false]);
-    expect(row('hr_officer')).toEqual([N, N, N, N, N, N, M, N, true, false, false, false]);
-    expect(row('hr_manager')).toEqual([N, N, N, N, N, N, M, N, true, false, true, false]);
-    expect(row('account_manager')).toEqual([N, V, V, U, V, N, N, N, true, false, false, true]);
-    expect(row('qc_agent')).toEqual([U, N, V, N, N, N, N, N, false, false, false, false]);
-    expect(row('finance_manager')).toEqual([N, V, V, V, N, M, N, N, true, false, true, false]);
+    expect(row('owner')).toEqual([M, M, M, M, M, M, M, M, M, true, true, true, false, false]);
+    expect(row('operations_manager')).toEqual([
+      M,
+      M,
+      M,
+      V,
+      V,
+      N,
+      N,
+      N,
+      N,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('store_manager')).toEqual([
+      M,
+      U,
+      U,
+      N,
+      N,
+      N,
+      V,
+      N,
+      N,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('store_staff')).toEqual([
+      U,
+      N,
+      N,
+      N,
+      N,
+      N,
+      N,
+      N,
+      N,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('hub_staff')).toEqual([
+      U,
+      N,
+      V,
+      N,
+      N,
+      N,
+      N,
+      N,
+      N,
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('dispatcher')).toEqual([
+      U,
+      U,
+      V,
+      N,
+      N,
+      N,
+      N,
+      N,
+      N,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('customer_service')).toEqual([
+      N,
+      U,
+      V,
+      V,
+      V,
+      N,
+      N,
+      N,
+      N,
+      true,
+      true,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('accountant')).toEqual([
+      N,
+      V,
+      V,
+      V,
+      N,
+      V,
+      N,
+      N,
+      N,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('finance_officer')).toEqual([
+      N,
+      V,
+      V,
+      V,
+      N,
+      U,
+      N,
+      N,
+      N,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('hr_officer')).toEqual([
+      N,
+      N,
+      N,
+      N,
+      N,
+      N,
+      M,
+      N,
+      N,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('hr_manager')).toEqual([N, N, N, N, N, N, M, N, N, true, false, true, false, false]);
+    expect(row('account_manager')).toEqual([
+      N,
+      V,
+      V,
+      U,
+      V,
+      N,
+      N,
+      N,
+      N,
+      true,
+      false,
+      false,
+      true,
+      false,
+    ]);
+    expect(row('qc_agent')).toEqual([U, N, V, N, N, N, N, N, N, false, false, false, false, false]);
+    expect(row('sales_rep')).toEqual([N, N, N, V, N, N, N, U, N, true, false, false, false, true]);
+    expect(row('sales_manager')).toEqual([
+      N,
+      N,
+      N,
+      V,
+      N,
+      N,
+      N,
+      M,
+      N,
+      true,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(row('finance_manager')).toEqual([
+      N,
+      V,
+      V,
+      V,
+      N,
+      M,
+      N,
+      N,
+      N,
+      true,
+      false,
+      true,
+      false,
+      false,
+    ]);
   });
 
   it('only use levels each app offers', () => {
