@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ALL_INCLUSIVE_ZERO_KEYS,
   CONTRACT_PRICE_KEYS,
   type ContractPriceKey,
   exampleMonth,
@@ -9,7 +10,7 @@ import {
   type ProposalFees,
   proposalApproval,
 } from '@shiplynow/shared';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
@@ -26,8 +27,17 @@ import {
   parseFee,
   parseMoney,
   PROPOSAL_FEE_KEYS,
+  type DealProposals,
   type ProposalView,
 } from '@/lib/sales-part2';
+import { parseEgp } from '@/lib/money';
+
+interface ProductRowForm {
+  skuId: string | null;
+  sku: string;
+  name: string;
+  price: string;
+}
 
 const field = 'h-10 w-full rounded-md border border-line-strong bg-surface px-3 text-body-sm';
 
@@ -43,6 +53,8 @@ export function ProposalForm({
   defaults,
   maxDiscountBp,
   expectedOrders,
+  products = [],
+  standardFailedPercentBp = 10_000,
   onDone,
   onCancel,
 }: {
@@ -50,6 +62,9 @@ export function ProposalForm({
   /** A draft to edit; a new proposal when left out */
   proposal?: ProposalView;
   defaults: ProposalFees;
+  /** The merchant's products to price (empty: free rows only) */
+  products?: DealProposals['products'];
+  standardFailedPercentBp?: number;
   maxDiscountBp: number;
   expectedOrders: number | null;
   onDone: () => void;
@@ -57,8 +72,19 @@ export function ProposalForm({
 }) {
   const t = useTranslations('sales.proposals');
   const te = useTranslations('sales.errors');
+  const locale = useLocale();
   const fees = proposal?.fees ?? defaults;
   const start = {
+    failedPercent:
+      proposal?.failedDeliveryPercentBp === null || proposal?.failedDeliveryPercentBp === undefined
+        ? ''
+        : bpText(proposal.failedDeliveryPercentBp),
+    products: (proposal?.productPrices ?? []).map((r): ProductRowForm => ({
+      skuId: r.skuId,
+      sku: r.sku,
+      name: r.name,
+      price: egpInput(r.pricePiastres),
+    })),
     fees: Object.fromEntries(PROPOSAL_FEE_KEYS.map((k) => [k, feeInput(k, fees[k])])) as Record<
       keyof ProposalFees,
       string
@@ -92,6 +118,26 @@ export function ProposalForm({
       if (value === null) return null;
       out[k] = value;
     }
+    let failedDeliveryPercentBp: number | null = null;
+    if (v.failedPercent.trim()) {
+      const bp = parseFee('orderPercentBp', v.failedPercent);
+      if (bp === null) return null;
+      failedDeliveryPercentBp = bp;
+    }
+    const productPrices = [];
+    for (const r of v.products) {
+      if (!r.sku.trim() && !r.price.trim()) continue;
+      const price = parseEgp(r.price);
+      if (!r.sku.trim() || price === null) return null;
+      productPrices.push({
+        skuId: r.skuId,
+        sku: r.sku.trim(),
+        name: r.name.trim(),
+        pricePiastres: price,
+      });
+    }
+    if (new Set(productPrices.map((p) => p.sku.toLowerCase())).size !== productPrices.length)
+      return null;
     const tiers = parseTierRows(v.tiers);
     const orders = parseCount(v.orders);
     const minimumPayout = parseMoney(v.minimumPayout);
@@ -112,6 +158,8 @@ export function ProposalForm({
     if (months !== null && (months < 1 || months > 120)) return null;
     return {
       ...out,
+      failedDeliveryPercentBp,
+      productPrices,
       tiers,
       expectedMonthlyOrders: orders,
       averageOrderPiastres: average,
@@ -145,6 +193,16 @@ export function ProposalForm({
 
   const setFee = (k: keyof ProposalFees, text: string) =>
     setV({ ...v, fees: { ...v.fees, [k]: text } });
+  /** The all inclusive preset: the shipping fee kept, the other charges 0, failures 100%. */
+  const allInclusive = () => {
+    const next = { ...v.fees };
+    for (const k of ALL_INCLUSIVE_ZERO_KEYS) next[k] = '0';
+    setV({ ...v, fees: next, failedPercent: '100' });
+    setTimeout(() => document.getElementById('proposal-shippingFeePiastres')?.focus(), 0);
+  };
+  const setProduct = (i: number, patch: Partial<ProductRowForm>) =>
+    setV({ ...v, products: v.products.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
+  const [picking, setPicking] = useState('');
   const setTier = (i: number, k: 'fromOrder' | ContractPriceKey, text: string) =>
     setV({
       ...v,
@@ -168,6 +226,12 @@ export function ProposalForm({
       <h3 className="text-h3">
         {proposal ? t('editTitle', { label: proposal.label }) : t('newTitle')}
       </h3>
+      <div className="flex flex-wrap items-center gap-2 rounded-md bg-surface-raised p-3">
+        <p className="min-w-0 flex-1 text-caption text-text-muted">{t('allInclusiveHint')}</p>
+        <button type="button" className="btn-secondary" onClick={allInclusive}>
+          {t('allInclusive')}
+        </button>
+      </div>
       <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <legend className="mb-2 text-body-sm font-bold">{t('rates')}</legend>
         {PROPOSAL_FEE_KEYS.map((k) => (
@@ -175,6 +239,7 @@ export function ProposalForm({
             <span className="font-semibold">{t(`fees.${k}`)}</span>
             <span className="flex items-center gap-2">
               <input
+                id={`proposal-${k}`}
                 className={`${field} mt-1`}
                 inputMode="decimal"
                 dir="ltr"
@@ -192,10 +257,125 @@ export function ProposalForm({
             </span>
           </label>
         ))}
+        <label className="text-body-sm">
+          <span className="font-semibold">{t('failedPercent')}</span>
+          <span className="flex items-center gap-2">
+            <input
+              className={`${field} mt-1`}
+              inputMode="decimal"
+              dir="ltr"
+              value={v.failedPercent}
+              placeholder="–"
+              onChange={(e) => setV({ ...v, failedPercent: e.target.value })}
+            />
+            <span className="text-caption text-text-muted">%</span>
+          </span>
+          <span className="text-caption text-text-muted">
+            {t('failedPercentHint', { percent: `${bpText(standardFailedPercentBp)}%` })}
+          </span>
+        </label>
+      </fieldset>
+
+      <fieldset>
+        <legend className="text-body-sm font-bold">{t('productPrices')}</legend>
+        <p className="text-caption text-text-muted">{t('productPricesHint')}</p>
+        <ul className="mt-2 space-y-2">
+          {v.products.map((r, i) => (
+            <li
+              key={i}
+              className="grid gap-2 rounded-md border border-line p-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,2fr)_8rem_auto]"
+            >
+              <label className="min-w-0 text-caption">
+                {t('productSku')}
+                <input
+                  className={field}
+                  dir="ltr"
+                  value={r.sku}
+                  readOnly={!!r.skuId}
+                  onChange={(e) => setProduct(i, { sku: e.target.value })}
+                />
+              </label>
+              <label className="min-w-0 text-caption">
+                {t('productName')}
+                <input
+                  className={field}
+                  value={r.name}
+                  readOnly={!!r.skuId}
+                  onChange={(e) => setProduct(i, { name: e.target.value })}
+                />
+              </label>
+              <label className="min-w-0 text-caption">
+                {t('productPrice')}
+                <input
+                  className={field}
+                  inputMode="decimal"
+                  dir="ltr"
+                  value={r.price}
+                  onChange={(e) => setProduct(i, { price: e.target.value })}
+                />
+              </label>
+              <button
+                type="button"
+                className="h-10 self-end rounded-md px-2 text-body-sm text-danger"
+                onClick={() => setV({ ...v, products: v.products.filter((_, j) => j !== i) })}
+              >
+                {t('removeProduct')}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="mt-2 flex flex-wrap items-end gap-2">
+          {products.length > 0 && (
+            <label className="min-w-0 flex-1 text-caption">
+              {t('pickProduct')}
+              <select
+                className={`${field} mt-1`}
+                value={picking}
+                onChange={(e) => {
+                  const p = products.find((x) => x.id === e.target.value);
+                  setPicking('');
+                  if (!p || v.products.some((r) => r.skuId === p.id)) return;
+                  setV({
+                    ...v,
+                    products: [
+                      ...v.products,
+                      {
+                        skuId: p.id,
+                        sku: p.sku,
+                        name: locale === 'ar' ? p.titleAr || p.titleEn : p.titleEn,
+                        price: '',
+                      },
+                    ],
+                  });
+                }}
+              >
+                <option value="">{t('choose')}</option>
+                {products.slice(0, 500).map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.sku} · {locale === 'ar' ? p.titleAr || p.titleEn : p.titleEn}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={() =>
+              setV({
+                ...v,
+                products: [...v.products, { skuId: null, sku: '', name: '', price: '' }],
+              })
+            }
+          >
+            {t('addFreeRow')}
+          </button>
+        </div>
       </fieldset>
 
       <fieldset>
         <legend className="text-body-sm font-bold">{t('tiers')}</legend>
+
         <p className="text-caption text-text-muted">{t('tiersHint')}</p>
         <ul className="mt-2 space-y-2">
           {v.tiers.map((r, i) => (

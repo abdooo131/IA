@@ -23,6 +23,8 @@ export interface ProposalView {
   version: number;
   status: ProposalStatus;
   fees: ProposalFees;
+  failedDeliveryPercentBp: number | null;
+  productPrices: ProposalProductRow[];
   expectedMonthlyOrders: number | null;
   averageOrderPiastres: number | null;
   minimumMonthlyFeePiastres: number | null;
@@ -60,8 +62,19 @@ export interface ProposalView {
   example: ExampleMonth;
 }
 
+/** A per product price on a proposal; matched is set once the proposal is confirmed. */
+export interface ProposalProductRow {
+  skuId: string | null;
+  sku: string;
+  name: string;
+  pricePiastres: number;
+  matched: boolean | null;
+}
+
 export interface ExampleMonth {
   orders: number;
+  shippingFeesPiastres: number;
+  packagingChargesPiastres: number;
   orderFeesPiastres: number;
   codFeesPiastres: number;
   minimumTopUpPiastres: number;
@@ -71,7 +84,10 @@ export interface ExampleMonth {
 
 export interface DealProposals {
   proposals: ProposalView[];
+  /** The merchant's products a proposal can price (empty: free rows only) */
+  products: { id: string; sku: string; titleEn: string; titleAr: string; pricePiastres: number }[];
   defaults: ProposalFees;
+  standardFailedPercentBp: number;
   maxDiscountBp: number;
   validDays: number;
   merchantOwner: { id: string; name: string; email: string; isActive: boolean } | null;
@@ -101,6 +117,9 @@ export interface PublicProposal {
   };
   rep: { name: string; email: string; phone: string | null } | null;
   fees: ProposalFees;
+  failedDeliveryPercentBp: number | null;
+  standardFailedPercentBp: number;
+  productPrices: { sku: string; name: string; pricePiastres: number }[];
   tiers: ContractTier[];
   expectedMonthlyOrders: number | null;
   averageOrderPiastres: number | null;

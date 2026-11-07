@@ -1,6 +1,12 @@
 import { makeTier } from '@shiplynow/shared';
 import { describe, expect, it } from 'vitest';
 import {
+  applyAllInclusive,
+  isAllInclusive,
+  linesValue,
+  parseProductPrices,
+  searchProducts,
+  setPrices,
   bodyFrom,
   calculate,
   type ContractVersion,
@@ -23,6 +29,8 @@ const standard = {
   receivingPerUnitPiastres: 50,
   storagePerUnitMonthPiastres: 300,
   returnPerUnitPiastres: 200,
+  shippingFeePiastres: 0,
+  packagingChargePiastres: 0,
 };
 const noPrices = {
   orderFixedPiastres: null,
@@ -32,6 +40,8 @@ const noPrices = {
   receivingPerUnitPiastres: null,
   storagePerUnitMonthPiastres: null,
   returnPerUnitPiastres: null,
+  shippingFeePiastres: null,
+  packagingChargePiastres: null,
 };
 const version = (over: Partial<ContractVersion> = {}): ContractVersion => ({
   id: 'v1',
@@ -41,6 +51,8 @@ const version = (over: Partial<ContractVersion> = {}): ContractVersion => ({
   displayStatus: 'in_force',
   effectiveFrom: '2026-11-01',
   prices: { ...noPrices, orderFixedPiastres: 2_000, codPercentBp: 80 },
+  failedDeliveryPercentBp: null,
+  productPrices: [],
   tiers: [makeTier(201, { fixedFeePiastres: 1_500, codPercentBp: 50 })],
   payoutSchedule: 'twice_weekly',
   minimumPayoutPiastres: 50_000,
@@ -180,6 +192,155 @@ describe('contract calculator', () => {
     expect(none.order.feesPiastres).toBe(2_500 + 400 + 400);
     // 300 units at 3 EGP a month.
     expect(none.month.storagePiastres).toBe(90_000);
+  });
+});
+
+describe('contract pricing', () => {
+  it('applies the all inclusive preset: explicit zeros, never empty', () => {
+    const form = applyAllInclusive(formFrom(version(), '2026-11-07'), '120');
+    expect(form.prices).toMatchObject({
+      shippingFeePiastres: '120',
+      orderFixedPiastres: '0',
+      orderPercentBp: '0',
+      codPercentBp: '0',
+      receivingPerUnitPiastres: '0',
+      storagePerUnitMonthPiastres: '0',
+      returnPerUnitPiastres: '0',
+      packagingChargePiastres: '0',
+      failedDeliveryPiastres: '',
+    });
+    expect(form.failedPercent).toBe('100');
+    const parsed = bodyFrom(form);
+    expect(parsed.ok && parsed.body).toMatchObject({
+      shippingFeePiastres: 12_000,
+      orderFixedPiastres: 0,
+      codPercentBp: 0,
+      packagingChargePiastres: 0,
+      failedDeliveryPiastres: null,
+      failedDeliveryPercentBp: 10_000,
+    });
+    // Empty stays the standard price.
+    const plain = bodyFrom(formFrom(null, '2026-11-07'));
+    expect(plain.ok && plain.body).toMatchObject({
+      shippingFeePiastres: null,
+      packagingChargePiastres: null,
+      failedDeliveryPercentBp: null,
+      productPrices: [],
+    });
+    expect(isAllInclusive(parsed.ok ? (parsed.body as never) : noPrices)).toBe(true);
+    expect(isAllInclusive(noPrices)).toBe(false);
+  });
+
+  it('reads product prices in pounds without floats, sets many at once and searches', () => {
+    expect(parseProductPrices({ a: '12.5', b: '', c: '0' })).toEqual([
+      { skuId: 'a', pricePiastres: 1_250 },
+      { skuId: 'c', pricePiastres: 0 },
+    ]);
+    expect(parseProductPrices({ a: '1.234' })).toBeNull();
+    expect(setPrices({ a: '1', b: '2' }, ['b', 'c'], '7.5')).toEqual({
+      a: '1',
+      b: '7.5',
+      c: '7.5',
+    });
+    expect(setPrices({ a: '1', b: '2' }, ['a'], '')).toEqual({ b: '2' });
+    const form = formFrom(version(), '2026-11-07');
+    expect(bodyFrom({ ...form, productPrices: { x: 'abc' } })).toEqual({
+      ok: false,
+      error: 'productPrice',
+    });
+    expect(bodyFrom({ ...form, failedPercent: '120' })).toEqual({
+      ok: false,
+      error: 'failedPercent',
+    });
+    const products = [
+      {
+        id: 'a',
+        sku: 'TEA-1',
+        titleEn: 'Green tea',
+        titleAr: 'شاي أخضر',
+        pricePiastres: 5_000,
+        isActive: false,
+      },
+      {
+        id: 'b',
+        sku: 'COF-1',
+        titleEn: 'Coffee',
+        titleAr: 'قهوة',
+        pricePiastres: 9_000,
+        isActive: true,
+      },
+    ];
+    expect(searchProducts(products, 'tea').rows.map((p) => p.id)).toEqual(['a']);
+    expect(searchProducts(products, 'قهوة').rows.map((p) => p.id)).toEqual(['b']);
+    expect(searchProducts(products, '').rows.map((p) => p.id)).toEqual(['b', 'a']);
+    expect(
+      linesValue(
+        [
+          { skuId: 'a', quantity: 2 },
+          { skuId: 'b', quantity: 1 },
+        ],
+        products,
+      ),
+    ).toBe(19_000);
+  });
+
+  it('prices an example shipment with its products, cash or prepaid, and its failure', () => {
+    const v = version({
+      prices: {
+        ...noPrices,
+        shippingFeePiastres: 12_000,
+        orderFixedPiastres: 0,
+        orderPercentBp: 0,
+        codPercentBp: 100,
+        packagingChargePiastres: 0,
+      },
+      tiers: [],
+      productPrices: [{ skuId: 'a', sku: 'TEA-1', titleEn: 'T', titleAr: 'T', pricePiastres: 300 }],
+    });
+    const lines = [
+      { skuId: 'a', quantity: 2 },
+      { skuId: 'b', quantity: 1 },
+    ];
+    const cash = calculate(v, standard, 1_400, {
+      orderPiastres: 40_000,
+      orders: 100,
+      unitsStored: 0,
+      lines,
+      cash: true,
+    });
+    expect(cash.order).toMatchObject({
+      shippingFeePiastres: 12_000,
+      productHandlingPiastres: 600,
+      orderFeePiastres: 0,
+      codFeePiastres: 400,
+      packagingChargePiastres: 0,
+      feesPiastres: 13_000,
+      vatPiastres: 1_680 + 84 + 56,
+      // A shipping fee and no fixed failed fee: 100% of shipping + per product + order fee.
+      failedRule: { mode: 'percent', bp: 10_000 },
+      failedPiastres: 12_600,
+    });
+    expect(cash.month).toMatchObject({
+      shippingFeesPiastres: 1_200_000,
+      productHandlingPiastres: 60_000,
+      codFeesPiastres: 40_000,
+    });
+    const prepaid = calculate(v, standard, 0, {
+      orderPiastres: 40_000,
+      orders: 1,
+      unitsStored: 0,
+      lines,
+      cash: false,
+    });
+    expect(prepaid.order.codFeePiastres).toBe(0);
+    // A fixed failed fee set on the contract wins.
+    const fixed = calculate(
+      { ...v, prices: { ...v.prices, failedDeliveryPiastres: 5_000 } },
+      standard,
+      0,
+      { orderPiastres: 40_000, orders: 1, unitsStored: 0, lines },
+    );
+    expect(fixed.order).toMatchObject({ failedRule: { mode: 'fixed', piastres: 5_000 } });
   });
 });
 

@@ -78,6 +78,9 @@ export const payoutScheduleSchema = z.object({ payoutSchedule: z.enum(PAYOUT_SCH
 /** Ledger entry kinds, for filters and labels. */
 export const LEDGER_KINDS = [
   'cod_collected',
+  'shipping_fee',
+  'product_handling',
+  'packaging_charge',
   'order_fee',
   'cod_fee',
   'failed_fee',

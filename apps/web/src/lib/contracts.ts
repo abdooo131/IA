@@ -1,4 +1,5 @@
 import {
+  ALL_INCLUSIVE_ZERO_KEYS,
   CONTRACT_PRICE_KEYS,
   CONTRACT_PRICES,
   type ContractPriceKey,
@@ -9,6 +10,7 @@ import {
   monthEstimate,
   orderCharge,
   type PayoutScheduleName,
+  productHandlingCharge,
   tierValue,
 } from '@shiplynow/shared';
 import { bpText, egpInput, parseCount, parsePercentBp } from './sales-part2';
@@ -27,6 +29,10 @@ export interface ContractVersion {
   displayStatus: VersionDisplayStatus;
   effectiveFrom: string | null;
   prices: ContractPriceValues;
+  /** A failed attempt's share of the shipment charges (null: the fixed fee, see the rule) */
+  failedDeliveryPercentBp: number | null;
+  /** Price per delivered unit of each product, by SKU */
+  productPrices: ContractProductPriceRow[];
   tiers: ContractTier[];
   payoutSchedule: PayoutScheduleName | null;
   minimumPayoutPiastres: number | null;
@@ -48,6 +54,24 @@ export interface ContractVersion {
   createdBy: string | null;
   activatedAt: string | null;
   activatedBy: string | null;
+}
+
+export interface ContractProductPriceRow {
+  skuId: string;
+  sku: string;
+  titleEn: string;
+  titleAr: string;
+  pricePiastres: number;
+}
+
+/** One of the merchant's products, for per product prices and the calculator. */
+export interface MerchantProduct {
+  id: string;
+  sku: string;
+  titleEn: string;
+  titleAr: string;
+  pricePiastres: number;
+  isActive: boolean;
 }
 
 export interface StoreRef {
@@ -89,7 +113,10 @@ export interface ContractView {
     createdAt: string;
   }[];
   standard: ContractPrices;
+  /** fee.failed_delivery_percent_bp: the failed share for contracts with a shipping fee */
+  standardFailedPercentBp: number;
   vatBp: number;
+  products: MerchantProduct[];
   standardTerms: {
     minimumPayoutPiastres: number;
     deliveryAttempts: number;
@@ -177,6 +204,10 @@ export function tierColumns(tiers: readonly ContractTier[]) {
 
 export interface ContractForm {
   prices: Record<ContractPriceKey, string>;
+  /** Failed delivery as a share of the shipment charges, in percent (empty: not set) */
+  failedPercent: string;
+  /** Price per unit of each product, in pounds, by product id (empty or absent: none) */
+  productPrices: Record<string, string>;
   tiers: TierRow[];
   payoutSchedule: '' | PayoutScheduleName;
   minimumPayout: string;
@@ -204,6 +235,13 @@ export function formFrom(v: ContractVersion | null, today: string): ContractForm
     prices: Object.fromEntries(
       CONTRACT_PRICE_KEYS.map((k) => [k, priceInput(k, v?.prices[k] ?? null)]),
     ) as Record<ContractPriceKey, string>,
+    failedPercent:
+      v?.failedDeliveryPercentBp === null || v?.failedDeliveryPercentBp === undefined
+        ? ''
+        : bpText(v.failedDeliveryPercentBp),
+    productPrices: Object.fromEntries(
+      (v?.productPrices ?? []).map((p) => [p.skuId, egpInput(p.pricePiastres)]),
+    ),
     tiers: tierRowsFrom(v?.tiers ?? []),
     payoutSchedule: v?.payoutSchedule ?? '',
     minimumPayout: moneyText(v?.minimumPayoutPiastres ?? null),
@@ -224,7 +262,80 @@ export function formFrom(v: ContractVersion | null, today: string): ContractForm
 }
 
 export type ContractFormError =
-  'price' | 'tiers' | 'money' | 'promise' | 'attempts' | 'notice' | 'dates';
+  | 'price'
+  | 'failedPercent'
+  | 'productPrice'
+  | 'tiers'
+  | 'money'
+  | 'promise'
+  | 'attempts'
+  | 'notice'
+  | 'dates';
+
+/**
+ * The all inclusive preset: the shipping fee typed (or kept), every other merchant charge an
+ * explicit 0 (never empty, which would be the standard price), the fixed failed delivery fee
+ * cleared and failed deliveries at 100% of the shipment. Product prices stay as they are.
+ */
+export function applyAllInclusive(form: ContractForm, shipping?: string): ContractForm {
+  const prices = { ...form.prices };
+  for (const k of ALL_INCLUSIVE_ZERO_KEYS) prices[k] = '0';
+  if (shipping !== undefined) prices.shippingFeePiastres = shipping;
+  prices.failedDeliveryPiastres = '';
+  return { ...form, prices, failedPercent: '100' };
+}
+
+/** Whether a version is all inclusive: a shipping fee and at least one other charge at 0. */
+export function isAllInclusive(prices: ContractPriceValues) {
+  return (
+    (prices.shippingFeePiastres ?? 0) > 0 && ALL_INCLUSIVE_ZERO_KEYS.some((k) => prices[k] === 0)
+  );
+}
+
+/** The product prices typed: piastres by product id, empty ones left out; null if one is wrong. */
+export function parseProductPrices(
+  entries: Record<string, string>,
+): { skuId: string; pricePiastres: number }[] | null {
+  const out: { skuId: string; pricePiastres: number }[] = [];
+  for (const [skuId, text] of Object.entries(entries)) {
+    if (!text.trim()) continue;
+    const v = parseEgp(text);
+    if (v === null) return null;
+    out.push({ skuId, pricePiastres: v });
+  }
+  return out;
+}
+
+/** The same price for every product chosen (bulk set); an empty price clears them. */
+export function setPrices(
+  entries: Record<string, string>,
+  skuIds: readonly string[],
+  price: string,
+): Record<string, string> {
+  const out = { ...entries };
+  for (const id of skuIds) {
+    if (price.trim()) out[id] = price.trim();
+    else delete out[id];
+  }
+  return out;
+}
+
+/** Products matching a search (SKU or either title), active first, at most `limit`. */
+export function searchProducts(products: readonly MerchantProduct[], query: string, limit = 50) {
+  const q = query.trim().toLowerCase();
+  const found = q
+    ? products.filter(
+        (p) =>
+          p.sku.toLowerCase().includes(q) ||
+          p.titleEn.toLowerCase().includes(q) ||
+          p.titleAr.includes(query.trim()),
+      )
+    : [...products];
+  return {
+    total: found.length,
+    rows: found.sort((a, b) => Number(b.isActive) - Number(a.isActive)).slice(0, limit),
+  };
+}
 
 /** The API body from the form, or the first thing to fix. */
 export function bodyFrom(
@@ -236,6 +347,14 @@ export function bodyFrom(
     if (Number.isNaN(v)) return { ok: false, error: 'price' };
     prices[k] = v;
   }
+  let failedPercent: number | null = null;
+  if (form.failedPercent.trim()) {
+    const bp = parsePercentBp(form.failedPercent);
+    if (bp === null) return { ok: false, error: 'failedPercent' };
+    failedPercent = bp;
+  }
+  const productPrices = parseProductPrices(form.productPrices);
+  if (!productPrices) return { ok: false, error: 'productPrice' };
   const tiers = parseTierRows(form.tiers);
   if (!tiers) return { ok: false, error: 'tiers' };
   const money = (text: string) => (text.trim() ? (parseEgp(text) ?? Number.NaN) : null);
@@ -261,6 +380,8 @@ export function bodyFrom(
     ok: true,
     body: {
       ...prices,
+      failedDeliveryPercentBp: failedPercent,
+      productPrices,
       tiers,
       payoutSchedule: form.payoutSchedule || null,
       minimumPayoutPiastres: amounts[0],
@@ -281,28 +402,67 @@ export function bodyFrom(
   };
 }
 
-/** The calculator: one cash order and an estimated month, at the version's prices. */
+/** What the calculator reads of a version (a saved one, or the form being typed). */
+export type CalcVersion = Pick<
+  ContractVersion,
+  'prices' | 'tiers' | 'minimumMonthlyFeePiastres' | 'failedDeliveryPercentBp'
+> & { productPrices: Pick<ContractProductPriceRow, 'skuId' | 'pricePiastres'>[] };
+
+/** The products of the example shipment: quantity of each product chosen. */
+export interface ExampleLine {
+  skuId: string;
+  quantity: number;
+}
+
+/** The products value of an example shipment at the products' own prices. */
+export function linesValue(lines: readonly ExampleLine[], products: readonly MerchantProduct[]) {
+  const byId = new Map(products.map((p) => [p.id, p.pricePiastres]));
+  return lines.reduce((s, l) => s + (byId.get(l.skuId) ?? 0) * Math.max(0, l.quantity), 0);
+}
+
+/**
+ * The calculator: one example shipment (its products and quantities, paid cash or prepaid, its
+ * value) with what a failed attempt would cost, and an estimated month of such shipments.
+ */
 export function calculate(
-  v: Pick<ContractVersion, 'prices' | 'tiers' | 'minimumMonthlyFeePiastres'> | null,
+  v: CalcVersion | null,
   standard: ContractPrices,
   vatBp: number,
-  input: { orderPiastres: number; orders: number; unitsStored: number },
+  input: {
+    orderPiastres: number;
+    orders: number;
+    unitsStored: number;
+    lines?: readonly ExampleLine[];
+    cash?: boolean;
+    standardFailedPercentBp?: number;
+  },
 ) {
   const terms = {
     ...(v?.prices ??
       (Object.fromEntries(CONTRACT_PRICE_KEYS.map((k) => [k, null])) as ContractPriceValues)),
     tiers: v?.tiers ?? [],
     minimumMonthlyFeePiastres: v?.minimumMonthlyFeePiastres ?? null,
+    failedDeliveryPercentBp: v?.failedDeliveryPercentBp ?? null,
   };
+  const prices = new Map((v?.productPrices ?? []).map((p) => [p.skuId, p.pricePiastres]));
+  const handling = productHandlingCharge(
+    (input.lines ?? []).map((l) => ({ skuId: l.skuId, units: l.quantity })),
+    prices,
+  );
+  const cash = input.cash !== false;
   return {
     order: orderCharge(terms, standard, vatBp, {
       productsPiastres: input.orderPiastres,
-      cashPiastres: input.orderPiastres,
+      cashPiastres: cash ? input.orderPiastres : 0,
+      productHandlingPiastres: handling,
+      standardFailedPercentBp: input.standardFailedPercentBp,
     }),
     month: monthEstimate(terms, standard, vatBp, {
       orders: input.orders,
       averageOrderPiastres: input.orderPiastres,
       unitsStored: input.unitsStored,
+      productHandlingPerOrderPiastres: handling,
+      cash,
     }),
   };
 }

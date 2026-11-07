@@ -42,10 +42,11 @@ Also inside the app: settings menu (top of every screen), Help.
 ### Make and send a proposal
 
 1. On the deal, in Proposals, tap New proposal. The rates start from our current fees.
-2. Change the rates you agreed, add volume tiers on any fee if any, the payout schedule and minimum payout, the delivery promise and attempts, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.
-3. If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.
-4. Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.
-5. To change a sent proposal, make a New version: the old link stops working.
+2. Change the rates you agreed. For one price per shipment tap All inclusive shipping fee, then type the shipping fee. Add prices per product if agreed: pick the brand's products, or add a row with the SKU and name when they have no products with us yet. A failed delivery share (for example 100%) replaces the fixed failed fee.
+3. Add volume tiers on any fee if any, the payout schedule and minimum payout, the delivery promise and attempts, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.
+4. If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.
+5. Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.
+6. To change a sent proposal, make a New version: the old link stops working.
 
 **Check it went right**
 
@@ -62,6 +63,7 @@ Also inside the app: settings menu (top of every screen), Help.
 2. Tap Confirm and open the merchant. Check the owner's name, email (their login) and mobile.
 3. Tap Confirm. The deal is won; the merchant, its contract version (every price, tier and term of the proposal, in force from the contract start) and the owner's login are made in one step.
 4. Copy the setup link that appears and send it to the owner: it works once and is shown only now.
+5. If the proposal lists Product prices without a product, ask the merchant's account manager to add those prices in the contract once the products exist.
 
 **Check it went right**
 
@@ -148,10 +150,11 @@ Also inside the app: settings menu (top of every screen), Help.
 ### اعمل عرض وابعته
 
 1. على الصفقة، في العروض، اضغط عرض جديد. الأسعار بتبدأ من رسومنا الحالية.
-2. غيّر الأسعار اللي اتفقتوا عليها، وضيف شرائح الكمية على أي رسم لو فيه، ومواعيد التحويل والحد الأدنى للتحويل، ومدة التوصيل والمحاولات، والطلبات في الشهر ومتوسط قيمة الطلب للشهر المثال، والحد الأدنى والتأمين وحد الائتمان وبداية العقد ومدته والإخطار.
-3. لو الشاشة قالت إن الخصم فوق الحد، احفظ واضغط اطلب موافقة المدير. استنى إشعار الموافقة.
-4. اضغط إرسال. الصفقة بتروح مرحلة العرض. اضغط نسخ الرابط وابعته للعلامة على واتساب أو الإيميل.
-5. عشان تغيّر عرض اتبعت، اعمل نسخة جديدة: الرابط القديم بيبطل.
+2. غيّر الأسعار اللي اتفقتوا عليها. لو سعر واحد لكل شحنة اضغط رسوم شحن شاملة وبعدين اكتب رسوم الشحن. ضيف سعر لكل منتج لو اتفقتوا: اختار من منتجات العلامة، أو ضيف صف بالرمز والاسم لو ملهمش منتجات عندنا لسه. نسبة التوصيل الفاشل (مثلا 100%) بتحل محل الرسم الثابت.
+3. ضيف شرائح الكمية على أي رسم لو فيه، ومواعيد التحويل والحد الأدنى للتحويل، ومدة التوصيل والمحاولات، والطلبات في الشهر ومتوسط قيمة الطلب للشهر المثال، والحد الأدنى والتأمين وحد الائتمان وبداية العقد ومدته والإخطار.
+4. لو الشاشة قالت إن الخصم فوق الحد، احفظ واضغط اطلب موافقة المدير. استنى إشعار الموافقة.
+5. اضغط إرسال. الصفقة بتروح مرحلة العرض. اضغط نسخ الرابط وابعته للعلامة على واتساب أو الإيميل.
+6. عشان تغيّر عرض اتبعت، اعمل نسخة جديدة: الرابط القديم بيبطل.
 
 **اتأكد إنها مشيت صح**
 
@@ -168,6 +171,7 @@ Also inside the app: settings menu (top of every screen), Help.
 2. اضغط تأكيد وفتح حساب التاجر. راجع اسم المالك وبريده (للدخول) وموبايله.
 3. اضغط تأكيد. الصفقة بتتكسب، والتاجر وإصدار عقده (كل أسعار وشرائح وشروط العرض، ساري من بداية العقد) وحساب المالك بيتعملوا في خطوة واحدة.
 4. انسخ رابط الإعداد اللي بيظهر وابعته للمالك: بيشتغل مرة واحدة وبيظهر دلوقتي بس.
+5. لو العرض فيه أسعار منتجات من غير منتج، اطلب من مدير حساب التاجر يضيف الأسعار دي في العقد أول ما المنتجات تتعمل.
 
 **اتأكد إنها مشيت صح**
 

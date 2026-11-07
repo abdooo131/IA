@@ -12,10 +12,12 @@ import {
   type ContractPrices,
   type ContractPriceValues,
   type ContractTier,
+  contractProductPriceRowSchema,
   type ContractVersionBody,
   contractVersionLabel,
   type DepositBody,
   egpText,
+  failedDeliveryRule,
   type PayoutScheduleName,
   resolvePrices,
   tierFor,
@@ -70,6 +72,18 @@ const versionInclude = {
 } as const satisfies Prisma.MerchantContractVersionInclude;
 type VersionRow = Prisma.MerchantContractVersionGetPayload<{ include: typeof versionInclude }>;
 
+/** A version with its product prices, for the screens and the printed contract. */
+const versionFullInclude = {
+  ...versionInclude,
+  products: {
+    include: { sku: { select: { sku: true, titleEn: true, titleAr: true } } },
+    orderBy: { sku: { sku: 'asc' } },
+  },
+} as const satisfies Prisma.MerchantContractVersionInclude;
+type VersionFullRow = Prisma.MerchantContractVersionGetPayload<{
+  include: typeof versionFullInclude;
+}>;
+
 /** Whether a version's contract dates cover a Cairo day (tiers and the minimum count then). */
 const covers = (v: { startDate: Date; endDate: Date | null }, day: string) =>
   dayText(v.startDate) <= day && (!v.endDate || dayText(v.endDate) >= day);
@@ -79,6 +93,28 @@ export async function standardPrices(db: Db): Promise<ContractPrices> {
   const out = {} as ContractPrices;
   for (const k of CONTRACT_PRICE_KEYS) out[k] = await getSetting(db, CONTRACT_PRICES[k].setting);
   return out;
+}
+
+/** fee.failed_delivery_percent_bp: the failed share for contracts with a shipping fee. */
+export function standardFailedPercent(db: Db) {
+  return getSetting(db, 'fee.failed_delivery_percent_bp');
+}
+
+/**
+ * The per product prices of a version for some products (every product when none are named).
+ * Products without a price are left out: they charge nothing for this fee.
+ */
+export async function productPricesFor(
+  db: Db,
+  versionId: string | null,
+  skuIds?: readonly string[],
+): Promise<Map<string, number>> {
+  if (!versionId) return new Map();
+  const rows = await db.merchantContractVersionProduct.findMany({
+    where: { versionId, ...(skuIds && { skuId: { in: [...skuIds] } }) },
+    select: { skuId: true, pricePiastres: true },
+  });
+  return new Map(rows.map((r) => [r.skuId, r.pricePiastres]));
 }
 
 /** A version's own prices (null: standard). */
@@ -168,8 +204,11 @@ export async function pricesForDay(
     nth = typeof input.nth === 'number' ? input.nth : await input.nth();
     tier = tierFor(version.tiers, nth);
   }
+  const prices = resolvePrices(version, tier, standard);
   return {
-    prices: resolvePrices(version, tier, standard),
+    prices,
+    /** What a failed attempt costs: a fixed fee, or a share of the shipment charges */
+    failed: failedDeliveryRule(version, tier, prices, await standardFailedPercent(db)),
     versionId: version?.id ?? null,
     contract: version ? contractVersionLabel(version.contract.number, version.version) : null,
     tierFrom: tier?.fromOrder ?? null,
@@ -197,7 +236,11 @@ export async function deliveryAttemptsFor(
 export type VersionDisplayStatus = 'draft' | 'in_force' | 'scheduled' | 'superseded' | 'ended';
 
 /** One version as the screens and the printed contract show it. */
-function versionView(v: VersionRow, inForceId: string | null, today: string) {
+function versionView(
+  v: VersionRow & { products?: VersionFullRow['products'] },
+  inForceId: string | null,
+  today: string,
+) {
   const effective = v.effectiveFrom ? dayText(v.effectiveFrom) : null;
   const display: VersionDisplayStatus =
     v.status === 'draft'
@@ -217,6 +260,15 @@ function versionView(v: VersionRow, inForceId: string | null, today: string) {
     displayStatus: display,
     effectiveFrom: effective,
     prices: pricesOf(v),
+    failedDeliveryPercentBp: v.failedDeliveryPercentBp,
+    /** Price per delivered unit of each product, by SKU */
+    productPrices: (v.products ?? []).map((p) => ({
+      skuId: p.skuId,
+      sku: p.sku.sku,
+      titleEn: p.sku.titleEn,
+      titleAr: p.sku.titleAr,
+      pricePiastres: p.pricePiastres,
+    })),
     tiers: tiersOf(v.tiers),
     payoutSchedule: v.payoutSchedule as PayoutScheduleName | null,
     minimumPayoutPiastres: v.minimumPayoutPiastres,
@@ -275,7 +327,7 @@ export async function getContract(db: Db, merchantId: string, now: Date = new Da
   const contract = await db.merchantContract.findUnique({
     where: { merchantId },
     include: {
-      versions: { include: versionInclude, orderBy: { version: 'desc' } },
+      versions: { include: versionFullInclude, orderBy: { version: 'desc' } },
       files: {
         select: {
           id: true,
@@ -340,7 +392,23 @@ export async function getContract(db: Db, merchantId: string, now: Date = new Da
       createdAt: f.createdAt,
     })),
     standard: await standardPrices(db),
+    /** A failed attempt's share of the shipment charges, for contracts with a shipping fee */
+    standardFailedPercentBp: await standardFailedPercent(db),
     vatBp: await getSetting(db, 'fee.vat_bp'),
+    /** The merchant's products, for per product prices and the calculator */
+    products: await db.sku.findMany({
+      where: { merchantId },
+      select: {
+        id: true,
+        sku: true,
+        titleEn: true,
+        titleAr: true,
+        pricePiastres: true,
+        isActive: true,
+      },
+      orderBy: { sku: 'asc' },
+      take: 5000,
+    }),
     standardTerms: {
       minimumPayoutPiastres: await getSetting(db, 'finance.payout_minimum_piastres'),
       deliveryAttempts: await getSetting(db, 'delivery.max_attempts'),
@@ -419,6 +487,7 @@ export async function contractForPrint(
         .join(', '),
     },
     standard: view.standard,
+    standardFailedPercentBp: view.standardFailedPercentBp,
     standardTerms: view.standardTerms,
     vatBp: view.vatBp,
     stores: view.stores.filter((s) => version.storeIds.includes(s.id)),
@@ -430,14 +499,11 @@ export type ContractPrint = Awaited<ReturnType<typeof contractForPrint>>;
 
 /** The columns of a version from what merchants manage typed. */
 function versionData(body: ContractVersionBody) {
+  const prices = {} as ContractPriceValues;
+  for (const k of CONTRACT_PRICE_KEYS) prices[k] = body[k] ?? null;
   return {
-    orderFixedPiastres: body.orderFixedPiastres,
-    orderPercentBp: body.orderPercentBp,
-    codPercentBp: body.codPercentBp,
-    failedDeliveryPiastres: body.failedDeliveryPiastres,
-    receivingPerUnitPiastres: body.receivingPerUnitPiastres,
-    storagePerUnitMonthPiastres: body.storagePerUnitMonthPiastres,
-    returnPerUnitPiastres: body.returnPerUnitPiastres,
+    ...prices,
+    failedDeliveryPercentBp: body.failedDeliveryPercentBp ?? null,
     payoutSchedule: body.payoutSchedule,
     minimumPayoutPiastres: body.minimumPayoutPiastres,
     minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres,
@@ -470,6 +536,8 @@ function auditTerms(v: ContractVersionView) {
     version: v.label,
     effectiveFrom: v.effectiveFrom,
     ...v.prices,
+    failedDeliveryPercentBp: v.failedDeliveryPercentBp,
+    productPrices: v.productPrices.map((p) => `${p.sku}=${p.pricePiastres}`).join('; '),
     tiers,
     payoutSchedule: v.payoutSchedule,
     minimumPayout: v.minimumPayoutPiastres,
@@ -489,11 +557,21 @@ function auditTerms(v: ContractVersionView) {
 async function loadVersion(db: Db, merchantId: string, versionId: string) {
   const v = await db.merchantContractVersion.findUnique({
     where: { id: versionId },
-    include: versionInclude,
+    include: versionFullInclude,
   });
   if (!v || v.contract.merchantId !== merchantId)
     throw new DomainError('contract_version_not_found', 404);
   return v;
+}
+
+/** Product prices only for the merchant's own products. */
+async function checkProducts(tx: Tx, merchantId: string, body: ContractVersionBody) {
+  const rows = body.productPrices ?? [];
+  const ids = [...new Set(rows.map((p) => p.skuId))];
+  if (!ids.length) return [];
+  const found = await tx.sku.count({ where: { id: { in: ids }, merchantId } });
+  if (found !== ids.length) throw new DomainError('product_not_found', 400);
+  return rows.map((p) => ({ skuId: p.skuId, pricePiastres: p.pricePiastres }));
 }
 
 async function lockMerchant(tx: Tx, merchantId: string) {
@@ -556,6 +634,7 @@ export function createContractDraft(
       where: { contractId: contract.id, status: 'draft' },
     });
     if (draft) throw new DomainError('contract_draft_exists', 409, { versionId: draft.id });
+    const products = await checkProducts(tx, input.merchantId, input.body);
     const last = await tx.merchantContractVersion.aggregate({
       where: { contractId: contract.id },
       _max: { version: true },
@@ -570,8 +649,9 @@ export function createContractDraft(
         createdById: input.actorUserId,
         idempotencyKey: input.idempotencyKey ?? null,
         tiers: { create: tiersOf(input.body.tiers) },
+        products: { create: products },
       },
-      include: versionInclude,
+      include: versionFullInclude,
     });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
@@ -593,11 +673,17 @@ export function updateContractDraft(
     await lockMerchant(tx, input.merchantId);
     const before = await loadVersion(tx, input.merchantId, input.versionId);
     if (before.status !== 'draft') throw new DomainError('contract_version_not_draft');
+    const products = await checkProducts(tx, input.merchantId, input.body);
     await tx.merchantContractVersionTier.deleteMany({ where: { versionId: before.id } });
+    await tx.merchantContractVersionProduct.deleteMany({ where: { versionId: before.id } });
     const after = await tx.merchantContractVersion.update({
       where: { id: before.id },
-      data: { ...versionData(input.body), tiers: { create: tiersOf(input.body.tiers) } },
-      include: versionInclude,
+      data: {
+        ...versionData(input.body),
+        tiers: { create: tiersOf(input.body.tiers) },
+        products: { create: products },
+      },
+      include: versionFullInclude,
     });
     const today = cairoDay(new Date());
     await recordAudit(tx, {
@@ -694,7 +780,6 @@ export function activateContractVersion(
     const last = await tx.merchantContractVersion.findFirst({
       where: { contractId: v.contractId, status: { in: ['active', 'superseded'] } },
       orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
-      include: versionInclude,
     });
     if (last?.effectiveFrom && input.effectiveFrom < dayText(last.effectiveFrom))
       throw new DomainError('effective_before_last_version', 409, {
@@ -705,7 +790,10 @@ export function activateContractVersion(
       throw new DomainError('books_closed');
     if (v.endDate && dayText(v.endDate) < input.effectiveFrom)
       throw new DomainError('effective_after_end', 400);
-    const inForceBefore = await versionInForce(tx, input.merchantId, today);
+    const inForceNow = await versionInForce(tx, input.merchantId, today);
+    const inForceBefore = inForceNow
+      ? await loadVersion(tx, input.merchantId, inForceNow.id)
+      : null;
     const activated = await tx.merchantContractVersion.update({
       where: { id: v.id },
       data: {
@@ -714,7 +802,7 @@ export function activateContractVersion(
         activatedById: input.actorUserId,
         activatedAt: now,
       },
-      include: versionInclude,
+      include: versionFullInclude,
     });
     await tx.merchantContractVersion.updateMany({
       where: { contractId: v.contractId, status: 'active', id: { not: v.id } },
@@ -759,6 +847,85 @@ export async function applyContractSchedules(db: Db, now: Date = new Date()) {
       applied++;
     });
   return { applied };
+}
+
+// ─── per product prices from a file ─────────────────────────────────────────────
+
+export interface ProductPriceCheck {
+  rows: {
+    skuId: string;
+    sku: string;
+    titleEn: string;
+    titleAr: string;
+    pricePiastres: number;
+  }[];
+  errors: { row: number; sku?: string; error: string }[];
+}
+
+/**
+ * Checks a product prices file (sku, price_egp) against the merchant's products: every row
+ * must name one of the merchant's SKUs once with a price in pounds (two decimals at most,
+ * turned into piastres without floats). All or nothing: with any error no row is returned,
+ * every error is listed (row 2 is the first after the header). Nothing is saved here; the
+ * editor puts the prices into the draft, which is saved as usual.
+ */
+export async function checkProductPriceRows(
+  db: Db,
+  merchantId: string,
+  raw: readonly Record<string, unknown>[],
+): Promise<ProductPriceCheck> {
+  const merchant = await db.merchant.findUnique({ where: { id: merchantId } });
+  if (!merchant) throw new DomainError('merchant_not_found', 404);
+  const products = await db.sku.findMany({
+    where: { merchantId },
+    select: { id: true, sku: true, titleEn: true, titleAr: true },
+  });
+  const bySku = new Map(products.map((p) => [p.sku.toLowerCase(), p]));
+  const errors: ProductPriceCheck['errors'] = [];
+  const rows: ProductPriceCheck['rows'] = [];
+  const seen = new Set<string>();
+  raw.forEach((input, index) => {
+    const row = index + 2;
+    // A SKU written to our files as '-ABC (so Excel never runs it) reads back as -ABC.
+    const r =
+      typeof input.sku === 'string'
+        ? { ...input, sku: input.sku.trim().replace(/^'(?=[=+\-@])/, '') }
+        : input;
+    const parsed = contractProductPriceRowSchema.safeParse(r);
+    const skuText = typeof r.sku === 'string' ? r.sku.trim() : undefined;
+    if (!parsed.success) {
+      errors.push({ row, sku: skuText, error: parsed.error.issues[0]?.message ?? 'invalid_row' });
+      return;
+    }
+    const key = parsed.data.sku.toLowerCase();
+    const product = bySku.get(key);
+    if (!product) return void errors.push({ row, sku: parsed.data.sku, error: 'unknown_sku' });
+    if (seen.has(key))
+      return void errors.push({ row, sku: parsed.data.sku, error: 'duplicate_sku_in_file' });
+    seen.add(key);
+    rows.push({
+      skuId: product.id,
+      sku: product.sku,
+      titleEn: product.titleEn,
+      titleAr: product.titleAr,
+      pricePiastres: parsed.data.price_egp,
+    });
+  });
+  return errors.length ? { rows: [], errors } : { rows, errors };
+}
+
+/** A version's product prices, by SKU, for the file people download (sku, price_egp...). */
+export async function versionProductPrices(db: Db, merchantId: string, versionId: string) {
+  const v = await loadVersion(db, merchantId, versionId);
+  return {
+    label: contractVersionLabel(v.contract.number, v.version),
+    rows: v.products.map((p) => ({
+      sku: p.sku.sku,
+      titleEn: p.sku.titleEn,
+      titleAr: p.sku.titleAr,
+      pricePiastres: p.pricePiastres,
+    })),
+  };
 }
 
 // ─── signed files ────────────────────────────────────────────────────────────────
@@ -866,6 +1033,11 @@ export async function listContracts(db: Db, now: Date = new Date()) {
       hasDraft: draft > 0,
       tiers: v?.tiers.length ?? 0,
       ownPrices: v ? CONTRACT_PRICE_KEYS.filter((k) => v[k] !== null).length : 0,
+      shippingFeePiastres: v?.shippingFeePiastres ?? null,
+      productPrices: v
+        ? await db.merchantContractVersionProduct.count({ where: { versionId: v.id } })
+        : 0,
+
       minimumMonthlyFeePiastres: v?.minimumMonthlyFeePiastres ?? null,
       securityDepositPiastres: v?.securityDepositPiastres ?? null,
       depositHeldPiastres: await depositHeld(db, c.merchantId),

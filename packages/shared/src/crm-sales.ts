@@ -59,7 +59,23 @@ const text = (max: number) =>
     .optional()
     .transform((v) => (v === undefined ? undefined : v || null));
 
+/**
+ * A per product price offered: a product of the merchant (or of the company's own merchant
+ * after a sign up) or a free row (SKU and name typed). On confirm the rows map to the
+ * merchant's products by SKU; rows without a product are kept as notes and listed for the rep.
+ */
+export const proposalProductPriceSchema = z.object({
+  skuId: id.nullable().default(null),
+  sku: z.string().trim().min(1, 'sku_required').max(64),
+  name: z.string().trim().max(200).default(''),
+  pricePiastres: money,
+});
+export type ProposalProductPrice = z.infer<typeof proposalProductPriceSchema>;
+export const PROPOSAL_PRODUCT_PRICES_MAX = 500;
+
 const proposalFields = {
+  shippingFeePiastres: money,
+  packagingChargePiastres: money,
   orderFixedPiastres: money,
   orderPercentBp: bp,
   codPercentBp: bp,
@@ -67,6 +83,9 @@ const proposalFields = {
   receivingPerUnitPiastres: money,
   storagePerUnitMonthPiastres: money,
   returnPerUnitPiastres: money,
+  /** A failed attempt costs this share of the shipment charges instead of the fixed fee */
+  failedDeliveryPercentBp: bp.nullable(),
+  productPrices: z.array(proposalProductPriceSchema).max(PROPOSAL_PRODUCT_PRICES_MAX),
   expectedMonthlyOrders: z.number().int().min(0).max(10_000_000).nullable(),
   averageOrderPiastres: money.nullable(),
   minimumMonthlyFeePiastres: money.nullable(),
@@ -85,6 +104,9 @@ const proposalFields = {
 };
 const tiersOnce = (v: { tiers?: { fromOrder: number }[] }) =>
   !v.tiers || new Set(v.tiers.map((t) => t.fromOrder)).size === v.tiers.length;
+const productsOnce = (v: { productPrices?: { sku: string }[] }) =>
+  !v.productPrices ||
+  new Set(v.productPrices.map((p) => p.sku.toLowerCase())).size === v.productPrices.length;
 
 /**
  * A new proposal for a deal. Every value left out starts from the fee settings (fees), the
@@ -94,13 +116,15 @@ export const proposalCreateSchema = z
   .object(proposalFields)
   .partial()
   .extend({ dealId: id, idempotencyKey })
-  .refine(tiersOnce, { message: 'tier_twice', path: ['tiers'] });
+  .refine(tiersOnce, { message: 'tier_twice', path: ['tiers'] })
+  .refine(productsOnce, { message: 'product_twice', path: ['productPrices'] });
 export type ProposalCreateBody = z.infer<typeof proposalCreateSchema>;
 
 export const proposalUpdateSchema = z
   .object(proposalFields)
   .partial()
   .refine(tiersOnce, { message: 'tier_twice', path: ['tiers'] })
+  .refine(productsOnce, { message: 'product_twice', path: ['productPrices'] })
   .refine((v) => Object.values(v).some((x) => x !== undefined), 'nothing_to_change');
 export type ProposalUpdateBody = z.infer<typeof proposalUpdateSchema>;
 
@@ -156,21 +180,60 @@ export function proposalDiscounts(
   return out;
 }
 
-/** The largest discount of a proposal, and whether it needs a sales manager first. */
+/** What the discount check needs to price the example month. */
+export interface ProposalVolume {
+  expectedMonthlyOrders?: number | null;
+  averageOrderPiastres?: number | null;
+  minimumMonthlyFeePiastres?: number | null;
+}
+
+/**
+ * The largest discount of a proposal, and whether it needs a sales manager first. A proposal
+ * with a shipping fee is usually all inclusive (the other fees at 0), so it is checked as a
+ * whole: its example month (at least one order) against the same month at the fee settings.
+ * Without a shipping fee each fee and band is checked against its setting.
+ */
 export function proposalApproval(
-  p: ProposalFees & { tiers: readonly ContractTier[] },
+  p: ProposalFees & { tiers: readonly ContractTier[] } & ProposalVolume,
   list: ProposalFees,
   maxDiscountBp: number,
 ) {
-  const max = Math.max(0, ...proposalDiscounts(p, list).map((d) => d.discountBp));
+  const max =
+    p.shippingFeePiastres > 0
+      ? packageDiscountBp(p, list)
+      : Math.max(0, ...proposalDiscounts(p, list).map((d) => d.discountBp));
   return { maxDiscountBp: max, needsApproval: max > maxDiscountBp };
+}
+
+/** The discount of a whole proposal: its example month against the fee settings' month. */
+export function packageDiscountBp(
+  p: ProposalFees & { tiers: readonly ContractTier[] } & ProposalVolume,
+  list: ProposalFees,
+) {
+  const volume = {
+    expectedMonthlyOrders: Math.max(1, p.expectedMonthlyOrders ?? 0),
+    averageOrderPiastres: p.averageOrderPiastres ?? 0,
+  };
+  const offered = exampleMonth({
+    ...p,
+    ...volume,
+    minimumMonthlyFeePiastres: p.minimumMonthlyFeePiastres ?? null,
+  });
+  const standard = exampleMonth({
+    ...list,
+    ...volume,
+    minimumMonthlyFeePiastres: null,
+    tiers: [],
+  });
+  return discountBp(offered.totalPiastres, standard.totalPiastres);
 }
 
 /**
  * The example month on the proposal page: the expected orders at the average order value,
  * every order paid cash on delivery, the volume tiers applied order by order (the order that
  * crosses into a band and every later one pay the band's fee), topped up to the minimum.
- * Before VAT. Without an average order value the percent parts count as zero.
+ * Before VAT. Without an average order value the percent parts count as zero. Per product
+ * prices are left out (they depend on the products of each order).
  */
 export function exampleMonth(
   p: ProposalFees & {
@@ -186,24 +249,30 @@ export function exampleMonth(
   const starts = [1, ...p.tiers.map((t) => t.fromOrder).filter((n) => n > 1 && n <= orders)].sort(
     (a, b) => a - b,
   );
+  let shippingFees = 0;
   let orderFees = 0;
   let codFees = 0;
+  let packagingCharges = 0;
   for (const [i, from] of starts.entries()) {
     const to = i + 1 < starts.length ? starts[i + 1]! - 1 : orders;
     const count = Math.max(0, to - from + 1);
     const prices = resolvePrices(null, tierFor(p.tiers, from), p);
+    shippingFees += count * prices.shippingFeePiastres;
     orderFees += count * (prices.orderFixedPiastres + bpShare(average, prices.orderPercentBp));
     codFees += count * bpShare(average, prices.codPercentBp);
+    packagingCharges += count * prices.packagingChargePiastres;
   }
-  const beforeMinimum = orderFees + codFees;
+  const beforeMinimum = shippingFees + orderFees + codFees + packagingCharges;
   const minimumTopUp = p.minimumMonthlyFeePiastres
     ? Math.max(0, p.minimumMonthlyFeePiastres - beforeMinimum)
     : 0;
   const total = beforeMinimum + minimumTopUp;
   return {
     orders,
+    shippingFeesPiastres: shippingFees,
     orderFeesPiastres: orderFees,
     codFeesPiastres: codFees,
+    packagingChargesPiastres: packagingCharges,
     minimumTopUpPiastres: minimumTopUp,
     totalPiastres: total,
     perOrderPiastres: orders > 0 ? Math.round(total / orders) : null,

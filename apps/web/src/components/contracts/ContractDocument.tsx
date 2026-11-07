@@ -5,6 +5,7 @@ import {
   type ContractPriceKey,
   type ContractPrices,
   type ContractTier,
+  failedDeliveryRule,
   tierValue,
 } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
@@ -13,8 +14,10 @@ import { isoToDayFirst } from '@/lib/day-first';
 import { formatEgp } from '@/lib/format';
 import { bpText } from '@/lib/sales-part2';
 import {
+  type ContractProductPriceRow,
   type ContractVersion,
   type ContractView,
+  isAllInclusive,
   isPercent,
   tierColumns,
   type VersionDisplayStatus,
@@ -128,15 +131,93 @@ export function TierTable({ tiers }: { tiers: readonly ContractTier[] }) {
   );
 }
 
+/** What a failed attempt costs under a version, in words. */
+export function FailedRule({
+  prices,
+  failedDeliveryPercentBp,
+  standard,
+  standardFailedPercentBp,
+}: {
+  prices: ContractVersion['prices'];
+  failedDeliveryPercentBp: number | null;
+  standard: ContractPrices;
+  standardFailedPercentBp: number;
+}) {
+  const t = useTranslations('contracts.failed');
+  const rule = failedDeliveryRule(
+    { failedDeliveryPiastres: prices.failedDeliveryPiastres, failedDeliveryPercentBp },
+    null,
+    {
+      failedDeliveryPiastres: prices.failedDeliveryPiastres ?? standard.failedDeliveryPiastres,
+      shippingFeePiastres: prices.shippingFeePiastres ?? standard.shippingFeePiastres,
+    },
+    standardFailedPercentBp,
+  );
+  return (
+    <span className="ltr-iso">
+      {rule.mode === 'fixed'
+        ? t('fixedRule', { amount: formatEgp(rule.piastres) })
+        : t('percentRule', { percent: `${bpText(rule.bp)}%` })}
+    </span>
+  );
+}
+
+/** Per product prices: the first rows, then "and N more" with the full list in the file. */
+export function ProductPriceList({
+  rows,
+  limit = 10,
+  csvHref,
+}: {
+  rows: readonly ContractProductPriceRow[];
+  limit?: number;
+  csvHref?: string | null;
+}) {
+  const t = useTranslations('contracts.products');
+  const locale = useLocale();
+  if (!rows.length) return <p className="text-body-sm text-text-muted">{t('none')}</p>;
+  return (
+    <div className="space-y-2">
+      <ul className="divide-y divide-line rounded-md border border-line">
+        {rows.slice(0, limit).map((r) => (
+          <li key={r.skuId} className="flex items-center justify-between gap-2 px-3 py-1.5">
+            <span className="min-w-0 text-body-sm">
+              <span className="ltr-iso block truncate font-bold">{r.sku}</span>
+              <span className="block truncate text-caption text-text-muted">
+                {locale === 'ar' ? r.titleAr || r.titleEn : r.titleEn}
+              </span>
+            </span>
+            <span className="ltr-iso shrink-0 text-body-sm font-bold text-link">
+              {formatEgp(r.pricePiastres)} EGP
+            </span>
+          </li>
+        ))}
+      </ul>
+      {rows.length > limit && (
+        <p className="text-caption text-text-muted">{t('andMore', { n: rows.length - limit })}</p>
+      )}
+      <p className="text-caption text-text-muted">{t('rule')}</p>
+      {csvHref && (
+        <a className="btn-secondary inline-flex h-10 items-center" href={csvHref}>
+          {t('export')}
+        </a>
+      )}
+    </div>
+  );
+}
+
 /** Every price of a version beside the standard one. */
 export function PriceTable({
   prices,
   standard,
   vatBp,
+  failedDeliveryPercentBp = null,
+  standardFailedPercentBp = 10_000,
 }: {
   prices: ContractVersion['prices'];
   standard: ContractPrices;
   vatBp: number;
+  failedDeliveryPercentBp?: number | null;
+  standardFailedPercentBp?: number;
 }) {
   const t = useTranslations('contracts');
   return (
@@ -174,21 +255,31 @@ export function PriceTable({
         })}
         <li className="grid grid-cols-2 gap-x-2 border-t border-line px-3 py-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.5fr)]">
           <span className="col-span-2 text-body-sm sm:col-span-1">
+            {t('failed.title')}
+            <span className="block text-caption text-text-muted">{t('failed.titleHint')}</span>
+          </span>
+          <span className="col-span-2 text-body-sm font-bold sm:col-span-2">
+            <FailedRule
+              prices={prices}
+              failedDeliveryPercentBp={failedDeliveryPercentBp}
+              standard={standard}
+              standardFailedPercentBp={standardFailedPercentBp}
+            />
+          </span>
+        </li>
+        <li className="grid grid-cols-2 gap-x-2 border-t border-line px-3 py-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.5fr)]">
+          <span className="col-span-2 text-body-sm sm:col-span-1">
             {t('vat')}
             <span className="block text-caption text-text-muted">{t('vatHint')}</span>
           </span>
           <span className="ltr-iso text-body-sm text-text-muted">{bpText(vatBp)}%</span>
           <span className="text-body-sm">{t('vatSame')}</span>
         </li>
-        <li className="grid grid-cols-2 gap-x-2 border-t border-line px-3 py-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1.3fr)_minmax(0,1.5fr)]">
-          <span className="col-span-2 text-body-sm sm:col-span-1">
-            {t('packaging')}
-            <span className="block text-caption text-text-muted">{t('packagingHint')}</span>
-          </span>
-          <span className="text-body-sm text-text-muted">{t('included')}</span>
-          <span className="text-body-sm font-bold">{t('included')}</span>
-        </li>
       </ul>
+      <p className="border-t border-line px-3 py-2 text-caption text-text-muted">
+        {isAllInclusive(prices) && <>{t('allInclusiveNote')} </>}
+        {t('packagingHint')}
+      </p>
     </div>
   );
 }
@@ -199,6 +290,7 @@ export function ContractDocument({
   version: v,
   internal,
   bankSlot,
+  csvBase = null,
 }: {
   view: ContractView;
   version: ContractVersion;
@@ -206,6 +298,8 @@ export function ContractDocument({
   internal: boolean;
   /** The bank row's own content (the editor for merchants manage) */
   bankSlot?: ReactNode;
+  /** Where the version's prices file is offered (the team's pages), e.g. /api/admin/merchants/<id> */
+  csvBase?: string | null;
 }) {
   const t = useTranslations('contracts');
   const locale = useLocale();
@@ -231,7 +325,24 @@ export function ContractDocument({
       </header>
 
       <Section title={t('sections.prices')}>
-        <PriceTable prices={v.prices} standard={view.standard} vatBp={view.vatBp} />
+        <PriceTable
+          prices={v.prices}
+          standard={view.standard}
+          vatBp={view.vatBp}
+          failedDeliveryPercentBp={v.failedDeliveryPercentBp}
+          standardFailedPercentBp={view.standardFailedPercentBp}
+        />
+      </Section>
+
+      <Section title={t('sections.productPrices')}>
+        <ProductPriceList
+          rows={v.productPrices}
+          csvHref={
+            csvBase && v.productPrices.length
+              ? `${csvBase}/contract/versions/${v.id}/product-prices.csv`
+              : null
+          }
+        />
       </Section>
 
       <Section title={t('sections.tiers')}>

@@ -5,6 +5,7 @@ import {
   cairoDay,
   contractEndDay,
   dealNumber,
+  egpText,
   exampleMonth,
   CONTRACT_TIER_KEYS,
   type ContractTier,
@@ -17,7 +18,9 @@ import {
   type ProposalCreateBody,
   type ProposalFees,
   proposalNumber,
+  type ProposalProductPrice,
   type ProposalUpdateBody,
+  type ProposalVolume,
 } from '@shiplynow/shared';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
@@ -68,6 +71,7 @@ export async function proposalFeeList(db: Db): Promise<ProposalFees> {
 
 const proposalInclude = {
   tiers: { orderBy: { fromOrder: 'asc' } },
+  products: { orderBy: { position: 'asc' } },
   createdBy: { select: { id: true, name: true } },
   approvedBy: { select: { id: true, name: true } },
   sentBy: { select: { id: true, name: true } },
@@ -90,6 +94,61 @@ function feesOf(p: ProposalFees): ProposalFees {
   return out;
 }
 
+type ProductRow = {
+  skuId: string | null;
+  sku: string;
+  name: string;
+  pricePiastres: number;
+  matchedSkuId?: string | null;
+  confirmedAt?: Date | null;
+};
+
+/** The per product prices offered, with what became of each row once confirmed. */
+function productsOf(rows: readonly ProductRow[]) {
+  return rows.map((r) => ({
+    skuId: r.skuId,
+    sku: r.sku,
+    name: r.name,
+    pricePiastres: r.pricePiastres,
+    /** null until confirmed; then whether the row became a product price of the contract */
+    matched: r.confirmedAt ? r.matchedSkuId !== null : null,
+  }));
+}
+
+/** The rows to store for a proposal's product prices, in the order typed. */
+function productData(rows: readonly ProposalProductPrice[]) {
+  return rows.map((r, position) => ({
+    position,
+    skuId: r.skuId ?? null,
+    sku: r.sku,
+    name: r.name ?? '',
+    pricePiastres: r.pricePiastres,
+  }));
+}
+
+/** A row's product must be the deal's merchant's (or the company's own merchant's). */
+async function checkProposalProducts(
+  tx: Db,
+  deal: { merchantId: string | null; companyId: string },
+  rows: readonly ProposalProductPrice[],
+) {
+  const ids = [...new Set(rows.map((r) => r.skuId).filter((x): x is string => !!x))];
+  if (!ids.length) return;
+  const merchantId = await proposalMerchantId(tx, deal);
+  const found = merchantId ? await tx.sku.count({ where: { id: { in: ids }, merchantId } }) : 0;
+  if (found !== ids.length) throw new DomainError('product_not_found', 400);
+}
+
+/** The merchant whose products a deal's proposal may price: the deal's, else the company's. */
+async function proposalMerchantId(tx: Db, deal: { merchantId: string | null; companyId: string }) {
+  if (deal.merchantId) return deal.merchantId;
+  const company = await tx.crmCompany.findUnique({
+    where: { id: deal.companyId },
+    select: { merchantId: true },
+  });
+  return company?.merchantId ?? null;
+}
+
 /** What the screens and the audit log show of a proposal. */
 function toView(p: ProposalRow) {
   const tiers = tiersOf(p);
@@ -101,6 +160,8 @@ function toView(p: ProposalRow) {
     version: p.version,
     status: p.status,
     fees: feesOf(p),
+    failedDeliveryPercentBp: p.failedDeliveryPercentBp,
+    productPrices: productsOf(p.products),
     expectedMonthlyOrders: p.expectedMonthlyOrders,
     averageOrderPiastres: p.averageOrderPiastres,
     minimumMonthlyFeePiastres: p.minimumMonthlyFeePiastres,
@@ -147,6 +208,8 @@ function auditView(
     version: number;
     status: string;
     maxDiscountBp: number;
+    failedDeliveryPercentBp: number | null;
+    products?: readonly ProductRow[];
   } & ProposalFees,
 ) {
   return {
@@ -155,6 +218,8 @@ function auditView(
     status: p.status,
     maxDiscountBp: p.maxDiscountBp,
     ...feesOf(p),
+    failedDeliveryPercentBp: p.failedDeliveryPercentBp,
+    productPrices: (p.products ?? []).map((r) => `${r.sku}=${r.pricePiastres}`).join('; '),
   };
 }
 
@@ -226,9 +291,20 @@ export async function dealProposals(db: Db, dealId: string, actor: CrmActor) {
         orderBy: { createdAt: 'asc' },
       })
     : null;
+  const productsOwner = await proposalMerchantId(db, deal);
   return {
     proposals: rows.map(toView),
+    /** The merchant's products a proposal can price (the company's own after a sign up) */
+    products: productsOwner
+      ? await db.sku.findMany({
+          where: { merchantId: productsOwner },
+          select: { id: true, sku: true, titleEn: true, titleAr: true, pricePiastres: true },
+          orderBy: { sku: 'asc' },
+          take: 5000,
+        })
+      : [],
     defaults: await proposalFeeList(db),
+    standardFailedPercentBp: await getSetting(db, 'fee.failed_delivery_percent_bp'),
     maxDiscountBp: await getSetting(db, 'sales.max_discount_bp'),
     validDays: await getSetting(db, 'sales.proposal_valid_days'),
     merchantOwner,
@@ -238,7 +314,10 @@ export async function dealProposals(db: Db, dealId: string, actor: CrmActor) {
 // ─── creating and editing ────────────────────────────────────────────────────────
 
 /** The proposal's values after a change, with its discount check worked out again. */
-async function priced(tx: Db, values: ProposalFees & { tiers: readonly ContractTier[] }) {
+async function priced(
+  tx: Db,
+  values: ProposalFees & { tiers: readonly ContractTier[] } & ProposalVolume,
+) {
   const list = await proposalFeeList(tx);
   const max = await getSetting(tx, 'sales.max_discount_bp');
   return proposalApproval(values, list, max);
@@ -268,7 +347,16 @@ export async function createProposal(
     const fees = {} as ProposalFees;
     for (const k of PROPOSAL_FEE_KEYS) fees[k] = body[k] ?? list[k];
     const tiers = [...(body.tiers ?? [])].sort((a, b) => a.fromOrder - b.fromOrder);
-    const approval = await priced(tx, { ...fees, tiers });
+    const products = body.productPrices ?? [];
+    await checkProposalProducts(tx, deal, products);
+    const expectedMonthlyOrders = body.expectedMonthlyOrders ?? deal.expectedMonthlyOrders ?? null;
+    const approval = await priced(tx, {
+      ...fees,
+      tiers,
+      expectedMonthlyOrders,
+      averageOrderPiastres: body.averageOrderPiastres ?? null,
+      minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres ?? null,
+    });
     const last = await tx.crmProposal.aggregate({
       where: { dealId: deal.id },
       _max: { version: true },
@@ -288,7 +376,8 @@ export async function createProposal(
         dealId: deal.id,
         version: (last._max.version ?? 0) + 1,
         ...fees,
-        expectedMonthlyOrders: body.expectedMonthlyOrders ?? deal.expectedMonthlyOrders ?? null,
+        failedDeliveryPercentBp: body.failedDeliveryPercentBp ?? null,
+        expectedMonthlyOrders,
         averageOrderPiastres: body.averageOrderPiastres ?? null,
         minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres ?? null,
         securityDepositPiastres: body.securityDepositPiastres ?? null,
@@ -307,6 +396,7 @@ export async function createProposal(
         idempotencyKey: body.idempotencyKey,
         createdAt: now,
         tiers: { create: tiers },
+        products: { create: productData(products) },
       },
       include: proposalInclude,
     });
@@ -333,21 +423,50 @@ export async function updateProposal(
 ) {
   need(actor, 'use');
   return inTransaction(db, async (tx) => {
-    const { proposal: before } = await proposalFor(tx, id, actor);
+    const { proposal: before, deal } = await proposalFor(tx, id, actor);
     if (before.status !== 'draft') throw new DomainError('proposal_not_draft');
     const beforeTiers = await tx.crmProposalTier.findMany({
       where: { proposalId: id },
       orderBy: { fromOrder: 'asc' },
+    });
+    const beforeProducts = await tx.crmProposalProduct.findMany({
+      where: { proposalId: id },
+      orderBy: { position: 'asc' },
     });
     const fees = {} as ProposalFees;
     for (const k of PROPOSAL_FEE_KEYS) fees[k] = body[k] ?? before[k];
     const tiers = body.tiers
       ? [...body.tiers].sort((a, b) => a.fromOrder - b.fromOrder)
       : tiersOf({ tiers: beforeTiers });
-    const approval = await priced(tx, { ...fees, tiers });
+    if (body.productPrices) await checkProposalProducts(tx, deal, body.productPrices);
+    const failedPercent =
+      body.failedDeliveryPercentBp === undefined
+        ? before.failedDeliveryPercentBp
+        : body.failedDeliveryPercentBp;
+    const approval = await priced(tx, {
+      ...fees,
+      tiers,
+      expectedMonthlyOrders:
+        body.expectedMonthlyOrders === undefined
+          ? before.expectedMonthlyOrders
+          : body.expectedMonthlyOrders,
+      averageOrderPiastres:
+        body.averageOrderPiastres === undefined
+          ? before.averageOrderPiastres
+          : body.averageOrderPiastres,
+      minimumMonthlyFeePiastres:
+        body.minimumMonthlyFeePiastres === undefined
+          ? before.minimumMonthlyFeePiastres
+          : body.minimumMonthlyFeePiastres,
+    });
+    const productsText = (rows: readonly { sku: string; pricePiastres: number }[]) =>
+      JSON.stringify(rows.map((r) => [r.sku, r.pricePiastres]));
     const priceChanged =
       PROPOSAL_FEE_KEYS.some((k) => fees[k] !== before[k]) ||
       JSON.stringify(tiers) !== JSON.stringify(tiersOf({ tiers: beforeTiers })) ||
+      failedPercent !== before.failedDeliveryPercentBp ||
+      (body.productPrices !== undefined &&
+        productsText(body.productPrices) !== productsText(beforeProducts)) ||
       (body.minimumMonthlyFeePiastres !== undefined &&
         body.minimumMonthlyFeePiastres !== before.minimumMonthlyFeePiastres);
     if (body.tiers) {
@@ -355,10 +474,18 @@ export async function updateProposal(
       if (tiers.length)
         await tx.crmProposalTier.createMany({ data: tiers.map((t) => ({ proposalId: id, ...t })) });
     }
+    if (body.productPrices) {
+      await tx.crmProposalProduct.deleteMany({ where: { proposalId: id } });
+      if (body.productPrices.length)
+        await tx.crmProposalProduct.createMany({
+          data: productData(body.productPrices).map((r) => ({ proposalId: id, ...r })),
+        });
+    }
     const after = await tx.crmProposal.update({
       where: { id },
       data: {
         ...fees,
+        failedDeliveryPercentBp: failedPercent,
         expectedMonthlyOrders: body.expectedMonthlyOrders,
         averageOrderPiastres: body.averageOrderPiastres,
         minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres,
@@ -389,7 +516,7 @@ export async function updateProposal(
       action: 'crm_proposal.update',
       entityType: 'crm_deal',
       entityId: before.dealId,
-      before: auditView(before),
+      before: auditView({ ...before, products: beforeProducts }),
       after: auditView(after),
     });
     return toView(after);
@@ -567,6 +694,7 @@ export async function publicProposal(db: Db, token: string, now: Date = new Date
       where: { id: proposal.id },
       include: {
         tiers: { orderBy: { fromOrder: 'asc' } },
+        products: { orderBy: { position: 'asc' } },
         deal: {
           select: {
             company: { select: { brandName: true } },
@@ -599,6 +727,13 @@ export async function publicProposal(db: Db, token: string, now: Date = new Date
         ? { name: full.deal.owner.name, email: full.deal.owner.email, phone: full.deal.owner.phone }
         : null,
       fees: feesOf(full),
+      failedDeliveryPercentBp: full.failedDeliveryPercentBp,
+      standardFailedPercentBp: await getSetting(tx, 'fee.failed_delivery_percent_bp'),
+      productPrices: full.products.map((r) => ({
+        sku: r.sku,
+        name: r.name,
+        pricePiastres: r.pricePiastres,
+      })),
       tiers,
       expectedMonthlyOrders: full.expectedMonthlyOrders,
       averageOrderPiastres: full.averageOrderPiastres,
@@ -770,14 +905,25 @@ export async function confirmProposal(
       await tx.$queryRaw`SELECT id FROM crm_deals WHERE id = ${proposal.dealId} FOR UPDATE`;
       const fresh = await tx.crmProposal.findUniqueOrThrow({
         where: { id },
-        include: { tiers: { orderBy: { fromOrder: 'asc' } } },
+        include: {
+          tiers: { orderBy: { fromOrder: 'asc' } },
+          products: { orderBy: { position: 'asc' } },
+        },
       });
       const deal = await tx.crmDeal.findUniqueOrThrow({
         where: { id: fresh.dealId },
         include: { company: { include: { contacts: { orderBy: { createdAt: 'asc' } } } } },
       });
       if (fresh.confirmedAt)
-        return { merchantId: fresh.merchantId!, ownerUserId: null, setupToken: null, again: true };
+        return {
+          merchantId: fresh.merchantId!,
+          ownerUserId: null,
+          setupToken: null,
+          again: true,
+          unmatchedProducts: fresh.products
+            .filter((r) => r.matchedSkuId === null)
+            .map((r) => ({ sku: r.sku, name: r.name, pricePiastres: r.pricePiastres })),
+        };
       if (fresh.status !== 'accepted') throw new DomainError('proposal_not_accepted');
       assertNotLocked(deal);
       if (deal.stage === 'lost') throw new DomainError('deal_closed');
@@ -890,12 +1036,51 @@ export async function confirmProposal(
         });
         if (draft) await tx.merchantContractVersion.delete({ where: { id: draft.id } });
       }
+      // Per product prices map to the merchant's products by SKU (the product picked, else the
+      // same SKU typed); rows without a product stay as a note and are listed for the rep.
+      const skus = await tx.sku.findMany({
+        where: { merchantId },
+        select: { id: true, sku: true },
+      });
+      const byId = new Set(skus.map((x) => x.id));
+      const bySku = new Map(skus.map((x) => [x.sku.toLowerCase(), x.id]));
+      const matched = new Map<string, number>();
+      const unmatched: { sku: string; name: string; pricePiastres: number }[] = [];
+      for (const r of fresh.products) {
+        const skuId =
+          r.skuId && byId.has(r.skuId) ? r.skuId : (bySku.get(r.sku.toLowerCase()) ?? null);
+        if (skuId && !matched.has(skuId)) matched.set(skuId, r.pricePiastres);
+        else if (!skuId)
+          unmatched.push({ sku: r.sku, name: r.name, pricePiastres: r.pricePiastres });
+        await tx.crmProposalProduct.update({
+          where: { id: r.id },
+          data: { matchedSkuId: skuId, confirmedAt: now },
+        });
+      }
+      const internal = [
+        `${proposalNumber(fresh.number)} · ${dealNumber(deal.number)}`,
+        ...(unmatched.length
+          ? [
+              `Per product prices without a product yet (add them once the products exist): ${unmatched
+                .map((u) => `${u.sku}${u.name ? ` ${u.name}` : ''} = ${egpText(u.pricePiastres)}`)
+                .join('; ')}`,
+            ]
+          : []),
+      ]
+        .join('\n')
+        .slice(0, 4000);
+      const fees = feesOf(fresh);
       const version = await createContractDraft(tx, {
         merchantId,
         actorUserId: actor.userId,
         source: proposalNumber(fresh.number),
         body: {
-          ...feesOf(fresh),
+          ...fees,
+          // A share of the shipment replaces the fixed failed delivery fee.
+          failedDeliveryPiastres:
+            fresh.failedDeliveryPercentBp === null ? fees.failedDeliveryPiastres : null,
+          failedDeliveryPercentBp: fresh.failedDeliveryPercentBp,
+          productPrices: [...matched].map(([skuId, pricePiastres]) => ({ skuId, pricePiastres })),
           tiers: tiersOf(fresh),
           payoutSchedule: fresh.payoutSchedule,
           minimumPayoutPiastres: fresh.minimumPayoutPiastres,
@@ -907,7 +1092,7 @@ export async function confirmProposal(
           storeIds: [],
           coverageNote: null,
           terms: fresh.terms,
-          internalNote: `${proposalNumber(fresh.number)} · ${dealNumber(deal.number)}`,
+          internalNote: internal,
           startDate: start,
           endDate: contractEndDay(start, fresh.contractMonths),
           noticeDays: fresh.noticeDays,
@@ -970,7 +1155,7 @@ export async function confirmProposal(
           wonById: deal.stage === 'won' ? deal.wonById : deal.ownerId,
         },
       });
-      return { merchantId, ownerUserId, setupToken, again: false };
+      return { merchantId, ownerUserId, setupToken, again: false, unmatchedProducts: unmatched };
     });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

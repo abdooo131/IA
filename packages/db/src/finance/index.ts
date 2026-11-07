@@ -206,6 +206,7 @@ export {
   applyContractSchedules,
   assertWithinCreditLimit,
   chargeMinimumFees,
+  checkProductPriceRows,
   type ContractOverview,
   type ContractPrint,
   contractForPrint,
@@ -223,11 +224,15 @@ export {
   minimumForMonth,
   pricesForDay,
   payoutMinimumFor,
+  type ProductPriceCheck,
+  productPricesFor,
   recordDeposit,
+  standardFailedPercent,
   standardPrices,
   submitDeposit,
   updateContractDraft,
   versionInForce,
+  versionProductPrices,
   type VersionDisplayStatus,
 } from './contracts';
 export { type MerchantMonth, merchantProfitability, merchantProfitDetail } from './merchant-profit';

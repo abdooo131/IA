@@ -104,11 +104,14 @@ Also inside the app: settings menu (top of every screen), Help.
 ### Merchant contracts
 
 1. Merchants: open a merchant; the tabs are Overview, Contract, Shopify, Products and stock, Users, Profit (with Accounting) and History.
-2. Contract, Edit (new version): every price beside the standard one (leave empty for the standard price), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.
-3. Check the draft with the calculator (a cash order, a month of orders and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.
-4. Attach the signed copy (PDF, JPG or PNG up to 5 MB) under Signed copies, and print the contract in English or Arabic from PDF English / PDF عربي.
-5. The payout bank account is edited from the contract's payment terms.
-6. Tiers apply from the order that crosses the band, never to earlier orders of the month; unit fees and failed deliveries use the band of the next delivered order.
+2. Contract, Edit (new version): every price beside the standard one (leave empty for the standard price, type 0 for no charge), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.
+3. All inclusive merchants: tap Apply all inclusive, then type the shipping fee (for example 120 EGP). It sets order fee, COD, receiving, storage, returns and packaging to 0 and failed deliveries to 100% of the shipment. Packaging stays our cost unless you type a packaging charge.
+4. Price per product: find the merchant's products by SKU or name and type a price per unit, or tick several and Set price for all of them, or Import CSV (sku, price_egp; one wrong row and nothing changes). Download prices gives the saved version's list. Each delivered unit is charged its product's price; cancelled units and products without a price are not. Tiers do not apply to these prices.
+5. Failed delivery: a fixed fee typed is used as it is; otherwise the share of the shipment (shipping fee, product prices and order fee; never COD).
+6. Check the draft with the calculator (an example shipment of the merchant's products, cash or prepaid, its value and what a failed attempt costs; a month of shipments and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.
+7. Attach the signed copy (PDF, JPG or PNG up to 5 MB) under Signed copies, and print the contract in English or Arabic from PDF English / PDF عربي.
+8. The payout bank account is edited from the contract's payment terms.
+9. Tiers apply from the order that crosses the band, never to earlier orders of the month; unit fees and failed deliveries use the band of the next delivered order.
 
 **Check it went right**
 
@@ -311,11 +314,14 @@ Also inside the app: settings menu (top of every screen), Help.
 ### عقود التجار
 
 1. التجار: افتح التاجر؛ التبويبات: نظرة عامة، العقد، شوبيفاي، المنتجات والمخزون، المستخدمون، الربحية (مع الحسابات) والسجل.
-2. العقد، تعديل (إصدار جديد): كل سعر جنب السعر القياسي (سيبه فاضي للسعر القياسي)، وشرائح الحجم على أي رسم (الطلبات في الشهر: من الطلب رقم n، والأسعار اللي بتتغير)، وشروط الدفع (مواعيد التحويل، الحد الأدنى للتحويل، الحد الأدنى الشهري، التأمين، حد الائتمان)، والالتزامات (مدة التوصيل، المحاولات، المخازن، المناطق)، والتواريخ والشروط الخاصة وملاحظة داخلية. حفظ المسودة مش بيغير حاجة لسه.
-3. راجع المسودة بالحاسبة (طلب نقدي، وشهر طلبات ووحدات)، وبعدين فعلها من النهارده أو يوم بعده. الرسوم من اليوم ده بتتحسب بالإصدار الجديد؛ والإصدارات القديمة موجودة في الإصدارات وبتتطبع زي ما هي.
-4. ارفع النسخة الموقعة (PDF أو JPG أو PNG لحد 5 ميجا) في النسخ الموقعة، واطبع العقد عربي أو إنجليزي من PDF عربي / PDF English.
-5. الحساب البنكي للتحويلات بيتعدل من شروط الدفع في العقد.
-6. الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ ورسوم الوحدات والتوصيل الفاشل بتاخد شريحة الطلب الجاي.
+2. العقد، تعديل (إصدار جديد): كل سعر جنب السعر القياسي (سيبه فاضي للسعر القياسي، واكتب صفر لو مفيش رسم)، وشرائح الحجم على أي رسم (الطلبات في الشهر: من الطلب رقم n، والأسعار اللي بتتغير)، وشروط الدفع (مواعيد التحويل، الحد الأدنى للتحويل، الحد الأدنى الشهري، التأمين، حد الائتمان)، والالتزامات (مدة التوصيل، المحاولات، المخازن، المناطق)، والتواريخ والشروط الخاصة وملاحظة داخلية. حفظ المسودة مش بيغير حاجة لسه.
+3. التجار الشامل: اضغط طبق الشامل وبعدين اكتب رسوم الشحن (مثلا 120 جنيه). بيخلي رسم الطلب والدفع عند الاستلام والاستلام والتخزين والإرجاع والتغليف صفر، والتوصيل الفاشل 100% من الشحنة. التغليف علينا إلا لو كتبت رسوم تغليف.
+4. السعر لكل منتج: دور على منتجات التاجر بالرمز أو الاسم واكتب سعر القطعة، أو علّم كذا منتج واضغط حدد السعر ليهم كلهم، أو استورد CSV (sku و price_egp؛ صف واحد غلط ومفيش حاجة بتتغير). تنزيل الأسعار بيديك قائمة الإصدار المحفوظ. كل قطعة متسلمة بتتحسب بسعر منتجها؛ القطع الملغية والمنتجات اللي ملهاش سعر مش بتتحسب، والشرائح مش بتسري على الأسعار دي.
+5. التوصيل الفاشل: الرسم الثابت لو اتكتب بيتحسب زي ما هو؛ وإلا نسبة من الشحنة (رسوم الشحن وأسعار المنتجات ورسم الطلب، ومن غير الدفع عند الاستلام).
+6. راجع المسودة بالحاسبة (شحنة مثال من منتجات التاجر، نقدي أو مدفوع مقدما، وقيمتها وتكلفة المحاولة الفاشلة؛ وشهر شحنات ووحدات)، وبعدين فعلها من النهارده أو يوم بعده. الرسوم من اليوم ده بتتحسب بالإصدار الجديد؛ والإصدارات القديمة موجودة في الإصدارات وبتتطبع زي ما هي.
+7. ارفع النسخة الموقعة (PDF أو JPG أو PNG لحد 5 ميجا) في النسخ الموقعة، واطبع العقد عربي أو إنجليزي من PDF عربي / PDF English.
+8. الحساب البنكي للتحويلات بيتعدل من شروط الدفع في العقد.
+9. الشريحة بتتطبق من الطلب اللي بيعدي الحد، ومش على الطلبات اللي قبله في الشهر؛ ورسوم الوحدات والتوصيل الفاشل بتاخد شريحة الطلب الجاي.
 
 **اتأكد إنها مشيت صح**
 

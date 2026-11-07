@@ -21,6 +21,8 @@ const list = {
   receivingPerUnitPiastres: 100,
   storagePerUnitMonthPiastres: 50,
   returnPerUnitPiastres: 200,
+  shippingFeePiastres: 0,
+  packagingChargePiastres: 0,
 };
 
 describe('proposal form values', () => {

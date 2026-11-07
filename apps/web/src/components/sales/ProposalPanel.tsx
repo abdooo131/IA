@@ -161,6 +161,8 @@ export function ProposalPanel({
           defaults={data.defaults}
           maxDiscountBp={data.maxDiscountBp}
           expectedOrders={expectedOrders}
+          products={data.products}
+          standardFailedPercentBp={data.standardFailedPercentBp}
           onCancel={() => setMode(null)}
           onDone={() => {
             setMode(null);
@@ -198,9 +200,30 @@ export function ProposalPanel({
                 )}
               </div>
               <p className="mt-1 text-body-sm">
+                {p.fees.shippingFeePiastres > 0 &&
+                  `${t('shippingLine', { amount: formatEgp(p.fees.shippingFeePiastres) })} · `}
                 {fee(p)} · {t('codLine', { percent: bpText(p.fees.codPercentBp) })}
                 {p.tiers.length > 0 && ` · ${t('tiersCount', { n: p.tiers.length })}`}
+                {p.productPrices.length > 0 &&
+                  ` · ${t('productsCount', { n: p.productPrices.length })}`}
               </p>
+              {p.productPrices.some((r) => r.matched === false) && (
+                <div className="mt-2 rounded-md border border-status-needs-action p-2 text-body-sm">
+                  <p className="font-bold text-status-needs-action">{t('unmatchedTitle')}</p>
+                  <p className="text-caption text-text-muted">{t('unmatchedHint')}</p>
+                  <ul className="mt-1 text-caption">
+                    {p.productPrices
+                      .filter((r) => r.matched === false)
+                      .map((r) => (
+                        <li key={r.sku}>
+                          <span className="ltr-iso font-bold">{r.sku}</span>
+                          {r.name && ` ${r.name}`} ·{' '}
+                          <span className="ltr-iso">{formatEgp(r.pricePiastres)}</span>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
               {p.example.orders > 0 && (
                 <p className="text-caption text-text-muted">
                   {t('exampleShort', {

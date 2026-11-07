@@ -467,7 +467,7 @@ model Sku {
   createdAt              DateTime @default(now()) @map("created_at")
   updatedAt              DateTime @updatedAt @map("updated_at")
 
-  merchant       Merchant              @relation(fields: [merchantId], references: [id])
+  merchant       Merchant                         @relation(fields: [merchantId], references: [id])
   binStock       BinStock[]
   stockLevels    StockLevel[]
   stockMovements StockMovement[]
@@ -478,6 +478,8 @@ model Sku {
   damageReports  DamageReport[]
   orderItems     OrderItem[]
   countLines     StockCountLine[]
+  contractPrices MerchantContractVersionProduct[]
+  proposalPrices CrmProposalProduct[]
 
   shopifyStock ShopifyStockSync[]
 
@@ -3502,7 +3504,9 @@ model MerchantContractVersion {
   status                      ContractVersionStatus @default(draft)
   /// The Cairo day it takes effect (planned on a draft, fixed when activated)
   effectiveFrom               DateTime?             @map("effective_from") @db.Date
-  // Prices (null: the standard price)
+  // Prices (null: the standard price; 0 is an explicit price)
+  /// Shipping fee per delivered order (often all inclusive, the other fees then 0)
+  shippingFeePiastres         Int?                  @map("shipping_fee_piastres")
   orderFixedPiastres          Int?                  @map("order_fixed_piastres")
   orderPercentBp              Int?                  @map("order_percent_bp")
   codPercentBp                Int?                  @map("cod_percent_bp")
@@ -3510,6 +3514,10 @@ model MerchantContractVersion {
   receivingPerUnitPiastres    Int?                  @map("receiving_per_unit_piastres")
   storagePerUnitMonthPiastres Int?                  @map("storage_per_unit_month_piastres")
   returnPerUnitPiastres       Int?                  @map("return_per_unit_piastres")
+  /// Packaging charged per delivered order (null: fee.packaging_charge_piastres, 0 by default)
+  packagingChargePiastres     Int?                  @map("packaging_charge_piastres")
+  /// A failed attempt costs this share of the shipment charges when no fixed fee is set
+  failedDeliveryPercentBp     Int?                  @map("failed_delivery_percent_bp")
   // Payment terms
   /// The agreed schedule, set on the merchant when the version takes effect (null: theirs)
   payoutSchedule              PayoutSchedule?       @map("payout_schedule")
@@ -3550,10 +3558,11 @@ model MerchantContractVersion {
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
-  contract    MerchantContract              @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  createdBy   User?                         @relation("contract_version_created_by", fields: [createdById], references: [id], onDelete: Restrict)
-  activatedBy User?                         @relation("contract_version_activated_by", fields: [activatedById], references: [id], onDelete: Restrict)
+  contract    MerchantContract                 @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  createdBy   User?                            @relation("contract_version_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  activatedBy User?                            @relation("contract_version_activated_by", fields: [activatedById], references: [id], onDelete: Restrict)
   tiers       MerchantContractVersionTier[]
+  products    MerchantContractVersionProduct[]
   files       MerchantContractFile[]
 
   @@unique([contractId, version])
@@ -3568,6 +3577,7 @@ model MerchantContractVersionTier {
   id                          String @id @default(cuid())
   versionId                   String @map("version_id")
   fromOrder                   Int    @map("from_order")
+  shippingFeePiastres         Int?   @map("shipping_fee_piastres")
   fixedFeePiastres            Int?   @map("fixed_fee_piastres")
   percentBp                   Int?   @map("percent_bp")
   codPercentBp                Int?   @map("cod_percent_bp")
@@ -3575,11 +3585,28 @@ model MerchantContractVersionTier {
   receivingPerUnitPiastres    Int?   @map("receiving_per_unit_piastres")
   storagePerUnitMonthPiastres Int?   @map("storage_per_unit_month_piastres")
   returnPerUnitPiastres       Int?   @map("return_per_unit_piastres")
+  packagingChargePiastres     Int?   @map("packaging_charge_piastres")
 
   version MerchantContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 
   @@unique([versionId, fromOrder])
   @@map("merchant_contract_version_tiers")
+}
+
+/// A product's price on a contract version, charged per delivered unit (no tiers). Frozen
+/// with its version once activated.
+model MerchantContractVersionProduct {
+  id            String @id @default(cuid())
+  versionId     String @map("version_id")
+  skuId         String @map("sku_id")
+  pricePiastres Int    @map("price_piastres")
+
+  version MerchantContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  sku     Sku                     @relation(fields: [skuId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, skuId])
+  @@index([skuId])
+  @@map("merchant_contract_version_products")
 }
 
 /// Signed contract files (PDF, JPG or PNG, at most 5 MB), kept in Postgres like other files.
@@ -4057,6 +4084,10 @@ model CrmProposal {
   dealId                      String            @map("deal_id")
   version                     Int
   status                      CrmProposalStatus @default(draft)
+  shippingFeePiastres         Int               @default(0) @map("shipping_fee_piastres")
+  packagingChargePiastres     Int               @default(0) @map("packaging_charge_piastres")
+  /// A failed attempt costs this share of the shipment charges (null: the fixed fee)
+  failedDeliveryPercentBp     Int?              @map("failed_delivery_percent_bp")
   orderFixedPiastres          Int               @map("order_fixed_piastres")
   orderPercentBp              Int               @map("order_percent_bp")
   codPercentBp                Int               @map("cod_percent_bp")
@@ -4110,13 +4141,14 @@ model CrmProposal {
   createdAt                   DateTime          @default(now()) @map("created_at")
   updatedAt                   DateTime          @updatedAt @map("updated_at")
 
-  deal        CrmDeal           @relation(fields: [dealId], references: [id], onDelete: Restrict)
-  createdBy   User              @relation("crm_proposal_created_by", fields: [createdById], references: [id], onDelete: Restrict)
-  approvedBy  User?             @relation("crm_proposal_approved_by", fields: [approvedById], references: [id], onDelete: Restrict)
-  sentBy      User?             @relation("crm_proposal_sent_by", fields: [sentById], references: [id], onDelete: Restrict)
-  confirmedBy User?             @relation("crm_proposal_confirmed_by", fields: [confirmedById], references: [id], onDelete: Restrict)
-  merchant    Merchant?         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  deal        CrmDeal              @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  createdBy   User                 @relation("crm_proposal_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy  User?                @relation("crm_proposal_approved_by", fields: [approvedById], references: [id], onDelete: Restrict)
+  sentBy      User?                @relation("crm_proposal_sent_by", fields: [sentById], references: [id], onDelete: Restrict)
+  confirmedBy User?                @relation("crm_proposal_confirmed_by", fields: [confirmedById], references: [id], onDelete: Restrict)
+  merchant    Merchant?            @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   tiers       CrmProposalTier[]
+  products    CrmProposalProduct[]
 
   @@unique([dealId, version])
   @@index([status])
@@ -4128,6 +4160,7 @@ model CrmProposalTier {
   id                          String @id @default(cuid())
   proposalId                  String @map("proposal_id")
   fromOrder                   Int    @map("from_order")
+  shippingFeePiastres         Int?   @map("shipping_fee_piastres")
   fixedFeePiastres            Int?   @map("fixed_fee_piastres")
   percentBp                   Int?   @map("percent_bp")
   codPercentBp                Int?   @map("cod_percent_bp")
@@ -4135,11 +4168,34 @@ model CrmProposalTier {
   receivingPerUnitPiastres    Int?   @map("receiving_per_unit_piastres")
   storagePerUnitMonthPiastres Int?   @map("storage_per_unit_month_piastres")
   returnPerUnitPiastres       Int?   @map("return_per_unit_piastres")
+  packagingChargePiastres     Int?   @map("packaging_charge_piastres")
 
   proposal CrmProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
 
   @@unique([proposalId, fromOrder])
   @@map("crm_proposal_tiers")
+}
+
+/// A per product price offered on a proposal: a product picked from the merchant's list, or a
+/// free row (SKU and name). On confirm it maps to the merchant's product by SKU
+/// (matched_sku_id); a row without one stays as a note listed for the rep.
+model CrmProposalProduct {
+  id            String    @id @default(cuid())
+  proposalId    String    @map("proposal_id")
+  position      Int
+  skuId         String?   @map("sku_id")
+  sku           String
+  name          String
+  pricePiastres Int       @map("price_piastres")
+  /// Set when the proposal is confirmed: the product it became, or null (unmatched)
+  matchedSkuId  String?   @map("matched_sku_id")
+  confirmedAt   DateTime? @map("confirmed_at")
+
+  proposal CrmProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  product  Sku?        @relation(fields: [skuId], references: [id], onDelete: SetNull)
+
+  @@unique([proposalId, position])
+  @@map("crm_proposal_products")
 }
 
 /// A rep's targets for a Cairo month (YYYY-MM), set by the sales managers.

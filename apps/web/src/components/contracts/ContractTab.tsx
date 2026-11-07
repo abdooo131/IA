@@ -479,13 +479,14 @@ export function ContractTab({
             view={view}
             version={shown}
             internal
+            csvBase={`/api/admin/merchants/${view.merchant.id}`}
             bankSlot={
               canManage && shown.id === view.current?.id ? <BankEditor view={view} /> : undefined
             }
           />
           <div className="space-y-4">
             <ContractStanding view={view} internal />
-            <ContractCalculator version={shown} standard={view.standard} vatBp={view.vatBp} />
+            <ContractCalculator version={shown} view={view} />
           </div>
         </div>
       ) : (
@@ -493,7 +494,7 @@ export function ContractTab({
           <p className="rounded-lg border border-dashed border-line bg-surface p-4 text-body-sm">
             {t('noContract')}
           </p>
-          <ContractCalculator version={null} standard={view.standard} vatBp={view.vatBp} />
+          <ContractCalculator version={null} view={view} />
         </div>
       )}
 

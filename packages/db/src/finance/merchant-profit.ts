@@ -1,4 +1,12 @@
-import { addDays, cairoDay, cairoDayStart, type WhatIfBase } from '@shiplynow/shared';
+import {
+  addDays,
+  cairoDay,
+  cairoDayStart,
+  CONTRACT_TIER_KEYS,
+  type ContractTier,
+  type WhatIfBase,
+} from '@shiplynow/shared';
+
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { contractPricesAt, versionInForce } from './contracts';
@@ -284,22 +292,18 @@ export async function merchantProfitDetail(db: Db, input: { month: string; merch
     base,
     current: {
       // The version's prices before any band (the what if leaves tiers out).
+      shippingFeePiastres: version?.shippingFeePiastres ?? prices.shippingFeePiastres,
       orderFixedPiastres: version?.orderFixedPiastres ?? prices.orderFixedPiastres,
       orderPercentBp: version?.orderPercentBp ?? prices.orderPercentBp,
       codPercentBp: version?.codPercentBp ?? prices.codPercentBp,
       minimumPiastres: version?.minimumMonthlyFeePiastres ?? null,
     },
     tiers:
-      version?.tiers.map((t) => ({
-        fromOrder: t.fromOrder,
-        fixedFeePiastres: t.fixedFeePiastres,
-        percentBp: t.percentBp,
-        codPercentBp: t.codPercentBp,
-        failedDeliveryPiastres: t.failedDeliveryPiastres,
-        receivingPerUnitPiastres: t.receivingPerUnitPiastres,
-        storagePerUnitMonthPiastres: t.storagePerUnitMonthPiastres,
-        returnPerUnitPiastres: t.returnPerUnitPiastres,
-      })) ?? [],
+      version?.tiers.map((t) => {
+        const tier = { fromOrder: t.fromOrder } as ContractTier;
+        for (const k of CONTRACT_TIER_KEYS) tier[k] = t[k];
+        return tier;
+      }) ?? [],
     contract: version ? { id: version.id, version: version.version } : null,
     previousMonth: addMonths(input.month, -1),
     lastDay,

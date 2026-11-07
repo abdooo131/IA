@@ -1,9 +1,16 @@
 import type { Prisma } from '@prisma/client';
-import { cairoDay, cairoDayStart, addDays } from '@shiplynow/shared';
+import {
+  addDays,
+  cairoDay,
+  cairoDayStart,
+  failedDeliveryCharge,
+  productHandlingCharge,
+  shipmentCharges,
+} from '@shiplynow/shared';
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
-import { contractPricesAt, standardPrices } from './contracts';
+import { contractPricesAt, productPricesFor, standardPrices } from './contracts';
 import { type AccountRef, post, share } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -24,9 +31,11 @@ async function feeLines(tx: Tx, merchantId: string, fee: number) {
 
 /**
  * A delivered order: the cash the rider collected now belongs to the merchant, we charge
- * the order fee (fixed plus a share of the products value) and the COD fee at the prices of
- * the merchant's contract (merchant contracts v2), and the rider
- * earns the delivery bonus. Each part has its own key, so posting twice changes nothing.
+ * at the prices of the merchant's contract (merchant contracts v2) the shipping fee, the
+ * per product prices of the delivered units, the order fee (fixed plus a share of the
+ * products value), the COD fee and the packaging charge (each its own entry kind, nothing
+ * booked at 0), and the rider earns the delivery bonus. Each part has its own key, so
+ * posting twice changes nothing.
  */
 export async function postDeliveryCompleted(
   tx: Tx,
@@ -61,6 +70,40 @@ export async function postDeliveryCompleted(
   // The contract in force on the delivery day, at the band of this order's place in the
   // month, field by field down to the standard price.
   const terms = await contractPricesAt(tx, { merchantId, orderId: order.id, at: input.now });
+  const tierData = terms.tierFrom !== null ? { tierFrom: terms.tierFrom, nth: terms.nth } : {};
+
+  const shippingFee = terms.prices.shippingFeePiastres;
+  await post(tx, {
+    ...base,
+    kind: 'shipping_fee',
+    idempotencyKey: `order:${order.id}:shipping_fee`,
+    data: { shippingFeePiastres: shippingFee, ...tierData },
+    lines: await feeLines(tx, merchantId, shippingFee),
+  });
+
+  // Per product prices: every delivered (picked) unit at its product's price; units
+  // cancelled before delivery are never charged. Tiers do not apply.
+  const units = order.items
+    .filter((i) => i.pickedQty > 0)
+    .map((i) => ({ skuId: i.skuId, units: i.pickedQty }));
+  const unitPrices = await productPricesFor(
+    tx,
+    terms.versionId,
+    units.map((u) => u.skuId),
+  );
+  const handling = productHandlingCharge(units, unitPrices);
+  await post(tx, {
+    ...base,
+    kind: 'product_handling',
+    idempotencyKey: `order:${order.id}:product_handling`,
+    data: {
+      lines: units
+        .filter((u) => unitPrices.has(u.skuId))
+        .map((u) => ({ ...u, pricePiastres: unitPrices.get(u.skuId)! })),
+    },
+    lines: await feeLines(tx, merchantId, handling),
+  });
+
   const fixed = terms.prices.orderFixedPiastres;
   const percent = terms.prices.orderPercentBp;
   const orderFee = fixed + share(products, percent);
@@ -72,7 +115,7 @@ export async function postDeliveryCompleted(
       productsPiastres: products,
       fixedPiastres: fixed,
       percentBp: percent,
-      ...(terms.tierFrom !== null ? { tierFrom: terms.tierFrom, nth: terms.nth } : {}),
+      ...tierData,
     },
     lines: await feeLines(tx, merchantId, orderFee),
   });
@@ -84,6 +127,16 @@ export async function postDeliveryCompleted(
     idempotencyKey: `order:${order.id}:cod_fee`,
     data: { cashPiastres: cash, percentBp: codBp },
     lines: await feeLines(tx, merchantId, share(cash, codBp)),
+  });
+
+  // Packaging is our cost unless the contract sets a packaging charge.
+  const packaging = terms.prices.packagingChargePiastres;
+  await post(tx, {
+    ...base,
+    kind: 'packaging_charge',
+    idempotencyKey: `order:${order.id}:packaging_charge`,
+    data: { packagingChargePiastres: packaging, ...tierData },
+    lines: await feeLines(tx, merchantId, packaging),
   });
 
   const bonus = await getSetting(tx, 'rider.bonus_per_delivery_piastres', order.darkStoreId);
@@ -99,26 +152,55 @@ export async function postDeliveryCompleted(
   });
 }
 
-/** A failed delivery is charged the failed delivery fee once per order. */
+/**
+ * A failed delivery is charged once per order: the contract's fixed failed delivery fee, or a
+ * share of what the shipment would have cost (shipping fee, per product prices of its units,
+ * order fee fixed and percent; never the COD fee, no cash was collected), at the band the
+ * next delivered order would take (failedDeliveryRule).
+ */
 export async function postDeliveryFailed(
   tx: Tx,
   input: { deliveryId: string; actorUserId: string | null; now: Date },
 ) {
   const delivery = await tx.delivery.findUniqueOrThrow({
     where: { id: input.deliveryId },
-    include: { order: true },
+    include: { order: { include: { items: true } } },
   });
-  const merchantId = delivery.order.merchantId;
-  const { prices } = await contractPricesAt(tx, { merchantId, at: input.now });
-  const fee = prices.failedDeliveryPiastres;
+  const order = delivery.order;
+  const merchantId = order.merchantId;
+  const terms = await contractPricesAt(tx, { merchantId, at: input.now });
+  let fee: number;
+  let detail: Record<string, unknown>;
+  if (terms.failed.mode === 'fixed') {
+    fee = terms.failed.piastres;
+    detail = { mode: 'fixed' };
+  } else {
+    // The units that went out with the rider (picked), at the shipment's own prices.
+    const units = order.items
+      .filter((i) => i.pickedQty > 0)
+      .map((i) => ({ skuId: i.skuId, units: i.pickedQty }));
+    const unitPrices = await productPricesFor(
+      tx,
+      terms.versionId,
+      units.map((u) => u.skuId),
+    );
+    const products = order.items.reduce((s, i) => s + i.pickedQty * i.unitPricePiastres, 0);
+    const handling = productHandlingCharge(units, unitPrices);
+    const shipment = shipmentCharges(terms.prices, {
+      productsPiastres: products,
+      productHandlingPiastres: handling,
+    });
+    fee = failedDeliveryCharge(terms.failed, shipment);
+    detail = { mode: 'percent', percentBp: terms.failed.bp, shipmentPiastres: shipment };
+  }
   await post(tx, {
     kind: 'failed_fee',
     idempotencyKey: `order:${delivery.orderId}:failed_fee`,
     orderId: delivery.orderId,
     occurredAt: input.now,
     createdById: input.actorUserId,
-    memo: delivery.order.number,
-    data: { reason: delivery.failedReason },
+    memo: order.number,
+    data: { reason: delivery.failedReason, ...detail },
     lines: await feeLines(tx, merchantId, fee),
   });
 }

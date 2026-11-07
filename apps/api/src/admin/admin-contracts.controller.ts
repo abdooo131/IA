@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   activateContractVersion,
   addContractFile,
+  checkProductPriceRows,
   contractForPrint,
   createContractDraft,
   deleteContractDraft,
@@ -13,6 +14,7 @@ import {
   merchantOverview,
   updateContractDraft,
   updateMerchantBank,
+  versionProductPrices,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -20,6 +22,7 @@ import {
   contractActivateSchema,
   contractDraftSchema,
   contractFileNameSchema,
+  contractProductPricesCheckSchema,
   contractVersionSchema,
   type ContractVersionBody,
   merchantBankSchema,
@@ -29,6 +32,7 @@ import type { z } from 'zod';
 import { Access, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
+import { BOM, cell, egp } from '../admin/orders-csv';
 import { renderContractPdf } from '../contracts/contract-pdf';
 import { sendContractFile, sendContractPdf } from '../contracts/contract-files';
 import { PrismaService } from '../prisma/prisma.service';
@@ -124,7 +128,47 @@ export class AdminContractsController {
     return getContract(this.prisma, id, this.clock.now());
   }
 
+  /**
+   * Checks a per product prices file (rows the browser split from a CSV: sku, price_egp)
+   * against the merchant's products. All or nothing: any error and no row comes back. Nothing
+   * is saved: the editor puts the prices into the draft it saves.
+   */
+  @Post(':id/contract/product-prices/check')
+  @Access('merchants', 'manage', { merchantParam: 'id' })
+  checkPrices(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(contractProductPricesCheckSchema))
+    body: z.infer<typeof contractProductPricesCheckSchema>,
+  ) {
+    return checkProductPriceRows(this.prisma, id, body.rows);
+  }
+
+  /** A version's per product prices as CSV (sku, price_egp, title_en, title_ar). */
+  @Get(':id/contract/versions/:versionId/product-prices.csv')
+  @Access(['merchants', 'accounting'], 'view', { merchantParam: 'id' })
+  async pricesCsv(
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+    @Res() res: Response,
+  ) {
+    const { label, rows } = await versionProductPrices(this.prisma, id, versionId);
+    const lines = [
+      'sku,price_egp,title_en,title_ar',
+      ...rows.map((r) =>
+        [r.sku, egp(r.pricePiastres), r.titleEn, r.titleAr].map((v) => cell(v)).join(','),
+      ),
+    ];
+    res.setHeader('content-type', 'text/csv; charset=utf-8');
+    res.setHeader(
+      'content-disposition',
+      `attachment; filename="${label.replace(/[^A-Za-z0-9-]+/g, '-')}-product-prices.csv"`,
+    );
+    res.setHeader('cache-control', 'private, no-store');
+    res.send(`${BOM}${lines.join('\r\n')}\r\n`);
+  }
+
   /** The printed contract: the version asked (or the one in force), in English or Arabic. */
+
   @Get(':id/contract/pdf')
   @Access(['merchants', 'accounting'], 'view', { merchantParam: 'id' })
   @ApiQuery({ name: 'lang', required: false, enum: ['en', 'ar'] })

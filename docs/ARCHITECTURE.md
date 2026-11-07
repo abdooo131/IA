@@ -179,7 +179,8 @@ Main groups of tables:
     Catalog       merchants, skus, shopify_shops, shopify_apps, shopify_locations
     Contracts     merchant_contracts (CTR-, one per merchant), merchant_contract_versions
                   (frozen once activated), merchant_contract_version_tiers,
-                  merchant_contract_files (signed copies, bytea)
+                  merchant_contract_version_products (price per product, frozen with the
+                  version), merchant_contract_files (signed copies, bytea)
     Stock         stock_levels, bin_stock, stock_movements (append only), inbound_manifests,
                   stock_counts, transfers, stock_targets, merchant_returns, damage_reports
     Orders        orders, order_items, order_events (append only), deliveries, riders, photos,
@@ -266,6 +267,24 @@ what is available → the rider asks for a withdrawal in the rider app (cash at 
 mobile wallet or bank) → Accounting approves → Accounting pays from a bank or box (or the store
 manager hands cash at the store from the box), one entry that also clears what was owed → the
 rider is told by push. Riders are never on the salary run.
+
+Contract pricing (on top of merchant contracts v2):
+
+    delivered order ──▶ shipping_fee      shipping fee of the band (often all inclusive)
+                   ├──▶ product_handling  Σ delivered units × the product's price (no tiers)
+                   ├──▶ order_fee         fixed + % of products value (band)
+                   ├──▶ cod_fee           % of the cash collected (band)
+                   └──▶ packaging_charge  per order, only when the contract sets one
+    failed attempt ──▶ failed_fee         fixed fee when set (version or band, 0 included),
+                                          else share × (shipping + product prices of the units
+                                          that went out + order fee), never COD
+
+Every part is its own ledger entry (key order:<id>:<kind>, nothing booked at 0) on the one fee
+income account with VAT at the global rate, so tax invoices, statements, emails, the order
+page and merchant profit group them by kind. failedDeliveryRule and the calculator's
+orderCharge / monthEstimate live in packages/shared/src/contracts.ts so the API, the editor,
+the document view and the PDF price the same way. A version without a shipping fee or failed
+share keeps the fixed failed fee, exactly as before.
 
 Packaging and purchasing:
 finance raises a purchase order (PO-000001) to a supplier → approved at once below

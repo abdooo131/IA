@@ -31,6 +31,8 @@ type Tx = Prisma.TransactionClient;
 
 /** The fee kinds an invoice can carry, with their descriptions on the invoice. */
 export const FEE_KINDS: Record<string, { en: string; ar: string }> = {
+  shipping_fee: { en: 'Shipping fee', ar: 'رسوم الشحن' },
+  product_handling: { en: 'Per product handling fee', ar: 'رسوم المنتجات بسعر القطعة' },
   order_fee: { en: 'Delivery service fee', ar: 'رسوم خدمة التوصيل' },
   cod_fee: { en: 'Cash on delivery handling fee', ar: 'رسوم تحصيل الدفع عند الاستلام' },
   failed_fee: { en: 'Failed delivery fee', ar: 'رسوم محاولة توصيل فاشلة' },
@@ -39,7 +41,51 @@ export const FEE_KINDS: Record<string, { en: string; ar: string }> = {
   return_fee: { en: 'Return to merchant fee', ar: 'رسوم إرجاع البضاعة للتاجر' },
   adjustment: { en: 'Fee adjustment', ar: 'تسوية رسوم' },
   minimum_fee: { en: 'Monthly minimum fee top up', ar: 'استكمال الحد الأدنى الشهري للرسوم' },
+  packaging_charge: { en: 'Packaging charge', ar: 'رسوم التغليف' },
 };
+
+/**
+ * Fee kinds that need their item code only once something uses them: a contract (not a
+ * draft) or the standard price sets them, or an entry of the kind was booked.
+ */
+async function optionalKindsUsed(db: Db): Promise<Record<string, boolean>> {
+  const live = { status: { not: 'draft' as const } };
+  const booked = async (kind: string) => (await db.ledgerEntry.count({ where: { kind } })) > 0;
+  return {
+    minimum_fee:
+      (await db.merchantContractVersion.count({
+        where: { ...live, minimumMonthlyFeePiastres: { gt: 0 } },
+      })) > 0,
+    shipping_fee:
+      (await getSetting(db, 'fee.shipping_fee_piastres')) > 0 ||
+      (await db.merchantContractVersion.count({
+        where: {
+          ...live,
+          OR: [
+            { shippingFeePiastres: { gt: 0 } },
+            { tiers: { some: { shippingFeePiastres: { gt: 0 } } } },
+          ],
+        },
+      })) > 0 ||
+      (await booked('shipping_fee')),
+    product_handling:
+      (await db.merchantContractVersionProduct.count({
+        where: { pricePiastres: { gt: 0 }, version: live },
+      })) > 0 || (await booked('product_handling')),
+    packaging_charge:
+      (await getSetting(db, 'fee.packaging_charge_piastres')) > 0 ||
+      (await db.merchantContractVersion.count({
+        where: {
+          ...live,
+          OR: [
+            { packagingChargePiastres: { gt: 0 } },
+            { tiers: { some: { packagingChargePiastres: { gt: 0 } } } },
+          ],
+        },
+      })) > 0 ||
+      (await booked('packaging_charge')),
+  };
+}
 
 export const invoiceLabel = (type: 'invoice' | 'credit_note', n: number) =>
   `${type === 'invoice' ? 'INV' : 'CN'}-${String(n).padStart(6, '0')}`;
@@ -470,14 +516,11 @@ export async function etaReadiness(db: Db) {
     if (!value) missing.push(field);
   if (!p.signerKeyHash) missing.push('signer_key');
   const codes = p.itemCodes as Record<string, string>;
-  // The monthly minimum needs its item code only once some contract has a minimum.
-  const minimumUsed =
-    (await db.merchantContractVersion.count({
-      where: { status: { not: 'draft' }, minimumMonthlyFeePiastres: { gt: 0 } },
-    })) > 0;
-  const missingCodes = Object.keys(FEE_KINDS).filter(
-    (k) => !codes[k] && (k !== 'minimum_fee' || minimumUsed),
-  );
+  // The monthly minimum, shipping fee, per product prices and packaging charge need their item
+  // code only once something uses them.
+  const used = await optionalKindsUsed(db);
+  const missingCodes = Object.keys(FEE_KINDS).filter((k) => !codes[k] && (used[k] ?? true));
+
   return { ready: missing.length === 0 && missingCodes.length === 0, missing, missingCodes };
 }
 

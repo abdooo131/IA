@@ -31,6 +31,10 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
   const p = res.ok ? ((await res.json()) as PublicProposal) : null;
   const egp = (piastres: number) => t('egpAmount', { amount: formatEgp(piastres) });
   const pct = (bp: number) => `${bpText(bp)}%`;
+  // With a shipping fee, a charge at 0 is part of it (all inclusive).
+  const shipping = p ? p.fees.shippingFeePiastres : 0;
+  const orIncluded = (value: number, text: string) =>
+    shipping > 0 && value === 0 ? t('includedInShipping') : text;
   const row = (label: string, value: React.ReactNode, hint?: string) => (
     <div className="grid gap-1 border-b border-line py-3 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
       <dt className="font-semibold">
@@ -83,33 +87,88 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
                 {p.vatBp > 0 ? t('vatAdded', { vat: pct(p.vatBp) }) : t('vatNone')}
               </p>
               <dl className="mt-2 text-body-sm">
+                {shipping > 0 &&
+                  row(
+                    t('shippingFee'),
+                    <span className="font-bold">{egp(shipping)}</span>,
+                    t('shippingFeeHint'),
+                  )}
                 {row(
                   t('orderFee'),
-                  p.fees.orderPercentBp > 0
-                    ? t('orderFeeBoth', {
-                        fixed: egp(p.fees.orderFixedPiastres),
-                        percent: pct(p.fees.orderPercentBp),
-                      })
-                    : egp(p.fees.orderFixedPiastres),
+                  orIncluded(
+                    p.fees.orderFixedPiastres + p.fees.orderPercentBp,
+                    p.fees.orderPercentBp > 0
+                      ? t('orderFeeBoth', {
+                          fixed: egp(p.fees.orderFixedPiastres),
+                          percent: pct(p.fees.orderPercentBp),
+                        })
+                      : egp(p.fees.orderFixedPiastres),
+                  ),
                   t('orderFeeHint'),
                 )}
                 {row(
                   t('codFee'),
-                  t('codFeeValue', { percent: pct(p.fees.codPercentBp) }),
+                  orIncluded(
+                    p.fees.codPercentBp,
+                    t('codFeeValue', { percent: pct(p.fees.codPercentBp) }),
+                  ),
                   t('codFeeHint'),
                 )}
-                {row(t('failedFee'), egp(p.fees.failedDeliveryPiastres), t('failedFeeHint'))}
+                {row(
+                  t('failedFee'),
+                  p.failedDeliveryPercentBp !== null
+                    ? t('failedPercentValue', { percent: pct(p.failedDeliveryPercentBp) })
+                    : egp(p.fees.failedDeliveryPiastres),
+                  p.failedDeliveryPercentBp !== null ? t('failedPercentHint') : t('failedFeeHint'),
+                )}
                 {row(
                   t('receivingFee'),
-                  t('perUnit', { amount: egp(p.fees.receivingPerUnitPiastres) }),
+                  orIncluded(
+                    p.fees.receivingPerUnitPiastres,
+                    t('perUnit', { amount: egp(p.fees.receivingPerUnitPiastres) }),
+                  ),
                 )}
                 {row(
                   t('storageFee'),
-                  t('perUnitMonth', { amount: egp(p.fees.storagePerUnitMonthPiastres) }),
+                  orIncluded(
+                    p.fees.storagePerUnitMonthPiastres,
+                    t('perUnitMonth', { amount: egp(p.fees.storagePerUnitMonthPiastres) }),
+                  ),
                   t('storageFeeHint'),
                 )}
-                {row(t('returnFee'), t('perUnit', { amount: egp(p.fees.returnPerUnitPiastres) }))}
+                {row(
+                  t('returnFee'),
+                  orIncluded(
+                    p.fees.returnPerUnitPiastres,
+                    t('perUnit', { amount: egp(p.fees.returnPerUnitPiastres) }),
+                  ),
+                )}
+                {row(
+                  t('packagingFee'),
+                  p.fees.packagingChargePiastres > 0
+                    ? t('perShipment', { amount: egp(p.fees.packagingChargePiastres) })
+                    : t('packagingIncluded'),
+                )}
               </dl>
+              {p.productPrices.length > 0 && (
+                <>
+                  <h3 className="mt-4 text-body font-bold">{t('productPricesTitle')}</h3>
+                  <p className="text-caption text-text-muted">{t('productPricesHint')}</p>
+                  <ul className="mt-2 divide-y divide-line rounded-md border border-line text-body-sm">
+                    {p.productPrices.map((r) => (
+                      <li key={r.sku} className="flex items-center justify-between gap-2 px-3 py-2">
+                        <span className="min-w-0 [overflow-wrap:anywhere]">
+                          <span className="ltr-iso font-semibold">{r.sku}</span>
+                          {r.name && <span className="text-text-muted"> · {r.name}</span>}
+                        </span>
+                        <span className="shrink-0 font-bold">
+                          {t('perUnit', { amount: egp(r.pricePiastres) })}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              )}
               {p.tiers.length > 0 && (
                 <>
                   <h3 className="mt-4 text-body font-bold">{t('tiersTitle')}</h3>
@@ -150,8 +209,21 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
                     : t('exampleIntroNoAverage', { orders: formatCount(p.example.orders) })}
                 </p>
                 <dl className="mt-3 grid gap-3 text-body-sm sm:grid-cols-2">
+                  {p.example.shippingFeesPiastres > 0 && (
+                    <div>
+                      <dt>{t('exampleShipping')}</dt>
+                      <dd className="text-h3 tabular">{egp(p.example.shippingFeesPiastres)}</dd>
+                    </div>
+                  )}
+                  {p.example.packagingChargesPiastres > 0 && (
+                    <div>
+                      <dt>{t('examplePackaging')}</dt>
+                      <dd className="text-h3 tabular">{egp(p.example.packagingChargesPiastres)}</dd>
+                    </div>
+                  )}
                   <div>
                     <dt>{t('exampleOrderFees')}</dt>
+
                     <dd className="text-h3 tabular">{egp(p.example.orderFeesPiastres)}</dd>
                   </div>
                   <div>

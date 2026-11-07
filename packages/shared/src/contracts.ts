@@ -105,9 +105,18 @@ export type ContractVersionStatus = (typeof CONTRACT_VERSION_STATUSES)[number];
  * Every fee the system charges a merchant, with the setting that holds its standard price,
  * the name of its column on a volume tier, how it is typed (money or basis points), what it
  * is charged on (each order, or each unit) and the ledger entry kind it books.
- * Packaging is our own cost (never charged to merchants), so it is not a price.
+ * The shipping fee is charged once per delivered order (often all inclusive: the other fees
+ * then set to 0). Packaging stays our own cost unless a packaging charge is set (per delivered
+ * order). Per product prices (a table on the version) and the failed delivery share are apart.
  */
 export const CONTRACT_PRICES = {
+  shippingFeePiastres: {
+    setting: 'fee.shipping_fee_piastres',
+    tierKey: 'shippingFeePiastres',
+    unit: 'money',
+    basis: 'order',
+    kind: 'shipping_fee',
+  },
   orderFixedPiastres: {
     setting: 'fee.order_fixed_piastres',
     tierKey: 'fixedFeePiastres',
@@ -157,6 +166,13 @@ export const CONTRACT_PRICES = {
     basis: 'unit',
     kind: 'return_fee',
   },
+  packagingChargePiastres: {
+    setting: 'fee.packaging_charge_piastres',
+    tierKey: 'packagingChargePiastres',
+    unit: 'money',
+    basis: 'order',
+    kind: 'packaging_charge',
+  },
 } as const satisfies Record<
   string,
   {
@@ -185,6 +201,7 @@ export type ContractTierKey = (typeof CONTRACT_PRICES)[ContractPriceKey]['tierKe
 export interface ContractTier {
   /** From the nth delivered order of the Cairo month (1 is the first) */
   fromOrder: number;
+  shippingFeePiastres: number | null;
   /** Order fee, fixed part */
   fixedFeePiastres: number | null;
   /** Order fee, share of the products value */
@@ -194,6 +211,7 @@ export interface ContractTier {
   receivingPerUnitPiastres: number | null;
   storagePerUnitMonthPiastres: number | null;
   returnPerUnitPiastres: number | null;
+  packagingChargePiastres: number | null;
 }
 export const CONTRACT_TIER_KEYS = CONTRACT_PRICE_KEYS.map((k) => CONTRACT_PRICES[k].tierKey);
 
@@ -214,6 +232,7 @@ const tierBp = bp.nullable().default(null);
 export const contractTierSchema = z
   .object({
     fromOrder: z.number().int().min(1).max(1_000_000),
+    shippingFeePiastres: tierMoney,
     fixedFeePiastres: tierMoney,
     percentBp: tierBp,
     codPercentBp: tierBp,
@@ -221,6 +240,7 @@ export const contractTierSchema = z
     receivingPerUnitPiastres: tierMoney,
     storagePerUnitMonthPiastres: tierMoney,
     returnPerUnitPiastres: tierMoney,
+    packagingChargePiastres: tierMoney,
   })
   .refine((t) => CONTRACT_TIER_KEYS.some((k) => t[k] !== null), { message: 'tier_empty' });
 
@@ -259,6 +279,7 @@ const optionalText = (max: number) =>
     .transform((v) => v || null);
 
 const priceFields = {
+  shippingFeePiastres: money.nullable().default(null),
   orderFixedPiastres: money.nullable(),
   orderPercentBp: bp.nullable(),
   codPercentBp: bp.nullable(),
@@ -266,12 +287,156 @@ const priceFields = {
   receivingPerUnitPiastres: money.nullable(),
   storagePerUnitMonthPiastres: money.nullable(),
   returnPerUnitPiastres: money.nullable(),
+  packagingChargePiastres: money.nullable().default(null),
 } satisfies Record<ContractPriceKey, z.ZodTypeAny>;
+
+// ─── per product prices, failed deliveries, the all inclusive preset ────────────
+
+/**
+ * One product's price on a version: charged per delivered unit of that product (units
+ * cancelled before delivery are not). Products without a price charge nothing for this fee.
+ * Volume tiers do not apply to per product prices.
+ */
+export const contractProductPriceSchema = z.object({
+  skuId: id,
+  pricePiastres: money,
+});
+export type ContractProductPrice = z.infer<typeof contractProductPriceSchema>;
+/** At most this many product prices on one version. */
+export const CONTRACT_PRODUCT_PRICES_MAX = 5000;
+
+/** One row of a product prices file: sku, price_egp (other columns are ignored). */
+export const contractProductPriceRowSchema = z.object({
+  sku: z
+    .string({ required_error: 'sku_required', invalid_type_error: 'sku_required' })
+    .trim()
+    .min(1, 'sku_required')
+    .max(64),
+  price_egp: z
+    .union([z.string(), z.number()], { errorMap: () => ({ message: 'invalid_price' }) })
+    .transform((value, ctx) => {
+      const piastres = egpTextToPiastres(String(value));
+      if (piastres === null) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: 'invalid_price' });
+        return z.NEVER;
+      }
+      return piastres;
+    }),
+});
+export const contractProductPricesCheckSchema = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())).min(1).max(CONTRACT_PRODUCT_PRICES_MAX),
+});
+
+/**
+ * Pounds typed by a person ("149.5", "1,200") as integer piastres, without floats. null when
+ * not a price (negative, more than two decimals, not a number, above 1,000,000 EGP).
+ */
+export function egpTextToPiastres(text: string): number | null {
+  const t = text
+    .trim()
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/,/g, '');
+  if (!/^\d{1,7}(\.\d{1,2})?$/.test(t)) return null;
+  const [whole, fraction = ''] = t.split('.');
+  return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
+}
+
+/** The per product prices charged for a shipment: each delivered unit at its product's price. */
+export function productHandlingCharge(
+  lines: readonly { skuId: string; units: number }[],
+  prices: ReadonlyMap<string, number> | Record<string, number>,
+) {
+  const priceOf = (skuId: string) =>
+    prices instanceof Map ? prices.get(skuId) : (prices as Record<string, number>)[skuId];
+  let total = 0;
+  for (const l of lines) {
+    const price = priceOf(l.skuId);
+    if (price !== undefined && l.units > 0) total += l.units * price;
+  }
+  return total;
+}
+
+/**
+ * The fees the all inclusive preset sets to an explicit 0 (empty would be the standard price):
+ * the shipping fee then covers them. Failed deliveries cost 100% of the shipment.
+ */
+export const ALL_INCLUSIVE_ZERO_KEYS = [
+  'orderFixedPiastres',
+  'orderPercentBp',
+  'codPercentBp',
+  'receivingPerUnitPiastres',
+  'storagePerUnitMonthPiastres',
+  'returnPerUnitPiastres',
+  'packagingChargePiastres',
+] as const satisfies readonly ContractPriceKey[];
+
+/** The prices of the all inclusive preset: the shipping fee given, the others 0. */
+export function allInclusivePrices(shippingFeePiastres: number | null) {
+  const out: Partial<ContractPriceValues> & { failedDeliveryPercentBp: number } = {
+    shippingFeePiastres,
+    failedDeliveryPiastres: null,
+    failedDeliveryPercentBp: 10_000,
+  };
+  for (const k of ALL_INCLUSIVE_ZERO_KEYS) out[k] = 0;
+  return out;
+}
+
+/**
+ * The charges of one shipment that a failed attempt is measured on: the shipping fee, the per
+ * product prices of its units and the order fee (fixed plus the share of the products value).
+ * Never the COD fee (no cash was collected) nor the packaging charge.
+ */
+export function shipmentCharges(
+  prices: Pick<ContractPrices, 'shippingFeePiastres' | 'orderFixedPiastres' | 'orderPercentBp'>,
+  input: { productsPiastres: number; productHandlingPiastres: number },
+) {
+  return (
+    prices.shippingFeePiastres +
+    input.productHandlingPiastres +
+    prices.orderFixedPiastres +
+    bpShare(input.productsPiastres, prices.orderPercentBp)
+  );
+}
+
+export type FailedDeliveryRule =
+  { mode: 'fixed'; piastres: number } | { mode: 'percent'; bp: number };
+
+/**
+ * What a failed attempt costs, in this order: a fixed failed delivery fee set by the version
+ * or its band (0 included) is used as it is; else the version's share of the shipment charges;
+ * else, when a shipping fee applies (above 0), fee.failed_delivery_percent_bp (100%) of them;
+ * else the standard fixed fee (as before shipping fees existed).
+ */
+export function failedDeliveryRule(
+  version: {
+    failedDeliveryPiastres?: number | null;
+    failedDeliveryPercentBp?: number | null;
+  } | null,
+  tier: ContractTier | null | undefined,
+  resolved: Pick<ContractPrices, 'failedDeliveryPiastres' | 'shippingFeePiastres'>,
+  standardPercentBp: number,
+): FailedDeliveryRule {
+  const fixed = tierValue(tier, 'failedDeliveryPiastres') ?? version?.failedDeliveryPiastres;
+  if (fixed !== null && fixed !== undefined) return { mode: 'fixed', piastres: fixed };
+  const percent = version?.failedDeliveryPercentBp;
+  if (percent !== null && percent !== undefined) return { mode: 'percent', bp: percent };
+  if (resolved.shippingFeePiastres > 0) return { mode: 'percent', bp: standardPercentBp };
+  return { mode: 'fixed', piastres: resolved.failedDeliveryPiastres };
+}
+
+/** The failed delivery charge of a shipment under a rule. */
+export function failedDeliveryCharge(rule: FailedDeliveryRule, shipmentPiastres: number) {
+  return rule.mode === 'fixed' ? rule.piastres : bpShare(shipmentPiastres, rule.bp);
+}
 
 /** A contract version as merchants manage writes it (a new draft, or a draft changed). */
 export const contractVersionSchema = z
   .object({
     ...priceFields,
+    /** A failed attempt costs this share of the shipment charges (null: see failedDeliveryRule) */
+    failedDeliveryPercentBp: bp.nullable().default(null),
+    /** Price per delivered unit of each product (products left out: nothing) */
+    productPrices: z.array(contractProductPriceSchema).max(CONTRACT_PRODUCT_PRICES_MAX).default([]),
     tiers: z.array(contractTierSchema).max(20),
     // Payment terms
     /** The agreed payout schedule (null: the merchant's own choice stays) */
@@ -293,7 +458,7 @@ export const contractVersionSchema = z
     /** Special terms, shown to the merchant and printed on the contract */
     terms: optionalText(4000),
     /** For the team only, never shown to the merchant */
-    internalNote: optionalText(1000),
+    internalNote: optionalText(4000),
     // Dates
     startDate: day,
     endDate: day.nullable(),
@@ -308,6 +473,10 @@ export const contractVersionSchema = z
   .refine((c) => new Set(c.tiers.map((t) => t.fromOrder)).size === c.tiers.length, {
     message: 'tier_twice',
     path: ['tiers'],
+  })
+  .refine((c) => new Set(c.productPrices.map((p) => p.skuId)).size === c.productPrices.length, {
+    message: 'product_twice',
+    path: ['productPrices'],
   });
 export type ContractVersionBody = z.infer<typeof contractVersionSchema>;
 export type ContractVersionInput = z.input<typeof contractVersionSchema>;
@@ -331,63 +500,109 @@ export const contractFileNameSchema = z.string().trim().min(1).max(120);
 export interface ContractCalcTerms extends ContractPriceValues {
   tiers: readonly ContractTier[];
   minimumMonthlyFeePiastres: number | null;
+  /** null: the failed delivery rule falls back (see failedDeliveryRule) */
+  failedDeliveryPercentBp?: number | null;
 }
 
 /**
- * What one delivered order costs the merchant: the order fee (fixed plus a share of the
- * products value) and the COD fee on the cash collected, at the band of its place in the
- * month, plus VAT.
+ * What one delivered shipment costs the merchant at the band of its place in the month: the
+ * shipping fee, the per product prices of its units, the order fee (fixed plus a share of the
+ * products value), the COD fee on the cash collected (0 when prepaid) and the packaging charge,
+ * plus VAT on each. Also what the same shipment would cost if the attempt failed.
  */
 export function orderCharge(
   terms: ContractCalcTerms,
   standard: ContractPrices,
   vatBp: number,
-  input: { productsPiastres: number; cashPiastres: number; nth?: number },
+  input: {
+    productsPiastres: number;
+    cashPiastres: number;
+    /** The per product prices of its units (productHandlingCharge) */
+    productHandlingPiastres?: number;
+    nth?: number;
+    /** fee.failed_delivery_percent_bp (100% when left out) */
+    standardFailedPercentBp?: number;
+  },
 ) {
   const tier = tierFor(terms.tiers, input.nth ?? 1);
   const p = resolvePrices(terms, tier, standard);
+  const productHandling = input.productHandlingPiastres ?? 0;
+  const shipping = p.shippingFeePiastres;
   const orderFee = p.orderFixedPiastres + bpShare(input.productsPiastres, p.orderPercentBp);
   const codFee = bpShare(input.cashPiastres, p.codPercentBp);
-  const fees = orderFee + codFee;
-  const vat = bpShare(orderFee, vatBp) + bpShare(codFee, vatBp);
+  const packaging = p.packagingChargePiastres;
+  const parts = [shipping, productHandling, orderFee, codFee, packaging];
+  const fees = parts.reduce((a, b) => a + b, 0);
+  // VAT is worked out on each fee as it is booked (one ledger entry per kind).
+  const vat = parts.reduce((a, b) => a + bpShare(b, vatBp), 0);
+  const rule = failedDeliveryRule(terms, tier, p, input.standardFailedPercentBp ?? 10_000);
+  const failed = failedDeliveryCharge(
+    rule,
+    shipmentCharges(p, {
+      productsPiastres: input.productsPiastres,
+      productHandlingPiastres: productHandling,
+    }),
+  );
   return {
     tierFrom: tier?.fromOrder ?? null,
+    shippingFeePiastres: shipping,
+    productHandlingPiastres: productHandling,
     orderFeePiastres: orderFee,
     codFeePiastres: codFee,
+    packagingChargePiastres: packaging,
     feesPiastres: fees,
     vatPiastres: vat,
     totalPiastres: fees + vat,
+    failedRule: rule,
+    failedPiastres: failed,
+    failedTotalPiastres: failed + bpShare(failed, vatBp),
   };
 }
 
 /**
  * About what a month costs: the orders spread evenly over the days, every order paid cash at
- * the average value, the units in stock all month. Order and COD fees go band by band;
- * storage is charged day by day at the band reached so far; the minimum tops the fees up.
+ * the average value (with the per product prices of the example shipment), the units in stock
+ * all month. Per order fees go band by band; storage is charged day by day at the band reached
+ * so far; the minimum tops the fees up. Per product prices take no tiers.
  */
 export function monthEstimate(
   terms: ContractCalcTerms,
   standard: ContractPrices,
   vatBp: number,
-  input: { orders: number; averageOrderPiastres: number; unitsStored: number; days?: number },
+  input: {
+    orders: number;
+    averageOrderPiastres: number;
+    unitsStored: number;
+    days?: number;
+    /** Per product prices of an average order */
+    productHandlingPerOrderPiastres?: number;
+    /** Paid cash on delivery (true when left out) */
+    cash?: boolean;
+  },
 ) {
   const orders = Math.max(0, Math.floor(input.orders));
   const average = Math.max(0, input.averageOrderPiastres);
+  const cash = input.cash === false ? 0 : average;
   const days = input.days ?? 30;
   // The fees change only where a band starts: walk the bands, not every order.
   const starts = [
     1,
     ...terms.tiers.map((t) => t.fromOrder).filter((n) => n > 1 && n <= orders),
   ].sort((a, b) => a - b);
+  let shippingFees = 0;
   let orderFees = 0;
   let codFees = 0;
+  let packagingCharges = 0;
   for (const [i, from] of starts.entries()) {
     const to = i + 1 < starts.length ? starts[i + 1]! - 1 : orders;
     const count = Math.max(0, to - from + 1);
     const p = resolvePrices(terms, tierFor(terms.tiers, from), standard);
+    shippingFees += count * p.shippingFeePiastres;
     orderFees += count * (p.orderFixedPiastres + bpShare(average, p.orderPercentBp));
-    codFees += count * bpShare(average, p.codPercentBp);
+    codFees += count * bpShare(cash, p.codPercentBp);
+    packagingCharges += count * p.packagingChargePiastres;
   }
+  const productHandling = orders * Math.max(0, input.productHandlingPerOrderPiastres ?? 0);
   let storage = 0;
   const units = Math.max(0, Math.floor(input.unitsStored));
   if (units > 0)
@@ -396,7 +611,8 @@ export function monthEstimate(
       const p = resolvePrices(terms, tierFor(terms.tiers, soFar + 1), standard);
       storage += Math.floor((units * p.storagePerUnitMonthPiastres + Math.floor(days / 2)) / days);
     }
-  const beforeMinimum = orderFees + codFees + storage;
+  const beforeMinimum =
+    shippingFees + productHandling + orderFees + codFees + packagingCharges + storage;
   const minimumTopUp = terms.minimumMonthlyFeePiastres
     ? Math.max(0, terms.minimumMonthlyFeePiastres - beforeMinimum)
     : 0;
@@ -404,8 +620,11 @@ export function monthEstimate(
   const vat = bpShare(fees, vatBp);
   return {
     orders,
+    shippingFeesPiastres: shippingFees,
+    productHandlingPiastres: productHandling,
     orderFeesPiastres: orderFees,
     codFeesPiastres: codFees,
+    packagingChargesPiastres: packagingCharges,
     storagePiastres: storage,
     minimumTopUpPiastres: minimumTopUp,
     feesPiastres: fees,
@@ -450,6 +669,8 @@ export interface WhatIfBase {
 }
 
 export interface WhatIfParams {
+  /** Shipping fee per delivered order (0 when left out) */
+  shippingFeePiastres?: number;
   orderFixedPiastres: number;
   orderPercentBp: number;
   codPercentBp: number;
@@ -458,25 +679,27 @@ export interface WhatIfParams {
 }
 
 /** Fees that change with the what if values; every other fee stays as it was booked. */
-const VARIABLE_FEES = new Set(['order_fee', 'cod_fee', 'minimum_fee']);
+const VARIABLE_FEES = new Set(['shipping_fee', 'order_fee', 'cod_fee', 'minimum_fee']);
 
 /**
- * The same month again with other fee values: order and COD fees are worked out afresh on
- * the month's orders, products value and cash, the other fees stay, and the minimum tops the
- * total up. Costs do not change.
+ * The same month again with other fee values: shipping, order and COD fees are worked out
+ * afresh on the month's orders, products value and cash, the other fees (per product prices,
+ * packaging, unit fees) stay, and the minimum tops the total up. Costs do not change.
  */
 export function whatIf(base: WhatIfBase, p: WhatIfParams) {
+  const shippingFee = base.deliveredOrders * (p.shippingFeePiastres ?? 0);
   const orderFee =
     base.deliveredOrders * p.orderFixedPiastres + bpShare(base.productsPiastres, p.orderPercentBp);
   const codFee = bpShare(base.codCashPiastres, p.codPercentBp);
   const otherFees = Object.entries(base.feesByKind)
     .filter(([kind]) => !VARIABLE_FEES.has(kind))
     .reduce((s, [, v]) => s + v, 0);
-  const beforeMinimum = orderFee + codFee + otherFees;
+  const beforeMinimum = shippingFee + orderFee + codFee + otherFees;
   const minimumTopUp = p.minimumPiastres ? Math.max(0, p.minimumPiastres - beforeMinimum) : 0;
   const fees = beforeMinimum + minimumTopUp;
   const margin = fees - base.costsPiastres;
   return {
+    shippingFeePiastres: shippingFee,
     orderFeePiastres: orderFee,
     codFeePiastres: codFee,
     otherFeesPiastres: otherFees,

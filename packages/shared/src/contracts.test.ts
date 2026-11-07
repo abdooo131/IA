@@ -36,6 +36,8 @@ describe('contract tiers', () => {
       receivingPerUnitPiastres: 50,
       storagePerUnitMonthPiastres: 100,
       returnPerUnitPiastres: 200,
+      shippingFeePiastres: 0,
+      packagingChargePiastres: 0,
     };
     const version = {
       orderFixedPiastres: null,
@@ -45,6 +47,8 @@ describe('contract tiers', () => {
       receivingPerUnitPiastres: 40,
       storagePerUnitMonthPiastres: null,
       returnPerUnitPiastres: null,
+      shippingFeePiastres: null,
+      packagingChargePiastres: null,
     };
     expect(resolvePrices(version, null, standard)).toEqual({
       ...standard,
@@ -73,6 +77,8 @@ describe('contract tiers', () => {
       receivingPerUnitPiastres: null,
       storagePerUnitMonthPiastres: null,
       returnPerUnitPiastres: null,
+      shippingFeePiastres: null,
+      packagingChargePiastres: null,
       payoutSchedule: null,
       minimumPayoutPiastres: null,
       promiseMinutes: null,
@@ -117,6 +123,8 @@ describe('contract calculator', () => {
     receivingPerUnitPiastres: 50,
     storagePerUnitMonthPiastres: 300,
     returnPerUnitPiastres: 200,
+    shippingFeePiastres: 0,
+    packagingChargePiastres: 0,
   };
   const none = {
     orderFixedPiastres: null,
@@ -126,6 +134,8 @@ describe('contract calculator', () => {
     receivingPerUnitPiastres: null,
     storagePerUnitMonthPiastres: null,
     returnPerUnitPiastres: null,
+    shippingFeePiastres: null,
+    packagingChargePiastres: null,
   };
   const terms = {
     ...none,

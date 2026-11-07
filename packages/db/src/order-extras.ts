@@ -70,7 +70,15 @@ export function addOrderNote(
   });
 }
 
-export type OrderFeeKind = 'order_fixed' | 'order_percent' | 'cod_fee' | 'failed_fee' | 'other';
+export type OrderFeeKind =
+  | 'shipping_fee'
+  | 'product_handling'
+  | 'order_fixed'
+  | 'order_percent'
+  | 'cod_fee'
+  | 'packaging_charge'
+  | 'failed_fee'
+  | 'other';
 
 export interface OrderMoney {
   paymentMethod: 'cod' | 'prepaid';
@@ -145,6 +153,12 @@ export async function getOrderMoney(
         amountPiastres: fee - fixed,
         percentBp: typeof data.percentBp === 'number' ? data.percentBp : null,
       });
+    } else if (
+      entry.kind === 'shipping_fee' ||
+      entry.kind === 'product_handling' ||
+      entry.kind === 'packaging_charge'
+    ) {
+      fees.push({ kind: entry.kind, amountPiastres: fee, percentBp: null });
     } else if (entry.kind === 'cod_fee' || entry.kind === 'failed_fee') {
       fees.push({
         kind: entry.kind,

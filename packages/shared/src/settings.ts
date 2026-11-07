@@ -369,6 +369,27 @@ export const SETTING_DEFINITIONS = {
       'Fee per unit returned to the merchant from a dark store (standard price; a merchant contract may set its own)',
     override: 'none',
   },
+  'fee.shipping_fee_piastres': {
+    schema: piastres,
+    default: 0,
+    description:
+      'Shipping fee per delivered order, often all inclusive (standard price; a merchant contract may set its own)',
+    override: 'none',
+  },
+  'fee.packaging_charge_piastres': {
+    schema: piastres,
+    default: 0,
+    description:
+      'Packaging charged per delivered order (standard price, 0: packaging is our cost; a merchant contract may set its own)',
+    override: 'none',
+  },
+  'fee.failed_delivery_percent_bp': {
+    schema: basisPoints,
+    default: 10_000,
+    description:
+      'For contracts with a shipping fee and no fixed failed delivery fee: a failed attempt costs this share of the shipment charges (basis points; 10000 is 100%)',
+    override: 'none',
+  },
   'finance.payout_minimum_piastres': {
     schema: piastres,
     default: 0,

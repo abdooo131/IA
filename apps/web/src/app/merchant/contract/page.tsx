@@ -63,7 +63,7 @@ export default async function MerchantContractPage({
         )}
         <div className="space-y-4">
           <ContractStanding view={view} internal={false} />
-          <ContractCalculator version={shown} standard={view.standard} vatBp={view.vatBp} />
+          <ContractCalculator version={shown} view={view} />
           <VersionHistory
             view={view}
             hrefBase="/merchant/contract?version="

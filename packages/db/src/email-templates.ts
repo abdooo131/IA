@@ -76,6 +76,9 @@ const T = {
     viewInvoices: 'See and print your invoices',
     kinds: {
       cod_collected: 'Cash collected for you',
+      shipping_fee: 'Shipping fees',
+      product_handling: 'Per product fees',
+      packaging_charge: 'Packaging charges',
       order_fee: 'Order fees',
       cod_fee: 'Cash on delivery fees',
       failed_fee: 'Failed delivery fees',
@@ -116,6 +119,9 @@ const T = {
     viewInvoices: 'اعرض فواتيرك واطبعها',
     kinds: {
       cod_collected: 'نقدية محصلة لك',
+      shipping_fee: 'رسوم الشحن',
+      product_handling: 'رسوم المنتجات بسعر القطعة',
+      packaging_charge: 'رسوم التغليف',
       order_fee: 'رسوم الطلبات',
       cod_fee: 'رسوم الدفع عند الاستلام',
       failed_fee: 'رسوم التوصيل الفاشل',

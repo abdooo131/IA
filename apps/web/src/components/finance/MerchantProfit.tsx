@@ -153,6 +153,7 @@ const egpField = (p: number | null) => (p === null ? '' : formatEgp(p).replace(/
 export function WhatIfCalculator({ detail }: { detail: MerchantProfitDetail }) {
   const t = useTranslations('finance.merchantProfit');
   const start = {
+    shipping: egpField(detail.current.shippingFeePiastres ?? 0),
     fixed: egpField(detail.current.orderFixedPiastres),
     percent: formatEgp(detail.current.orderPercentBp),
     cod: formatEgp(detail.current.codPercentBp),
@@ -160,14 +161,16 @@ export function WhatIfCalculator({ detail }: { detail: MerchantProfitDetail }) {
   };
   const [form, setForm] = useState(start);
   const params: WhatIfParams | null = useMemo(() => {
+    const shipping = parseEgp(form.shipping || '0');
     const fixed = parseEgp(form.fixed || '0');
     const percent = parseEgp(form.percent || '0');
     const cod = parseEgp(form.cod || '0');
     const minimum = form.minimum.trim() ? parseEgp(form.minimum) : null;
-    if (fixed === null || percent === null || cod === null) return null;
+    if (shipping === null || fixed === null || percent === null || cod === null) return null;
     if (form.minimum.trim() && minimum === null) return null;
     if (percent > 10_000 || cod > 10_000) return null;
     return {
+      shippingFeePiastres: shipping,
       orderFixedPiastres: fixed,
       orderPercentBp: percent,
       codPercentBp: cod,
@@ -177,7 +180,7 @@ export function WhatIfCalculator({ detail }: { detail: MerchantProfitDetail }) {
   const result = params ? whatIf(detail.base, params) : null;
   const booked = detail.feesByKind;
   const bookedOther = Object.entries(booked)
-    .filter(([k]) => !['order_fee', 'cod_fee', 'minimum_fee'].includes(k))
+    .filter(([k]) => !['shipping_fee', 'order_fee', 'cod_fee', 'minimum_fee'].includes(k))
     .reduce((s, [, v]) => s + v, 0);
   const input = (k: keyof typeof form, label: string) => (
     <label className="block text-caption">
@@ -192,6 +195,7 @@ export function WhatIfCalculator({ detail }: { detail: MerchantProfitDetail }) {
     </label>
   );
   const rows: [string, number, number | undefined][] = [
+    [t('shippingFee'), booked.shipping_fee ?? 0, result?.shippingFeePiastres],
     [t('orderFee'), booked.order_fee ?? 0, result?.orderFeePiastres],
     [t('codFee'), booked.cod_fee ?? 0, result?.codFeePiastres],
     [t('otherFees'), bookedOther, result?.otherFeesPiastres],
@@ -205,7 +209,8 @@ export function WhatIfCalculator({ detail }: { detail: MerchantProfitDetail }) {
       <h2 className="text-h3">{t('whatIf')}</h2>
       <p className="max-w-3xl text-body-sm text-text-muted">{t('whatIfIntro')}</p>
       {detail.tiers.length > 0 && <p className="text-caption">{t('tiersNote')}</p>}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {input('shipping', t('shipping'))}
         {input('fixed', t('fixed'))}
         {input('percent', t('percent'))}
         {input('cod', t('codPercent'))}

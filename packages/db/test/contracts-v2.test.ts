@@ -193,6 +193,8 @@ describe('prices from the contract', () => {
       at: new Date(),
     });
     expect(prices).toEqual({
+      shippingFeePiastres: 0,
+      packagingChargePiastres: 0,
       orderFixedPiastres: 2_000,
       orderPercentBp: 100,
       codPercentBp: 50,
@@ -526,6 +528,11 @@ function migrationData() {
     .filter(Boolean);
 }
 
+/** The prices the v2 migration knew (the shipping fee and packaging charge came later). */
+const V2_KEYS = CONTRACT_PRICE_KEYS.filter(
+  (k) => k !== 'shippingFeePiastres' && k !== 'packagingChargePiastres',
+);
+
 const SETTING_OF = Object.fromEntries(
   CONTRACT_PRICE_KEYS.map((k) => [k, CONTRACT_PRICES[k].setting]),
 ) as Record<ContractPriceKey, string>;
@@ -590,7 +597,7 @@ describe('migration from settings and the earlier contract', () => {
         t.percentBp,
       );
     const standard = {} as Record<ContractPriceKey, number>;
-    for (const k of CONTRACT_PRICE_KEYS)
+    for (const k of V2_KEYS)
       standard[k] = (
         await prisma.setting.findUniqueOrThrow({
           where: { key_scope: { key: SETTING_OF[k], scope: 'global' } },
@@ -611,8 +618,7 @@ describe('migration from settings and the earlier contract', () => {
     const expected: number[] = [];
     for (const m of [f.merchant.id, plain.id, none.id])
       for (const day of days)
-        for (const nth of places)
-          for (const k of CONTRACT_PRICE_KEYS) expected.push(before(m, k, day, nth));
+        for (const nth of places) for (const k of V2_KEYS) expected.push(before(m, k, day, nth));
     const oldMinimum = (month: string) => {
       const first = `${month}-01`;
       const [y, mo] = month.split('-').map(Number) as [number, number];
@@ -635,7 +641,7 @@ describe('migration from settings and the earlier contract', () => {
       for (const day of days)
         for (const nth of places) {
           const { prices } = await pricesForDay(prisma, { merchantId: m, day, nth });
-          for (const k of CONTRACT_PRICE_KEYS) after.push(prices[k]);
+          for (const k of V2_KEYS) after.push(prices[k]);
         }
     expect(after).toEqual(expected);
     for (const month of months)

@@ -142,7 +142,15 @@ export interface OrderNote {
   fromMerchant: boolean;
 }
 
-export type OrderFeeKind = 'order_fixed' | 'order_percent' | 'cod_fee' | 'failed_fee' | 'other';
+export type OrderFeeKind =
+  | 'shipping_fee'
+  | 'product_handling'
+  | 'order_fixed'
+  | 'order_percent'
+  | 'cod_fee'
+  | 'packaging_charge'
+  | 'failed_fee'
+  | 'other';
 
 /** GET .../orders/:id/money: the order's fees from the ledger and where its money stands. */
 export interface OrderMoney {

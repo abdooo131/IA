@@ -8,7 +8,9 @@ import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
 import { apiSend } from '@/lib/api-client';
 import {
+  applyAllInclusive,
   bodyFrom,
+  type CalcVersion,
   type ContractForm,
   type ContractVersion,
   type ContractView,
@@ -17,8 +19,10 @@ import {
   newTierRow,
 } from '@/lib/contracts';
 import { newActionKey } from '@/lib/ids';
+import { bpText, egpInput } from '@/lib/sales-part2';
 import { ContractCalculator } from './ContractCalculator';
 import { priceText } from './ContractDocument';
+import { ProductPricesEditor } from './ProductPricesEditor';
 
 const field = 'h-10 w-full rounded-md border border-line-strong bg-surface px-2 text-body-sm';
 
@@ -26,6 +30,7 @@ const KNOWN_ERRORS = [
   'contract_draft_exists',
   'contract_version_not_draft',
   'validation_failed',
+  'product_not_found',
 ] as const;
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -129,7 +134,14 @@ export function ContractEditor({
       ) as ContractVersion['prices'],
       tiers: parsed.body.tiers as ContractVersion['tiers'],
       minimumMonthlyFeePiastres: parsed.body.minimumMonthlyFeePiastres as number | null,
-    } satisfies Pick<ContractVersion, 'prices' | 'tiers' | 'minimumMonthlyFeePiastres'>);
+      failedDeliveryPercentBp: parsed.body.failedDeliveryPercentBp as number | null,
+      productPrices: parsed.body.productPrices as CalcVersion['productPrices'],
+    } satisfies CalcVersion);
+  // The saved version the form started from, for its prices file.
+  const csvHref =
+    base && base.productPrices.length
+      ? `/api/admin/merchants/${view.merchant.id}/contract/versions/${base.id}/product-prices.csv`
+      : null;
 
   return (
     <form
@@ -145,6 +157,30 @@ export function ContractEditor({
       </div>
 
       <Fieldset title={t('sections.prices')} hint={t('form.pricesHint')}>
+        <div className="flex flex-wrap items-center gap-2 rounded-md border border-line bg-surface-raised p-3">
+          <div className="min-w-0 flex-1">
+            <p className="text-body-sm font-bold">{t('form.allInclusive')}</p>
+            <p className="text-caption text-text-muted">{t('form.allInclusiveHint')}</p>
+          </div>
+          <button
+            type="button"
+            className="btn-secondary h-10"
+            data-testid="all-inclusive"
+            onClick={() => {
+              setForm((f) =>
+                applyAllInclusive(
+                  f,
+                  f.prices.shippingFeePiastres.trim() || view.standard.shippingFeePiastres <= 0
+                    ? undefined
+                    : egpInput(view.standard.shippingFeePiastres),
+                ),
+              );
+              setTimeout(() => document.getElementById('price-shippingFeePiastres')?.focus(), 0);
+            }}
+          >
+            {t('form.applyAllInclusive')}
+          </button>
+        </div>
         <div className="space-y-2">
           {CONTRACT_PRICE_KEYS.map((k) => (
             <div
@@ -164,6 +200,7 @@ export function ContractEditor({
                 </span>
                 <span className="flex items-center gap-1">
                   <input
+                    id={`price-${k}`}
                     inputMode="decimal"
                     dir="ltr"
                     value={form.prices[k]}
@@ -177,8 +214,42 @@ export function ContractEditor({
               </label>
             </div>
           ))}
+          <div className="grid items-end gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="text-body-sm">
+              {t('failed.percentLabel')}
+              <span className="block text-caption text-text-muted">{t('failed.percentHint')}</span>
+            </div>
+            <p className="text-caption text-text-muted">
+              {t('failed.standardRule', {
+                percent: `${bpText(view.standardFailedPercentBp)}%`,
+              })}
+            </p>
+            <label className="flex items-center gap-1 text-caption">
+              <input
+                inputMode="decimal"
+                dir="ltr"
+                value={form.failedPercent}
+                placeholder={t('failed.notSet')}
+                onChange={(e) => set('failedPercent', e.target.value)}
+                className={field}
+                aria-label={t('failed.percentLabel')}
+              />
+              <span className="w-8 shrink-0 text-caption text-text-muted">%</span>
+            </label>
+          </div>
+          <p className="text-caption text-text-muted">{t('failed.rule')}</p>
           <p className="text-caption text-text-muted">{t('form.vatAndPackaging')}</p>
         </div>
+      </Fieldset>
+
+      <Fieldset title={t('sections.productPrices')} hint={t('products.hint')}>
+        <ProductPricesEditor
+          merchantId={view.merchant.id}
+          products={view.products}
+          value={form.productPrices}
+          onChange={(next) => set('productPrices', next)}
+          csvHref={csvHref}
+        />
       </Fieldset>
 
       <Fieldset title={t('sections.tiers')} hint={t('form.tiersHint')}>
@@ -428,7 +499,7 @@ export function ContractEditor({
       </Fieldset>
 
       {preview ? (
-        <ContractCalculator version={preview} standard={view.standard} vatBp={view.vatBp} />
+        <ContractCalculator version={preview} view={view} />
       ) : (
         <p role="alert" className="text-body-sm text-danger">
           {t(`errors.${(parsed as { error: string }).error}`)}

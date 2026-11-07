@@ -492,7 +492,10 @@
         "rider__weekend_days": "Days off for the hold (weekday digits, 5 = Friday)",
         "rider__min_withdrawal_piastres": "Smallest rider withdrawal (EGP)",
         "rider__max_open_withdrawals": "Open withdrawals per rider",
-        "rider__penalty_day_piastres": "A day of rider pay for penalties (EGP)"
+        "rider__penalty_day_piastres": "A day of rider pay for penalties (EGP)",
+        "fee__shipping_fee_piastres": "Shipping fee per delivered order (EGP)",
+        "fee__packaging_charge_piastres": "Packaging charge per delivered order (EGP, 0: our cost)",
+        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -1942,7 +1945,10 @@
       "po_receipt": "Goods received",
       "rider_shortage_charge": "Cash short kept on rider",
       "rider_penalty": "Rider penalty",
-      "rider_withdrawal": "Rider withdrawal"
+      "rider_withdrawal": "Rider withdrawal",
+      "shipping_fee": "Shipping fee",
+      "product_handling": "Per product fee",
+      "packaging_charge": "Packaging charge"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -3148,7 +3154,7 @@
       "storeLine": "{orders} of {storeOrders} deliveries, {units} of {storeUnits} unit days",
       "volume": "Volume: {orders} delivered orders, products {products} EGP, cash collected {cash} EGP",
       "whatIf": "What if",
-      "whatIfIntro": "Change the fees and see the same month again. Order and COD fees are worked out afresh; other fees and every cost stay as they were. Volume tiers are left out.",
+      "whatIfIntro": "Change the fees and see the same month again. Shipping, order and COD fees are worked out afresh; other fees (per product prices, packaging, unit fees) and every cost stay as they were. Volume tiers are left out.",
       "fixed": "Order fee, fixed (EGP)",
       "percent": "Order fee, share of products (%)",
       "codPercent": "COD fee (%)",
@@ -3164,7 +3170,9 @@
       "reset": "Back to current values",
       "tiersNote": "This merchant has volume tiers; the booked order fees used them.",
       "summary": "Profitability this month",
-      "details": "Details and what if"
+      "details": "Details and what if",
+      "shipping": "Shipping fee (EGP)",
+      "shippingFee": "Shipping fees"
     }
   },
   "storeCash": {
@@ -3986,7 +3994,7 @@
               "Shopify orders with the 60 minute option arrive by themselves; you can also add one in New order: search the customer's neighbourhood and, if you know the building, drop a pin on the map. The form tells you at once whether the store can take it.",
               "You can cancel only new or accepted orders.",
               "Wallet shows what we owe you; payouts go to your bank on your schedule.",
-              "Contract shows your agreement with Shiply: every price beside the standard one, volume tiers, payment terms, promises and dates. Download it as a PDF in English or Arabic; earlier versions stay in Versions."
+              "Contract shows your agreement with Shiply: every price beside the standard one (often one shipping fee per delivered shipment that includes the rest), any price per product, what a failed delivery costs, volume tiers, payment terms, promises and dates. Try the calculator with your own products. Download it as a PDF in English or Arabic; earlier versions stay in Versions."
             ],
             "check": [
               "Each payout shows a bank reference.",
@@ -4509,8 +4517,11 @@
             "title": "Merchant contracts",
             "steps": [
               "Merchants: open a merchant; the tabs are Overview, Contract, Shopify, Products and stock, Users, Profit (with Accounting) and History.",
-              "Contract, Edit (new version): every price beside the standard one (leave empty for the standard price), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.",
-              "Check the draft with the calculator (a cash order, a month of orders and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.",
+              "Contract, Edit (new version): every price beside the standard one (leave empty for the standard price, type 0 for no charge), volume tiers on any fee (Orders a month: from the nth delivered order, the prices that change), payment terms (payout schedule, minimum payout, monthly minimum, deposit, credit limit), promises (delivery promise, attempts included, stores, areas), dates, special terms and an internal note. Save draft changes nothing yet.",
+              "All inclusive merchants: tap Apply all inclusive, then type the shipping fee (for example 120 EGP). It sets order fee, COD, receiving, storage, returns and packaging to 0 and failed deliveries to 100% of the shipment. Packaging stays our cost unless you type a packaging charge.",
+              "Price per product: find the merchant's products by SKU or name and type a price per unit, or tick several and Set price for all of them, or Import CSV (sku, price_egp; one wrong row and nothing changes). Download prices gives the saved version's list. Each delivered unit is charged its product's price; cancelled units and products without a price are not. Tiers do not apply to these prices.",
+              "Failed delivery: a fixed fee typed is used as it is; otherwise the share of the shipment (shipping fee, product prices and order fee; never COD).",
+              "Check the draft with the calculator (an example shipment of the merchant's products, cash or prepaid, its value and what a failed attempt costs; a month of shipments and units), then Activate from today or a later day. Charges from that day use the new version; earlier versions stay in Versions and print as before.",
               "Attach the signed copy (PDF, JPG or PNG up to 5 MB) under Signed copies, and print the contract in English or Arabic from PDF English / PDF عربي.",
               "The payout bank account is edited from the contract's payment terms.",
               "Tiers apply from the order that crosses the band, never to earlier orders of the month; unit fees and failed deliveries use the band of the next delivered order."
@@ -4646,7 +4657,8 @@
             "title": "Make and send a proposal",
             "steps": [
               "On the deal, in Proposals, tap New proposal. The rates start from our current fees.",
-              "Change the rates you agreed, add volume tiers on any fee if any, the payout schedule and minimum payout, the delivery promise and attempts, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
+              "Change the rates you agreed. For one price per shipment tap All inclusive shipping fee, then type the shipping fee. Add prices per product if agreed: pick the brand's products, or add a row with the SKU and name when they have no products with us yet. A failed delivery share (for example 100%) replaces the fixed failed fee.",
+              "Add volume tiers on any fee if any, the payout schedule and minimum payout, the delivery promise and attempts, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
               "If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.",
               "Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.",
               "To change a sent proposal, make a New version: the old link stops working."
@@ -4665,7 +4677,8 @@
               "When the brand accepts you get a notification. Open the deal.",
               "Tap Confirm and open the merchant. Check the owner's name, email (their login) and mobile.",
               "Tap Confirm. The deal is won; the merchant, its contract version (every price, tier and term of the proposal, in force from the contract start) and the owner's login are made in one step.",
-              "Copy the setup link that appears and send it to the owner: it works once and is shown only now."
+              "Copy the setup link that appears and send it to the owner: it works once and is shown only now.",
+              "If the proposal lists Product prices without a product, ask the merchant's account manager to add those prices in the contract once the products exist."
             ],
             "check": [
               "The deal shows Won and the merchant's name; the merchant's page shows its contract.",
@@ -6510,7 +6523,10 @@
         "order_percent": "Order fee",
         "cod_fee": "COD fee",
         "failed_fee": "Failed delivery fee",
-        "other": "Other charge"
+        "other": "Other charge",
+        "shipping_fee": "Shipping fee",
+        "product_handling": "Per product fees",
+        "packaging_charge": "Packaging charge"
       },
       "vat": "VAT on fees",
       "dues": "Total dues",
@@ -6592,7 +6608,8 @@
       "promises": "Service promises",
       "dates": "Dates",
       "terms": "Special terms",
-      "internal": "Internal note (team only)"
+      "internal": "Internal note (team only)",
+      "productPrices": "Price per product"
     },
     "fee": "Fee",
     "standard": "Standard",
@@ -6605,23 +6622,25 @@
       "failedDeliveryPiastres": "Failed delivery fee",
       "receivingPerUnitPiastres": "Receiving",
       "storagePerUnitMonthPiastres": "Storage",
-      "returnPerUnitPiastres": "Return to merchant"
+      "returnPerUnitPiastres": "Return to merchant",
+      "shippingFeePiastres": "Shipping fee",
+      "packagingChargePiastres": "Packaging charge"
     },
     "units": {
       "orderFixedPiastres": "per delivered order",
       "orderPercentBp": "of the products value",
       "codPercentBp": "of the cash collected",
-      "failedDeliveryPiastres": "per failed delivery",
+      "failedDeliveryPiastres": "per failed delivery (a fixed fee wins over a share)",
       "receivingPerUnitPiastres": "per unit received",
       "storagePerUnitMonthPiastres": "per unit a month, charged daily",
-      "returnPerUnitPiastres": "per unit returned"
+      "returnPerUnitPiastres": "per unit returned",
+      "shippingFeePiastres": "per delivered shipment, often all inclusive",
+      "packagingChargePiastres": "per delivered order (0 or standard: our cost)"
     },
     "vat": "VAT on fees",
     "vatHint": "A global setting, the same for every merchant",
     "vatSame": "Same for everyone",
-    "packaging": "Packaging",
-    "packagingHint": "Bags, boxes and labels are ours, never charged",
-    "included": "Included",
+    "packagingHint": "Packaging (bags, boxes, labels) is ours unless a packaging charge is set.",
     "tiersTitle": "Orders a month: from → prices",
     "fromOrder": "From order",
     "noTiers": "No volume tiers: the prices above apply to every order.",
@@ -6673,18 +6692,41 @@
     "overLimit": "Over the credit limit: new shipments are refused.",
     "calc": {
       "title": "What it costs",
-      "orderValue": "Order value (EGP)",
-      "orders": "Orders a month",
+      "orderValue": "Shipment value (EGP)",
+      "orders": "Shipments a month",
       "units": "Units stored",
-      "oneOrder": "A <value></value> EGP cash order costs <total></total> EGP: <fees></fees> in fees plus <vat></vat> VAT.",
-      "month": "A month of <orders></orders> orders with <units></units> units stored costs about <total></total> EGP with VAT.",
+      "oneOrder": "This <value></value> EGP shipment costs <total></total> EGP: <fees></fees> in fees plus <vat></vat> VAT.",
+      "month": "A month of <orders></orders> such shipments with <units></units> units stored costs about <total></total> EGP with VAT.",
       "orderFees": "Order fees",
       "codFees": "COD fees",
       "storage": "Storage",
       "minimumTopUp": "Minimum top up",
       "vat": "VAT",
       "perOrder": "Per order",
-      "note": "An estimate: every order paid cash at that value, orders spread evenly over 30 days, tiers band by band. Receiving, returns and failed deliveries come on top."
+      "note": "An estimate: every shipment like the example, spread evenly over 30 days, tiers band by band (not on per product prices). Receiving, returns and failed deliveries come on top.",
+      "shipment": "Example shipment",
+      "noProducts": "No products chosen: the value below is used.",
+      "hasPrice": "own price",
+      "quantity": "Qty",
+      "remove": "Remove",
+      "addProduct": "Add a product",
+      "choose": "Choose…",
+      "payment": "Payment",
+      "cash": "Cash on delivery",
+      "prepaid": "Prepaid",
+      "parts": {
+        "shipping": "Shipping fee",
+        "perProduct": "Per product",
+        "orderFee": "Order fee",
+        "codFee": "COD fee",
+        "packaging": "Packaging",
+        "vat": "VAT"
+      },
+      "failedFixed": "If the attempt fails: <total></total> EGP with VAT (the fixed fee).",
+      "failedPercent": "If the attempt fails: <percent></percent> of the shipment charges, <total></total> EGP with VAT.",
+      "shippingFees": "Shipping fees",
+      "perProductFees": "Per product",
+      "packagingCharges": "Packaging"
     },
     "versions": {
       "title": "Versions",
@@ -6722,8 +6764,8 @@
       "title": "New version",
       "editDraft": "Edit draft {label}",
       "intro": "Every term of the deal in one place. It is saved as a draft and changes nothing until it is activated.",
-      "pricesHint": "Leave a price empty for the standard price (it then follows the setting).",
-      "vatAndPackaging": "VAT is the same for every merchant; packaging is always included.",
+      "pricesHint": "Leave a price empty for the standard price (it then follows the setting). Type 0 for no charge at all.",
+      "vatAndPackaging": "VAT is the same for every merchant and is added on top. Packaging is our cost unless a packaging charge is set.",
       "tiersHint": "From the nth delivered order of a Cairo month the band's prices apply, to that order and every later one. Set only the prices that change; an empty box keeps the price above.",
       "addTier": "Add a band",
       "removeTier": "Remove band",
@@ -6738,7 +6780,10 @@
       "plannedFromHint": "Chosen again when it is activated.",
       "termsLabel": "Special terms (shown to the merchant and printed)",
       "termsHint": "Anything else agreed, in plain words.",
-      "save": "Save draft"
+      "save": "Save draft",
+      "allInclusive": "All inclusive shipping fee",
+      "allInclusiveHint": "One price per shipment: sets order fee, COD, receiving, storage, returns and packaging to 0 (not empty) and failed deliveries to 100% of the shipment. Type the shipping fee after.",
+      "applyAllInclusive": "Apply all inclusive"
     },
     "errors": {
       "price": "A price is not a valid amount or percent.",
@@ -6758,7 +6803,56 @@
       "file_type_not_allowed": "Only PDF, JPG or PNG files.",
       "file_too_large": "The file is larger than 5 MB.",
       "invalid_iban": "An IBAN is EG followed by 27 digits.",
-      "generic": "Could not save. Try again."
+      "generic": "Could not save. Try again.",
+      "failedPercent": "The failed delivery share is a percent up to 100.",
+      "productPrice": "A product price is not a valid amount.",
+      "product_not_found": "A product is not this merchant's."
+    },
+    "allInclusiveNote": "All inclusive: the shipping fee covers the services priced at 0.",
+    "failed": {
+      "percentLabel": "Failed delivery, share of the shipment",
+      "percentHint": "of the shipping fee, per product prices and order fee of the shipment",
+      "standardRule": "Empty: {percent} when there is a shipping fee, else the fixed fee",
+      "notSet": "Not set",
+      "rule": "A failed attempt costs the fixed failed delivery fee when one is typed (0 included); otherwise this share of what the shipment would have cost (shipping fee, per product prices of its units, order fee fixed and share of products; never the COD fee). Contracts without a shipping fee or share keep the fixed fee.",
+      "title": "Failed delivery",
+      "titleHint": "What one failed attempt costs",
+      "fixedRule": "{amount} EGP per failed attempt",
+      "percentRule": "{percent} of the shipment charges (shipping fee, per product prices and order fee; not COD)"
+    },
+    "products": {
+      "hint": "Charged per delivered unit of each product on top of the other fees; units cancelled before delivery are not charged. Products without a price charge nothing for this fee. Volume tiers do not apply.",
+      "priced": "{n} of {total} products have a price.",
+      "noProducts": "This merchant has no products yet.",
+      "search": "Find a product",
+      "searchHint": "SKU or name",
+      "onlyPriced": "Only priced",
+      "bulkPrice": "Price for the {n} ticked (EGP)",
+      "setSelected": "Set price",
+      "clearSelected": "Clear prices",
+      "tickAll": "Tick every product shown",
+      "product": "Product",
+      "unitPrice": "Per unit (EGP)",
+      "inactive": "inactive",
+      "more": "Showing {shown} of {total}: search to find the others.",
+      "import": "Import CSV",
+      "importing": "Checking…",
+      "export": "Download prices (CSV)",
+      "csvHint": "CSV columns: sku, price_egp (other columns are ignored). The whole file is checked first: one wrong row and nothing changes.",
+      "emptyFile": "The file has no rows.",
+      "importFailed": "Could not check the file. Try again.",
+      "importErrors": "Nothing imported: {n} rows to fix.",
+      "imported": "{n} prices put in the draft. Save the draft to keep them.",
+      "errorLine": "Row {row} ({sku}): {error}",
+      "errors": {
+        "unknown_sku": "not one of this merchant's products",
+        "duplicate_sku_in_file": "the SKU is in the file twice",
+        "invalid_price": "the price is not an amount in pounds",
+        "sku_required": "the SKU is empty"
+      },
+      "none": "No per product prices.",
+      "andMore": "and {n} more (all in the PDF annex and the CSV)",
+      "rule": "Per delivered unit, on top of the other fees. No tiers."
     }
   },
   "purchasing": {
@@ -7632,7 +7726,8 @@
       "invalid_month": "Pick a month.",
       "tier_twice": "Two tiers start at the same order.",
       "tier_empty": "Each tier needs a fee.",
-      "effective_before_last_version": "The merchant already has a contract version starting later; change the contract start."
+      "effective_before_last_version": "The merchant already has a contract version starting later; change the contract start.",
+      "product_not_found": "A product is not this brand's."
     },
     "proposals": {
       "title": "Proposals",
@@ -7651,7 +7746,9 @@
         "failedDeliveryPiastres": "Failed delivery fee",
         "receivingPerUnitPiastres": "Receiving, per unit",
         "storagePerUnitMonthPiastres": "Storage, per unit per month",
-        "returnPerUnitPiastres": "Return to the merchant, per unit"
+        "returnPerUnitPiastres": "Return to the merchant, per unit",
+        "shippingFeePiastres": "Shipping fee per shipment",
+        "packagingChargePiastres": "Packaging charge per order"
       },
       "tiers": "Volume tiers",
       "tiersHint": "From the nth delivered order of a month, the prices you set change for that order and every later one. Leave a box empty to keep the rate above.",
@@ -7742,7 +7839,24 @@
       "minimumPayout": "Minimum payout, EGP",
       "promiseMinutes": "Delivery promise (minutes)",
       "deliveryAttempts": "Delivery attempts included",
-      "standardPlaceholder": "Standard"
+      "standardPlaceholder": "Standard",
+      "allInclusive": "All inclusive shipping fee",
+      "allInclusiveHint": "One price per shipment: sets the other charges to 0 and failed deliveries to 100% of the shipment. Then type the shipping fee.",
+      "failedPercent": "Failed delivery, share of the shipment",
+      "failedPercentHint": "Empty: the fixed failed delivery fee above. A share replaces it ({percent} is usual with a shipping fee).",
+      "productPrices": "Price per product",
+      "productPricesHint": "Charged per delivered unit. Pick the brand's products, or type SKU and name; on confirm each row joins the product with that SKU, and rows without one are listed for you.",
+      "productSku": "SKU",
+      "productName": "Name",
+      "productPrice": "Per unit (EGP)",
+      "removeProduct": "Remove",
+      "pickProduct": "Add one of the brand's products",
+      "choose": "Choose…",
+      "addFreeRow": "Add a row (SKU and name)",
+      "shippingLine": "Shipping fee {amount} EGP",
+      "productsCount": "{n} product prices",
+      "unmatchedTitle": "Product prices without a product",
+      "unmatchedHint": "No product with these SKUs yet, so they are kept as a note on the contract. Add them in the contract once the products exist."
     },
     "numbers": {
       "month": "Month",
@@ -7951,7 +8065,9 @@
       "failedDeliveryPiastres": "failed delivery",
       "receivingPerUnitPiastres": "receiving per unit",
       "storagePerUnitMonthPiastres": "storage per unit a month",
-      "returnPerUnitPiastres": "return per unit"
+      "returnPerUnitPiastres": "return per unit",
+      "shippingFeePiastres": "shipping fee",
+      "packagingChargePiastres": "packaging"
     },
     "schedules": {
       "daily": "Daily",
@@ -7961,7 +8077,19 @@
     "minimumPayout": "Minimum payout",
     "promise": "Delivery promise",
     "minutes": "{n} minutes",
-    "attempts": "Delivery attempts included"
+    "attempts": "Delivery attempts included",
+    "shippingFee": "Shipping fee",
+    "shippingFeeHint": "Per delivered shipment, the services shown as included are part of it",
+    "includedInShipping": "Included in the shipping fee",
+    "failedPercentValue": "{percent} of the shipment",
+    "failedPercentHint": "Of the shipping fee, product prices and order fee of the shipment; no cash fee",
+    "packagingFee": "Packaging",
+    "perShipment": "{amount} per order",
+    "packagingIncluded": "On us",
+    "productPricesTitle": "Price per product",
+    "productPricesHint": "Per delivered unit of these products, on top of the rates above.",
+    "exampleShipping": "Shipping fees",
+    "examplePackaging": "Packaging"
   },
   "setupPage": {
     "pageTitle": "Choose your password",

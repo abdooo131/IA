@@ -185,17 +185,26 @@ Screens: apps/web/src/app/admin/sales, components/sales, lib/sales.ts.
 - **Numbers and versions**: `PRO-000001` onward, gapless (`nextNumber('crm_proposals')`), and a
   version per deal (1, 2, ...). Only a draft is edited; a sent proposal is changed by a new
   version, which makes the old link answer "replaced".
-- **Values**: every fee starts from its global setting and the rep may change it: fee per
-  delivered order (fixed and share of the products value), COD fee, failed delivery, receiving
-  per unit, storage per unit per month, return per unit. Volume tiers on every fee (from the
-  nth delivered order of the month, any of the seven prices), the payout schedule and minimum
+- **Values**: every fee starts from its global setting and the rep may change it: shipping fee
+  per delivered shipment, fee per delivered order (fixed and share of the products value), COD
+  fee, failed delivery, receiving per unit, storage per unit per month, return per unit,
+  packaging charge per order. The "All inclusive shipping fee" button sets every charge but the
+  shipping fee to 0 and failed deliveries to 100% of the shipment; the rep then types the
+  shipping fee. Failed delivery is the fixed fee, or a share of the shipment (shipping fee,
+  product prices of its units and order fee; never COD) when a share is typed. Per product
+  prices: rows picked from the products of the deal's merchant (or the company's own after a
+  sign up) or typed as SKU and name with a price per delivered unit (no tiers). Volume tiers on
+  every fee (from the nth delivered order of the month, any of the nine prices), the payout schedule and minimum
   payout, the delivery promise and attempts included, the monthly minimum, the security deposit
   and the credit limit work exactly like a merchant contract version (merchant contracts v2,
   CLAUDE.md); contract start (empty: the day the rep confirms), length in months (empty: no end)
   and notice days; free text terms; orders a month and average order value for the example
   month.
 - **Discount rule**: the discount of each fee (and each price a tier sets, against that fee's
-  setting) is `(setting − offered) / setting`. When the largest is above
+  setting) is `(setting − offered) / setting`. A proposal with a shipping fee is usually all
+  inclusive (the other fees at 0), so it is checked as a whole instead: its example month (at
+  least one order, per product prices left out) against the same month at the fee settings
+  (`packageDiscountBp`). When the largest is above
   `sales.max_discount_bp` (default 2000 = 20%) the proposal needs a sales manager's approval
   before it can be sent (`approval_required`). The rep asks (Ask a manager to approve, pushed
   to the managers); a manager who did not make it approves (`same_person` otherwise). Changing
@@ -205,7 +214,9 @@ Screens: apps/web/src/app/admin/sales, components/sales, lib/sales.ts.
   when it was earlier (new, contacted, meeting), with a stage history row.
 - **Public page** `/p/<token>` (no sign in, English or Arabic from the visitor's language
   cookie, switchable): our company's legal name, tax number and address (company profile), the
-  rep's contact, the rates in plain words, the tiers, an example month (the expected orders at
+  rep's contact, the rates in plain words (with a shipping fee, charges at 0 read
+  "Included in the shipping fee"; packaging "On us" unless charged; the failed delivery rule),
+  the per product prices, the tiers, an example month (the expected orders at
   the average order value, every order cash on delivery, tiers applied band by band, topped up
   to the minimum, before VAT), the terms, and Accept (signer's name and title, a tick to accept
   on behalf of the brand) or Decline (name and an optional reason). Opening it marks a sent
@@ -221,12 +232,17 @@ Screens: apps/web/src/app/admin/sales, components/sales, lib/sales.ts.
     `sales.setup_link_days`, default 7). The link is shown to the rep once to send to the
     owner (no email is sent); the rep can make a new one from the deal while the owner has not
     used it (earlier links stop working). Choosing a password opens the account,
-  - the merchant's contract: a version holding every term of the proposal (all seven prices,
+  - the merchant's contract: a version holding every term of the proposal (all nine prices,
+    the failed delivery share and the per product prices,
     tiers on every fee, payout schedule and minimum payout, promise and attempts, minimum,
     deposit, credit limit, start, end from the length, notice, terms; the proposal and deal
     numbers as its internal note, `source` the proposal number) made through the same
     `createContractDraft` as merchants manage and activated at once from the contract start
-    (today at the earliest) through `activateContractVersion`. A new merchant gets CTR- version
+    (today at the earliest) through `activateContractVersion`. Per product price rows map to
+    the merchant's products by SKU (the product picked, else the same SKU, any case); rows
+    without a product are written into the contract's internal note and shown on the proposal
+    as "Product prices without a product" for the rep to add once the products exist
+    (`crm_proposal_products.matched_sku_id`). A failed share replaces the fixed failed fee. A new merchant gets CTR- version
     1; an existing merchant (a sign up, or a later deal) a new version, and a draft someone left
     open on its contract gives way to the signed proposal,
   - the deal's owner as the merchant's account manager (a sales manager can change it on the
@@ -370,6 +386,11 @@ packages/db/src/finance/payroll.ts.
 - A proposal's fees become the contract version's own prices even where they equal today's
   global value, so a later change of the global fee does not change an agreed contract.
 - Notice days default to 30 when the rep leaves it empty.
+- A proposal with a shipping fee is approved as a whole (its example month against the settings'
+  month) rather than fee by fee; per product prices are left out of that check and of the
+  example month (they depend on what each order holds).
+- Unmatched per product price rows stay a note on the contract; nothing adds them by itself
+  when the products are created later.
 - Commission against the target (choices made while building it):
   - "Active" counts orders delivered from the moment of the win (a delivery earlier in the win
     month does not count), and the qualifying month's fees count in full.

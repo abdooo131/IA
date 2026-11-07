@@ -1,6 +1,8 @@
 import type { ContractPrint } from '@shiplynow/db';
 import {
+  ALL_INCLUSIVE_ZERO_KEYS,
   CONTRACT_PRICE_KEYS,
+  failedDeliveryRule,
   CONTRACT_PRICES,
   type ContractPriceKey,
   type ContractTier,
@@ -29,8 +31,21 @@ const TEXT = {
     asStandard: 'Standard',
     vat: 'VAT on our fees',
     vatNote: 'Added to every fee at the rate in force',
-    packaging: 'Packaging (bags, boxes, labels)',
-    included: 'Included',
+    packagingNote: 'Packaging (bags, boxes, labels) is ours unless a packaging charge is set.',
+    allInclusive:
+      'All inclusive: the shipping fee covers the services whose price is 0 in this contract.',
+    failed: 'Failed delivery',
+    failedFixed: (v: string) => `${v} per failed attempt (a fixed fee)`,
+    failedPercent: (p: string) =>
+      `${p} of what the shipment would have cost: shipping fee, per product prices of its units and the order fee (fixed and share of products); never the cash on delivery fee`,
+    productPrices: 'Price per product',
+    productPricesNote:
+      'Charged per delivered unit of each product below, on top of the other fees; units cancelled before delivery are not charged and products not listed are not charged this fee. Volume tiers do not apply.',
+    productPricesAnnex: 'Annex: price per product',
+    productPricesSee: (n: number) => `${n} products, listed in the annex at the end.`,
+    sku: 'SKU',
+    product: 'Product',
+    unitPrice: 'Price per unit',
     tiers: 'Volume tiers',
     tiersRule:
       'Orders a month counts the delivered orders of the Cairo calendar month. The order that reaches a band and every later order of the month pay the band’s prices; earlier orders are never charged again. Unit fees and failed deliveries use the band of the next delivered order at the time of the charge. A price left empty in a band is the agreed price.',
@@ -71,6 +86,7 @@ const TEXT = {
     date: 'Date',
     page: (p: number, n: number) => `page ${p} of ${n}`,
     egp: (v: string) => `${v} EGP`,
+    perShipment: 'per delivered shipment',
     perOrder: 'per delivered order',
     ofProducts: 'of the products value',
     ofCash: 'of the cash collected',
@@ -84,6 +100,8 @@ const TEXT = {
     },
     keepsOwn: 'The merchant’s own choice',
     fees: {
+      shippingFeePiastres: 'Shipping fee',
+      packagingChargePiastres: 'Packaging charge',
       orderFixedPiastres: 'Order fee, fixed',
       orderPercentBp: 'Order fee, share of products',
       codPercentBp: 'Cash on delivery fee',
@@ -109,8 +127,20 @@ const TEXT = {
     asStandard: 'القياسي',
     vat: 'ضريبة القيمة المضافة على رسومنا',
     vatNote: 'تضاف إلى كل رسم بالنسبة السارية',
-    packaging: 'التغليف (أكياس وكراتين وملصقات)',
-    included: 'مشمول',
+    packagingNote: 'التغليف من الأكياس والكراتين والملصقات علينا ما لم تحدد رسوم تغليف.',
+    allInclusive: 'شامل: رسوم الشحن تغطي الخدمات التي سعرها صفر في هذا العقد.',
+    failed: 'التوصيل الفاشل',
+    failedFixed: (v: string) => `${v} لكل محاولة فاشلة، رسم ثابت`,
+    failedPercent: (p: string) =>
+      `${p} مما كانت ستتكلفه الشحنة: رسوم الشحن وأسعار منتجاتها ورسم الطلب الثابت والنسبة من المنتجات، ولا يدخل رسم الدفع عند الاستلام`,
+    productPrices: 'السعر لكل منتج',
+    productPricesNote:
+      'يحسب لكل قطعة مسلمة من المنتجات التالية فوق الرسوم الأخرى، ولا تحسب القطع الملغاة قبل التسليم، والمنتجات غير المذكورة لا يحسب عليها هذا الرسم، ولا تسري عليه شرائح الحجم.',
+    productPricesAnnex: 'ملحق: السعر لكل منتج',
+    productPricesSee: (n: number) => `${n} منتج، مذكورة في الملحق في آخر العقد.`,
+    sku: 'رمز المنتج',
+    product: 'المنتج',
+    unitPrice: 'السعر للقطعة',
     tiers: 'شرائح الحجم',
     tiersRule:
       'عدد الطلبات في الشهر هو الطلبات المسلمة في الشهر الميلادي بتوقيت القاهرة. الطلب الذي يبلغ الشريحة وكل طلب بعده في الشهر يدفع أسعار الشريحة ولا تعاد محاسبة الطلبات السابقة. رسوم الوحدات والتوصيل الفاشل تتبع شريحة الطلب المسلم التالي وقت الرسم. السعر الفارغ في الشريحة هو السعر المتفق عليه.',
@@ -151,6 +181,7 @@ const TEXT = {
     date: 'التاريخ',
     page: (p: number, n: number) => `صفحة ${p} من ${n}`,
     egp: (v: string) => `${v} ج.م`,
+    perShipment: 'لكل شحنة مسلمة',
     perOrder: 'لكل طلب مسلم',
     ofProducts: 'من قيمة المنتجات',
     ofCash: 'من النقد المحصل',
@@ -164,6 +195,8 @@ const TEXT = {
     },
     keepsOwn: 'اختيار التاجر',
     fees: {
+      shippingFeePiastres: 'رسوم الشحن',
+      packagingChargePiastres: 'رسوم التغليف',
       orderFixedPiastres: 'رسم الطلب الثابت',
       orderPercentBp: 'رسم الطلب نسبة من المنتجات',
       codPercentBp: 'رسم الدفع عند الاستلام',
@@ -194,6 +227,8 @@ export function priceText(t: ContractPdfText, key: ContractPriceKey, value: numb
   const def = CONTRACT_PRICES[key];
   const amount = def.unit === 'bp' ? percent(value) : t.egp(money(value));
   const per: Record<ContractPriceKey, string> = {
+    shippingFeePiastres: t.perShipment,
+    packagingChargePiastres: t.perOrder,
     orderFixedPiastres: t.perOrder,
     orderPercentBp: t.ofProducts,
     codPercentBp: t.ofCash,
@@ -328,16 +363,53 @@ export async function renderContractPdf(print: ContractPrint, lang: PdfLang): Pr
       },
     ]);
   }
+  const failed = failedDeliveryRule(
+    {
+      failedDeliveryPiastres: v.prices.failedDeliveryPiastres,
+      failedDeliveryPercentBp: v.failedDeliveryPercentBp,
+    },
+    null,
+    {
+      failedDeliveryPiastres:
+        v.prices.failedDeliveryPiastres ?? print.standard.failedDeliveryPiastres,
+      shippingFeePiastres: v.prices.shippingFeePiastres ?? print.standard.shippingFeePiastres,
+    },
+    print.standardFailedPercentBp,
+  );
+  w.row([
+    { text: t.failed, width: 0.34 },
+    { text: '', width: 0.31 },
+    {
+      text:
+        failed.mode === 'fixed'
+          ? t.failedFixed(t.egp(money(failed.piastres)))
+          : t.failedPercent(percent(failed.bp)),
+      width: 0.35,
+      bold: v.prices.failedDeliveryPiastres !== null || v.failedDeliveryPercentBp !== null,
+    },
+  ]);
   w.row([
     { text: t.vat, width: 0.34 },
     { text: percent(print.vatBp), width: 0.31, color: BRAND.muted },
     { text: t.vatNote, width: 0.35 },
   ]);
-  w.row([
-    { text: t.packaging, width: 0.34 },
-    { text: t.included, width: 0.31, color: BRAND.muted },
-    { text: t.included, width: 0.35, bold: true },
-  ]);
+  w.y += 4;
+  const allInclusive =
+    (v.prices.shippingFeePiastres ?? 0) > 0 &&
+    ALL_INCLUSIVE_ZERO_KEYS.some((k) => v.prices[k] === 0);
+  w.paragraph([allInclusive ? t.allInclusive : '', t.packagingNote].filter(Boolean).join(' '), {
+    size: 8.5,
+    color: BRAND.muted,
+  });
+
+  // Per product prices: the first few here, the full table in the annex.
+  if (v.productPrices.length) {
+    w.heading(t.productPrices);
+    w.paragraph(t.productPricesNote, { size: 8.5, color: BRAND.muted });
+    if (v.productPrices.length > PRODUCTS_INLINE)
+      w.paragraph(t.productPricesSee(v.productPrices.length));
+    else productTable(w, t, lang, v.productPrices);
+  }
 
   // Volume tiers: one row per band, a column for each fee any band sets.
   w.heading(t.tiers);
@@ -446,6 +518,42 @@ export async function renderContractPdf(print: ContractPrint, lang: PdfLang): Pr
   }
   w.y = top + 140;
 
+  // Annex: every per product price when there are too many for the prices section.
+  if (v.productPrices.length > PRODUCTS_INLINE) {
+    w.doc.addPage();
+    w.y = w.margin;
+    w.heading(t.productPricesAnnex);
+    productTable(w, t, lang, v.productPrices);
+  }
+
   w.footer((p, n) => `${v.label} · ${print.merchant.name} · ${t.page(p, n)}`);
   return w.end();
+}
+
+/** Products listed in the prices section; more go to the annex at the end. */
+const PRODUCTS_INLINE = 15;
+
+function productTable(
+  w: PdfWriter,
+  t: ContractPdfText,
+  lang: PdfLang,
+  rows: ContractPrint['version']['productPrices'],
+) {
+  w.row(
+    [
+      { text: t.sku, width: 0.25, bold: true },
+      { text: t.product, width: 0.5, bold: true },
+      { text: t.unitPrice, width: 0.25, bold: true },
+    ],
+    { fill: BRAND.soft, size: 8.5 },
+  );
+  for (const r of rows)
+    w.row(
+      [
+        { text: r.sku, width: 0.25 },
+        { text: lang === 'ar' ? r.titleAr || r.titleEn : r.titleEn, width: 0.5 },
+        { text: t.egp(money(r.pricePiastres)), width: 0.25 },
+      ],
+      { size: 9 },
+    );
 }
