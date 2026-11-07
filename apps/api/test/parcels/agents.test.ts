@@ -106,7 +106,7 @@ describe('agents and workforce', () => {
     expect(left.filter((a: any) => a.kind === 'STAFF_WAITING_APPROVAL')).toHaveLength(1);
 
     // An agent cannot touch staff of another agent.
-    const other = await prisma.user.findFirst({ where: { role: 'COURIER', agentId: { not: agent.id }, NOT: { agentId: null } } });
+    const other = await prisma.user.findFirst({ where: { role: 'courier', agentId: { not: agent.id }, NOT: { agentId: null } } });
     expect((await agentA.put(`/parcels/agent/staff/${other.id}`).send(body('Other person', '01199999999', lastMile.id))).status).toBe(404);
   });
 
@@ -118,7 +118,7 @@ describe('agents and workforce', () => {
     expect(mona.status).toBe('SCHEDULED');
 
     // Pretend both shifts started 40 minutes ago.
-    await prisma.shift.updateMany({ where: { id: { in: [mona.id, omar.id] } }, data: { startAt: new Date(Date.now() - 40 * 60000) } });
+    await prisma.courierShift.updateMany({ where: { id: { in: [mona.id, omar.id] } }, data: { startAt: new Date(Date.now() - 40 * 60000) } });
     const tick = await ok(admin.post('/parcels/admin/jobs/attendance'));
     expect(tick.alerted).toBeGreaterThanOrEqual(2);
     const alerts = await ok(agentA.get('/parcels/agent/alerts'));
@@ -134,7 +134,7 @@ describe('agents and workforce', () => {
     expect((await staff.monaClient.post('/parcels/courier/check-in').send({ photoBase64: PHOTO })).status).toBe(409);
 
     // The hour passes with no replacement: operations get a high alert.
-    await prisma.shift.update({ where: { id: mona.id }, data: { replacementDeadline: new Date(Date.now() - 1000) } });
+    await prisma.courierShift.update({ where: { id: mona.id }, data: { replacementDeadline: new Date(Date.now() - 1000) } });
     const t2 = await ok(admin.post('/parcels/admin/jobs/attendance'));
     expect(t2.replacementOverdue).toBe(1);
     const ops = await ok(admin.get('/parcels/admin/alerts'));

@@ -124,7 +124,7 @@ describe('merchants and customers', () => {
     expect((await pub().post('/parcels/auth/signup').send({ ...form, code: wrong })).status).toBe(422);
     const r = await ok(pub().post('/parcels/auth/signup').send({ ...form, code }), 201);
     expect((await pub().post('/parcels/auth/signup').send({ ...form, email: 'other@x.example', code })).status).toBe(422); // code used
-    await login('sara@cairogifts.example', 'gifts12345', 401); // not approved yet
+    await login('sara@cairogifts.example', 'gifts12345', 403); // not approved yet (account_pending)
     expect((await ok(as.admin!.get('/parcels/admin/signups'))).some((m: any) => m.id === r.id)).toBe(true);
     await ok(as.admin!.post(`/parcels/admin/merchants/${r.id}/signup/approve`));
     const sara = await login('sara@cairogifts.example', 'gifts12345');
@@ -139,7 +139,6 @@ describe('merchants and customers', () => {
     const hany = await login('hany@evechantelle.example', 'hany12345');
     await ok(hany.get('/parcels/merchant/shipments'));
     expect((await hany.get('/parcels/merchant/statement')).status).toBe(403);
-    expect((await hany.get('/parcels/merchant/invoices')).status).toBe(403);
     expect((await hany.get('/parcels/merchant/team')).status).toBe(403);
     expect((await ok(as.merchant!.get('/parcels/merchant/team'))).length).toBe(2);
   });

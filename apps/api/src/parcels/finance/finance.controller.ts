@@ -5,6 +5,9 @@ import { CurrentUser, Roles, assertHubAccess, assertMerchantRight, type SessionU
 import { DomainError } from '../common/errors';
 import { BooksService } from './books.service';
 import { FinanceService } from './finance.service';
+import { PrismaService } from '../common/prisma.service';
+import { balanceSheet, trialBalance } from '@shiplynow/db';
+import { cairoDay } from '@shiplynow/shared';
 
 function sendFile(res: Response, f: { data: Uint8Array; mime: string; name: string }) {
   res.setHeader('Content-Type', f.mime || 'application/octet-stream');
@@ -27,7 +30,21 @@ export class FinanceController {
   constructor(
     private readonly f: FinanceService,
     private readonly b: BooksService,
+    private readonly prisma: PrismaService,
   ) {}
+
+  /** The combined books of both companies (one ledger); full reports live in Accounting. */
+  @Get('reports/trial-balance')
+  async trialBalance() {
+    const tb = await trialBalance(this.prisma);
+    return { ...tb, balanced: tb.totalDebitPiastres === tb.totalCreditPiastres };
+  }
+
+  @Get('reports/balance-sheet')
+  async balanceSheet() {
+    const bs = await balanceSheet(this.prisma, cairoDay(new Date()));
+    return { ...bs, balanced: bs.totalAssetsPiastres === bs.totalLiabilitiesPiastres + bs.totalEquityPiastres };
+  }
 
   // suppliers and bills
   // bank statement

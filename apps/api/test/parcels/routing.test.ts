@@ -49,7 +49,7 @@ describe('routing', () => {
     const far = await ok(admin.get(`/parcels/admin/route-preview?merchantId=${merchantId}&governorateCode=EG-ALX`));
     expect(far.steps.map((s: any) => s.code)).toEqual(['OBR', 'ALXSF', 'ALX']);
     expect(far.transfers).toBe(0);
-    const p = await ok(parcel('ALX'), 201);
+    const p = await ok(parcel('EG-ALX'), 201);
     expect(p.route).toEqual(['OBR', 'ALXSF', 'ALX']);
   });
 
@@ -64,7 +64,7 @@ describe('routing', () => {
     const r = await ok(admin.get(`/parcels/admin/route-preview?merchantId=${merchantId}&governorateCode=EG-ALX`));
     expect(r.steps.map((s: any) => s.code)).toEqual(['OBR', 'TNTSF', 'ALXSF', 'ALX']);
     expect(r.transfers).toBe(1);
-    const p = await ok(parcel('ALX'), 201);
+    const p = await ok(parcel('EG-ALX'), 201);
     expect(p.route).toEqual(['OBR', 'TNTSF', 'ALXSF', 'ALX']);
 
     // Moving it on: each facility sends it to the next one on the plan.
@@ -80,26 +80,26 @@ describe('routing', () => {
     const r = await ok(admin.get(`/parcels/admin/route-preview?merchantId=${merchantId}&governorateCode=EG-ALX`));
     expect(r.ok).toBe(false);
     expect(r.reason).toContain('No truck route');
-    const res = await parcel('ALX');
+    const res = await parcel('EG-ALX');
     expect(res.status).toBe(422);
     expect(res.body.message).toContain('No truck route');
     // Inside its own facility's area nothing changes.
-    expect((await ok(parcel('GIZ'), 201)).route).toEqual(['OBR', 'GIZ']);
+    expect((await ok(parcel('EG-GZ'), 201)).route).toEqual(['OBR', 'GIZ']);
   });
 
   it('delivers and picks up only where a hub serves', async () => {
     const cov = await ok(admin.get('/parcels/admin/coverage'));
     expect(cov.find((g: any) => g.code === 'EG-GZ').served).toBe(true);
     await prisma.governorate.update({ where: { code: 'EG-SHG' }, data: { hubId: null } });
-    const out = await parcel('SHG');
+    const out = await parcel('EG-SHG');
     expect(out.status).toBe(422);
     expect(out.body.message).toContain('do not deliver');
 
     // The merchant is in Cairo: if Cairo is not served, we cannot pick up from them.
     const cai = await prisma.governorate.findUnique({ where: { code: 'EG-C' } });
     await prisma.governorate.update({ where: { code: 'EG-C' }, data: { hubId: null } });
-    await prisma.area.updateMany({ where: { governorateCode: 'EG-C' }, data: { hubId: null } });
-    const pick = await parcel('GIZ');
+    await prisma.networkArea.updateMany({ where: { governorateCode: 'EG-C' }, data: { hubId: null } });
+    const pick = await parcel('EG-GZ');
     expect(pick.status).toBe(422);
     expect(pick.body.message).toBe('We do not pick up from your area yet');
     await prisma.governorate.update({ where: { code: 'EG-C' }, data: { hubId: cai.hubId } });

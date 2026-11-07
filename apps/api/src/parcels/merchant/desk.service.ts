@@ -29,7 +29,7 @@ const SignupInput = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(8).max(200),
   pickupAddress: z.string().trim().min(5).max(300),
-  governorateCode: z.string().trim().length(3),
+  governorateCode: z.string().trim().min(4).max(6),
   areaId: z.string().min(1).max(64).nullish(),
   taxId: z.string().trim().max(30).default(''),
 });
@@ -44,7 +44,7 @@ const TeamInput = z.object({
 const LogoInput = z.object({ mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), dataBase64: z.string().min(8) });
 const RecurringInput = z.object({ weekdays: z.array(z.number().int().min(0).max(6)).max(7), active: z.boolean().default(true), notes: z.string().trim().max(300).default('') });
 const QuoteInput = z.object({
-  governorateCode: z.string().trim().length(3),
+  governorateCode: z.string().trim().min(4).max(6),
   areaId: z.string().min(1).max(64).nullish(),
   size: z.enum(PARCEL_SIZES).default('M'),
   allowOpen: z.coerce.boolean().default(false),
@@ -176,7 +176,7 @@ export class MerchantDeskService implements OnModuleInit, OnModuleDestroy {
     }
     if (!d.password) throw new DomainError('invalid_input', 'Set a password of 8 characters or more', 422);
     if (await this.prisma.user.findUnique({ where: { email: d.email } })) throw new DomainError('duplicate', 'That email already has an account', 409);
-    const u = await this.prisma.user.create({ data: { email: d.email, name: d.name, phone: d.phone || null, role: 'merchant', merchantId, merchantRights: d.rights, isActive: d.active, passwordHash: await hashPassword(d.password) } }).then((u) => u);
+    const u = await this.prisma.user.create({ data: { email: d.email, name: d.name, phone: d.phone || null, role: 'merchant', merchantId, merchantRole: 'member', merchantRights: d.rights, isActive: d.active, passwordHash: await hashPassword(d.password) } }).then((u) => u);
     await this.prisma.auditLog.create({ data: { actorUserId: user.id, action: 'MERCHANT_TEAM_ADDED', entityType: 'user', entityId: u.id, after: { rights: d.rights } } });
     return { id: u.id };
   }

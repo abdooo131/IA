@@ -4,8 +4,8 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
 
 function key() {
-  const base = process.env.SECRETS_KEY || process.env.JWT_SECRET;
-  if (!base) throw new Error('SECRETS_KEY or JWT_SECRET must be set');
+  const base = process.env.SECRETS_KEY || process.env.JWT_ACCESS_SECRET;
+  if (!base) throw new Error('SECRETS_KEY or JWT_ACCESS_SECRET must be set');
   return createHash('sha256').update(`shiply-secrets:${base}`).digest();
 }
 

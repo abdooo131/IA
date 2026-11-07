@@ -228,20 +228,11 @@ describe('company flow', () => {
     const st = await ok(as.merchant.get('/parcels/merchant/statement'));
     expect(st.balance).toBe(50000 - 6000 - (6000 + 3600));
     const merchantId = (await ok(as.merchant.get('/parcels/auth/me'))).merchantId;
-    // No bank account yet: no payout.
-    expect((await as.admin.post(`/parcels/finance/merchants/${merchantId}/payouts`).send({})).status).toBe(422);
-    await ok(as.merchant.put('/parcels/merchant/bank').send({ bankName: 'CIB', bankAccountName: 'Eve Chantelle', iban: 'EG' + '1'.repeat(27) }));
-    const payout = await ok(as.admin.post(`/parcels/finance/merchants/${merchantId}/payouts`).send({ reference: 'TX1' }), 201);
-    expect(payout.amount).toBe(34400);
-    // The same person cannot approve it.
-    expect((await as.admin.post(`/parcels/finance/payouts/${payout.id}/approve`)).status).toBe(403);
-    const finance = await login('finance@shiply.local');
-    await ok(finance.post(`/parcels/finance/payouts/${payout.id}/approve`));
-    await ok(as.admin.post(`/parcels/finance/payouts/${payout.id}/paid`).send({ reference: 'CIB 991' }));
+    // Payouts are made once for both companies in Accounting (Shiply Now's payouts).
     const tb = await ok(as.admin.get('/parcels/finance/reports/trial-balance'));
     expect(tb.balanced).toBe(true);
     const merchants = await ok(as.admin.get('/parcels/finance/wallets/MERCHANT'));
-    expect(merchants.find((m: any) => m.id === merchantId)).toBeUndefined(); // paid to zero
+    expect(merchants.find((m: any) => m.id === merchantId)).toBeDefined(); // owed until Accounting pays out
   });
 
   it('public tracking shows the journey without personal data', async () => {

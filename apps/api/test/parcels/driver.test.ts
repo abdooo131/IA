@@ -236,7 +236,7 @@ describe('driver apps', () => {
   it('a broken or full vehicle alerts operations, and the agent when the courier has one', async () => {
     const r = await ok(as.courier!.post('/parcels/courier/vehicle-problem').send({ reason: 'BREAKDOWN', note: 'Flat tyre on Tahrir St' }));
     expect(r.message).toBeTruthy();
-    const alert = await prisma.alert.findFirst({ where: { kind: 'COURIER_VEHICLE_PROBLEM', entityId: courierId } });
+    const alert = await prisma.networkAlert.findFirst({ where: { kind: 'COURIER_VEHICLE_PROBLEM', entityId: courierId } });
     expect(alert.message).toContain('Flat tyre');
     const me = await prisma.user.findUnique({ where: { id: courierId } });
     if (me.agentId) expect(await prisma.vehicleRequest.count({ where: { agentId: me.agentId, reason: 'BREAKDOWN' } })).toBe(1);

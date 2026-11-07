@@ -88,14 +88,16 @@ export async function graphql<T = any>(cfg: ShopifyConfig, shop: string, token: 
 // ---------------------------------------------------------------- orders to parcels
 
 /** Shopify's province codes for Egypt (ISO 3166 2), to our governorate codes. */
-const PROVINCES: Record<string, string> = {
-  C: 'CAI', GZ: 'GIZ', ALX: 'ALX', ASN: 'ASN', AST: 'AST', BH: 'BEH', BNS: 'BNS', DK: 'DAK', DT: 'DMT', FYM: 'FYM', GH: 'GHR', IS: 'ISM', KFS: 'KFS',
-  LX: 'LXR', MNF: 'MNF', MN: 'MNY', MT: 'MTR', SIN: 'NSN', WAD: 'NWV', PTS: 'PTS', KB: 'QAL', KN: 'QNA', BA: 'RED', SHG: 'SHG', SHR: 'SHR', JS: 'SSN', SUZ: 'SUZ',
-  // Older Shopify codes for 6th of October and Helwan.
-  SU: 'GIZ', HU: 'CAI',
-};
+const PROVINCES: Record<string, string> = Object.fromEntries(
+  ['C', 'GZ', 'ALX', 'ASN', 'AST', 'BH', 'BNS', 'DK', 'DT', 'FYM', 'GH', 'IS', 'KFS', 'LX', 'MNF', 'MN', 'MT', 'SIN', 'WAD', 'PTS', 'KB', 'KN', 'BA', 'SHG', 'SHR', 'JS', 'SUZ'].map(
+    (c) => [c, `EG-${c}`],
+  ),
+);
+// Older Shopify codes for 6th of October and Helwan.
+PROVINCES.SU = 'EG-GZ';
+PROVINCES.HU = 'EG-C';
 
-const ALIASES: Record<string, string> = { '6th of october': 'GIZ', october: 'GIZ', helwan: 'CAI', asyut: 'AST', 'al jizah': 'GIZ', 'al qahirah': 'CAI', 'el gouna': 'RED', hurghada: 'RED', 'sharm el sheikh': 'SSN' };
+const ALIASES: Record<string, string> = { '6th of october': 'EG-GZ', october: 'EG-GZ', helwan: 'EG-C', asyut: 'EG-AST', 'al jizah': 'EG-GZ', 'al qahirah': 'EG-C', 'el gouna': 'EG-BA', hurghada: 'EG-BA', 'sharm el sheikh': 'EG-JS' };
 
 export function governorateFor(
   addr: { province_code?: string | null; province?: string | null; city?: string | null },

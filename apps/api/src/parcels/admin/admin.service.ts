@@ -47,14 +47,14 @@ const ZoneInput = z.object({
 
 const GovernorateInput = z.object({ zoneCode: z.string(), hubId: z.string().min(1).max(64).nullable() });
 const AreaInput = z.object({
-  governorateCode: z.string().length(3),
+  governorateCode: z.string().min(4).max(6),
   nameEn: z.string().trim().min(2).max(80),
   nameAr: z.string().trim().min(2).max(80),
   hubId: z.string().min(1).max(64).nullable(),
 });
 
 const LineHaulInput = z.object({ fromId: z.string().min(1).max(64), toId: z.string().min(1).max(64), bothWays: z.boolean().default(true), hours: z.number().int().min(1).max(240).default(12) });
-const RouteQuery = z.object({ governorateCode: z.string().trim().length(3), areaId: z.string().min(1).max(64).optional(), merchantId: z.string().min(1).max(64).optional(), fromGovernorate: z.string().trim().length(3).optional(), fromAreaId: z.string().min(1).max(64).optional() });
+const RouteQuery = z.object({ governorateCode: z.string().trim().min(4).max(6), areaId: z.string().min(1).max(64).optional(), merchantId: z.string().min(1).max(64).optional(), fromGovernorate: z.string().trim().min(4).max(6).optional(), fromAreaId: z.string().min(1).max(64).optional() });
 
 const MerchantInput = z.object({
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,10}$/, 'Use 2 to 10 letters or digits'),
@@ -62,7 +62,7 @@ const MerchantInput = z.object({
   phone: z.string().trim(),
   email: z.string().trim().email().or(z.literal('')).default(''),
   pickupAddress: z.string().trim().min(5).max(300),
-  governorateCode: z.string().length(3),
+  governorateCode: z.string().min(4).max(6),
   areaId: z.string().min(1).max(64).nullish(),
   discountBp: z.number().int().min(0).max(5000).default(0),
   active: z.boolean().default(true),
@@ -383,7 +383,8 @@ export class AdminService {
     // Pickups always go to the sorting facility nearest the merchant: the system picks it.
     const point = await this.core.pointOf(this.prisma as never, d.governorateCode, d.areaId ?? null);
     const facility = await this.core.nearestFacility(this.prisma as never, point);
-    const data = { ...d, phone, areaId: d.areaId ?? null, homeHubId: facility.id };
+    const { phone: _phone, email, active, ...rest } = d;
+    const data = { ...rest, contactPhone: phone, contactEmail: email || null, isActive: active, areaId: d.areaId ?? null, homeHubId: facility.id };
     const m = id ? await this.prisma.merchant.update({ where: { id }, data, omit: { logo: true } }) : await this.prisma.merchant.create({ data, omit: { logo: true } });
     await this.audit(user, id ? 'MERCHANT_UPDATED' : 'MERCHANT_CREATED', 'merchant', m.id, data);
     return m;

@@ -24,7 +24,7 @@ const FixInput = z.object({
   customerName: z.string().trim().min(2).max(120).optional(),
   customerPhone: z.string().trim().min(8).max(20).optional(),
   address: z.string().trim().min(5).max(400).optional(),
-  governorateCode: z.string().trim().length(3).optional(),
+  governorateCode: z.string().trim().min(4).max(6).optional(),
   areaId: z.string().min(1).max(64).nullish(),
   size: z.enum(PARCEL_SIZES).optional(),
   codAmount: z.number().int().min(0).optional(),
@@ -84,14 +84,14 @@ export class ShopifyService implements OnModuleInit, OnModuleDestroy {
     const other = await this.prisma.shopifyStore.findUnique({ where: { shop } });
     if (other && other.merchantId !== merchantId && other.active) throw new DomainError('duplicate', 'This store is connected to another Shiply account', 409);
     const state = await this.jwt.signAsync({ merchantId, shop, userId: user.id, nonce: randomBytes(8).toString('hex'), purpose: 'shopify' }, { expiresIn: '15m' });
-    const q = new URLSearchParams({ client_id: cfg.apiKey, scope: cfg.scopes, redirect_uri: `${cfg.appUrl}/api/integrations/shopify/callback`, state });
+    const q = new URLSearchParams({ client_id: cfg.apiKey, scope: cfg.scopes, redirect_uri: `${cfg.appUrl}/api/parcels/integrations/shopify/callback`, state });
     return { url: `https://${shop}/admin/oauth/authorize?${q}` };
   }
 
   /** Shopify sends the merchant back here with a code. Returns where to send the browser next. */
   async callback(query: Record<string, string>) {
     const cfg = this.cfg();
-    const done = (q: string) => `${cfg.appUrl}/merchant/shopify?${q}`;
+    const done = (q: string) => `${cfg.appUrl}/parcels/merchant/shopify?${q}`;
     if (!verifyQueryHmac(query, cfg.secret)) return done('error=signature');
     const shop = normalizeShop(query.shop ?? '');
     let state: { merchantId: string; shop: string; purpose: string; userId: string };
@@ -115,7 +115,7 @@ export class ShopifyService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.auditLog.create({ data: { actorUserId: state.userId, action: 'SHOPIFY_CONNECTED', entityType: 'shopify_store', entityId: store.id, after: { shop } } });
     try {
       for (const topic of TOPICS) {
-        await graphql(cfg, shop, token.token, 'mutation($topic: WebhookSubscriptionTopic!, $url: URL!) { webhookSubscriptionCreate(topic: $topic, webhookSubscription: { callbackUrl: $url, format: JSON }) { userErrors { message } } }', { topic, url: `${cfg.appUrl}/api/integrations/shopify/webhooks` });
+        await graphql(cfg, shop, token.token, 'mutation($topic: WebhookSubscriptionTopic!, $url: URL!) { webhookSubscriptionCreate(topic: $topic, webhookSubscription: { callbackUrl: $url, format: JSON }) { userErrors { message } } }', { topic, url: `${cfg.appUrl}/api/parcels/integrations/shopify/webhooks` });
       }
     } catch {
       return done('connected=1&warning=webhooks');

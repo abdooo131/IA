@@ -116,10 +116,10 @@ describe('shopify', () => {
   it('reads Egyptian provinces however Shopify sends them', async () => {
     const { governorateFor, normalizeShop } = await import('../../src/parcels/integrations/shopify');
     const govs = await prisma.governorate.findMany({ select: { code: true, nameEn: true, nameAr: true } });
-    expect(governorateFor({ province_code: 'GZ' }, govs)).toBe('GIZ');
-    expect(governorateFor({ province_code: 'EG-C' }, govs)).toBe('CAI');
-    expect(governorateFor({ province: 'Alexandria Governorate' }, govs)).toBe('ALX');
-    expect(governorateFor({ province: '6th of October' }, govs)).toBe('GIZ');
+    expect(governorateFor({ province_code: 'GZ' }, govs)).toBe('EG-GZ');
+    expect(governorateFor({ province_code: 'EG-C' }, govs)).toBe('EG-C');
+    expect(governorateFor({ province: 'Alexandria Governorate' }, govs)).toBe('EG-ALX');
+    expect(governorateFor({ province: '6th of October' }, govs)).toBe('EG-GZ');
     expect(governorateFor({ province: 'Atlantis' }, govs)).toBeNull();
     expect(normalizeShop('https://Eve-Store.myshopify.com/admin')).toBe(SHOP);
     expect(normalizeShop('eve-store')).toBe(SHOP);
@@ -132,7 +132,7 @@ describe('shopify', () => {
     const { url } = await ok(merchant.post('/parcels/merchant/shopify/install').send({ shop: 'eve-store' }));
     const u = new URL(url);
     expect(u.host).toBe(SHOP);
-    expect(u.searchParams.get('redirect_uri')).toBe('https://shiply.test/api/integrations/shopify/callback');
+    expect(u.searchParams.get('redirect_uri')).toBe('https://shiply.test/api/parcels/integrations/shopify/callback');
     const state = u.searchParams.get('state')!;
 
     const forged = await request(app.getHttpServer()).get('/parcels/integrations/shopify/callback').query({ code: 'abc', shop: SHOP, state, timestamp: '1', hmac: 'nope' });
@@ -142,7 +142,7 @@ describe('shopify', () => {
     expect(otherShop.headers.location).toContain('error=mismatch');
 
     const res = await request(app.getHttpServer()).get('/parcels/integrations/shopify/callback').query(signedQuery({ code: 'abc', shop: SHOP, state, timestamp: '1' }));
-    expect(res.headers.location).toBe('https://shiply.test/merchant/shopify?connected=1');
+    expect(res.headers.location).toBe('https://shiply.test/parcels/merchant/shopify?connected=1');
     const store = await prisma.shopifyStore.findUnique({ where: { shop: SHOP } });
     expect(store.active).toBe(true);
     expect(store.tokenEnc).not.toContain('shpat_secret_token');
@@ -163,7 +163,7 @@ describe('shopify', () => {
     const s = await prisma.shipment.findUnique({ where: { id: rows[0].shipmentId } });
     expect(s.merchantRef).toBe(o.name);
     expect(s.codAmount).toBe(45000);
-    expect(s.governorateCode).toBe('GIZ');
+    expect(s.governorateCode).toBe('EG-GZ');
     expect(s.description).toBe('1 x Silk dress');
     // A paid order collects nothing at the door.
     const paid = order({ financial_status: 'paid', payment_gateway_names: ['shopify_payments'] });

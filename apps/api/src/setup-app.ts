@@ -57,7 +57,9 @@ export function setupApp(app: INestApplication) {
   app.use('/slack', raw({ type: () => true, limit: '1mb' }));
   // The parcel network: photos travel as JSON (up to 8 MB), and its Shopify webhooks are signed.
   app.use('/parcels/integrations/shopify/webhooks', raw({ type: () => true, limit: '1mb' }));
-  app.use('/parcels', json({ limit: '8mb' }));
+  // Wrapped: Nest skips its own JSON parser when a middleware named jsonParser already exists.
+  const parcelsJson = json({ limit: '8mb' });
+  app.use('/parcels', (req: Request, res: Response, next: NextFunction) => parcelsJson(req, res, next));
   app.use(
     ['/shopify/fs', '/shopify/webhooks', '/shopify/rates'],
     raw({ type: () => true, limit: '1mb' }),

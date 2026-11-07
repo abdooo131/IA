@@ -21,10 +21,11 @@ export function newKey(mode: 'LIVE' | 'TEST') {
   return { key, prefix: key.slice(0, 14), hash: hashKey(key) };
 }
 
-const PER_MINUTE = Number(process.env.API_RATE_PER_MINUTE ?? 300);
+const perMinute = () => Number(process.env.API_RATE_PER_MINUTE ?? 300);
 const windows = new Map<string, { start: number; count: number }>();
 
 function rateLimit(keyId: string, res: Response) {
+  const PER_MINUTE = perMinute();
   const now = Date.now();
   const w = windows.get(keyId);
   if (!w || now - w.start >= 60_000) {

@@ -100,8 +100,12 @@ export async function post(tx: Tx, e: EntryInput) {
     credit += c;
   }
   if (debit !== credit) throw new DomainError('unbalanced', `Debits ${debit} and credits ${credit} do not match`, 422);
-  const hubId = e.hubId ?? lines.find((l) => l.party?.type === 'HUB')?.party?.id ?? null;
   const merchantId = lines.find((l) => l.party?.type === 'MERCHANT')?.party?.id ?? null;
+  // The cost center: the hub named, else the courier's hub, else the merchant's facility.
+  let hubId = e.hubId ?? lines.find((l) => l.party?.type === 'HUB')?.party?.id ?? null;
+  const courierId = lines.find((l) => l.party?.type === 'COURIER')?.party?.id;
+  if (!hubId && courierId) hubId = (await tx.user.findUnique({ where: { id: courierId }, select: { hubId: true } }))?.hubId ?? null;
+  if (!hubId && merchantId) hubId = (await tx.merchant.findUnique({ where: { id: merchantId }, select: { homeHubId: true } }))?.homeHubId ?? null;
   return postEntry(tx, {
     kind: `parcels.${e.source.toLowerCase()}`,
     idempotencyKey: `parcels:${e.key ?? randomUUID()}`,

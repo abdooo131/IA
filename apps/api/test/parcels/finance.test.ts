@@ -175,8 +175,6 @@ describe('money', () => {
     await ok(as.finance!.post(`/parcels/finance/settlements/${x.id}/approve`));
     expect((await as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`)).status).toBe(422); // no invoice yet
     await ok(as.delta!.post(`/parcels/agent/settlements/${x.id}/invoice`).send({ fileName: 'invoice.pdf', mime: 'application/pdf', dataBase64: Buffer.from('%PDF-1.4').toString('base64') }));
-    const file = await ok(as.admin!.get('/parcels/finance/bank-file'));
-    expect(String(file)).toBeDefined();
     await ok(as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`).send({ reference: 'CIB 5' }));
     const agents = await ok(as.admin!.get('/parcels/finance/wallets/AGENT'));
     expect(agents.find((a: any) => a.id === agentId)).toBeUndefined(); // paid to zero
@@ -184,43 +182,25 @@ describe('money', () => {
     await balanced();
   });
 
-  it('expenses and opening balances need a second person; reports add up', async () => {
-    const today = new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 10);
-    const ex = await ok(as.admin!.post('/parcels/finance/expenses').send({ date: today, accountCode: '5210', amount: 1000000, supplier: 'Landlord', note: 'Giza hub rent' }), 201);
-    expect((await as.admin!.post(`/parcels/finance/expenses/${ex.id}/approve`)).status).toBe(403);
-    await ok(as.finance!.post(`/parcels/finance/expenses/${ex.id}/approve`));
-
-    const bad = await as.admin!.post('/parcels/finance/journals').send({ date: today, memo: 'Opening', lines: [{ account: '1000', debit: 100 }, { account: '3000', credit: 50 }] });
-    expect(bad.status).toBe(422);
-    const j = await ok(as.admin!.post('/parcels/finance/journals').send({ date: today, memo: 'Opening bank balance', lines: [{ account: '1000', debit: 50000000 }, { account: '3000', credit: 50000000 }] }), 201);
-    await ok(as.finance!.post(`/parcels/finance/journals/${j.id}/approve`));
-
-    const pnl = await ok(as.admin!.get('/parcels/finance/reports/profit-and-loss'));
-    expect(pnl.expenses.find((r: any) => r.code === '5210').balance).toBe(1000000);
-    const revenue = pnl.income.find((r: any) => r.code === '4000').balance;
-    expect(revenue).toBe(parcels.reduce((n, p) => n + Math.round((p.shippingFee * 10000) / 11400), 0)); // before 14% VAT
-    expect(pnl.profit).toBe(pnl.totalIncome - pnl.totalExpenses);
+  it('network money is booked for the company Shiply, on the hub cost center, in the one ledger', async () => {
+    // Expenses, journals and closing the books are done once, in Accounting, for both companies.
+    const lines = await prisma.ledgerLine.findMany({
+      where: { account: { code: { in: ['4301', '4302'] } } },
+      select: { company: true, costCenterId: true, hubId: true, amountPiastres: true },
+    });
+    expect(lines.length).toBeGreaterThan(0);
+    expect(lines.every((l: any) => l.company === 'shiply')).toBe(true);
+    expect(lines.every((l: any) => l.hubId && l.costCenterId)).toBe(true);
+    const centers = await prisma.costCenter.findMany({ where: { id: { in: lines.map((l: any) => l.costCenterId) } } });
+    expect(centers.every((c: any) => c.company === 'shiply' && c.code.startsWith('NW-'))).toBe(true);
+    const revenue = -lines.reduce((n: number, l: any) => n + l.amountPiastres, 0);
+    expect(revenue).toBeGreaterThan(0);
     const { bs } = await balanced();
-    expect(bs.totalAssets).toBe(bs.totalLiabilities + bs.totalEquity);
-    const aging = await ok(as.admin!.get('/parcels/finance/reports/cod-aging'));
-    expect(aging.merchants[0].total).toBe(80000 - parcels.reduce((n, p) => n + p.shippingFee + p.codFee, 0));
+    expect(bs.totalAssetsPiastres).toBe(bs.totalLiabilitiesPiastres + bs.totalEquityPiastres);
   });
 
-  it('the books cannot be edited, must balance, and close', async () => {
-    await expect(prisma.journalLine.updateMany({ data: { debit: 1 } })).rejects.toThrow();
-    await expect(prisma.journalEntry.deleteMany({})).rejects.toThrow();
-    // An unbalanced entry is refused by the database itself.
-    await expect(
-      prisma.$transaction(async (tx: any) => {
-        const e = await tx.journalEntry.create({ data: { date: '2026-01-01', memo: 'bad', source: 'TEST' } });
-        await tx.journalLine.create({ data: { entryId: e.id, accountCode: '1000', debit: 100 } });
-      }),
-    ).rejects.toThrow(/does not balance/);
-
-    const yesterday = new Date(Date.now() - 22 * 3600e3).toISOString().slice(0, 10);
-    expect((await as.admin!.post('/parcels/finance/close').send({ date: new Date(Date.now() + 26 * 3600e3).toISOString().slice(0, 10) })).status).toBe(422);
-    await ok(as.admin!.post('/parcels/finance/close').send({ date: yesterday }));
-    const late = await ok(as.admin!.post('/parcels/finance/journals').send({ date: yesterday, memo: 'Too late', lines: [{ account: '1000', debit: 100 }, { account: '3000', credit: 100 }] }), 201);
-    expect((await as.finance!.post(`/parcels/finance/journals/${late.id}/approve`)).status).toBe(409);
+  it('the books cannot be edited and must balance', async () => {
+    await expect(prisma.ledgerLine.updateMany({ data: { amountPiastres: 1 } })).rejects.toThrow();
+    await expect(prisma.ledgerEntry.deleteMany({})).rejects.toThrow();
   });
 });

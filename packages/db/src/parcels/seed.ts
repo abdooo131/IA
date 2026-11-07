@@ -171,7 +171,7 @@ export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOpti
   await addUser({ email: 'agent@cairomovers.example', name: 'Cairo Movers', role: 'agent', agentId: pickupAgent.id, phone: pickupAgent.phone });
   await addUser({ email: 'agent@deltariders.example', name: 'Delta Riders', role: 'agent', agentId: deliveryAgent.id, phone: deliveryAgent.phone });
   let phoneNo = 100;
-  const nextPhone = () => `+2010000${String(phoneNo++).padStart(5, '0')}`;
+  const nextPhone = () => `+2010900${String(phoneNo++).padStart(5, '0')}`;
   const slug = (code: string) => code.toLowerCase().replace(/[^a-z]/g, '');
   for (const f of FACILITIES) {
     const id = hubId(f.code);
@@ -187,11 +187,15 @@ export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOpti
   }
   const area = await prisma.networkArea.findFirst({ where: { nameEn: 'Heliopolis' } });
   const facility = nearest({ lat: area!.lat!, lng: area!.lng! }, facilities)!;
-  const eve = await prisma.merchant.upsert({
-    where: { code: 'EVE' },
-    update: {},
-    create: { code: 'EVE', name: 'Eve Chantelle', contactPhone: '+201001234567', contactEmail: 'ops@evechantelle.example', pickupAddress: '12 Baghdad St, Heliopolis', governorateCode: 'EG-C', areaId: area?.id ?? null, homeHubId: facility.id },
-  });
+  // Shiply Now's seed already has Eve Chantelle: the network adds its pickup details to it.
+  const eveFields = { code: 'EVE', pickupAddress: '12 Baghdad St, Heliopolis', governorateCode: 'EG-C', areaId: area?.id ?? null, homeHubId: facility.id };
+  const existingEve =
+    (await prisma.merchant.findUnique({ where: { code: 'EVE' } })) ?? (await prisma.merchant.findFirst({ where: { name: 'Eve Chantelle' } }));
+  const eve = existingEve
+    ? existingEve.code
+      ? existingEve
+      : await prisma.merchant.update({ where: { id: existingEve.id }, data: eveFields })
+    : await prisma.merchant.create({ data: { ...eveFields, name: 'Eve Chantelle', contactPhone: '+201001234567', contactEmail: 'ops@evechantelle.example' } });
   await addUser({ email: 'merchant@evechantelle.example', name: 'Eve Chantelle', role: 'merchant', merchantId: eve.id });
   const alx = await prisma.governorate.findUniqueOrThrow({ where: { code: 'EG-ALX' } });
   const nile = await prisma.merchant.upsert({
