@@ -400,7 +400,12 @@ describe('employment and salary package (HR owns, payroll reads)', () => {
     const { user, file } = await rider();
     await prisma.employee.update({
       where: { id: file.id },
-      data: { hireDate: new Date('2026-01-01T00:00:00Z'), gradeId: 'grade_junior' },
+      // A rider on a monthly salary (riders are paid per delivery unless HR chooses this).
+      data: {
+        hireDate: new Date('2026-01-01T00:00:00Z'),
+        gradeId: 'grade_junior',
+        payBasis: 'monthly_salary',
+      },
     });
     await prisma.grade.update({
       where: { id: 'grade_junior' },

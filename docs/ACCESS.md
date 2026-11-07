@@ -269,3 +269,14 @@ wants otherwise.
   by someone who has them or settings manage, and a person limited to some stores hires only
   into their stores and gives only those (`store_not_allowed`). Changing access afterwards stays
   in Settings > Users (settings manage).
+- Rider pay (CLAUDE.md "Rider pay"): the rider app's wallet (`GET /rider/wallet`, `POST
+  /rider/withdrawals`, `POST /rider/withdrawals/:id/cancel`) is `@Roles('rider')` and only ever
+  reads or changes the signed in rider's own wallet (another rider's request answers 404).
+  Accounting view reads `/finance/rider-withdrawals` and `/finance/rider-wallets`; accounting use
+  approves, rejects and pays (a person limited to some stores only their riders,
+  `store_not_allowed`); nobody decides their own withdrawal (`own_withdrawal`) and from
+  `finance.approval_threshold_piastres` the payer is not the approver (`same_person`). A store
+  manager (store manage, their stores) lists and pays withdrawals Accounting approved for cash at
+  their store (`/stores/:storeId/cash/withdrawals`, `.../:id/pay`), only from that store's box;
+  store use is not enough (chosen: the person who hands over the cash records it). The pay basis
+  on an HR file is HR use with the salaries switch (`PUT /hr/employees/:id/pay-basis`).

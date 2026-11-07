@@ -141,6 +141,7 @@ describe('push notifications', () => {
       'document_expiring',
       'hr_request',
       'hr_update',
+      'rider_wallet',
     ]);
   });
 

@@ -3,7 +3,8 @@ import { isCalendarDay } from './hours';
 
 // Chart of accounts. The first digit of a code is its category, the next three its group:
 //
-//   1000 assets       1100 banks · 1200 cash boxes · 1300 cash with riders · 1400 other assets
+//   1000 assets       1100 banks · 1200 cash boxes · 1300 cash with riders · 1350 rider dues
+//                     1400 other assets
 //                     1500 staff advances
 //   2000 liabilities  2100 merchants · 2200 rider bonuses · 2300 taxes · 2400 other liabilities
 //   3000 equity       3100 owner capital · 3200 owner drawings · 3300 opening balances
@@ -53,6 +54,7 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     money: true,
   },
   { code: 1300, category: 'asset', key: 'rider_cash', party: true, manualType: null, money: false },
+  { code: 1350, category: 'asset', key: 'rider_dues', party: true, manualType: null, money: false },
   {
     code: 1400,
     category: 'asset',

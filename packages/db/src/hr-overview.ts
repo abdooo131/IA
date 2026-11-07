@@ -179,7 +179,8 @@ export async function employeeFileCompleteness(
     emergencyPhone: e.emergencyPhone,
     hireDate: day(e.hireDate),
     ...(options.bank &&
-      e.employment === 'employee' && {
+      e.employment === 'employee' &&
+      e.payBasis === 'monthly_salary' && {
         bank: { iban: e.iban, bankAccountNumber: e.bankAccountNumber },
       }),
     documents: checklist.items,

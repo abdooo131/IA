@@ -19,19 +19,23 @@ import {
   markPayoutPaid,
   merchantOwed,
   payoutNeedsApproval,
-  payRiderBonus,
   prepareInvoices,
   recordBankDeposit,
   recordBill,
   recordCashHandover,
   reviewCashHandover,
-  riderBonusOwed,
   riderCash,
   submitBillPayment,
   submitCapitalIn,
   submitExpense,
   submitPayroll,
 } from '../finance';
+import {
+  approveWithdrawal,
+  payWithdrawal,
+  requestWithdrawal,
+  riderWalletTotals,
+} from '../finance/rider-wallet';
 import { accrueStorage } from '../finance/postings';
 import { contractPricesAt } from '../finance/contracts';
 import { closeManifest, createManifest, receiveOnManifest } from '../inbound';
@@ -121,7 +125,7 @@ const DEMO_FEES: [SettingKey, number][] = [
   ['fee.receiving_per_unit_piastres', 50],
   ['fee.storage_per_unit_month_piastres', 100],
   ['fee.return_per_unit_piastres', 200],
-  ['rider.bonus_per_delivery_piastres', 1000],
+  ['rider.bonus_per_delivery_piastres', 3000],
 ];
 
 interface SimRider {
@@ -520,28 +524,27 @@ async function setUp(
       await setSetting(db, { key, value, scope: GLOBAL_SCOPE, actorUserId: admin });
   }
 
-  // Salary packages for the store teams, kept in HR (riders are on salary plus a bonus per
-  // delivery): basic plus transport and phone allowances.
+  // Salary packages for the store teams, kept in HR: basic plus transport and phone allowances.
+  // Riders are paid per delivered order through their wallet (CLAUDE.md "Rider pay").
   const team = await db.employee.findMany({
     where: {
       status: 'active',
       employment: 'employee',
-      user: { isActive: true, role: { in: ['store_staff', 'rider'] } },
+      payBasis: 'monthly_salary',
+      user: { isActive: true, role: 'store_staff' },
       homeStoreId: { in: stores.map((s) => s.id) },
       salaryPackages: { none: {} },
     },
-    include: { user: { select: { role: true } } },
   });
   for (const e of team) {
-    const rider = e.user.role === 'rider';
     await setSalaryPackage(db, {
       employeeId: e.id,
       body: {
-        basicPiastres: rider ? 600_000 : 750_000,
+        basicPiastres: 750_000,
         insuredWagePiastres: null,
         allowances: [
-          { kind: 'transport', amountPiastres: rider ? 80_000 : 100_000 },
-          { kind: 'phone', amountPiastres: rider ? 20_000 : 50_000 },
+          { kind: 'transport', amountPiastres: 100_000 },
+          { kind: 'phone', amountPiastres: 50_000 },
         ],
       },
       actorUserId: admin,
@@ -1389,6 +1392,62 @@ async function simulate(
       });
     }
 
+    // Thursday evenings riders ask for what finished its hold (rider pay, CLAUDE.md "Rider
+    // pay"); Accounting approves and pays on Saturday morning.
+    if (weekday === 4 && d > 0) {
+      sim.atGlobal(t.at(day, 19, 0), async () => {
+        let i = 0;
+        for (const s of w.stores)
+          for (const r of s.riders) {
+            const { totals } = await riderWalletTotals(db, r.id, now());
+            if (totals.availablePiastres <= 0) continue;
+            const methods = [
+              { method: 'store_cash' as const },
+              { method: 'instapay' as const, handle: `${r.badge.toLowerCase()}@instapay` },
+              {
+                method: 'mobile_wallet' as const,
+                provider: 'vodafone_cash' as const,
+                phone: `+2010${String(10_000_000 + i * 7919).slice(-8)}`,
+              },
+            ];
+            await guarded('rider withdrawal', async () => {
+              await requestWithdrawal(db, {
+                riderUserId: r.userId,
+                body: {
+                  amountPiastres: totals.availablePiastres,
+                  details: methods[i % methods.length]!,
+                  idempotencyKey: `demo:withdraw:${day}:${r.id}`,
+                },
+              });
+            });
+            i++;
+          }
+      });
+    }
+    if (weekday === 6 && d > 0) {
+      sim.atGlobal(t.at(day, 11, 0), async () => {
+        const open = await db.riderWithdrawal.findMany({ where: { status: 'requested' } });
+        for (const o of open) {
+          await approveWithdrawal(db, { withdrawalId: o.id, actorUserId: w.approver });
+          ahead(10 * MIN);
+          await guarded('rider withdrawal paid', async () => {
+            // Cash at the store comes from the box; when it was banked already, by transfer.
+            const fromBox =
+              o.method === 'store_cash' && (await storeBox(o.darkStoreId)) >= o.amountPiastres;
+            await payWithdrawal(db, {
+              withdrawalId: o.id,
+              moneyAccountId: o.method === 'store_cash' && !fromBox ? w.bank : undefined,
+              reference:
+                o.method === 'store_cash'
+                  ? `CASH-${day}`
+                  : `TRF-${day.replace(/-/g, '')}-${o.number}`,
+              actorUserId: w.preparer,
+            });
+          });
+        }
+      });
+    }
+
     // Sundays: weekly payouts of what we owe each merchant up to the end of Saturday.
     if (weekday === 0 && d > 0) {
       sim.atGlobal(t.at(day, 12, 0), async () => {
@@ -1416,7 +1475,7 @@ async function simulate(
       });
     }
 
-    // First day of a month: last month's salaries and rider bonuses, tax invoices, new rent.
+    // First day of a month: last month's salaries, tax invoices, new rent.
     if (day.endsWith('-01') && d > 0) {
       const month = addDays(day, -1).slice(0, 7);
       sim.atGlobal(t.at(day, 10, 30), async () => {
@@ -1424,6 +1483,7 @@ async function simulate(
           where: {
             user: { isActive: true },
             employment: 'employee',
+            payBasis: 'monthly_salary',
             status: { not: 'left' },
             salaryPackages: { some: { basicPiastres: { gt: 0 } } },
           },
@@ -1440,19 +1500,6 @@ async function simulate(
           );
           log(`  ${day}: salaries for ${month} paid (${salaries.length} people)`);
         }
-        for (const s of w.stores)
-          for (const r of s.riders) {
-            const owed = await riderBonusOwed(db, r.id);
-            if (owed <= 0) continue;
-            await payRiderBonus(db, {
-              riderId: r.id,
-              amountPiastres: owed,
-              from: 'bank',
-              reference: `BONUS-${month}-${r.badge}`,
-              actorUserId: w.preparer,
-              idempotencyKey: `demo:bonus:${month}:${r.id}`,
-            });
-          }
         setContextClock(t.at(day, 14, 0));
         const invoices = await prepareInvoices(db, { month, actorUserId: w.preparer, now: now() });
         log(`  ${day}: tax invoices for ${month}: ${JSON.stringify(invoices)}`);

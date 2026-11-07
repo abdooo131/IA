@@ -189,6 +189,7 @@ describe('fresh start', () => {
       'ledger_entries',
       'ledger_lines',
       'cash_handovers',
+      'rider_withdrawals',
       'payouts',
       'finance_requests',
       'finance_receipts',

@@ -73,16 +73,6 @@ export const merchantAdjustmentSchema = z.object({
   idempotencyKey: key,
 });
 
-export const riderBonusPayoutSchema = z.object({
-  riderId: id,
-  amountPiastres: piastres,
-  from: z.enum(['bank', 'store_cash']),
-  /** Which bank; empty uses the main bank (CIB, 1101) */
-  bankAccountId: id.optional(),
-  reference: z.string().trim().min(2).max(100),
-  idempotencyKey: key,
-});
-
 export const payoutScheduleSchema = z.object({ payoutSchedule: z.enum(PAYOUT_SCHEDULES) });
 
 /** Ledger entry kinds, for filters and labels. */
@@ -104,6 +94,9 @@ export const LEDGER_KINDS = [
   'return_fee',
   'damage_compensation',
   'damage_rider_charge',
+  'rider_shortage_charge',
+  'rider_penalty',
+  'rider_withdrawal',
   'money_transfer',
   'expense',
   'capital_in',

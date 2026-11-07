@@ -1,7 +1,14 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { listCashHandovers, recordCashHandover, riderCash, storeRiderCash } from '@shiplynow/db';
-import { type AccessTokenClaims, cashHandoverSchema } from '@shiplynow/shared';
+import {
+  listCashHandovers,
+  listRiderWithdrawals,
+  payWithdrawal,
+  recordCashHandover,
+  riderCash,
+  storeRiderCash,
+} from '@shiplynow/db';
+import { type AccessTokenClaims, cashHandoverSchema, withdrawalPaySchema } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { Access, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -74,5 +81,39 @@ export class StoreCashController {
       countedPiastres: h.countedPiastres,
       differencePiastres: h.differencePiastres,
     };
+  }
+
+  /**
+   * Rider pay: withdrawals Accounting approved to be paid in cash at this store. The store
+   * manager (store manage) hands the cash over and records it, from the store's cash box.
+   */
+  @Get('withdrawals')
+  @Access('store', 'manage')
+  async withdrawals(@Param('storeId') storeId: string, @CurrentUser() user: AccessTokenClaims) {
+    await this.access.check(user, storeId);
+    const all = await listRiderWithdrawals(this.prisma, {
+      darkStoreId: storeId,
+      method: 'store_cash',
+    });
+    return all.withdrawals
+      .filter((w) => w.status === 'approved' || w.status === 'paid')
+      .slice(0, 30);
+  }
+
+  @Post('withdrawals/:id/pay')
+  @Access('store', 'manage')
+  async payWithdrawal(
+    @Param('storeId') storeId: string,
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(withdrawalPaySchema)) body: z.infer<typeof withdrawalPaySchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.access.check(user, storeId);
+    return payWithdrawal(this.prisma, {
+      withdrawalId: id,
+      reference: body.reference,
+      actorUserId: user.sub,
+      storeId,
+    });
   }
 }

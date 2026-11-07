@@ -9,6 +9,8 @@ export type AccountRef =
   | { type: 'merchant'; merchantId: string }
   | { type: 'rider_cash'; riderId: string }
   | { type: 'rider_bonus'; riderId: string }
+  /** What a rider owes the company, taken from their next withdrawal (1350) */
+  | { type: 'rider_dues'; riderId: string }
   | { type: 'store_cash'; darkStoreId: string }
   | { type: 'staff_advance'; userId: string }
   | { type: 'supplier'; supplierId: string }
@@ -75,8 +77,8 @@ const SYSTEM_ACCOUNTS: Record<
     type: 'rider_bonus_expense',
     group: 5100,
     code: '5101',
-    nameEn: 'Rider delivery bonuses',
-    nameAr: 'حوافز توصيل المناديب',
+    nameEn: 'Rider pay per delivered order',
+    nameAr: 'أجر المناديب عن كل طلب مُسلَّم',
   },
   damage_expense: {
     type: 'damage_expense',
@@ -356,6 +358,7 @@ const WALLET_GROUPS: Partial<Record<LedgerAccountType, { group: number; party: b
   rider_cash: { group: 1300, party: true },
   merchant: { group: 2100, party: true },
   rider_bonus: { group: 2200, party: true },
+  rider_dues: { group: 1350, party: true },
   staff_advance: { group: 1500, party: true },
   supplier: { group: 2500, party: true },
   merchant_deposit: { group: 2600, party: true },
@@ -397,7 +400,8 @@ export async function nextNumber(
     | 'cheques'
     | 'purchase_orders'
     | 'crm_deals'
-    | 'crm_proposals',
+    | 'crm_proposals'
+    | 'rider_withdrawals',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(
@@ -415,6 +419,8 @@ export function accountKey(ref: AccountRef): string {
       return `rider_cash:${ref.riderId}`;
     case 'rider_bonus':
       return `rider_bonus:${ref.riderId}`;
+    case 'rider_dues':
+      return `rider_dues:${ref.riderId}`;
     case 'store_cash':
       return `store_cash:${ref.darkStoreId}`;
     case 'staff_advance':
@@ -474,6 +480,7 @@ export const CATEGORY: Record<LedgerAccountType, AccountCategory> = {
   store_cash: 'asset',
   cash_box: 'asset',
   rider_cash: 'asset',
+  rider_dues: 'asset',
   other_asset: 'asset',
   staff_advance: 'asset',
   merchant: 'liability',

@@ -161,6 +161,21 @@ Also inside the app: settings menu (top of every screen), Help.
 - No category fits: ask finance by ticket to open one; do not choose a wrong one.
 - Rejected by finance: read the reason on the list and return the money or the item as told.
 
+### Rider withdrawals in cash (store manager)
+
+1. Riders may ask to be paid in cash at the store. Once Accounting approves, the request shows under Rider withdrawals in cash on the Cash screen (store managers only).
+2. Count the amount from the store box in front of the rider, hand it over, then tap Cash given (add a note if needed).
+3. The amount comes out of the store cash box; nothing else to record.
+
+**Check it went right**
+
+- The request shows Paid; the rider's app shows it paid.
+
+**If something is wrong**
+
+- The box does not hold enough: do not pay part of it; tell finance by ticket (they may pay by transfer instead).
+- The rider asks for cash that is not on the list: it is not approved yet; send them to Accounting.
+
 ### Failed deliveries and returns to merchants
 
 1. When a rider brings goods back: open the order and tap Receive goods back.
@@ -387,6 +402,21 @@ Also inside the app: settings menu (top of every screen), Help.
 - الخزنة مافيهاش المبلغ: ما تدفعش من جيبك؛ اطلب من مسؤول الفرع يكلم المالية.
 - مفيش بند مناسب: اطلب من المالية بتذكرة يفتحوا بند؛ ما تختارش بند غلط.
 - المالية رفضت: اقرا السبب في القائمة ورجّع الفلوس أو الحاجة زي ما اتقال.
+
+### سحوبات المناديب كاش (مدير المخزن)
+
+1. المندوب ممكن يطلب يقبض كاش من المخزن. بعد موافقة الحسابات، الطلب بيظهر تحت سحوبات المناديب كاش في شاشة الكاش (لمدير المخزن بس).
+2. عدّ المبلغ من خزنة المخزن قدام المندوب، سلّمه، وبعدين اضغط الكاش اتسلّم (اكتب ملاحظة لو محتاج).
+3. المبلغ بيطلع من خزنة المخزن؛ مفيش حاجة تانية تتسجل.
+
+**اتأكد إنها مشيت صح**
+
+- الطلب بيقول اتصرف؛ وتطبيق المندوب بيوريه مصروف.
+
+**لو فيه مشكلة**
+
+- الخزنة مفيهاش كفاية: ما تدفعش جزء؛ بلّغ المالية بتذكرة (ممكن يحوّلوا بدل الكاش).
+- المندوب بيطلب كاش مش في القائمة: لسه ما اتوافقش عليه؛ وجّهه للحسابات.
 
 ### التوصيل اللي فشل ومرتجعات التجار
 

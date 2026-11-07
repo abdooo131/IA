@@ -255,16 +255,26 @@ describe('file completeness', () => {
     const fields = c.missing
       .filter((m) => m.kind === 'field')
       .map((m) => m.kind === 'field' && m.field);
-    expect(fields).toEqual(['photo', 'nationalId', 'address', 'emergencyContact', 'bankAccount']);
+    // A rider paid per delivery is never asked for a salary bank account.
+    expect(fields).toEqual(['photo', 'nationalId', 'address', 'emergencyContact']);
     expect(c.missing.some((m) => m.kind === 'document')).toBe(true);
     expect(c.percent).toBeLessThan(100);
+    await prisma.employee.update({ where: { id: one.id }, data: { payBasis: 'monthly_salary' } });
+    const salaried = await employeeFileCompleteness(prisma, one.id, {
+      scope: null,
+      confidential: true,
+      bank: true,
+    });
+    expect(
+      salaried.missing.filter((m) => m.kind === 'field').map((m) => m.kind === 'field' && m.field),
+    ).toEqual(['photo', 'nationalId', 'address', 'emergencyContact', 'bankAccount']);
     // Without the salaries switch the bank account is not asked about.
     const noBank = await employeeFileCompleteness(prisma, one.id, {
       scope: null,
       confidential: true,
       bank: false,
     });
-    expect(noBank.total).toBe(c.total - 1);
+    expect(noBank.total).toBe(salaried.total - 1);
     await expect(
       employeeFileCompleteness(prisma, one.id, {
         scope: [f.other.id],

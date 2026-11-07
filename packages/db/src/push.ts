@@ -297,6 +297,7 @@ export async function dispatchPush(
     crmEvents,
     hrEvents,
     documentReminders,
+    riderWalletEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -790,6 +791,71 @@ const financeEvents: Source = async (db, since) => {
       }),
     })),
   ];
+};
+
+/**
+ * Rider pay (CLAUDE.md "Rider pay"): a new withdrawal request to Accounting (people who may
+ * use accounting for that store), and the decision and the payment to the rider.
+ */
+const riderWalletEvents: Source = async (db, since) => {
+  const rows = await db.riderWithdrawal.findMany({
+    where: {
+      OR: [
+        { createdAt: { gte: since } },
+        { approvedAt: { gte: since } },
+        { paidAt: { gte: since } },
+        { rejectedAt: { gte: since } },
+      ],
+    },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      amountPiastres: true,
+      darkStoreId: true,
+      createdAt: true,
+      approvedAt: true,
+      paidAt: true,
+      rejectedAt: true,
+      darkStore: { select: { nameEn: true, nameAr: true } },
+      rider: { select: { userId: true, user: { select: { name: true } } } },
+    },
+    take: 200,
+  });
+  const out: Candidate[] = [];
+  for (const w of rows) {
+    const number = `RW-${String(w.number).padStart(6, '0')}`;
+    const vars = { number, amount: egpText(w.amountPiastres) };
+    const toRider = (text: PushTextKey, step: string) => ({
+      key: `rider_withdrawal_${step}:${w.id}`,
+      make: async () => ({
+        userIds: [w.rider.userId],
+        type: 'rider_wallet' as const,
+        text,
+        vars,
+        url: '/rider/wallet',
+        tag: `withdrawal-${w.id}`,
+      }),
+    });
+    if (w.createdAt >= since && w.status === 'requested')
+      out.push({
+        key: `rider_withdrawal_requested:${w.id}`,
+        make: async () => ({
+          userIds: await teamWith(db, 'accounting', 'use', { storeId: w.darkStoreId }),
+          type: 'finance_approval' as const,
+          text: 'rider_withdrawal_requested' as const,
+          vars: { ...vars, rider: w.rider.user.name, store: named(w.darkStore) },
+          url: '/finance/rider-withdrawals',
+          tag: `withdrawal-${w.id}`,
+        }),
+      });
+    if (w.approvedAt && w.approvedAt >= since && w.status === 'approved')
+      out.push(toRider('rider_withdrawal_approved', 'approved'));
+    if (w.paidAt && w.paidAt >= since) out.push(toRider('rider_withdrawal_paid', 'paid'));
+    if (w.rejectedAt && w.rejectedAt >= since)
+      out.push(toRider('rider_withdrawal_rejected', 'rejected'));
+  }
+  return out;
 };
 
 /** Tickets: a new ticket to its assignee, a reply to the other person on it. */

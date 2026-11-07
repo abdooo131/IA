@@ -13,6 +13,7 @@ import {
   hireAccessValues,
   type HireStep,
   hireStepIssues,
+  hirePayBasis,
   hireSteps,
   isTeamRole,
   MAX_PHOTO_BYTES,
@@ -161,6 +162,7 @@ export async function payPendingHires(db: Db, scope: StoreScope) {
       employee: {
         salaryPackages: { none: {} },
         employment: 'employee',
+        payBasis: 'monthly_salary',
         status: { not: 'left' },
         ...(scope && { homeStoreId: { in: scope } }),
       },
@@ -448,7 +450,8 @@ export async function createHireFromDraft(
       const a = data.access;
       const today = cairoDay(now);
       const canPay = input.actor.access.salaries;
-      const steps = hireSteps({ canPay, employment: j.employment });
+      const payBasis = hirePayBasis(j);
+      const steps = hireSteps({ canPay, employment: j.employment, payBasis });
       const issues = hireStepIssues(data, 'review', { today, steps });
       if (Object.keys(issues).length > 0)
         throw new DomainError('draft_incomplete', 400, { fields: Object.keys(issues).join(',') });
@@ -530,7 +533,7 @@ export async function createHireFromDraft(
         probationEnd({ probationEndsOn: null, hireDate: j.hireDate!, months }) ||
         null;
       const pay = data.pay;
-      const bank = canPay && j.employment !== 'outsourced';
+      const bank = canPay && j.employment !== 'outsourced' && payBasis === 'monthly_salary';
       const employee = await tx.employee.create({
         data: {
           userId: user.id,
@@ -549,6 +552,7 @@ export async function createHireFromDraft(
           homeStoreId: jobStores[0] ?? null,
           hireDate: toDate(j.hireDate),
           employment: j.employment ?? 'employee',
+          payBasis,
           staffingSupplierId: j.employment === 'outsourced' ? j.staffingSupplierId! : null,
           contractType:
             j.employment === 'outsourced' ? 'outsourced' : (j.contractType ?? 'permanent'),
@@ -585,7 +589,9 @@ export async function createHireFromDraft(
       });
 
       // Pay: a package from the hire date, else flagged for an HR manager with salaries.
-      const onPayroll = (j.employment ?? 'employee') === 'employee';
+      // Riders paid per delivered order need no package (they earn through the rider wallet).
+      const onPayroll =
+        (j.employment ?? 'employee') === 'employee' && payBasis === 'monthly_salary';
       let payPending = false;
       if (onPayroll && canPay)
         await setSalaryPackage(tx, {
@@ -680,6 +686,7 @@ export async function createHireFromDraft(
           homeStoreId: employee.homeStoreId,
           hireDate: j.hireDate!,
           employment: employee.employment,
+          payBasis,
           probationEndsOn: probation,
           defaultShiftId: employee.defaultShiftId,
           documents,

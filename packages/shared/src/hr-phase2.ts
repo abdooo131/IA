@@ -57,6 +57,8 @@ export const hireDraftDataSchema = z.object({
       storeIds: z.array(z.string().max(64)).max(50),
       hireDate: text(10),
       employment: z.enum(['employee', 'outsourced']),
+      /** Riders: per_delivery unless set (CLAUDE.md "Rider pay"); others: monthly_salary */
+      payBasis: z.enum(['monthly_salary', 'per_delivery']),
       staffingSupplierId: idText,
       contractType: z.enum(['permanent', 'fixed_term', 'part_time']),
       contractEndsOn: text(10),
@@ -117,10 +119,27 @@ export const hireCreateSchema = z.object({
  * The steps a person goes through: pay only with the salaries switch and for people on our
  * payroll (outsourced people are paid by their company).
  */
-export function hireSteps(input: { canPay: boolean; employment?: string }): HireStep[] {
+export function hireSteps(input: {
+  canPay: boolean;
+  employment?: string;
+  payBasis?: string;
+}): HireStep[] {
   return HIRE_STEPS.filter(
-    (s) => s !== 'pay' || (input.canPay && input.employment !== 'outsourced'),
+    (s) =>
+      s !== 'pay' ||
+      (input.canPay && input.employment !== 'outsourced' && input.payBasis !== 'per_delivery'),
   );
+}
+
+/**
+ * How a new hire is paid: riders per delivered order unless HR chose a salary, everyone else a
+ * monthly salary (per delivery is only for riders).
+ */
+export function hirePayBasis(job: { kind?: string; payBasis?: string }) {
+  if (job.kind !== 'rider') return 'monthly_salary' as const;
+  return job.payBasis === 'monthly_salary'
+    ? ('monthly_salary' as const)
+    : ('per_delivery' as const);
 }
 
 /** The step after or before `step` among `steps` (staying put at either end). */
@@ -254,7 +273,9 @@ export function hireStepIssues(
     else if (j.probationEndsOn && j.hireDate && j.probationEndsOn < j.hireDate)
       out['job.probationEndsOn'] = 'before_hire';
   }
-  if (step === 'pay' && j.employment !== 'outsourced') {
+  if (step === 'job' && j.payBasis === 'per_delivery' && j.kind !== 'rider')
+    out['job.payBasis'] = 'riders_only';
+  if (step === 'pay' && j.employment !== 'outsourced' && hirePayBasis(j) !== 'per_delivery') {
     if (pay.basicPiastres == null || pay.basicPiastres <= 0) out['pay.basicPiastres'] = 'required';
     if (pay.iban && !/^EG\d{27}$/.test(pay.iban.replace(/\s+/g, '').toUpperCase()))
       out['pay.iban'] = 'invalid_iban';
@@ -384,6 +405,17 @@ export interface SettlementInput {
   advancePiastres: number;
   /** Sales commission worked out and not paid yet */
   commissionPiastres: number;
+  /** Riders paid per delivery: their wallet instead of salary figures (CLAUDE.md "Rider pay") */
+  riderWallet?: RiderWalletSettlement | null;
+}
+
+/** A per delivery rider's wallet on the leaving day: what is paid out, held and owed. */
+export interface RiderWalletSettlement {
+  availablePiastres: number;
+  onHoldPiastres: number;
+  owedPiastres: number;
+  pendingPiastres: number;
+  balancePiastres: number;
 }
 
 /**
@@ -448,6 +480,8 @@ export function exitSettlement(i: SettlementInput) {
     advancePiastres: i.advancePiastres,
     commissionPiastres: i.commissionPiastres,
     netPiastres: net,
+    /** Set for riders paid per delivery: settle through the wallet, not the salary run */
+    riderWallet: i.riderWallet ?? null,
   };
 }
 export type ExitSettlement = ReturnType<typeof exitSettlement>;
@@ -462,6 +496,7 @@ export const SETTLEMENT_MONEY = [
   'advancePiastres',
   'commissionPiastres',
   'netPiastres',
+  'riderWallet',
 ] as const;
 
 /** The end of a Cairo day as the next day's start (the account is disabled then). */

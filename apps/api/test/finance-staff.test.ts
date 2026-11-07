@@ -81,6 +81,11 @@ describe('employees and outsourced staff end to end', () => {
       .put(`/hr/employees/${riderFile.id}/employment`)
       .send({ employment: 'outsourced', staffingSupplierId: agency.body.id })
       .expect(403);
+    // Riders are paid per delivered order unless HR moves them to a salary (CLAUDE.md "Rider pay").
+    await admin
+      .put(`/hr/employees/${riderFile.id}/pay-basis`)
+      .send({ payBasis: 'monthly_salary' })
+      .expect(200);
     await admin
       .put(`/hr/employees/${riderFile.id}/employment`)
       .send({ employment: 'outsourced', staffingSupplierId: agency.body.id })

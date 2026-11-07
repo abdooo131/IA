@@ -19,6 +19,58 @@ const egp = (p: number | null) => (p === null ? '' : formatEgp(p).replace(/,/g, 
 const errorKey = (t: ReturnType<typeof useTranslations>, code: string) =>
   t.has(`errors.${code}`) ? t(`errors.${code}`) : t('errors.generic');
 
+/**
+ * How a rider is paid (HR use with the salaries switch): per delivered order through the rider
+ * wallet (no salary, no tax or insurance), or a monthly salary on the salary run.
+ */
+export function PayBasisPanel({ file, canEdit }: { file: EmployeeFile; canEdit: boolean }) {
+  const t = useTranslations('riderPay');
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const other = file.payBasis === 'per_delivery' ? 'monthly_salary' : 'per_delivery';
+  async function change() {
+    setBusy(true);
+    setError(null);
+    const result = await apiSend('PUT', `/hr/employees/${file.id}/pay-basis`, {
+      payBasis: other,
+    });
+    setBusy(false);
+    if (!result.ok)
+      return setError(
+        t.has(`errors.${result.error}`) ? t(`errors.${result.error}`) : t('errors.generic'),
+      );
+    router.refresh();
+  }
+  return (
+    <section
+      className="mt-4 max-w-3xl rounded-lg border border-line bg-surface p-4"
+      aria-labelledby="pay-basis"
+    >
+      <h2 id="pay-basis" className="text-h3">
+        {t('payBasisTitle')}
+      </h2>
+      <p className="mt-1 text-body-sm">{t(`payBases.${file.payBasis}`)}</p>
+      <p className="mt-1 text-caption text-text-muted">{t(`payBasisHints.${file.payBasis}`)}</p>
+      {canEdit && (
+        <button
+          type="button"
+          disabled={busy}
+          className="mt-3 h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50"
+          onClick={() => void change()}
+        >
+          {t(`switchTo.${other}`)}
+        </button>
+      )}
+      {error && (
+        <p role="alert" className="mt-2 text-body-sm text-danger">
+          {error}
+        </p>
+      )}
+    </section>
+  );
+}
+
 /** On our payroll, or hired through an outsourcing company (HR use). */
 export function EmploymentPanel({
   file,

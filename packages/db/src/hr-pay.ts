@@ -1,5 +1,10 @@
 import type { Prisma } from '@prisma/client';
-import { cairoDay, type Employment, type SalaryPackageBody } from '@shiplynow/shared';
+import {
+  cairoDay,
+  type Employment,
+  type PayBasis,
+  type SalaryPackageBody,
+} from '@shiplynow/shared';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -116,6 +121,7 @@ export function setSalaryPackage(
     });
     if (!e) throw new DomainError('employee_not_found', 404);
     if (e.employment === 'outsourced') throw new DomainError('outsourced_not_on_payroll', 400);
+    if (e.payBasis === 'per_delivery') throw new DomainError('per_delivery_no_salary', 400);
     if (e.status === 'left') throw new DomainError('employee_left', 409);
     const today = cairoDay(new Date());
     const count = await tx.salaryPackage.count({ where: { employeeId: e.id } });
@@ -254,11 +260,51 @@ export function setEmployment(
   });
 }
 
+/**
+ * How a person is paid (HR use with the salaries switch): a monthly salary on the salary run,
+ * or per delivered order through the rider wallet (riders only; CLAUDE.md "Rider pay").
+ */
+export function setPayBasis(
+  db: Db,
+  input: { employeeId: string; payBasis: PayBasis; actorUserId: string },
+) {
+  return inTransaction(db, async (tx) => {
+    const e = await tx.employee.findUnique({
+      where: { id: input.employeeId },
+      include: { user: { select: { role: true } } },
+    });
+    if (!e) throw new DomainError('employee_not_found', 404);
+    if (input.payBasis === 'per_delivery' && e.user.role !== 'rider')
+      throw new DomainError('per_delivery_riders_only', 400);
+    if (e.payBasis === input.payBasis) return { employeeId: e.id, payBasis: e.payBasis };
+    const after = await tx.employee.update({
+      where: { id: e.id },
+      data: { payBasis: input.payBasis },
+    });
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'employee.pay_basis',
+      entityType: 'employee',
+      entityId: e.id,
+      before: { payBasis: e.payBasis },
+      after: { payBasis: after.payBasis },
+    });
+    return { employeeId: e.id, payBasis: after.payBasis };
+  });
+}
+
 /** Whether a person is paid through an outsourcing company (from their file). */
 export async function employmentOf(tx: Tx | Db, userId: string) {
   const e = await tx.employee.findUnique({
     where: { userId },
-    select: { id: true, employment: true, staffingSupplierId: true },
+    select: { id: true, employment: true, staffingSupplierId: true, payBasis: true },
   });
-  return e ?? { id: null, employment: 'employee' as const, staffingSupplierId: null };
+  return (
+    e ?? {
+      id: null,
+      employment: 'employee' as const,
+      staffingSupplierId: null,
+      payBasis: 'monthly_salary' as const,
+    }
+  );
 }

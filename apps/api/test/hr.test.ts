@@ -346,6 +346,15 @@ describe('hr', () => {
     await finance.put(`/finance/salaries/${rider.userId}`).send({ monthlyPiastres: 1 }).expect(404);
     // HR manager: HR manage with salaries.
     const manager = await member('hr.manager@shiply.eg', 'admin', 'hr_manager');
+    // Riders are paid per delivered order: no package until HR moves them to a salary.
+    await manager.agent
+      .post(`/hr/employees/${rider.id}/package`)
+      .send(body)
+      .expect(400, { error: 'per_delivery_no_salary' });
+    await manager.agent
+      .put(`/hr/employees/${rider.id}/pay-basis`)
+      .send({ payBasis: 'monthly_salary' })
+      .expect(200);
     const saved = (
       await manager.agent.post(`/hr/employees/${rider.id}/package`).send(body).expect(201)
     ).body;

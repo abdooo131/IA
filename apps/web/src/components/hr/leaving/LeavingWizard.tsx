@@ -15,6 +15,7 @@ import {
   leavingDayIssues,
   type LeavingPreview,
   type LeavingStep,
+  type RiderWalletSettlement,
 } from '@/lib/hr-phase2';
 
 const box =
@@ -338,37 +339,41 @@ export function LeavingWizard({ initial, today }: { initial: LeavingPreview; tod
                 {t('settle.outsourced')}
               </p>
             )}
-            <div className="overflow-hidden rounded-md border border-line">
-              <table className="w-full table-fixed text-body-sm">
-                <thead className="bg-surface-raised">
-                  <tr>
-                    <th className="px-3 py-2 text-start text-label uppercase text-text-muted">
-                      {t('settle.item')}
-                    </th>
-                    <th className="w-20 px-3 py-2 text-end text-label uppercase text-text-muted">
-                      {t('settle.days')}
-                    </th>
-                    <th className="w-32 px-3 py-2 text-end text-label uppercase text-text-muted">
-                      {t('settle.amount')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line">
-                  {figures.map(([label, days, amount]) => (
-                    <tr key={label}>
-                      <td className="px-3 py-2">{label}</td>
-                      <td className="ltr-iso px-3 py-2 text-end">{days}</td>
-                      <td className="px-3 py-2 text-end">{amount}</td>
+            {s.riderWallet !== undefined && s.riderWallet !== null ? (
+              <RiderWalletSettlementCard wallet={s.riderWallet} />
+            ) : (
+              <div className="overflow-hidden rounded-md border border-line">
+                <table className="w-full table-fixed text-body-sm">
+                  <thead className="bg-surface-raised">
+                    <tr>
+                      <th className="px-3 py-2 text-start text-label uppercase text-text-muted">
+                        {t('settle.item')}
+                      </th>
+                      <th className="w-20 px-3 py-2 text-end text-label uppercase text-text-muted">
+                        {t('settle.days')}
+                      </th>
+                      <th className="w-32 px-3 py-2 text-end text-label uppercase text-text-muted">
+                        {t('settle.amount')}
+                      </th>
                     </tr>
-                  ))}
-                  <tr className="font-bold">
-                    <td className="px-3 py-2">{t('settle.net')}</td>
-                    <td />
-                    <td className="px-3 py-2 text-end">{money(s.netPiastres)}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody className="divide-y divide-line">
+                    {figures.map(([label, days, amount]) => (
+                      <tr key={label}>
+                        <td className="px-3 py-2">{label}</td>
+                        <td className="ltr-iso px-3 py-2 text-end">{days}</td>
+                        <td className="px-3 py-2 text-end">{amount}</td>
+                      </tr>
+                    ))}
+                    <tr className="font-bold">
+                      <td className="px-3 py-2">{t('settle.net')}</td>
+                      <td />
+                      <td className="px-3 py-2 text-end">{money(s.netPiastres)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
             <p className="mt-2 text-caption text-text-muted">
               {s.money ? t('settle.hint') : t('settle.noMoney')}
             </p>
@@ -500,6 +505,35 @@ export function LeavingWizard({ initial, today }: { initial: LeavingPreview; tod
           {t('leaving.cancel')}
         </Link>
       </div>
+    </div>
+  );
+}
+
+/**
+ * A rider paid per delivery is settled through the rider wallet, never the salary run
+ * (CLAUDE.md "Rider pay"): what they can still withdraw, what is on hold and what they owe.
+ */
+function RiderWalletSettlementCard({ wallet }: { wallet: RiderWalletSettlement }) {
+  const t = useTranslations('riderPay');
+  const rows: [string, number][] = [
+    [t('available'), wallet.availablePiastres],
+    [t('onHold'), wallet.onHoldPiastres],
+    [t('owed'), wallet.owedPiastres],
+    [t('pending'), wallet.pendingPiastres],
+    [t('balance'), wallet.balancePiastres],
+  ];
+  return (
+    <div className="rounded-md border border-line p-3">
+      <p className="text-body-sm font-bold">{t('settleTitle')}</p>
+      <p className="mt-1 text-caption text-text-muted">{t('settleHint')}</p>
+      <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-5">
+        {rows.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-caption text-text-muted">{label}</dt>
+            <dd className="ltr-iso font-bold">{formatEgp(value)}</dd>
+          </div>
+        ))}
+      </dl>
     </div>
   );
 }

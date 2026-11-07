@@ -12,7 +12,6 @@ import {
   merchantOwed,
   merchantStatement,
   payoutDueOn,
-  payRiderBonus,
   recordAudit,
   recordBankDeposit,
   attachReceipt,
@@ -36,7 +35,6 @@ import {
   payoutPaidSchema,
   payoutScheduleSchema,
   reviewHandoverSchema,
-  riderBonusPayoutSchema,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -216,16 +214,6 @@ export class FinanceController {
     return submitted(
       await submitMerchantAdjustment(this.prisma, { ...body, actorUserId: user.sub }),
     );
-  }
-
-  @Post('rider-bonus-payouts')
-  async bonusPayout(
-    @Body(new ZodValidationPipe(riderBonusPayoutSchema))
-    body: z.infer<typeof riderBonusPayoutSchema>,
-    @CurrentUser() user: AccessTokenClaims,
-  ) {
-    const entry = await payRiderBonus(this.prisma, { ...body, actorUserId: user.sub });
-    return { id: entry.id };
   }
 
   @Patch('merchants/:id/payout-schedule')

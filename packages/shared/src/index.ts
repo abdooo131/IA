@@ -27,3 +27,4 @@ export * from './crm-sales';
 export * from './hr-leave';
 export * from './hr-phase1';
 export * from './hr-phase2';
+export * from './rider-wallet';

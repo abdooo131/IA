@@ -10,7 +10,7 @@ import { EmployeeHeader } from '@/components/hr/EmployeeHeader';
 import { EmployeeStatusPanel } from '@/components/hr/EmployeeStatusPanel';
 import { FlagChip } from '@/components/hr/FlagChip';
 import { btnPrimary, btnSecondary, EmptyState, TabLinks } from '@/components/hr/HrPage';
-import { EmploymentPanel, SalaryPackagePanel } from '@/components/hr/PayPanels';
+import { EmploymentPanel, PayBasisPanel, SalaryPackagePanel } from '@/components/hr/PayPanels';
 import { PhotoEditor } from '@/components/hr/PhotoEditor';
 import { SetupLinkButton } from '@/components/hr/SetupLinkButton';
 import { TeamPanel } from '@/components/hr/TeamPanel';
@@ -601,9 +601,21 @@ async function PayTab({
   canEdit: boolean;
   payroll: string | null;
 }) {
+  const rider = file.user.role === 'rider';
+  // Riders paid per delivered order have no salary package (CLAUDE.md "Rider pay").
+  if (file.payBasis === 'per_delivery')
+    return <PayBasisPanel file={file} canEdit={canEdit && rider} />;
   const pkg = await apiGet<{ history: SalaryPackage[] }>(`/hr/employees/${file.id}/package`);
   return (
-    <SalaryPackagePanel file={file} history={pkg.history} canEdit={canEdit} payrollHref={payroll} />
+    <>
+      {rider && <PayBasisPanel file={file} canEdit={canEdit} />}
+      <SalaryPackagePanel
+        file={file}
+        history={pkg.history}
+        canEdit={canEdit}
+        payrollHref={payroll}
+      />
+    </>
   );
 }
 

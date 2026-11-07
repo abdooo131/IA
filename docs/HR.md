@@ -613,6 +613,31 @@ apps/api/src/hr/hr-flows.controller.ts. Migration `20261230090000_hr_phase2`.
 - Settings (HR configuration): `hr.setup_link_days`, `hr.notice_days`,
   `hr.pay_unused_leave_on_exit`.
 
+## Rider pay basis as built (CLAUDE.md "Rider pay")
+
+- Every file has a pay basis (`employees.pay_basis`): `monthly_salary` (the salary run, with
+  income tax and social insurance) or `per_delivery` (riders only: they earn the store's
+  `rider.bonus_per_delivery_piastres` per delivered order through the rider wallet, untaxed, and
+  never appear on the salary run). Riders' files open per delivery (`ensureEmployee`, the hire
+  wizard); migration `20261231100000_rider_wallet` set every existing rider per delivery.
+- HR use with the salaries switch changes it on the file's Pay tab (`PUT
+  /hr/employees/:id/pay-basis`, audited `employee.pay_basis`); a non rider answers
+  `per_delivery_riders_only`. A per delivery file shows no salary package (setting one answers
+  `per_delivery_no_salary`), the completeness bar asks no salary bank account, and the person is
+  never listed as waiting for pay.
+- New hire wizard: a rider's Job step offers the pay basis (per delivery by default); per
+  delivery skips the Pay step.
+- Violations: a final deduction (days or amount) of a per delivery rider is not taken by the
+  salary run (`finalDeductionsFor` leaves them out); it is charged to the rider wallet when it
+  becomes final (upheld, or the appeal window ends; the job sweeps any left) as `rider_penalty`:
+  what the rider owes grows by the amount, or days × `rider.penalty_day_piastres` of their
+  store (default 200 EGP), against rider pay. The violation keeps the amount and the entry
+  (`payroll_entry_id`, shown as "in the rider wallet"), so it is charged once. Unpaid leave
+  takes nothing from a per delivery rider (they earn only for deliveries).
+- Leaving wizard: the settlement of a per delivery rider shows their wallet (available, on hold,
+  owed, waiting withdrawals, balance) instead of salary figures; they settle by a last
+  withdrawal, which takes what they owe first.
+
 ## Build order
 
 1. Employee files, documents, HR app and access, history (about 2 sessions). Built, with

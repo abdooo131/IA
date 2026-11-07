@@ -123,7 +123,13 @@ describe('finance', () => {
     const fee = 4000 + 1300; // 40.00 + 2% of 650.00
     const vat = 742; // 14% of 53.00
     const me = await rider.get('/rider/me').expect(200);
-    expect(me.body.wallet).toEqual({ cashPiastres: cash, bonusOwedPiastres: 1000 });
+    // Rider pay is on hold right after the delivery (working days hold).
+    expect(me.body.wallet).toEqual({
+      cashPiastres: cash,
+      availablePiastres: 0,
+      onHoldPiastres: 1000,
+      earnedMonthPiastres: 1000,
+    });
 
     // The rider hands in 5.00 EGP less than collected.
     const cashScreen = await staff.get(`/stores/${ncr}/cash`).expect(200);

@@ -29,7 +29,8 @@ type Tx = Prisma.TransactionClient;
 //     = income tax + social insurance (both shares) + martyrs fund owed to the state
 //     + staff advance recovered (back from their wallet) + net paid from a bank or box
 //
-// Only employees are on the payroll. People hired through an outsourcing company are paid
+// Only employees paid a monthly salary are on the payroll: riders paid per delivered order earn
+// through the rider wallet (rider-wallet.ts), untaxed. People hired through an outsourcing company are paid
 // by that company: their month is a supplier bill (see payables), and we only give them
 // advances and bonuses directly.
 
@@ -66,8 +67,13 @@ export async function payrollRules(db: Db): Promise<PayrollRules> {
  * store and the advance they still owe. Read only: HR edits people, Accounting pays them.
  */
 export async function listStaffPay(db: Db) {
+  // Riders paid per delivered order are never on the salary run (CLAUDE.md "Rider pay").
   const users = await db.user.findMany({
-    where: { role: { in: [...STAFF_ROLES] }, isActive: true },
+    where: {
+      role: { in: [...STAFF_ROLES] },
+      isActive: true,
+      OR: [{ employee: null }, { employee: { payBasis: 'monthly_salary' } }],
+    },
     include: {
       employee: {
         select: {
@@ -251,6 +257,7 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
     const { user, tags } = await personTags(db as Tx, l.userId);
     const file = await employmentOf(db, user.id);
     if (file.employment === 'outsourced') throw new DomainError('outsourced_not_on_payroll', 400);
+    if (file.payBasis === 'per_delivery') throw new DomainError('per_delivery_not_on_payroll', 400);
     // The package HR keeps in force on the month's last day (basic plus allowances).
     const salary = file.id ? await packageInForce(db, file.id, monthEnd(input.month)) : null;
     const base = l.grossPiastres ?? (salary ? packageGross(salary) : undefined);

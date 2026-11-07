@@ -1,4 +1,4 @@
-import type { PayoutSchedule, Prisma } from '@prisma/client';
+import type { PayoutSchedule } from '@prisma/client';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
@@ -9,6 +9,7 @@ import { payoutMinimumFor } from './contracts';
 import { cairoDay } from '@shiplynow/shared';
 
 type Tx = Prisma.TransactionClient;
+import { chargeShortageToRider } from './rider-wallet';
 
 /** Flips a sign without producing -0. */
 const negate = (value: number) => 0 - value;
@@ -36,7 +37,7 @@ export function riderCash(db: Db, riderId: string) {
   return balanceOf(db, { type: 'rider_cash', riderId });
 }
 
-/** Delivery bonuses earned and not yet paid. */
+/** Rider pay earned and not yet paid (held or not; see rider-wallet.ts for what is available). */
 export async function riderBonusOwed(db: Db, riderId: string) {
   return negate(await balanceOf(db, { type: 'rider_bonus', riderId }));
 }
@@ -133,6 +134,14 @@ export function reviewCashHandover(
       },
     });
     if (updated.count !== 1) throw new DomainError('handover_not_pending');
+    if (input.decision === 'charge_rider')
+      // A shortage kept on the rider is owed by them and taken from their next withdrawal.
+      await chargeShortageToRider(tx, {
+        handoverId: before.id,
+        riderId: before.riderId,
+        amountPiastres: before.differencePiastres,
+        actorUserId: input.actorUserId,
+      });
     if (input.decision === 'write_off') {
       // A shortage becomes a company loss; a surplus becomes company income.
       await post(tx, {
@@ -427,52 +436,5 @@ export function recordMerchantAdjustment(
   });
 }
 
-// ─── rider bonuses ─────────────────────────────────────────────────────────────
-
-/** Pays a rider's earned bonuses, by bank or from a store's cash box. */
-export function payRiderBonus(
-  db: Db,
-  input: {
-    riderId: string;
-    amountPiastres: number;
-    from: 'bank' | 'store_cash';
-    bankAccountId?: string;
-    reference: string;
-    actorUserId: string;
-    idempotencyKey: string;
-  },
-) {
-  positive(input.amountPiastres);
-  return inTransaction(db, async (tx: Tx) => {
-    const rider = await tx.rider.findUnique({ where: { id: input.riderId } });
-    if (!rider) throw new DomainError('rider_not_found', 404);
-    await tx.$queryRaw`SELECT id FROM riders WHERE id = ${rider.id} FOR UPDATE`;
-    if (input.amountPiastres > (await riderBonusOwed(tx, rider.id)))
-      throw new DomainError('more_than_owed');
-    const source: AccountRef =
-      input.from === 'bank'
-        ? await bankAccount(tx, input.bankAccountId)
-        : { type: 'store_cash', darkStoreId: rider.darkStoreId };
-    if (input.from === 'store_cash' && input.amountPiastres > (await balanceOf(tx, source)))
-      throw new DomainError('more_than_cash_in_store');
-    const entry = await post(tx, {
-      kind: 'rider_bonus_payout',
-      idempotencyKey: `bonus_payout:${input.idempotencyKey}`,
-      createdById: input.actorUserId,
-      memo: input.reference,
-      data: { riderId: rider.id, from: input.from },
-      lines: [
-        { account: { type: 'rider_bonus', riderId: rider.id }, amount: input.amountPiastres },
-        { account: source, amount: -input.amountPiastres },
-      ],
-    });
-    await recordAudit(tx, {
-      actorUserId: input.actorUserId,
-      action: 'finance.rider_bonus_payout',
-      entityType: 'rider',
-      entityId: rider.id,
-      after: { amount: input.amountPiastres, from: input.from, reference: input.reference },
-    });
-    return entry!;
-  });
-}
+// Rider bonuses are paid through rider withdrawals (rider-wallet.ts): the manual payout
+// (rider_bonus_payout entries) was replaced; its entries stay in the books as paid out.

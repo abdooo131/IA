@@ -1,6 +1,7 @@
 'use client';
 
 import { useLocale, useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PhotoCapture } from '@/components/orders/PhotoCapture';
 import { localized } from '@/lib/admin-types';
@@ -18,7 +19,12 @@ export interface RiderMe {
   pingSeconds: number;
   darkStore: { code: string; nameEn: string; nameAr: string };
   today: { delivered: number; failed: number; codCollectedPiastres: number };
-  wallet: { cashPiastres: number; bonusOwedPiastres: number };
+  wallet: {
+    cashPiastres: number;
+    availablePiastres: number;
+    onHoldPiastres: number;
+    earnedMonthPiastres: number;
+  };
 }
 export interface RiderDelivery {
   id: string;
@@ -156,11 +162,17 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
             value={tw('amount', { amount: formatEgp(me.wallet.cashPiastres) })}
             hint={me.wallet.cashPiastres > 0 ? tw('handIn') : undefined}
           />
-          <WalletCard
-            icon="wallet"
-            label={tw('bonusLabel')}
-            value={tw('amount', { amount: formatEgp(me.wallet.bonusOwedPiastres) })}
-          />
+          <Link href="/rider/wallet" className="block rounded-xl focus-visible:outline-2">
+            <WalletCard
+              icon="wallet"
+              label={tw('availableLabel')}
+              value={tw('amount', { amount: formatEgp(me.wallet.availablePiastres) })}
+              hint={tw('openWallet', {
+                month: formatEgp(me.wallet.earnedMonthPiastres),
+                hold: formatEgp(me.wallet.onHoldPiastres),
+              })}
+            />
+          </Link>
         </div>
       </section>
 

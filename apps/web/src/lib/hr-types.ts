@@ -5,6 +5,7 @@ import type {
   DocumentState,
   EmployeeStatus,
   Employment,
+  PayBasis,
 } from '@shiplynow/shared';
 
 /** HR (docs/HR.md): what the /hr, /me/employee and /me/team endpoints answer. */
@@ -55,6 +56,7 @@ export interface EmployeeRow {
   manager: PersonRef | null;
   homeStore: StoreRef | null;
   employment: Employment;
+  payBasis: PayBasis;
   contractType: ContractType;
   status: EmployeeStatus;
   hireDate: string | null;
@@ -118,6 +120,8 @@ export interface EmployeeFile {
   contractEndsOn: string | null;
   probationEndsOn: string | null;
   employment: Employment;
+  /** monthly_salary: the salary run; per_delivery: riders paid through the rider wallet */
+  payBasis: PayBasis;
   staffingSupplier: { id: string; name: string } | null;
   socialInsuranceNumber: string | null;
   bank: EmployeeBank | null;

@@ -18,6 +18,7 @@ import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
 import { inStoreScope, type StoreScope } from './hr-leave';
 import { getSetting } from './settings';
+import { chargeRiderPenalties, chargeRiderPenalty } from './finance/rider-wallet';
 
 // HR phase 3 (docs/HR.md "Phase 3 as built"): violation types with an escalation ladder,
 // violations recorded by HR on the next step of the person's ladder (prior violations of the type
@@ -192,6 +193,7 @@ const violationInclude = {
       userId: true,
       homeStoreId: true,
       employment: true,
+      payBasis: true,
       staffingSupplier: { select: { id: true, name: true } },
       homeStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
     },
@@ -234,7 +236,9 @@ function violationView(v: ViolationRow, appealDays: number, now: Date) {
     decidedAt: v.decidedAt,
     finalAt: v.finalAt,
     hasEvidence: !!v.evidenceContentType,
-    inPayroll: !!v.payrollEntryId,
+    inPayroll: !!v.payrollEntryId && v.employee.payBasis !== 'per_delivery',
+    /** A rider paid per delivery owes a final deduction through the rider wallet */
+    inRiderWallet: !!v.payrollEntryId && v.employee.payBasis === 'per_delivery',
     deductionPiastres: v.deductionPiastres,
     /** An outsourced person's deduction is only told to their company */
     forSupplier:
@@ -493,6 +497,7 @@ export function decideViolation(
       },
       include: violationInclude,
     });
+    if (upheld) await chargeRiderPenalty(tx, v.id, now);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: upheld ? 'violation.uphold' : 'violation.cancel',
@@ -528,6 +533,7 @@ export async function finalizeViolations(db: Db, now: Date = new Date()) {
       });
       if (done.count !== 1) return;
       finalized++;
+      await chargeRiderPenalty(tx, v.id, now);
       await recordAudit(tx, {
         actorUserId: null,
         action: 'violation.final',
@@ -834,7 +840,8 @@ export async function finalDeductionsFor(db: Db, employeeId: string, until: stri
       payrollEntryId: null,
       penalty: { in: ['deduction_days', 'deduction_amount'] },
       finalAt: { lt: cairoDayStart(addDays(until, 1)) },
-      employee: { employment: 'employee' },
+      // Riders paid per delivery owe it through their wallet instead (chargeRiderPenalty).
+      employee: { employment: 'employee', payBasis: 'monthly_salary' },
     },
     select: {
       id: true,
@@ -852,6 +859,7 @@ export async function finalDeductionsFor(db: Db, employeeId: string, until: stri
  * then closed attendance days suggest new ones. Both are safe to run twice. */
 export async function runViolationJobs(db: Db, now: Date = new Date()) {
   const finals = await finalizeViolations(db, now);
+  const riders = await chargeRiderPenalties(db, now);
   const suggestions = await suggestViolations(db, now);
-  return { ...finals, ...suggestions };
+  return { ...finals, riderPenalties: riders.charged, ...suggestions };
 }

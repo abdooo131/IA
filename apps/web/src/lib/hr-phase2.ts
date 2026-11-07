@@ -107,6 +107,16 @@ export interface Settlement {
   advancePiastres: number | null;
   commissionPiastres: number | null;
   netPiastres: number | null;
+  /** Riders paid per delivery: their wallet instead of salary figures (null without salaries) */
+  riderWallet?: RiderWalletSettlement | null;
+}
+
+export interface RiderWalletSettlement {
+  availablePiastres: number;
+  onHoldPiastres: number;
+  owedPiastres: number;
+  pendingPiastres: number;
+  balancePiastres: number;
 }
 
 export interface OwnedItem {

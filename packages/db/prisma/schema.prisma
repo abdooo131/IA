@@ -168,6 +168,10 @@ model User {
   hireDrafts             HireDraft[]               @relation("hire_draft_created_by")
   exitsRecorded          EmployeeExit[]            @relation("employee_exit_created_by")
   remindersSent          DocumentReminder[]        @relation("document_reminder_created_by")
+  riderWithdrawalsApproved RiderWithdrawal[]        @relation("rider_withdrawal_approved_by")
+  riderWithdrawalsPaid     RiderWithdrawal[]        @relation("rider_withdrawal_paid_by")
+  riderWithdrawalsRejected RiderWithdrawal[]        @relation("rider_withdrawal_rejected_by")
+  contractsUpdated         MerchantContract[]       @relation("contract_updated_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -298,8 +302,9 @@ model DarkStore {
   alerts           Alert[]
   storeAreas       StoreArea[]
 
-  ledgerAccounts LedgerAccount[]
-  cashHandovers  CashHandover[]
+  ledgerAccounts   LedgerAccount[]
+  cashHandovers    CashHandover[]
+  riderWithdrawals RiderWithdrawal[]
 
   shopifyLocations ShopifyLocation[]
 
@@ -1112,6 +1117,7 @@ model Rider {
   damageReports  DamageReport[]
 
   ledgerLines LedgerLine[]
+  withdrawals RiderWithdrawal[]
 
   @@map("riders")
 }
@@ -1365,6 +1371,9 @@ enum LedgerAccountType {
   supplier
   /// A merchant's security deposit we hold (paid back when the contract ends)
   merchant_deposit
+  /// What a rider owes the company (cash shortages kept on them, damage charges, penalties);
+  /// taken from their next withdrawal
+  rider_dues
 
   @@map("ledger_account_type")
 }
@@ -1452,20 +1461,21 @@ model LedgerEntry {
   createdById    String?  @map("created_by_id")
   createdAt      DateTime @default(now()) @map("created_at")
 
-  order          Order?           @relation(fields: [orderId], references: [id])
-  createdBy      User?            @relation("ledger_entry_created_by", fields: [createdById], references: [id])
-  lines          LedgerLine[]
-  receipts       FinanceReceipt[]
-  requests       FinanceRequest[]
-  bills          Bill[]
-  prepayments    Prepayment[]
-  fixedAssets    FixedAsset[]
-  taxInvoices    TaxInvoice[]
-  assetsDisposed FixedAsset[]     @relation("asset_disposal")
-  chequesBooked  Cheque[]         @relation("cheque_book_entry")
-  chequesCleared Cheque[]         @relation("cheque_clear_entry")
-  chequesUndone  Cheque[]         @relation("cheque_reverse_entry")
-  crmCommissions CrmCommission[]
+  order            Order?            @relation(fields: [orderId], references: [id])
+  createdBy        User?             @relation("ledger_entry_created_by", fields: [createdById], references: [id])
+  lines            LedgerLine[]
+  receipts         FinanceReceipt[]
+  requests         FinanceRequest[]
+  bills            Bill[]
+  prepayments      Prepayment[]
+  fixedAssets      FixedAsset[]
+  taxInvoices      TaxInvoice[]
+  assetsDisposed   FixedAsset[]      @relation("asset_disposal")
+  chequesBooked    Cheque[]          @relation("cheque_book_entry")
+  chequesCleared   Cheque[]          @relation("cheque_clear_entry")
+  chequesUndone    Cheque[]          @relation("cheque_reverse_entry")
+  crmCommissions   CrmCommission[]
+  riderWithdrawals RiderWithdrawal[]
 
   pettyCash         PettyCashExpense[] @relation("petty_cash_entry")
   pettyCashReversal PettyCashExpense[] @relation("petty_cash_reversal")
@@ -1553,6 +1563,71 @@ enum PayoutStatus {
   cancelled
 
   @@map("payout_status")
+}
+
+enum RiderWithdrawalStatus {
+  requested
+  approved
+  paid
+  rejected
+  cancelled
+
+  @@map("rider_withdrawal_status")
+}
+
+enum RiderWithdrawalMethod {
+  store_cash
+  instapay
+  mobile_wallet
+  bank
+
+  @@map("rider_withdrawal_method")
+}
+
+/// A rider asks for earnings that finished their hold (RW-000001, gapless). What they owe
+/// is deducted in the same entry; nothing moves until Accounting (or the store manager for
+/// cash at the store) marks it paid.
+model RiderWithdrawal {
+  id                String                @id @default(cuid())
+  number            Int                   @unique
+  riderId           String                @map("rider_id")
+  darkStoreId       String                @map("dark_store_id")
+  /// What the rider receives
+  amountPiastres    Int                   @map("amount_piastres")
+  /// What is taken back from the wallet for what the rider owes
+  deductionPiastres Int                   @default(0) @map("deduction_piastres")
+  /// { dues, advance } in piastres, as shown to the rider
+  deductions        Json
+  method            RiderWithdrawalMethod
+  /// instapay: handle; mobile_wallet: provider and number; bank: bank, iban, holder
+  details           Json
+  status            RiderWithdrawalStatus @default(requested)
+  idempotencyKey    String                @unique @map("idempotency_key")
+  approvedById      String?               @map("approved_by_id")
+  approvedAt        DateTime?             @map("approved_at")
+  paidById          String?               @map("paid_by_id")
+  paidAt            DateTime?             @map("paid_at")
+  /// The bank or cash box it was paid from
+  paidFromAccountId String?               @map("paid_from_account_id")
+  reference         String?
+  entryId           String?               @map("entry_id")
+  rejectedById      String?               @map("rejected_by_id")
+  rejectedAt        DateTime?             @map("rejected_at")
+  rejectReason      String?               @map("reject_reason")
+  cancelledAt       DateTime?             @map("cancelled_at")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  rider      Rider        @relation(fields: [riderId], references: [id])
+  darkStore  DarkStore    @relation(fields: [darkStoreId], references: [id])
+  approvedBy User?        @relation("rider_withdrawal_approved_by", fields: [approvedById], references: [id])
+  paidBy     User?        @relation("rider_withdrawal_paid_by", fields: [paidById], references: [id])
+  rejectedBy User?        @relation("rider_withdrawal_rejected_by", fields: [rejectedById], references: [id])
+  entry      LedgerEntry? @relation(fields: [entryId], references: [id])
+
+  @@index([riderId, status])
+  @@index([status, createdAt])
+  @@map("rider_withdrawals")
 }
 
 /// Money we owe a merchant up to a cutoff, prepared by finance and marked paid by hand.
@@ -2491,6 +2566,15 @@ enum EmploymentType {
   @@map("employment_type")
 }
 
+/// How a person is paid: a monthly salary (the salary run) or per delivered order (riders,
+/// through the rider wallet; never on the salary run, no tax or insurance)
+enum PayBasis {
+  monthly_salary
+  per_delivery
+
+  @@map("pay_basis")
+}
+
 /// Our own details as the tax authority knows them (one row, id "company").
 model CompanyProfile {
   id                    String    @id @default("company")
@@ -2639,6 +2723,8 @@ model Employee {
   hireDate              DateTime?      @map("hire_date") @db.Date
   /// employee: on our payroll; outsourced: hired through an outsourcing company (a supplier)
   employment            EmploymentType @default(employee)
+  /// monthly_salary: on the salary run; per_delivery: riders paid per delivered order
+  payBasis              PayBasis       @default(monthly_salary) @map("pay_basis")
   staffingSupplierId    String?        @map("staffing_supplier_id")
   contractType          ContractType   @default(permanent) @map("contract_type")
   contractEndsOn        DateTime?      @map("contract_ends_on") @db.Date

@@ -24,6 +24,7 @@ import { assertNoManagerLoop } from './hr-org';
 import { packageInForce } from './hr-pay';
 import { finalDeductionsFor } from './hr-violations';
 import { getSetting } from './settings';
+import { riderWalletTotals } from './finance/rider-wallet';
 
 // HR phase 2 (docs/HR.md "Phase 2 as built"): the leaving wizard. HR picks the last working
 // day and the reason, checks the notice, ticks company items returned, reads the final
@@ -146,10 +147,16 @@ export async function ownerCandidates(db: Db, leaverEmployeeId: string) {
 /** The settlement figures on a last day (money included; callers strip it without salaries). */
 async function settlementFor(
   db: Db,
-  e: { id: string; userId: string; hireDate: Date | null; employment: string },
+  e: { id: string; userId: string; hireDate: Date | null; employment: string; payBasis: string },
   lastDay: string,
 ): Promise<ExitSettlement> {
-  const onPayroll = e.employment === 'employee';
+  // Riders paid per delivery are settled through their wallet, never the salary run.
+  const perDelivery = e.payBasis === 'per_delivery';
+  const onPayroll = e.employment === 'employee' && !perDelivery;
+  const rider = perDelivery
+    ? await db.rider.findUnique({ where: { userId: e.userId }, select: { id: true } })
+    : null;
+  const wallet = rider ? (await riderWalletTotals(db, rider.id)).totals : null;
   const [pkg, perMonth, payUnused, balances, unpaid, deductions, advance, commission] =
     await Promise.all([
       onPayroll ? packageInForce(db, e.id, lastDay) : null,
@@ -178,6 +185,13 @@ async function settlementFor(
     })),
     advancePiastres: Math.max(0, advance),
     commissionPiastres: commission._sum.amountPiastres ?? 0,
+    riderWallet: wallet && {
+      availablePiastres: wallet.availablePiastres,
+      onHoldPiastres: wallet.onHoldPiastres,
+      owedPiastres: wallet.owedPiastres,
+      pendingPiastres: wallet.pendingPiastres,
+      balancePiastres: wallet.balancePiastres,
+    },
   });
 }
 

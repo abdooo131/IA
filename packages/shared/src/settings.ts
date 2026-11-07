@@ -385,7 +385,47 @@ export const SETTING_DEFINITIONS = {
   'rider.bonus_per_delivery_piastres': {
     schema: piastres,
     default: 0,
-    description: 'Bonus a rider earns per delivered order, in piastres',
+    description:
+      'Rider pay per delivered order, in piastres: the only thing riders earn (failed attempts earn nothing)',
+    override: 'store',
+  },
+  'rider.withdraw_hold_working_days': {
+    schema: z.number().int().min(0).max(60),
+    default: 5,
+    description:
+      'Working days an earning stays on hold after its delivery day before the rider can withdraw it',
+    override: 'none',
+  },
+  'rider.weekend_days': {
+    schema: z
+      .number()
+      .int()
+      .min(0)
+      .max(6_543_210)
+      .refine((v) => /^[0-6]+$/.test(String(v)), 'weekday_digits'),
+    default: 5,
+    description:
+      'Days that are not working days for the rider hold: each digit is a weekday (0 Sunday to 6 Saturday); 5 is Friday, 56 Friday and Saturday, write Sunday last',
+    override: 'none',
+  },
+  'rider.min_withdrawal_piastres': {
+    schema: piastres,
+    default: 10_000,
+    description:
+      'Smallest withdrawal a rider may ask for, in piastres (withdrawing everything available is always allowed)',
+    override: 'none',
+  },
+  'rider.max_open_withdrawals': {
+    schema: z.number().int().min(1).max(10),
+    default: 1,
+    description: 'Withdrawal requests a rider may have open (requested or approved) at once',
+    override: 'none',
+  },
+  'rider.penalty_day_piastres': {
+    schema: piastres,
+    default: 20_000,
+    description:
+      'What a day of pay is worth for a rider paid per delivery, in piastres: a final violation deduction in days is charged to the rider wallet at this rate',
     override: 'store',
   },
   'store.capacity_orders_per_hour': {

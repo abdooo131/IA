@@ -164,6 +164,7 @@ function view(
     contractEndsOn: day(e.contractEndsOn),
     probationEndsOn: day(e.probationEndsOn),
     employment: e.employment,
+    payBasis: e.payBasis,
     staffingSupplier: e.staffingSupplier,
     socialInsuranceNumber: e.socialInsuranceNumber,
     bank: options.bank
@@ -220,6 +221,8 @@ export async function ensureEmployee(tx: Tx, userId: string) {
       homeStoreId,
       departmentId: await defaultDepartment(tx, user.role, homeStoreId),
       contractType: 'permanent',
+      // Riders are paid per delivered order (CLAUDE.md "Rider pay"), never a monthly salary.
+      payBasis: user.role === 'rider' ? 'per_delivery' : 'monthly_salary',
       hireDate: toDate(cairoDay(user.createdAt)),
       status: user.isActive ? 'active' : 'suspended',
     },
@@ -389,6 +392,7 @@ export async function listEmployees(db: Db, f: EmployeeListFilter) {
     manager: who(byId.get(links.get(e.id)?.managerId ?? '') ?? e.manager),
     homeStore: e.homeStore,
     employment: e.employment,
+    payBasis: e.payBasis,
     contractType: e.contractType,
     status: e.status,
     hireDate: day(e.hireDate),

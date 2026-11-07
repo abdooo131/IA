@@ -10,6 +10,7 @@ import {
   hireProgress,
   type HireStep,
   hireStepIssues,
+  hirePayBasis,
   hireSteps,
   JOB_ROLES,
   type JobRole,
@@ -169,6 +170,7 @@ export function HireWizard({
   const tu = useTranslations('admin.users');
   const th = useTranslations('hr');
   const tp = useTranslations('people');
+  const tr = useTranslations('riderPay');
   const locale = useLocale();
   const router = useRouter();
   const [data, setData] = useState<HireDraftData>(draft?.data ?? empty);
@@ -184,7 +186,11 @@ export function HireWizard({
   const createKey = useRef(newKey());
   const top = useRef<HTMLDivElement>(null);
 
-  const steps = hireSteps({ canPay: grant.canPay, employment: data.job.employment });
+  const steps = hireSteps({
+    canPay: grant.canPay,
+    employment: data.job.employment,
+    payBasis: hirePayBasis(data.job),
+  });
   const at = Math.max(0, steps.indexOf(step));
   const progress = hireProgress(steps, step);
   const p = data.person;
@@ -721,6 +727,32 @@ export function HireWizard({
                 </p>
               )}
             </fieldset>
+            {j.kind === 'rider' && (
+              <fieldset className="min-w-0">
+                <legend className="text-caption font-bold">{tr('payBasisTitle')}</legend>
+                <div className="mt-1 flex flex-wrap gap-2">
+                  {(['per_delivery', 'monthly_salary'] as const).map((k) => (
+                    <label
+                      key={k}
+                      className={`flex min-h-10 cursor-pointer items-center gap-2 rounded-md border px-3 text-body-sm ${
+                        hirePayBasis(j) === k ? 'border-primary font-bold' : 'border-line'
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="payBasis"
+                        checked={hirePayBasis(j) === k}
+                        onChange={() => setJob({ payBasis: k })}
+                      />
+                      {tr(`payBases.${k}`)}
+                    </label>
+                  ))}
+                </div>
+                <p className="mt-1 text-caption text-text-muted">
+                  {tr(`payBasisHints.${hirePayBasis(j)}`)}
+                </p>
+              </fieldset>
+            )}
             {j.employment === 'outsourced' && (
               <Field
                 label={t('job.staffingCompany')}
@@ -1352,6 +1384,7 @@ function Review({
   const tu = useTranslations('admin.users');
   const th = useTranslations('hr');
   const tp = useTranslations('people');
+  const tr = useTranslations('riderPay');
   const locale = useLocale();
   const p = data.person;
   const j = data.job;
@@ -1409,6 +1442,9 @@ function Review({
         [t('job.stores'), stores || th('office')],
         [th('fields.hireDate'), day(j.hireDate)],
         [tp('employment'), j.employment ? tp(`employments.${j.employment}`) : '–'],
+        ...(j.kind === 'rider'
+          ? [[tr('payBasisTitle'), tr(`payBases.${hirePayBasis(j)}`)] as [string, string]]
+          : []),
         [
           th('fields.probationEndsOn'),
           j.probationEndsOn ? day(j.probationEndsOn) : t('job.probationAuto'),

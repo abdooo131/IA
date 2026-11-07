@@ -93,10 +93,17 @@ describe('hr phase 1', () => {
     const rider = await prisma.employee.findFirstOrThrow({
       where: { user: { email: 'rider.maadi@shiplynow.local' } },
     });
+    // A rider paid per delivery is never asked for a salary bank account.
+    const perDelivery = (await admin.get(`/hr/employees/${rider.id}`).expect(200)).body;
+    expect(perDelivery.fileCompleteness.missing).not.toContainEqual({
+      kind: 'field',
+      field: 'bankAccount',
+    });
+    await prisma.employee.update({ where: { id: rider.id }, data: { payBasis: 'monthly_salary' } });
     const file = (await admin.get(`/hr/employees/${rider.id}`).expect(200)).body;
     expect(file.fileCompleteness.percent).toBeLessThan(100);
     expect(file.fileCompleteness.missing).toContainEqual({ kind: 'field', field: 'photo' });
-    // The owner has the salaries switch: the bank account counts for an employee.
+    // The owner has the salaries switch: the bank account counts for a salaried employee.
     expect(file.fileCompleteness.missing).toContainEqual({ kind: 'field', field: 'bankAccount' });
     expect(file.flags).toContain('missing_documents');
     const hr = await member('hr@shiply.eg', 'hr_officer');

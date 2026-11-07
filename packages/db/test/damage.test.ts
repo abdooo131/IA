@@ -1,6 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { listDamageReports, reportDamage, settleDamage } from '../src/damage';
-import { merchantOwed, riderCash } from '../src/finance';
+import { merchantOwed, riderCash, riderOwed } from '../src/finance';
 import { receive } from '../src/stock';
 import { binQty, createFixture, level, prisma, resetDatabase } from './helpers';
 
@@ -91,7 +91,9 @@ describe('damage settlement', () => {
       actorUserId: admin,
     });
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(1000);
-    expect(await riderCash(prisma, riderId)).toBe(1000);
+    // The rider owes it (rider dues), taken from their next withdrawal; it is not cash.
+    expect(await riderCash(prisma, riderId)).toBe(0);
+    expect(await riderOwed(prisma, riderId)).toMatchObject({ duesPiastres: 1000 });
   });
 
   it('moves no money when the merchant bears it, and needs a note to change the cause', async () => {

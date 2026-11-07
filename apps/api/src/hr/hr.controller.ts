@@ -43,6 +43,7 @@ import {
   setEmployeePhoto,
   setEmployeeStatus,
   setEmployment,
+  setPayBasis,
   setSalaryPackage,
   startChecklistFor,
   teamOf,
@@ -70,12 +71,14 @@ import {
   employeeStatusSchema,
   type EmploymentBody,
   employmentSchema,
+  payBasisSchema,
   type SalaryPackageBody,
   salaryPackageSchema,
   type StartChecklistBody,
   startChecklistSchema,
 } from '@shiplynow/shared';
 import type { Request, Response } from 'express';
+import type { z } from 'zod';
 import { limitedStores } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
@@ -360,6 +363,26 @@ export class HrController {
       bank: false,
     });
     return setEmployment(this.prisma, { ...body, userId: file.user.id, actorUserId: user.sub });
+  }
+
+  /**
+   * How the person is paid (salaries switch): a monthly salary on the salary run, or per
+   * delivered order through the rider wallet (riders only; CLAUDE.md "Rider pay").
+   */
+  @Put('employees/:id/pay-basis')
+  @Access('hr', 'use', { salaries: true })
+  async payBasis(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(payBasisSchema)) body: z.infer<typeof payBasisSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    await getEmployee(this.prisma, id, { scope: limitedStores(access), bank: false });
+    return setPayBasis(this.prisma, {
+      employeeId: id,
+      payBasis: body.payBasis,
+      actorUserId: user.sub,
+    });
   }
 
   // ─── salary package (salaries switch) ──────────────────────────────────────

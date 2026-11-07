@@ -224,7 +224,7 @@ the 60 minute rate (only when the address is served, the store is open, under ca
 every item) → after payment Shopify sends a fulfillment request → the API decides the store with
 resolveDelivery, creates the order and reserves stock → staff accept, pick by scan, pack with a
 photo, hand to a rider by badge scan → rider delivers with the customer's code or a photo and
-collects cash → ledger postings (merchant COD, our fees, rider bonus) in the same transaction →
+collects cash → ledger postings (merchant COD, our fees, rider pay per delivered order) in the same transaction →
 tracking and DELIVERED go back to Shopify through the outbox.
 
 Delivery decision (resolveDelivery, packages/db/src/geo):
@@ -258,6 +258,15 @@ it) → signed copies are attached and the contract prints as a PDF in English o
 apps/api/assets/fonts) → the merchant reads it at /merchant/contract. A won sales proposal
 makes and activates a version through the same functions.
 
+Rider pay:
+each delivered order earns the rider the store's pay per delivered order in their wallet (2200)
+→ it is held for working days (weekend days and official holidays skipped) → what the rider owes
+(cash shortages kept on them, damage, penalties: 1350 rider dues; advances: 1500) is netted from
+what is available → the rider asks for a withdrawal in the rider app (cash at the store, InstaPay,
+mobile wallet or bank) → Accounting approves → Accounting pays from a bank or box (or the store
+manager hands cash at the store from the box), one entry that also clears what was owed → the
+rider is told by push. Riders are never on the salary run.
+
 Packaging and purchasing:
 finance raises a purchase order (PO-000001) to a supplier → approved at once below
 finance.approval_threshold_piastres, otherwise by a second person → marked ordered → goods
@@ -276,7 +285,7 @@ documents are uploaded and verified (HR reminds people of missing ones) → the 
 location against their shift → attendance days close automatically (suggesting violations for
 lateness and absence) → leave is asked from My HR and approved by the manager then HR →
 violations climb their ladder, may be appealed once and become final → the monthly payroll run
-reads HR salary packages, takes unpaid leave days and final deductions once, and books it in
+reads HR salary packages (people paid a monthly salary; riders paid per delivery are left out), takes unpaid leave days and final deductions once, and books it in
 accounting → when someone leaves, the leaving wizard sets the last day and reason, starts
 offboarding, keeps the final settlement figures for payroll, hands over what they looked after
 and the job closes their account at the end of the last day.
@@ -338,7 +347,8 @@ one instance acts, and each has an idempotency key so running twice changes noth
   business record: every 10 seconds it reads what happened in the last 15 minutes (new orders,
   alerts, shipments and transfers sent, deliveries, finance requests and payouts to approve,
   cash differences, ticket messages, late attendance days, merchant notifications, paid payouts,
-  low stock) and calls notify(userIds, type, text) for the people who may open the page it
+  low stock, rider withdrawals requested to accounting and approved, paid or rejected to the
+  rider under the rider_wallet type) and calls notify(userIds, type, text) for the people who may open the page it
   links to: store staff of that store (store use), riders, accounting use, operations manage
   (paging alerts), merchants manage (sign ups), the merchant's account manager, HR use and the
   person (documents; the person also when HR reminds them of a document), the manager in force, HR use and HR manage and the person (leave requests,

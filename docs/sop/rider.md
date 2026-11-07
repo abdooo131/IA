@@ -101,6 +101,25 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Difference: tell staff what happened so they write it in the note; finance decides.
 
+### My wallet and withdrawals
+
+1. You earn a fixed amount for every delivered order (shown in My wallet). A failed attempt earns nothing. There is no salary, tax or insurance.
+2. Open My wallet from your home screen: Available to withdraw, On hold (each earning frees up a few working days after its delivery day; Fridays and official holidays do not count), and what you owe.
+3. What you owe (cash short at hand in, damage charged to you, penalties, an advance) is taken first: the form shows what leaves your wallet, what is taken and what you receive.
+4. Tap Withdraw money, type the amount or tap All available, choose how: cash at your store, InstaPay, a mobile wallet (Vodafone Cash, Etisalat Cash, Orange Cash, WE Pay) or a bank IBAN, then Send request.
+5. You can cancel a request until Accounting approves it. You get a notification when it is approved, paid or not approved.
+
+**Check it went right**
+
+- The request shows Waiting, then Approved, then Paid with the reference.
+- Cash at the store: the store manager hands you the cash and records it; count it in front of them.
+
+**If something is wrong**
+
+- Not approved: read the reason under the request; the amount is back in your wallet at once.
+- An earning is missing: check the order was delivered (not failed); ask your store lead with the order number.
+- You do not agree with what you owe: ask your store lead or write a ticket to finance before you withdraw.
+
 ### Turn on phone notifications
 
 1. iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.
@@ -220,6 +239,25 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - فيه فرق: قول للموظف اللي حصل عشان يكتبه في الملاحظة؛ الماليات بتقرر.
+
+### محفظتي والسحب
+
+1. بتكسب مبلغ ثابت عن كل طلب اتسلّم (مكتوب في محفظتي). المحاولة الفاشلة مالهاش أجر. مفيش مرتب ولا ضرايب ولا تأمينات.
+2. افتح محفظتي من الشاشة الرئيسية: متاح للسحب، معلّق (كل مبلغ بيبقى متاح بعد كام يوم عمل من يوم التوصيل؛ الجمعة والإجازات الرسمية مش محسوبة)، واللي عليك.
+3. اللي عليك (عجز في تسليم الكاش، تلفيات اتحسبت عليك، جزاءات، سلفة) بيتخصم الأول: الفورم بيوريك اللي هيطلع من محفظتك واللي هيتخصم واللي هتقبضه.
+4. اضغط اسحب فلوسي، اكتب المبلغ أو اضغط كل المتاح، واختار الطريقة: كاش من المخزن، إنستاباي، محفظة موبايل (فودافون كاش، اتصالات كاش، أورنج كاش، WE Pay) أو آيبان بنكي، وبعدين ابعت الطلب.
+5. تقدر تلغي الطلب لحد ما الحسابات توافق عليه. هيوصلك إشعار لما يتوافق عليه أو يتصرف أو يترفض.
+
+**اتأكد إنها مشيت صح**
+
+- الطلب بيبقى مستني، وبعدين اتوافق عليه، وبعدين اتصرف بالمرجع.
+- الكاش من المخزن: مدير المخزن بيسلّمك الكاش ويسجّله؛ عدّه قدامه.
+
+**لو فيه مشكلة**
+
+- اترفض: اقرا السبب تحت الطلب؛ المبلغ بيرجع محفظتك على طول.
+- مبلغ ناقص: اتأكد إن الطلب اتسلّم (مش فاشل)؛ اسأل مسؤول المخزن برقم الطلب.
+- مش موافق على اللي عليك: كلم مسؤول المخزن أو اكتب تذكرة للمالية قبل ما تسحب.
 
 ### تشغيل إشعارات الموبايل
 

@@ -151,14 +151,14 @@ export function settleDamage(db: Db, input: SettleDamageInput) {
       ],
     });
     if (riderCharge > 0) {
-      // The rider owes the amount like missing cash; it is settled at the next cash handover.
+      // The rider owes the amount (1350 rider dues); it is taken from their next withdrawal.
       await post(tx, {
         ...base,
         kind: 'damage_rider_charge',
         idempotencyKey: `damage:${report.id}:rider_charge`,
         data: { damageId: report.id, riderId: report.riderId },
         lines: [
-          { account: { type: 'rider_cash', riderId: report.riderId! }, amount: riderCharge },
+          { account: { type: 'rider_dues', riderId: report.riderId! }, amount: riderCharge },
           { account: { type: 'damage_expense' }, amount: -riderCharge },
         ],
       });

@@ -56,6 +56,21 @@ Also inside the app: settings menu (top of every screen), Help.
 - A suggestion is wrong (the person was on leave): correct the attendance day or approve the leave; the suggestion falls away.
 - Termination review alert: never automatic; review the file with the owner and decide.
 
+### Rider pay basis (HR)
+
+1. Riders are paid per delivered order through their wallet: no salary package, no tax or insurance, never on the salary run. New riders get it by default (the hire wizard skips the Pay step).
+2. To pay a rider a monthly salary instead, open their file, Pay tab, and switch it (salaries switch needed); then set their salary package as usual.
+3. A final deduction violation of a rider paid per delivery is taken from their wallet, not payroll: amounts as recorded, days at the store's day of rider pay (Accounting, Configuration).
+4. When a rider leaves, the settlement shows their wallet (available, on hold, owed); they settle with a last withdrawal.
+
+**Check it went right**
+
+- Riders do not appear in the payroll preview; their file shows Per delivered order on the Pay tab.
+
+**If something is wrong**
+
+- A rider shows as waiting for pay: their pay basis is monthly salary by mistake; switch it on the Pay tab.
+
 ### Stores, hubs and zones
 
 1. Dark stores and hubs: open a location with a short code (letters and numbers), the address and the map position.
@@ -247,6 +262,21 @@ Also inside the app: settings menu (top of every screen), Help.
 - طلب واقف عند المدير: المدير الحالي مكتوب على الطلب؛ فكّره أو صحح المدير في الملف.
 - اقتراح غلط (الموظف كان في إجازة): صحح يوم الحضور أو وافق على الإجازة؛ والاقتراح هيختفي.
 - تنبيه مراجعة إنهاء الخدمة: عمره ما بيحصل لوحده؛ راجع الملف مع المالك وقرر.
+
+### طريقة دفع المناديب (شؤون العاملين)
+
+1. المناديب بيقبضوا بالطلب المُسلَّم من خلال محفظتهم: من غير مرتب ولا ضرايب ولا تأمينات، وعمرهم ما بيكونوا على مسير المرتبات. المندوب الجديد بياخدها افتراضيًا (معالج التعيين بيتخطى خطوة الأجر).
+2. عشان تدفع لمندوب مرتب شهري بدل كده، افتح ملفه، تبويب الأجر، وحوّلها (محتاج صلاحية المرتبات)؛ وبعدين حدد باقة المرتب عادي.
+3. خصم مخالفة نهائية لمندوب بالطلب بيتاخد من محفظته مش من المسير: المبالغ زي ما اتسجلت، والأيام بقيمة يوم أجر المندوب للمخزن (إعدادات الحسابات).
+4. لما مندوب يمشي، التسوية بتوري محفظته (المتاح، المعلّق، اللي عليه)؛ ويقفل بآخر سحب.
+
+**اتأكد إنها مشيت صح**
+
+- المناديب مش ظاهرين في معاينة المسير؛ وملفهم بيقول بالطلب المُسلَّم في تبويب الأجر.
+
+**لو فيه مشكلة**
+
+- مندوب ظاهر إنه مستني أجر: طريقة دفعه مرتب شهري بالغلط؛ حوّلها من تبويب الأجر.
 
 ### الفروع والمراكز والمناطق
 

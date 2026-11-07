@@ -13,7 +13,6 @@ import {
   merchantOwed,
   merchantStatement,
   payoutDueOn,
-  payRiderBonus,
   post,
   recordBankDeposit,
   recordCashHandover,
@@ -21,6 +20,7 @@ import {
   reviewCashHandover,
   riderBonusOwed,
   riderCash,
+  riderOwed,
   share,
   trialBalance,
 } from '../src/finance';
@@ -369,7 +369,9 @@ describe('cash', () => {
       note: 'Will bring it',
       actorUserId: admin,
     });
-    expect(await riderCash(prisma, riderId)).toBe(1000);
+    // The shortage leaves rider cash and is owed by the rider, taken from their next withdrawal.
+    expect(await riderCash(prisma, riderId)).toBe(0);
+    expect(await riderOwed(prisma, riderId)).toMatchObject({ duesPiastres: 1000 });
   });
 });
 
@@ -430,31 +432,12 @@ describe('merchant payouts and rider bonuses', () => {
     expect(statement.lines.at(-1)!.balanceAfterPiastres).toBe(3500);
   });
 
-  it('pays rider bonuses up to what was earned', async () => {
+  it('shows the rider pay earned and not paid on the rider wallets', async () => {
     await set('rider.bonus_per_delivery_piastres', 1500);
     await deliver(1);
-    await expect(
-      payRiderBonus(prisma, {
-        riderId,
-        amountPiastres: 2000,
-        from: 'bank',
-        reference: 'B1',
-        actorUserId: admin,
-        idempotencyKey: 'b1',
-      }),
-    ).rejects.toMatchObject({ code: 'more_than_owed' });
-    await payRiderBonus(prisma, {
-      riderId,
-      amountPiastres: 1500,
-      from: 'bank',
-      reference: 'B1',
-      actorUserId: admin,
-      idempotencyKey: 'b1',
-    });
-    expect(await riderBonusOwed(prisma, riderId)).toBe(0);
-
+    expect(await riderBonusOwed(prisma, riderId)).toBe(1500);
     const wallets = await financeWallets(prisma);
-    expect(wallets.riders[0]).toMatchObject({ bonusOwedPiastres: 0, cashPiastres: 4000 });
+    expect(wallets.riders[0]).toMatchObject({ bonusOwedPiastres: 1500, cashPiastres: 4000 });
     expect(wallets.totals).toMatchObject({
       cashWithRidersPiastres: 4000,
       owedToMerchantsPiastres: 4000,

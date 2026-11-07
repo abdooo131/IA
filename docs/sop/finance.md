@@ -121,6 +121,24 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Someone is missing from the run: HR has not set their salary package yet; ask HR (a ticket to the HR manager).
 
+### Rider withdrawals
+
+1. Riders are paid per delivered order only, never on the salary run. Accounting, Employees, Riders shows each rider's wallet: cash carried, in the wallet, on hold, owed and available.
+2. Accounting, Employees, Rider withdrawals: Open lists new requests and approved ones to pay. Each shows the rider, store, what they receive, what is deducted for what they owe and where the money goes.
+3. Check the details (IBAN, wallet number), then Approve, or Reject with a reason the rider reads.
+4. Pay: send the transfer (bank, InstaPay or wallet), then choose the bank or box it came from (cash at the store defaults to the store box, others to CIB), type the reference and Mark paid. One entry pays the rider and clears what they owed.
+5. From the approval limit another person pays what you approved. Cash at the store can also be handed over by the store manager.
+
+**Check it went right**
+
+- Nothing stays Approved for more than a working day; Paid requests carry the transfer reference.
+
+**If something is wrong**
+
+- Pay refused because the wallet changed (a new charge after the request): reject with a reason; the rider asks again.
+- The bank or box does not hold enough: pay from another account or deposit first.
+- Wrong details: reject with the reason; never change the rider's details yourself.
+
 ### HR deductions in the salary run
 
 1. The run brings HR's items by itself: unpaid leave days and final violation deductions not taken yet, each listed per person under HR deductions.
@@ -523,6 +541,24 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - حد مش ظاهر في المرتبات: الموارد البشرية لسه ما حددتش حزمة مرتبه؛ ابعت تذكرة لمدير الموارد البشرية.
+
+### سحوبات المناديب
+
+1. المناديب بيقبضوا بالطلب المُسلَّم بس، وعمرهم ما بيكونوا على مسير المرتبات. الحسابات، الموظفين، المناديب بتوري محفظة كل مندوب: الكاش اللي معاه، اللي في المحفظة، المعلّق، اللي عليه، والمتاح.
+2. الحسابات، الموظفين، سحوبات المناديب: المفتوحة فيها الطلبات الجديدة والموافق عليها للصرف. كل طلب بيوري المندوب والمخزن واللي هيقبضه والمخصوم من اللي عليه والفلوس رايحة فين.
+3. راجع البيانات (الآيبان، رقم المحفظة)، وبعدين وافق، أو ارفض بسبب المندوب هيقراه.
+4. الصرف: ابعت التحويل (بنك أو إنستاباي أو محفظة)، واختار البنك أو الخزنة اللي طلع منها (الكاش من المخزن افتراضيًا من خزنة المخزن، والباقي من CIB)، اكتب المرجع واضغط سجّل الصرف. قيد واحد بيصرف للمندوب ويقفل اللي عليه.
+5. من حد الموافقة شخص تاني هو اللي يصرف اللي إنت وافقت عليه. الكاش من المخزن ممكن مدير المخزن يسلّمه كمان.
+
+**اتأكد إنها مشيت صح**
+
+- مفيش طلب بيفضل موافق عليه أكتر من يوم عمل؛ والمصروف عليه مرجع التحويل.
+
+**لو فيه مشكلة**
+
+- الصرف اترفض لأن المحفظة اتغيرت (خصم جديد بعد الطلب): ارفض بسبب؛ والمندوب يطلب تاني.
+- البنك أو الخزنة مفيهمش كفاية: اصرف من حساب تاني أو اعمل إيداع الأول.
+- بيانات غلط: ارفض بالسبب؛ عمرك ما تغير بيانات المندوب بنفسك.
 
 ### خصومات شؤون العاملين في المسير
 

@@ -180,6 +180,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/payroll', label: 'payroll', exact: true, need: { salaries: true } },
           { href: '/finance/payroll/payslips', label: 'payslips', need: { salaries: true } },
           { href: '/finance/riders', label: 'riders' },
+          { href: '/finance/rider-withdrawals', label: 'riderWithdrawals' },
         ],
       },
       {

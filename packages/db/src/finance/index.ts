@@ -31,7 +31,6 @@ export {
   bankAccount,
   merchantOwed,
   payoutDueOn,
-  payRiderBonus,
   recordBankDeposit,
   recordCashHandover,
   recordMerchantAdjustment,
@@ -232,3 +231,22 @@ export {
   type VersionDisplayStatus,
 } from './contracts';
 export { type MerchantMonth, merchantProfitability, merchantProfitDetail } from './merchant-profit';
+export {
+  approveWithdrawal,
+  cancelWithdrawal,
+  chargeRiderPenalties,
+  chargeRiderPenalty,
+  chargeShortageToRider,
+  listRiderWithdrawals,
+  payWithdrawal,
+  rejectWithdrawal,
+  requestWithdrawal,
+  riderHoldRules,
+  riderOfUser,
+  riderOwed,
+  riderWallet,
+  riderWalletSummaries,
+  riderWalletTotals,
+  type RiderWithdrawalView,
+  type WithdrawalFilter,
+} from './rider-wallet';

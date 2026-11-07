@@ -28,6 +28,7 @@ export const PUSH_TYPES = [
   'crm_proposal',
   'hr_request',
   'hr_update',
+  'rider_wallet',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -55,6 +56,7 @@ export function pushTypesFor(me: MyAccess): PushType[] {
       'document_expiring',
       'hr_request',
       'hr_update',
+      'rider_wallet',
     ];
   const p: AccessProfile = me.profile;
   const list: PushType[] = [];
@@ -113,6 +115,25 @@ export const PUSH_TEXT = {
   rider_order: {
     en: ['Order {number} is yours', 'Open the rider app to start the delivery.'],
     ar: ['الطلب {number} معك', 'افتح تطبيق المندوب لبدء التوصيل.'],
+  },
+  rider_withdrawal_requested: {
+    en: ['Rider withdrawal {number}', '{rider} at {store} asks for {amount} EGP.'],
+    ar: ['طلب سحب مندوب {number}', '{rider} في {store} يطلب {amount} جنيه.'],
+  },
+  rider_withdrawal_approved: {
+    en: ['Withdrawal {number} approved', '{amount} EGP will be paid to you soon.'],
+    ar: ['تمت الموافقة على السحب {number}', 'سيتم دفع {amount} جنيه لك قريبًا.'],
+  },
+  rider_withdrawal_paid: {
+    en: ['Withdrawal {number} paid', '{amount} EGP was paid to you.'],
+    ar: ['تم دفع السحب {number}', 'تم دفع {amount} جنيه لك.'],
+  },
+  rider_withdrawal_rejected: {
+    en: [
+      'Withdrawal {number} not approved',
+      'The amount is back in your wallet. Open it for the reason.',
+    ],
+    ar: ['لم تتم الموافقة على السحب {number}', 'عاد المبلغ إلى محفظتك. افتحها لمعرفة السبب.'],
   },
   finance_request: {
     en: ['Waiting for your approval', '{amount} EGP from {name} needs a second person.'],

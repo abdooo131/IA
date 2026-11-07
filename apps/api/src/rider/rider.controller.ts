@@ -1,19 +1,23 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
+  cancelWithdrawal,
   completeDelivery,
   failDelivery,
   getSetting,
   recordDeliveryCall,
   recordRiderLocation,
-  riderBonusOwed,
+  requestWithdrawal,
   riderCash,
+  riderWallet,
+  riderWalletTotals,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   completeDeliverySchema,
   failDeliverySchema,
   riderLocationSchema,
+  withdrawalRequestSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { CurrentUser, Roles } from '../auth/decorators';
@@ -47,16 +51,21 @@ export class RiderController {
         OR: [{ deliveredAt: { gte: since } }, { failedAt: { gte: since } }],
       },
     });
-    const [cash, bonus, pingSeconds] = await Promise.all([
+    const [cash, wallet, pingSeconds] = await Promise.all([
       riderCash(this.prisma, rider.id),
-      riderBonusOwed(this.prisma, rider.id),
+      riderWalletTotals(this.prisma, rider.id),
       getSetting(this.prisma, 'tracking.rider_ping_seconds', rider.darkStoreId),
     ]);
     return {
       name: rider.user.name,
       pingSeconds,
       badgeCode: rider.badgeCode,
-      wallet: { cashPiastres: cash, bonusOwedPiastres: bonus },
+      wallet: {
+        cashPiastres: cash,
+        availablePiastres: wallet.totals.availablePiastres,
+        onHoldPiastres: wallet.totals.onHoldPiastres,
+        earnedMonthPiastres: wallet.totals.earnedMonthPiastres,
+      },
       darkStore: {
         code: rider.darkStore.code,
         nameEn: rider.darkStore.nameEn,
@@ -68,6 +77,32 @@ export class RiderController {
         codCollectedPiastres: today.reduce((s, d) => s + (d.codCollectedPiastres ?? 0), 0),
       },
     };
+  }
+
+  /**
+   * Rider pay (CLAUDE.md "Rider pay"): the signed in rider's own wallet: earnings with the day
+   * each becomes available, what they owe, and their withdrawals.
+   */
+  @Get('wallet')
+  async wallet(@CurrentUser() user: AccessTokenClaims) {
+    const rider = await this.riderOf(user);
+    return riderWallet(this.prisma, rider.id);
+  }
+
+  /** Asks for money that finished its hold (one key per tap: a retry answers the same). */
+  @Post('withdrawals')
+  withdraw(
+    @CurrentUser() user: AccessTokenClaims,
+    @Body(new ZodValidationPipe(withdrawalRequestSchema))
+    body: z.infer<typeof withdrawalRequestSchema>,
+  ) {
+    return requestWithdrawal(this.prisma, { riderUserId: user.sub, body });
+  }
+
+  /** Takes back a request Accounting has not approved yet. */
+  @Post('withdrawals/:id/cancel')
+  cancelWithdrawal(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    return cancelWithdrawal(this.prisma, { withdrawalId: id, riderUserId: user.sub });
   }
 
   /** The phone's position while carrying orders, shown on the customer's tracking page. */

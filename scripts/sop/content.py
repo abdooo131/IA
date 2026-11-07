@@ -1544,3 +1544,112 @@ _insert_after(
      "قسيمة المرتب فيها بنود خصم شؤون العاملين جنب الإجمالي."],
    "problems": [
      "خصم شكله غلط: ما تغيروش في المسير؛ كلم شؤون العاملين يلغوا أو يصححوا المخالفة أو الإجازة قبل ما تشغل المسير."]})
+
+# Rider pay (CLAUDE.md "Rider pay"): riders earn per delivered order only, through their wallet
+# and withdrawals; Accounting approves and pays; store managers hand over cash withdrawals; HR
+# keeps the pay basis on the file.
+_insert_after(
+  "rider", "Cash at the end of the shift", "الفلوس آخر الشيفت",
+  {"title": "My wallet and withdrawals",
+   "steps": [
+     "You earn a fixed amount for every delivered order (shown in My wallet). A failed attempt earns nothing. There is no salary, tax or insurance.",
+     "Open My wallet from your home screen: Available to withdraw, On hold (each earning frees up a few working days after its delivery day; Fridays and official holidays do not count), and what you owe.",
+     "What you owe (cash short at hand in, damage charged to you, penalties, an advance) is taken first: the form shows what leaves your wallet, what is taken and what you receive.",
+     "Tap Withdraw money, type the amount or tap All available, choose how: cash at your store, InstaPay, a mobile wallet (Vodafone Cash, Etisalat Cash, Orange Cash, WE Pay) or a bank IBAN, then Send request.",
+     "You can cancel a request until Accounting approves it. You get a notification when it is approved, paid or not approved."],
+   "check": [
+     "The request shows Waiting, then Approved, then Paid with the reference.",
+     "Cash at the store: the store manager hands you the cash and records it; count it in front of them."],
+   "problems": [
+     "Not approved: read the reason under the request; the amount is back in your wallet at once.",
+     "An earning is missing: check the order was delivered (not failed); ask your store lead with the order number.",
+     "You do not agree with what you owe: ask your store lead or write a ticket to finance before you withdraw."]},
+  {"title": "محفظتي والسحب",
+   "steps": [
+     "بتكسب مبلغ ثابت عن كل طلب اتسلّم (مكتوب في محفظتي). المحاولة الفاشلة مالهاش أجر. مفيش مرتب ولا ضرايب ولا تأمينات.",
+     "افتح محفظتي من الشاشة الرئيسية: متاح للسحب، معلّق (كل مبلغ بيبقى متاح بعد كام يوم عمل من يوم التوصيل؛ الجمعة والإجازات الرسمية مش محسوبة)، واللي عليك.",
+     "اللي عليك (عجز في تسليم الكاش، تلفيات اتحسبت عليك، جزاءات، سلفة) بيتخصم الأول: الفورم بيوريك اللي هيطلع من محفظتك واللي هيتخصم واللي هتقبضه.",
+     "اضغط اسحب فلوسي، اكتب المبلغ أو اضغط كل المتاح، واختار الطريقة: كاش من المخزن، إنستاباي، محفظة موبايل (فودافون كاش، اتصالات كاش، أورنج كاش، WE Pay) أو آيبان بنكي، وبعدين ابعت الطلب.",
+     "تقدر تلغي الطلب لحد ما الحسابات توافق عليه. هيوصلك إشعار لما يتوافق عليه أو يتصرف أو يترفض."],
+   "check": [
+     "الطلب بيبقى مستني، وبعدين اتوافق عليه، وبعدين اتصرف بالمرجع.",
+     "الكاش من المخزن: مدير المخزن بيسلّمك الكاش ويسجّله؛ عدّه قدامه."],
+   "problems": [
+     "اترفض: اقرا السبب تحت الطلب؛ المبلغ بيرجع محفظتك على طول.",
+     "مبلغ ناقص: اتأكد إن الطلب اتسلّم (مش فاشل)؛ اسأل مسؤول المخزن برقم الطلب.",
+     "مش موافق على اللي عليك: كلم مسؤول المخزن أو اكتب تذكرة للمالية قبل ما تسحب."]})
+
+_insert_after(
+  "store_staff", "Rider cash limit and petty cash", "حد نقدية المندوب والنثريات",
+  {"title": "Rider withdrawals in cash (store manager)",
+   "steps": [
+     "Riders may ask to be paid in cash at the store. Once Accounting approves, the request shows under Rider withdrawals in cash on the Cash screen (store managers only).",
+     "Count the amount from the store box in front of the rider, hand it over, then tap Cash given (add a note if needed).",
+     "The amount comes out of the store cash box; nothing else to record."],
+   "check": [
+     "The request shows Paid; the rider's app shows it paid."],
+   "problems": [
+     "The box does not hold enough: do not pay part of it; tell finance by ticket (they may pay by transfer instead).",
+     "The rider asks for cash that is not on the list: it is not approved yet; send them to Accounting."]},
+  {"title": "سحوبات المناديب كاش (مدير المخزن)",
+   "steps": [
+     "المندوب ممكن يطلب يقبض كاش من المخزن. بعد موافقة الحسابات، الطلب بيظهر تحت سحوبات المناديب كاش في شاشة الكاش (لمدير المخزن بس).",
+     "عدّ المبلغ من خزنة المخزن قدام المندوب، سلّمه، وبعدين اضغط الكاش اتسلّم (اكتب ملاحظة لو محتاج).",
+     "المبلغ بيطلع من خزنة المخزن؛ مفيش حاجة تانية تتسجل."],
+   "check": [
+     "الطلب بيقول اتصرف؛ وتطبيق المندوب بيوريه مصروف."],
+   "problems": [
+     "الخزنة مفيهاش كفاية: ما تدفعش جزء؛ بلّغ المالية بتذكرة (ممكن يحوّلوا بدل الكاش).",
+     "المندوب بيطلب كاش مش في القائمة: لسه ما اتوافقش عليه؛ وجّهه للحسابات."]})
+
+_insert_after(
+  "finance", "Salaries and advances", "المرتبات والسلف",
+  {"title": "Rider withdrawals",
+   "steps": [
+     "Riders are paid per delivered order only, never on the salary run. Accounting, Employees, Riders shows each rider's wallet: cash carried, in the wallet, on hold, owed and available.",
+     "Accounting, Employees, Rider withdrawals: Open lists new requests and approved ones to pay. Each shows the rider, store, what they receive, what is deducted for what they owe and where the money goes.",
+     "Check the details (IBAN, wallet number), then Approve, or Reject with a reason the rider reads.",
+     "Pay: send the transfer (bank, InstaPay or wallet), then choose the bank or box it came from (cash at the store defaults to the store box, others to CIB), type the reference and Mark paid. One entry pays the rider and clears what they owed.",
+     "From the approval limit another person pays what you approved. Cash at the store can also be handed over by the store manager."],
+   "check": [
+     "Nothing stays Approved for more than a working day; Paid requests carry the transfer reference."],
+   "problems": [
+     "Pay refused because the wallet changed (a new charge after the request): reject with a reason; the rider asks again.",
+     "The bank or box does not hold enough: pay from another account or deposit first.",
+     "Wrong details: reject with the reason; never change the rider's details yourself."]},
+  {"title": "سحوبات المناديب",
+   "steps": [
+     "المناديب بيقبضوا بالطلب المُسلَّم بس، وعمرهم ما بيكونوا على مسير المرتبات. الحسابات، الموظفين، المناديب بتوري محفظة كل مندوب: الكاش اللي معاه، اللي في المحفظة، المعلّق، اللي عليه، والمتاح.",
+     "الحسابات، الموظفين، سحوبات المناديب: المفتوحة فيها الطلبات الجديدة والموافق عليها للصرف. كل طلب بيوري المندوب والمخزن واللي هيقبضه والمخصوم من اللي عليه والفلوس رايحة فين.",
+     "راجع البيانات (الآيبان، رقم المحفظة)، وبعدين وافق، أو ارفض بسبب المندوب هيقراه.",
+     "الصرف: ابعت التحويل (بنك أو إنستاباي أو محفظة)، واختار البنك أو الخزنة اللي طلع منها (الكاش من المخزن افتراضيًا من خزنة المخزن، والباقي من CIB)، اكتب المرجع واضغط سجّل الصرف. قيد واحد بيصرف للمندوب ويقفل اللي عليه.",
+     "من حد الموافقة شخص تاني هو اللي يصرف اللي إنت وافقت عليه. الكاش من المخزن ممكن مدير المخزن يسلّمه كمان."],
+   "check": [
+     "مفيش طلب بيفضل موافق عليه أكتر من يوم عمل؛ والمصروف عليه مرجع التحويل."],
+   "problems": [
+     "الصرف اترفض لأن المحفظة اتغيرت (خصم جديد بعد الطلب): ارفض بسبب؛ والمندوب يطلب تاني.",
+     "البنك أو الخزنة مفيهمش كفاية: اصرف من حساب تاني أو اعمل إيداع الأول.",
+     "بيانات غلط: ارفض بالسبب؛ عمرك ما تغير بيانات المندوب بنفسك."]})
+
+_insert_after(
+  "admin", "Leave and violations (HR)", "الإجازات والمخالفات (شؤون العاملين)",
+  {"title": "Rider pay basis (HR)",
+   "steps": [
+     "Riders are paid per delivered order through their wallet: no salary package, no tax or insurance, never on the salary run. New riders get it by default (the hire wizard skips the Pay step).",
+     "To pay a rider a monthly salary instead, open their file, Pay tab, and switch it (salaries switch needed); then set their salary package as usual.",
+     "A final deduction violation of a rider paid per delivery is taken from their wallet, not payroll: amounts as recorded, days at the store's day of rider pay (Accounting, Configuration).",
+     "When a rider leaves, the settlement shows their wallet (available, on hold, owed); they settle with a last withdrawal."],
+   "check": [
+     "Riders do not appear in the payroll preview; their file shows Per delivered order on the Pay tab."],
+   "problems": [
+     "A rider shows as waiting for pay: their pay basis is monthly salary by mistake; switch it on the Pay tab."]},
+  {"title": "طريقة دفع المناديب (شؤون العاملين)",
+   "steps": [
+     "المناديب بيقبضوا بالطلب المُسلَّم من خلال محفظتهم: من غير مرتب ولا ضرايب ولا تأمينات، وعمرهم ما بيكونوا على مسير المرتبات. المندوب الجديد بياخدها افتراضيًا (معالج التعيين بيتخطى خطوة الأجر).",
+     "عشان تدفع لمندوب مرتب شهري بدل كده، افتح ملفه، تبويب الأجر، وحوّلها (محتاج صلاحية المرتبات)؛ وبعدين حدد باقة المرتب عادي.",
+     "خصم مخالفة نهائية لمندوب بالطلب بيتاخد من محفظته مش من المسير: المبالغ زي ما اتسجلت، والأيام بقيمة يوم أجر المندوب للمخزن (إعدادات الحسابات).",
+     "لما مندوب يمشي، التسوية بتوري محفظته (المتاح، المعلّق، اللي عليه)؛ ويقفل بآخر سحب."],
+   "check": [
+     "المناديب مش ظاهرين في معاينة المسير؛ وملفهم بيقول بالطلب المُسلَّم في تبويب الأجر."],
+   "problems": [
+     "مندوب ظاهر إنه مستني أجر: طريقة دفعه مرتب شهري بالغلط؛ حوّلها من تبويب الأجر."]})
