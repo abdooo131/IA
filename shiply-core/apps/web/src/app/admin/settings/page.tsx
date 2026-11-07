@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { SETTINGS, egpToPiastres, type SettingKey } from '@shiply/shared';
-import { Alert, Button, Card, Input, Loading, PageHeader } from '@/components/ui';
+import { Alert, Button, Card, Input, Loading, PageHeader, Select } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { useLoad } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
@@ -9,7 +9,9 @@ import { useT } from '@/lib/i18n';
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
 /** Short names and explanations for each setting. */
-const LABELS: Record<SettingKey, [string, string]> = {
+// The closed books date is changed only from Books and reports, where closing is checked.
+type Editable = Exclude<SettingKey, 'books.closed_through'>;
+const LABELS: Record<Editable, [string, string]> = {
   'promise.cutoff': ['Daily cutoff', 'Parcels entering after this time count from tomorrow'],
   'promise.weekend_days': ['Days with no deliveries', 'Skipped when counting the promised date'],
   'delivery.max_attempts': ['Delivery attempts', 'Failed attempts before the parcel goes back to the merchant'],
@@ -22,7 +24,19 @@ const LABELS: Record<SettingKey, [string, string]> = {
   'attendance.alert_after_minutes': ['Attendance alert (minutes)', 'Minutes after the shift starts with no check in before the agent is asked'],
   'attendance.replacement_minutes': ['Replacement window (minutes)', 'Time an agent has to send someone after saying a person is not coming'],
   'cash.shortage_alert': ['Courier cash alert', 'Cash difference that raises an alert'],
+  'fees.payout_fee': ['Cash out fee', 'Taken from each merchant payout'],
+  'attendance.replacement_penalty': ['Late replacement penalty', 'Charged to the agent each time a replacement comes late or never'],
+  'pay.point_value': ['Point value', 'What one courier point is worth'],
+  'pay.points_delivery': ['Points per delivery', 'Each parcel delivered to a customer'],
+  'pay.points_return': ['Points per return', 'Each parcel handed back to a merchant'],
+  'pay.points_pickup_parcel': ['Points per picked up parcel', 'Each parcel the facility receives from a pickup courier'],
+  'pay.daily_bonus_parcels': ['Daily bonus target', 'Deliveries in one day that earn the bonus (0 = no bonus)'],
+  'pay.daily_bonus_points': ['Daily bonus points', 'Points for reaching the daily target'],
+  'pay.freeze_days': ['Earnings freeze (days)', 'Days before a courier can withdraw what they earned'],
+  'pay.pickup_paid_by': ['Pickup staff paid by', 'The company pays them directly, or their agent at month end'],
 };
+
+const CHOICE_LABELS: Record<string, string> = { COMPANY: 'The company', AGENT: 'Their agent' };
 
 function toText(kind: string, value: unknown): string {
   if (kind === 'money') return String((value as number) / 100);
@@ -30,7 +44,7 @@ function toText(kind: string, value: unknown): string {
   return String(value ?? '');
 }
 
-function SettingRow({ name, value, onSaved }: { name: SettingKey; value: unknown; onSaved: () => Promise<void> }) {
+function SettingRow({ name, value, onSaved }: { name: Editable; value: unknown; onSaved: () => Promise<void> }) {
   const t = useT();
   const def = SETTINGS[name];
   const [text, setText] = useState(toText(def.kind, value));
@@ -79,7 +93,14 @@ function SettingRow({ name, value, onSaved }: { name: SettingKey; value: unknown
   };
 
   let input: React.ReactNode;
-  if (def.kind === 'weekdays') {
+  if (def.kind === 'choice') {
+    const options = (def as { options?: readonly string[] }).options ?? [];
+    input = (
+      <Select value={text} onChange={(e) => setText(e.target.value)}>
+        {options.map((o) => <option key={o} value={o}>{t(CHOICE_LABELS[o] ?? o)}</option>)}
+      </Select>
+    );
+  } else if (def.kind === 'weekdays') {
     input = (
       <div className="flex flex-wrap gap-2">
         {DAYS.map((d, i) => (
@@ -130,7 +151,7 @@ export default function SettingsPage() {
     <div className="space-y-5">
       <PageHeader eyebrow={t('Setup')} title={t('Settings')} subtitle={t('Business rules used by every facility, hub and courier. Changes apply to new actions at once.')} />
       <Card>
-        {(Object.keys(SETTINGS) as SettingKey[]).map((key) => (
+        {(Object.keys(LABELS) as Editable[]).map((key) => (
           <SettingRow key={`${key}-${JSON.stringify(data[key])}`} name={key} value={data[key]} onSaved={reload} />
         ))}
       </Card>

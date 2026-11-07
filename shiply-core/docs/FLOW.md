@@ -76,6 +76,52 @@ Operations can ask an agent for a vehicle with a driver (special merchant pickup
 vehicle) at an agreed price. The agent answers with the driver and vehicle; operations close it
 when the job is done.
 
+## Money
+
+Every money movement is a double entry in the books (`journal_entries`, `journal_lines`), which
+cannot be edited and must balance. Wallets are balances on shared accounts, one per party:
+
+| Account | What it holds |
+| --- | --- |
+| 1000 Bank | Money in the company bank |
+| 1100 Hub safes | Cash each hub received from couriers, until it is deposited |
+| 1200 Cash with couriers | Cash a courier collected and has not handed in |
+| 2100 Merchant balances | What we owe each merchant: cash collected minus fees |
+| 2200 Courier wallets | What each courier earned, minus shortages and penalties |
+| 2300 Owed to agents | Month end settlements not yet paid |
+| 4000 to 4900 | Shipping, COD fee, return fee, cash out fee and other income |
+| 5000 to 5290 | Courier pay, agent commission, vehicles, rent and other expenses |
+
+What posts, and when:
+
+1. **Delivered**: the courier holds the cash; the merchant is owed it less shipping and COD fee;
+   the courier earns delivery points.
+2. **Returned to the merchant**: shipping and the return fee (60% of shipping) are charged; the
+   courier earns return points.
+3. **Pickup received at the facility**: the pickup courier earns points for each parcel.
+4. **Run closed at the hub**: cash moves from the courier to the hub safe. Cash already paid in
+   through Fawry for that run is not expected. A shortage comes out of the courier's wallet. A
+   courier who reaches the daily target earns the daily bonus.
+5. **Fawry pay in**: the courier uploads the receipt; finance confirms the money arrived. It lowers
+   the cash they owe, or recharges a negative wallet.
+6. **Negative wallet**: the courier is frozen and cannot be given a run until they recharge, or
+   finance lets them work for up to 72 hours with a written reason.
+7. **Withdrawal**: couriers paid by the company withdraw earnings older than 3 days, approved by
+   finance. Delivery staff of an agent (and pickup staff, if the setting says agents pay them) are
+   paid through their agent instead.
+8. **Merchant payout**: on the merchant's payout days, everything whose cash is in a hub safe goes
+   into a payout. A second person approves it, the bank file goes to CIB, then it is marked paid.
+   A change of bank account also needs a second person.
+9. **Agent month end**: staff earnings for the month, commission on work (15% by default), fixed
+   vehicle rent and special vehicles, minus penalties for late replacements. A second person
+   approves; the agent uploads an invoice; then it is paid.
+10. **Hub safe deposit**, **expenses** and **manual journals** (opening balances) are confirmed by a
+    second person before they post.
+11. **Closing the books** for a day stops anything being posted on or before it.
+
+Reports: trial balance, profit and loss, balance sheet, and the age of money held (cash with
+couriers, and what merchants are waiting for).
+
 ## Statuses
 
 | Status | Meaning | Where it is |

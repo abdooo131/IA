@@ -125,7 +125,31 @@ async function main() {
   await cCaie(`/courier/stops/${stops2[0].id}/deliver`, { codCollected: stops2[0].shipment.codAmount, recipient: 'Customer' });
   await cCaie(`/courier/stops/${stops2[1].id}/fail`, { reason: 'NO_ANSWER' });
 
+  await money({ admin, merchant, giz, cCaie, hubs });
+
   console.log(`Demo ready. Waiting for pickup: ${notPicked.trackingNumber}. On a lane at Obour: ${waitingSort.trackingNumber}. Bagged for Tanta: ${tanta.trackingNumber}. Not yet scanned at Alexandria: ${alexandria[1].trackingNumber}. Return shelf: ${giza[3].trackingNumber}.`);
+}
+
+/** Money: bank details, a payout waiting for a second person, a Fawry pay in, a safe deposit, opening balances, an expense. */
+async function money({ admin, merchant, giz, cCaie, hubs }) {
+  const finance = await session('finance@shiply.local');
+  const receipt = { fileName: 'receipt.png', mime: 'image/png', dataBase64: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=' };
+  const today = new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 10);
+  await merchant('/merchant/bank', { bankName: 'CIB', bankAccountName: 'Eve Chantelle LLC', iban: 'EG380019000500000000263180002' }, 'PUT');
+  const merchantId = (await merchant('/auth/me')).merchantId;
+  try {
+    await admin(`/finance/merchants/${merchantId}/payouts`, {});
+  } catch (e) {
+    console.log(`No payout yet: ${e.message}`);
+  }
+  const run = await cCaie('/courier/run');
+  const cash = run?.items.filter((i) => i.result === 'DELIVERED').reduce((n, i) => n + i.codCollected, 0) ?? 0;
+  if (run && cash > 0) await cCaie('/courier/pay-ins', { amount: cash, reference: 'FWR 4471', runId: run.id, receipt });
+  const safe = await giz(`/hubs/${hubs.GIZ}/safe`);
+  if (safe.available > 0) await giz(`/hubs/${hubs.GIZ}/safe/deposits`, { amount: safe.available, reference: 'CIB slip 20931', receipt });
+  const j = await admin('/finance/journals', { date: today, memo: 'Opening bank balance', lines: [{ account: '1000', debit: 25000000 }, { account: '3000', credit: 25000000 }] });
+  await finance(`/finance/journals/${j.id}/approve`, {});
+  await admin('/finance/expenses', { date: today, accountCode: '5240', amount: 85000, supplier: 'Wataniya', note: 'Van fuel' });
 }
 
 main().catch((e) => {

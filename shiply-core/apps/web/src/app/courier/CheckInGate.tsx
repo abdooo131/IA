@@ -1,4 +1,5 @@
 'use client';
+import { usePathname } from 'next/navigation';
 import { useState, type ReactNode } from 'react';
 import { Alert, Button, Card, Loading } from '@/components/ui';
 import { clock } from '@/components/workforce';
@@ -13,7 +14,7 @@ interface MyShift {
 }
 
 /** Shrinks a camera photo to at most 960 px and JPEG, so the upload stays small. */
-async function toJpeg(file: File): Promise<string> {
+export async function toJpeg(file: File): Promise<string> {
   const bitmap = await createImageBitmap(file);
   const scale = Math.min(1, 960 / Math.max(bitmap.width, bitmap.height));
   const canvas = document.createElement('canvas');
@@ -42,13 +43,15 @@ export function CheckInGate({ children }: { children: ReactNode }) {
   const t = useT();
   const locale = useLocale();
   const my = useLoad<MyShift>('/courier/shift');
+  // The wallet stays open without a check in: a frozen courier must be able to recharge.
+  const open = usePathname().startsWith('/courier/wallet');
   const [preview, setPreview] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   if (!my.data) return my.error ? <Alert>{my.error}</Alert> : <Loading />;
   const s = my.data.shift;
-  if (!my.data.linked || s?.checkInAt) {
+  if (open || !my.data.linked || s?.checkInAt) {
     return (
       <>
         {s?.checkInAt && (

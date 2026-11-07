@@ -5,6 +5,7 @@ const NAV: NavItem[] = [
   { href: '/agent', label: 'Today', icon: 'home' },
   { href: '/agent/staff', label: 'Staff', icon: 'customers' },
   { href: '/agent/vehicles', label: 'Vehicles', icon: 'route' },
+  { href: '/agent/settlements', label: 'Monthly settlements', icon: 'wallet' },
 ];
 const ROLES: Me['role'][] = ['AGENT'];
 

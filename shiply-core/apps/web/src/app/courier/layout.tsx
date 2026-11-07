@@ -5,6 +5,7 @@ import { CheckInGate } from './CheckInGate';
 const NAV: NavItem[] = [
   { href: '/courier', label: 'My run', icon: 'route' },
   { href: '/courier/pickups', label: 'Pickups', icon: 'pickups' },
+  { href: '/courier/wallet', label: 'My wallet', icon: 'wallet' },
 ];
 
 export default function CourierLayout({ children }: { children: React.ReactNode }) {

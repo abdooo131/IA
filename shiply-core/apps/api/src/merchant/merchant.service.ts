@@ -294,7 +294,9 @@ export async function merchantStatement(prisma: PrismaService, merchantId: strin
     _sum: { codCollected: true },
   });
   const payouts = await prisma.payout.findMany({ where: { merchantId }, orderBy: { createdAt: 'desc' }, take: 20 });
+  const m = await prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } });
   return {
+    bank: { bankName: m.bankName, accountName: m.bankAccountName, iban: m.iban ? `•••• ${m.iban.slice(-4)}` : '', changePending: !!m.pendingBank, payoutDays: m.payoutDays },
     shipments: open.map((s) => ({
       id: s.id,
       trackingNumber: s.trackingNumber,

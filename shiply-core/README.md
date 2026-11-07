@@ -44,6 +44,7 @@ Password `demo12345` (from `SEED_DEMO_PASSWORD`). The admin uses `SEED_ADMIN_EMA
 | Obour facility | `staff.obr@` supervisor, `inbound.obr@`, `sorting.obr@`, `outbound.obr@`, first mile `courier.obr@` (all `@shiply.local`) |
 | Alexandria facility | the same with `alxsf` |
 | Last mile hubs | `staff.<hub>@shiply.local` and `courier.<hub>@shiply.local` for `caie`, `cais`, `giz`, `dlt`, `ast`, `alx`, `dmn` |
+| Finance (second admin, for approvals) | `finance@shiply.local` |
 | Agents | `agent@cairomovers.example` (code `AGCAIRO`, pickup staff), `agent@deltariders.example` (code `AGDELTA`, delivery staff) |
 
 Anyone with a phone on their account can also sign in with the phone instead of the email.
@@ -61,7 +62,10 @@ through the facility, three failed attempts, cash, payout, tracking privacy, tea
 database it creates and drops itself, so it never touches existing data. A second test covers agents
 and workforce: agent papers, joining with the agent code, approval into the right kind of hub, phone
 login, the 30 minute attendance alert, late and not coming answers, the 1 hour replacement rule and its
-escalation, check in with a photo, and special vehicle requests.
+escalation, check in with a photo, and special vehicle requests. A third test covers money: deliveries
+posting to the books, Fawry pay ins, a short run freezing the courier, recharge and override, withdrawals
+after the freeze, hub safe deposits, agent month end with commission on work only, expenses, opening
+balances, closing the books, and the database refusing an unbalanced or edited entry.
 
 ## Rules the code keeps
 
@@ -73,3 +77,7 @@ escalation, check in with a photo, and special vehicle requests.
 5. Hub staff can only act in their own hub; couriers only see their own pickups and runs;
    merchants only their own parcels.
 6. Public tracking never shows the address, phone or fees.
+7. Every money movement posts a double entry journal through one function. The books are append
+   only and the database refuses an entry that does not balance or a date in a closed period.
+8. Whoever creates a payout, withdrawal approval, expense, settlement or manual journal cannot
+   approve it: a second person must.

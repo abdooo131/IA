@@ -46,9 +46,11 @@ export interface NavItem {
   group?: string;
 }
 
-function isActive(href: string, pathname: string, first: boolean) {
+function isActive(href: string, pathname: string, first: boolean, all: string[] = []) {
   if (first) return pathname === href;
-  return pathname === href || pathname.startsWith(`${href}/`);
+  const matches = (h: string) => pathname === h || pathname.startsWith(`${h}/`);
+  // The most specific item wins: /admin/money/payouts lights up Payouts, not Money overview.
+  return matches(href) && !all.some((h) => h.length > href.length && h.startsWith(href) && matches(h));
 }
 
 function Prefs() {
@@ -148,7 +150,7 @@ export function Shell({ roles, nav: navFor, area, children }: { roles: Me['role'
                 {g.label && <p className="px-3 pb-1 pt-2 text-label uppercase text-text-muted">{t(g.label)}</p>}
                 <ul className="space-y-0.5">
                   {g.items.map((item) => {
-                    const active = isActive(item.href, pathname, item.href === nav[0]?.href);
+                    const active = isActive(item.href, pathname, item.href === nav[0]?.href, nav.map((n) => n.href));
                     return (
                       <li key={item.href}>
                         <Link
