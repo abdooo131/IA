@@ -6,6 +6,7 @@ import type { AdminStore } from '@/lib/admin-types';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import { shiftMonth } from '@/lib/leave';
 import type { LeaveCalendar } from '@/lib/leave-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,8 +46,7 @@ export default async function LeaveCalendarPage({
   );
   return (
     <>
-      <h1 className="text-h2">{t('calendarTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('calendarIntro')}</p>
+      <HrPageHeader title={t('calendarTitle')} intro={t('calendarIntro')} />
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <Link href={keep(shiftMonth(month, -1))} className={nav} aria-label={t('previousMonth')}>
           ‹

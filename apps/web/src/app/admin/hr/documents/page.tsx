@@ -13,6 +13,7 @@ import {
   type MissingDocumentRow,
   type PendingDocument,
 } from '@/lib/hr-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 const field = 'h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
@@ -44,8 +45,7 @@ export default async function HrDocumentsPage({
   const people = new Set(missing.map((m) => m.employee.id)).size;
   return (
     <>
-      <h1 className="text-h2">{t('docsTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('docsIntro')}</p>
+      <HrPageHeader title={t('docsTitle')} intro={t('docsIntro')} />
 
       <section className="mt-4 rounded-lg border border-line bg-surface" aria-labelledby="pending">
         <h2 id="pending" className="border-b border-line p-4 text-h3">

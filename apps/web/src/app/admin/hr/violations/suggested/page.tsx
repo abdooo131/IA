@@ -4,6 +4,7 @@ import { SuggestionsList } from '@/components/hr/leave/SuggestionsList';
 import { ViolationTabs } from '@/components/hr/leave/ViolationTabs';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { Suggestion } from '@/lib/leave-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,8 +17,7 @@ export default async function SuggestedViolationsPage() {
   ]);
   return (
     <>
-      <h1 className="text-h2">{t('suggestedTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('suggestedIntro')}</p>
+      <HrPageHeader title={t('suggestedTitle')} intro={t('suggestedIntro')} />
       <ViolationTabs current="suggested" suggested={rows.length} />
       <SuggestionsList rows={rows} canUse={canDo(profile, 'hr', 'use')} />
     </>

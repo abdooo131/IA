@@ -169,6 +169,9 @@ is theirs.
   migration raises existing Store manager profiles from none to view.
 - HR phase 3: no new column; the hr levels above cover leave and violations. Store managers (hr
   view) read their stores' leave and violations and approve only as managers in force.
+- HR phase 1 (usability): no new column. The HR home (`GET /hr/overview`), the employee list
+  (`GET /hr/directory`) and a file's completeness are hr view, inside the person's stores like
+  every HR list; the inbox counts on the home follow the inbox's own rules.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or
   Finance manager (approve).
 - store_staff → Store staff for their own store.

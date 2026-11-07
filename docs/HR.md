@@ -1,4 +1,4 @@
-# HR module (plan approved; step 1 built, then HR v2; step 2 built; phase 3 built)
+# HR module (plan approved; step 1 built, then HR v2; step 2 built; phase 3 built; phase 1 usability built)
 
 Decisions taken by the owner on 2026-11-06: attendance by a Clock in button with a location
 check, violations from a penalty list that reaches payroll, leave by requests and balances,
@@ -408,6 +408,79 @@ Agreed with the owner on 2026-11-07; decisions taken while building are marked (
   days ½, weekends and holidays shaded), filtered by department (with those below it) and store;
   it scrolls sideways inside its box and phones also get a list of days.
 - Grades and positions edit their annual leave days.
+
+## Phase 1 as built (usability: easier to find and use; no new business rules)
+
+Agreed with the owner on 2026-11-07; decisions taken while building are marked (chosen). No
+schema change: everything reads what the files and records already hold.
+
+### HR home
+
+- The HR app opens on `/admin/hr/overview` (menu Overview, the app tile and the app name lead
+  there). `GET /hr/overview` (hr view, the person's store scope) returns: right now from the
+  Today board (in, late, absent meaning planned and not in past the grace, on leave, not due yet,
+  left, off) with who to call (absent and late, up to 8); the inbox counts (leave, day fixes,
+  appeals, by the inbox's own rules) with suggested and open (recorded or appealed) violations;
+  documents not in order (missing or refused, waiting for HR, running out, expired, the soonest
+  six); open joining and leaving checklists with late tasks (offboarding of people who left is
+  counted, chosen: the old open list hid it); probation and contract ends in the next 30 days;
+  birthdays and work anniversaries (one year or more) from today to six days ahead; headcount
+  of everyone not left by department and by employment. Every card has a button to act.
+- Probation: the file's probation end, else the hire date plus `hr.probation_months` less a day
+  (chosen: older files have no date because only new files got one filled in). Contract ends
+  use `contract_ends_on`; birthdays use `birth_date` (the file already had both).
+
+### Employee list
+
+- `GET /hr/directory` (hr view, store scope): the directory's rows plus the documents share,
+  the probation end, open violations and flags: documents missing, on probation, leaving (left
+  with a last day still ahead), left, on leave today (approved leave today or the status on
+  leave), open violation. Filters as before plus `flag`; sort by name, EMP code, hire date,
+  department, store or documents (`dir=desc`); 50 rows a page (a page past the end shows the
+  last). `flagCounts` counts each flag before the flag filter. `GET /hr/employees.csv` takes the
+  same filters and sort, every page, with probation end and flags columns.
+- The page keeps everything in the address (search, filters, flag, sort, page); changing a
+  filter goes back to page 1. Desktop shows a table with sortable columns, phones one card per
+  person; flag chips above the list filter in one tap. The four numbers that were on the
+  directory moved to the HR home (chosen); the table or cards switch was replaced by the
+  automatic phone cards.
+
+### Employee file
+
+- Header (photo, name, EMP, position, grade, manager link, department, store, status, tenure)
+  with quick actions: Call, WhatsApp (wa.me with the +20 number), Upload a document, Request
+  leave for them and Record a violation (hr use, not for people who left), Change status (hr
+  manage) and Edit file (hr use). The list flags show under it.
+- Completeness bar, "File 80% complete" (`fileCompleteness` in packages/shared, pure): photo,
+  mobile, national ID, birth date, address, emergency contact (name and phone), hire date, the
+  salary bank account (IBAN or account number; only for employees and only with the salaries
+  switch) and each required document (verified or running out counts). It lists exactly what is
+  missing; each item links to where it is fixed. The documents' own percent stays as before.
+- Tabs kept in the address (`?tab=`): Overview, Job (where they work now, employment, the form
+  and the history of moves built from the audit rows of the file: department, position, grade,
+  manager, store, title, contract, employment), Pay (salaries switch), Documents, Attendance
+  (today's plan and punches, the last 30 closed days, each opening the day), Leave (balances,
+  requests, HR's adjustments, ask for them), Violations (theirs, record one), Checklists, Team
+  and History. Nothing that was on the file was removed.
+
+### Setup pages and menus
+
+- `/admin/hr/organisation`: tabs Departments (the tree on the left: fold and unfold, head,
+  headcount of the department and those below it; the selected department, kept in the address,
+  shows its head, cost store, people and its positions with grade range, planned against in
+  post, open places and leave days), All positions and Grades (a compact ordered table with
+  bands, leave days, people, move up or down). Add and Edit open a side panel. The old
+  addresses `/admin/hr/departments`, `/positions` and `/grades` redirect to the right tab.
+- `/admin/hr/attendance-setup`: tabs Shifts and Official holidays (year navigation);
+  `/admin/hr/shifts` and `/admin/hr/holidays` redirect.
+- Menus: Overview; Employees (Employee list, Org chart, Documents to check, Joining and leaving
+  checklists); Time (Today, Attendance days, Roster, Leave requests, Leave calendar, Leave
+  balances); Discipline (Violations, Suggested); Inbox; Configuration (Organisation, Attendance
+  setup, Leave types, Violation types, Document types, Checklist templates, Settings). Pages in
+  a menu may carry a one line description (`apps.hints`), shown under the name in the menu
+  (chosen: the Configuration pages).
+- Every HR page uses one header (title, a plain one or two line explanation, the main action)
+  and lists that can be empty show what the page is for and the first action.
 
 ## Build order
 

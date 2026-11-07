@@ -478,9 +478,9 @@ EN = {
     "sections": [
       {"title": "Attendance and shifts",
        "steps": [
-         "HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
-         "HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
-         "HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
+         "HR, Configuration, Attendance setup: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
+         "HR, Time, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
+         "HR, Time, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
          "Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason."],
        "check": [
          "Yesterday's days are closed the morning after; a forgotten clock out shows the flag."],
@@ -527,17 +527,20 @@ EN = {
          "A count is stale: ask the store to count the bin again."]},
       {"title": "People (HR app)",
        "steps": [
-         "Employees: search by name, mobile, national ID or EMP code; filter by department, position, grade, store or status; switch between table and cards; export CSV.",
-         "Open a file: the header shows the photo, position, grade, department, manager and how complete the documents are. Tabs: Overview, Job and contract, Salary package (with the salaries switch), Documents, Onboarding, Team, History.",
-         "Job and contract: choose the position (its department comes with it) and a grade inside the position's range; leave the manager empty to follow the department head.",
+         "Open HR: the HR home shows what needs you today: who is in, late, absent or on leave now, what waits in the inbox, suggested violations, documents missing or running out, joining and leaving checklists, probation and contracts ending in 30 days, birthdays and work anniversaries this week, and the headcount. Each card has a button to act.",
+         "Employees, Employee list: search by name, EMP number or mobile; filter by department, store, status, employment or a flag (documents missing, on probation, leaving, left, on leave today, open violation); tap a column title to sort; export CSV. Phones show one card per person.",
+         "Open a file: the header has the photo, name, EMP number, position, manager, department, store and status, with Call, WhatsApp, Upload a document, Request leave for them, Record a violation, Change status (HR manage) and Edit file. The bar below says how complete the file is and lists exactly what is missing; tap an item to fix it.",
+         "File tabs: Overview, Job (where they work now, the form, and the history of moves), Pay (with the salaries switch), Documents, Attendance (today's punches and the last 30 days), Leave (balances and requests), Violations, Checklists, Team, History. The tab stays in the address, so a link opens the same tab.",
          "Documents: upload a photo or PDF per required type; a new upload keeps the old one as a version. Verify what people sent from My HR, or refuse it with a note.",
          "Org chart: by manager or by department; dashed cards are open places. Export PNG or print for the wall.",
-         "Configuration: departments (with heads), positions (planned headcount), grades (bands), document types (who needs them) and onboarding templates."],
+         "Configuration, Organisation: departments as a tree on the left (fold or unfold, head, headcount); pick one to see its positions with grade range, planned against in post and leave days; All positions and Grades are tabs. Add or Edit opens a side panel.",
+         "Configuration, Attendance setup: Shifts and Official holidays on one page. Leave types, Violation types, Document types (which documents each file needs) and Checklist templates (tasks when someone joins or leaves) sit in the same menu."],
        "check": [
-         "Every file shows 100% documents, a position, a grade and a manager; the org chart has one person at the top."],
+         "The HR home has nothing in red at the end of the day; every file shows 100% complete, a position, a grade and a manager; the org chart has one person at the top."],
        "problems": [
          "Manager loop refused: someone would manage themselves through the chain; set the manager on the file instead.",
-         "A person is missing from payroll: open their Salary package tab and set the package."]},
+         "A person is missing from payroll: open their Pay tab and set the package.",
+         "An old link to Departments, Positions, Grades, Shifts or Holidays opens the new setup page on the right tab."]},
       {"title": "Users and settings",
        "steps": [
          "Users: create team members with a job role (it fills their access per app and the stores they cover), riders (store and badge) and merchant owners; adjust a person's access from Edit (nobody changes their own) and add their Slack member ID.",
@@ -1072,17 +1075,20 @@ AR = {
          "جرد قديم: اطلب من الفرع يجرد الرف تاني."]},
       {"title": "الأفراد (تطبيق الموارد البشرية)",
        "steps": [
-         "الموظفون: دوّر بالاسم أو الموبايل أو الرقم القومي أو كود الموظف؛ فلتر بالقسم أو الوظيفة أو الدرجة أو المخزن أو الحالة؛ بدّل بين الجدول والبطاقات؛ وصدّر CSV.",
-         "افتح الملف: الجزء العلوي فيه الصورة والوظيفة والدرجة والقسم والمدير ونسبة اكتمال المستندات. التبويبات: نظرة عامة، الوظيفة والعقد، حزمة الراتب (بصلاحية المرتبات)، المستندات، الاستقبال، الفريق، السجل.",
-         "الوظيفة والعقد: اختار الوظيفة (القسم بييجي معاها) ودرجة جوه نطاق الوظيفة؛ سيب المدير فاضي عشان يتبع رئيس القسم.",
+         "افتح الموارد البشرية: الصفحة الرئيسية بتوريك اللي محتاجك النهارده: مين حاضر أو متأخر أو غايب أو في إجازة دلوقتي، اللي مستني في الوارد، المخالفات المقترحة، المستندات الناقصة أو اللي هتخلص، قوائم الانضمام والمغادرة، فترات الاختبار والعقود اللي بتخلص في 30 يوم، أعياد الميلاد وذكرى الشغل الأسبوع ده، وعدد الموظفين. كل كارت فيه زرار للتصرف.",
+         "الموظفون، قائمة الموظفين: دوّر بالاسم أو رقم الموظف أو الموبايل؛ فلتر بالقسم أو الفرع أو الحالة أو نوع التوظيف أو علامة (مستندات ناقصة، تحت الاختبار، سيغادر، غادر، في إجازة النهارده، مخالفة مفتوحة)؛ اضغط على عنوان العمود عشان ترتب؛ وصدّر CSV. الموبايل بيعرض كارت لكل شخص.",
+         "افتح الملف: الجزء العلوي فيه الصورة والاسم ورقم الموظف والوظيفة والمدير والقسم والفرع والحالة، وأزرار اتصال وواتساب ورفع مستند وطلب إجازة نيابة عنه وتسجيل مخالفة وتغيير الحالة (إدارة الموارد البشرية) وتعديل الملف. الشريط اللي تحته بيقول الملف مكتمل بنسبة كام ويعرض بالظبط الناقص؛ اضغط على أي بند عشان تكمله.",
+         "تبويبات الملف: نظرة عامة، الوظيفة (فين بيشتغل دلوقتي والنموذج وسجل التنقلات)، الراتب (بصلاحية المرتبات)، المستندات، الحضور (تسجيلات النهارده وآخر 30 يوم)، الإجازات (الأرصدة والطلبات)، المخالفات، قوائم المهام، الفريق، السجل. التبويب بيفضل في العنوان، فاللينك بيفتح نفس التبويب.",
          "المستندات: ارفع صورة أو PDF لكل نوع مطلوب؛ الرفع الجديد بيحتفظ بالقديم كنسخة. اتحقق من اللي الناس بعتوه من ملفي، أو ارفضه بملاحظة.",
          "الهيكل التنظيمي: حسب المدير أو حسب القسم؛ البطاقات المنقطة أماكن شاغرة. صدّره صورة PNG أو اطبعه.",
-         "الإعدادات: الأقسام (ورؤساؤها)، الوظائف (العدد المخطط)، الدرجات (النطاقات)، أنواع المستندات (مين محتاجها)، وقوالب الاستقبال."],
+         "الإعدادات، التنظيم: الأقسام كشجرة على الجنب (اطوي أو افتح، الرئيس، العدد)؛ اختار قسم تشوف وظايفه بنطاق الدرجات والمخطط قصاد الفعلي وأيام الإجازة؛ وكل الوظائف والدرجات تبويبات. إضافة أو تعديل بيفتح لوحة جانبية.",
+         "الإعدادات، إعداد الحضور: الورديات والإجازات الرسمية في صفحة واحدة. أنواع الإجازات وأنواع المخالفات وأنواع المستندات (المستندات المطلوبة في كل ملف) وقوالب قوائم المهام (المهام عند انضمام أو مغادرة حد) في نفس القائمة."],
        "check": [
-         "كل ملف مستنداته 100% وله وظيفة ودرجة ومدير؛ والهيكل التنظيمي فيه شخص واحد فوق."],
+         "الصفحة الرئيسية مفيهاش أحمر آخر اليوم؛ كل ملف مكتمل 100% وله وظيفة ودرجة ومدير؛ والهيكل التنظيمي فيه شخص واحد فوق."],
        "problems": [
          "اترفض بسبب دايرة مديرين: حد هيبقى مدير نفسه من خلال السلسلة؛ حدد المدير في الملف بدل كده.",
-         "حد مش ظاهر في المرتبات: افتح تبويب حزمة الراتب وحدد الحزمة."]},
+         "حد مش ظاهر في المرتبات: افتح تبويب الراتب وحدد الحزمة.",
+         "لينك قديم للأقسام أو الوظائف أو الدرجات أو الورديات أو الإجازات الرسمية بيفتح صفحة الإعداد الجديدة على التبويب الصح."]},
       {"title": "المستخدمين والإعدادات",
        "steps": [
          "المستخدمين: اعمل أعضاء الفريق بوظيفة (بتملا صلاحياتهم في كل تطبيق والمخازن اللي مسؤولين عنها)، ومناديب (بفرع وكارنيه)، وأصحاب حسابات التجار؛ عدّل صلاحيات أي حد من تعديل (محدش يغير صلاحياته بنفسه) وضيف رقم سلاك.",
@@ -1442,11 +1448,11 @@ _insert_after(
   {"title": "Leave and violations (HR)",
    "steps": [
      "HR, Configuration: set annual leave days on each grade (a position may override it); HR settings hold the default 21 days, casual days, the leave year, monthly or yearly accrual, carry over, how far back a request may start, the days per month of pay, the violation period and the appeal days.",
-     "HR, Leave, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Violations, Violation types: each ladder of penalties.",
+     "HR, Configuration, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Configuration, Violation types: each ladder of penalties.",
      "HR, Inbox every morning: approve or refuse leave at the HR step (the manager already approved), apply or refuse attendance fixes, decide appeals of violations you did not record.",
-     "HR, Leave, Requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.",
-     "HR, Leave, Balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.",
-     "HR, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.",
+     "HR, Time, Leave requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.",
+     "HR, Time, Leave balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.",
+     "HR, Discipline, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.",
      "For outsourcing companies lists final deductions of outsourced people: send them to their company each month."],
    "check": [
      "The Inbox count is zero by noon; suggested violations are handled within two days.",

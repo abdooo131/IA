@@ -23,9 +23,13 @@ import {
   documentChecklist,
   DomainError,
   employeeChecklists,
+  employeeDirectory,
+  employeeFileCompleteness,
+  employeeFlagsFor,
   employeeHistory,
   getEmployee,
   getEmployeeDocument,
+  hrOverview,
   listDocumentAlerts,
   listEmployeeDocuments,
   listEmployees,
@@ -50,11 +54,15 @@ import {
   checklistTaskSchema,
   type CreateEmployeeBody,
   createEmployeeSchema,
+  DIRECTORY_SORTS,
+  type DirectorySort,
   type DocumentReviewBody,
   documentReviewSchema,
+  EMPLOYEE_FLAGS,
   EMPLOYEE_STATUSES,
   type EmployeeFileBody,
   employeeFileSchema,
+  type EmployeeFlag,
   type EmployeeStatus,
   type EmployeeStatusBody,
   employeeStatusSchema,
@@ -68,6 +76,7 @@ import {
 import type { Request, Response } from 'express';
 import { limitedStores } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
+import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { csv } from '../finance/finance-csv';
 import { PrismaService } from '../prisma/prisma.service';
@@ -86,7 +95,31 @@ const confidential = (access: AccessProfile) => canDo(access, 'hr', 'use');
 @Access('hr')
 @Controller('hr')
 export class HrController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly clock: Clock,
+  ) {}
+
+  private filter(access: AccessProfile, q: Record<string, string | undefined>) {
+    return {
+      scope: limitedStores(access),
+      q: q.q?.trim() || undefined,
+      storeId: q.darkStoreId || undefined,
+      departmentId: q.departmentId || undefined,
+      positionId: q.positionId || undefined,
+      gradeId: q.gradeId || undefined,
+      employment:
+        q.employment === 'employee' || q.employment === 'outsourced' ? q.employment : undefined,
+      status: EMPLOYEE_STATUSES.includes(q.status as EmployeeStatus)
+        ? (q.status as EmployeeStatus)
+        : undefined,
+      flag: EMPLOYEE_FLAGS.includes(q.flag as EmployeeFlag) ? (q.flag as EmployeeFlag) : undefined,
+      sort: DIRECTORY_SORTS.includes(q.sort as DirectorySort)
+        ? (q.sort as DirectorySort)
+        : undefined,
+      desc: q.dir === 'desc',
+    } as const;
+  }
 
   private async rows(access: AccessProfile, q: Record<string, string | undefined>) {
     const rows = await listEmployees(this.prisma, {
@@ -124,14 +157,55 @@ export class HrController {
     return this.rows(access, q);
   }
 
-  /** The directory as CSV (Excel friendly), with the same filters. */
+  /**
+   * HR phase 1: the HR home, what needs attention today in the person's stores (the Today
+   * board, the inbox, documents, checklists, probation and contract ends, birthdays,
+   * anniversaries and headcount).
+   */
+  @Get('overview')
+  overview(@CurrentAccess() access: AccessProfile, @CurrentUser() user: AccessTokenClaims) {
+    return hrOverview(this.prisma, {
+      scope: limitedStores(access),
+      userId: user.sub,
+      access,
+      now: this.clock.now(),
+    });
+  }
+
+  /** HR phase 1: the employee list with flags, a flag filter, sort and pages. */
+  @Get('directory')
+  @ApiQuery({ name: 'q', required: false })
+  @ApiQuery({ name: 'darkStoreId', required: false })
+  @ApiQuery({ name: 'departmentId', required: false })
+  @ApiQuery({ name: 'positionId', required: false })
+  @ApiQuery({ name: 'gradeId', required: false })
+  @ApiQuery({ name: 'employment', required: false })
+  @ApiQuery({ name: 'status', required: false, enum: EMPLOYEE_STATUSES })
+  @ApiQuery({ name: 'flag', required: false, enum: EMPLOYEE_FLAGS })
+  @ApiQuery({ name: 'sort', required: false, enum: DIRECTORY_SORTS })
+  @ApiQuery({ name: 'dir', required: false, enum: ['asc', 'desc'] })
+  @ApiQuery({ name: 'page', required: false })
+  directory(@CurrentAccess() access: AccessProfile, @Query() q: Record<string, string>) {
+    const page = Number(q.page);
+    return employeeDirectory(
+      this.prisma,
+      { ...this.filter(access, q), page: Number.isInteger(page) && page > 0 ? page : 1 },
+      this.clock.now(),
+    );
+  }
+
+  /** The employee list as CSV (Excel friendly), with the same filters and sort, every page. */
   @Get('employees.csv')
   async listCsv(
     @CurrentAccess() access: AccessProfile,
     @Query() q: Record<string, string>,
     @Res() res: Response,
   ) {
-    const rows = await this.rows(access, q);
+    const { rows } = await employeeDirectory(
+      this.prisma,
+      { ...this.filter(access, q), pageSize: null },
+      this.clock.now(),
+    );
     const body = csv(
       [
         'code',
@@ -146,8 +220,10 @@ export class HrController {
         'employment',
         'contract',
         'hire_date',
+        'probation_ends_on',
         'status',
         'documents_percent',
+        'flags',
       ],
       rows.map((r) => [
         r.code,
@@ -162,8 +238,10 @@ export class HrController {
         r.employment,
         r.contractType,
         r.hireDate,
+        r.probationEndsOn,
         r.status,
         r.documents.percent,
+        r.flags.join(' '),
       ]),
     );
     res.setHeader('content-type', 'text/csv; charset=utf-8');
@@ -200,10 +278,17 @@ export class HrController {
       scope: limitedStores(access),
       bank: access.salaries,
     });
-    const [documents, team] = await Promise.all([
+    const [documents, team, whole, flags] = await Promise.all([
       documentChecklist(this.prisma, id, { confidential: confidential(access) }),
       teamOf(this.prisma, id),
+      employeeFileCompleteness(this.prisma, id, {
+        scope: limitedStores(access),
+        confidential: confidential(access),
+        bank: access.salaries,
+      }),
+      employeeFlagsFor(this.prisma, [file], this.clock.now()),
     ]);
+    const extra = flags.get(id)!;
     return {
       ...file,
       completeness: {
@@ -211,6 +296,11 @@ export class HrController {
         required: documents.required,
         done: documents.done,
       },
+      // HR phase 1: the whole file (fields and documents) and the list's flags.
+      fileCompleteness: whole,
+      flags: extra.flags,
+      probationEnd: extra.probationEndsOn,
+      openViolations: extra.openViolations,
       team: { direct: team.direct, total: team.total },
       salary: access.salaries ? await currentPackage(this.prisma, id) : null,
       canSeePay: access.salaries,

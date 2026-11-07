@@ -5,6 +5,7 @@ import { BalancesView } from '@/components/hr/leave/BalancesView';
 import type { AdminStore } from '@/lib/admin-types';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { BalancesReport, LeaveType } from '@/lib/leave-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,8 +37,7 @@ export default async function LeaveBalancesPage({
   const nav = 'flex h-10 items-center rounded-md border border-line bg-surface px-3 text-body-sm';
   return (
     <>
-      <h1 className="text-h2">{t('balancesTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('balancesIntro')}</p>
+      <HrPageHeader title={t('balancesTitle')} intro={t('balancesIntro')} />
       <nav className="mt-4 flex items-center gap-2" aria-label={t('year')}>
         <Link href={`/admin/hr/leave/balances?year=${year - 1}`} className={nav}>
           <span className="ltr-iso">{year - 1}</span>

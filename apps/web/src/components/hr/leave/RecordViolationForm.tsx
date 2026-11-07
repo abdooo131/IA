@@ -28,7 +28,7 @@ export function RecordViolationForm({
   const t = useTranslations('hr3');
   const name = useName();
   const action = useAction();
-  const [employeeId, setEmployeeId] = useState('');
+  const [employeeId, setEmployeeId] = useState(people.length === 1 ? people[0]!.id : '');
   const [typeId, setTypeId] = useState(types[0]?.id ?? '');
   const [occurredOn, setOccurredOn] = useState(today);
   const [description, setDescription] = useState('');

@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { LeaveTypesEditor } from '@/components/hr/leave/LeaveTypesEditor';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { LeaveType } from '@/lib/leave-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,8 +16,7 @@ export default async function LeaveTypesPage() {
   ]);
   return (
     <>
-      <h1 className="text-h2">{t('typesTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('typesIntro')}</p>
+      <HrPageHeader title={t('typesTitle')} intro={t('typesIntro')} />
       <LeaveTypesEditor rows={rows} canManage={canDo(profile, 'hr', 'manage')} />
     </>
   );

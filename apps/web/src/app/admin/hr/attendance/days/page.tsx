@@ -7,6 +7,7 @@ import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import { cairoHm, type DayListRow, hours, personName } from '@/lib/attendance-types';
 import { isoToDayFirst } from '@/lib/day-first';
+import { EmptyState, HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,8 +39,7 @@ export default async function AttendanceDaysPage({
 
   return (
     <>
-      <h1 className="text-h2">{t('daysTitle')}</h1>
-      <p className="mt-1 max-w-2xl text-body-sm text-text-muted">{t('daysIntro')}</p>
+      <HrPageHeader title={t('daysTitle')} intro={t('daysIntro')} />
 
       <form
         method="get"
@@ -93,7 +93,7 @@ export default async function AttendanceDaysPage({
       </form>
 
       {rows.length === 0 ? (
-        <p className="mt-6 text-body">{t('noDays')}</p>
+        <EmptyState icon="schedule" title={t('noDays')} body={t('noDaysHint')} />
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
           <table className="w-full min-w-[760px] text-body-sm">

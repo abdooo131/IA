@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { apiGet } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import { employeeCodeOf, employeeName, type OpenChecklistRow } from '@/lib/hr-types';
+import { EmptyState, HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,10 +19,14 @@ export default async function HrChecklistsPage() {
   );
   return (
     <>
-      <h1 className="text-h2">{t('checklistsTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('checklistsIntro')}</p>
+      <HrPageHeader title={t('checklistsTitle')} intro={t('checklistsIntro')} />
       {sorted.length === 0 ? (
-        <p className="mt-6 text-body">{t('openEmpty')}</p>
+        <EmptyState
+          icon="delivered"
+          title={t('openEmpty')}
+          body={t('openEmptyHint')}
+          action={{ href: '/admin/hr', label: t('directoryTitle') }}
+        />
       ) : (
         <ul className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {sorted.map((c) => {

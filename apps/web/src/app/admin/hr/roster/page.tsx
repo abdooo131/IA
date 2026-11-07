@@ -7,6 +7,7 @@ import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { Roster } from '@/lib/attendance-types';
 import { isoToDayFirst } from '@/lib/day-first';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +36,7 @@ export default async function RosterPage({
 
   return (
     <>
-      <h1 className="text-h2">{t('rosterTitle')}</h1>
-      <p className="mt-1 max-w-2xl text-body-sm text-text-muted">{t('rosterIntro')}</p>
+      <HrPageHeader title={t('rosterTitle')} intro={t('rosterIntro')} />
       <StoreFilter
         stores={mine.map((s) => ({ id: s.id, label: localized(s, locale) }))}
         value={store}

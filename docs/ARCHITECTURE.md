@@ -112,6 +112,9 @@ Next.js 15 App Router, next-intl (en, ar with RTL), Tailwind with the Brand v2 t
                            Accounting, HR, Sales, Settings, Store screens), only what the person
                            may open
     /admin/...             Operations, Inventory, Merchants, Customers, HR, Sales, Settings apps
+    /admin/hr/...          HR app: the HR home (/overview, the app's first page), the employee
+                           list and files (?tab=), one Organisation and one Attendance setup page
+                           (HR phase 1)
     /admin/sales/...       Sales app: pipeline board and list, leads, My day, companies, deals,
                            proposals, dashboard, targets, commission
     /p/<token>             a brand's proposal (public, Accept or Decline)

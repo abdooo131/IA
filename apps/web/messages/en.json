@@ -4275,9 +4275,9 @@
           {
             "title": "Attendance and shifts",
             "steps": [
-              "HR, Configuration: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
-              "HR, Attendance, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
-              "HR, Attendance, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
+              "HR, Configuration, Attendance setup: Shifts (start, end, break, days) and Official holidays; HR settings hold the clock in distance, grace and overtime minutes, and the office location.",
+              "HR, Time, Roster: set each person's default shift; the coming two weeks are planned from it; change a day by hand when needed.",
+              "HR, Time, Today: who is in, late, missing or off at each store. Days: closed days with late, overtime and hours, and a CSV export.",
               "Open a day to correct it: add a punch the phone could not make, void a wrong one, or set the status; every correction needs a reason."
             ],
             "check": [
@@ -4292,11 +4292,11 @@
             "title": "Leave and violations (HR)",
             "steps": [
               "HR, Configuration: set annual leave days on each grade (a position may override it); HR settings hold the default 21 days, casual days, the leave year, monthly or yearly accrual, carry over, how far back a request may start, the days per month of pay, the violation period and the appeal days.",
-              "HR, Leave, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Violations, Violation types: each ladder of penalties.",
+              "HR, Configuration, Leave types: what each type allows (paid, which balance, document above N days, most days, notice, self request). Configuration, Violation types: each ladder of penalties.",
               "HR, Inbox every morning: approve or refuse leave at the HR step (the manager already approved), apply or refuse attendance fixes, decide appeals of violations you did not record.",
-              "HR, Leave, Requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.",
-              "HR, Leave, Balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.",
-              "HR, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.",
+              "HR, Time, Leave requests: Ask for leave for someone when they cannot (you may allow more than the balance, the extra days unpaid, or a start further back). Cancel approved leave with a reason before payroll takes it.",
+              "HR, Time, Leave balances: adjust a balance with a reason (old leave, a correction); Calendar shows who is off by department and store.",
+              "HR, Discipline, Violations: Record a violation; the ladder picks the step from earlier ones in the period (change it only with a reason). Add a photo or PDF as evidence. Suggested lists lateness and absences from attendance: Confirm or Dismiss each.",
               "For outsourcing companies lists final deductions of outsourced people: send them to their company each month."
             ],
             "check": [
@@ -4362,19 +4362,22 @@
           {
             "title": "People (HR app)",
             "steps": [
-              "Employees: search by name, mobile, national ID or EMP code; filter by department, position, grade, store or status; switch between table and cards; export CSV.",
-              "Open a file: the header shows the photo, position, grade, department, manager and how complete the documents are. Tabs: Overview, Job and contract, Salary package (with the salaries switch), Documents, Onboarding, Team, History.",
-              "Job and contract: choose the position (its department comes with it) and a grade inside the position's range; leave the manager empty to follow the department head.",
+              "Open HR: the HR home shows what needs you today: who is in, late, absent or on leave now, what waits in the inbox, suggested violations, documents missing or running out, joining and leaving checklists, probation and contracts ending in 30 days, birthdays and work anniversaries this week, and the headcount. Each card has a button to act.",
+              "Employees, Employee list: search by name, EMP number or mobile; filter by department, store, status, employment or a flag (documents missing, on probation, leaving, left, on leave today, open violation); tap a column title to sort; export CSV. Phones show one card per person.",
+              "Open a file: the header has the photo, name, EMP number, position, manager, department, store and status, with Call, WhatsApp, Upload a document, Request leave for them, Record a violation, Change status (HR manage) and Edit file. The bar below says how complete the file is and lists exactly what is missing; tap an item to fix it.",
+              "File tabs: Overview, Job (where they work now, the form, and the history of moves), Pay (with the salaries switch), Documents, Attendance (today's punches and the last 30 days), Leave (balances and requests), Violations, Checklists, Team, History. The tab stays in the address, so a link opens the same tab.",
               "Documents: upload a photo or PDF per required type; a new upload keeps the old one as a version. Verify what people sent from My HR, or refuse it with a note.",
               "Org chart: by manager or by department; dashed cards are open places. Export PNG or print for the wall.",
-              "Configuration: departments (with heads), positions (planned headcount), grades (bands), document types (who needs them) and onboarding templates."
+              "Configuration, Organisation: departments as a tree on the left (fold or unfold, head, headcount); pick one to see its positions with grade range, planned against in post and leave days; All positions and Grades are tabs. Add or Edit opens a side panel.",
+              "Configuration, Attendance setup: Shifts and Official holidays on one page. Leave types, Violation types, Document types (which documents each file needs) and Checklist templates (tasks when someone joins or leaves) sit in the same menu."
             ],
             "check": [
-              "Every file shows 100% documents, a position, a grade and a manager; the org chart has one person at the top."
+              "The HR home has nothing in red at the end of the day; every file shows 100% complete, a position, a grade and a manager; the org chart has one person at the top."
             ],
             "problems": [
               "Manager loop refused: someone would manage themselves through the chain; set the manager on the file instead.",
-              "A person is missing from payroll: open their Salary package tab and set the package."
+              "A person is missing from payroll: open their Pay tab and set the package.",
+              "An old link to Departments, Positions, Grades, Shifts or Holidays opens the new setup page on the right tab."
             ]
           },
           {
@@ -4994,7 +4997,10 @@
       "commission": "Commission",
       "leave": "Leave",
       "violations": "Violations",
-      "hrInbox": "Inbox"
+      "hrInbox": "Inbox",
+      "hrOverview": "Overview",
+      "time": "Time",
+      "discipline": "Discipline"
     },
     "pages": {
       "overview": "Overview",
@@ -5059,8 +5065,8 @@
       "shifts": "Shifts",
       "holidays": "Official holidays",
       "orgChart": "Org chart",
-      "hrDocuments": "Documents",
-      "hrChecklists": "Onboarding and offboarding",
+      "hrDocuments": "Documents to check",
+      "hrChecklists": "Joining and leaving checklists",
       "departments": "Departments",
       "positions": "Job positions",
       "grades": "Grades",
@@ -5082,14 +5088,27 @@
       "salesDashboard": "Sales dashboard",
       "targets": "Targets",
       "commission": "Commission",
-      "leaveRequests": "Requests",
-      "leaveCalendar": "Calendar",
-      "leaveBalances": "Balances",
+      "leaveRequests": "Leave requests",
+      "leaveCalendar": "Leave calendar",
+      "leaveBalances": "Leave balances",
       "leaveTypes": "Leave types",
       "violations": "Violations",
       "suggestedViolations": "Suggested",
       "violationTypes": "Violation types",
-      "hrInbox": "Inbox"
+      "hrInbox": "Inbox",
+      "hrOverview": "HR home",
+      "employeeList": "Employee list",
+      "organisation": "Organisation",
+      "attendanceSetup": "Attendance setup"
+    },
+    "hints": {
+      "organisation": "Departments, job positions and grades",
+      "attendanceSetup": "Shifts and official holidays",
+      "leaveTypes": "Kinds of leave, balances and rules",
+      "violationTypes": "Kinds of violation and their penalties",
+      "documentTypes": "Which documents each file needs",
+      "checklistTemplates": "Tasks when someone joins or leaves",
+      "hrSettings": "Numbers HR uses: grace minutes, probation, leave"
     }
   },
   "hr": {
@@ -5444,7 +5463,9 @@
       "generic": "Something went wrong. Try again."
     },
     "officeName": "Office",
-    "onLeaveCell": "Leave: {type}"
+    "onLeaveCell": "Leave: {type}",
+    "nobodyHint": "People appear here once they have a file and a store or the office. Plan their shifts on the roster.",
+    "noDaysHint": "A day closes a few hours after its shift ends. Try other dates or another store."
   },
   "people": {
     "directoryTitle": "Employees",
@@ -5803,7 +5824,8 @@
     "myExpiring": "{count, plural, one {# document expires soon} other {# documents expire soon}}",
     "myExpiringHint": "Still valid. Send the renewed one when you have it.",
     "annualLeaveDays": "Annual leave days a year",
-    "annualLeaveShort": "{days} days annual leave"
+    "annualLeaveShort": "{days} days annual leave",
+    "openEmptyHint": "A joining checklist starts when someone gets an account; a leaving one when a file is marked as left."
   },
   "push": {
     "back": "Back",
@@ -7897,5 +7919,212 @@
     },
     "appealedOn": "Appealed on {at}",
     "appealByPerson": "The person's appeal"
+  },
+  "hr1": {
+    "home": {
+      "title": "HR home",
+      "intro": "What needs your attention today, with a button to act on each. Today is",
+      "scope": "Showing your stores only: {stores}",
+      "openList": "Employee list",
+      "openToday": "Today board",
+      "holiday": "Today is an official holiday: {name}.",
+      "rightNow": "Right now",
+      "in": "In now",
+      "late": "Came in late",
+      "absent": "Not in yet (late or absent)",
+      "onLeave": "On leave today",
+      "restOfDay": "Also today: {notYet} not due yet, {left} already left, {off} off or without a shift.",
+      "attentionTitle": "Who to call",
+      "attentionNone": "Nobody is late or missing right now.",
+      "absentFor": "{minutes} min missing",
+      "lateBy": "{minutes} min late",
+      "onLeaveNames": "On leave: {names}",
+      "waitingTitle": "Waiting for a decision",
+      "openInbox": "Open the inbox",
+      "leaveRequests": "Leave requests",
+      "corrections": "Day fixes",
+      "appeals": "Appeals",
+      "suggested": "Suggested violations",
+      "openViolations": "{count, plural, =0 {No violation is open.} one {# violation is open (recorded or appealed).} other {# violations are open (recorded or appealed).}}",
+      "whoHasThem": "See who",
+      "allClear": "Nothing waits for you. Well done.",
+      "documentsTitle": "Documents",
+      "openDocuments": "Check documents",
+      "docMissing": "Missing or refused",
+      "docWaiting": "Sent, waiting for you",
+      "docExpiring": "Running out soon",
+      "docExpired": "Expired",
+      "checklistsTitle": "Joining and leaving",
+      "openChecklists": "Open checklists",
+      "onboarding": "Joining",
+      "offboarding": "Leaving",
+      "withLateTasks": "With late tasks",
+      "noChecklists": "No checklist is open.",
+      "endingTitle": "Ending in the next 30 days",
+      "nothingEnding": "No probation or contract ends in the next 30 days.",
+      "probationEnds": "Probation ends",
+      "contractEnds": "Contract ends",
+      "celebrateTitle": "Birthdays and work anniversaries this week",
+      "nothingToCelebrate": "No birthday or work anniversary this week. Add birth dates on the files to see them here.",
+      "birthday": "Birthday",
+      "anniversary": "{years, plural, one {# year with us} other {# years with us}}",
+      "headcountTitle": "Headcount",
+      "openOrg": "Org chart",
+      "total": "Everyone",
+      "active": "Active",
+      "employees": "Our employees",
+      "outsourced": "Outsourced",
+      "noPeople": "Nobody has a file yet.",
+      "noDepartment": "No department"
+    },
+    "list": {
+      "title": "Employees",
+      "intro": "Everyone who works for us. Search by name, EMP number or mobile, filter, sort by a column, and open a file. Coloured flags show what needs care.",
+      "addPerson": "Add a person",
+      "search": "Search",
+      "searchHint": "Name, EMP-0001 or mobile",
+      "myStores": "All my stores",
+      "flag": "Needs care",
+      "anyFlag": "Anyone",
+      "flagsLabel": "Filter by flag",
+      "flagsColumn": "Flags",
+      "noMatch": "Nobody matches these filters",
+      "noMatchHint": "Try another name or clear the filters.",
+      "empty": "No employee file yet",
+      "emptyHint": "A file opens by itself when a team member or rider gets an account in Users.",
+      "pages": "Pages",
+      "previous": "Previous",
+      "next": "Next",
+      "pageOf": "Page {page} of {pages}"
+    },
+    "flags": {
+      "missing_documents": "Documents missing",
+      "on_probation": "On probation",
+      "leaving": "Leaving",
+      "left": "Left",
+      "on_leave_today": "On leave today",
+      "open_violations": "Open violation"
+    },
+    "fields": {
+      "photo": "Photo",
+      "mobile": "Mobile",
+      "nationalId": "National ID",
+      "birthDate": "Birth date",
+      "address": "Address",
+      "emergencyContact": "Emergency contact",
+      "hireDate": "Hire date",
+      "bankAccount": "Salary bank account"
+    },
+    "docStates": {
+      "missing": "missing",
+      "pending": "waiting for HR",
+      "rejected": "refused",
+      "expired": "expired",
+      "expiring": "running out",
+      "verified": "on file"
+    },
+    "tabs": {
+      "overview": "Overview",
+      "job": "Job",
+      "pay": "Pay",
+      "documents": "Documents",
+      "attendance": "Attendance",
+      "leave": "Leave",
+      "violations": "Violations",
+      "checklists": "Checklists",
+      "team": "Team",
+      "history": "History"
+    },
+    "file": {
+      "back": "Back to employees",
+      "quickActions": "Quick actions",
+      "call": "Call",
+      "whatsapp": "WhatsApp",
+      "uploadDocument": "Upload a document",
+      "requestLeave": "Request leave for them",
+      "recordViolation": "Record a violation",
+      "changeStatus": "Change status",
+      "edit": "Edit file",
+      "complete": "File {percent}% complete",
+      "missingIntro": "Still missing:",
+      "documentsLine": "{done} of {required} required documents on file.",
+      "probationFromHire": "From the hire date and the probation months setting"
+    },
+    "job": {
+      "now": "Where they work now",
+      "moves": "History of moves",
+      "noMoves": "No move recorded yet.",
+      "opened": "file opened",
+      "fields": {
+        "departmentId": "Department",
+        "positionId": "Position",
+        "gradeId": "Grade",
+        "managerId": "Manager",
+        "homeStoreId": "Store",
+        "jobTitle": "Title",
+        "contractType": "Contract",
+        "employment": "Employment"
+      }
+    },
+    "attendance": {
+      "today": "Today",
+      "openDay": "Open the day",
+      "shift": "Shift {start} to {end}",
+      "dayOff": "Day off",
+      "noShift": "No shift planned",
+      "noPunches": "No clock in or out yet today.",
+      "last30": "Last 30 days",
+      "summary": "{days} days closed · {late} late · {absent} absent",
+      "noDays": "No closed day in the last 30 days."
+    },
+    "leave": {
+      "requests": "Leave requests",
+      "none": "No leave request yet",
+      "noneHint": "Requests they send from My HR, or HR sends for them, show here.",
+      "adjustments": "Balance changes by HR",
+      "ask": "Request leave for them"
+    },
+    "violations": {
+      "none": "No violation on file",
+      "noneHint": "Violations recorded for this person show here with their penalty and status.",
+      "record": "Record a violation"
+    },
+    "org": {
+      "title": "Organisation",
+      "intro": "How the company is organised: departments and their heads, the job positions in each with their grades and planned people, and the grades in order. Pick a department to see its positions.",
+      "openChart": "Org chart",
+      "tabs": "Organisation",
+      "tab": {
+        "structure": "Departments",
+        "positions": "All positions",
+        "grades": "Grades"
+      },
+      "add": "Add",
+      "close": "Close",
+      "fold": "Fold",
+      "unfold": "Unfold",
+      "closed": "closed",
+      "noHead": "No head",
+      "noHeadPasses": "none (passes to the department above)",
+      "headcount": "People in this department and those below it",
+      "noDepartments": "No department yet. Add the first one.",
+      "noPositions": "No position here yet.",
+      "noGrades": "No grade yet. Add the first one.",
+      "plannedActual": "Planned / in post",
+      "openPlaces": "{count, plural, one {# open place} other {# open places}}",
+      "leaveDays": "Leave days",
+      "band": "Salary band (EGP)",
+      "editDepartment": "Edit department",
+      "editPosition": "Edit position",
+      "editGrade": "Edit grade"
+    },
+    "attendanceSetup": {
+      "title": "Attendance setup",
+      "intro": "The shifts the roster is built from and the official holidays. Changes reach the roster from tomorrow.",
+      "tab": {
+        "shifts": "Shifts",
+        "holidays": "Official holidays"
+      }
+    }
   }
 }

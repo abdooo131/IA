@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { DocumentTypesEditor } from '@/components/hr/HrConfig';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { DepartmentRow, DocumentTypeRow, PositionRow } from '@/lib/hr-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +18,7 @@ export default async function DocumentTypesPage() {
   ]);
   return (
     <>
-      <h1 className="text-h2">{t('documentTypesTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('documentTypesIntro')}</p>
+      <HrPageHeader title={t('documentTypesTitle')} intro={t('documentTypesIntro')} />
       <DocumentTypesEditor
         rows={rows}
         departments={departments}

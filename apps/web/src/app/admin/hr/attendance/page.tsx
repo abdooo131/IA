@@ -2,6 +2,7 @@ import { BOARD_STATES } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { AttendancePill } from '@/components/hr/AttendancePill';
+import { btnSecondary, EmptyState, HrPageHeader } from '@/components/hr/HrPage';
 import { StoreFilter } from '@/components/hr/StoreFilter';
 import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet, getMyProfile } from '@/lib/api-server';
@@ -34,10 +35,19 @@ export default async function AttendanceTodayPage({
 
   return (
     <>
-      <h1 className="text-h2">{t('todayTitle')}</h1>
-      <p className="mt-1 max-w-2xl text-body-sm text-text-muted">
-        {t('todayIntro')} <span className="ltr-iso">{isoToDayFirst(board.day)}</span>
-      </p>
+      <HrPageHeader
+        title={t('todayTitle')}
+        intro={
+          <>
+            {t('todayIntro')} <span className="ltr-iso">{isoToDayFirst(board.day)}</span>
+          </>
+        }
+        actions={
+          <Link href="/admin/hr/roster" className={btnSecondary}>
+            {t('rosterTitle')}
+          </Link>
+        }
+      />
       {board.holiday && (
         <p className="mt-3 rounded-md border border-line bg-surface-raised p-3 text-body-sm">
           {t('holidayToday', {
@@ -61,7 +71,12 @@ export default async function AttendanceTodayPage({
       </ul>
 
       {people.length === 0 ? (
-        <p className="mt-6 text-body">{t('nobody')}</p>
+        <EmptyState
+          icon="account"
+          title={t('nobody')}
+          body={t('nobodyHint')}
+          action={{ href: '/admin/hr/roster', label: t('rosterTitle') }}
+        />
       ) : (
         <div className="mt-4 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
           <table className="w-full min-w-[640px] text-body-sm">

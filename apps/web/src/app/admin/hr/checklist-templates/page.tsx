@@ -3,6 +3,7 @@ import { getTranslations } from 'next-intl/server';
 import { TemplatesEditor } from '@/components/hr/HrConfig';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { ChecklistTemplateRow, DocumentTypeRow, PositionRow } from '@/lib/hr-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,8 +18,7 @@ export default async function ChecklistTemplatesPage() {
   ]);
   return (
     <>
-      <h1 className="text-h2">{t('templatesTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('templatesIntro')}</p>
+      <HrPageHeader title={t('templatesTitle')} intro={t('templatesIntro')} />
       <TemplatesEditor
         rows={rows}
         positions={positions}

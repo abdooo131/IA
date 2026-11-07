@@ -76,32 +76,51 @@ describe('appsFor', () => {
   it('gives the HR officer the HR app only, with no settings page', () => {
     expect(appsFor(profile('hr_officer')).map((a) => a.id)).toEqual(['hr']);
     expect(pages('hr_officer')).toEqual([
+      '/admin/hr/overview',
       '/admin/hr',
       '/admin/hr/org',
+      '/admin/hr/documents',
+      '/admin/hr/checklists',
       '/admin/hr/attendance',
       '/admin/hr/attendance/days',
       '/admin/hr/roster',
       '/admin/hr/leave',
       '/admin/hr/leave/calendar',
       '/admin/hr/leave/balances',
-      '/admin/hr/leave/types',
       '/admin/hr/violations',
       '/admin/hr/violations/suggested',
-      '/admin/hr/violations/types',
       '/admin/hr/inbox',
-      '/admin/hr/documents',
-      '/admin/hr/checklists',
-      '/admin/hr/departments',
-      '/admin/hr/positions',
-      '/admin/hr/grades',
+      '/admin/hr/organisation',
+      '/admin/hr/attendance-setup',
+      '/admin/hr/leave/types',
+      '/admin/hr/violations/types',
       '/admin/hr/document-types',
       '/admin/hr/checklist-templates',
-      '/admin/hr/shifts',
-      '/admin/hr/holidays',
     ]);
     // HR manager adds the salaries switch, still no accounting.
     expect(appsFor(profile('hr_manager')).map((a) => a.id)).toEqual(['hr']);
     expect(pages('owner')).toContain('/admin/settings/hr');
+  });
+
+  it('opens the HR app on its home and groups its menus (HR phase 1)', () => {
+    const hr = appsFor(profile('hr_officer'))[0]!;
+    expect(hr.menus[0]!.pages[0]!.href).toBe('/admin/hr/overview');
+    expect(hr.menus.map((m) => m.label)).toEqual([
+      'hrOverview',
+      'employees',
+      'time',
+      'discipline',
+      'hrInbox',
+      'configuration',
+    ]);
+    expect(locate('/admin/hr/overview')?.page?.label).toBe('hrOverview');
+    expect(locate('/admin/hr/abc123')?.page?.label).toBe('employeeList');
+    expect(locate('/admin/hr/attendance-setup')?.page?.label).toBe('attendanceSetup');
+    expect(locate('/admin/hr/attendance')?.page?.label).toBe('attendanceToday');
+    expect(locate('/admin/hr/violations/abc')?.page?.label).toBe('violations');
+    expect(locate('/admin/hr/organisation')?.page?.label).toBe('organisation');
+    // A store manager (HR view of their stores) gets the home too.
+    expect(pages('store_manager')).toContain('/admin/hr/overview');
   });
 
   it('opens nothing without a profile', () => {

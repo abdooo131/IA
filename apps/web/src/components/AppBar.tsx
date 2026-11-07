@@ -91,6 +91,11 @@ export function AppBar({
   const menuActive = (menu: AppMenu) => menu.pages.some(isCurrent);
   const pageLabel = (page: AppPage) =>
     page.label === 'settings' ? t('pages.settings') : t(`pages.${page.label}`);
+  // A one line description under a page in its menu (HR phase 1: the Configuration pages).
+  const pageHint = (page: AppPage) => {
+    const key = `hints.${page.label === 'settings' && app ? `${app.id}Settings` : page.label}`;
+    return t.has(key) ? t(key) : null;
+  };
 
   return (
     <div ref={bar} className="sticky top-0 z-30 border-b border-line bg-surface print:hidden">
@@ -165,7 +170,7 @@ export function AppBar({
                     </svg>
                   </button>
                   {isOpen && (
-                    <ul className="absolute start-0 top-12 z-40 min-w-[240px] rounded-lg border border-line bg-surface p-1.5 shadow-lg">
+                    <ul className="absolute start-0 top-12 z-40 min-w-[260px] max-w-[320px] rounded-lg border border-line bg-surface p-1.5 shadow-lg">
                       {menu.pages.map((page) => (
                         <li key={page.href}>
                           <Link
@@ -177,7 +182,14 @@ export function AppBar({
                                 : 'text-text hover:bg-surface-raised'
                             }`}
                           >
-                            {pageLabel(page)}
+                            <span className="py-1.5">
+                              {pageLabel(page)}
+                              {pageHint(page) && (
+                                <span className="block text-caption font-normal text-text-muted">
+                                  {pageHint(page)}
+                                </span>
+                              )}
+                            </span>
                             <Badge count={badges[page.href] ?? 0} />
                           </Link>
                         </li>
@@ -239,7 +251,14 @@ export function AppBar({
                         isCurrent(page) ? 'bg-selected-bg text-link' : 'text-text'
                       }`}
                     >
-                      {pageLabel(page)}
+                      <span className="py-1.5">
+                        {pageLabel(page)}
+                        {pageHint(page) && (
+                          <span className="block text-caption font-normal text-text-muted">
+                            {pageHint(page)}
+                          </span>
+                        )}
+                      </span>
                       <Badge count={badges[page.href] ?? 0} />
                     </Link>
                   </li>

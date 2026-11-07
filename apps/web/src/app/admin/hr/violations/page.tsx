@@ -5,6 +5,7 @@ import { ViolationsTable } from '@/components/hr/leave/ViolationsTable';
 import { ViolationTabs } from '@/components/hr/leave/ViolationTabs';
 import { apiGet, apiTry, getMyProfile } from '@/lib/api-server';
 import type { Violation, ViolationType } from '@/lib/leave-types';
+import { btnPrimary, HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,15 +37,27 @@ export default async function ViolationsPage({
   ]);
   return (
     <>
-      <h1 className="text-h2">{t('violationsTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('violationsIntro')}</p>
+      <HrPageHeader
+        title={t('violationsTitle')}
+        intro={t('violationsIntro')}
+        actions={
+          canUse && (
+            <a href="#record" className={btnPrimary}>
+              {t('recordViolation')}
+            </a>
+          )
+        }
+      />
       <ViolationTabs current={current} suggested={badges?.suggested ?? 0} />
       {current === 'supplier' && (
         <p className="mt-3 max-w-3xl text-body-sm">{t('supplierIntro')}</p>
       )}
       <ViolationsTable rows={rows} hrefBase="/admin/hr/violations" />
       {canUse && (
-        <details className="mt-6 rounded-lg border border-line bg-surface p-4">
+        <details
+          id="record"
+          className="mt-6 scroll-mt-20 rounded-lg border border-line bg-surface p-4"
+        >
           <summary className="cursor-pointer text-h3">{t('recordViolation')}</summary>
           <RecordViolationForm
             types={types.filter((x) => x.isActive)}

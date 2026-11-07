@@ -167,8 +167,17 @@ export {
   updateEmployee,
   type EmployeeFile,
   type EmployeeListFilter,
+  type EmployeeListRow,
   type StoreScope,
 } from './hr';
+export {
+  employeeDirectory,
+  employeeFileCompleteness,
+  employeeFlagsFor,
+  hrOverview,
+  type DirectoryFilter,
+  type HrOverview,
+} from './hr-overview';
 export * from './hr-org';
 export * from './hr-documents';
 export * from './hr-pay';

@@ -392,9 +392,14 @@ export async function listEmployees(db: Db, f: EmployeeListFilter) {
     contractType: e.contractType,
     status: e.status,
     hireDate: day(e.hireDate),
+    // HR phase 1: the list's flags and the HR home read these.
+    leftOn: day(e.leftOn),
+    probationEndsOn: day(e.probationEndsOn),
+    contractEndsOn: day(e.contractEndsOn),
     photoVersion: e.photo ? e.photo.updatedAt.getTime() : null,
   }));
 }
+export type EmployeeListRow = Awaited<ReturnType<typeof listEmployees>>[number];
 
 /** Team members and riders who have an account but no file yet (HR links them). */
 export async function listPeopleWithoutFile(db: Db) {

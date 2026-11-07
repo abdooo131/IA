@@ -5,6 +5,7 @@ import { LeaveRequestForm } from '@/components/hr/leave/LeaveRequestForm';
 import { LeaveRequestsTable } from '@/components/hr/leave/LeaveRequestsTable';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { LeaveRequest, LeaveType } from '@/lib/leave-types';
+import { btnPrimary, HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,8 +40,17 @@ export default async function LeaveRequestsPage({
     }`;
   return (
     <>
-      <h1 className="text-h2">{t('requestsTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('requestsIntro')}</p>
+      <HrPageHeader
+        title={t('requestsTitle')}
+        intro={t('requestsIntro')}
+        actions={
+          canUse && (
+            <a href="#ask" className={btnPrimary}>
+              {t('askForSomeone')}
+            </a>
+          )
+        }
+      />
       <nav className="mt-4 flex flex-wrap gap-2" aria-label={t('status')}>
         {TABS.map((s) => (
           <Link
@@ -55,7 +65,10 @@ export default async function LeaveRequestsPage({
       </nav>
       <LeaveRequestsTable rows={rows} hrefBase="/admin/hr/leave" />
       {canUse && (
-        <details className="mt-6 rounded-lg border border-line bg-surface p-4">
+        <details
+          id="ask"
+          className="mt-6 scroll-mt-20 rounded-lg border border-line bg-surface p-4"
+        >
           <summary className="cursor-pointer text-h3">{t('askForSomeone')}</summary>
           <p className="mt-1 text-caption text-text-muted">{t('askForSomeoneHint')}</p>
           <LeaveRequestForm

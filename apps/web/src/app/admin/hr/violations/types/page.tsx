@@ -4,6 +4,7 @@ import { ViolationTypesEditor } from '@/components/hr/leave/ViolationTypesEditor
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { SettingsList } from '@/lib/dashboard-types';
 import type { ViolationType } from '@/lib/leave-types';
+import { HrPageHeader } from '@/components/hr/HrPage';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,8 +19,7 @@ export default async function ViolationTypesPage() {
   const period = settings.settings.find((s) => s.key === 'hr.violation_period_days');
   return (
     <>
-      <h1 className="text-h2">{t('violationTypesTitle')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('violationTypesIntro')}</p>
+      <HrPageHeader title={t('violationTypesTitle')} intro={t('violationTypesIntro')} />
       <ViolationTypesEditor
         rows={rows}
         canManage={canDo(profile, 'hr', 'manage')}

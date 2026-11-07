@@ -219,57 +219,49 @@ export const APPS: AppDef[] = [
     color: '#BE185D',
     access: 'hr',
     menus: [
+      // HR phase 1: the HR home first, then people, time, discipline, the inbox and one
+      // Configuration menu (docs/HR.md "Phase 1 as built").
+      {
+        label: 'hrOverview',
+        pages: [{ href: '/admin/hr/overview', label: 'hrOverview', exact: true }],
+      },
       {
         label: 'employees',
         pages: [
-          { href: '/admin/hr', label: 'employees' },
+          { href: '/admin/hr', label: 'employeeList' },
           { href: '/admin/hr/org', label: 'orgChart' },
-        ],
-      },
-      {
-        label: 'attendance',
-        pages: [
-          { href: '/admin/hr/attendance', label: 'attendanceToday', exact: true },
-          { href: '/admin/hr/attendance/days', label: 'attendanceDays' },
-          { href: '/admin/hr/roster', label: 'roster' },
-        ],
-      },
-      // HR phase 3: leave, violations and the inbox of what waits for HR.
-      {
-        label: 'leave',
-        pages: [
-          { href: '/admin/hr/leave', label: 'leaveRequests' },
-          { href: '/admin/hr/leave/calendar', label: 'leaveCalendar' },
-          { href: '/admin/hr/leave/balances', label: 'leaveBalances' },
-          { href: '/admin/hr/leave/types', label: 'leaveTypes' },
-        ],
-      },
-      {
-        label: 'violations',
-        pages: [
-          { href: '/admin/hr/violations', label: 'violations' },
-          { href: '/admin/hr/violations/suggested', label: 'suggestedViolations' },
-          { href: '/admin/hr/violations/types', label: 'violationTypes' },
-        ],
-      },
-      { label: 'hrInbox', pages: [{ href: '/admin/hr/inbox', label: 'hrInbox' }] },
-      {
-        label: 'hrDocuments',
-        pages: [
           { href: '/admin/hr/documents', label: 'hrDocuments' },
           { href: '/admin/hr/checklists', label: 'hrChecklists' },
         ],
       },
       {
+        label: 'time',
+        pages: [
+          { href: '/admin/hr/attendance', label: 'attendanceToday', exact: true },
+          { href: '/admin/hr/attendance/days', label: 'attendanceDays' },
+          { href: '/admin/hr/roster', label: 'roster' },
+          { href: '/admin/hr/leave', label: 'leaveRequests' },
+          { href: '/admin/hr/leave/calendar', label: 'leaveCalendar' },
+          { href: '/admin/hr/leave/balances', label: 'leaveBalances' },
+        ],
+      },
+      {
+        label: 'discipline',
+        pages: [
+          { href: '/admin/hr/violations', label: 'violations' },
+          { href: '/admin/hr/violations/suggested', label: 'suggestedViolations' },
+        ],
+      },
+      { label: 'hrInbox', pages: [{ href: '/admin/hr/inbox', label: 'hrInbox' }] },
+      {
         label: 'configuration',
         pages: [
-          { href: '/admin/hr/departments', label: 'departments' },
-          { href: '/admin/hr/positions', label: 'positions' },
-          { href: '/admin/hr/grades', label: 'grades' },
+          { href: '/admin/hr/organisation', label: 'organisation' },
+          { href: '/admin/hr/attendance-setup', label: 'attendanceSetup' },
+          { href: '/admin/hr/leave/types', label: 'leaveTypes' },
+          { href: '/admin/hr/violations/types', label: 'violationTypes' },
           { href: '/admin/hr/document-types', label: 'documentTypes' },
           { href: '/admin/hr/checklist-templates', label: 'checklistTemplates' },
-          { href: '/admin/hr/shifts', label: 'shifts' },
-          { href: '/admin/hr/holidays', label: 'holidays' },
           settings('hr'),
         ],
       },
