@@ -21,9 +21,10 @@ interface Inbox {
 
 /** Counts next to pages in the menus: what waits for someone, as Shiply Now's badges. */
 async function badges(): Promise<Record<string, number>> {
-  const [alerts, inbox] = await Promise.all([api<unknown[]>('/admin/alerts').catch(() => []), api<Inbox>('/finance/inbox').catch(() => null)]);
+  const [alerts, inbox, signups] = await Promise.all([api<unknown[]>('/admin/alerts').catch(() => []), api<Inbox>('/finance/inbox').catch(() => null), api<unknown[]>('/admin/signups').catch(() => [])]);
   return {
     '/admin/alerts': alerts.length,
+    '/admin/signups': signups.length,
     ...(inbox
       ? {
           '/admin/money/payouts': inbox.payoutsYouCanApprove + inbox.payoutsToPay + inbox.bankChanges.filter((b) => !b.mine).length,

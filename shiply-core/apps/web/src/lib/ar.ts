@@ -4,8 +4,9 @@ import { AR_COMMON } from './ar-common';
 import { AR_MERCHANT } from './ar-merchant';
 import { AR_BOOKS } from './ar-books';
 import { AR_CONTROL } from './ar-control';
+import { AR_MERCHANTS } from './ar-merchants';
 import { AR_MONEY } from './ar-money';
 import { AR_OPS } from './ar-ops';
 import { AR_WORKFORCE } from './ar-workforce';
 
-export const AR: Record<string, string> = { ...AR_CONTROL, ...AR_BOOKS, ...AR_MONEY, ...AR_WORKFORCE, ...AR_COMMON, ...AR_OPS, ...AR_ADMIN, ...AR_MERCHANT };
+export const AR: Record<string, string> = { ...AR_MERCHANTS, ...AR_CONTROL, ...AR_BOOKS, ...AR_MONEY, ...AR_WORKFORCE, ...AR_COMMON, ...AR_OPS, ...AR_ADMIN, ...AR_MERCHANT };

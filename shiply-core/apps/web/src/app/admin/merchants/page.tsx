@@ -1,4 +1,5 @@
 'use client';
+import Link from 'next/link';
 import { useState } from 'react';
 import { Alert, Badge, Button, Card, Field, Input, Loading, PageHeader, Select, Table, Td } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
@@ -195,7 +196,7 @@ export default function MerchantsPage() {
               </Td>
               <Td><span className="ltr-iso">{m.phone}</span></Td>
               <Td className="ltr-iso font-bold">{m.homeHub.code}</Td>
-              <Td className="tabular ltr-iso">{m.discountBp / 100}%</Td>
+              <Td className="tabular ltr-iso">{m.discountBp / 100}%<div><Link href={`/admin/merchants/${m.id}/prices`} className="text-caption font-bold text-link">{t('Agreed prices')}</Link></div></Td>
               <Td className="tabular">{m._count.shipments}</Td>
               <Td>{m.active ? <Badge tone="green">{t('Active')}</Badge> : <Badge>{t('Inactive')}</Badge>}</Td>
               <Td>

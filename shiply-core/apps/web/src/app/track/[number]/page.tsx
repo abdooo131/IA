@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Icon, type IconName } from '@/components/Icon';
-import { Loading, cx } from '@/components/ui';
+import { Alert, Button, Field, Input, Loading, Textarea, cx } from '@/components/ui';
 import { api } from '@/lib/api';
 import { dateTime, egp, shortDate } from '@/lib/format';
 import { useLocale, useT } from '@/lib/i18n';
@@ -17,7 +17,66 @@ interface Tracking {
   statusLabel: string;
   promisedDate: string | null;
   codToPrepare: number;
+  hasLogo: boolean;
+  deliverOn: string | null;
+  canAct: boolean;
+  canRate: boolean;
+  rating: number | null;
+  courier: string | null;
   events: { at: string; text: string; place: string | null }[];
+}
+
+/** What the customer can do: confirm with a note, pick another day, cancel, or rate. Their phone's last 4 digits prove it is them. */
+function CustomerActions({ data, number, onDone }: { data: Tracking; number: string; onDone: () => void }) {
+  const t = useT();
+  const [mode, setMode] = useState<'' | 'CONFIRM' | 'POSTPONE' | 'CANCEL' | 'RATE'>('');
+  const [last4, setLast4] = useState('');
+  const [note, setNote] = useState('');
+  const [date, setDate] = useState('');
+  const [rating, setRating] = useState(5);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  if (!data.canAct && !data.canRate) return null;
+  const send = async () => {
+    setMsg(null);
+    try {
+      const r = await api<{ message: string }>(`/track/${encodeURIComponent(number)}/action`, { body: { action: mode, phoneLast4: last4, note, ...(mode === 'POSTPONE' ? { date } : {}), ...(mode === 'RATE' ? { rating } : {}) } });
+      setMsg({ ok: true, text: t(r.message) });
+      setMode('');
+      onDone();
+    } catch (e) {
+      setMsg({ ok: false, text: t(e instanceof Error ? e.message : 'Something went wrong') });
+    }
+  };
+  return (
+    <section className="rounded-xl bg-surface p-5 shadow-sm">
+      {msg && <div className="mb-3"><Alert tone={msg.ok ? 'success' : 'error'}>{msg.text}</Alert></div>}
+      {!mode ? (
+        <div className="grid grid-cols-2 gap-2">
+          {data.canAct && <Button tone="secondary" onClick={() => setMode('CONFIRM')}>{t('Add a note for the courier')}</Button>}
+          {data.canAct && <Button tone="secondary" onClick={() => setMode('POSTPONE')}>{t('Deliver another day')}</Button>}
+          {data.canAct && <Button tone="ghost" onClick={() => setMode('CANCEL')}>{t('I do not want it')}</Button>}
+          {data.canRate && <Button onClick={() => setMode('RATE')}>{t('Rate the delivery')}</Button>}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          <Field label={t('Last 4 digits of your phone')}><Input inputMode="numeric" maxLength={4} className="ltr-iso" value={last4} onChange={(e) => setLast4(e.target.value)} /></Field>
+          {mode === 'POSTPONE' && <Field label={t('Day')}><Input type="date" className="ltr-iso" value={date} onChange={(e) => setDate(e.target.value)} /></Field>}
+          {mode === 'RATE' && (
+            <div className="flex gap-1" role="radiogroup" aria-label={t('Rating')}>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" role="radio" aria-checked={rating === n} onClick={() => setRating(n)} className={cx('h-11 w-11 rounded-md border text-h3', n <= rating ? 'border-accent bg-accent text-on-accent' : 'border-line')}>★</button>
+              ))}
+            </div>
+          )}
+          <Field label={mode === 'CONFIRM' ? t('Note for the courier') : t('Notes')}><Textarea rows={2} value={note} onChange={(e) => setNote(e.target.value)} /></Field>
+          <div className="grid grid-cols-2 gap-2">
+            <Button tone="ghost" onClick={() => setMode('')}>{t('Back')}</Button>
+            <Button disabled={last4.length !== 4 || (mode === 'POSTPONE' && !date)} onClick={() => void send()}>{t('Send')}</Button>
+          </div>
+        </div>
+      )}
+    </section>
+  );
 }
 
 const ICON: Record<string, IconName> = {
@@ -34,10 +93,13 @@ export default function TrackingResult() {
   const [data, setData] = useState<Tracking | null>(null);
   const [missing, setMissing] = useState(false);
 
-  useEffect(() => {
+  const load = () =>
     api<Tracking>(`/track/${encodeURIComponent(number)}`)
       .then(setData)
       .catch(() => setMissing(true));
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [number]);
 
   const returning = data?.statusLabel === 'Returning to the store';
@@ -61,12 +123,21 @@ export default function TrackingResult() {
         <div className="space-y-4">
           <section className="shiply-route overflow-hidden rounded-xl p-6 text-white shadow-md">
             <div className="flex items-start justify-between gap-3">
-              <p className="text-body-sm opacity-90">{t('Your order from {store}', { store: data.store })}</p>
+              <div className="flex items-center gap-3">
+                {data.hasLogo && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={`/api/track/${encodeURIComponent(data.trackingNumber)}/logo`} alt={data.store} className="h-10 w-10 rounded-md bg-white object-contain p-1" />
+                )}
+                <p className="text-body-sm opacity-90">{t('Your order from {store}', { store: data.store })}</p>
+              </div>
               <Icon name={ICON[data.status] ?? (returning ? 'returns' : 'tracking')} size={28} className="text-accent" />
             </div>
             <h1 className="mt-3 text-h1">{label}</h1>
+            {data.courier && <p className="mt-2 text-body-sm">{t('{name} is bringing it today', { name: data.courier })}</p>}
+            {data.deliverOn && <p className="mt-2 text-body-sm">{t('You asked for delivery on {date}', { date: shortDate(data.deliverOn) })}</p>}
             <p className="ltr-iso mt-3 inline-block rounded-pill bg-white/10 px-3 py-1 font-mono text-caption">{data.trackingNumber}</p>
           </section>
+          <CustomerActions data={data} number={number} onDone={() => void load()} />
           {(data.promisedDate || data.codToPrepare > 0) && (
             <div className="grid grid-cols-2 gap-3">
               {data.promisedDate && (

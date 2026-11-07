@@ -47,10 +47,14 @@ const LABELS: Record<Editable, [string, string]> = {
   'qc.override_hours': ['Ticket waiting time (hours)', 'Time operations have to cancel a quality ticket before its penalty applies'],
   'qc.appeal_hours': ['Appeal window (hours)', 'Time a courier or agent has to appeal a penalty'],
   'fraud.max_failed_per_day': ['Failed attempts fraud check', 'Failed attempts by one courier in a day that raise a check'],
+  'fees.open_package': ['Open package fee', 'Added when the customer may open the parcel before paying'],
+  'fees.exchange_bp': ['Exchange surcharge', 'Share of shipping added to an exchange parcel'],
+  'messages.channel': ['Customer messages by', 'WhatsApp or SMS'],
+  'tracking.base_url': ['Tracking page address', 'The link put in customer messages'],
   'cash.safe_limit': ['Hub safe limit', 'Cash a hub safe may hold before it must go to the bank'],
 };
 
-const CHOICE_LABELS: Record<string, string> = { COMPANY: 'The company', AGENT: 'Their agent' };
+const CHOICE_LABELS: Record<string, string> = { COMPANY: 'The company', AGENT: 'Their agent', WHATSAPP: 'WhatsApp', SMS: 'SMS' };
 
 function toText(kind: string, value: unknown): string {
   if (kind === 'money') return String((value as number) / 100);

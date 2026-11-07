@@ -1,11 +1,12 @@
 'use client';
 import Link from 'next/link';
-import { useState } from 'react';
-import { PARCEL_SIZES, egpToPiastres } from '@shiply/shared';
+import { useEffect, useState } from 'react';
+import { PARCEL_SIZES, SIZE_LABELS, egpToPiastres } from '@shiply/shared';
 import { Alert, Button, Card, Field, Input, PageHeader, Select, Table, Td, Textarea } from '@/components/ui';
 import { api, errorMessage } from '@/lib/api';
 import { parseCsv } from '@/lib/format';
 import { Icon } from '@/components/Icon';
+import { egp } from '@/lib/format';
 import { useLocale, useT } from '@/lib/i18n';
 import { useLocations, type Governorate } from '../locations';
 
@@ -20,6 +21,7 @@ const EMPTY = {
   description: '',
   notes: '',
   allowOpen: false,
+  exchange: false,
   merchantRef: '',
 };
 
@@ -48,6 +50,14 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
   const [created, setCreated] = useState<{ id: string; trackingNumber: string } | null>(null);
   const set = <K extends keyof typeof EMPTY>(k: K, v: (typeof EMPTY)[K]) => setF((cur) => ({ ...cur, [k]: v }));
   const gov = govs.find((g) => g.code === f.governorateCode);
+  // The price before booking, as in Shiply Now's new order screen.
+  const [price, setPrice] = useState<{ shippingFee: number; basePrice: number; discount: number; openFee: number; exchangeFee: number; vatIncluded: number; zone: string; transitDays: number } | null>(null);
+  useEffect(() => {
+    if (!f.governorateCode) return setPrice(null);
+    const q = new URLSearchParams({ governorateCode: f.governorateCode, size: f.size, allowOpen: f.allowOpen ? 'true' : '', exchange: f.exchange ? 'true' : '' });
+    if (f.areaId) q.set('areaId', f.areaId);
+    api<typeof price>(`/merchant/quote?${q}`).then(setPrice).catch(() => setPrice(null));
+  }, [f.governorateCode, f.areaId, f.size, f.allowOpen, f.exchange]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +81,7 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
           description: f.description,
           notes: f.notes,
           allowOpen: f.allowOpen,
+          exchange: f.exchange,
           merchantRef: f.merchantRef,
         },
       });
@@ -127,7 +138,7 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
         <Field label={t('Size')}>
           <Select value={f.size} onChange={(e) => set('size', e.target.value)}>
             {PARCEL_SIZES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{t(SIZE_LABELS[s])}</option>
             ))}
           </Select>
         </Field>
@@ -147,6 +158,25 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
           <input type="checkbox" className="h-5 w-5" checked={f.allowOpen} onChange={(e) => set('allowOpen', e.target.checked)} />
           {t('Customer may open the parcel before paying')}
         </label>
+        <label className="flex items-center gap-2 text-body-sm sm:col-span-2">
+          <input type="checkbox" className="h-5 w-5" checked={f.exchange} onChange={(e) => set('exchange', e.target.checked)} />
+          {t('Exchange: the courier brings the old item back in the same visit')}
+        </label>
+        {price && (
+          <div className="rounded-lg border border-line bg-surface-raised p-4 text-body-sm sm:col-span-2">
+            <div className="flex items-center justify-between">
+              <span className="font-bold">{t('Shipping price')}</span>
+              <span className="tabular ltr-iso text-h3">{egp(price.shippingFee)}</span>
+            </div>
+            <p className="mt-1 text-caption text-text-muted">
+              {t(price.zone)} · {t('{n} days', { n: price.transitDays })} · {t('List price')} {egp(price.basePrice)}
+              {price.discount > 0 && ` · ${t('Discount')} ${egp(-price.discount)}`}
+              {price.openFee > 0 && ` · ${t('Open package fee')} ${egp(price.openFee)}`}
+              {price.exchangeFee > 0 && ` · ${t('Exchange')} ${egp(price.exchangeFee)}`}
+              {` · ${t('Includes VAT')} ${egp(price.vatIncluded)}`}
+            </p>
+          </div>
+        )}
         <div className="sm:col-span-2">
           <Button type="submit" disabled={busy}>{busy ? t('Creating…') : t('Create parcel')}</Button>
         </div>

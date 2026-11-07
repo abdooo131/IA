@@ -15,7 +15,7 @@ type Stop = {
   codCollected: number;
   shipment: {
     trackingNumber: string; customerName: string; customerPhone: string; address: string; governorateCode: string;
-    codAmount: number; allowOpen: boolean; notes: string; description: string; attempts: number;
+    codAmount: number; allowOpen: boolean; notes: string; description: string; attempts: number; kind: string; customerNote: string;
     merchant: { name: string; phone: string; pickupAddress: string };
   };
 };
@@ -27,6 +27,7 @@ function StopCard({ stop, n, onDone }: { stop: Stop; n: number; onDone: () => vo
   const [mode, setMode] = useState<'idle' | 'deliver' | 'fail'>('idle');
   const [cash, setCash] = useState('');
   const [recipient, setRecipient] = useState('');
+  const [oldItem, setOldItem] = useState(true);
   const [reason, setReason] = useState('');
   const [note, setNote] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -58,10 +59,12 @@ function StopCard({ stop, n, onDone }: { stop: Stop; n: number; onDone: () => vo
           <div className="flex flex-wrap items-center gap-2">
             <p className="text-h3">{who}</p>
             {isReturn ? <Badge tone="red">{t('Return to merchant')}</Badge> : !done && s.attempts > 0 ? <Badge tone="amber">{t('Attempt {n}', { n: s.attempts + 1 })}</Badge> : null}
+            {s.kind === 'EXCHANGE' && <Badge tone="blue">{t('Exchange: collect the old item')}</Badge>}
           </div>
           <p className="ltr-iso font-mono text-caption text-text-muted">{s.trackingNumber}</p>
           <p className="mt-2 text-body-sm">{address}</p>
           {!isReturn && (s.description || s.notes) && <p className="mt-1 text-caption text-text-muted">{[s.description, s.notes].filter(Boolean).join(' · ')}</p>}
+          {!isReturn && s.customerNote && <p className="mt-1 text-caption font-bold text-link">{t('Customer says')}: {s.customerNote}</p>}
         </div>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2">
@@ -93,12 +96,18 @@ function StopCard({ stop, n, onDone }: { stop: Stop; n: number; onDone: () => vo
             <>
               {!isReturn && <Field label={t('Cash collected (EGP)')} hint={t('Must be the full amount')}><Input inputMode="decimal" value={cash} onChange={(e) => setCash(e.target.value)} className="ltr-iso" /></Field>}
               <Field label={t('Received by')}><Input value={recipient} onChange={(e) => setRecipient(e.target.value)} placeholder={t('Name of the person')} /></Field>
+              {s.kind === 'EXCHANGE' && (
+                <label className="flex items-center gap-2 text-body-sm">
+                  <input type="checkbox" className="h-5 w-5" checked={oldItem} onChange={(e) => setOldItem(e.target.checked)} />
+                  {t('I took the old item from the customer')}
+                </label>
+              )}
               <div className="grid grid-cols-2 gap-2">
                 <Button tone="secondary" onClick={() => setMode('idle')}>{t('Back')}</Button>
                 <Button tone="accent" disabled={busy} onClick={() => {
                   const value = isReturn ? 0 : egpToPiastres(cash || '0');
                   if (value === null) return setError(t('Type the amount in EGP'));
-                  void send('deliver', { codCollected: value, recipient });
+                  void send('deliver', { codCollected: value, recipient, ...(s.kind === 'EXCHANGE' ? { exchangeCollected: oldItem } : {}) });
                 }}>{t('Confirm')}</Button>
               </div>
             </>

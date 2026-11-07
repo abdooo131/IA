@@ -71,6 +71,9 @@ export default function LoginPage() {
               </Suspense>
             </div>
             <p className="mt-6 text-center text-body-sm text-text-muted">
+              {t('New merchant?')} <Link href="/signup" className="font-bold text-link underline">{t('Open an account')}</Link>
+            </p>
+            <p className="mt-2 text-center text-body-sm text-text-muted">
               {t('Courier with an agent code?')} <Link href="/join" className="font-bold text-link underline">{t('Join here')}</Link>
             </p>
             <p className="mt-2 text-center text-body-sm text-text-muted">

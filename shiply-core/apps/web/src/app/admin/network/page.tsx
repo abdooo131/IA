@@ -25,6 +25,8 @@ interface Zone {
   priceM: number;
   priceL: number;
   priceXL: number;
+  priceXXL: number;
+  priceBulky: number;
 }
 interface Area {
   id: string;
@@ -148,11 +150,13 @@ function ZoneRow({ zone, onSaved }: { zone: Zone; onSaved: () => Promise<void> }
     priceM: toEgp(zone.priceM),
     priceL: toEgp(zone.priceL),
     priceXL: toEgp(zone.priceXL),
+    priceXXL: toEgp(zone.priceXXL),
+    priceBulky: toEgp(zone.priceBulky),
   });
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
   const save = async () => {
-    const prices = [f.priceS, f.priceM, f.priceL, f.priceXL].map(egpToPiastres);
+    const prices = [f.priceS, f.priceM, f.priceL, f.priceXL, f.priceXXL, f.priceBulky].map(egpToPiastres);
     const days = Number(f.transitDays);
     if (prices.some((p) => p === null) || !Number.isInteger(days) || days < 0) {
       setMsg({ ok: false, text: t('Check the prices and days') });
@@ -161,7 +165,7 @@ function ZoneRow({ zone, onSaved }: { zone: Zone; onSaved: () => Promise<void> }
     try {
       await api(`/admin/zones/${zone.code}`, {
         method: 'PUT',
-        body: { name: f.name, transitDays: days, priceS: prices[0], priceM: prices[1], priceL: prices[2], priceXL: prices[3] },
+        body: { name: f.name, transitDays: days, priceS: prices[0], priceM: prices[1], priceL: prices[2], priceXL: prices[3], priceXXL: prices[4], priceBulky: prices[5] },
       });
       setMsg({ ok: true, text: t('Saved') });
       await onSaved();
@@ -185,6 +189,8 @@ function ZoneRow({ zone, onSaved }: { zone: Zone; onSaved: () => Promise<void> }
       <Td>{num('priceM')}</Td>
       <Td>{num('priceL')}</Td>
       <Td>{num('priceXL')}</Td>
+      <Td>{num('priceXXL')}</Td>
+      <Td>{num('priceBulky')}</Td>
       <Td>
         <div className="flex items-center gap-2">
           <Button tone="secondary" onClick={save}>{t('Save')}</Button>
@@ -332,9 +338,9 @@ export default function NetworkPage() {
       <HubsCard hubs={hubs.data} reload={hubs.reload} />
       <Card title={t('Zones and prices (EGP)')}>
         <p className="mb-3 text-body-sm text-text-muted">{t('Transit days are business days from the day the parcel enters our network, before the daily cutoff.')}</p>
-        <Table head={[t('Code'), t('Name'), t('Days'), t('Small'), t('Medium'), t('Large'), 'XL', '']}>
+        <Table head={[t('Code'), t('Name'), t('Days'), t('Small'), t('Medium'), t('Large'), t('Extra large'), t('Double extra large'), t('Bulky'), '']}>
           {zones.data.map((z) => (
-            <ZoneRow key={`${z.code}-${z.priceS}-${z.priceM}-${z.priceL}-${z.priceXL}-${z.transitDays}`} zone={z} onSaved={zones.reload} />
+            <ZoneRow key={`${z.code}-${z.priceS}-${z.priceM}-${z.priceL}-${z.priceXL}-${z.priceXXL}-${z.priceBulky}-${z.transitDays}`} zone={z} onSaved={zones.reload} />
           ))}
         </Table>
       </Card>

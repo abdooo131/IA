@@ -91,7 +91,7 @@ export class CourierService {
               select: {
                 id: true, trackingNumber: true, customerName: true, customerPhone: true, address: true,
                 governorateCode: true, codAmount: true, allowOpen: true, notes: true, description: true,
-                attempts: true, status: true, merchant: { select: { name: true, phone: true, pickupAddress: true } },
+                attempts: true, status: true, kind: true, customerNote: true, merchant: { select: { name: true, phone: true, pickupAddress: true } },
               },
             },
           },

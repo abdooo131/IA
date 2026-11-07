@@ -28,6 +28,8 @@ export interface Me {
   merchant: { id: string; code: string; name: string } | null;
   agentId: string | null;
   agent: { id: string; code: string; name: string } | null;
+  merchantOwner: boolean;
+  merchantRights: string[];
 }
 
 const MeContext = createContext<Me | null>(null);

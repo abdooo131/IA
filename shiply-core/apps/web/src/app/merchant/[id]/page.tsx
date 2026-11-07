@@ -42,6 +42,14 @@ interface Parcel {
   promisedDate: string | null;
   shippingFee: number;
   codFee: number;
+  basePrice: number;
+  discount: number;
+  openFee: number;
+  exchangeFee: number;
+  kind: string;
+  deliverOn: string | null;
+  customerNote: string;
+  rating: number | null;
   returnFee: number;
   codCollected: number;
   payoutId: string | null;
@@ -145,10 +153,23 @@ export default function ParcelPage() {
             {p.notes && <Item label={t('Notes')} wide>{p.notes}</Item>}
           </dl>
         </Card>
+        {(p.deliverOn || p.customerNote || p.rating) && (
+          <Card title={t('From the customer')} className="lg:col-span-3">
+            <div className="space-y-1 text-body-sm">
+              {p.deliverOn && <p>{t('Asked for delivery on {date}', { date: p.deliverOn })}</p>}
+              {p.customerNote && <p>{p.customerNote}</p>}
+              {p.rating && <p>{t('Rated {n} of 5', { n: p.rating })}</p>}
+            </div>
+          </Card>
+        )}
         <Card title={t('Money')}>
           <dl className="space-y-2 text-body-sm">
             <Row label={t('Cash to collect')}>{egp(p.codAmount)}</Row>
             {p.status === 'DELIVERED' && <Row label={t('Collected')}>{egp(p.codCollected)}</Row>}
+            {p.basePrice > 0 && <Row label={t('List price')}>{egp(p.basePrice)}</Row>}
+            {p.discount > 0 && <Row label={t('Discount')}>{egp(-p.discount)}</Row>}
+            {p.openFee > 0 && <Row label={t('Open package fee')}>{egp(p.openFee)}</Row>}
+            {p.exchangeFee > 0 && <Row label={t('Exchange')}>{egp(p.exchangeFee)}</Row>}
             <Row label={t('Shipping fee')}>{egp(p.shippingFee)}</Row>
             {p.status !== 'RETURNED' && p.codFee > 0 && <Row label={t('COD fee')}>{egp(p.codFee)}</Row>}
             {p.status === 'RETURNED' && <Row label={t('Return fee')}>{egp(p.returnFee)}</Row>}

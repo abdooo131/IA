@@ -125,7 +125,11 @@ export function allApps(me: Me | null): AppDef[] {
       description: 'Merchant accounts, prices and pickup facilities',
       icon: 'store',
       color: '#B45309',
-      menus: [{ label: 'Merchants', pages: [{ href: '/admin/merchants', label: 'Merchants' }] }],
+      menus: [
+        { label: 'Merchants', pages: [{ href: '/admin/merchants', label: 'Merchants' }] },
+        { label: 'Sign ups', pages: [{ href: '/admin/signups', label: 'Sign ups' }] },
+        { label: 'Configuration', pages: [{ href: '/admin/price-tiers', label: 'Price tiers', hint: 'Monthly volume discounts' }] },
+      ],
     },
     {
       id: 'accounting',
@@ -186,6 +190,7 @@ export function allApps(me: Me | null): AppDef[] {
       menus: [
         { label: 'Users', pages: [{ href: '/admin/users', label: 'Users' }] },
         { label: 'Settings', pages: [{ href: '/admin/settings', label: 'Settings' }] },
+        { label: 'Messages', pages: [{ href: '/admin/messages', label: 'Messages', hint: 'SMS and WhatsApp outbox' }] },
       ],
     },
   ];
