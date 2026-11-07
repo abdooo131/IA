@@ -35,10 +35,14 @@ function safeEqual(a: string, b: string) {
 }
 
 /** The install redirect carries an hmac over its other query values. */
-export function verifyQueryHmac(query: Record<string, string>, secret: string) {
+/** Shopify signs a list (the orders picked in a bulk action) as ids=["1", "2"]. */
+export function verifyQueryHmac(query: Record<string, string | string[]>, secret: string) {
   const { hmac, signature: _s, ...rest } = query;
-  if (!hmac) return false;
-  const message = Object.keys(rest).sort().map((k) => `${k}=${rest[k]}`).join('&');
+  if (typeof hmac !== 'string' || !hmac) return false;
+  const value = (v: string | string[] | undefined) => (Array.isArray(v) ? `[${v.map((x) => `"${x}"`).join(', ')}]` : v ?? '');
+  // A list arrives as ids[]=1&ids[]=2 but is signed under the plain name.
+  const pairs = Object.entries(rest).map(([k, v]) => [k.replace(/\[\]$/, ''), Array.isArray(v) || k.endsWith('[]') ? [v].flat() : v] as const);
+  const message = pairs.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([k, v]) => `${k}=${value(v)}`).join('&');
   return safeEqual(createHmac('sha256', secret).update(message).digest('hex'), hmac);
 }
 
@@ -133,7 +137,7 @@ export interface OrderDraft {
 }
 
 /** Reads what a parcel needs from an order. Problems are listed so the merchant can fix them. */
-export function draftFromOrder(o: ShopifyOrderPayload, size: string, govs: { code: string; nameEn: string; nameAr: string }[]): { draft: OrderDraft; problems: string[]; skip?: string } {
+export function draftFromOrder(o: ShopifyOrderPayload, size: string, govs: { code: string; nameEn: string; nameAr: string; served?: boolean }[]): { draft: OrderDraft; problems: string[]; skip?: string } {
   const a = o.shipping_address;
   if (!a) return { draft: emptyDraft(o, size), problems: [], skip: 'No shipping address: nothing to deliver' };
   if (a.country_code && a.country_code !== 'EG') return { draft: emptyDraft(o, size), problems: [], skip: `Ships to ${a.country_code}, outside Egypt` };
@@ -143,6 +147,8 @@ export function draftFromOrder(o: ShopifyOrderPayload, size: string, govs: { cod
   if (!phone) problems.push(rawPhone ? `The phone ${rawPhone} is not an Egyptian mobile number` : 'The order has no phone number');
   const gov = governorateFor(a, govs);
   if (!gov) problems.push(`Could not tell the governorate from "${a.province ?? a.city ?? ''}"`);
+  const g = govs.find((x) => x.code === gov);
+  if (g && g.served === false) problems.push(`We do not deliver to ${g.nameEn} yet`);
   const cod = /cash on delivery|\bcod\b|الدفع عند الاستلام/i.test((o.payment_gateway_names ?? []).join(' ')) && ['pending', 'partially_paid', 'authorized'].includes(o.financial_status ?? '');
   if (o.currency && o.currency !== 'EGP') problems.push(`The order is in ${o.currency}, not EGP`);
   const amount = Math.round(parseFloat(o.total_outstanding ?? o.total_price ?? '0') * 100);
@@ -162,4 +168,47 @@ export function draftFromOrder(o: ShopifyOrderPayload, size: string, govs: { cod
 
 function emptyDraft(o: ShopifyOrderPayload, size: string): OrderDraft {
   return { customerName: '', customerPhone: '', address: '', governorateCode: '', areaId: null, size, codAmount: 0, description: '', notes: '', merchantRef: o.name };
+}
+
+// ---------------------------------------------------------------- reading orders from Shopify
+
+const ORDER_FIELDS = `id legacyResourceId name note phone currencyCode displayFinancialStatus displayFulfillmentStatus cancelledAt paymentGatewayNames
+  totalPriceSet { shopMoney { amount } } totalOutstandingSet { shopMoney { amount } }
+  customer { firstName lastName phone }
+  shippingAddress { name firstName lastName phone address1 address2 city province provinceCode countryCodeV2 }
+  billingAddress { phone }
+  lineItems(first: 50) { nodes { title quantity } }`;
+
+type GqlAddress = { name?: string; firstName?: string; lastName?: string; phone?: string | null; address1?: string | null; address2?: string | null; city?: string | null; province?: string | null; provinceCode?: string | null; countryCodeV2?: string | null } | null;
+export interface GqlOrder {
+  id: string; legacyResourceId: string; name: string; note: string | null; phone: string | null; currencyCode: string; displayFinancialStatus: string | null;
+  displayFulfillmentStatus: string; cancelledAt: string | null; paymentGatewayNames: string[]; totalPriceSet: { shopMoney: { amount: string } };
+  totalOutstandingSet: { shopMoney: { amount: string } } | null; customer: { firstName?: string; lastName?: string; phone?: string | null } | null;
+  shippingAddress: GqlAddress; billingAddress: { phone?: string | null } | null; lineItems: { nodes: { title: string; quantity: number }[] };
+}
+
+/** The Admin API's order, in the same shape the webhooks send. */
+export function fromGraphql(o: GqlOrder): ShopifyOrderPayload {
+  const a = o.shippingAddress;
+  return {
+    id: o.legacyResourceId, name: o.name, phone: o.phone, note: o.note, currency: o.currencyCode, total_price: o.totalPriceSet.shopMoney.amount,
+    total_outstanding: o.totalOutstandingSet?.shopMoney.amount, financial_status: (o.displayFinancialStatus ?? '').toLowerCase(), payment_gateway_names: o.paymentGatewayNames,
+    cancelled_at: o.cancelledAt,
+    shipping_address: a ? { name: a.name, first_name: a.firstName, last_name: a.lastName, phone: a.phone, address1: a.address1, address2: a.address2, city: a.city, province: a.province, province_code: a.provinceCode, country_code: a.countryCodeV2 } : null,
+    billing_address: o.billingAddress ? { phone: o.billingAddress.phone } : null,
+    customer: o.customer ? { phone: o.customer.phone, first_name: o.customer.firstName, last_name: o.customer.lastName } : null,
+    line_items: o.lineItems.nodes,
+  };
+}
+
+/** The orders a merchant picked in Shopify, by their numbers. */
+export async function ordersByIds(cfg: ShopifyConfig, shop: string, token: string, ids: string[]) {
+  const data = await graphql<{ nodes: (GqlOrder | null)[] }>(cfg, shop, token, `query($ids: [ID!]!) { nodes(ids: $ids) { ... on Order { ${ORDER_FIELDS} } } }`, { ids: ids.map((i) => `gid://shopify/Order/${i}`) });
+  return data.nodes.filter((n): n is GqlOrder => !!n && !!n.legacyResourceId).map(fromGraphql);
+}
+
+/** Recent open orders not shipped yet, newest first, for picking in the Shiply panel. */
+export async function openOrders(cfg: ShopifyConfig, shop: string, token: string, first = 50) {
+  const data = await graphql<{ orders: { nodes: GqlOrder[] } }>(cfg, shop, token, `query($q: String!, $n: Int!) { orders(first: $n, sortKey: CREATED_AT, reverse: true, query: $q) { nodes { ${ORDER_FIELDS} } } }`, { q: 'status:open AND fulfillment_status:unshipped', n: first });
+  return data.orders.nodes.map(fromGraphql);
 }

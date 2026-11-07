@@ -1,6 +1,6 @@
 import { applyBp, egpToPiastres, formatEgp } from './money';
 import { isValidTrackingNumber, makeTrackingNumber } from './tracking';
-import { distanceKm, nearest, nextHop } from './routing';
+import { distanceKm, facilityPath, nearest, nextHop, planRoute } from './routing';
 import { addBusinessDays, cairoClock, cairoTimeToUtc, promisedDate } from './dates';
 import { codFee, returnFee, shippingFee } from './pricing';
 import { canTransition } from './statuses';
@@ -60,6 +60,38 @@ describe('routing', () => {
     expect(hop('RETURN', 'ALXSF', 'ALX')).toBe('OBR');
     expect(hop('RETURN', 'OBR', 'ALX')).toBeNull();
     expect(hop('RETURN', 'GIZ', 'GIZ')).toBe('OBR');
+  });
+});
+
+describe('routing through several facilities', () => {
+  // Obour -> Tanta -> Mansoura -> Port Said: trucks only run between neighbours.
+  const hubs = new Map([
+    ['OBR', { id: 'OBR', isSorting: true, parentId: null }],
+    ['TNT', { id: 'TNT', isSorting: true, parentId: null }],
+    ['MNS', { id: 'MNS', isSorting: true, parentId: null }],
+    ['PSD', { id: 'PSD', isSorting: true, parentId: null }],
+    ['FAR', { id: 'FAR', isSorting: true, parentId: null }],
+    ['GIZ', { id: 'GIZ', isSorting: false, parentId: 'OBR' }],
+    ['MNSH', { id: 'MNSH', isSorting: false, parentId: 'MNS' }],
+    ['PSDH', { id: 'PSDH', isSorting: false, parentId: 'PSD' }],
+    ['FARH', { id: 'FARH', isSorting: false, parentId: 'FAR' }],
+  ]);
+  const both = (a: string, b: string) => [{ fromId: a, toId: b }, { fromId: b, toId: a }];
+  const links = [...both('OBR', 'TNT'), ...both('TNT', 'MNS'), ...both('MNS', 'PSD'), ...both('PSD', 'FAR')];
+  it('finds the fewest legs, with at most two facilities in between', () => {
+    expect(facilityPath('OBR', 'OBR', links)).toEqual(['OBR']);
+    expect(facilityPath('OBR', 'MNS', links)).toEqual(['OBR', 'TNT', 'MNS']);
+    expect(facilityPath('OBR', 'PSD', links)).toEqual(['OBR', 'TNT', 'MNS', 'PSD']);
+    expect(facilityPath('OBR', 'FAR', links)).toBeNull(); // three in between is too many
+    expect(facilityPath('OBR', 'FAR', [])).toEqual(['OBR', 'FAR']); // no links set up: direct
+  });
+  it('plans the whole way and moves one step at a time', () => {
+    expect(planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'PSDH' }, hubs, links)).toEqual(['OBR', 'TNT', 'MNS', 'PSD', 'PSDH']);
+    expect(planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'GIZ' }, hubs, links)).toEqual(['OBR', 'GIZ']);
+    expect(planRoute({ direction: 'RETURN', originHubId: 'OBR', destinationHubId: 'MNSH' }, hubs, links)).toEqual(['MNSH', 'MNS', 'TNT', 'OBR']);
+    expect(planRoute({ direction: 'FORWARD', originHubId: 'OBR', destinationHubId: 'FARH' }, hubs, links)).toBeNull();
+    const hop = (here: string) => nextHop({ direction: 'FORWARD', currentHubId: here, originHubId: 'OBR', destinationHubId: 'PSDH' }, hubs, links);
+    expect(['OBR', 'TNT', 'MNS', 'PSD', 'PSDH'].map(hop)).toEqual(['TNT', 'MNS', 'PSD', 'PSDH', null]);
   });
 });
 

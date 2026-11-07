@@ -46,6 +46,24 @@ function hook(topic: string, body: object, secret = 'app-secret') {
     .send(raw);
 }
 
+/** An order as the Admin GraphQL API returns it. 6003 ships to Sohag, outside the area we serve. */
+function gql(id: string) {
+  const sohag = id === '6003';
+  return {
+    id: `gid://shopify/Order/${id}`, legacyResourceId: id, name: `#S${id}`, note: null, phone: null, currencyCode: 'EGP', displayFinancialStatus: 'PENDING', displayFulfillmentStatus: 'UNFULFILLED',
+    cancelledAt: null, paymentGatewayNames: ['Cash on Delivery (COD)'], totalPriceSet: { shopMoney: { amount: '250.00' } }, totalOutstandingSet: { shopMoney: { amount: '250.00' } },
+    customer: { firstName: 'Omar', lastName: 'Fathy', phone: null }, billingAddress: null, lineItems: { nodes: [{ title: 'Sneakers', quantity: 1 }] },
+    shippingAddress: { name: 'Omar Fathy', phone: '01212345678', address1: '8 Shehab St', address2: null, city: sohag ? 'Sohag' : 'Mohandessin', province: sohag ? 'Sohag' : 'Giza', provinceCode: sohag ? 'SHG' : 'GZ', countryCodeV2: 'EG' },
+  };
+}
+
+function signedIds(ids: string[], extra: Record<string, string> = {}) {
+  const q: Record<string, string> = { shop: SHOP, timestamp: String(Math.floor(Date.now() / 1000)), ...extra };
+  const message = [...Object.keys(q).map((k) => [k, q[k]!] as const), ['ids', `[${ids.map((i) => `"${i}"`).join(', ')}]`] as const].sort(([a], [b]) => a.localeCompare(b)).map(([k, v]) => `${k}=${v}`).join('&');
+  const hmac = createHmac('sha256', 'app-secret').update(message).digest('hex');
+  return [...ids.map((i) => `ids[]=${i}`), ...Object.entries(q).map(([k, v]) => `${k}=${encodeURIComponent(v)}`), `hmac=${hmac}`].join('&');
+}
+
 let next = 5000;
 function order(extra: Record<string, unknown> = {}) {
   next++;
@@ -67,6 +85,8 @@ beforeAll(async () => {
       res.setHeader('content-type', 'application/json');
       if (req.url?.endsWith('/admin/oauth/access_token')) return res.end(JSON.stringify({ access_token: 'shpat_secret_token', scope: 'read_orders,write_orders' }));
       const q: string = body.query ?? '';
+      if (q.includes('nodes(ids')) return res.end(JSON.stringify({ data: { nodes: body.variables.ids.map((gid: string) => gql(gid.split('/').pop()!)) } }));
+      if (q.includes('orders(first')) return res.end(JSON.stringify({ data: { orders: { nodes: ['7001', '7002'].map(gql) } } }));
       if (q.includes('webhookSubscriptionCreate')) return res.end(JSON.stringify({ data: { webhookSubscriptionCreate: { userErrors: [] } } }));
       if (q.includes('fulfillmentOrders')) return res.end(JSON.stringify({ data: { order: { fulfillmentOrders: { nodes: [{ id: 'gid://shopify/FulfillmentOrder/77', status: 'OPEN' }] } } } }));
       if (q.includes('fulfillmentCreate')) return res.end(JSON.stringify({ data: { fulfillmentCreate: { fulfillment: { id: 'gid://shopify/Fulfillment/1' }, userErrors: [] } } }));
@@ -136,7 +156,9 @@ describe('shopify', () => {
     expect(JSON.stringify(await ok(merchant.get('/merchant/shopify')))).not.toContain('tokenEnc');
   });
 
-  it('a new COD order becomes a parcel; the same order twice makes one parcel; forged calls are refused', async () => {
+  it('a new COD order becomes a parcel when automatic parcels are on; the same order twice makes one; forged calls are refused', async () => {
+    expect((await prisma.shopifyStore.findUnique({ where: { shop: SHOP } })).autoCreate).toBe(false); // off unless the merchant turns it on
+    await ok(merchant.put('/merchant/shopify/settings').send({ autoCreate: true, defaultSize: 'M', pushUpdates: true }));
     const o = order();
     expect((await hook('orders/create', o, 'wrong-secret')).status).toBe(401);
     await ok(hook('orders/create', o));
@@ -224,6 +246,56 @@ describe('shopify', () => {
     await prisma.shopifyTask.update({ where: { id: t.id }, data: { nextAttemptAt: new Date() } });
     await shopify.runTasks();
     expect((await prisma.shopifyTask.findUnique({ where: { id: t.id } })).status).toBe('DONE');
+  });
+
+  it('the merchant ticks orders in Shopify and makes AWBs for just those, with labels to print', async () => {
+    await ok(merchant.put('/merchant/shopify/settings').send({ autoCreate: false, defaultSize: 'M', pushUpdates: true }));
+    await prisma.governorate.update({ where: { code: 'SHG' }, data: { hubId: null } }); // Sohag is not served
+    const bad = await request(app.getHttpServer()).get(`/integrations/shopify/ship?${signedIds(['6001']).replace(/hmac=\w+/, 'hmac=forged')}`);
+    expect(bad.headers.location).toContain('error=signature');
+
+    const res = await request(app.getHttpServer()).get(`/integrations/shopify/ship?${signedIds(['6001', '6002', '6003'])}`);
+    expect(res.status).toBe(302);
+    expect(res.headers.location.split('?')[1]).toContain('token=');
+    const token = decodeURIComponent(new URL(res.headers.location).searchParams.get('token')!);
+    const view = await ok(request(app.getHttpServer()).get('/integrations/shopify/ship/orders').query({ token }));
+    expect(view.merchant).toBe('Eve Chantelle');
+    expect(view.orders.length).toBe(3);
+    const sohag = view.orders.find((o: any) => o.orderId === '6003');
+    expect(sohag.status).toBe('FAILED');
+    expect(sohag.error).toContain('do not deliver to Sohag');
+    const ready = view.orders.filter((o: any) => o.status === 'WAITING');
+    expect(ready.length).toBe(2);
+    expect(view.served.some((g: any) => g.code === 'SHG')).toBe(false);
+
+    // Only orders picked in Shopify can be shipped from this page.
+    const other = await prisma.shopifyOrder.findFirst({ where: { status: 'CREATED' } });
+    expect((await request(app.getHttpServer()).post('/integrations/shopify/ship/create').send({ token, orders: [{ id: other.id }] })).status).toBe(403);
+    expect((await request(app.getHttpServer()).post('/integrations/shopify/ship/create').send({ token: 'nonsense-token', orders: [{ id: ready[0].id }] })).status).toBe(401);
+
+    const made = await ok(request(app.getHttpServer()).post('/integrations/shopify/ship/create').send({ token, orders: [...ready.map((o: any) => ({ id: o.id })), { id: sohag.id }] }));
+    expect(made.created).toBe(2);
+    expect(made.failed).toBe(1);
+    expect(made.labels.length).toBe(2);
+    expect(made.labels[0].route).toBe('GIZ');
+    expect(made.labels[0].routeDetail).toBe('OBR > GIZ');
+    expect(made.labels[0].codAmount).toBe(25000);
+    // Making them again does not make more parcels.
+    const again = await ok(request(app.getHttpServer()).post('/integrations/shopify/ship/create').send({ token, orders: ready.map((o: any) => ({ id: o.id })) }));
+    expect(again.labels.map((l: any) => l.trackingNumber).sort()).toEqual(made.labels.map((l: any) => l.trackingNumber).sort());
+    expect(await prisma.shipment.count({ where: { merchantRef: { in: ['#S6001', '#S6002'] } } })).toBe(2);
+  });
+
+  it('in the Shiply panel the merchant brings in open orders and ticks the ones to ship', async () => {
+    const r = await ok(merchant.post('/merchant/shopify/sync'));
+    expect(r.found).toBe(2);
+    expect(r.added).toBe(2);
+    expect((await ok(merchant.post('/merchant/shopify/sync'))).added).toBe(0);
+    const rows = await prisma.shopifyOrder.findMany({ where: { orderId: { in: ['7001', '7002'] } } });
+    expect(rows.every((x: any) => x.status === 'WAITING')).toBe(true);
+    const made = await ok(merchant.post('/merchant/shopify/orders/create').send({ orders: [{ id: rows[0].id, fix: { size: 'L' } }] }));
+    expect(made.created).toBe(1);
+    expect((await prisma.shipment.findFirst({ where: { merchantRef: rows[0].orderName } })).size).toBe('L');
   });
 
   it('uninstalling the app stops the store and forgets the token', async () => {

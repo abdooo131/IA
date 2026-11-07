@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query } from '@nestjs/common';
 import { CurrentUser, Roles, type SessionUser } from '../auth/auth';
 import { MerchantService } from '../merchant/merchant.service';
 import { AdminService } from './admin.service';
@@ -67,6 +67,31 @@ export class AdminController {
   @Put('zones/:code')
   saveZone(@CurrentUser() u: SessionUser, @Param('code') code: string, @Body() body: unknown) {
     return this.admin.saveZone(code, body, u);
+  }
+
+  @Get('line-hauls')
+  lineHauls() {
+    return this.admin.lineHauls();
+  }
+
+  @Post('line-hauls')
+  addLineHaul(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.admin.addLineHaul(body, u);
+  }
+
+  @Delete('line-hauls/:id')
+  removeLineHaul(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
+    return this.admin.removeLineHaul(id, u);
+  }
+
+  @Get('route-preview')
+  routePreview(@Query() q: unknown) {
+    return this.admin.routePreview(q);
+  }
+
+  @Get('coverage')
+  coverage() {
+    return this.admin.coverage();
   }
 
   @Get('governorates')

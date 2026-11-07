@@ -120,19 +120,31 @@ async function main() {
   }
   const hubId = (code: string | null) => (code ? hubIds.get(code)! : null);
 
+  // Coverage. We launch in Cairo and Giza: every other governorate is set up but not served until
+  // operations give it a hub on the network page. SEED_COVERAGE=all serves the whole country
+  // (the test suites use it to exercise long routes).
+  const everywhere = process.env.SEED_COVERAGE === 'all';
+  const LAUNCH = new Set(['CAI', 'GIZ']);
+  const served = (gov: string, hub: string | null) => (everywhere || LAUNCH.has(gov) ? hubId(hub) : null);
   for (const [code, nameEn, nameAr, zoneCode, hub, lat, lng] of GOVERNORATES) {
     await prisma.governorate.upsert({
       where: { code },
       update: { zoneCode },
-      create: { code, nameEn, nameAr, zoneCode, hubId: hubId(hub), lat, lng },
+      create: { code, nameEn, nameAr, zoneCode, hubId: served(code, hub), lat, lng },
     });
   }
   for (const [governorateCode, nameEn, nameAr, hub, lat, lng] of AREAS) {
     await prisma.area.upsert({
       where: { governorateCode_nameEn: { governorateCode, nameEn } },
       update: {},
-      create: { governorateCode, nameEn, nameAr, hubId: hubId(hub), lat, lng },
+      create: { governorateCode, nameEn, nameAr, hubId: served(governorateCode, hub), lat, lng },
     });
+  }
+
+  // Trucks between the sorting facilities, both ways.
+  if (everywhere && (await prisma.lineHaulLink.count()) === 0) {
+    const ids = FACILITIES.map((f) => hubIds.get(f.code)!);
+    for (const a of ids) for (const b of ids) if (a !== b) await prisma.lineHaulLink.create({ data: { fromId: a, toId: b } });
   }
 
   for (const [key, def] of Object.entries(SETTINGS)) {

@@ -9,6 +9,8 @@ import {
   isValidTrackingNumber,
   nearest,
   nextHop,
+  planRoute,
+  type LineHaul,
   normalizeCode,
   promisedDate,
   type NetHub,
@@ -94,9 +96,28 @@ export class ShipmentsCore {
   }
 
   /** Every hub and facility, for routing. */
-  async network(tx: Tx): Promise<Map<string, NetHub & { code: string; name: string }>> {
-    const hubs = await tx.hub.findMany({ select: { id: true, code: true, name: true, isSorting: true, parentId: true } });
-    return new Map(hubs.map((h) => [h.id, h]));
+  /** Every place in the network and the truck routes between facilities. */
+  async network(tx: Tx): Promise<Network> {
+    const [hubs, links] = await Promise.all([
+      tx.hub.findMany({ select: { id: true, code: true, name: true, isSorting: true, parentId: true } }),
+      tx.lineHaulLink.findMany({ where: { active: true }, select: { fromId: true, toId: true } }),
+    ]);
+    return Object.assign(new Map(hubs.map((h) => [h.id, h])), { links });
+  }
+
+  /**
+   * The planned way for a new parcel, as place codes. Refuses one we cannot carry because no
+   * chain of trucks joins the two facilities.
+   */
+  async plan(tx: Tx, direction: Direction, originHubId: string, destinationHubId: string, net?: Network) {
+    const n = net ?? (await this.network(tx));
+    const ids = planRoute({ direction, originHubId, destinationHubId }, n, n.links);
+    if (!ids) {
+      const from = n.get(originHubId)?.name ?? 'the pickup facility';
+      const to = n.get(destinationHubId)?.name ?? 'the delivery hub';
+      throw new DomainError('not_served', `No truck route joins ${from} to ${to} yet`, 422);
+    }
+    return ids.map((id) => n.get(id)?.code ?? id);
   }
 
   /** The active sorting facility nearest to a point: where a merchant's pickups go. */
@@ -144,7 +165,7 @@ export class ShipmentsCore {
   async nextStep(
     tx: Tx,
     s: Pick<Shipment, 'status' | 'direction' | 'currentHubId' | 'originHubId' | 'destinationHubId' | 'holdReason'>,
-    net?: Map<string, NetHub & { code: string; name: string }>,
+    net?: Network,
   ): Promise<NextStep> {
     if (s.status === 'ON_HOLD') return { kind: 'HOLD', reason: s.holdReason };
     if (!['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB'].includes(s.status) || !s.currentHubId) return { kind: 'NONE' };
@@ -152,12 +173,15 @@ export class ShipmentsCore {
     const hop = nextHop(
       { direction: s.direction as Direction, currentHubId: s.currentHubId, originHubId: s.originHubId, destinationHubId: s.destinationHubId },
       hubs,
+      hubs.links,
     );
     if (hop === null) return s.direction === 'FORWARD' ? { kind: 'DELIVER' } : { kind: 'RETURN_TO_MERCHANT' };
     const hub = hubs.get(hop)!;
     return { kind: 'SEND', hubId: hub.id, hubCode: hub.code, hubName: hub.name };
   }
 }
+
+export type Network = Map<string, NetHub & { code: string; name: string }> & { links: LineHaul[] };
 
 export function todayInCairo(at = new Date()): string {
   return cairoClock(at).date;

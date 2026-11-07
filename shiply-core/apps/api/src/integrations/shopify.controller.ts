@@ -14,6 +14,23 @@ export class ShopifyPublicController {
     res.redirect(302, await this.shopify.callback(q));
   }
 
+  /** Shopify's "Ship with Shiply" action on the orders the merchant ticked. */
+  @Get('ship')
+  async picked(@Query() q: Record<string, string | string[]>, @Res() res: Response) {
+    res.redirect(302, await this.shopify.pickedInShopify(q));
+  }
+
+  @Get('ship/orders')
+  shipView(@Query() q: unknown) {
+    return this.shopify.shipView(q);
+  }
+
+  @Post('ship/create')
+  @HttpCode(200)
+  shipCreate(@Body() body: unknown) {
+    return this.shopify.shipCreate(body);
+  }
+
   @Post('webhooks')
   @HttpCode(200)
   webhook(@Req() req: Request & { rawBody?: Buffer }, @Headers() headers: Record<string, string>, @Body() body: unknown) {
@@ -46,6 +63,18 @@ export class ShopifyMerchantController {
   @HttpCode(200)
   disconnect(@CurrentUser() u: SessionUser) {
     return this.shopify.disconnect(u);
+  }
+
+  @Post('sync')
+  @HttpCode(200)
+  sync(@CurrentUser() u: SessionUser) {
+    return this.shopify.sync(u);
+  }
+
+  @Post('orders/create')
+  @HttpCode(200)
+  createPicked(@CurrentUser() u: SessionUser, @Body() body: unknown) {
+    return this.shopify.createPicked(u, body);
   }
 
   @Post('orders/:id/create')

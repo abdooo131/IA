@@ -52,6 +52,9 @@ const AreaInput = z.object({
   hubId: z.string().uuid().nullable(),
 });
 
+const LineHaulInput = z.object({ fromId: z.string().uuid(), toId: z.string().uuid(), bothWays: z.boolean().default(true), hours: z.number().int().min(1).max(240).default(12) });
+const RouteQuery = z.object({ governorateCode: z.string().trim().length(3), areaId: z.string().uuid().optional(), merchantId: z.string().uuid().optional(), fromGovernorate: z.string().trim().length(3).optional(), fromAreaId: z.string().uuid().optional() });
+
 const MerchantInput = z.object({
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9]{2,10}$/, 'Use 2 to 10 letters or digits'),
   name: z.string().trim().min(2).max(120),
@@ -257,6 +260,82 @@ export class AdminService {
     });
     await this.audit(user, 'ZONE_UPDATED', 'zone', code, d);
     return zone;
+  }
+
+  // ---------------------------------------------------------------- truck routes between facilities
+
+  async lineHauls() {
+    const [links, hubs] = await Promise.all([
+      this.prisma.lineHaulLink.findMany({ orderBy: { createdAt: 'asc' } }),
+      this.prisma.hub.findMany({ where: { isSorting: true }, select: { id: true, code: true, name: true } }),
+    ]);
+    const name = new Map(hubs.map((h) => [h.id, h]));
+    return links.map((l) => ({ ...l, from: name.get(l.fromId) ?? null, to: name.get(l.toId) ?? null }));
+  }
+
+  /** Adds a truck route; both ways unless told otherwise. */
+  async addLineHaul(body: unknown, user: SessionUser) {
+    const d = parse(LineHaulInput, body);
+    if (d.fromId === d.toId) throw new DomainError('invalid_input', 'Pick two different facilities', 422);
+    const both = await this.prisma.hub.count({ where: { id: { in: [d.fromId, d.toId] }, isSorting: true } });
+    if (both !== 2) throw new DomainError('invalid_input', 'Truck routes join sorting facilities only', 422);
+    const pairs = d.bothWays ? [[d.fromId, d.toId], [d.toId, d.fromId]] : [[d.fromId, d.toId]];
+    for (const [fromId, toId] of pairs) {
+      await this.prisma.lineHaulLink.upsert({ where: { fromId_toId: { fromId: fromId!, toId: toId! } }, update: { active: true, hours: d.hours }, create: { fromId: fromId!, toId: toId!, hours: d.hours } });
+    }
+    await this.audit(user, 'LINE_HAUL_SAVED', 'line_haul', d.fromId, d);
+    return this.lineHauls();
+  }
+
+  async removeLineHaul(id: string, user: SessionUser) {
+    const r = await this.prisma.lineHaulLink.deleteMany({ where: { id } });
+    if (r.count !== 1) throw notFound('Truck route');
+    await this.audit(user, 'LINE_HAUL_REMOVED', 'line_haul', id, {});
+    return this.lineHauls();
+  }
+
+  /**
+   * How a parcel from a merchant (or a pickup place) to an address would travel: the facility
+   * that picks it up, every facility on the way, and the last mile hub. Or why we cannot carry it.
+   */
+  async routePreview(query: unknown) {
+    const q = parse(RouteQuery, query);
+    const net = await this.core.network(this.prisma as never);
+    let origin: { id: string; name: string };
+    let from: string;
+    if (q.merchantId) {
+      const m = await this.prisma.merchant.findUnique({ where: { id: q.merchantId }, include: { homeHub: true } });
+      if (!m) throw notFound('Merchant');
+      origin = m.homeHub;
+      from = `${m.name}, ${m.pickupAddress}`;
+      const pickup = await this.core.deliveryHubFor(this.prisma as never, m.governorateCode, m.areaId).then(() => true, () => false);
+      if (!pickup) return { ok: false, reason: `We do not pick up from ${m.governorateCode} yet`, from };
+    } else {
+      const point = await this.core.pointOf(this.prisma as never, q.fromGovernorate ?? 'CAI', q.fromAreaId ?? null);
+      origin = await this.core.nearestFacility(this.prisma as never, point);
+      from = q.fromGovernorate ?? 'CAI';
+    }
+    try {
+      const dest = await this.core.deliveryHubFor(this.prisma as never, q.governorateCode, q.areaId ?? null);
+      const codes = await this.core.plan(this.prisma as never, 'FORWARD', origin.id, dest.hubId, net);
+      const byCode = new Map([...net.values()].map((h) => [h.code, h]));
+      return {
+        ok: true,
+        from,
+        steps: codes.map((code, i) => ({ code, name: byCode.get(code)?.name ?? code, kind: byCode.get(code)?.isSorting ? (i === 0 ? 'PICKUP_FACILITY' : 'FACILITY') : 'LAST_MILE' })),
+        transfers: Math.max(0, codes.length - 3),
+        zone: dest.zone.name,
+        transitDays: dest.zone.transitDays,
+      };
+    } catch (e) {
+      return { ok: false, from, reason: e instanceof DomainError ? e.message : 'No route' };
+    }
+  }
+
+  /** Which governorates and areas we deliver to, in one view. */
+  async coverage() {
+    const govs = await this.prisma.governorate.findMany({ include: { hub: { select: { code: true } }, areas: { select: { id: true, hubId: true } } }, orderBy: { nameEn: 'asc' } });
+    return govs.map((g) => ({ code: g.code, nameEn: g.nameEn, nameAr: g.nameAr, served: !!g.hubId, hub: g.hub?.code ?? null, areas: g.areas.length, areasServed: g.areas.filter((a) => a.hubId || g.hubId).length }));
   }
 
   governorates() {

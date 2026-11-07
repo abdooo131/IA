@@ -14,7 +14,7 @@ import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { MerchantService } from '../merchant/merchant.service';
 import {
-  draftFromOrder, exchangeCode, graphql, normalizeShop, shopifyConfig, verifyQueryHmac, verifyWebhookHmac,
+  draftFromOrder, exchangeCode, graphql, normalizeShop, openOrders, ordersByIds, shopifyConfig, verifyQueryHmac, verifyWebhookHmac,
   type OrderDraft, type ShopifyConfig, type ShopifyOrderPayload,
 } from './shopify';
 
@@ -29,6 +29,8 @@ const FixInput = z.object({
   size: z.enum(PARCEL_SIZES).optional(),
   codAmount: z.number().int().min(0).optional(),
 });
+const PickInput = z.object({ orders: z.array(z.object({ id: z.string().uuid(), fix: FixInput.default({}) })).min(1).max(100) });
+const TokenInput = z.object({ token: z.string().min(10) });
 const BACKOFF_MINUTES = [1, 5, 30, 120, 360, 720];
 const TOPICS = ['ORDERS_CREATE', 'ORDERS_CANCELLED', 'APP_UNINSTALLED'];
 
@@ -143,22 +145,28 @@ export class ShopifyService implements OnModuleInit, OnModuleDestroy {
     return u.id;
   }
 
-  /** A new order: kept, and turned into a parcel now when the store says so and nothing is missing. */
-  async importOrder(storeId: string, payload: ShopifyOrderPayload) {
+  /**
+   * Keeps a Shopify order. With automatic parcels on (and nothing missing) the parcel is made at
+   * once; otherwise it waits for the merchant to pick it. An order seen before is returned as is.
+   */
+  async importOrder(storeId: string, payload: ShopifyOrderPayload, opts: { auto?: boolean } = {}) {
     const store = await this.prisma.shopifyStore.findUniqueOrThrow({ where: { id: storeId } });
     const orderId = String(payload.id);
-    if (await this.prisma.shopifyOrder.findUnique({ where: { storeId_orderId: { storeId, orderId } } })) return null;
-    const govs = await this.prisma.governorate.findMany({ select: { code: true, nameEn: true, nameAr: true } });
+    const seen = await this.prisma.shopifyOrder.findUnique({ where: { storeId_orderId: { storeId, orderId } } });
+    if (seen) return { row: seen, fresh: false };
+    const govs = (await this.prisma.governorate.findMany({ select: { code: true, nameEn: true, nameAr: true, hubId: true } })).map((g) => ({ ...g, served: !!g.hubId }));
     const { draft, problems, skip } = draftFromOrder(payload, store.defaultSize, govs);
-    const status = skip ? 'SKIPPED' : problems.length ? 'FAILED' : store.autoCreate ? 'CREATING' : 'WAITING';
+    const auto = opts.auto ?? store.autoCreate;
+    const status = skip ? 'SKIPPED' : problems.length ? 'FAILED' : auto ? 'CREATING' : 'WAITING';
     let row;
     try {
       row = await this.prisma.shopifyOrder.create({ data: { storeId, orderId, orderName: payload.name, status, error: skip ?? problems.join('. '), draft: draft as never } });
     } catch {
-      return null; // the same order arrived twice at once
+      // The same order arrived twice at once.
+      return { row: await this.prisma.shopifyOrder.findUniqueOrThrow({ where: { storeId_orderId: { storeId, orderId } } }), fresh: false };
     }
-    if (status === 'CREATING') return this.create(row.id, draft, store.merchantId);
-    return row;
+    if (status === 'CREATING') row = await this.create(row.id, draft, store.merchantId);
+    return { row, fresh: true };
   }
 
   private async create(id: string, draft: OrderDraft, merchantId: string) {
@@ -173,16 +181,128 @@ export class ShopifyService implements OnModuleInit, OnModuleDestroy {
   /** The merchant fixes what was missing (or just presses create) and the parcel is made. */
   async createFromOrder(user: SessionUser, id: string, body: unknown) {
     assertMerchantRight(user, 'orders');
-    const fix = parse(FixInput, body);
+    const r = await this.makeParcel(user.merchantId!, id, parse(FixInput, body));
+    if (r.status !== 'CREATED') throw new DomainError('invalid_input', r.error, 422);
+    return r;
+  }
+
+  private async makeParcel(merchantId: string, id: string, fix: z.infer<typeof FixInput>) {
     const o = await this.prisma.shopifyOrder.findUnique({ where: { id }, include: { store: { select: { merchantId: true } } } });
-    if (!o || o.store.merchantId !== user.merchantId) throw notFound('Order');
-    if (!['WAITING', 'FAILED', 'SKIPPED'].includes(o.status)) throw new DomainError('bad_status', 'A parcel was already made for this order', 409);
+    if (!o || o.store.merchantId !== merchantId) throw notFound('Order');
+    if (o.status === 'CREATED') return o;
+    if (!['WAITING', 'FAILED', 'SKIPPED'].includes(o.status)) throw new DomainError('bad_status', 'This order is being handled', 409);
     const draft = { ...(o.draft as unknown as OrderDraft), ...Object.fromEntries(Object.entries(fix).filter(([, v]) => v !== undefined)) } as OrderDraft;
     const claimed = await this.prisma.shopifyOrder.updateMany({ where: { id, status: o.status }, data: { status: 'CREATING' } });
     if (claimed.count !== 1) throw new DomainError('conflict', 'This order is being handled. Try again', 409);
-    const r = await this.create(id, draft, o.store.merchantId);
-    if (r.status !== 'CREATED') throw new DomainError('invalid_input', r.error, 422);
-    return r;
+    return this.create(id, draft, merchantId);
+  }
+
+  /** Several picked orders at once: each one is made on its own and reported back. */
+  private async makeMany(merchantId: string, picks: z.infer<typeof PickInput>['orders']) {
+    const results = [];
+    for (const p of picks) {
+      try {
+        const r = await this.makeParcel(merchantId, p.id, p.fix);
+        results.push({ id: p.id, ok: r.status === 'CREATED', error: r.status === 'CREATED' ? '' : r.error, shipmentId: r.shipmentId });
+      } catch (e) {
+        results.push({ id: p.id, ok: false, error: e instanceof DomainError ? e.message : 'Could not create', shipmentId: null });
+      }
+    }
+    const ids = results.map((r) => r.shipmentId).filter((x): x is string => !!x);
+    return { created: ids.length, failed: results.length - ids.length, results, labels: await this.labels(ids) };
+  }
+
+  /** What to print on each label, so the merchant can print straight away. */
+  private async labels(shipmentIds: string[]) {
+    if (!shipmentIds.length) return [];
+    const rows = await this.prisma.shipment.findMany({ where: { id: { in: shipmentIds } }, include: { merchant: { select: { name: true } } }, orderBy: { trackingNumber: 'asc' } });
+    const hubs = new Map((await this.prisma.hub.findMany({ select: { id: true, code: true, name: true } })).map((h) => [h.id, h]));
+    return rows.map((s) => {
+      const hub = s.destinationHubId ? hubs.get(s.destinationHubId) : null;
+      return {
+        trackingNumber: s.trackingNumber, route: hub?.code ?? s.governorateCode, routeDetail: s.route.join(' > '), merchantName: s.merchant.name, customerName: s.customerName,
+        customerPhone: s.customerPhone, address: s.address, codAmount: s.codAmount, size: s.size, allowOpen: s.allowOpen, merchantRef: s.merchantRef, description: s.description,
+      };
+    });
+  }
+
+  /** In the Shiply panel: make AWBs for the orders the merchant ticked. */
+  async createPicked(user: SessionUser, body: unknown) {
+    assertMerchantRight(user, 'orders');
+    return this.makeMany(user.merchantId!, parse(PickInput, body).orders);
+  }
+
+  /** In the Shiply panel: brings in the store's open orders not shipped yet, to pick from. */
+  async sync(user: SessionUser) {
+    assertMerchantRight(user, 'orders');
+    const cfg = this.cfg();
+    const store = await this.prisma.shopifyStore.findUnique({ where: { merchantId: user.merchantId! } });
+    if (!store?.active || !store.tokenEnc) throw new DomainError('not_connected', 'Connect your Shopify store first', 409);
+    const orders = await openOrders(cfg, store.shop, unseal(store.tokenEnc));
+    let added = 0;
+    for (const o of orders) if ((await this.importOrder(store.id, o, { auto: false })).fresh) added++;
+    return { found: orders.length, added };
+  }
+
+  // ---------------------------------------------------------------- picking orders inside Shopify
+
+  /**
+   * The merchant ticks orders in their Shopify admin and chooses "Ship with Shiply". Shopify opens
+   * this address, signed, with the order numbers. We bring those orders in and open the page
+   * where the merchant checks them and makes the AWBs. No Shiply sign in is needed: the signed
+   * link proves it came from the store's own admin, and the page token lasts 30 minutes.
+   */
+  async pickedInShopify(query: Record<string, string | string[]>) {
+    const cfg = this.cfg();
+    const page = (q: string) => `${cfg.appUrl}/shopify/ship?${q}`;
+    if (!verifyQueryHmac(query, cfg.secret)) return page('error=signature');
+    if (Math.abs(Date.now() / 1000 - Number(query.timestamp)) > 600) return page('error=expired');
+    const shop = normalizeShop(String(query.shop ?? ''));
+    const store = shop ? await this.prisma.shopifyStore.findUnique({ where: { shop } }) : null;
+    if (!store?.active || !store.tokenEnc) return page('error=not_connected');
+    const raw = query.ids ?? query['ids[]'] ?? query.id ?? [];
+    const ids = (Array.isArray(raw) ? raw : [raw]).map(String).filter((x) => /^\d{1,20}$/.test(x)).slice(0, 100);
+    if (!ids.length) return page('error=no_orders');
+    let orders: ShopifyOrderPayload[];
+    try {
+      orders = await ordersByIds(cfg, store.shop, unseal(store.tokenEnc), ids);
+    } catch {
+      return page('error=shopify');
+    }
+    const rows = [];
+    for (const o of orders) rows.push((await this.importOrder(store.id, o, { auto: false })).row.id);
+    const token = await this.jwt.signAsync({ purpose: 'shopify-ship', storeId: store.id, rows }, { expiresIn: '30m' });
+    return page(`token=${encodeURIComponent(token)}`);
+  }
+
+  private async shipToken(token: string) {
+    try {
+      const t = await this.jwt.verifyAsync<{ purpose: string; storeId: string; rows: string[] }>(token);
+      if (t.purpose !== 'shopify-ship') throw new Error('wrong token');
+      const store = await this.prisma.shopifyStore.findUniqueOrThrow({ where: { id: t.storeId } });
+      if (!store.active) throw new Error('store off');
+      return { store, rows: t.rows };
+    } catch {
+      throw new DomainError('unauthenticated', 'This page has expired. Pick the orders in Shopify again', 401);
+    }
+  }
+
+  async shipView(query: unknown) {
+    const { token } = parse(TokenInput, query);
+    const { store, rows } = await this.shipToken(token);
+    const merchant = await this.prisma.merchant.findUniqueOrThrow({ where: { id: store.merchantId }, select: { name: true } });
+    const orders = await this.prisma.shopifyOrder.findMany({ where: { id: { in: rows } }, orderBy: { orderName: 'asc' } });
+    const parcels = await this.prisma.shipment.findMany({ where: { id: { in: orders.map((o) => o.shipmentId).filter((x): x is string => !!x) } }, select: { id: true, trackingNumber: true, status: true, route: true } });
+    const govs = await this.prisma.governorate.findMany({ where: { hubId: { not: null } }, select: { code: true, nameEn: true, nameAr: true }, orderBy: { nameEn: 'asc' } });
+    return { shop: store.shop, merchant: merchant.name, served: govs, orders: orders.map((o) => ({ ...o, parcel: parcels.find((p) => p.id === o.shipmentId) ?? null })) };
+  }
+
+  async shipCreate(body: unknown) {
+    const { token } = parse(TokenInput, body);
+    const { store, rows } = await this.shipToken(token);
+    const picks = parse(PickInput, body).orders;
+    if (picks.some((p) => !rows.includes(p.id))) throw new DomainError('forbidden', 'Only the orders picked in Shopify can be shipped from this page', 403);
+    return this.makeMany(store.merchantId, picks);
   }
 
   async skip(user: SessionUser, id: string) {

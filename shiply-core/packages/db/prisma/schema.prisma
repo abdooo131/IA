@@ -494,6 +494,8 @@ model Shipment {
   lastFailReason   String?   @map("last_fail_reason")
   holdReason       String?   @map("hold_reason")
   promisedDate     String?   @map("promised_date")
+  /// The planned way through our network as place codes, fixed when the parcel is made.
+  route            String[]  @default([])
   /// Lost parcels are searched for until this time before the loss is final.
   searchUntil      DateTime? @map("search_until")
   /// When the loss became final: the merchant was compensated.
@@ -1539,7 +1541,7 @@ model ShopifyStore {
   tokenEnc       String    @map("token_enc")
   scopes         String    @default("")
   /// Make a parcel for every new order by itself, or wait for the merchant to press create.
-  autoCreate     Boolean   @default(true) @map("auto_create")
+  autoCreate     Boolean   @default(false) @map("auto_create")
   defaultSize    String    @default("M") @map("default_size")
   /// Tell Shopify the order is fulfilled when we pick it up, and paid when COD is collected.
   pushUpdates    Boolean   @default(true) @map("push_updates")
@@ -1589,4 +1591,19 @@ model ShopifyTask {
   @@unique([shipmentId, kind])
   @@index([status, nextAttemptAt])
   @@map("shopify_tasks")
+}
+
+/// A truck route from one sorting facility to another. Parcels may pass through up to two
+/// facilities in between. With no links at all, every facility reaches every other directly.
+model LineHaulLink {
+  id        String   @id @default(uuid()) @db.Uuid
+  fromId    String   @map("from_id") @db.Uuid
+  toId      String   @map("to_id") @db.Uuid
+  active    Boolean  @default(true)
+  /// Usual hours on the road, for planning.
+  hours     Int      @default(12)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@unique([fromId, toId])
+  @@map("line_haul_links")
 }

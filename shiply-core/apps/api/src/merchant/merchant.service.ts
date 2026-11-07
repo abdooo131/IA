@@ -91,6 +91,12 @@ export class MerchantService {
         size: data.size as ParcelSize, allowOpen: data.allowOpen, exchange: data.exchange,
       });
       const hubId = price.hubId;
+      // We pick up only where we deliver: a merchant outside our area cannot send yet.
+      await this.core.deliveryHubFor(tx, merchant.governorateCode, merchant.areaId).catch(() => {
+        throw new DomainError('not_served', 'We do not pick up from your area yet', 422);
+      });
+      // The whole way, planned now: a return from a customer travels the other way.
+      const route = await this.core.plan(tx, data.customerReturn ? 'RETURN' : 'FORWARD', merchant.homeHubId, hubId);
       const cod = codFee(data.codAmount, {
         codFeeBp: settings['fees.cod_fee_bp'],
         codFreeAmount: settings['fees.cod_free_amount'],
@@ -120,6 +126,7 @@ export class MerchantService {
           openFee: price.openFee,
           exchangeFee: price.exchangeFee,
           kind: data.customerReturn ? 'CUSTOMER_RETURN' : data.exchange ? 'EXCHANGE' : 'NORMAL',
+          route,
           codFee: cod,
         },
       });

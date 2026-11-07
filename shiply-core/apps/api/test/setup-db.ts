@@ -19,6 +19,7 @@ export async function createTestDatabase(opts: { driver?: boolean } = {}) {
     SEED_ADMIN_EMAIL: 'admin@shiply.local',
     SEED_ADMIN_PASSWORD: 'admin12345',
     SEED_DEMO_PASSWORD: 'demo12345',
+    SEED_COVERAGE: 'all',
   };
   execSync('pnpm exec prisma migrate deploy', { cwd: dbDir, env, stdio: 'pipe' });
   execSync('pnpm exec tsx prisma/seed.ts', { cwd: dbDir, env, stdio: 'pipe' });
