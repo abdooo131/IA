@@ -9,6 +9,7 @@ import { PeriodController } from './period.controller';
 import { EtaClient, EtaSync, HttpEtaClient } from './eta';
 import { EtaSignerController, InvoicesController } from './invoices.controller';
 import { ProfitController } from './profit.controller';
+import { PurchasingController } from './purchasing.controller';
 import { ToolsController } from './tools.controller';
 import { FinanceController } from './finance.controller';
 
@@ -26,6 +27,7 @@ import { FinanceController } from './finance.controller';
     ToolsController,
     CashControlController,
     ChequesController,
+    PurchasingController,
   ],
   providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })

@@ -4,6 +4,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { payoutNeedsApproval } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
+import { queuePayoutEmails } from '../email';
 
 type Tx = Prisma.TransactionClient;
 
@@ -306,6 +307,8 @@ export function markPayoutPaid(
       before: { status: 'draft' },
       after: { status: 'paid', reference: input.reference, amount: payout.amountPiastres },
     });
+    // The payout notice and the period's statement go out with the payment, or not at all.
+    await queuePayoutEmails(tx, payout.id);
     return { status: 'paid' as const };
   });
 }

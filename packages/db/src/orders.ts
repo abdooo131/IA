@@ -13,6 +13,7 @@ import {
 import { postDeliveryCompleted, postDeliveryFailed } from './finance/postings';
 import { checkRiderCashLimit } from './finance/cash-control';
 import { isClockedIn } from './attendance';
+import { consumePackagingForOrder } from './packaging';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -541,7 +542,14 @@ export function markItemMissing(
 
 export function packOrder(
   db: Db,
-  input: { orderId: string; darkStoreId: string; photoId: string; actorUserId: Actor },
+  input: {
+    orderId: string;
+    darkStoreId: string;
+    photoId: string;
+    /** The box size staff chose (a packaging item marked as a box), used on top of the recipe */
+    boxItemId?: string | null;
+    actorUserId: Actor;
+  },
 ) {
   return inTransaction(db, async (tx) => {
     const order = await lockOrder(tx, input.orderId, input.darkStoreId);
@@ -554,6 +562,15 @@ export function packOrder(
     await moveStatus(tx, order, 'packed', ['picking'], input.actorUserId, 'packed', {
       packedAt: new Date(),
       packPhotoId: input.photoId,
+    });
+    // Our bags and boxes leave packaging stock and their cost is booked with the order.
+    return consumePackagingForOrder(tx, {
+      orderId: order.id,
+      orderNumber: order.number,
+      darkStoreId: order.darkStoreId,
+      merchantId: order.merchantId,
+      boxItemId: input.boxItemId,
+      actorUserId: input.actorUserId,
     });
   });
 }

@@ -74,6 +74,29 @@ Keep the same pair for good: a new pair silently stops every device until each p
 notifications on again. The `push.enabled` setting (Settings, System) switches sending off
 without removing the keys.
 
+### Email to merchants (SMTP, optional)
+
+Statements after each payout (with the CSV), payout notices and the monthly tax invoice notice
+are emailed from the outbox (Accounting, Merchants, Emails to merchants). Without these
+variables nothing is sent: the emails wait in the outbox and the screens say email is not set up.
+
+1. Pick any SMTP service (Amazon SES, Mailgun, Brevo, Google Workspace...) and verify the
+   sending domain there (SPF and DKIM records), so the emails do not land in spam.
+2. In Render, open the `shiplynow` service, **Environment**, and add:
+
+   | Setting | What to enter |
+   | --- | --- |
+   | `SMTP_HOST` | the service's SMTP server, for example `email-smtp.eu-central-1.amazonaws.com` |
+   | `SMTP_PORT` | `587` (STARTTLS, the default) or `465` (TLS) |
+   | `SMTP_USER` | the SMTP user name |
+   | `SMTP_PASS` | the SMTP password (secret: never in git or a chat) |
+   | `SMTP_FROM` | the sender, for example `Shiply Now <billing@yourcompany.com>` |
+
+3. Save; Render redeploys. Links and the logo in emails use `WEB_ORIGIN`, so it must be the
+   public https address. A failed email is tried again with growing waits (30 seconds doubling,
+   at most an hour, 10 tries), then shows Failed with an `email_failed` alert; finance can send
+   it again from the outbox.
+
 ## 3. Using it
 
 - It is https, so the **phone camera** works for scanning.

@@ -10,6 +10,7 @@ import { EtaClient } from '../src/finance/eta';
 import { Geocoder } from '../src/coverage/geocoding';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { PushSender } from '../src/push/push-sender';
+import { Mailer } from '../src/email/mailer';
 import { ShopifyAdmin } from '../src/shopify/shopify-admin';
 import { setupApp } from '../src/setup-app';
 
@@ -21,6 +22,7 @@ export interface Overrides {
   slack?: Slack;
   eta?: EtaClient;
   push?: PushSender;
+  mailer?: Mailer;
 }
 
 export async function createTestApp(
@@ -34,6 +36,7 @@ export async function createTestApp(
   if (overrides.eta) builder = builder.overrideProvider(EtaClient).useValue(overrides.eta);
   if (overrides.slack) builder = builder.overrideProvider(Slack).useValue(overrides.slack);
   if (overrides.push) builder = builder.overrideProvider(PushSender).useValue(overrides.push);
+  if (overrides.mailer) builder = builder.overrideProvider(Mailer).useValue(overrides.mailer);
   if (overrides.overpass) builder = builder.overrideProvider(Overpass).useValue(overrides.overpass);
   const moduleRef = await builder.compile();
   const app = moduleRef.createNestApplication();

@@ -363,7 +363,10 @@
         "document_expired": "{nameEn}: a document ran out on {expiresOn}",
         "rider_cash_overdue": "{rider} has held {amountEgp} EGP for over {hours} hours",
         "cheque_bounced": "Cheque {number} ({chequeNumber}) from {party} for {amount} EGP bounced: {reason}",
-        "merchant_over_credit_limit": "{name} owes {owes} EGP, over the credit limit of {limit} EGP: new shipments are refused"
+        "merchant_over_credit_limit": "{name} owes {owes} EGP, over the credit limit of {limit} EGP: new shipments are refused",
+        "packaging_low": "Packaging running low",
+        "packaging_short": "Order packed without enough packaging",
+        "email_failed": "Email to merchant failed"
       },
       "handledBy": "Handled by {name}"
     },
@@ -457,7 +460,9 @@
         "hr__riders_must_clock_in": "Riders must clock in to take orders (1 yes, 0 no)",
         "hr__office_lat": "Office latitude (for office staff)",
         "hr__office_lng": "Office longitude (for office staff)",
-        "push__enabled": "Phone and browser notifications on (1) or off (0)"
+        "push__enabled": "Phone and browser notifications on (1) or off (0)",
+        "stock__packaging_low_units": "Packaging low alert at (units)",
+        "finance__po_bill_tolerance_bp": "Bill above purchase order allowed by (%)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -534,7 +539,11 @@
         "customer": "Customer",
         "shopify_app": "Shopify app",
         "cheque": "Cheques",
-        "merchant_contract": "Merchant contracts"
+        "merchant_contract": "Merchant contracts",
+        "purchase_order": "Purchase order",
+        "packaging_item": "Packaging item",
+        "packaging_recipe": "Packaging recipe",
+        "email": "Email"
       },
       "actions": {
         "alert__resolve": "Alert handled",
@@ -651,7 +660,24 @@
         "finance__deposit_in": "Security deposit received",
         "finance__deposit_out": "Security deposit paid back",
         "merchant__contract_create": "Contract created",
-        "merchant__contract_update": "Contract changed"
+        "merchant__contract_update": "Contract changed",
+        "purchase_order__request": "Purchase order asked for",
+        "purchase_order__approve": "Purchase order approved",
+        "purchase_order__reject": "Purchase order rejected",
+        "purchase_order__ordered": "Purchase order sent to supplier",
+        "purchase_order__receive": "Goods received on purchase order",
+        "purchase_order__bill": "Bill made from purchase order",
+        "purchase_order__close": "Purchase order closed",
+        "purchase_order__cancel": "Purchase order cancelled",
+        "packaging__item_create": "Packaging item added",
+        "packaging__item_update": "Packaging item changed",
+        "packaging__purchase": "Packaging bought",
+        "packaging__adjust": "Packaging adjusted",
+        "packaging__count": "Packaging counted",
+        "packaging__recipe_set": "Packaging per order set",
+        "packaging__consume": "Packaging used for the order",
+        "merchant__email_settings": "Billing emails changed",
+        "email__retry": "Email sent again"
       }
     },
     "users": {
@@ -1566,7 +1592,10 @@
       "receiveBack": "Receive goods back",
       "receivedBack": "{units} units went to {bin}. Check them before putting them on a shelf.",
       "uploading": "Uploading photo…",
-      "keptForRetry": "Goods are back. They stay with the order until someone decides."
+      "keptForRetry": "Goods are back. They stay with the order until someone decides.",
+      "boxSize": "Box size (optional)",
+      "noBox": "No box",
+      "packagingShort": "Packed. The store ran short of packaging: tell your lead."
     },
     "errors": {
       "invalid_order_state": "Someone already moved this order. The screen was refreshed.",
@@ -1590,7 +1619,8 @@
       "generic": "Something went wrong. Try again.",
       "goods_not_back": "The goods are not back in the store yet.",
       "rider_not_clocked_in": "That rider is not clocked in. Ask them to clock in from the rider app first.",
-      "address_unsure": "We cannot tell for sure which store serves this address. Choose the neighbourhood or drop a pin."
+      "address_unsure": "We cannot tell for sure which store serves this address. Choose the neighbourhood or drop a pin.",
+      "box_not_found": "That box size cannot be used. Choose another."
     },
     "deliveryStatuses": {
       "assigned": "Assigned",
@@ -1779,7 +1809,11 @@
       "cheque_cancelled": "Cheque cancelled",
       "minimum_fee": "Monthly minimum top up",
       "deposit_received": "Security deposit received",
-      "deposit_refunded": "Security deposit paid back"
+      "deposit_refunded": "Security deposit paid back",
+      "packaging_purchase": "Packaging bought",
+      "packaging_adjustment": "Packaging adjusted",
+      "packaging_used": "Packaging used",
+      "po_receipt": "Goods received"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -3553,6 +3587,22 @@
             ]
           },
           {
+            "title": "Packaging (bags, boxes, labels)",
+            "steps": [
+              "When you pack, choose the box size if you used one of our boxes; the bag, label and tape of the recipe are taken by themselves.",
+              "Use only what the recipe says for that merchant; if an order needed more, tell your store lead.",
+              "Once a week (or when admin asks), count the packaging: Inventory, Packaging, Count, choose the item and type the units on the shelf."
+            ],
+            "check": [
+              "After packing, the store's packaging stock is lower by what the order used.",
+              "The count shows the number you typed."
+            ],
+            "problems": [
+              "The screen says the store ran short of packaging: pack anyway with what you have and tell your store lead; admin is alerted.",
+              "Packaging is low (alert on Home or in Alerts): your store lead asks finance for a purchase order."
+            ]
+          },
+          {
             "title": "Turn on phone notifications",
             "steps": [
               "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
@@ -4050,6 +4100,38 @@
             ]
           },
           {
+            "title": "Purchase orders and packaging",
+            "steps": [
+              "Accounting, Vendors, Purchase orders: choose the supplier, the store (needed for packaging), add lines (packaging item or an expense category, quantity, unit price) and attach the quote photo.",
+              "Below the approval limit it is approved at once; above it another person with the approve level approves it.",
+              "Mark it as sent to the supplier. When goods arrive, enter what came on the order (it can come in parts): packaging goes into the store's stock.",
+              "When the supplier's invoice arrives, Make the bill on the order with their invoice number; then pay it from Bills as usual.",
+              "Close the order when it is complete, or when the supplier will not send the rest (with a note).",
+              "Packaging bought in a shop and paid now: Inventory, Packaging, Buy and pay now, with the receipt photo."
+            ],
+            "check": [
+              "The order's status bar shows Billed or Closed and its bill appears under Bills.",
+              "Packaging stock value (Inventory, Packaging) equals account 1402 in the trial balance; 2401 is zero once everything received is billed."
+            ],
+            "problems": [
+              "The bill is refused as above the order: check the supplier's prices; ask admin to change finance.po_bill_tolerance_bp only if agreed.",
+              "Goods came that were not ordered: do not receive them on the order; open a new purchase order."
+            ]
+          },
+          {
+            "title": "Emails to merchants",
+            "steps": [
+              "Marking a payout paid emails the merchant a payout notice and the statement of that period with the CSV; issuing the month's invoices emails each merchant a link to print theirs.",
+              "Accounting, Merchants, Emails to merchants shows every email: Waiting, Sent or Failed. Open Preview to see it as the merchant does.",
+              "A Failed email: check the address with the merchant (they change it in Wallet), then tap Send again."
+            ],
+            "check": ["After a payout, two emails show Sent for that merchant within a minute."],
+            "problems": [
+              "The page says email is not set up: tell admin; emails wait until SMTP is configured.",
+              "A merchant says they never got the email: check Sent, then ask them to look in spam."
+            ]
+          },
+          {
             "title": "Turn on phone notifications",
             "steps": [
               "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.",
@@ -4248,7 +4330,9 @@
       "issued": "Issued",
       "deposited": "Deposited",
       "cleared": "Cleared",
-      "bounced": "Bounced"
+      "bounced": "Bounced",
+      "ordered": "Ordered",
+      "billed": "Billed"
     }
   },
   "tickets": {
@@ -4656,7 +4740,8 @@
       "audit": "Audit log",
       "tickets": "Tickets",
       "attendance": "Attendance",
-      "hrDocuments": "Documents"
+      "hrDocuments": "Documents",
+      "packaging": "Packaging"
     },
     "pages": {
       "overview": "Overview",
@@ -4730,7 +4815,10 @@
       "checklistTemplates": "Checklist templates",
       "cheques": "Cheques",
       "contracts": "Merchant contracts",
-      "merchantProfit": "Profit per merchant"
+      "merchantProfit": "Profit per merchant",
+      "packaging": "Packaging stock",
+      "purchaseOrders": "Purchase orders",
+      "emails": "Emails to merchants"
     }
   },
   "hr": {
@@ -5983,6 +6071,216 @@
     "errors": {
       "validation_failed": "Check the dates and the bands (each band once, with a fee).",
       "generic": "Could not save. Try again."
+    }
+  },
+  "purchasing": {
+    "errors": {
+      "generic": "That did not work. Check the details and try again.",
+      "validation_failed": "Some details are missing or not valid.",
+      "same_person": "Someone else must approve what you asked for.",
+      "note_required": "Write a short note.",
+      "store_required": "Packaging goes into a store: choose the store.",
+      "packaging_or_expense": "Each line is either packaging or a cost, not both.",
+      "packaging_item_not_found": "That packaging item is not available.",
+      "packaging_item_exists": "An item with this code already exists.",
+      "packaging_not_enough": "The store does not hold that many.",
+      "expense_account_not_found": "Choose an open expense category.",
+      "supplier_not_found": "Choose an active supplier.",
+      "more_than_ordered": "More than was ordered.",
+      "bill_above_order": "The bill is above the ordered prices by more than allowed.",
+      "nothing_to_bill": "Nothing received is waiting for a bill.",
+      "bill_exists": "This supplier invoice number is already recorded.",
+      "unbilled_receipts": "Bill what was received before closing.",
+      "purchase_order_not_waiting": "This order is not waiting for approval.",
+      "purchase_order_not_approved": "This order is not approved yet.",
+      "purchase_order_not_ordered": "Mark the order as sent to the supplier first.",
+      "purchase_order_not_billable": "This order cannot be billed now.",
+      "purchase_order_closed": "This order is already closed.",
+      "not_enough_money": "The bank or box does not hold that much.",
+      "books_closed": "That day is in closed books.",
+      "email_already_sent": "This email was already sent.",
+      "no_access": "You cannot do this.",
+      "reason_required": "Write a reason.",
+      "duplicate_item": "An item is listed twice."
+    },
+    "emails": {
+      "title": "Emails to merchants",
+      "intro": "Statements after each payout, payout notices and monthly tax invoices. Each email is sent once; a failed one is tried again with growing waits, then marked failed so you can send it again.",
+      "notSetUp": "Email is not set up.",
+      "notSetUpHint": "Emails wait here until SMTP is configured on the server (see the deploy guide).",
+      "filter": "Show",
+      "all": "All",
+      "empty": "No emails yet.",
+      "created": "Created",
+      "kind": "Email",
+      "merchant": "Merchant",
+      "to": "To",
+      "state": "State",
+      "preview": "Preview",
+      "closePreview": "Close",
+      "retry": "Send again",
+      "retried": "It will be sent again in a moment.",
+      "retryFailed": "It could not be queued again.",
+      "attempts": "{count, plural, =0 {Not tried yet} one {# try} other {# tries}}",
+      "status": {
+        "pending": "Waiting",
+        "sent": "Sent",
+        "failed": "Failed"
+      },
+      "kinds": {
+        "statement": "Statement",
+        "payout_paid": "Payout sent",
+        "invoice": "Tax invoice"
+      }
+    },
+    "emailSettings": {
+      "title": "Billing emails",
+      "hint": "Where we email your statements, payout notices and tax invoices.",
+      "addresses": "Email addresses (up to five, separated by commas)",
+      "addressesHint": "Empty sends to your contact email: {contact}",
+      "language": "Language of the emails",
+      "which": "Send me",
+      "kinds": {
+        "statement": "The statement after each payout (with the CSV file)",
+        "payout_paid": "A notice when a payout is sent",
+        "invoice": "The monthly tax invoice"
+      },
+      "saved": "Saved.",
+      "failed": "It could not be saved.",
+      "invalid": "One of the addresses is not a valid email.",
+      "notSetUp": "Email is not switched on yet; your choices are kept for when it is."
+    },
+    "packaging": {
+      "title": "Packaging stock",
+      "intro": "Bags, boxes, labels and tape we buy and use when packing. They are ours, kept apart from merchant stock. Each packed order uses its recipe (and the box staff chose); the cost is booked to the store and the order.",
+      "store": "Store",
+      "totalValue": "Value in all stores",
+      "noItems": "No packaging items yet.",
+      "item": "Item",
+      "onHand": "On hand",
+      "averageCost": "Average cost",
+      "value": "Value",
+      "low": "Low (at or below {limit})",
+      "buy": "Buy and pay now",
+      "buyHint": "Bought from a shop and paid from a bank or cash box. Large amounts wait for a second person. Supplier deliveries are received on a purchase order.",
+      "amountPaid": "Paid for all units (EGP)",
+      "paidFrom": "Paid from",
+      "reference": "Reference",
+      "receipt": "Receipt photo",
+      "buyButton": "Add to stock",
+      "bought": "Added to the store's packaging stock.",
+      "sentForApproval": "Sent for approval: it is added once a second person approves.",
+      "countTitle": "Count or adjust",
+      "countHint": "A count sets what is on the shelf; an adjustment adds found units or removes lost or damaged ones, with a reason.",
+      "what": "What",
+      "counted": "Count",
+      "adjust": "Adjust",
+      "countedUnits": "Units counted",
+      "change": "Change (+ found, - lost)",
+      "reason": "Reason",
+      "save": "Save",
+      "saved": "Saved.",
+      "recipes": "Packaging per order",
+      "recipesHint": "What one order uses. The most specific recipe wins: a merchant at a store, a merchant, a store, then every store.",
+      "noRecipes": "No recipe yet: packing uses nothing unless staff choose a box.",
+      "everyStore": "Every store",
+      "everyMerchant": "Every merchant",
+      "merchant": "Merchant",
+      "saveRecipe": "Save recipe",
+      "recipeSaved": "Recipe saved.",
+      "recipeRemoved": "Recipe removed.",
+      "items": "Items",
+      "box": "Box size",
+      "inactive": "Not in use",
+      "unitCost": "Unit cost",
+      "newItem": "New item",
+      "code": "Code",
+      "nameEn": "Name in English",
+      "nameAr": "Name in Arabic",
+      "unit": "Unit (piece, roll...)",
+      "isBox": "Staff may choose it as the box size",
+      "addItem": "Add item",
+      "itemSaved": "Item added.",
+      "movements": "Latest movements",
+      "noMovements": "Nothing moved yet.",
+      "when": "When",
+      "type": "Type",
+      "quantity": "Quantity",
+      "types": {
+        "receive": "Received",
+        "consume": "Used for an order",
+        "adjust": "Adjusted",
+        "count": "Count"
+      }
+    },
+    "orders": {
+      "title": "Purchase orders",
+      "intro": "Ask for a purchase, have it approved (a second person from the approval limit), send it, receive it in parts, then make the supplier bill from it. Packaging received goes into the store's packaging stock.",
+      "filter": "Show",
+      "all": "All",
+      "empty": "No purchase orders yet.",
+      "number": "Number",
+      "supplier": "Supplier",
+      "store": "Store",
+      "noStore": "Company wide",
+      "state": "State",
+      "total": "Total before VAT",
+      "requestedBy": "Asked by",
+      "decidedBy": "Approved by",
+      "belowLimit": "Below the approval limit",
+      "notYet": "Not yet",
+      "partly": "{share}% received",
+      "new": "New purchase order",
+      "choose": "Choose",
+      "lineKind": "Line",
+      "packagingLine": "Packaging",
+      "expenseLine": "Other cost",
+      "item": "Packaging item",
+      "expense": "Expense category",
+      "description": "Description",
+      "quantity": "Quantity",
+      "unitPrice": "Unit price (EGP)",
+      "addLine": "Add a line",
+      "removeLine": "Remove line",
+      "note": "Note",
+      "quote": "Supplier quote",
+      "openQuote": "Open the quote photo",
+      "account": "Goes to",
+      "receivedQty": "Received",
+      "billedQty": "Billed",
+      "bills": "Bills",
+      "billStatus": {
+        "open": "Open",
+        "paid": "Paid",
+        "cancelled": "Cancelled"
+      },
+      "decide": "Approval",
+      "decisionNote": "Note (needed to reject)",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "Approved.",
+      "rejected": "Rejected.",
+      "waitingApproval": "Waiting for another person with the approve level.",
+      "markOrdered": "Mark as sent to the supplier",
+      "markedOrdered": "Marked as ordered.",
+      "receive": "Receive goods",
+      "receiveHint": "Enter what arrived now; the rest can come later.",
+      "left": "{count} still to come",
+      "receiveButton": "Receive",
+      "receivedMsg": "Received.",
+      "bill": "Make the bill",
+      "billHint": "What was received is worth {expected} at the ordered prices; the bill may be at most {max}.",
+      "supplierInvoice": "Supplier invoice number",
+      "billDate": "Bill date",
+      "dueDate": "Due date",
+      "net": "Amount before VAT (EGP)",
+      "vat": "VAT (EGP)",
+      "makeBill": "Make the bill",
+      "billed": "Bill recorded. Pay it from Bills.",
+      "closeNote": "Why it is closed (needed)",
+      "close": "Close the order",
+      "cancelOrder": "Cancel the order",
+      "closedMsg": "Done."
     }
   }
 }

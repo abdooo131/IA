@@ -74,8 +74,10 @@ Modules under apps/api/src:
     coverage    public coverage and neighbourhood search, delivery decision service
     tracking    public tracking page data and ratings
     photos      proof photos (stored in Postgres)
-    finance     accounting: ledger, cash, payouts, bills, taxes, payroll run, invoices, ETA,
-                bank matching, reports, closing
+    finance     accounting: ledger, cash, payouts, bills, purchase orders, taxes, payroll run,
+                invoices, ETA, bank matching, reports, closing
+    packaging   packaging items, stock per store, recipes, buying, adjusting and counting
+    email       merchant email outbox, billing email settings, Mailer boundary (SMTP)
     hr          employee files, documents, org chart, departments, grades, positions,
                 checklists, attendance, shifts, roster, holidays
     tickets     internal tickets and Slack bridge
@@ -128,7 +130,10 @@ Main groups of tables:
                   ratings, shopify_outbox
     Money         ledger_accounts, ledger_entries, ledger_lines (append only), cash_handovers,
                   payouts, finance_requests, bills, suppliers, tax_invoices, bank statements,
-                  budgets, assets, books_lock, company_profile
+                  budgets, assets, books_lock, company_profile, purchase_orders,
+                  purchase_order_lines, purchase_order_receipts, email_outbox
+    Packaging     packaging_items, packaging_levels, packaging_movements (append only),
+                  packaging_recipes
     People        users, user_access, user_stores, refresh_tokens, employees, departments,
                   grades, job_positions, employee_photos, employee_documents and types,
                   salary_packages, salary_allowances, checklists, shifts, roster_days,
@@ -171,8 +176,19 @@ store's cash limit unless a store manager gives a reason; cash held too long rai
 store staff may pay small expenses from the box as petty cash (with a receipt photo, large ones
 wait for finance) → finance reads the daily cash position → finance deposits store boxes to the bank →
 weekly payouts to merchants (prepared, approved by a second person, marked paid) → monthly tax
-invoices and ETA e-invoices → bank statement matching → the month end checklist → monthly
-closing.
+invoices and ETA e-invoices → bank statement matching → the month end checklist →
+monthly closing. Payout and invoice
+emails go to the merchant through the email outbox.
+
+Packaging and purchasing:
+finance raises a purchase order (PO-000001) to a supplier → approved at once below
+finance.approval_threshold_piastres, otherwise by a second person → marked ordered → goods
+received in parts into a store's packaging stock (Dr 1402 Packaging stock, Cr 2401 Goods
+received not billed) → the supplier bill is made from the order for what was received (three
+way: order, receipt, bill; within finance.po_bill_tolerance_bp) → paid like any bill → closed.
+Packing an order uses its packaging recipe plus the chosen box and books Dr 5404 Packaging,
+Cr 1402 with the store and order tags; low and short packaging raise alerts, packing is never
+blocked.
 
 People:
 an account is created in Settings > Users with a job role → its HR file opens with the
@@ -208,6 +224,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
     monthly finance (recurring expenses, prepayments, depreciation, accrual reversals)
     ETA e-invoice submission and status (every minute, only when configured)
     web push dispatcher (every 10 seconds, only when the VAPID keys are set)
+    email outbox sender (every 30 seconds, only when SMTP is set)
 
 ## 11. Integrations
 
@@ -240,6 +257,22 @@ one instance acts, and each has an idempotency key so running twice changes noth
   ErrorReporter, never failing the action. Words are in packages/shared/src/push.ts (en, ar,
   in the device's language). public/sw.js shows the notification and opens or focuses its page;
   the root layout registers it in production builds when VAPID_PUBLIC_KEY is set.
+* Email (optional): merchant emails go through the Mailer boundary (apps/api/src/email:
+  SmtpMailer with nodemailer and SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASS, SMTP_FROM;
+  FakeMailer in tests). The business event writes the email to email_outbox in its own
+  transaction with an idempotency key (payout_paid:<payout>, statement:<payout>,
+  invoice:<invoice>), already rendered in the merchant's language from bilingual templates
+  (packages/db/src/email-templates.ts, brand v2 colours, %BASE_URL% replaced with WEB_ORIGIN at
+  send time); a repeat queues nothing. markPayoutPaid queues the payout notice and the statement
+  of the payout period (from the previous paid payout's cutoff) with the statement CSV attached;
+  prepareInvoices queues the invoice notice with a link to /merchant/invoices (there is no PDF
+  route; the page prints). Recipients are merchants.billing_emails (else contact_email), in
+  merchants.email_language, minus merchants.email_opt_outs (statement, payout_paid, invoice);
+  the merchant edits them in Wallet, finance through the API. dispatchEmails claims due rows
+  under SKIP LOCKED with a five minute lease, sends, and marks sent; a failure waits 30 seconds
+  doubling up to an hour, and after 10 tries the row is failed with one email_failed alert.
+  Without SMTP nothing is sent and the outbox (/finance/emails) and the wallet say so. Only the
+  server's answer code is stored as the error, never addresses or bodies.
 * Google geocoding (optional): only used when GOOGLE_MAPS_API_KEY is set.
 * OpenStreetMap: map tiles in the admin map; area data imported through Overpass.
 
@@ -247,7 +280,7 @@ one instance acts, and each has an idempotency key so running twice changes noth
 
 One .env at the repo root, documented in .env.example. Key variables: DATABASE_URL,
 JWT_ACCESS_SECRET, API_PORT, API_URL, WEB_ORIGIN, SEED_ON_START, SEED_ADMIN_*, DEMO_LOAD,
-SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*, VAPID_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL,
+SHOPIFY_API_KEY / SHOPIFY_API_SECRET, SLACK_*, ETA_*, VAPID_*, SMTP_*, GOOGLE_MAPS_API_KEY, OVERPASS_URL,
 JOBS_ENABLED. Business values (SLA minutes, fees, capacity, payroll rates, HR rules) are not in
 env: they live in the settings table and are edited from each app's Configuration page.
 

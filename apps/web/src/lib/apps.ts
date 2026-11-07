@@ -97,6 +97,7 @@ export const APPS: AppDef[] = [
         ],
       },
       { label: 'counts', pages: [{ href: '/admin/counts', label: 'counts' }] },
+      { label: 'packaging', pages: [{ href: '/admin/packaging', label: 'packaging' }] },
       { label: 'configuration', pages: [settings('inventory')] },
     ],
   },
@@ -149,12 +150,14 @@ export const APPS: AppDef[] = [
           { href: '/finance/invoices', label: 'invoices' },
           { href: '/finance/receivables', label: 'receivables' },
           { href: '/finance/contracts', label: 'contracts' },
+          { href: '/finance/emails', label: 'emails' },
         ],
       },
       {
         label: 'vendors',
         pages: [
           { href: '/finance/bills', label: 'bills' },
+          { href: '/finance/purchase-orders', label: 'purchaseOrders' },
           { href: '/finance/movements', label: 'movements' },
           { href: '/finance/recurring', label: 'recurring' },
           { href: '/finance/assets', label: 'assets' },

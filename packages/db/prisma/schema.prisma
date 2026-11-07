@@ -105,44 +105,46 @@ model User {
   storeAreasCreated StoreArea[]       @relation("store_area_created_by")
   settingChanges    Setting[]
 
-  ledgerEntries      LedgerEntry[]            @relation("ledger_entry_created_by")
-  handoversReceived  CashHandover[]           @relation("handover_received_by")
-  handoversReviewed  CashHandover[]           @relation("handover_reviewed_by")
-  payoutsCreated     Payout[]                 @relation("payout_created_by")
-  payoutsPaid        Payout[]                 @relation("payout_paid_by")
-  payoutsApproved    Payout[]                 @relation("payout_approved_by")
-  booksLocks         BooksLock[]
-  financeRequests    FinanceRequest[]         @relation("finance_request_by")
-  financeDecisions   FinanceRequest[]         @relation("finance_request_decided_by")
-  financeReceipts    FinanceReceipt[]
-  advanceAccounts    LedgerAccount[]          @relation("ledger_account_user")
-  ledgerLines        LedgerLine[]             @relation("ledger_line_user")
-  suppliers          Supplier[]
-  billsFor           Bill[]                   @relation("bill_person")
-  chequesCreated     Cheque[]                 @relation("cheque_created_by")
-  contractsUpdated   MerchantContract[]       @relation("contract_updated_by")
-  bankStatements     BankStatement[]
-  taxInvoicesMade    TaxInvoice[]             @relation("tax_invoice_created_by")
-  bankLinesDecided   BankStatementLine[]      @relation("bank_line_decided_by")
-  budgetsSet         Budget[]                 @relation("budget_updated_by")
-  bills              Bill[]
-  recurringEntries   RecurringEntry[]
-  prepayments        Prepayment[]
-  fixedAssets        FixedAsset[]
-  access             UserAccess?
-  accessStores       UserStore[]
-  employee           Employee?
-  documentsUploaded  EmployeeDocument[]       @relation("employee_document_uploaded_by")
-  documentsReviewed  EmployeeDocument[]       @relation("employee_document_reviewed_by")
-  salaryPackagesSet  SalaryPackage[]          @relation("salary_package_created_by")
-  checklistsStarted  EmployeeChecklist[]      @relation("employee_checklist_created_by")
-  checklistTasksDone EmployeeChecklistTask[]  @relation("employee_checklist_task_done_by")
-  merchantsManaged   Merchant[]               @relation("merchant_account_manager")
-  pushSubscriptions  PushSubscription[]
-  notificationPrefs  NotificationPreference[]
-  pettyCashCreated   PettyCashExpense[]       @relation("petty_cash_created_by")
-  pettyCashReversed  PettyCashExpense[]       @relation("petty_cash_reversed_by")
-  monthEndMarks      MonthEndMark[]
+  ledgerEntries         LedgerEntry[]            @relation("ledger_entry_created_by")
+  handoversReceived     CashHandover[]           @relation("handover_received_by")
+  handoversReviewed     CashHandover[]           @relation("handover_reviewed_by")
+  payoutsCreated        Payout[]                 @relation("payout_created_by")
+  payoutsPaid           Payout[]                 @relation("payout_paid_by")
+  payoutsApproved       Payout[]                 @relation("payout_approved_by")
+  booksLocks            BooksLock[]
+  financeRequests       FinanceRequest[]         @relation("finance_request_by")
+  financeDecisions      FinanceRequest[]         @relation("finance_request_decided_by")
+  financeReceipts       FinanceReceipt[]
+  advanceAccounts       LedgerAccount[]          @relation("ledger_account_user")
+  ledgerLines           LedgerLine[]             @relation("ledger_line_user")
+  suppliers             Supplier[]
+  billsFor              Bill[]                   @relation("bill_person")
+  chequesCreated        Cheque[]                 @relation("cheque_created_by")
+  contractsUpdated      MerchantContract[]       @relation("contract_updated_by")
+  bankStatements        BankStatement[]
+  taxInvoicesMade       TaxInvoice[]             @relation("tax_invoice_created_by")
+  bankLinesDecided      BankStatementLine[]      @relation("bank_line_decided_by")
+  budgetsSet            Budget[]                 @relation("budget_updated_by")
+  bills                 Bill[]
+  recurringEntries      RecurringEntry[]
+  prepayments           Prepayment[]
+  fixedAssets           FixedAsset[]
+  access                UserAccess?
+  accessStores          UserStore[]
+  employee              Employee?
+  documentsUploaded     EmployeeDocument[]       @relation("employee_document_uploaded_by")
+  documentsReviewed     EmployeeDocument[]       @relation("employee_document_reviewed_by")
+  salaryPackagesSet     SalaryPackage[]          @relation("salary_package_created_by")
+  checklistsStarted     EmployeeChecklist[]      @relation("employee_checklist_created_by")
+  checklistTasksDone    EmployeeChecklistTask[]  @relation("employee_checklist_task_done_by")
+  merchantsManaged      Merchant[]               @relation("merchant_account_manager")
+  pushSubscriptions     PushSubscription[]
+  notificationPrefs     NotificationPreference[]
+  pettyCashCreated      PettyCashExpense[]       @relation("petty_cash_created_by")
+  pettyCashReversed     PettyCashExpense[]       @relation("petty_cash_reversed_by")
+  monthEndMarks         MonthEndMark[]
+  purchaseOrdersAsked   PurchaseOrder[]          @relation("purchase_order_requested_by")
+  purchaseOrdersDecided PurchaseOrder[]          @relation("purchase_order_decided_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -285,7 +287,9 @@ model DarkStore {
   punches        Punch[]
   attendanceDays AttendanceDay[]
 
-  pettyCash PettyCashExpense[]
+  pettyCash       PettyCashExpense[]
+  packagingLevels PackagingLevel[]
+  purchaseOrders  PurchaseOrder[]
 
   @@map("dark_stores")
 }
@@ -373,6 +377,12 @@ model Merchant {
   bankAccountNumber     String?          @map("bank_account_number")
   iban                  String?
   beneficiaryName       String?          @map("beneficiary_name")
+  /// Where statements, invoices and payout notices are emailed (empty: contactEmail)
+  billingEmails         String[]         @default([]) @map("billing_emails")
+  /// The language of those emails: en or ar
+  emailLanguage         String           @default("ar") @map("email_language")
+  /// Email kinds the merchant does not want (statement, payout_paid, invoice)
+  emailOptOuts          String[]         @default([]) @map("email_opt_outs")
   /// The team member who looks after this merchant (docs/HR.md 5)
   accountManagerId      String?          @map("account_manager_id")
   accountManager        User?            @relation("merchant_account_manager", fields: [accountManagerId], references: [id], onDelete: Restrict)
@@ -1361,7 +1371,8 @@ model LedgerAccount {
   chequesBank      Cheque[]            @relation("cheque_bank")
   chequesIncome    Cheque[]            @relation("cheque_income")
 
-  pettyCash PettyCashExpense[]
+  pettyCash     PettyCashExpense[]
+  purchaseLines PurchaseOrderLine[]
 
   @@index([type])
   @@index([groupCode])
@@ -2213,6 +2224,7 @@ model Supplier {
   bills                 Bill[]
   staff                 Employee[]      @relation("staffing_supplier")
   cheques               Cheque[]
+  purchaseOrders        PurchaseOrder[]
 
   @@map("suppliers")
 }
@@ -2254,16 +2266,19 @@ model Bill {
   /// The bill in its own currency, in cents
   foreignTotal     Int?       @map("foreign_total")
   foreignPaid      Int        @default(0) @map("foreign_paid")
+  /// The purchase order the bill was made from (its lines decide the accounts)
+  purchaseOrderId  String?    @map("purchase_order_id")
   createdById      String     @map("created_by_id")
   createdAt        DateTime   @default(now()) @map("created_at")
 
-  person         User?         @relation("bill_person", fields: [userId], references: [id], onDelete: Restrict)
-  supplier       Supplier      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  expenseAccount LedgerAccount @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
-  darkStore      DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  entry          LedgerEntry?  @relation(fields: [entryId], references: [id], onDelete: Restrict)
-  createdBy      User          @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  person         User?          @relation("bill_person", fields: [userId], references: [id], onDelete: Restrict)
+  supplier       Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  expenseAccount LedgerAccount  @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  darkStore      DarkStore?     @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry          LedgerEntry?   @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
   cheques        Cheque[]
+  purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
 
   @@index([status, dueDate])
   @@index([userId])
@@ -3333,4 +3348,223 @@ model MerchantContractTier {
 
   @@unique([contractId, fromOrder])
   @@map("merchant_contract_tiers")
+}
+
+// ─── Email ─────────────────────────────────────────────────────────────────────
+
+enum EmailStatus {
+  /// Waiting to be sent (or to be tried again at next_attempt_at)
+  pending
+  sent
+  /// Gave up after the last try; finance can send it again
+  failed
+
+  @@map("email_status")
+}
+
+/// Emails to merchants, written in the same transaction as the event (a payout paid, an
+/// invoice issued) and sent by the API job. One row per idempotency key, so nothing is sent twice.
+model EmailOutbox {
+  id             String      @id @default(cuid())
+  /// statement, payout_paid, invoice
+  kind           String
+  merchantId     String?     @map("merchant_id")
+  toEmails       String[]    @map("to_emails")
+  language       String
+  subject        String
+  html           String
+  text           String
+  /// [{ filename, contentType, content (base64) }]
+  attachments    Json?
+  idempotencyKey String      @unique @map("idempotency_key")
+  status         EmailStatus @default(pending)
+  attempts       Int         @default(0)
+  nextAttemptAt  DateTime    @default(now()) @map("next_attempt_at")
+  sentAt         DateTime?   @map("sent_at")
+  lastError      String?     @map("last_error")
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([merchantId, createdAt])
+  @@index([createdAt])
+  @@map("email_outbox")
+}
+
+// ─── Packaging (our own consumables, never merchant stock) ─────────────────────
+
+/// A bag, box, label or roll of tape we buy and use when packing orders.
+model PackagingItem {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  nameEn           String   @map("name_en")
+  nameAr           String   @map("name_ar")
+  unit             String   @default("piece")
+  /// The last price paid for one unit; values units found in a count
+  unitCostPiastres Int      @default(0) @map("unit_cost_piastres")
+  /// A box size staff may choose at packing
+  isBox            Boolean  @default(false) @map("is_box")
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  levels    PackagingLevel[]
+  movements PackagingMovement[]
+  recipes   PackagingRecipe[]
+  poLines   PurchaseOrderLine[]
+
+  @@map("packaging_items")
+}
+
+/// Units and their value (average cost) per store; changed only with a packaging movement.
+model PackagingLevel {
+  id            String   @id @default(cuid())
+  darkStoreId   String   @map("dark_store_id")
+  itemId        String   @map("item_id")
+  onHand        Int      @default(0) @map("on_hand")
+  valuePiastres Int      @default(0) @map("value_piastres")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  darkStore DarkStore     @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  item      PackagingItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@unique([darkStoreId, itemId])
+  @@map("packaging_levels")
+}
+
+enum PackagingMovementType {
+  receive
+  consume
+  adjust
+  count
+
+  @@map("packaging_movement_type")
+}
+
+/// Every change to packaging stock (append only), with the value it moved.
+model PackagingMovement {
+  id              String                @id @default(cuid())
+  darkStoreId     String                @map("dark_store_id")
+  itemId          String                @map("item_id")
+  type            PackagingMovementType
+  /// Signed: received units are positive, used units negative
+  quantity        Int
+  valuePiastres   Int                   @map("value_piastres")
+  orderId         String?               @map("order_id")
+  purchaseOrderId String?               @map("purchase_order_id")
+  entryId         String?               @map("entry_id")
+  reason          String?
+  idempotencyKey  String                @unique @map("idempotency_key")
+  createdById     String?               @map("created_by_id")
+  createdAt       DateTime              @default(now()) @map("created_at")
+
+  item PackagingItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([darkStoreId, itemId, createdAt])
+  @@index([orderId])
+  @@map("packaging_movements")
+}
+
+/// What one order uses: for a merchant at a store, a merchant, a store, or everyone (both empty).
+model PackagingRecipe {
+  id          String   @id @default(cuid())
+  darkStoreId String?  @map("dark_store_id")
+  merchantId  String?  @map("merchant_id")
+  itemId      String   @map("item_id")
+  quantity    Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  item PackagingItem @relation(fields: [itemId], references: [id], onDelete: Restrict)
+
+  @@index([darkStoreId, merchantId])
+  @@map("packaging_recipes")
+}
+
+// ─── Purchase orders ───────────────────────────────────────────────────────────
+
+enum PurchaseOrderStatus {
+  requested
+  approved
+  ordered
+  received
+  billed
+  closed
+  rejected
+  cancelled
+
+  @@map("purchase_order_status")
+}
+
+/// What we ask a supplier for: approved, ordered, received (in parts), billed, closed.
+model PurchaseOrder {
+  id            String              @id @default(cuid())
+  /// Gapless serial number shown as PO-000001
+  number        Int                 @unique
+  supplierId    String              @map("supplier_id")
+  darkStoreId   String?             @map("dark_store_id")
+  status        PurchaseOrderStatus @default(requested)
+  /// Lines added up, before VAT
+  totalPiastres Int                 @map("total_piastres")
+  note          String?
+  /// The supplier's quote (a receipt photo)
+  quotePhotoId  String?             @map("quote_photo_id")
+  requestedById String              @map("requested_by_id")
+  decidedById   String?             @map("decided_by_id")
+  decidedAt     DateTime?           @map("decided_at")
+  decisionNote  String?             @map("decision_note")
+  orderedAt     DateTime?           @map("ordered_at")
+  closedAt      DateTime?           @map("closed_at")
+  createdAt     DateTime            @default(now()) @map("created_at")
+  updatedAt     DateTime            @updatedAt @map("updated_at")
+
+  supplier    Supplier               @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  darkStore   DarkStore?             @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  requestedBy User                   @relation("purchase_order_requested_by", fields: [requestedById], references: [id], onDelete: Restrict)
+  decidedBy   User?                  @relation("purchase_order_decided_by", fields: [decidedById], references: [id], onDelete: Restrict)
+  lines       PurchaseOrderLine[]
+  bills       Bill[]
+  receipts    PurchaseOrderReceipt[]
+
+  @@index([status, createdAt])
+  @@map("purchase_orders")
+}
+
+/// One thing ordered: a packaging item (received into packaging stock) or a cost line.
+model PurchaseOrderLine {
+  id                String  @id @default(cuid())
+  purchaseOrderId   String  @map("purchase_order_id")
+  lineNo            Int     @map("line_no")
+  packagingItemId   String? @map("packaging_item_id")
+  /// For a line that is not packaging: the expense it is booked to when billed
+  expenseAccountId  String? @map("expense_account_id")
+  description       String
+  quantity          Int
+  unitPricePiastres Int     @map("unit_price_piastres")
+  receivedQty       Int     @default(0) @map("received_qty")
+  billedQty         Int     @default(0) @map("billed_qty")
+
+  purchaseOrder  PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  packagingItem  PackagingItem? @relation(fields: [packagingItemId], references: [id], onDelete: Restrict)
+  expenseAccount LedgerAccount? @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+
+  @@unique([purchaseOrderId, lineNo])
+  @@map("purchase_order_lines")
+}
+
+/// One delivery received against a purchase order (it may come in parts).
+model PurchaseOrderReceipt {
+  id              String   @id @default(cuid())
+  purchaseOrderId String   @map("purchase_order_id")
+  /// [{ lineId, quantity }]
+  lines           Json
+  /// What the packaging part was worth at the ordered prices (booked to packaging stock)
+  valuePiastres   Int      @map("value_piastres")
+  entryId         String?  @map("entry_id")
+  idempotencyKey  String   @unique @map("idempotency_key")
+  createdById     String   @map("created_by_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@index([purchaseOrderId])
+  @@map("purchase_order_receipts")
 }

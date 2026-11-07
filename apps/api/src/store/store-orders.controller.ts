@@ -46,7 +46,11 @@ import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { StoreAccessService } from './store-access.service';
 
-const packSchema = z.object({ photoId: z.string().min(1).max(64) });
+const packSchema = z.object({
+  photoId: z.string().min(1).max(64),
+  /** The box size chosen at packing (optional), on top of the packaging recipe */
+  boxItemId: z.string().min(1).max(64).optional(),
+});
 
 @ApiTags('store orders')
 @ApiBearerAuth()
@@ -179,17 +183,18 @@ export class StoreOrdersController {
   async pack(
     @Param('storeId') storeId: string,
     @Param('orderId') orderId: string,
-    @Body(new ZodValidationPipe(packSchema)) body: { photoId: string },
+    @Body(new ZodValidationPipe(packSchema)) body: z.infer<typeof packSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
     await this.access.check(user, storeId);
-    await packOrder(this.prisma, {
+    const packaging = await packOrder(this.prisma, {
       orderId,
       darkStoreId: storeId,
       photoId: body.photoId,
+      boxItemId: body.boxItemId,
       actorUserId: user.sub,
     });
-    return { status: 'packed' };
+    return { status: 'packed', packagingShort: packaging.short.length > 0 };
   }
 
   @Post(':orderId/handover')

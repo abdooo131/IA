@@ -13,6 +13,7 @@ import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { addMonths } from './assets';
 import { post } from './ledger';
+import { queueInvoiceEmail } from '../email';
 
 type Tx = Prisma.TransactionClient;
 
@@ -261,6 +262,7 @@ export async function prepareInvoices(
           total: net + vat,
         },
       });
+      await queueInvoiceEmail(tx, invoice.id);
       return true;
     });
     if (made) created++;

@@ -36,6 +36,8 @@ import {
 import { bookCheque, type ChequeBookInput, dropChequeRequest } from './cheques';
 import { type DepositInput, recordDeposit } from './contracts';
 
+import { type PackagingPurchaseInput, recordPackagingPurchase } from '../packaging';
+
 type Tx = Prisma.TransactionClient;
 
 // Controls on top of the books: closing months, a second person for large amounts, receipts
@@ -143,6 +145,7 @@ export type RequestPayload =
   | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
   | { kind: 'prepayment'; input: Stored<PrepaymentInput> }
   | { kind: 'asset_purchase'; input: Stored<AssetInput> }
+  | { kind: 'packaging_purchase'; input: Stored<PackagingPurchaseInput> }
   | {
       kind: 'petty_cash';
       input: {
@@ -319,6 +322,8 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
     case 'deposit_in':
     case 'deposit_out':
       return recordDeposit(db, { ...p.input, actorUserId });
+    case 'packaging_purchase':
+      return recordPackagingPurchase(db, { ...p.input, actorUserId });
   }
 }
 
@@ -712,6 +717,10 @@ export const submitTaxPayment = submitter<'tax_payment', TaxPaymentInput>('tax_p
 export const submitPrepayment = submitter<'prepayment', PrepaymentInput>('prepayment');
 /** Equipment bought, depreciated over its life. */
 export const submitAssetPurchase = submitter<'asset_purchase', AssetInput>('asset_purchase');
+/** Packaging bought and paid at once: posted below the limit, otherwise waiting. */
+export const submitPackagingPurchase = submitter<'packaging_purchase', PackagingPurchaseInput>(
+  'packaging_purchase',
+);
 
 /** A bonus paid straight to an outsourced person. */
 export const submitStaffBonus = submitter<'staff_bonus', BonusInput>('staff_bonus');

@@ -41,6 +41,18 @@ export const envSchema = z.object({
     .regex(/^(mailto:|https:\/\/)/, 'VAPID_SUBJECT must start with mailto: or https://')
     .optional()
     .or(z.literal('')),
+  /**
+   * Email to merchants (statements, invoices, payout notices) through any SMTP service
+   * (Amazon SES, Mailgun, Brevo, Google Workspace...). Without SMTP_HOST and SMTP_FROM
+   * nothing is sent and the outbox waits.
+   */
+  SMTP_HOST: z.string().optional(),
+  /** 587 (STARTTLS, the default) or 465 (TLS) */
+  SMTP_PORT: z.coerce.number().int().positive().default(587),
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  /** The sender, for example "Shiply Now <billing@shiply.example>" */
+  SMTP_FROM: z.string().optional(),
   /** Background jobs (SLA check). Off in tests, on everywhere else unless set to false. */
   JOBS_ENABLED: z.enum(['true', 'false']).optional(),
   /** Shopify app client ID (not secret). Without it the Shopify connection stays off. */

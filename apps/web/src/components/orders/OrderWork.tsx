@@ -31,6 +31,7 @@ const KNOWN_ERRORS = [
   'photo_too_large',
   'photo_type_not_allowed',
   'too_late_to_cancel',
+  'box_not_found',
   'network',
 ];
 const CANCEL_REASONS = ['customer_request', 'out_of_stock', 'duplicate', 'other'] as const;
@@ -44,7 +45,24 @@ const secondary =
 const remaining = (i: OrderItemView) => i.quantity - i.pickedQty - i.cancelledQty;
 
 /** The staff screen for one order: accept, pick by scan, pack with a photo, hand to a rider. */
-export function OrderWork({ storeId, initial }: { storeId: string; initial: OrderDetail }) {
+/** A box size staff may choose at packing (a packaging item), with what the store holds. */
+export interface BoxOption {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  onHand: number;
+}
+
+export function OrderWork({
+  storeId,
+  initial,
+  boxes = [],
+}: {
+  storeId: string;
+  initial: OrderDetail;
+  boxes?: BoxOption[];
+}) {
   const t = useTranslations('orders');
   const tScan = useTranslations('scan');
   const locale = useLocale();
@@ -53,6 +71,7 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
   const [shelf, setShelf] = useState<ScannedBin | null>(null);
   const [missing, setMissing] = useState<OrderItemView | null>(null);
   const [photoId, setPhotoId] = useState<string | null>(null);
+  const [boxItemId, setBoxItemId] = useState('');
   const [cancelling, setCancelling] = useState(false);
   const [reason, setReason] = useState<(typeof CANCEL_REASONS)[number]>('customer_request');
   // Cash controls: a hand over refused past the rider's cash limit, waiting for a manager.
@@ -308,11 +327,34 @@ export function OrderWork({ storeId, initial }: { storeId: string; initial: Orde
             onUploaded={setPhotoId}
             onError={fail}
           />
+          {boxes.length > 0 && (
+            <label className="block text-body-sm font-bold">
+              {t('actions.boxSize')}
+              <select
+                value={boxItemId}
+                onChange={(e) => setBoxItemId(e.target.value)}
+                className="mt-1 h-12 w-full rounded-md border border-line bg-surface px-2 font-normal"
+              >
+                <option value="">{t('actions.noBox')}</option>
+                {boxes.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {(locale === 'ar' ? b.nameAr : b.nameEn) + ` (${b.onHand})`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <button
             type="button"
             className={primary}
             disabled={action.busy || !photoId}
-            onClick={() => void run('pack', { photoId })}
+            onClick={() =>
+              void run<{ packagingShort?: boolean }>(
+                'pack',
+                { photoId, ...(boxItemId ? { boxItemId } : {}) },
+                (d) => (d.packagingShort ? t('actions.packagingShort') : null),
+              )
+            }
           >
             {t('actions.pack')}
           </button>

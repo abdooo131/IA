@@ -25,6 +25,10 @@ export const WORKFLOWS = {
     path: ['awaiting_approval', 'issued', 'cleared'],
     side: ['bounced', 'cancelled'],
   },
+  purchase_order: {
+    path: ['requested', 'approved', 'ordered', 'received', 'billed', 'closed'],
+    side: ['rejected', 'cancelled'],
+  },
 } as const;
 
 export type WorkflowName = keyof typeof WORKFLOWS;

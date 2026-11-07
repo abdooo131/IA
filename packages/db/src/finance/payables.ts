@@ -347,6 +347,8 @@ export function cancelBill(db: Db, input: { billId: string; reason: string; acto
     const bill = await tx.bill.findUnique({ where: { id: input.billId } });
     if (!bill) throw new DomainError('bill_not_found', 404);
     if (bill.status !== 'open' || bill.paidPiastres > 0) throw new DomainError('bill_not_open');
+    // A bill made from a purchase order spreads over its lines' accounts: it is not undone here.
+    if (bill.purchaseOrderId) throw new DomainError('bill_from_purchase_order');
     await post(tx, {
       kind: 'supplier_bill_cancel',
       idempotencyKey: `bill_cancel:${bill.id}`,

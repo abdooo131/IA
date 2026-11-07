@@ -2,12 +2,14 @@ import { addDays, cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { Amount } from '@/components/finance/Amount';
 import { type BankDetails, BankDetailsForm } from '@/components/finance/BankDetailsForm';
+import { EmailSettingsForm } from '@/components/merchant/EmailSettingsForm';
 import { PayoutScheduleForm } from '@/components/merchant/PayoutScheduleForm';
 import { WalletCard } from '@/components/WalletCard';
 import { StatementView } from '@/components/finance/StatementView';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, getMerchantRights } from '@/lib/api-server';
 import type { PayoutSchedule, Statement } from '@/lib/finance-types';
 import { formatCairoDateTime, formatCutoffDay, formatEgp } from '@/lib/format';
+import type { MerchantEmailSettings } from '@/lib/purchasing-types';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -35,12 +37,15 @@ export default async function MerchantWalletPage({
   const from = q.from && DAY.test(q.from) ? q.from : addDays(today, -29);
   const to = q.to && DAY.test(q.to) ? q.to : today;
   const query = new URLSearchParams({ from, to });
-  const [wallet, bank, statement, t, tf, locale] = await Promise.all([
+  const [wallet, bank, statement, emails, rights, t, tf, te, locale] = await Promise.all([
     apiGet<Wallet>('/merchant/finance'),
     apiGet<BankDetails>('/merchant/finance/bank'),
     apiGet<Statement>(`/merchant/finance/statement?${query}`),
+    apiGet<MerchantEmailSettings>('/merchant/email-settings'),
+    getMerchantRights(),
     getTranslations('merchantFinance'),
     getTranslations('finance'),
+    getTranslations('purchasing.emailSettings'),
     getLocale(),
   ]);
   return (
@@ -64,6 +69,16 @@ export default async function MerchantWalletPage({
         <h2 className="text-h3">{tf('bankDetails.title')}</h2>
         <p className="mb-3 text-caption text-text-muted">{tf('bankDetails.merchantHint')}</p>
         <BankDetailsForm details={bank} path="/merchant/finance/bank" />
+      </section>
+
+      <section className="mt-6 rounded-lg border border-line bg-surface p-5">
+        <h2 className="text-h3">{te('title')}</h2>
+        <p className="mb-3 text-caption text-text-muted">{te('hint')}</p>
+        <EmailSettingsForm
+          settings={emails}
+          path="/merchant/email-settings"
+          readOnly={!rights?.owner && !rights?.rights.includes('settings')}
+        />
       </section>
 
       <section className="mt-6">

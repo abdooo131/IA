@@ -584,6 +584,20 @@ export const SETTING_DEFINITIONS = {
     description: 'Longitude of the company office where office staff clock in (0: not set)',
     override: 'none',
   },
+  'stock.packaging_low_units': {
+    schema: z.number().int().min(0).max(1_000_000),
+    default: 50,
+    description:
+      'A packaging item (bags, boxes, labels) at or below this many units in a store raises a packaging_low alert; 0 turns it off',
+    override: 'store',
+  },
+  'finance.po_bill_tolerance_bp': {
+    schema: z.number().int().min(0).max(10_000),
+    default: 200,
+    description:
+      'A bill made from a purchase order may be at most this share (basis points: 200 is 2%) above the ordered prices of what was received',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

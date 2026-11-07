@@ -41,7 +41,9 @@ export type SystemAccountKey =
   | 'fx_difference'
   | 'asset_disposal'
   | 'cheques_under_collection'
-  | 'cheques_payable';
+  | 'cheques_payable'
+  | 'packaging_stock'
+  | 'goods_received';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -208,6 +210,20 @@ const SYSTEM_ACCOUNTS: Record<
     code: '2451',
     nameEn: 'Cheques payable',
     nameAr: 'شيكات مستحقة الدفع',
+  },
+  packaging_stock: {
+    type: 'other_asset',
+    group: 1400,
+    code: '1402',
+    nameEn: 'Packaging stock',
+    nameAr: 'مخزون مواد التغليف',
+  },
+  goods_received: {
+    type: 'other_liability',
+    group: 2400,
+    code: '2401',
+    nameEn: 'Goods received, not billed yet',
+    nameAr: 'بضائع مستلمة لم تصل فاتورتها',
   },
 };
 
@@ -379,6 +395,7 @@ export async function nextNumber(
     | 'bills'
     | 'bank_statements'
     | 'cheques',
+    | 'purchase_orders',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(

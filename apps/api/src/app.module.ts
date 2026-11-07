@@ -19,6 +19,8 @@ import { validateEnv } from './config/env';
 import { HealthController } from './health/health.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { PushModule } from './push/push.module';
+import { EmailModule } from './email/email.module';
+import { PackagingModule } from './packaging/packaging.module';
 import { MeController } from './users/me.controller';
 import { UsersController } from './users/users.controller';
 
@@ -46,6 +48,8 @@ import { UsersController } from './users/users.controller';
     TicketsModule,
     HrModule,
     PushModule,
+    EmailModule,
+    PackagingModule,
   ],
   controllers: [HealthController, UsersController, MeController],
 })

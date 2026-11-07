@@ -26,6 +26,7 @@ import {
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
 import { PrismaService } from '../prisma/prisma.service';
+import { EmailService } from '../email/email.service';
 import { PushService } from '../push/push.service';
 import { TicketsService } from '../tickets/tickets.service';
 
@@ -75,6 +76,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
     private readonly reporter: ErrorReporter,
     private readonly tickets: TicketsService,
     private readonly push: PushService,
+    private readonly email: EmailService,
   ) {}
 
   onApplicationBootstrap() {
@@ -94,6 +96,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runDocumentExpiry();
       void this.runAttendanceClose();
       void this.runRiderCashCheck();
+      void this.runEmails();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -106,6 +109,14 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
    */
   runPush(now: Date = new Date()) {
     return this.push.dispatch(now);
+  }
+
+  /**
+   * Emails to merchants: sends what is due from the outbox. Each row is claimed before it is
+   * sent and a sent row is never sent again, so overlaps and other instances are harmless.
+   */
+  runEmails(now: Date = new Date()) {
+    return this.email.dispatch(now);
   }
 
   /** Ticket reminders; each is claimed in the database first, so overlaps send nothing twice. */

@@ -114,7 +114,18 @@ EN = {
          "The count shows Submitted; admin approves differences.",
          "The transfer status bar shows In transit (sent) or Received."],
        "problems": [
-         "Units for a transfer not found: send what you have; the missing units are released and admin is told."]}
+         "Units for a transfer not found: send what you have; the missing units are released and admin is told."]},
+      {"title": "Packaging (bags, boxes, labels)",
+       "steps": [
+         "When you pack, choose the box size if you used one of our boxes; the bag, label and tape of the recipe are taken by themselves.",
+         "Use only what the recipe says for that merchant; if an order needed more, tell your store lead.",
+         "Once a week (or when admin asks), count the packaging: Inventory, Packaging, Count, choose the item and type the units on the shelf."],
+       "check": [
+         "After packing, the store's packaging stock is lower by what the order used.",
+         "The count shows the number you typed."],
+       "problems": [
+         "The screen says the store ran short of packaging: pack anyway with what you have and tell your store lead; admin is alerted.",
+         "Packaging is low (alert on Home or in Alerts): your store lead asks finance for a purchase order."]}
     ]},
   "rider": {
     "title": "Rider",
@@ -424,7 +435,31 @@ EN = {
          "Bank balances in Shiply equal the bank statements.",
          "The balance sheet says Assets equal liabilities plus equity."],
        "problems": [
-         "A difference you cannot explain: ticket to admin with the account code and the amount."]}
+         "A difference you cannot explain: ticket to admin with the account code and the amount."]},
+      {"title": "Purchase orders and packaging",
+       "steps": [
+         "Accounting, Vendors, Purchase orders: choose the supplier, the store (needed for packaging), add lines (packaging item or an expense category, quantity, unit price) and attach the quote photo.",
+         "Below the approval limit it is approved at once; above it another person with the approve level approves it.",
+         "Mark it as sent to the supplier. When goods arrive, enter what came on the order (it can come in parts): packaging goes into the store's stock.",
+         "When the supplier's invoice arrives, Make the bill on the order with their invoice number; then pay it from Bills as usual.",
+         "Close the order when it is complete, or when the supplier will not send the rest (with a note).",
+         "Packaging bought in a shop and paid now: Inventory, Packaging, Buy and pay now, with the receipt photo."],
+       "check": [
+         "The order's status bar shows Billed or Closed and its bill appears under Bills.",
+         "Packaging stock value (Inventory, Packaging) equals account 1402 in the trial balance; 2401 is zero once everything received is billed."],
+       "problems": [
+         "The bill is refused as above the order: check the supplier's prices; ask admin to change finance.po_bill_tolerance_bp only if agreed.",
+         "Goods came that were not ordered: do not receive them on the order; open a new purchase order."]},
+      {"title": "Emails to merchants",
+       "steps": [
+         "Marking a payout paid emails the merchant a payout notice and the statement of that period with the CSV; issuing the month's invoices emails each merchant a link to print theirs.",
+         "Accounting, Merchants, Emails to merchants shows every email: Waiting, Sent or Failed. Open Preview to see it as the merchant does.",
+         "A Failed email: check the address with the merchant (they change it in Wallet), then tap Send again."],
+       "check": [
+         "After a payout, two emails show Sent for that merchant within a minute."],
+       "problems": [
+         "The page says email is not set up: tell admin; emails wait until SMTP is configured.",
+         "A merchant says they never got the email: check Sent, then ask them to look in spam."]}
     ]},
   "admin": {
     "title": "Admin",
@@ -624,7 +659,18 @@ AR = {
          "الجرد بيقول اتبعت؛ الأدمن بيوافق على الفروق.",
          "شريط حالة التحويل بيقول في الطريق (اتبعت) أو اتستلم."],
        "problems": [
-         "قطع التحويل مش لاقيها: ابعت اللي عندك؛ الناقص بيتفك والأدمن بيتبلغ."]}
+         "قطع التحويل مش لاقيها: ابعت اللي عندك؛ الناقص بيتفك والأدمن بيتبلغ."]},
+      {"title": "مواد التغليف (أكياس وعلب وملصقات)",
+       "steps": [
+         "وانت بتغلف، اختار مقاس العلبة لو استخدمت علبة من علبنا؛ الكيس والملصق والشريط اللي في الوصفة بيتخصموا لوحدهم.",
+         "استخدم بس اللي في الوصفة للتاجر ده؛ لو الطلب احتاج أكتر، قول لمسؤول الفرع.",
+         "مرة في الأسبوع (أو لما الأدمن يطلب)، اجرد مواد التغليف: المخزون، التغليف، جرد، اختار الصنف واكتب العدد اللي على الرف."],
+       "check": [
+         "بعد التغليف، مخزون التغليف في الفرع قل باللي الطلب استخدمه.",
+         "الجرد بيبين الرقم اللي كتبته."],
+       "problems": [
+         "الشاشة بتقول إن مواد التغليف خلصت: غلف باللي عندك وقول لمسؤول الفرع؛ الأدمن بيتبلغ.",
+         "مواد التغليف قربت تخلص (تنبيه): مسؤول الفرع يطلب من الحسابات أمر شراء."]}
     ]},
   "rider": {
     "title": "المندوب",
@@ -934,7 +980,31 @@ AR = {
          "أرصدة البنوك في شيبلي = كشوف البنك.",
          "الميزانية بتقول الأصول = الخصوم + حقوق الملكية."],
        "problems": [
-         "فرق مش عارف تفسره: تذكرة للأدمن بكود الحساب والمبلغ."]}
+         "فرق مش عارف تفسره: تذكرة للأدمن بكود الحساب والمبلغ."]},
+      {"title": "أوامر الشراء ومواد التغليف",
+       "steps": [
+         "الحسابات، الموردين، أوامر الشراء: اختار المورد والفرع (لازم للتغليف)، ضيف السطور (صنف تغليف أو بند مصروف، الكمية، سعر الوحدة) وارفع صورة عرض السعر.",
+         "تحت حد الاعتماد بيتعتمد على طول؛ فوقه شخص تاني عنده صلاحية الاعتماد بيعتمده.",
+         "سجل إنه اتبعت للمورد. لما البضاعة توصل، اكتب اللي وصل على الأمر (ممكن على دفعات): مواد التغليف بتدخل مخزون الفرع.",
+         "لما فاتورة المورد توصل، سجل الفاتورة على الأمر برقم فاتورتهم؛ وبعدين ادفعها من الفواتير زي العادي.",
+         "اقفل الأمر لما يكمل، أو لما المورد مش هيبعت الباقي (مع ملاحظة).",
+         "مواد تغليف اتشرت من محل واتدفعت على طول: المخزون، التغليف، شراء ودفع الآن، مع صورة الإيصال."],
+       "check": [
+         "شريط حالة الأمر بيقول تمت الفوترة أو مغلق وفاتورته ظاهرة في الفواتير.",
+         "قيمة مخزون التغليف (المخزون، التغليف) = حساب 1402 في ميزان المراجعة؛ و2401 صفر لما كل المستلم يتفوتر."],
+       "problems": [
+         "الفاتورة مرفوضة لأنها أعلى من الأمر: راجع أسعار المورد؛ اطلب من الأدمن يغير finance.po_bill_tolerance_bp بس لو ده متفق عليه.",
+         "وصلت بضاعة مش متطلبة: متستلمهاش على الأمر؛ افتح أمر شراء جديد."]},
+      {"title": "رسائل البريد للتجار",
+       "steps": [
+         "لما تسجل دفعة إنها اتدفعت، التاجر بيوصله إشعار الدفعة وكشف حساب الفترة مع ملف CSV؛ ولما تصدر فواتير الشهر، كل تاجر بيوصله رابط يطبع فاتورته.",
+         "الحسابات، التجار، رسائل البريد للتجار بتبين كل رسالة: في الانتظار، أُرسلت، أو فشلت. افتح معاينة تشوفها زي التاجر.",
+         "رسالة فشلت: راجع العنوان مع التاجر (بيغيره من المحفظة)، وبعدين اضغط أرسل مرة أخرى."],
+       "check": [
+         "بعد الدفعة، رسالتين للتاجر بيبقوا أُرسلت خلال دقيقة."],
+       "problems": [
+         "الصفحة بتقول البريد غير مُعد: بلغ الأدمن؛ الرسائل بتستنى لحد ما SMTP يتعمل.",
+         "تاجر بيقول الرسالة موصلتلوش: اتأكد إنها أُرسلت، واطلب منه يدور في الرسائل المزعجة."]}
     ]},
   "admin": {
     "title": "الأدمن",

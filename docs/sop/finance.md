@@ -335,6 +335,40 @@ Also inside the app: settings menu (top of every screen), Help.
 - An item cannot be finished (for example a day without stock shows storage missing): tick it by hand with a note that explains why.
 - Something was ticked by mistake: Untick it; every tick and untick is in the history.
 
+### Purchase orders and packaging
+
+1. Accounting, Vendors, Purchase orders: choose the supplier, the store (needed for packaging), add lines (packaging item or an expense category, quantity, unit price) and attach the quote photo.
+2. Below the approval limit it is approved at once; above it another person with the approve level approves it.
+3. Mark it as sent to the supplier. When goods arrive, enter what came on the order (it can come in parts): packaging goes into the store's stock.
+4. When the supplier's invoice arrives, Make the bill on the order with their invoice number; then pay it from Bills as usual.
+5. Close the order when it is complete, or when the supplier will not send the rest (with a note).
+6. Packaging bought in a shop and paid now: Inventory, Packaging, Buy and pay now, with the receipt photo.
+
+**Check it went right**
+
+- The order's status bar shows Billed or Closed and its bill appears under Bills.
+- Packaging stock value (Inventory, Packaging) equals account 1402 in the trial balance; 2401 is zero once everything received is billed.
+
+**If something is wrong**
+
+- The bill is refused as above the order: check the supplier's prices; ask admin to change finance.po_bill_tolerance_bp only if agreed.
+- Goods came that were not ordered: do not receive them on the order; open a new purchase order.
+
+### Emails to merchants
+
+1. Marking a payout paid emails the merchant a payout notice and the statement of that period with the CSV; issuing the month's invoices emails each merchant a link to print theirs.
+2. Accounting, Merchants, Emails to merchants shows every email: Waiting, Sent or Failed. Open Preview to see it as the merchant does.
+3. A Failed email: check the address with the merchant (they change it in Wallet), then tap Send again.
+
+**Check it went right**
+
+- After a payout, two emails show Sent for that merchant within a minute.
+
+**If something is wrong**
+
+- The page says email is not set up: tell admin; emails wait until SMTP is configured.
+- A merchant says they never got the email: check Sent, then ask them to look in spam.
+
 ### Turn on phone notifications
 
 1. iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.
@@ -688,6 +722,40 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - بند مش هينفع يخلص (مثلا يوم من غير مخزون باين إن تخزينه ناقص): علّم عليه باليد بملاحظة بتشرح السبب.
 - علّمت على حاجة غلط: شيل العلامة؛ كل علامة وشيلها متسجلة في السجل.
+
+### أوامر الشراء ومواد التغليف
+
+1. الحسابات، الموردين، أوامر الشراء: اختار المورد والفرع (لازم للتغليف)، ضيف السطور (صنف تغليف أو بند مصروف، الكمية، سعر الوحدة) وارفع صورة عرض السعر.
+2. تحت حد الاعتماد بيتعتمد على طول؛ فوقه شخص تاني عنده صلاحية الاعتماد بيعتمده.
+3. سجل إنه اتبعت للمورد. لما البضاعة توصل، اكتب اللي وصل على الأمر (ممكن على دفعات): مواد التغليف بتدخل مخزون الفرع.
+4. لما فاتورة المورد توصل، سجل الفاتورة على الأمر برقم فاتورتهم؛ وبعدين ادفعها من الفواتير زي العادي.
+5. اقفل الأمر لما يكمل، أو لما المورد مش هيبعت الباقي (مع ملاحظة).
+6. مواد تغليف اتشرت من محل واتدفعت على طول: المخزون، التغليف، شراء ودفع الآن، مع صورة الإيصال.
+
+**اتأكد إنها مشيت صح**
+
+- شريط حالة الأمر بيقول تمت الفوترة أو مغلق وفاتورته ظاهرة في الفواتير.
+- قيمة مخزون التغليف (المخزون، التغليف) = حساب 1402 في ميزان المراجعة؛ و2401 صفر لما كل المستلم يتفوتر.
+
+**لو فيه مشكلة**
+
+- الفاتورة مرفوضة لأنها أعلى من الأمر: راجع أسعار المورد؛ اطلب من الأدمن يغير finance.po_bill_tolerance_bp بس لو ده متفق عليه.
+- وصلت بضاعة مش متطلبة: متستلمهاش على الأمر؛ افتح أمر شراء جديد.
+
+### رسائل البريد للتجار
+
+1. لما تسجل دفعة إنها اتدفعت، التاجر بيوصله إشعار الدفعة وكشف حساب الفترة مع ملف CSV؛ ولما تصدر فواتير الشهر، كل تاجر بيوصله رابط يطبع فاتورته.
+2. الحسابات، التجار، رسائل البريد للتجار بتبين كل رسالة: في الانتظار، أُرسلت، أو فشلت. افتح معاينة تشوفها زي التاجر.
+3. رسالة فشلت: راجع العنوان مع التاجر (بيغيره من المحفظة)، وبعدين اضغط أرسل مرة أخرى.
+
+**اتأكد إنها مشيت صح**
+
+- بعد الدفعة، رسالتين للتاجر بيبقوا أُرسلت خلال دقيقة.
+
+**لو فيه مشكلة**
+
+- الصفحة بتقول البريد غير مُعد: بلغ الأدمن؛ الرسائل بتستنى لحد ما SMTP يتعمل.
+- تاجر بيقول الرسالة موصلتلوش: اتأكد إنها أُرسلت، واطلب منه يدور في الرسائل المزعجة.
 
 ### تشغيل إشعارات الموبايل
 

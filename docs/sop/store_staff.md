@@ -172,6 +172,22 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Units for a transfer not found: send what you have; the missing units are released and admin is told.
 
+### Packaging (bags, boxes, labels)
+
+1. When you pack, choose the box size if you used one of our boxes; the bag, label and tape of the recipe are taken by themselves.
+2. Use only what the recipe says for that merchant; if an order needed more, tell your store lead.
+3. Once a week (or when admin asks), count the packaging: Inventory, Packaging, Count, choose the item and type the units on the shelf.
+
+**Check it went right**
+
+- After packing, the store's packaging stock is lower by what the order used.
+- The count shows the number you typed.
+
+**If something is wrong**
+
+- The screen says the store ran short of packaging: pack anyway with what you have and tell your store lead; admin is alerted.
+- Packaging is low (alert on Home or in Alerts): your store lead asks finance for a purchase order.
+
 ### Turn on phone notifications
 
 1. iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works; installing the app is optional.
@@ -362,6 +378,22 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - قطع التحويل مش لاقيها: ابعت اللي عندك؛ الناقص بيتفك والأدمن بيتبلغ.
+
+### مواد التغليف (أكياس وعلب وملصقات)
+
+1. وانت بتغلف، اختار مقاس العلبة لو استخدمت علبة من علبنا؛ الكيس والملصق والشريط اللي في الوصفة بيتخصموا لوحدهم.
+2. استخدم بس اللي في الوصفة للتاجر ده؛ لو الطلب احتاج أكتر، قول لمسؤول الفرع.
+3. مرة في الأسبوع (أو لما الأدمن يطلب)، اجرد مواد التغليف: المخزون، التغليف، جرد، اختار الصنف واكتب العدد اللي على الرف.
+
+**اتأكد إنها مشيت صح**
+
+- بعد التغليف، مخزون التغليف في الفرع قل باللي الطلب استخدمه.
+- الجرد بيبين الرقم اللي كتبته.
+
+**لو فيه مشكلة**
+
+- الشاشة بتقول إن مواد التغليف خلصت: غلف باللي عندك وقول لمسؤول الفرع؛ الأدمن بيتبلغ.
+- مواد التغليف قربت تخلص (تنبيه): مسؤول الفرع يطلب من الحسابات أمر شراء.
 
 ### تشغيل إشعارات الموبايل
 
