@@ -17,8 +17,8 @@ describe('loginSchema', () => {
 });
 
 describe('roles', () => {
-  it('has exactly the four pilot roles', () => {
-    expect(ROLES).toEqual(['admin', 'merchant', 'store_staff', 'rider', 'finance']);
+  it('has the Shiply Now roles and the parcel network roles', () => {
+    expect(ROLES).toEqual(['admin', 'merchant', 'store_staff', 'rider', 'finance', 'hub_staff', 'courier', 'agent']);
   });
 
   it('guards role strings', () => {

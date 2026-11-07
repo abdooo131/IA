@@ -1,9 +1,19 @@
 import { z } from 'zod';
 import { ROLES } from './roles';
-import { egyptianPhoneSchema } from './phone';
+import { egyptianPhoneSchema, normalizeEgyptianPhone } from './phone';
 
+/**
+ * Sign in with an email, or with an Egyptian mobile number: parcel network couriers and agents
+ * often have no email. The field keeps its name, email, either way.
+ */
 export const loginSchema = z.object({
-  email: z.string().trim().toLowerCase().email(),
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .refine((v) => z.string().email().safeParse(v).success || normalizeEgyptianPhone(v) !== null, {
+      message: 'Enter your email or mobile number',
+    }),
   password: z.string().min(1).max(200),
 });
 export type LoginInput = z.infer<typeof loginSchema>;

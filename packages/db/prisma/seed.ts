@@ -14,6 +14,10 @@ async function main() {
     // Falls back to the admin password so an older .env still works.
     demoPassword: process.env.SEED_DEMO_PASSWORD || password,
     log: (message) => console.log(message),
+    // The Shiply parcel network, with its demo people unless SEED_NETWORK_DEMO=off.
+    network: true,
+    networkDemo: process.env.SEED_NETWORK_DEMO !== 'off',
+    networkEverywhere: process.env.SEED_COVERAGE === 'all',
   });
   console.log(`Admin ready: ${email.trim().toLowerCase()}`);
 }

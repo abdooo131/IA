@@ -1426,6 +1426,14 @@ enum LedgerAccountType {
   /// What a rider owes the company (cash shortages kept on them, damage charges, penalties);
   /// taken from their next withdrawal
   rider_dues
+  /// Parcel network: the cash in a sorting facility's or hub's safe
+  hub_safe
+  /// Parcel network: cash on delivery a courier is carrying
+  courier_cash
+  /// Parcel network: what we owe a courier (points, bonuses, less penalties)
+  courier_wallet
+  /// Parcel network: what we owe a delivery agent for their team's work
+  agent_payable
 
   @@map("ledger_account_type")
 }
@@ -1469,6 +1477,9 @@ model LedgerAccount {
   userId        String?           @map("user_id")
   /// The supplier a payable wallet belongs to
   supplierId    String?           @map("supplier_id")
+  /// Parcel network wallets: a hub's safe, an agent's account
+  hubId         String?           @map("hub_id")
+  agentId       String?           @map("agent_id")
   createdById   String?           @map("created_by_id")
   createdAt     DateTime          @default(now()) @map("created_at")
 
@@ -1559,6 +1570,16 @@ model LedgerLine {
   user      User?              @relation("ledger_line_user", fields: [userId], references: [id], onDelete: Restrict)
   bankLine  BankStatementLine?
 
+  /// Which company of the group the line belongs to; the P&L can be read per company or combined
+  company      Company     @default(shiply_now)
+  /// Parcel network place the line counts for (a sorting facility or hub), like darkStoreId
+  hubId        String?     @map("hub_id")
+  /// The cost center: a dark store, a facility or hub, or a head office team
+  costCenterId String?     @map("cost_center_id")
+  costCenter   CostCenter? @relation(fields: [costCenterId], references: [id], onDelete: Restrict)
+
+  @@index([company, occurredAt])
+  @@index([costCenterId, occurredAt])
   @@index([accountId, occurredAt])
   @@index([darkStoreId, occurredAt])
   @@index([merchantId, occurredAt])
@@ -4884,6 +4905,34 @@ model RecordActivity {
   @@index([entityType, entityId])
   @@index([assigneeId, doneAt, dueOn])
   @@map("record_activities")
+}
+
+/// The two companies of the group. Shiply Now: 60 minute delivery from dark stores. Shiply: the
+/// parcel network. Separate teams and P&L, one set of books.
+enum Company {
+  shiply_now
+  shiply
+
+  @@map("company")
+}
+
+/// Where a cost or income counts inside a company: a dark store, a sorting facility or hub, or
+/// a head office team.
+model CostCenter {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  nameEn       String   @map("name_en")
+  nameAr       String   @map("name_ar")
+  company      Company
+  darkStoreId  String?  @unique @map("dark_store_id")
+  hubId        String?  @unique @map("hub_id")
+  departmentId String?  @unique @map("department_id")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  lines LedgerLine[]
+
+  @@map("cost_centers")
 }
 
 // ============================================================================

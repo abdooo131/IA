@@ -1,0 +1,6 @@
+{
+  "name": "@shiplynow/shared-parcels",
+  "private": true,
+  "main": "../dist/parcels/index.js",
+  "types": "../dist/parcels/index.d.ts"
+}
