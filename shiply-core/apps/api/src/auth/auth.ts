@@ -23,6 +23,8 @@ export interface SessionUser {
   hubId: string | null;
   merchantId: string | null;
   agentId: string | null;
+  merchantOwner: boolean;
+  merchantRights: string[];
 }
 
 const PUBLIC_KEY = 'public';
@@ -72,6 +74,8 @@ export class AuthGuard implements CanActivate {
       hubId: user.hubId,
       merchantId: user.merchantId,
       agentId: user.agentId,
+      merchantOwner: user.merchantOwner,
+      merchantRights: user.merchantRights,
     };
 
     const roles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES_KEY, targets);
@@ -95,4 +99,10 @@ export function assertHubAccess(user: SessionUser, hubId: string) {
   if (user.role === 'ADMIN') return;
   if (user.role === 'HUB_STAFF' && user.hubId === hubId) return;
   throw new DomainError('forbidden', 'You can only work in your own hub', 403);
+}
+
+/** Merchant team members work only where they have the right; the owner has every right. */
+export function assertMerchantRight(user: SessionUser, right: 'orders' | 'pickups' | 'money' | 'settings') {
+  if (user.role !== 'MERCHANT' || user.merchantOwner || user.merchantRights.includes(right)) return;
+  throw new DomainError('forbidden', 'Your account cannot open this. Ask the account owner', 403);
 }

@@ -155,6 +155,10 @@ export class HubService {
     const ev = { hubId: hub.id, userId: user.id };
     const base = { currentHubId: hub.id, runId: null };
 
+    if (s.direction === 'RETURN' && item.failReason === 'EXCHANGE') {
+      await this.core.move(tx, s, 'AT_HUB', base, { ...ev, type: 'BACK_FROM_COURIER', note: 'Exchange item from the customer, going back to the merchant' });
+      return 'Exchange item received. It goes back to the merchant';
+    }
     if (s.direction === 'RETURN') {
       await this.core.move(tx, s, 'AT_HUB', base, { ...ev, type: 'BACK_FROM_COURIER', note: 'Handing back to the merchant failed, will try again' });
       return 'Back from courier. Return to merchant will be tried again';
@@ -671,6 +675,7 @@ export class HubService {
       if (s.status !== 'AT_HUB' || s.currentHubId !== hubId) throw new DomainError('bad_status', `${s.trackingNumber} is not ready here`, 409);
       if (s.runId) throw new DomainError('bad_status', `${s.trackingNumber} is already on a run`, 409);
       if (s.bagId) throw new DomainError('bad_status', `${s.trackingNumber} is in a bag. Take it out first`, 409);
+      if (s.direction === 'FORWARD' && s.deliverOn && s.deliverOn > todayInCairo()) throw new DomainError('postponed', `The customer asked for delivery on ${s.deliverOn}. Keep it on the shelf until then`, 409);
       const next = await this.core.nextStep(tx, s);
       if (next.kind === 'SEND') throw new DomainError('wrong_hub', `${s.trackingNumber} is not for here. Send it to ${next.hubName}`, 409);
       await tx.runItem.create({ data: { runId, shipmentId: s.id, direction: s.direction } });

@@ -103,7 +103,7 @@ export const FAIL_REASONS = {
 export type FailReason = keyof typeof FAIL_REASONS;
 export const FAIL_REASON_CODES = Object.keys(FAIL_REASONS) as FailReason[];
 
-export const PARCEL_SIZES = ['S', 'M', 'L', 'XL'] as const;
+export const PARCEL_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'BULKY'] as const;
 export type ParcelSize = (typeof PARCEL_SIZES)[number];
 
 export const ROLES = ['ADMIN', 'HUB_STAFF', 'COURIER', 'MERCHANT', 'AGENT'] as const;

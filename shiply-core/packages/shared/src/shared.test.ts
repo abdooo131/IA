@@ -82,7 +82,7 @@ describe('promise dates', () => {
 });
 
 describe('pricing', () => {
-  const zone = { priceS: 6000, priceM: 7000, priceL: 9000, priceXL: 12000 };
+  const zone = { priceS: 6000, priceM: 7000, priceL: 9000, priceXL: 12000, priceXXL: 16000, priceBulky: 24000 };
   const fees = { codFeeBp: 100, codFreeAmount: 300000, returnFeeBp: 5000 };
   it('applies size and merchant discount', () => {
     expect(shippingFee(zone, 'M', 0)).toBe(7000);
@@ -142,5 +142,15 @@ describe('splitVat', () => {
     expect(splitVat(0, 1400)).toEqual({ net: 0, vat: 0 });
     const s = splitVat(999, 1400);
     expect(s.net + s.vat).toBe(999);
+  });
+});
+
+describe('quote', () => {
+  it('list price with tier discount, open fee and exchange surcharge; an agreed price takes no discount', async () => {
+    const { quote } = await import('./pricing');
+    const zone = { priceS: 5000, priceM: 6000, priceL: 7500, priceXL: 10000, priceXXL: 14000, priceBulky: 20000 };
+    expect(quote({ zone, size: 'M', discountBp: 1000, allowOpen: true, openFee: 500, exchange: false, exchangeBp: 5000 })).toEqual({ basePrice: 6000, discount: 600, openFee: 500, exchangeFee: 0, shippingFee: 5900 });
+    expect(quote({ zone, size: 'BULKY', discountBp: 0, allowOpen: false, openFee: 500, exchange: true, exchangeBp: 5000 }).shippingFee).toBe(30000);
+    expect(quote({ zone, size: 'M', agreedPrice: 4500, discountBp: 1000, allowOpen: false, openFee: 500, exchange: false, exchangeBp: 5000 }).shippingFee).toBe(4500);
   });
 });

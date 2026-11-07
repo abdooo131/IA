@@ -106,6 +106,8 @@ enum ParcelSize {
   M
   L
   XL
+  XXL
+  BULKY
 }
 
 enum Team {
@@ -182,6 +184,8 @@ model Zone {
   priceM      Int    @map("price_m")
   priceL      Int    @map("price_l")
   priceXL     Int    @map("price_xl")
+  priceXXL    Int    @default(0) @map("price_xxl")
+  priceBulky  Int    @default(0) @map("price_bulky")
 
   governorates Governorate[]
 
@@ -251,6 +255,10 @@ model User {
   /// A courier with a negative wallet is frozen; operations can let them work until this time.
   unfreezeUntil   DateTime?    @map("unfreeze_until")
   unfreezeReason  String       @default("") @map("unfreeze_reason")
+  /// A merchant account: the owner can do everything; team members only their rights.
+  merchantOwner   Boolean      @default(false) @map("merchant_owner")
+  /// orders, pickups, money, settings
+  merchantRights  String[]     @default([]) @map("merchant_rights")
   active          Boolean      @default(true)
   createdAt       DateTime     @default(now()) @map("created_at")
 
@@ -432,6 +440,11 @@ model Merchant {
   iban            String   @default("")
   /// Tax registration number, for tax invoices (empty for a person, not a company).
   taxId           String   @default("") @map("tax_id")
+  contactName     String   @default("") @map("contact_name")
+  /// ACTIVE, or PENDING while a self sign up waits for approval, or REJECTED.
+  status          String   @default("ACTIVE")
+  logo            Bytes?
+  logoMime        String   @default("") @map("logo_mime")
   pendingBank     Json?    @map("pending_bank")
   pendingBankById String?  @map("pending_bank_by_id") @db.Uuid
   /// Weekdays the merchant is paid (0 Sunday ... 6 Saturday).
@@ -475,17 +488,30 @@ model Shipment {
   laneHubId        String?        @map("lane_hub_id") @db.Uuid
   runId            String?        @map("run_id") @db.Uuid
 
-  attempts       Int       @default(0)
-  lastFailReason String?   @map("last_fail_reason")
-  holdReason     String?   @map("hold_reason")
-  promisedDate   String?   @map("promised_date")
+  attempts         Int       @default(0)
+  lastFailReason   String?   @map("last_fail_reason")
+  holdReason       String?   @map("hold_reason")
+  promisedDate     String?   @map("promised_date")
   /// Lost parcels are searched for until this time before the loss is final.
-  searchUntil    DateTime? @map("search_until")
+  searchUntil      DateTime? @map("search_until")
   /// When the loss became final: the merchant was compensated.
-  lostFinalAt    DateTime? @map("lost_final_at")
+  lostFinalAt      DateTime? @map("lost_final_at")
   /// What the merchant was paid for the loss (piastres), reversed if the parcel turns up.
-  compensation   Int       @default(0)
-  damaged        Boolean   @default(false)
+  compensation     Int       @default(0)
+  damaged          Boolean   @default(false)
+  /// NORMAL, EXCHANGE (deliver new, collect old), EXCHANGE_RETURN (the old item coming back)
+  kind             String    @default("NORMAL")
+  linkedShipmentId String?   @map("linked_shipment_id") @db.Uuid
+  /// Price breakdown at booking: list price, discount, open package fee, exchange fee (all included in shippingFee).
+  basePrice        Int       @default(0) @map("base_price")
+  discount         Int       @default(0)
+  openFee          Int       @default(0) @map("open_fee")
+  exchangeFee      Int       @default(0) @map("exchange_fee")
+  /// The customer asked for delivery on this day (YYYY-MM-DD).
+  deliverOn        String?   @map("deliver_on")
+  customerNote     String    @default("") @map("customer_note")
+  rating           Int?
+  ratingComment    String    @default("") @map("rating_comment")
 
   shippingFee  Int     @map("shipping_fee")
   codFee       Int     @map("cod_fee")
@@ -1157,4 +1183,80 @@ model QcTicket {
   @@index([agentId])
   @@index([shipmentId])
   @@map("qc_tickets")
+}
+
+// ---------------------------------------------------------------- merchants and customers
+
+/**
+ * Monthly volume tiers: a merchant who shipped this many parcels last month gets the discount.
+ */
+model PriceTier {
+  id         String @id @default(uuid()) @db.Uuid
+  name       String
+  minParcels Int    @map("min_parcels")
+  discountBp Int    @map("discount_bp")
+
+  @@map("price_tiers")
+}
+
+/**
+ * A price agreed with one merchant for one zone and size; it replaces the list price and the tier.
+ */
+model MerchantPrice {
+  merchantId String     @map("merchant_id") @db.Uuid
+  zoneCode   String     @map("zone_code")
+  size       ParcelSize
+  price      Int
+
+  @@id([merchantId, zoneCode, size])
+  @@map("merchant_prices")
+}
+
+model RecurringPickup {
+  id             String   @id @default(uuid()) @db.Uuid
+  merchantId     String   @unique @map("merchant_id") @db.Uuid
+  weekdays       Int[]
+  active         Boolean  @default(true)
+  notes          String   @default("")
+  lastCreatedFor String?  @map("last_created_for")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("recurring_pickups")
+}
+
+/**
+ * A one time code sent to a phone (merchant sign up). Only its hash is kept.
+ */
+model OtpCode {
+  id        String    @id @default(uuid()) @db.Uuid
+  phone     String
+  purpose   String
+  codeHash  String    @map("code_hash")
+  expiresAt DateTime  @map("expires_at")
+  attempts  Int       @default(0)
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([phone, purpose])
+  @@map("otp_codes")
+}
+
+/**
+ * SMS and WhatsApp messages. They wait QUEUED until a provider is set up, then go out.
+ */
+model Message {
+  id         String    @id @default(uuid()) @db.Uuid
+  channel    String
+  to         String
+  template   String
+  body       String
+  shipmentId String?   @map("shipment_id") @db.Uuid
+  status     String    @default("QUEUED")
+  error      String    @default("")
+  sentAt     DateTime? @map("sent_at")
+  createdAt  DateTime  @default(now()) @map("created_at")
+
+  @@index([status])
+  @@index([shipmentId])
+  @@map("messages")
 }

@@ -14,6 +14,7 @@ import {
 } from '@shiply/shared';
 import { DomainError, notFound } from '../common/errors';
 import type { Tx } from '../common/prisma.service';
+import { queueParcelMessage } from '../common/messages';
 
 export interface EventInput {
   type: string;
@@ -57,6 +58,10 @@ export class ShipmentsCore {
     });
     if (result.count !== 1) {
       throw new DomainError('conflict', `${shipment.trackingNumber} was just changed by someone else. Scan it again`, 409);
+    }
+    // Tell the customer at the moments that matter to them.
+    if (to === 'OUT_FOR_DELIVERY' || to === 'DELIVERED' || to === 'ATTEMPT_FAILED') {
+      if (shipment.status !== to) await queueParcelMessage(tx, shipment.id, to);
     }
     await tx.shipmentEvent.create({
       data: {

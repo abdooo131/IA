@@ -20,7 +20,8 @@ import { CourierController } from './courier/courier.controller';
 import { CourierService } from './courier/courier.service';
 import { HubController } from './hub/hub.controller';
 import { HubService } from './hub/hub.service';
-import { MerchantController } from './merchant/merchant.controller';
+import { AdminDeskController, MerchantController, MerchantDeskController, PublicDeskController } from './merchant/merchant.controller';
+import { MerchantDeskService } from './merchant/desk.service';
 import { MerchantService } from './merchant/merchant.service';
 import { PublicController } from './public/public.controller';
 
@@ -32,7 +33,7 @@ function jwtSecret(): string {
 
 @Module({
   imports: [JwtModule.registerAsync({ global: true, useFactory: () => ({ secret: jwtSecret(), signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }) })],
-  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController, ControlController, HubControlController, TicketAppealController],
+  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController, ControlController, HubControlController, TicketAppealController, MerchantDeskController, PublicDeskController, AdminDeskController],
   providers: [
     PrismaService,
     SettingsService,
@@ -45,6 +46,7 @@ function jwtSecret(): string {
     FinanceService,
     BooksService,
     ControlService,
+    MerchantDeskService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_FILTER, useClass: ErrorFilter },
   ],

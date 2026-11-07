@@ -45,6 +45,10 @@ export const SETTINGS = {
   'qc.override_hours': { label: 'Hours operations have to cancel a quality ticket before its penalty applies', kind: 'int', default: 24 },
   'qc.appeal_hours': { label: 'Hours a courier or agent has to appeal a penalty', kind: 'int', default: 48 },
   'fraud.max_failed_per_day': { label: 'Failed attempts by one courier in a day that raise a fraud check', kind: 'int', default: 8 },
+  'fees.open_package': { label: 'Fee when the customer may open the parcel before paying (piastres)', kind: 'money', default: 500 },
+  'fees.exchange_bp': { label: 'Exchange surcharge as basis points of shipping (5000 = 50%)', kind: 'bp', default: 5000 },
+  'messages.channel': { label: 'How customers get messages', kind: 'choice', default: 'WHATSAPP', options: ['WHATSAPP', 'SMS'] },
+  'tracking.base_url': { label: 'Public tracking page address in messages', kind: 'longtext', default: 'https://track.shiply.example/t' },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

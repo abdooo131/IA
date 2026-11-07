@@ -5,7 +5,6 @@ import {
   codFee,
   makeTrackingNumber,
   normalizeEgyptPhone,
-  shippingFee,
   type ParcelSize,
 } from '@shiply/shared';
 import { z } from 'zod';
@@ -15,6 +14,7 @@ import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo } from '../core/shipments.core';
+import { priceFor } from './pricing';
 
 const MAX_COD = 100_000 * 100; // 100,000 EGP
 
@@ -30,6 +30,8 @@ export const ShipmentInput = z.object({
   notes: z.string().trim().max(300).default(''),
   allowOpen: z.boolean().default(false),
   merchantRef: z.string().trim().max(60).default(''),
+  /** Deliver the new item and bring the old one back in the same visit. */
+  exchange: z.boolean().default(false),
 });
 export type ShipmentInputT = z.infer<typeof ShipmentInput>;
 
@@ -72,9 +74,13 @@ export class MerchantService {
     return this.prisma.tx(async (tx) => {
       const merchant = await tx.merchant.findUnique({ where: { id: merchantId } });
       if (!merchant || !merchant.active) throw new DomainError('forbidden', 'This merchant account is not active', 403);
+      if (merchant.status !== 'ACTIVE') throw new DomainError('forbidden', 'This merchant account is waiting for approval', 403);
       const settings = await this.settings.all(tx);
-      const { hubId, zone } = await this.core.deliveryHubFor(tx, data.governorateCode, data.areaId ?? null);
-      const fee = shippingFee(zone, data.size as ParcelSize, merchant.discountBp);
+      const price = await priceFor(tx, this.core, settings, {
+        merchantId, discountBp: merchant.discountBp, governorateCode: data.governorateCode, areaId: data.areaId ?? null,
+        size: data.size as ParcelSize, allowOpen: data.allowOpen, exchange: data.exchange,
+      });
+      const hubId = price.hubId;
       const cod = codFee(data.codAmount, {
         codFeeBp: settings['fees.cod_fee_bp'],
         codFreeAmount: settings['fees.cod_free_amount'],
@@ -98,7 +104,12 @@ export class MerchantService {
           codAmount: data.codAmount,
           originHubId: merchant.homeHubId,
           destinationHubId: hubId,
-          shippingFee: fee,
+          shippingFee: price.shippingFee,
+          basePrice: price.basePrice,
+          discount: price.discount,
+          openFee: price.openFee,
+          exchangeFee: price.exchangeFee,
+          kind: data.exchange ? 'EXCHANGE' : 'NORMAL',
           codFee: cod,
         },
       });

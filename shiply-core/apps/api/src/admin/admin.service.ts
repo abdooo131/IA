@@ -40,6 +40,8 @@ const ZoneInput = z.object({
   priceM: z.number().int().min(0),
   priceL: z.number().int().min(0),
   priceXL: z.number().int().min(0),
+  priceXXL: z.number().int().min(0).optional(),
+  priceBulky: z.number().int().min(0).optional(),
 });
 
 const GovernorateInput = z.object({ zoneCode: z.string(), hubId: z.string().uuid().nullable() });
@@ -287,7 +289,7 @@ export class AdminService {
   // ---------------------------------------------------------------- accounts
 
   merchants() {
-    return this.prisma.merchant.findMany({ include: { homeHub: { select: { code: true } }, _count: { select: { shipments: true } } }, orderBy: { name: 'asc' } });
+    return this.prisma.merchant.findMany({ omit: { logo: true }, include: { homeHub: { select: { code: true } }, _count: { select: { shipments: true } } }, orderBy: { name: 'asc' } });
   }
 
   async saveMerchant(id: string | null, body: unknown, user: SessionUser) {
@@ -300,7 +302,7 @@ export class AdminService {
     const point = await this.core.pointOf(this.prisma as never, d.governorateCode, d.areaId ?? null);
     const facility = await this.core.nearestFacility(this.prisma as never, point);
     const data = { ...d, phone, areaId: d.areaId ?? null, homeHubId: facility.id };
-    const m = id ? await this.prisma.merchant.update({ where: { id }, data }) : await this.prisma.merchant.create({ data });
+    const m = id ? await this.prisma.merchant.update({ where: { id }, data, omit: { logo: true } }) : await this.prisma.merchant.create({ data, omit: { logo: true } });
     await this.audit(user, id ? 'MERCHANT_UPDATED' : 'MERCHANT_CREATED', 'merchant', m.id, data);
     return m;
   }
@@ -329,6 +331,8 @@ export class AdminService {
         hubId: d.role === 'HUB_STAFF' || d.role === 'COURIER' ? d.hubId : null,
         team: d.role === 'HUB_STAFF' ? (d.team ?? null) : null,
         merchantId: d.role === 'MERCHANT' ? d.merchantId : null,
+        // A login made by operations for a merchant is that merchant's owner.
+        merchantOwner: d.role === 'MERCHANT',
       },
     });
     await this.audit(user, 'USER_CREATED', 'user', created.id, { email: d.email, role: d.role });

@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { FAIL_REASON_CODES, FAIL_REASONS } from '@shiply/shared';
-import { returnFee } from '@shiply/shared';
+import { makeTrackingNumber, returnFee } from '@shiply/shared';
+import { nextNumber } from '../common/codes';
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth';
 import { DomainError, notFound } from '../common/errors';
@@ -14,6 +15,8 @@ const Code = z.object({ code: z.string().trim().min(3).max(40) });
 const DeliverInput = z.object({
   codCollected: z.number().int().min(0),
   recipient: z.string().trim().max(120).default(''),
+  /** Exchange parcels: the customer handed back the old item. */
+  exchangeCollected: z.boolean().default(true),
 });
 const FailInput = z.object({
   reason: z.enum(FAIL_REASON_CODES as [string, ...string[]]),
@@ -134,6 +137,23 @@ export class CourierService {
       await tx.runItem.update({ where: { id: item.id }, data: { result: 'DELIVERED', codCollected: d.codCollected, recipient: d.recipient, resolvedAt: now } });
       await this.core.move(tx, s, 'DELIVERED', { runId: null, codCollected: d.codCollected, deliveredAt: now, closedAt: now }, { type: 'DELIVERED', userId: user.id, hubId: item.run.hubId, note: d.recipient ? `Received by ${d.recipient}` : '' });
       await postDelivered(tx, await this.settings.all(tx), { ...s, codCollected: d.codCollected }, user.id, user.id);
+      if (s.kind === 'EXCHANGE' && d.exchangeCollected) {
+        // The old item rides back on this run as a return to the merchant; the hub scans it in.
+        const settings = await this.settings.all(tx);
+        const back = await tx.shipment.create({
+          data: {
+            trackingNumber: makeTrackingNumber(settings['tracking.prefix'], await nextNumber(tx, 'tracking_seq')),
+            merchantId: s.merchantId, merchantRef: s.merchantRef, customerName: s.customerName, customerPhone: s.customerPhone, address: s.address,
+            governorateCode: s.governorateCode, areaId: s.areaId, size: s.size, description: `Exchange: old item from ${s.trackingNumber}`,
+            status: 'ATTEMPT_FAILED', direction: 'RETURN', originHubId: s.originHubId, destinationHubId: s.destinationHubId, runId: item.runId,
+            shippingFee: 0, codFee: 0, kind: 'EXCHANGE_RETURN', linkedShipmentId: s.id, enteredAt: now,
+          },
+        });
+        await tx.shipmentEvent.create({ data: { shipmentId: back.id, type: 'EXCHANGE_COLLECTED', toStatus: 'ATTEMPT_FAILED', hubId: item.run.hubId, userId: user.id, note: `Collected from the customer when delivering ${s.trackingNumber}` } });
+        await tx.runItem.create({ data: { runId: item.runId, shipmentId: back.id, direction: 'RETURN', result: 'FAILED', failReason: 'EXCHANGE', resolvedAt: now } });
+        await tx.shipment.update({ where: { id: s.id }, data: { linkedShipmentId: back.id } });
+        return { message: 'Delivered. Bring the old item back to the hub', exchangeReturn: back.trackingNumber };
+      }
       return { message: 'Delivered' };
     });
   }

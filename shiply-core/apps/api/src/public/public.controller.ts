@@ -35,7 +35,7 @@ export class PublicController {
   async track(@Param('number') number: string) {
     const s = await this.prisma.shipment.findUnique({
       where: { trackingNumber: normalizeCode(number) },
-      include: { merchant: { select: { name: true } }, events: { orderBy: { createdAt: 'asc' } } },
+      include: { merchant: { select: { name: true, logoMime: true } }, events: { orderBy: { createdAt: 'asc' } } },
     });
     if (!s) throw notFound('Parcel');
     const hubs = new Map((await this.prisma.hub.findMany()).map((h) => [h.id, h.name]));
@@ -43,6 +43,13 @@ export class PublicController {
     return {
       trackingNumber: s.trackingNumber,
       store: s.merchant.name,
+      hasLogo: !!s.merchant.logoMime,
+      kind: s.kind,
+      deliverOn: s.deliverOn,
+      canAct: s.direction === 'FORWARD' && open && s.status !== 'OUT_FOR_DELIVERY' && s.status !== 'LOST',
+      canRate: s.status === 'DELIVERED' && !s.rating,
+      rating: s.rating,
+      courier: s.status === 'OUT_FOR_DELIVERY' && s.runId ? await this.courierFirstName(s.runId) : null,
       status: s.status,
       statusLabel: s.direction === 'RETURN' && open ? 'Returning to the store' : STATUS_LABELS[s.status],
       promisedDate: s.direction === 'FORWARD' ? s.promisedDate : null,
@@ -51,6 +58,13 @@ export class PublicController {
         .filter((e) => CUSTOMER_EVENTS[e.type])
         .map((e) => ({ at: e.createdAt, text: CUSTOMER_EVENTS[e.type], place: e.hubId ? hubs.get(e.hubId) ?? null : null })),
     };
+  }
+
+  /** Only the first name: enough for the customer to know who is coming. */
+  private async courierFirstName(runId: string) {
+    const run = await this.prisma.run.findUnique({ where: { id: runId }, select: { courierId: true } });
+    const u = run ? await this.prisma.user.findUnique({ where: { id: run.courierId }, select: { name: true } }) : null;
+    return u ? u.name.split(' ')[0] : null;
   }
 
   /** Lists for address forms. Not sensitive. */

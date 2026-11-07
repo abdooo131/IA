@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Post, Put, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, Roles, assertHubAccess, type SessionUser } from '../auth/auth';
+import { CurrentUser, Roles, assertHubAccess, assertMerchantRight, type SessionUser } from '../auth/auth';
 import { DomainError } from '../common/errors';
 import { BooksService } from './books.service';
 import { FinanceService } from './finance.service';
@@ -554,12 +554,14 @@ export class MerchantBankController {
   @Get('invoices')
   invoices(@CurrentUser() u: SessionUser) {
     if (!u.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
+    assertMerchantRight(u, 'money');
     return this.b.invoices({ merchantId: u.merchantId });
   }
 
   @Get('invoices/:id')
   invoice(@CurrentUser() u: SessionUser, @Param('id', ParseUUIDPipe) id: string) {
     if (!u.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
+    assertMerchantRight(u, 'money');
     return this.b.invoice(id, u.merchantId);
   }
 
@@ -567,6 +569,7 @@ export class MerchantBankController {
   @HttpCode(200)
   set(@CurrentUser() u: SessionUser, @Body() body: unknown) {
     if (!u.merchantId) throw new DomainError('forbidden', 'This account is not linked to a merchant', 403);
+    assertMerchantRight(u, 'money');
     return this.f.setMerchantBank(u.merchantId, body, u);
   }
 }

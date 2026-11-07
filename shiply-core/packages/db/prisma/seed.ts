@@ -7,12 +7,23 @@ const prisma = new PrismaClient();
 const EGP = 100;
 
 // Prices are placeholders for the business to confirm. All editable in admin.
+// Placeholder prices (VAT included) until the business sends the real price list.
 const ZONES = [
-  { code: 'GC', name: 'Greater Cairo', transitDays: 1, priceS: 50 * EGP, priceM: 60 * EGP, priceL: 75 * EGP, priceXL: 100 * EGP },
-  { code: 'ALX', name: 'Alexandria', transitDays: 1, priceS: 60 * EGP, priceM: 70 * EGP, priceL: 85 * EGP, priceXL: 110 * EGP },
-  { code: 'DELTA', name: 'Delta and Canal', transitDays: 2, priceS: 65 * EGP, priceM: 75 * EGP, priceL: 90 * EGP, priceXL: 120 * EGP },
-  { code: 'UPPER', name: 'Upper Egypt', transitDays: 2, priceS: 75 * EGP, priceM: 85 * EGP, priceL: 100 * EGP, priceXL: 135 * EGP },
-  { code: 'REMOTE', name: 'Remote areas', transitDays: 3, priceS: 90 * EGP, priceM: 100 * EGP, priceL: 120 * EGP, priceXL: 160 * EGP },
+  { code: 'GC', name: 'Greater Cairo', transitDays: 1, priceS: 50 * EGP, priceM: 60 * EGP, priceL: 75 * EGP, priceXL: 100 * EGP, priceXXL: 140 * EGP, priceBulky: 200 * EGP },
+  { code: 'ALX', name: 'Alexandria', transitDays: 1, priceS: 60 * EGP, priceM: 70 * EGP, priceL: 85 * EGP, priceXL: 110 * EGP, priceXXL: 150 * EGP, priceBulky: 220 * EGP },
+  { code: 'DELTA', name: 'Delta', transitDays: 2, priceS: 65 * EGP, priceM: 75 * EGP, priceL: 90 * EGP, priceXL: 120 * EGP, priceXXL: 165 * EGP, priceBulky: 240 * EGP },
+  { code: 'CANAL', name: 'Canal cities', transitDays: 2, priceS: 65 * EGP, priceM: 75 * EGP, priceL: 90 * EGP, priceXL: 120 * EGP, priceXXL: 165 * EGP, priceBulky: 240 * EGP },
+  { code: 'UPPER', name: 'Upper Egypt', transitDays: 2, priceS: 75 * EGP, priceM: 85 * EGP, priceL: 100 * EGP, priceXL: 135 * EGP, priceXXL: 185 * EGP, priceBulky: 270 * EGP },
+  { code: 'RED_SEA', name: 'Red Sea and Sinai', transitDays: 3, priceS: 85 * EGP, priceM: 95 * EGP, priceL: 115 * EGP, priceXL: 150 * EGP, priceXXL: 205 * EGP, priceBulky: 300 * EGP },
+  { code: 'REMOTE', name: 'Remote areas', transitDays: 3, priceS: 90 * EGP, priceM: 100 * EGP, priceL: 120 * EGP, priceXL: 160 * EGP, priceXXL: 220 * EGP, priceBulky: 320 * EGP },
+];
+
+// Monthly volume tiers (placeholders): parcels last month and the discount they earn.
+const TIERS = [
+  { name: 'Starter', minParcels: 0, discountBp: 0 },
+  { name: 'Growing', minParcels: 300, discountBp: 500 },
+  { name: 'Established', minParcels: 1000, discountBp: 1000 },
+  { name: 'Key account', minParcels: 3000, discountBp: 1500 },
 ];
 
 // code, English, Arabic, zone, last mile hub that delivers there (null = not served yet), lat, lng (capital city)
@@ -28,9 +39,9 @@ const GOVERNORATES: [string, string, string, string, string | null, number, numb
   ['SHR', 'Sharqia', 'الشرقية', 'DELTA', 'DLT', 30.5877, 31.502],
   ['KFS', 'Kafr El Sheikh', 'كفر الشيخ', 'DELTA', 'DLT', 31.1107, 30.9388],
   ['DMT', 'Damietta', 'دمياط', 'DELTA', 'DLT', 31.4165, 31.8133],
-  ['PTS', 'Port Said', 'بورسعيد', 'DELTA', 'DLT', 31.2653, 32.3019],
-  ['ISM', 'Ismailia', 'الإسماعيلية', 'DELTA', 'DLT', 30.5965, 32.2715],
-  ['SUZ', 'Suez', 'السويس', 'DELTA', 'DLT', 29.9668, 32.5498],
+  ['PTS', 'Port Said', 'بورسعيد', 'CANAL', 'DLT', 31.2653, 32.3019],
+  ['ISM', 'Ismailia', 'الإسماعيلية', 'CANAL', 'DLT', 30.5965, 32.2715],
+  ['SUZ', 'Suez', 'السويس', 'CANAL', 'DLT', 29.9668, 32.5498],
   ['FYM', 'Faiyum', 'الفيوم', 'UPPER', 'AST', 29.3084, 30.8428],
   ['BNS', 'Beni Suef', 'بني سويف', 'UPPER', 'AST', 29.0661, 31.0994],
   ['MNY', 'Minya', 'المنيا', 'UPPER', 'AST', 28.0871, 30.7618],
@@ -39,11 +50,11 @@ const GOVERNORATES: [string, string, string, string, string | null, number, numb
   ['QNA', 'Qena', 'قنا', 'UPPER', 'AST', 26.1551, 32.716],
   ['LXR', 'Luxor', 'الأقصر', 'UPPER', 'AST', 25.6872, 32.6396],
   ['ASN', 'Aswan', 'أسوان', 'UPPER', 'AST', 24.0889, 32.8998],
-  ['RED', 'Red Sea', 'البحر الأحمر', 'REMOTE', null, 27.2579, 33.8116],
+  ['RED', 'Red Sea', 'البحر الأحمر', 'RED_SEA', null, 27.2579, 33.8116],
   ['NWV', 'New Valley', 'الوادي الجديد', 'REMOTE', null, 25.439, 30.5586],
   ['MTR', 'Matrouh', 'مطروح', 'REMOTE', null, 31.3543, 27.2373],
-  ['NSN', 'North Sinai', 'شمال سيناء', 'REMOTE', null, 31.1316, 33.7984],
-  ['SSN', 'South Sinai', 'جنوب سيناء', 'REMOTE', null, 28.2417, 33.6222],
+  ['NSN', 'North Sinai', 'شمال سيناء', 'RED_SEA', null, 31.1316, 33.7984],
+  ['SSN', 'South Sinai', 'جنوب سيناء', 'RED_SEA', null, 28.2417, 33.6222],
 ];
 
 // Sorting facilities: receive pickups from the merchants nearest to them, sort, send line haul.
@@ -90,7 +101,10 @@ async function main() {
     throw new Error('Set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD (8 characters or more) in .env');
   }
 
-  for (const z of ZONES) await prisma.zone.upsert({ where: { code: z.code }, update: {}, create: z });
+  for (const z of ZONES) await prisma.zone.upsert({ where: { code: z.code }, update: { name: z.name }, create: z });
+  // Zones made before the two big sizes existed get their prices for them.
+  for (const z of ZONES) await prisma.zone.updateMany({ where: { code: z.code, priceXXL: 0 }, data: { priceXXL: z.priceXXL, priceBulky: z.priceBulky } });
+  if ((await prisma.priceTier.count()) === 0) await prisma.priceTier.createMany({ data: TIERS });
 
   const hubIds = new Map<string, string>();
   const facilities = [];
@@ -109,7 +123,7 @@ async function main() {
   for (const [code, nameEn, nameAr, zoneCode, hub, lat, lng] of GOVERNORATES) {
     await prisma.governorate.upsert({
       where: { code },
-      update: {},
+      update: { zoneCode },
       create: { code, nameEn, nameAr, zoneCode, hubId: hubId(hub), lat, lng },
     });
   }
@@ -149,7 +163,7 @@ async function main() {
     const exists = await prisma.user.findUnique({ where: { email: data.email } });
     if (exists) return;
     const { password, ...rest } = data;
-    await prisma.user.create({ data: { ...rest, passwordHash: await hashPassword(password) } });
+    await prisma.user.create({ data: { ...rest, merchantOwner: rest.role === 'MERCHANT', passwordHash: await hashPassword(password) } });
   };
 
   await addUser({ email: adminEmail.toLowerCase(), name: 'Admin', role: 'ADMIN', password: adminPassword });
