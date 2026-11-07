@@ -5,7 +5,7 @@ import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 
 export async function createApp() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['error', 'warn'] });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['error', 'warn'], rawBody: true });
   app.use(cookieParser());
   app.disable('x-powered-by');
   app.useBodyParser('json', { limit: '8mb' });

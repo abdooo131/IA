@@ -1530,3 +1530,63 @@ model SandboxParcel {
   @@index([merchantId, createdAt])
   @@map("sandbox_parcels")
 }
+
+/// A merchant's Shopify store connected through the Shiply app. The token is kept encrypted.
+model ShopifyStore {
+  id             String    @id @default(uuid()) @db.Uuid
+  merchantId     String    @unique @map("merchant_id") @db.Uuid
+  shop           String    @unique
+  tokenEnc       String    @map("token_enc")
+  scopes         String    @default("")
+  /// Make a parcel for every new order by itself, or wait for the merchant to press create.
+  autoCreate     Boolean   @default(true) @map("auto_create")
+  defaultSize    String    @default("M") @map("default_size")
+  /// Tell Shopify the order is fulfilled when we pick it up, and paid when COD is collected.
+  pushUpdates    Boolean   @default(true) @map("push_updates")
+  active         Boolean   @default(true)
+  installedAt    DateTime  @default(now()) @map("installed_at")
+  uninstalledAt  DateTime? @map("uninstalled_at")
+
+  orders ShopifyOrder[]
+
+  @@map("shopify_stores")
+}
+
+/// One Shopify order as it arrived, and the parcel made for it.
+model ShopifyOrder {
+  id         String       @id @default(uuid()) @db.Uuid
+  storeId    String       @map("store_id") @db.Uuid
+  store      ShopifyStore @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  orderId    String       @map("order_id")
+  orderName  String       @map("order_name")
+  /// WAITING (for the merchant), CREATED, FAILED (needs a fix), SKIPPED, CANCELLED
+  status     String
+  error      String       @default("")
+  shipmentId String?      @unique @map("shipment_id") @db.Uuid
+  /// What we read from the order, ready to create the parcel.
+  draft      Json
+  createdAt  DateTime     @default(now()) @map("created_at")
+
+  @@unique([storeId, orderId])
+  @@index([storeId, createdAt])
+  @@map("shopify_orders")
+}
+
+/// Updates waiting to go back to Shopify, retried until they succeed.
+model ShopifyTask {
+  id            String    @id @default(uuid()) @db.Uuid
+  storeId       String    @map("store_id") @db.Uuid
+  shipmentId    String    @map("shipment_id") @db.Uuid
+  /// FULFILL or MARK_PAID
+  kind          String
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  error         String    @default("")
+  doneAt        DateTime? @map("done_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@unique([shipmentId, kind])
+  @@index([status, nextAttemptAt])
+  @@map("shopify_tasks")
+}

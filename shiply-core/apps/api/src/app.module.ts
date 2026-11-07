@@ -1,3 +1,5 @@
+import { ShopifyMerchantController, ShopifyPublicController } from './integrations/shopify.controller';
+import { ShopifyService } from './integrations/shopify.service';
 import { ApiKeyGuard } from './api/api-key';
 import { DeveloperService } from './api/developer.service';
 import { DeveloperController, V1Controller, WebhookSender } from './api/v1.controller';
@@ -39,11 +41,12 @@ function jwtSecret(): string {
 
 @Module({
   imports: [JwtModule.registerAsync({ global: true, useFactory: () => ({ secret: jwtSecret(), signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }) })],
-  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController, ControlController, HubControlController, TicketAppealController, MerchantDeskController, PublicDeskController, AdminDeskController, ShopAdminController, ShopController, V1Controller, DeveloperController],
+  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController, ControlController, HubControlController, TicketAppealController, MerchantDeskController, PublicDeskController, AdminDeskController, ShopAdminController, ShopController, V1Controller, DeveloperController, ShopifyPublicController, ShopifyMerchantController],
   providers: [
     PrismaService,
     ShopService,
     V1Service,
+    ShopifyService,
     DeveloperService,
     WebhookSender,
     ApiKeyGuard,

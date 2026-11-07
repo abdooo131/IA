@@ -9,7 +9,7 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
   const url = `${base}/${path.map(encodeURIComponent).join('/')}${req.nextUrl.search}`;
   const headers = new Headers();
   // The merchant API signs in with a key header instead of the cookie.
-  for (const name of ['content-type', 'cookie', 'accept', 'authorization', 'x-api-key', 'idempotency-key']) {
+  for (const name of ['content-type', 'cookie', 'accept', 'authorization', 'x-api-key', 'idempotency-key', 'x-shopify-hmac-sha256', 'x-shopify-topic', 'x-shopify-shop-domain', 'x-shopify-webhook-id', 'x-shopify-api-version']) {
     const v = req.headers.get(name);
     if (v) headers.set(name, v);
   }
@@ -18,7 +18,7 @@ async function forward(req: NextRequest, ctx: { params: Promise<{ path: string[]
   const out = new Headers();
   const type = res.headers.get('content-type');
   if (type) out.set('content-type', type);
-  for (const name of ['retry-after', 'x-ratelimit-remaining', 'idempotent-replayed', 'content-disposition', 'cache-control']) {
+  for (const name of ['retry-after', 'x-ratelimit-remaining', 'idempotent-replayed', 'content-disposition', 'cache-control', 'location']) {
     const v = res.headers.get(name);
     if (v) out.set(name, v);
   }

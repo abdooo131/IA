@@ -1,4 +1,5 @@
 import { queueShipmentWebhooks } from '../common/webhooks';
+import { queueShopifyTasks } from '../integrations/shopify-tasks';
 import { Injectable } from '@nestjs/common';
 import type { Direction, Shipment, ShipmentStatus } from '@shiply/db';
 import {
@@ -77,6 +78,8 @@ export class ShipmentsCore {
     });
     // The merchant's own systems hear about every change of status.
     if (shipment.status !== to) await queueShipmentWebhooks(tx, shipment.id, shipment.status, event.type, event.note);
+    // A parcel made from a Shopify order tells Shopify when it ships and when cash is collected.
+    if (shipment.status !== to) await queueShopifyTasks(tx, shipment.id, to);
   }
 
   /** Find a parcel by a scanned or typed tracking number. */
