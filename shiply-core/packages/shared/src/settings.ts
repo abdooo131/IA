@@ -14,6 +14,7 @@ export const SETTINGS = {
   'fees.cod_free_amount': { label: 'COD amount with no fee (piastres)', kind: 'money', default: 300000 },
   'fees.return_fee_bp': { label: 'Return fee as basis points of shipping (5000 = 50%)', kind: 'bp', default: 5000 },
   'tracking.prefix': { label: 'Tracking number prefix', kind: 'text', default: 'SHP' },
+  'handover.alert_hours': { label: 'Hours a parcel may wait between two teams before it shows as late on the handover check', kind: 'int', default: 4 },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

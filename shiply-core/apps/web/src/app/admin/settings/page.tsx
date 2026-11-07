@@ -17,6 +17,7 @@ const LABELS: Record<SettingKey, [string, string]> = {
   'fees.cod_free_amount': ['COD free amount', 'Cash we collect with no COD fee'],
   'fees.return_fee_bp': ['Return fee', 'Share of shipping charged when a parcel comes back'],
   'tracking.prefix': ['Tracking number prefix', 'Letters at the start of every tracking number'],
+  'handover.alert_hours': ['Handover alert (hours)', 'How long a parcel may wait between two teams before it shows as late'],
   'cash.shortage_alert': ['Courier cash alert', 'Cash difference that raises an alert'],
 };
 

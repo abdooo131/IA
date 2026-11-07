@@ -67,11 +67,52 @@ function IncomingTrucks({ hubId, onChange }: { hubId: string; onChange: () => vo
   );
 }
 
+type Arrival = { id: string; code: string; originHubId: string; receivedAt: string; left: { trackingNumber: string; customerName: string }[] };
+
+/** Bags opened here whose parcels are still being scanned. Closing one marks the rest lost. */
+function OpenBags({ hubId, onChange }: { hubId: string; onChange: () => void }) {
+  const t = useT();
+  const arrivals = useLoad<Arrival[]>(`/hubs/${hubId}/arrivals`);
+  const [msg, setMsg] = useState<{ tone: 'warning' | 'success' | 'error'; text: string } | null>(null);
+  const list = arrivals.data ?? [];
+  if (list.length === 0 && !msg) return null;
+  const close = async (a: Arrival) => {
+    if (a.left.length > 0 && !window.confirm(t('{n} parcels were not scanned. Close the bag and mark them lost?', { n: a.left.length }))) return;
+    try {
+      const r = await api(`/hubs/${hubId}/bags/${a.id}/check`, { body: {} });
+      setMsg(r.missing.length ? { tone: 'warning', text: `${t('Bag closed. Marked lost')}: ${r.missing.join(', ')}` } : { tone: 'success', text: t('Bag closed, nothing missing') });
+      await arrivals.reload();
+      onChange();
+    } catch (e) {
+      setMsg({ tone: 'error', text: t(errorMessage(e)) });
+    }
+  };
+  return (
+    <Card title={t('Bags being checked')} className="mt-4">
+      {msg && <div className="mb-3"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
+      <ul className="divide-y divide-line">
+        {list.map((a) => (
+          <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 py-3">
+            <div className="min-w-0">
+              <p className="font-bold"><span className="ltr-iso">{a.code}</span> <span className="text-caption text-text-muted">{t('opened')} {dateTime(a.receivedAt)}</span></p>
+              <p className="text-caption text-text-muted">
+                {a.left.length === 0 ? t('All parcels scanned') : <>{t('Not scanned yet')}: <span className="ltr-iso font-bold text-status-needs-action">{a.left.map((x) => x.trackingNumber).join(', ')}</span></>}
+              </p>
+            </div>
+            <Button tone={a.left.length ? 'danger' : 'secondary'} onClick={() => void close(a)}>{t('Close bag')}</Button>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export default function InboundPage() {
   const hub = useHub();
   const t = useT();
   const locale = useLocale();
   const { data, reload } = useLoad<OnHand>(`/hubs/${hub.id}/on-hand`);
+  const [arrivalsKey, setArrivalsKey] = useState(0);
   const facility = hub.isSorting;
   const reason = (r: string | null) => (r ? (locale === 'ar' ? FAIL_REASON_LABELS_AR[r as FailReason] : FAIL_REASONS[r as FailReason]?.label) ?? r : '');
 
@@ -96,6 +137,7 @@ export default function InboundPage() {
             onScan={async (code) => {
               const r = await api(`/hubs/${hub.id}/inbound`, { body: { code } });
               void reload();
+              setArrivalsKey((k) => k + 1);
               return nextOutcome(r.next, facility, t, r.message, r.warning);
             }}
           />
@@ -109,12 +151,14 @@ export default function InboundPage() {
             onScan={async (code) => {
               const r = await api(`/hubs/${hub.id}/receive-bag`, { body: { code } });
               void reload();
-              return { big: r.bag, text: t('Received with {n} parcels', { n: r.parcels }), warn: r.warning ? t(r.warning) : undefined };
+              setArrivalsKey((k) => k + 1);
+              return { big: r.bag, text: t('Bag opened. Scan each of its {n} parcels', { n: r.expected }), warn: r.warning ? t(r.warning) : undefined };
             }}
           />
         </Card>
       </div>
 
+      <OpenBags key={arrivalsKey} hubId={hub.id} onChange={() => void reload()} />
       <IncomingTrucks hubId={hub.id} onChange={() => void reload()} />
 
       <h2 className="mb-3 mt-8 text-h3">{t('In this building now')}</h2>

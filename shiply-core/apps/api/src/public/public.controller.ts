@@ -11,6 +11,7 @@ const CUSTOMER_EVENTS: Record<string, string> = {
   DROPPED_OFF: 'Received at our sorting facility',
   RECEIVED_FROM_PICKUP: 'Received at our sorting facility',
   SORTED: 'Sorted',
+  BAGGED_BY_OUTBOUND: 'Ready to leave the sorting facility',
   DEPARTED: 'On the way',
   RECEIVED_FROM_TRANSFER: 'Arrived',
   OUT_FOR_DELIVERY: 'Out for delivery',

@@ -8,6 +8,7 @@ import { api, errorMessage } from '@/lib/api';
 import { dateTime } from '@/lib/format';
 import { useLoad } from '@/lib/hooks';
 import { useT } from '@/lib/i18n';
+import { OutboundBags } from './OutboundBags';
 
 type Trip = { id: string; code: string; originHubId: string; destinationHubId: string; vehicle: string; driverName: string; status: string; departedAt: string | null; outgoing: boolean; bags: { id: string; code: string; status: string }[] };
 type Hub = { id: string; code: string; name: string };
@@ -35,11 +36,11 @@ export default function OutboundPage() {
   };
 
   const mine = (bags.data ?? []).filter((b) => b.originHubId === hub.id && b.status !== 'OPEN');
-  const waiting = mine.filter((b) => b.status === 'SEALED');
-  const ready = mine.filter((b) => b.status === 'HANDED_OVER' && !b.tripId);
+  const openBags = mine.filter((b) => b.status === 'OPEN');
+  const ready = mine.filter((b) => b.status === 'SEALED' && !b.tripId);
   const outgoing = (trips.data ?? []).filter((x) => x.outgoing);
   // Suggest the destination of the first bag ready to load.
-  const suggested = (ready[0] ?? waiting[0])?.destinationHubId;
+  const suggested = ready[0]?.destinationHubId;
 
   return (
     <>
@@ -47,37 +48,20 @@ export default function OutboundPage() {
         eyebrow={hub.isSorting ? t('Sorting facility') : t('Last mile hub')}
         title={`${hub.isSorting ? t('Outbound') : t('Trips')} · ${hub.name}`}
         subtitle={hub.isSorting
-          ? t('Outbound team: scan each sealed bag to take it over from sorting, load it on the truck for its destination and mark the truck as leaving.')
+          ? t('Outbound team: scan each parcel from its lane into its bag (this completes the handover from sorting), seal the bag, load it on the truck and mark the truck as leaving.')
           : t('A trip is one vehicle carrying sealed bags. Load bags by scanning them, then mark the trip as leaving.')}
       />
       <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3">
-        {hub.isSorting && <StatCard label={t('Sealed, waiting for outbound')} value={String(waiting.length)} icon="packaging" tone="needs-action" alert={waiting.length > 0} />}
-        <StatCard label={t('Bags ready to load')} value={String(hub.isSorting ? ready.length : waiting.length)} icon="route" tone="heading-to-customer" />
+        <StatCard label={t('Open bags')} value={String(openBags.length)} icon="packaging" tone="in-progress" />
+        <StatCard label={t('Sealed, ready to load')} value={String(ready.length)} icon="route" tone="heading-to-customer" alert={ready.length > 0} />
         <StatCard label={t('Trucks loading')} value={String(outgoing.filter((x) => x.status === 'LOADING').length)} icon="schedule" tone="in-progress" />
       </div>
       {msg && <div className="mb-4"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
 
       {hub.isSorting && (
-        <Card title={t('Take over bags from sorting')} className="mb-4">
-          <ScanBox
-            label={t('Sealed bag code')}
-            placeholder="BG00123"
-            onScan={async (c) => {
-              const r = await api(`/hubs/${hub.id}/outbound/accept`, { body: { code: c } });
-              void bags.reload();
-              return { big: r.destination ?? r.bag, text: t('Bag {bag} accepted with {n} parcels', { bag: r.bag, n: r.parcels }) };
-            }}
-          />
-          {mine.length > 0 && (
-            <div className="mt-4 flex flex-wrap gap-2">
-              {mine.map((b) => (
-                <Badge key={b.id} tone={b.status === 'SEALED' ? 'amber' : b.tripId ? 'blue' : 'green'}>
-                  <span className="ltr-iso">{b.code} → {code(b.destinationHubId)} · {b.parcels}</span>&nbsp;· {b.status === 'SEALED' ? t('waiting') : b.tripId ? t('loaded') : t('ready to load')}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </Card>
+        <div className="mb-4">
+          <OutboundBags onChange={() => void Promise.all([bags.reload(), trips.reload()])} />
+        </div>
       )}
 
       <Card title={t('New truck')}>

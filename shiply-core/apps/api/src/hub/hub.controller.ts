@@ -24,10 +24,31 @@ export class HubController {
     return this.hub.hub(this.check(u, hubId));
   }
 
-  @Post('outbound/accept')
+  @Post('outbound/bag')
   @HttpCode(200)
-  accept(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Body() body: unknown) {
-    return this.hub.acceptBag(this.check(u, hubId), body, u);
+  bagParcel(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Body() body: unknown) {
+    return this.hub.bagParcel(this.check(u, hubId), body, u);
+  }
+
+  @Get('lanes')
+  lanes(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string) {
+    return this.hub.lanes(this.check(u, hubId));
+  }
+
+  @Get('arrivals')
+  arrivals(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string) {
+    return this.hub.openArrivals(this.check(u, hubId));
+  }
+
+  @Post('bags/:bagId/check')
+  @HttpCode(200)
+  checkBag(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Param('bagId', ParseUUIDPipe) bagId: string) {
+    return this.hub.checkBag(this.check(u, hubId), bagId, u);
+  }
+
+  @Get('handover-check')
+  handoverCheck(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string) {
+    return this.hub.handoverCheck(this.check(u, hubId));
   }
 
   @Get('on-hand')

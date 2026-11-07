@@ -8,9 +8,11 @@
 //   CREATED            with the merchant, waiting for pickup
 //   PICKED_UP          in a first mile courier's vehicle (pickupId)
 //   AT_INBOUND         received by a sorting facility's inbound team, waiting for sorting
-//   SORTED             sorting team put it in a bag (bagId) for its next hub
-//   AT_OUTBOUND        its sealed bag was accepted by the outbound team, waiting for a truck
-//   IN_TRANSIT         in a bag on a line haul trip (bagId)
+//   SORTED             sorting team put it on the lane for its next place (laneHubId),
+//                      waiting for the outbound team
+//   AT_OUTBOUND        outbound team scanned it into a bag (bagId): handover complete
+//   IN_TRANSIT         in a bag on a truck (bagId); stays here until the receiving side scans
+//                      the parcel itself. A bag closed with the parcel unscanned marks it LOST
 //   AT_HUB             in a hub, ready for a courier run: a last mile hub for delivery, or a
 //                      sorting facility's return shelf for the merchant
 //   ON_HOLD            at a last mile hub after a failed attempt, waiting for the merchant
@@ -49,10 +51,10 @@ export const ALLOWED_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus
   CREATED: ['PICKED_UP', 'AT_INBOUND', 'CANCELLED'],
   PICKED_UP: ['PICKED_UP', 'AT_INBOUND', 'LOST'],
   AT_INBOUND: ['AT_INBOUND', 'SORTED', 'AT_HUB', 'LOST'],
-  SORTED: ['SORTED', 'AT_INBOUND', 'AT_HUB', 'AT_OUTBOUND', 'IN_TRANSIT', 'LOST'],
-  AT_OUTBOUND: ['AT_OUTBOUND', 'IN_TRANSIT', 'LOST'],
+  SORTED: ['SORTED', 'AT_INBOUND', 'AT_HUB', 'AT_OUTBOUND', 'LOST'],
+  AT_OUTBOUND: ['AT_OUTBOUND', 'SORTED', 'AT_INBOUND', 'AT_HUB', 'IN_TRANSIT', 'LOST'],
   IN_TRANSIT: ['IN_TRANSIT', 'AT_INBOUND', 'AT_HUB', 'LOST'],
-  AT_HUB: ['AT_HUB', 'SORTED', 'OUT_FOR_DELIVERY', 'ON_HOLD', 'LOST'],
+  AT_HUB: ['AT_HUB', 'AT_OUTBOUND', 'OUT_FOR_DELIVERY', 'ON_HOLD', 'LOST'],
   ON_HOLD: ['AT_HUB', 'ON_HOLD', 'LOST'],
   OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED', 'ATTEMPT_FAILED', 'AT_HUB', 'LOST'],
   ATTEMPT_FAILED: ['AT_HUB', 'ON_HOLD', 'LOST'],
@@ -74,8 +76,8 @@ export const STATUS_LABELS: Record<ShipmentStatus, string> = {
   CREATED: 'Created',
   PICKED_UP: 'Picked up',
   AT_INBOUND: 'At inbound',
-  SORTED: 'Sorted',
-  AT_OUTBOUND: 'At outbound',
+  SORTED: 'Sorted, on lane',
+  AT_OUTBOUND: 'In outbound bag',
   IN_TRANSIT: 'In transit',
   AT_HUB: 'At hub',
   ON_HOLD: 'On hold',
@@ -116,8 +118,8 @@ export const STATUS_LABELS_AR: Record<ShipmentStatus, string> = {
   CREATED: 'تم الإنشاء',
   PICKED_UP: 'تم الاستلام من التاجر',
   AT_INBOUND: 'في الاستلام',
-  SORTED: 'تم الفرز',
-  AT_OUTBOUND: 'في الإرسال',
+  SORTED: 'تم الفرز على الخط',
+  AT_OUTBOUND: 'في شنطة الإرسال',
   IN_TRANSIT: 'في الطريق',
   AT_HUB: 'في المركز',
   ON_HOLD: 'معلق',

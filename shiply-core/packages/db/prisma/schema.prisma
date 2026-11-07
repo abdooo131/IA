@@ -66,6 +66,7 @@ enum BagStatus {
   HANDED_OVER
   IN_TRANSIT
   RECEIVED
+  CHECKED
 }
 
 enum TripStatus {
@@ -220,6 +221,8 @@ model Shipment {
   currentHubId     String?        @map("current_hub_id") @db.Uuid
   pickupId         String?        @map("pickup_id") @db.Uuid
   bagId            String?        @map("bag_id") @db.Uuid
+  /// Lane the sorting team put the parcel on (its next place), waiting for outbound to bag it.
+  laneHubId        String?        @map("lane_hub_id") @db.Uuid
   runId            String?        @map("run_id") @db.Uuid
 
   attempts         Int            @default(0)
@@ -297,6 +300,8 @@ model Bag {
   trip             Trip?     @relation(fields: [tripId], references: [id])
   sealedAt         DateTime? @map("sealed_at")
   receivedAt       DateTime? @map("received_at")
+  /// When the receiving team finished scanning the bag's parcels; unscanned ones were marked lost.
+  checkedAt        DateTime? @map("checked_at")
   createdAt        DateTime  @default(now()) @map("created_at")
 
   @@index([originHubId, status])

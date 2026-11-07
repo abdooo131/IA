@@ -102,6 +102,7 @@ describe('status machine', () => {
     expect(canTransition('CREATED', 'PICKED_UP')).toBe(true);
     expect(canTransition('AT_HUB', 'OUT_FOR_DELIVERY')).toBe(true);
     expect(canTransition('AT_INBOUND', 'SORTED')).toBe(true);
+    expect(canTransition('SORTED', 'IN_TRANSIT')).toBe(false); // outbound must bag it first
     expect(canTransition('AT_INBOUND', 'OUT_FOR_DELIVERY')).toBe(false);
     expect(canTransition('CREATED', 'DELIVERED')).toBe(false);
     expect(canTransition('DELIVERED', 'AT_HUB')).toBe(false);

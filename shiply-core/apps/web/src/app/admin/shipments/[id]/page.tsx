@@ -55,6 +55,8 @@ const EVENT_TEXT: Record<string, string> = {
   SORTED: 'Sorted into a bag',
   UNBAGGED: 'Taken out of a bag',
   HANDED_TO_OUTBOUND: 'Handed to outbound',
+  BAGGED_BY_OUTBOUND: 'Scanned into a bag by outbound',
+  MISSING_FROM_BAG: 'Missing when its bag was opened',
   DEPARTED: 'Left on a line haul trip',
   RECEIVED_FROM_TRANSFER: 'Received from line haul',
   UNEXPECTED_ARRIVAL: 'Arrived somewhere unexpected',

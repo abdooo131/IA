@@ -15,6 +15,7 @@ function navFor(me: Me): NavItem[] {
       { href: '/hub/runs', label: 'Courier runs', icon: 'courier' },
       { href: '/hub/sort', label: 'Send back', icon: 'returns' },
       { href: '/hub/trips', label: 'Trips', icon: 'route' },
+      { href: '/hub/check', label: 'Handover check', icon: 'alert' },
     ];
   }
   const all: (NavItem & { team: string | null })[] = [
@@ -23,8 +24,9 @@ function navFor(me: Me): NavItem[] {
     { href: '/hub/trips', label: 'Outbound', icon: 'route', team: 'OUTBOUND', group: 'Stations' },
     { href: '/hub/pickups', label: 'Pickups', icon: 'pickups', team: null, group: 'Couriers' },
     { href: '/hub/runs', label: 'Courier runs', icon: 'courier', team: null, group: 'Couriers' },
+    { href: '/hub/check', label: 'Handover check', icon: 'alert', team: 'ALL', group: 'Control' },
   ];
-  const mine = all.filter((n) => !me.team || n.team === me.team).map(({ team: _team, ...n }) => n);
+  const mine = all.filter((n) => !me.team || n.team === me.team || n.team === 'ALL').map(({ team: _team, ...n }) => n);
   if (me.role === 'ADMIN') mine.push({ href: '/admin', label: 'Back to admin', icon: 'home', group: 'Admin' });
   return mine;
 }

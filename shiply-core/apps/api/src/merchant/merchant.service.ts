@@ -268,13 +268,17 @@ export async function requestReturn(
   if (s.runId) throw new DomainError('bad_status', 'This parcel is loaded on a courier run. Ask the hub to take it off first', 409);
   const patch: Partial<Shipment> = { direction: 'RETURN', holdReason: null };
   let to: Shipment['status'] = s.status === 'ON_HOLD' ? 'AT_HUB' : s.status;
-  if (s.bagId && s.status === 'SORTED') {
+  const here = s.currentHubId ? await tx.hub.findUnique({ where: { id: s.currentHubId } }) : null;
+  if (s.status === 'SORTED') {
+    // off its lane: sorting routes it again
+    patch.laneHubId = null;
+    to = 'AT_INBOUND';
+  }
+  if (s.bagId && s.status === 'AT_OUTBOUND') {
     const bag = await tx.bag.findUniqueOrThrow({ where: { id: s.bagId } });
     if (bag.status === 'OPEN') {
-      // take it out of the bag it was sorted into; sorting will route it again
       patch.bagId = null;
-      const hub = await tx.hub.findUniqueOrThrow({ where: { id: bag.originHubId } });
-      to = hub.isSorting ? 'AT_INBOUND' : 'AT_HUB';
+      to = here?.isSorting ? 'AT_INBOUND' : 'AT_HUB';
     }
   }
   await core.move(tx, s, to, patch, { ...event, hubId: s.currentHubId });

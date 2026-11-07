@@ -28,31 +28,40 @@ async function ok<T = any>(req: request.Test, status = 200): Promise<T> {
 
 const show = (id: string) => ok(as.admin!.get(`/admin/shipments/${id}`));
 
-/** Sorting team bags parcels for `to`, seals; outbound accepts, loads a trip, departs; returns the bag code. */
+/** Sorting puts parcels on the lane for `to`; outbound scans each into a bag, seals, loads a truck, departs. */
 async function dispatch(facility: 'OBR' | 'ALXSF', to: string, codes: string[]) {
   const f = hubs[facility];
   const t = facility.toLowerCase();
-  let bag: any;
   for (const code of codes) {
     const r = await ok(as[`sorting.${t}`]!.post(`/hubs/${f}/sort`).send({ code }));
+    expect(r.lane).toBe(to);
+    const notYet = await as[`sorting.${t}`]!.post(`/hubs/${f}/outbound/bag`).send({ code });
+    expect(notYet.status).toBe(403); // bagging is the outbound team's scan
+  }
+  let bag: any;
+  for (const code of codes) {
+    const r = await ok(as[`outbound.${t}`]!.post(`/hubs/${f}/outbound/bag`).send({ code }));
     expect(r.next.hubCode).toBe(to);
     bag = r.bag;
   }
-  await ok(as[`sorting.${t}`]!.post(`/hubs/${f}/bags/${bag.id}/seal`));
+  await ok(as[`outbound.${t}`]!.post(`/hubs/${f}/bags/${bag.id}/seal`));
   const trip = await ok(as[`outbound.${t}`]!.post(`/hubs/${f}/trips`).send({ destinationHubId: hubs[to], vehicle: 'Truck 7' }), 201);
-  const early = await as[`outbound.${t}`]!.post(`/hubs/${f}/trips/${trip.id}/load`).send({ code: bag.code });
-  expect(early.status).toBe(409); // must be accepted from sorting first
-  const acc = await ok(as[`outbound.${t}`]!.post(`/hubs/${f}/outbound/accept`).send({ code: bag.code }));
-  expect(acc.parcels).toBe(codes.length);
   await ok(as[`outbound.${t}`]!.post(`/hubs/${f}/trips/${trip.id}/load`).send({ code: bag.code }));
   await ok(as[`outbound.${t}`]!.post(`/hubs/${f}/trips/${trip.id}/depart`));
   return bag.code as string;
 }
 
-/** A last mile hub bags returns for its facility and sends them (no teams there). */
+/** The receiving side opens the bag and scans every parcel in it. */
+async function receive(agent: Agent, hub: string, bag: string, codes: string[]) {
+  const opened = await ok(agent.post(`/hubs/${hubs[hub]}/receive-bag`).send({ code: bag }));
+  expect(opened.expected).toBe(codes.length);
+  for (const code of codes) await ok(agent.post(`/hubs/${hubs[hub]}/inbound`).send({ code }));
+}
+
+/** A last mile hub scans returns straight into the bag for its facility and sends it (no teams there). */
 async function sendBack(hub: string, staff: Agent, codes: string[]) {
   let bag: any;
-  for (const code of codes) bag = (await ok(staff.post(`/hubs/${hubs[hub]}/sort`).send({ code }))).bag;
+  for (const code of codes) bag = (await ok(staff.post(`/hubs/${hubs[hub]}/outbound/bag`).send({ code }))).bag;
   await ok(staff.post(`/hubs/${hubs[hub]}/bags/${bag.id}/seal`));
   const trip = await ok(staff.post(`/hubs/${hubs[hub]}/trips`).send({ destinationHubId: bag.destinationHubId }), 201);
   await ok(staff.post(`/hubs/${hubs[hub]}/trips/${trip.id}/load`).send({ code: bag.code }));
@@ -149,6 +158,8 @@ describe('company flow', () => {
     }
     const hand = await ok(as['inbound.obr']!.get(`/hubs/${hubs.OBR}/on-hand`));
     expect(hand.groups.find((g: any) => g.key === 'inbound').rows).toHaveLength(4);
+    const check = await ok(as['staff.obr']!.get(`/hubs/${hubs.OBR}/handover-check`));
+    expect(check.stages.find((st: any) => st.key === 'notSorted').rows).toHaveLength(4);
     expect((await ok(as.merchant.get('/merchant/pickups')))[0].status).toBe('RECEIVED');
   });
 
@@ -157,18 +168,31 @@ describe('company flow', () => {
     const alexBag = await dispatch('OBR', 'ALXSF', [p.alex.trackingNumber]);
     expect((await show(p.giza.id)).status).toBe('IN_TRANSIT');
 
-    // Alexandria facility: inbound receives the bag, sorting and outbound send it on to Smouha
-    const rec = await ok(as['inbound.alxsf']!.post(`/hubs/${hubs.ALXSF}/receive-bag`).send({ code: alexBag }));
-    expect(rec.parcels).toBe(1);
+    // Alexandria facility: inbound opens the bag and scans the parcel, sorting and outbound send it on
+    await receive(as['inbound.alxsf']!, 'ALXSF', alexBag, [p.alex.trackingNumber]);
     expect((await show(p.alex.id)).status).toBe('AT_INBOUND');
     const toSmouha = await dispatch('ALXSF', 'ALX', [p.alex.trackingNumber]);
-    await ok(as.alx.post(`/hubs/${hubs.ALX}/receive-bag`).send({ code: toSmouha }));
+    await receive(as.alx, 'ALX', toSmouha, [p.alex.trackingNumber]);
     expect((await show(p.alex.id)).next.kind).toBe('DELIVER');
   });
 
   it('last mile: deliver with exact cash, a refusal goes on hold, run closes with cash', async () => {
     const bags = await ok(as.giz.get(`/hubs/${hubs.GIZ}/bags`));
-    await ok(as.giz.post(`/hubs/${hubs.GIZ}/receive-bag`).send({ code: bags.find((b: any) => b.status === 'IN_TRANSIT').code }));
+    const gizBag = bags.find((b: any) => b.status === 'IN_TRANSIT').code;
+    // one parcel never gets scanned at Dokki: closing the bag marks it lost
+    await ok(as.giz.post(`/hubs/${hubs.GIZ}/receive-bag`).send({ code: gizBag }));
+    for (const x of [p.giza, p.refused]) await ok(as.giz.post(`/hubs/${hubs.GIZ}/inbound`).send({ code: x.trackingNumber }));
+    const gap = await ok(as.giz.get(`/hubs/${hubs.GIZ}/handover-check`));
+    expect(gap.stages.find((st: any) => st.key === 'notScanned').rows.map((r: any) => r.trackingNumber)).toEqual([p.dropoff.trackingNumber]);
+    const opened = await ok(as.giz.get(`/hubs/${hubs.GIZ}/arrivals`));
+    const checked = await ok(as.giz.post(`/hubs/${hubs.GIZ}/bags/${opened[0].id}/check`));
+    expect(checked.missing).toEqual([p.dropoff.trackingNumber]);
+    const lost = await show(p.dropoff.id);
+    expect(lost.status).toBe('LOST');
+    expect(lost.events.at(-1).note).toContain(gizBag);
+    expect((await ok(as.giz.get(`/hubs/${hubs.GIZ}/handover-check`))).lost[0].trackingNumber).toBe(p.dropoff.trackingNumber);
+    // found later on a shelf: one scan brings it back
+    expect((await ok(as.giz.post(`/hubs/${hubs.GIZ}/inbound`).send({ code: p.dropoff.trackingNumber }))).status).toBe('AT_HUB');
     const run = await ok(as.giz.post(`/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] }), 201);
     for (const x of [p.giza, p.refused]) await ok(as.giz.post(`/hubs/${hubs.GIZ}/runs/${run.id}/add`).send({ code: x.trackingNumber }));
     await ok(as.giz.post(`/hubs/${hubs.GIZ}/runs/${run.id}/start`));
@@ -187,10 +211,10 @@ describe('company flow', () => {
     await ok(as.merchant.post(`/merchant/shipments/${p.refused.id}/decision`).send({ decision: 'RETURN' }));
     expect((await show(p.refused.id)).next).toMatchObject({ kind: 'SEND', hubCode: 'OBR' });
     const bag = await sendBack('GIZ', as.giz, [p.refused.trackingNumber]);
-    const rec = await ok(as['inbound.obr']!.post(`/hubs/${hubs.OBR}/receive-bag`).send({ code: bag }));
-    expect(rec.parcels).toBe(1);
+    await receive(as['inbound.obr']!, 'OBR', bag, [p.refused.trackingNumber]);
     const shelf = await ok(as['sorting.obr']!.post(`/hubs/${hubs.OBR}/sort`).send({ code: p.refused.trackingNumber }));
     expect(shelf.next.kind).toBe('RETURN_TO_MERCHANT');
+    expect(shelf.lane).toBeNull();
     expect(shelf.message).toContain('Eve Chantelle');
     const run = await ok(as['staff.obr']!.post(`/hubs/${hubs.OBR}/runs`).send({ courierId: users['courier.obr@shiply.local'] }), 201);
     expect((await ok(as['staff.obr']!.post(`/hubs/${hubs.OBR}/runs/${run.id}/add`).send({ code: p.refused.trackingNumber }))).direction).toBe('RETURN');
@@ -229,7 +253,7 @@ describe('failed attempts', () => {
     const s = await ok(as.merchant.post('/merchant/shipments').send({ customerName: 'Hany', customerPhone: '01212345678', address: '9 Street, Dokki', governorateCode: 'GIZ', codAmount: 10000 }), 201);
     await ok(as['inbound.obr']!.post(`/hubs/${hubs.OBR}/inbound`).send({ code: s.trackingNumber }));
     const bag = await dispatch('OBR', 'GIZ', [s.trackingNumber]);
-    await ok(as.giz.post(`/hubs/${hubs.GIZ}/receive-bag`).send({ code: bag }));
+    await receive(as.giz, 'GIZ', bag, [s.trackingNumber]);
     for (let attempt = 1; attempt <= 3; attempt++) {
       const run = await ok(as.giz.post(`/hubs/${hubs.GIZ}/runs`).send({ courierId: users['courier.giz@shiply.local'] }), 201);
       await ok(as.giz.post(`/hubs/${hubs.GIZ}/runs/${run.id}/add`).send({ code: s.trackingNumber }));

@@ -7,10 +7,17 @@
    has three teams, each with its own station:
    1. **Inbound team**: scans in everything that arrives (pickups, drop offs, line haul bags,
       returns). The screen says where each parcel goes next.
-   2. **Sorting team**: scans each parcel inbound handed over; the system puts it in the bag for
-      its next place (its last mile hub, or another facility), or on the return shelf. Seals bags.
-   3. **Outbound team**: scans each sealed bag to take it over from sorting, loads it on the truck
-      for its destination and marks the truck as leaving.
+   2. **Sorting team**: scans each parcel inbound handed over; the system names its lane (its last
+      mile hub, or another facility), or the return shelf.
+   3. **Outbound team**: scans each parcel from its lane into the bag for its next place. That scan
+      is the handover from sorting. Then seals the bag, loads it on the truck and marks the truck
+      as leaving.
+
+Every handover is a parcel scan, so a missing order is caught where it went missing: a bag that
+arrives is opened by scanning it, then every parcel in it is scanned in; closing the bag marks any
+parcel that was not scanned as lost, with the bag code and place. The **Handover check** screen
+shows what waits between each pair of teams and flags anything waiting longer than the
+`handover.alert_hours` setting (4 hours by default). A lost parcel scanned anywhere is found again.
 2. **Last mile hubs** (Nasr City, Maadi, Dokki, Tanta, Assiut fed by Obour; Smouha and Damanhour fed
    by Alexandria): each is fed by its nearest facility. They receive bags, run couriers to the end
    consumer, and bag returns back to their facility. No teams there.
@@ -37,8 +44,8 @@ At every scan the system works out the next place:
 | Afternoon | Assign the pickup to a first mile courier | Facility supervisor | Operations: Pickups |
 | Afternoon | Scan every label at the merchant; promised date is set | First mile courier | Courier: Pickups |
 | Evening | Scan everything in | Inbound team | Operations: Inbound |
-| Evening | Scan into bags, seal | Sorting team | Operations: Sorting |
-| Night | Take over sealed bags, load trucks, dispatch | Outbound team | Operations: Outbound |
+| Evening | Scan each parcel; put it on the lane the screen shows | Sorting team | Operations: Sorting |
+| Night | Scan each parcel from its lane into its bag, seal, load trucks, dispatch | Outbound team | Operations: Outbound |
 | Night | Facility to facility line haul goes through the other facility's three teams the same way | Other facility | Operations |
 | Early morning | Receive bags | Last mile hub staff | Operations: Receive |
 | Morning | Load courier runs, send couriers out | Last mile hub staff | Operations: Courier runs |
@@ -56,8 +63,8 @@ the zone's transit days, plus one day when it enters after the cutoff, skipping 
 | Created | Merchant made it, waiting for pickup | At the merchant |
 | Picked up | First mile courier scanned it | In the courier's vehicle |
 | At inbound | Inbound team scanned it in | Sorting facility, inbound area |
-| Sorted | Sorting team put it in a bag | Sorting facility (or last mile hub, for returns) |
-| At outbound | Outbound team took over its bag | Sorting facility, waiting for a truck |
+| Sorted, on lane | Sorting team put it on the lane for its next place | Sorting facility, waiting for outbound |
+| In outbound bag | Outbound team scanned it into a bag | Sorting facility (or last mile hub), waiting for a truck |
 | In transit | In a bag on a truck | On the road |
 | At hub | Ready for a courier run | Last mile hub, or the facility's return shelf |
 | On hold | Failed attempt, waiting for the merchant | Last mile hub |

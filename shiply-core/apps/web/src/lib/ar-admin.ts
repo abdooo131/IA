@@ -96,6 +96,8 @@ export const AR_ADMIN: Record<string, string> = {
   'Sorted into a bag': 'تم فرزها في شنطة',
   'Taken out of a bag': 'تم إخراجها من الشنطة',
   'Handed to outbound': 'تم تسليمها لفريق الإرسال',
+  'Scanned into a bag by outbound': 'مسحها فريق الإرسال في شنطة',
+  'Missing when its bag was opened': 'لم تكن في الشنطة عند فتحها',
   'Left on a line haul trip': 'خرجت في رحلة نقل',
   'Received from line haul': 'وصلت من رحلة النقل',
   'Arrived somewhere unexpected': 'وصلت لمكان غير متوقع',
