@@ -65,6 +65,7 @@ function ShopifyInner() {
   const govs = useLoad<{ code: string; nameEn: string }[]>('/reference/locations');
   const [shop, setShop] = useState('');
   const [open, setOpen] = useState<string | null>(null);
+  const [ticked, setTicked] = useState<Record<string, boolean>>({});
   const [settings, setSettings] = useState<{ autoCreate: boolean; defaultSize: string; pushUpdates: boolean } | null>(null);
   const r = useRunner(() => view.reload());
   useEffect(() => {
@@ -102,7 +103,7 @@ function ShopifyInner() {
           <p className="text-caption text-text-muted">{t('Connected on {time}', { time: dateTime(store.installedAt) })}</p>
           {settings && (
             <div className="mt-4 grid gap-3 sm:grid-cols-3">
-              <label className="flex items-start gap-2 text-body-sm"><input type="checkbox" className="mt-1" checked={settings.autoCreate} onChange={(e) => setSettings({ ...settings, autoCreate: e.target.checked })} />{t('Make a parcel for each new order by itself')}</label>
+              <label className="flex items-start gap-2 text-body-sm"><input type="checkbox" className="mt-1" checked={settings.autoCreate} onChange={(e) => setSettings({ ...settings, autoCreate: e.target.checked })} />{t('Make an AWB for every new order by itself (usually off: you pick the orders to ship)')}</label>
               <label className="flex items-start gap-2 text-body-sm"><input type="checkbox" className="mt-1" checked={settings.pushUpdates} onChange={(e) => setSettings({ ...settings, pushUpdates: e.target.checked })} />{t('Mark the order fulfilled in Shopify when we pick it up, and paid when cash is collected')}</label>
               <Field label={t('Usual parcel size')}><Select value={settings.defaultSize} onChange={(e) => setSettings({ ...settings, defaultSize: e.target.value })}>{PARCEL_SIZES.map((s) => <option key={s} value={s}>{s}</option>)}</Select></Field>
             </div>
@@ -115,13 +116,35 @@ function ShopifyInner() {
       )}
 
       {v.store && (
-        <Card title={t('Orders from Shopify')}>
+        <Card
+          title={t('Orders from Shopify')}
+          actions={store ? <Button tone="secondary" disabled={r.busy} onClick={() => void r.run(async () => {
+            const x = await api<{ found: number; added: number }>('/merchant/shopify/sync', { body: {} });
+            if (!x.added) throw new Error(t('No new open orders in Shopify'));
+          }, 'New orders brought in')}>{t('Bring in open orders')}</Button> : undefined}
+        >
+          <p className="mb-3 text-body-sm text-text-muted">{t('Tick the orders you want to ship with us and make their AWBs. You can also tick them in your Shopify orders list and choose Ship with Shiply.')}</p>
+          {Object.values(ticked).some(Boolean) && (
+            <div className="mb-3 flex items-center justify-between gap-3 rounded-lg bg-selected-bg p-3">
+              <span className="text-body-sm font-semibold">{t('{n} orders picked', { n: Object.values(ticked).filter(Boolean).length })}</span>
+              <Button disabled={r.busy} onClick={() => void r.run(async () => {
+                const ids = Object.entries(ticked).filter(([, on]) => on).map(([id]) => ({ id }));
+                const res = await api<{ created: number; failed: number; results: { ok: boolean; error: string; shipmentId: string | null }[] }>('/merchant/shopify/orders/create', { body: { orders: ids } });
+                setTicked({});
+                const made = res.results.map((x) => x.shipmentId).filter(Boolean);
+                if (made.length) window.open(`/labels?ids=${made.join(',')}`, '_blank');
+                if (res.failed) throw new Error(`${t('{n} orders were not made:', { n: res.failed })} ${res.results.filter((x) => !x.ok).map((x) => x.error).join('; ')}`);
+              }, 'AWBs made. The labels opened in a new tab')}>{t('Make AWBs')}</Button>
+            </div>
+          )}
           {v.orders.length === 0 ? <Empty>{t('No orders yet. New orders appear here as soon as they are placed')}</Empty> : (
             <ul className="divide-y divide-border">
               {v.orders.map((o) => (
                 <li key={o.id} className="py-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="min-w-0">
+                    <div className="flex min-w-0 gap-3">
+                      {o.status === 'WAITING' && <input type="checkbox" className="mt-1 h-5 w-5" checked={!!ticked[o.id]} onChange={(e) => setTicked({ ...ticked, [o.id]: e.target.checked })} aria-label={o.orderName} />}
+                      <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-bold">{o.orderName}</span>
                         <Badge tone={STATUS[o.status]?.[1] ?? 'slate'}>{t(STATUS[o.status]?.[0] ?? o.status)}</Badge>
@@ -129,10 +152,10 @@ function ShopifyInner() {
                       </div>
                       <p className="text-caption text-text-muted">{dateTime(o.createdAt)} · {o.draft.customerName} · {o.draft.address}{o.draft.codAmount ? ` · ${t('Collect')} ${egp(o.draft.codAmount)}` : ''}</p>
                       {o.error && o.status !== 'CREATED' && <p className="mt-1 text-caption font-semibold text-danger">{o.error}</p>}
+                      </div>
                     </div>
                     {['WAITING', 'FAILED'].includes(o.status) && (
                       <div className="flex gap-2">
-                        {o.status === 'WAITING' && <Button disabled={r.busy} onClick={() => void r.call(`/merchant/shopify/orders/${o.id}/create`, {}, 'Parcel made')}>{t('Make the parcel')}</Button>}
                         <Button tone="secondary" onClick={() => setOpen(open === o.id ? null : o.id)}>{o.status === 'FAILED' ? t('Fix') : t('Edit')}</Button>
                         <Button tone="secondary" disabled={r.busy} onClick={() => void r.call(`/merchant/shopify/orders/${o.id}/skip`, {}, 'Skipped')}>{t('Skip')}</Button>
                       </div>

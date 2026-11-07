@@ -1,4 +1,5 @@
 'use client';
+import { RouteChain } from '@/components/RouteChain';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -35,6 +36,7 @@ interface Parcel {
   allowOpen: boolean;
   codAmount: number;
   status: string;
+  route?: string[];
   direction: string;
   attempts: number;
   holdReason: string | null;
@@ -139,6 +141,13 @@ export default function ParcelPage() {
       {p.status === 'ON_HOLD' && p.direction === 'FORWARD' && (
         <DecisionPanel parcel={p} busy={busy} govs={govs ?? []} onDecide={(body, msg) => act('decision', body, msg)} />
       )}
+
+      {p.route?.length ? (
+        <div className="mb-5 rounded-lg bg-surface p-4 shadow-sm">
+          <p className="mb-2 text-label uppercase text-text-muted">{t('Its way through our network')}</p>
+          <RouteChain route={p.route} done={['DELIVERED', 'RETURNED'].includes(p.status)} />
+        </div>
+      ) : null}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <Card title={t('Customer')} className="lg:col-span-2">

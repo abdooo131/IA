@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Card, Field, Input, Loading, PageHeader, Select, 
 import { api, errorMessage } from '@/lib/api';
 import { useLoad } from '@/lib/hooks';
 import { useLocale, useT } from '@/lib/i18n';
+import { CoverageCard, TruckRoutesCard, TryRouteCard } from './Routes';
 
 interface Hub {
   id: string;
@@ -335,7 +336,10 @@ export default function NetworkPage() {
   return (
     <div className="space-y-6">
       <PageHeader title={t('Network')} subtitle={t('Sorting facilities, last mile hubs, pricing zones and which hub delivers where')} />
+      <CoverageCard />
       <HubsCard hubs={hubs.data} reload={hubs.reload} />
+      <TruckRoutesCard hubs={hubs.data} />
+      <TryRouteCard governorates={govs.data} />
       <Card title={t('Zones and prices (EGP)')}>
         <p className="mb-3 text-body-sm text-text-muted">{t('Transit days are business days from the day the parcel enters our network, before the daily cutoff.')}</p>
         <Table head={[t('Code'), t('Name'), t('Days'), t('Small'), t('Medium'), t('Large'), t('Extra large'), t('Double extra large'), t('Bulky'), '']}>

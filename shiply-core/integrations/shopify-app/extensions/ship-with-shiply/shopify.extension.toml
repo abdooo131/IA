@@ -1,0 +1,18 @@
+# "Ship with Shiply" in the Shopify admin. The merchant ticks orders in the orders list (or opens
+# one order) and picks this action. Shopify opens Shiply with the order numbers, signed.
+api_version = "2025-07"
+
+[[extensions]]
+type = "admin_link"
+name = "Ship with Shiply"
+handle = "ship-with-shiply"
+
+  # Several orders ticked in the orders list.
+  [[extensions.targeting]]
+  target = "admin.order-index.selection-action.link"
+  url = "app://api/integrations/shopify/ship"
+
+  # One order, from its own page.
+  [[extensions.targeting]]
+  target = "admin.order-details.action.link"
+  url = "app://api/integrations/shopify/ship"

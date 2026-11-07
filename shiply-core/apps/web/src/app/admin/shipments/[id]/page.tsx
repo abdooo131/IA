@@ -1,4 +1,5 @@
 'use client';
+import { RouteChain } from '@/components/RouteChain';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useState } from 'react';
@@ -41,6 +42,7 @@ interface Detail {
   createdAt: string;
   deliveredAt: string | null;
   hubCodes: Record<string, string>;
+  route?: string[];
   next: { kind: string; hubCode?: string; hubName?: string; reason?: string | null };
   events: { id: string; type: string; fromStatus: string | null; toStatus: string; hubCode: string | null; userName: string | null; note: string; createdAt: string }[];
   runItems: { id: string; direction: string; result: string; failReason: string | null; codCollected: number; recipient: string; resolvedAt: string | null; run: { code: string; date: string } }[];
@@ -179,7 +181,7 @@ export default function ShipmentDetail() {
           <Row label={t('Size')}>{d.size}</Row>
           {d.description && <Row label={t('Contents')}>{d.description}</Row>}
           <Row label={t('Route')}>
-            <span className="ltr-iso">{hub(d.originHubId)} → {hub(d.destinationHubId)}</span>
+            {d.route?.length ? <RouteChain route={d.route} here={hub(d.currentHubId) || null} done={['DELIVERED', 'RETURNED'].includes(d.status)} /> : <span className="ltr-iso">{hub(d.originHubId)} → {hub(d.destinationHubId)}</span>}
           </Row>
           <Row label={t('Now at')}>{hub(d.currentHubId) || status(d.status, d.direction)}</Row>
           <Row label={t('Promised')}>{shortDate(d.promisedDate) || t('Set when it enters the network')}</Row>

@@ -1,0 +1,21 @@
+# The Shiply app for Shopify. Deploy with the Shopify CLI from this folder: shopify app deploy
+# Replace the two values marked FILL with the app's client id and Shiply's public web address.
+
+client_id = "FILL_FROM_PARTNER_DASHBOARD"
+name = "Shiply"
+application_url = "https://FILL_SHIPLY_WEB_ADDRESS/merchant/shopify"
+embedded = false
+
+[access_scopes]
+scopes = "read_orders,write_orders,read_merchant_managed_fulfillment_orders,write_merchant_managed_fulfillment_orders"
+
+[auth]
+redirect_urls = ["https://FILL_SHIPLY_WEB_ADDRESS/api/integrations/shopify/callback"]
+
+[webhooks]
+api_version = "2025-07"
+
+  # Required by Shopify for every app: privacy requests from customers and shops.
+  [[webhooks.subscriptions]]
+  compliance_topics = ["customers/data_request", "customers/redact", "shop/redact"]
+  uri = "https://FILL_SHIPLY_WEB_ADDRESS/api/integrations/shopify/webhooks"
