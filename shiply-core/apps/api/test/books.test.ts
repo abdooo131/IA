@@ -127,9 +127,9 @@ describe('books', () => {
     expect((await as.admin.post(`/finance/bills/${bill.id}/paid`)).status).toBe(409);
     expect((await as.admin.post(`/finance/bills/${bill.id}/approve`)).status).toBe(403);
     await ok(as.finance.post(`/finance/bills/${bill.id}/approve`));
-    expect((await ok(as.admin.get('/finance/suppliers')))[0].owed).toBe(113000);
+    expect((await ok(as.admin.get('/finance/suppliers'))).find((s: any) => s.id === sup.id).owed).toBe(113000);
     await ok(as.admin.post(`/finance/bills/${bill.id}/paid`).send({ reference: 'TRX 77' }));
-    expect((await ok(as.admin.get('/finance/suppliers')))[0].owed).toBe(0);
+    expect((await ok(as.admin.get('/finance/suppliers'))).find((s: any) => s.id === sup.id).owed).toBe(0);
     const vat = await ok(as.admin.get('/finance/reports/vat'));
     expect(vat.inputVat).toBe(14000);
     expect(vat.withholding).toBe(1000);
