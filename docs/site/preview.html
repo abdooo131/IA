@@ -1,0 +1,649 @@
+<title>Shiply Website Preview</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
+<style>
+/* Layout: a Navy hero with a live order ticket, then Cream and white bands that walk a merchant from stock in to money out. */
+:root {
+  --navy: #082341;
+  --blue: #0046fc;
+  --lime: #cff905;
+  --cream: #faf1e8;
+  --bg: #ffffff;
+  --band: #faf1e8;
+  --ink: #082341;
+  --muted: #4a5a70;
+  --line: #e6dccf;
+  --card: #ffffff;
+  --hero: #faf1e8;
+  --hero-ink: #082341;
+  --hero-muted: #4a5a70;
+  --head: #ffffff;
+  color-scheme: light;
+  --link: #0046fc;
+  --mark: #0046fc;
+  --ok: #0f8a4b;
+  --font: "Plus Jakarta Sans", "Segoe UI", system-ui, sans-serif;
+  --font-ar: "IBM Plex Sans Arabic", "Segoe UI", Tahoma, sans-serif;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.6; }
+body.ar { font-family: var(--font-ar); }
+body.ar * { letter-spacing: 0 !important; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { text-wrap: balance; margin: 0; line-height: 1.12; }
+h2 { font-size: clamp(28px, 4vw, 42px); font-weight: 800; letter-spacing: -0.02em; }
+h3 { font-size: 19px; font-weight: 700; }
+p { margin: 0; }
+a { color: var(--link); }
+.eyebrow { font-size: 12px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--blue); }
+.lead { font-size: 18px; color: var(--muted); max-width: 60ch; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 22px; border-radius: 999px; font-weight: 700; font-size: 15px; text-decoration: none; border: 2px solid transparent; cursor: pointer; font-family: inherit; }
+.btn:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--lime); outline-offset: 2px; }
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-ghost { border-color: currentColor; color: inherit; background: transparent; }
+
+/* top bar */
+header.top { background: var(--head); color: var(--ink); border-bottom: 1px solid var(--line); position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--head); }
+.top .wrap { display: flex; align-items: center; gap: 24px; padding-block: 14px; }
+.logo { height: 30px; width: auto; display: block; }
+.lg-mark { fill: var(--blue); }
+.lg-word { fill: var(--navy); }
+.footer .lg-mark { fill: var(--mark); }
+.footer .lg-word { fill: var(--ink); }
+nav.links { display: flex; gap: 22px; margin-inline-start: auto; font-size: 14px; font-weight: 600; }
+nav.links a { color: var(--muted); text-decoration: none; }
+nav.links a:hover { color: var(--blue); }
+.top-actions { display: flex; gap: 10px; align-items: center; }
+.lang { background: transparent; color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; font: 600 13px var(--font-ar); cursor: pointer; }
+.top .btn { padding: 10px 18px; font-size: 14px; }
+@media (max-width: 860px) { nav.links { display: none; } .top-actions { margin-inline-start: auto; } }
+@media (max-width: 420px) { .top .btn { display: none; } }
+
+/* hero */
+.hero { background: var(--hero); color: var(--hero-ink); padding-block: 56px 80px; position: relative; overflow: hidden; }
+.hero .wrap { display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 56px; align-items: center; }
+.hero-copy { min-width: 0; display: grid; gap: 22px; }
+.hero h1 { font-size: clamp(40px, 6.4vw, 76px); font-weight: 800; letter-spacing: -0.035em; }
+.hero h1 .clock { background: var(--lime); color: var(--navy); padding: 0 .14em; border-radius: .18em; box-decoration-break: clone; -webkit-box-decoration-break: clone; font-variant-numeric: tabular-nums; }
+.hero .lead { color: var(--hero-muted); }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-note { display: inline-flex; gap: 10px; align-items: center; font-size: 14px; color: var(--hero-muted); }
+.hero-note b { background: var(--navy); color: var(--cream); padding: 3px 10px; border-radius: 6px; font-weight: 700; }
+.route-bg { position: absolute; inset: auto 0 0 0; height: 140px; opacity: .25; pointer-events: none; }
+@media (max-width: 900px) { .hero .wrap { grid-template-columns: 1fr; gap: 36px; } }
+
+/* order ticket */
+.ticket { background: #fff; color: var(--navy); border: 1px solid var(--line); border-radius: 22px; padding: 22px; box-shadow: 0 24px 50px rgba(8,35,65,.12); min-width: 0; max-width: 440px; width: 100%; justify-self: center; }
+.ticket-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-bottom: 1px dashed #d8c9b8; padding-bottom: 14px; }
+.ticket-no { font-weight: 800; font-size: 15px; letter-spacing: .02em; }
+.ticket-store { font-size: 13px; color: #4a5a70; }
+.timer { display: flex; align-items: baseline; gap: 8px; padding-block: 16px 6px; }
+.timer .num { font-size: 56px; font-weight: 800; letter-spacing: -0.04em; font-variant-numeric: tabular-nums; line-height: 1; }
+.timer .of { font-size: 14px; color: #4a5a70; }
+.bar { height: 8px; background: #eef1f6; border-radius: 99px; overflow: hidden; }
+.bar i { display: block; height: 100%; width: 78%; background: var(--blue); border-radius: 99px; transition: width .6s ease; }
+.steps { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 10px; }
+.steps li { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center; font-size: 14px; }
+.steps .dot { width: 14px; height: 14px; border-radius: 50%; border: 2px solid #b6a68f; justify-self: center; }
+.steps li.done .dot { background: var(--blue); border-color: var(--blue); }
+.steps li.now .dot { background: var(--navy); border-color: var(--navy); box-shadow: 0 0 0 5px rgba(0,70,252,.18); }
+.steps li.done span:nth-child(2), .steps li.now span:nth-child(2) { font-weight: 600; }
+.steps time { font-size: 12px; color: #4a5a70; font-variant-numeric: tabular-nums; }
+.ticket-foot { margin-top: 18px; padding-top: 14px; border-top: 1px dashed #d8c9b8; display: flex; justify-content: space-between; gap: 12px; font-size: 13px; }
+.ticket-foot b { font-variant-numeric: tabular-nums; }
+.sample { font-size: 11px; color: #6b7a8f; margin-top: 10px; text-align: center; }
+
+/* proof strip */
+.strip { border-bottom: 1px solid var(--line); background: var(--bg); }
+.strip .wrap { display: flex; flex-wrap: wrap; gap: 14px 40px; padding-block: 22px; align-items: center; justify-content: space-between; font-size: 14px; color: var(--muted); }
+.strip b { color: var(--ink); }
+
+section.band { padding-block: 88px; }
+section.alt { background: var(--band); }
+.section-head { display: grid; gap: 14px; margin-bottom: 44px; max-width: 760px; }
+
+/* services */
+.services { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; }
+.svc { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 26px; display: grid; gap: 12px; align-content: start; }
+.svc.feature { grid-column: span 2; grid-row: span 2; background: var(--blue); color: #fff; border-color: var(--blue); grid-template-columns: 1fr auto; align-items: end; }
+.svc.feature p { color: #dfe7ff; }
+.svc.feature .big { font-size: clamp(64px, 9vw, 112px); font-weight: 800; letter-spacing: -0.05em; line-height: .85; font-variant-numeric: tabular-nums; }
+.svc.feature .big small { font-size: 22px; letter-spacing: 0; font-weight: 700; }
+.svc p { color: var(--muted); font-size: 15px; }
+.ico { width: 44px; height: 44px; border-radius: 12px; display: grid; place-items: center; background: var(--band); color: var(--blue); }
+.svc.feature .ico { background: rgba(255,255,255,.14); color: #fff; }
+.ico svg { width: 22px; height: 22px; }
+.tag { font-size: 12px; font-weight: 700; color: var(--blue); }
+@media (max-width: 900px) { .services { grid-template-columns: 1fr 1fr; } .svc.feature { grid-column: span 2; grid-row: auto; } }
+@media (max-width: 600px) { .services { grid-template-columns: 1fr; } .svc.feature { grid-column: auto; grid-row: auto; grid-template-columns: 1fr; } }
+
+/* how it works */
+.flow { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; position: relative; }
+.flow li { padding: 0 18px 0 0; display: grid; gap: 10px; align-content: start; position: relative; }
+body.ar .flow li { padding: 0 0 0 18px; }
+.flow .n { width: 40px; height: 40px; border-radius: 50%; border: 2px solid var(--blue); display: grid; place-items: center; font-weight: 800; color: var(--blue); background: var(--bg); position: relative; z-index: 1; font-variant-numeric: tabular-nums; }
+section.alt .flow .n { background: var(--band); }
+.flow li:not(:last-child)::after { content: ""; position: absolute; top: 20px; inset-inline-start: 40px; inset-inline-end: 0; border-top: 2px dashed var(--line); }
+.flow p { color: var(--muted); font-size: 15px; }
+.flow .when { font-size: 12px; font-weight: 700; color: var(--ok); text-transform: uppercase; letter-spacing: .08em; }
+@media (max-width: 900px) {
+  .flow { grid-template-columns: 1fr; gap: 26px; }
+  .flow li { grid-template-columns: 40px 1fr; column-gap: 16px; padding: 0 !important; }
+  .flow li > :not(.n) { grid-column: 2; }
+  .flow .n { grid-row: span 3; }
+  .flow li:not(:last-child)::after { top: 44px; bottom: -26px; inset-inline-start: 19px; inset-inline-end: auto; border-top: 0; border-inline-start: 2px dashed var(--line); }
+}
+
+/* money section */
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; align-items: center; }
+.split > * { min-width: 0; }
+.checks { list-style: none; padding: 0; margin: 26px 0 0; display: grid; gap: 14px; }
+.checks li { display: grid; grid-template-columns: 24px 1fr; gap: 12px; }
+.checks svg { width: 22px; height: 22px; color: var(--ok); margin-top: 2px; }
+.sched { background: var(--card); border: 1px solid var(--line); border-radius: 22px; padding: 28px; display: grid; gap: 18px; box-shadow: 0 24px 50px rgba(8,35,65,.08); }
+.sched-lbl { font-weight: 700; font-size: 15px; }
+.sched-opts { display: grid; gap: 10px; }
+.opt { display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 2px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.opt span { font-size: 14px; color: var(--muted); text-align: end; }
+.opt.on { border-color: var(--blue); background: #eef3ff; }
+.opt.on b::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--blue); margin-inline-end: 10px; }
+.sched-docs { display: flex; flex-wrap: wrap; gap: 8px; }
+.sched-docs span { font-size: 13px; font-weight: 600; background: var(--band); border-radius: 999px; padding: 6px 12px; }
+@media (max-width: 900px) { .split { grid-template-columns: 1fr; gap: 36px; } }
+
+/* speed */
+.race { display: grid; gap: 22px; margin-bottom: 48px; }
+.lane { display: grid; gap: 8px; }
+.lane-head { display: flex; justify-content: space-between; gap: 12px; font-size: 15px; }
+.lane-head span { color: var(--muted); }
+.lane.me .lane-head span { color: var(--blue); font-weight: 700; }
+.track { height: 14px; border-radius: 99px; background: var(--card); border: 1px solid var(--line); overflow: hidden; }
+.track i { display: block; height: 100%; border-radius: 99px; }
+.track .slow { width: 100%; background: #c9d1dc; }
+.track .fast { width: 3%; min-width: 16px; background: var(--blue); }
+.wins { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.wins div { display: grid; gap: 8px; border-top: 3px solid var(--blue); padding-top: 18px; }
+.wins p { color: var(--muted); font-size: 15px; }
+@media (max-width: 760px) { .wins { grid-template-columns: 1fr; } }
+
+/* stats */
+.stats { background: var(--navy); color: var(--cream); }
+.stats .wrap { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; padding-block: 48px; }
+.stat { display: grid; gap: 6px; }
+.sv { font-size: clamp(38px, 5vw, 56px); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; }
+.sv small { font-size: 18px; font-weight: 700; letter-spacing: 0; margin-inline-start: 4px; }
+.sv.todo { color: #8fa3bf; }
+.sl { font-size: 14px; color: #b9c3d3; }
+@media (max-width: 760px) { .stats .wrap { grid-template-columns: 1fr 1fr; } }
+
+/* quality */
+.qsteps { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.qsteps li { display: grid; grid-template-columns: 44px 1fr; gap: 16px; align-items: start; background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 18px; }
+.qsteps li > div { display: grid; gap: 4px; min-width: 0; }
+.qsteps p { color: var(--muted); font-size: 15px; }
+.qi { width: 44px; height: 44px; border-radius: 50%; background: var(--blue); color: #fff; display: grid; place-items: center; font-weight: 800; }
+
+/* customer phone */
+.phone { background: #fff; color: var(--navy); border: 1px solid var(--line); border-radius: 30px; padding: 18px; max-width: 360px; width: 100%; justify-self: center; box-shadow: 0 24px 50px rgba(8,35,65,.12); display: grid; gap: 12px; }
+.ph-top { display: grid; gap: 2px; }
+.ph-top span { font-size: 13px; color: var(--blue); font-weight: 700; }
+.ph-map { border-radius: 16px; overflow: hidden; aspect-ratio: 300 / 170; max-width: 100%; }
+.ph-map svg { width: 100%; height: 100%; display: block; }
+.ph-row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; padding-block: 8px; border-top: 1px solid #eef1f6; }
+.ph-row span { color: #4a5a70; }
+.ph-row .code { letter-spacing: .25em; font-variant-numeric: tabular-nums; }
+.ph-rate { display: flex; justify-content: space-between; align-items: center; gap: 12px; background: var(--cream); border-radius: 12px; padding: 12px 14px; font-size: 14px; font-weight: 600; }
+.stars { color: #f5a400; letter-spacing: 2px; font-size: 18px; }
+.phone .sample { margin-top: 0; }
+
+/* shopify */
+.shop { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.shop div { display: grid; gap: 8px; border-top: 3px solid var(--blue); padding-top: 18px; }
+.shop p { color: var(--muted); font-size: 15px; }
+@media (max-width: 760px) { .shop { grid-template-columns: 1fr; } }
+
+/* faq */
+.faq { display: grid; gap: 10px; max-width: 820px; }
+.faq details { border: 1px solid var(--line); border-radius: 14px; background: var(--card); padding: 0 20px; }
+.faq summary { cursor: pointer; font-weight: 700; padding-block: 18px; list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::after { content: "+"; font-size: 22px; line-height: 1; color: var(--blue); }
+.faq details[open] summary::after { content: "−"; }
+.faq details p { padding-bottom: 18px; color: var(--muted); }
+
+/* contact */
+.cta { background: var(--blue); color: #fff; border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+.cta > * { min-width: 0; }
+.cta h2 { color: #fff; }
+.cta p { color: #dfe7ff; }
+form.lead-form { display: grid; gap: 12px; }
+.lead-form label { display: grid; gap: 6px; font-size: 13px; font-weight: 600; color: #fff; }
+.lead-form input, .lead-form select { width: 100%; padding: 13px 14px; border-radius: 12px; border: 0; font: 500 15px inherit; font-family: inherit; color: var(--navy); background: #fff; }
+.lead-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.lead-form button { background: var(--lime); color: var(--navy); border: 0; justify-content: center; }
+.form-done { background: rgba(255,255,255,.12); border-radius: 12px; padding: 14px; font-weight: 600; }
+@media (max-width: 860px) { .cta { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .lead-form .row { grid-template-columns: 1fr; } }
+
+footer.footer { padding-block: 48px 40px; border-top: 1px solid var(--line); margin-top: 88px; }
+.footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 24px; align-items: center; font-size: 14px; color: var(--muted); }
+.footer .logo { height: 26px; }
+.footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+.footer nav a { color: var(--muted); text-decoration: none; }
+
+.preview-flag { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom, 0px)); inset-inline-end: max(14px, env(safe-area-inset-right, 0px)); background: var(--navy); color: var(--cream); font-size: 12px; padding: 8px 12px; border-radius: 999px; z-index: 40; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a href="#top" aria-label="Shiply"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3574 1180" class="logo" aria-label="Shiply" role="img"><path class="lg-mark" fill-rule="evenodd" d="M 890.0 11.5 C 882.6 13.6, 878.0 16.8, 868.5 26.4 C 854.0 41.0, 851.1 48.8, 850.0 75.2 C 849.1 97.3, 848.2 100.4, 842.1 104.2 L 838.5 106.5 668.0 107.1 C 481.6 107.7, 492.5 107.3, 465.0 114.1 C 444.0 119.3, 433.3 123.3, 413.8 133.2 C 386.5 147.1, 385.3 148.1, 339.5 193.9 C 274.4 259.0, 229.4 305.0, 224.8 311.0 C 222.5 314.0, 215.7 321.6, 209.8 327.9 C 186.4 352.4, 173.4 378.2, 164.4 417.5 C 160.0 437.0, 160.0 473.0, 164.5 492.5 C 167.0 503.6, 179.9 541.2, 183.1 546.7 C 195.4 568.2, 230.6 604.9, 249.8 616.3 C 268.8 627.6, 290.3 636.0, 309.5 639.9 C 332.0 644.4, 328.7 644.4, 518.0 644.4 C 712.7 644.5, 703.3 644.2, 704.6 649.6 C 705.5 653.0, 702.7 657.2, 693.2 667.4 C 688.4 672.5, 681.3 680.5, 677.3 685.2 C 673.4 689.9, 662.6 700.7, 653.3 709.3 C 644.1 717.8, 629.5 731.9, 621.0 740.7 C 604.9 757.3, 602.4 759.1, 589.5 763.5 C 574.1 768.7, 586.3 768.3, 381.0 769.0 C 192.0 769.6, 190.4 769.6, 181.5 771.7 C 151.6 778.7, 134.0 789.4, 107.5 816.8 C 87.7 837.2, 61.9 863.1, 47.3 877.0 C 35.0 888.8, 23.9 902.4, 17.8 913.0 C 1.6 941.2, 21.3 981.5, 53.8 987.0 C 58.6 987.8, 138.5 988.0, 338.0 987.7 L 615.5 987.4 627.0 985.2 C 650.3 980.7, 656.1 978.6, 681.5 965.8 C 694.7 959.1, 708.2 951.9, 711.5 949.7 C 729.2 937.9, 758.7 911.5, 769.7 897.5 C 772.8 893.6, 789.1 876.7, 805.9 859.8 C 822.7 843.0, 852.6 812.8, 872.4 792.8 L 908.3 756.4 917.3 741.5 C 933.7 714.1, 940.2 697.7, 944.6 672.3 C 950.3 639.8, 948.1 602.8, 938.7 574.0 C 935.3 563.3, 919.4 531.4, 912.2 520.6 C 899.9 502.0, 872.8 479.8, 839.5 460.8 C 819.8 449.5, 813.8 447.2, 789.0 441.7 L 779.5 439.5 598.0 439.4 C 422.5 439.3, 406.0 439.1, 401.5 436.8 C 393.8 432.7, 397.5 426.4, 418.6 407.1 C 425.8 400.6, 435.2 391.3, 439.6 386.4 C 450.1 374.7, 454.1 370.7, 476.2 349.9 C 496.5 330.7, 503.1 326.3, 518.0 321.9 C 527.5 319.1, 533.6 319.0, 732.5 318.7 C 882.4 318.4, 882.5 318.4, 891.3 316.2 C 896.1 315.1, 902.0 313.2, 904.5 312.1 C 912.6 308.5, 938.9 292.7, 945.4 287.5 C 954.5 280.2, 1034.7 198.1, 1039.7 190.9 C 1045.9 182.1, 1048.5 173.0, 1048.4 160.0 C 1048.3 140.1, 1044.3 133.1, 1019.1 107.9 C 1009.4 98.2, 993.6 82.3, 984.0 72.6 C 951.4 39.6, 928.4 19.3, 917.4 13.9 C 909.7 10.1, 898.6 9.1, 890.0 11.5"/><path class="lg-word" fill-rule="evenodd" d="M 1100.6 142.2 C 1099.5 146.4, 1099.9 940.0, 1101.0 942.1 C 1102.0 944.0, 1104.0 944.0, 1180.4 944.0 C 1251.0 944.0, 1258.8 943.8, 1259.4 942.4 C 1259.7 941.5, 1260.0 862.5, 1260.0 766.7 C 1260.0 577.4, 1259.9 583.1, 1265.6 565.0 C 1276.2 531.3, 1301.8 507.3, 1337.0 498.0 C 1347.8 495.2, 1372.7 494.1, 1385.1 496.0 C 1423.3 501.5, 1453.8 526.8, 1465.9 562.8 C 1471.8 580.2, 1471.4 566.3, 1471.7 761.9 C 1472.0 890.6, 1472.4 941.7, 1473.1 942.7 C 1474.8 944.7, 1629.2 944.6, 1630.9 942.6 C 1632.6 940.6, 1631.8 551.2, 1630.1 538.5 C 1620.5 467.9, 1587.1 414.6, 1531.7 381.5 C 1497.3 361.0, 1459.6 351.6, 1412.0 351.6 C 1351.4 351.6, 1307.0 367.6, 1273.3 401.7 C 1266.6 408.4, 1260.8 414.0, 1260.5 414.0 C 1260.2 414.0, 1259.9 352.5, 1259.8 277.3 L 1259.5 140.5 1180.4 140.2 L 1101.2 140.0 1100.6 142.2 M 2727.6 142.2 C 2726.5 146.4, 2726.9 940.0, 2728.0 942.1 C 2729.0 944.0, 2731.0 944.0, 2807.5 944.0 L 2886.0 944.0 2886.5 941.8 C 2886.8 940.5, 2886.9 759.7, 2886.8 540.0 L 2886.5 140.5 2807.4 140.2 L 2728.2 140.0 2727.6 142.2 M 1737.6 153.6 C 1736.2 155.0, 1736.0 163.4, 1736.0 231.6 C 1736.0 282.5, 1736.3 308.8, 1737.0 310.1 C 1738.0 312.0, 1740.0 312.0, 1815.8 312.0 C 1875.0 312.0, 1893.9 311.7, 1894.8 310.8 C 1895.7 309.9, 1896.0 291.0, 1896.0 231.8 C 1896.0 156.0, 1896.0 154.0, 1894.1 153.0 C 1892.8 152.3, 1866.5 152.0, 1815.6 152.0 C 1747.4 152.0, 1739.0 152.2, 1737.6 153.6 M 2313.5 352.0 C 2255.7 357.2, 2209.1 377.0, 2172.8 411.9 C 2166.6 417.8, 2162.6 421.0, 2162.0 420.4 C 2161.4 419.8, 2160.9 407.5, 2160.8 392.0 L 2160.5 364.5 2087.5 364.2 C 2019.8 364.0, 2014.4 364.1, 2013.3 365.7 C 2011.8 367.6, 2011.4 1152.5, 2012.8 1154.8 C 2013.5 1155.8, 2030.1 1156.0, 2092.6 1155.8 L 2171.5 1155.5 2171.8 1028.8 C 2172.0 924.0, 2172.2 902.0, 2173.3 902.0 C 2174.1 902.0, 2177.6 904.3, 2181.1 907.2 C 2246.6 959.9, 2358.6 972.1, 2449.0 936.3 C 2533.6 902.9, 2600.0 827.0, 2623.4 736.8 C 2641.6 667.1, 2636.0 590.0, 2608.4 527.7 C 2569.6 440.0, 2490.2 375.2, 2399.5 357.1 C 2374.8 352.1, 2337.0 349.9, 2313.5 352.0 M 1737.0 365.9 C 1735.6 368.6, 1735.6 939.4, 1737.0 942.1 C 1738.0 944.0, 1740.0 944.0, 1816.4 944.0 C 1887.0 944.0, 1894.8 943.8, 1895.4 942.4 C 1896.2 940.4, 1896.2 367.6, 1895.4 365.6 C 1894.8 364.2, 1887.0 364.0, 1816.4 364.0 C 1740.0 364.0, 1738.0 364.0, 1737.0 365.9 M 2959.0 365.6 C 2959.0 366.8, 3093.2 708.3, 3182.0 933.1 L 3186.2 943.7 3180.0 958.1 C 3164.4 994.4, 3144.4 1020.9, 3125.9 1029.9 C 3101.1 1041.8, 3065.0 1042.7, 3017.2 1032.4 C 3006.7 1030.1, 3004.7 1029.9, 3003.9 1031.1 C 3003.4 1031.9, 3003.0 1060.4, 3003.0 1095.3 C 3003.0 1167.8, 3001.6 1159.8, 3015.1 1165.0 C 3051.0 1178.9, 3105.3 1181.7, 3149.2 1172.0 C 3220.4 1156.2, 3277.9 1104.0, 3315.6 1021.0 C 3321.2 1008.6, 3571.8 370.6, 3572.7 366.2 L 3573.2 364.0 3488.0 364.2 L 3402.7 364.5 3394.0 388.0 C 3389.3 400.9, 3358.9 483.5, 3326.6 571.6 C 3294.3 659.6, 3267.4 732.3, 3266.9 733.1 C 3266.4 734.0, 3265.7 734.1, 3265.1 733.5 C 3264.6 732.9, 3233.9 650.1, 3196.9 549.5 C 3160.0 448.9, 3129.3 365.9, 3128.8 365.3 C 3128.0 364.3, 3109.7 364.0, 3043.4 364.0 C 2966.5 364.0, 2959.0 364.1, 2959.0 365.6 M 2293.5 496.4 C 2219.6 508.8, 2172.0 570.1, 2172.0 653.1 C 2172.0 734.7, 2215.6 794.8, 2286.0 810.2 C 2301.4 813.5, 2336.6 813.5, 2352.0 810.2 C 2416.6 796.1, 2459.3 747.4, 2467.9 678.0 C 2470.2 659.9, 2469.1 632.1, 2465.4 614.0 C 2454.7 561.7, 2417.8 518.8, 2369.5 502.5 C 2354.2 497.3, 2344.1 495.8, 2322.5 495.4 C 2308.1 495.2, 2299.0 495.5, 2293.5 496.4"/></svg>
+</a>
+    <nav class="links" aria-label="Main">
+      <a href="#services" data-t="navServices">Services</a>
+      <a href="#how" data-t="navHow">How it works</a>
+      <a href="#quality" data-t="navQuality">Quality</a>
+      <a href="#money" data-t="navMoney">Cash and payouts</a>
+      <a href="#speed" data-t="navSpeed">Why 60 minutes</a>
+      <a href="#faq" data-t="navFaq">Questions</a>
+    </nav>
+    <div class="top-actions">
+      <button class="lang" id="lang" type="button">العربية</button>
+      <a class="btn btn-primary" href="#contact" data-t="navCta">Start selling</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <svg class="route-bg" viewBox="0 0 1200 140" preserveAspectRatio="none" aria-hidden="true"><path d="M0 110 C 160 110 180 40 340 40 S 520 120 700 90 S 900 20 1060 50 S 1160 80 1200 70" fill="none" stroke="#0046fc" stroke-width="2" stroke-dasharray="6 10"/></svg>
+    <div class="wrap">
+      <div class="hero-copy">
+        <span class="eyebrow" data-t="heroEyebrow" style="color:var(--hero-muted)">Delivery for online brands in Cairo</span>
+        <h1 data-t="heroTitle">Ordered at 2:04.<br>At the door by <span class="clock">2:51</span>.</h1>
+        <p class="lead" data-t="heroLead">Shiply keeps your stock in small stores close to your customers. When someone orders, we pick, pack and deliver within 60 minutes, collect the cash and pay you on your schedule.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-primary" href="#contact" data-t="heroCta1">Start selling with Shiply</a>
+          <a class="btn btn-ghost" href="#how" data-t="heroCta2">See how it works</a>
+        </div>
+        <span class="hero-note"><b data-t="heroNoteTag">Shopify</b><span data-t="heroNote">Connects to your store in minutes. Stock, checkout and tracking stay in sync.</span></span>
+      </div>
+
+      <article class="ticket" aria-label="Example order">
+        <div class="ticket-head">
+          <div><div class="ticket-no">SN100248</div><div class="ticket-store" data-t="tStore">Sent from the store nearest your customer</div></div>
+          <div class="ticket-store" data-t="tCod">Cash on delivery</div>
+        </div>
+        <div class="timer"><span class="num" id="mins">47</span><span class="of" data-t="tOf">minutes of 60</span></div>
+        <div class="bar"><i id="bar"></i></div>
+        <ol class="steps" id="steps">
+          <li class="done"><span class="dot"></span><span data-t="s1">Order received</span><time>2:04</time></li>
+          <li class="done"><span class="dot"></span><span data-t="s2">Picked by scan</span><time>2:11</time></li>
+          <li class="done"><span class="dot"></span><span data-t="s3">Packed with photo</span><time>2:15</time></li>
+          <li class="done"><span class="dot"></span><span data-t="s4">Rider on the way</span><time>2:19</time></li>
+          <li class="now"><span class="dot"></span><span data-t="s5">Delivered, cash collected</span><time>2:51</time></li>
+        </ol>
+        <div class="ticket-foot"><span data-t="tCollected">Cash collected and on its way to you</span><b>✓</b></div>
+        <p class="sample" data-t="sample">Example order</p>
+      </article>
+    </div>
+  </section>
+
+  <div class="strip">
+    <div class="wrap">
+      <span data-t="strip1"><b>60 minutes</b> from order to door</span>
+      <span data-t="strip2"><b>Live map</b> your customers can follow</span>
+      <span data-t="strip3"><b>Cash collected</b> and paid out on your schedule</span>
+      <span data-t="strip4"><b>Arabic and English</b> for you and your customers</span>
+    </div>
+  </div>
+
+  <section class="stats">
+    <div class="wrap">
+      <div class="stat"><div class="sv">60<small data-t="stMin">min</small></div><div class="sl" data-t="st1">Delivery promise, from order to door</div></div>
+      <div class="stat"><div class="sv">94.37%</div><div class="sl" data-t="st2">Delivered on the first try</div></div>
+      <div class="stat"><div class="sv">98.76%</div><div class="sl" data-t="st3">Delivered on time</div></div>
+      <div class="stat"><div class="sv">4.95<small>/5</small></div><div class="sl" data-t="st4">Average customer rating</div></div>
+    </div>
+  </section>
+
+  <section class="band" id="services">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-t="svcEyebrow">What we do</span>
+        <h2 data-t="svcTitle">Everything after the customer taps Buy</h2>
+        <p class="lead" data-t="svcLead">You sell. We hold the stock, move it, deliver it and bring the money back, with one dashboard that shows every order and every pound.</p>
+      </div>
+      <div class="services">
+        <article class="svc feature">
+          <div style="display:grid;gap:12px">
+            <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></span>
+            <h3 data-t="f1t">60 minute delivery</h3>
+            <p data-t="f1p">Your customer chooses the 60 minute option at checkout. The nearest dark store picks the order by scan, packs it with a photo and hands it to a rider. They can follow the rider live on a tracking page.</p>
+          </div>
+          <div class="big">60<small data-t="minShort"> min</small></div>
+        </article>
+        <article class="svc">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-5 9 5v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/><path d="M8 20v-6h8v6"/></svg></span>
+          <h3 data-t="f2t">Storage in dark stores</h3>
+          <p data-t="f2p">Send your stock to us once. We count it, shelve it by barcode and keep every store full before it runs low.</p>
+        </article>
+        <article class="svc">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/></svg></span>
+          <h3 data-t="f3t">Cash on delivery</h3>
+          <p data-t="f3p">Riders collect the exact amount. Every pound is counted at the store and paid into your bank daily, twice a week or weekly.</p>
+        </article>
+        <article class="svc">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17h14l-1.5-9h-11z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>
+          <h3 data-t="f4t">Shopify connection</h3>
+          <p data-t="f4p">Stock levels, the 60 minute rate at checkout, an area picker on your store and tracking links, all from one app.</p>
+        </article>
+        <article class="svc">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg></span>
+          <h3 data-t="f5t">Returns and second tries</h3>
+          <p data-t="f5p">Missed deliveries come back to the store and go out again. When you want stock back, we pick it and hand it over.</p>
+        </article>
+        <article class="svc">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l4-4 3 3 5-6"/></svg></span>
+          <h3 data-t="f6t">Your numbers in one place</h3>
+          <p data-t="f6p">Orders, stock per store, wallet, statements and tax invoices in your merchant dashboard, in Arabic or English.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" id="how">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-t="howEyebrow">How it works</span>
+        <h2 data-t="howTitle">From your warehouse to your bank account</h2>
+      </div>
+      <ol class="flow">
+        <li><span class="n">1</span><span class="when" data-t="h1w">Once</span><h3 data-t="h1t">Connect your store</h3><p data-t="h1p">Sign up, link Shopify and set your 60 minute price.</p></li>
+        <li><span class="n">2</span><span class="when" data-t="h2w">Each restock</span><h3 data-t="h2t">Send us stock</h3><p data-t="h2p">Book a shipment. We receive it and check every unit against your list.</p></li>
+        <li><span class="n">3</span><span class="when" data-t="h3w">Every night</span><h3 data-t="h3t">We place it near buyers</h3><p data-t="h3p">Each dark store is refilled to the level its area sells.</p></li>
+        <li><span class="n">4</span><span class="when" data-t="h4w">Every order</span><h3 data-t="h4t">We deliver in 60 minutes</h3><p data-t="h4p">Pick, pack, ride, and the cash comes back with the rider.</p></li>
+        <li><span class="n">5</span><span class="when" data-t="h5w">Your schedule</span><h3 data-t="h5t">You get paid</h3><p data-t="h5p">A bank transfer with a statement of every order and fee.</p></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band" id="money">
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow" data-t="mEyebrow">Cash and payouts</span>
+        <h2 style="margin-top:14px" data-t="mTitle">Your money, counted twice and shown to the pound</h2>
+        <ul class="checks">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="m1">Every cash order is checked against what the rider hands in at the store.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="m2">You choose daily, twice a week or weekly payouts to your bank.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="m3">Each payout comes with a statement and a monthly tax invoice.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="m4">Two people approve every payout before it leaves our bank.</span></li>
+        </ul>
+      </div>
+      <div class="sched" aria-label="Payout schedule">
+        <div class="sched-lbl" data-t="pLbl">You choose when you get paid</div>
+        <div class="sched-opts">
+          <div class="opt on"><b data-t="p1">Daily</b><span data-t="p1s">Every working day</span></div>
+          <div class="opt"><b data-t="p2">Twice a week</b><span data-t="p2s">Sunday and Wednesday</span></div>
+          <div class="opt"><b data-t="p3">Weekly</b><span data-t="p3s">Every Sunday</span></div>
+        </div>
+        <div class="sched-docs">
+          <span data-t="d1">Bank transfer</span><span data-t="d2">Statement of every order</span><span data-t="d3">Monthly tax invoice</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" id="speed">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-t="spEyebrow">Why 60 minutes</span>
+        <h2 data-t="spTitle">Next day used to be fast</h2>
+        <p class="lead" data-t="spLead">People buy on impulse and cool off by tomorrow. When the order arrives while they still want it, fewer cancel, fewer refuse at the door, and more come back.</p>
+      </div>
+      <div class="race">
+        <div class="lane">
+          <div class="lane-head"><b data-t="r1">Usual courier</b><span data-t="r1s">1 to 3 days</span></div>
+          <div class="track"><i class="slow"></i></div>
+        </div>
+        <div class="lane me">
+          <div class="lane-head"><b data-t="r2">Shiply</b><span data-t="r2s">Within 60 minutes</span></div>
+          <div class="track"><i class="fast"></i></div>
+        </div>
+      </div>
+      <div class="wins">
+        <div><h3 data-t="w1t">Fewer refusals</h3><p data-t="w1p">The customer is home and still excited when the rider rings.</p></div>
+        <div><h3 data-t="w2t">More repeat orders</h3><p data-t="w2p">Speed becomes the reason they buy from you and not the other shop.</p></div>
+        <div><h3 data-t="w3t">A brand that feels close</h3><p data-t="w3p">Your online store delivers like the pharmacy down the street.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="quality">
+    <div class="wrap split">
+      <div>
+        <span class="eyebrow" data-t="qlEyebrow">Checked at every step</span>
+        <h2 style="margin-top:14px" data-t="qlTitle">The right item, in perfect shape, to the right person</h2>
+        <p class="lead" style="margin-top:14px" data-t="qlLead">Speed only matters when nothing goes wrong. Every order passes four checks before the customer holds it.</p>
+      </div>
+      <ol class="qsteps">
+        <li><span class="qi">1</span><div><h3 data-t="q1t">Picked by barcode</h3><p data-t="q1p">Staff scan every item. A wrong product or size cannot leave the shelf.</p></div></li>
+        <li><span class="qi">2</span><div><h3 data-t="q2t">Packed on camera</h3><p data-t="q2p">A photo of every packed order is kept, so you can see exactly what went out.</p></div></li>
+        <li><span class="qi">3</span><div><h3 data-t="q3t">Handed over with proof</h3><p data-t="q3p">The customer gives a 4 digit code or the rider takes a photo at the door.</p></div></li>
+        <li><span class="qi">4</span><div><h3 data-t="q4t">Cash counted twice</h3><p data-t="q4p">The rider records the cash collected, and the store counts it again.</p></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="band alt" id="customer">
+    <div class="wrap split">
+      <div class="phone" aria-label="Example tracking page">
+        <div class="ph-top"><b data-t="phT">Your order is on the way</b><span data-t="phEta">Arriving in about 12 minutes</span></div>
+        <div class="ph-map" aria-hidden="true">
+          <svg viewBox="0 0 300 170" preserveAspectRatio="xMidYMid slice"><rect width="300" height="170" fill="#eef1f6"/><path d="M0 120 L300 90 M60 0 L90 170 M180 0 L210 170 M0 40 L300 60" stroke="#ffffff" stroke-width="10"/><path d="M40 140 C 90 120 120 70 170 75 S 240 50 255 35" fill="none" stroke="#0046fc" stroke-width="4" stroke-dasharray="2 8" stroke-linecap="round"/><circle cx="170" cy="75" r="9" fill="#0046fc"/><circle cx="170" cy="75" r="16" fill="#0046fc" opacity=".18"/><circle cx="255" cy="35" r="7" fill="#082341"/></svg>
+        </div>
+        <div class="ph-row"><span data-t="phRider">Your rider</span><b>Ahmed</b></div>
+        <div class="ph-row"><span data-t="phCode">Delivery code</span><b class="code">4 8 2 7</b></div>
+        <div class="ph-row"><span data-t="phCash">Cash to prepare</span><b data-t="phCashV">Shown on your link</b></div>
+        <div class="ph-rate"><span data-t="phRate">How was your delivery?</span><span class="stars" aria-hidden="true">★★★★★</span></div>
+        <p class="sample" data-t="sample3">Example tracking page</p>
+      </div>
+      <div>
+        <span class="eyebrow" data-t="cuEyebrow">What your customer sees</span>
+        <h2 style="margin-top:14px" data-t="cuTitle">A delivery your customers will tell their friends about</h2>
+        <ul class="checks">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="cu1">A live map of the rider, from the store to their door.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="cu2">A clear status at every step: packed, on the way, delivered.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="cu3">A private code so nobody else can take their parcel.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"/></svg><span data-t="cu4">A one tap rating, so you hear about every delivery.</span></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="shopify">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-t="shEyebrow">Built for Shopify</span>
+        <h2 data-t="shTitle">Your store keeps working the way it does today</h2>
+      </div>
+      <div class="shop">
+        <div><h3 data-t="sh1t">Real stock, everywhere</h3><p data-t="sh1p">What each dark store holds shows in Shopify within a minute, so you never sell what is not there.</p></div>
+        <div><h3 data-t="sh2t">A 60 minute rate at checkout</h3><p data-t="sh2p">It appears only when the address is in our area, the store is open and every item is in stock.</p></div>
+        <div><h3 data-t="sh3t">Tracking your customers trust</h3><p data-t="sh3p">They get a link with the rider on a map, a delivery code and a one tap rating.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band alt" id="faq">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="eyebrow" data-t="qEyebrow">Questions merchants ask</span>
+        <h2 data-t="qTitle">Before you send us your first box</h2>
+      </div>
+      <div class="faq">
+        <details open><summary data-t="q1">How much does it cost?</summary><p data-t="q1a">A fee per delivered order, a small share of cash collected, and storage per unit. No setup fee. We agree your rates before you start, and every fee shows on your statement.</p></details>
+        <details><summary data-t="q2">What if an item is not in the store?</summary><p data-t="q2a">The 60 minute option does not show at checkout for that customer, so they are never promised what we cannot deliver.</p></details>
+        <details><summary data-t="q3">What happens when the customer does not answer?</summary><p data-t="q3a">The rider calls, takes a photo at the door and brings the order back. We try again or return it to you, as you choose.</p></details>
+        <details><summary data-t="q4">Who sets the delivery price my customer pays?</summary><p data-t="q4a">You do. The 60 minute price is yours and the money stays with you.</p></details>
+        <details><summary data-t="q5">Do I need Shopify?</summary><p data-t="q5a">Shopify gives you the full connection. You can also create orders by hand from your dashboard.</p></details>
+      </div>
+    </div>
+  </section>
+
+  <section class="band" id="contact">
+    <div class="wrap">
+      <div class="cta">
+        <div style="display:grid;gap:16px;align-content:start">
+          <h2 data-t="cTitle">Give your customers their order today, not next week</h2>
+          <p data-t="cLead">Tell us about your store. We reply within one working day with your rates and a start date.</p>
+        </div>
+        <form class="lead-form" id="form" novalidate>
+          <div class="row">
+            <label for="f-name"><span data-t="fName">Your name</span><input id="f-name" required autocomplete="name"></label>
+            <label for="f-phone"><span data-t="fPhone">Mobile</span><input id="f-phone" inputmode="tel" placeholder="010 0000 0000" autocomplete="tel"></label>
+          </div>
+          <label for="f-store"><span data-t="fStore">Store website</span><input id="f-store" placeholder="yourstore.com"></label>
+          <label for="f-orders"><span data-t="fOrders">Orders a month in Cairo</span>
+            <select id="f-orders"><option data-t="o1">Under 300</option><option data-t="o2">300 to 1,000</option><option data-t="o3">1,000 to 5,000</option><option data-t="o4">Over 5,000</option></select>
+          </label>
+          <button class="btn" type="submit" data-t="fSend">Get my rates</button>
+          <p class="form-done" id="done" hidden data-t="fDone">Thanks. In the real site this goes to our sales inbox.</p>
+        </form>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="footer">
+  <div class="wrap">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 3574 1180" class="logo" aria-label="Shiply" role="img"><path class="lg-mark" fill-rule="evenodd" d="M 890.0 11.5 C 882.6 13.6, 878.0 16.8, 868.5 26.4 C 854.0 41.0, 851.1 48.8, 850.0 75.2 C 849.1 97.3, 848.2 100.4, 842.1 104.2 L 838.5 106.5 668.0 107.1 C 481.6 107.7, 492.5 107.3, 465.0 114.1 C 444.0 119.3, 433.3 123.3, 413.8 133.2 C 386.5 147.1, 385.3 148.1, 339.5 193.9 C 274.4 259.0, 229.4 305.0, 224.8 311.0 C 222.5 314.0, 215.7 321.6, 209.8 327.9 C 186.4 352.4, 173.4 378.2, 164.4 417.5 C 160.0 437.0, 160.0 473.0, 164.5 492.5 C 167.0 503.6, 179.9 541.2, 183.1 546.7 C 195.4 568.2, 230.6 604.9, 249.8 616.3 C 268.8 627.6, 290.3 636.0, 309.5 639.9 C 332.0 644.4, 328.7 644.4, 518.0 644.4 C 712.7 644.5, 703.3 644.2, 704.6 649.6 C 705.5 653.0, 702.7 657.2, 693.2 667.4 C 688.4 672.5, 681.3 680.5, 677.3 685.2 C 673.4 689.9, 662.6 700.7, 653.3 709.3 C 644.1 717.8, 629.5 731.9, 621.0 740.7 C 604.9 757.3, 602.4 759.1, 589.5 763.5 C 574.1 768.7, 586.3 768.3, 381.0 769.0 C 192.0 769.6, 190.4 769.6, 181.5 771.7 C 151.6 778.7, 134.0 789.4, 107.5 816.8 C 87.7 837.2, 61.9 863.1, 47.3 877.0 C 35.0 888.8, 23.9 902.4, 17.8 913.0 C 1.6 941.2, 21.3 981.5, 53.8 987.0 C 58.6 987.8, 138.5 988.0, 338.0 987.7 L 615.5 987.4 627.0 985.2 C 650.3 980.7, 656.1 978.6, 681.5 965.8 C 694.7 959.1, 708.2 951.9, 711.5 949.7 C 729.2 937.9, 758.7 911.5, 769.7 897.5 C 772.8 893.6, 789.1 876.7, 805.9 859.8 C 822.7 843.0, 852.6 812.8, 872.4 792.8 L 908.3 756.4 917.3 741.5 C 933.7 714.1, 940.2 697.7, 944.6 672.3 C 950.3 639.8, 948.1 602.8, 938.7 574.0 C 935.3 563.3, 919.4 531.4, 912.2 520.6 C 899.9 502.0, 872.8 479.8, 839.5 460.8 C 819.8 449.5, 813.8 447.2, 789.0 441.7 L 779.5 439.5 598.0 439.4 C 422.5 439.3, 406.0 439.1, 401.5 436.8 C 393.8 432.7, 397.5 426.4, 418.6 407.1 C 425.8 400.6, 435.2 391.3, 439.6 386.4 C 450.1 374.7, 454.1 370.7, 476.2 349.9 C 496.5 330.7, 503.1 326.3, 518.0 321.9 C 527.5 319.1, 533.6 319.0, 732.5 318.7 C 882.4 318.4, 882.5 318.4, 891.3 316.2 C 896.1 315.1, 902.0 313.2, 904.5 312.1 C 912.6 308.5, 938.9 292.7, 945.4 287.5 C 954.5 280.2, 1034.7 198.1, 1039.7 190.9 C 1045.9 182.1, 1048.5 173.0, 1048.4 160.0 C 1048.3 140.1, 1044.3 133.1, 1019.1 107.9 C 1009.4 98.2, 993.6 82.3, 984.0 72.6 C 951.4 39.6, 928.4 19.3, 917.4 13.9 C 909.7 10.1, 898.6 9.1, 890.0 11.5"/><path class="lg-word" fill-rule="evenodd" d="M 1100.6 142.2 C 1099.5 146.4, 1099.9 940.0, 1101.0 942.1 C 1102.0 944.0, 1104.0 944.0, 1180.4 944.0 C 1251.0 944.0, 1258.8 943.8, 1259.4 942.4 C 1259.7 941.5, 1260.0 862.5, 1260.0 766.7 C 1260.0 577.4, 1259.9 583.1, 1265.6 565.0 C 1276.2 531.3, 1301.8 507.3, 1337.0 498.0 C 1347.8 495.2, 1372.7 494.1, 1385.1 496.0 C 1423.3 501.5, 1453.8 526.8, 1465.9 562.8 C 1471.8 580.2, 1471.4 566.3, 1471.7 761.9 C 1472.0 890.6, 1472.4 941.7, 1473.1 942.7 C 1474.8 944.7, 1629.2 944.6, 1630.9 942.6 C 1632.6 940.6, 1631.8 551.2, 1630.1 538.5 C 1620.5 467.9, 1587.1 414.6, 1531.7 381.5 C 1497.3 361.0, 1459.6 351.6, 1412.0 351.6 C 1351.4 351.6, 1307.0 367.6, 1273.3 401.7 C 1266.6 408.4, 1260.8 414.0, 1260.5 414.0 C 1260.2 414.0, 1259.9 352.5, 1259.8 277.3 L 1259.5 140.5 1180.4 140.2 L 1101.2 140.0 1100.6 142.2 M 2727.6 142.2 C 2726.5 146.4, 2726.9 940.0, 2728.0 942.1 C 2729.0 944.0, 2731.0 944.0, 2807.5 944.0 L 2886.0 944.0 2886.5 941.8 C 2886.8 940.5, 2886.9 759.7, 2886.8 540.0 L 2886.5 140.5 2807.4 140.2 L 2728.2 140.0 2727.6 142.2 M 1737.6 153.6 C 1736.2 155.0, 1736.0 163.4, 1736.0 231.6 C 1736.0 282.5, 1736.3 308.8, 1737.0 310.1 C 1738.0 312.0, 1740.0 312.0, 1815.8 312.0 C 1875.0 312.0, 1893.9 311.7, 1894.8 310.8 C 1895.7 309.9, 1896.0 291.0, 1896.0 231.8 C 1896.0 156.0, 1896.0 154.0, 1894.1 153.0 C 1892.8 152.3, 1866.5 152.0, 1815.6 152.0 C 1747.4 152.0, 1739.0 152.2, 1737.6 153.6 M 2313.5 352.0 C 2255.7 357.2, 2209.1 377.0, 2172.8 411.9 C 2166.6 417.8, 2162.6 421.0, 2162.0 420.4 C 2161.4 419.8, 2160.9 407.5, 2160.8 392.0 L 2160.5 364.5 2087.5 364.2 C 2019.8 364.0, 2014.4 364.1, 2013.3 365.7 C 2011.8 367.6, 2011.4 1152.5, 2012.8 1154.8 C 2013.5 1155.8, 2030.1 1156.0, 2092.6 1155.8 L 2171.5 1155.5 2171.8 1028.8 C 2172.0 924.0, 2172.2 902.0, 2173.3 902.0 C 2174.1 902.0, 2177.6 904.3, 2181.1 907.2 C 2246.6 959.9, 2358.6 972.1, 2449.0 936.3 C 2533.6 902.9, 2600.0 827.0, 2623.4 736.8 C 2641.6 667.1, 2636.0 590.0, 2608.4 527.7 C 2569.6 440.0, 2490.2 375.2, 2399.5 357.1 C 2374.8 352.1, 2337.0 349.9, 2313.5 352.0 M 1737.0 365.9 C 1735.6 368.6, 1735.6 939.4, 1737.0 942.1 C 1738.0 944.0, 1740.0 944.0, 1816.4 944.0 C 1887.0 944.0, 1894.8 943.8, 1895.4 942.4 C 1896.2 940.4, 1896.2 367.6, 1895.4 365.6 C 1894.8 364.2, 1887.0 364.0, 1816.4 364.0 C 1740.0 364.0, 1738.0 364.0, 1737.0 365.9 M 2959.0 365.6 C 2959.0 366.8, 3093.2 708.3, 3182.0 933.1 L 3186.2 943.7 3180.0 958.1 C 3164.4 994.4, 3144.4 1020.9, 3125.9 1029.9 C 3101.1 1041.8, 3065.0 1042.7, 3017.2 1032.4 C 3006.7 1030.1, 3004.7 1029.9, 3003.9 1031.1 C 3003.4 1031.9, 3003.0 1060.4, 3003.0 1095.3 C 3003.0 1167.8, 3001.6 1159.8, 3015.1 1165.0 C 3051.0 1178.9, 3105.3 1181.7, 3149.2 1172.0 C 3220.4 1156.2, 3277.9 1104.0, 3315.6 1021.0 C 3321.2 1008.6, 3571.8 370.6, 3572.7 366.2 L 3573.2 364.0 3488.0 364.2 L 3402.7 364.5 3394.0 388.0 C 3389.3 400.9, 3358.9 483.5, 3326.6 571.6 C 3294.3 659.6, 3267.4 732.3, 3266.9 733.1 C 3266.4 734.0, 3265.7 734.1, 3265.1 733.5 C 3264.6 732.9, 3233.9 650.1, 3196.9 549.5 C 3160.0 448.9, 3129.3 365.9, 3128.8 365.3 C 3128.0 364.3, 3109.7 364.0, 3043.4 364.0 C 2966.5 364.0, 2959.0 364.1, 2959.0 365.6 M 2293.5 496.4 C 2219.6 508.8, 2172.0 570.1, 2172.0 653.1 C 2172.0 734.7, 2215.6 794.8, 2286.0 810.2 C 2301.4 813.5, 2336.6 813.5, 2352.0 810.2 C 2416.6 796.1, 2459.3 747.4, 2467.9 678.0 C 2470.2 659.9, 2469.1 632.1, 2465.4 614.0 C 2454.7 561.7, 2417.8 518.8, 2369.5 502.5 C 2354.2 497.3, 2344.1 495.8, 2322.5 495.4 C 2308.1 495.2, 2299.0 495.5, 2293.5 496.4"/></svg>
+
+    <nav aria-label="Footer">
+      <a href="#services" data-t="navServices">Services</a>
+      <a href="#speed" data-t="navSpeed">Why 60 minutes</a>
+      <a href="#faq" data-t="navFaq">Questions</a>
+      <a href="#contact" data-t="fSignIn">Merchant sign in</a>
+    </nav>
+    <span data-t="copy">© 2026 Shiply. Cairo, Egypt.</span>
+  </div>
+</footer>
+<div class="preview-flag" data-t="flag">Design preview</div>
+
+<script>
+const AR = {
+  navServices: "الخدمات", navHow: "إزاي بنشتغل", navMoney: "الكاش والتحويلات", navSpeed: "ليه ٦٠ دقيقة", navFaq: "أسئلة", navCta: "ابدأ البيع",
+  heroEyebrow: "توصيل للبراندات الأونلاين في القاهرة",
+  heroTitle: 'الطلب الساعة ٢:٠٤.<br>عند الباب الساعة <span class="clock">٢:٥١</span>.',
+  heroLead: "شيبلي بيخزّن بضاعتك في مخازن صغيرة قريبة من عملائك. أول ما حد يطلب، بنجهّز ونغلّف ونوصّل في أقل من ٦٠ دقيقة، ونحصّل الكاش ونحوّله لك في المواعيد اللي تختارها.",
+  heroCta1: "ابدأ البيع مع شيبلي", heroCta2: "شوف إزاي بنشتغل", heroNoteTag: "Shopify",
+  heroNote: "بيتربط بمتجرك في دقايق. المخزون والدفع والتتبع كلهم متزامنين.",
+  tStore: "خارج من أقرب مخزن لعميلك", tCod: "الدفع عند الاستلام", tOf: "دقيقة من ٦٠",
+  s1: "استلمنا الطلب", s2: "اتجهّز بالباركود", s3: "اتغلّف بصورة", s4: "المندوب في الطريق", s5: "اتسلّم واتحصّل الكاش",
+  tCollected: "الكاش اتحصّل وفي طريقه ليك", sample: "طلب للتوضيح",
+  strip1: "<b>٦٠ دقيقة</b> من الطلب للباب", strip2: "<b>خريطة مباشرة</b> عملاؤك يتابعوا عليها", strip3: "<b>الكاش بيتحصّل</b> ويتحوّل في مواعيدك", strip4: "<b>عربي وإنجليزي</b> ليك ولعملائك",
+  svcEyebrow: "بنعمل إيه", svcTitle: "كل حاجة بعد ما العميل يدوس اشتري",
+  svcLead: "إنت بتبيع. واحنا بنخزّن ونحرّك ونوصّل ونرجّع لك فلوسك، مع لوحة واحدة بتوريك كل طلب وكل جنيه.",
+  f1t: "توصيل في ٦٠ دقيقة", f1p: "عميلك بيختار توصيل ٦٠ دقيقة وهو بيدفع. أقرب مخزن بيجهّز الطلب بالباركود ويغلّفه بصورة ويسلّمه للمندوب، والعميل بيتابع المندوب على الخريطة.", minShort: " دقيقة",
+  f2t: "تخزين في مخازن قريبة", f2p: "ابعت لنا بضاعتك مرة واحدة. بنعدّها ونرصّها بالباركود ونملأ كل مخزن قبل ما يخلص.",
+  f3t: "الدفع عند الاستلام", f3p: "المندوب بيحصّل المبلغ بالظبط. كل جنيه بيتعدّ في المخزن ويتحوّل لبنكك يوميًا أو مرتين في الأسبوع أو أسبوعيًا.",
+  f4t: "ربط مع Shopify", f4p: "المخزون، وسعر توصيل ٦٠ دقيقة في صفحة الدفع، واختيار المنطقة في متجرك، ولينكات التتبع، كله من تطبيق واحد.",
+  f5t: "المرتجعات والمحاولة التانية", f5p: "الطلبات اللي متسلّمتش بترجع المخزن وتطلع تاني. ولو عايز بضاعتك ترجع لك، بنجهّزها ونسلّمها.",
+  f6t: "أرقامك في مكان واحد", f6p: "الطلبات، والمخزون في كل مخزن، والمحفظة، وكشوف الحساب، والفواتير الضريبية في لوحة التاجر، بالعربي أو بالإنجليزي.",
+  howEyebrow: "إزاي بنشتغل", howTitle: "من مخزنك لحسابك في البنك",
+  h1w: "مرة واحدة", h1t: "اربط متجرك", h1p: "سجّل، واربط Shopify، وحدد سعر توصيل ٦٠ دقيقة.",
+  h2w: "كل ما تزوّد البضاعة", h2t: "ابعت لنا البضاعة", h2p: "احجز شحنة، واحنا بنستلمها ونراجع كل قطعة على قايمتك.",
+  h3w: "كل ليلة", h3t: "بنحطها جنب المشترين", h3p: "كل مخزن بيتملي على قد اللي منطقته بتشتريه.",
+  h4w: "كل طلب", h4t: "بنوصّل في ٦٠ دقيقة", h4p: "تجهيز وتغليف وتوصيل، والكاش بيرجع مع المندوب.",
+  h5w: "في مواعيدك", h5t: "بتستلم فلوسك", h5p: "تحويل بنكي مع كشف بكل طلب وكل رسوم.",
+  mEyebrow: "الكاش والتحويلات", mTitle: "فلوسك بتتعدّ مرتين وبتشوفها بالجنيه",
+  m1: "كل طلب كاش بيتراجع على اللي المندوب سلّمه في المخزن.", m2: "إنت بتختار التحويل يومي أو مرتين في الأسبوع أو أسبوعي.",
+  m3: "كل تحويل معاه كشف حساب، وكل شهر فاتورة ضريبية.", m4: "شخصين بيوافقوا على كل تحويل قبل ما يخرج من البنك.",
+  wLbl: "رصيدك المستحق", wNext: "التحويل الجاي يوم الأحد على CIB ···4417",
+  w1: "كاش اتحصّل، ٤١ طلب", w2: "رسوم التوصيل", w3: "رسوم تحصيل الكاش", w4: "تخزين، ١٬١٤٠ قطعة", sample2: "أرقام للتوضيح",
+  aEyebrow: "بنوصّل فين", aTitle: "شغالين في القاهرة الكبرى، ومنطقة ورا منطقة",
+  aLead: "كل مخزن بيخدم الأحياء اللي حواليه. عملاؤك بيختاروا منطقتهم في متجرك، ومش بيشوفوا توصيل ٦٠ دقيقة غير لو نقدر نلتزم بيه.",
+  a1: "القاهرة الجديدة", a1p: "التجمع الخامس والرحاب ومدينتي وما حولها",
+  a2: "المعادي", a2p: "المعادي ودجلة وزهراء المعادي وما حولها",
+  a3: "الزمالك", a3p: "الزمالك وجاردن سيتي ووسط البلد وما حولها",
+  a4: "مركز الفرز", a4p: "هنا بتوصل شحناتك ومنه بيتملي كل مخزن", live: "بنوصّل دلوقتي", hubState: "بيستلم بضاعتك",
+  shEyebrow: "معمول لـ Shopify", shTitle: "متجرك بيفضل شغال زي ما هو النهارده",
+  sh1t: "مخزون حقيقي في كل مكان", sh1p: "اللي في كل مخزن بيظهر في Shopify في أقل من دقيقة، فعمرك ما هتبيع حاجة مش موجودة.",
+  sh2t: "سعر ٦٠ دقيقة في صفحة الدفع", sh2p: "بيظهر بس لما العنوان يكون في منطقتنا، والمخزن فاتح، وكل القطع موجودة.",
+  sh3t: "تتبع عملاؤك يثقوا فيه", sh3p: "بيوصلهم لينك فيه المندوب على الخريطة، وكود الاستلام، وتقييم بضغطة.",
+  qEyebrow: "أسئلة التجار", qTitle: "قبل ما تبعت لنا أول كرتونة",
+  q1: "التكلفة كام؟", q1a: "رسوم على كل طلب اتسلّم، ونسبة صغيرة من الكاش المحصّل، وتخزين بالقطعة. من غير رسوم تأسيس. بنتفق على أسعارك قبل ما تبدأ، وكل رسوم بتظهر في كشف حسابك.",
+  q2: "لو قطعة مش موجودة في المخزن؟", q2a: "توصيل ٦٠ دقيقة مش بيظهر للعميل ده في صفحة الدفع، فعمره ما يتوعد بحاجة مش هنقدر نوصّلها.",
+  q3: "لو العميل مردّش؟", q3a: "المندوب بيتصل ويصوّر عند الباب ويرجّع الطلب. بنحاول تاني أو نرجّعه لك، زي ما تختار.",
+  q4: "مين بيحدد سعر التوصيل اللي عميلي بيدفعه؟", q4a: "إنت. سعر ٦٠ دقيقة بتاعك والفلوس بتفضل معاك.",
+  q5: "لازم يكون عندي Shopify؟", q5a: "Shopify بيديك الربط الكامل. وتقدر كمان تعمل طلبات بإيدك من لوحتك.",
+  cTitle: "خلّي عملاؤك يستلموا طلبهم النهارده، مش الأسبوع الجاي", cLead: "احكي لنا عن متجرك. بنرد في يوم عمل واحد بأسعارك وميعاد البداية.",
+  fName: "اسمك", fPhone: "الموبايل", fStore: "موقع المتجر", fOrders: "طلبات في الشهر في القاهرة",
+  o1: "أقل من ٣٠٠", o2: "من ٣٠٠ لـ ١٬٠٠٠", o3: "من ١٬٠٠٠ لـ ٥٬٠٠٠", o4: "أكتر من ٥٬٠٠٠",
+  fSend: "ابعت لي أسعاري", fDone: "شكرًا. في الموقع الحقيقي الرسالة دي بتروح لفريق المبيعات.",
+  fSignIn: "دخول التجار", copy: "© ٢٠٢٦ شيبلي. القاهرة، مصر.", flag: "معاينة التصميم", navQuality: "الجودة",
+  stMin: "دقيقة", st1: "وعد التوصيل، من الطلب للباب", st2: "اتسلّم من أول محاولة", st3: "اتسلّم في الميعاد", st4: "متوسط تقييم العملاء",
+  qlEyebrow: "متراجع في كل خطوة", qlTitle: "القطعة الصح، بحالة ممتازة، للشخص الصح",
+  qlLead: "السرعة ملهاش لازمة لو حاجة غلطت. كل طلب بيعدّي على ٤ مراجعات قبل ما يوصل لإيد العميل.",
+  q1t: "بيتجهّز بالباركود", q1p: "الموظف بيعمل سكان لكل قطعة. المنتج أو المقاس الغلط مش ممكن يطلع من الرف.",
+  q2t: "بيتغلّف قدام الكاميرا", q2p: "بنحتفظ بصورة لكل طلب متغلّف، فتقدر تشوف بالظبط إيه اللي خرج.",
+  q3t: "بيتسلّم بإثبات", q3p: "العميل بيدي كود من ٤ أرقام، أو المندوب بيصوّر عند الباب.",
+  q4t: "الكاش بيتعدّ مرتين", q4p: "المندوب بيسجّل اللي حصّله، والمخزن بيعدّه تاني.",
+  phT: "طلبك في الطريق", phEta: "هيوصل في حوالي ١٢ دقيقة", phRider: "المندوب", phCode: "كود الاستلام", phCash: "الكاش المطلوب", phCashV: "موجود في اللينك بتاعك",
+  phRate: "إيه رأيك في التوصيل؟", sample3: "صفحة تتبع للتوضيح",
+  cuEyebrow: "عميلك بيشوف إيه", cuTitle: "توصيل عملاؤك هيحكوا عنه لصحابهم",
+  cu1: "خريطة مباشرة للمندوب من المخزن لحد الباب.", cu2: "حالة واضحة في كل خطوة: اتغلّف، في الطريق، اتسلّم.",
+  cu3: "كود خاص عشان محدش غيره ياخد الطرد.", cu4: "تقييم بضغطة، فتعرف رأيهم في كل توصيلة.",
+  pLbl: "إنت بتختار إمتى تستلم فلوسك", p1: "يومي", p1s: "كل يوم عمل", p2: "مرتين في الأسبوع", p2s: "الأحد والأربع", p3: "أسبوعي", p3s: "كل أحد",
+  d1: "تحويل بنكي", d2: "كشف بكل طلب", d3: "فاتورة ضريبية شهرية",
+  spEyebrow: "ليه ٦٠ دقيقة", spTitle: "توصيل بكرة كان سريع زمان",
+  spLead: "الناس بتشتري على المزاج، وبكرة الحماس بيقل. لما الطلب يوصل وهما لسه عايزينه، الإلغاء بيقل، والرفض على الباب بيقل، وبيرجعوا يطلبوا تاني.",
+  r1: "شركة الشحن العادية", r1s: "من يوم لـ ٣ أيام", r2: "شيبلي", r2s: "في أقل من ٦٠ دقيقة",
+  w1t: "رفض أقل", w1p: "العميل في البيت ولسه متحمس لما المندوب يرن الجرس.",
+  w2t: "طلبات متكررة أكتر", w2p: "السرعة بتبقى السبب إنه يشتري منك مش من المحل التاني.",
+  w3t: "براند حاسس إنه قريب", w3p: "متجرك الأونلاين بيوصّل زي الصيدلية اللي تحت البيت."
+};
+const EN = {};
+document.querySelectorAll("[data-t]").forEach(el => { if (!(el.dataset.t in EN)) EN[el.dataset.t] = el.innerHTML; });
+let lang = "en";
+const btn = document.getElementById("lang");
+function apply(next) {
+  lang = next;
+  const dict = lang === "ar" ? AR : EN;
+  document.querySelectorAll("[data-t]").forEach(el => { const v = dict[el.dataset.t]; if (v != null) el.innerHTML = v; });
+  document.documentElement.lang = lang;
+  document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+  document.body.classList.toggle("ar", lang === "ar");
+  btn.textContent = lang === "ar" ? "English" : "العربية";
+  try { localStorage.setItem("shiply-site-lang", lang); } catch (e) {}
+}
+btn.addEventListener("click", () => apply(lang === "ar" ? "en" : "ar"));
+try { if (localStorage.getItem("shiply-site-lang") === "ar") apply("ar"); } catch (e) {}
+
+document.getElementById("form").addEventListener("submit", e => {
+  e.preventDefault();
+  document.getElementById("done").hidden = false;
+});
+
+// The ticket replays the order once: the minutes count up and each step lights in turn, ending at delivered.
+(function () {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  const steps = [...document.querySelectorAll("#steps li")];
+  const marks = [0, 7, 11, 15, 47];
+  const mins = document.getElementById("mins");
+  const bar = document.getElementById("bar");
+  const digits = n => lang === "ar" ? String(n).replace(/\d/g, d => "٠١٢٣٤٥٦٧٨٩"[d]) : String(n);
+  let m = 0;
+  function paint() {
+    mins.textContent = digits(m);
+    bar.style.width = Math.round((m / 60) * 100) + "%";
+    steps.forEach((li, i) => {
+      li.classList.toggle("done", m > marks[i] || (i < 4 && m >= marks[i + 1]));
+      li.classList.toggle("now", m >= marks[i] && (i === 4 || m < marks[i + 1]));
+    });
+  }
+  let t;
+  setTimeout(() => { paint(); t = setInterval(() => { m += 1; paint(); if (m >= 47) { clearInterval(t); steps.forEach((li, i) => { li.classList.toggle("done", i < 4); li.classList.toggle("now", i === 4); }); } }, 70); }, 900);
+})();
+</script>
