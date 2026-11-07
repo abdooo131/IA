@@ -48,6 +48,14 @@ export const payoutPaidSchema = z.object({
   /** Which bank; empty uses the main bank (CIB, 1101) */
   bankAccountId: id.optional(),
 });
+/** The Pay merchants run: several payouts marked paid with one bank reference and day. */
+export const payoutsMarkPaidSchema = z.object({
+  ids: z.array(id).min(1).max(200),
+  reference: z.string().trim().min(2).max(100),
+  /** The Cairo day the transfer went out; empty is now */
+  day: day.optional(),
+  bankAccountId: id.optional(),
+});
 export const payoutCancelSchema = z.object({ note: z.string().trim().min(3).max(300) });
 
 export const merchantReceiptSchema = z.object({

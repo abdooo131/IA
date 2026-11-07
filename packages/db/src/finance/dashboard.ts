@@ -215,7 +215,7 @@ export async function financeDashboard(
           key: 'payoutsDueToday',
           count: dueToday.length,
           amountPiastres: dueToday.reduce((s, m) => s + m.owedPiastres, 0),
-          href: '/finance/payouts',
+          href: '/finance/payouts/run',
         },
         {
           key: 'drafts',
@@ -233,6 +233,7 @@ export async function financeDashboard(
           : []),
       ],
       actions: [
+        { key: 'payMerchants', href: '/finance/payouts/run' },
         { key: 'preparePayouts', href: '/finance/payouts' },
         { key: 'wallets', href: '/finance/merchants' },
       ],
@@ -426,7 +427,7 @@ export async function financeDashboard(
             key: 'payoutsDueToday',
             count: dueToday.length,
             amountPiastres: dueToday.reduce((s, m) => s + m.owedPiastres, 0),
-            href: '/finance/payouts',
+            href: '/finance/payouts/run',
           },
         ]
       : []),

@@ -4,8 +4,14 @@ import {
   addDays,
   cairoDay,
   cairoDayStart,
+  entryNumber,
   isCalendarDay,
+  MATCH_WINDOW_DAYS,
+  type MatchSuggestion,
+  rankSuggestions,
   type StatementLineInput,
+  statementNumber,
+  sumMatches,
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
@@ -131,7 +137,12 @@ export async function importStatement(
 /** Ledger lines of a bank account that no bank line proves yet. */
 async function openLedgerLines(tx: Tx | Db, accountId: string, from?: Date) {
   return tx.ledgerLine.findMany({
-    where: { accountId, bankLine: null, ...(from ? { occurredAt: { gte: from } } : {}) },
+    where: {
+      accountId,
+      bankLine: null,
+      bankMatch: null,
+      ...(from ? { occurredAt: { gte: from } } : {}),
+    },
     include: { entry: { select: { number: true, kind: true, memo: true } } },
     orderBy: { occurredAt: 'asc' },
   });
@@ -183,34 +194,64 @@ export function matchBankLine(
   db: Db,
   input: { bankLineId: string; ledgerLineId: string; actorUserId: string },
 ) {
+  return matchBankLines(db, {
+    bankLineId: input.bankLineId,
+    ledgerLineIds: [input.ledgerLineId],
+    actorUserId: input.actorUserId,
+  });
+}
+
+/**
+ * A person matches a bank line to one ledger line, or to several that add up to exactly its
+ * amount (a deposit of several handovers): all of the same bank account and not proving any
+ * other bank line. Matching never creates an entry, so no money is made up from a statement.
+ */
+export function matchBankLines(
+  db: Db,
+  input: { bankLineId: string; ledgerLineIds: string[]; actorUserId: string },
+) {
+  const ids = [...new Set(input.ledgerLineIds)];
+  if (ids.length === 0) throw new DomainError('ledger_line_not_found', 404);
   return inTransaction(db, async (tx) => {
+    await tx.$queryRaw`SELECT id FROM bank_statement_lines WHERE id = ${input.bankLineId} FOR UPDATE`;
     const line = await tx.bankStatementLine.findUnique({ where: { id: input.bankLineId } });
     if (!line) throw new DomainError('bank_line_not_found', 404);
     if (line.status !== 'unmatched') throw new DomainError('bank_line_not_open');
-    const ledger = await tx.ledgerLine.findUnique({
-      where: { id: input.ledgerLineId },
-      include: { bankLine: true },
+    const ledger = await tx.ledgerLine.findMany({
+      where: { id: { in: ids } },
+      include: { bankLine: true, bankMatch: true },
     });
-    if (!ledger || ledger.accountId !== line.accountId)
+    if (ledger.length !== ids.length || ledger.some((l) => l.accountId !== line.accountId))
       throw new DomainError('ledger_line_not_found', 404);
-    if (ledger.bankLine) throw new DomainError('ledger_line_matched');
-    if (ledger.amountPiastres !== line.amountPiastres) throw new DomainError('amounts_differ');
+    if (ledger.some((l) => l.bankLine || l.bankMatch)) throw new DomainError('ledger_line_matched');
+    if (!sumMatches(line.amountPiastres, ledger.map((l) => l.amountPiastres)))
+      throw new DomainError('amounts_differ');
+    // The first line in the order given stays on the bank line; the others are kept apart.
+    const [first, ...rest] = ids;
     const after = await tx.bankStatementLine.update({
       where: { id: line.id },
       data: {
         status: 'matched',
-        ledgerLineId: ledger.id,
+        ledgerLineId: first,
         decidedById: input.actorUserId,
         decidedAt: new Date(),
       },
     });
+    if (rest.length)
+      await tx.bankLineMatch.createMany({
+        data: rest.map((ledgerLineId) => ({ bankLineId: line.id, ledgerLineId })),
+      });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.bank_match',
       entityType: 'bank_statement_line',
       entityId: line.id,
       before: { status: line.status },
-      after: { status: 'matched', ledgerLineId: ledger.id },
+      after: {
+        status: 'matched',
+        ledgerLineId: first,
+        ...(rest.length ? { ledgerLineIds: ids } : {}),
+      },
     });
     return after;
   });
@@ -222,6 +263,8 @@ export function reopenBankLine(db: Db, input: { bankLineId: string; actorUserId:
     const line = await tx.bankStatementLine.findUnique({ where: { id: input.bankLineId } });
     if (!line) throw new DomainError('bank_line_not_found', 404);
     if (line.status === 'unmatched') return line;
+    const extra = await tx.bankLineMatch.findMany({ where: { bankLineId: line.id } });
+    await tx.bankLineMatch.deleteMany({ where: { bankLineId: line.id } });
     const after = await tx.bankStatementLine.update({
       where: { id: line.id },
       data: {
@@ -237,7 +280,12 @@ export function reopenBankLine(db: Db, input: { bankLineId: string; actorUserId:
       action: 'finance.bank_reopen',
       entityType: 'bank_statement_line',
       entityId: line.id,
-      before: { status: line.status, ledgerLineId: line.ledgerLineId, note: line.note },
+      before: {
+        status: line.status,
+        ledgerLineId: line.ledgerLineId,
+        note: line.note,
+        ...(extra.length ? { extraLedgerLineIds: extra.map((e) => e.ledgerLineId) } : {}),
+      },
       after: { status: 'unmatched' },
     });
     return after;
@@ -408,5 +456,124 @@ export async function reconciliation(db: Db, input: { accountId: string; day?: s
       at: l.occurredAt,
       amountPiastres: l.amountPiastres,
     })),
+  };
+}
+
+// ─── the bank matching screen ──────────────────────────────────────────────────
+
+export interface MatchingOpenLine {
+  id: string;
+  entryId: string;
+  entryNumber: string;
+  kind: string;
+  memo: string | null;
+  day: string;
+  at: Date;
+  amountPiastres: number;
+}
+
+/**
+ * The bank matching screen of one bank account: its statements with how far each is matched,
+ * the bank lines still open (newest first, by month and typed search) each with its ranked
+ * suggestions, and the open ledger lines around them to pick from by hand.
+ */
+export async function bankMatching(
+  db: Db,
+  input: { accountId: string; statementId?: string; month?: string; q?: string },
+) {
+  const account = await bankAccount(db, input.accountId);
+  await autoMatch(db, account.id);
+  const statements = await db.bankStatement.findMany({
+    where: { accountId: account.id },
+    orderBy: { number: 'desc' },
+    take: 50,
+  });
+  const counts = statements.length
+    ? await db.bankStatementLine.groupBy({
+        by: ['statementId', 'status'],
+        where: { statementId: { in: statements.map((s) => s.id) } },
+        _count: { _all: true },
+      })
+    : [];
+  const progressOf = (id: string) => {
+    const of = counts.filter((c) => c.statementId === id);
+    const total = of.reduce((s, c) => s + c._count._all, 0);
+    const done = of.filter((c) => c.status !== 'unmatched').reduce((s, c) => s + c._count._all, 0);
+    return { total, done };
+  };
+  const chosen = statements.find((s) => s.id === input.statementId) ?? statements[0] ?? null;
+  const month = input.month && /^\d{4}-\d{2}$/.test(input.month) ? input.month : null;
+  const open = await db.bankStatementLine.findMany({
+    where: {
+      accountId: account.id,
+      status: 'unmatched',
+      ...(month
+        ? {
+            day: {
+              gte: new Date(`${month}-01T00:00:00Z`),
+              lt: new Date(`${addDays(`${month}-28`, 7).slice(0, 7)}-01T00:00:00Z`),
+            },
+          }
+        : {}),
+    },
+    orderBy: [{ day: 'desc' }, { lineNo: 'desc' }],
+    include: { statement: { select: { number: true } } },
+  });
+  const q = (input.q ?? '').trim().toLowerCase();
+  const shown = (
+    q
+      ? open.filter((l) =>
+          [l.description, l.reference ?? '', (l.amountPiastres / 100).toFixed(2), dayText(l.day)]
+            .join(' ')
+            .toLowerCase()
+            .includes(q),
+        )
+      : open
+  ).slice(0, 300);
+  const earliest = shown.length
+    ? cairoDayStart(addDays(dayText(shown[shown.length - 1]!.day), -MATCH_WINDOW_DAYS - 30))
+    : null;
+  const ledger = earliest ? await openLedgerLines(db, account.id, earliest) : [];
+  const openLines: MatchingOpenLine[] = ledger.map((l) => ({
+    id: l.id,
+    entryId: l.entryId,
+    entryNumber: entryNumber(l.entry.number),
+    kind: l.entry.kind,
+    memo: l.entry.memo,
+    day: cairoDay(l.occurredAt),
+    at: l.occurredAt,
+    amountPiastres: l.amountPiastres,
+  }));
+  const forRank = openLines.map((l) => ({ id: l.id, day: l.day, amountPiastres: l.amountPiastres }));
+  const months = [...new Set(open.map((l) => dayText(l.day).slice(0, 7)))].sort().reverse();
+  return {
+    account: { id: account.id, code: account.code, nameEn: account.nameEn, nameAr: account.nameAr },
+    statements: statements.map((s) => ({
+      id: s.id,
+      number: statementNumber(s.number),
+      fileName: s.fileName,
+      fromDay: dayText(s.fromDay),
+      toDay: dayText(s.toDay),
+      ...progressOf(s.id),
+    })),
+    statement: chosen
+      ? { id: chosen.id, number: statementNumber(chosen.number), ...progressOf(chosen.id) }
+      : null,
+    months,
+    openCount: open.length,
+    lines: shown.map((l) => ({
+      id: l.id,
+      statement: statementNumber(l.statement.number),
+      lineNo: l.lineNo,
+      day: dayText(l.day),
+      description: l.description,
+      reference: l.reference,
+      amountPiastres: l.amountPiastres,
+      suggestions: rankSuggestions(
+        { day: dayText(l.day), amountPiastres: l.amountPiastres },
+        forRank,
+      ) as MatchSuggestion[],
+    })),
+    openLines,
   };
 }

@@ -11,7 +11,7 @@ import {
   markPayoutPaid,
   merchantOwed,
   merchantStatement,
-  payoutDueOn,
+  prepareDuePayouts,
   recordAudit,
   recordBankDeposit,
   attachReceipt,
@@ -24,7 +24,6 @@ import {
   type AccessTokenClaims,
   addDays,
   bankDepositSchema,
-  cairoClock,
   cairoDay,
   cairoDayStart,
   createPayoutSchema,
@@ -143,28 +142,18 @@ export class FinanceController {
     @Body(new ZodValidationPipe(duePayoutsSchema)) body: z.infer<typeof duePayoutsSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const weekday = cairoClock(this.clock.now()).weekday;
-    const merchants = await this.prisma.merchant.findMany({ where: { isActive: true } });
-    const created: { merchantId: string; amountPiastres: number }[] = [];
-    const skipped: { merchantId: string; reason: string }[] = [];
-    for (const m of merchants) {
-      if (!payoutDueOn(m.payoutSchedule, weekday)) {
-        skipped.push({ merchantId: m.id, reason: 'not_due_today' });
-        continue;
-      }
-      try {
-        const p = await createPayout(this.prisma, {
-          merchantId: m.id,
-          cutoffAt: endOfDay(body.cutoffDay),
-          actorUserId: user.sub,
-        });
-        created.push({ merchantId: m.id, amountPiastres: p.amountPiastres });
-      } catch (error) {
-        if (error instanceof DomainError) skipped.push({ merchantId: m.id, reason: error.code });
-        else throw error;
-      }
-    }
-    return { created, skipped };
+    const result = await prepareDuePayouts(this.prisma, {
+      cutoffDay: body.cutoffDay,
+      actorUserId: user.sub,
+      now: this.clock.now(),
+    });
+    return {
+      created: result.created.map((c) => ({
+        merchantId: c.merchantId,
+        amountPiastres: c.amountPiastres,
+      })),
+      skipped: result.skipped,
+    };
   }
 
   @Post('payouts/:id/paid')

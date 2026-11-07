@@ -1512,6 +1512,8 @@ model LedgerLine {
   rider     Rider?             @relation(fields: [riderId], references: [id], onDelete: Restrict)
   user      User?              @relation("ledger_line_user", fields: [userId], references: [id], onDelete: Restrict)
   bankLine  BankStatementLine?
+  /// Part of a bank line proven by several ledger lines
+  bankMatch BankLineMatch?
 
   @@index([accountId, occurredAt])
   @@index([darkStoreId, occurredAt])
@@ -2537,14 +2539,31 @@ model BankStatementLine {
   decidedById     String?        @map("decided_by_id")
   decidedAt       DateTime?      @map("decided_at")
 
-  statement  BankStatement @relation(fields: [statementId], references: [id], onDelete: Restrict)
-  account    LedgerAccount @relation("bank_line_account", fields: [accountId], references: [id], onDelete: Restrict)
-  ledgerLine LedgerLine?   @relation(fields: [ledgerLineId], references: [id], onDelete: Restrict)
-  decidedBy  User?         @relation("bank_line_decided_by", fields: [decidedById], references: [id])
+  statement    BankStatement   @relation(fields: [statementId], references: [id], onDelete: Restrict)
+  account      LedgerAccount   @relation("bank_line_account", fields: [accountId], references: [id], onDelete: Restrict)
+  ledgerLine   LedgerLine?     @relation(fields: [ledgerLineId], references: [id], onDelete: Restrict)
+  decidedBy    User?           @relation("bank_line_decided_by", fields: [decidedById], references: [id])
+  /// The other ledger lines when several lines add up to this bank line (the first is ledgerLineId)
+  extraMatches BankLineMatch[]
 
   @@unique([accountId, fingerprint])
   @@index([accountId, status, day])
   @@map("bank_statement_lines")
+}
+
+/// A further ledger line proving a bank line, when several ledger lines add up to it exactly
+/// (a deposit of several handovers). The first ledger line stays on bank_statement_lines.
+model BankLineMatch {
+  id           String   @id @default(cuid())
+  bankLineId   String   @map("bank_line_id")
+  ledgerLineId String   @unique @map("ledger_line_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  bankLine   BankStatementLine @relation(fields: [bankLineId], references: [id], onDelete: Cascade)
+  ledgerLine LedgerLine        @relation(fields: [ledgerLineId], references: [id], onDelete: Restrict)
+
+  @@index([bankLineId])
+  @@map("bank_line_matches")
 }
 
 /// What we plan to earn or spend per account and month, for a store or company wide.

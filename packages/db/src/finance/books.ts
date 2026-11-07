@@ -50,7 +50,7 @@ const LOCKED_KEYS = new Set([
   'cheques_payable',
 ]);
 
-const isWallet = (
+export const isWallet = (
   a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId' | 'supplierId'>,
 ) => a.merchantId != null || a.riderId != null || a.darkStoreId != null || a.supplierId != null;
 
@@ -72,7 +72,7 @@ export function eventTime(day: string | undefined, now: Date = new Date()) {
 // ─── chart of accounts ─────────────────────────────────────────────────────────
 
 /** Names for accounts that belong to a merchant, rider or store, in both languages. */
-async function ownerNames(db: Db) {
+export async function ownerNames(db: Db) {
   const [merchants, riders, stores, suppliers, users] = await Promise.all([
     db.merchant.findMany({ select: { id: true, name: true } }),
     db.rider.findMany({ select: { id: true, badgeCode: true, user: { select: { name: true } } } }),
@@ -120,7 +120,7 @@ async function ownerNames(db: Db) {
 }
 
 /** The balance as an accountant reads it: assets and expenses debit, the rest credit. */
-const natural = (category: LedgerAccount['category'], raw: number) =>
+export const natural = (category: LedgerAccount['category'], raw: number) =>
   debitNormal(category) ? raw : 0 - raw;
 
 /** Every account with its code, name, group and balance, in code order. */
@@ -642,8 +642,22 @@ export async function accountStatement(db: Db, accountId: string, from: Date, to
   };
 }
 
+/** Only the lines tagged with a store and/or a merchant (reports' filters); none is all lines. */
+export interface LineTags {
+  darkStoreId?: string | null;
+  merchantId?: string | null;
+}
+
 /** Sums of each account's lines in a period (both bounds optional). */
-async function sumsByAccount(db: Db, from?: Date, to?: Date, withoutYearClose = false) {
+async function sumsByAccount(
+  db: Db,
+  from?: Date,
+  to?: Date,
+  withoutYearClose = false,
+  tags: LineTags = {},
+) {
+  const store = tags.darkStoreId ?? null;
+  const merchant = tags.merchantId ?? null;
   const rows = await db.$queryRaw<{ account_id: string; debit: bigint; credit: bigint }[]>`
     SELECT l.account_id,
       COALESCE(SUM(CASE WHEN l.amount_piastres > 0 THEN l.amount_piastres END), 0) AS debit,
@@ -652,6 +666,8 @@ async function sumsByAccount(db: Db, from?: Date, to?: Date, withoutYearClose = 
     WHERE (${from ?? null}::timestamptz IS NULL OR l.occurred_at >= ${from ?? null}::timestamptz)
       AND (${to ?? null}::timestamptz IS NULL OR l.occurred_at < ${to ?? null}::timestamptz)
       AND (${withoutYearClose} = false OR e.kind <> 'year_close')
+      AND (${store}::text IS NULL OR l.dark_store_id = ${store}::text)
+      AND (${merchant}::text IS NULL OR l.merchant_id = ${merchant}::text)
     GROUP BY l.account_id`;
   return new Map(
     rows.map((r) => [r.account_id, { debit: Number(r.debit), credit: Number(r.credit) }]),
@@ -659,10 +675,10 @@ async function sumsByAccount(db: Db, from?: Date, to?: Date, withoutYearClose = 
 }
 
 /** Debits and credits of every account in a period; the two totals always match. */
-export async function trialBalance(db: Db, from?: Date, to?: Date) {
+export async function trialBalance(db: Db, from?: Date, to?: Date, tags: LineTags = {}) {
   const [accounts, sums, name] = await Promise.all([
     db.ledgerAccount.findMany({ orderBy: { code: 'asc' } }),
-    sumsByAccount(db, from, to),
+    sumsByAccount(db, from, to, false, tags),
     ownerNames(db),
   ]);
   const rows = accounts
@@ -688,14 +704,14 @@ export async function trialBalance(db: Db, from?: Date, to?: Date) {
 }
 
 /** Income and expenses of a period, per account, and the profit (or loss). */
-export async function profitAndLoss(db: Db, from: Date, to: Date) {
+export async function profitAndLoss(db: Db, from: Date, to: Date, tags: LineTags = {}) {
   const [accounts, sums, name] = await Promise.all([
     db.ledgerAccount.findMany({
       where: { category: { in: ['revenue', 'expense'] } },
       orderBy: { code: 'asc' },
     }),
     // The year end entry moves profit to retained earnings; it is not income or cost.
-    sumsByAccount(db, from, to, true),
+    sumsByAccount(db, from, to, true, tags),
     ownerNames(db),
   ]);
   const line = (a: LedgerAccount) => {
@@ -726,11 +742,11 @@ export async function profitAndLoss(db: Db, from: Date, to: Date) {
  * What the company owns and owes at the end of a Cairo day. Assets equal liabilities plus
  * equity plus the profit made so far (not yet closed into equity).
  */
-export async function balanceSheet(db: Db, day: string) {
+export async function balanceSheet(db: Db, day: string, tags: LineTags = {}) {
   const at = cairoDayStart(addDays(day, 1));
   const [accounts, sums, name] = await Promise.all([
     db.ledgerAccount.findMany({ orderBy: { code: 'asc' } }),
-    sumsByAccount(db, undefined, at),
+    sumsByAccount(db, undefined, at, false, tags),
     ownerNames(db),
   ]);
   const balance = (a: LedgerAccount) => {
@@ -740,6 +756,8 @@ export async function balanceSheet(db: Db, day: string) {
   const section = (category: LedgerAccount['category']) => {
     // Wallets are many; they are shown as one line per group.
     const rows: {
+      /** The account (a single account line; wallet groups have none) */
+      id?: string;
       code: string;
       groupCode: number;
       nameEn: string;
@@ -764,7 +782,13 @@ export async function balanceSheet(db: Db, day: string) {
             wallets: 1,
           });
       } else if (amount !== 0)
-        rows.push({ code: a.code, groupCode: a.groupCode, ...name(a), amountPiastres: amount });
+        rows.push({
+          id: a.id,
+          code: a.code,
+          groupCode: a.groupCode,
+          ...name(a),
+          amountPiastres: amount,
+        });
     }
     return rows;
   };

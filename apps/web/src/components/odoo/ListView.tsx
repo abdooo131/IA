@@ -201,10 +201,13 @@ export function ListView({
 
   const rememberNav = (rows: ListRow[]) => {
     if (!config.rowHref) return;
+    const idKey = config.navIdKey ?? 'id';
     const nav: DocNav = {
       listUrl: `${pathname}?${params.toString()}`,
-      ids: rows.map((r) => r.id),
-      hrefTemplate: config.rowHref,
+      ids: [...new Set(rows.map((r) => String(r[idKey] ?? r.id)))],
+      hrefTemplate: config.rowHref.replace(`{${idKey}}`, '{id}'),
+      ...(config.navTrail ? { trail: config.navTrail } : {}),
+      ...(config.navLabel ? { listLabel: config.navLabel } : {}),
     };
     try {
       window.sessionStorage.setItem(DOC_NAV_KEY, JSON.stringify(nav));
@@ -933,7 +936,7 @@ function GroupList({
     if (!now || g.groups || groupRows[id]) return;
     setLoading(id);
     const query = `${serializeListState({ ...state, page: 1, pageSize: 200 })}&open=${encodeURIComponent(id)}`;
-    const r = await apiGetClient<ListData>(`${config.endpoint}?${query}`);
+    const r = await apiGetClient<ListData>(`${config.endpoint}${joiner(config.endpoint)}${query}`);
     setLoading(null);
     if (r.ok) setGroupRows((rows) => ({ ...rows, [id]: r.data.rows }));
   };
@@ -1114,7 +1117,10 @@ function ColumnChooser({
   );
 }
 
-function download(name: string, blob: Blob) {
+/** An endpoint may carry its own query (a report's account and period). */
+const joiner = (endpoint: string) => (endpoint.includes('?') ? '&' : '?');
+
+export function download(name: string, blob: Blob) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -1143,7 +1149,9 @@ function ExportMenu({
   const ref = useDismiss(open, () => setOpen(false));
   const run = async (format: 'csv' | 'xlsx') => {
     setBusy(true);
-    const r = await apiGetClient<ListData>(`${config.endpoint}?${serializeListState(state)}&all=1`);
+    const r = await apiGetClient<ListData>(
+      `${config.endpoint}${joiner(config.endpoint)}${serializeListState(state)}&all=1`,
+    );
     setBusy(false);
     setOpen(false);
     if (!r.ok) return;

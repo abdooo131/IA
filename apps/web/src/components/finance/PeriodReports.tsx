@@ -9,6 +9,7 @@ import {
   statementNumber,
 } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
 import { DateInput } from '@/components/DateInput';
@@ -388,10 +389,13 @@ export function BankReconcile({
   banks,
   rec,
   statements,
+  matching,
 }: {
   banks: BookAccount[];
   rec: BankReconciliation | null;
   statements: BankStatementRow[];
+  /** The bank matching screen, shown instead of the plain list of bank lines */
+  matching?: ReactNode;
 }) {
   const t = useTranslations('finance.period');
   const tf = useTranslations('finance');
@@ -445,6 +449,7 @@ export function BankReconcile({
             </Stat>
           </div>
 
+          {matching ?? (
           <section className="space-y-2">
             <h2 className="text-h3">{t('bankOnly', { count: rec.bankOnly.length })}</h2>
             <p className="text-caption text-text-muted">{t('bankOnlyHint')}</p>
@@ -467,9 +472,10 @@ export function BankReconcile({
               </Table>
             )}
           </section>
+          )}
 
-          <section className="space-y-2">
-            <h2 className="text-h3">{t('booksOnly', { count: rec.booksOnly.length })}</h2>
+          <details className="space-y-2 rounded-lg border border-line bg-surface p-3" open={!matching}>
+            <summary className="cursor-pointer text-h3">{t('booksOnly', { count: rec.booksOnly.length })}</summary>
             <p className="text-caption text-text-muted">
               {rec.checkedSince
                 ? t('booksOnlyHint', { since: rec.checkedSince })
@@ -502,7 +508,7 @@ export function BankReconcile({
                 ))}
               </Table>
             )}
-          </section>
+          </details>
         </>
       )}
 
@@ -770,17 +776,18 @@ export function Budgets({ report, stores }: { report: BudgetReport; stores: Stor
 export function CashFlowView({
   flow,
   forecast,
-  from,
-  to,
+  linesQuery,
+  filters,
 }: {
   flow: CashFlowReport;
   forecast: CashForecast;
-  from: string;
-  to: string;
+  /** The period and store as a query, for the ledger lines each kind opens */
+  linesQuery: string;
+  /** The period and store filters */
+  filters?: ReactNode;
 }) {
   const t = useTranslations('finance.period');
   const tf = useTranslations('finance');
-  const [range, setRange] = useState({ from, to });
   return (
     <div className="mt-4 space-y-8">
       <section className="space-y-3">
@@ -838,28 +845,7 @@ export function CashFlowView({
 
       <section className="space-y-3">
         <h2 className="text-h3">{t('cashFlow')}</h2>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="text-caption">
-            {tf('from')}
-            <DateInput
-              value={range.from}
-              onChange={(e) => setRange({ ...range, from: e.target.value })}
-            />
-          </label>
-          <label className="text-caption">
-            {tf('to')}
-            <DateInput
-              value={range.to}
-              onChange={(e) => setRange({ ...range, to: e.target.value })}
-            />
-          </label>
-          <a
-            href={`?${new URLSearchParams(range)}`}
-            className={`${secondary} inline-flex items-center`}
-          >
-            {tf('apply')}
-          </a>
-        </div>
+        {filters}
         <div className="grid gap-4 sm:grid-cols-2">
           <Stat label={t('opening')}>
             <Amount piastres={flow.openingPiastres} />
@@ -886,7 +872,12 @@ export function CashFlowView({
                 {s.rows.map((r) => (
                   <tr key={r.kind} className="border-t border-line">
                     <td className={td}>
-                      {tf.has(`kinds.${r.kind}`) ? tf(`kinds.${r.kind}`) : r.kind}
+                      <Link
+                        href={`/finance/reports/lines?set=money&kind=${r.kind}&${linesQuery}`}
+                        className="text-link hover:underline"
+                      >
+                        {tf.has(`kinds.${r.kind}`) ? tf(`kinds.${r.kind}`) : r.kind}
+                      </Link>
                     </td>
                     <td className={`${td} text-end`}>
                       <Amount piastres={r.inPiastres} />

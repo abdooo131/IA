@@ -6,6 +6,7 @@ import { payoutNeedsApproval } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
 import { queuePayoutEmails } from '../email';
 import { payoutMinimumFor } from './contracts';
+import { eventTime } from './books';
 import { cairoDay } from '@shiplynow/shared';
 import { chargeShortageToRider } from './rider-wallet';
 
@@ -281,7 +282,14 @@ export function createPayout(
 /** Finance sent the bank transfer: the merchant's balance drops by the amount paid. */
 export function markPayoutPaid(
   db: Db,
-  input: { payoutId: string; reference: string; bankAccountId?: string; actorUserId: string },
+  input: {
+    payoutId: string;
+    reference: string;
+    bankAccountId?: string;
+    /** The Cairo day the transfer went out (a past day is booked at its noon); empty is now */
+    day?: string;
+    actorUserId: string;
+  },
 ) {
   return inTransaction(db, async (tx) => {
     const bank = await bankAccount(tx, input.bankAccountId);
@@ -291,7 +299,7 @@ export function markPayoutPaid(
     // From the approval limit, a second person must have approved it first.
     if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
       throw new DomainError('approval_needed');
-    const now = new Date();
+    const now = eventTime(input.day);
     const updated = await tx.payout.updateMany({
       where: { id: payout.id, status: 'draft' },
       data: {

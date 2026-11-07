@@ -44,6 +44,12 @@ export interface ListViewConfig {
   defaultFilters: string[];
   /** File name of exports, without extension */
   exportName: string;
+  /** The row field a document page is opened by (default id), for previous and next */
+  navIdKey?: string;
+  /** Breadcrumbs before this list on the documents opened from it (a report) */
+  navTrail?: { label: string; href: string }[];
+  /** This list's name in those breadcrumbs */
+  navLabel?: string;
 }
 
 export type ListRow = Record<string, unknown> & { id: string };
@@ -61,8 +67,13 @@ export function withListState(current: string, listQuery: string): string {
   return next.toString();
 }
 
+/** A row's page: {id} or any other {field} of the row is filled in. */
 export function rowHrefOf(template: string | undefined, row: { id: string }) {
-  return template ? template.replace('{id}', encodeURIComponent(row.id)) : null;
+  if (!template) return null;
+  const values = row as unknown as Record<string, unknown>;
+  return template.replace(/\{(\w+)\}/g, (_, k: string) =>
+    encodeURIComponent(String(values[k] ?? '')),
+  );
 }
 
 const day = (v: string) => v.slice(0, 10);
@@ -126,6 +137,10 @@ export interface DocNav {
   ids: string[];
   /** The document page of a row ({id}) */
   hrefTemplate: string;
+  /** Breadcrumbs before the list (a report the list was opened from) */
+  trail?: { label: string; href: string }[];
+  /** The list's own name in the breadcrumbs, when it is not the document's usual list */
+  listLabel?: string;
 }
 
 /** Where a record sits in the list the person came from, with its neighbours. */

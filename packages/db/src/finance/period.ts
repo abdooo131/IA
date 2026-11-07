@@ -199,16 +199,17 @@ const SECTION: Record<string, 'investing' | 'financing'> = {
   capital_out: 'financing',
 };
 
-async function moneyAt(db: Db, at: Date) {
+async function moneyAt(db: Db, at: Date, store: string | null = null) {
   const [row] = await db.$queryRaw<{ total: bigint | null }[]>`
     SELECT SUM(l.amount_piastres) AS total
     FROM ledger_lines l JOIN ledger_accounts a ON a.id = l.account_id
-    WHERE a.group_code = ANY(${MONEY_GROUPS}) AND l.occurred_at < ${at}`;
+    WHERE a.group_code = ANY(${MONEY_GROUPS}) AND l.occurred_at < ${at}
+      AND (${store}::text IS NULL OR l.dark_store_id = ${store}::text)`;
   return Number(row?.total ?? 0);
 }
 
 /** How money changed per kind of entry between two moments; moves between our own accounts cancel out. */
-async function moneyByKind(db: Db, from: Date, to: Date) {
+async function moneyByKind(db: Db, from: Date, to: Date, store: string | null = null) {
   const rows = await db.$queryRaw<{ kind: string; money_in: bigint; money_out: bigint }[]>`
     WITH per_entry AS (
       SELECT e.kind, SUM(l.amount_piastres) AS net
@@ -217,6 +218,7 @@ async function moneyByKind(db: Db, from: Date, to: Date) {
         JOIN ledger_entries e ON e.id = l.entry_id
       WHERE a.group_code = ANY(${MONEY_GROUPS})
         AND l.occurred_at >= ${from} AND l.occurred_at < ${to}
+        AND (${store}::text IS NULL OR l.dark_store_id = ${store}::text)
       GROUP BY e.id, e.kind
     )
     SELECT kind,
@@ -234,11 +236,15 @@ async function moneyByKind(db: Db, from: Date, to: Date) {
 }
 
 /** Where money came from and went in a period (direct method), by section and entry kind. */
-export async function cashFlow(db: Db, input: { from: Date; to: Date }) {
+export async function cashFlow(
+  db: Db,
+  input: { from: Date; to: Date; /** Only money lines tagged with this store */ darkStoreId?: string },
+) {
+  const store = input.darkStoreId ?? null;
   const [opening, closing, kinds] = await Promise.all([
-    moneyAt(db, input.from),
-    moneyAt(db, input.to),
-    moneyByKind(db, input.from, input.to),
+    moneyAt(db, input.from, store),
+    moneyAt(db, input.to, store),
+    moneyByKind(db, input.from, input.to, store),
   ]);
   const sections = (['operating', 'investing', 'financing'] as const).map((section) => {
     const rows = kinds

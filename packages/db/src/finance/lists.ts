@@ -258,7 +258,7 @@ const bills: ListDef<BillListRow> = {
 
 // ─── journal ────────────────────────────────────────────────────────────────────
 
-const KIND_FAMILIES: Record<string, readonly string[]> = {
+export const KIND_FAMILIES: Record<string, readonly string[]> = {
   deliveries: [
     'cod_collected',
     'order_fee',

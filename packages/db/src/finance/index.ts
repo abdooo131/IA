@@ -126,9 +126,27 @@ export {
   importStatement,
   listStatements,
   matchBankLine,
+  matchBankLines,
+  bankMatching,
+  type MatchingOpenLine,
   reconciliation,
   reopenBankLine,
 } from './bank';
+export {
+  drillReport,
+  type DrillInput,
+  LEDGER_LINES_DEF,
+  type LedgerLineRow,
+  ledgerLinesGaps,
+  ledgerLinesList,
+} from './drill';
+export {
+  markPayoutsPaid,
+  PAY_RUN_STEPS,
+  type PayRunStep,
+  payoutRun,
+  prepareDuePayouts,
+} from './payout-run';
 export {
   budgetVsActual,
   cashFlow,

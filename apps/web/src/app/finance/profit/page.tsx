@@ -1,13 +1,13 @@
 import { cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import { DateInput } from '@/components/DateInput';
 import { Amount } from '@/components/finance/Amount';
+import { ReportFilterBar } from '@/components/finance/reports/ReportFilterBar';
 import { apiGet } from '@/lib/api-server';
 import type { CostPerOrderRow, ProfitRow } from '@/lib/finance-types';
+import { readReportState } from '@/lib/report-view';
 
 export const dynamic = 'force-dynamic';
-const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const DIMENSIONS = ['store', 'merchant', 'rider'] as const;
 type Dimension = (typeof DIMENSIONS)[number];
 
@@ -15,15 +15,19 @@ type Dimension = (typeof DIMENSIONS)[number];
 export default async function FinanceProfitPage({
   searchParams,
 }: {
-  searchParams: Promise<{ by?: string; from?: string; to?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const q = await searchParams;
   const today = cairoDay(new Date());
-  const from = q.from && DAY.test(q.from) ? q.from : `${today.slice(0, 8)}01`;
-  const to = q.to && DAY.test(q.to) ? q.to : today;
+  const state = readReportState(q, today);
+  const { from, to } = state;
   const by: Dimension = DIMENSIONS.find((d) => d === q.by) ?? 'store';
   const range = new URLSearchParams({ from, to });
-  const [profit, costs, t, tf, locale] = await Promise.all([
+  const back = encodeURIComponent(`/finance/profit?by=${by}&${range}`);
+  /** A row opens every income and cost line of its store, merchant or rider. */
+  const linesOf = (id: string | null, dimension: Dimension = by) =>
+    `/finance/reports/lines?set=income_costs&${dimension}=${id ?? 'none'}&${range}&back=${back}`;
+  const [profit, costs, t, locale] = await Promise.all([
     apiGet<{ rows: ProfitRow[]; total: Omit<ProfitRow, 'id' | 'name'> }>(
       `/finance/profit?by=${by}&${range}`,
     ),
@@ -31,10 +35,8 @@ export default async function FinanceProfitPage({
       `/finance/cost-per-order?${range}`,
     ),
     getTranslations('finance.profit'),
-    getTranslations('finance'),
     getLocale(),
   ]);
-  const field = 'mt-1 block h-10 rounded-md border border-line bg-surface px-2 text-body-sm';
   const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
   const td = 'px-3 py-2';
   const money = (v: number | null) => (v === null ? '–' : <Amount piastres={v} />);
@@ -42,23 +44,12 @@ export default async function FinanceProfitPage({
     <>
       <h1 className="text-h2">{t('title')}</h1>
       <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
-      <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
-        <input type="hidden" name="by" value={by} />
-        <label className="text-caption">
-          {tf('from')}
-          <DateInput name="from" defaultValue={from} className={field} />
-        </label>
-        <label className="text-caption">
-          {tf('to')}
-          <DateInput name="to" defaultValue={to} max={today} className={field} />
-        </label>
-        <button
-          type="submit"
-          className="h-10 rounded-md bg-selected-bg px-4 text-body-sm font-bold text-link"
-        >
-          {tf('apply')}
-        </button>
-      </form>
+      <ReportFilterBar
+        state={{ ...state, compare: 'none', store: null, merchant: null }}
+        today={today}
+        compare={false}
+        extra={{ by }}
+      />
       <nav className="mt-4 flex flex-wrap gap-2">
         {DIMENSIONS.map((d) => (
           <Link
@@ -83,7 +74,15 @@ export default async function FinanceProfitPage({
           <tbody>
             {profit.rows.map((r) => (
               <tr key={r.id ?? 'company'} className="border-t border-line">
-                <td className={td}>{r.name ?? t('companyWide')}</td>
+                <td className={td}>
+                  {by === 'rider' && r.id === null ? (
+                    t('companyWide')
+                  ) : (
+                    <Link href={linesOf(r.id)} className="text-link hover:underline">
+                      {r.name ?? t('companyWide')}
+                    </Link>
+                  )}
+                </td>
                 <td className={`${td} text-end`}>{money(r.incomePiastres)}</td>
                 <td className={`${td} text-end`}>{money(r.costsPiastres)}</td>
                 <td
@@ -122,7 +121,11 @@ export default async function FinanceProfitPage({
           <tbody>
             {costs.rows.map((r) => (
               <tr key={r.store.id} className="border-t border-line">
-                <td className={td}>{locale === 'ar' ? r.store.nameAr : r.store.nameEn}</td>
+                <td className={td}>
+                  <Link href={linesOf(r.store.id, 'store')} className="text-link hover:underline">
+                    {locale === 'ar' ? r.store.nameAr : r.store.nameEn}
+                  </Link>
+                </td>
                 <td className={`${td} text-end`}>{r.deliveredOrders}</td>
                 <td className={`${td} text-end`}>{money(r.incomePerOrderPiastres)}</td>
                 <td className={`${td} text-end`}>{money(r.directCostPerOrderPiastres)}</td>

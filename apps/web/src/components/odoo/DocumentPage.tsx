@@ -92,7 +92,7 @@ export async function DocumentPage({
               /
             </li>
             <li>
-              <ListCrumb href={list.href} label={t(`lists.${list.list}`)} />
+              <ListCrumb href={list.href} label={t(`lists.${list.list}`)} id={doc.id} />
             </li>
             <li aria-hidden className="text-text-muted">
               /

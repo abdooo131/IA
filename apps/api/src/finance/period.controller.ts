@@ -28,6 +28,7 @@ import {
   yearCloseStatus,
 } from '@shiplynow/db';
 import {
+  type AccessProfile,
   type AccessTokenClaims,
   addDays,
   bankIgnoreSchema,
@@ -44,7 +45,8 @@ import {
 } from '@shiplynow/shared';
 import type { Request, Response } from 'express';
 import type { z } from 'zod';
-import { Access, CurrentUser } from '../auth/decorators';
+import { assertStore } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -189,8 +191,18 @@ export class PeriodController {
   @Get('cash-flow')
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
-  cashFlow(@Query('from') from?: string, @Query('to') to?: string) {
-    return cashFlow(this.prisma, parseRange(from, to, this.clock.now(), 30));
+  @ApiQuery({ name: 'store', required: false, description: 'Only money tagged with a store' })
+  cashFlow(
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+    @Query('store') store?: string,
+    @CurrentAccess() access?: AccessProfile,
+  ) {
+    if (store) assertStore(access, store);
+    return cashFlow(this.prisma, {
+      ...parseRange(from, to, this.clock.now(), 30),
+      darkStoreId: store || undefined,
+    });
   }
 
   @Get('cash-forecast')

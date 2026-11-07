@@ -55,17 +55,42 @@ export function RecordNav({ id }: { id: string }) {
   );
 }
 
-/** The breadcrumb back to the list keeps the filters the person had. */
-export function ListCrumb({ href, label }: { href: string; label: string }) {
+/**
+ * The breadcrumb back to the list keeps the filters the person had. A document opened from a
+ * report's lines shows the way back through them: the report (with its filters), then the
+ * lines of the account.
+ */
+export function ListCrumb({ href, label, id }: { href: string; label: string; id?: string }) {
   const [to, setTo] = useState(href);
+  const [via, setVia] = useState<{ trail: { label: string; href: string }[]; label: string; href: string } | null>(null);
   useEffect(() => {
     try {
       const nav = readDocNav(window.sessionStorage.getItem(DOC_NAV_KEY));
-      if (nav?.listUrl.split('?')[0] === href) setTo(nav.listUrl);
+      if (nav?.listLabel && id && nav.ids.includes(id))
+        setVia({ trail: nav.trail ?? [], label: nav.listLabel, href: nav.listUrl });
+      else if (nav?.listUrl.split('?')[0] === href) setTo(nav.listUrl);
     } catch {
       /* storage may be off */
     }
-  }, [href]);
+  }, [href, id]);
+  if (via)
+    return (
+      <>
+        {via.trail.map((c) => (
+          <span key={c.href}>
+            <Link href={c.href} className="text-link hover:underline">
+              {c.label}
+            </Link>
+            <span aria-hidden className="mx-1 text-text-muted">
+              /
+            </span>
+          </span>
+        ))}
+        <Link href={via.href} className="text-link hover:underline">
+          {via.label}
+        </Link>
+      </>
+    );
   return (
     <Link href={to} className="text-link hover:underline">
       {label}

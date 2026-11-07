@@ -33,3 +33,5 @@ export * from './export-file';
 export * from './documents';
 export * from './finance-lists';
 export * from './record-apps';
+export * from './report-period';
+export * from './bank-match';
