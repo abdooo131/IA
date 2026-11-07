@@ -1,6 +1,7 @@
 import { Body, Controller, Get, HttpCode, Post, Res } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { verifyPassword } from '@shiply/db';
+import { normalizeEgyptPhone, type Role } from '@shiply/shared';
 import type { Response } from 'express';
 import { z } from 'zod';
 import { DomainError } from '../common/errors';
@@ -9,7 +10,10 @@ import { parse } from '../common/validate';
 import { CurrentUser, Public, SESSION_COOKIE, type SessionUser } from './auth';
 
 const SESSION_HOURS = 12;
-const LoginBody = z.object({ email: z.string().email().max(200), password: z.string().min(1).max(200) });
+// Sign in with an email, or with a phone number (couriers and agents usually have no email).
+const LoginBody = z
+  .object({ login: z.string().trim().max(200).optional(), email: z.string().trim().max(200).optional(), password: z.string().min(1).max(200) })
+  .refine((b) => !!(b.login || b.email), { message: 'Enter your email or phone' });
 
 // A real hash of a random value, so unknown emails take as long as wrong passwords.
 const DUMMY_HASH =
@@ -26,10 +30,20 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   async login(@Body() body: unknown, @Res({ passthrough: true }) res: Response) {
-    const { email, password } = parse(LoginBody, body);
-    const user = await this.prisma.user.findUnique({ where: { email: email.toLowerCase() } });
-    const ok = await verifyPassword(password, user?.passwordHash ?? DUMMY_HASH);
-    if (!user || !ok || !user.active) throw new DomainError('bad_login', 'Wrong email or password', 401);
+    const b = parse(LoginBody, body);
+    const id = (b.login || b.email || '').trim();
+    let candidates: { id: string; name: string; role: Role; active: boolean; passwordHash: string }[] = [];
+    if (id.includes('@')) {
+      const u = await this.prisma.user.findUnique({ where: { email: id.toLowerCase() } });
+      if (u) candidates = [u];
+    } else {
+      const phone = normalizeEgyptPhone(id);
+      if (phone) candidates = await this.prisma.user.findMany({ where: { phone }, orderBy: { createdAt: 'asc' }, take: 5 });
+    }
+    let user: (typeof candidates)[number] | null = null;
+    for (const c of candidates) if (!user && (await verifyPassword(b.password, c.passwordHash))) user = c;
+    if (candidates.length === 0) await verifyPassword(b.password, DUMMY_HASH);
+    if (!user || !user.active) throw new DomainError('bad_login', 'Wrong email, phone or password', 401);
     const token = await this.jwt.signAsync({ sub: user.id }, { expiresIn: `${SESSION_HOURS}h` });
     res.cookie(SESSION_COOKIE, token, {
       httpOnly: true,
@@ -51,14 +65,16 @@ export class AuthController {
 
   @Get('me')
   async me(@CurrentUser() user: SessionUser) {
-    const [hub, merchant] = await Promise.all([
+    const [hub, merchant, agent] = await Promise.all([
       user.hubId ? this.prisma.hub.findUnique({ where: { id: user.hubId } }) : null,
       user.merchantId ? this.prisma.merchant.findUnique({ where: { id: user.merchantId } }) : null,
+      user.agentId ? this.prisma.agent.findUnique({ where: { id: user.agentId } }) : null,
     ]);
     return {
       ...user,
       hub: hub && { id: hub.id, code: hub.code, name: hub.name, isSorting: hub.isSorting },
       merchant: merchant && { id: merchant.id, code: merchant.code, name: merchant.name },
+      agent: agent && { id: agent.id, code: agent.code, name: agent.name },
     };
   }
 }

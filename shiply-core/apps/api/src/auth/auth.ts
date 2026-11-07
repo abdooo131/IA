@@ -17,11 +17,12 @@ export const SESSION_COOKIE = 'shiply_session';
 export interface SessionUser {
   id: string;
   name: string;
-  email: string;
+  email: string | null;
   role: Role;
   team: Team | null;
   hubId: string | null;
   merchantId: string | null;
+  agentId: string | null;
 }
 
 const PUBLIC_KEY = 'public';
@@ -70,6 +71,7 @@ export class AuthGuard implements CanActivate {
       team: user.team,
       hubId: user.hubId,
       merchantId: user.merchantId,
+      agentId: user.agentId,
     };
 
     const roles = this.reflector.getAllAndOverride<Role[] | undefined>(ROLES_KEY, targets);

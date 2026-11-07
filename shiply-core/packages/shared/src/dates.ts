@@ -63,3 +63,20 @@ export function promisedDate(
   const extra = minutes >= parseTime(cutoff) ? 1 : 0;
   return addBusinessDays(date, transitDays + extra, weekendDays);
 }
+
+/** Minutes Cairo is ahead of UTC at a given instant (120 in winter, 180 in summer). */
+export function cairoOffsetMinutes(at: Date): number {
+  const parts = new Intl.DateTimeFormat('en-US', { timeZone: BUSINESS_TZ, timeZoneName: 'longOffset' }).formatToParts(at);
+  const name = parts.find((p) => p.type === 'timeZoneName')?.value ?? 'GMT+02:00';
+  const m = /GMT([+-])(\d{2}):?(\d{2})?/.exec(name);
+  if (!m) return 120;
+  const mins = Number(m[2]) * 60 + Number(m[3] ?? 0);
+  return m[1] === '-' ? -mins : mins;
+}
+
+/** The instant of a Cairo wall clock time ("09:00") on a Cairo date ("2026-11-08"). */
+export function cairoTimeToUtc(date: string, time: string): Date {
+  const guess = new Date(`${date}T${time}:00Z`);
+  const offset = cairoOffsetMinutes(new Date(guess.getTime() - 120 * 60000));
+  return new Date(guess.getTime() - offset * 60000);
+}

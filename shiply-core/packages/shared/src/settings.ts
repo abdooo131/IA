@@ -15,6 +15,9 @@ export const SETTINGS = {
   'fees.return_fee_bp': { label: 'Return fee as basis points of shipping (5000 = 50%)', kind: 'bp', default: 5000 },
   'tracking.prefix': { label: 'Tracking number prefix', kind: 'text', default: 'SHP' },
   'handover.alert_hours': { label: 'Hours a parcel may wait between two teams before it shows as late on the handover check', kind: 'int', default: 4 },
+  'agents.default_commission_bp': { label: 'Default agent commission in basis points (1000 = 10%), used when an agent has none', kind: 'bp', default: 1000 },
+  'attendance.alert_after_minutes': { label: 'Minutes after shift start without a check in before the agent is alerted', kind: 'int', default: 30 },
+  'attendance.replacement_minutes': { label: 'Minutes an agent has to send a replacement after saying someone is not coming', kind: 'int', default: 60 },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

@@ -128,12 +128,14 @@ async function main() {
   const addUser = async (data: {
     email: string;
     name: string;
-    role: 'ADMIN' | 'HUB_STAFF' | 'COURIER' | 'MERCHANT';
+    role: 'ADMIN' | 'HUB_STAFF' | 'COURIER' | 'MERCHANT' | 'AGENT';
     team?: 'INBOUND' | 'SORTING' | 'OUTBOUND';
     password: string;
     phone?: string;
     hubId?: string | null;
     merchantId?: string | null;
+    agentId?: string | null;
+    courierType?: 'PICKUP' | 'DELIVERY';
   }) => {
     const exists = await prisma.user.findUnique({ where: { email: data.email } });
     if (exists) return;
@@ -144,6 +146,25 @@ async function main() {
   await addUser({ email: adminEmail.toLowerCase(), name: 'Admin', role: 'ADMIN', password: adminPassword });
 
   if (demoPassword) {
+    // Two demo agents: one supplies pickup staff (work from sorting facilities), one supplies
+    // delivery staff (work from last mile hubs). Couriers join with the agent's code.
+    const pickupAgent = await prisma.agent.upsert({
+      where: { code: 'AGCAIRO' },
+      update: {},
+      create: { code: 'AGCAIRO', name: 'Cairo Movers', phone: '+201005550001', email: 'ops@cairomovers.example', supplies: 'PICKUP', bankName: 'CIB', bankAccountName: 'Cairo Movers LLC' },
+    });
+    const deliveryAgent = await prisma.agent.upsert({
+      where: { code: 'AGDELTA' },
+      update: {},
+      create: { code: 'AGDELTA', name: 'Delta Riders', phone: '+201005550002', email: 'ops@deltariders.example', supplies: 'DELIVERY', bankName: 'NBE', bankAccountName: 'Delta Riders' },
+    });
+    if (!(await prisma.vehicle.findUnique({ where: { plate: 'ق ط ر 1234' } }))) {
+      await prisma.vehicle.create({ data: { agentId: pickupAgent.id, plate: 'ق ط ر 1234', kind: 'VAN', contract: 'FIXED', monthlyRent: 1_500_000, capacityParcels: 400 } });
+    }
+    await addUser({ email: 'agent@cairomovers.example', name: 'Cairo Movers', role: 'AGENT', password: demoPassword, agentId: pickupAgent.id, phone: pickupAgent.phone });
+    await addUser({ email: 'agent@deltariders.example', name: 'Delta Riders', role: 'AGENT', password: demoPassword, agentId: deliveryAgent.id, phone: deliveryAgent.phone });
+    let phoneNo = 100;
+    const nextPhone = () => `+2010000${String(phoneNo++).padStart(5, '0')}`;
     const slug = (code: string) => code.toLowerCase().replace(/[^a-z]/g, '');
     for (const f of FACILITIES) {
       const id = hubId(f.code);
@@ -151,11 +172,11 @@ async function main() {
       for (const team of ['INBOUND', 'SORTING', 'OUTBOUND'] as const) {
         await addUser({ email: `${team.toLowerCase()}.${slug(f.code)}@shiply.local`, name: `${f.name} ${team.toLowerCase()}`, role: 'HUB_STAFF', team, password: demoPassword, hubId: id });
       }
-      await addUser({ email: `courier.${slug(f.code)}@shiply.local`, name: `${f.name} pickup courier`, role: 'COURIER', password: demoPassword, hubId: id, phone: '+201000000000' });
+      await addUser({ email: `courier.${slug(f.code)}@shiply.local`, name: `${f.name} pickup courier`, role: 'COURIER', password: demoPassword, hubId: id, phone: nextPhone(), agentId: pickupAgent.id, courierType: 'PICKUP' });
     }
     for (const h of LAST_MILE) {
       await addUser({ email: `staff.${slug(h.code)}@shiply.local`, name: `${h.name} staff`, role: 'HUB_STAFF', password: demoPassword, hubId: hubId(h.code) });
-      await addUser({ email: `courier.${slug(h.code)}@shiply.local`, name: `${h.name} courier`, role: 'COURIER', password: demoPassword, hubId: hubId(h.code), phone: '+201000000000' });
+      await addUser({ email: `courier.${slug(h.code)}@shiply.local`, name: `${h.name} courier`, role: 'COURIER', password: demoPassword, hubId: hubId(h.code), phone: nextPhone(), agentId: deliveryAgent.id, courierType: 'DELIVERY' });
     }
     const area = await prisma.area.findFirst({ where: { nameEn: 'Heliopolis' } });
     const facility = nearest({ lat: area!.lat!, lng: area!.lng! }, facilities)!;

@@ -7,6 +7,7 @@ import { createTestDatabase, dropTestDatabase, TEST_DB } from './setup-db';
 
 process.env.DATABASE_URL = TEST_DB;
 process.env.JWT_SECRET = 'test-secret-that-is-long-enough-for-hs256-signing';
+process.env.SHIPLY_JOBS = 'off';
 
 let app: INestApplication;
 type Agent = ReturnType<typeof request.agent>;
@@ -16,7 +17,7 @@ const users: Record<string, string> = {};
 
 async function login(email: string, password = 'demo12345'): Promise<Agent> {
   const agent = request.agent(app.getHttpServer());
-  await agent.post('/auth/login').send({ email, password }).expect(200);
+  await agent.post('/auth/login').send({ login: email, password }).expect(200);
   return agent;
 }
 

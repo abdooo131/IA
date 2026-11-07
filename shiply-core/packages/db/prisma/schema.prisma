@@ -15,6 +15,68 @@ enum Role {
   HUB_STAFF
   COURIER
   MERCHANT
+  AGENT
+}
+
+/// What an agent supplies: pickup staff, delivery staff, or both.
+enum AgentSupply {
+  PICKUP
+  DELIVERY
+  BOTH
+}
+
+enum CourierType {
+  PICKUP
+  DELIVERY
+}
+
+enum AgentDocumentKind {
+  NATIONAL_ID
+  COMMERCIAL_REGISTER
+  TAX_CARD
+  CONTRACT
+  OTHER
+}
+
+enum VehicleKind {
+  VAN
+  BOX_TRUCK
+  PICKUP_TRUCK
+  CAR
+  MOTORCYCLE
+}
+
+/// FIXED vehicles are rented monthly; SPECIAL ones are paid per request at a custom price.
+enum VehicleContract {
+  FIXED
+  SPECIAL
+}
+
+enum VehicleRequestReason {
+  MERCHANT_SPECIAL
+  BREAKDOWN
+  VEHICLE_FULL
+  OTHER
+}
+
+enum VehicleRequestStatus {
+  REQUESTED
+  PROVIDED
+  DONE
+  CANCELLED
+}
+
+enum ShiftStatus {
+  SCHEDULED
+  CHECKED_IN
+  LATE_NOTICE
+  NOT_COMING
+  REPLACED
+}
+
+enum AlertStatus {
+  OPEN
+  RESOLVED
 }
 
 enum ShipmentStatus {
@@ -150,6 +212,7 @@ model Area {
   lng             Float?
   hubId           String?     @map("hub_id") @db.Uuid
   hub             Hub?        @relation(fields: [hubId], references: [id])
+  couriers        CourierArea[]
 
   @@unique([governorateCode, nameEn])
   @@map("areas")
@@ -157,7 +220,8 @@ model Area {
 
 model User {
   id           String    @id @default(uuid()) @db.Uuid
-  email        String    @unique
+  /// Couriers who join with an agent code sign in with their phone; email is optional for them.
+  email        String?   @unique
   name         String
   phone        String    @default("")
   passwordHash String    @map("password_hash")
@@ -168,10 +232,177 @@ model User {
   hub          Hub?      @relation(fields: [hubId], references: [id])
   merchantId   String?   @map("merchant_id") @db.Uuid
   merchant     Merchant? @relation(fields: [merchantId], references: [id])
+  /// The agent this person works for (couriers) or represents (agent logins).
+  agentId      String?   @map("agent_id") @db.Uuid
+  agent        Agent?    @relation(fields: [agentId], references: [id])
+  courierType  CourierType? @map("courier_type")
+  /// A pickup courier registered with their agent to move pallets between hubs.
+  hubToHub     Boolean   @default(false) @map("hub_to_hub")
+  /// Shift start in Cairo time (HH:MM) and working weekdays (0 Sunday ... 6 Saturday).
+  shiftStart   String    @default("09:00") @map("shift_start")
+  workDays     Int[]     @default([0, 1, 2, 3, 4, 6]) @map("work_days")
+  vehicleId    String?   @map("vehicle_id") @db.Uuid
+  vehicle      Vehicle?  @relation(fields: [vehicleId], references: [id])
+  /// Joined with an agent code and waiting for the agent to approve.
+  pendingApproval Boolean @default(false) @map("pending_approval")
   active       Boolean   @default(true)
   createdAt    DateTime  @default(now()) @map("created_at")
 
+  areas        CourierArea[]
+  shifts       Shift[]   @relation("ShiftCourier")
+
+  @@index([agentId])
   @@map("users")
+}
+
+/// A field agent (وكيل): supplies pickup and delivery staff, vehicles and replacements.
+model Agent {
+  id                 String      @id @default(uuid()) @db.Uuid
+  /// Staff can only register with this code, which ties them to the agent.
+  code               String      @unique
+  name               String
+  phone              String
+  email              String      @default("")
+  supplies           AgentSupply @default(BOTH)
+  nationalIdNo       String      @default("") @map("national_id_no")
+  commercialRegister String      @default("") @map("commercial_register")
+  taxCardNo          String      @default("") @map("tax_card_no")
+  bankName           String      @default("") @map("bank_name")
+  bankAccountName    String      @default("") @map("bank_account_name")
+  iban               String      @default("")
+  /// Null = the default commission from settings.
+  commissionBp       Int?        @map("commission_bp")
+  active             Boolean     @default(true)
+  createdAt          DateTime    @default(now()) @map("created_at")
+
+  users           User[]
+  documents       AgentDocument[]
+  vehicles        Vehicle[]
+  vehicleRequests VehicleRequest[]
+  shifts          Shift[]
+  @@map("agents")
+}
+
+model AgentDocument {
+  id           String            @id @default(uuid()) @db.Uuid
+  agentId      String            @map("agent_id") @db.Uuid
+  agent        Agent             @relation(fields: [agentId], references: [id])
+  kind         AgentDocumentKind
+  fileName     String            @map("file_name")
+  mime         String
+  size         Int
+  data         Bytes
+  uploadedById String            @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@map("agent_documents")
+}
+
+model CourierArea {
+  userId String @map("user_id") @db.Uuid
+  user   User   @relation(fields: [userId], references: [id])
+  areaId String @map("area_id") @db.Uuid
+  area   Area   @relation(fields: [areaId], references: [id])
+
+  @@id([userId, areaId])
+  @@map("courier_areas")
+}
+
+model Vehicle {
+  id              String          @id @default(uuid()) @db.Uuid
+  agentId         String          @map("agent_id") @db.Uuid
+  agent           Agent           @relation(fields: [agentId], references: [id])
+  plate           String          @unique
+  kind            VehicleKind
+  contract        VehicleContract @default(FIXED)
+  /// Monthly rent in piastres for FIXED vehicles.
+  monthlyRent     Int             @default(0) @map("monthly_rent")
+  capacityParcels Int?            @map("capacity_parcels")
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  users    User[]
+  requests VehicleRequest[]
+  @@map("vehicles")
+}
+
+/// Operations asks an agent for an extra vehicle with its driver, at a custom price.
+model VehicleRequest {
+  id            String               @id @default(uuid()) @db.Uuid
+  code          String               @unique
+  agentId       String               @map("agent_id") @db.Uuid
+  agent         Agent                @relation(fields: [agentId], references: [id])
+  reason        VehicleRequestReason
+  merchantId    String?              @map("merchant_id") @db.Uuid
+  hubId         String?              @map("hub_id") @db.Uuid
+  date          String
+  /// Agreed price for this request, in piastres.
+  price         Int
+  status        VehicleRequestStatus @default(REQUESTED)
+  vehicleId     String?              @map("vehicle_id") @db.Uuid
+  vehicle       Vehicle?             @relation(fields: [vehicleId], references: [id])
+  driverName    String               @default("") @map("driver_name")
+  driverPhone   String               @default("") @map("driver_phone")
+  notes         String               @default("")
+  requestedById String               @map("requested_by_id") @db.Uuid
+  providedAt    DateTime?            @map("provided_at")
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  @@index([agentId, status])
+  @@map("vehicle_requests")
+}
+
+/// One courier's working day: scheduled start, check in, and the agent's answer when they are missing.
+model Shift {
+  id                  String      @id @default(uuid()) @db.Uuid
+  courierId           String      @map("courier_id") @db.Uuid
+  courier             User        @relation("ShiftCourier", fields: [courierId], references: [id])
+  agentId             String      @map("agent_id") @db.Uuid
+  agent               Agent       @relation(fields: [agentId], references: [id])
+  date                String
+  startAt             DateTime    @map("start_at")
+  status              ShiftStatus @default(SCHEDULED)
+  checkInAt           DateTime?   @map("check_in_at")
+  checkInPhoto        Bytes?      @map("check_in_photo")
+  checkInLat          Float?      @map("check_in_lat")
+  checkInLng          Float?      @map("check_in_lng")
+  lateMinutes         Int?        @map("late_minutes")
+  alertedAt           DateTime?   @map("alerted_at")
+  answeredAt          DateTime?   @map("answered_at")
+  expectedAt          DateTime?   @map("expected_at")
+  replacementDeadline DateTime?   @map("replacement_deadline")
+  replacementOverdue  Boolean     @default(false) @map("replacement_overdue")
+  /// The shift of the person who replaced this one.
+  replacementShiftId  String?     @map("replacement_shift_id") @db.Uuid
+  /// This shift covers someone else's.
+  replacesShiftId     String?     @map("replaces_shift_id") @db.Uuid
+  createdAt           DateTime    @default(now()) @map("created_at")
+
+  @@unique([courierId, date])
+  @@index([agentId, date])
+  @@map("shifts")
+}
+
+/// Something a person must act on. One open alert per kind and entity.
+model Alert {
+  id           String      @id @default(uuid()) @db.Uuid
+  kind         String
+  severity     String      @default("normal")
+  agentId      String?     @map("agent_id") @db.Uuid
+  hubId        String?     @map("hub_id") @db.Uuid
+  entity       String
+  entityId     String      @map("entity_id")
+  message      String
+  status       AlertStatus @default(OPEN)
+  note         String      @default("")
+  resolvedById String?     @map("resolved_by_id") @db.Uuid
+  resolvedAt   DateTime?   @map("resolved_at")
+  createdAt    DateTime    @default(now()) @map("created_at")
+
+  @@index([status, agentId])
+  @@index([kind, entity, entityId])
+  @@map("alerts")
 }
 
 model Merchant {

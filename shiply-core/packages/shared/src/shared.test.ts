@@ -1,7 +1,7 @@
 import { applyBp, egpToPiastres, formatEgp } from './money';
 import { isValidTrackingNumber, makeTrackingNumber } from './tracking';
 import { distanceKm, nearest, nextHop } from './routing';
-import { addBusinessDays, cairoClock, promisedDate } from './dates';
+import { addBusinessDays, cairoClock, cairoTimeToUtc, promisedDate } from './dates';
 import { codFee, returnFee, shippingFee } from './pricing';
 import { canTransition } from './statuses';
 import { normalizeEgyptPhone } from './phone';
@@ -124,5 +124,12 @@ describe('nearest facility', () => {
     expect(nearest({ lat: 30.09, lng: 31.32 }, [obour, alex])?.id).toBe('OBR'); // Heliopolis
     expect(nearest({ lat: 31.04, lng: 30.47 }, [obour, alex])?.id).toBe('ALXSF'); // Damanhour
     expect(Math.round(distanceKm(obour, alex))).toBeGreaterThan(150);
+  });
+});
+
+describe('shift times', () => {
+  it('turns a Cairo wall clock time into the right instant', () => {
+    expect(cairoTimeToUtc('2026-11-08', '09:00').toISOString()).toBe('2026-11-08T07:00:00.000Z'); // winter, UTC+2
+    expect(cairoTimeToUtc('2026-07-08', '09:00').toISOString()).toBe('2026-07-08T06:00:00.000Z'); // summer, UTC+3
   });
 });

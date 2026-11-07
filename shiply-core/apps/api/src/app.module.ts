@@ -3,6 +3,8 @@ import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { JwtModule } from '@nestjs/jwt';
 import { AdminController } from './admin/admin.controller';
 import { AdminService } from './admin/admin.service';
+import { AdminAgentsController, AgentPortalController, CourierShiftController, JoinController } from './agents/agents.controller';
+import { AgentsService } from './agents/agents.service';
 import { AuthGuard } from './auth/auth';
 import { AuthController } from './auth/auth.controller';
 import { ErrorFilter } from './common/errors';
@@ -25,7 +27,7 @@ function jwtSecret(): string {
 
 @Module({
   imports: [JwtModule.registerAsync({ global: true, useFactory: () => ({ secret: jwtSecret(), signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }) })],
-  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController],
+  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController],
   providers: [
     PrismaService,
     SettingsService,
@@ -34,6 +36,7 @@ function jwtSecret(): string {
     HubService,
     CourierService,
     AdminService,
+    AgentsService,
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_FILTER, useClass: ErrorFilter },
   ],

@@ -106,7 +106,7 @@ export const FAIL_REASON_CODES = Object.keys(FAIL_REASONS) as FailReason[];
 export const PARCEL_SIZES = ['S', 'M', 'L', 'XL'] as const;
 export type ParcelSize = (typeof PARCEL_SIZES)[number];
 
-export const ROLES = ['ADMIN', 'HUB_STAFF', 'COURIER', 'MERCHANT'] as const;
+export const ROLES = ['ADMIN', 'HUB_STAFF', 'COURIER', 'MERCHANT', 'AGENT'] as const;
 export type Role = (typeof ROLES)[number];
 
 /** Teams inside a sorting facility. Staff with no team (supervisors) can work every station. */

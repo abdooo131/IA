@@ -8,7 +8,7 @@ export async function createApp() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: ['error', 'warn'] });
   app.use(cookieParser());
   app.disable('x-powered-by');
-  app.useBodyParser('json', { limit: '2mb' });
+  app.useBodyParser('json', { limit: '8mb' });
   return app;
 }
 
