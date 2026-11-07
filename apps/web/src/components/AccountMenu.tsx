@@ -32,8 +32,18 @@ export function AccountMenu({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   // Team members and riders see their own photo on the button (My HR); none: the gear alone.
-  const [photo, setPhoto] = useState(tickets);
+  // Shown only once it has loaded: an image that fails before the page wakes up would stay broken.
+  const [photo, setPhoto] = useState(false);
   const box = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!tickets) return;
+    const img = new Image();
+    img.onload = () => setPhoto(true);
+    img.src = '/api/me/employee/photo';
+    return () => {
+      img.onload = null;
+    };
+  }, [tickets]);
   useEffect(() => setOpen(false), [pathname]);
   useEffect(() => {
     if (!open) return;
