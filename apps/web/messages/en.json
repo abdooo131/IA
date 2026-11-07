@@ -468,7 +468,12 @@
         "finance__po_bill_tolerance_bp": "Bill above purchase order allowed by (%)",
         "sales__auto_assign": "Give new leads to reps in turn (1 on, 0 off)",
         "sales__overdue_minutes": "Follow up overdue alert after (minutes)",
-        "sales__stale_days": "Deal stuck in one stage after (days)"
+        "sales__stale_days": "Deal stuck in one stage after (days)",
+        "sales__proposal_valid_days": "A sent proposal stays open for (days)",
+        "sales__max_discount_bp": "Largest discount without a manager (%)",
+        "sales__commission_bp": "Commission on won merchant fees (%)",
+        "sales__commission_months": "Commission paid for (months from the win)",
+        "sales__setup_link_days": "New owner's password link valid for (days)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -2157,7 +2162,8 @@
         "merchant_over_credit_limit": "The merchant is over the credit limit.",
         "tier_twice": "Each band needs its own starting order.",
         "tier_empty": "Give each band a fixed fee, a percentage or both.",
-        "payout_not_found": "Payout not found."
+        "payout_not_found": "Payout not found.",
+        "commission_not_payable": "This commission is not approved, already paid, or for another amount."
       }
     },
     "riders": {
@@ -2428,7 +2434,12 @@
       "salaryPackage": "Salary package (gross)",
       "setInHr": "Set in HR",
       "basicAndAllowances": "Basic {basic} + allowances {allowances}",
-      "packageFrom": "from {date}"
+      "packageFrom": "from {date}",
+      "withCommission": "Includes {amount} EGP sales commission",
+      "commissionsTitle": "Sales commission to pay",
+      "commissionsHint": "Approved by the sales manager for people hired through an outsourcing company. Paid as a direct bonus from the account chosen in \"Bonus\"; employees get theirs with the salary.",
+      "payCommission": "Pay as bonus",
+      "commission": "Sales commission"
     },
     "payables": {
       "billsTitle": "Suppliers and bills",
@@ -4311,6 +4322,106 @@
             ]
           }
         ]
+      },
+      "sales": {
+        "title": "Sales reps and sales managers",
+        "who": "Sales reps follow their own leads from the first call to the signed proposal; sales managers give out leads, approve discounts and commission and set targets. Open the Sales app from Home.",
+        "day": [
+          "Start of day (first 15 minutes): open My day. Do the overdue follow ups first, then today's, then give every open deal without a next step a planned follow up.",
+          "During the day: after every call, meeting or message, log what happened on the deal and plan the next step before you close it.",
+          "Proposals: check Proposals for brands that viewed or accepted; confirm an accepted proposal the same day.",
+          "Managers, morning: give out the leads in Leads, Waiting to be assigned; answer discounts in Proposals, To approve; look at the Dashboard (overdue follow ups, stuck deals).",
+          "Managers, first working days of the month: set next month's targets in Targets and approve last month's commission in Commission."
+        ],
+        "escalation": [
+          "A brand asks for a discount above the limit: make the proposal and tap Ask a manager to approve; do not promise the price before it is approved.",
+          "The brand accepted but the owner's email is already used: ask the brand for another email, or open a ticket to admin if the person already works with us.",
+          "A won merchant's owner lost their setup link: open the deal and tap New setup link.",
+          "Your commission looks wrong: open a ticket to your sales manager with the month and the merchant before it is approved.",
+          "A website lead or sign up looks like spam: tell your sales manager, who marks it lost with the reason Other and a note."
+        ],
+        "sections": [
+          {
+            "title": "Work a lead to a proposal",
+            "steps": [
+              "Open the deal from My day, Leads or the Pipeline.",
+              "Call the contact (tap the phone) or message them on WhatsApp. Log what happened with Log what happened.",
+              "Plan the next step with a date and time; every open deal needs one.",
+              "Move the deal along its stages as it happens: Contacted, Meeting.",
+              "Correct the expected orders a month and the monthly fee value as you learn them."
+            ],
+            "check": [
+              "The deal shows a next step with a date, and the board card has no No next step flag."
+            ],
+            "problems": [
+              "The brand is not interested: Mark lost with the right reason (Other needs a note).",
+              "The lead belongs to another rep's company: ask your sales manager to move it."
+            ]
+          },
+          {
+            "title": "Make and send a proposal",
+            "steps": [
+              "On the deal, in Proposals, tap New proposal. The rates start from our current fees.",
+              "Change the rates you agreed, add volume tiers if any, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
+              "If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.",
+              "Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.",
+              "To change a sent proposal, make a New version: the old link stops working."
+            ],
+            "check": [
+              "The proposal shows Sent with the day it stays open until, then Viewed once the brand opens it."
+            ],
+            "problems": [
+              "The brand says the link does not open: check it is the latest version; an expired one needs a new version.",
+              "You typed a wrong rate in a sent proposal: make a new version at once and send the new link."
+            ]
+          },
+          {
+            "title": "Confirm an accepted proposal",
+            "steps": [
+              "When the brand accepts you get a notification. Open the deal.",
+              "Tap Confirm and open the merchant. Check the owner's name, email (their login) and mobile.",
+              "Tap Confirm. The deal is won, the merchant, its contract and fees and the owner's login are made in one step.",
+              "Copy the setup link that appears and send it to the owner: it works once and is shown only now."
+            ],
+            "check": [
+              "The deal shows Won and the merchant's name; the merchant's page shows its contract.",
+              "The owner can sign in after choosing a password."
+            ],
+            "problems": [
+              "Email already used: ask for another email and confirm again; nothing was made.",
+              "The owner lost the link or it ran out: tap New setup link on the deal."
+            ]
+          },
+          {
+            "title": "Targets and commission",
+            "steps": [
+              "Dashboard shows your month: deals won, orders and fees of the merchants you won against your targets.",
+              "Commission shows what this month is building up to, then each month once it is over.",
+              "Managers: in Targets, type each rep's deals, orders and fees for the month and Save.",
+              "Managers: in Commission, check each draft (merchants, fees, share), then Approve, or Change with a reason. Another manager approves your own.",
+              "Approved commission is paid with the salary of that month's run, or as a bonus by Accounting for people hired through an outsourcing company."
+            ],
+            "check": [
+              "Every rep has targets before the month starts; every commission of last month is Approved by the 5th."
+            ],
+            "problems": [
+              "A merchant is missing from a rep's commission: check the deal is won with its merchant and the rep was its owner when it was won.",
+              "Paid commission was wrong: it cannot be changed; tell Accounting, who correct it in a later month."
+            ]
+          },
+          {
+            "title": "Turn on phone notifications",
+            "steps": [
+              "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works.",
+              "Open the Settings menu (top of every screen), then Notifications, and turn them on for this device.",
+              "You are told about: leads given to you, follow ups due or late, stuck deals, discounts waiting for approval (managers) and brands accepting or declining proposals."
+            ],
+            "check": ["Send me a test arrives within a few seconds."],
+            "problems": [
+              "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again."
+            ]
+          }
+        ]
       }
     }
   },
@@ -4782,7 +4893,11 @@
       "leads": "Leads",
       "pipeline": "Pipeline",
       "myDay": "My day",
-      "companies": "Companies"
+      "companies": "Companies",
+      "proposals": "Proposals",
+      "salesDashboard": "Dashboard",
+      "targets": "Targets",
+      "commission": "Commission"
     },
     "pages": {
       "overview": "Overview",
@@ -4865,7 +4980,11 @@
       "pipelineList": "List",
       "myDay": "My day",
       "companies": "Companies",
-      "lostReasons": "Lost reasons"
+      "lostReasons": "Lost reasons",
+      "proposals": "Proposals",
+      "salesDashboard": "Sales dashboard",
+      "targets": "Targets",
+      "commission": "Commission"
     }
   },
   "hr": {
@@ -5711,6 +5830,10 @@
       "crm_followup": {
         "name": "Sales follow ups",
         "hint": "A follow up is due or late, or a deal is stuck in one stage."
+      },
+      "crm_proposal": {
+        "name": "Sales proposals",
+        "hint": "A discount waits for your approval, or a brand accepted or declined a proposal."
       }
     }
   },
@@ -6858,7 +6981,8 @@
       "wonAt": "Won on",
       "lostBecause": "Lost:",
       "noNextStep": "This deal has no next step. Schedule one below so it does not go cold.",
-      "stageHistory": "Stages"
+      "stageHistory": "Stages",
+      "wonLocked": "Won: this deal opened its merchant and stays won."
     },
     "lost": {
       "title": "Why was {company} lost?",
@@ -6978,7 +7102,310 @@
       "activity_done": "This follow up is already done.",
       "lost_reason_exists": "A reason with this code exists.",
       "invalid_code": "Use lower case letters, digits and _.",
-      "company_not_found": "That company no longer exists."
+      "company_not_found": "That company no longer exists.",
+      "deal_won_locked": "A won deal with its merchant cannot leave won.",
+      "deal_closed": "This deal is closed.",
+      "proposal_not_draft": "Only a draft can be changed.",
+      "approval_required": "A sales manager must approve this discount before it is sent.",
+      "approval_not_needed": "This proposal needs no approval.",
+      "same_person": "Someone else must approve this.",
+      "proposal_not_accepted": "The brand has not accepted this proposal.",
+      "proposal_not_found": "That proposal no longer exists.",
+      "owner_email_required": "Type the owner's email.",
+      "owner_name_required": "Type the owner's name.",
+      "invalid_phone": "Use an Egyptian mobile, for example 01012345678.",
+      "invalid_email": "Check the email address.",
+      "email_taken": "This email already has an account.",
+      "owner_already_active": "The owner has already chosen a password.",
+      "owner_not_found": "This merchant has no owner login.",
+      "deal_not_won": "The deal is not won yet.",
+      "commission_not_draft": "Only a draft commission can be changed.",
+      "commission_not_found": "That commission no longer exists.",
+      "reason_required": "Write why.",
+      "month_not_over": "That month is not over yet.",
+      "invalid_month": "Pick a month.",
+      "tier_twice": "Two tiers start at the same order.",
+      "tier_empty": "Each tier needs a fee."
+    },
+    "proposals": {
+      "title": "Proposals",
+      "new": "New proposal",
+      "newVersion": "New version",
+      "newTitle": "New proposal",
+      "editTitle": "Edit {label}",
+      "none": "No proposal yet. Make one from our current rates.",
+      "rates": "Our rates",
+      "egp": "EGP",
+      "listValue": "Our list rate: {value}",
+      "fees": {
+        "orderFixedPiastres": "Fee per delivered order",
+        "orderPercentBp": "Share of the products value per order",
+        "codPercentBp": "Cash on delivery fee (share of cash collected)",
+        "failedDeliveryPiastres": "Failed delivery fee",
+        "receivingPerUnitPiastres": "Receiving, per unit",
+        "storagePerUnitMonthPiastres": "Storage, per unit per month",
+        "returnPerUnitPiastres": "Return to the merchant, per unit"
+      },
+      "tiers": "Volume tiers",
+      "tiersHint": "From the nth delivered order of a month, the order fee changes. Leave a box empty to keep the rate above.",
+      "tierFrom": "From order",
+      "tierFixed": "Fee per order (EGP)",
+      "tierPercent": "Share (%)",
+      "addTier": "Add a tier",
+      "removeTier": "Remove",
+      "terms": "Terms",
+      "expectedOrders": "Orders a month (example)",
+      "averageOrder": "Average order value, EGP (example)",
+      "minimum": "Monthly minimum fee, EGP",
+      "deposit": "Security deposit, EGP",
+      "creditLimit": "Credit limit, EGP",
+      "contractMonths": "Contract length (months)",
+      "noticeDays": "Notice (days)",
+      "contractStart": "Contract starts",
+      "contractStartHint": "Empty: the day you confirm.",
+      "termsText": "Other terms (shown to the brand)",
+      "needsApproval": "A discount of {discount}% is past the {limit}% limit: a sales manager approves before it can be sent.",
+      "withinLimit": "Within the {limit}% discount limit: you can send it yourself.",
+      "exampleLine": "Example month: {orders} orders, {total} EGP in fees ({perOrder} EGP an order, before VAT).",
+      "version": "version {n}",
+      "statuses": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "viewed": "Viewed",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "expired": "Expired",
+        "superseded": "Replaced"
+      },
+      "approvedBy": "Discount approved by {name}",
+      "waitingApproval": "Discount {discount}%: waiting for a sales manager",
+      "discountOver": "Discount {discount}%: needs a sales manager",
+      "orderFeeLine": "{fixed} EGP + {percent}% an order",
+      "codLine": "COD {percent}%",
+      "tiersCount": "{n, plural, one {# tier} other {# tiers}}",
+      "exampleShort": "Example month: {orders} orders, {total} EGP",
+      "madeBy": "Made by {name}",
+      "sentAt": "sent {when}",
+      "validUntil": "open until {day}",
+      "viewedAt": "opened {when}",
+      "acceptedBy": "Accepted by {name} ({title}), {when}",
+      "declinedBy": "Declined by {name}, {when}",
+      "confirmedBy": "Confirmed by {name}, {when}:",
+      "edit": "Edit",
+      "requestApproval": "Ask a manager to approve",
+      "approve": "Approve the discount",
+      "send": "Send",
+      "copyLink": "Copy link",
+      "copied": "Copied",
+      "openLink": "Open the page",
+      "confirm": "Confirm and open the merchant",
+      "confirmIntro": "The brand accepted. Confirming wins the deal and, in one step, opens the merchant with this contract and these fees, and its owner login. Check the owner:",
+      "confirmExisting": "The brand accepted. Confirming wins the deal and gives the merchant this contract and these fees.",
+      "ownerName": "Owner's name",
+      "ownerEmail": "Owner's email (their login)",
+      "ownerPhone": "Owner's mobile",
+      "confirmButton": "Confirm",
+      "cancel": "Cancel",
+      "setupReady": "The merchant is open. Send the owner this link to choose a password:",
+      "setupHint": "It works once and is shown only now. You can make a new one from the deal while they have not used it.",
+      "setupLink": "Setup link",
+      "ownerWaiting": "{name} has not chosen a password yet.",
+      "newSetupLink": "New setup link",
+      "listTitle": "Proposals",
+      "listIntro": "Every proposal sent to a brand, newest first. Open one on its deal to change, send or confirm it.",
+      "all": "All",
+      "toApprove": "To approve",
+      "filter": "Show",
+      "listEmpty": "No proposals here.",
+      "number": "Proposal",
+      "company": "Company",
+      "status": "Status",
+      "orderFee": "Order fee",
+      "exampleTotal": "Example month",
+      "validUntilShort": "Open until",
+      "owner": "Owner"
+    },
+    "numbers": {
+      "month": "Month",
+      "rep": "Rep",
+      "everyone": "Everyone",
+      "show": "Show"
+    },
+    "dashboard": {
+      "title": "Sales dashboard",
+      "intro": "Your month: the deals you opened and won, your pipeline and your progress against your targets.",
+      "introManager": "The team's month: the funnel, the pipeline, wins and losses and every rep against their targets.",
+      "pipelineValue": "Open pipeline (monthly fees)",
+      "openDeals": "{n, plural, one {# open deal} other {# open deals}}",
+      "winRate": "Win rate",
+      "wonLost": "{won} won, {lost} lost",
+      "daysToClose": "Days to close (average)",
+      "newLeads": "New leads",
+      "overdue": "Overdue follow ups",
+      "wonDeals": "Deals won",
+      "funnel": "Funnel",
+      "funnelHint": "Deals opened this month, by the furthest stage they reached.",
+      "toNext": "{share}% went on to the next stage",
+      "pipeline": "Pipeline by stage",
+      "pipelineHint": "Expected monthly fees of the open deals, now.",
+      "deals": "{n, plural, one {# deal} other {# deals}}",
+      "lostReasons": "Why deals were lost",
+      "noneLost": "No deal lost this month.",
+      "leadsBySource": "New leads by source",
+      "noLeads": "No new leads this month.",
+      "wonByMonth": "Deals won, last six months",
+      "leaderboard": "Leaderboard",
+      "noReps": "No sales people yet.",
+      "rep": "Rep",
+      "orders": "Orders brought in",
+      "revenue": "Fees (before VAT)"
+    },
+    "targets": {
+      "title": "Targets",
+      "intro": "Each rep's month against their targets: deals won, delivered orders and fees before VAT of the merchants they won (from the day they won them). Sales managers set the targets here.",
+      "rep": "Rep",
+      "deals": "Deals won",
+      "orders": "Orders",
+      "revenue": "Fees (EGP)",
+      "action": "Target",
+      "save": "Save",
+      "saved": "Saved.",
+      "setBy": "Set by {name}",
+      "empty": "No sales people yet.",
+      "dealsTarget": "Deals won target for {name}",
+      "ordersTarget": "Orders target for {name}",
+      "revenueTarget": "Fees target for {name}"
+    },
+    "commission": {
+      "title": "Commission",
+      "intro": "The rep who won a merchant earns a share of its fees (before VAT) for its first months, the win month counting as the first. A sales manager approves each month's commission; it is then paid with the salary, or as a bonus to people hired through an outsourcing company.",
+      "rep": "Rep",
+      "everyone": "Everyone",
+      "show": "Show",
+      "estimateTitle": "Building up in {month}",
+      "estimateHint": "An estimate from the fees booked so far; the real figure is worked out once the month is over.",
+      "estimateEmpty": "No won merchant earns commission this month.",
+      "soFar": "so far this month",
+      "waiting": "{n, plural, one {# commission waits} other {# commissions wait}} for your approval.",
+      "history": "By month",
+      "empty": "No commission yet.",
+      "month": "Month",
+      "amount": "Amount (EGP)",
+      "status": "Status",
+      "action": "Action",
+      "statuses": {
+        "draft": "To approve",
+        "approved": "Approved",
+        "paid": "Paid"
+      },
+      "lineText": "month {month}, fees {fees} EGP × {rate}% = {amount} EGP",
+      "adjusted": "Worked out {computed} EGP; changed by {name}: {reason}",
+      "approvedBy": "Approved by {name}, {when}",
+      "paidPayroll": "Paid with the salary",
+      "paidBonus": "Paid as a bonus",
+      "approve": "Approve",
+      "adjust": "Change",
+      "reason": "Why it changes",
+      "saveAdjust": "Save the change",
+      "notYours": "Another sales manager approves your own commission."
     }
+  },
+  "proposalPage": {
+    "pageTitle": "Your proposal",
+    "brand": "Shiply Now",
+    "notFound": "This proposal link is not valid. Ask your Shiply contact for a new one.",
+    "unavailable": "The proposal could not be loaded. Try again in a minute.",
+    "version": "version {n}",
+    "title": "60 minute delivery for {brand}",
+    "intro": "{company} keeps your stock in small dark stores across Greater Cairo and delivers your Shopify orders within 60 minutes. Here are the rates and terms we offer you.",
+    "validUntil": "This offer is open until {day}.",
+    "ratesTitle": "Our rates",
+    "vatAdded": "VAT of {vat} is added to every fee.",
+    "vatNone": "Prices before VAT.",
+    "egpAmount": "{amount} EGP",
+    "orderFee": "Each delivered order",
+    "orderFeeHint": "Picking, packing and the 60 minute delivery.",
+    "orderFeeBoth": "{fixed} + {percent} of the products value",
+    "percentOfProducts": "{percent} of the products value",
+    "codFee": "Cash on delivery",
+    "codFeeValue": "{percent} of the cash collected",
+    "codFeeHint": "We collect the cash and pay it to you.",
+    "failedFee": "Failed delivery",
+    "failedFeeHint": "When the customer cannot be reached and the goods come back.",
+    "receivingFee": "Receiving your stock",
+    "perUnit": "{amount} a unit",
+    "storageFee": "Storage",
+    "perUnitMonth": "{amount} a unit a month",
+    "storageFeeHint": "Charged day by day on the units in stock.",
+    "returnFee": "Returning stock to you",
+    "tiersTitle": "Volume tiers",
+    "tiersHint": "The more orders in a month, the lower the order fee: from the order that reaches a tier, every later order of that month pays the tier fee.",
+    "tierLine": "From order number {from} of the month: {fee} an order",
+    "exampleTitle": "An example month",
+    "exampleIntro": "With {orders} orders a month of {average} each, all paid cash on delivery:",
+    "exampleIntroNoAverage": "With {orders} orders a month, all paid cash on delivery:",
+    "exampleOrderFees": "Order fees",
+    "exampleCodFees": "Cash on delivery fees",
+    "exampleMinimum": "Top up to the monthly minimum",
+    "exampleTotal": "Total for the month",
+    "examplePerOrder": "{amount} an order",
+    "exampleNote": "Before VAT. Receiving, storage and returns depend on your stock and are added as they happen.",
+    "termsTitle": "Terms",
+    "start": "Contract starts",
+    "startOnConfirm": "The day we confirm your acceptance",
+    "length": "Length",
+    "months": "{n, plural, one {# month} other {# months}}",
+    "openEnded": "No end date",
+    "notice": "Notice to end it",
+    "days": "{n, plural, one {# day} other {# days}}",
+    "minimum": "Monthly minimum",
+    "minimumHint": "If fees in a month are lower, the difference is charged.",
+    "deposit": "Security deposit",
+    "depositHint": "Paid before we start and given back when the contract ends.",
+    "creditLimit": "Credit limit",
+    "creditLimitHint": "New shipments wait while you owe us more than this.",
+    "payouts": "Cash collected",
+    "payoutsValue": "Paid to your bank after our fees, daily, twice a week or weekly as you choose.",
+    "whoTitle": "Who we are",
+    "taxNumber": "Tax number {n}",
+    "rep": "Your contact: {name}",
+    "acceptTitle": "Accept this proposal",
+    "declineTitle": "Decline this proposal",
+    "signerName": "Your full name",
+    "signerTitle": "Your title (for example Owner, CEO)",
+    "agree": "I accept these rates and terms on behalf of the brand.",
+    "declineReason": "Why (optional)",
+    "acceptButton": "Accept",
+    "declineButton": "Decline",
+    "switchToDecline": "Decline instead",
+    "switchToAccept": "Accept instead",
+    "accepted": "Accepted by {name} ({title}) on {when}. Your Shiply contact will confirm and send you your login.",
+    "declined": "You declined this proposal. Your Shiply contact may send you another one.",
+    "expired": "This proposal has run out. Ask your Shiply contact for a new one.",
+    "superseded": "A newer version of this proposal was sent to you. Open the latest link.",
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "proposal_expired": "This proposal has run out. Ask your Shiply contact for a new one.",
+      "proposal_closed": "This proposal can no longer be answered.",
+      "proposal_not_found": "This proposal link is not valid.",
+      "too_many_attempts": "Too many tries. Wait a few minutes.",
+      "validation_failed": "Write your name and title."
+    }
+  },
+  "setupPage": {
+    "pageTitle": "Choose your password",
+    "brand": "Shiply Now",
+    "title": "Welcome, {name}",
+    "intro": "Choose the password for {merchant}. You sign in with {email}.",
+    "password": "Password",
+    "rule": "At least 10 characters.",
+    "again": "The same password again",
+    "save": "Save and open my account",
+    "tooShort": "Use at least 10 characters.",
+    "mismatch": "The two passwords are not the same.",
+    "invalid": "This link is not valid any more. Ask your Shiply contact for a new one.",
+    "error": "Something went wrong. Try again.",
+    "done": "Your account is open. Sign in with your email and the password you chose.",
+    "signIn": "Sign in"
   }
 }

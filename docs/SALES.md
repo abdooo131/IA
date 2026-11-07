@@ -1,9 +1,9 @@
 # Sales app (CRM)
 
 The Sales app follows every brand we want as a merchant from the first contact to the signed
-deal. Part 1 (built) is the lead intake, the pipeline, deals, companies, contacts, activities
-and follow up reminders. Part 2 (planned below) adds proposals, targets, the sales dashboard and
-commission.
+deal. Part 1 is the lead intake, the pipeline, deals, companies, contacts, activities and
+follow up reminders (sections 1 to 7). Part 2 adds proposals with their public page, targets,
+the sales dashboard and commission (sections 8 to 12). Both are built.
 
 ## 1. Access
 
@@ -56,7 +56,10 @@ reasons (sales manage).
   Shopify, too few orders, customers outside our areas, chose a competitor, stopped answering,
   not ready yet. Managers add reasons and switch them off (a switched off reason stays on old
   deals). `other` is always offered and needs a note.
-- Part 2 adds `crm_proposals`, `crm_targets` and `crm_commissions` (not built).
+- Part 2 adds `crm_proposals` and `crm_proposal_tiers`, `crm_targets`, `crm_commissions` and
+  `crm_commission_lines`, `user_setup_tokens`, and on `crm_deals` the owner at the win
+  (`won_by_id`) with the commission terms of that moment (`commission_bp`,
+  `commission_months`). Migration `20261226090000_sales_crm_part2`.
 
 Every change is audited (`crm_deal.*`, `crm_activity.*` on the deal or company,
 `crm_company.*`, `crm_contact.*`, `crm_lost_reason.*`).
@@ -104,7 +107,8 @@ Every change is audited (`crm_deal.*`, `crm_activity.*` on the deal or company,
   check, so a rep never reads another rep's history).
 - **Company page** (/admin/sales/companies/<id>): details, contacts (add), its deals, its
   activities, New deal for this company. Companies list with search.
-- Stage rules: any stage can move to any other (a manager can reopen a lost deal); moving
+- Stage rules: any stage can move to any other (a manager can reopen a lost deal), except that
+  a won deal with its merchant never leaves won (`deal_won_locked`, part 2); moving
   keeps a history row, stamps `won_at` or `lost_at` and clears them when the deal leaves won or
   lost, and handles the deal's open stale alert.
 - Reassigning (sales manage): the deal gets the new owner; the company follows when it had no
@@ -170,19 +174,150 @@ Screens: apps/web/src/app/admin/sales, components/sales, lib/sales.ts.
 | `sales.overdue_minutes` | 60 | minutes after the due time before a follow up is overdue (alert) |
 | `sales.stale_days` | 14 | days in one stage before a deal is stale (alert) |
 
-## 8. Part 2 (planned, not built)
+## 8. Proposals (part 2)
 
-- **Proposals** (`crm_proposals`): built from the fee settings (fixed fee and percent per
-  order, COD fee, failed delivery fee, receiving and storage) with the contract's volume tiers
-  and monthly minimum, sent to the merchant as a link they accept online. When accepted, the
-  rep confirms and the system opens the merchant, its contract (merchant_contracts) and the
-  owner login, links company and deal to the merchant and marks the deal won.
-- **Targets** (`crm_targets`): per rep per month: deals won, orders brought in (delivered
-  orders of the merchants they won) and fee revenue from the ledger (fees before VAT).
-- **Dashboard**: funnel by stage, conversion between stages, pipeline value, win rate, average
-  days to close, lost reasons, leaderboard against targets.
-- **Commission** (`crm_commissions`): by default 5% of the won merchant's fees before VAT for 6
-  months after the win (settings `sales.commission_bp` = 500 and `sales.commission_months` =
-  6), computed monthly from the ledger, approved by the sales manager, and paid through the
-  payroll run as a taxed bonus.
-- Menus to add: Proposals, Targets, Dashboard, Commission.
+    draft ──(discount past sales.max_discount_bp: a sales manager approves)──▶ Send
+    sent ──(the brand opens /p/<token>)──▶ viewed ──▶ accepted ──(the rep confirms)──▶ deal won
+      │                                     └──────▶ declined         merchant, owner, contract
+      └──(sales.proposal_valid_days pass)──▶ expired
+    A new version supersedes the deal's open proposals (draft, sent, viewed, accepted).
+
+- **Numbers and versions**: `PRO-000001` onward, gapless (`nextNumber('crm_proposals')`), and a
+  version per deal (1, 2, ...). Only a draft is edited; a sent proposal is changed by a new
+  version, which makes the old link answer "replaced".
+- **Values**: every fee starts from its global setting and the rep may change it: fee per
+  delivered order (fixed and share of the products value), COD fee, failed delivery, receiving
+  per unit, storage per unit per month, return per unit. Volume tiers on the order fee, the
+  monthly minimum, the security deposit and the credit limit work exactly like
+  `merchant_contracts`; contract start (empty: the day the rep confirms), length in months
+  (empty: no end) and notice days; free text terms; orders a month and average order value for
+  the example month.
+- **Discount rule**: the discount of each fee (and each tier's fixed fee and share, against the
+  order fee settings) is `(setting − offered) / setting`. When the largest is above
+  `sales.max_discount_bp` (default 2000 = 20%) the proposal needs a sales manager's approval
+  before it can be sent (`approval_required`). The rep asks (Ask a manager to approve, pushed
+  to the managers); a manager who did not make it approves (`same_person` otherwise). Changing
+  a price clears the approval.
+- **Sending** makes an unguessable token (24 random bytes), the last day open
+  (`sales.proposal_valid_days`, default 14, Cairo day) and moves the deal to the proposal stage
+  when it was earlier (new, contacted, meeting), with a stage history row.
+- **Public page** `/p/<token>` (no sign in, English or Arabic from the visitor's language
+  cookie, switchable): our company's legal name, tax number and address (company profile), the
+  rep's contact, the rates in plain words, the tiers, an example month (the expected orders at
+  the average order value, every order cash on delivery, tiers applied band by band, topped up
+  to the minimum, before VAT), the terms, and Accept (signer's name and title, a tick to accept
+  on behalf of the brand) or Decline (name and an optional reason). Opening it marks a sent
+  proposal viewed once; a proposal past its last day answers expired and refuses answers
+  (`proposal_expired`); answering twice changes nothing; an answered or replaced one refuses
+  the other answer (`proposal_closed`). Answers are limited to 20 per address in 15 minutes.
+  The page never shows the deal, the rep's notes or other brands.
+- **Confirming** (the rep, sales use, own deals): only an accepted proposal. One transaction:
+  - the merchant: the company's own when it already is one (a sign up: it is approved and its
+    users opened if they were waiting), else a new approved merchant named after the company,
+  - its owner login: role merchant, merchant role owner, inactive with a random password, and
+    a one time setup link (`/setup/<token>`, stored hashed in `user_setup_tokens`, valid
+    `sales.setup_link_days`, default 7). The link is shown to the rep once to send to the
+    owner (no email is sent); the rep can make a new one from the deal while the owner has not
+    used it (earlier links stop working). Choosing a password opens the account,
+  - the merchant contract (start, end from the length, notice, tiers, minimum, deposit, credit
+    limit) through the same `saveContract` as admin, and every proposal fee as the merchant's own
+    fee setting (scope `merchant:<id>`),
+  - the deal's owner as the merchant's account manager (a sales manager can change it on the
+    deal),
+  - company and deal linked to the merchant, the deal won (with the owner at the win and the
+    commission terms), its stale alerts handled,
+  - every step audited (merchant.create, user.create, merchant.contract_create, settings.update,
+    crm_deal.won).
+  Confirming again changes nothing; any failure (for example the owner's email already used:
+  `email_taken`) leaves nothing behind.
+
+## 9. Targets
+
+`crm_targets`: one row per rep and Cairo month with deals won, orders and fees (piastres), set
+by sales managers (Sales > Targets, audited `crm_target.set`). What a rep reached:
+
+- deals won: deals won in the month with the rep as owner at the win (`won_by_id`),
+- orders brought in: delivered orders in the month of the merchants they won, from the moment
+  each was won,
+- fees: fee income (fees before VAT: revenue lines tagged with the merchant, the year close
+  left out) of those merchants in the month, from the win on.
+A merchant with two won deals counts for its first win only. Reps see their own row, managers
+everyone.
+
+## 10. Dashboard
+
+Sales > Dashboard for a Cairo month (reps: their own numbers; managers: everyone or one rep):
+open pipeline value (expected monthly fees of open deals, now) by stage, win rate (won ÷ won
+and lost in the month), average days from opening to winning, new leads and their sources,
+overdue follow ups (now), the funnel of the deals opened in the month (the furthest stage each
+reached, with the share going on to the next stage), why deals were lost, deals won in the last
+six months and the leaderboard of reps against their targets (fees, then deals won).
+
+## 11. Commission
+
+- Every won deal keeps the commission terms of the moment it was won: `sales.commission_bp`
+  (default 500 = 5%) of the won merchant's fees before VAT for `sales.commission_months`
+  (default 6) months, the win month counting as month 1, to the owner at the win.
+- Once a Cairo month is over (from its second day, after the month's minimum fees are booked),
+  the API job works out each rep's commission for it as a draft, once (`crm_commissions`, key
+  `commission:<rep>:<month>`), with one line per merchant (fees of the month from the win on,
+  never below zero, the share, the amount).
+- A sales manager approves the draft or changes the amount with a written reason, never their
+  own (`same_person`; the database refuses it too). Approved commission is never changed again.
+- Paying: approved commission of an employee goes into the next salary run of a month at or
+  after it (Accounting > Payroll) as a taxed part of the gross (shown on the preview and the
+  payslip as commission) and is marked paid by that run, once. For people hired through an
+  outsourcing company Accounting pays it as a direct staff bonus (Payroll, Sales commission to
+  pay), which marks it paid (`commission_not_payable` for a second time or another amount).
+- Reps see what the running month is building up to (an estimate from the fees booked so far)
+  and their history; managers see everyone's.
+
+## 12. API, settings and push (part 2)
+
+    GET    /sales/proposals                  ?status &needsApproval=true
+    GET    /sales/deals/:id/proposals        versions, fee settings, the discount limit
+    POST   /sales/proposals                  new version (idempotency key)
+    PATCH  /sales/proposals/:id              draft only
+    POST   /sales/proposals/:id/request-approval
+    POST   /sales/proposals/:id/approve      sales manage, not the maker
+    POST   /sales/proposals/:id/send
+    POST   /sales/proposals/:id/confirm      owner name, email, mobile (a new merchant)
+    POST   /sales/deals/:id/setup-link       a new owner setup link
+    POST   /sales/deals/:id/account-manager  sales manage
+    GET    /sales/dashboard                  ?month &ownerId
+    GET    /sales/targets, POST /sales/targets (sales manage)
+    GET    /sales/commissions                ?userId (managers)
+    POST   /sales/commissions/:id/adjust, /approve   sales manage, not their own
+    GET    /proposal/:token, POST /proposal/:token/accept, /decline        public
+    GET    /auth/setup/:token, POST /auth/setup/:token                      public
+    GET    /finance/staff-commissions        approved commission of outsourced people
+    POST   /finance/staff-bonuses            with commissionId to pay one
+
+| Key | Default | Meaning |
+|---|---|---|
+| `sales.proposal_valid_days` | 14 | days a sent proposal stays open |
+| `sales.max_discount_bp` | 2000 | largest discount (20%) without a sales manager |
+| `sales.commission_bp` | 500 | commission share (5%) of a won merchant's fees |
+| `sales.commission_months` | 6 | months of commission, the win month first |
+| `sales.setup_link_days` | 7 | days a new owner's setup link stays valid |
+
+Push type `crm_proposal`: a discount waiting for approval (sales managers but its maker), the
+approval (its maker), the brand's acceptance or refusal (the deal's owner).
+
+Domain logic: packages/db/src/crm-proposals.ts and crm-sales.ts; schemas and pure rules
+(discounts, example month, contract end, commission months): packages/shared/src/crm-sales.ts;
+screens: apps/web/src/app/admin/sales/{proposals,dashboard,targets,commission},
+components/sales/Proposal*.tsx, app/p/[token], app/setup/[token]; payroll:
+packages/db/src/finance/payroll.ts.
+
+## 13. Choices left for the owner to confirm
+
+- No email is sent to a new owner: the rep sends the setup link. When SMTP is configured an
+  email kind could carry it.
+- The dashboard period is a Cairo month (not any date range).
+- The example month assumes every order is cash on delivery.
+- Commission is paid in the first salary run at or after the commission's month once approved
+  (a late approval goes into a later run, never lost).
+- A proposal's fees become the merchant's own fee settings even where they equal today's global
+  value, so a later change of the global fee does not change an agreed contract.
+- Notice days default to 30 when the rep leaves it empty.

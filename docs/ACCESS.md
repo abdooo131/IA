@@ -74,6 +74,16 @@ What each app covers:
   says, gives deals to reps (or back to the queue) and edits the lost reasons. With
   `own_deals_only` any route naming another person's record answers 403
   `{ error: 'deal_not_allowed' }`. The sales settings page needs settings manage like every app.
+  Part 2: proposals follow their deal (a rep only on their own deals); use makes, edits, sends
+  and confirms them, and confirming opens the merchant, its owner login and contract even for a
+  rep without merchants manage (only through that flow). manage approves discounts past
+  `sales.max_discount_bp` (never on a proposal they made: `same_person`), sets targets, approves
+  or adjusts commission (never their own: `same_person`) and changes a won merchant's account
+  manager. The dashboard, targets and commission show a rep only their own numbers; managers
+  see everyone. Accounting (use with salaries) pays an outsourced rep's approved commission as a
+  direct bonus; employees get theirs in the salary run, which Accounting never changes.
+  The proposal page `/p/<token>` and the owner's setup page `/setup/<token>` are public (the
+  unguessable token is the key; answers limited to 20 per address in 15 minutes).
 - **settings**: users and access, audit log, ticket settings, and the settings pages of every
   app (a setting is changed with settings manage).
 
@@ -144,6 +154,8 @@ is theirs.
   else; `own_merchants_only` starts off.
 - Sales CRM part 1: the new sales column starts at manage for every profile with settings
   manage (owners) and none for everyone else; `own_deals_only` starts off.
+- Sales CRM part 2: no new column; deals already won count for the person who owned them
+  (`won_by_id`).
 - HR step 2: Store managers get hr view (their stores' attendance board, roster and days); the
   migration raises existing Store manager profiles from none to view.
 - finance → Finance officer (finance_level prepare or view: accounting use or view) or

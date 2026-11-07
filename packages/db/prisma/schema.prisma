@@ -105,51 +105,63 @@ model User {
   storeAreasCreated StoreArea[]       @relation("store_area_created_by")
   settingChanges    Setting[]
 
-  ledgerEntries         LedgerEntry[]            @relation("ledger_entry_created_by")
-  handoversReceived     CashHandover[]           @relation("handover_received_by")
-  handoversReviewed     CashHandover[]           @relation("handover_reviewed_by")
-  payoutsCreated        Payout[]                 @relation("payout_created_by")
-  payoutsPaid           Payout[]                 @relation("payout_paid_by")
-  payoutsApproved       Payout[]                 @relation("payout_approved_by")
-  booksLocks            BooksLock[]
-  financeRequests       FinanceRequest[]         @relation("finance_request_by")
-  financeDecisions      FinanceRequest[]         @relation("finance_request_decided_by")
-  financeReceipts       FinanceReceipt[]
-  advanceAccounts       LedgerAccount[]          @relation("ledger_account_user")
-  ledgerLines           LedgerLine[]             @relation("ledger_line_user")
-  suppliers             Supplier[]
-  billsFor              Bill[]                   @relation("bill_person")
-  chequesCreated        Cheque[]                 @relation("cheque_created_by")
-  contractsUpdated      MerchantContract[]       @relation("contract_updated_by")
-  bankStatements        BankStatement[]
-  taxInvoicesMade       TaxInvoice[]             @relation("tax_invoice_created_by")
-  bankLinesDecided      BankStatementLine[]      @relation("bank_line_decided_by")
-  budgetsSet            Budget[]                 @relation("budget_updated_by")
-  bills                 Bill[]
-  recurringEntries      RecurringEntry[]
-  prepayments           Prepayment[]
-  fixedAssets           FixedAsset[]
-  access                UserAccess?
-  accessStores          UserStore[]
-  employee              Employee?
-  documentsUploaded     EmployeeDocument[]       @relation("employee_document_uploaded_by")
-  documentsReviewed     EmployeeDocument[]       @relation("employee_document_reviewed_by")
-  salaryPackagesSet     SalaryPackage[]          @relation("salary_package_created_by")
-  checklistsStarted     EmployeeChecklist[]      @relation("employee_checklist_created_by")
-  checklistTasksDone    EmployeeChecklistTask[]  @relation("employee_checklist_task_done_by")
-  merchantsManaged      Merchant[]               @relation("merchant_account_manager")
-  pushSubscriptions     PushSubscription[]
-  notificationPrefs     NotificationPreference[]
-  pettyCashCreated      PettyCashExpense[]       @relation("petty_cash_created_by")
-  pettyCashReversed     PettyCashExpense[]       @relation("petty_cash_reversed_by")
-  monthEndMarks         MonthEndMark[]
-  purchaseOrdersAsked   PurchaseOrder[]          @relation("purchase_order_requested_by")
-  purchaseOrdersDecided PurchaseOrder[]          @relation("purchase_order_decided_by")
-  crmCompaniesOwned     CrmCompany[]             @relation("crm_company_owner")
-  crmDealsOwned         CrmDeal[]                @relation("crm_deal_owner")
-  crmActivitiesOwned    CrmActivity[]            @relation("crm_activity_owner")
-  crmActivitiesCreated  CrmActivity[]            @relation("crm_activity_created_by")
-  crmStageChanges       CrmDealStageHistory[]
+  ledgerEntries          LedgerEntry[]            @relation("ledger_entry_created_by")
+  handoversReceived      CashHandover[]           @relation("handover_received_by")
+  handoversReviewed      CashHandover[]           @relation("handover_reviewed_by")
+  payoutsCreated         Payout[]                 @relation("payout_created_by")
+  payoutsPaid            Payout[]                 @relation("payout_paid_by")
+  payoutsApproved        Payout[]                 @relation("payout_approved_by")
+  booksLocks             BooksLock[]
+  financeRequests        FinanceRequest[]         @relation("finance_request_by")
+  financeDecisions       FinanceRequest[]         @relation("finance_request_decided_by")
+  financeReceipts        FinanceReceipt[]
+  advanceAccounts        LedgerAccount[]          @relation("ledger_account_user")
+  ledgerLines            LedgerLine[]             @relation("ledger_line_user")
+  suppliers              Supplier[]
+  billsFor               Bill[]                   @relation("bill_person")
+  chequesCreated         Cheque[]                 @relation("cheque_created_by")
+  contractsUpdated       MerchantContract[]       @relation("contract_updated_by")
+  bankStatements         BankStatement[]
+  taxInvoicesMade        TaxInvoice[]             @relation("tax_invoice_created_by")
+  bankLinesDecided       BankStatementLine[]      @relation("bank_line_decided_by")
+  budgetsSet             Budget[]                 @relation("budget_updated_by")
+  bills                  Bill[]
+  recurringEntries       RecurringEntry[]
+  prepayments            Prepayment[]
+  fixedAssets            FixedAsset[]
+  access                 UserAccess?
+  accessStores           UserStore[]
+  employee               Employee?
+  documentsUploaded      EmployeeDocument[]       @relation("employee_document_uploaded_by")
+  documentsReviewed      EmployeeDocument[]       @relation("employee_document_reviewed_by")
+  salaryPackagesSet      SalaryPackage[]          @relation("salary_package_created_by")
+  checklistsStarted      EmployeeChecklist[]      @relation("employee_checklist_created_by")
+  checklistTasksDone     EmployeeChecklistTask[]  @relation("employee_checklist_task_done_by")
+  merchantsManaged       Merchant[]               @relation("merchant_account_manager")
+  pushSubscriptions      PushSubscription[]
+  notificationPrefs      NotificationPreference[]
+  pettyCashCreated       PettyCashExpense[]       @relation("petty_cash_created_by")
+  pettyCashReversed      PettyCashExpense[]       @relation("petty_cash_reversed_by")
+  monthEndMarks          MonthEndMark[]
+  purchaseOrdersAsked    PurchaseOrder[]          @relation("purchase_order_requested_by")
+  purchaseOrdersDecided  PurchaseOrder[]          @relation("purchase_order_decided_by")
+  crmCompaniesOwned      CrmCompany[]             @relation("crm_company_owner")
+  crmDealsOwned          CrmDeal[]                @relation("crm_deal_owner")
+  crmActivitiesOwned     CrmActivity[]            @relation("crm_activity_owner")
+  crmActivitiesCreated   CrmActivity[]            @relation("crm_activity_created_by")
+  crmStageChanges        CrmDealStageHistory[]
+  crmDealsWon            CrmDeal[]                @relation("crm_deal_won_by")
+  crmProposalsMade       CrmProposal[]            @relation("crm_proposal_created_by")
+  crmProposalsApproved   CrmProposal[]            @relation("crm_proposal_approved_by")
+  crmProposalsSent       CrmProposal[]            @relation("crm_proposal_sent_by")
+  crmProposalsConfirmed  CrmProposal[]            @relation("crm_proposal_confirmed_by")
+  crmTargets             CrmTarget[]              @relation("crm_target_user")
+  crmTargetsSet          CrmTarget[]              @relation("crm_target_updated_by")
+  crmCommissions         CrmCommission[]          @relation("crm_commission_user")
+  crmCommissionsAdjusted CrmCommission[]          @relation("crm_commission_adjusted_by")
+  crmCommissionsApproved CrmCommission[]          @relation("crm_commission_approved_by")
+  setupTokens            UserSetupToken[]         @relation("user_setup_token_user")
+  setupTokensMade        UserSetupToken[]         @relation("user_setup_token_created_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -417,8 +429,10 @@ model Merchant {
   contract MerchantContract?
   cheques  Cheque[]
 
-  crmCompanies CrmCompany[]
-  crmDeals     CrmDeal[]
+  crmCompanies       CrmCompany[]
+  crmDeals           CrmDeal[]
+  crmProposals       CrmProposal[]
+  crmCommissionLines CrmCommissionLine[]
 
   @@index([accountManagerId])
   @@map("merchants")
@@ -1445,6 +1459,7 @@ model LedgerEntry {
   chequesBooked  Cheque[]         @relation("cheque_book_entry")
   chequesCleared Cheque[]         @relation("cheque_clear_entry")
   chequesUndone  Cheque[]         @relation("cheque_reverse_entry")
+  crmCommissions CrmCommission[]
 
   pettyCash         PettyCashExpense[] @relation("petty_cash_entry")
   pettyCashReversal PettyCashExpense[] @relation("petty_cash_reversal")
@@ -3716,20 +3731,29 @@ model CrmDeal {
   wonAt                      DateTime? @map("won_at")
   lostAt                     DateTime? @map("lost_at")
   merchantId                 String?   @map("merchant_id")
+  /// The owner when the deal was won: commission and targets count for them (part 2)
+  wonById                    String?   @map("won_by_id")
+  /// Commission terms taken from the settings when the deal was won
+  commissionBp               Int?      @map("commission_bp")
+  commissionMonths           Int?      @map("commission_months")
   idempotencyKey             String?   @unique @map("idempotency_key")
   createdById                String?   @map("created_by_id")
   createdAt                  DateTime  @default(now()) @map("created_at")
   updatedAt                  DateTime  @updatedAt @map("updated_at")
 
-  company    CrmCompany            @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  owner      User?                 @relation("crm_deal_owner", fields: [ownerId], references: [id], onDelete: Restrict)
-  merchant   Merchant?             @relation(fields: [merchantId], references: [id], onDelete: Restrict)
-  history    CrmDealStageHistory[]
-  activities CrmActivity[]
+  company         CrmCompany            @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  owner           User?                 @relation("crm_deal_owner", fields: [ownerId], references: [id], onDelete: Restrict)
+  wonBy           User?                 @relation("crm_deal_won_by", fields: [wonById], references: [id], onDelete: Restrict)
+  merchant        Merchant?             @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  history         CrmDealStageHistory[]
+  activities      CrmActivity[]
+  proposals       CrmProposal[]
+  commissionLines CrmCommissionLine[]
 
   @@index([ownerId, stage])
   @@index([stage, stageChangedAt])
   @@index([companyId])
+  @@index([wonById, wonAt])
   @@map("crm_deals")
 }
 
@@ -3793,4 +3817,200 @@ model CrmLostReason {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   @@map("crm_lost_reasons")
+}
+
+// ─── Sales CRM part 2: proposals, targets, commission (docs/SALES.md) ───────────────
+
+enum CrmProposalStatus {
+  draft
+  sent
+  viewed
+  accepted
+  declined
+  expired
+  superseded
+
+  @@map("crm_proposal_status")
+}
+
+enum CrmCommissionStatus {
+  /// Worked out by the monthly job; the sales manager approves or adjusts it
+  draft
+  approved
+  /// Paid in the salary run (employees) or as a direct bonus (outsourced people)
+  paid
+
+  @@map("crm_commission_status")
+}
+
+/// Our rates and terms offered to a brand (PRO-000001, gapless), one version per row of a deal.
+model CrmProposal {
+  id                          String            @id @default(cuid())
+  number                      Int               @unique
+  dealId                      String            @map("deal_id")
+  version                     Int
+  status                      CrmProposalStatus @default(draft)
+  orderFixedPiastres          Int               @map("order_fixed_piastres")
+  orderPercentBp              Int               @map("order_percent_bp")
+  codPercentBp                Int               @map("cod_percent_bp")
+  failedDeliveryPiastres      Int               @map("failed_delivery_piastres")
+  receivingPerUnitPiastres    Int               @map("receiving_per_unit_piastres")
+  storagePerUnitMonthPiastres Int               @map("storage_per_unit_month_piastres")
+  returnPerUnitPiastres       Int               @map("return_per_unit_piastres")
+  /// The example month on the proposal page
+  expectedMonthlyOrders       Int?              @map("expected_monthly_orders")
+  averageOrderPiastres        Int?              @map("average_order_piastres")
+  minimumMonthlyFeePiastres   Int?              @map("minimum_monthly_fee_piastres")
+  securityDepositPiastres     Int?              @map("security_deposit_piastres")
+  creditLimitPiastres         Int?              @map("credit_limit_piastres")
+  /// The contract starts on this day (null: the day the rep confirms)
+  contractStartDate           DateTime?         @map("contract_start_date") @db.Date
+  /// Months the contract runs (null: no end date)
+  contractMonths              Int?              @map("contract_months")
+  noticeDays                  Int               @map("notice_days")
+  terms                       String?
+  /// The largest discount against the fee settings, in basis points
+  maxDiscountBp               Int               @default(0) @map("max_discount_bp")
+  /// A discount past sales.max_discount_bp: a sales manager approves before it is sent
+  needsApproval               Boolean           @default(false) @map("needs_approval")
+  approvalRequestedAt         DateTime?         @map("approval_requested_at")
+  approvedById                String?           @map("approved_by_id")
+  approvedAt                  DateTime?         @map("approved_at")
+  /// The public link /p/<token>, made when it is sent
+  token                       String?           @unique
+  sentAt                      DateTime?         @map("sent_at")
+  sentById                    String?           @map("sent_by_id")
+  validUntil                  DateTime?         @map("valid_until") @db.Date
+  viewedAt                    DateTime?         @map("viewed_at")
+  acceptedAt                  DateTime?         @map("accepted_at")
+  declinedAt                  DateTime?         @map("declined_at")
+  signerName                  String?           @map("signer_name")
+  signerTitle                 String?           @map("signer_title")
+  declineReason               String?           @map("decline_reason")
+  /// When it expired or a newer version replaced it
+  closedAt                    DateTime?         @map("closed_at")
+  /// The rep confirmed the acceptance: the merchant, its owner login and contract exist
+  confirmedAt                 DateTime?         @map("confirmed_at")
+  confirmedById               String?           @map("confirmed_by_id")
+  merchantId                  String?           @map("merchant_id")
+  createdById                 String            @map("created_by_id")
+  idempotencyKey              String?           @unique @map("idempotency_key")
+  createdAt                   DateTime          @default(now()) @map("created_at")
+  updatedAt                   DateTime          @updatedAt @map("updated_at")
+
+  deal        CrmDeal           @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  createdBy   User              @relation("crm_proposal_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy  User?             @relation("crm_proposal_approved_by", fields: [approvedById], references: [id], onDelete: Restrict)
+  sentBy      User?             @relation("crm_proposal_sent_by", fields: [sentById], references: [id], onDelete: Restrict)
+  confirmedBy User?             @relation("crm_proposal_confirmed_by", fields: [confirmedById], references: [id], onDelete: Restrict)
+  merchant    Merchant?         @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  tiers       CrmProposalTier[]
+
+  @@unique([dealId, version])
+  @@index([status])
+  @@map("crm_proposals")
+}
+
+/// Volume tiers offered on the order fee, as merchant_contract_tiers.
+model CrmProposalTier {
+  id               String @id @default(cuid())
+  proposalId       String @map("proposal_id")
+  fromOrder        Int    @map("from_order")
+  fixedFeePiastres Int?   @map("fixed_fee_piastres")
+  percentBp        Int?   @map("percent_bp")
+
+  proposal CrmProposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@unique([proposalId, fromOrder])
+  @@map("crm_proposal_tiers")
+}
+
+/// A rep's targets for a Cairo month (YYYY-MM), set by the sales managers.
+model CrmTarget {
+  id                 String   @id @default(cuid())
+  userId             String   @map("user_id")
+  month              String
+  dealsWon           Int      @map("deals_won")
+  orders             Int
+  feeRevenuePiastres Int      @map("fee_revenue_piastres")
+  updatedById        String   @map("updated_by_id")
+  createdAt          DateTime @default(now()) @map("created_at")
+  updatedAt          DateTime @updatedAt @map("updated_at")
+
+  user      User @relation("crm_target_user", fields: [userId], references: [id], onDelete: Restrict)
+  updatedBy User @relation("crm_target_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([userId, month])
+  @@map("crm_targets")
+}
+
+/// A rep's commission for a Cairo month (one per rep and month, key commission:<rep>:<month>).
+model CrmCommission {
+  id               String              @id @default(cuid())
+  userId           String              @map("user_id")
+  month            String
+  status           CrmCommissionStatus @default(draft)
+  /// What the lines add up to
+  computedPiastres Int                 @map("computed_piastres")
+  /// What is paid: the computed amount, or the manager's adjustment
+  amountPiastres   Int                 @map("amount_piastres")
+  adjustReason     String?             @map("adjust_reason")
+  adjustedById     String?             @map("adjusted_by_id")
+  adjustedAt       DateTime?           @map("adjusted_at")
+  approvedById     String?             @map("approved_by_id")
+  approvedAt       DateTime?           @map("approved_at")
+  /// payroll (employees, taxed in the salary run) or bonus (outsourced, paid directly)
+  paidVia          String?             @map("paid_via")
+  paidEntryId      String?             @map("paid_entry_id")
+  paidAt           DateTime?           @map("paid_at")
+  idempotencyKey   String              @unique @map("idempotency_key")
+  createdAt        DateTime            @default(now()) @map("created_at")
+  updatedAt        DateTime            @updatedAt @map("updated_at")
+
+  user       User                @relation("crm_commission_user", fields: [userId], references: [id], onDelete: Restrict)
+  adjustedBy User?               @relation("crm_commission_adjusted_by", fields: [adjustedById], references: [id], onDelete: Restrict)
+  approvedBy User?               @relation("crm_commission_approved_by", fields: [approvedById], references: [id], onDelete: Restrict)
+  paidEntry  LedgerEntry?        @relation(fields: [paidEntryId], references: [id], onDelete: Restrict)
+  lines      CrmCommissionLine[]
+
+  @@unique([userId, month])
+  @@index([status, month])
+  @@map("crm_commissions")
+}
+
+/// One won merchant's fees in the month and the commission on them.
+model CrmCommissionLine {
+  id             String @id @default(cuid())
+  commissionId   String @map("commission_id")
+  dealId         String @map("deal_id")
+  merchantId     String @map("merchant_id")
+  /// 1 is the month the deal was won
+  monthIndex     Int    @map("month_index")
+  feesPiastres   Int    @map("fees_piastres")
+  rateBp         Int    @map("rate_bp")
+  amountPiastres Int    @map("amount_piastres")
+
+  commission CrmCommission @relation(fields: [commissionId], references: [id], onDelete: Cascade)
+  deal       CrmDeal       @relation(fields: [dealId], references: [id], onDelete: Restrict)
+  merchant   Merchant      @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+
+  @@unique([commissionId, dealId])
+  @@map("crm_commission_lines")
+}
+
+/// A one time link for a new account's owner to choose a password (stored hashed).
+model UserSetupToken {
+  id          String    @id @default(cuid())
+  userId      String    @map("user_id")
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at")
+  usedAt      DateTime? @map("used_at")
+  createdById String?   @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user      User  @relation("user_setup_token_user", fields: [userId], references: [id], onDelete: Cascade)
+  createdBy User? @relation("user_setup_token_created_by", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@map("user_setup_tokens")
 }

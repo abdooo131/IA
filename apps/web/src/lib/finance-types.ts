@@ -317,6 +317,8 @@ export interface PayslipRun {
     name: string;
     base: number;
     bonus: number;
+    /** Sales commission paid with the salary (older runs have none) */
+    commission?: number;
     deduction: number;
     gross: number;
     insuredWage: number;

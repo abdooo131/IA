@@ -9,6 +9,7 @@ import {
 } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { employmentOf, packageGross, packageInForce } from '../hr-pay';
+import { markCommissionsPaid, payableCommissions } from '../crm-sales';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { balanceOf, post } from './ledger';
@@ -241,6 +242,8 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
   const rows: (Omit<PayslipRow, 'note'> & {
     tags: Awaited<ReturnType<typeof personTags>>['tags'];
     note?: string;
+    /** Approved sales commission paid with this salary (docs/SALES.md 11) */
+    commissionIds: string[];
   })[] = [];
   for (const l of input.lines) {
     const { user, tags } = await personTags(db as Tx, l.userId);
@@ -255,7 +258,11 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
     const recovery = l.advanceRecoveryPiastres ?? 0;
     for (const v of [base, bonus, deduction, recovery])
       if (!Number.isSafeInteger(v) || v < 0) throw new DomainError('invalid_amount', 400);
-    const gross = base + bonus - deduction;
+    // Sales commission approved by the sales manager comes in by itself, taxed with the salary;
+    // Accounting reads it and never changes it.
+    const commissions = await payableCommissions(db, user.id, input.month);
+    const commission = commissions.reduce((s, c) => s + c.amountPiastres, 0);
+    const gross = base + bonus + commission - deduction;
     if (gross < 0) throw new DomainError('net_below_zero', 400);
     const slip = monthlyPayslip({ gross, insuredWage: salary?.insuredWagePiastres ?? null }, rules);
     const owed = await balanceOf(db, { type: 'staff_advance', userId: user.id });
@@ -268,6 +275,8 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
       tags,
       base,
       bonus,
+      commission,
+      commissionIds: commissions.map((c) => c.id),
       deduction,
       gross,
       insuredWage: slip.insuredWage,
@@ -350,6 +359,7 @@ export function runPayroll(db: Db, input: PayrollInput) {
           name: r.name,
           base: r.base,
           bonus: r.bonus,
+          commission: r.commission,
           deduction: r.deduction,
           gross: r.gross,
           insuredWage: r.insuredWage,
@@ -365,6 +375,13 @@ export function runPayroll(db: Db, input: PayrollInput) {
       lines,
     });
     if (!entry) throw new DomainError('nothing_to_pay', 400);
+    await markCommissionsPaid(
+      tx,
+      plan.rows.flatMap((r) => r.commissionIds),
+      'payroll',
+      entry.id,
+      at,
+    );
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.payroll',
@@ -381,6 +398,8 @@ export interface PayslipRow {
   name: string;
   base: number;
   bonus: number;
+  /** Sales commission paid with the salary */
+  commission: number;
   deduction: number;
   gross: number;
   insuredWage: number;
@@ -408,6 +427,7 @@ export async function payslips(db: Db, month: string) {
       name: p.name ?? '',
       base: p.base ?? p.gross,
       bonus: p.bonus ?? 0,
+      commission: p.commission ?? 0,
       insuredWage: p.insuredWage ?? 0,
       siEmployee: p.siEmployee ?? 0,
       siEmployer: p.siEmployer ?? 0,
@@ -420,6 +440,8 @@ export async function payslips(db: Db, month: string) {
 export interface BonusInput {
   userId: string;
   amountPiastres: number;
+  /** An approved sales commission this bonus pays (docs/SALES.md 11) */
+  commissionId?: string;
   moneyAccountId: string;
   reference: string;
   day?: string;
@@ -445,6 +467,17 @@ export function payStaffBonus(db: Db, input: BonusInput) {
       throw new DomainError('employee_bonus_in_payroll');
     if (input.amountPiastres > (await balanceOf(tx, { id: money.id })))
       throw new DomainError('not_enough_money');
+    if (input.commissionId) {
+      const c = await tx.crmCommission.findUnique({ where: { id: input.commissionId } });
+      if (
+        !c ||
+        c.userId !== user.id ||
+        c.status !== 'approved' ||
+        c.paidEntryId ||
+        c.amountPiastres !== input.amountPiastres
+      )
+        throw new DomainError('commission_not_payable');
+    }
     const entry = await post(tx, {
       kind: 'staff_bonus',
       idempotencyKey: key,
@@ -453,12 +486,18 @@ export function payStaffBonus(db: Db, input: BonusInput) {
       memo: input.reference,
       darkStoreId: tags.darkStoreId,
       riderId: tags.riderId,
-      data: { userId: user.id, reference: input.reference },
+      data: {
+        userId: user.id,
+        reference: input.reference,
+        ...(input.commissionId && { commissionId: input.commissionId }),
+      },
       lines: [
         { account: { type: 'staff_bonus_expense' }, amount: input.amountPiastres, tags },
         { account: { id: money.id }, amount: -input.amountPiastres },
       ],
     });
+    if (input.commissionId)
+      await markCommissionsPaid(tx, [input.commissionId], 'bonus', entry!.id, at);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.staff_bonus',

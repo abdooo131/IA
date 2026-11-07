@@ -23,3 +23,4 @@ export * from './contracts';
 export * from './purchasing';
 export * from './site';
 export * from './crm';
+export * from './crm-sales';

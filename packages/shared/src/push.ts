@@ -25,6 +25,7 @@ export const PUSH_TYPES = [
   'rider_cash_overdue',
   'crm_lead',
   'crm_followup',
+  'crm_proposal',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -55,7 +56,7 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   if (canDo(p, 'merchants', 'use')) list.push('merchant_alert');
   // Sales CRM: website leads reach the sales managers' queue; reps hear about their deals.
   if (canDo(p, 'sales', 'manage')) list.push('site_lead');
-  if (canDo(p, 'sales', 'use')) list.push('crm_lead', 'crm_followup');
+  if (canDo(p, 'sales', 'use')) list.push('crm_lead', 'crm_followup', 'crm_proposal');
   list.push('ticket', 'attendance_late', 'document_expiring');
   return list;
 }
@@ -233,6 +234,22 @@ export const PUSH_TEXT = {
   crm_deal_stale: {
     en: ['Deal {number} is stuck', '{company} has been in one stage for {days} days.'],
     ar: ['الصفقة {number} متوقفة', '{company} في نفس المرحلة منذ {days} يومًا.'],
+  },
+  crm_proposal_approval: {
+    en: ['Proposal {number} needs approval', '{company}: {name} offers a discount of {discount}%.'],
+    ar: ['العرض {number} يحتاج موافقة', '{company}: {name} يعرض خصمًا {discount}٪.'],
+  },
+  crm_proposal_approved: {
+    en: ['Proposal {number} approved', '{company}: you can send it now.'],
+    ar: ['تمت الموافقة على العرض {number}', '{company}: يمكنك إرساله الآن.'],
+  },
+  crm_proposal_accepted: {
+    en: ['{company} accepted {number}', '{name} signed. Confirm it to open the merchant.'],
+    ar: ['{company} قبل {number}', 'وقّع {name}. أكّد القبول لفتح حساب التاجر.'],
+  },
+  crm_proposal_declined: {
+    en: ['{company} declined {number}', '{name} declined the proposal.'],
+    ar: ['{company} رفض {number}', 'رفض {name} العرض.'],
   },
 } as const satisfies Record<string, Record<PushLang, readonly [string, string]>>;
 export type PushTextKey = keyof typeof PUSH_TEXT;

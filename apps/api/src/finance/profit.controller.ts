@@ -4,6 +4,7 @@ import {
   costPerOrder,
   DomainError,
   listStaffPay,
+  outsourcedCommissionsToPay,
   payslips,
   previewPayroll,
   submitStaffBonus,
@@ -70,6 +71,16 @@ export class ProfitController {
   @Access('accounting', 'view', { salaries: true })
   staff() {
     return listStaffPay(this.prisma);
+  }
+
+  /**
+   * Sales commission approved by the sales manager for people hired through an outsourcing
+   * company, waiting to be paid as a direct bonus (employees get theirs in the salary run).
+   */
+  @Get('staff-commissions')
+  @Access('accounting', 'view', { salaries: true })
+  commissions() {
+    return outsourcedCommissionsToPay(this.prisma);
   }
 
   /** A bonus paid straight to an outsourced person. */

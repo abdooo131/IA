@@ -4,6 +4,7 @@ import {
   type AccessLevel,
   cairoDay,
   dealNumber,
+  proposalNumber,
   egpText,
   merchantRightsOf,
   type MerchantRightName,
@@ -1120,5 +1121,87 @@ const crmEvents: Source = async (db, since) => {
         urgent: true,
       }),
     });
+  // Proposals (part 2): a discount waiting for a sales manager, the approval back to the rep,
+  // and the brand's answer to the deal's owner.
+  const proposals = await db.crmProposal.findMany({
+    where: {
+      OR: [
+        { approvalRequestedAt: { gte: since } },
+        { approvedAt: { gte: since } },
+        { acceptedAt: { gte: since } },
+        { declinedAt: { gte: since } },
+      ],
+    },
+    select: {
+      id: true,
+      number: true,
+      dealId: true,
+      createdById: true,
+      maxDiscountBp: true,
+      approvalRequestedAt: true,
+      approvedAt: true,
+      acceptedAt: true,
+      declinedAt: true,
+      signerName: true,
+      createdBy: { select: { name: true } },
+      deal: { select: { ownerId: true, company: { select: { brandName: true } } } },
+    },
+    take: 200,
+  });
+  for (const p of proposals) {
+    const base = {
+      type: 'crm_proposal' as const,
+      url: `/admin/sales/deals/${p.dealId}#proposals`,
+      tag: `crm-proposal-${p.id}`,
+    };
+    const vars = {
+      number: proposalNumber(p.number),
+      company: p.deal.company.brandName,
+      name: p.signerName ?? p.createdBy.name,
+      discount: (p.maxDiscountBp / 100).toFixed(p.maxDiscountBp % 100 ? 2 : 0),
+    };
+    const owner = p.deal.ownerId ?? p.createdById;
+    if (p.approvalRequestedAt && p.approvalRequestedAt >= since && !p.approvedAt)
+      list.push({
+        key: `crm_proposal_approval:${p.id}:${p.approvalRequestedAt.getTime()}`,
+        make: async () => ({
+          ...base,
+          userIds: (await teamWith(db, 'sales', 'manage')).filter((id) => id !== p.createdById),
+          text: 'crm_proposal_approval',
+          vars: { ...vars, name: p.createdBy.name },
+        }),
+      });
+    if (p.approvedAt && p.approvedAt >= since)
+      list.push({
+        key: `crm_proposal_approved:${p.id}`,
+        make: async () => ({
+          ...base,
+          userIds: await salesCanOpen(db, [p.createdById]),
+          text: 'crm_proposal_approved',
+          vars,
+        }),
+      });
+    if (p.acceptedAt && p.acceptedAt >= since)
+      list.push({
+        key: `crm_proposal_accepted:${p.id}`,
+        make: async () => ({
+          ...base,
+          userIds: await salesCanOpen(db, [owner]),
+          text: 'crm_proposal_accepted',
+          vars,
+          urgent: true,
+        }),
+      });
+    if (p.declinedAt && p.declinedAt >= since)
+      list.push({
+        key: `crm_proposal_declined:${p.id}`,
+        make: async () => ({
+          ...base,
+          userIds: await salesCanOpen(db, [owner]),
+          text: 'crm_proposal_declined',
+          vars,
+        }),
+      });
+  }
   return list;
 };

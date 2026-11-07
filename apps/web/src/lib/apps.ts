@@ -273,6 +273,17 @@ export const APPS: AppDef[] = [
       { label: 'leads', pages: [{ href: '/admin/sales/leads', label: 'leads' }] },
       { label: 'myDay', pages: [{ href: '/admin/sales/my-day', label: 'myDay' }] },
       { label: 'companies', pages: [{ href: '/admin/sales/companies', label: 'companies' }] },
+      // Part 2: proposals, the dashboard, targets (set by managers) and commission.
+      { label: 'proposals', pages: [{ href: '/admin/sales/proposals', label: 'proposals' }] },
+      {
+        label: 'salesDashboard',
+        pages: [{ href: '/admin/sales/dashboard', label: 'salesDashboard' }],
+      },
+      {
+        label: 'targets',
+        pages: [{ href: '/admin/sales/targets', label: 'targets', need: { level: 'manage' } }],
+      },
+      { label: 'commission', pages: [{ href: '/admin/sales/commission', label: 'commission' }] },
       {
         label: 'configuration',
         pages: [

@@ -60,6 +60,7 @@ export default async function PayslipsPage({
                 <tbody>
                   {row(t('baseSalary'), p.base)}
                   {p.bonus > 0 && row(t('bonus'), p.bonus)}
+                  {(p.commission ?? 0) > 0 && row(t('commission'), p.commission ?? 0)}
                   {p.deduction > 0 && row(t('deduction'), -p.deduction)}
                   {row(t('gross'), p.gross, true)}
                   {row(

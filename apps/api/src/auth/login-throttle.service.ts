@@ -62,10 +62,18 @@ export class LoginThrottleService {
     this.perAddress('site_lead', address);
   }
 
-  private perAddress(kind: string, address: string | null) {
+  /**
+   * Answers on a public link (a proposal accepted or declined, a new owner's password): at most
+   * 20 per address in the window; the unguessable link is the real key.
+   */
+  publicLink(address: string | null) {
+    this.perAddress('public_link', address, 20);
+  }
+
+  private perAddress(kind: string, address: string | null, limit = 5) {
     const key = `${kind}:${address ?? 'unknown'}`;
     const list = this.recent(key);
-    if (list.length >= 5) {
+    if (list.length >= limit) {
       const retryAfterSeconds = Math.ceil((list[0]! + WINDOW_MS - this.now()) / 1000);
       throw new HttpException(
         { error: 'too_many_attempts', retryAfterSeconds },

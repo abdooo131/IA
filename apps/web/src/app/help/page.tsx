@@ -7,7 +7,7 @@ import { getCurrentUser } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
 
-const ROLES = ['store_staff', 'rider', 'merchant', 'finance', 'admin'] as const;
+const ROLES = ['store_staff', 'rider', 'merchant', 'finance', 'admin', 'sales'] as const;
 type SopRole = (typeof ROLES)[number];
 interface Sop {
   title: string;

@@ -112,4 +112,17 @@ describe('canOpenPath', () => {
     expect(pages('account_manager')).not.toContain('/admin/leads');
     expect(locate('/admin/sales/new')?.app.id).toBe('sales');
   });
+
+  it('shows proposals, the dashboard and commission to reps and targets to managers', () => {
+    expect(pages('sales_rep')).toEqual(
+      expect.arrayContaining([
+        '/admin/sales/proposals',
+        '/admin/sales/dashboard',
+        '/admin/sales/commission',
+      ]),
+    );
+    expect(pages('sales_rep')).not.toContain('/admin/sales/targets');
+    expect(pages('sales_manager')).toContain('/admin/sales/targets');
+    expect(pages('accountant')).not.toContain('/admin/sales/commission');
+  });
 });

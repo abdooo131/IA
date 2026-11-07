@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { ActivityComposer, ActivityTimeline } from '@/components/sales/Activities';
 import { Contacts } from '@/components/sales/Contacts';
 import { DealDetailsForm, DealStageActions } from '@/components/sales/DealActions';
+import { ProposalPanel } from '@/components/sales/ProposalPanel';
 import { BackLink } from '@/components/store/BackLink';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { StatusBar } from '@/components/workflow/StatusBar';
@@ -15,6 +16,7 @@ import {
   type SalesMeta,
   websiteHref,
 } from '@/lib/sales';
+import type { DealProposals } from '@/lib/sales-part2';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,13 +26,17 @@ export const dynamic = 'force-dynamic';
  */
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [deal, meta, t, locale] = await Promise.all([
+  const [deal, meta, proposals, t, locale] = await Promise.all([
     apiGet<DealDetail>(`/sales/deals/${id}`),
     apiGet<SalesMeta>('/sales/meta'),
+    apiGet<DealProposals>(`/sales/deals/${id}/proposals`),
     getTranslations('sales'),
     getLocale(),
   ]);
   const canEdit = meta.me.level === 'use' || meta.me.level === 'manage';
+  // A won deal with its merchant never leaves won (part 2).
+  const locked = deal.stage === 'won' && !!deal.merchant;
+  const contact = deal.company.contacts[0] ?? null;
   const now = new Date();
   const step = nextStepState({ stage: deal.stage, nextStepAt: deal.nextStep?.dueAt ?? null }, now);
   const website = websiteHref(deal.company.website);
@@ -65,7 +71,12 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           {t('deal.noNextStep')}
         </p>
       )}
-      {canEdit && (
+      {locked && (
+        <p className="mt-3 max-w-3xl rounded-lg border border-success bg-surface p-3 text-body-sm">
+          {t('deal.wonLocked')}
+        </p>
+      )}
+      {canEdit && !locked && (
         <DealStageActions
           dealId={deal.id}
           company={deal.company.brandName}
@@ -149,6 +160,18 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
               />
             )}
           </section>
+
+          <ProposalPanel
+            dealId={deal.id}
+            data={proposals}
+            me={{ id: meta.me.id, canEdit, canManage: meta.me.level === 'manage' }}
+            open={deal.stage !== 'won' && deal.stage !== 'lost'}
+            expectedOrders={deal.expectedMonthlyOrders}
+            contact={
+              contact ? { name: contact.name, email: contact.email, phone: contact.phone } : null
+            }
+            hasMerchant={!!deal.merchant || !!deal.company.merchantId}
+          />
 
           <section aria-labelledby="timeline">
             <h2 id="timeline" className="text-h3">

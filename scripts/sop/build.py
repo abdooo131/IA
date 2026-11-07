@@ -5,7 +5,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 from content import AR, EN
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-ORDER = ['store_staff', 'rider', 'merchant', 'finance', 'admin']
+ORDER = ['store_staff', 'rider', 'merchant', 'finance', 'admin', 'sales']
 UI = {
   'en': {'title': 'Help and SOPs', 'intro': 'How we work: the steps for your role, written for the screens you use.',
          'menu': 'Help', 'others': 'Other roles', 'back': 'Back', 'mine': 'Your role',

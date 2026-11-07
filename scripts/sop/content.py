@@ -1236,3 +1236,160 @@ _insert_after(
    "problems": [
      "بند مش هينفع يخلص (مثلا يوم من غير مخزون باين إن تخزينه ناقص): علّم عليه باليد بملاحظة بتشرح السبب.",
      "علّمت على حاجة غلط: شيل العلامة؛ كل علامة وشيلها متسجلة في السجل."]})
+
+# The Sales app (docs/SALES.md): reps and sales managers. Added last, with its own notifications
+# section (the loop above covers the roles before it).
+EN["sales"] = {
+  "title": "Sales reps and sales managers",
+  "who": "Sales reps follow their own leads from the first call to the signed proposal; sales managers give out leads, approve discounts and commission and set targets. Open the Sales app from Home.",
+  "day": [
+    "Start of day (first 15 minutes): open My day. Do the overdue follow ups first, then today's, then give every open deal without a next step a planned follow up.",
+    "During the day: after every call, meeting or message, log what happened on the deal and plan the next step before you close it.",
+    "Proposals: check Proposals for brands that viewed or accepted; confirm an accepted proposal the same day.",
+    "Managers, morning: give out the leads in Leads, Waiting to be assigned; answer discounts in Proposals, To approve; look at the Dashboard (overdue follow ups, stuck deals).",
+    "Managers, first working days of the month: set next month's targets in Targets and approve last month's commission in Commission."
+  ],
+  "escalation": [
+    "A brand asks for a discount above the limit: make the proposal and tap Ask a manager to approve; do not promise the price before it is approved.",
+    "The brand accepted but the owner's email is already used: ask the brand for another email, or open a ticket to admin if the person already works with us.",
+    "A won merchant's owner lost their setup link: open the deal and tap New setup link.",
+    "Your commission looks wrong: open a ticket to your sales manager with the month and the merchant before it is approved.",
+    "A website lead or sign up looks like spam: tell your sales manager, who marks it lost with the reason Other and a note."
+  ],
+  "sections": [
+    {"title": "Work a lead to a proposal",
+     "steps": [
+       "Open the deal from My day, Leads or the Pipeline.",
+       "Call the contact (tap the phone) or message them on WhatsApp. Log what happened with Log what happened.",
+       "Plan the next step with a date and time; every open deal needs one.",
+       "Move the deal along its stages as it happens: Contacted, Meeting.",
+       "Correct the expected orders a month and the monthly fee value as you learn them."],
+     "check": [
+       "The deal shows a next step with a date, and the board card has no No next step flag."],
+     "problems": [
+       "The brand is not interested: Mark lost with the right reason (Other needs a note).",
+       "The lead belongs to another rep's company: ask your sales manager to move it."]},
+    {"title": "Make and send a proposal",
+     "steps": [
+       "On the deal, in Proposals, tap New proposal. The rates start from our current fees.",
+       "Change the rates you agreed, add volume tiers if any, the orders a month and average order value for the example month, the minimum, deposit, credit limit and the contract's start, length and notice.",
+       "If the form says the discount is past the limit, save it and tap Ask a manager to approve. Wait for the approval notification.",
+       "Tap Send. The deal moves to Proposal. Tap Copy link and send it to the brand by WhatsApp or email.",
+       "To change a sent proposal, make a New version: the old link stops working."],
+     "check": [
+       "The proposal shows Sent with the day it stays open until, then Viewed once the brand opens it."],
+     "problems": [
+       "The brand says the link does not open: check it is the latest version; an expired one needs a new version.",
+       "You typed a wrong rate in a sent proposal: make a new version at once and send the new link."]},
+    {"title": "Confirm an accepted proposal",
+     "steps": [
+       "When the brand accepts you get a notification. Open the deal.",
+       "Tap Confirm and open the merchant. Check the owner's name, email (their login) and mobile.",
+       "Tap Confirm. The deal is won, the merchant, its contract and fees and the owner's login are made in one step.",
+       "Copy the setup link that appears and send it to the owner: it works once and is shown only now."],
+     "check": [
+       "The deal shows Won and the merchant's name; the merchant's page shows its contract.",
+       "The owner can sign in after choosing a password."],
+     "problems": [
+       "Email already used: ask for another email and confirm again; nothing was made.",
+       "The owner lost the link or it ran out: tap New setup link on the deal."]},
+    {"title": "Targets and commission",
+     "steps": [
+       "Dashboard shows your month: deals won, orders and fees of the merchants you won against your targets.",
+       "Commission shows what this month is building up to, then each month once it is over.",
+       "Managers: in Targets, type each rep's deals, orders and fees for the month and Save.",
+       "Managers: in Commission, check each draft (merchants, fees, share), then Approve, or Change with a reason. Another manager approves your own.",
+       "Approved commission is paid with the salary of that month's run, or as a bonus by Accounting for people hired through an outsourcing company."],
+     "check": [
+       "Every rep has targets before the month starts; every commission of last month is Approved by the 5th."],
+     "problems": [
+       "A merchant is missing from a rep's commission: check the deal is won with its merchant and the rep was its owner when it was won.",
+       "Paid commission was wrong: it cannot be changed; tell Accounting, who correct it in a later month."]},
+    {"title": "Turn on phone notifications",
+     "steps": [
+       "iPhone: open Shiply Now in Safari, tap Share, Add to Home Screen, then always open it from the Home Screen icon (needs iOS 16.4 or later). Android and computers: any browser works.",
+       "Open the Settings menu (top of every screen), then Notifications, and turn them on for this device.",
+       "You are told about: leads given to you, follow ups due or late, stuck deals, discounts waiting for approval (managers) and brands accepting or declining proposals."],
+     "check": [
+       "Send me a test arrives within a few seconds."],
+     "problems": [
+       "Blocked: allow notifications for the site in the browser or phone settings, then turn it on again."]}
+  ]
+}
+AR["sales"] = {
+  "title": "مندوبين ومديرين المبيعات",
+  "who": "مندوب المبيعات بيتابع عملاءه من أول مكالمة لحد العرض الموقّع؛ مدير المبيعات بيوزع العملاء ويوافق على الخصومات والعمولة ويحدد الأهداف. افتح تطبيق المبيعات من الرئيسية.",
+  "day": [
+    "أول اليوم (أول 15 دقيقة): افتح يومي. خلّص المتابعات المتأخرة الأول، وبعدين بتاعة النهارده، وبعدين كل صفقة مفتوحة من غير خطوة جاية حطلها متابعة.",
+    "طول اليوم: بعد كل مكالمة أو اجتماع أو رسالة، سجّل اللي حصل على الصفقة وحدد الخطوة الجاية قبل ما تقفلها.",
+    "العروض: راجع العروض اللي العلامة التجارية شافتها أو قبلتها؛ أكّد العرض المقبول في نفس اليوم.",
+    "المديرين الصبح: وزّع العملاء من العملاء المحتملين، في انتظار التوزيع؛ رد على الخصومات من العروض، للموافقة؛ بص على لوحة المتابعة (المتابعات المتأخرة والصفقات المتوقفة).",
+    "المديرين أول أيام الشهر: حدد أهداف الشهر الجاي من الأهداف واعتمد عمولة الشهر اللي فات من العمولة."
+  ],
+  "escalation": [
+    "علامة تجارية طالبة خصم فوق الحد: اعمل العرض واضغط اطلب موافقة المدير؛ ما توعدش بالسعر قبل الموافقة.",
+    "العلامة قبلت بس بريد المالك مستخدم: اطلب من العلامة بريد تاني، أو افتح تذكرة للأدمن لو الشخص شغال معانا أصلا.",
+    "مالك تاجر مكسوب ضيّع رابط الإعداد: افتح الصفقة واضغط رابط إعداد جديد.",
+    "عمولتك شكلها غلط: افتح تذكرة لمدير المبيعات بالشهر والتاجر قبل ما تتعتمد.",
+    "عميل من الموقع أو تسجيل شكله سبام: بلّغ مدير المبيعات، وهو يعلّمه خسارة بسبب أخرى وملاحظة."
+  ],
+  "sections": [
+    {"title": "شغّل العميل لحد العرض",
+     "steps": [
+       "افتح الصفقة من يومي أو العملاء المحتملين أو مسار الصفقات.",
+       "كلّم جهة الاتصال (اضغط على الرقم) أو ابعتله واتساب. سجّل اللي حصل من سجّل ما حدث.",
+       "حدد الخطوة الجاية بتاريخ ووقت؛ كل صفقة مفتوحة لازم يبقى لها خطوة.",
+       "حرّك الصفقة في مراحلها لما تحصل: تم التواصل، اجتماع.",
+       "صحّح الطلبات المتوقعة في الشهر وقيمة الرسوم الشهرية لما تعرفهم."],
+     "check": [
+       "الصفقة عليها خطوة جاية بتاريخ، وكارت اللوحة مافيهوش علامة بدون خطوة تالية."],
+     "problems": [
+       "العلامة مش مهتمة: علّمها خسارة بالسبب الصح (أخرى محتاجة ملاحظة).",
+       "العميل تبع شركة مندوب تاني: اطلب من مدير المبيعات ينقله."]},
+    {"title": "اعمل عرض وابعته",
+     "steps": [
+       "على الصفقة، في العروض، اضغط عرض جديد. الأسعار بتبدأ من رسومنا الحالية.",
+       "غيّر الأسعار اللي اتفقتوا عليها، وضيف شرائح الكمية لو فيه، والطلبات في الشهر ومتوسط قيمة الطلب للشهر المثال، والحد الأدنى والتأمين وحد الائتمان وبداية العقد ومدته والإخطار.",
+       "لو الشاشة قالت إن الخصم فوق الحد، احفظ واضغط اطلب موافقة المدير. استنى إشعار الموافقة.",
+       "اضغط إرسال. الصفقة بتروح مرحلة العرض. اضغط نسخ الرابط وابعته للعلامة على واتساب أو الإيميل.",
+       "عشان تغيّر عرض اتبعت، اعمل نسخة جديدة: الرابط القديم بيبطل."],
+     "check": [
+       "العرض مكتوب عليه مُرسل وآخر يوم مفتوح فيه، وبعدين تمت المشاهدة أول ما العلامة تفتحه."],
+     "problems": [
+       "العلامة بتقول الرابط مش بيفتح: اتأكد إنه آخر نسخة؛ العرض المنتهي محتاج نسخة جديدة.",
+       "كتبت سعر غلط في عرض اتبعت: اعمل نسخة جديدة فورا وابعت الرابط الجديد."]},
+    {"title": "أكّد عرض مقبول",
+     "steps": [
+       "لما العلامة تقبل بيوصلك إشعار. افتح الصفقة.",
+       "اضغط تأكيد وفتح حساب التاجر. راجع اسم المالك وبريده (للدخول) وموبايله.",
+       "اضغط تأكيد. الصفقة بتتكسب، والتاجر وعقده ورسومه وحساب المالك بيتعملوا في خطوة واحدة.",
+       "انسخ رابط الإعداد اللي بيظهر وابعته للمالك: بيشتغل مرة واحدة وبيظهر دلوقتي بس."],
+     "check": [
+       "الصفقة مكتوب عليها تم الفوز واسم التاجر؛ وصفحة التاجر فيها العقد.",
+       "المالك يقدر يدخل بعد ما يختار كلمة المرور."],
+     "problems": [
+       "البريد مستخدم: اطلب بريد تاني وأكّد تاني؛ ماحصلش أي حاجة.",
+       "المالك ضيّع الرابط أو خلص: اضغط رابط إعداد جديد على الصفقة."]},
+    {"title": "الأهداف والعمولة",
+     "steps": [
+       "لوحة المتابعة بتوريك شهرك: الصفقات المكسوبة والطلبات والرسوم من التجار اللي كسبتهم مقابل أهدافك.",
+       "العمولة بتوريك اللي بيتجمع الشهر ده، وبعدين كل شهر بعد ما يخلص.",
+       "المديرين: في الأهداف، اكتب لكل مندوب الصفقات والطلبات والرسوم للشهر واضغط حفظ.",
+       "المديرين: في العمولة، راجع كل مسودة (التجار والرسوم والنسبة)، وبعدين اعتماد، أو تعديل بسبب. مدير تاني بيعتمد عمولتك.",
+       "العمولة المعتمدة بتتصرف مع مرتب الشهر، أو كمكافأة من الحسابات لو الشخص شغال عن طريق شركة توظيف."],
+     "check": [
+       "كل مندوب له أهداف قبل ما الشهر يبدأ؛ وكل عمولة الشهر اللي فات معتمدة قبل يوم 5."],
+     "problems": [
+       "تاجر ناقص من عمولة مندوب: اتأكد إن الصفقة مكسوبة بالتاجر وإن المندوب كان صاحبها وقت الفوز.",
+       "عمولة اتصرفت غلط: مش بتتغير؛ بلّغ الحسابات وهما يصححوها في شهر بعده."]},
+    {"title": "تشغيل إشعارات الموبايل",
+     "steps": [
+       "آيفون: افتح شيبلي ناو في سفاري، اضغط مشاركة، إضافة إلى الشاشة الرئيسية، وبعد كده افتحه دايما من الأيقونة (محتاج iOS 16.4 أو أحدث). أندرويد والكمبيوتر: أي متصفح شغال.",
+       "افتح قائمة الإعدادات (فوق في كل شاشة) وبعدين الإشعارات، وفعّلها على الجهاز ده.",
+       "بيوصلك: العملاء اللي اتوزعوا عليك، المتابعات اللي جه ميعادها أو اتأخرت، الصفقات المتوقفة، الخصومات اللي مستنية موافقة (المديرين) والعلامات اللي قبلت أو رفضت العروض."],
+     "check": [
+       "أرسل لي إشعارًا تجريبيًا بيوصل في ثواني."],
+     "problems": [
+       "محظورة: اسمح بالإشعارات للموقع من إعدادات المتصفح أو الموبايل وفعّلها تاني."]}
+  ]
+}

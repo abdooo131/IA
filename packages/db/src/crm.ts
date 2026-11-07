@@ -71,14 +71,14 @@ export function crmActor(
 }
 
 const RANK: Record<AccessLevel, number> = { none: 0, view: 1, use: 2, manage: 3 };
-function need(actor: CrmActor, level: Exclude<AccessLevel, 'none'>) {
+export function need(actor: CrmActor, level: Exclude<AccessLevel, 'none'>) {
   if (RANK[actor.level] < RANK[level]) throw new DomainError('no_access', 403);
 }
 const notAllowed = () => new DomainError('deal_not_allowed', 403);
 
 // ─── scope ──────────────────────────────────────────────────────────────────────
 
-function dealScope(actor: CrmActor): Prisma.CrmDealWhereInput {
+export function dealScope(actor: CrmActor): Prisma.CrmDealWhereInput {
   return actor.ownOnly ? { ownerId: actor.userId } : {};
 }
 function companyScope(actor: CrmActor): Prisma.CrmCompanyWhereInput {
@@ -86,13 +86,13 @@ function companyScope(actor: CrmActor): Prisma.CrmCompanyWhereInput {
     ? { OR: [{ ownerId: actor.userId }, { deals: { some: { ownerId: actor.userId } } }] }
     : {};
 }
-function activityScope(actor: CrmActor): Prisma.CrmActivityWhereInput {
+export function activityScope(actor: CrmActor): Prisma.CrmActivityWhereInput {
   return actor.ownOnly
     ? { OR: [{ ownerId: actor.userId }, { deal: { ownerId: actor.userId } }] }
     : {};
 }
 
-async function dealFor(tx: Db, id: string, actor: CrmActor) {
+export async function dealFor(tx: Db, id: string, actor: CrmActor) {
   const deal = await tx.crmDeal.findUnique({ where: { id }, include: { company: true } });
   if (!deal) throw new DomainError('deal_not_found', 404);
   if (actor.ownOnly && deal.ownerId !== actor.userId) throw notAllowed();
@@ -140,7 +140,7 @@ export async function salesPeople(db: Db) {
   }));
 }
 
-async function assertOwner(tx: Tx, ownerId: string) {
+export async function assertOwner(tx: Tx, ownerId: string) {
   const people = await salesPeople(tx);
   if (!people.some((p) => p.id === ownerId)) throw new DomainError('owner_not_sales', 400);
 }
@@ -773,6 +773,8 @@ export async function updateDeal(db: Db, id: string, body: CrmDealUpdateBody, ac
   need(actor, 'use');
   return inTransaction(db, async (tx) => {
     const before = await dealFor(tx, id, actor);
+    if (body.merchantId !== undefined && body.merchantId !== before.merchantId)
+      assertNotLocked(before);
     if (body.merchantId) {
       const merchant = await tx.merchant.findUnique({ where: { id: body.merchantId } });
       if (!merchant) throw new DomainError('merchant_not_found', 404);
@@ -811,6 +813,23 @@ export async function updateDeal(db: Db, id: string, body: CrmDealUpdateBody, ac
 }
 
 /**
+ * What a deal keeps when it is won (part 2): the owner at that moment, who earns the commission
+ * and counts it on their targets, and the commission terms of the settings at that moment.
+ */
+export async function winTerms(tx: Db, ownerId: string | null) {
+  return {
+    wonById: ownerId,
+    commissionBp: await getSetting(tx, 'sales.commission_bp'),
+    commissionMonths: await getSetting(tx, 'sales.commission_months'),
+  };
+}
+
+/** A won deal with its merchant is closed for good: it never leaves won. */
+export function assertNotLocked(deal: { stage: string; merchantId: string | null }) {
+  if (deal.stage === 'won' && deal.merchantId) throw new DomainError('deal_won_locked');
+}
+
+/**
  * Moves a deal to another stage and keeps the step in its history. Lost needs a reason from
  * the list (or "other" with a note); won and lost stamp their time; leaving them clears it.
  * The deal's stale alerts are handled, since it moved.
@@ -826,6 +845,7 @@ export async function changeStage(
   return inTransaction(db, async (tx) => {
     const before = await dealFor(tx, id, actor);
     if (before.stage === body.stage) throw new DomainError('same_stage');
+    assertNotLocked(before);
     let lostReason: string | null = null;
     let lostNote: string | null = null;
     if (body.stage === 'lost') {
@@ -848,6 +868,9 @@ export async function changeStage(
         lostAt: body.stage === 'lost' ? now : null,
         lostReason,
         lostNote,
+        ...(body.stage === 'won'
+          ? await winTerms(tx, before.ownerId)
+          : { wonById: null, commissionBp: null, commissionMonths: null }),
       },
     });
     await tx.crmDealStageHistory.create({

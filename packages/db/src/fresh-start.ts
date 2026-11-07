@@ -128,6 +128,10 @@ export async function freshStart(
         `${column} IS NOT NULL AND ${column} NOT IN (SELECT id FROM ${keep})`;
 
       // Money: statements, receipts, requests, documents, then the ledger itself.
+      // Sales commission points at its paying entry, so it goes first.
+      await run('crm commission lines', 'DELETE FROM crm_commission_lines');
+      await run('crm commissions', 'DELETE FROM crm_commissions');
+      await run('crm targets', 'DELETE FROM crm_targets');
       await run('bank statement lines', 'DELETE FROM bank_statement_lines');
       await run('bank statements', 'DELETE FROM bank_statements');
       await run('finance receipts', 'DELETE FROM finance_receipts');
@@ -172,6 +176,9 @@ export async function freshStart(
       await run('stock levels', 'DELETE FROM stock_levels');
 
       // Communication, history and attendance.
+      await run('crm proposal tiers', 'DELETE FROM crm_proposal_tiers');
+      await run('crm proposals', 'DELETE FROM crm_proposals');
+      await run('setup links', 'DELETE FROM user_setup_tokens');
       await run('crm activities', 'DELETE FROM crm_activities');
       await run('crm stage history', 'DELETE FROM crm_deal_stage_history');
       await run('crm deals', 'DELETE FROM crm_deals');

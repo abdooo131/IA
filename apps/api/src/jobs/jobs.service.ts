@@ -9,6 +9,8 @@ import { ConfigService } from '@nestjs/config';
 import {
   accrueStorage,
   chargeMinimumFees,
+  computeCommissions,
+  expireProposals,
   checkDocumentExpiry,
   checkRiderCashOverdue,
   closeAttendanceDays,
@@ -70,6 +72,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private closingAttendance = false;
   /** The last ten minute slot riders' cash was checked in this instance. */
   private riderCashDone: string | null = null;
+  /** The last Cairo day sales commission was worked out in this instance. */
+  private commissionDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -99,6 +103,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runRiderCashCheck();
       void this.runEmails();
       void this.runCrmReminders();
+      void this.runCommissions();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -221,11 +226,34 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   async runCrmReminders(now: Date = new Date()) {
     try {
       const result = await crmReminders(this.prisma, now);
-      if (result.overdue + result.stale > 0)
-        this.log.log(`Sales: ${result.overdue} overdue follow ups, ${result.stale} stale deals`);
-      return result;
+      const proposals = await expireProposals(this.prisma, now);
+      if (result.overdue + result.stale + proposals.expired > 0)
+        this.log.log(
+          `Sales: ${result.overdue} overdue follow ups, ${result.stale} stale deals, ${proposals.expired} proposals expired`,
+        );
+      return { ...result, ...proposals };
     } catch (error) {
       await this.reporter.report('job: sales reminders', error);
+      return null;
+    }
+  }
+
+  /**
+   * Once a Cairo day: each rep's commission for the month that ended (from its second day, so
+   * the month's minimum fees are booked) as a draft for the sales manager. Keyed per rep and
+   * month (commission:<rep>:<month>), so repeats and other instances change nothing.
+   */
+  async runCommissions(now: Date = new Date()) {
+    const day = cairoDay(now);
+    if (this.commissionDone === day) return null;
+    try {
+      const result = await computeCommissions(this.prisma, now);
+      this.commissionDone = day;
+      if (result.created > 0)
+        this.log.log(`Sales commission for ${result.month}: ${result.created} reps`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: sales commission', error);
       return null;
     }
   }

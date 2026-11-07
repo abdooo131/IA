@@ -80,7 +80,9 @@ Modules under apps/api/src:
     email       merchant email outbox, billing email settings, Mailer boundary (SMTP)
     hr          employee files, documents, org chart, departments, grades, positions,
                 checklists, attendance, shifts, roster, holidays
-    sales       sales CRM: leads, pipeline, deals, companies, contacts, activities, My day
+    sales       sales CRM: leads, pipeline, deals, companies, contacts, activities, My day,
+                proposals (and their public page), targets, dashboard, commission, owner
+                setup links
     site        the public website's contact form
     tickets     internal tickets and Slack bridge
     shopify     OAuth install, webhooks, fulfillment service callbacks, carrier rates,
@@ -108,7 +110,10 @@ Next.js 15 App Router, next-intl (en, ar with RTL), Tailwind with the Brand v2 t
                            Accounting, HR, Sales, Settings, Store screens), only what the person
                            may open
     /admin/...             Operations, Inventory, Merchants, Customers, HR, Sales, Settings apps
-    /admin/sales/...       Sales app: pipeline board and list, leads, My day, companies, deals
+    /admin/sales/...       Sales app: pipeline board and list, leads, My day, companies, deals,
+                           proposals, dashboard, targets, commission
+    /p/<token>             a brand's proposal (public, Accept or Decline)
+    /setup/<token>         a new merchant owner chooses a password (public, one time)
     /finance/...           Accounting app
     /store/<storeId>/...   store staff screens (phone first, barcode scanning with the camera)
     /rider                 rider app (phone first)
@@ -182,7 +187,9 @@ Main groups of tables:
     Customers     customers, customer_aliases, shop_customers, shop_orders, shop_products,
                   shop_data_syncs
     Sales         crm_companies, crm_contacts, crm_deals, crm_deal_stage_history (append
-                  only), crm_activities, crm_lost_reasons, site_leads (website form intake)
+                  only), crm_activities, crm_lost_reasons, site_leads (website form intake),
+                  crm_proposals and crm_proposal_tiers, crm_targets, crm_commissions and
+                  crm_commission_lines, user_setup_tokens
     Other         audit_log (append only), alerts, notifications, tickets, ticket_messages
 
 Hard rules enforced by the database as well as the code: money in integer piastres, no
@@ -268,7 +275,10 @@ one instance acts, and each has an idempotency key so running twice changes noth
     ETA e-invoice submission and status (every minute, only when configured)
     web push dispatcher (every 10 seconds, only when the VAPID keys are set)
     email outbox sender (every 30 seconds, only when SMTP is set)
-    sales reminders (follow ups due, crm_followup_overdue and crm_deal_stale alerts)
+    sales reminders (follow ups due, crm_followup_overdue and crm_deal_stale alerts, sent
+      proposals past their last day expired)
+    sales commission (once a Cairo day, from the second day of a month: last month's drafts,
+      key commission:<rep>:<month>)
 
 ## 11. Integrations
 
@@ -297,7 +307,9 @@ one instance acts, and each has an idempotency key so running twice changes noth
   (paging alerts), merchants manage (sign ups), the merchant's account manager, HR use and the
   person (documents), the ticket's other person, merchant users with the orders, money or stock
   right, sales managers (website leads, the leads queue) and the owner of a deal or follow up
-  (deal given to them, follow up due or overdue, deal stuck in a stage). Each event key is claimed in push_sent first (kept two days), so overlaps and other
+  (deal given to them, follow up due or overdue, deal stuck in a stage), sales managers
+  (a proposal's discount waiting for approval) and the proposal's maker or the deal's owner
+  (approved, accepted, declined). Each event key is claimed in push_sent first (kept two days), so overlaps and other
   instances send it once; a failed send is counted on the device and reported through
   ErrorReporter, never failing the action. Words are in packages/shared/src/push.ts (en, ar,
   in the device's language). public/sw.js shows the notification and opens or focuses its page;

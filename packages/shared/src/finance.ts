@@ -150,7 +150,8 @@ export const openingBalancesSchema = z.object({
     .max(500),
 });
 
-export const staffBonusSchema = advanceSchemaBase();
+/** A bonus to an outsourced person; with commissionId it pays an approved sales commission. */
+export const staffBonusSchema = advanceSchemaBase().extend({ commissionId: id.optional() });
 
 function advanceSchemaBase() {
   return z.object({

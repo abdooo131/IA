@@ -53,6 +53,8 @@ function PackageCell({ row, hrLink }: { row: StaffPayRow; hrLink: boolean }) {
 interface PreviewRow {
   userId: string;
   name: string;
+  /** Approved sales commission taken with this salary */
+  commission: number;
   gross: number;
   siEmployee: number;
   siEmployer: number;
@@ -71,15 +73,26 @@ interface Preview {
 }
 
 /** Salaries, advances, bonuses for outsourced people, and the monthly salary run. */
+/** Approved sales commission of an outsourced person, paid here as a direct bonus. */
+export interface OutsourcedCommission {
+  id: string;
+  month: string;
+  user: { id: string; name: string };
+  amountPiastres: number;
+}
+
 export function Payroll({
   staff,
   money,
   hrLink,
+  commissions = [],
 }: {
   staff: StaffPayRow[];
   money: BookAccount[];
   /** The person may open HR files (to change a package there) */
   hrLink: boolean;
+  /** Sales commission approved for outsourced people (docs/SALES.md 11) */
+  commissions?: OutsourcedCommission[];
 }) {
   const t = useTranslations('finance.payroll');
   const tf = useTranslations('finance');
@@ -87,6 +100,7 @@ export function Payroll({
   const action = useFinanceAction();
   const advance = useFinanceAction();
   const bonus = useFinanceAction();
+  const commissionPay = useFinanceAction();
   const lastMonth = addDays(`${cairoDay(new Date()).slice(0, 8)}01`, -1).slice(0, 7);
   const [month, setMonth] = useState(lastMonth);
   const [from, setFrom] = useState(money[0]?.id ?? '');
@@ -286,6 +300,40 @@ export function Payroll({
         )}
       </div>
 
+      {commissions.length > 0 && (
+        <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
+          <h2 className="text-h3">{t('commissionsTitle')}</h2>
+          <p className="text-caption text-text-muted">{t('commissionsHint')}</p>
+          <ul className="space-y-2 text-body-sm">
+            {commissions.map((c) => (
+              <li key={c.id} className="flex flex-wrap items-center gap-3">
+                <span className="font-bold">{c.user.name}</span>
+                <span className="ltr-iso">{c.month}</span>
+                <Amount piastres={c.amountPiastres} strong />
+                <button
+                  type="button"
+                  className={secondary}
+                  disabled={commissionPay.busy || !bon.from}
+                  onClick={() =>
+                    void commissionPay.send('POST', '/finance/staff-bonuses', {
+                      userId: c.user.id,
+                      amountPiastres: c.amountPiastres,
+                      commissionId: c.id,
+                      moneyAccountId: bon.from,
+                      reference: `Sales commission ${c.month}`,
+                      idempotencyKey: `commission-pay-${c.id}`,
+                    })
+                  }
+                >
+                  {t('payCommission')}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <ActionMessage message={commissionPay.message} />
+        </section>
+      )}
+
       <section className="space-y-3 rounded-lg border border-line bg-surface p-4">
         <h2 className="text-h3">{t('run')}</h2>
         <div className="flex flex-wrap items-end gap-3">
@@ -401,7 +449,14 @@ export function Payroll({
                 <tbody>
                   {preview.rows.map((r) => (
                     <tr key={r.userId} className="border-t border-line">
-                      <td className="px-3 py-2">{r.name}</td>
+                      <td className="px-3 py-2">
+                        {r.name}
+                        {r.commission > 0 && (
+                          <span className="block text-caption text-text-muted">
+                            {t('withCommission', { amount: formatEgp(r.commission) })}
+                          </span>
+                        )}
+                      </td>
                       {[r.gross, r.siEmployee, r.incomeTax, r.martyrs, r.recovery].map((v, i) => (
                         <td key={i} className="px-3 py-2 text-end">
                           <Amount piastres={v} />

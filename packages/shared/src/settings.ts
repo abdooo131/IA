@@ -415,6 +415,39 @@ export const SETTING_DEFINITIONS = {
       'Days a deal may sit in one stage before it is flagged as stale (one alert per stage)',
     override: 'none',
   },
+  'sales.proposal_valid_days': {
+    schema: z.number().int().min(1).max(365),
+    default: 14,
+    description: 'Days a sent proposal stays open for the brand to accept before it expires',
+    override: 'none',
+  },
+  'sales.max_discount_bp': {
+    schema: basisPoints,
+    default: 2000,
+    description:
+      'Largest discount a rep may offer on any fee against the fee settings without a sales manager approving the proposal first (basis points: 2000 is 20%)',
+    override: 'none',
+  },
+  'sales.commission_bp': {
+    schema: basisPoints,
+    default: 500,
+    description:
+      "Commission to the rep who won a merchant, as a share of that merchant's fees before VAT (basis points: 500 is 5%)",
+    override: 'none',
+  },
+  'sales.commission_months': {
+    schema: z.number().int().min(0).max(60),
+    default: 6,
+    description:
+      'Months a won merchant earns its rep commission, the month the deal was won counting as the first',
+    override: 'none',
+  },
+  'sales.setup_link_days': {
+    schema: z.number().int().min(1).max(90),
+    default: 7,
+    description: "Days a new merchant owner's one time link to choose a password stays valid",
+    override: 'none',
+  },
   'ticket.normal_answer_minutes': {
     schema: minutes,
     default: 120,
