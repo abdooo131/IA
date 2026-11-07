@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { REFRESH_TOKEN_COOKIE } from '@shiplynow/shared';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { Logo } from '@/components/Logo';
 import { SignOutButton } from '@/components/SignOutButton';
@@ -46,7 +48,11 @@ function siteOrigin(): URL | null {
  */
 export default async function HomePage() {
   const claims = await getClaims();
-  if (!claims) return <SiteHome />;
+  if (!claims) {
+    // An expired sign in still has its refresh token: renew it and come back to the person's area.
+    if ((await cookies()).has(REFRESH_TOKEN_COOKIE)) redirect('/auth/refresh?next=%2F');
+    return <SiteHome />;
+  }
   const home = homeFor(claims.role);
   if (home) redirect(home);
 

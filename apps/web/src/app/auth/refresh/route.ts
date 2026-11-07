@@ -21,8 +21,11 @@ export async function GET(request: NextRequest) {
     }).catch(() => null);
   }
 
-  const target = new URL(upstream?.ok ? next : '/login', request.url);
-  if (!upstream?.ok) target.searchParams.set('next', next);
+  // A refused renewal on the public home page shows the website rather than the sign in page.
+  // Only when the API answered: it clears the cookies then, so the home page cannot loop back here.
+  const toSite = upstream !== null && !upstream.ok && next === '/';
+  const target = new URL(upstream?.ok || toSite ? next : '/login', request.url);
+  if (!upstream?.ok && !toSite) target.searchParams.set('next', next);
 
   const response = NextResponse.redirect(target);
   // Pass the new (or cleared) cookies from the API through to the browser.
