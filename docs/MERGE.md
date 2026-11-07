@@ -81,9 +81,11 @@ Their ids switch to Shiply Now's style (cuid).
    staff, couriers and agents land on /parcels/hub, /parcels/courier and /parcels/agent;
    admins and finance open the Parcel network tile on /home. Still to do: one shared shell and
    menus, and the merchant area showing both services.
-5. Done in part: network postings go to the shared ledger as company shiply, each line on the
-   cost center of its hub (named hub, else the courier's hub, else the merchant's facility).
-   Still to do: P&L views per company and cost center in Accounting.
+5. Done: network postings go to the shared ledger as company shiply, each line on the cost
+   center of its hub (named hub, else the courier's hub, else the merchant's facility). Agent
+   commission has no hub and shows as the company's "no cost center" row. Accounting's profit
+   and loss filters by company and cost center and lists every cost center with company and
+   group totals (GET finance/profit-and-loss/by-cost-center).
 6. Shopify: one app, two actions (60 minutes, next day).
 7. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.
