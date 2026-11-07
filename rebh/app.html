@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rebh · Dashboard</title>
+<meta name="description" content="Your store's real profit after returns, delivery, fees and ads.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230d7a5c'/%3E%3Ctext x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3ER%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<header class="site-head app-head">
+  <div class="wrap">
+    <div style="display:flex;align-items:center;gap:12px;min-width:0">
+      <a class="brand" href="index.html"><span class="brand-mark">R</span><span class="hide-sm">Rebh</span></a>
+      <span class="source-chip" id="source-chip"><span class="dot"></span><span id="source-label">Demo store</span></span>
+    </div>
+    <div class="head-actions">
+      <button class="btn btn-ghost hide-sm" id="theme" type="button" aria-label="Switch light or dark theme">Theme</button>
+      <button class="btn" id="open-settings" type="button">Costs</button>
+      <button class="btn btn-primary" id="open-import" type="button">Load files</button>
+    </div>
+  </div>
+</header>
+
+<main class="app-main">
+  <div class="period">
+    <h1 id="period-title">Last 30 days</h1>
+    <span class="muted small" id="period-note"></span>
+  </div>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" data-tab="overview" aria-selected="true">Overview</button>
+    <button class="tab" role="tab" data-tab="ads" aria-selected="false">Ads</button>
+    <button class="tab" role="tab" data-tab="products" aria-selected="false">Products</button>
+    <button class="tab" role="tab" data-tab="delivery" aria-selected="false">Delivery</button>
+    <button class="tab" role="tab" data-tab="days" aria-selected="false">Days</button>
+    <button class="tab" role="tab" data-tab="orders" aria-selected="false">Orders</button>
+  </nav>
+
+  <div id="view"></div>
+</main>
+
+<!-- Import drawer -->
+<aside class="drawer" id="import" aria-labelledby="import-title" role="dialog" aria-modal="true">
+  <div class="drawer-head">
+    <h2 id="import-title">Load your files</h2>
+    <button class="btn btn-ghost" data-close type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <p class="small muted" style="margin-top:0">CSV files from your store, courier and ad account. Everything is read here on your computer; nothing is uploaded. Only the orders file is required.</p>
+    <div class="drop" data-kind="orders">
+      <div><h3>1. Orders <span class="muted">(required)</span></h3><p>The orders export from your store admin.</p></div>
+      <label class="btn">Choose file<input type="file" accept=".csv,text/csv,.txt"></label>
+      <div class="status"></div>
+    </div>
+    <div class="drop" data-kind="courier">
+      <div><h3>2. Courier statement</h3><p>Delivery status, shipping and return fees per order.</p></div>
+      <label class="btn">Choose file<input type="file" accept=".csv,text/csv,.txt"></label>
+      <div class="status"></div>
+    </div>
+    <div class="drop" data-kind="ads">
+      <div><h3>3. Ad report</h3><p>Spend per campaign per day, with the value the platform reports.</p></div>
+      <label class="btn">Choose file<input type="file" accept=".csv,text/csv,.txt"></label>
+      <div class="status"></div>
+    </div>
+    <div class="drop" data-kind="costs">
+      <div><h3>4. Product costs</h3><p>Two columns: product and cost. You can also type them under Costs.</p></div>
+      <label class="btn">Choose file<input type="file" accept=".csv,text/csv,.txt"></label>
+      <div class="status"></div>
+    </div>
+    <p class="tmpl muted">Not sure about the format? Download a template:
+      <a href="#" data-template="orders">orders</a> ·
+      <a href="#" data-template="courier">courier</a> ·
+      <a href="#" data-template="ads">ads</a> ·
+      <a href="#" data-template="costs">costs</a></p>
+    <p class="tmpl muted">Column names are matched loosely, so most exports work as they are. Rows with the same order number are merged into one order.</p>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" id="use-demo" type="button">Use demo store</button>
+    <button class="btn btn-primary" id="apply-import" type="button" disabled>Show my profit</button>
+  </div>
+</aside>
+
+<!-- Costs drawer -->
+<aside class="drawer" id="settings" aria-labelledby="settings-title" role="dialog" aria-modal="true">
+  <div class="drawer-head">
+    <h2 id="settings-title">Costs and fees</h2>
+    <button class="btn btn-ghost" data-close type="button" aria-label="Close">✕</button>
+  </div>
+  <div class="drawer-body">
+    <form id="settings-form" autocomplete="off">
+      <div class="field"><label for="f-currency">Currency</label><input class="input" id="f-currency" name="currency" maxlength="5"></div>
+      <div class="field"><label for="f-packaging">Packaging per parcel<span class="hint">Box, bag, label, flyer</span></label><input class="input" id="f-packaging" name="packagingPerOrder" type="number" step="0.01" min="0"></div>
+      <div class="field"><label for="f-cod">COD fee %<span class="hint">What the courier keeps from cash it collects</span></label><input class="input" id="f-cod" name="codFeePct" type="number" step="0.01" min="0"></div>
+      <div class="field"><label for="f-card">Card fee %<span class="hint">Your online payment provider</span></label><input class="input" id="f-card" name="cardFeePct" type="number" step="0.01" min="0"></div>
+      <div class="field"><label for="f-return">Return trip fee<span class="hint">Used when the courier file has none</span></label><input class="input" id="f-return" name="defaultReturnFee" type="number" step="0.01" min="0"></div>
+      <div class="field"><label for="f-costpct">Product cost % of price<span class="hint">Used for products without a cost below</span></label><input class="input" id="f-costpct" name="defaultCostPct" type="number" step="0.1" min="0" max="100"></div>
+      <div class="field"><label for="f-fixed">Fixed expenses a month<span class="hint">Rent, salaries, tools. Spread over the days shown</span></label><input class="input" id="f-fixed" name="fixedExpenses" type="number" step="1" min="0"></div>
+      <h3 style="font-size:15px;margin:22px 0 6px">Product costs</h3>
+      <p class="small muted" style="margin:0 0 8px">What one unit costs you to make or buy.</p>
+      <div id="cost-list"></div>
+    </form>
+    <div style="margin-top:28px;padding-top:16px;border-top:1px solid var(--line)">
+      <button class="btn" id="clear-data" type="button">Remove my files from this browser</button>
+    </div>
+  </div>
+  <div class="drawer-foot">
+    <button class="btn" data-close type="button">Cancel</button>
+    <button class="btn btn-primary" id="save-settings" type="button">Save and recalculate</button>
+  </div>
+</aside>
+<div class="drawer-back" id="back"></div>
+
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

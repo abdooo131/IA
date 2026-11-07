@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rebh · Profit you can count</title>
+<meta name="description" content="Rebh turns your store, courier and ad exports into one honest profit number, after returns, refused parcels, shipping and COD fees. Free, and your data never leaves your browser.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%230d7a5c'/%3E%3Ctext x='16' y='22' font-size='17' text-anchor='middle' fill='white' font-family='sans-serif' font-weight='700'%3ER%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<header class="site-head">
+  <div class="wrap">
+    <a class="brand" href="index.html"><span class="brand-mark">R</span><span>Rebh <span class="brand-ar">ربح</span></span></a>
+    <div class="head-actions">
+      <button class="btn btn-ghost" id="lang" type="button" aria-label="Switch language">عربي</button>
+      <button class="btn btn-ghost hide-sm" id="theme" type="button" aria-label="Switch light or dark theme" data-i18n="theme">Theme</button>
+      <a class="btn btn-primary" href="app.html" data-i18n="open">Open Rebh</a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow" data-i18n="eyebrow">For online stores that ship cash on delivery</span>
+        <h1 data-i18n-html="h1">You sold <span class="num" data-k="booked">EGP 1.45M</span>.<br>You kept <em class="num" data-k="net">EGP 186k</em>.</h1>
+        <p class="lead" data-i18n="lead">Refused parcels, return trips, courier fees and ads that only look profitable eat the gap. Rebh follows every order from checkout to cash and shows you the one number that matters: what you actually keep.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary btn-lg" href="app.html?demo=1" data-i18n="ctaDemo">See it with a demo store</a>
+          <a class="btn btn-lg" href="app.html?import=1" data-i18n="ctaOwn">Use my own files</a>
+        </div>
+        <p class="fine" data-i18n="fine">Free. No sign up. Your files stay on your computer.</p>
+      </div>
+      <div class="walk-card" aria-live="polite">
+        <h3 data-i18n="walkTitle">Demo store, last 30 days</h3>
+        <div id="walk"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <h2 data-i18n="gapTitle">Four tools, four different numbers.</h2>
+      <p class="sub" data-i18n="gapSub">Each one is right about something. None of them is your profit.</p>
+      <div class="sources">
+        <div class="source"><div class="who" data-i18n="s1who">The ad platform says</div><div class="what num" data-k="reportedRoas">5.7x</div><div class="why" data-i18n="s1why">return on ad spend, counted at checkout</div></div>
+        <div class="source"><div class="who" data-i18n="s2who">The store says</div><div class="what num" data-k="booked">EGP 1.45M</div><div class="why" data-i18n="s2why">in sales, including parcels that never arrive</div></div>
+        <div class="source"><div class="who" data-i18n="s3who">The courier says</div><div class="what num" data-k="revenue">EGP 1.09M</div><div class="why" data-i18n="s3why">delivered and collected, before its own fees</div></div>
+        <div class="source"><div class="who" data-i18n="s4who">Your spreadsheet says</div><div class="what">?</div><div class="why" data-i18n="s4why">whatever was true the last time someone updated it</div></div>
+      </div>
+      <div class="verdict" data-i18n-html="verdict">Rebh puts them side by side, order by order: <span class="num" data-k="net">EGP 186k</span> net profit, a real <span class="num" data-k="trueRoas">4.2x</span> on ads, and one campaign losing money that the ad platform calls a winner.</div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <h2 data-i18n="leaksTitle">It finds where the money leaks.</h2>
+      <p class="sub" data-i18n="leaksSub">Plain checks, each one showing the numbers behind it.</p>
+      <div class="cards">
+        <div class="card"><div class="ico" aria-hidden="true">📦</div><h3 data-i18n="c1t">Profit counted at the door</h3><p data-i18n="c1p">A sale counts when the parcel is delivered and paid, not when someone taps checkout. Returns cost you both trips and the packaging.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">🎯</div><h3 data-i18n="c2t">Ad returns after delivery</h3><p data-i18n="c2p">Each campaign's return on ad spend, recounted on delivered orders, next to the break even point for your real margins.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">↩️</div><h3 data-i18n="c3t">Products that come back</h3><p data-i18n="c3p">Return rate and true margin per product, so you know which ones need better photos, sizing or a new price.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">🗺️</div><h3 data-i18n="c4t">Areas that refuse parcels</h3><p data-i18n="c4p">Return rate and delivery cost per city or governorate, to decide where to ask for a deposit or call to confirm.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">🧾</div><h3 data-i18n="c5t">Every fee in its place</h3><p data-i18n="c5p">Shipping, return trips, COD and card fees, packaging and fixed costs, each charged to the order or day it belongs to.</p></div>
+        <div class="card"><div class="ico" aria-hidden="true">📅</div><h3 data-i18n="c6t">Profit by day</h3><p data-i18n="c6p">See which days made money and which lost it, while there is still time to change something this month.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <h2 data-i18n="howTitle">Three files, two minutes.</h2>
+      <p class="sub" data-i18n="howSub">No integrations to approve and no developer needed.</p>
+      <div class="steps">
+        <div class="step"><h3 data-i18n="h1t">Export your orders</h3><p data-i18n="h1p">Download the orders CSV from your store admin. Rebh reads common store exports as they are.</p></div>
+        <div class="step"><h3 data-i18n="h2t">Add courier and ads</h3><p data-i18n="h2p">Drop in your courier statement for delivery status and fees, and your ad report for spend per campaign.</p></div>
+        <div class="step"><h3 data-i18n="h3t">Read your real profit</h3><p data-i18n="h3p">Set your product costs and fees once. Rebh remembers them on this computer for next time.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="wrap">
+      <div class="privacy">
+        <div class="ico" aria-hidden="true"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg></div>
+        <div>
+          <h3 data-i18n="privT">Your numbers never leave your computer.</h3>
+          <p data-i18n="privP">Rebh runs entirely in your browser. Files are read on your device and nothing is uploaded to any server. Close the tab, or clear the data from settings, and it is gone.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="final">
+    <div class="wrap">
+      <h2 data-i18n="finalT">Stop guessing what you keep.</h2>
+      <div class="cta-row">
+        <a class="btn btn-primary btn-lg" href="app.html?demo=1" data-i18n="ctaDemo">See it with a demo store</a>
+        <a class="btn btn-lg" href="app.html?import=1" data-i18n="ctaOwn">Use my own files</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="wrap">
+    <span data-i18n="foot">Rebh is free and open source.</span>
+    <span data-i18n="foot2">Numbers on this page come from a made up demo store.</span>
+  </div>
+</footer>
+
+<script type="module" src="js/landing.js"></script>
+</body>
+</html>
