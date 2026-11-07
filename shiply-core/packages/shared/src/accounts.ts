@@ -40,6 +40,7 @@ export const ACCOUNTS = {
   FUEL: { code: '5240', name: 'Fuel and transport', nameAr: 'الوقود والمواصلات', type: 'EXPENSE' },
   SUPPLIES: { code: '5250', name: 'Packaging and supplies', nameAr: 'مواد التغليف والمستلزمات', type: 'EXPENSE' },
   BANK_CHARGES: { code: '5260', name: 'Bank charges', nameAr: 'مصاريف بنكية', type: 'EXPENSE' },
+  LOST_PARCELS: { code: '5300', name: 'Lost and damaged parcels', nameAr: 'شحنات مفقودة وتالفة', type: 'EXPENSE' },
   OTHER_EXPENSES: { code: '5290', name: 'Other expenses', nameAr: 'مصروفات أخرى', type: 'EXPENSE' },
 } as const satisfies Record<string, AccountDef>;
 

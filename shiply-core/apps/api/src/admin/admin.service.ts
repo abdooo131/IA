@@ -7,6 +7,7 @@ import { nextCode } from '../common/codes';
 import { DomainError, notFound } from '../common/errors';
 import { PrismaService } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
+import { onLost } from '../control/lost';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo } from '../core/shipments.core';
 import { feesOf, merchantStatement, settleable } from '../merchant/merchant.service';
@@ -208,6 +209,7 @@ export class AdminService {
         if (bag.status === 'OPEN' || bag.status === 'SEALED') throw new DomainError('bad_status', `Take it out of bag ${bag.code} first`, 409);
       }
       await this.core.move(tx, s, 'LOST', { bagId: null, runId: null, currentHubId: null }, { type: 'MARKED_LOST', userId: user.id, note: note.slice(0, 300) });
+      await onLost(tx, await this.settings.all(tx), s, user.id);
     });
   }
 

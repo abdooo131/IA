@@ -40,6 +40,11 @@ export const SETTINGS = {
   'agents.advance_max_bp': { label: 'Share of the month so far an agent may take as an advance (5000 = 50%)', kind: 'bp', default: 5000 },
   'cash.courier_limit': { label: 'Most cash a courier may hold before an alert (piastres)', kind: 'money', default: 500000 },
   'cash.safe_limit': { label: 'Most cash a hub safe may hold before an alert (piastres)', kind: 'money', default: 5000000 },
+  'lost.search_hours': { label: 'Hours a missing parcel is searched for before the loss is final', kind: 'int', default: 48 },
+  'lost.compensation_cap': { label: 'Most we pay a merchant for a lost parcel (piastres)', kind: 'money', default: 300000 },
+  'qc.override_hours': { label: 'Hours operations have to cancel a quality ticket before its penalty applies', kind: 'int', default: 24 },
+  'qc.appeal_hours': { label: 'Hours a courier or agent has to appeal a penalty', kind: 'int', default: 48 },
+  'fraud.max_failed_per_day': { label: 'Failed attempts by one courier in a day that raise a fraud check', kind: 'int', default: 8 },
   'cash.shortage_alert': { label: 'Courier cash difference that raises an alert (piastres)', kind: 'money', default: 0 },
 } as const satisfies Record<string, SettingDef>;
 

@@ -11,10 +11,13 @@ import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo, type NextStep } from '../core/shipments.core';
 import { formatEgp } from '@shiply/shared';
 import { courierStanding, postPickupReceived, postRunClosed } from '../finance/postings';
+import { onFound, onLost } from '../control/lost';
 
 const Code = z.object({ code: z.string().trim().min(3).max(40) });
 const TripInput = z.object({
   destinationHubId: z.string().uuid(),
+  /** A back haul: the vehicle that came on this trip goes back with returns. */
+  backhaulOfId: z.string().uuid().nullish(),
   vehicle: z.string().trim().max(40).default(''),
   driverName: z.string().trim().max(80).default(''),
 });
@@ -119,6 +122,7 @@ export class HubService {
         }
         case 'LOST':
           await this.core.move(tx, s, landed, { currentHubId: hubId, bagId: null, runId: null }, { ...ev, type: 'FOUND' });
+          await onFound(tx, settings, s, user.id);
           message = 'Lost parcel found';
           break;
         case 'AT_INBOUND':
@@ -241,6 +245,7 @@ export class HubService {
       const missing = await tx.shipment.findMany({ where: { bagId, status: 'IN_TRANSIT' } });
       for (const s of missing) {
         await this.core.move(tx, s, 'LOST', { bagId: null, currentHubId: null }, { type: 'MISSING_FROM_BAG', hubId, userId: user.id, note: `Not in bag ${bag.code} when it was opened at ${hub.code}` });
+        await onLost(tx, await this.settings.all(tx), s, user.id);
       }
       await tx.bag.update({ where: { id: bagId }, data: { status: 'CHECKED', checkedAt: new Date() } });
       if (bag.tripId) await this.completeTripIfDone(tx, bag.tripId);
@@ -521,8 +526,14 @@ export class HubService {
     if (d.destinationHubId === hubId) throw new DomainError('invalid_input', 'A trip must go to another place', 422);
     const dest = await this.prisma.hub.findUnique({ where: { id: d.destinationHubId } });
     if (!dest || !dest.active) throw new DomainError('invalid_input', 'Unknown destination', 422);
+    if (d.backhaulOfId) {
+      const came = await this.prisma.trip.findUnique({ where: { id: d.backhaulOfId } });
+      if (!came || came.destinationHubId !== hubId || came.originHubId !== d.destinationHubId) throw new DomainError('invalid_input', 'A back haul goes back where its vehicle came from', 422);
+      d.vehicle ||= came.vehicle;
+      d.driverName ||= came.driverName;
+    }
     return this.prisma.tx(async (tx) => {
-      const trip = await tx.trip.create({ data: { code: await nextCode(tx, 'trip_seq', 'TR'), originHubId: hubId, ...d } });
+      const trip = await tx.trip.create({ data: { code: await nextCode(tx, 'trip_seq', 'TR'), originHubId: hubId, ...d, backhaulOfId: d.backhaulOfId ?? null } });
       await tx.auditLog.create({ data: { userId: user.id, action: 'TRIP_CREATED', entity: 'trip', entityId: trip.id } });
       return trip;
     });
@@ -571,6 +582,7 @@ export class HubService {
         await this.core.move(tx, s, 'IN_TRANSIT', { currentHubId: null }, { type: 'DEPARTED', hubId, userId: user.id, note: `Trip ${trip.code} to ${dest.code}` });
       }
       await tx.bag.updateMany({ where: { tripId }, data: { status: 'IN_TRANSIT' } });
+      await tx.pallet.updateMany({ where: { tripId }, data: { status: 'IN_TRANSIT' } });
       await tx.trip.update({ where: { id: tripId }, data: { status: 'IN_TRANSIT', departedAt: new Date() } });
       return { bags: trip.bags.length, parcels: parcels.length };
     });

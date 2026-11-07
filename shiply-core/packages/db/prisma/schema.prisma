@@ -475,10 +475,17 @@ model Shipment {
   laneHubId        String?        @map("lane_hub_id") @db.Uuid
   runId            String?        @map("run_id") @db.Uuid
 
-  attempts       Int     @default(0)
-  lastFailReason String? @map("last_fail_reason")
-  holdReason     String? @map("hold_reason")
-  promisedDate   String? @map("promised_date")
+  attempts       Int       @default(0)
+  lastFailReason String?   @map("last_fail_reason")
+  holdReason     String?   @map("hold_reason")
+  promisedDate   String?   @map("promised_date")
+  /// Lost parcels are searched for until this time before the loss is final.
+  searchUntil    DateTime? @map("search_until")
+  /// When the loss became final: the merchant was compensated.
+  lostFinalAt    DateTime? @map("lost_final_at")
+  /// What the merchant was paid for the loss (piastres), reversed if the parcel turns up.
+  compensation   Int       @default(0)
+  damaged        Boolean   @default(false)
 
   shippingFee  Int     @map("shipping_fee")
   codFee       Int     @map("cod_fee")
@@ -552,6 +559,8 @@ model Bag {
   receivedAt       DateTime? @map("received_at")
   /// When the receiving team finished scanning the bag's parcels; unscanned ones were marked lost.
   checkedAt        DateTime? @map("checked_at")
+  palletId         String?   @map("pallet_id") @db.Uuid
+  pallet           Pallet?   @relation(fields: [palletId], references: [id])
   createdAt        DateTime  @default(now()) @map("created_at")
 
   @@index([originHubId, status])
@@ -569,6 +578,8 @@ model Trip {
   status           TripStatus @default(LOADING)
   departedAt       DateTime?  @map("departed_at")
   arrivedAt        DateTime?  @map("arrived_at")
+  /// A back haul: the same vehicle returning, linked to the trip it came on.
+  backhaulOfId     String?    @map("backhaul_of_id") @db.Uuid
   createdAt        DateTime   @default(now()) @map("created_at")
 
   bags Bag[]
@@ -1073,4 +1084,77 @@ model AgentAdvance {
 
   @@index([agentId])
   @@map("agent_advances")
+}
+
+// ---------------------------------------------------------------- control
+
+/// A master waybill: sealed bags strapped together for one line haul destination.
+model Pallet {
+  id               String    @id @default(uuid()) @db.Uuid
+  code             String    @unique
+  originHubId      String    @map("origin_hub_id") @db.Uuid
+  destinationHubId String    @map("destination_hub_id") @db.Uuid
+  /// LOADING, SEALED, IN_TRANSIT, ARRIVED
+  status           String    @default("LOADING")
+  tripId           String?   @map("trip_id") @db.Uuid
+  sealNo           String    @default("") @map("seal_no")
+  conditionOut     String    @default("") @map("condition_out")
+  photoOut         Bytes?    @map("photo_out")
+  conditionIn      String    @default("") @map("condition_in")
+  photoIn          Bytes?    @map("photo_in")
+  noteIn           String    @default("") @map("note_in")
+  sealedAt         DateTime? @map("sealed_at")
+  receivedAt       DateTime? @map("received_at")
+  createdById      String    @map("created_by_id") @db.Uuid
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  bags Bag[]
+
+  @@index([originHubId, status])
+  @@map("pallets")
+}
+
+enum QcStatus {
+  /// Raised; ops can cancel it until confirmAt.
+  OPEN
+  OVERRIDDEN
+  /// The penalty applied; the courier or agent may appeal until appealUntil.
+  CONFIRMED
+  APPEALED
+  UPHELD
+  REVERSED
+}
+
+/// A quality ticket against a courier, an agent or a hub, with a penalty that waits before it applies.
+model QcTicket {
+  id             String    @id @default(uuid()) @db.Uuid
+  code           String    @unique
+  /// DAMAGED, MISSING_PARCEL, FAKE_ATTEMPT, LATE_SCAN, WRONG_SCAN, CUSTOMER_COMPLAINT, PALLET_DAMAGED, OTHER
+  kind           String
+  shipmentId     String?   @map("shipment_id") @db.Uuid
+  courierId      String?   @map("courier_id") @db.Uuid
+  agentId        String?   @map("agent_id") @db.Uuid
+  hubId          String?   @map("hub_id") @db.Uuid
+  /// The person whose scan was last before the problem (who is held responsible).
+  responsibleId  String?   @map("responsible_id") @db.Uuid
+  description    String
+  penalty        Int       @default(0)
+  photo          Bytes?
+  photoMime      String    @default("") @map("photo_mime")
+  status         QcStatus  @default(OPEN)
+  confirmAt      DateTime  @map("confirm_at")
+  confirmedAt    DateTime? @map("confirmed_at")
+  appealUntil    DateTime? @map("appeal_until")
+  overrideReason String    @default("") @map("override_reason")
+  appealText     String    @default("") @map("appeal_text")
+  decisionNote   String    @default("") @map("decision_note")
+  createdById    String?   @map("created_by_id") @db.Uuid
+  decidedById    String?   @map("decided_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+
+  @@index([status, confirmAt])
+  @@index([courierId])
+  @@index([agentId])
+  @@index([shipmentId])
+  @@map("qc_tickets")
 }
