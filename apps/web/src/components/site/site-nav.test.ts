@@ -25,15 +25,13 @@ describe('website navigation', () => {
     expect(navItems('home').map((i) => i.href)).toEqual([
       '/how-it-works',
       '/solutions',
-      '/team',
       '/contact',
     ]);
   });
 
   it('hides the call bar only on Contact', () => {
     expect(showsCallBar('contact')).toBe(false);
-    for (const page of ['home', 'how', 'solutions', 'team'] as const)
-      expect(showsCallBar(page)).toBe(true);
+    for (const page of ['home', 'how', 'solutions'] as const) expect(showsCallBar(page)).toBe(true);
   });
 
   it('never points a website page at a signed in area', () => {
@@ -61,7 +59,6 @@ describe('site address and sitemap', () => {
       'https://shiply.example/',
       'https://shiply.example/how-it-works',
       'https://shiply.example/solutions',
-      'https://shiply.example/team',
       'https://shiply.example/contact',
     ]);
   });

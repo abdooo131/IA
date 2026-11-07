@@ -81,7 +81,6 @@ export async function SiteShell({ page, children }: { page: SitePage; children: 
             </div>
             <div>
               <h2>{t('footer.company')}</h2>
-              <Link href="/team">{t('nav.team')}</Link>
               <Link href="/contact">{t('nav.contact')}</Link>
             </div>
             <div>

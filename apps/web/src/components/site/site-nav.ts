@@ -5,17 +5,23 @@
 export const SITE_NAV = [
   { key: 'how', href: '/how-it-works' },
   { key: 'solutions', href: '/solutions' },
-  { key: 'team', href: '/team' },
   { key: 'contact', href: '/contact' },
 ] as const;
 
 export type SiteNavKey = (typeof SITE_NAV)[number]['key'];
-/** Every public website page: home plus the menu pages. */
-export type SitePage = 'home' | SiteNavKey;
+/**
+ * Our team stays hidden until the owner sends the people (owner's choice): off the menus and the
+ * sitemap, and /team answers not found. Set to true and add it back to SITE_NAV to show it.
+ */
+export const TEAM_PAGE_LIVE = false;
+
+/** Every public website page: home, the menu pages and the team page. */
+export type SitePage = 'home' | SiteNavKey | 'team';
 
 export const SITE_PATHS: Record<SitePage, string> = {
   home: '/',
   ...(Object.fromEntries(SITE_NAV.map((p) => [p.key, p.href])) as Record<SiteNavKey, string>),
+  team: '/team',
 };
 
 export interface SiteNavItem {
@@ -60,8 +66,10 @@ export function siteOrigin(raw: string | undefined): string | null {
 
 /** sitemap.xml rows: every public website page, home first. */
 export function sitemapEntries(origin: string): { url: string; priority: number }[] {
-  return (Object.keys(SITE_PATHS) as SitePage[]).map((page) => ({
-    url: `${origin}${SITE_PATHS[page]}`,
-    priority: page === 'home' ? 1 : 0.8,
-  }));
+  return (Object.keys(SITE_PATHS) as SitePage[])
+    .filter((page) => page !== 'team' || TEAM_PAGE_LIVE)
+    .map((page) => ({
+      url: `${origin}${SITE_PATHS[page]}`,
+      priority: page === 'home' ? 1 : 0.8,
+    }));
 }
