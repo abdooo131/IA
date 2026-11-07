@@ -150,7 +150,6 @@ export function useQueue(onFlushed?: () => void) {
       window.removeEventListener('online', flush);
       clearInterval(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return { list, rejected, clearRejected: () => setRejected([]) };
 }

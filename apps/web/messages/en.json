@@ -5350,6 +5350,7 @@
       "accounting": "Accounting",
       "system": "Settings",
       "store": "Store screens",
+      "parcels": "Parcel network",
       "hr": "HR",
       "sales": "Sales"
     },
@@ -5361,6 +5362,7 @@
       "accounting": "Money, payouts, taxes and reports",
       "system": "Users, audit log and tickets",
       "store": "Pick, pack, receive and hand to riders",
+      "parcels": "Next day parcels: hubs, couriers, agents and merchants",
       "hr": "Employee files, attendance and shifts",
       "sales": "Leads, pipeline and follow ups"
     },

@@ -92,7 +92,6 @@ export function CheckInGate({ children }: { children: ReactNode }) {
         {s?.replacesShiftId && <Alert tone="info">{t('You are covering for someone today')}</Alert>}
         {error && <Alert>{error}</Alert>}
         {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
           <img src={preview} alt={t('Your check in photo')} className="mx-auto max-h-72 rounded-lg" />
         ) : null}
         <div className="flex flex-col gap-2">

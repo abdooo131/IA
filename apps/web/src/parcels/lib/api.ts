@@ -11,6 +11,7 @@ export class ApiError extends Error {
 }
 
 /** Calls the API through the /api proxy. Throws ApiError with a message safe to show. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- screens type what they read
 export async function api<T = any>(path: string, opts: { method?: string; body?: unknown } = {}): Promise<T> {
   const res = await fetch(`${path.startsWith('/auth/logout') ? '/api' : '/api/parcels'}${path}`, {
     method: opts.method ?? (opts.body === undefined ? 'GET' : 'POST'),

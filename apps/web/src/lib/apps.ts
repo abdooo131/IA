@@ -362,6 +362,13 @@ export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as 
   href: string;
 };
 
+/** The parcel network (Shiply, next day): a tile for admins; its screens live under /parcels. */
+export const PARCELS_TILE = { icon: 'courier', color: '#334155', href: '/parcels/admin' } as const satisfies {
+  icon: IconName;
+  color: string;
+  href: string;
+};
+
 type Profile = AccessProfile | null | undefined;
 
 /** Owner only actions (opening balances, the e-invoice signer key): accounting and settings manage. */

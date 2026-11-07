@@ -99,7 +99,6 @@ export default function TrackingResult() {
       .catch(() => setMissing(true));
   useEffect(() => {
     void load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [number]);
 
   const returning = data?.statusLabel === 'Returning to the store';
@@ -125,7 +124,6 @@ export default function TrackingResult() {
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center gap-3">
                 {data.hasLogo && (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={`/api/parcels/track/${encodeURIComponent(data.trackingNumber)}/logo`} alt={data.store} className="h-10 w-10 rounded-md bg-white object-contain p-1" />
                 )}
                 <p className="text-body-sm opacity-90">{t('Your order from {store}', { store: data.store })}</p>

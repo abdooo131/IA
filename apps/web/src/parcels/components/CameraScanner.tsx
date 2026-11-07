@@ -54,7 +54,6 @@ export function CameraScanner({ onCode, onClose }: { onCode: (code: string) => v
       clearTimeout(timer);
       stream?.getTracks().forEach((tr) => tr.stop());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

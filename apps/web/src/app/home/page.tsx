@@ -5,7 +5,7 @@ import { AccountMenu } from '@/components/AccountMenu';
 import { AppTileIcon } from '@/components/AppTileIcon';
 import { Logo } from '@/components/Logo';
 import { getMyProfile } from '@/lib/api-server';
-import { appsFor, canOpenStoreScreens, STORE_TILE } from '@/lib/apps';
+import { appsFor, canOpenStoreScreens, PARCELS_TILE, STORE_TILE } from '@/lib/apps';
 import { getCurrentUser, getTheme } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +28,7 @@ export default async function HomePage() {
   if (!user) redirect('/login?next=/home');
   const apps = appsFor(profile);
   const store = canOpenStoreScreens(profile);
+  const parcels = user?.role === 'admin' || user?.role === 'finance';
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-line bg-surface">
@@ -38,7 +39,7 @@ export default async function HomePage() {
       </header>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center px-4 py-12">
         <h1 className="text-h2">{t('home.title', { name: user.name })}</h1>
-        {apps.length === 0 && !store ? (
+        {apps.length === 0 && !store && !parcels ? (
           <p className="mt-4 max-w-md text-center text-body text-text-muted">{t('home.none')}</p>
         ) : (
           <>
@@ -61,6 +62,15 @@ export default async function HomePage() {
                     <AppTileIcon app={STORE_TILE} size="lg" />
                     <span className="text-body font-bold">{t('names.store')}</span>
                     <span className="text-caption text-text-muted">{t('descriptions.store')}</span>
+                  </Link>
+                </li>
+              )}
+              {parcels && (
+                <li>
+                  <Link href={PARCELS_TILE.href} className={tile}>
+                    <AppTileIcon app={PARCELS_TILE} size="lg" />
+                    <span className="text-body font-bold">{t('names.parcels')}</span>
+                    <span className="text-caption text-text-muted">{t('descriptions.parcels')}</span>
                   </Link>
                 </li>
               )}

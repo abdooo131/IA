@@ -18,7 +18,6 @@ export function PhotoButton({ value, onChange, label }: { value: string | null; 
   return (
     <div className="flex items-center gap-3">
       {value && (
-        // eslint-disable-next-line @next/next/no-img-element
         <img src={value} alt="" className="h-16 w-16 rounded-md object-cover" />
       )}
       <label className="btn-secondary cursor-pointer">

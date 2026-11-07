@@ -222,7 +222,7 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
     setProblems([]);
     if (!file) return;
     setFileName(file.name);
-    const table = parseCsv((await file.text()).replace(/^﻿/, ''));
+    const table = parseCsv((await file.text()).replace(/^\uFEFF/, ''));
     if (table.length < 2) {
       setError(t('The file has no parcel rows'));
       return;

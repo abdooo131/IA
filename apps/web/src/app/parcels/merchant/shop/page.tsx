@@ -50,7 +50,6 @@ export default function ShopPage() {
             return (
               <Card key={i.id}>
                 {i.hasPhoto ? (
-                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={`/api/parcels/shop/products/${i.id}/photo`} alt="" className="mb-3 aspect-[4/3] w-full rounded-lg object-cover" />
                 ) : <div className="mb-3 grid aspect-[4/3] w-full place-items-center rounded-lg bg-surface-raised text-caption text-text-muted">{i.sku}</div>}
                 <p className="font-semibold">{name(i)}</p>

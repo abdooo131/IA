@@ -1,7 +1,6 @@
 'use client';
 import { PriceTable, type PriceList } from '@/parcels/components/PriceTable';
 import { Badge, Card, Loading, PageHeader } from '@/parcels/components/ui';
-import { egp } from '@/parcels/lib/format';
 import { useLoad } from '@/parcels/lib/hooks';
 import { useT } from '@/parcels/lib/i18n';
 

@@ -80,7 +80,6 @@ export default function CourierWallet() {
             <Field label={t('Fawry reference')}><Input required minLength={3} className="ltr-iso" value={pay.reference} onChange={(e) => setPay({ ...pay, reference: e.target.value })} /></Field>
           </div>
           {photo && (
-            // eslint-disable-next-line @next/next/no-img-element
             <img src={photo} alt={t('Receipt')} className="max-h-56 rounded-lg" />
           )}
           <label className="btn-secondary w-full cursor-pointer">

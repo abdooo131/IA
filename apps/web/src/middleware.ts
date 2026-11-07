@@ -41,5 +41,10 @@ export const config = {
     '/merchant/:path*',
     '/finance/:path*',
     '/home',
+    '/parcels/admin/:path*',
+    '/parcels/hub/:path*',
+    '/parcels/courier/:path*',
+    '/parcels/agent/:path*',
+    '/parcels/merchant/:path*',
   ],
 };

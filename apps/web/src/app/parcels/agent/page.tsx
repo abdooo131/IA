@@ -33,7 +33,6 @@ export default function AgentToday() {
   useEffect(() => {
     const id = setInterval(reloadAll, 60_000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!ov.data || !shifts.data) return ov.error || shifts.error ? <Alert>{ov.error ?? shifts.error}</Alert> : <Loading />;

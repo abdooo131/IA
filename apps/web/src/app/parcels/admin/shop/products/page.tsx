@@ -105,7 +105,6 @@ export default function ProductsPage() {
                   <Td>
                     <div className="flex items-center gap-3">
                       {p.photoMime ? (
-                        // eslint-disable-next-line @next/next/no-img-element
                         <img src={`/api/parcels/shop/products/${p.id}/photo`} alt="" className="h-10 w-10 rounded-md object-cover" />
                       ) : <span className="h-10 w-10 rounded-md bg-surface-raised" />}
                       <div>
