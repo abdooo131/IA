@@ -1,3 +1,4 @@
+import { queueShipmentWebhooks } from '../common/webhooks';
 import { Injectable } from '@nestjs/common';
 import type { Direction, Shipment, ShipmentStatus } from '@shiply/db';
 import {
@@ -74,6 +75,8 @@ export class ShipmentsCore {
         note: event.note ?? '',
       },
     });
+    // The merchant's own systems hear about every change of status.
+    if (shipment.status !== to) await queueShipmentWebhooks(tx, shipment.id, shipment.status, event.type, event.note);
   }
 
   /** Find a parcel by a scanned or typed tracking number. */

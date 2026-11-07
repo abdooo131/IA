@@ -19,6 +19,7 @@ import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo } from '../core/shipments.core';
 import { priceFor } from './pricing';
+import { queueShipmentWebhooks } from '../common/webhooks';
 
 const MAX_COD = 100_000 * 100; // 100,000 EGP
 
@@ -126,6 +127,7 @@ export class MerchantService {
         data: { shipmentId: shipment.id, type: 'CREATED', toStatus: 'CREATED', userId, note: data.customerReturn ? 'Return to collect from the customer' : '' },
       });
       if (!data.customerReturn && settings['pickups.auto_request'] === 'ON') await this.autoPickup(tx, merchant, settings);
+      await queueShipmentWebhooks(tx, shipment.id, null, 'CREATED');
       return shipment;
     });
   }

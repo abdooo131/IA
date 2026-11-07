@@ -1,3 +1,7 @@
+import { ApiKeyGuard } from './api/api-key';
+import { DeveloperService } from './api/developer.service';
+import { DeveloperController, V1Controller, WebhookSender } from './api/v1.controller';
+import { V1Service } from './api/v1.service';
 import { ShopAdminController, ShopController } from './shop/shop.controller';
 import { ShopService } from './shop/shop.service';
 import { Module } from '@nestjs/common';
@@ -35,10 +39,14 @@ function jwtSecret(): string {
 
 @Module({
   imports: [JwtModule.registerAsync({ global: true, useFactory: () => ({ secret: jwtSecret(), signOptions: { algorithm: 'HS256' }, verifyOptions: { algorithms: ['HS256'] } }) })],
-  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController, ControlController, HubControlController, TicketAppealController, MerchantDeskController, PublicDeskController, AdminDeskController, ShopAdminController, ShopController],
+  controllers: [AuthController, MerchantController, HubController, CourierController, AdminController, PublicController, AdminAgentsController, AgentPortalController, CourierShiftController, JoinController, FinanceController, CourierMoneyController, HubSafeController, AgentMoneyController, MerchantBankController, ControlController, HubControlController, TicketAppealController, MerchantDeskController, PublicDeskController, AdminDeskController, ShopAdminController, ShopController, V1Controller, DeveloperController],
   providers: [
     PrismaService,
     ShopService,
+    V1Service,
+    DeveloperService,
+    WebhookSender,
+    ApiKeyGuard,
     SettingsService,
     ShipmentsCore,
     MerchantService,

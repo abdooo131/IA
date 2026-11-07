@@ -1441,3 +1441,92 @@ model PackagingOrderLine {
 
   @@map("packaging_order_lines")
 }
+
+/// A merchant's key for the API. Only a hash is kept; the key is shown once when made.
+model ApiKey {
+  id          String    @id @default(uuid()) @db.Uuid
+  merchantId  String    @map("merchant_id") @db.Uuid
+  name        String
+  /// LIVE keys create real parcels; TEST keys work in the sandbox only.
+  mode        String
+  /// The start of the key, shown so people can tell keys apart.
+  prefix      String
+  keyHash     String    @unique @map("key_hash")
+  lastUsedAt  DateTime? @map("last_used_at")
+  revokedAt   DateTime? @map("revoked_at")
+  createdById String    @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([merchantId])
+  @@map("api_keys")
+}
+
+/// The same request sent twice with one Idempotency-Key gets the first answer back.
+model ApiIdempotency {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  key        String
+  status     Int
+  response   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([merchantId, key])
+  @@map("api_idempotency")
+}
+
+/// Where a merchant wants to hear about their parcels. Each call is signed with the secret.
+model Webhook {
+  id         String   @id @default(uuid()) @db.Uuid
+  merchantId String   @map("merchant_id") @db.Uuid
+  url        String
+  secret     String
+  /// LIVE or TEST: test webhooks only hear about sandbox parcels.
+  mode       String   @default("LIVE")
+  events     String[]
+  active     Boolean  @default(true)
+  /// Turned off by itself after too many failures in a row.
+  failures   Int      @default(0)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  deliveries WebhookDelivery[]
+
+  @@index([merchantId])
+  @@map("webhooks")
+}
+
+model WebhookDelivery {
+  id            String    @id @default(uuid()) @db.Uuid
+  webhookId     String    @map("webhook_id") @db.Uuid
+  webhook       Webhook   @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  event         String
+  payload       Json
+  /// PENDING, SENT or FAILED (gave up).
+  status        String    @default("PENDING")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at")
+  responseCode  Int?      @map("response_code")
+  responseBody  String    @default("") @map("response_body")
+  sentAt        DateTime? @map("sent_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@index([status, nextAttemptAt])
+  @@index([webhookId, createdAt])
+  @@map("webhook_deliveries")
+}
+
+/// Parcels made with a TEST key. They live apart from real parcels and never reach a hub.
+model SandboxParcel {
+  id             String   @id @default(uuid()) @db.Uuid
+  merchantId     String   @map("merchant_id") @db.Uuid
+  trackingNumber String   @unique @map("tracking_number")
+  merchantRef    String   @default("") @map("merchant_ref")
+  input          Json
+  status         String   @default("CREATED")
+  shippingFee    Int      @map("shipping_fee")
+  codAmount      Int      @map("cod_amount")
+  events         Json     @default("[]")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  @@index([merchantId, createdAt])
+  @@map("sandbox_parcels")
+}
