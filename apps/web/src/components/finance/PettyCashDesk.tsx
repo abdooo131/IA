@@ -232,3 +232,5 @@ export function PettyCashDesk({
     </>
   );
 }
+
+export { Row as PettyCashItem, Categories as PettyCategories };

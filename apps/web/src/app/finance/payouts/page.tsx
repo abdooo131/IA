@@ -1,24 +1,30 @@
-import { cairoDay } from '@shiplynow/shared';
+import { cairoDay, canDo } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
 import { type BankFile, BankFilePanel } from '@/components/finance/BankFilePanel';
 import { PayoutsManager } from '@/components/finance/PayoutsManager';
-import { apiGet } from '@/lib/api-server';
-import type { PayoutRow } from '@/lib/finance-types';
+import { FinanceListPage } from '@/components/odoo/FinanceListPage';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FinancePayoutsPage() {
-  const [payouts, file, t] = await Promise.all([
-    apiGet<PayoutRow[]>('/finance/payouts'),
+/** Payouts: prepare what is due, the bank file, then every payout as a list view. */
+export default async function FinancePayoutsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [params, file, profile, t] = await Promise.all([
+    searchParams,
     apiGet<BankFile>('/finance/payouts/bank-file'),
+    getMyProfile(),
     getTranslations('finance.payouts'),
   ]);
   return (
-    <>
-      <h1 className="text-h2">{t('title')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
+    <FinanceListPage id="payouts" searchParams={params} title={t('title')} intro={t('intro')}>
+      {canDo(profile, 'accounting', 'use') && (
+        <PayoutsManager payouts={[]} today={cairoDay(new Date())} onlyPrepare />
+      )}
       <BankFilePanel file={file} />
-      <PayoutsManager payouts={payouts} today={cairoDay(new Date())} />
-    </>
+    </FinanceListPage>
   );
 }

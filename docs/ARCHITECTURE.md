@@ -133,6 +133,37 @@ Apps, menus and the access each page needs are defined once in apps/web/src/lib/
 Pages call the API from the server (lib/api-server) or the browser (lib/api-client).
 Strings are never hard coded: messages/en.json and messages/ar.json hold every label.
 
+### List views and document pages (Accounting UX phase A)
+
+Shared Odoo style building blocks live in apps/web/src/components/odoo and are meant for every
+app (Accounting uses them first):
+
+- **ListView** (client) shows a list whose state is in the address: `q`, `f` (filters), `g`
+  (group by, two levels), `sort`, `desc`, `page`, `size`. The page's server component fetches
+  the rows for that state, so Back and shared links work. Search bar with facet chips, Filters
+  / Group by / Favourites panel, column chooser, totals, paging, phone cards, CSV and .xlsx
+  export, and a bulk bar whose actions are declared by the page (POST `{ ids, note? }`,
+  answer `{ results: [{ id, ok, error }] }`). Pure helpers: packages/shared/src/list-view.ts
+  (parse, serialize, facets, `runList`), packages/shared/src/export-file.ts (CSV, stored zip,
+  xlsx) and apps/web/src/lib/list-view.ts.
+- **Server side lists**: packages/db/src/finance/lists.ts holds each list's loader (newest
+  5000 rows, store and merchant scope) and definition (filters, groupings, search, sorts, sums)
+  for the keys of `FINANCE_LISTS` (packages/shared/src/finance-lists.ts); `queryFinanceList`
+  is the one helper behind `GET /finance/lists/:id`. A new list adds a meta entry, a loader and
+  a definition, then a page with `FinanceListPage`.
+- **DocumentPage** (server) renders a `DocDescriptor` (`GET /finance/documents/:type/:id`,
+  packages/db/src/finance/documents.ts): breadcrumbs, previous/next (session storage of the
+  list the person came from), status bar, action buttons, smart buttons, fields, lines and the
+  chatter.
+- **Chatter**: notes (`record_notes`, append only), scheduled activities (`record_activities`,
+  pushed once when due as `activity_due`), attachments and the audit history; routes under
+  `/records/:entityType/:entityId` checked against `RECORD_APPS`.
+- **Favourites and columns**: `user_list_favorites` and `user_list_prefs` per person and list
+  (`/me/list-favorites`, `/me/list-prefs/:list`).
+- **Accounting dashboard** (`GET /finance/dashboard`, packages/db/src/finance/dashboard.ts):
+  the Today strip and journal cards with 30 day sparklines; **one search**
+  (`GET /finance/search`, packages/db/src/finance/search.ts) in the Accounting top bar.
+
 ### Public website
 
 The company website is five public pages: `/` (SiteHome: hero with the example order, four

@@ -1,6 +1,5 @@
-import { CHEQUE_STATUSES } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
-import Link from 'next/link';
+import { FinanceListPage } from '@/components/odoo/FinanceListPage';
 import {
   type ChequeOptions,
   type ChequeRow,
@@ -19,16 +18,14 @@ import { canDo } from '@shiplynow/shared';
 
 export const dynamic = 'force-dynamic';
 
-/** The cheques register: what is due, every cheque, and the form to register one. */
+/** The cheques register: what is due, the form to register one, and every cheque (list view). */
 export default async function FinanceChequesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const q = await searchParams;
-  const status = CHEQUE_STATUSES.find((s) => s === q.status);
-  const [cheques, due, profile, t] = await Promise.all([
-    apiGet<ChequeRow[]>(`/finance/cheques${status ? `?status=${status}` : ''}`),
+  const [params, due, profile, t] = await Promise.all([
+    searchParams,
     apiGet<{ overdue: ChequeRow[]; thisWeek: ChequeRow[] }>('/finance/cheques-due'),
     getMyProfile(),
     getTranslations('finance.cheques'),
@@ -52,20 +49,8 @@ export default async function FinanceChequesPage({
       incomeAccounts: accounts.filter((a) => a.groupCode === 4200 && a.isActive),
     };
   }
-  const tab = (value: string | undefined, label: string) => (
-    <Link
-      key={value ?? 'all'}
-      href={value ? `/finance/cheques?status=${value}` : '/finance/cheques'}
-      className={`rounded-md px-3 py-2 text-body-sm font-bold ${status === value ? 'bg-selected-bg text-link' : 'text-text-muted'}`}
-    >
-      {label}
-    </Link>
-  );
   return (
-    <>
-      <h1 className="text-h2">{t('title')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
-
+    <FinanceListPage id="cheques" searchParams={params} title={t('title')} intro={t('intro')}>
       <section className="mt-4 grid gap-4">
         <div>
           <h2 className="text-h3 text-danger">
@@ -98,14 +83,6 @@ export default async function FinanceChequesPage({
           <ChequeRegisterForm options={options} />
         </div>
       )}
-
-      <nav className="mt-6 flex flex-wrap gap-1">
-        {tab(undefined, t('all'))}
-        {CHEQUE_STATUSES.map((s) => tab(s, t(`statuses.${s}`)))}
-      </nav>
-      <div className="mt-3">
-        <ChequesTable cheques={cheques} />
-      </div>
-    </>
+    </FinanceListPage>
   );
 }

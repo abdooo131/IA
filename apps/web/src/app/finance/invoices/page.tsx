@@ -1,21 +1,25 @@
 import { getTranslations } from 'next-intl/server';
 import { InvoiceList } from '@/components/finance/Invoices';
+import { FinanceListPage } from '@/components/odoo/FinanceListPage';
 import { apiGet } from '@/lib/api-server';
-import type { EtaReadiness, InvoiceRow } from '@/lib/finance-types';
+import type { EtaReadiness } from '@/lib/finance-types';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FinanceInvoicesPage() {
-  const [rows, readiness, t] = await Promise.all([
-    apiGet<InvoiceRow[]>('/finance/invoices'),
+/** Tax invoices and credit notes: e-invoice state and preparing a month, then the list view. */
+export default async function FinanceInvoicesPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const [params, readiness, t] = await Promise.all([
+    searchParams,
     apiGet<EtaReadiness>('/finance/eta/readiness'),
     getTranslations('finance.invoices'),
   ]);
   return (
-    <>
-      <h1 className="text-h2">{t('title')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
-      <InvoiceList rows={rows} readiness={readiness} base="/finance/invoices" />
-    </>
+    <FinanceListPage id="invoices" searchParams={params} title={t('title')} intro={t('intro')}>
+      <InvoiceList rows={[]} readiness={readiness} base="/finance/invoices" hideTable />
+    </FinanceListPage>
   );
 }

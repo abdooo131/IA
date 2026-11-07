@@ -1,0 +1,853 @@
+import {
+  cairoDay,
+  chequeLabel,
+  entryNumber,
+  FINANCE_LISTS,
+  type FinanceListId,
+  type GroupValue,
+  LIST_MAX_ROWS,
+  type ListCtx,
+  type ListDef,
+  type ListQuery,
+  type ListResult,
+  listKnown,
+  type ListMeta,
+  monthOfDay,
+  parseListState,
+  payoutNumber,
+  pettyCashLabel,
+  previousMonth,
+  addDays,
+  runList,
+  withdrawalNumber,
+  billNumber,
+} from '@shiplynow/shared';
+import type { Db } from '../client';
+import { getSetting } from '../settings';
+import { invoiceLabel } from './invoices';
+import { pettyStatusOf } from './cash-control';
+
+// The Accounting list views (docs/ARCHITECTURE.md "List views and document pages"). Each list
+// loads its most recent rows (LIST_MAX_ROWS) inside the person's scope, flattened to plain
+// values, and runList applies the list state from the address: search, the predefined
+// filters of FINANCE_LISTS, grouping with subtotals, totals, sorting and paging.
+
+/** Who is looking: their stores and merchants when they are limited (null: all). */
+export interface ListScope {
+  userId: string;
+  storeIds: string[] | null;
+  merchantIds: string[] | null;
+}
+
+const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
+const dbDay = (d: Date) => d.toISOString().slice(0, 10);
+const storeIn = (scope: ListScope) => (scope.storeIds ? { in: scope.storeIds } : undefined);
+const merchantIn = (scope: ListScope) =>
+  scope.merchantIds ? { in: scope.merchantIds } : undefined;
+
+/** The shared date filters on a Cairo day field. */
+function dateFilters<R>(dayOf: (r: R) => string | null) {
+  return {
+    this_month: {
+      group: 'date',
+      test: (r: R, ctx: ListCtx) => monthOfDay(dayOf(r) ?? '') === monthOfDay(ctx.today),
+    },
+    last_month: {
+      group: 'date',
+      test: (r: R, ctx: ListCtx) =>
+        monthOfDay(dayOf(r) ?? '') === previousMonth(monthOfDay(ctx.today)),
+    },
+    last_7_days: {
+      group: 'date',
+      test: (r: R, ctx: ListCtx) => (dayOf(r) ?? '') >= addDays(ctx.today, -6),
+    },
+  };
+}
+const monthGroup = (value: string | null): GroupValue => ({
+  key: value ? value.slice(0, 7) : '-',
+  label: value ? value.slice(0, 7) : '-',
+});
+const named = (key: string | null, label: string | null): GroupValue => ({
+  key: key ?? '-',
+  label: label ?? '-',
+});
+
+// ─── payouts ────────────────────────────────────────────────────────────────────
+
+export interface PayoutListRow {
+  id: string;
+  number: string;
+  merchantId: string;
+  merchant: string;
+  status: string;
+  cutoffDay: string;
+  createdDay: string;
+  createdAt: string;
+  paidAt: string | null;
+  amount: number;
+  reference: string | null;
+  createdById: string;
+  createdBy: string;
+  paidBy: string | null;
+  approvedBy: string | null;
+  needsApproval: boolean;
+}
+
+async function loadPayouts(db: Db, scope: ListScope): Promise<PayoutListRow[]> {
+  const [rows, limit] = await Promise.all([
+    db.payout.findMany({
+      where: { merchantId: merchantIn(scope) },
+      include: {
+        merchant: { select: { name: true } },
+        createdBy: { select: { name: true } },
+        paidBy: { select: { name: true } },
+        approvedBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: LIST_MAX_ROWS,
+    }),
+    getSetting(db, 'finance.approval_threshold_piastres'),
+  ]);
+  return rows.map((p) => ({
+    id: p.id,
+    number: payoutNumber(p.number),
+    merchantId: p.merchantId,
+    merchant: p.merchant.name,
+    status: p.status,
+    cutoffDay: cairoDay(new Date(p.cutoffAt.getTime() - 1)),
+    createdDay: cairoDay(p.createdAt),
+    createdAt: p.createdAt.toISOString(),
+    paidAt: iso(p.paidAt),
+    amount: p.amountPiastres,
+    reference: p.reference,
+    createdById: p.createdById,
+    createdBy: p.createdBy.name,
+    paidBy: p.paidBy?.name ?? null,
+    approvedBy: p.approvedBy?.name ?? null,
+    needsApproval:
+      p.status === 'draft' && limit > 0 && p.amountPiastres >= limit && !p.approvedById,
+  }));
+}
+
+const payouts: ListDef<PayoutListRow> = {
+  id: 'payouts',
+  filters: {
+    draft: { group: 'status', test: (r) => r.status === 'draft' },
+    paid: { group: 'status', test: (r) => r.status === 'paid' },
+    cancelled: { group: 'status', test: (r) => r.status === 'cancelled' },
+    needs_approval: { group: 'approval', test: (r) => r.needsApproval },
+    for_me_to_approve: {
+      group: 'approval',
+      test: (r, ctx) => r.needsApproval && r.createdById !== ctx.userId,
+    },
+    ...dateFilters<PayoutListRow>((r) => r.createdDay),
+    mine: { group: 'who', test: (r, ctx) => r.createdById === ctx.userId },
+  },
+  groupBys: {
+    merchant: (r) => named(r.merchantId, r.merchant),
+    status: (r) => named(r.status, r.status),
+    month: (r) => monthGroup(r.createdDay),
+    created_by: (r) => named(r.createdById, r.createdBy),
+  },
+  search: (r) => [r.number, r.merchant, r.reference, r.createdBy],
+  sorts: {
+    number: (r) => r.number,
+    merchant: (r) => r.merchant,
+    created: (r) => r.createdAt,
+    cutoff: (r) => r.cutoffDay,
+    amount: (r) => r.amount,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: FINANCE_LISTS.payouts.sums,
+};
+
+// ─── bills ──────────────────────────────────────────────────────────────────────
+
+export interface BillListRow {
+  id: string;
+  number: string;
+  supplierId: string;
+  supplier: string;
+  reference: string;
+  billDay: string;
+  dueDay: string;
+  storeId: string | null;
+  store: string | null;
+  account: string;
+  status: string;
+  overdue: boolean;
+  currency: string;
+  net: number;
+  vat: number;
+  total: number;
+  paid: number;
+  left: number;
+  memo: string | null;
+}
+
+async function loadBills(db: Db, scope: ListScope): Promise<BillListRow[]> {
+  const rows = await db.bill.findMany({
+    where: scope.storeIds ? { OR: [{ darkStoreId: null }, { darkStoreId: storeIn(scope) }] } : {},
+    include: {
+      supplier: { select: { name: true } },
+      expenseAccount: { select: { code: true, nameEn: true } },
+      darkStore: { select: { code: true } },
+    },
+    orderBy: { number: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  const today = cairoDay(new Date());
+  return rows.map((b) => {
+    const due = dbDay(b.dueDate);
+    return {
+      id: b.id,
+      number: billNumber(b.number),
+      supplierId: b.supplierId,
+      supplier: b.supplier.name,
+      reference: b.reference,
+      billDay: dbDay(b.billDate),
+      dueDay: due,
+      storeId: b.darkStoreId,
+      store: b.darkStore?.code ?? null,
+      account: `${b.expenseAccount.code} ${b.expenseAccount.nameEn}`,
+      status: b.status,
+      overdue: b.status === 'open' && due < today,
+      currency: b.currency,
+      net: b.netPiastres,
+      vat: b.vatPiastres,
+      total: b.totalPiastres,
+      paid: b.paidPiastres,
+      left: b.status === 'open' ? b.totalPiastres - b.paidPiastres : 0,
+      memo: b.memo,
+    };
+  });
+}
+
+const bills: ListDef<BillListRow> = {
+  id: 'bills',
+  filters: {
+    open: { group: 'status', test: (r) => r.status === 'open' },
+    paid: { group: 'status', test: (r) => r.status === 'paid' },
+    cancelled: { group: 'status', test: (r) => r.status === 'cancelled' },
+    overdue: { group: 'due', test: (r, ctx) => r.status === 'open' && r.dueDay < ctx.today },
+    due_7_days: {
+      group: 'due',
+      test: (r, ctx) => r.status === 'open' && r.dueDay <= addDays(ctx.today, 7),
+    },
+    ...dateFilters<BillListRow>((r) => r.billDay),
+  },
+  groupBys: {
+    supplier: (r) => named(r.supplierId, r.supplier),
+    status: (r) => named(r.status, r.status),
+    store: (r) => named(r.storeId, r.store),
+    account: (r) => named(r.account, r.account),
+    month: (r) => monthGroup(r.billDay),
+  },
+  search: (r) => [r.number, r.supplier, r.reference, r.memo, r.account, r.store],
+  sorts: {
+    number: (r) => r.number,
+    supplier: (r) => r.supplier,
+    bill_day: (r) => r.billDay,
+    due_day: (r) => r.dueDay,
+    total: (r) => r.total,
+    left: (r) => r.left,
+  },
+  defaultSort: { key: 'number', desc: true },
+  sums: FINANCE_LISTS.bills.sums,
+};
+
+// ─── journal ────────────────────────────────────────────────────────────────────
+
+const KIND_FAMILIES: Record<string, readonly string[]> = {
+  deliveries: [
+    'cod_collected',
+    'order_fee',
+    'cod_fee',
+    'failed_fee',
+    'receiving_fee',
+    'storage_fee',
+    'rider_bonus',
+    'return_fee',
+    'minimum_fee',
+  ],
+  cash: [
+    'cash_handover',
+    'cash_difference',
+    'bank_deposit',
+    'money_transfer',
+    'petty_cash',
+    'petty_cash_reversal',
+  ],
+  payouts: ['merchant_payout', 'rider_bonus_payout', 'rider_withdrawal'],
+  bills: [
+    'supplier_bill',
+    'supplier_bill_cancel',
+    'bill_payment',
+    'expense',
+    'tax_payment',
+    'po_receipt',
+    'packaging_purchase',
+  ],
+  manual: ['journal', 'adjustment'],
+};
+
+export interface JournalListRow {
+  id: string;
+  number: string;
+  day: string;
+  at: string;
+  kind: string;
+  memo: string | null;
+  orderNumber: string | null;
+  createdById: string | null;
+  createdBy: string | null;
+  accounts: string;
+  amount: number;
+  lines: number;
+  receipts: number;
+}
+
+async function loadJournal(db: Db, scope: ListScope): Promise<JournalListRow[]> {
+  const rows = await db.ledgerEntry.findMany({
+    where: scope.storeIds
+      ? { lines: { some: { darkStoreId: { in: scope.storeIds } } } }
+      : undefined,
+    select: {
+      id: true,
+      number: true,
+      kind: true,
+      memo: true,
+      occurredAt: true,
+      createdById: true,
+      createdBy: { select: { name: true } },
+      order: { select: { number: true } },
+      lines: { select: { amountPiastres: true, account: { select: { code: true } } } },
+      _count: { select: { receipts: true } },
+    },
+    orderBy: [{ occurredAt: 'desc' }, { number: 'desc' }],
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((e) => ({
+    id: e.id,
+    number: entryNumber(e.number),
+    day: cairoDay(e.occurredAt),
+    at: e.occurredAt.toISOString(),
+    kind: e.kind,
+    memo: e.memo,
+    orderNumber: e.order?.number ?? null,
+    createdById: e.createdById,
+    createdBy: e.createdBy?.name ?? null,
+    accounts: [...new Set(e.lines.map((l) => l.account.code))].join(' '),
+    amount: e.lines.reduce((s, l) => s + Math.max(l.amountPiastres, 0), 0),
+    lines: e.lines.length,
+    receipts: e._count.receipts,
+  }));
+}
+
+const family = (name: string) => ({
+  group: 'kind',
+  test: (r: JournalListRow) => (KIND_FAMILIES[name] ?? []).includes(r.kind),
+});
+
+const journal: ListDef<JournalListRow> = {
+  id: 'journal',
+  filters: {
+    today: { group: 'date', test: (r, ctx) => r.day === ctx.today },
+    ...dateFilters<JournalListRow>((r) => r.day),
+    deliveries: family('deliveries'),
+    cash: family('cash'),
+    payouts: family('payouts'),
+    bills: family('bills'),
+    manual: family('manual'),
+    with_order: { group: 'source', test: (r) => r.orderNumber !== null },
+    without_receipt: {
+      group: 'receipt',
+      test: (r) => r.receipts === 0 && r.createdById !== null && r.orderNumber === null,
+    },
+  },
+  groupBys: {
+    kind: (r) => named(r.kind, r.kind),
+    day: (r) => named(r.day, r.day),
+    month: (r) => monthGroup(r.day),
+    created_by: (r) => named(r.createdById, r.createdBy),
+  },
+  search: (r) => [r.number, r.memo, r.orderNumber, r.kind, r.accounts, r.createdBy],
+  sorts: { number: (r) => r.number, day: (r) => r.at, amount: (r) => r.amount },
+  defaultSort: { key: 'day', desc: true },
+  sums: FINANCE_LISTS.journal.sums,
+};
+
+// ─── cheques ────────────────────────────────────────────────────────────────────
+
+export interface ChequeListRow {
+  id: string;
+  number: string;
+  chequeNumber: string;
+  direction: string;
+  purpose: string;
+  status: string;
+  party: string;
+  bank: string;
+  issueDay: string;
+  dueDay: string;
+  amount: number;
+}
+
+const OPEN_CHEQUE = ['received', 'issued', 'deposited'];
+
+async function loadCheques(db: Db, scope: ListScope): Promise<ChequeListRow[]> {
+  const rows = await db.cheque.findMany({
+    where: scope.merchantIds
+      ? { OR: [{ merchantId: null }, { merchantId: { in: scope.merchantIds } }] }
+      : undefined,
+    orderBy: { number: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    number: chequeLabel(c.number),
+    chequeNumber: c.chequeNumber,
+    direction: c.direction,
+    purpose: c.purpose,
+    status: c.status,
+    party: c.partyName,
+    bank: c.bankName,
+    issueDay: dbDay(c.issueDate),
+    dueDay: dbDay(c.dueDate),
+    amount: c.amountPiastres,
+  }));
+}
+
+const cheques: ListDef<ChequeListRow> = {
+  id: 'cheques',
+  filters: {
+    received: { group: 'direction', test: (r) => r.direction === 'received' },
+    issued: { group: 'direction', test: (r) => r.direction === 'issued' },
+    awaiting_approval: { group: 'status', test: (r) => r.status === 'awaiting_approval' },
+    open: { group: 'status', test: (r) => OPEN_CHEQUE.includes(r.status) },
+    cleared: { group: 'status', test: (r) => r.status === 'cleared' },
+    bounced_or_cancelled: {
+      group: 'status',
+      test: (r) => r.status === 'bounced' || r.status === 'cancelled',
+    },
+    overdue: {
+      group: 'due',
+      test: (r, ctx) => OPEN_CHEQUE.includes(r.status) && r.dueDay < ctx.today,
+    },
+    due_7_days: {
+      group: 'due',
+      test: (r, ctx) => OPEN_CHEQUE.includes(r.status) && r.dueDay <= addDays(ctx.today, 7),
+    },
+  },
+  groupBys: {
+    direction: (r) => named(r.direction, r.direction),
+    status: (r) => named(r.status, r.status),
+    party: (r) => named(r.party, r.party),
+    bank: (r) => named(r.bank, r.bank),
+    month: (r) => monthGroup(r.dueDay),
+  },
+  search: (r) => [r.number, r.chequeNumber, r.party, r.bank],
+  sorts: {
+    number: (r) => r.number,
+    party: (r) => r.party,
+    due_day: (r) => r.dueDay,
+    amount: (r) => r.amount,
+  },
+  defaultSort: { key: 'number', desc: true },
+  sums: FINANCE_LISTS.cheques.sums,
+};
+
+// ─── rider withdrawals ──────────────────────────────────────────────────────────
+
+export interface WithdrawalListRow {
+  id: string;
+  number: string;
+  riderId: string;
+  rider: string;
+  badge: string;
+  storeId: string;
+  store: string;
+  status: string;
+  method: string;
+  createdDay: string;
+  createdAt: string;
+  amount: number;
+  deduction: number;
+}
+
+async function loadWithdrawals(db: Db, scope: ListScope): Promise<WithdrawalListRow[]> {
+  const rows = await db.riderWithdrawal.findMany({
+    where: { darkStoreId: storeIn(scope) },
+    include: {
+      rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+      darkStore: { select: { code: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((w) => ({
+    id: w.id,
+    number: withdrawalNumber(w.number),
+    riderId: w.riderId,
+    rider: w.rider.user.name,
+    badge: w.rider.badgeCode,
+    storeId: w.darkStoreId,
+    store: w.darkStore.code,
+    status: w.status,
+    method: w.method,
+    createdDay: cairoDay(w.createdAt),
+    createdAt: w.createdAt.toISOString(),
+    amount: w.amountPiastres,
+    deduction: w.deductionPiastres,
+  }));
+}
+
+const riderWithdrawals: ListDef<WithdrawalListRow> = {
+  id: 'rider_withdrawals',
+  filters: {
+    requested: { group: 'status', test: (r) => r.status === 'requested' },
+    approved: { group: 'status', test: (r) => r.status === 'approved' },
+    paid: { group: 'status', test: (r) => r.status === 'paid' },
+    rejected_or_cancelled: {
+      group: 'status',
+      test: (r) => r.status === 'rejected' || r.status === 'cancelled',
+    },
+    ...dateFilters<WithdrawalListRow>((r) => r.createdDay),
+  },
+  groupBys: {
+    store: (r) => named(r.storeId, r.store),
+    rider: (r) => named(r.riderId, `${r.rider} (${r.badge})`),
+    status: (r) => named(r.status, r.status),
+    method: (r) => named(r.method, r.method),
+    month: (r) => monthGroup(r.createdDay),
+  },
+  search: (r) => [r.number, r.rider, r.badge, r.store],
+  sorts: {
+    number: (r) => r.number,
+    rider: (r) => r.rider,
+    created: (r) => r.createdAt,
+    amount: (r) => r.amount,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: FINANCE_LISTS.rider_withdrawals.sums,
+};
+
+// ─── approvals (finance requests) ───────────────────────────────────────────────
+
+/** Requests that claim money coming in or change what we owe a merchant. */
+export const MONEY_IN_REQUESTS = [
+  'capital_in',
+  'other_income',
+  'merchant_receipt',
+  'merchant_adjustment',
+  'cheque_in',
+  'deposit_in',
+];
+
+export interface ApprovalListRow {
+  id: string;
+  kind: string;
+  status: string;
+  amount: number;
+  reference: string | null;
+  memo: string | null;
+  requestedById: string;
+  requestedBy: string;
+  createdDay: string;
+  createdAt: string;
+  decidedBy: string | null;
+  entryNumber: string | null;
+  receipts: number;
+  storeId: string | null;
+}
+
+async function loadApprovals(db: Db, scope: ListScope): Promise<ApprovalListRow[]> {
+  const rows = await db.financeRequest.findMany({
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+    include: {
+      requestedBy: { select: { name: true } },
+      decidedBy: { select: { name: true } },
+      entry: { select: { number: true } },
+      _count: { select: { receipts: true } },
+    },
+  });
+  const list = rows.map((r) => {
+    const input = ((r.payload as { input?: Record<string, unknown> } | null)?.input ?? {}) as {
+      reference?: string;
+      reason?: string;
+      memo?: string;
+      month?: string;
+      darkStoreId?: string;
+    };
+    return {
+      id: r.id,
+      kind: r.kind,
+      status: r.status,
+      amount: r.amountPiastres,
+      reference:
+        input.reference ?? input.reason ?? (input.month ? `Salaries ${input.month}` : null),
+      memo: input.memo ?? null,
+      requestedById: r.requestedById,
+      requestedBy: r.requestedBy.name,
+      createdDay: cairoDay(r.createdAt),
+      createdAt: r.createdAt.toISOString(),
+      decidedBy: r.decidedBy?.name ?? null,
+      entryNumber: r.entry ? entryNumber(r.entry.number) : null,
+      receipts: r._count.receipts,
+      storeId: input.darkStoreId ?? null,
+    };
+  });
+  // People limited to some stores see their stores' requests and company wide ones.
+  return scope.storeIds
+    ? list.filter((r) => !r.storeId || scope.storeIds!.includes(r.storeId))
+    : list;
+}
+
+const approvals: ListDef<ApprovalListRow> = {
+  id: 'approvals',
+  filters: {
+    pending: { group: 'status', test: (r) => r.status === 'pending' },
+    approved: { group: 'status', test: (r) => r.status === 'approved' },
+    rejected: { group: 'status', test: (r) => r.status === 'rejected' },
+    cancelled: { group: 'status', test: (r) => r.status === 'cancelled' },
+    waiting_for_me: {
+      group: 'who',
+      test: (r, ctx) => r.status === 'pending' && r.requestedById !== ctx.userId,
+    },
+    asked_by_me: { group: 'who', test: (r, ctx) => r.requestedById === ctx.userId },
+    money_in: { group: 'direction', test: (r) => MONEY_IN_REQUESTS.includes(r.kind) },
+    money_out: { group: 'direction', test: (r) => !MONEY_IN_REQUESTS.includes(r.kind) },
+    ...dateFilters<ApprovalListRow>((r) => r.createdDay),
+  },
+  groupBys: {
+    kind: (r) => named(r.kind, r.kind),
+    status: (r) => named(r.status, r.status),
+    requested_by: (r) => named(r.requestedById, r.requestedBy),
+    month: (r) => monthGroup(r.createdDay),
+  },
+  search: (r) => [r.kind, r.reference, r.memo, r.requestedBy, r.entryNumber],
+  sorts: { created: (r) => r.createdAt, amount: (r) => r.amount, kind: (r) => r.kind },
+  defaultSort: { key: 'created', desc: true },
+  sums: FINANCE_LISTS.approvals.sums,
+  defaultFilters: FINANCE_LISTS.approvals.defaultFilters,
+};
+
+// ─── petty cash ─────────────────────────────────────────────────────────────────
+
+export interface PettyListRow {
+  id: string;
+  number: string;
+  storeId: string;
+  store: string;
+  category: string;
+  status: string;
+  note: string;
+  amount: number;
+  createdById: string;
+  createdBy: string;
+  createdDay: string;
+  createdAt: string;
+}
+
+async function loadPetty(db: Db, scope: ListScope): Promise<PettyListRow[]> {
+  const rows = await db.pettyCashExpense.findMany({
+    where: { darkStoreId: storeIn(scope) },
+    include: {
+      darkStore: { select: { code: true } },
+      expenseAccount: { select: { code: true, nameEn: true } },
+      createdBy: { select: { name: true } },
+      request: { select: { status: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    number: pettyCashLabel(r.number),
+    storeId: r.darkStoreId,
+    store: r.darkStore.code,
+    category: `${r.expenseAccount.code} ${r.expenseAccount.nameEn}`,
+    status: pettyStatusOf(r),
+    note: r.note,
+    amount: r.amountPiastres,
+    createdById: r.createdById,
+    createdBy: r.createdBy.name,
+    createdDay: cairoDay(r.createdAt),
+    createdAt: r.createdAt.toISOString(),
+  }));
+}
+
+const pettyCash: ListDef<PettyListRow> = {
+  id: 'petty_cash',
+  filters: {
+    posted: { group: 'status', test: (r) => r.status === 'posted' },
+    pending: { group: 'status', test: (r) => r.status === 'pending' },
+    rejected: {
+      group: 'status',
+      test: (r) => r.status === 'rejected' || r.status === 'cancelled',
+    },
+    reversed: { group: 'status', test: (r) => r.status === 'reversed' },
+    ...dateFilters<PettyListRow>((r) => r.createdDay),
+  },
+  groupBys: {
+    store: (r) => named(r.storeId, r.store),
+    category: (r) => named(r.category, r.category),
+    status: (r) => named(r.status, r.status),
+    created_by: (r) => named(r.createdById, r.createdBy),
+    month: (r) => monthGroup(r.createdDay),
+  },
+  search: (r) => [r.number, r.store, r.category, r.note, r.createdBy],
+  sorts: { number: (r) => r.number, created: (r) => r.createdAt, amount: (r) => r.amount },
+  defaultSort: { key: 'created', desc: true },
+  sums: FINANCE_LISTS.petty_cash.sums,
+};
+
+// ─── tax invoices and credit notes ──────────────────────────────────────────────
+
+export interface InvoiceListRow {
+  id: string;
+  number: string;
+  type: string;
+  merchantId: string;
+  merchant: string;
+  period: string | null;
+  issuedDay: string;
+  issuedAt: string;
+  eta: string;
+  net: number;
+  vat: number;
+  total: number;
+}
+
+const ETA_GROUP: Record<string, string> = {
+  not_sent: 'not_sent',
+  signed: 'sent',
+  submitted: 'sent',
+  valid: 'accepted',
+  invalid: 'needs_fix',
+  rejected: 'needs_fix',
+};
+
+async function loadInvoices(db: Db, scope: ListScope): Promise<InvoiceListRow[]> {
+  const rows = await db.taxInvoice.findMany({
+    where: { merchantId: merchantIn(scope) },
+    include: { merchant: { select: { name: true } } },
+    orderBy: [{ issuedAt: 'desc' }, { number: 'desc' }],
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    number: invoiceLabel(r.type, r.number),
+    type: r.type,
+    merchantId: r.merchantId,
+    merchant: r.merchant.name,
+    period: r.periodMonth,
+    issuedDay: cairoDay(r.issuedAt),
+    issuedAt: r.issuedAt.toISOString(),
+    eta: r.etaStatus,
+    // A credit note gives fees back: it counts against the invoices in totals.
+    net: r.type === 'credit_note' ? -r.netPiastres : r.netPiastres,
+    vat: r.type === 'credit_note' ? -r.vatPiastres : r.vatPiastres,
+    total: r.type === 'credit_note' ? -r.totalPiastres : r.totalPiastres,
+  }));
+}
+
+const eta = (name: string) => ({
+  group: 'eta',
+  test: (r: InvoiceListRow) => ETA_GROUP[r.eta] === name,
+});
+
+const invoices: ListDef<InvoiceListRow> = {
+  id: 'invoices',
+  filters: {
+    invoice: { group: 'type', test: (r) => r.type === 'invoice' },
+    credit_note: { group: 'type', test: (r) => r.type === 'credit_note' },
+    not_sent: eta('not_sent'),
+    sent: eta('sent'),
+    accepted: eta('accepted'),
+    needs_fix: eta('needs_fix'),
+    ...dateFilters<InvoiceListRow>((r) => r.issuedDay),
+  },
+  groupBys: {
+    merchant: (r) => named(r.merchantId, r.merchant),
+    type: (r) => named(r.type, r.type),
+    period: (r) => named(r.period, r.period),
+    eta: (r) => named(r.eta, r.eta),
+  },
+  search: (r) => [r.number, r.merchant, r.period],
+  sorts: {
+    number: (r) => r.number,
+    merchant: (r) => r.merchant,
+    issued: (r) => r.issuedAt,
+    total: (r) => r.total,
+  },
+  defaultSort: { key: 'issued', desc: true },
+  sums: FINANCE_LISTS.invoices.sums,
+};
+
+// ─── the registry ───────────────────────────────────────────────────────────────
+
+interface Registered {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  def: ListDef<any>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  load: (db: Db, scope: ListScope) => Promise<any[]>;
+}
+
+export const FINANCE_LIST_DEFS: Record<FinanceListId, Registered> = {
+  payouts: { def: payouts, load: loadPayouts },
+  bills: { def: bills, load: loadBills },
+  journal: { def: journal, load: loadJournal },
+  cheques: { def: cheques, load: loadCheques },
+  rider_withdrawals: { def: riderWithdrawals, load: loadWithdrawals },
+  approvals: { def: approvals, load: loadApprovals },
+  petty_cash: { def: pettyCash, load: loadPetty },
+  invoices: { def: invoices, load: loadInvoices },
+};
+
+/**
+ * The list query helper every list endpoint uses: reads the list state from the query (the
+ * list's own default filters when the address names none), loads the rows in the person's
+ * scope and runs them. `open` is the opened group path, `all` returns every row (exports).
+ */
+export async function queryFinanceList(
+  db: Db,
+  id: FinanceListId,
+  query: ListQuery,
+  scope: ListScope,
+  now: Date = new Date(),
+): Promise<ListResult<Record<string, unknown>>> {
+  const entry = FINANCE_LIST_DEFS[id];
+  const meta: ListMeta = FINANCE_LISTS[id];
+  const state = parseListState(query, listKnown(id), {
+    filters: [...meta.defaultFilters],
+  });
+  const rows = await entry.load(db, scope);
+  return runList(
+    rows,
+    entry.def,
+    state,
+    { today: cairoDay(now), userId: scope.userId },
+    {
+      open: query.open ? query.open.split('\n') : undefined,
+      all: query.all === '1',
+    },
+  );
+}
+
+/** For tests: every filter and grouping the shared meta names exists in the definitions. */
+export function financeListGaps(): string[] {
+  const gaps: string[] = [];
+  for (const id of Object.keys(FINANCE_LISTS) as FinanceListId[]) {
+    const meta: ListMeta = FINANCE_LISTS[id];
+    const def = FINANCE_LIST_DEFS[id].def;
+    for (const [f, group] of Object.entries(meta.filters))
+      if (def.filters[f]?.group !== group) gaps.push(`${id}.filter.${f}`);
+    for (const f of Object.keys(def.filters))
+      if (!(f in meta.filters)) gaps.push(`${id}.extra_filter.${f}`);
+    for (const g of meta.groupBys) if (!def.groupBys[g]) gaps.push(`${id}.group.${g}`);
+    for (const s of meta.sorts) if (!def.sorts[s]) gaps.push(`${id}.sort.${s}`);
+  }
+  return gaps;
+}

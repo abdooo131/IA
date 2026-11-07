@@ -563,7 +563,7 @@ export function VatView({ report }: { report: VatReport }) {
         {[report.year - 1, report.year + 1].map((y) => (
           <a
             key={y}
-            href={`?year=${y}`}
+            href={`?tab=vat&year=${y}`}
             className="rounded-md border border-line px-3 py-1 text-body-sm"
           >
             {y}

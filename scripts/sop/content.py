@@ -1663,3 +1663,39 @@ _insert_after(
      "المناديب مش ظاهرين في معاينة المسير؛ وملفهم بيقول بالطلب المُسلَّم في تبويب الأجر."],
    "problems": [
      "مندوب ظاهر إنه مستني أجر: طريقة دفعه مرتب شهري بالغلط؛ حوّلها من تبويب الأجر."]})
+
+# Accounting UX phase A (CLAUDE.md): the dashboard, list views, document pages, the one search.
+_insert_after(
+  "finance", "Cash position every morning", "موقف النقدية كل صبح",
+  {"title": "Find and work your way around Accounting",
+   "steps": [
+     "Start every day on Accounting, Dashboard: the Today strip lists what waits for someone (approvals for you, payouts due today, rider withdrawals, cash differences, bank lines, bills due, entries missing a receipt, your reminders). Tap a line to open exactly those records.",
+     "Each card below is one bank, cash box or book with its balance, the last 30 days and what waits; its buttons open the work (Match lines, Prepare payouts, New bill).",
+     "Lists (Payouts, Bills, Journal, Cheques, Rider withdrawals, Approvals, Petty cash, Invoices): type in the search bar and press Enter, open Filters to pick ready filters and Group by (up to two, with subtotals), and remove a chip to undo it. The address keeps the view, so you can send it to a colleague.",
+     "Save a view you use every day under Favourites; tick Open the list with it to make it your default.",
+     "Columns chooses what the table shows; Export gives CSV or Excel of the filtered rows (only the ticked ones when you tick some).",
+     "Tick rows to act on many at once: Approvals has Approve and Reject (a reason is needed), Payouts has Approve payouts. Each record is still checked: your own requests and payouts below the limit are refused and listed.",
+     "A document page shows where it is, its buttons, and counts of what is linked (entries, payments, receipts, emails); tap one to open them. The arrows at the top walk the list you came from.",
+     "On the right: write a note (it cannot be changed later), or Remind me on a day for you or a colleague; the reminder shows on the dashboard and on the phone when due. History lists every change.",
+     "To find anything fast, type a number in the search at the top (PAY-12, BILL-3, JV-120, CHQ-4, RW-2, an order number) or a merchant's name."],
+   "check": [
+     "The Today strip is empty by the end of the day, or each line has a note or a reminder saying why."],
+   "problems": [
+     "A list looks empty: remove the filter chips; the list may open with a default filter (Approvals opens on Waiting).",
+     "Bulk approve refused some records: read the reasons under the list; approve them one by one only when the rule allows it."]},
+  {"title": "التنقل والشغل في الحسابات",
+   "steps": [
+     "ابدأ كل يوم من الحسابات، لوحة المتابعة: شريط النهارده بيعرض اللي مستني حد (موافقات ليك، دفعات مستحقة النهارده، سحوبات مناديب، فروق نقدية، سطور بنك، فواتير مستحقة، قيود من غير إيصال، تذكيراتك). دوس على السطر يفتحلك السجلات دي بالظبط.",
+     "كل كارت تحت هو بنك أو خزنة أو دفتر برصيده وآخر 30 يوم واللي مستني؛ وزراره بتفتح الشغل (مطابقة السطور، إعداد الدفعات، فاتورة جديدة).",
+     "القوائم (المدفوعات، الفواتير، اليومية، الشيكات، سحوبات المناديب، الموافقات، النثرية، الفواتير الضريبية): اكتب في البحث واضغط إنتر، افتح التصفية واختار فلاتر جاهزة وتجميع حسب (لحد اتنين بإجماليات)، وشيل أي شريحة عشان تلغيها. العنوان بيحفظ العرض، فتقدر تبعته لزميلك.",
+     "احفظ العرض اللي بتستخدمه كل يوم في المفضلة؛ واختار افتح القائمة بيه عشان يبقى الافتراضي.",
+     "الأعمدة بتختار اللي يظهر في الجدول؛ والتصدير بيطلع CSV أو إكسل للصفوف المفلترة (المحدد بس لو حددت).",
+     "حدد صفوف عشان تشتغل على كذا واحد مرة واحدة: في الموافقات موافقة ورفض (لازم سبب)، وفي المدفوعات الموافقة على المدفوعات. كل سجل بيتراجع لوحده: طلباتك ودفعاتك تحت الحد بتترفض وتتكتب.",
+     "صفحة المستند بتوري هو فين وزراره وعدد المرتبط بيه (قيود، دفعات، إيصالات، رسائل)؛ دوس على أي واحد يفتحهم. الأسهم فوق بتلف على القائمة اللي جيت منها.",
+     "على الجنب: اكتب ملاحظة (ما تتغيرش بعد كده)، أو ذكّرني في يوم ليك أو لزميل؛ التذكير بيظهر في اللوحة وعلى الموبايل لما ييجي ميعاده. السجل بيعرض كل تغيير.",
+     "عشان تلاقي أي حاجة بسرعة، اكتب رقم في البحث فوق (PAY-12 أو BILL-3 أو JV-120 أو CHQ-4 أو RW-2 أو رقم طلب) أو اسم تاجر."],
+   "check": [
+     "شريط النهارده فاضي آخر اليوم، أو كل سطر عليه ملاحظة أو تذكير بيقول ليه."],
+   "problems": [
+     "القائمة باينة فاضية: شيل شرائح التصفية؛ ممكن القائمة تفتح بفلتر افتراضي (الموافقات بتفتح على المنتظر).",
+     "الموافقة الجماعية رفضت شوية سجلات: اقرا الأسباب تحت القائمة؛ ووافق عليهم واحد واحد بس لو القاعدة تسمح."]})

@@ -117,7 +117,16 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
   );
 }
 
-export function PayoutsManager({ payouts, today }: { payouts: PayoutRow[]; today: string }) {
+export function PayoutsManager({
+  payouts,
+  today,
+  onlyPrepare = false,
+}: {
+  payouts: PayoutRow[];
+  today: string;
+  /** The page lists payouts in its own list view: only the prepare form here */
+  onlyPrepare?: boolean;
+}) {
   const t = useTranslations('finance.payouts');
   const tf = useTranslations('finance');
   const locale = useLocale();
@@ -159,20 +168,21 @@ export function PayoutsManager({ payouts, today }: { payouts: PayoutRow[]; today
         <ActionMessage message={action.message} />
       </section>
 
-      <section>
-        <h2 className="text-h3">{t('draft')}</h2>
-        {drafts.length === 0 ? (
-          <p className="mt-2 text-body-sm text-text-muted">{tf('empty')}</p>
-        ) : (
-          <ul className="mt-3 space-y-3">
-            {drafts.map((p) => (
-              <DraftCard key={p.id} payout={p} />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {done.length > 0 && (
+      {!onlyPrepare && (
+        <section>
+          <h2 className="text-h3">{t('draft')}</h2>
+          {drafts.length === 0 ? (
+            <p className="mt-2 text-body-sm text-text-muted">{tf('empty')}</p>
+          ) : (
+            <ul className="mt-3 space-y-3">
+              {drafts.map((p) => (
+                <DraftCard key={p.id} payout={p} />
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
+      {!onlyPrepare && done.length > 0 && (
         <section>
           <h2 className="text-h3">{t('paid')}</h2>
           <div className="mt-3 overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
@@ -221,3 +231,5 @@ export function PayoutsManager({ payouts, today }: { payouts: PayoutRow[]; today
     </div>
   );
 }
+
+export { DraftCard };

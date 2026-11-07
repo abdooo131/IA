@@ -47,10 +47,13 @@ export function AppBar({
   apps,
   badges,
   account,
+  search,
 }: {
   apps: AppDef[];
   badges: Record<string, number>;
   account: ReactNode;
+  /** The app's one search (Accounting), before the account menu */
+  search?: ReactNode;
 }) {
   const t = useTranslations('apps');
   const pathname = usePathname();
@@ -111,10 +114,10 @@ export function AppBar({
         {app && (
           <Link
             href={app.menus[0]!.pages[0]!.href}
-            className="me-3 flex min-h-11 shrink-0 items-center gap-2 rounded-md px-1"
+            className="flex min-h-11 min-w-0 items-center gap-2 rounded-md px-1 sm:me-3 sm:shrink-0"
           >
             <AppTileIcon app={app} size="sm" />
-            <span className="text-body font-bold">{t(`names.${app.id}`)}</span>
+            <span className="truncate text-body font-bold">{t(`names.${app.id}`)}</span>
           </Link>
         )}
 
@@ -125,7 +128,7 @@ export function AppBar({
           >
             {app.menus.map((menu) => {
               const active = menuActive(menu);
-              const base = `flex h-11 items-center rounded-t-md border-b-2 px-3 text-body-sm font-semibold ${
+              const base = `flex h-11 items-center whitespace-nowrap rounded-t-md border-b-2 px-2 2xl:px-3 text-body-sm font-semibold ${
                 active
                   ? 'border-primary text-link'
                   : 'border-transparent text-text hover:bg-surface-raised'
@@ -202,7 +205,8 @@ export function AppBar({
           </nav>
         )}
 
-        <div className="ms-auto flex shrink-0 items-center gap-2">
+        <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
+          {search}
           {app && (
             <button
               type="button"

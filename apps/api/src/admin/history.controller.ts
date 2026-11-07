@@ -1,7 +1,7 @@
 import { Controller, ForbiddenException, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { listAudit } from '@shiplynow/db';
-import { type AccessApp, type AccessProfile, canDo } from '@shiplynow/shared';
+import { type AccessProfile, canDo, RECORD_APPS } from '@shiplynow/shared';
 import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -10,54 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
  * accounting; merchants and riders have wallets, so accounting reads theirs too. Anything not
  * listed (users, settings, tickets...) is for settings manage.
  */
-const HISTORY_APPS: Record<string, readonly AccessApp[]> = {
-  order: ['operations'],
-  alert: ['operations'],
-  zone: ['operations'],
-  dark_store: ['operations'],
-  geo_area: ['operations'],
-  transfer: ['inventory'],
-  inbound_manifest: ['inventory'],
-  merchant_return: ['inventory'],
-  damage_report: ['inventory'],
-  stock_count: ['inventory'],
-  stock_level: ['inventory'],
-  stock_target: ['inventory'],
-  refill: ['inventory'],
-  merchant: ['merchants', 'accounting'],
-  sku: ['merchants'],
-  shopify_shop: ['merchants'],
-  shopify_app: ['merchants'],
-  rider: ['operations', 'accounting'],
-  customer: [],
-  payout: ['accounting'],
-  cash_handover: ['accounting'],
-  ledger_account: ['accounting'],
-  ledger_entry: ['accounting'],
-  finance_request: ['accounting'],
-  tax_invoice: ['accounting'],
-  bill: ['accounting'],
-  purchase_order: ['accounting'],
-  packaging_item: ['inventory', 'accounting'],
-  email: ['accounting'],
-  supplier: ['accounting'],
-  bank_statement: ['accounting'],
-  bank_statement_line: ['accounting'],
-  recurring_entry: ['accounting'],
-  fixed_asset: ['accounting'],
-  prepayment: ['accounting'],
-  budget: ['accounting'],
-  company_profile: ['accounting'],
-  books: ['accounting'],
-  employee: ['hr'],
-  leave_request: ['hr'],
-  leave_type: ['hr'],
-  violation: ['hr'],
-  violation_type: ['hr'],
-  attendance_correction: ['hr'],
-  cheque: ['accounting'],
-  merchant_contract: ['merchants', 'accounting'],
-};
+const HISTORY_APPS = RECORD_APPS;
 
 /** The history of one record (who did what, when, before and after), newest first. */
 @ApiTags('admin')

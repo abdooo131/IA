@@ -1,11 +1,9 @@
-import { canDo } from '@shiplynow/shared';
+import { canDo, type DocDescriptor } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Amount } from '@/components/finance/Amount';
 import { ChequeActions, type ChequeDetail, ChequeStatusPill } from '@/components/finance/Cheques';
-import { BackLink } from '@/components/store/BackLink';
-import { RecordHistory } from '@/components/workflow/RecordHistory';
-import { StatusBar } from '@/components/workflow/StatusBar';
+import { DocumentPage } from '@/components/odoo/DocumentPage';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import type { BookAccount } from '@/lib/finance-types';
@@ -15,8 +13,9 @@ export const dynamic = 'force-dynamic';
 /** One cheque: where it is on its path, what it was booked against, its entries and history. */
 export default async function FinanceChequePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [cheque, profile, t, locale] = await Promise.all([
+  const [cheque, doc, profile, t, locale] = await Promise.all([
     apiGet<ChequeDetail>(`/finance/cheques/${id}`),
+    apiGet<DocDescriptor>(`/finance/documents/cheque/${id}`),
     getMyProfile(),
     getTranslations('finance.cheques'),
     getLocale(),
@@ -38,23 +37,19 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
     ) : null;
   const entry = (e: { id: string; number: string } | null) =>
     e ? (
-      <Link href={`/finance/journal?number=${e.number}`} className="ltr-iso font-bold text-link">
+      <Link href={`/finance/journal?q=${e.number}&f=`} className="ltr-iso font-bold text-link">
         {e.number}
       </Link>
     ) : null;
   return (
-    <>
-      <BackLink href="/finance/cheques" />
-      <div className="mt-2 flex flex-wrap items-center gap-3">
-        <h1 className="text-h2">
-          <span className="ltr-iso">{t('detail', { label: cheque.label })}</span>
-        </h1>
+    <DocumentPage
+      doc={doc}
+      showFields={false}
+      actions={canUse ? <ChequeActions cheque={cheque} banks={banks} /> : undefined}
+    >
+      <p>
         <ChequeStatusPill status={cheque.status} />
-      </div>
-      <StatusBar
-        flow={cheque.direction === 'received' ? 'cheque_received' : 'cheque_issued'}
-        status={cheque.status}
-      />
+      </p>
       {cheque.requestId && (
         <p className="mt-3 text-body-sm">
           {t('waiting')}{' '}
@@ -63,7 +58,7 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
           </Link>
         </p>
       )}
-      <div className="mt-4 grid gap-4 lg:grid-cols-2">
+      <div className="grid gap-4 xl:grid-cols-2">
         <dl className="rounded-lg border border-line bg-surface p-4 text-body-sm">
           {row(t('direction'), t(`directions.${cheque.direction}`))}
           {row(t('purpose'), t(`purposes.${cheque.purpose}`))}
@@ -119,8 +114,6 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
           )}
         </div>
       </div>
-      {canUse && <ChequeActions cheque={cheque} banks={banks} />}
-      <RecordHistory entityType="cheque" entityId={cheque.id} />
-    </>
+    </DocumentPage>
   );
 }

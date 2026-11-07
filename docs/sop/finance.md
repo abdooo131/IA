@@ -350,6 +350,27 @@ Also inside the app: settings menu (top of every screen), Help.
 - The net position is below zero: tell the owner the same day, with the bills and payouts due.
 - A rider keeps holding cash past the limit: open a ticket to the store manager, and ask admin to lower the store's limit if it repeats.
 
+### Find and work your way around Accounting
+
+1. Start every day on Accounting, Dashboard: the Today strip lists what waits for someone (approvals for you, payouts due today, rider withdrawals, cash differences, bank lines, bills due, entries missing a receipt, your reminders). Tap a line to open exactly those records.
+2. Each card below is one bank, cash box or book with its balance, the last 30 days and what waits; its buttons open the work (Match lines, Prepare payouts, New bill).
+3. Lists (Payouts, Bills, Journal, Cheques, Rider withdrawals, Approvals, Petty cash, Invoices): type in the search bar and press Enter, open Filters to pick ready filters and Group by (up to two, with subtotals), and remove a chip to undo it. The address keeps the view, so you can send it to a colleague.
+4. Save a view you use every day under Favourites; tick Open the list with it to make it your default.
+5. Columns chooses what the table shows; Export gives CSV or Excel of the filtered rows (only the ticked ones when you tick some).
+6. Tick rows to act on many at once: Approvals has Approve and Reject (a reason is needed), Payouts has Approve payouts. Each record is still checked: your own requests and payouts below the limit are refused and listed.
+7. A document page shows where it is, its buttons, and counts of what is linked (entries, payments, receipts, emails); tap one to open them. The arrows at the top walk the list you came from.
+8. On the right: write a note (it cannot be changed later), or Remind me on a day for you or a colleague; the reminder shows on the dashboard and on the phone when due. History lists every change.
+9. To find anything fast, type a number in the search at the top (PAY-12, BILL-3, JV-120, CHQ-4, RW-2, an order number) or a merchant's name.
+
+**Check it went right**
+
+- The Today strip is empty by the end of the day, or each line has a note or a reminder saying why.
+
+**If something is wrong**
+
+- A list looks empty: remove the filter chips; the list may open with a default filter (Approvals opens on Waiting).
+- Bulk approve refused some records: read the reasons under the list; approve them one by one only when the rule allows it.
+
 ### Petty cash and the month end checklist
 
 1. Petty cash (Cash and bank): open the categories stores may use. Large petty expenses, or ones that would leave a box below its float, wait in Approvals; check the receipt photo before approving.
@@ -770,6 +791,27 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - صافي الموقف تحت الصفر: بلّغ المالك نفس اليوم بالفواتير والدفعات المستحقة.
 - مندوب بيفضل معاه فلوس فوق الحد: افتح تذكرة لمدير الفرع، واطلب من الأدمن يقلل حد الفرع لو اتكرر.
+
+### التنقل والشغل في الحسابات
+
+1. ابدأ كل يوم من الحسابات، لوحة المتابعة: شريط النهارده بيعرض اللي مستني حد (موافقات ليك، دفعات مستحقة النهارده، سحوبات مناديب، فروق نقدية، سطور بنك، فواتير مستحقة، قيود من غير إيصال، تذكيراتك). دوس على السطر يفتحلك السجلات دي بالظبط.
+2. كل كارت تحت هو بنك أو خزنة أو دفتر برصيده وآخر 30 يوم واللي مستني؛ وزراره بتفتح الشغل (مطابقة السطور، إعداد الدفعات، فاتورة جديدة).
+3. القوائم (المدفوعات، الفواتير، اليومية، الشيكات، سحوبات المناديب، الموافقات، النثرية، الفواتير الضريبية): اكتب في البحث واضغط إنتر، افتح التصفية واختار فلاتر جاهزة وتجميع حسب (لحد اتنين بإجماليات)، وشيل أي شريحة عشان تلغيها. العنوان بيحفظ العرض، فتقدر تبعته لزميلك.
+4. احفظ العرض اللي بتستخدمه كل يوم في المفضلة؛ واختار افتح القائمة بيه عشان يبقى الافتراضي.
+5. الأعمدة بتختار اللي يظهر في الجدول؛ والتصدير بيطلع CSV أو إكسل للصفوف المفلترة (المحدد بس لو حددت).
+6. حدد صفوف عشان تشتغل على كذا واحد مرة واحدة: في الموافقات موافقة ورفض (لازم سبب)، وفي المدفوعات الموافقة على المدفوعات. كل سجل بيتراجع لوحده: طلباتك ودفعاتك تحت الحد بتترفض وتتكتب.
+7. صفحة المستند بتوري هو فين وزراره وعدد المرتبط بيه (قيود، دفعات، إيصالات، رسائل)؛ دوس على أي واحد يفتحهم. الأسهم فوق بتلف على القائمة اللي جيت منها.
+8. على الجنب: اكتب ملاحظة (ما تتغيرش بعد كده)، أو ذكّرني في يوم ليك أو لزميل؛ التذكير بيظهر في اللوحة وعلى الموبايل لما ييجي ميعاده. السجل بيعرض كل تغيير.
+9. عشان تلاقي أي حاجة بسرعة، اكتب رقم في البحث فوق (PAY-12 أو BILL-3 أو JV-120 أو CHQ-4 أو RW-2 أو رقم طلب) أو اسم تاجر.
+
+**اتأكد إنها مشيت صح**
+
+- شريط النهارده فاضي آخر اليوم، أو كل سطر عليه ملاحظة أو تذكير بيقول ليه.
+
+**لو فيه مشكلة**
+
+- القائمة باينة فاضية: شيل شرائح التصفية؛ ممكن القائمة تفتح بفلتر افتراضي (الموافقات بتفتح على المنتظر).
+- الموافقة الجماعية رفضت شوية سجلات: اقرا الأسباب تحت القائمة؛ ووافق عليهم واحد واحد بس لو القاعدة تسمح.
 
 ### النثريات وقائمة إقفال الشهر
 

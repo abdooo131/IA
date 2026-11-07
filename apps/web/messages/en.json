@@ -726,7 +726,11 @@
         "crm_contact__create": "Contact added",
         "crm_contact__update": "Contact changed",
         "crm_lost_reason__create": "Lost reason added",
-        "crm_lost_reason__update": "Lost reason changed"
+        "crm_lost_reason__update": "Lost reason changed",
+        "record__note": "Note written",
+        "record__activity": "Reminder planned",
+        "record__activity_done": "Reminder done",
+        "list__favorite_save": "List view saved"
       }
     },
     "users": {
@@ -2304,7 +2308,8 @@
       "what": "What",
       "voucher": "Voucher",
       "accrual": "Reverse this entry on the 1st of next month",
-      "accrualHint": "For a cost or income of this month whose bill arrives later; when the real bill is entered next month, the two cancel out."
+      "accrualHint": "For a cost or income of this month whose bill arrives later; when the real bill is entered next month, the two cancel out.",
+      "linesCsv": "every line (CSV)"
     },
     "trial": {
       "title": "Trial balance",
@@ -2449,7 +2454,8 @@
         "approved": "Approved",
         "rejected": "Rejected",
         "cancelled": "Withdrawn"
-      }
+      },
+      "payoutsWaiting": "{count, plural, one {# payout waits for a second person: open it}  other {# payouts wait for a second person: open them}}"
     },
     "close": {
       "title": "Close month",
@@ -2716,7 +2722,8 @@
       "disposeReason": "Why (sold to, broken...)",
       "disposeHint": "The equipment leaves the books; what was not yet depreciated, less the sale price, is a loss (or a gain). A second person approves it.",
       "confirmDispose": "Take off the books",
-      "disposed": "Sold or scrapped"
+      "disposed": "Sold or scrapped",
+      "newBillButton": "New bill"
     },
     "period": {
       "bankTitle": "Bank matching",
@@ -3173,6 +3180,166 @@
       "details": "Details and what if",
       "shipping": "Shipping fee (EGP)",
       "shippingFee": "Shipping fees"
+    },
+    "dashboard": {
+      "title": "Accounting",
+      "intro": "What needs someone today, then every bank, box and book.",
+      "allReports": "All reports",
+      "today": "Today",
+      "allClear": "Nothing waits for anyone. Well done.",
+      "monthEnd": "Month end for {month}",
+      "monthClosed": "The books are closed for this month.",
+      "monthReady": "Everything is ready: close the books.",
+      "monthLeft": "{left, plural, one {One item left} other {# items left}}",
+      "myActivities": "My reminders due",
+      "noActivities": "Nothing due today.",
+      "journals": "Books",
+      "sparkLabel": "{name}, the last 30 days",
+      "cards": {
+        "store_boxes": "Store cash boxes",
+        "payouts": "Merchant payouts",
+        "bills": "Supplier bills",
+        "invoices": "Merchant invoices",
+        "riders": "Rider withdrawals",
+        "approvals": "Approvals"
+      },
+      "balanceOf": {
+        "bank": "Balance",
+        "cash_box": "Cash in the box",
+        "store_boxes": "Cash in all stores",
+        "payouts": "Owed to merchants",
+        "bills": "Owed to suppliers",
+        "invoices": "Invoiced this month",
+        "riders": "Asked, not yet paid",
+        "approvals": "Waiting for a second person"
+      },
+      "sparkOf": {
+        "bank": "Balance each day",
+        "cash_box": "Balance each day",
+        "store_boxes": "Balance each day",
+        "payouts": "Paid each day",
+        "bills": "Bills each day",
+        "invoices": "Issued each day",
+        "riders": "Paid to riders each day",
+        "approvals": "Requests each day"
+      },
+      "waits": {
+        "bankLines": "{count, plural, =0 {No bank lines to match} one {# bank line to match} other {# bank lines to match}}",
+        "handovers": "{count, plural, =0 {No handover differences} one {# handover with a difference} other {# handovers with a difference}}",
+        "ridersHolding": "{count, plural, =0 {No rider holds cash} one {# rider holds cash} other {# riders hold cash}}",
+        "payoutsDueToday": "{count, plural, =0 {No payouts due today} one {# payout due today} other {# payouts due today}}",
+        "drafts": "{count, plural, =0 {No drafts} one {# draft to pay} other {# drafts to pay}}",
+        "payoutsToApprove": "{count, plural, =0 {None waits for my approval} one {# waits for my approval} other {# wait for my approval}}",
+        "billsDue": "{count, plural, =0 {No bills due in 7 days} one {# bill due in 7 days} other {# bills due in 7 days}}",
+        "billsOverdue": "{count, plural, =0 {Nothing overdue} one {# overdue} other {# overdue}}",
+        "invoicesNeedFix": "{count, plural, =0 {No e-invoice to fix} one {# e-invoice to fix} other {# e-invoices to fix}}",
+        "invoicesNotSent": "{count, plural, =0 {All sent to the tax authority} one {# not sent yet} other {# not sent yet}}",
+        "withdrawalsToApprove": "{count, plural, =0 {No withdrawal to approve} one {# withdrawal to approve} other {# withdrawals to approve}}",
+        "withdrawalsToPay": "{count, plural, =0 {No withdrawal to pay} one {# withdrawal to pay} other {# withdrawals to pay}}",
+        "approvalsForMe": "{count, plural, =0 {Nothing for me to approve} one {# for me to approve} other {# for me to approve}}",
+        "approvalsMine": "{count, plural, =0 {None of mine waiting} one {# of mine waiting} other {# of mine waiting}}"
+      },
+      "actions": {
+        "matchLines": "Match lines",
+        "statement": "Statement",
+        "moveMoney": "Move money",
+        "storeCash": "Store cash",
+        "deposit": "Deposit",
+        "preparePayouts": "Prepare payouts",
+        "wallets": "Wallets",
+        "newBill": "New bill",
+        "payBills": "Pay bills",
+        "invoices": "Invoices",
+        "withdrawals": "Withdrawals",
+        "riderWallets": "Rider wallets",
+        "approvals": "Approvals"
+      },
+      "todayItems": {
+        "approvalsForMe": "{count, plural, one {Approval waits for me} other {Approvals wait for me}}",
+        "payoutsDueToday": "{count, plural, one {Merchant payout due today} other {Merchant payouts due today}}",
+        "withdrawalsWaiting": "{count, plural, one {Rider withdrawal waiting} other {Rider withdrawals waiting}}",
+        "handoversDifference": "{count, plural, one {Cash handover with a difference} other {Cash handovers with a difference}}",
+        "bankLines": "{count, plural, one {Bank line to match} other {Bank lines to match}}",
+        "billsDue": "{count, plural, one {Bill due within 7 days} other {Bills due within 7 days}}",
+        "missingReceipts": "{count, plural, one {Entry missing a receipt} other {Entries missing a receipt}}",
+        "myActivities": "{count, plural, one {Reminder of mine due} other {Reminders of mine due}}"
+      }
+    },
+    "reportsPage": {
+      "title": "Reports",
+      "intro": "Each report answers one question. Open the one you need; every report prints and most export.",
+      "forAccountant": "For the accountant",
+      "items": {
+        "profitAndLoss": {
+          "question": "Are we making money?",
+          "text": "Income, costs and profit for any days you pick.",
+          "name": "Profit and loss"
+        },
+        "balanceSheet": {
+          "question": "What do we own and owe?",
+          "text": "Money, equipment and what we owe merchants, suppliers and the tax authority on one day.",
+          "name": "Balance sheet"
+        },
+        "cashFlow": {
+          "question": "Where is our cash going?",
+          "text": "Money in and out of banks, boxes and riders, with a four week forecast.",
+          "name": "Cash flow"
+        },
+        "cashPosition": {
+          "question": "How much cash do we have right now?",
+          "text": "Banks, boxes, cash with riders by age, what merchants are owed and bills due.",
+          "name": "Cash position"
+        },
+        "profitPerStore": {
+          "question": "Which store earns most?",
+          "text": "Income, costs and profit per store, merchant or rider, and cost per delivered order.",
+          "name": "Profit per store"
+        },
+        "merchantProfit": {
+          "question": "Which merchant earns most?",
+          "text": "Fees against every cost per merchant and month, with a what if.",
+          "name": "Merchant profit"
+        },
+        "receivables": {
+          "question": "Who owes us money?",
+          "text": "Merchants whose balance turned against them, since when, and asking them to pay.",
+          "name": "What merchants owe"
+        },
+        "budgets": {
+          "question": "Are we spending what we planned?",
+          "text": "Budget per account, month and store against what really happened.",
+          "name": "Budgets"
+        },
+        "comparePeriods": {
+          "question": "Are we doing better than before?",
+          "text": "Profit and loss and the balance sheet next to the same days before.",
+          "name": "Compare periods"
+        },
+        "taxes": {
+          "question": "What do we owe the tax authority?",
+          "text": "VAT, withholding, salary tax and insurance owed, the VAT report and the returns.",
+          "name": "Taxes"
+        },
+        "trial": {
+          "question": "Do the books balance?",
+          "text": "Every account with its debit and credit total.",
+          "name": "Trial balance"
+        },
+        "journal": {
+          "question": "What moved, line by line?",
+          "text": "Every entry with its lines; exports for Odoo, Zoho Books, QuickBooks or Daftra.",
+          "name": "Journal"
+        }
+      }
+    },
+    "taxesPage": {
+      "title": "Taxes",
+      "intro": "What we owe and pay, the VAT report by month and the returns, in one place.",
+      "tabs": {
+        "owed": "Taxes owed",
+        "vat": "VAT report",
+        "returns": "Tax returns"
+      }
     }
   },
   "storeCash": {
@@ -4350,6 +4517,27 @@
             ]
           },
           {
+            "title": "Find and work your way around Accounting",
+            "steps": [
+              "Start every day on Accounting, Dashboard: the Today strip lists what waits for someone (approvals for you, payouts due today, rider withdrawals, cash differences, bank lines, bills due, entries missing a receipt, your reminders). Tap a line to open exactly those records.",
+              "Each card below is one bank, cash box or book with its balance, the last 30 days and what waits; its buttons open the work (Match lines, Prepare payouts, New bill).",
+              "Lists (Payouts, Bills, Journal, Cheques, Rider withdrawals, Approvals, Petty cash, Invoices): type in the search bar and press Enter, open Filters to pick ready filters and Group by (up to two, with subtotals), and remove a chip to undo it. The address keeps the view, so you can send it to a colleague.",
+              "Save a view you use every day under Favourites; tick Open the list with it to make it your default.",
+              "Columns chooses what the table shows; Export gives CSV or Excel of the filtered rows (only the ticked ones when you tick some).",
+              "Tick rows to act on many at once: Approvals has Approve and Reject (a reason is needed), Payouts has Approve payouts. Each record is still checked: your own requests and payouts below the limit are refused and listed.",
+              "A document page shows where it is, its buttons, and counts of what is linked (entries, payments, receipts, emails); tap one to open them. The arrows at the top walk the list you came from.",
+              "On the right: write a note (it cannot be changed later), or Remind me on a day for you or a colleague; the reminder shows on the dashboard and on the phone when due. History lists every change.",
+              "To find anything fast, type a number in the search at the top (PAY-12, BILL-3, JV-120, CHQ-4, RW-2, an order number) or a merchant's name."
+            ],
+            "check": [
+              "The Today strip is empty by the end of the day, or each line has a note or a reminder saying why."
+            ],
+            "problems": [
+              "A list looks empty: remove the filter chips; the list may open with a default filter (Approvals opens on Waiting).",
+              "Bulk approve refused some records: read the reasons under the list; approve them one by one only when the rule allows it."
+            ]
+          },
+          {
             "title": "Petty cash and the month end checklist",
             "steps": [
               "Petty cash (Cash and bank): open the categories stores may use. Large petty expenses, or ones that would leave a box below its float, wait in Approvals; check the receipt photo before approving.",
@@ -4783,7 +4971,14 @@
       "applied": "Applied",
       "recorded": "Recorded",
       "appealed": "Appealed",
-      "final": "Final"
+      "final": "Final",
+      "posted": "Posted",
+      "reversed": "Reversed",
+      "not_sent": "Not sent",
+      "signed": "Signed",
+      "submitted": "Submitted",
+      "valid": "Accepted",
+      "invalid": "Invalid"
     }
   },
   "tickets": {
@@ -5208,7 +5403,11 @@
       "hrInbox": "Inbox",
       "hrOverview": "Overview",
       "time": "Time",
-      "discipline": "Discipline"
+      "discipline": "Discipline",
+      "moneyIn": "Money in",
+      "moneyOut": "Money out",
+      "monthEnd": "Month end",
+      "setup": "Setup"
     },
     "pages": {
       "overview": "Overview",
@@ -5311,7 +5510,10 @@
       "newHire": "New hire",
       "expiryCalendar": "Expiry calendar",
       "needsOwner": "Needs a new owner",
-      "riderWithdrawals": "Rider withdrawals"
+      "riderWithdrawals": "Rider withdrawals",
+      "accountingDashboard": "Dashboard",
+      "allReports": "All reports",
+      "monthEndChecklist": "Month end checklist"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -5320,7 +5522,12 @@
       "violationTypes": "Kinds of violation and their penalties",
       "documentTypes": "Which documents each file needs",
       "checklistTemplates": "Tasks when someone joins or leaves",
-      "hrSettings": "Numbers HR uses: grace minutes, probation, leave"
+      "hrSettings": "Numbers HR uses: grace minutes, probation, leave",
+      "allReports": "Every report, by the question it answers",
+      "taxes": "Taxes owed, the VAT report and the returns",
+      "contracts": "Merchant contracts, read only",
+      "trial": "Every account with its total",
+      "journal": "Every entry, line by line"
     }
   },
   "hr": {
@@ -6195,6 +6402,10 @@
       "rider_wallet": {
         "name": "My wallet",
         "hint": "A withdrawal was approved, paid or not approved."
+      },
+      "activity_due": {
+        "name": "My reminders",
+        "hint": "A reminder you or a colleague planned on a record is due."
       }
     }
   },
@@ -9134,5 +9345,383 @@
     "settleTitle": "Rider wallet",
     "settleHint": "This rider is paid per delivered order: settle through their wallet. What is on hold becomes available on its day; what they owe is taken from their last withdrawal.",
     "showMore": "Show more"
+  },
+  "listView": {
+    "or": "or",
+    "searchPlaceholder": "Search…",
+    "searchFacet": "Search",
+    "filterFacet": "Filter",
+    "groupFacet": "Group by",
+    "removeFacet": "Remove {name}",
+    "filtersAndGroups": "Filters",
+    "filters": "Filters",
+    "groupBy": "Group by",
+    "groupHint": "Pick up to two, in order.",
+    "favorites": "Favourites",
+    "saveSearch": "Save this search as",
+    "useByDefault": "Open the list with it",
+    "save": "Save",
+    "deleteFavorite": "Delete {name}",
+    "range": "{from}–{to} of {total}",
+    "grouped": "{count} records in {groups} groups",
+    "previousPage": "Previous page",
+    "nextPage": "Next page",
+    "perPage": "Per page",
+    "emptyTitle": "Nothing here",
+    "emptyHint": "Remove a filter or search for something else.",
+    "selectAll": "Select all on this page",
+    "selectRow": "Select",
+    "total": "Total",
+    "none": "None",
+    "loading": "Loading…",
+    "yes": "Yes",
+    "no": "No",
+    "columns": "Columns",
+    "export": "Export",
+    "exportCsv": "CSV (Excel, any program)",
+    "exportXlsx": "Excel workbook (.xlsx)",
+    "exportSelected": "Only the {count} selected",
+    "bulkBar": "Selected records",
+    "selected": "{count, plural, one {# selected} other {# selected}}",
+    "clearSelection": "Clear",
+    "noteRequired": "Reason (needed to reject)",
+    "noteOptional": "Note (optional; needed to reject)",
+    "bulkDone": "{ok} done, {refused} refused",
+    "close": "Close",
+    "errors": {
+      "approval_not_needed": "Below the approval limit: no approval needed",
+      "no_access": "You do not have access to do this",
+      "payout_not_found": "Payout not found",
+      "request_not_found": "Request not found"
+    }
+  },
+  "lists": {
+    "columns": {
+      "number": "Number",
+      "merchant": "Merchant",
+      "createdDay": "Created",
+      "createdAt": "Created",
+      "cutoffDay": "Covers up to",
+      "createdBy": "By",
+      "paidBy": "Paid by",
+      "reference": "Reference",
+      "needsApproval": "Needs approval",
+      "status": "Status",
+      "amount": "Amount (EGP)",
+      "supplier": "Supplier",
+      "billDay": "Bill date",
+      "dueDay": "Due",
+      "store": "Store",
+      "account": "Account",
+      "total": "Total (EGP)",
+      "vat": "VAT",
+      "paid": "Paid",
+      "left": "Left to pay",
+      "day": "Day",
+      "kind": "Type",
+      "memo": "What",
+      "orderNumber": "Order",
+      "accounts": "Accounts",
+      "receipts": "Receipts",
+      "direction": "Direction",
+      "party": "From or to",
+      "chequeNumber": "Cheque no.",
+      "bank": "Bank",
+      "rider": "Rider",
+      "badge": "Badge",
+      "method": "Paid by way of",
+      "deduction": "Taken for dues",
+      "requestedBy": "Asked by",
+      "decidedBy": "Decided by",
+      "entryNumber": "Entry",
+      "category": "Category",
+      "note": "Note",
+      "type": "Type",
+      "period": "Month",
+      "issuedDay": "Issued",
+      "eta": "E-invoice",
+      "net": "Before VAT"
+    },
+    "filters": {
+      "draft": "Draft",
+      "paid": "Paid",
+      "cancelled": "Cancelled",
+      "needs_approval": "Needs a second person",
+      "for_me_to_approve": "Waiting for my approval",
+      "this_month": "This month",
+      "last_month": "Last month",
+      "last_7_days": "Last 7 days",
+      "today": "Today",
+      "mine": "Prepared by me",
+      "open": "Open",
+      "overdue": "Overdue",
+      "due_7_days": "Due in 7 days",
+      "deliveries": "Deliveries and fees",
+      "cash": "Cash and bank",
+      "payouts": "Payouts",
+      "bills": "Bills and expenses",
+      "manual": "Written by hand",
+      "with_order": "From an order",
+      "without_receipt": "Missing a receipt",
+      "received": "Received",
+      "issued": "Issued",
+      "awaiting_approval": "Awaiting approval",
+      "cleared": "Cleared",
+      "bounced_or_cancelled": "Bounced or cancelled",
+      "requested": "Asked",
+      "approved": "Approved",
+      "rejected_or_cancelled": "Rejected or withdrawn",
+      "pending": "Waiting",
+      "rejected": "Rejected",
+      "waiting_for_me": "Waiting for me (not mine)",
+      "asked_by_me": "Asked by me",
+      "money_in": "Money in",
+      "money_out": "Money out",
+      "posted": "Paid",
+      "reversed": "Reversed",
+      "invoice": "Invoices",
+      "credit_note": "Credit notes",
+      "not_sent": "Not sent to the tax authority",
+      "sent": "Sent, waiting",
+      "accepted": "Accepted",
+      "needs_fix": "Needs a fix"
+    },
+    "groups": {
+      "merchant": "Merchant",
+      "status": "Status",
+      "month": "Month",
+      "created_by": "Prepared by",
+      "supplier": "Supplier",
+      "store": "Store",
+      "account": "Account",
+      "kind": "Type",
+      "day": "Day",
+      "direction": "Direction",
+      "party": "From or to",
+      "bank": "Bank",
+      "rider": "Rider",
+      "method": "Paid by way of",
+      "requested_by": "Asked by",
+      "category": "Category",
+      "type": "Type",
+      "period": "Month",
+      "eta": "E-invoice"
+    },
+    "payouts": {
+      "exportName": "payouts"
+    },
+    "bills": {
+      "exportName": "bills"
+    },
+    "journal": {
+      "exportName": "journal",
+      "columns": {
+        "amount": "Debit total (EGP)"
+      }
+    },
+    "cheques": {
+      "exportName": "cheques"
+    },
+    "rider_withdrawals": {
+      "exportName": "rider-withdrawals"
+    },
+    "approvals": {
+      "exportName": "approvals",
+      "columns": {
+        "kind": "What",
+        "reference": "Reference"
+      }
+    },
+    "petty_cash": {
+      "exportName": "petty-cash",
+      "filters": {
+        "rejected": "Rejected or withdrawn"
+      }
+    },
+    "invoices": {
+      "exportName": "invoices"
+    },
+    "bulk": {
+      "approve": "Approve",
+      "reject": "Reject",
+      "approvePayouts": "Approve payouts"
+    }
+  },
+  "documents": {
+    "breadcrumbs": "Where you are",
+    "recordNav": "Records of the list",
+    "previous": "Previous record",
+    "next": "Next record",
+    "related": "Related records",
+    "details": "Details",
+    "lines": "Lines",
+    "total": "Total",
+    "lists": {
+      "payouts": "Payouts",
+      "bills": "Bills",
+      "journal": "Journal",
+      "cheques": "Cheques",
+      "riderWithdrawals": "Rider withdrawals",
+      "approvals": "Approvals",
+      "pettyCash": "Petty cash",
+      "invoices": "Invoices",
+      "purchaseOrders": "Purchase orders",
+      "storeCash": "Store cash"
+    },
+    "fields": {
+      "merchant": "Merchant",
+      "amount": "Amount",
+      "cutoff": "Covers everything up to",
+      "createdBy": "Prepared by",
+      "createdAt": "Prepared on",
+      "approvedBy": "Approved by",
+      "paidBy": "Paid by",
+      "paidAt": "Paid on",
+      "reference": "Reference",
+      "note": "Note",
+      "supplier": "Supplier",
+      "supplierReference": "Supplier's invoice no.",
+      "billDate": "Bill date",
+      "dueDate": "Due date",
+      "account": "Account",
+      "store": "Store",
+      "person": "Person",
+      "net": "Before VAT",
+      "vat": "VAT",
+      "total": "Total",
+      "paid": "Paid so far",
+      "left": "Left to pay",
+      "withholding": "Withholding tax",
+      "currency": "Currency",
+      "memo": "What",
+      "kind": "Type",
+      "day": "Day",
+      "order": "Order",
+      "partner": "Merchant or rider",
+      "debit": "Debit",
+      "credit": "Credit",
+      "entry": "Entry",
+      "party": "From or to",
+      "rider": "Rider",
+      "deduction": "Taken for what the rider owes",
+      "method": "Paid by way of",
+      "rejectedBy": "Rejected by",
+      "reason": "Reason",
+      "requestedBy": "Asked by",
+      "decidedBy": "Decided by",
+      "decidedAt": "Decided on",
+      "decisionNote": "Decision note",
+      "category": "Category",
+      "reversedBy": "Reversed by",
+      "expected": "Expected",
+      "counted": "Counted",
+      "difference": "Difference"
+    },
+    "smart": {
+      "merchant": "Merchant",
+      "entries": "Journal entries",
+      "receipts": "Receipts",
+      "emails": "Emails",
+      "cheques": "Cheques",
+      "supplier": "Supplier",
+      "payments": "Payments",
+      "attachments": "Attachments",
+      "purchaseOrder": "Purchase order",
+      "lines": "Lines",
+      "source": "Posted for",
+      "order": "Order",
+      "bill": "Bill",
+      "payout": "Payout",
+      "rider": "Rider wallet",
+      "entry": "Journal entry",
+      "reversal": "Reversal entry",
+      "request": "Approval",
+      "creditNotes": "Credit notes",
+      "original": "Original invoice",
+      "deliveries": "Deliveries",
+      "bills": "Bills"
+    },
+    "chatter": {
+      "title": "Notes and history",
+      "logNote": "Log a note",
+      "remindMe": "Remind me",
+      "notePlaceholder": "Write what others should know. Notes cannot be changed later.",
+      "postNote": "Post note",
+      "dueOn": "On",
+      "assignee": "Remind",
+      "me": "Me",
+      "what": "What to do",
+      "whatPlaceholder": "Call the bank about the transfer",
+      "schedule": "Schedule",
+      "activities": "Planned",
+      "noActivities": "Nothing planned.",
+      "late": "late",
+      "today": "today",
+      "markDone": "Done",
+      "notes": "Notes",
+      "noNotes": "No notes yet.",
+      "attachments": "Attachments",
+      "noAttachments": "No receipt or photo yet.",
+      "attachment": "Receipt added by {by}",
+      "errors": {
+        "generic": "That did not work. Try again.",
+        "due_in_past": "Pick today or a later day.",
+        "assignee_not_allowed": "That person cannot open this record.",
+        "no_access": "You can read this record but not write on it.",
+        "not_your_activity": "Only the person reminded or who planned it can close it."
+      }
+    },
+    "search": {
+      "label": "Find a document, order or merchant",
+      "placeholder": "PAY-12, BILL-3, an order or a merchant",
+      "nothing": "Nothing found.",
+      "kinds": {
+        "ledger_entry": "Journal entry",
+        "payout": "Payout",
+        "cash_handover": "Cash handover",
+        "bill": "Bill",
+        "invoice": "Invoice",
+        "credit_note": "Credit note",
+        "purchase_order": "Purchase order",
+        "cheque": "Cheque",
+        "petty_cash": "Petty cash",
+        "rider_withdrawal": "Rider withdrawal",
+        "bank_statement": "Bank statement",
+        "order": "Order",
+        "merchant": "Merchant",
+        "supplier": "Supplier"
+      }
+    }
+  },
+  "infoTips": {
+    "label": "What is \"{term}\"?",
+    "journal": {
+      "term": "Journal",
+      "text": "The list of every money movement in the books. Each entry has lines that move money from one account to another and always add up to zero."
+    },
+    "trialBalance": {
+      "term": "Trial balance",
+      "text": "Every account with its total. The debits and credits must be equal; the accountant checks it before closing a period."
+    },
+    "receivables": {
+      "term": "Receivables",
+      "text": "Money others owe us: here, merchants whose fees are more than what we collected for them."
+    },
+    "accrual": {
+      "term": "Accrual",
+      "text": "A cost or income of this month whose bill comes later. It is booked now and reversed on the 1st of next month, so each month shows its own costs."
+    },
+    "withholding": {
+      "term": "Withholding tax",
+      "text": "A share of what we pay a supplier that we keep back and pay to the tax authority for them (form 41)."
+    },
+    "balanceSheet": {
+      "term": "Balance sheet",
+      "text": "What the company owns (money, equipment) and what it owes (merchants, suppliers, taxes) on one day."
+    },
+    "cashFlow": {
+      "term": "Cash flow",
+      "text": "Where money came from and where it went, in the banks, cash boxes and with riders."
+    }
   }
 }

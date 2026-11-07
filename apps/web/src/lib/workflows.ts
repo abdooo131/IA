@@ -37,6 +37,12 @@ export const WORKFLOWS = {
     path: ['pending_manager', 'pending_hr', 'applied'],
     side: ['rejected', 'cancelled'],
   },
+  // Accounting UX phase A: the documents with a document page.
+  bill: { path: ['open', 'paid'], side: ['cancelled'] },
+  rider_withdrawal: { path: ['requested', 'approved', 'paid'], side: ['rejected', 'cancelled'] },
+  finance_request: { path: ['pending', 'approved'], side: ['rejected', 'cancelled'] },
+  petty_cash: { path: ['pending', 'posted'], side: ['rejected', 'cancelled', 'reversed'] },
+  eta: { path: ['not_sent', 'signed', 'submitted', 'valid'], side: ['invalid', 'rejected'] },
   purchase_order: {
     path: ['requested', 'approved', 'ordered', 'received', 'billed', 'closed'],
     side: ['rejected', 'cancelled'],

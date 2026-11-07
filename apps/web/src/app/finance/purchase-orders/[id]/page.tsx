@@ -1,9 +1,7 @@
-import { canDo } from '@shiplynow/shared';
+import { canDo, type DocDescriptor } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import { PurchaseOrderActions } from '@/components/finance/PurchaseOrders';
-import { BackLink } from '@/components/store/BackLink';
-import { RecordHistory } from '@/components/workflow/RecordHistory';
-import { StatusBar } from '@/components/workflow/StatusBar';
+import { DocumentPage } from '@/components/odoo/DocumentPage';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import type { PurchaseOrderDetail } from '@/lib/purchasing-types';
@@ -16,8 +14,9 @@ const td = 'px-3 py-2';
 
 export default async function PurchaseOrderPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [order, me, claims, t, locale] = await Promise.all([
+  const [order, doc, me, claims, t, locale] = await Promise.all([
     apiGet<PurchaseOrderDetail>(`/finance/purchase-orders/${id}`),
+    apiGet<DocDescriptor>(`/finance/documents/purchase_order/${id}`),
     getMyProfile(),
     getClaims(),
     getTranslations('purchasing.orders'),
@@ -26,13 +25,8 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
   const name = (a: { code?: string; nameEn: string; nameAr: string }) =>
     `${a.code ? `${a.code} ` : ''}${locale === 'ar' ? a.nameAr : a.nameEn}`;
   return (
-    <>
-      <BackLink href="/finance/purchase-orders" />
-      <h1 className="mt-2 text-h2">
-        {order.label} · {order.supplier.name}
-      </h1>
-      <StatusBar flow="purchase_order" status={order.status} />
-      <dl className="mt-4 grid max-w-3xl gap-3 text-body-sm sm:grid-cols-2">
+    <DocumentPage doc={doc} showFields={false}>
+      <dl className="grid max-w-3xl gap-3 text-body-sm sm:grid-cols-2">
         <div>
           <dt className="text-caption text-text-muted">{t('store')}</dt>
           <dd>{order.darkStore ? name(order.darkStore) : t('noStore')}</dd>
@@ -77,7 +71,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
           </div>
         )}
       </dl>
-      <div className="mt-4 overflow-x-auto rounded-lg border border-line bg-surface">
+      <div id="lines" className="mt-4 overflow-x-auto rounded-lg border border-line bg-surface">
         <table className="w-full text-body-sm">
           <thead>
             <tr>
@@ -135,7 +129,6 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
           canApprove={canDo(me, 'accounting', 'manage') && claims?.sub !== order.requestedBy.id}
         />
       )}
-      <RecordHistory entityType="purchase_order" entityId={order.id} />
-    </>
+    </DocumentPage>
   );
 }

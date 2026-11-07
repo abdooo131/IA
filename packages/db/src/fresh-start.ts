@@ -27,6 +27,7 @@ const GUARDED_TABLES = [
   'crm_deal_stage_history',
   'merchant_contract_versions',
   'merchant_contract_version_tiers',
+  'record_notes',
 ];
 
 export type TableCounts = Record<string, number>;
@@ -190,6 +191,8 @@ export async function freshStart(
       await run('ticket messages', 'DELETE FROM ticket_messages');
       await run('tickets', 'DELETE FROM tickets');
       await run('notifications', 'DELETE FROM notifications');
+      await run('record notes', 'DELETE FROM record_notes');
+      await run('record activities', 'DELETE FROM record_activities');
       await run('push sent', 'DELETE FROM push_sent');
       await run('audit log', 'DELETE FROM audit_log');
       await run('geo suggestions', 'DELETE FROM geo_suggestions');

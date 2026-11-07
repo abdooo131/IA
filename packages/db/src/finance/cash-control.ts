@@ -490,7 +490,7 @@ export async function submitPettyCash(
       where: { idempotencyKey: input.idempotencyKey },
       include: { request: { select: { status: true } } },
     });
-    if (seen) return { id: seen.id, number: seen.number, status: pettyStatus(seen) };
+    if (seen) return { id: seen.id, number: seen.number, status: pettyStatusOf(seen) };
     const store = await tx.darkStore.findUnique({ where: { id: input.darkStoreId } });
     if (!store) throw new DomainError('dark_store_not_found', 404);
     const account = await tx.ledgerAccount.findUnique({ where: { id: input.expenseAccountId } });
@@ -635,7 +635,7 @@ export async function reversePettyCash(
   });
 }
 
-function pettyStatus(row: {
+export function pettyStatusOf(row: {
   entryId: string | null;
   reversalEntryId: string | null;
   request?: { status: string } | null;
@@ -685,7 +685,7 @@ export async function listPettyCash(
       amountPiastres: r.amountPiastres,
       note: r.note,
       photoId: r.photoId,
-      status: pettyStatus(r),
+      status: pettyStatusOf(r),
       createdAt: r.createdAt,
       by: r.createdBy.name,
       entryNumber: r.entry?.number ?? null,

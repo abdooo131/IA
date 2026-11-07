@@ -280,3 +280,12 @@ wants otherwise.
   their store (`/stores/:storeId/cash/withdrawals`, `.../:id/pay`), only from that store's box;
   store use is not enough (chosen: the person who hands over the cash records it). The pay basis
   on an HR file is HR use with the salaries switch (`PUT /hr/employees/:id/pay-basis`).
+- Accounting UX phase A: list views (`GET /finance/lists/:id`), document pages
+  (`GET /finance/documents/:type/:id`), the dashboard and the one search are accounting view,
+  inside the person's stores and merchants (a document of another store answers
+  `store_not_allowed`). Bulk approve and reject (`/finance/requests/bulk-decide`,
+  `/finance/payouts/bulk-approve`) are accounting manage, exactly like the single actions, and
+  every record keeps its own rules. The chatter of a record (`/records/:type/:id/...`) reads
+  with view and writes notes and activities with use on the record's app (the same map as its
+  history); an activity can only remind someone who may view that app and record. Favourites
+  and chosen columns are each person's own (any team member).

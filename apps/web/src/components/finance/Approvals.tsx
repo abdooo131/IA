@@ -173,3 +173,5 @@ export function Approvals({
     </div>
   );
 }
+
+export { RequestCard };

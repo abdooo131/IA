@@ -242,3 +242,5 @@ function WithdrawalCard({ w, canUse }: { w: WithdrawalView; canUse: boolean }) {
     </li>
   );
 }
+
+export { WithdrawalCard };

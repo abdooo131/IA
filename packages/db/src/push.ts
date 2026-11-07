@@ -19,6 +19,7 @@ import {
 } from '@shiplynow/shared';
 import { type Db, inTransaction } from './client';
 import { getSetting } from './settings';
+import { dueActivities } from './records';
 
 // Web push notifications (docs/ARCHITECTURE.md, Integrations). The API's PushSender talks to the
 // browsers' push services; everything else lives here: who receives what, in which language,
@@ -298,6 +299,7 @@ export async function dispatchPush(
     hrEvents,
     documentReminders,
     riderWalletEvents,
+    activityEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -1573,6 +1575,27 @@ const hrEvents: Source = async (db, since) => {
     });
   }
   return list;
+};
+
+// ─── Accounting UX phase A ─────────────────────────────────────────────────────
+
+/**
+ * A reminder someone scheduled on a record ("Remind me") is due: the person reminded hears
+ * once (key activity_due:<id>), on its day or the day after when push was down.
+ */
+const activityEvents: Source = async (db, _since, now) => {
+  const rows = await dueActivities(db, now);
+  return rows.map((a) => ({
+    key: `activity_due:${a.id}`,
+    make: async () => ({
+      userIds: [a.assigneeId],
+      type: 'activity_due' as const,
+      text: 'activity_due' as const,
+      vars: { label: a.label, note: a.note.slice(0, 120) },
+      url: a.href,
+      tag: `activity-${a.id}`,
+    }),
+  }));
 };
 
 // ─── HR phase 2 ─────────────────────────────────────────────────────────────────

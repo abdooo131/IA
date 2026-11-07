@@ -171,6 +171,11 @@ model User {
   riderWithdrawalsApproved RiderWithdrawal[]         @relation("rider_withdrawal_approved_by")
   riderWithdrawalsPaid     RiderWithdrawal[]         @relation("rider_withdrawal_paid_by")
   riderWithdrawalsRejected RiderWithdrawal[]         @relation("rider_withdrawal_rejected_by")
+  listFavorites            UserListFavorite[]
+  listPrefs                UserListPrefs[]
+  recordNotes              RecordNote[]
+  activitiesAssigned       RecordActivity[]          @relation("record_activity_assignee")
+  activitiesCreated        RecordActivity[]          @relation("record_activity_created_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -4755,4 +4760,80 @@ model DocumentReminder {
   @@unique([employeeId, typeId, day])
   @@index([createdAt])
   @@map("document_reminders")
+}
+
+// ─── Accounting UX phase A: list views and the chatter ──────────────────────────
+
+/// A saved view of a list (search, filters, grouping, sorting), per person and list.
+model UserListFavorite {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  /// The list's id (payouts, bills, journal...)
+  listKey   String   @map("list_key")
+  name      String
+  /// The list state as search params (serializeListState)
+  query     String
+  /// Opens instead of the list's own default
+  isDefault Boolean  @default(false) @map("is_default")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, listKey, name])
+  @@index([userId, listKey])
+  @@map("user_list_favorites")
+}
+
+/// The columns a person chose to see in a list.
+model UserListPrefs {
+  userId    String   @map("user_id")
+  listKey   String   @map("list_key")
+  columns   String[]
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, listKey])
+  @@map("user_list_prefs")
+}
+
+/// A note written on a record's chatter (append only: a trigger refuses UPDATE and DELETE).
+model RecordNote {
+  id         String   @id @default(cuid())
+  /// The audit entity type (payout, bill, ledger_entry...)
+  entityType String   @map("entity_type")
+  entityId   String   @map("entity_id")
+  authorId   String   @map("author_id")
+  body       String
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  author User @relation(fields: [authorId], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId, createdAt])
+  @@map("record_notes")
+}
+
+/// "Remind me": a scheduled activity on a record for one person, due on a Cairo day.
+model RecordActivity {
+  id          String    @id @default(cuid())
+  entityType  String    @map("entity_type")
+  entityId    String    @map("entity_id")
+  /// The record's number or name when it was scheduled, for lists of activities
+  label       String
+  /// The record's page
+  href        String
+  assigneeId  String    @map("assignee_id")
+  createdById String    @map("created_by_id")
+  dueOn       DateTime  @map("due_on") @db.Date
+  note        String
+  doneAt      DateTime? @map("done_at")
+  doneById    String?   @map("done_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  assignee  User @relation("record_activity_assignee", fields: [assigneeId], references: [id], onDelete: Restrict)
+  createdBy User @relation("record_activity_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@index([entityType, entityId])
+  @@index([assigneeId, doneAt, dueOn])
+  @@map("record_activities")
 }

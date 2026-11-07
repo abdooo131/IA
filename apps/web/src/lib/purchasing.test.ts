@@ -18,9 +18,9 @@ describe('purchase orders, packaging and emails on the desk', () => {
     expect(locate('/finance/emails')?.page?.label).toBe('emails');
     expect(locate('/admin/packaging')?.app.id).toBe('inventory');
     const accounting = appsFor(profile('owner')).find((a) => a.id === 'accounting')!;
-    expect(accounting.menus.find((m) => m.label === 'vendors')!.pages.map((p) => p.href)).toContain(
-      '/finance/purchase-orders',
-    );
+    expect(
+      accounting.menus.find((m) => m.label === 'moneyOut')!.pages.map((p) => p.href),
+    ).toContain('/finance/purchase-orders');
   });
 
   it('shows packaging to inventory people and purchase orders to accounting people only', () => {

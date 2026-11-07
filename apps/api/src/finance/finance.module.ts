@@ -13,6 +13,7 @@ import { PurchasingController } from './purchasing.controller';
 import { ToolsController } from './tools.controller';
 import { FinanceController } from './finance.controller';
 import { RiderWithdrawalsController } from './rider-withdrawals.controller';
+import { FinanceViewsController } from './views.controller';
 
 @Module({
   imports: [CoverageModule],
@@ -30,6 +31,7 @@ import { RiderWithdrawalsController } from './rider-withdrawals.controller';
     ChequesController,
     PurchasingController,
     RiderWithdrawalsController,
+    FinanceViewsController,
   ],
   providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })

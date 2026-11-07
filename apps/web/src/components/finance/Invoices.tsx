@@ -45,10 +45,13 @@ export function InvoiceList({
   rows,
   readiness,
   base,
+  hideTable = false,
 }: {
   rows: InvoiceRow[];
   readiness: EtaReadiness | null;
   base: string;
+  /** The page lists invoices in its own list view */
+  hideTable?: boolean;
 }) {
   const t = useTranslations('finance.invoices');
   const locale = useLocale();
@@ -144,7 +147,7 @@ export function InvoiceList({
         </section>
       )}
 
-      {rows.length === 0 ? (
+      {hideTable ? null : rows.length === 0 ? (
         <p className="text-body-sm text-text-muted">{t('none')}</p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-line bg-surface">

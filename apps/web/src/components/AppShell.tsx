@@ -16,9 +16,12 @@ import { AppBar } from './AppBar';
  */
 export async function AppShell({
   badges = {},
+  search,
   children,
 }: {
   badges?: Record<string, number>;
+  /** The app's one search in the top bar (Accounting) */
+  search?: ReactNode;
   children: ReactNode;
 }) {
   const [profile, theme, head] = await Promise.all([getMyProfile(), getTheme(), headers()]);
@@ -27,7 +30,12 @@ export async function AppShell({
   const apps = appsFor(profile);
   return (
     <div className="min-h-dvh">
-      <AppBar apps={apps} badges={badges} account={<AccountMenu theme={theme} tickets compact />} />
+      <AppBar
+        apps={apps}
+        badges={badges}
+        search={search}
+        account={<AccountMenu theme={theme} tickets compact />}
+      />
       <main className="mx-auto w-full max-w-[1280px] px-4 py-6 lg:px-6 lg:py-8 print:max-w-none print:p-0">
         {children}
       </main>

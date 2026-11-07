@@ -161,7 +161,7 @@ const percentToBp = (text: string) => {
 
 // ─── suppliers and bills ─────────────────────────────────────────────────────
 
-function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
+export function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
   const foreign = bill.currency !== 'EGP';
@@ -252,7 +252,7 @@ function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
   );
 }
 
-function CancelBill({ bill }: { bill: BillRow }) {
+export function CancelBill({ bill }: { bill: BillRow }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
   const [reason, setReason] = useState('');
@@ -607,12 +607,15 @@ export function SuppliersAndBills({
   ageing,
   accounts,
   stores,
+  showOpenBills = true,
 }: {
   suppliers: SupplierRow[];
   bills: BillRow[];
   ageing: BillAgeing;
   accounts: BookAccount[];
   stores: StoreOption[];
+  /** False when the page lists the bills in its own list view */
+  showOpenBills?: boolean;
 }) {
   const t = useTranslations('finance.payables');
   const name = useName();
@@ -626,82 +629,86 @@ export function SuppliersAndBills({
         <AgeingTable ageing={ageing} />
       </section>
 
-      <section className="space-y-2">
-        <h2 className="text-h3">{t('openBills')}</h2>
-        {bills.length === 0 ? (
-          <p className="text-body-sm text-text-muted">{t('noBills')}</p>
-        ) : (
-          <Table
-            head={
-              <>
-                <th className={th}>{t('bill')}</th>
-                <th className={th}>{t('supplier')}</th>
-                <th className={th}>{t('dueDate')}</th>
-                <th className={th}>{t('expense')}</th>
-                <th className={`${th} text-end`}>{t('total')}</th>
-                <th className={`${th} text-end`}>{t('left')}</th>
-                <th className={th} />
-              </>
-            }
-          >
-            {bills.map((b) => (
-              <FragmentRow
-                key={b.id}
-                colSpan={7}
-                open={open === b.id}
-                detail={
-                  <div className="space-y-4">
-                    <PayBill bill={b} money={money} />
-                    {b.paidPiastres === 0 && <CancelBill bill={b} />}
-                  </div>
-                }
-              >
-                <td className={td}>
-                  <span className="ltr-iso font-bold">{b.numberLabel}</span>
-                  <span className="block text-caption text-text-muted">{b.reference}</span>
-                </td>
-                <td className={td}>
-                  {b.supplier.name}
-                  {b.person && (
-                    <span className="block text-caption text-text-muted">{b.person.name}</span>
-                  )}
-                </td>
-                <td className={`${td} ltr-iso ${b.overdue ? 'font-bold text-danger' : ''}`}>
-                  {b.dueDate}
-                </td>
-                <td className={td}>
-                  {name(b.expenseAccount)}
-                  {b.darkStore && (
-                    <span className="block text-caption text-text-muted">{name(b.darkStore)}</span>
-                  )}
-                </td>
-                <td className={`${td} text-end`}>
-                  <Amount piastres={b.totalPiastres} />
-                </td>
-                <td className={`${td} text-end`}>
-                  <Amount piastres={b.leftPiastres} strong />
-                  {b.currency !== 'EGP' && b.foreignLeftCents !== null && (
-                    <span className="block text-caption text-text-muted ltr-iso">
-                      {b.currency} {(b.foreignLeftCents / 100).toFixed(2)}
-                    </span>
-                  )}
-                </td>
-                <td className={`${td} text-end`}>
-                  <button
-                    type="button"
-                    className={secondary}
-                    onClick={() => setOpen(open === b.id ? null : b.id)}
-                  >
-                    {open === b.id ? t('close') : t('payOrCancel')}
-                  </button>
-                </td>
-              </FragmentRow>
-            ))}
-          </Table>
-        )}
-      </section>
+      {showOpenBills && (
+        <section className="space-y-2">
+          <h2 className="text-h3">{t('openBills')}</h2>
+          {bills.length === 0 ? (
+            <p className="text-body-sm text-text-muted">{t('noBills')}</p>
+          ) : (
+            <Table
+              head={
+                <>
+                  <th className={th}>{t('bill')}</th>
+                  <th className={th}>{t('supplier')}</th>
+                  <th className={th}>{t('dueDate')}</th>
+                  <th className={th}>{t('expense')}</th>
+                  <th className={`${th} text-end`}>{t('total')}</th>
+                  <th className={`${th} text-end`}>{t('left')}</th>
+                  <th className={th} />
+                </>
+              }
+            >
+              {bills.map((b) => (
+                <FragmentRow
+                  key={b.id}
+                  colSpan={7}
+                  open={open === b.id}
+                  detail={
+                    <div className="space-y-4">
+                      <PayBill bill={b} money={money} />
+                      {b.paidPiastres === 0 && <CancelBill bill={b} />}
+                    </div>
+                  }
+                >
+                  <td className={td}>
+                    <span className="ltr-iso font-bold">{b.numberLabel}</span>
+                    <span className="block text-caption text-text-muted">{b.reference}</span>
+                  </td>
+                  <td className={td}>
+                    {b.supplier.name}
+                    {b.person && (
+                      <span className="block text-caption text-text-muted">{b.person.name}</span>
+                    )}
+                  </td>
+                  <td className={`${td} ltr-iso ${b.overdue ? 'font-bold text-danger' : ''}`}>
+                    {b.dueDate}
+                  </td>
+                  <td className={td}>
+                    {name(b.expenseAccount)}
+                    {b.darkStore && (
+                      <span className="block text-caption text-text-muted">
+                        {name(b.darkStore)}
+                      </span>
+                    )}
+                  </td>
+                  <td className={`${td} text-end`}>
+                    <Amount piastres={b.totalPiastres} />
+                  </td>
+                  <td className={`${td} text-end`}>
+                    <Amount piastres={b.leftPiastres} strong />
+                    {b.currency !== 'EGP' && b.foreignLeftCents !== null && (
+                      <span className="block text-caption text-text-muted ltr-iso">
+                        {b.currency} {(b.foreignLeftCents / 100).toFixed(2)}
+                      </span>
+                    )}
+                  </td>
+                  <td className={`${td} text-end`}>
+                    <button
+                      type="button"
+                      className={secondary}
+                      onClick={() => setOpen(open === b.id ? null : b.id)}
+                    >
+                      {open === b.id ? t('close') : t('payOrCancel')}
+                    </button>
+                  </td>
+                </FragmentRow>
+              ))}
+            </Table>
+          )}
+        </section>
+      )}
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div id="new-bill" className="grid scroll-mt-20 gap-6 lg:grid-cols-2">
         <NewBill suppliers={suppliers} expenses={expenses} stores={stores} />
         <NewSupplier expenses={expenses} />
       </div>

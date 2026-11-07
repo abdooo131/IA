@@ -29,6 +29,7 @@ export const PUSH_TYPES = [
   'hr_request',
   'hr_update',
   'rider_wallet',
+  'activity_due',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -72,6 +73,8 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   // HR phase 3: what waits for a manager or HR (leave, attendance fixes, appeals), and news
   // about one's own requests and violations.
   list.push('ticket', 'attendance_late', 'document_expiring', 'hr_request', 'hr_update');
+  // Accounting UX phase A: reminders a person scheduled on a record ("Remind me").
+  list.push('activity_due');
   return list;
 }
 
@@ -210,6 +213,11 @@ export const PUSH_TEXT = {
   document_expiring_hr: {
     en: ['Document runs out: {person}', '{document} runs out on {date}.'],
     ar: ['مستند سينتهي: {person}', '{document} ينتهي يوم {date}.'],
+  },
+  // Accounting UX phase A: a reminder on a record (a payout, a bill) is due today.
+  activity_due: {
+    en: ['Reminder: {label}', '{note}'],
+    ar: ['تذكير: {label}', '{note}'],
   },
   // HR phase 2: HR asked the person for a missing or expiring document.
   document_reminder: {
