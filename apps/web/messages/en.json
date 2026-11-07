@@ -6344,24 +6344,48 @@
   },
   "site": {
     "meta": {
-      "title": "Shiply · 60 minute delivery in Cairo",
-      "description": "Shiply keeps your stock in small stores close to your customers. When someone orders, we pick, pack and deliver within 60 minutes, collect the cash and pay you on your schedule.",
-      "ogAlt": "Shiply, 60 minute delivery for online brands in Cairo"
+      "ogAlt": "Shiply, 60 minute delivery for online brands in Cairo",
+      "home": {
+        "title": "Shiply · 60 minute delivery in Cairo",
+        "description": "Shiply keeps your stock in small stores close to your customers. When someone orders, we pick, pack and deliver within 60 minutes, collect the cash and pay you on your schedule."
+      },
+      "how": {
+        "title": "How it works · Shiply",
+        "description": "Connect your store, send us stock, and we place it near your buyers, deliver every order within 60 minutes and pay you on your schedule. Every step checked."
+      },
+      "solutions": {
+        "title": "For brands · Shiply",
+        "description": "60 minute delivery, storage in dark stores, cash on delivery with payouts on your schedule, returns and a full Shopify connection for online brands in Cairo."
+      },
+      "team": {
+        "title": "Our team · Shiply",
+        "description": "The people building 60 minute delivery for online brands in Cairo."
+      },
+      "contact": {
+        "title": "Contact · Shiply",
+        "description": "Tell us about your store and we reply within one working day with your rates and a start date."
+      }
     },
     "brand": "Shiply",
     "nav": {
-      "services": "Services",
+      "home": "Home",
       "how": "How it works",
-      "quality": "Quality",
-      "money": "Cash and payouts",
-      "speed": "Why 60 minutes",
-      "faq": "Questions",
+      "solutions": "For brands",
+      "team": "Our team",
+      "contact": "Contact",
       "mainLabel": "Main",
       "footerLabel": "Footer",
       "signIn": "Sign in",
       "cta": "Start selling",
       "language": "Language",
-      "otherLanguage": "العربية"
+      "otherLanguage": "العربية",
+      "menu": "Menu",
+      "closeMenu": "Close menu"
+    },
+    "callBar": {
+      "label": "Request a call",
+      "text": "60 minute delivery for your store?",
+      "cta": "Request a call"
     },
     "hero": {
       "eyebrow": "Delivery for online brands in Cairo",
@@ -6370,8 +6394,11 @@
       "lead": "Shiply keeps your stock in small stores close to your customers. When someone orders, we pick, pack and deliver within 60 minutes, collect the cash and pay you on your schedule.",
       "cta1": "Start selling with Shiply",
       "cta2": "See how it works",
-      "noteTag": "Shopify",
-      "note": "Connects to your store in minutes. Stock, checkout and tracking stay in sync."
+      "promisesLabel": "What you get",
+      "p1": "60 minutes from order to door",
+      "p2": "No warehouse to rent",
+      "p3": "No delivery fleet to manage",
+      "p4": "Cash collected and paid out on your schedule"
     },
     "ticket": {
       "label": "Example order",
@@ -6393,12 +6420,6 @@
       "check": "✓",
       "sample": "Example order"
     },
-    "strip": {
-      "s1": "<b>60 minutes</b> from order to door",
-      "s2": "<b>Live map</b> your customers can follow",
-      "s3": "<b>Cash collected</b> and paid out on your schedule",
-      "s4": "<b>Arabic and English</b> for you and your customers"
-    },
     "stats": {
       "v1": "60",
       "min": "min",
@@ -6409,7 +6430,8 @@
       "l3": "Delivered on time",
       "v4": "4.95",
       "of5": "/5",
-      "l4": "Average customer rating"
+      "l4": "Average customer rating",
+      "label": "Our results"
     },
     "services": {
       "eyebrow": "What we do",
@@ -6428,7 +6450,19 @@
       "f5t": "Returns and second tries",
       "f5p": "Missed deliveries come back to the store and go out again. When you want stock back, we pick it and hand it over.",
       "f6t": "Your numbers in one place",
-      "f6p": "Orders, stock per store, wallet, statements and tax invoices in your merchant dashboard, in Arabic or English."
+      "f6p": "Orders, stock per store, wallet, statements and tax invoices in your merchant dashboard, in Arabic or English.",
+      "more": "Everything we do for brands"
+    },
+    "why": {
+      "eyebrow": "Why now",
+      "title": "Next day is no longer fast enough",
+      "lead": "The way people in Cairo shop has changed. Brands that deliver in the same hour win the order; the rest wait for tomorrow.",
+      "w1t": "Customers expect the same hour",
+      "w1p": "Groceries, medicine and food already come within the hour. Shoppers now expect the same from every online store they buy from.",
+      "w2t": "Marketplaces take a big share",
+      "w2p": "Selling through a big marketplace costs a large commission on every order, and the customer becomes theirs, not yours.",
+      "w3t": "Doing it yourself takes years",
+      "w3p": "Stores near buyers, riders, scanning, cash handling and the tech that ties it all together take years and capital to build. With Shiply you use ours from your first order."
     },
     "how": {
       "eyebrow": "How it works",
@@ -6448,6 +6482,51 @@
       "h5w": "Your schedule",
       "h5t": "You get paid",
       "h5p": "A bank transfer with a statement of every order and fee."
+    },
+    "howTeaser": {
+      "more": "See the full flow"
+    },
+    "closing": {
+      "title": "Give your customers their order today, not next week",
+      "lead": "Tell us about your store. We reply within one working day with your rates and a start date.",
+      "cta": "Talk to us",
+      "cta2": "See how it works"
+    },
+    "howPage": {
+      "eyebrow": "How it works",
+      "title": "From your warehouse to your customer’s door, and the money back to you",
+      "lead": "You keep selling the way you do today. We take everything after the customer taps Buy, in five steps you can follow in your dashboard.",
+      "details": "What happens",
+      "s1": {
+        "p": "Create your account online and connect your Shopify store. We guide you through it step by step, and your products are matched to ours by SKU.",
+        "b1": "Set the price your customer pays for 60 minute delivery. It is yours, and the money stays with you.",
+        "b2": "Add the area picker to your store so shoppers see what can reach them within the hour.",
+        "b3": "No Shopify? Create orders by hand from your dashboard."
+      },
+      "s2": {
+        "p": "Book a shipment in your dashboard with the products and quantities you are sending. We receive it by scanning every unit.",
+        "b1": "Everything that arrives is counted, including extras not on your list.",
+        "b2": "When the shipment is closed you see what you sent against what we received.",
+        "b3": "Units are shelved by barcode, so every one can be found in seconds."
+      },
+      "s3": {
+        "p": "Each dark store keeps a minimum and a maximum for every product. Every day we refill the stores that run low, so stock sits where it sells.",
+        "b1": "What each store holds shows in Shopify within a minute.",
+        "b2": "The 60 minute option only appears where a nearby store has every item.",
+        "b3": "Regular blind counts keep the numbers honest."
+      },
+      "s4": {
+        "p": "The order reaches the nearest dark store at once. Staff pick it by scan, pack it with a photo and hand it to a rider, all against a 60 minute clock.",
+        "b1": "Your customer gets a tracking link with the rider on a map.",
+        "b2": "Handover needs the customer’s 4 digit code or a photo at the door.",
+        "b3": "If nobody answers, the order comes back and goes out again or back to you, as you choose."
+      },
+      "s5": {
+        "p": "Riders hand the cash in at the store, where it is counted again. Then it is paid into your bank on the schedule you chose.",
+        "b1": "Daily, twice a week or weekly payouts.",
+        "b2": "A statement of every order and fee with each payout.",
+        "b3": "A monthly tax invoice for our fees."
+      }
     },
     "money": {
       "eyebrow": "Cash and payouts",
@@ -6526,6 +6605,103 @@
       "sh3t": "Tracking your customers trust",
       "sh3p": "They get a link with the rider on a map, a delivery code and a one tap rating."
     },
+    "solutionsPage": {
+      "eyebrow": "For brands",
+      "title": "Everything your online store needs after the sale",
+      "lead": "One partner for storage, 60 minute delivery, cash and returns, connected to your Shopify store and shown in one dashboard.",
+      "delivery": {
+        "eyebrow": "60 minute delivery",
+        "title": "Delivered while they still want it",
+        "p": "Your customer picks the 60 minute option at checkout and the nearest dark store does the rest.",
+        "b1": "Picked by scan, packed with a photo, handed to a rider.",
+        "b2": "A live tracking page with a private delivery code.",
+        "b3": "A one tap rating after every delivery."
+      },
+      "storage": {
+        "eyebrow": "Storage in dark stores",
+        "title": "Your stock, close to your buyers",
+        "p": "Send your stock once. We receive it, shelve it by barcode and keep each store filled to what its area sells.",
+        "b1": "Received only against a shipment you booked, with every unit counted.",
+        "b2": "Stores refilled every day before they run low.",
+        "b3": "Stock per store in your dashboard and in Shopify."
+      },
+      "returns": {
+        "eyebrow": "Returns and second tries",
+        "title": "Nothing gets lost when a delivery does not happen",
+        "p": "When a customer cannot take the order, it comes back to the store and you decide what happens next.",
+        "b1": "Try again, ship it your usual way or cancel it.",
+        "b2": "Ask for stock back from your dashboard and we pick it for you.",
+        "b3": "Damaged units are reported with a cause, and you are credited when the damage was ours."
+      },
+      "dashboard": {
+        "eyebrow": "Your merchant dashboard",
+        "title": "Every order and every pound in one place",
+        "p": "Follow your business in Arabic or English, on your phone or computer.",
+        "b1": "Orders with their status, notes and proof of delivery.",
+        "b2": "Shipments, stock per store and returns.",
+        "b3": "Wallet, payouts, statements and tax invoices.",
+        "b4": "Your team, with the rights you give each person."
+      },
+      "who": {
+        "eyebrow": "Who it is for",
+        "title": "Shopify brands selling in Cairo",
+        "lead": "Brands whose customers want their order today. For example:",
+        "c1": "Beauty and personal care",
+        "c2": "Pharmacy and wellness",
+        "c3": "Food and grocery",
+        "c4": "Fashion basics",
+        "c5": "Electronics accessories",
+        "c6": "Gifts"
+      }
+    },
+    "team": {
+      "eyebrow": "Our team",
+      "title": "The people behind your 60 minutes",
+      "lead": "A Cairo team of operators, engineers and merchants who know what it takes to deliver within the hour.",
+      "listLabel": "Leadership",
+      "achievementsLabel": "Highlights",
+      "people": [
+        {
+          "name": "[Name]",
+          "role": "[Role]",
+          "summary": "[One line summary]",
+          "achievements": ["[Achievement]", "[Achievement]", "[Achievement]"],
+          "photo": ""
+        },
+        {
+          "name": "[Name]",
+          "role": "[Role]",
+          "summary": "[One line summary]",
+          "achievements": ["[Achievement]", "[Achievement]", "[Achievement]"],
+          "photo": ""
+        },
+        {
+          "name": "[Name]",
+          "role": "[Role]",
+          "summary": "[One line summary]",
+          "achievements": ["[Achievement]", "[Achievement]", "[Achievement]"],
+          "photo": ""
+        }
+      ],
+      "joinEyebrow": "Join us",
+      "joinTitle": "Build fast delivery with us",
+      "joinP": "We are growing in Cairo and look for people who like things done right and on time.",
+      "r1": "Riders",
+      "r2": "Dark store staff",
+      "r3": "Sales",
+      "joinCta": "Get in touch"
+    },
+    "contactPage": {
+      "eyebrow": "Contact",
+      "title": "Let’s talk about your store",
+      "lead": "Leave your details and our team calls you within one working day with your rates and a start date.",
+      "accountTitle": "Already decided?",
+      "accountP": "Open your merchant account yourself and start setting up today.",
+      "createAccount": "Create an account",
+      "signInTitle": "Already selling with us?",
+      "signInP": "Your orders, stock and payouts are in your merchant dashboard.",
+      "signIn": "Merchant sign in"
+    },
     "faq": {
       "eyebrow": "Questions merchants ask",
       "title": "Before you send us your first box",
@@ -6573,7 +6749,12 @@
       }
     },
     "footer": {
-      "signIn": "Merchant sign in",
+      "line": "60 minute delivery for online brands in Cairo.",
+      "product": "Product",
+      "company": "Company",
+      "merchants": "Merchants",
+      "signIn": "Sign in",
+      "createAccount": "Create an account",
       "copy": "© 2026 Shiply. Cairo, Egypt."
     }
   },

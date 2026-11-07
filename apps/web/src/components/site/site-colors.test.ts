@@ -41,6 +41,7 @@ const PAIRS: [string, string][] = [
   ['#b9c3d3', 'navy'],
   ['#ffffff', 'navy'],
   ['muted', '#eef3ff'],
+  ['navy', '#ffffff'],
 ];
 
 describe('website colors', () => {

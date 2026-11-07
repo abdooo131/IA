@@ -101,7 +101,8 @@ OpenAPI docs are generated at /docs on the API.
 
 Next.js 15 App Router, next-intl (en, ar with RTL), Tailwind with the Brand v2 tokens.
 
-    /                      public website for signed out visitors (signed in: own area)
+    /                      public website home for signed out visitors (signed in: own area)
+    /how-it-works, /solutions, /team, /contact   public website pages (open to everyone)
     /login, /signup        sign in and merchant sign up
     /home                  app tiles (Operations, Inventory, Merchants, Customers,
                            Accounting, HR, Sales, Settings, Store screens), only what the person
@@ -122,16 +123,29 @@ Strings are never hard coded: messages/en.json and messages/ar.json hold every l
 
 ### Public website
 
-`/` is the company website for online merchants when nobody is signed in; a signed in person
-is sent to their own area as before (app/page.tsx, homeFor). The design is the one agreed with
-the owner in docs/site/preview.html, rebuilt in components/site: SiteHome (server rendered),
-site.css (light only, every rule under `.shiply-site` and every class `s-` so the app's
+The company website is five public pages: `/` (SiteHome: hero with the example order, four
+promises, results band, services, Why now, a How it works teaser and a closing call to action),
+`/how-it-works` (HowItWorksPage), `/solutions` "For brands" (SolutionsPage), `/team` "Our team"
+(TeamPage) and `/contact` (ContactPage: the lead form, Create an account, Merchant sign in and
+the FAQ). On `/` a signed in person is sent to their own area as before (app/page.tsx, homeFor);
+the other pages are open to everyone and the middleware's matcher never covers them. Every page
+renders inside SiteShell: the top bar (links from site-nav.ts with the current page marked by
+aria-current, language switch, Sign in, Start selling to /contact; SiteMenu, a client menu
+button, on phones), the footer (Product, Company, Merchants) and a "Request a call" bar that is
+sticky at the bottom of the screen on every page but Contact. Each page has its own title,
+description, canonical address and Open Graph card in the visitor's language
+(components/site/metadata.ts). app/robots.ts and app/sitemap.ts read WEB_ORIGIN per request
+(signed in areas, /api and /t/ disallowed). The team cards come from the `site.team.people`
+list in the messages (team.ts parses it; a photo is an optional file under public/site/team/,
+else the card shows initials). The design is the one agreed with
+the owner in docs/site/preview.html, rebuilt in components/site: the page components (server
+rendered), SiteParts (shared icons and sections), site.css (light only, every rule under `.shiply-site` and every class `s-` so the app's
 classes and themes never meet the site's), OrderTicket (the hero's example order, rendered at
 its resting state of 47 minutes and delivered, replayed once unless the visitor prefers less
 motion), LanguageSwitch (the app's `shiply_locale` cookie, then a server render in Arabic RTL
 with IBM Plex Sans Arabic) and LeadForm. Every word, the results band figures included, comes
-from the `site` messages in en.json and ar.json. The page never shows store locations, hubs,
-balances or internal numbers. The middleware does not cover `/`, so it needs no session.
+from the `site` messages in en.json and ar.json. The site never shows store locations, hubs,
+balances or internal numbers. No page needs a session.
 
 The contact form posts to POST /site/leads (public, zod `siteLeadSchema` in packages/shared,
 5 per address in 15 minutes by the last X-Forwarded-For entry, like auth/signup). The form's
