@@ -57,7 +57,7 @@ export class AuthController {
     ]);
     return {
       ...user,
-      hub: hub && { id: hub.id, code: hub.code, name: hub.name },
+      hub: hub && { id: hub.id, code: hub.code, name: hub.name, isSorting: hub.isSorting },
       merchant: merchant && { id: merchant.id, code: merchant.code, name: merchant.name },
     };
   }

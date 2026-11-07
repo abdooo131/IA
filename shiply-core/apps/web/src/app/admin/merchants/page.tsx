@@ -97,7 +97,7 @@ export default function MerchantsPage() {
     setForm(
       m
         ? { code: m.code, name: m.name, phone: m.phone, email: m.email, pickupAddress: m.pickupAddress, governorateCode: m.governorateCode, areaId: m.areaId ?? '', homeHubId: m.homeHubId, discount: String(m.discountBp / 100), active: m.active }
-        : { ...emptyForm, homeHubId: hubs.data!.find((h) => !h.code.startsWith('SORT'))?.id ?? '' },
+        : emptyForm,
     );
   };
 
@@ -162,14 +162,10 @@ export default function MerchantsPage() {
                 ))}
               </Select>
             </Field>
-            <Field label="Home hub" hint="Picks up from this merchant; returns go back here">
-              <Select required value={form.homeHubId} onChange={(e) => setForm({ ...form, homeHubId: e.target.value })}>
-                <option value="" disabled>Choose a hub</option>
-                {hubs.data.filter((h) => h.active).map((h) => (
-                  <option key={h.id} value={h.id}>{h.code} · {h.name}</option>
-                ))}
-              </Select>
-            </Field>
+            <div className="rounded-lg bg-white px-3 py-2 text-sm ring-1 ring-slate-200">
+              <span className="block text-xs font-medium text-slate-500">Pickup sorting facility</span>
+              {editing && editing !== 'new' ? `${merchants.data.find((m) => m.id === editing)?.homeHub.code ?? ''} · ` : ''}Chosen by the system: the facility nearest the pickup area
+            </div>
             <Field label="Shipping discount (%)">
               <Input inputMode="decimal" value={form.discount} onChange={(e) => setForm({ ...form, discount: e.target.value })} />
             </Field>
@@ -186,7 +182,7 @@ export default function MerchantsPage() {
       )}
       {loginFor && <LoginForm merchant={loginFor} onDone={() => setLoginFor(null)} />}
       <Card>
-        <Table head={['Code', 'Name', 'Phone', 'Home hub', 'Discount', 'Parcels', 'Status', '']}>
+        <Table head={['Code', 'Name', 'Phone', 'Pickup facility', 'Discount', 'Parcels', 'Status', '']}>
           {merchants.data.map((m) => (
             <tr key={m.id}>
               <Td className="font-mono font-semibold">{m.code}</Td>

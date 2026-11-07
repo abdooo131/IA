@@ -28,55 +28,68 @@ const phone = () => `010${String(10000000 + ++n * 7919).slice(0, 8)}`;
 async function main() {
   const admin = await session(ADMIN.email, ADMIN.password);
   const merchant = await session('merchant@evechantelle.example');
-  const caie = await session('staff.caie@shiply.local');
-  const sort = await session('staff.sort@shiply.local');
+  const sup = await session('staff.obr@shiply.local');
+  const inb = await session('inbound.obr@shiply.local');
+  const srt = await session('sorting.obr@shiply.local');
+  const out = await session('outbound.obr@shiply.local');
+  const alxIn = await session('inbound.alxsf@shiply.local');
   const giz = await session('staff.giz@shiply.local');
-  const alx = await session('staff.alx@shiply.local');
-  const cCaie = await session('courier.caie@shiply.local');
+  const fm = await session('courier.obr@shiply.local');
   const cGiz = await session('courier.giz@shiply.local');
+  const cCaie = await session('courier.caie@shiply.local');
+  const caie = await session('staff.caie@shiply.local');
 
   const hubs = Object.fromEntries((await admin('/admin/hubs')).map((h) => [h.code, h.id]));
   const users = Object.fromEntries((await admin('/admin/users')).map((u) => [u.email, u.id]));
   const locs = await merchant('/reference/locations');
   const area = (gov, name) => locs.find((g) => g.code === gov).areas.find((a) => a.nameEn === name)?.id ?? null;
-
   const make = (gov, areaName, i, cod, size = 'M') =>
     merchant('/merchant/shipments', {
       customerName: NAMES[i % NAMES.length], customerPhone: phone(), address: `${10 + i} Main Street, ${areaName ?? gov}`,
       governorateCode: gov, areaId: areaName ? area(gov, areaName) : null, size, codAmount: cod, description: 'Skincare set', merchantRef: `EVE-${1000 + i}`,
     });
 
-  // 12 parcels: Giza, Alexandria, Cairo
   const giza = [];
   for (let i = 0; i < 5; i++) giza.push(await make('GIZ', ['Dokki', 'Haram', 'Mohandessin', 'Sheikh Zayed', '6th of October'][i], i, (350 + i * 120) * 100));
   const alexandria = [];
-  for (let i = 5; i < 8; i++) alexandria.push(await make('ALX', null, i, (500 + i * 50) * 100, 'L'));
-  const local = [];
-  for (let i = 8; i < 11; i++) local.push(await make('CAI', ['Nasr City', 'Heliopolis', 'New Cairo'][i - 8], i, (250 + i * 10) * 100, 'S'));
-  const waiting = await make('CAI', 'Maadi', 11, 19900);
+  for (let i = 5; i < 7; i++) alexandria.push(await make('ALX', null, i, (500 + i * 50) * 100, 'L'));
+  const nasr = [];
+  for (let i = 7; i < 10; i++) nasr.push(await make('CAI', ['Nasr City', 'Heliopolis', 'New Cairo'][i - 7], i, (250 + i * 10) * 100, 'S'));
+  const tanta = await make('GHR', null, 10, 45000);
+  const waitingSort = await make('CAI', 'Maadi', 11, 19900);
+  const notPicked = await make('CAI', 'Zamalek', 12, 27500);
 
+  // First mile: pickup to the nearest facility (Obour), collected and received by inbound
   const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
   const pickup = await merchant('/merchant/pickups', { date: today, notes: 'Ring the bell at the warehouse door' });
-  await caie(`/hubs/${hubs['CAI-E']}/pickups/${pickup.id}/assign`, { courierId: users['courier.caie@shiply.local'] });
-  for (const s of [...giza, ...alexandria, ...local]) await cCaie(`/courier/pickups/${pickup.id}/collect`, { code: s.trackingNumber });
-  await cCaie(`/courier/pickups/${pickup.id}/finish`, {});
-  for (const s of [...giza, ...alexandria, ...local]) await caie(`/hubs/${hubs['CAI-E']}/inbound`, { code: s.trackingNumber });
+  await sup(`/hubs/${hubs.OBR}/pickups/${pickup.id}/assign`, { courierId: users['courier.obr@shiply.local'] });
+  const collected = [...giza, ...alexandria, ...nasr, tanta, waitingSort];
+  for (const s of collected) await fm(`/courier/pickups/${pickup.id}/collect`, { code: s.trackingNumber });
+  await fm(`/courier/pickups/${pickup.id}/finish`, {});
+  for (const s of collected) await inb(`/hubs/${hubs.OBR}/inbound`, { code: s.trackingNumber });
 
-  async function haul(from, to, list, staffFrom, staffTo, receive = true) {
+  // Sorting → outbound → trucks
+  async function dispatch(to, list, { accept = true, depart = true } = {}) {
     let bag;
-    for (const s of list) bag = (await staffFrom(`/hubs/${hubs[from]}/sort`, { code: s.trackingNumber })).bag;
-    await staffFrom(`/hubs/${hubs[from]}/bags/${bag.id}/seal`, {});
-    const trip = await staffFrom(`/hubs/${hubs[from]}/trips`, { destinationHubId: hubs[to], vehicle: 'ABC 1234', driverName: 'Sayed' });
-    await staffFrom(`/hubs/${hubs[from]}/trips/${trip.id}/load`, { code: bag.code });
-    await staffFrom(`/hubs/${hubs[from]}/trips/${trip.id}/depart`, {});
-    if (receive) await staffTo(`/hubs/${hubs[to]}/receive-bag`, { code: bag.code });
+    for (const s of list) bag = (await srt(`/hubs/${hubs.OBR}/sort`, { code: s.trackingNumber })).bag;
+    await srt(`/hubs/${hubs.OBR}/bags/${bag.id}/seal`, {});
+    if (!accept) return bag;
+    await out(`/hubs/${hubs.OBR}/outbound/accept`, { code: bag.code });
+    if (!depart) return bag;
+    const trip = await out(`/hubs/${hubs.OBR}/trips`, { destinationHubId: hubs[to], vehicle: 'ABC 1234', driverName: 'Sayed' });
+    await out(`/hubs/${hubs.OBR}/trips/${trip.id}/load`, { code: bag.code });
+    await out(`/hubs/${hubs.OBR}/trips/${trip.id}/depart`, {});
+    return bag;
   }
+  const gizBag = await dispatch('GIZ', giza);
+  const caiBag = await dispatch('CAI-E', nasr);
+  const alxBag = await dispatch('ALXSF', alexandria); // on the road to Alexandria facility
+  await alxIn(`/hubs/${hubs.ALXSF}/receive-bag`, { code: alxBag.code });
+  await dispatch('DLT', [tanta], { depart: false }); // with outbound, waiting for the truck
+  // waitingSort stays with inbound, waiting for the sorting team
 
-  await haul('CAI-E', 'SORT', [...giza, ...alexandria], caie, sort);
-  await haul('SORT', 'GIZ', giza, sort, giz);
-  await haul('SORT', 'ALX', alexandria, sort, alx, false); // left on the road overnight
-
-  // Giza: deliver 3, one refused (on hold), one stays for tomorrow
+  // Last mile Giza: deliver 3, one refused (on hold), one for tomorrow
+  await giz(`/hubs/${hubs.GIZ}/receive-bag`, { code: gizBag.code });
   const run = await giz(`/hubs/${hubs.GIZ}/runs`, { courierId: users['courier.giz@shiply.local'] });
   for (const s of giza.slice(0, 4)) await giz(`/hubs/${hubs.GIZ}/runs/${run.id}/add`, { code: s.trackingNumber });
   await giz(`/hubs/${hubs.GIZ}/runs/${run.id}/start`, {});
@@ -85,18 +98,28 @@ async function main() {
   for (const s of giza.slice(0, 3)) await cGiz(`/courier/stops/${stopFor(s).id}/deliver`, { codCollected: s.codAmount, recipient: 'Customer' });
   await cGiz(`/courier/stops/${stopFor(giza[3]).id}/fail`, { reason: 'REFUSED', note: 'Said she did not order it' });
   await giz(`/hubs/${hubs.GIZ}/inbound`, { code: giza[3].trackingNumber });
-  const cash = giza.slice(0, 3).reduce((x, s) => x + s.codAmount, 0);
-  await giz(`/hubs/${hubs.GIZ}/runs/${run.id}/close`, { cashReceived: cash });
+  await giz(`/hubs/${hubs.GIZ}/runs/${run.id}/close`, { cashReceived: giza.slice(0, 3).reduce((x, s) => x + s.codAmount, 0) });
 
-  // Cairo local: on a run right now, one delivered, one no answer
+  // Merchant sends the refused one back: Giza bags it to Obour, inbound receives, sorting puts it on the return shelf
+  await merchant(`/merchant/shipments/${giza[3].id}/decision`, { decision: 'RETURN' });
+  const back = (await giz(`/hubs/${hubs.GIZ}/sort`, { code: giza[3].trackingNumber })).bag;
+  await giz(`/hubs/${hubs.GIZ}/bags/${back.id}/seal`, {});
+  const tripBack = await giz(`/hubs/${hubs.GIZ}/trips`, { destinationHubId: hubs.OBR, vehicle: 'Van 12' });
+  await giz(`/hubs/${hubs.GIZ}/trips/${tripBack.id}/load`, { code: back.code });
+  await giz(`/hubs/${hubs.GIZ}/trips/${tripBack.id}/depart`, {});
+  await inb(`/hubs/${hubs.OBR}/receive-bag`, { code: back.code });
+  await srt(`/hubs/${hubs.OBR}/sort`, { code: giza[3].trackingNumber });
+
+  // Nasr City: courier out now, one delivered, one no answer
+  await caie(`/hubs/${hubs['CAI-E']}/receive-bag`, { code: caiBag.code });
   const run2 = await caie(`/hubs/${hubs['CAI-E']}/runs`, { courierId: users['courier.caie@shiply.local'] });
-  for (const s of local) await caie(`/hubs/${hubs['CAI-E']}/runs/${run2.id}/add`, { code: s.trackingNumber });
+  for (const s of nasr) await caie(`/hubs/${hubs['CAI-E']}/runs/${run2.id}/add`, { code: s.trackingNumber });
   await caie(`/hubs/${hubs['CAI-E']}/runs/${run2.id}/start`, {});
   const stops2 = (await cCaie('/courier/run')).items;
   await cCaie(`/courier/stops/${stops2[0].id}/deliver`, { codCollected: stops2[0].shipment.codAmount, recipient: 'Customer' });
   await cCaie(`/courier/stops/${stops2[1].id}/fail`, { reason: 'NO_ANSWER' });
 
-  console.log(`Demo ready. ${waiting.trackingNumber} is waiting for pickup; Giza run closed; Alexandria bag on the road; Cairo run out now.`);
+  console.log(`Demo ready. Waiting for pickup: ${notPicked.trackingNumber}. With Obour inbound: ${waitingSort.trackingNumber}. With Obour outbound: ${tanta.trackingNumber}. Return shelf: ${giza[3].trackingNumber}.`);
 }
 
 main().catch((e) => {

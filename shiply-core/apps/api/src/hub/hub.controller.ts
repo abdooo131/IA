@@ -19,6 +19,17 @@ export class HubController {
     return this.hub.inbound(this.check(u, hubId), body, u);
   }
 
+  @Get('info')
+  info(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string) {
+    return this.hub.hub(this.check(u, hubId));
+  }
+
+  @Post('outbound/accept')
+  @HttpCode(200)
+  accept(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Body() body: unknown) {
+    return this.hub.acceptBag(this.check(u, hubId), body, u);
+  }
+
   @Get('on-hand')
   onHand(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string) {
     return this.hub.onHand(this.check(u, hubId));
@@ -90,13 +101,13 @@ export class HubController {
   @Post('trips/:tripId/load')
   @HttpCode(200)
   load(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Param('tripId', ParseUUIDPipe) tripId: string, @Body() body: unknown) {
-    return this.hub.loadBag(this.check(u, hubId), tripId, body);
+    return this.hub.loadBag(this.check(u, hubId), tripId, body, u);
   }
 
   @Post('trips/:tripId/unload')
   @HttpCode(200)
   async unload(@CurrentUser() u: SessionUser, @Param('hubId', ParseUUIDPipe) hubId: string, @Param('tripId', ParseUUIDPipe) tripId: string, @Body() body: unknown) {
-    await this.hub.unloadBag(this.check(u, hubId), tripId, body);
+    await this.hub.unloadBag(this.check(u, hubId), tripId, body, u);
     return { ok: true };
   }
 

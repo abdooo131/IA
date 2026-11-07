@@ -262,15 +262,21 @@ export async function requestReturn(
 ) {
   if (s.direction === 'RETURN') throw new DomainError('bad_status', 'This parcel is already coming back', 409);
   if (s.status === 'CREATED') throw new DomainError('bad_status', 'We have not picked this parcel up yet. Cancel it instead', 409);
-  if (!['PICKED_UP', 'AT_HUB', 'ON_HOLD', 'IN_TRANSIT'].includes(s.status)) {
+  if (!['PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'ON_HOLD'].includes(s.status)) {
     throw new DomainError('bad_status', 'This parcel cannot be returned now', 409);
   }
+  if (s.runId) throw new DomainError('bad_status', 'This parcel is loaded on a courier run. Ask the hub to take it off first', 409);
   const patch: Partial<Shipment> = { direction: 'RETURN', holdReason: null };
-  if (s.bagId) {
+  let to: Shipment['status'] = s.status === 'ON_HOLD' ? 'AT_HUB' : s.status;
+  if (s.bagId && s.status === 'SORTED') {
     const bag = await tx.bag.findUniqueOrThrow({ where: { id: s.bagId } });
-    if (bag.status === 'OPEN') patch.bagId = null; // take it out of the bag it was sorted into
+    if (bag.status === 'OPEN') {
+      // take it out of the bag it was sorted into; sorting will route it again
+      patch.bagId = null;
+      const hub = await tx.hub.findUniqueOrThrow({ where: { id: bag.originHubId } });
+      to = hub.isSorting ? 'AT_INBOUND' : 'AT_HUB';
+    }
   }
-  const to = s.status === 'ON_HOLD' ? 'AT_HUB' : s.status;
   await core.move(tx, s, to, patch, { ...event, hubId: s.currentHubId });
 }
 

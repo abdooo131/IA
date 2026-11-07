@@ -2,6 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { TEAM_LABELS } from '@shiply/shared';
 import { api } from '@/lib/api';
 import { cx, Loading } from './ui';
 
@@ -10,9 +11,10 @@ export interface Me {
   name: string;
   email: string;
   role: 'ADMIN' | 'HUB_STAFF' | 'COURIER' | 'MERCHANT';
+  team: 'INBOUND' | 'SORTING' | 'OUTBOUND' | null;
   hubId: string | null;
   merchantId: string | null;
-  hub: { id: string; code: string; name: string } | null;
+  hub: { id: string; code: string; name: string; isSorting: boolean } | null;
   merchant: { id: string; code: string; name: string } | null;
 }
 
@@ -31,7 +33,10 @@ export const HOME_BY_ROLE: Record<Me['role'], string> = {
 };
 
 /** App frame: loads the signed in user, checks the role, shows the navigation. */
-export function Shell({ roles, nav, area, children }: { roles: Me['role'][]; nav: { href: string; label: string }[]; area: string; children: ReactNode }) {
+type NavItem = { href: string; label: string };
+
+/** `nav` may depend on who is signed in (a facility team sees only its station). */
+export function Shell({ roles, nav: navFor, area, children }: { roles: Me['role'][]; nav: NavItem[] | ((me: Me) => NavItem[]); area: string; children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -52,6 +57,7 @@ export function Shell({ roles, nav, area, children }: { roles: Me['role'][]; nav
   useEffect(() => setOpen(false), [pathname]);
 
   if (!me) return <Loading />;
+  const nav = typeof navFor === 'function' ? navFor(me) : navFor;
 
   const logout = async () => {
     await api('/auth/logout', { method: 'POST', body: {} });
@@ -82,6 +88,7 @@ export function Shell({ roles, nav, area, children }: { roles: Me['role'][]; nav
             <span className="text-right text-xs text-slate-600">
               <span className="block font-semibold text-slate-800">{me.name}</span>
               {me.hub?.name ?? me.merchant?.name ?? me.email}
+              {me.team && <span className="block font-semibold text-brand-700">{TEAM_LABELS[me.team]}</span>}
             </span>
             <button onClick={logout} className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 hover:bg-slate-100">Sign out</button>
           </div>

@@ -14,6 +14,7 @@ export default function TripsPage() {
   const hub = useHub();
   const trips = useLoad<Trip[]>(`/hubs/${hub.id}/trips`);
   const hubs = useLoad<Hub[]>('/reference/hubs');
+  const bags = useLoad<{ id: string; code: string; status: string; originHubId: string; destinationHubId: string; parcels: number; tripId: string | null }[]>(`/hubs/${hub.id}/bags`);
   const [form, setForm] = useState({ destinationHubId: '', vehicle: '', driverName: '' });
   const [msg, setMsg] = useState<{ tone: 'error' | 'success'; text: string } | null>(null);
   const code = (id: string) => hubs.data?.find((h) => h.id === id)?.code ?? '';
@@ -34,8 +35,33 @@ export default function TripsPage() {
 
   return (
     <>
-      <PageHeader title="Line haul trips" subtitle="A trip is one vehicle carrying sealed bags to one hub. Load bags by scanning them, then mark the trip as departed." />
+      <PageHeader
+        title={hub.isSorting ? `Outbound · ${hub.name}` : `Trips · ${hub.name}`}
+        subtitle={hub.isSorting
+          ? 'Outbound team: scan each sealed bag to take it over from sorting, then load it on the truck for its destination and mark the truck as leaving.'
+          : 'A trip is one vehicle carrying sealed bags. Load bags by scanning them, then mark the trip as leaving.'}
+      />
       {msg && <div className="mb-4"><Alert tone={msg.tone}>{msg.text}</Alert></div>}
+      {hub.isSorting && (
+        <Card title="Take over bags from sorting" className="mb-4">
+          <ScanBox
+            label="Sealed bag code"
+            placeholder="BG00123"
+            onScan={async (c) => {
+              const r = await api(`/hubs/${hub.id}/outbound/accept`, { body: { code: c } });
+              void bags.reload();
+              return r.message;
+            }}
+          />
+          {(bags.data ?? []).filter((b) => b.originHubId === hub.id && b.status !== 'OPEN').length > 0 && (
+            <div className="mt-4 flex flex-wrap gap-2 text-sm">
+              {(bags.data ?? []).filter((b) => b.originHubId === hub.id && b.status !== 'OPEN').map((b) => (
+                <Badge key={b.id} tone={b.status === 'SEALED' ? 'amber' : 'green'}>{b.code} → {code(b.destinationHubId)} · {b.parcels} · {b.status === 'SEALED' ? 'waiting' : b.tripId ? 'loaded' : 'ready to load'}</Badge>
+              ))}
+            </div>
+          )}
+        </Card>
+      )}
       <Card title="New trip">
         <form
           className="grid gap-3 sm:grid-cols-4 sm:items-end"
@@ -73,6 +99,7 @@ export default function TripsPage() {
                     onScan={async (c) => {
                       const r = await api(`/hubs/${hub.id}/trips/${t.id}/load`, { body: { code: c } });
                       void trips.reload();
+                      void bags.reload();
                       return r.message;
                     }}
                   />
@@ -94,7 +121,7 @@ export default function TripsPage() {
             return (
               <Card key={t.id} title={<span className="font-mono">{t.code} from {code(t.originHubId)}</span>} actions={<Badge tone="blue">Left {dateTime(t.departedAt)}</Badge>}>
                 <p className="mb-2 text-sm">Bags still to receive: {left.length === 0 ? 'none' : left.map((b) => b.code).join(', ')}</p>
-                <p className="mb-3 text-xs text-slate-500">Scan bags on the Receive page. When something is missing, close the trip so the missing bags show up for follow up.</p>
+                <p className="mb-3 text-xs text-slate-500">{hub.isSorting ? 'Inbound team scans the bags on the Inbound page.' : 'Scan the bags on the Receive page.'} When something is missing, close the trip so the missing bags show up for follow up.</p>
                 <Button
                   tone="secondary"
                   onClick={() =>

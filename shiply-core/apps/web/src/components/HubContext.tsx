@@ -51,7 +51,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
 
   if (me.role === 'HUB_STAFF') {
     if (!me.hub) return <Card>Your account is not linked to a hub. Ask an admin.</Card>;
-    return <HubCtx.Provider value={{ ...me.hub, isSorting: false }}>{children}</HubCtx.Provider>;
+    return <HubCtx.Provider value={me.hub}>{children}</HubCtx.Provider>;
   }
   if (!hubs) return <Loading />;
   const hub = hubs.find((h) => h.id === hubId);
@@ -62,7 +62,7 @@ export function HubProvider({ children }: { children: ReactNode }) {
           <Select value={hub?.id ?? ''} onChange={(e) => choose(e.target.value)}>
             <option value="" disabled>Choose a hub</option>
             {hubs.map((h) => (
-              <option key={h.id} value={h.id}>{h.code} · {h.name}</option>
+              <option key={h.id} value={h.id}>{h.code} · {h.name}{h.isSorting ? ' (sorting facility)' : ''}</option>
             ))}
           </Select>
         </Field>

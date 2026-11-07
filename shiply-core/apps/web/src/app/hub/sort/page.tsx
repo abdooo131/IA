@@ -48,17 +48,22 @@ export default function SortPage() {
   };
 
   const outgoing = (bags.data ?? []).filter((b) => b.originHubId === hub.id);
-  const incoming = (bags.data ?? []).filter((b) => b.destinationHubId === hub.id && b.status === 'IN_TRANSIT');
 
   return (
     <>
-      <PageHeader title="Sort and bags" subtitle="Scan a parcel and the system tells you which bag it goes in. Seal a bag when it is full or the truck is ready." />
+      <PageHeader
+        title={hub.isSorting ? `Sorting · ${hub.name}` : `Send back · ${hub.name}`}
+        subtitle={hub.isSorting
+          ? 'Sorting team: scan each parcel inbound handed over. The system routes it to the bag for its last mile hub or the next facility, or to the return shelf. Seal full bags; outbound takes them over.'
+          : 'Scan returns and rerouted parcels into the bag for the sorting facility, seal it, then send it on a trip.'}
+      />
       <Card title="Sort a parcel">
         <ScanBox
           label="Parcel tracking number"
           onScan={async (code) => {
             const r = await api(`/hubs/${hub.id}/sort`, { body: { code } });
             void bags.reload();
+            if (!r.bag) return <span className="flex flex-wrap items-center gap-3"><span className="rounded-lg bg-rose-600 px-3 py-1 text-lg font-black text-white">RETURN</span><span>{r.message}</span></span>;
             return (
               <span className="flex flex-wrap items-center gap-3">
                 <span className="rounded-lg bg-brand-600 px-3 py-1 text-2xl font-black text-white">{r.next.hubCode}</span>
@@ -78,7 +83,7 @@ export default function SortPage() {
                   <Td className="font-mono font-semibold">{b.code}</Td>
                   <Td><span className="text-lg font-bold">{hubCode(b.destinationHubId)}</span></Td>
                   <Td>{b.parcels}</Td>
-                  <Td><Badge tone={b.status === 'OPEN' ? 'amber' : 'green'}>{b.status === 'OPEN' ? 'Open' : b.tripId ? 'Sealed, on a trip' : 'Sealed'}</Badge></Td>
+                  <Td><Badge tone={b.status === 'OPEN' ? 'amber' : 'green'}>{b.status === 'OPEN' ? 'Open' : b.status === 'HANDED_OVER' ? (b.tripId ? 'With outbound, on a trip' : 'With outbound') : b.tripId ? 'Sealed, on a trip' : hub.isSorting ? 'Sealed, waiting for outbound' : 'Sealed'}</Badge></Td>
                   <Td>{dateTime(b.createdAt)}</Td>
                   <Td className="space-x-2">
                     <Button tone="ghost" onClick={() => void show(b)}>{open === b.id ? 'Hide' : 'Contents'}</Button>
@@ -103,16 +108,6 @@ export default function SortPage() {
             ))}
           </Table>
         )}
-      </Card>
-      <Card title="Bags on their way here" className="mt-4">
-        {incoming.length === 0 ? <Empty>No bags on the road to this hub.</Empty> : (
-          <ul className="divide-y divide-slate-100 text-sm">
-            {incoming.map((b) => (
-              <li key={b.id} className="flex justify-between py-2"><span className="font-mono font-semibold">{b.code}</span><span>{b.parcels} parcels from {hubCode(b.originHubId)}</span></li>
-            ))}
-          </ul>
-        )}
-        <p className="mt-3 text-xs text-slate-500">When they arrive, scan the bag on the Receive page.</p>
       </Card>
     </>
   );

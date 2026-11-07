@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { hashPassword, type Prisma, type ShipmentStatus } from '@shiply/db';
-import { ROLES, SHIPMENT_STATUSES, normalizeEgyptPhone } from '@shiply/shared';
+import { ROLES, SHIPMENT_STATUSES, TEAMS, normalizeEgyptPhone } from '@shiply/shared';
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth';
 import { nextCode } from '../common/codes';
@@ -25,6 +25,10 @@ const HubInput = z.object({
   name: z.string().trim().min(2).max(80),
   address: z.string().trim().max(200).default(''),
   isSorting: z.boolean().default(false),
+  lat: z.number().min(22).max(32),
+  lng: z.number().min(24).max(37),
+  /** A last mile hub's sorting facility. Left empty, the nearest facility is used. */
+  parentId: z.string().uuid().nullish(),
   active: z.boolean().default(true),
 });
 
@@ -53,7 +57,6 @@ const MerchantInput = z.object({
   pickupAddress: z.string().trim().min(5).max(300),
   governorateCode: z.string().length(3),
   areaId: z.string().uuid().nullish(),
-  homeHubId: z.string().uuid(),
   discountBp: z.number().int().min(0).max(5000).default(0),
   active: z.boolean().default(true),
 });
@@ -63,6 +66,7 @@ const UserInput = z.object({
   name: z.string().trim().min(2).max(120),
   phone: z.string().trim().default(''),
   role: z.enum(ROLES),
+  team: z.enum(TEAMS).nullish(),
   password: z.string().min(8).max(200),
   hubId: z.string().uuid().nullish(),
   merchantId: z.string().uuid().nullish(),
@@ -72,6 +76,7 @@ const UserUpdate = z.object({
   active: z.boolean().optional(),
   password: z.string().min(8).max(200).optional(),
   hubId: z.string().uuid().nullish(),
+  team: z.enum(TEAMS).nullish(),
 });
 
 @Injectable()
@@ -87,7 +92,7 @@ export class AdminService {
   async dashboard() {
     const today = todayInCairo();
     const startOfDay = new Date(`${today}T00:00:00+02:00`);
-    const open: ShipmentStatus[] = ['CREATED', 'PICKED_UP', 'AT_HUB', 'ON_HOLD', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ATTEMPT_FAILED'];
+    const open: ShipmentStatus[] = ['CREATED', 'PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'ON_HOLD', 'OUT_FOR_DELIVERY', 'ATTEMPT_FAILED'];
     const [byStatus, late, enteredToday, deliveredToday, failedToday, dueToday, deliveredOnTime, cashOut, tripsOut, hubs] = await Promise.all([
       this.prisma.shipment.groupBy({ by: ['status'], _count: true }),
       this.prisma.shipment.count({ where: { status: { in: open }, promisedDate: { lt: today } } }),
@@ -100,7 +105,7 @@ export class AdminService {
       this.prisma.trip.count({ where: { status: 'IN_TRANSIT' } }),
       this.prisma.hub.findMany({ where: { active: true }, orderBy: { code: 'asc' } }),
     ]);
-    const perHub = await this.prisma.shipment.groupBy({ by: ['currentHubId', 'status'], where: { status: { in: ['AT_HUB', 'ON_HOLD'] } }, _count: true });
+    const perHub = await this.prisma.shipment.groupBy({ by: ['currentHubId', 'status'], where: { status: { in: ['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB', 'ON_HOLD'] } }, _count: true });
     return {
       today,
       byStatus: Object.fromEntries(byStatus.map((s) => [s.status, s._count])),
@@ -117,7 +122,8 @@ export class AdminService {
         code: h.code,
         name: h.name,
         isSorting: h.isSorting,
-        atHub: perHub.filter((p) => p.currentHubId === h.id && p.status === 'AT_HUB').reduce((n, p) => n + p._count, 0),
+        parentId: h.parentId,
+        atHub: perHub.filter((p) => p.currentHubId === h.id && p.status !== 'ON_HOLD').reduce((n, p) => n + p._count, 0),
         onHold: perHub.filter((p) => p.currentHubId === h.id && p.status === 'ON_HOLD').reduce((n, p) => n + p._count, 0),
       })),
     };
@@ -133,7 +139,7 @@ export class AdminService {
     if (q.hubId) where.currentHubId = q.hubId;
     if (q.late) {
       where.promisedDate = { lt: todayInCairo() };
-      where.status = { in: ['CREATED', 'PICKED_UP', 'AT_HUB', 'ON_HOLD', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ATTEMPT_FAILED'] };
+      where.status = { in: ['CREATED', 'PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'IN_TRANSIT', 'AT_HUB', 'ON_HOLD', 'OUT_FOR_DELIVERY', 'ATTEMPT_FAILED'] };
     }
     if (q.q) {
       where.OR = [
@@ -195,7 +201,22 @@ export class AdminService {
     const d = parse(HubInput, body);
     const clash = await this.prisma.hub.findUnique({ where: { code: d.code } });
     if (clash && clash.id !== id) throw new DomainError('duplicate', `Hub code ${d.code} is taken`, 409);
-    const hub = id ? await this.prisma.hub.update({ where: { id }, data: d }) : await this.prisma.hub.create({ data: d });
+    let parentId: string | null = null;
+    if (!d.isSorting) {
+      if (d.parentId) {
+        const parent = await this.prisma.hub.findUnique({ where: { id: d.parentId } });
+        if (!parent || !parent.isSorting) throw new DomainError('invalid_input', 'A last mile hub must be fed by a sorting facility', 422);
+        parentId = parent.id;
+      } else {
+        parentId = (await this.core.nearestFacility(this.prisma as never, d)).id;
+      }
+    }
+    if (id && !d.isSorting) {
+      const feeds = await this.prisma.hub.count({ where: { parentId: id } });
+      if (feeds > 0) throw new DomainError('invalid_input', 'This facility still feeds last mile hubs. Move them first', 422);
+    }
+    const data = { code: d.code, name: d.name, address: d.address, isSorting: d.isSorting, lat: d.lat, lng: d.lng, active: d.active, parentId };
+    const hub = id ? await this.prisma.hub.update({ where: { id }, data }) : await this.prisma.hub.create({ data });
     await this.audit(user, id ? 'HUB_UPDATED' : 'HUB_CREATED', 'hub', hub.id, d);
     return hub;
   }
@@ -219,6 +240,7 @@ export class AdminService {
 
   async saveGovernorate(code: string, body: unknown, user: SessionUser) {
     const d = parse(GovernorateInput, body);
+    await this.assertLastMile(d.hubId);
     const gov = await this.prisma.governorate.update({ where: { code }, data: d }).catch(() => {
       throw new DomainError('invalid_input', 'Unknown governorate, zone or hub', 422);
     });
@@ -228,9 +250,16 @@ export class AdminService {
 
   async saveArea(id: string | null, body: unknown, user: SessionUser) {
     const d = parse(AreaInput, body);
+    await this.assertLastMile(d.hubId);
     const area = id ? await this.prisma.area.update({ where: { id }, data: d }) : await this.prisma.area.create({ data: d });
     await this.audit(user, id ? 'AREA_UPDATED' : 'AREA_CREATED', 'area', area.id, d);
     return area;
+  }
+
+  private async assertLastMile(hubId: string | null) {
+    if (!hubId) return;
+    const hub = await this.prisma.hub.findUnique({ where: { id: hubId } });
+    if (!hub || hub.isSorting) throw new DomainError('invalid_input', 'Addresses are delivered by a last mile hub, not a sorting facility', 422);
   }
 
   // ---------------------------------------------------------------- accounts
@@ -245,7 +274,10 @@ export class AdminService {
     if (!phone) throw new DomainError('invalid_input', 'Merchant phone must be an Egyptian mobile number', 422);
     const clash = await this.prisma.merchant.findUnique({ where: { code: d.code } });
     if (clash && clash.id !== id) throw new DomainError('duplicate', `Merchant code ${d.code} is taken`, 409);
-    const data = { ...d, phone, areaId: d.areaId ?? null };
+    // Pickups always go to the sorting facility nearest the merchant: the system picks it.
+    const point = await this.core.pointOf(this.prisma as never, d.governorateCode, d.areaId ?? null);
+    const facility = await this.core.nearestFacility(this.prisma as never, point);
+    const data = { ...d, phone, areaId: d.areaId ?? null, homeHubId: facility.id };
     const m = id ? await this.prisma.merchant.update({ where: { id }, data }) : await this.prisma.merchant.create({ data });
     await this.audit(user, id ? 'MERCHANT_UPDATED' : 'MERCHANT_CREATED', 'merchant', m.id, data);
     return m;
@@ -253,7 +285,7 @@ export class AdminService {
 
   users() {
     return this.prisma.user.findMany({
-      select: { id: true, email: true, name: true, phone: true, role: true, active: true, hubId: true, merchantId: true, hub: { select: { code: true } }, merchant: { select: { name: true } } },
+      select: { id: true, email: true, name: true, phone: true, role: true, team: true, active: true, hubId: true, merchantId: true, hub: { select: { code: true } }, merchant: { select: { name: true } } },
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
     });
   }
@@ -273,6 +305,7 @@ export class AdminService {
         role: d.role,
         passwordHash: await hashPassword(d.password),
         hubId: d.role === 'HUB_STAFF' || d.role === 'COURIER' ? d.hubId : null,
+        team: d.role === 'HUB_STAFF' ? (d.team ?? null) : null,
         merchantId: d.role === 'MERCHANT' ? d.merchantId : null,
       },
     });
@@ -288,6 +321,7 @@ export class AdminService {
     if (d.active !== undefined) data.active = d.active;
     if (d.password) data.passwordHash = await hashPassword(d.password);
     if (d.hubId !== undefined) data.hub = d.hubId ? { connect: { id: d.hubId } } : { disconnect: true };
+    if (d.team !== undefined) data.team = d.team ?? null;
     await this.prisma.user.update({ where: { id }, data }).catch(() => {
       throw notFound('User');
     });

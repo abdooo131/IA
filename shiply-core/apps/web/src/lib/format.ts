@@ -26,6 +26,9 @@ export function statusLabel(status: string, direction?: string): string {
 export const STATUS_TONE: Record<string, string> = {
   CREATED: 'bg-slate-100 text-slate-700',
   PICKED_UP: 'bg-sky-100 text-sky-800',
+  AT_INBOUND: 'bg-cyan-100 text-cyan-800',
+  SORTED: 'bg-teal-100 text-teal-800',
+  AT_OUTBOUND: 'bg-indigo-100 text-indigo-800',
   AT_HUB: 'bg-indigo-100 text-indigo-800',
   ON_HOLD: 'bg-amber-100 text-amber-800',
   IN_TRANSIT: 'bg-violet-100 text-violet-800',

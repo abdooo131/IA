@@ -20,6 +20,9 @@ enum Role {
 enum ShipmentStatus {
   CREATED
   PICKED_UP
+  AT_INBOUND
+  SORTED
+  AT_OUTBOUND
   AT_HUB
   ON_HOLD
   IN_TRANSIT
@@ -43,6 +46,12 @@ enum ParcelSize {
   XL
 }
 
+enum Team {
+  INBOUND
+  SORTING
+  OUTBOUND
+}
+
 enum PickupStatus {
   REQUESTED
   ASSIGNED
@@ -54,6 +63,7 @@ enum PickupStatus {
 enum BagStatus {
   OPEN
   SEALED
+  HANDED_OVER
   IN_TRANSIT
   RECEIVED
 }
@@ -77,12 +87,18 @@ enum RunItemResult {
   FAILED
 }
 
+/// A sorting facility (isSorting) or a last mile hub (fed by one facility through parentId).
 model Hub {
   id        String   @id @default(uuid()) @db.Uuid
   code      String   @unique
   name      String
   address   String   @default("")
   isSorting Boolean  @default(false) @map("is_sorting")
+  parentId  String?  @map("parent_id") @db.Uuid
+  parent    Hub?     @relation("HubParent", fields: [parentId], references: [id])
+  children  Hub[]    @relation("HubParent")
+  lat       Float    @default(0)
+  lng       Float    @default(0)
   active    Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at")
 
@@ -113,6 +129,8 @@ model Governorate {
   nameAr    String  @map("name_ar")
   zoneCode  String  @map("zone_code")
   zone      Zone    @relation(fields: [zoneCode], references: [code])
+  lat       Float   @default(0)
+  lng       Float   @default(0)
   /// Hub that delivers here when the area has no hub of its own. Null means we do not serve it yet.
   hubId     String? @map("hub_id") @db.Uuid
   hub       Hub?    @relation(fields: [hubId], references: [id])
@@ -127,6 +145,8 @@ model Area {
   governorate     Governorate @relation(fields: [governorateCode], references: [code])
   nameEn          String      @map("name_en")
   nameAr          String      @map("name_ar")
+  lat             Float?
+  lng             Float?
   hubId           String?     @map("hub_id") @db.Uuid
   hub             Hub?        @relation(fields: [hubId], references: [id])
 
@@ -141,6 +161,8 @@ model User {
   phone        String    @default("")
   passwordHash String    @map("password_hash")
   role         Role
+  /// Inside a sorting facility: the team this person works in. Null = every station (supervisor).
+  team         Team?
   hubId        String?   @map("hub_id") @db.Uuid
   hub          Hub?      @relation(fields: [hubId], references: [id])
   merchantId   String?   @map("merchant_id") @db.Uuid
@@ -160,7 +182,7 @@ model Merchant {
   pickupAddress   String   @map("pickup_address")
   governorateCode String   @map("governorate_code")
   areaId          String?  @map("area_id") @db.Uuid
-  /// Hub that picks up from this merchant and that returns go back to.
+  /// The sorting facility nearest the merchant: it receives their pickups and hands back returns.
   homeHubId       String   @map("home_hub_id") @db.Uuid
   homeHub         Hub      @relation(fields: [homeHubId], references: [id])
   discountBp      Int      @default(0) @map("discount_bp")

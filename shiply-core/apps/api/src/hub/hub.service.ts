@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import type { Shipment } from '@shiply/db';
+import type { Hub, Shipment } from '@shiply/db';
 import { FAIL_REASONS, normalizeCode, type FailReason } from '@shiply/shared';
 import { z } from 'zod';
-import type { SessionUser } from '../auth/auth';
+import { assertTeam, type SessionUser } from '../auth/auth';
 import { nextCode } from '../common/codes';
 import { DomainError, notFound } from '../common/errors';
 import { PrismaService, type Tx } from '../common/prisma.service';
@@ -29,6 +29,10 @@ export interface ScanResult {
   warning?: string;
 }
 
+/**
+ * Work inside a sorting facility (inbound team → sorting team → outbound team) and inside a
+ * last mile hub (receive, courier runs, send returns back to the facility).
+ */
 @Injectable()
 export class HubService {
   constructor(
@@ -37,78 +41,93 @@ export class HubService {
     private readonly core: ShipmentsCore,
   ) {}
 
-  // ---------------------------------------------------------------- receiving
+  async hub(hubId: string): Promise<Hub> {
+    const hub = await this.prisma.hub.findUnique({ where: { id: hubId } });
+    if (!hub || !hub.active) throw notFound('Hub');
+    return hub;
+  }
+
+  /** Where an incoming parcel lands: the inbound team's area in a facility, the shelf in a hub. */
+  private arrival(hub: Hub) {
+    return hub.isSorting ? ('AT_INBOUND' as const) : ('AT_HUB' as const);
+  }
+
+  // ---------------------------------------------------------------- inbound (receiving)
 
   /**
-   * Scan anything that arrives at the hub: a merchant drop off, a pickup courier's parcels,
-   * parcels from a line haul bag, or parcels a delivery courier brings back.
+   * Scan anything that arrives. In a sorting facility (inbound team): pickups, merchant drop
+   * offs, parcels from line haul, failed returns. In a last mile hub: line haul parcels and
+   * parcels couriers bring back.
    */
   async inbound(hubId: string, body: unknown, user: SessionUser): Promise<ScanResult> {
     const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'INBOUND');
     return this.prisma.tx(async (tx) => {
       const settings = await this.settings.all(tx);
       const s = await this.core.findByCode(tx, code, settings['tracking.prefix']);
       const ev = { hubId, userId: user.id };
       const now = new Date();
+      const landed = this.arrival(hub);
       let message = 'Received';
       let warning: string | undefined;
 
       switch (s.status) {
-        case 'CREATED': {
-          const promised = await this.core.promiseFor(tx, s, now, settings);
-          await this.core.move(tx, s, 'AT_HUB', { currentHubId: hubId, enteredAt: now, promisedDate: promised }, { ...ev, type: 'DROPPED_OFF', note: 'Merchant dropped off at hub' });
-          message = 'Merchant drop off received';
-          break;
-        }
+        case 'CREATED':
         case 'PICKED_UP': {
-          await this.core.move(tx, s, 'AT_HUB', { currentHubId: hubId }, { ...ev, type: 'RECEIVED_FROM_PICKUP' });
+          if (!hub.isSorting) {
+            const facility = await tx.hub.findUniqueOrThrow({ where: { id: s.originHubId } });
+            throw new DomainError('wrong_hub', `Merchant parcels go to the sorting facility first: ${facility.name}`, 409);
+          }
+          if (s.originHubId !== hubId) warning = 'This merchant belongs to another sorting facility. The system will route it';
+          const patch: Partial<Shipment> = { currentHubId: hubId };
+          if (s.status === 'CREATED') {
+            patch.enteredAt = now;
+            patch.promisedDate = await this.core.promiseFor(tx, s, now, settings);
+          }
+          await this.core.move(tx, s, 'AT_INBOUND', patch, { ...ev, type: s.status === 'CREATED' ? 'DROPPED_OFF' : 'RECEIVED_FROM_PICKUP', note: warning ?? '' });
           if (s.pickupId) await this.completePickupIfDone(tx, s.pickupId);
-          message = 'Received from pickup courier';
+          message = s.status === 'CREATED' ? 'Merchant drop off received' : 'Received from pickup courier';
           break;
         }
         case 'IN_TRANSIT': {
           const bag = s.bagId ? await tx.bag.findUnique({ where: { id: s.bagId } }) : null;
-          if (bag && bag.destinationHubId !== hubId) warning = `This parcel was in bag ${bag.code} for another hub`;
-          await this.core.move(tx, s, 'AT_HUB', { currentHubId: hubId, bagId: null }, { ...ev, type: 'RECEIVED_FROM_TRANSFER', note: warning ?? '' });
+          if (bag && bag.destinationHubId !== hubId) warning = `This parcel was in bag ${bag.code} for another place`;
+          await this.core.move(tx, s, landed, { currentHubId: hubId, bagId: null }, { ...ev, type: 'RECEIVED_FROM_TRANSFER', note: warning ?? '' });
           if (bag) await this.completeBagIfEmpty(tx, bag.id);
           message = 'Received from line haul';
           break;
         }
-        case 'ATTEMPT_FAILED': {
-          message = await this.courierBroughtBack(tx, s, hubId, user, settings['delivery.max_attempts']);
+        case 'ATTEMPT_FAILED':
+          message = await this.courierBroughtBack(tx, s, hub, user, settings['delivery.max_attempts']);
           break;
-        }
         case 'OUT_FOR_DELIVERY': {
           // The courier came back without trying this parcel. No attempt is counted.
           const item = await this.openRunItem(tx, s);
           const run = await tx.run.findUniqueOrThrow({ where: { id: item.runId } });
-          if (run.hubId !== hubId) throw new DomainError('wrong_hub', 'Return this parcel to the hub its courier run started from', 409);
+          if (run.hubId !== hubId) throw new DomainError('wrong_hub', 'Return this parcel to the place its courier run started from', 409);
           await tx.runItem.update({ where: { id: item.id }, data: { result: 'FAILED', failReason: 'NOT_ATTEMPTED', backAtHub: true, resolvedAt: now } });
           await this.core.move(tx, s, 'AT_HUB', { currentHubId: hubId, runId: null }, { ...ev, type: 'NOT_ATTEMPTED', note: 'Courier brought it back without an attempt' });
           message = 'Back from courier, not attempted';
           break;
         }
-        case 'LOST': {
-          await this.core.move(tx, s, 'AT_HUB', { currentHubId: hubId, bagId: null, runId: null }, { ...ev, type: 'FOUND' });
+        case 'LOST':
+          await this.core.move(tx, s, landed, { currentHubId: hubId, bagId: null, runId: null }, { ...ev, type: 'FOUND' });
           message = 'Lost parcel found';
           break;
-        }
+        case 'AT_INBOUND':
+        case 'SORTED':
+        case 'AT_OUTBOUND':
         case 'AT_HUB':
         case 'ON_HOLD': {
           if (s.currentHubId === hubId) {
-            message = 'Already in this hub';
+            message = 'Already in this building';
             break;
           }
-          if (s.runId) throw new DomainError('bad_status', 'This parcel is loaded on a courier run in another hub', 409);
-          if (s.bagId) {
-            const bag = await tx.bag.findUniqueOrThrow({ where: { id: s.bagId } });
-            if (bag.status === 'OPEN' || bag.status === 'SEALED') {
-              throw new DomainError('bad_status', `This parcel is in bag ${bag.code} at another hub. Remove it from that bag first`, 409);
-            }
-          }
-          warning = 'The system had this parcel in another hub';
-          await this.core.move(tx, s, s.status, { currentHubId: hubId }, { ...ev, type: 'UNEXPECTED_ARRIVAL', note: warning });
-          message = 'Received';
+          if (s.runId) throw new DomainError('bad_status', 'This parcel is loaded on a courier run somewhere else', 409);
+          if (s.bagId) throw new DomainError('bad_status', 'This parcel is in a bag at another place. Take it out of that bag first', 409);
+          warning = 'The system had this parcel somewhere else';
+          await this.core.move(tx, s, landed, { currentHubId: hubId }, { ...ev, type: 'UNEXPECTED_ARRIVAL', note: warning });
           break;
         }
         default:
@@ -118,16 +137,16 @@ export class HubService {
     });
   }
 
-  private async courierBroughtBack(tx: Tx, s: Shipment, hubId: string, user: SessionUser, maxAttempts: number) {
+  private async courierBroughtBack(tx: Tx, s: Shipment, hub: Hub, user: SessionUser, maxAttempts: number) {
     const item = await this.openRunItem(tx, s);
     const run = await tx.run.findUniqueOrThrow({ where: { id: item.runId } });
-    if (run.hubId !== hubId) throw new DomainError('wrong_hub', 'Return this parcel to the hub its courier run started from', 409);
+    if (run.hubId !== hub.id) throw new DomainError('wrong_hub', 'Return this parcel to the place its courier run started from', 409);
     await tx.runItem.update({ where: { id: item.id }, data: { backAtHub: true } });
-    const ev = { hubId, userId: user.id };
-    const base = { currentHubId: hubId, runId: null };
+    const ev = { hubId: hub.id, userId: user.id };
+    const base = { currentHubId: hub.id, runId: null };
 
     if (s.direction === 'RETURN') {
-      await this.core.move(tx, s, 'AT_HUB', base, { ...ev, type: 'BACK_FROM_COURIER', note: 'Return to merchant failed, will try again' });
+      await this.core.move(tx, s, 'AT_HUB', base, { ...ev, type: 'BACK_FROM_COURIER', note: 'Handing back to the merchant failed, will try again' });
       return 'Back from courier. Return to merchant will be tried again';
     }
     if (s.attempts >= maxAttempts) {
@@ -176,19 +195,52 @@ export class HubService {
     return { trackingNumber: s.trackingNumber, status: s.status, direction: s.direction, message, next: await this.core.nextStep(tx, s), warning };
   }
 
-  /** Everything inside the hub, grouped by what has to happen next. */
+  /** Receive a whole bag from a line haul trip at once. Parcels already scanned one by one are skipped. */
+  async receiveBag(hubId: string, body: unknown, user: SessionUser) {
+    const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'INBOUND');
+    return this.prisma.tx(async (tx) => {
+      const bag = await tx.bag.findUnique({ where: { code: normalizeCode(code) } });
+      if (!bag) throw notFound(`Bag ${normalizeCode(code)}`);
+      if (bag.status !== 'IN_TRANSIT') throw new DomainError('bad_status', `Bag ${bag.code} is not on its way`, 409);
+      const warning = bag.destinationHubId !== hubId ? `Bag ${bag.code} was meant for another place` : undefined;
+      const parcels = await tx.shipment.findMany({ where: { bagId: bag.id, status: 'IN_TRANSIT' } });
+      for (const s of parcels) {
+        await this.core.move(tx, s, this.arrival(hub), { currentHubId: hubId, bagId: null }, { type: 'RECEIVED_FROM_TRANSFER', hubId, userId: user.id, note: `Bag ${bag.code}${warning ? '. ' + warning : ''}` });
+      }
+      await this.completeBagIfEmpty(tx, bag.id);
+      return { bag: bag.code, parcels: parcels.length, warning, message: `Bag ${bag.code} received with ${parcels.length} parcels` };
+    });
+  }
+
+  /** Everything in the building, grouped by the team or step that has to act next. */
   async onHand(hubId: string) {
+    const hub = await this.hub(hubId);
     const parcels = await this.prisma.shipment.findMany({
-      where: { currentHubId: hubId, status: { in: ['AT_HUB', 'ON_HOLD'] } },
+      where: { currentHubId: hubId, status: { in: ['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB', 'ON_HOLD'] } },
       include: { merchant: { select: { name: true } } },
       orderBy: { updatedAt: 'asc' },
     });
-    const groups: Record<'toSort' | 'toDeliver' | 'toReturn' | 'onHold' | 'bagged' | 'onRun', unknown[]> = {
-      toSort: [], toDeliver: [], toReturn: [], onHold: [], bagged: [], onRun: [],
-    };
-    const hubs = new Map((await this.prisma.hub.findMany()).map((h) => [h.id, h]));
+    const net = await this.core.network(this.prisma as unknown as Tx);
+    const groups = hub.isSorting
+      ? [
+          { key: 'inbound', title: 'Received, waiting for sorting', hint: 'Inbound team has scanned these in. Sorting team scans each into its bag.', rows: [] as unknown[] },
+          { key: 'sorted', title: 'Sorted into bags', hint: 'In open or sealed bags. Seal full bags and hand them to outbound.', rows: [] as unknown[] },
+          { key: 'outbound', title: 'With outbound, waiting for a truck', hint: 'Bags the outbound team accepted. Load them on a trip.', rows: [] as unknown[] },
+          { key: 'returnShelf', title: 'Return shelf', hint: 'Going back to merchants of this facility. Load on a pickup courier run.', rows: [] as unknown[] },
+          { key: 'onRun', title: 'Loaded on courier runs', hint: 'On a run that has not left yet.', rows: [] as unknown[] },
+        ]
+      : [
+          { key: 'deliver', title: 'Ready for delivery', hint: 'Load these on courier runs.', rows: [] as unknown[] },
+          { key: 'onHold', title: 'On hold', hint: 'Waiting for the merchant to decide.', rows: [] as unknown[] },
+          { key: 'send', title: 'To send back to the sorting facility', hint: 'Returns and rerouted parcels. Scan them into a bag on Send back.', rows: [] as unknown[] },
+          { key: 'bagged', title: 'In bags', hint: 'In a bag that has not left yet.', rows: [] as unknown[] },
+          { key: 'onRun', title: 'Loaded on courier runs', hint: 'On a run that has not left yet.', rows: [] as unknown[] },
+        ];
+    const put = (key: string, row: unknown) => groups.find((g) => g.key === key)?.rows.push(row);
     for (const s of parcels) {
-      const next = await this.core.nextStep(this.prisma as unknown as Tx, s);
+      const next = await this.core.nextStep(this.prisma as unknown as Tx, s, net);
       const row = {
         id: s.id,
         trackingNumber: s.trackingNumber,
@@ -200,19 +252,23 @@ export class HubService {
         promisedDate: s.promisedDate,
         direction: s.direction,
         holdReason: s.holdReason,
-        nextHub: next.kind === 'SEND' ? hubs.get(next.hubId)?.code : null,
+        nextHub: next.kind === 'SEND' ? next.hubCode : null,
       };
-      if (s.runId) groups.onRun.push(row);
-      else if (s.bagId) groups.bagged.push(row);
-      else if (next.kind === 'HOLD') groups.onHold.push(row);
-      else if (next.kind === 'SEND') groups.toSort.push(row);
-      else if (next.kind === 'DELIVER') groups.toDeliver.push(row);
-      else if (next.kind === 'RETURN_TO_MERCHANT') groups.toReturn.push(row);
+      if (s.runId) put('onRun', row);
+      else if (hub.isSorting) {
+        if (s.status === 'AT_INBOUND') put('inbound', row);
+        else if (s.status === 'SORTED') put('sorted', row);
+        else if (s.status === 'AT_OUTBOUND') put('outbound', row);
+        else put('returnShelf', row);
+      } else if (s.status === 'SORTED') put('bagged', row);
+      else if (next.kind === 'HOLD') put('onHold', row);
+      else if (next.kind === 'DELIVER') put('deliver', row);
+      else put('send', row);
     }
-    return groups;
+    return { hub: { id: hub.id, code: hub.code, name: hub.name, isSorting: hub.isSorting }, groups };
   }
 
-  // ---------------------------------------------------------------- pickups
+  // ---------------------------------------------------------------- pickups (facility)
 
   async pickups(hubId: string, date?: string) {
     return this.prisma.pickup.findMany({
@@ -233,37 +289,56 @@ export class HubService {
     await this.prisma.auditLog.create({ data: { userId: user.id, action: 'PICKUP_ASSIGNED', entity: 'pickup', entityId: pickupId, data: { courierId } } });
   }
 
-  // ---------------------------------------------------------------- sorting and bags
+  // ---------------------------------------------------------------- sorting team
 
-  /** Put a parcel into the open bag for its next hub. Opens a new bag when none is open. */
+  /**
+   * Sorting team scans a parcel the inbound team received. The system routes it: into the open
+   * bag for its next place (opening one when needed), or onto the return shelf when it is back
+   * at its merchant's facility. In a last mile hub, the same scan bags returns for the facility.
+   */
   async sort(hubId: string, body: unknown, user: SessionUser) {
     const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'SORTING');
     return this.prisma.tx(async (tx) => {
       const settings = await this.settings.all(tx);
       const s = await this.core.findByCode(tx, code, settings['tracking.prefix']);
-      if (s.status !== 'AT_HUB' || s.currentHubId !== hubId) throw new DomainError('bad_status', `${s.trackingNumber} is not in this hub. Receive it first`, 409);
-      if (s.runId) throw new DomainError('bad_status', `${s.trackingNumber} is loaded on a courier run`, 409);
-      const next = await this.core.nextStep(tx, s);
-      if (next.kind !== 'SEND') {
-        throw new DomainError('no_transfer', `${s.trackingNumber} stays here: ${next.kind === 'DELIVER' ? 'it is ready for delivery' : 'it is ready to go back to the merchant'}`, 409);
+      if (s.currentHubId !== hubId || !['AT_INBOUND', 'SORTED', 'AT_HUB'].includes(s.status)) {
+        throw new DomainError('bad_status', `${s.trackingNumber} is not waiting here. ${hub.isSorting ? 'Inbound must scan it in first' : 'Receive it first'}`, 409);
       }
+      if (hub.isSorting && s.status === 'AT_HUB') throw new DomainError('bad_status', `${s.trackingNumber} is already on the return shelf`, 409);
+      if (s.runId) throw new DomainError('bad_status', `${s.trackingNumber} is loaded on a courier run`, 409);
+      const next = await this.core.nextStep(tx, { ...s, status: hub.isSorting ? 'AT_INBOUND' : 'AT_HUB' });
+      const ev = { hubId, userId: user.id };
+
+      if (next.kind === 'RETURN_TO_MERCHANT') {
+        if (s.bagId) await this.assertOpenBag(tx, s.bagId, s.trackingNumber);
+        await this.core.move(tx, s, 'AT_HUB', { bagId: null }, { ...ev, type: 'RETURN_SHELF', note: 'Ready to hand back to the merchant' });
+        const m = await tx.merchant.findUniqueOrThrow({ where: { id: s.merchantId } });
+        return { bag: null, trackingNumber: s.trackingNumber, next: { kind: 'RETURN_TO_MERCHANT', merchantName: m.name }, message: `Return shelf for ${m.name}` };
+      }
+      if (next.kind !== 'SEND') throw new DomainError('no_transfer', `${s.trackingNumber} stays here: it is ready for delivery`, 409);
+
       if (s.bagId) {
         const current = await tx.bag.findUniqueOrThrow({ where: { id: s.bagId } });
         if (current.destinationHubId === next.hubId) return { bag: current, trackingNumber: s.trackingNumber, next, message: `Already in bag ${current.code}` };
         if (current.status !== 'OPEN') throw new DomainError('bad_status', `${s.trackingNumber} is in sealed bag ${current.code}`, 409);
       }
       let bag = await tx.bag.findFirst({ where: { originHubId: hubId, destinationHubId: next.hubId, status: 'OPEN' }, orderBy: { createdAt: 'asc' } });
-      if (!bag) {
-        bag = await tx.bag.create({ data: { code: await nextCode(tx, 'bag_seq', 'BG'), originHubId: hubId, destinationHubId: next.hubId } });
-      }
-      await this.core.move(tx, s, 'AT_HUB', { bagId: bag.id }, { type: 'BAGGED', hubId, userId: user.id, note: `Bag ${bag.code} to ${next.hubCode}` });
+      if (!bag) bag = await tx.bag.create({ data: { code: await nextCode(tx, 'bag_seq', 'BG'), originHubId: hubId, destinationHubId: next.hubId } });
+      await this.core.move(tx, s, 'SORTED', { bagId: bag.id }, { ...ev, type: 'SORTED', note: `Bag ${bag.code} to ${next.hubCode}` });
       return { bag, trackingNumber: s.trackingNumber, next, message: `Put in bag ${bag.code} for ${next.hubName}` };
     });
   }
 
+  private async assertOpenBag(tx: Tx, bagId: string, tracking: string) {
+    const bag = await tx.bag.findUniqueOrThrow({ where: { id: bagId } });
+    if (bag.status !== 'OPEN') throw new DomainError('bad_status', `${tracking} is in sealed bag ${bag.code}`, 409);
+  }
+
   async bags(hubId: string) {
     const bags = await this.prisma.bag.findMany({
-      where: { OR: [{ originHubId: hubId, status: { in: ['OPEN', 'SEALED'] } }, { destinationHubId: hubId, status: 'IN_TRANSIT' }] },
+      where: { OR: [{ originHubId: hubId, status: { in: ['OPEN', 'SEALED', 'HANDED_OVER'] } }, { destinationHubId: hubId, status: 'IN_TRANSIT' }] },
       orderBy: { createdAt: 'asc' },
     });
     const counts = await this.prisma.shipment.groupBy({ by: ['bagId'], where: { bagId: { in: bags.map((b) => b.id) } }, _count: true });
@@ -280,6 +355,8 @@ export class HubService {
 
   async removeFromBag(hubId: string, bagId: string, body: unknown, user: SessionUser) {
     const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'SORTING');
     return this.prisma.tx(async (tx) => {
       const settings = await this.settings.all(tx);
       const s = await this.core.findByCode(tx, code, settings['tracking.prefix']);
@@ -287,11 +364,13 @@ export class HubService {
       if (!bag || bag.originHubId !== hubId) throw notFound('Bag');
       if (bag.status !== 'OPEN') throw new DomainError('bad_status', 'Only open bags can be changed', 409);
       if (s.bagId !== bagId) throw new DomainError('bad_status', `${s.trackingNumber} is not in this bag`, 409);
-      await this.core.move(tx, s, 'AT_HUB', { bagId: null }, { type: 'UNBAGGED', hubId, userId: user.id, note: `Out of bag ${bag.code}` });
+      await this.core.move(tx, s, this.arrival(hub), { bagId: null }, { type: 'UNBAGGED', hubId, userId: user.id, note: `Out of bag ${bag.code}` });
     });
   }
 
   async sealBag(hubId: string, bagId: string, user: SessionUser) {
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'SORTING');
     return this.prisma.tx(async (tx) => {
       const bag = await tx.bag.findUnique({ where: { id: bagId } });
       if (!bag || bag.originHubId !== hubId) throw notFound('Bag');
@@ -303,7 +382,29 @@ export class HubService {
     });
   }
 
-  // ---------------------------------------------------------------- line haul trips
+  // ---------------------------------------------------------------- outbound team
+
+  /** Outbound team scans a sealed bag to take it over from the sorting team. */
+  async acceptBag(hubId: string, body: unknown, user: SessionUser) {
+    const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    if (!hub.isSorting) throw new DomainError('invalid_input', 'Only sorting facilities have an outbound team. Load sealed bags straight onto a trip', 422);
+    assertTeam(user, hub, 'OUTBOUND');
+    return this.prisma.tx(async (tx) => {
+      const bag = await tx.bag.findUnique({ where: { code: normalizeCode(code) } });
+      if (!bag || bag.originHubId !== hubId) throw notFound(`Bag ${normalizeCode(code)} in this facility`);
+      if (bag.status === 'OPEN') throw new DomainError('bad_status', `Bag ${bag.code} is still open. Sorting must seal it first`, 409);
+      if (bag.status === 'HANDED_OVER') return { bag: bag.code, parcels: 0, message: `Bag ${bag.code} is already with outbound` };
+      if (bag.status !== 'SEALED') throw new DomainError('bad_status', `Bag ${bag.code} already left`, 409);
+      const dest = await tx.hub.findUniqueOrThrow({ where: { id: bag.destinationHubId } });
+      const parcels = await tx.shipment.findMany({ where: { bagId: bag.id } });
+      for (const s of parcels) {
+        await this.core.move(tx, s, 'AT_OUTBOUND', {}, { type: 'HANDED_TO_OUTBOUND', hubId, userId: user.id, note: `Bag ${bag.code} to ${dest.code}` });
+      }
+      await tx.bag.update({ where: { id: bag.id }, data: { status: 'HANDED_OVER' } });
+      return { bag: bag.code, parcels: parcels.length, destination: dest.code, message: `Bag ${bag.code} for ${dest.code} accepted with ${parcels.length} parcels` };
+    });
+  }
 
   async trips(hubId: string) {
     const trips = await this.prisma.trip.findMany({
@@ -321,9 +422,11 @@ export class HubService {
 
   async createTrip(hubId: string, body: unknown, user: SessionUser) {
     const d = parse(TripInput, body);
-    if (d.destinationHubId === hubId) throw new DomainError('invalid_input', 'A trip must go to another hub', 422);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'OUTBOUND');
+    if (d.destinationHubId === hubId) throw new DomainError('invalid_input', 'A trip must go to another place', 422);
     const dest = await this.prisma.hub.findUnique({ where: { id: d.destinationHubId } });
-    if (!dest || !dest.active) throw new DomainError('invalid_input', 'Unknown destination hub', 422);
+    if (!dest || !dest.active) throw new DomainError('invalid_input', 'Unknown destination', 422);
     return this.prisma.tx(async (tx) => {
       const trip = await tx.trip.create({ data: { code: await nextCode(tx, 'trip_seq', 'TR'), originHubId: hubId, ...d } });
       await tx.auditLog.create({ data: { userId: user.id, action: 'TRIP_CREATED', entity: 'trip', entityId: trip.id } });
@@ -331,32 +434,40 @@ export class HubService {
     });
   }
 
-  async loadBag(hubId: string, tripId: string, body: unknown) {
+  async loadBag(hubId: string, tripId: string, body: unknown, user: SessionUser) {
     const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'OUTBOUND');
     return this.prisma.tx(async (tx) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId } });
       if (!trip || trip.originHubId !== hubId) throw notFound('Trip');
       if (trip.status !== 'LOADING') throw new DomainError('bad_status', 'This trip already left', 409);
       const bag = await tx.bag.findUnique({ where: { code: normalizeCode(code) } });
-      if (!bag || bag.originHubId !== hubId) throw notFound(`Bag ${normalizeCode(code)} in this hub`);
-      if (bag.status === 'OPEN') throw new DomainError('bad_status', `Seal bag ${bag.code} before loading it`, 409);
-      if (bag.status !== 'SEALED' || (bag.tripId && bag.tripId !== tripId)) throw new DomainError('bad_status', `Bag ${bag.code} is already on another trip`, 409);
-      if (bag.destinationHubId !== trip.destinationHubId) throw new DomainError('wrong_hub', `Bag ${bag.code} is for another hub. Do not load it on this trip`, 409);
+      if (!bag || bag.originHubId !== hubId) throw notFound(`Bag ${normalizeCode(code)} here`);
+      const ready = hub.isSorting ? 'HANDED_OVER' : 'SEALED';
+      if (bag.status === 'OPEN') throw new DomainError('bad_status', `Bag ${bag.code} is still open. Seal it first`, 409);
+      if (bag.status === 'SEALED' && hub.isSorting) throw new DomainError('bad_status', `Outbound must accept bag ${bag.code} from sorting first`, 409);
+      if (bag.status !== ready || (bag.tripId && bag.tripId !== tripId)) throw new DomainError('bad_status', `Bag ${bag.code} is already on another trip`, 409);
+      if (bag.destinationHubId !== trip.destinationHubId) throw new DomainError('wrong_hub', `Bag ${bag.code} is for another place. Do not load it on this trip`, 409);
       await tx.bag.update({ where: { id: bag.id }, data: { tripId } });
       return { bag: bag.code, message: `Bag ${bag.code} loaded` };
     });
   }
 
-  async unloadBag(hubId: string, tripId: string, body: unknown) {
+  async unloadBag(hubId: string, tripId: string, body: unknown, user: SessionUser) {
     const { code } = parse(Code, body);
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'OUTBOUND');
     const trip = await this.prisma.trip.findUnique({ where: { id: tripId } });
     if (!trip || trip.originHubId !== hubId) throw notFound('Trip');
-    const r = await this.prisma.bag.updateMany({ where: { code: normalizeCode(code), tripId, status: 'SEALED' }, data: { tripId: null } });
+    const r = await this.prisma.bag.updateMany({ where: { code: normalizeCode(code), tripId }, data: { tripId: null } });
     if (r.count !== 1 || trip.status !== 'LOADING') throw new DomainError('bad_status', 'That bag cannot be taken off this trip', 409);
   }
 
   /** The truck leaves: every bag and every parcel in it goes in transit. */
   async depart(hubId: string, tripId: string, user: SessionUser) {
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'OUTBOUND');
     return this.prisma.tx(async (tx) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId }, include: { bags: true } });
       if (!trip || trip.originHubId !== hubId) throw notFound('Trip');
@@ -373,25 +484,10 @@ export class HubService {
     });
   }
 
-  /** Receive a whole sealed bag at once. Parcels already scanned one by one are skipped. */
-  async receiveBag(hubId: string, body: unknown, user: SessionUser) {
-    const { code } = parse(Code, body);
-    return this.prisma.tx(async (tx) => {
-      const bag = await tx.bag.findUnique({ where: { code: normalizeCode(code) } });
-      if (!bag) throw notFound(`Bag ${normalizeCode(code)}`);
-      if (bag.status !== 'IN_TRANSIT') throw new DomainError('bad_status', `Bag ${bag.code} is not on its way`, 409);
-      const warning = bag.destinationHubId !== hubId ? `Bag ${bag.code} was meant for another hub` : undefined;
-      const parcels = await tx.shipment.findMany({ where: { bagId: bag.id, status: 'IN_TRANSIT' } });
-      for (const s of parcels) {
-        await this.core.move(tx, s, 'AT_HUB', { currentHubId: hubId, bagId: null }, { type: 'RECEIVED_FROM_TRANSFER', hubId, userId: user.id, note: `Bag ${bag.code}${warning ? '. ' + warning : ''}` });
-      }
-      await this.completeBagIfEmpty(tx, bag.id);
-      return { bag: bag.code, parcels: parcels.length, warning, message: `Bag ${bag.code} received with ${parcels.length} parcels` };
-    });
-  }
-
   /** Close a trip that arrived with bags missing. Missing parcels stay in transit for follow up. */
   async closeTrip(hubId: string, tripId: string, user: SessionUser) {
+    const hub = await this.hub(hubId);
+    assertTeam(user, hub, 'INBOUND');
     return this.prisma.tx(async (tx) => {
       const trip = await tx.trip.findUnique({ where: { id: tripId }, include: { bags: true } });
       if (!trip || trip.destinationHubId !== hubId) throw notFound('Trip');
@@ -412,7 +508,7 @@ export class HubService {
   private async assertCourier(courierId: string, hubId: string) {
     const courier = await this.prisma.user.findUnique({ where: { id: courierId } });
     if (!courier || courier.role !== 'COURIER' || !courier.active || courier.hubId !== hubId) {
-      throw new DomainError('invalid_input', 'Pick an active courier from this hub', 422);
+      throw new DomainError('invalid_input', 'Pick an active courier from this place', 422);
     }
   }
 
@@ -464,11 +560,11 @@ export class HubService {
       if (!run || run.hubId !== hubId) throw notFound('Run');
       if (run.status !== 'LOADING') throw new DomainError('bad_status', 'This run already left', 409);
       const s = await this.core.findByCode(tx, code, settings['tracking.prefix']);
-      if (s.status !== 'AT_HUB' || s.currentHubId !== hubId) throw new DomainError('bad_status', `${s.trackingNumber} is not ready in this hub`, 409);
+      if (s.status !== 'AT_HUB' || s.currentHubId !== hubId) throw new DomainError('bad_status', `${s.trackingNumber} is not ready here`, 409);
       if (s.runId) throw new DomainError('bad_status', `${s.trackingNumber} is already on a run`, 409);
       if (s.bagId) throw new DomainError('bad_status', `${s.trackingNumber} is in a bag. Take it out first`, 409);
       const next = await this.core.nextStep(tx, s);
-      if (next.kind === 'SEND') throw new DomainError('wrong_hub', `${s.trackingNumber} is not for this hub. Send it to ${next.hubName}`, 409);
+      if (next.kind === 'SEND') throw new DomainError('wrong_hub', `${s.trackingNumber} is not for here. Send it to ${next.hubName}`, 409);
       await tx.runItem.create({ data: { runId, shipmentId: s.id, direction: s.direction } });
       await this.core.move(tx, s, 'AT_HUB', { runId }, { type: 'LOADED_ON_RUN', hubId, userId: user.id, note: `Run ${run.code}` });
       return { trackingNumber: s.trackingNumber, direction: s.direction, message: s.direction === 'RETURN' ? 'Added as a return to merchant' : 'Added for delivery' };
@@ -505,8 +601,8 @@ export class HubService {
   }
 
   /**
-   * End of day. Every parcel must be delivered, returned, or scanned back into the hub,
-   * and the courier hands over the cash. A difference is recorded against the courier.
+   * End of day. Every parcel must be delivered, returned, or scanned back in, and the courier
+   * hands over the cash. A difference is recorded against the courier.
    */
   async closeRun(hubId: string, runId: string, body: unknown, user: SessionUser) {
     const { cashReceived } = parse(CloseRunInput, body);
@@ -516,7 +612,7 @@ export class HubService {
       if (run.status !== 'OUT') throw new DomainError('bad_status', 'Only a run that is out can be closed', 409);
       const notBack = run.items.filter((i) => i.result === 'PENDING' || (i.result === 'FAILED' && !i.backAtHub));
       if (notBack.length) {
-        throw new DomainError('parcels_missing', `Scan these parcels back into the hub first: ${notBack.map((i) => i.shipment.trackingNumber).join(', ')}`, 409);
+        throw new DomainError('parcels_missing', `Scan these parcels back in first: ${notBack.map((i) => i.shipment.trackingNumber).join(', ')}`, 409);
       }
       const expected = run.items.reduce((sum, i) => sum + i.codCollected, 0);
       await tx.run.update({ where: { id: runId }, data: { status: 'CLOSED', cashExpected: expected, cashReceived, closedAt: new Date(), closedById: user.id } });

@@ -5,9 +5,11 @@ import {
   canTransition,
   cairoClock,
   isValidTrackingNumber,
+  nearest,
   nextHop,
   normalizeCode,
   promisedDate,
+  type NetHub,
   type SettingValues,
 } from '@shiply/shared';
 import { DomainError, notFound } from '../common/errors';
@@ -24,7 +26,7 @@ export interface EventInput {
 export type NextStep =
   | { kind: 'SEND'; hubId: string; hubCode: string; hubName: string }
   | { kind: 'DELIVER' }
-  | { kind: 'RETURN_TO_MERCHANT' }
+  | { kind: 'RETURN_TO_MERCHANT'; merchantName?: string }
   | { kind: 'HOLD'; reason: string | null }
   | { kind: 'NONE' };
 
@@ -80,10 +82,27 @@ export class ShipmentsCore {
     return shipment;
   }
 
-  async sortingHubId(tx: Tx): Promise<string> {
-    const hub = await tx.hub.findFirst({ where: { isSorting: true, active: true }, orderBy: { createdAt: 'asc' } });
-    if (!hub) throw new DomainError('no_sorting_hub', 'No active sorting hub is set up', 500);
-    return hub.id;
+  /** Every hub and facility, for routing. */
+  async network(tx: Tx): Promise<Map<string, NetHub & { code: string; name: string }>> {
+    const hubs = await tx.hub.findMany({ select: { id: true, code: true, name: true, isSorting: true, parentId: true } });
+    return new Map(hubs.map((h) => [h.id, h]));
+  }
+
+  /** The active sorting facility nearest to a point: where a merchant's pickups go. */
+  async nearestFacility(tx: Tx, point: { lat: number; lng: number }) {
+    const facilities = await tx.hub.findMany({ where: { isSorting: true, active: true } });
+    const best = nearest(point, facilities);
+    if (!best) throw new DomainError('no_facility', 'No active sorting facility is set up', 500);
+    return best;
+  }
+
+  /** Map position of a merchant or customer address: the area's if known, else the governorate's. */
+  async pointOf(tx: Tx, governorateCode: string, areaId: string | null) {
+    const area = areaId ? await tx.area.findUnique({ where: { id: areaId } }) : null;
+    if (area?.lat != null && area.lng != null) return { lat: area.lat, lng: area.lng };
+    const gov = await tx.governorate.findUnique({ where: { code: governorateCode } });
+    if (!gov) throw new DomainError('invalid_input', 'Unknown governorate', 422);
+    return { lat: gov.lat, lng: gov.lng };
   }
 
   /** The hub that delivers to an address: the area's hub, else the governorate's. */
@@ -99,6 +118,8 @@ export class ShipmentsCore {
       hubId = area.hubId ?? hubId;
     }
     if (!hubId) throw new DomainError('not_served', `We do not deliver to ${gov.nameEn} yet`, 422);
+    const hub = await tx.hub.findUnique({ where: { id: hubId } });
+    if (!hub || !hub.active || hub.isSorting) throw new DomainError('not_served', `No active last mile hub delivers to ${gov.nameEn}`, 422);
     return { hubId, zone: gov.zone };
   }
 
@@ -108,21 +129,21 @@ export class ShipmentsCore {
     return promisedDate(at, gov.zone.transitDays, settings['promise.cutoff'], settings['promise.weekend_days']);
   }
 
+  /** What should physically happen next to a parcel sitting in a hub or facility. */
   async nextStep(
     tx: Tx,
     s: Pick<Shipment, 'status' | 'direction' | 'currentHubId' | 'originHubId' | 'destinationHubId' | 'holdReason'>,
+    net?: Map<string, NetHub & { code: string; name: string }>,
   ): Promise<NextStep> {
     if (s.status === 'ON_HOLD') return { kind: 'HOLD', reason: s.holdReason };
-    if (s.status !== 'AT_HUB' || !s.currentHubId) return { kind: 'NONE' };
-    const hop = nextHop({
-      direction: s.direction as Direction,
-      currentHubId: s.currentHubId,
-      originHubId: s.originHubId,
-      destinationHubId: s.destinationHubId,
-      sortingHubId: await this.sortingHubId(tx),
-    });
+    if (!['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB'].includes(s.status) || !s.currentHubId) return { kind: 'NONE' };
+    const hubs = net ?? (await this.network(tx));
+    const hop = nextHop(
+      { direction: s.direction as Direction, currentHubId: s.currentHubId, originHubId: s.originHubId, destinationHubId: s.destinationHubId },
+      hubs,
+    );
     if (hop === null) return s.direction === 'FORWARD' ? { kind: 'DELIVER' } : { kind: 'RETURN_TO_MERCHANT' };
-    const hub = await tx.hub.findUniqueOrThrow({ where: { id: hop } });
+    const hub = hubs.get(hop)!;
     return { kind: 'SEND', hubId: hub.id, hubCode: hub.code, hubName: hub.name };
   }
 }

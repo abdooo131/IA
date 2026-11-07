@@ -1,20 +1,32 @@
 // Parcel statuses and the only moves allowed between them.
 //
+// The company flow: merchant → first mile courier → SORTING FACILITY (inbound team → sorting
+// team → outbound team) → line haul → LAST MILE HUB → courier → end consumer.
+// Returns run the other way and are handed back to the merchant from their sorting facility.
+//
 // Where a parcel is comes from its status plus one location field:
 //   CREATED            with the merchant, waiting for pickup
-//   PICKED_UP          in a pickup courier's vehicle (pickupId)
-//   AT_HUB / ON_HOLD   inside a hub (currentHubId), maybe in an open or sealed bag (bagId)
-//   IN_TRANSIT         in a sealed bag on a line haul trip (bagId, tripId)
-//   OUT_FOR_DELIVERY   with a courier on a run (runId)
+//   PICKED_UP          in a first mile courier's vehicle (pickupId)
+//   AT_INBOUND         received by a sorting facility's inbound team, waiting for sorting
+//   SORTED             sorting team put it in a bag (bagId) for its next hub
+//   AT_OUTBOUND        its sealed bag was accepted by the outbound team, waiting for a truck
+//   IN_TRANSIT         in a bag on a line haul trip (bagId)
+//   AT_HUB             in a hub, ready for a courier run: a last mile hub for delivery, or a
+//                      sorting facility's return shelf for the merchant
+//   ON_HOLD            at a last mile hub after a failed attempt, waiting for the merchant
+//   OUT_FOR_DELIVERY   with a courier on a run (runId), to the consumer or back to the merchant
 //   ATTEMPT_FAILED     still with the courier after a failed attempt (runId)
-// Direction says where the parcel is heading: FORWARD to the customer, RETURN to the merchant.
+// Direction says where the parcel is heading: FORWARD to the consumer, RETURN to the merchant.
 
 export const SHIPMENT_STATUSES = [
   'CREATED',
   'PICKED_UP',
+  'AT_INBOUND',
+  'SORTED',
+  'AT_OUTBOUND',
+  'IN_TRANSIT',
   'AT_HUB',
   'ON_HOLD',
-  'IN_TRANSIT',
   'OUT_FOR_DELIVERY',
   'ATTEMPT_FAILED',
   'DELIVERED',
@@ -29,18 +41,25 @@ export type Direction = (typeof DIRECTIONS)[number];
 
 export const TERMINAL_STATUSES: readonly ShipmentStatus[] = ['DELIVERED', 'RETURNED', 'CANCELLED'];
 
+/** Parcels physically inside a hub or facility (not on the road, not with a courier). */
+export const IN_BUILDING: readonly ShipmentStatus[] = ['AT_INBOUND', 'SORTED', 'AT_OUTBOUND', 'AT_HUB', 'ON_HOLD'];
+
+// A status may "move" to itself: the direction or the location changed, the status did not.
 export const ALLOWED_TRANSITIONS: Record<ShipmentStatus, readonly ShipmentStatus[]> = {
-  CREATED: ['PICKED_UP', 'AT_HUB', 'CANCELLED'],
-  PICKED_UP: ['PICKED_UP', 'AT_HUB', 'LOST'],
-  AT_HUB: ['AT_HUB', 'IN_TRANSIT', 'OUT_FOR_DELIVERY', 'ON_HOLD', 'LOST'],
+  CREATED: ['PICKED_UP', 'AT_INBOUND', 'CANCELLED'],
+  PICKED_UP: ['PICKED_UP', 'AT_INBOUND', 'LOST'],
+  AT_INBOUND: ['AT_INBOUND', 'SORTED', 'AT_HUB', 'LOST'],
+  SORTED: ['SORTED', 'AT_INBOUND', 'AT_HUB', 'AT_OUTBOUND', 'IN_TRANSIT', 'LOST'],
+  AT_OUTBOUND: ['AT_OUTBOUND', 'IN_TRANSIT', 'LOST'],
+  IN_TRANSIT: ['IN_TRANSIT', 'AT_INBOUND', 'AT_HUB', 'LOST'],
+  AT_HUB: ['AT_HUB', 'SORTED', 'OUT_FOR_DELIVERY', 'ON_HOLD', 'LOST'],
   ON_HOLD: ['AT_HUB', 'ON_HOLD', 'LOST'],
-  IN_TRANSIT: ['IN_TRANSIT', 'AT_HUB', 'LOST'],
   OUT_FOR_DELIVERY: ['DELIVERED', 'RETURNED', 'ATTEMPT_FAILED', 'AT_HUB', 'LOST'],
   ATTEMPT_FAILED: ['AT_HUB', 'ON_HOLD', 'LOST'],
   DELIVERED: [],
   RETURNED: [],
   CANCELLED: [],
-  LOST: ['AT_HUB'],
+  LOST: ['AT_INBOUND', 'AT_HUB'],
 };
 
 export function canTransition(from: ShipmentStatus, to: ShipmentStatus): boolean {
@@ -54,9 +73,12 @@ export function isTerminal(status: ShipmentStatus): boolean {
 export const STATUS_LABELS: Record<ShipmentStatus, string> = {
   CREATED: 'Created',
   PICKED_UP: 'Picked up',
+  AT_INBOUND: 'At inbound',
+  SORTED: 'Sorted',
+  AT_OUTBOUND: 'At outbound',
+  IN_TRANSIT: 'In transit',
   AT_HUB: 'At hub',
   ON_HOLD: 'On hold',
-  IN_TRANSIT: 'In transit',
   OUT_FOR_DELIVERY: 'Out for delivery',
   ATTEMPT_FAILED: 'Attempt failed',
   DELIVERED: 'Delivered',
@@ -84,3 +106,8 @@ export type ParcelSize = (typeof PARCEL_SIZES)[number];
 
 export const ROLES = ['ADMIN', 'HUB_STAFF', 'COURIER', 'MERCHANT'] as const;
 export type Role = (typeof ROLES)[number];
+
+/** Teams inside a sorting facility. Staff with no team (supervisors) can work every station. */
+export const TEAMS = ['INBOUND', 'SORTING', 'OUTBOUND'] as const;
+export type Team = (typeof TEAMS)[number];
+export const TEAM_LABELS: Record<Team, string> = { INBOUND: 'Inbound team', SORTING: 'Sorting team', OUTBOUND: 'Outbound team' };

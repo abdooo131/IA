@@ -12,6 +12,7 @@ interface User {
   name: string;
   phone: string;
   role: Role;
+  team: string | null;
   active: boolean;
   hubId: string | null;
   merchantId: string | null;
@@ -20,12 +21,12 @@ interface User {
 }
 
 const ROLE_LABELS: Record<Role, string> = { ADMIN: 'Admin', HUB_STAFF: 'Hub staff', COURIER: 'Courier', MERCHANT: 'Merchant' };
-const empty = { role: 'HUB_STAFF' as Role, name: '', email: '', phone: '', password: '', hubId: '', merchantId: '' };
+const empty = { role: 'HUB_STAFF' as Role, name: '', email: '', phone: '', password: '', hubId: '', merchantId: '', team: '' };
 
 export default function UsersPage() {
   const me = useMe();
   const users = useLoad<User[]>('/admin/users');
-  const hubs = useLoad<{ id: string; code: string; name: string; active: boolean }[]>('/admin/hubs');
+  const hubs = useLoad<{ id: string; code: string; name: string; active: boolean; isSorting: boolean }[]>('/admin/hubs');
   const merchants = useLoad<{ id: string; name: string }[]>('/admin/merchants');
   const [form, setForm] = useState(empty);
   const [creating, setCreating] = useState(false);
@@ -46,7 +47,7 @@ export default function UsersPage() {
     setMsg(null);
     try {
       await api('/admin/users', {
-        body: { ...form, hubId: needsHub ? form.hubId || null : null, merchantId: form.role === 'MERCHANT' ? form.merchantId || null : null },
+        body: { ...form, hubId: needsHub ? form.hubId || null : null, merchantId: form.role === 'MERCHANT' ? form.merchantId || null : null, team: form.role === 'HUB_STAFF' ? form.team || null : null },
       });
       setMsg({ ok: true, text: `Account created for ${form.email}` });
       setForm({ ...empty, role: form.role, hubId: form.hubId });
@@ -96,8 +97,18 @@ export default function UsersPage() {
                 <Select required value={form.hubId} onChange={(e) => setForm({ ...form, hubId: e.target.value })}>
                   <option value="" disabled>Choose a hub</option>
                   {hubs.data.filter((h) => h.active).map((h) => (
-                    <option key={h.id} value={h.id}>{h.code} · {h.name}</option>
+                    <option key={h.id} value={h.id}>{h.code} · {h.name}{h.isSorting ? ' (sorting facility)' : ''}</option>
                   ))}
+                </Select>
+              </Field>
+            )}
+            {form.role === 'HUB_STAFF' && hubs.data.find((h) => h.id === form.hubId)?.isSorting && (
+              <Field label="Team" hint="A team member sees only their station. No team = supervisor, sees every station">
+                <Select value={form.team} onChange={(e) => setForm({ ...form, team: e.target.value })}>
+                  <option value="">Supervisor (all stations)</option>
+                  <option value="INBOUND">Inbound team</option>
+                  <option value="SORTING">Sorting team</option>
+                  <option value="OUTBOUND">Outbound team</option>
                 </Select>
               </Field>
             )}
@@ -149,7 +160,7 @@ export default function UsersPage() {
               </Td>
               <Td>{u.email}</Td>
               <Td><Badge tone={u.role === 'ADMIN' ? 'blue' : 'slate'}>{ROLE_LABELS[u.role]}</Badge></Td>
-              <Td>{u.hub?.code ?? u.merchant?.name ?? ''}</Td>
+              <Td>{u.hub?.code ?? u.merchant?.name ?? ''}{u.team ? <span className="ml-1 text-xs text-brand-700">{u.team.toLowerCase()} team</span> : null}</Td>
               <Td>{u.active ? <Badge tone="green">Active</Badge> : <Badge tone="red">Inactive</Badge>}</Td>
               <Td>
                 <div className="flex gap-1">

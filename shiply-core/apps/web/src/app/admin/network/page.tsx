@@ -11,6 +11,9 @@ interface Hub {
   name: string;
   address: string;
   isSorting: boolean;
+  parentId: string | null;
+  lat: number;
+  lng: number;
   active: boolean;
 }
 interface Zone {
@@ -38,7 +41,7 @@ interface Governorate {
   areas: Area[];
 }
 
-const emptyHub = { code: '', name: '', address: '', isSorting: false, active: true };
+const emptyHub = { code: '', name: '', address: '', isSorting: false, active: true, lat: '', lng: '', parentId: '' };
 
 function HubsCard({ hubs, reload }: { hubs: Hub[]; reload: () => Promise<void> }) {
   const [editing, setEditing] = useState<string | null>(null);
@@ -49,7 +52,7 @@ function HubsCard({ hubs, reload }: { hubs: Hub[]; reload: () => Promise<void> }
   const edit = (h: Hub | null) => {
     setError(null);
     setEditing(h ? h.id : 'new');
-    setForm(h ? { code: h.code, name: h.name, address: h.address, isSorting: h.isSorting, active: h.active } : emptyHub);
+    setForm(h ? { code: h.code, name: h.name, address: h.address, isSorting: h.isSorting, active: h.active, lat: String(h.lat), lng: String(h.lng), parentId: h.parentId ?? '' } : emptyHub);
   };
 
   const save = async (e: React.FormEvent) => {
@@ -57,8 +60,12 @@ function HubsCard({ hubs, reload }: { hubs: Hub[]; reload: () => Promise<void> }
     setBusy(true);
     setError(null);
     try {
-      if (editing === 'new') await api('/admin/hubs', { body: form });
-      else await api(`/admin/hubs/${editing}`, { method: 'PUT', body: form });
+      const lat = Number(form.lat);
+      const lng = Number(form.lng);
+      if (!form.lat || !form.lng || Number.isNaN(lat) || Number.isNaN(lng)) throw new Error('Type the map position, for example 30.0566 and 31.3301');
+      const body = { ...form, lat, lng, parentId: form.isSorting ? null : form.parentId || null };
+      if (editing === 'new') await api('/admin/hubs', { body });
+      else await api(`/admin/hubs/${editing}`, { method: 'PUT', body });
       setEditing(null);
       await reload();
     } catch (err) {
@@ -69,7 +76,7 @@ function HubsCard({ hubs, reload }: { hubs: Hub[]; reload: () => Promise<void> }
   };
 
   return (
-    <Card title="Hubs" actions={<Button tone="secondary" onClick={() => edit(null)}>Add hub</Button>}>
+    <Card title="Sorting facilities and last mile hubs" actions={<Button tone="secondary" onClick={() => edit(null)}>Add</Button>}>
       {editing && (
         <form onSubmit={save} className="mb-5 grid gap-3 rounded-lg bg-slate-50 p-4 sm:grid-cols-2">
           {error && <div className="sm:col-span-2"><Alert>{error}</Alert></div>}
@@ -82,10 +89,24 @@ function HubsCard({ hubs, reload }: { hubs: Hub[]; reload: () => Promise<void> }
           <Field label="Address" className="sm:col-span-2">
             <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </Field>
+          <Field label="Latitude" hint="From Google Maps, for example 30.0566">
+            <Input inputMode="decimal" required value={form.lat} onChange={(e) => setForm({ ...form, lat: e.target.value })} />
+          </Field>
+          <Field label="Longitude" hint="For example 31.3301">
+            <Input inputMode="decimal" required value={form.lng} onChange={(e) => setForm({ ...form, lng: e.target.value })} />
+          </Field>
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.isSorting} onChange={(e) => setForm({ ...form, isSorting: e.target.checked })} />
-            Sorting hub (every parcel passes through it)
+            Sorting facility (inbound, sorting and outbound teams; receives pickups)
           </label>
+          {!form.isSorting && (
+            <Field label="Fed by sorting facility" hint="Leave on Nearest to let the system pick by distance">
+              <Select value={form.parentId} onChange={(e) => setForm({ ...form, parentId: e.target.value })}>
+                <option value="">Nearest</option>
+                {hubs.filter((x) => x.isSorting).map((x) => <option key={x.id} value={x.id}>{x.code} · {x.name}</option>)}
+              </Select>
+            </Field>
+          )}
           <label className="flex items-center gap-2 text-sm">
             <input type="checkbox" checked={form.active} onChange={(e) => setForm({ ...form, active: e.target.checked })} />
             Active
@@ -96,13 +117,14 @@ function HubsCard({ hubs, reload }: { hubs: Hub[]; reload: () => Promise<void> }
           </div>
         </form>
       )}
-      <Table head={['Code', 'Name', 'Address', 'Type', 'Status', '']}>
+      <Table head={['Code', 'Name', 'Address', 'Type', 'Fed by', 'Status', '']}>
         {hubs.map((h) => (
           <tr key={h.id}>
             <Td className="font-mono font-semibold">{h.code}</Td>
             <Td>{h.name}</Td>
             <Td className="text-slate-600">{h.address}</Td>
-            <Td>{h.isSorting ? <Badge tone="blue">Sorting</Badge> : 'Delivery'}</Td>
+            <Td>{h.isSorting ? <Badge tone="blue">Sorting facility</Badge> : 'Last mile hub'}</Td>
+            <Td className="font-mono">{h.parentId ? hubs.find((x) => x.id === h.parentId)?.code : ''}</Td>
             <Td>{h.active ? <Badge tone="green">Active</Badge> : <Badge>Inactive</Badge>}</Td>
             <Td>
               <Button tone="ghost" onClick={() => edit(h)}>Edit</Button>

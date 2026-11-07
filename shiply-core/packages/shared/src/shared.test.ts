@@ -1,6 +1,6 @@
 import { applyBp, egpToPiastres, formatEgp } from './money';
 import { isValidTrackingNumber, makeTrackingNumber } from './tracking';
-import { nextHop } from './routing';
+import { distanceKm, nearest, nextHop } from './routing';
 import { addBusinessDays, cairoClock, promisedDate } from './dates';
 import { codFee, returnFee, shippingFee } from './pricing';
 import { canTransition } from './statuses';
@@ -38,23 +38,28 @@ describe('tracking numbers', () => {
 });
 
 describe('routing', () => {
-  const base = { originHubId: 'A', destinationHubId: 'B', sortingHubId: 'S' };
-  it('sends a parcel from its pickup hub to sorting', () => {
-    expect(nextHop({ ...base, direction: 'FORWARD', currentHubId: 'A' })).toBe('S');
+  // OBR feeds GIZ; ALXSF feeds ALX. Merchant belongs to OBR.
+  const hubs = new Map([
+    ['OBR', { id: 'OBR', isSorting: true, parentId: null }],
+    ['ALXSF', { id: 'ALXSF', isSorting: true, parentId: null }],
+    ['GIZ', { id: 'GIZ', isSorting: false, parentId: 'OBR' }],
+    ['ALX', { id: 'ALX', isSorting: false, parentId: 'ALXSF' }],
+  ]);
+  const hop = (direction: 'FORWARD' | 'RETURN', currentHubId: string, destinationHubId: string) =>
+    nextHop({ direction, currentHubId, originHubId: 'OBR', destinationHubId }, hubs);
+  it('sends from the facility straight to a hub it feeds', () => {
+    expect(hop('FORWARD', 'OBR', 'GIZ')).toBe('GIZ');
+    expect(hop('FORWARD', 'GIZ', 'GIZ')).toBeNull();
   });
-  it('sends from sorting to the delivery hub', () => {
-    expect(nextHop({ ...base, direction: 'FORWARD', currentHubId: 'S' })).toBe('B');
+  it('line hauls to the facility that feeds a far hub', () => {
+    expect(hop('FORWARD', 'OBR', 'ALX')).toBe('ALXSF');
+    expect(hop('FORWARD', 'ALXSF', 'ALX')).toBe('ALX');
   });
-  it('is ready at the delivery hub', () => {
-    expect(nextHop({ ...base, direction: 'FORWARD', currentHubId: 'B' })).toBeNull();
-  });
-  it('routes returns back to the merchant hub', () => {
-    expect(nextHop({ ...base, direction: 'RETURN', currentHubId: 'B' })).toBe('S');
-    expect(nextHop({ ...base, direction: 'RETURN', currentHubId: 'S' })).toBe('A');
-    expect(nextHop({ ...base, direction: 'RETURN', currentHubId: 'A' })).toBeNull();
-  });
-  it('goes direct when the sorting hub is the target', () => {
-    expect(nextHop({ ...base, destinationHubId: 'S', direction: 'FORWARD', currentHubId: 'A' })).toBe('S');
+  it('brings returns back through the facilities to the merchant facility', () => {
+    expect(hop('RETURN', 'ALX', 'ALX')).toBe('ALXSF');
+    expect(hop('RETURN', 'ALXSF', 'ALX')).toBe('OBR');
+    expect(hop('RETURN', 'OBR', 'ALX')).toBeNull();
+    expect(hop('RETURN', 'GIZ', 'GIZ')).toBe('OBR');
   });
 });
 
@@ -96,6 +101,8 @@ describe('status machine', () => {
   it('allows the happy path and blocks skipping', () => {
     expect(canTransition('CREATED', 'PICKED_UP')).toBe(true);
     expect(canTransition('AT_HUB', 'OUT_FOR_DELIVERY')).toBe(true);
+    expect(canTransition('AT_INBOUND', 'SORTED')).toBe(true);
+    expect(canTransition('AT_INBOUND', 'OUT_FOR_DELIVERY')).toBe(false);
     expect(canTransition('CREATED', 'DELIVERED')).toBe(false);
     expect(canTransition('DELIVERED', 'AT_HUB')).toBe(false);
   });
@@ -106,5 +113,15 @@ describe('phones', () => {
     expect(normalizeEgyptPhone('01012345678')).toBe('+201012345678');
     expect(normalizeEgyptPhone('+20 101 234 5678')).toBe('+201012345678');
     expect(normalizeEgyptPhone('0221234567')).toBeNull();
+  });
+});
+
+describe('nearest facility', () => {
+  it('picks the closest by distance', () => {
+    const obour = { id: 'OBR', lat: 30.2, lng: 31.47 };
+    const alex = { id: 'ALXSF', lat: 31.2, lng: 29.92 };
+    expect(nearest({ lat: 30.09, lng: 31.32 }, [obour, alex])?.id).toBe('OBR'); // Heliopolis
+    expect(nearest({ lat: 31.04, lng: 30.47 }, [obour, alex])?.id).toBe('ALXSF'); // Damanhour
+    expect(Math.round(distanceKm(obour, alex))).toBeGreaterThan(150);
   });
 });

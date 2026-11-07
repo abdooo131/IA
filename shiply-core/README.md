@@ -40,9 +40,10 @@ Password `demo12345` (from `SEED_DEMO_PASSWORD`). The admin uses `SEED_ADMIN_EMA
 | Who | Email |
 | --- | --- |
 | Admin | `admin@shiply.local` |
-| Merchant (Eve Chantelle) | `merchant@evechantelle.example` |
-| Hub staff | `staff.caie@shiply.local` (Nasr City), `staff.sort@shiply.local` (sorting), `staff.giz@shiply.local` (Dokki) and one per hub: `staff.<hub code without dashes, lower case>@shiply.local` |
-| Couriers | `courier.caie@shiply.local`, `courier.giz@shiply.local`, … one per delivery hub |
+| Merchants | `merchant@evechantelle.example` (Heliopolis, Obour), `merchant@nilehome.example` (Alexandria) |
+| Obour facility | `staff.obr@` supervisor, `inbound.obr@`, `sorting.obr@`, `outbound.obr@`, first mile `courier.obr@` (all `@shiply.local`) |
+| Alexandria facility | the same with `alxsf` |
+| Last mile hubs | `staff.<hub>@shiply.local` and `courier.<hub>@shiply.local` for `caie`, `cais`, `giz`, `dlt`, `ast`, `alx`, `dmn` |
 
 ## Tests
 
@@ -50,8 +51,9 @@ Password `demo12345` (from `SEED_DEMO_PASSWORD`). The admin uses `SEED_ADMIN_EMA
 pnpm test
 ```
 
-The API test walks parcels through the whole flow (pickup, line haul both ways, delivery,
-refusal, return, three failed attempts, cash, payout, tracking privacy, permissions) on a new
+The API test walks parcels through the company flow (pickup to the nearest facility, inbound,
+sorting and outbound teams, facility to facility line haul, last mile delivery, refusal, return
+through the facility, three failed attempts, cash, payout, tracking privacy, team permissions) on a new
 database it creates and drops itself, so it never touches existing data.
 
 ## Rules the code keeps

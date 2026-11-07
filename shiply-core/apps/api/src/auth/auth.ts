@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import type { Role } from '@shiply/shared';
+import type { Role, Team } from '@shiply/shared';
 import type { Request } from 'express';
 import { DomainError } from '../common/errors';
 import { PrismaService } from '../common/prisma.service';
@@ -19,6 +19,7 @@ export interface SessionUser {
   name: string;
   email: string;
   role: Role;
+  team: Team | null;
   hubId: string | null;
   merchantId: string | null;
 }
@@ -66,6 +67,7 @@ export class AuthGuard implements CanActivate {
       name: user.name,
       email: user.email,
       role: user.role,
+      team: user.team,
       hubId: user.hubId,
       merchantId: user.merchantId,
     };
@@ -74,6 +76,16 @@ export class AuthGuard implements CanActivate {
     if (roles && !roles.includes(user.role)) throw new DomainError('forbidden', 'Your account cannot open this', 403);
     return true;
   }
+}
+
+/**
+ * Inside a sorting facility each station belongs to one team. Staff with no team (supervisors)
+ * and admins can work every station. Last mile hubs have no teams.
+ */
+export function assertTeam(user: SessionUser, hub: { isSorting: boolean }, team: Team) {
+  if (!hub.isSorting || user.role === 'ADMIN' || !user.team || user.team === team) return;
+  const names = { INBOUND: 'inbound', SORTING: 'sorting', OUTBOUND: 'outbound' } as const;
+  throw new DomainError('wrong_team', `This is the ${names[team]} team's station. You are in the ${names[user.team]} team`, 403);
 }
 
 /** Hub staff work only in their own hub. Admin can act in any hub. */
