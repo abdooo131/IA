@@ -2,7 +2,8 @@
 // the starting data, then runs the API and the web app. If either stops, the
 // container stops too, so the host restarts it.
 import { spawn, spawnSync } from 'node:child_process';
-import { createRequire } from 'node:module';
+import { readFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -34,70 +35,21 @@ const migrate = spawnSync(
 );
 if (migrate.status !== 0) process.exit(migrate.status ?? 1);
 
-// The one time fresh start (docs/DEPLOY.md): with FRESH_START set to the confirmation word,
-// the demo activity is wiped after the migrations, before the seed and before the API (and
-// its jobs) start. It is one transaction: on failure nothing changed and the app starts.
-const loadDb = () => {
-  const require = createRequire(import.meta.url);
-  process.env.DATABASE_URL = env.DATABASE_URL;
-  return require(path.join(root, 'packages/db/dist/index.js'));
-};
-if (env.FRESH_START) {
-  const db = loadDb();
-  const prisma = new db.PrismaClient();
-  try {
-    if (env.FRESH_START !== db.FRESH_START_CONFIRMATION) {
-      log('FRESH_START is set but is not the confirmation word; nothing was wiped');
-    } else if (await db.freshStartDone(prisma)) {
-      log('fresh start already done on this database; remove FRESH_START');
-    } else {
-      log('fresh start: wiping the demo activity (one transaction)');
-      const result = await db.freshStart(prisma, { confirm: env.FRESH_START });
-      log(`fresh start done; kept merchants: ${result.keptMerchants.join(', ') || 'none'}`);
-      log(`fresh start: kept users: ${result.keptUsers}`);
-      for (const table of Object.keys(result.before)) {
-        const before = result.before[table];
-        const after = result.after[table];
-        if (before !== after) log(`fresh start: ${table} ${before} -> ${after}`);
-      }
-      log('fresh start: remove FRESH_START from the service environment');
-    }
-  } catch (error) {
-    log(`fresh start failed, nothing changed: ${error instanceof Error ? error.message : error}`);
-  } finally {
-    await prisma.$disconnect();
-  }
+// Fresh start, starting data and the demo month run in deploy/prepare.mjs, a separate process,
+// so their memory is freed before the servers start.
+const resultFile = path.join(os.tmpdir(), `shiply-prepare-${process.pid}.json`);
+const prepare = spawnSync(process.execPath, [path.join(root, 'deploy/prepare.mjs')], {
+  env: { ...env, PREPARE_RESULT: resultFile },
+  stdio: 'inherit',
+});
+if (prepare.status !== 0)
+  log(`preparation stopped (${prepare.status ?? prepare.signal}); starting anyway`);
+try {
+  if (!JSON.parse(readFileSync(resultFile, 'utf8')).demoLoad) env.DEMO_LOAD = 'false';
+} catch {
+  /* no result: keep the environment as it is */
 }
-
-if (env.SEED_ON_START === 'true') {
-  if (!env.SEED_ADMIN_EMAIL || !env.SEED_ADMIN_PASSWORD) {
-    log(
-      'SEED_ON_START is true but SEED_ADMIN_EMAIL or SEED_ADMIN_PASSWORD is missing; skipping seed',
-    );
-  } else {
-    log('loading starting data (only missing rows are created)');
-    const db = loadDb();
-    const prisma = new db.PrismaClient();
-    try {
-      await db.seed(prisma, {
-        admin: {
-          email: env.SEED_ADMIN_EMAIL,
-          password: env.SEED_ADMIN_PASSWORD,
-          name: env.SEED_ADMIN_NAME ?? 'Shiply Admin',
-        },
-        demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
-        // The parcel network (docs/MERGE.md): facilities, hubs, prices and, unless
-        // SEED_NETWORK_DEMO is off, its demo agents, hub staff, couriers and merchants.
-        network: true,
-        networkDemo: env.SEED_NETWORK_DEMO !== 'off',
-        networkEverywhere: env.SEED_COVERAGE === 'all',
-        log,
-      });
-    } finally {
-      await prisma.$disconnect();
-    }
-  }
-}
+if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
 
 const children = [];
 function start(name, command, args, cwd) {
@@ -108,53 +60,6 @@ function start(name, command, args, cwd) {
     process.exit(code ?? 1);
   });
   children.push(child);
-}
-
-// The demo month (DEMO_LOAD=true) runs once before the servers start, and the API's background
-// jobs stay paused while DEMO_LOAD is set so they never act on half simulated orders. Set
-// DEMO_LOAD back to false afterwards: the next start turns the jobs on again.
-// Never after the fresh start: the demo loader refuses, and the jobs must keep running.
-if (env.DEMO_LOAD === 'true') {
-  const db = loadDb();
-  const prisma = new db.PrismaClient();
-  try {
-    if (await db.freshStartDone(prisma)) {
-      log('DEMO_LOAD is ignored: this database had its fresh start; remove DEMO_LOAD');
-      env.DEMO_LOAD = 'false';
-    }
-  } finally {
-    await prisma.$disconnect();
-  }
-}
-if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
-
-// The demo month runs first, alone: on a 512 MB instance the servers and the loader do not fit
-// together (a restart midway leaves a partial month that the loader then refuses to finish).
-// Meanwhile a small page answers on the public port so the host sees the service alive.
-if (env.DEMO_LOAD === 'true') {
-  const http = await import('node:http');
-  const holding = http.createServer((_req, res) => {
-    res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'retry-after': '60' });
-    res.end('Shiply is loading its demo month. Try again in a few minutes.\n');
-  });
-  await new Promise((resolve) => holding.listen(Number(port), '0.0.0.0', resolve));
-  log('loading the demo month before the servers start (skipped when it was already loaded)');
-  const db = loadDb();
-  const prisma = new db.PrismaClient({
-    transactionOptions: { maxWait: 20_000, timeout: 60_000 },
-  });
-  try {
-    const result = await db.loadDemo(prisma, {
-      demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
-      log,
-    });
-    log(`demo load: ${result.status}; set DEMO_LOAD to false to turn the jobs back on`);
-  } catch (error) {
-    log(`demo load failed: ${error instanceof Error ? error.message : error}`);
-  } finally {
-    await prisma.$disconnect();
-    await new Promise((resolve) => holding.close(resolve));
-  }
 }
 
 log(`starting API on 127.0.0.1:${env.API_PORT} and web on 0.0.0.0:${port}`);
