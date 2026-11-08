@@ -66,6 +66,7 @@ const monthStart = (month: string) => cairoDayStart(`${month}-01`);
 
 const versionInclude = {
   tiers: { orderBy: { fromOrder: 'asc' } },
+  parcelPrices: { orderBy: [{ zoneCode: 'asc' }, { size: 'asc' }] },
   contract: { select: { number: true, merchantId: true } },
   createdBy: { select: { name: true } },
   activatedBy: { select: { name: true } },
@@ -270,6 +271,17 @@ function versionView(
       pricePiastres: p.pricePiastres,
     })),
     tiers: tiersOf(v.tiers),
+    /** Next day parcels (Shiply): null keeps the network's volume tier and settings */
+    parcels: {
+      discountBp: v.parcelDiscountBp,
+      codFeeBp: v.parcelCodFeeBp,
+      returnFeeBp: v.parcelReturnFeeBp,
+      prices: v.parcelPrices.map((p) => ({
+        zoneCode: p.zoneCode,
+        size: p.size,
+        pricePiastres: p.pricePiastres,
+      })),
+    },
     payoutSchedule: v.payoutSchedule as PayoutScheduleName | null,
     minimumPayoutPiastres: v.minimumPayoutPiastres,
     minimumMonthlyFeePiastres: v.minimumMonthlyFeePiastres,
@@ -504,6 +516,9 @@ function versionData(body: ContractVersionBody) {
   return {
     ...prices,
     failedDeliveryPercentBp: body.failedDeliveryPercentBp ?? null,
+    parcelDiscountBp: body.parcelDiscountBp ?? null,
+    parcelCodFeeBp: body.parcelCodFeeBp ?? null,
+    parcelReturnFeeBp: body.parcelReturnFeeBp ?? null,
     payoutSchedule: body.payoutSchedule,
     minimumPayoutPiastres: body.minimumPayoutPiastres,
     minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres,
@@ -538,6 +553,9 @@ function auditTerms(v: ContractVersionView) {
     ...v.prices,
     failedDeliveryPercentBp: v.failedDeliveryPercentBp,
     productPrices: v.productPrices.map((p) => `${p.sku}=${p.pricePiastres}`).join('; '),
+    parcels: `discount=${v.parcels.discountBp} cod=${v.parcels.codFeeBp} return=${v.parcels.returnFeeBp} ${v.parcels.prices
+      .map((p) => `${p.zoneCode}/${p.size}=${p.pricePiastres}`)
+      .join('; ')}`,
     tiers,
     payoutSchedule: v.payoutSchedule,
     minimumPayout: v.minimumPayoutPiastres,
@@ -572,6 +590,38 @@ async function checkProducts(tx: Tx, merchantId: string, body: ContractVersionBo
   const found = await tx.sku.count({ where: { id: { in: ids }, merchantId } });
   if (found !== ids.length) throw new DomainError('product_not_found', 400);
   return rows.map((p) => ({ skuId: p.skuId, pricePiastres: p.pricePiastres }));
+}
+
+/** Next day prices only for zones the network has. */
+async function checkParcelPrices(tx: Tx, body: ContractVersionBody) {
+  const rows = body.parcelPrices ?? [];
+  const zones = [...new Set(rows.map((p) => p.zoneCode))];
+  if (!zones.length) return [];
+  const found = await tx.pricingZone.count({ where: { code: { in: zones } } });
+  if (found !== zones.length) throw new DomainError('zone_not_found', 400);
+  return rows.map((p) => ({ zoneCode: p.zoneCode, size: p.size, pricePiastres: p.pricePiastres }));
+}
+
+/**
+ * A merchant's next day terms on a Cairo day (Shiply): the version in force, field by field;
+ * null keeps the network's standard (volume tier, cash collection and return fee settings).
+ */
+export async function parcelTermsAt(db: Db, merchantId: string, day: string) {
+  const v = await versionInForce(db, merchantId, day);
+  const on = v && covers(v, day) ? v : null;
+  return {
+    version: on ? contractVersionLabel(on.contract.number, on.version) : null,
+    discountBp: on?.parcelDiscountBp ?? null,
+    codFeeBp: on?.parcelCodFeeBp ?? null,
+    returnFeeBp: on?.parcelReturnFeeBp ?? null,
+    /** The fixed price of a zone and size, or null for the list price */
+    priceOf(zoneCode: string, size: string) {
+      return (
+        on?.parcelPrices.find((p) => p.zoneCode === zoneCode && p.size === size)?.pricePiastres ??
+        null
+      );
+    },
+  };
 }
 
 async function lockMerchant(tx: Tx, merchantId: string) {
@@ -650,6 +700,7 @@ export function createContractDraft(
         idempotencyKey: input.idempotencyKey ?? null,
         tiers: { create: tiersOf(input.body.tiers) },
         products: { create: products },
+        parcelPrices: { create: await checkParcelPrices(tx, input.body) },
       },
       include: versionFullInclude,
     });
@@ -676,12 +727,14 @@ export function updateContractDraft(
     const products = await checkProducts(tx, input.merchantId, input.body);
     await tx.merchantContractVersionTier.deleteMany({ where: { versionId: before.id } });
     await tx.merchantContractVersionProduct.deleteMany({ where: { versionId: before.id } });
+    await tx.merchantContractVersionParcelPrice.deleteMany({ where: { versionId: before.id } });
     const after = await tx.merchantContractVersion.update({
       where: { id: before.id },
       data: {
         ...versionData(input.body),
         tiers: { create: tiersOf(input.body.tiers) },
         products: { create: products },
+        parcelPrices: { create: await checkParcelPrices(tx, input.body) },
       },
       include: versionFullInclude,
     });

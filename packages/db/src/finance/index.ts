@@ -234,6 +234,7 @@ export {
   standardPrices,
   submitDeposit,
   updateContractDraft,
+  parcelTermsAt,
   versionInForce,
   versionProductPrices,
   type VersionDisplayStatus,

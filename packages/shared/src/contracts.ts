@@ -429,6 +429,16 @@ export function failedDeliveryCharge(rule: FailedDeliveryRule, shipmentPiastres:
   return rule.mode === 'fixed' ? rule.piastres : bpShare(shipmentPiastres, rule.bp);
 }
 
+/** Parcel sizes of next day parcels (Shiply), as the network names them. */
+export const CONTRACT_PARCEL_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'BULKY'] as const;
+/** A fixed next day price for one zone and parcel size, replacing the list price. */
+export const contractParcelPriceSchema = z.object({
+  zoneCode: z.string().trim().min(1).max(20),
+  size: z.enum(CONTRACT_PARCEL_SIZES),
+  pricePiastres: money,
+});
+export type ContractParcelPrice = z.infer<typeof contractParcelPriceSchema>;
+
 /** A contract version as merchants manage writes it (a new draft, or a draft changed). */
 export const contractVersionSchema = z
   .object({
@@ -438,6 +448,15 @@ export const contractVersionSchema = z
     /** Price per delivered unit of each product (products left out: nothing) */
     productPrices: z.array(contractProductPriceSchema).max(CONTRACT_PRODUCT_PRICES_MAX).default([]),
     tiers: z.array(contractTierSchema).max(20),
+    // Next day parcels (Shiply): null keeps the network's standard (volume tier and settings)
+    /** Discount on the list price of every parcel (null: the volume tier of last month) */
+    parcelDiscountBp: bp.nullable().default(null),
+    /** Cash collection fee, share of the cash collected (null: the network's setting) */
+    parcelCodFeeBp: bp.nullable().default(null),
+    /** Return fee, share of the shipping price (null: the network's setting) */
+    parcelReturnFeeBp: bp.nullable().default(null),
+    /** Fixed prices per zone and size: they replace the list price and take no discount */
+    parcelPrices: z.array(contractParcelPriceSchema).max(100).default([]),
     // Payment terms
     /** The agreed payout schedule (null: the merchant's own choice stays) */
     payoutSchedule: z.enum(PAYOUT_SCHEDULES).nullable(),
@@ -477,7 +496,12 @@ export const contractVersionSchema = z
   .refine((c) => new Set(c.productPrices.map((p) => p.skuId)).size === c.productPrices.length, {
     message: 'product_twice',
     path: ['productPrices'],
-  });
+  })
+  .refine(
+    (c) =>
+      new Set(c.parcelPrices.map((p) => `${p.zoneCode}/${p.size}`)).size === c.parcelPrices.length,
+    { message: 'parcel_price_twice', path: ['parcelPrices'] },
+  );
 export type ContractVersionBody = z.infer<typeof contractVersionSchema>;
 export type ContractVersionInput = z.input<typeof contractVersionSchema>;
 

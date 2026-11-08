@@ -1,4 +1,4 @@
-import type { ParcelSize } from '@shiplynow/db';
+import { parcelTermsAt, type ParcelSize } from '@shiplynow/db';
 import { quote, type SettingValues } from '@shiplynow/shared/parcels';
 import type { PrismaService, Tx } from '../common/prisma.service';
 import type { ShipmentsCore } from '../core/shipments.core';
@@ -38,13 +38,25 @@ export async function priceFor(
   },
 ) {
   const { hubId, zone } = await core.deliveryHubFor(db as Tx, a.governorateCode, a.areaId);
-  const agreed = await db.merchantPrice.findUnique({
-    where: {
-      merchantId_zoneCode_size: { merchantId: a.merchantId, zoneCode: zone.code, size: a.size },
-    },
-  });
+  // The merchant's contract (one for both services) decides first: a fixed price for the zone
+  // and size, else its discount; then the older per merchant prices and discount, then the tier.
+  const terms = await parcelTermsAt(db as never, a.merchantId, todayInCairo());
+  const contractPrice = terms.priceOf(zone.code, a.size);
+  const agreed =
+    contractPrice !== null
+      ? { price: contractPrice }
+      : await db.merchantPrice.findUnique({
+          where: {
+            merchantId_zoneCode_size: {
+              merchantId: a.merchantId,
+              zoneCode: zone.code,
+              size: a.size,
+            },
+          },
+        });
   const discountBp =
-    a.discountBp > 0 ? a.discountBp : ((await tierFor(db, a.merchantId)).tier?.discountBp ?? 0);
+    terms.discountBp ??
+    (a.discountBp > 0 ? a.discountBp : ((await tierFor(db, a.merchantId)).tier?.discountBp ?? 0));
   const q = quote({
     zone,
     size: a.size,
@@ -56,4 +68,14 @@ export async function priceFor(
     exchangeBp: s['fees.exchange_bp'],
   });
   return { hubId, zone, discountBp, agreed: !!agreed, ...q };
+}
+
+/** The merchant's cash collection and return fees: their contract's, else the network's settings. */
+export async function parcelFees(db: Tx | PrismaService, merchantId: string, s: SettingValues) {
+  const terms = await parcelTermsAt(db as never, merchantId, todayInCairo());
+  return {
+    codFeeBp: terms.codFeeBp ?? s['fees.cod_fee_bp'],
+    codFreeAmount: s['fees.cod_free_amount'],
+    returnFeeBp: terms.returnFeeBp ?? s['fees.return_fee_bp'],
+  };
 }

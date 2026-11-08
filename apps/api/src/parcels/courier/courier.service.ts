@@ -13,6 +13,7 @@ import { postDelivered, postFlexPaid, postReturned } from '../finance/postings';
 import { openAlert } from '../agents/alerts';
 import { checkDeliveryCode, sendDeliveryCode } from '../common/delivery-code';
 import { queueParcelMessage } from '../common/messages';
+import { parcelFees } from '../merchant/pricing';
 
 const Code = z.object({ code: z.string().trim().min(3).max(40) });
 const PHOTO = z.object({
@@ -260,11 +261,7 @@ export class CourierService {
         const fee =
           s.kind === 'CUSTOMER_RETURN'
             ? 0
-            : returnFee(s.shippingFee, {
-                codFeeBp: settings['fees.cod_fee_bp'],
-                codFreeAmount: settings['fees.cod_free_amount'],
-                returnFeeBp: settings['fees.return_fee_bp'],
-              });
+            : returnFee(s.shippingFee, await parcelFees(tx, s.merchantId, settings));
         await tx.runItem.update({
           where: { id: item.id },
           data: { result: 'RETURNED', recipient: d.recipient, resolvedAt: now, ...proof },

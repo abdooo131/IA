@@ -3600,6 +3600,13 @@ model MerchantContractVersion {
   packagingChargePiastres     Int?                  @map("packaging_charge_piastres")
   /// A failed attempt costs this share of the shipment charges when no fixed fee is set
   failedDeliveryPercentBp     Int?                  @map("failed_delivery_percent_bp")
+  // Next day parcels (Shiply); null keeps the network's volume tier and settings
+  /// Discount on the list price of every parcel
+  parcelDiscountBp            Int?                  @map("parcel_discount_bp")
+  /// Cash collection fee, share of the cash collected
+  parcelCodFeeBp              Int?                  @map("parcel_cod_fee_bp")
+  /// Return fee, share of the shipping price
+  parcelReturnFeeBp           Int?                  @map("parcel_return_fee_bp")
   // Payment terms
   /// The agreed schedule, set on the merchant when the version takes effect (null: theirs)
   payoutSchedule              PayoutSchedule?       @map("payout_schedule")
@@ -3640,12 +3647,13 @@ model MerchantContractVersion {
   createdAt                   DateTime              @default(now()) @map("created_at")
   updatedAt                   DateTime              @updatedAt @map("updated_at")
 
-  contract    MerchantContract                 @relation(fields: [contractId], references: [id], onDelete: Restrict)
-  createdBy   User?                            @relation("contract_version_created_by", fields: [createdById], references: [id], onDelete: Restrict)
-  activatedBy User?                            @relation("contract_version_activated_by", fields: [activatedById], references: [id], onDelete: Restrict)
-  tiers       MerchantContractVersionTier[]
-  products    MerchantContractVersionProduct[]
-  files       MerchantContractFile[]
+  contract     MerchantContract                     @relation(fields: [contractId], references: [id], onDelete: Restrict)
+  createdBy    User?                                @relation("contract_version_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  activatedBy  User?                                @relation("contract_version_activated_by", fields: [activatedById], references: [id], onDelete: Restrict)
+  tiers        MerchantContractVersionTier[]
+  products     MerchantContractVersionProduct[]
+  parcelPrices MerchantContractVersionParcelPrice[]
+  files        MerchantContractFile[]
 
   @@unique([contractId, version])
   @@index([contractId, status, effectiveFrom])
@@ -3677,6 +3685,21 @@ model MerchantContractVersionTier {
 
 /// A product's price on a contract version, charged per delivered unit (no tiers). Frozen
 /// with its version once activated.
+/// A fixed next day price for one zone and parcel size (frozen with the version)
+model MerchantContractVersionParcelPrice {
+  id            String     @id @default(cuid())
+  versionId     String     @map("version_id")
+  zoneCode      String     @map("zone_code")
+  size          ParcelSize
+  pricePiastres Int        @map("price_piastres")
+
+  version MerchantContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  zone    PricingZone             @relation(fields: [zoneCode], references: [code], onDelete: Restrict)
+
+  @@unique([versionId, zoneCode, size])
+  @@map("merchant_contract_version_parcel_prices")
+}
+
 model MerchantContractVersionProduct {
   id            String @id @default(cuid())
   versionId     String @map("version_id")
@@ -4170,6 +4193,12 @@ model CrmProposal {
   packagingChargePiastres     Int               @default(0) @map("packaging_charge_piastres")
   /// A failed attempt costs this share of the shipment charges (null: the fixed fee)
   failedDeliveryPercentBp     Int?              @map("failed_delivery_percent_bp")
+  /// The proposal also quotes next day parcels (Shiply)
+  includesParcels             Boolean           @default(false) @map("includes_parcels")
+  /// Next day terms (null: the network's volume tier and settings)
+  parcelDiscountBp            Int?              @map("parcel_discount_bp")
+  parcelCodFeeBp              Int?              @map("parcel_cod_fee_bp")
+  parcelReturnFeeBp           Int?              @map("parcel_return_fee_bp")
   orderFixedPiastres          Int               @map("order_fixed_piastres")
   orderPercentBp              Int               @map("order_percent_bp")
   codPercentBp                Int               @map("cod_percent_bp")
@@ -5117,7 +5146,8 @@ model PricingZone {
   priceXXL    Int    @default(0) @map("price_xxl")
   priceBulky  Int    @default(0) @map("price_bulky")
 
-  governorates Governorate[] @relation("parcels_governorate_zone")
+  governorates   Governorate[]                        @relation("parcels_governorate_zone")
+  contractPrices MerchantContractVersionParcelPrice[]
 
   @@map("pricing_zones")
 }

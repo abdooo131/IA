@@ -18,7 +18,7 @@ import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo } from '../core/shipments.core';
-import { priceFor } from './pricing';
+import { parcelFees, priceFor } from './pricing';
 import { queueShipmentWebhooks } from '../common/webhooks';
 
 const MAX_COD = 100_000 * 100; // 100,000 EGP
@@ -125,11 +125,7 @@ export class MerchantService {
         home.homeHubId,
         hubId,
       );
-      const cod = codFee(data.codAmount, {
-        codFeeBp: settings['fees.cod_fee_bp'],
-        codFreeAmount: settings['fees.cod_free_amount'],
-        returnFeeBp: settings['fees.return_fee_bp'],
-      });
+      const cod = codFee(data.codAmount, await parcelFees(tx, merchantId, settings));
       const trackingNumber = makeTrackingNumber(
         settings['tracking.prefix'],
         await nextNumber(tx, 'tracking_seq'),

@@ -1081,6 +1081,11 @@ export async function confirmProposal(
             fresh.failedDeliveryPercentBp === null ? fees.failedDeliveryPiastres : null,
           failedDeliveryPercentBp: fresh.failedDeliveryPercentBp,
           productPrices: [...matched].map(([skuId, pricePiastres]) => ({ skuId, pricePiastres })),
+          // Next day parcels (Shiply): the proposal's terms, else the network's standard.
+          parcelDiscountBp: fresh.parcelDiscountBp ?? null,
+          parcelCodFeeBp: fresh.parcelCodFeeBp ?? null,
+          parcelReturnFeeBp: fresh.parcelReturnFeeBp ?? null,
+          parcelPrices: [],
           tiers: tiersOf(fresh),
           payoutSchedule: fresh.payoutSchedule,
           minimumPayoutPiastres: fresh.minimumPayoutPiastres,
