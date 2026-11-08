@@ -342,11 +342,12 @@ export default function MerchantsPage() {
               <Td className="tabular ltr-iso">
                 {m.discountBp / 100}%
                 <div>
+                  {/* One merchant page and one contract for both services (Merchants app). */}
                   <Link
-                    href={`/parcels/admin/merchants/${m.id}/prices`}
+                    href={`/admin/merchants/${m.id}?tab=contract`}
                     className="text-caption font-bold text-link"
                   >
-                    {t('Agreed prices')}
+                    {t('Prices in the contract')}
                   </Link>
                 </div>
               </Td>

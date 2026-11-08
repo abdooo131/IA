@@ -113,4 +113,19 @@ describe('one contract for both services', () => {
       .send({ ...BODY, parcelDiscountBp: 0 })
       .expect((r) => expect(r.status).toBeGreaterThanOrEqual(400));
   });
+
+  it('the merchant page shows and saves the next day setup; the facility is the nearest', async () => {
+    const mid = (await prisma.merchant.findUnique({ where: { code: 'EVE' } })).id;
+    const nd = await admin.get(`/parcels/admin/merchants/${mid}/next-day`).expect(200);
+    expect(nd.body).toMatchObject({ code: 'EVE', ready: true, homeHub: { code: 'OBR' } });
+    const alx = await admin
+      .put(`/parcels/admin/merchants/${mid}/next-day`)
+      .send({ code: 'EVE', pickupAddress: '40 Fouad St, Alexandria', governorateCode: 'EG-ALX' })
+      .expect(200);
+    expect(alx.body.homeHub.code).toBe('ALXSF');
+    await admin
+      .put(`/parcels/admin/merchants/${mid}/next-day`)
+      .send({ code: 'NILE', pickupAddress: '40 Fouad St, Alexandria', governorateCode: 'EG-ALX' })
+      .expect(409);
+  });
 });

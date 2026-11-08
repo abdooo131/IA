@@ -1091,7 +1091,8 @@
         "products": "Products and stock",
         "users": "Users",
         "profit": "Profit",
-        "history": "History"
+        "history": "History",
+        "nextDay": "Next day"
       },
       "active": "Active",
       "paused": "Paused",
@@ -1155,6 +1156,32 @@
           "active": "Connected",
           "uninstalled": "Uninstalled"
         }
+      },
+      "nextDay": {
+        "title": "Next day parcels (Shiply)",
+        "intro": "Shiply picks up from the merchant and delivers anywhere we cover by the next day.",
+        "status": "Ready to send parcels",
+        "ready": "Yes",
+        "notReady": "Not yet: add a code and a pickup address",
+        "facility": "Pickup facility",
+        "parcelsThisMonth": "Parcels this month",
+        "none": "None yet",
+        "pricesInContract": "Next day prices are part of the merchant's contract.",
+        "openContract": "Open the contract",
+        "openParcels": "Open parcels",
+        "setup": "Next day setup",
+        "code": "Merchant code (printed on labels)",
+        "pickupAddress": "Pickup address",
+        "governorate": "Governorate",
+        "area": "Area",
+        "choose": "Choose",
+        "flexShip": "FlexShip: a refusing customer pays the shipping",
+        "facilityHint": "The pickup facility is the sorting facility nearest the pickup address; the system picks it when you save.",
+        "save": "Save",
+        "saved": "Saved.",
+        "error": "Could not save. Check the code (2 to 10 letters or digits, not used by another merchant) and the address.",
+        "loading": "Loading…",
+        "noAccess": "You need Shiply access to see this merchant's next day setup."
       }
     }
   },
@@ -6856,7 +6883,8 @@
       "dates": "Dates",
       "terms": "Special terms",
       "internal": "Internal note (team only)",
-      "productPrices": "Price per product"
+      "productPrices": "Price per product",
+      "parcels": "Next day parcels (Shiply)"
     },
     "fee": "Fee",
     "standard": "Standard",
@@ -7053,7 +7081,9 @@
       "generic": "Could not save. Try again.",
       "failedPercent": "The failed delivery share is a percent up to 100.",
       "productPrice": "A product price is not a valid amount.",
-      "product_not_found": "A product is not this merchant's."
+      "product_not_found": "A product is not this merchant's.",
+      "parcels": "Check the next day terms: shares in percent, a zone and a price on each fixed price, each zone and size once.",
+      "zone_not_found": "One of the zones is not one of Shiply's price zones."
     },
     "allInclusiveNote": "All inclusive: the shipping fee covers the services priced at 0.",
     "failed": {
@@ -7100,6 +7130,24 @@
       "none": "No per product prices.",
       "andMore": "and {n} more (all in the PDF annex and the CSV)",
       "rule": "Per delivered unit, on top of the other fees. No tiers."
+    },
+    "parcels": {
+      "hint": "What Shiply charges this merchant for next day parcels. Empty keeps the standard: last month's volume tier and the network's fees.",
+      "discount": "Discount on list prices",
+      "discountHint": "Off the zone's list price for every parcel",
+      "codFee": "Cash collection fee",
+      "codFeeHint": "Share of the cash collected above the free amount",
+      "returnFee": "Return fee",
+      "returnFeeHint": "Share of the shipping price when a parcel comes back",
+      "standard": "Standard",
+      "fixedTitle": "Fixed prices",
+      "fixedHint": "A price for one zone and size replaces the list price and takes no discount.",
+      "zone": "Zone",
+      "pickZone": "Choose a zone",
+      "size": "Size",
+      "price": "Price",
+      "remove": "Remove",
+      "add": "Add a fixed price"
     }
   },
   "purchasing": {
@@ -8103,7 +8151,14 @@
       "shippingLine": "Shipping fee {amount} EGP",
       "productsCount": "{n} product prices",
       "unmatchedTitle": "Product prices without a product",
-      "unmatchedHint": "No product with these SKUs yet, so they are kept as a note on the contract. Add them in the contract once the products exist."
+      "unmatchedHint": "No product with these SKUs yet, so they are kept as a note on the contract. Add them in the contract once the products exist.",
+      "parcels": {
+        "title": "Next day parcels (Shiply)",
+        "include": "Also quote next day parcels",
+        "discount": "Discount on list prices",
+        "codFee": "Cash collection fee",
+        "returnFee": "Return fee"
+      }
     },
     "numbers": {
       "month": "Month",
@@ -8336,7 +8391,13 @@
     "productPricesTitle": "Price per product",
     "productPricesHint": "Per delivered unit of these products, on top of the rates above.",
     "exampleShipping": "Shipping fees",
-    "examplePackaging": "Packaging"
+    "examplePackaging": "Packaging",
+    "parcelsTitle": "Next day parcels",
+    "parcelsIntro": "Shiply also delivers your parcels anywhere we cover by the next day, at our list prices with these terms.",
+    "parcelsDiscount": "Discount on list prices",
+    "parcelsCodFee": "Cash collection fee",
+    "parcelsReturnFee": "Return fee",
+    "parcelsStandard": "Standard"
   },
   "setupPage": {
     "pageTitle": "Choose your password",

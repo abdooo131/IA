@@ -3,6 +3,8 @@
 export const MERCHANT_TABS = [
   'overview',
   'contract',
+  // Next day parcels (Shiply): pickup place, facility and code; prices are in the contract.
+  'nextDay',
   'shopify',
   'products',
   'users',

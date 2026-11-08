@@ -24,6 +24,12 @@ export interface ProposalView {
   status: ProposalStatus;
   fees: ProposalFees;
   failedDeliveryPercentBp: number | null;
+  /** Next day parcels (Shiply) quoted too, with their shares (null: the standard) */
+  parcels: {
+    discountBp: number | null;
+    codFeeBp: number | null;
+    returnFeeBp: number | null;
+  } | null;
   productPrices: ProposalProductRow[];
   expectedMonthlyOrders: number | null;
   averageOrderPiastres: number | null;
@@ -108,6 +114,12 @@ export interface PublicProposal {
   label: string;
   version: number;
   status: ProposalStatus;
+  /** Next day parcels (Shiply) quoted too (null: 60 minutes only) */
+  parcels: {
+    discountBp: number | null;
+    codFeeBp: number | null;
+    returnFeeBp: number | null;
+  } | null;
   brand: string;
   company: {
     legalNameEn: string;

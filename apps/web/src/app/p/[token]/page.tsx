@@ -192,6 +192,32 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
               )}
             </section>
 
+            {p.parcels && (
+              <section
+                aria-labelledby="parcels"
+                className="mt-6 rounded-lg border border-line bg-surface p-4"
+              >
+                <h2 id="parcels" className="text-h3">
+                  {t('parcelsTitle')}
+                </h2>
+                <p className="mt-1 text-body-sm text-text-muted">{t('parcelsIntro')}</p>
+                <dl className="mt-3 space-y-2 text-body-sm">
+                  {(
+                    [
+                      ['parcelsDiscount', p.parcels.discountBp],
+                      ['parcelsCodFee', p.parcels.codFeeBp],
+                      ['parcelsReturnFee', p.parcels.returnFeeBp],
+                    ] as const
+                  ).map(([label, bp]) => (
+                    <div key={label} className="flex items-center justify-between gap-2">
+                      <dt>{t(label)}</dt>
+                      <dd className="font-bold">{bp === null ? t('parcelsStandard') : pct(bp)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </section>
+            )}
+
             {p.example.orders > 0 && (
               <section
                 aria-labelledby="example"

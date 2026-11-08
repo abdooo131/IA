@@ -34,6 +34,8 @@ export interface ContractVersion {
   /** Price per delivered unit of each product, by SKU */
   productPrices: ContractProductPriceRow[];
   tiers: ContractTier[];
+  /** Next day parcels (Shiply): null keeps the volume tier and the network's settings */
+  parcels: ContractParcels;
   payoutSchedule: PayoutScheduleName | null;
   minimumPayoutPiastres: number | null;
   minimumMonthlyFeePiastres: number | null;
@@ -117,6 +119,8 @@ export interface ContractView {
   standardFailedPercentBp: number;
   vatBp: number;
   products: MerchantProduct[];
+  /** Shiply's price zones and list prices, for the next day terms */
+  parcelZones: ParcelZone[];
   standardTerms: {
     minimumPayoutPiastres: number;
     deliveryAttempts: number;
@@ -202,8 +206,78 @@ export function tierColumns(tiers: readonly ContractTier[]) {
   return CONTRACT_PRICE_KEYS.filter((k) => tiers.some((t) => tierValue(t, k) !== null));
 }
 
+export const PARCEL_SIZES = ['S', 'M', 'L', 'XL', 'XXL', 'BULKY'] as const;
+export type ParcelSizeName = (typeof PARCEL_SIZES)[number];
+
+export interface ContractParcels {
+  discountBp: number | null;
+  codFeeBp: number | null;
+  returnFeeBp: number | null;
+  prices: { zoneCode: string; size: ParcelSizeName; pricePiastres: number }[];
+}
+
+/** One of Shiply's price zones with its list price per size (piastres). */
+export interface ParcelZone {
+  code: string;
+  name: string;
+  priceS: number;
+  priceM: number;
+  priceL: number;
+  priceXL: number;
+  priceXXL: number;
+  priceBulky: number;
+}
+
+export interface ParcelPriceRow {
+  zoneCode: string;
+  size: ParcelSizeName;
+  /** In pounds, as typed */
+  price: string;
+}
+
+/** A zone's list price for a size. */
+export function zoneListPrice(zone: ParcelZone, size: ParcelSizeName) {
+  return {
+    S: zone.priceS,
+    M: zone.priceM,
+    L: zone.priceL,
+    XL: zone.priceXL,
+    XXL: zone.priceXXL,
+    BULKY: zone.priceBulky,
+  }[size];
+}
+
+const optionalBp = (bp: number | null | undefined) =>
+  bp === null || bp === undefined ? '' : bpText(bp);
+
+/** The next day terms typed: shares in basis points and fixed prices; null if one is wrong. */
+export function parseParcels(form: ContractForm) {
+  const share = (text: string) => (text.trim() ? (parsePercentBp(text) ?? Number.NaN) : null);
+  const parcelDiscountBp = share(form.parcelDiscount);
+  const parcelCodFeeBp = share(form.parcelCodFee);
+  const parcelReturnFeeBp = share(form.parcelReturnFee);
+  if ([parcelDiscountBp, parcelCodFeeBp, parcelReturnFeeBp].some((v) => Number.isNaN(v)))
+    return null;
+  const parcelPrices: ContractParcels['prices'] = [];
+  for (const r of form.parcelPrices) {
+    if (!r.zoneCode && !r.price.trim()) continue;
+    const price = parseEgp(r.price);
+    if (!r.zoneCode || price === null) return null;
+    parcelPrices.push({ zoneCode: r.zoneCode, size: r.size, pricePiastres: price });
+  }
+  if (new Set(parcelPrices.map((p) => `${p.zoneCode}/${p.size}`)).size !== parcelPrices.length)
+    return null;
+  return { parcelDiscountBp, parcelCodFeeBp, parcelReturnFeeBp, parcelPrices };
+}
+
 export interface ContractForm {
   prices: Record<ContractPriceKey, string>;
+  /** Next day parcels, in percent (empty: the network's standard) */
+  parcelDiscount: string;
+  parcelCodFee: string;
+  parcelReturnFee: string;
+  /** Fixed next day prices: zone, size and price in pounds */
+  parcelPrices: ParcelPriceRow[];
   /** Failed delivery as a share of the shipment charges, in percent (empty: not set) */
   failedPercent: string;
   /** Price per unit of each product, in pounds, by product id (empty or absent: none) */
@@ -239,6 +313,14 @@ export function formFrom(v: ContractVersion | null, today: string): ContractForm
       v?.failedDeliveryPercentBp === null || v?.failedDeliveryPercentBp === undefined
         ? ''
         : bpText(v.failedDeliveryPercentBp),
+    parcelDiscount: optionalBp(v?.parcels?.discountBp),
+    parcelCodFee: optionalBp(v?.parcels?.codFeeBp),
+    parcelReturnFee: optionalBp(v?.parcels?.returnFeeBp),
+    parcelPrices: (v?.parcels?.prices ?? []).map((p) => ({
+      zoneCode: p.zoneCode,
+      size: p.size,
+      price: egpInput(p.pricePiastres),
+    })),
     productPrices: Object.fromEntries(
       (v?.productPrices ?? []).map((p) => [p.skuId, egpInput(p.pricePiastres)]),
     ),
@@ -263,6 +345,7 @@ export function formFrom(v: ContractVersion | null, today: string): ContractForm
 
 export type ContractFormError =
   | 'price'
+  | 'parcels'
   | 'failedPercent'
   | 'productPrice'
   | 'tiers'
@@ -355,6 +438,8 @@ export function bodyFrom(
   }
   const productPrices = parseProductPrices(form.productPrices);
   if (!productPrices) return { ok: false, error: 'productPrice' };
+  const parcels = parseParcels(form);
+  if (!parcels) return { ok: false, error: 'parcels' };
   const tiers = parseTierRows(form.tiers);
   if (!tiers) return { ok: false, error: 'tiers' };
   const money = (text: string) => (text.trim() ? (parseEgp(text) ?? Number.NaN) : null);
@@ -382,6 +467,7 @@ export function bodyFrom(
       ...prices,
       failedDeliveryPercentBp: failedPercent,
       productPrices,
+      ...parcels,
       tiers,
       payoutSchedule: form.payoutSchedule || null,
       minimumPayoutPiastres: amounts[0],

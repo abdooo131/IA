@@ -91,6 +91,18 @@ const MerchantInput = z.object({
   flexShip: z.boolean().default(false),
 });
 
+const NextDayInput = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[A-Z0-9]{2,10}$/, 'Use 2 to 10 letters or digits'),
+  pickupAddress: z.string().trim().min(5).max(300),
+  governorateCode: z.string().min(4).max(6),
+  areaId: z.string().min(1).max(64).nullish(),
+  flexShip: z.boolean().default(false),
+});
+
 const UserInput = z.object({
   email: z.string().trim().toLowerCase().email(),
   name: z.string().trim().min(2).max(120),
@@ -592,6 +604,64 @@ export class AdminService {
       phone: m.contactPhone ?? '',
       email: m.contactEmail ?? '',
     }));
+  }
+
+  /** A merchant's next day setup: pickup place, facility, code, FlexShip and this month's parcels. */
+  async nextDay(id: string) {
+    const m = await this.prisma.merchant.findUnique({
+      where: { id },
+      omit: { logo: true },
+      include: { homeHub: { select: { id: true, code: true, name: true } } },
+    });
+    if (!m) throw notFound('Merchant');
+    const month = new Date(`${todayInCairo().slice(0, 7)}-01T00:00:00+02:00`);
+    const [parcelsThisMonth, last] = await Promise.all([
+      this.prisma.shipment.count({ where: { merchantId: id, createdAt: { gte: month } } }),
+      this.prisma.shipment.findFirst({
+        where: { merchantId: id },
+        orderBy: { createdAt: 'desc' },
+        select: { createdAt: true },
+      }),
+    ]);
+    return {
+      id: m.id,
+      code: m.code,
+      pickupAddress: m.pickupAddress,
+      governorateCode: m.governorateCode,
+      areaId: m.areaId,
+      homeHub: m.homeHub,
+      flexShip: m.flexShip,
+      ready: !!(m.code && m.pickupAddress && m.governorateCode && m.homeHubId),
+      parcelsThisMonth,
+      lastParcelAt: last?.createdAt ?? null,
+    };
+  }
+
+  /** Sets the next day setup; the pickup facility is always the nearest one (the system picks). */
+  async saveNextDay(id: string, body: unknown, user: SessionUser) {
+    const d = parse(NextDayInput, body);
+    const before = await this.prisma.merchant.findUnique({ where: { id }, omit: { logo: true } });
+    if (!before) throw notFound('Merchant');
+    const clash = await this.prisma.merchant.findUnique({ where: { code: d.code } });
+    if (clash && clash.id !== id)
+      throw new DomainError('duplicate', `Merchant code ${d.code} is taken`, 409);
+    const point = await this.core.pointOf(
+      this.prisma as never,
+      d.governorateCode,
+      d.areaId ?? null,
+    );
+    const facility = await this.core.nearestFacility(this.prisma as never, point);
+    const data = {
+      code: d.code,
+      pickupAddress: d.pickupAddress,
+      governorateCode: d.governorateCode,
+      areaId: d.areaId ?? null,
+      flexShip: d.flexShip,
+      homeHubId: facility.id,
+    };
+    await this.prisma.merchant.update({ where: { id }, data });
+    await this.audit(user, 'MERCHANT_UPDATED', 'merchant', id, data);
+    return this.nextDay(id);
   }
 
   async saveMerchant(id: string | null, body: unknown, user: SessionUser) {

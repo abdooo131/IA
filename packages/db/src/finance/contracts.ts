@@ -421,6 +421,20 @@ export async function getContract(db: Db, merchantId: string, now: Date = new Da
       orderBy: { sku: 'asc' },
       take: 5000,
     }),
+    /** Shiply's price zones with their list prices, for the next day terms */
+    parcelZones: await db.pricingZone.findMany({
+      select: {
+        code: true,
+        name: true,
+        priceS: true,
+        priceM: true,
+        priceL: true,
+        priceXL: true,
+        priceXXL: true,
+        priceBulky: true,
+      },
+      orderBy: { code: 'asc' },
+    }),
     standardTerms: {
       minimumPayoutPiastres: await getSetting(db, 'finance.payout_minimum_piastres'),
       deliveryAttempts: await getSetting(db, 'delivery.max_attempts'),

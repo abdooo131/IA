@@ -105,8 +105,16 @@ Their ids switch to Shiply Now's style (cuid).
    the settlement turns paid with its bill. Hub staff and couriers have HR files (EMPLOYEE_ROLES)
    at their hub (employees.hub_id) in Shiply operations (SHP-HUB, SHP-CUR); couriers are paid
    per delivery; people of an agent are outsourced with the agent's supplier as their staffing
-   company; a courier waiting for the agent's approval gets a file once approved. Next: one
-   merchant page and contract for both services, then one merchant portal.
+   company; a courier waiting for the agent's approval gets a file once approved.
+   One merchant and one contract for both services (migrations 20270101000400_contract_parcels
+   and 20270101000500_proposal_parcels): a contract version also holds the next day terms (a
+   discount on list prices, cash collection and return fees, fixed prices per zone and size;
+   null keeps the volume tier and the network's settings), frozen with the version. Parcels are
+   priced from the version in force (fixed price, else the contract discount, else the older
+   per merchant prices and discount, else the volume tier). The merchant page has a Next day tab
+   (code, pickup address, facility picked as the nearest, FlexShip); the network's merchant list
+   sends prices to the contract. Proposals can include next day parcels and confirming puts their
+   terms in the contract; next day sign ups open a Sales lead. Next: one merchant portal.
 7. Shopify: one app, two actions (60 minutes, next day).
 8. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.

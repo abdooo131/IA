@@ -145,6 +145,21 @@ export class AdminController {
     return this.admin.saveMerchant(null, body, u);
   }
 
+  /** One merchant's next day setup, for the Merchants app's Next day tab. */
+  @Get('merchants/:id/next-day')
+  nextDay(@Param('id', ParseIdPipe) id: string) {
+    return this.admin.nextDay(id);
+  }
+
+  @Put('merchants/:id/next-day')
+  saveNextDay(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.admin.saveNextDay(id, body, u);
+  }
+
   @Put('merchants/:id')
   updateMerchant(
     @CurrentUser() u: SessionUser,

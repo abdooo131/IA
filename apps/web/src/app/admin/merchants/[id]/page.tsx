@@ -1,4 +1,5 @@
 import { cairoDay, canDo } from '@shiplynow/shared';
+import { NextDayTab } from '@/components/merchants/NextDayTab';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Readiness, type ShopifyOverview } from '@/components/admin/ShopifyManager';
@@ -210,6 +211,7 @@ export default async function AdminMerchantPage({
           />
         )}
 
+        {tab === 'nextDay' && <NextDayTab merchantId={id} locale={locale} />}
         {tab === 'shopify' && <ShopifyTab merchantId={id} />}
 
         {tab === 'products' && (

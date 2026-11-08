@@ -117,6 +117,7 @@ export const AR_MERCHANTS: Record<string, string> = {
   'Add tier': 'إضافة فئة',
   Remove: 'حذف',
   'Agreed prices': 'الأسعار المتفق عليها',
+  'Prices in the contract': 'الأسعار في العقد',
   'Fill a cell to agree a price for that zone and size, VAT included. Empty cells use the list price with their discount or tier':
     'املأ الخانة لتتفق على سعر لهذه المنطقة والحجم شامل الضريبة. الخانات الفارغة تستخدم السعر الأساسي مع الخصم أو الفئة',
   Messages: 'الرسائل',
