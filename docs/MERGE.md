@@ -114,7 +114,12 @@ Their ids switch to Shiply Now's style (cuid).
    per merchant prices and discount, else the volume tier). The merchant page has a Next day tab
    (code, pickup address, facility picked as the nearest, FlexShip); the network's merchant list
    sends prices to the contract. Proposals can include next day parcels and confirming puts their
-   terms in the contract; next day sign ups open a Sales lead. Next: one merchant portal.
+   terms in the contract; next day sign ups open a Sales lead.
+   One merchant portal: /merchant and /parcels/merchant share one menu (lib/merchant-nav.ts):
+   60 minute delivery, Next day parcels, Money (one wallet, invoices, the contract) and Account
+   (Shopify, developers, one team). Next day pages need the orders right, pickup settings the
+   settings right; the network's own team and price pages forward to /merchant/team and
+   /merchant/contract.
 7. Shopify: one app, two actions (60 minutes, next day).
 8. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.

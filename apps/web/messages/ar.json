@@ -1319,7 +1319,18 @@
       "shopify": "ربط شوبيفاي",
       "invoices": "الفواتير",
       "team": "الفريق",
-      "contract": "العقد"
+      "contract": "العقد",
+      "groupExpress": "توصيل خلال 60 دقيقة",
+      "groupParcels": "شحنات اليوم التالي",
+      "groupMoney": "المال",
+      "groupAccount": "الحساب",
+      "parcels": "الشحنات",
+      "newParcel": "شحنة جديدة",
+      "pickups": "الاستلامات",
+      "parcelAnalytics": "تحليلات الشحنات",
+      "parcelSettings": "إعدادات الاستلام",
+      "shopifyParcels": "طلبات شوبيفاي للشحن",
+      "developers": "المطورون (الواجهة البرمجية)"
     },
     "shipments": {
       "title": "الشحنات",

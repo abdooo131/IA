@@ -1,48 +1,18 @@
-'use client';
-import { DeskShell, type Me, type NavGroup, type NavItem } from '@/parcels/components/Shell';
+import type { ReactNode } from 'react';
+import { DashboardShell } from '@/components/DashboardShell';
+import { merchantNav } from '@/lib/merchant-nav';
+import { Session } from '@/parcels/components/Shell';
 
-const ROLES: Me['role'][] = ['MERCHANT'];
+export const dynamic = 'force-dynamic';
 
-/** The menu shows only what this person's rights open, as in Shiply Now; the owner sees everything. */
-const groups = (me: Me): NavGroup[] => {
-  const can = (right: string) => me.merchantOwner || me.merchantRights.includes(right);
-  const items: (NavItem & { show: boolean })[] = [
-    { href: '/parcels/merchant', label: 'Parcels', icon: 'orders', show: can('orders') },
-    { href: '/parcels/merchant/new', label: 'New parcel', icon: 'create', show: can('orders') },
-    { href: '/parcels/merchant/pickups', label: 'Pickups', icon: 'pickups', show: can('pickups') },
-    { href: '/merchant/wallet', label: 'Money', icon: 'wallet', show: can('money') },
-    {
-      href: '/merchant/invoices',
-      label: 'Tax invoices',
-      icon: 'invoice',
-      show: can('money'),
-    },
-    { href: '/parcels/merchant/analytics', label: 'Analytics', icon: 'analytics', show: true },
-    { href: '/parcels/merchant/prices', label: 'My prices', icon: 'points', show: true },
-    { href: '/parcels/merchant/team', label: 'Team', icon: 'customers', show: me.merchantOwner },
-    { href: '/parcels/merchant/shopify', label: 'Shopify', icon: 'store', show: can('orders') },
-    {
-      href: '/parcels/merchant/developer',
-      label: 'Developers',
-      icon: 'international',
-      show: can('settings'),
-    },
-    {
-      href: '/parcels/merchant/settings',
-      label: 'Settings',
-      icon: 'settings',
-      show: can('settings') || can('pickups'),
-    },
-  ];
-  return [
-    { label: me.merchant?.name, items: items.filter((i) => i.show).map(({ show: _s, ...i }) => i) },
-  ];
-};
-
-export default function MerchantLayout({ children }: { children: React.ReactNode }) {
+/**
+ * Next day parcels inside the one merchant portal: the same menu and frame as /merchant
+ * (lib/merchant-nav.ts). Session gives the network's pages the signed in merchant.
+ */
+export default async function ParcelsMerchantLayout({ children }: { children: ReactNode }) {
   return (
-    <DeskShell roles={ROLES} groups={groups}>
-      {children}
-    </DeskShell>
+    <DashboardShell groups={await merchantNav()}>
+      <Session roles={['MERCHANT']}>{children}</Session>
+    </DashboardShell>
   );
 }

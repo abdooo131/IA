@@ -1319,7 +1319,18 @@
       "shopify": "Connect Shopify",
       "invoices": "Invoices",
       "team": "Team",
-      "contract": "Contract"
+      "contract": "Contract",
+      "groupExpress": "60 minute delivery",
+      "groupParcels": "Next day parcels",
+      "groupMoney": "Money",
+      "groupAccount": "Account",
+      "parcels": "Parcels",
+      "newParcel": "New parcel",
+      "pickups": "Pickups",
+      "parcelAnalytics": "Parcel analytics",
+      "parcelSettings": "Pickup settings",
+      "shopifyParcels": "Shopify orders to ship",
+      "developers": "Developers (API)"
     },
     "shipments": {
       "title": "Shipments",
