@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { billAgentSettlement } from '@shiplynow/db';
+import { balanceOf, billAgentSettlement, getSetting } from '@shiplynow/db';
 import {
   ACCOUNTS,
   applyBp,
@@ -15,7 +15,7 @@ import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
 import { todayInCairo } from '../core/shipments.core';
-import { partyBalances, post, rawBalance, type Line } from './ledger';
+import { accountRef, partyBalances, post, rawBalance, type Line } from './ledger';
 import { courierStanding, earn, paidByAgent } from './postings';
 
 const MAX_FILE = 5 * 1024 * 1024;
@@ -295,6 +295,14 @@ export class FinanceService {
           `The courier can only withdraw ${formatEgp(st.withdrawable)} now`,
           409,
         );
+      // The same rules as a rider's withdrawal: from the approval limit the payer is not the
+      // approver, and the bank must hold the money.
+      const limit = await getSetting(tx as never, 'finance.approval_threshold_piastres');
+      if (limit > 0 && w.amount >= limit && w.approvedById === user.id)
+        throw new DomainError('same_person', 'Another person must pay what you approved', 403);
+      const inBank = await balanceOf(tx as never, accountRef(ACCOUNTS.BANK.code) as never);
+      if (inBank < w.amount)
+        throw new DomainError('more_than_in_bank', 'The bank does not hold this amount', 409);
       await tx.withdrawal.update({ where: { id }, data: { status: 'PAID', paidAt: new Date() } });
       await post(tx, {
         memo: `Withdrawal ${w.code}`,
