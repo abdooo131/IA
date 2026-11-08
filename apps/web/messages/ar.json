@@ -2006,7 +2006,14 @@
       "rider_withdrawal": "سحب مندوب",
       "shipping_fee": "رسوم الشحن",
       "product_handling": "رسوم بسعر المنتج",
-      "packaging_charge": "رسوم التغليف"
+      "packaging_charge": "رسوم التغليف",
+      "parcels_delivered": "شحنات اليوم التالي المسلّمة (التحصيل ناقص الرسوم)",
+      "parcels_returned": "شحنات اليوم التالي المرتجعة (الرسوم)",
+      "parcels_lost_compensation": "تعويض شحنة مفقودة",
+      "parcels_lost_found": "العثور على شحنة مفقودة (استرداد التعويض)",
+      "parcels_claim_compensation": "تعويض مطالبة",
+      "parcels_packaging_sold": "شراء مواد تغليف",
+      "parcels_flex_paid": "دفع FlexShip"
     },
     "accounts": {
       "merchant": "محفظة التاجر",
@@ -6506,7 +6513,9 @@
         "kinds": {
           "bank": "بنك",
           "cash_box": "خزنة",
-          "store_box": "خزنة مخزن"
+          "store_box": "خزنة مخزن",
+          "hub_safe": "خزنة المركز",
+          "courier_cash": "نقدية المندوب"
         }
       },
       "riders": {

@@ -73,7 +73,7 @@ export function eventTime(day: string | undefined, now: Date = new Date()) {
 
 /** Names for accounts that belong to a merchant, rider or store, in both languages. */
 async function ownerNames(db: Db) {
-  const [merchants, riders, stores, suppliers, users] = await Promise.all([
+  const [merchants, riders, stores, suppliers, users, hubs] = await Promise.all([
     db.merchant.findMany({ select: { id: true, name: true } }),
     db.rider.findMany({ select: { id: true, badgeCode: true, user: { select: { name: true } } } }),
     db.darkStore.findMany({ select: { id: true, code: true, nameEn: true, nameAr: true } }),
@@ -82,6 +82,7 @@ async function ownerNames(db: Db) {
       where: { userId: { not: null } },
       select: { userId: true, user: { select: { name: true } } },
     }),
+    db.hub.findMany({ select: { id: true, code: true, name: true } }),
   ]);
   return (
     a: Pick<
@@ -93,8 +94,18 @@ async function ownerNames(db: Db) {
       const name = suppliers.find((x) => x.id === a.supplierId)?.name ?? a.supplierId;
       return { nameEn: name, nameAr: name };
     }
+    const hubId = (a as { hubId?: string | null }).hubId;
+    if (hubId && !a.nameEn) {
+      const h = hubs.find((x) => x.id === hubId);
+      const name = h ? `${h.name} (${h.code})` : hubId;
+      return { nameEn: `${name} safe`, nameAr: `خزنة ${name}` };
+    }
     if (a.userId && !a.nameEn) {
       const name = users.find((x) => x.userId === a.userId)?.user?.name ?? a.userId;
+      // A courier has cash in hand (1360) and pay owed (2250): say which.
+      const group = (a as { groupCode?: number }).groupCode;
+      if (group === 1360) return { nameEn: `${name} cash`, nameAr: `نقدية ${name}` };
+      if (group === 2250) return { nameEn: `${name} pay`, nameAr: `مستحقات ${name}` };
       return { nameEn: name, nameAr: name };
     }
     if (a.merchantId) {

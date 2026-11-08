@@ -21,6 +21,11 @@ export async function StatementView({
     getTranslations('finance'),
     getLocale(),
   ]);
+  // Translation keys have no dots, so next day kinds (parcels.delivered) use underscores.
+  const kindLabel = (kind: string) => {
+    const key = `kinds.${kind.replace(/\./g, '_')}`;
+    return tf.has(key) ? tf(key) : kind.replace(/[._]/g, ' ');
+  };
   const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
   const field = 'mt-1 block h-10 rounded-md border border-line bg-surface px-2 text-body-sm';
   return (
@@ -57,9 +62,7 @@ export async function StatementView({
         </div>
         {Object.entries(statement.byKind).map(([kind, amount]) => (
           <div key={kind}>
-            <dt className="text-caption text-text-muted">
-              {tf.has(`kinds.${kind}`) ? tf(`kinds.${kind}`) : kind}
-            </dt>
+            <dt className="text-caption text-text-muted">{kindLabel(kind)}</dt>
             <dd className="text-h3">
               <Amount piastres={amount} />
             </dd>
@@ -93,9 +96,7 @@ export async function StatementView({
                   <td className="ltr-iso whitespace-nowrap px-3 py-2">
                     {formatCairoDateTime(l.at, locale)}
                   </td>
-                  <td className="px-3 py-2">
-                    {tf.has(`kinds.${l.kind}`) ? tf(`kinds.${l.kind}`) : l.kind}
-                  </td>
+                  <td className="px-3 py-2">{kindLabel(l.kind)}</td>
                   <td className="ltr-iso px-3 py-2">{l.orderNumber ?? l.memo ?? ''}</td>
                   <td className="px-3 py-2 text-end">
                     <Amount piastres={l.amountPiastres} />

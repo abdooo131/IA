@@ -226,12 +226,15 @@ export async function cashPosition(
   const warnHours = await getSetting(db, 'finance.rider_cash_warn_hours');
 
   const chart = await chartOfAccounts(db, { includeInactive: true });
+  // Banks, cash boxes and store boxes, and Shiply's money too: hub safes (1250) and the cash
+  // couriers carry (1360) are company money just like a store box and a rider's cash.
+  const GROUPS = [1100, 1200, 1250, 1360];
   const owners = await db.ledgerAccount.findMany({
-    where: { groupCode: { in: [1100, 1200] } },
+    where: { groupCode: { in: GROUPS } },
     select: { id: true, darkStoreId: true, type: true },
   });
   const money = chart
-    .filter((a) => a.groupCode === 1100 || a.groupCode === 1200)
+    .filter((a) => GROUPS.includes(a.groupCode))
     .map((a) => {
       const o = owners.find((x) => x.id === a.id);
       return {
@@ -242,9 +245,13 @@ export async function cashPosition(
         kind:
           a.groupCode === 1100
             ? ('bank' as const)
-            : o?.darkStoreId
-              ? ('store_box' as const)
-              : ('cash_box' as const),
+            : a.groupCode === 1250
+              ? ('hub_safe' as const)
+              : a.groupCode === 1360
+                ? ('courier_cash' as const)
+                : o?.darkStoreId
+                  ? ('store_box' as const)
+                  : ('cash_box' as const),
         darkStoreId: o?.darkStoreId ?? null,
         isActive: a.isActive,
         balancePiastres: a.balancePiastres,

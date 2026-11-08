@@ -2006,7 +2006,14 @@
       "rider_withdrawal": "Rider withdrawal",
       "shipping_fee": "Shipping fee",
       "product_handling": "Per product fee",
-      "packaging_charge": "Packaging charge"
+      "packaging_charge": "Packaging charge",
+      "parcels_delivered": "Next day parcels delivered (cash less fees)",
+      "parcels_returned": "Next day parcels returned (fees)",
+      "parcels_lost_compensation": "Lost parcel compensation",
+      "parcels_lost_found": "Lost parcel found (compensation taken back)",
+      "parcels_claim_compensation": "Claim compensation",
+      "parcels_packaging_sold": "Packaging bought",
+      "parcels_flex_paid": "FlexShip paid"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -6563,7 +6570,9 @@
         "kinds": {
           "bank": "Bank",
           "cash_box": "Cash box",
-          "store_box": "Store cash box"
+          "store_box": "Store cash box",
+          "hub_safe": "Hub safe",
+          "courier_cash": "Courier cash"
         }
       },
       "riders": {

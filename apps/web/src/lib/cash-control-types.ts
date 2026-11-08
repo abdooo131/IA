@@ -20,7 +20,7 @@ export interface CashPosition {
       code: string;
       nameEn: string;
       nameAr: string;
-      kind: 'bank' | 'cash_box' | 'store_box';
+      kind: 'bank' | 'cash_box' | 'store_box' | 'hub_safe' | 'courier_cash';
       darkStoreId: string | null;
       balancePiastres: number;
     }[];
