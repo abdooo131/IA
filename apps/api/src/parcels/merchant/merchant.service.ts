@@ -582,7 +582,7 @@ export async function merchantStatement(prisma: PrismaService, merchantId: strin
     cashStillWithCouriers: pendingCash._sum.codCollected ?? 0,
     payouts: payouts.map((p) => ({
       id: p.id,
-      code: `PO-${p.number}`,
+      code: `PAY-${String(p.number).padStart(6, '0')}`,
       amount: p.amountPiastres,
       status: p.status.toUpperCase(),
       createdAt: p.createdAt,

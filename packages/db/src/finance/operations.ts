@@ -223,6 +223,20 @@ export async function merchantOwed(db: Db, merchantId: string, before?: Date) {
   return negate(await balanceOf(db, { type: 'merchant', merchantId }, before));
 }
 
+/** COD of the merchant's delivered next day parcels whose courier run is not closed yet. */
+export async function parcelCashWithCouriers(db: Db, merchantId: string) {
+  const r = await db.shipment.aggregate({
+    where: {
+      merchantId,
+      payoutId: null,
+      status: 'DELIVERED',
+      NOT: { runItems: { some: { result: 'DELIVERED', run: { status: 'CLOSED' } } } },
+    },
+    _sum: { codCollected: true },
+  });
+  return r._sum.codCollected ?? 0;
+}
+
 /** Whether a merchant is due a payout on a Cairo weekday (0 is Sunday). */
 export function payoutDueOn(schedule: PayoutSchedule, weekday: number) {
   if (schedule === 'daily') return true;
@@ -247,8 +261,11 @@ export function createPayout(
     const open = await tx.payout.findFirst({ where: { merchantId: merchant.id, status: 'draft' } });
     if (open) throw new DomainError('payout_already_open');
     const owedAtCutoff = await merchantOwed(tx, merchant.id, input.cutoffAt);
+    // Next day cash a courier still holds (run not closed) is booked to the wallet at delivery
+    // but has not reached us: it waits for a later payout (the network's rule before the merge).
+    const withCouriers = await parcelCashWithCouriers(tx, merchant.id);
     // Never pay more than is owed now, in case fees were posted after the cutoff.
-    const amount = Math.min(owedAtCutoff, await merchantOwed(tx, merchant.id));
+    const amount = Math.min(owedAtCutoff, await merchantOwed(tx, merchant.id)) - withCouriers;
     if (amount <= 0) throw new DomainError('nothing_to_pay');
     const cutoffDay = cairoDay(new Date(input.cutoffAt.getTime() - 1));
     const minimum = await payoutMinimumFor(tx, merchant.id, cutoffDay);
@@ -266,6 +283,20 @@ export function createPayout(
         note: input.note,
         createdById: input.actorUserId,
       },
+    });
+    // The next day parcels this payout settles: closed (their courier run is closed) by the
+    // cutoff and not in another payout. The parcel pages and statements read the link.
+    await tx.shipment.updateMany({
+      where: {
+        merchantId: merchant.id,
+        payoutId: null,
+        status: { in: ['DELIVERED', 'RETURNED'] },
+        closedAt: { lte: input.cutoffAt },
+        runItems: {
+          some: { result: { in: ['DELIVERED', 'RETURNED'] }, run: { status: 'CLOSED' } },
+        },
+      },
+      data: { payoutId: payout.id },
     });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
@@ -341,6 +372,11 @@ export function cancelPayout(
       data: { status: 'cancelled', note: input.note },
     });
     if (updated.count !== 1) throw new DomainError('payout_not_draft');
+    // Its parcels go back to waiting for the next payout.
+    await tx.shipment.updateMany({
+      where: { payoutId: input.payoutId },
+      data: { payoutId: null },
+    });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.payout_cancel',

@@ -43,6 +43,10 @@ const balanced = async () => {
   return { tb, bs };
 };
 
+function cairoToday() {
+  return new Date().toLocaleDateString('en-CA', { timeZone: 'Africa/Cairo' });
+}
+
 function lastMonth() {
   const d = new Date();
   d.setUTCDate(1);
@@ -128,6 +132,13 @@ describe('money', () => {
     const merchants = await ok(as.admin!.get('/parcels/finance/wallets/MERCHANT'));
     const fees = parcels.reduce((n, p) => n + p.shippingFee + p.codFee, 0);
     expect(merchants[0].balance).toBe(80000 - fees);
+    // The cash is still with the courier (run not closed): no payout can include it yet.
+    const merchantId = (await prisma.shipment.findUnique({ where: { id: parcels[0].id } }))
+      .merchantId;
+    const early = await as
+      .admin!.post('/finance/payouts')
+      .send({ merchantId, cutoffDay: cairoToday() });
+    expect(early.body.error).toBe('nothing_to_pay');
     await balanced();
   });
 
@@ -190,6 +201,30 @@ describe('money', () => {
     await ok(as.finance!.post(`/parcels/finance/pay-ins/${rc.id}/approve`));
     expect((await wallet(users['courier.giz@shiply.local']!)).wallet).toBe(0);
     await balanced();
+  });
+
+  it('a payout settles the parcels whose run closed, so they are never paid twice', async () => {
+    const merchantId = (await prisma.shipment.findUnique({ where: { id: parcels[0].id } }))
+      .merchantId;
+    const fees = parcels.reduce((n, p) => n + p.shippingFee + p.codFee, 0);
+    const payout = await ok(
+      as.admin!.post('/finance/payouts').send({ merchantId, cutoffDay: cairoToday() }),
+      201,
+    );
+    expect(payout.amountPiastres).toBe(80000 - fees);
+    const linked = await prisma.shipment.findMany({
+      where: { id: { in: parcels.map((p) => p.id) } },
+    });
+    expect(linked.every((x: any) => x.payoutId === payout.id)).toBe(true);
+    // The next day statement no longer lists them as owed.
+    const statement = await ok(as.merchant!.get('/parcels/merchant/statement'));
+    expect(statement.shipments.some((x: any) => parcels.some((p) => p.id === x.id))).toBe(false);
+    // Cancelling the draft puts them back.
+    await ok(as.admin!.post(`/finance/payouts/${payout.id}/cancel`).send({ note: 'Test' }), 201);
+    const back = await prisma.shipment.findMany({
+      where: { id: { in: parcels.map((p) => p.id) } },
+    });
+    expect(back.every((x: any) => x.payoutId === null)).toBe(true);
   });
 
   it('the hub safe goes to the bank, confirmed by finance', async () => {
