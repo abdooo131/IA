@@ -52,7 +52,6 @@ function hubMenus(me: Me | null): AppMenu[] {
         pages: [
           { href: '/parcels/hub/check', label: 'Handover check' },
           { href: '/parcels/hub/damage', label: 'Report damage' },
-          { href: '/parcels/hub/packaging', label: 'Packaging orders' },
           { href: '/parcels/hub/safe', label: 'Hub safe' },
         ],
       },
@@ -80,7 +79,6 @@ function hubMenus(me: Me | null): AppMenu[] {
     pages: [
       { href: '/parcels/hub/check', label: 'Handover check' },
       { href: '/parcels/hub/damage', label: 'Report damage' },
-      { href: '/parcels/hub/packaging', label: 'Packaging orders' },
       ...(team ? [] : [{ href: '/parcels/hub/safe', label: 'Hub safe' }]),
     ],
   });
@@ -179,17 +177,12 @@ export function allApps(me: Me | null): AppDef[] {
           label: 'Packaging shop',
           pages: [
             {
-              href: '/parcels/admin/shop/orders',
-              label: 'Packaging orders',
-              hint: 'Pack, hand to a courier, follow delivery',
-            },
-            {
-              href: '/parcels/admin/shop/products',
+              href: '/admin/packaging',
               label: 'Products and stock',
-              hint: 'Prices, stock counts, low stock',
+              hint: 'Packaging items and stock per store',
             },
             {
-              href: '/parcels/admin/shop/purchase-orders',
+              href: '/finance/purchase-orders',
               label: 'Purchase orders',
               hint: 'Buy from suppliers and receive the goods',
             },
@@ -216,18 +209,18 @@ export function allApps(me: Me | null): AppDef[] {
       menus: [
         {
           label: 'Dashboard',
-          pages: [{ href: '/parcels/admin/money', label: 'Overview', exact: true }],
+          pages: [{ href: '/finance', label: 'Overview', exact: true }],
         },
         {
           label: 'Merchants',
           pages: [
             {
-              href: '/parcels/admin/money/payouts',
+              href: '/finance/payouts',
               label: 'Payouts',
               hint: 'Balances, approvals and the bank file',
             },
             {
-              href: '/parcels/admin/money/invoices',
+              href: '/finance/invoices',
               label: 'Tax invoices',
               hint: 'Monthly invoices, credit notes and the ETA file',
             },
@@ -252,7 +245,7 @@ export function allApps(me: Me | null): AppDef[] {
               hint: 'Deposits to the bank',
             },
             {
-              href: '/parcels/admin/money/bank',
+              href: '/finance/bank',
               label: 'Bank matching',
               hint: 'The bank statement against our books',
             },
@@ -269,26 +262,26 @@ export function allApps(me: Me | null): AppDef[] {
           label: 'Vendors',
           pages: [
             {
-              href: '/parcels/admin/money/bills',
+              href: '/finance/bills',
               label: 'Bills',
               hint: 'Supplier invoices with VAT and withholding',
             },
-            { href: '/parcels/admin/money/suppliers', label: 'Suppliers' },
-            { href: '/parcels/admin/money/expenses', label: 'Expenses', hint: 'Paid on the spot' },
+            { href: '/finance/bills', label: 'Suppliers' },
+            { href: '/finance/movements', label: 'Expenses', hint: 'Paid on the spot' },
           ],
         },
         {
           label: 'Reporting',
           pages: [
             {
-              href: '/parcels/admin/money/books',
+              href: '/finance/profit-and-loss',
               label: 'Books and reports',
               hint: 'Profit and loss, balance sheet, journal',
             },
-            { href: '/parcels/admin/money/profit', label: 'Profit per merchant, hub and courier' },
-            { href: '/parcels/admin/money/cash-flow', label: 'Cash flow' },
-            { href: '/parcels/admin/money/budgets', label: 'Budgets' },
-            { href: '/parcels/admin/money/taxes', label: 'Taxes', hint: 'VAT and withholding tax' },
+            { href: '/finance/profit-and-loss', label: 'Profit per merchant, hub and courier' },
+            { href: '/finance/money-flow', label: 'Cash flow' },
+            { href: '/finance/budgets', label: 'Budgets' },
+            { href: '/finance/taxes', label: 'Taxes', hint: 'VAT and withholding tax' },
           ],
         },
       ],
