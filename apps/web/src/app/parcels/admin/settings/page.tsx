@@ -101,7 +101,11 @@ const LABELS: Record<Editable, [string, string]> = {
   'cash.courier_limit': ['Courier cash limit', 'Cash a courier may hold before an alert'],
   'lost.no_scan_hours': [
     'No scan at a station (hours)',
-    'A parcel picked up, at inbound, sorting or outbound with no scan this long is searched for',
+    'A parcel picked up or at inbound with no scan this long is searched for',
+  ],
+  'lost.sorted_hours': [
+    'Waiting for its trip (hours)',
+    'A sorted parcel on a lane or at outbound with no scan this long is searched for (it may wait overnight for the next truck)',
   ],
   'lost.transit_hours': [
     'No scan on the road (hours)',

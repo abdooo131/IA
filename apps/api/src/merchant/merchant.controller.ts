@@ -1,4 +1,14 @@
-import { Body, Controller, ForbiddenException, Get, Param, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  ForbiddenException,
+  Get,
+  NotFoundException,
+  Param,
+  Patch,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   cancelManifest,
@@ -7,15 +17,23 @@ import {
   getManifestDetail,
   listHubs,
   onboardingSteps,
+  createSku,
+  importSkus,
   recordAudit,
+  type SkuImportResult,
+  updateSku,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
   type CreateManifestBody,
   createManifestSchema,
+  skuSchema,
+  type UpdateSkuBody,
+  updateSkuSchema,
 } from '@shiplynow/shared';
 import { z } from 'zod';
 import { CurrentUser, MerchantRight, Roles } from '../auth/decorators';
+import { parseSkuImportRows } from '../common/sku-import';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -25,6 +43,11 @@ const deliverySchema = z.object({
 });
 
 /** The merchant panel. Every query is limited to the signed in user's merchant. */
+const merchantSkuSchema = skuSchema.omit({ merchantId: true });
+const merchantImportSchema = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())).min(1).max(5000),
+});
+
 @ApiTags('merchant')
 @ApiBearerAuth()
 @Roles('merchant')
@@ -92,6 +115,49 @@ export class MerchantController {
       });
     });
     return { expressPricePiastres: body.expressPricePiastres };
+  }
+
+  /** The merchant adds a product of their own (owner request, 2026-11-08); same rules as admin. */
+  @Post('skus')
+  @MerchantRight('stock')
+  async createSku(
+    @Body(new ZodValidationPipe(merchantSkuSchema)) body: z.infer<typeof merchantSkuSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const merchant = await this.merchantOf(user);
+    const sku = await createSku(this.prisma, {
+      ...body,
+      merchantId: merchant.id,
+      actorUserId: user.sub,
+    });
+    return { id: sku.id };
+  }
+
+  @Patch('skus/:id')
+  @MerchantRight('stock')
+  async updateSku(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(updateSkuSchema)) body: UpdateSkuBody,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const merchant = await this.merchantOf(user);
+    const sku = await this.prisma.sku.findUnique({ where: { id }, select: { merchantId: true } });
+    if (sku?.merchantId !== merchant.id) throw new NotFoundException({ error: 'not_found' });
+    await updateSku(this.prisma, { ...body, skuId: id, actorUserId: user.sub });
+    return { id };
+  }
+
+  /** A product file (sku, barcode, title_en, title_ar, price_egp, weight_grams), all or nothing. */
+  @Post('skus/import')
+  @MerchantRight('stock')
+  async importSkus(
+    @Body(new ZodValidationPipe(merchantImportSchema)) body: z.infer<typeof merchantImportSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+  ): Promise<SkuImportResult> {
+    const merchant = await this.merchantOf(user);
+    const { rows, errors } = parseSkuImportRows(body.rows);
+    if (errors.length) return { created: 0, updated: 0, unchanged: 0, errors };
+    return importSkus(this.prisma, { merchantId: merchant.id, rows, actorUserId: user.sub });
   }
 
   /** Read by the order form too, so every member may list products. */

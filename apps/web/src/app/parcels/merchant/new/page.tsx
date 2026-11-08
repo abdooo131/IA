@@ -46,6 +46,7 @@ const CSV_HEADERS = [
   'area',
   'size',
   'cod',
+  'itemValue',
   'description',
   'notes',
   'allowOpen',
@@ -55,9 +56,10 @@ const CSV_SAMPLE = [
   'Mona Ali',
   '01012345678',
   '5 Tahrir St, Dokki',
-  'GIZ',
+  'EG-GZ',
   'Dokki',
   'M',
+  '450',
   '450',
   'Dress',
   'Call before',
@@ -416,6 +418,8 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
           : undefined;
       const codText = get('cod');
       const cod = codText === '' ? 0 : egpToPiastres(codText);
+      const valueText = get('itemValue');
+      const value = valueText === '' ? 0 : egpToPiastres(valueText);
       const sizeText = get('size').toUpperCase() || 'M';
       // Rows we can check here are reported now; the server checks the rest.
       if (!gov)
@@ -430,6 +434,11 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
         });
       else if (cod === null)
         bad.push({ row: i + 1, message: t('COD "{v}" is not an amount in EGP', { v: codText }) });
+      else if (value === null)
+        bad.push({
+          row: i + 1,
+          message: t('Item value "{v}" is not an amount in EGP', { v: valueText }),
+        });
       out.push({
         customerName: get('customerName'),
         customerPhone: get('customerPhone'),
@@ -438,6 +447,7 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
         areaId: area?.id ?? null,
         size: sizeText,
         codAmount: cod ?? 0,
+        declaredValue: value ?? 0,
         description: get('description'),
         notes: get('notes'),
         allowOpen: ['yes', 'y', 'true', '1', 'نعم'].includes(get('allowOpen').toLowerCase()),
@@ -489,7 +499,7 @@ function CsvUpload({ govs }: { govs: Governorate[] }) {
     >
       <p className="mb-3 text-body-sm text-text-muted">
         {t(
-          'Save your sheet as CSV. Governorate can be the code (GIZ) or the English name. COD is in EGP. Up to 500 rows at a time.',
+          'Save your sheet as CSV. Governorate can be the code (EG-GZ) or the English name. COD and item value are in EGP. Up to 500 rows at a time.',
         )}
       </p>
       <input

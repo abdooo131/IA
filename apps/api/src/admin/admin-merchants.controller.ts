@@ -18,8 +18,6 @@ import {
   type MerchantBody,
   merchantSchema,
   type SkuBody,
-  type SkuImportRow,
-  skuImportRowSchema,
   skuImportSchema,
   skuSchema,
   type UpdateSkuBody,
@@ -28,6 +26,7 @@ import {
 import { z } from 'zod';
 import { assertMerchant } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
+import { parseSkuImportRows } from '../common/sku-import';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -148,28 +147,7 @@ export class AdminMerchantsController {
     @CurrentAccess() access: AccessProfile,
   ): Promise<SkuImportResult> {
     assertMerchant(access, body.merchantId);
-    const rows: { row: number; data: SkuImportRow }[] = [];
-    const errors: SkuImportResult['errors'] = [];
-    body.rows.forEach((raw, index) => {
-      // Row 1 of the file is the header, so data starts on row 2.
-      const row = index + 2;
-      const parsed = skuImportRowSchema.safeParse(raw);
-      if (parsed.success) rows.push({ row, data: parsed.data });
-      else
-        errors.push({
-          row,
-          sku: typeof raw.sku === 'string' ? raw.sku : undefined,
-          // Our own rules answer a plain code the screen can translate; zod's
-          // generic messages keep the column name so the row is easy to fix.
-          error: parsed.error.issues
-            .map((i) =>
-              /^[a-z_]+$/.test(i.message)
-                ? i.message
-                : `${i.path.join('.') || 'row'}: ${i.message}`,
-            )
-            .join('; '),
-        });
-    });
+    const { rows, errors } = parseSkuImportRows(body.rows);
     if (errors.length) return { created: 0, updated: 0, unchanged: 0, errors };
     return importSkus(this.prisma, { merchantId: body.merchantId, rows, actorUserId: user.sub });
   }

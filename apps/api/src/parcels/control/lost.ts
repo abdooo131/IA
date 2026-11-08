@@ -46,12 +46,15 @@ export async function newTicketCode(tx: Tx) {
 
 /**
  * A parcel went missing: it is searched for, and a ticket opens against whoever scanned it last.
- * The ticket's penalty waits until the search ends; finding the parcel cancels it.
+ * The ticket's penalty waits until a person confirms the loss; finding the parcel cancels it.
  */
 export async function onLost(
   tx: Tx,
   s: SettingValues,
-  p: Pick<Shipment, 'id' | 'trackingNumber' | 'codAmount'> & { currentHubId?: string | null },
+  p: Pick<Shipment, 'id' | 'trackingNumber' | 'codAmount'> & {
+    currentHubId?: string | null;
+    declaredValue?: number;
+  },
   reportedBy: string | null,
 ) {
   const now = new Date();
@@ -64,7 +67,11 @@ export async function onLost(
     data: { searchUntil, searchStartedAt: now, lostHubId },
   });
   const courier = who?.role === 'courier' ? who : null;
-  const value = Math.min(p.codAmount, s['lost.compensation_cap']);
+  // The courier carries what the merchant is paid for it: the declared value, else the cash.
+  const value = Math.min(
+    p.declaredValue && p.declaredValue > 0 ? p.declaredValue : p.codAmount,
+    s['lost.compensation_cap'],
+  );
   await tx.qcTicket.create({
     data: {
       code: await newTicketCode(tx),
@@ -163,14 +170,17 @@ export async function onFound(
 
 /**
  * What a merchant is paid for a lost or damaged parcel: the value they declared (else the cash
- * to collect), up to the cap, plus the shipping fee back.
+ * to collect), up to the cap, plus the shipping fee back when it was charged. The fee is booked
+ * only when a parcel is delivered or returned, so a lost parcel never paid it and gets the value
+ * alone.
  */
 export function compensationFor(
   s: SettingValues,
-  p: Pick<Shipment, 'declaredValue' | 'codAmount' | 'shippingFee'>,
+  p: Pick<Shipment, 'declaredValue' | 'codAmount' | 'shippingFee' | 'status'>,
 ) {
   const value = p.declaredValue > 0 ? p.declaredValue : p.codAmount;
-  return Math.min(value, s['lost.compensation_cap']) + p.shippingFee;
+  const feeCharged = p.status === 'DELIVERED' || p.status === 'RETURNED';
+  return Math.min(value, s['lost.compensation_cap']) + (feeCharged ? p.shippingFee : 0);
 }
 
 /** Gives back a penalty that was applied. */

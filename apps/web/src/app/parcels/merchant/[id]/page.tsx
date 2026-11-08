@@ -79,6 +79,7 @@ interface Parcel {
   codCollected: number;
   payoutId: string | null;
   declaredValue: number;
+  routeZone: string | null;
   payoutSchedule: string;
   payout:
     | { status: 'paid'; number: number; reference: string | null; paidAt: string | null }
@@ -98,6 +99,16 @@ const RETURNABLE = [
   'AT_HUB',
   'ON_HOLD',
 ];
+
+const ZONE_NAMES: Record<string, string> = {
+  SAME: 'Same governorate',
+  GC: 'Greater Cairo',
+  ALX: 'Alexandria',
+  DELTA: 'Delta',
+  CANAL: 'Canal and Suez',
+  UPPER: 'Upper Egypt',
+  REMOTE: 'Remote areas',
+};
 
 const SCHEDULES: Record<string, string> = {
   daily: 'Every day',
@@ -158,18 +169,19 @@ export default function ParcelPage() {
     }
   };
 
-  const fees = p.status === 'RETURNED' ? p.shippingFee + p.returnFee : p.shippingFee + p.codFee;
+  const comingBack = p.direction === 'RETURN' || p.status === 'RETURNED';
+  const fees = comingBack ? p.shippingFee + p.returnFee : p.shippingFee + p.codFee;
   const feeLines = [
     ...(p.basePrice > 0 ? [{ label: t('List price'), value: egp(p.basePrice) }] : []),
     ...(p.discount > 0 ? [{ label: t('Discount'), value: egp(-p.discount) }] : []),
     ...(p.openFee > 0 ? [{ label: t('Open package fee'), value: egp(p.openFee) }] : []),
     ...(p.exchangeFee > 0 ? [{ label: t('Exchange'), value: egp(p.exchangeFee) }] : []),
     { label: t('Shipping fee'), value: egp(p.shippingFee) },
-    ...(p.status !== 'RETURNED' && p.codFee > 0
-      ? [{ label: t('COD fee'), value: egp(p.codFee) }]
-      : []),
+    ...(!comingBack && p.codFee > 0 ? [{ label: t('COD fee'), value: egp(p.codFee) }] : []),
     ...(p.status === 'RETURNED' ? [{ label: t('Return fee'), value: egp(p.returnFee) }] : []),
   ];
+  // Fees are booked only when the parcel is delivered or comes back.
+  const charged = p.status === 'DELIVERED' || p.status === 'RETURNED';
 
   // One banner: where the parcel is, and what comes next.
   const banner: { tone: BannerTone; text: string; next?: string } =
@@ -197,29 +209,37 @@ export default function ParcelPage() {
                 }),
                 next: t('Your decision is needed: try again or bring it back to you'),
               }
-            : p.status === 'LOST'
+            : p.status === 'ATTEMPT_FAILED'
               ? {
                   tone: 'warning',
-                  text: t('We lost track of this parcel and are searching for it'),
+                  text: t('The courier could not deliver this parcel: {reason}', {
+                    reason: reasonText(p.lastFailReason),
+                  }),
+                  next: t('It comes back to the hub with the courier; then you decide what to do'),
                 }
-              : p.status === 'CREATED'
+              : p.status === 'LOST'
                 ? {
-                    tone: 'info',
-                    text: t('The parcel is waiting for our courier to pick it up'),
+                    tone: 'warning',
+                    text: t('We lost track of this parcel and are searching for it'),
                   }
-                : {
-                    tone: 'info',
-                    text:
-                      p.direction === 'RETURN'
-                        ? t('The parcel is on its way back to you')
-                        : t('The parcel is on its way through our network'),
-                    next:
-                      p.promisedDate && p.direction === 'FORWARD'
-                        ? t('It should reach the customer on {date}', {
-                            date: shortDate(p.promisedDate),
-                          })
-                        : undefined,
-                  };
+                : p.status === 'CREATED'
+                  ? {
+                      tone: 'info',
+                      text: t('The parcel is waiting for our courier to pick it up'),
+                    }
+                  : {
+                      tone: 'info',
+                      text:
+                        p.direction === 'RETURN'
+                          ? t('The parcel is on its way back to you')
+                          : t('The parcel is on its way through our network'),
+                      next:
+                        p.promisedDate && p.direction === 'FORWARD'
+                          ? t('It should reach the customer on {date}', {
+                              date: shortDate(p.promisedDate),
+                            })
+                          : undefined,
+                    };
 
   const payout = p.payout;
   const payoutNumber =
@@ -293,8 +313,8 @@ export default function ParcelPage() {
 
       <OrderTabs
         tabs={[
-          { href: '?', label: t('Order details'), active: tab === 'details' },
-          { href: '?tab=tracking', label: t('Order tracking'), active: tab === 'tracking' },
+          { href: '?', label: t('Parcel details'), active: tab === 'details' },
+          { href: '?tab=tracking', label: t('Parcel tracking'), active: tab === 'tracking' },
         ]}
       />
 
@@ -473,7 +493,30 @@ export default function ParcelPage() {
                       </span>
                     }
                   />
-                  <FeeLines lines={feeLines} total={{ label: t('Total fees'), value: egp(fees) }} />
+                  {p.routeZone && (
+                    <SideBox
+                      label={t('Route zone')}
+                      value={`${t(ZONE_NAMES[p.routeZone] ?? p.routeZone)} · ${t('Size')} ${p.size}`}
+                    />
+                  )}
+                  <FeeLines
+                    lines={feeLines}
+                    total={{
+                      label: charged
+                        ? t('Total fees')
+                        : comingBack
+                          ? t('Fees when it reaches you')
+                          : t('Fees when delivered'),
+                      value: egp(fees),
+                    }}
+                  />
+                  {!charged && (
+                    <p className="px-1 text-caption text-text-muted">
+                      {comingBack
+                        ? t('The return fee is charged when the parcel reaches you')
+                        : t('Nothing is charged until the parcel is delivered')}
+                    </p>
+                  )}
                 </SideCard>
                 <CashCycle
                   title={t('Payout cycle')}
@@ -633,9 +676,14 @@ function DecisionPanel({
         <Button
           tone="secondary"
           disabled={busy}
-          onClick={() =>
-            onDecide({ decision: 'RETURN', note }, t('The parcel is coming back to you'))
-          }
+          onClick={() => {
+            if (
+              window.confirm(
+                t('Bring this parcel back to you instead of delivering it? A return fee applies.'),
+              )
+            )
+              onDecide({ decision: 'RETURN', note }, t('The parcel is coming back to you'));
+          }}
         >
           <Icon name="returns" size={18} />
           {t('Return to me')}

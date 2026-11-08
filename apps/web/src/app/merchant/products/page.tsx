@@ -1,4 +1,5 @@
 import { getLocale, getTranslations } from 'next-intl/server';
+import { MerchantProductActions } from '@/components/admin/ProductsManager';
 import { localized } from '@/lib/admin-types';
 import { apiGet, requireMerchantRight } from '@/lib/api-server';
 import type { MerchantSku } from '@/lib/merchant-types';
@@ -16,6 +17,8 @@ export default async function MerchantProductsPage() {
   return (
     <>
       <h1 className="text-h2">{t('title')}</h1>
+      <MerchantProductActions />
+      {skus.length === 0 && <p className="mt-4 text-body-sm text-text-muted">{t('empty')}</p>}
       <ul className="mt-4 grid gap-3 md:grid-cols-2">
         {skus.map((s) => (
           <li key={s.id} className="rounded-lg border border-line bg-surface p-4 shadow-sm">

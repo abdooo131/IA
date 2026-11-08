@@ -47,7 +47,7 @@ const TABS: { id: State; label: string; hint: string }[] = [
   {
     id: 'to_confirm',
     label: 'To confirm',
-    hint: 'The search ended without finding it. Confirm the loss to compensate the merchant: the declared value up to the limit, plus the shipping fee.',
+    hint: 'The search ended without finding it. Confirm the loss to compensate the merchant: the declared value up to the limit. A lost parcel is never charged its shipping fee.',
   },
   {
     id: 'lost',
@@ -175,14 +175,8 @@ export default function LostPage() {
                   </div>
                   <div className="text-caption text-text-muted">
                     {x.declaredValue > 0
-                      ? t('Declared {value} + fee {fee}', {
-                          value: egp(x.declaredValue),
-                          fee: egp(x.shippingFee),
-                        })
-                      : t('No value declared: cash {value} + fee {fee}', {
-                          value: egp(x.codAmount),
-                          fee: egp(x.shippingFee),
-                        })}
+                      ? t('Declared value {value}', { value: egp(x.declaredValue) })
+                      : t('No value declared: cash {value}', { value: egp(x.codAmount) })}
                   </div>
                   {x.state === 'to_confirm' && (
                     <div className="mt-2 flex flex-wrap gap-2">

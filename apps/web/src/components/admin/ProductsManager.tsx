@@ -62,7 +62,10 @@ function ProductForm({
     onSubmit({
       ...(initial
         ? {}
-        : { merchantId: form.get('merchantId'), sku: String(form.get('sku')).trim() }),
+        : {
+            ...(merchants.length ? { merchantId: form.get('merchantId') } : {}),
+            sku: String(form.get('sku')).trim(),
+          }),
       barcode: String(form.get('barcode') ?? '').trim() || null,
       titleEn: form.get('titleEn'),
       titleAr: form.get('titleAr'),
@@ -78,18 +81,20 @@ function ProductForm({
     >
       {!initial && (
         <>
-          <label className="block text-caption">
-            {t('merchant')}
-            <select name="merchantId" required className={field}>
-              {merchants
-                .filter((m) => m.isActive)
-                .map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+          {merchants.length > 0 && (
+            <label className="block text-caption">
+              {t('merchant')}
+              <select name="merchantId" required className={field}>
+                {merchants
+                  .filter((m) => m.isActive)
+                  .map((m) => (
+                    <option key={m.id} value={m.id}>
+                      {m.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
           <label className="block text-caption">
             {t('sku')}
             <input name="sku" required maxLength={64} dir="ltr" className={field} />
@@ -173,7 +178,15 @@ function ProductForm({
   );
 }
 
-function ImportPanel({ merchants, onDone }: { merchants: Merchant[]; onDone(): void }) {
+function ImportPanel({
+  merchants,
+  onDone,
+  apiBase = '/admin',
+}: {
+  merchants: Merchant[];
+  onDone(): void;
+  apiBase?: string;
+}) {
   const t = useTranslations('admin.productsEdit');
   const [merchantId, setMerchantId] = useState(merchants.find((m) => m.isActive)?.id ?? '');
   const [file, setFile] = useState<{ name: string; rows: Record<string, string>[] } | null>(null);
@@ -193,8 +206,8 @@ function ImportPanel({ merchants, onDone }: { merchants: Merchant[]; onDone(): v
   async function run() {
     if (!file?.rows.length) return;
     setBusy(true);
-    const res = await apiSend<ImportResult>('POST', '/admin/skus/import', {
-      merchantId,
+    const res = await apiSend<ImportResult>('POST', `${apiBase}/skus/import`, {
+      ...(merchants.length ? { merchantId } : {}),
       rows: file.rows,
     });
     setBusy(false);
@@ -220,22 +233,24 @@ function ImportPanel({ merchants, onDone }: { merchants: Merchant[]; onDone(): v
       >
         {t('template')}
       </a>
-      <label className="block text-caption">
-        {t('merchant')}
-        <select
-          value={merchantId}
-          onChange={(e) => setMerchantId(e.target.value)}
-          className={field}
-        >
-          {merchants
-            .filter((m) => m.isActive)
-            .map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.name}
-              </option>
-            ))}
-        </select>
-      </label>
+      {merchants.length > 0 && (
+        <label className="block text-caption">
+          {t('merchant')}
+          <select
+            value={merchantId}
+            onChange={(e) => setMerchantId(e.target.value)}
+            className={field}
+          >
+            {merchants
+              .filter((m) => m.isActive)
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+          </select>
+        </label>
+      )}
       <label className="block text-caption">
         {t('chooseFile')}
         <input
@@ -286,7 +301,7 @@ function ImportPanel({ merchants, onDone }: { merchants: Merchant[]; onDone(): v
       )}
       <button
         type="button"
-        disabled={busy || !file?.rows.length || !merchantId}
+        disabled={busy || !file?.rows.length || (merchants.length > 0 && !merchantId)}
         className={primary}
         onClick={() => void run()}
       >
@@ -463,6 +478,60 @@ export function ProductsManager({
           </tbody>
         </table>
       </div>
+    </div>
+  );
+}
+
+/** The merchant's own Add product and Import buttons (the merchant is the signed in one). */
+export function MerchantProductActions() {
+  const t = useTranslations('admin.productsEdit');
+  const router = useRouter();
+  const [mode, setMode] = useState<'new' | 'import' | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function create(body: Record<string, unknown>) {
+    setBusy(true);
+    setError(null);
+    const result = await apiSend('POST', '/merchant/skus', body);
+    setBusy(false);
+    if (!result.ok)
+      return setError(t(`errors.${KNOWN.includes(result.error) ? result.error : 'generic'}`));
+    setMode(null);
+    router.refresh();
+  }
+
+  return (
+    <div className="mt-4 space-y-4">
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={primary}
+          onClick={() => setMode(mode === 'new' ? null : 'new')}
+        >
+          {t('new')}
+        </button>
+        <button
+          type="button"
+          className={secondary}
+          onClick={() => setMode(mode === 'import' ? null : 'import')}
+        >
+          {t('import')}
+        </button>
+      </div>
+      {mode === 'new' && (
+        <ProductForm
+          merchants={[]}
+          busy={busy}
+          error={error}
+          submitLabel={t('create')}
+          onSubmit={(body) => void create(body)}
+          onCancel={() => setMode(null)}
+        />
+      )}
+      {mode === 'import' && (
+        <ImportPanel merchants={[]} apiBase="/merchant" onDone={() => router.refresh()} />
+      )}
     </div>
   );
 }

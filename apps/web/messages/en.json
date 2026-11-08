@@ -1393,7 +1393,8 @@
     "products": {
       "title": "Products and stock",
       "onHand": "On shelves",
-      "reserved": "Reserved"
+      "reserved": "Reserved",
+      "empty": "No products yet. Add them one by one or import a CSV file. Products linked to Shopify are added on their own."
     },
     "notifications": {
       "title": "Notifications",

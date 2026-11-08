@@ -153,13 +153,16 @@ describe('control', () => {
     expect(
       (await ok(as.admin!.get('/parcels/control/lost'))).find((x: any) => x.id === p.id).state,
     ).toBe('to_confirm');
-    // Confirmed: the merchant gets the value (no value declared: the cash) plus the fee back.
-    const fee = (await prisma.shipment.findUnique({ where: { id: p.id } })).shippingFee;
+    // Confirmed: the merchant gets the value (no value declared: the cash). A lost parcel was
+    // never charged its shipping fee, so there is no fee to give back.
     expect(
       (await ok(as.admin!.post(`/parcels/control/lost/${p.id}/confirm`).send({ note: 'Gone' })))
         .amount,
-    ).toBe(40000 + fee);
-    expect(await merchantBalance()).toBe(mBefore + 40000 + fee);
+    ).toBe(40000);
+    expect(await merchantBalance()).toBe(mBefore + 40000);
+    // The courier's ticket waited for that confirmation; the next run applies it.
+    expect(await wallet()).toBe(before);
+    await control.tick();
     expect(await wallet()).toBe(before - 40000);
     await balanced();
 
@@ -283,7 +286,7 @@ describe('control', () => {
     await ok(as.admin!.post(`/parcels/control/lost/${l.id}/confirm`).send({}));
     const decided = await prisma.merchantClaim.findUnique({ where: { id: lc.id } });
     expect(decided.status).toBe('APPROVED');
-    expect(decided.amount).toBe(20000 + l.shippingFee);
+    expect(decided.amount).toBe(20000);
     await balanced();
   });
 

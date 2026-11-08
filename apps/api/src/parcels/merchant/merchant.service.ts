@@ -152,6 +152,7 @@ export class MerchantService {
           originHubId: home.homeHubId,
           destinationHubId: hubId,
           shippingFee: price.shippingFee,
+          routeZone: price.zone.code,
           basePrice: price.basePrice,
           discount: price.discount,
           openFee: price.openFee,
@@ -329,17 +330,44 @@ export class MerchantService {
         patch.address = d.address;
         changes.push('address');
       }
-      if (d.governorateCode && d.governorateCode !== s.governorateCode) {
-        const { hubId } = await this.core.deliveryHubFor(tx, d.governorateCode, d.areaId ?? null);
-        patch.governorateCode = d.governorateCode;
+      const newGov =
+        d.governorateCode && d.governorateCode !== s.governorateCode ? d.governorateCode : null;
+      const newArea = d.areaId !== undefined && d.areaId !== s.areaId;
+      if (newGov || newArea) {
+        // A new place can change both the hub that delivers it and the route zone price.
+        const merchant = await tx.merchant.findUniqueOrThrow({
+          where: { id: merchantId },
+          select: { discountBp: true },
+        });
+        const price = await priceFor(tx, this.core, await this.settings.all(tx), {
+          merchantId,
+          discountBp: merchant.discountBp,
+          governorateCode: newGov ?? s.governorateCode,
+          areaId: newGov ? (d.areaId ?? null) : (d.areaId ?? null),
+          size: s.size as ParcelSize,
+          allowOpen: s.allowOpen,
+          exchange: s.kind === 'EXCHANGE',
+        });
+        // The parcel waits at the hub that tried to deliver it. An address another hub serves
+        // cannot be sent out from here: the merchant asks for it back and sends it again.
+        if (price.hubId !== (s.currentHubId ?? s.destinationHubId)) {
+          throw new DomainError(
+            'other_hub',
+            'This address is delivered by another hub. Ask for the parcel back and send it again as a new parcel.',
+            409,
+          );
+        }
+        if (newGov) patch.governorateCode = newGov;
         patch.areaId = d.areaId ?? null;
-        patch.destinationHubId = hubId;
-        changes.push('governorate');
-      } else if (d.areaId !== undefined && d.areaId !== s.areaId) {
-        const { hubId } = await this.core.deliveryHubFor(tx, s.governorateCode, d.areaId ?? null);
-        patch.areaId = d.areaId ?? null;
-        patch.destinationHubId = hubId;
-        changes.push('area');
+        patch.destinationHubId = price.hubId;
+        patch.shippingFee = price.shippingFee;
+        patch.basePrice = price.basePrice;
+        patch.discount = price.discount;
+        patch.openFee = price.openFee;
+        patch.exchangeFee = price.exchangeFee;
+        patch.routeZone = price.zone.code;
+        changes.push(newGov ? 'governorate' : 'area');
+        if (price.shippingFee !== s.shippingFee) changes.push('price');
       }
       const note = [changes.length ? `Updated ${changes.join(', ')}` : '', d.note]
         .filter(Boolean)

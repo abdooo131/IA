@@ -120,7 +120,7 @@ export default function ClaimsPage() {
                   {c.status === 'OPEN' && (
                     <div className="text-caption text-text-muted">
                       {t(
-                        'Full compensation: declared value up to the limit, plus the shipping fee',
+                        'Full compensation: declared value up to the limit, plus the shipping fee when it was charged',
                       )}
                     </div>
                   )}

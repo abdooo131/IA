@@ -205,8 +205,8 @@ export function TryRouteCard({
   const merchants = useLoad<{ id: string; name: string }[]>('/admin/merchants');
   const [q, setQ] = useState({
     merchantId: '',
-    fromGovernorate: 'CAI',
-    governorateCode: 'GIZ',
+    fromGovernorate: 'EG-C',
+    governorateCode: 'EG-GZ',
     areaId: '',
   });
   const [res, setRes] = useState<Preview | null>(null);

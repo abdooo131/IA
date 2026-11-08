@@ -144,9 +144,15 @@ export const SETTINGS = {
   },
   'lost.no_scan_hours': {
     label:
-      'Hours a parcel may wait without a scan at a station (picked up, inbound, sorting, outbound) before it is searched for',
+      'Hours a parcel may wait without a scan at inbound or after pickup before it is searched for',
     kind: 'int',
     default: 2,
+  },
+  'lost.sorted_hours': {
+    label:
+      'Hours a sorted parcel (on a lane or at outbound) may wait for its trip without a scan before it is searched for',
+    kind: 'int',
+    default: 24,
   },
   'lost.transit_hours': {
     label:
@@ -161,7 +167,7 @@ export const SETTINGS = {
   },
   'lost.compensation_cap': {
     label:
-      'Most we pay a merchant for a lost or damaged parcel, before the shipping fee refund (piastres)',
+      'Most we pay a merchant for a lost or damaged parcel, before any shipping fee refund (piastres)',
     kind: 'money',
     default: 300000,
   },

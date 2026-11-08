@@ -5411,6 +5411,8 @@ model Shipment {
   rating            Int?
   ratingComment     String          @default("") @map("rating_comment")
 
+  /// The route zone that set the price (SAME, GC, ALX, DELTA, CANAL, UPPER, REMOTE); null before 2026-11-08
+  routeZone    String? @map("route_zone")
   shippingFee  Int     @map("shipping_fee")
   codFee       Int     @map("cod_fee")
   returnFee    Int     @default(0) @map("return_fee")

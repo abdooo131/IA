@@ -8,15 +8,21 @@ export const dynamic = 'force-dynamic';
 
 export default async function MerchantNewOrderPage() {
   await requireMerchantRight('orders');
-  const [skus, t] = await Promise.all([
+  const [skus, delivery, t] = await Promise.all([
     apiGet<MerchantSku[]>('/merchant/skus'),
+    apiGet<{ expressPricePiastres: number | null }>('/merchant/delivery'),
     getTranslations('merchant.orders'),
   ]);
   return (
     <>
       <BackLink href="/merchant/orders" />
       <h1 className="text-h2">{t('newTitle')}</h1>
-      <NewOrderForm endpoint="/merchant/orders" detailBase="/merchant/orders" skus={skus} />
+      <NewOrderForm
+        endpoint="/merchant/orders"
+        detailBase="/merchant/orders"
+        skus={skus}
+        defaultFeePiastres={delivery.expressPricePiastres}
+      />
     </>
   );
 }

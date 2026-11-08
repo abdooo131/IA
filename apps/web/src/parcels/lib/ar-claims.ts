@@ -5,7 +5,6 @@ export const AR_CLAIMS: Record<string, string> = {
   'Confirmed losses. If one turns up, scanning it takes the compensation back.':
     'خسائر مؤكدة. إذا ظهرت شحنة منها، يسترد مسحها التعويض.',
   Damaged: 'تالفة',
-  'Declared {value} + fee {fee}': 'القيمة المعلنة {value} + الرسوم {fee}',
   'In search': 'قيد البحث',
   Lost: 'مفقودة',
   'Lost at': 'فقدت في',
@@ -13,7 +12,6 @@ export const AR_CLAIMS: Record<string, string> = {
   Merchant: 'التاجر',
   'No scan for too long, a merchant claim, or marked missing. Scanning the parcel anywhere ends the search and it continues on its way.':
     'لم تمسح لفترة طويلة، أو طالب بها التاجر، أو سجلت مفقودة. مسح الشحنة في أي مكان ينهي البحث وتكمل طريقها.',
-  'No value declared: cash {value} + fee {fee}': 'لا قيمة معلنة: التحصيل {value} + الرسوم {fee}',
   'Not found, confirm': 'لم يعثر عليها، أكد',
   Note: 'ملاحظة',
   'Note (optional)': 'ملاحظة (اختياري)',
@@ -24,8 +22,10 @@ export const AR_CLAIMS: Record<string, string> = {
     'شحنات لها مطالبة تلف مقبولة وما زالت في الشبكة.',
   'Since {time}': 'منذ {time}',
   State: 'الحالة',
-  'The search ended without finding it. Confirm the loss to compensate the merchant: the declared value up to the limit, plus the shipping fee.':
-    'انتهى البحث دون العثور عليها. أكد الفقد لتعويض التاجر: القيمة المعلنة حتى الحد الأقصى، مع رسوم الشحن.',
+  'The search ended without finding it. Confirm the loss to compensate the merchant: the declared value up to the limit. A lost parcel is never charged its shipping fee.':
+    'انتهى البحث دون العثور عليها. أكد الفقد لتعويض التاجر: القيمة المعلنة حتى الحد الأقصى. الشحنة المفقودة لا تُحسب عليها رسوم شحن.',
+  'Declared value {value}': 'القيمة المعلنة {value}',
+  'No value declared: cash {value}': 'لا قيمة معلنة: التحصيل {value}',
   'To confirm': 'بانتظار التأكيد',
   Amount: 'المبلغ',
   Approve: 'موافقة',
@@ -35,8 +35,8 @@ export const AR_CLAIMS: Record<string, string> = {
   Claim: 'المطالبة',
   Decision: 'القرار',
   'Full amount': 'المبلغ كاملا',
-  'Full compensation: declared value up to the limit, plus the shipping fee':
-    'التعويض الكامل: القيمة المعلنة حتى الحد الأقصى، مع رسوم الشحن',
+  'Full compensation: declared value up to the limit, plus the shipping fee when it was charged':
+    'التعويض الكامل: القيمة المعلنة حتى الحد الأقصى، مع رسوم الشحن إن كانت قد حُسبت',
   'Merchant claims': 'مطالبات التجار',
   'Merchants claim parcels that arrived damaged or never arrived. Approving credits their wallet.':
     'يطالب التجار بالشحنات التي وصلت تالفة أو لم تصل. الموافقة تضيف المبلغ إلى محفظتهم.',
@@ -54,8 +54,8 @@ export const AR_CLAIMS: Record<string, string> = {
   'Claim opened. We will review it and reply here': 'فتحت المطالبة. سنراجعها ونرد هنا',
   Claims: 'المطالبات',
   Closed: 'مغلقة',
-  'Compensation is the item value you declared on the parcel, up to the limit, plus the shipping fee.':
-    'التعويض هو قيمة المحتوى التي أعلنتها على الشحنة، حتى الحد الأقصى، مع رسوم الشحن.',
+  'Compensation is the item value you declared on the parcel, up to the limit. If the parcel arrived damaged, the shipping fee is given back too; a lost parcel is never charged one.':
+    'التعويض هو قيمة المحتوى التي أعلنتها على الشحنة، حتى الحد الأقصى. إذا وصلت الشحنة تالفة تُرد رسوم الشحن أيضًا؛ الشحنة المفقودة لا تُحسب عليها رسوم شحن أصلًا.',
   'Describe the problem': 'صف المشكلة',
   'It arrived damaged': 'وصلت تالفة',
   'It never arrived': 'لم تصل',

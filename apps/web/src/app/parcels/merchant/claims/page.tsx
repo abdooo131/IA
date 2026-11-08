@@ -38,7 +38,8 @@ const TONE = { OPEN: 'amber', APPROVED: 'green', REJECTED: 'slate' } as const;
 /**
  * Claims (owner, 2026-11-08): a parcel that reached the customer or came back damaged, or never
  * arrived, is claimed here. A lost claim starts the search at once; an approved claim credits
- * the wallet with the item value declared on the parcel, up to the limit, plus the shipping fee.
+ * the wallet with the item value declared on the parcel, up to the limit, plus the shipping fee
+ * when it was charged (a lost parcel never is).
  */
 export default function MerchantClaimsPage() {
   const t = useT();
@@ -115,7 +116,7 @@ export default function MerchantClaimsPage() {
           </Button>
           <span className="text-caption text-text-muted">
             {t(
-              'Compensation is the item value you declared on the parcel, up to the limit, plus the shipping fee.',
+              'Compensation is the item value you declared on the parcel, up to the limit. If the parcel arrived damaged, the shipping fee is given back too; a lost parcel is never charged one.',
             )}
           </span>
         </div>

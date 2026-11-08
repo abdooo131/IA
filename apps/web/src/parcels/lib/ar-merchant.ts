@@ -92,8 +92,9 @@ export const AR_MERCHANT: Record<string, string> = {
   'Create parcel': 'إنشاء الشحنة',
   'Upload a spreadsheet': 'رفع ملف',
   'Download template': 'تنزيل النموذج',
-  'Save your sheet as CSV. Governorate can be the code (GIZ) or the English name. COD is in EGP. Up to 500 rows at a time.':
-    'احفظ الملف بصيغة CSV. المحافظة تكتب بالكود (GIZ) أو بالاسم الإنجليزي. التحصيل بالجنيه. حتى 500 صف في المرة.',
+  'Save your sheet as CSV. Governorate can be the code (EG-GZ) or the English name. COD and item value are in EGP. Up to 500 rows at a time.':
+    'احفظ الملف بصيغة CSV. المحافظة تكتب بالكود (EG-GZ) أو بالاسم الإنجليزي. مبلغ التحصيل وقيمة المنتجات بالجنيه. حتى 500 صف في المرة.',
+  'Item value "{v}" is not an amount in EGP': 'قيمة المنتجات "{v}" ليست مبلغًا بالجنيه',
   'The file has no parcel rows': 'الملف لا يحتوي على شحنات',
   'Missing columns: {cols}. Download the template to see the format':
     'أعمدة ناقصة: {cols}. نزل النموذج لترى الشكل المطلوب',

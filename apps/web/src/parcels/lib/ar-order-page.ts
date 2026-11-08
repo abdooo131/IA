@@ -56,4 +56,21 @@ export const AR_ORDER_PAGE: Record<string, string> = {
   'The parcel is on its way back to you': 'الشحنة في طريقها إليك',
   'The parcel is on its way through our network': 'الشحنة في طريقها عبر شبكتنا',
   'It should reach the customer on {date}': 'من المتوقع أن تصل للعميل يوم {date}',
+  'Parcel details': 'تفاصيل الشحنة',
+  'Parcel tracking': 'تتبع الشحنة',
+  'Route zone': 'منطقة السعر',
+  'Same governorate': 'نفس المحافظة',
+  'Greater Cairo': 'القاهرة الكبرى',
+  Alexandria: 'الإسكندرية',
+  Delta: 'الدلتا',
+  'Canal and Suez': 'القناة والسويس',
+  'Upper Egypt': 'الصعيد',
+  'Remote areas': 'المناطق النائية',
+  'Fees when delivered': 'الرسوم عند التسليم',
+  'Fees when it reaches you': 'الرسوم عند وصولها إليك',
+  'Nothing is charged until the parcel is delivered': 'لا تُحسب أي رسوم قبل تسليم الشحنة',
+  'The return fee is charged when the parcel reaches you':
+    'تُحسب رسوم الإرجاع عند وصول الشحنة إليك',
+  'It comes back to the hub with the courier; then you decide what to do':
+    'تعود الشحنة إلى المركز مع المندوب، ثم تقرر ما يتم بها',
 };

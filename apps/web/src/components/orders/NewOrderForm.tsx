@@ -47,12 +47,15 @@ export function NewOrderForm({
   detailBase,
   skus,
   merchants,
+  defaultFeePiastres,
 }: {
   endpoint: string;
   detailBase: string;
   skus: OrderableSku[];
   /** Admin only: choose whose order this is */
   merchants?: { id: string; name: string }[];
+  /** The merchant's own 60 minute price, the customer's delivery fee by default */
+  defaultFeePiastres?: number | null;
 }) {
   const t = useTranslations('merchant.orders');
   const tErr = useTranslations('orders.errors');
@@ -292,7 +295,7 @@ export function NewOrderForm({
             min={0}
             step="0.01"
             inputMode="decimal"
-            defaultValue="0"
+            defaultValue={defaultFeePiastres ? (defaultFeePiastres / 100).toFixed(2) : '0'}
             dir="ltr"
             className={field}
           />

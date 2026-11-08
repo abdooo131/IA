@@ -156,20 +156,26 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Parcels that stopped moving are searched for on their own (owner, 2026-11-08): no scan for
-   * lost.no_scan_hours at a station's flow (picked up, inbound, sorting, outbound), or for
-   * lost.transit_hours on a truck or out with a courier. Parcels waiting on a hub's shelf or on
+   * lost.no_scan_hours after pickup or at inbound, lost.sorted_hours once sorted (on a lane or at
+   * outbound, waiting for its trip, often overnight), or lost.transit_hours on a truck or out
+   * with a courier. Parcels waiting on a hub's shelf or on
    * hold are waiting on purpose and the handover check counts them instead.
    */
   async searchStale(at: Date) {
     const s = await this.settings.all();
     const quick = new Date(at.getTime() - s['lost.no_scan_hours'] * HOUR);
+    const waiting = new Date(at.getTime() - s['lost.sorted_hours'] * HOUR);
     const slow = new Date(at.getTime() - s['lost.transit_hours'] * HOUR);
     const rows = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT s.id FROM shipments s
       WHERE (
-        (s.status::text IN ('PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND') AND
+        (s.status::text IN ('PICKED_UP', 'AT_INBOUND') AND
           COALESCE((SELECT max(e.created_at) FROM shipment_events e
                     WHERE e.shipment_id = s.id AND e.type <> ALL(${NOT_A_SCAN})), s.created_at) < ${quick})
+        OR
+        (s.status::text IN ('SORTED', 'AT_OUTBOUND') AND
+          COALESCE((SELECT max(e.created_at) FROM shipment_events e
+                    WHERE e.shipment_id = s.id AND e.type <> ALL(${NOT_A_SCAN})), s.created_at) < ${waiting})
         OR
         (s.status::text IN ('IN_TRANSIT', 'OUT_FOR_DELIVERY') AND
           COALESCE((SELECT max(e.created_at) FROM shipment_events e
@@ -223,8 +229,9 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
 
   /**
    * Operations confirm a loss once the search is over: the merchant is compensated (declared
-   * value up to the cap, plus the shipping fee), the parcel's lost claims are approved, and the
-   * parcel stays out of every station's stock. Finding it later takes the money back.
+   * value up to the cap; a lost parcel was never charged its shipping fee), the parcel's lost
+   * claims are approved, the courier's ticket may then apply, and the parcel stays out of every
+   * station's stock. Finding it later takes the money back.
    */
   async confirmLost(id: string, user: SessionUser, note: string) {
     const s = await this.settings.all();
@@ -297,9 +304,27 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
   /** Tickets past their waiting time apply their penalty; the appeal window opens. */
   async confirmTickets(at: Date) {
     const s = await this.settings.all();
-    const due = await this.prisma.qcTicket.findMany({
+    const open = await this.prisma.qcTicket.findMany({
       where: { status: 'OPEN', confirmAt: { lte: at } },
     });
+    // A missing parcel's ticket waits until a person confirms the loss, like the merchant's
+    // compensation: nobody is charged for a parcel that may still turn up.
+    const waiting = new Set(
+      (
+        await this.prisma.shipment.findMany({
+          where: {
+            id: {
+              in: open
+                .filter((t) => t.kind === 'MISSING_PARCEL' && t.shipmentId)
+                .map((t) => t.shipmentId!),
+            },
+            lostFinalAt: null,
+          },
+          select: { id: true },
+        })
+      ).map((x) => x.id),
+    );
+    const due = open.filter((t) => !(t.kind === 'MISSING_PARCEL' && waiting.has(t.shipmentId!)));
     for (const t of due) {
       await this.prisma.tx(async (tx) => {
         const r = await tx.qcTicket.updateMany({

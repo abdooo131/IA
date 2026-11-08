@@ -88,7 +88,7 @@ export default function ApiDocsPage() {
   -d '{
     "customerName": "Mona Adel",
     "customerPhone": "01012345678",
-    "governorateCode": "GIZ",
+    "governorateCode": "EG-GZ",
     "areaId": null,
     "address": "12 Mossadak St, Dokki",
     "size": "M",
@@ -111,7 +111,7 @@ export default function ApiDocsPage() {
   "direction": "FORWARD",
   "customer": { "name": "Mona Adel", "phone": "+201012345678" },
   "address": "12 Mossadak St, Dokki",
-  "governorateCode": "GIZ",
+  "governorateCode": "EG-GZ",
   "size": "M",
   "codAmount": 35000,
   "codCollected": 0,
@@ -143,7 +143,7 @@ export default function ApiDocsPage() {
           </Section>
 
           <Section id="other" title="Prices, places, pickups">
-            <Endpoint method="GET" path="/quote?governorateCode=GIZ&size=M&allowOpen=&exchange=">
+            <Endpoint method="GET" path="/quote?governorateCode=EG-GZ&size=M&allowOpen=&exchange=">
               <p>Your price for a parcel before you create it, with any discount you have.</p>
             </Endpoint>
             <Endpoint method="GET" path="/locations">
