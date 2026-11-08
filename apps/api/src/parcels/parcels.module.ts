@@ -57,7 +57,9 @@ import { MerchantService } from './merchant/merchant.service';
 import { PublicController } from './public/public.controller';
 
 @Module({
-  controllers: [ShopAdminController, ShopController, 
+  controllers: [
+    ShopAdminController,
+    ShopController,
     AuthController,
     MerchantController,
     HubController,
@@ -83,7 +85,8 @@ import { PublicController } from './public/public.controller';
     ShopifyPublicController,
     ShopifyMerchantController,
   ],
-  providers: [ShopService, 
+  providers: [
+    ShopService,
     PrismaService,
     SettingsService,
     ShipmentsCore,
