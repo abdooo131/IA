@@ -398,7 +398,11 @@ export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOpti
   const eve = existingEve
     ? existingEve.code
       ? existingEve
-      : await prisma.merchant.update({ where: { id: existingEve.id }, data: eveFields })
+      : await prisma.merchant.update({
+          where: { id: existingEve.id },
+          // The packaging shop texts the delivery code to the merchant's phone.
+          data: { ...eveFields, contactPhone: existingEve.contactPhone ?? '+201001234567' },
+        })
     : await prisma.merchant.create({
         data: {
           ...eveFields,
@@ -433,5 +437,72 @@ export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOpti
     role: 'merchant',
     merchantId: nile.id,
   });
-  log('Parcel network demo: agents, hub staff, couriers, two merchants');
+  // Shiply's packaging shop: merchants who ship next day buy bags and boxes from the sorting
+  // facility. Stock comes in through purchase orders, so it starts at zero.
+  const owner = await prisma.user.findFirst({
+    where: { role: 'admin' },
+    orderBy: { createdAt: 'asc' },
+  });
+  if (owner && !(await prisma.supplier.findFirst({ where: { name: 'Cairo Packaging Co' } })))
+    await prisma.supplier.create({
+      data: {
+        name: 'Cairo Packaging Co',
+        phone: '+201001112223',
+        taxId: '100-200-300',
+        createdById: owner.id,
+      },
+    });
+  const packaging = [
+    {
+      sku: 'FLY-S',
+      name: 'Flyer bags, small',
+      nameAr: 'أكياس شحن صغيرة',
+      unit: 'Pack of 100',
+      price: 9000,
+      minStock: 20,
+    },
+    {
+      sku: 'FLY-M',
+      name: 'Flyer bags, medium',
+      nameAr: 'أكياس شحن متوسطة',
+      unit: 'Pack of 100',
+      price: 12000,
+      minStock: 20,
+    },
+    {
+      sku: 'FLY-L',
+      name: 'Flyer bags, large',
+      nameAr: 'أكياس شحن كبيرة',
+      unit: 'Pack of 50',
+      price: 11000,
+      minStock: 10,
+    },
+    {
+      sku: 'BOX-M',
+      name: 'Carton box, medium',
+      nameAr: 'كرتونة متوسطة',
+      unit: 'Pack of 20',
+      price: 16000,
+      minStock: 10,
+    },
+    {
+      sku: 'TAPE',
+      name: 'Packing tape',
+      nameAr: 'شريط لاصق',
+      unit: 'Roll',
+      price: 2500,
+      minStock: 30,
+    },
+    {
+      sku: 'BUBBLE',
+      name: 'Bubble wrap',
+      nameAr: 'غلاف فقاعات',
+      unit: 'Roll of 10 m',
+      price: 6000,
+      minStock: 10,
+    },
+  ];
+  for (const p of packaging)
+    await prisma.packagingProduct.upsert({ where: { sku: p.sku }, update: {}, create: p });
+  log('Parcel network demo: agents, hub staff, couriers, two merchants, packaging');
 }

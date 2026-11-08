@@ -1313,6 +1313,7 @@
   },
   "merchant": {
     "nav": {
+      "packagingShop": "متجر التغليف",
       "shipments": "الشحنات",
       "new": "شحنة جديدة",
       "products": "المنتجات",
@@ -5367,6 +5368,7 @@
       "shiply": "شحنات اليوم التالي: المراكز والمندوبين والوكلاء والتجار"
     },
     "menus": {
+      "packagingShop": "متجر التغليف",
       "dashboard": "لوحة التحكم",
       "orders": "الطلبات",
       "alerts": "التنبيهات",
@@ -5416,6 +5418,8 @@
       "shiplyMoney": "شيبلي"
     },
     "pages": {
+      "packagingOrders": "طلبات التغليف",
+      "packagingProducts": "منتجات التغليف",
       "overview": "نظرة عامة",
       "orders": "الطلبات",
       "alerts": "التنبيهات",

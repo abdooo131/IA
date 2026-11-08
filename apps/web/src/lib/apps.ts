@@ -323,6 +323,15 @@ export const APPS: AppDef[] = [
         ],
       },
       {
+        // Shiply's packaging shop: sold to next day merchants from the sorting facilities.
+        label: 'packagingShop',
+        pages: [
+          { href: '/parcels/admin/shop/orders', label: 'packagingOrders' },
+          { href: '/parcels/admin/shop/products', label: 'packagingProducts' },
+          { href: '/parcels/admin/shop/purchase-orders', label: 'purchaseOrders' },
+        ],
+      },
+      {
         label: 'configuration',
         pages: [
           { href: '/parcels/admin/network', label: 'network' },

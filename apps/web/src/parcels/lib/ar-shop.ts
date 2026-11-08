@@ -122,8 +122,8 @@ export const AR_SHOP: Record<string, string> = {
   '{n} still expected': 'متبقي {n}',
   'Supplier invoice number': 'رقم فاتورة المورد',
   'The supplier charges VAT': 'المورد يحتسب ضريبة القيمة المضافة',
-  'The stock goes up now. A bill for the supplier is raised and books when a second person approves it.':
-    'المخزون يزيد الآن. تُنشأ فاتورة للمورد وتُسجل في الدفاتر عند موافقة شخص ثانٍ.',
+  'The stock goes up now. A bill for the supplier goes to Accounting to pay.':
+    'يزيد المخزون الآن، وتذهب فاتورة المورد إلى الحسابات لسدادها.',
   'Stock updated. The bill waits for approval': 'تم تحديث المخزون. الفاتورة في انتظار الموافقة',
   'each before VAT': 'للوحدة قبل الضريبة',
   'Mark the order as sent to the supplier first': 'سجّل أن الأمر أُرسل للمورد أولا',

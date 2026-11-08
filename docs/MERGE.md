@@ -123,5 +123,10 @@ Their ids switch to Shiply Now's style (cuid).
 7. Shopify: one app, two actions (60 minutes, next day).
 8. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.
-9. Merge Core's packaging shop with Shiply Now's packaging and purchase orders; one alerts list.
+9. One alerts list (both companies, each to the people of its app). Packaging stays two things
+   (owner, 2026-11-08): Shiply's packaging shop sells bags and boxes to next day merchants from
+   the sorting facilities (company Shiply: products and stock, shop purchase orders, merchant
+   orders packed at the facility and delivered with the merchant's code, sales and cost in
+   Shiply's books); goods received on a shop purchase order become a supplier bill that Accounting
+   pays (never cancelled by reversal). Shiply Now's packaging stays a dark store expense, as built.
 10. Delete `shiply-core/`.

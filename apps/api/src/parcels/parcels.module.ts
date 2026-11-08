@@ -1,3 +1,5 @@
+import { ShopAdminController, ShopController } from './shop/shop.controller';
+import { ShopService } from './shop/shop.service';
 // The Shiply parcel network inside Shiply Now's API. Every route sits under /parcels (see
 // app.module's RouterModule). Sign in, errors and the books are Shiply Now's; the guard below
 // gives network routes the person as the network knows them.
@@ -55,7 +57,7 @@ import { MerchantService } from './merchant/merchant.service';
 import { PublicController } from './public/public.controller';
 
 @Module({
-  controllers: [
+  controllers: [ShopAdminController, ShopController, 
     AuthController,
     MerchantController,
     HubController,
@@ -81,7 +83,7 @@ import { PublicController } from './public/public.controller';
     ShopifyPublicController,
     ShopifyMerchantController,
   ],
-  providers: [
+  providers: [ShopService, 
     PrismaService,
     SettingsService,
     ShipmentsCore,

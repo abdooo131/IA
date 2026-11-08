@@ -71,6 +71,7 @@ function hubMenus(me: Me | null): AppMenu[] {
       pages: [
         { href: '/parcels/hub/pickups', label: 'Pickups' },
         { href: '/parcels/hub/runs', label: 'Courier runs' },
+        { href: '/parcels/hub/packaging', label: 'Packaging orders' },
       ],
     });
   }
@@ -176,13 +177,14 @@ export function allApps(me: Me | null): AppDef[] {
         {
           label: 'Packaging shop',
           pages: [
+            { href: '/parcels/admin/shop/orders', label: 'Orders' },
             {
-              href: '/admin/packaging',
+              href: '/parcels/admin/shop/products',
               label: 'Products and stock',
-              hint: 'Packaging items and stock per store',
+              hint: 'Packaging kept at the sorting facilities',
             },
             {
-              href: '/finance/purchase-orders',
+              href: '/parcels/admin/shop/purchase-orders',
               label: 'Purchase orders',
               hint: 'Buy from suppliers and receive the goods',
             },

@@ -301,3 +301,4 @@ export {
   ensureAgentSupplier,
   markSettlementPaid,
 } from './parcels/agents';
+export { billShopGoods } from './parcels/shop';

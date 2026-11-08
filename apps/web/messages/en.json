@@ -1313,6 +1313,7 @@
   },
   "merchant": {
     "nav": {
+      "packagingShop": "Packaging shop",
       "shipments": "Shipments",
       "new": "New shipment",
       "products": "Products",
@@ -5424,6 +5425,7 @@
       "shiply": "Next day parcels: hubs, couriers, agents and merchants"
     },
     "menus": {
+      "packagingShop": "Packaging shop",
       "dashboard": "Dashboard",
       "orders": "Orders",
       "alerts": "Alerts",
@@ -5473,6 +5475,8 @@
       "shiplyMoney": "Shiply"
     },
     "pages": {
+      "packagingOrders": "Packaging orders",
+      "packagingProducts": "Packaging products",
       "overview": "Overview",
       "orders": "Orders",
       "alerts": "Alerts",

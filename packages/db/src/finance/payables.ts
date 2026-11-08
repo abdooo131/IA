@@ -353,6 +353,14 @@ export function cancelBill(db: Db, input: { billId: string; reason: string; acto
     // The settlement's entry also moved courier wallets: it is never undone by cancelling.
     if (await tx.agentSettlement.findUnique({ where: { billId: bill.id } }))
       throw new DomainError('bill_from_agent_settlement');
+    // Goods received for Shiply's packaging shop: the stock is on the shelf, never undone here.
+    if (
+      bill.entryId &&
+      (await tx.ledgerEntry.findFirst({
+        where: { id: bill.entryId, kind: 'parcels.shop_goods_received' },
+      }))
+    )
+      throw new DomainError('bill_from_purchase_order');
     await post(tx, {
       kind: 'supplier_bill_cancel',
       idempotencyKey: `bill_cancel:${bill.id}`,
