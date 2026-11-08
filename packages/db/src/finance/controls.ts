@@ -35,6 +35,7 @@ import {
 } from './assets';
 import { bookCheque, type ChequeBookInput, dropChequeRequest } from './cheques';
 import { type DepositInput, recordDeposit } from './contracts';
+import { assertAgentInvoice } from '../parcels/agents';
 
 import { type PackagingPurchaseInput, recordPackagingPurchase } from '../packaging';
 
@@ -257,6 +258,9 @@ export async function queueRequest(
       },
     });
     if (seen) return seen;
+    // An agent's settlement bill waits for the agent's own invoice: refuse the request now
+    // rather than at approval.
+    if (payload.kind === 'bill_payment') await assertAgentInvoice(tx, payload.input.billId);
     const request = await tx.financeRequest.create({
       data: {
         kind: payload.kind,

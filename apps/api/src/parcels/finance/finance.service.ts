@@ -820,6 +820,8 @@ export class FinanceService {
         memo: `Agent settlement ${x.code} for ${x.month}`,
         source: 'AGENT_SETTLEMENT',
         key: `AGENT_SETTLEMENT:${x.id}`,
+        // The month's cost belongs to that month: booked on its last day once it is over.
+        date: lastDayOf(x.month) < todayInCairo() ? lastDayOf(x.month) : undefined,
         userId: user.id,
         lines: [
           ...details.perStaff.flatMap((p): Line[] => {
@@ -977,4 +979,11 @@ export class FinanceService {
       balanced: true,
     };
   }
+}
+
+/** The last Cairo day of a month (YYYY-MM): 2026-10 → 2026-10-31. */
+function lastDayOf(month: string) {
+  const [y, m] = month.split('-').map(Number);
+  const d = new Date(Date.UTC(y!, m!, 0));
+  return d.toISOString().slice(0, 10);
 }
