@@ -12,6 +12,18 @@ const EGP = 100;
 
 // Placeholder prices (VAT included) until the business sends the real price list.
 const ZONES = [
+  // Seven route zones (owner, 2026-11-08): the route from pickup to delivery picks one.
+  {
+    code: 'SAME',
+    name: 'Same city',
+    transitDays: 1,
+    priceS: 40 * EGP,
+    priceM: 50 * EGP,
+    priceL: 65 * EGP,
+    priceXL: 90 * EGP,
+    priceXXL: 130 * EGP,
+    priceBulky: 180 * EGP,
+  },
   {
     code: 'GC',
     name: 'Greater Cairo',
@@ -47,7 +59,7 @@ const ZONES = [
   },
   {
     code: 'CANAL',
-    name: 'Canal cities',
+    name: 'Canal and Suez',
     transitDays: 2,
     priceS: 65 * EGP,
     priceM: 75 * EGP,
@@ -68,19 +80,8 @@ const ZONES = [
     priceBulky: 270 * EGP,
   },
   {
-    code: 'RED_SEA',
-    name: 'Red Sea and Sinai',
-    transitDays: 3,
-    priceS: 85 * EGP,
-    priceM: 95 * EGP,
-    priceL: 115 * EGP,
-    priceXL: 150 * EGP,
-    priceXXL: 205 * EGP,
-    priceBulky: 300 * EGP,
-  },
-  {
     code: 'REMOTE',
-    name: 'Remote areas',
+    name: 'Remote: Red Sea, Sinai, Matrouh, New Valley',
     transitDays: 3,
     priceS: 90 * EGP,
     priceM: 100 * EGP,
@@ -122,11 +123,11 @@ const GOVERNORATES: [string, string, string | null, number, number][] = [
   ['EG-KN', 'UPPER', 'AST', 26.1551, 32.716],
   ['EG-LX', 'UPPER', 'AST', 25.6872, 32.6396],
   ['EG-ASN', 'UPPER', 'AST', 24.0889, 32.8998],
-  ['EG-BA', 'RED_SEA', null, 27.2579, 33.8116],
+  ['EG-BA', 'REMOTE', null, 27.2579, 33.8116],
   ['EG-WAD', 'REMOTE', null, 25.439, 30.5586],
   ['EG-MT', 'REMOTE', null, 31.3543, 27.2373],
-  ['EG-SIN', 'RED_SEA', null, 31.1316, 33.7984],
-  ['EG-JS', 'RED_SEA', null, 28.2417, 33.6222],
+  ['EG-SIN', 'REMOTE', null, 31.1316, 33.7984],
+  ['EG-JS', 'REMOTE', null, 28.2417, 33.6222],
 ];
 
 const FACILITIES = [

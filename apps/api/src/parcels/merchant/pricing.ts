@@ -1,4 +1,4 @@
-import { parcelTermsAt, type ParcelSize } from '@shiplynow/db';
+import { parcelTermsAt, type ParcelSize, type PricingZone } from '@shiplynow/db';
 import { quote, type SettingValues } from '@shiplynow/shared/parcels';
 import type { PrismaService, Tx } from '../common/prisma.service';
 import type { ShipmentsCore } from '../core/shipments.core';
@@ -22,6 +22,45 @@ export async function tierFor(db: Tx | PrismaService, merchantId: string) {
   return { lastMonthParcels: count, tier };
 }
 
+/** Regions outside Greater Cairo from nearest to farthest: a route takes the farther end. */
+const REGION_ORDER = ['GC', 'ALX', 'DELTA', 'CANAL', 'UPPER', 'REMOTE'];
+
+/**
+ * The price zone of a route (owner, 2026-11-08): seven zones from the pickup city to the delivery
+ * city. The same governorate is Same city; two Greater Cairo governorates are Greater Cairo; any
+ * other route takes the region of its end outside Greater Cairo, or the farther region when both
+ * ends are outside it (so Cairo to Alexandria costs what Alexandria to Cairo costs). Without a
+ * pickup governorate the delivery governorate's region decides, as before.
+ */
+export async function routeZoneFor(
+  db: Tx | PrismaService,
+  originGov: string | null,
+  destination: { governorateCode: string; zone: PricingZone },
+) {
+  if (!originGov) return destination.zone;
+  if (originGov === destination.governorateCode) {
+    const same = await db.pricingZone.findUnique({ where: { code: 'SAME' } });
+    return same ?? destination.zone;
+  }
+  const origin = await db.governorate.findUnique({
+    where: { code: originGov },
+    select: { zoneCode: true },
+  });
+  const from = origin?.zoneCode ?? null;
+  const to = destination.zone.code;
+  if (!from || from === to) return destination.zone;
+  const pick =
+    from === 'GC'
+      ? to
+      : to === 'GC'
+        ? from
+        : REGION_ORDER.indexOf(from) > REGION_ORDER.indexOf(to)
+          ? from
+          : to;
+  if (pick === to) return destination.zone;
+  return (await db.pricingZone.findUnique({ where: { code: pick } })) ?? destination.zone;
+}
+
 /** The merchant's price for one parcel: agreed price, else list price less their discount or tier. */
 export async function priceFor(
   db: Tx | PrismaService,
@@ -37,7 +76,19 @@ export async function priceFor(
     exchange: boolean;
   },
 ) {
-  const { hubId, zone } = await core.deliveryHubFor(db as Tx, a.governorateCode, a.areaId);
+  const { hubId, zone: destinationZone } = await core.deliveryHubFor(
+    db as Tx,
+    a.governorateCode,
+    a.areaId,
+  );
+  const merchant = await db.merchant.findUnique({
+    where: { id: a.merchantId },
+    select: { governorateCode: true },
+  });
+  const zone = await routeZoneFor(db, merchant?.governorateCode ?? null, {
+    governorateCode: a.governorateCode,
+    zone: destinationZone,
+  });
   // The merchant's contract (one for both services) decides first: a fixed price for the zone
   // and size, else its discount; then the older per merchant prices and discount, then the tier.
   const terms = await parcelTermsAt(db as never, a.merchantId, todayInCairo());

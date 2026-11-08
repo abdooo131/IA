@@ -129,3 +129,32 @@ describe('one contract for both services', () => {
       .expect(409);
   });
 });
+
+describe('route zones (owner, 2026-11-08)', () => {
+  it('a route from the pickup city to the delivery city picks one of seven zones', async () => {
+    const { routeZoneFor } = await import('../../src/parcels/merchant/pricing');
+    const zone = async (code: string) => prisma.pricingZone.findUnique({ where: { code } });
+    const dest = async (gov: string) => ({
+      governorateCode: gov,
+      zone: (await prisma.governorate.findUnique({ where: { code: gov }, include: { zone: true } }))
+        .zone,
+    });
+    const route = async (from: string | null, to: string) =>
+      (await routeZoneFor(prisma, from, await dest(to))).code;
+    expect(await route('EG-C', 'EG-C')).toBe('SAME');
+    expect(await route('EG-C', 'EG-GZ')).toBe('GC');
+    expect(await route('EG-C', 'EG-ALX')).toBe('ALX');
+    expect(await route('EG-ALX', 'EG-C')).toBe('ALX'); // the same both ways
+    expect(await route('EG-GH', 'EG-AST')).toBe('UPPER'); // the farther region
+    expect(await route('EG-C', 'EG-JS')).toBe('REMOTE'); // Sinai is remote now
+    expect(await route(null, 'EG-ALX')).toBe('ALX');
+    expect((await zone('SAME'))?.name).toBe('Same city');
+    expect(await zone('RED_SEA')).toBeNull();
+
+    // Eve picks up in Cairo: a parcel inside Cairo is priced at the Same city zone.
+    await prisma.merchant.update({ where: { code: 'EVE' }, data: { governorateCode: 'EG-C' } });
+    const same = await zone('SAME');
+    const p = await parcel('EG-C', 'M');
+    expect(p.body.shippingFee).toBeLessThanOrEqual(same!.priceM);
+  });
+});
