@@ -20,7 +20,10 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, docs));
 
   const port = app.get<ConfigService<Env, true>>(ConfigService).get('API_PORT', { infer: true });
-  await app.listen(port);
+  // In the single container (deploy/start.mjs) the API listens only inside it, so the host's
+  // port detection sees just the web app. Locally it listens everywhere as before.
+  const host = process.env.API_HOST;
+  await (host ? app.listen(port, host) : app.listen(port));
   console.log(`Shiply Now API on http://localhost:${port} (docs at /docs)`);
 }
 
