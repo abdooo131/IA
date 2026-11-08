@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { FAIL_REASON_CODES, FAIL_REASONS } from '@shiplynow/shared/parcels';
-import { makeTrackingNumber, returnFee } from '@shiplynow/shared/parcels';
+import { addBusinessDays, makeTrackingNumber, returnFee } from '@shiplynow/shared/parcels';
 import { nextCode, nextNumber } from '../common/codes';
 import { z } from 'zod';
 import type { SessionUser } from '../auth/auth';
@@ -153,12 +153,50 @@ export class CourierService {
         'Scan at least one parcel, or ask the hub to cancel this pickup',
         422,
       );
-    const r = await this.prisma.pickup.updateMany({
-      where: { id: pickupId, courierId: user.id, status: 'ASSIGNED' },
-      data: { status: 'COLLECTED', collectedAt: new Date() },
+    const settings = await this.settings.all();
+    return this.prisma.tx(async (tx) => {
+      const r = await tx.pickup.updateMany({
+        where: { id: pickupId, courierId: user.id, status: 'ASSIGNED' },
+        data: { status: 'COLLECTED', collectedAt: new Date() },
+      });
+      if (r.count !== 1)
+        throw new DomainError('bad_status', 'This pickup is already finished', 409);
+      // Parcels the courier did not collect are never stranded: they go on the merchant's
+      // next pickup, booked for the next working day when none is booked yet.
+      const pickup = await tx.pickup.findUniqueOrThrow({ where: { id: pickupId } });
+      const left = await tx.shipment.count({
+        where: { merchantId: pickup.merchantId, status: 'CREATED', pickupId: null },
+      });
+      let next: string | null = null;
+      if (left > 0) {
+        const open = await tx.pickup.findFirst({
+          where: {
+            merchantId: pickup.merchantId,
+            id: { not: pickupId },
+            date: { gte: todayInCairo() },
+            status: { in: ['REQUESTED', 'ASSIGNED'] },
+          },
+          orderBy: { date: 'asc' },
+        });
+        if (open) next = open.code;
+        else {
+          const date = addBusinessDays(todayInCairo(), 1, settings['promise.weekend_days']);
+          const created = await tx.pickup.create({
+            data: {
+              code: await nextCode(tx, 'pickup_seq', 'PU'),
+              merchantId: pickup.merchantId,
+              hubId: pickup.hubId,
+              date,
+              expectedCount: left,
+              auto: true,
+              notes: `Parcels not collected on ${pickup.code}`,
+            },
+          });
+          next = created.code;
+        }
+      }
+      return { collected, left, nextPickup: next };
     });
-    if (r.count !== 1) throw new DomainError('bad_status', 'This pickup is already finished', 409);
-    return { collected };
   }
 
   // ---------------------------------------------------------------- delivery run

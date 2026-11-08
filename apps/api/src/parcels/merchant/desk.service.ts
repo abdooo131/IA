@@ -446,6 +446,17 @@ export class MerchantDeskService implements OnModuleInit, OnModuleDestroy {
   async quote(merchantId: string, query: unknown) {
     const d = parse(QuoteInput, query);
     const m = await this.prisma.merchant.findUniqueOrThrow({ where: { id: merchantId } });
+    // The same checks as creating a parcel, so a merchant never sees a price for a parcel we
+    // would then refuse: a pickup address, in an area we pick up from.
+    if (!m.homeHubId || !m.governorateCode)
+      throw new DomainError(
+        'no_pickup_address',
+        'Add your pickup address before sending parcels',
+        422,
+      );
+    await this.core.deliveryHubFor(this.prisma as never, m.governorateCode, m.areaId).catch(() => {
+      throw new DomainError('not_served', 'We do not pick up from your area yet', 422);
+    });
     const s = await this.settings.all();
     const p = await priceFor(this.prisma, this.core, s, {
       merchantId,

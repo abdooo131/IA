@@ -238,7 +238,10 @@ describe('company flow', () => {
     expect(hand.groups.find((g: any) => g.key === 'inbound').rows).toHaveLength(4);
     const check = await ok(as['staff.obr']!.get(`/parcels/hubs/${hubs.OBR}/handover-check`));
     expect(check.stages.find((st: any) => st.key === 'notSorted').rows).toHaveLength(4);
-    expect((await ok(as.merchant.get('/parcels/merchant/pickups')))[0].status).toBe('RECEIVED');
+    const pickups = await ok(as.merchant.get('/parcels/merchant/pickups'));
+    expect(pickups.some((x: any) => x.status === 'RECEIVED')).toBe(true);
+    // The merchant's other parcels were not collected: they wait on a pickup of their own.
+    expect(pickups.some((x: any) => x.status === 'REQUESTED' && x.auto)).toBe(true);
   });
 
   it('sorting → outbound → line haul to the last mile hub and to the other facility', async () => {

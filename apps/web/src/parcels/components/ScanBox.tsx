@@ -65,41 +65,57 @@ export function ScanBox({
   const t = useT();
   const id = useId();
   const [value, setValue] = useState('');
-  const [busy, setBusy] = useState(false);
   const [lines, setLines] = useState<Line[]>([]);
   const [camera, setCamera] = useState(false);
   const [canCamera, setCanCamera] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => setCanCamera(cameraScanSupported()), []);
 
-  const submit = async (typed?: string) => {
-    const code = (typed ?? value).trim();
-    if (!code || busy) return;
-    setBusy(true);
-    setValue('');
-    try {
-      const outcome = asOutcome(await onScan(code));
-      beep(true);
-      setLines((l) =>
-        [{ ok: true, code: code.toUpperCase(), outcome, at: Date.now() }, ...l].slice(0, 50),
-      );
-    } catch (e) {
-      beep(false);
-      setLines((l) =>
-        [
-          {
-            ok: false,
-            code: code.toUpperCase(),
-            outcome: { text: t(errorMessage(e)) },
-            at: Date.now(),
-          },
-          ...l,
-        ].slice(0, 50),
-      );
-    } finally {
-      setBusy(false);
-      input.current?.focus();
+  // Scans wait in line: a scanner can send the next code while the last one is still being
+  // saved, and every code must count (owner, 2026-11-08: dropped scans lost parcels).
+  const queue = useRef<string[]>([]);
+  const working = useRef(false);
+  const [waiting, setWaiting] = useState(0);
+
+  const work = async () => {
+    if (working.current) return;
+    working.current = true;
+    while (queue.current.length) {
+      const code = queue.current.shift()!;
+      setWaiting(queue.current.length);
+      try {
+        const outcome = asOutcome(await onScan(code));
+        beep(true);
+        setLines((l) =>
+          [{ ok: true, code: code.toUpperCase(), outcome, at: Date.now() }, ...l].slice(0, 50),
+        );
+      } catch (e) {
+        beep(false);
+        setLines((l) =>
+          [
+            {
+              ok: false,
+              code: code.toUpperCase(),
+              outcome: { text: t(errorMessage(e)) },
+              at: Date.now(),
+            },
+            ...l,
+          ].slice(0, 50),
+        );
+      }
     }
+    working.current = false;
+    setWaiting(0);
+    input.current?.focus();
+  };
+
+  const submit = (typed?: string) => {
+    const code = (typed ?? value).trim();
+    if (!code) return;
+    setValue('');
+    queue.current.push(code);
+    setWaiting(queue.current.length);
+    void work();
   };
 
   const last = lines[0];
@@ -159,7 +175,7 @@ export function ScanBox({
         {canCamera && (
           <button
             type="button"
-            disabled={busy || disabled}
+            disabled={disabled}
             onClick={() => setCamera(true)}
             className={cx('btn-secondary', lg ? 'min-h-14 px-4' : 'min-h-12 px-3')}
             aria-label={t('Scan with the camera')}
@@ -170,10 +186,10 @@ export function ScanBox({
         )}
         <button
           type="submit"
-          disabled={busy || disabled || !value.trim()}
+          disabled={disabled || !value.trim()}
           className={cx('btn-primary', lg ? 'min-h-14 px-6' : 'min-h-12')}
         >
-          {busy ? '…' : t('Go')}
+          {waiting > 0 ? `… ${waiting}` : t('Go')}
         </button>
       </form>
       {camera && (

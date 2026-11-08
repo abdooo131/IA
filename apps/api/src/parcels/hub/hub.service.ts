@@ -1,3 +1,4 @@
+import { openAlert, resolveAlerts } from '../agents/alerts';
 import { Injectable } from '@nestjs/common';
 import { fieldPunch, type Hub, type Shipment } from '@shiplynow/db';
 import { FAIL_REASONS, normalizeCode, type FailReason } from '@shiplynow/shared/parcels';
@@ -377,6 +378,8 @@ export class HubService {
         where: { id: bag.id },
         data: { status: 'RECEIVED', receivedAt: new Date(), destinationHubId: hubId },
       });
+      // It turned up after its truck was closed: the missing bag alert is answered.
+      await resolveAlerts(tx, 'bag', bag.id, ['BAG_MISSING'], user.id, 'The bag arrived');
       await tx.auditLog.create({
         data: {
           actorUserId: user.id,
@@ -1153,6 +1156,18 @@ export class HubService {
           after: { missing },
         },
       });
+      // A bag that did not arrive is for control to chase, not just a line in the audit.
+      for (const code of missing) {
+        const bag = trip.bags.find((b) => b.code === code)!;
+        await openAlert(tx, {
+          kind: 'BAG_MISSING',
+          entity: 'bag',
+          entityId: bag.id,
+          hubId,
+          severity: 'high',
+          message: `Bag ${code} was not received when trip ${trip.code} was closed at ${hub.code}`,
+        });
+      }
       return { missing };
     });
   }

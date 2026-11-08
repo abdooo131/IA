@@ -12,6 +12,7 @@ import { onLost } from '../control/lost';
 import { parse } from '../common/validate';
 import { ShipmentsCore, todayInCairo } from '../core/shipments.core';
 import { feesOf, merchantStatement, settleable } from '../merchant/merchant.service';
+import { routeZoneFor } from '../merchant/pricing';
 
 const SearchQuery = z.object({
   q: z.string().trim().max(60).optional(),
@@ -465,6 +466,7 @@ export class AdminService {
     const net = await this.core.network(this.prisma as never);
     let origin: { id: string; name: string };
     let from: string;
+    let originGov: string | null = null;
     if (q.merchantId) {
       const m = await this.prisma.merchant.findUnique({
         where: { id: q.merchantId },
@@ -478,6 +480,7 @@ export class AdminService {
           from: m.name,
         };
       origin = m.homeHub;
+      originGov = m.governorateCode;
       from = `${m.name}, ${m.pickupAddress}`;
       const pickup = await this.core
         .deliveryHubFor(this.prisma as never, m.governorateCode, m.areaId)
@@ -495,6 +498,7 @@ export class AdminService {
       );
       origin = await this.core.nearestFacility(this.prisma as never, point);
       from = q.fromGovernorate ?? 'EG-C';
+      originGov = q.fromGovernorate ?? 'EG-C';
     }
     try {
       const dest = await this.core.deliveryHubFor(
@@ -510,6 +514,10 @@ export class AdminService {
         net,
       );
       const byCode = new Map([...net.values()].map((h) => [h.code, h]));
+      const routeZone = await routeZoneFor(this.prisma, originGov, {
+        governorateCode: q.governorateCode,
+        zone: dest.zone,
+      });
       return {
         ok: true,
         from,
@@ -523,8 +531,9 @@ export class AdminService {
             : 'LAST_MILE',
         })),
         transfers: Math.max(0, codes.length - 3),
-        zone: dest.zone.name,
-        transitDays: dest.zone.transitDays,
+        // The route zone that prices it (same city, Greater Cairo, the farther region...).
+        zone: routeZone.name,
+        transitDays: routeZone.transitDays,
       };
     } catch (e) {
       return { ok: false, from, reason: e instanceof DomainError ? e.message : 'No route' };

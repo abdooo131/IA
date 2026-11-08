@@ -81,4 +81,10 @@ export const AR_ORDER_PAGE: Record<string, string> = {
   'Your pickup address, logo and regular pickups':
     'عنوان الاستلام والشعار ومواعيد الاستلام الثابتة',
   'We do not pick up from this area yet': 'لا نستلم من هذه المنطقة بعد',
+  'Close this truck? Bags not scanned yet are reported missing to control.':
+    'إغلاق هذه الشاحنة؟ الأكياس التي لم تُمسح بعد تُبلَّغ للرقابة كمفقودة.',
+  'You collected {n} of about {m}. Leave anyway? The rest go on the next pickup.':
+    'استلمت {n} من حوالي {m}. هل تغادر؟ الباقي يُضاف إلى الاستلام القادم.',
+  '{n} parcels were left at the merchant; they go on pickup {code}':
+    '{n} شحنات بقيت عند التاجر وستُضاف إلى الاستلام {code}',
 };

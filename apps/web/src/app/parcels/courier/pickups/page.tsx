@@ -26,8 +26,29 @@ export default function CourierPickupsPage() {
 
   const finish = async (p: Pickup) => {
     setError(null);
+    // Leaving with fewer parcels than expected is allowed, but said out loud.
+    if (
+      p.collected < p.expectedCount &&
+      !window.confirm(
+        t('You collected {n} of about {m}. Leave anyway? The rest go on the next pickup.', {
+          n: p.collected,
+          m: p.expectedCount,
+        }),
+      )
+    )
+      return;
     try {
-      await api(`/courier/pickups/${p.id}/finish`, { body: {} });
+      const r = await api<{ left: number; nextPickup: string | null }>(
+        `/courier/pickups/${p.id}/finish`,
+        { body: {} },
+      );
+      if (r.left > 0)
+        setError(
+          t('{n} parcels were left at the merchant; they go on pickup {code}', {
+            n: r.left,
+            code: r.nextPickup ?? '',
+          }),
+        );
       await pickups.reload();
     } catch (e) {
       setError(t(errorMessage(e)));

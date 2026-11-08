@@ -4,7 +4,9 @@ import { useHub } from '@/parcels/components/HubContext';
 import type { IconName } from '@/parcels/components/Icon';
 import { ScanBox } from '@/parcels/components/ScanBox';
 import { StatCard, type StatTone } from '@/parcels/components/StatCard';
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { useMe } from '@/parcels/components/Shell';
 import {
   Alert,
   Badge,
@@ -22,6 +24,11 @@ import { useLoad } from '@/parcels/lib/hooks';
 import { nextOutcome } from '@/parcels/lib/hub';
 import { IncomingPallets } from './trips/Pallets';
 import { useLocale, useT } from '@/parcels/lib/i18n';
+
+const STATION_OF_TEAM: Record<string, string> = {
+  SORTING: '/parcels/hub/sort',
+  OUTBOUND: '/parcels/hub/trips',
+};
 
 type Row = {
   id: string;
@@ -102,6 +109,12 @@ function IncomingTrucks({ hubId, onChange }: { hubId: string; onChange: () => vo
               <Button
                 tone="secondary"
                 onClick={async () => {
+                  if (
+                    !window.confirm(
+                      t('Close this truck? Bags not scanned yet are reported missing to control.'),
+                    )
+                  )
+                    return;
                   try {
                     const r = await api(`/hubs/${hubId}/trips/${tr.id}/close`, { body: {} });
                     setMsg(
@@ -205,6 +218,13 @@ function OpenBags({ hubId, onChange }: { hubId: string; onChange: () => void }) 
 }
 
 export default function InboundPage() {
+  const me = useMe();
+  const router = useRouter();
+  // The sorting and outbound teams work their own station: send them there, not to Inbound.
+  const station = me.role === 'HUB_STAFF' ? STATION_OF_TEAM[me.team ?? ''] : undefined;
+  useEffect(() => {
+    if (station) router.replace(station);
+  }, [station, router]);
   const hub = useHub();
   const t = useT();
   const locale = useLocale();
