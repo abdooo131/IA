@@ -5483,6 +5483,7 @@
       "shiplyMoney": "Shiply"
     },
     "pages": {
+      "courierShifts": "Courier shifts",
       "generalSettings": "General settings",
       "customerSettings": "Customer settings",
       "merchantSettings": "Merchant settings",
@@ -5615,6 +5616,7 @@
       "agentAdvances": "Agent advances"
     },
     "hints": {
+      "courierShifts": "Who checked in, late, not coming and replacements. Attendance is in HR",
       "packagingOrders": "Next day merchants buying packaging",
       "agentSettlements": "Monthly bills from courier agents",
       "hubSafes": "Shiply hubs and facilities",
@@ -5810,6 +5812,8 @@
     "newHire": "New hire"
   },
   "attendance": {
+    "teamLabel": "Team",
+    "teams": { "all": "Everyone", "shiply_now": "Shiply Now", "shiply": "Shiply" },
     "title": "Attendance",
     "office": "the office",
     "locating": "Finding your location…",

@@ -211,10 +211,16 @@ export class AttendanceController {
   /** Who is in, late, missing, off or on leave right now. */
   @Get('attendance/today')
   @ApiQuery({ name: 'darkStoreId', required: false })
-  today(@CurrentAccess() access: AccessProfile, @Query('darkStoreId') darkStoreId?: string) {
+  @ApiQuery({ name: 'team', required: false, description: 'shiply_now or shiply' })
+  today(
+    @CurrentAccess() access: AccessProfile,
+    @Query('darkStoreId') darkStoreId?: string,
+    @Query('team') team?: string,
+  ) {
     return attendanceBoard(this.prisma, {
       scope: limitedStores(access),
       storeId: darkStoreId || null,
+      team: team === 'shiply' || team === 'shiply_now' ? team : undefined,
       now: this.clock.now(),
     });
   }

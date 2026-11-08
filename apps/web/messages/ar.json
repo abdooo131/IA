@@ -5426,6 +5426,7 @@
       "shiplyMoney": "شيبلي"
     },
     "pages": {
+      "courierShifts": "ورديات المندوبين",
       "generalSettings": "الإعدادات العامة",
       "customerSettings": "إعدادات العملاء",
       "merchantSettings": "إعدادات التجار",
@@ -5558,6 +5559,7 @@
       "agentAdvances": "سلف الوكلاء"
     },
     "hints": {
+      "courierShifts": "من حضر ومن تأخر ومن لن يأتي والبدلاء. الحضور في الموارد البشرية",
       "packagingOrders": "تجار اليوم التالي يشترون مواد التغليف",
       "agentSettlements": "فواتير شهرية من وكلاء المندوبين",
       "hubSafes": "مراكز ومحطات شيبلي",
@@ -5753,6 +5755,8 @@
     "newHire": "تعيين جديد"
   },
   "attendance": {
+    "teamLabel": "الفريق",
+    "teams": { "all": "الكل", "shiply_now": "شيبلي ناو", "shiply": "شيبلي" },
     "title": "الحضور",
     "office": "المكتب",
     "locating": "بنحدد مكانك…",

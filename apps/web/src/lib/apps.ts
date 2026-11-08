@@ -127,7 +127,7 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/parcels/admin/live', label: 'couriersLive' },
           { href: '/parcels/admin/agents', label: 'agents' },
-          { href: '/parcels/admin/attendance', label: 'attendance' },
+          { href: '/parcels/admin/attendance', label: 'courierShifts' },
           { href: '/parcels/admin/vehicle-requests', label: 'vehicleRequests' },
         ],
       },

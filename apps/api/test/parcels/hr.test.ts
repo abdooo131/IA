@@ -84,3 +84,34 @@ describe('Shiply people in HR', () => {
     expect(file.staffingSupplier.agent.id).toBe(agentId);
   });
 });
+
+describe('one attendance for both companies', () => {
+  it("a courier's check in is their HR clock in, shown on the Today board under Shiply", async () => {
+    const request = (await import('supertest')).default;
+    const login = async (email: string, password: string) => {
+      const c = request.agent(app.getHttpServer());
+      await c.post('/auth/login').send({ email, password }).expect(200);
+      return c;
+    };
+    const courier = await login('courier.giz@shiply.local', 'demo123456');
+    const owner = await login('admin@shiply.local', 'admin12345');
+    await courier
+      .post('/parcels/courier/check-in')
+      .send({ photoBase64: Buffer.from('photo').toString('base64'), lat: 30.04, lng: 31.2 })
+      .expect(200);
+    const file = await fileOf('courier.giz@shiply.local');
+    const punches = await prisma.punch.findMany({ where: { employeeId: file.id } });
+    expect(punches).toHaveLength(1);
+    expect(punches[0]).toMatchObject({ kind: 'in', reason: 'Courier check in' });
+
+    const shiply = (await owner.get('/hr/attendance/today?team=shiply').expect(200)).body;
+    const row = shiply.people.find((p: any) => p.employee.id === file.id);
+    expect(row.state).toMatch(/^(in|late_in)$/);
+    expect(row.hub.code).toBe('GIZ');
+    expect(
+      shiply.people.every((p: any) => ['courier', 'hub_staff'].includes(p.employee.role)),
+    ).toBe(true);
+    const now = (await owner.get('/hr/attendance/today?team=shiply_now').expect(200)).body;
+    expect(now.people.some((p: any) => p.employee.id === file.id)).toBe(false);
+  });
+});

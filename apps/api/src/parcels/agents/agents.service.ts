@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { ensureAgentSupplier, onboardNewPerson } from '@shiplynow/db';
+import { ensureAgentSupplier, fieldPunch, onboardNewPerson } from '@shiplynow/db';
 import { hashPassword, type Prisma, type CourierShift } from '@shiplynow/db';
 import { cairoClock, cairoTimeToUtc, normalizeEgyptPhone } from '@shiplynow/shared/parcels';
 import { randomInt } from 'node:crypto';
@@ -960,11 +960,23 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
       checkInLng: d.lng ?? null,
       lateMinutes,
     };
-    const shift = existing
-      ? await this.prisma.courierShift.update({ where: { id: existing.id }, data })
-      : await this.prisma.courierShift.create({
-          data: { ...data, courierId: user.id, agentId: me.agentId, date, startAt },
-        });
+    // The check in is also the courier's clock in for HR (one attendance for everyone).
+    const shift = await this.prisma.tx(async (tx) => {
+      const row = existing
+        ? await tx.courierShift.update({ where: { id: existing.id }, data })
+        : await tx.courierShift.create({
+            data: { ...data, courierId: user.id, agentId: me.agentId!, date, startAt },
+          });
+      await fieldPunch(tx, {
+        userId: user.id,
+        kind: 'in',
+        at: now,
+        lat: d.lat ?? null,
+        lng: d.lng ?? null,
+        reason: 'Courier check in',
+      });
+      return row;
+    });
     await resolveAlerts(
       this.prisma,
       'shift',

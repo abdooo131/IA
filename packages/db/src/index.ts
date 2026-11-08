@@ -204,6 +204,7 @@ export {
   deleteHoliday,
   DEFAULT_SHIFTS,
   ensureStoreShifts,
+  fieldPunch,
   generateRoster,
   getRoster,
   isClockedIn,

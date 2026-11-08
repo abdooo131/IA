@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { Hub, Shipment } from '@shiplynow/db';
+import { fieldPunch, type Hub, type Shipment } from '@shiplynow/db';
 import { FAIL_REASONS, normalizeCode, type FailReason } from '@shiplynow/shared/parcels';
 import { z } from 'zod';
 import { assertTeam, type SessionUser } from '../auth/auth';
@@ -1403,6 +1403,14 @@ export class HubService {
         );
       }
       await tx.run.update({ where: { id: runId }, data: { status: 'OUT', startedAt: new Date() } });
+      // A courier going out is at work for HR, if the check in did not already clock them in.
+      await fieldPunch(tx, {
+        userId: run.courierId,
+        kind: 'in',
+        at: new Date(),
+        byUserId: user.id,
+        reason: `Run ${run.code} left the hub`,
+      });
       // Each receiver gets the code they will give the courier at the door.
       let codes = 0;
       if ((await this.settings.all(tx))['delivery.code_required'] === 'ON') {
@@ -1455,6 +1463,18 @@ export class HubService {
           closedById: user.id,
         },
       });
+      // Their last run closed at the hub: the courier's day ends for HR.
+      const stillOut = await tx.run.count({
+        where: { courierId: run.courierId, status: { in: ['LOADING', 'OUT'] } },
+      });
+      if (stillOut === 0)
+        await fieldPunch(tx, {
+          userId: run.courierId,
+          kind: 'out',
+          at: new Date(),
+          byUserId: user.id,
+          reason: `Run ${run.code} closed at the hub`,
+        });
       await tx.auditLog.create({
         data: {
           actorUserId: user.id,
