@@ -85,6 +85,11 @@ if (env.SEED_ON_START === 'true') {
           name: env.SEED_ADMIN_NAME ?? 'Shiply Admin',
         },
         demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
+        // The parcel network (docs/MERGE.md): facilities, hubs, prices and, unless
+        // SEED_NETWORK_DEMO is off, its demo agents, hub staff, couriers and merchants.
+        network: true,
+        networkDemo: env.SEED_NETWORK_DEMO !== 'off',
+        networkEverywhere: env.SEED_COVERAGE === 'all',
         log,
       });
     } finally {
