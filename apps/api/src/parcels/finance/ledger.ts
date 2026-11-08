@@ -2,7 +2,7 @@
 // (an account code, a party, a debit or a credit) and this adapter turns each line into one of
 // Shiply Now's accounts. Every line is tagged with the Shiply company and, when known, the
 // facility or hub, which is its cost center.
-import { type AccountRef, balanceOf, post as postEntry } from '@shiplynow/db';
+import { type AccountRef, balanceOf, ensureAgentSupplier, post as postEntry } from '@shiplynow/db';
 import type { PartyType } from '@shiplynow/shared/parcels';
 import { randomUUID } from 'node:crypto';
 import { DomainError } from '../common/errors';
@@ -71,13 +71,37 @@ export function accountRef(
     case '2200':
       return { type: 'courier_wallet', userId: need('COURIER') };
     case '2300':
-      return { type: 'agent_payable', agentId: need('AGENT') };
+      // An agent is a supplier: post() and the balances below use the agent's supplier account.
+      throw new Error('agent accounts go through the agent supplier (agentAccount)');
     case '2500':
       return { type: 'supplier', supplierId: need('SUPPLIER') };
   }
   const system = SYSTEM[code];
   if (!system) throw new DomainError('invalid_input', `Unknown account ${code}`, 422);
   return { type: system } as AccountRef;
+}
+
+/** The agent's supplier account (made the first time it is needed). */
+async function agentAccount(
+  db: Tx | PrismaService,
+  agentId: string,
+  userId?: string | null,
+): Promise<AccountRef> {
+  return { type: 'supplier', supplierId: await ensureAgentSupplier(db as never, agentId, userId) };
+}
+
+/** Any account, agents included. */
+async function resolveAccount(
+  db: Tx | PrismaService,
+  code: string,
+  party?: { type: PartyType; id: string } | null,
+  userId?: string | null,
+): Promise<AccountRef> {
+  if (code === '2300') {
+    if (party?.type !== 'AGENT') throw new Error('account 2300 needs a AGENT party');
+    return agentAccount(db, party.id, userId);
+  }
+  return accountRef(code, party);
 }
 
 /** A Cairo day as the moment it is booked: now for today, noon Cairo time for another day. */
@@ -126,11 +150,13 @@ export async function post(tx: Tx, e: EntryInput) {
     company: 'shiply',
     hubId,
     merchantId,
-    lines: lines.map((l) => ({
-      account: accountRef(l.account, l.party),
-      amount: (l.debit ?? 0) - (l.credit ?? 0),
-      tags: l.party?.type === 'COURIER' ? { userId: l.party.id } : undefined,
-    })),
+    lines: await Promise.all(
+      lines.map(async (l) => ({
+        account: await resolveAccount(tx, l.account, l.party, e.userId),
+        amount: (l.debit ?? 0) - (l.credit ?? 0),
+        tags: l.party?.type === 'COURIER' ? { userId: l.party.id } : undefined,
+      })),
+    ),
   });
 }
 
@@ -148,6 +174,14 @@ export async function rawBalance(
   const before = through
     ? new Date(new Date(`${through}T00:00:00+02:00`).getTime() + 24 * 3600e3)
     : undefined;
+  if (account === '2300' && party) {
+    const agent = await db.agent.findUnique({
+      where: { id: party.id },
+      select: { supplierId: true },
+    });
+    if (!agent?.supplierId) return 0;
+    return balanceOf(db, { type: 'supplier', supplierId: agent.supplierId }, before);
+  }
   return balanceOf(db, accountRef(account, party), before);
 }
 
@@ -172,6 +206,15 @@ export async function partyBalances(
   db: Tx | PrismaService,
   account: string,
 ): Promise<Map<string, number>> {
+  if (account === '2300') {
+    // Agents' balances are their supplier accounts.
+    const agents = await db.agent.findMany({
+      where: { supplierId: { not: null } },
+      select: { id: true, supplierId: true },
+    });
+    const bySupplier = await partyBalances(db, '2500');
+    return new Map(agents.map((a) => [a.id, bySupplier.get(a.supplierId!) ?? 0]));
+  }
   const t = TYPE_OF[account];
   if (!t) throw new Error(`account ${account} has no parties`);
   const accounts = await db.ledgerAccount.findMany({

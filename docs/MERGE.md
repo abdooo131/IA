@@ -94,9 +94,19 @@ Their ids switch to Shiply Now's style (cuid).
 6. Shared departments, separate operations (owner, 2026-11-08): Accounting, HR, Sales and
    Merchants are one for both companies; Shiply Now and Shiply keep their own operations and
    their own field teams (riders and couriers stay separate). Agents are suppliers: their
-   settlement becomes a supplier bill. Next: couriers and hub staff get HR files, agents move
-   to suppliers, one merchant page and contract for both services, one merchant portal. Tax
-   invoices for next day fees wait until the owner asks.
+   settlement becomes a supplier bill. Tax invoices for next day fees wait until the owner asks.
+   Done (migration 20270101000300_agents_suppliers_hr): every agent has a supplier
+   (agents.supplier_id, made when the agent is opened or first needed); what the network posted
+   to an agent's payable now lands on that supplier's account. Approving a settlement still books
+   its entry (courier wallets moved to the agent, commission, vehicles, penalties) and makes a
+   supplier bill for it (agent_settlements.bill_id; advances count as paid on it). Accounting pays
+   it like any bill (withholding, second person, bank) once the agent's invoice is uploaded
+   (agent_invoice_missing); the bill can never be cancelled (bill_from_agent_settlement), and
+   the settlement turns paid with its bill. Hub staff and couriers have HR files (EMPLOYEE_ROLES)
+   at their hub (employees.hub_id) in Shiply operations (SHP-HUB, SHP-CUR); couriers are paid
+   per delivery; people of an agent are outsourced with the agent's supplier as their staffing
+   company; a courier waiting for the agent's approval gets a file once approved. Next: one
+   merchant page and contract for both services, then one merchant portal.
 7. Shopify: one app, two actions (60 minutes, next day).
 8. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.

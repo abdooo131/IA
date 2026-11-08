@@ -4,6 +4,7 @@ import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { eventTime } from './books';
+import { assertAgentInvoice, markSettlementPaid } from '../parcels/agents';
 import { balanceOf, nextNumber, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -349,6 +350,9 @@ export function cancelBill(db: Db, input: { billId: string; reason: string; acto
     if (bill.status !== 'open' || bill.paidPiastres > 0) throw new DomainError('bill_not_open');
     // A bill made from a purchase order spreads over its lines' accounts: it is not undone here.
     if (bill.purchaseOrderId) throw new DomainError('bill_from_purchase_order');
+    // The settlement's entry also moved courier wallets: it is never undone by cancelling.
+    if (await tx.agentSettlement.findUnique({ where: { billId: bill.id } }))
+      throw new DomainError('bill_from_agent_settlement');
     await post(tx, {
       kind: 'supplier_bill_cancel',
       idempotencyKey: `bill_cancel:${bill.id}`,
@@ -424,6 +428,8 @@ export async function payBill(db: Db, input: BillPaymentInput) {
     });
     if (!bill) throw new DomainError('bill_not_found', 404);
     if (bill.status !== 'open') throw new DomainError('bill_not_open');
+    // An agent's settlement bill is paid only once the agent's own invoice is in.
+    await assertAgentInvoice(tx, bill.id);
     // settled: how much of the bill (in EGP at the bill's rate) this payment clears;
     // paid: what it costs in EGP today. For a bill in another currency the two differ by
     // the change in the exchange rate.
@@ -511,6 +517,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
         status: paidNow === bill.totalPiastres ? 'paid' : 'open',
       },
     });
+    if (paidNow === bill.totalPiastres) await markSettlementPaid(tx, bill.id);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.bill_payment',

@@ -1,4 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import { ensureAgentSupplier, onboardNewPerson } from '@shiplynow/db';
 import { hashPassword, type Prisma, type CourierShift } from '@shiplynow/db';
 import { cairoClock, cairoTimeToUtc, normalizeEgyptPhone } from '@shiplynow/shared/parcels';
 import { randomInt } from 'node:crypto';
@@ -258,6 +259,8 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
             throw notFound('Agent');
           })
         : await tx.agent.create({ data: { ...data, code: await this.newAgentCode(tx) } });
+      // The agent is a supplier in Accounting from the day it is opened (docs/MERGE.md step 6).
+      if (!id) await ensureAgentSupplier(tx, agent.id, user.id);
       await tx.auditLog.create({
         data: {
           actorUserId: user.id,
@@ -462,6 +465,8 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
         after: { agentId, courierType: d.courierType },
       },
     });
+    // Couriers are people in HR too (docs/MERGE.md step 6): outsourced to their agent.
+    await this.prisma.$transaction((tx) => onboardNewPerson(tx, u.id, user.id));
     return { id: u.id };
   }
 
@@ -496,6 +501,7 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
         },
       }),
     ]);
+    if (approving) await this.prisma.$transaction((tx) => onboardNewPerson(tx, staffId, user.id));
     if (approving)
       await resolveAlerts(
         this.prisma,

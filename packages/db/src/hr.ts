@@ -16,6 +16,7 @@ import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
 import { startChecklist } from './hr-checklists';
+import { ensureAgentSupplier } from './parcels/agents';
 import {
   assertNoManagerLoop,
   checkPlacement,
@@ -189,15 +190,19 @@ export type EmployeeFile = ReturnType<typeof view>;
 async function defaultDepartment(tx: Tx, role: Role, storeId: string | null) {
   const store = storeId ? await tx.darkStore.findUnique({ where: { id: storeId } }) : null;
   const code =
-    role === 'rider'
-      ? 'OPS-RID'
-      : role === 'store_staff'
-        ? store?.kind === 'hub'
-          ? 'OPS-HUB'
-          : 'OPS-DS'
-        : role === 'finance'
-          ? 'FIN'
-          : null;
+    role === 'hub_staff'
+      ? 'SHP-HUB'
+      : role === 'courier'
+        ? 'SHP-CUR'
+        : role === 'rider'
+          ? 'OPS-RID'
+          : role === 'store_staff'
+            ? store?.kind === 'hub'
+              ? 'OPS-HUB'
+              : 'OPS-DS'
+            : role === 'finance'
+              ? 'FIN'
+              : null;
   if (!code) return null;
   return (await tx.department.findUnique({ where: { code } }))?.id ?? null;
 }
@@ -211,6 +216,12 @@ export async function ensureEmployee(tx: Tx, userId: string) {
   if (existing) return existing;
   const user = await tx.user.findUnique({ where: { id: userId }, include: { rider: true } });
   if (!user || !hasFile(user.role)) return null;
+  // A courier who asked to join waits for the agent's approval before they have a file.
+  if (user.pendingApproval) return null;
+  // Shiply's people work at a hub; those who come through an agent are outsourced to it.
+  const shiply = user.role === 'hub_staff' || user.role === 'courier';
+  const staffingSupplierId =
+    shiply && user.agentId ? await ensureAgentSupplier(tx, user.agentId) : null;
   const homeStoreId = storeFromUser(user.role)
     ? (user.darkStoreId ?? user.rider?.darkStoreId ?? null)
     : null;
@@ -221,8 +232,12 @@ export async function ensureEmployee(tx: Tx, userId: string) {
       homeStoreId,
       departmentId: await defaultDepartment(tx, user.role, homeStoreId),
       contractType: 'permanent',
-      // Riders are paid per delivered order (CLAUDE.md "Rider pay"), never a monthly salary.
-      payBasis: user.role === 'rider' ? 'per_delivery' : 'monthly_salary',
+      hubId: shiply ? user.hubId : null,
+      employment: staffingSupplierId ? 'outsourced' : 'employee',
+      staffingSupplierId,
+      // Riders and couriers are paid per delivered order (CLAUDE.md "Rider pay"), never a salary.
+      payBasis:
+        user.role === 'rider' || user.role === 'courier' ? 'per_delivery' : 'monthly_salary',
       hireDate: toDate(cairoDay(user.createdAt)),
       status: user.isActive ? 'active' : 'suspended',
     },

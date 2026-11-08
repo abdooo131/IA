@@ -548,6 +548,11 @@ export function accountKey(ref: AccountRef): string {
   }
 }
 
+/** The id of a system account (made the first time it is needed). */
+export function systemAccountId(tx: Tx, type: SystemAccountKey) {
+  return accountId(tx, { type } as AccountRef);
+}
+
 async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
   if ('id' in ref) {
     const account = await tx.ledgerAccount.findUnique({ where: { id: ref.id } });

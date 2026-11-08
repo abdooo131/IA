@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { billAgentSettlement } from '@shiplynow/db';
 import {
   ACCOUNTS,
   applyBp,
@@ -26,7 +27,6 @@ const FILE = z.object({
   dataBase64: z.string().min(8),
 });
 
-const ReferenceInput = z.object({ reference: z.string().trim().max(120).default('') });
 const NoteInput = z.object({ note: z.string().trim().max(300).default('') });
 const WithdrawInput = z.object({
   amount: MONEY,
@@ -727,11 +727,31 @@ export class FinanceService {
         (a) => [a.id, a],
       ),
     );
-    return rows.map((r) => ({
-      ...r,
-      agent: agents.get(r.agentId) ?? null,
-      hasInvoice: !!r.invoiceName,
-    }));
+    const bills = new Map(
+      (
+        await this.prisma.bill.findMany({
+          where: { id: { in: rows.map((r) => r.billId).filter((b): b is string => !!b) } },
+          select: { id: true, number: true, status: true, paidPiastres: true, totalPiastres: true },
+        })
+      ).map((b) => [b.id, b]),
+    );
+    return rows.map((r) => {
+      const bill = r.billId ? bills.get(r.billId) : undefined;
+      return {
+        ...r,
+        agent: agents.get(r.agentId) ?? null,
+        hasInvoice: !!r.invoiceName,
+        // Paid in Accounting: the supplier bill of this settlement
+        bill: bill
+          ? {
+              id: bill.id,
+              number: `BILL-${String(bill.number).padStart(6, '0')}`,
+              status: bill.status,
+              leftPiastres: bill.status === 'open' ? bill.totalPiastres - bill.paidPiastres : 0,
+            }
+          : null,
+      };
+    });
   }
 
   async uploadInvoice(id: string, body: unknown, user: SessionUser, agentId?: string) {
@@ -796,7 +816,7 @@ export class FinanceService {
           409,
         );
       const agent = { type: 'AGENT' as const, id: x.agentId };
-      await post(tx, {
+      const entry = await post(tx, {
         memo: `Agent settlement ${x.code} for ${x.month}`,
         source: 'AGENT_SETTLEMENT',
         key: `AGENT_SETTLEMENT:${x.id}`,
@@ -863,60 +883,14 @@ export class FinanceService {
           { account: ACCOUNTS.OTHER_INCOME.code, credit: x.penalties },
         ],
       });
+      // The agent is a supplier: Accounting pays the settlement as a supplier bill.
+      if (entry)
+        await billAgentSettlement(tx, {
+          settlementId: x.id,
+          entryId: entry.id,
+          actorUserId: user.id,
+        });
       await this.audit(tx, user, 'SETTLEMENT_APPROVED', 'agent_settlement', id, { total: x.total });
-    });
-  }
-
-  async paySettlement(id: string, body: unknown, user: SessionUser) {
-    const { reference } = parse(ReferenceInput, body ?? {});
-    await this.prisma.tx(async (tx) => {
-      const x = await tx.agentSettlement.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          code: true,
-          agentId: true,
-          total: true,
-          advances: true,
-          status: true,
-          invoiceName: true,
-        },
-      });
-      if (!x || x.status !== 'APPROVED')
-        throw new DomainError('bad_status', 'Approve the settlement before paying it', 409);
-      if (!x.invoiceName)
-        throw new DomainError('no_invoice', "Upload the agent's invoice before paying", 422);
-      const pay = x.total - x.advances;
-      if (pay <= 0)
-        throw new DomainError(
-          'invalid_input',
-          'After advances the agent owes us this month; nothing to pay',
-          422,
-        );
-      await tx.agentSettlement.update({
-        where: { id },
-        data: { status: 'PAID', paidAt: new Date() },
-      });
-      await post(tx, {
-        memo: `Paid agent settlement ${x.code}`,
-        source: 'AGENT_PAYMENT',
-        key: `AGENT_PAYMENT:${x.id}`,
-        userId: user.id,
-        lines: [
-          {
-            account: ACCOUNTS.AGENT_PAYABLE.code,
-            party: { type: 'AGENT', id: x.agentId },
-            debit: pay,
-          },
-          { account: ACCOUNTS.BANK.code, credit: pay, memo: reference },
-        ],
-      });
-      await this.audit(tx, user, 'SETTLEMENT_PAID', 'agent_settlement', id, {
-        total: x.total,
-        advances: x.advances,
-        paid: pay,
-        reference,
-      });
     });
   }
 

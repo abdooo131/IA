@@ -122,6 +122,10 @@ export const AR_MONEY: Record<string, string> = {
   'Someone else approves': 'يعتمده شخص آخر',
   'Bank transfer reference': 'مرجع التحويل البنكي',
   'Mark paid': 'تم الدفع',
+  'Pay in Accounting': 'ادفعها من الحسابات',
+  'Waiting for the agent invoice': 'في انتظار فاتورة الوكيل',
+  'Month end: staff pay, commission and vehicles, minus deductions. Approving makes a supplier bill that Accounting pays once the agent’s invoice is in.':
+    'نهاية الشهر: أجور الفريق والعمولة والمركبات ناقص الخصومات. الموافقة تنشئ فاتورة مورد تدفعها الحسابات بعد وصول فاتورة الوكيل.',
   Reject: 'رفض',
   'Payouts created for today': 'تم إنشاء مدفوعات اليوم',
   'Nothing was created': 'لم يتم إنشاء شيء',

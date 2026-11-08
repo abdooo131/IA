@@ -32,6 +32,7 @@ interface Settlement {
   agent: { name: string; code: string } | null;
   commission: number;
   staffPay: number;
+  bill: { id: string; number: string; status: string; leftPiastres: number } | null;
 }
 
 function lastMonth() {
@@ -72,7 +73,7 @@ export default function AgentSettlementsPage() {
       <PageHeader
         title={t('Agent settlements')}
         subtitle={t(
-          'Month end: staff pay, commission and vehicles, minus deductions. Paid after the agent’s invoice.',
+          'Month end: staff pay, commission and vehicles, minus deductions. Approving makes a supplier bill that Accounting pays once the agent’s invoice is in.',
         )}
       />
       {r.view}
@@ -218,21 +219,15 @@ export default function AgentSettlementsPage() {
                         {t('Someone else approves')}
                       </span>
                     )}
-                    {x.status === 'APPROVED' && x.total > 0 && (
-                      <Button
-                        disabled={!x.hasInvoice}
-                        onClick={() => {
-                          const ref = window.prompt(t('Bank transfer reference'));
-                          if (ref !== null)
-                            void r.call(
-                              `/finance/settlements/${x.id}/paid`,
-                              { reference: ref },
-                              'Marked paid',
-                            );
-                        }}
-                      >
-                        {t('Mark paid')}
-                      </Button>
+                    {x.bill && (
+                      // The agent is a supplier: Accounting pays the settlement as its bill.
+                      <a className="btn-secondary" href={`/finance/bills/${x.bill.id}`}>
+                        {x.bill.status === 'paid'
+                          ? `${x.bill.number} · ${t('Paid')}`
+                          : x.hasInvoice
+                            ? `${t('Pay in Accounting')} · ${x.bill.number}`
+                            : `${x.bill.number} · ${t('Waiting for the agent invoice')}`}
+                      </a>
                     )}
                   </div>
                 </Td>

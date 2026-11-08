@@ -210,9 +210,14 @@ export class FinanceController {
     @CurrentUser() u: SessionUser,
     @Param('id', ParseIdPipe) id: string,
     @Param('decision') d: string,
-    @Body() body: unknown,
   ) {
-    if (d === 'paid') return this.f.paySettlement(id, body, u);
+    // Paid in Accounting as the agent's supplier bill (Money out, Bills).
+    if (d === 'paid')
+      throw new DomainError(
+        'pay_in_accounting',
+        'Pay this settlement from its bill in Accounting',
+        409,
+      );
     return this.f.approveSettlement(id, decision(d), u);
   }
 

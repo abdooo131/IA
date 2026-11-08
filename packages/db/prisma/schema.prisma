@@ -2433,6 +2433,7 @@ model Supplier {
   cheques               Cheque[]
   purchaseOrders        PurchaseOrder[]
   shopPurchaseOrders    ShopPurchaseOrder[]
+  agent                 Agent?              @relation("agent_supplier")
 
   @@map("suppliers")
 }
@@ -2479,14 +2480,15 @@ model Bill {
   createdById      String     @map("created_by_id")
   createdAt        DateTime   @default(now()) @map("created_at")
 
-  person         User?          @relation("bill_person", fields: [userId], references: [id], onDelete: Restrict)
-  supplier       Supplier       @relation(fields: [supplierId], references: [id], onDelete: Restrict)
-  expenseAccount LedgerAccount  @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
-  darkStore      DarkStore?     @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  entry          LedgerEntry?   @relation(fields: [entryId], references: [id], onDelete: Restrict)
-  createdBy      User           @relation(fields: [createdById], references: [id], onDelete: Restrict)
-  cheques        Cheque[]
-  purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  person          User?            @relation("bill_person", fields: [userId], references: [id], onDelete: Restrict)
+  supplier        Supplier         @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  expenseAccount  LedgerAccount    @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  darkStore       DarkStore?       @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry           LedgerEntry?     @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy       User             @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  cheques         Cheque[]
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
+  agentSettlement AgentSettlement?
 
   @@index([status, dueDate])
   @@index([userId])
@@ -2803,6 +2805,8 @@ model Employee {
   /// monthly_salary: on the salary run; per_delivery: riders paid per delivered order
   payBasis              PayBasis       @default(monthly_salary) @map("pay_basis")
   staffingSupplierId    String?        @map("staffing_supplier_id")
+  /// Shiply's hub or sorting facility the person works at (hub staff and couriers)
+  hubId                 String?        @map("hub_id")
   contractType          ContractType   @default(permanent) @map("contract_type")
   contractEndsOn        DateTime?      @map("contract_ends_on") @db.Date
   probationEndsOn       DateTime?      @map("probation_ends_on") @db.Date
@@ -2829,6 +2833,7 @@ model Employee {
   position         JobPosition?           @relation(fields: [positionId], references: [id], onDelete: Restrict)
   grade            Grade?                 @relation(fields: [gradeId], references: [id], onDelete: Restrict)
   staffingSupplier Supplier?              @relation("staffing_supplier", fields: [staffingSupplierId], references: [id], onDelete: Restrict)
+  hub              Hub?                   @relation("employee_hub", fields: [hubId], references: [id], onDelete: Restrict)
   headOf           Department[]           @relation("department_head")
   documents        EmployeeDocument[]
   photo            EmployeePhoto?
@@ -2849,6 +2854,7 @@ model Employee {
   hireDraft        HireDraft?
 
   @@index([homeStoreId])
+  @@index([hubId])
   @@index([status])
   @@index([departmentId])
   @@index([managerId])
@@ -5094,6 +5100,7 @@ model Hub {
   areas        NetworkArea[]
   users        User[]        @relation("parcels_user_hub")
   merchants    Merchant[]    @relation("parcels_merchant_homeHub")
+  employees    Employee[]    @relation("employee_hub")
 
   @@map("hubs")
 }
@@ -5150,6 +5157,9 @@ model Agent {
   commissionBp       Int?        @map("commission_bp")
   active             Boolean     @default(true)
   createdAt          DateTime    @default(now()) @map("created_at")
+  /// The agent as a supplier in Accounting: what we owe them, their bills and payments
+  supplierId         String?     @unique @map("supplier_id")
+  supplier           Supplier?   @relation("agent_supplier", fields: [supplierId], references: [id], onDelete: Restrict)
 
   users           User[]           @relation("parcels_user_agent")
   documents       AgentDocument[]
@@ -5638,6 +5648,9 @@ model AgentSettlement {
   approvedById    String?       @map("approved_by_id")
   paidAt          DateTime?     @map("paid_at")
   createdAt       DateTime      @default(now()) @map("created_at")
+  /// The supplier bill made when the settlement is approved; paid in Accounting
+  billId          String?       @unique @map("bill_id")
+  bill            Bill?         @relation(fields: [billId], references: [id], onDelete: Restrict)
 
   @@unique([agentId, month])
   @@map("agent_settlements")

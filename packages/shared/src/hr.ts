@@ -27,7 +27,15 @@ export const MAX_PHOTO_BYTES = 1_000_000;
 export const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 
 /** The roles that have an employee file: team members and riders. */
-export const EMPLOYEE_ROLES = ['admin', 'finance', 'store_staff', 'rider'] as const;
+// Shiply's hub staff and couriers have files too (docs/MERGE.md step 6); agents are suppliers.
+export const EMPLOYEE_ROLES = [
+  'admin',
+  'finance',
+  'store_staff',
+  'rider',
+  'hub_staff',
+  'courier',
+] as const;
 
 /** A calendar day YYYY-MM-DD, or null to clear it. */
 export const daySchema = z

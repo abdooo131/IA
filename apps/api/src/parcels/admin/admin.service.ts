@@ -1,4 +1,5 @@
 import { dbRole } from '../auth/auth';
+import { onboardNewPerson } from '@shiplynow/db';
 import { Injectable } from '@nestjs/common';
 import { hashPassword, type Prisma, type ShipmentStatus } from '@shiplynow/db';
 import { ROLES, SHIPMENT_STATUSES, TEAMS, normalizeEgyptPhone } from '@shiplynow/shared/parcels';
@@ -678,6 +679,8 @@ export class AdminService {
       },
     });
     await this.audit(user, 'USER_CREATED', 'user', created.id, { email: d.email, role: d.role });
+    // Hub staff and couriers have an HR file like every team member (docs/MERGE.md step 6).
+    await this.prisma.$transaction((tx) => onboardNewPerson(tx, created.id, user.id));
     return { id: created.id };
   }
 

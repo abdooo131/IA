@@ -296,7 +296,32 @@ describe('money', () => {
     );
     expect((await as.admin!.post(`/parcels/finance/settlements/${x.id}/approve`)).status).toBe(403);
     await ok(as.finance!.post(`/parcels/finance/settlements/${x.id}/approve`));
-    expect((await as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`)).status).toBe(422); // no invoice yet
+    // The agent is a supplier: approving made a supplier bill that Accounting pays.
+    const listed = (await ok(as.admin!.get('/parcels/finance/settlements'))).find(
+      (r: any) => r.id === x.id,
+    );
+    expect(listed.bill.number).toMatch(/^BILL-\d{6}$/);
+    expect(listed.bill.leftPiastres).toBe(600);
+    const bill = await prisma.bill.findUnique({
+      where: { id: listed.bill.id },
+      include: { supplier: { include: { agent: true } } },
+    });
+    expect(bill.supplier.agent.id).toBe(agentId);
+    expect((await as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`)).status).toBe(409);
+    const bank = (await ok(as.finance!.get('/finance/money-accounts'))).find(
+      (a: any) => a.code === '1101',
+    );
+    const today = new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 10);
+    const pay = {
+      amountPiastres: 600,
+      moneyAccountId: bank.id,
+      reference: 'CIB 5',
+      day: today,
+      idempotencyKey: 'agent-settlement-pay-1',
+    };
+    const early = await as.finance!.post(`/finance/bills/${bill.id}/payments`).send(pay);
+    expect(early.status).toBe(409);
+    expect(early.body.error).toBe('agent_invoice_missing');
     await ok(
       as.delta!.post(`/parcels/agent/settlements/${x.id}/invoice`).send({
         fileName: 'invoice.pdf',
@@ -304,9 +329,17 @@ describe('money', () => {
         dataBase64: Buffer.from('%PDF-1.4').toString('base64'),
       }),
     );
-    await ok(
-      as.admin!.post(`/parcels/finance/settlements/${x.id}/paid`).send({ reference: 'CIB 5' }),
+    expect((await as.finance!.post(`/finance/bills/${bill.id}/payments`).send(pay)).status).toBe(
+      201,
     );
+    expect((await prisma.agentSettlement.findUnique({ where: { id: x.id } })).status).toBe('PAID');
+    expect(
+      (
+        await as
+          .finance!.post(`/finance/bills/${bill.id}/cancel`)
+          .send({ reason: 'Trying to undo a settlement bill' })
+      ).status,
+    ).toBe(409);
     const agents = await ok(as.admin!.get('/parcels/finance/wallets/AGENT'));
     expect(agents.find((a: any) => a.id === agentId)).toBeUndefined(); // paid to zero
     expect((await wallet(giz)).wallet).toBe(0); // moved to the agent

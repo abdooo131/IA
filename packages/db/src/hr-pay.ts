@@ -274,7 +274,7 @@ export function setPayBasis(
       include: { user: { select: { role: true } } },
     });
     if (!e) throw new DomainError('employee_not_found', 404);
-    if (input.payBasis === 'per_delivery' && e.user.role !== 'rider')
+    if (input.payBasis === 'per_delivery' && e.user.role !== 'rider' && e.user.role !== 'courier')
       throw new DomainError('per_delivery_riders_only', 400);
     if (e.payBasis === input.payBasis) return { employeeId: e.id, payBasis: e.payBasis };
     const after = await tx.employee.update({
