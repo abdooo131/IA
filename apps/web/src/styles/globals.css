@@ -134,14 +134,15 @@
   .field {
     @apply block w-full min-h-10 rounded-md border border-line-strong bg-surface px-3 py-2 text-body-sm text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-focus;
   }
-  .no-print {
-    display: none !important;
-  }
 }
 
-/* Printed pages (invoices, payslips, reports) are plain black on white. */
+/* Printed pages (invoices, payslips, reports, labels) are plain black on white; controls marked
+   no-print (the hub picker, print buttons) are left off the paper but stay on screen. */
 @media print {
   body {
     background: #fff;
+  }
+  .no-print {
+    display: none !important;
   }
 }

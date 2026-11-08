@@ -5,7 +5,7 @@ import { AccountMenu } from '@/components/AccountMenu';
 import { AppTileIcon } from '@/components/AppTileIcon';
 import { Logo } from '@/components/Logo';
 import { getMyProfile } from '@/lib/api-server';
-import { appsFor, canOpenStoreScreens, STORE_TILE } from '@/lib/apps';
+import { appsFor } from '@/lib/apps';
 import { getCurrentUser, getTheme } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
@@ -15,7 +15,7 @@ const tile =
 
 /**
  * The apps a person may open, as tiles (Odoo style), in two groups: the operations of each
- * company (and the store screens) and the departments both share. An app shows when the person
+ * company (each with its floor screens as a menu) and the departments both share. An app shows when the person
  * may open one of its pages. Team members land here.
  */
 export default async function HomePage() {
@@ -28,7 +28,6 @@ export default async function HomePage() {
   ]);
   if (!user) redirect('/login?next=/home');
   const apps = appsFor(profile);
-  const store = canOpenStoreScreens(profile);
   return (
     <div className="flex min-h-dvh flex-col">
       <header className="border-b border-line bg-surface">
@@ -39,15 +38,14 @@ export default async function HomePage() {
       </header>
       <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center px-4 py-12">
         <h1 className="text-h2">{t('home.title', { name: user.name })}</h1>
-        {apps.length === 0 && !store ? (
+        {apps.length === 0 ? (
           <p className="mt-4 max-w-md text-center text-body text-text-muted">{t('home.none')}</p>
         ) : (
           <>
             <p className="mt-1 text-center text-body-sm text-text-muted">{t('home.intro')}</p>
             {(['operations', 'shared'] as const).map((group) => {
               const tiles = apps.filter((app) => app.group === group);
-              const withStore = group === 'operations' && store;
-              if (tiles.length === 0 && !withStore) return null;
+              if (tiles.length === 0) return null;
               return (
                 <section key={group} className="mt-10 w-full">
                   <h2 className="mb-3 text-caption font-bold uppercase tracking-wide text-text-muted">
@@ -65,17 +63,6 @@ export default async function HomePage() {
                         </Link>
                       </li>
                     ))}
-                    {withStore && (
-                      <li>
-                        <Link href={STORE_TILE.href} className={tile}>
-                          <AppTileIcon app={STORE_TILE} size="lg" />
-                          <span className="text-body font-bold">{t('names.store')}</span>
-                          <span className="text-caption text-text-muted">
-                            {t('descriptions.store')}
-                          </span>
-                        </Link>
-                      </li>
-                    )}
                   </ul>
                 </section>
               );

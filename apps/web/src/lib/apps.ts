@@ -101,6 +101,11 @@ export const APPS: AppDef[] = [
       },
       { label: 'control', pages: [{ href: '/admin/alerts', label: 'alerts' }] },
       {
+        // The dark store floor: receive, put away, pick, pack, hand to riders, cash.
+        label: 'floor',
+        pages: [{ href: '/store', label: 'storeFloor', need: { app: 'store', level: 'use' } }],
+      },
+      {
         label: 'configuration',
         pages: [
           { href: '/admin/stores', label: 'stores' },
@@ -122,6 +127,12 @@ export const APPS: AppDef[] = [
     menus: [
       { label: 'dashboard', pages: [{ href: '/parcels/admin', label: 'overview', exact: true }] },
       { label: 'parcels', pages: [{ href: '/parcels/admin/shipments', label: 'parcels' }] },
+      {
+        // The hub floor: inbound, sorting and outbound stations, pickups, courier runs, the
+        // handover check, damage and the hub safe (each team member sees only their station).
+        label: 'floor',
+        pages: [{ href: '/parcels/hub', label: 'hubFloor', need: { level: 'use' } }],
+      },
       {
         label: 'team',
         pages: [
@@ -451,13 +462,6 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
   if (under(pathname, '/admin')) return { app: APPS[0]!, page: null };
   return null;
 }
-
-/** The store screens: a tile on the home screen for people with store use (not an app bar). */
-export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as const satisfies {
-  icon: IconName;
-  color: string;
-  href: string;
-};
 
 type Profile = AccessProfile | null | undefined;
 

@@ -73,8 +73,15 @@ describe('appsFor', () => {
     expect(pages('accountant')).not.toContain('/admin/hr/leave');
   });
 
-  it('gives store staff no apps, only the store screens', () => {
-    expect(appsFor(profile('store_staff'))).toEqual([]);
+  it('puts the store screens in Shiply Now and the hub floor in Shiply', () => {
+    // Store staff see Shiply Now with its floor only.
+    const staff = appsFor(profile('store_staff'));
+    expect(staff.map((a) => a.id)).toEqual(['operations']);
+    expect(staff[0]!.menus.flatMap((m) => m.pages.map((p) => p.href))).toEqual(['/store']);
+    expect(pages('owner')).toEqual(expect.arrayContaining(['/store', '/parcels/hub']));
+    expect(pages('store_manager')).toContain('/store');
+    expect(pages('accountant')).not.toContain('/store');
+    expect(pages('finance_officer')).not.toContain('/parcels/hub');
     expect(canOpenStoreScreens(profile('store_staff'))).toBe(true);
     expect(canOpenStoreScreens(profile('accountant'))).toBe(false);
   });

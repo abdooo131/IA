@@ -5430,6 +5430,7 @@
       "shiply": "Next day parcels: hubs, couriers and agents"
     },
     "menus": {
+      "floor": "Floor",
       "general": "General",
       "results": "Results",
       "team": "Team",
@@ -5483,6 +5484,8 @@
       "shiplyMoney": "Shiply"
     },
     "pages": {
+      "storeFloor": "Dark store floor",
+      "hubFloor": "Hub floor",
       "courierShifts": "Courier shifts",
       "generalSettings": "General settings",
       "customerSettings": "Customer settings",
@@ -5616,6 +5619,8 @@
       "agentAdvances": "Agent advances"
     },
     "hints": {
+      "storeFloor": "Receive, pick, pack, hand to riders, cash",
+      "hubFloor": "Inbound, sorting, outbound, couriers, safe",
       "courierShifts": "Who checked in, late, not coming and replacements. Attendance is in HR",
       "packagingOrders": "Next day merchants buying packaging",
       "agentSettlements": "Monthly bills from courier agents",

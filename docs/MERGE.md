@@ -68,9 +68,9 @@ Their ids switch to Shiply Now's style (cuid).
 
 ## One structure (owner, 2026-11-08)
 
-The home screen has two groups. Operations: Shiply Now (orders, stock, returns, control,
-configuration) and Shiply (parcels, team, control, configuration), each run by its own team, plus
-the store screens. Shared departments: Merchants (one list for both services; next day sign ups,
+The home screen has two groups. Operations: Shiply Now (orders, stock, returns, control, the
+dark store floor, configuration) and Shiply (parcels, the hub floor with its inbound, sorting and
+outbound stations, team, control, configuration), each run by its own team. Shared departments: Merchants (one list for both services; next day sign ups,
 the packaging shop and customers are menus), Sales, Accounting (both companies; courier wallets,
 hub safes and agent bills sit beside rider wallets, store boxes and supplier bills), HR (everyone)
 and Settings (users and access, Shiply's field accounts, audit, general settings). Every address
