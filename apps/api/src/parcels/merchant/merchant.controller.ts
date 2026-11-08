@@ -60,6 +60,17 @@ export class MerchantController {
     return this.service.create(merchantOf(user, 'orders'), body, user.id);
   }
 
+  @Get('pickup-address')
+  pickupAddress(@CurrentUser() user: SessionUser) {
+    return this.service.pickupAddress(merchantOf(user, 'settings'));
+  }
+
+  @Put('pickup-address')
+  @HttpCode(200)
+  savePickupAddress(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+    return this.service.savePickupAddress(merchantOf(user, 'settings'), body, user.id);
+  }
+
   @Post('shipments/bulk')
   @HttpCode(200)
   bulk(@CurrentUser() user: SessionUser, @Body() body: { rows?: unknown }) {

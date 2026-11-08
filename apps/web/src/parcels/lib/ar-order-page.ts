@@ -73,4 +73,12 @@ export const AR_ORDER_PAGE: Record<string, string> = {
     'تُحسب رسوم الإرجاع عند وصول الشحنة إليك',
   'It comes back to the hub with the courier; then you decide what to do':
     'تعود الشحنة إلى المركز مع المندوب، ثم تقرر ما يتم بها',
+  'Add your pickup address before sending next day parcels.':
+    'أضف عنوان الاستلام قبل إرسال شحنات اليوم التالي.',
+  'Save pickup address': 'حفظ عنوان الاستلام',
+  'Pickup address saved. You can send next day parcels':
+    'تم حفظ عنوان الاستلام. يمكنك الآن إرسال شحنات اليوم التالي',
+  'Your pickup address, logo and regular pickups':
+    'عنوان الاستلام والشعار ومواعيد الاستلام الثابتة',
+  'We do not pick up from this area yet': 'لا نستلم من هذه المنطقة بعد',
 };

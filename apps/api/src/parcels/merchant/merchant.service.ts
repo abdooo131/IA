@@ -68,6 +68,24 @@ const ListQuery = z.object({
   page: z.coerce.number().int().min(1).default(1),
 });
 
+const PickupAddressInput = z.object({
+  pickupAddress: z.string().trim().min(5).max(300),
+  governorateCode: z.string().min(4).max(6),
+  areaId: z.string().min(1).max(64).nullish(),
+});
+
+/** A free network code from the merchant's name: letters and digits, 2 to 10, numbered if taken. */
+async function freeMerchantCode(tx: Tx, name: string) {
+  const base = (name.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'MERCHANT')
+    .slice(0, 6)
+    .padEnd(2, 'X');
+  for (let n = 0; n < 1000; n++) {
+    const code = n === 0 ? base : `${base}${n}`;
+    if (!(await tx.merchant.findUnique({ where: { code }, select: { id: true } }))) return code;
+  }
+  throw new DomainError('duplicate', 'No free merchant code', 409);
+}
+
 @Injectable()
 export class MerchantService {
   constructor(
@@ -75,6 +93,58 @@ export class MerchantService {
     private readonly settings: SettingsService,
     private readonly core: ShipmentsCore,
   ) {}
+
+  /** Where our courier picks the merchant's parcels up, and whether next day is ready to use. */
+  async pickupAddress(merchantId: string) {
+    const m = await this.prisma.merchant.findUniqueOrThrow({
+      where: { id: merchantId },
+      select: { pickupAddress: true, governorateCode: true, areaId: true, homeHubId: true },
+    });
+    return { ...m, ready: !!(m.pickupAddress && m.governorateCode && m.homeHubId) };
+  }
+
+  /**
+   * The merchant sets their own pickup address (owner, 2026-11-08: a merchant won by Sales has
+   * none yet). As when admin sets it, the pickup facility is the nearest one; a merchant with
+   * no network code gets one made from their name.
+   */
+  async savePickupAddress(merchantId: string, input: unknown, userId: string) {
+    const d = parse(PickupAddressInput, input);
+    await this.prisma.tx(async (tx) => {
+      const m = await tx.merchant.findUniqueOrThrow({ where: { id: merchantId } });
+      const point = await this.core.pointOf(tx, d.governorateCode, d.areaId ?? null);
+      // We pick up only where we deliver.
+      await this.core.deliveryHubFor(tx, d.governorateCode, d.areaId ?? null).catch(() => {
+        throw new DomainError('not_served', 'We do not pick up from this area yet', 422);
+      });
+      const facility = await this.core.nearestFacility(tx, point);
+      const code = m.code ?? (await freeMerchantCode(tx, m.name));
+      const data = {
+        code,
+        pickupAddress: d.pickupAddress,
+        governorateCode: d.governorateCode,
+        areaId: d.areaId ?? null,
+        homeHubId: facility.id,
+      };
+      await tx.merchant.update({ where: { id: merchantId }, data });
+      await tx.auditLog.create({
+        data: {
+          actorUserId: userId,
+          action: 'MERCHANT_PICKUP_ADDRESS',
+          entityType: 'merchant',
+          entityId: merchantId,
+          before: {
+            pickupAddress: m.pickupAddress,
+            governorateCode: m.governorateCode,
+            areaId: m.areaId,
+            homeHubId: m.homeHubId,
+          },
+          after: data,
+        },
+      });
+    });
+    return this.pickupAddress(merchantId);
+  }
 
   /** Creates one parcel. Used by the merchant portal, CSV upload and admin. */
   async create(merchantId: string, input: unknown, userId: string): Promise<Shipment> {

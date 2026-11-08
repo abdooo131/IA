@@ -6,6 +6,7 @@ import { Button, Card, Field, Input, Loading, PageHeader } from '@/parcels/compo
 import { api } from '@/parcels/lib/api';
 import { useLoad } from '@/parcels/lib/hooks';
 import { useT } from '@/parcels/lib/i18n';
+import { PickupAddressCard } from '../PickupAddressCard';
 
 /** The store logo on the tracking page, and pickups booked by themselves on chosen days. */
 export default function MerchantSettings() {
@@ -36,8 +37,12 @@ export default function MerchantSettings() {
     }, 'Logo saved. Customers see it on the tracking page');
   return (
     <div className="space-y-5">
-      <PageHeader title={t('Settings')} subtitle={t('Your logo and your regular pickups')} />
+      <PageHeader
+        title={t('Settings')}
+        subtitle={t('Your pickup address, logo and regular pickups')}
+      />
       {r.view}
+      <PickupAddressCard />
       <Card title={t('Logo on the tracking page')}>
         <label className="btn-secondary cursor-pointer">
           {t('Upload logo')}

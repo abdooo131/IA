@@ -237,6 +237,38 @@ describe('merchants and customers', () => {
     ).toBe(429);
   });
 
+  it('a merchant with no pickup address sets it themselves, then sends parcels', async () => {
+    const me = await prisma.user.findFirst({ where: { email: 'merchant@evechantelle.example' } });
+    const m = await prisma.merchant.findUnique({ where: { id: me.merchantId } });
+    // As a merchant won by Sales starts: no pickup address, governorate or home hub.
+    await prisma.merchant.update({
+      where: { id: m.id },
+      data: { pickupAddress: '', governorateCode: null, areaId: null, homeHubId: null },
+    });
+    expect((await ok(as.merchant!.get('/parcels/merchant/pickup-address'))).ready).toBe(false);
+    const parcel = {
+      customerName: 'Mona',
+      customerPhone: '01012345678',
+      address: '5 Tahrir St',
+      governorateCode: 'EG-GZ',
+      codAmount: 10000,
+    };
+    expect((await as.merchant!.post('/parcels/merchant/shipments').send(parcel)).body.error).toBe(
+      'no_pickup_address',
+    );
+    const saved = await ok(
+      as.merchant!.put('/parcels/merchant/pickup-address').send({
+        pickupAddress: m.pickupAddress || '12 Nile St, Dokki',
+        governorateCode: m.governorateCode ?? 'EG-C',
+        areaId: m.areaId,
+      }),
+    );
+    expect(saved.ready).toBe(true);
+    const after = await prisma.merchant.findUnique({ where: { id: m.id } });
+    expect(after.homeHubId).toBeTruthy();
+    await ok(as.merchant!.post('/parcels/merchant/shipments').send(parcel), 201);
+  });
+
   it('team members only work where they have the right', async () => {
     await ok(
       as.merchant!.post('/parcels/merchant/team').send({

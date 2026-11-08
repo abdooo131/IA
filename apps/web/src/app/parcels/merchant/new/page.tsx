@@ -18,6 +18,7 @@ import { api, errorMessage } from '@/parcels/lib/api';
 import { parseCsv } from '@/parcels/lib/format';
 import { Icon } from '@/parcels/components/Icon';
 import { egp } from '@/parcels/lib/format';
+import { useLoad } from '@/parcels/lib/hooks';
 import { useLocale, useT } from '@/parcels/lib/i18n';
 import { useLocations, type Governorate } from '../locations';
 
@@ -69,6 +70,7 @@ const CSV_SAMPLE = [
 
 export default function NewParcelPage() {
   const { data: govs } = useLocations();
+  const pickup = useLoad<{ ready: boolean }>('/merchant/pickup-address');
   const t = useT();
   return (
     <div className="space-y-6">
@@ -77,6 +79,14 @@ export default function NewParcelPage() {
         title={t('New parcel')}
         subtitle={t('Create one parcel, or upload many from a spreadsheet')}
       />
+      {pickup.data && !pickup.data.ready && (
+        <p className="rounded-lg border border-status-needs-action bg-surface px-4 py-3 text-body-sm">
+          {t('Add your pickup address before sending next day parcels.')}{' '}
+          <Link href="/parcels/merchant/settings" className="font-bold text-link underline">
+            {t('Save pickup address')}
+          </Link>
+        </p>
+      )}
       <SingleForm govs={govs ?? []} />
       <CsvUpload govs={govs ?? []} />
     </div>
