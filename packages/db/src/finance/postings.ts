@@ -312,7 +312,13 @@ export async function accrueStorage(db: Db, day: string) {
       standard,
     });
     const monthly = prices.storagePerUnitMonthPiastres;
-    const fee = Math.floor((u.units * monthly + Math.floor(daysInMonth / 2)) / daysInMonth);
+    // The month's price spread over its days so a full month adds up to it exactly: day n
+    // pays the rounded share up to n less the rounded share up to n - 1 (no drift from
+    // rounding every day the same way).
+    const dayOfMonth = Number(day.slice(8, 10));
+    const upTo = (n: number) =>
+      Math.floor((u.units * monthly * n + Math.floor(daysInMonth / 2)) / daysInMonth);
+    const fee = upTo(dayOfMonth) - upTo(dayOfMonth - 1);
     if (fee <= 0) continue;
     const vat = share(fee, await getSetting(db, 'fee.vat_bp'));
     const entry = await postUnlessClosed(db, {

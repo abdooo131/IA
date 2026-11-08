@@ -646,7 +646,11 @@ export function monthEstimate(
     for (let d = 1; d <= days; d++) {
       const soFar = Math.floor((orders * d) / days);
       const p = resolvePrices(terms, tierFor(terms.tiers, soFar + 1), standard);
-      storage += Math.floor((units * p.storagePerUnitMonthPiastres + Math.floor(days / 2)) / days);
+      // As the daily charge: the share up to day d less the share up to d - 1, so a whole
+      // month at one price is exactly the monthly price.
+      const upTo = (n: number) =>
+        Math.floor((units * p.storagePerUnitMonthPiastres * n + Math.floor(days / 2)) / days);
+      storage += upTo(d) - upTo(d - 1);
     }
   const beforeMinimum =
     shippingFees + productHandling + orderFees + codFees + packagingCharges + storage;
