@@ -31,6 +31,8 @@ export const ShipmentInput = z.object({
   areaId: z.string().min(1).max(64).nullish(),
   size: z.enum(PARCEL_SIZES).default('M'),
   codAmount: z.number().int().min(0).max(MAX_COD).default(0),
+  /** What the goods are worth (piastres): a loss or damage is paid on it, up to the cap. */
+  declaredValue: z.number().int().min(0).max(MAX_COD).default(0),
   description: z.string().trim().max(300).default(''),
   notes: z.string().trim().max(300).default(''),
   allowOpen: z.boolean().default(false),
@@ -145,6 +147,7 @@ export class MerchantService {
           notes: data.notes,
           allowOpen: data.allowOpen,
           codAmount: data.codAmount,
+          declaredValue: data.declaredValue,
           originHubId: home.homeHubId,
           destinationHubId: hubId,
           shippingFee: price.shippingFee,

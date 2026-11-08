@@ -142,13 +142,25 @@ export const SETTINGS = {
     kind: 'money',
     default: 5000000,
   },
-  'lost.search_hours': {
-    label: 'Hours a missing parcel is searched for before the loss is final',
+  'lost.no_scan_hours': {
+    label:
+      'Hours a parcel may wait without a scan at a station (picked up, inbound, sorting, outbound) before it is searched for',
     kind: 'int',
-    default: 48,
+    default: 2,
+  },
+  'lost.transit_hours': {
+    label:
+      'Hours a parcel may be on a truck or out with a courier without a scan before it is searched for',
+    kind: 'int',
+    default: 12,
+  },
+  'lost.search_hours': {
+    label: 'Hours a parcel is searched for before operations are asked to confirm the loss',
+    kind: 'int',
+    default: 24,
   },
   'lost.compensation_cap': {
-    label: 'Most we pay a merchant for a lost parcel (piastres)',
+    label: 'Most we pay a merchant for a lost or damaged parcel, before the shipping fee refund (piastres)',
     kind: 'money',
     default: 300000,
   },

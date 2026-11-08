@@ -2,6 +2,7 @@ import { ParseIdPipe } from '../common/id.pipe';
 import { Body, Controller, Get, HttpCode, Param, Post, Put, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { CurrentUser, Roles, assertHubAccess, type SessionUser } from '../auth/auth';
+import { ClaimsService } from './claims.service';
 import { ControlService } from './control.service';
 
 function sendFile(res: Response, f: { data: Uint8Array; mime: string; name: string }) {
@@ -16,7 +17,8 @@ function sendFile(res: Response, f: { data: Uint8Array; mime: string; name: stri
 @Controller('control')
 @Roles('ADMIN')
 export class ControlController {
-  constructor(private readonly c: ControlService) {}
+  constructor(
+    private readonly claims: ClaimsService,private readonly c: ControlService) {}
 
   @Get('tickets')
   tickets(@Query('status') status?: string) {
@@ -96,6 +98,47 @@ export class ControlController {
   @Get('lost')
   lost() {
     return this.c.lostParcels();
+  }
+
+  /** Confirms a loss once its search is over: the merchant is compensated (owner, 2026-11-08). */
+  @Post('lost/:id/confirm')
+  @HttpCode(200)
+  confirmLost(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: { note?: unknown },
+  ) {
+    return this.c.confirmLost(id, u, typeof body?.note === 'string' ? body.note.slice(0, 300) : '');
+  }
+
+  @Get('claims')
+  claimList(@Query('status') status?: string) {
+    return this.claims.list(status || undefined);
+  }
+
+  @Post('claims/:id/approve')
+  @HttpCode(200)
+  approveClaim(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.claims.approve(id, body, u);
+  }
+
+  @Post('claims/:id/reject')
+  @HttpCode(200)
+  rejectClaim(
+    @CurrentUser() u: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Body() body: unknown,
+  ) {
+    return this.claims.reject(id, body, u);
+  }
+
+  @Get('claims/:id/photo')
+  async claimPhoto(@Param('id', ParseIdPipe) id: string, @Res() res: Response) {
+    sendFile(res, await this.claims.photo(id));
   }
 
   @Get('trips/:id/manifest')

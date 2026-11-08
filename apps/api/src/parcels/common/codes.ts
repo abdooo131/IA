@@ -12,6 +12,7 @@ const SEQUENCES = [
   'control_seq',
   'shop_seq',
   'sandbox_seq',
+  'claim_seq',
 ] as const;
 type Sequence = (typeof SEQUENCES)[number];
 

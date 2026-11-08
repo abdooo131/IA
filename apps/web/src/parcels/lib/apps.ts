@@ -51,7 +51,6 @@ function hubMenus(me: Me | null): AppMenu[] {
         label: 'Control',
         pages: [
           { href: '/parcels/hub/check', label: 'Handover check' },
-          { href: '/parcels/hub/damage', label: 'Report damage' },
           { href: '/parcels/hub/safe', label: 'Hub safe' },
         ],
       },
@@ -79,7 +78,6 @@ function hubMenus(me: Me | null): AppMenu[] {
     label: 'Control',
     pages: [
       { href: '/parcels/hub/check', label: 'Handover check' },
-      { href: '/parcels/hub/damage', label: 'Report damage' },
       ...(team ? [] : [{ href: '/parcels/hub/safe', label: 'Hub safe' }]),
     ],
   });

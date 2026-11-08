@@ -132,7 +132,12 @@ describe('control', () => {
     expect((await control.tick()).lost).toBe(0);
     expect(await wallet()).toBe(before);
 
-    // The 2 days pass: the merchant is paid, the courier's penalty lands.
+    // Confirming during the search is refused.
+    expect(
+      (await as.admin!.post(`/parcels/control/lost/${p.id}/confirm`).send({})).body.error,
+    ).toBe('still_searching');
+
+    // The search ends: a person is asked to confirm; nobody is paid on their own.
     await prisma.shipment.update({
       where: { id: p.id },
       data: { searchUntil: new Date(Date.now() - 1000) },
@@ -144,7 +149,17 @@ describe('control', () => {
     const mBefore = await merchantBalance();
     const r = await control.tick();
     expect(r.lost).toBe(1);
-    expect(await merchantBalance()).toBe(mBefore + 40000);
+    expect(await merchantBalance()).toBe(mBefore);
+    expect(
+      (await ok(as.admin!.get('/parcels/control/lost'))).find((x: any) => x.id === p.id).state,
+    ).toBe('to_confirm');
+    // Confirmed: the merchant gets the value (no value declared: the cash) plus the fee back.
+    const fee = (await prisma.shipment.findUnique({ where: { id: p.id } })).shippingFee;
+    expect(
+      (await ok(as.admin!.post(`/parcels/control/lost/${p.id}/confirm`).send({ note: 'Gone' })))
+        .amount,
+    ).toBe(40000 + fee);
+    expect(await merchantBalance()).toBe(mBefore + 40000 + fee);
     expect(await wallet()).toBe(before - 40000);
     await balanced();
 
@@ -156,6 +171,119 @@ describe('control', () => {
       (await ok(as.admin!.get('/parcels/control/tickets'))).find((t: any) => t.id === ticket.id)
         .status,
     ).toBe('REVERSED');
+    await balanced();
+  });
+
+  it('a parcel that stops moving is searched for on its own and leaves its station', async () => {
+    const p = await parcel(15000);
+    await prisma.shipment.update({
+      where: { id: p.id },
+      data: { status: 'AT_INBOUND', currentHubId: hubs.OBR },
+    });
+    // Three hours later with no scan (the limit at a station is 2 hours).
+    const later = new Date(Date.now() + 3 * 3600e3);
+    expect((await control.tick(later)).searched).toBeGreaterThanOrEqual(1);
+    const fresh = await prisma.shipment.findUnique({ where: { id: p.id } });
+    expect(fresh.status).toBe('LOST');
+    expect(fresh.currentHubId).toBeNull(); // out of Obour's stock
+    expect(fresh.lostHubId).toBe(hubs.OBR);
+    const row = (await ok(as.admin!.get('/parcels/control/lost'))).find((x: any) => x.id === p.id);
+    expect(row.state).toBe('searching');
+    expect(row.lostHub.code).toBe('OBR');
+    // A parcel waiting on a hub's shelf is waiting on purpose: never searched for.
+    const shelf = await parcel(1000);
+    await prisma.shipment.update({
+      where: { id: shelf.id },
+      data: { status: 'AT_HUB', currentHubId: hubs.GIZ },
+    });
+    await control.tick(new Date(Date.now() + 10 * 3600e3));
+    expect((await prisma.shipment.findUnique({ where: { id: shelf.id } })).status).toBe('AT_HUB');
+    // Scanned again: found, back in the flow at the station that scans it.
+    await ok(as.giz!.post(`/parcels/hubs/${hubs.GIZ}/inbound`).send({ code: p.trackingNumber }));
+    const back = await prisma.shipment.findUnique({ where: { id: p.id } });
+    expect(back.status).not.toBe('LOST');
+    expect(back.searchStartedAt).toBeNull();
+  });
+
+  it('merchants claim damage and loss; operations decide; the wallet is paid', async () => {
+    // Damage: only for a parcel that arrived.
+    const d = await ok(
+      as.merchant!.post('/parcels/merchant/shipments').send({
+        customerName: 'Mona',
+        customerPhone: '01012345678',
+        address: '5 Tahrir St',
+        governorateCode: 'EG-GZ',
+        areaId: dokki.id,
+        codAmount: 30000,
+        declaredValue: 50000,
+      }),
+      201,
+    );
+    const early = await as.merchant!.post('/parcels/merchant/claims').send({
+      trackingNumber: d.trackingNumber,
+      kind: 'damaged',
+      description: 'The box was crushed',
+    });
+    expect(early.body.error).toBe('not_arrived');
+    await prisma.shipment.update({ where: { id: d.id }, data: { status: 'DELIVERED' } });
+    const claim = await ok(
+      as.merchant!.post('/parcels/merchant/claims').send({
+        trackingNumber: d.trackingNumber,
+        kind: 'damaged',
+        description: 'The box was crushed',
+        photo: PHOTO,
+      }),
+      201,
+    );
+    expect(claim.code).toMatch(/^CLM/);
+    const listed = (await ok(as.admin!.get('/parcels/control/claims?status=OPEN'))).find(
+      (c: any) => c.id === claim.id,
+    );
+    // Full compensation: the declared value (under the cap) plus the shipping fee.
+    expect(listed.fullAmount).toBe(50000 + d.shippingFee);
+    expect(
+      (
+        await as
+          .admin!.post(`/parcels/control/claims/${claim.id}/approve`)
+          .send({ amount: 999999999 })
+      ).body.error,
+    ).toBe('over_limit');
+    const before = await merchantBalance();
+    await ok(
+      as
+        .admin!.post(`/parcels/control/claims/${claim.id}/approve`)
+        .send({ note: 'Photo shows it' }),
+    );
+    expect(await merchantBalance()).toBe(before + 50000 + d.shippingFee);
+    expect((await ok(as.merchant!.get('/parcels/merchant/claims')))[0].status).toBe('APPROVED');
+    await balanced();
+
+    // Lost: the claim starts the search; confirming the loss approves the claim.
+    const l = await parcel(20000);
+    await prisma.shipment.update({
+      where: { id: l.id },
+      data: { status: 'AT_HUB', currentHubId: hubs.GIZ },
+    });
+    const lc = await ok(
+      as.merchant!.post('/parcels/merchant/claims').send({
+        trackingNumber: l.trackingNumber,
+        kind: 'lost',
+        description: 'The customer never got it',
+      }),
+      201,
+    );
+    expect((await prisma.shipment.findUnique({ where: { id: l.id } })).status).toBe('LOST');
+    expect(
+      (await as.admin!.post(`/parcels/control/claims/${lc.id}/approve`).send({})).body.error,
+    ).toBe('confirm_loss_instead');
+    await prisma.shipment.update({
+      where: { id: l.id },
+      data: { searchUntil: new Date(Date.now() - 1000) },
+    });
+    await ok(as.admin!.post(`/parcels/control/lost/${l.id}/confirm`).send({}));
+    const decided = await prisma.merchantClaim.findUnique({ where: { id: lc.id } });
+    expect(decided.status).toBe('APPROVED');
+    expect(decided.amount).toBe(20000 + l.shippingFee);
     await balanced();
   });
 

@@ -29,6 +29,7 @@ const EMPTY = {
   address: '',
   size: 'M',
   cod: '',
+  value: '',
   description: '',
   notes: '',
   allowOpen: false,
@@ -124,6 +125,11 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
       setError(t('COD must be an amount in EGP, like 450 or 450.50'));
       return;
     }
+    const value = f.value.trim() === '' ? 0 : egpToPiastres(f.value);
+    if (value === null) {
+      setError(t('Item value must be an amount in EGP, like 450 or 450.50'));
+      return;
+    }
     setBusy(true);
     try {
       const s = await api<{ id: string; trackingNumber: string }>('/merchant/shipments', {
@@ -135,6 +141,7 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
           address: f.address,
           size: f.size,
           codAmount: f.customerReturn ? 0 : cod,
+          declaredValue: value,
           description: f.description,
           notes: f.notes,
           allowOpen: f.customerReturn ? false : f.allowOpen,
@@ -262,6 +269,20 @@ function SingleForm({ govs }: { govs: Governorate[] }) {
             dir="ltr"
             value={f.cod}
             onChange={(e) => set('cod', e.target.value)}
+            placeholder="0"
+          />
+        </Field>
+        <Field
+          label={t('Item value (EGP)')}
+          hint={t(
+            'What the goods are worth: a lost or damaged parcel is paid on it, up to the limit',
+          )}
+        >
+          <Input
+            inputMode="decimal"
+            dir="ltr"
+            value={f.value}
+            onChange={(e) => set('value', e.target.value)}
             placeholder="0"
           />
         </Field>

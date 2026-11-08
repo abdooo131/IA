@@ -10,7 +10,16 @@ import { earn } from '../finance/postings';
 
 const HOUR = 3600 * 1000;
 /** Events that report a problem rather than someone handling the parcel. */
-const NOT_A_SCAN = ['MARKED_LOST', 'MISSING_FROM_BAG', 'FOUND', 'DAMAGED', 'NOTE'];
+export const NOT_A_SCAN = [
+  'MARKED_LOST',
+  'MISSING_FROM_BAG',
+  'AUTO_SEARCH',
+  'CLAIMED_LOST',
+  'LOSS_FINAL',
+  'FOUND',
+  'DAMAGED',
+  'NOTE',
+];
 
 /** The person whose scan came last before the problem: they are held responsible. */
 export async function lastHolder(tx: Tx, shipmentId: string, notUserId?: string) {
@@ -42,12 +51,18 @@ export async function newTicketCode(tx: Tx) {
 export async function onLost(
   tx: Tx,
   s: SettingValues,
-  p: Pick<Shipment, 'id' | 'trackingNumber' | 'codAmount'>,
+  p: Pick<Shipment, 'id' | 'trackingNumber' | 'codAmount'> & { currentHubId?: string | null },
   reportedBy: string | null,
 ) {
-  const searchUntil = new Date(Date.now() + s['lost.search_hours'] * HOUR);
-  await tx.shipment.update({ where: { id: p.id }, data: { searchUntil } });
+  const now = new Date();
+  const searchUntil = new Date(now.getTime() + s['lost.search_hours'] * HOUR);
   const who = await lastHolder(tx, p.id);
+  // The station that had it last: the parcel left that station's stock when its search began.
+  const lostHubId = p.currentHubId ?? who?.eventHubId ?? who?.hubId ?? null;
+  await tx.shipment.update({
+    where: { id: p.id },
+    data: { searchUntil, searchStartedAt: now, lostHubId },
+  });
   const courier = who?.role === 'courier' ? who : null;
   const value = Math.min(p.codAmount, s['lost.compensation_cap']);
   await tx.qcTicket.create({
@@ -122,9 +137,40 @@ export async function onFound(
     }
   }
   await tx.networkAlert.updateMany({
-    where: { entity: 'shipment', entityId: p.id, kind: 'PARCEL_IN_SEARCH', status: 'OPEN' },
+    where: {
+      entity: 'shipment',
+      entityId: p.id,
+      kind: { in: ['PARCEL_IN_SEARCH', 'LOST_TO_CONFIRM'] },
+      status: 'OPEN',
+    },
     data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedById: userId, note: 'Found' },
   });
+  await tx.shipment.update({
+    where: { id: p.id },
+    data: { searchStartedAt: null, lostHubId: null, lostConfirmedById: null },
+  });
+  // The merchant's claim that it was lost ends: found (any compensation was taken back above).
+  await tx.merchantClaim.updateMany({
+    where: { shipmentId: p.id, kind: 'lost', status: { in: ['OPEN', 'APPROVED'] } },
+    data: {
+      status: 'REJECTED',
+      decisionNote: 'The parcel was found and continues on its way',
+      decidedById: userId,
+      decidedAt: new Date(),
+    },
+  });
+}
+
+/**
+ * What a merchant is paid for a lost or damaged parcel: the value they declared (else the cash
+ * to collect), up to the cap, plus the shipping fee back.
+ */
+export function compensationFor(
+  s: SettingValues,
+  p: Pick<Shipment, 'declaredValue' | 'codAmount' | 'shippingFee'>,
+) {
+  const value = p.declaredValue > 0 ? p.declaredValue : p.codAmount;
+  return Math.min(value, s['lost.compensation_cap']) + p.shippingFee;
 }
 
 /** Gives back a penalty that was applied. */

@@ -150,7 +150,8 @@ export const APPS: AppDef[] = [
           { href: '/parcels/admin/alerts', label: 'alerts' },
           { href: '/parcels/admin/attempts', label: 'failedAttempts' },
           { href: '/parcels/admin/qc', label: 'qualityTickets' },
-          { href: '/parcels/admin/lost', label: 'lostDamaged' },
+          { href: '/parcels/admin/lost', label: 'lostParcels' },
+          { href: '/parcels/admin/claims', label: 'merchantClaims' },
         ],
       },
       {

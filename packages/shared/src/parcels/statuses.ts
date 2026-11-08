@@ -93,7 +93,8 @@ export const STATUS_LABELS: Record<ShipmentStatus, string> = {
   DELIVERED: 'Delivered',
   RETURNED: 'Returned to merchant',
   CANCELLED: 'Cancelled',
-  LOST: 'Lost',
+  // A missing parcel is searched for; the loss is final only once a person confirms it.
+  LOST: 'In search',
 };
 
 /** Why a delivery attempt failed, and what happens next by default. */
@@ -139,7 +140,7 @@ export const STATUS_LABELS_AR: Record<ShipmentStatus, string> = {
   DELIVERED: 'تم التوصيل',
   RETURNED: 'تم الإرجاع للتاجر',
   CANCELLED: 'ملغي',
-  LOST: 'مفقود',
+  LOST: 'قيد البحث',
 };
 
 export const FAIL_REASON_LABELS_AR: Record<FailReason, string> = {

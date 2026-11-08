@@ -99,9 +99,17 @@ const LABELS: Record<Editable, [string, string]> = {
     'Share of the month so far an agent may take early',
   ],
   'cash.courier_limit': ['Courier cash limit', 'Cash a courier may hold before an alert'],
+  'lost.no_scan_hours': [
+    'No scan at a station (hours)',
+    'A parcel picked up, at inbound, sorting or outbound with no scan this long is searched for',
+  ],
+  'lost.transit_hours': [
+    'No scan on the road (hours)',
+    'A parcel on a truck or out with a courier with no scan this long is searched for',
+  ],
   'lost.search_hours': [
     'Search time for lost parcels (hours)',
-    'How long a missing parcel is searched for before the loss is final',
+    'How long a missing parcel is searched for before operations confirm the loss',
   ],
   'lost.compensation_cap': [
     'Lost parcel compensation cap',

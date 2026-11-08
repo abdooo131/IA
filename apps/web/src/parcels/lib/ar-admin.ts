@@ -267,4 +267,17 @@ export const AR_ADMIN: Record<string, string> = {
   Thu: 'الخميس',
   Fri: 'الجمعة',
   Sat: 'السبت',
+  'No scan at a station (hours)': 'بدون مسح في المحطة (ساعات)',
+  'A parcel picked up, at inbound, sorting or outbound with no scan this long is searched for':
+    'الشحنة المستلمة أو في الوارد أو الفرز أو الصادر بدون مسح طوال هذه المدة يبدأ البحث عنها',
+  'No scan on the road (hours)': 'بدون مسح على الطريق (ساعات)',
+  'A parcel on a truck or out with a courier with no scan this long is searched for':
+    'الشحنة على شاحنة أو مع مندوب بدون مسح طوال هذه المدة يبدأ البحث عنها',
+  'How long a missing parcel is searched for before operations confirm the loss':
+    'مدة البحث عن الشحنة المفقودة قبل أن تؤكد العمليات فقدها',
+  'Item value (EGP)': 'قيمة المحتوى (جنيه)',
+  'What the goods are worth: a lost or damaged parcel is paid on it, up to the limit':
+    'قيمة البضاعة: تعويض الشحنة المفقودة أو التالفة يحسب عليها حتى الحد الأقصى',
+  'Item value must be an amount in EGP, like 450 or 450.50':
+    'قيمة المحتوى يجب أن تكون مبلغا بالجنيه، مثل 450 أو 450.50',
 };

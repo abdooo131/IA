@@ -1319,6 +1319,7 @@
   },
   "merchant": {
     "nav": {
+      "claims": "Claims",
       "packagingShop": "Packaging shop",
       "shipments": "Shipments",
       "new": "New shipment",
@@ -5486,6 +5487,8 @@
       "shiplyMoney": "Shiply"
     },
     "pages": {
+      "lostParcels": "Lost parcels",
+      "merchantClaims": "Merchant claims",
       "storeFloor": "Dark store floor",
       "hubFloor": "Hub floor",
       "courierShifts": "Courier shifts",
@@ -5621,6 +5624,8 @@
       "agentAdvances": "Agent advances"
     },
     "hints": {
+      "lostParcels": "Searched for on their own; you confirm the loss",
+      "merchantClaims": "Damaged or lost parcels claimed by merchants",
       "storeFloor": "Receive, pick, pack, hand to riders, cash",
       "hubFloor": "Inbound, sorting, outbound, couriers, safe",
       "courierShifts": "Who checked in, late, not coming and replacements. Attendance is in HR",

@@ -6,6 +6,7 @@ import { MerchantDeskService } from './desk.service';
 import { DomainError } from '../common/errors';
 import { PrismaService } from '../common/prisma.service';
 import { MerchantService } from './merchant.service';
+import { ClaimsService } from '../control/claims.service';
 
 function merchantOf(
   user: SessionUser,
@@ -23,7 +24,31 @@ export class MerchantController {
   constructor(
     private readonly service: MerchantService,
     private readonly prisma: PrismaService,
+    private readonly claims: ClaimsService,
   ) {}
+
+  /** The merchant's claims for lost or damaged parcels (owner, 2026-11-08). */
+  @Get('claims')
+  claimList(@CurrentUser() user: SessionUser) {
+    return this.claims.mine(merchantOf(user, 'orders'));
+  }
+
+  @Post('claims')
+  openClaim(@CurrentUser() user: SessionUser, @Body() body: unknown) {
+    return this.claims.open(merchantOf(user, 'orders'), body, user);
+  }
+
+  @Get('claims/:id/photo')
+  async claimPhoto(
+    @CurrentUser() user: SessionUser,
+    @Param('id', ParseIdPipe) id: string,
+    @Res() res: Response,
+  ) {
+    const f = await this.claims.photo(id, merchantOf(user, 'orders'));
+    res.setHeader('Content-Type', f.mime || 'application/octet-stream');
+    res.setHeader('Cache-Control', 'private, max-age=300');
+    res.end(Buffer.from(f.data));
+  }
 
   @Get('shipments')
   list(@CurrentUser() user: SessionUser, @Query() query: unknown) {

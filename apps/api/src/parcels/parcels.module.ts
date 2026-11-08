@@ -29,6 +29,7 @@ import {
 } from './control/control.controller';
 import { ControlService } from './control/control.service';
 import { ShipmentsCore } from './core/shipments.core';
+import { ClaimsService } from './control/claims.service';
 import { CourierController } from './courier/courier.controller';
 import { CourierService } from './courier/courier.service';
 import { BooksService } from './finance/books.service';
@@ -90,6 +91,7 @@ import { PublicController } from './public/public.controller';
     PrismaService,
     SettingsService,
     ShipmentsCore,
+    ClaimsService,
     MerchantService,
     HubService,
     CourierService,

@@ -14,10 +14,17 @@ import { DomainError, notFound } from '../common/errors';
 import { PrismaService, type Tx } from '../common/prisma.service';
 import { SettingsService } from '../common/settings.service';
 import { parse } from '../common/validate';
-import { todayInCairo } from '../core/shipments.core';
+import { ShipmentsCore, todayInCairo } from '../core/shipments.core';
 import { post } from '../finance/ledger';
 import { earn } from '../finance/postings';
-import { lastHolder, newTicketCode, reverseTicket } from './lost';
+import {
+  compensationFor,
+  lastHolder,
+  NOT_A_SCAN,
+  newTicketCode,
+  onLost,
+  reverseTicket,
+} from './lost';
 
 const HOUR = 3600 * 1000;
 const PHOTO = z.object({
@@ -97,6 +104,7 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
   constructor(
     private readonly prisma: PrismaService,
     private readonly settings: SettingsService,
+    private readonly core: ShipmentsCore,
   ) {}
 
   onModuleInit() {
@@ -134,7 +142,8 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
 
   /** Runs every few minutes: ends searches, applies penalties, checks the cutoff and looks for fraud. */
   async tick(at = new Date()) {
-    const lost = await this.finalizeLost(at);
+    const searched = await this.searchStale(at);
+    const lost = await this.askToConfirmLost(at);
     const confirmed = await this.confirmTickets(at);
     const cutoff = await this.cutoffCheck(at);
     const fraud = await this.fraudChecks(at);
@@ -142,49 +151,147 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
     await this.prisma.courierPing.deleteMany({
       where: { at: { lt: new Date(at.getTime() - 30 * 24 * HOUR) } },
     });
-    return { lost, confirmed, cutoff, fraud };
+    return { searched, lost, confirmed, cutoff, fraud };
   }
 
-  /** A lost parcel not found in time: the merchant is compensated (its COD value, up to the cap). */
-  async finalizeLost(at: Date) {
+  /**
+   * Parcels that stopped moving are searched for on their own (owner, 2026-11-08): no scan for
+   * lost.no_scan_hours at a station's flow (picked up, inbound, sorting, outbound), or for
+   * lost.transit_hours on a truck or out with a courier. Parcels waiting on a hub's shelf or on
+   * hold are waiting on purpose and the handover check counts them instead.
+   */
+  async searchStale(at: Date) {
     const s = await this.settings.all();
+    const quick = new Date(at.getTime() - s['lost.no_scan_hours'] * HOUR);
+    const slow = new Date(at.getTime() - s['lost.transit_hours'] * HOUR);
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT s.id FROM shipments s
+      WHERE (
+        (s.status::text IN ('PICKED_UP', 'AT_INBOUND', 'SORTED', 'AT_OUTBOUND') AND
+          COALESCE((SELECT max(e.created_at) FROM shipment_events e
+                    WHERE e.shipment_id = s.id AND e.type <> ALL(${NOT_A_SCAN})), s.created_at) < ${quick})
+        OR
+        (s.status::text IN ('IN_TRANSIT', 'OUT_FOR_DELIVERY') AND
+          COALESCE((SELECT max(e.created_at) FROM shipment_events e
+                    WHERE e.shipment_id = s.id AND e.type <> ALL(${NOT_A_SCAN})), s.created_at) < ${slow})
+      )
+      LIMIT 500`;
+    let searched = 0;
+    for (const { id } of rows) {
+      await this.prisma.tx(async (tx) => {
+        const p = await tx.shipment.findUnique({ where: { id } });
+        if (!p || p.status === 'LOST') return;
+        await this.core.move(
+          tx,
+          p,
+          'LOST',
+          { bagId: null, runId: null, currentHubId: null, laneHubId: null },
+          {
+            type: 'AUTO_SEARCH',
+            hubId: p.currentHubId,
+            note: 'No scan for too long: the search started on its own',
+          },
+        );
+        await onLost(tx, s, p, null);
+        searched++;
+      });
+    }
+    return searched;
+  }
+
+  /**
+   * A search that ended without finding the parcel waits for a person (owner, 2026-11-08): one
+   * alert per parcel asks operations to confirm the loss on the Lost parcels page.
+   */
+  async askToConfirmLost(at: Date) {
     const due = await this.prisma.shipment.findMany({
       where: { status: 'LOST', lostFinalAt: null, searchUntil: { lte: at } },
+      select: { id: true, trackingNumber: true, lostHubId: true },
     });
     for (const p of due) {
-      await this.prisma.tx(async (tx) => {
-        const fresh = await tx.shipment.findUnique({ where: { id: p.id } });
-        if (!fresh || fresh.status !== 'LOST' || fresh.lostFinalAt) return;
-        const amount = Math.min(fresh.codAmount, s['lost.compensation_cap']);
-        await tx.shipment.update({
-          where: { id: p.id },
-          data: { lostFinalAt: at, compensation: amount },
-        });
-        await post(tx, {
-          memo: `${p.trackingNumber} lost: merchant compensated`,
-          source: 'LOST_COMPENSATION',
-          key: `LOST_COMPENSATION:${p.id}:${at.getTime()}`,
-          lines: [
-            { account: ACCOUNTS.LOST_PARCELS.code, debit: amount },
-            {
-              account: ACCOUNTS.MERCHANT_WALLET.code,
-              party: { type: 'MERCHANT', id: p.merchantId },
-              credit: amount,
-            },
-          ],
-        });
-        await tx.shipmentEvent.create({
-          data: {
-            shipmentId: p.id,
-            type: 'LOSS_FINAL',
-            fromStatus: 'LOST',
-            toStatus: 'LOST',
-            note: `Not found in time. Merchant compensated ${(amount / 100).toFixed(2)} EGP`,
-          },
-        });
+      await openAlert(this.prisma as never, {
+        kind: 'LOST_TO_CONFIRM',
+        entity: 'shipment',
+        entityId: p.id,
+        hubId: p.lostHubId,
+        severity: 'high',
+        message: `${p.trackingNumber} was not found in time. Confirm the loss to compensate the merchant`,
       });
     }
     return due.length;
+  }
+
+  /**
+   * Operations confirm a loss once the search is over: the merchant is compensated (declared
+   * value up to the cap, plus the shipping fee), the parcel's lost claims are approved, and the
+   * parcel stays out of every station's stock. Finding it later takes the money back.
+   */
+  async confirmLost(id: string, user: SessionUser, note: string) {
+    const s = await this.settings.all();
+    return this.prisma.tx(async (tx) => {
+      const p = await tx.shipment.findUnique({ where: { id } });
+      if (!p) throw notFound('Parcel');
+      if (p.status !== 'LOST' || p.lostFinalAt)
+        throw new DomainError('bad_status', 'This parcel is not waiting for a loss decision', 409);
+      if (p.searchUntil && p.searchUntil > new Date())
+        throw new DomainError(
+          'still_searching',
+          'The search is still on. Confirm the loss once it ends',
+          409,
+        );
+      const amount = compensationFor(s, p);
+      const at = new Date();
+      await tx.shipment.update({
+        where: { id },
+        data: { lostFinalAt: at, compensation: amount, lostConfirmedById: user.id },
+      });
+      await post(tx, {
+        memo: `${p.trackingNumber} lost: merchant compensated`,
+        source: 'LOST_COMPENSATION',
+        key: `LOST_COMPENSATION:${p.id}:${at.getTime()}`,
+        userId: user.id,
+        lines: [
+          { account: ACCOUNTS.LOST_PARCELS.code, debit: amount },
+          {
+            account: ACCOUNTS.MERCHANT_WALLET.code,
+            party: { type: 'MERCHANT', id: p.merchantId },
+            credit: amount,
+          },
+        ],
+      });
+      await tx.shipmentEvent.create({
+        data: {
+          shipmentId: p.id,
+          type: 'LOSS_FINAL',
+          fromStatus: 'LOST',
+          toStatus: 'LOST',
+          hubId: p.lostHubId,
+          userId: user.id,
+          note: `Loss confirmed${note ? `: ${note}` : ''}. Merchant compensated ${(amount / 100).toFixed(2)} EGP`,
+        },
+      });
+      await tx.merchantClaim.updateMany({
+        where: { shipmentId: p.id, kind: 'lost', status: 'OPEN' },
+        data: {
+          status: 'APPROVED',
+          amount,
+          decisionNote: 'Loss confirmed after the search',
+          decidedById: user.id,
+          decidedAt: at,
+        },
+      });
+      await tx.networkAlert.updateMany({
+        where: {
+          entity: 'shipment',
+          entityId: p.id,
+          kind: { in: ['PARCEL_IN_SEARCH', 'LOST_TO_CONFIRM'] },
+          status: 'OPEN',
+        },
+        data: { status: 'RESOLVED', resolvedAt: at, resolvedById: user.id, note: 'Loss confirmed' },
+      });
+      await this.audit(tx, user, 'LOST_CONFIRMED', 'shipment', p.id, { amount, note });
+      return { amount };
+    });
   }
 
   /** Tickets past their waiting time apply their penalty; the appeal window opens. */
@@ -791,11 +898,25 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
         lostFinalAt: true,
         compensation: true,
         damaged: true,
+        declaredValue: true,
+        shippingFee: true,
+        searchStartedAt: true,
+        lostHubId: true,
         merchant: { select: { name: true } },
       },
       orderBy: { updatedAt: 'desc' },
       take: 300,
     });
+    const settings = await this.settings.all();
+    const hubs = new Map(
+      (
+        await this.prisma.hub.findMany({
+          where: { id: { in: rows.map((r) => r.lostHubId).filter((x): x is string => !!x) } },
+          select: { id: true, code: true, name: true },
+        })
+      ).map((h) => [h.id, h]),
+    );
+    const now = new Date();
     const tickets = await this.prisma.qcTicket.findMany({
       where: { shipmentId: { in: rows.map((r) => r.id) } },
       select: { shipmentId: true, code: true, status: true, responsibleId: true, kind: true },
@@ -812,8 +933,20 @@ export class ControlService implements OnModuleInit, OnModuleDestroy {
     );
     return rows.map((r) => {
       const t = tickets.find((x) => x.shipmentId === r.id);
+      // In search, waiting for a person to confirm the loss, or lost for good.
+      const state =
+        r.status !== 'LOST'
+          ? 'damaged'
+          : r.lostFinalAt
+            ? 'lost'
+            : r.searchUntil && r.searchUntil <= now
+              ? 'to_confirm'
+              : 'searching';
       return {
         ...r,
+        state,
+        lostHub: r.lostHubId ? (hubs.get(r.lostHubId) ?? null) : null,
+        fullAmount: compensationFor(settings, r),
         ticket: t
           ? {
               code: t.code,

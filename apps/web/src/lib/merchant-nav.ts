@@ -56,6 +56,7 @@ export async function merchantNav(): Promise<NavGroup[]> {
       { href: '/parcels/merchant/new', label: t('newParcel'), icon: 'create', right: 'orders' },
       { href: '/parcels/merchant/pickups', label: t('pickups'), icon: 'pickups', right: 'orders' },
       { href: '/parcels/merchant/analytics', label: t('parcelAnalytics'), icon: 'analytics' },
+      { href: '/parcels/merchant/claims', label: t('claims'), icon: 'returns', right: 'orders' },
       {
         href: '/parcels/merchant/shop',
         label: t('packagingShop'),

@@ -482,20 +482,21 @@ model Merchant {
   crmCommissionLines CrmCommissionLine[]
 
   // Shiply parcel network: where we pick up and the parcel prices
-  code            String?    @unique
-  contactName     String     @default("") @map("contact_name")
-  pickupAddress   String     @default("") @map("pickup_address")
-  governorateCode String?    @map("governorate_code")
-  areaId          String?    @map("area_id")
+  code            String?         @unique
+  contactName     String          @default("") @map("contact_name")
+  pickupAddress   String          @default("") @map("pickup_address")
+  governorateCode String?         @map("governorate_code")
+  areaId          String?         @map("area_id")
   /// The sorting facility nearest the merchant: it collects their parcels and returns
-  homeHubId       String?    @map("home_hub_id")
-  homeHub         Hub?       @relation("parcels_merchant_homeHub", fields: [homeHubId], references: [id])
-  discountBp      Int        @default(0) @map("discount_bp")
+  homeHubId       String?         @map("home_hub_id")
+  homeHub         Hub?            @relation("parcels_merchant_homeHub", fields: [homeHubId], references: [id])
+  discountBp      Int             @default(0) @map("discount_bp")
   logo            Bytes?
-  logoMime        String     @default("") @map("logo_mime")
-  flexShip        Boolean    @default(false) @map("flex_ship")
-  shipments       Shipment[] @relation("parcels_shipment_merchant")
-  pickups         Pickup[]   @relation("parcels_pickup_merchant")
+  logoMime        String          @default("") @map("logo_mime")
+  flexShip        Boolean         @default(false) @map("flex_ship")
+  shipments       Shipment[]      @relation("parcels_shipment_merchant")
+  claims          MerchantClaim[]
+  pickups         Pickup[]        @relation("parcels_pickup_merchant")
 
   @@index([accountManagerId])
   @@map("merchants")
@@ -5351,32 +5352,42 @@ model Shipment {
   laneHubId        String?        @map("lane_hub_id")
   runId            String?        @map("run_id")
 
-  attempts         Int       @default(0)
-  lastFailReason   String?   @map("last_fail_reason")
-  holdReason       String?   @map("hold_reason")
-  promisedDate     String?   @map("promised_date")
+  attempts          Int             @default(0)
+  lastFailReason    String?         @map("last_fail_reason")
+  holdReason        String?         @map("hold_reason")
+  promisedDate      String?         @map("promised_date")
   /// The planned way through our network as place codes, fixed when the parcel is made.
-  route            String[]  @default([])
+  route             String[]        @default([])
   /// Lost parcels are searched for until this time before the loss is final.
-  searchUntil      DateTime? @map("search_until")
+  searchUntil       DateTime?       @map("search_until")
   /// When the loss became final: the merchant was compensated.
-  lostFinalAt      DateTime? @map("lost_final_at")
+  lostFinalAt       DateTime?       @map("lost_final_at")
   /// What the merchant was paid for the loss (piastres), reversed if the parcel turns up.
-  compensation     Int       @default(0)
-  damaged          Boolean   @default(false)
+  compensation      Int             @default(0)
+  /// What the merchant says the goods are worth (piastres): a loss or damage pays this, up to
+  /// the cap, plus the shipping fee back. 0 means not declared (the cash amount is used).
+  declaredValue     Int             @default(0) @map("declared_value")
+  /// When the search began: no scan for too long, a merchant's claim, or someone marked it missing.
+  searchStartedAt   DateTime?       @map("search_started_at")
+  /// The station that had the parcel last when its search began (it left that station's stock).
+  lostHubId         String?         @map("lost_hub_id")
+  /// The person who confirmed the loss after the search: a loss is never final without one.
+  lostConfirmedById String?         @map("lost_confirmed_by_id")
+  claims            MerchantClaim[]
+  damaged           Boolean         @default(false)
   /// NORMAL, EXCHANGE (deliver new, collect old), EXCHANGE_RETURN (the old item coming back)
-  kind             String    @default("NORMAL")
-  linkedShipmentId String?   @map("linked_shipment_id")
+  kind              String          @default("NORMAL")
+  linkedShipmentId  String?         @map("linked_shipment_id")
   /// Price breakdown at booking: list price, discount, open package fee, exchange fee (all included in shippingFee).
-  basePrice        Int       @default(0) @map("base_price")
-  discount         Int       @default(0)
-  openFee          Int       @default(0) @map("open_fee")
-  exchangeFee      Int       @default(0) @map("exchange_fee")
+  basePrice         Int             @default(0) @map("base_price")
+  discount          Int             @default(0)
+  openFee           Int             @default(0) @map("open_fee")
+  exchangeFee       Int             @default(0) @map("exchange_fee")
   /// The customer asked for delivery on this day (YYYY-MM-DD).
-  deliverOn        String?   @map("deliver_on")
-  customerNote     String    @default("") @map("customer_note")
-  rating           Int?
-  ratingComment    String    @default("") @map("rating_comment")
+  deliverOn         String?         @map("deliver_on")
+  customerNote      String          @default("") @map("customer_note")
+  rating            Int?
+  ratingComment     String          @default("") @map("rating_comment")
 
   shippingFee  Int     @map("shipping_fee")
   codFee       Int     @map("cod_fee")
@@ -5403,6 +5414,38 @@ model Shipment {
 }
 
 /// Append only. A trigger rejects UPDATE and DELETE.
+/// A merchant asks to be compensated for a parcel that arrived damaged or never arrived
+/// (CLM00001). Operations approve it (the amount defaults to the declared value up to the cap,
+/// plus the shipping fee) or reject it with a reason; approval credits the merchant's wallet.
+/// A lost claim also starts the parcel's search; confirming the loss approves the claim.
+model MerchantClaim {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  merchantId   String    @map("merchant_id")
+  merchant     Merchant  @relation(fields: [merchantId], references: [id])
+  shipmentId   String    @map("shipment_id")
+  shipment     Shipment  @relation(fields: [shipmentId], references: [id])
+  /// lost or damaged
+  kind         String
+  description  String
+  photo        Bytes?
+  photoMime    String    @default("") @map("photo_mime")
+  /// OPEN, APPROVED, REJECTED
+  status       String    @default("OPEN")
+  /// What was paid (piastres) once approved
+  amount       Int       @default(0)
+  decisionNote String    @default("") @map("decision_note")
+  decidedById  String?   @map("decided_by_id")
+  decidedAt    DateTime? @map("decided_at")
+  createdById  String    @map("created_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([merchantId, createdAt])
+  @@index([status])
+  @@index([shipmentId])
+  @@map("merchant_claims")
+}
+
 model ShipmentEvent {
   id         String          @id @default(cuid())
   shipmentId String          @map("shipment_id")
