@@ -110,8 +110,8 @@ function start(name, command, args, cwd) {
   children.push(child);
 }
 
-// The demo month runs after the app is up (a slow host would pass the start time limit),
-// with the API's background jobs paused so they never act on half simulated orders. Set
+// The demo month (DEMO_LOAD=true) runs once before the servers start, and the API's background
+// jobs stay paused while DEMO_LOAD is set so they never act on half simulated orders. Set
 // DEMO_LOAD back to false afterwards: the next start turns the jobs on again.
 // Never after the fresh start: the demo loader refuses, and the jobs must keep running.
 if (env.DEMO_LOAD === 'true') {
@@ -127,6 +127,35 @@ if (env.DEMO_LOAD === 'true') {
   }
 }
 if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
+
+// The demo month runs first, alone: on a 512 MB instance the servers and the loader do not fit
+// together (a restart midway leaves a partial month that the loader then refuses to finish).
+// Meanwhile a small page answers on the public port so the host sees the service alive.
+if (env.DEMO_LOAD === 'true') {
+  const http = await import('node:http');
+  const holding = http.createServer((_req, res) => {
+    res.writeHead(503, { 'content-type': 'text/plain; charset=utf-8', 'retry-after': '60' });
+    res.end('Shiply is loading its demo month. Try again in a few minutes.\n');
+  });
+  await new Promise((resolve) => holding.listen(Number(port), '0.0.0.0', resolve));
+  log('loading the demo month before the servers start (skipped when it was already loaded)');
+  const db = loadDb();
+  const prisma = new db.PrismaClient({
+    transactionOptions: { maxWait: 20_000, timeout: 60_000 },
+  });
+  try {
+    const result = await db.loadDemo(prisma, {
+      demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
+      log,
+    });
+    log(`demo load: ${result.status}; set DEMO_LOAD to false to turn the jobs back on`);
+  } catch (error) {
+    log(`demo load failed: ${error instanceof Error ? error.message : error}`);
+  } finally {
+    await prisma.$disconnect();
+    await new Promise((resolve) => holding.close(resolve));
+  }
+}
 
 log(`starting API on 127.0.0.1:${env.API_PORT} and web on 0.0.0.0:${port}`);
 // Both servers share one small instance (512 MB on Render's lower plans): each gets a heap
@@ -148,20 +177,6 @@ start(
   ],
   'apps/web',
 );
-
-if (env.DEMO_LOAD === 'true') {
-  log('loading the demo month in the background (skipped when it was already loaded)');
-  const db = loadDb();
-  const prisma = new db.PrismaClient({
-    transactionOptions: { maxWait: 20_000, timeout: 60_000 },
-  });
-  db.loadDemo(prisma, { demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD, log })
-    .then((result) =>
-      log(`demo load: ${result.status}; set DEMO_LOAD to false to turn the jobs back on`),
-    )
-    .catch((error) => log(`demo load failed: ${error instanceof Error ? error.message : error}`))
-    .finally(() => prisma.$disconnect());
-}
 
 for (const signal of ['SIGTERM', 'SIGINT']) {
   process.on(signal, () => children.forEach((child) => child.kill(signal)));
