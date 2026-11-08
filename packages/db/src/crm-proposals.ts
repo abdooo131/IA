@@ -355,10 +355,49 @@ export async function dealProposals(db: Db, dealId: string, actor: CrmActor) {
 async function priced(
   tx: Db,
   values: ProposalFees & { tiers: readonly ContractTier[] } & ProposalVolume,
+  extra: {
+    zonePrices: readonly { pricePiastres: number }[];
+    includesParcels: boolean;
+    parcelDiscountBp: number | null;
+    parcelPrices: readonly { zoneCode: string; size: string; pricePiastres: number }[];
+  },
 ) {
   const list = await proposalFeeList(tx);
   const max = await getSetting(tx, 'sales.max_discount_bp');
-  return proposalApproval(values, list, max);
+  // Every price counts (owner, 2026-11-08): the cheapest 60 minute zone price stands for the
+  // shipping fee in the example month, and each next day price is checked against its list
+  // price, as is the next day discount.
+  const cheapestZone = extra.zonePrices.length
+    ? Math.min(...extra.zonePrices.map((z) => z.pricePiastres))
+    : null;
+  const nowCheck = proposalApproval(
+    cheapestZone === null
+      ? values
+      : {
+          ...values,
+          shippingFeePiastres: Math.min(cheapestZone, values.shippingFeePiastres || cheapestZone),
+        },
+    list,
+    max,
+  );
+  let parcelMax = 0;
+  if (extra.includesParcels) {
+    parcelMax = Math.max(0, extra.parcelDiscountBp ?? 0);
+    if (extra.parcelPrices.length) {
+      const zones = await tx.pricingZone.findMany();
+      for (const r of extra.parcelPrices) {
+        const z = zones.find((x) => x.code === r.zoneCode);
+        const listPrice = (z ? (z as unknown as Record<string, number>)[`price${r.size}`] : 0) ?? 0;
+        if (listPrice > 0 && r.pricePiastres < listPrice)
+          parcelMax = Math.max(
+            parcelMax,
+            Math.round(((listPrice - r.pricePiastres) * 10_000) / listPrice),
+          );
+      }
+    }
+  }
+  const maxDiscountBp = Math.max(nowCheck.maxDiscountBp, parcelMax);
+  return { maxDiscountBp, needsApproval: maxDiscountBp > max };
 }
 
 /**
@@ -388,13 +427,22 @@ export async function createProposal(
     const products = body.productPrices ?? [];
     await checkProposalProducts(tx, deal, products);
     const expectedMonthlyOrders = body.expectedMonthlyOrders ?? deal.expectedMonthlyOrders ?? null;
-    const approval = await priced(tx, {
-      ...fees,
-      tiers,
-      expectedMonthlyOrders,
-      averageOrderPiastres: body.averageOrderPiastres ?? null,
-      minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres ?? null,
-    });
+    const approval = await priced(
+      tx,
+      {
+        ...fees,
+        tiers,
+        expectedMonthlyOrders,
+        averageOrderPiastres: body.averageOrderPiastres ?? null,
+        minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres ?? null,
+      },
+      {
+        zonePrices: body.zonePrices ?? [],
+        includesParcels: !!body.includesParcels,
+        parcelDiscountBp: body.parcelDiscountBp ?? null,
+        parcelPrices: body.parcelPrices ?? [],
+      },
+    );
     const last = await tx.crmProposal.aggregate({
       where: { dealId: deal.id },
       _max: { version: true },
@@ -487,22 +535,32 @@ export async function updateProposal(
       body.failedDeliveryPercentBp === undefined
         ? before.failedDeliveryPercentBp
         : body.failedDeliveryPercentBp;
-    const approval = await priced(tx, {
-      ...fees,
-      tiers,
-      expectedMonthlyOrders:
-        body.expectedMonthlyOrders === undefined
-          ? before.expectedMonthlyOrders
-          : body.expectedMonthlyOrders,
-      averageOrderPiastres:
-        body.averageOrderPiastres === undefined
-          ? before.averageOrderPiastres
-          : body.averageOrderPiastres,
-      minimumMonthlyFeePiastres:
-        body.minimumMonthlyFeePiastres === undefined
-          ? before.minimumMonthlyFeePiastres
-          : body.minimumMonthlyFeePiastres,
-    });
+    const approval = await priced(
+      tx,
+      {
+        ...fees,
+        tiers,
+        expectedMonthlyOrders:
+          body.expectedMonthlyOrders === undefined
+            ? before.expectedMonthlyOrders
+            : body.expectedMonthlyOrders,
+        averageOrderPiastres:
+          body.averageOrderPiastres === undefined
+            ? before.averageOrderPiastres
+            : body.averageOrderPiastres,
+        minimumMonthlyFeePiastres:
+          body.minimumMonthlyFeePiastres === undefined
+            ? before.minimumMonthlyFeePiastres
+            : body.minimumMonthlyFeePiastres,
+      },
+      {
+        zonePrices: body.zonePrices ?? zonePricesOf(before),
+        includesParcels: body.includesParcels ?? before.includesParcels,
+        parcelDiscountBp:
+          body.parcelDiscountBp === undefined ? before.parcelDiscountBp : body.parcelDiscountBp,
+        parcelPrices: body.parcelPrices ?? parcelPricesOf(before),
+      },
+    );
     const productsText = (rows: readonly { sku: string; pricePiastres: number }[]) =>
       JSON.stringify(rows.map((r) => [r.sku, r.pricePiastres]));
     const priceChanged =
@@ -512,7 +570,13 @@ export async function updateProposal(
       (body.productPrices !== undefined &&
         productsText(body.productPrices) !== productsText(beforeProducts)) ||
       (body.minimumMonthlyFeePiastres !== undefined &&
-        body.minimumMonthlyFeePiastres !== before.minimumMonthlyFeePiastres);
+        body.minimumMonthlyFeePiastres !== before.minimumMonthlyFeePiastres) ||
+      (body.zonePrices !== undefined &&
+        JSON.stringify(body.zonePrices) !== JSON.stringify(zonePricesOf(before))) ||
+      (body.parcelPrices !== undefined &&
+        JSON.stringify(body.parcelPrices) !== JSON.stringify(parcelPricesOf(before))) ||
+      (body.parcelDiscountBp !== undefined && body.parcelDiscountBp !== before.parcelDiscountBp) ||
+      (body.includesParcels !== undefined && body.includesParcels !== before.includesParcels);
     if (body.tiers) {
       await tx.crmProposalTier.deleteMany({ where: { proposalId: id } });
       if (tiers.length)

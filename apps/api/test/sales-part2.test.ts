@@ -217,6 +217,25 @@ describe('sales CRM part 2', () => {
     const toApprove = await boss.agent.get('/sales/proposals?needsApproval=true').expect(200);
     expect(toApprove.body.map((p: { id: string }) => p.id)).toEqual([draft.id]);
     await boss.agent.post(`/sales/proposals/${draft.id}/approve`).expect(201);
+    // Every price counts, and a price changed after approval is a new question: a next day
+    // price 80% under its list price needs a manager again.
+    const edited = await a.agent
+      .patch(`/sales/proposals/${draft.id}`)
+      .send({
+        includesParcels: true,
+        parcelPrices: [{ zoneCode: 'GC', size: 'M', pricePiastres: 1_000 }],
+      })
+      .expect(200);
+    expect(edited.body.needsApproval).toBe(true);
+    expect((await a.agent.post(`/sales/proposals/${draft.id}/send`).expect(409)).body.error).toBe(
+      'approval_required',
+    );
+    await a.agent
+      .patch(`/sales/proposals/${draft.id}`)
+      .send({ includesParcels: false, parcelPrices: [] })
+      .expect(200);
+    await a.agent.post(`/sales/proposals/${draft.id}/request-approval`).expect(201);
+    await boss.agent.post(`/sales/proposals/${draft.id}/approve`).expect(201);
     await a.agent.post(`/sales/proposals/${draft.id}/send`).expect(201);
 
     // Targets: managers set them; reps read only their own.
