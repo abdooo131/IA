@@ -133,12 +133,12 @@ log(`starting API on 127.0.0.1:${env.API_PORT} and web on 0.0.0.0:${port}`);
 // limit so the garbage collector works before the instance runs out of memory. Raise them with
 // API_HEAP_MB and WEB_HEAP_MB on a bigger plan.
 const heap = (name, fallback) => `--max-old-space-size=${Number(env[name]) || fallback}`;
-start('api', process.execPath, [heap('API_HEAP_MB', 200), 'dist/main.js'], 'apps/api');
+start('api', process.execPath, [heap('API_HEAP_MB', 192), 'dist/main.js'], 'apps/api');
 start(
   'web',
   process.execPath,
   [
-    heap('WEB_HEAP_MB', 160),
+    heap('WEB_HEAP_MB', 256),
     'node_modules/next/dist/bin/next',
     'start',
     '-p',
