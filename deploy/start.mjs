@@ -129,11 +129,23 @@ if (env.DEMO_LOAD === 'true') {
 if (env.DEMO_LOAD === 'true') env.JOBS_ENABLED = 'false';
 
 log(`starting API on 127.0.0.1:${env.API_PORT} and web on 0.0.0.0:${port}`);
-start('api', process.execPath, ['dist/main.js'], 'apps/api');
+// Both servers share one small instance (512 MB on Render's lower plans): each gets a heap
+// limit so the garbage collector works before the instance runs out of memory. Raise them with
+// API_HEAP_MB and WEB_HEAP_MB on a bigger plan.
+const heap = (name, fallback) => `--max-old-space-size=${Number(env[name]) || fallback}`;
+start('api', process.execPath, [heap('API_HEAP_MB', 200), 'dist/main.js'], 'apps/api');
 start(
   'web',
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'start', '-p', port, '-H', '0.0.0.0'],
+  [
+    heap('WEB_HEAP_MB', 160),
+    'node_modules/next/dist/bin/next',
+    'start',
+    '-p',
+    port,
+    '-H',
+    '0.0.0.0',
+  ],
   'apps/web',
 );
 
