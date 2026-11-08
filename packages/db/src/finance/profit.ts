@@ -18,6 +18,10 @@ const COLUMN: Record<ProfitDimension, string> = {
  */
 export async function profitBy(db: Db, input: { from: Date; to: Date; by: ProfitDimension }) {
   const column = COLUMN[input.by];
+  // Dark stores and riders are Shiply Now's, so their profit (and its company wide row) counts
+  // only Shiply Now's lines; a merchant's profit counts both services. Shiply's hubs are read
+  // per cost center on the profit and loss page.
+  const companyOnly = input.by === 'merchant' ? '' : `AND l.company = 'shiply_now'`;
   const rows = await db.$queryRawUnsafe<{ tag: string | null; income: bigint; costs: bigint }[]>(
     `SELECT l.${column} AS tag,
        COALESCE(-SUM(l.amount_piastres) FILTER (WHERE a.category = 'revenue'), 0) AS income,
@@ -25,7 +29,7 @@ export async function profitBy(db: Db, input: { from: Date; to: Date; by: Profit
      FROM ledger_lines l JOIN ledger_accounts a ON a.id = l.account_id
        JOIN ledger_entries e ON e.id = l.entry_id
      WHERE l.occurred_at >= $1 AND l.occurred_at < $2 AND a.category IN ('revenue', 'expense')
-       AND e.kind <> 'year_close'
+       AND e.kind <> 'year_close' ${companyOnly}
      GROUP BY l.${column}`,
     input.from,
     input.to,
