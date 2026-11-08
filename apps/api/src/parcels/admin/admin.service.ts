@@ -639,6 +639,9 @@ export class AdminService {
 
   async createUser(body: unknown, user: SessionUser) {
     const d = parse(UserInput, body);
+    // Office team accounts belong to Shiply Now's Users page, where their access is set.
+    if (d.role === 'ADMIN')
+      throw new DomainError('use_team_users', 'Make office team accounts in Settings, Users', 422);
     if ((d.role === 'HUB_STAFF' || d.role === 'COURIER') && !d.hubId)
       throw new DomainError('invalid_input', 'Hub staff and couriers need a hub', 422);
     if (d.role === 'MERCHANT' && !d.merchantId)

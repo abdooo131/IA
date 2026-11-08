@@ -11,7 +11,8 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { JwtService } from '@nestjs/jwt';
-import { ACCESS_TOKEN_COOKIE } from '@shiplynow/shared';
+import { ACCESS_TOKEN_COOKIE, canDo } from '@shiplynow/shared';
+import { getAccessProfile } from '@shiplynow/db';
 import type { Role, Team } from '@shiplynow/shared/parcels';
 import type { Request } from 'express';
 import { IS_PUBLIC_KEY } from '../../auth/decorators';
@@ -32,6 +33,13 @@ export interface SessionUser {
 }
 
 export const PARCELS_ROLES_KEY = 'parcels:roles';
+const APP_KEY = 'parcels:app';
+/**
+ * Which access app an office team member needs on these routes: Shiply (the network's
+ * operations, the default) or Accounting (the network's money screens). Reading needs view,
+ * every change use (docs/ACCESS.md).
+ */
+export const ParcelsApp = (app: 'shiply' | 'accounting') => SetMetadata(APP_KEY, app);
 const ROLES_KEY = PARCELS_ROLES_KEY;
 /** No sign in needed. The same mark Shiply Now's guard reads. */
 export const Public = () => SetMetadata(IS_PUBLIC_KEY, true);
@@ -126,6 +134,14 @@ export class ParcelsGuard implements CanActivate {
     };
     if (roles.length && !roles.includes(role))
       throw new DomainError('forbidden', 'Your account cannot open this', 403);
+    if (role === 'ADMIN') {
+      const app =
+        this.reflector.getAllAndOverride<'shiply' | 'accounting' | undefined>(APP_KEY, targets) ??
+        'shiply';
+      const level = req.method === 'GET' || req.method === 'HEAD' ? 'view' : 'use';
+      if (!canDo(await getAccessProfile(this.prisma, user.id), app, level))
+        throw new DomainError('no_access', 'Your access does not open this', 403);
+    }
     return true;
   }
 }

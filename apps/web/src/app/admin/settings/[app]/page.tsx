@@ -2,7 +2,7 @@ import { getTranslations } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 import { SettingsEditor } from '@/components/admin/SettingsEditor';
 import { apiGet } from '@/lib/api-server';
-import { type AppId, SETTINGS_APPS } from '@/lib/apps';
+import { type SettingsAppId as AppId, SETTINGS_APPS } from '@/lib/apps';
 import type { SettingsList } from '@/lib/dashboard-types';
 
 export const dynamic = 'force-dynamic';

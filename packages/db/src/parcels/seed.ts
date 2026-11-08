@@ -4,6 +4,8 @@
 // Safe to run again: it only adds what is missing and never overwrites edits.
 import type { PrismaClient } from '@prisma/client';
 import { SETTINGS, nearest } from '@shiplynow/shared/parcels';
+import { JOB_ROLE_TEMPLATES } from '@shiplynow/shared';
+import { writeAccess } from '../access';
 import { hashPassword } from '../password';
 
 const EGP = 100;
@@ -272,6 +274,15 @@ export async function seedNetwork(prisma: PrismaClient, options: NetworkSeedOpti
   };
 
   await addUser({ email: 'finance@shiply.local', name: 'Finance', role: 'admin' });
+  // The network's demo office admin opens every app, Shiply included (access profiles, docs/ACCESS.md).
+  const finance = await prisma.user.findUnique({
+    where: { email: 'finance@shiply.local' },
+    include: { access: true },
+  });
+  if (finance && !finance.access)
+    await prisma.$transaction((tx) =>
+      writeAccess(tx, finance.id, { ...JOB_ROLE_TEMPLATES.owner, jobRole: 'owner' }, []),
+    );
   const pickupAgent = await prisma.agent.upsert({
     where: { code: 'AGCAIRO' },
     update: {},

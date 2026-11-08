@@ -41,7 +41,8 @@ export function useMe(): Me {
 
 /** Where each role lands after signing in. Team members with several apps get the apps home. */
 export const HOME_BY_ROLE: Record<Me['role'], string> = {
-  ADMIN: '/parcels/home',
+  // Office team members land on the apps home, where Shiply is one tile.
+  ADMIN: '/home',
   HUB_STAFF: '/parcels/hub',
   COURIER: '/parcels/courier',
   MERCHANT: '/parcels/merchant',

@@ -89,6 +89,7 @@ describe('Accounting menus by job', () => {
       'moneyIn',
       'moneyOut',
       'cashBank',
+      'shiplyMoney',
       'reporting',
       'monthEnd',
       'setup',

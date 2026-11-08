@@ -78,16 +78,27 @@ Their ids switch to Shiply Now's style (cuid).
    for both companies; the network keeps courier wallets, pay ins, hub safes, agent settlements
    and advances, and shows the combined trial balance and balance sheet.
 4. Done in part: Core screens are apps/web/src/app/parcels (network code in src/parcels). Hub
-   staff, couriers and agents land on /parcels/hub, /parcels/courier and /parcels/agent;
-   admins and finance open the Parcel network tile on /home. Still to do: one shared shell and
-   menus, and the merchant area showing both services.
+   staff, couriers and agents land on /parcels/hub, /parcels/courier and /parcels/agent.
+   Shiply is an app on /home like the others (lib/apps.ts, access app `shiply`, the same level
+   as operations for office roles, none for store roles): Dashboard, Parcels, Control,
+   Workforce, Merchants, Configuration, in Shiply Now's top bar. Its money screens (courier
+   wallets, hub safes, agent settlements and advances) are in Accounting's Shiply menu and need
+   accounting access; its own copies of payouts, bills, expenses, journal, budgets, invoices,
+   taxes and reports were removed. Office team accounts are made only in Settings, Users.
+   Still to do: the merchant area showing both services.
 5. Done: network postings go to the shared ledger as company shiply, each line on the cost
    center of its hub (named hub, else the courier's hub, else the merchant's facility). Agent
    commission has no hub and shows as the company's "no cost center" row. Accounting's profit
    and loss filters by company and cost center and lists every cost center with company and
    group totals (GET finance/profit-and-loss/by-cost-center).
-6. Shopify: one app, two actions (60 minutes, next day).
-7. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
+6. Shared departments, separate operations (owner, 2026-11-08): Accounting, HR, Sales and
+   Merchants are one for both companies; Shiply Now and Shiply keep their own operations and
+   their own field teams (riders and couriers stay separate). Agents are suppliers: their
+   settlement becomes a supplier bill. Next: couriers and hub staff get HR files, agents move
+   to suppliers, one merchant page and contract for both services, one merchant portal. Tax
+   invoices for next day fees wait until the owner asks.
+7. Shopify: one app, two actions (60 minutes, next day).
+8. Connect the operations: orders out of 60 minute range become next day parcels; stock moves
    between dark stores through the sorting network.
-8. Merge Core's packaging shop with Shiply Now's packaging and purchase orders; one alerts list.
-9. Delete `shiply-core/`.
+9. Merge Core's packaging shop with Shiply Now's packaging and purchase orders; one alerts list.
+10. Delete `shiply-core/`.

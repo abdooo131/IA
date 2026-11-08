@@ -16,6 +16,8 @@ export const ACCESS_APPS = [
   'accounting',
   'hr',
   'sales',
+  // The parcel network (Shiply, next day): its operations screens under /parcels/admin.
+  'shiply',
   'settings',
 ] as const;
 export type AccessApp = (typeof ACCESS_APPS)[number];
@@ -33,6 +35,7 @@ export const APP_LEVELS: Record<AccessApp, readonly AccessLevel[]> = {
   accounting: ['none', 'view', 'use', 'manage'],
   hr: ['none', 'view', 'use', 'manage'],
   sales: ['none', 'view', 'use', 'manage'],
+  shiply: ['none', 'view', 'use', 'manage'],
   settings: ['none', 'manage'],
 };
 
@@ -107,6 +110,8 @@ function template(
     accounting,
     hr,
     sales,
+    // Shiply's office works like Shiply Now's operations; store roles never open it.
+    shiply: allStores ? operations : 'none',
     settings,
     allStores,
     customerData,
@@ -240,6 +245,7 @@ export const NO_ACCESS: AccessProfile = {
   accounting: 'none',
   hr: 'none',
   sales: 'none',
+  shiply: 'none',
   settings: 'none',
   allStores: false,
   customerData: false,
@@ -331,6 +337,7 @@ export const setAccessSchema = z.union([
     accounting: levelFor('accounting'),
     hr: levelFor('hr').default('none'),
     sales: levelFor('sales').default('none'),
+    shiply: levelFor('shiply').default('none'),
     settings: levelFor('settings'),
     allStores: z.boolean(),
     customerData: z.boolean(),

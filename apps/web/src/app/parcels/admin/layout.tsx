@@ -1,57 +1,39 @@
-'use client';
-import { AppShell, type Me } from '@/parcels/components/Shell';
-import { api } from '@/parcels/lib/api';
-
-const ROLES: Me['role'][] = ['ADMIN'];
+import type { ReactNode } from 'react';
+import { AppShell } from '@/components/AppShell';
+import { apiTry } from '@/lib/api-server';
+import { Session } from '@/parcels/components/Shell';
 
 interface Inbox {
-  payoutsYouCanApprove: number;
-  payoutsToPay: number;
   withdrawals: number;
   payIns: number;
   deposits: number;
   settlements: number;
-  expenses: number;
-  journals: number;
-  bills: number;
-  creditNotes: number;
   advances: number;
-  bankChanges: { mine: boolean }[];
 }
 
-/** Counts next to pages in the menus: what waits for someone, as Shiply Now's badges. */
-async function badges(): Promise<Record<string, number>> {
-  const [alerts, inbox, signups] = await Promise.all([
-    api<unknown[]>('/admin/alerts').catch(() => []),
-    api<Inbox>('/finance/inbox').catch(() => null),
-    api<unknown[]>('/admin/signups').catch(() => []),
+/**
+ * Shiply, the parcel network, is one of the apps: the same top bar and menus as every other
+ * app (lib/apps.ts), and its money screens sit in Accounting. Session gives the network's
+ * pages the signed in person. Counts are 0 when the person may not open a list.
+ */
+export default async function ShiplyAdminLayout({ children }: { children: ReactNode }) {
+  const [alerts, signups, inbox] = await Promise.all([
+    apiTry<unknown[]>('/parcels/admin/alerts'),
+    apiTry<unknown[]>('/parcels/admin/signups'),
+    apiTry<Inbox>('/parcels/finance/inbox'),
   ]);
-  return {
-    '/admin/alerts': alerts.length,
-    '/admin/signups': signups.length,
-    ...(inbox
-      ? {
-          '/admin/money/payouts':
-            inbox.payoutsYouCanApprove +
-            inbox.payoutsToPay +
-            inbox.bankChanges.filter((b) => !b.mine).length,
-          '/admin/money/couriers': inbox.payIns + inbox.withdrawals,
-          '/admin/money/safes': inbox.deposits,
-          '/admin/money/agents': inbox.settlements,
-          '/admin/money/expenses': inbox.expenses,
-          '/admin/money/books': inbox.journals,
-          '/admin/money/bills': inbox.bills,
-          '/admin/money/invoices': inbox.creditNotes,
-          '/admin/money/advances': inbox.advances,
-        }
-      : {}),
-  };
-}
-
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <AppShell roles={ROLES} badges={badges}>
-      {children}
+    <AppShell
+      badges={{
+        '/parcels/admin/alerts': alerts?.length ?? 0,
+        '/parcels/admin/signups': signups?.length ?? 0,
+        '/parcels/admin/money/couriers': (inbox?.payIns ?? 0) + (inbox?.withdrawals ?? 0),
+        '/parcels/admin/money/safes': inbox?.deposits ?? 0,
+        '/parcels/admin/money/agents': inbox?.settlements ?? 0,
+        '/parcels/admin/money/advances': inbox?.advances ?? 0,
+      }}
+    >
+      <Session roles={['ADMIN']}>{children}</Session>
     </AppShell>
   );
 }

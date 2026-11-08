@@ -1,7 +1,7 @@
 import { ParseIdPipe } from '../common/id.pipe';
 import { Body, Controller, Get, HttpCode, Param, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
-import { CurrentUser, Roles, assertHubAccess, type SessionUser } from '../auth/auth';
+import { CurrentUser, ParcelsApp, Roles, assertHubAccess, type SessionUser } from '../auth/auth';
 import { DomainError } from '../common/errors';
 import { BooksService } from './books.service';
 import { FinanceService } from './finance.service';
@@ -27,6 +27,7 @@ function decision(v: string) {
 /** Finance: everything that moves money, plus the books and reports. */
 @Controller('finance')
 @Roles('ADMIN')
+@ParcelsApp('accounting')
 export class FinanceController {
   constructor(
     private readonly f: FinanceService,

@@ -803,7 +803,8 @@
           "accounting": "Accounting",
           "settings": "Settings",
           "hr": "HR",
-          "sales": "Sales"
+          "sales": "Sales",
+          "shiply": "Shiply (parcels)"
         },
         "levelsHint": "View opens the pages, Use makes changes, Manage also approves, closes and configures. Accounting: view = reports, use = prepare, manage = approve.",
         "allStores": "Works in every store",
@@ -5362,7 +5363,8 @@
       "store": "Store screens",
       "parcels": "Parcel network",
       "hr": "HR",
-      "sales": "Sales"
+      "sales": "Sales",
+      "shiply": "Shiply"
     },
     "descriptions": {
       "operations": "Live stores, orders and alerts",
@@ -5374,7 +5376,8 @@
       "store": "Pick, pack, receive and hand to riders",
       "parcels": "Next day parcels: hubs, couriers, agents and merchants",
       "hr": "Employee files, attendance and shifts",
-      "sales": "Leads, pipeline and follow ups"
+      "sales": "Leads, pipeline and follow ups",
+      "shiply": "Next day parcels: hubs, couriers, agents and merchants"
     },
     "menus": {
       "dashboard": "Dashboard",
@@ -5419,7 +5422,11 @@
       "moneyIn": "Money in",
       "moneyOut": "Money out",
       "monthEnd": "Month end",
-      "setup": "Setup"
+      "setup": "Setup",
+      "parcels": "Parcels",
+      "control": "Control",
+      "workforce": "Workforce",
+      "shiplyMoney": "Shiply"
     },
     "pages": {
       "overview": "Overview",
@@ -5525,7 +5532,27 @@
       "riderWithdrawals": "Rider withdrawals",
       "accountingDashboard": "Dashboard",
       "allReports": "All reports",
-      "monthEndChecklist": "Month end checklist"
+      "monthEndChecklist": "Month end checklist",
+      "parcels": "Parcels",
+      "couriersLive": "Couriers on the road",
+      "failedAttempts": "Check failed attempts",
+      "qualityTickets": "Quality tickets",
+      "lostDamaged": "Lost and damaged",
+      "agents": "Agents",
+      "attendance": "Attendance",
+      "vehicleRequests": "Vehicle requests",
+      "fieldAccounts": "Field accounts",
+      "signups": "Sign ups",
+      "packagingOrders": "Packaging orders",
+      "packagingProducts": "Packaging products",
+      "packagingPurchaseOrders": "Packaging purchase orders",
+      "network": "Network",
+      "priceTiers": "Price tiers",
+      "messages": "Messages",
+      "courierWallets": "Courier wallets",
+      "hubSafes": "Hub safes",
+      "agentSettlements": "Agent settlements",
+      "agentAdvances": "Agent advances"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",

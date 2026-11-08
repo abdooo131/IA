@@ -51,10 +51,13 @@ export const SETTINGS_APPS = [
   'sales',
   'system',
 ] as const;
-export type AppId = (typeof SETTINGS_APPS)[number];
+/** The apps whose settings live in Settings (/admin/settings/<app>). */
+export type SettingsAppId = (typeof SETTINGS_APPS)[number];
+/** Every app on the home screen: Shiply, the parcel network, keeps its settings in its own menu. */
+export type AppId = SettingsAppId | 'shiply';
 
 /** Changing settings needs settings manage, so their pages are shown only then. */
-const settings = (app: AppId): AppPage => ({
+const settings = (app: SettingsAppId): AppPage => ({
   href: `/admin/settings/${app}`,
   label: 'settings',
   need: { app: 'settings', level: 'manage' },
@@ -180,6 +183,16 @@ export const APPS: AppDef[] = [
         ],
       },
       {
+        // The parcel network's money (Shiply): courier wallets, hub safes, agents.
+        label: 'shiplyMoney',
+        pages: [
+          { href: '/parcels/admin/money/couriers', label: 'courierWallets' },
+          { href: '/parcels/admin/money/safes', label: 'hubSafes' },
+          { href: '/parcels/admin/money/agents', label: 'agentSettlements' },
+          { href: '/parcels/admin/money/advances', label: 'agentAdvances' },
+        ],
+      },
+      {
         label: 'reporting',
         pages: [
           { href: '/finance/reports', label: 'allReports' },
@@ -274,6 +287,56 @@ export const APPS: AppDef[] = [
     ],
   },
   {
+    // Shiply, the parcel network (next day): its own operations, team and floor; money is in
+    // Accounting, people will move to HR (docs/MERGE.md).
+    id: 'shiply',
+    icon: 'courier',
+    color: '#334155',
+    access: 'shiply',
+    menus: [
+      { label: 'dashboard', pages: [{ href: '/parcels/admin', label: 'overview', exact: true }] },
+      { label: 'parcels', pages: [{ href: '/parcels/admin/shipments', label: 'parcels' }] },
+      {
+        label: 'control',
+        pages: [
+          { href: '/parcels/admin/alerts', label: 'alerts' },
+          { href: '/parcels/admin/live', label: 'couriersLive' },
+          { href: '/parcels/admin/attempts', label: 'failedAttempts' },
+          { href: '/parcels/admin/qc', label: 'qualityTickets' },
+          { href: '/parcels/admin/lost', label: 'lostDamaged' },
+        ],
+      },
+      {
+        label: 'workforce',
+        pages: [
+          { href: '/parcels/admin/agents', label: 'agents' },
+          { href: '/parcels/admin/attendance', label: 'attendance' },
+          { href: '/parcels/admin/vehicle-requests', label: 'vehicleRequests' },
+          { href: '/parcels/admin/users', label: 'fieldAccounts' },
+        ],
+      },
+      {
+        label: 'merchants',
+        pages: [
+          { href: '/parcels/admin/merchants', label: 'merchants' },
+          { href: '/parcels/admin/signups', label: 'signups' },
+          { href: '/parcels/admin/shop/orders', label: 'packagingOrders' },
+          { href: '/parcels/admin/shop/products', label: 'packagingProducts' },
+          { href: '/parcels/admin/shop/purchase-orders', label: 'packagingPurchaseOrders' },
+        ],
+      },
+      {
+        label: 'configuration',
+        pages: [
+          { href: '/parcels/admin/network', label: 'network' },
+          { href: '/parcels/admin/price-tiers', label: 'priceTiers' },
+          { href: '/parcels/admin/messages', label: 'messages' },
+          { href: '/parcels/admin/settings', label: 'settings' },
+        ],
+      },
+    ],
+  },
+  {
     // Sales CRM (docs/SALES.md): view reads, use works deals, manage assigns and configures.
     id: 'sales',
     icon: 'analytics',
@@ -349,6 +412,10 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
   // A page not on any menu still shows its area's app.
   if (under(pathname, '/finance'))
     return { app: APPS.find((a) => a.id === 'accounting')!, page: null };
+  if (under(pathname, '/parcels/admin/money'))
+    return { app: APPS.find((a) => a.id === 'accounting')!, page: null };
+  if (under(pathname, '/parcels/admin'))
+    return { app: APPS.find((a) => a.id === 'shiply')!, page: null };
   if (under(pathname, '/admin/sales'))
     return { app: APPS.find((a) => a.id === 'sales')!, page: null };
   if (under(pathname, '/admin')) return { app: APPS[0]!, page: null };
@@ -357,17 +424,6 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
 
 /** The store screens: a tile on the home screen for people with store use (not an app bar). */
 export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as const satisfies {
-  icon: IconName;
-  color: string;
-  href: string;
-};
-
-/** The parcel network (Shiply, next day): a tile for admins; its screens live under /parcels. */
-export const PARCELS_TILE = {
-  icon: 'courier',
-  color: '#334155',
-  href: '/parcels/admin',
-} as const satisfies {
   icon: IconName;
   color: string;
   href: string;

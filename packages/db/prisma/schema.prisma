@@ -218,6 +218,8 @@ model UserAccess {
   hr               AccessLevel @default(none)
   /// Sales CRM (docs/SALES.md)
   sales            AccessLevel @default(none)
+  /// Shiply, the parcel network's operations (docs/MERGE.md)
+  shiply           AccessLevel @default(none)
   settings         AccessLevel @default(none)
   /// true: every store; false: only the stores in user_stores
   allStores        Boolean     @default(false) @map("all_stores")

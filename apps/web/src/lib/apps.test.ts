@@ -21,10 +21,13 @@ describe('appsFor', () => {
       'customers',
       'accounting',
       'hr',
+      'shiply',
       'sales',
       'system',
     ]);
     expect(pages('owner')).toContain('/finance/opening');
+    expect(pages('owner')).toContain('/parcels/admin');
+    expect(pages('owner')).toContain('/parcels/admin/money/couriers');
     expect(pages('owner')).toContain('/admin/settings/operations');
   });
 
