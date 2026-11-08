@@ -68,7 +68,7 @@ export function NewOrderForm({
 
   const [area, setArea] = useState<ServedArea | null>(null);
   const [pin, setPin] = useState<Pin | null>(null);
-  const [showMap, setShowMap] = useState(false);
+  const [showMap, setShowMap] = useState(true);
 
   // Tells the user straight away whether the place's store can take the order now.
   useEffect(() => {

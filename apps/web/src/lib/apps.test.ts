@@ -36,7 +36,9 @@ describe('appsFor', () => {
     );
     expect(locate('/parcels/admin/shop/products')?.app.id).toBe('merchants');
     expect(locate('/parcels/admin/money/couriers')?.app.id).toBe('accounting');
-    expect(locate('/parcels/admin/users')?.app.id).toBe('system');
+    expect(locate('/parcels/admin/users')?.app.id).toBe('shiply');
+    // The operations manager runs the field team in Shiply and has no Settings tile.
+    expect(appsFor(profile('operations_manager')).map((a) => a.id)).not.toContain('system');
     expect(locate('/admin/customers/abc')?.app.id).toBe('merchants');
     expect(pages('owner')).toContain('/finance/opening');
     expect(pages('owner')).toContain('/parcels/admin');

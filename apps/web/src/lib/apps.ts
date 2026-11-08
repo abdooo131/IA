@@ -140,6 +140,8 @@ export const APPS: AppDef[] = [
           { href: '/parcels/admin/agents', label: 'agents' },
           { href: '/parcels/admin/attendance', label: 'courierShifts' },
           { href: '/parcels/admin/vehicle-requests', label: 'vehicleRequests' },
+          // Couriers, hub staff and agents' logins: the field team is run here, not in Settings.
+          { href: '/parcels/admin/users', label: 'fieldAccounts', need: { level: 'use' } },
         ],
       },
       {
@@ -405,8 +407,8 @@ export const APPS: AppDef[] = [
     ],
   },
   {
-    // Settings: everyone who signs in (office and store accounts here, field accounts of
-    // Shiply beside them), the audit log and the general settings.
+    // Settings: users and access (Shiply's field accounts are run in Shiply's Team menu), the
+    // audit log and the general settings.
     id: 'system',
     icon: 'settings',
     color: '#475569',
@@ -417,11 +419,6 @@ export const APPS: AppDef[] = [
         label: 'users',
         pages: [
           { href: '/admin/users', label: 'users', need: { level: 'manage' } },
-          {
-            href: '/parcels/admin/users',
-            label: 'fieldAccounts',
-            need: { app: 'shiply', level: 'use' },
-          },
         ],
       },
       {

@@ -1,21 +1,11 @@
-import { BackLink } from '@/components/store/BackLink';
-import { PettyCashScreen } from '@/components/store/PettyCashScreen';
-import { apiGet } from '@/lib/api-server';
-import type { StorePettyCash } from '@/lib/cash-control-types';
+import { redirect } from 'next/navigation';
 
-export const dynamic = 'force-dynamic';
-
+/** Petty cash is not paid from the store screens (owner, 2026-11-08); expenses go through Accounting. */
 export default async function StorePettyCashPage({
   params,
 }: {
   params: Promise<{ storeId: string }>;
 }) {
   const { storeId } = await params;
-  const data = await apiGet<StorePettyCash>(`/stores/${storeId}/petty-cash`);
-  return (
-    <>
-      <BackLink href={`/store/${storeId}`} />
-      <PettyCashScreen storeId={storeId} initial={data} />
-    </>
-  );
+  redirect(`/store/${storeId}`);
 }

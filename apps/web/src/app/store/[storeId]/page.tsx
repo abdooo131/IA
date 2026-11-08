@@ -79,12 +79,11 @@ export default async function StoreHomePage({ params }: { params: Promise<{ stor
       badge: holding.length,
       alert: holding.some((r) => r.overdue),
     },
-    { href: 'petty-cash', title: tr('pettyTile'), hint: tr('pettyHint'), icon: 'wallet' },
   ];
   // A sorting facility takes no customer orders and holds no rider cash.
   const shown =
     summary.store.kind === 'hub'
-      ? tiles.filter((tile) => !['orders', 'cash', 'petty-cash'].includes(tile.href))
+      ? tiles.filter((tile) => !['orders', 'cash'].includes(tile.href))
       : tiles;
   return (
     <>

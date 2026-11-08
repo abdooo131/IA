@@ -19,8 +19,21 @@ import { PrismaService } from '../prisma/prisma.service';
 
 @ApiTags('admin')
 @ApiBearerAuth()
-/** Every app but the store screens reads the locations; limited people see their stores. */
-@Access(['operations', 'inventory', 'merchants', 'customers', 'accounting', 'settings'])
+/**
+ * Every app but the store screens reads the locations (HR files and boards name each person's
+ * store); limited people see their stores. Changes keep their own operations manage rule.
+ */
+@Access([
+  'operations',
+  'inventory',
+  'merchants',
+  'customers',
+  'accounting',
+  'settings',
+  'hr',
+  'sales',
+  'shiply',
+])
 @Controller('admin/dark-stores')
 export class AdminStoresController {
   constructor(

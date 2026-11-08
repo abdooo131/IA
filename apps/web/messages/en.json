@@ -865,6 +865,8 @@
       }
     },
     "merchants": {
+      "fromSales": "New merchants are added by Sales: a won proposal opens the merchant with its contract.",
+      "openSales": "Open Sales",
       "title": "Merchants",
       "new": "Add merchant",
       "name": "Name",

@@ -202,19 +202,13 @@ export function MerchantsManager({
 
   return (
     <div className="mt-4 space-y-4">
-      {mode === 'new' ? (
-        <MerchantForm
-          submitLabel={t('create')}
-          busy={busy}
-          error={error}
-          onSubmit={(body) => void send('POST', '/admin/merchants', body)}
-          onCancel={() => setMode(null)}
-        />
-      ) : (
-        <button type="button" className={primary} onClick={() => setMode('new')}>
-          {t('new')}
-        </button>
-      )}
+      {/* New merchants come only from Sales: a won proposal opens the merchant and its contract. */}
+      <p className="rounded-md border border-line bg-surface-raised p-3 text-body-sm">
+        {t('fromSales')}{' '}
+        <Link className="font-bold text-link" href="/admin/sales/pipeline">
+          {t('openSales')}
+        </Link>
+      </p>
       <ul className="space-y-3">
         {merchants.map((m) => (
           <li key={m.id} className="rounded-lg border border-line bg-surface p-4 shadow-sm">
