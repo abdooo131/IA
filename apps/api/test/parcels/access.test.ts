@@ -66,4 +66,35 @@ describe('network access', () => {
     expect(made.status).toBe(422);
     expect(made.body.error).toBe('use_team_users');
   });
+
+  it('one alerts list: both companies, each to the people of its app', async () => {
+    const shiplyAlert = await prisma.networkAlert.create({
+      data: { kind: 'LATE_CHECK_IN', entity: 'shift', entityId: 'x1', message: 'Courier late' },
+    });
+    const owner = request.agent(app.getHttpServer());
+    await owner.post('/auth/login').send({ email: 'admin@shiply.local', password: 'admin12345' });
+    const all = (await owner.get('/admin/alerts').expect(200)).body;
+    const row = all.find((a: any) => a.id === `nw_${shiplyAlert.id}`);
+    expect(row).toMatchObject({
+      company: 'shiply',
+      type: 'network',
+      data: { message: 'Courier late' },
+    });
+    const nowOnly = (await owner.get('/admin/alerts?company=shiply_now').expect(200)).body;
+    expect(nowOnly.every((a: any) => a.company === 'shiply_now')).toBe(true);
+
+    // HR sees neither company's alerts.
+    const hr = await teamMember('hr2@team.test', 'admin', 'hr_officer');
+    expect((await hr.get('/admin/alerts')).status).toBe(403);
+    // Viewing is not handling.
+    const fin = await teamMember('fin2@team.test', 'finance', 'finance_officer');
+    expect((await fin.get('/admin/alerts?company=shiply')).body.length).toBeGreaterThan(0);
+    expect((await fin.post(`/admin/alerts/nw_${shiplyAlert.id}/resolve`)).status).toBe(403);
+
+    await owner.post(`/admin/alerts/nw_${shiplyAlert.id}/resolve`).expect(201);
+    expect((await prisma.networkAlert.findUnique({ where: { id: shiplyAlert.id } })).status).toBe(
+      'RESOLVED',
+    );
+    await owner.post(`/admin/alerts/nw_${shiplyAlert.id}/resolve`).expect(409);
+  });
 });

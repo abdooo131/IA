@@ -372,7 +372,13 @@
         "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
         "hr_termination_review": "{nameEn}: {number} reached termination review"
       },
-      "handledBy": "Handled by {name}"
+      "handledBy": "Handled by {name}",
+      "companyFilter": "Company",
+      "companies": {
+        "all": "Both companies",
+        "shiply_now": "Shiply Now",
+        "shiply": "Shiply"
+      }
     },
     "settings": {
       "title": "Settings",

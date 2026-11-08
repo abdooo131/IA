@@ -222,39 +222,59 @@ export class AdminOrdersController {
     return decideFailedOrder(this.prisma, { orderId: id, decision: body, actorUserId: user.sub });
   }
 
+  /**
+   * One alerts list for both companies (docs/MERGE.md step 6): Shiply Now's alerts for people
+   * with Operations, Shiply's network alerts for people with Shiply (office wide, not limited
+   * to some stores or merchants). company filters to one of them.
+   */
   @Get('alerts')
+  @Access(['operations', 'shiply'])
   @ApiQuery({ name: 'open', required: false, description: 'true for unresolved only (default)' })
-  async alerts(@CurrentAccess() access: AccessProfile, @Query('open') open?: string) {
+  @ApiQuery({ name: 'company', required: false, description: 'shiply_now or shiply' })
+  async alerts(
+    @CurrentAccess() access: AccessProfile,
+    @Query('open') open?: string,
+    @Query('company') company?: string,
+  ) {
     const merchants = merchantFilter(access);
-    const alerts = await this.prisma.alert.findMany({
-      where: {
-        ...(open !== 'false' && { resolvedAt: null }),
-        // People limited to some stores see only those stores' alerts.
-        darkStoreId: storeFilter(access),
-        // Employee document alerts belong to HR, sales follow ups to the sales managers.
-        type: {
-          notIn: [
-            ...(!canDo(access, 'hr', 'view') ? ['document_expiring', 'document_expired'] : []),
-            ...(!canDo(access, 'sales', 'manage')
-              ? ['crm_followup_overdue', 'crm_deal_stale']
-              : []),
-          ],
-        },
-        // Account managers get the alerts of their merchants (docs/HR.md 5).
-        ...(merchants && {
-          OR: [{ merchantId: merchants }, { order: { merchantId: merchants } }],
-        }),
-      },
-      include: {
-        order: { select: { id: true, number: true, status: true } },
-        darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
-        resolvedBy: { select: { name: true } },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: 200,
-    });
-    return alerts.map((a) => ({
+    const showNow = company !== 'shiply' && canDo(access, 'operations', 'view');
+    const showNetwork =
+      company !== 'shiply_now' &&
+      canDo(access, 'shiply', 'view') &&
+      access.allStores &&
+      !access.ownMerchantsOnly;
+    const alerts = !showNow
+      ? []
+      : await this.prisma.alert.findMany({
+          where: {
+            ...(open !== 'false' && { resolvedAt: null }),
+            // People limited to some stores see only those stores' alerts.
+            darkStoreId: storeFilter(access),
+            // Employee document alerts belong to HR, sales follow ups to the sales managers.
+            type: {
+              notIn: [
+                ...(!canDo(access, 'hr', 'view') ? ['document_expiring', 'document_expired'] : []),
+                ...(!canDo(access, 'sales', 'manage')
+                  ? ['crm_followup_overdue', 'crm_deal_stale']
+                  : []),
+              ],
+            },
+            // Account managers get the alerts of their merchants (docs/HR.md 5).
+            ...(merchants && {
+              OR: [{ merchantId: merchants }, { order: { merchantId: merchants } }],
+            }),
+          },
+          include: {
+            order: { select: { id: true, number: true, status: true } },
+            darkStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
+            resolvedBy: { select: { name: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 200,
+        });
+    const now = alerts.map((a) => ({
       id: a.id,
+      company: 'shiply_now' as const,
       type: a.type,
       stage: a.stage,
       data: a.data as unknown,
@@ -264,14 +284,53 @@ export class AdminOrdersController {
       order: a.order,
       darkStore: a.darkStore,
     }));
+    if (!showNetwork) return now;
+    const network = await this.prisma.networkAlert.findMany({
+      where: open !== 'false' ? { status: 'OPEN' } : {},
+      orderBy: { createdAt: 'desc' },
+      take: 200,
+    });
+    const names = new Map(
+      (
+        await this.prisma.user.findMany({
+          where: { id: { in: network.map((a) => a.resolvedById).filter((x): x is string => !!x) } },
+          select: { id: true, name: true },
+        })
+      ).map((u) => [u.id, u.name]),
+    );
+    const shiply = network.map((a) => ({
+      // Network alerts carry their own ids; the prefix tells resolve where to look.
+      id: `nw_${a.id}`,
+      company: 'shiply' as const,
+      type: 'network',
+      stage: null,
+      data: {
+        kind: a.kind,
+        message: a.message,
+        severity: a.severity,
+        entity: a.entity,
+        entityId: a.entityId,
+      } as unknown,
+      createdAt: a.createdAt,
+      resolvedAt: a.resolvedAt,
+      resolvedBy: a.resolvedById ? (names.get(a.resolvedById) ?? null) : null,
+      order: null,
+      darkStore: null,
+    }));
+    return [...now, ...shiply]
+      .sort((x, y) => y.createdAt.getTime() - x.createdAt.getTime())
+      .slice(0, 200);
   }
 
   @Post('alerts/:id/resolve')
+  @Access(['operations', 'shiply'])
   async resolve(
     @Param('id') id: string,
     @CurrentUser() user: AccessTokenClaims,
     @CurrentAccess() access: AccessProfile,
   ) {
+    if (id.startsWith('nw_')) return this.resolveNetwork(id.slice(3), user.sub, access);
+    if (!canDo(access, 'operations', 'use')) throw new DomainError('no_access', 403);
     const alert = await this.prisma.alert.findUnique({
       where: { id },
       select: { darkStoreId: true, merchantId: true, order: { select: { merchantId: true } } },
@@ -291,6 +350,27 @@ export class AdminOrdersController {
         actorUserId: user.sub,
         action: 'alert.resolve',
         entityType: 'alert',
+        entityId: id,
+        before: { resolved: false },
+        after: { resolved: true },
+      });
+      return { resolved: true };
+    });
+  }
+  /** A Shiply network alert handled from the one list (Shiply use). */
+  private async resolveNetwork(id: string, userId: string, access: AccessProfile) {
+    if (!canDo(access, 'shiply', 'use') || !access.allStores)
+      throw new DomainError('no_access', 403);
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.networkAlert.updateMany({
+        where: { id, status: 'OPEN' },
+        data: { status: 'RESOLVED', resolvedAt: new Date(), resolvedById: userId },
+      });
+      if (updated.count !== 1) throw new DomainError('alert_not_open', 409);
+      await recordAudit(tx, {
+        actorUserId: userId,
+        action: 'alert.resolve',
+        entityType: 'network_alert',
         entityId: id,
         before: { resolved: false },
         after: { resolved: true },

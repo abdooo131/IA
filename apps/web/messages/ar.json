@@ -372,7 +372,13 @@
         "crm_deal_stale": "الصفقة {number} ({company}) في نفس المرحلة منذ {days} يومًا",
         "hr_termination_review": "{nameEn}: المخالفة {number} وصلت لمراجعة إنهاء الخدمة"
       },
-      "handledBy": "اتعامل معاه {name}"
+      "handledBy": "اتعامل معاه {name}",
+      "companyFilter": "الشركة",
+      "companies": {
+        "all": "الشركتان",
+        "shiply_now": "شيبلي ناو",
+        "shiply": "شيبلي"
+      }
     },
     "settings": {
       "title": "الإعدادات",
