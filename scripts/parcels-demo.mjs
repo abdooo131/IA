@@ -3,10 +3,14 @@
 // Giza and Nasr City hubs, delivered with the receiver's code, one refused and sent back, one
 // courier still out, one parcel waiting on a lane and one not picked up yet.
 // Usage: SEED_DEMO_PASSWORD=... ADMIN_EMAIL=... ADMIN_PASSWORD=... node scripts/parcels-demo.mjs https://<site>
+// On your own computer: pnpm db:demo:parcels (reads .env; the admin defaults to SEED_ADMIN_*).
 // Only Cairo and Giza are served at launch, so every parcel goes there.
 const SITE = (process.argv[2] ?? 'http://localhost:3000').replace(/\/$/, '');
 const PW = process.env.SEED_DEMO_PASSWORD;
-const ADMIN = { email: process.env.ADMIN_EMAIL, password: process.env.ADMIN_PASSWORD };
+const ADMIN = {
+  email: process.env.ADMIN_EMAIL || process.env.SEED_ADMIN_EMAIL,
+  password: process.env.ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD,
+};
 if (!PW || !ADMIN.email || !ADMIN.password)
   throw new Error('Set SEED_DEMO_PASSWORD, ADMIN_EMAIL and ADMIN_PASSWORD');
 

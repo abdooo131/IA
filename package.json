@@ -19,6 +19,7 @@
     "db:deploy": "pnpm --filter @shiplynow/db migrate:deploy && pnpm --filter @shiplynow/db generate",
     "db:seed": "pnpm build:packages && pnpm --filter @shiplynow/db seed",
     "db:demo": "pnpm build:packages && pnpm --filter @shiplynow/db demo:load",
+    "db:demo:parcels": "node --env-file=.env scripts/parcels-demo.mjs http://localhost:3000",
     "shopify:tunnel": "node scripts/shopify-tunnel.mjs",
     "shopify:merchant-app": "node scripts/shopify-merchant-app.mjs",
     "local": "node scripts/shopify-tunnel.mjs --dev"

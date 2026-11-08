@@ -37,6 +37,26 @@ that is not set): `staff.newcairo@shiplynow.local`, `staff.maadi@shiplynow.local
 (New Cairo, Maadi, Zamalek) with zones and bins, the 27 governorates, the merchant
 Eve Chantelle with 20 SKUs, and opening stock. Running it again changes nothing.
 
+The seed also opens Shiply's parcel network (sorting facilities, hubs, price zones) and, unless
+`SEED_NETWORK_DEMO=off`, its demo people: hub teams (`staff.obr@shiply.local`,
+`inbound.obr@shiply.local`, `sorting.obr@shiply.local`, `outbound.obr@shiply.local`), couriers
+(`courier.giz@shiply.local`), agents (`agent@deltariders.example`) and an office account with
+every app (`finance@shiply.local`).
+
+### A month of demo data
+
+Once, on a fresh database, after `pnpm db:seed` (it refuses a second run):
+
+```bash
+pnpm db:demo                # with DEMO_LOAD=true in .env: 30 days of Shiply Now (about 600 orders)
+pnpm dev                    # leave it running, then in a second window:
+pnpm db:demo:parcels        # Shiply parcels at every stage, through the running app
+```
+
+`db:demo` takes about 3 minutes and adds the merchants Nile Pantry and Bayt, more staff and
+riders, payouts, a bill, last month's payroll and tax invoices. `db:demo:parcels` signs in as
+the seeded admin and the demo accounts.
+
 The web app proxies `/api/*` to the API, so the auth cookies stay on the web origin.
 
 ## Put it online
