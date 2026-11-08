@@ -30,9 +30,20 @@ export async function bankAccount(tx: Db, bankAccountId?: string): Promise<Accou
 
 // ─── rider cash ────────────────────────────────────────────────────────────────
 
-/** Cash a rider carries: collected on delivery and not yet handed to a store. */
-export function riderCash(db: Db, riderId: string) {
-  return balanceOf(db, { type: 'rider_cash', riderId });
+/**
+ * Cash a rider carries: collected on delivery and not yet handed to a store. A shortage from a
+ * handover still waiting for finance stays on the books until they decide, but it is not cash
+ * in the rider's hands, so it is left out here (no "hand it in" and no overdue alert for it).
+ */
+export async function riderCash(db: Db, riderId: string) {
+  const [balance, pending] = await Promise.all([
+    balanceOf(db, { type: 'rider_cash', riderId }),
+    db.cashHandover.aggregate({
+      where: { riderId, status: 'pending', differencePiastres: { gt: 0 } },
+      _sum: { differencePiastres: true },
+    }),
+  ]);
+  return balance - (pending._sum.differencePiastres ?? 0);
 }
 
 /** Rider pay earned and not yet paid (held or not; see rider-wallet.ts for what is available). */

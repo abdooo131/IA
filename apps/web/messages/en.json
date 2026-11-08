@@ -6027,7 +6027,8 @@
     "officeName": "Office",
     "onLeaveCell": "Leave: {type}",
     "nobodyHint": "People appear here once they have a file and a store or the office. Plan their shifts on the roster.",
-    "noDaysHint": "A day closes a few hours after its shift ends. Try other dates or another store."
+    "noDaysHint": "A day closes a few hours after its shift ends. Try other dates or another store.",
+    "inSinceEarlier": "Clocked in on an earlier shift: clock out when you finish"
   },
   "people": {
     "directoryTitle": "Employees",

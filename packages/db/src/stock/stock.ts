@@ -38,6 +38,8 @@ export interface ReceiveInput extends Common {
   binId: string;
   manifestId?: string;
   transferId?: string;
+  /** Units coming back from an order (picked, then cancelled) */
+  orderId?: string;
 }
 export interface MoveInput extends Common {
   fromBinId: string;
@@ -79,6 +81,7 @@ export async function receive(db: Db, input: ReceiveInput): Promise<StockResult>
       toBinId: bin.id,
       manifestId: input.manifestId,
       transferId: input.transferId,
+      orderId: input.orderId,
     });
     const binAfter = await addToBin(tx, bin.id, input.skuId, input.quantity);
     const level =

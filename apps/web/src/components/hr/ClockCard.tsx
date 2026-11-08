@@ -133,13 +133,17 @@ export function ClockCard({ compact = false }: { compact?: boolean }) {
       : today.dayOff
         ? t('dayOff')
         : t('noShift');
-  const status = today.clockedIn
-    ? today.late
-      ? t('inSinceLate', { time: cairoHm(today.firstIn), late: today.lateMinutes ?? 0 })
-      : t('inSince', { time: cairoHm(today.firstIn) })
-    : today.lastOut
-      ? t('outAt', { time: cairoHm(today.lastOut), worked: hours(today.workedMinutes) })
-      : t('notIn');
+  // Clocked in on an earlier day (past midnight, no clock out yet): there is no time today.
+  const status =
+    today.clockedIn && !today.firstIn
+      ? t('inSinceEarlier')
+      : today.clockedIn
+        ? today.late
+          ? t('inSinceLate', { time: cairoHm(today.firstIn), late: today.lateMinutes ?? 0 })
+          : t('inSince', { time: cairoHm(today.firstIn) })
+        : today.lastOut
+          ? t('outAt', { time: cairoHm(today.lastOut), worked: hours(today.workedMinutes) })
+          : t('notIn');
 
   return (
     <section

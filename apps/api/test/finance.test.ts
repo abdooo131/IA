@@ -142,6 +142,12 @@ describe('finance', () => {
       .send({ riderId: riderRow.id, countedPiastres: cash - 500, idempotencyKey: randomUUID() })
       .expect(201);
     expect(handover.body).toMatchObject({ status: 'pending', differencePiastres: 500 });
+    // The 5.00 short waits for finance; it is not cash the rider still has to hand in.
+    const afterCount = await staff.get(`/stores/${ncr}/cash`).expect(200);
+    expect(
+      afterCount.body.riders.find((r: { badgeCode: string }) => r.badgeCode === 'RDR-0001')
+        ?.cashPiastres ?? 0,
+    ).toBe(0);
 
     const pending = await admin.get('/finance/handovers?status=pending').expect(200);
     expect(pending.body).toHaveLength(1);

@@ -132,6 +132,7 @@ async function returnPickedUnits(
       binId: bin.id,
       quantity: item.pickedQty,
       reason: keyPrefix,
+      orderId: order.id,
       actorUserId: actor,
       idempotencyKey: `${keyPrefix}:${order.id}:${item.skuId}`,
     });

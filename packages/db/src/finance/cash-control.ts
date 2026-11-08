@@ -23,6 +23,7 @@ import { addMonths } from './assets';
 import { chartOfAccounts } from './books';
 import { attachReceipt, queueRequest, RECEIPT_KINDS } from './controls';
 import { FEE_KINDS } from './invoices';
+import { riderCash } from './operations';
 import { balanceOf, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -39,7 +40,7 @@ type Tx = Prisma.TransactionClient;
 
 /** The cash a rider holds now, split by when it was collected (oldest handed in first). */
 export async function riderCashPieces(db: Db, riderId: string) {
-  const balance = await balanceOf(db, { type: 'rider_cash', riderId });
+  const balance = await riderCash(db, riderId);
   if (balance <= 0) return { balancePiastres: Math.max(0, balance), pieces: [] as CashPiece[] };
   const lines = await db.ledgerLine.findMany({
     where: { account: { key: `rider_cash:${riderId}` }, amountPiastres: { gt: 0 } },
