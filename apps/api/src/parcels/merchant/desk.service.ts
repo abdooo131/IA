@@ -1,5 +1,5 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
-import { hashPassword } from '@shiplynow/db';
+import { hashPassword, leadFromSignup } from '@shiplynow/db';
 import {
   PARCEL_SIZES,
   cairoClock,
@@ -239,6 +239,14 @@ export class MerchantDeskService implements OnModuleInit, OnModuleDestroy {
           isActive: false,
           passwordHash,
         },
+      });
+      // Sales follows every sign up as a lead, whichever service it came from (docs/SALES.md).
+      await leadFromSignup(tx, {
+        merchantId: m.id,
+        businessName: d.businessName,
+        contactName: d.contactName,
+        email: d.email,
+        phone,
       });
       await openAlert(tx, {
         kind: 'MERCHANT_SIGNUP',

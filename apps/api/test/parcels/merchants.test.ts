@@ -222,6 +222,10 @@ describe('merchants and customers', () => {
     expect(
       (await ok(as.admin!.get('/parcels/admin/signups'))).some((m: any) => m.id === r.id),
     ).toBe(true);
+    // Sales follows it up as a lead, like a Shiply Now sign up.
+    expect(await prisma.crmDeal.findFirst({ where: { merchantId: r.id } })).toMatchObject({
+      stage: 'new',
+    });
     await ok(as.admin!.post(`/parcels/admin/merchants/${r.id}/signup/approve`));
     const sara = await login('sara@cairogifts.example', 'gifts12345');
     const me = await ok(sara.get('/parcels/merchant/profile'));
