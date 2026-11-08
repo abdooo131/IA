@@ -215,6 +215,38 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
                     </div>
                   ))}
                 </dl>
+                {(p.parcels.prices ?? []).length > 0 && (
+                  <dl className="mt-3 grid gap-1 text-body-sm">
+                    {(p.parcels.prices ?? []).map((x) => (
+                      <div
+                        key={`${x.zoneCode}/${x.size}`}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <dt>
+                          <span className="ltr-iso">{x.zoneCode}</span> · {x.size}
+                        </dt>
+                        <dd className="ltr-iso font-bold">{egp(x.pricePiastres)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </section>
+            )}
+
+            {(p.zonePrices ?? []).length > 0 && (
+              <section aria-labelledby="zones" className="mt-6 rounded-lg border border-line p-4">
+                <h2 id="zones" className="text-h3">
+                  {t('zonesTitle')}
+                </h2>
+                <p className="mt-1 text-body-sm text-text-muted">{t('zonesIntro')}</p>
+                <dl className="mt-3 grid gap-1 text-body-sm">
+                  {(p.zonePrices ?? []).map((z) => (
+                    <div key={z.id} className="flex items-center justify-between gap-2">
+                      <dt>{locale === 'ar' ? z.nameAr : z.nameEn}</dt>
+                      <dd className="ltr-iso font-bold">{egp(z.pricePiastres)}</dd>
+                    </div>
+                  ))}
+                </dl>
               </section>
             )}
 

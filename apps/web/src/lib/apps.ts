@@ -418,9 +418,7 @@ export const APPS: AppDef[] = [
     menus: [
       {
         label: 'users',
-        pages: [
-          { href: '/admin/users', label: 'users', need: { level: 'manage' } },
-        ],
+        pages: [{ href: '/admin/users', label: 'users', need: { level: 'manage' } }],
       },
       {
         label: 'audit',

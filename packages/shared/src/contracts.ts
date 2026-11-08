@@ -439,6 +439,13 @@ export const contractParcelPriceSchema = z.object({
 });
 export type ContractParcelPrice = z.infer<typeof contractParcelPriceSchema>;
 
+/** Shiply Now's shipping fee for one delivery zone (owner, 2026-11-08). */
+export const contractZonePriceSchema = z.object({
+  zoneId: z.string().trim().min(1).max(64),
+  pricePiastres: money,
+});
+export type ContractZonePrice = z.infer<typeof contractZonePriceSchema>;
+
 /** A contract version as merchants manage writes it (a new draft, or a draft changed). */
 export const contractVersionSchema = z
   .object({
@@ -457,6 +464,8 @@ export const contractVersionSchema = z
     parcelReturnFeeBp: bp.nullable().default(null),
     /** Fixed prices per zone and size: they replace the list price and take no discount */
     parcelPrices: z.array(contractParcelPriceSchema).max(100).default([]),
+    /** 60 minute shipping fee by delivery zone: replaces the shipping fee in that zone */
+    zonePrices: z.array(contractZonePriceSchema).max(200).default([]),
     // Payment terms
     /** The agreed payout schedule (null: the merchant's own choice stays) */
     payoutSchedule: z.enum(PAYOUT_SCHEDULES).nullable(),
@@ -501,7 +510,11 @@ export const contractVersionSchema = z
     (c) =>
       new Set(c.parcelPrices.map((p) => `${p.zoneCode}/${p.size}`)).size === c.parcelPrices.length,
     { message: 'parcel_price_twice', path: ['parcelPrices'] },
-  );
+  )
+  .refine((c) => new Set(c.zonePrices.map((p) => p.zoneId)).size === c.zonePrices.length, {
+    message: 'zone_price_twice',
+    path: ['zonePrices'],
+  });
 export type ContractVersionBody = z.infer<typeof contractVersionSchema>;
 export type ContractVersionInput = z.input<typeof contractVersionSchema>;
 

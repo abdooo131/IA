@@ -67,6 +67,9 @@ const monthStart = (month: string) => cairoDayStart(`${month}-01`);
 const versionInclude = {
   tiers: { orderBy: { fromOrder: 'asc' } },
   parcelPrices: { orderBy: [{ zoneCode: 'asc' }, { size: 'asc' }] },
+  zonePrices: {
+    include: { zone: { select: { code: true, nameEn: true, nameAr: true, darkStoreId: true } } },
+  },
   contract: { select: { number: true, merchantId: true } },
   createdBy: { select: { name: true } },
   activatedBy: { select: { name: true } },
@@ -282,6 +285,16 @@ function versionView(
         pricePiastres: p.pricePiastres,
       })),
     },
+    /** 60 minute shipping fee by delivery zone (replaces the shipping fee in that zone) */
+    zonePrices: v.zonePrices
+      .map((p) => ({
+        zoneId: p.zoneId,
+        code: p.zone.code,
+        nameEn: p.zone.nameEn,
+        nameAr: p.zone.nameAr,
+        pricePiastres: p.pricePiastres,
+      }))
+      .sort((a, b) => a.code.localeCompare(b.code)),
     payoutSchedule: v.payoutSchedule as PayoutScheduleName | null,
     minimumPayoutPiastres: v.minimumPayoutPiastres,
     minimumMonthlyFeePiastres: v.minimumMonthlyFeePiastres,
@@ -435,6 +448,18 @@ export async function getContract(db: Db, merchantId: string, now: Date = new Da
       },
       orderBy: { code: 'asc' },
     }),
+    /** Shiply Now's delivery zones (each a dark store's), for the 60 minute shipping fee by zone */
+    nowZones: await db.zone.findMany({
+      where: { isActive: true },
+      select: {
+        id: true,
+        code: true,
+        nameEn: true,
+        nameAr: true,
+        darkStore: { select: { code: true, nameEn: true, nameAr: true } },
+      },
+      orderBy: { code: 'asc' },
+    }),
     standardTerms: {
       minimumPayoutPiastres: await getSetting(db, 'finance.payout_minimum_piastres'),
       deliveryAttempts: await getSetting(db, 'delivery.max_attempts'),
@@ -570,6 +595,7 @@ function auditTerms(v: ContractVersionView) {
     parcels: `discount=${v.parcels.discountBp} cod=${v.parcels.codFeeBp} return=${v.parcels.returnFeeBp} ${v.parcels.prices
       .map((p) => `${p.zoneCode}/${p.size}=${p.pricePiastres}`)
       .join('; ')}`,
+    zonePrices: v.zonePrices.map((p) => `${p.code}=${p.pricePiastres}`).join('; '),
     tiers,
     payoutSchedule: v.payoutSchedule,
     minimumPayout: v.minimumPayoutPiastres,
@@ -604,6 +630,30 @@ async function checkProducts(tx: Tx, merchantId: string, body: ContractVersionBo
   const found = await tx.sku.count({ where: { id: { in: ids }, merchantId } });
   if (found !== ids.length) throw new DomainError('product_not_found', 400);
   return rows.map((p) => ({ skuId: p.skuId, pricePiastres: p.pricePiastres }));
+}
+
+/** 60 minute zone prices only for zones of our dark stores. */
+async function checkZonePrices(tx: Tx, body: ContractVersionBody) {
+  const rows = body.zonePrices ?? [];
+  const ids = [...new Set(rows.map((p) => p.zoneId))];
+  if (!ids.length) return [];
+  const found = await tx.zone.count({ where: { id: { in: ids } } });
+  if (found !== ids.length) throw new DomainError('zone_not_found', 400);
+  return rows.map((p) => ({ zoneId: p.zoneId, pricePiastres: p.pricePiastres }));
+}
+
+/**
+ * The 60 minute shipping fee of a delivery zone on a Cairo day: the version in force's price for
+ * the zone, or null to keep the version's (or the standard) shipping fee.
+ */
+export async function zoneShippingFeeAt(
+  db: Db,
+  input: { merchantId: string; day: string; zoneId: string | null },
+) {
+  if (!input.zoneId) return null;
+  const v = await versionInForce(db, input.merchantId, input.day);
+  if (!v || !covers(v, input.day)) return null;
+  return v.zonePrices.find((p) => p.zoneId === input.zoneId)?.pricePiastres ?? null;
 }
 
 /** Next day prices only for zones the network has. */
@@ -715,6 +765,7 @@ export function createContractDraft(
         tiers: { create: tiersOf(input.body.tiers) },
         products: { create: products },
         parcelPrices: { create: await checkParcelPrices(tx, input.body) },
+        zonePrices: { create: await checkZonePrices(tx, input.body) },
       },
       include: versionFullInclude,
     });
@@ -742,6 +793,7 @@ export function updateContractDraft(
     await tx.merchantContractVersionTier.deleteMany({ where: { versionId: before.id } });
     await tx.merchantContractVersionProduct.deleteMany({ where: { versionId: before.id } });
     await tx.merchantContractVersionParcelPrice.deleteMany({ where: { versionId: before.id } });
+    await tx.merchantContractVersionZonePrice.deleteMany({ where: { versionId: before.id } });
     const after = await tx.merchantContractVersion.update({
       where: { id: before.id },
       data: {
@@ -749,6 +801,7 @@ export function updateContractDraft(
         tiers: { create: tiersOf(input.body.tiers) },
         products: { create: products },
         parcelPrices: { create: await checkParcelPrices(tx, input.body) },
+        zonePrices: { create: await checkZonePrices(tx, input.body) },
       },
       include: versionFullInclude,
     });

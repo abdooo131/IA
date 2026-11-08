@@ -10,7 +10,7 @@ import {
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
-import { contractPricesAt, productPricesFor, standardPrices } from './contracts';
+import { contractPricesAt, productPricesFor, standardPrices, zoneShippingFeeAt } from './contracts';
 import { type AccountRef, post, share } from './ledger';
 
 type Tx = Prisma.TransactionClient;
@@ -72,12 +72,22 @@ export async function postDeliveryCompleted(
   const terms = await contractPricesAt(tx, { merchantId, orderId: order.id, at: input.now });
   const tierData = terms.tierFrom !== null ? { tierFrom: terms.tierFrom, nth: terms.nth } : {};
 
-  const shippingFee = terms.prices.shippingFeePiastres;
+  // The contract's price for the order's delivery zone replaces its shipping fee there.
+  const zoneFee = await zoneShippingFeeAt(tx, {
+    merchantId,
+    day: cairoDay(input.now),
+    zoneId: order.zoneId,
+  });
+  const shippingFee = zoneFee ?? terms.prices.shippingFeePiastres;
   await post(tx, {
     ...base,
     kind: 'shipping_fee',
     idempotencyKey: `order:${order.id}:shipping_fee`,
-    data: { shippingFeePiastres: shippingFee, ...tierData },
+    data: {
+      shippingFeePiastres: shippingFee,
+      ...(zoneFee !== null ? { zoneId: order.zoneId } : {}),
+      ...tierData,
+    },
     lines: await feeLines(tx, merchantId, shippingFee),
   });
 
@@ -186,7 +196,14 @@ export async function postDeliveryFailed(
     );
     const products = order.items.reduce((s, i) => s + i.pickedQty * i.unitPricePiastres, 0);
     const handling = productHandlingCharge(units, unitPrices);
-    const shipment = shipmentCharges(terms.prices, {
+    const zoneFee = await zoneShippingFeeAt(tx, {
+      merchantId,
+      day: cairoDay(input.now),
+      zoneId: order.zoneId,
+    });
+    const prices =
+      zoneFee === null ? terms.prices : { ...terms.prices, shippingFeePiastres: zoneFee };
+    const shipment = shipmentCharges(prices, {
       productsPiastres: products,
       productHandlingPiastres: handling,
     });

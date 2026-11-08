@@ -29,7 +29,11 @@ export interface ProposalView {
     discountBp: number | null;
     codFeeBp: number | null;
     returnFeeBp: number | null;
+    /** Next day prices by route zone and size */
+    prices?: { zoneCode: string; size: string; pricePiastres: number }[];
   } | null;
+  /** 60 minute shipping fee by delivery zone */
+  zonePrices?: { zoneId: string; pricePiastres: number }[];
   productPrices: ProposalProductRow[];
   expectedMonthlyOrders: number | null;
   averageOrderPiastres: number | null;
@@ -119,7 +123,17 @@ export interface PublicProposal {
     discountBp: number | null;
     codFeeBp: number | null;
     returnFeeBp: number | null;
+    /** Next day prices by route zone and size */
+    prices?: { zoneCode: string; size: string; pricePiastres: number }[];
   } | null;
+  /** 60 minute shipping fee by delivery zone */
+  zonePrices?: {
+    id: string;
+    code: string;
+    nameEn: string;
+    nameAr: string;
+    pricePiastres: number;
+  }[];
   brand: string;
   company: {
     legalNameEn: string;

@@ -18,7 +18,9 @@ function sendFile(res: Response, f: { data: Uint8Array; mime: string; name: stri
 @Roles('ADMIN')
 export class ControlController {
   constructor(
-    private readonly claims: ClaimsService,private readonly c: ControlService) {}
+    private readonly claims: ClaimsService,
+    private readonly c: ControlService,
+  ) {}
 
   @Get('tickets')
   tickets(@Query('status') status?: string) {

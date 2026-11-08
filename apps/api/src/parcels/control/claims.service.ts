@@ -19,9 +19,7 @@ const ClaimInput = z.object({
   trackingNumber: z.string().trim().min(3).max(40),
   kind: z.enum(['lost', 'damaged']),
   description: z.string().trim().min(5, 'Say what happened').max(1000),
-  photo: z
-    .object({ mime: z.string().max(60), dataBase64: z.string().min(8) })
-    .nullish(),
+  photo: z.object({ mime: z.string().max(60), dataBase64: z.string().min(8) }).nullish(),
 });
 const ApproveInput = z.object({
   /** Piastres; empty pays the full compensation (declared value up to the cap plus the fee). */
@@ -103,7 +101,11 @@ export class ClaimsService {
         where: { shipmentId: p.id, kind: d.kind, status: { in: ['OPEN', 'APPROVED'] } },
       });
       if (open)
-        throw new DomainError('claim_open', `Claim ${open.code} is already open for this parcel`, 409);
+        throw new DomainError(
+          'claim_open',
+          `Claim ${open.code} is already open for this parcel`,
+          409,
+        );
       const claim = await tx.merchantClaim.create({
         data: {
           code: await nextCode(tx, 'claim_seq', 'CLM'),
@@ -174,7 +176,8 @@ export class ClaimsService {
     return this.prisma.tx(async (tx) => {
       const c = await tx.merchantClaim.findUnique({ where: { id }, include: { shipment: true } });
       if (!c) throw notFound('Claim');
-      if (c.status !== 'OPEN') throw new DomainError('bad_status', 'This claim was already decided', 409);
+      if (c.status !== 'OPEN')
+        throw new DomainError('bad_status', 'This claim was already decided', 409);
       if (c.kind === 'lost')
         throw new DomainError(
           'confirm_loss_instead',
@@ -232,10 +235,16 @@ export class ClaimsService {
     return this.prisma.tx(async (tx) => {
       const c = await tx.merchantClaim.findUnique({ where: { id } });
       if (!c) throw notFound('Claim');
-      if (c.status !== 'OPEN') throw new DomainError('bad_status', 'This claim was already decided', 409);
+      if (c.status !== 'OPEN')
+        throw new DomainError('bad_status', 'This claim was already decided', 409);
       await tx.merchantClaim.update({
         where: { id },
-        data: { status: 'REJECTED', decisionNote: d.note, decidedById: user.id, decidedAt: new Date() },
+        data: {
+          status: 'REJECTED',
+          decisionNote: d.note,
+          decidedById: user.id,
+          decidedAt: new Date(),
+        },
       });
       await tx.auditLog.create({
         data: {

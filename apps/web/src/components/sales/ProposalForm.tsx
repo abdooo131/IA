@@ -11,11 +11,21 @@ import {
   proposalApproval,
 } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
-import { apiSend } from '@/lib/api-client';
-import { isPercent, newTierRow, parseTierRows, type TierRow, tierRowsFrom } from '@/lib/contracts';
+import { apiGetClient, apiSend } from '@/lib/api-client';
+import {
+  isPercent,
+  newTierRow,
+  type NowZone,
+  PARCEL_SIZES,
+  type ParcelZone,
+  parseTierRows,
+  type TierRow,
+  tierRowsFrom,
+  zoneListPrice,
+} from '@/lib/contracts';
 import { formatCount, formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import {
@@ -111,11 +121,32 @@ export function ProposalForm({
     parcelDiscount: shareText(proposal?.parcels?.discountBp),
     parcelCodFee: shareText(proposal?.parcels?.codFeeBp),
     parcelReturnFee: shareText(proposal?.parcels?.returnFeeBp),
+    // Every price in the agreement (owner, 2026-11-08): pounds as typed, empty is none.
+    zonePrices: Object.fromEntries(
+      (proposal?.zonePrices ?? []).map((p) => [p.zoneId, egpInput(p.pricePiastres)]),
+    ) as Record<string, string>,
+    parcelPrices: Object.fromEntries(
+      (proposal?.parcels?.prices ?? []).map((p) => [
+        `${p.zoneCode}/${p.size}`,
+        egpInput(p.pricePiastres),
+      ]),
+    ) as Record<string, string>,
   };
   const [v, setV] = useState(start);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [key] = useState(newActionKey);
+  const [zones, setZones] = useState<{ nowZones: NowZone[]; parcelZones: ParcelZone[] }>({
+    nowZones: [],
+    parcelZones: [],
+  });
+  useEffect(() => {
+    void apiGetClient<{ nowZones: NowZone[]; parcelZones: ParcelZone[] }>(
+      '/sales/price-zones',
+    ).then((r) => {
+      if (r.ok) setZones(r.data);
+    });
+  }, []);
   const dirty = JSON.stringify(v) !== JSON.stringify(start);
 
   // What the form holds, read as the API takes it (null: not valid yet).
@@ -168,11 +199,33 @@ export function ProposalForm({
       text.trim() ? (parseFee('orderPercentBp', text) ?? Number.NaN) : null;
     const parcelShares = [share(v.parcelDiscount), share(v.parcelCodFee), share(v.parcelReturnFee)];
     if (parcelShares.some((x) => Number.isNaN(x))) return null;
+    const zonePrices: { zoneId: string; pricePiastres: number }[] = [];
+    for (const [zoneId, text] of Object.entries(v.zonePrices)) {
+      if (!text.trim()) continue;
+      const price = parseEgp(text);
+      if (price === null) return null;
+      zonePrices.push({ zoneId, pricePiastres: price });
+    }
+    const parcelPrices: {
+      zoneCode: string;
+      size: (typeof PARCEL_SIZES)[number];
+      pricePiastres: number;
+    }[] = [];
+    if (v.parcels)
+      for (const [k, text] of Object.entries(v.parcelPrices)) {
+        if (!text.trim()) continue;
+        const price = parseEgp(text);
+        if (price === null) return null;
+        const [zoneCode, size] = k.split('/') as [string, (typeof PARCEL_SIZES)[number]];
+        parcelPrices.push({ zoneCode, size, pricePiastres: price });
+      }
     return {
       includesParcels: v.parcels,
       parcelDiscountBp: v.parcels ? parcelShares[0]! : null,
       parcelCodFeeBp: v.parcels ? parcelShares[1]! : null,
       parcelReturnFeeBp: v.parcels ? parcelShares[2]! : null,
+      parcelPrices,
+      zonePrices,
       ...out,
       failedDeliveryPercentBp,
       productPrices,
@@ -482,6 +535,33 @@ export function ProposalForm({
         ))}
       </fieldset>
 
+      {zones.nowZones.length > 0 && (
+        <fieldset className="space-y-2">
+          <legend className="mb-1 text-body-sm font-bold">{t('zonePrices.title')}</legend>
+          <p className="text-caption text-text-muted">{t('zonePrices.hint')}</p>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {zones.nowZones.map((z) => (
+              <label key={z.id} className="text-body-sm">
+                <span className="font-semibold">
+                  <span className="ltr-iso">{z.code}</span> ·{' '}
+                  {locale === 'ar' ? z.nameAr : z.nameEn}
+                </span>
+                <input
+                  className={`${field} mt-1`}
+                  inputMode="decimal"
+                  dir="ltr"
+                  placeholder={t('zonePrices.placeholder')}
+                  value={v.zonePrices[z.id] ?? ''}
+                  onChange={(e) =>
+                    setV({ ...v, zonePrices: { ...v.zonePrices, [z.id]: e.target.value } })
+                  }
+                />
+              </label>
+            ))}
+          </div>
+        </fieldset>
+      )}
+
       <fieldset className="space-y-3">
         <legend className="mb-2 text-body-sm font-bold">{t('parcels.title')}</legend>
         <label className="flex items-center gap-2 text-body-sm">
@@ -513,6 +593,54 @@ export function ProposalForm({
                 />
               </label>
             ))}
+          </div>
+        )}
+        {v.parcels && zones.parcelZones.length > 0 && (
+          <div className="space-y-1">
+            <p className="text-body-sm font-semibold">{t('parcels.pricesTitle')}</p>
+            <p className="text-caption text-text-muted">{t('parcels.pricesHint')}</p>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[560px] text-body-sm">
+                <thead>
+                  <tr className="text-caption text-text-muted">
+                    <th className="py-1 text-start font-semibold">{t('parcels.zone')}</th>
+                    {PARCEL_SIZES.map((size) => (
+                      <th key={size} className="py-1 text-start font-semibold">
+                        {size}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-line">
+                  {zones.parcelZones.map((z) => (
+                    <tr key={z.code}>
+                      <td className="py-1 pe-2">{z.name}</td>
+                      {PARCEL_SIZES.map((size) => {
+                        const k = `${z.code}/${size}`;
+                        return (
+                          <td key={size} className="py-1 pe-1">
+                            <input
+                              className={field}
+                              inputMode="decimal"
+                              dir="ltr"
+                              aria-label={`${z.name} ${size}`}
+                              placeholder={egpInput(zoneListPrice(z, size))}
+                              value={v.parcelPrices[k] ?? ''}
+                              onChange={(e) =>
+                                setV({
+                                  ...v,
+                                  parcelPrices: { ...v.parcelPrices, [k]: e.target.value },
+                                })
+                              }
+                            />
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
       </fieldset>

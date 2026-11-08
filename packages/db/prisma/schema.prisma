@@ -397,10 +397,11 @@ model Zone {
   createdAt     DateTime                                     @default(now()) @map("created_at")
   updatedAt     DateTime                                     @updatedAt @map("updated_at")
 
-  darkStore   DarkStore   @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
-  governorate Governorate @relation(fields: [governorateId], references: [id])
-  orders      Order[]
-  storeAreas  StoreArea[]
+  darkStore      DarkStore                          @relation(fields: [darkStoreId], references: [id], onDelete: Cascade)
+  governorate    Governorate                        @relation(fields: [governorateId], references: [id])
+  orders         Order[]
+  contractPrices MerchantContractVersionZonePrice[]
+  storeAreas     StoreArea[]
 
   @@unique([darkStoreId, code])
   @@index([area], type: Gist)
@@ -3654,6 +3655,7 @@ model MerchantContractVersion {
   tiers        MerchantContractVersionTier[]
   products     MerchantContractVersionProduct[]
   parcelPrices MerchantContractVersionParcelPrice[]
+  zonePrices   MerchantContractVersionZonePrice[]
   files        MerchantContractFile[]
 
   @@unique([contractId, version])
@@ -3699,6 +3701,22 @@ model MerchantContractVersionParcelPrice {
 
   @@unique([versionId, zoneCode, size])
   @@map("merchant_contract_version_parcel_prices")
+}
+
+/// Shiply Now's shipping fee by delivery zone (owner, 2026-11-08): a delivered order whose zone
+/// has a price here pays it instead of the version's shipping fee. Frozen with the version.
+model MerchantContractVersionZonePrice {
+  id            String @id @default(cuid())
+  versionId     String @map("version_id")
+  zoneId        String @map("zone_id")
+  pricePiastres Int    @map("price_piastres")
+
+  version MerchantContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  zone    Zone                    @relation(fields: [zoneId], references: [id], onDelete: Restrict)
+
+  @@unique([versionId, zoneId])
+  @@index([zoneId])
+  @@map("merchant_contract_version_zone_prices")
 }
 
 model MerchantContractVersionProduct {
@@ -4200,6 +4218,10 @@ model CrmProposal {
   parcelDiscountBp            Int?              @map("parcel_discount_bp")
   parcelCodFeeBp              Int?              @map("parcel_cod_fee_bp")
   parcelReturnFeeBp           Int?              @map("parcel_return_fee_bp")
+  /// Next day prices by route zone and size: [{ zoneCode, size, pricePiastres }]
+  parcelPrices                Json              @default("[]") @map("parcel_prices")
+  /// 60 minute shipping fee by delivery zone: [{ zoneId, pricePiastres }]
+  zonePrices                  Json              @default("[]") @map("zone_prices")
   orderFixedPiastres          Int               @map("order_fixed_piastres")
   orderPercentBp              Int               @map("order_percent_bp")
   codPercentBp                Int               @map("cod_percent_bp")

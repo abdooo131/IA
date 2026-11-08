@@ -38,6 +38,15 @@ const TEXT = {
     failedFixed: (v: string) => `${v} per failed attempt (a fixed fee)`,
     failedPercent: (p: string) =>
       `${p} of what the shipment would have cost: shipping fee, per product prices of its units and the order fee (fixed and share of products); never the cash on delivery fee`,
+    zonePrices: '60 minute shipping fee by delivery zone',
+    zonePricesNote:
+      'A delivered order in one of these zones pays this shipping fee instead of the shipping fee above.',
+    parcelPrices: 'Next day prices by route zone',
+    parcelPricesNote:
+      'The price of one parcel from your pickup city to the delivery city, by route zone and size. Other routes and sizes pay the list price less any agreed discount.',
+    zone: 'Zone',
+    size: 'Size',
+    price: 'Price',
     productPrices: 'Price per product',
     productPricesNote:
       'Charged per delivered unit of each product below, on top of the other fees; units cancelled before delivery are not charged and products not listed are not charged this fee. Volume tiers do not apply.',
@@ -133,6 +142,15 @@ const TEXT = {
     failedFixed: (v: string) => `${v} لكل محاولة فاشلة، رسم ثابت`,
     failedPercent: (p: string) =>
       `${p} مما كانت ستتكلفه الشحنة: رسوم الشحن وأسعار منتجاتها ورسم الطلب الثابت والنسبة من المنتجات، ولا يدخل رسم الدفع عند الاستلام`,
+    zonePrices: 'رسوم الشحن خلال 60 دقيقة حسب منطقة التوصيل',
+    zonePricesNote:
+      'الطلب الذي يسلم في إحدى هذه المناطق يدفع رسوم الشحن هذه بدلا من رسوم الشحن أعلاه.',
+    parcelPrices: 'أسعار اليوم التالي حسب منطقة المسار',
+    parcelPricesNote:
+      'سعر الشحنة الواحدة من مدينة الاستلام إلى مدينة التوصيل حسب منطقة المسار والحجم. المسارات والأحجام الأخرى بسعر القائمة بعد أي خصم متفق عليه.',
+    zone: 'المنطقة',
+    size: 'الحجم',
+    price: 'السعر',
     productPrices: 'السعر لكل منتج',
     productPricesNote:
       'يحسب لكل قطعة مسلمة من المنتجات التالية فوق الرسوم الأخرى، ولا تحسب القطع الملغاة قبل التسليم، والمنتجات غير المذكورة لا يحسب عليها هذا الرسم، ولا تسري عليه شرائح الحجم.',
@@ -409,6 +427,49 @@ export async function renderContractPdf(print: ContractPrint, lang: PdfLang): Pr
     if (v.productPrices.length > PRODUCTS_INLINE)
       w.paragraph(t.productPricesSee(v.productPrices.length));
     else productTable(w, t, lang, v.productPrices);
+  }
+
+  // Every price of the deal is in the contract (owner, 2026-11-08): 60 minute by delivery zone,
+  // next day by route zone and size.
+  if (v.zonePrices?.length) {
+    w.heading(t.zonePrices);
+    w.paragraph(t.zonePricesNote, { size: 8.5, color: BRAND.muted });
+    w.row(
+      [
+        { text: t.zone, width: 0.7, bold: true },
+        { text: t.price, width: 0.3, bold: true },
+      ],
+      { fill: BRAND.soft, size: 8.5 },
+    );
+    for (const z of v.zonePrices)
+      w.row(
+        [
+          { text: `${z.code} · ${lang === 'ar' ? z.nameAr : z.nameEn}`, width: 0.7 },
+          { text: t.egp(money(z.pricePiastres)), width: 0.3 },
+        ],
+        { size: 9 },
+      );
+  }
+  if (v.parcels.prices.length) {
+    w.heading(t.parcelPrices);
+    w.paragraph(t.parcelPricesNote, { size: 8.5, color: BRAND.muted });
+    w.row(
+      [
+        { text: t.zone, width: 0.4, bold: true },
+        { text: t.size, width: 0.3, bold: true },
+        { text: t.price, width: 0.3, bold: true },
+      ],
+      { fill: BRAND.soft, size: 8.5 },
+    );
+    for (const p of v.parcels.prices)
+      w.row(
+        [
+          { text: p.zoneCode, width: 0.4 },
+          { text: p.size, width: 0.3 },
+          { text: t.egp(money(p.pricePiastres)), width: 0.3 },
+        ],
+        { size: 9 },
+      );
   }
 
   // Volume tiers: one row per band, a column for each fee any band sets.

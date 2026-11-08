@@ -310,6 +310,50 @@ export function ContractEditor({
         </button>
       </Fieldset>
 
+      <Fieldset title={t('zonesTitle')} hint={t('zonesHint')}>
+        {(view.nowZones ?? []).length === 0 ? (
+          <p className="text-caption text-text-muted">{t('noZones')}</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[420px] text-body-sm">
+              <thead>
+                <tr className="text-start text-caption text-text-muted">
+                  <th className="py-1 text-start font-semibold">{t('zoneCol')}</th>
+                  <th className="py-1 text-start font-semibold">{t('storeCol')}</th>
+                  <th className="py-1 text-start font-semibold">{t('priceCol')}</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-line">
+                {(view.nowZones ?? []).map((z) => (
+                  <tr key={z.id}>
+                    <td className="py-1.5">
+                      <span className="ltr-iso">{z.code}</span> ·{' '}
+                      {locale === 'ar' ? z.nameAr : z.nameEn}
+                    </td>
+                    <td className="py-1.5">
+                      {locale === 'ar' ? z.darkStore.nameAr : z.darkStore.nameEn}
+                    </td>
+                    <td className="py-1.5">
+                      <input
+                        inputMode="decimal"
+                        dir="ltr"
+                        aria-label={`${t('priceCol')} ${z.code}`}
+                        value={form.zonePrices[z.id] ?? ''}
+                        placeholder="–"
+                        onChange={(e) =>
+                          set('zonePrices', { ...form.zonePrices, [z.id]: e.target.value })
+                        }
+                        className={field}
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </Fieldset>
+
       <Fieldset title={t('sections.parcels')} hint={t('parcels.hint')}>
         <div className="grid gap-3 sm:grid-cols-3">
           {(

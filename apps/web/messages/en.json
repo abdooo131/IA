@@ -6919,6 +6919,12 @@
     }
   },
   "contracts": {
+    "zonesTitle": "60 minute shipping fee by delivery zone",
+    "zonesHint": "A delivered order in a zone with a price here pays it instead of the shipping fee above. Empty keeps the shipping fee.",
+    "zoneCol": "Delivery zone",
+    "storeCol": "Dark store",
+    "priceCol": "Price (EGP)",
+    "noZones": "No delivery zones yet.",
     "title": "Contract",
     "create": "Write the contract",
     "edit": "Edit (new version)",
@@ -7125,6 +7131,7 @@
       "applyAllInclusive": "Apply all inclusive"
     },
     "errors": {
+      "zonePrices": "A delivery zone price is not a valid amount.",
       "price": "A price is not a valid amount or percent.",
       "tiers": "Check the bands: each needs its first order (once) and at least one price.",
       "money": "An amount is not valid.",
@@ -8089,6 +8096,11 @@
       "product_not_found": "A product is not this brand's."
     },
     "proposals": {
+      "zonePrices": {
+        "title": "60 minute shipping fee by delivery zone",
+        "hint": "A delivered order in a zone with a price pays it instead of the shipping fee. Empty keeps the shipping fee.",
+        "placeholder": "Shipping fee"
+      },
       "title": "Proposals",
       "new": "New proposal",
       "newVersion": "New version",
@@ -8217,6 +8229,9 @@
       "unmatchedTitle": "Product prices without a product",
       "unmatchedHint": "No product with these SKUs yet, so they are kept as a note on the contract. Add them in the contract once the products exist.",
       "parcels": {
+        "pricesTitle": "Next day prices by route zone and size",
+        "pricesHint": "From the merchant’s pickup city to the delivery city. Empty is the list price (shown) less the discount above.",
+        "zone": "Route zone",
         "title": "Next day parcels (Shiply)",
         "include": "Also quote next day parcels",
         "discount": "Discount on list prices",
@@ -8344,6 +8359,8 @@
     }
   },
   "proposalPage": {
+    "zonesTitle": "60 minute delivery: shipping fee by zone",
+    "zonesIntro": "Each delivered order in these zones pays this shipping fee.",
     "pageTitle": "Your proposal",
     "brand": "Shiply Now",
     "notFound": "This proposal link is not valid. Ask your Shiply contact for a new one.",

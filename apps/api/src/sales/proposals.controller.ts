@@ -47,6 +47,41 @@ export class ProposalsController {
     return crmActor(access, user.sub);
   }
 
+  /**
+   * The zones a proposal prices (owner, 2026-11-08: every price in the agreement): Shiply Now's
+   * delivery zones and Shiply's route zones with their list prices.
+   */
+  @Get('price-zones')
+  async priceZones() {
+    const [nowZones, parcelZones] = await Promise.all([
+      this.prisma.zone.findMany({
+        where: { isActive: true },
+        select: {
+          id: true,
+          code: true,
+          nameEn: true,
+          nameAr: true,
+          darkStore: { select: { code: true, nameEn: true, nameAr: true } },
+        },
+        orderBy: { code: 'asc' },
+      }),
+      this.prisma.pricingZone.findMany({
+        select: {
+          code: true,
+          name: true,
+          priceS: true,
+          priceM: true,
+          priceL: true,
+          priceXL: true,
+          priceXXL: true,
+          priceBulky: true,
+        },
+        orderBy: { code: 'asc' },
+      }),
+    ]);
+    return { nowZones, parcelZones };
+  }
+
   @Get('proposals')
   @ApiQuery({ name: 'status', required: false, enum: PROPOSAL_STATUSES })
   @ApiQuery({ name: 'needsApproval', required: false })

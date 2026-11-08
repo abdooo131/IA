@@ -62,12 +62,32 @@ describe('sales CRM part 2', () => {
   it('lets the brand read, accept and decline through the public link only while it is open', async () => {
     const rep = await member('rep@test.eg', 'sales_rep');
     const dealId = await addDeal(rep.agent, 'Link Brand');
+    const zoneId = (await prisma.zone.findFirst({ where: { isActive: true } }))?.id;
+    // This app has no parcel network: the one route zone the proposal prices is made here.
+    await prisma.pricingZone.upsert({
+      where: { code: 'GC' },
+      update: {},
+      create: {
+        code: 'GC',
+        name: 'Greater Cairo',
+        transitDays: 1,
+        priceS: 5_000,
+        priceM: 6_000,
+        priceL: 7_500,
+        priceXL: 10_000,
+      },
+    });
+    const zones = (await rep.agent.get('/sales/price-zones').expect(200)).body;
+    expect(zones.parcelZones.map((z: { code: string }) => z.code)).toContain('GC');
     // One proposal can quote both services: 60 minutes and next day parcels (Shiply).
     const draft = await propose(rep.agent, dealId, {
       averageOrderPiastres: 40_000,
       includesParcels: true,
       parcelDiscountBp: 500,
       parcelCodFeeBp: 75,
+      // Every price in the agreement: next day by route zone and size, 60 minutes by zone.
+      parcelPrices: [{ zoneCode: 'GC', size: 'M', pricePiastres: 5_500 }],
+      zonePrices: zoneId ? [{ zoneId, pricePiastres: 3_000 }] : [],
     });
     const sent = await rep.agent.post(`/sales/proposals/${draft.id}/send`).expect(201);
     const token = sent.body.token as string;
@@ -75,6 +95,7 @@ describe('sales CRM part 2', () => {
       discountBp: 500,
       codFeeBp: 75,
       returnFeeBp: null,
+      prices: [{ zoneCode: 'GC', size: 'M', pricePiastres: 5_500 }],
     });
     expect(token).toMatch(/^[\w-]{32}$/);
 
@@ -126,6 +147,20 @@ describe('sales CRM part 2', () => {
       parcelCodFeeBp: 75,
       parcelReturnFeeBp: null,
     });
+    // ... and both price lists.
+    expect(
+      await prisma.merchantContractVersionParcelPrice.findMany({
+        where: { versionId: version.id },
+        select: { zoneCode: true, size: true, pricePiastres: true },
+      }),
+    ).toEqual([{ zoneCode: 'GC', size: 'M', pricePiastres: 5_500 }]);
+    if (zoneId)
+      expect(
+        await prisma.merchantContractVersionZonePrice.findMany({
+          where: { versionId: version.id },
+          select: { zoneId: true, pricePiastres: true },
+        }),
+      ).toEqual([{ zoneId, pricePiastres: 3_000 }]);
     expect(
       (
         await rep.agent

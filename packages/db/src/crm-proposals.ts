@@ -8,7 +8,9 @@ import {
   egpText,
   exampleMonth,
   CONTRACT_TIER_KEYS,
+  contractParcelPriceSchema,
   type ContractTier,
+  contractZonePriceSchema,
   latinDigits,
   normalizeEgyptianPhone,
   PROPOSAL_FEE_KEYS,
@@ -149,18 +151,37 @@ async function proposalMerchantId(tx: Db, deal: { merchantId: string | null; com
   return company?.merchantId ?? null;
 }
 
+/** The price lists a proposal keeps as JSON, read back safely (bad rows are dropped). */
+function jsonRows<T>(
+  value: unknown,
+  schema: { safeParse(v: unknown): { success: true; data: T } | { success: false } },
+): T[] {
+  return Array.isArray(value)
+    ? value.flatMap((row) => {
+        const r = schema.safeParse(row);
+        return r.success ? [r.data] : [];
+      })
+    : [];
+}
+const parcelPricesOf = (p: { parcelPrices: unknown }) =>
+  jsonRows(p.parcelPrices, contractParcelPriceSchema);
+const zonePricesOf = (p: { zonePrices: unknown }) =>
+  jsonRows(p.zonePrices, contractZonePriceSchema);
+
 /** The next day terms a proposal quotes (Shiply), or null when it quotes 60 minutes only. */
 function parcelsOf(p: {
   includesParcels: boolean;
   parcelDiscountBp: number | null;
   parcelCodFeeBp: number | null;
   parcelReturnFeeBp: number | null;
+  parcelPrices: unknown;
 }) {
   if (!p.includesParcels) return null;
   return {
     discountBp: p.parcelDiscountBp,
     codFeeBp: p.parcelCodFeeBp,
     returnFeeBp: p.parcelReturnFeeBp,
+    prices: parcelPricesOf(p),
   };
 }
 
@@ -177,6 +198,7 @@ function toView(p: ProposalRow) {
     fees: feesOf(p),
     failedDeliveryPercentBp: p.failedDeliveryPercentBp,
     parcels: parcelsOf(p),
+    zonePrices: zonePricesOf(p),
     productPrices: productsOf(p.products),
     expectedMonthlyOrders: p.expectedMonthlyOrders,
     averageOrderPiastres: p.averageOrderPiastres,
@@ -394,6 +416,8 @@ export async function createProposal(
         ...fees,
         failedDeliveryPercentBp: body.failedDeliveryPercentBp ?? null,
         includesParcels: body.includesParcels ?? false,
+        parcelPrices: body.parcelPrices ?? [],
+        zonePrices: body.zonePrices ?? [],
         parcelDiscountBp: body.parcelDiscountBp ?? null,
         parcelCodFeeBp: body.parcelCodFeeBp ?? null,
         parcelReturnFeeBp: body.parcelReturnFeeBp ?? null,
@@ -507,6 +531,8 @@ export async function updateProposal(
         ...fees,
         failedDeliveryPercentBp: failedPercent,
         includesParcels: body.includesParcels,
+        parcelPrices: body.parcelPrices,
+        zonePrices: body.zonePrices,
         parcelDiscountBp: body.parcelDiscountBp,
         parcelCodFeeBp: body.parcelCodFeeBp,
         parcelReturnFeeBp: body.parcelReturnFeeBp,
@@ -753,6 +779,19 @@ export async function publicProposal(db: Db, token: string, now: Date = new Date
       fees: feesOf(full),
       failedDeliveryPercentBp: full.failedDeliveryPercentBp,
       parcels: parcelsOf(full),
+      // The 60 minute shipping fee by delivery zone, with the zones' names for the reader.
+      zonePrices: await (async () => {
+        const rows = zonePricesOf(full);
+        if (!rows.length) return [];
+        const zones = await tx.zone.findMany({
+          where: { id: { in: rows.map((r) => r.zoneId) } },
+          select: { id: true, code: true, nameEn: true, nameAr: true },
+        });
+        return rows.flatMap((r) => {
+          const z = zones.find((x) => x.id === r.zoneId);
+          return z ? [{ ...z, pricePiastres: r.pricePiastres }] : [];
+        });
+      })(),
       standardFailedPercentBp: await getSetting(tx, 'fee.failed_delivery_percent_bp'),
       productPrices: full.products.map((r) => ({
         sku: r.sku,
@@ -1110,7 +1149,8 @@ export async function confirmProposal(
           parcelDiscountBp: fresh.includesParcels ? fresh.parcelDiscountBp : null,
           parcelCodFeeBp: fresh.includesParcels ? fresh.parcelCodFeeBp : null,
           parcelReturnFeeBp: fresh.includesParcels ? fresh.parcelReturnFeeBp : null,
-          parcelPrices: [],
+          parcelPrices: fresh.includesParcels ? parcelPricesOf(fresh) : [],
+          zonePrices: zonePricesOf(fresh),
           tiers: tiersOf(fresh),
           payoutSchedule: fresh.payoutSchedule,
           minimumPayoutPiastres: fresh.minimumPayoutPiastres,

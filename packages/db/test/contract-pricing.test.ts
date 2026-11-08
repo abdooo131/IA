@@ -141,7 +141,7 @@ afterAll(() => prisma.$disconnect());
  * marked missing at pick (cancelled before delivery). Delivered unless `fail` is given.
  */
 async function order(
-  input: { qty1?: number; qty2?: number; missing?: number; fail?: boolean } = {},
+  input: { qty1?: number; qty2?: number; missing?: number; fail?: boolean; zoneId?: string } = {},
 ) {
   const qty1 = input.qty1 ?? 1;
   const qty2 = input.qty2 ?? 0;
@@ -159,6 +159,8 @@ async function order(
     items,
     actorUserId: admin,
   });
+  if (input.zoneId)
+    await prisma.order.update({ where: { id: created.id }, data: { zoneId: input.zoneId } });
   const ids = { orderId: created.id, darkStoreId: f.store.id, actorUserId: admin };
   await acceptOrder(prisma, ids);
   const missing = input.missing ?? 0;
@@ -243,6 +245,26 @@ describe('shipping fee', () => {
     // All inclusive: every other fee is an explicit 0, so nothing else is booked.
     for (const kind of ['order_fee', 'cod_fee', 'packaging_charge', 'product_handling'])
       expect(await fees(kind)).toEqual([]);
+  });
+
+  it("is the delivery zone's price when the contract has one (owner, 2026-11-08)", async () => {
+    const zone = await prisma.zone.create({
+      data: {
+        darkStoreId: f.store.id,
+        code: 'ZN1',
+        nameEn: 'Zone one',
+        nameAr: 'المنطقة الأولى',
+        governorateId: 1,
+      },
+    });
+    await version({
+      shippingFeePiastres: 1_000,
+      zonePrices: [{ zoneId: zone.id, pricePiastres: 2_500 }],
+    });
+    await order({ zoneId: zone.id });
+    await order();
+    // In the priced zone the zone's price; elsewhere the version's shipping fee.
+    expect(await fees('shipping_fee')).toEqual([2_500, 1_000]);
   });
 
   it('tells an explicit 0 from empty (the standard price)', async () => {

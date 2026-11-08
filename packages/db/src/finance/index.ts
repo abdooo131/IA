@@ -235,6 +235,7 @@ export {
   submitDeposit,
   updateContractDraft,
   parcelTermsAt,
+  zoneShippingFeeAt,
   versionInForce,
   versionProductPrices,
   type VersionDisplayStatus,

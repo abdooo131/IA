@@ -36,6 +36,8 @@ export interface ContractVersion {
   tiers: ContractTier[];
   /** Next day parcels (Shiply): null keeps the volume tier and the network's settings */
   parcels: ContractParcels;
+  /** 60 minute shipping fee by delivery zone (replaces the shipping fee in that zone) */
+  zonePrices?: ContractZonePriceRow[];
   payoutSchedule: PayoutScheduleName | null;
   minimumPayoutPiastres: number | null;
   minimumMonthlyFeePiastres: number | null;
@@ -121,6 +123,8 @@ export interface ContractView {
   products: MerchantProduct[];
   /** Shiply's price zones and list prices, for the next day terms */
   parcelZones: ParcelZone[];
+  /** Shiply Now's delivery zones, for the 60 minute shipping fee by zone */
+  nowZones?: NowZone[];
   standardTerms: {
     minimumPayoutPiastres: number;
     deliveryAttempts: number;
@@ -228,6 +232,35 @@ export interface ParcelZone {
   priceBulky: number;
 }
 
+/** A Shiply Now delivery zone (one dark store's). */
+export interface NowZone {
+  id: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  darkStore: { code: string; nameEn: string; nameAr: string };
+}
+
+export interface ContractZonePriceRow {
+  zoneId: string;
+  code: string;
+  nameEn: string;
+  nameAr: string;
+  pricePiastres: number;
+}
+
+/** The zone prices typed (pounds by zone id; empty is none); null if one is wrong. */
+export function parseZonePrices(form: ContractForm) {
+  const rows: { zoneId: string; pricePiastres: number }[] = [];
+  for (const [zoneId, text] of Object.entries(form.zonePrices)) {
+    if (!text.trim()) continue;
+    const price = parseEgp(text);
+    if (price === null) return null;
+    rows.push({ zoneId, pricePiastres: price });
+  }
+  return rows;
+}
+
 export interface ParcelPriceRow {
   zoneCode: string;
   size: ParcelSizeName;
@@ -278,6 +311,8 @@ export interface ContractForm {
   parcelReturnFee: string;
   /** Fixed next day prices: zone, size and price in pounds */
   parcelPrices: ParcelPriceRow[];
+  /** 60 minute shipping fee by delivery zone, in pounds by zone id (empty: the shipping fee) */
+  zonePrices: Record<string, string>;
   /** Failed delivery as a share of the shipment charges, in percent (empty: not set) */
   failedPercent: string;
   /** Price per unit of each product, in pounds, by product id (empty or absent: none) */
@@ -324,6 +359,9 @@ export function formFrom(v: ContractVersion | null, today: string): ContractForm
     productPrices: Object.fromEntries(
       (v?.productPrices ?? []).map((p) => [p.skuId, egpInput(p.pricePiastres)]),
     ),
+    zonePrices: Object.fromEntries(
+      (v?.zonePrices ?? []).map((p) => [p.zoneId, egpInput(p.pricePiastres)]),
+    ),
     tiers: tierRowsFrom(v?.tiers ?? []),
     payoutSchedule: v?.payoutSchedule ?? '',
     minimumPayout: moneyText(v?.minimumPayoutPiastres ?? null),
@@ -346,6 +384,7 @@ export function formFrom(v: ContractVersion | null, today: string): ContractForm
 export type ContractFormError =
   | 'price'
   | 'parcels'
+  | 'zonePrices'
   | 'failedPercent'
   | 'productPrice'
   | 'tiers'
@@ -440,6 +479,8 @@ export function bodyFrom(
   if (!productPrices) return { ok: false, error: 'productPrice' };
   const parcels = parseParcels(form);
   if (!parcels) return { ok: false, error: 'parcels' };
+  const zonePrices = parseZonePrices(form);
+  if (!zonePrices) return { ok: false, error: 'zonePrices' };
   const tiers = parseTierRows(form.tiers);
   if (!tiers) return { ok: false, error: 'tiers' };
   const money = (text: string) => (text.trim() ? (parseEgp(text) ?? Number.NaN) : null);
@@ -468,6 +509,7 @@ export function bodyFrom(
       failedDeliveryPercentBp: failedPercent,
       productPrices,
       ...parcels,
+      zonePrices,
       tiers,
       payoutSchedule: form.payoutSchedule || null,
       minimumPayoutPiastres: amounts[0],

@@ -160,7 +160,8 @@ export const SETTINGS = {
     default: 24,
   },
   'lost.compensation_cap': {
-    label: 'Most we pay a merchant for a lost or damaged parcel, before the shipping fee refund (piastres)',
+    label:
+      'Most we pay a merchant for a lost or damaged parcel, before the shipping fee refund (piastres)',
     kind: 'money',
     default: 300000,
   },

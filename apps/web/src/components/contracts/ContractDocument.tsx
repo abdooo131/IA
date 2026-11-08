@@ -376,6 +376,18 @@ export function ContractDocument({
         </dl>
       </Section>
 
+      {(v.zonePrices ?? []).length > 0 && (
+        <Section title={t('zonesTitle')}>
+          <dl>
+            {(v.zonePrices ?? []).map((p) => (
+              <Row key={p.zoneId} label={`${p.code} · ${locale === 'ar' ? p.nameAr : p.nameEn}`}>
+                {money(p.pricePiastres)}
+              </Row>
+            ))}
+          </dl>
+        </Section>
+      )}
+
       <Section title={t('sections.payment')}>
         <dl>
           <Row

@@ -4,8 +4,10 @@ import {
   CONTRACT_PRICE_KEYS,
   CONTRACT_PRICES,
   type ContractPriceKey,
+  contractParcelPriceSchema,
   contractTierSchema,
   type ContractTier,
+  contractZonePriceSchema,
   resolvePrices,
   tierFor,
   tierValue,
@@ -93,6 +95,10 @@ const proposalFields = {
   parcelCodFeeBp: bp.nullable(),
   /** Next day return fee, share of the shipping (null: the network's setting) */
   parcelReturnFeeBp: bp.nullable(),
+  /** Next day prices by route zone and size (owner, 2026-11-08: every price in the agreement) */
+  parcelPrices: z.array(contractParcelPriceSchema).max(100).default([]),
+  /** 60 minute shipping fee by delivery zone */
+  zonePrices: z.array(contractZonePriceSchema).max(200).default([]),
   productPrices: z.array(proposalProductPriceSchema).max(PROPOSAL_PRODUCT_PRICES_MAX),
   expectedMonthlyOrders: z.number().int().min(0).max(10_000_000).nullable(),
   averageOrderPiastres: money.nullable(),
