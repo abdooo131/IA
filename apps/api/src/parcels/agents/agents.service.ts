@@ -237,7 +237,12 @@ export class AgentsService implements OnModuleInit, OnModuleDestroy {
       }),
     ]);
     const defaultBp = (await this.settings.all())['agents.default_commission_bp'];
-    return { ...agent, effectiveCommissionBp: agent.commissionBp ?? defaultBp, logins, staff };
+    return {
+      ...agent,
+      effectiveCommissionBp: agent.commissionBp ?? defaultBp,
+      logins: logins.map((l) => ({ ...l, active: l.isActive })),
+      staff,
+    };
   }
 
   async saveAgent(id: string | null, body: unknown, user: SessionUser) {

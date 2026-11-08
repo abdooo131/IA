@@ -52,7 +52,6 @@ function hubMenus(me: Me | null): AppMenu[] {
         pages: [
           { href: '/parcels/hub/check', label: 'Handover check' },
           { href: '/parcels/hub/damage', label: 'Report damage' },
-          { href: '/parcels/hub/packaging', label: 'Packaging orders' },
           { href: '/parcels/hub/safe', label: 'Hub safe' },
         ],
       },
@@ -80,7 +79,6 @@ function hubMenus(me: Me | null): AppMenu[] {
     pages: [
       { href: '/parcels/hub/check', label: 'Handover check' },
       { href: '/parcels/hub/damage', label: 'Report damage' },
-      { href: '/parcels/hub/packaging', label: 'Packaging orders' },
       ...(team ? [] : [{ href: '/parcels/hub/safe', label: 'Hub safe' }]),
     ],
   });
@@ -179,17 +177,12 @@ export function allApps(me: Me | null): AppDef[] {
           label: 'Packaging shop',
           pages: [
             {
-              href: '/parcels/admin/shop/orders',
-              label: 'Packaging orders',
-              hint: 'Pack, hand to a courier, follow delivery',
-            },
-            {
-              href: '/parcels/admin/shop/products',
+              href: '/admin/packaging',
               label: 'Products and stock',
-              hint: 'Prices, stock counts, low stock',
+              hint: 'Packaging items and stock per store',
             },
             {
-              href: '/parcels/admin/shop/purchase-orders',
+              href: '/finance/purchase-orders',
               label: 'Purchase orders',
               hint: 'Buy from suppliers and receive the goods',
             },

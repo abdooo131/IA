@@ -575,12 +575,22 @@ export class AdminService {
 
   // ---------------------------------------------------------------- accounts
 
-  merchants() {
-    return this.prisma.merchant.findMany({
+  /**
+   * The network screens read active, phone and email; Shiply Now's merchant row names them
+   * isActive, contactPhone and contactEmail (docs/MERGE.md), so the list answers both.
+   */
+  async merchants() {
+    const rows = await this.prisma.merchant.findMany({
       omit: { logo: true },
       include: { homeHub: { select: { code: true } }, _count: { select: { shipments: true } } },
       orderBy: { name: 'asc' },
     });
+    return rows.map((m) => ({
+      ...m,
+      active: m.isActive,
+      phone: m.contactPhone ?? '',
+      email: m.contactEmail ?? '',
+    }));
   }
 
   async saveMerchant(id: string | null, body: unknown, user: SessionUser) {
@@ -618,8 +628,9 @@ export class AdminService {
     return m;
   }
 
-  users() {
-    return this.prisma.user.findMany({
+  /** As for merchants: the screens read active, the user row names it isActive. */
+  async users() {
+    const rows = await this.prisma.user.findMany({
       select: {
         id: true,
         email: true,
@@ -635,6 +646,7 @@ export class AdminService {
       },
       orderBy: [{ role: 'asc' }, { name: 'asc' }],
     });
+    return rows.map((u) => ({ ...u, active: u.isActive }));
   }
 
   async createUser(body: unknown, user: SessionUser) {

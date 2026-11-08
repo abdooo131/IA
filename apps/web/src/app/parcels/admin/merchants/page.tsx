@@ -31,7 +31,7 @@ interface Merchant {
   discountBp: number;
   active: boolean;
   flexShip: boolean;
-  homeHub: { code: string };
+  homeHub: { code: string } | null;
   _count: { shipments: number };
 }
 interface Hub {
@@ -273,7 +273,7 @@ export default function MerchantsPage() {
               </span>
               {editing && editing !== 'new' ? (
                 <span className="ltr-iso font-bold">
-                  {merchants.data.find((m) => m.id === editing)?.homeHub.code ?? ''} ·{' '}
+                  {merchants.data.find((m) => m.id === editing)?.homeHub?.code ?? ''} ·{' '}
                 </span>
               ) : (
                 ''
@@ -338,7 +338,7 @@ export default function MerchantsPage() {
               <Td>
                 <span className="ltr-iso">{m.phone}</span>
               </Td>
-              <Td className="ltr-iso font-bold">{m.homeHub.code}</Td>
+              <Td className="ltr-iso font-bold">{m.homeHub?.code ?? ''}</Td>
               <Td className="tabular ltr-iso">
                 {m.discountBp / 100}%
                 <div>

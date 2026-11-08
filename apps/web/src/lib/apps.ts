@@ -320,9 +320,6 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/parcels/admin/merchants', label: 'merchants' },
           { href: '/parcels/admin/signups', label: 'signups' },
-          { href: '/parcels/admin/shop/orders', label: 'packagingOrders' },
-          { href: '/parcels/admin/shop/products', label: 'packagingProducts' },
-          { href: '/parcels/admin/shop/purchase-orders', label: 'packagingPurchaseOrders' },
         ],
       },
       {
