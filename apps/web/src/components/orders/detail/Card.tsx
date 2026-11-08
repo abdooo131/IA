@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Icon, type IconName } from '@/components/Icon';
 
-/** A soft card of the order page with an icon title, after the brand guide's product screen. */
+/** A card of the order page: a title bar with its icon, then the body (same look as Section). */
 export function Card({
   title,
   icon,
@@ -16,15 +16,19 @@ export function Card({
   id?: string;
 }) {
   return (
-    <section id={id} className="rounded-xl bg-surface p-4 shadow-sm sm:p-5" aria-label={title}>
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h2 className="flex items-center gap-2 text-h3">
-          <Icon name={icon} size={20} className="text-link" />
+    <section
+      id={id}
+      className="overflow-hidden rounded-xl border border-line bg-surface"
+      aria-label={title}
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-line bg-surface-raised px-4 py-3">
+        <h2 className="flex items-center gap-2 text-body font-bold">
+          <Icon name={icon} size={18} className="text-link" />
           {title}
         </h2>
         {action}
       </div>
-      {children}
+      <div className="p-4">{children}</div>
     </section>
   );
 }

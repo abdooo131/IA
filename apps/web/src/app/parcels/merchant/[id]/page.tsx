@@ -1,18 +1,30 @@
 'use client';
 import { RouteChain } from '@/parcels/components/RouteChain';
-import Link from 'next/link';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 import { Icon } from '@/parcels/components/Icon';
 import { StatusBar } from '@/parcels/components/StatusBar';
 import {
+  CashCycle,
+  Field as InfoField,
+  FeeLines,
+  Fields,
+  OrderColumns,
+  OrderTabs,
+  Section,
+  SideBox,
+  SideCard,
+  Stars,
+  StateBanner,
+  Tag,
+  type BannerTone,
+} from '@/components/orders/page/OrderLayout';
+import {
   Alert,
   Button,
-  Card,
   Field,
   Input,
   Loading,
-  PageHeader,
   Select,
   StatusBadge,
   Textarea,
@@ -66,6 +78,13 @@ interface Parcel {
   returnFee: number;
   codCollected: number;
   payoutId: string | null;
+  declaredValue: number;
+  payoutSchedule: string;
+  payout:
+    | { status: 'paid'; number: number; reference: string | null; paidAt: string | null }
+    | { status: 'draft'; number: number }
+    | { status: 'next'; day: string }
+    | null;
   createdAt: string;
   events: Event[];
 }
@@ -80,12 +99,34 @@ const RETURNABLE = [
   'ON_HOLD',
 ];
 
+const SCHEDULES: Record<string, string> = {
+  daily: 'Every day',
+  twice_weekly: 'Twice a week (Sunday and Wednesday)',
+  weekly: 'Once a week (Sunday)',
+};
+
+/** "Sunday 9 Nov" for a YYYY-MM-DD day. */
+function dayName(day: string, locale: string) {
+  return new Date(`${day.slice(0, 10)}T12:00:00Z`).toLocaleDateString(
+    locale === 'ar' ? 'ar-EG-u-nu-latn' : 'en-GB',
+    { timeZone: 'UTC', weekday: 'long', day: 'numeric', month: 'short' },
+  );
+}
+
+/**
+ * A next day parcel, laid out like the 60 minute order page (owner, 2026-11-08): header with
+ * actions, two tabs (details and tracking), one banner in the state's colour, the sections on the
+ * wide side, and money with the payout cycle on the narrow side.
+ */
 export default function ParcelPage() {
   const t = useT();
   const locale = useLocale();
   const { id } = useParams<{ id: string }>();
+  const search = useSearchParams();
+  const tab = search.get('tab') === 'tracking' ? 'tracking' : 'details';
   const { data: p, error, loading, reload } = useLoad<Parcel>(`/merchant/shipments/${id}`);
   const { data: govs } = useLocations();
+  const reasonText = useReasonText();
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
@@ -98,6 +139,8 @@ export default function ParcelPage() {
   const canReturn = p.direction === 'FORWARD' && RETURNABLE.includes(p.status);
   const name = (x: { nameEn: string; nameAr: string } | undefined) =>
     x ? (locale === 'ar' ? x.nameAr : x.nameEn) : '';
+  const deliveredAt = [...p.events].reverse().find((e) => e.toStatus === 'DELIVERED')?.createdAt;
+  const returnedAt = [...p.events].reverse().find((e) => e.toStatus === 'RETURNED')?.createdAt;
 
   const act = async (path: string, body: unknown, message: string, confirmText?: string) => {
     if (confirmText && !window.confirm(confirmText)) return;
@@ -116,197 +159,368 @@ export default function ParcelPage() {
   };
 
   const fees = p.status === 'RETURNED' ? p.shippingFee + p.returnFee : p.shippingFee + p.codFee;
+  const feeLines = [
+    ...(p.basePrice > 0 ? [{ label: t('List price'), value: egp(p.basePrice) }] : []),
+    ...(p.discount > 0 ? [{ label: t('Discount'), value: egp(-p.discount) }] : []),
+    ...(p.openFee > 0 ? [{ label: t('Open package fee'), value: egp(p.openFee) }] : []),
+    ...(p.exchangeFee > 0 ? [{ label: t('Exchange'), value: egp(p.exchangeFee) }] : []),
+    { label: t('Shipping fee'), value: egp(p.shippingFee) },
+    ...(p.status !== 'RETURNED' && p.codFee > 0
+      ? [{ label: t('COD fee'), value: egp(p.codFee) }]
+      : []),
+    ...(p.status === 'RETURNED' ? [{ label: t('Return fee'), value: egp(p.returnFee) }] : []),
+  ];
+
+  // One banner: where the parcel is, and what comes next.
+  const banner: { tone: BannerTone; text: string; next?: string } =
+    p.status === 'DELIVERED'
+      ? {
+          tone: 'success',
+          text: t('Your parcel was delivered to the customer on {time}', {
+            time: deliveredAt ? dateTime(deliveredAt) : '',
+          }),
+        }
+      : p.status === 'RETURNED'
+        ? {
+            tone: 'info',
+            text: t('The parcel came back to you on {time}', {
+              time: returnedAt ? dateTime(returnedAt) : '',
+            }),
+          }
+        : p.status === 'CANCELLED'
+          ? { tone: 'danger', text: t('This parcel was cancelled') }
+          : p.status === 'ON_HOLD'
+            ? {
+                tone: 'warning',
+                text: t('The courier could not deliver this parcel: {reason}', {
+                  reason: reasonText(p.holdReason ?? p.lastFailReason),
+                }),
+                next: t('Your decision is needed: try again or bring it back to you'),
+              }
+            : p.status === 'LOST'
+              ? {
+                  tone: 'warning',
+                  text: t('We lost track of this parcel and are searching for it'),
+                }
+              : p.status === 'CREATED'
+                ? {
+                    tone: 'info',
+                    text: t('The parcel is waiting for our courier to pick it up'),
+                  }
+                : {
+                    tone: 'info',
+                    text:
+                      p.direction === 'RETURN'
+                        ? t('The parcel is on its way back to you')
+                        : t('The parcel is on its way through our network'),
+                    next:
+                      p.promisedDate && p.direction === 'FORWARD'
+                        ? t('It should reach the customer on {date}', {
+                            date: shortDate(p.promisedDate),
+                          })
+                        : undefined,
+                  };
+
+  const payout = p.payout;
+  const payoutNumber =
+    payout && payout.status !== 'next' ? `PAY-${String(payout.number).padStart(6, '0')}` : '';
 
   return (
     <div className="space-y-5">
-      <PageHeader
-        eyebrow={t('Parcel')}
-        title={p.trackingNumber}
-        subtitle={
-          <>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="text-h2">
+              {t(p.direction === 'RETURN' ? 'Return' : 'Deliver')}{' '}
+              <span className="ltr-iso">{p.trackingNumber}</span>
+            </h1>
+            <StatusBadge status={p.status} direction={p.direction} />
+            {p.attempts > 0 && (
+              <Tag tone="needs-action">{t('{n} failed attempts', { n: p.attempts })}</Tag>
+            )}
+          </div>
+          <p className="text-body-sm text-text-muted">
             {t('Created')} <span className="ltr-iso">{dateTime(p.createdAt)}</span>
-            {p.merchantRef ? (
-              <>
-                {' · '}
-                {t('Your ref')} {p.merchantRef}
-              </>
-            ) : null}
-          </>
-        }
-        actions={
-          <>
-            <a
-              href={`/parcels/labels?ids=${p.id}`}
-              target="_blank"
-              rel="noreferrer"
-              className="btn-secondary"
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 print:hidden">
+          {p.status === 'CREATED' && (
+            <Button
+              tone="secondary"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  'cancel',
+                  {},
+                  t('Parcel cancelled'),
+                  t('Cancel this parcel? This cannot be undone.'),
+                )
+              }
             >
-              <Icon name="print" size={18} />
-              {t('Print label')}
-            </a>
-            <Link href="/parcels/merchant" className="btn-ghost">
-              {t('Back')}
-            </Link>
-          </>
-        }
-      />
+              {t('Cancel parcel')}
+            </Button>
+          )}
+          {canReturn && p.status !== 'ON_HOLD' && (
+            <Button
+              tone="secondary"
+              disabled={busy}
+              onClick={() =>
+                act(
+                  'decision',
+                  { decision: 'RETURN' },
+                  t('The parcel is coming back to you'),
+                  t(
+                    'Bring this parcel back to you instead of delivering it? A return fee applies.',
+                  ),
+                )
+              }
+            >
+              <Icon name="returns" size={18} />
+              {t('Return to me')}
+            </Button>
+          )}
+          <a
+            href={`/parcels/labels?ids=${p.id}`}
+            target="_blank"
+            rel="noreferrer"
+            className="btn-primary"
+          >
+            <Icon name="print" size={18} />
+            {t('Print label')}
+          </a>
+        </div>
+      </header>
 
-      <StatusBar flow={p.direction === 'RETURN' ? 'returnParcel' : 'parcel'} status={p.status} />
-      <div className="flex flex-wrap items-center gap-3">
-        <StatusBadge status={p.status} direction={p.direction} />
-        {p.promisedDate && p.direction === 'FORWARD' && (
-          <span className="text-body-sm text-text-muted">
-            {t('Promised for')}{' '}
-            <span className="ltr-iso font-bold text-text">{shortDate(p.promisedDate)}</span>
-          </span>
-        )}
-        {p.attempts > 0 && (
-          <span className="text-body-sm text-text-muted">
-            {t('{n} failed attempts', { n: p.attempts })}
-          </span>
-        )}
-      </div>
+      <OrderTabs
+        tabs={[
+          { href: '?', label: t('Order details'), active: tab === 'details' },
+          { href: '?tab=tracking', label: t('Order tracking'), active: tab === 'tracking' },
+        ]}
+      />
 
       {done && <Alert tone="success">{done}</Alert>}
       {actionError && <Alert>{actionError}</Alert>}
 
-      {p.status === 'ON_HOLD' && p.direction === 'FORWARD' && (
-        <DecisionPanel
-          parcel={p}
-          busy={busy}
-          govs={govs ?? []}
-          onDecide={(body, msg) => act('decision', body, msg)}
-        />
-      )}
-
-      {p.route?.length ? (
-        <div className="mb-5 rounded-lg bg-surface p-4 shadow-sm">
-          <p className="mb-2 text-label uppercase text-text-muted">
-            {t('Its way through our network')}
-          </p>
-          <RouteChain route={p.route} done={['DELIVERED', 'RETURNED'].includes(p.status)} />
-        </div>
-      ) : null}
-
-      <div className="grid gap-5 lg:grid-cols-3">
-        <Card title={t('Customer')} className="lg:col-span-2">
-          <dl className="grid gap-4 text-body-sm sm:grid-cols-2">
-            <Item label={t('Name')}>{p.customerName}</Item>
-            <Item label={t('Mobile')}>
-              <a href={`tel:${p.customerPhone}`} className="ltr-iso text-link">
-                {p.customerPhone}
-              </a>
-            </Item>
-            <Item label={t('Address')} wide>
-              {p.address}
-            </Item>
-            <Item label={t('Governorate')}>
-              {name(gov) || p.governorateCode}
-              {area ? ` · ${name(area)}` : ''}
-            </Item>
-            <Item label={t('Size')}>{p.size}</Item>
-            {p.description && <Item label={t('Contents')}>{p.description}</Item>}
-            <Item label={t('Opening allowed')}>{p.allowOpen ? t('Yes') : t('No')}</Item>
-            {p.notes && (
-              <Item label={t('Notes')} wide>
-                {p.notes}
-              </Item>
-            )}
-          </dl>
-        </Card>
-        {(p.deliverOn || p.customerNote || p.rating) && (
-          <Card title={t('From the customer')} className="lg:col-span-3">
-            <div className="space-y-1 text-body-sm">
-              {p.deliverOn && <p>{t('Asked for delivery on {date}', { date: p.deliverOn })}</p>}
-              {p.customerNote && <p>{p.customerNote}</p>}
-              {p.rating && <p>{t('Rated {n} of 5', { n: p.rating })}</p>}
-            </div>
-          </Card>
-        )}
-        <Card title={t('Money')}>
-          <dl className="space-y-2 text-body-sm">
-            <Row label={t('Cash to collect')}>{egp(p.codAmount)}</Row>
-            {p.status === 'DELIVERED' && <Row label={t('Collected')}>{egp(p.codCollected)}</Row>}
-            {p.basePrice > 0 && <Row label={t('List price')}>{egp(p.basePrice)}</Row>}
-            {p.discount > 0 && <Row label={t('Discount')}>{egp(-p.discount)}</Row>}
-            {p.openFee > 0 && <Row label={t('Open package fee')}>{egp(p.openFee)}</Row>}
-            {p.exchangeFee > 0 && <Row label={t('Exchange')}>{egp(p.exchangeFee)}</Row>}
-            <Row label={t('Shipping fee')}>{egp(p.shippingFee)}</Row>
-            {p.status !== 'RETURNED' && p.codFee > 0 && (
-              <Row label={t('COD fee')}>{egp(p.codFee)}</Row>
-            )}
-            {p.status === 'RETURNED' && <Row label={t('Return fee')}>{egp(p.returnFee)}</Row>}
-            <Row label={t('Total fees')} strong>
-              {egp(fees)}
-            </Row>
-            {p.payoutId && (
-              <p className="pt-2 text-caption font-bold text-status-delivered">
-                {t('Settled in a payout')}
-              </p>
-            )}
-          </dl>
-        </Card>
-      </div>
-
-      {(p.status === 'CREATED' || canReturn) && p.status !== 'ON_HOLD' && (
-        <Card title={t('Actions')}>
-          <div className="flex flex-wrap gap-2">
-            {p.status === 'CREATED' && (
-              <Button
-                tone="danger"
-                disabled={busy}
-                onClick={() =>
-                  act(
-                    'cancel',
-                    {},
-                    t('Parcel cancelled'),
-                    t('Cancel this parcel? This cannot be undone.'),
-                  )
-                }
-              >
-                {t('Cancel parcel')}
-              </Button>
-            )}
-            {canReturn && (
-              <Button
-                tone="secondary"
-                disabled={busy}
-                onClick={() =>
-                  act(
-                    'decision',
-                    { decision: 'RETURN' },
-                    t('The parcel is coming back to you'),
-                    t(
-                      'Bring this parcel back to you instead of delivering it? A return fee applies.',
-                    ),
-                  )
-                }
-              >
-                <Icon name="returns" size={18} />
-                {t('Return to me')}
-              </Button>
-            )}
-          </div>
-        </Card>
-      )}
-
-      <Card title={t('History')}>
-        <ol className="relative space-y-5 border-s-2 border-line ps-6">
-          {[...p.events].reverse().map((e, i) => (
-            <li key={e.id} className="relative">
-              <span
-                aria-hidden="true"
-                className={`absolute -start-[31px] top-1 h-3.5 w-3.5 rounded-pill ring-4 ring-surface ${i === 0 ? 'bg-primary' : 'bg-line-strong'}`}
-              />
-              <div className={`text-body-sm ${i === 0 ? 'font-bold' : 'font-semibold'}`}>
-                {eventText(e.type, locale)}
+      {tab === 'tracking' ? (
+        <div className="space-y-4">
+          <StatusBar
+            flow={p.direction === 'RETURN' ? 'returnParcel' : 'parcel'}
+            status={p.status}
+          />
+          {p.route?.length ? (
+            <Section title={t('Its way through our network')}>
+              <div className="px-4 py-3">
+                <RouteChain route={p.route} done={['DELIVERED', 'RETURNED'].includes(p.status)} />
               </div>
-              {e.note && <div className="text-body-sm text-text-muted">{e.note}</div>}
-              <div className="ltr-iso text-caption text-text-muted">{dateTime(e.createdAt)}</div>
-            </li>
-          ))}
-        </ol>
-      </Card>
+            </Section>
+          ) : null}
+          <Section title={t('History')}>
+            <ol className="relative mx-4 my-4 space-y-5 border-s-2 border-line ps-6">
+              {[...p.events].reverse().map((e, i) => (
+                <li key={e.id} className="relative">
+                  <span
+                    aria-hidden="true"
+                    className={`absolute -start-[31px] top-1 h-3.5 w-3.5 rounded-pill ring-4 ring-surface ${i === 0 ? 'bg-primary' : 'bg-line-strong'}`}
+                  />
+                  <div className={`text-body-sm ${i === 0 ? 'font-bold' : 'font-semibold'}`}>
+                    {eventText(e.type, locale)}
+                  </div>
+                  {e.note && <div className="text-body-sm text-text-muted">{e.note}</div>}
+                  <div className="ltr-iso text-caption text-text-muted">
+                    {dateTime(e.createdAt)}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </Section>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <StateBanner tone={banner.tone} text={banner.text} next={banner.next} />
+          <OrderColumns
+            main={
+              <>
+                {p.status === 'ON_HOLD' && p.direction === 'FORWARD' && (
+                  <DecisionPanel
+                    parcel={p}
+                    busy={busy}
+                    govs={govs ?? []}
+                    onDecide={(body, msg) => act('decision', body, msg)}
+                  />
+                )}
+                <Section title={t('Operation details')}>
+                  <Fields>
+                    <InfoField label={t('Delivery attempts')}>
+                      {p.attempts > 0
+                        ? t('{n} failed attempts', { n: p.attempts })
+                        : t('No failed attempts')}
+                    </InfoField>
+                    <InfoField label={t('Expected delivery')}>
+                      {p.promisedDate ? (
+                        <span className="ltr-iso">{shortDate(p.promisedDate)}</span>
+                      ) : (
+                        '–'
+                      )}
+                    </InfoField>
+                  </Fields>
+                  <Fields>
+                    <InfoField label={t('Delivery confirmed')}>
+                      {deliveredAt ? (
+                        <span className="ltr-iso">{dateTime(deliveredAt)}</span>
+                      ) : (
+                        <span className="text-text-muted">{t('Not delivered yet')}</span>
+                      )}
+                    </InfoField>
+                    <InfoField label={t('Customer asked for delivery on')}>
+                      {p.deliverOn ? <span className="ltr-iso">{p.deliverOn}</span> : '–'}
+                    </InfoField>
+                  </Fields>
+                  <Fields>
+                    <InfoField label={t('Customer rating')}>
+                      {p.rating ? (
+                        <Stars stars={p.rating} label={t('Rated {n} of 5', { n: p.rating })} />
+                      ) : (
+                        <span className="text-text-muted">{t('Not rated yet')}</span>
+                      )}
+                    </InfoField>
+                    <InfoField label={t('Customer comment')}>
+                      {p.customerNote || <span className="text-text-muted">{t('No comment')}</span>}
+                    </InfoField>
+                  </Fields>
+                </Section>
+                <Section title={t('Consignee details')}>
+                  <Fields>
+                    <InfoField label={t('Full name')}>
+                      <span className="font-semibold">{p.customerName}</span>
+                    </InfoField>
+                    <InfoField label={t('Phone number')}>
+                      <a href={`tel:${p.customerPhone}`} className="ltr-iso text-link">
+                        {p.customerPhone}
+                      </a>
+                    </InfoField>
+                  </Fields>
+                  <Fields>
+                    <InfoField label={t('Detailed address')} wide>
+                      {p.address}
+                    </InfoField>
+                  </Fields>
+                  <Fields>
+                    <InfoField label={t('Governorate')}>{name(gov) || p.governorateCode}</InfoField>
+                    <InfoField label={t('Area')}>{area ? name(area) : '–'}</InfoField>
+                  </Fields>
+                </Section>
+                <Section title={t('Shipment details')}>
+                  <Fields>
+                    <InfoField label={t('Shipment type')}>
+                      {t('Next day')} · {t('Size')} {p.size}
+                    </InfoField>
+                    <InfoField label={t('Kind')}>
+                      {t(
+                        p.kind === 'EXCHANGE'
+                          ? 'Exchange'
+                          : p.direction === 'RETURN'
+                            ? 'Return'
+                            : 'Deliver',
+                      )}
+                    </InfoField>
+                  </Fields>
+                  <Fields>
+                    <InfoField label={t('Product description')} wide>
+                      {p.description || '–'}
+                    </InfoField>
+                  </Fields>
+                </Section>
+                <Section title={t('Additional details')}>
+                  <Fields>
+                    <InfoField label={t('Order reference')}>
+                      {p.merchantRef ? <span className="ltr-iso">{p.merchantRef}</span> : '–'}
+                    </InfoField>
+                    <InfoField label={t('Tracking number')}>
+                      <span className="ltr-iso">{p.trackingNumber}</span>
+                    </InfoField>
+                  </Fields>
+                  <Fields>
+                    <InfoField label={t('Delivery notes')} wide>
+                      {p.notes || '–'}
+                    </InfoField>
+                  </Fields>
+                </Section>
+              </>
+            }
+            side={
+              <>
+                <SideCard>
+                  <SideBox
+                    label={t('Collection amount')}
+                    value={
+                      <span className="ltr-iso">
+                        {egp(p.codAmount)}
+                        {p.status === 'DELIVERED'
+                          ? ` · ${t('Collected')} ${egp(p.codCollected)}`
+                          : ''}
+                      </span>
+                    }
+                  />
+                  <SideBox
+                    label={t('Allow customer to open the parcel')}
+                    value={p.allowOpen ? t('Yes') : t('No')}
+                  />
+                  <SideBox
+                    label={t('Product value')}
+                    value={
+                      <span className="ltr-iso">
+                        {p.declaredValue > 0 ? egp(p.declaredValue) : t('Not declared')}
+                      </span>
+                    }
+                  />
+                  <FeeLines lines={feeLines} total={{ label: t('Total fees'), value: egp(fees) }} />
+                </SideCard>
+                <CashCycle
+                  title={t('Payout cycle')}
+                  day={
+                    payout?.status === 'next'
+                      ? dayName(payout.day, locale)
+                      : payout?.status === 'paid' && payout.paidAt
+                        ? dayName(payout.paidAt, locale)
+                        : undefined
+                  }
+                  status={{
+                    label: t('Payout'),
+                    value:
+                      payout?.status === 'paid'
+                        ? t('Paid')
+                        : payout?.status === 'draft'
+                          ? t('Prepared')
+                          : t('Unpaid'),
+                    paid: payout?.status === 'paid',
+                  }}
+                  rows={[
+                    {
+                      label: t('Payout'),
+                      value: payoutNumber ? (
+                        <span className="ltr-iso">
+                          {payoutNumber}
+                          {payout?.status === 'paid' && payout.reference
+                            ? ` · ${payout.reference}`
+                            : ''}
+                        </span>
+                      ) : payout?.status === 'next' ? (
+                        t('With the next payout on {day}', { day: dayName(payout.day, locale) })
+                      ) : (
+                        t('After delivery')
+                      ),
+                    },
+                    {
+                      label: t('Payout frequency'),
+                      value: t(SCHEDULES[p.payoutSchedule] ?? p.payoutSchedule),
+                    },
+                  ]}
+                />
+              </>
+            }
+          />
+        </div>
+      )}
     </div>
   );
 }
@@ -428,41 +642,5 @@ function DecisionPanel({
         </Button>
       </div>
     </section>
-  );
-}
-
-function Item({
-  label,
-  children,
-  wide,
-}: {
-  label: string;
-  children: React.ReactNode;
-  wide?: boolean;
-}) {
-  return (
-    <div className={wide ? 'sm:col-span-2' : ''}>
-      <dt className="text-label uppercase text-text-muted">{label}</dt>
-      <dd className="mt-1 break-words">{children}</dd>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  children,
-  strong,
-}: {
-  label: string;
-  children: React.ReactNode;
-  strong?: boolean;
-}) {
-  return (
-    <div
-      className={`flex justify-between gap-3 ${strong ? 'border-t border-line pt-2 font-bold' : ''}`}
-    >
-      <dt className="text-text-muted">{label}</dt>
-      <dd className="tabular ltr-iso">{children}</dd>
-    </div>
   );
 }

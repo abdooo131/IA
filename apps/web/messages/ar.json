@@ -5341,7 +5341,10 @@
   },
   "apps": {
     "home": {
-      "groups": { "operations": "التشغيل", "shared": "الإدارات المشتركة" },
+      "groups": {
+        "operations": "التشغيل",
+        "shared": "الإدارات المشتركة"
+      },
       "title": "أهلاً {name}",
       "intro": "اختر تطبيقاً. زر الشبكة أعلى يسار كل تطبيق يعيدك إلى هنا.",
       "allApps": "كل التطبيقات",
@@ -5768,7 +5771,11 @@
   },
   "attendance": {
     "teamLabel": "الفريق",
-    "teams": { "all": "الكل", "shiply_now": "شيبلي ناو", "shiply": "شيبلي" },
+    "teams": {
+      "all": "الكل",
+      "shiply_now": "شيبلي ناو",
+      "shiply": "شيبلي"
+    },
     "title": "الحضور",
     "office": "المكتب",
     "locating": "بنحدد مكانك…",
@@ -6737,7 +6744,15 @@
       "code": "كود التسليم",
       "rating": "تقييم العميل",
       "stars": "{stars} من 5 نجوم",
-      "noRating": "لم يُقيَّم بعد"
+      "noRating": "لم يُقيَّم بعد",
+      "contact": "التواصل مع العميل",
+      "noCalls": "لا توجد مكالمات بعد",
+      "callsCount": "{n, plural, one {مكالمة واحدة من المندوب} two {مكالمتان من المندوب} few {# مكالمات من المندوب} other {# مكالمة من المندوب}}",
+      "confirmed": "تأكيد التسليم",
+      "notDelivered": "لم يُسلَّم بعد",
+      "attemptsLong": "{made} من {max} محاولات",
+      "comment": "تعليق العميل على التوصيل",
+      "noComment": "لا يوجد تعليق"
     },
     "consignee": {
       "title": "بيانات المستلم",
@@ -6757,7 +6772,13 @@
       "count": "{lines, plural, one {منتج واحد} two {منتجان} other {# منتجات}} · {units, plural, one {قطعة واحدة} two {قطعتان} other {# قطع}}",
       "ordered": "المطلوب {n}",
       "picked": "المجهز {n}",
-      "cancelled": "الملغى {n}"
+      "cancelled": "الملغى {n}",
+      "type": "نوع الشحنة",
+      "express": "توصيل خلال 60 دقيقة",
+      "items": "عدد القطع",
+      "description": "وصف المنتجات",
+      "images": "صور المنتجات",
+      "noImages": "لا توجد صور"
     },
     "additional": {
       "title": "تفاصيل إضافية",
@@ -6771,7 +6792,8 @@
       "notes": "ملاحظات التوصيل",
       "noNotes": "لا توجد ملاحظات من العميل",
       "tracking": "رابط التتبع",
-      "openTracking": "فتح صفحة التتبع"
+      "openTracking": "فتح صفحة التتبع",
+      "reference": "مرجع الطلب"
     },
     "notes": {
       "title": "ملاحظات الطلب",
@@ -6818,7 +6840,10 @@
         "paid": "دُفع في {number} · المرجع {reference}",
         "draft": "ضمن الدفعة {number} في انتظار الدفع",
         "next": "يصل إلى المحفظة مع الدفعة القادمة يوم {day}"
-      }
+      },
+      "totalFees": "إجمالي الرسوم",
+      "productValueBox": "قيمة المنتجات",
+      "paymentBox": "الدفع"
     },
     "tracking": {
       "path": "مسار الطلب",
@@ -6859,6 +6884,21 @@
       "cancel": "أُلغي بعد محاولة فاشلة",
       "hold_expired": "لم يُتخذ قرار في الوقت بعد المحاولة الفاشلة",
       "merchant_cancelled": "ألغاه التاجر"
+    },
+    "cycle": {
+      "title": "دورة التحويل",
+      "status": "التحويل",
+      "paid": "تم التحويل",
+      "unpaid": "لم يُحوَّل",
+      "draft": "قيد التجهيز",
+      "frequency": "مواعيد التحويل",
+      "payout": "التحويل",
+      "notYet": "بعد التسليم",
+      "schedules": {
+        "daily": "يوميًا",
+        "twice_weekly": "مرتين أسبوعيًا (الأحد والأربعاء)",
+        "weekly": "مرة أسبوعيًا (الأحد)"
+      }
     }
   },
   "contracts": {

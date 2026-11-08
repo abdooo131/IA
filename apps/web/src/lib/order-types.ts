@@ -154,6 +154,7 @@ export type OrderFeeKind =
 
 /** GET .../orders/:id/money: the order's fees from the ledger and where its money stands. */
 export interface OrderMoney {
+  payoutSchedule?: string;
   paymentMethod: 'cod' | 'prepaid';
   productValuePiastres: number;
   codAmountPiastres: number;

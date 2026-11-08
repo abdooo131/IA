@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import type { Prisma, Shipment } from '@shiplynow/db';
+import { type Prisma, type Shipment, payoutDueOn } from '@shiplynow/db';
+import { addDays, cairoDay } from '@shiplynow/shared';
 import {
   PARCEL_SIZES,
   codFee,
@@ -237,7 +238,40 @@ export class MerchantService {
       include: { events: { orderBy: { createdAt: 'asc' } } },
     });
     if (!s) throw notFound('Parcel');
-    return s;
+    return { ...s, ...(await this.payoutOf(s)) };
+  }
+
+  /**
+   * The payout that covers a closed parcel (paid or prepared), else the next day of the
+   * merchant's schedule after it closed, as on the 60 minute order page.
+   */
+  private async payoutOf(s: Shipment) {
+    const m = await this.prisma.merchant.findUniqueOrThrow({
+      where: { id: s.merchantId },
+      select: { payoutSchedule: true },
+    });
+    type Payout =
+      | { status: 'paid'; number: number; reference: string | null; paidAt: Date | null }
+      | { status: 'draft'; number: number }
+      | { status: 'next'; day: string }
+      | null;
+    let payout: Payout = null;
+    if (s.payoutId) {
+      const p = await this.prisma.payout.findUnique({ where: { id: s.payoutId } });
+      if (p?.status === 'paid')
+        payout = { status: 'paid', number: p.number, reference: p.reference, paidAt: p.paidAt };
+      else if (p) payout = { status: 'draft', number: p.number };
+    } else if (s.closedAt && ['DELIVERED', 'RETURNED'].includes(s.status)) {
+      const after = cairoDay(s.closedAt);
+      const today = cairoDay(new Date());
+      let day = addDays(after > today ? after : today, after >= today ? 1 : 0);
+      for (let i = 0; i < 7; i++) {
+        if (payoutDueOn(m.payoutSchedule, new Date(`${day}T12:00:00Z`).getUTCDay())) break;
+        day = addDays(day, 1);
+      }
+      payout = { status: 'next', day };
+    }
+    return { payout, payoutSchedule: m.payoutSchedule };
   }
 
   async cancel(merchantId: string, id: string, userId: string) {

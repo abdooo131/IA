@@ -5398,7 +5398,10 @@
   },
   "apps": {
     "home": {
-      "groups": { "operations": "Operations", "shared": "Shared departments" },
+      "groups": {
+        "operations": "Operations",
+        "shared": "Shared departments"
+      },
       "title": "Hello {name}",
       "intro": "Pick an app. The grid button at the top left of every app brings you back here.",
       "allApps": "All apps",
@@ -5825,7 +5828,11 @@
   },
   "attendance": {
     "teamLabel": "Team",
-    "teams": { "all": "Everyone", "shiply_now": "Shiply Now", "shiply": "Shiply" },
+    "teams": {
+      "all": "Everyone",
+      "shiply_now": "Shiply Now",
+      "shiply": "Shiply"
+    },
     "title": "Attendance",
     "office": "the office",
     "locating": "Finding your location…",
@@ -6794,7 +6801,15 @@
       "code": "Delivery code",
       "rating": "Customer rating",
       "stars": "{stars} of 5 stars",
-      "noRating": "Not rated yet"
+      "noRating": "Not rated yet",
+      "contact": "Contact with the customer",
+      "noCalls": "No calls yet",
+      "callsCount": "{n, plural, one {# call by the rider} other {# calls by the rider}}",
+      "confirmed": "Delivery confirmed",
+      "notDelivered": "Not delivered yet",
+      "attemptsLong": "{made} out of {max} attempts",
+      "comment": "Customer comment on the delivery",
+      "noComment": "No comment"
     },
     "consignee": {
       "title": "Consignee details",
@@ -6814,7 +6829,13 @@
       "count": "{lines, plural, one {# product} other {# products}} · {units, plural, one {# unit} other {# units}}",
       "ordered": "Ordered {n}",
       "picked": "Picked {n}",
-      "cancelled": "Cancelled {n}"
+      "cancelled": "Cancelled {n}",
+      "type": "Shipment type",
+      "express": "60 minute delivery",
+      "items": "Number of items",
+      "description": "Product description",
+      "images": "Product images",
+      "noImages": "No pictures"
     },
     "additional": {
       "title": "Additional details",
@@ -6828,7 +6849,8 @@
       "notes": "Delivery notes",
       "noNotes": "No notes from the customer",
       "tracking": "Tracking link",
-      "openTracking": "Open the tracking page"
+      "openTracking": "Open the tracking page",
+      "reference": "Order reference"
     },
     "notes": {
       "title": "Order notes",
@@ -6875,7 +6897,10 @@
         "paid": "Paid in {number} · reference {reference}",
         "draft": "In payout {number}, waiting to be paid",
         "next": "Lands in the wallet with the next payout on {day}"
-      }
+      },
+      "totalFees": "Total fees",
+      "productValueBox": "Product value",
+      "paymentBox": "Payment"
     },
     "tracking": {
       "path": "Order path",
@@ -6916,6 +6941,21 @@
       "cancel": "cancelled after a failed attempt",
       "hold_expired": "nobody decided in time after the failed attempt",
       "merchant_cancelled": "cancelled by the merchant"
+    },
+    "cycle": {
+      "title": "Payout cycle",
+      "status": "Payout",
+      "paid": "Paid",
+      "unpaid": "Unpaid",
+      "draft": "Prepared",
+      "frequency": "Payout frequency",
+      "payout": "Payout",
+      "notYet": "After delivery",
+      "schedules": {
+        "daily": "Every day",
+        "twice_weekly": "Twice a week (Sunday and Wednesday)",
+        "weekly": "Once a week (Sunday)"
+      }
     }
   },
   "contracts": {

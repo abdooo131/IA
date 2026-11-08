@@ -81,6 +81,8 @@ export type OrderFeeKind =
   | 'other';
 
 export interface OrderMoney {
+  /** The merchant's payout schedule (daily, twice_weekly, weekly) */
+  payoutSchedule: string;
   paymentMethod: 'cod' | 'prepaid';
   /** Value of the products still on the order (cancelled units left out) */
   productValuePiastres: number;
@@ -212,5 +214,6 @@ export async function getOrderMoney(
     duesPiastres: dues,
     netPiastres: (codCredited ?? 0) - dues,
     payout,
+    payoutSchedule: order.merchant.payoutSchedule,
   };
 }

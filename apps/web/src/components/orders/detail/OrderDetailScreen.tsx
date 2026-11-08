@@ -1,11 +1,11 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { StatusBar } from '@/components/workflow/StatusBar';
 import { apiSend } from '@/lib/api-client';
+import { OrderTabs } from '../page/OrderLayout';
 import { DetailsTab } from './DetailsTab';
 import { type MenuAction, OrderHeader } from './OrderHeader';
 import { TrackingTab } from './TrackingTab';
@@ -55,23 +55,6 @@ export function OrderDetailScreen({
   }
 
   const cancelledLines = order.items.filter((i) => i.cancelledQty > 0);
-  const tabLink = (value: 'details' | 'tracking') => (
-    <Link
-      key={value}
-      href={value === 'details' ? '?' : '?tab=tracking'}
-      scroll={false}
-      role="tab"
-      aria-selected={tab === value}
-      className={`-mb-px border-b-2 px-1 pb-3 text-body-sm font-bold ${
-        tab === value
-          ? 'border-primary text-link'
-          : 'border-transparent text-text-muted hover:text-text'
-      }`}
-    >
-      {t(`tabs.${value}`)}
-    </Link>
-  );
-
   return (
     <div className="mt-3 space-y-5">
       {created && (
@@ -140,10 +123,13 @@ export function OrderDetailScreen({
         </p>
       )}
 
-      <nav role="tablist" className="flex gap-6 border-b border-line print:hidden">
-        {tabLink('details')}
-        {tabLink('tracking')}
-      </nav>
+      <OrderTabs
+        tabs={(['details', 'tracking'] as const).map((value) => ({
+          href: value === 'details' ? '?' : '?tab=tracking',
+          label: t(`tabs.${value}`),
+          active: tab === value,
+        }))}
+      />
 
       {tab === 'details' ? (
         <DetailsTab props={props} onNotice={setNotice} />

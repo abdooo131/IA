@@ -2,9 +2,8 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { Icon } from '@/components/Icon';
 import { localized } from '@/lib/admin-types';
-import { formatCairoDateTime, formatCairoTime, formatEgp } from '@/lib/format';
+import { formatCairoDateTime, formatCairoTime } from '@/lib/format';
 import {
   attemptsMade,
   callLog,
@@ -14,7 +13,16 @@ import {
 } from '@/lib/order-detail';
 import { title } from '@/lib/store-types';
 import { FailedAttemptPanel } from '../FailedAttemptPanel';
-import { Card, Pill, Row } from './Card';
+import {
+  type BannerTone,
+  Field,
+  Fields,
+  OrderColumns,
+  Section,
+  Stars,
+  StateBanner,
+  Tag,
+} from '../page/OrderLayout';
 import { CollectionCard } from './CollectionCard';
 import { NotesCard } from './NotesCard';
 import type { OrderScreenProps } from './types';
@@ -26,16 +34,7 @@ const RISK_TONE = {
   high: 'danger',
 } as const;
 
-function Stars({ stars }: { stars: number }) {
-  return (
-    <span className="ltr-iso text-body tracking-wide" aria-hidden>
-      <span className="text-status-needs-action">{'★'.repeat(stars)}</span>
-      <span className="text-line-strong">{'★'.repeat(Math.max(0, 5 - stars))}</span>
-    </span>
-  );
-}
-
-/** Where the order is, in plain words (blue), and what comes next or what went wrong (yellow). */
+/** Where the order is, in plain words, and what comes next, in the colour of its state. */
 function Banners({ props }: { props: OrderScreenProps }) {
   const { order, viewer } = props;
   const t = useTranslations('orderDetail.banner');
@@ -87,110 +86,99 @@ function Banners({ props }: { props: OrderScreenProps }) {
     next = t('shipYourself');
   }
 
-  return (
-    <div className="space-y-2">
-      <p
-        role="status"
-        className="flex items-start gap-2 rounded-lg border-s-4 border-primary bg-selected-bg px-4 py-3 text-body-sm text-text"
-      >
-        <Icon name="tracking" size={18} className="mt-0.5 text-link" />
-        <span>{info}</span>
-      </p>
-      {next && (
-        <p className="flex items-start gap-2 rounded-lg border-s-4 border-status-needs-action bg-[color-mix(in_srgb,var(--shiply-status-needs-action)_10%,transparent)] px-4 py-3 text-body-sm text-text">
-          <Icon name="schedule" size={18} className="mt-0.5 text-status-needs-action" />
-          <span>{next}</span>
-        </p>
-      )}
-    </div>
-  );
+  const tone: BannerTone =
+    order.status === 'delivered'
+      ? 'success'
+      : ['cancelled', 'failed', 'moved_to_standard'].includes(order.status)
+        ? 'danger'
+        : order.status === 'attempt_failed'
+          ? 'warning'
+          : 'info';
+  return <StateBanner tone={tone} text={info} next={next} />;
 }
 
-function OperationCard({ props }: { props: OrderScreenProps }) {
+function OperationSection({ props }: { props: OrderScreenProps }) {
   const { order } = props;
-  const t = useTranslations('orderDetail');
+  const t = useTranslations('orderDetail.operation');
   const locale = useLocale();
   const calls = callLog(order);
   const outcome = promiseOutcome(order);
   return (
-    <Card title={t('operation.title')} icon="courier">
-      <dl>
-        <Row label={t('operation.rider')}>
+    <Section title={t('title')}>
+      <Fields>
+        <Field
+          label={t('contact')}
+          end={calls[0] ? formatCairoDateTime(calls[0].at, locale) : undefined}
+        >
+          {calls.length > 0 ? (
+            <Tag tone="delivered">{t('callsCount', { n: calls.length })}</Tag>
+          ) : (
+            <span className="text-text-muted">{t('noCalls')}</span>
+          )}
+        </Field>
+        <Field label={t('confirmed')}>
+          {order.deliveredAt ? (
+            <span className="ltr-iso">{formatCairoDateTime(order.deliveredAt, locale)}</span>
+          ) : (
+            <span className="text-text-muted">{t('notDelivered')}</span>
+          )}
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('attempts')}>
+          {t('attemptsLong', { made: attemptsMade(order), max: order.maxAttempts })}
+        </Field>
+        <Field label={t('expected')}>
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span className="ltr-iso">
+              {order.slaDueAt ? formatCairoDateTime(order.slaDueAt, locale) : '–'}
+            </span>
+            {outcome && (
+              <Tag tone={outcome === 'on_time' ? 'delivered' : 'needs-action'}>{t(outcome)}</Tag>
+            )}
+          </span>
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('rider')}>
           {order.rider ? (
             <>
               {order.rider.name}{' '}
               <span className="ltr-iso text-text-muted">({order.rider.badge})</span>
             </>
           ) : (
-            <span className="text-text-muted">{t('none')}</span>
+            '–'
           )}
-        </Row>
-        <Row label={t('operation.calls')}>
-          <span className="ltr-iso">{calls.length}</span>
-          {calls[0] && (
-            <span className="text-text-muted">
-              {' · '}
-              {t.rich('operation.lastCall', {
-                time: formatCairoDateTime(calls[0].at, locale),
-                t: (chunks) => <span className="ltr-iso whitespace-nowrap">{chunks}</span>,
-              })}
-            </span>
-          )}
-        </Row>
-        <Row label={t('operation.attempts')}>
-          {t('operation.attemptsOf', { made: attemptsMade(order), max: order.maxAttempts })}
-        </Row>
-        <Row label={t('operation.expected')}>
-          <span className="inline-flex flex-wrap items-center justify-end gap-2">
-            <span className="ltr-iso whitespace-nowrap">
-              {order.slaDueAt ? formatCairoDateTime(order.slaDueAt, locale) : t('none')}
-            </span>
-            {outcome && (
-              <Pill tone={outcome === 'on_time' ? 'delivered' : 'needs-action'}>
-                {t(`operation.${outcome}`)}
-              </Pill>
-            )}
-          </span>
-        </Row>
-        {order.deliveredAt && (
-          <Row label={t('operation.deliveredAt')}>
-            <span className="ltr-iso whitespace-nowrap">
-              {formatCairoDateTime(order.deliveredAt, locale)}
-            </span>
-          </Row>
-        )}
+        </Field>
         {order.deliveryOtp && (
-          <Row label={t('operation.code')}>
+          <Field label={t('code')}>
             <span className="ltr-iso font-bold tracking-widest">{order.deliveryOtp}</span>
-          </Row>
+          </Field>
         )}
-        <Row label={t('operation.rating')}>
+      </Fields>
+      <Fields>
+        <Field label={t('rating')}>
           {order.rating ? (
-            <span className="inline-flex flex-col items-end">
-              <span className="inline-flex items-center gap-1">
-                <Stars stars={order.rating.stars} />
-                <span className="sr-only">
-                  {t('operation.stars', { stars: order.rating.stars })}
-                </span>
-              </span>
-              {order.rating.comment && (
-                <span className="mt-0.5 text-caption text-text-muted">
-                  “{order.rating.comment}”
-                </span>
-              )}
-            </span>
+            <Stars stars={order.rating.stars} label={t('stars', { stars: order.rating.stars })} />
           ) : (
-            <span className="text-text-muted">{t('operation.noRating')}</span>
+            <span className="text-text-muted">{t('noRating')}</span>
           )}
-        </Row>
-      </dl>
-    </Card>
+        </Field>
+        <Field label={t('comment')}>
+          {order.rating?.comment ? (
+            `“${order.rating.comment}”`
+          ) : (
+            <span className="text-text-muted">{t('noComment')}</span>
+          )}
+        </Field>
+      </Fields>
+    </Section>
   );
 }
 
-function ConsigneeCard({ props }: { props: OrderScreenProps }) {
+function ConsigneeSection({ props }: { props: OrderScreenProps }) {
   const { order, viewer, customer } = props;
-  const t = useTranslations('orderDetail');
+  const t = useTranslations('orderDetail.consignee');
   const tc = useTranslations('customers');
   const locale = useLocale();
   const area = order.area
@@ -199,24 +187,21 @@ function ConsigneeCard({ props }: { props: OrderScreenProps }) {
         .join(' · ')
     : order.zone
       ? localized(order.zone, locale)
-      : null;
+      : '–';
   return (
-    <Card
-      title={t('consignee.title')}
-      icon="customers"
-      action={
-        customer && (
-          <Pill tone={RISK_TONE[customer.risk.level]}>
-            {tc(`riskLevels.${customer.risk.level}`)}
-          </Pill>
-        )
-      }
-    >
-      <dl>
-        <Row label={t('consignee.name')} strong>
-          {order.customerName}
-        </Row>
-        <Row label={t('consignee.phone')}>
+    <Section title={t('title')}>
+      <Fields>
+        <Field label={t('name')}>
+          <span className="inline-flex flex-wrap items-center gap-2">
+            <span className="font-semibold">{order.customerName}</span>
+            {customer && (
+              <Tag tone={RISK_TONE[customer.risk.level]}>
+                {tc(`riskLevels.${customer.risk.level}`)}
+              </Tag>
+            )}
+          </span>
+        </Field>
+        <Field label={t('phone')}>
           {viewer === 'admin' ? (
             <a href={`tel:${order.customerPhone}`} className="ltr-iso font-bold text-link">
               {order.customerPhone}
@@ -225,134 +210,131 @@ function ConsigneeCard({ props }: { props: OrderScreenProps }) {
             <span className="ltr-iso">{order.customerPhone}</span>
           )}
           {order.phoneFlagged && (
-            <span className="block text-caption text-status-needs-action">
-              {t('consignee.phoneFlagged')}
-            </span>
+            <span className="block text-caption text-status-needs-action">{t('phoneFlagged')}</span>
           )}
-        </Row>
-        <Row label={t('consignee.address')}>
-          <span className="break-words">{order.addressText}</span>
-        </Row>
-        <Row label={t('consignee.area')}>
-          {area ?? <span className="text-text-muted">{t('none')}</span>}
-        </Row>
-        <Row label={t('consignee.store')}>
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('address')} wide>
+          {order.addressText}
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('area')}>{area}</Field>
+        <Field label={t('store')}>
           {localized(order.darkStore, locale)}{' '}
           <span className="ltr-iso text-text-muted">({order.darkStore.code})</span>
-        </Row>
-        {order.zone && order.area && (
-          <Row label={t('consignee.zone')}>{localized(order.zone, locale)}</Row>
-        )}
-      </dl>
+        </Field>
+      </Fields>
       {customer && (
-        <p className="mt-3 rounded-lg bg-surface-raised px-3 py-2 text-caption">
-          <span className="font-bold">{t('consignee.insight')}</span>{' '}
-          {customer.risk.attempts > 0
-            ? t('consignee.insightLine', {
-                pct: 100 - customer.risk.pct,
-                attempts: customer.risk.attempts,
-                failed: customer.risk.failed,
-              })
-            : t('consignee.insightNone')}
-        </p>
+        <Fields>
+          <Field label={t('insight')} wide>
+            {customer.risk.attempts > 0
+              ? t('insightLine', {
+                  pct: 100 - customer.risk.pct,
+                  attempts: customer.risk.attempts,
+                  failed: customer.risk.failed,
+                })
+              : t('insightNone')}
+          </Field>
+        </Fields>
       )}
-    </Card>
+    </Section>
   );
 }
 
-function ShipmentCard({ props }: { props: OrderScreenProps }) {
+function ShipmentSection({ props }: { props: OrderScreenProps }) {
   const { order } = props;
   const t = useTranslations('orderDetail.shipment');
   const locale = useLocale();
-  const units = order.items.reduce((s, i) => s + i.quantity - i.cancelledQty, 0);
+  const live = order.items.filter((i) => i.quantity - i.cancelledQty > 0);
+  const units = live.reduce((s, i) => s + i.quantity - i.cancelledQty, 0);
+  const pictures = order.items.filter((i) => i.imageUrl);
   return (
-    <Card
-      title={t('title')}
-      icon="packaging"
-      action={
-        <span className="text-caption text-text-muted">
-          {t('count', { lines: order.items.length, units })}
-        </span>
-      }
-    >
-      <ul className="divide-y divide-line">
-        {order.items.map((i) => (
-          <li key={i.skuId} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-            {i.imageUrl ? (
-              // Shopify's own picture of the product (cdn.shopify.com).
-              <img
-                src={i.imageUrl}
-                alt=""
-                loading="lazy"
-                className="h-14 w-14 shrink-0 rounded-md border border-line bg-surface-raised object-cover"
-              />
-            ) : (
-              <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-md bg-surface-raised text-text-muted">
-                <Icon name="products" size={24} />
+    <Section title={t('title')}>
+      <Fields>
+        <Field label={t('type')}>{t('express')}</Field>
+        <Field label={t('items')}>
+          <span className="ltr-iso">{units}</span>
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('description')} wide>
+          {live.map((i) => `[${i.quantity - i.cancelledQty}] × ${title(i, locale)}`).join(', ')}
+          {order.items
+            .filter((i) => i.cancelledQty > 0)
+            .map((i) => (
+              <span key={i.skuId} className="block text-caption font-bold text-danger">
+                {title(i, locale)}: {t('cancelled', { n: i.cancelledQty })}
               </span>
-            )}
-            <div className="min-w-0 flex-1">
-              <p className="text-body-sm font-bold">{title(i, locale)}</p>
-              <p className="ltr-iso text-caption text-text-muted">{i.sku}</p>
-              <p className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-caption">
-                <span>{t('ordered', { n: i.quantity })}</span>
-                <span>{t('picked', { n: i.pickedQty })}</span>
-                {i.cancelledQty > 0 && (
-                  <span className="font-bold text-danger">
-                    {t('cancelled', { n: i.cancelledQty })}
-                  </span>
-                )}
-              </p>
-            </div>
-            <p className="ltr-iso shrink-0 text-body-sm font-bold">
-              {formatEgp(i.unitPricePiastres * (i.quantity - i.cancelledQty))}
-            </p>
-          </li>
-        ))}
-      </ul>
-    </Card>
+            ))}
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('images')} wide>
+          {pictures.length === 0 ? (
+            <span className="text-text-muted">{t('noImages')}</span>
+          ) : (
+            <span className="flex flex-wrap gap-2">
+              {pictures.map((i) => (
+                // Shopify's own picture of the product (cdn.shopify.com).
+                <img
+                  key={i.skuId}
+                  src={i.imageUrl ?? ''}
+                  alt={title(i, locale)}
+                  loading="lazy"
+                  className="h-14 w-14 rounded-md border border-line bg-surface-raised object-cover"
+                />
+              ))}
+            </span>
+          )}
+        </Field>
+      </Fields>
+    </Section>
   );
 }
 
-function AdditionalCard({ props }: { props: OrderScreenProps }) {
+function AdditionalSection({ props }: { props: OrderScreenProps }) {
   const { order, viewer } = props;
   const t = useTranslations('orderDetail.additional');
   const locale = useLocale();
   const ref = shopifyRef(order.shopifyOrderId);
   return (
-    <Card title={t('title')} icon="invoice">
-      <dl>
-        <Row label={t('source')}>
+    <Section title={t('title')}>
+      <Fields>
+        <Field label={t('returnTo')}>{localized(order.darkStore, locale)}</Field>
+        <Field label={t('reference')}>
           {t(`sources.${order.source}`)}
-          {ref && <span className="ltr-iso text-text-muted"> · #{ref}</span>}
-        </Row>
-        {viewer === 'admin' && <Row label={t('merchant')}>{order.merchant.name}</Row>}
-        <Row label={t('returnTo')}>{localized(order.darkStore, locale)}</Row>
-        <Row label={t('notes')}>
-          {order.customerNote ? (
-            <span className="break-words">{order.customerNote}</span>
-          ) : (
-            <span className="text-text-muted">{t('noNotes')}</span>
+          {ref && <span className="ltr-iso"> #{ref}</span>}
+        </Field>
+      </Fields>
+      <Fields>
+        <Field label={t('notes')} wide>
+          {order.customerNote || <span className="text-text-muted">{t('noNotes')}</span>}
+        </Field>
+      </Fields>
+      {(viewer === 'admin' || order.trackingToken) && (
+        <Fields>
+          {viewer === 'admin' && <Field label={t('merchant')}>{order.merchant.name}</Field>}
+          {order.trackingToken && (
+            <Field label={t('tracking')}>
+              <a
+                href={`/t/${order.trackingToken}`}
+                target="_blank"
+                rel="noreferrer"
+                className="font-bold text-link underline"
+              >
+                {t('openTracking')}
+              </a>
+            </Field>
           )}
-        </Row>
-        {order.trackingToken && (
-          <Row label={t('tracking')}>
-            <a
-              href={`/t/${order.trackingToken}`}
-              target="_blank"
-              rel="noreferrer"
-              className="font-bold text-link underline"
-            >
-              {t('openTracking')}
-            </a>
-          </Row>
-        )}
-      </dl>
-    </Card>
+        </Fields>
+      )}
+    </Section>
   );
 }
 
-/** The details tab: banners, the four cards on the wide side, notes and money on the narrow. */
+/** The details tab: one banner, the four sections on the wide side, notes and money beside. */
 export function DetailsTab({
   props,
   onNotice,
@@ -364,30 +346,34 @@ export function DetailsTab({
   return (
     <div className="space-y-4">
       <Banners props={props} />
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {props.order.status === 'attempt_failed' && (
-            <div id="decision">
-              <FailedAttemptPanel
-                order={props.order}
-                decisionPath={`${props.apiPath}/decision`}
-                onDone={(text) => {
-                  onNotice(text);
-                  router.refresh();
-                }}
-              />
-            </div>
-          )}
-          <OperationCard props={props} />
-          <ConsigneeCard props={props} />
-          <ShipmentCard props={props} />
-          <AdditionalCard props={props} />
-        </div>
-        <div className="space-y-4">
-          <NotesCard props={props} />
-          <CollectionCard props={props} />
-        </div>
-      </div>
+      <OrderColumns
+        main={
+          <>
+            {props.order.status === 'attempt_failed' && (
+              <div id="decision">
+                <FailedAttemptPanel
+                  order={props.order}
+                  decisionPath={`${props.apiPath}/decision`}
+                  onDone={(text) => {
+                    onNotice(text);
+                    router.refresh();
+                  }}
+                />
+              </div>
+            )}
+            <OperationSection props={props} />
+            <ConsigneeSection props={props} />
+            <ShipmentSection props={props} />
+            <AdditionalSection props={props} />
+          </>
+        }
+        side={
+          <>
+            <NotesCard props={props} />
+            <CollectionCard props={props} />
+          </>
+        }
+      />
     </div>
   );
 }

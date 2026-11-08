@@ -1,6 +1,7 @@
 // Arabic for the interface. English text is the key (see lib/i18n.tsx).
 import { AR_ADMIN } from './ar-admin';
 import { AR_CLAIMS } from './ar-claims';
+import { AR_ORDER_PAGE } from './ar-order-page';
 import { AR_COMMON } from './ar-common';
 import { AR_MERCHANT } from './ar-merchant';
 import { AR_BOOKS } from './ar-books';
@@ -16,6 +17,7 @@ import { AR_OPS } from './ar-ops';
 import { AR_WORKFORCE } from './ar-workforce';
 
 export const AR: Record<string, string> = {
+  ...AR_ORDER_PAGE,
   ...AR_CLAIMS,
   ...AR_ROUTING,
   ...AR_SHOPIFY,
