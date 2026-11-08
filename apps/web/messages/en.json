@@ -24,6 +24,9 @@
     "notifications": "Notifications"
   },
   "roles": {
+    "hub_staff": "Hub staff",
+    "courier": "Courier",
+    "agent": "Delivery agent",
     "admin": "Admin",
     "merchant": "Merchant",
     "store_staff": "Store staff",
@@ -740,6 +743,7 @@
       }
     },
     "users": {
+      "openField": "Edit in field accounts",
       "title": "Users",
       "new": "Add user",
       "search": "Name, email or phone",
@@ -5391,6 +5395,7 @@
   },
   "apps": {
     "home": {
+      "groups": { "operations": "Operations", "shared": "Shared departments" },
       "title": "Hello {name}",
       "intro": "Pick an app. The grid button at the top left of every app brings you back here.",
       "allApps": "All apps",
@@ -5399,7 +5404,7 @@
     },
     "settingsTitle": "{app} settings",
     "names": {
-      "operations": "Operations",
+      "operations": "Shiply Now",
       "inventory": "Inventory",
       "merchants": "Merchants",
       "customers": "Customers",
@@ -5412,19 +5417,22 @@
       "shiply": "Shiply"
     },
     "descriptions": {
-      "operations": "Live stores, orders and alerts",
+      "operations": "60 minute delivery: orders, stock and dark stores",
       "inventory": "Stock, receiving, transfers and returns",
-      "merchants": "Merchants, products and Shopify",
+      "merchants": "Merchants of both services, packaging shop, customers and Shopify",
       "customers": "Profiles, places and market data",
       "accounting": "Money, payouts, taxes and reports",
-      "system": "Users, audit log and tickets",
+      "system": "Users and access, audit log and general settings",
       "store": "Pick, pack, receive and hand to riders",
       "parcels": "Next day parcels: hubs, couriers, agents and merchants",
       "hr": "Employee files, attendance and shifts",
       "sales": "Leads, pipeline and follow ups",
-      "shiply": "Next day parcels: hubs, couriers, agents and merchants"
+      "shiply": "Next day parcels: hubs, couriers and agents"
     },
     "menus": {
+      "general": "General",
+      "results": "Results",
+      "team": "Team",
       "packagingShop": "Packaging shop",
       "dashboard": "Dashboard",
       "orders": "Orders",
@@ -5475,6 +5483,13 @@
       "shiplyMoney": "Shiply"
     },
     "pages": {
+      "generalSettings": "General settings",
+      "customerSettings": "Customer settings",
+      "merchantSettings": "Merchant settings",
+      "nextDaySignups": "Next day sign ups",
+      "shiplySettings": "Shiply settings",
+      "stockSettings": "Stock settings",
+      "deliverySettings": "Delivery settings",
       "packagingOrders": "Packaging orders",
       "packagingProducts": "Packaging products",
       "overview": "Overview",
@@ -5600,6 +5615,18 @@
       "agentAdvances": "Agent advances"
     },
     "hints": {
+      "packagingOrders": "Next day merchants buying packaging",
+      "agentSettlements": "Monthly bills from courier agents",
+      "hubSafes": "Shiply hubs and facilities",
+      "courierWallets": "Shiply couriers",
+      "fieldAccounts": "Couriers, hub staff and agents",
+      "generalSettings": "Tickets and general rules",
+      "customerSettings": "Segments and risk thresholds",
+      "merchantSettings": "Standard fees and sign up rules",
+      "nextDaySignups": "Merchants who asked to ship next day",
+      "shiplySettings": "Next day rules: attempts, cut off, fees",
+      "stockSettings": "Buffers, low stock and refill",
+      "deliverySettings": "SLA minutes, capacity, delivery attempts",
       "organisation": "Departments, job positions and grades",
       "attendanceSetup": "Shifts and official holidays",
       "leaveTypes": "Kinds of leave, balances and rules",

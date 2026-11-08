@@ -2,6 +2,7 @@
 
 import { isTeamRole, JOB_ROLE_TEMPLATES, type JobRole, type JobRoleLabel } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { localized } from '@/lib/admin-types';
@@ -15,8 +16,12 @@ import {
   useAccessError,
 } from './AccessEditor';
 
-type Role = 'admin' | 'merchant' | 'store_staff' | 'rider' | 'finance';
+type Role =
+  'admin' | 'merchant' | 'store_staff' | 'rider' | 'finance' | 'hub_staff' | 'courier' | 'agent';
 const ROLES: Role[] = ['admin', 'finance', 'store_staff', 'rider', 'merchant'];
+
+/** Shiply's field accounts are edited on their own page (team, hub, agent and approval). */
+const FIELD_ROLES: readonly Role[] = ['hub_staff', 'courier', 'agent'];
 
 export interface AdminUser {
   id: string;
@@ -338,13 +343,19 @@ export function UsersManager({
                 >
                   {u.isActive ? t('active') : t('inactive')}
                 </span>
-                <button
-                  type="button"
-                  className={secondary}
-                  onClick={() => setEditing(editing === u.id ? null : u.id)}
-                >
-                  {t('edit')}
-                </button>
+                {FIELD_ROLES.includes(u.role) ? (
+                  <Link href="/parcels/admin/users" className={secondary}>
+                    {t('openField')}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    className={secondary}
+                    onClick={() => setEditing(editing === u.id ? null : u.id)}
+                  >
+                    {t('edit')}
+                  </button>
+                )}
               </div>
             </div>
             {editing === u.id && (

@@ -66,6 +66,17 @@ Their ids switch to Shiply Now's style (cuid).
 2. **CostCenter**: each dark store, each sorting facility and hub, each head office team.
 3. **LedgerLine** gains companyId and costCenterId. Every posting states both.
 
+## One structure (owner, 2026-11-08)
+
+The home screen has two groups. Operations: Shiply Now (orders, stock, returns, control,
+configuration) and Shiply (parcels, team, control, configuration), each run by its own team, plus
+the store screens. Shared departments: Merchants (one list for both services; next day sign ups,
+the packaging shop and customers are menus), Sales, Accounting (both companies; courier wallets,
+hub safes and agent bills sit beside rider wallets, store boxes and supplier bills), HR (everyone)
+and Settings (users and access, Shiply's field accounts, audit, general settings). Every address
+is kept; only the menu a page sits in changed. The network's own merchant list forwards to
+Merchants (next day setup is the merchant's Next day tab, prices are in the contract).
+
 ## Order of work
 
 1. Done: Shiply Now brought into this branch; both run side by side.

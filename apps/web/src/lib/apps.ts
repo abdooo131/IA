@@ -36,8 +36,10 @@ export interface AppDef {
   icon: IconName;
   /** The tile's color, from the brand v2 palette; AppTileIcon picks white or Navy for the icon. */
   color: string;
-  /** The access app behind it: the tile shows from view (settings: manage). */
+  /** The access app behind it: pages need view on it unless they name another app. */
   access: AccessApp;
+  /** Where the tile sits on the home screen: an operation of one company or a shared department. */
+  group: 'operations' | 'shared';
   menus: AppMenu[];
 }
 
@@ -51,10 +53,15 @@ export const SETTINGS_APPS = [
   'sales',
   'system',
 ] as const;
-/** The apps whose settings live in Settings (/admin/settings/<app>). */
+/** The settings pages (/admin/settings/<key>); each sits in its app's Configuration menu. */
 export type SettingsAppId = (typeof SETTINGS_APPS)[number];
-/** Every app on the home screen: Shiply, the parcel network, keeps its settings in its own menu. */
-export type AppId = SettingsAppId | 'shiply';
+/**
+ * The home screen (docs/MERGE.md "One structure"): two operations, Shiply Now and Shiply, each
+ * with the same menus (Dashboard, the work, Team, Control, Configuration), then the departments
+ * both companies share. A tile shows when the person may open at least one of its pages.
+ */
+export type AppId =
+  'operations' | 'shiply' | 'merchants' | 'sales' | 'accounting' | 'hr' | 'system';
 
 /** Changing settings needs settings manage, so their pages are shown only then. */
 const settings = (app: SettingsAppId): AppPage => ({
@@ -62,74 +69,178 @@ const settings = (app: SettingsAppId): AppPage => ({
   label: 'settings',
   need: { app: 'settings', level: 'manage' },
 });
+const named = (app: SettingsAppId, label: string): AppPage => ({ ...settings(app), label });
 
 export const APPS: AppDef[] = [
   {
+    // Shiply Now: 60 minute delivery from dark stores. Its stock pages need the Inventory level.
     id: 'operations',
     icon: 'orders',
     color: '#1D4ED8',
     access: 'operations',
+    group: 'operations',
     menus: [
       { label: 'dashboard', pages: [{ href: '/admin', label: 'overview', exact: true }] },
       { label: 'orders', pages: [{ href: '/admin/orders', label: 'orders' }] },
-      { label: 'alerts', pages: [{ href: '/admin/alerts', label: 'alerts' }] },
+      {
+        label: 'stock',
+        pages: [
+          { href: '/admin/stock', label: 'stockLevels', need: { app: 'inventory' } },
+          { href: '/admin/shipments', label: 'shipments', need: { app: 'inventory' } },
+          { href: '/admin/transfers', label: 'transfers', need: { app: 'inventory' } },
+          { href: '/admin/counts', label: 'counts', need: { app: 'inventory' } },
+          { href: '/admin/packaging', label: 'packaging', need: { app: 'inventory' } },
+        ],
+      },
+      {
+        label: 'returns',
+        pages: [
+          { href: '/admin/returns', label: 'returnsToMerchants', need: { app: 'inventory' } },
+          { href: '/admin/damage', label: 'damage', need: { app: 'inventory' } },
+        ],
+      },
+      { label: 'control', pages: [{ href: '/admin/alerts', label: 'alerts' }] },
       {
         label: 'configuration',
         pages: [
           { href: '/admin/stores', label: 'stores' },
           { href: '/admin/zones', label: 'zones' },
           { href: '/admin/addresses', label: 'addresses' },
-          settings('operations'),
+          named('operations', 'deliverySettings'),
+          named('inventory', 'stockSettings'),
         ],
       },
     ],
   },
   {
-    id: 'inventory',
-    icon: 'inventory',
+    // Shiply: next day parcels through the sorting facilities, its own team and floor.
+    id: 'shiply',
+    icon: 'courier',
     color: '#0F766E',
-    access: 'inventory',
+    access: 'shiply',
+    group: 'operations',
     menus: [
-      { label: 'stock', pages: [{ href: '/admin/stock', label: 'stockLevels' }] },
-      { label: 'receiving', pages: [{ href: '/admin/shipments', label: 'shipments' }] },
-      { label: 'transfers', pages: [{ href: '/admin/transfers', label: 'transfers' }] },
+      { label: 'dashboard', pages: [{ href: '/parcels/admin', label: 'overview', exact: true }] },
+      { label: 'parcels', pages: [{ href: '/parcels/admin/shipments', label: 'parcels' }] },
       {
-        label: 'returns',
+        label: 'team',
         pages: [
-          { href: '/admin/returns', label: 'returnsToMerchants' },
-          { href: '/admin/damage', label: 'damage' },
+          { href: '/parcels/admin/live', label: 'couriersLive' },
+          { href: '/parcels/admin/agents', label: 'agents' },
+          { href: '/parcels/admin/attendance', label: 'attendance' },
+          { href: '/parcels/admin/vehicle-requests', label: 'vehicleRequests' },
         ],
       },
-      { label: 'counts', pages: [{ href: '/admin/counts', label: 'counts' }] },
-      { label: 'packaging', pages: [{ href: '/admin/packaging', label: 'packaging' }] },
-      { label: 'configuration', pages: [settings('inventory')] },
+      {
+        label: 'control',
+        pages: [
+          { href: '/parcels/admin/alerts', label: 'alerts' },
+          { href: '/parcels/admin/attempts', label: 'failedAttempts' },
+          { href: '/parcels/admin/qc', label: 'qualityTickets' },
+          { href: '/parcels/admin/lost', label: 'lostDamaged' },
+        ],
+      },
+      {
+        label: 'configuration',
+        pages: [
+          { href: '/parcels/admin/network', label: 'network' },
+          { href: '/parcels/admin/price-tiers', label: 'priceTiers' },
+          { href: '/parcels/admin/messages', label: 'messages' },
+          { href: '/parcels/admin/settings', label: 'shiplySettings' },
+        ],
+      },
     ],
   },
   {
+    // One merchant list for both services; the packaging shop and next day sign ups need Shiply.
     id: 'merchants',
     icon: 'store',
     color: '#B45309',
     access: 'merchants',
+    group: 'shared',
     menus: [
-      { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
+      {
+        label: 'merchants',
+        pages: [
+          { href: '/admin/merchants', label: 'merchants' },
+          { href: '/parcels/admin/signups', label: 'nextDaySignups', need: { app: 'shiply' } },
+        ],
+      },
       { label: 'products', pages: [{ href: '/admin/products', label: 'products' }] },
+      {
+        label: 'packagingShop',
+        pages: [
+          { href: '/parcels/admin/shop/orders', label: 'packagingOrders', need: { app: 'shiply' } },
+          {
+            href: '/parcels/admin/shop/products',
+            label: 'packagingProducts',
+            need: { app: 'shiply' },
+          },
+          {
+            href: '/parcels/admin/shop/purchase-orders',
+            label: 'purchaseOrders',
+            need: { app: 'shiply' },
+          },
+        ],
+      },
+      {
+        label: 'customers',
+        pages: [
+          {
+            href: '/admin/customers',
+            label: 'profiles',
+            need: { app: 'customers', customerData: true },
+          },
+          { href: '/admin/customers/places', label: 'places', need: { app: 'customers' } },
+          { href: '/admin/data', label: 'marketData', need: { app: 'customers' } },
+        ],
+      },
       { label: 'shopify', pages: [{ href: '/admin/shopify', label: 'shopifyStores' }] },
-      { label: 'configuration', pages: [settings('merchants')] },
+      {
+        label: 'configuration',
+        pages: [named('merchants', 'merchantSettings'), named('customers', 'customerSettings')],
+      },
     ],
   },
   {
-    id: 'customers',
-    icon: 'customers',
+    // Sales CRM (docs/SALES.md): view reads, use works deals, manage assigns and configures.
+    id: 'sales',
+    icon: 'analytics',
     color: '#7C3AED',
-    access: 'customers',
+    access: 'sales',
+    group: 'shared',
     menus: [
       {
-        label: 'customers',
-        pages: [{ href: '/admin/customers', label: 'profiles', need: { customerData: true } }],
+        label: 'pipeline',
+        pages: [
+          { href: '/admin/sales/pipeline', label: 'pipelineBoard' },
+          { href: '/admin/sales/deals', label: 'pipelineList' },
+          { href: '/admin/sales/my-day', label: 'myDay' },
+        ],
       },
-      { label: 'places', pages: [{ href: '/admin/customers/places', label: 'places' }] },
-      { label: 'marketData', pages: [{ href: '/admin/data', label: 'marketData' }] },
-      { label: 'configuration', pages: [settings('customers')] },
+      {
+        label: 'leads',
+        pages: [
+          { href: '/admin/sales/leads', label: 'leads' },
+          { href: '/admin/sales/companies', label: 'companies' },
+        ],
+      },
+      { label: 'proposals', pages: [{ href: '/admin/sales/proposals', label: 'proposals' }] },
+      {
+        label: 'results',
+        pages: [
+          { href: '/admin/sales/dashboard', label: 'salesDashboard' },
+          { href: '/admin/sales/targets', label: 'targets', need: { level: 'manage' } },
+          { href: '/admin/sales/commission', label: 'commission' },
+        ],
+      },
+      {
+        label: 'configuration',
+        pages: [
+          { href: '/admin/sales/lost-reasons', label: 'lostReasons', need: { level: 'manage' } },
+          settings('sales'),
+        ],
+      },
     ],
   },
   {
@@ -137,8 +248,9 @@ export const APPS: AppDef[] = [
     icon: 'wallet',
     color: '#15803D',
     access: 'accounting',
-    // Accounting UX phase A: menus by job (what comes in, what goes out, cash and bank,
-    // reports, month end, setup); every page keeps its address.
+    group: 'shared',
+    // Menus by job (what comes in, what goes out, cash and bank, reports, month end, setup) for
+    // both companies; Shiply's courier wallets, hub safes and agents sit beside their twins.
     menus: [
       {
         label: 'dashboard',
@@ -163,10 +275,13 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance/bills', label: 'bills' },
           { href: '/finance/purchase-orders', label: 'purchaseOrders' },
+          { href: '/parcels/admin/money/agents', label: 'agentSettlements' },
+          { href: '/parcels/admin/money/advances', label: 'agentAdvances' },
           { href: '/finance/movements', label: 'movements' },
           { href: '/finance/petty-cash', label: 'pettyCash' },
           { href: '/finance/rider-withdrawals', label: 'riderWithdrawals' },
           { href: '/finance/riders', label: 'riders' },
+          { href: '/parcels/admin/money/couriers', label: 'courierWallets' },
           { href: '/finance/payroll', label: 'payroll', exact: true, need: { salaries: true } },
           { href: '/finance/payroll/payslips', label: 'payslips', need: { salaries: true } },
           { href: '/finance/recurring', label: 'recurring' },
@@ -178,18 +293,9 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance/cash-position', label: 'cashPosition' },
           { href: '/finance/cash', label: 'storeCash' },
+          { href: '/parcels/admin/money/safes', label: 'hubSafes' },
           { href: '/finance/bank', label: 'bankMatching' },
           { href: '/finance/receipts', label: 'receipts' },
-        ],
-      },
-      {
-        // The parcel network's money (Shiply): courier wallets, hub safes, agents.
-        label: 'shiplyMoney',
-        pages: [
-          { href: '/parcels/admin/money/couriers', label: 'courierWallets' },
-          { href: '/parcels/admin/money/safes', label: 'hubSafes' },
-          { href: '/parcels/admin/money/agents', label: 'agentSettlements' },
-          { href: '/parcels/admin/money/advances', label: 'agentAdvances' },
         ],
       },
       {
@@ -233,9 +339,10 @@ export const APPS: AppDef[] = [
     icon: 'account',
     color: '#BE185D',
     access: 'hr',
+    group: 'shared',
     menus: [
       // HR phase 1: the HR home first, then people, time, discipline, the inbox and one
-      // Configuration menu (docs/HR.md "Phase 1 as built").
+      // Configuration menu (docs/HR.md "Phase 1 as built"). Everyone of both companies.
       {
         label: 'hrOverview',
         pages: [{ href: '/admin/hr/overview', label: 'hrOverview', exact: true }],
@@ -287,113 +394,30 @@ export const APPS: AppDef[] = [
     ],
   },
   {
-    // Shiply, the parcel network (next day): its own operations, team and floor; money is in
-    // Accounting, people will move to HR (docs/MERGE.md).
-    id: 'shiply',
-    icon: 'courier',
-    color: '#334155',
-    access: 'shiply',
-    menus: [
-      { label: 'dashboard', pages: [{ href: '/parcels/admin', label: 'overview', exact: true }] },
-      { label: 'parcels', pages: [{ href: '/parcels/admin/shipments', label: 'parcels' }] },
-      {
-        label: 'control',
-        pages: [
-          { href: '/parcels/admin/alerts', label: 'alerts' },
-          { href: '/parcels/admin/live', label: 'couriersLive' },
-          { href: '/parcels/admin/attempts', label: 'failedAttempts' },
-          { href: '/parcels/admin/qc', label: 'qualityTickets' },
-          { href: '/parcels/admin/lost', label: 'lostDamaged' },
-        ],
-      },
-      {
-        label: 'workforce',
-        pages: [
-          { href: '/parcels/admin/agents', label: 'agents' },
-          { href: '/parcels/admin/attendance', label: 'attendance' },
-          { href: '/parcels/admin/vehicle-requests', label: 'vehicleRequests' },
-          { href: '/parcels/admin/users', label: 'fieldAccounts' },
-        ],
-      },
-      {
-        label: 'merchants',
-        pages: [
-          { href: '/parcels/admin/merchants', label: 'merchants' },
-          { href: '/parcels/admin/signups', label: 'signups' },
-        ],
-      },
-      {
-        // Shiply's packaging shop: sold to next day merchants from the sorting facilities.
-        label: 'packagingShop',
-        pages: [
-          { href: '/parcels/admin/shop/orders', label: 'packagingOrders' },
-          { href: '/parcels/admin/shop/products', label: 'packagingProducts' },
-          { href: '/parcels/admin/shop/purchase-orders', label: 'purchaseOrders' },
-        ],
-      },
-      {
-        label: 'configuration',
-        pages: [
-          { href: '/parcels/admin/network', label: 'network' },
-          { href: '/parcels/admin/price-tiers', label: 'priceTiers' },
-          { href: '/parcels/admin/messages', label: 'messages' },
-          { href: '/parcels/admin/settings', label: 'settings' },
-        ],
-      },
-    ],
-  },
-  {
-    // Sales CRM (docs/SALES.md): view reads, use works deals, manage assigns and configures.
-    id: 'sales',
-    icon: 'analytics',
-    color: '#B91C1C',
-    access: 'sales',
-    menus: [
-      {
-        label: 'pipeline',
-        pages: [
-          { href: '/admin/sales/pipeline', label: 'pipelineBoard' },
-          { href: '/admin/sales/deals', label: 'pipelineList' },
-        ],
-      },
-      { label: 'leads', pages: [{ href: '/admin/sales/leads', label: 'leads' }] },
-      { label: 'myDay', pages: [{ href: '/admin/sales/my-day', label: 'myDay' }] },
-      { label: 'companies', pages: [{ href: '/admin/sales/companies', label: 'companies' }] },
-      // Part 2: proposals, the dashboard, targets (set by managers) and commission.
-      { label: 'proposals', pages: [{ href: '/admin/sales/proposals', label: 'proposals' }] },
-      {
-        label: 'salesDashboard',
-        pages: [{ href: '/admin/sales/dashboard', label: 'salesDashboard' }],
-      },
-      {
-        label: 'targets',
-        pages: [{ href: '/admin/sales/targets', label: 'targets', need: { level: 'manage' } }],
-      },
-      { label: 'commission', pages: [{ href: '/admin/sales/commission', label: 'commission' }] },
-      {
-        label: 'configuration',
-        pages: [
-          { href: '/admin/sales/lost-reasons', label: 'lostReasons', need: { level: 'manage' } },
-          settings('sales'),
-        ],
-      },
-    ],
-  },
-  {
+    // Settings: everyone who signs in (office and store accounts here, field accounts of
+    // Shiply beside them), the audit log and the general settings.
     id: 'system',
     icon: 'settings',
     color: '#475569',
     access: 'settings',
+    group: 'shared',
     menus: [
       {
         label: 'users',
-        pages: [{ href: '/admin/users', label: 'users', need: { level: 'manage' } }],
+        pages: [
+          { href: '/admin/users', label: 'users', need: { level: 'manage' } },
+          {
+            href: '/parcels/admin/users',
+            label: 'fieldAccounts',
+            need: { app: 'shiply', level: 'use' },
+          },
+        ],
       },
       {
         label: 'audit',
         pages: [{ href: '/admin/audit', label: 'audit', need: { level: 'manage' } }],
       },
-      { label: 'tickets', pages: [settings('system')] },
+      { label: 'general', pages: [named('system', 'generalSettings')] },
     ],
   },
 ];
@@ -461,19 +485,15 @@ export function canOpenPage(profile: Profile, app: Pick<AppDef, 'access'>, page:
 /** The apps a person may open, each with only the pages they may use. */
 export function appsFor(profile: Profile): AppDef[] {
   if (!profile) return [];
-  return APPS.filter((app) =>
-    canDo(profile, app.access, app.access === 'settings' ? 'manage' : 'view'),
-  )
-    .map((app) => ({
-      ...app,
-      menus: app.menus
-        .map((menu) => ({
-          ...menu,
-          pages: menu.pages.filter((page) => canOpenPage(profile, app, page)),
-        }))
-        .filter((menu) => menu.pages.length > 0),
-    }))
-    .filter((app) => app.menus.length > 0);
+  return APPS.map((app) => ({
+    ...app,
+    menus: app.menus
+      .map((menu) => ({
+        ...menu,
+        pages: menu.pages.filter((page) => canOpenPage(profile, app, page)),
+      }))
+      .filter((menu) => menu.pages.length > 0),
+  })).filter((app) => app.menus.length > 0);
 }
 
 /** Whether the store screens tile shows. */

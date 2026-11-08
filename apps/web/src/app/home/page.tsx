@@ -14,8 +14,9 @@ const tile =
   'flex h-full flex-col items-center gap-3 rounded-xl border border-line bg-surface px-3 py-6 text-center hover:border-primary hover:shadow-md';
 
 /**
- * The apps a person may open, as tiles (Odoo style): an app shows from view on it (Settings
- * from settings manage), and the store screens from store use. Team members land here.
+ * The apps a person may open, as tiles (Odoo style), in two groups: the operations of each
+ * company (and the store screens) and the departments both share. An app shows when the person
+ * may open one of its pages. Team members land here.
  */
 export default async function HomePage() {
   const [user, profile, theme, t, tc] = await Promise.all([
@@ -43,28 +44,42 @@ export default async function HomePage() {
         ) : (
           <>
             <p className="mt-1 text-center text-body-sm text-text-muted">{t('home.intro')}</p>
-            <ul className="mt-10 grid w-full grid-cols-2 gap-4 sm:grid-cols-3">
-              {apps.map((app) => (
-                <li key={app.id}>
-                  <Link href={app.menus[0]!.pages[0]!.href} className={tile}>
-                    <AppTileIcon app={app} size="lg" />
-                    <span className="text-body font-bold">{t(`names.${app.id}`)}</span>
-                    <span className="text-caption text-text-muted">
-                      {t(`descriptions.${app.id}`)}
-                    </span>
-                  </Link>
-                </li>
-              ))}
-              {store && (
-                <li>
-                  <Link href={STORE_TILE.href} className={tile}>
-                    <AppTileIcon app={STORE_TILE} size="lg" />
-                    <span className="text-body font-bold">{t('names.store')}</span>
-                    <span className="text-caption text-text-muted">{t('descriptions.store')}</span>
-                  </Link>
-                </li>
-              )}
-            </ul>
+            {(['operations', 'shared'] as const).map((group) => {
+              const tiles = apps.filter((app) => app.group === group);
+              const withStore = group === 'operations' && store;
+              if (tiles.length === 0 && !withStore) return null;
+              return (
+                <section key={group} className="mt-10 w-full">
+                  <h2 className="mb-3 text-caption font-bold uppercase tracking-wide text-text-muted">
+                    {t(`home.groups.${group}`)}
+                  </h2>
+                  <ul className="grid w-full grid-cols-2 gap-4 sm:grid-cols-3">
+                    {tiles.map((app) => (
+                      <li key={app.id}>
+                        <Link href={app.menus[0]!.pages[0]!.href} className={tile}>
+                          <AppTileIcon app={app} size="lg" />
+                          <span className="text-body font-bold">{t(`names.${app.id}`)}</span>
+                          <span className="text-caption text-text-muted">
+                            {t(`descriptions.${app.id}`)}
+                          </span>
+                        </Link>
+                      </li>
+                    ))}
+                    {withStore && (
+                      <li>
+                        <Link href={STORE_TILE.href} className={tile}>
+                          <AppTileIcon app={STORE_TILE} size="lg" />
+                          <span className="text-body font-bold">{t('names.store')}</span>
+                          <span className="text-caption text-text-muted">
+                            {t('descriptions.store')}
+                          </span>
+                        </Link>
+                      </li>
+                    )}
+                  </ul>
+                </section>
+              );
+            })}
           </>
         )}
       </main>
