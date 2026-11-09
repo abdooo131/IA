@@ -26,7 +26,7 @@ export default function ShiplyOverview() {
   return (
     <AppShell app="shiply" menu={SHIPLY_MENU}>
       <h1>{t('shiply.overview')}</h1>
-      <div className="tiles-numbers">
+      <div className="number-row">
         {FLOW.map((s) => (
           <Link key={s} className="card number" href={`/shiply/parcels?status=${s}`}>
             <strong>{o?.byStatus[s] ?? 0}</strong>

@@ -52,6 +52,9 @@ input, select { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply
 .attention li { margin-block: 6px; }
 .number-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; margin-block-end: 16px; }
 .number strong { display: block; font-size: 28px; }
+.number { display: block; padding: 14px 16px; text-decoration: none; color: inherit; }
+.number span { color: var(--shiply-text-muted); }
+a.number:hover { outline: 2px solid var(--shiply-link); }
 /* Home as in the old system: a calm centred column, white tile cards, each app on its own colour. */
 .home { max-width: 768px; padding-block: 48px; }
 .home-title { text-align: center; font-size: 28px; margin-block-end: 4px; }
@@ -94,6 +97,9 @@ input, select { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply
 .fields { display: grid; grid-template-columns: max-content 1fr; gap: 8px 16px; margin: 0; }
 .fields dt { color: var(--shiply-text-muted); }
 .fields dd { margin: 0; }
+.fields .field { display: contents; }
+.fields .field > span { color: var(--shiply-text-muted); }
+.check { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Forms */
 .form { display: grid; gap: 12px; max-width: 520px; }

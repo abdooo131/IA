@@ -35,7 +35,8 @@ export function AppShell({ app, menu, need = 'view', children }: { app: AppId; m
   const inline = menu.length > INLINE ? menu.slice(0, INLINE) : menu;
   const more = menu.length > INLINE ? menu.slice(INLINE) : [];
   const groups = more.length ? [...inline, { label: 'common.more', items: more }] : inline;
-  const isActive = (href?: string) => !!href && (path === href || path.startsWith(href + '/'));
+  // The app's own root (its Overview) is active only on itself, not on every page below it.
+  const isActive = (href?: string) => !!href && (path === href || (href.split('/').length > 2 && path.startsWith(href + '/')));
   return (
     <>
       <TopBar>
