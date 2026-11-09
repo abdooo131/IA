@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["platform", "location"]
+  schemas  = ["platform", "location", "merchants"]
 }
 
 enum UserKind {
@@ -303,4 +303,199 @@ model GeocodeCache {
   @@index([at])
   @@map("geocode_cache")
   @@schema("location")
+}
+
+// ── merchants ──────────────────────────────────────────────────────────────
+// Owned by the merchants module only. Other modules ask MerchantsService.
+
+model Merchant {
+  id               String   @id @default(cuid())
+  code             String   @unique
+  name             String
+  legalName        String?  @map("legal_name")
+  logoUrl          String?  @map("logo_url")
+  contactName      String   @map("contact_name")
+  contactPhone     String   @map("contact_phone")
+  contactEmail     String?  @map("contact_email")
+  billingEmails    String[] @map("billing_emails")
+  emailLanguage    String   @default("ar") @map("email_language")
+  taxNumber        String?  @map("tax_number")
+  taxGovernorate   String?  @map("tax_governorate")
+  taxCity          String?  @map("tax_city")
+  taxStreet        String?  @map("tax_street")
+  taxBuilding      String?  @map("tax_building")
+  bankName         String?  @map("bank_name")
+  bankAccount      String?  @map("bank_account")
+  iban             String?
+  beneficiary      String?
+  accountManagerId String?  @map("account_manager_id")
+  pickupAddress    String?  @map("pickup_address")
+  pickupPlaceId    String?  @map("pickup_place_id")
+  pickupDecisionId String?  @map("pickup_decision_id")
+  /// shiply_now, shiply
+  services         String[]
+  /// pending, approved, rejected, inactive
+  status           String   @default("pending")
+  rejectReason     String?  @map("reject_reason")
+  flexShip         Boolean  @default(false) @map("flex_ship")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  users            MerchantUser[]
+  contract         Contract?
+  products         Product[]
+  shops            ShopifyShop[]
+
+  @@index([status])
+  @@map("merchants")
+  @@schema("merchants")
+}
+
+model MerchantUser {
+  userId     String   @id @map("user_id")
+  merchantId String   @map("merchant_id")
+  /// owner, staff
+  role       String   @default("staff")
+  merchant   Merchant @relation(fields: [merchantId], references: [id])
+
+  @@map("merchant_users")
+  @@schema("merchants")
+}
+
+/// A pricing zone (Greater Cairo, Delta, Upper Egypt...) made of governorates.
+model PricingZone {
+  id     String            @id @default(cuid())
+  code   String            @unique
+  nameEn String            @map("name_en")
+  nameAr String            @map("name_ar")
+  active Boolean           @default(true)
+  areas  PricingZoneArea[]
+
+  @@map("pricing_zones")
+  @@schema("merchants")
+}
+
+model PricingZoneArea {
+  /// a governorate place id; each governorate in one pricing zone only
+  placeId       String      @id @map("place_id")
+  pricingZoneId String      @map("pricing_zone_id")
+  pricingZone   PricingZone @relation(fields: [pricingZoneId], references: [id])
+
+  @@map("pricing_zone_areas")
+  @@schema("merchants")
+}
+
+model Contract {
+  id         String            @id @default(cuid())
+  merchantId String            @unique @map("merchant_id")
+  number     String            @unique
+  merchant   Merchant          @relation(fields: [merchantId], references: [id])
+  versions   ContractVersion[]
+
+  @@map("contracts")
+  @@schema("merchants")
+}
+
+/// draft -> pending -> active -> superseded; pending -> rejected. Goes live only after a second
+/// person with Sales manage approves it.
+model ContractVersion {
+  id                  String    @id @default(cuid())
+  contractId          String    @map("contract_id")
+  version             Int
+  status              String    @default("draft")
+  startDate           DateTime  @map("start_date")
+  endDate             DateTime? @map("end_date")
+  noticeDays          Int       @default(30) @map("notice_days")
+  payoutSchedule      String    @default("weekly") @map("payout_schedule")
+  minimumPayout       Int       @default(0) @map("minimum_payout")
+  minimumMonthlyFee   Int       @default(0) @map("minimum_monthly_fee")
+  securityDeposit     Int       @default(0) @map("security_deposit")
+  creditLimit         Int       @default(0) @map("credit_limit")
+  // Shiply Now
+  deliveryFee         Int       @default(0) @map("delivery_fee")
+  orderFixed          Int       @default(0) @map("order_fixed")
+  orderPercentBp      Int       @default(0) @map("order_percent_bp")
+  codPercentBp        Int       @default(0) @map("cod_percent_bp")
+  failedDeliveryFee   Int       @default(0) @map("failed_delivery_fee")
+  receivingPerUnit    Int       @default(0) @map("receiving_per_unit")
+  storagePerUnitMonth Int       @default(0) @map("storage_per_unit_month")
+  returnPerUnit       Int       @default(0) @map("return_per_unit")
+  packagingCharge     Int       @default(0) @map("packaging_charge")
+  promiseMinutes      Int       @default(60) @map("promise_minutes")
+  // Shiply parcels
+  codFeeBp            Int       @default(0) @map("cod_fee_bp")
+  returnFeeBp         Int       @default(0) @map("return_fee_bp")
+  openPackageFee      Int       @default(0) @map("open_package_fee")
+  deliveryAttempts    Int       @default(3) @map("delivery_attempts")
+  terms               String?
+  internalNote        String?   @map("internal_note")
+  createdById         String    @map("created_by_id")
+  submittedAt         DateTime? @map("submitted_at")
+  approvedById        String?   @map("approved_by_id")
+  approvedAt          DateTime? @map("approved_at")
+  rejectedById        String?   @map("rejected_by_id")
+  rejectReason        String?   @map("reject_reason")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  contract            Contract  @relation(fields: [contractId], references: [id])
+  prices              ParcelPrice[]
+  tiers               VolumeTier[]
+
+  @@unique([contractId, version])
+  @@index([status])
+  @@map("contract_versions")
+  @@schema("merchants")
+}
+
+model ParcelPrice {
+  versionId     String          @map("version_id")
+  pricingZoneId String          @map("pricing_zone_id")
+  /// small, medium, large, light_bulky, heavy_bulky
+  size          String
+  price         Int
+  version       ContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@id([versionId, pricingZoneId, size])
+  @@map("parcel_prices")
+  @@schema("merchants")
+}
+
+model VolumeTier {
+  versionId  String          @map("version_id")
+  minParcels Int             @map("min_parcels")
+  discountBp Int             @map("discount_bp")
+  version    ContractVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+
+  @@id([versionId, minParcels])
+  @@map("volume_tiers")
+  @@schema("merchants")
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  merchantId       String   @map("merchant_id")
+  sku              String
+  barcode          String?
+  nameEn           String   @map("name_en")
+  nameAr           String   @map("name_ar")
+  price            Int
+  weightGrams      Int?     @map("weight_grams")
+  shopifyVariantId String?  @map("shopify_variant_id")
+  active           Boolean  @default(true)
+  createdAt        DateTime @default(now()) @map("created_at")
+  merchant         Merchant @relation(fields: [merchantId], references: [id])
+
+  @@unique([merchantId, sku])
+  @@map("products")
+  @@schema("merchants")
+}
+
+model ShopifyShop {
+  id          String   @id @default(cuid())
+  merchantId  String   @map("merchant_id")
+  domain      String   @unique
+  status      String   @default("connected")
+  connectedAt DateTime @default(now()) @map("connected_at")
+  merchant    Merchant @relation(fields: [merchantId], references: [id])
+
+  @@map("shopify_shops")
+  @@schema("merchants")
 }
