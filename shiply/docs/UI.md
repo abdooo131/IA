@@ -272,3 +272,34 @@ Menu: `Overview  Stock  Consumption  Suggestions  Purchase orders  Receiving  Tr
 
 Packaging sold to merchants is issued from the sorting facility warehouse and counts in
 consumption.
+
+## Step 3i: HR app (locked)
+
+Own staff only: office, sorting facility and hub staff, dark store staff. Couriers and riders
+belong to agents (Agents & Fleet).
+
+Menu: `Overview  Employees  Attendance▾  Leave  Violations  Payroll  Inbox  More▾`
+
+1. **Overview**: headcount per site, hiring, contracts and documents expiring, today's absences.
+2. **Employees**: file (Arabic and English names, national ID and expiry, contract, probation,
+   social insurance, salary bank account, job, site and cost centre, login), documents with
+   expiry alerts 30 days before, timeline of everything.
+3. **Attendance ▾**: today's board (in, late, missing), roster per site, days. Clock in and out
+   from the phone within 150 m of the site (a setting); manual punch needs a reason; forgotten
+   clock out closes at shift end and is flagged.
+4. **Leave**: Egyptian law defaults as settings HR confirms (annual 21, 30 after 10 years or age
+   50; casual 6 inside annual; sick with a doctor's note; unpaid); manager approves, HR overrides.
+5. **Violations**: penalty rules escalating 1st, 2nd, 3rd time; lateness and absence raise them
+   automatically; the employee can reply; only confirmed deductions reach payroll; legal limits
+   are settings.
+6. **Payroll**: monthly run: prepare, check, second person approves, payslips; the total books to
+   Accounting. Payroll lives only here.
+7. **Inbox**: requests and approvals waiting for HR.
+8. **More ▾**: new hire checklist, leavers checklist, documents expiring, org chart, settings
+   (shifts, leave types, penalty rules, document types).
+
+Every employee has **My HR** from their name menu: own file, attendance, leave balance and
+requests, violations (read only, with reply).
+
+Moved out: QC checklists and scores → CS and QC (HR only receives the violation); account
+managers → Merchants.
