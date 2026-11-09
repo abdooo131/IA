@@ -18,6 +18,8 @@ const COMPANIES = [
 const ROLES = [
   { key: 'owner', nameEn: 'Owner', nameAr: 'المالك', level: 'manage' },
   { key: 'viewer', nameEn: 'Viewer', nameAr: 'مشاهد', level: 'view' },
+  // Merchant logins: the merchant portal only, no office app.
+  { key: 'merchant', nameEn: 'Merchant', nameAr: 'تاجر', level: 'none' },
 ];
 
 export async function seed(db: PrismaClient, env: SeedEnv = process.env) {
@@ -30,7 +32,7 @@ export async function seed(db: PrismaClient, env: SeedEnv = process.env) {
       update: {},
       create: { key: r.key, nameEn: r.nameEn, nameAr: r.nameAr },
     });
-    for (const app of TILES) {
+    for (const app of r.level === 'none' ? [] : TILES) {
       await db.roleAccess.upsert({
         where: { roleId_app: { roleId: role.id, app } },
         update: {},

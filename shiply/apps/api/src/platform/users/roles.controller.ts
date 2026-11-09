@@ -10,6 +10,7 @@ export class RolesController {
   @Get()
   @NeedAccess('settings', 'view')
   async list() {
-    return this.db.jobRole.findMany({ select: { key: true, nameEn: true, nameAr: true }, orderBy: { nameEn: 'asc' } });
+    // Office roles only: a role that opens no office app (merchant logins) is not offered here.
+    return this.db.jobRole.findMany({ where: { access: { some: {} } }, select: { key: true, nameEn: true, nameAr: true }, orderBy: { nameEn: 'asc' } });
   }
 }

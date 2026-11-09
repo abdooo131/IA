@@ -6,6 +6,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import type { PrismaClient } from '@shiply/db';
 import { LocationModule, type Geocoder } from './location';
+import { MerchantsModule } from './merchants';
 import { PlatformModule } from './platform';
 
 export interface AppOptions {
@@ -14,7 +15,8 @@ export interface AppOptions {
 }
 
 export async function createApp(db: PrismaClient, opts: AppOptions = {}): Promise<INestApplication> {
-  @Module({ imports: [PlatformModule.forRoot(db), LocationModule.register({ geocoder: opts.geocoder })] })
+  const location = LocationModule.register({ geocoder: opts.geocoder });
+  @Module({ imports: [PlatformModule.forRoot(db), location, MerchantsModule.register(location)] })
   class AppModule {}
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

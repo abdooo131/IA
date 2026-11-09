@@ -17,7 +17,7 @@ describe('seed', () => {
     await seed(db, env);
     await seed(db, env);
     expect(await db.company.count()).toBe(2);
-    expect(await db.jobRole.count()).toBe(2);
+    expect(await db.jobRole.count()).toBe(3);
     expect(await db.user.count({ where: { email: 'admin@test.local' } })).toBe(1);
     const owner = await db.jobRole.findUniqueOrThrow({ where: { key: 'owner' }, include: { access: true } });
     expect(owner.access).toHaveLength(12);
