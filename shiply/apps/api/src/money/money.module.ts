@@ -5,6 +5,7 @@ import { DB, HomeRegistry, onEvent } from '../platform';
 import { CashController } from './cash.controller';
 import { CashService } from './cash.service';
 import { LedgerService, type CompanyKey } from './ledger.service';
+import { LedgerController } from './ledger.controller';
 import { PayoutsController } from './payouts.controller';
 import { SpendingController } from './spending.controller';
 import { WalletsController } from './wallets.controller';
@@ -47,7 +48,7 @@ export class MoneyModule {
     return {
       module: MoneyModule,
       imports: [merchants],
-      controllers: [CashController, WalletsController, PayoutsController, SpendingController],
+      controllers: [CashController, WalletsController, PayoutsController, SpendingController, LedgerController],
       providers: [LedgerService, CashService, WalletsService, MoneyWiring],
       exports: [LedgerService, CashService, WalletsService],
     };

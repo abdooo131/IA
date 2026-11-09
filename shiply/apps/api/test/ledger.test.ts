@@ -64,3 +64,18 @@ describe('ledger', () => {
     expect((await ledger.profitAndLoss({ from: new Date('2026-11-01'), to: new Date('2026-11-30') })).income).toBe(1700);
   });
 });
+
+describe('ledger reports', () => {
+  it('serves the journal, trial balance and profit and loss to accounting viewers', async () => {
+    await db.$transaction((tx) => ledger.post(tx, entry('rep1', 'shiply', 1000, '4301')));
+    await db.$transaction((tx) => ledger.post(tx, entry('rep2', 'shiply_now', 700, '4101')));
+    const request = (await import('supertest')).default;
+    const { signIn } = await import('./helpers');
+    const cookies = await signIn(app, '01012345678', 'viewer-pass-1');
+    const get = (u: string) => request(app.getHttpServer()).get(u).set('Cookie', cookies);
+    expect((await get('/money/journal?company=shiply')).body.rows).toHaveLength(1);
+    expect((await get('/money/trial-balance')).body.reduce((s: number, r: { debit: number; credit: number }) => s + r.debit - r.credit, 0)).toBe(0);
+    const pnl = (await get('/money/profit-and-loss?company=shiply&from=2026-11-01&to=2026-11-30')).body;
+    expect(pnl).toMatchObject({ income: 1000, net: 1000 });
+  });
+});

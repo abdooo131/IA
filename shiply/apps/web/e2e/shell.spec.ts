@@ -11,6 +11,10 @@ async function signIn(page: Page, login: string, password: string, path = '/en')
 test('owner signs in and sees the 12 app tiles', async ({ page }) => {
   await signIn(page, 'owner@test.local', 'owner-pass-1');
   await expect(page.getByTestId('tile')).toHaveCount(12);
+});
+
+test('someone with nothing to act on sees an empty attention list', async ({ page }) => {
+  await signIn(page, 'rana@test.local', 'rana-pass-1');
   await expect(page.getByText('Nothing waiting for you')).toBeVisible();
 });
 
