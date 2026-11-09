@@ -972,6 +972,8 @@ model Request {
   requestedById String    @map("requested_by_id")
   answeredById  String?   @map("answered_by_id")
   answeredAgentId String? @map("answered_agent_id")
+  /// agents that declined a request sent to any agent (it stays open for the others)
+  declinedAgentIds String[] @map("declined_agent_ids")
   answeredAt    DateTime? @map("answered_at")
   createdAt     DateTime  @default(now()) @map("created_at")
 

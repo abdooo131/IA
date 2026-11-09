@@ -1,5 +1,6 @@
 import { HttpException, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import type { PrismaClient } from '@shiply/db';
+import { AgentsService } from '../agents';
 import { LocationService } from '../location';
 import { DB } from '../platform';
 import { GapsService } from './gaps.service';
@@ -19,6 +20,7 @@ export class HubService implements OnModuleInit {
     @Inject(ParcelsService) private readonly parcels: ParcelsService,
     @Inject(GapsService) private readonly gaps: GapsService,
     @Inject(LocationService) private readonly location: LocationService,
+    @Inject(AgentsService) private readonly agents: AgentsService,
   ) {}
 
   onModuleInit() {
@@ -79,6 +81,7 @@ export class HubService implements OnModuleInit {
       handler: async (tx, { input, user, parcel: p }) => {
         const run = input.runId ? await tx.run.findUnique({ where: { id: input.runId } }) : null;
         if (!run || run.hubId !== input.siteId || run.status === 'closed') throw new HttpException({ error: 'no_run' }, 409);
+        await this.agents.assertCanWork(run.courierId, tx);
         if (p!.hubId !== input.siteId) throw new HttpException({ error: 'other_hub' }, 409);
         if (p!.direction === 'return') throw new HttpException({ error: 'return_parcel' }, 409);
         if (p!.status !== 'at_hub' && p!.status !== 'attempt_failed') throw new HttpException({ error: 'wrong_status' }, 409);

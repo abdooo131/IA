@@ -45,7 +45,7 @@ export class RequestsController {
   @Get('me/requests')
   async mine(@Req() req: Request) {
     const agentId = await this.agents.agentOfManager(req.user!.id);
-    return this.db.request.findMany({ where: { OR: [{ agentId }, { agentId: null, status: 'open' }, { answeredAgentId: agentId }] }, orderBy: { date: 'asc' }, take: 500 });
+    return this.db.request.findMany({ where: { OR: [{ agentId }, { agentId: null, status: 'open', NOT: { declinedAgentIds: { has: agentId } } }, { answeredAgentId: agentId }] }, orderBy: { date: 'asc' }, take: 500 });
   }
 
   @Post('me/requests/:id/confirm')
@@ -64,6 +64,11 @@ export class RequestsController {
     const agentId = await this.agents.agentOfManager(req.user!.id);
     const r = await this.db.request.findUnique({ where: { id } });
     if (!r || (r.agentId && r.agentId !== agentId)) throw new HttpException({ error: 'not_found' }, 404);
+    if (!r.agentId && status === 'declined') {
+      // Sent to any agent: this one says no, it stays open for the others.
+      if (r.status !== 'open') throw new HttpException({ error: 'wrong_status' }, 409);
+      return this.db.request.update({ where: { id }, data: { declinedAgentIds: { push: agentId } } });
+    }
     const { count } = await this.db.request.updateMany({ where: { id, status: 'open' }, data: { status, answeredById: req.user!.id, answeredAgentId: agentId, answeredAt: new Date() } });
     if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
     return this.db.request.findUniqueOrThrow({ where: { id } });

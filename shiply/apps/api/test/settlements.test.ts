@@ -59,7 +59,7 @@ describe('settlements', () => {
 
   it('refuses an overlapping period for the same agent', async () => {
     await post('/agents/settlements', { agentId, from: '2026-11-01', to: '2026-11-07' });
-    const again = await post('/agents/settlements', { agentId, from: '2026-11-06', to: '2026-11-13' });
+    const again = await post('/agents/settlements', { agentId, from: '2026-11-06', to: '2026-11-08' });
     expect([again.status, again.body.error]).toEqual([409, 'overlapping_period']);
   });
 });

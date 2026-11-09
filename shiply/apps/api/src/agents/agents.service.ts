@@ -24,6 +24,7 @@ export class AgentsService {
     const r = await this.db.truckRoute.findUnique({ where: { id: routeId } });
     if (!r?.active) throw new HttpException({ error: 'not_found' }, 404);
     const a = await this.db.agent.findUniqueOrThrow({ where: { id: r.agentId } });
+    if (!a.active) throw new HttpException({ error: 'not_found' }, 404);
     return { id: r.id, fromSiteId: r.fromSiteId, toSiteId: r.toSiteId, driverName: `${a.name} · ${r.code}` };
   }
 

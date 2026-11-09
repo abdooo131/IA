@@ -50,10 +50,19 @@ export class ComplianceService {
     const today = day(now);
     const days = await this.settings.get<number>('agents.expiry_warning_days');
     const until = new Date(today.getTime() + days * 86_400_000);
-    const [expired, expiring] = await Promise.all([
-      this.db.document.findMany({ where: { expiresAt: { lt: today } }, orderBy: { expiresAt: 'asc' } }),
-      this.db.document.findMany({ where: { expiresAt: { gte: today, lte: until } }, orderBy: { expiresAt: 'asc' } }),
-    ]);
+    const [people, vehicles] = await Promise.all([this.db.person.findMany({ where: { status: 'approved' }, select: { id: true } }), this.db.vehicle.findMany({ where: { active: true }, select: { id: true } })]);
+    const docs = await this.db.document.findMany({ where: { OR: [{ personId: { in: people.map((p) => p.id) } }, { vehicleId: { in: vehicles.map((v) => v.id) } }] }, orderBy: { createdAt: 'desc' } });
+    // Only the newest document of each kind counts: a renewed one replaces the old.
+    const seen = new Set<string>();
+    const current = docs.filter((d) => {
+      const key = `${d.personId ?? d.vehicleId}:${d.kind}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return d.expiresAt !== null;
+    });
+    const byDate = (a: { expiresAt: Date | null }, b: { expiresAt: Date | null }) => a.expiresAt!.getTime() - b.expiresAt!.getTime();
+    const expired = current.filter((d) => d.expiresAt! < today).sort(byDate);
+    const expiring = current.filter((d) => d.expiresAt! >= today && d.expiresAt! <= until).sort(byDate);
     return { expired, expiring, days };
   }
 
@@ -64,6 +73,7 @@ export class ComplianceService {
 
 /** Checks every person once an hour (from main.ts). */
 export function startComplianceWorker(compliance: ComplianceService, everyMs = 3_600_000) {
+  void compliance.check().catch((err) => console.error('compliance', err));
   const timer = setInterval(() => void compliance.check().catch((err) => console.error('compliance', err)), everyMs);
   return () => clearInterval(timer);
 }

@@ -1,5 +1,6 @@
 import { HttpException, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import type { PrismaClient } from '@shiply/db';
+import { AgentsService } from '../agents';
 import { DB, publish } from '../platform';
 import { ParcelsService } from './parcels.service';
 import { registerStep } from './scan.service';
@@ -9,6 +10,7 @@ export class PickupsService implements OnModuleInit {
   constructor(
     @Inject(DB) private readonly db: PrismaClient,
     @Inject(ParcelsService) private readonly parcels: ParcelsService,
+    @Inject(AgentsService) private readonly agents: AgentsService,
   ) {}
 
   onModuleInit() {
@@ -18,6 +20,7 @@ export class PickupsService implements OnModuleInit {
       handler: async (tx, { input, user, parcel }) => {
         const pickup = input.pickupId ? await tx.pickup.findUnique({ where: { id: input.pickupId } }) : null;
         if (!pickup || pickup.courierId !== user.id) throw new HttpException({ error: 'not_your_pickup' }, 403);
+        await this.agents.assertCanWork(user.id, tx);
         if (!['assigned', 'on_the_way'].includes(pickup.status)) throw new HttpException({ error: 'wrong_status' }, 409);
         if (parcel!.merchantId !== pickup.merchantId) throw new HttpException({ error: 'other_merchant' }, 409);
         await this.parcels.move(tx, parcel!.id, 'picked_up', { userId: user.id, set: { pickupId: pickup.id } });

@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
 import { AuditService, createLogin, DB, loginsInfo, NeedAccess, parse } from '../platform';
+import { ComplianceService } from './compliance.service';
 
 export const ROLES = ['delivery', 'pickup', 'rider', 'truck_driver'] as const;
 
@@ -11,6 +12,7 @@ export class PeopleController {
   constructor(
     @Inject(DB) private readonly db: PrismaClient,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(ComplianceService) private readonly compliance: ComplianceService,
   ) {}
 
   @Get()
@@ -60,6 +62,8 @@ export class PeopleController {
     const { count } = await this.db.person.updateMany({ where: { id, status: 'pending' }, data: { status: 'approved', approvedById: req.user!.id } });
     if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
     await this.audit.record(this.db as never, { userId: req.user!.id, action: 'agent_person.approved', entity: 'person', entityId: id });
+    // Documents are checked at once: approved without them means blocked until they are entered.
+    await this.compliance.check(new Date(), [id]);
     return this.db.person.findUniqueOrThrow({ where: { id } });
   }
 

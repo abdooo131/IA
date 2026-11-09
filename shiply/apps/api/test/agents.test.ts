@@ -58,6 +58,8 @@ describe('the work gate', () => {
     const run = () => post('/parcels/runs', { hubId: net.hub.id, courierId: p.userId });
     const pending = await run();
     expect([pending.status, pending.body.error]).toEqual([400, 'person_cannot_work']);
+    await post('/agents/documents', { personId: p.id, kind: 'national_id', number: '29001011234567' });
+    await post('/agents/documents', { personId: p.id, kind: 'driving_licence', number: 'DL-1', expiresAt: '2030-01-01' });
     await post(`/agents/people/${p.id}/approve`, {}, second);
     await http().patch(`/agents/${a.id}`).set('Cookie', owner).send({ active: false });
     expect((await run()).body.error).toBe('person_cannot_work');

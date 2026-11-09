@@ -31,6 +31,8 @@ export class SettlementsController {
   async create(@Body() body: unknown, @Req() req: Request) {
     const b = parse(z.object({ agentId: z.string().min(1), from: day, to: day }), body);
     if (b.to < b.from) throw new HttpException({ error: 'invalid' }, 400);
+    // A period still running would leave its later work unpaid for ever (periods cannot overlap).
+    if (b.to >= new Date(new Date().toISOString().slice(0, 10))) throw new HttpException({ error: 'period_not_over' }, 400);
     const agent = await this.db.agent.findUnique({ where: { id: b.agentId } });
     if (!agent) throw new HttpException({ error: 'not_found' }, 404);
     return this.db.$transaction(async (tx) => {
