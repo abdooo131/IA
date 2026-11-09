@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["platform"]
+  schemas  = ["platform", "location"]
 }
 
 enum UserKind {
@@ -170,4 +170,123 @@ model CostCentre {
 
   @@map("cost_centres")
   @@schema("platform")
+}
+
+// ── location ───────────────────────────────────────────────────────────────
+// Owned by the location module only. Other modules ask LocationService.
+
+enum SiteKind {
+  sorting_facility
+  last_mile_hub
+  dark_store
+
+  @@schema("location")
+}
+
+/// A governorate, city or district, neighbourhood, compound, landmark or street. parentId is
+/// checked by the service, not a foreign key, so the list can be loaded in any order.
+model Place {
+  id           String   @id
+  kind         String
+  parentId     String?  @map("parent_id")
+  nameEn       String   @map("name_en")
+  nameAr       String   @map("name_ar")
+  names        String[]
+  needsParent  Boolean  @default(false) @map("needs_parent")
+  served       Boolean  @default(true)
+  active       Boolean  @default(true)
+  mergedIntoId String?  @map("merged_into_id")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@index([parentId])
+  @@map("places")
+  @@schema("location")
+}
+
+model TaughtName {
+  id         String   @id @default(cuid())
+  name       String
+  normalized String
+  placeId    String   @map("place_id")
+  byUserId   String?  @map("by_user_id")
+  at         DateTime @default(now())
+
+  @@unique([normalized, placeId])
+  @@map("taught_names")
+  @@schema("location")
+}
+
+model Site {
+  id                String         @id @default(cuid())
+  kind              SiteKind
+  code              String         @unique
+  nameEn            String         @map("name_en")
+  nameAr            String         @map("name_ar")
+  /// For a last mile hub: the sorting facility that feeds it.
+  sortingFacilityId String?        @map("sorting_facility_id")
+  active            Boolean        @default(true)
+  sortingFacility   Site?          @relation("feeds", fields: [sortingFacilityId], references: [id])
+  hubs              Site[]         @relation("feeds")
+  zones             DeliveryZone[]
+
+  @@map("sites")
+  @@schema("location")
+}
+
+model DeliveryZone {
+  id     String  @id @default(cuid())
+  hubId  String  @map("hub_id")
+  code   String  @unique
+  nameEn String  @map("name_en")
+  nameAr String  @map("name_ar")
+  active Boolean @default(true)
+  hub    Site    @relation(fields: [hubId], references: [id])
+
+  @@map("delivery_zones")
+  @@schema("location")
+}
+
+/// Who serves an area: its delivery zone (parcels) and its dark store (60 minutes).
+model AreaService {
+  placeId     String  @id @map("place_id")
+  zoneId      String? @map("zone_id")
+  darkStoreId String? @map("dark_store_id")
+  notServed   Boolean @default(false) @map("not_served")
+
+  @@map("area_services")
+  @@schema("location")
+}
+
+/// Every address the system was asked to place, and how it was decided.
+model AddressDecision {
+  id           String    @id @default(cuid())
+  service      String
+  refType      String    @map("ref_type")
+  refId        String    @map("ref_id")
+  input        String
+  phone        String?
+  status       String
+  confidence   Int
+  placeId      String?   @map("place_id")
+  method       String
+  candidates   Json      @default("[]")
+  resolvedById String?   @map("resolved_by_id")
+  resolvedAt   DateTime? @map("resolved_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([resolvedAt, createdAt])
+  @@index([refType, refId])
+  @@map("address_decisions")
+  @@schema("location")
+}
+
+/// A customer's confirmed area: their next address is placed from here first.
+model PhoneMemory {
+  phone       String   @id
+  placeId     String   @map("place_id")
+  confirmedAt DateTime @default(now()) @map("confirmed_at")
+  source      String
+
+  @@map("phone_memory")
+  @@schema("location")
 }

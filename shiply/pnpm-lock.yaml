@@ -126,6 +126,9 @@ importers:
       '@prisma/client':
         specifier: 6.1.0
         version: 6.1.0(prisma@6.1.0)
+      '@shiply/address':
+        specifier: workspace:*
+        version: link:../address
       '@shiply/shared':
         specifier: workspace:*
         version: link:../shared

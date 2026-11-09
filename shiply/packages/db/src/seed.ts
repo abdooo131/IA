@@ -1,6 +1,7 @@
 // Starting data. Safe to run any number of times: it only creates what is missing.
 import { hash } from 'argon2';
 import { TILES } from '@shiply/shared';
+import { SEED_PLACES } from '@shiply/address';
 import type { PrismaClient } from '@prisma/client';
 
 interface SeedEnv {
@@ -36,6 +37,23 @@ export async function seed(db: PrismaClient, env: SeedEnv = process.env) {
         create: { roleId: role.id, app, level: r.level },
       });
     }
+  }
+  // The place list for the address engine. Existing places keep any edits made in the system.
+  const existing = new Set((await db.place.findMany({ select: { id: true } })).map((p) => p.id));
+  const missing = SEED_PLACES.filter((p) => !existing.has(p.id));
+  if (missing.length) {
+    await db.place.createMany({
+      data: missing.map((p) => ({
+        id: p.id,
+        kind: p.kind,
+        parentId: p.parent ?? null,
+        nameEn: p.en,
+        nameAr: p.ar,
+        names: p.names ?? [],
+        needsParent: p.needsParent ?? false,
+        served: p.served ?? true,
+      })),
+    });
   }
   const email = env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
   const password = env.SEED_ADMIN_PASSWORD;
