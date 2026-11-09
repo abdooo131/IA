@@ -5,10 +5,9 @@ import type { ReactNode } from 'react';
 import { routing } from '@/i18n/routing';
 import { FeedbackHost } from '@/shell/feedback';
 import '@/theme/tokens.css';
-import '@/theme/arabic-fonts.css';
 import '@/theme/globals.css';
 
-export const metadata = { title: 'Shiply' };
+export const metadata = { title: 'Shiply', icons: { icon: '/brand/app-icon.svg', apple: '/brand/app-icon-180.png' } };
 
 export default async function LocaleLayout({ children, params }: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await params;

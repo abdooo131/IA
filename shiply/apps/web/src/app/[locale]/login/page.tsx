@@ -1,5 +1,4 @@
 'use client';
-import { Wordmark } from '@/shell/Wordmark';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
 import { safeNextPath } from '@shiply/shared';
@@ -33,8 +32,12 @@ export default function LoginPage() {
 
   return (
     <main className="login">
+      <aside className="brand-panel" aria-hidden="true">
+        <img src="/brand/logo-horizontal-reverse.svg" alt="" height={36} />
+        <p className="tagline">{t('tagline')}</p>
+      </aside>
       <form onSubmit={submit} className="card login-card">
-        <Wordmark size={34} />
+        <img src="/brand/logo-horizontal-primary.svg" alt="Shiply" height={34} className="phone-logo" />
         <h1>{t('title')}</h1>
         <label>
           {t('login')}

@@ -1,5 +1,4 @@
 'use client';
-import { Wordmark } from './Wordmark';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { TILES } from '@shiply/shared';
@@ -24,7 +23,7 @@ export function TopBar({ children }: { children?: React.ReactNode }) {
     <header className="topbar">
       <div className="topbar-row">
         <Link href="/" className="logo" aria-label="Shiply">
-          <Wordmark size={24} />
+          <img src="/brand/logo-horizontal-primary.svg" alt="Shiply" height={28} />
         </Link>
         {children}
       </div>

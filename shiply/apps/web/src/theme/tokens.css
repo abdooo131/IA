@@ -1,59 +1,112 @@
-/* Shiply design tokens, brand manual 2026: Electric Blue #174BFF, Deep Navy #10243A, Lime Green #DFFF00 (accent), Baby Blue #A5E8F5, Creamy White #FFF8ED. Light is the default, dark applies with [data-theme="dark"] or the OS setting. */
-@font-face { font-family: "Plus Jakarta Sans"; font-weight: 400; font-display: swap; src: url("/brand/fonts/plus-jakarta-sans-400.woff2") format("woff2"); }
-@font-face { font-family: "Plus Jakarta Sans"; font-weight: 500; font-display: swap; src: url("/brand/fonts/plus-jakarta-sans-500.woff2") format("woff2"); }
-@font-face { font-family: "Plus Jakarta Sans"; font-weight: 600; font-display: swap; src: url("/brand/fonts/plus-jakarta-sans-600.woff2") format("woff2"); }
-@font-face { font-family: "Plus Jakarta Sans"; font-weight: 700; font-display: swap; src: url("/brand/fonts/plus-jakarta-sans-700.woff2") format("woff2"); }
-@font-face { font-family: "Plus Jakarta Sans"; font-weight: 800; font-display: swap; src: url("/brand/fonts/plus-jakarta-sans-800.woff2") format("woff2"); }
+/* Shiply design tokens, brand v2 (Shiply_Brand_Guidelines_v2, 2026).
+   Palette: Cream #FAF1E8 (40%), Navy #082341 (34%), Shiply Blue #0046FC (18%), Lime #CFF905 (8%).
+   Lime is an accent: never text on white or cream, and text on Lime is always Navy.
+   Light is the default; dark (Navy grounds) applies with [data-theme="dark"] or the OS setting.
+   Every text pair here is checked for WCAG AA by src/styles/tokens.test.ts. */
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/brand/fonts/plus-jakarta-sans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/brand/fonts/plus-jakarta-sans-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/brand/fonts/plus-jakarta-sans-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 700;
+  font-display: swap;
+  src: url('/brand/fonts/plus-jakarta-sans-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-weight: 800;
+  font-display: swap;
+  src: url('/brand/fonts/plus-jakarta-sans-800.woff2') format('woff2');
+}
+/* IBM Plex Sans Arabic has no ExtraBold: 800 falls back to its Bold. */
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 400;
+  font-display: swap;
+  src: url('/brand/fonts/ibm-plex-sans-arabic-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 500;
+  font-display: swap;
+  src: url('/brand/fonts/ibm-plex-sans-arabic-500.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 600;
+  font-display: swap;
+  src: url('/brand/fonts/ibm-plex-sans-arabic-600.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'IBM Plex Sans Arabic';
+  font-weight: 700 800;
+  font-display: swap;
+  src: url('/brand/fonts/ibm-plex-sans-arabic-700.woff2') format('woff2');
+}
 
 :root {
   /* brand (fixed in both themes) */
-  --shiply-blue: #174BFF;
-  --shiply-sky: #A5E8F5;
-  --shiply-navy: #10243A;
-  --shiply-white: #FFFFFF;
+  --shiply-cream: #faf1e8;
+  --shiply-navy: #082341;
+  --shiply-blue: #0046fc;
+  --shiply-lime: #cff905;
+  --shiply-white: #ffffff;
 
-  /* roles, light */
-  --shiply-bg: #F7F8FB;
-  --shiply-surface: #FFFFFF;
-  --shiply-surface-raised: #F7F8FB;
-  --shiply-line: #DFE5EE;
-  --shiply-text: #10243A;
-  --shiply-text-muted: #5B6B82;
-  --shiply-primary: #174BFF;
-  --shiply-on-primary: #FFFFFF;
-  --shiply-primary-pressed: #0F3BD9;
-  --shiply-link: #174BFF;
-  --shiply-selected-bg: #EAF8FC;
-  --shiply-sky: #A5E8F5;
-  --shiply-focus: #A5E8F5;
-  --shiply-danger: #DC2626;
-  --shiply-status-new: #64748B;
-  --shiply-status-in-progress: #7C3AED;
-  --shiply-status-heading-to-customer: #C026D3;
-  --shiply-status-delivered: #16A34A;
-  --shiply-status-needs-action: #D97706;
-  --shiply-status-returning: #DC2626;
-  --shiply-cash: #0E9384;
-  --shiply-cash-tint: #E1F5F2;
-  --shiply-cash-ink: #0B5F57;
-  --shiply-points: #FFC21A;
-  --shiply-points-tint: #FFF6D6;
-  --shiply-points-ink: #7A5200;
-
-  /* gradients */
-  --shiply-gradient-daylight: linear-gradient(135deg, #A5E8F5 0%, #174BFF 100%);
-  --shiply-gradient-night-route: linear-gradient(160deg, #174BFF 0%, #10243A 100%);
-  --shiply-gradient-glow: radial-gradient(circle at 80% 20%, #A5E8F5 0%, rgba(89,203,232,0) 55%), #174BFF;
-  --shiply-gradient-horizon: linear-gradient(180deg, #FFFFFF 0%, #EAF8FC 100%);
+  /* roles, light: Cream page, white cards, Navy text, Shiply Blue actions */
+  --shiply-bg: #f3f6fa;
+  --shiply-surface: #ffffff;
+  --shiply-surface-raised: #f3f6fa;
+  --shiply-line: #dfe5ee;
+  /* borders that must stay visible (form fields): 3:1 on white and Cream */
+  --shiply-line-strong: #7f8798;
+  --shiply-text: #082341;
+  --shiply-text-muted: #5b6b82;
+  --shiply-primary: #0046fc;
+  --shiply-on-primary: #ffffff;
+  --shiply-primary-pressed: #0036c4;
+  --shiply-link: #0046fc;
+  --shiply-selected-bg: #e5ecff;
+  --shiply-accent: #cff905;
+  --shiply-on-accent: #082341;
+  --shiply-focus: #0046fc;
+  --shiply-danger: #b42318;
+  --shiply-status-new: #4e5a72;
+  --shiply-status-in-progress: #6a3fd6;
+  --shiply-status-heading-to-customer: #a8188e;
+  --shiply-status-delivered: #0f6a35;
+  --shiply-status-needs-action: #9a4100;
+  --shiply-status-returning: #b42318;
+  /* text on a filled status or danger chip */
+  --shiply-on-status: #ffffff;
+  /* brand hero ground (money balance cards like the guide's COD balance card, the tracking status):
+     Navy ground, Cream text, Lime note */
+  --shiply-hero: #082341;
+  --shiply-hero-ink: #faf1e8;
+  --shiply-hero-accent: #cff905;
 
   /* type */
-  --shiply-font: "Plus Jakarta Sans", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --shiply-font-arabic: "IBM Plex Sans Arabic", "Plus Jakarta Sans", system-ui, sans-serif;
+  --shiply-font: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --shiply-font-arabic: 'IBM Plex Sans Arabic', 'Plus Jakarta Sans', system-ui, sans-serif;
   --shiply-type-display: 800 56px/1.05 var(--shiply-font);
   --shiply-tracking-display: -0.035em;
   --shiply-type-h1: 800 40px/1.1 var(--shiply-font);
   --shiply-tracking-h1: -0.03em;
-  --shiply-type-h2: 700 28px/1.2 var(--shiply-font);
+  --shiply-type-h2: 800 28px/1.2 var(--shiply-font);
   --shiply-tracking-h2: -0.02em;
   --shiply-type-h3: 700 20px/1.35 var(--shiply-font);
   --shiply-tracking-h3: -0.01em;
@@ -66,7 +119,7 @@
   --shiply-type-caption: 500 13px/1.4 var(--shiply-font);
   --shiply-tracking-caption: 0em;
   --shiply-type-label: 700 12px/1.3 var(--shiply-font);
-  --shiply-tracking-label: 0.06em;
+  --shiply-tracking-label: 0.08em;
   --shiply-type-number-lg: 800 28px/1.1 var(--shiply-font);
   --shiply-tracking-number-lg: -0.01em;
 
@@ -81,88 +134,133 @@
   --shiply-space-8: 40px;
   --shiply-space-9: 48px;
   --shiply-space-10: 64px;
-  --shiply-radius-sm: 6px;
-  --shiply-radius-md: 10px;
+  --shiply-radius-sm: 8px;
+  --shiply-radius-md: 12px;
   --shiply-radius-lg: 16px;
   --shiply-radius-xl: 24px;
   --shiply-radius-pill: 999px;
-  --shiply-shadow-sm: 0 1px 2px rgba(19,41,75,.06), 0 1px 1px rgba(19,41,75,.04);
-  --shiply-shadow-md: 0 6px 16px rgba(19,41,75,.10);
-  --shiply-shadow-lg: 0 16px 32px rgba(19,41,75,.16);
+  --shiply-shadow-sm: 0 1px 2px rgba(8, 35, 65, 0.06), 0 1px 1px rgba(8, 35, 65, 0.04);
+  --shiply-shadow-md: 0 6px 16px rgba(8, 35, 65, 0.08);
+  --shiply-shadow-lg: 0 16px 32px rgba(8, 35, 65, 0.14);
   color-scheme: light;
 }
 
-:root[data-theme="dark"] {
-  --shiply-bg: #0B1424;
-  --shiply-surface: #111E33;
-  --shiply-surface-raised: #18273F;
-  --shiply-line: #24344F;
-  --shiply-text: #E7EDF7;
-  --shiply-text-muted: #93A3BC;
-  --shiply-primary: #2F6BFF;
-  --shiply-on-primary: #FFFFFF;
-  --shiply-primary-pressed: #255BE0;
-  --shiply-link: #5B8CFF;
-  --shiply-selected-bg: #18273F;
-  --shiply-sky: #A5E8F5;
-  --shiply-focus: #A5E8F5;
-  --shiply-danger: #F87171;
-  --shiply-status-new: #94A3B8;
-  --shiply-status-in-progress: #A78BFA;
-  --shiply-status-heading-to-customer: #E879F9;
-  --shiply-status-delivered: #4ADE80;
-  --shiply-status-needs-action: #FB923C;
-  --shiply-status-returning: #F87171;
-  --shiply-cash: #2DD4BF;
-  --shiply-cash-tint: color-mix(in srgb, #2DD4BF 14%, transparent);
-  --shiply-cash-ink: #2DD4BF;
-  --shiply-points: #FFD34D;
-  --shiply-points-tint: color-mix(in srgb, #FFD34D 14%, transparent);
-  --shiply-points-ink: #FFD34D;
+/* Dark: Navy grounds with the same accents. Keep both dark blocks identical. */
+:root[data-theme='dark'] {
+  --shiply-bg: #082341;
+  --shiply-surface: #0d2b4d;
+  --shiply-surface-raised: #133559;
+  --shiply-line: #24476f;
+  --shiply-line-strong: #6b85ab;
+  --shiply-text: #faf1e8;
+  --shiply-text-muted: #bfcbe0;
+  --shiply-primary: #3366ff;
+  --shiply-on-primary: #ffffff;
+  --shiply-primary-pressed: #2350e0;
+  --shiply-link: #9db5ff;
+  --shiply-selected-bg: #17396a;
+  --shiply-accent: #cff905;
+  --shiply-on-accent: #082341;
+  --shiply-focus: #cff905;
+  --shiply-danger: #ff8a7a;
+  --shiply-status-new: #b3bfd0;
+  --shiply-status-in-progress: #b9a2ff;
+  --shiply-status-heading-to-customer: #f28bde;
+  --shiply-status-delivered: #5fd38d;
+  --shiply-status-needs-action: #ffb35c;
+  --shiply-status-returning: #ff8a7a;
+  --shiply-on-status: #082341;
+  --shiply-hero: #0046fc;
+  --shiply-hero-ink: #ffffff;
+  --shiply-hero-accent: #cff905;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --shiply-bg: #0B1424;
-    --shiply-surface: #111E33;
-    --shiply-surface-raised: #18273F;
-    --shiply-line: #24344F;
-    --shiply-text: #E7EDF7;
-    --shiply-text-muted: #93A3BC;
-    --shiply-primary: #2F6BFF;
-    --shiply-on-primary: #FFFFFF;
-    --shiply-primary-pressed: #255BE0;
-    --shiply-link: #5B8CFF;
-    --shiply-selected-bg: #18273F;
-    --shiply-sky: #A5E8F5;
-    --shiply-focus: #A5E8F5;
-    --shiply-danger: #F87171;
-    --shiply-status-new: #94A3B8;
-    --shiply-status-in-progress: #A78BFA;
-    --shiply-status-heading-to-customer: #E879F9;
-    --shiply-status-delivered: #4ADE80;
-    --shiply-status-needs-action: #FB923C;
-    --shiply-status-returning: #F87171;
-    --shiply-cash: #2DD4BF;
-    --shiply-cash-tint: color-mix(in srgb, #2DD4BF 14%, transparent);
-    --shiply-cash-ink: #2DD4BF;
-    --shiply-points: #FFD34D;
-    --shiply-points-tint: color-mix(in srgb, #FFD34D 14%, transparent);
-    --shiply-points-ink: #FFD34D;
+  :root:not([data-theme='light']) {
+    --shiply-bg: #082341;
+    --shiply-surface: #0d2b4d;
+    --shiply-surface-raised: #133559;
+    --shiply-line: #24476f;
+    --shiply-line-strong: #6b85ab;
+    --shiply-line-strong: #6b85ab;
+    --shiply-text: #faf1e8;
+    --shiply-text-muted: #bfcbe0;
+    --shiply-primary: #3366ff;
+    --shiply-on-primary: #ffffff;
+    --shiply-primary-pressed: #2350e0;
+    --shiply-link: #9db5ff;
+    --shiply-selected-bg: #17396a;
+    --shiply-accent: #cff905;
+    --shiply-on-accent: #082341;
+    --shiply-focus: #cff905;
+    --shiply-danger: #ff8a7a;
+    --shiply-status-new: #b3bfd0;
+    --shiply-status-in-progress: #b9a2ff;
+    --shiply-status-heading-to-customer: #f28bde;
+    --shiply-status-delivered: #5fd38d;
+    --shiply-status-needs-action: #ffb35c;
+    --shiply-status-returning: #ff8a7a;
+    --shiply-on-status: #082341;
+    --shiply-hero: #0046fc;
+    --shiply-hero-ink: #ffffff;
+    --shiply-hero-accent: #cff905;
     color-scheme: dark;
   }
 }
 
-html[dir="rtl"], [lang="ar"] { font-family: var(--shiply-font-arabic); }
-body { background: var(--shiply-bg); color: var(--shiply-text); font: var(--shiply-type-body); }
-:focus-visible { outline: 2px solid var(--shiply-focus); outline-offset: 2px; }
-.shiply-num { font-variant-numeric: tabular-nums; }
+/* A Navy brand ground inside a light page (the desk sidebar): the dark roles, scoped. */
+.shiply-on-navy {
+  --shiply-bg: #082341;
+  --shiply-surface: #0d2b4d;
+  --shiply-surface-raised: #133559;
+  --shiply-line: #24476f;
+  --shiply-line-strong: #6b85ab;
+  --shiply-text: #faf1e8;
+  --shiply-text-muted: #bfcbe0;
+  --shiply-primary: #3366ff;
+  --shiply-on-primary: #ffffff;
+  --shiply-primary-pressed: #2350e0;
+  --shiply-link: #9db5ff;
+  --shiply-selected-bg: #17396a;
+  --shiply-accent: #cff905;
+  --shiply-on-accent: #082341;
+  --shiply-focus: #cff905;
+  --shiply-danger: #ff8a7a;
+  --shiply-status-new: #b3bfd0;
+  --shiply-status-in-progress: #b9a2ff;
+  --shiply-status-heading-to-customer: #f28bde;
+  --shiply-status-delivered: #5fd38d;
+  --shiply-status-needs-action: #ffb35c;
+  --shiply-status-returning: #ff8a7a;
+  --shiply-on-status: #082341;
+  --shiply-hero: #0046fc;
+  --shiply-hero-ink: #ffffff;
+  --shiply-hero-accent: #cff905;
+  color-scheme: dark;
+  background-color: var(--shiply-navy);
+  color: var(--shiply-text);
+}
 
-/* Brand manual 2026 additions */
+html[dir='rtl'],
+[lang='ar'] {
+  font-family: var(--shiply-font-arabic);
+}
+body {
+  background: var(--shiply-bg);
+  color: var(--shiply-text);
+  font: var(--shiply-type-body);
+}
+:focus-visible {
+  outline: 2px solid var(--shiply-focus);
+  outline-offset: 2px;
+}
+.shiply-num {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Extra roles used by the new system's shell */
 :root {
-  --shiply-lime: #DFFF00;          /* accent: progress, delivered, key highlights; text on it is navy */
-  --shiply-lime-ink: #10243A;
-  --shiply-baby-blue: #A5E8F5;
-  --shiply-cream: #FFF8ED;
-  --shiply-gradient-horizon: linear-gradient(180deg, #FFFFFF 0%, #FFF8ED 100%);
+  --shiply-gradient-horizon: linear-gradient(180deg, var(--shiply-surface) 0%, var(--shiply-cream) 100%);
+  --shiply-cash-tint: #e1f5f2;
+  --shiply-cash-ink: #0b5f57;
 }

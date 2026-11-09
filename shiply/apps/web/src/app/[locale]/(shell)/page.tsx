@@ -19,6 +19,13 @@ const ICONS: Record<AppId, string> = {
   reports: 'analytics', settings: 'settings',
 };
 
+/** Each app's own colour, as in the old system; the new apps get colours of their own. */
+const COLORS: Record<AppId, string> = {
+  shiply_now: '#1D4ED8', shiply: '#0F766E', merchants: '#B45309', care: '#C2410C', location: '#0369A1',
+  fleet: '#4D7C0F', purchasing: '#9333EA', accounting: '#15803D', hr: '#BE185D', sales: '#7C3AED',
+  reports: '#082341', settings: '#475569',
+};
+
 export default function HomePage() {
   const t = useTranslations();
   const me = useMe();
@@ -31,7 +38,8 @@ export default function HomePage() {
     <>
       <TopBar />
       <main className="page home">
-        <h1>{t('home.hello', { name: locale === 'ar' ? me.nameAr : me.name })}</h1>
+        <h1 className="home-title">{t('home.hello', { name: locale === 'ar' ? me.nameAr : me.name })}</h1>
+        <p className="home-intro muted">{t('home.intro')}</p>
         <section className="card">
           <h2>{t('home.attention')}</h2>
           {data && data.attention.length === 0 && <p className="muted">{t('home.nothingWaiting')}</p>}
@@ -58,11 +66,14 @@ export default function HomePage() {
         )}
         <section className="tiles" data-testid="tiles">
           {data?.tiles.map((x) => (
-            <Link key={x.app} href={`/${x.app}`} className="card tile" data-testid="tile">
-              <svg width={28} height={28} aria-hidden="true">
-                <use href={`/brand/icons.svg#shiply-${ICONS[x.app]}`} />
-              </svg>
-              <span>{t(`apps.${x.app}`)}</span>
+            <Link key={x.app} href={`/${x.app}`} className="tile" data-testid="tile">
+              <span className="tile-icon" style={{ background: COLORS[x.app] }} aria-hidden="true">
+                <svg width={32} height={32}>
+                  <use href={`/brand/icons.svg#shiply-${ICONS[x.app]}`} />
+                </svg>
+              </span>
+              <span className="tile-name">{t(`apps.${x.app}`)}</span>
+              <span className="tile-desc">{t(`appDescriptions.${x.app}`)}</span>
               {x.count > 0 && <em className="badge">{x.count}</em>}
             </Link>
           ))}

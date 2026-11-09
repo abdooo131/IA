@@ -45,7 +45,8 @@
     "attention": "Needs your attention",
     "nothingWaiting": "Nothing waiting for you",
     "numbers": "Today in numbers",
-    "deadEvents": "{count} system events failed and need a look"
+    "deadEvents": "{count} system events failed and need a look",
+    "intro": "Choose an app to start working"
   },
   "login": {
     "title": "Sign in to Shiply",
@@ -54,7 +55,8 @@
     "submit": "Sign in",
     "wrong_login": "Wrong email, mobile or password",
     "locked": "Too many wrong tries. Try again in a few minutes.",
-    "invalid": "Fill in both fields"
+    "invalid": "Fill in both fields",
+    "tagline": "Ready, Set, Shiply"
   },
   "noAccess": {
     "title": "No access",
@@ -113,5 +115,19 @@
       "event": "Event"
     },
     "searchUsers": "Search users"
+  },
+  "appDescriptions": {
+    "shiply_now": "60 minute delivery from dark stores",
+    "shiply": "Next day parcels across the network",
+    "merchants": "One list for both services",
+    "care": "Tickets, cases and quality checks",
+    "location": "Addresses, areas and the map",
+    "fleet": "Agents, couriers and vehicles",
+    "purchasing": "Materials, forecasts and orders",
+    "accounting": "Cash, payouts and the ledger",
+    "hr": "Staff, attendance and payroll",
+    "sales": "Leads, deals and onboarding",
+    "reports": "Every number in one place",
+    "settings": "Users, access and the system"
   }
 }
