@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { api } from '@/lib/api';
 import { AppShell } from '@/shell/AppShell';
 import { ListPage } from '@/shell/ListPage';
+import { toast } from '@/shell/feedback';
 import { SETTINGS_MENU } from '../menu';
 
 interface Row {
@@ -17,11 +18,12 @@ interface Row {
 
 export default function AuditPage() {
   const t = useTranslations('settings');
+  const tc = useTranslations('common');
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ rows: Row[]; total: number } | null>(null);
   useEffect(() => {
-    void api<{ rows: Row[]; total: number }>(`/audit?page=${page}`).then(setData);
-  }, [page]);
+    api<{ rows: Row[]; total: number }>(`/audit?page=${page}`).then(setData, () => toast.error(tc('failed')));
+  }, [page, tc]);
   // Action codes hold dots (user.created); message keys use underscores.
   const known = (group: string, key: string) => {
     const k = `${group}.${key.replace(/\./g, '_')}`;

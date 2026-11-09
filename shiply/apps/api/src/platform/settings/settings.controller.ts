@@ -6,7 +6,7 @@ import { NeedAccess } from '../access/need-access.decorator';
 import { AuditService } from '../audit/audit.service';
 import { DB } from '../tokens';
 import { parse } from '../validate';
-import { SETTING_DEFAULTS, SettingsService } from './settings.service';
+import { SETTING_DEFAULTS, SETTING_SCHEMAS, SettingsService } from './settings.service';
 
 @Controller('settings')
 export class SettingsController {
@@ -27,7 +27,7 @@ export class SettingsController {
   @NeedAccess('settings', 'manage')
   async put(@Param('key') key: string, @Body() body: unknown, @Req() req: Request) {
     if (!(key in SETTING_DEFAULTS)) throw new HttpException({ error: 'unknown_setting' }, 404);
-    const { value } = parse(z.object({ value: z.unknown() }), body);
+    const { value } = parse(z.object({ value: SETTING_SCHEMAS[key] ?? z.never() }), body);
     const before = await this.settings.get(key);
     await this.db.$transaction(async (tx) => {
       await this.settings.set(tx, key, value, req.user!.id);

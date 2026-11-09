@@ -14,8 +14,8 @@ export class SessionGuard implements CanActivate {
   async canActivate(ctx: ExecutionContext): Promise<boolean> {
     if (this.reflector.getAllAndOverride<boolean>(PUBLIC, [ctx.getHandler(), ctx.getClass()])) return true;
     const req = ctx.switchToHttp().getRequest<Request>();
-    const userId = this.auth.read(req.cookies?.sid, 'session');
-    const user = userId ? await this.auth.sessionUser(userId) : null;
+    const owner = this.auth.read(req.cookies?.sid, 'session');
+    const user = owner ? await this.auth.sessionUser(owner) : null;
     if (!user) throw new HttpException({ error: 'signed_out' }, 401);
     req.user = user;
     return true;

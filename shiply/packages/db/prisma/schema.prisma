@@ -38,6 +38,8 @@ model User {
   roleId            String    @map("role_id")
   failedLogins      Int       @default(0) @map("failed_logins")
   lockedUntil       DateTime? @map("locked_until")
+  /// Raised on logout and password change: older tokens stop working.
+  tokenVersion      Int       @default(0) @map("token_version")
   createdAt         DateTime  @default(now()) @map("created_at")
   updatedAt         DateTime  @updatedAt @map("updated_at")
   role              JobRole   @relation(fields: [roleId], references: [id])

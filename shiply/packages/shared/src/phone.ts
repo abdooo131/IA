@@ -7,7 +7,7 @@ export function normalizeEgyptMobile(input: string): string | null {
   let d = input
     .replace(/[٠-٩]/g, (c) => String(ARABIC_DIGITS.indexOf(c)))
     .replace(/[۰-۹]/g, (c) => String(PERSIAN_DIGITS.indexOf(c)))
-    .replace(/[\s\-().]/g, '');
+    .replace(/[\s\-().\u200e\u200f\u061c\u202a-\u202e]/g, '');
   if (d.startsWith('+')) d = d.slice(1);
   if (d.startsWith('0020')) d = d.slice(4);
   else if (d.startsWith('20') && d.length === 12) d = d.slice(2);

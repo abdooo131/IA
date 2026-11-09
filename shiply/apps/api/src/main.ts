@@ -1,8 +1,10 @@
 import { createDb } from '@shiply/db';
 import { createApp } from './app';
+import { assertJwtSecret } from '@shiply/shared';
 import { startEventWorker } from './platform';
 
 async function main() {
+  assertJwtSecret(process.env.JWT_SECRET);
   const db = createDb();
   const app = await createApp(db);
   startEventWorker(db);

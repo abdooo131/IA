@@ -43,3 +43,27 @@ describe('access', () => {
     expect(atLeast('none', 'none')).toBe(true);
   });
 });
+
+import { safeNextPath, assertJwtSecret } from './index';
+describe('review fixes', () => {
+  it('only lets login go back to a page of this site', () => {
+    expect(safeNextPath('/en/settings/users?page=2')).toBe('/en/settings/users?page=2');
+    expect(safeNextPath('/ar/hr')).toBe('/ar/hr');
+    expect(safeNextPath('//evil.com')).toBeNull();
+    expect(safeNextPath('/\\evil.com')).toBeNull();
+    expect(safeNextPath('/%09/evil.com')).toBeNull();
+    expect(safeNextPath('/\t/evil.com')).toBeNull();
+    expect(safeNextPath('https://evil.com')).toBeNull();
+    expect(safeNextPath('/fr/x')).toBeNull();
+    expect(safeNextPath(null)).toBeNull();
+  });
+  it('refuses a weak JWT secret', () => {
+    expect(() => assertJwtSecret(undefined)).toThrow();
+    expect(() => assertJwtSecret('change-me')).toThrow();
+    expect(() => assertJwtSecret('short')).toThrow();
+    expect(() => assertJwtSecret('x'.repeat(32))).not.toThrow();
+  });
+  it('accepts a mobile copied with invisible direction marks', () => {
+    expect(normalizeEgyptMobile('‎01012345678‏')).toBe('+201012345678');
+  });
+});

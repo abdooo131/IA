@@ -1,7 +1,7 @@
 import { defineConfig } from '@playwright/test';
 
 const DB = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres@localhost:5433/shiply_test';
-const env = { DATABASE_URL: DB, JWT_SECRET: 'e2e-secret', API_PORT: '4199', API_URL: 'http://localhost:4199', NODE_ENV: 'test' };
+const env = { DATABASE_URL: DB, JWT_SECRET: 'e2e-secret-that-is-at-least-32-characters-long', API_PORT: '4199', API_URL: 'http://localhost:4199', NODE_ENV: 'test' };
 
 export default defineConfig({
   testDir: './e2e',

@@ -7,6 +7,7 @@ import { api } from '@/lib/api';
 import { AppShell } from '@/shell/AppShell';
 import { ListPage } from '@/shell/ListPage';
 import { useMe } from '@/shell/me';
+import { toast } from '@/shell/feedback';
 import { SETTINGS_MENU } from '../menu';
 
 export interface UserRow {
@@ -22,6 +23,7 @@ export interface UserRow {
 
 export default function UsersPage() {
   const t = useTranslations('settings');
+  const tc = useTranslations('common');
   const locale = useLocale();
   const me = useMe();
   const router = useRouter();
@@ -29,8 +31,8 @@ export default function UsersPage() {
   const [q, setQ] = useState('');
   const [data, setData] = useState<{ rows: UserRow[]; total: number } | null>(null);
   useEffect(() => {
-    void api<{ rows: UserRow[]; total: number }>(`/users?page=${page}&q=${encodeURIComponent(q)}`).then(setData);
-  }, [page, q]);
+    api<{ rows: UserRow[]; total: number }>(`/users?page=${page}&q=${encodeURIComponent(q)}`).then(setData, () => toast.error(tc('failed')));
+  }, [page, q, tc]);
   const ar = locale === 'ar';
   return (
     <AppShell app="settings" menu={SETTINGS_MENU}>

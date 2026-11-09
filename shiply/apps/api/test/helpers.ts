@@ -6,7 +6,7 @@ import { createDb, seed } from '@shiply/db';
 import { createApp } from '../src/app';
 
 export const TEST_URL = process.env.TEST_DATABASE_URL ?? 'postgresql://postgres@localhost:5433/shiply_test';
-process.env.JWT_SECRET ??= 'test-secret';
+process.env.JWT_SECRET ??= 'test-secret-that-is-at-least-32-characters-long';
 
 export const db = createDb(TEST_URL);
 

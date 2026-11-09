@@ -35,7 +35,10 @@
     "timeline": "Timeline",
     "saved": "Saved",
     "failed": "Something went wrong. Try again.",
-    "comingSoon": "This app is being built."
+    "comingSoon": "This app is being built.",
+    "notFound": "This record could not be found.",
+    "loadFailed": "This page could not be loaded.",
+    "tryAgain": "Try again"
   },
   "home": {
     "hello": "Hello, {name}",

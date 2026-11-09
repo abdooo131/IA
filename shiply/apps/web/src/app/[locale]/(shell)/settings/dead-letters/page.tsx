@@ -23,13 +23,17 @@ export default function DeadLettersPage() {
   const [rows, setRows] = useState<Row[] | null>(null);
   const load = useCallback(async () => setRows((await api<{ rows: Row[] }>('/events/dead')).rows), []);
   useEffect(() => {
-    void load();
-  }, [load]);
+    load().catch(() => toast.error(t('common.failed')));
+  }, [load, t]);
   const retry = async (r: Row) => {
     if (!(await confirm({ title: t('settings.retry'), body: t('settings.retryBody') }))) return;
-    await api(`/events/dead/${r.eventId}/${encodeURIComponent(r.handler)}/retry`, { method: 'POST' });
-    toast.success(t('common.saved'));
-    await load();
+    try {
+      await api(`/events/dead/${r.eventId}/${encodeURIComponent(r.handler)}/retry`, { method: 'POST' });
+      toast.success(t('common.saved'));
+      await load();
+    } catch {
+      toast.error(t('common.failed'));
+    }
   };
   const list = (rows ?? []).map((r) => ({ ...r, id: `${r.eventId}:${r.handler}` }));
   return (

@@ -53,3 +53,16 @@ test('a dead event is listed and Retry sends it again', async ({ page }) => {
   await page.getByRole('alertdialog').getByRole('button', { name: 'Confirm' }).click();
   await expect(page.getByRole('cell', { name: 'handler down' })).toHaveCount(0);
 });
+
+test('login never sends the user to another site', async ({ page }) => {
+  await page.goto('/en/login?next=%2F%5Cevil.com');
+  await page.getByLabel('Email or mobile').fill('owner@test.local');
+  await page.getByLabel('Password').fill('owner-pass-1');
+  await page.getByRole('button', { name: 'Sign in' }).click();
+  await page.waitForURL(/localhost:3199\/en$/);
+});
+
+test('a record that does not exist says so instead of a blank page', async ({ page }) => {
+  await signIn(page, 'owner@test.local', 'owner-pass-1', '/en/settings/users/does-not-exist');
+  await expect(page.getByTestId('load-error')).toContainText('could not be found');
+});

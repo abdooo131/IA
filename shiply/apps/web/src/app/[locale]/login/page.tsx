@@ -1,6 +1,7 @@
 'use client';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState, type FormEvent } from 'react';
+import { safeNextPath } from '@shiply/shared';
 
 export default function LoginPage() {
   const t = useTranslations('login');
@@ -20,9 +21,9 @@ export default function LoginPage() {
     });
     setBusy(false);
     if (res.ok) {
-      const next = new URLSearchParams(window.location.search).get('next');
-      // Only paths inside this site, never another address.
-      window.location.assign(next && next.startsWith('/') && !next.startsWith('//') ? next : `/${locale}`);
+      // Only a page of this site, never another address.
+      const next = safeNextPath(new URLSearchParams(window.location.search).get('next'));
+      window.location.assign(next ?? `/${locale}`);
       return;
     }
     const body = await res.json().catch(() => ({}));

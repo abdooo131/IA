@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { z } from 'zod';
 import type { PrismaClient, Tx } from '@shiply/db';
 import { DB } from '../tokens';
 
@@ -9,6 +10,16 @@ export const SETTING_DEFAULTS: Record<string, unknown> = {
   'auth.session_minutes': 15,
   'auth.refresh_days': 30,
   'events.retry_minutes': [1, 5, 30, 120],
+};
+
+const minutes = z.number().int();
+/** What each setting accepts, so a typo can never lock everybody out. */
+export const SETTING_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  'auth.max_failed_logins': z.number().int().min(3).max(20),
+  'auth.lockout_minutes': minutes.min(1).max(1440),
+  'auth.session_minutes': minutes.min(5).max(720),
+  'auth.refresh_days': z.number().int().min(1).max(90),
+  'events.retry_minutes': z.array(minutes.min(1).max(10080)).min(1).max(10),
 };
 
 @Injectable()

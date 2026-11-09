@@ -32,16 +32,18 @@ export class AuthController {
   @Post('refresh')
   @HttpCode(200)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const userId = this.auth.read(req.cookies?.rid, 'refresh');
-    if (!userId || !(await this.auth.sessionUser(userId))) throw new HttpException({ error: 'signed_out' }, 401);
-    await this.setCookies(res, userId);
+    const owner = this.auth.read(req.cookies?.rid, 'refresh');
+    if (!owner || !(await this.auth.sessionUser(owner))) throw new HttpException({ error: 'signed_out' }, 401);
+    await this.setCookies(res, owner.userId);
     return { ok: true };
   }
 
   @Public()
   @Post('logout')
   @HttpCode(200)
-  logout(@Res({ passthrough: true }) res: Response) {
+  async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const owner = this.auth.read(req.cookies?.sid, 'session') ?? this.auth.read(req.cookies?.rid, 'refresh');
+    if (owner && (await this.auth.sessionUser(owner))) await this.auth.revoke(owner.userId);
     res.clearCookie('sid', { path: '/' });
     res.clearCookie('rid', { path: '/' });
     return { ok: true };

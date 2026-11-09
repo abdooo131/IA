@@ -4,7 +4,9 @@ import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 import { atLeast } from '@shiply/shared';
 import { Link } from '@/i18n/routing';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
+import { LoadError } from '@/shell/LoadError';
+import { NoAccess } from '@/shell/NoAccess';
 import { AppShell } from '@/shell/AppShell';
 import { RecordPage, type TimelineEntry } from '@/shell/RecordPage';
 import { confirm, toast } from '@/shell/feedback';
@@ -25,22 +27,30 @@ export default function UserPage() {
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<UserRow | null>(null);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [error, setError] = useState<unknown>(null);
   const load = useCallback(async () => {
+    setError(null);
     setUser(await api<UserRow>(`/users/${id}`));
     const log = await api<{ rows: AuditRow[] }>(`/audit?entity=user&entityId=${id}`);
     setTimeline(log.rows.map((r) => ({ at: r.at, text: t.has(`settings.actions.${r.action.replace(/\./g, '_')}`) ? t(`settings.actions.${r.action.replace(/\./g, '_')}`) : r.action })));
   }, [id, t]);
   useEffect(() => {
-    void load();
+    load().catch(setError);
   }, [load]);
+  if (error instanceof ApiError && error.status === 403) return <NoAccess app="settings" />;
+  if (error) return <AppShell app="settings" menu={SETTINGS_MENU}><LoadError error={error} onRetry={() => load().catch(setError)} /></AppShell>;
   if (!user) return <AppShell app="settings" menu={SETTINGS_MENU}>{null}</AppShell>;
   const ar = locale === 'ar';
   const toggle = async () => {
     const label = user.active ? t('settings.deactivate') : t('settings.activate');
     if (!(await confirm({ title: label, body: ar ? user.nameAr : user.name, danger: user.active }))) return;
-    await api(`/users/${id}`, { method: 'PATCH', json: { active: !user.active } });
-    toast.success(t('common.saved'));
-    await load();
+    try {
+      await api(`/users/${id}`, { method: 'PATCH', json: { active: !user.active } });
+      toast.success(t('common.saved'));
+      await load();
+    } catch {
+      toast.error(t('common.failed'));
+    }
   };
   return (
     <AppShell app="settings" menu={SETTINGS_MENU}>

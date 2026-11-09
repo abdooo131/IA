@@ -9,14 +9,16 @@ async function retryMinutes(db: PrismaClient): Promise<number[]> {
 
 /** Delivers one event to one handler, or records the failure. Safe with several workers. */
 async function deliverOne(db: PrismaClient, eventId: string, name: string, now: Date) {
+  let seen: number | null = null;
   try {
     await db.$transaction(
       async (tx) => {
-        const claimed = await tx.$queryRaw<{ event_id: string }[]>`
-          SELECT event_id FROM platform.event_deliveries
+        const claimed = await tx.$queryRaw<{ attempts: number }[]>`
+          SELECT attempts FROM platform.event_deliveries
           WHERE event_id = ${eventId} AND handler = ${name} AND status = 'pending' AND next_at <= ${now}
           FOR UPDATE SKIP LOCKED`;
         if (claimed.length === 0) return;
+        seen = claimed[0]!.attempts;
         const ev = await tx.outboxEvent.findUniqueOrThrow({ where: { id: eventId } });
         const fn = handler(ev.type, name);
         if (!fn) throw new Error(`No handler "${name}" for ${ev.type}`);
@@ -29,12 +31,25 @@ async function deliverOne(db: PrismaClient, eventId: string, name: string, now: 
       { timeout: 60_000 },
     );
   } catch (err) {
-    const retry = await retryMinutes(db);
-    const d = await db.eventDelivery.findUnique({ where: { eventId_handler: { eventId, handler: name } } });
-    if (!d || d.status !== 'pending') return;
+    if (seen !== null) await recordFailure(db, eventId, name, seen, err, now);
+  }
+}
+
+/**
+ * Counts one failed try and schedules the next, or marks it dead. Locks the row and checks no other
+ * worker counted this try already, so one failure is never counted twice.
+ */
+export async function recordFailure(db: PrismaClient, eventId: string, name: string, seenAttempts: number, err: unknown, now: Date) {
+  const retry = await retryMinutes(db);
+  await db.$transaction(async (tx) => {
+    const rows = await tx.$queryRaw<{ attempts: number; status: string }[]>`
+      SELECT attempts, status::text AS status FROM platform.event_deliveries
+      WHERE event_id = ${eventId} AND handler = ${name} FOR UPDATE`;
+    const d = rows[0];
+    if (!d || d.status !== 'pending' || d.attempts !== seenAttempts) return;
     const attempts = d.attempts + 1;
     const wait = retry[attempts - 1];
-    await db.eventDelivery.update({
+    await tx.eventDelivery.update({
       where: { eventId_handler: { eventId, handler: name } },
       data: {
         attempts,
@@ -42,7 +57,7 @@ async function deliverOne(db: PrismaClient, eventId: string, name: string, now: 
         ...(wait === undefined ? { status: 'dead' } : { nextAt: new Date(now.getTime() + wait * 60_000) }),
       },
     });
-  }
+  });
 }
 
 /** Delivers every delivery that is due. Returns how many were tried. */
