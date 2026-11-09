@@ -1,0 +1,25 @@
+{
+  "name": "@shiply/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3100",
+    "build": "next build",
+    "start": "next start -p 3100",
+    "e2e": "playwright test"
+  },
+  "dependencies": {
+    "@shiply/shared": "workspace:*",
+    "next": "15.1.6",
+    "next-intl": "3.26.3",
+    "react": "19.0.0",
+    "react-dom": "19.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "@shiply/db": "workspace:*",
+    "@types/react": "19.0.7",
+    "@types/react-dom": "19.0.3",
+    "argon2": "0.41.1"
+  }
+}
