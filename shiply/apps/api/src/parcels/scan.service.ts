@@ -15,6 +15,10 @@ export interface ScanInput {
   runId?: string;
   pickupId?: string;
   carId?: string;
+  /** courier steps */
+  cash?: number;
+  proof?: string;
+  reason?: string;
 }
 
 export interface ScanAnswer {

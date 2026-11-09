@@ -5,6 +5,10 @@ import { BagsService } from './bags.service';
 import { FacilityController } from './facility.controller';
 import { FacilityService } from './facility.service';
 import { GapsService } from './gaps.service';
+import { CourierService } from './courier.service';
+import { HubController } from './hub.controller';
+import { HubService } from './hub.service';
+import { RunsService } from './runs.service';
 import { ParcelsController } from './parcels.controller';
 import { ParcelsService } from './parcels.service';
 import { PickupsController } from './pickups.controller';
@@ -42,8 +46,8 @@ export class ParcelsModule {
     return {
       module: ParcelsModule,
       imports: [location, merchants, money],
-      controllers: [ScanController, PickupsController, FacilityController, ParcelsController],
-      providers: [ParcelsService, ScanService, PickupsService, GapsService, FacilityService, BagsService, ParcelsWiring],
+      controllers: [ScanController, PickupsController, FacilityController, HubController, ParcelsController],
+      providers: [ParcelsService, ScanService, PickupsService, GapsService, FacilityService, BagsService, HubService, RunsService, CourierService, ParcelsWiring],
       exports: [ParcelsService],
     };
   }

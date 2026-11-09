@@ -10,4 +10,4 @@ export { HomeRegistry, type AttentionItem, type HomeNumber } from './home/home.r
 export { parse } from './validate';
 export { createLogin, loginsInfo, setLoginsActive, type NewLogin } from './users/logins';
 export { publish, onEvent, processDue, startEventWorker, type EventHandler } from './events';
-export { sitesOf } from './users/sites';
+export { sitesOf, peopleOfKind } from './users/sites';
