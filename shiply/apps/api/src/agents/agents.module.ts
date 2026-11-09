@@ -6,6 +6,7 @@ import { VehiclesController } from './vehicles.controller';
 import { RequestsController } from './requests.controller';
 import { RoutesController } from './routes.controller';
 import { WorkLogService } from './worklog.service';
+import { SettlementsController } from './settlements.controller';
 import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { PeopleController } from './people.controller';
@@ -31,7 +32,7 @@ export class AgentsModule {
     return {
       module: AgentsModule,
       imports: [money],
-      controllers: [PeopleController, VehiclesController, RequestsController, RoutesController, AgentsController],
+      controllers: [PeopleController, VehiclesController, RequestsController, RoutesController, SettlementsController, AgentsController],
       providers: [AgentsService, ComplianceService, WorkLogService, AgentsWiring],
       exports: [AgentsService, ComplianceService],
     };
