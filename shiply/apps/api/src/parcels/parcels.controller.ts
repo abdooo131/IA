@@ -6,6 +6,7 @@ import { normalizeEgyptMobile, parseEgp } from '@shiply/shared';
 import { DB, NeedAccess, parse } from '../platform';
 import { ParcelsService } from './parcels.service';
 import { STATUSES } from './status';
+import { whereNow } from './where';
 
 export const SIZES = ['small', 'medium', 'large', 'light_bulky', 'heavy_bulky'] as const;
 
@@ -67,7 +68,8 @@ export class ParcelsController {
     };
     if ((q.from && isNaN(Date.parse(q.from))) || (q.to && isNaN(Date.parse(q.to)))) throw new HttpException({ error: 'invalid' }, 400);
     const [rows, total] = await Promise.all([this.db.parcel.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * 50, take: 50 }), this.db.parcel.count({ where })]);
-    return { rows, total, page, pageSize: 50 };
+    const now = await whereNow(this.db, rows);
+    return { rows: rows.map((r) => ({ ...r, now: now.get(r.id) })), total, page, pageSize: 50 };
   }
 
   @Get(':key')
@@ -80,7 +82,8 @@ export class ParcelsController {
       this.db.scan.findMany({ where: { parcelId: parcel.id }, orderBy: { at: 'asc' } }),
       this.db.attempt.findMany({ where: { parcelId: parcel.id }, orderBy: { number: 'asc' } }),
     ]);
-    return { ...parcel, events, scans, attemptList: attempts };
+    const now = (await whereNow(this.db, [parcel])).get(parcel.id);
+    return { ...parcel, now, events, scans, attemptList: attempts };
   }
 
   @Post(':id/cancel')

@@ -114,3 +114,8 @@ button.stat-card:hover, .stat-card.active { border-color: var(--shiply-primary);
 .tabs { border-block-end-color: var(--shiply-line); }
 input[type='checkbox'], input[type='radio'] { min-height: 0; width: 18px; height: 18px; padding: 0; margin: 0; accent-color: var(--shiply-primary); flex: none; }
 .stack-form label.check { display: flex; align-items: center; gap: 10px; color: var(--shiply-text); font-weight: 500; font-size: 14px; }
+.now-banner { display: flex; align-items: center; gap: 14px; background: var(--shiply-surface); border-radius: 16px; padding: 16px 18px; margin-block-end: 16px; box-shadow: var(--shiply-shadow-sm); border-inline-start: 4px solid var(--shiply-primary); }
+.now-banner .info-icon { width: 42px; height: 42px; border-radius: 12px; }
+.now-label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--shiply-text-muted); }
+.now-banner strong { font-size: 18px; }
+.now-cell { white-space: normal; max-width: 220px; }

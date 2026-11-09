@@ -148,3 +148,19 @@ describe('office reads', () => {
     expect(failed).toEqual([expect.objectContaining({ tracking: ps[0]!.tracking, reason: 'refused', number: 1 })]);
   });
 });
+
+describe('where a parcel is now', () => {
+  it('follows the parcel from the facility to the courier', async () => {
+    const [a] = await toHub(1);
+    const now = async () => (await http().get(`/parcels/${a!.tracking}`).set('Cookie', owner)).body.now;
+    expect(await now()).toMatchObject({ kind: 'car', fromSiteId: net.facility.id, toSiteId: net.hub.id });
+    await scanAt(net.hub.id, 'hub_bag', 'S1');
+    await scanAt(net.hub.id, 'hub_receive', a!.tracking, { bagSeal: 'S1' });
+    expect(await now()).toMatchObject({ kind: 'site', siteId: net.hub.id });
+    const run = (await post('/parcels/runs', { hubId: net.hub.id, courierId: omarId })).body;
+    await scanAt(net.hub.id, 'dispatch', a!.tracking, { runId: run.id });
+    expect(await now()).toMatchObject({ kind: 'courier', userId: omarId });
+    const list = (await http().get('/parcels').set('Cookie', owner)).body.rows;
+    expect(list[0].now).toMatchObject({ kind: 'courier', userId: omarId });
+  });
+});

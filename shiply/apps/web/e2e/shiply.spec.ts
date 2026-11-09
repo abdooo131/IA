@@ -21,6 +21,7 @@ test('a new parcel gets its zone, hub and price from the address', async ({ page
   await expect(page.getByTestId('parcel-route')).toContainText('HEL-A');
   await expect(page.getByTestId('parcel-route')).toContainText('HLF');
   await expect(page.getByTestId('parcel-price')).toHaveText('EGP 45.00');
+  await expect(page.getByTestId('parcel-now')).toContainText('At the merchant: Eve Store');
 });
 
 test('inbound shows expected against received, and closing a car flags what never arrived', async ({ page }) => {

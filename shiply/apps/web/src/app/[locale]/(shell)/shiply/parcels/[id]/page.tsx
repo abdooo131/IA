@@ -11,11 +11,13 @@ import { RecordPage } from '@/shell/RecordPage';
 import { confirm, toast } from '@/shell/feedback';
 import { LoadError } from '@/shell/LoadError';
 import { useMe } from '@/shell/me';
+import { Icon } from '@/shell/Icon';
 import { Badge, parcelTone } from '@/ui/Badge';
 import { InfoCard, Journey } from '@/ui/Drawer';
 import { SHIPLY_MENU } from '../../menu';
 import { useLookups } from '../../shared';
 import type { Parcel } from '../page';
+import { useWhereNow } from '../../WhereNow';
 
 interface Full extends Parcel {
   notes: string | null;
@@ -35,6 +37,7 @@ export default function ParcelRecord() {
   const locale = useLocale() as 'ar' | 'en';
   const me = useMe();
   const look = useLookups();
+  const where = useWhereNow();
   const { id } = useParams<{ id: string }>();
   const [p, setP] = useState<Full | null>(null);
   const [failed, setFailed] = useState<unknown>(null);
@@ -91,6 +94,15 @@ export default function ParcelRecord() {
         summary={
           <>
             {step >= 0 && <Journey steps={JOURNEY.map((k) => ({ key: k, label: t(`shiply.journey.${k}` as never) }))} current={step} failed={journeyFailed} />}
+            <div className="now-banner" data-testid="parcel-now">
+              <span className="info-icon">
+                <Icon name={where(p.now).icon} size={20} />
+              </span>
+              <div>
+                <span className="now-label">{t('shiply.now')}</span>
+                <strong>{where(p.now).text}</strong>
+              </div>
+            </div>
             <div className="info-grid">
               <InfoCard icon="customers" title={t('shiply.customer')}>
                 <span className="big">{p.customerName}</span>

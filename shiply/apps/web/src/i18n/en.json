@@ -679,6 +679,15 @@
       "at_hub": "At hub",
       "out_for_delivery": "Out for delivery",
       "delivered": "Delivered"
+    },
+    "now": "Where it is now",
+    "nowAt": {
+      "merchant": "At the merchant: {name}",
+      "courier": "With {name}",
+      "site": "At {site}",
+      "bag": "In bag {seal} at {site}",
+      "car": "On the night car {from} → {to}",
+      "customer": "With the customer"
     }
   },
   "field": {

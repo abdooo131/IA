@@ -679,6 +679,15 @@
       "at_hub": "في المركز",
       "out_for_delivery": "خرجت للتوصيل",
       "delivered": "تم التوصيل"
+    },
+    "now": "مكانها الآن",
+    "nowAt": {
+      "merchant": "عند التاجر: {name}",
+      "courier": "مع {name}",
+      "site": "في {site}",
+      "bag": "في الكيس {seal} في {site}",
+      "car": "في سيارة الليل {from} ← {to}",
+      "customer": "مع العميل"
     }
   },
   "field": {

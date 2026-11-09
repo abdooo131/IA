@@ -14,6 +14,7 @@ import { Drawer } from '@/ui/Drawer';
 import { SHIPLY_MENU } from '../menu';
 import { useLookups } from '../shared';
 import { NewParcelForm } from './NewParcelForm';
+import { useWhereNow, type WhereNowValue } from '../WhereNow';
 
 export interface Parcel {
   id: string;
@@ -33,6 +34,7 @@ export interface Parcel {
   attempts: number;
   courierId: string | null;
   createdAt: string;
+  now?: WhereNowValue;
 }
 
 const CHIPS = ['', 'created', 'picked_up', 'at_inbound', 'sorted', 'in_transit', 'at_hub', 'out_for_delivery', 'attempt_failed', 'on_hold', 'delivered', 'returned'];
@@ -43,6 +45,7 @@ export default function ParcelsPage() {
   const me = useMe();
   const router = useRouter();
   const look = useLookups();
+  const where = useWhereNow();
   const [f, setF] = useState({ status: '', hub: '', merchant: '', q: '' });
   const [page, setPage] = useState(1);
   const [data, setData] = useState<{ rows: Parcel[]; total: number } | null>(null);
@@ -149,6 +152,7 @@ export default function ParcelsPage() {
                 <Badge tone="needs">{t('shiply.noRoute')}</Badge>
               ),
           },
+          { key: 'now', label: t('shiply.now'), render: (r) => <span className="cell-sub now-cell">{where(r.now).text}</span> },
           { key: 'cod', label: t('shiply.cod'), render: (r) => <span className="cell-main mono">{formatEgp(r.codAmount, locale)}</span> },
           { key: 'status', label: t('shiply.status'), render: (r) => <Badge tone={parcelTone(r.status)}>{t(`shiply.statuses.${r.status}` as never)}</Badge> },
           {
