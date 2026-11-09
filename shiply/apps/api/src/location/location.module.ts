@@ -5,6 +5,8 @@ import { FinderController } from './finder.controller';
 import { GEOCODER, GoogleGeocoder, type Geocoder } from './geocoder/geocoder';
 import { GazetteerCache } from './gazetteer.cache';
 import { LocationService } from './location.service';
+import { MapController } from './map.controller';
+import { PlacesController } from './places.controller';
 import { QueueController } from './queue.controller';
 
 /** Addresses waiting for a person show on Home for whoever can work the queue. */
@@ -32,7 +34,7 @@ export class LocationModule {
     const geocoder = opts.geocoder !== undefined ? opts.geocoder : key ? new GoogleGeocoder(key) : null;
     return {
       module: LocationModule,
-      controllers: [QueueController, FinderController],
+      controllers: [QueueController, FinderController, PlacesController, MapController],
       providers: [GazetteerCache, LocationService, LocationHome, { provide: GEOCODER, useValue: geocoder }],
       exports: [LocationService, GazetteerCache],
     };
