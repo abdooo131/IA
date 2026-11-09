@@ -14,6 +14,12 @@ export default async function setup() {
   });
   await db.user.create({ data: { name: 'Viewer', nameAr: 'مشاهد', mobile: '+201012345678', passwordHash: await hash('viewer-pass-1'), roleId: viewer.id } });
   await db.user.create({ data: { name: 'Rana', nameAr: 'رنا', email: 'rana@test.local', passwordHash: await hash('rana-pass-1'), roleId: limited.id } });
+  // A second admin (approves contracts the first one wrote), a pending sign up, a pricing zone.
+  const ownerRole = await db.jobRole.findUniqueOrThrow({ where: { key: 'owner' } });
+  await db.user.create({ data: { name: 'Second', nameAr: 'ثاني', email: 'second@test.local', passwordHash: await hash('second-pass-1'), roleId: ownerRole.id } });
+  await db.merchant.create({ data: { code: 'WAIT', name: 'Waiting Shop', contactName: 'Ali', contactPhone: '+201112345678', services: ['shiply'], status: 'pending' } });
+  const gc = await db.pricingZone.create({ data: { code: 'GC', nameEn: 'Greater Cairo', nameAr: 'القاهرة الكبرى' } });
+  await db.pricingZoneArea.createMany({ data: [{ placeId: 'cairo', pricingZoneId: gc.id }, { placeId: 'giza', pricingZoneId: gc.id }] });
   // One unclear address waiting in the Needs location queue.
   await db.addressDecision.create({
     data: {

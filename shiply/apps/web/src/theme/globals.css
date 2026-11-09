@@ -152,3 +152,8 @@ html[dir='rtl'] .brand-panel { background-position: left center, center; }
 .field-label { display: grid; gap: 4px; font-weight: 500; }
 textarea { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply-line); border-radius: 10px; background: var(--shiply-surface); color: var(--shiply-text); }
 .finder-result h2 { font-size: 20px; margin: 8px 0; }
+.checks { border: 0; padding: 0; margin: 0; display: flex; gap: 16px; flex-wrap: wrap; }
+.checks legend { font-weight: 500; margin-block-end: 4px; }
+.checks label { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; }
+.price-grid input { width: 110px; }
+.section { margin-block: 16px; }

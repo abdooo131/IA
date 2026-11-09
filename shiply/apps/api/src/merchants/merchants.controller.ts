@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Inject, Param, Patch, Post, Query, Req
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
+import { LocationService } from '../location';
 import { AuditService, createLogin, DB, NeedAccess, parse, setLoginsActive } from '../platform';
 import { MerchantsService } from './merchants.service';
 
@@ -44,6 +45,7 @@ export class MerchantsController {
     @Inject(DB) private readonly db: PrismaClient,
     @Inject(MerchantsService) private readonly merchants: MerchantsService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(LocationService) private readonly location: LocationService,
   ) {}
 
   @Get()
@@ -76,7 +78,8 @@ export class MerchantsController {
     const m = await this.db.merchant.findUnique({ where: { id }, include: { users: true, shops: true } });
     if (!m) return Promise.reject(Object.assign(new Error(), { status: 404 }));
     const logins = await this.db.user.findMany({ where: { id: { in: m.users.map((u) => u.userId) } }, select: { id: true, name: true, nameAr: true, email: true, mobile: true, active: true } });
-    return { ...m, users: m.users.map((u) => ({ ...u, login: logins.find((l) => l.id === u.userId) })) };
+    const pickupPath = m.pickupPlaceId ? await this.location.pathOf(m.pickupPlaceId) : [];
+    return { ...m, pickupPath, users: m.users.map((u) => ({ ...u, login: logins.find((l) => l.id === u.userId) })) };
   }
 
   @Post()

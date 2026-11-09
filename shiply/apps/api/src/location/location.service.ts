@@ -137,6 +137,18 @@ export class LocationService {
     return this.db.place.findUnique({ where: { id: placeId }, select: { id: true, kind: true, active: true } });
   }
 
+  /** A place's family names, biggest first (Cairo › Maadi › New Maadi). */
+  async pathOf(placeId: string): Promise<{ id: string; nameEn: string; nameAr: string }[]> {
+    const places = new Map((await this.db.place.findMany({ select: { id: true, parentId: true, nameEn: true, nameAr: true } })).map((p) => [p.id, p]));
+    const out: { id: string; nameEn: string; nameAr: string }[] = [];
+    const seen = new Set<string>();
+    for (let cur = places.get(placeId); cur && !seen.has(cur.id); cur = cur.parentId ? places.get(cur.parentId) : undefined) {
+      seen.add(cur.id);
+      out.unshift({ id: cur.id, nameEn: cur.nameEn, nameAr: cur.nameAr });
+    }
+    return out;
+  }
+
   /** The governorate a place sits in (itself when it is one), or null. */
   async governorateOf(placeId: string): Promise<string | null> {
     const places = new Map((await this.db.place.findMany({ select: { id: true, parentId: true, kind: true } })).map((p) => [p.id, p]));

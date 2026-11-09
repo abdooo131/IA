@@ -37,6 +37,12 @@ export class ProductsController {
     if (!(await this.db.merchant.findUnique({ where: { id } }))) throw new HttpException({ error: 'not_found' }, 404);
   }
 
+  @Get('shops')
+  @NeedAccess('merchants', 'view')
+  allShops() {
+    return this.db.shopifyShop.findMany({ orderBy: { connectedAt: 'desc' }, include: { merchant: { select: { id: true, code: true, name: true } } } });
+  }
+
   @Get(':id/products')
   @NeedAccess('merchants', 'view')
   async list(@Param('id') id: string, @Query('q') q?: string, @Query('active') active?: string, @Query('page') page = '1') {
