@@ -162,6 +162,17 @@ app (Accounting uses them first):
 - **Accounting dashboard** (`GET /finance/dashboard`, packages/db/src/finance/dashboard.ts):
   the Today strip and journal cards with 30 day sparklines; **one search**
   (`GET /finance/search`, packages/db/src/finance/search.ts) in the Accounting top bar.
+- **Other apps' lists** (UX phase C): `queryList` (packages/db/src/list-query.ts) is the one
+  helper behind every list endpoint. `APP_LISTS` (packages/shared/src/app-lists.ts) names the
+  lists of the other apps by app and id; packages/db/src/app-lists.ts holds their loaders and
+  definitions, answered by `GET /lists/:app/:id` (view on that app) and
+  `GET /lists/:app/:id/options` (the stores, merchants and types the person may pick). Value
+  filters (`v=store:<id>,from:YYYY-MM-DD`) choose one store, merchant or day range. A page uses
+  `AppListPage` with its columns in components/odoo/app-lists.ts.
+- **DocumentFrame** (server) is the frame of every document page (breadcrumbs, previous/next,
+  header, status bar, actions, smart buttons, content and the chatter); DocumentPage renders a
+  DocDescriptor inside it, and pages with their own body (the order page, a damage report) put
+  it inside directly.
 
 ### Public website
 

@@ -370,7 +370,8 @@
         "site_lead": "New website lead: {name}",
         "crm_followup_overdue": "Sales follow up overdue: {company}, {subject} ({owner})",
         "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
-        "hr_termination_review": "{nameEn}: {number} reached termination review"
+        "hr_termination_review": "{nameEn}: {number} reached termination review",
+        "zone_areas_review": "Zone areas to review: some areas were split between zones or some zones kept their drawn outline"
       },
       "handledBy": "Handled by {name}",
       "typeNames": {
@@ -401,7 +402,8 @@
         "site_lead": "Website lead",
         "crm_followup_overdue": "Follow up overdue",
         "crm_deal_stale": "Deal not moving",
-        "hr_termination_review": "Termination review"
+        "hr_termination_review": "Termination review",
+        "zone_areas_review": "Zone areas to review"
       }
     },
     "settings": {
@@ -9791,7 +9793,6 @@
       "merchant_not_allowed": "A merchant you do not look after",
       "refused": "Refused"
     },
-    "valueFacet": "Chosen",
     "any": "Any",
     "applyDays": "Apply days"
   },

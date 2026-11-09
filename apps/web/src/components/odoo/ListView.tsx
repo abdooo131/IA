@@ -566,15 +566,15 @@ function SearchBar({
             key={f.id}
             className="inline-flex max-w-full items-center gap-1 rounded-pill bg-selected-bg py-0.5 pe-1 ps-2.5 text-caption font-semibold text-link"
           >
-            <span className="text-text-muted">
-              {f.kind === 'search'
-                ? t('searchFacet')
-                : f.kind === 'group'
-                  ? t('groupFacet')
-                  : f.kind === 'value'
-                    ? t('valueFacet')
+            {f.kind !== 'value' && (
+              <span className="text-text-muted">
+                {f.kind === 'search'
+                  ? t('searchFacet')
+                  : f.kind === 'group'
+                    ? t('groupFacet')
                     : t('filterFacet')}
-            </span>
+              </span>
+            )}
             <span className="truncate">{f.values.join(f.joiner)}</span>
             <button
               type="button"
@@ -617,8 +617,16 @@ function SearchBar({
         <div className={`${menuPanel} inset-x-0 grid gap-4 p-3 sm:grid-cols-3`}>
           <section aria-label={t('filters')}>
             <h3 className="px-2 text-label uppercase text-text-muted">{t('filters')}</h3>
+            {config.values && config.values.length > 0 && (
+              <ValueFilters filters={config.values} state={state} go={go} />
+            )}
             {groups.map((g, gi) => (
-              <ul key={g} className={gi > 0 ? 'mt-1 border-t border-line pt-1' : 'mt-1'}>
+              <ul
+                key={g}
+                className={
+                  gi > 0 || config.values?.length ? 'mt-1 border-t border-line pt-1' : 'mt-1'
+                }
+              >
                 {config.filters
                   .filter((f) => f.group === g)
                   .map((f) => (
@@ -639,9 +647,6 @@ function SearchBar({
                   ))}
               </ul>
             ))}
-            {config.values && config.values.length > 0 && (
-              <ValueFilters filters={config.values} state={state} go={go} />
-            )}
           </section>
           <section aria-label={t('groupBy')}>
             <h3 className="px-2 text-label uppercase text-text-muted">{t('groupBy')}</h3>
@@ -755,7 +760,7 @@ function ValueFilters({
   const field =
     'mt-1 block h-10 w-full rounded-md border border-line-strong bg-surface px-2 text-body-sm text-text';
   return (
-    <div className="mt-2 space-y-2 border-t border-line px-2 pt-2">
+    <div className="mt-1 space-y-2 px-2 pb-2">
       {filters
         .filter((f) => f.kind === 'option')
         .map((f) => (

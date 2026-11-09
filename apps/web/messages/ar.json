@@ -370,7 +370,8 @@
         "site_lead": "عميل جديد من الموقع: {name}",
         "crm_followup_overdue": "متابعة مبيعات متأخرة: {company}، {subject} ({owner})",
         "crm_deal_stale": "الصفقة {number} ({company}) في نفس المرحلة منذ {days} يومًا",
-        "hr_termination_review": "{nameEn}: المخالفة {number} وصلت لمراجعة إنهاء الخدمة"
+        "hr_termination_review": "{nameEn}: المخالفة {number} وصلت لمراجعة إنهاء الخدمة",
+        "zone_areas_review": "مناطق الزونات محتاجة مراجعة: مناطق اتقسمت بين زونات أو زونات فضلت بحدودها المرسومة"
       },
       "handledBy": "اتعامل معاه {name}",
       "typeNames": {
@@ -401,7 +402,8 @@
         "site_lead": "عميل من الموقع",
         "crm_followup_overdue": "متابعة متأخرة",
         "crm_deal_stale": "صفقة واقفة",
-        "hr_termination_review": "مراجعة إنهاء خدمة"
+        "hr_termination_review": "مراجعة إنهاء خدمة",
+        "zone_areas_review": "مناطق الزونات للمراجعة"
       }
     },
     "settings": {
@@ -9734,7 +9736,6 @@
       "merchant_not_allowed": "تاجر مش من التجار اللي بتتابعهم",
       "refused": "مرفوض"
     },
-    "valueFacet": "مختار",
     "any": "الكل",
     "applyDays": "طبّق الأيام"
   },

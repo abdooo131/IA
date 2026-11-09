@@ -27,10 +27,34 @@ marked paid with a past day is booked at noon of that day; near amounts (within 
 only suggestions and never matched; a filtered (store or merchant) balance sheet or trial balance
 need not balance and says so.
 
-## Next: Accounting UX phase C
+## UX phase C step 1 (Operations): built (branch claude/ux-phase-c, not deployed)
 
-The same list views and document pages in the other apps (Operations, Inventory, Merchants,
-Customers, HR, Sales), reusing the phase A building blocks.
+The Accounting building blocks now serve every app: one list query helper
+(packages/db/src/list-query.ts), APP_LISTS (packages/shared/src/app-lists.ts) answered by
+GET /lists/<app>/<id>, value filters (store, merchant, first and last Cairo day) in the list
+engine and the Filters menu, and DocumentFrame (components/odoo/DocumentFrame.tsx), the frame of
+every document page. Built on it: the Orders list (search, filters, value filters, grouping,
+totals, favourites, columns, CSV and Excel, phone cards, bulk Accept and Cancel with a reason),
+the order page framed as a document (breadcrumbs, previous and next, smart buttons, chatter
+beside it from xl), the Alerts list (bulk Mark as handled), the Damage reports list and a damage
+report document page (/admin/damage/<id>). CLAUDE.md has the decision line "UX phase C step 1
+(Operations)". Choices the owner should confirm:
+
+- Bulk Accept lets Operations use people accept new orders from the list (before, only store
+  staff accepted, one by one in the store screen); each order is still checked against the
+  person's stores.
+- The order's chatter shows the order's team notes (order_notes, team thread) instead of the
+  generic record notes, so an order has one internal thread; the merchant thread stays in the
+  Notes card of the details tab. The change history moved from the tracking tab to the chatter.
+- Damage reports stay in the Inventory app (menus and access unchanged), though built in this
+  step.
+- Old list links (/admin/orders?status=..., /admin/alerts?all=1, /admin/damage?status=settled)
+  now open the list with its default filters; the dashboard's store queue link was updated.
+
+## Next: UX phase C step 2
+
+The same list views and document pages in Inventory (stock, shipments, transfers, returns,
+counts), then Merchants, Customers, HR and Sales.
 
 ## Waiting on the owner
 

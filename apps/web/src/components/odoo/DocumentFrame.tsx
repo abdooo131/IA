@@ -131,17 +131,20 @@ export async function DocumentFrame({
       )}
 
       {smart.length > 0 && (
-        <ul className="mt-3 flex flex-wrap gap-2 print:hidden" aria-label={t('related')}>
+        <ul
+          className="mt-3 grid grid-cols-3 gap-2 sm:flex sm:flex-wrap print:hidden"
+          aria-label={t('related')}
+        >
           {smart.map((s) => (
-            <li key={s.key}>
+            <li key={s.key} className="min-w-0">
               <Link
                 href={s.href}
-                className="flex min-h-12 min-w-[120px] flex-col justify-center rounded-md border border-line bg-surface px-3 py-1.5 hover:border-primary hover:bg-surface-raised"
+                className="flex min-h-12 flex-col justify-center rounded-md border border-line bg-surface px-2 py-1.5 hover:border-primary hover:bg-surface-raised sm:min-w-[120px] sm:px-3"
               >
-                <span className="ltr-iso max-w-[220px] truncate text-body font-bold text-link">
+                <span className="ltr-iso truncate text-body font-bold text-link sm:max-w-[220px]">
                   {s.count ?? s.value}
                 </span>
-                <span className="text-caption text-text-muted">{t(`smart.${s.key}`)}</span>
+                <span className="truncate text-caption text-text-muted">{t(`smart.${s.key}`)}</span>
               </Link>
             </li>
           ))}
