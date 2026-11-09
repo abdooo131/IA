@@ -34,6 +34,8 @@ test('the station answers in big letters, refuses a wrong step, and keeps scans 
   await expect(page.getByTestId('pending')).toHaveText('2 scans waiting to send');
   await context.setOffline(false);
   await expect(page.getByTestId('pending')).toHaveCount(0);
+  // the second one was refused once it reached the server: it stays on screen
+  await expect(page.getByTestId('refused')).toContainText('SP2000000001');
   const parcel = await (await page.request.get('/api/parcels/SP2000000001')).json();
   expect(parcel.status).toBe('at_outbound');
   expect(parcel.events.filter((e: { status: string }) => e.status === 'at_outbound')).toHaveLength(1);
@@ -47,6 +49,10 @@ test('a courier delivers and the cash shows on him in Accounting', async ({ page
   await stop.getByLabel('Cash collected').fill('250');
   await stop.getByRole('button', { name: 'Delivered' }).click();
   await expect(stop).toContainText('Delivered');
+
+  await page.getByRole('button', { name: 'Returns', exact: true }).click();
+  await scan(page, 'SP5000000004');
+  await expect(page.getByTestId('answer')).toHaveAttribute('data-colour', 'green');
 
   const office = await browser.newPage();
   await signIn(office, 'owner@test.local', 'owner-pass-1', '/en/accounting/holders');

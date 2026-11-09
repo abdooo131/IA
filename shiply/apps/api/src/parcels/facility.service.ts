@@ -48,6 +48,7 @@ export class FacilityService implements OnModuleInit {
         if (!p!.hubId) return { ok: true, colour: 'amber', big: '?', reason: 'no_route', small: p!.tracking, parcelId: p!.id };
         await this.parcels.move(tx, p!.id, 'sorted', { userId: user.id, siteId: input.siteId });
         const [sites, zones] = await Promise.all([this.location.sites(), this.location.zones()]);
+        if (p!.price === null) return { ok: true, colour: 'amber', big: sites.find((s) => s.id === p!.hubId)?.code ?? '?', reason: 'no_price', parcelId: p!.id };
         return { ok: true, colour: 'green', big: sites.find((s) => s.id === p!.hubId)?.code ?? '?', small: zones.find((z) => z.id === p!.zoneId)?.code, parcelId: p!.id };
       },
     });

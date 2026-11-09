@@ -64,6 +64,9 @@ export class CourierService implements OnModuleInit {
       site: false,
       handler: async (tx, { user, parcel: p }) => {
         if (p!.direction !== 'return' || p!.status !== 'at_inbound') throw new HttpException({ error: 'wrong_status' }, 409);
+        const day = new Date(new Date().toISOString().slice(0, 10));
+        const mine = await tx.pickup.findFirst({ where: { merchantId: p!.merchantId, courierId: user.id, date: day, status: { in: ['assigned', 'on_the_way', 'done'] } } });
+        if (!mine) throw new HttpException({ error: 'not_your_merchant' }, 403);
         await this.parcels.move(tx, p!.id, 'returned', { userId: user.id });
         const terms = await this.merchants.parcelTerms(p!.merchantId);
         const fee = Math.round(((p!.price ?? 0) * (terms?.returnFeeBp ?? 0)) / 10_000);

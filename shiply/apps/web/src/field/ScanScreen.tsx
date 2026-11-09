@@ -19,7 +19,7 @@ function beep(ok: boolean) {
 /** One big input that keeps focus (hardware scanners type and press Enter), and a full width answer. */
 export function ScanScreen(props: { url?: string; body: Record<string, unknown>; ready?: boolean; header?: ReactNode; onAnswer?: (a: Answer) => void }) {
   const t = useTranslations('field');
-  const { pending, submit } = useScanQueue();
+  const { pending, refused, submit } = useScanQueue();
   const [code, setCode] = useState('');
   const [answer, setAnswer] = useState<Answer | null>(null);
   const input = useRef<HTMLInputElement>(null);
@@ -57,6 +57,15 @@ export function ScanScreen(props: { url?: string; body: Record<string, unknown>;
         <p className="scan-pending" data-testid="pending">
           {t('pending', { count: pending })}
         </p>
+      )}
+      {refused.length > 0 && (
+        <ul className="scan-refused" data-testid="refused">
+          {refused.map((r, i) => (
+            <li key={i}>
+              <span dir="ltr">{r.code}</span>: {t.has(`answers.${r.reason}` as never) ? t(`answers.${r.reason}` as never) : r.reason}
+            </li>
+          ))}
+        </ul>
       )}
       {answer && (
         <div className={`scan-answer ${answer.colour}`} data-testid="answer" data-colour={answer.colour}>

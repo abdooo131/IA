@@ -57,6 +57,8 @@ export default async function setup() {
   await db.parcel.create({ data: { ...base, tracking: 'SP2000000001', status: 'at_inbound' } });
   const nour = await db.user.create({ data: { name: 'Nour', nameAr: 'نور', mobile: '+201166666666', kind: 'agent_person', passwordHash: await hash('nour-pass-1'), roleId: field.id } });
   const run = await db.run.create({ data: { hubId: hel.id, courierId: nour.id, date: new Date(new Date().toISOString().slice(0, 10)), status: 'out', confirmedById: ownerUser.id } });
+  await db.parcel.create({ data: { ...base, tracking: 'SP5000000004', status: 'at_inbound', direction: 'return' } });
+  await db.pickup.create({ data: { merchantId: eve.id, date: new Date(new Date().toISOString().slice(0, 10)), courierId: nour.id, status: 'assigned', createdById: ownerUser.id } });
   await db.parcel.create({ data: { ...base, tracking: 'SP4000000003', status: 'out_for_delivery', codAmount: 25000, courierId: nour.id, runId: run.id } });
   // One unclear address waiting in the Needs location queue.
   await db.addressDecision.create({

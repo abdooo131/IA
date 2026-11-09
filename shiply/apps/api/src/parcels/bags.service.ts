@@ -57,6 +57,7 @@ export class BagsService implements OnModuleInit {
       handler: async (tx, { input }) => {
         const bag = await tx.bag.findUnique({ where: { seal: input.code } });
         if (!bag) throw new HttpException({ error: 'not_found' }, 404);
+        if (input.carId) await tx.$executeRaw`SELECT id FROM parcels.cars WHERE id = ${input.carId} FOR UPDATE`;
         const car = input.carId ? await tx.car.findUnique({ where: { id: input.carId } }) : null;
         if (!car || car.status !== 'loading' || car.fromSiteId !== input.siteId) throw new HttpException({ error: 'no_car' }, 409);
         if (bag.fromSiteId !== input.siteId || bag.toSiteId !== car.toSiteId) throw new HttpException({ error: 'other_hub' }, 409);
@@ -90,6 +91,8 @@ export class BagsService implements OnModuleInit {
   /** The driver confirms the bag count; only a matching count lets the car leave. */
   depart(carId: string, driverCount: number, userId: string) {
     return this.db.$transaction(async (tx) => {
+      // Loading and leaving wait for each other, so no bag is loaded on a car that already left.
+      await tx.$executeRaw`SELECT id FROM parcels.cars WHERE id = ${carId} FOR UPDATE`;
       const car = await tx.car.findUnique({ where: { id: carId } });
       if (!car) throw new HttpException({ error: 'not_found' }, 404);
       const bags = await tx.bag.findMany({ where: { carId, status: 'loaded' } });

@@ -30,10 +30,15 @@ export class HubService implements OnModuleInit {
         const bag = await tx.bag.findUnique({ where: { seal: input.code } });
         if (!bag) throw new HttpException({ error: 'not_found' }, 404);
         if (bag.toSiteId !== input.siteId) throw new HttpException({ error: 'other_hub' }, 409);
-        if (bag.status === 'received' || bag.status === 'done') throw new HttpException({ error: 'already_received' }, 409);
         const neverLoaded = bag.status !== 'loaded';
-        await tx.bag.update({ where: { id: bag.id }, data: { status: 'received', receivedById: user.id } });
-        if (neverLoaded) await this.gaps.open(tx, { siteId: input.siteId!, kind: 'extra', step: 'hub_bag', bagId: bag.id, lastScanById: bag.closedById });
+        const { count } = await tx.bag.updateMany({ where: { id: bag.id, status: { in: ['open', 'closed', 'loaded'] } }, data: { status: 'received', receivedById: user.id } });
+        if (!count) throw new HttpException({ error: 'already_received' }, 409);
+        if (neverLoaded) {
+          await this.gaps.open(tx, { siteId: input.siteId!, kind: 'extra', step: 'hub_bag', bagId: bag.id, lastScanById: bag.closedById });
+          // It came anyway: its parcels travelled, so they can be received parcel by parcel.
+          const left = await tx.parcel.findMany({ where: { bagId: bag.id, status: 'at_outbound' } });
+          for (const p of left) await this.parcels.move(tx, p.id, 'in_transit', { userId: user.id, siteId: bag.fromSiteId, note: 'bag not loaded on a car' });
+        }
         if (bag.carId && !(await tx.bag.count({ where: { carId: bag.carId, status: 'loaded' } }))) {
           await tx.car.updateMany({ where: { id: bag.carId, status: 'departed' }, data: { status: 'arrived', arrivedAt: new Date() } });
         }

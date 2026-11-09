@@ -87,9 +87,10 @@ export class ScanService {
     } catch (err) {
       const again = await this.db.scan.findUnique({ where: { deviceScanId: input.deviceScanId } });
       if (again) return again.answer as unknown as ScanAnswer;
-      if (!(err instanceof HttpException)) throw err;
-      const body = err.getResponse() as { error?: string };
-      answer = red(body.error ?? 'refused');
+      const errCode = (err as { code?: string }).code;
+      if (!(err instanceof HttpException) && errCode !== 'P2002' && errCode !== 'P2034') throw err;
+      // Two devices at the same moment: the loser gets a red answer to scan again, never a server error.
+      answer = err instanceof HttpException ? red((err.getResponse() as { error?: string }).error ?? 'refused') : red('busy');
       if (parcel) answer.parcelId = parcel.id;
       try {
         await this.db.scan.create({ data: this.row(input, code, user, parcel?.id ?? null, answer) });

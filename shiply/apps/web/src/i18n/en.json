@@ -730,7 +730,11 @@
       "reason_required": "Pick a reason",
       "site_required": "Pick the site first",
       "invalid": "Check the scan",
-      "refused": "Refused"
-    }
+      "refused": "Refused",
+      "busy": "Busy: scan again",
+      "not_your_merchant": "Not your merchant today",
+      "no_price": "No price: flagged"
+    },
+    "returns": "Returns"
   }
 }

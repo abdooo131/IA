@@ -30,7 +30,8 @@ class ParcelsWiring implements OnModuleInit {
       const p = payload as { refType: string; refId: string; decisionId: string; placeId: string };
       if (p.refType !== 'parcel') return;
       const parcel = await tx.parcel.findUnique({ where: { id: p.refId } });
-      if (parcel?.decisionId === p.decisionId) await this.parcels.applyPlace(tx, p.refId, p.placeId);
+      // Only before it travels: a parcel already bagged keeps its route.
+      if (parcel?.decisionId === p.decisionId && ['created', 'picked_up', 'at_inbound'].includes(parcel.status)) await this.parcels.applyPlace(tx, p.refId, p.placeId);
     });
     this.home.addAttention(async (user) => {
       if (!atLeast(user.access.shiply, 'manage')) return [];

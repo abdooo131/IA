@@ -120,6 +120,7 @@ describe('delivery', () => {
     await scanAt(net.facility.id, 'hub_bag', 'R1');
     await scanAt(net.facility.id, 'hub_receive', p.tracking, { bagSeal: 'R1' });
     expect(await statusOf(p.id)).toBe('at_inbound');
+    await db.pickup.create({ data: { merchantId: net.merchant.id, date: new Date(new Date().toISOString().slice(0, 10)), courierId: omarId, status: 'assigned', createdById: omarId } });
     expect((await post('/parcels/scan', scanBody('return_handover', p.tracking), omar)).body).toMatchObject({ ok: true });
     await processDue(db);
     expect(await statusOf(p.id)).toBe('returned');

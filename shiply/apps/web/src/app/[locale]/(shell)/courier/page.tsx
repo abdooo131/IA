@@ -30,7 +30,7 @@ export default function CourierPage() {
   const t = useTranslations();
   const locale = useLocale() as 'ar' | 'en';
   const { pending, submit } = useScanQueue();
-  const [tab, setTab] = useState<'run' | 'pickups' | 'cash'>('run');
+  const [tab, setTab] = useState<'run' | 'pickups' | 'returns' | 'cash'>('run');
   const [stops, setStops] = useState<Stop[]>([]);
   const [pickups, setPickups] = useState<Pickup[]>([]);
   const [pickupId, setPickupId] = useState('');
@@ -57,7 +57,7 @@ export default function CourierPage() {
     <main className="field-page">
       <h1>{t('field.myDay')}</h1>
       <div className="field-steps">
-        {(['run', 'pickups', 'cash'] as const).map((k) => (
+        {(['run', 'pickups', 'returns', 'cash'] as const).map((k) => (
           <button key={k} className={`btn${tab === k ? ' on' : ''}`} onClick={() => setTab(k)}>
             {t(`field.${k}` as never)}
           </button>
@@ -140,6 +140,7 @@ export default function CourierPage() {
           {pickupId && <ScanScreen body={{ step: 'pickup', pickupId }} />}
         </>
       )}
+      {tab === 'returns' && <ScanScreen body={{ step: 'return_handover' }} />}
       {tab === 'cash' && held !== null && <p className="card">{t('field.holding', { amount: formatEgp(held, locale) })}</p>}
     </main>
   );

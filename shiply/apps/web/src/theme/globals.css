@@ -176,3 +176,4 @@ textarea { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply-line
 .scan-answer.red { background: #b91c1c; }
 .stop { display: grid; gap: 8px; }
 .stop .row-actions { flex-wrap: wrap; }
+.scan-refused { color: var(--shiply-danger); font-weight: 600; margin: 0; padding-inline-start: 18px; }

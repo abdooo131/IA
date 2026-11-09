@@ -730,7 +730,11 @@
       "reason_required": "اختر السبب",
       "site_required": "اختر الموقع أولا",
       "invalid": "راجع المسح",
-      "refused": "مرفوض"
-    }
+      "refused": "مرفوض",
+      "busy": "مشغول: امسح مرة أخرى",
+      "not_your_merchant": "ليس تاجرك اليوم",
+      "no_price": "بدون سعر: تم التسجيل"
+    },
+    "returns": "المرتجعات"
   }
 }
