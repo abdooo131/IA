@@ -25,6 +25,16 @@ for (const name of ['DATABASE_URL', 'JWT_ACCESS_SECRET']) {
   }
 }
 
+// DATABASE_NAME points the whole app at another database on the same server: the address in
+// DATABASE_URL keeps its host, user and options and only the database name changes (used on
+// 2026-11-09 to give Shiply Now alone a fresh database beside the merged version's).
+if (env.DATABASE_NAME) {
+  const url = new URL(env.DATABASE_URL);
+  url.pathname = `/${env.DATABASE_NAME}`;
+  env.DATABASE_URL = url.toString();
+  log(`using database ${env.DATABASE_NAME}`);
+}
+
 log('applying database migrations');
 const migrate = spawnSync(
   path.join(root, 'packages/db/node_modules/.bin/prisma'),
