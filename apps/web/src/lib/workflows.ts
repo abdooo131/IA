@@ -47,6 +47,8 @@ export const WORKFLOWS = {
     path: ['requested', 'approved', 'ordered', 'received', 'billed', 'closed'],
     side: ['rejected', 'cancelled'],
   },
+  // UX phase C step 1: a damage report waits for admin to settle who pays.
+  damage: { path: ['pending', 'settled'], side: [] },
 } as const;
 
 export type WorkflowName = keyof typeof WORKFLOWS;

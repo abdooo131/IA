@@ -16,10 +16,11 @@ type Thread = 'team' | 'merchant';
  */
 export function NotesCard({ props }: { props: OrderScreenProps }) {
   const { notes, teamNotes, apiPath } = props;
+  const threads: Thread[] = props.noteThreads ?? (teamNotes ? ['team', 'merchant'] : ['merchant']);
   const t = useTranslations('orderDetail.notes');
   const locale = useLocale();
   const router = useRouter();
-  const [thread, setThread] = useState<Thread>(teamNotes ? 'team' : 'merchant');
+  const [thread, setThread] = useState<Thread>(threads[0] ?? 'merchant');
   const [body, setBody] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -62,8 +63,8 @@ export function NotesCard({ props }: { props: OrderScreenProps }) {
   );
 
   return (
-    <Card title={t('title')} icon="chat">
-      {teamNotes && (
+    <Card title={threads.length === 1 && teamNotes ? t('merchantTitle') : t('title')} icon="chat">
+      {threads.length > 1 && (
         <div role="tablist" className="mb-3 flex gap-1 rounded-lg bg-surface-raised p-1">
           {tab('team')}
           {tab('merchant')}

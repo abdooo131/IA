@@ -372,7 +372,37 @@
         "crm_deal_stale": "الصفقة {number} ({company}) في نفس المرحلة منذ {days} يومًا",
         "hr_termination_review": "{nameEn}: المخالفة {number} وصلت لمراجعة إنهاء الخدمة"
       },
-      "handledBy": "اتعامل معاه {name}"
+      "handledBy": "اتعامل معاه {name}",
+      "typeNames": {
+        "late": "مرحلة متأخرة",
+        "item_missing": "منتج ناقص",
+        "cod_mismatch": "فرق كاش",
+        "phone_invalid": "موبايل محتاج مراجعة",
+        "delivery_failed": "توصيل فشل",
+        "shopify_rejected": "طلب شوبيفاي راجع",
+        "over_capacity": "فوق الطاقة",
+        "shopify_sync_failed": "تحديث شوبيفاي فشل",
+        "shopify_wrong_store": "شوبيفاي مخزن غلط",
+        "server_error": "مشكلة في السيرفر",
+        "goods_not_returned": "بضاعة مارجعتش",
+        "low_rating": "تقييم منخفض",
+        "merchant_signup": "تسجيل تاجر",
+        "transfer_short_sent": "تحويل خرج ناقص",
+        "transfer_short_received": "تحويل وصل ناقص",
+        "cod_risk_customer": "عميل كاش عالي المخاطرة",
+        "document_expiring": "مستند قرب ينتهي",
+        "document_expired": "مستند انتهى",
+        "rider_cash_overdue": "كاش مندوب متأخر",
+        "cheque_bounced": "شيك مرتد",
+        "merchant_over_credit_limit": "فوق حد الائتمان",
+        "packaging_low": "تغليف قليل",
+        "packaging_short": "تغليف ناقص",
+        "email_failed": "بريد فشل",
+        "site_lead": "عميل من الموقع",
+        "crm_followup_overdue": "متابعة متأخرة",
+        "crm_deal_stale": "صفقة واقفة",
+        "hr_termination_review": "مراجعة إنهاء خدمة"
+      }
     },
     "settings": {
       "title": "الإعدادات",
@@ -3888,6 +3918,19 @@
       "rider_charge_not_allowed": "بس تلف التوصيل اللي فيه مندوب ينفع يتحمّل على المندوب.",
       "damage_already_settled": "حد سوّاها قبلك.",
       "generic": "حصلت مشكلة. جرّب تاني."
+    },
+    "fields": {
+      "cause": "السبب",
+      "status": "الحالة",
+      "store": "المخزن",
+      "merchant": "التاجر",
+      "reported": "اتبلّغ",
+      "value": "القيمة بسعر المنتج",
+      "rider": "المندوب",
+      "note": "ملاحظة الموظف",
+      "settled": "سوّاه",
+      "outcome": "النتيجة",
+      "settleNote": "ملاحظة التسوية"
     }
   },
   "signup": {
@@ -5262,7 +5305,8 @@
       "signed": "موقّع",
       "submitted": "مُقدّم",
       "valid": "مقبول",
-      "invalid": "غير صالح"
+      "invalid": "غير صالح",
+      "settled": "اتسوّى"
     }
   },
   "tickets": {
@@ -7003,7 +7047,8 @@
       "error": "تعذر حفظ الملاحظة. حاول مرة أخرى.",
       "unavailable": "تعذر تحميل الملاحظات.",
       "empty": "لا توجد ملاحظات بعد.",
-      "fromMerchant": "التاجر"
+      "fromMerchant": "التاجر",
+      "merchantTitle": "ملاحظات مع التاجر"
     },
     "collection": {
       "title": "مبلغ التحصيل",
@@ -9680,8 +9725,18 @@
       "approval_not_needed": "أقل من حد الموافقة: لا يحتاج موافقة",
       "no_access": "ليست لديك صلاحية لهذا",
       "payout_not_found": "الدفعة غير موجودة",
-      "request_not_found": "الطلب غير موجود"
-    }
+      "request_not_found": "الطلب غير موجود",
+      "invalid_order_state": "مش ممكن في مرحلة الطلب الحالية",
+      "order_not_found": "الطلب غير موجود",
+      "alert_not_open": "اتعالج قبل كده",
+      "alert_not_found": "التنبيه غير موجود",
+      "store_not_allowed": "مخزن غير مخازنك",
+      "merchant_not_allowed": "تاجر مش من التجار اللي بتتابعهم",
+      "refused": "مرفوض"
+    },
+    "valueFacet": "مختار",
+    "any": "الكل",
+    "applyDays": "طبّق الأيام"
   },
   "lists": {
     "columns": {
@@ -9927,7 +9982,13 @@
       "creditNotes": "الإشعارات الدائنة",
       "original": "الفاتورة الأصلية",
       "deliveries": "الاستلامات",
-      "bills": "الفواتير"
+      "bills": "الفواتير",
+      "customer": "العميل",
+      "store": "المخزن",
+      "photos": "الصور",
+      "notes": "الملاحظات",
+      "alerts": "التنبيهات",
+      "product": "المنتج"
     },
     "chatter": {
       "title": "الملاحظات والسجل",
@@ -9957,6 +10018,13 @@
         "assignee_not_allowed": "هذا الشخص لا يستطيع فتح هذا السجل.",
         "no_access": "يمكنك قراءة هذا السجل دون الكتابة عليه.",
         "not_your_activity": "فقط من تم تذكيره أو من خطط له يمكنه إغلاقه."
+      },
+      "teamNotes": "ملاحظات الفريق",
+      "teamNotesHint": "داخلية: فريقنا بس اللي يشوفها. ملاحظات التاجر في تبويب التفاصيل.",
+      "photoKinds": {
+        "pack": "اتغلّف",
+        "delivery": "اتسلّم",
+        "door": "عند الباب"
       }
     },
     "search": {
@@ -10010,6 +10078,111 @@
     "cashFlow": {
       "term": "التدفق النقدي",
       "text": "من أين جاءت الأموال وإلى أين ذهبت، في البنوك والخزائن ومع المندوبين."
+    }
+  },
+  "appLists": {
+    "columns": {
+      "number": "الطلب",
+      "placedAt": "وقت الطلب",
+      "store": "المخزن",
+      "merchant": "التاجر",
+      "customer": "العميل",
+      "phone": "الموبايل",
+      "address": "العنوان",
+      "status": "الحالة",
+      "lateStage": "متأخر في",
+      "promiseAt": "الموعد الموعود",
+      "payment": "الدفع",
+      "source": "المصدر",
+      "rider": "المندوب",
+      "units": "القطع",
+      "value": "المنتجات (ج.م)",
+      "cod": "الكاش المطلوب (ج.م)",
+      "deliveryFee": "رسوم التوصيل (ج.م)",
+      "message": "التنبيه",
+      "type": "النوع",
+      "orderNumber": "الطلب",
+      "createdAt": "وقت التنبيه",
+      "resolvedBy": "عالجه",
+      "resolvedAt": "وقت المعالجة",
+      "sku": "كود المنتج",
+      "title": "المنتج",
+      "quantity": "القطع",
+      "cause": "السبب",
+      "reportedBy": "بلّغ عنه",
+      "settledBy": "سوّاه",
+      "compensation": "اتدفع للتاجر (ج.م)",
+      "riderCharge": "على المندوب (ج.م)"
+    },
+    "filters": {
+      "active": "شغالة",
+      "late_now": "متأخرة دلوقتي",
+      "was_late": "اتأخرت",
+      "delivered_late": "اتسلمت بعد الموعد",
+      "cod": "دفع عند الاستلام",
+      "prepaid": "مدفوعة مقدمًا",
+      "shopify": "من شوبيفاي",
+      "manual": "اتعملت يدوي",
+      "phone_flagged": "موبايل محتاج مراجعة",
+      "today": "النهارده",
+      "yesterday": "امبارح",
+      "last_7_days": "آخر 7 أيام",
+      "this_month": "الشهر ده",
+      "last_month": "الشهر اللي فات",
+      "open": "مفتوحة",
+      "handled": "اتعالجت",
+      "with_order": "عن طلب",
+      "pending": "مستنية",
+      "settled": "اتسوّت",
+      "company_pays": "إحنا بندفع للتاجر"
+    },
+    "groups": {
+      "store": "المخزن",
+      "status": "الحالة",
+      "merchant": "التاجر",
+      "day": "اليوم",
+      "payment": "الدفع",
+      "source": "المصدر",
+      "type": "النوع",
+      "cause": "السبب",
+      "month": "الشهر"
+    },
+    "values": {
+      "store": "المخزن",
+      "merchant": "التاجر",
+      "from": "من يوم",
+      "to": "لحد يوم",
+      "type": "النوع"
+    },
+    "payment": {
+      "cod": "كاش",
+      "prepaid": "مدفوع مقدمًا"
+    },
+    "source": {
+      "shopify": "شوبيفاي",
+      "manual": "يدوي"
+    },
+    "bulk": {
+      "accept": "قبول",
+      "cancel": "إلغاء الطلبات",
+      "resolve": "تم التعامل معها"
+    },
+    "orders": {
+      "exportName": "orders"
+    },
+    "alerts": {
+      "exportName": "alerts",
+      "intro": "اللي محتاج حد ياخد باله منه. حدد أكتر من تنبيه وعلّمهم كلهم إنهم اتعالجوا مرة واحدة؛ التنبيه الخاص بطلب بيفتح الطلب.",
+      "status": {
+        "open": "مفتوح",
+        "handled": "اتعالج"
+      }
+    },
+    "damage": {
+      "exportName": "damage-reports",
+      "filters": {
+        "pending": "مستنية التسوية"
+      }
     }
   }
 }

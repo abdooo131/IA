@@ -1,7 +1,8 @@
-import { FINANCE_LISTS, parseListState } from '@shiplynow/shared';
+import { APP_LISTS, FINANCE_LISTS, parseListState } from '@shiplynow/shared';
 import { describe, expect, it } from 'vitest';
 import { appsFor, locate } from './apps';
 import { JOB_ROLE_TEMPLATES, type JobRole } from '@shiplynow/shared';
+import ar from '../../messages/ar.json';
 import en from '../../messages/en.json';
 import { docNeighbours, exportTable, readDocNav, rowHrefOf, withListState } from './list-view';
 
@@ -118,5 +119,56 @@ describe('Accounting menus by job', () => {
     expect(officer.menus.flatMap((m) => m.pages.map((p) => p.href))).not.toContain(
       '/finance/payroll',
     );
+  });
+});
+
+describe('Operations lists (UX phase C)', () => {
+  it('has words in both languages for every filter, value and grouping', () => {
+    for (const messages of [en, ar]) {
+      const words = messages.appLists as unknown as Record<
+        string,
+        Record<string, Record<string, string> | string>
+      >;
+      const statuses = messages.orders.statuses as Record<string, string>;
+      const causes = messages.damage.causes as Record<string, string>;
+      for (const lists of Object.values(APP_LISTS))
+        for (const [id, meta] of Object.entries(lists)) {
+          const own = words[id] as Record<string, Record<string, string>> | undefined;
+          for (const [f, group] of Object.entries(meta.filters)) {
+            const label =
+              own?.filters?.[f] ??
+              (words.filters as Record<string, string>)[f] ??
+              (group === 'status' ? statuses[f] : group === 'cause' ? causes[f] : undefined);
+            expect(label, `${id}.${f}`).toBeTruthy();
+          }
+          for (const v of Object.keys(meta.values ?? {}))
+            expect((words.values as Record<string, string>)[v], `${id}.${v}`).toBeTruthy();
+          for (const g of meta.groupBys)
+            expect((words.groups as Record<string, string>)[g], `${id}.${g}`).toBeTruthy();
+          expect(own?.exportName).toBeTruthy();
+        }
+    }
+  });
+
+  it('opens no page for a row missing what the page needs and keeps value filters', () => {
+    expect(rowHrefOf('/admin/orders/{orderId}', { id: 'a', orderId: null } as never)).toBeNull();
+    expect(rowHrefOf('/admin/orders/{orderId}', { id: 'a', orderId: 'o1' } as never)).toBe(
+      '/admin/orders/o1',
+    );
+    expect(withListState('v=store:x&tab=1', 'f=&q=a')).toBe('f=&q=a&tab=1');
+    expect(parseListState(new URLSearchParams('f=active&v=store:abc')).values).toEqual({
+      store: 'abc',
+    });
+  });
+
+  it('exports a formatted column through its formatter', () => {
+    const table = exportTable(
+      { valueLabels: {} },
+      [{ key: 'message', label: 'Alert', kind: 'text', format: 'alert' }],
+      [{ id: '1', type: 'late' }],
+      { yes: 'Yes', no: 'No' },
+      (_c, row) => `Late: ${String(row.type)}`,
+    );
+    expect(table.rows).toEqual([['Late: late']]);
   });
 });

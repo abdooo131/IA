@@ -1,4 +1,4 @@
-import type { ExportCell, ListResult } from '@shiplynow/shared';
+import type { ExportCell, ListResult, ListValueKind } from '@shiplynow/shared';
 
 // Pure helpers of the Odoo style list view (components/odoo/ListView): column kinds, exports,
 // the address and the previous/next record navigation of document pages.
@@ -16,6 +16,16 @@ export interface ListColumn {
   sort?: string;
   /** The card title on phones */
   primary?: boolean;
+  /** A named formatter of components/odoo/list-formatters (a sentence built from the row) */
+  format?: string;
+}
+
+/** A value filter of the Filters menu: a store or merchant to pick, or a first or last day. */
+export interface ListValueFilter {
+  key: string;
+  label: string;
+  kind: ListValueKind;
+  options?: { value: string; label: string }[];
 }
 
 export interface BulkAction {
@@ -35,6 +45,8 @@ export interface ListViewConfig {
   endpoint: string;
   columns: ListColumn[];
   filters: { key: string; group: string; label: string }[];
+  /** Value filters (a store, a merchant, days), when the list has them */
+  values?: ListValueFilter[];
   groupBys: { key: string; label: string }[];
   /** column or group by key → value → label (statuses, kinds) */
   valueLabels: Record<string, Record<string, string>>;
@@ -56,7 +68,7 @@ export type ListRow = Record<string, unknown> & { id: string };
 export type ListData = ListResult<ListRow>;
 
 /** The list state params; anything else in the address (a tab) is kept. */
-const LIST_PARAMS = ['q', 'f', 'g', 'sort', 'desc', 'page', 'size'];
+const LIST_PARAMS = ['q', 'f', 'g', 'sort', 'desc', 'page', 'size', 'v'];
 
 /** Puts a serialized list state into the current address, keeping its other params. */
 export function withListState(current: string, listQuery: string): string {
@@ -67,13 +79,20 @@ export function withListState(current: string, listQuery: string): string {
   return next.toString();
 }
 
-/** A row's page: {id} or any other {field} of the row is filled in. */
+/**
+ * A row's page: {id} or any other {field} of the row is filled in. A row missing a field the
+ * page needs (an alert without an order) has no page.
+ */
 export function rowHrefOf(template: string | undefined, row: { id: string }) {
   if (!template) return null;
   const values = row as unknown as Record<string, unknown>;
-  return template.replace(/\{(\w+)\}/g, (_, k: string) =>
-    encodeURIComponent(String(values[k] ?? '')),
-  );
+  let missing = false;
+  const href = template.replace(/\{(\w+)\}/g, (_, k: string) => {
+    const v = values[k];
+    if (v === null || v === undefined || v === '') missing = true;
+    return encodeURIComponent(String(v ?? ''));
+  });
+  return missing ? null : href;
 }
 
 const day = (v: string) => v.slice(0, 10);
@@ -98,11 +117,13 @@ export function exportTable(
   columns: ListColumn[],
   rows: ListRow[],
   yesNo: { yes: string; no: string },
+  format?: (column: ListColumn, row: ListRow) => string | null,
 ): { header: string[]; rows: ExportCell[][] } {
   return {
     header: columns.map((c) => c.label),
     rows: rows.map((r) =>
       columns.map((c): ExportCell => {
+        if (c.format && format) return format(c, r);
         const v = r[c.key];
         if (v === null || v === undefined) return null;
         switch (c.kind) {

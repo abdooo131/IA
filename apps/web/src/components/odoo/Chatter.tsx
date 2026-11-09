@@ -23,6 +23,29 @@ interface Activity {
   createdBy: { id: string; name: string };
 }
 
+/**
+ * Notes from another thread than the record's own notes: an order keeps its team notes
+ * (order_notes, team thread), so the chatter of an order shows and writes those.
+ */
+export interface ChatterNotes {
+  /** GET: the notes ({ id, at, author (name or { id, name }), body, audience? }) */
+  list: string;
+  /** POST { body, audience? } */
+  post: string;
+  /** Only this thread of the answer, and the thread a new note goes to */
+  audience?: string;
+  /** The longest note that thread takes */
+  maxLength?: number;
+}
+
+interface ForeignNote {
+  id: string;
+  at: string;
+  author: string | { id: string; name: string };
+  body: string;
+  audience?: string;
+}
+
 const field =
   'mt-1 block w-full rounded-md border border-line-strong bg-surface px-3 text-body-sm text-text';
 
@@ -36,11 +59,13 @@ export function Chatter({
   entityId,
   canWrite,
   meId,
+  notes: foreign,
 }: {
   entityType: string;
   entityId: string;
   canWrite: boolean;
   meId: string;
+  notes?: ChatterNotes;
 }) {
   const t = useTranslations('documents.chatter');
   const locale = useLocale();
@@ -57,14 +82,27 @@ export function Chatter({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
+  const notesPath = foreign?.list ?? `${base}/notes`;
+  const audience = foreign?.audience;
   const load = useCallback(async () => {
     const [n, a] = await Promise.all([
-      apiGetClient<Note[]>(`${base}/notes`),
+      apiGetClient<ForeignNote[]>(notesPath),
       apiGetClient<Activity[]>(`${base}/activities`),
     ]);
-    if (n.ok) setNotes(n.data);
+    if (n.ok)
+      setNotes(
+        n.data
+          .filter((x) => !audience || x.audience === audience)
+          .map((x) => ({
+            id: x.id,
+            at: x.at,
+            body: x.body,
+            author: typeof x.author === 'string' ? { id: '', name: x.author } : x.author,
+          }))
+          .sort((x, y) => y.at.localeCompare(x.at)),
+      );
     if (a.ok) setActivities(a.data);
-  }, [base]);
+  }, [base, notesPath, audience]);
   useEffect(() => {
     void load();
     if (canWrite)
@@ -115,14 +153,20 @@ export function Chatter({
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={3}
-                maxLength={4000}
+                maxLength={foreign?.maxLength ?? 4000}
                 placeholder={t('notePlaceholder')}
                 className={`${field} py-2`}
               />
               <button
                 type="button"
                 disabled={busy || !body.trim()}
-                onClick={() => void send(`${base}/notes`, { body }, () => setBody(''))}
+                onClick={() =>
+                  void send(
+                    foreign?.post ?? `${base}/notes`,
+                    { body, ...(audience ? { audience } : {}) },
+                    () => setBody(''),
+                  )
+                }
                 className="mt-2 h-10 rounded-md bg-primary px-4 text-body-sm font-bold text-on-primary disabled:bg-line disabled:text-text-muted"
               >
                 {t('postNote')}
@@ -236,10 +280,13 @@ export function Chatter({
         )}
       </section>
 
-      <section aria-labelledby={`notes-${entityId}`}>
+      <section id="notes" aria-labelledby={`notes-${entityId}`} className="scroll-mt-20">
         <h3 id={`notes-${entityId}`} className="text-label uppercase text-text-muted">
-          {t('notes')}
+          {foreign && audience === 'team' ? t('teamNotes') : t('notes')}
         </h3>
+        {foreign && audience === 'team' && (
+          <p className="mt-0.5 text-caption text-text-muted">{t('teamNotesHint')}</p>
+        )}
         {notes.length === 0 ? (
           <p className="mt-1 text-body-sm text-text-muted">{t('noNotes')}</p>
         ) : (

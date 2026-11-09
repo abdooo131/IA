@@ -372,7 +372,37 @@
         "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
         "hr_termination_review": "{nameEn}: {number} reached termination review"
       },
-      "handledBy": "Handled by {name}"
+      "handledBy": "Handled by {name}",
+      "typeNames": {
+        "late": "Late stage",
+        "item_missing": "Item missing",
+        "cod_mismatch": "Cash difference",
+        "phone_invalid": "Phone to check",
+        "delivery_failed": "Delivery failed",
+        "shopify_rejected": "Shopify order sent back",
+        "over_capacity": "Over capacity",
+        "shopify_sync_failed": "Shopify update failed",
+        "shopify_wrong_store": "Shopify wrong store",
+        "server_error": "Server problem",
+        "goods_not_returned": "Goods not back",
+        "low_rating": "Low rating",
+        "merchant_signup": "Merchant sign up",
+        "transfer_short_sent": "Transfer sent short",
+        "transfer_short_received": "Transfer arrived short",
+        "cod_risk_customer": "Risky cash customer",
+        "document_expiring": "Document running out",
+        "document_expired": "Document ran out",
+        "rider_cash_overdue": "Rider cash overdue",
+        "cheque_bounced": "Cheque bounced",
+        "merchant_over_credit_limit": "Over credit limit",
+        "packaging_low": "Packaging low",
+        "packaging_short": "Packaging short",
+        "email_failed": "Email failed",
+        "site_lead": "Website lead",
+        "crm_followup_overdue": "Follow up overdue",
+        "crm_deal_stale": "Deal not moving",
+        "hr_termination_review": "Termination review"
+      }
     },
     "settings": {
       "title": "Settings",
@@ -3888,6 +3918,19 @@
       "rider_charge_not_allowed": "Only delivery damage with a rider can be charged to the rider.",
       "damage_already_settled": "Someone already settled this.",
       "generic": "Something went wrong. Try again."
+    },
+    "fields": {
+      "cause": "Cause",
+      "status": "Status",
+      "store": "Store",
+      "merchant": "Merchant",
+      "reported": "Reported",
+      "value": "Value at product price",
+      "rider": "Rider",
+      "note": "Staff note",
+      "settled": "Settled by",
+      "outcome": "Outcome",
+      "settleNote": "Settle note"
     }
   },
   "signup": {
@@ -5319,7 +5362,8 @@
       "signed": "Signed",
       "submitted": "Submitted",
       "valid": "Accepted",
-      "invalid": "Invalid"
+      "invalid": "Invalid",
+      "settled": "Settled"
     }
   },
   "tickets": {
@@ -7060,7 +7104,8 @@
       "error": "The note could not be saved. Try again.",
       "unavailable": "Notes could not be loaded.",
       "empty": "No notes yet.",
-      "fromMerchant": "merchant"
+      "fromMerchant": "merchant",
+      "merchantTitle": "Notes with the merchant"
     },
     "collection": {
       "title": "Collection amount",
@@ -9737,8 +9782,18 @@
       "approval_not_needed": "Below the approval limit: no approval needed",
       "no_access": "You do not have access to do this",
       "payout_not_found": "Payout not found",
-      "request_not_found": "Request not found"
-    }
+      "request_not_found": "Request not found",
+      "invalid_order_state": "Not possible at the order's current step",
+      "order_not_found": "Order not found",
+      "alert_not_open": "Already handled",
+      "alert_not_found": "Alert not found",
+      "store_not_allowed": "Another store than yours",
+      "merchant_not_allowed": "A merchant you do not look after",
+      "refused": "Refused"
+    },
+    "valueFacet": "Chosen",
+    "any": "Any",
+    "applyDays": "Apply days"
   },
   "lists": {
     "columns": {
@@ -9984,7 +10039,13 @@
       "creditNotes": "Credit notes",
       "original": "Original invoice",
       "deliveries": "Deliveries",
-      "bills": "Bills"
+      "bills": "Bills",
+      "customer": "Customer",
+      "store": "Store",
+      "photos": "Photos",
+      "notes": "Notes",
+      "alerts": "Alerts",
+      "product": "Product"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10014,6 +10075,13 @@
         "assignee_not_allowed": "That person cannot open this record.",
         "no_access": "You can read this record but not write on it.",
         "not_your_activity": "Only the person reminded or who planned it can close it."
+      },
+      "teamNotes": "Team notes",
+      "teamNotesHint": "Internal: only our team sees these. Notes with the merchant are in the details tab.",
+      "photoKinds": {
+        "pack": "Packed",
+        "delivery": "Delivered",
+        "door": "At the door"
       }
     },
     "search": {
@@ -10067,6 +10135,111 @@
     "cashFlow": {
       "term": "Cash flow",
       "text": "Where money came from and where it went, in the banks, cash boxes and with riders."
+    }
+  },
+  "appLists": {
+    "columns": {
+      "number": "Order",
+      "placedAt": "Placed",
+      "store": "Store",
+      "merchant": "Merchant",
+      "customer": "Customer",
+      "phone": "Phone",
+      "address": "Address",
+      "status": "Status",
+      "lateStage": "Late at",
+      "promiseAt": "Promised by",
+      "payment": "Payment",
+      "source": "From",
+      "rider": "Rider",
+      "units": "Units",
+      "value": "Products (EGP)",
+      "cod": "Cash to collect (EGP)",
+      "deliveryFee": "Delivery fee (EGP)",
+      "message": "Alert",
+      "type": "Type",
+      "orderNumber": "Order",
+      "createdAt": "Raised",
+      "resolvedBy": "Handled by",
+      "resolvedAt": "Handled on",
+      "sku": "SKU",
+      "title": "Product",
+      "quantity": "Units",
+      "cause": "Cause",
+      "reportedBy": "Reported by",
+      "settledBy": "Settled by",
+      "compensation": "Paid to merchant (EGP)",
+      "riderCharge": "Charged to rider (EGP)"
+    },
+    "filters": {
+      "active": "In progress",
+      "late_now": "Late now",
+      "was_late": "Were late",
+      "delivered_late": "Delivered after the promise",
+      "cod": "Cash on delivery",
+      "prepaid": "Prepaid",
+      "shopify": "From Shopify",
+      "manual": "Made by hand",
+      "phone_flagged": "Phone to check",
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "last_7_days": "Last 7 days",
+      "this_month": "This month",
+      "last_month": "Last month",
+      "open": "Open",
+      "handled": "Handled",
+      "with_order": "About an order",
+      "pending": "Waiting",
+      "settled": "Settled",
+      "company_pays": "We pay the merchant"
+    },
+    "groups": {
+      "store": "Store",
+      "status": "Status",
+      "merchant": "Merchant",
+      "day": "Day",
+      "payment": "Payment",
+      "source": "From",
+      "type": "Type",
+      "cause": "Cause",
+      "month": "Month"
+    },
+    "values": {
+      "store": "Store",
+      "merchant": "Merchant",
+      "from": "From day",
+      "to": "To day",
+      "type": "Type"
+    },
+    "payment": {
+      "cod": "Cash",
+      "prepaid": "Prepaid"
+    },
+    "source": {
+      "shopify": "Shopify",
+      "manual": "By hand"
+    },
+    "bulk": {
+      "accept": "Accept",
+      "cancel": "Cancel orders",
+      "resolve": "Mark as handled"
+    },
+    "orders": {
+      "exportName": "orders"
+    },
+    "alerts": {
+      "exportName": "alerts",
+      "intro": "What needs someone's attention. Tick several and mark them as handled together; an alert about an order opens the order.",
+      "status": {
+        "open": "Open",
+        "handled": "Handled"
+      }
+    },
+    "damage": {
+      "exportName": "damage-reports",
+      "filters": {
+        "pending": "Waiting to settle"
+      }
     }
   }
 }

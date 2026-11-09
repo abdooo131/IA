@@ -18,6 +18,12 @@ export interface OrderScreenProps {
   notes: OrderNote[] | null;
   /** The viewer may read and write the team's internal thread */
   teamNotes: boolean;
+  /**
+   * The threads the Notes card shows (default: both for the team, the merchant's otherwise).
+   * The admin page shows the team thread in the document chatter and only the merchant
+   * thread here.
+   */
+  noteThreads?: ('team' | 'merchant')[];
   /** Fees and payout from the ledger; null when the viewer may not see money */
   money: OrderMoney | null;
   /** Admin only: the customer behind the order and their cash on delivery risk */

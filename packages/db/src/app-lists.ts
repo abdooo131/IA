@@ -252,6 +252,8 @@ export interface AlertListRow {
   createdAt: string;
   createdDay: string;
   open: boolean;
+  /** open or handled */
+  status: string;
   resolvedAt: string | null;
   resolvedBy: string | null;
 }
@@ -310,6 +312,7 @@ async function loadAlerts(db: Db, scope: ListScope, state: ListState): Promise<A
     createdAt: a.createdAt.toISOString(),
     createdDay: cairoDay(a.createdAt),
     open: a.resolvedAt === null,
+    status: a.resolvedAt === null ? 'open' : 'handled',
     resolvedAt: a.resolvedAt?.toISOString() ?? null,
     resolvedBy: a.resolvedBy?.name ?? null,
   }));

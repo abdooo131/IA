@@ -11,6 +11,7 @@ import {
   type ListState,
   parseListState,
   serializeListState,
+  setListValue,
   sortBy,
   toggleFilter,
   toggleGroupBy,
@@ -19,6 +20,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from 'react';
+import { DateInput } from '@/components/DateInput';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
@@ -34,6 +36,7 @@ import {
   rowHrefOf,
   withListState,
 } from '@/lib/list-view';
+import { useListFormatters } from './list-formatters';
 
 // The Odoo style list view (docs/ARCHITECTURE.md "List views and document pages"): a search
 // bar with facet chips, Filters, Group by and Favourites, a column chooser, selection with a
@@ -126,6 +129,7 @@ export function ListView({
       filters: config.filters.map((f) => f.key),
       groupBys: config.groupBys.map((g) => g.key),
       sorts: config.columns.flatMap((c) => (c.sort ? [c.sort] : [])),
+      values: (config.values ?? []).map((v) => v.key),
     }),
     [config],
   );
@@ -204,7 +208,8 @@ export function ListView({
     const idKey = config.navIdKey ?? 'id';
     const nav: DocNav = {
       listUrl: `${pathname}?${params.toString()}`,
-      ids: [...new Set(rows.map((r) => String(r[idKey] ?? r.id)))],
+      // Rows without a page (an alert without an order) are left out.
+      ids: [...new Set(rows.flatMap((r) => (r[idKey] ? [String(r[idKey])] : [])))],
       hrefTemplate: config.rowHref.replace(`{${idKey}}`, '{id}'),
       ...(config.navTrail ? { trail: config.navTrail } : {}),
       ...(config.navLabel ? { listLabel: config.navLabel } : {}),
@@ -221,6 +226,13 @@ export function ListView({
     filterGroups: Object.fromEntries(config.filters.map((f) => [f.key, f.group])),
     groupBys: Object.fromEntries(config.groupBys.map((g) => [g.key, g.label])),
     or: t('or'),
+    values: Object.fromEntries((config.values ?? []).map((v) => [v.key, v.label])),
+    valueText: (key: string, value: string) => {
+      const filter = config.values?.find((v) => v.key === key);
+      if (filter?.kind === 'option')
+        return filter.options?.find((o) => o.value === value)?.label ?? value;
+      return isoToDayFirst(value);
+    },
   };
   const facets = facetsOf(state, facetLabels);
 
@@ -559,7 +571,9 @@ function SearchBar({
                 ? t('searchFacet')
                 : f.kind === 'group'
                   ? t('groupFacet')
-                  : t('filterFacet')}
+                  : f.kind === 'value'
+                    ? t('valueFacet')
+                    : t('filterFacet')}
             </span>
             <span className="truncate">{f.values.join(f.joiner)}</span>
             <button
@@ -625,6 +639,9 @@ function SearchBar({
                   ))}
               </ul>
             ))}
+            {config.values && config.values.length > 0 && (
+              <ValueFilters filters={config.values} state={state} go={go} />
+            )}
           </section>
           <section aria-label={t('groupBy')}>
             <h3 className="px-2 text-label uppercase text-text-muted">{t('groupBy')}</h3>
@@ -712,6 +729,74 @@ function SearchBar({
   );
 }
 
+/**
+ * Value filters in the Filters menu: a store or merchant applies when picked; the first and
+ * last day apply together with their button, so typing a date does not reload on each key.
+ */
+function ValueFilters({
+  filters,
+  state,
+  go,
+}: {
+  filters: NonNullable<ListViewConfig['values']>;
+  state: ListState;
+  go: (s: ListState) => void;
+}) {
+  const t = useTranslations('listView');
+  const days = filters.filter((f) => f.kind !== 'option');
+  const [draft, setDraft] = useState<Record<string, string>>(() =>
+    Object.fromEntries(days.map((f) => [f.key, state.values[f.key] ?? ''])),
+  );
+  const applyDays = () => {
+    let next = state;
+    for (const f of days) next = setListValue(next, f.key, draft[f.key] || null);
+    go(next);
+  };
+  const field =
+    'mt-1 block h-10 w-full rounded-md border border-line-strong bg-surface px-2 text-body-sm text-text';
+  return (
+    <div className="mt-2 space-y-2 border-t border-line px-2 pt-2">
+      {filters
+        .filter((f) => f.kind === 'option')
+        .map((f) => (
+          <label key={f.key} className="block text-caption text-text-muted">
+            {f.label}
+            <select
+              value={state.values[f.key] ?? ''}
+              onChange={(e) => go(setListValue(state, f.key, e.target.value || null))}
+              className={field}
+            >
+              <option value="">{t('any')}</option>
+              {(f.options ?? []).map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      {days.length > 0 && (
+        <div className="space-y-2">
+          {days.map((f) => (
+            <label key={f.key} className="flex min-w-0 flex-col text-caption text-text-muted">
+              {f.label}
+              <DateInput
+                value={draft[f.key] ?? ''}
+                onChange={(e) => setDraft((d) => ({ ...d, [f.key]: e.target.value }))}
+                dir="ltr"
+                className="mt-1 h-10 rounded-md border border-line-strong bg-surface px-2 text-body-sm text-text"
+              />
+            </label>
+          ))}
+          <button type="button" className={`${btn} w-full justify-center`} onClick={applyDays}>
+            {t('applyDays')}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── cells, rows and groups ─────────────────────────────────────────────────────
 
 function Money({ value }: { value: number }) {
@@ -730,6 +815,9 @@ function Cell({
 }) {
   const locale = useLocale();
   const t = useTranslations('listView');
+  const formatters = useListFormatters();
+  const format = column.format ? formatters[column.format] : undefined;
+  if (format) return <span className="[overflow-wrap:anywhere]">{format(row)}</span>;
   const v = row[column.key];
   if (v === null || v === undefined || v === '') return <span className="text-text-muted">–</span>;
   switch (column.kind) {
@@ -1144,6 +1232,7 @@ function ExportMenu({
 }) {
   const t = useTranslations('listView');
   const locale = useLocale();
+  const formatters = useListFormatters();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const ref = useDismiss(open, () => setOpen(false));
@@ -1157,7 +1246,9 @@ function ExportMenu({
     if (!r.ok) return;
     // Selected rows only when some are ticked, like Odoo.
     const rows = selected.size ? r.data.rows.filter((x) => selected.has(x.id)) : r.data.rows;
-    const table = exportTable(config, columns, rows, { yes: t('yes'), no: t('no') });
+    const table = exportTable(config, columns, rows, { yes: t('yes'), no: t('no') }, (c, row) =>
+      c.format && formatters[c.format] ? formatters[c.format]!(row) : null,
+    );
     const stamp = new Date().toISOString().slice(0, 10);
     if (format === 'csv')
       download(

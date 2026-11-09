@@ -258,7 +258,7 @@ export default async function AdminOverviewPage({
                   <Stat label={t('skusInStock')} value={formatCount(s.skusInStock)} />
                 </dl>
                 <div className="mt-4 flex flex-wrap gap-4 text-body-sm font-bold">
-                  <Link className="text-link" href={`/admin/orders?store=${s.id}`}>
+                  <Link className="text-link" href={`/admin/orders?f=active&v=store:${s.id}`}>
                     {t('queue')}
                   </Link>
                   <Link className="text-link" href={`/admin/stock?store=${s.id}`}>
