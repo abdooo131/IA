@@ -109,6 +109,9 @@ describe('Google Maps step', () => {
     };
     expect(answerFromGoogle(sample)).toEqual({ lat: 30.05, lng: 31.33, names: ['عباس العقاد', 'المنطقة السادسة', 'مدينة نصر', 'محافظة القاهرة'], precise: true });
     expect(answerFromGoogle({ status: 'ZERO_RESULTS', results: [] })).toBeNull();
+    // A refused key or a full quota is an error to retry later, never "Google found nothing".
+    expect(() => answerFromGoogle({ status: 'REQUEST_DENIED', results: [] })).toThrow('REQUEST_DENIED');
+    expect(() => answerFromGoogle({ status: 'OVER_QUERY_LIMIT', results: [] })).toThrow();
     expect(answerFromGoogle({ ...sample, results: [{ ...sample.results[0]!, partial_match: true }] })!.precise).toBe(false);
   });
 });

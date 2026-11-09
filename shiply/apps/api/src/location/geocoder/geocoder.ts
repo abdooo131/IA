@@ -29,7 +29,10 @@ interface GoogleJson {
 
 /** Reads the Geocoding API answer (https://developers.google.com/maps/documentation/geocoding). */
 export function answerFromGoogle(json: GoogleJson): GeoAnswer | null {
-  const top = json.status === 'OK' ? json.results[0] : undefined;
+  if (json.status === 'ZERO_RESULTS') return null;
+  // A refused key, a full quota or a Google error is not "nothing found": it is retried later.
+  if (json.status !== 'OK') throw new Error(`Google Maps status ${json.status}`);
+  const top = json.results[0];
   if (!top) return null;
   return {
     lat: top.geometry.location.lat,

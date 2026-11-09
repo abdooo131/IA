@@ -48,6 +48,17 @@ export class PlacesController {
     if (!parent?.active) throw new HttpException({ error: 'unknown_parent' }, 400);
   }
 
+  /** True when place `id` is `ancestorId` itself or sits anywhere inside it. */
+  private async isInside(id: string, ancestorId: string): Promise<boolean> {
+    const parents = new Map((await this.db.place.findMany({ select: { id: true, parentId: true } })).map((p) => [p.id, p.parentId]));
+    const seen = new Set<string>();
+    for (let cur: string | null | undefined = id; cur && !seen.has(cur); cur = parents.get(cur)) {
+      if (cur === ancestorId) return true;
+      seen.add(cur);
+    }
+    return false;
+  }
+
   @Get('places')
   @NeedAccess('location', 'view')
   async list(@Query('q') q?: string, @Query('kind') kind?: string, @Query('page') page = '1') {
@@ -108,8 +119,8 @@ export class PlacesController {
     const before = await this.db.place.findUnique({ where: { id } });
     if (!before) throw new HttpException({ error: 'not_found' }, 404);
     if (e.parentId !== undefined) {
-      if (e.parentId === id) throw new HttpException({ error: 'unknown_parent' }, 400);
       await this.assertParent(e.parentId, before.kind);
+      if (e.parentId && (await this.isInside(e.parentId, id))) throw new HttpException({ error: 'parent_loop' }, 400);
     }
     const after = await this.db.$transaction(async (tx) => {
       const updated = await tx.place.update({ where: { id }, data: { ...e, names: e.names?.map((x) => x.toLowerCase()) } });
@@ -129,6 +140,7 @@ export class PlacesController {
     if (intoId === id) throw new HttpException({ error: 'same_place' }, 400);
     const [from, into] = await Promise.all([this.db.place.findUnique({ where: { id } }), this.db.place.findUnique({ where: { id: intoId } })]);
     if (!from?.active || !into?.active) throw new HttpException({ error: 'not_found' }, 404);
+    if (await this.isInside(intoId, id)) throw new HttpException({ error: 'merge_into_child' }, 400);
     await this.db.$transaction(async (tx) => {
       const names = [...new Set([...into.names, ...from.names, from.nameEn.toLowerCase(), from.nameAr])];
       await tx.place.update({ where: { id: intoId }, data: { names } });
@@ -145,7 +157,7 @@ export class PlacesController {
       }
       await tx.phoneMemory.updateMany({ where: { placeId: id }, data: { placeId: intoId } });
       await tx.addressDecision.updateMany({ where: { placeId: id }, data: { placeId: intoId } });
-      await tx.place.updateMany({ where: { parentId: id }, data: { parentId: intoId } });
+      await tx.place.updateMany({ where: { parentId: id, id: { not: intoId } }, data: { parentId: intoId } });
       await tx.place.update({ where: { id }, data: { active: false, mergedIntoId: intoId } });
       await this.audit.record(tx, { userId: req.user!.id, action: 'place.merged', entity: 'place', entityId: id, after: { intoId } });
     });

@@ -162,3 +162,17 @@ test('taught names are used, inactive places are not', () => {
   const noMaadi = buildGazetteer(SEED_PLACES.map((p) => (p.id === 'zamalek' ? { ...p, active: false } : p)));
   assert.notEqual(parseAddress('zamalek', noMaadi).area?.id, 'zamalek');
 });
+
+test('a loop in the place family never freezes the engine', () => {
+  const loop = buildGazetteer([
+    { id: 'a', kind: 'district', parent: 'b', en: 'Alpha Town', ar: 'ألفا' },
+    { id: 'b', kind: 'district', parent: 'a', en: 'Beta Town', ar: 'بيتا' },
+  ]);
+  assert.ok(parseAddress('alpha town', loop).status);
+});
+
+test('a Shopify export uses only the shipping columns', async () => {
+  const { extractAddresses } = await import('../src/bulk');
+  const csv = 'Name,Billing Street,Billing Address1,Billing City,Shipping Street,Shipping Address1,Shipping City,Shipping Province\n#1,12 Tahrir St,12 Tahrir St,Giza,5 Road 9,5 Road 9,Maadi,Cairo';
+  assert.deepEqual(extractAddresses(csv).addresses, ['5 Road 9, Maadi, Cairo']);
+});

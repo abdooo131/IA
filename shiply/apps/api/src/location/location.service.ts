@@ -51,8 +51,10 @@ export class LocationService {
     let answer: GeoAnswer | null;
     try {
       answer = await this.geocoder.lookup(text);
-    } catch {
-      return null; // Google is down or refused: not saved, so the next address asks again
+    } catch (err) {
+      // Not saved, so the next address asks again. The message never carries the key.
+      console.warn(`Google Maps lookup failed: ${err instanceof Error ? err.message : 'unknown error'}`);
+      return null;
     }
     await tx.geocodeCache.createMany({ data: [{ normalized, answer: (answer ?? undefined) as never }], skipDuplicates: true });
     return answer;

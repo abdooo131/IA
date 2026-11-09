@@ -243,7 +243,8 @@
     "errors": {
       "hub_needs_facility": "مركز التوزيع يحتاج مركز فرز",
       "code_taken": "هذا الكود مستخدم",
-      "zone_needs_hub": "اختر مركز توزيع"
+      "zone_needs_hub": "اختر مركز توزيع",
+      "already_resolved": "قام شخص آخر بتحديد هذا العنوان بالفعل"
     }
   }
 }

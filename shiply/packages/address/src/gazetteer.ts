@@ -75,8 +75,11 @@ export function buildGazetteer(all: readonly Place[] = SEED_PLACES, taught: read
 /** The place itself and every place above it, nearest first. */
 export function chainOf(g: Gazetteer, id: string): Place[] {
   const out: Place[] = [];
+  const seen = new Set<string>();
   let cur = g.byId.get(id);
-  while (cur) {
+  // A loop in the data (A inside B inside A) must never freeze the system: stop on a repeat.
+  while (cur && !seen.has(cur.id)) {
+    seen.add(cur.id);
     out.push(cur);
     cur = cur.parent ? g.byId.get(cur.parent) : undefined;
   }
@@ -86,8 +89,12 @@ export function chainOf(g: Gazetteer, id: string): Place[] {
 /** The area a match points at: a landmark or a street points at the area it sits in. */
 export function areaOf(g: Gazetteer, id: string): Place {
   let cur = g.byId.get(id)!;
-  while ((cur.kind === 'landmark' || cur.kind === 'street') && cur.parent) {
-    cur = g.byId.get(cur.parent)!;
+  const seen = new Set<string>();
+  while ((cur.kind === 'landmark' || cur.kind === 'street') && cur.parent && !seen.has(cur.id)) {
+    seen.add(cur.id);
+    const parent = g.byId.get(cur.parent);
+    if (!parent) break;
+    cur = parent;
   }
   return cur;
 }

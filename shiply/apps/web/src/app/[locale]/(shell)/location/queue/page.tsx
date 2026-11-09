@@ -2,7 +2,7 @@
 import { useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
 import { atLeast } from '@shiply/shared';
-import { api } from '@/lib/api';
+import { api, ApiError } from '@/lib/api';
 import { AppShell } from '@/shell/AppShell';
 import { ListPage } from '@/shell/ListPage';
 import { PlacePicker } from '@/shell/PlacePicker';
@@ -36,8 +36,8 @@ export default function QueuePage() {
     try {
       await api(`/location/queue/${picking.id}/pick`, { method: 'POST', json: { placeId } });
       toast.success(t('location.picked'));
-    } catch {
-      toast.error(t('common.failed'));
+    } catch (err) {
+      toast.error(err instanceof ApiError && err.status === 409 ? t('location.errors.already_resolved') : t('common.failed'));
     }
     setPicking(null);
     await load();

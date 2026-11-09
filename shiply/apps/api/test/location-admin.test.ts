@@ -69,3 +69,22 @@ describe('location admin', () => {
     expect((await post('/location/find', { address: 'villa 3 gardenia' })).body.area.id).toBe(res.body.id);
   });
 });
+
+describe('location admin review fixes', () => {
+  it('refuses to merge a place into its own child, or to make a parent loop', async () => {
+    const res = await post('/location/places/maadi/merge', { intoId: 'new-maadi' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('merge_into_child');
+    const loop = await http().patch('/location/places/maadi').set('Cookie', owner).send({ parentId: 'new-maadi' });
+    expect(loop.status).toBe(400);
+    expect(loop.body.error).toBe('parent_loop');
+  });
+
+  it('accepts a large pasted file in the finder', async () => {
+    const text = Array.from({ length: 6000 }, (_, i) => `${i + 1}. شارع ${i} المعادي الجديدة القاهرة`).join('\n');
+    expect(text.length).toBeGreaterThan(200_000);
+    const res = await post('/location/find/bulk', { text });
+    expect(res.status).toBe(200);
+    expect(res.body.results).toHaveLength(6000);
+  });
+});

@@ -243,7 +243,8 @@
     "errors": {
       "hub_needs_facility": "A last mile hub needs a sorting facility",
       "code_taken": "This code is already used",
-      "zone_needs_hub": "Pick a last mile hub"
+      "zone_needs_hub": "Pick a last mile hub",
+      "already_resolved": "Someone already placed this address"
     }
   }
 }

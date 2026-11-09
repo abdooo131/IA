@@ -68,3 +68,17 @@ test('sites, a zone and an area make the full chain on the map', async ({ page }
   await row.getByLabel('Zone').selectOption({ label: 'MAA-A · Maadi A' });
   await expect(row).toContainText('OBR');
 });
+
+test('picking an address someone else already placed says so', async ({ page }) => {
+  const { createDb } = await import('@shiply/db');
+  const db = createDb(process.env.TEST_DATABASE_URL ?? 'postgresql://postgres@localhost:5433/shiply_test');
+  const d = await db.addressDecision.create({ data: { service: 'shiply', refType: 'parcel', refId: 'SH-E2E-2', input: 'عند الكشك', status: 'not_found', confidence: 0, method: 'engine', candidates: [] } });
+  await signIn(page, 'owner@test.local', 'owner-pass-1', '/en/location/queue');
+  await expect(page.getByRole('cell', { name: 'عند الكشك' })).toBeVisible();
+  await db.addressDecision.update({ where: { id: d.id }, data: { resolvedAt: new Date(), placeId: 'maadi', method: 'manual' } });
+  await db.$disconnect();
+  await page.getByRole('row', { name: /عند الكشك/ }).getByRole('button', { name: 'Pick area' }).click();
+  await page.getByLabel('Search places').fill('Maadi');
+  await page.getByRole('button', { name: 'Cairo › Maadi', exact: true }).click();
+  await expect(page.getByText('Someone already placed this address')).toBeVisible();
+});

@@ -69,9 +69,14 @@ export function extractAddresses(text: string, limit = 20000): Extracted {
   }
   const rows = parseCsv(clean);
   const header = rows[0];
-  const cols = header
+  let cols = header
     .map((h, i) => ({ h: h.trim(), i }))
     .filter(({ h }) => ADDRESS_HEADER.test(h) && !NOT_ADDRESS_HEADER.test(h));
+  // Shopify and similar exports carry billing and shipping: the parcel goes to the shipping one.
+  const shipping = cols.filter(({ h }) => /shipping|delivery|receiver|consignee/i.test(h));
+  if (shipping.length) cols = shipping;
+  // "Street" repeats "Address1" in such exports.
+  if (cols.some(({ h }) => /address\s*1|address$/i.test(h))) cols = cols.filter(({ h }) => !/street$/i.test(h));
   const addresses = rows
     .slice(1)
     .map((r) => cols.map(({ i }) => (r[i] ?? '').trim()).filter(Boolean).join(', '))
