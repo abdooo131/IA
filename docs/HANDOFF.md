@@ -1,5 +1,9 @@
 # Handoff: where work stopped (2026-11-07, 22:00 UTC)
 
+**Update 2026-11-09:** the owner chose Shiply Now only. The merge was undone on ShiplyNow (the
+merged version is kept on `claude/shiply-merge-archive`) and the live database was refilled with
+the demo month. Phase B continues from the WIP below.
+
 The owner paused work to merge the Shiply core system. This note says exactly what is live,
 what was in progress and what comes next, so the work can resume without guessing.
 

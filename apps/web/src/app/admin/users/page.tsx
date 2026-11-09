@@ -6,18 +6,7 @@ import { getClaims } from '@/lib/server-session';
 
 export const dynamic = 'force-dynamic';
 
-// Everyone who signs in: office and store accounts are edited here, Shiply's field accounts
-// (hub staff, couriers, agents) on their own page.
-const ROLES = [
-  'admin',
-  'finance',
-  'store_staff',
-  'rider',
-  'merchant',
-  'hub_staff',
-  'courier',
-  'agent',
-] as const;
+const ROLES = ['admin', 'finance', 'store_staff', 'rider', 'merchant'] as const;
 
 export default async function AdminUsersPage({
   searchParams,

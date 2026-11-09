@@ -19,10 +19,6 @@ export const DEFAULT_DEPARTMENTS: Dept[] = [
   ['dept_hr', 'HR', 'Human resources', 'الموارد البشرية', 'dept_mgt', 4],
   ['dept_tech', 'TECH', 'Technology', 'التكنولوجيا', 'dept_mgt', 5],
   ['dept_cs', 'CS', 'Customer service', 'خدمة العملاء', 'dept_mgt', 6],
-  // Shiply (the parcel network) has its own operations team (docs/MERGE.md step 6).
-  ['dept_shp', 'SHP', 'Shiply operations', 'عمليات شيبلي', 'dept_mgt', 7],
-  ['dept_shp_hub', 'SHP-HUB', 'Shiply hubs', 'مراكز شيبلي', 'dept_shp', 1],
-  ['dept_shp_cur', 'SHP-CUR', 'Shiply couriers', 'مندوبو شيبلي', 'dept_shp', 2],
 ];
 
 type GradeRow = [id: string, code: string, en: string, ar: string, rank: number];
@@ -765,9 +761,6 @@ export async function placeSeedPeople(db: Db) {
       place = ['pos_rider', ['grade_junior', 'grade_mid', 'grade_senior'][n % 3]!, 'dept_ops_rid'];
       manager = store ? (storeManager.get(store.id) ?? null) : null;
     }
-    // Shiply's people: hub staff and couriers in Shiply operations (no seeded position yet).
-    else if (role === 'hub_staff') place = ['pos_hub_staff', 'grade_junior', 'dept_shp_hub'];
-    else if (role === 'courier') place = ['', 'grade_junior', 'dept_shp_cur'];
     if (!place) continue;
     const [positionId, gradeId, departmentId] = place;
     // The first person of each leading role heads their department.
@@ -775,11 +768,11 @@ export async function placeSeedPeople(db: Db) {
       heading[positionId] ??
       (positionId === 'pos_store_mgr' && !heads.has('dept_ops_ds') ? 'dept_ops_ds' : null);
     if (headOf && !heads.has(headOf)) heads.set(headOf, p.id);
-    if (p.positionId || (!positionId && p.departmentId)) continue;
+    if (p.positionId) continue;
     await db.employee.update({
       where: { id: p.id },
       data: {
-        positionId: positionId && positions.has(positionId) ? positionId : null,
+        positionId: positions.has(positionId) ? positionId : null,
         gradeId: grades.has(gradeId) ? gradeId : null,
         departmentId: departments.has(departmentId) ? departmentId : p.departmentId,
         managerId: p.managerId ?? (manager && manager !== p.id ? manager : null),

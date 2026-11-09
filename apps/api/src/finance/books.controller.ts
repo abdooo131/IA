@@ -7,9 +7,7 @@ import {
   createAccount,
   DomainError,
   moneyAccounts,
-  listCostCenters,
   profitAndLoss,
-  profitByCostCenter,
   recordJournalEntry,
   submitCapitalIn,
   submitDrawings,
@@ -229,37 +227,9 @@ export class BooksController {
   @Get('profit-and-loss')
   @ApiQuery({ name: 'from', required: false })
   @ApiQuery({ name: 'to', required: false })
-  @ApiQuery({
-    name: 'company',
-    required: false,
-    description: 'shiply_now or shiply; both when empty',
-  })
-  @ApiQuery({ name: 'costCenter', required: false, description: 'A cost center id' })
-  profit(
-    @Query('from') from?: string,
-    @Query('to') to?: string,
-    @Query('company') company?: string,
-    @Query('costCenter') costCenter?: string,
-  ) {
+  profit(@Query('from') from?: string, @Query('to') to?: string) {
     const range = parseRange(from, to, this.clock.now(), 30);
-    return profitAndLoss(this.prisma, range.from, range.to, {
-      company: companyOf(company),
-      costCenterId: costCenter || undefined,
-    });
-  }
-
-  /** Profit per company and per cost center: the group's P&L combined or separated. */
-  @Get('profit-and-loss/by-cost-center')
-  @ApiQuery({ name: 'from', required: false })
-  @ApiQuery({ name: 'to', required: false })
-  profitByCenter(@Query('from') from?: string, @Query('to') to?: string) {
-    const range = parseRange(from, to, this.clock.now(), 30);
-    return profitByCostCenter(this.prisma, range.from, range.to);
-  }
-
-  @Get('cost-centers')
-  costCenters() {
-    return listCostCenters(this.prisma);
+    return profitAndLoss(this.prisma, range.from, range.to);
   }
 
   @Get('balance-sheet')
@@ -276,10 +246,4 @@ export class BooksController {
   trial(@Query('from') from?: string, @Query('to') to?: string) {
     return trialBalance(this.prisma, parseBound(from, 'from'), parseBound(to, 'to'));
   }
-}
-
-function companyOf(value?: string): 'shiply_now' | 'shiply' | undefined {
-  if (!value) return undefined;
-  if (value === 'shiply_now' || value === 'shiply') return value;
-  throw new DomainError('invalid_company', 400);
 }

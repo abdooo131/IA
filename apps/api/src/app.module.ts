@@ -1,5 +1,3 @@
-import { RouterModule } from '@nestjs/core';
-import { ParcelsModule } from './parcels/parcels.module';
 import { TicketsModule } from './tickets/tickets.module';
 import { ErrorReporterModule } from './common/error-reporter';
 import path from 'node:path';
@@ -56,9 +54,6 @@ import { UsersController } from './users/users.controller';
     PackagingModule,
     SiteModule,
     SalesModule,
-    // The Shiply parcel network, every route under /parcels (docs/MERGE.md).
-    ParcelsModule,
-    RouterModule.register([{ path: 'parcels', module: ParcelsModule }]),
   ],
   controllers: [HealthController, UsersController, MeController],
 })

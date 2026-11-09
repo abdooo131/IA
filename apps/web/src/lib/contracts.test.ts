@@ -53,7 +53,6 @@ const version = (over: Partial<ContractVersion> = {}): ContractVersion => ({
   prices: { ...noPrices, orderFixedPiastres: 2_000, codPercentBp: 80 },
   failedDeliveryPercentBp: null,
   productPrices: [],
-  parcels: { discountBp: null, codFeeBp: null, returnFeeBp: null, prices: [] },
   tiers: [makeTier(201, { fixedFeePiastres: 1_500, codPercentBp: 50 })],
   payoutSchedule: 'twice_weekly',
   minimumPayoutPiastres: 50_000,
@@ -352,39 +351,5 @@ describe('merchant page tabs', () => {
     expect(pickMerchantTab('contract', merchantTabs({ canProfit: false }))).toBe('contract');
     expect(pickMerchantTab('profit', merchantTabs({ canProfit: false }))).toBe('overview');
     expect(pickMerchantTab(undefined, merchantTabs({ canProfit: true }))).toBe('overview');
-  });
-});
-
-describe('next day terms in the contract form', () => {
-  const base = formFrom(null, '2026-11-08');
-  it('reads shares in percent and fixed prices in pounds, empty as the standard', () => {
-    const body = bodyFrom({
-      ...base,
-      parcelDiscount: '10',
-      parcelCodFee: '0.5',
-      parcelReturnFee: '',
-      parcelPrices: [
-        { zoneCode: 'GC', size: 'S', price: '25' },
-        { zoneCode: '', size: 'M', price: '' },
-      ],
-    });
-    expect(body.ok && body.body).toMatchObject({
-      parcelDiscountBp: 1000,
-      parcelCodFeeBp: 50,
-      parcelReturnFeeBp: null,
-      parcelPrices: [{ zoneCode: 'GC', size: 'S', pricePiastres: 2500 }],
-    });
-  });
-  it('refuses a price without a zone, a bad share, or a zone and size twice', () => {
-    expect(bodyFrom({ ...base, parcelPrices: [{ zoneCode: '', size: 'S', price: '5' }] })).toEqual({
-      ok: false,
-      error: 'parcels',
-    });
-    expect(bodyFrom({ ...base, parcelDiscount: 'ten' })).toEqual({ ok: false, error: 'parcels' });
-    const twice = [
-      { zoneCode: 'GC', size: 'S' as const, price: '5' },
-      { zoneCode: 'GC', size: 'S' as const, price: '6' },
-    ];
-    expect(bodyFrom({ ...base, parcelPrices: twice })).toEqual({ ok: false, error: 'parcels' });
   });
 });

@@ -1,7 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import cookieParser from 'cookie-parser';
-import { json, type NextFunction, raw, type Request, type Response } from 'express';
+import { type NextFunction, raw, type Request, type Response } from 'express';
 import { HttpAdapterHost } from '@nestjs/core';
 import { AppErrorFilter } from './common/domain-error.filter';
 import { ErrorReporter } from './common/error-reporter';
@@ -55,13 +55,6 @@ export function setupApp(app: INestApplication) {
   // Shopify signs the exact bytes it sends, so its callbacks keep the raw body.
   // Slack signs the exact bytes it sends too.
   app.use('/slack', raw({ type: () => true, limit: '1mb' }));
-  // The parcel network: photos travel as JSON (up to 8 MB), and its Shopify webhooks are signed.
-  app.use('/parcels/integrations/shopify/webhooks', raw({ type: () => true, limit: '1mb' }));
-  // Wrapped: Nest skips its own JSON parser when a middleware named jsonParser already exists.
-  const parcelsJson = json({ limit: '8mb' });
-  app.use('/parcels', (req: Request, res: Response, next: NextFunction) =>
-    parcelsJson(req, res, next),
-  );
   app.use(
     ['/shopify/fs', '/shopify/webhooks', '/shopify/rates'],
     raw({ type: () => true, limit: '1mb' }),

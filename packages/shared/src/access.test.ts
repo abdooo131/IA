@@ -14,17 +14,11 @@ import {
 } from './access';
 
 describe('job role templates', () => {
-  it('give Shiply, the parcel network, the operations level to office roles only', () => {
-    for (const t of Object.values(JOB_ROLE_TEMPLATES))
-      expect(t.shiply).toBe(t.allStores ? t.operations : 'none');
-  });
-
   it('match the table in docs/ACCESS.md', () => {
     const row = (r: keyof typeof JOB_ROLE_TEMPLATES) => {
       const t = JOB_ROLE_TEMPLATES[r];
       return [
-        // Shiply follows operations for office roles (checked above).
-        ...ACCESS_APPS.filter((a) => a !== 'shiply').map((a) => t[a]),
+        ...ACCESS_APPS.map((a) => t[a]),
         t.allStores,
         t.customerData,
         t.salaries,

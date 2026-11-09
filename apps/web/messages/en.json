@@ -24,9 +24,6 @@
     "notifications": "Notifications"
   },
   "roles": {
-    "hub_staff": "Hub staff",
-    "courier": "Courier",
-    "agent": "Delivery agent",
     "admin": "Admin",
     "merchant": "Merchant",
     "store_staff": "Store staff",
@@ -375,13 +372,7 @@
         "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
         "hr_termination_review": "{nameEn}: {number} reached termination review"
       },
-      "handledBy": "Handled by {name}",
-      "companyFilter": "Company",
-      "companies": {
-        "all": "Both companies",
-        "shiply_now": "Shiply Now",
-        "shiply": "Shiply"
-      }
+      "handledBy": "Handled by {name}"
     },
     "settings": {
       "title": "Settings",
@@ -743,7 +734,6 @@
       }
     },
     "users": {
-      "openField": "Edit in field accounts",
       "title": "Users",
       "new": "Add user",
       "search": "Name, email or phone",
@@ -813,8 +803,7 @@
           "accounting": "Accounting",
           "settings": "Settings",
           "hr": "HR",
-          "sales": "Sales",
-          "shiply": "Shiply (parcels)"
+          "sales": "Sales"
         },
         "levelsHint": "View opens the pages, Use makes changes, Manage also approves, closes and configures. Accounting: view = reports, use = prepare, manage = approve.",
         "allStores": "Works in every store",
@@ -1101,8 +1090,7 @@
         "products": "Products and stock",
         "users": "Users",
         "profit": "Profit",
-        "history": "History",
-        "nextDay": "Next day"
+        "history": "History"
       },
       "active": "Active",
       "paused": "Paused",
@@ -1166,32 +1154,6 @@
           "active": "Connected",
           "uninstalled": "Uninstalled"
         }
-      },
-      "nextDay": {
-        "title": "Next day parcels (Shiply)",
-        "intro": "Shiply picks up from the merchant and delivers anywhere we cover by the next day.",
-        "status": "Ready to send parcels",
-        "ready": "Yes",
-        "notReady": "Not yet: add a code and a pickup address",
-        "facility": "Pickup facility",
-        "parcelsThisMonth": "Parcels this month",
-        "none": "None yet",
-        "pricesInContract": "Next day prices are part of the merchant's contract.",
-        "openContract": "Open the contract",
-        "openParcels": "Open parcels",
-        "setup": "Next day setup",
-        "code": "Merchant code (printed on labels)",
-        "pickupAddress": "Pickup address",
-        "governorate": "Governorate",
-        "area": "Area",
-        "choose": "Choose",
-        "flexShip": "FlexShip: a refusing customer pays the shipping",
-        "facilityHint": "The pickup facility is the sorting facility nearest the pickup address; the system picks it when you save.",
-        "save": "Save",
-        "saved": "Saved.",
-        "error": "Could not save. Check the code (2 to 10 letters or digits, not used by another merchant) and the address.",
-        "loading": "Loading…",
-        "noAccess": "You need Shiply access to see this merchant's next day setup."
       }
     }
   },
@@ -1317,7 +1279,6 @@
   },
   "merchant": {
     "nav": {
-      "packagingShop": "Packaging shop",
       "shipments": "Shipments",
       "new": "New shipment",
       "products": "Products",
@@ -1330,18 +1291,7 @@
       "shopify": "Connect Shopify",
       "invoices": "Invoices",
       "team": "Team",
-      "contract": "Contract",
-      "groupExpress": "60 minute delivery",
-      "groupParcels": "Next day parcels",
-      "groupMoney": "Money",
-      "groupAccount": "Account",
-      "parcels": "Parcels",
-      "newParcel": "New parcel",
-      "pickups": "Pickups",
-      "parcelAnalytics": "Parcel analytics",
-      "parcelSettings": "Pickup settings",
-      "shopifyParcels": "Shopify orders to ship",
-      "developers": "Developers (API)"
+      "contract": "Contract"
     },
     "shipments": {
       "title": "Shipments",
@@ -2417,16 +2367,6 @@
       "companyWide": "Company wide (no store)"
     },
     "reports": {
-      "company": "Company",
-      "bothCompanies": "Both companies (group)",
-      "companyShiplyNow": "Shiply Now",
-      "companyShiply": "Shiply",
-      "costCenter": "Cost center",
-      "allCostCenters": "All cost centers",
-      "noCostCenter": "No cost center",
-      "byCostCenter": "Profit by company and cost center",
-      "byCostCenterIntro": "Each company on its own, each dark store, facility or hub on its own, and the group together.",
-      "group": "Group total",
       "plTitle": "Profit and loss",
       "plIntro": "Income and expenses of the period, and what is left.",
       "income": "Income",
@@ -5395,7 +5335,6 @@
   },
   "apps": {
     "home": {
-      "groups": { "operations": "Operations", "shared": "Shared departments" },
       "title": "Hello {name}",
       "intro": "Pick an app. The grid button at the top left of every app brings you back here.",
       "allApps": "All apps",
@@ -5404,37 +5343,28 @@
     },
     "settingsTitle": "{app} settings",
     "names": {
-      "operations": "Shiply Now",
+      "operations": "Operations",
       "inventory": "Inventory",
       "merchants": "Merchants",
       "customers": "Customers",
       "accounting": "Accounting",
       "system": "Settings",
       "store": "Store screens",
-      "parcels": "Parcel network",
       "hr": "HR",
-      "sales": "Sales",
-      "shiply": "Shiply"
+      "sales": "Sales"
     },
     "descriptions": {
-      "operations": "60 minute delivery: orders, stock and dark stores",
+      "operations": "Live stores, orders and alerts",
       "inventory": "Stock, receiving, transfers and returns",
-      "merchants": "Merchants of both services, packaging shop, customers and Shopify",
+      "merchants": "Merchants, products and Shopify",
       "customers": "Profiles, places and market data",
       "accounting": "Money, payouts, taxes and reports",
-      "system": "Users and access, audit log and general settings",
+      "system": "Users, audit log and tickets",
       "store": "Pick, pack, receive and hand to riders",
-      "parcels": "Next day parcels: hubs, couriers, agents and merchants",
       "hr": "Employee files, attendance and shifts",
-      "sales": "Leads, pipeline and follow ups",
-      "shiply": "Next day parcels: hubs, couriers and agents"
+      "sales": "Leads, pipeline and follow ups"
     },
     "menus": {
-      "floor": "Floor",
-      "general": "General",
-      "results": "Results",
-      "team": "Team",
-      "packagingShop": "Packaging shop",
       "dashboard": "Dashboard",
       "orders": "Orders",
       "alerts": "Alerts",
@@ -5477,25 +5407,9 @@
       "moneyIn": "Money in",
       "moneyOut": "Money out",
       "monthEnd": "Month end",
-      "setup": "Setup",
-      "parcels": "Parcels",
-      "control": "Control",
-      "workforce": "Workforce",
-      "shiplyMoney": "Shiply"
+      "setup": "Setup"
     },
     "pages": {
-      "storeFloor": "Dark store floor",
-      "hubFloor": "Hub floor",
-      "courierShifts": "Courier shifts",
-      "generalSettings": "General settings",
-      "customerSettings": "Customer settings",
-      "merchantSettings": "Merchant settings",
-      "nextDaySignups": "Next day sign ups",
-      "shiplySettings": "Shiply settings",
-      "stockSettings": "Stock settings",
-      "deliverySettings": "Delivery settings",
-      "packagingOrders": "Packaging orders",
-      "packagingProducts": "Packaging products",
       "overview": "Overview",
       "orders": "Orders",
       "alerts": "Alerts",
@@ -5599,41 +5513,9 @@
       "riderWithdrawals": "Rider withdrawals",
       "accountingDashboard": "Dashboard",
       "allReports": "All reports",
-      "monthEndChecklist": "Month end checklist",
-      "parcels": "Parcels",
-      "couriersLive": "Couriers on the road",
-      "failedAttempts": "Check failed attempts",
-      "qualityTickets": "Quality tickets",
-      "lostDamaged": "Lost and damaged",
-      "agents": "Agents",
-      "attendance": "Attendance",
-      "vehicleRequests": "Vehicle requests",
-      "fieldAccounts": "Field accounts",
-      "signups": "Sign ups",
-      "network": "Network",
-      "priceTiers": "Price tiers",
-      "messages": "Messages",
-      "courierWallets": "Courier wallets",
-      "hubSafes": "Hub safes",
-      "agentSettlements": "Agent settlements",
-      "agentAdvances": "Agent advances"
+      "monthEndChecklist": "Month end checklist"
     },
     "hints": {
-      "storeFloor": "Receive, pick, pack, hand to riders, cash",
-      "hubFloor": "Inbound, sorting, outbound, couriers, safe",
-      "courierShifts": "Who checked in, late, not coming and replacements. Attendance is in HR",
-      "packagingOrders": "Next day merchants buying packaging",
-      "agentSettlements": "Monthly bills from courier agents",
-      "hubSafes": "Shiply hubs and facilities",
-      "courierWallets": "Shiply couriers",
-      "fieldAccounts": "Couriers, hub staff and agents",
-      "generalSettings": "Tickets and general rules",
-      "customerSettings": "Segments and risk thresholds",
-      "merchantSettings": "Standard fees and sign up rules",
-      "nextDaySignups": "Merchants who asked to ship next day",
-      "shiplySettings": "Next day rules: attempts, cut off, fees",
-      "stockSettings": "Buffers, low stock and refill",
-      "deliverySettings": "SLA minutes, capacity, delivery attempts",
       "organisation": "Departments, job positions and grades",
       "attendanceSetup": "Shifts and official holidays",
       "leaveTypes": "Kinds of leave, balances and rules",
@@ -5817,8 +5699,6 @@
     "newHire": "New hire"
   },
   "attendance": {
-    "teamLabel": "Team",
-    "teams": { "all": "Everyone", "shiply_now": "Shiply Now", "shiply": "Shiply" },
     "title": "Attendance",
     "office": "the office",
     "locating": "Finding your location…",
@@ -6940,8 +6820,7 @@
       "dates": "Dates",
       "terms": "Special terms",
       "internal": "Internal note (team only)",
-      "productPrices": "Price per product",
-      "parcels": "Next day parcels (Shiply)"
+      "productPrices": "Price per product"
     },
     "fee": "Fee",
     "standard": "Standard",
@@ -7138,9 +7017,7 @@
       "generic": "Could not save. Try again.",
       "failedPercent": "The failed delivery share is a percent up to 100.",
       "productPrice": "A product price is not a valid amount.",
-      "product_not_found": "A product is not this merchant's.",
-      "parcels": "Check the next day terms: shares in percent, a zone and a price on each fixed price, each zone and size once.",
-      "zone_not_found": "One of the zones is not one of Shiply's price zones."
+      "product_not_found": "A product is not this merchant's."
     },
     "allInclusiveNote": "All inclusive: the shipping fee covers the services priced at 0.",
     "failed": {
@@ -7187,24 +7064,6 @@
       "none": "No per product prices.",
       "andMore": "and {n} more (all in the PDF annex and the CSV)",
       "rule": "Per delivered unit, on top of the other fees. No tiers."
-    },
-    "parcels": {
-      "hint": "What Shiply charges this merchant for next day parcels. Empty keeps the standard: last month's volume tier and the network's fees.",
-      "discount": "Discount on list prices",
-      "discountHint": "Off the zone's list price for every parcel",
-      "codFee": "Cash collection fee",
-      "codFeeHint": "Share of the cash collected above the free amount",
-      "returnFee": "Return fee",
-      "returnFeeHint": "Share of the shipping price when a parcel comes back",
-      "standard": "Standard",
-      "fixedTitle": "Fixed prices",
-      "fixedHint": "A price for one zone and size replaces the list price and takes no discount.",
-      "zone": "Zone",
-      "pickZone": "Choose a zone",
-      "size": "Size",
-      "price": "Price",
-      "remove": "Remove",
-      "add": "Add a fixed price"
     }
   },
   "purchasing": {
@@ -8208,14 +8067,7 @@
       "shippingLine": "Shipping fee {amount} EGP",
       "productsCount": "{n} product prices",
       "unmatchedTitle": "Product prices without a product",
-      "unmatchedHint": "No product with these SKUs yet, so they are kept as a note on the contract. Add them in the contract once the products exist.",
-      "parcels": {
-        "title": "Next day parcels (Shiply)",
-        "include": "Also quote next day parcels",
-        "discount": "Discount on list prices",
-        "codFee": "Cash collection fee",
-        "returnFee": "Return fee"
-      }
+      "unmatchedHint": "No product with these SKUs yet, so they are kept as a note on the contract. Add them in the contract once the products exist."
     },
     "numbers": {
       "month": "Month",
@@ -8448,13 +8300,7 @@
     "productPricesTitle": "Price per product",
     "productPricesHint": "Per delivered unit of these products, on top of the rates above.",
     "exampleShipping": "Shipping fees",
-    "examplePackaging": "Packaging",
-    "parcelsTitle": "Next day parcels",
-    "parcelsIntro": "Shiply also delivers your parcels anywhere we cover by the next day, at our list prices with these terms.",
-    "parcelsDiscount": "Discount on list prices",
-    "parcelsCodFee": "Cash collection fee",
-    "parcelsReturnFee": "Return fee",
-    "parcelsStandard": "Standard"
+    "examplePackaging": "Packaging"
   },
   "setupPage": {
     "pageTitle": "Choose your password",

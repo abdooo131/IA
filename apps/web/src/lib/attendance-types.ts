@@ -65,8 +65,6 @@ export interface MyAttendance {
 export interface BoardRow {
   employee: Named & { role: string; status: string };
   store: StoreRef | null;
-  /** Shiply's hub or sorting facility, for hub staff and couriers */
-  hub: { id: string; code: string; name: string } | null;
   shift: { start: string; end: string } | null;
   state: BoardState;
   firstIn: string | null;

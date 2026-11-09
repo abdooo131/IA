@@ -1,4 +1,3 @@
-import { normalizeEgyptianPhone } from '@shiplynow/shared';
 import { createHash, randomBytes } from 'node:crypto';
 import { ForbiddenException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
@@ -38,11 +37,7 @@ export class AuthService {
   ) {}
 
   async login(input: LoginInput): Promise<{ user: User; tokens: IssuedTokens }> {
-    // An email, or a mobile number for those who sign in by phone (parcel network couriers).
-    const phone = input.email.includes('@') ? null : normalizeEgyptianPhone(input.email);
-    const user = phone
-      ? await this.prisma.user.findUnique({ where: { phone } })
-      : await this.prisma.user.findUnique({ where: { email: input.email } });
+    const user = await this.prisma.user.findUnique({ where: { email: input.email } });
     if (!user) {
       await verifyPassword(await this.dummyHash, input.password);
       throw invalidCredentials();

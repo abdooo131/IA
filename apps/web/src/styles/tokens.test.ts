@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tileInk } from '@/components/AppTileIcon';
-import { APPS } from '@/lib/apps';
+import { APPS, STORE_TILE } from '@/lib/apps';
 
 /**
  * Brand v2 color tokens: every text and UI pair the components use passes WCAG AA
@@ -135,7 +135,7 @@ describe('brand v2 tokens', () => {
     expect(contrast(light.lime!, light.blue!)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it.each(APPS.map((a) => [a.id, a.color]))(
+  it.each([...APPS, { id: 'store', ...STORE_TILE }].map((a) => [a.id, a.color]))(
     'app tile %s (%s) shows its icon at 3:1 or more',
     (_id, color) => {
       expect(contrast(tileInk(color), color)).toBeGreaterThanOrEqual(3);

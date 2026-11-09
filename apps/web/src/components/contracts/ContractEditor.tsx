@@ -17,9 +17,6 @@ import {
   formFrom,
   isPercent,
   newTierRow,
-  PARCEL_SIZES,
-  type ParcelSizeName,
-  zoneListPrice,
 } from '@/lib/contracts';
 import { newActionKey } from '@/lib/ids';
 import { bpText, egpInput } from '@/lib/sales-part2';
@@ -34,7 +31,6 @@ const KNOWN_ERRORS = [
   'contract_version_not_draft',
   'validation_failed',
   'product_not_found',
-  'zone_not_found',
 ] as const;
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
@@ -308,112 +304,6 @@ export function ContractEditor({
         >
           {t('form.addTier')}
         </button>
-      </Fieldset>
-
-      <Fieldset title={t('sections.parcels')} hint={t('parcels.hint')}>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {(
-            [
-              ['parcelDiscount', 'discount'],
-              ['parcelCodFee', 'codFee'],
-              ['parcelReturnFee', 'returnFee'],
-            ] as const
-          ).map(([k, label]) => (
-            <Field key={k} label={`${t(`parcels.${label}`)} (%)`} hint={t(`parcels.${label}Hint`)}>
-              <input
-                className={field}
-                inputMode="decimal"
-                dir="ltr"
-                value={form[k]}
-                onChange={(e) => set(k, e.target.value)}
-                placeholder={t('parcels.standard')}
-              />
-            </Field>
-          ))}
-        </div>
-        <div className="space-y-2">
-          <p className="text-body-sm font-bold">{t('parcels.fixedTitle')}</p>
-          <p className="text-caption text-text-muted">{t('parcels.fixedHint')}</p>
-          {form.parcelPrices.map((row, i) => {
-            const zone = view.parcelZones.find((z) => z.code === row.zoneCode);
-            const update = (patch: Partial<typeof row>) =>
-              set(
-                'parcelPrices',
-                form.parcelPrices.map((r, j) => (j === i ? { ...r, ...patch } : r)),
-              );
-            return (
-              <div
-                key={i}
-                className="grid items-end gap-2 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1fr)_auto]"
-              >
-                <Field label={t('parcels.zone')}>
-                  <select
-                    className={field}
-                    value={row.zoneCode}
-                    onChange={(e) => update({ zoneCode: e.target.value })}
-                  >
-                    <option value="">{t('parcels.pickZone')}</option>
-                    {view.parcelZones.map((z) => (
-                      <option key={z.code} value={z.code}>
-                        {z.code} · {z.name}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field label={t('parcels.size')}>
-                  <select
-                    className={field}
-                    value={row.size}
-                    onChange={(e) => update({ size: e.target.value as ParcelSizeName })}
-                  >
-                    {PARCEL_SIZES.map((s) => (
-                      <option key={s} value={s}>
-                        {s}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-                <Field
-                  label={`${t('parcels.price')} (EGP)`}
-                  hint={
-                    zone
-                      ? `${t('standard')}: ${egpInput(zoneListPrice(zone, row.size))}`
-                      : undefined
-                  }
-                >
-                  <input
-                    className={field}
-                    inputMode="decimal"
-                    dir="ltr"
-                    value={row.price}
-                    onChange={(e) => update({ price: e.target.value })}
-                  />
-                </Field>
-                <button
-                  type="button"
-                  className="btn-secondary h-10"
-                  onClick={() =>
-                    set(
-                      'parcelPrices',
-                      form.parcelPrices.filter((_, j) => j !== i),
-                    )
-                  }
-                >
-                  {t('parcels.remove')}
-                </button>
-              </div>
-            );
-          })}
-          <button
-            type="button"
-            className="btn-secondary h-10"
-            onClick={() =>
-              set('parcelPrices', [...form.parcelPrices, { zoneCode: '', size: 'M', price: '' }])
-            }
-          >
-            {t('parcels.add')}
-          </button>
-        </div>
       </Fieldset>
 
       <Fieldset title={t('sections.payment')}>

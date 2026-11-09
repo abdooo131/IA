@@ -350,32 +350,6 @@ export function ContractDocument({
         <TierTable tiers={v.tiers} />
       </Section>
 
-      <Section title={t('sections.parcels')}>
-        <dl>
-          <Row label={t('parcels.discount')}>
-            {v.parcels.discountBp === null
-              ? t('parcels.standard')
-              : `${bpText(v.parcels.discountBp)}%`}
-          </Row>
-          <Row label={t('parcels.codFee')}>
-            {v.parcels.codFeeBp === null ? t('parcels.standard') : `${bpText(v.parcels.codFeeBp)}%`}
-          </Row>
-          <Row label={t('parcels.returnFee')}>
-            {v.parcels.returnFeeBp === null
-              ? t('parcels.standard')
-              : `${bpText(v.parcels.returnFeeBp)}%`}
-          </Row>
-          {v.parcels.prices.map((p) => (
-            <Row
-              key={`${p.zoneCode}/${p.size}`}
-              label={`${t('parcels.zone')} ${p.zoneCode} · ${p.size}`}
-            >
-              {money(p.pricePiastres)}
-            </Row>
-          ))}
-        </dl>
-      </Section>
-
       <Section title={t('sections.payment')}>
         <dl>
           <Row

@@ -199,6 +199,12 @@ describe('hr phase 2', () => {
     const rider = await prisma.employee.findFirstOrThrow({
       where: { user: { email: 'rider.maadi@shiplynow.local' } },
     });
+    // The seed opens the file on the real day; this test runs on a fixed day, so the rider
+    // must have joined before it (a last day before the hire day is refused).
+    await prisma.employee.update({
+      where: { id: rider.id },
+      data: { hireDate: new Date('2026-01-01T00:00:00Z') },
+    });
     await officer.agent.get(`/hr/employees/${rider.id}/leaving`).expect(403);
     const lastDay = addDays(TODAY, 1);
     const preview = (

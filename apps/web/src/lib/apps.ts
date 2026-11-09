@@ -36,10 +36,8 @@ export interface AppDef {
   icon: IconName;
   /** The tile's color, from the brand v2 palette; AppTileIcon picks white or Navy for the icon. */
   color: string;
-  /** The access app behind it: pages need view on it unless they name another app. */
+  /** The access app behind it: the tile shows from view (settings: manage). */
   access: AccessApp;
-  /** Where the tile sits on the home screen: an operation of one company or a shared department. */
-  group: 'operations' | 'shared';
   menus: AppMenu[];
 }
 
@@ -53,205 +51,82 @@ export const SETTINGS_APPS = [
   'sales',
   'system',
 ] as const;
-/** The settings pages (/admin/settings/<key>); each sits in its app's Configuration menu. */
-export type SettingsAppId = (typeof SETTINGS_APPS)[number];
-/**
- * The home screen (docs/MERGE.md "One structure"): two operations, Shiply Now and Shiply, each
- * with the same menus (Dashboard, the work, Team, Control, Configuration), then the departments
- * both companies share. A tile shows when the person may open at least one of its pages.
- */
-export type AppId =
-  'operations' | 'shiply' | 'merchants' | 'sales' | 'accounting' | 'hr' | 'system';
+export type AppId = (typeof SETTINGS_APPS)[number];
 
 /** Changing settings needs settings manage, so their pages are shown only then. */
-const settings = (app: SettingsAppId): AppPage => ({
+const settings = (app: AppId): AppPage => ({
   href: `/admin/settings/${app}`,
   label: 'settings',
   need: { app: 'settings', level: 'manage' },
 });
-const named = (app: SettingsAppId, label: string): AppPage => ({ ...settings(app), label });
 
 export const APPS: AppDef[] = [
   {
-    // Shiply Now: 60 minute delivery from dark stores. Its stock pages need the Inventory level.
     id: 'operations',
     icon: 'orders',
     color: '#1D4ED8',
     access: 'operations',
-    group: 'operations',
     menus: [
       { label: 'dashboard', pages: [{ href: '/admin', label: 'overview', exact: true }] },
       { label: 'orders', pages: [{ href: '/admin/orders', label: 'orders' }] },
-      {
-        label: 'stock',
-        pages: [
-          { href: '/admin/stock', label: 'stockLevels', need: { app: 'inventory' } },
-          { href: '/admin/shipments', label: 'shipments', need: { app: 'inventory' } },
-          { href: '/admin/transfers', label: 'transfers', need: { app: 'inventory' } },
-          { href: '/admin/counts', label: 'counts', need: { app: 'inventory' } },
-          { href: '/admin/packaging', label: 'packaging', need: { app: 'inventory' } },
-        ],
-      },
-      {
-        label: 'returns',
-        pages: [
-          { href: '/admin/returns', label: 'returnsToMerchants', need: { app: 'inventory' } },
-          { href: '/admin/damage', label: 'damage', need: { app: 'inventory' } },
-        ],
-      },
-      { label: 'control', pages: [{ href: '/admin/alerts', label: 'alerts' }] },
-      {
-        // The dark store floor: receive, put away, pick, pack, hand to riders, cash.
-        label: 'floor',
-        pages: [{ href: '/store', label: 'storeFloor', need: { app: 'store', level: 'use' } }],
-      },
+      { label: 'alerts', pages: [{ href: '/admin/alerts', label: 'alerts' }] },
       {
         label: 'configuration',
         pages: [
           { href: '/admin/stores', label: 'stores' },
           { href: '/admin/zones', label: 'zones' },
           { href: '/admin/addresses', label: 'addresses' },
-          named('operations', 'deliverySettings'),
-          named('inventory', 'stockSettings'),
+          settings('operations'),
         ],
       },
     ],
   },
   {
-    // Shiply: next day parcels through the sorting facilities, its own team and floor.
-    id: 'shiply',
-    icon: 'courier',
+    id: 'inventory',
+    icon: 'inventory',
     color: '#0F766E',
-    access: 'shiply',
-    group: 'operations',
+    access: 'inventory',
     menus: [
-      { label: 'dashboard', pages: [{ href: '/parcels/admin', label: 'overview', exact: true }] },
-      { label: 'parcels', pages: [{ href: '/parcels/admin/shipments', label: 'parcels' }] },
+      { label: 'stock', pages: [{ href: '/admin/stock', label: 'stockLevels' }] },
+      { label: 'receiving', pages: [{ href: '/admin/shipments', label: 'shipments' }] },
+      { label: 'transfers', pages: [{ href: '/admin/transfers', label: 'transfers' }] },
       {
-        // The hub floor: inbound, sorting and outbound stations, pickups, courier runs, the
-        // handover check, damage and the hub safe (each team member sees only their station).
-        label: 'floor',
-        pages: [{ href: '/parcels/hub', label: 'hubFloor', need: { level: 'use' } }],
-      },
-      {
-        label: 'team',
+        label: 'returns',
         pages: [
-          { href: '/parcels/admin/live', label: 'couriersLive' },
-          { href: '/parcels/admin/agents', label: 'agents' },
-          { href: '/parcels/admin/attendance', label: 'courierShifts' },
-          { href: '/parcels/admin/vehicle-requests', label: 'vehicleRequests' },
+          { href: '/admin/returns', label: 'returnsToMerchants' },
+          { href: '/admin/damage', label: 'damage' },
         ],
       },
-      {
-        label: 'control',
-        pages: [
-          { href: '/parcels/admin/alerts', label: 'alerts' },
-          { href: '/parcels/admin/attempts', label: 'failedAttempts' },
-          { href: '/parcels/admin/qc', label: 'qualityTickets' },
-          { href: '/parcels/admin/lost', label: 'lostDamaged' },
-        ],
-      },
-      {
-        label: 'configuration',
-        pages: [
-          { href: '/parcels/admin/network', label: 'network' },
-          { href: '/parcels/admin/price-tiers', label: 'priceTiers' },
-          { href: '/parcels/admin/messages', label: 'messages' },
-          { href: '/parcels/admin/settings', label: 'shiplySettings' },
-        ],
-      },
+      { label: 'counts', pages: [{ href: '/admin/counts', label: 'counts' }] },
+      { label: 'packaging', pages: [{ href: '/admin/packaging', label: 'packaging' }] },
+      { label: 'configuration', pages: [settings('inventory')] },
     ],
   },
   {
-    // One merchant list for both services; the packaging shop and next day sign ups need Shiply.
     id: 'merchants',
     icon: 'store',
     color: '#B45309',
     access: 'merchants',
-    group: 'shared',
     menus: [
-      {
-        label: 'merchants',
-        pages: [
-          { href: '/admin/merchants', label: 'merchants' },
-          { href: '/parcels/admin/signups', label: 'nextDaySignups', need: { app: 'shiply' } },
-        ],
-      },
+      { label: 'merchants', pages: [{ href: '/admin/merchants', label: 'merchants' }] },
       { label: 'products', pages: [{ href: '/admin/products', label: 'products' }] },
-      {
-        label: 'packagingShop',
-        pages: [
-          { href: '/parcels/admin/shop/orders', label: 'packagingOrders', need: { app: 'shiply' } },
-          {
-            href: '/parcels/admin/shop/products',
-            label: 'packagingProducts',
-            need: { app: 'shiply' },
-          },
-          {
-            href: '/parcels/admin/shop/purchase-orders',
-            label: 'purchaseOrders',
-            need: { app: 'shiply' },
-          },
-        ],
-      },
-      {
-        label: 'customers',
-        pages: [
-          {
-            href: '/admin/customers',
-            label: 'profiles',
-            need: { app: 'customers', customerData: true },
-          },
-          { href: '/admin/customers/places', label: 'places', need: { app: 'customers' } },
-          { href: '/admin/data', label: 'marketData', need: { app: 'customers' } },
-        ],
-      },
       { label: 'shopify', pages: [{ href: '/admin/shopify', label: 'shopifyStores' }] },
-      {
-        label: 'configuration',
-        pages: [named('merchants', 'merchantSettings'), named('customers', 'customerSettings')],
-      },
+      { label: 'configuration', pages: [settings('merchants')] },
     ],
   },
   {
-    // Sales CRM (docs/SALES.md): view reads, use works deals, manage assigns and configures.
-    id: 'sales',
-    icon: 'analytics',
+    id: 'customers',
+    icon: 'customers',
     color: '#7C3AED',
-    access: 'sales',
-    group: 'shared',
+    access: 'customers',
     menus: [
       {
-        label: 'pipeline',
-        pages: [
-          { href: '/admin/sales/pipeline', label: 'pipelineBoard' },
-          { href: '/admin/sales/deals', label: 'pipelineList' },
-          { href: '/admin/sales/my-day', label: 'myDay' },
-        ],
+        label: 'customers',
+        pages: [{ href: '/admin/customers', label: 'profiles', need: { customerData: true } }],
       },
-      {
-        label: 'leads',
-        pages: [
-          { href: '/admin/sales/leads', label: 'leads' },
-          { href: '/admin/sales/companies', label: 'companies' },
-        ],
-      },
-      { label: 'proposals', pages: [{ href: '/admin/sales/proposals', label: 'proposals' }] },
-      {
-        label: 'results',
-        pages: [
-          { href: '/admin/sales/dashboard', label: 'salesDashboard' },
-          { href: '/admin/sales/targets', label: 'targets', need: { level: 'manage' } },
-          { href: '/admin/sales/commission', label: 'commission' },
-        ],
-      },
-      {
-        label: 'configuration',
-        pages: [
-          { href: '/admin/sales/lost-reasons', label: 'lostReasons', need: { level: 'manage' } },
-          settings('sales'),
-        ],
-      },
+      { label: 'places', pages: [{ href: '/admin/customers/places', label: 'places' }] },
+      { label: 'marketData', pages: [{ href: '/admin/data', label: 'marketData' }] },
+      { label: 'configuration', pages: [settings('customers')] },
     ],
   },
   {
@@ -259,9 +134,8 @@ export const APPS: AppDef[] = [
     icon: 'wallet',
     color: '#15803D',
     access: 'accounting',
-    group: 'shared',
-    // Menus by job (what comes in, what goes out, cash and bank, reports, month end, setup) for
-    // both companies; Shiply's courier wallets, hub safes and agents sit beside their twins.
+    // Accounting UX phase A: menus by job (what comes in, what goes out, cash and bank,
+    // reports, month end, setup); every page keeps its address.
     menus: [
       {
         label: 'dashboard',
@@ -286,13 +160,10 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance/bills', label: 'bills' },
           { href: '/finance/purchase-orders', label: 'purchaseOrders' },
-          { href: '/parcels/admin/money/agents', label: 'agentSettlements' },
-          { href: '/parcels/admin/money/advances', label: 'agentAdvances' },
           { href: '/finance/movements', label: 'movements' },
           { href: '/finance/petty-cash', label: 'pettyCash' },
           { href: '/finance/rider-withdrawals', label: 'riderWithdrawals' },
           { href: '/finance/riders', label: 'riders' },
-          { href: '/parcels/admin/money/couriers', label: 'courierWallets' },
           { href: '/finance/payroll', label: 'payroll', exact: true, need: { salaries: true } },
           { href: '/finance/payroll/payslips', label: 'payslips', need: { salaries: true } },
           { href: '/finance/recurring', label: 'recurring' },
@@ -304,7 +175,6 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance/cash-position', label: 'cashPosition' },
           { href: '/finance/cash', label: 'storeCash' },
-          { href: '/parcels/admin/money/safes', label: 'hubSafes' },
           { href: '/finance/bank', label: 'bankMatching' },
           { href: '/finance/receipts', label: 'receipts' },
         ],
@@ -350,10 +220,9 @@ export const APPS: AppDef[] = [
     icon: 'account',
     color: '#BE185D',
     access: 'hr',
-    group: 'shared',
     menus: [
       // HR phase 1: the HR home first, then people, time, discipline, the inbox and one
-      // Configuration menu (docs/HR.md "Phase 1 as built"). Everyone of both companies.
+      // Configuration menu (docs/HR.md "Phase 1 as built").
       {
         label: 'hrOverview',
         pages: [{ href: '/admin/hr/overview', label: 'hrOverview', exact: true }],
@@ -405,30 +274,57 @@ export const APPS: AppDef[] = [
     ],
   },
   {
-    // Settings: everyone who signs in (office and store accounts here, field accounts of
-    // Shiply beside them), the audit log and the general settings.
+    // Sales CRM (docs/SALES.md): view reads, use works deals, manage assigns and configures.
+    id: 'sales',
+    icon: 'analytics',
+    color: '#B91C1C',
+    access: 'sales',
+    menus: [
+      {
+        label: 'pipeline',
+        pages: [
+          { href: '/admin/sales/pipeline', label: 'pipelineBoard' },
+          { href: '/admin/sales/deals', label: 'pipelineList' },
+        ],
+      },
+      { label: 'leads', pages: [{ href: '/admin/sales/leads', label: 'leads' }] },
+      { label: 'myDay', pages: [{ href: '/admin/sales/my-day', label: 'myDay' }] },
+      { label: 'companies', pages: [{ href: '/admin/sales/companies', label: 'companies' }] },
+      // Part 2: proposals, the dashboard, targets (set by managers) and commission.
+      { label: 'proposals', pages: [{ href: '/admin/sales/proposals', label: 'proposals' }] },
+      {
+        label: 'salesDashboard',
+        pages: [{ href: '/admin/sales/dashboard', label: 'salesDashboard' }],
+      },
+      {
+        label: 'targets',
+        pages: [{ href: '/admin/sales/targets', label: 'targets', need: { level: 'manage' } }],
+      },
+      { label: 'commission', pages: [{ href: '/admin/sales/commission', label: 'commission' }] },
+      {
+        label: 'configuration',
+        pages: [
+          { href: '/admin/sales/lost-reasons', label: 'lostReasons', need: { level: 'manage' } },
+          settings('sales'),
+        ],
+      },
+    ],
+  },
+  {
     id: 'system',
     icon: 'settings',
     color: '#475569',
     access: 'settings',
-    group: 'shared',
     menus: [
       {
         label: 'users',
-        pages: [
-          { href: '/admin/users', label: 'users', need: { level: 'manage' } },
-          {
-            href: '/parcels/admin/users',
-            label: 'fieldAccounts',
-            need: { app: 'shiply', level: 'use' },
-          },
-        ],
+        pages: [{ href: '/admin/users', label: 'users', need: { level: 'manage' } }],
       },
       {
         label: 'audit',
         pages: [{ href: '/admin/audit', label: 'audit', need: { level: 'manage' } }],
       },
-      { label: 'general', pages: [named('system', 'generalSettings')] },
+      { label: 'tickets', pages: [settings('system')] },
     ],
   },
 ];
@@ -453,15 +349,18 @@ export function locate(pathname: string): { app: AppDef; page: AppPage | null } 
   // A page not on any menu still shows its area's app.
   if (under(pathname, '/finance'))
     return { app: APPS.find((a) => a.id === 'accounting')!, page: null };
-  if (under(pathname, '/parcels/admin/money'))
-    return { app: APPS.find((a) => a.id === 'accounting')!, page: null };
-  if (under(pathname, '/parcels/admin'))
-    return { app: APPS.find((a) => a.id === 'shiply')!, page: null };
   if (under(pathname, '/admin/sales'))
     return { app: APPS.find((a) => a.id === 'sales')!, page: null };
   if (under(pathname, '/admin')) return { app: APPS[0]!, page: null };
   return null;
 }
+
+/** The store screens: a tile on the home screen for people with store use (not an app bar). */
+export const STORE_TILE = { icon: 'scan', color: '#0E7490', href: '/store' } as const satisfies {
+  icon: IconName;
+  color: string;
+  href: string;
+};
 
 type Profile = AccessProfile | null | undefined;
 
@@ -489,15 +388,19 @@ export function canOpenPage(profile: Profile, app: Pick<AppDef, 'access'>, page:
 /** The apps a person may open, each with only the pages they may use. */
 export function appsFor(profile: Profile): AppDef[] {
   if (!profile) return [];
-  return APPS.map((app) => ({
-    ...app,
-    menus: app.menus
-      .map((menu) => ({
-        ...menu,
-        pages: menu.pages.filter((page) => canOpenPage(profile, app, page)),
-      }))
-      .filter((menu) => menu.pages.length > 0),
-  })).filter((app) => app.menus.length > 0);
+  return APPS.filter((app) =>
+    canDo(profile, app.access, app.access === 'settings' ? 'manage' : 'view'),
+  )
+    .map((app) => ({
+      ...app,
+      menus: app.menus
+        .map((menu) => ({
+          ...menu,
+          pages: menu.pages.filter((page) => canOpenPage(profile, app, page)),
+        }))
+        .filter((menu) => menu.pages.length > 0),
+    }))
+    .filter((app) => app.menus.length > 0);
 }
 
 /** Whether the store screens tile shows. */

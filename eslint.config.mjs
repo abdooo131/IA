@@ -10,8 +10,6 @@ export default tseslint.config(
       '**/.next/**',
       '**/coverage/**',
       'legacy/**',
-      // Shiply Core's original code, kept until the merge is finished (docs/MERGE.md).
-      'shiply-core/**',
       'design/**',
       '**/next-env.d.ts',
       'apps/web/src/styles/shiply.tailwind.js',
@@ -29,11 +27,6 @@ export default tseslint.config(
         { argsIgnorePattern: '^_', ignoreRestSiblings: true },
       ],
     },
-  },
-  {
-    // The parcel network's API tests read loose JSON answers.
-    files: ['apps/api/test/parcels/**/*.ts'],
-    rules: { '@typescript-eslint/no-explicit-any': 'off' },
   },
   {
     files: ['**/*.cjs', '**/*.js'],

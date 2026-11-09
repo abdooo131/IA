@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import { localized } from '@/lib/admin-types';
-import type { SettingsAppId as AppId } from '@/lib/apps';
+import type { AppId } from '@/lib/apps';
 import { apiSend } from '@/lib/api-client';
 import type { SettingRow, SettingsList } from '@/lib/dashboard-types';
 import { formatCairoDateTime } from '@/lib/format';

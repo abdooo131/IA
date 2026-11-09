@@ -11,24 +11,15 @@ import { isoToDayFirst } from '@/lib/day-first';
 
 export const dynamic = 'force-dynamic';
 
-/**
- * Today board (docs/HR.md 2): who is in, late, missing, off or on leave, per store, for both
- * companies; Shiply's couriers clock in by their check in (docs/MERGE.md "One structure").
- */
-const TEAMS = ['', 'shiply_now', 'shiply'] as const;
+/** Today board (docs/HR.md 2): who is in, late, missing, off or on leave, per store. */
 export default async function AttendanceTodayPage({
   searchParams,
 }: {
-  searchParams: Promise<{ store?: string; team?: string }>;
+  searchParams: Promise<{ store?: string }>;
 }) {
   const q = await searchParams;
   const [board, stores, profile, t, locale] = await Promise.all([
-    apiGet<Board>(
-      `/hr/attendance/today?${new URLSearchParams({
-        ...(q.store ? { darkStoreId: q.store } : {}),
-        ...(q.team ? { team: q.team } : {}),
-      })}`,
-    ),
+    apiGet<Board>(`/hr/attendance/today${q.store ? `?darkStoreId=${q.store}` : ''}`),
     apiGet<AdminStore[]>('/admin/dark-stores'),
     getMyProfile(),
     getTranslations('attendance'),
@@ -64,28 +55,6 @@ export default async function AttendanceTodayPage({
           })}
         </p>
       )}
-
-      <nav className="mt-4 flex flex-wrap gap-2" aria-label={t('teamLabel')}>
-        {TEAMS.map((team) => {
-          const params = new URLSearchParams({
-            ...(q.store ? { store: q.store } : {}),
-            ...(team ? { team } : {}),
-          });
-          const active = (q.team ?? '') === team;
-          return (
-            <Link
-              key={team || 'all'}
-              href={`/admin/hr/attendance${params.size ? `?${params}` : ''}`}
-              aria-current={active ? 'page' : undefined}
-              className={`rounded-pill border px-3 py-1 text-body-sm font-semibold ${
-                active ? 'border-primary bg-selected-bg text-link' : 'border-line bg-surface'
-              }`}
-            >
-              {t(`teams.${team || 'all'}`)}
-            </Link>
-          );
-        })}
-      </nav>
 
       <StoreFilter
         stores={mine.map((s) => ({ id: s.id, label: localized(s, locale) }))}
@@ -143,7 +112,7 @@ export default async function AttendanceTodayPage({
                     </Link>
                     <span className="block text-caption text-text-muted">
                       <span className="ltr-iso">{p.employee.code}</span> ·{' '}
-                      {p.store ? localized(p.store, locale) : p.hub ? p.hub.name : t('officeName')}
+                      {p.store ? localized(p.store, locale) : t('officeName')}
                     </span>
                   </td>
                   <td className={`${td} ltr-iso`}>

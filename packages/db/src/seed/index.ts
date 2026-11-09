@@ -1,4 +1,3 @@
-import { seedNetwork } from '../parcels/seed';
 import { ensureLostReasons } from '../crm';
 import { ensureDefaultAccounts } from '../finance';
 import { prepareAreaMap, loadBaseAreas } from '../geo';
@@ -54,11 +53,6 @@ export interface SeedOptions {
   log?: (message: string) => void;
   /** Load the Greater Cairo area map for the address engine (default on; tests skip it) */
   areas?: boolean;
-  /** Also seed the Shiply parcel network (hubs, price zones, coverage); its demo people too with networkDemo */
-  network?: boolean;
-  networkDemo?: boolean;
-  /** The parcel network serves the whole country instead of the Cairo and Giza launch */
-  networkEverywhere?: boolean;
 }
 
 /**
@@ -281,14 +275,5 @@ async function seedSamples(
     }
   }
   log(`Opening stock: ${movements} new movements`);
-
-  // The Shiply parcel network: hubs, price zones, coverage and its demo people.
-  if (options.network) {
-    await seedNetwork(prisma, {
-      demoPassword: options.networkDemo ? options.demoPassword : undefined,
-      everywhere: options.networkEverywhere,
-      log,
-    });
-  }
   return merchant.id;
 }

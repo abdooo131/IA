@@ -85,14 +85,6 @@ const proposalFields = {
   returnPerUnitPiastres: money,
   /** A failed attempt costs this share of the shipment charges instead of the fixed fee */
   failedDeliveryPercentBp: bp.nullable(),
-  /** The proposal also quotes next day parcels (Shiply), with these terms */
-  includesParcels: z.boolean(),
-  /** Discount on the next day list prices (null: the volume tier) */
-  parcelDiscountBp: bp.nullable(),
-  /** Next day cash collection fee, share of the cash (null: the network's setting) */
-  parcelCodFeeBp: bp.nullable(),
-  /** Next day return fee, share of the shipping (null: the network's setting) */
-  parcelReturnFeeBp: bp.nullable(),
   productPrices: z.array(proposalProductPriceSchema).max(PROPOSAL_PRODUCT_PRICES_MAX),
   expectedMonthlyOrders: z.number().int().min(0).max(10_000_000).nullable(),
   averageOrderPiastres: money.nullable(),

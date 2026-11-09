@@ -15,12 +15,6 @@ export const AREA_ROLES = {
   '/finance': TEAM,
   // The apps home screen (tiles).
   '/home': TEAM,
-  // The parcel network (Shiply, next day). Its public pages (track, join, signup, docs) stay open.
-  '/parcels/admin': ['admin', 'finance'],
-  '/parcels/hub': ['admin', 'hub_staff'],
-  '/parcels/courier': ['courier'],
-  '/parcels/agent': ['agent'],
-  '/parcels/merchant': ['merchant'],
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Area = keyof typeof AREA_ROLES;
@@ -34,9 +28,6 @@ const HOME_BY_ROLE: Record<Role, Area | null> = {
   rider: '/rider',
   merchant: '/merchant',
   finance: '/home',
-  hub_staff: '/parcels/hub',
-  courier: '/parcels/courier',
-  agent: '/parcels/agent',
 };
 
 export function homeFor(role: Role): Area | null {

@@ -16,7 +16,7 @@ describe('purchase orders, packaging and emails on the desk', () => {
   it('puts each page in its app and menu', () => {
     expect(locate('/finance/purchase-orders/abc')?.app.id).toBe('accounting');
     expect(locate('/finance/emails')?.page?.label).toBe('emails');
-    expect(locate('/admin/packaging')?.app.id).toBe('operations');
+    expect(locate('/admin/packaging')?.app.id).toBe('inventory');
     const accounting = appsFor(profile('owner')).find((a) => a.id === 'accounting')!;
     expect(
       accounting.menus.find((m) => m.label === 'moneyOut')!.pages.map((p) => p.href),

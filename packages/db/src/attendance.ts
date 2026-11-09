@@ -1,4 +1,4 @@
-import type { AttendanceStatus, Prisma, PunchKind, PunchSource, Role } from '@prisma/client';
+import type { AttendanceStatus, Prisma, PunchKind, PunchSource } from '@prisma/client';
 import {
   addDays,
   type AttendanceFlag,
@@ -978,56 +978,6 @@ export function clockPunch(
   });
 }
 
-/**
- * A punch from a field app that checks the person in its own way (docs/MERGE.md "One
- * structure"): Shiply's courier check in (photo and position at the hub) clocks the courier in,
- * a run leaving clocks them in when they are not, and the hub closing their last run clocks
- * them out. Nothing happens for a person without an active employee file, or when the punch
- * would repeat the last one, so callers may call it freely inside their own transaction.
- */
-export async function fieldPunch(
-  tx: Tx,
-  input: {
-    userId: string;
-    kind: PunchKind;
-    at: Date;
-    lat?: number | null;
-    lng?: number | null;
-    /** Who caused it when not the person (the hub staff closing the run) */
-    byUserId?: string;
-    reason: string;
-  },
-) {
-  const e = await tx.employee.findUnique({ where: { userId: input.userId } });
-  if (!e || e.status === 'left' || e.status === 'suspended') return null;
-  await tx.$queryRaw`SELECT id FROM employees WHERE id = ${e.id} FOR UPDATE`;
-  if (input.kind === 'in') await closeDayTx(tx, e.id, addDays(cairoDay(input.at), -1), input.at);
-  const last = await lastPunch(tx, e.id);
-  if (input.kind === 'in' && last?.kind === 'in') return null;
-  if (input.kind === 'out' && last?.kind !== 'in') return null;
-  const punch = await tx.punch.create({
-    data: {
-      employeeId: e.id,
-      kind: input.kind,
-      at: input.at,
-      latitude: input.lat ?? null,
-      longitude: input.lng ?? null,
-      source: input.byUserId && input.byUserId !== input.userId ? 'manual' : 'app',
-      reason: input.reason,
-      byUserId: input.byUserId ?? input.userId,
-    },
-  });
-  await recordAudit(tx, {
-    actorUserId: input.byUserId ?? input.userId,
-    action: input.kind === 'in' ? 'attendance.clock_in' : 'attendance.clock_out',
-    entityType: 'employee',
-    entityId: e.id,
-    after: { punchId: punch.id, at: input.at.toISOString(), reason: input.reason },
-  });
-  await refreshAround(tx, e.id, input.at, input.at);
-  return punch;
-}
-
 /** After a punch changes, days around it that are already closed are built again. */
 async function refreshAround(tx: Tx, employeeId: string, at: Date, now: Date) {
   const day = cairoDay(at);
@@ -1125,23 +1075,10 @@ export async function myAttendance(db: Db, input: { userId: string; now?: Date; 
  */
 export async function attendanceBoard(
   db: Db,
-  input: {
-    scope: StoreScope;
-    storeId?: string | null;
-    /** One company's field team: Shiply's hub staff and couriers, or everyone else */
-    team?: 'shiply' | 'shiply_now';
-    now?: Date;
-  },
+  input: { scope: StoreScope; storeId?: string | null; now?: Date },
 ) {
   const now = input.now ?? new Date();
   const today = cairoDay(now);
-  const shiplyRoles: Role[] = ['hub_staff', 'courier'];
-  const teamFilter =
-    input.team === 'shiply'
-      ? { user: { role: { in: shiplyRoles } } }
-      : input.team === 'shiply_now'
-        ? { user: { role: { notIn: shiplyRoles } } }
-        : {};
   if (input.storeId && !inScope(input.scope, input.storeId))
     throw new DomainError('store_not_allowed', 403);
   const storeFilter = input.storeId
@@ -1150,7 +1087,7 @@ export async function attendanceBoard(
       ? undefined
       : { in: input.scope };
   const people = await db.employee.findMany({
-    where: { status: { not: 'left' }, homeStoreId: storeFilter, ...teamFilter },
+    where: { status: { not: 'left' }, homeStoreId: storeFilter },
     select: {
       id: true,
       number: true,
@@ -1158,7 +1095,6 @@ export async function attendanceBoard(
       nameAr: true,
       status: true,
       homeStore: { select: { id: true, code: true, nameEn: true, nameAr: true } },
-      hub: { select: { id: true, code: true, name: true } },
       user: { select: { role: true, isActive: true } },
     },
     orderBy: { nameEn: 'asc' },
@@ -1220,7 +1156,6 @@ export async function attendanceBoard(
         status: p.status,
       },
       store: p.homeStore,
-      hub: p.hub,
       shift: plan ? { start: plan.start, end: plan.end } : null,
       state,
       firstIn,

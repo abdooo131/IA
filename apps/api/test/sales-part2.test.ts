@@ -62,20 +62,9 @@ describe('sales CRM part 2', () => {
   it('lets the brand read, accept and decline through the public link only while it is open', async () => {
     const rep = await member('rep@test.eg', 'sales_rep');
     const dealId = await addDeal(rep.agent, 'Link Brand');
-    // One proposal can quote both services: 60 minutes and next day parcels (Shiply).
-    const draft = await propose(rep.agent, dealId, {
-      averageOrderPiastres: 40_000,
-      includesParcels: true,
-      parcelDiscountBp: 500,
-      parcelCodFeeBp: 75,
-    });
+    const draft = await propose(rep.agent, dealId, { averageOrderPiastres: 40_000 });
     const sent = await rep.agent.post(`/sales/proposals/${draft.id}/send`).expect(201);
     const token = sent.body.token as string;
-    expect((await pub().get(`/proposal/${token}`).expect(200)).body.parcels).toEqual({
-      discountBp: 500,
-      codFeeBp: 75,
-      returnFeeBp: null,
-    });
     expect(token).toMatch(/^[\w-]{32}$/);
 
     // No sign in needed; opening marks it viewed.
@@ -117,15 +106,6 @@ describe('sales CRM part 2', () => {
     await signIn('owner@linkbrand.eg', 'owner-password-1');
     const deal = await rep.agent.get(`/sales/deals/${dealId}`).expect(200);
     expect(deal.body).toMatchObject({ stage: 'won', merchant: { name: 'Link Brand' } });
-    // The contract it made holds the next day terms too.
-    const version = await prisma.merchantContractVersion.findFirstOrThrow({
-      where: { contract: { merchant: { name: 'Link Brand' } } },
-    });
-    expect(version).toMatchObject({
-      parcelDiscountBp: 500,
-      parcelCodFeeBp: 75,
-      parcelReturnFeeBp: null,
-    });
     expect(
       (
         await rep.agent

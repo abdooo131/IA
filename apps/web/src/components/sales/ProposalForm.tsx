@@ -47,9 +47,6 @@ const field = 'h-10 w-full rounded-md border border-line-strong bg-surface px-3 
  * and notice. Shows the discount against the settings as it is typed, and whether a sales
  * manager must approve before it can be sent.
  */
-const shareText = (bp: number | null | undefined) =>
-  bp === null || bp === undefined ? '' : bpText(bp);
-
 export function ProposalForm({
   dealId,
   proposal,
@@ -106,11 +103,6 @@ export function ProposalForm({
     minimumPayout: egpInput(proposal?.minimumPayoutPiastres ?? null),
     promise: proposal?.promiseMinutes ? String(proposal.promiseMinutes) : '',
     attempts: proposal?.deliveryAttempts ? String(proposal.deliveryAttempts) : '',
-    // Next day parcels (Shiply): quoted only when ticked; empty shares keep the standard.
-    parcels: !!proposal?.parcels,
-    parcelDiscount: shareText(proposal?.parcels?.discountBp),
-    parcelCodFee: shareText(proposal?.parcels?.codFeeBp),
-    parcelReturnFee: shareText(proposal?.parcels?.returnFeeBp),
   };
   const [v, setV] = useState(start);
   const [busy, setBusy] = useState(false);
@@ -164,15 +156,7 @@ export function ProposalForm({
     for (const x of [orders, months, notice, average, minimum, deposit, credit])
       if (Number.isNaN(x)) return null;
     if (months !== null && (months < 1 || months > 120)) return null;
-    const share = (text: string) =>
-      text.trim() ? (parseFee('orderPercentBp', text) ?? Number.NaN) : null;
-    const parcelShares = [share(v.parcelDiscount), share(v.parcelCodFee), share(v.parcelReturnFee)];
-    if (parcelShares.some((x) => Number.isNaN(x))) return null;
     return {
-      includesParcels: v.parcels,
-      parcelDiscountBp: v.parcels ? parcelShares[0]! : null,
-      parcelCodFeeBp: v.parcels ? parcelShares[1]! : null,
-      parcelReturnFeeBp: v.parcels ? parcelShares[2]! : null,
       ...out,
       failedDeliveryPercentBp,
       productPrices,
@@ -480,41 +464,6 @@ export function ProposalForm({
             />
           </label>
         ))}
-      </fieldset>
-
-      <fieldset className="space-y-3">
-        <legend className="mb-2 text-body-sm font-bold">{t('parcels.title')}</legend>
-        <label className="flex items-center gap-2 text-body-sm">
-          <input
-            type="checkbox"
-            checked={v.parcels}
-            onChange={(e) => setV({ ...v, parcels: e.target.checked })}
-          />
-          {t('parcels.include')}
-        </label>
-        {v.parcels && (
-          <div className="grid gap-3 sm:grid-cols-3">
-            {(
-              [
-                ['parcelDiscount', t('parcels.discount')],
-                ['parcelCodFee', t('parcels.codFee')],
-                ['parcelReturnFee', t('parcels.returnFee')],
-              ] as const
-            ).map(([name, label]) => (
-              <label key={name} className="text-body-sm">
-                <span className="font-semibold">{label} (%)</span>
-                <input
-                  className={`${field} mt-1`}
-                  inputMode="decimal"
-                  dir="ltr"
-                  placeholder={t('standardPlaceholder')}
-                  value={v[name]}
-                  onChange={(e) => setV({ ...v, [name]: e.target.value })}
-                />
-              </label>
-            ))}
-          </div>
-        )}
       </fieldset>
 
       <fieldset className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

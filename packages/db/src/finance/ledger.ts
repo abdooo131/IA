@@ -1,4 +1,4 @@
-import type { AccountCategory, Company, LedgerAccountType, Prisma } from '@prisma/client';
+import type { AccountCategory, LedgerAccountType, Prisma } from '@prisma/client';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 
@@ -15,11 +15,6 @@ export type AccountRef =
   | { type: 'staff_advance'; userId: string }
   | { type: 'supplier'; supplierId: string }
   | { type: 'merchant_deposit'; merchantId: string }
-  /** Parcel network wallets */
-  | { type: 'hub_safe'; hubId: string }
-  | { type: 'courier_cash'; userId: string }
-  | { type: 'courier_wallet'; userId: string }
-  | { type: 'agent_payable'; agentId: string }
   | { type: SystemAccountKey }
   /** Any account by its id: banks, cash boxes, expense categories and the rest */
   | { id: string };
@@ -50,110 +45,13 @@ export type SystemAccountKey =
   | 'cheques_under_collection'
   | 'cheques_payable'
   | 'packaging_stock'
-  | 'goods_received'
-  // Shiply parcel network income and costs
-  | 'parcel_shipping_revenue'
-  | 'parcel_cod_fee_revenue'
-  | 'parcel_return_fee_revenue'
-  | 'parcel_cashout_fee_revenue'
-  | 'parcel_packaging_sales'
-  | 'parcel_other_income'
-  | 'parcel_courier_pay'
-  | 'parcel_agent_commission'
-  | 'parcel_vehicle_rent'
-  | 'parcel_special_vehicles'
-  | 'parcel_lost_parcels'
-  | 'parcel_packaging_cost';
+  | 'goods_received';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
   SystemAccountKey,
   { type: LedgerAccountType; group: number; code: string; nameEn: string; nameAr: string }
 > = {
-  parcel_shipping_revenue: {
-    type: 'revenue',
-    group: 4300,
-    code: '4301',
-    nameEn: 'Parcel shipping',
-    nameAr: 'إيرادات شحن الطرود',
-  },
-  parcel_cod_fee_revenue: {
-    type: 'revenue',
-    group: 4300,
-    code: '4302',
-    nameEn: 'Parcel COD fees',
-    nameAr: 'رسوم تحصيل الطرود',
-  },
-  parcel_return_fee_revenue: {
-    type: 'revenue',
-    group: 4300,
-    code: '4303',
-    nameEn: 'Parcel return fees',
-    nameAr: 'رسوم مرتجعات الطرود',
-  },
-  parcel_cashout_fee_revenue: {
-    type: 'revenue',
-    group: 4300,
-    code: '4304',
-    nameEn: 'Merchant cash out fees',
-    nameAr: 'رسوم سحب التجار',
-  },
-  parcel_packaging_sales: {
-    type: 'revenue',
-    group: 4300,
-    code: '4305',
-    nameEn: 'Packaging sold to merchants',
-    nameAr: 'مبيعات مواد التغليف للتجار',
-  },
-  parcel_other_income: {
-    type: 'other_income',
-    group: 4300,
-    code: '4306',
-    nameEn: 'Network penalties and cash over',
-    nameAr: 'جزاءات وزيادة نقدية الشبكة',
-  },
-  parcel_courier_pay: {
-    type: 'expense',
-    group: 5150,
-    code: '5151',
-    nameEn: 'Courier pay',
-    nameAr: 'أجور المناديب',
-  },
-  parcel_agent_commission: {
-    type: 'expense',
-    group: 5150,
-    code: '5152',
-    nameEn: 'Agent commission',
-    nameAr: 'عمولة الوكلاء',
-  },
-  parcel_vehicle_rent: {
-    type: 'expense',
-    group: 5150,
-    code: '5153',
-    nameEn: 'Vehicle rent',
-    nameAr: 'إيجار المركبات',
-  },
-  parcel_special_vehicles: {
-    type: 'expense',
-    group: 5150,
-    code: '5154',
-    nameEn: 'Special vehicles',
-    nameAr: 'المركبات الخاصة',
-  },
-  parcel_lost_parcels: {
-    type: 'expense',
-    group: 5150,
-    code: '5155',
-    nameEn: 'Lost and damaged parcels',
-    nameAr: 'شحنات مفقودة وتالفة',
-  },
-  parcel_packaging_cost: {
-    type: 'expense',
-    group: 5150,
-    code: '5156',
-    nameEn: 'Cost of packaging sold',
-    nameAr: 'تكلفة مواد التغليف المباعة',
-  },
   bank: {
     type: 'bank',
     group: 1100,
@@ -464,10 +362,6 @@ const WALLET_GROUPS: Partial<Record<LedgerAccountType, { group: number; party: b
   staff_advance: { group: 1500, party: true },
   supplier: { group: 2500, party: true },
   merchant_deposit: { group: 2600, party: true },
-  hub_safe: { group: 1250, party: true },
-  courier_cash: { group: 1360, party: true },
-  courier_wallet: { group: 2250, party: true },
-  agent_payable: { group: 2270, party: true },
 };
 
 /**
@@ -535,22 +429,9 @@ export function accountKey(ref: AccountRef): string {
       return `supplier:${ref.supplierId}`;
     case 'merchant_deposit':
       return `merchant_deposit:${ref.merchantId}`;
-    case 'hub_safe':
-      return `hub_safe:${ref.hubId}`;
-    case 'courier_cash':
-      return `courier_cash:${ref.userId}`;
-    case 'courier_wallet':
-      return `courier_wallet:${ref.userId}`;
-    case 'agent_payable':
-      return `agent_payable:${ref.agentId}`;
     default:
       return ref.type;
   }
-}
-
-/** The id of a system account (made the first time it is needed). */
-export function systemAccountId(tx: Tx, type: SystemAccountKey) {
-  return accountId(tx, { type } as AccountRef);
 }
 
 async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
@@ -588,8 +469,6 @@ async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
       darkStoreId: 'darkStoreId' in ref ? ref.darkStoreId : null,
       userId: 'userId' in ref ? ref.userId : null,
       supplierId: 'supplierId' in ref ? ref.supplierId : null,
-      hubId: 'hubId' in ref ? ref.hubId : null,
-      agentId: 'agentId' in ref ? ref.agentId : null,
     },
   });
   return created.id;
@@ -602,10 +481,6 @@ export const CATEGORY: Record<LedgerAccountType, AccountCategory> = {
   cash_box: 'asset',
   rider_cash: 'asset',
   rider_dues: 'asset',
-  hub_safe: 'asset',
-  courier_cash: 'asset',
-  courier_wallet: 'liability',
-  agent_payable: 'liability',
   other_asset: 'asset',
   staff_advance: 'asset',
   merchant: 'liability',
@@ -657,10 +532,6 @@ export interface PostInput {
   darkStoreId?: string | null;
   merchantId?: string | null;
   riderId?: string | null;
-  /** Parcel network place (sorting facility or hub) the entry counts for. */
-  hubId?: string | null;
-  /** The company of the group; worked out from the place when left out (Shiply Now by default). */
-  company?: Company;
   /** Debit positive, credit negative. Lines of zero are dropped. A line's own tags win. */
   lines: { account: AccountRef; amount: number; tags?: LineTags }[];
 }
@@ -668,7 +539,6 @@ export interface PostInput {
 /** Who and where a line counts for: profit per store, merchant, rider and team member. */
 export interface LineTags {
   darkStoreId?: string | null;
-  hubId?: string | null;
   merchantId?: string | null;
   riderId?: string | null;
   userId?: string | null;
@@ -718,23 +588,16 @@ export async function post(db: Db, input: PostInput) {
     for (const line of lines) ids.push(await accountId(tx, line.account));
     const tags = await entryTags(tx, input, ids);
     for (const [i, line] of lines.entries()) {
-      const darkStoreId = line.tags?.darkStoreId ?? tags.darkStoreId;
-      const hubId = line.tags?.hubId ?? tags.hubId;
-      // A parcel network place means the parcel company, unless the caller said otherwise.
-      const company: Company = input.company ?? (hubId && !darkStoreId ? 'shiply' : 'shiply_now');
       await tx.ledgerLine.create({
         data: {
           entryId: entry.id,
           accountId: ids[i]!,
           amountPiastres: line.amount,
           occurredAt,
-          darkStoreId,
+          darkStoreId: line.tags?.darkStoreId ?? tags.darkStoreId,
           merchantId: line.tags?.merchantId ?? tags.merchantId,
           riderId: line.tags?.riderId ?? tags.riderId,
           userId: line.tags?.userId ?? null,
-          company,
-          hubId,
-          costCenterId: await costCenterFor(tx, darkStoreId, hubId),
         },
       });
     }
@@ -751,7 +614,6 @@ async function entryTags(tx: Tx, input: PostInput, accountIds: string[]) {
     darkStoreId: input.darkStoreId ?? null,
     merchantId: input.merchantId ?? null,
     riderId: input.riderId ?? null,
-    hubId: input.hubId ?? null,
   };
   if (input.orderId && (!tags.darkStoreId || !tags.merchantId)) {
     const order = await tx.order.findUnique({
@@ -763,9 +625,8 @@ async function entryTags(tx: Tx, input: PostInput, accountIds: string[]) {
   }
   const owners = await tx.ledgerAccount.findMany({
     where: { id: { in: accountIds } },
-    select: { merchantId: true, riderId: true, darkStoreId: true, hubId: true },
+    select: { merchantId: true, riderId: true, darkStoreId: true },
   });
-  tags.hubId ??= owners.find((o) => o.hubId)?.hubId ?? null;
   tags.merchantId ??= owners.find((o) => o.merchantId)?.merchantId ?? null;
   tags.riderId ??= owners.find((o) => o.riderId)?.riderId ?? null;
   tags.darkStoreId ??= owners.find((o) => o.darkStoreId)?.darkStoreId ?? null;
@@ -777,56 +638,6 @@ async function entryTags(tx: Tx, input: PostInput, accountIds: string[]) {
     tags.darkStoreId = rider?.darkStoreId ?? null;
   }
   return tags;
-}
-
-/**
- * The cost center of a dark store or a parcel network place, made the first time it is used.
- * A store counts for Shiply Now; a facility or hub for Shiply.
- */
-async function costCenterFor(tx: Tx, darkStoreId: string | null, hubId: string | null) {
-  if (darkStoreId) {
-    const found = await tx.costCenter.findUnique({ where: { darkStoreId } });
-    if (found) return found.id;
-    const store = await tx.darkStore.findUnique({
-      where: { id: darkStoreId },
-      select: { code: true, nameEn: true, nameAr: true },
-    });
-    if (!store) return null;
-    const made = await tx.costCenter.upsert({
-      where: { darkStoreId },
-      update: {},
-      create: {
-        code: `DS-${store.code}`,
-        nameEn: store.nameEn,
-        nameAr: store.nameAr,
-        company: 'shiply_now',
-        darkStoreId,
-      },
-    });
-    return made.id;
-  }
-  if (hubId) {
-    const found = await tx.costCenter.findUnique({ where: { hubId } });
-    if (found) return found.id;
-    const hub = await tx.hub.findUnique({
-      where: { id: hubId },
-      select: { code: true, name: true },
-    });
-    if (!hub) return null;
-    const made = await tx.costCenter.upsert({
-      where: { hubId },
-      update: {},
-      create: {
-        code: `NW-${hub.code}`,
-        nameEn: hub.name,
-        nameAr: hub.name,
-        company: 'shiply',
-        hubId,
-      },
-    });
-    return made.id;
-  }
-  return null;
 }
 
 /** Debit minus credit of one account, optionally up to (not including) a moment. */

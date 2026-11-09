@@ -149,21 +149,6 @@ async function proposalMerchantId(tx: Db, deal: { merchantId: string | null; com
   return company?.merchantId ?? null;
 }
 
-/** The next day terms a proposal quotes (Shiply), or null when it quotes 60 minutes only. */
-function parcelsOf(p: {
-  includesParcels: boolean;
-  parcelDiscountBp: number | null;
-  parcelCodFeeBp: number | null;
-  parcelReturnFeeBp: number | null;
-}) {
-  if (!p.includesParcels) return null;
-  return {
-    discountBp: p.parcelDiscountBp,
-    codFeeBp: p.parcelCodFeeBp,
-    returnFeeBp: p.parcelReturnFeeBp,
-  };
-}
-
 /** What the screens and the audit log show of a proposal. */
 function toView(p: ProposalRow) {
   const tiers = tiersOf(p);
@@ -176,7 +161,6 @@ function toView(p: ProposalRow) {
     status: p.status,
     fees: feesOf(p),
     failedDeliveryPercentBp: p.failedDeliveryPercentBp,
-    parcels: parcelsOf(p),
     productPrices: productsOf(p.products),
     expectedMonthlyOrders: p.expectedMonthlyOrders,
     averageOrderPiastres: p.averageOrderPiastres,
@@ -393,10 +377,6 @@ export async function createProposal(
         version: (last._max.version ?? 0) + 1,
         ...fees,
         failedDeliveryPercentBp: body.failedDeliveryPercentBp ?? null,
-        includesParcels: body.includesParcels ?? false,
-        parcelDiscountBp: body.parcelDiscountBp ?? null,
-        parcelCodFeeBp: body.parcelCodFeeBp ?? null,
-        parcelReturnFeeBp: body.parcelReturnFeeBp ?? null,
         expectedMonthlyOrders,
         averageOrderPiastres: body.averageOrderPiastres ?? null,
         minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres ?? null,
@@ -506,10 +486,6 @@ export async function updateProposal(
       data: {
         ...fees,
         failedDeliveryPercentBp: failedPercent,
-        includesParcels: body.includesParcels,
-        parcelDiscountBp: body.parcelDiscountBp,
-        parcelCodFeeBp: body.parcelCodFeeBp,
-        parcelReturnFeeBp: body.parcelReturnFeeBp,
         expectedMonthlyOrders: body.expectedMonthlyOrders,
         averageOrderPiastres: body.averageOrderPiastres,
         minimumMonthlyFeePiastres: body.minimumMonthlyFeePiastres,
@@ -752,7 +728,6 @@ export async function publicProposal(db: Db, token: string, now: Date = new Date
         : null,
       fees: feesOf(full),
       failedDeliveryPercentBp: full.failedDeliveryPercentBp,
-      parcels: parcelsOf(full),
       standardFailedPercentBp: await getSetting(tx, 'fee.failed_delivery_percent_bp'),
       productPrices: full.products.map((r) => ({
         sku: r.sku,
@@ -1106,11 +1081,6 @@ export async function confirmProposal(
             fresh.failedDeliveryPercentBp === null ? fees.failedDeliveryPiastres : null,
           failedDeliveryPercentBp: fresh.failedDeliveryPercentBp,
           productPrices: [...matched].map(([skuId, pricePiastres]) => ({ skuId, pricePiastres })),
-          // Next day parcels (Shiply): the proposal's terms, else the network's standard.
-          parcelDiscountBp: fresh.includesParcels ? fresh.parcelDiscountBp : null,
-          parcelCodFeeBp: fresh.includesParcels ? fresh.parcelCodFeeBp : null,
-          parcelReturnFeeBp: fresh.includesParcels ? fresh.parcelReturnFeeBp : null,
-          parcelPrices: [],
           tiers: tiersOf(fresh),
           payoutSchedule: fresh.payoutSchedule,
           minimumPayoutPiastres: fresh.minimumPayoutPiastres,
