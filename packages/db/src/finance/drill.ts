@@ -368,29 +368,27 @@ async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
   const storeName = new Map(stores.map((s) => [s.id, s.code]));
   const merchantName = new Map(merchants.map((m) => [m.id, m.name]));
   const riderName = new Map(riders.map((r) => [r.id, `${r.user.name} (${r.badgeCode})`]));
-  return rows.map(
-    (l): LedgerLineRow => ({
-      id: l.id,
-      entryId: l.entryId,
-      number: entryNumber(l.entry.number),
-      day: cairoDay(l.occurredAt),
-      at: l.occurredAt.toISOString(),
-      kind: l.entry.kind,
-      memo: l.entry.memo,
-      accountId: l.accountId,
-      account: `${l.account.code} ${name(l.account).nameEn}`,
-      storeId: l.darkStoreId,
-      store: l.darkStoreId ? (storeName.get(l.darkStoreId) ?? l.darkStoreId) : null,
-      merchantId: l.merchantId,
-      merchant: l.merchantId ? (merchantName.get(l.merchantId) ?? l.merchantId) : null,
-      riderId: l.riderId,
-      rider: l.riderId ? (riderName.get(l.riderId) ?? l.riderId) : null,
-      orderNumber: l.entry.order?.number ?? null,
-      debit: l.amountPiastres > 0 ? l.amountPiastres : 0,
-      credit: l.amountPiastres < 0 ? 0 - l.amountPiastres : 0,
-      net: l.amountPiastres,
-    }),
-  );
+  return rows.map((l): LedgerLineRow => ({
+    id: l.id,
+    entryId: l.entryId,
+    number: entryNumber(l.entry.number),
+    day: cairoDay(l.occurredAt),
+    at: l.occurredAt.toISOString(),
+    kind: l.entry.kind,
+    memo: l.entry.memo,
+    accountId: l.accountId,
+    account: `${l.account.code} ${name(l.account).nameEn}`,
+    storeId: l.darkStoreId,
+    store: l.darkStoreId ? (storeName.get(l.darkStoreId) ?? l.darkStoreId) : null,
+    merchantId: l.merchantId,
+    merchant: l.merchantId ? (merchantName.get(l.merchantId) ?? l.merchantId) : null,
+    riderId: l.riderId,
+    rider: l.riderId ? (riderName.get(l.riderId) ?? l.riderId) : null,
+    orderNumber: l.entry.order?.number ?? null,
+    debit: l.amountPiastres > 0 ? l.amountPiastres : 0,
+    credit: l.amountPiastres < 0 ? 0 - l.amountPiastres : 0,
+    net: l.amountPiastres,
+  }));
 }
 
 const named = (key: string | null, label: string | null): GroupValue => ({

@@ -1,4 +1,11 @@
-import { addDays, type BulkOutcome, cairoClock, cairoDay, cairoDayStart, payoutNumber } from '@shiplynow/shared';
+import {
+  addDays,
+  type BulkOutcome,
+  cairoClock,
+  cairoDay,
+  cairoDayStart,
+  payoutNumber,
+} from '@shiplynow/shared';
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { approvalThreshold } from './controls';
@@ -26,7 +33,10 @@ export async function prepareDuePayouts(
   input: { cutoffDay: string; actorUserId: string; now?: Date },
 ) {
   const weekday = cairoClock(input.now ?? new Date()).weekday;
-  const merchants = await db.merchant.findMany({ where: { isActive: true }, orderBy: { name: 'asc' } });
+  const merchants = await db.merchant.findMany({
+    where: { isActive: true },
+    orderBy: { name: 'asc' },
+  });
   const created: { merchantId: string; payoutId: string; amountPiastres: number }[] = [];
   const skipped: { merchantId: string; reason: string }[] = [];
   for (const m of merchants) {
@@ -50,10 +60,7 @@ export async function prepareDuePayouts(
 }
 
 /** Where today's Pay merchants run stands, worked out from the payouts themselves. */
-export async function payoutRun(
-  db: Db,
-  input: { userId: string; cutoffDay?: string; now?: Date },
-) {
+export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: string; now?: Date }) {
   const now = input.now ?? new Date();
   const today = cairoDay(now);
   const cutoffDay = input.cutoffDay ?? addDays(today, -1);
@@ -89,8 +96,11 @@ export async function payoutRun(
     }),
     approvalThreshold(db),
   ]);
-  const hasBank = (m: { iban: string | null; bankName: string | null; bankAccountNumber: string | null }) =>
-    !!(m.iban || (m.bankName && m.bankAccountNumber));
+  const hasBank = (m: {
+    iban: string | null;
+    bankName: string | null;
+    bankAccountNumber: string | null;
+  }) => !!(m.iban || (m.bankName && m.bankAccountNumber));
 
   const due = [];
   for (const m of merchants.filter((x) => payoutDueOn(x.payoutSchedule, weekday))) {
@@ -188,7 +198,8 @@ export async function payoutRun(
             : draftRows.some((d) => !d.bankDetails)
               ? 'review'
               : 'done';
-  const sum = (rows: { amountPiastres: number }[]) => rows.reduce((s, r) => s + r.amountPiastres, 0);
+  const sum = (rows: { amountPiastres: number }[]) =>
+    rows.reduce((s, r) => s + r.amountPiastres, 0);
   return {
     today,
     cutoffDay,

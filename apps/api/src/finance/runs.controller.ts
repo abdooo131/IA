@@ -89,7 +89,9 @@ export class FinanceRunsController {
   @ApiQuery({ name: 'lang', required: false })
   async drillPdf(
     @Param('report') name: string,
-    @Query(new ZodValidationPipe(reportFilterSchema.extend({ lang: z.enum(['en', 'ar']).optional() })))
+    @Query(
+      new ZodValidationPipe(reportFilterSchema.extend({ lang: z.enum(['en', 'ar']).optional() })),
+    )
     q: ReportFilter & { lang?: 'en' | 'ar' },
     @CurrentAccess() access: AccessProfile,
     @Res() res: Response,
@@ -98,9 +100,7 @@ export class FinanceRunsController {
     const filter = this.filterOf(q, access);
     const result = await drillReport(this.prisma, report, filter);
     const [store, merchant] = await Promise.all([
-      filter.storeId
-        ? this.prisma.darkStore.findUnique({ where: { id: filter.storeId } })
-        : null,
+      filter.storeId ? this.prisma.darkStore.findUnique({ where: { id: filter.storeId } }) : null,
       filter.merchantId
         ? this.prisma.merchant.findUnique({ where: { id: filter.merchantId } })
         : null,

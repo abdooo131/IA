@@ -118,11 +118,7 @@ describe('reports you can click into', () => {
     const from = `${today().slice(0, 7)}-01`;
     const to = today();
     const pl = await drillReport(prisma, 'profit_and_loss', { from, to });
-    const plain = await profitAndLoss(
-      prisma,
-      cairoDayStart(from),
-      cairoDayStart(addDays(to, 1)),
-    );
+    const plain = await profitAndLoss(prisma, cairoDayStart(from), cairoDayStart(addDays(to, 1)));
     expect(pl.result.amountPiastres).toBe(plain.profitPiastres);
     expect(pl.sections[0]!.totalPiastres).toBe(12_500);
     expect(pl.result.amountPiastres).toBe(12_500 - 3_000);
@@ -162,9 +158,7 @@ describe('reports you can click into', () => {
 
     // Comparison with the previous period: last month's fee shows beside this month's.
     const cmp = await drillReport(prisma, 'profit_and_loss', { from, to, compare: 'previous' });
-    expect(cmp.compare?.from).toBe(
-      `${addDays(from, -1).slice(0, 7)}-01`,
-    );
+    expect(cmp.compare?.from).toBe(`${addDays(from, -1).slice(0, 7)}-01`);
     const rev = cmp.sections[0]!.lines.find((l) => l.accountId === revenue.id)!;
     expect(rev.amountPiastres).toBe(12_500);
     expect(rev.compareAmountPiastres).toBe(4_000);
@@ -187,11 +181,7 @@ describe('reports you can click into', () => {
       expect(natural).toBe(line.amountPiastres);
     }
     const tb = await drillReport(prisma, 'trial_balance', { from, to });
-    const plainTb = await trialBalance(
-      prisma,
-      cairoDayStart(from),
-      cairoDayStart(addDays(to, 1)),
-    );
+    const plainTb = await trialBalance(prisma, cairoDayStart(from), cairoDayStart(addDays(to, 1)));
     expect(tb.totals).toEqual({
       debitPiastres: plainTb.totalDebitPiastres,
       creditPiastres: plainTb.totalCreditPiastres,
@@ -298,7 +288,11 @@ describe('bank matching', () => {
 
 describe('pay merchants run', () => {
   it('prepares, approves (never one’s own), pays with one reference, and is safe to repeat', async () => {
-    await setSetting(prisma, { key: 'finance.approval_threshold_piastres', value: 100_000, actorUserId: admin });
+    await setSetting(prisma, {
+      key: 'finance.approval_threshold_piastres',
+      value: 100_000,
+      actorUserId: admin,
+    });
     const small = f.merchant;
     const big = await prisma.merchant.create({
       data: { name: 'Big', payoutSchedule: 'daily', iban: `EG${'1'.repeat(27)}` },
@@ -361,8 +355,15 @@ describe('pay merchants run', () => {
   });
 
   it('leaves merchants below their minimum payout out of the run', async () => {
-    await setSetting(prisma, { key: 'finance.payout_minimum_piastres', value: 100_000, actorUserId: admin });
-    await prisma.merchant.update({ where: { id: f.merchant.id }, data: { payoutSchedule: 'daily' } });
+    await setSetting(prisma, {
+      key: 'finance.payout_minimum_piastres',
+      value: 100_000,
+      actorUserId: admin,
+    });
+    await prisma.merchant.update({
+      where: { id: f.merchant.id },
+      data: { payoutSchedule: 'daily' },
+    });
     await owe(f.merchant.id, 50_000);
     const run = await payoutRun(prisma, { userId: admin });
     expect(run.due[0]).toMatchObject({ state: 'below_minimum', minimumPiastres: 100_000 });
@@ -409,7 +410,11 @@ describe('record an expense', () => {
       actorUserId: admin,
       idempotencyKey: key(),
     });
-    await setSetting(prisma, { key: 'finance.approval_threshold_piastres', value: 1_000_000, actorUserId: admin });
+    await setSetting(prisma, {
+      key: 'finance.approval_threshold_piastres',
+      value: 1_000_000,
+      actorUserId: admin,
+    });
     const base = {
       expenseAccountId: (await byKey('expense:rent')).id,
       paidFromAccountId: cib.id,

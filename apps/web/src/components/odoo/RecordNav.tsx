@@ -62,7 +62,11 @@ export function RecordNav({ id }: { id: string }) {
  */
 export function ListCrumb({ href, label, id }: { href: string; label: string; id?: string }) {
   const [to, setTo] = useState(href);
-  const [via, setVia] = useState<{ trail: { label: string; href: string }[]; label: string; href: string } | null>(null);
+  const [via, setVia] = useState<{
+    trail: { label: string; href: string }[];
+    label: string;
+    href: string;
+  } | null>(null);
   useEffect(() => {
     try {
       const nav = readDocNav(window.sessionStorage.getItem(DOC_NAV_KEY));

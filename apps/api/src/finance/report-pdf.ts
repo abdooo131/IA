@@ -223,13 +223,18 @@ export async function reportPdf(
     );
   }
   pdf.y += 8;
-  row(T.result[report.result.key] ?? report.result.key, report.result.amountPiastres, report.result.compareAmountPiastres, {
-    bold: true,
-    fill: BRAND.cream,
-    ...(report.totals
-      ? { debit: report.totals.debitPiastres, credit: report.totals.creditPiastres }
-      : {}),
-  });
+  row(
+    T.result[report.result.key] ?? report.result.key,
+    report.result.amountPiastres,
+    report.result.compareAmountPiastres,
+    {
+      bold: true,
+      fill: BRAND.cream,
+      ...(report.totals
+        ? { debit: report.totals.debitPiastres, credit: report.totals.creditPiastres }
+        : {}),
+    },
+  );
   pdf.footer((page, pages) => T.footer(title, page, pages));
   return pdf.end();
 }

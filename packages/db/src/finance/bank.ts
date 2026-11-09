@@ -224,7 +224,12 @@ export function matchBankLines(
     if (ledger.length !== ids.length || ledger.some((l) => l.accountId !== line.accountId))
       throw new DomainError('ledger_line_not_found', 404);
     if (ledger.some((l) => l.bankLine || l.bankMatch)) throw new DomainError('ledger_line_matched');
-    if (!sumMatches(line.amountPiastres, ledger.map((l) => l.amountPiastres)))
+    if (
+      !sumMatches(
+        line.amountPiastres,
+        ledger.map((l) => l.amountPiastres),
+      )
+    )
       throw new DomainError('amounts_differ');
     // The first line in the order given stays on the bank line; the others are kept apart.
     const [first, ...rest] = ids;
@@ -544,7 +549,11 @@ export async function bankMatching(
     at: l.occurredAt,
     amountPiastres: l.amountPiastres,
   }));
-  const forRank = openLines.map((l) => ({ id: l.id, day: l.day, amountPiastres: l.amountPiastres }));
+  const forRank = openLines.map((l) => ({
+    id: l.id,
+    day: l.day,
+    amountPiastres: l.amountPiastres,
+  }));
   const months = [...new Set(open.map((l) => dayText(l.day).slice(0, 7)))].sort().reverse();
   return {
     account: { id: account.id, code: account.code, nameEn: account.nameEn, nameAr: account.nameAr },

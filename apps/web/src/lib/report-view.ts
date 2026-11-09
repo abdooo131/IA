@@ -38,7 +38,8 @@ export function readReportState(params: Params, today: string): ReportState {
       ? presetRange(preset as Exclude<PeriodPreset, 'custom'>, today)
       : presetRange('this_month', today);
   if (fromParam && toParam && isCalendarDay(fromParam) && isCalendarDay(toParam))
-    range = fromParam <= toParam ? { from: fromParam, to: toParam } : { from: toParam, to: fromParam };
+    range =
+      fromParam <= toParam ? { from: fromParam, to: toParam } : { from: toParam, to: fromParam };
   if (range.to > today) range = { ...range, to: today };
   if (range.from > range.to) range = { ...range, from: range.to };
   const compare = one(params.compare);
@@ -107,7 +108,15 @@ export function reportRows(
     section: (key: string) => string;
     total: (key: string) => string;
     result: string;
-    header: { account: string; debit: string; credit: string; amount: string; compare: string; change: string; percent: string };
+    header: {
+      account: string;
+      debit: string;
+      credit: string;
+      amount: string;
+      compare: string;
+      change: string;
+      percent: string;
+    };
   },
 ): { header: string[]; rows: ExportCell[][] } {
   const trial = r.report === 'trial_balance';
@@ -137,7 +146,15 @@ export function reportRows(
   for (const s of r.sections) {
     rows.push([labels.section(s.key)]);
     for (const l of s.lines)
-      rows.push(row(labels.account(l), l.amountPiastres, l.compareAmountPiastres, l.debitPiastres, l.creditPiastres));
+      rows.push(
+        row(
+          labels.account(l),
+          l.amountPiastres,
+          l.compareAmountPiastres,
+          l.debitPiastres,
+          l.creditPiastres,
+        ),
+      );
     rows.push(row(labels.total(s.key), s.totalPiastres, s.compareTotalPiastres));
   }
   rows.push(

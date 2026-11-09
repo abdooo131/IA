@@ -34,10 +34,20 @@ export function LinesFilters({
     next.delete('page');
     start(() => router.push(`${pathname}?${next}`, { scroll: false }));
   };
-  const select = (key: string, label: string, all: string, options: FilterOption[], none?: string) => (
+  const select = (
+    key: string,
+    label: string,
+    all: string,
+    options: FilterOption[],
+    none?: string,
+  ) => (
     <label className="text-caption">
       {label}
-      <select value={params.get(key) ?? ''} onChange={(e) => set(key, e.target.value)} className={field}>
+      <select
+        value={params.get(key) ?? ''}
+        onChange={(e) => set(key, e.target.value)}
+        className={field}
+      >
         <option value="">{all}</option>
         {none && <option value="none">{none}</option>}
         {options.map((o) => (

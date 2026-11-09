@@ -302,7 +302,9 @@ export function PayMerchantsRun({
           </Stat>
           <Stat label={t('toApproveCount')}>{run.totals.toApprove}</Stat>
           <Stat label={t('missingBankCount')}>
-            <span className={run.totals.missingBank ? 'text-danger' : ''}>{run.totals.missingBank}</span>
+            <span className={run.totals.missingBank ? 'text-danger' : ''}>
+              {run.totals.missingBank}
+            </span>
           </Stat>
         </div>
         <DraftTable run={run} t={t} />
@@ -341,7 +343,9 @@ export function PayMerchantsRun({
                   <span className="ltr-iso font-bold">{d.number}</span>
                   <span className="min-w-0 flex-1">{d.merchant}</span>
                   <Amount piastres={d.amountPiastres} strong />
-                  {d.mine && <span className="w-full text-caption text-text-muted">{t('yourOwn')}</span>}
+                  {d.mine && (
+                    <span className="w-full text-caption text-text-muted">{t('yourOwn')}</span>
+                  )}
                 </label>
               </li>
             ))}
@@ -361,7 +365,10 @@ export function PayMerchantsRun({
                 if (!r) return;
                 const refused = r.results.filter((x) => !x.ok);
                 setMessage({
-                  text: t('approved', { ok: r.results.length - refused.length, refused: refused.length }),
+                  text: t('approved', {
+                    ok: r.results.length - refused.length,
+                    refused: refused.length,
+                  }),
                   error: refused.length > 0,
                 });
                 router.refresh();
@@ -460,7 +467,12 @@ export function PayMerchantsRun({
               </label>
               <label className="text-caption">
                 {t('paidOn')}
-                <DateInput value={day} max={run.today} onChange={(e) => setDay(e.target.value)} className={field} />
+                <DateInput
+                  value={day}
+                  max={run.today}
+                  onChange={(e) => setDay(e.target.value)}
+                  className={field}
+                />
               </label>
               <label className="text-caption">
                 {t('fromBank')}
@@ -576,7 +588,10 @@ export function PayMerchantsRun({
         </h2>
         {body}
         {message && (
-          <p role="status" className={`text-body-sm ${message.error ? 'text-danger' : 'text-text-muted'}`}>
+          <p
+            role="status"
+            className={`text-body-sm ${message.error ? 'text-danger' : 'text-text-muted'}`}
+          >
             {message.text}
           </p>
         )}
@@ -595,13 +610,7 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
-function DraftTable({
-  run,
-  t,
-}: {
-  run: PayRunData;
-  t: ReturnType<typeof useTranslations>;
-}) {
+function DraftTable({ run, t }: { run: PayRunData; t: ReturnType<typeof useTranslations> }) {
   if (run.drafts.length === 0)
     return (
       <p className="rounded-lg border border-dashed border-line bg-surface p-6 text-center text-body-sm text-text-muted">

@@ -121,8 +121,7 @@ export function rankSuggestions(
       if (two === bank.amountPiastres) push([a, b]);
       else if (MATCH_SUM_MAX_LINES >= 3 && Math.abs(two) < Math.abs(bank.amountPiastres))
         for (let k = j + 1; k < parts.length && sums.length < 6; k++)
-          if (two + parts[k]!.amountPiastres === bank.amountPiastres)
-            push([a, b, parts[k]!]);
+          if (two + parts[k]!.amountPiastres === bank.amountPiastres) push([a, b, parts[k]!]);
     }
   out.push(...sums);
   for (const l of open) {

@@ -19,7 +19,18 @@ export const dynamic = 'force-dynamic';
 
 type Params = Record<string, string | string[] | undefined>;
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
-const DRILL_KEYS = ['account', 'group', 'set', 'kind', 'from', 'to', 'report', 'store', 'merchant', 'rider'];
+const DRILL_KEYS = [
+  'account',
+  'group',
+  'set',
+  'kind',
+  'from',
+  'to',
+  'report',
+  'store',
+  'merchant',
+  'rider',
+];
 const LIST_KEYS = ['q', 'f', 'g', 'sort', 'desc', 'page', 'size'];
 
 /** Where the drill down came from (only our own report pages). */
@@ -183,7 +194,9 @@ export default async function ReportLinesPage({ searchParams }: { searchParams: 
           <p className="mt-1 text-h3">
             <Amount piastres={figure} strong />
           </p>
-          <p className="text-caption text-text-muted">{t('lines.figureHint', { count: data.total })}</p>
+          <p className="text-caption text-text-muted">
+            {t('lines.figureHint', { count: data.total })}
+          </p>
         </div>
       </div>
       {data.meta.truncated && (

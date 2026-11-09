@@ -13,7 +13,13 @@ import { useEffect, useRef, useState } from 'react';
 import { download } from '@/components/odoo/ListView';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatEgp } from '@/lib/format';
-import { changeText, linesHref, reportQuery, reportRows, type ReportState } from '@/lib/report-view';
+import {
+  changeText,
+  linesHref,
+  reportQuery,
+  reportRows,
+  type ReportState,
+} from '@/lib/report-view';
 import { Amount } from '../Amount';
 
 // A drill down report (Accounting UX phase B): sections by category that fold, a line per
@@ -23,7 +29,9 @@ import { Amount } from '../Amount';
 function Percent({ value }: { value: number | null }) {
   if (value === null) return <span className="text-text-muted">–</span>;
   return (
-    <span className={`ltr-iso ${value < 0 ? 'text-danger' : value > 0 ? 'text-status-delivered' : ''}`}>
+    <span
+      className={`ltr-iso ${value < 0 ? 'text-danger' : value > 0 ? 'text-status-delivered' : ''}`}
+    >
       {value > 0 ? '+' : ''}
       {value}%
     </span>
@@ -127,7 +135,12 @@ function ExportMenu({
                 download(
                   `${file}.xlsx`,
                   new Blob(
-                    [exportXlsx(x.header, x.rows, { sheetName: name, rtl: locale === 'ar' }) as BlobPart],
+                    [
+                      exportXlsx(x.header, x.rows, {
+                        sheetName: name,
+                        rtl: locale === 'ar',
+                      }) as BlobPart,
+                    ],
                     { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
                   ),
                 );
@@ -164,7 +177,9 @@ export function DrillReportView({
     if (l.walletGroup !== null)
       return tr('wallets', {
         count: l.wallets ?? 0,
-        group: tr.has(`groups.g${l.walletGroup}`) ? tr(`groups.g${l.walletGroup}`) : String(l.walletGroup),
+        group: tr.has(`groups.g${l.walletGroup}`)
+          ? tr(`groups.g${l.walletGroup}`)
+          : String(l.walletGroup),
       });
     return locale === 'ar' ? l.nameAr || l.nameEn : l.nameEn;
   };
@@ -178,7 +193,9 @@ export function DrillReportView({
       : t('difference');
   const table = () =>
     reportRows(report, {
-      account: (l) => (l.code && l.code !== 'earnings' && l.walletGroup === null ? `${l.code} ` : '') + accountLabel(l),
+      account: (l) =>
+        (l.code && l.code !== 'earnings' && l.walletGroup === null ? `${l.code} ` : '') +
+        accountLabel(l),
       section: sectionLabel,
       total: totalLabel,
       result: resultLabel,
@@ -245,7 +262,10 @@ export function DrillReportView({
   const lineRow = (l: DrillLine) => {
     const href = linesHref(report.report, state, l);
     return (
-      <tr key={`${l.accountId ?? l.walletGroup ?? l.code}`} className="border-t border-line hover:bg-surface-raised">
+      <tr
+        key={`${l.accountId ?? l.walletGroup ?? l.code}`}
+        className="border-t border-line hover:bg-surface-raised"
+      >
         <td className="px-3 py-2">
           <Link href={href} className="text-link hover:underline">
             {l.code && l.code !== 'earnings' && l.walletGroup === null && (
@@ -388,7 +408,10 @@ export function DrillReportView({
         {report.sections.map((s) => {
           const open = !closed.has(s.key);
           return (
-            <section key={s.key} className="overflow-hidden rounded-lg border border-line bg-surface">
+            <section
+              key={s.key}
+              className="overflow-hidden rounded-lg border border-line bg-surface"
+            >
               <button
                 type="button"
                 aria-expanded={open}
@@ -421,8 +444,10 @@ export function DrillReportView({
                 <Amount piastres={report.result.compareAmountPiastres ?? 0} /> ·{' '}
                 <Percent
                   value={
-                    changeText(report.result.amountPiastres, report.result.compareAmountPiastres ?? 0)
-                      ?.percent ?? null
+                    changeText(
+                      report.result.amountPiastres,
+                      report.result.compareAmountPiastres ?? 0,
+                    )?.percent ?? null
                   }
                 />
               </span>

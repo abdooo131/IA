@@ -77,7 +77,10 @@ export function presetRange(preset: Exclude<PeriodPreset, 'custom'>, today: stri
 
 /** Number of days in a range, both ends included. */
 export function rangeDays(r: DayRange) {
-  return Math.round((Date.parse(`${r.to}T00:00:00Z`) - Date.parse(`${r.from}T00:00:00Z`)) / 86_400_000) + 1;
+  return (
+    Math.round((Date.parse(`${r.to}T00:00:00Z`) - Date.parse(`${r.from}T00:00:00Z`)) / 86_400_000) +
+    1
+  );
 }
 
 /**
@@ -94,9 +97,10 @@ export function comparisonRange(r: DayRange, mode: CompareMode): DayRange | null
   if (a.d === 1) {
     const b = parts(r.to);
     const months = (b.y - a.y) * 12 + (b.m - a.m) + 1;
-    const to = r.to === monthEnd(r.to)
-      ? monthEnd(shiftDayByMonths(r.to, -months))
-      : shiftDayByMonths(r.to, -months);
+    const to =
+      r.to === monthEnd(r.to)
+        ? monthEnd(shiftDayByMonths(r.to, -months))
+        : shiftDayByMonths(r.to, -months);
     return { from: shiftDayByMonths(r.from, -months), to };
   }
   const n = rangeDays(r);
@@ -207,6 +211,14 @@ export const LEDGER_LINE_FILTERS = {
   with_order: 'source',
   no_store: 'tag',
 } as const;
-export const LEDGER_LINE_GROUPS = ['month', 'day', 'store', 'merchant', 'rider', 'kind', 'account'] as const;
+export const LEDGER_LINE_GROUPS = [
+  'month',
+  'day',
+  'store',
+  'merchant',
+  'rider',
+  'kind',
+  'account',
+] as const;
 export const LEDGER_LINE_SORTS = ['day', 'number', 'amount'] as const;
 export const LEDGER_LINE_SUMS = ['debit', 'credit', 'net'] as const;

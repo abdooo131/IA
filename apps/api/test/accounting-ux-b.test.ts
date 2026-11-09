@@ -70,7 +70,9 @@ describe('accounting UX phase B: drill down reports, bank matching and the runs'
       .expect(201);
 
     const pl = await a
-      .get(`/finance/reports/profit_and_loss?from=${today.slice(0, 8)}01&to=${today}&compare=previous`)
+      .get(
+        `/finance/reports/profit_and_loss?from=${today.slice(0, 8)}01&to=${today}&compare=previous`,
+      )
       .expect(200);
     const plain = await a
       .get(`/finance/profit-and-loss?from=${today.slice(0, 8)}01&to=${today}`)

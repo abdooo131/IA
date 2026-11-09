@@ -450,32 +450,37 @@ export function BankReconcile({
           </div>
 
           {matching ?? (
-          <section className="space-y-2">
-            <h2 className="text-h3">{t('bankOnly', { count: rec.bankOnly.length })}</h2>
-            <p className="text-caption text-text-muted">{t('bankOnlyHint')}</p>
-            {rec.bankOnly.length === 0 ? (
-              <p className="text-body-sm text-text-muted">{t('nothingLeft')}</p>
-            ) : (
-              <Table
-                head={
-                  <>
-                    <th className={th}>{t('columns.date')}</th>
-                    <th className={th}>{t('columns.description')}</th>
-                    <th className={`${th} text-end`}>{t('amount')}</th>
-                    <th className={th} />
-                  </>
-                }
-              >
-                {rec.bankOnly.map((l) => (
-                  <BankOnlyRow key={l.id} line={l} candidates={rec.booksOnly} />
-                ))}
-              </Table>
-            )}
-          </section>
+            <section className="space-y-2">
+              <h2 className="text-h3">{t('bankOnly', { count: rec.bankOnly.length })}</h2>
+              <p className="text-caption text-text-muted">{t('bankOnlyHint')}</p>
+              {rec.bankOnly.length === 0 ? (
+                <p className="text-body-sm text-text-muted">{t('nothingLeft')}</p>
+              ) : (
+                <Table
+                  head={
+                    <>
+                      <th className={th}>{t('columns.date')}</th>
+                      <th className={th}>{t('columns.description')}</th>
+                      <th className={`${th} text-end`}>{t('amount')}</th>
+                      <th className={th} />
+                    </>
+                  }
+                >
+                  {rec.bankOnly.map((l) => (
+                    <BankOnlyRow key={l.id} line={l} candidates={rec.booksOnly} />
+                  ))}
+                </Table>
+              )}
+            </section>
           )}
 
-          <details className="space-y-2 rounded-lg border border-line bg-surface p-3" open={!matching}>
-            <summary className="cursor-pointer text-h3">{t('booksOnly', { count: rec.booksOnly.length })}</summary>
+          <details
+            className="space-y-2 rounded-lg border border-line bg-surface p-3"
+            open={!matching}
+          >
+            <summary className="cursor-pointer text-h3">
+              {t('booksOnly', { count: rec.booksOnly.length })}
+            </summary>
             <p className="text-caption text-text-muted">
               {rec.checkedSince
                 ? t('booksOnlyHint', { since: rec.checkedSince })

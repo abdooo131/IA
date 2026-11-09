@@ -74,6 +74,7 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [search, setSearch] = useState(params.get('q') ?? '');
   const listRef = useRef<HTMLUListElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
 
   const line = data.lines[Math.min(index, data.lines.length - 1)] ?? null;
   const byId = useMemo(() => new Map(data.openLines.map((l) => [l.id, l])), [data.openLines]);
@@ -111,13 +112,16 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
         return false;
       }
       setMessage({
-        text: r.data && (r.data as { status?: string }).status === 'pending' ? tf('sentForApproval') : done,
+        text:
+          r.data && (r.data as { status?: string }).status === 'pending'
+            ? tf('sentForApproval')
+            : done,
         error: false,
       });
       router.refresh();
       return true;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // errorText and the translators are stable for the page's life.
     [router],
   );
 
@@ -130,18 +134,29 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
   );
   const top = line?.suggestions.find((s) => s.matchable) ?? null;
 
-  // Keyboard: up and down move through the bank lines, Enter matches the top suggestion.
+  // Keyboard: up and down (or j and k) move through the bank lines, Enter matches the top
+  // suggestion and / goes to the search box.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement | null;
       if (el && ['INPUT', 'SELECT', 'TEXTAREA'].includes(el.tagName)) return;
-      if (e.key === 'ArrowDown') {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === '/') {
+        e.preventDefault();
+        searchRef.current?.focus();
+      } else if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault();
         setIndex((i) => Math.min(i + 1, data.lines.length - 1));
-      } else if (e.key === 'ArrowUp') {
+      } else if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault();
         setIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === 'Enter' && top && !busy && el?.tagName !== 'BUTTON' && el?.tagName !== 'A') {
+      } else if (
+        e.key === 'Enter' &&
+        top &&
+        !busy &&
+        el?.tagName !== 'BUTTON' &&
+        el?.tagName !== 'A'
+      ) {
         e.preventDefault();
         void match(top.ids);
       }
@@ -164,7 +179,12 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
       )
     : [];
   const pickedSum = [...picked].reduce((s, id) => s + (byId.get(id)?.amountPiastres ?? 0), 0);
-  const pickedOk = line ? sumMatches(line.amountPiastres, [...picked].map((id) => byId.get(id)?.amountPiastres ?? 0)) : false;
+  const pickedOk = line
+    ? sumMatches(
+        line.amountPiastres,
+        [...picked].map((id) => byId.get(id)?.amountPiastres ?? 0),
+      )
+    : false;
 
   const progress = data.statement;
   const pct = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -232,6 +252,7 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
           <label className="block">
             {t('search')}
             <input
+              ref={searchRef}
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -250,12 +271,23 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
           {/* Left: the bank's lines still open */}
-          <section aria-labelledby="bank-lines" className="min-w-0 rounded-lg border border-line bg-surface">
-            <h2 id="bank-lines" className="flex items-center justify-between border-b border-line px-3 py-2 text-body font-bold">
+          <section
+            aria-labelledby="bank-lines"
+            className="min-w-0 rounded-lg border border-line bg-surface"
+          >
+            <h2
+              id="bank-lines"
+              className="flex items-center justify-between border-b border-line px-3 py-2 text-body font-bold"
+            >
               {t('bankLines', { count: data.openCount })}
               <span className="text-caption font-normal text-text-muted">{t('keysHint')}</span>
             </h2>
-            <ul ref={listRef} role="listbox" aria-label={t('bankLinesLabel')} className="max-h-[60dvh] divide-y divide-line overflow-y-auto">
+            <ul
+              ref={listRef}
+              role="listbox"
+              aria-label={t('bankLinesLabel')}
+              className="max-h-[60dvh] divide-y divide-line overflow-y-auto"
+            >
               {data.lines.map((l, i) => {
                 const on = l.id === line?.id;
                 const best = l.suggestions[0];
@@ -270,7 +302,9 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                         <span className="ltr-iso block text-caption text-text-muted">
                           {isoToDayFirst(l.day)} · {l.statement}/{l.lineNo}
                         </span>
-                        <span className="block break-words text-body-sm font-semibold">{l.description}</span>
+                        <span className="block break-words text-body-sm font-semibold">
+                          {l.description}
+                        </span>
                         {best && (
                           <span className="mt-0.5 inline-block rounded-pill bg-surface-raised px-2 text-caption text-text-muted">
                             {t(`reasons.${best.reason}`)}
@@ -289,7 +323,10 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
 
           {/* Right: what proves the selected line */}
           {line && (
-            <section aria-labelledby="match-panel" className="min-w-0 space-y-3 rounded-lg border border-line bg-surface p-3">
+            <section
+              aria-labelledby="match-panel"
+              className="min-w-0 space-y-3 rounded-lg border border-line bg-surface p-3"
+            >
               <div className="flex flex-wrap items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h2 id="match-panel" className="break-words text-body font-bold">
@@ -314,7 +351,10 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                     {line.suggestions.map((s, i) => {
                       const items = s.ids.map((id) => byId.get(id)).filter(Boolean);
                       return (
-                        <li key={s.ids.join(',')} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+                        <li
+                          key={s.ids.join(',')}
+                          className="flex flex-wrap items-center justify-between gap-2 px-3 py-2"
+                        >
                           <div className="min-w-0 text-body-sm">
                             <span
                               className={`me-2 inline-block rounded-pill px-2 text-caption font-bold ${s.matchable ? 'bg-selected-bg text-link' : 'bg-surface-raised text-text-muted'}`}
@@ -323,12 +363,19 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                             </span>
                             {items.map((l) => (
                               <span key={l!.id} className="block">
-                                <Link href={`/finance/journal/${l!.entryId}`} className="ltr-iso font-bold text-link">
+                                <Link
+                                  href={`/finance/journal/${l!.entryId}`}
+                                  className="ltr-iso font-bold text-link"
+                                >
                                   {l!.entryNumber}
                                 </Link>{' '}
-                                · <span className="ltr-iso">{isoToDayFirst(l!.day)}</span> · {kindName(l!.kind)}{' '}
-                                · <Amount piastres={l!.amountPiastres} />
-                                {l!.memo && <span className="block text-caption text-text-muted">{l!.memo}</span>}
+                                · <span className="ltr-iso">{isoToDayFirst(l!.day)}</span> ·{' '}
+                                {kindName(l!.kind)} · <Amount piastres={l!.amountPiastres} />
+                                {l!.memo && (
+                                  <span className="block text-caption text-text-muted">
+                                    {l!.memo}
+                                  </span>
+                                )}
                               </span>
                             ))}
                           </div>
@@ -373,8 +420,11 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                           />
                           <span className="min-w-0 flex-1">
                             <span className="ltr-iso font-bold">{c.entryNumber}</span> ·{' '}
-                            <span className="ltr-iso">{isoToDayFirst(c.day)}</span> · {kindName(c.kind)}
-                            {c.memo && <span className="block text-caption text-text-muted">{c.memo}</span>}
+                            <span className="ltr-iso">{isoToDayFirst(c.day)}</span> ·{' '}
+                            {kindName(c.kind)}
+                            {c.memo && (
+                              <span className="block text-caption text-text-muted">{c.memo}</span>
+                            )}
                           </span>
                           <Amount piastres={c.amountPiastres} />
                         </label>
@@ -382,7 +432,9 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                     ))}
                   </ul>
                   <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line px-3 py-2">
-                    <span className={`text-body-sm ${pickedOk ? 'text-status-delivered' : 'text-text-muted'}`}>
+                    <span
+                      className={`text-body-sm ${pickedOk ? 'text-status-delivered' : 'text-text-muted'}`}
+                    >
                       {t('pickedSum', {
                         sum: formatEgp(pickedSum),
                         left: formatEgp(line.amountPiastres - pickedSum),
@@ -408,7 +460,11 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                       className={btn}
                       disabled={busy}
                       onClick={() =>
-                        void send(`/finance/bank-lines/${line.id}/bank-charge`, {}, t('chargeBooked'))
+                        void send(
+                          `/finance/bank-lines/${line.id}/bank-charge`,
+                          {},
+                          t('chargeBooked'),
+                        )
                       }
                     >
                       {t('bankCharge')}
@@ -427,7 +483,11 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                       className={btn}
                       disabled={busy || note.trim().length < 5}
                       onClick={() =>
-                        void send(`/finance/bank-lines/${line.id}/ignore`, { note }, t('setAsideDone'))
+                        void send(
+                          `/finance/bank-lines/${line.id}/ignore`,
+                          { note },
+                          t('setAsideDone'),
+                        )
                       }
                     >
                       {t('setAside')}
@@ -437,7 +497,10 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
                 </div>
               )}
               {message && (
-                <p role="status" className={`text-body-sm ${message.error ? 'text-danger' : 'text-text-muted'}`}>
+                <p
+                  role="status"
+                  className={`text-body-sm ${message.error ? 'text-danger' : 'text-text-muted'}`}
+                >
                   {message.text}
                 </p>
               )}

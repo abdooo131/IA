@@ -238,7 +238,11 @@ async function moneyByKind(db: Db, from: Date, to: Date, store: string | null = 
 /** Where money came from and went in a period (direct method), by section and entry kind. */
 export async function cashFlow(
   db: Db,
-  input: { from: Date; to: Date; /** Only money lines tagged with this store */ darkStoreId?: string },
+  input: {
+    from: Date;
+    to: Date;
+    /** Only money lines tagged with this store */ darkStoreId?: string;
+  },
 ) {
   const store = input.darkStoreId ?? null;
   const [opening, closing, kinds] = await Promise.all([
