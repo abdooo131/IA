@@ -19,6 +19,14 @@ export class AgentsService {
     if (!(await this.canWork(userId, tx))) throw new HttpException({ error: 'person_cannot_work' }, 400);
   }
 
+  /** What a night car needs from a truck route. */
+  async route(routeId: string) {
+    const r = await this.db.truckRoute.findUnique({ where: { id: routeId } });
+    if (!r?.active) throw new HttpException({ error: 'not_found' }, 404);
+    const a = await this.db.agent.findUniqueOrThrow({ where: { id: r.agentId } });
+    return { id: r.id, fromSiteId: r.fromSiteId, toSiteId: r.toSiteId, driverName: `${a.name} · ${r.code}` };
+  }
+
   personOf(userId: string) {
     return this.db.person.findUnique({ where: { userId } });
   }

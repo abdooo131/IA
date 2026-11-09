@@ -1,7 +1,7 @@
 import { HttpException, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import type { PrismaClient, Tx } from '@shiply/db';
 import { LocationService } from '../location';
-import { DB, SettingsService } from '../platform';
+import { DB, publish, SettingsService } from '../platform';
 import { ParcelsService } from './parcels.service';
 import { registerStep } from './scan.service';
 
@@ -101,6 +101,7 @@ export class BagsService implements OnModuleInit {
       if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
       const parcels = await tx.parcel.findMany({ where: { bagId: { in: bags.map((b) => b.id) }, status: 'at_outbound' } });
       for (const p of parcels) await this.parcels.move(tx, p.id, 'in_transit', { userId, siteId: car.fromSiteId });
+      await publish(tx, 'car.departed', { carId, routeId: car.routeId, fromSiteId: car.fromSiteId, toSiteId: car.toSiteId, bags: bags.length }, `car.departed:${carId}`);
       return { ...car, status: 'departed', parcels: parcels.length };
     });
   }

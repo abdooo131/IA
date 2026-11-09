@@ -98,7 +98,7 @@ export class ParcelsService {
     const { count } = await tx.parcel.updateMany({ where: { id: parcelId, status: parcel.status }, data: { status: to, ...(ctx.set ?? {}) } });
     if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
     await tx.parcelEvent.create({ data: { parcelId, status: to, note: ctx.note ?? null, userId: ctx.userId, siteId: ctx.siteId ?? null } });
-    await publish(tx, 'parcel.status_changed', { parcelId, merchantId: parcel.merchantId, from: parcel.status, to }, `parcel.status_changed:${parcelId}:${parcel.status}:${to}:${Date.now()}`);
+    await publish(tx, 'parcel.status_changed', { parcelId, merchantId: parcel.merchantId, from: parcel.status, to, courierId: (ctx.set?.courierId as string | undefined) ?? parcel.courierId }, `parcel.status_changed:${parcelId}:${parcel.status}:${to}:${Date.now()}`);
     return tx.parcel.findUniqueOrThrow({ where: { id: parcelId } });
   }
 

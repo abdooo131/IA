@@ -3,6 +3,9 @@ import { atLeast } from '@shiply/shared';
 import { HomeRegistry } from '../platform';
 import { ComplianceService } from './compliance.service';
 import { VehiclesController } from './vehicles.controller';
+import { RequestsController } from './requests.controller';
+import { RoutesController } from './routes.controller';
+import { WorkLogService } from './worklog.service';
 import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { PeopleController } from './people.controller';
@@ -28,8 +31,8 @@ export class AgentsModule {
     return {
       module: AgentsModule,
       imports: [money],
-      controllers: [PeopleController, VehiclesController, AgentsController],
-      providers: [AgentsService, ComplianceService, AgentsWiring],
+      controllers: [PeopleController, VehiclesController, RequestsController, RoutesController, AgentsController],
+      providers: [AgentsService, ComplianceService, WorkLogService, AgentsWiring],
       exports: [AgentsService, ComplianceService],
     };
   }

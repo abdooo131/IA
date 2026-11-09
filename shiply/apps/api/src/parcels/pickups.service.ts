@@ -1,6 +1,6 @@
 import { HttpException, Inject, Injectable, type OnModuleInit } from '@nestjs/common';
 import type { PrismaClient } from '@shiply/db';
-import { DB } from '../platform';
+import { DB, publish } from '../platform';
 import { ParcelsService } from './parcels.service';
 import { registerStep } from './scan.service';
 
@@ -21,7 +21,10 @@ export class PickupsService implements OnModuleInit {
         if (!['assigned', 'on_the_way'].includes(pickup.status)) throw new HttpException({ error: 'wrong_status' }, 409);
         if (parcel!.merchantId !== pickup.merchantId) throw new HttpException({ error: 'other_merchant' }, 409);
         await this.parcels.move(tx, parcel!.id, 'picked_up', { userId: user.id, set: { pickupId: pickup.id } });
-        if (pickup.status === 'assigned') await tx.pickup.update({ where: { id: pickup.id }, data: { status: 'on_the_way' } });
+        if (pickup.status === 'assigned') {
+          await tx.pickup.update({ where: { id: pickup.id }, data: { status: 'on_the_way' } });
+          await publish(tx, 'pickup.started', { pickupId: pickup.id, courierId: user.id, merchantId: pickup.merchantId }, `pickup.started:${pickup.id}`);
+        }
         const count = await tx.parcel.count({ where: { pickupId: pickup.id } });
         return { ok: true, colour: 'green', big: String(count), small: parcel!.tracking, parcelId: parcel!.id };
       },

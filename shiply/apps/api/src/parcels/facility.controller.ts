@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpException, Inject, Param, Post, Qu
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
+import { AgentsService } from '../agents';
 import { DB, NeedAccess, parse } from '../platform';
 import { BagsService } from './bags.service';
 import { FacilityService } from './facility.service';
@@ -14,6 +15,7 @@ export class FacilityController {
     @Inject(FacilityService) private readonly facility: FacilityService,
     @Inject(BagsService) private readonly bags: BagsService,
     @Inject(ScanService) private readonly scans: ScanService,
+    @Inject(AgentsService) private readonly agents: AgentsService,
   ) {}
 
   @Get('facility/:siteId/inbound')
@@ -69,9 +71,11 @@ export class FacilityController {
   @Post('cars')
   @NeedAccess('shiply', 'use')
   async newCar(@Body() body: unknown, @Req() req: Request) {
-    const b = parse(z.object({ fromSiteId: z.string().min(1), toSiteId: z.string().min(1), driverName: z.string().trim().min(1).max(120) }), body);
+    const raw = parse(z.object({ routeId: z.string().optional(), fromSiteId: z.string().optional(), toSiteId: z.string().optional(), driverName: z.string().trim().max(120).optional() }), body);
+    // From a truck route (Agents & Fleet), or typed in.
+    const b = raw.routeId ? { ...(await this.agents.route(raw.routeId)), routeId: raw.routeId } : parse(z.object({ fromSiteId: z.string().min(1), toSiteId: z.string().min(1), driverName: z.string().trim().min(1) }), raw);
     await this.scans.assertSite(req.user!, b.fromSiteId);
-    return this.db.car.create({ data: { ...b, createdById: req.user!.id } });
+    return this.db.car.create({ data: { fromSiteId: b.fromSiteId, toSiteId: b.toSiteId, driverName: b.driverName, routeId: 'routeId' in b ? b.routeId : null, createdById: req.user!.id } });
   }
 
   @Post('cars/:id/depart')
