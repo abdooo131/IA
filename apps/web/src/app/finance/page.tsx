@@ -2,7 +2,8 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { Icon, type IconName } from '@/components/Icon';
-import { apiGet } from '@/lib/api-server';
+import { canDo } from '@shiplynow/shared';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatEgp } from '@/lib/format';
 
@@ -57,12 +58,28 @@ const ICONS: Record<string, IconName> = {
  * invoices, rider withdrawals and approvals, each with its balance, 30 days and what waits.
  */
 export default async function FinanceDashboardPage() {
-  const [data, t, tf, locale] = await Promise.all([
+  const [data, t, tf, locale, me] = await Promise.all([
     apiGet<Dashboard>('/finance/dashboard'),
     getTranslations('finance.dashboard'),
     getTranslations('finance'),
     getLocale(),
+    getMyProfile(),
   ]);
+  // The guided runs and the quick expense form (Accounting UX phase B).
+  const quick = [
+    ...(me && canDo(me, 'accounting', 'use')
+      ? [{ key: 'recordExpense', href: '/finance/expenses/new', icon: 'invoice' as IconName }]
+      : []),
+    { key: 'payMerchants', href: '/finance/payouts/run', icon: 'payout' as IconName },
+    { key: 'matchBank', href: '/finance/bank', icon: 'wallet' as IconName },
+    {
+      key: 'closeMonth',
+      href: data.monthEnd
+        ? `/finance/month-end/run?month=${data.monthEnd.month}`
+        : '/finance/month-end/run',
+      icon: 'alert' as IconName,
+    },
+  ];
   const name = (c: Card) =>
     c.name ? (locale === 'ar' ? c.name.ar || c.name.en : c.name.en) : t(`cards.${c.kind}`);
   const waitText = (w: Wait) => t(`waits.${w.key}`, { count: w.count });
@@ -81,6 +98,22 @@ export default async function FinanceDashboardPage() {
           {t('allReports')}
         </Link>
       </div>
+
+      <nav aria-label={t('quickLabel')} className="mt-4">
+        <ul className="flex flex-wrap gap-2">
+          {quick.map((q) => (
+            <li key={q.key}>
+              <Link
+                href={q.href}
+                className="inline-flex h-11 items-center gap-2 rounded-md border border-line bg-surface px-4 text-body-sm font-bold hover:border-primary hover:bg-surface-raised"
+              >
+                <Icon name={q.icon} size={20} className="text-link" />
+                {t(`quick.${q.key}`)}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </nav>
 
       <section
         aria-labelledby="today"
@@ -120,7 +153,7 @@ export default async function FinanceDashboardPage() {
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {data.monthEnd && (
             <Link
-              href="/finance/month-end"
+              href={`/finance/month-end/run?month=${data.monthEnd.month}`}
               className="flex items-center justify-between gap-3 rounded-md bg-surface-raised px-3 py-2 text-body-sm"
             >
               <span>

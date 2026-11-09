@@ -127,6 +127,7 @@ export async function financeDashboard(
               { key: 'statement', href: `/finance/accounts/${a.id}` },
             ]
           : [
+              { key: 'recordExpense', href: '/finance/expenses/new' },
               { key: 'moveMoney', href: '/finance/movements' },
               { key: 'statement', href: `/finance/accounts/${a.id}` },
             ],

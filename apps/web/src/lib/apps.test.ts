@@ -1,6 +1,8 @@
 import { JOB_ROLE_TEMPLATES, type JobRole, NO_ACCESS } from '@shiplynow/shared';
 import { describe, expect, it } from 'vitest';
-import { appsFor, canOpenPath, canOpenStoreScreens, locate } from './apps';
+import ar from '../../messages/ar.json';
+import en from '../../messages/en.json';
+import { APPS, appsFor, canOpenPath, canOpenStoreScreens, locate } from './apps';
 
 const profile = (role: JobRole) => ({
   ...JOB_ROLE_TEMPLATES[role],
@@ -175,5 +177,34 @@ describe('canOpenPath', () => {
     expect(pages('sales_rep')).not.toContain('/admin/sales/targets');
     expect(pages('sales_manager')).toContain('/admin/sales/targets');
     expect(pages('accountant')).not.toContain('/admin/sales/commission');
+  });
+});
+
+describe('Accounting UX phase B pages', () => {
+  it('puts the guided runs and the expense form on the Accounting menus', () => {
+    expect(pages('finance_officer')).toEqual(
+      expect.arrayContaining([
+        '/finance/payouts/run',
+        '/finance/expenses/new',
+        '/finance/month-end/run',
+      ]),
+    );
+    expect(locate('/finance/payouts/run')?.page?.label).toBe('payMerchants');
+    expect(locate('/finance/month-end/run')?.page?.label).toBe('closeMonthRun');
+    expect(locate('/finance/month-end')?.page?.label).toBe('monthEndChecklist');
+    expect(locate('/finance/payouts/abc')?.page?.label).toBe('payouts');
+  });
+
+  it('shows Record an expense only to people who may post (accounting use)', () => {
+    expect(pages('accountant')).toContain('/finance/payouts/run');
+    expect(pages('accountant')).not.toContain('/finance/expenses/new');
+  });
+
+  it('names every menu page in English and Arabic', () => {
+    const labels = APPS.flatMap((a) => a.menus.flatMap((m) => m.pages.map((p) => p.label)));
+    const missing = (m: { apps: { pages: Record<string, string> } }) =>
+      [...new Set(labels)].filter((l) => !m.apps.pages[l]);
+    expect(missing(en)).toEqual([]);
+    expect(missing(ar)).toEqual([]);
   });
 });

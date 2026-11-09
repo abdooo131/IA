@@ -3265,6 +3265,13 @@
         "billsDue": "{count, plural, one {Bill due within 7 days} other {Bills due within 7 days}}",
         "missingReceipts": "{count, plural, one {Entry missing a receipt} other {Entries missing a receipt}}",
         "myActivities": "{count, plural, one {Reminder of mine due} other {Reminders of mine due}}"
+      },
+      "quickLabel": "Quick actions",
+      "quick": {
+        "recordExpense": "Record an expense",
+        "payMerchants": "Pay merchants",
+        "matchBank": "Match the bank",
+        "closeMonth": "Close the month"
       }
     },
     "reportsPage": {
@@ -3585,8 +3592,94 @@
         "approval_needed": "This payout needs a second person to approve it first.",
         "same_person": "Someone else must approve a payout you prepared.",
         "approval_not_needed": "This payout is under the limit and needs no approval.",
-        "future_date": "The day cannot be in the future.",
-        "books_locked": "The books are closed for that day."
+        "future_date": "The day cannot be in the future."
+      }
+    },
+    "closeRun": {
+      "title": "Close the month {month}",
+      "intro": "Go through the month end checklist one item at a time: fix what is open on its own screen, tick an exception with a note, then close the books so nothing more can be posted in the month.",
+      "plainList": "Checklist on one page",
+      "stepsLabel": "Steps to close the month",
+      "progressLabel": "Checklist items done",
+      "alreadyClosed": "The books of this month are closed.",
+      "why": {
+        "cash_handovers": "Riders still holding cash, or handovers with a difference, keep the month open.",
+        "bank_lines": "Open bank lines mean money moved that the books may not show yet.",
+        "receipts": "Money movements without a receipt or transfer slip cannot be checked later.",
+        "petty_cash": "Petty expenses waiting for a second person are not in the books yet.",
+        "invoices": "Each merchant charged fees in the month gets one tax invoice.",
+        "payroll": "The month’s salaries must be booked before the month is closed.",
+        "storage": "Storage is charged when each Cairo day closes; a missing day is lost income.",
+        "depreciation": "Equipment and prepaid costs are charged once each month is over.",
+        "vat_return": "Prepare the VAT return from the books, then tick it here with a note."
+      },
+      "fix": {
+        "cash_handovers": "Count rider cash",
+        "bank_lines": "Match bank lines",
+        "receipts": "Attach receipts",
+        "petty_cash": "Decide petty cash",
+        "invoices": "Issue tax invoices",
+        "payroll": "Run payroll",
+        "storage": "Check storage entries",
+        "depreciation": "Check equipment and prepaid",
+        "vat_return": "Prepare the VAT return"
+      },
+      "checkAgain": "Check again",
+      "tickTitle": "Tick by hand",
+      "tickHintAuto": "Only when the open items are explained (for example a bank line that belongs to next month). The note stays on the month.",
+      "tickHintManual": "Tick it once it is done, with a note of what was done.",
+      "ticked": "Ticked.",
+      "back": "Back",
+      "nextOpen": "Next open item",
+      "toClose": "Go to closing",
+      "closeTitle": "Close the books",
+      "closeIntro": "Closing stops any posting dated in the month. Only days that are over can be closed; reopening is for the owners, with a reason.",
+      "notOver": "The month is not over yet. Come back after its last day.",
+      "stillOpen": "Still open:",
+      "closeButton": "Close the books through {day}",
+      "closedNow": "The books are closed through {day}.",
+      "cannotClose": "Closing the books needs accounting manage.",
+      "closeHint": "The button works once every item above is done or ticked with a note."
+    },
+    "quickExpense": {
+      "title": "Record an expense",
+      "intro": "A cost paid from a bank or cash box. From the approval limit it waits for a second person before it is posted.",
+      "fullForm": "All money movements",
+      "amount": "Amount paid (EGP)",
+      "category": "Category",
+      "choose": "Choose…",
+      "store": "Store",
+      "companyWide": "Company wide",
+      "paidFrom": "Paid from",
+      "overBalance": "That is more than this account holds.",
+      "day": "Day paid",
+      "hasVat": "The receipt shows VAT",
+      "vat": "VAT included in the amount (EGP)",
+      "vatHint": "Claimed back against VAT owed.",
+      "note": "What was it for?",
+      "reference": "Receipt or bill number (optional)",
+      "referenceHint": "Left empty, the note is used.",
+      "limitHint": "Expenses from {limit} EGP wait for a second person.",
+      "willWait": "From {limit} EGP this waits in Approvals for a second person.",
+      "save": "Record the expense",
+      "sendForApproval": "Send for approval",
+      "posted": "Recorded.",
+      "postedTitle": "The expense is recorded.",
+      "openEntry": "Open the entry",
+      "pendingTitle": "Sent for approval.",
+      "pendingHint": "It is posted when another person approves it in Approvals.",
+      "openRequest": "Open the request",
+      "another": "Record another",
+      "toDashboard": "Back to the dashboard",
+      "errors": {
+        "amount": "Enter the amount paid.",
+        "vat": "Enter the VAT as an amount in EGP.",
+        "vat_above_amount": "VAT must be less than the amount.",
+        "category": "Choose a category.",
+        "from": "Choose where it was paid from.",
+        "day": "Choose a valid day.",
+        "future_day": "The day cannot be in the future.",
+        "note": "Write what it was for (at least 3 characters)."
       }
     }
   },
@@ -5761,7 +5854,10 @@
       "riderWithdrawals": "Rider withdrawals",
       "accountingDashboard": "Dashboard",
       "allReports": "All reports",
-      "monthEndChecklist": "Month end checklist"
+      "monthEndChecklist": "Month end checklist",
+      "payMerchants": "Pay merchants",
+      "recordExpense": "Record an expense",
+      "closeMonthRun": "Close the month"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -6848,7 +6944,8 @@
           "name": "Books closed",
           "hint": "Nothing more can be posted in the month."
         }
-      }
+      },
+      "guided": "Close the month step by step"
     }
   },
   "orderDetail": {

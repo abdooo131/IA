@@ -1,5 +1,6 @@
 import { cairoDay, canDo, isMonth, shiftMonth } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { MonthEndChecklistView } from '@/components/finance/MonthEndChecklist';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { MonthEndChecklist } from '@/lib/cash-control-types';
@@ -23,8 +24,18 @@ export default async function MonthEndPage({
   const months = Array.from({ length: 13 }, (_, i) => shiftMonth(current, -i));
   return (
     <>
-      <h1 className="text-h2">{t('title')}</h1>
-      <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="text-h2">{t('title')}</h1>
+          <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{t('intro')}</p>
+        </div>
+        <Link
+          href={`/finance/month-end/run?month=${month}`}
+          className="text-body-sm font-bold text-link"
+        >
+          {t('guided')}
+        </Link>
+      </div>
       <MonthEndChecklistView
         list={list}
         months={months}

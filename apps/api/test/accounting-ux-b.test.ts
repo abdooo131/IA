@@ -4,9 +4,10 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { post, setSetting } from '@shiplynow/db';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, resetAndSeed } from './helpers';
+import { createTestApp, createUser, grantAccess, resetAndSeed } from './helpers';
 
 const DEMO = 'demo-password-1';
+const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
 let n = 0;
 const key = () => `uxb-${++n}-${Date.now()}`;
 
@@ -191,5 +192,177 @@ describe('accounting UX phase B: drill down reports, bank matching and the runs'
     expect(again.body.results[0]).toMatchObject({ ok: true, already: true });
     run = await a.get('/finance/payouts/run').expect(200);
     expect(run.body).toMatchObject({ current: 'done', totals: { paidPiastres: 70_000 } });
+  });
+
+  it('records an expense from the quick form: posted with its receipt, or waiting from the limit', async () => {
+    const a = await admin();
+    const cib = await bank();
+    const yesterday = addDays(cairoDay(new Date()), -1);
+    await a
+      .post('/finance/capital')
+      .send({
+        direction: 'in',
+        moneyAccountId: cib.id,
+        amountPiastres: 1_000_000,
+        reference: 'Owner',
+        day: yesterday,
+        idempotencyKey: key(),
+      })
+      .expect(201);
+    await setSetting(prisma, {
+      key: 'finance.approval_threshold_piastres',
+      value: 500_000,
+      actorUserId: null,
+    });
+    const controls = await a.get('/finance/controls').expect(200);
+    expect(controls.body.approvalThresholdPiastres).toBe(500_000);
+    const water = await prisma.ledgerAccount.findUniqueOrThrow({ where: { key: 'expense:rent' } });
+    const store = await prisma.darkStore.findFirstOrThrow({ where: { kind: 'dark_store' } });
+    const photo = await a
+      .post('/photos?kind=receipt')
+      .set('content-type', 'image/jpeg')
+      .send(JPEG)
+      .expect(201);
+    const body = {
+      expenseAccountId: water.id,
+      paidFromAccountId: cib.id,
+      vatPiastres: 1_400,
+      reference: 'Office water',
+      memo: 'Office water',
+      darkStoreId: store.id,
+    };
+    const small = await a
+      .post('/finance/expenses')
+      .send({
+        ...body,
+        amountPiastres: 11_400,
+        receiptPhotoId: photo.body.id,
+        idempotencyKey: key(),
+      })
+      .expect(201);
+    expect(small.body).toMatchObject({ status: 'posted' });
+    expect(small.body.number).toMatch(/^JV-/);
+    expect(await prisma.financeReceipt.count({ where: { entryId: small.body.id } })).toBe(1);
+    const lines = await prisma.ledgerLine.findMany({ where: { entryId: small.body.id } });
+    // The cost carries its store, so profit per store sees it.
+    expect(lines.find((l) => l.accountId === water.id)?.darkStoreId).toBe(store.id);
+    expect(lines.reduce((sum, l) => sum + l.amountPiastres, 0)).toBe(0);
+
+    const big = await a
+      .post('/finance/expenses')
+      .send({ ...body, amountPiastres: 600_000, idempotencyKey: key() })
+      .expect(201);
+    expect(big.body).toMatchObject({ status: 'pending' });
+    const request = await prisma.financeRequest.findUniqueOrThrow({
+      where: { id: big.body.requestId },
+    });
+    expect(request.status).toBe('pending');
+    // Never dated in the future.
+    await a
+      .post('/finance/expenses')
+      .send({
+        ...body,
+        amountPiastres: 1_000,
+        day: addDays(cairoDay(new Date()), 1),
+        idempotencyKey: key(),
+      })
+      .expect(400);
+  });
+
+  it('closes the month step by step: hand ticks with a note, then the books through its last day', async () => {
+    const a = await admin();
+    const month = addDays(`${cairoDay(new Date()).slice(0, 7)}-01`, -1).slice(0, 7);
+    let list = await a.get(`/finance/month-end?month=${month}`).expect(200);
+    expect(list.body.items.at(-1).id).toBe('books_closed');
+    await a
+      .post(`/finance/month-end/${month}/marks`)
+      .send({ item: 'books_closed', note: 'nope' })
+      .expect(400);
+    for (const item of list.body.items as { id: string; done: boolean }[])
+      if (item.id !== 'books_closed' && !item.done)
+        await a
+          .post(`/finance/month-end/${month}/marks`)
+          .send({ item: item.id, note: 'Checked with the accountant' })
+          .expect(201);
+    list = await a.get(`/finance/month-end?month=${month}`).expect(200);
+    expect(list.body.readyToClose).toBe(true);
+
+    // Closing needs accounting manage.
+    await createUser(prisma, { email: 'officer@test.eg', password: DEMO, role: 'finance' });
+    const officer = await prisma.user.findUniqueOrThrow({ where: { email: 'officer@test.eg' } });
+    await grantAccess(prisma, officer.id, 'finance_officer');
+    const o = await agent('officer@test.eg');
+    await o.get(`/finance/month-end?month=${month}`).expect(200);
+    await o.post('/finance/books-lock').send({ day: list.body.lastDay }).expect(403);
+
+    await a.post('/finance/books-lock').send({ day: list.body.lastDay }).expect(201);
+    list = await a.get(`/finance/month-end?month=${month}`).expect(200);
+    expect(list.body.items.find((i: { id: string }) => i.id === 'books_closed').done).toBe(true);
+    expect(list.body.closedThrough).toBe(list.body.lastDay);
+    // Nothing is posted inside the closed month.
+    const cib = await bank();
+    await a
+      .post('/finance/capital')
+      .send({
+        direction: 'in',
+        moneyAccountId: cib.id,
+        amountPiastres: 1_000,
+        reference: 'Late',
+        day: list.body.lastDay,
+        idempotencyKey: key(),
+      })
+      .expect(409);
+  });
+
+  it('books a bank charge through the second person rule and sets a line aside with a reason', async () => {
+    const a = await admin();
+    const cib = await bank();
+    const day = addDays(cairoDay(new Date()), -1);
+    await a
+      .post('/finance/capital')
+      .send({
+        direction: 'in',
+        moneyAccountId: cib.id,
+        amountPiastres: 100_000,
+        reference: 'Owner',
+        day: addDays(day, -1),
+        idempotencyKey: key(),
+      })
+      .expect(201);
+    await a
+      .post('/finance/bank-statements')
+      .send({
+        accountId: cib.id,
+        fileName: 'cib.csv',
+        lines: [
+          { day, description: 'Monthly fee', amountPiastres: -5_000 },
+          { day, description: 'Moved between our own sub accounts', amountPiastres: 77_700 },
+        ],
+      })
+      .expect(201);
+    await setSetting(prisma, {
+      key: 'finance.approval_threshold_piastres',
+      value: 1_000,
+      actorUserId: null,
+    });
+    const view = await a.get(`/finance/bank-matching/${cib.id}`).expect(200);
+    const fee = view.body.lines.find(
+      (l: { amountPiastres: number }) => l.amountPiastres === -5_000,
+    );
+    const other = view.body.lines.find(
+      (l: { amountPiastres: number }) => l.amountPiastres === 77_700,
+    );
+    const charge = await a.post(`/finance/bank-lines/${fee.id}/bank-charge`).expect(201);
+    expect(charge.body.status).toBe('pending');
+    // Money in is never booked from a statement: a plus line cannot be a bank charge.
+    await a.post(`/finance/bank-lines/${other.id}/bank-charge`).expect(400);
+    await a.post(`/finance/bank-lines/${other.id}/ignore`).send({ note: 'no' }).expect(400);
+    await a
+      .post(`/finance/bank-lines/${other.id}/ignore`)
+      .send({ note: 'Between our own sub accounts' })
+      .expect(201);
+    const after = await a.get(`/finance/bank-matching/${cib.id}`).expect(200);
+    expect(after.body.lines.map((l: { id: string }) => l.id)).toEqual([fee.id]);
+    expect(after.body.statement).toMatchObject({ total: 2, done: 1 });
   });
 });

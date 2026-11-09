@@ -135,7 +135,8 @@ export const APPS: AppDef[] = [
     color: '#15803D',
     access: 'accounting',
     // Accounting UX phase A: menus by job (what comes in, what goes out, cash and bank,
-    // reports, month end, setup); every page keeps its address.
+    // reports, month end, setup); every page keeps its address. Phase B adds the guided runs
+    // (Pay merchants, Close the month) and the Record an expense form.
     menus: [
       {
         label: 'dashboard',
@@ -148,6 +149,7 @@ export const APPS: AppDef[] = [
         label: 'moneyIn',
         pages: [
           { href: '/finance/merchants', label: 'wallets' },
+          { href: '/finance/payouts/run', label: 'payMerchants' },
           { href: '/finance/payouts', label: 'payouts' },
           { href: '/finance/invoices', label: 'invoices' },
           { href: '/finance/receivables', label: 'receivables' },
@@ -158,6 +160,7 @@ export const APPS: AppDef[] = [
       {
         label: 'moneyOut',
         pages: [
+          { href: '/finance/expenses/new', label: 'recordExpense', need: { level: 'use' } },
           { href: '/finance/bills', label: 'bills' },
           { href: '/finance/purchase-orders', label: 'purchaseOrders' },
           { href: '/finance/movements', label: 'movements' },
@@ -197,6 +200,7 @@ export const APPS: AppDef[] = [
       {
         label: 'monthEnd',
         pages: [
+          { href: '/finance/month-end/run', label: 'closeMonthRun' },
           { href: '/finance/month-end', label: 'monthEndChecklist' },
           { href: '/finance/close', label: 'close' },
           { href: '/finance/year-end', label: 'yearEnd' },
