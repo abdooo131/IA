@@ -148,6 +148,13 @@ street('youssef-abbas', 'nasr-city', 'Youssef Abbas St', 'يوسف عباس', ['
 street('hassan-el-maamoun', 'nasr-city', 'Hassan El Maamoun St', 'حسن المأمون', ['hassan el maamoun', 'hassan maamoun']);
 street('zaker-hussein', 'nasr-city', 'Zaker Hussein St', 'ذاكر حسين', ['zaker hussein', 'zaker hussien']);
 street('ahmed-fakhry', 'nasr-city', 'Ahmed Fakhry St', 'أحمد فخري', ['ahmed fakhry', 'ahmed fakhri']);
+street('ahmed-el-zomor', 'nasr-city-hay-8', 'Ahmed El Zomor St', 'أحمد الزمر', ['ahmed el zomor', 'ahmed zomor', 'ahmed el zomr', 'el zomor', 'الزمر']);
+street('abou-dawood-el-zahery', 'nasr-city', 'Abou Dawood El Zahery St', 'أبو داود الظاهري', ['abou dawood el zahery', 'abu dawood el zahery', 'abou dawoud el zahiry', 'ابو داود الظاهري']);
+street('mohamed-el-makrif', 'nasr-city', 'Mohamed El Makrif St', 'محمد المقريف', ['mohamed el makrif', 'mohamed el maqrif', 'el makrif']);
+street('hassan-afify', 'nasr-city', 'Hassan Afify St', 'حسن عفيفي', ['hassan afify', 'hassan afifi']);
+street('ali-amin', 'nasr-city', 'Ali Amin St', 'علي أمين', ['ali amin street', 'ali amin st', 'شارع علي امين']);
+street('el-nasr-road', 'nasr-city', 'El Nasr Road', 'طريق النصر', ['el nasr road', 'nasr road', 'nasr rd', 'طريق النصر']);
+street('mostafa-el-nahas-ext', 'nasr-city', 'Mostafa El Nahas Extension', 'امتداد مصطفى النحاس', ['emtedad mostafa el nahas', 'mostafa el nahas extension']);
 street('anwar-el-mofty', 'nasr-city', 'Anwar El Mofty St', 'أنور المفتي', ['anwar el mofty', 'anwar mofty']);
 mark('city-stars', 'nasr-city', 'City Stars', 'سيتي ستارز', ['city stars', 'citystars', 'سيتى ستارز']);
 mark('genena-mall', 'nasr-city', 'Genena Mall', 'جنينة مول', ['genena mall', 'gnena mall']);

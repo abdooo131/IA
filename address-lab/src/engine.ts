@@ -363,9 +363,11 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
   for (const m of matches) {
     const before = evidence.some((e) => e.match === m);
     const after = kept.some((e) => e.match === m);
-    if (before && !after) reasons.push(`"${m.text}" ignored: a shared name, and no place it belongs to is written`);
+    if (before && !after && kept.length > 0) reasons.push(`"${m.text}" ignored: a shared name, and no place it belongs to is written`);
   }
-  evidence = kept;
+  // A shared name with nothing above it is still a clue: show where it could be, never a guess.
+  const onlyShared = kept.length === 0 && evidence.length > 0;
+  evidence = onlyShared ? evidence.map((e) => ({ ...e, weight: e.weight * 0.5 })) : kept;
 
   for (const m of matches) {
     if (m.method === 'typo') {
@@ -458,7 +460,16 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
   let status: Status;
   let confidence = Math.round(100 * share);
 
-  if (govPlace.served === false) {
+  if (onlyShared) {
+    const where = scored.map((c) => label(g, c.area));
+    status = where.length > 1 ? 'unsure' : 'likely';
+    reasons.unshift(
+      where.length > 1
+        ? `"${matches.map((m) => m.text).join(', ')}" exists in more than one place: ${where.join(' or ')}. Write the city or district to decide`
+        : `Found only a shared name; it points to ${where[0]}`,
+    );
+    confidence = Math.min(confidence, where.length > 1 ? 50 : 70);
+  } else if (govPlace.served === false) {
     status = 'outside';
     reasons.unshift(`The address is in ${govPlace.en}, outside Greater Cairo`);
   } else if (rival && rivalScore >= 0.75 * best.score) {

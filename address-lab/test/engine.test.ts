@@ -59,9 +59,16 @@ test('different spellings of Mohandessin', () => {
   }
 });
 
-test('a shared name alone is not guessed', () => {
-  assert.equal(parse('الحي السابع').status, 'not_found');
-  assert.equal(parse('الياسمين').status, 'not_found');
+test('a shared name alone is never sure', () => {
+  const r = parse('الحي السابع');
+  assert.equal(r.status, 'unsure');
+  assert.ok(r.reasons[0].includes('Nasr City') && r.reasons[0].includes('6th of October'));
+  assert.equal(parse('الياسمين').status, 'likely');
+});
+
+test('a Nasr City street with its district number', () => {
+  assert.deepEqual(pathOf('ahmed el zomor el hay el tamen'), ['cairo', 'nasr-city', 'nasr-city-hay-8']);
+  assert.equal(parse('ahmed el zomor el hay el tamen').status, 'sure');
 });
 
 test('a shared name with its city is placed', () => {
