@@ -28,6 +28,8 @@ export class CashService {
   /** Cash a rider or courier collected for a merchant (from the operations modules' events). */
   async collected(tx: Tx, p: { companyKey: CompanyKey; holderId: string; merchantId: string; amount: number; sourceType: string; sourceId: string }) {
     const holder = await tx.cashHolder.findUniqueOrThrow({ where: { id: p.holderId } });
+    // Fails the event (it shows as a dead letter) rather than putting the cash in the wrong company.
+    if (holder.companyKey !== p.companyKey) throw new Error(`cash.collected: holder ${holder.id} is in ${holder.companyKey}, not ${p.companyKey}`);
     await this.ledger.post(tx, {
       companyKey: p.companyKey,
       date: new Date(),
@@ -47,9 +49,11 @@ export class CashService {
     const [from, to] = await Promise.all([this.db.cashHolder.findUnique({ where: { id: fromHolderId } }), this.db.cashHolder.findUnique({ where: { id: toHolderId } })]);
     if (!from?.active || !to?.active) throw new HttpException({ error: 'not_found' }, 404);
     if (from.companyKey !== to.companyKey) throw new HttpException({ error: 'different_companies' }, 400);
-    const pending = await this.db.handover.aggregate({ where: { fromHolderId, status: 'pending' }, _sum: { amount: true } });
-    if (amount > (await this.held(fromHolderId)) - (pending._sum.amount ?? 0)) throw new HttpException({ error: 'more_than_held' }, 400);
     return this.db.$transaction(async (tx) => {
+      // One handover at a time per giver, so two at once cannot pass what it holds.
+      await lockHolder(tx, fromHolderId);
+      const pending = await tx.handover.aggregate({ where: { fromHolderId, status: 'pending' }, _sum: { amount: true } });
+      if (amount > (await this.held(fromHolderId, tx)) - (pending._sum.amount ?? 0)) throw new HttpException({ error: 'more_than_held' }, 400);
       const h = await tx.handover.create({ data: { fromHolderId, toHolderId, amount, createdById: userId } });
       await this.audit.record(tx, { userId, action: 'cash.handed_over', entity: 'handover', entityId: h.id, after: h });
       return h;
@@ -79,9 +83,29 @@ export class CashService {
       } else if (received > h.amount) {
         lines.push({ accountCode: '4306', debit: 0, credit: received - h.amount, ...giver });
       }
-      await this.ledger.post(tx, { companyKey: from.companyKey as CompanyKey, date: new Date(), memo: `Handover ${from.nameEn} → ${to.nameEn}`, sourceType: 'handover', sourceId: id, sourceKey: `handover:${id}`, createdById: userId, lines });
+      // Nothing received leaves only the shortage lines.
+      const nonZero = lines.filter((l) => l.debit + l.credit > 0);
+      await this.ledger.post(tx, { companyKey: from.companyKey as CompanyKey, date: new Date(), memo: `Handover ${from.nameEn} → ${to.nameEn}`, sourceType: 'handover', sourceId: id, sourceKey: `handover:${id}`, createdById: userId, lines: nonZero });
       await this.audit.record(tx, { userId, action: 'cash.confirmed', entity: 'handover', entityId: id, after: { received, status } });
       return tx.handover.findUniqueOrThrow({ where: { id } });
     });
   }
+}
+
+/** Serialises money leaving one holder inside the current transaction. */
+export async function lockHolder(tx: Tx, holderId: string) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`holder:${holderId}`}))`;
+}
+
+/**
+ * A cash holder (rider, courier, box, safe, agent) cannot pay out more than it holds, less its
+ * pending handovers. A bank account is not checked: its balance lives at the bank until statements
+ * are imported in phase 2.
+ */
+export async function assertCanPay(tx: Tx, ledger: LedgerService, holder: { id: string; kind: string }, amount: number) {
+  if (holder.kind === 'bank') return;
+  await lockHolder(tx, holder.id);
+  const held = await ledger.balance({ partyType: 'holder', partyId: holder.id, accountCodes: CASH_ACCOUNTS }, tx);
+  const pending = await tx.handover.aggregate({ where: { fromHolderId: holder.id, status: 'pending' }, _sum: { amount: true } });
+  if (amount > held - (pending._sum.amount ?? 0)) throw new HttpException({ error: 'more_than_held' }, 400);
 }

@@ -22,6 +22,8 @@ export interface EntryInput {
   /** books a source once: the same key again is ignored */
   sourceKey: string;
   createdById?: string | null;
+  /** set only by reverse() */
+  reversesId?: string;
   lines: LineInput[];
 }
 
@@ -50,6 +52,8 @@ export class LedgerService {
       credit += l.credit;
     }
     if (e.lines.length < 2 || debit !== credit) throw new Error(`unbalanced: debits ${debit} and credits ${credit}`);
+    // Two deliveries of one source at the same moment wait for each other, so the second sees the first.
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`source:${e.sourceKey}`}))`;
     if (await tx.journalEntry.findUnique({ where: { sourceKey: e.sourceKey } })) return null;
     const entry = await tx.journalEntry.create({
       data: {
@@ -60,6 +64,7 @@ export class LedgerService {
         sourceId: e.sourceId,
         sourceKey: e.sourceKey,
         createdById: e.createdById ?? null,
+        reversesId: e.reversesId ?? null,
         lines: { create: e.lines.map((l) => ({ accountCode: l.accountCode, debit: l.debit, credit: l.credit, costCentreId: l.costCentreId ?? null, partyType: l.partyType ?? null, partyId: l.partyId ?? null })) },
       },
     });
@@ -77,9 +82,9 @@ export class LedgerService {
       sourceId: e.id,
       sourceKey: `reversal:${e.id}`,
       createdById: userId,
+      reversesId: e.id,
       lines: e.lines.map((l) => ({ accountCode: l.accountCode, debit: l.credit, credit: l.debit, costCentreId: l.costCentreId, partyType: l.partyType as LineInput['partyType'], partyId: l.partyId })),
     });
-    if (id) await tx.journalEntry.update({ where: { id }, data: { reversesId: e.id } });
     return id;
   }
 

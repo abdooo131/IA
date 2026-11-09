@@ -4,14 +4,17 @@ import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
 import { parseEgp } from '@shiply/shared';
 import { AuditService, DB, NeedAccess, parse } from '../platform';
-import { egp } from './amount';
+import { MAX_PIASTRES, egp } from './amount';
+import { assertCanPay } from './cash.service';
 import { LedgerService, type CompanyKey } from './ledger.service';
 
 const company = z.enum(['shiply_now', 'shiply']);
 const vat = z.union([z.string(), z.number()]).optional().transform((v, ctx) => {
   if (v === undefined || v === '' || v === 0 || v === '0') return 0;
   try {
-    return parseEgp(v);
+    const p = parseEgp(v);
+    if (p < 0 || p > MAX_PIASTRES) throw new Error('range');
+    return p;
   } catch {
     ctx.addIssue({ code: 'custom', message: 'vat' });
     return z.NEVER;
@@ -101,6 +104,18 @@ export class SpendingController {
     });
   }
 
+  @Post('bills/:id/cancel')
+  @HttpCode(200)
+  @NeedAccess('accounting', 'use')
+  async cancelBill(@Param('id') id: string, @Req() req: Request) {
+    return this.db.$transaction(async (tx) => {
+      const { count } = await tx.bill.updateMany({ where: { id, status: 'draft' }, data: { status: 'cancelled' } });
+      if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
+      await this.audit.record(tx, { userId: req.user!.id, action: 'bill.cancelled', entity: 'bill', entityId: id });
+      return { ok: true };
+    });
+  }
+
   @Post('bills/:id/pay')
   @HttpCode(200)
   @NeedAccess('accounting', 'use')
@@ -111,7 +126,8 @@ export class SpendingController {
       if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
       const b = await tx.bill.findUniqueOrThrow({ where: { id } });
       const holder = await tx.cashHolder.findUnique({ where: { id: fromHolderId } });
-      if (!holder || holder.companyKey !== b.companyKey) throw new HttpException({ error: 'wrong_holder' }, 400);
+      if (!holder?.active || holder.companyKey !== b.companyKey) throw new HttpException({ error: 'wrong_holder' }, 400);
+      await assertCanPay(tx, this.ledger, holder, b.amount + b.vat);
       await this.ledger.post(tx, {
         companyKey: b.companyKey as CompanyKey,
         date: new Date(),
@@ -144,7 +160,8 @@ export class SpendingController {
     await this.expenseAccount(e.accountCode);
     return this.db.$transaction(async (tx) => {
       const holder = await tx.cashHolder.findUnique({ where: { id: e.fromHolderId } });
-      if (!holder || holder.companyKey !== e.companyKey) throw new HttpException({ error: 'wrong_holder' }, 400);
+      if (!holder?.active || holder.companyKey !== e.companyKey) throw new HttpException({ error: 'wrong_holder' }, 400);
+      await assertCanPay(tx, this.ledger, holder, e.amount + e.vat);
       const { fromHolderId, ...rest } = e;
       const expense = await tx.expense.create({ data: { ...rest, paidFromHolderId: fromHolderId, createdById: req.user!.id } });
       const lines = [{ accountCode: e.accountCode, debit: e.amount, credit: 0, costCentreId: e.costCentreId ?? null }];

@@ -31,6 +31,8 @@ export function parseEgp(input: string | number): number {
     .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
     .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
     .replace(/٫/g, '.')
-    .replace(/[,،\s]/g, '');
-  return toPiastres(s);
+    .replace(/\s/g, '');
+  // A comma is a thousands separator only; "12,50" is refused rather than read as 1,250.
+  if (/[,،]/.test(s) && !/^-?\d{1,3}([,،]\d{3})+(\.\d+)?$/.test(s)) throw new Error(`not an amount: ${input}`);
+  return toPiastres(s.replace(/[,،]/g, ''));
 }

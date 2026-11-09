@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type { PrismaClient, Tx } from '@shiply/db';
 import { AuditService, DB, NeedAccess, parse } from '../platform';
 import { egp } from './amount';
+import { assertCanPay } from './cash.service';
 import { LedgerService, type CompanyKey } from './ledger.service';
 
 const COMPANIES: CompanyKey[] = ['shiply_now', 'shiply'];
@@ -76,7 +77,8 @@ export class PayoutsController {
       if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
       const p = await tx.payout.findUniqueOrThrow({ where: { id } });
       const holder = await tx.cashHolder.findUnique({ where: { id: b.fromHolderId } });
-      if (!holder || holder.companyKey !== p.companyKey) throw new HttpException({ error: 'wrong_holder' }, 400);
+      if (!holder?.active || holder.companyKey !== p.companyKey) throw new HttpException({ error: 'wrong_holder' }, 400);
+      await assertCanPay(tx, this.ledger, holder, p.amount);
       await this.ledger.post(tx, {
         companyKey: p.companyKey as CompanyKey,
         date: new Date(),

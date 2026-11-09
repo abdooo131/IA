@@ -77,5 +77,8 @@ describe('typed amounts', () => {
     expect(parseEgp(' 12.50 ')).toBe(1250);
     expect(parseEgp(40)).toBe(4000);
     expect(() => parseEgp('abc')).toThrow();
+    expect(parseEgp('1,234,567.5')).toBe(123456750);
+    expect(() => parseEgp('12,50')).toThrow();
+    expect(() => parseEgp('1,5')).toThrow();
   });
 });
