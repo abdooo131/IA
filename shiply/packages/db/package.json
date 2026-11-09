@@ -1,0 +1,21 @@
+{
+  "name": "@shiply/db",
+  "version": "0.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "prisma generate && tsc -p tsconfig.json",
+    "generate": "prisma generate",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "node dist/seed-run.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@prisma/client": "6.1.0",
+    "@shiply/shared": "workspace:*",
+    "argon2": "0.41.1"
+  },
+  "devDependencies": { "prisma": "6.1.0" }
+}

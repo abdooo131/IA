@@ -1,0 +1,171 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["multiSchema"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  schemas  = ["platform"]
+}
+
+enum UserKind {
+  staff
+  agent_person
+  agent_manager
+  merchant_user
+
+  @@schema("platform")
+}
+
+enum DeliveryStatus {
+  pending
+  done
+  dead
+
+  @@schema("platform")
+}
+
+model User {
+  id                String    @id @default(cuid())
+  name              String
+  nameAr            String    @map("name_ar")
+  email             String?   @unique
+  mobile            String?   @unique
+  passwordHash      String    @map("password_hash")
+  kind              UserKind  @default(staff)
+  active            Boolean   @default(true)
+  roleId            String    @map("role_id")
+  failedLogins      Int       @default(0) @map("failed_logins")
+  lockedUntil       DateTime? @map("locked_until")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+  role              JobRole   @relation(fields: [roleId], references: [id])
+  sites             UserSite[]
+
+  @@map("users")
+  @@schema("platform")
+}
+
+model JobRole {
+  id     String       @id @default(cuid())
+  key    String       @unique
+  nameEn String       @map("name_en")
+  nameAr String       @map("name_ar")
+  access RoleAccess[]
+  users  User[]
+
+  @@map("job_roles")
+  @@schema("platform")
+}
+
+model RoleAccess {
+  roleId String  @map("role_id")
+  app    String
+  level  String
+  role   JobRole @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, app])
+  @@map("role_access")
+  @@schema("platform")
+}
+
+/// siteId is a plain id until the location module owns sites.
+model UserSite {
+  userId String @map("user_id")
+  siteId String @map("site_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, siteId])
+  @@map("user_sites")
+  @@schema("platform")
+}
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedBy String?  @map("updated_by")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("settings")
+  @@schema("platform")
+}
+
+model AuditLog {
+  id       String   @id @default(cuid())
+  at       DateTime @default(now())
+  userId   String?  @map("user_id")
+  action   String
+  entity   String
+  entityId String   @map("entity_id")
+  before   Json?
+  after    Json?
+
+  @@index([entity, entityId])
+  @@map("audit_log")
+  @@schema("platform")
+}
+
+model IdempotencyRecord {
+  key    String
+  userId String   @map("user_id")
+  route  String
+  status Int
+  body   Json
+  at     DateTime @default(now())
+
+  @@id([key, userId])
+  @@map("idempotency_records")
+  @@schema("platform")
+}
+
+model OutboxEvent {
+  id         String          @id @default(cuid())
+  type       String
+  payload    Json
+  key        String          @unique
+  at         DateTime        @default(now())
+  deliveries EventDelivery[]
+
+  @@map("outbox_events")
+  @@schema("platform")
+}
+
+model EventDelivery {
+  eventId   String         @map("event_id")
+  handler   String
+  status    DeliveryStatus @default(pending)
+  attempts  Int            @default(0)
+  lastError String?        @map("last_error")
+  nextAt    DateTime       @default(now()) @map("next_at")
+  event     OutboxEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([eventId, handler])
+  @@index([status, nextAt])
+  @@map("event_deliveries")
+  @@schema("platform")
+}
+
+model Company {
+  id          String       @id @default(cuid())
+  key         String       @unique
+  nameEn      String       @map("name_en")
+  nameAr      String       @map("name_ar")
+  taxNumber   String?      @map("tax_number")
+  costCentres CostCentre[]
+
+  @@map("companies")
+  @@schema("platform")
+}
+
+model CostCentre {
+  id        String  @id @default(cuid())
+  companyId String  @map("company_id")
+  code      String  @unique
+  nameEn    String  @map("name_en")
+  nameAr    String  @map("name_ar")
+  company   Company @relation(fields: [companyId], references: [id])
+
+  @@map("cost_centres")
+  @@schema("platform")
+}
