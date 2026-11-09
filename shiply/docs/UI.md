@@ -381,3 +381,29 @@ At the last mile hub:
 8. **Sort by zone** and **Dispatch** to couriers, as above.
 
 Returns go through the same steps in reverse, in bags, back to the merchant's facility.
+
+## Step 4: phone screens and the customer page (locked)
+
+Shared rules: big buttons, scan first, usable with gloves; scans are kept on the device when the
+signal drops and sent when it is back. After each scan: full screen colour and a large result
+with a sound; a wrong scan is red with a different sound and the reason.
+
+1. **Hub station** (sorting facility and last mile hub staff): opens on the user's station.
+   Inbound (cars on the way, total coming, per merchant and per car, received against
+   expected), Sorting (destination hub), Outbound (scan seal, scan parcels into the bag, close
+   bag), Night car (bag serials loaded, driver confirms count), Receive (bag seals then parcel by
+   parcel), Sort (zone and shelf), Dispatch (courier's run and stop), Returns. Counts compared
+   between every two steps; gaps flagged with the last person who scanned.
+2. **Dark store floor**: Queue, Pick (bin, product photo, quantity; scan each item; wrong item
+   refused), Pack (photo, label prints), Hand over, Receive. The 60 minute timer always visible.
+3. **Courier**: today's run (stops in order: address, map, call, WhatsApp, COD); Deliver (cash,
+   photo or customer OTP); Failed (reason; the call log is checked); Pickups (scan the merchant's
+   parcels); My cash (what I hold, handover to the hub).
+4. **Rider**: as the courier, with the 60 minute timer and one or two orders at a time.
+5. **Agent** (desktop or phone): people and vehicles, documents to renew, requests to confirm,
+   settlement statement, cash their people hold.
+6. **Customer page** (public link by WhatsApp or SMS, no login): tracking with expected time,
+   confirm or fix the location (pick the area or drop a pin), reschedule, note for the courier,
+   rate the delivery.
+
+The UI design is complete.
