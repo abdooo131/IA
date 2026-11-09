@@ -4,6 +4,7 @@ import { TILES } from '@shiply/shared';
 import type { PrismaClient } from '@prisma/client';
 
 interface SeedEnv {
+  [key: string]: string | undefined;
   SEED_ADMIN_EMAIL?: string;
   SEED_ADMIN_PASSWORD?: string;
 }
