@@ -99,3 +99,12 @@ describe('writes', () => {
     expect(get.body).toEqual({ key: 'auth.lockout_minutes', value: 30 });
   });
 });
+
+describe('roles', () => {
+  it('lists job roles for the user form', async () => {
+    const cookies = await signIn(app, '01012345678', 'viewer-pass-1');
+    const res = await http().get('/roles').set('Cookie', cookies);
+    expect(res.status).toBe(200);
+    expect(res.body.map((r: { key: string }) => r.key).sort()).toEqual(['owner', 'viewer']);
+  });
+});

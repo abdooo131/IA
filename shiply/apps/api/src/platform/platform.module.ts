@@ -14,6 +14,7 @@ import { SettingsController } from './settings/settings.controller';
 import { SettingsService } from './settings/settings.service';
 import { DeadLettersAttention, DeadLettersController } from './events/dead-letters.controller';
 import { DB } from './tokens';
+import { RolesController } from './users/roles.controller';
 import { UsersController } from './users/users.controller';
 
 @Module({})
@@ -22,7 +23,7 @@ export class PlatformModule {
     return {
       module: PlatformModule,
       global: true,
-      controllers: [AuthController, MeController, UsersController, SettingsController, AuditController, DeadLettersController],
+      controllers: [AuthController, MeController, UsersController, SettingsController, AuditController, DeadLettersController, RolesController],
       providers: [
         { provide: DB, useValue: db },
         AuthService,

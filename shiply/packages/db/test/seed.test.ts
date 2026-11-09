@@ -1,8 +1,13 @@
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createDb } from '../src/client';
 import { seed } from '../src/seed';
 
 const db = createDb(process.env.TEST_DATABASE_URL);
+beforeAll(() =>
+  db.$executeRawUnsafe(
+    'TRUNCATE platform.event_deliveries, platform.outbox_events, platform.idempotency_records, platform.audit_log, platform.settings, platform.user_sites, platform.users, platform.role_access, platform.job_roles, platform.cost_centres, platform.companies CASCADE',
+  ),
+);
 afterAll(() => db.$disconnect());
 
 describe('seed', () => {
