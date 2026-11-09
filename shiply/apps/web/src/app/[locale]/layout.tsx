@@ -6,6 +6,7 @@ import { routing } from '@/i18n/routing';
 import { FeedbackHost } from '@/shell/feedback';
 import '@/theme/tokens.css';
 import '@/theme/globals.css';
+import '@/theme/ui.css';
 
 export const metadata = { title: 'Shiply', icons: { icon: '/brand/app-icon.svg', apple: '/brand/app-icon-180.png' } };
 

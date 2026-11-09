@@ -14,6 +14,8 @@ export function RecordPage(props: {
   number: string;
   status?: ReactNode;
   actions?: ReactNode;
+  /** cards between the header and the tabs: the record at a glance */
+  summary?: ReactNode;
   tabs: { key: string; label: string; content: ReactNode }[];
   timeline: TimelineEntry[];
 }) {
@@ -28,6 +30,7 @@ export function RecordPage(props: {
         {props.status}
         <div className="record-actions">{props.actions}</div>
       </div>
+      {props.summary}
       <div className="record-body">
         <div className="record-main">
           <div className="tabs" role="tablist">

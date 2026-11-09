@@ -38,7 +38,8 @@
     "comingSoon": "هذا التطبيق قيد البناء.",
     "notFound": "لم يتم العثور على هذا السجل.",
     "loadFailed": "تعذر تحميل هذه الصفحة.",
-    "tryAgain": "حاول مرة أخرى"
+    "tryAgain": "حاول مرة أخرى",
+    "close": "إغلاق"
   },
   "home": {
     "hello": "مرحبا، {name}",
@@ -663,7 +664,22 @@
       "not_a_courier": "اختر مندوبا",
       "invalid": "راجع الحقول المحددة"
     },
-    "closeBag": "إغلاق الكيس"
+    "closeBag": "إغلاق الكيس",
+    "parcelCount": "{count} شحنة",
+    "customer": "العميل",
+    "money": "المبالغ",
+    "copy": "نسخ رقم التتبع",
+    "copied": "تم النسخ",
+    "journey": {
+      "created": "تم الإنشاء",
+      "picked_up": "تم الاستلام",
+      "at_inbound": "في الوارد",
+      "sorted": "تم الفرز",
+      "in_transit": "في الطريق",
+      "at_hub": "في المركز",
+      "out_for_delivery": "خرجت للتوصيل",
+      "delivered": "تم التوصيل"
+    }
   },
   "field": {
     "station": "محطة المسح",
@@ -682,7 +698,11 @@
       "hub_receive": "استلام الشحنات",
       "hub_sort": "الفرز للمناطق",
       "dispatch": "التوزيع",
-      "hub_return": "المرتجعات"
+      "hub_return": "المرتجعات",
+      "pickup": "استلام من التاجر",
+      "deliver": "تم التوصيل",
+      "fail": "محاولة فاشلة",
+      "return_handover": "تسليم المرتجع للتاجر"
     },
     "countLine": "تم استلام {received} من {expected}",
     "myDay": "يومي",

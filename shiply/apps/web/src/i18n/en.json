@@ -38,7 +38,8 @@
     "comingSoon": "This app is being built.",
     "notFound": "This record could not be found.",
     "loadFailed": "This page could not be loaded.",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "close": "Close"
   },
   "home": {
     "hello": "Hello, {name}",
@@ -663,7 +664,22 @@
       "not_a_courier": "Pick a courier",
       "invalid": "Check the highlighted fields"
     },
-    "closeBag": "Close bag"
+    "closeBag": "Close bag",
+    "parcelCount": "{count} parcels",
+    "customer": "Customer",
+    "money": "Money",
+    "copy": "Copy tracking number",
+    "copied": "Copied",
+    "journey": {
+      "created": "Created",
+      "picked_up": "Picked up",
+      "at_inbound": "At inbound",
+      "sorted": "Sorted",
+      "in_transit": "On the way",
+      "at_hub": "At hub",
+      "out_for_delivery": "Out for delivery",
+      "delivered": "Delivered"
+    }
   },
   "field": {
     "station": "Station",
@@ -682,7 +698,11 @@
       "hub_receive": "Receive parcels",
       "hub_sort": "Sort",
       "dispatch": "Dispatch",
-      "hub_return": "Returns"
+      "hub_return": "Returns",
+      "pickup": "Picked up at merchant",
+      "deliver": "Delivered",
+      "fail": "Failed attempt",
+      "return_handover": "Returned to merchant"
     },
     "countLine": "Received {received} of {expected}",
     "myDay": "My day",

@@ -2,6 +2,7 @@
 import { useTranslations } from 'next-intl';
 import { useState, type ReactNode } from 'react';
 import { confirm } from './feedback';
+import { Icon } from './Icon';
 
 export interface Column<T> {
   key: string;
@@ -20,6 +21,12 @@ export interface BulkAction {
 /** Every list in the system: title and main button, filters, table, bulk actions, 50 a page. */
 export function ListPage<T extends { id: string }>(props: {
   title: string;
+  /** a quiet line under the title, such as a count */
+  subtitle?: ReactNode;
+  /** chips or cards between the title and the filters */
+  above?: ReactNode;
+  /** icon of the empty state */
+  emptyIcon?: string;
   action?: ReactNode;
   filters?: ReactNode;
   columns: Column<T>[];
@@ -53,9 +60,13 @@ export function ListPage<T extends { id: string }>(props: {
   return (
     <section className="list-page">
       <div className="page-head">
-        <h1>{props.title}</h1>
-        {props.action}
+        <div>
+          <h1>{props.title}</h1>
+          {props.subtitle && <div className="subtitle">{props.subtitle}</div>}
+        </div>
+        {props.action && <div className="head-actions">{props.action}</div>}
       </div>
+      {props.above}
       {(props.filters || props.onExport) && (
         <div className="filters">
           {props.filters}
@@ -96,6 +107,18 @@ export function ListPage<T extends { id: string }>(props: {
             </tr>
           </thead>
           <tbody>
+            {props.loading &&
+              props.rows.length === 0 &&
+              [0, 1, 2, 3, 4].map((i) => (
+                <tr key={`s${i}`} aria-hidden="true">
+                  {props.bulkActions && <td className="pick" />}
+                  {props.columns.map((c) => (
+                    <td key={c.key}>
+                      <span className="skeleton" style={{ width: `${50 + ((i * 17 + c.key.length * 7) % 45)}%` }} />
+                    </td>
+                  ))}
+                </tr>
+              ))}
             {props.rows.map((r) => (
               <tr key={r.id} className={props.onRowClick ? 'clickable' : undefined} onClick={() => props.onRowClick?.(r)} data-testid="row">
                 {props.bulkActions && (
@@ -112,7 +135,14 @@ export function ListPage<T extends { id: string }>(props: {
             ))}
           </tbody>
         </table>
-        {!props.loading && props.rows.length === 0 && <p className="empty-rows">{t('noResults')}</p>}
+        {!props.loading && props.rows.length === 0 && (
+          <div className="empty-state empty-rows">
+            <span className="info-icon">
+              <Icon name={props.emptyIcon ?? 'search'} size={24} />
+            </span>
+            <strong>{t('noResults')}</strong>
+          </div>
+        )}
       </div>
       <div className="pager">
         <button className="btn ghost" disabled={props.page <= 1} onClick={() => props.onPage(props.page - 1)}>
