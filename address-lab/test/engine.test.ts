@@ -116,3 +116,13 @@ test('a taught name places addresses', () => {
   const taught = buildGazetteer(PLACES.map((p) => (p.id === 'maadi' ? { ...p, names: [...(p.names ?? []), 'kozzika maadi side'] } : p)));
   assert.equal(parseAddress('شارع 4 kozzika maadi side', taught).area?.id, 'maadi');
 });
+
+test('Hadayek: alone it lists every option, with a street it is decided', () => {
+  const alone = parse('haday2');
+  assert.equal(alone.status, 'unsure');
+  assert.ok(alone.reasons[0].startsWith('6 areas fit'));
+  const r = parse('masr wel sodan haday2');
+  assert.equal(r.status, 'sure');
+  assert.equal(r.area?.id, 'hadayek-el-kobba');
+  assert.equal(r.parts.street, 'masr wel sodan');
+});

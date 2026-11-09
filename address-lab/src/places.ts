@@ -195,6 +195,7 @@ mark('ain-shams-university', 'abbasia', 'Ain Shams University', 'جامعة عي
 dist('zaytoun', 'cairo', 'El Zaytoun', 'الزيتون', ['el zaytoun', 'zaytoun', 'zeitoun', 'el zeitoun']);
 hood('hadayek-el-zaytoun', 'zaytoun', 'Hadayek El Zaytoun', 'حدائق الزيتون', ['hadayek el zaytoun', 'hadayek el zeitoun']);
 dist('hadayek-el-kobba', 'cairo', 'Hadayek El Kobba', 'حدائق القبة', ['hadayek el kobba', 'hadayek el qobba', 'kobba gardens', 'القبة', 'el kobba', 'كوبري القبة']);
+street('masr-wel-sudan', 'hadayek-el-kobba', 'Masr Wel Sudan St', 'شارع مصر والسودان', ['masr wel sudan', 'masr wel sodan', 'misr wel sudan', 'masr w el sudan', 'masr we el sudan', 'masr wl sudan', 'مصر والسودان', 'مصر و السودان']);
 dist('el-waili', 'cairo', 'El Waili', 'الوايلي', ['el waili', 'waily', 'el wayli']);
 hood('abbasia', 'el-waili', 'El Abbasia', 'العباسية', ['abbasia', 'el abbasia', 'abbasiya', 'el abbaseya', 'abaseya']);
 hood('daher', 'el-waili', 'El Daher', 'الظاهر', ['daher', 'el daher', 'el zaher']);
@@ -406,5 +407,21 @@ const OUTSIDE: [string, string, string, string[]][] = [
   ['new-valley', 'New Valley', 'الوادي الجديد', ['new valley', 'el kharga', 'الخارجة']],
 ];
 for (const [id, en, ar, names] of OUTSIDE) gov(id, en, ar, names, false);
+
+// Names that several places share. Alone they are unsure and list every option; next to
+// another clue (a street, a district) that clue decides.
+const SHARED: [string[], string[]][] = [
+  [
+    ['hadayek', 'hadaiq', 'hada2ek', 'hadaye2', 'haday2', 'hadayk', 'حدائق', 'حدايق', 'الحدائق'],
+    ['hadayek-el-kobba', 'hadayek-el-zaytoun', 'hadayek-el-ahram', 'hadayek-october', 'hadayek-el-maadi', 'hadayek-helwan'],
+  ],
+];
+for (const [names, ids] of SHARED) {
+  for (const id of ids) {
+    const place = P.find((p) => p.id === id);
+    if (!place) throw new Error(`Shared name points at unknown place ${id}`);
+    place.names = [...(place.names ?? []), ...names];
+  }
+}
 
 export const PLACES: readonly Place[] = P;

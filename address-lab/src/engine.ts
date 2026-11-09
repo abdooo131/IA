@@ -474,7 +474,12 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
     reasons.unshift(`The address is in ${govPlace.en}, outside Greater Cairo`);
   } else if (rival && rivalScore >= 0.75 * best.score) {
     status = 'unsure';
-    reasons.unshift(`Two areas fit: ${label(g, best.area)} and ${label(g, rival.area)}`);
+    const close = [best, ...rivals.filter((c) => c.score >= 0.75 * best.score)].slice(0, 8).map((c) => label(g, c.area));
+    reasons.unshift(
+      close.length > 2
+        ? `${close.length} areas fit equally: ${close.join(' ; ')}. Write the district or a street to decide`
+        : `Two areas fit: ${close[0]} and ${close[1]}`,
+    );
     confidence = Math.min(confidence, 55);
   } else if (area.kind === 'governorate') {
     status = 'partial';
