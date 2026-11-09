@@ -36,7 +36,6 @@ One Docker image runs both the web app and the API. One database holds everythin
     deploy            start.mjs: container entry point
     scripts           Shopify deploy helpers, SOP builder, load test, geo evaluation, ETA signer
     docs              Specs and how-to documents
-    legacy/java       The old Java Swing project, not used
 
 Rule of thumb: the API controllers are thin. They check access, validate input with zod and
 call a function in packages/db. The seed, the jobs, the demo loader and the tests call the same

@@ -1,6 +1,6 @@
 // Regression: ISSUE-004 — any bytes were accepted as a proof photo
 // Found by /qa on 2026-10-28
-// Report: docs/QA_REPORT.md
+// Report: docs/archive/QA_REPORT.md
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';

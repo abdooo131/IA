@@ -1,7 +1,7 @@
 # Shiply Now
 
 Pilot of 60 minute delivery for Shopify merchants, run from dark stores in Greater Cairo.
-Read [CLAUDE.md](CLAUDE.md) for the scope and the rules, and [docs/BUILD_PLAN.md](docs/BUILD_PLAN.md)
+Read [CLAUDE.md](CLAUDE.md) for the scope and the rules, and [docs/archive/BUILD_PLAN.md](docs/archive/BUILD_PLAN.md)
 for the step by step build plan.
 
 ## Layout
@@ -13,7 +13,6 @@ for the step by step build plan.
 | `packages/db`              | Prisma schema, migrations and seed                            |
 | `packages/shared`          | Types, zod schemas and constants shared by every app          |
 | `design/shiply-ui-handoff` | Brand handoff: UI spec, tokens, fonts, icons, logos           |
-| `legacy/java`              | The earlier Java Swing project, kept for reference            |
 
 ## Run locally
 
@@ -22,7 +21,7 @@ Needs Node 22, pnpm 10 and Docker.
 ```bash
 pnpm install
 cp .env.example .env        # then set JWT_ACCESS_SECRET and SEED_ADMIN_PASSWORD
-pnpm db:up                  # Postgres 16 with PostGIS, and Redis
+pnpm db:up                  # Postgres 16 with PostGIS
 pnpm db:deploy              # apply migrations
 pnpm db:seed                # create the admin from SEED_ADMIN_EMAIL / SEED_ADMIN_PASSWORD
 pnpm dev                    # API on :4000, web on :3000

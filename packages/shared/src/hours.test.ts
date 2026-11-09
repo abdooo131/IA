@@ -102,7 +102,7 @@ describe('Cairo days', () => {
 
   // Regression: ISSUE-002, an impossible day like 30 February was accepted as 2 March
   // Found by /qa on 2026-10-28
-  // Report: docs/QA_REPORT.md
+  // Report: docs/archive/QA_REPORT.md
   it('knows real calendar days', () => {
     expect(isCalendarDay('2028-02-29')).toBe(true);
     expect(isCalendarDay('2026-02-29')).toBe(false);

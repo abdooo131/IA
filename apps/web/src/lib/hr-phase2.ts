@@ -5,7 +5,6 @@ import {
   type HireDraftData,
   type HireStep,
   type ReassignKind,
-  type StepIssues,
 } from '@shiplynow/shared';
 import type { DepartmentRow, GradeRow, PersonRef, PositionRow } from './hr-types';
 
@@ -279,11 +278,6 @@ export function egpText(piastres: number | null | undefined) {
   const whole = Math.floor(piastres / 100);
   const rest = piastres % 100;
   return rest === 0 ? String(whole) : `${whole}.${String(rest).padStart(2, '0')}`;
-}
-
-/** The issue of one field, if any, for the error under a box. */
-export function issueOf(issues: StepIssues, key: string) {
-  return issues[key] ?? null;
 }
 
 /** Which step a field's issue belongs to (the review step links back to it). */

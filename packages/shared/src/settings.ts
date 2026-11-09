@@ -830,15 +830,3 @@ export type SettingKey = keyof typeof SETTING_DEFINITIONS;
 export const SETTING_KEYS = Object.keys(SETTING_DEFINITIONS) as SettingKey[];
 
 export const GLOBAL_SCOPE = 'global';
-
-/**
- * The settings scope merchant fee values used before merchant contracts v2 (their prices now
- * live in the contract; the migration moved them and deleted the rows).
- */
-export function merchantScope(merchantId: string) {
-  return `merchant:${merchantId}`;
-}
-
-export function isSettingKey(value: string): value is SettingKey {
-  return value in SETTING_DEFINITIONS;
-}

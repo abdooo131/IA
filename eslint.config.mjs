@@ -9,7 +9,6 @@ export default tseslint.config(
       '**/dist/**',
       '**/.next/**',
       '**/coverage/**',
-      'legacy/**',
       'design/**',
       '**/next-env.d.ts',
       'apps/web/src/styles/shiply.tailwind.js',

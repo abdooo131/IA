@@ -1,6 +1,5 @@
 import type { Prisma } from '@prisma/client';
 import {
-  addDays,
   cairoDay,
   cairoDayStart,
   type CommissionAdjustBody,
@@ -847,9 +846,4 @@ export async function outsourcedCommissionsToPay(db: Db) {
     user: r.user,
     amountPiastres: r.amountPiastres,
   }));
-}
-
-/** The days a month runs, for screens that show "so far" figures. */
-export function monthDays(month: string) {
-  return { first: `${month}-01`, last: addDays(`${shiftMonth(month, 1)}-01`, -1) };
 }

@@ -3,16 +3,6 @@
  * the 2026-10 Admin schema. Inventory mutations need an @idempotent key since 2026-04.
  */
 
-export const SHOP_INFO = /* GraphQL */ `
-  query ShopInfo {
-    shop {
-      name
-      myshopifyDomain
-      currencyCode
-    }
-  }
-`;
-
 /** The shop's fulfillment services, to take over ours left from an earlier install. */
 export const FULFILLMENT_SERVICES = /* GraphQL */ `
   query FulfillmentServices {

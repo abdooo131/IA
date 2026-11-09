@@ -400,9 +400,6 @@ export const journalEntrySchema = z.object({
 });
 export type JournalEntryBody = z.infer<typeof journalEntrySchema>;
 
-/** Which bank paid or received; empty uses the main bank (CIB, 1101). */
-export const bankChoice = z.object({ bankAccountId: id.optional() });
-
 // ─── suppliers, bills, taxes, recurring, prepayments, fixed assets ──────────────
 
 const month = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'invalid_month');

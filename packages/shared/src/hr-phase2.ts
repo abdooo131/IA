@@ -9,7 +9,7 @@ import {
 } from './access';
 import { badgeCodeSchema } from './admin';
 import { ALLOWANCE_KINDS } from './hr';
-import { addDays, isCalendarDay } from './hours';
+import { isCalendarDay } from './hours';
 import { dayDeduction } from './hr-leave';
 import { normalizeEgyptianPhone } from './phone';
 
@@ -498,11 +498,6 @@ export const SETTLEMENT_MONEY = [
   'netPiastres',
   'riderWallet',
 ] as const;
-
-/** The end of a Cairo day as the next day's start (the account is disabled then). */
-export function dayAfter(lastDay: string) {
-  return addDays(lastDay, 1);
-}
 
 // ─── documents ─────────────────────────────────────────────────────────────────
 

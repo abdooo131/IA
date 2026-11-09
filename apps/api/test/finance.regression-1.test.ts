@@ -1,7 +1,7 @@
 // Regression: ISSUE-001 — a statement for an unknown merchant answered 500
 // Regression: ISSUE-002 — an impossible day (30 February) was accepted as 2 March
 // Found by /qa on 2026-10-28
-// Report: docs/QA_REPORT.md
+// Report: docs/archive/QA_REPORT.md
 import type { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';

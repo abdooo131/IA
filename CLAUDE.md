@@ -30,8 +30,8 @@ Added by the business (Step 11, last): a finance module covering rider cash hand
   - packages/db: Prisma schema and migrations
   - packages/shared: shared types, zod schemas, constants
 - Database: PostgreSQL 16 with PostGIS for zone polygons and point in polygon checks
-- Queue and cache: Redis with BullMQ for background jobs (stock sync, SLA checks)
-- Local dev: docker compose for Postgres, PostGIS and Redis
+- Background jobs: inside the API under a Postgres advisory lock (see Step 7); no Redis or queue service
+- Local dev: docker compose for Postgres with PostGIS
 - Tests: Vitest for units, Supertest for API, Playwright for key web flows
 
 ## Core rules (never break these)
@@ -67,7 +67,7 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 
 ## Decisions log
 
-- Step 1: the earlier Java Swing project lives in legacy/java; the monorepo is at the repo root.
+- Step 1: the monorepo is at the repo root. The earlier Java Swing project (legacy/java) was deleted on 2026-11-09; it stays in git history and on the main branch.
 - Step 1: one .env at the repo root for every app. The API and the web app both read it.
 - Step 1: auth uses an httpOnly access JWT cookie (HS256) plus an opaque refresh token stored hashed and rotated on use. The web app proxies /api to the API so cookies stay first party. Next.js middleware runs on the Node.js runtime so the JWT secret is read at runtime and never bundled.
 - Step 1: locale (en, ar) and theme (system, light, dark) are cookies, so the areas keep plain URLs /admin, /store, /rider.
@@ -112,7 +112,7 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Step 7: at creation, units the store cannot reserve are cancelled on the order and recorded; if nothing can be reserved the order goes to moved_to_standard. At pick time, Missing cancels the remaining units, releases them, alerts admin and notifies the merchant.
 - Step 7: picking is by scan (product, optionally the shelf first). Packing needs a photo; handover is by scanning the rider badge. Riders may carry several orders in one trip up to delivery.max_orders_per_trip, and only if no order would miss its promise.
 - Step 7: proof photos are stored in Postgres (photos table, bytea, max 1.5 MB after the phone shrinks them) so the pilot needs no file storage service.
-- Step 7: background jobs (SLA late flags) run inside the API every 30 seconds under a Postgres advisory lock instead of BullMQ and Redis; they are idempotent. Redis stays in docker compose for later.
+- Step 7: background jobs (SLA late flags) run inside the API every 30 seconds under a Postgres advisory lock instead of BullMQ and Redis; they are idempotent. Redis was removed from docker compose on 2026-11-09 (never used).
 - Step 7: merchants may cancel only new or accepted orders; admin and staff may cancel up to packed. Merchants never see the customer's delivery code.
 - Failed deliveries (agreed with the business): a failed attempt goes to attempt_failed while attempts remain (delivery.max_attempts, default 2) and the customer did not refuse; otherwise the order fails for good. "No answer" needs delivery.min_calls_no_answer calls logged from the rider app (default 2) and a door photo; "other" needs a note. The fee and Shopify's FAILURE event happen on every attempt. Staff tap Receive goods back: during attempt_failed the goods stay with the order (no stock change); once failed they go to the held bin. The merchant, staff or admin then retry (goods must be back; the order returns to packed), ship it normally or cancel (both end as failed). Undecided orders fail after delivery.retry_hold_hours (default 48), and goods not back within delivery.return_alert_minutes (default 120) raise one goods_not_returned alert per attempt. Shopify orders are never cancelled by us.
 - Step 8: riders deliver with the customer's 4 digit code or a handover photo; COD orders need the cash collected, and a difference raises a cod_mismatch alert. A failed delivery comes back to the store's held bin when staff tap Receive goods back.
@@ -131,7 +131,7 @@ Side states: cancelled, failed, moved_to_standard (when stock is missing or the 
 - Local Shopify testing: GEOCODER=osm uses OpenStreetMap's Nominatim (about one request a second, street parts dropped until found) when there is no Google key; it is ignored in production. pnpm shopify:tunnel sets it when GOOGLE_MAPS_API_KEY is empty.
 - Local Shopify testing: pnpm local runs everything in one window (frees ports 3000 and 4000, docker compose up, pnpm db:deploy, tunnel and deploy, then pnpm dev; Ctrl+C stops all).
 - Local Shopify testing: pnpm shopify:tunnel (no address) starts cloudflared itself and reads its address; with an address it uses a running tunnel. It updates .env, writes apps/shopify/shopify.app.local.toml (ignored by git) and runs shopify app deploy --config local.
-- Plan v2 (docs/PLAN_V2.md, TODOS.md): tracking page, live rider map, rating, returns to the merchant, damage settlement, merchant self sign up. Partial delivery and customer returns are cut; WhatsApp/SMS and customer reschedule are deferred.
+- Plan v2 (docs/archive/PLAN_V2.md, TODOS.md): tracking page, live rider map, rating, returns to the merchant, damage settlement, merchant self sign up. Partial delivery and customer returns are cut; WhatsApp/SMS and customer reschedule are deferred.
 - Tracking: every order has an unguessable tracking_token; /t/<token> is public (no sign in) and shows status, promise time, the delivery code until delivered, COD to prepare, the rider's first name, the live map, the handover photo and a one time 1 to 5 rating. It never shows the address or phone. Shopify's fulfillment carries the link as trackingInfo.url. Merchants do not get the link (it shows the code); admin sees it on the order.
 - Rider position: the rider app sends the phone position every tracking.rider_ping_seconds while it carries a picked up order; only the latest point is kept on riders, and the map hides it after tracking.rider_stale_minutes. Ratings at or below tracking.low_rating_stars raise a low_rating alert; KPIs show the average rating.
 - Returns to the merchant: the merchant asks from /merchant/returns for sellable, damaged or held units of one store. Sellable units are reserved at once; damaged and held units are checked against what open returns already claim. Staff pick by scan in /store/<id>/returns (bin first optional); each unit leaves through a new movement type, dispatch (from a shelf it lowers on_hand and reserved together). The last unit makes it ready; staff hand it over with the collector's name, which charges fee.return_per_unit_piastres and notifies the merchant. Cancelling is allowed only before the first unit is picked and releases the reservations. References are RET-1001 onward per merchant.
