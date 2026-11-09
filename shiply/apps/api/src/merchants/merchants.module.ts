@@ -7,6 +7,7 @@ import { ContractsController } from './contracts.controller';
 import { ContractsService } from './contracts.service';
 import { MerchantsController } from './merchants.controller';
 import { MerchantsService } from './merchants.service';
+import { ProductsController } from './products.controller';
 
 @Injectable()
 class MerchantsWiring implements OnModuleInit {
@@ -43,7 +44,7 @@ export class MerchantsModule {
     return {
       module: MerchantsModule,
       imports: [location],
-      controllers: [ContractsController, MerchantsController],
+      controllers: [ContractsController, ProductsController, MerchantsController],
       providers: [MerchantsService, ContractsService, MerchantsWiring],
       exports: [MerchantsService],
     };
