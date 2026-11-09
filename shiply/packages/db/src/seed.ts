@@ -2,6 +2,7 @@
 import { hash } from 'argon2';
 import { TILES } from '@shiply/shared';
 import { SEED_PLACES } from '@shiply/address';
+import { accountType, CHART } from './chart';
 import type { PrismaClient } from '@prisma/client';
 
 interface SeedEnv {
@@ -57,6 +58,8 @@ export async function seed(db: PrismaClient, env: SeedEnv = process.env) {
       })),
     });
   }
+  // The chart of accounts; existing accounts keep any edits.
+  await db.account.createMany({ data: CHART.map(([code, nameEn, nameAr]) => ({ code, nameEn, nameAr, type: accountType(code) })), skipDuplicates: true });
   const email = env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
   const password = env.SEED_ADMIN_PASSWORD;
   if (!email || !password) throw new Error('SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD are required');

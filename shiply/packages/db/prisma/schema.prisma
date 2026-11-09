@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["platform", "location", "merchants"]
+  schemas  = ["platform", "location", "merchants", "money"]
 }
 
 enum UserKind {
@@ -501,4 +501,156 @@ model ShopifyShop {
 
   @@map("shopify_shops")
   @@schema("merchants")
+}
+
+// ── money ──────────────────────────────────────────────────────────────────
+// Owned by the money module only: the only place that books money.
+
+model Account {
+  code   String  @id
+  nameEn String  @map("name_en")
+  nameAr String  @map("name_ar")
+  /// asset, liability, equity, income, expense
+  type   String
+  active Boolean @default(true)
+
+  @@map("accounts")
+  @@schema("money")
+}
+
+/// Never edited or deleted; a correction is a reversing entry. sourceKey books a source once.
+model JournalEntry {
+  id          String        @id @default(cuid())
+  companyKey  String        @map("company_key")
+  date        DateTime      @db.Date
+  memo        String
+  sourceType  String        @map("source_type")
+  sourceId    String        @map("source_id")
+  sourceKey   String        @unique @map("source_key")
+  createdById String?       @map("created_by_id")
+  reversesId  String?       @unique @map("reverses_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+  lines       JournalLine[]
+
+  @@index([companyKey, date])
+  @@map("journal_entries")
+  @@schema("money")
+}
+
+model JournalLine {
+  id           String       @id @default(cuid())
+  entryId      String       @map("entry_id")
+  accountCode  String       @map("account_code")
+  debit        Int          @default(0)
+  credit       Int          @default(0)
+  costCentreId String?      @map("cost_centre_id")
+  /// merchant, holder, supplier
+  partyType    String?      @map("party_type")
+  partyId      String?      @map("party_id")
+  entry        JournalEntry @relation(fields: [entryId], references: [id])
+
+  @@index([accountCode])
+  @@index([partyType, partyId])
+  @@map("journal_lines")
+  @@schema("money")
+}
+
+/// Anyone or anything that holds cash: rider, courier, store box, hub safe, agent, bank.
+model CashHolder {
+  id           String   @id @default(cuid())
+  kind         String
+  refId        String?  @map("ref_id")
+  nameEn       String   @map("name_en")
+  nameAr       String   @map("name_ar")
+  companyKey   String   @map("company_key")
+  accountCode  String   @map("account_code")
+  costCentreId String?  @map("cost_centre_id")
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([kind, refId])
+  @@map("cash_holders")
+  @@schema("money")
+}
+
+/// Cash moves only by a handover: the giver states the amount, the receiver confirms it.
+model Handover {
+  id              String    @id @default(cuid())
+  fromHolderId    String    @map("from_holder_id")
+  toHolderId      String    @map("to_holder_id")
+  amount          Int
+  confirmedAmount Int?      @map("confirmed_amount")
+  /// pending, confirmed, disputed
+  status          String    @default("pending")
+  createdById     String    @map("created_by_id")
+  confirmedById   String?   @map("confirmed_by_id")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  confirmedAt     DateTime? @map("confirmed_at")
+
+  @@index([status])
+  @@map("handovers")
+  @@schema("money")
+}
+
+model Payout {
+  id           String    @id @default(cuid())
+  merchantId   String    @map("merchant_id")
+  companyKey   String    @map("company_key")
+  amount       Int
+  /// draft, approved, paid, cancelled
+  status       String    @default("draft")
+  method       String    @default("bank")
+  reference    String?
+  preparedById String    @map("prepared_by_id")
+  approvedById String?   @map("approved_by_id")
+  paidById     String?   @map("paid_by_id")
+  createdAt    DateTime  @default(now()) @map("created_at")
+  approvedAt   DateTime? @map("approved_at")
+  paidAt       DateTime? @map("paid_at")
+
+  @@index([merchantId, status])
+  @@map("payouts")
+  @@schema("money")
+}
+
+model Bill {
+  id               String    @id @default(cuid())
+  companyKey       String    @map("company_key")
+  payee            String
+  supplierRef      String?   @map("supplier_ref")
+  number           String
+  date             DateTime  @db.Date
+  dueDate          DateTime  @map("due_date") @db.Date
+  amount           Int
+  vat              Int       @default(0)
+  accountCode      String    @map("account_code")
+  costCentreId     String?   @map("cost_centre_id")
+  /// draft, approved, paid, cancelled
+  status           String    @default("draft")
+  preparedById     String    @map("prepared_by_id")
+  approvedById     String?   @map("approved_by_id")
+  paidFromHolderId String?   @map("paid_from_holder_id")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  paidAt           DateTime? @map("paid_at")
+
+  @@index([status, dueDate])
+  @@map("bills")
+  @@schema("money")
+}
+
+model Expense {
+  id               String   @id @default(cuid())
+  companyKey       String   @map("company_key")
+  date             DateTime @db.Date
+  accountCode      String   @map("account_code")
+  amount           Int
+  vat              Int      @default(0)
+  costCentreId     String?  @map("cost_centre_id")
+  paidFromHolderId String   @map("paid_from_holder_id")
+  note             String
+  createdById      String   @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  @@map("expenses")
+  @@schema("money")
 }
