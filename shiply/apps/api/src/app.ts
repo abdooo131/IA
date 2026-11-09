@@ -17,7 +17,8 @@ export interface AppOptions {
 
 export async function createApp(db: PrismaClient, opts: AppOptions = {}): Promise<INestApplication> {
   const location = LocationModule.register({ geocoder: opts.geocoder });
-  @Module({ imports: [PlatformModule.forRoot(db), location, MerchantsModule.register(location), MoneyModule] })
+  const merchants = MerchantsModule.register(location);
+  @Module({ imports: [PlatformModule.forRoot(db), location, merchants, MoneyModule.register(merchants)] })
   class AppModule {}
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

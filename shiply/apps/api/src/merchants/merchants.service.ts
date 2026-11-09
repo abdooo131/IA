@@ -40,6 +40,11 @@ export class MerchantsService {
     return this.db.merchant.findUnique({ where: { id } });
   }
 
+  /** Names and codes of merchants, for other modules' lists. */
+  names(ids: string[]) {
+    return this.db.merchant.findMany({ where: { id: { in: ids } }, select: { id: true, code: true, name: true, status: true } });
+  }
+
   /** "Eve Chantelle" → EVE, then EVE2, EVE3 when taken. */
   private async newCode(tx: Tx, name: string): Promise<string> {
     const word = (name.trim().split(/\s+/)[0] ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) || 'M';
