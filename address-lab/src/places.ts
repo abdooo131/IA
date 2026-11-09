@@ -438,6 +438,54 @@ streets('corniche-el-nil', ['maadi-cornish', 'garden-city', 'masr-el-qadima', 'a
 streets('el-horreya', ['heliopolis', 'alexandria'], 'El Horreya Rd', 'طريق الحرية', ['el horreya', 'horreya road', 'el horria', 'el horeya', 'طريق الحريه', 'شارع الحريه']);
 streets('el-nasr-street', ['nasr-city', 'new-maadi'], 'El Nasr St', 'شارع النصر', ['el nasr street', 'el nasr avenue', 'nasr street', 'شارع النصر']);
 streets('sudan-street', ['mohandessin', 'boulaq-dakrour'], 'Sudan St', 'شارع السودان', ['sudan street', 'el sudan street', 'sodan street', 'شارع السودان']);
+// Heliopolis
+streets('khalifa-el-maamoun', ['heliopolis'], 'El Khalifa El Maamoun St', 'شارع الخليفة المأمون', ['el khalifa el maamoun', 'khalifa el maamoun', 'khalifa maamoun', 'الخليفه المامون']);
+streets('abdel-hamid-badawy', ['heliopolis'], 'Abdel Hamid Badawy St', 'شارع عبد الحميد بدوي', ['abdel hamid badawy', 'abd el hamid badawi', 'عبد الحميد بدوي']);
+streets('othman-ibn-affan', ['heliopolis'], 'Othman Ibn Affan St', 'شارع عثمان بن عفان', ['othman ibn affan', 'osman ibn affan', 'othman bin affan', 'عثمان بن عفان']);
+streets('damascus', ['heliopolis'], 'Dimashq St', 'شارع دمشق', ['el damashk', 'damashk street', 'dimashq street', 'damascus street', 'شارع دمشق']);
+streets('beirut', ['heliopolis'], 'Beirut St', 'شارع بيروت', ['beirut street', 'beirut st', 'bayrut street', 'شارع بيروت']);
+streets('baghdad', ['heliopolis'], 'Baghdad St', 'شارع بغداد', ['baghdad street', 'baghdad st', 'شارع بغداد']);
+streets('abu-bakr-el-seddik', ['heliopolis'], 'Abu Bakr El Seddik St', 'شارع أبو بكر الصديق', ['abu bakr el seddik', 'abou bakr el seddik', 'abu bakr el sedeek', 'ابو بكر الصديق']);
+streets('abdel-aziz-fahmy', ['heliopolis'], 'Abdel Aziz Fahmy St', 'شارع عبد العزيز فهمي', ['abdel aziz fahmy', 'abd el aziz fahmi', 'عبد العزيز فهمي']);
+streets('el-nozha-street', ['heliopolis', 'nozha'], 'El Nozha St', 'شارع النزهة', ['el nozha street', 'nozha street', 'el nozha road', 'شارع النزهه']);
+// Zamalek
+streets('el-gezira-street', ['zamalek'], 'El Gezira St', 'شارع الجزيرة', ['el gezira street', 'gezira street', 'شارع الجزيره']);
+streets('hassan-sabry', ['zamalek'], 'Hassan Sabry St', 'شارع حسن صبري', ['hassan sabry', 'hassan sabri', 'حسن صبري']);
+streets('brazil-street', ['zamalek'], 'Brazil St', 'شارع البرازيل', ['brazil street', 'el brazil street', 'شارع البرازيل']);
+streets('shagaret-el-dor', ['zamalek'], 'Shagaret El Dor St', 'شارع شجرة الدر', ['shagaret el dor', 'shagarat el dorr', 'shagret el dor', 'شجره الدر']);
+streets('mohamed-mazhar', ['zamalek'], 'Mohamed Mazhar St', 'شارع محمد مظهر', ['mohamed mazhar', 'mohammed mazhar', 'محمد مظهر']);
+streets('el-saleh-ayoub', ['zamalek'], 'El Saleh Ayoub St', 'شارع الصالح أيوب', ['el saleh ayoub', 'saleh ayoub', 'الصالح ايوب']);
+// Dokki and Mohandessin
+streets('el-ansar', ['dokki'], 'El Ansar St', 'شارع الأنصار', ['el ansar street', 'ansar street', 'شارع الانصار']);
+streets('iran-street', ['dokki'], 'Iran St', 'شارع إيران', ['iran street', 'iran st', 'شارع ايران']);
+streets('el-hussein-dokki', ['dokki'], 'El Hussein St (Dokki)', 'شارع الحسين الدقي', ['el hussein street', 'hussein street', 'شارع الحسين']);
+streets('el-giza-street', ['dokki', 'giza-district'], 'El Giza St', 'شارع الجيزة', ['el giza street', 'giza street', 'شارع الجيزه']);
+streets('dokki-street', ['dokki'], 'Dokki St', 'شارع الدقي', ['dokki street', 'el dokki street', 'شارع الدقي']);
+streets('ahmed-orabi', ['mohandessin'], 'Ahmed Orabi St', 'شارع أحمد عرابي', ['ahmed orabi', 'ahmed oraby', 'احمد عرابي']);
+streets('lebanon-street', ['mohandessin'], 'Lebanon St', 'شارع لبنان', ['lebanon street', 'lebnan street', 'شارع لبنان']);
+streets('geziret-el-arab', ['mohandessin'], 'Geziret El Arab St', 'شارع جزيرة العرب', ['geziret el arab', 'gezirat el arab', 'جزيره العرب']);
+// Downtown and Abdeen
+streets('sabri-abu-alam', ['downtown'], 'Sabri Abu Alam St', 'شارع صبري أبو علم', ['sabri abu alam', 'sabry abou alam', 'صبري ابو علم']);
+streets('kasr-el-nil-street', ['downtown'], 'Kasr El Nil St', 'شارع قصر النيل', ['kasr el nil street', 'qasr el nil street', 'شارع قصر النيل']);
+streets('abdel-khaleq-sarwat', ['downtown'], 'Abdel Khaleq Sarwat St', 'شارع عبد الخالق ثروت', ['abdel khaleq sarwat', 'abd el khalek tharwat', 'abdel khalek sarwat', 'عبد الخالق ثروت']);
+streets('el-alfi', ['downtown'], 'El Alfi St', 'شارع الألفي', ['el alfi', 'alfi street', 'el alfy', 'الالفي']);
+streets('emad-el-din', ['downtown'], 'Emad El Din St', 'شارع عماد الدين', ['emad el din', 'emad eldin', 'عماد الدين']);
+streets('el-galaa', ['downtown'], 'El Galaa St', 'شارع الجلاء', ['el galaa', 'galaa street', 'el gala street', 'الجلاء']);
+streets('mansour-street', ['downtown'], 'Mansour St', 'شارع منصور', ['mansour street', 'mansour st', 'شارع منصور']);
+streets('el-sheikh-rihan', ['abdeen'], 'El Sheikh Rihan St', 'شارع الشيخ ريحان', ['el sheikh rihan', 'sheikh rihan', 'sheikh rehan', 'الشيخ ريحان']);
+streets('nubar', ['abdeen'], 'Nubar St', 'شارع نوبار', ['nobar street', 'nubar street', 'nobar', 'nubar', 'نوبار']);
+// Shubra, Manial, Islamic Cairo
+streets('kholousy', ['shubra'], 'Kholousy St', 'شارع خلوصي', ['khloosy', 'kholousy', 'kholosy', 'khulusi', 'خلوصي']);
+streets('abdel-aziz-al-saud', ['manial'], 'Abdel Aziz Al Saud St', 'شارع عبد العزيز آل سعود', ['abdel aziz al saud', 'abdel aziz el saud', 'abd el aziz al saud', 'عبد العزيز ال سعود']);
+streets('el-azhar-street', ['gamaleya', 'mosky'], 'El Azhar St', 'شارع الأزهر', ['el azhar street', 'azhar street', 'شارع الازهر']);
+streets('gohar-el-qaid', ['gamaleya'], 'Gohar El Qaid St', 'شارع جوهر القائد', ['gohar el qaid', 'gawhar el qaed', 'gohar el kaed', 'جوهر القائد']);
+streets('el-khayameya', ['darb-el-ahmar'], 'El Khayameya St', 'شارع الخيامية', ['el khayameya', 'khayameya', 'khayamiya', 'الخياميه']);
+streets('bab-el-wazir', ['darb-el-ahmar'], 'Bab El Wazir St', 'شارع باب الوزير', ['bab el wazir', 'bab elwazir', 'باب الوزير']);
+// Maadi numbered roads: shared names, decided by the district
+for (const n of [9, 77, 82, 105, 151, 200, 206, 213, 233, 250, 254, 270]) {
+  if (n === 9) continue;
+  street(`maadi-road-${n}`, 'maadi', `Road ${n}`, `شارع ${n}`, [`road ${n}`, `street ${n}`, `st ${n}`, `${n} street`, `${n}th street`], { needsParent: true });
+}
 hood('mounira', 'sayeda-zeinab', 'El Mounira', 'المنيرة', ['el mounira', 'mounira', 'el monira']);
 
 // Names that several places share. Alone they are unsure and list every option; next to
