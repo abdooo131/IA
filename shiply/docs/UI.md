@@ -154,3 +154,27 @@ Phases:
 Old system review: 44 pages in 7 menus, about 18,000 lines. Cash was handled twice (rider
 wallets and store boxes in Shiply Now, courier wallets and hub safes in the parcels code), and
 payroll, contracts and purchase orders sat in Accounting as well as their own apps.
+
+## Step 3d: Shiply app, next day parcels (locked)
+
+Menu: `Overview  Parcels  Pickups  Sorting facilities▾  Last mile hubs▾  Couriers▾  Agents  More▾`
+
+1. **Overview**: today's flow from pickup to delivered, parcels past their deadline, failure rate
+   per hub.
+2. **Parcels**: every parcel; filters status, hub, merchant, courier, date; record with timeline.
+3. **Pickups**: scheduled, assigned, done; recurring pickups.
+4. **Sorting facilities ▾**: Inbound, Sorting, Outbound, the facility's parcels.
+5. **Last mile hubs ▾**: Receive, Sort by zone, Dispatch, Returns, Cash handover (flow in the
+   notes above).
+6. **Couriers ▾**: live map, list with their zones, shifts, earnings.
+7. **Agents**: courier companies and their couriers.
+8. **More ▾**: alerts, failed attempts (reason, attempt number, next try).
+
+Moved out (each lives in one app only): QC tickets, lost parcels and merchant claims → CS and QC;
+network map → Location; price tiers → Merchants contracts; vehicle requests → Fleet; field
+accounts → Settings and HR.
+
+Internal statuses (kept from the old system): Created, Picked up, At inbound, Sorted, At outbound,
+In transit, At hub, On hold, Out for delivery, Attempt failed, Delivered, Returned, Cancelled,
+Lost. The merchant sees the grouped statuses of the merchant portal, mapped automatically from
+these.
