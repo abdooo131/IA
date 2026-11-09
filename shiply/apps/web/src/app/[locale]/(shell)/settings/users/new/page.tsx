@@ -67,7 +67,7 @@ export default function NewUserPage() {
         </label>
         <label>
           {t('settings.role')}
-          <select name="roleKey" required defaultValue="">
+          <select aria-label={t('settings.role')} name="roleKey" required defaultValue="">
             <option value="" disabled />
             {roles.map((r) => (
               <option key={r.key} value={r.key}>

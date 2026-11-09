@@ -135,3 +135,20 @@ html[dir='rtl'] .brand-panel { background-position: left center, center; }
   .record-body { grid-template-columns: 1fr; }
 }
 
+
+/* Place picker and tabs */
+.picker { width: min(560px, 100%); display: grid; gap: 10px; }
+.picker-list { display: grid; gap: 4px; max-height: 260px; overflow-y: auto; }
+.picker-list .btn { justify-content: flex-start; text-align: start; }
+.row-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.inline-form { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; margin-block-end: 12px; }
+.inline-form label { display: grid; gap: 4px; font-size: 13px; color: var(--shiply-text-muted); }
+.gap { color: var(--shiply-danger); font-weight: 600; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--shiply-line); border-radius: 999px; padding: 3px 4px 3px 10px; display: inline-flex; gap: 6px; align-items: center; unicode-bidi: plaintext; }
+.chip button { border: 0; background: var(--shiply-selected-bg); color: var(--shiply-primary); border-radius: 999px; padding: 1px 8px; font: inherit; font-size: 12px; cursor: pointer; }
+.big { font-size: 34px; font-weight: 800; }
+.form-wide { display: grid; gap: 12px; }
+.field-label { display: grid; gap: 4px; font-weight: 500; }
+textarea { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply-line); border-radius: 10px; background: var(--shiply-surface); color: var(--shiply-text); }
+.finder-result h2 { font-size: 20px; margin: 8px 0; }

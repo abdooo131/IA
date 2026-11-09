@@ -14,5 +14,12 @@ export default async function setup() {
   });
   await db.user.create({ data: { name: 'Viewer', nameAr: 'مشاهد', mobile: '+201012345678', passwordHash: await hash('viewer-pass-1'), roleId: viewer.id } });
   await db.user.create({ data: { name: 'Rana', nameAr: 'رنا', email: 'rana@test.local', passwordHash: await hash('rana-pass-1'), roleId: limited.id } });
+  // One unclear address waiting in the Needs location queue.
+  await db.addressDecision.create({
+    data: {
+      service: 'shiply', refType: 'parcel', refId: 'SH-E2E-1', input: 'الحي السابع', status: 'unsure', confidence: 50, method: 'engine',
+      candidates: [{ id: 'nasr-city-hay-7', label: 'District 7, Nasr City, Cairo', score: 1.5 }, { id: 'october-hay-7', label: 'District 7, 6th of October, Giza', score: 1.5 }],
+    },
+  });
   await db.$disconnect();
 }
