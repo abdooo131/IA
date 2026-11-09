@@ -19,6 +19,12 @@ export class CashService {
     return this.ledger.balance({ partyType: 'holder', partyId: holderId, accountCodes: CASH_ACCOUNTS }, tx);
   }
 
+  /** What a rider or courier holds now (0 before their first collection). */
+  async heldBy(kind: string, refId: string) {
+    const h = await this.db.cashHolder.findUnique({ where: { kind_refId: { kind, refId } } });
+    return h ? this.held(h.id) : 0;
+  }
+
   /** The holder for a rider, courier, store or hub; made the first time it is needed. */
   async holderFor(tx: Tx, input: { kind: string; refId: string; nameEn: string; nameAr: string; companyKey: CompanyKey; costCentreId?: string }) {
     const found = await tx.cashHolder.findUnique({ where: { kind_refId: { kind: input.kind, refId: input.refId } } });

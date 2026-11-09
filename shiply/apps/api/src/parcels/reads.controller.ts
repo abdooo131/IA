@@ -1,8 +1,10 @@
-import { Controller, Get, Inject, Query } from '@nestjs/common';
+import { Controller, Get, Inject, Query, Req } from '@nestjs/common';
+import type { Request } from 'express';
+import { atLeast } from '@shiply/shared';
 import type { PrismaClient } from '@shiply/db';
 import { LocationService } from '../location';
 import { MerchantsService } from '../merchants';
-import { DB, NeedAccess, peopleOfKind } from '../platform';
+import { DB, NeedAccess, peopleOfKind, sitesOf } from '../platform';
 
 const DONE = ['delivered', 'returned', 'cancelled', 'lost'];
 
@@ -20,6 +22,17 @@ export class ReadsController {
   async lookups() {
     const [sites, zones, merchants, couriers] = await Promise.all([this.location.sites(), this.location.zones(), this.merchants.forService('shiply'), peopleOfKind(this.db, 'agent_person')]);
     return { sites: sites.filter((s) => s.active && s.kind !== 'dark_store'), zones: zones.filter((z) => z.active), merchants, couriers };
+  }
+
+  /** The facilities and hubs this person can scan at (every one for shiply manage). */
+  @Get('me/sites')
+  async mySites(@Req() req: Request) {
+    const user = req.user!;
+    if (!atLeast(user.access.shiply, 'use')) return [];
+    const all = (await this.location.sites()).filter((s) => s.active && s.kind !== 'dark_store');
+    if (atLeast(user.access.shiply, 'manage')) return all;
+    const mine = await sitesOf(this.db, user.id);
+    return all.filter((s) => mine.includes(s.id));
   }
 
   /** Today's flow by status, parcels past their deadline (two days), failure rate per hub (last 7 days). */

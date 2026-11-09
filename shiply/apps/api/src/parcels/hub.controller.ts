@@ -3,6 +3,7 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
 import { parseEgp } from '@shiply/shared';
+import { CashService } from '../money';
 import { DB, NeedAccess, parse } from '../platform';
 import { HubService } from './hub.service';
 import { RunsService } from './runs.service';
@@ -17,6 +18,7 @@ export class HubController {
     @Inject(HubService) private readonly hub: HubService,
     @Inject(RunsService) private readonly runs: RunsService,
     @Inject(ScanService) private readonly scans: ScanService,
+    @Inject(CashService) private readonly cash: CashService,
   ) {}
 
   @Post('hub/bags/:seal/done')
@@ -89,6 +91,12 @@ export class HubController {
   mine(@Req() req: Request) {
     if (req.user!.kind !== 'agent_person') throw new HttpException({ error: 'couriers_only' }, 403);
     return this.runs.mine(req.user!.id);
+  }
+
+  @Get('me/cash')
+  async myCash(@Req() req: Request) {
+    if (req.user!.kind !== 'agent_person') throw new HttpException({ error: 'couriers_only' }, 403);
+    return { held: await this.cash.heldBy('courier', req.user!.id) };
   }
 
   @Post('me/parcels/:id/deliver')

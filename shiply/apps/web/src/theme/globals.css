@@ -157,3 +157,22 @@ textarea { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply-line
 .checks label { display: inline-flex; gap: 6px; align-items: center; font-weight: 400; }
 .price-grid input { width: 110px; }
 .section { margin-block: 16px; }
+
+/* ── phone screens: station and courier (big, scan first, usable with gloves) ── */
+.field-page { max-width: 640px; margin: 0 auto; padding: 16px; display: grid; gap: 12px; }
+.field-page select, .field-page input, .field-page .btn { min-height: 52px; font-size: 18px; }
+.field-steps { display: flex; flex-wrap: wrap; gap: 8px; }
+.field-steps .btn { flex: 1 1 140px; }
+.field-steps .btn.on { background: var(--shiply-selected-bg); outline: 2px solid currentColor; }
+.scan-screen { display: grid; gap: 12px; }
+.scan-input { font-size: 28px; padding: 14px; border-radius: var(--shiply-radius-md); width: 100%; }
+.scan-pending { font-weight: 600; color: var(--shiply-danger); }
+.scan-answer { display: grid; place-items: center; text-align: center; gap: 6px; min-height: 40vh; border-radius: var(--shiply-radius-lg); color: #fff; padding: 16px; }
+.scan-answer strong { font-size: clamp(48px, 18vw, 120px); line-height: 1; }
+.scan-answer span { font-size: 22px; }
+.scan-answer em { font-size: 22px; font-style: normal; }
+.scan-answer.green { background: #15803d; }
+.scan-answer.amber { background: #b45309; }
+.scan-answer.red { background: #b91c1c; }
+.stop { display: grid; gap: 8px; }
+.stop .row-actions { flex-wrap: wrap; }

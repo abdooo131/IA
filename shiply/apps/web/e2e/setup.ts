@@ -51,6 +51,13 @@ export default async function setup() {
   await db.courierZone.create({ data: { userId: karim.id, zoneId: zone.id } });
   const pickup = await db.pickup.create({ data: { merchantId: eve.id, date: new Date(new Date().toISOString().slice(0, 10)), courierId: karim.id, status: 'on_the_way', createdById: ownerUser.id } });
   await db.parcel.create({ data: { tracking: 'SP1000000009', merchantId: eve.id, customerName: 'Laila', phone: '+201001112223', addressText: 'روكسي', placeId: 'roxy', zoneId: zone.id, hubId: hel.id, facilityId: hlf.id, originFacilityId: hlf.id, size: 'small', price: 4500, status: 'picked_up', pickupId: pickup.id, createdById: ownerUser.id } });
+  // Phone screens: one parcel waiting to be sorted at HLF, and courier Nour out on a run with one
+  // parcel to deliver (250 EGP cash).
+  const base = { merchantId: eve.id, customerName: 'Laila', phone: '+201001112223', addressText: 'روكسي', placeId: 'roxy', zoneId: zone.id, hubId: hel.id, facilityId: hlf.id, originFacilityId: hlf.id, size: 'small', price: 4500, createdById: ownerUser.id };
+  await db.parcel.create({ data: { ...base, tracking: 'SP2000000001', status: 'at_inbound' } });
+  const nour = await db.user.create({ data: { name: 'Nour', nameAr: 'نور', mobile: '+201166666666', kind: 'agent_person', passwordHash: await hash('nour-pass-1'), roleId: field.id } });
+  const run = await db.run.create({ data: { hubId: hel.id, courierId: nour.id, date: new Date(new Date().toISOString().slice(0, 10)), status: 'out', confirmedById: ownerUser.id } });
+  await db.parcel.create({ data: { ...base, tracking: 'SP4000000003', status: 'out_for_delivery', codAmount: 25000, courierId: nour.id, runId: run.id } });
   // One unclear address waiting in the Needs location queue.
   await db.addressDecision.create({
     data: {

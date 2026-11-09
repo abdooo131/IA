@@ -2,7 +2,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
 import type { AppId } from '@shiply/shared';
-import { Link } from '@/i18n/routing';
+import { Link, useRouter } from '@/i18n/routing';
 import { api } from '@/lib/api';
 import { TopBar } from '@/shell/TopBar';
 import { useMe } from '@/shell/me';
@@ -30,10 +30,15 @@ export default function HomePage() {
   const t = useTranslations();
   const me = useMe();
   const locale = useLocale();
+  const router = useRouter();
+  const field = me.kind === 'agent_person';
   const [data, setData] = useState<HomeData | null>(null);
   useEffect(() => {
-    void api<HomeData>('/me/home').then(setData);
-  }, []);
+    // Couriers and riders land on their phone screen.
+    if (field) router.replace('/courier');
+    else void api<HomeData>('/me/home').then(setData);
+  }, [field, router]);
+  if (field) return null;
   return (
     <>
       <TopBar />

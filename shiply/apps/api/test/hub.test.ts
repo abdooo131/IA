@@ -95,6 +95,7 @@ describe('delivery', () => {
     expect(await statusOf(p.id)).toBe('delivered');
     // 100 COD − 45 delivery − 1 COD fee (1%) − 14% VAT on 46
     expect(await app.get(WalletsService).available(net.merchant.id)).toBe(10000 - 4500 - 100 - 644);
+    expect((await http().get('/parcels/me/cash').set('Cookie', omar)).body).toEqual({ held: 10000 });
     const holder = await db.cashHolder.findFirstOrThrow({ where: { kind: 'courier', refId: omarId } });
     expect(holder.companyKey).toBe('shiply');
   });
@@ -137,6 +138,8 @@ describe('office reads', () => {
     expect(look.zones.map((z: { code: string }) => z.code)).toEqual(['MAA-A']);
     expect(look.merchants).toEqual([expect.objectContaining({ id: net.merchant.id, code: 'EVE', name: 'Eve' })]);
     expect(look.couriers.map((c: { id: string }) => c.id).sort()).toEqual([omarId, aliId].sort());
+    expect((await http().get('/parcels/me/sites').set('Cookie', owner)).body.map((x: { code: string }) => x.code)).toEqual(['MAA', 'OBR']);
+    expect((await http().get('/parcels/me/sites').set('Cookie', viewer)).body).toEqual([]);
     const ov = (await http().get('/parcels/overview').set('Cookie', viewer)).body;
     expect(ov.byStatus.attempt_failed).toBe(1);
     expect(ov.failureByHub).toEqual([expect.objectContaining({ hubId: net.hub.id, attempts: 1, failed: 1 })]);
