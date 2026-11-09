@@ -66,8 +66,12 @@ export default async function FinanceDashboardPage() {
     getMyProfile(),
   ]);
   // The guided runs and the quick expense form (Accounting UX phase B).
+  const canUse = !!me && canDo(me, 'accounting', 'use');
+  // Card actions that change the books are shown only to people who may use Accounting.
+  const cardActions = (c: Card) =>
+    c.actions.filter((a) => canUse || a.href !== '/finance/expenses/new');
   const quick = [
-    ...(me && canDo(me, 'accounting', 'use')
+    ...(canUse
       ? [{ key: 'recordExpense', href: '/finance/expenses/new', icon: 'invoice' as IconName }]
       : []),
     { key: 'payMerchants', href: '/finance/payouts/run', icon: 'payout' as IconName },
@@ -254,7 +258,7 @@ export default async function FinanceDashboardPage() {
               ))}
             </ul>
             <div className="mt-auto flex flex-wrap gap-2 pt-3">
-              {c.actions.map((a, i) => (
+              {cardActions(c).map((a, i) => (
                 <Link
                   key={a.key}
                   href={a.href}
