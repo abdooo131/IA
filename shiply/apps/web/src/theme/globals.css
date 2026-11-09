@@ -118,3 +118,9 @@ input, select { font: inherit; padding: 9px 12px; border: 1px solid var(--shiply
   .table td[data-label]::before { content: attr(data-label) ': '; color: var(--shiply-text-muted); }
   .record-body { grid-template-columns: 1fr; }
 }
+
+/* Temporary wordmark until the new logo files arrive */
+.wordmark { font-family: var(--shiply-font); font-weight: 800; letter-spacing: -0.03em; color: var(--shiply-navy); line-height: 1; display: inline-flex; align-items: flex-end; gap: 2px; }
+.wordmark i { width: 0.28em; height: 0.28em; border-radius: 50%; background: var(--shiply-blue); margin-block-end: 0.12em; }
+.btn.primary:focus-visible { outline-color: var(--shiply-lime); }
+.tile svg { color: var(--shiply-blue); }

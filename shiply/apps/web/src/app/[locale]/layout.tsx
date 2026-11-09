@@ -8,7 +8,7 @@ import '@/theme/tokens.css';
 import '@/theme/arabic-fonts.css';
 import '@/theme/globals.css';
 
-export const metadata = { title: 'Shiply', icons: { icon: '/brand/app-icon.svg' } };
+export const metadata = { title: 'Shiply' };
 
 export default async function LocaleLayout({ children, params }: { children: ReactNode; params: Promise<{ locale: string }> }) {
   const { locale } = await params;
