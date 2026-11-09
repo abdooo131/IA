@@ -1,0 +1,12 @@
+{
+  "name": "address-lab",
+  "private": true,
+  "description": "Address tester for Shiply: any Egyptian address in, its parts and its area out",
+  "type": "module",
+  "engines": { "node": ">=22.18" },
+  "scripts": {
+    "start": "node src/server.ts",
+    "bulk": "node src/cli.ts",
+    "test": "node --test test/*.test.ts"
+  }
+}

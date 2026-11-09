@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Address Tester</title>
+<style>
+:root {
+  --bg: #f6f7f9; --card: #ffffff; --text: #16181d; --muted: #646b78; --line: #e3e6eb;
+  --accent: #1f5eff; --accent-soft: #e8efff;
+  --sure: #137a3f; --sure-bg: #e3f5ea; --likely: #2a6f97; --likely-bg: #e2f0f8;
+  --unsure: #a15c00; --unsure-bg: #fdf0dc; --partial: #6b5fb5; --partial-bg: #eeebfa;
+  --outside: #7a4b2a; --outside-bg: #f3e9e1; --nf: #b42318; --nf-bg: #fde7e5;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111317; --card: #1a1d23; --text: #e8eaee; --muted: #9aa1ad; --line: #2b2f37;
+    --accent: #7aa2ff; --accent-soft: #1d2840;
+    --sure: #6fd39a; --sure-bg: #16301f; --likely: #79c0e6; --likely-bg: #15283a;
+    --unsure: #f0b45a; --unsure-bg: #3a2a12; --partial: #b7aef0; --partial-bg: #26223f;
+    --outside: #d9a77f; --outside-bg: #33251b; --nf: #ff8a80; --nf-bg: #3a1714;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 system-ui, "Segoe UI", Tahoma, sans-serif; }
+header { padding: 20px 16px 0; max-width: 1100px; margin: 0 auto; }
+h1 { margin: 0; font-size: 22px; }
+header p { margin: 4px 0 0; color: var(--muted); }
+main { max-width: 1100px; margin: 0 auto; padding: 16px; }
+.tabs { display: flex; gap: 6px; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.tabs button { background: none; border: 0; padding: 10px 14px; font: inherit; color: var(--muted); cursor: pointer; border-bottom: 2px solid transparent; }
+.tabs button.on { color: var(--accent); border-color: var(--accent); font-weight: 600; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+textarea, input[type=text] { width: 100%; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+textarea { min-height: 90px; resize: vertical; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 10px; }
+.btn { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 9px 16px; font: inherit; font-weight: 600; cursor: pointer; }
+.btn.ghost { background: var(--accent-soft); color: var(--accent); }
+.btn:disabled { opacity: .5; cursor: default; }
+.muted { color: var(--muted); }
+.badge { display: inline-block; padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; }
+.s-sure { color: var(--sure); background: var(--sure-bg); }
+.s-likely { color: var(--likely); background: var(--likely-bg); }
+.s-unsure { color: var(--unsure); background: var(--unsure-bg); }
+.s-partial { color: var(--partial); background: var(--partial-bg); }
+.s-outside { color: var(--outside); background: var(--outside-bg); }
+.s-not_found { color: var(--nf); background: var(--nf-bg); }
+.path { font-size: 20px; font-weight: 600; margin: 10px 0 4px; }
+.path .ar { font-weight: 400; color: var(--muted); font-size: 16px; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; width: 180px; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 8px; margin-top: 12px; }
+.part { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+.part b { display: block; font-size: 12px; color: var(--muted); font-weight: 500; text-transform: uppercase; letter-spacing: .03em; }
+.part span { unicode-bidi: plaintext; }
+.part.empty span { color: var(--muted); }
+h3 { margin: 16px 0 6px; font-size: 14px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+ul.reasons { margin: 0; padding-left: 18px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { border: 1px solid var(--line); border-radius: 999px; padding: 3px 4px 3px 10px; display: inline-flex; gap: 6px; align-items: center; unicode-bidi: plaintext; }
+.chip button { border: 0; background: var(--accent-soft); color: var(--accent); border-radius: 999px; padding: 1px 8px; font: inherit; font-size: 12px; cursor: pointer; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; }
+.stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px; cursor: pointer; }
+.stat.on { outline: 2px solid var(--accent); }
+.stat b { display: block; font-size: 22px; }
+.big { font-size: 34px; font-weight: 700; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 500; }
+td.addr { unicode-bidi: plaintext; max-width: 380px; }
+tr.click { cursor: pointer; }
+tr.click:hover { background: var(--accent-soft); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+@media (max-width: 760px) { .two { grid-template-columns: 1fr; } }
+dialog { border: 1px solid var(--line); border-radius: 12px; background: var(--card); color: var(--text); width: min(520px, calc(100vw - 32px)); padding: 18px; }
+dialog::backdrop { background: rgba(0,0,0,.4); }
+.hidden { display: none; }
+.err { color: var(--nf); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Address Tester</h1>
+  <p>Type any Egyptian address in Arabic, English or Franco. It breaks it down and finds the area.</p>
+</header>
+<main>
+  <nav class="tabs">
+    <button data-tab="single" class="on">One address</button>
+    <button data-tab="bulk">Many addresses</button>
+    <button data-tab="taught">Taught names</button>
+  </nav>
+
+  <section id="tab-single">
+    <div class="card">
+      <textarea id="addr" dir="auto" placeholder="عمارة 12 شارع 9 بجوار مسجد الفتح المعادي الجديدة&#10;or: villa 44 el banafseg 5, tagamo3 el 5ames"></textarea>
+      <div class="row">
+        <button class="btn" id="go">Find the area</button>
+        <span class="muted">Results update as you type.</span>
+      </div>
+    </div>
+    <div id="single-out"></div>
+  </section>
+
+  <section id="tab-bulk" class="hidden">
+    <div class="card">
+      <p class="muted" style="margin-top:0">Paste one address per line, or choose a file: a text file, or a CSV (from Excel use "Save as CSV UTF 8"). In a CSV the address, city, province and area columns are joined.</p>
+      <textarea id="bulk-text" dir="auto" placeholder="One address per line"></textarea>
+      <div class="row">
+        <input type="file" id="bulk-file" accept=".csv,.txt,.tsv,text/csv,text/plain">
+        <button class="btn" id="bulk-go">Run</button>
+        <button class="btn ghost hidden" id="bulk-dl">Download results (CSV)</button>
+        <span id="bulk-note" class="muted"></span>
+      </div>
+    </div>
+    <div id="bulk-out"></div>
+  </section>
+
+  <section id="tab-taught" class="hidden">
+    <div class="card">
+      <p class="muted" style="margin-top:0">Names you taught the tester. Each one is used for every address from now on. They are saved in <code>data/learned.json</code>.</p>
+      <div id="taught-out"></div>
+    </div>
+  </section>
+</main>
+
+<dialog id="teach">
+  <form method="dialog" id="teach-form">
+    <h2 style="margin:0 0 6px;font-size:18px">Teach a name</h2>
+    <p class="muted" style="margin:0 0 12px">Every address with this name will be placed in the area you pick.</p>
+    <label>Name<br><input type="text" id="teach-name" dir="auto" required></label>
+    <div style="height:10px"></div>
+    <label>Area<br><input type="text" id="teach-place" list="place-list" placeholder="Start typing: Maadi, التجمع, Faisal..." required></label>
+    <datalist id="place-list"></datalist>
+    <p id="teach-err" class="err"></p>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn ghost" value="cancel" formnovalidate>Cancel</button>
+      <button class="btn" id="teach-save" value="save">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const STATUS = { sure: 'Sure', likely: 'Likely', unsure: 'Unsure', partial: 'Governorate only', outside: 'Outside Greater Cairo', not_found: 'Not found' };
+const post = async (url, body) => {
+  const r = await fetch(url, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'Request failed');
+  return j;
+};
+
+// Tabs
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b));
+  for (const t of ['single', 'bulk', 'taught']) $('#tab-' + t).classList.toggle('hidden', t !== b.dataset.tab);
+  if (b.dataset.tab === 'taught') loadPlaces();
+}));
+
+// One address
+function chipList(words) {
+  if (!words.length) return '<span class="muted">None</span>';
+  return '<div class="chips">' + words.map((w) => `<span class="chip">${esc(w)} <button data-teach="${esc(w)}">Teach</button></span>`).join('') + '</div>';
+}
+function renderResult(r) {
+  const p = r.parts;
+  const fields = [
+    ['Governorate', p.governorate], ['City or district', p.city], ['Neighbourhood', p.neighbourhood], ['Compound', p.compound],
+    ['Street', p.street], ['Building', p.building], ['Floor', p.floor], ['Apartment', p.apartment],
+    ['Villa', p.villa], ['Block', p.block], ['Entrance', p.entrance], ['Landmark', p.landmark], ['Phone', p.phone],
+  ];
+  const path = r.path.length
+    ? r.path.map((x) => esc(x.en)).join(' › ') + `<div class="ar" dir="rtl">${r.path.map((x) => esc(x.ar)).join(' ‹ ')}</div>`
+    : '<span class="muted">No area</span>';
+  return `
+    <div class="card">
+      <div class="row" style="margin:0">
+        <span class="badge s-${r.status}">${STATUS[r.status]}</span>
+        <div class="bar" title="Confidence"><i style="width:${r.confidence}%"></i></div>
+        <span class="muted">${r.confidence}% confidence</span>
+      </div>
+      <div class="path">${path}</div>
+      <div class="grid">${fields.map(([k, v]) => `<div class="part ${v ? '' : 'empty'}"><b>${k}</b><span>${v ? esc(v) : 'Not written'}</span></div>`).join('')}</div>
+      <h3>Why</h3>
+      <ul class="reasons">${r.reasons.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>
+      ${r.candidates.length > 1 ? `<h3>Other candidates</h3><ul class="reasons">${r.candidates.slice(1).map((c) => `<li>${esc(c.label)} <span class="muted">(score ${c.score})</span></li>`).join('')}</ul>` : ''}
+      <h3>Unknown words</h3>${chipList(r.unknownWords)}
+    </div>`;
+}
+let timer;
+async function runSingle() {
+  const address = $('#addr').value.trim();
+  if (!address) { $('#single-out').innerHTML = ''; return; }
+  try { $('#single-out').innerHTML = renderResult(await post('/api/parse', { address })); }
+  catch (e) { $('#single-out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
+}
+$('#go').addEventListener('click', runSingle);
+$('#addr').addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(runSingle, 250); });
+
+// Many addresses
+let bulkCsv = '', bulkResults = [], bulkFilter = null;
+$('#bulk-file').addEventListener('change', async (e) => {
+  const f = e.target.files[0];
+  if (f) $('#bulk-text').value = await f.text();
+});
+async function runBulk() {
+  const text = $('#bulk-text').value;
+  if (!text.trim()) return;
+  $('#bulk-go').disabled = true; $('#bulk-note').textContent = 'Working…';
+  try {
+    const j = await post('/api/bulk', { text });
+    bulkCsv = j.csv; bulkResults = j.results; bulkFilter = null;
+    $('#bulk-note').textContent = 'Read ' + j.note;
+    $('#bulk-dl').classList.remove('hidden');
+    renderBulk(j.summary);
+  } catch (e) { $('#bulk-note').textContent = ''; $('#bulk-out').innerHTML = `<div class="card err">${esc(e.message)}</div>`; }
+  $('#bulk-go').disabled = false;
+}
+function renderBulk(s) {
+  const stats = Object.entries(s.byStatus).map(([k, n]) =>
+    `<div class="stat ${bulkFilter === k ? 'on' : ''}" data-filter="${k}"><span class="badge s-${k}">${STATUS[k]}</span><b>${n}</b><span class="muted">${s.total ? Math.round(1000 * n / s.total) / 10 : 0}%</span></div>`).join('');
+  const rows = bulkResults.map((r, i) => ({ r, i })).filter(({ r }) => !bulkFilter || r.status === bulkFilter).slice(0, 1000);
+  $('#bulk-out').innerHTML = `
+    <div class="card">
+      <div class="row" style="margin:0 0 12px"><span class="big">${s.placedShare}%</span><span class="muted">of ${s.total} addresses placed in an area (sure or likely)</span></div>
+      <div class="stats">${stats}</div>
+    </div>
+    <div class="two">
+      <div class="card"><h3 style="margin-top:0">Most common unknown words</h3><p class="muted" style="margin-top:0">Teach the top ones to place many addresses at once.</p>
+        ${s.unknownWords.length ? '<div class="chips">' + s.unknownWords.map((w) => `<span class="chip">${esc(w.word)} <span class="muted">${w.count}</span> <button data-teach="${esc(w.word)}">Teach</button></span>`).join('') + '</div>' : '<span class="muted">None</span>'}
+      </div>
+      <div class="card"><h3 style="margin-top:0">Areas found</h3>
+        <table>${s.areas.slice(0, 25).map((a) => `<tr><td>${esc(a.area)}</td><td style="text-align:right">${a.count}</td></tr>`).join('')}</table>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0">Results ${bulkFilter ? '(' + STATUS[bulkFilter] + ')' : ''}${rows.length === 1000 ? ', first 1,000 shown' : ''}</h3>
+      <p class="muted" style="margin-top:0">Click a row to open it in "One address". Click a box above to show only that status.</p>
+      <div class="tablewrap"><table>
+        <tr><th>Address</th><th>Status</th><th>Area</th><th>Conf.</th></tr>
+        ${rows.map(({ r, i }) => `<tr class="click" data-row="${i}"><td class="addr">${esc(r.input)}</td><td><span class="badge s-${r.status}">${STATUS[r.status]}</span></td><td>${esc(r.path.map((x) => x.en).join(' › '))}</td><td>${r.confidence}%</td></tr>`).join('')}
+      </table></div>
+    </div>`;
+  window._lastSummary = s;
+}
+$('#bulk-go').addEventListener('click', runBulk);
+$('#bulk-dl').addEventListener('click', () => {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([bulkCsv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'address-results.csv'; a.click();
+});
+$('#bulk-out').addEventListener('click', (e) => {
+  const stat = e.target.closest('[data-filter]');
+  if (stat) { bulkFilter = bulkFilter === stat.dataset.filter ? null : stat.dataset.filter; renderBulk(window._lastSummary); return; }
+  const row = e.target.closest('[data-row]');
+  if (row && !e.target.closest('[data-teach]')) {
+    $('#addr').value = bulkResults[Number(row.dataset.row)].input;
+    document.querySelector('[data-tab=single]').click(); runSingle();
+  }
+});
+
+// Teaching names
+let places = [];
+async function loadPlaces() {
+  const j = await (await fetch('/api/places')).json();
+  places = j.places;
+  $('#place-list').innerHTML = places.map((p) => `<option value="${esc(p.label)}">${esc(p.ar)}</option>`).join('');
+  renderTaught(j.learned);
+}
+function renderTaught(learned) {
+  const byId = new Map(places.map((p) => [p.id, p]));
+  $('#taught-out').innerHTML = learned.length
+    ? `<table><tr><th>Name</th><th>Area</th><th>When</th><th></th></tr>${learned.slice().reverse().map((l) => `<tr><td dir="auto">${esc(l.name)}</td><td>${esc(byId.get(l.placeId)?.label ?? l.placeId)}</td><td class="muted">${esc(l.at.slice(0, 16).replace('T', ' '))}</td><td><button class="btn ghost" data-forget="${esc(l.name)}" data-place="${esc(l.placeId)}">Remove</button></td></tr>`).join('')}</table>`
+    : '<span class="muted">Nothing taught yet. Use the Teach buttons next to unknown words.</span>';
+}
+$('#taught-out').addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-forget]');
+  if (!b) return;
+  const j = await post('/api/forget', { name: b.dataset.forget, placeId: b.dataset.place });
+  renderTaught(j.learned);
+});
+document.addEventListener('click', async (e) => {
+  const b = e.target.closest('[data-teach]');
+  if (!b) return;
+  if (!places.length) await loadPlaces();
+  $('#teach-name').value = b.dataset.teach;
+  $('#teach-place').value = '';
+  $('#teach-err').textContent = '';
+  $('#teach').showModal();
+  $('#teach-place').focus();
+});
+$('#teach-form').addEventListener('submit', async (e) => {
+  if (e.submitter?.value !== 'save') return;
+  e.preventDefault();
+  const label = $('#teach-place').value.trim();
+  const place = places.find((p) => p.label === label);
+  if (!place) { $('#teach-err').textContent = 'Pick an area from the list.'; return; }
+  try {
+    const j = await post('/api/teach', { name: $('#teach-name').value, placeId: place.id });
+    renderTaught(j.learned);
+    $('#teach').close();
+    if (!$('#tab-single').classList.contains('hidden')) runSingle();
+    else if (!$('#tab-bulk').classList.contains('hidden') && bulkResults.length) runBulk();
+  } catch (err) { $('#teach-err').textContent = err.message; }
+});
+</script>
+</body>
+</html>

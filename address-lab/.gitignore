@@ -1,0 +1,4 @@
+# Real customer addresses never go in the repository.
+private/
+*.private.csv
+results*.csv
