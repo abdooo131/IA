@@ -22,7 +22,9 @@ const VILLA = words('فيلا فيلة villa');
 const BLOCK = words('بلوك block blk');
 const ENTRANCE = words('مدخل entrance');
 const NUMBER_WORDS = words('رقم no number num nr');
-const STREET = words('شارع ش طريق محور street st str road rd');
+const STREET = words('شارع ش طريق محور جسر كوبري street st str road rd avenue ave');
+/** Street words written after the name ("Port Said Street"); Arabic puts them before. */
+const TRAILING_STREET = words('street st str road rd avenue ave');
 const LANDMARK_MARKERS = words(
   'بجوار جنب امام أمام قدام خلف ورا وراء قرب بالقرب عند قصاد بجانب مقابل near beside behind opposite besides nearby infront next close across around facing',
 );
@@ -237,8 +239,9 @@ function findPlaces(tokens: Token[], g: Gazetteer): Match[] {
             ids = best <= allowed ? bestIds : undefined;
           }
           if (!ids || ids.length === 0) continue;
-          const start = idx[0];
+          let start = idx[0];
           const end = idx[idx.length - 1];
+          if (start > 0 && !tokens[start - 1].key && !tokens[start - 1].use && !tokens[start].brk) start--;
           for (let i = start; i <= end; i++) tokens[i].use = 'place';
           matches.push({
             text: tokens.slice(start, end + 1).map((t) => t.raw).join(' '),
@@ -353,6 +356,16 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
   const tokens = tokenize(text);
   takeNumberedParts(tokens, parts);
   const matches = findPlaces(tokens, g);
+  // "Port Said Street", "El Manial Street": an area name just before a street word names the
+  // street, not where the address is.
+  for (const m of matches) {
+    const next = tokens[m.end + 1];
+    if (!next || next.brk || !TRAILING_STREET.has(next.norm)) continue;
+    if (m.ids.every((id) => g.byId.get(id)!.kind === 'street')) continue;
+    m.afterStreet = true;
+    next.use = 'street';
+    if (!parts.street) parts.street = `${m.text} ${next.raw}`;
+  }
   takeStreetAndLandmark(tokens, matches, parts, g);
 
   // Every match becomes evidence for the area it points at.
@@ -361,7 +374,12 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
     for (const id of m.ids) {
       const place = g.byId.get(id)!;
       let weight = (KIND_WEIGHT[place.kind] * METHOD_WEIGHT[m.method]) / m.ids.length;
-      if (m.afterStreet && place.kind !== 'street') weight *= 0.5;
+      if (m.afterStreet && place.kind !== 'street') {
+        // A street named after another governorate (Port Said St, Gesr El Suez) says nothing
+        // about which governorate the address is in.
+        if (place.kind === 'governorate') continue;
+        weight *= 0.5;
+      }
       evidence.push({ match: m, place, area: areaOf(g, id), weight });
     }
   }

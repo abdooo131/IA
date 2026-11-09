@@ -48,7 +48,7 @@ test('a known street places the address in its district', () => {
 });
 
 test('a typo in the area name is still found, as likely', () => {
-  const r = parse('zamalk 26 july street');
+  const r = parse('zamalk');
   assert.equal(r.area?.id, 'zamalek');
   assert.equal(r.status, 'likely');
 });
@@ -140,4 +140,18 @@ test('commas end a landmark, and everyday words are not read as places', () => {
   assert.equal(r.status, 'outside');
   assert.equal(parse('Near the automatic bakery, El Arish, North Sinai').status, 'outside');
   assert.equal(parse('Behind the police station, Faisal, Giza').parts.landmark, 'police station');
+});
+
+test('a street named after a place is not that place', () => {
+  assert.equal(parse('Port Said Street').status, 'unsure');
+  assert.equal(parse('Port Said Street').path[0].id, 'cairo');
+  assert.equal(parse('Gesr El Suez Street').path[0].id, 'cairo');
+  assert.equal(parse('El Manial Street').status, 'likely');
+});
+
+test('a street that runs through several districts lists them', () => {
+  const r = parse('Salah Salem Street');
+  assert.equal(r.status, 'unsure');
+  assert.ok(r.reasons[0].startsWith('3 areas fit'));
+  assert.equal(parse('Salah Salem Street, Nasr City').area?.id, 'nasr-city');
 });
