@@ -356,3 +356,26 @@ Menu: `Users & access  Companies  Integrations  Notifications  General  Audit lo
 4. **Notifications**: who gets which alert by bell, email or WhatsApp.
 5. **General**: language, working days, holidays.
 6. **Audit log**: who changed what and when, in plain words.
+
+## Parcel flow through the network (agreed with the owner)
+
+At the sorting facility:
+1. **Inbound** sees before arrival: pickup cars on the way (agent couriers who scanned each
+   parcel at the merchant), total parcels coming, parcels per merchant and per car. On arrival
+   they scan every parcel; the screen shows received against expected per car and per merchant;
+   missing and extra parcels become cases.
+2. Handover to sorting: no second scan.
+3. **Sorting** scans every parcel; the screen shows its destination last mile hub.
+4. Handover to outbound: no second scan.
+5. **Outbound** scans every parcel into a bag. Bags use pre printed serial seals: scan the seal,
+   scan the parcels into it, close it. A hub can get several bags; a bag holds about 100 to 150
+   parcels (a setting). A parcel too big for a bag travels on its own and counts as a bag of one.
+6. **Night transit**: every bag serial is scanned onto the car; the driver confirms the bag count
+   before leaving.
+
+At the last mile hub:
+7. **Receive**: scan each bag serial first (every bag arrived, seal intact), then open it and
+   scan parcel by parcel; missing and extra parcels become cases.
+8. **Sort by zone** and **Dispatch** to couriers, as above.
+
+Returns go through the same steps in reverse, in bags, back to the merchant's facility.
