@@ -119,6 +119,8 @@ importers:
         specifier: 0.41.1
         version: 0.41.1
 
+  packages/address: {}
+
   packages/db:
     dependencies:
       '@prisma/client':
