@@ -99,6 +99,8 @@ Menu: `Needs location  Address finder  Map  Places  Taught names`
 
 Access: CS and QC work Needs location. Operations managers edit Map and Places.
 
+Order for every address: phone memory, address engine, Google Maps (off until switched on in settings, monthly cap, each address paid for once, its answer checked against our place list), then the Needs location queue.
+
 ## Step 3b: Merchants app, office side (locked)
 
 Menu: `Merchants  Sign ups  Contracts  Shopify stores  Packaging orders`
