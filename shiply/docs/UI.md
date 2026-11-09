@@ -328,3 +328,31 @@ price estimate → proposal.
 
 Rules: reps see only their own deals, managers see all (kept from the old system). Won creates
 the merchant and their contract in Merchants automatically from the accepted proposal.
+
+## Step 3k: Reports app (locked)
+
+Menu: `Overview  Operations  Money  Merchants  People  Quality  Saved`
+
+1. **Overview**: orders and parcels, success rate, revenue, cash collected, profit; this month
+   against last.
+2. **Operations**: per service, hub or store, day: volumes, on time rate, failure reasons,
+   attempts, average delivery time, stuck parcels.
+3. **Money**: revenue and profit per company, cost centre, merchant; COD collected against paid
+   out; cash still held by agents.
+4. **Merchants**: top, growing, dropping, profit per merchant.
+5. **People**: courier and rider performance per agent; staff attendance.
+6. **Quality**: tickets and cases by type, compensation paid, audit results.
+7. **Saved**: saved filters and reports emailed on a schedule.
+
+Same filters everywhere (date, company, service, site); export to Excel.
+
+## Step 3l: Settings app (locked)
+
+Menu: `Users & access  Companies  Integrations  Notifications  General  Audit log`
+
+1. **Users & access**: office users, job roles, apps per role at view, use or manage.
+2. **Companies**: Shiply Now and Shiply: names, tax numbers, e-invoicing, logos.
+3. **Integrations**: Shopify app, WhatsApp and SMS, API keys, webhooks.
+4. **Notifications**: who gets which alert by bell, email or WhatsApp.
+5. **General**: language, working days, holidays.
+6. **Audit log**: who changed what and when, in plain words.
