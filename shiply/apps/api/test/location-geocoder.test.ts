@@ -9,9 +9,11 @@ import { db, resetDb } from './helpers';
 /** A fake Google: answers from this table and counts its calls. */
 const answers = new Map<string, GeoAnswer | null>();
 let calls = 0;
+let down = false;
 const fake: Geocoder = {
   async lookup(text) {
     calls++;
+    if (down) throw new Error('Google is down');
     return answers.get(text) ?? null;
   },
 };
@@ -25,6 +27,7 @@ beforeEach(async () => {
   await resetDb();
   answers.clear();
   calls = 0;
+  down = false;
   if (!app) {
     app = await createApp(db, { geocoder: fake });
     await app.init();
@@ -76,6 +79,14 @@ describe('Google Maps step', () => {
   it('never calls Google for an address the engine already placed', async () => {
     await resolve('المعادي الجديدة');
     expect(calls).toBe(0);
+  });
+
+  it('asks again after Google was down, instead of remembering the failure', async () => {
+    answers.set(UNCLEAR, maadi);
+    down = true;
+    expect((await resolve(UNCLEAR)).placeId).toBeNull();
+    down = false;
+    expect((await resolve(UNCLEAR, 'p2')).placeId).toBe('maadi');
   });
 
   it('reads a Google answer in its documented format', () => {

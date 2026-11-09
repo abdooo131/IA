@@ -48,7 +48,12 @@ export class LocationService {
     const cap = await this.settings.get<number>('location.geocoder_monthly_cap');
     const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     if ((await tx.geocodeCache.count({ where: { at: { gte: monthStart } } })) >= cap) return null;
-    const answer = await this.geocoder.lookup(text).catch(() => null);
+    let answer: GeoAnswer | null;
+    try {
+      answer = await this.geocoder.lookup(text);
+    } catch {
+      return null; // Google is down or refused: not saved, so the next address asks again
+    }
     await tx.geocodeCache.createMany({ data: [{ normalized, answer: (answer ?? undefined) as never }], skipDuplicates: true });
     return answer;
   }
