@@ -364,9 +364,11 @@ At the sorting facility:
    parcel at the merchant), total parcels coming, parcels per merchant and per car. On arrival
    they scan every parcel; the screen shows received against expected per car and per merchant;
    missing and extra parcels become cases.
-2. Handover to sorting: no second scan.
+2. Handover to sorting: the sorting team scans every parcel it receives; that scan records the
+   handover. Parcels received by inbound but not scanned by sorting are flagged.
 3. **Sorting** scans every parcel; the screen shows its destination last mile hub.
-4. Handover to outbound: no second scan.
+4. Handover to outbound: the outbound team scans every parcel it receives (the scan into the
+   bag); parcels sorted but never bagged are flagged.
 5. **Outbound** scans every parcel into a bag. Bags use pre printed serial seals: scan the seal,
    scan the parcels into it, close it. A hub can get several bags; a bag holds about 100 to 150
    parcels (a setting). A parcel too big for a bag travels on its own and counts as a bag of one.
