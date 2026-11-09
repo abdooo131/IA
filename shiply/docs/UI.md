@@ -178,3 +178,24 @@ Internal statuses (kept from the old system): Created, Picked up, At inbound, So
 In transit, At hub, On hold, Out for delivery, Attempt failed, Delivered, Returned, Cancelled,
 Lost. The merchant sees the grouped statuses of the merchant portal, mapped automatically from
 these.
+
+## Step 3e: Shiply Now app, 60 minute delivery (locked)
+
+Menu: `Overview  Orders  Dark stores▾  Stock▾  Riders▾  Returns  More▾`
+
+1. **Overview**: live orders per store with their 60 minute timers, late orders, stores near
+   capacity or closed.
+2. **Orders**: filters status, store, merchant, date; record timeline with the time of each step.
+3. **Dark stores ▾**: list (hours, capacity, open or closed) and each store's floor: Receive,
+   Put away, Pick, Pack, Hand to rider.
+4. **Stock ▾**: levels per store and bin, inbound from merchants, transfers between stores,
+   counts, movements history.
+5. **Riders ▾**: live map, list, shifts, earnings per delivery.
+6. **Returns**: failed and returned orders: back to stock or back to the merchant.
+7. **More ▾**: alerts, store settings (SLA minutes, capacity), values in settings, never in code.
+
+Statuses: New, Accepted, Picking, Packed, Out for delivery, Delivered; Failed, Cancelled, Moved to
+next day (stock missing or zone closed: the order passes to Shiply automatically).
+
+Moved out: zones and addresses → Location; packaging → Purchasing; damage cases → CS and QC.
+Store staff land on their store's floor; riders on their phone screen.
