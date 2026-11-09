@@ -3477,7 +3477,7 @@
       "allMatchedHint": "Upload the next statement when it arrives.",
       "bankLines": "{count, plural, one {# bank line open} other {# bank lines open}}",
       "bankLinesLabel": "Bank lines still open",
-      "keysHint": "↑ ↓ choose a line · Enter matches the top suggestion · / searches",
+      "keysHint": "↑ ↓ or j k choose a line · Enter matches the top suggestion · / searches",
       "suggestions": "Suggestions",
       "noSuggestions": "Nothing in the books fits this line. Record it, then match it.",
       "reasons": {

@@ -10,66 +10,12 @@ import { apiSend } from '@/lib/api-client';
 import { isoToDayFirst } from '@/lib/day-first';
 import type { BookAccount } from '@/lib/finance-types';
 import { formatCairoDateTime } from '@/lib/format';
+import { PAY_STEPS, type PayRunData, type PayStep } from '@/lib/pay-run';
 import { Amount } from './Amount';
 
 // The guided Pay merchants run (Accounting UX phase B): who is due today, review, approve,
 // the bank's bulk file, mark paid with one reference, and what was done. Where it stands is
 // read from the payouts themselves, so it can be left and picked up again.
-
-export const PAY_STEPS = ['prepare', 'review', 'approve', 'file', 'pay', 'done'] as const;
-export type PayStep = (typeof PAY_STEPS)[number];
-
-export interface PayRunData {
-  today: string;
-  cutoffDay: string;
-  limitPiastres: number;
-  current: PayStep;
-  done: Record<PayStep, boolean>;
-  dueCount: number;
-  due: {
-    merchantId: string;
-    name: string;
-    schedule: string;
-    owedPiastres: number;
-    minimumPiastres: number;
-    bankDetails: boolean;
-    draftId: string | null;
-    state: 'drafted' | 'paid_today' | 'ready' | 'below_minimum' | 'nothing_owed';
-  }[];
-  drafts: {
-    id: string;
-    number: string;
-    merchantId: string;
-    merchant: string;
-    amountPiastres: number;
-    cutoffDay: string;
-    bankDetails: boolean;
-    needsApproval: boolean;
-    approved: boolean;
-    approvedBy: string | null;
-    createdBy: string;
-    mine: boolean;
-    ready: boolean;
-  }[];
-  paid: {
-    id: string;
-    number: string;
-    merchant: string;
-    amountPiastres: number;
-    reference: string | null;
-    paidAt: string;
-    emails: number;
-  }[];
-  totals: {
-    draftsPiastres: number;
-    readyPiastres: number;
-    readyCount: number;
-    toApprove: number;
-    missingBank: number;
-    paidPiastres: number;
-    emailsQueued: number;
-  };
-}
 
 const primary =
   'inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 font-bold text-on-primary disabled:opacity-50';

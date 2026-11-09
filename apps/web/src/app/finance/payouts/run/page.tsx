@@ -1,12 +1,8 @@
 import { canDo, isCalendarDay } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
-import {
-  PAY_STEPS,
-  PayMerchantsRun,
-  type PayRunData,
-  type PayStep,
-} from '@/components/finance/PayMerchantsRun';
+import { PayMerchantsRun } from '@/components/finance/PayMerchantsRun';
+import { PAY_STEPS, type PayRunData, type PayStep } from '@/lib/pay-run';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { BookAccount } from '@/lib/finance-types';
 
