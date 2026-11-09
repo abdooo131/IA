@@ -1,5 +1,6 @@
 import { HistoryController } from './history.controller';
 import { RecordsController } from './records.controller';
+import { ListsController } from './lists.controller';
 import { Module } from '@nestjs/common';
 import { CoverageModule } from '../coverage/coverage.module';
 import { AdminCatalogController } from './admin-catalog.controller';
@@ -40,6 +41,7 @@ import { AdminRefillController } from './admin-refill.controller';
     AdminRefillController,
     HistoryController,
     RecordsController,
+    ListsController,
   ],
 })
 export class AdminModule {}

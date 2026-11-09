@@ -273,13 +273,7 @@ export {
   type RiderWithdrawalView,
   type WithdrawalFilter,
 } from './rider-wallet';
-export {
-  FINANCE_LIST_DEFS,
-  financeListGaps,
-  type ListScope,
-  MONEY_IN_REQUESTS,
-  queryFinanceList,
-} from './lists';
+export { FINANCE_LIST_DEFS, financeListGaps, MONEY_IN_REQUESTS, queryFinanceList } from './lists';
 export { accountingDocument } from './documents';
 export { financeDashboard, type JournalCard, SPARK_DAYS, type TodayItem } from './dashboard';
 export { financeSearch } from './search';

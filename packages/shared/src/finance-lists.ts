@@ -4,13 +4,7 @@
 // (packages/db/src/finance/lists.ts) implement exactly these keys and the web builds its
 // Filters and Group by menus from them, so both sides always agree.
 
-export interface ListMeta {
-  filters: Record<string, string>;
-  groupBys: readonly string[];
-  sorts: readonly string[];
-  sums: readonly string[];
-  defaultFilters: readonly string[];
-}
+import type { ListMeta } from './list-view';
 
 const dateFilters = { this_month: 'date', last_month: 'date', last_7_days: 'date' } as const;
 

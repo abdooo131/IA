@@ -9,6 +9,7 @@ import {
   parseListState,
   runList,
   serializeListState,
+  setListValue,
   sortBy,
   toggleFilter,
   toggleGroupBy,
@@ -225,5 +226,51 @@ describe('document numbers', () => {
     expect(parseDocNumber('Nabta')).toBeNull();
     expect(parseDocNumber('XX-1')).toBeNull();
     expect(parseDocNumber('PAY-0')).toBeNull();
+  });
+});
+
+describe('value filters (a chosen store, merchant or day)', () => {
+  const withValues: ListDef<Row> = {
+    ...def,
+    values: {
+      merchant: (r, v) => r.merchant === v,
+      from: (r, v) => r.day >= v,
+      to: (r, v) => r.day <= v,
+    },
+  };
+
+  it('round trips through the address and drops unknown keys', () => {
+    const state = setListValue(
+      setListValue({ ...EMPTY_LIST_STATE }, 'from', '2026-11-01'),
+      'merchant',
+      'Nabta',
+    );
+    const text = serializeListState(state);
+    expect(text).toBe('f=&v=from:2026-11-01,merchant:Nabta');
+    expect(parseListState(new URLSearchParams(text)).values).toEqual(state.values);
+    expect(
+      parseListState(new URLSearchParams('v=from:2026-11-01,nope:1'), { values: ['from'] }).values,
+    ).toEqual({ from: '2026-11-01' });
+    expect(parseListState(new URLSearchParams('v=from:a b')).values).toEqual({});
+    expect(hasListState(new URLSearchParams('v=from:2026-11-01'))).toBe(true);
+    expect(setListValue(state, 'merchant', null).values).toEqual({ from: '2026-11-01' });
+  });
+
+  it('ANDs values with the filters and shows them as chips', () => {
+    const state = parseListState(new URLSearchParams('f=&v=from:2026-11-01,to:2026-11-06'));
+    const result = runList(rows, withValues, state, ctx);
+    expect(result.rows.map((r) => r.id).sort()).toEqual(['1', '3', '4']);
+    const drafts = runList(rows, withValues, { ...state, filters: ['draft'] }, ctx);
+    expect(drafts.rows.map((r) => r.id)).toEqual(['1']);
+    const facets = facetsOf(state, {
+      filters: {},
+      filterGroups: {},
+      groupBys: {},
+      or: 'or',
+      values: { from: 'From', to: 'To' },
+      valueText: (_k, v) => v.split('-').reverse().join('/'),
+    });
+    expect(facets.map((f) => f.values[0])).toEqual(['From: 01/11/2026', 'To: 06/11/2026']);
+    expect(facets[0]!.without.values).toEqual({ to: '2026-11-06' });
   });
 });

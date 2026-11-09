@@ -10,19 +10,16 @@ import {
   type ListDef,
   type ListQuery,
   type ListResult,
-  listKnown,
-  type ListMeta,
   monthOfDay,
-  parseListState,
   payoutNumber,
   pettyCashLabel,
   previousMonth,
   addDays,
-  runList,
   withdrawalNumber,
   billNumber,
 } from '@shiplynow/shared';
 import type { Db } from '../client';
+import { listGaps, type ListScope, queryList, type RegisteredList } from '../list-query';
 import { getSetting } from '../settings';
 import { invoiceLabel } from './invoices';
 import { pettyStatusOf } from './cash-control';
@@ -31,13 +28,6 @@ import { pettyStatusOf } from './cash-control';
 // loads its most recent rows (LIST_MAX_ROWS) inside the person's scope, flattened to plain
 // values, and runList applies the list state from the address: search, the predefined
 // filters of FINANCE_LISTS, grouping with subtotals, totals, sorting and paging.
-
-/** Who is looking: their stores and merchants when they are limited (null: all). */
-export interface ListScope {
-  userId: string;
-  storeIds: string[] | null;
-  merchantIds: string[] | null;
-}
 
 const iso = (d: Date | null | undefined) => (d ? d.toISOString() : null);
 const dbDay = (d: Date) => d.toISOString().slice(0, 10);
@@ -788,14 +778,7 @@ const invoices: ListDef<InvoiceListRow> = {
 
 // ─── the registry ───────────────────────────────────────────────────────────────
 
-interface Registered {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  def: ListDef<any>;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  load: (db: Db, scope: ListScope) => Promise<any[]>;
-}
-
-export const FINANCE_LIST_DEFS: Record<FinanceListId, Registered> = {
+export const FINANCE_LIST_DEFS: Record<FinanceListId, RegisteredList> = {
   payouts: { def: payouts, load: loadPayouts },
   bills: { def: bills, load: loadBills },
   journal: { def: journal, load: loadJournal },
@@ -807,47 +790,22 @@ export const FINANCE_LIST_DEFS: Record<FinanceListId, Registered> = {
 };
 
 /**
- * The list query helper every list endpoint uses: reads the list state from the query (the
- * list's own default filters when the address names none), loads the rows in the person's
- * scope and runs them. `open` is the opened group path, `all` returns every row (exports).
+ * One Accounting list for the address: the list's own default filters when the address names
+ * none, the rows in the person's scope, then search, filters, grouping, totals and paging.
  */
-export async function queryFinanceList(
+export function queryFinanceList(
   db: Db,
   id: FinanceListId,
   query: ListQuery,
   scope: ListScope,
   now: Date = new Date(),
 ): Promise<ListResult<Record<string, unknown>>> {
-  const entry = FINANCE_LIST_DEFS[id];
-  const meta: ListMeta = FINANCE_LISTS[id];
-  const state = parseListState(query, listKnown(id), {
-    filters: [...meta.defaultFilters],
-  });
-  const rows = await entry.load(db, scope);
-  return runList(
-    rows,
-    entry.def,
-    state,
-    { today: cairoDay(now), userId: scope.userId },
-    {
-      open: query.open ? query.open.split('\n') : undefined,
-      all: query.all === '1',
-    },
-  );
+  return queryList(db, FINANCE_LIST_DEFS[id], FINANCE_LISTS[id], query, scope, now);
 }
 
 /** For tests: every filter and grouping the shared meta names exists in the definitions. */
 export function financeListGaps(): string[] {
-  const gaps: string[] = [];
-  for (const id of Object.keys(FINANCE_LISTS) as FinanceListId[]) {
-    const meta: ListMeta = FINANCE_LISTS[id];
-    const def = FINANCE_LIST_DEFS[id].def;
-    for (const [f, group] of Object.entries(meta.filters))
-      if (def.filters[f]?.group !== group) gaps.push(`${id}.filter.${f}`);
-    for (const f of Object.keys(def.filters))
-      if (!(f in meta.filters)) gaps.push(`${id}.extra_filter.${f}`);
-    for (const g of meta.groupBys) if (!def.groupBys[g]) gaps.push(`${id}.group.${g}`);
-    for (const s of meta.sorts) if (!def.sorts[s]) gaps.push(`${id}.sort.${s}`);
-  }
-  return gaps;
+  return (Object.keys(FINANCE_LISTS) as FinanceListId[]).flatMap((id) =>
+    listGaps(id, FINANCE_LISTS[id], FINANCE_LIST_DEFS[id]),
+  );
 }

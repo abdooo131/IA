@@ -13,7 +13,7 @@ import {
 } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { invoiceLabel } from './invoices';
-import type { ListScope } from './lists';
+import type { ListScope } from '../list-query';
 
 // The one search of the Accounting app: a document number (JV-, PAY-, CH-, BILL-, INV-, CN-,
 // PO-, CHQ-, PC-, RW-, BS-), an order number or a merchant (or supplier) name, each with the

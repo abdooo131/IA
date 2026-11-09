@@ -2,7 +2,8 @@ import { z } from 'zod';
 
 // Odoo style list views (docs/ARCHITECTURE.md "List views and document pages"). A list's state
 // lives in the address so a view can be shared and Back works: q (typed search), f (predefined
-// filters, comma separated), g (group by, one or two levels), sort and desc, page and size.
+// filters, comma separated), g (group by, one or two levels), sort and desc, page and size,
+// and v (value filters: a store, a merchant, a first or last Cairo day, as key:value pairs).
 // The API runs the same state on its rows (runList): filters in one group are OR'ed, groups of
 // filters are AND'ed, as in Odoo. Everything here is pure so the web and the API share it.
 
@@ -21,6 +22,8 @@ export interface ListState {
   desc: boolean;
   page: number;
   pageSize: number;
+  /** Value filters (a chosen store, merchant or day): key → value, AND'ed with the rest */
+  values: Record<string, string>;
 }
 
 export const EMPTY_LIST_STATE: ListState = {
@@ -31,7 +34,38 @@ export const EMPTY_LIST_STATE: ListState = {
   desc: false,
   page: 1,
   pageSize: LIST_DEFAULT_PAGE_SIZE,
+  values: {},
 };
+
+/**
+ * How a value filter is chosen: one of a list (a store, a merchant, an alert type), or a
+ * Cairo day that starts (day_from) or ends (day_to) a range, both days included.
+ */
+export type ListValueKind = 'option' | 'day_from' | 'day_to';
+
+/**
+ * What a list offers, shared by the API (which implements it) and the web (which builds its
+ * menus from it): predefined filters (key → the group they OR within), value filters,
+ * groupings, sortable columns, summed money columns and the filters it opens with.
+ */
+export interface ListMeta {
+  filters: Record<string, string>;
+  values?: Record<string, ListValueKind>;
+  groupBys: readonly string[];
+  sorts: readonly string[];
+  sums: readonly string[];
+  defaultFilters: readonly string[];
+}
+
+/** The keys parseListState accepts for a list. */
+export function listKnownOf(meta: ListMeta): ListKnown {
+  return {
+    filters: Object.keys(meta.filters),
+    groupBys: meta.groupBys,
+    sorts: meta.sorts,
+    values: Object.keys(meta.values ?? {}),
+  };
+}
 
 /** URLSearchParams (or Next's ReadonlyURLSearchParams), without needing DOM types here. */
 interface ParamsLike {
@@ -48,6 +82,9 @@ function read(source: ParamSource, key: string): string | undefined {
 }
 
 const KEY = /^[a-z0-9_]{1,40}$/;
+/** A value filter's value: an id or a YYYY-MM-DD day. */
+const VALUE = /^[A-Za-z0-9_-]{1,64}$/;
+const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const list = (value: string | undefined) =>
   [
     ...new Set(
@@ -60,13 +97,34 @@ const list = (value: string | undefined) =>
 
 /** Whether the address names any list state (else the list's default view applies). */
 export function hasListState(source: ParamSource) {
-  return ['q', 'f', 'g', 'sort', 'page', 'size'].some((k) => read(source, k) !== undefined);
+  return ['q', 'f', 'g', 'sort', 'page', 'size', 'v'].some((k) => read(source, k) !== undefined);
 }
 
 export interface ListKnown {
   filters?: readonly string[];
   groupBys?: readonly string[];
   sorts?: readonly string[];
+  /** Value filter keys */
+  values?: readonly string[];
+}
+
+/** Reads v=store:abc,from:2026-11-01 into { store: 'abc', from: '2026-11-01' }. */
+function readValues(value: string | undefined): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const part of (value ?? '').split(',')) {
+    const at = part.indexOf(':');
+    if (at < 1) continue;
+    const k = part.slice(0, at).trim();
+    const v = part.slice(at + 1).trim();
+    if (KEY.test(k) && VALUE.test(v)) out[k] = v;
+  }
+  return out;
+}
+
+/** Whether a value suits its kind (a day filter takes only a YYYY-MM-DD day). */
+export function validListValue(kind: ListValueKind | undefined, value: string) {
+  if (!VALUE.test(value)) return false;
+  return kind === 'day_from' || kind === 'day_to' ? DAY.test(value) : true;
 }
 
 /**
@@ -89,6 +147,10 @@ export function parseListState(
   const sortParam = read(source, 'sort');
   let sort = sortParam && KEY.test(sortParam) ? sortParam : base.sort;
   if (sort && known.sorts && !known.sorts.includes(sort)) sort = base.sort;
+  const vParam = read(source, 'v');
+  let values = vParam === undefined ? { ...base.values } : readValues(vParam);
+  if (known.values)
+    values = Object.fromEntries(Object.entries(values).filter(([k]) => known.values!.includes(k)));
   const page = Number.parseInt(read(source, 'page') ?? '', 10);
   const size = Number.parseInt(read(source, 'size') ?? '', 10);
   return {
@@ -99,6 +161,7 @@ export function parseListState(
     desc: sortParam ? read(source, 'desc') === '1' : base.desc,
     page: Number.isFinite(page) && page >= 1 ? Math.min(page, 10_000) : 1,
     pageSize: (LIST_PAGE_SIZES as readonly number[]).includes(size) ? size : base.pageSize,
+    values,
   };
 }
 
@@ -117,8 +180,13 @@ export function serializeListState(state: ListState): string {
   }
   if (state.page > 1) p.push(['page', String(state.page)]);
   if (state.pageSize !== LIST_DEFAULT_PAGE_SIZE) p.push(['size', String(state.pageSize)]);
-  // Encoded as URLSearchParams would (spaces as +), commas kept readable.
-  const enc = (s: string) => encodeURIComponent(s).replace(/%20/g, '+').replace(/%2C/g, ',');
+  const values = Object.entries(state.values ?? {})
+    .filter(([k, v]) => KEY.test(k) && VALUE.test(v))
+    .sort(([a], [b]) => a.localeCompare(b));
+  if (values.length) p.push(['v', values.map(([k, v]) => `${k}:${v}`).join(',')]);
+  // Encoded as URLSearchParams would (spaces as +), commas and colons kept readable.
+  const enc = (s: string) =>
+    encodeURIComponent(s).replace(/%20/g, '+').replace(/%2C/g, ',').replace(/%3A/g, ':');
   return p.map(([k, v]) => `${k}=${enc(v)}`).join('&');
 }
 
@@ -130,6 +198,14 @@ export function toggleFilter(state: ListState, key: string): ListState {
     page: 1,
     filters: on ? state.filters.filter((f) => f !== key) : [...state.filters, key],
   };
+}
+
+/** Sets a value filter, or removes it when the value is empty. */
+export function setListValue(state: ListState, key: string, value: string | null): ListState {
+  const values = { ...state.values };
+  if (value) values[key] = value;
+  else delete values[key];
+  return { ...state, page: 1, values };
 }
 
 /** Adds a grouping (at most two levels), or removes it when it is already on. */
@@ -162,10 +238,14 @@ export interface FacetLabels {
   groupBys: Record<string, string>;
   /** "or" in the reader's language */
   or: string;
+  /** value filter key → its label (Store, From) */
+  values?: Record<string, string>;
+  /** A value filter's value as the reader sees it (a store's name, a day first date) */
+  valueText?: (key: string, value: string) => string;
 }
 
 export interface Facet {
-  kind: 'search' | 'filter' | 'group';
+  kind: 'search' | 'filter' | 'group' | 'value';
   /** Stable key for React and tests */
   id: string;
   /** What the chip shows */
@@ -200,6 +280,17 @@ export function facetsOf(state: ListState, labels: FacetLabels): Facet[] {
       without: { ...state, page: 1, filters: state.filters.filter((f) => !keys.includes(f)) },
       joiner: ` ${labels.or} `,
     });
+  for (const [key, value] of Object.entries(state.values ?? {})) {
+    const rest = { ...state.values };
+    delete rest[key];
+    facets.push({
+      kind: 'value',
+      id: `value:${key}`,
+      values: [`${labels.values?.[key] ?? key}: ${labels.valueText?.(key, value) ?? value}`],
+      without: { ...state, page: 1, values: rest },
+      joiner: '',
+    });
+  }
   if (state.groupBy.length)
     facets.push({
       kind: 'group',
@@ -231,6 +322,8 @@ export interface ListDef<R extends { id: string }> {
   filters: Record<string, { group: string; test: (row: R, ctx: ListCtx) => boolean }>;
   /** What each grouping puts a row under */
   groupBys: Record<string, (row: R) => GroupValue>;
+  /** Value filters: a row passes when it matches every value chosen */
+  values?: Record<string, (row: R, value: string, ctx: ListCtx) => boolean>;
   /** The texts typed search looks in */
   search: (row: R) => (string | number | null | undefined)[];
   /** Sortable columns */
@@ -302,8 +395,13 @@ export function filterRows<R extends { id: string }>(
     if (!f) continue;
     groups.set(f.group, [...(groups.get(f.group) ?? []), f.test]);
   }
+  const values = Object.entries(state.values ?? {}).flatMap(([key, value]) => {
+    const test = def.values?.[key];
+    return test ? [(row: R) => test(row, value, ctx)] : [];
+  });
   return rows.filter((row) => {
     for (const tests of groups.values()) if (!tests.some((t) => t(row, ctx))) return false;
+    for (const test of values) if (!test(row)) return false;
     if (!words.length) return true;
     const hay = foldSearch(
       def
@@ -423,6 +521,8 @@ export const listQuerySchema = z.object({
   desc: z.string().max(1).optional(),
   page: z.string().max(6).optional(),
   size: z.string().max(4).optional(),
+  /** Value filters: key:value pairs, comma separated */
+  v: z.string().max(400).optional(),
   /** The opened group: one key per level, joined by a newline */
   open: z.string().max(400).optional(),
   /** 1: every row that passes (for exports), no paging */

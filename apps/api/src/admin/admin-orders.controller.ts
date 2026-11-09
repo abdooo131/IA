@@ -11,6 +11,7 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
+  acceptOrder,
   addOrderNote,
   cancelOrder,
   decideFailedOrder,
@@ -35,7 +36,12 @@ import {
   canDo,
   type OrderNoteBody,
   orderNoteSchema,
+  bulkCancelOrdersSchema,
+  bulkIdsSchema,
+  type DocSmartButton,
 } from '@shiplynow/shared';
+import type { z } from 'zod';
+import { eachRecord } from '../common/bulk';
 import type { Response } from 'express';
 import { assertMerchant, assertStore, merchantFilter, storeFilter } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
@@ -199,6 +205,16 @@ export class AdminOrdersController {
     @CurrentUser() user: AccessTokenClaims,
     @CurrentAccess() access: AccessProfile,
   ) {
+    await this.cancelOne(id, body.reason, user, access);
+    return { status: 'cancelled' };
+  }
+
+  private async cancelOne(
+    id: string,
+    reason: string,
+    user: AccessTokenClaims,
+    access: AccessProfile,
+  ) {
     const order = await this.orderIn(id, access);
     // Once picking has started, cancelling undoes store work: operations manage.
     if (
@@ -207,8 +223,145 @@ export class AdminOrdersController {
       !canDo(access, 'operations', 'manage')
     )
       throw new ForbiddenException({ error: 'no_access' });
-    await cancelOrder(this.prisma, { orderId: id, reason: body.reason, actorUserId: user.sub });
-    return { status: 'cancelled' };
+    await cancelOrder(this.prisma, { orderId: id, reason, actorUserId: user.sub });
+  }
+
+  /**
+   * Accept several new orders from the list (as store staff do one by one): each order is
+   * checked on its own (the person's stores and merchants, still new) in its own transaction.
+   */
+  @Post('orders/bulk-accept')
+  bulkAccept(
+    @Body(new ZodValidationPipe(bulkIdsSchema)) body: z.infer<typeof bulkIdsSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return eachRecord(body.ids, async (id) => {
+      const order = await this.orderIn(id, access);
+      if (!order) throw new DomainError('order_not_found', 404);
+      await acceptOrder(this.prisma, {
+        orderId: id,
+        darkStoreId: order.darkStoreId,
+        actorUserId: user.sub,
+      });
+    });
+  }
+
+  /** Cancel several orders with one reason; each under the single cancel rules. */
+  @Post('orders/bulk-cancel')
+  bulkCancel(
+    @Body(new ZodValidationPipe(bulkCancelOrdersSchema))
+    body: z.infer<typeof bulkCancelOrdersSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return eachRecord(body.ids, async (id) => {
+      if (!(await this.prisma.order.count({ where: { id } })))
+        throw new DomainError('order_not_found', 404);
+      await this.cancelOne(id, body.note, user, access);
+    });
+  }
+
+  /**
+   * The order's document frame (UX phase C): smart buttons with counts of what hangs off it,
+   * each only when the person may open it, and its photos for the chatter's attachments.
+   */
+  @Get('orders/:id/document')
+  async document(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
+    if (!(await this.orderIn(id, access)))
+      throw new NotFoundException({ error: 'order_not_found' });
+    const o = await this.prisma.order.findUniqueOrThrow({
+      where: { id },
+      select: {
+        number: true,
+        customerId: true,
+        customerName: true,
+        packPhotoId: true,
+        packedAt: true,
+        merchant: { select: { id: true, name: true } },
+        darkStore: { select: { id: true, code: true } },
+        deliveries: {
+          select: {
+            proofPhotoId: true,
+            failedPhotoId: true,
+            deliveredAt: true,
+            failedAt: true,
+            rider: { select: { user: { select: { name: true } } } },
+          },
+          orderBy: { assignedAt: 'asc' },
+        },
+        _count: { select: { notes: true, alerts: true, ledgerEntries: true } },
+      },
+    });
+    const smart: DocSmartButton[] = [];
+    if (canDo(access, 'merchants', 'view'))
+      smart.push({
+        key: 'merchant',
+        count: null,
+        value: o.merchant.name,
+        href: `/admin/merchants/${o.merchant.id}`,
+      });
+    if (o.customerId && canDo(access, 'customers', 'view') && access.customerData)
+      smart.push({
+        key: 'customer',
+        count: null,
+        value: o.customerName,
+        href: `/admin/customers/${o.customerId}`,
+      });
+    smart.push({
+      key: 'store',
+      count: null,
+      value: o.darkStore.code,
+      href: `/admin/orders?f=&v=store:${o.darkStore.id}`,
+    });
+    if (canDo(access, 'accounting', 'view')) {
+      const only =
+        o._count.ledgerEntries === 1
+          ? await this.prisma.ledgerEntry.findFirst({
+              where: { orderId: id },
+              select: { id: true },
+            })
+          : null;
+      smart.push({
+        key: 'entries',
+        count: o._count.ledgerEntries,
+        href: only
+          ? `/finance/journal/${only.id}`
+          : `/finance/journal?f=&q=${encodeURIComponent(o.number)}`,
+      });
+    }
+    const attachments: { photoId: string; at: string; by: string | null; kind: string }[] = [];
+    if (o.packPhotoId)
+      attachments.push({
+        photoId: o.packPhotoId,
+        at: (o.packedAt ?? new Date()).toISOString(),
+        by: null,
+        kind: 'pack',
+      });
+    for (const d of o.deliveries) {
+      if (d.proofPhotoId)
+        attachments.push({
+          photoId: d.proofPhotoId,
+          at: (d.deliveredAt ?? new Date()).toISOString(),
+          by: d.rider.user.name,
+          kind: 'delivery',
+        });
+      if (d.failedPhotoId)
+        attachments.push({
+          photoId: d.failedPhotoId,
+          at: (d.failedAt ?? new Date()).toISOString(),
+          by: d.rider.user.name,
+          kind: 'door',
+        });
+    }
+    smart.push({ key: 'photos', count: attachments.length, href: '#attachments' });
+    smart.push({ key: 'notes', count: o._count.notes, href: '#notes' });
+    smart.push({
+      key: 'alerts',
+      count: o._count.alerts,
+      href: `/admin/alerts?f=&q=${encodeURIComponent(o.number)}`,
+    });
+    return { number: o.number, smart, attachments };
   }
 
   @Post('orders/:id/decision')
@@ -267,11 +420,29 @@ export class AdminOrdersController {
   }
 
   @Post('alerts/:id/resolve')
-  async resolve(
+  resolve(
     @Param('id') id: string,
     @CurrentUser() user: AccessTokenClaims,
     @CurrentAccess() access: AccessProfile,
   ) {
+    return this.resolveOne(id, user, access);
+  }
+
+  /** Mark several alerts as handled from the list; each is checked and audited on its own. */
+  @Post('alerts/bulk-resolve')
+  bulkResolve(
+    @Body(new ZodValidationPipe(bulkIdsSchema)) body: z.infer<typeof bulkIdsSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return eachRecord(body.ids, async (id) => {
+      if (!(await this.prisma.alert.count({ where: { id } })))
+        throw new DomainError('alert_not_found', 404);
+      await this.resolveOne(id, user, access);
+    });
+  }
+
+  private async resolveOne(id: string, user: AccessTokenClaims, access: AccessProfile) {
     const alert = await this.prisma.alert.findUnique({
       where: { id },
       select: { darkStoreId: true, merchantId: true, order: { select: { merchantId: true } } },

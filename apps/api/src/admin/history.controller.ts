@@ -1,7 +1,8 @@
 import { Controller, ForbiddenException, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { listAudit } from '@shiplynow/db';
+import { listAudit, recordRef } from '@shiplynow/db';
 import { type AccessProfile, canDo, RECORD_APPS } from '@shiplynow/shared';
+import { assertMerchant, assertStore } from '../auth/access-scope';
 import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -30,6 +31,10 @@ export class HistoryController {
     const allowed =
       canDo(access, 'settings', 'manage') || apps.some((app) => canDo(access, app, 'view'));
     if (!allowed) throw new ForbiddenException({ error: 'no_access' });
+    // A record of a known kind stays inside the person's stores and merchants.
+    const ref = await recordRef(this.prisma, entityType, entityId);
+    if (ref?.darkStoreId) assertStore(access, ref.darkStoreId);
+    if (ref?.merchantId) assertMerchant(access, ref.merchantId);
     const page = await listAudit(this.prisma, { entityType, entityId, take: 100 });
     return page.rows.map((r) => ({
       id: r.id,

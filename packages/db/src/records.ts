@@ -142,6 +142,54 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
         }
       );
     }
+    // UX phase C step 1: the Operations documents.
+    case 'order': {
+      const r = await db.order.findUnique({
+        where: { id },
+        select: { number: true, darkStoreId: true, merchantId: true },
+      });
+      return (
+        r && {
+          label: r.number,
+          href: `/admin/orders/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: r.merchantId,
+        }
+      );
+    }
+    case 'alert': {
+      const r = await db.alert.findUnique({
+        where: { id },
+        select: {
+          type: true,
+          darkStoreId: true,
+          merchantId: true,
+          order: { select: { merchantId: true } },
+        },
+      });
+      return (
+        r && {
+          label: r.type,
+          href: '/admin/alerts',
+          darkStoreId: r.darkStoreId,
+          merchantId: r.merchantId ?? r.order?.merchantId ?? null,
+        }
+      );
+    }
+    case 'damage_report': {
+      const r = await db.damageReport.findUnique({
+        where: { id },
+        select: { darkStoreId: true, merchantId: true, sku: { select: { sku: true } } },
+      });
+      return (
+        r && {
+          label: r.sku.sku,
+          href: `/admin/damage/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: r.merchantId,
+        }
+      );
+    }
     default:
       return null;
   }

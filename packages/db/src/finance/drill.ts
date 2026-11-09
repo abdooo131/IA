@@ -34,7 +34,8 @@ import {
   profitAndLoss,
   trialBalance,
 } from './books';
-import { KIND_FAMILIES, type ListScope } from './lists';
+import type { ListScope } from '../list-query';
+import { KIND_FAMILIES } from './lists';
 
 // Reports you can click into (Accounting UX phase B). The drill down reports are the same
 // functions as the plain reports (profitAndLoss, balanceSheet, trialBalance), run once for the

@@ -78,8 +78,9 @@ export interface DocLineColumn {
   kind: DocFieldKind;
 }
 
-export interface DocDescriptor {
-  type: AccountingDoc;
+/** A document page's content; T is the document kind (the Accounting ones by default). */
+export interface DocDescriptor<T extends string = AccountingDoc> {
+  type: T;
   id: string;
   number: string;
   /** Who or what the document is about (a merchant, a supplier, a rider) */
