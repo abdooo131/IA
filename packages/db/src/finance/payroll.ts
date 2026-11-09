@@ -34,7 +34,9 @@ type Tx = Prisma.TransactionClient;
 // by that company: their month is a supplier bill (see payables), and we only give them
 // advances and bonuses directly.
 
-const STAFF_ROLES = ['admin', 'finance', 'store_staff', 'rider'] as const;
+// Shiply's hub staff are monthly salaried too; couriers, like riders, are paid per delivery
+// (employees.pay_basis decides who is left out).
+const STAFF_ROLES = ['admin', 'finance', 'store_staff', 'rider', 'hub_staff'] as const;
 const MONEY_GROUPS = [1100, 1200];
 
 /** The salary deduction rules, from the settings (the law changes every year or two). */

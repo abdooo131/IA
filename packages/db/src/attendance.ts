@@ -853,8 +853,22 @@ export async function closeAttendanceDays(db: Db, now: Date = new Date(), lookba
 
 // ─── Clock in and Clock out ────────────────────────────────────────────────────
 
-/** The place a person clocks in at: their store, else the office (settings). */
-async function placeOf(db: Db, homeStoreId: string | null) {
+/** The place a person clocks in at: their store, else their Shiply hub, else the office. */
+async function placeOf(db: Db, homeStoreId: string | null, hubId: string | null = null) {
+  // Hub staff and couriers work at a Shiply hub (sorting facility or last mile hub).
+  if (!homeStoreId && hubId) {
+    const hub = await db.hub.findUnique({ where: { id: hubId } });
+    if (hub && (hub.lat !== 0 || hub.lng !== 0))
+      return {
+        kind: 'store' as const,
+        storeId: null,
+        nameEn: hub.name,
+        nameAr: hub.name,
+        lat: hub.lat,
+        lng: hub.lng,
+        radiusM: await getSetting(db, 'hr.clock_radius_m'),
+      };
+  }
   if (homeStoreId) {
     const store = await db.darkStore.findUnique({ where: { id: homeStoreId } });
     if (store)
@@ -931,7 +945,7 @@ export function clockPunch(
     const accuracyM = Math.round(pos.accuracy);
     if (accuracyM > maxAccuracy)
       throw new DomainError('position_inaccurate', 400, { accuracyM, maxAccuracyM: maxAccuracy });
-    const place = await placeOf(tx, e.homeStoreId);
+    const place = await placeOf(tx, e.homeStoreId, e.hubId);
     if (place.kind === 'office' && place.notSet)
       throw new DomainError('office_location_not_set', 409);
     const distanceM = distanceMeters({ lat: pos.lat, lng: pos.lng }, place);
@@ -1095,7 +1109,7 @@ export async function myAttendance(db: Db, input: { userId: string; now?: Date; 
   const next = addDays(`${month}-28`, 4).slice(0, 7);
   const [today, place, days, grace, maxAccuracy] = await Promise.all([
     liveToday(db, e.id, now),
-    placeOf(db, e.homeStoreId),
+    placeOf(db, e.homeStoreId, e.hubId),
     db.attendanceDay.findMany({
       where: { employeeId: e.id, day: { gte: dayDate(first), lt: dayDate(`${next}-01`) } },
       orderBy: { day: 'desc' },

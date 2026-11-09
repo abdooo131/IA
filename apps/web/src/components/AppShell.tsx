@@ -1,8 +1,8 @@
 import { headers } from 'next/headers';
-import { notFound } from 'next/navigation';
+import { notFound, redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import { PATHNAME_HEADER } from '@/lib/access';
-import { getMyProfile } from '@/lib/api-server';
+import { getMyAccess } from '@/lib/api-server';
 import { appsFor, canOpenPath } from '@/lib/apps';
 import { getTheme } from '@/lib/server-session';
 import { AccountMenu } from './AccountMenu';
@@ -24,8 +24,12 @@ export async function AppShell({
   search?: ReactNode;
   children: ReactNode;
 }) {
-  const [profile, theme, head] = await Promise.all([getMyProfile(), getTheme(), headers()]);
+  const [access, theme, head] = await Promise.all([getMyAccess(), getTheme(), headers()]);
   const pathname = head.get(PATHNAME_HEADER);
+  // No access answer means the session ended (the access token expired between the middleware
+  // check and this page): ask to sign in again rather than show not found.
+  if (!access) redirect(`/login?next=${encodeURIComponent(pathname ?? '/home')}`);
+  const profile = access.kind === 'team' ? access.profile : null;
   if (pathname && !canOpenPath(profile, pathname)) notFound();
   const apps = appsFor(profile);
   return (
