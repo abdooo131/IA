@@ -63,3 +63,21 @@ Every one of the 12 apps follows the same pattern.
    on the side of every event, who and when. Phone: the timeline moves under the details.
 4. Every action that cannot be undone asks for confirmation, and every action shows a clear
    success or error message.
+
+## Notes for the Shiply app (agreed, to be placed when we reach it)
+
+1. Sorting facilities and last mile hubs are both inside the Shiply app, not separate modules:
+   one parcel passes through both, and the handover is one recorded scan on both sides.
+2. Menu: `Parcels  Pickups  Sorting facilities▾  Last mile hubs▾  Couriers  Agents  More▾`.
+   Sorting facilities ▾: Inbound, Sorting, Outbound, stock of parcels.
+   Last mile hubs ▾: Receive, Sort, Dispatch, Returns, Cash handover.
+3. Staff land on their own station for their own facility or hub.
+4. Last mile hub flow: Receive (scan against the truck list, missing parcels flagged) → Sort by
+   delivery zone (the scan shows the zone and shelf in big letters, the zone comes from the
+   address) → Dispatch (the screen suggests the courier who covers the zone, the supervisor
+   confirms, the courier scans parcels into the run; each parcel is then assigned to that
+   courier) → End of day (returns scanned back, courier hands in cash).
+5. Every hub's ground is split into delivery zones: small groups of neighbourhoods. Each
+   courier has the zones they usually cover in their profile.
+6. The map chain: area → delivery zone → last mile hub → sorting facility. One map decides the
+   whole route.
