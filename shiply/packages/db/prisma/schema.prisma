@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["platform", "location", "merchants", "money"]
+  schemas  = ["platform", "location", "merchants", "money", "parcels"]
 }
 
 enum UserKind {
@@ -653,4 +653,220 @@ model Expense {
 
   @@map("expenses")
   @@schema("money")
+}
+
+// ───────────────────────────── parcels ─────────────────────────────
+
+/// A next day parcel. Statuses and their allowed changes live in apps/api/src/parcels/status.ts.
+model Parcel {
+  id               String   @id @default(cuid())
+  tracking         String   @unique
+  merchantId       String   @map("merchant_id")
+  merchantRef      String?  @map("merchant_ref")
+  customerName     String   @map("customer_name")
+  phone            String
+  addressText      String   @map("address_text")
+  decisionId       String?  @map("decision_id")
+  placeId          String?  @map("place_id")
+  zoneId           String?  @map("zone_id")
+  hubId            String?  @map("hub_id")
+  facilityId       String?  @map("facility_id")
+  originFacilityId String?  @map("origin_facility_id")
+  /// small, medium, large, light_bulky, heavy_bulky
+  size             String
+  codAmount        Int      @default(0) @map("cod_amount")
+  price            Int?
+  openPackage      Boolean  @default(false) @map("open_package")
+  notes            String?
+  status           String   @default("created")
+  /// forward or return
+  direction        String   @default("forward")
+  attempts         Int      @default(0)
+  courierId        String?  @map("courier_id")
+  runId            String?  @map("run_id")
+  bagId            String?  @map("bag_id")
+  pickupId         String?  @map("pickup_id")
+  createdById      String   @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  events           ParcelEvent[]
+
+  @@index([status])
+  @@index([merchantId])
+  @@index([hubId, status])
+  @@index([decisionId])
+  @@map("parcels")
+  @@schema("parcels")
+}
+
+/// The parcel's timeline: one row per status change.
+model ParcelEvent {
+  id       String   @id @default(cuid())
+  parcelId String   @map("parcel_id")
+  status   String
+  note     String?
+  userId   String?  @map("user_id")
+  siteId   String?  @map("site_id")
+  at       DateTime @default(now())
+  parcel   Parcel   @relation(fields: [parcelId], references: [id])
+
+  @@index([parcelId])
+  @@map("parcel_events")
+  @@schema("parcels")
+}
+
+/// Every scan from a station or a courier's phone. deviceScanId makes a resent scan harmless.
+model Scan {
+  id           String    @id @default(cuid())
+  deviceScanId String    @unique @map("device_scan_id")
+  step         String
+  code         String
+  parcelId     String?   @map("parcel_id")
+  bagId        String?   @map("bag_id")
+  siteId       String?   @map("site_id")
+  userId       String    @map("user_id")
+  ok           Boolean
+  reason       String?
+  answer       Json
+  at           DateTime  @default(now())
+  clientAt     DateTime? @map("client_at")
+
+  @@index([parcelId])
+  @@index([siteId, step])
+  @@map("scans")
+  @@schema("parcels")
+}
+
+model Pickup {
+  id            String   @id @default(cuid())
+  merchantId    String   @map("merchant_id")
+  date          DateTime @db.Date
+  expectedCount Int?     @map("expected_count")
+  courierId     String?  @map("courier_id")
+  /// scheduled, assigned, on_the_way, done, cancelled
+  status        String   @default("scheduled")
+  recurringId   String?  @map("recurring_id")
+  createdById   String   @map("created_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([recurringId, date])
+  @@index([date])
+  @@map("pickups")
+  @@schema("parcels")
+}
+
+model RecurringPickup {
+  id         String  @id @default(cuid())
+  merchantId String  @map("merchant_id")
+  /// 0 Sunday to 6 Saturday
+  weekdays   Int[]
+  active     Boolean @default(true)
+
+  @@map("recurring_pickups")
+  @@schema("parcels")
+}
+
+/// A sealed bag (pre printed serial seal) from one site to another, or a bag of one.
+model Bag {
+  id           String  @id @default(cuid())
+  seal         String  @unique
+  fromSiteId   String  @map("from_site_id")
+  toSiteId     String  @map("to_site_id")
+  direction    String  @default("forward")
+  /// open, closed, loaded, received, opened, done
+  status       String  @default("open")
+  single       Boolean @default(false)
+  carId        String? @map("car_id")
+  count        Int     @default(0)
+  closedById   String? @map("closed_by_id")
+  receivedById String? @map("received_by_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@map("bags")
+  @@schema("parcels")
+}
+
+/// The night car between a sorting facility and a hub (or back, for returns).
+model Car {
+  id          String    @id @default(cuid())
+  fromSiteId  String    @map("from_site_id")
+  toSiteId    String    @map("to_site_id")
+  driverName  String    @map("driver_name")
+  /// loading, departed, arrived
+  status      String    @default("loading")
+  driverCount Int?      @map("driver_count")
+  departedAt  DateTime? @map("departed_at")
+  arrivedAt   DateTime? @map("arrived_at")
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@map("cars")
+  @@schema("parcels")
+}
+
+/// Missing or extra parcels, broken seals, wrong counts: shown until someone resolves them.
+model Gap {
+  id           String    @id @default(cuid())
+  siteId       String    @map("site_id")
+  /// missing, extra, not_handed_over, seal_broken, count_mismatch
+  kind         String
+  step         String
+  parcelId     String?   @map("parcel_id")
+  bagId        String?   @map("bag_id")
+  carId        String?   @map("car_id")
+  pickupId     String?   @map("pickup_id")
+  lastScanById String?   @map("last_scan_by_id")
+  open         Boolean   @default(true)
+  note         String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  resolvedById String?   @map("resolved_by_id")
+  resolvedAt   DateTime? @map("resolved_at")
+
+  @@index([open, siteId])
+  @@map("gaps")
+  @@schema("parcels")
+}
+
+/// The delivery zones a courier usually covers (moves to Agents & Fleet when it exists).
+model CourierZone {
+  userId String @map("user_id")
+  zoneId String @map("zone_id")
+
+  @@id([userId, zoneId])
+  @@map("courier_zones")
+  @@schema("parcels")
+}
+
+/// A courier's run for one day from one hub.
+model Run {
+  id            String   @id @default(cuid())
+  hubId         String   @map("hub_id")
+  courierId     String   @map("courier_id")
+  date          DateTime @db.Date
+  /// open, out, closed
+  status        String   @default("open")
+  confirmedById String   @map("confirmed_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@unique([courierId, date])
+  @@map("runs")
+  @@schema("parcels")
+}
+
+model Attempt {
+  id            String   @id @default(cuid())
+  parcelId      String   @map("parcel_id")
+  runId         String   @map("run_id")
+  number        Int
+  /// delivered or failed
+  result        String
+  reason        String?
+  cashCollected Int      @default(0) @map("cash_collected")
+  /// otp, photo, none
+  proof         String   @default("none")
+  at            DateTime @default(now())
+
+  @@unique([parcelId, number])
+  @@map("attempts")
+  @@schema("parcels")
 }

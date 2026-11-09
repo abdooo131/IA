@@ -8,6 +8,7 @@ import type { PrismaClient } from '@shiply/db';
 import { LocationModule, type Geocoder } from './location';
 import { MerchantsModule } from './merchants';
 import { MoneyModule } from './money';
+import { ParcelsModule } from './parcels';
 import { PlatformModule } from './platform';
 
 export interface AppOptions {
@@ -18,7 +19,8 @@ export interface AppOptions {
 export async function createApp(db: PrismaClient, opts: AppOptions = {}): Promise<INestApplication> {
   const location = LocationModule.register({ geocoder: opts.geocoder });
   const merchants = MerchantsModule.register(location);
-  @Module({ imports: [PlatformModule.forRoot(db), location, merchants, MoneyModule.register(merchants)] })
+  const money = MoneyModule.register(merchants);
+  @Module({ imports: [PlatformModule.forRoot(db), location, merchants, money, ParcelsModule.register(location, merchants, money)] })
   class AppModule {}
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {

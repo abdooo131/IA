@@ -122,6 +122,14 @@ export class MerchantsService {
     return { price: Math.round((row.price * (10_000 - discountBp)) / 10_000), pricingZoneId: area.pricingZoneId, discountBp };
   }
 
+  /** What a parcel needs from the merchant: where it is picked up and the parcel terms of its active contract. */
+  async parcelTerms(merchantId: string): Promise<{ pickupPlaceId: string | null; codFeeBp: number; returnFeeBp: number; openPackageFee: number; deliveryAttempts: number } | null> {
+    const m = await this.db.merchant.findUnique({ where: { id: merchantId } });
+    if (!m || m.status !== 'approved') return null;
+    const v = await this.db.contractVersion.findFirst({ where: { status: 'active', contract: { merchantId } } });
+    return { pickupPlaceId: m.pickupPlaceId, codFeeBp: v?.codFeeBp ?? 0, returnFeeBp: v?.returnFeeBp ?? 0, openPackageFee: v?.openPackageFee ?? 0, deliveryAttempts: v?.deliveryAttempts ?? 3 };
+  }
+
   /** A pickup address that waited in the Location queue gets its area. */
   async pickupResolved(tx: Tx, merchantId: string, decisionId: string, placeId: string) {
     await tx.merchant.updateMany({ where: { id: merchantId, pickupDecisionId: decisionId }, data: { pickupPlaceId: placeId } });
