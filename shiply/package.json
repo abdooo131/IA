@@ -14,7 +14,8 @@
     "db:deploy": "pnpm --filter @shiply/db migrate:deploy",
     "db:seed": "pnpm --filter @shiply/db seed",
     "db:test": "pnpm --filter @shiply/db test",
-    "dev": "pnpm build:packages && pnpm --parallel --filter @shiply/api --filter @shiply/web dev"
+    "dev": "pnpm build:packages && pnpm --parallel --filter @shiply/api --filter @shiply/web dev",
+    "db:demo": "pnpm build:packages && pnpm --filter @shiply/api demo"
   },
   "devDependencies": {
     "@eslint/js": "9.15.0",
