@@ -8,3 +8,4 @@ export { AuditService, type AuditEntry } from './audit/audit.service';
 export { SettingsService, SETTING_DEFAULTS } from './settings/settings.service';
 export { HomeRegistry, type AttentionItem, type HomeNumber } from './home/home.registry';
 export { parse } from './validate';
+export { publish, onEvent, processDue, startEventWorker, type EventHandler } from './events';

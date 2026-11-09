@@ -12,6 +12,7 @@ import { MeController } from './home/me.controller';
 import { IdempotencyInterceptor } from './idempotency/idempotency.interceptor';
 import { SettingsController } from './settings/settings.controller';
 import { SettingsService } from './settings/settings.service';
+import { DeadLettersAttention, DeadLettersController } from './events/dead-letters.controller';
 import { DB } from './tokens';
 import { UsersController } from './users/users.controller';
 
@@ -21,13 +22,14 @@ export class PlatformModule {
     return {
       module: PlatformModule,
       global: true,
-      controllers: [AuthController, MeController, UsersController, SettingsController, AuditController],
+      controllers: [AuthController, MeController, UsersController, SettingsController, AuditController, DeadLettersController],
       providers: [
         { provide: DB, useValue: db },
         AuthService,
         SettingsService,
         AuditService,
         HomeRegistry,
+        DeadLettersAttention,
         { provide: APP_GUARD, useClass: SessionGuard },
         { provide: APP_GUARD, useClass: AccessGuard },
         { provide: APP_INTERCEPTOR, useClass: IdempotencyInterceptor },
