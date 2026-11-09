@@ -219,3 +219,56 @@ Menu: `Inbox  Tickets  Cases▾  Calls & WhatsApp  Audits  More▾`
 
 Rule: every problem is a ticket or a case with one owner and one deadline; nothing closes without
 a written outcome.
+
+## Step 3g: Agents & Fleet app (locked)
+
+Every driver, courier, rider and pickup person is outsourced through agents, for both companies.
+
+Menu: `Agents  People  Vehicles  Requests  Truck routes  Compliance`
+
+1. **Agents**: each agent company, contract and rates (per delivery, pickup, trip), services it
+   works for, performance.
+2. **People**: every courier, rider and driver: agent, role (delivery, pickup, rider, truck
+   driver), documents, zones, approval status. One person, one record, one login.
+3. **Vehicles**: the agents' vehicles: plate, type, capacity, assigned person.
+4. **Requests**: hubs and stores ask for extra people or vehicles for a day; the agent confirms.
+5. **Truck routes**: fixed routes between facilities and hubs, departure times, trip scans.
+6. **Compliance**: expired licences, insurance and documents; people blocked until fixed.
+
+No maintenance (the agent's job).
+
+Changes to apps locked earlier:
+1. Shiply: "Agents" leaves its menu; Couriers ▾ keeps only live map, shifts, earnings.
+2. Shiply Now: Riders ▾ keeps only live map, shifts, earnings.
+3. Accounting: each agent is paid by one agent settlement per period for both companies, minus
+   the cash its people hold; it becomes a bill once the agent's invoice arrives.
+4. HR: couriers and riders are not employees and are not in HR.
+
+## Step 3h: Purchasing app (locked)
+
+Stock driven. Material warehouses exist only inside the sorting facilities.
+
+Menu: `Overview  Stock  Consumption  Suggestions  Purchase orders  Receiving  Transfers  Suppliers  Items`
+
+1. **Overview**: items below their reorder point, days of cover per item, late POs.
+2. **Stock**: per material warehouse (one per sorting facility): on hand, on order, reserved for
+   transfers.
+3. **Consumption**: usage recorded automatically where possible (a flyer and an AWB label per
+   packed order, transfers out, packaging sold to merchants), per day and week, with the trend.
+4. **Suggestions**: per item and warehouse: forecast (recent average daily use weighted to the
+   latest weeks, with trend); reorder point (use during the supplier's lead time plus safety
+   stock days); recommended PO quantity (cover lead time and the period to the next order plus
+   safety stock, minus on hand and on order, rounded up to pack size and minimum order). Each
+   shows why in one line. The buyer adjusts and approves; it becomes a PO.
+5. **Purchase orders**: draft, approved (second person above a set amount), sent, partly
+   received, received.
+6. **Receiving**: count against the PO; differences flagged; the supplier bill goes to
+   Accounting.
+7. **Transfers**: material from a sorting facility warehouse to a dark store or hub. Material
+   sent to a dark store is expensed at once as operating cost on that store's cost centre (dark
+   stores do not sell it and keep no material stock). Transfers count in the forecast.
+8. **Suppliers**: prices, lead time, minimum order, pack sizes, on time rate.
+9. **Items**: unit, pack size, safety days, preferred supplier.
+
+Packaging sold to merchants is issued from the sorting facility warehouse and counts in
+consumption.
