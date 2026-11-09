@@ -9,7 +9,7 @@ async function main() {
   await app.init();
   const r = await loadDemo(app, db);
   console.log(r.message);
-  if (r.loaded) console.log(`Logins (password ${DEMO_PASSWORD}): hany@shiply.local (supervisor), mariam@shiply.local (accountant), samir@shiply.local (viewer); couriers 01100000001 to 01100000008.`);
+  if (r.loaded) console.log(`Logins (password ${DEMO_PASSWORD}): hany@shiply.local (supervisor), mariam@shiply.local (accountant), samir@shiply.local (viewer), adel@swift.local and sherif@nilex.local (agent managers); couriers 01100000001 to 01100000008.`);
   await app.close();
   await db.$disconnect();
 }

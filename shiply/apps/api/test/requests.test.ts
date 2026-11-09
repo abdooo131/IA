@@ -69,3 +69,17 @@ describe('work log', () => {
     expect(await db.workLog.findMany()).toEqual([expect.objectContaining({ kind: 'trip', agentId: fast.id })]);
   });
 });
+
+describe('screens', () => {
+  it('gives the agent manager only his own people, and the office its lookups', async () => {
+    await post('/agents/people', { agentId: fast.id, role: 'delivery', name: 'Tamer', nameAr: 'تامر', mobile: '01234567890', password: 'tamer-pass-1' });
+    const mine = (await http().get('/agents/me/overview').set('Cookie', fastBoss)).body;
+    expect(mine.agent.code).toBe('FAST');
+    expect(mine.people.map((p: { name: string }) => p.name)).toEqual(['Tamer']);
+    expect((await http().get('/agents/me/overview').set('Cookie', slowBoss)).body.people).toEqual([]);
+    expect((await http().get('/agents/me/overview').set('Cookie', owner)).status).toBe(404);
+    const look = (await http().get('/agents/lookups').set('Cookie', owner)).body;
+    expect(look.agents.map((a: { code: string }) => a.code)).toEqual(['FAST', 'SLOW']);
+    expect(look.sites.map((s: { code: string }) => s.code)).toEqual(['MAA', 'OBR']);
+  });
+});

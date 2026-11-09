@@ -41,6 +41,14 @@ describe('demo data', () => {
     expect(await db.journalEntry.count({ where: { sourceType: 'expense' } })).toBeGreaterThanOrEqual(1);
   });
 
+  it('gives each agent a manager login, vehicles, a truck route and a request to answer', async () => {
+    expect(await db.agentManager.count()).toBe(2);
+    expect(await db.vehicle.count()).toBeGreaterThanOrEqual(8);
+    expect(await db.truckRoute.count()).toBeGreaterThanOrEqual(4);
+    expect(await db.request.count({ where: { status: 'open' } })).toBeGreaterThanOrEqual(1);
+    expect(await db.person.count({ where: { blocked: true } })).toBe(0);
+  });
+
   it('adds nothing the second time', async () => {
     const parcels = await db.parcel.count();
     expect((await loadDemo(app, db)).loaded).toBe(false);

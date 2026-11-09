@@ -21,7 +21,7 @@ export async function createApp(db: PrismaClient, opts: AppOptions = {}): Promis
   const location = LocationModule.register({ geocoder: opts.geocoder });
   const merchants = MerchantsModule.register(location);
   const money = MoneyModule.register(merchants);
-  const agents = AgentsModule.register(money);
+  const agents = AgentsModule.register(money, location);
   @Module({ imports: [PlatformModule.forRoot(db), location, merchants, money, agents, ParcelsModule.register(location, merchants, money, agents)] })
   class AppModule {}
 

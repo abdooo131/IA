@@ -51,6 +51,12 @@ export default async function setup() {
   await db.courierZone.create({ data: { userId: karim.id, zoneId: zone.id } });
   const swift = await db.agent.create({ data: { code: 'SWIFT', name: 'Swift Couriers', nameAr: 'سويفت', contactName: 'Adel', phone: '+201000000090', services: ['shiply'], perDelivery: 2000, perPickup: 1500 } });
   await db.person.create({ data: { agentId: swift.id, userId: karim.id, role: 'delivery', status: 'approved', createdById: ownerUser.id } });
+  // Fleet: Swift's manager, a request waiting for Swift, and two deliveries yesterday to settle.
+  const adel = await db.user.create({ data: { name: 'Adel', nameAr: 'عادل', email: 'adel@swift.local', kind: 'agent_manager', passwordHash: await hash('adel-pass-12'), roleId: field.id } });
+  await db.agentManager.create({ data: { userId: adel.id, agentId: swift.id } });
+  await db.request.create({ data: { siteId: hel.id, date: new Date(Date.now() + 86_400_000), role: 'delivery', count: 2, agentId: swift.id, requestedById: ownerUser.id } });
+  const yesterday = new Date(Date.now() - 86_400_000);
+  await db.workLog.createMany({ data: [1, 2].map((i) => ({ sourceKey: `e2e:delivery:${i}`, agentId: swift.id, personUserId: karim.id, kind: 'delivery', companyKey: 'shiply', at: yesterday })) });
   const pickup = await db.pickup.create({ data: { merchantId: eve.id, date: new Date(new Date().toISOString().slice(0, 10)), courierId: karim.id, status: 'on_the_way', createdById: ownerUser.id } });
   await db.parcel.create({ data: { tracking: 'SP1000000009', merchantId: eve.id, customerName: 'Laila', phone: '+201001112223', addressText: 'روكسي', placeId: 'roxy', zoneId: zone.id, hubId: hel.id, facilityId: hlf.id, originFacilityId: hlf.id, size: 'small', price: 4500, status: 'picked_up', pickupId: pickup.id, createdById: ownerUser.id } });
   // Phone screens: one parcel waiting to be sorted at HLF, and courier Nour out on a run with one

@@ -31,13 +31,13 @@ export default function HomePage() {
   const me = useMe();
   const locale = useLocale();
   const router = useRouter();
-  const field = me.kind === 'agent_person';
+  const field = me.kind === 'agent_person' || me.kind === 'agent_manager';
   const [data, setData] = useState<HomeData | null>(null);
   useEffect(() => {
     // Couriers and riders land on their phone screen.
-    if (field) router.replace('/courier');
+    if (field) router.replace(me.kind === 'agent_manager' ? '/agent' : '/courier');
     else void api<HomeData>('/me/home').then(setData);
-  }, [field, router]);
+  }, [field, me.kind, router]);
   if (field) return null;
   return (
     <>

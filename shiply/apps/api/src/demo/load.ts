@@ -145,6 +145,24 @@ export async function loadDemo(app: INestApplication, db: PrismaClient): Promise
     couriers.push({ id: u.id, user: { id: u.id, kind: 'agent_person', access: allAccess('none') }, zone: c.zone, hub });
   }
 
+  // Each agent has a manager login, every courier a motorbike, and the night trucks run on routes.
+  for (const [i, a] of agents.entries()) {
+    const m = await db.user.create({ data: { name: i ? 'Sherif Lotfy' : 'Adel Mounir', nameAr: i ? 'شريف لطفي' : 'عادل منير', email: i ? 'sherif@nilex.local' : 'adel@swift.local', kind: 'agent_manager', passwordHash: pw, roleId: fieldRole.id } });
+    await db.agentManager.create({ data: { userId: m.id, agentId: a.id } });
+  }
+  for (const [i, c] of couriers.entries()) {
+    const person = await db.person.findUniqueOrThrow({ where: { userId: c.id } });
+    const v = await db.vehicle.create({ data: { agentId: person.agentId, plate: `MTR${1001 + i}`, type: 'motorbike', personId: person.id } });
+    await db.document.createMany({ data: [
+      { vehicleId: v.id, kind: 'vehicle_licence', number: `VL-${1001 + i}`, expiresAt: new Date(Date.now() + 300 * 86_400_000), createdById: hany.id },
+      { vehicleId: v.id, kind: 'insurance', number: `IN-${1001 + i}`, expiresAt: new Date(Date.now() + 200 * 86_400_000), createdById: hany.id },
+    ] });
+  }
+  for (const [i, h] of HUBS.entries()) {
+    await db.truckRoute.create({ data: { code: `OBR-${h.code}`, fromSiteId: obr.id, toSiteId: hubs[h.code]!.id, departAt: `2${i}:30`, agentId: agents[i % 2]!.id } });
+  }
+  await db.request.create({ data: { siteId: hubs.NSR!.id, date: new Date(Date.now() + 86_400_000), role: 'delivery', count: 3, note: 'White Friday week', agentId: agents[0]!.id, requestedById: hany.id } });
+
   // ── parcels: created through the real address engine ──
   const shiplyMerchants = MERCHANTS.filter((m) => m.services.includes('shiply'));
   const made: { id: string; tracking: string; merchant: string; cod: number }[] = [];

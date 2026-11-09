@@ -7,6 +7,7 @@ import { RequestsController } from './requests.controller';
 import { RoutesController } from './routes.controller';
 import { WorkLogService } from './worklog.service';
 import { SettlementsController } from './settlements.controller';
+import { ScreensController } from './screens.controller';
 import { AgentsController } from './agents.controller';
 import { AgentsService } from './agents.service';
 import { PeopleController } from './people.controller';
@@ -28,11 +29,11 @@ class AgentsWiring implements OnModuleInit {
 
 @Module({})
 export class AgentsModule {
-  static register(money: DynamicModule): DynamicModule {
+  static register(money: DynamicModule, location: DynamicModule): DynamicModule {
     return {
       module: AgentsModule,
-      imports: [money],
-      controllers: [PeopleController, VehiclesController, RequestsController, RoutesController, SettlementsController, AgentsController],
+      imports: [money, location],
+      controllers: [ScreensController, PeopleController, VehiclesController, RequestsController, RoutesController, SettlementsController, AgentsController],
       providers: [AgentsService, ComplianceService, WorkLogService, AgentsWiring],
       exports: [AgentsService, ComplianceService],
     };
