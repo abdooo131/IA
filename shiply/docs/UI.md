@@ -199,3 +199,23 @@ next day (stock missing or zone closed: the order passes to Shiply automatically
 
 Moved out: zones and addresses → Location; packaging → Purchasing; damage cases → CS and QC.
 Store staff land on their store's floor; riders on their phone screen.
+
+## Step 3f: CS and QC app (locked)
+
+Menu: `Inbox  Tickets  Cases▾  Calls & WhatsApp  Audits  More▾`
+
+1. **Inbox**: everything waiting, oldest first, deadline timer: new tickets, customer replies,
+   failed deliveries needing a call, addresses needing a location.
+2. **Tickets**: from merchants (portal), customers (calls, WhatsApp), staff; type, priority,
+   owner, deadline, conversation.
+3. **Cases ▾**: damaged, lost, wrong item, delivery disputes, compensation claims; linked to the
+   parcel or order, photos and cash. Compensation is paid by Accounting after a second person
+   approves.
+4. **Calls & WhatsApp**: the customer conversation for any parcel or order, with templates
+   (reschedule, confirm address, failed delivery reason).
+5. **Audits**: delivery photo checks, random checks on couriers and riders, fake failed attempt
+   detection (for example "not answering" with no call logged).
+6. **More ▾**: reasons, templates, deadlines per ticket type.
+
+Rule: every problem is a ticket or a case with one owner and one deadline; nothing closes without
+a written outcome.
