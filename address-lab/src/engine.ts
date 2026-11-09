@@ -24,9 +24,13 @@ const ENTRANCE = words('مدخل entrance');
 const NUMBER_WORDS = words('رقم no number num nr');
 const STREET = words('شارع ش طريق محور street st str road rd');
 const LANDMARK_MARKERS = words(
-  'بجوار جنب امام أمام قدام خلف ورا وراء قرب بالقرب عند قصاد بجانب near beside behind opposite besides nearby infront next',
+  'بجوار جنب امام أمام قدام خلف ورا وراء قرب بالقرب عند قصاد بجانب مقابل near beside behind opposite besides nearby infront next close across around facing',
 );
-const LANDMARK_LINKS = words('من to of the الى ل');
+/** Everyday words that are never place names: kept out of typo matching and unknown words. */
+const COMMON_WORDS = words(
+  'main old big small great grand famous public private local central national international new first second third fourth fifth last corner side end entrance exit gate front back after before off along from with by for at up down left right top bottom building office center centre area road lane way walkway square bridge tower house home shop store market factory hospital clinic police fire station school university faculty college campus church mosque bank post court courthouse council municipal registry civil youth sports club stadium hotel restaurant cafe bakery pharmacy grocery petrol gas fuel tree canal river nile sea beach desert oasis village city town water tank telephone cultural historic historical palace citadel automatic crossing railway metro agricultural textile garden gardens park',
+);
+const LANDMARK_LINKS = words('من to of the from الى ل');
 const LANDMARK_NOUNS = words(
   'مسجد جامع كنيسة مول صيدلية مدرسة مستشفى مستشفي نادي بنك سوبرماركت ماركت محطة مترو كافيه مطعم فندق جامعة كلية مخبز فرن mosque church mall pharmacy school hospital club bank market supermarket station metro cafe restaurant hotel university college bakery',
 );
@@ -47,6 +51,8 @@ interface Token {
   norm: string;
   key: string;
   use: Use;
+  /** a comma, a new line or a semicolon comes just before this word */
+  brk: boolean;
 }
 
 export type Method = 'exact' | 'skeleton' | 'typo';
@@ -109,11 +115,15 @@ const label = (g: Gazetteer, p: Place) =>
 
 function tokenize(text: string): Token[] {
   const out: Token[] = [];
-  for (const rawWord of text.split(/[\s,،;؛.\-_/\\|()[\]{}"'«»:]+/u)) {
-    if (!rawWord) continue;
-    const pieces = normalizeText(rawWord).split(' ').filter(Boolean);
-    for (const norm of pieces) {
-      out.push({ raw: pieces.length === 1 ? rawWord : norm, norm, key: foldWord(norm), use: null });
+  for (const segment of text.split(/[,،;؛\n\r|]+/u)) {
+    let first = true;
+    for (const rawWord of segment.split(/[\s.\-_/\\()[\]{}"'«»:]+/u)) {
+      if (!rawWord) continue;
+      const pieces = normalizeText(rawWord).split(' ').filter(Boolean);
+      for (const norm of pieces) {
+        out.push({ raw: pieces.length === 1 ? rawWord : norm, norm, key: foldWord(norm), use: null, brk: first && out.length > 0 });
+        first = false;
+      }
     }
   }
   return out;
@@ -172,6 +182,10 @@ function contentRuns(tokens: Token[]): number[][] {
   let cur: number[] = [];
   for (let i = 0; i < tokens.length; i++) {
     const t = tokens[i];
+    if (t.brk && cur.length) {
+      runs.push(cur);
+      cur = [];
+    }
     if (t.use) {
       if (cur.length) runs.push(cur);
       cur = [];
@@ -203,7 +217,7 @@ function findPlaces(tokens: Token[], g: Gazetteer): Match[] {
             ids = sk ? g.skeletons.get(sk) : undefined;
           } else {
             if (/^\d+$/.test(key.replace(/ /g, ''))) continue;
-            if (idx.some((i) => MARKERS.has(tokens[i].norm) || FILLER.has(tokens[i].norm))) continue;
+            if (idx.some((i) => MARKERS.has(tokens[i].norm) || FILLER.has(tokens[i].norm) || LANDMARK_NOUNS.has(tokens[i].norm) || COMMON_WORDS.has(tokens[i].norm))) continue;
             const allowed = key.length >= 10 ? 2 : key.length >= 5 ? 1 : 0;
             if (!allowed) continue;
             let best = allowed + 1;
@@ -251,8 +265,8 @@ function takeStreetAndLandmark(tokens: Token[], matches: Match[], parts: Parts, 
 
     if (STREET.has(t.norm)) {
       let j = i + 1;
-      while (j < tokens.length && NUMBER_WORDS.has(tokens[j].norm)) j++;
-      const m = matchAt(j);
+      while (j < tokens.length && NUMBER_WORDS.has(tokens[j].norm) && !tokens[j].brk) j++;
+      const m = tokens[j]?.brk ? undefined : matchAt(j);
       if (m) {
         const allStreets = m.ids.every((id) => g.byId.get(id)!.kind === 'street');
         if (!allStreets) m.afterStreet = true;
@@ -263,7 +277,7 @@ function takeStreetAndLandmark(tokens: Token[], matches: Match[], parts: Parts, 
       const taken: Token[] = [];
       while (j < tokens.length && taken.length < 4) {
         const n = tokens[j];
-        if (n.use || MARKERS.has(n.norm) || LANDMARK_NOUNS.has(n.norm) || matchAt(j)) break;
+        if (n.brk || n.use || MARKERS.has(n.norm) || LANDMARK_NOUNS.has(n.norm) || matchAt(j)) break;
         taken.push(n);
         j++;
         if (/^\d+$/.test(n.norm) && taken.length > 1) break;
@@ -285,6 +299,7 @@ function takeStreetAndLandmark(tokens: Token[], matches: Match[], parts: Parts, 
       const limit = isNoun ? 4 : 5;
       while (j < tokens.length && taken.length < limit) {
         const n = tokens[j];
+        if (n.brk && taken.length > 0) break;
         if (n.use === 'part' || n.use === 'street' || STREET.has(n.norm) || LANDMARK_MARKERS.has(n.norm)) break;
         if (n.use === 'place') {
           const m = matches.find((x) => x.start <= j && j <= x.end);
@@ -383,7 +398,7 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
     }),
   );
   const unknownWords = tokens
-    .filter((t) => !t.use && t.key && !/\d/.test(t.norm) && t.norm.length >= 3 && !FILLER.has(t.norm) && !MARKERS.has(t.norm) && !LANDMARK_NOUNS.has(t.norm))
+    .filter((t) => !t.use && t.key && !/\d/.test(t.norm) && t.norm.length >= 3 && !FILLER.has(t.norm) && !MARKERS.has(t.norm) && !LANDMARK_NOUNS.has(t.norm) && !COMMON_WORDS.has(t.norm))
     .map((t) => t.norm);
 
   const base = { input, parts, matches: matchList, unknownWords };
@@ -490,7 +505,13 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
       (e) => e.match.method === 'exact' && !e.match.afterStreet && e.place.kind !== 'governorate' && e.place.kind !== 'street',
     );
     const agreeing = new Set(best.support.map((e) => e.match)).size;
-    if (strong || agreeing >= 2) {
+    // A governorate written outright beats an area found only from a landmark or a street.
+    const govConflict = evidence.some((e) => e.place.kind === 'governorate' && !bestLine.includes(e.place.id));
+    if (govConflict && !strong) {
+      status = 'unsure';
+      reasons.unshift(`The address names another governorate; ${area.en} was found only from a landmark or a street`);
+      confidence = Math.min(confidence, 50);
+    } else if (strong || agreeing >= 2) {
       status = 'sure';
       if (narrowed) reasons.unshift(narrowed);
       if (rival) reasons.push(`Also found ${label(g, rival.area)}, but the evidence for it is weaker`);

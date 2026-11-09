@@ -126,3 +126,18 @@ test('Hadayek: alone it lists every option, with a street it is decided', () => 
   assert.equal(r.area?.id, 'hadayek-el-kobba');
   assert.equal(r.parts.street, 'masr wel sodan');
 });
+
+test('a pasted numbered list with commas is read one address per line', async () => {
+  const { extractAddresses } = await import('../src/bulk.ts');
+  const { addresses } = extractAddresses('1. Behind the bank, Nasr City, Cairo\n2. Near the station, Tanta, Gharbia');
+  assert.deepEqual(addresses, ['Behind the bank, Nasr City, Cairo', 'Near the station, Tanta, Gharbia']);
+  const csv = extractAddresses('Name,Shipping Address1,Shipping City\nAli,12 st 9,Maadi');
+  assert.deepEqual(csv.addresses, ['12 st 9, Maadi']);
+});
+
+test('commas end a landmark, and everyday words are not read as places', () => {
+  const r = parse('Around the corner from the high school, Damanhour, Beheira');
+  assert.equal(r.status, 'outside');
+  assert.equal(parse('Near the automatic bakery, El Arish, North Sinai').status, 'outside');
+  assert.equal(parse('Behind the police station, Faisal, Giza').parts.landmark, 'police station');
+});

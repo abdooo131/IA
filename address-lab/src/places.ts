@@ -169,7 +169,7 @@ hood('ard-el-golf', 'heliopolis', 'Ard El Golf', 'أرض الجولف', ['ard el
 hood('almaza', 'heliopolis', 'Almaza', 'ألماظة', ['almaza', 'el maza', 'الماظه']);
 hood('saint-fatima', 'heliopolis', 'Saint Fatima', 'سانت فاتيما', ['saint fatima', 'st fatima', 'santa fatima']);
 hood('higaz-square', 'heliopolis', 'El Higaz Square', 'ميدان الحجاز', ['higaz square', 'hegaz square', 'midan el higaz']);
-hood('manshiet-el-bakry', 'heliopolis', 'Manshiet El Bakry', 'منشية البكري', ['manshiet el bakry', 'manshyet el bakry', 'el bakry']);
+hood('manshiet-el-bakry', 'heliopolis', 'Manshiet El Bakry', 'منشية البكري', ['manshiet el bakry', 'manshyet el bakry']);
 hood('sabaa-emarat', 'heliopolis', 'El Sabaa Emarat', 'السبع عمارات', ['el sabaa emarat', 'seven buildings']);
 hood('emarat-el-obour', 'heliopolis', 'Emarat El Obour', 'عمارات العبور', ['emarat el obour', 'obour buildings']);
 hood('triumph', 'heliopolis', 'Triumph', 'التريومف', ['triumph', 'triomph', 'ميدان التريومف']);
@@ -228,7 +228,7 @@ hood('ain-el-sira', 'masr-el-qadima', 'Ain El Sira', 'عين الصيرة', ['ai
 dist('khalifa', 'cairo', 'El Khalifa', 'الخليفة', ['el khalifa', 'khalifa']);
 hood('sayeda-nafisa', 'khalifa', 'El Sayeda Nafisa', 'السيدة نفيسة', ['sayeda nafisa', 'el sayeda nafisa']);
 hood('sayeda-aisha', 'khalifa', 'El Sayeda Aisha', 'السيدة عائشة', ['sayeda aisha', 'el sayeda aisha', 'السيده عيشه']);
-mark('citadel', 'khalifa', 'The Citadel', 'القلعة', ['citadel', 'el qalaa', 'salah el din citadel']);
+mark('citadel', 'khalifa', 'Salah El Din Citadel', 'قلعة صلاح الدين', ['salah el din citadel', 'saladin citadel', 'cairo citadel', 'qalaat salah el din']);
 dist('mokattam', 'cairo', 'El Mokattam', 'المقطم', ['mokattam', 'el mokattam', 'mokatam', 'mukattam', 'moqattam', 'el moqattam', 'هضبة المقطم']);
 hood('hadaba-wosta', 'mokattam', 'El Hadaba El Wosta', 'الهضبة الوسطى', ['el hadaba el wosta', 'hadaba wosta', 'middle plateau']);
 hood('hadaba-olya', 'mokattam', 'El Hadaba El Olya', 'الهضبة العليا', ['el hadaba el olya', 'hadaba olya', 'upper plateau']);
@@ -384,9 +384,9 @@ const OUTSIDE: [string, string, string, string[]][] = [
   ['alexandria', 'Alexandria', 'الإسكندرية', ['alex', 'alexandria', 'اسكندرية', 'اسكندريه', 'smouha', 'سموحة', 'sidi gaber', 'سيدي جابر', 'miami alex', 'agami', 'العجمي']],
   ['dakahlia', 'Dakahlia', 'الدقهلية', ['dakahlia', 'mansoura', 'el mansoura', 'المنصورة', 'منصوره']],
   ['sharqia', 'Sharqia', 'الشرقية', ['sharqia', 'sharkia', 'el sharkia', 'zagazig', 'الزقازيق', '10th of ramadan', 'العاشر من رمضان']],
-  ['gharbia', 'Gharbia', 'الغربية', ['gharbia', 'tanta', 'طنطا', 'el mahalla', 'المحلة', 'المحلة الكبرى']],
-  ['monufia', 'Monufia', 'المنوفية', ['monufia', 'menoufia', 'shebin el kom', 'شبين الكوم', 'sadat city', 'مدينة السادات']],
-  ['beheira', 'Beheira', 'البحيرة', ['beheira', 'damanhour', 'دمنهور', 'kafr el dawar', 'كفر الدوار']],
+  ['gharbia', 'Gharbia', 'الغربية', ['gharbia', 'tanta', 'طنطا', 'el mahalla', 'mahalla', 'el mahalla el kubra', 'mahalla el kobra', 'المحلة', 'المحلة الكبرى']],
+  ['monufia', 'Monufia', 'المنوفية', ['monufia', 'menoufia', 'menofia', 'shebin el kom', 'shibin el kom', 'shibin al kawm', 'shebin el koum', 'شبين الكوم', 'sadat city', 'مدينة السادات']],
+  ['beheira', 'Beheira', 'البحيرة', ['beheira', 'behira', 'damanhour', 'دمنهور', 'kafr el dawar', 'كفر الدوار', 'rosetta', 'rashid', 'rasheed', 'رشيد']],
   ['kafr-el-sheikh', 'Kafr El Sheikh', 'كفر الشيخ', ['kafr el sheikh']],
   ['damietta', 'Damietta', 'دمياط', ['damietta', 'domyat', 'new damietta']],
   ['port-said', 'Port Said', 'بورسعيد', ['port said', 'بور سعيد', 'portsaid']],

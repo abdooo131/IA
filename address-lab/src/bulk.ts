@@ -36,6 +36,8 @@ export function parseCsv(text: string): string[][] {
 }
 
 const ADDRESS_HEADER = /address|addr|street|city|province|area|zone|district|governorate|region|عنوان|العنوان|شارع|منطق|محافظ|مدينه|مدينة|حي/i;
+const HEADER_CELL =
+  /^((shipping|billing|customer|delivery|receiver|consignee)[ _]?)?(address([ _]?(line)?[ _]?[123])?|addr[123]?|street|city|province|state|area|zone|district|governorate|region|neighbou?rhood|العنوان|عنوان|المنطقة|المنطقه|المحافظة|المحافظه|المدينة|المدينه|الشارع|الحي)$/i;
 const NOT_ADDRESS_HEADER = /phone|mobile|tel|email|name|price|total|cod|amount|sku|qty|quantity|date|id$|هاتف|موبايل|تليفون|اسم|سعر|مبلغ|تاريخ/i;
 
 export interface Extracted {
@@ -51,9 +53,18 @@ export interface Extracted {
 export function extractAddresses(text: string, limit = 20000): Extracted {
   const clean = text.replace(/^﻿/, '');
   const lines = clean.split(/\r?\n/).filter((l) => l.trim());
-  const looksCsv = lines.length > 1 && lines.slice(0, 5).every((l) => /[,\t;]/.test(l)) && ADDRESS_HEADER.test(lines[0]);
+  // A spreadsheet only when the first row is a real header: short cells, and one
+  // cell that is exactly an address column name. A pasted list with commas is not a CSV.
+  const headerCells = lines.length > 1 ? parseCsv(lines[0])[0] ?? [] : [];
+  const looksCsv =
+    headerCells.length > 1 &&
+    headerCells.every((c) => c.trim().length <= 40) &&
+    headerCells.some((c) => HEADER_CELL.test(c.trim()));
   if (!looksCsv) {
-    const addresses = lines.map((l) => l.trim().replace(/^"(.*)"$/, '$1')).slice(0, limit);
+    const addresses = lines
+      .map((l) => l.trim().replace(/^"(.*)"$/, '$1').replace(/^\s*(\d{1,5}\s*[.)\-:]|[•*\-])\s+/, ''))
+      .filter(Boolean)
+      .slice(0, limit);
     return { addresses, note: `${addresses.length} lines, one address per line` };
   }
   const rows = parseCsv(clean);
