@@ -67,3 +67,15 @@ describe('review fixes', () => {
     expect(normalizeEgyptMobile('‎01012345678‏')).toBe('+201012345678');
   });
 });
+
+import { parseEgp } from './index';
+describe('typed amounts', () => {
+  it('reads Arabic digits, commas and spaces', () => {
+    expect(parseEgp('1,000')).toBe(100000);
+    expect(parseEgp('٩٥٠')).toBe(95000);
+    expect(parseEgp('١٢٫٥')).toBe(1250);
+    expect(parseEgp(' 12.50 ')).toBe(1250);
+    expect(parseEgp(40)).toBe(4000);
+    expect(() => parseEgp('abc')).toThrow();
+  });
+});

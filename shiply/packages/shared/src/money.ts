@@ -19,3 +19,18 @@ export function formatEgp(p: number, locale: 'ar' | 'en'): string {
   const text = `${sign}${Math.floor(abs / 100).toLocaleString('en-US')}.${String(abs % 100).padStart(2, '0')}`;
   return locale === 'en' ? `EGP ${text}` : `${text} ج.م`;
 }
+
+/**
+ * An amount as people type it: Arabic or Latin digits, thousands commas, spaces, the Arabic
+ * decimal mark. "1,000" → 100000, "٩٥٠" → 95000, "١٢٫٥" → 1250.
+ */
+export function parseEgp(input: string | number): number {
+  if (typeof input === 'number') return toPiastres(String(input));
+  const s = input
+    .trim()
+    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
+    .replace(/[۰-۹]/g, (d) => String('۰۱۲۳۴۵۶۷۸۹'.indexOf(d)))
+    .replace(/٫/g, '.')
+    .replace(/[,،\s]/g, '');
+  return toPiastres(s);
+}
