@@ -1,5 +1,6 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common';
 import type { PrismaClient } from '@shiply/db';
+import { AgentsService } from '../agents';
 import { DB, peopleOfKind } from '../platform';
 
 const today = () => new Date(new Date().toISOString().slice(0, 10));
@@ -7,7 +8,10 @@ const today = () => new Date(new Date().toISOString().slice(0, 10));
 /** Couriers' zones, the suggestion at dispatch, and runs. */
 @Injectable()
 export class RunsService {
-  constructor(@Inject(DB) private readonly db: PrismaClient) {}
+  constructor(
+    @Inject(DB) private readonly db: PrismaClient,
+    @Inject(AgentsService) private readonly agents: AgentsService,
+  ) {}
 
   async couriers() {
     const [people, zones] = await Promise.all([peopleOfKind(this.db, 'agent_person'), this.db.courierZone.findMany()]);
@@ -34,6 +38,7 @@ export class RunsService {
   async create(hubId: string, courierId: string, userId: string) {
     const person = (await peopleOfKind(this.db, 'agent_person')).find((p) => p.id === courierId && p.active);
     if (!person) throw new HttpException({ error: 'not_a_courier' }, 400);
+    await this.agents.assertCanWork(courierId);
     if (await this.db.run.findUnique({ where: { courierId_date: { courierId, date: today() } } })) throw new HttpException({ error: 'run_exists' }, 409);
     return this.db.run.create({ data: { hubId, courierId, date: today(), confirmedById: userId } });
   }

@@ -44,10 +44,10 @@ class ParcelsWiring implements OnModuleInit {
 
 @Module({})
 export class ParcelsModule {
-  static register(location: DynamicModule, merchants: DynamicModule, money: DynamicModule): DynamicModule {
+  static register(location: DynamicModule, merchants: DynamicModule, money: DynamicModule, agents: DynamicModule): DynamicModule {
     return {
       module: ParcelsModule,
-      imports: [location, merchants, money],
+      imports: [location, merchants, money, agents],
       controllers: [ScanController, PickupsController, FacilityController, HubController, ReadsController, ParcelsController],
       providers: [ParcelsService, ScanService, PickupsService, GapsService, FacilityService, BagsService, HubService, RunsService, CourierService, ParcelsWiring],
       exports: [ParcelsService],

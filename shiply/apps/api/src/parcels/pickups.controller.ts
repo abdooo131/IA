@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, HttpException, Inject, Param, Patch, P
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
+import { AgentsService } from '../agents';
 import { AuditService, DB, NeedAccess, parse } from '../platform';
 import { PickupsService } from './pickups.service';
 
@@ -14,6 +15,7 @@ export class PickupsController {
     @Inject(DB) private readonly db: PrismaClient,
     @Inject(PickupsService) private readonly pickups: PickupsService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(AgentsService) private readonly agents: AgentsService,
   ) {}
 
   @Get('pickups')
@@ -66,6 +68,7 @@ export class PickupsController {
     const { courierId } = parse(z.object({ courierId: z.string().min(1) }), body);
     const c = await this.db.user.findUnique({ where: { id: courierId } });
     if (!c?.active || c.kind !== 'agent_person') throw new HttpException({ error: 'not_a_courier' }, 400);
+    await this.agents.assertCanWork(courierId);
     const { count } = await this.db.pickup.updateMany({ where: { id, status: { in: ['scheduled', 'assigned'] } }, data: { courierId, status: 'assigned' } });
     if (!count) throw new HttpException({ error: 'wrong_status' }, 409);
     return this.db.pickup.findUniqueOrThrow({ where: { id } });

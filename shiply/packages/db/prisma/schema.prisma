@@ -6,7 +6,7 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
-  schemas  = ["platform", "location", "merchants", "money", "parcels"]
+  schemas  = ["platform", "location", "merchants", "money", "parcels", "agents"]
 }
 
 enum UserKind {
@@ -792,6 +792,8 @@ model Car {
   fromSiteId  String    @map("from_site_id")
   toSiteId    String    @map("to_site_id")
   driverName  String    @map("driver_name")
+  /// the truck route it runs on, when made from one (Agents & Fleet)
+  routeId     String?   @map("route_id")
   /// loading, departed, arrived
   status      String    @default("loading")
   driverCount Int?      @map("driver_count")
@@ -869,4 +871,165 @@ model Attempt {
   @@unique([parcelId, number])
   @@map("attempts")
   @@schema("parcels")
+}
+
+// ───────────────────────────── agents ─────────────────────────────
+
+/// A courier company. Every courier, rider, pickup person and driver works through one.
+model Agent {
+  id            String   @id @default(cuid())
+  code          String   @unique
+  name          String
+  nameAr        String   @map("name_ar")
+  contactName   String   @map("contact_name")
+  phone         String
+  services      String[]
+  perDelivery   Int      @default(0) @map("per_delivery")
+  perPickup     Int      @default(0) @map("per_pickup")
+  perTrip       Int      @default(0) @map("per_trip")
+  perRiderOrder Int      @default(0) @map("per_rider_order")
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@map("agents")
+  @@schema("agents")
+}
+
+/// An agent manager's login, tied to one agent.
+model AgentManager {
+  userId  String @id @map("user_id")
+  agentId String @map("agent_id")
+
+  @@map("agent_managers")
+  @@schema("agents")
+}
+
+/// One courier, rider, pickup person or truck driver: one record, one login.
+model Person {
+  id            String   @id @default(cuid())
+  agentId       String   @map("agent_id")
+  userId        String   @unique @map("user_id")
+  /// delivery, pickup, rider, truck_driver
+  role          String
+  nationalId    String?  @map("national_id")
+  /// pending, approved, rejected
+  status        String   @default("pending")
+  blocked       Boolean  @default(false)
+  blockedReason String?  @map("blocked_reason")
+  createdById   String   @map("created_by_id")
+  approvedById  String?  @map("approved_by_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@map("people")
+  @@schema("agents")
+}
+
+model Vehicle {
+  id         String  @id @default(cuid())
+  agentId    String  @map("agent_id")
+  plate      String  @unique
+  /// motorbike, car, van, truck
+  type       String
+  capacityKg Int?    @map("capacity_kg")
+  personId   String? @map("person_id")
+  active     Boolean @default(true)
+
+  @@map("vehicles")
+  @@schema("agents")
+}
+
+model Document {
+  id          String    @id @default(cuid())
+  personId    String?   @map("person_id")
+  vehicleId   String?   @map("vehicle_id")
+  /// national_id, driving_licence, vehicle_licence, insurance, criminal_record
+  kind        String
+  number      String
+  expiresAt   DateTime? @map("expires_at") @db.Date
+  createdById String    @map("created_by_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  @@index([personId])
+  @@index([vehicleId])
+  @@map("documents")
+  @@schema("agents")
+}
+
+/// A hub or store asks for extra people or vehicles for a day; the agent confirms.
+model Request {
+  id            String    @id @default(cuid())
+  siteId        String    @map("site_id")
+  date          DateTime  @db.Date
+  role          String
+  count         Int
+  vehicleType   String?   @map("vehicle_type")
+  note          String?
+  /// a request to one agent, or to any agent when empty
+  agentId       String?   @map("agent_id")
+  /// open, confirmed, declined, cancelled
+  status        String    @default("open")
+  requestedById String    @map("requested_by_id")
+  answeredById  String?   @map("answered_by_id")
+  answeredAgentId String? @map("answered_agent_id")
+  answeredAt    DateTime? @map("answered_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  @@map("requests")
+  @@schema("agents")
+}
+
+/// A fixed route between a facility and a hub, run by an agent's truck.
+model TruckRoute {
+  id         String  @id @default(cuid())
+  code       String  @unique
+  fromSiteId String  @map("from_site_id")
+  toSiteId   String  @map("to_site_id")
+  /// HH:MM
+  departAt   String  @map("depart_at")
+  agentId    String  @map("agent_id")
+  vehicleId  String? @map("vehicle_id")
+  active     Boolean @default(true)
+
+  @@map("truck_routes")
+  @@schema("agents")
+}
+
+/// Work done by an agent's people, learnt from the other modules' events: what settlements count.
+model WorkLog {
+  id           String   @id @default(cuid())
+  sourceKey    String   @unique @map("source_key")
+  agentId      String   @map("agent_id")
+  personUserId String?  @map("person_user_id")
+  /// delivery, pickup, trip, rider_order
+  kind         String
+  companyKey   String   @map("company_key")
+  at           DateTime
+
+  @@index([agentId, at])
+  @@map("work_log")
+  @@schema("agents")
+}
+
+/// One settlement per agent per period, for both companies.
+model Settlement {
+  id            String   @id @default(cuid())
+  agentId       String   @map("agent_id")
+  from          DateTime @db.Date
+  to            DateTime @db.Date
+  lines         Json
+  gross         Int
+  cashHeld      Int      @map("cash_held")
+  net           Int
+  /// draft, approved, billed, cancelled
+  status        String   @default("draft")
+  preparedById  String   @map("prepared_by_id")
+  approvedById  String?  @map("approved_by_id")
+  invoiceNumber String?  @map("invoice_number")
+  billIds       String[] @map("bill_ids")
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  @@index([agentId])
+  @@map("settlements")
+  @@schema("agents")
 }

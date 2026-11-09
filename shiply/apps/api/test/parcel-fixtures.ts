@@ -23,7 +23,11 @@ export async function network(app: INestApplication, owner: string[]) {
 export async function courier(name: string, mobile: string) {
   const { hash } = await import('argon2');
   const role = await db.jobRole.findUniqueOrThrow({ where: { key: 'field' } });
-  return db.user.create({ data: { name, nameAr: name, mobile: `+2${mobile}`, kind: 'agent_person', passwordHash: await hash(`${name}-pass-1`), roleId: role.id } });
+  const user = await db.user.create({ data: { name, nameAr: name, mobile: `+2${mobile}`, kind: 'agent_person', passwordHash: await hash(`${name}-pass-1`), roleId: role.id } });
+  // An approved person of an active agent, so the work gate lets him work.
+  const agent = await db.agent.upsert({ where: { code: 'FIX' }, create: { code: 'FIX', name: 'Fixture Agent', nameAr: 'وكيل', contactName: 'x', phone: '+201000000000', services: ['shiply'], perDelivery: 2000, perPickup: 1500 }, update: {} });
+  await db.person.create({ data: { agentId: agent.id, userId: user.id, role: 'delivery', status: 'approved', createdById: user.id } });
+  return user;
 }
 
 /** A scan as the phone sends it. */

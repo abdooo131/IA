@@ -124,12 +124,18 @@ export async function loadDemo(app: INestApplication, db: PrismaClient): Promise
     n += 1;
   }
 
+  // ── two agent companies; every courier belongs to one ──
+  const agents = [
+    await db.agent.create({ data: { code: 'SWIFT', name: 'Swift Couriers', nameAr: 'سويفت للتوصيل', contactName: 'Adel Mounir', phone: '+201000000090', services: ['shiply', 'shiply_now'], perDelivery: 2000, perPickup: 1500, perTrip: 30000, perRiderOrder: 1800 } }),
+    await db.agent.create({ data: { code: 'NILEX', name: 'Nile Express', nameAr: 'نايل إكسبريس', contactName: 'Sherif Lotfy', phone: '+201000000091', services: ['shiply'], perDelivery: 2200, perPickup: 1500, perTrip: 32000 } }),
+  ];
   // ── couriers (agent people) and their zones ──
   const couriers: { id: string; user: SessionUser; zone: string; hub: string }[] = [];
   for (const [i, c] of COURIERS.entries()) {
     const u = await db.user.create({ data: { name: c.name, nameAr: c.nameAr, mobile: `+2011000000${String(i + 1).padStart(2, '0')}`, kind: 'agent_person', passwordHash: pw, roleId: fieldRole.id } });
     const hub = HUBS.find((h) => h.zones.some((z) => z.code === c.zone))!.code;
     await db.courierZone.create({ data: { userId: u.id, zoneId: hubs[hub]!.zones[c.zone]! } });
+    await db.person.create({ data: { agentId: agents[i % 2]!.id, userId: u.id, role: 'delivery', nationalId: `2900101${String(1000000 + i)}`, status: 'approved', createdById: hany.id, approvedById: mariam.id } });
     couriers.push({ id: u.id, user: { id: u.id, kind: 'agent_person', access: allAccess('none') }, zone: c.zone, hub });
   }
 

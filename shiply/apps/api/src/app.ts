@@ -9,6 +9,7 @@ import { LocationModule, type Geocoder } from './location';
 import { MerchantsModule } from './merchants';
 import { MoneyModule } from './money';
 import { ParcelsModule } from './parcels';
+import { AgentsModule } from './agents';
 import { PlatformModule } from './platform';
 
 export interface AppOptions {
@@ -20,7 +21,8 @@ export async function createApp(db: PrismaClient, opts: AppOptions = {}): Promis
   const location = LocationModule.register({ geocoder: opts.geocoder });
   const merchants = MerchantsModule.register(location);
   const money = MoneyModule.register(merchants);
-  @Module({ imports: [PlatformModule.forRoot(db), location, merchants, money, ParcelsModule.register(location, merchants, money)] })
+  const agents = AgentsModule.register(money);
+  @Module({ imports: [PlatformModule.forRoot(db), location, merchants, money, agents, ParcelsModule.register(location, merchants, money, agents)] })
   class AppModule {}
 
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
