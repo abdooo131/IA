@@ -5,7 +5,7 @@ import { createDb, seed } from '@shiply/db';
 export default async function setup() {
   const db = createDb(process.env.TEST_DATABASE_URL ?? 'postgresql://postgres@localhost:5433/shiply_test');
   await db.$executeRawUnsafe(
-    'TRUNCATE money.expenses, money.bills, money.payouts, money.handovers, money.cash_holders, money.journal_lines, money.journal_entries,  merchants.shopify_shops, merchants.products, merchants.volume_tiers, merchants.parcel_prices, merchants.contract_versions, merchants.contracts, merchants.pricing_zone_areas, merchants.pricing_zones, merchants.merchant_users, merchants.merchants,  location.geocode_cache, location.address_decisions, location.phone_memory, location.area_services, location.delivery_zones, location.sites, location.taught_names, location.places, platform.event_deliveries, platform.outbox_events, platform.idempotency_records, platform.audit_log, platform.settings, platform.user_sites, platform.users, platform.role_access, platform.job_roles, platform.cost_centres, platform.companies CASCADE',
+    'TRUNCATE parcels.attempts, parcels.runs, parcels.courier_zones, parcels.gaps, parcels.cars, parcels.bags, parcels.recurring_pickups, parcels.pickups, parcels.scans, parcels.parcel_events, parcels.parcels, money.expenses, money.bills, money.payouts, money.handovers, money.cash_holders, money.journal_lines, money.journal_entries,  merchants.shopify_shops, merchants.products, merchants.volume_tiers, merchants.parcel_prices, merchants.contract_versions, merchants.contracts, merchants.pricing_zone_areas, merchants.pricing_zones, merchants.merchant_users, merchants.merchants,  location.geocode_cache, location.address_decisions, location.phone_memory, location.area_services, location.delivery_zones, location.sites, location.taught_names, location.places, platform.event_deliveries, platform.outbox_events, platform.idempotency_records, platform.audit_log, platform.settings, platform.user_sites, platform.users, platform.role_access, platform.job_roles, platform.cost_centres, platform.companies CASCADE',
   );
   await seed(db, { SEED_ADMIN_EMAIL: 'owner@test.local', SEED_ADMIN_PASSWORD: 'owner-pass-1' });
   const viewer = await db.jobRole.findUniqueOrThrow({ where: { key: 'viewer' } });
@@ -36,6 +36,21 @@ export default async function setup() {
     { accountCode: '2301', debit: 0, credit: 560, partyType: 'merchant', partyId: nile.id },
   ]);
   await book('parcel-fee', 'shiply', [{ accountCode: '2101', debit: 3000, credit: 0, partyType: 'merchant', partyId: nile.id }, { accountCode: '4301', debit: 0, credit: 3000, partyType: 'merchant', partyId: nile.id }]);
+  // Parcels: a facility and a hub on Heliopolis, Eve Store priced at 45 EGP, courier Karim covering
+  // the zone, and one pickup on the way to the facility with one parcel.
+  const hlf = await db.site.create({ data: { kind: 'sorting_facility', code: 'HLF', nameEn: 'Helio facility', nameAr: 'مركز فرز مصر الجديدة' } });
+  const hel = await db.site.create({ data: { kind: 'last_mile_hub', code: 'HEL', nameEn: 'Helio hub', nameAr: 'مركز مصر الجديدة', sortingFacilityId: hlf.id } });
+  const zone = await db.deliveryZone.create({ data: { hubId: hel.id, code: 'HEL-A', nameEn: 'Helio A', nameAr: 'مصر الجديدة أ' } });
+  await db.areaService.create({ data: { placeId: 'heliopolis', zoneId: zone.id } });
+  const ownerUser = await db.user.findFirstOrThrow({ where: { email: 'owner@test.local' } });
+  const eve = await db.merchant.create({ data: { code: 'EVE', name: 'Eve Store', contactName: 'Mona', contactPhone: '+201012345679', services: ['shiply'], status: 'approved', pickupPlaceId: 'heliopolis', pickupAddress: 'Heliopolis' } });
+  const contract = await db.contract.create({ data: { merchantId: eve.id, number: 'C-E2E' } });
+  await db.contractVersion.create({ data: { contractId: contract.id, version: 1, status: 'active', startDate: new Date('2026-01-01'), createdById: ownerUser.id, prices: { create: [{ pricingZoneId: gc.id, size: 'small', price: 4500 }] } } });
+  const field = await db.jobRole.findUniqueOrThrow({ where: { key: 'field' } });
+  const karim = await db.user.create({ data: { name: 'Karim', nameAr: 'كريم', mobile: '+201155555555', kind: 'agent_person', passwordHash: await hash('karim-pass-1'), roleId: field.id } });
+  await db.courierZone.create({ data: { userId: karim.id, zoneId: zone.id } });
+  const pickup = await db.pickup.create({ data: { merchantId: eve.id, date: new Date(new Date().toISOString().slice(0, 10)), courierId: karim.id, status: 'on_the_way', createdById: ownerUser.id } });
+  await db.parcel.create({ data: { tracking: 'SP1000000009', merchantId: eve.id, customerName: 'Laila', phone: '+201001112223', addressText: 'روكسي', placeId: 'roxy', zoneId: zone.id, hubId: hel.id, facilityId: hlf.id, originFacilityId: hlf.id, size: 'small', price: 4500, status: 'picked_up', pickupId: pickup.id, createdById: ownerUser.id } });
   // One unclear address waiting in the Needs location queue.
   await db.addressDecision.create({
     data: {

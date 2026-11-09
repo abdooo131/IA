@@ -80,7 +80,7 @@ export class ParcelsController {
       this.db.scan.findMany({ where: { parcelId: parcel.id }, orderBy: { at: 'asc' } }),
       this.db.attempt.findMany({ where: { parcelId: parcel.id }, orderBy: { number: 'asc' } }),
     ]);
-    return { ...parcel, events, scans, attempts };
+    return { ...parcel, events, scans, attemptList: attempts };
   }
 
   @Post(':id/cancel')

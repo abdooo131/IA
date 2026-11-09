@@ -126,3 +126,21 @@ describe('delivery', () => {
     expect(await app.get(WalletsService).available(net.merchant.id)).toBe(-(2250 + 315));
   });
 });
+
+describe('office reads', () => {
+  it('gives the Shiply screens their lookups, overview and failed attempts', async () => {
+    const { ps } = await outForDelivery();
+    await courierPost(`/parcels/me/parcels/${ps[0]!.id}/fail`, { reason: 'refused' });
+    const viewer = await signIn(app, '01012345678', 'viewer-pass-1');
+    const look = (await http().get('/parcels/lookups').set('Cookie', viewer)).body;
+    expect(look.sites.map((s: { code: string }) => s.code)).toEqual(['MAA', 'OBR']);
+    expect(look.zones.map((z: { code: string }) => z.code)).toEqual(['MAA-A']);
+    expect(look.merchants).toEqual([expect.objectContaining({ id: net.merchant.id, code: 'EVE', name: 'Eve' })]);
+    expect(look.couriers.map((c: { id: string }) => c.id).sort()).toEqual([omarId, aliId].sort());
+    const ov = (await http().get('/parcels/overview').set('Cookie', viewer)).body;
+    expect(ov.byStatus.attempt_failed).toBe(1);
+    expect(ov.failureByHub).toEqual([expect.objectContaining({ hubId: net.hub.id, attempts: 1, failed: 1 })]);
+    const failed = (await http().get('/parcels/attempts?result=failed').set('Cookie', viewer)).body;
+    expect(failed).toEqual([expect.objectContaining({ tracking: ps[0]!.tracking, reason: 'refused', number: 1 })]);
+  });
+});

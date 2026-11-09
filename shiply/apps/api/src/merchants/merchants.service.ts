@@ -122,6 +122,11 @@ export class MerchantsService {
     return { price: Math.round((row.price * (10_000 - discountBp)) / 10_000), pricingZoneId: area.pricingZoneId, discountBp };
   }
 
+  /** Approved merchants of one service, for other modules' pickers. */
+  forService(service: 'shiply' | 'shiply_now') {
+    return this.db.merchant.findMany({ where: { status: 'approved', services: { has: service } }, select: { id: true, code: true, name: true }, orderBy: { name: 'asc' } });
+  }
+
   /** What a parcel needs from the merchant: where it is picked up and the parcel terms of its active contract. */
   async parcelTerms(merchantId: string): Promise<{ pickupPlaceId: string | null; codFeeBp: number; returnFeeBp: number; openPackageFee: number; deliveryAttempts: number } | null> {
     const m = await this.db.merchant.findUnique({ where: { id: merchantId } });
