@@ -101,6 +101,22 @@ export class MerchantsService {
     });
   }
 
+  /**
+   * The price of one parcel for a merchant's active contract: the destination's governorate →
+   * its pricing zone → the price for that size, less the best volume tier reached. Never zero by
+   * mistake: a missing price answers no_price.
+   */
+  async parcelPrice(merchantId: string, q: { destinationPlaceId: string; size: string; monthParcels: number }): Promise<{ price: number; pricingZoneId: string; discountBp: number } | { error: 'no_price' }> {
+    const governorate = await this.location.governorateOf(q.destinationPlaceId);
+    const area = governorate ? await this.db.pricingZoneArea.findUnique({ where: { placeId: governorate }, include: { pricingZone: true } }) : null;
+    if (!area?.pricingZone.active) return { error: 'no_price' };
+    const version = await this.db.contractVersion.findFirst({ where: { status: 'active', contract: { merchantId } }, include: { tiers: true } });
+    const row = version ? await this.db.parcelPrice.findUnique({ where: { versionId_pricingZoneId_size: { versionId: version.id, pricingZoneId: area.pricingZoneId, size: q.size } } }) : null;
+    if (!version || !row) return { error: 'no_price' };
+    const discountBp = Math.max(0, ...version.tiers.filter((t) => t.minParcels <= q.monthParcels).map((t) => t.discountBp));
+    return { price: Math.round((row.price * (10_000 - discountBp)) / 10_000), pricingZoneId: area.pricingZoneId, discountBp };
+  }
+
   /** A pickup address that waited in the Location queue gets its area. */
   async pickupResolved(tx: Tx, merchantId: string, decisionId: string, placeId: string) {
     await tx.merchant.updateMany({ where: { id: merchantId, pickupDecisionId: decisionId }, data: { pickupPlaceId: placeId } });
