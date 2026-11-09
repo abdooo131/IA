@@ -245,6 +245,9 @@
       "code_taken": "هذا الكود مستخدم",
       "zone_needs_hub": "اختر مركز توزيع",
       "already_resolved": "قام شخص آخر بتحديد هذا العنوان بالفعل"
-    }
+    },
+    "zoneForSelected": "النطاق للمختار",
+    "assignZone": "تعيين النطاق",
+    "from": "من {name}"
   }
 }

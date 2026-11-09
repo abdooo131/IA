@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpException, Inject, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, Inject, Param, Patch, Post, Put, Query, Req } from '@nestjs/common';
+import { resolveService } from './service-chain';
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
@@ -100,7 +101,7 @@ export class MapController {
     });
   }
 
-  /** Every area with who serves it, and the gaps: no zone, or a hub without an open facility. */
+  /** Every area with who serves it (its own setting or its district's), and the gaps. */
   @Get('map')
   @NeedAccess('location', 'view')
   async map(@Query('q') q?: string, @Query('page') page = '1') {
@@ -112,37 +113,57 @@ export class MapController {
       kind: { in: MAP_KINDS },
       ...(needle ? { OR: [{ nameEn: { contains: needle, mode: 'insensitive' as const } }, { nameAr: { contains: needle } }] } : {}),
     };
-    const [places, total, services, zones, sites] = await Promise.all([
+    const [places, total, all, services, zones, sites] = await Promise.all([
       this.db.place.findMany({ where, orderBy: { nameEn: 'asc' }, skip: (p - 1) * 50, take: 50 }),
       this.db.place.count({ where }),
+      this.db.place.findMany({ select: { id: true, parentId: true, nameEn: true, nameAr: true } }),
       this.db.areaService.findMany(),
-      this.db.deliveryZone.findMany(),
-      this.db.site.findMany(),
+      this.db.deliveryZone.findMany({ where: { active: true } }),
+      this.db.site.findMany({ where: { active: true } }),
     ]);
+    const parents = new Map(all.map((x) => [x.id, x.parentId]));
+    const names = new Map(all.map((x) => [x.id, { id: x.id, nameEn: x.nameEn, nameAr: x.nameAr }]));
     const svc = new Map(services.map((s) => [s.placeId, s]));
-    const zoneById = new Map(zones.map((z1) => [z1.id, z1]));
-    const siteById = new Map(sites.map((s) => [s.id, s]));
-    const brief = <T extends { id: string; code: string; nameEn: string; nameAr: string; active: boolean }>(x?: T) =>
-      x ? { id: x.id, code: x.code, nameEn: x.nameEn, nameAr: x.nameAr, active: x.active } : undefined;
     const rows = places.map((place) => {
-      const s = svc.get(place.id);
-      const zone = s?.zoneId ? zoneById.get(s.zoneId) : undefined;
-      const hub = zone ? siteById.get(zone.hubId) : undefined;
-      const facility = hub?.sortingFacilityId ? siteById.get(hub.sortingFacilityId) : undefined;
-      const darkStore = s?.darkStoreId ? siteById.get(s.darkStoreId) : undefined;
-      const notServed = s?.notServed ?? false;
-      const gap = notServed ? undefined : !zone?.active ? 'no_zone' : !hub?.active || !facility?.active ? 'hub_without_facility' : undefined;
+      const a = resolveService(place.id, parents, svc, zones, sites);
+      const gap = a.notServed ? undefined : !a.zone ? 'no_zone' : !a.hub || !a.facility ? 'hub_without_facility' : undefined;
       return {
         place: { id: place.id, kind: place.kind, nameEn: place.nameEn, nameAr: place.nameAr },
-        zone: brief(zone),
-        hub: brief(hub),
-        facility: brief(facility),
-        darkStore: brief(darkStore),
-        notServed,
+        zone: a.zone ?? undefined,
+        hub: a.hub ?? undefined,
+        facility: a.facility ?? undefined,
+        darkStore: a.darkStore ?? undefined,
+        inheritedFrom: a.zoneFrom ? names.get(a.zoneFrom) : undefined,
+        darkStoreFrom: a.darkStoreFrom ? names.get(a.darkStoreFrom) : undefined,
+        own: svc.get(place.id) ?? null,
+        notServed: a.notServed,
         gap,
       };
     });
     return { rows, total, page: p, pageSize: 50 };
+  }
+
+  /** Many areas to one zone, dark store or not served, in one go. */
+  @Post('map/assign')
+  @HttpCode(200)
+  @NeedAccess('location', 'manage')
+  async assign(@Body() body: unknown, @Req() req: Request) {
+    const a = parse(
+      z.object({ placeIds: z.array(z.string().min(1)).min(1).max(500), zoneId: z.string().nullable().optional(), darkStoreId: z.string().nullable().optional(), notServed: z.boolean().optional() }),
+      body,
+    );
+    if (a.zoneId && !(await this.db.deliveryZone.findUnique({ where: { id: a.zoneId } }))) throw new HttpException({ error: 'unknown_zone' }, 400);
+    if (a.darkStoreId && (await this.db.site.findUnique({ where: { id: a.darkStoreId } }))?.kind !== 'dark_store') throw new HttpException({ error: 'unknown_dark_store' }, 400);
+    const found = await this.db.place.count({ where: { id: { in: a.placeIds }, active: true } });
+    if (found !== new Set(a.placeIds).size) throw new HttpException({ error: 'unknown_place' }, 400);
+    const data = { ...(a.zoneId !== undefined ? { zoneId: a.zoneId } : {}), ...(a.darkStoreId !== undefined ? { darkStoreId: a.darkStoreId } : {}), ...(a.notServed !== undefined ? { notServed: a.notServed } : {}) };
+    await this.db.$transaction(async (tx) => {
+      for (const placeId of new Set(a.placeIds)) {
+        await tx.areaService.upsert({ where: { placeId }, update: data, create: { placeId, zoneId: null, darkStoreId: null, notServed: false, ...data } });
+      }
+      await this.audit.record(tx, { userId: req.user!.id, action: 'area.service_changed', entity: 'place', entityId: a.placeIds.join(','), after: data });
+    });
+    return { ok: true, count: new Set(a.placeIds).size };
   }
 
   @Put('map/:placeId')

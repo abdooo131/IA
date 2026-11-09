@@ -1,10 +1,11 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common';
-import { normalizeText, parseAddress, type Status } from '@shiply/address';
+import { chainOf, normalizeText, parseAddress, type Status } from '@shiply/address';
 import type { PrismaClient, Tx } from '@shiply/db';
 import { normalizeEgyptMobile } from '@shiply/shared';
 import { AuditService, DB, publish, SettingsService } from '../platform';
 import { GEOCODER, type GeoAnswer, type Geocoder } from './geocoder/geocoder';
 import { GazetteerCache } from './gazetteer.cache';
+import { resolveService, type AreaServiceAnswer } from './service-chain';
 
 export interface ResolveInput {
   service: 'shiply' | 'shiply_now' | 'finder';
@@ -65,10 +66,18 @@ export class LocationService {
     const phone = input.phone ? normalizeEgyptMobile(input.phone) : null;
     const base = { service: input.service, refType: input.refType, refId: input.refId, input: input.text, phone };
 
+    const g = await this.cache.get();
+    const r = parseAddress(input.text, g);
     if (phone) {
       const memory = await tx.phoneMemory.findUnique({ where: { phone } });
       const place = memory ? await tx.place.findUnique({ where: { id: memory.placeId } }) : null;
-      if (memory && place?.active) {
+      // A clear new address that names another area wins: the customer moved. One that only names
+      // a bigger area around the remembered one (Maadi for Degla) keeps the memory.
+      const remembered = memory ? chainOf(g, memory.placeId).map((p) => p.id) : [];
+      const moved = memory && r.status === 'sure' && r.area && !remembered.includes(r.area.id);
+      if (moved && memory) {
+        await tx.phoneMemory.update({ where: { phone }, data: { placeId: r.area!.id, confirmedAt: new Date(), source: 'address' } });
+      } else if (memory && place?.active) {
         const d = await tx.addressDecision.create({
           data: { ...base, status: 'sure', confidence: 100, placeId: memory.placeId, method: 'phone_memory', resolvedAt: new Date() },
         });
@@ -76,8 +85,6 @@ export class LocationService {
       }
     }
 
-    const g = await this.cache.get();
-    const r = parseAddress(input.text, g);
     if (QUEUED.includes(r.status)) {
       const answer = await this.geocode(tx, input.text);
       if (answer) {
@@ -109,6 +116,20 @@ export class LocationService {
       },
     });
     return { decisionId: d.id, status: r.status, placeId: d.placeId, method: 'engine' };
+  }
+
+  /**
+   * Who serves a place: its own setting, or the nearest area above it that has one (a
+   * neighbourhood follows its district). An area marked not served stops the search.
+   */
+  async serviceFor(placeId: string): Promise<AreaServiceAnswer> {
+    const [places, services, zones, sites] = await Promise.all([
+      this.db.place.findMany({ select: { id: true, parentId: true } }),
+      this.db.areaService.findMany(),
+      this.db.deliveryZone.findMany({ where: { active: true } }),
+      this.db.site.findMany({ where: { active: true } }),
+    ]);
+    return resolveService(placeId, new Map(places.map((p) => [p.id, p.parentId])), new Map(services.map((s) => [s.placeId, s])), zones, sites);
   }
 
   async openCount(): Promise<number> {

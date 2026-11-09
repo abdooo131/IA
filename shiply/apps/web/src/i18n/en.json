@@ -245,6 +245,9 @@
       "code_taken": "This code is already used",
       "zone_needs_hub": "Pick a last mile hub",
       "already_resolved": "Someone already placed this address"
-    }
+    },
+    "zoneForSelected": "Zone for selected",
+    "assignZone": "Assign to zone",
+    "from": "from {name}"
   }
 }

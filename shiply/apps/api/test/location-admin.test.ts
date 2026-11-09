@@ -1,6 +1,7 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import request from 'supertest';
 import type { INestApplication } from '@nestjs/common';
+import { LocationService } from '../src/location';
 import { db, resetDb, signIn, startApp } from './helpers';
 
 let app: INestApplication;
@@ -86,5 +87,44 @@ describe('location admin review fixes', () => {
     const res = await post('/location/find/bulk', { text });
     expect(res.status).toBe(200);
     expect(res.body.results).toHaveLength(6000);
+  });
+});
+
+describe('areas follow their district', () => {
+  async function chain() {
+    const sf = (await post('/location/sites', { kind: 'sorting_facility', code: 'OBR', nameEn: 'Obour facility', nameAr: 'مركز فرز العبور' })).body;
+    const hub = (await post('/location/sites', { kind: 'last_mile_hub', code: 'MAA', nameEn: 'Maadi hub', nameAr: 'مركز المعادي', sortingFacilityId: sf.id })).body;
+    const a = (await post('/location/zones', { hubId: hub.id, code: 'MAA-A', nameEn: 'Maadi A', nameAr: 'المعادي أ' })).body;
+    const b = (await post('/location/zones', { hubId: hub.id, code: 'MAA-B', nameEn: 'Maadi B', nameAr: 'المعادي ب' })).body;
+    return { sf, hub, a, b };
+  }
+  const row = async (q: string, id: string) =>
+    (await http().get(`/location/map?q=${encodeURIComponent(q)}`).set('Cookie', owner)).body.rows.find((r: { place: { id: string } }) => r.place.id === id);
+
+  it('gives every neighbourhood the zone of its district unless it has its own', async () => {
+    const { a, b } = await chain();
+    await http().put('/location/map/maadi').set('Cookie', owner).send({ zoneId: a.id });
+    await http().put('/location/map/degla').set('Cookie', owner).send({ zoneId: b.id });
+    expect(await row('New Maadi', 'new-maadi')).toMatchObject({ zone: { code: 'MAA-A' }, inheritedFrom: { id: 'maadi' }, facility: { code: 'OBR' } });
+    expect((await row('New Maadi', 'new-maadi')).gap).toBeUndefined();
+    expect(await row('Degla', 'degla')).toMatchObject({ zone: { code: 'MAA-B' } });
+    expect((await row('Degla', 'degla')).inheritedFrom).toBeUndefined();
+    const service = await app.get(LocationService).serviceFor('lasilky');
+    expect(service).toMatchObject({ zone: { code: 'MAA-A' }, hub: { code: 'MAA' }, facility: { code: 'OBR' } });
+  });
+
+  it('stops at an area marked not served', async () => {
+    const { a } = await chain();
+    await http().put('/location/map/maadi').set('Cookie', owner).send({ zoneId: a.id });
+    await http().put('/location/map/arab-el-maadi').set('Cookie', owner).send({ notServed: true });
+    expect(await app.get(LocationService).serviceFor('arab-el-maadi')).toMatchObject({ notServed: true, zone: null });
+  });
+
+  it('assigns many areas to a zone at once', async () => {
+    const { a } = await chain();
+    const res = await post('/location/map/assign', { placeIds: ['zamalek', 'dokki'], zoneId: a.id });
+    expect(res.status).toBe(200);
+    expect(await row('Zamalek', 'zamalek')).toMatchObject({ zone: { code: 'MAA-A' } });
+    expect(await row('Dokki', 'dokki')).toMatchObject({ zone: { code: 'MAA-A' } });
   });
 });

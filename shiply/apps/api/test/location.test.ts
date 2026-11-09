@@ -76,3 +76,17 @@ describe('location', () => {
     expect(home.body.tiles.find((t: { app: string }) => t.app === 'location').count).toBe(1);
   });
 });
+
+describe('phone memory and a new address', () => {
+  it('lets a clear new address win over the remembered area, and updates the memory', async () => {
+    await db.phoneMemory.create({ data: { phone: '+201012345678', placeId: 'zamalek', source: 'manual' } });
+    const moved = await resolve('شارع 9 المعادي الجديدة', '01012345678');
+    expect(moved).toMatchObject({ method: 'engine', placeId: 'new-maadi' });
+    expect((await db.phoneMemory.findUniqueOrThrow({ where: { phone: '+201012345678' } })).placeId).toBe('new-maadi');
+  });
+
+  it('keeps the remembered area when the address only names a bigger area around it', async () => {
+    await db.phoneMemory.create({ data: { phone: '+201012345678', placeId: 'degla', source: 'manual' } });
+    expect(await resolve('المعادي', '01012345678')).toMatchObject({ method: 'phone_memory', placeId: 'degla' });
+  });
+});

@@ -32,6 +32,8 @@ interface Row {
   darkStore?: Brief;
   notServed: boolean;
   gap?: string;
+  inheritedFrom?: { id: string; nameEn: string; nameAr: string };
+  own: { zoneId: string | null; darkStoreId: string | null; notServed: boolean } | null;
 }
 
 export default function MapPage() {
@@ -47,6 +49,7 @@ export default function MapPage() {
   const [page, setPage] = useState(1);
   const [map, setMap] = useState<{ rows: Row[]; total: number } | null>(null);
   const [kind, setKind] = useState<Site['kind']>('sorting_facility');
+  const [bulkZone, setBulkZone] = useState('');
   const nm = (b?: Brief) => (b ? `${b.code} · ${ar ? b.nameAr : b.nameEn}` : '');
   const fail = (err: unknown) => {
     const code = err instanceof ApiError ? err.body.error : undefined;
@@ -73,7 +76,7 @@ export default function MapPage() {
     try {
       await api(`/location/map/${row.place.id}`, {
         method: 'PUT',
-        json: { zoneId: row.zone?.id ?? null, darkStoreId: row.darkStore?.id ?? null, notServed: row.notServed, ...patch },
+        json: { zoneId: row.own?.zoneId ?? null, darkStoreId: row.own?.darkStoreId ?? null, notServed: row.own?.notServed ?? false, ...patch },
       });
       await loadMap();
     } catch (err) {
@@ -124,7 +127,40 @@ export default function MapPage() {
       {tab === 'areas' && (
         <ListPage<Row>
           title={t('areas')}
-          filters={<input type="search" value={q} onChange={(e) => (setPage(1), setQ(e.target.value))} placeholder={t('searchAreas')} aria-label={t('searchAreas')} />}
+          filters={
+            <>
+              <input type="search" value={q} onChange={(e) => (setPage(1), setQ(e.target.value))} placeholder={t('searchAreas')} aria-label={t('searchAreas')} />
+              {canManage && (
+                <select aria-label={t('zoneForSelected')} value={bulkZone} onChange={(e) => setBulkZone(e.target.value)}>
+                  <option value="">{t('zoneForSelected')}</option>
+                  {zones.filter((z) => z.active).map((z) => (
+                    <option key={z.id} value={z.id}>
+                      {nm(z)}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </>
+          }
+          bulkActions={
+            canManage
+              ? [
+                  {
+                    label: t('assignZone'),
+                    run: async (ids) => {
+                      if (!bulkZone) return void toast.error(t('zoneForSelected'));
+                      try {
+                        await api('/location/map/assign', { method: 'POST', json: { placeIds: ids, zoneId: bulkZone } });
+                        toast.success(tc('saved'));
+                        await loadMap();
+                      } catch (err) {
+                        fail(err);
+                      }
+                    },
+                  },
+                ]
+              : undefined
+          }
           columns={[
             { key: 'place', label: t('area'), render: (r) => `${ar ? r.place.nameAr : r.place.nameEn}` },
             {
@@ -132,8 +168,8 @@ export default function MapPage() {
               label: t('zone'),
               render: (r) =>
                 canManage ? (
-                  <select aria-label={t('zone')} value={r.zone?.id ?? ''} onChange={(e) => void setService(r, { zoneId: e.target.value || null })}>
-                    <option value="">{t('none')}</option>
+                  <select aria-label={t('zone')} value={r.own?.zoneId ?? ''} onChange={(e) => void setService(r, { zoneId: e.target.value || null })}>
+                    <option value="">{r.inheritedFrom && r.zone ? `${nm(r.zone)} (${t('from', { name: ar ? r.inheritedFrom.nameAr : r.inheritedFrom.nameEn })})` : t('none')}</option>
                     {zones.filter((z) => z.active).map((z) => (
                       <option key={z.id} value={z.id}>
                         {nm(z)}
@@ -141,7 +177,9 @@ export default function MapPage() {
                     ))}
                   </select>
                 ) : (
-                  nm(r.zone)
+                  <span>
+                    {nm(r.zone)} {r.inheritedFrom && <small className="muted">{t('from', { name: ar ? r.inheritedFrom.nameAr : r.inheritedFrom.nameEn })}</small>}
+                  </span>
                 ),
             },
             { key: 'hub', label: t('hub'), render: (r) => nm(r.hub) },
@@ -166,7 +204,7 @@ export default function MapPage() {
             {
               key: 'notServed',
               label: t('notServed'),
-              render: (r) => <input type="checkbox" aria-label={t('notServed')} checked={r.notServed} disabled={!canManage} onChange={(e) => void setService(r, { notServed: e.target.checked })} />,
+              render: (r) => <input type="checkbox" aria-label={t('notServed')} checked={r.own?.notServed ?? false} disabled={!canManage} onChange={(e) => void setService(r, { notServed: e.target.checked })} />,
             },
             { key: 'gap', label: '', render: (r) => (r.gap ? <span className="gap">{t(`gap.${r.gap}`)}</span> : null) },
           ]}

@@ -82,3 +82,14 @@ test('picking an address someone else already placed says so', async ({ page }) 
   await page.getByRole('button', { name: 'Cairo › Maadi', exact: true }).click();
   await expect(page.getByText('Someone already placed this address')).toBeVisible();
 });
+
+test('a neighbourhood follows its district, and many areas get a zone at once', async ({ page }) => {
+  await signIn(page, 'owner@test.local', 'owner-pass-1', '/en/location/map');
+  await page.getByLabel('Search areas').fill('New Maadi');
+  await expect(page.getByTestId('row').filter({ hasText: 'New Maadi' }).first()).toContainText('from Maadi');
+  await page.getByLabel('Search areas').fill('Zamalek');
+  await page.getByRole('checkbox', { name: 'zamalek' }).check();
+  await page.getByLabel('Zone for selected').selectOption({ label: 'MAA-A · Maadi A' });
+  await page.getByTestId('bulkbar').getByRole('button', { name: 'Assign to zone' }).click();
+  await expect(page.getByTestId('row').filter({ hasText: 'Zamalek' }).first()).toContainText('OBR');
+});

@@ -99,6 +99,16 @@ Menu: `Needs location  Address finder  Map  Places  Taught names`
 
 Access: CS and QC work Needs location. Operations managers edit Map and Places.
 
+Zones follow the family of places: a zone set on a district serves every neighbourhood and
+compound inside it, unless one has its own; an area marked not served stops that. The Map shows
+inherited zones as "from Maadi", assigns many areas at once, and flags an area only when neither it
+nor anything above it has a zone. One lookup (serviceFor) answers zone, hub, facility and dark store
+for any place, for every module.
+
+Phone memory: a person confirmed area is remembered by phone. A clear new address naming another
+area wins (the customer moved) and updates the memory; an address naming only a bigger area around
+the remembered one (Maadi for Degla) keeps the memory.
+
 Order for every address: phone memory, address engine, Google Maps (off until switched on in settings, monthly cap, each address paid for once, its answer checked against our place list), then the Needs location queue.
 
 ## Step 3b: Merchants app, office side (locked)
