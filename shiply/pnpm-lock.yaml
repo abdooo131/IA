@@ -41,6 +41,9 @@ importers:
       '@nestjs/swagger':
         specifier: 11.0.6
         version: 11.0.6(@nestjs/common@11.0.11(reflect-metadata@0.2.2)(rxjs@7.8.1))(@nestjs/core@11.0.11)(reflect-metadata@0.2.2)
+      '@shiply/address':
+        specifier: workspace:*
+        version: link:../../packages/address
       '@shiply/db':
         specifier: workspace:*
         version: link:../../packages/db

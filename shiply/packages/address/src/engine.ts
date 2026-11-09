@@ -102,7 +102,7 @@ export interface Result {
   path: AreaRef[];
   parts: Parts;
   reasons: string[];
-  candidates: { label: string; score: number }[];
+  candidates: { id: string; label: string; score: number }[];
   matches: { text: string; place: string; kind: Kind; method: Method }[];
   unknownWords: string[];
 }
@@ -487,7 +487,7 @@ export function parseAddress(input: string, g: Gazetteer = defaultGazetteer()): 
     }
   }
 
-  const candidates = scored.slice(0, 5).map((c) => ({ label: label(g, c.area), score: Math.round(c.score * 100) / 100 }));
+  const candidates = scored.slice(0, 5).map((c) => ({ id: c.area.id, label: label(g, c.area), score: Math.round(c.score * 100) / 100 }));
   const share = best.score / (best.score + rivalScore);
   let status: Status;
   let confidence = Math.round(100 * share);
