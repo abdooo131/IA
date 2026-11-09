@@ -270,6 +270,9 @@ model AddressDecision {
   placeId      String?   @map("place_id")
   method       String
   candidates   Json      @default("[]")
+  /// A map point, when Google Maps found one (kept as a hint even when queued).
+  lat          Float?
+  lng          Float?
   resolvedById String?   @map("resolved_by_id")
   resolvedAt   DateTime? @map("resolved_at")
   createdAt    DateTime  @default(now()) @map("created_at")
@@ -288,5 +291,16 @@ model PhoneMemory {
   source      String
 
   @@map("phone_memory")
+  @@schema("location")
+}
+
+/// Google Maps answers, one per address text: each address is paid for once, ever.
+model GeocodeCache {
+  normalized String   @id
+  answer     Json?
+  at         DateTime @default(now())
+
+  @@index([at])
+  @@map("geocode_cache")
   @@schema("location")
 }

@@ -1,7 +1,8 @@
-import { Inject, Injectable, Module, type OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, Module, type DynamicModule, type OnModuleInit } from '@nestjs/common';
 import { atLeast } from '@shiply/shared';
 import { HomeRegistry } from '../platform';
 import { FinderController } from './finder.controller';
+import { GEOCODER, GoogleGeocoder, type Geocoder } from './geocoder/geocoder';
 import { GazetteerCache } from './gazetteer.cache';
 import { LocationService } from './location.service';
 import { QueueController } from './queue.controller';
@@ -23,9 +24,17 @@ class LocationHome implements OnModuleInit {
   }
 }
 
-@Module({
-  controllers: [QueueController, FinderController],
-  providers: [GazetteerCache, LocationService, LocationHome],
-  exports: [LocationService, GazetteerCache],
-})
-export class LocationModule {}
+@Module({})
+export class LocationModule {
+  /** geocoder: a fake in tests; otherwise Google when GOOGLE_MAPS_API_KEY is set, else none. */
+  static register(opts: { geocoder?: Geocoder | null } = {}): DynamicModule {
+    const key = process.env.GOOGLE_MAPS_API_KEY;
+    const geocoder = opts.geocoder !== undefined ? opts.geocoder : key ? new GoogleGeocoder(key) : null;
+    return {
+      module: LocationModule,
+      controllers: [QueueController, FinderController],
+      providers: [GazetteerCache, LocationService, LocationHome, { provide: GEOCODER, useValue: geocoder }],
+      exports: [LocationService, GazetteerCache],
+    };
+  }
+}

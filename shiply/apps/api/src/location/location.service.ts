@@ -1,8 +1,9 @@
 import { HttpException, Inject, Injectable } from '@nestjs/common';
-import { parseAddress, type Status } from '@shiply/address';
+import { normalizeText, parseAddress, type Status } from '@shiply/address';
 import type { PrismaClient, Tx } from '@shiply/db';
 import { normalizeEgyptMobile } from '@shiply/shared';
-import { AuditService, DB, publish } from '../platform';
+import { AuditService, DB, publish, SettingsService } from '../platform';
+import { GEOCODER, type GeoAnswer, type Geocoder } from './geocoder/geocoder';
 import { GazetteerCache } from './gazetteer.cache';
 
 export interface ResolveInput {
@@ -17,7 +18,7 @@ export interface ResolveResult {
   decisionId: string;
   status: Status;
   placeId: string | null;
-  method: 'engine' | 'phone_memory';
+  method: 'engine' | 'phone_memory' | 'geocoder';
 }
 
 /** Statuses that place an address; anything else waits in the queue (except outside). */
@@ -31,7 +32,26 @@ export class LocationService {
     @Inject(DB) private readonly db: PrismaClient,
     @Inject(GazetteerCache) private readonly cache: GazetteerCache,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(SettingsService) private readonly settings: SettingsService,
+    @Inject(GEOCODER) private readonly geocoder: Geocoder | null,
   ) {}
+
+  /**
+   * Google Maps, only for what the engine could not place, only when switched on and under the
+   * month's cap. Each address text is looked up once, ever; the answer is saved.
+   */
+  private async geocode(tx: Tx, text: string): Promise<GeoAnswer | null> {
+    if (!this.geocoder || !(await this.settings.get<boolean>('location.geocoder_enabled'))) return null;
+    const normalized = normalizeText(text);
+    const cached = await tx.geocodeCache.findUnique({ where: { normalized } });
+    if (cached) return cached.answer as GeoAnswer | null;
+    const cap = await this.settings.get<number>('location.geocoder_monthly_cap');
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    if ((await tx.geocodeCache.count({ where: { at: { gte: monthStart } } })) >= cap) return null;
+    const answer = await this.geocoder.lookup(text).catch(() => null);
+    await tx.geocodeCache.createMany({ data: [{ normalized, answer: (answer ?? undefined) as never }], skipDuplicates: true });
+    return answer;
+  }
 
   /** Places an address or queues it for a person. Runs in the caller's transaction. */
   async resolve(tx: Tx, input: ResolveInput): Promise<ResolveResult> {
@@ -49,7 +69,26 @@ export class LocationService {
       }
     }
 
-    const r = parseAddress(input.text, await this.cache.get());
+    const g = await this.cache.get();
+    const r = parseAddress(input.text, g);
+    if (QUEUED.includes(r.status)) {
+      const answer = await this.geocode(tx, input.text);
+      if (answer) {
+        // Google never decides alone: its area names must point to one of our places, clearly.
+        const check = parseAddress(answer.names.join('، '), g);
+        const point = { lat: answer.lat, lng: answer.lng };
+        if (answer.precise && check.status === 'sure' && check.area) {
+          const d = await tx.addressDecision.create({
+            data: { ...base, ...point, status: 'likely', confidence: 70, placeId: check.area.id, method: 'geocoder', candidates: r.candidates as never, resolvedAt: new Date() },
+          });
+          return { decisionId: d.id, status: 'likely', placeId: check.area.id, method: 'geocoder' };
+        }
+        const d = await tx.addressDecision.create({
+          data: { ...base, ...point, status: r.status, confidence: r.confidence, placeId: null, method: 'engine', candidates: r.candidates as never },
+        });
+        return { decisionId: d.id, status: r.status, placeId: null, method: 'engine' };
+      }
+    }
     const placed = PLACED.includes(r.status) || r.status === 'outside';
     const d = await tx.addressDecision.create({
       data: {

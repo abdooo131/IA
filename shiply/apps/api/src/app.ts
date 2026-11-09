@@ -4,11 +4,16 @@ import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import type { PrismaClient } from '@shiply/db';
-import { LocationModule } from './location';
+import { LocationModule, type Geocoder } from './location';
 import { PlatformModule } from './platform';
 
-export async function createApp(db: PrismaClient): Promise<INestApplication> {
-  @Module({ imports: [PlatformModule.forRoot(db), LocationModule] })
+export interface AppOptions {
+  /** a fake Google Maps in tests */
+  geocoder?: Geocoder | null;
+}
+
+export async function createApp(db: PrismaClient, opts: AppOptions = {}): Promise<INestApplication> {
+  @Module({ imports: [PlatformModule.forRoot(db), LocationModule.register({ geocoder: opts.geocoder })] })
   class AppModule {}
 
   const app = await NestFactory.create(AppModule, { logger: process.env.NODE_ENV === 'test' ? false : ['error', 'warn'] });

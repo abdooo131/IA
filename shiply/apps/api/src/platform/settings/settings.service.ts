@@ -10,6 +10,8 @@ export const SETTING_DEFAULTS: Record<string, unknown> = {
   'auth.session_minutes': 15,
   'auth.refresh_days': 30,
   'events.retry_minutes': [1, 5, 30, 120],
+  'location.geocoder_enabled': false,
+  'location.geocoder_monthly_cap': 5000,
 };
 
 const minutes = z.number().int();
@@ -20,6 +22,8 @@ export const SETTING_SCHEMAS: Record<string, z.ZodTypeAny> = {
   'auth.session_minutes': minutes.min(5).max(720),
   'auth.refresh_days': z.number().int().min(1).max(90),
   'events.retry_minutes': z.array(minutes.min(1).max(10080)).min(1).max(10),
+  'location.geocoder_enabled': z.boolean(),
+  'location.geocoder_monthly_cap': z.number().int().min(0).max(100000),
 };
 
 @Injectable()
