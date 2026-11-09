@@ -56,7 +56,7 @@ export class ContractsService {
       const v = await tx.contractVersion.findUnique({ where: { id } });
       if (!v) throw new HttpException({ error: 'not_found' }, 404);
       if (v.status !== 'draft') throw new HttpException({ error: 'not_a_draft' }, 409);
-      const after = await tx.contractVersion.update({ where: { id }, data: terms });
+      const after = await tx.contractVersion.update({ where: { id }, data: { ...terms, editorIds: v.editorIds.includes(userId) ? undefined : { push: userId } } });
       if (prices) {
         await tx.parcelPrice.deleteMany({ where: { versionId: id } });
         await tx.parcelPrice.createMany({ data: prices.map((p) => ({ ...p, versionId: id })) });
@@ -88,13 +88,14 @@ export class ContractsService {
   }
 
   submit(id: string, userId: string) {
-    return this.move(id, 'draft', 'pending', { submittedAt: new Date() }, userId, 'contract.submitted');
+    return this.move(id, 'draft', 'pending', { submittedAt: new Date(), submittedById: userId }, userId, 'contract.submitted');
   }
 
   async approve(id: string, userId: string) {
     const v = await this.db.contractVersion.findUnique({ where: { id } });
     if (!v) throw new HttpException({ error: 'not_found' }, 404);
-    if (v.createdById === userId) throw new HttpException({ error: 'own_version' }, 403);
+    // Whoever wrote, changed or submitted the terms cannot also make them live.
+    if ([v.createdById, v.submittedById, ...v.editorIds].includes(userId)) throw new HttpException({ error: 'own_version' }, 403);
     return this.move(id, 'pending', 'active', { approvedById: userId, approvedAt: new Date() }, userId, 'contract.approved');
   }
 

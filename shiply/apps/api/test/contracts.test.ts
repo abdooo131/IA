@@ -84,3 +84,14 @@ describe('contracts', () => {
     expect((await http().put(`/merchants/pricing-zones/${delta}/areas`).set('Cookie', owner).send({ placeIds: ['maadi'] })).status).toBe(400);
   });
 });
+
+describe('contracts review fixes', () => {
+  it('refuses approval by anyone who edited or submitted the version, not only its creator', async () => {
+    const draft = (await post(`/merchants/${merchantId}/contract/drafts`, {})).body.id;
+    await http().patch(`/merchants/contract-versions/${draft}`).set('Cookie', second).send({ codFeeBp: 250 });
+    await post(`/merchants/contract-versions/${draft}/submit`, {}, second);
+    const res = await post(`/merchants/contract-versions/${draft}/approve`, {}, second);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toBe('own_version');
+  });
+});

@@ -1,9 +1,10 @@
-import { Body, Controller, Get, HttpCode, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpException, Inject, Param, Patch, Post, Query, Req } from '@nestjs/common';
 import type { Request } from 'express';
 import { z } from 'zod';
 import type { PrismaClient } from '@shiply/db';
 import { LocationService } from '../location';
-import { AuditService, createLogin, DB, NeedAccess, parse, setLoginsActive } from '../platform';
+
+import { AuditService, createLogin, DB, loginsInfo, NeedAccess, parse, setLoginsActive } from '../platform';
 import { MerchantsService } from './merchants.service';
 
 const text = (max = 200) => z.string().trim().min(1).max(max);
@@ -76,8 +77,8 @@ export class MerchantsController {
   @NeedAccess('merchants', 'view')
   async one(@Param('id') id: string) {
     const m = await this.db.merchant.findUnique({ where: { id }, include: { users: true, shops: true } });
-    if (!m) return Promise.reject(Object.assign(new Error(), { status: 404 }));
-    const logins = await this.db.user.findMany({ where: { id: { in: m.users.map((u) => u.userId) } }, select: { id: true, name: true, nameAr: true, email: true, mobile: true, active: true } });
+    if (!m) throw new HttpException({ error: 'not_found' }, 404);
+    const logins = await loginsInfo(this.db, m.users.map((u) => u.userId));
     const pickupPath = m.pickupPlaceId ? await this.location.pathOf(m.pickupPlaceId) : [];
     return { ...m, pickupPath, users: m.users.map((u) => ({ ...u, login: logins.find((l) => l.id === u.userId) })) };
   }
@@ -115,19 +116,29 @@ export class MerchantsController {
   @HttpCode(200)
   @NeedAccess('merchants', 'manage')
   async deactivate(@Param('id') id: string, @Req() req: Request) {
-    const m = await this.merchants.setStatus(id, ['approved', 'pending'], 'inactive', req.user!.id);
-    const users = await this.db.merchantUser.findMany({ where: { merchantId: id } });
-    await this.db.$transaction((tx) => setLoginsActive(tx, users.map((u) => u.userId), false));
-    return m;
+    // One transaction: the merchant is never inactive while a login of it still works.
+    return this.db.$transaction(async (tx) => {
+      const { count } = await tx.merchant.updateMany({ where: { id, status: { in: ['approved', 'pending'] } }, data: { status: 'inactive' } });
+      if (!count) {
+        const exists = await tx.merchant.findUnique({ where: { id } });
+        throw new HttpException({ error: exists ? 'wrong_status' : 'not_found' }, exists ? 409 : 404);
+      }
+      const users = await tx.merchantUser.findMany({ where: { merchantId: id } });
+      await setLoginsActive(tx, users.map((u) => u.userId), false);
+      await this.audit.record(tx, { userId: req.user!.id, action: 'merchant.inactive', entity: 'merchant', entityId: id, after: { status: 'inactive' } });
+      return tx.merchant.findUniqueOrThrow({ where: { id } });
+    });
   }
 
   @Post(':id/users')
   @NeedAccess('merchants', 'use')
   async addUser(@Param('id') id: string, @Body() body: unknown, @Req() req: Request) {
     const u = parse(UserBody, body);
-    const m = await this.db.merchant.findUnique({ where: { id } });
-    if (!m || m.status === 'inactive') return Promise.reject(Object.assign(new Error(), { status: 404 }));
     return this.db.$transaction(async (tx) => {
+      // Locks the merchant, so a deactivation at the same moment waits for this login, then stops it.
+      const rows = await tx.$queryRaw<{ status: string }[]>`SELECT status FROM merchants.merchants WHERE id = ${id} FOR UPDATE`;
+      if (!rows[0]) throw new HttpException({ error: 'not_found' }, 404);
+      if (rows[0].status === 'inactive' || rows[0].status === 'rejected') throw new HttpException({ error: 'merchant_inactive' }, 409);
       const login = await createLogin(tx, { name: u.name, nameAr: u.nameAr, email: u.email, mobile: u.mobile, password: u.password, kind: 'merchant_user', roleKey: 'merchant' });
       const link = await tx.merchantUser.create({ data: { userId: login.id, merchantId: id, role: u.role } });
       await this.audit.record(tx, { userId: req.user!.id, action: 'merchant.user_added', entity: 'merchant', entityId: id, after: { userId: login.id, role: u.role } });

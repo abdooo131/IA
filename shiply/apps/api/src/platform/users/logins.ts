@@ -33,6 +33,11 @@ export async function createLogin(tx: Tx, input: NewLogin): Promise<{ id: string
   return user;
 }
 
+/** Public details of logins for other modules (never the password hash). */
+export function loginsInfo(tx: Tx, userIds: string[]) {
+  return tx.user.findMany({ where: { id: { in: userIds } }, select: { id: true, name: true, nameAr: true, email: true, mobile: true, active: true } });
+}
+
 /** Switches logins on or off; switching off also ends their sessions. */
 export async function setLoginsActive(tx: Tx, userIds: string[], active: boolean) {
   if (!userIds.length) return;

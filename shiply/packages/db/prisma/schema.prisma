@@ -430,6 +430,9 @@ model ContractVersion {
   internalNote        String?   @map("internal_note")
   createdById         String    @map("created_by_id")
   submittedAt         DateTime? @map("submitted_at")
+  submittedById       String?   @map("submitted_by_id")
+  /// everyone who changed this draft: none of them may approve it
+  editorIds           String[]  @map("editor_ids")
   approvedById        String?   @map("approved_by_id")
   approvedAt          DateTime? @map("approved_at")
   rejectedById        String?   @map("rejected_by_id")

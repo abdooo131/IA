@@ -62,3 +62,25 @@ describe('merchants', () => {
     expect((await post('/merchants', { ...base, name: 'X' }, viewer)).status).toBe(403);
   });
 });
+
+describe('merchants review fixes', () => {
+  it('keeps merchant logins out of Settings, so they cannot be switched back on or made office users', async () => {
+    const m = (await post('/merchants', { ...base, name: 'Eve Chantelle' })).body;
+    await post(`/merchants/${m.id}/users`, { name: 'Eve Owner', nameAr: 'إيف', email: 'eve@shop.test', password: 'eve-pass-123', role: 'owner' });
+    await post(`/merchants/${m.id}/deactivate`, {});
+    const users = (await http().get('/users').set('Cookie', owner)).body.rows;
+    expect(users.some((u: { email: string }) => u.email === 'eve@shop.test')).toBe(false);
+    const login = await db.user.findUniqueOrThrow({ where: { email: 'eve@shop.test' } });
+    const res = await http().patch(`/users/${login.id}`).set('Cookie', owner).send({ active: true, roleKey: 'owner' });
+    expect(res.status).toBe(403);
+    expect((await http().post('/auth/login').send({ login: 'eve@shop.test', password: 'eve-pass-123' })).status).toBe(401);
+  });
+
+  it('refuses a new login for an inactive merchant', async () => {
+    const m = (await post('/merchants', { ...base, name: 'Eve Chantelle' })).body;
+    await post(`/merchants/${m.id}/deactivate`, {});
+    const res = await post(`/merchants/${m.id}/users`, { name: 'Late', nameAr: 'متأخر', email: 'late@shop.test', password: 'late-pass-123' });
+    expect(res.status).toBe(409);
+    expect(res.body.error).toBe('merchant_inactive');
+  });
+});

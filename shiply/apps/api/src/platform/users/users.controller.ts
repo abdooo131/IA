@@ -40,7 +40,8 @@ export class UsersController {
   @NeedAccess('settings', 'view')
   async list(@Query('q') q?: string, @Query('page') page = '1') {
     const p = Math.max(1, Number(page) || 1);
-    const where = q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { nameAr: { contains: q } }, { email: { contains: q.toLowerCase() } }, { mobile: { contains: q.replace(/\D/g, '') || q } }] } : {};
+    // Office logins only: merchant and agent logins are managed by their own modules.
+    const where = { kind: 'staff' as const, ...(q ? { OR: [{ name: { contains: q, mode: 'insensitive' as const } }, { nameAr: { contains: q } }, { email: { contains: q.toLowerCase() } }, { mobile: { contains: q.replace(/\D/g, '') || q } }] } : {}) };
     const [rows, total] = await Promise.all([
       this.db.user.findMany({ where, select: PUBLIC_FIELDS, orderBy: { createdAt: 'desc' }, skip: (p - 1) * 50, take: 50 }),
       this.db.user.count({ where }),
@@ -86,6 +87,7 @@ export class UsersController {
     const e = parse(EditUser, body);
     const before = await this.db.user.findUnique({ where: { id }, select: PUBLIC_FIELDS });
     if (!before) throw new HttpException({ error: 'not_found' }, 404);
+    if (before.kind !== 'staff') throw new HttpException({ error: 'not_an_office_login' }, 403);
     let roleId: string | undefined;
     if (e.roleKey) {
       const role = await this.db.jobRole.findUnique({ where: { key: e.roleKey } });
