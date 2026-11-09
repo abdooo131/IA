@@ -133,6 +133,16 @@ export class LocationService {
   }
 
   /** A place's kind and whether it is in use, for other modules that store place ids. */
+  /** Every site (facilities, hubs, dark stores), for other modules to show codes and names. */
+  sites(): Promise<{ id: string; kind: string; code: string; nameEn: string; nameAr: string; sortingFacilityId: string | null; active: boolean }[]> {
+    return this.db.site.findMany({ orderBy: { code: 'asc' } });
+  }
+
+  /** Every delivery zone with its hub. */
+  zones(): Promise<{ id: string; hubId: string; code: string; nameEn: string; nameAr: string; active: boolean }[]> {
+    return this.db.deliveryZone.findMany({ orderBy: { code: 'asc' } });
+  }
+
   async placeInfo(placeId: string): Promise<{ id: string; kind: string; active: boolean } | null> {
     return this.db.place.findUnique({ where: { id: placeId }, select: { id: true, kind: true, active: true } });
   }

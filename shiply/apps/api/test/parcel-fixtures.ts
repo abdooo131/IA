@@ -28,3 +28,20 @@ export async function courier(name: string, mobile: string) {
 
 /** A scan as the phone sends it. */
 export const scanBody = (step: string, code: string, extra: object = {}) => ({ step, code, deviceScanId: crypto.randomUUID(), ...extra });
+
+type Post = (url: string, body: object, cookies?: string[]) => Promise<{ status: number; body: Record<string, unknown> & { id: string; tracking: string } }>;
+
+/** Takes parcels through the scans up to a step, the way the floor does it. */
+export async function walk(post: Post, cookies: { courier: string[]; staff: string[] }, ids: { merchantId: string; facilityId: string; courierId: string }, tracking: string[], upTo: 'picked_up' | 'at_inbound' | 'sorted', pickupId?: string) {
+  let pid = pickupId;
+  if (!pid) {
+    pid = (await post('/parcels/pickups', { merchantId: ids.merchantId, date: '2026-11-10' })).body.id;
+    await post(`/parcels/pickups/${pid}/assign`, { courierId: ids.courierId });
+  }
+  for (const t of tracking) await post('/parcels/scan', scanBody('pickup', t, { pickupId: pid }), cookies.courier);
+  if (upTo === 'picked_up') return pid;
+  for (const t of tracking) await post('/parcels/scan', scanBody('inbound', t, { siteId: ids.facilityId }), cookies.staff);
+  if (upTo === 'at_inbound') return pid;
+  for (const t of tracking) await post('/parcels/scan', scanBody('sorting', t, { siteId: ids.facilityId }), cookies.staff);
+  return pid;
+}

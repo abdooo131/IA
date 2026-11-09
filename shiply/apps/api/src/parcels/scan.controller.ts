@@ -13,6 +13,7 @@ const ScanBody = z.object({
   bagSeal: z.string().trim().max(80).optional(),
   runId: z.string().optional(),
   pickupId: z.string().optional(),
+  carId: z.string().optional(),
 });
 
 @Controller('parcels')

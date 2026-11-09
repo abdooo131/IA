@@ -14,6 +14,7 @@ export interface ScanInput {
   bagSeal?: string;
   runId?: string;
   pickupId?: string;
+  carId?: string;
 }
 
 export interface ScanAnswer {
@@ -98,6 +99,11 @@ export class ScanService {
 
   private row(input: ScanInput, code: string, user: SessionUser, parcelId: string | null, a: ScanAnswer) {
     return { deviceScanId: input.deviceScanId, step: input.step, code, parcelId, siteId: input.siteId ?? null, userId: user.id, ok: a.ok, reason: a.reason ?? null, answer: a as object, clientAt: input.clientAt ?? null };
+  }
+
+  /** For routes outside a scan: the same rule as a station step. */
+  async assertSite(user: SessionUser, siteId: string) {
+    await this.checkWho({ site: true, handler: async () => red('x') }, { step: '', code: '', deviceScanId: '', siteId }, user);
   }
 
   /** Station steps: shiply use and working at that site (supervisors with manage, anywhere). Courier steps: agent people only. */

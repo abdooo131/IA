@@ -5,6 +5,8 @@ import { DB } from '../tokens';
 
 /** Default values for every setting. Business values never live in code anywhere else. */
 export const SETTING_DEFAULTS: Record<string, unknown> = {
+  'parcels.bag_capacity': 150,
+  'parcels.stuck_minutes': 60,
   'auth.max_failed_logins': 5,
   'auth.lockout_minutes': 15,
   'auth.session_minutes': 15,
@@ -18,6 +20,8 @@ export const SETTING_DEFAULTS: Record<string, unknown> = {
 const minutes = z.number().int();
 /** What each setting accepts, so a typo can never lock everybody out. */
 export const SETTING_SCHEMAS: Record<string, z.ZodTypeAny> = {
+  'parcels.bag_capacity': z.number().int().min(1).max(1000),
+  'parcels.stuck_minutes': z.number().int().min(5).max(1440),
   'auth.max_failed_logins': z.number().int().min(3).max(20),
   'auth.lockout_minutes': minutes.min(1).max(1440),
   'auth.session_minutes': minutes.min(5).max(720),
