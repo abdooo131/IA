@@ -278,7 +278,7 @@ street('mossadak', 'dokki', 'Mossadak St', 'مصدق', ['mossadak', 'mosadak', '
 dist('agouza', 'giza', 'El Agouza', 'العجوزة', ['agouza', 'el agouza', 'agoza', 'el agoza']);
 hood('mohandessin', 'agouza', 'Mohandessin', 'المهندسين', ['mohandessin', 'mohandiseen', 'mohandeseen', 'el mohandeseen', 'mohandseen', 'el mohandessin', 'mohandesin', 'مهندسين']);
 hood('ard-el-lewa', 'agouza', 'Ard El Lewa', 'أرض اللواء', ['ard el lewa', 'ard ellewa']);
-street('gameat-el-dowal', 'mohandessin', 'Gameat El Dowal St', 'جامعة الدول العربية', ['gameat el dowal', 'gamet el dowal', 'arab league street', 'جامعة الدول', 'gam3et el dewal']);
+street('gameat-el-dowal', 'mohandessin', 'Gameat El Dowal St', 'جامعة الدول العربية', ['gameat el dowal', 'gameat el dowal el arabia', 'gamet el dowal el arabia', 'gamet el dowal', 'arab league street', 'جامعة الدول', 'gam3et el dewal']);
 street('shehab', 'mohandessin', 'Shehab St', 'شهاب', ['shehab street', 'shehab st', 'شارع شهاب']);
 street('batal-ahmed', 'mohandessin', 'El Batal Ahmed Abdel Aziz St', 'البطل أحمد عبد العزيز', ['batal ahmed', 'el batal ahmed', 'batal ahmed abdel aziz', 'البطل احمد']);
 street('syria-street', 'mohandessin', 'Syria St', 'شارع سوريا', ['syria street', 'souria street']);
