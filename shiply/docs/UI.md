@@ -303,3 +303,28 @@ requests, violations (read only, with reply).
 
 Moved out: QC checklists and scores → CS and QC (HR only receives the violation); account
 managers → Merchants.
+
+## Step 3j: Sales app (locked)
+
+Menu: `My day  Pipeline  Leads  Companies  Proposals  Onboarding  Accounts  Targets  More▾`
+
+1. **My day**: today's calls, meetings, follow ups, overdue.
+2. **Pipeline**: board by stage (New, Contacted, Meeting, Proposal, Negotiation, Won, Lost) and list.
+3. **Leads**: website form, sign ups, referrals; new leads wait in the managers' queue to be given
+   to a rep.
+4. **Companies**: brands and contacts, expected orders a month, Shopify domain.
+5. **Proposals**: prices for both services, public link the merchant opens and accepts; a
+   discount beyond the limit needs a manager.
+6. **Onboarding**: after Won, a checklist per merchant until the first 10 orders (Shopify
+   connected, prices confirmed, first pickup scheduled, packaging ordered, first order
+   delivered), each step with owner and date; stuck more than 7 days alerts the account manager.
+7. **Accounts**: existing merchants' weekly orders, success rate, complaints; a sharp drop (for
+   example 40% under their usual week, a setting) gives the account manager a call task.
+8. **Targets**: per rep per month, results dashboard, commission.
+9. **More ▾**: lost reasons, settings.
+
+Quick quote: a button on every company and deal: expected orders a month, main areas, sizes →
+price estimate → proposal.
+
+Rules: reps see only their own deals, managers see all (kept from the old system). Won creates
+the merchant and their contract in Merchants automatically from the accepted proposal.
