@@ -98,3 +98,22 @@ Menu: `Needs location  Address finder  Map  Places  Taught names`
 5. **Taught names**: who taught which word and when, with remove.
 
 Access: CS and QC work Needs location. Operations managers edit Map and Places.
+
+## Step 3b: Merchants app, office side (locked)
+
+Menu: `Merchants  Sign ups  Contracts  Shopify stores  Packaging orders`
+
+1. **Merchants**: one list for both services: services used (Shiply Now, Shiply, both), status,
+   COD balance, account manager.
+2. **Sign ups**: new merchants waiting for approval with their documents; approve or reject.
+3. **Contracts**: prices for both services, start and end, discounts. A price change needs a
+   second person to approve.
+4. **Shopify stores**: connected shops and their sync health.
+5. **Packaging orders**: packaging merchants buy from us, and its delivery.
+
+Merchant record: header (name, status, services, Suspend, New contract, Message). Tabs: Overview,
+Shiply Now (stores, SKUs, stock), Shiply (pickup address, pickup facility, recurring pickups),
+Contract and prices, Money (statement, COD, fees, payouts), Users, Integrations, Documents.
+Timeline on the side.
+
+The merchant's own panel: see MERCHANT_PORTAL.md.
