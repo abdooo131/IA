@@ -39,6 +39,16 @@ export class PeopleController {
     });
   }
 
+  @Get(':id')
+  @NeedAccess('fleet', 'view')
+  async one(@Param('id') id: string) {
+    const p = await this.db.person.findUnique({ where: { id } });
+    if (!p) throw new HttpException({ error: 'not_found' }, 404);
+    const [users, vehicles] = await Promise.all([loginsInfo(this.db, [p.userId]), this.db.vehicle.findMany({ where: { personId: id } })]);
+    const documents = await this.db.document.findMany({ where: { OR: [{ personId: id }, { vehicleId: { in: vehicles.map((v) => v.id) } }] }, orderBy: { createdAt: 'desc' } });
+    return { ...p, ...pick(users[0]), vehicles, documents };
+  }
+
   /** A second person approves a new courier: never the one who added him. */
   @Post(':id/approve')
   @HttpCode(200)

@@ -135,7 +135,13 @@ export async function loadDemo(app: INestApplication, db: PrismaClient): Promise
     const u = await db.user.create({ data: { name: c.name, nameAr: c.nameAr, mobile: `+2011000000${String(i + 1).padStart(2, '0')}`, kind: 'agent_person', passwordHash: pw, roleId: fieldRole.id } });
     const hub = HUBS.find((h) => h.zones.some((z) => z.code === c.zone))!.code;
     await db.courierZone.create({ data: { userId: u.id, zoneId: hubs[hub]!.zones[c.zone]! } });
-    await db.person.create({ data: { agentId: agents[i % 2]!.id, userId: u.id, role: 'delivery', nationalId: `2900101${String(1000000 + i)}`, status: 'approved', createdById: hany.id, approvedById: mariam.id } });
+    const person = await db.person.create({ data: { agentId: agents[i % 2]!.id, userId: u.id, role: 'delivery', nationalId: `2900101${String(1000000 + i)}`, status: 'approved', createdById: hany.id, approvedById: mariam.id } });
+    // Documents: valid for a year, except one licence that runs out in ten days (shows on Home).
+    const licenceEnds = new Date(Date.now() + (i === 0 ? 10 : 365) * 86_400_000);
+    await db.document.createMany({ data: [
+      { personId: person.id, kind: 'national_id', number: `2900101${String(1000000 + i)}`, createdById: hany.id },
+      { personId: person.id, kind: 'driving_licence', number: `DL-${1000 + i}`, expiresAt: new Date(licenceEnds.toISOString().slice(0, 10)), createdById: hany.id },
+    ] });
     couriers.push({ id: u.id, user: { id: u.id, kind: 'agent_person', access: allAccess('none') }, zone: c.zone, hub });
   }
 
