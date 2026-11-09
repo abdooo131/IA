@@ -45,3 +45,21 @@ Left out on purpose: recently opened (search does it), charts (Reports), announc
 | Sales | Leads, follow ups, proposals, new merchant deals |
 | Reports | Every number and chart across the business |
 | Settings | Users and access, integrations, general settings |
+
+## Step 2: inside every app (locked)
+
+Every one of the 12 apps follows the same pattern.
+
+1. **Top menu beside the logo**, not a side bar: `SHIPLY › App name` then the app's pages in one
+   row. More than 7 pages: the rest go under **More ▾**. Related pages share a dropdown
+   (Hubs ▾: Inbound, Sorting, Outbound). Second row: search, Arabic and English switch, bell,
+   **⊞ Apps** (the 12 tiles from any page), the user's name. Phone: ☰ opens the same menu.
+   Why: the pages are mostly wide tables, and the top menu gives them the full width.
+2. **List page**: title and the main button (for example "New pickup"); search and filters
+   (status, date, area, merchant, clear); the table (click a row to open it, tick rows for bulk
+   actions, export to Excel); pages of 50. Phone: the table becomes cards.
+3. **Record page**: header with the number, the status and the main actions (for example
+   "Assign courier", "Mark lost", More ▾); tabs (details, items, money, documents); a timeline
+   on the side of every event, who and when. Phone: the timeline moves under the details.
+4. Every action that cannot be undone asks for confirmation, and every action shows a clear
+   success or error message.
