@@ -21,6 +21,8 @@ const ROLES = [
   { key: 'viewer', nameEn: 'Viewer', nameAr: 'مشاهد', level: 'view' },
   // Merchant logins: the merchant portal only, no office app.
   { key: 'merchant', nameEn: 'Merchant', nameAr: 'تاجر', level: 'none' },
+  // Agent people (couriers, riders, drivers): their phone screens only, no office app.
+  { key: 'field', nameEn: 'Field person', nameAr: 'فريق ميداني', level: 'none' },
 ];
 
 export async function seed(db: PrismaClient, env: SeedEnv = process.env) {

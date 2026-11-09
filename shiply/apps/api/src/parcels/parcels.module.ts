@@ -2,6 +2,10 @@ import { Inject, Injectable, Module, type DynamicModule, type OnModuleInit } fro
 import { onEvent } from '../platform';
 import { ParcelsController } from './parcels.controller';
 import { ParcelsService } from './parcels.service';
+import { PickupsController } from './pickups.controller';
+import { PickupsService } from './pickups.service';
+import { ScanController } from './scan.controller';
+import { ScanService } from './scan.service';
 
 @Injectable()
 class ParcelsWiring implements OnModuleInit {
@@ -23,8 +27,8 @@ export class ParcelsModule {
     return {
       module: ParcelsModule,
       imports: [location, merchants, money],
-      controllers: [ParcelsController],
-      providers: [ParcelsService, ParcelsWiring],
+      controllers: [ScanController, PickupsController, ParcelsController],
+      providers: [ParcelsService, ScanService, PickupsService, ParcelsWiring],
       exports: [ParcelsService],
     };
   }

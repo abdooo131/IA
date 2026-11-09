@@ -18,3 +18,13 @@ export async function network(app: INestApplication, owner: string[]) {
   });
   return { facility, hub, zone, merchant };
 }
+
+/** An agent courier login (no office app). */
+export async function courier(name: string, mobile: string) {
+  const { hash } = await import('argon2');
+  const role = await db.jobRole.findUniqueOrThrow({ where: { key: 'field' } });
+  return db.user.create({ data: { name, nameAr: name, mobile: `+2${mobile}`, kind: 'agent_person', passwordHash: await hash(`${name}-pass-1`), roleId: role.id } });
+}
+
+/** A scan as the phone sends it. */
+export const scanBody = (step: string, code: string, extra: object = {}) => ({ step, code, deviceScanId: crypto.randomUUID(), ...extra });
