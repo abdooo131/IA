@@ -81,3 +81,20 @@ Every one of the 12 apps follows the same pattern.
    courier has the zones they usually cover in their profile.
 6. The map chain: area → delivery zone → last mile hub → sorting facility. One map decides the
    whole route.
+
+## Step 3a: Location app (locked)
+
+Menu: `Needs location  Address finder  Map  Places  Taught names`
+
+1. **Needs location**: addresses placed without confidence, from both services. Each shows the
+   system's best guesses and Pick area, Send customer link (WhatsApp or SMS), Call. Oldest first,
+   with a timer.
+2. **Address finder**: one address or a whole file (the address lab tester).
+3. **Map**: each area shows its delivery zone → last mile hub → sorting facility, and its dark
+   store for Shiply Now. Click to change any of them or mark it not served. Every change is
+   recorded.
+4. **Places**: governorates, districts, neighbourhoods, compounds, streets and landmarks with
+   their spellings. Add, edit, merge.
+5. **Taught names**: who taught which word and when, with remove.
+
+Access: CS and QC work Needs location. Operations managers edit Map and Places.
