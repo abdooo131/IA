@@ -117,3 +117,40 @@ Contract and prices, Money (statement, COD, fees, payouts), Users, Integrations,
 Timeline on the side.
 
 The merchant's own panel: see MERCHANT_PORTAL.md.
+
+## Step 3c: Accounting app (locked)
+
+Both companies (Shiply Now, Shiply). Every money screen has a company switch: Shiply Now |
+Shiply | Both.
+
+Menu: `Cash▾  Payouts  Bills  Expenses  Invoices & tax  Banks  Ledger▾  Budgets`
+
+1. **Cash ▾**: one cash model for every cash holder (rider, courier, store box, hub safe,
+   agent): same rule, same screens. Shows where every pound of COD is and who holds it.
+2. **Payouts**: merchant payouts for both services in one run: prepare, check, approve (second
+   person), pay, receipt.
+3. **Bills**: supplier and agent bills with due dates; an agent bill needs the agent's invoice
+   before it is paid.
+4. **Expenses**: daily spending with receipts.
+5. **Invoices & tax**: tax invoices to merchants, e-invoicing to the tax authority, VAT.
+6. **Banks**: accounts, statement import, matching.
+7. **Ledger ▾**: journal, trial balance, profit and loss, balance sheet; per company, per cost
+   centre (each store, hub, team) or combined.
+8. **Budgets**: monthly budget against actual per cost centre.
+
+Rules:
+1. Cash moves only by a recorded two sided handover (rider to store box, courier to hub safe).
+   The receiver confirms the amount; a difference opens a ticket at once.
+2. Each thing lives in one app: payroll in HR (Accounting sees only the booked total),
+   contracts in Merchants, purchase orders in Purchasing.
+3. Kept from the old system as rules: append only double entry ledger in piastres, the same
+   request booked once, no overdraw under concurrent transfers, trial balance always balances,
+   two companies with cost centres, e-invoicing.
+
+Phases:
+1. Phase 1 (to go live): Cash, Payouts, Bills, Expenses, Ledger with profit and loss.
+2. Phase 2 (after launch): Invoices & tax, Banks, cheques, Budgets, fixed assets, year end.
+
+Old system review: 44 pages in 7 menus, about 18,000 lines. Cash was handled twice (rider
+wallets and store boxes in Shiply Now, courier wallets and hub safes in the parcels code), and
+payroll, contracts and purchase orders sat in Accounting as well as their own apps.
