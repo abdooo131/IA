@@ -19,6 +19,7 @@ import {
   leaveDocument,
   leaveRequestDetail,
   listAdjustments,
+  managerDecideLeave,
   listCorrections,
   listLeaveRequests,
   listLeaveTypes,
@@ -37,6 +38,8 @@ import {
   type AccessProfile,
   type AccessTokenClaims,
   applyCorrectionSchema,
+  bulkIdsSchema,
+  bulkRejectLeaveSchema,
   cairoDay,
   cancelSchema,
   confirmSuggestionSchema,
@@ -58,6 +61,7 @@ import {
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { limitedStores } from '../auth/access-scope';
+import { eachRecord } from '../common/bulk';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -211,6 +215,65 @@ export class HrLeaveController {
       onBehalf: true,
       scope: limitedStores(access),
       now: this.clock.now(),
+    });
+  }
+
+  // ─── UX phase C step 4: bulk decisions of the lists, each under the single rules ───
+
+  /**
+   * Approves several requests at the step each waits for: the manager step only by the
+   * person's manager in force, the HR step by HR use; nobody decides their own.
+   */
+  @Post('leave/requests/bulk-approve')
+  @Access('hr', 'use')
+  bulkApprove(
+    @Body(new ZodValidationPipe(bulkIdsSchema)) body: z.infer<typeof bulkIdsSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return this.bulkDecide(body.ids, true, undefined, user.sub, access);
+  }
+
+  /** Refuses several waiting requests with one reason (HR may refuse at either step). */
+  @Post('leave/requests/bulk-reject')
+  @Access('hr', 'use')
+  bulkReject(
+    @Body(new ZodValidationPipe(bulkRejectLeaveSchema)) body: z.infer<typeof bulkRejectLeaveSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return this.bulkDecide(body.ids, false, body.note, user.sub, access);
+  }
+
+  private bulkDecide(
+    ids: string[],
+    approve: boolean,
+    reason: string | undefined,
+    actorUserId: string,
+    access: AccessProfile,
+  ) {
+    const scope = limitedStores(access);
+    const now = this.clock.now();
+    return eachRecord(ids, async (id) => {
+      // Inside the person's stores (a 403 otherwise), then the step it waits for.
+      const r = await leaveRequestDetail(this.prisma, { requestId: id, scope });
+      // HR may refuse at either step; approving the manager step is the manager's.
+      if (approve && r.status === 'pending_manager')
+        return managerDecideLeave(this.prisma, {
+          requestId: id,
+          actorUserId,
+          approve,
+          reason,
+          now,
+        });
+      return hrDecideLeave(this.prisma, {
+        requestId: id,
+        actorUserId,
+        approve,
+        reason,
+        scope,
+        now,
+      });
     });
   }
 
@@ -404,6 +467,53 @@ export class HrLeaveController {
       scope: limitedStores(access),
       status: status && ['open', 'confirmed', 'dismissed'].includes(status) ? status : 'open',
     });
+  }
+
+  /** Confirms several suggestions onto each person's ladder with the suggested type. */
+  @Post('violations/suggestions/bulk-confirm')
+  @Access('hr', 'use')
+  bulkConfirm(
+    @Body(new ZodValidationPipe(bulkIdsSchema)) body: z.infer<typeof bulkIdsSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    const scope = limitedStores(access);
+    return eachRecord(body.ids, async (id) => {
+      const s = await this.prisma.violationSuggestion.findUnique({
+        where: { id },
+        select: { employee: { select: { homeStoreId: true } } },
+      });
+      if (!s) throw new DomainError('suggestion_not_found', 404);
+      if (scope && !(s.employee.homeStoreId && scope.includes(s.employee.homeStoreId)))
+        throw new DomainError('store_not_allowed', 403);
+      return confirmSuggestion(this.prisma, {
+        suggestionId: id,
+        actorUserId: user.sub,
+        scope,
+        // One violation per suggestion: confirming it again finds the same one.
+        idempotencyKey: `suggestion:${id}`,
+        now: this.clock.now(),
+      });
+    });
+  }
+
+  /** Dismisses several suggestions (audited on each person). */
+  @Post('violations/suggestions/bulk-dismiss')
+  @Access('hr', 'use')
+  bulkDismiss(
+    @Body(new ZodValidationPipe(bulkIdsSchema)) body: z.infer<typeof bulkIdsSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    const scope = limitedStores(access);
+    return eachRecord(body.ids, (id) =>
+      dismissSuggestion(this.prisma, {
+        suggestionId: id,
+        actorUserId: user.sub,
+        scope,
+        now: this.clock.now(),
+      }),
+    );
   }
 
   @Post('violations/suggestions/:id/confirm')

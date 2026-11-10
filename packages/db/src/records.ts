@@ -1,6 +1,10 @@
 import {
   billNumber,
   cairoDay,
+  dealNumber,
+  employeeCode,
+  leaveRequestNumber,
+  violationNumber,
   chequeLabel,
   entryNumber,
   handoverNumber,
@@ -29,6 +33,12 @@ export interface RecordRef {
    * limited to some stores may open it when one of them is theirs. darkStoreId is then null.
    */
   anyStoreIds?: string[];
+  /**
+   * Sales records (UX phase C step 4): the sales people the record belongs to (a deal's owner;
+   * a company's owner and its deals' owners). A rep with own_deals_only reaches it only when
+   * they are one of them.
+   */
+  ownerIds?: string[];
 }
 
 /**
@@ -287,6 +297,83 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
           href: `/admin/customers/${id}`,
           darkStoreId: null,
           merchantId: null,
+        }
+      );
+    }
+    // UX phase C step 4: Sales and HR. A person's file, leave and violations belong to their
+    // home store: someone limited to some stores never reaches office staff (no store).
+    case 'crm_deal': {
+      const r = await db.crmDeal.findUnique({
+        where: { id },
+        select: { number: true, ownerId: true, merchantId: true },
+      });
+      return (
+        r && {
+          label: dealNumber(r.number),
+          href: `/admin/sales/deals/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+          ownerIds: r.ownerId ? [r.ownerId] : [],
+        }
+      );
+    }
+    case 'crm_company': {
+      const r = await db.crmCompany.findUnique({
+        where: { id },
+        select: { brandName: true, ownerId: true, deals: { select: { ownerId: true } } },
+      });
+      return (
+        r && {
+          label: r.brandName,
+          href: `/admin/sales/companies/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+          ownerIds: [r.ownerId, ...r.deals.map((d) => d.ownerId)].filter((x): x is string => !!x),
+        }
+      );
+    }
+    case 'employee': {
+      const r = await db.employee.findUnique({
+        where: { id },
+        select: { number: true, homeStoreId: true },
+      });
+      return (
+        r && {
+          label: employeeCode(r.number),
+          href: `/admin/hr/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+          anyStoreIds: r.homeStoreId ? [r.homeStoreId] : [],
+        }
+      );
+    }
+    case 'leave_request': {
+      const r = await db.leaveRequest.findUnique({
+        where: { id },
+        select: { number: true, employee: { select: { homeStoreId: true } } },
+      });
+      return (
+        r && {
+          label: leaveRequestNumber(r.number),
+          href: `/admin/hr/leave/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+          anyStoreIds: r.employee.homeStoreId ? [r.employee.homeStoreId] : [],
+        }
+      );
+    }
+    case 'violation': {
+      const r = await db.violation.findUnique({
+        where: { id },
+        select: { number: true, employee: { select: { homeStoreId: true } } },
+      });
+      return (
+        r && {
+          label: violationNumber(r.number),
+          href: `/admin/hr/violations/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+          anyStoreIds: r.employee.homeStoreId ? [r.employee.homeStoreId] : [],
         }
       );
     }

@@ -30,6 +30,7 @@ import {
   getEmployee,
   getEmployeeDocument,
   hrOverview,
+  leaveBalances,
   latestExit,
   loginStateOf,
   listDocumentAlerts,
@@ -52,8 +53,10 @@ import {
 import {
   type AccessProfile,
   type AccessTokenClaims,
+  cairoDay,
   canDo,
   type ChecklistTaskBody,
+  type DocSmartButton,
   checklistTaskSchema,
   type CreateEmployeeBody,
   createEmployeeSchema,
@@ -594,6 +597,55 @@ export class HrController {
   async team(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
     await getEmployee(this.prisma, id, { scope: limitedStores(access), bank: false });
     return teamOf(this.prisma, id);
+  }
+
+  /**
+   * UX phase C step 4: the employee page's status bar and smart buttons (annual leave left,
+   * open violations, documents missing, days worked this month, team). Never salary figures.
+   */
+  @Get('employees/:id/document')
+  async document(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
+    const file = await getEmployee(this.prisma, id, { scope: limitedStores(access), bank: false });
+    const now = this.clock.now();
+    const today = cairoDay(now);
+    const [flags, balances, worked, team] = await Promise.all([
+      employeeFlagsFor(this.prisma, [file], now),
+      leaveBalances(this.prisma, { employeeId: id, asOf: today }).catch(() => null),
+      this.prisma.attendanceDay.count({
+        where: {
+          employeeId: id,
+          day: { gte: new Date(`${today.slice(0, 7)}-01T00:00:00Z`) },
+          status: { in: ['present', 'late', 'left_early'] },
+        },
+      }),
+      teamOf(this.prisma, id),
+    ]);
+    const extra = flags.get(id)!;
+    // The status bar: left, leaving (a last day ahead), suspended or on leave, on probation.
+    const status =
+      file.status === 'left'
+        ? extra.flags.includes('leaving')
+          ? 'leaving'
+          : 'left'
+        : file.status === 'suspended' || file.status === 'on_leave'
+          ? file.status
+          : extra.flags.includes('on_probation')
+            ? 'on_probation'
+            : 'active';
+    const tab = (t: string) => `/admin/hr/${id}?tab=${t}`;
+    const smart: DocSmartButton[] = [
+      {
+        key: 'leaveLeft',
+        count: null,
+        value: balances ? String(balances.annual.available) : '–',
+        href: tab('leave'),
+      },
+      { key: 'openViolations', count: extra.openViolations, href: tab('violations') },
+      { key: 'documentsMissing', count: extra.documents.missing, href: tab('documents') },
+      { key: 'daysWorked', count: worked, href: tab('attendance') },
+      { key: 'team', count: team.total, href: tab('team') },
+    ];
+    return { status, smart };
   }
 
   /** One timeline: the file, the account, access and (with salaries) pay changes. */

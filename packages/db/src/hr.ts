@@ -697,6 +697,27 @@ export function setEmployeeStatus(
 const PAY_ACTIONS = ['finance.salary_set', 'employee.package'];
 
 /**
+ * An employee's audit rows for someone without the salaries switch (UX phase C step 4: the
+ * generic history of the document page): salary package rows left out, bank fields removed.
+ */
+export function redactEmployeeAudit<R extends { action: string; before: unknown; after: unknown }>(
+  rows: R[],
+  pay: boolean,
+): R[] {
+  if (pay) return rows;
+  const strip = (v: unknown) => {
+    if (!v || typeof v !== 'object' || Array.isArray(v)) return v;
+    const copy = { ...(v as Record<string, unknown>) };
+    for (const k of BANK_FIELDS) delete copy[k];
+    delete copy.passwordHash;
+    return copy;
+  };
+  return rows
+    .filter((r) => !PAY_ACTIONS.includes(r.action))
+    .map((r) => ({ ...r, before: strip(r.before), after: strip(r.after) }));
+}
+
+/**
  * One timeline per person, newest first: the file (created, changed, status, documents), the
  * account (created, changed, access) and pay changes (with the salaries switch). Bank details
  * are left out of the rows unless `pay` is true.

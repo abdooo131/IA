@@ -65,11 +65,32 @@ export function assertMerchant(access: AccessProfile | undefined, merchantId: st
  */
 export function assertRecordScope(
   access: AccessProfile | undefined,
-  ref: { darkStoreId: string | null; merchantId: string | null; anyStoreIds?: string[] },
+  ref: {
+    darkStoreId: string | null;
+    merchantId: string | null;
+    anyStoreIds?: string[];
+    ownerIds?: string[];
+  },
+  userId?: string,
 ) {
   if (ref.darkStoreId) assertStore(access, ref.darkStoreId);
   if (ref.anyStoreIds) assertAnyStore(access, ref.anyStoreIds);
   if (ref.merchantId) assertMerchant(access, ref.merchantId);
+  if (ref.ownerIds) assertOwnDeals(access, ref.ownerIds, userId);
+}
+
+/**
+ * Sales reps with own_deals_only (never sales managers) reach only the records they own
+ * (CLAUDE.md "Sales CRM part 1"): any other answers deal_not_allowed, as the CRM's routes do.
+ */
+export function assertOwnDeals(
+  access: AccessProfile | undefined,
+  ownerIds: string[],
+  userId: string | undefined,
+) {
+  if (!access || !access.ownDealsOnly || access.sales === 'manage') return;
+  if (!userId || !ownerIds.includes(userId))
+    throw new ForbiddenException({ error: 'deal_not_allowed' });
 }
 
 /** Refuses a record none of whose locations is one of the person's stores. */

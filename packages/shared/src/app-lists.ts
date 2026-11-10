@@ -69,8 +69,66 @@ export const CUSTOMER_LIST_SEGMENTS = [
 ] as const;
 export const CUSTOMER_LIST_RISKS = ['high', 'medium', 'low', 'unknown'] as const;
 
+/** Sales CRM (UX phase C step 4): deal stages, lead sources and proposal statuses. */
+export const DEAL_LIST_STAGES = [
+  'new',
+  'contacted',
+  'meeting',
+  'proposal',
+  'negotiation',
+  'won',
+  'lost',
+] as const;
+export const DEAL_LIST_SOURCES = [
+  'website_form',
+  'signup',
+  'manual',
+  'referral',
+  'event',
+  'other',
+] as const;
+export const PROPOSAL_LIST_STATUSES = [
+  'draft',
+  'sent',
+  'viewed',
+  'accepted',
+  'declined',
+  'expired',
+  'superseded',
+] as const;
+
+/** HR (UX phase C step 4): file flags, leave and violation statuses, penalties. */
+export const EMPLOYEE_LIST_FLAGS = [
+  'missing_documents',
+  'on_probation',
+  'leaving',
+  'left',
+  'on_leave_today',
+  'open_violations',
+] as const;
+export const LEAVE_LIST_STATUSES = [
+  'pending_manager',
+  'pending_hr',
+  'approved',
+  'rejected',
+  'cancelled',
+] as const;
+export const VIOLATION_LIST_STATUSES = ['recorded', 'appealed', 'final', 'cancelled'] as const;
+export const VIOLATION_LIST_PENALTIES = [
+  'verbal_warning',
+  'written_warning',
+  'deduction_days',
+  'deduction_amount',
+  'suspension_days',
+  'termination_review',
+] as const;
+export const SUGGESTION_LIST_STATUSES = ['open', 'confirmed', 'dismissed'] as const;
+
 const statusFilters = <S extends readonly string[]>(statuses: S) =>
   Object.fromEntries(statuses.map((s) => [s, 'status'])) as Record<S[number], 'status'>;
+/** The values of a list as filters of one named group. */
+const statusFilterOn = <G extends string, S extends readonly string[]>(group: G, values: S) =>
+  Object.fromEntries(values.map((s) => [s, group])) as Record<S[number], G>;
 
 export const APP_LISTS = {
   operations: {
@@ -272,6 +330,134 @@ export const APP_LISTS = {
       defaultFilters: [],
     },
   },
+  // UX phase C step 4: the Sales CRM (deals, companies, proposals; own_deals_only keeps a rep
+  // to their own) and HR (employees, leave requests, violations and the suggestions of the
+  // attendance close; rows inside the person's stores).
+  sales: {
+    deals: {
+      filters: {
+        open_deals: 'stage',
+        ...statusFilterOn('stage', DEAL_LIST_STAGES),
+        mine: 'owner',
+        unassigned: 'owner',
+        followup_overdue: 'followup',
+        no_next_step: 'followup',
+        stale: 'stale',
+        ...statusFilterOn('source', DEAL_LIST_SOURCES),
+        proposal_sent: 'proposal',
+        proposal_accepted: 'proposal',
+        proposal_to_approve: 'proposal',
+        ...days,
+      },
+      values: { owner: 'option', from: 'day_from', to: 'day_to' },
+      groupBys: ['stage', 'owner', 'source', 'month'],
+      sorts: ['number', 'created', 'stageChanged', 'expectedFee', 'expectedOrders', 'closeDate'],
+      sums: ['expectedFee', 'expectedOrders'],
+      defaultFilters: [],
+    },
+    companies: {
+      filters: {
+        ...statusFilterOn('source', DEAL_LIST_SOURCES),
+        with_merchant: 'merchant',
+        no_merchant: 'merchant',
+        with_open_deals: 'deals',
+        no_open_deals: 'deals',
+        mine: 'owner',
+        unassigned: 'owner',
+      },
+      values: { owner: 'option' },
+      groupBys: ['owner', 'source', 'city', 'category'],
+      sorts: ['name', 'created', 'openDeals', 'wonDeals'],
+      sums: ['openDeals', 'wonDeals', 'contacts'],
+      defaultFilters: [],
+    },
+    proposals: {
+      filters: {
+        ...statusFilters(PROPOSAL_LIST_STATUSES),
+        to_approve: 'approval',
+        discount_over_limit: 'approval',
+        confirmed: 'confirmed',
+        this_month: 'date',
+        last_month: 'date',
+      },
+      values: { owner: 'option' },
+      groupBys: ['status', 'owner', 'month'],
+      sorts: ['number', 'created', 'discount'],
+      sums: [],
+      defaultFilters: [],
+    },
+  },
+  hr: {
+    employees: {
+      filters: {
+        ...statusFilterOn('flag', EMPLOYEE_LIST_FLAGS),
+        current: 'status',
+        active: 'status',
+        on_leave: 'status',
+        suspended: 'status',
+        employee: 'employment',
+        outsourced: 'employment',
+        monthly_salary: 'pay',
+        per_delivery: 'pay',
+      },
+      values: { department: 'option', position: 'option', store: 'option' },
+      groupBys: ['department', 'store', 'position', 'employment', 'status', 'manager'],
+      sorts: ['name', 'code', 'hired', 'documents', 'department', 'store'],
+      sums: [],
+      defaultFilters: [],
+    },
+    leave: {
+      filters: {
+        pending: 'status',
+        ...statusFilters(LEAVE_LIST_STATUSES),
+        waiting_for_me: 'mine',
+        today: 'date',
+        this_month: 'date',
+        last_month: 'date',
+        upcoming: 'date',
+      },
+      values: {
+        type: 'option',
+        store: 'option',
+        department: 'option',
+        from: 'day_from',
+        to: 'day_to',
+      },
+      groupBys: ['status', 'type', 'employee', 'store', 'department', 'month'],
+      sorts: ['number', 'from', 'days', 'created'],
+      sums: ['days'],
+      defaultFilters: ['pending'],
+    },
+    violations: {
+      filters: {
+        open: 'status',
+        ...statusFilters(VIOLATION_LIST_STATUSES),
+        ...statusFilterOn('penalty', VIOLATION_LIST_PENALTIES),
+        for_supplier: 'supplier',
+        employee: 'employment',
+        outsourced: 'employment',
+        ...days,
+      },
+      values: { type: 'option', store: 'option', from: 'day_from', to: 'day_to' },
+      groupBys: ['status', 'type', 'employee', 'store', 'penalty', 'month'],
+      sorts: ['number', 'occurred', 'amount'],
+      sums: ['amount'],
+      defaultFilters: [],
+    },
+    suggestions: {
+      filters: {
+        ...statusFilters(SUGGESTION_LIST_STATUSES),
+        late: 'kind',
+        absent: 'kind',
+        ...days,
+      },
+      values: { store: 'option' },
+      groupBys: ['kind', 'store', 'day', 'employee'],
+      sorts: ['day', 'lateMinutes'],
+      sums: [],
+      defaultFilters: ['open'],
+    },
+  },
 } as const satisfies Partial<Record<AccessApp, Record<string, ListMeta>>>;
 
 export type AppListApp = keyof typeof APP_LISTS;
@@ -306,5 +492,24 @@ export function appListKnown(app: string, id: string) {
 
 /** Cancel several orders with one reason (the list's note), each under the usual rules. */
 export const bulkCancelOrdersSchema = bulkIdsSchema.extend({
+  note: z.string().trim().min(2).max(300),
+});
+
+// ─── UX phase C step 4: bulk actions of Sales and HR ───
+
+/** Give several deals to one sales person, or back to the queue ("none"). */
+export const bulkAssignDealsSchema = bulkIdsSchema.extend({
+  ownerId: z.string().min(1).max(40),
+});
+/** Move several deals to one open stage (won and lost are decided one by one or as lost). */
+export const bulkStageDealsSchema = bulkIdsSchema.extend({
+  stage: z.enum(['new', 'contacted', 'meeting', 'proposal', 'negotiation']),
+});
+/** Mark several deals lost: the reason "other" with the note the list asks for. */
+export const bulkLostDealsSchema = bulkIdsSchema.extend({
+  note: z.string().trim().min(2).max(300),
+});
+/** Refuse several leave requests with one reason. */
+export const bulkRejectLeaveSchema = bulkIdsSchema.extend({
   note: z.string().trim().min(2).max(300),
 });

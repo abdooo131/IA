@@ -188,16 +188,27 @@ export async function teamWith(
   db: Db,
   app: AccessApp,
   level: Exclude<AccessLevel, 'none'>,
-  scope: { storeId?: string | null; merchantId?: string | null; customerData?: boolean } = {},
+  scope: {
+    storeId?: string | null;
+    merchantId?: string | null;
+    customerData?: boolean;
+    /** A record of several locations, or a person's home store (none: all stores only) */
+    anyStoreIds?: string[];
+    /** Sales records: reps with own_deals_only only when they are one of these */
+    ownerIds?: string[];
+  } = {},
 ): Promise<string[]> {
+  const stores = scope.storeId ? [scope.storeId] : scope.anyStoreIds;
   const where = {
     [app]: { in: FROM_LEVEL[level] },
     ...(scope.customerData && { customerData: true }),
     user: { isActive: true, role: { in: [...TEAM_ROLES] } },
-    ...(scope.storeId && {
+    ...(stores && {
       OR: [
         { allStores: true },
-        { user: { accessStores: { some: { darkStoreId: scope.storeId } } } },
+        ...(stores.length
+          ? [{ user: { accessStores: { some: { darkStoreId: { in: stores } } } } }]
+          : []),
       ],
     }),
   } as Prisma.UserAccessWhereInput;
@@ -206,6 +217,8 @@ export async function teamWith(
     select: {
       userId: true,
       ownMerchantsOnly: true,
+      ownDealsOnly: true,
+      sales: true,
       user: { select: { merchantsManaged: { select: { id: true } } } },
     },
   });
@@ -215,6 +228,13 @@ export async function teamWith(
         !scope.merchantId ||
         !r.ownMerchantsOnly ||
         r.user.merchantsManaged.some((m) => m.id === scope.merchantId),
+    )
+    .filter(
+      (r) =>
+        !scope.ownerIds ||
+        !r.ownDealsOnly ||
+        r.sales === 'manage' ||
+        scope.ownerIds.includes(r.userId),
     )
     .map((r) => r.userId);
 }

@@ -1,9 +1,15 @@
 import { Controller, ForbiddenException, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { listAudit, recordRef } from '@shiplynow/db';
-import { type AccessProfile, canDo, RECORD_APPS, recordNeedsCustomerData } from '@shiplynow/shared';
+import { listAudit, recordRef, redactEmployeeAudit } from '@shiplynow/db';
+import {
+  type AccessProfile,
+  type AccessTokenClaims,
+  canDo,
+  RECORD_APPS,
+  recordNeedsCustomerData,
+} from '@shiplynow/shared';
 import { assertRecordScope } from '../auth/access-scope';
-import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
+import { Access, ANY_APP, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
@@ -26,6 +32,7 @@ export class HistoryController {
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
     @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
   ) {
     const apps = HISTORY_APPS[entityType] ?? [];
     const allowed =
@@ -36,9 +43,12 @@ export class HistoryController {
       throw new ForbiddenException({ error: 'no_access' });
     // A record of a known kind stays inside the person's stores and merchants.
     const ref = await recordRef(this.prisma, entityType, entityId);
-    if (ref) assertRecordScope(access, ref);
+    if (ref) assertRecordScope(access, ref, user.sub);
     const page = await listAudit(this.prisma, { entityType, entityId, take: 100 });
-    return page.rows.map((r) => ({
+    // An employee's salary rows and bank fields need the salaries switch.
+    const rows =
+      entityType === 'employee' ? redactEmployeeAudit(page.rows, access.salaries) : page.rows;
+    return rows.map((r) => ({
       id: r.id,
       at: r.at,
       action: r.action,

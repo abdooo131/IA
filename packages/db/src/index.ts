@@ -162,6 +162,7 @@ export {
   listEmployees,
   listPeopleWithoutFile,
   onboardNewPerson,
+  redactEmployeeAudit,
   setAccountManager,
   setEmployeeStatus,
   updateEmployee,

@@ -11,6 +11,8 @@ import {
   createLostReason,
   crmActor,
   dealAudit,
+  dealFor,
+  DomainError,
   getCompany,
   getDeal,
   listCompanies,
@@ -28,6 +30,10 @@ import {
 import {
   type AccessProfile,
   type AccessTokenClaims,
+  bulkAssignDealsSchema,
+  bulkLostDealsSchema,
+  bulkStageDealsSchema,
+  canDo,
   CRM_SOURCES,
   CRM_STAGES,
   type CrmActivityBody,
@@ -58,9 +64,13 @@ import {
   type CrmStage,
   type CrmStageBody,
   crmStageSchema,
+  type DocSmartButton,
+  LOST_REASON_OTHER,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
+import type { z } from 'zod';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
+import { eachRecord } from '../common/bulk';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { dealsCsv } from './deals-csv';
@@ -203,6 +213,124 @@ export class SalesController {
     @CurrentUser() user: AccessTokenClaims,
   ) {
     return assignDeal(this.prisma, id, body.ownerId, this.actor(access, user));
+  }
+
+  // ─── UX phase C step 4: bulk actions of the deals list and the document pages ───
+
+  /** Managers give several deals to one sales person, or back to the queue ("none"). */
+  @Post('deals/bulk-assign')
+  @Access('sales', 'manage')
+  bulkAssign(
+    @Body(new ZodValidationPipe(bulkAssignDealsSchema)) body: z.infer<typeof bulkAssignDealsSchema>,
+    @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const actor = this.actor(access, user);
+    const ownerId = body.ownerId === 'none' ? null : body.ownerId;
+    return eachRecord(body.ids, async (id) => {
+      const deal = await dealFor(this.prisma, id, actor);
+      if (deal.ownerId === ownerId) throw new DomainError('already_owner');
+      await assignDeal(this.prisma, id, ownerId, actor);
+    });
+  }
+
+  /** Moves several deals to one open stage, each under the single move's rules. */
+  @Post('deals/bulk-stage')
+  bulkStage(
+    @Body(new ZodValidationPipe(bulkStageDealsSchema)) body: z.infer<typeof bulkStageDealsSchema>,
+    @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const actor = this.actor(access, user);
+    return eachRecord(body.ids, (id) => changeStage(this.prisma, id, { stage: body.stage }, actor));
+  }
+
+  /** Marks several deals lost for the reason "other" with the list's note. */
+  @Post('deals/bulk-lost')
+  bulkLost(
+    @Body(new ZodValidationPipe(bulkLostDealsSchema)) body: z.infer<typeof bulkLostDealsSchema>,
+    @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const actor = this.actor(access, user);
+    return eachRecord(body.ids, (id) =>
+      changeStage(
+        this.prisma,
+        id,
+        { stage: 'lost', lostReason: LOST_REASON_OTHER, lostNote: body.note },
+        actor,
+      ),
+    );
+  }
+
+  /** The deal page's smart buttons: company, contacts, proposals, activities, merchant. */
+  @Get('deals/:id/document')
+  async dealDocument(
+    @Param('id') id: string,
+    @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const deal = await dealFor(this.prisma, id, this.actor(access, user));
+    const [contacts, proposals, activities, merchant] = await Promise.all([
+      this.prisma.crmContact.count({ where: { companyId: deal.companyId } }),
+      this.prisma.crmProposal.count({ where: { dealId: id } }),
+      this.prisma.crmActivity.count({ where: { dealId: id } }),
+      deal.merchantId
+        ? this.prisma.merchant.findUnique({
+            where: { id: deal.merchantId },
+            select: { name: true },
+          })
+        : null,
+    ]);
+    const smart: DocSmartButton[] = [
+      {
+        key: 'company',
+        count: null,
+        value: deal.company.brandName,
+        href: `/admin/sales/companies/${deal.companyId}`,
+      },
+      { key: 'contacts', count: contacts, href: `/admin/sales/deals/${id}#contacts` },
+      { key: 'proposals', count: proposals, href: `/admin/sales/deals/${id}#proposals` },
+      { key: 'activities', count: activities, href: `/admin/sales/deals/${id}#timeline` },
+    ];
+    if (merchant && canDo(access, 'merchants', 'view'))
+      smart.push({
+        key: 'merchant',
+        count: null,
+        value: merchant.name,
+        href: `/admin/merchants/${deal.merchantId}`,
+      });
+    return { smart };
+  }
+
+  /** The company page's smart buttons: its deals, contacts and merchant. */
+  @Get('companies/:id/document')
+  async companyDocument(
+    @Param('id') id: string,
+    @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    const company = await getCompany(this.prisma, id, this.actor(access, user));
+    const smart: DocSmartButton[] = [
+      {
+        key: 'deals',
+        count: company.deals.length,
+        href: `/admin/sales/deals?f=&q=${encodeURIComponent(company.brandName)}`,
+      },
+      {
+        key: 'contacts',
+        count: company.contacts.length,
+        href: `/admin/sales/companies/${id}#contacts`,
+      },
+    ];
+    if (company.merchant && canDo(access, 'merchants', 'view'))
+      smart.push({
+        key: 'merchant',
+        count: null,
+        value: company.merchant.name,
+        href: `/admin/merchants/${company.merchant.id}`,
+      });
+    return { smart };
   }
 
   @Post('activities')

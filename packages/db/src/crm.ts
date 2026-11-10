@@ -81,7 +81,7 @@ const notAllowed = () => new DomainError('deal_not_allowed', 403);
 export function dealScope(actor: CrmActor): Prisma.CrmDealWhereInput {
   return actor.ownOnly ? { ownerId: actor.userId } : {};
 }
-function companyScope(actor: CrmActor): Prisma.CrmCompanyWhereInput {
+export function companyScope(actor: CrmActor): Prisma.CrmCompanyWhereInput {
   return actor.ownOnly
     ? { OR: [{ ownerId: actor.userId }, { deals: { some: { ownerId: actor.userId } } }] }
     : {};

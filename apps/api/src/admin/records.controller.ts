@@ -66,6 +66,7 @@ export class RecordsController {
     entityType: string,
     entityId: string,
     level: AccessLevel,
+    userId: string,
   ) {
     const apps = RECORD_APPS[entityType] ?? [];
     if (!apps.some((app) => canDo(access, app, level)))
@@ -75,7 +76,7 @@ export class RecordsController {
       throw new ForbiddenException({ error: 'no_access' });
     const ref = await recordRef(this.prisma, entityType, entityId);
     if (!ref) throw new NotFoundException({ error: 'not_found' });
-    assertRecordScope(access, ref);
+    assertRecordScope(access, ref, userId);
     return ref;
   }
 
@@ -84,8 +85,9 @@ export class RecordsController {
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
     @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
   ) {
-    await this.allowed(access, entityType, entityId, 'view');
+    await this.allowed(access, entityType, entityId, 'view', user.sub);
     return listRecordNotes(this.prisma, entityType, entityId);
   }
 
@@ -97,7 +99,7 @@ export class RecordsController {
     @CurrentAccess() access: AccessProfile,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    await this.allowed(access, entityType, entityId, 'use');
+    await this.allowed(access, entityType, entityId, 'use', user.sub);
     return addRecordNote(this.prisma, {
       entityType,
       entityId,
@@ -111,8 +113,9 @@ export class RecordsController {
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
     @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
   ) {
-    await this.allowed(access, entityType, entityId, 'view');
+    await this.allowed(access, entityType, entityId, 'view', user.sub);
     return listRecordActivities(this.prisma, entityType, entityId);
   }
 
@@ -122,14 +125,17 @@ export class RecordsController {
     @Param('entityType') entityType: string,
     @Param('entityId') entityId: string,
     @CurrentAccess() access: AccessProfile,
+    @CurrentUser() user: AccessTokenClaims,
   ) {
-    const ref = await this.allowed(access, entityType, entityId, 'view');
+    const ref = await this.allowed(access, entityType, entityId, 'view', user.sub);
     const app = (RECORD_APPS[entityType] ?? [])[0];
     if (!app) return [];
     const ids = await teamWith(this.prisma, app, 'view', {
       storeId: ref.darkStoreId,
       merchantId: ref.merchantId,
       customerData: recordNeedsCustomerData(entityType),
+      anyStoreIds: ref.anyStoreIds,
+      ownerIds: ref.ownerIds,
     });
     return this.prisma.user.findMany({
       where: { id: { in: ids } },
@@ -146,7 +152,7 @@ export class RecordsController {
     @CurrentAccess() access: AccessProfile,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const ref = await this.allowed(access, entityType, entityId, 'use');
+    const ref = await this.allowed(access, entityType, entityId, 'use', user.sub);
     if (body.dueOn < cairoDay(this.clock.now())) throw new DomainError('due_in_past', 400);
     if (body.assigneeId && body.assigneeId !== user.sub) {
       // Only someone who may open the record can be reminded about it.
@@ -156,6 +162,8 @@ export class RecordsController {
             storeId: ref.darkStoreId,
             merchantId: ref.merchantId,
             customerData: recordNeedsCustomerData(entityType),
+            anyStoreIds: ref.anyStoreIds,
+            ownerIds: ref.ownerIds,
           })
         : [];
       if (!may.includes(body.assigneeId)) throw new DomainError('assignee_not_allowed', 400);

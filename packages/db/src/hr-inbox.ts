@@ -354,7 +354,7 @@ export async function listCorrections(
 // ─── the inbox ─────────────────────────────────────────────────────────────────
 
 /** The people whose manager in force is this person (only direct reports approve through them). */
-async function directReports(db: Db, managerEmployeeId: string) {
+export async function directReports(db: Db, managerEmployeeId: string) {
   const [people, departments] = await Promise.all([
     db.employee.findMany({
       where: { status: { not: 'left' } },

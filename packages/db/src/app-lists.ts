@@ -11,6 +11,21 @@ import {
   contractVersionLabel,
   CUSTOMER_LIST_RISKS,
   CUSTOMER_LIST_SEGMENTS,
+  DEAL_LIST_SOURCES,
+  DEAL_LIST_STAGES,
+  dealNumber,
+  EMPLOYEE_LIST_FLAGS,
+  employeeCode,
+  isOpenStage,
+  LEAVE_LIST_STATUSES,
+  leaveRequestNumber,
+  NO_ACCESS,
+  PROPOSAL_LIST_STATUSES,
+  proposalNumber,
+  SUGGESTION_LIST_STATUSES,
+  VIOLATION_LIST_PENALTIES,
+  VIOLATION_LIST_STATUSES,
+  violationNumber,
   type GroupValue,
   LIST_MAX_ROWS,
   type ListCtx,
@@ -22,6 +37,9 @@ import {
   previousMonth,
 } from '@shiplynow/shared';
 import type { Db } from './client';
+import { companyScope, type CrmActor, crmActor, dealScope, salesPeople } from './crm';
+import { employeeDirectory } from './hr-overview';
+import { directReports } from './hr-inbox';
 import { getSetting } from './settings';
 import { type CustomerListRow, customerListRows } from './shopdata/customer-insights';
 import { listGaps, type ListScope, queryList, type RegisteredList } from './list-query';
@@ -1382,6 +1400,997 @@ function loadCustomers(db: Db, scope: ListScope, state: ListState, now: Date) {
   );
 }
 
+// ─── Sales and HR (UX phase C step 4) ───────────────────────────────────────────
+
+/** The sales actor of the person looking (own_deals_only keeps a rep to their own records). */
+function salesActor(scope: ListScope): CrmActor {
+  return crmActor(scope.access ?? NO_ACCESS, scope.userId);
+}
+
+const MINUTE_MS = 60_000;
+
+export interface DealListRow {
+  id: string;
+  number: string;
+  numberValue: number;
+  title: string | null;
+  companyId: string;
+  company: string;
+  contact: string | null;
+  phone: string | null;
+  email: string | null;
+  stage: string;
+  open: boolean;
+  ownerId: string | null;
+  owner: string | null;
+  source: string;
+  createdAt: string;
+  createdDay: string;
+  month: string;
+  stageChangedAt: string;
+  expectedFee: number | null;
+  expectedOrders: number | null;
+  closeDate: string | null;
+  nextStep: string | null;
+  nextStepAt: string | null;
+  followupOverdue: boolean;
+  noNextStep: boolean;
+  stale: boolean;
+  /** The newest proposal's status, or null */
+  proposal: string | null;
+  proposalSent: boolean;
+  proposalAccepted: boolean;
+  proposalToApprove: boolean;
+  merchantId: string | null;
+  merchant: string | null;
+}
+
+async function loadDeals(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+  now: Date,
+): Promise<DealListRow[]> {
+  const actor = salesActor(scope);
+  const [overdueMinutes, staleDays] = await Promise.all([
+    getSetting(db, 'sales.overdue_minutes'),
+    getSetting(db, 'sales.stale_days'),
+  ]);
+  const owner = state.values.owner;
+  const rows = await db.crmDeal.findMany({
+    where: {
+      AND: [
+        dealScope(actor),
+        owner && !actor.ownOnly ? { ownerId: owner } : {},
+        { createdAt: dayRange(state) },
+      ],
+    },
+    select: {
+      id: true,
+      number: true,
+      title: true,
+      stage: true,
+      ownerId: true,
+      owner: { select: { name: true } },
+      createdAt: true,
+      stageChangedAt: true,
+      expectedMonthlyFeePiastres: true,
+      expectedMonthlyOrders: true,
+      expectedCloseDate: true,
+      merchantId: true,
+      merchant: { select: { name: true } },
+      company: {
+        select: {
+          id: true,
+          brandName: true,
+          source: true,
+          contacts: {
+            select: { name: true, phone: true, email: true },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+          },
+        },
+      },
+      activities: {
+        where: { doneAt: null, dueAt: { not: null } },
+        select: { subject: true, dueAt: true },
+        orderBy: { dueAt: 'asc' },
+        take: 1,
+      },
+      proposals: {
+        select: {
+          status: true,
+          needsApproval: true,
+          approvedAt: true,
+          approvalRequestedAt: true,
+        },
+        orderBy: { version: 'desc' },
+      },
+    },
+    orderBy: [{ number: 'desc' }],
+    take: LIST_MAX_ROWS,
+  });
+  const staleBefore = now.getTime() - staleDays * DAY_MS;
+  const overdueBefore = now.getTime() - overdueMinutes * MINUTE_MS;
+  return rows.map((d) => {
+    const open = isOpenStage(d.stage);
+    const next = d.activities[0] ?? null;
+    const contact = d.company.contacts[0] ?? null;
+    const createdDay = cairoDay(d.createdAt);
+    return {
+      id: d.id,
+      number: dealNumber(d.number),
+      numberValue: d.number,
+      title: d.title,
+      companyId: d.company.id,
+      company: d.company.brandName,
+      contact: contact?.name ?? null,
+      phone: contact?.phone ?? null,
+      email: contact?.email ?? null,
+      stage: d.stage,
+      open,
+      ownerId: d.ownerId,
+      owner: d.owner?.name ?? null,
+      source: d.company.source,
+      createdAt: d.createdAt.toISOString(),
+      createdDay,
+      month: monthOfDay(createdDay),
+      stageChangedAt: d.stageChangedAt.toISOString(),
+      expectedFee: d.expectedMonthlyFeePiastres,
+      expectedOrders: d.expectedMonthlyOrders,
+      closeDate: d.expectedCloseDate?.toISOString().slice(0, 10) ?? null,
+      nextStep: next?.subject ?? null,
+      nextStepAt: next?.dueAt?.toISOString() ?? null,
+      followupOverdue: open && !!next?.dueAt && next.dueAt.getTime() <= overdueBefore,
+      noNextStep: open && !next,
+      stale: open && d.stageChangedAt.getTime() <= staleBefore,
+      proposal: d.proposals[0]?.status ?? null,
+      proposalSent: d.proposals.some((p) => ['sent', 'viewed'].includes(p.status)),
+      proposalAccepted: d.proposals.some((p) => p.status === 'accepted'),
+      proposalToApprove: d.proposals.some(
+        (p) => p.status === 'draft' && p.needsApproval && !p.approvedAt && !!p.approvalRequestedAt,
+      ),
+      merchantId: d.merchantId,
+      merchant: d.merchant?.name ?? null,
+    };
+  });
+}
+
+const deals: ListDef<DealListRow> = {
+  id: 'deals',
+  filters: {
+    open_deals: { group: 'stage', test: (r) => r.open },
+    ...statusFilterOn<DealListRow>('stage', DEAL_LIST_STAGES, (r) => r.stage),
+    mine: { group: 'owner', test: (r, ctx) => r.ownerId === ctx.userId },
+    unassigned: { group: 'owner', test: (r) => r.ownerId === null },
+    followup_overdue: { group: 'followup', test: (r) => r.followupOverdue },
+    no_next_step: { group: 'followup', test: (r) => r.noNextStep },
+    stale: { group: 'stale', test: (r) => r.stale },
+    ...statusFilterOn<DealListRow>('source', DEAL_LIST_SOURCES, (r) => r.source),
+    proposal_sent: { group: 'proposal', test: (r) => r.proposalSent },
+    proposal_accepted: { group: 'proposal', test: (r) => r.proposalAccepted },
+    proposal_to_approve: { group: 'proposal', test: (r) => r.proposalToApprove },
+    ...dayFilters<DealListRow>((r) => r.createdDay),
+  },
+  values: {
+    owner: (r, v) => r.ownerId === v,
+    from: (r, v) => r.createdDay >= v,
+    to: (r, v) => r.createdDay <= v,
+  },
+  groupBys: {
+    stage: (r) => named(r.stage, r.stage),
+    owner: (r) => named(r.ownerId, r.owner),
+    source: (r) => named(r.source, r.source),
+    month: (r) => named(r.month, r.month),
+  },
+  search: (r) => [
+    r.number,
+    String(r.numberValue),
+    r.title,
+    r.company,
+    r.contact,
+    r.phone,
+    r.phone ? localPhone(r.phone) : null,
+    r.email,
+  ],
+  sorts: {
+    number: (r) => r.numberValue,
+    created: (r) => r.createdAt,
+    stageChanged: (r) => r.stageChangedAt,
+    expectedFee: (r) => r.expectedFee,
+    expectedOrders: (r) => r.expectedOrders,
+    closeDate: (r) => r.closeDate,
+  },
+  defaultSort: { key: 'number', desc: true },
+  sums: APP_LISTS.sales.deals.sums,
+};
+
+export interface CompanyListRow {
+  id: string;
+  name: string;
+  website: string | null;
+  shopDomain: string | null;
+  city: string | null;
+  category: string | null;
+  source: string;
+  ownerId: string | null;
+  owner: string | null;
+  merchantId: string | null;
+  merchant: string | null;
+  contacts: number;
+  contact: string | null;
+  phone: string | null;
+  email: string | null;
+  openDeals: number;
+  wonDeals: number;
+  createdAt: string;
+}
+
+async function loadCompanies(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<CompanyListRow[]> {
+  const actor = salesActor(scope);
+  const owner = state.values.owner;
+  const rows = await db.crmCompany.findMany({
+    where: { AND: [companyScope(actor), owner && !actor.ownOnly ? { ownerId: owner } : {}] },
+    select: {
+      id: true,
+      brandName: true,
+      website: true,
+      shopDomain: true,
+      city: true,
+      category: true,
+      source: true,
+      ownerId: true,
+      owner: { select: { name: true } },
+      merchantId: true,
+      merchant: { select: { name: true } },
+      createdAt: true,
+      contacts: {
+        select: { name: true, phone: true, email: true },
+        orderBy: { createdAt: 'asc' },
+      },
+      // A rep with own deals only counts only their own deals.
+      deals: { where: dealScope(actor), select: { stage: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    name: c.brandName,
+    website: c.website,
+    shopDomain: c.shopDomain,
+    city: c.city,
+    category: c.category,
+    source: c.source,
+    ownerId: c.ownerId,
+    owner: c.owner?.name ?? null,
+    merchantId: c.merchantId,
+    merchant: c.merchant?.name ?? null,
+    contacts: c.contacts.length,
+    contact: c.contacts[0]?.name ?? null,
+    phone: c.contacts[0]?.phone ?? null,
+    email: c.contacts[0]?.email ?? null,
+    openDeals: c.deals.filter((d) => isOpenStage(d.stage)).length,
+    wonDeals: c.deals.filter((d) => d.stage === 'won').length,
+    createdAt: c.createdAt.toISOString(),
+  }));
+}
+
+const companies: ListDef<CompanyListRow> = {
+  id: 'companies',
+  filters: {
+    ...statusFilterOn<CompanyListRow>('source', DEAL_LIST_SOURCES, (r) => r.source),
+    with_merchant: { group: 'merchant', test: (r) => r.merchantId !== null },
+    no_merchant: { group: 'merchant', test: (r) => r.merchantId === null },
+    with_open_deals: { group: 'deals', test: (r) => r.openDeals > 0 },
+    no_open_deals: { group: 'deals', test: (r) => r.openDeals === 0 },
+    mine: { group: 'owner', test: (r, ctx) => r.ownerId === ctx.userId },
+    unassigned: { group: 'owner', test: (r) => r.ownerId === null },
+  },
+  values: { owner: (r, v) => r.ownerId === v },
+  groupBys: {
+    owner: (r) => named(r.ownerId, r.owner),
+    source: (r) => named(r.source, r.source),
+    city: (r) => named(r.city, r.city),
+    category: (r) => named(r.category, r.category),
+  },
+  search: (r) => [
+    r.name,
+    r.website,
+    r.shopDomain,
+    r.city,
+    r.category,
+    r.contact,
+    r.phone,
+    r.phone ? localPhone(r.phone) : null,
+    r.email,
+    r.merchant,
+  ],
+  sorts: {
+    name: (r) => r.name.toLowerCase(),
+    created: (r) => r.createdAt,
+    openDeals: (r) => r.openDeals,
+    wonDeals: (r) => r.wonDeals,
+  },
+  defaultSort: { key: 'name', desc: false },
+  sums: APP_LISTS.sales.companies.sums,
+};
+
+export interface ProposalListRow {
+  id: string;
+  number: string;
+  numberValue: number;
+  version: number;
+  dealId: string;
+  deal: string;
+  company: string;
+  status: string;
+  ownerId: string | null;
+  owner: string | null;
+  createdAt: string;
+  month: string;
+  createdDay: string;
+  sentAt: string | null;
+  validUntil: string | null;
+  acceptedAt: string | null;
+  /** The largest discount against the fee settings, in basis points */
+  discount: number;
+  discountOverLimit: boolean;
+  toApprove: boolean;
+  confirmed: boolean;
+  expectedOrders: number | null;
+}
+
+async function loadProposals(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<ProposalListRow[]> {
+  const actor = salesActor(scope);
+  const owner = state.values.owner;
+  const rows = await db.crmProposal.findMany({
+    where: {
+      deal: { AND: [dealScope(actor), owner && !actor.ownOnly ? { ownerId: owner } : {}] },
+    },
+    select: {
+      id: true,
+      number: true,
+      version: true,
+      status: true,
+      createdAt: true,
+      sentAt: true,
+      validUntil: true,
+      acceptedAt: true,
+      maxDiscountBp: true,
+      needsApproval: true,
+      approvedAt: true,
+      approvalRequestedAt: true,
+      confirmedAt: true,
+      expectedMonthlyOrders: true,
+      deal: {
+        select: {
+          id: true,
+          number: true,
+          ownerId: true,
+          owner: { select: { name: true } },
+          company: { select: { brandName: true } },
+        },
+      },
+    },
+    orderBy: { number: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((p) => {
+    const createdDay = cairoDay(p.createdAt);
+    return {
+      id: p.id,
+      number: proposalNumber(p.number),
+      numberValue: p.number,
+      version: p.version,
+      dealId: p.deal.id,
+      deal: dealNumber(p.deal.number),
+      company: p.deal.company.brandName,
+      status: p.status,
+      ownerId: p.deal.ownerId,
+      owner: p.deal.owner?.name ?? null,
+      createdAt: p.createdAt.toISOString(),
+      createdDay,
+      month: monthOfDay(createdDay),
+      sentAt: p.sentAt?.toISOString() ?? null,
+      validUntil: p.validUntil?.toISOString().slice(0, 10) ?? null,
+      acceptedAt: p.acceptedAt?.toISOString() ?? null,
+      discount: p.maxDiscountBp,
+      discountOverLimit: p.needsApproval,
+      toApprove:
+        p.status === 'draft' && p.needsApproval && !p.approvedAt && !!p.approvalRequestedAt,
+      confirmed: !!p.confirmedAt,
+      expectedOrders: p.expectedMonthlyOrders,
+    };
+  });
+}
+
+const proposals: ListDef<ProposalListRow> = {
+  id: 'proposals',
+  filters: {
+    ...statusFilter<ProposalListRow>(PROPOSAL_LIST_STATUSES),
+    to_approve: { group: 'approval', test: (r) => r.toApprove },
+    discount_over_limit: { group: 'approval', test: (r) => r.discountOverLimit },
+    confirmed: { group: 'confirmed', test: (r) => r.confirmed },
+    this_month: dayFilters<ProposalListRow>((r) => r.createdDay).this_month,
+    last_month: dayFilters<ProposalListRow>((r) => r.createdDay).last_month,
+  },
+  values: { owner: (r, v) => r.ownerId === v },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    owner: (r) => named(r.ownerId, r.owner),
+    month: (r) => named(r.month, r.month),
+  },
+  search: (r) => [r.number, String(r.numberValue), r.deal, r.company, r.owner],
+  sorts: {
+    number: (r) => r.numberValue,
+    created: (r) => r.createdAt,
+    discount: (r) => r.discount,
+  },
+  defaultSort: { key: 'number', desc: true },
+  sums: APP_LISTS.sales.proposals.sums,
+};
+
+// HR: rows belong to the person's home store; someone limited to some stores sees only those.
+
+const hrStoreWhere = (scope: ListScope, chosen?: string) =>
+  scope.storeIds === null
+    ? chosen
+      ? { homeStoreId: chosen }
+      : {}
+    : { homeStoreId: within(chosen, scope.storeIds) };
+
+/** Every department's chain up to the top (itself first), for "this department and below". */
+async function departmentChains(db: Db) {
+  const rows = await db.department.findMany({ select: { id: true, parentId: true } });
+  const parent = new Map(rows.map((d) => [d.id, d.parentId]));
+  const chain = (id: string | null) => {
+    const out: string[] = [];
+    for (let d = id, i = 0; d && i < 50; d = parent.get(d) ?? null, i++) out.push(d);
+    return out;
+  };
+  return chain;
+}
+
+export interface EmployeeListRow2 {
+  id: string;
+  code: string;
+  numberValue: number;
+  nameEn: string;
+  nameAr: string | null;
+  mobile: string | null;
+  email: string | null;
+  jobTitle: string | null;
+  departmentId: string | null;
+  departmentPath: string[];
+  department: string | null;
+  departmentAr: string | null;
+  positionId: string | null;
+  position: string | null;
+  positionAr: string | null;
+  storeId: string | null;
+  store: string | null;
+  managerId: string | null;
+  manager: string | null;
+  employment: string;
+  payBasis: string;
+  status: string;
+  hireDate: string | null;
+  probationEndsOn: string | null;
+  documents: number;
+  missingDocuments: number;
+  openViolations: number;
+  flags: string[];
+  /** Only for people with HR use (searched, never shown in the list) */
+  nationalId?: string | null;
+}
+
+async function loadEmployees(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+  now: Date,
+): Promise<EmployeeListRow2[]> {
+  const [{ rows }, chain, numbers] = await Promise.all([
+    employeeDirectory(
+      db,
+      {
+        scope: scope.storeIds,
+        storeId: state.values.store,
+        positionId: state.values.position,
+        pageSize: null,
+      },
+      now,
+    ),
+    departmentChains(db),
+    db.employee.findMany({
+      where: hrStoreWhere(scope),
+      select: { id: true, number: true },
+    }),
+  ]);
+  const confidential = canDo(scope.access, 'hr', 'use');
+  const number = new Map(numbers.map((e) => [e.id, e.number]));
+  return rows.map((e) => ({
+    id: e.id,
+    code: e.code,
+    numberValue: number.get(e.id) ?? 0,
+    nameEn: e.nameEn,
+    nameAr: e.nameAr,
+    mobile: e.mobile,
+    email: e.user.email,
+    jobTitle: e.jobTitle,
+    departmentId: e.department?.id ?? null,
+    departmentPath: chain(e.department?.id ?? null),
+    department: e.department?.nameEn ?? null,
+    departmentAr: e.department?.nameAr ?? null,
+    positionId: e.position?.id ?? null,
+    position: e.position?.titleEn ?? e.jobTitle ?? null,
+    positionAr: e.position?.titleAr ?? e.jobTitle ?? null,
+    storeId: e.homeStore?.id ?? null,
+    store: e.homeStore?.code ?? null,
+    managerId: e.manager?.id ?? null,
+    manager: e.manager?.nameEn ?? null,
+    employment: e.employment,
+    payBasis: e.payBasis,
+    status: e.status,
+    hireDate: e.hireDate,
+    probationEndsOn: e.probationEndsOn,
+    documents: e.documents.percent,
+    missingDocuments: e.documents.missing,
+    openViolations: e.openViolations,
+    flags: e.flags,
+    ...(confidential && { nationalId: e.nationalId }),
+  }));
+}
+
+const employees: ListDef<EmployeeListRow2> = {
+  id: 'employees',
+  filters: {
+    ...Object.fromEntries(
+      EMPLOYEE_LIST_FLAGS.map((f) => [
+        f,
+        { group: 'flag', test: (r: EmployeeListRow2) => r.flags.includes(f) },
+      ]),
+    ),
+    current: { group: 'status', test: (r) => r.status !== 'left' },
+    active: { group: 'status', test: (r) => r.status === 'active' },
+    on_leave: { group: 'status', test: (r) => r.status === 'on_leave' },
+    suspended: { group: 'status', test: (r) => r.status === 'suspended' },
+    employee: { group: 'employment', test: (r) => r.employment === 'employee' },
+    outsourced: { group: 'employment', test: (r) => r.employment === 'outsourced' },
+    monthly_salary: { group: 'pay', test: (r) => r.payBasis === 'monthly_salary' },
+    per_delivery: { group: 'pay', test: (r) => r.payBasis === 'per_delivery' },
+  },
+  values: {
+    department: (r, v) => r.departmentPath.includes(v),
+    position: (r, v) => r.positionId === v,
+    store: (r, v) => r.storeId === v,
+  },
+  groupBys: {
+    department: (r) => named(r.departmentId, r.department),
+    store: (r) => named(r.storeId, r.store),
+    position: (r) => named(r.positionId, r.position),
+    employment: (r) => named(r.employment, r.employment),
+    status: (r) => named(r.status, r.status),
+    manager: (r) => named(r.managerId, r.manager),
+  },
+  search: (r) => [
+    r.nameEn,
+    r.nameAr,
+    r.code,
+    String(r.numberValue),
+    r.mobile,
+    r.mobile ? localPhone(r.mobile) : null,
+    r.email,
+    r.jobTitle,
+    r.nationalId,
+  ],
+  sorts: {
+    name: (r) => r.nameEn.toLowerCase(),
+    code: (r) => r.numberValue,
+    hired: (r) => r.hireDate,
+    documents: (r) => r.documents,
+    department: (r) => r.department?.toLowerCase() ?? null,
+    store: (r) => r.store,
+  },
+  defaultSort: { key: 'name', desc: false },
+  sums: APP_LISTS.hr.employees.sums,
+};
+
+export interface LeaveListRow {
+  id: string;
+  number: string;
+  numberValue: number;
+  employeeId: string;
+  employee: string;
+  employeeAr: string | null;
+  employeeCode: string;
+  storeId: string | null;
+  store: string | null;
+  departmentId: string | null;
+  department: string | null;
+  typeId: string;
+  type: string;
+  typeAr: string;
+  from: string;
+  to: string;
+  days: number;
+  status: string;
+  createdAt: string;
+  month: string;
+  waitingForMe: boolean;
+  hasDocument: boolean;
+}
+
+const dayOf = (d: Date) => d.toISOString().slice(0, 10);
+const atDay = (d: string) => new Date(`${d}T00:00:00Z`);
+
+async function loadLeave(db: Db, scope: ListScope, state: ListState): Promise<LeaveListRow[]> {
+  const { from, to, type, department, store } = state.values;
+  const rows = await db.leaveRequest.findMany({
+    where: {
+      ...(type && { typeId: type }),
+      // Requests that touch the chosen days.
+      ...(from && { toDay: { gte: atDay(from) } }),
+      ...(to && { fromDay: { lte: atDay(to) } }),
+      employee: {
+        ...hrStoreWhere(scope, store),
+        ...(department && { departmentId: department }),
+      },
+    },
+    select: {
+      id: true,
+      number: true,
+      fromDay: true,
+      toDay: true,
+      days: true,
+      status: true,
+      createdAt: true,
+      documentContentType: true,
+      type: { select: { id: true, nameEn: true, nameAr: true } },
+      employee: {
+        select: {
+          id: true,
+          number: true,
+          userId: true,
+          nameEn: true,
+          nameAr: true,
+          homeStore: { select: { id: true, code: true } },
+          department: { select: { id: true, nameEn: true } },
+        },
+      },
+    },
+    orderBy: [{ fromDay: 'desc' }, { number: 'desc' }],
+    take: LIST_MAX_ROWS,
+  });
+  // What waits for me: my direct reports at the manager step; with HR use, the HR step.
+  const me = await db.employee.findUnique({
+    where: { userId: scope.userId },
+    select: { id: true },
+  });
+  const reports = new Set(me ? await directReports(db, me.id) : []);
+  const hrUse = canDo(scope.access, 'hr', 'use');
+  return rows.map((r) => {
+    const mine = r.employee.userId === scope.userId;
+    return {
+      id: r.id,
+      number: leaveRequestNumber(r.number),
+      numberValue: r.number,
+      employeeId: r.employee.id,
+      employee: r.employee.nameEn,
+      employeeAr: r.employee.nameAr,
+      employeeCode: employeeCode(r.employee.number),
+      storeId: r.employee.homeStore?.id ?? null,
+      store: r.employee.homeStore?.code ?? null,
+      departmentId: r.employee.department?.id ?? null,
+      department: r.employee.department?.nameEn ?? null,
+      typeId: r.type.id,
+      type: r.type.nameEn,
+      typeAr: r.type.nameAr,
+      from: dayOf(r.fromDay),
+      to: dayOf(r.toDay),
+      days: Number(r.days),
+      status: r.status,
+      createdAt: r.createdAt.toISOString(),
+      month: monthOfDay(dayOf(r.fromDay)),
+      waitingForMe:
+        !mine &&
+        ((r.status === 'pending_manager' && reports.has(r.employee.id)) ||
+          (r.status === 'pending_hr' && hrUse)),
+      hasDocument: !!r.documentContentType,
+    };
+  });
+}
+
+const leave: ListDef<LeaveListRow> = {
+  id: 'leave',
+  filters: {
+    pending: {
+      group: 'status',
+      test: (r) => r.status === 'pending_manager' || r.status === 'pending_hr',
+    },
+    ...statusFilter<LeaveListRow>(LEAVE_LIST_STATUSES),
+    waiting_for_me: { group: 'mine', test: (r) => r.waitingForMe },
+    today: { group: 'date', test: (r, ctx) => r.from <= ctx.today && r.to >= ctx.today },
+    this_month: {
+      group: 'date',
+      test: (r, ctx) =>
+        monthOfDay(r.from) <= monthOfDay(ctx.today) && monthOfDay(r.to) >= monthOfDay(ctx.today),
+    },
+    last_month: {
+      group: 'date',
+      test: (r, ctx) => {
+        const m = previousMonth(monthOfDay(ctx.today));
+        return monthOfDay(r.from) <= m && monthOfDay(r.to) >= m;
+      },
+    },
+    upcoming: { group: 'date', test: (r, ctx) => r.from > ctx.today },
+  },
+  values: {
+    type: (r, v) => r.typeId === v,
+    store: (r, v) => r.storeId === v,
+    department: (r, v) => r.departmentId === v,
+    from: (r, v) => r.to >= v,
+    to: (r, v) => r.from <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    type: (r) => named(r.typeId, r.type),
+    employee: (r) => named(r.employeeId, r.employee),
+    store: (r) => named(r.storeId, r.store),
+    department: (r) => named(r.departmentId, r.department),
+    month: (r) => named(r.month, r.month),
+  },
+  search: (r) => [
+    r.number,
+    String(r.numberValue),
+    r.employee,
+    r.employeeAr,
+    r.employeeCode,
+    r.type,
+    r.typeAr,
+  ],
+  sorts: {
+    number: (r) => r.numberValue,
+    from: (r) => r.from,
+    days: (r) => r.days,
+    created: (r) => r.createdAt,
+  },
+  defaultSort: { key: 'from', desc: true },
+  sums: APP_LISTS.hr.leave.sums,
+};
+
+export interface ViolationListRow {
+  id: string;
+  number: string;
+  numberValue: number;
+  employeeId: string;
+  employee: string;
+  employeeAr: string | null;
+  employeeCode: string;
+  employment: string;
+  storeId: string | null;
+  store: string | null;
+  typeId: string;
+  type: string;
+  typeAr: string;
+  occurredOn: string;
+  month: string;
+  step: number;
+  penalty: string;
+  days: number | null;
+  /** A fixed amount of the ladder (deduction_amount); days of pay are never shown here */
+  amount: number | null;
+  status: string;
+  forSupplier: boolean;
+}
+
+async function loadViolations(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<ViolationListRow[]> {
+  const { from, to, type, store } = state.values;
+  const rows = await db.violation.findMany({
+    where: {
+      ...(type && { typeId: type }),
+      ...((from || to) && {
+        occurredOn: { ...(from && { gte: atDay(from) }), ...(to && { lte: atDay(to) }) },
+      }),
+      employee: hrStoreWhere(scope, store),
+    },
+    select: {
+      id: true,
+      number: true,
+      occurredOn: true,
+      step: true,
+      penalty: true,
+      days: true,
+      amountPiastres: true,
+      status: true,
+      type: { select: { id: true, nameEn: true, nameAr: true } },
+      employee: {
+        select: {
+          id: true,
+          number: true,
+          nameEn: true,
+          nameAr: true,
+          employment: true,
+          homeStore: { select: { id: true, code: true } },
+        },
+      },
+    },
+    orderBy: [{ occurredOn: 'desc' }, { number: 'desc' }],
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((v) => {
+    const occurredOn = dayOf(v.occurredOn);
+    return {
+      id: v.id,
+      number: violationNumber(v.number),
+      numberValue: v.number,
+      employeeId: v.employee.id,
+      employee: v.employee.nameEn,
+      employeeAr: v.employee.nameAr,
+      employeeCode: employeeCode(v.employee.number),
+      employment: v.employee.employment,
+      storeId: v.employee.homeStore?.id ?? null,
+      store: v.employee.homeStore?.code ?? null,
+      typeId: v.type.id,
+      type: v.type.nameEn,
+      typeAr: v.type.nameAr,
+      occurredOn,
+      month: monthOfDay(occurredOn),
+      step: v.step,
+      penalty: v.penalty,
+      days: v.days === null ? null : Number(v.days),
+      amount: v.amountPiastres,
+      status: v.status,
+      forSupplier:
+        v.employee.employment === 'outsourced' &&
+        v.status === 'final' &&
+        (v.penalty === 'deduction_days' || v.penalty === 'deduction_amount'),
+    };
+  });
+}
+
+const violations: ListDef<ViolationListRow> = {
+  id: 'violations',
+  filters: {
+    open: { group: 'status', test: (r) => r.status === 'recorded' || r.status === 'appealed' },
+    ...statusFilter<ViolationListRow>(VIOLATION_LIST_STATUSES),
+    ...statusFilterOn<ViolationListRow>('penalty', VIOLATION_LIST_PENALTIES, (r) => r.penalty),
+    for_supplier: { group: 'supplier', test: (r) => r.forSupplier },
+    employee: { group: 'employment', test: (r) => r.employment === 'employee' },
+    outsourced: { group: 'employment', test: (r) => r.employment === 'outsourced' },
+    ...dayFilters<ViolationListRow>((r) => r.occurredOn),
+  },
+  values: {
+    type: (r, v) => r.typeId === v,
+    store: (r, v) => r.storeId === v,
+    from: (r, v) => r.occurredOn >= v,
+    to: (r, v) => r.occurredOn <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    type: (r) => named(r.typeId, r.type),
+    employee: (r) => named(r.employeeId, r.employee),
+    store: (r) => named(r.storeId, r.store),
+    penalty: (r) => named(r.penalty, r.penalty),
+    month: (r) => named(r.month, r.month),
+  },
+  search: (r) => [
+    r.number,
+    String(r.numberValue),
+    r.employee,
+    r.employeeAr,
+    r.employeeCode,
+    r.type,
+    r.typeAr,
+  ],
+  sorts: {
+    number: (r) => r.numberValue,
+    occurred: (r) => r.occurredOn,
+    amount: (r) => r.amount,
+  },
+  defaultSort: { key: 'occurred', desc: true },
+  sums: APP_LISTS.hr.violations.sums,
+};
+
+export interface SuggestionListRow {
+  id: string;
+  day: string;
+  kind: string;
+  lateMinutes: number;
+  status: string;
+  employeeId: string;
+  employee: string;
+  employeeAr: string | null;
+  employeeCode: string;
+  storeId: string | null;
+  store: string | null;
+  type: string | null;
+  typeAr: string | null;
+  violationId: string | null;
+  violation: string | null;
+}
+
+async function loadSuggestions(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<SuggestionListRow[]> {
+  const rows = await db.violationSuggestion.findMany({
+    where: { employee: hrStoreWhere(scope, state.values.store) },
+    select: {
+      id: true,
+      day: true,
+      kind: true,
+      lateMinutes: true,
+      status: true,
+      type: { select: { nameEn: true, nameAr: true } },
+      violation: { select: { id: true, number: true } },
+      employee: {
+        select: {
+          id: true,
+          number: true,
+          nameEn: true,
+          nameAr: true,
+          homeStore: { select: { id: true, code: true } },
+        },
+      },
+    },
+    orderBy: [{ day: 'desc' }, { createdAt: 'desc' }],
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((s) => ({
+    id: s.id,
+    day: dayOf(s.day),
+    kind: s.kind,
+    lateMinutes: s.lateMinutes,
+    status: s.status,
+    employeeId: s.employee.id,
+    employee: s.employee.nameEn,
+    employeeAr: s.employee.nameAr,
+    employeeCode: employeeCode(s.employee.number),
+    storeId: s.employee.homeStore?.id ?? null,
+    store: s.employee.homeStore?.code ?? null,
+    type: s.type?.nameEn ?? null,
+    typeAr: s.type?.nameAr ?? null,
+    violationId: s.violation?.id ?? null,
+    violation: s.violation ? violationNumber(s.violation.number) : null,
+  }));
+}
+
+const suggestions: ListDef<SuggestionListRow> = {
+  id: 'suggestions',
+  filters: {
+    ...statusFilter<SuggestionListRow>(SUGGESTION_LIST_STATUSES),
+    late: { group: 'kind', test: (r) => r.kind === 'late' },
+    absent: { group: 'kind', test: (r) => r.kind === 'absent' },
+    ...dayFilters<SuggestionListRow>((r) => r.day),
+  },
+  values: { store: (r, v) => r.storeId === v },
+  groupBys: {
+    kind: (r) => named(r.kind, r.kind),
+    store: (r) => named(r.storeId, r.store),
+    day: (r) => named(r.day, r.day),
+    employee: (r) => named(r.employeeId, r.employee),
+  },
+  search: (r) => [r.employee, r.employeeAr, r.employeeCode, r.type, r.typeAr, r.violation],
+  sorts: { day: (r) => r.day, lateMinutes: (r) => r.lateMinutes },
+  defaultSort: { key: 'day', desc: true },
+  sums: APP_LISTS.hr.suggestions.sums,
+};
+
 // ─── the registry ───────────────────────────────────────────────────────────────
 
 export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
@@ -1403,6 +2412,17 @@ export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
   },
   customers: {
     customers: { def: customers, load: loadCustomers },
+  },
+  sales: {
+    deals: { def: deals, load: loadDeals },
+    companies: { def: companies, load: loadCompanies },
+    proposals: { def: proposals, load: loadProposals },
+  },
+  hr: {
+    employees: { def: employees, load: loadEmployees },
+    leave: { def: leave, load: loadLeave },
+    violations: { def: violations, load: loadViolations },
+    suggestions: { def: suggestions, load: loadSuggestions },
   },
 } satisfies Record<AppListApp, Record<string, RegisteredList>>;
 
@@ -1467,6 +2487,44 @@ export async function appListOptions(db: Db, app: string, id: string, scope: Lis
       orderBy: { nameEn: 'asc' },
     });
     out.district = districts.map((d) => ({ value: d.id, label: d.nameEn, labelAr: d.nameAr }));
+  }
+  if (app === 'sales' && wants.includes('owner')) {
+    // The sales people; a rep with own deals only picks only themselves.
+    const actor = salesActor(scope);
+    const people = await salesPeople(db);
+    out.owner = people
+      .filter((p) => !actor.ownOnly || p.id === scope.userId)
+      .map((p) => ({ value: p.id, label: p.name }));
+  }
+  if (app === 'hr') {
+    if (wants.includes('department')) {
+      const rows = await db.department.findMany({
+        select: { id: true, nameEn: true, nameAr: true },
+        orderBy: { nameEn: 'asc' },
+      });
+      out.department = rows.map((d) => ({ value: d.id, label: d.nameEn, labelAr: d.nameAr }));
+    }
+    if (wants.includes('position')) {
+      const rows = await db.jobPosition.findMany({
+        select: { id: true, titleEn: true, titleAr: true },
+        orderBy: { titleEn: 'asc' },
+      });
+      out.position = rows.map((p) => ({ value: p.id, label: p.titleEn, labelAr: p.titleAr }));
+    }
+    if (wants.includes('type')) {
+      const rows =
+        id === 'leave'
+          ? await db.leaveType.findMany({
+              select: { id: true, nameEn: true, nameAr: true },
+              orderBy: { sort: 'asc' },
+            })
+          : await db.violationType.findMany({
+              select: { id: true, nameEn: true, nameAr: true },
+              orderBy: { nameEn: 'asc' },
+            });
+      out.type = rows.map((x) => ({ value: x.id, label: x.nameEn, labelAr: x.nameAr }));
+    }
+    return out;
   }
   if (wants.includes('type')) {
     const types = await db.alert.findMany({
