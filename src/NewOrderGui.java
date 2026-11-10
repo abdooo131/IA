@@ -82,6 +82,15 @@ public class NewOrderGui extends JFrame {
 	};
 
 	private ShipplyClient client;
+	private String sender = "";
+	private ShipResult lastResult;
+	private final java.util.List<ShipResult> created = new java.util.ArrayList<>(); // same order as table rows
+	private final JTable table = new JTable(history);
+	private final JButton btnPrintLast = new JButton("Print this AWB");
+	private final JButton btnPrintSelected = new JButton("Print selected");
+	private final JButton btnPrintAll = new JButton("Print all");
+	private final JTextField txtReprint = new JTextField(12);
+	private final JButton btnReprint = new JButton("Find & print");
 
 	public static void main(String[] args) {
 		EventQueue.invokeLater(() -> new NewOrderGui().setVisible(true));
@@ -167,16 +176,30 @@ public class NewOrderGui extends JFrame {
 		JPanel awbRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
 		awbRow.add(lblAwb);
 		awbRow.add(btnCopy);
+		awbRow.add(btnPrintLast);
+		btnPrintLast.setEnabled(false);
 		btnCopy.setEnabled(false);
 		last.add(awbRow, BorderLayout.NORTH);
 		last.add(lblResultNote, BorderLayout.CENTER);
 		p.add(last, BorderLayout.NORTH);
 
-		JTable table = new JTable(history);
 		JScrollPane sp = new JScrollPane(table);
 		sp.setBorder(BorderFactory.createTitledBorder("Orders created in this window"));
 		sp.setPreferredSize(new Dimension(500, 300));
 		p.add(sp, BorderLayout.CENTER);
+
+		JPanel print = new JPanel(new java.awt.GridLayout(2, 1));
+		JPanel r1 = new JPanel(new FlowLayout(FlowLayout.LEFT));
+		r1.add(btnPrintSelected);
+		r1.add(btnPrintAll);
+		JPanel r2 = new JPanel(new FlowLayout(FlowLayout.LEFT));
+		r2.add(new JLabel("Reprint an older order (AWB or order number):"));
+		r2.add(txtReprint);
+		r2.add(btnReprint);
+		print.add(r1);
+		print.add(r2);
+		print.setBorder(BorderFactory.createTitledBorder("Print AWBs"));
+		p.add(print, BorderLayout.SOUTH);
 		return p;
 	}
 
@@ -205,6 +228,22 @@ public class NewOrderGui extends JFrame {
 		cmbGov.addActionListener(e -> loadCities());
 		btnCreate.addActionListener(e -> createOrder());
 		btnClear.addActionListener(e -> clearForm());
+		btnPrintLast.addActionListener(e -> printResults(java.util.List.of(lastResult)));
+		btnPrintSelected.addActionListener(e -> {
+			int[] rows = table.getSelectedRows();
+			if (rows.length == 0) {
+				showError("Nothing selected", "Click one or more orders in the list first (hold Ctrl to pick several).");
+				return;
+			}
+			java.util.List<ShipResult> sel = new java.util.ArrayList<>();
+			for (int r : rows) {
+				sel.add(created.get(table.convertRowIndexToModel(r)));
+			}
+			printResults(sel);
+		});
+		btnPrintAll.addActionListener(e -> printResults(created));
+		btnReprint.addActionListener(e -> reprint());
+		txtReprint.addActionListener(e -> reprint());
 		btnCopy.addActionListener(e -> Toolkit.getDefaultToolkit().getSystemClipboard()
 			.setContents(new StringSelection(lblAwb.getText()), null));
 	}
@@ -252,6 +291,7 @@ public class NewOrderGui extends JFrame {
 				try {
 					List<ShipplyClient.Place> govs = get();
 					client = c;
+					sender = account.replaceAll("\\s*\\((test|live)\\)$", "");
 					boolean test = c.isTestKey();
 					lblConnection.setForeground(test ? new Color(180, 110, 0) : new Color(0, 130, 0));
 					lblConnection.setText("Connected: " + account
@@ -346,6 +386,9 @@ public class NewOrderGui extends JFrame {
 					ShipResult r = get();
 					lblAwb.setText(r.awb);
 					btnCopy.setEnabled(true);
+					btnPrintLast.setEnabled(true);
+					lastResult = r;
+					created.add(0, r);
 					String note = r.note();
 					if (!r.feesTotal.isEmpty()) {
 						note = "Shipping fees: " + r.feesTotal + " EGP. " + note;
@@ -362,6 +405,46 @@ public class NewOrderGui extends JFrame {
 					lblResultNote.setForeground(Color.RED);
 					lblResultNote.setText("Order not created.");
 					showError("Order not created", rootMessage(ex));
+				}
+			}
+		}.execute();
+	}
+
+	private void printResults(java.util.List<ShipResult> results) {
+		java.util.List<AwbLabel> labels = new java.util.ArrayList<>();
+		for (ShipResult r : results) {
+			if (r != null && r.ok() && r.order != null) {
+				labels.add(AwbLabel.fromOrder(r.order, sender));
+			}
+		}
+		AwbPrintDialog.show(this, labels);
+	}
+
+	/** Looks an order up on Shipply by AWB or order number and prints it. */
+	private void reprint() {
+		String id = txtReprint.getText().trim();
+		if (id.isEmpty()) {
+			return;
+		}
+		if (client == null) {
+			showError("Not connected", "Enter your API key and click Save & Connect first.");
+			return;
+		}
+		ShipplyClient c = client;
+		btnReprint.setEnabled(false);
+		new SwingWorker<ShipResult, Void>() {
+			@Override
+			protected ShipResult doInBackground() throws Exception {
+				return c.getOrder(id);
+			}
+
+			@Override
+			protected void done() {
+				btnReprint.setEnabled(true);
+				try {
+					printResults(java.util.List.of(get()));
+				} catch (Exception ex) {
+					showError("Order not found", rootMessage(ex));
 				}
 			}
 		}.execute();

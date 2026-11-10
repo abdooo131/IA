@@ -36,6 +36,8 @@ public class ShipOrdersGui extends JFrame {
 	private final JButton btnOpen = new JButton("Choose orders CSV...");
 	private final JButton btnSend = new JButton("Send to Shipply");
 	private final JButton btnSave = new JButton("Save AWBs...");
+	private final JButton btnPrint = new JButton("Print AWBs...");
+	private String sender = "";
 
 	private Path csvFile;
 	private List<ShippingOrder> orders = new ArrayList<>();
@@ -55,6 +57,8 @@ public class ShipOrdersGui extends JFrame {
 		top.add(btnOpen);
 		top.add(btnSend);
 		top.add(btnSave);
+		top.add(btnPrint);
+		btnPrint.setEnabled(false);
 		btnSend.setEnabled(false);
 		btnSave.setEnabled(false);
 
@@ -69,6 +73,15 @@ public class ShipOrdersGui extends JFrame {
 		btnOpen.addActionListener(e -> chooseCsv());
 		btnSend.addActionListener(e -> send());
 		btnSave.addActionListener(e -> save());
+		btnPrint.addActionListener(e -> {
+			List<AwbLabel> labels = new ArrayList<>();
+			for (ShipResult r : results) {
+				if (r.ok() && r.order != null) {
+					labels.add(AwbLabel.fromOrder(r.order, sender));
+				}
+			}
+			AwbPrintDialog.show(this, labels);
+		});
 	}
 
 	private void chooseCsv() {
@@ -88,6 +101,7 @@ public class ShipOrdersGui extends JFrame {
 			status.setText(orders.size() + " orders loaded from " + csvFile.getFileName());
 			btnSend.setEnabled(!orders.isEmpty());
 			btnSave.setEnabled(false);
+			btnPrint.setEnabled(false);
 		} catch (Exception ex) {
 			error("Could not read the CSV", ex);
 		}
@@ -99,6 +113,7 @@ public class ShipOrdersGui extends JFrame {
 		try {
 			client = ShipplyClient.fromEnvironment();
 			account = client.checkKey();
+			sender = account.replaceAll("\\s*\\((test|live)\\)$", "");
 		} catch (Exception ex) {
 			error("Could not connect to Shipply", ex);
 			return;
@@ -142,6 +157,7 @@ public class ShipOrdersGui extends JFrame {
 				btnOpen.setEnabled(true);
 				btnSend.setEnabled(true); // resending is safe, existing orders are not duplicated
 				btnSave.setEnabled(!results.isEmpty());
+				btnPrint.setEnabled(results.stream().anyMatch(ShipResult::ok));
 				long good = results.stream().filter(ShipResult::ok).count();
 				status.setText(good + " of " + orders.size() + " orders got an AWB.");
 				try {

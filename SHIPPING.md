@@ -15,6 +15,24 @@ Open **Shipping → New Order (API key + form)** in the app.
 3. Click **Create order**. The AWB appears in large text with a **Copy AWB** button, and every
    order you create is listed on the right.
 
+## Printing the AWBs
+
+The app prints its own AWB label: Code 128 barcode of the AWB, customer, phones, address,
+the amount to collect in a big box, order number, contents and notes.
+
+* **Print this AWB**: next to the AWB you just created.
+* **Print selected / Print all**: for the orders listed on the New Order page
+  (hold Ctrl to select several).
+* **Reprint an older order**: type its AWB (e.g. `EVE-000123`) or your order number and click
+  **Find & print**. The details are fetched from Shipply.
+* The **Send Orders from CSV** window has a **Print AWBs...** button too.
+
+Pick the paper in the print window: **label sticker 10 x 15 cm**, **A4 with 4 labels**, or
+**A4 with 1 label**. To get a PDF instead, choose **Microsoft Print to PDF** as the printer.
+
+Test orders are printed with a red **TEST, NOT SHIPPED** watermark. Check with Shipply that
+their couriers accept this label instead of their own waybill.
+
 ## Many orders at once: CSV file
 
 ### 1. Add your API key

@@ -9,6 +9,7 @@ public class ShipResult {
 	public boolean isTest;
 	public boolean alreadyExisted;
 	public String error;
+	public Object order;           // full order as returned by Shipply, used to print the label
 
 	static ShipResult fromOrder(String externalId, Object order, boolean replayed) {
 		ShipResult r = new ShipResult();
@@ -20,6 +21,7 @@ public class ShipResult {
 		r.feesTotal = fees == null ? "" : fees;
 		r.isTest = Boolean.TRUE.equals(Json.get(order, "is_test"));
 		r.alreadyExisted = replayed;
+		r.order = order;
 		return r;
 	}
 
