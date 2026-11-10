@@ -1,12 +1,11 @@
+import type { DocSmartButton } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ActivityComposer, ActivityTimeline } from '@/components/sales/Activities';
 import { Contacts } from '@/components/sales/Contacts';
 import { DealDetailsForm, DealStageActions } from '@/components/sales/DealActions';
+import { DocumentFrame } from '@/components/odoo/DocumentFrame';
 import { ProposalPanel } from '@/components/sales/ProposalPanel';
-import { BackLink } from '@/components/store/BackLink';
-import { RecordHistory } from '@/components/workflow/RecordHistory';
-import { StatusBar } from '@/components/workflow/StatusBar';
 import { apiGet } from '@/lib/api-server';
 import { formatCairoDateTime, formatCount, formatEgp } from '@/lib/format';
 import {
@@ -21,16 +20,21 @@ import type { DealProposals } from '@/lib/sales-part2';
 export const dynamic = 'force-dynamic';
 
 /**
- * One deal, as a document: its stages, the company and its people, the numbers, the activity
- * timeline with the next step, and the history of every change.
+ * One deal as a document page (UX phase C step 4): breadcrumbs back to the list with its
+ * filters, previous and next, the stages as the status bar (lost apart), the stage actions,
+ * smart buttons (company, contacts, proposals, activities, merchant once won), then the
+ * numbers, proposals, the activity timeline with the next step (crm_activities, unchanged),
+ * the company and its people; the chatter beside it holds notes, reminders and the history.
  */
 export default async function DealPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [deal, meta, proposals, t, locale] = await Promise.all([
+  const [deal, meta, proposals, doc, t, ta, locale] = await Promise.all([
     apiGet<DealDetail>(`/sales/deals/${id}`),
     apiGet<SalesMeta>('/sales/meta'),
     apiGet<DealProposals>(`/sales/deals/${id}/proposals`),
+    apiGet<{ smart: DocSmartButton[] }>(`/sales/deals/${id}/document`),
     getTranslations('sales'),
+    getTranslations('apps'),
     getLocale(),
   ]);
   const canEdit = meta.me.level === 'use' || meta.me.level === 'manage';
@@ -47,15 +51,40 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
     </div>
   );
   return (
-    <>
-      <BackLink href="/admin/sales/pipeline" />
-      <h1 className="mt-2 text-h2 [overflow-wrap:anywhere]">
-        <span className="ltr-iso">{deal.label}</span> · {deal.company.brandName}
-      </h1>
-      {deal.title && <p className="text-body-sm text-text-muted">{deal.title}</p>}
-      <StatusBar flow="deal" status={deal.stage} />
+    <DocumentFrame
+      root={{ label: ta('names.sales'), href: '/admin/sales/pipeline' }}
+      list={{ label: t('list.title'), href: '/admin/sales/deals' }}
+      id={deal.id}
+      number={deal.label}
+      title={
+        <>
+          {deal.company.brandName}
+          {deal.title && ` · ${deal.title}`}
+        </>
+      }
+      status={deal.stage}
+      statusLabel={t(`stages.${deal.stage}`)}
+      flow="deal"
+      actions={
+        canEdit && !locked ? (
+          <DealStageActions
+            dealId={deal.id}
+            company={deal.company.brandName}
+            stage={deal.stage}
+            lostReasons={meta.lostReasons}
+            ownerId={deal.owner?.id ?? null}
+            people={meta.people}
+            canManage={meta.me.level === 'manage'}
+          />
+        ) : undefined
+      }
+      smart={doc.smart}
+      entityType="crm_deal"
+      canWrite={canEdit}
+      asideFrom="xl"
+    >
       {deal.stage === 'lost' && (
-        <p className="mt-3 max-w-3xl rounded-lg border border-danger bg-surface p-3 text-body-sm">
+        <p className="max-w-3xl rounded-lg border border-danger bg-surface p-3 text-body-sm">
           <span className="font-bold">{t('deal.lostBecause')}</span>{' '}
           {deal.lostReasonLabel
             ? locale === 'ar'
@@ -67,28 +96,17 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
         </p>
       )}
       {step === 'none' && (
-        <p className="mt-3 max-w-3xl rounded-lg bg-status-needs-action/15 p-3 text-body-sm font-bold text-status-needs-action">
+        <p className="max-w-3xl rounded-lg bg-status-needs-action/15 p-3 text-body-sm font-bold text-status-needs-action">
           {t('deal.noNextStep')}
         </p>
       )}
       {locked && (
-        <p className="mt-3 max-w-3xl rounded-lg border border-success bg-surface p-3 text-body-sm">
+        <p className="max-w-3xl rounded-lg border border-success bg-surface p-3 text-body-sm">
           {t('deal.wonLocked')}
         </p>
       )}
-      {canEdit && !locked && (
-        <DealStageActions
-          dealId={deal.id}
-          company={deal.company.brandName}
-          stage={deal.stage}
-          lostReasons={meta.lostReasons}
-          ownerId={deal.owner?.id ?? null}
-          people={meta.people}
-          canManage={meta.me.level === 'manage'}
-        />
-      )}
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
           <section
             aria-labelledby="details"
@@ -161,19 +179,21 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
             )}
           </section>
 
-          <ProposalPanel
-            dealId={deal.id}
-            data={proposals}
-            me={{ id: meta.me.id, canEdit, canManage: meta.me.level === 'manage' }}
-            open={deal.stage !== 'won' && deal.stage !== 'lost'}
-            expectedOrders={deal.expectedMonthlyOrders}
-            contact={
-              contact ? { name: contact.name, email: contact.email, phone: contact.phone } : null
-            }
-            hasMerchant={!!deal.merchant || !!deal.company.merchantId}
-          />
+          <div id="proposals" className="scroll-mt-20">
+            <ProposalPanel
+              dealId={deal.id}
+              data={proposals}
+              me={{ id: meta.me.id, canEdit, canManage: meta.me.level === 'manage' }}
+              open={deal.stage !== 'won' && deal.stage !== 'lost'}
+              expectedOrders={deal.expectedMonthlyOrders}
+              contact={
+                contact ? { name: contact.name, email: contact.email, phone: contact.phone } : null
+              }
+              hasMerchant={!!deal.merchant || !!deal.company.merchantId}
+            />
+          </div>
 
-          <section aria-labelledby="timeline">
+          <section aria-labelledby="timeline" id="timeline" className="scroll-mt-20">
             <h2 id="timeline" className="text-h3">
               {t('activity.timeline')}
             </h2>
@@ -250,11 +270,6 @@ export default async function DealPage({ params }: { params: Promise<{ id: strin
           </section>
         </aside>
       </div>
-      <RecordHistory
-        entityType="crm_deal"
-        entityId={deal.id}
-        path={`/sales/deals/${deal.id}/history`}
-      />
-    </>
+    </DocumentFrame>
   );
 }

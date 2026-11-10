@@ -36,6 +36,8 @@ export interface BulkAction {
   body?: Record<string, unknown>;
   note?: 'required' | 'optional';
   tone?: 'primary' | 'danger';
+  /** A value picked before it runs (a sales person, a stage), sent as body[field] */
+  choice?: { field: string; label: string; options: { value: string; label: string }[] };
 }
 
 export interface ListViewConfig {

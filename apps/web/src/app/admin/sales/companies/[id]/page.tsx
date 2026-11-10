@@ -1,22 +1,28 @@
+import type { DocSmartButton } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ActivityComposer, ActivityTimeline } from '@/components/sales/Activities';
 import { Contacts } from '@/components/sales/Contacts';
 import { DealsTable } from '@/components/sales/DealsTable';
-import { BackLink } from '@/components/store/BackLink';
+import { DocumentFrame } from '@/components/odoo/DocumentFrame';
 import { apiGet } from '@/lib/api-server';
 import { formatCount } from '@/lib/format';
 import { type CompanyDetail, type SalesMeta, websiteHref } from '@/lib/sales';
 
 export const dynamic = 'force-dynamic';
 
-/** One company: its details, people, deals and everything done with it. */
+/**
+ * One company as a document page (UX phase C step 4): breadcrumbs, previous and next, smart
+ * buttons (deals, contacts, merchant), its details, deals, timeline and people, and the chatter.
+ */
 export default async function CompanyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [company, meta, t] = await Promise.all([
+  const [company, meta, doc, t, ta] = await Promise.all([
     apiGet<CompanyDetail>(`/sales/companies/${id}`),
     apiGet<SalesMeta>('/sales/meta'),
+    apiGet<{ smart: DocSmartButton[] }>(`/sales/companies/${id}/document`),
     getTranslations('sales'),
+    getTranslations('apps'),
   ]);
   const canEdit = meta.me.level === 'use' || meta.me.level === 'manage';
   const website = websiteHref(company.website);
@@ -27,17 +33,29 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
     </div>
   );
   return (
-    <>
-      <BackLink href="/admin/sales/companies" />
-      <div className="mt-2 flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-h2 [overflow-wrap:anywhere]">{company.brandName}</h1>
-        {canEdit && (
+    <DocumentFrame
+      root={{ label: ta('names.sales'), href: '/admin/sales/pipeline' }}
+      list={{ label: t('companies.title'), href: '/admin/sales/companies' }}
+      id={company.id}
+      number={company.brandName}
+      numberLtr={false}
+      title={[company.city, company.category].filter(Boolean).join(' · ') || undefined}
+      status={company.merchant ? 'merchant' : 'prospect'}
+      statusLabel={company.merchant ? t('fields.merchant') : t(`sources.${company.source}`)}
+      flow={null}
+      actions={
+        canEdit ? (
           <Link href={`/admin/sales/new?companyId=${company.id}`} className="btn-primary">
             {t('companies.newDeal')}
           </Link>
-        )}
-      </div>
-      <dl className="mt-4 grid max-w-3xl gap-3 text-body-sm sm:grid-cols-3">
+        ) : undefined
+      }
+      smart={doc.smart}
+      entityType="crm_company"
+      canWrite={canEdit}
+      asideFrom="xl"
+    >
+      <dl className="grid max-w-3xl gap-3 rounded-lg border border-line bg-surface p-4 text-body-sm sm:grid-cols-3">
         {item(t('fields.source'), t(`sources.${company.source}`))}
         {item(t('list.owner'), company.owner?.name ?? t('unassigned'))}
         {item(
@@ -80,10 +98,8 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           ),
         )}
       </dl>
-      {company.note && (
-        <p className="mt-3 max-w-3xl whitespace-pre-line text-body-sm">{company.note}</p>
-      )}
-      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      {company.note && <p className="max-w-3xl whitespace-pre-line text-body-sm">{company.note}</p>}
+      <div className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_22rem]">
         <div className="min-w-0 space-y-6">
           <section aria-labelledby="deals">
             <h2 id="deals" className="text-h3">
@@ -107,6 +123,6 @@ export default async function CompanyPage({ params }: { params: Promise<{ id: st
           <Contacts companyId={company.id} contacts={company.contacts} canEdit={canEdit} />
         </aside>
       </div>
-    </>
+    </DocumentFrame>
   );
 }

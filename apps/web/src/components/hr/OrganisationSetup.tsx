@@ -265,7 +265,7 @@ export function OrganisationSetup({
                     {selected.costStore ? localized(selected.costStore, locale) : tp('companyWide')}
                   </p>
                   <p className="mt-1 text-body-sm">
-                    <Link href={`/admin/hr?department=${selected.id}`} className="text-link">
+                    <Link href={`/admin/hr?f=&v=department:${selected.id}`} className="text-link">
                       {tp('peopleCount', { count: selected.members })}
                     </Link>
                   </p>
@@ -533,7 +533,7 @@ function GradesTable({
                   <td className={`${td} ltr-iso`}>{band(g)}</td>
                   <td className={`${td} ltr-iso text-end`}>{g.annualLeaveDays ?? '–'}</td>
                   <td className={`${td} ltr-iso text-end`}>
-                    <Link href={`/admin/hr?grade=${g.id}`} className="text-link">
+                    <Link href={`/admin/hr?f=&v=grade:${g.id}`} className="text-link">
                       {g.people}
                     </Link>
                   </td>

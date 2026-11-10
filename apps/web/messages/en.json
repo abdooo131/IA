@@ -5402,7 +5402,12 @@
       "settled": "Settled",
       "stale": "Count again",
       "active": "Active",
-      "paused": "Paused"
+      "paused": "Paused",
+      "on_probation": "On probation",
+      "leaving": "Leaving",
+      "left": "Left",
+      "suspended": "Suspended",
+      "on_leave": "On leave"
     }
   },
   "tickets": {
@@ -9085,7 +9090,8 @@
       "hr_item_already_paid": "Already taken in a salary run."
     },
     "appealedOn": "Appealed on {at}",
-    "appealByPerson": "The person's appeal"
+    "appealByPerson": "The person's appeal",
+    "suggestedOneByOne": "Confirm one with another type"
   },
   "hr1": {
     "home": {
@@ -10107,7 +10113,22 @@
       "stores": "Stores holding it",
       "merchants": "Merchants",
       "aliases": "Other phones and emails",
-      "household": "Same address"
+      "household": "Same address",
+      "company": "Company",
+      "contacts": "Contacts",
+      "proposals": "Proposals",
+      "activities": "Activities",
+      "deals": "Deals",
+      "leaveLeft": "Annual leave left (days)",
+      "openViolations": "Open violations",
+      "documentsMissing": "Documents missing",
+      "daysWorked": "Days worked this month",
+      "team": "Team",
+      "employee": "Employee file",
+      "balance": "Leave left (days)",
+      "leaveDocument": "Leave note",
+      "ladder": "Same type before",
+      "evidence": "Evidence"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10345,7 +10366,17 @@
       "approveCounts": "Approve and correct stock",
       "approveSignups": "Approve sign ups",
       "pauseMerchants": "Pause",
-      "activateMerchants": "Open again"
+      "activateMerchants": "Open again",
+      "assignDeals": "Give to",
+      "assignTo": "Sales person",
+      "backToQueue": "Back to the queue (nobody)",
+      "moveDeals": "Move to stage",
+      "moveTo": "Stage",
+      "markLost": "Mark lost",
+      "approveLeave": "Approve",
+      "rejectLeave": "Refuse",
+      "confirmSuggestions": "Confirm as violations",
+      "dismissSuggestions": "Dismiss"
     },
     "orders": {
       "exportName": "orders"
@@ -10539,6 +10570,433 @@
       "values": {
         "merchant": "Bought from",
         "district": "District"
+      }
+    },
+    "deals": {
+      "exportName": "deals",
+      "intro": "Every deal you may see, with its stage, owner and next step. Tick several to give them to a sales person, move them on or mark them lost; open one for its company, proposals and timeline.",
+      "columns": {
+        "number": "Deal",
+        "company": "Company",
+        "title": "Title",
+        "contact": "Contact",
+        "phone": "Mobile",
+        "email": "Email",
+        "stage": "Stage",
+        "owner": "Owner",
+        "source": "Came from",
+        "nextStep": "Next step",
+        "nextStepAt": "Next step due",
+        "proposal": "Latest proposal",
+        "stageChangedAt": "In this stage since",
+        "createdAt": "Opened",
+        "closeDate": "Expected close",
+        "merchant": "Merchant",
+        "expectedOrders": "Orders a month",
+        "expectedFee": "Fees a month (EGP)"
+      },
+      "filters": {
+        "open_deals": "Open (not won or lost)",
+        "new": "New",
+        "contacted": "Contacted",
+        "meeting": "Meeting",
+        "proposal": "Proposal",
+        "negotiation": "Negotiation",
+        "won": "Won",
+        "lost": "Lost",
+        "mine": "My deals",
+        "unassigned": "Not assigned yet",
+        "followup_overdue": "Follow up overdue",
+        "no_next_step": "No next step planned",
+        "stale": "Stuck in its stage",
+        "website_form": "Website form",
+        "signup": "Sign up",
+        "manual": "Added by hand",
+        "referral": "Referral",
+        "event": "Event",
+        "other": "Other",
+        "proposal_sent": "Proposal sent",
+        "proposal_accepted": "Proposal accepted",
+        "proposal_to_approve": "Discount waiting for approval",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last_7_days": "Last 7 days",
+        "this_month": "This month",
+        "last_month": "Last month"
+      },
+      "groups": {
+        "stage": "Stage",
+        "owner": "Owner",
+        "source": "Came from",
+        "month": "Month opened"
+      },
+      "values": {
+        "owner": "Owner",
+        "from": "Opened from",
+        "to": "Opened to"
+      },
+      "stages": {
+        "new": "New",
+        "contacted": "Contacted",
+        "meeting": "Meeting",
+        "proposal": "Proposal",
+        "negotiation": "Negotiation",
+        "won": "Won",
+        "lost": "Lost"
+      },
+      "sources": {
+        "website_form": "Website form",
+        "signup": "Sign up",
+        "manual": "Added by hand",
+        "referral": "Referral",
+        "event": "Event",
+        "other": "Other"
+      },
+      "proposalStatuses": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "viewed": "Viewed",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "expired": "Expired",
+        "superseded": "Replaced"
+      }
+    },
+    "companies": {
+      "exportName": "companies",
+      "intro": "Every brand we talk to, with its owner, contacts, open deals and merchant once it signed. Open one for its deals, people and timeline.",
+      "columns": {
+        "name": "Company",
+        "source": "Came from",
+        "owner": "Owner",
+        "contact": "Main contact",
+        "phone": "Mobile",
+        "email": "Email",
+        "city": "City",
+        "category": "Category",
+        "website": "Website",
+        "merchant": "Merchant",
+        "contacts": "Contacts",
+        "openDeals": "Open deals",
+        "wonDeals": "Won deals",
+        "createdAt": "Added"
+      },
+      "filters": {
+        "website_form": "Website form",
+        "signup": "Sign up",
+        "manual": "Added by hand",
+        "referral": "Referral",
+        "event": "Event",
+        "other": "Other",
+        "with_merchant": "Merchant with us",
+        "no_merchant": "Not a merchant yet",
+        "with_open_deals": "Has open deals",
+        "no_open_deals": "No open deal",
+        "mine": "My companies",
+        "unassigned": "Not assigned yet"
+      },
+      "groups": {
+        "owner": "Owner",
+        "source": "Came from",
+        "city": "City",
+        "category": "Category"
+      },
+      "values": {
+        "owner": "Owner"
+      },
+      "sources": {
+        "website_form": "Website form",
+        "signup": "Sign up",
+        "manual": "Added by hand",
+        "referral": "Referral",
+        "event": "Event",
+        "other": "Other"
+      }
+    },
+    "proposals": {
+      "exportName": "proposals",
+      "intro": "Every proposal you may see, newest first: its status, discount and the deal it belongs to. A discount past the limit waits for a sales manager; open one on its deal.",
+      "columns": {
+        "number": "Proposal",
+        "deal": "Deal",
+        "company": "Company",
+        "version": "Version",
+        "status": "Status",
+        "owner": "Owner",
+        "discount": "Largest discount",
+        "toApprove": "Waiting for approval",
+        "createdAt": "Made",
+        "sentAt": "Sent",
+        "validUntil": "Valid until",
+        "acceptedAt": "Accepted",
+        "confirmed": "Confirmed",
+        "expectedOrders": "Orders a month"
+      },
+      "filters": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "viewed": "Viewed",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "expired": "Expired",
+        "superseded": "Replaced",
+        "to_approve": "Waiting for a manager's approval",
+        "discount_over_limit": "Discount past the limit",
+        "confirmed": "Confirmed (merchant made)",
+        "this_month": "Made this month",
+        "last_month": "Made last month"
+      },
+      "groups": {
+        "status": "Status",
+        "owner": "Owner",
+        "month": "Month made"
+      },
+      "values": {
+        "owner": "Owner"
+      },
+      "statuses": {
+        "draft": "Draft",
+        "sent": "Sent",
+        "viewed": "Viewed",
+        "accepted": "Accepted",
+        "declined": "Declined",
+        "expired": "Expired",
+        "superseded": "Replaced"
+      }
+    },
+    "employees": {
+      "exportName": "employees",
+      "intro": "Everyone with an employee file in your stores: position, department, store, status and what needs attention. Open a person for their file.",
+      "columns": {
+        "name": "Name",
+        "code": "EMP number",
+        "position": "Position",
+        "department": "Department",
+        "store": "Store",
+        "mobile": "Mobile",
+        "email": "Email",
+        "manager": "Manager",
+        "employment": "Employment",
+        "payBasis": "Paid",
+        "status": "Status",
+        "flags": "Needs attention",
+        "hireDate": "Hired on",
+        "probationEndsOn": "Probation ends",
+        "documents": "Documents"
+      },
+      "filters": {
+        "missing_documents": "Documents missing",
+        "on_probation": "On probation",
+        "leaving": "Leaving",
+        "left": "Left",
+        "on_leave_today": "On leave today",
+        "open_violations": "Open violation",
+        "current": "Still working here",
+        "active": "Active",
+        "on_leave": "On leave",
+        "suspended": "Suspended",
+        "employee": "Employees",
+        "outsourced": "Outsourced",
+        "monthly_salary": "Monthly salary",
+        "per_delivery": "Per delivered order"
+      },
+      "groups": {
+        "department": "Department",
+        "store": "Store",
+        "position": "Position",
+        "employment": "Employment",
+        "status": "Status",
+        "manager": "Manager"
+      },
+      "values": {
+        "department": "Department (and below)",
+        "position": "Position",
+        "store": "Store",
+        "grade": "Grade"
+      },
+      "statuses": {
+        "active": "Active",
+        "on_leave": "On leave",
+        "suspended": "Suspended",
+        "left": "Left"
+      },
+      "employments": {
+        "employee": "Employee",
+        "outsourced": "Outsourced"
+      },
+      "payBases": {
+        "monthly_salary": "Monthly salary",
+        "per_delivery": "Per delivered order"
+      }
+    },
+    "leave": {
+      "exportName": "leave-requests",
+      "intro": "Leave requests in your stores; it opens on those still waiting. The manager decides first, then HR; nobody decides their own. Tick several to approve or refuse them at the step each waits for.",
+      "columns": {
+        "number": "Request",
+        "employee": "Person",
+        "employeeCode": "EMP number",
+        "type": "Leave type",
+        "from": "From",
+        "to": "To",
+        "days": "Days",
+        "store": "Store",
+        "department": "Department",
+        "waitingForMe": "Waiting for me",
+        "hasDocument": "Note attached",
+        "createdAt": "Asked on",
+        "status": "Status"
+      },
+      "filters": {
+        "pending": "Waiting",
+        "pending_manager": "Waiting for the manager",
+        "pending_hr": "Waiting for HR",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled",
+        "waiting_for_me": "Waiting for me",
+        "today": "Off today",
+        "this_month": "This month",
+        "last_month": "Last month",
+        "upcoming": "Coming up"
+      },
+      "groups": {
+        "status": "Status",
+        "type": "Leave type",
+        "employee": "Person",
+        "store": "Store",
+        "department": "Department",
+        "month": "Month"
+      },
+      "values": {
+        "type": "Leave type",
+        "store": "Store",
+        "department": "Department",
+        "from": "Off from",
+        "to": "Off to"
+      },
+      "statuses": {
+        "pending_manager": "Waiting for the manager",
+        "pending_hr": "Waiting for HR",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "cancelled": "Cancelled"
+      }
+    },
+    "violations": {
+      "exportName": "violations",
+      "intro": "Violations in your stores, each on the person's ladder for its type. Open one for its appeal and decision.",
+      "columns": {
+        "number": "Violation",
+        "employee": "Person",
+        "employeeCode": "EMP number",
+        "type": "Type",
+        "occurredOn": "On",
+        "step": "Step",
+        "penalty": "Penalty",
+        "days": "Days",
+        "store": "Store",
+        "employment": "Employment",
+        "status": "Status",
+        "amount": "Amount (EGP)"
+      },
+      "filters": {
+        "open": "Open (recorded or appealed)",
+        "recorded": "Recorded",
+        "appealed": "Appealed",
+        "final": "Final",
+        "cancelled": "Cancelled",
+        "verbal_warning": "Verbal warning",
+        "written_warning": "Written warning",
+        "deduction_days": "Deduction in days of pay",
+        "deduction_amount": "Deduction in EGP",
+        "suspension_days": "Suspension in days",
+        "termination_review": "Termination review",
+        "for_supplier": "To tell the outsourcing company",
+        "employee": "Employees",
+        "outsourced": "Outsourced",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last_7_days": "Last 7 days",
+        "this_month": "This month",
+        "last_month": "Last month"
+      },
+      "groups": {
+        "status": "Status",
+        "type": "Type",
+        "employee": "Person",
+        "store": "Store",
+        "penalty": "Penalty",
+        "month": "Month"
+      },
+      "values": {
+        "type": "Type",
+        "store": "Store",
+        "from": "From day",
+        "to": "To day"
+      },
+      "statuses": {
+        "recorded": "Recorded",
+        "appealed": "Appealed",
+        "final": "Final",
+        "cancelled": "Cancelled"
+      },
+      "penalties": {
+        "verbal_warning": "Verbal warning",
+        "written_warning": "Written warning",
+        "deduction_days": "Deduction in days of pay",
+        "deduction_amount": "Deduction in EGP",
+        "suspension_days": "Suspension in days",
+        "termination_review": "Termination review"
+      },
+      "employments": {
+        "employee": "Employee",
+        "outsourced": "Outsourced"
+      }
+    },
+    "suggestions": {
+      "exportName": "suggested-violations",
+      "intro": "Late arrivals past the grace and absences without leave from closed attendance days. Tick several to confirm them onto each person's ladder with the suggested type, or dismiss them.",
+      "columns": {
+        "employee": "Person",
+        "employeeCode": "EMP number",
+        "day": "Day",
+        "kind": "What happened",
+        "lateMinutes": "Minutes late",
+        "type": "Violation type",
+        "store": "Store",
+        "violation": "Violation",
+        "status": "Status"
+      },
+      "filters": {
+        "open": "Waiting",
+        "confirmed": "Confirmed",
+        "dismissed": "Dismissed",
+        "late": "Late",
+        "absent": "Absent",
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "last_7_days": "Last 7 days",
+        "this_month": "This month",
+        "last_month": "Last month"
+      },
+      "groups": {
+        "kind": "What happened",
+        "store": "Store",
+        "day": "Day",
+        "employee": "Person"
+      },
+      "values": {
+        "store": "Store"
+      },
+      "statuses": {
+        "open": "Waiting",
+        "confirmed": "Confirmed",
+        "dismissed": "Dismissed"
+      },
+      "kinds": {
+        "late": "Late",
+        "absent": "Absent"
       }
     }
   }

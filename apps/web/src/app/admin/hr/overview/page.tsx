@@ -326,7 +326,7 @@ export default async function HrHomePage() {
           <p className="mt-3 text-caption text-text-muted">
             {t('home.openViolations', { count: o.violations.open })}{' '}
             {o.violations.open > 0 && (
-              <Link href="/admin/hr?flag=open_violations" className="font-bold text-link">
+              <Link href="/admin/hr?f=open_violations" className="font-bold text-link">
                 {t('home.whoHasThem')}
               </Link>
             )}
@@ -541,7 +541,7 @@ export default async function HrHomePage() {
                 >
                   {d.department ? (
                     <Link
-                      href={`/admin/hr?department=${d.department.id}`}
+                      href={`/admin/hr?f=&v=department:${d.department.id}`}
                       className="truncate text-link"
                     >
                       {locale === 'ar' ? d.department.nameAr : d.department.nameEn}

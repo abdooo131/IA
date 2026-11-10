@@ -5345,7 +5345,12 @@
       "settled": "اتسوّى",
       "stale": "يتجرد تاني",
       "active": "نشط",
-      "paused": "موقوف"
+      "paused": "موقوف",
+      "on_probation": "تحت الاختبار",
+      "leaving": "سيغادر",
+      "left": "غادر",
+      "suspended": "موقوف",
+      "on_leave": "في إجازة"
     }
   },
   "tickets": {
@@ -9028,7 +9033,8 @@
       "hr_item_already_paid": "خُصم بالفعل في مسير الرواتب."
     },
     "appealedOn": "تظلم يوم {at}",
-    "appealByPerson": "تظلم الموظف"
+    "appealByPerson": "تظلم الموظف",
+    "suggestedOneByOne": "أكّد واحدة بنوع تاني"
   },
   "hr1": {
     "home": {
@@ -10050,7 +10056,22 @@
       "stores": "متاجر بها مخزون",
       "merchants": "التجار",
       "aliases": "أرقام وبريد آخر",
-      "household": "نفس العنوان"
+      "household": "نفس العنوان",
+      "company": "الشركة",
+      "contacts": "جهات الاتصال",
+      "proposals": "العروض",
+      "activities": "الأنشطة",
+      "deals": "الصفقات",
+      "leaveLeft": "الإجازة السنوية الباقية (أيام)",
+      "openViolations": "مخالفات مفتوحة",
+      "documentsMissing": "مستندات ناقصة",
+      "daysWorked": "أيام الشغل الشهر ده",
+      "team": "الفريق",
+      "employee": "ملف الموظف",
+      "balance": "الإجازة الباقية (أيام)",
+      "leaveDocument": "مستند الإجازة",
+      "ladder": "نفس النوع قبل كده",
+      "evidence": "الإثبات"
     },
     "chatter": {
       "title": "الملاحظات والسجل",
@@ -10288,7 +10309,17 @@
       "approveCounts": "وافق وصحّح المخزون",
       "approveSignups": "اعتماد طلبات التسجيل",
       "pauseMerchants": "إيقاف",
-      "activateMerchants": "إعادة التفعيل"
+      "activateMerchants": "إعادة التفعيل",
+      "assignDeals": "إدّيها لـ",
+      "assignTo": "مندوب المبيعات",
+      "backToQueue": "ترجع للطابور (من غير مسؤول)",
+      "moveDeals": "انقل لمرحلة",
+      "moveTo": "المرحلة",
+      "markLost": "علّمها خسارة",
+      "approveLeave": "وافق",
+      "rejectLeave": "ارفض",
+      "confirmSuggestions": "أكّدها كمخالفات",
+      "dismissSuggestions": "شيلها"
     },
     "orders": {
       "exportName": "orders"
@@ -10482,6 +10513,433 @@
       "values": {
         "merchant": "اشترى من",
         "district": "الحي"
+      }
+    },
+    "deals": {
+      "exportName": "صفقات",
+      "intro": "كل الصفقات اللي تقدر تشوفها، بمرحلتها وصاحبها والخطوة الجاية. علّم على أكتر من صفقة عشان تديها لمندوب مبيعات، أو تنقلها لمرحلة تانية، أو تعلّمها خسارة؛ افتح أي صفقة عشان تشوف الشركة والعروض والتسلسل.",
+      "columns": {
+        "number": "الصفقة",
+        "company": "الشركة",
+        "title": "العنوان",
+        "contact": "جهة الاتصال",
+        "phone": "الموبايل",
+        "email": "الإيميل",
+        "stage": "المرحلة",
+        "owner": "المسؤول",
+        "source": "جت منين",
+        "nextStep": "الخطوة الجاية",
+        "nextStepAt": "ميعاد الخطوة الجاية",
+        "proposal": "آخر عرض",
+        "stageChangedAt": "في المرحلة دي من",
+        "createdAt": "اتفتحت",
+        "closeDate": "الإغلاق المتوقع",
+        "merchant": "التاجر",
+        "expectedOrders": "طلبات في الشهر",
+        "expectedFee": "رسوم في الشهر (جنيه)"
+      },
+      "filters": {
+        "open_deals": "مفتوحة (لا كسب ولا خسارة)",
+        "new": "جديد",
+        "contacted": "تم التواصل",
+        "meeting": "اجتماع",
+        "proposal": "عرض",
+        "negotiation": "تفاوض",
+        "won": "تم الكسب",
+        "lost": "خسارة",
+        "mine": "صفقاتي",
+        "unassigned": "لسه متوزعتش",
+        "followup_overdue": "متابعة متأخرة",
+        "no_next_step": "مفيش خطوة جاية",
+        "stale": "واقفة في مرحلتها",
+        "website_form": "نموذج الموقع",
+        "signup": "تسجيل ذاتي",
+        "manual": "إضافة يدوية",
+        "referral": "ترشيح",
+        "event": "فعالية",
+        "other": "أخرى",
+        "proposal_sent": "العرض اتبعت",
+        "proposal_accepted": "العرض اتقبل",
+        "proposal_to_approve": "خصم مستني موافقة",
+        "today": "اليوم",
+        "yesterday": "امبارح",
+        "last_7_days": "آخر 7 أيام",
+        "this_month": "الشهر ده",
+        "last_month": "الشهر اللي فات"
+      },
+      "groups": {
+        "stage": "المرحلة",
+        "owner": "المسؤول",
+        "source": "جت منين",
+        "month": "شهر الفتح"
+      },
+      "values": {
+        "owner": "المسؤول",
+        "from": "اتفتحت من",
+        "to": "اتفتحت لحد"
+      },
+      "stages": {
+        "new": "جديد",
+        "contacted": "تم التواصل",
+        "meeting": "اجتماع",
+        "proposal": "عرض",
+        "negotiation": "تفاوض",
+        "won": "تم الكسب",
+        "lost": "خسارة"
+      },
+      "sources": {
+        "website_form": "نموذج الموقع",
+        "signup": "تسجيل ذاتي",
+        "manual": "إضافة يدوية",
+        "referral": "ترشيح",
+        "event": "فعالية",
+        "other": "أخرى"
+      },
+      "proposalStatuses": {
+        "draft": "مسودة",
+        "sent": "مُرسل",
+        "viewed": "تمت المشاهدة",
+        "accepted": "مقبول",
+        "declined": "مرفوض",
+        "expired": "منتهي",
+        "superseded": "استُبدل"
+      }
+    },
+    "companies": {
+      "exportName": "شركات",
+      "intro": "كل البراندات اللي بنكلمها، بالمسؤول وجهات الاتصال والصفقات المفتوحة والتاجر بعد ما يمضي. افتح أي شركة عشان تشوف صفقاتها والناس اللي فيها والتسلسل.",
+      "columns": {
+        "name": "الشركة",
+        "source": "جت منين",
+        "owner": "المسؤول",
+        "contact": "جهة الاتصال الأساسية",
+        "phone": "الموبايل",
+        "email": "الإيميل",
+        "city": "المدينة",
+        "category": "النشاط",
+        "website": "الموقع",
+        "merchant": "التاجر",
+        "contacts": "جهات الاتصال",
+        "openDeals": "صفقات مفتوحة",
+        "wonDeals": "صفقات مكسوبة",
+        "createdAt": "اتضافت"
+      },
+      "filters": {
+        "website_form": "نموذج الموقع",
+        "signup": "تسجيل ذاتي",
+        "manual": "إضافة يدوية",
+        "referral": "ترشيح",
+        "event": "فعالية",
+        "other": "أخرى",
+        "with_merchant": "تاجر معانا",
+        "no_merchant": "لسه مش تاجر",
+        "with_open_deals": "عندها صفقات مفتوحة",
+        "no_open_deals": "مفيش صفقة مفتوحة",
+        "mine": "شركاتي",
+        "unassigned": "لسه متوزعتش"
+      },
+      "groups": {
+        "owner": "المسؤول",
+        "source": "جت منين",
+        "city": "المدينة",
+        "category": "النشاط"
+      },
+      "values": {
+        "owner": "المسؤول"
+      },
+      "sources": {
+        "website_form": "نموذج الموقع",
+        "signup": "تسجيل ذاتي",
+        "manual": "إضافة يدوية",
+        "referral": "ترشيح",
+        "event": "فعالية",
+        "other": "أخرى"
+      }
+    },
+    "proposals": {
+      "exportName": "عروض",
+      "intro": "كل العروض اللي تقدر تشوفها، الأحدث الأول: حالتها والخصم والصفقة اللي تبعها. الخصم اللي فوق الحد بيستنى موافقة مدير مبيعات؛ افتح العرض من صفقته.",
+      "columns": {
+        "number": "العرض",
+        "deal": "الصفقة",
+        "company": "الشركة",
+        "version": "النسخة",
+        "status": "الحالة",
+        "owner": "المسؤول",
+        "discount": "أكبر خصم",
+        "toApprove": "مستني موافقة",
+        "createdAt": "اتعمل",
+        "sentAt": "اتبعت",
+        "validUntil": "ساري لحد",
+        "acceptedAt": "اتقبل",
+        "confirmed": "اتأكد",
+        "expectedOrders": "طلبات في الشهر"
+      },
+      "filters": {
+        "draft": "مسودة",
+        "sent": "مُرسل",
+        "viewed": "تمت المشاهدة",
+        "accepted": "مقبول",
+        "declined": "مرفوض",
+        "expired": "منتهي",
+        "superseded": "استُبدل",
+        "to_approve": "مستني موافقة المدير",
+        "discount_over_limit": "خصم فوق الحد",
+        "confirmed": "اتأكد (التاجر اتعمل)",
+        "this_month": "اتعمل الشهر ده",
+        "last_month": "اتعمل الشهر اللي فات"
+      },
+      "groups": {
+        "status": "الحالة",
+        "owner": "المسؤول",
+        "month": "شهر العمل"
+      },
+      "values": {
+        "owner": "المسؤول"
+      },
+      "statuses": {
+        "draft": "مسودة",
+        "sent": "مُرسل",
+        "viewed": "تمت المشاهدة",
+        "accepted": "مقبول",
+        "declined": "مرفوض",
+        "expired": "منتهي",
+        "superseded": "استُبدل"
+      }
+    },
+    "employees": {
+      "exportName": "موظفين",
+      "intro": "كل اللي ليهم ملف موظف في فروعك: الوظيفة والإدارة والفرع والحالة واللي محتاج اهتمام. افتح أي حد عشان تشوف ملفه.",
+      "columns": {
+        "name": "الاسم",
+        "code": "رقم الموظف",
+        "position": "الوظيفة",
+        "department": "الإدارة",
+        "store": "الفرع",
+        "mobile": "الموبايل",
+        "email": "الإيميل",
+        "manager": "المدير",
+        "employment": "نوع التعاقد",
+        "payBasis": "طريقة القبض",
+        "status": "الحالة",
+        "flags": "محتاج اهتمام",
+        "hireDate": "تاريخ التعيين",
+        "probationEndsOn": "نهاية فترة الاختبار",
+        "documents": "المستندات"
+      },
+      "filters": {
+        "missing_documents": "مستندات ناقصة",
+        "on_probation": "تحت الاختبار",
+        "leaving": "سيغادر",
+        "left": "غادر",
+        "on_leave_today": "في إجازة اليوم",
+        "open_violations": "مخالفة مفتوحة",
+        "current": "لسه شغال معانا",
+        "active": "شغال",
+        "on_leave": "في إجازة",
+        "suspended": "موقوف",
+        "employee": "موظفين",
+        "outsourced": "عن طريق شركة توريد",
+        "monthly_salary": "مرتب شهري",
+        "per_delivery": "على كل طلب اتسلم"
+      },
+      "groups": {
+        "department": "الإدارة",
+        "store": "الفرع",
+        "position": "الوظيفة",
+        "employment": "نوع التعاقد",
+        "status": "الحالة",
+        "manager": "المدير"
+      },
+      "values": {
+        "department": "الإدارة (واللي تحتها)",
+        "position": "الوظيفة",
+        "store": "الفرع",
+        "grade": "الدرجة الوظيفية"
+      },
+      "statuses": {
+        "active": "شغال",
+        "on_leave": "في إجازة",
+        "suspended": "موقوف",
+        "left": "ساب الشغل"
+      },
+      "employments": {
+        "employee": "موظف",
+        "outsourced": "شركة توريد"
+      },
+      "payBases": {
+        "monthly_salary": "مرتب شهري",
+        "per_delivery": "على كل طلب اتسلم"
+      }
+    },
+    "leave": {
+      "exportName": "طلبات-إجازة",
+      "intro": "طلبات الإجازة في فروعك؛ بتفتح على اللي لسه مستني. المدير بيقرر الأول وبعدين الموارد البشرية، ومحدش بيقرر في طلبه. علّم على أكتر من طلب عشان توافق أو ترفض في الخطوة اللي كل واحد مستنيها.",
+      "columns": {
+        "number": "الطلب",
+        "employee": "الموظف",
+        "employeeCode": "رقم الموظف",
+        "type": "نوع الإجازة",
+        "from": "من",
+        "to": "لحد",
+        "days": "الأيام",
+        "store": "الفرع",
+        "department": "الإدارة",
+        "waitingForMe": "مستنيني",
+        "hasDocument": "فيه مستند",
+        "createdAt": "اتطلب يوم",
+        "status": "الحالة"
+      },
+      "filters": {
+        "pending": "مستني",
+        "pending_manager": "مستني المدير",
+        "pending_hr": "مستني الموارد البشرية",
+        "approved": "اتوافق عليه",
+        "rejected": "اترفض",
+        "cancelled": "اتلغى",
+        "waiting_for_me": "مستنيني أنا",
+        "today": "إجازة النهارده",
+        "this_month": "الشهر ده",
+        "last_month": "الشهر اللي فات",
+        "upcoming": "جاية"
+      },
+      "groups": {
+        "status": "الحالة",
+        "type": "نوع الإجازة",
+        "employee": "الموظف",
+        "store": "الفرع",
+        "department": "الإدارة",
+        "month": "الشهر"
+      },
+      "values": {
+        "type": "نوع الإجازة",
+        "store": "الفرع",
+        "department": "الإدارة",
+        "from": "إجازة من",
+        "to": "إجازة لحد"
+      },
+      "statuses": {
+        "pending_manager": "مستني المدير",
+        "pending_hr": "مستني الموارد البشرية",
+        "approved": "اتوافق عليه",
+        "rejected": "اترفض",
+        "cancelled": "اتلغى"
+      }
+    },
+    "violations": {
+      "exportName": "مخالفات",
+      "intro": "المخالفات في فروعك، وكل واحدة على سلّم الجزاءات بتاع الشخص لنوعها. افتح أي مخالفة عشان تشوف التظلم والقرار.",
+      "columns": {
+        "number": "المخالفة",
+        "employee": "الموظف",
+        "employeeCode": "رقم الموظف",
+        "type": "النوع",
+        "occurredOn": "يوم",
+        "step": "الدرجة",
+        "penalty": "الجزاء",
+        "days": "الأيام",
+        "store": "الفرع",
+        "employment": "نوع التعاقد",
+        "status": "الحالة",
+        "amount": "المبلغ (جنيه)"
+      },
+      "filters": {
+        "open": "مفتوحة (اتسجلت أو اتظلم منها)",
+        "recorded": "اتسجلت",
+        "appealed": "اتظلم منها",
+        "final": "نهائية",
+        "cancelled": "اتلغت",
+        "verbal_warning": "إنذار شفهي",
+        "written_warning": "إنذار كتابي",
+        "deduction_days": "خصم بالأيام",
+        "deduction_amount": "خصم بالجنيه",
+        "suspension_days": "إيقاف بالأيام",
+        "termination_review": "مراجعة إنهاء الخدمة",
+        "for_supplier": "نبلغ بيها شركة التوريد",
+        "employee": "موظفين",
+        "outsourced": "شركة توريد",
+        "today": "اليوم",
+        "yesterday": "امبارح",
+        "last_7_days": "آخر 7 أيام",
+        "this_month": "الشهر ده",
+        "last_month": "الشهر اللي فات"
+      },
+      "groups": {
+        "status": "الحالة",
+        "type": "النوع",
+        "employee": "الموظف",
+        "store": "الفرع",
+        "penalty": "الجزاء",
+        "month": "الشهر"
+      },
+      "values": {
+        "type": "النوع",
+        "store": "الفرع",
+        "from": "من يوم",
+        "to": "لحد يوم"
+      },
+      "statuses": {
+        "recorded": "اتسجلت",
+        "appealed": "اتظلم منها",
+        "final": "نهائية",
+        "cancelled": "اتلغت"
+      },
+      "penalties": {
+        "verbal_warning": "إنذار شفهي",
+        "written_warning": "إنذار كتابي",
+        "deduction_days": "خصم بالأيام",
+        "deduction_amount": "خصم بالجنيه",
+        "suspension_days": "إيقاف بالأيام",
+        "termination_review": "مراجعة إنهاء الخدمة"
+      },
+      "employments": {
+        "employee": "موظف",
+        "outsourced": "شركة توريد"
+      }
+    },
+    "suggestions": {
+      "exportName": "مخالفات-مقترحة",
+      "intro": "التأخير بعد فترة السماح والغياب من غير إجازة من أيام الحضور المقفولة. علّم على أكتر من واحدة عشان تأكدها على سلّم كل شخص بالنوع المقترح، أو تشيلها.",
+      "columns": {
+        "employee": "الموظف",
+        "employeeCode": "رقم الموظف",
+        "day": "اليوم",
+        "kind": "اللي حصل",
+        "lateMinutes": "دقايق التأخير",
+        "type": "نوع المخالفة",
+        "store": "الفرع",
+        "violation": "المخالفة",
+        "status": "الحالة"
+      },
+      "filters": {
+        "open": "مستنية",
+        "confirmed": "اتأكدت",
+        "dismissed": "اتشالت",
+        "late": "تأخير",
+        "absent": "غياب",
+        "today": "اليوم",
+        "yesterday": "امبارح",
+        "last_7_days": "آخر 7 أيام",
+        "this_month": "الشهر ده",
+        "last_month": "الشهر اللي فات"
+      },
+      "groups": {
+        "kind": "اللي حصل",
+        "store": "الفرع",
+        "day": "اليوم",
+        "employee": "الموظف"
+      },
+      "values": {
+        "store": "الفرع"
+      },
+      "statuses": {
+        "open": "مستنية",
+        "confirmed": "اتأكدت",
+        "dismissed": "اتشالت"
+      },
+      "kinds": {
+        "late": "تأخير",
+        "absent": "غياب"
       }
     }
   }

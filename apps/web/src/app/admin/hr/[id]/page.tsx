@@ -1,4 +1,10 @@
-import { addDays, cairoDay, canDo, type FileCompleteness } from '@shiplynow/shared';
+import {
+  addDays,
+  cairoDay,
+  canDo,
+  type DocSmartButton,
+  type FileCompleteness,
+} from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -19,7 +25,9 @@ import { LeaveRequestForm } from '@/components/hr/leave/LeaveRequestForm';
 import { LeaveRequestsTable } from '@/components/hr/leave/LeaveRequestsTable';
 import { RecordViolationForm } from '@/components/hr/leave/RecordViolationForm';
 import { ViolationsTable } from '@/components/hr/leave/ViolationsTable';
+import { DocumentFrame } from '@/components/odoo/DocumentFrame';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
+import { StatusBar } from '@/components/workflow/StatusBar';
 import { type AdminStore, localized } from '@/lib/admin-types';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import { cairoHm, type DayDetail, type DayListRow, hours } from '@/lib/attendance-types';
@@ -94,11 +102,14 @@ export default async function EmployeePage({
 }) {
   const { id } = await params;
   const asked = (await searchParams).tab;
-  const [file, profile, t, th] = await Promise.all([
+  const [file, doc, profile, t, th, ta, tw] = await Promise.all([
     apiGet<File>(`/hr/employees/${id}`),
+    apiGet<{ status: string; smart: DocSmartButton[] }>(`/hr/employees/${id}/document`),
     getMyProfile(),
     getTranslations('hr1'),
     getTranslations('hr'),
+    getTranslations('apps'),
+    getTranslations('workflow'),
   ]);
   const tabs = fileTabs({ canSeePay: !!file.canSeePay });
   const tab: FileTab = pickTab(asked, tabs);
@@ -153,30 +164,45 @@ export default async function EmployeePage({
   );
 
   return (
-    <>
-      <Link href="/admin/hr" className="text-body-sm text-link">
-        {t('file.back')}
-      </Link>
-      <div className="mt-2">
-        <EmployeeHeader
-          file={file}
-          managerHref={(m) => `/admin/hr/${m}`}
-          photo={
-            <PhotoEditor
-              employeeId={file.id}
-              photoVersion={file.photoVersion}
-              name={file.nameEn}
-              uploadPath={canUse ? `/hr/employees/${file.id}/photo` : undefined}
-              deletePath={canUse ? `/hr/employees/${file.id}/photo` : undefined}
-            />
-          }
-        />
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2" aria-label={t('file.quickActions')}>
-        {actions}
-      </div>
+    <DocumentFrame
+      root={{ label: ta('names.hr'), href: '/admin/hr/overview' }}
+      list={{ label: ta('pages.employeeList'), href: '/admin/hr' }}
+      id={file.id}
+      number={file.code}
+      status={doc.status}
+      statusLabel={tw.has(`states.${doc.status}`) ? tw(`states.${doc.status}`) : doc.status}
+      flow="employee"
+      header={
+        <div className="mt-3">
+          <EmployeeHeader
+            file={file}
+            managerHref={(m) => `/admin/hr/${m}`}
+            photo={
+              <PhotoEditor
+                employeeId={file.id}
+                photoVersion={file.photoVersion}
+                name={file.nameEn}
+                uploadPath={canUse ? `/hr/employees/${file.id}/photo` : undefined}
+                deletePath={canUse ? `/hr/employees/${file.id}/photo` : undefined}
+              />
+            }
+          />
+          <StatusBar flow="employee" status={doc.status} />
+        </div>
+      }
+      actions={
+        <div className="flex flex-wrap gap-2" aria-label={t('file.quickActions')}>
+          {actions}
+        </div>
+      }
+      smart={doc.smart}
+      entityType="employee"
+      canWrite={canUse}
+      historyPath={`/hr/employees/${id}/history`}
+      asideFrom="xl"
+    >
       {file.flags.length > 0 && (
-        <p className="mt-3 flex flex-wrap gap-1.5">
+        <p className="flex flex-wrap gap-1.5">
           {file.flags.map((f) => (
             <FlagChip key={f} flag={f} label={t(`flags.${f}`)} />
           ))}
@@ -221,7 +247,7 @@ export default async function EmployeePage({
       {tab === 'history' && (
         <RecordHistory entityType="employee" entityId={id} path={`/hr/employees/${id}/history`} />
       )}
-    </>
+    </DocumentFrame>
   );
 }
 

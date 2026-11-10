@@ -1351,12 +1351,15 @@ function BulkBar({
   const router = useRouter();
   const [action, setAction] = useState<string | null>(null);
   const [note, setNote] = useState('');
+  const [choice, setChoice] = useState('');
   const [busy, setBusy] = useState(false);
   const setResult = onResult;
   const current = config.bulkActions?.find((a) => a.key === action) ?? null;
 
   const run = async (a: NonNullable<ListViewConfig['bulkActions']>[number]) => {
-    if (a.note === 'required' && !note.trim()) {
+    // An action that needs a pick (or a note) first opens its field; the next tap runs it.
+    if ((a.note === 'required' && !note.trim()) || (a.choice && (action !== a.key || !choice))) {
+      if (action !== a.key) setChoice('');
       setAction(a.key);
       return;
     }
@@ -1365,6 +1368,7 @@ function BulkBar({
       ids,
       ...(note.trim() ? { note: note.trim() } : {}),
       ...a.body,
+      ...(a.choice ? { [a.choice.field]: choice } : {}),
     });
     setBusy(false);
     if (!r.ok) {
@@ -1377,6 +1381,7 @@ function BulkBar({
     });
     setAction(null);
     setNote('');
+    setChoice('');
     router.refresh();
   };
 
@@ -1412,6 +1417,23 @@ function BulkBar({
           {t('clearSelection')}
         </button>
       </div>
+      {current?.choice && (
+        <label className="mt-2 block text-caption">
+          {current.choice.label}
+          <select
+            value={choice}
+            onChange={(e) => setChoice(e.target.value)}
+            className="mt-1 block h-10 w-full rounded-md border border-line bg-surface px-2 text-body-sm text-text"
+          >
+            <option value="">—</option>
+            {current.choice.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {(current?.note || config.bulkActions?.some((a) => a.note === 'optional')) && (
         <label className="mt-2 block text-caption">
           {current?.note === 'required' ? t('noteRequired') : t('noteOptional')}

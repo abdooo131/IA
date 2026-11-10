@@ -1,31 +1,38 @@
 import { cairoDay, canDo } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
+import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { btnPrimary, btnSecondary } from '@/components/hr/HrPage';
 import { RecordViolationForm } from '@/components/hr/leave/RecordViolationForm';
-import { ViolationsTable } from '@/components/hr/leave/ViolationsTable';
-import { ViolationTabs } from '@/components/hr/leave/ViolationTabs';
+import { AppListPage } from '@/components/odoo/AppListPage';
 import { apiGet, apiTry, getMyProfile } from '@/lib/api-server';
-import type { Violation, ViolationType } from '@/lib/leave-types';
-import { btnPrimary, HrPageHeader } from '@/components/hr/HrPage';
+import type { ViolationType } from '@/lib/leave-types';
+import { legacyListAddress } from '@/lib/legacy-list';
 
 export const dynamic = 'force-dynamic';
 
 /**
- * Violations (HR phase 3): every violation, those appealed, the final ones, and the deductions
- * of outsourced people to tell their company. HR use records one on the person's ladder.
+ * Violations as a list view (UX phase C step 4): status, penalty, employment, the deductions
+ * to tell an outsourcing company and days as filters; type, store and days as values; grouped
+ * by status, type, person, store, penalty or month. HR use records one below; the suggestions
+ * of the attendance close have their own list.
  */
 export default async function ViolationsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const q = await searchParams;
-  const current = (['appealed', 'final', 'supplier'] as const).find((s) => s === q.status) ?? 'all';
-  const query =
-    current === 'supplier' ? '?forSupplier=1' : current === 'all' ? '' : `?status=${current}`;
+  const params = await searchParams;
+  // The old tabs (?status=appealed, final, supplier) open the list state.
+  const legacy = legacyListAddress(
+    '/admin/hr/violations',
+    { ...params, status: params.status === 'supplier' ? 'for_supplier' : params.status },
+    { status: { filter: true } },
+  );
+  if (legacy) redirect(legacy);
   const profile = await getMyProfile();
   const canUse = canDo(profile, 'hr', 'use');
-  const [rows, types, people, badges, t] = await Promise.all([
-    apiGet<Violation[]>(`/hr/violations${query}`),
+  const [types, people, badges, t, tl, ta] = await Promise.all([
     apiGet<ViolationType[]>('/hr/violations/types'),
     canUse
       ? apiGet<
@@ -34,25 +41,31 @@ export default async function ViolationsPage({
       : Promise.resolve([]),
     apiTry<{ suggested: number }>('/me/hr-badges'),
     getTranslations('hr3'),
+    getTranslations('appLists.violations'),
+    getTranslations('apps'),
   ]);
+  const suggested = badges?.suggested ?? 0;
   return (
     <>
-      <HrPageHeader
+      <AppListPage
+        list="hr/violations"
+        searchParams={params}
         title={t('violationsTitle')}
-        intro={t('violationsIntro')}
-        actions={
-          canUse && (
-            <a href="#record" className={btnPrimary}>
-              {t('recordViolation')}
-            </a>
-          )
+        intro={tl('intro')}
+        toolbar={
+          <>
+            <Link href="/admin/hr/violations/suggested" className={btnSecondary}>
+              {ta('pages.suggestedViolations')}
+              {suggested > 0 && <span className="ltr-iso ms-1">({suggested})</span>}
+            </Link>
+            {canUse && (
+              <a href="#record" className={btnPrimary}>
+                {t('recordViolation')}
+              </a>
+            )}
+          </>
         }
       />
-      <ViolationTabs current={current} suggested={badges?.suggested ?? 0} />
-      {current === 'supplier' && (
-        <p className="mt-3 max-w-3xl text-body-sm">{t('supplierIntro')}</p>
-      )}
-      <ViolationsTable rows={rows} hrefBase="/admin/hr/violations" />
       {canUse && (
         <details
           id="record"

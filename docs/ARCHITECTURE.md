@@ -182,6 +182,22 @@ app (Accounting uses them first):
   limited to some stores open it when one of them is theirs. Bulk Approve of draft transfers
   and of stock counts run the single approve through `eachRecord`. Old list addresses
   (`?store=`, `?merchant=`, `?status=`) are turned into the list state by `legacyListAddress`.
+- **Merchants and Customers lists** (UX phase C step 3): merchants, products and customers are
+  APP_LISTS of `merchants` and `customers` (customers also need the customer data switch:
+  `appListNeedsCustomerData`, `recordNeedsCustomerData`). The merchant page, a product page and
+  the customer profile sit in DocumentFrame with smart buttons from `GET .../:id/document`.
+- **Sales and HR lists** (UX phase C step 4): deals, companies and proposals are APP_LISTS of
+  `sales`; their loaders build the person's `CrmActor`, so a rep with own_deals_only loads only
+  their own rows. Employees, leave requests, violations and the attendance close's suggestions
+  are APP_LISTS of `hr`, loaded inside the person's stores by the person's home store (office
+  staff, without one, only for people with every store). recordRef gives HR records
+  `anyStoreIds` of the home store (none: every store only) and sales records `ownerIds`;
+  `assertRecordScope(access, ref, userId)` and `teamWith(..., { anyStoreIds, ownerIds })` keep
+  the chatter, the history and reminders to people who may open the record. An employee's
+  generic history drops salary rows and bank fields without the salaries switch
+  (`redactEmployeeAudit`); the employee page's frame reads the HR timeline instead
+  (`DocumentFrame historyPath`). A bulk action may ask for a value first (`BulkAction.choice`:
+  a sales person, a stage), sent as one field of its body.
 
 ### Public website
 

@@ -1,4 +1,4 @@
-# Handoff: where work stands (2026-11-09)
+# Handoff: where work stands (2026-11-10)
 
 ## Live on Render (branch ShiplyNow)
 
@@ -78,10 +78,6 @@ should confirm:
 - The counts list opens on counts waiting for approval; remove the filter to see reviewed ones
   (before, the page showed the last 20 reviewed below the waiting ones).
 
-## Next: UX phase C step 3
-
-The same list views and document pages in Merchants, then Customers, HR and Sales.
-
 ## Waiting on the owner
 
 - Proposal PDF: yes or no
@@ -119,3 +115,34 @@ decision line "UX phase C step 3 (Merchants and Customers)". Choices the owner s
   over those.
 - The product page shows stock only in the reader's stores; there is no product delete or
   merge (unchanged).
+
+## UX phase C step 4 (Sales and HR): built (branch claude/ux-phase-c, not deployed)
+
+Phase C is done: every app now uses the Odoo style list views and document pages. Sales: the
+deals list next to the board (search by DEAL number, company, contact, phone or email; stage,
+mine, not assigned, follow up overdue, no next step, stuck, source, proposal and day filters;
+owner and day values; grouped by stage, owner, source, month; fee totals; bulk Give to (sales
+manage), Move to stage and Mark lost), companies and proposals lists, and the deal and company
+pages in the document frame with smart buttons and the chatter. HR: the employee list (file
+flags, status, employment, pay basis; department and below, position, grade and store), leave
+requests (opens on waiting; waiting for me; bulk Approve and Refuse), violations and suggested
+violations (bulk Confirm and Dismiss) as list views, and the employee, leave request and
+violation pages in the frame. No migration. CLAUDE.md has the decision line "UX phase C step 4
+(Sales and HR)". Choices the owner should confirm:
+
+- The deal's chatter (notes and Remind me) is new and separate from the deal's activities: the
+  activities stay the "next step" feature (timeline, My day, the overdue alert) on the page as
+  before; the chatter is for internal notes and personal reminders. The history moved into the
+  chatter.
+- Bulk Mark lost uses the reason "other" with the note typed in the list (a reason from the list
+  needs the deal page). Bulk Move to stage offers only open stages; won is decided on the deal.
+- Bulk Approve of leave approves the step each request waits for: the manager step only when the
+  person approving is the manager in force (as from the inbox), the HR step with HR use. Bulk
+  Refuse refuses at either step, as HR could already one by one.
+- Bulk Confirm of suggestions uses each suggestion's type; confirming one with another type is
+  still offered below the list.
+- "Follow up overdue" means the next step is past due by more than sales.overdue_minutes (the
+  same rule as the alert); "stuck" is sales.stale_days in the stage.
+- The violations list shows the fixed EGP amount of a deduction only (never a deduction in days
+  of pay, which comes from the salary); national IDs are searchable only with HR use.
+- Suggested violations open the person's file (there is no suggestion page).

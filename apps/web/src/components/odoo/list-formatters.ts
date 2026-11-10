@@ -48,8 +48,19 @@ export function useAlertText() {
 export function useListFormatters(): Record<string, (row: ListRow) => string> {
   const alertText = useAlertText();
   const sources = useTranslations('returns.sources');
+  const flags = useTranslations('hr1.flags');
   const locale = useLocale();
+  const percent = (v: number) =>
+    `${new Intl.NumberFormat('en', { maximumFractionDigits: 2 }).format(v)}%`;
   return {
+    // UX phase C step 4: a proposal's discount (basis points), a file's completeness and its
+    // flags in the reader's words.
+    percentBp: (row) => percent(Number(row.discount ?? 0) / 100),
+    percent: (row) => percent(Number(row.documents ?? 0)),
+    employeeFlags: (row) =>
+      (Array.isArray(row.flags) ? (row.flags as string[]) : [])
+        .map((f) => (flags.has(f) ? flags(f) : f))
+        .join(locale === 'ar' ? '، ' : ', '),
     returnSources: (row) =>
       (Array.isArray(row.sources) ? (row.sources as string[]) : [])
         .map((s) => (sources.has(s) ? sources(s) : s))

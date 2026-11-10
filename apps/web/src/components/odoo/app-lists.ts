@@ -21,7 +21,14 @@ export type AppListKey =
   | 'inventory/damage'
   | 'merchants/merchants'
   | 'merchants/products'
-  | 'customers/customers';
+  | 'customers/customers'
+  | 'sales/deals'
+  | 'sales/companies'
+  | 'sales/proposals'
+  | 'hr/employees'
+  | 'hr/leave'
+  | 'hr/violations'
+  | 'hr/suggestions';
 
 const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
   'operations/orders': () => [
@@ -182,6 +189,116 @@ const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
     { key: 'expectedAt', kind: 'datetime', optional: true },
     { key: 'spend', kind: 'money', sort: 'spend' },
   ],
+  // UX phase C step 4: Sales and HR.
+  'sales/deals': () => [
+    { key: 'number', kind: 'ltr', sort: 'number', primary: true },
+    { key: 'company', kind: 'text' },
+    { key: 'title', kind: 'text', optional: true },
+    { key: 'contact', kind: 'text', optional: true },
+    { key: 'phone', kind: 'ltr', optional: true },
+    { key: 'email', kind: 'ltr', optional: true },
+    { key: 'stage', kind: 'status' },
+    { key: 'owner', kind: 'text' },
+    { key: 'source', kind: 'text', optional: true },
+    { key: 'nextStep', kind: 'text' },
+    { key: 'nextStepAt', kind: 'datetime' },
+    { key: 'proposal', kind: 'text', optional: true },
+    { key: 'stageChangedAt', kind: 'datetime', sort: 'stageChanged', optional: true },
+    { key: 'createdAt', kind: 'datetime', sort: 'created', optional: true },
+    { key: 'closeDate', kind: 'date', sort: 'closeDate', optional: true },
+    { key: 'merchant', kind: 'text', optional: true },
+    { key: 'expectedOrders', kind: 'number', sort: 'expectedOrders' },
+    { key: 'expectedFee', kind: 'money', sort: 'expectedFee' },
+  ],
+  'sales/companies': () => [
+    { key: 'name', kind: 'text', sort: 'name', primary: true },
+    { key: 'source', kind: 'text' },
+    { key: 'owner', kind: 'text' },
+    { key: 'contact', kind: 'text', optional: true },
+    { key: 'phone', kind: 'ltr', optional: true },
+    { key: 'email', kind: 'ltr', optional: true },
+    { key: 'city', kind: 'text', optional: true },
+    { key: 'category', kind: 'text', optional: true },
+    { key: 'website', kind: 'ltr', optional: true },
+    { key: 'merchant', kind: 'text' },
+    { key: 'contacts', kind: 'number', optional: true },
+    { key: 'openDeals', kind: 'number', sort: 'openDeals' },
+    { key: 'wonDeals', kind: 'number', sort: 'wonDeals' },
+    { key: 'createdAt', kind: 'datetime', sort: 'created', optional: true },
+  ],
+  'sales/proposals': () => [
+    { key: 'number', kind: 'ltr', sort: 'number', primary: true },
+    { key: 'deal', kind: 'ltr' },
+    { key: 'company', kind: 'text' },
+    { key: 'version', kind: 'number', optional: true },
+    { key: 'status', kind: 'status' },
+    { key: 'owner', kind: 'text' },
+    { key: 'discount', kind: 'number', sort: 'discount', format: 'percentBp' },
+    { key: 'toApprove', kind: 'bool' },
+    { key: 'createdAt', kind: 'datetime', sort: 'created' },
+    { key: 'sentAt', kind: 'datetime', optional: true },
+    { key: 'validUntil', kind: 'date', optional: true },
+    { key: 'acceptedAt', kind: 'datetime', optional: true },
+    { key: 'confirmed', kind: 'bool', optional: true },
+    { key: 'expectedOrders', kind: 'number', optional: true },
+  ],
+  'hr/employees': (locale) => [
+    { key: locale === 'ar' ? 'nameAr' : 'nameEn', kind: 'text', sort: 'name', primary: true },
+    { key: 'code', kind: 'ltr', sort: 'code' },
+    { key: locale === 'ar' ? 'positionAr' : 'position', kind: 'text' },
+    { key: locale === 'ar' ? 'departmentAr' : 'department', kind: 'text', sort: 'department' },
+    { key: 'store', kind: 'ltr', sort: 'store' },
+    { key: 'mobile', kind: 'ltr', optional: true },
+    { key: 'email', kind: 'ltr', optional: true },
+    { key: 'manager', kind: 'text', optional: true },
+    { key: 'employment', kind: 'text' },
+    { key: 'payBasis', kind: 'text', optional: true },
+    { key: 'status', kind: 'status' },
+    { key: 'flags', kind: 'text', format: 'employeeFlags' },
+    { key: 'hireDate', kind: 'date', sort: 'hired', optional: true },
+    { key: 'probationEndsOn', kind: 'date', optional: true },
+    { key: 'documents', kind: 'number', sort: 'documents', format: 'percent' },
+  ],
+  'hr/leave': (locale) => [
+    { key: 'number', kind: 'ltr', sort: 'number', primary: true },
+    { key: locale === 'ar' ? 'employeeAr' : 'employee', kind: 'text' },
+    { key: 'employeeCode', kind: 'ltr', optional: true },
+    { key: locale === 'ar' ? 'typeAr' : 'type', kind: 'text' },
+    { key: 'from', kind: 'date', sort: 'from' },
+    { key: 'to', kind: 'date' },
+    { key: 'days', kind: 'number', sort: 'days' },
+    { key: 'store', kind: 'ltr', optional: true },
+    { key: 'department', kind: 'text', optional: true },
+    { key: 'waitingForMe', kind: 'bool' },
+    { key: 'hasDocument', kind: 'bool', optional: true },
+    { key: 'createdAt', kind: 'datetime', sort: 'created', optional: true },
+    { key: 'status', kind: 'status' },
+  ],
+  'hr/violations': (locale) => [
+    { key: 'number', kind: 'ltr', sort: 'number', primary: true },
+    { key: locale === 'ar' ? 'employeeAr' : 'employee', kind: 'text' },
+    { key: 'employeeCode', kind: 'ltr', optional: true },
+    { key: locale === 'ar' ? 'typeAr' : 'type', kind: 'text' },
+    { key: 'occurredOn', kind: 'date', sort: 'occurred' },
+    { key: 'step', kind: 'number' },
+    { key: 'penalty', kind: 'text' },
+    { key: 'days', kind: 'number', optional: true },
+    { key: 'store', kind: 'ltr', optional: true },
+    { key: 'employment', kind: 'text', optional: true },
+    { key: 'status', kind: 'status' },
+    { key: 'amount', kind: 'money', sort: 'amount' },
+  ],
+  'hr/suggestions': (locale) => [
+    { key: locale === 'ar' ? 'employeeAr' : 'employee', kind: 'text', primary: true },
+    { key: 'employeeCode', kind: 'ltr' },
+    { key: 'day', kind: 'date', sort: 'day' },
+    { key: 'kind', kind: 'text' },
+    { key: 'lateMinutes', kind: 'number', sort: 'lateMinutes' },
+    { key: locale === 'ar' ? 'typeAr' : 'type', kind: 'text' },
+    { key: 'store', kind: 'ltr', optional: true },
+    { key: 'violation', kind: 'ltr' },
+    { key: 'status', kind: 'status' },
+  ],
 };
 
 const HREFS: Record<AppListKey, string | undefined> = {
@@ -196,6 +313,14 @@ const HREFS: Record<AppListKey, string | undefined> = {
   'merchants/merchants': '/admin/merchants/{id}',
   'merchants/products': '/admin/products/{id}',
   'customers/customers': '/admin/customers/{id}',
+  'sales/deals': '/admin/sales/deals/{id}',
+  'sales/companies': '/admin/sales/companies/{id}',
+  'sales/proposals': '/admin/sales/deals/{dealId}',
+  'hr/employees': '/admin/hr/{id}',
+  'hr/leave': '/admin/hr/leave/{id}',
+  'hr/violations': '/admin/hr/violations/{id}',
+  // A suggestion opens the person's attendance, where the day can be checked.
+  'hr/suggestions': '/admin/hr/{employeeId}',
 };
 
 type Option = { value: string; label: string; labelAr?: string };
@@ -250,6 +375,12 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
             : key === 'inventory/counts'
               ? (s) => counts(`statuses.${s}`)
               : null;
+  /** A list's own word table (appLists.<list>.<group>) as value → label. */
+  const own = (group: string): Record<string, string> =>
+    t.has(`${id}.${group}`) ? (t.raw(`${id}.${group}`) as Record<string, string>) : {};
+  /** English names (rows and groups carry them) → Arabic names, from the options. */
+  const arabicNames = (list: Option[] | undefined) =>
+    Object.fromEntries((list ?? []).map((o) => [o.label, o.labelAr ?? o.label]));
   const label = (group: string, k: string) =>
     t.has(`${id}.${group}.${k}`) ? t(`${id}.${group}.${k}`) : t(`${group}.${k}`);
   const optionLabel = (o: Option) => (locale === 'ar' && o.labelAr ? o.labelAr : o.label);
@@ -359,6 +490,44 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
           (options.district ?? []).map((o) => [o.label, o.labelAr ?? o.label]),
         );
       break;
+    // UX phase C step 4: Sales and HR name their values in their own words.
+    case 'sales/deals':
+      valueLabels.stage = own('stages');
+      valueLabels.source = own('sources');
+      valueLabels.proposal = own('proposalStatuses');
+      break;
+    case 'sales/companies':
+      valueLabels.source = own('sources');
+      break;
+    case 'sales/proposals':
+      valueLabels.status = own('statuses');
+      break;
+    case 'hr/employees':
+      valueLabels.status = own('statuses');
+      valueLabels.employment = own('employments');
+      valueLabels.payBasis = own('payBases');
+      if (locale === 'ar') {
+        valueLabels.department = arabicNames(options.department);
+        valueLabels.position = arabicNames(options.position);
+      }
+      break;
+    case 'hr/leave':
+      valueLabels.status = own('statuses');
+      if (locale === 'ar') {
+        valueLabels.type = arabicNames(options.type);
+        valueLabels.department = arabicNames(options.department);
+      }
+      break;
+    case 'hr/violations':
+      valueLabels.status = own('statuses');
+      valueLabels.penalty = own('penalties');
+      valueLabels.employment = own('employments');
+      if (locale === 'ar') valueLabels.type = arabicNames(options.type);
+      break;
+    case 'hr/suggestions':
+      valueLabels.status = own('statuses');
+      valueLabels.kind = own('kinds');
+      break;
   }
 
   const bulk: BulkAction[] = [];
@@ -404,12 +573,87 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
     );
   }
 
+  if (key === 'sales/deals' && canDo(profile, 'sales', 'use')) {
+    if (canDo(profile, 'sales', 'manage'))
+      bulk.push({
+        key: 'assign',
+        label: t('bulk.assignDeals'),
+        endpoint: '/sales/deals/bulk-assign',
+        choice: {
+          field: 'ownerId',
+          label: t('bulk.assignTo'),
+          options: [
+            ...(options.owner ?? []).map((o) => ({ value: o.value, label: o.label })),
+            { value: 'none', label: t('bulk.backToQueue') },
+          ],
+        },
+      });
+    const stages = own('stages');
+    bulk.push(
+      {
+        key: 'stage',
+        label: t('bulk.moveDeals'),
+        endpoint: '/sales/deals/bulk-stage',
+        choice: {
+          field: 'stage',
+          label: t('bulk.moveTo'),
+          options: ['new', 'contacted', 'meeting', 'proposal', 'negotiation'].map((v) => ({
+            value: v,
+            label: stages[v] ?? v,
+          })),
+        },
+      },
+      {
+        key: 'lost',
+        label: t('bulk.markLost'),
+        endpoint: '/sales/deals/bulk-lost',
+        note: 'required',
+        tone: 'danger',
+      },
+    );
+  }
+  if (key === 'hr/leave' && canDo(profile, 'hr', 'use'))
+    bulk.push(
+      {
+        key: 'approve',
+        label: t('bulk.approveLeave'),
+        endpoint: '/hr/leave/requests/bulk-approve',
+      },
+      {
+        key: 'reject',
+        label: t('bulk.rejectLeave'),
+        endpoint: '/hr/leave/requests/bulk-reject',
+        note: 'required',
+        tone: 'danger',
+      },
+    );
+  if (key === 'hr/suggestions' && canDo(profile, 'hr', 'use'))
+    bulk.push(
+      {
+        key: 'confirm',
+        label: t('bulk.confirmSuggestions'),
+        endpoint: '/hr/violations/suggestions/bulk-confirm',
+      },
+      {
+        key: 'dismiss',
+        label: t('bulk.dismissSuggestions'),
+        endpoint: '/hr/violations/suggestions/bulk-dismiss',
+        tone: 'danger',
+      },
+    );
+
   return {
     listId: `${app}_${id}`,
     endpoint: `/lists/${key}`,
     columns: COLUMNS[key](locale).map((c) => ({
       ...c,
-      label: label('columns', c.key.replace(/^title(En|Ar)$/, 'title')),
+      label: label(
+        'columns',
+        c.key
+          .replace(/^title(En|Ar)$/, 'title')
+          .replace(/^name(En|Ar)$/, 'name')
+          .replace(/^(employee|type|department|position)Ar$/, '$1'),
+      ),
     })),
     filters: Object.entries(meta.filters).map(([k, group]) => ({
       key: k,
@@ -440,6 +684,8 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
     valueLabels,
     rowHref: HREFS[key],
     ...(key === 'operations/alerts' && { navIdKey: 'orderId' }),
+    ...(key === 'sales/proposals' && { navIdKey: 'dealId' }),
+    ...(key === 'hr/suggestions' && { navIdKey: 'employeeId' }),
     bulkActions: bulk.length ? bulk : undefined,
     defaultFilters: [...meta.defaultFilters],
     exportName: t(`${id}.exportName`),

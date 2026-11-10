@@ -1876,6 +1876,7 @@ export interface EmployeeListRow2 {
   positionId: string | null;
   position: string | null;
   positionAr: string | null;
+  gradeId: string | null;
   storeId: string | null;
   store: string | null;
   managerId: string | null;
@@ -1923,7 +1924,8 @@ async function loadEmployees(
     code: e.code,
     numberValue: number.get(e.id) ?? 0,
     nameEn: e.nameEn,
-    nameAr: e.nameAr,
+    // Arabic screens show the English name when the Arabic one was never typed.
+    nameAr: e.nameAr || e.nameEn,
     mobile: e.mobile,
     email: e.user.email,
     jobTitle: e.jobTitle,
@@ -1934,6 +1936,7 @@ async function loadEmployees(
     positionId: e.position?.id ?? null,
     position: e.position?.titleEn ?? e.jobTitle ?? null,
     positionAr: e.position?.titleAr ?? e.jobTitle ?? null,
+    gradeId: e.grade?.id ?? null,
     storeId: e.homeStore?.id ?? null,
     store: e.homeStore?.code ?? null,
     managerId: e.manager?.id ?? null,
@@ -1972,6 +1975,7 @@ const employees: ListDef<EmployeeListRow2> = {
   values: {
     department: (r, v) => r.departmentPath.includes(v),
     position: (r, v) => r.positionId === v,
+    grade: (r, v) => r.gradeId === v,
     store: (r, v) => r.storeId === v,
   },
   groupBys: {
@@ -2086,7 +2090,7 @@ async function loadLeave(db: Db, scope: ListScope, state: ListState): Promise<Le
       numberValue: r.number,
       employeeId: r.employee.id,
       employee: r.employee.nameEn,
-      employeeAr: r.employee.nameAr,
+      employeeAr: r.employee.nameAr || r.employee.nameEn,
       employeeCode: employeeCode(r.employee.number),
       storeId: r.employee.homeStore?.id ?? null,
       store: r.employee.homeStore?.code ?? null,
@@ -2239,7 +2243,7 @@ async function loadViolations(
       numberValue: v.number,
       employeeId: v.employee.id,
       employee: v.employee.nameEn,
-      employeeAr: v.employee.nameAr,
+      employeeAr: v.employee.nameAr || v.employee.nameEn,
       employeeCode: employeeCode(v.employee.number),
       employment: v.employee.employment,
       storeId: v.employee.homeStore?.id ?? null,
@@ -2359,7 +2363,7 @@ async function loadSuggestions(
     status: s.status,
     employeeId: s.employee.id,
     employee: s.employee.nameEn,
-    employeeAr: s.employee.nameAr,
+    employeeAr: s.employee.nameAr || s.employee.nameEn,
     employeeCode: employeeCode(s.employee.number),
     storeId: s.employee.homeStore?.id ?? null,
     store: s.employee.homeStore?.code ?? null,
@@ -2510,6 +2514,17 @@ export async function appListOptions(db: Db, app: string, id: string, scope: Lis
         orderBy: { titleEn: 'asc' },
       });
       out.position = rows.map((p) => ({ value: p.id, label: p.titleEn, labelAr: p.titleAr }));
+    }
+    if (wants.includes('grade')) {
+      const rows = await db.grade.findMany({
+        select: { id: true, code: true, nameEn: true, nameAr: true },
+        orderBy: { rank: 'asc' },
+      });
+      out.grade = rows.map((g) => ({
+        value: g.id,
+        label: `${g.code} · ${g.nameEn}`,
+        labelAr: `${g.code} · ${g.nameAr}`,
+      }));
     }
     if (wants.includes('type')) {
       const rows =

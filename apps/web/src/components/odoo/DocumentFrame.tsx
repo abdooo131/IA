@@ -41,6 +41,7 @@ export async function DocumentFrame({
   notes,
   asideFrom = 'lg',
   header,
+  historyPath,
   children,
 }: {
   /** The app's home (Accounting, Operations) */
@@ -67,6 +68,8 @@ export async function DocumentFrame({
   asideFrom?: 'lg' | 'xl';
   /** Replaces the default header (a page with its own header, like the order page) */
   header?: ReactNode;
+  /** Another endpoint for the history (an employee's timeline that hides pay without salaries) */
+  historyPath?: string;
   children?: ReactNode;
 }) {
   const [t, me] = await Promise.all([getTranslations('documents'), getCurrentUser()]);
@@ -194,7 +197,7 @@ export async function DocumentFrame({
               </ul>
             )}
           </section>
-          <RecordHistory entityType={entityType} entityId={id} />
+          <RecordHistory entityType={entityType} entityId={id} path={historyPath} />
         </aside>
       </div>
     </article>

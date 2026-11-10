@@ -400,7 +400,7 @@ export const APP_LISTS = {
         monthly_salary: 'pay',
         per_delivery: 'pay',
       },
-      values: { department: 'option', position: 'option', store: 'option' },
+      values: { department: 'option', position: 'option', grade: 'option', store: 'option' },
       groupBys: ['department', 'store', 'position', 'employment', 'status', 'manager'],
       sorts: ['name', 'code', 'hired', 'documents', 'department', 'store'],
       sums: [],

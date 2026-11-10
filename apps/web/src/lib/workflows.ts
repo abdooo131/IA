@@ -53,6 +53,12 @@ export const WORKFLOWS = {
   count: { path: ['submitted', 'approved'], side: ['rejected', 'stale'] },
   // UX phase C step 3: a merchant signs up, is approved and works; a pause or a refusal stops it.
   merchant: { path: ['pending', 'active'], side: ['paused', 'rejected'] },
+  // UX phase C step 4: a person joins on probation, works, may leave (a last day ahead) and
+  // leaves; suspended or on leave show apart.
+  employee: {
+    path: ['on_probation', 'active', 'leaving', 'left'],
+    side: ['suspended', 'on_leave'],
+  },
 } as const;
 
 export type WorkflowName = keyof typeof WORKFLOWS;

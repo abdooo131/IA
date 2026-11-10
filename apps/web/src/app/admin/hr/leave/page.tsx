@@ -1,31 +1,35 @@
 import { canDo } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
-import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { btnPrimary } from '@/components/hr/HrPage';
 import { LeaveRequestForm } from '@/components/hr/leave/LeaveRequestForm';
-import { LeaveRequestsTable } from '@/components/hr/leave/LeaveRequestsTable';
+import { AppListPage } from '@/components/odoo/AppListPage';
 import { apiGet, getMyProfile } from '@/lib/api-server';
-import type { LeaveRequest, LeaveType } from '@/lib/leave-types';
-import { btnPrimary, HrPageHeader } from '@/components/hr/HrPage';
+import { legacyListAddress } from '@/lib/legacy-list';
+import type { LeaveType } from '@/lib/leave-types';
 
 export const dynamic = 'force-dynamic';
 
-const TABS = ['pending', 'pending_hr', 'approved', 'all'] as const;
-
-/** Leave requests (HR phase 3): what waits, what was approved, everything; HR asks for someone. */
+/**
+ * Leave requests as a list view (UX phase C step 4): opens on what still waits; filters by
+ * status, waiting for me and days; type, store, department and day values; grouping and the
+ * days summed. Tick several to approve or refuse them at the step each waits for (the manager
+ * step only by the manager, nobody their own). HR asks for someone below.
+ */
 export default async function LeaveRequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const q = await searchParams;
-  const tab = TABS.includes(q.status as (typeof TABS)[number])
-    ? (q.status as (typeof TABS)[number])
-    : 'pending';
-  const status = tab === 'all' ? '' : tab;
+  const params = await searchParams;
+  // The old tabs (?status=pending, pending_hr, approved, all) open the list state.
+  const status = Array.isArray(params.status) ? params.status[0] : params.status;
+  if (status === 'all') redirect('/admin/hr/leave?f=');
+  const legacy = legacyListAddress('/admin/hr/leave', params, { status: { filter: true } });
+  if (legacy) redirect(legacy);
   const profile = await getMyProfile();
   const canUse = canDo(profile, 'hr', 'use');
-  const [rows, types, people, t] = await Promise.all([
-    apiGet<LeaveRequest[]>(`/hr/leave/requests${status ? `?status=${status}` : ''}`),
+  const [types, people, t, tl] = await Promise.all([
     apiGet<LeaveType[]>('/hr/leave/types'),
     canUse
       ? apiGet<
@@ -33,37 +37,23 @@ export default async function LeaveRequestsPage({
         >('/hr/employees')
       : Promise.resolve([]),
     getTranslations('hr3'),
+    getTranslations('appLists.leave'),
   ]);
-  const tabClass = (active: boolean) =>
-    `flex h-10 items-center rounded-md px-3 text-body-sm font-bold ${
-      active ? 'bg-selected-bg text-link' : 'border border-line bg-surface text-text'
-    }`;
   return (
     <>
-      <HrPageHeader
+      <AppListPage
+        list="hr/leave"
+        searchParams={params}
         title={t('requestsTitle')}
-        intro={t('requestsIntro')}
-        actions={
-          canUse && (
+        intro={tl('intro')}
+        toolbar={
+          canUse ? (
             <a href="#ask" className={btnPrimary}>
               {t('askForSomeone')}
             </a>
-          )
+          ) : undefined
         }
       />
-      <nav className="mt-4 flex flex-wrap gap-2" aria-label={t('status')}>
-        {TABS.map((s) => (
-          <Link
-            key={s}
-            href={`/admin/hr/leave?status=${s}`}
-            aria-current={tab === s ? 'page' : undefined}
-            className={tabClass(tab === s)}
-          >
-            {t(`tabs.${s}`)}
-          </Link>
-        ))}
-      </nav>
-      <LeaveRequestsTable rows={rows} hrefBase="/admin/hr/leave" />
       {canUse && (
         <details
           id="ask"
