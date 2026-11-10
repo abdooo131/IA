@@ -16,6 +16,7 @@ import { addMonths } from './assets';
 //
 //   fees            fee income booked to the merchant (before VAT), by kind
 //   rider bonus     bonuses of the merchant's delivered orders (tagged to the merchant)
+//   rider offices   commission of rider supply offices on that pay (tagged the same way)
 //   rider salaries  each store's rider salaries, shared by the merchant's part of the store's
 //                   delivered orders
 //   store costs     each store's other costs (fuel, staff, supplies; rent apart), shared the
@@ -39,6 +40,7 @@ export interface MerchantMonth {
   feesPiastres: number;
   costs: {
     riderBonusPiastres: number;
+    riderOfficeCommissionPiastres: number;
     riderSalaryPiastres: number;
     storeCostsPiastres: number;
     storageSpacePiastres: number;
@@ -196,11 +198,13 @@ export async function merchantProfitability(
     const riderBonus = sum((d) => d.type === 'rider_bonus_expense');
     const damage = sum((d) => d.type === 'damage_expense');
     const packaging = sum((d) => d.key === 'expense:packaging');
+    const officeCommission = sum((d) => d.key === 'rider_office_commission');
     const otherDirect = sum(
       (d) =>
         d.type !== 'rider_bonus_expense' &&
         d.type !== 'damage_expense' &&
-        d.key !== 'expense:packaging',
+        d.key !== 'expense:packaging' &&
+        d.key !== 'rider_office_commission',
     );
     const myDelivered = delivered.filter((d) => d.merchant_id === m.id);
     const storeIds = new Set([
@@ -230,6 +234,7 @@ export async function merchantProfitability(
     const n = myDelivered.reduce((s, d) => s + num(d.n), 0);
     const costs = {
       riderBonusPiastres: riderBonus,
+      riderOfficeCommissionPiastres: officeCommission,
       riderSalaryPiastres: riderSalary,
       storeCostsPiastres: storeCosts,
       storageSpacePiastres: storage,

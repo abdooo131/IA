@@ -12,6 +12,7 @@ import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { contractPricesAt, productPricesFor, standardPrices } from './contracts';
 import { type AccountRef, post, share } from './ledger';
+import { postRiderOfficeCommission } from './rider-offices';
 
 type Tx = Prisma.TransactionClient;
 
@@ -34,7 +35,8 @@ async function feeLines(tx: Tx, merchantId: string, fee: number) {
  * at the prices of the merchant's contract (merchant contracts v2) the shipping fee, the
  * per product prices of the delivered units, the order fee (fixed plus a share of the
  * products value), the COD fee and the packaging charge (each its own entry kind, nothing
- * booked at 0), and the rider earns the delivery bonus. Each part has its own key, so
+ * booked at 0), and the rider earns the delivery bonus (and their rider office, if any, its
+ * commission on it). Each part has its own key, so
  * posting twice changes nothing.
  */
 export async function postDeliveryCompleted(
@@ -149,6 +151,16 @@ export async function postDeliveryCompleted(
       { account: { type: 'rider_bonus_expense' }, amount: bonus },
       { account: { type: 'rider_bonus', riderId: delivery.riderId }, amount: -bonus },
     ],
+  });
+  // A rider linked to a rider office earns the office its commission on this pay.
+  await postRiderOfficeCommission(tx, {
+    deliveryId: delivery.id,
+    riderId: delivery.riderId,
+    orderId: order.id,
+    payPiastres: bonus,
+    now: input.now,
+    actorUserId: input.actorUserId,
+    memo: order.number,
   });
 }
 

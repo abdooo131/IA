@@ -204,6 +204,13 @@ async function billDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       count: b._count.cheques,
       href: `/finance/cheques?q=${encodeURIComponent(b.supplier.name)}&f=`,
     });
+  if (b.officeMonth)
+    smart.push({
+      key: 'riderOffice',
+      count: null,
+      value: b.supplier.name,
+      href: `/finance/rider-offices/${b.supplierId}`,
+    });
   return base('bill', b.id, {
     number,
     title: b.supplier.name,
@@ -217,6 +224,7 @@ async function billDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('account', `${b.expenseAccount.code} ${b.expenseAccount.nameEn}`),
       f('store', b.darkStore?.code ?? null),
       f('person', b.person?.name ?? null),
+      f('officeMonth', b.officeMonth, 'ltr'),
       f('net', b.netPiastres, 'money'),
       f('vat', b.vatPiastres, 'money'),
       f('total', b.totalPiastres, 'money'),

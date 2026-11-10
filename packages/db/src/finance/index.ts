@@ -280,3 +280,12 @@ export { accountingDocument } from './documents';
 export { financeDashboard, type JournalCard, SPARK_DAYS, type TodayItem } from './dashboard';
 export { financeSearch } from './search';
 export { bulkApprovePayouts, bulkDecideRequests } from './bulk';
+export {
+  checkStaffingCompany,
+  listRiderOffices,
+  type OfficeBillResult,
+  prepareOfficeBills,
+  riderOfficeDetail,
+  riderOfficeOf,
+  setRiderOffice,
+} from './rider-offices';

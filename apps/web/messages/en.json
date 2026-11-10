@@ -2018,7 +2018,9 @@
       "rider_withdrawal": "Rider withdrawal",
       "shipping_fee": "Shipping fee",
       "product_handling": "Per product fee",
-      "packaging_charge": "Packaging charge"
+      "packaging_charge": "Packaging charge",
+      "rider_office_commission": "Rider office commission",
+      "rider_office_shortage": "Rider dues moved to the office"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -2351,7 +2353,14 @@
         "withdrawal_not_requested": "This request can no longer be changed.",
         "withdrawal_not_open": "This request is already closed.",
         "own_withdrawal": "You cannot decide your own withdrawal.",
-        "withdrawal_not_found": "Withdrawal not found."
+        "withdrawal_not_found": "Withdrawal not found.",
+        "rider_office_not_found": "This supplier is not a rider office.",
+        "later_month_prepared": "A later month is already prepared for this office. Months are prepared in order.",
+        "office_has_riders": "Riders are still linked to this office. Unlink them on their HR file first.",
+        "supplier_has_staff": "People on a monthly salary are hired through this supplier. A rider office takes only riders paid per delivery.",
+        "invalid_commission": "The commission must be between 0 and 100%.",
+        "more_than_they_owe": "That is more than the supplier owes us.",
+        "bill_from_rider_office": "A rider office's commission bill cannot be cancelled."
       }
     },
     "riders": {
@@ -2794,7 +2803,9 @@
       "disposeHint": "The equipment leaves the books; what was not yet depreciated, less the sale price, is a loss (or a gain). A second person approves it.",
       "confirmDispose": "Take off the books",
       "disposed": "Sold or scrapped",
-      "newBillButton": "New bill"
+      "newBillButton": "New bill",
+      "offset": "Set off what the office owes us (up to EGP {amount})",
+      "riderOffice": "Rider office · {percent}% commission · {riders} riders"
     },
     "period": {
       "bankTitle": "Bank matching",
@@ -3221,6 +3232,7 @@
       "feesByKind": "Fees by kind",
       "costLines": {
         "riderBonusPiastres": "Rider bonuses",
+        "riderOfficeCommissionPiastres": "Rider office commission",
         "riderSalaryPiastres": "Share of rider salaries",
         "storeCostsPiastres": "Share of store running costs",
         "storageSpacePiastres": "Storage space (rent by units)",
@@ -5950,7 +5962,8 @@
       "monthEndChecklist": "Month end checklist",
       "payMerchants": "Pay merchants",
       "recordExpense": "Record an expense",
-      "closeMonthRun": "Close the month"
+      "closeMonthRun": "Close the month",
+      "riderOffices": "Rider offices"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -5964,7 +5977,8 @@
       "taxes": "Taxes owed, the VAT report and the returns",
       "contracts": "Merchant contracts, read only",
       "trial": "Every account with its total",
-      "journal": "Every entry, line by line"
+      "journal": "Every entry, line by line",
+      "riderOffices": "Offices that supply riders: commission, shortages and monthly bills"
     }
   },
   "hr": {
@@ -6675,7 +6689,9 @@
       "checklist_open": "A checklist of that kind is open already.",
       "checklist_template_not_found": "No template for this checklist.",
       "contract_follows_employment": "The contract of an outsourced person follows their employment.",
-      "alert_without_expiry": "Only a document with an expiry can warn before it."
+      "alert_without_expiry": "Only a document with an expiry can warn before it.",
+      "rider_office_riders_only": "A rider office supplies only riders paid per delivery.",
+      "rider_office_required": "A rider paid per delivery can only be linked to a rider office."
     },
     "fit": "Fit",
     "myExpiring": "{count, plural, one {# document expires soon} other {# documents expire soon}}",
@@ -6688,7 +6704,11 @@
     "remindAllHint": "{count, plural, one {1 required document is not in order.} other {# required documents are not in order.}}",
     "remindAll": "Remind of everything missing",
     "remind": "Remind",
-    "expiryCalendar": "Expiry calendar"
+    "expiryCalendar": "Expiry calendar",
+    "riderOfficeTitle": "Rider office",
+    "riderOfficeHint": "A rider can be supplied by a rider office. We still pay the rider directly; the office earns its commission on the rider pay, and what the rider cannot cover from their wallet at month end moves onto the office.",
+    "noRiderOffice": "No office: works for us directly",
+    "riderOfficeVia": "Supplied by the rider office {company}"
   },
   "push": {
     "back": "Back",
@@ -9635,7 +9655,9 @@
       "login_not_pending": "This login was not made by the new hire wizard.",
       "idempotency_key_reused": "Refresh the page and try again.",
       "document_in_order": "This document is in order.",
-      "manager_is_self": "Someone cannot be their own manager."
+      "manager_is_self": "Someone cannot be their own manager.",
+      "rider_office_riders_only": "A rider office supplies only riders paid per delivery.",
+      "rider_office_required": "A rider paid per delivery can only be hired through a rider office."
     }
   },
   "riderPay": {
@@ -9732,7 +9754,8 @@
       "not_enough_money": "The cash box or bank does not hold that much.",
       "per_delivery_riders_only": "Only riders can be paid per delivered order.",
       "network": "No connection. Try again.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "rider_office_per_delivery_only": "This rider is supplied by a rider office, which takes only riders paid per delivery. Unlink the office first."
     },
     "financeTitle": "Rider withdrawals",
     "financeIntro": "Riders ask for money that finished its hold. What they owe (cash short, damage, penalties, advances) is taken from the wallet in the same payment. Approve, then pay from a bank or cash box with a reference; from the approval limit another person pays.",
@@ -10064,7 +10087,8 @@
       "reversedBy": "Reversed by",
       "expected": "Expected",
       "counted": "Counted",
-      "difference": "Difference"
+      "difference": "Difference",
+      "officeMonth": "Commission month"
     },
     "smart": {
       "merchant": "Merchant",
@@ -10133,7 +10157,8 @@
       "balance": "Leave left (days)",
       "leaveDocument": "Leave note",
       "ladder": "Same type before",
-      "evidence": "Evidence"
+      "evidence": "Evidence",
+      "riderOffice": "Rider office"
     },
     "chatter": {
       "title": "Notes and history",
@@ -11003,6 +11028,74 @@
         "late": "Late",
         "absent": "Absent"
       }
+    }
+  },
+  "riderOffices": {
+    "title": "Rider offices",
+    "intro": "Offices that supply riders. We pay each rider ourselves, as usual; the office earns a commission on the rider pay of every delivered order. Once a month is over, prepare the office bills: what a rider still owes beyond their wallet moves onto the office, and the month's commission becomes a normal supplier bill.",
+    "month": "Month",
+    "openLastMonth": "Open last month",
+    "prepareBills": "Prepare office bills for {month}",
+    "prepareBill": "Prepare this bill",
+    "prepared": "Prepared.",
+    "monthNotOver": "Bills are prepared once the month is over.",
+    "empty": "No rider offices yet. Mark a supplier as a rider office below.",
+    "noOffices": "No rider offices.",
+    "office": "Office",
+    "rate": "Commission",
+    "riders": "Riders",
+    "deliveries": "Deliveries",
+    "commission": "Commission",
+    "shortages": "Shortages moved",
+    "bill": "Bill",
+    "balance": "We owe",
+    "owesUs": "Owes us",
+    "total": "Total",
+    "noTaxId": "No tax number: no VAT",
+    "howItWorks": "Commission = rider pay per delivered order × the office's rate, booked at each delivery at the rate of that moment. Shortages: a rider's dues are taken from their own earnings first; only what is left at month end moves onto the office. VAT is added when the office has a tax number; withholding tax is kept back when the bill is paid.",
+    "addTitle": "Mark a supplier as a rider office",
+    "addHint": "Add the office as a supplier first (Bills), then set its commission here. HR then links riders to it on their file.",
+    "supplier": "Supplier",
+    "commissionPercent": "Commission %",
+    "add": "Mark as rider office",
+    "saveRate": "Save rate",
+    "rateHint": "A new rate counts for deliveries from now on; earlier deliveries keep the rate they were booked at.",
+    "unbilled": "Commission not billed yet",
+    "openBills": "Open bills",
+    "owesUsHint": "The office owes us EGP {amount} (shortages of its riders). It is set off when its next bill is paid.",
+    "ridersTitle": "Riders",
+    "noRiders": "No riders linked yet. HR links a rider on the rider's file.",
+    "rider": "Rider",
+    "store": "Store",
+    "deliveriesThisMonth": "Deliveries this month",
+    "commissionThisMonth": "Commission this month",
+    "riderWallet": "Rider wallet",
+    "riderOwes": "Rider owes",
+    "left": "Left",
+    "monthsTitle": "Month by month",
+    "riderPay": "Rider pay",
+    "notPrepared": "Not prepared",
+    "running": "Month running",
+    "billsTitle": "Bills",
+    "noBills": "No bills yet.",
+    "net": "Commission",
+    "vat": "VAT",
+    "billTotal": "Total",
+    "leftToPay": "Left to pay",
+    "status": "Status",
+    "statuses": {
+      "open": "Open",
+      "paid": "Paid",
+      "cancelled": "Cancelled"
+    },
+    "back": "Back to rider offices",
+    "taxId": "Tax number {taxId}",
+    "noTaxIdLong": "No tax number: its bills carry no VAT",
+    "withholding": "Withholding {percent}%",
+    "results": {
+      "billed": "{bill} prepared, EGP {total}. Shortages moved: EGP {shortages}.",
+      "already_billed": "already billed ({bill}). Shortages moved: EGP {shortages}.",
+      "nothing_to_bill": "no commission this month. Shortages moved: EGP {shortages}."
     }
   }
 }

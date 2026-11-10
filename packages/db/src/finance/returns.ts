@@ -37,7 +37,7 @@ export async function vatReturn(db: Db, month: string) {
     SELECT e.kind,
       SUM(l.amount_piastres) FILTER (WHERE a.key = 'revenue') AS revenue,
       SUM(l.amount_piastres) FILTER (WHERE a.key = 'vat_payable') AS vat,
-      SUM(l.amount_piastres) FILTER (WHERE a.category = 'expense' OR a.key = 'goods_received') AS expense
+      SUM(l.amount_piastres) FILTER (WHERE a.category = 'expense' OR a.key IN ('goods_received', 'rider_office_accrued')) AS expense
     FROM ledger_entries e
       JOIN ledger_lines l ON l.entry_id = e.id
       JOIN ledger_accounts a ON a.id = l.account_id
@@ -56,7 +56,8 @@ export async function vatReturn(db: Db, month: string) {
     const revenue = -Number(r.revenue ?? 0);
     const vat = -Number(r.vat ?? 0);
     // By the entry's kind: a cancelled bill takes its purchase and VAT back in its month,
-    // a purchase order bill's cost sits in goods received not billed (2401).
+    // a purchase order bill's cost sits in goods received not billed (2401), a rider office's
+    // commission bill in its accrued commission (2402).
     if (r.kind === 'credit_note') {
       creditNotes += -revenue;
       creditNoteVat += -vat;

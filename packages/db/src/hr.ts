@@ -80,7 +80,7 @@ const fileInclude = {
       bandMaxPiastres: true,
     },
   },
-  staffingSupplier: { select: { id: true, name: true } },
+  staffingSupplier: { select: { id: true, name: true, isRiderOffice: true } },
   manager: { select: { id: true, number: true, nameEn: true, nameAr: true } },
   photo: { select: { updatedAt: true } },
 } as const;

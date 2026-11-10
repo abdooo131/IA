@@ -79,7 +79,8 @@ export class HrOrgController {
   staffingCompanies() {
     return this.prisma.supplier.findMany({
       where: { isActive: true },
-      select: { id: true, name: true },
+      // Riders paid per delivery are linked only to rider offices (and offices take only them).
+      select: { id: true, name: true, isRiderOffice: true },
       orderBy: { name: 'asc' },
     });
   }

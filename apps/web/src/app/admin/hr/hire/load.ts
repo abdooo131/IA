@@ -30,7 +30,7 @@ export async function loadHireWizard() {
     apiGet<DepartmentRow[]>('/hr/departments'),
     apiGet<PositionRow[]>('/hr/positions'),
     apiGet<GradeRow[]>('/hr/grades'),
-    apiGet<{ id: string; name: string }[]>('/hr/staffing-companies'),
+    apiGet<{ id: string; name: string; isRiderOffice: boolean }[]>('/hr/staffing-companies'),
     apiGet<ShiftRow[]>('/hr/shifts'),
     apiGet<EmployeeRow[]>('/hr/employees?status=active'),
     apiGet<DocumentTypeRow[]>('/hr/document-types'),

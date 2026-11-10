@@ -31,6 +31,7 @@ import { DomainError } from './domain-error';
 import { startChecklist } from './hr-checklists';
 import { addEmployeeDocument, departmentChains, isRequired, looksLike } from './hr-documents';
 import { assertNoManagerLoop, checkPlacement } from './hr-org';
+import { checkStaffingCompany } from './finance/rider-offices';
 import { setSalaryPackage } from './hr-pay';
 import { hashPassword } from './password';
 import { getSetting } from './settings';
@@ -517,6 +518,8 @@ export async function createHireFromDraft(
       if (j.employment === 'outsourced') {
         const s = await tx.supplier.findUnique({ where: { id: j.staffingSupplierId! } });
         if (!s) throw new DomainError('staffing_company_not_found', 404);
+        // Riders paid per delivery go through a rider office, and offices take only them.
+        await checkStaffingCompany(tx, { supplierId: s.id, role, payBasis });
       }
       if (j.defaultShiftId) {
         const shift = await tx.shift.findUnique({ where: { id: j.defaultShiftId } });

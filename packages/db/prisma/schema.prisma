@@ -2353,6 +2353,11 @@ model Supplier {
   /// Withholding tax deducted from each payment, basis points of the amount before VAT
   whtBp                   Int      @default(0) @map("wht_bp")
   defaultExpenseAccountId String?  @map("default_expense_account_id")
+  /// A rider supply office: riders linked to it (HR file, outsourced through it) earn it a
+  /// commission on their pay per delivered order, billed monthly (CLAUDE.md "Rider offices")
+  isRiderOffice           Boolean  @default(false) @map("is_rider_office")
+  /// The office's commission, basis points of the rider pay (2000 = 20%)
+  commissionBp            Int      @default(0) @map("commission_bp")
   isActive                Boolean  @default(true) @map("is_active")
   createdById             String   @map("created_by_id")
   createdAt               DateTime @default(now()) @map("created_at")
@@ -2407,6 +2412,8 @@ model Bill {
   foreignPaid      Int        @default(0) @map("foreign_paid")
   /// The purchase order the bill was made from (its lines decide the accounts)
   purchaseOrderId  String?    @map("purchase_order_id")
+  /// A rider office's monthly commission bill: the Cairo month it clears (YYYY-MM)
+  officeMonth      String?    @map("office_month")
   createdById      String     @map("created_by_id")
   createdAt        DateTime   @default(now()) @map("created_at")
 
@@ -2419,6 +2426,7 @@ model Bill {
   cheques        Cheque[]
   purchaseOrder  PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: Restrict)
 
+  @@unique([supplierId, officeMonth])
   @@index([status, dueDate])
   @@index([userId])
   @@map("bills")

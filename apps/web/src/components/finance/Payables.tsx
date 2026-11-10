@@ -161,7 +161,16 @@ const percentToBp = (text: string) => {
 
 // ─── suppliers and bills ─────────────────────────────────────────────────────
 
-export function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }) {
+export function PayBill({
+  bill,
+  money,
+  owesUs = 0,
+}: {
+  bill: BillRow;
+  money: BookAccount[];
+  /** What the supplier owes us beyond its open bills (a rider office's shortages) */
+  owesUs?: number;
+}) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
   const foreign = bill.currency !== 'EGP';
@@ -173,6 +182,11 @@ export function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }
   const [reference, setReference] = useState('');
   const [recovery, setRecovery] = useState('');
   const recoveryValue = recovery.trim() ? parseEgp(recovery) : 0;
+  // A rider office's shortages, set off against its bill (at most what is paid now).
+  const [offset, setOffset] = useState(
+    owesUs > 0 && !foreign ? (Math.min(owesUs, bill.leftPiastres) / 100).toFixed(2) : '',
+  );
+  const offsetValue = offset.trim() ? parseEgp(offset) : 0;
   const typed = parseEgp(amount);
   const rateOk = !foreign || /^\d{1,6}(\.\d{1,6})?$/.test(rate.trim());
   // What this payment settles of the bill, in EGP at the bill's own rate.
@@ -214,11 +228,16 @@ export function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }
           {egpInput(recovery, setRecovery, t('advanceBack', { name: bill.person.name }))}
         </Field>
       )}
-      {(wht > 0 || (recoveryValue ?? 0) > 0) && (
+      {owesUs > 0 && !foreign && (
+        <Field label={t('offset', { amount: formatEgp(owesUs) })}>
+          {egpInput(offset, setOffset, t('offset', { amount: formatEgp(owesUs) }))}
+        </Field>
+      )}
+      {(wht > 0 || (recoveryValue ?? 0) > 0 || (offsetValue ?? 0) > 0) && (
         <p className="text-caption text-text-muted">
           {t('whtKept', {
             amount: formatEgp(wht),
-            cash: formatEgp((value ?? 0) - wht - (recoveryValue ?? 0)),
+            cash: formatEgp((value ?? 0) - wht - (recoveryValue ?? 0) - (offsetValue ?? 0)),
           })}
         </p>
       )}
@@ -231,6 +250,7 @@ export function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }
           !from ||
           reference.trim().length < 2 ||
           recoveryValue === null ||
+          offsetValue === null ||
           !rateOk
         }
         onClick={() =>
@@ -241,6 +261,7 @@ export function PayBill({ bill, money }: { bill: BillRow; money: BookAccount[] }
             moneyAccountId: from,
             reference,
             advanceRecoveryPiastres: recoveryValue || undefined,
+            offsetPiastres: offsetValue || undefined,
             idempotencyKey: newActionKey(),
           })
         }
@@ -656,7 +677,7 @@ export function SuppliersAndBills({
                   detail={
                     <div className="space-y-4">
                       <PayBill bill={b} money={money} />
-                      {b.paidPiastres === 0 && <CancelBill bill={b} />}
+                      {b.paidPiastres === 0 && !b.officeMonth && <CancelBill bill={b} />}
                     </div>
                   }
                 >
@@ -737,6 +758,17 @@ export function SuppliersAndBills({
                     <span className="ms-2 ltr-iso text-caption text-text-muted">
                       {s.accountCode}
                     </span>
+                  )}
+                  {s.isRiderOffice && (
+                    <a
+                      href={`/finance/rider-offices/${s.id}`}
+                      className="mt-0.5 block text-caption text-link"
+                    >
+                      {t('riderOffice', {
+                        percent: s.commissionBp / 100,
+                        riders: s.staff.length,
+                      })}
+                    </a>
                   )}
                 </td>
                 <td className={`${td} ltr-iso`}>

@@ -466,6 +466,8 @@ export const billPaymentSchema = z.object({
   moneyAccountId: id,
   reference,
   advanceRecoveryPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
+  /** What the supplier owes us beyond its open bills, set off against this payment */
+  offsetPiastres: z.number().int().min(0).max(1_000_000_000).optional(),
   day: onDay,
   receiptPhotoId: id.optional(),
   idempotencyKey: key,
@@ -586,6 +588,20 @@ export const merchantTaxSchema = z.object({
 });
 
 export const prepareInvoicesSchema = z.object({ month });
+
+/** A supplier marked as a rider supply office, with its commission on rider pay (manage). */
+export const riderOfficeSchema = z
+  .object({
+    isRiderOffice: z.boolean().optional(),
+    commissionBp: basisPoints.optional(),
+  })
+  .refine(
+    (v) => v.isRiderOffice !== undefined || v.commissionBp !== undefined,
+    'nothing_to_change',
+  );
+
+/** "Prepare office bills" for a Cairo month that is over (all offices, or one). */
+export const prepareOfficeBillsSchema = z.object({ month, supplierId: id.optional() });
 export const creditNoteSchema = z.object({
   amountPiastres: piastres,
   reason: z.string().trim().min(5).max(300),

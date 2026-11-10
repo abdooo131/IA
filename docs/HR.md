@@ -637,6 +637,17 @@ apps/api/src/hr/hr-flows.controller.ts. Migration `20261230090000_hr_phase2`.
 - Leaving wizard: the settlement of a per delivery rider shows their wallet (available, on hold,
   owed, waiting withdrawals, balance) instead of salary figures; they settle by a last
   withdrawal, which takes what they owe first.
+- Rider supply offices (migration `20261231150000_rider_offices`): a supplier marked as a rider
+  office (`suppliers.is_rider_office`, its commission `commission_bp`, set by accounting manage)
+  supplies riders. A per delivery rider is linked to one office on their file the same way as an
+  outsourced person (`employment` outsourced, `staffing_supplier_id` the office; HR use, the Job
+  tab or the hire wizard). Only rider offices can be chosen for per delivery riders
+  (`rider_office_required`) and an office takes nobody else (`rider_office_riders_only`); a
+  linked rider cannot be switched to a monthly salary (`rider_office_per_delivery_only`). The
+  rider is still paid by us through the wallet exactly as before; their final deductions stay
+  in the wallet (they are not listed for the office). The office earns its commission on each
+  delivery's rider pay and takes over at month end what the rider cannot cover from the wallet
+  (Accounting > Money out > Rider offices).
 
 ## Build order
 

@@ -64,7 +64,7 @@ export interface HireLookups {
   departments: DepartmentRow[];
   positions: PositionRow[];
   grades: GradeRow[];
-  suppliers: { id: string; name: string }[];
+  suppliers: { id: string; name: string; isRiderOffice?: boolean }[];
   shifts: ShiftRow[];
   people: EmployeeRow[];
   documentTypes: DocumentTypeRow[];
@@ -765,11 +765,18 @@ export function HireWizard({
                   className={box}
                 >
                   <option value="">–</option>
-                  {lookups.suppliers.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                  {lookups.suppliers
+                    // Riders paid per delivery go through a rider office; offices take only them.
+                    .filter(
+                      (s) =>
+                        !!s.isRiderOffice ===
+                        (j.kind === 'rider' && hirePayBasis(j) === 'per_delivery'),
+                    )
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))}
                 </select>
               </Field>
             )}

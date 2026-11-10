@@ -280,6 +280,14 @@ wants otherwise.
   their store (`/stores/:storeId/cash/withdrawals`, `.../:id/pay`), only from that store's box;
   store use is not enough (chosen: the person who hands over the cash records it). The pay basis
   on an HR file is HR use with the salaries switch (`PUT /hr/employees/:id/pay-basis`).
+- Rider offices: accounting view reads `/finance/rider-offices` and `/finance/rider-offices/:id`;
+  accounting use prepares a finished month's office bills (`POST
+  /finance/rider-offices/prepare-bills`); accounting manage marks a supplier as a rider office
+  and sets its commission (`PATCH /finance/rider-offices/:id`, audited
+  `finance.rider_office_update`). Linking a rider to an office is HR use on the rider's file
+  (`PUT /hr/employees/:id/employment`); `/hr/staffing-companies` tells HR which suppliers are
+  rider offices but never their rate. The office bills are paid like any bill (second person
+  rule from the approval limit).
 - Accounting UX phase A: list views (`GET /finance/lists/:id`), document pages
   (`GET /finance/documents/:type/:id`), the dashboard and the one search are accounting view,
   inside the person's stores and merchants (a document of another store answers

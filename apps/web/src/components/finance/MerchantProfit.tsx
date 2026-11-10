@@ -17,6 +17,7 @@ const secondary =
 
 export const COST_LINES = [
   'riderBonusPiastres',
+  'riderOfficeCommissionPiastres',
   'riderSalaryPiastres',
   'storeCostsPiastres',
   'storageSpacePiastres',

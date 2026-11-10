@@ -71,18 +71,23 @@ export function PayBasisPanel({ file, canEdit }: { file: EmployeeFile; canEdit: 
   );
 }
 
-/** On our payroll, or hired through an outsourcing company (HR use). */
+/**
+ * On our payroll, or hired through an outsourcing company (HR use). A rider paid per delivery
+ * is linked to a rider office instead (or works for us directly), and offices take only them.
+ */
 export function EmploymentPanel({
   file,
   suppliers,
   canEdit,
 }: {
   file: EmployeeFile;
-  suppliers: { id: string; name: string }[];
+  suppliers: { id: string; name: string; isRiderOffice?: boolean }[];
   canEdit: boolean;
 }) {
   const t = useTranslations('people');
   const router = useRouter();
+  const perDeliveryRider = file.user.role === 'rider' && file.payBasis === 'per_delivery';
+  const choices = suppliers.filter((s) => !!s.isRiderOffice === perDeliveryRider);
   const current = file.employment === 'outsourced' ? (file.staffingSupplier?.id ?? '') : '';
   const [value, setValue] = useState(current);
   const [busy, setBusy] = useState(false);
@@ -102,9 +107,11 @@ export function EmploymentPanel({
   return (
     <section className="rounded-lg border border-line bg-surface p-4" aria-labelledby="employment">
       <h2 id="employment" className="text-h3">
-        {t('employmentTitle')}
+        {perDeliveryRider ? t('riderOfficeTitle') : t('employmentTitle')}
       </h2>
-      <p className="mt-1 text-caption text-text-muted">{t('employmentHint')}</p>
+      <p className="mt-1 text-caption text-text-muted">
+        {perDeliveryRider ? t('riderOfficeHint') : t('employmentHint')}
+      </p>
       <div className="mt-3 flex flex-wrap items-end gap-2">
         <label className="block min-w-[240px] flex-1 text-caption">
           {t('employment')}
@@ -114,10 +121,14 @@ export function EmploymentPanel({
             disabled={!canEdit || busy}
             className={field}
           >
-            <option value="">{t('employments.employee')}</option>
-            {suppliers.map((s) => (
+            <option value="">
+              {perDeliveryRider ? t('noRiderOffice') : t('employments.employee')}
+            </option>
+            {choices.map((s) => (
               <option key={s.id} value={s.id}>
-                {t('outsourcedVia', { company: s.name })}
+                {perDeliveryRider
+                  ? t('riderOfficeVia', { company: s.name })
+                  : t('outsourcedVia', { company: s.name })}
               </option>
             ))}
           </select>

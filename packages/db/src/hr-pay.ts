@@ -8,6 +8,7 @@ import {
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
+import { checkStaffingCompany } from './finance/rider-offices';
 import { ensureEmployee } from './hr';
 
 // HR v2 (docs/HR.md): HR owns employment (on our payroll or through an outsourcing company) and
@@ -230,8 +231,17 @@ export function setEmployment(
       input.employment === 'outsourced' ? (input.staffingSupplierId ?? null) : null;
     if (input.employment === 'outsourced') {
       if (!supplierId) throw new DomainError('staffing_company_required', 400);
-      const supplier = await tx.supplier.findUnique({ where: { id: supplierId } });
-      if (!supplier || !supplier.isActive) throw new DomainError('supplier_not_found', 404);
+      // A rider paid per delivery is linked only to a rider office, and an office takes
+      // only such riders (CLAUDE.md "Rider offices").
+      const user = await tx.user.findUniqueOrThrow({
+        where: { id: input.userId },
+        select: { role: true },
+      });
+      await checkStaffingCompany(tx, {
+        supplierId,
+        role: user.role,
+        payBasis: e.payBasis,
+      });
     }
     const contractType =
       input.employment === 'outsourced'
@@ -277,6 +287,11 @@ export function setPayBasis(
     if (input.payBasis === 'per_delivery' && e.user.role !== 'rider')
       throw new DomainError('per_delivery_riders_only', 400);
     if (e.payBasis === input.payBasis) return { employeeId: e.id, payBasis: e.payBasis };
+    // A rider office takes only riders paid per delivery: unlink first.
+    if (e.employment === 'outsourced' && e.staffingSupplierId) {
+      const company = await tx.supplier.findUnique({ where: { id: e.staffingSupplierId } });
+      if (company?.isRiderOffice) throw new DomainError('rider_office_per_delivery_only', 400);
+    }
     const after = await tx.employee.update({
       where: { id: e.id },
       data: { payBasis: input.payBasis },

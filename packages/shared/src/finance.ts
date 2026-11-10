@@ -108,6 +108,8 @@ export const LEDGER_KINDS = [
   'rider_shortage_charge',
   'rider_penalty',
   'rider_withdrawal',
+  'rider_office_commission',
+  'rider_office_shortage',
   'money_transfer',
   'expense',
   'capital_in',

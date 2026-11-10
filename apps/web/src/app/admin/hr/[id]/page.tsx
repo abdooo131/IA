@@ -373,9 +373,11 @@ async function OverviewTab({ file, canManage }: { file: File; canManage: boolean
       <Card title={tp('contractCard')}>
         <dl>
           <Row label={tp('employment')}>
-            {file.employment === 'outsourced'
-              ? tp('outsourcedVia', { company: file.staffingSupplier?.name ?? '–' })
-              : tp('employments.employee')}
+            {file.employment === 'outsourced' && file.staffingSupplier?.isRiderOffice
+              ? tp('riderOfficeVia', { company: file.staffingSupplier.name })
+              : file.employment === 'outsourced'
+                ? tp('outsourcedVia', { company: file.staffingSupplier?.name ?? '–' })
+                : tp('employments.employee')}
           </Row>
           <Row label={th('fields.contractType')}>{th(`contractTypes.${file.contractType}`)}</Row>
           <Row label={th('fields.hireDate')}>{day(file.hireDate)}</Row>
@@ -509,7 +511,7 @@ async function JobTab({ file, canUse }: { file: File; canUse: boolean }) {
       apiGet<DepartmentRow[]>('/hr/departments'),
       apiGet<PositionRow[]>('/hr/positions'),
       apiGet<GradeRow[]>('/hr/grades'),
-      apiGet<{ id: string; name: string }[]>('/hr/staffing-companies'),
+      apiGet<{ id: string; name: string; isRiderOffice: boolean }[]>('/hr/staffing-companies'),
       apiGet<HistoryRow[]>(`/hr/employees/${file.id}/history`),
       getTranslations('hr1'),
       getTranslations('people'),

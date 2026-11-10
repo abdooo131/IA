@@ -12,6 +12,7 @@ import { ProfitController } from './profit.controller';
 import { PurchasingController } from './purchasing.controller';
 import { ToolsController } from './tools.controller';
 import { FinanceController } from './finance.controller';
+import { RiderOfficesController } from './rider-offices.controller';
 import { RiderWithdrawalsController } from './rider-withdrawals.controller';
 import { FinanceViewsController } from './views.controller';
 import { FinanceRunsController } from './runs.controller';
@@ -32,6 +33,7 @@ import { FinanceRunsController } from './runs.controller';
     ChequesController,
     PurchasingController,
     RiderWithdrawalsController,
+    RiderOfficesController,
     FinanceViewsController,
     FinanceRunsController,
   ],

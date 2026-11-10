@@ -122,7 +122,7 @@ export interface EmployeeFile {
   employment: Employment;
   /** monthly_salary: the salary run; per_delivery: riders paid through the rider wallet */
   payBasis: PayBasis;
-  staffingSupplier: { id: string; name: string } | null;
+  staffingSupplier: { id: string; name: string; isRiderOffice?: boolean } | null;
   socialInsuranceNumber: string | null;
   bank: EmployeeBank | null;
   photoVersion: number | null;

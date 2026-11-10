@@ -347,6 +347,9 @@ export interface SupplierRow {
   whtBp: number;
   defaultExpenseAccountId: string | null;
   isActive: boolean;
+  /** A rider supply office and its commission on rider pay (basis points) */
+  isRiderOffice: boolean;
+  commissionBp: number;
   accountCode: string | null;
   owedPiastres: number;
   openBills: number;
@@ -377,6 +380,8 @@ export interface BillRow {
   fxRate: number | null;
   overdue: boolean;
   memo: string | null;
+  /** A rider office's commission bill: the month it clears */
+  officeMonth: string | null;
 }
 
 export const AGEING_BUCKETS = ['current', 'd1_30', 'd31_60', 'd61_90', 'over_90'] as const;
@@ -743,4 +748,101 @@ interface BsReport {
 export interface ComparativeStatements {
   current: { from: string; to: string; pl: PlReport; bs: BsReport };
   previous: { from: string; to: string; pl: PlReport; bs: BsReport };
+}
+
+// ─── rider supply offices ──────────────────────────────────────────────────────
+
+export interface RiderOfficeWallet {
+  /** What we owe the office now (negative: what it owes us) */
+  owedPiastres: number;
+  openBills: number;
+  openBillsPiastres: number;
+  /** What the office owes us beyond its open bills, set off when paying them */
+  owesUsPiastres: number;
+  /** Commission accrued and not billed yet */
+  unbilledPiastres: number;
+}
+
+export interface RiderOfficeRow extends RiderOfficeWallet {
+  id: string;
+  name: string;
+  taxId: string | null;
+  whtBp: number;
+  commissionBp: number;
+  isActive: boolean;
+  riders: number;
+  deliveries: number;
+  riderPayPiastres: number;
+  commissionPiastres: number;
+  shortagesPiastres: number;
+  bill: { id: string; number: number; status: string } | null;
+}
+
+export interface RiderOfficeList {
+  month: string;
+  rows: RiderOfficeRow[];
+}
+
+export interface RiderOfficeDetail {
+  office: {
+    id: string;
+    name: string;
+    taxId: string | null;
+    phone: string | null;
+    email: string | null;
+    whtBp: number;
+    commissionBp: number;
+    isActive: boolean;
+  };
+  wallet: RiderOfficeWallet;
+  riders: {
+    employeeId: string;
+    userId: string;
+    riderId: string;
+    name: string;
+    nameAr: string | null;
+    badgeCode: string;
+    status: string;
+    darkStore: { id: string; code: string; nameEn: string; nameAr: string | null };
+    deliveriesThisMonth: number;
+    commissionThisMonthPiastres: number;
+    owesPiastres: number;
+    walletPiastres: number;
+  }[];
+  months: {
+    month: string;
+    over: boolean;
+    deliveries: number;
+    riderPayPiastres: number;
+    commissionPiastres: number;
+    shortagesPiastres: number;
+    bill: { id: string; number: number; status: string } | null;
+  }[];
+  bills: {
+    id: string;
+    number: number;
+    reference: string;
+    officeMonth: string | null;
+    billDate: string;
+    netPiastres: number;
+    vatPiastres: number;
+    totalPiastres: number;
+    paidPiastres: number;
+    leftPiastres: number;
+    status: 'open' | 'paid' | 'cancelled';
+  }[];
+}
+
+export interface OfficeBillResult {
+  supplierId: string;
+  name: string;
+  month: string;
+  status: 'billed' | 'already_billed' | 'nothing_to_bill' | 'refused';
+  error?: string;
+  billId?: string;
+  billLabel: string | null;
+  commissionPiastres: number;
+  vatPiastres: number;
+  totalPiastres: number;
+  shortagesPiastres: number;
 }

@@ -45,7 +45,9 @@ export type SystemAccountKey =
   | 'cheques_under_collection'
   | 'cheques_payable'
   | 'packaging_stock'
-  | 'goods_received';
+  | 'goods_received'
+  | 'rider_office_commission'
+  | 'rider_office_accrued';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -226,6 +228,20 @@ const SYSTEM_ACCOUNTS: Record<
     code: '2401',
     nameEn: 'Goods received, not billed yet',
     nameAr: 'بضائع مستلمة لم تصل فاتورتها',
+  },
+  rider_office_commission: {
+    type: 'expense',
+    group: 5100,
+    code: '5102',
+    nameEn: 'Rider office commission',
+    nameAr: 'عمولة مكاتب توريد المناديب',
+  },
+  rider_office_accrued: {
+    type: 'other_liability',
+    group: 2400,
+    code: '2402',
+    nameEn: 'Rider office commission accrued, not billed yet',
+    nameAr: 'عمولة مكاتب المناديب المستحقة لم تصل فاتورتها',
   },
 };
 

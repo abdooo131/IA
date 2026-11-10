@@ -2228,6 +2228,7 @@ async function loadViolations(
           nameEn: true,
           nameAr: true,
           employment: true,
+          payBasis: true,
           homeStore: { select: { id: true, code: true } },
         },
       },
@@ -2260,6 +2261,7 @@ async function loadViolations(
       status: v.status,
       forSupplier:
         v.employee.employment === 'outsourced' &&
+        v.employee.payBasis !== 'per_delivery' &&
         v.status === 'final' &&
         (v.penalty === 'deduction_days' || v.penalty === 'deduction_amount'),
     };

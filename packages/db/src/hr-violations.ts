@@ -240,9 +240,13 @@ function violationView(v: ViolationRow, appealDays: number, now: Date) {
     /** A rider paid per delivery owes a final deduction through the rider wallet */
     inRiderWallet: !!v.payrollEntryId && v.employee.payBasis === 'per_delivery',
     deductionPiastres: v.deductionPiastres,
-    /** An outsourced person's deduction is only told to their company */
+    /**
+     * An outsourced person's deduction is only told to their company (a rider paid per
+     * delivery, through a rider office, owes it through the rider wallet instead)
+     */
     forSupplier:
       v.employee.employment === 'outsourced' &&
+      v.employee.payBasis !== 'per_delivery' &&
       (v.penalty === 'deduction_days' || v.penalty === 'deduction_amount'),
   };
 }
@@ -572,7 +576,7 @@ export async function listViolations(db: Db, f: ViolationFilter, now: Date = new
       employee: {
         ...(f.scope && { homeStoreId: { in: f.scope } }),
         ...(f.employment && { employment: f.employment }),
-        ...(f.forSupplier && { employment: 'outsourced' }),
+        ...(f.forSupplier && { employment: 'outsourced', payBasis: 'monthly_salary' }),
       },
     },
     include: violationInclude,

@@ -189,6 +189,9 @@ export async function listSuppliers(db: Db) {
       whtBp: s.whtBp,
       defaultExpenseAccountId: s.defaultExpenseAccountId,
       isActive: s.isActive,
+      /** A rider supply office and its commission on rider pay (basis points) */
+      isRiderOffice: s.isRiderOffice,
+      commissionBp: s.commissionBp,
       accountCode: account?.code ?? null,
       /** What we owe them (credit balance shown positive) */
       owedPiastres: 0 - raw,
@@ -349,6 +352,8 @@ export function cancelBill(db: Db, input: { billId: string; reason: string; acto
     if (bill.status !== 'open' || bill.paidPiastres > 0) throw new DomainError('bill_not_open');
     // A bill made from a purchase order spreads over its lines' accounts: it is not undone here.
     if (bill.purchaseOrderId) throw new DomainError('bill_from_purchase_order');
+    // A rider office's monthly bill clears its accrued commission: it is never undone.
+    if (bill.officeMonth) throw new DomainError('bill_from_rider_office');
     await post(tx, {
       kind: 'supplier_bill_cancel',
       idempotencyKey: `bill_cancel:${bill.id}`,
@@ -403,6 +408,12 @@ export interface BillPaymentInput {
    * their company (the company takes it from their salary)
    */
   advanceRecoveryPiastres?: number;
+  /**
+   * What the supplier owes us beyond its open bills (a debit on its wallet: a rider office's
+   * riders' shortages), set off against this payment: the bill is settled in full, less money
+   * leaves the bank. Withholding tax stays on the whole amount settled.
+   */
+  offsetPiastres?: number;
   day?: string;
   actorUserId: string;
   idempotencyKey: string;
@@ -461,7 +472,20 @@ export async function payBill(db: Db, input: BillPaymentInput) {
       if (recovery > (await balanceOf(tx, { type: 'staff_advance', userId: bill.userId })))
         throw new DomainError('more_than_advance', 400);
     }
-    const cash = paid - wht - recovery;
+    const offset = input.offsetPiastres ?? 0;
+    if (!Number.isSafeInteger(offset) || offset < 0) throw new DomainError('invalid_amount', 400);
+    if (offset > 0) {
+      // Only what they owe beyond their open bills (this one included) can be set off.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'supplier_offset:' + bill.supplierId}))`;
+      const balance = await balanceOf(tx, { type: 'supplier', supplierId: bill.supplierId });
+      const open = await tx.bill.aggregate({
+        where: { supplierId: bill.supplierId, status: 'open' },
+        _sum: { totalPiastres: true, paidPiastres: true },
+      });
+      const owesUs = balance + (open._sum.totalPiastres ?? 0) - (open._sum.paidPiastres ?? 0);
+      if (offset > owesUs) throw new DomainError('more_than_they_owe', 400);
+    }
+    const cash = paid - wht - recovery - offset;
     if (cash < 0) throw new DomainError('net_below_zero', 400);
     if (money && cash > (await balanceOf(tx, { id: money.id })))
       throw new DomainError('not_enough_money');
@@ -479,6 +503,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
         gross: settled,
         wht,
         recovery,
+        offset,
         fxDiff,
         ...(foreignCents ? { currency: bill.currency, foreignCents, fxRate: input.fxRate } : {}),
         net: Math.round((bill.netPiastres * settled) / bill.totalPiastres),
@@ -486,7 +511,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
       lines: [
         {
           account: { type: 'supplier', supplierId: bill.supplierId },
-          amount: settled,
+          amount: settled - offset,
         },
         { account: { type: 'fx_difference' }, amount: fxDiff },
         { account: money ? { id: money.id } : { type: 'cheques_payable' }, amount: -cash },
@@ -517,7 +542,14 @@ export async function payBill(db: Db, input: BillPaymentInput) {
       entityType: 'bill',
       entityId: bill.id,
       before: { paid: bill.paidPiastres },
-      after: { paid: paidNow, wht, fxDiff, from: money?.code ?? '2451', entry: entry!.number },
+      after: {
+        paid: paidNow,
+        wht,
+        fxDiff,
+        offset,
+        from: money?.code ?? '2451',
+        entry: entry!.number,
+      },
     });
     return entry!;
   });
@@ -565,6 +597,8 @@ export async function listBills(
       fxRate: b.fxRateMicro === null ? null : Number(b.fxRateMicro) / 1_000_000,
       overdue: b.status === 'open' && due < today,
       memo: b.memo,
+      /** A rider office's commission bill: the month it clears */
+      officeMonth: b.officeMonth,
     };
   });
 }

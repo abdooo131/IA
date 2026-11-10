@@ -468,8 +468,9 @@ describe('employment and salary package (HR owns, payroll reads)', () => {
 
   it('moves a person to an outsourcing company: no package, the contract follows', async () => {
     const { user, file } = await rider();
+    // A rider paid per delivery goes through a rider office (CLAUDE.md "Rider offices").
     const agency = await prisma.supplier.create({
-      data: { name: 'Delta Staffing', createdById: owner },
+      data: { name: 'Delta Staffing', createdById: owner, isRiderOffice: true },
     });
     await expect(
       setEmployment(prisma, { userId: user.id, employment: 'outsourced', actorUserId: owner }),
