@@ -634,6 +634,7 @@ export const RECEIPT_KINDS = [
   'staff_advance',
   'staff_bonus',
   'petty_cash',
+  'expense_claim',
   'cheque_received',
   'deposit_received',
   'deposit_refunded',

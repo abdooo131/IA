@@ -115,6 +115,8 @@ export {
   giveAdvance,
   listStaffPay,
   payrollRules,
+  myPayslip,
+  myPayslips,
   payslips,
   payStaffBonus,
   previewPayroll,
@@ -280,3 +282,16 @@ export { accountingDocument } from './documents';
 export { financeDashboard, type JournalCard, SPARK_DAYS, type TodayItem } from './dashboard';
 export { financeSearch } from './search';
 export { bulkApprovePayouts, bulkDecideRequests } from './bulk';
+export {
+  cancelExpenseClaim,
+  claimCategories,
+  claimsWaitingForManager,
+  type ClaimView,
+  expenseClaimDetail,
+  managerDecideClaim,
+  myExpenseClaims,
+  payExpenseClaim,
+  rejectExpenseClaim,
+  setClaimableCategory,
+  submitExpenseClaim,
+} from './expense-claims';

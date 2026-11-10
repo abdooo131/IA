@@ -139,6 +139,8 @@ export default async function MyFilePage() {
               ['/my-file/violations', 'myViolations', 'myViolationsHint'],
               ['/my-file/corrections', 'myCorrections', 'myCorrectionsHint'],
               ['/my-file/inbox', 'myInbox', 'myInboxHint'],
+              ['/my-file/payslips', 'myPayslips', 'myPayslipsHint'],
+              ['/my-file/claims', 'myClaims', 'myClaimsHint'],
             ] as const
           ).map(([href, key, hint]) => (
             <Link

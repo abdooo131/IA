@@ -5,6 +5,8 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { cairoClock, fmtDays } from '@/lib/leave';
 import type { Correction, Inbox, LeaveRequest } from '@/lib/leave-types';
+import { Amount } from '@/components/finance/Amount';
+import { formatDay } from '@/lib/my-pay';
 import { Decision } from './Decision';
 import { day, panel, useName } from './kit';
 import { PenaltyText } from './ViolationsTable';
@@ -62,15 +64,16 @@ export function InboxView({ inbox }: { inbox: Inbox }) {
     </>
   );
   const item = 'rounded-lg border border-line p-3';
+  // Older answers carry no claims.
+  const claims = inbox.manager.claims ?? [];
+  const managerCount =
+    inbox.manager.leave.length + inbox.manager.corrections.length + claims.length;
   if (inbox.total === 0 && inbox.suggestions === 0)
     return <p className="mt-4 text-body text-text-muted">{t('inboxEmpty')}</p>;
   return (
     <div>
-      {inbox.manager.leave.length + inbox.manager.corrections.length > 0 && (
-        <Group
-          title={t('asManager')}
-          count={inbox.manager.leave.length + inbox.manager.corrections.length}
-        >
+      {managerCount > 0 && (
+        <Group title={t('asManager')} count={managerCount}>
           <ul className="mt-3 grid gap-2 lg:grid-cols-2">
             {inbox.manager.leave.map((r) => (
               <li key={r.id} className={item}>
@@ -91,6 +94,35 @@ export function InboxView({ inbox }: { inbox: Inbox }) {
                   compact
                   approvePath={`/me/inbox/corrections/${c.id}/approve`}
                   rejectPath={`/me/inbox/corrections/${c.id}/reject`}
+                />
+              </li>
+            ))}
+            {claims.map((c) => (
+              <li key={c.id} className={item}>
+                <span className="text-caption font-bold text-link">{t('kindClaim')}</span>
+                <p className="font-bold">
+                  {name(c.employee)}{' '}
+                  <span className="ltr-iso text-caption font-normal text-text-muted">
+                    {c.number}
+                  </span>
+                </p>
+                <p className="text-body-sm">
+                  <Amount piastres={c.amountPiastres} strong /> · {name(c.category)} ·{' '}
+                  {formatDay(c.paidOn)}
+                </p>
+                <p className="text-caption text-text-muted">{c.note}</p>
+                <a
+                  href={`/api/photos/${c.photoId}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="text-caption text-link underline"
+                >
+                  {t('claimReceipt')}
+                </a>
+                <Decision
+                  compact
+                  approvePath={`/me/inbox/expense-claims/${c.id}/approve`}
+                  rejectPath={`/me/inbox/expense-claims/${c.id}/reject`}
                 />
               </li>
             ))}

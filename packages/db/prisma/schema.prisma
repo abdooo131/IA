@@ -176,6 +176,10 @@ model User {
   recordNotes              RecordNote[]
   activitiesAssigned       RecordActivity[]          @relation("record_activity_assignee")
   activitiesCreated        RecordActivity[]          @relation("record_activity_created_by")
+  expenseClaims            ExpenseClaim[]            @relation("expense_claim_user")
+  expenseClaimsApproved    ExpenseClaim[]            @relation("expense_claim_manager_decided_by")
+  expenseClaimsPaid        ExpenseClaim[]            @relation("expense_claim_paid_by")
+  expenseClaimsRejected    ExpenseClaim[]            @relation("expense_claim_rejected_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -309,6 +313,7 @@ model DarkStore {
   ledgerAccounts   LedgerAccount[]
   cashHandovers    CashHandover[]
   riderWithdrawals RiderWithdrawal[]
+  expenseClaims    ExpenseClaim[]
 
   shopifyLocations ShopifyLocation[]
 
@@ -1257,7 +1262,8 @@ model Photo {
   financeReceipts  FinanceReceipt[]
   cheques          Cheque[]
 
-  pettyCash PettyCashExpense[]
+  pettyCash     PettyCashExpense[]
+  expenseClaims ExpenseClaim[]
 
   @@map("photos")
 }
@@ -1415,6 +1421,8 @@ model LedgerAccount {
   note          String?
   /// An expense category store staff may pick for petty cash
   petty         Boolean           @default(false)
+  /// An expense category employees may claim back (paid from their own pocket)
+  claimable     Boolean           @default(false)
   isActive      Boolean           @default(true) @map("is_active")
   merchantId    String?           @map("merchant_id")
   riderId       String?           @map("rider_id")
@@ -1442,6 +1450,8 @@ model LedgerAccount {
   chequesIncome    Cheque[]            @relation("cheque_income")
 
   pettyCash     PettyCashExpense[]
+  expenseClaims ExpenseClaim[]      @relation("expense_claim_account")
+  claimsPaid    ExpenseClaim[]      @relation("expense_claim_paid_from")
   purchaseLines PurchaseOrderLine[]
 
   @@index([type])
@@ -1485,6 +1495,7 @@ model LedgerEntry {
 
   pettyCash         PettyCashExpense[] @relation("petty_cash_entry")
   pettyCashReversal PettyCashExpense[] @relation("petty_cash_reversal")
+  expenseClaims     ExpenseClaim[]
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -2793,6 +2804,7 @@ model Employee {
   suggestions      ViolationSuggestion[]
   corrections      AttendanceCorrection[]
   exits            EmployeeExit[]
+  expenseClaims    ExpenseClaim[]
   reminders        DocumentReminder[]
   hireDraft        HireDraft?
 
@@ -4855,4 +4867,73 @@ model RecordActivity {
   @@index([entityType, entityId])
   @@index([assigneeId, doneAt, dueOn])
   @@map("record_activities")
+}
+
+enum ExpenseClaimStatus {
+  /// Waiting for the claimant's manager in force
+  pending_manager
+  /// Approved by the manager (or the person has none): waiting for accounting to pay
+  pending_accounting
+  paid
+  rejected
+  cancelled
+
+  @@map("expense_claim_status")
+}
+
+/// A work cost an employee paid from their own pocket and claims back (EC-000001). Their
+/// manager in force approves, accounting pays it from a bank or cash box.
+model ExpenseClaim {
+  id                 String             @id @default(cuid())
+  /// Gapless serial number shown as EC-000001
+  number             Int                @unique
+  employeeId         String             @map("employee_id")
+  /// The claimant's account (the person paid back)
+  userId             String             @map("user_id")
+  /// The store the cost belongs to; none is a company wide cost
+  darkStoreId        String?            @map("dark_store_id")
+  /// An expense category finance marked claimable
+  expenseAccountId   String             @map("expense_account_id")
+  amountPiastres     Int                @map("amount_piastres")
+  /// The Cairo day the person paid
+  paidOn             DateTime           @map("paid_on") @db.Date
+  note               String
+  /// The receipt photo (kind receipt), required
+  photoId            String             @map("photo_id")
+  status             ExpenseClaimStatus @default(pending_manager)
+  /// The manager in force when the claim was made (null: straight to accounting)
+  managerEmployeeId  String?            @map("manager_employee_id")
+  managerDecidedById String?            @map("manager_decided_by_id")
+  managerDecidedAt   DateTime?          @map("manager_decided_at")
+  paidById           String?            @map("paid_by_id")
+  paidAt             DateTime?          @map("paid_at")
+  /// The bank or cash box it was paid from
+  paidFromAccountId  String?            @map("paid_from_account_id")
+  reference          String?
+  entryId            String?            @unique @map("entry_id")
+  rejectedById       String?            @map("rejected_by_id")
+  rejectedAt         DateTime?          @map("rejected_at")
+  rejectReason       String?            @map("reject_reason")
+  /// manager or accounting
+  rejectedStep       String?            @map("rejected_step")
+  cancelledAt        DateTime?          @map("cancelled_at")
+  idempotencyKey     String             @unique @map("idempotency_key")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  employee         Employee       @relation(fields: [employeeId], references: [id], onDelete: Restrict)
+  user             User           @relation("expense_claim_user", fields: [userId], references: [id], onDelete: Restrict)
+  darkStore        DarkStore?     @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  expenseAccount   LedgerAccount  @relation("expense_claim_account", fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  photo            Photo          @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  managerDecidedBy User?          @relation("expense_claim_manager_decided_by", fields: [managerDecidedById], references: [id], onDelete: Restrict)
+  paidBy           User?          @relation("expense_claim_paid_by", fields: [paidById], references: [id], onDelete: Restrict)
+  paidFrom         LedgerAccount? @relation("expense_claim_paid_from", fields: [paidFromAccountId], references: [id], onDelete: Restrict)
+  rejectedBy       User?          @relation("expense_claim_rejected_by", fields: [rejectedById], references: [id], onDelete: Restrict)
+  entry            LedgerEntry?   @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@index([employeeId, status])
+  @@index([status, createdAt])
+  @@index([managerEmployeeId, status])
+  @@map("expense_claims")
 }

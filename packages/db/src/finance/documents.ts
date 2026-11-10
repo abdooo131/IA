@@ -7,6 +7,7 @@ import {
   type DocField,
   type DocSmartButton,
   entryNumber,
+  expenseClaimNumber,
   handoverNumber,
   payoutNumber,
   pettyCashLabel,
@@ -272,6 +273,13 @@ async function sourceOf(db: Db, e: { id: string; idempotencyKey: string; orderId
       select: { id: true, number: true },
     });
     if (w) return { value: withdrawalNumber(w.number), href: `/finance/rider-withdrawals/${w.id}` };
+  }
+  if (prefix === 'expense_claim') {
+    const c = await db.expenseClaim.findUnique({
+      where: { id: rest },
+      select: { id: true, number: true },
+    });
+    if (c) return { value: expenseClaimNumber(c.number), href: `/finance/expense-claims/${c.id}` };
   }
   if (prefix === 'handover') {
     const h = await db.cashHandover.findUnique({ where: { id: rest }, select: { number: true } });
@@ -695,6 +703,75 @@ async function handoverDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   });
 }
 
+// ─── expense claim ──────────────────────────────────────────────────────────────
+
+async function claimDoc(db: Db, id: string): Promise<DocDescriptor | null> {
+  const c = await db.expenseClaim.findUnique({
+    where: { id },
+    include: {
+      user: { select: { name: true } },
+      darkStore: { select: { code: true } },
+      expenseAccount: { select: { code: true, nameEn: true } },
+      managerDecidedBy: { select: { name: true } },
+      paidBy: { select: { name: true } },
+      paidFrom: { select: { code: true, nameEn: true } },
+      rejectedBy: { select: { name: true } },
+      entry: { select: { id: true, number: true } },
+    },
+  });
+  if (!c) return null;
+  const smart: DocSmartButton[] = [
+    {
+      key: 'person',
+      count: null,
+      value: c.user.name,
+      href: `/finance/expense-claims?q=${encodeURIComponent(c.user.name)}&f=`,
+    },
+  ];
+  if (c.entry)
+    smart.push({
+      key: 'entry',
+      count: null,
+      value: entryNumber(c.entry.number),
+      href: `/finance/journal/${c.entry.id}`,
+    });
+  const limit = await getSetting(db, 'finance.approval_threshold_piastres');
+  return base('expense_claim', c.id, {
+    number: expenseClaimNumber(c.number),
+    title: c.user.name,
+    status: c.status,
+    flow: 'expense_claim',
+    fields: present([
+      f('person', c.user.name),
+      f('store', c.darkStore?.code ?? null, 'ltr'),
+      f('category', `${c.expenseAccount.code} ${c.expenseAccount.nameEn ?? ''}`.trim()),
+      f('amount', c.amountPiastres, 'money'),
+      f('paidOn', dbDay(c.paidOn), 'date'),
+      f('note', c.note, 'multiline'),
+      f('createdAt', iso(c.createdAt), 'datetime'),
+      f('approvedBy', c.managerDecidedBy?.name ?? null),
+      f('approvedAt', iso(c.managerDecidedAt), 'datetime'),
+      f('paidBy', c.paidBy?.name ?? null),
+      f('paidAt', iso(c.paidAt), 'datetime'),
+      f('paidFrom', c.paidFrom ? `${c.paidFrom.code} ${c.paidFrom.nameEn ?? ''}`.trim() : null),
+      f('reference', c.reference, 'ltr'),
+      f('rejectedBy', c.rejectedBy?.name ?? null),
+      f('reason', c.rejectReason, 'multiline'),
+    ]),
+    smart,
+    attachments: [{ photoId: c.photoId, at: c.createdAt.toISOString(), by: c.user.name }],
+    actions: c.status === 'pending_accounting' ? ['pay', 'reject'] : [],
+    data: {
+      darkStoreId: c.darkStoreId,
+      userId: c.userId,
+      amountPiastres: c.amountPiastres,
+      managerDecidedById: c.managerDecidedById,
+      // The second person rule applies from the approval limit.
+      secondPerson: limit > 0 && c.amountPiastres >= limit,
+    },
+  });
+}
+
 const BUILDERS: Record<AccountingDoc, (db: Db, id: string) => Promise<DocDescriptor | null>> = {
   payout: payoutDoc,
   bill: billDoc,
@@ -706,6 +783,7 @@ const BUILDERS: Record<AccountingDoc, (db: Db, id: string) => Promise<DocDescrip
   tax_invoice: invoiceDoc,
   purchase_order: purchaseOrderDoc,
   cash_handover: handoverDoc,
+  expense_claim: claimDoc,
 };
 
 /** The document page of one accounting record, or null when it does not exist. */

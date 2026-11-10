@@ -142,6 +142,7 @@ describe('push notifications', () => {
       'hr_request',
       'hr_update',
       'rider_wallet',
+      'expense_claim',
     ]);
   });
 

@@ -30,6 +30,8 @@ export const PUSH_TYPES = [
   'hr_update',
   'rider_wallet',
   'activity_due',
+  'payslip_ready',
+  'expense_claim',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -58,6 +60,7 @@ export function pushTypesFor(me: MyAccess): PushType[] {
       'hr_request',
       'hr_update',
       'rider_wallet',
+      'expense_claim',
     ];
   const p: AccessProfile = me.profile;
   const list: PushType[] = [];
@@ -73,6 +76,9 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   // HR phase 3: what waits for a manager or HR (leave, attendance fixes, appeals), and news
   // about one's own requests and violations.
   list.push('ticket', 'attendance_late', 'document_expiring', 'hr_request', 'hr_update');
+  // My HR: a new payslip of a posted salary run, and expense claims (one's own, and those of
+  // one's direct reports waiting for approval).
+  list.push('payslip_ready', 'expense_claim');
   // Accounting UX phase A: reminders a person scheduled on a record ("Remind me").
   list.push('activity_due');
   return list;
@@ -343,6 +349,30 @@ export const PUSH_TEXT = {
   violation_termination_review: {
     en: ['Termination review: {person}', '{number} reached the last step of its ladder.'],
     ar: ['مراجعة إنهاء خدمة: {person}', '{number} وصلت لآخر درجة في سلم الجزاءات.'],
+  },
+  payslip_ready: {
+    en: ['Your payslip for {month} is ready', 'Net pay {amount} EGP. Open My HR to see it.'],
+    ar: ['قسيمة مرتبك لشهر {month} جاهزة', 'صافي المرتب {amount} جنيه. افتح ملفي لعرضها.'],
+  },
+  expense_claim_waiting_manager: {
+    en: ['Expense claim from {person}', '{number}: {amount} EGP. Approve or refuse it.'],
+    ar: ['طلب استرداد مصروف من {person}', '{number}: {amount} جنيه. وافق عليه أو ارفضه.'],
+  },
+  expense_claim_waiting_accounting: {
+    en: ['Expense claim to pay: {person}', '{number}: {amount} EGP is approved and waits.'],
+    ar: ['طلب استرداد للدفع: {person}', '{number}: {amount} جنيه موافق عليه وفي الانتظار.'],
+  },
+  expense_claim_approved: {
+    en: ['Expense claim {number} approved', '{amount} EGP now waits for accounting to pay it.'],
+    ar: ['تمت الموافقة على الطلب {number}', '{amount} جنيه في انتظار الحسابات للدفع.'],
+  },
+  expense_claim_paid: {
+    en: ['Expense claim {number} paid', '{amount} EGP was paid back to you.'],
+    ar: ['تم دفع الطلب {number}', 'تم رد {amount} جنيه لك.'],
+  },
+  expense_claim_rejected: {
+    en: ['Expense claim {number} refused', '{reason}'],
+    ar: ['تم رفض الطلب {number}', '{reason}'],
   },
   correction_waiting_manager: {
     en: ['Attendance fix from {person}', '{day}: {problem}'],

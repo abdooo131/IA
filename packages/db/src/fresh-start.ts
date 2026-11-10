@@ -150,6 +150,7 @@ export async function freshStart(
       await run('payouts', 'DELETE FROM payouts');
       await run('cash handovers', 'DELETE FROM cash_handovers');
       await run('rider withdrawals', 'DELETE FROM rider_withdrawals');
+      await run('expense claims', 'DELETE FROM expense_claims');
       await run('ledger lines', 'DELETE FROM ledger_lines');
       await run('ledger entries', 'DELETE FROM ledger_entries');
       await run('books lock', 'DELETE FROM books_lock');

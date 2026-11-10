@@ -166,6 +166,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/movements', label: 'movements' },
           { href: '/finance/petty-cash', label: 'pettyCash' },
           { href: '/finance/rider-withdrawals', label: 'riderWithdrawals' },
+          { href: '/finance/expense-claims', label: 'expenseClaims' },
           { href: '/finance/riders', label: 'riders' },
           { href: '/finance/payroll', label: 'payroll', exact: true, need: { salaries: true } },
           { href: '/finance/payroll/payslips', label: 'payslips', need: { salaries: true } },

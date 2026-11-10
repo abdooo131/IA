@@ -321,6 +321,8 @@ export async function dispatchPush(
     documentReminders,
     riderWalletEvents,
     activityEvents,
+    payslipEvents,
+    expenseClaimEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -877,6 +879,127 @@ const riderWalletEvents: Source = async (db, since) => {
     if (w.paidAt && w.paidAt >= since) out.push(toRider('rider_withdrawal_paid', 'paid'));
     if (w.rejectedAt && w.rejectedAt >= since)
       out.push(toRider('rider_withdrawal_rejected', 'rejected'));
+  }
+  return out;
+};
+
+/**
+ * My HR: once a month's salary run is posted, each person on it hears that their payslip is
+ * ready (a run waiting for a second person has no entry yet, so nothing is said early).
+ */
+const payslipEvents: Source = async (db, since) => {
+  const runs = await db.ledgerEntry.findMany({
+    where: { kind: 'payroll', createdAt: { gte: since } },
+    select: { id: true, idempotencyKey: true, data: true },
+    take: 20,
+  });
+  const out: Candidate[] = [];
+  for (const run of runs) {
+    if (!run.idempotencyKey.startsWith('payroll:')) continue;
+    const month = run.idempotencyKey.slice('payroll:'.length);
+    const people = ((run.data as { people?: { userId: string; net: number }[] } | null)?.people ??
+      []) as { userId: string; net: number }[];
+    for (const p of people)
+      out.push({
+        key: `payslip_ready:${month}:${p.userId}`,
+        make: async () => ({
+          userIds: [p.userId],
+          type: 'payslip_ready' as const,
+          text: 'payslip_ready' as const,
+          vars: { month, amount: egpText(p.net) },
+          url: `/my-file/payslips/${month}`,
+          tag: `payslip-${month}`,
+        }),
+      });
+  }
+  return out;
+};
+
+/**
+ * Expense claims: a new claim to the claimant's manager in force (or to Accounting when they
+ * have none), an approved one to Accounting, and each decision and the payment to the person.
+ */
+const expenseClaimEvents: Source = async (db, since) => {
+  const rows = await db.expenseClaim.findMany({
+    where: { updatedAt: { gte: since } },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      userId: true,
+      amountPiastres: true,
+      darkStoreId: true,
+      managerEmployeeId: true,
+      managerDecidedAt: true,
+      paidAt: true,
+      rejectedAt: true,
+      rejectReason: true,
+      createdAt: true,
+      user: { select: { name: true } },
+    },
+    take: 200,
+  });
+  const after = (at: Date | null | undefined) => !!at && at >= since;
+  const out: Candidate[] = [];
+  for (const c of rows) {
+    const number = `EC-${String(c.number).padStart(6, '0')}`;
+    const vars = {
+      number,
+      amount: egpText(c.amountPiastres),
+      person: c.user.name,
+      reason: c.rejectReason ?? '',
+    };
+    const tag = `expense-claim-${c.id}`;
+    const toPerson = (text: PushTextKey, step: string) => ({
+      key: `expense_claim_${step}:${c.id}`,
+      make: async () => ({
+        userIds: [c.userId],
+        type: 'expense_claim' as const,
+        text,
+        vars,
+        url: '/my-file/claims',
+        tag,
+      }),
+    });
+    if (after(c.createdAt) && c.managerEmployeeId)
+      out.push({
+        key: `expense_claim_new:${c.id}`,
+        make: async () => {
+          const manager = await db.employee.findUnique({
+            where: { id: c.managerEmployeeId! },
+            select: { userId: true },
+          });
+          return {
+            userIds: manager ? without([manager.userId], c.userId) : [],
+            type: 'expense_claim' as const,
+            text: 'expense_claim_waiting_manager' as const,
+            vars,
+            url: '/my-file/inbox',
+            tag,
+          };
+        },
+      });
+    const atAccounting = c.managerEmployeeId ? c.managerDecidedAt : c.createdAt;
+    if (after(atAccounting) && c.status !== 'rejected' && c.status !== 'cancelled')
+      out.push({
+        key: `expense_claim_accounting:${c.id}`,
+        make: async () => ({
+          userIds: without(
+            await teamWith(db, 'accounting', 'use', { storeId: c.darkStoreId }),
+            c.userId,
+          ),
+          type: 'finance_approval' as const,
+          text: 'expense_claim_waiting_accounting' as const,
+          vars,
+          url: `/finance/expense-claims/${c.id}`,
+          tag,
+        }),
+      });
+    if (c.managerEmployeeId && after(c.managerDecidedAt) && c.status !== 'rejected')
+      out.push(toPerson('expense_claim_approved', 'approved'));
+    if (c.status === 'paid' && after(c.paidAt)) out.push(toPerson('expense_claim_paid', 'paid'));
+    if (c.status === 'rejected' && after(c.rejectedAt))
+      out.push(toPerson('expense_claim_rejected', 'rejected'));
   }
   return out;
 };

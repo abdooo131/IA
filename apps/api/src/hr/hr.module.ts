@@ -6,6 +6,7 @@ import { HrFlowsController } from './hr-flows.controller';
 import { HrOrgController } from './hr-org.controller';
 import { HrLeaveController } from './hr-leave.controller';
 import { MyLeaveController } from './my-leave.controller';
+import { MyPayController } from './my-pay.controller';
 import { MyEmployeeController, PeoplePhotoController } from './my-hr.controller';
 
 @Module({
@@ -20,6 +21,7 @@ import { MyEmployeeController, PeoplePhotoController } from './my-hr.controller'
     MyAttendanceController,
     HrLeaveController,
     MyLeaveController,
+    MyPayController,
   ],
 })
 export class HrModule {}

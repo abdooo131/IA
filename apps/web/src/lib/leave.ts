@@ -10,9 +10,18 @@ export function fmtDays(days: number): string {
 
 /** The pill tone of a request, violation or correction status. */
 export function statusTone(status: string): 'delivered' | 'needs-action' | 'new' | 'danger' {
-  if (['approved', 'applied', 'final'].includes(status)) return 'delivered';
+  if (['approved', 'applied', 'final', 'paid'].includes(status)) return 'delivered';
   if (['rejected', 'cancelled', 'dismissed'].includes(status)) return 'danger';
-  if (['pending_manager', 'pending_hr', 'appealed', 'open', 'recorded'].includes(status))
+  if (
+    [
+      'pending_manager',
+      'pending_hr',
+      'pending_accounting',
+      'appealed',
+      'open',
+      'recorded',
+    ].includes(status)
+  )
     return 'needs-action';
   return 'new';
 }

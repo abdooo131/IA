@@ -19,6 +19,7 @@ import { DomainError } from './domain-error';
 import { inStoreScope, listLeaveRequests, type StoreScope, unpaidLeaveDaysFor } from './hr-leave';
 import { managerLinks, managerOf, teamIds } from './hr-org';
 import { finalDeductionsFor } from './hr-violations';
+import { claimsWaitingForManager } from './finance/expense-claims';
 import { getSetting } from './settings';
 
 // HR phase 3 (docs/HR.md "Phase 3 as built"): attendance correction requests (the person asks,
@@ -401,6 +402,8 @@ export async function hrInbox(
         await listCorrections(db, { scope: null, status: 'pending_manager', employeeIds: reports }),
       )
     : [];
+  // Expense claims of my direct reports wait for me at the first step.
+  const managerClaims = me ? await claimsWaitingForManager(db, input.userId, reports) : [];
   const hrUse = canDo(input.access, 'hr', 'use');
   const hrManage = canDo(input.access, 'hr', 'manage');
   const scope = hrScope(input.access);
@@ -440,13 +443,14 @@ export async function hrInbox(
   const total =
     managerLeave.length +
     managerCorrections.length +
+    managerClaims.length +
     hrLeave.length +
     hrCorrections.length +
     appeals.length;
   return {
     isManager: reports.length > 0,
     hr: { use: hrUse, manage: hrManage },
-    manager: { leave: managerLeave, corrections: managerCorrections },
+    manager: { leave: managerLeave, corrections: managerCorrections, claims: managerClaims },
     hrStep: { leave: hrLeave, corrections: hrCorrections },
     appeals: appeals.map((a) => ({
       id: a.id,
