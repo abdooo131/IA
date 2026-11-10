@@ -1,31 +1,59 @@
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { redirect } from 'next/navigation';
 import { ColumnChart } from '@/components/charts/ColumnChart';
 import { DataTable } from '@/components/data/DataTable';
 import { OrderHistoryNote } from '@/components/data/OrderHistoryNote';
+import { appListConfig, appListData } from '@/components/odoo/app-lists';
+import { ListView } from '@/components/odoo/ListView';
 import { StatCard } from '@/components/StatCard';
 import { apiGet } from '@/lib/api-server';
-import { type CustomerList, type CustomersOverview, SEGMENTS } from '@/lib/customer-types';
-import { formatCairoDateTime, formatEgp } from '@/lib/format';
+import { type CustomersOverview, SEGMENTS } from '@/lib/customer-types';
+import { formatEgp } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-type Filters = {
-  q?: string;
-  segment?: string;
-  governorate?: string;
-  merchantId?: string;
-  due?: string;
-  page?: string;
-};
+type Params = Record<string, string | string[] | undefined>;
 
-/** Every shopper across all merchants and our deliveries: who they are and how they buy. */
-export default async function CustomersPage({ searchParams }: { searchParams: Promise<Filters> }) {
-  const filters = await searchParams;
-  const query = new URLSearchParams();
-  for (const [k, v] of Object.entries(filters)) if (v) query.set(k, v);
-  const [list, o, t, days, locale] = await Promise.all([
-    apiGet<CustomerList>(`/admin/customers?${query}`),
+/**
+ * The address before the list view (?segment=, ?merchantId=, ?due=1, ?governorate=) as the
+ * list state, so old links open the right customers; null when there is nothing to turn.
+ */
+function legacyAddress(params: Params): string | null {
+  const one = (k: string) => {
+    const v = params[k];
+    return Array.isArray(v) ? v[0] : v;
+  };
+  if (one('f') !== undefined || one('v') !== undefined) return null;
+  const segment = one('segment');
+  const merchantId = one('merchantId');
+  const due = one('due') === '1' || one('due') === 'true';
+  if (!segment && !merchantId && !due && one('governorate') === undefined) return null;
+  const filters = [
+    ...(segment && (SEGMENTS as readonly string[]).includes(segment) ? [segment] : []),
+    ...(due ? ['due_to_reorder'] : []),
+  ];
+  const query = new URLSearchParams({ f: filters.join(',') });
+  if (merchantId && /^[A-Za-z0-9_-]{1,64}$/.test(merchantId))
+    query.set('v', `merchant:${merchantId}`);
+  const q = one('q');
+  if (q) query.set('q', q);
+  return `/admin/customers?${query}`;
+}
+
+/**
+ * Every shopper across all merchants and our deliveries: who they are and how they buy. The
+ * people themselves are a list view (UX phase C step 3: search by name, phone or email;
+ * segments, cash risk, due to order again, the merchant they bought from and their district;
+ * grouping and order and spend totals); each opens their profile, which is audited.
+ */
+export default async function CustomersPage({ searchParams }: { searchParams: Promise<Params> }) {
+  const params = await searchParams;
+  const legacy = legacyAddress(params);
+  if (legacy) redirect(legacy);
+  const [config, data, o, t, days, locale] = await Promise.all([
+    appListConfig('customers/customers'),
+    appListData('customers/customers', params),
     apiGet<CustomersOverview>('/admin/customers/overview'),
     getTranslations('customers'),
     getTranslations('weekdays'),
@@ -38,11 +66,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
     o.timing.filter((x) => x.hour === h).reduce((sum, x) => sum + x.orders, 0),
   );
   const hour = (h: number) => `${String(h).padStart(2, '0')}:00`;
-  const pageLink = (page: number) => {
-    const q = new URLSearchParams(query);
-    q.set('page', String(page));
-    return `/admin/customers?${q}`;
-  };
+
   const field = 'mt-1 block h-10 rounded-md border border-line bg-surface px-2 text-body-sm';
   return (
     <>
@@ -95,57 +119,14 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         {o.segments.map((s) => (
           <Link
             key={s.segment}
-            href={`/admin/customers?segment=${s.segment}`}
-            className={`rounded-full border px-3 py-1 text-body-sm ${filters.segment === s.segment ? 'border-primary bg-primary text-on-primary' : 'border-line bg-surface'}`}
+            href={`/admin/customers?f=${s.segment}`}
+            className="rounded-full border border-line bg-surface px-3 py-1 text-body-sm hover:border-primary"
             title={t(`segmentHints.${s.segment}`, o.rules)}
           >
             {t(`segments.${s.segment}`)} · {s.customers}
           </Link>
         ))}
       </div>
-
-      <form className="mt-4 flex flex-wrap items-end gap-3" method="get">
-        <label className="text-caption">
-          {t('search')}
-          <input
-            name="q"
-            defaultValue={filters.q ?? ''}
-            placeholder={t('searchHint')}
-            className={`${field} w-64`}
-          />
-        </label>
-        <label className="text-caption">
-          {t('segment')}
-          <select name="segment" defaultValue={filters.segment ?? ''} className={field}>
-            <option value="">{t('allSegments')}</option>
-            {SEGMENTS.map((s) => (
-              <option key={s} value={s}>
-                {t(`segments.${s}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-caption">
-          {t('governorate')}
-          <select name="governorate" defaultValue={filters.governorate ?? ''} className={field}>
-            <option value="">{t('allPlaces')}</option>
-            {o.governorates
-              .filter((g) => g.governorate)
-              .map((g) => (
-                <option key={g.governorate} value={g.governorate!}>
-                  {g.governorate}
-                </option>
-              ))}
-          </select>
-        </label>
-        <label className="flex h-10 items-center gap-2 text-body-sm">
-          <input type="checkbox" name="due" value="1" defaultChecked={filters.due === '1'} />
-          {t('dueOnly')}
-        </label>
-        <button className="h-10 rounded-md bg-primary px-4 text-body-sm font-bold text-on-primary">
-          {t('filter')}
-        </button>
-      </form>
 
       <form
         className="mt-3 flex flex-wrap items-end gap-3"
@@ -154,7 +135,7 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
       >
         <label className="text-caption">
           {t('exportSegment')}
-          <select name="segment" defaultValue={filters.segment ?? ''} className={field}>
+          <select name="segment" defaultValue="" className={field}>
             <option value="">{t('allSegments')}</option>
             {SEGMENTS.map((s) => (
               <option key={s} value={s}>
@@ -173,53 +154,8 @@ export default async function CustomersPage({ searchParams }: { searchParams: Pr
         <span className="text-caption text-text-muted">{t('exportHint')}</span>
       </form>
 
-      <div className="mt-4">
-        <DataTable
-          title={t('list')}
-          empty={t('none')}
-          headers={[
-            t('customer'),
-            t('orders'),
-            t('spend'),
-            t('merchants'),
-            t('lastOrder'),
-            t('segment'),
-          ]}
-          rows={list.customers.map((c) => [
-            <Link key={c.id} href={`/admin/customers/${c.id}`} className="font-bold text-link">
-              {c.name || c.phone || c.email}
-              <span className="block text-caption font-normal text-text-muted">
-                <span className="ltr-iso">{c.phone ?? c.email}</span>
-                {c.governorate && ` · ${[c.city, c.governorate].filter(Boolean).join(', ')}`}
-              </span>
-            </Link>,
-            c.fromShopifyTotals ? (
-              <span key={`o${c.id}`} title={t('fromShopifyTotals')}>
-                {c.orders}*
-              </span>
-            ) : (
-              c.orders
-            ),
-            formatEgp(c.spendPiastres),
-            c.merchants,
-            c.lastOrderAt ? formatCairoDateTime(c.lastOrderAt, locale) : '–',
-            c.expectedAt ? formatCairoDateTime(c.expectedAt, locale) : '–',
-            t(`segments.${c.segment}`),
-          ])}
-        />
-        <div className="mt-2 flex gap-3 text-body-sm">
-          {list.page > 1 && (
-            <Link href={pageLink(list.page - 1)} className="text-link">
-              {t('previous')}
-            </Link>
-          )}
-          {list.more && (
-            <Link href={pageLink(list.page + 1)} className="text-link">
-              {t('next')}
-            </Link>
-          )}
-        </div>
-      </div>
+      <h2 className="mt-6 text-h3">{t('list')}</h2>
+      <ListView config={config} data={data} />
 
       <details className="mt-6 rounded-lg border border-line bg-surface">
         <summary className="cursor-pointer px-4 py-3 text-body-sm font-bold text-link">

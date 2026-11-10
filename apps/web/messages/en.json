@@ -1194,7 +1194,33 @@
           "active": "Connected",
           "uninstalled": "Uninstalled"
         }
-      }
+      },
+      "historyHint": "The contract's changes. The merchant's own changes are in the history beside the page."
+    },
+    "productPage": {
+      "active": "Active",
+      "inactive": "Switched off",
+      "merchant": "Merchant",
+      "barcode": "Barcode",
+      "none": "–",
+      "titleEn": "Name in English",
+      "titleAr": "Name in Arabic",
+      "price": "Price (EGP)",
+      "weight": "Weight",
+      "grams": "{grams} g",
+      "orderLines": "Order lines",
+      "updated": "Last changed",
+      "shopify": "Shopify",
+      "linked": "Linked to Shopify",
+      "openInShopify": "Open in Shopify",
+      "notLinked": "Not linked to a Shopify product yet. Products link by SKU when the store syncs.",
+      "stock": "Stock per store",
+      "noStock": "None of it in our stores yet.",
+      "store": "Store",
+      "available": "Available",
+      "onHand": "On shelves",
+      "reserved": "Reserved",
+      "total": "Total"
     }
   },
   "scan": {
@@ -5374,7 +5400,9 @@
       "valid": "Accepted",
       "invalid": "Invalid",
       "settled": "Settled",
-      "stale": "Count again"
+      "stale": "Count again",
+      "active": "Active",
+      "paused": "Paused"
     }
   },
   "tickets": {
@@ -10065,7 +10093,21 @@
       "unitsMoved": "Asked, sent, received",
       "picked": "Picked / asked",
       "stock": "Stock",
-      "differences": "Differences"
+      "differences": "Differences",
+      "orders": "Orders",
+      "products": "Products",
+      "shipments": "Shipments",
+      "returns": "Returns",
+      "payouts": "Payouts",
+      "invoices": "Invoices",
+      "contract": "Contract in force",
+      "wallet": "Wallet (we owe)",
+      "users": "Users",
+      "damage": "Damage reports",
+      "stores": "Stores holding it",
+      "merchants": "Merchants",
+      "aliases": "Other phones and emails",
+      "household": "Same address"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10300,7 +10342,10 @@
       "cancel": "Cancel orders",
       "resolve": "Mark as handled",
       "approveTransfers": "Approve and hold the units",
-      "approveCounts": "Approve and correct stock"
+      "approveCounts": "Approve and correct stock",
+      "approveSignups": "Approve sign ups",
+      "pauseMerchants": "Pause",
+      "activateMerchants": "Open again"
     },
     "orders": {
       "exportName": "orders"
@@ -10370,6 +10415,130 @@
       "columns": {
         "createdAt": "Counted on",
         "expectedUnits": "System units"
+      }
+    },
+    "merchants": {
+      "exportName": "merchants",
+      "intro": "Every merchant with their sign up, Shopify store, contract and wallet. Tick several to approve sign ups, pause or open them again; open one for its contract, products and team.",
+      "columns": {
+        "name": "Merchant",
+        "state": "Status",
+        "approval": "Sign up",
+        "contactPhone": "Mobile",
+        "contactEmail": "Email",
+        "manager": "Account manager",
+        "shopifyDomain": "Shopify store",
+        "contract": "Contract in force",
+        "schedule": "Payouts",
+        "expressPrice": "60 minute price (EGP)",
+        "skus": "Products",
+        "orders30": "Orders (30 days)",
+        "balance": "Wallet: we owe (EGP)",
+        "createdAt": "With us since"
+      },
+      "filters": {
+        "active": "Active",
+        "paused": "Paused",
+        "pending": "Waiting for approval",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "shopify_connected": "Shopify connected",
+        "shopify_not_connected": "No Shopify yet",
+        "express_on": "60 minute price set",
+        "express_off": "No 60 minute price",
+        "contract_in_force": "Contract in force",
+        "no_contract": "No contract",
+        "debit_wallet": "Owes us (debit wallet)",
+        "owed_money": "We owe them",
+        "no_manager": "No account manager"
+      },
+      "groups": {
+        "approval": "Sign up",
+        "manager": "Account manager",
+        "schedule": "Payout schedule",
+        "state": "Status"
+      },
+      "values": {
+        "manager": "Account manager"
+      },
+      "approval": {
+        "pending": "Waiting",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      },
+      "state": {
+        "active": "Active",
+        "paused": "Paused"
+      }
+    },
+    "products": {
+      "exportName": "products",
+      "intro": "Every product of every merchant, with what we hold of it. Search by SKU, barcode or name; open one for its stock per store, Shopify link and notes.",
+      "columns": {
+        "title": "Product",
+        "state": "Status",
+        "stores": "Stores holding it",
+        "shopify": "Shopify",
+        "weightGrams": "Weight (g)",
+        "price": "Price (EGP)",
+        "onHand": "On shelves",
+        "available": "Available"
+      },
+      "filters": {
+        "active": "Active",
+        "inactive": "Switched off",
+        "linked": "Linked to Shopify",
+        "not_linked": "Not linked to Shopify",
+        "in_stock": "Available to sell",
+        "out_of_stock": "Nothing to sell",
+        "no_barcode": "No barcode"
+      },
+      "groups": {
+        "state": "Status",
+        "shopify": "Shopify"
+      },
+      "state": {
+        "active": "Active",
+        "inactive": "Switched off"
+      },
+      "shopify": {
+        "linked": "Linked",
+        "not_linked": "Not linked"
+      }
+    },
+    "customers": {
+      "exportName": "customers",
+      "columns": {
+        "name": "Customer",
+        "segment": "Segment",
+        "phone": "Mobile",
+        "email": "Email",
+        "district": "District",
+        "governorate": "Governorate",
+        "mainMerchant": "Buys most from",
+        "risk": "Cash risk",
+        "orders": "Orders",
+        "merchants": "Merchants",
+        "lastOrderAt": "Last order",
+        "expectedAt": "Next order expected",
+        "spend": "Spend (EGP)"
+      },
+      "filters": {
+        "due_to_reorder": "Due to order again",
+        "with_phone": "Has a mobile",
+        "with_email": "Has an email",
+        "several_merchants": "Buys from several merchants"
+      },
+      "groups": {
+        "segment": "Segment",
+        "district": "District",
+        "governorate": "Governorate",
+        "merchant": "Buys most from",
+        "risk": "Cash risk"
+      },
+      "values": {
+        "merchant": "Bought from",
+        "district": "District"
       }
     }
   }

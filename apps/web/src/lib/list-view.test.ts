@@ -139,6 +139,8 @@ describe('App lists (UX phase C)', () => {
         counts: messages.admin.counts.statuses,
       };
       const causes = messages.damage.causes as Record<string, string>;
+      const segments = messages.customers.segments as Record<string, string>;
+      const risks = messages.customers.riskLevels as Record<string, string>;
       for (const lists of Object.values(APP_LISTS))
         for (const [id, meta] of Object.entries(lists)) {
           const own = words[id] as Record<string, Record<string, string>> | undefined;
@@ -150,13 +152,24 @@ describe('App lists (UX phase C)', () => {
                 ? statusesOf[id]?.[f]
                 : group === 'cause'
                   ? causes[f]
-                  : undefined);
+                  : group === 'segment'
+                    ? segments[f]
+                    : group === 'risk'
+                      ? risks[f.replace(/^risk_/, '')]
+                      : undefined);
             expect(label, `${id}.${f}`).toBeTruthy();
           }
+          // A list's own words first, as appListConfig labels them.
           for (const v of Object.keys(meta.values ?? {}))
-            expect((words.values as Record<string, string>)[v], `${id}.${v}`).toBeTruthy();
+            expect(
+              own?.values?.[v] ?? (words.values as Record<string, string>)[v],
+              `${id}.${v}`,
+            ).toBeTruthy();
           for (const g of meta.groupBys)
-            expect((words.groups as Record<string, string>)[g], `${id}.${g}`).toBeTruthy();
+            expect(
+              own?.groups?.[g] ?? (words.groups as Record<string, string>)[g],
+              `${id}.${g}`,
+            ).toBeTruthy();
           expect(own?.exportName).toBeTruthy();
         }
     }

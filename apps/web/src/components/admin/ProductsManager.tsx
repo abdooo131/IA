@@ -1,14 +1,19 @@
 'use client';
 
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
-import { type FormEvent, Fragment, useState } from 'react';
+import { type FormEvent, useState } from 'react';
 import type { AdminSku } from '@/lib/admin-types';
 import { apiSend } from '@/lib/api-client';
 import { parseCsv, toCsv } from '@/lib/csv';
-import { formatCount, formatEgp } from '@/lib/format';
+import { formatEgp } from '@/lib/format';
 
 type Merchant = { id: string; name: string; isActive: boolean };
+/** What the edit form needs of a product. */
+export type EditableSku = Pick<
+  AdminSku,
+  'id' | 'sku' | 'barcode' | 'titleEn' | 'titleAr' | 'pricePiastres' | 'weightGrams' | 'isActive'
+>;
 type ImportResult = {
   created: number;
   updated: number;
@@ -42,7 +47,7 @@ function ProductForm({
   onSubmit,
   onCancel,
 }: {
-  initial?: AdminSku;
+  initial?: EditableSku;
   merchants: Merchant[];
   busy: boolean;
   error: string | null;
@@ -296,23 +301,12 @@ function ImportPanel({ merchants, onDone }: { merchants: Merchant[]; onDone(): v
   );
 }
 
-export function ProductsManager({
-  skus,
-  merchants,
-  filters,
-}: {
-  skus: AdminSku[];
-  merchants: Merchant[];
-  filters: { merchant: string; q: string };
-}) {
+/** Hook shared by the toolbar and the editor: sends a change and refreshes the page. */
+function useSend(onDone: () => void) {
   const t = useTranslations('admin.productsEdit');
-  const tp = useTranslations('admin.products');
-  const locale = useLocale();
   const router = useRouter();
-  const [mode, setMode] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-
   async function send(method: 'POST' | 'PATCH', path: string, body: unknown) {
     setBusy(true);
     setError(null);
@@ -320,20 +314,25 @@ export function ProductsManager({
     setBusy(false);
     if (!result.ok)
       return setError(t(`errors.${KNOWN.includes(result.error) ? result.error : 'generic'}`));
-    setMode(null);
+    onDone();
     router.refresh();
   }
+  return { send, error, busy };
+}
 
-  const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
-  const td = 'px-3 py-2 align-top';
-  const filterField = 'h-10 rounded-md border border-line bg-surface px-2 text-body-sm';
-
+/** The products list's buttons: a new product and a product file import. */
+export function ProductsToolbar({ merchants }: { merchants: Merchant[] }) {
+  const t = useTranslations('admin.productsEdit');
+  const router = useRouter();
+  const [mode, setMode] = useState<'new' | 'import' | null>(null);
+  const { send, error, busy } = useSend(() => setMode(null));
   return (
-    <div className="mt-4 space-y-4">
+    <div className={mode ? 'w-full space-y-3' : ''}>
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
           className={primary}
+          aria-expanded={mode === 'new'}
           onClick={() => setMode(mode === 'new' ? null : 'new')}
         >
           {t('new')}
@@ -341,6 +340,7 @@ export function ProductsManager({
         <button
           type="button"
           className={secondary}
+          aria-expanded={mode === 'import'}
           onClick={() => setMode(mode === 'import' ? null : 'import')}
         >
           {t('import')}
@@ -357,112 +357,30 @@ export function ProductsManager({
         />
       )}
       {mode === 'import' && <ImportPanel merchants={merchants} onDone={() => router.refresh()} />}
-
-      <form className="flex flex-wrap gap-2" method="get">
-        <select
-          name="merchant"
-          defaultValue={filters.merchant}
-          className={filterField}
-          aria-label={t('merchant')}
-        >
-          <option value="">{t('filterMerchant')}</option>
-          {merchants.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
-        <input
-          name="q"
-          defaultValue={filters.q}
-          placeholder={t('search')}
-          className={`${filterField} w-56`}
-        />
-        <button
-          type="submit"
-          className="h-10 rounded-md bg-selected-bg px-4 text-body-sm font-bold text-link"
-        >
-          {tp('title')}
-        </button>
-      </form>
-
-      <div className="overflow-x-auto rounded-lg border border-line bg-surface shadow-sm">
-        <table className="w-full min-w-[820px] text-body-sm">
-          <thead className="border-b border-line bg-surface-raised">
-            <tr>
-              <th className={th}>{tp('sku')}</th>
-              <th className={th}>{tp('name')}</th>
-              <th className={th}>{tp('merchant')}</th>
-              <th className={`${th} text-end`}>{tp('price')}</th>
-              <th className={`${th} text-end`}>{tp('onHand')}</th>
-              <th className={`${th} text-end`}>{tp('reserved')}</th>
-              <th className={th}>{tp('shopify')}</th>
-              <th className={th} />
-            </tr>
-          </thead>
-          <tbody>
-            {skus.map((s) => (
-              <Fragment key={s.id}>
-                <tr
-                  className={`border-b border-line last:border-0 ${s.isActive ? '' : 'opacity-60'}`}
-                >
-                  <td className={`${td} font-bold`}>
-                    <span className="ltr-iso">{s.sku}</span>
-                    {s.barcode && (
-                      <div className="text-caption font-normal text-text-muted">
-                        <span className="ltr-iso">{s.barcode}</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className={td}>
-                    {locale === 'ar' ? s.titleAr : s.titleEn}
-                    {!s.isActive && (
-                      <div className="text-caption text-text-muted">{t('inactive')}</div>
-                    )}
-                  </td>
-                  <td className={td}>{s.merchant.name}</td>
-                  <td className={`${td} text-end`}>
-                    <span className="ltr-iso">{formatEgp(s.pricePiastres)}</span>
-                  </td>
-                  <td className={`${td} text-end`}>
-                    <span className="ltr-iso">{formatCount(s.unitsOnHand)}</span>
-                  </td>
-                  <td className={`${td} text-end`}>
-                    <span className="ltr-iso">{formatCount(s.unitsReserved)}</span>
-                  </td>
-                  <td className={`${td} text-text-muted`}>
-                    {s.shopifyVariantId ? tp('linked') : tp('notLinked')}
-                  </td>
-                  <td className={td}>
-                    <button
-                      type="button"
-                      className={secondary}
-                      onClick={() => setMode(mode === s.id ? null : s.id)}
-                    >
-                      {t('edit')}
-                    </button>
-                  </td>
-                </tr>
-                {mode === s.id && (
-                  <tr className="border-b border-line">
-                    <td colSpan={8} className="p-3">
-                      <ProductForm
-                        initial={s}
-                        merchants={merchants}
-                        busy={busy}
-                        error={error}
-                        submitLabel={t('save')}
-                        onSubmit={(body) => void send('PATCH', `/admin/skus/${s.id}`, body)}
-                        onCancel={() => setMode(null)}
-                      />
-                    </td>
-                  </tr>
-                )}
-              </Fragment>
-            ))}
-          </tbody>
-        </table>
-      </div>
     </div>
+  );
+}
+
+/** Edit on a product's page. */
+export function ProductEditor({ sku }: { sku: EditableSku }) {
+  const t = useTranslations('admin.productsEdit');
+  const [open, setOpen] = useState(false);
+  const { send, error, busy } = useSend(() => setOpen(false));
+  if (!open)
+    return (
+      <button type="button" className={secondary} onClick={() => setOpen(true)}>
+        {t('edit')}
+      </button>
+    );
+  return (
+    <ProductForm
+      initial={sku}
+      merchants={[]}
+      busy={busy}
+      error={error}
+      submitLabel={t('save')}
+      onSubmit={(body) => void send('PATCH', `/admin/skus/${sku.id}`, body)}
+      onCancel={() => setOpen(false)}
+    />
   );
 }

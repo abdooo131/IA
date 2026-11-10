@@ -1194,7 +1194,33 @@
           "active": "متصل",
           "uninstalled": "تم الإلغاء"
         }
-      }
+      },
+      "historyHint": "تغييرات العقد. تغييرات التاجر نفسه في السجل بجانب الصفحة."
+    },
+    "productPage": {
+      "active": "نشط",
+      "inactive": "متوقف",
+      "merchant": "التاجر",
+      "barcode": "الباركود",
+      "none": "–",
+      "titleEn": "الاسم بالإنجليزية",
+      "titleAr": "الاسم بالعربية",
+      "price": "السعر (ج.م)",
+      "weight": "الوزن",
+      "grams": "{grams} جم",
+      "orderLines": "سطور الطلبات",
+      "updated": "آخر تعديل",
+      "shopify": "شوبيفاي",
+      "linked": "مربوط بشوبيفاي",
+      "openInShopify": "افتح في شوبيفاي",
+      "notLinked": "غير مربوط بمنتج في شوبيفاي بعد. تُربط المنتجات بالكود عند مزامنة المتجر.",
+      "stock": "المخزون في كل متجر",
+      "noStock": "لا يوجد منه شيء في متاجرنا بعد.",
+      "store": "المتجر",
+      "available": "المتاح",
+      "onHand": "على الرفوف",
+      "reserved": "محجوز",
+      "total": "الإجمالي"
     }
   },
   "scan": {
@@ -5317,7 +5343,9 @@
       "valid": "مقبول",
       "invalid": "غير صالح",
       "settled": "اتسوّى",
-      "stale": "يتجرد تاني"
+      "stale": "يتجرد تاني",
+      "active": "نشط",
+      "paused": "موقوف"
     }
   },
   "tickets": {
@@ -10008,7 +10036,21 @@
       "unitsMoved": "مطلوب، متبعت، مستلم",
       "picked": "المتجمع / المطلوب",
       "stock": "المخزون",
-      "differences": "الفروق"
+      "differences": "الفروق",
+      "orders": "الطلبات",
+      "products": "المنتجات",
+      "shipments": "الشحنات",
+      "returns": "المرتجعات",
+      "payouts": "التحويلات",
+      "invoices": "الفواتير",
+      "contract": "العقد الساري",
+      "wallet": "المحفظة (المستحق لهم)",
+      "users": "المستخدمون",
+      "damage": "بلاغات التلف",
+      "stores": "متاجر بها مخزون",
+      "merchants": "التجار",
+      "aliases": "أرقام وبريد آخر",
+      "household": "نفس العنوان"
     },
     "chatter": {
       "title": "الملاحظات والسجل",
@@ -10243,7 +10285,10 @@
       "cancel": "إلغاء الطلبات",
       "resolve": "تم التعامل معها",
       "approveTransfers": "وافق واحجز القطع",
-      "approveCounts": "وافق وصحّح المخزون"
+      "approveCounts": "وافق وصحّح المخزون",
+      "approveSignups": "اعتماد طلبات التسجيل",
+      "pauseMerchants": "إيقاف",
+      "activateMerchants": "إعادة التفعيل"
     },
     "orders": {
       "exportName": "orders"
@@ -10313,6 +10358,130 @@
       "columns": {
         "createdAt": "اتجرد في",
         "expectedUnits": "قطع السيستم"
+      }
+    },
+    "merchants": {
+      "exportName": "merchants",
+      "intro": "كل التجار مع طلب التسجيل ومتجر شوبيفاي والعقد والمحفظة. حدّد أكثر من تاجر لاعتماد طلبات التسجيل أو الإيقاف أو إعادة التفعيل، وافتح أي تاجر لترى عقده ومنتجاته وفريقه.",
+      "columns": {
+        "name": "التاجر",
+        "state": "الحالة",
+        "approval": "التسجيل",
+        "contactPhone": "الموبايل",
+        "contactEmail": "البريد الإلكتروني",
+        "manager": "مدير الحساب",
+        "shopifyDomain": "متجر شوبيفاي",
+        "contract": "العقد الساري",
+        "schedule": "التحويلات",
+        "expressPrice": "سعر توصيل 60 دقيقة (ج.م)",
+        "skus": "المنتجات",
+        "orders30": "الطلبات (30 يومًا)",
+        "balance": "المحفظة: المستحق لهم (ج.م)",
+        "createdAt": "معنا منذ"
+      },
+      "filters": {
+        "active": "نشط",
+        "paused": "موقوف",
+        "pending": "بانتظار الاعتماد",
+        "approved": "معتمد",
+        "rejected": "مرفوض",
+        "shopify_connected": "شوبيفاي متصل",
+        "shopify_not_connected": "بدون شوبيفاي بعد",
+        "express_on": "سعر 60 دقيقة محدد",
+        "express_off": "بدون سعر 60 دقيقة",
+        "contract_in_force": "عقد ساري",
+        "no_contract": "بدون عقد",
+        "debit_wallet": "مدين لنا (محفظة مدينة)",
+        "owed_money": "مستحق لهم",
+        "no_manager": "بدون مدير حساب"
+      },
+      "groups": {
+        "approval": "التسجيل",
+        "manager": "مدير الحساب",
+        "schedule": "جدول التحويلات",
+        "state": "الحالة"
+      },
+      "values": {
+        "manager": "مدير الحساب"
+      },
+      "approval": {
+        "pending": "بانتظار الاعتماد",
+        "approved": "معتمد",
+        "rejected": "مرفوض"
+      },
+      "state": {
+        "active": "نشط",
+        "paused": "موقوف"
+      }
+    },
+    "products": {
+      "exportName": "products",
+      "intro": "كل منتجات كل التجار مع ما نحتفظ به منها. ابحث بالكود أو الباركود أو الاسم، وافتح أي منتج لترى مخزونه في كل متجر ورابط شوبيفاي والملاحظات.",
+      "columns": {
+        "title": "المنتج",
+        "state": "الحالة",
+        "stores": "متاجر بها مخزون",
+        "shopify": "شوبيفاي",
+        "weightGrams": "الوزن (جم)",
+        "price": "السعر (ج.م)",
+        "onHand": "على الرفوف",
+        "available": "المتاح"
+      },
+      "filters": {
+        "active": "نشط",
+        "inactive": "متوقف",
+        "linked": "مربوط بشوبيفاي",
+        "not_linked": "غير مربوط بشوبيفاي",
+        "in_stock": "متاح للبيع",
+        "out_of_stock": "لا شيء للبيع",
+        "no_barcode": "بدون باركود"
+      },
+      "groups": {
+        "state": "الحالة",
+        "shopify": "شوبيفاي"
+      },
+      "state": {
+        "active": "نشط",
+        "inactive": "متوقف"
+      },
+      "shopify": {
+        "linked": "مربوط",
+        "not_linked": "غير مربوط"
+      }
+    },
+    "customers": {
+      "exportName": "customers",
+      "columns": {
+        "name": "العميل",
+        "segment": "الشريحة",
+        "phone": "الموبايل",
+        "email": "البريد الإلكتروني",
+        "district": "الحي",
+        "governorate": "المحافظة",
+        "mainMerchant": "يشتري أكثر من",
+        "risk": "مخاطر الدفع عند الاستلام",
+        "orders": "الطلبات",
+        "merchants": "التجار",
+        "lastOrderAt": "آخر طلب",
+        "expectedAt": "الطلب القادم المتوقع",
+        "spend": "الإنفاق (ج.م)"
+      },
+      "filters": {
+        "due_to_reorder": "موعد طلبه القادم حلّ",
+        "with_phone": "له رقم موبايل",
+        "with_email": "له بريد إلكتروني",
+        "several_merchants": "يشتري من أكثر من تاجر"
+      },
+      "groups": {
+        "segment": "الشريحة",
+        "district": "الحي",
+        "governorate": "المحافظة",
+        "merchant": "يشتري أكثر من",
+        "risk": "مخاطر الدفع عند الاستلام"
+      },
+      "values": {
+        "merchant": "اشترى من",
+        "district": "الحي"
       }
     }
   }

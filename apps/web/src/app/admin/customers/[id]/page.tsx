@@ -1,22 +1,30 @@
+import { canDo, type DocSmartButton } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { ColumnChart } from '@/components/charts/ColumnChart';
 import { MergeCustomerForm } from '@/components/customers/MergeCustomerForm';
 import { DataTable } from '@/components/data/DataTable';
+import { DocumentFrame } from '@/components/odoo/DocumentFrame';
 import { StatCard } from '@/components/StatCard';
-import { BackLink } from '@/components/store/BackLink';
-import { apiGet } from '@/lib/api-server';
+import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { CustomerProfile } from '@/lib/customer-types';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
 
 export const dynamic = 'force-dynamic';
 
-/** One person across every merchant: who, where, what they buy, from whom, when and how. */
+/**
+ * One person across every merchant: who, where, what they buy, from whom, when and how. Since
+ * UX phase C step 3 a document page: breadcrumbs back to the filtered list, previous and next
+ * customer, smart buttons (orders, merchants, other phones and emails, same address) and the
+ * chatter (customer data only). Opening it is audited (customer.view) by the API.
+ */
 export default async function CustomerProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const [p, t, days, locale] = await Promise.all([
+  const [p, profile, t, ta, days, locale] = await Promise.all([
     apiGet<CustomerProfile>(`/admin/customers/${id}`),
+    getMyProfile(),
     getTranslations('customers'),
+    getTranslations('apps'),
     getTranslations('weekdays'),
     getLocale(),
   ]);
@@ -29,37 +37,49 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
     p.timing.filter((x) => x.hour === h).reduce((s, x) => s + x.orders, 0),
   );
   const payment = (m: string) => (t.has(`payments.${m}`) ? t(`payments.${m}`) : m);
+  const smart: DocSmartButton[] = [
+    { key: 'orders', count: p.totals.orders, href: '#recent' },
+    { key: 'merchants', count: p.merchants.length, href: '#merchants' },
+    { key: 'aliases', count: p.aliases.length, href: '#who' },
+    { key: 'household', count: p.household.length, href: '#household' },
+  ];
   return (
-    <>
-      <BackLink href="/admin/customers" />
-      <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-h2">{c.name || c.phone || c.email}</h1>
-          <p className="text-body-sm text-text-muted">
-            {c.phone && <span className="ltr-iso">{c.phone}</span>}
-            {c.phone && c.email && ' · '}
-            {c.email && <span className="ltr-iso">{c.email}</span>}
+    <DocumentFrame
+      root={{ label: ta('names.customers'), href: '/admin/customers' }}
+      list={{ label: ta('pages.profiles'), href: '/admin/customers' }}
+      id={c.id}
+      number={c.name || c.phone || c.email || c.id}
+      numberLtr={!c.name}
+      title={
+        <>
+          {c.phone && <span className="ltr-iso">{c.phone}</span>}
+          {c.phone && c.email && ' · '}
+          {c.email && <span className="ltr-iso">{c.email}</span>}
+        </>
+      }
+      status={p.segment}
+      statusLabel={t(`segments.${p.segment}`)}
+      flow={null}
+      smart={smart}
+      entityType="customer"
+      canWrite={canDo(profile, 'customers', 'use')}
+      asideFrom="xl"
+    >
+      <section id="who" className="scroll-mt-20 text-body-sm text-text-muted">
+        <p>{[c.address, c.city, c.governorate].filter(Boolean).join(', ') || t('unknownPlace')}</p>
+        {p.district && (
+          <p>
+            {t('districtIs', { name: locale === 'ar' ? p.district.nameAr : p.district.nameEn })}
           </p>
-          <p className="text-body-sm text-text-muted">
-            {[c.address, c.city, c.governorate].filter(Boolean).join(', ') || t('unknownPlace')}
+        )}
+        {p.aliases.length > 0 && (
+          <p className="text-caption">
+            {t('alsoKnown')}{' '}
+            <span className="ltr-iso">{p.aliases.map((a) => a.value).join(' · ')}</span>
           </p>
-          {p.district && (
-            <p className="text-body-sm text-text-muted">
-              {t('districtIs', { name: locale === 'ar' ? p.district.nameAr : p.district.nameEn })}
-            </p>
-          )}
-          {p.aliases.length > 0 && (
-            <p className="text-caption text-text-muted">
-              {t('alsoKnown')}{' '}
-              <span className="ltr-iso">{p.aliases.map((a) => a.value).join(' · ')}</span>
-            </p>
-          )}
-        </div>
-        <span className="rounded-full border border-line bg-surface px-3 py-1 text-body-sm font-bold">
-          {t(`segments.${p.segment}`)}
-        </span>
-      </div>
-      <p className="mt-2 text-caption text-text-muted">{t('privacy')}</p>
+        )}
+      </section>
+      <p className="text-caption text-text-muted">{t('privacy')}</p>
       {p.totals.fromShopifyTotals && (
         <p className="mt-2 rounded-md border border-status-needs-action bg-surface p-2 text-caption">
           {t('fromShopifyTotalsLong')}
@@ -183,19 +203,21 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
       </div>
 
       <div className="mt-6 grid gap-4">
-        <DataTable
-          title={t('fromMerchants')}
-          empty={t('none')}
-          headers={[t('merchant'), t('orders'), t('spend'), t('lastOrder')]}
-          rows={p.merchants.map((m) => [
-            <Link key={m.id} href={`/admin/data/${m.id}`} className="font-bold text-link">
-              {m.name}
-            </Link>,
-            m.orders,
-            formatEgp(m.spendPiastres),
-            when(m.lastOrderAt),
-          ])}
-        />
+        <div id="merchants" className="scroll-mt-20">
+          <DataTable
+            title={t('fromMerchants')}
+            empty={t('none')}
+            headers={[t('merchant'), t('orders'), t('spend'), t('lastOrder')]}
+            rows={p.merchants.map((m) => [
+              <Link key={m.id} href={`/admin/data/${m.id}`} className="font-bold text-link">
+                {m.name}
+              </Link>,
+              m.orders,
+              formatEgp(m.spendPiastres),
+              when(m.lastOrderAt),
+            ])}
+          />
+        </div>
         <div className="grid gap-4 lg:grid-cols-2">
           <DataTable
             title={t('categories')}
@@ -292,51 +314,59 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             when(s.since),
           ])}
         />
-        <DataTable
-          title={t('household')}
-          empty={t('noHousehold')}
-          headers={[t('customer'), t('phone')]}
-          rows={p.household.map((h) => [
-            <Link key={h.id} href={`/admin/customers/${h.id}`} className="font-bold text-link">
-              {h.name || '–'}
-            </Link>,
-            <span key={`${h.id}-p`} className="ltr-iso">
-              {h.phone ?? '–'}
-            </span>,
-          ])}
-        />
+        <div id="household" className="scroll-mt-20">
+          <DataTable
+            title={t('household')}
+            empty={t('noHousehold')}
+            headers={[t('customer'), t('phone')]}
+            rows={p.household.map((h) => [
+              <Link key={h.id} href={`/admin/customers/${h.id}`} className="font-bold text-link">
+                {h.name || '–'}
+              </Link>,
+              <span key={`${h.id}-p`} className="ltr-iso">
+                {h.phone ?? '–'}
+              </span>,
+            ])}
+          />
+        </div>
         <MergeCustomerForm customerId={c.id} />
-        <DataTable
-          title={t('recent')}
-          empty={t('none')}
-          headers={[t('order'), t('date'), t('value'), t('units'), t('status')]}
-          rows={p.recentOrders.map((o) => [
-            o.source === 'shiply' ? (
-              <Link
-                key={o.recordId}
-                href={`/admin/orders/${o.recordId}`}
-                className="font-bold text-link"
-              >
-                {o.ref}
-                <span className="block text-caption font-normal text-text-muted">
-                  {o.merchant} · {t('sourceShiply')}
+        <div id="recent" className="scroll-mt-20">
+          <DataTable
+            title={t('recent')}
+            empty={t('none')}
+            headers={[t('order'), t('date'), t('value'), t('units'), t('status')]}
+            rows={p.recentOrders.map((o) => [
+              o.source === 'shiply' ? (
+                <Link
+                  key={o.recordId}
+                  href={`/admin/orders/${o.recordId}`}
+                  className="font-bold text-link"
+                >
+                  {o.ref}
+                  <span className="block text-caption font-normal text-text-muted">
+                    {o.merchant} · {t('sourceShiply')}
+                  </span>
+                </Link>
+              ) : (
+                <span key={o.recordId}>
+                  {o.ref}
+                  <span className="block text-caption text-text-muted">
+                    {o.merchant} · {t('sourceShopify')}
+                  </span>
                 </span>
-              </Link>
-            ) : (
-              <span key={o.recordId}>
-                {o.ref}
-                <span className="block text-caption text-text-muted">
-                  {o.merchant} · {t('sourceShopify')}
-                </span>
-              </span>
-            ),
-            when(o.at),
-            formatEgp(o.valuePiastres),
-            o.units,
-            o.status ? (t.has(`statuses.${o.status}`) ? t(`statuses.${o.status}`) : o.status) : '–',
-          ])}
-        />
+              ),
+              when(o.at),
+              formatEgp(o.valuePiastres),
+              o.units,
+              o.status
+                ? t.has(`statuses.${o.status}`)
+                  ? t(`statuses.${o.status}`)
+                  : o.status
+                : '–',
+            ])}
+          />
+        </div>
       </div>
-    </>
+    </DocumentFrame>
   );
 }

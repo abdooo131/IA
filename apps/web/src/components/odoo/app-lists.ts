@@ -18,7 +18,10 @@ export type AppListKey =
   | 'inventory/transfers'
   | 'inventory/returns'
   | 'inventory/counts'
-  | 'inventory/damage';
+  | 'inventory/damage'
+  | 'merchants/merchants'
+  | 'merchants/products'
+  | 'customers/customers';
 
 const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
   'operations/orders': () => [
@@ -133,17 +136,66 @@ const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
     { key: 'compensation', kind: 'money', optional: true },
     { key: 'riderCharge', kind: 'money', optional: true },
   ],
+  'merchants/merchants': () => [
+    { key: 'name', kind: 'text', sort: 'name', primary: true },
+    { key: 'state', kind: 'status' },
+    { key: 'approval', kind: 'text' },
+    { key: 'contactPhone', kind: 'ltr', optional: true },
+    { key: 'contactEmail', kind: 'ltr', optional: true },
+    { key: 'manager', kind: 'text' },
+    { key: 'shopifyDomain', kind: 'ltr', optional: true },
+    { key: 'contract', kind: 'ltr' },
+    { key: 'schedule', kind: 'text', optional: true },
+    { key: 'expressPrice', kind: 'money', optional: true },
+    { key: 'skus', kind: 'number', sort: 'skus' },
+    { key: 'orders30', kind: 'number', sort: 'orders30' },
+    { key: 'balance', kind: 'money', sort: 'balance' },
+    { key: 'createdAt', kind: 'datetime', sort: 'created', optional: true },
+  ],
+  'merchants/products': (locale) => [
+    { key: 'sku', kind: 'ltr', sort: 'sku', primary: true },
+    { key: locale === 'ar' ? 'titleAr' : 'titleEn', kind: 'text', sort: 'title' },
+    { key: 'barcode', kind: 'ltr', optional: true },
+    { key: 'merchant', kind: 'text' },
+    { key: 'state', kind: 'status' },
+    // Available first, so a phone card shows it.
+    { key: 'available', kind: 'number', sort: 'available' },
+    { key: 'onHand', kind: 'number', sort: 'onHand' },
+    { key: 'reserved', kind: 'number', optional: true },
+    { key: 'stores', kind: 'number', optional: true },
+    { key: 'shopify', kind: 'text' },
+    { key: 'weightGrams', kind: 'number', optional: true },
+    { key: 'price', kind: 'money', sort: 'price' },
+  ],
+  'customers/customers': () => [
+    { key: 'name', kind: 'text', sort: 'name', primary: true },
+    { key: 'segment', kind: 'status' },
+    { key: 'phone', kind: 'ltr' },
+    { key: 'email', kind: 'ltr', optional: true },
+    { key: 'district', kind: 'text' },
+    { key: 'governorate', kind: 'text', optional: true },
+    { key: 'mainMerchant', kind: 'text', optional: true },
+    { key: 'risk', kind: 'text' },
+    { key: 'orders', kind: 'number', sort: 'orders' },
+    { key: 'merchants', kind: 'number', optional: true },
+    { key: 'lastOrderAt', kind: 'datetime', sort: 'last' },
+    { key: 'expectedAt', kind: 'datetime', optional: true },
+    { key: 'spend', kind: 'money', sort: 'spend' },
+  ],
 };
 
 const HREFS: Record<AppListKey, string | undefined> = {
   'operations/orders': '/admin/orders/{id}',
   'operations/alerts': '/admin/orders/{orderId}',
-  'inventory/stock': '/admin/products?merchant={merchantId}&q={sku}',
+  'inventory/stock': '/admin/products/{skuId}',
   'inventory/shipments': '/admin/shipments/{id}',
   'inventory/transfers': '/admin/transfers/{id}',
   'inventory/returns': '/admin/returns/{id}',
   'inventory/counts': '/admin/counts/{id}',
   'inventory/damage': '/admin/damage/{id}',
+  'merchants/merchants': '/admin/merchants/{id}',
+  'merchants/products': '/admin/products/{id}',
+  'customers/customers': '/admin/customers/{id}',
 };
 
 type Option = { value: string; label: string; labelAr?: string };
@@ -162,6 +214,9 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
     transfers,
     returns,
     counts,
+    schedules,
+    segments,
+    risks,
     locale,
     profile,
     options,
@@ -175,6 +230,9 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
     getTranslations('transfers'),
     getTranslations('returns'),
     getTranslations('admin.counts'),
+    getTranslations('finance.schedules'),
+    getTranslations('customers.segments'),
+    getTranslations('customers.riskLevels'),
     getLocale(),
     getMyProfile(),
     apiGet<Record<string, Option[]>>(`/lists/${key}/options`),
@@ -262,6 +320,45 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
         settled: damage('statuses.settled'),
       };
       break;
+    case 'merchants/merchants':
+      valueLabels.approval = {
+        pending: t('merchants.approval.pending'),
+        approved: t('merchants.approval.approved'),
+        rejected: t('merchants.approval.rejected'),
+      };
+      valueLabels.state = {
+        active: t('merchants.state.active'),
+        paused: t('merchants.state.paused'),
+      };
+      valueLabels.schedule = Object.fromEntries(
+        ['daily', 'twice_weekly', 'weekly'].map((k) => [k, schedules(k)]),
+      );
+      break;
+    case 'merchants/products':
+      valueLabels.state = {
+        active: t('products.state.active'),
+        inactive: t('products.state.inactive'),
+      };
+      valueLabels.shopify = {
+        linked: t('products.shopify.linked'),
+        not_linked: t('products.shopify.not_linked'),
+      };
+      break;
+    case 'customers/customers':
+      valueLabels.segment = Object.fromEntries(
+        Object.keys(meta.filters)
+          .filter((k) => meta.filters[k] === 'segment')
+          .map((s) => [s, segments(s)]),
+      );
+      valueLabels.risk = Object.fromEntries(
+        ['high', 'medium', 'low', 'unknown'].map((r) => [r, risks(r)]),
+      );
+      // Districts show in the reader's language (rows carry the English name).
+      if (locale === 'ar')
+        valueLabels.district = Object.fromEntries(
+          (options.district ?? []).map((o) => [o.label, o.labelAr ?? o.label]),
+        );
+      break;
   }
 
   const bulk: BulkAction[] = [];
@@ -290,6 +387,22 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
       label: t('bulk.approveCounts'),
       endpoint: '/admin/stock-counts/bulk-approve',
     });
+  if (key === 'merchants/merchants' && canDo(profile, 'merchants', 'use')) {
+    if (canDo(profile, 'merchants', 'manage'))
+      bulk.push({
+        key: 'approve',
+        label: t('bulk.approveSignups'),
+        endpoint: '/admin/merchants/bulk-approve',
+      });
+    bulk.push(
+      { key: 'pause', label: t('bulk.pauseMerchants'), endpoint: '/admin/merchants/bulk-pause' },
+      {
+        key: 'activate',
+        label: t('bulk.activateMerchants'),
+        endpoint: '/admin/merchants/bulk-activate',
+      },
+    );
+  }
 
   return {
     listId: `${app}_${id}`,
@@ -306,7 +419,11 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
           ? statusName(k)
           : group === 'cause'
             ? damage(`causes.${k}`)
-            : label('filters', k),
+            : group === 'segment'
+              ? segments(k)
+              : group === 'risk'
+                ? risks(k.replace(/^risk_/, ''))
+                : label('filters', k),
     })),
     values: Object.entries(meta.values ?? {}).map(([k, kind]) => ({
       key: k,

@@ -1,40 +1,43 @@
+import { canDo } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
-import { ProductsManager } from '@/components/admin/ProductsManager';
-import type { AdminSku } from '@/lib/admin-types';
-import { apiGet } from '@/lib/api-server';
+import { redirect } from 'next/navigation';
+import { ProductsToolbar } from '@/components/admin/ProductsManager';
+import { AppListPage } from '@/components/odoo/AppListPage';
+import { apiGet, getMyProfile } from '@/lib/api-server';
+import { legacyListAddress } from '@/lib/legacy-list';
 
 export const dynamic = 'force-dynamic';
 
+/**
+ * The merchants' products as a list (UX phase C step 3): search by SKU, barcode or title,
+ * filters (active, linked to Shopify, in stock, no barcode), the merchant value, grouping and
+ * unit totals; each opens the product's page. New product and the product file import stay
+ * above the list.
+ */
 export default async function AdminProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ merchant?: string; q?: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const filters = await searchParams;
-  const [skus, merchants, t] = await Promise.all([
-    apiGet<AdminSku[]>('/admin/skus'),
-    apiGet<{ id: string; name: string; isActive: boolean }[]>('/admin/merchants'),
+  const [params, profile, t, tl] = await Promise.all([
+    searchParams,
+    getMyProfile(),
     getTranslations('admin.products'),
+    getTranslations('appLists.products'),
   ]);
-  const q = filters.q?.trim().toLowerCase();
-  const shown = skus.filter(
-    (s) =>
-      (!filters.merchant || s.merchant.id === filters.merchant) &&
-      (!q ||
-        s.sku.toLowerCase().includes(q) ||
-        (s.barcode ?? '').toLowerCase().includes(q) ||
-        s.titleEn.toLowerCase().includes(q) ||
-        s.titleAr.includes(filters.q!.trim())),
-  );
+  const legacy = legacyListAddress('/admin/products', params, { merchant: { value: 'merchant' } });
+  if (legacy) redirect(legacy);
+  const canEdit = canDo(profile, 'merchants', 'use');
+  const merchants = canEdit
+    ? await apiGet<{ id: string; name: string; isActive: boolean }[]>('/admin/merchants')
+    : [];
   return (
-    <>
-      <h1 className="text-h2">{t('title')}</h1>
-      <ProductsManager
-        key={`${filters.merchant ?? ''}|${filters.q ?? ''}`}
-        skus={shown}
-        merchants={merchants}
-        filters={{ merchant: filters.merchant ?? '', q: filters.q ?? '' }}
-      />
-    </>
+    <AppListPage
+      list="merchants/products"
+      searchParams={params}
+      title={t('title')}
+      intro={tl('intro')}
+      toolbar={canEdit ? <ProductsToolbar merchants={merchants} /> : undefined}
+    />
   );
 }

@@ -1,7 +1,6 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type FormEvent, useState } from 'react';
 import { apiSend } from '@/lib/api-client';
@@ -21,6 +20,12 @@ export interface AdminMerchant {
   accountManager: { id: string; name: string } | null;
 }
 
+/** What the merchant's actions need to know. */
+export type MerchantBasics = Pick<
+  AdminMerchant,
+  'id' | 'name' | 'contactEmail' | 'contactPhone' | 'isActive' | 'approval' | 'accountManager'
+>;
+
 export interface AccountManagerOption {
   id: string;
   name: string;
@@ -33,7 +38,7 @@ function AccountManagerPicker({
   managers,
   canAssign,
 }: {
-  merchant: AdminMerchant;
+  merchant: MerchantBasics;
   managers: AccountManagerOption[];
   canAssign: boolean;
 }) {
@@ -102,7 +107,7 @@ function MerchantForm({
   busy,
   error,
 }: {
-  initial?: AdminMerchant;
+  initial?: MerchantBasics;
   submitLabel: string;
   onSubmit(body: Record<string, unknown>): void;
   onCancel(): void;
@@ -172,18 +177,64 @@ function MerchantForm({
   );
 }
 
-export function MerchantsManager({
-  merchants,
-  managers = [],
-  canAssign = false,
-}: {
-  merchants: AdminMerchant[];
-  managers?: AccountManagerOption[];
-  canAssign?: boolean;
-}) {
+/** The merchants list's button: a new merchant (approved at once, as before). */
+export function NewMerchantButton() {
   const t = useTranslations('admin.merchants');
   const router = useRouter();
-  const [mode, setMode] = useState<string | null>(null);
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  async function create(body: Record<string, unknown>) {
+    setBusy(true);
+    setError(null);
+    const result = await apiSend<{ id: string }>('POST', '/admin/merchants', body);
+    setBusy(false);
+    if (!result.ok)
+      return setError(
+        t(`errors.${result.error === 'validation_failed' ? 'validation_failed' : 'generic'}`),
+      );
+    setOpen(false);
+    router.push(`/admin/merchants/${result.data.id}`);
+  }
+  return open ? (
+    <div className="w-full">
+      <MerchantForm
+        submitLabel={t('create')}
+        busy={busy}
+        error={error}
+        onSubmit={(body) => void create(body)}
+        onCancel={() => setOpen(false)}
+      />
+    </div>
+  ) : (
+    <button type="button" className={primary} onClick={() => setOpen(true)}>
+      {t('new')}
+    </button>
+  );
+}
+
+/**
+ * The merchant page's actions: approve or reject a sign up (merchants manage), edit the
+ * contact details, pause or resume (merchants use), and pick the account manager.
+ */
+export function MerchantActions({
+  merchant,
+  managers,
+  canAssign,
+  canEdit,
+  canDecide,
+}: {
+  merchant: MerchantBasics;
+  managers: AccountManagerOption[];
+  canAssign: boolean;
+  canEdit: boolean;
+  canDecide: boolean;
+}) {
+  const t = useTranslations('admin.merchants');
+  const ts = useTranslations('admin.merchants.signups');
+  const router = useRouter();
+  const [mode, setMode] = useState<'edit' | 'reject' | null>(null);
+  const [reason, setReason] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -197,94 +248,94 @@ export function MerchantsManager({
         t(`errors.${result.error === 'validation_failed' ? 'validation_failed' : 'generic'}`),
       );
     setMode(null);
+    setReason('');
     router.refresh();
   }
 
+  const pending = merchant.approval === 'pending';
   return (
-    <div className="mt-4 space-y-4">
-      {mode === 'new' ? (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        {pending && canDecide && (
+          <>
+            <button
+              type="button"
+              disabled={busy}
+              className={primary}
+              onClick={() => void send('POST', `/admin/merchants/${merchant.id}/approve`, {})}
+            >
+              {ts('approve')}
+            </button>
+            <button
+              type="button"
+              className={`${secondary} text-danger`}
+              onClick={() => setMode(mode === 'reject' ? null : 'reject')}
+            >
+              {ts('reject')}
+            </button>
+          </>
+        )}
+        {canEdit && (
+          <button
+            type="button"
+            className={secondary}
+            aria-expanded={mode === 'edit'}
+            onClick={() => setMode(mode === 'edit' ? null : 'edit')}
+          >
+            {t('edit')}
+          </button>
+        )}
+        {canEdit && merchant.approval === 'approved' && (
+          <button
+            type="button"
+            disabled={busy}
+            className={secondary}
+            onClick={() =>
+              void send('PATCH', `/admin/merchants/${merchant.id}`, {
+                isActive: !merchant.isActive,
+              })
+            }
+          >
+            {merchant.isActive ? t('pause') : t('resume')}
+          </button>
+        )}
+      </div>
+      {mode === 'reject' && (
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder={ts('reason')}
+            aria-label={ts('reason')}
+            maxLength={300}
+            className="h-10 min-w-56 flex-1 rounded-md border border-line bg-surface px-3 text-body-sm"
+          />
+          <button
+            type="button"
+            disabled={busy || reason.trim().length < 2}
+            onClick={() => void send('POST', `/admin/merchants/${merchant.id}/reject`, { reason })}
+            className={`${secondary} border-danger text-danger`}
+          >
+            {ts('confirmReject')}
+          </button>
+        </div>
+      )}
+      {mode === 'edit' && (
         <MerchantForm
-          submitLabel={t('create')}
+          initial={merchant}
+          submitLabel={t('save')}
           busy={busy}
           error={error}
-          onSubmit={(body) => void send('POST', '/admin/merchants', body)}
+          onSubmit={(body) => void send('PATCH', `/admin/merchants/${merchant.id}`, body)}
           onCancel={() => setMode(null)}
         />
-      ) : (
-        <button type="button" className={primary} onClick={() => setMode('new')}>
-          {t('new')}
-        </button>
       )}
-      <ul className="space-y-3">
-        {merchants.map((m) => (
-          <li key={m.id} className="rounded-lg border border-line bg-surface p-4 shadow-sm">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-h3">{m.name}</p>
-                <p className="ltr-iso text-caption text-text-muted">
-                  {[m.contactEmail, m.contactPhone].filter(Boolean).join(' · ')}
-                </p>
-                <p className="mt-1 flex flex-wrap gap-x-4 text-body-sm">
-                  <Link className="font-bold text-link" href={`/admin/products?merchant=${m.id}`}>
-                    {t('products')} (<span className="ltr-iso">{m.skuCount}</span>)
-                  </Link>
-                  <Link
-                    className="font-bold text-link"
-                    href={`/admin/shipments?f=&v=merchant:${m.id}`}
-                  >
-                    {t('shipments')} (<span className="ltr-iso">{m.shipmentCount}</span>)
-                  </Link>
-                  <Link className="font-bold text-link" href={`/admin/merchants/${m.id}`}>
-                    {t('open')}
-                  </Link>
-                  {m.shopifyShopDomain && (
-                    <span className="ltr-iso text-text-muted">
-                      {t('shopify')}: {m.shopifyShopDomain}
-                    </span>
-                  )}
-                </p>
-                <AccountManagerPicker merchant={m} managers={managers} canAssign={canAssign} />
-              </div>
-              <div className="flex items-center gap-2">
-                <span
-                  className={`rounded-pill border px-2.5 py-0.5 text-caption ${m.isActive ? 'border-line' : 'border-danger text-danger'}`}
-                >
-                  {m.isActive ? t('active') : t('inactive')}
-                </span>
-                <button
-                  type="button"
-                  className={secondary}
-                  onClick={() => setMode(mode === m.id ? null : m.id)}
-                >
-                  {t('edit')}
-                </button>
-                <button
-                  type="button"
-                  disabled={busy}
-                  className={secondary}
-                  onClick={() =>
-                    void send('PATCH', `/admin/merchants/${m.id}`, { isActive: !m.isActive })
-                  }
-                >
-                  {m.isActive ? t('pause') : t('resume')}
-                </button>
-              </div>
-            </div>
-            {mode === m.id && (
-              <div className="mt-3">
-                <MerchantForm
-                  initial={m}
-                  submitLabel={t('save')}
-                  busy={busy}
-                  error={error}
-                  onSubmit={(body) => void send('PATCH', `/admin/merchants/${m.id}`, body)}
-                  onCancel={() => setMode(null)}
-                />
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+      {error && mode !== 'edit' && (
+        <p role="alert" className="text-body-sm text-danger">
+          {error}
+        </p>
+      )}
+      <AccountManagerPicker merchant={merchant} managers={managers} canAssign={canAssign} />
     </div>
   );
 }

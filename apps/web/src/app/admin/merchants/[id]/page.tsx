@@ -1,16 +1,17 @@
-import { cairoDay, canDo } from '@shiplynow/shared';
+import { cairoDay, canDo, type DocSmartButton } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
+import { type AccountManagerOption, MerchantActions } from '@/components/admin/MerchantsManager';
 import { Readiness, type ShopifyOverview } from '@/components/admin/ShopifyManager';
 import { ContractTab } from '@/components/contracts/ContractTab';
 import { Amount } from '@/components/finance/Amount';
 import { type MerchantProfitDetail, ProfitSummaryCard } from '@/components/finance/MerchantProfit';
 import { TabLinks } from '@/components/hr/HrPage';
-import { BackLink } from '@/components/store/BackLink';
+import { DocumentFrame } from '@/components/odoo/DocumentFrame';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { ContractView } from '@/lib/contracts';
-import { formatCairoDateTime } from '@/lib/format';
+import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { merchantTabs, type MerchantTab, pickMerchantTab } from '@/lib/merchant-page';
 
 export const dynamic = 'force-dynamic';
@@ -65,6 +66,12 @@ interface MerchantOverview {
   }[];
 }
 
+interface MerchantDoc {
+  smart: DocSmartButton[];
+  contract: string | null;
+  balancePiastres: number | null;
+}
+
 const card = 'rounded-lg border border-line bg-surface p-4 shadow-sm';
 
 function Stat({ label, children }: { label: string; children: React.ReactNode }) {
@@ -80,7 +87,9 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
  * One merchant (Merchants app): tabs kept in the address (?tab=) for the overview, the
  * contract (every price, tier, payment term and promise, with versions, files and the printed
  * copy), Shopify readiness, products and stock, the merchant's team, profit (Accounting) and
- * history.
+ * the contract's history. Since UX phase C step 3 it sits in the document frame: breadcrumbs
+ * back to the filtered list, previous and next merchant, the sign up or active status, the
+ * actions (approve, edit, pause, account manager), smart buttons and the chatter.
  */
 export default async function AdminMerchantPage({
   params,
@@ -91,10 +100,12 @@ export default async function AdminMerchantPage({
 }) {
   const { id } = await params;
   const { tab: asked, version } = await searchParams;
-  const [overview, profile, t, locale] = await Promise.all([
+  const [overview, doc, profile, t, ta, locale] = await Promise.all([
     apiGet<MerchantOverview>(`/admin/merchants/${id}/overview`),
+    apiGet<MerchantDoc>(`/admin/merchants/${id}/document`),
     getMyProfile(),
     getTranslations('admin.merchantPage'),
+    getTranslations('apps'),
     getLocale(),
   ]);
   const canProfit = canDo(profile, 'accounting', 'view');
@@ -107,19 +118,51 @@ export default async function AdminMerchantPage({
       ? await apiGet<ContractView>(`/admin/merchants/${id}/contract`)
       : null;
   const month = today.slice(0, 7);
+  const canAssign = canDo(profile, 'merchants', 'manage') && !profile?.ownMerchantsOnly;
+  const managers = canAssign ? await apiGet<AccountManagerOption[]>('/admin/account-managers') : [];
+  // The wallet shows next to the contract, in pounds (Accounting only).
+  const smart: DocSmartButton[] = doc.smart.flatMap((b) =>
+    b.key === 'contract' && doc.balancePiastres !== null
+      ? [
+          b,
+          {
+            key: 'wallet',
+            count: null,
+            value: formatEgp(doc.balancePiastres),
+            href: `/finance/merchants/${id}`,
+          },
+        ]
+      : [b],
+  );
+  const status = m.approval === 'approved' ? (m.isActive ? 'active' : 'paused') : m.approval;
 
   return (
-    <>
-      <BackLink href="/admin/merchants" />
-      <header className="mt-2 flex flex-wrap items-end justify-between gap-2">
-        <div className="min-w-0">
-          <h1 className="break-words text-h2">{m.name}</h1>
-          <p className="text-body-sm text-text-muted">
-            {m.isActive ? t('active') : t('paused')} · {t(`approval.${m.approval}`)}
-            {m.legalName && ` · ${m.legalName}`}
-          </p>
-        </div>
-      </header>
+    <DocumentFrame
+      root={{ label: ta('names.merchants'), href: '/admin/merchants' }}
+      list={{ label: ta('pages.merchants'), href: '/admin/merchants' }}
+      id={m.id}
+      number={m.name}
+      numberLtr={false}
+      title={m.legalName ?? undefined}
+      status={status}
+      statusLabel={status}
+      flow="merchant"
+      actions={
+        canDo(profile, 'merchants', 'use') || canAssign ? (
+          <MerchantActions
+            merchant={m}
+            managers={managers}
+            canAssign={canAssign}
+            canEdit={canDo(profile, 'merchants', 'use')}
+            canDecide={canDo(profile, 'merchants', 'manage')}
+          />
+        ) : undefined
+      }
+      smart={smart}
+      entityType="merchant"
+      canWrite={canDo(profile, 'merchants', 'use')}
+      asideFrom="xl"
+    >
       <TabLinks
         tabs={tabs}
         current={tab}
@@ -239,7 +282,7 @@ export default async function AdminMerchantPage({
               </ul>
             )}
             <p className="mt-3 flex flex-wrap gap-3 text-body-sm font-bold">
-              <Link className="text-link" href={`/admin/products?merchant=${id}`}>
+              <Link className="text-link" href={`/admin/products?f=&v=merchant:${id}`}>
                 {t('products.openProducts')}
               </Link>
               <Link className="text-link" href={`/admin/shipments?f=&v=merchant:${id}`}>
@@ -283,12 +326,12 @@ export default async function AdminMerchantPage({
 
         {tab === 'history' && (
           <>
+            <p className="text-body-sm text-text-muted">{t('historyHint')}</p>
             <RecordHistory entityType="merchant_contract" entityId={id} />
-            <RecordHistory entityType="merchant" entityId={id} />
           </>
         )}
       </div>
-    </>
+    </DocumentFrame>
   );
 }
 
