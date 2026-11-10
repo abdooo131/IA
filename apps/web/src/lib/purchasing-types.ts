@@ -1,7 +1,7 @@
 // Emails to merchants, packaging stock and purchase orders, as the API answers them.
 
 export type EmailStatus = 'pending' | 'sent' | 'failed';
-export type EmailKind = 'statement' | 'payout_paid' | 'invoice';
+export type EmailKind = 'statement' | 'payout_paid' | 'invoice' | 'payment_reminder';
 
 export interface EmailRow {
   id: string;

@@ -98,6 +98,12 @@ export async function ReturnsTab({
             <tbody>
               <Box label={t('sales')} value={vat.salesPiastres} />
               <Box label={t('outputVat')} value={vat.outputVatPiastres} />
+              {(vat.debitNotesPiastres ?? 0) !== 0 && (
+                <>
+                  <Box label={t('debitNotes')} value={vat.debitNotesPiastres ?? 0} />
+                  <Box label={t('debitNoteVat')} value={vat.debitNoteVatPiastres ?? 0} />
+                </>
+              )}
               <Box label={t('creditNotes')} value={-vat.creditNotesPiastres} />
               <Box label={t('creditNoteVat')} value={-vat.creditNoteVatPiastres} />
               <Box label={t('purchases')} value={vat.purchasesPiastres} />

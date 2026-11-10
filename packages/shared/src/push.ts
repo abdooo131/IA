@@ -247,6 +247,10 @@ export const PUSH_TEXT = {
     en: ['Payout {number} paid', '{amount} EGP was sent to your bank account.'],
     ar: ['تم دفع {number}', 'تم تحويل {amount} جنيه إلى حسابك البنكي.'],
   },
+  merchant_payment_reminder: {
+    en: ['Payment reminder', 'You owe Shiply Now {amount} EGP. Please transfer it.'],
+    ar: ['تذكير بالدفع', 'عليك {amount} جنيه لشيبلي ناو. من فضلك حوّلها.'],
+  },
   merchant_low_stock: {
     en: ['Low stock: {product}', '{available} left to sell at {store}.'],
     ar: ['مخزون منخفض: {product}', 'متبقي {available} للبيع في {store}.'],

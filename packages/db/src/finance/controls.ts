@@ -32,6 +32,7 @@ import {
   type TaxPaymentInput,
 } from './payables';
 import { type CreditNoteInput, issueCreditNote } from './invoices';
+import { type DebitNoteInput, issueDebitNote } from './debit-notes';
 import { postApprovedPettyCash } from './cash-control';
 import { type DisposalInput, disposeAsset } from './tools';
 import {
@@ -150,6 +151,8 @@ export type RequestPayload =
   | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
   | { kind: 'staff_bonus'; input: Stored<BonusInput> }
   | { kind: 'credit_note'; input: Stored<CreditNoteInput> }
+  /** Charges a merchant more after an invoice (raises what they owe us) */
+  | { kind: 'debit_note'; input: Stored<DebitNoteInput> }
   | { kind: 'asset_disposal'; input: Stored<DisposalInput> & { amountPiastres: number } }
   | { kind: 'bill_payment'; input: Stored<BillPaymentInput> }
   | { kind: 'tax_payment'; input: Stored<TaxPaymentInput> }
@@ -188,6 +191,7 @@ export type RequestPayload =
  */
 const ALWAYS_REVIEWED = new Set([
   'credit_note',
+  'debit_note',
   'asset_disposal',
   'capital_in',
   'other_income',
@@ -327,6 +331,8 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return payStaffBonus(db, { ...p.input, actorUserId });
     case 'credit_note':
       return issueCreditNote(db, { ...p.input, actorUserId });
+    case 'debit_note':
+      return issueDebitNote(db, { ...p.input, actorUserId });
     case 'asset_disposal':
       return disposeAsset(db, { ...p.input, actorUserId });
     case 'payroll':

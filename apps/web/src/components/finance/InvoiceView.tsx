@@ -25,7 +25,11 @@ export async function InvoiceView({ invoice }: { invoice: InvoiceDetail }) {
         </div>
         <div className="text-end">
           <p className="text-h2">
-            {invoice.type === 'invoice' ? t('taxInvoice') : t('creditNote')}
+            {invoice.type === 'invoice'
+              ? t('taxInvoice')
+              : invoice.type === 'debit_note'
+                ? t('debitNote')
+                : t('creditNote')}
           </p>
           <p className="ltr-iso text-h3">{invoice.label}</p>
           <p>{formatCairoDateTime(invoice.issuedAt, locale)}</p>

@@ -27,6 +27,7 @@ export const DOC_PREFIXES = {
   BILL: 'bill',
   INV: 'invoice',
   CN: 'credit_note',
+  DN: 'debit_note',
   PO: 'purchase_order',
   CHQ: 'cheque',
   PC: 'petty_cash',

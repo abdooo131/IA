@@ -181,7 +181,11 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
       );
       break;
     case 'invoices':
-      valueLabels.type = { invoice: ti('taxInvoice'), credit_note: ti('creditNote') };
+      valueLabels.type = {
+        invoice: ti('taxInvoice'),
+        credit_note: ti('creditNote'),
+        debit_note: ti('debitNote'),
+      };
       valueLabels.eta = states(['not_sent', 'signed', 'submitted', 'valid', 'invalid', 'rejected']);
       break;
   }

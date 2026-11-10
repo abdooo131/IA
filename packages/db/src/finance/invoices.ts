@@ -87,8 +87,8 @@ async function optionalKindsUsed(db: Db): Promise<Record<string, boolean>> {
   };
 }
 
-export const invoiceLabel = (type: 'invoice' | 'credit_note', n: number) =>
-  `${type === 'invoice' ? 'INV' : 'CN'}-${String(n).padStart(6, '0')}`;
+export const invoiceLabel = (type: 'invoice' | 'credit_note' | 'debit_note', n: number) =>
+  `${type === 'invoice' ? 'INV' : type === 'debit_note' ? 'DN' : 'CN'}-${String(n).padStart(6, '0')}`;
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -207,7 +207,7 @@ export async function updateMerchantTax(
 
 // ─── invoices ──────────────────────────────────────────────────────────────────
 
-async function nextDocumentNumber(tx: Tx, type: 'invoice' | 'credit_note') {
+export async function nextDocumentNumber(tx: Tx, type: 'invoice' | 'credit_note' | 'debit_note') {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'tax_invoices:' + type}))`;
   const last = await tx.taxInvoice.findFirst({
     where: { type },
@@ -319,7 +319,7 @@ export async function prepareInvoices(
 /** What credit notes already took back from an invoice (fees and VAT). */
 async function creditedSoFar(tx: Tx | Db, invoiceId: string) {
   const sum = await tx.taxInvoice.aggregate({
-    where: { originalId: invoiceId },
+    where: { originalId: invoiceId, type: 'credit_note' },
     _sum: { netPiastres: true, vatPiastres: true },
   });
   return { net: sum._sum.netPiastres ?? 0, vat: sum._sum.vatPiastres ?? 0 };
@@ -508,11 +508,21 @@ export async function getInvoice(db: Db, id: string) {
         .join(', '),
     },
     lines: r.lines,
-    creditNotes: r.creditNotes.map((c) => ({
-      id: c.id,
-      label: invoiceLabel(c.type, c.number),
-      totalPiastres: c.totalPiastres,
-    })),
+    creditNotes: r.creditNotes
+      .filter((c) => c.type === 'credit_note')
+      .map((c) => ({
+        id: c.id,
+        label: invoiceLabel(c.type, c.number),
+        totalPiastres: c.totalPiastres,
+      })),
+    // Debit notes hang off the invoice the same way (original_id).
+    debitNotes: r.creditNotes
+      .filter((c) => c.type === 'debit_note')
+      .map((c) => ({
+        id: c.id,
+        label: invoiceLabel(c.type, c.number),
+        totalPiastres: c.totalPiastres,
+      })),
     company: await companyProfile(db),
   };
 }
@@ -553,12 +563,13 @@ async function buildDocument(db: Db | Tx, id: string) {
   const codes = p.itemCodes as Record<string, string>;
   const m = r.merchant;
   const company = Boolean(m.taxRegistrationNumber);
-  if (r.type === 'credit_note' && !r.original?.etaUuid) return { blocked: 'original_not_sent' };
+  const note = r.type === 'credit_note' || r.type === 'debit_note';
+  if (note && !r.original?.etaUuid) return { blocked: 'original_not_sent' };
   if (company && !(m.taxGovernorate && m.taxRegionCity && m.taxStreet && m.taxBuildingNumber))
     return { blocked: 'merchant_address_missing' };
   const vatRate = (await getSetting(db as Db, 'fee.vat_bp')) / 100;
   const doc = etaDocument({
-    type: r.type === 'invoice' ? 'I' : 'C',
+    type: r.type === 'invoice' ? 'I' : r.type === 'debit_note' ? 'D' : 'C',
     issuer: {
       type: 'B',
       id: p.taxRegistrationNumber,
@@ -581,7 +592,7 @@ async function buildDocument(db: Db | Tx, id: string) {
     issuedAt: r.issuedAt,
     activityCode: p.activityCode,
     internalId: invoiceLabel(r.type, r.number),
-    references: r.type === 'credit_note' ? [r.original!.etaUuid!] : undefined,
+    references: note ? [r.original!.etaUuid!] : undefined,
     lines: r.lines.map((l) => ({
       description: l.descriptionAr || l.descriptionEn,
       itemCode: codes[l.kind] ?? codes.adjustment ?? '',

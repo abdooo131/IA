@@ -191,6 +191,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/money-flow', label: 'cashFlow' },
           { href: '/finance/profit', label: 'profitPerStore' },
           { href: '/finance/merchant-profit', label: 'merchantProfit' },
+          { href: '/finance/payables-aging', label: 'payablesAging' },
           { href: '/finance/budgets', label: 'budgets' },
           { href: '/finance/statements', label: 'comparePeriods' },
           { href: '/finance/trial', label: 'trial' },

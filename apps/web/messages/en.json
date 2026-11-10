@@ -535,7 +535,12 @@
         "rider__penalty_day_piastres": "A day of rider pay for penalties (EGP)",
         "fee__shipping_fee_piastres": "Shipping fee per delivered order (EGP)",
         "fee__packaging_charge_piastres": "Packaging charge per delivered order (EGP, 0: our cost)",
-        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)"
+        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)",
+        "receivables__reminders_enabled": "Automatic payment reminders to merchants who owe us (1 on, 0 off)",
+        "receivables__reminder_first_days": "First payment reminder after this many days in debit",
+        "receivables__reminder_every_days": "Then a payment reminder every (days)",
+        "receivables__reminder_max": "Most payment reminders per debit period (hand sent ones count)",
+        "receivables__reminder_hour": "Payment reminders go out from this Cairo hour"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -1434,7 +1439,8 @@
       "openDamage": "See damage reports",
       "account_approved": "Welcome to Shiply Now, your account is open",
       "payment_requested": "Your balance with us is EGP {amount} owed to Shiply Now. Please transfer it.",
-      "openWallet": "Open your wallet"
+      "openWallet": "Open your wallet",
+      "payment_reminder": "Payment reminder: you owe Shiply Now EGP {amount}. Please transfer it."
     },
     "orders": {
       "title": "Orders",
@@ -2018,7 +2024,8 @@
       "rider_withdrawal": "Rider withdrawal",
       "shipping_fee": "Shipping fee",
       "product_handling": "Per product fee",
-      "packaging_charge": "Packaging charge"
+      "packaging_charge": "Packaging charge",
+      "debit_note": "Debit note"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -2351,7 +2358,12 @@
         "withdrawal_not_requested": "This request can no longer be changed.",
         "withdrawal_not_open": "This request is already closed.",
         "own_withdrawal": "You cannot decide your own withdrawal.",
-        "withdrawal_not_found": "Withdrawal not found."
+        "withdrawal_not_found": "Withdrawal not found.",
+        "invalid_fee_kind": "Choose a fee for every line.",
+        "invalid_lines": "Add between 1 and 20 lines.",
+        "invalid_quantity": "Enter a quantity of at least 1.",
+        "merchant_not_allowed": "This merchant is not one of yours.",
+        "store_not_allowed": "This store is not one of yours."
       }
     },
     "riders": {
@@ -2518,7 +2530,8 @@
         "cheque_in": "Cheque received",
         "cheque_out": "Cheque issued",
         "deposit_in": "Security deposit received",
-        "deposit_out": "Security deposit paid back"
+        "deposit_out": "Security deposit paid back",
+        "debit_note": "Debit note to a merchant"
       },
       "statuses": {
         "pending": "Waiting",
@@ -3021,7 +3034,8 @@
       },
       "merchantTitle": "Invoices",
       "merchantIntro": "Our tax invoices to you for the month's fees, and credit notes when fees were given back. Open one to print it or save it as PDF.",
-      "payoutBank": "Bank account for payouts"
+      "payoutBank": "Bank account for payouts",
+      "debitNote": "Debit note"
     },
     "returns": {
       "title": "Tax returns",
@@ -3083,7 +3097,9 @@
       "totalAssets": "Total assets",
       "liabilities": "Liabilities",
       "equity": "Equity",
-      "earnings": "Profit not yet closed into equity"
+      "earnings": "Profit not yet closed into equity",
+      "debitNotes": "of which debit notes",
+      "debitNoteVat": "of which VAT on debit notes"
     },
     "bankDetails": {
       "title": "Bank account for payouts",
@@ -3381,9 +3397,9 @@
           "name": "Merchant profit"
         },
         "receivables": {
-          "question": "Who owes us money?",
-          "text": "Merchants whose balance turned against them, since when, and asking them to pay.",
-          "name": "What merchants owe"
+          "question": "Who owes us money, and for how long?",
+          "text": "Merchants in debit and cheques not collected yet, by age (not yet due, 1 to 30, 31 to 60, 61 to 90, over 90 days), with the reminders sent.",
+          "name": "Receivables aging"
         },
         "budgets": {
           "question": "Are we spending what we planned?",
@@ -3409,6 +3425,11 @@
           "question": "What moved, line by line?",
           "text": "Every entry with its lines; exports for Odoo, Zoho Books, QuickBooks or Daftra.",
           "name": "Journal"
+        },
+        "payablesAging": {
+          "question": "What do we owe suppliers, and how late is it?",
+          "text": "Open supplier bills by how late they are against their due day, per supplier and bill.",
+          "name": "Payables aging"
         }
       }
     },
@@ -3752,6 +3773,97 @@
         "future_day": "The day cannot be in the future.",
         "note": "Write what it was for (at least 3 characters)."
       }
+    },
+    "aging": {
+      "receivablesTitle": "Who owes us, by age",
+      "receivablesIntro": "Merchants whose fees and charges are more than the cash we collected for them, and cheques we have not collected yet, split by how long each amount has been owed.",
+      "receivablesMethod": "Merchants have no due dates, so each fee or charge counts from the day it was booked. The cash we collect for a merchant and their payments pay their oldest amounts first (first in, first out); what is left is aged from the day it was booked. An amount booked on the chosen day is \"Not yet due\". Cheques count from the day they may be cashed. Rider cash, rider dues and staff advances are taken back from handovers, withdrawals and salaries, so they are not listed here.",
+      "payablesTitle": "What we owe suppliers, by age",
+      "payablesIntro": "Supplier bills not fully paid, split by how late each one is against its due day. Open a supplier to see its bills.",
+      "payablesMethod": "Each bill counts from its due day with what was still unpaid at the end of the chosen day: payments and cancellations after that day are not taken off. A bill in another currency shows its EGP value at the bill's rate.",
+      "howCounted": "How is this counted?",
+      "asOf": "As of",
+      "search": "Search",
+      "searchMerchants": "Merchant or cheque",
+      "searchSuppliers": "Supplier or bill",
+      "store": "Store",
+      "allStores": "All stores",
+      "apply": "Show",
+      "export": "Export",
+      "pdfEn": "PDF in English",
+      "pdfAr": "PDF in Arabic",
+      "csv": "CSV",
+      "xlsx": "Excel",
+      "bands": {
+        "current": "Not yet due",
+        "d1_30": "1 to 30 days",
+        "d31_60": "31 to 60 days",
+        "d61_90": "61 to 90 days",
+        "over_90": "Over 90 days"
+      },
+      "files": {
+        "receivables": "who-owes-us",
+        "payables": "owed-to-suppliers"
+      },
+      "section": "Section",
+      "name": "Name",
+      "merchant": "Merchant",
+      "supplier": "Supplier",
+      "total": "Total",
+      "grandTotal": "Everything owed to us",
+      "owedTotal": "Owed to us:",
+      "oweTotal": "We owe suppliers:",
+      "oldest": "Oldest unpaid day",
+      "oldestIs": "Oldest unpaid: {day} ({days} days)",
+      "merchantsTitle": "Merchants who owe us",
+      "chequesTitle": "Cheques waiting to be collected",
+      "chequesHint": "Cheques given to us and not cleared yet, by the day they may be cashed.",
+      "cheque": "Cheque",
+      "dueDay": "Due day",
+      "billDay": "Bill day",
+      "daysLate": "Days late",
+      "bill": "Bill",
+      "reference": "Supplier reference",
+      "billsCount": "{count, plural, one {# bill} other {# bills}}",
+      "billLine": "{reference} · due {due} · {days} days late",
+      "nobody": "No merchant owes us anything on this day.",
+      "noBills": "Nothing owed to suppliers on this day.",
+      "reminders": "Reminders",
+      "remindersSent": "Reminders sent",
+      "noReminders": "None yet",
+      "remindersCount": "{count} sent, last {date}",
+      "remindersRule": "Automatic reminders (notification, email and push): the first after {first} days in debit, then every {every} days, at most {max} while the merchant still owes us. Send reminder now goes at once, even past the most, and counts toward it.",
+      "remindersOff": "Automatic payment reminders are switched off (Accounting, Configuration). Send reminder now still works.",
+      "sendReminder": "Send reminder now",
+      "reminderSent": "Reminder {number} sent."
+    },
+    "debitNotes": {
+      "title": "New debit note",
+      "hint": "Charges the merchant more after this invoice: a fee that was missed or a correction. One line per fee, before VAT. It raises what the merchant owes us, so a second person approves it.",
+      "list": "Debit notes",
+      "kind": "Fee",
+      "kinds": {
+        "shipping_fee": "Shipping fee",
+        "product_handling": "Per product handling fee",
+        "order_fee": "Delivery service fee",
+        "cod_fee": "Cash on delivery handling fee",
+        "failed_fee": "Failed delivery fee",
+        "receiving_fee": "Receiving fee",
+        "storage_fee": "Storage fee",
+        "return_fee": "Return to merchant fee",
+        "packaging_charge": "Packaging charge",
+        "minimum_fee": "Monthly minimum fee top up",
+        "adjustment": "Fee adjustment"
+      },
+      "quantity": "Quantity",
+      "amountBeforeVat": "Amount before VAT (EGP)",
+      "addLine": "Add a line",
+      "removeLine": "Remove",
+      "reason": "Reason (shown on the debit note)",
+      "store": "Store",
+      "companyWide": "No store (company wide)",
+      "vatHint": "VAT is added at the fee VAT rate of Accounting, Configuration.",
+      "issue": "Issue debit note"
     }
   },
   "storeCash": {
@@ -5950,7 +6062,8 @@
       "monthEndChecklist": "Month end checklist",
       "payMerchants": "Pay merchants",
       "recordExpense": "Record an expense",
-      "closeMonthRun": "Close the month"
+      "closeMonthRun": "Close the month",
+      "payablesAging": "Owed to suppliers, by age"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -7562,7 +7675,8 @@
       "kinds": {
         "statement": "Statement",
         "payout_paid": "Payout sent",
-        "invoice": "Tax invoice"
+        "invoice": "Tax invoice",
+        "payment_reminder": "Payment reminder"
       }
     },
     "emailSettings": {
@@ -7575,7 +7689,8 @@
       "kinds": {
         "statement": "The statement after each payout (with the CSV file)",
         "payout_paid": "A notice when a payout is sent",
-        "invoice": "The monthly tax invoice"
+        "invoice": "The monthly tax invoice",
+        "payment_reminder": "A reminder when you owe us money"
       },
       "saved": "Saved.",
       "failed": "It could not be saved.",
@@ -9933,7 +10048,8 @@
       "not_sent": "Not sent to the tax authority",
       "sent": "Sent, waiting",
       "accepted": "Accepted",
-      "needs_fix": "Needs a fix"
+      "needs_fix": "Needs a fix",
+      "debit_note": "Debit notes"
     },
     "groups": {
       "merchant": "Merchant",
@@ -10133,7 +10249,8 @@
       "balance": "Leave left (days)",
       "leaveDocument": "Leave note",
       "ladder": "Same type before",
-      "evidence": "Evidence"
+      "evidence": "Evidence",
+      "debitNotes": "Debit notes"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10190,7 +10307,8 @@
         "bank_statement": "Bank statement",
         "order": "Order",
         "merchant": "Merchant",
-        "supplier": "Supplier"
+        "supplier": "Supplier",
+        "debit_note": "Debit note"
       }
     }
   },

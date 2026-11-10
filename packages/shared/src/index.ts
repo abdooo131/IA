@@ -36,3 +36,4 @@ export * from './app-lists';
 export * from './record-apps';
 export * from './report-period';
 export * from './bank-match';
+export * from './aging';

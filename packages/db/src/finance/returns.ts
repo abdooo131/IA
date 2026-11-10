@@ -50,6 +50,9 @@ export async function vatReturn(db: Db, month: string) {
   let outputVat = 0;
   let creditNotes = 0;
   let creditNoteVat = 0;
+  // Debit notes are sales (output VAT) like the monthly fees; shown apart as "of which".
+  let debitNotes = 0;
+  let debitNoteVat = 0;
   let purchases = 0;
   let inputVat = 0;
   for (const r of rows) {
@@ -66,6 +69,10 @@ export async function vatReturn(db: Db, month: string) {
     } else if (revenue !== 0 || vat > 0) {
       sales += revenue;
       outputVat += vat;
+      if (r.kind === 'debit_note') {
+        debitNotes += revenue;
+        debitNoteVat += vat;
+      }
     } else {
       purchases += Number(r.expense ?? 0);
       inputVat += -vat;
@@ -87,6 +94,8 @@ export async function vatReturn(db: Db, month: string) {
     outputVatPiastres: outputVat,
     creditNotesPiastres: creditNotes,
     creditNoteVatPiastres: creditNoteVat,
+    debitNotesPiastres: debitNotes,
+    debitNoteVatPiastres: debitNoteVat,
     purchasesPiastres: purchases,
     inputVatPiastres: inputVat,
     carriedInPiastres: carriedIn,

@@ -15,7 +15,7 @@ const email = z
 // ─── email ─────────────────────────────────────────────────────────────────────
 
 /** What we email merchants; each can be switched off per merchant. */
-export const EMAIL_KINDS = ['statement', 'payout_paid', 'invoice'] as const;
+export const EMAIL_KINDS = ['statement', 'payout_paid', 'invoice', 'payment_reminder'] as const;
 export type EmailKind = (typeof EMAIL_KINDS)[number];
 export const EMAIL_LANGUAGES = ['en', 'ar'] as const;
 export type EmailLanguage = (typeof EMAIL_LANGUAGES)[number];

@@ -587,7 +587,7 @@ export type EtaState = 'not_sent' | 'signed' | 'submitted' | 'valid' | 'invalid'
 
 export interface InvoiceRow {
   id: string;
-  type: 'invoice' | 'credit_note';
+  type: 'invoice' | 'credit_note' | 'debit_note';
   label: string;
   merchant: { id: string; name: string; legalName: string | null };
   periodMonth: string | null;
@@ -616,6 +616,8 @@ export interface InvoiceDetail extends InvoiceRow {
     vatPiastres: number;
   }[];
   creditNotes: { id: string; label: string; totalPiastres: number }[];
+  /** DN-000001...: charges added after the invoice */
+  debitNotes?: { id: string; label: string; totalPiastres: number }[];
   company: {
     legalNameEn: string;
     legalNameAr: string;
@@ -673,6 +675,9 @@ export interface VatReturn {
   outputVatPiastres: number;
   creditNotesPiastres: number;
   creditNoteVatPiastres: number;
+  /** Debit notes, already counted in sales and output VAT ("of which") */
+  debitNotesPiastres?: number;
+  debitNoteVatPiastres?: number;
   purchasesPiastres: number;
   inputVatPiastres: number;
   carriedInPiastres: number;

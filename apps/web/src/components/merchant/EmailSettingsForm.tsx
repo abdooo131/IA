@@ -7,7 +7,7 @@ import { FormFooter } from '@/components/workflow/FormFooter';
 import { apiSend } from '@/lib/api-client';
 import type { EmailKind, MerchantEmailSettings } from '@/lib/purchasing-types';
 
-const KINDS: EmailKind[] = ['statement', 'payout_paid', 'invoice'];
+const KINDS: EmailKind[] = ['statement', 'payout_paid', 'invoice', 'payment_reminder'];
 const field = 'h-10 w-full rounded-md border border-line bg-surface px-2 text-body-sm';
 
 /** Where statements, invoices and payout notices are emailed, in which language, and which. */

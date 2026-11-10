@@ -118,6 +118,7 @@ export const FINANCE_LISTS = {
     filters: {
       invoice: 'type',
       credit_note: 'type',
+      debit_note: 'type',
       not_sent: 'eta',
       sent: 'eta',
       accepted: 'eta',

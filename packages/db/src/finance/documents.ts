@@ -609,7 +609,7 @@ async function invoiceDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     where: { id },
     include: {
       merchant: { select: { id: true, name: true } },
-      _count: { select: { creditNotes: true } },
+      _count: { select: { creditNotes: { where: { type: 'credit_note' } } } },
       original: { select: { id: true, type: true, number: true } },
     },
   });
@@ -627,6 +627,13 @@ async function invoiceDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       href: `/finance/invoices?q=${encodeURIComponent(r.merchant.name)}&f=credit_note`,
     },
   ];
+  // Debit notes hang off their invoice like credit notes (original_id).
+  if (r.type === 'invoice')
+    smart.push({
+      key: 'debitNotes',
+      count: await db.taxInvoice.count({ where: { originalId: r.id, type: 'debit_note' } }),
+      href: `/finance/invoices?q=${encodeURIComponent(r.merchant.name)}&f=debit_note`,
+    });
   if (r.entryId) smart.push({ key: 'entries', count: 1, href: `/finance/journal/${r.entryId}` });
   if (r.original)
     smart.push({
