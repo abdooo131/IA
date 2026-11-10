@@ -1,0 +1,4 @@
+# Shipply API key: never commit it
+shipply.properties
+# Generated results
+*_awb.csv

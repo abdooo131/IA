@@ -83,6 +83,13 @@ public class MainApp extends JFrame {
 		JMenuItem mntmRmVandA = new JMenuItem("View and Edit");
 		mnRM.add(mntmRmVandA);
 		
+		JMenu mnShipping = new JMenu("Shipping");
+		menuBar.add(mnShipping);
+
+		JMenuItem mntmSendOrders = new JMenuItem("Send Orders (get AWBs)");
+		mntmSendOrders.addActionListener(e -> new ShipOrdersGui().setVisible(true));
+		mnShipping.add(mntmSendOrders);
+
 		JMenu mnNewMenu = new JMenu("Find");
 		menuBar.add(mnNewMenu);
 		

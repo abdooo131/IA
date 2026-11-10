@@ -1,0 +1,3 @@
+external_id,customer_name,phone,secondary_phone,address_line,governorate,city,area,address_notes,cod_amount,package_size,pieces,description,allow_open_package,delivery_notes
+1001,Mona Ali,01055512345,,"12 Tahrir St, 3rd floor, apt 7",الجيزة,الدقي,,Next to the pharmacy,450,small_medium,1,2 cotton shirts,yes,Call before arriving
+1002,هدى كمال,01066677788,,"12 ش التحرير، الدور 3، الدقي، الجيزة",,,,,320,,,,,

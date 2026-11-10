@@ -1,0 +1,3 @@
+# Copy this file to shipply.properties and put your key in it.
+# Use an ec_test_ key first (sandbox, nothing is shipped), then an ec_live_ key.
+api.key=ec_test_PUT_YOUR_KEY_HERE
