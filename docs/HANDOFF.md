@@ -91,3 +91,31 @@ The same list views and document pages in Merchants, then Customers, HR and Sale
 - HR person or lawyer to check leave and penalty defaults
 - Real merchants and their contract prices (the live data is demo data)
 - Several "choices to confirm" listed in CLAUDE.md decision lines (rider pay, contracts, pricing)
+
+## UX phase C step 3 (Merchants and Customers): built (branch claude/ux-phase-c, not deployed)
+
+List views for merchants (sign up, Shopify, 60 minute price, contract in force, wallet,
+account manager; bulk approve sign ups, pause and open again), products (active, Shopify link,
+available to sell, barcode; per merchant) and customers (segments, cash risk, due to order
+again, bought from a merchant, district; customer data only). Document pages for a merchant
+(the existing tabs inside the frame, status bar, actions, smart buttons, chatter), a new
+product page (/admin/products/<id>) and the customer profile. No migration. CLAUDE.md has the
+decision line "UX phase C step 3 (Merchants and Customers)". Choices the owner should confirm:
+
+- Pause and open again in bulk only touch approved merchants; a sign up still opens through
+  Approve. The panel of sign ups waiting (with Reject and its reason) now shows only to people
+  who may decide (merchants manage).
+- "Contract in force" is the latest activated version started by today whose end date has not
+  passed. "Shopify connected" means the store finished installing (active), not only linked.
+- The merchants list's wallet column and totals (what we owe; below 0 the merchant owes us) are
+  shown to Merchants view, as the merchant page's overview already did; the wallet smart button
+  (to the Accounting wallet page), payouts and invoices are for Accounting view only.
+- Grouping customers by merchant uses the merchant they bought from most; the merchant filter
+  keeps everyone who bought from that merchant. Governorate is a grouping only (names do not
+  fit the list address); the old ?governorate= filter link opens the whole list.
+- A customer's notes, reminders and history need the customer data switch even for settings
+  managers; reminders are labelled CUS-xxxxxx so a push notice never shows a name.
+- The customers list loads the 5,000 highest spenders (the list limit); search and filters run
+  over those.
+- The product page shows stock only in the reader's stores; there is no product delete or
+  merge (unchanged).
