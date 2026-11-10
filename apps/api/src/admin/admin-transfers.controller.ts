@@ -1,16 +1,8 @@
-import {
-  Body,
-  Controller,
-  ForbiddenException,
-  Get,
-  NotFoundException,
-  Param,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   approveTransfer,
+  DomainError,
   cancelTransfer,
   createTransfer,
   getTransferDetail,
@@ -25,10 +17,13 @@ import {
   createTransferSchema,
   TRANSFER_STATUSES,
   type AccessProfile,
+  bulkIdsSchema,
+  type DocSmartButton,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { assertStore, limitedStores } from '../auth/access-scope';
+import { assertAnyStore, assertStore, limitedStores } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
+import { eachRecord } from '../common/bulk';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -56,6 +51,97 @@ export class AdminTransfersController {
     if (!detail) throw new NotFoundException({ error: 'transfer_not_found' });
     await this.checkStores(id, access);
     return detail;
+  }
+
+  /**
+   * The transfer's document frame (UX phase C step 2): smart buttons for its sender, receiver
+   * and final destination (their transfers), the leg before and after it, its lines and units.
+   */
+  @Get(':id/document')
+  async document(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
+    const t = await this.prisma.transfer.findUnique({
+      where: { id },
+      select: {
+        fromId: true,
+        toId: true,
+        finalDestinationId: true,
+        from: { select: { code: true } },
+        to: { select: { code: true } },
+        finalDestination: { select: { code: true } },
+        previous: { select: { id: true, reference: true } },
+        next: { select: { id: true, reference: true } },
+        lines: { select: { quantity: true, pickedQty: true, receivedQty: true } },
+      },
+    });
+    if (!t) throw new NotFoundException({ error: 'transfer_not_found' });
+    await this.checkStores(id, access);
+    const lines = t.lines;
+    const units = (of: (l: (typeof lines)[number]) => number) =>
+      lines.reduce((s, l) => s + of(l), 0);
+    const smart: DocSmartButton[] = [
+      {
+        key: 'sender',
+        count: null,
+        value: t.from.code,
+        href: `/admin/transfers?f=&v=sender:${t.fromId}`,
+      },
+      {
+        key: 'receiver',
+        count: null,
+        value: t.to.code,
+        href: `/admin/transfers?f=&v=receiver:${t.toId}`,
+      },
+    ];
+    if (t.finalDestinationId && t.finalDestination)
+      smart.push({
+        key: 'destination',
+        count: null,
+        value: t.finalDestination.code,
+        href: `/admin/transfers?f=&v=destination:${t.finalDestinationId}`,
+      });
+    if (t.previous)
+      smart.push({
+        key: 'previousLeg',
+        count: null,
+        value: t.previous.reference,
+        href: `/admin/transfers/${t.previous.id}`,
+      });
+    for (const n of t.next)
+      smart.push({
+        key: 'nextLeg',
+        count: null,
+        value: n.reference,
+        href: `/admin/transfers/${n.id}`,
+      });
+    smart.push(
+      { key: 'lines', count: t.lines.length, href: '#lines' },
+      {
+        key: 'unitsMoved',
+        count: null,
+        value: `${units((l) => l.quantity)} → ${units((l) => l.pickedQty)} → ${units((l) => l.receivedQty)}`,
+        href: '#lines',
+      },
+    );
+    return { smart };
+  }
+
+  /**
+   * Approves several draft transfers with their quantities as drafted, each on its own and
+   * under the single approve rules (stock is held at the sender; not enough refuses that row).
+   */
+  @Post('bulk-approve')
+  @Access('inventory', 'manage')
+  bulkApprove(
+    @Body(new ZodValidationPipe(bulkIdsSchema)) body: z.infer<typeof bulkIdsSchema>,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return eachRecord(body.ids, async (id) => {
+      if (!(await this.prisma.transfer.count({ where: { id } })))
+        throw new DomainError('transfer_not_found', 404);
+      await this.checkStores(id, access);
+      await approveTransfer(this.prisma, { transferId: id, actorUserId: user.sub });
+    });
   }
 
   @Post()
@@ -104,15 +190,15 @@ export class AdminTransfersController {
 
   /** A transfer is visible to people working in its sender, receiver or final store. */
   private async checkStores(id: string, access: AccessProfile) {
-    const stores = limitedStores(access);
-    if (!stores) return;
+    if (!limitedStores(access)) return;
     const t = await this.prisma.transfer.findUnique({
       where: { id },
       select: { fromId: true, toId: true, finalDestinationId: true },
     });
     if (!t) return;
-    const ids = [t.fromId, t.toId, t.finalDestinationId].filter((x): x is string => !!x);
-    if (!ids.some((x) => stores.includes(x)))
-      throw new ForbiddenException({ error: 'store_not_allowed' });
+    assertAnyStore(
+      access,
+      [t.fromId, t.toId, t.finalDestinationId].filter((x): x is string => !!x),
+    );
   }
 }

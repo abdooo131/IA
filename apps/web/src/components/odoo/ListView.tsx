@@ -23,7 +23,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState, useTransition } f
 import { DateInput } from '@/components/DateInput';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import { isoToDayFirst } from '@/lib/day-first';
-import { formatCairoDateTime, formatEgp } from '@/lib/format';
+import { formatCairoDateTime, formatCount, formatEgp } from '@/lib/format';
 import {
   DOC_NAV_KEY,
   type DocNav,
@@ -423,9 +423,12 @@ export function ListView({
                 <tr>
                   <td className="px-3 py-2" />
                   {visible.map((c, i) => (
-                    <td key={c.key} className={`px-3 py-2 ${c.kind === 'money' ? 'text-end' : ''}`}>
-                      {c.kind === 'money' && c.key in data.totals ? (
-                        <Money value={data.totals[c.key]!} />
+                    <td
+                      key={c.key}
+                      className={`px-3 py-2 ${c.kind === 'money' || c.kind === 'number' ? 'text-end' : ''}`}
+                    >
+                      {summed(c, data.totals) ? (
+                        <Total column={c} value={data.totals[c.key]!} />
                       ) : i === 0 ? (
                         t('total')
                       ) : null}
@@ -809,6 +812,19 @@ function Money({ value }: { value: number }) {
   return <span className={`ltr-iso ${v < 0 ? 'text-danger' : ''}`}>{formatEgp(v)}</span>;
 }
 
+/** A column the list sums (money, or units in Inventory): its total is shown. */
+const summed = (c: ListColumn, totals: Record<string, number>) =>
+  (c.kind === 'money' || c.kind === 'number') && c.key in totals;
+
+/** A column's total: money in EGP, units as a count. */
+function Total({ column, value }: { column: ListColumn; value: number }) {
+  return column.kind === 'money' ? (
+    <Money value={value} />
+  ) : (
+    <span className="ltr-iso">{formatCount(value)}</span>
+  );
+}
+
 function Cell({
   config,
   column,
@@ -971,7 +987,7 @@ function RowCard({
 
 function TotalsCard({ data, columns }: { data: ListData; columns: ListColumn[] }) {
   const t = useTranslations('listView');
-  const money = columns.filter((c) => c.kind === 'money' && c.key in data.totals);
+  const money = columns.filter((c) => summed(c, data.totals));
   if (!money.length) return null;
   return (
     <dl className="rounded-lg border-2 border-line bg-surface-raised p-3 text-body-sm">
@@ -981,7 +997,7 @@ function TotalsCard({ data, columns }: { data: ListData; columns: ListColumn[] }
             {t('total')} · {c.label}
           </dt>
           <dd className="font-bold">
-            <Money value={data.totals[c.key]!} />
+            <Total column={c} value={data.totals[c.key]!} />
           </dd>
         </div>
       ))}
@@ -1064,10 +1080,10 @@ function GroupList({
                 {header}
                 <span className="shrink-0 text-body-sm font-bold">
                   {columns
-                    .filter((c) => c.kind === 'money' && c.key in g.totals)
+                    .filter((c) => summed(c, g.totals))
                     .slice(0, 1)
                     .map((c) => (
-                      <Money key={c.key} value={g.totals[c.key]!} />
+                      <Total key={c.key} column={c} value={g.totals[c.key]!} />
                     ))}
                 </span>
               </div>
@@ -1111,12 +1127,12 @@ function GroupList({
               {columns.map((c, i) => (
                 <td
                   key={c.key}
-                  className={`px-3 py-2 ${c.kind === 'money' ? 'text-end font-bold' : ''}`}
+                  className={`px-3 py-2 ${c.kind === 'money' || c.kind === 'number' ? 'text-end font-bold' : ''}`}
                 >
                   {i === 0 ? (
                     header
-                  ) : c.kind === 'money' && c.key in g.totals ? (
-                    <Money value={g.totals[c.key]!} />
+                  ) : summed(c, g.totals) ? (
+                    <Total column={c} value={g.totals[c.key]!} />
                   ) : null}
                 </td>
               ))}

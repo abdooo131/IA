@@ -15,9 +15,12 @@ import { ReturnStatusChip } from './ReturnStatusChip';
 export function ReturnDetailView({
   detail,
   cancelPath,
+  framed = false,
 }: {
   detail: ReturnDetail;
   cancelPath: string;
+  /** Inside a document frame (admin): the frame shows the number and status bar */
+  framed?: boolean;
 }) {
   const t = useTranslations('returns');
   const locale = useLocale();
@@ -36,12 +39,16 @@ export function ReturnDetailView({
   }
 
   return (
-    <div className="mt-4 max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="ltr-iso text-h2">{detail.reference}</h1>
-        <ReturnStatusChip status={detail.status} />
-      </div>
-      <StatusBar flow="return" status={detail.status} />
+    <div className={`${framed ? '' : 'mt-4 max-w-3xl'} space-y-4`}>
+      {!framed && (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="ltr-iso text-h2">{detail.reference}</h1>
+            <ReturnStatusChip status={detail.status} />
+          </div>
+          <StatusBar flow="return" status={detail.status} />
+        </>
+      )}
       <dl className="grid grid-cols-1 gap-2 rounded-lg border border-line bg-surface p-4 text-body-sm sm:grid-cols-2">
         <div>
           <dt className="text-text-muted">{t('merchant')}</dt>
@@ -78,7 +85,10 @@ export function ReturnDetailView({
         )}
       </dl>
 
-      <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+      <ul
+        id="lines"
+        className="scroll-mt-20 divide-y divide-line rounded-lg border border-line bg-surface"
+      >
         {detail.lines.map((l) => (
           <li
             key={`${l.skuId}:${l.source}`}

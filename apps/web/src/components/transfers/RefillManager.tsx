@@ -96,7 +96,7 @@ export function RefillManager({ data, drafts }: { data: RefillOverview; drafts: 
         >
           {t('runNow')}
         </button>
-        <Link href="/admin/transfers?status=draft" className="text-body-sm text-link underline">
+        <Link href="/admin/transfers?f=draft" className="text-body-sm text-link underline">
           {t('drafts', { count: drafts })}
         </Link>
       </div>

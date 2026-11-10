@@ -49,6 +49,8 @@ export const WORKFLOWS = {
   },
   // UX phase C step 1: a damage report waits for admin to settle who pays.
   damage: { path: ['pending', 'settled'], side: [] },
+  // UX phase C step 2: a stock count waits for admin; a bin that changed makes it stale.
+  count: { path: ['submitted', 'approved'], side: ['rejected', 'stale'] },
 } as const;
 
 export type WorkflowName = keyof typeof WORKFLOWS;

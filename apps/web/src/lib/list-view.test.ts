@@ -5,6 +5,7 @@ import { JOB_ROLE_TEMPLATES, type JobRole } from '@shiplynow/shared';
 import ar from '../../messages/ar.json';
 import en from '../../messages/en.json';
 import { docNeighbours, exportTable, readDocNav, rowHrefOf, withListState } from './list-view';
+import { legacyListAddress } from './legacy-list';
 
 const profile = (role: JobRole) => ({
   ...JOB_ROLE_TEMPLATES[role],
@@ -122,14 +123,21 @@ describe('Accounting menus by job', () => {
   });
 });
 
-describe('Operations lists (UX phase C)', () => {
+describe('App lists (UX phase C)', () => {
   it('has words in both languages for every filter, value and grouping', () => {
     for (const messages of [en, ar]) {
       const words = messages.appLists as unknown as Record<
         string,
         Record<string, Record<string, string> | string>
       >;
-      const statuses = messages.orders.statuses as Record<string, string>;
+      // Each list's statuses are named in the words of its own screens.
+      const statusesOf: Record<string, Record<string, string>> = {
+        orders: messages.orders.statuses,
+        shipments: messages.merchant.shipments.statuses,
+        transfers: messages.transfers.statuses,
+        returns: messages.returns.statuses,
+        counts: messages.admin.counts.statuses,
+      };
       const causes = messages.damage.causes as Record<string, string>;
       for (const lists of Object.values(APP_LISTS))
         for (const [id, meta] of Object.entries(lists)) {
@@ -138,7 +146,11 @@ describe('Operations lists (UX phase C)', () => {
             const label =
               own?.filters?.[f] ??
               (words.filters as Record<string, string>)[f] ??
-              (group === 'status' ? statuses[f] : group === 'cause' ? causes[f] : undefined);
+              (group === 'status'
+                ? statusesOf[id]?.[f]
+                : group === 'cause'
+                  ? causes[f]
+                  : undefined);
             expect(label, `${id}.${f}`).toBeTruthy();
           }
           for (const v of Object.keys(meta.values ?? {}))
@@ -148,6 +160,23 @@ describe('Operations lists (UX phase C)', () => {
           expect(own?.exportName).toBeTruthy();
         }
     }
+  });
+
+  it('turns the old list addresses into the list state', () => {
+    expect(
+      legacyListAddress(
+        '/admin/shipments',
+        { status: 'received', merchant: 'm1' },
+        {
+          status: { filter: true },
+          merchant: { value: 'merchant' },
+        },
+      ),
+    ).toBe('/admin/shipments?f=received&v=merchant%3Am1');
+    expect(
+      legacyListAddress('/admin/stock', { f: '', store: 's1' }, { store: { value: 'store' } }),
+    ).toBeNull();
+    expect(legacyListAddress('/admin/stock', {}, { store: { value: 'store' } })).toBeNull();
   });
 
   it('opens no page for a row missing what the page needs and keeps value filters', () => {

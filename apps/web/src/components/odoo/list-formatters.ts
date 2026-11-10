@@ -1,6 +1,6 @@
 'use client';
 
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { formatEgp } from '@/lib/format';
 import type { ListRow } from '@/lib/list-view';
 
@@ -47,7 +47,13 @@ export function useAlertText() {
  */
 export function useListFormatters(): Record<string, (row: ListRow) => string> {
   const alertText = useAlertText();
+  const sources = useTranslations('returns.sources');
+  const locale = useLocale();
   return {
+    returnSources: (row) =>
+      (Array.isArray(row.sources) ? (row.sources as string[]) : [])
+        .map((s) => (sources.has(s) ? sources(s) : s))
+        .join(locale === 'ar' ? '، ' : ', '),
     alert: (row) =>
       alertText({
         type: String(row.type ?? ''),

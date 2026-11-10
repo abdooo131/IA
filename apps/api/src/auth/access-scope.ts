@@ -58,3 +58,23 @@ export function assertMerchant(access: AccessProfile | undefined, merchantId: st
   if (!merchantId || !canUseMerchant(access, merchantId))
     throw new ForbiddenException({ error: 'merchant_not_allowed' });
 }
+
+/**
+ * Refuses a record (recordRef) outside the person's stores and merchants: its store, or for a
+ * record of several locations (a transfer) one of them, and its merchant.
+ */
+export function assertRecordScope(
+  access: AccessProfile | undefined,
+  ref: { darkStoreId: string | null; merchantId: string | null; anyStoreIds?: string[] },
+) {
+  if (ref.darkStoreId) assertStore(access, ref.darkStoreId);
+  if (ref.anyStoreIds) assertAnyStore(access, ref.anyStoreIds);
+  if (ref.merchantId) assertMerchant(access, ref.merchantId);
+}
+
+/** Refuses a record none of whose locations is one of the person's stores. */
+export function assertAnyStore(access: AccessProfile | undefined, storeIds: string[]) {
+  if (!access || access.allStores) return;
+  if (!storeIds.some((id) => canUseStore(access, id)))
+    throw new ForbiddenException({ error: 'store_not_allowed' });
+}

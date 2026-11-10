@@ -228,7 +228,10 @@ export function MerchantsManager({
                   <Link className="font-bold text-link" href={`/admin/products?merchant=${m.id}`}>
                     {t('products')} (<span className="ltr-iso">{m.skuCount}</span>)
                   </Link>
-                  <Link className="font-bold text-link" href={`/admin/shipments?merchant=${m.id}`}>
+                  <Link
+                    className="font-bold text-link"
+                    href={`/admin/shipments?f=&v=merchant:${m.id}`}
+                  >
                     {t('shipments')} (<span className="ltr-iso">{m.shipmentCount}</span>)
                   </Link>
                   <Link className="font-bold text-link" href={`/admin/merchants/${m.id}`}>

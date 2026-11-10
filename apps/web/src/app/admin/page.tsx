@@ -261,7 +261,7 @@ export default async function AdminOverviewPage({
                   <Link className="text-link" href={`/admin/orders?f=active&v=store:${s.id}`}>
                     {t('queue')}
                   </Link>
-                  <Link className="text-link" href={`/admin/stock?store=${s.id}`}>
+                  <Link className="text-link" href={`/admin/stock?f=&v=store:${s.id}`}>
                     {nav('stock')}
                   </Link>
                   <Link className="text-link" href={`/admin/zones?store=${s.id}`}>

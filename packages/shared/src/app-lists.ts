@@ -38,6 +38,28 @@ export const DAMAGE_LIST_CAUSES = [
   'expired',
 ] as const;
 
+/** Inventory documents' statuses as filters (each list adds "open": not finished yet). */
+export const SHIPMENT_LIST_STATUSES = ['expected', 'receiving', 'received', 'cancelled'] as const;
+export const TRANSFER_LIST_STATUSES = [
+  'draft',
+  'approved',
+  'picking',
+  'in_transit',
+  'received',
+  'cancelled',
+] as const;
+export const RETURN_LIST_STATUSES = [
+  'requested',
+  'picking',
+  'ready',
+  'collected',
+  'cancelled',
+] as const;
+export const COUNT_LIST_STATUSES = ['submitted', 'approved', 'rejected', 'stale'] as const;
+
+const statusFilters = <S extends readonly string[]>(statuses: S) =>
+  Object.fromEntries(statuses.map((s) => [s, 'status'])) as Record<S[number], 'status'>;
+
 export const APP_LISTS = {
   operations: {
     orders: {
@@ -77,6 +99,90 @@ export const APP_LISTS = {
     },
   },
   inventory: {
+    // UX phase C step 2: stock, shipments in, transfers, returns to merchants and counts.
+    stock: {
+      filters: {
+        in_stock: 'level',
+        low_stock: 'level',
+        out_of_stock: 'level',
+        has_reserved: 'reserved',
+        dark_stores: 'kind',
+        hubs: 'kind',
+      },
+      values: { store: 'option', merchant: 'option' },
+      groupBys: ['store', 'merchant', 'product'],
+      sorts: ['sku', 'onHand', 'reserved', 'available'],
+      sums: ['onHand', 'reserved', 'available'],
+      defaultFilters: [],
+    },
+    shipments: {
+      filters: {
+        open: 'status',
+        ...statusFilters(SHIPMENT_LIST_STATUSES),
+        extra: 'difference',
+        short: 'difference',
+        to_hub: 'kind',
+        to_store: 'kind',
+        ...days,
+      },
+      values: { store: 'option', merchant: 'option', from: 'day_from', to: 'day_to' },
+      groupBys: ['status', 'store', 'merchant', 'day', 'month'],
+      sorts: ['reference', 'created', 'expectedUnits', 'receivedUnits'],
+      sums: ['expectedUnits', 'receivedUnits', 'extraUnits', 'shortUnits'],
+      defaultFilters: [],
+    },
+    transfers: {
+      filters: {
+        open: 'status',
+        ...statusFilters(TRANSFER_LIST_STATUSES),
+        manual: 'origin',
+        refill: 'origin',
+        short_sent: 'short',
+        short_received: 'short',
+        via_hub: 'leg',
+        ...days,
+      },
+      values: {
+        store: 'option',
+        sender: 'option',
+        receiver: 'option',
+        destination: 'option',
+        from: 'day_from',
+        to: 'day_to',
+      },
+      groupBys: ['status', 'sender', 'receiver', 'destination', 'origin', 'day'],
+      sorts: ['reference', 'created', 'units'],
+      sums: ['units', 'pickedUnits', 'receivedUnits'],
+      defaultFilters: [],
+    },
+    returns: {
+      filters: {
+        open: 'status',
+        ...statusFilters(RETURN_LIST_STATUSES),
+        sellable: 'source',
+        damaged: 'source',
+        held: 'source',
+        ...days,
+      },
+      values: { store: 'option', merchant: 'option', from: 'day_from', to: 'day_to' },
+      groupBys: ['status', 'store', 'merchant', 'day'],
+      sorts: ['reference', 'created', 'units'],
+      sums: ['units', 'pickedUnits'],
+      defaultFilters: [],
+    },
+    counts: {
+      filters: {
+        ...statusFilters(COUNT_LIST_STATUSES),
+        with_differences: 'difference',
+        no_differences: 'difference',
+        ...days,
+      },
+      values: { store: 'option', from: 'day_from', to: 'day_to' },
+      groupBys: ['status', 'store', 'day'],
+      sorts: ['created', 'differences'],
+      sums: ['differences', 'netDifference'],
+      defaultFilters: ['submitted'],
+    },
     damage: {
       filters: {
         pending: 'status',

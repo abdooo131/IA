@@ -173,6 +173,15 @@ app (Accounting uses them first):
   header, status bar, actions, smart buttons, content and the chatter); DocumentPage renders a
   DocDescriptor inside it, and pages with their own body (the order page, a damage report) put
   it inside directly.
+- **Inventory lists** (UX phase C step 2): stock (per store and product), shipments in,
+  transfers, returns to merchants and stock counts are APP_LISTS of `inventory`. Number columns
+  a list sums (units) show totals like money columns. Shipments, transfers, returns and counts
+  open document pages in DocumentFrame; their smart buttons come from `GET .../:id/document`
+  (shipments, transfers, returns) or `GET /admin/stock-counts/:id`. A transfer belongs to every
+  location it touches: recordRef gives `anyStoreIds` and `assertRecordScope` lets a person
+  limited to some stores open it when one of them is theirs. Bulk Approve of draft transfers
+  and of stock counts run the single approve through `eachRecord`. Old list addresses
+  (`?store=`, `?merchant=`, `?status=`) are turned into the list state by `legacyListAddress`.
 
 ### Public website
 

@@ -51,10 +51,36 @@ report document page (/admin/damage/<id>). CLAUDE.md has the decision line "UX p
 - Old list links (/admin/orders?status=..., /admin/alerts?all=1, /admin/damage?status=settled)
   now open the list with its default filters; the dashboard's store queue link was updated.
 
-## Next: UX phase C step 2
+## UX phase C step 2 (Inventory): built (branch claude/ux-phase-c, not deployed)
 
-The same list views and document pages in Inventory (stock, shipments, transfers, returns,
-counts), then Merchants, Customers, HR and Sales.
+The Inventory app on the same building blocks: list views for stock (per store and product,
+low and out of stock, unit totals), shipments in (still to receive, more or fewer than listed),
+transfers (sender, receiver, final destination, sent or arrived short, automatic refill),
+returns to merchants (sellable, damaged or held units) and stock counts (opens on waiting);
+document pages for a shipment, a transfer, a return and a stock count (new page
+/admin/counts/<id>) with smart buttons and the chatter; bulk Approve of draft transfers and of
+stock counts. CLAUDE.md has the decision line "UX phase C step 2 (Inventory)". Choices the owner
+should confirm:
+
+- Bulk Approve of transfers takes the drafted quantities as they are (only the automatic
+  refill makes drafts; admin's own transfers are approved when created). To change quantities,
+  open the transfer as before.
+- Bulk Approve of counts applies each count's differences; a bin that changed since its count
+  makes that count stale (count again) and the list says so for that row. There is no bulk
+  Reject.
+- A stock row opens the merchant's products page searched by the SKU (there is no product
+  document page yet). Stock has no value column (it was not shown before) and no category
+  grouping (products have no category).
+- Shipment "short" counts only once a shipment is received (closed); while receiving, missing
+  units are not short yet.
+- Transfers and stock counts have no merchant, so account managers limited to their merchants
+  still see them (as before); returns now refuse other merchants' returns like shipments do.
+- The counts list opens on counts waiting for approval; remove the filter to see reviewed ones
+  (before, the page showed the last 20 reviewed below the waiting ones).
+
+## Next: UX phase C step 3
+
+The same list views and document pages in Merchants, then Customers, HR and Sales.
 
 ## Waiting on the owner
 

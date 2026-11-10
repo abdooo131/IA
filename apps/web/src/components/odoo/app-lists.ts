@@ -10,7 +10,15 @@ import { ORDER_STATUS_LIST } from '@/lib/order-types';
 // keys come from APP_LISTS, the same keys the API implements (GET /lists/<app>/<id>).
 
 type Col = Omit<ListColumn, 'label'>;
-export type AppListKey = 'operations/orders' | 'operations/alerts' | 'inventory/damage';
+export type AppListKey =
+  | 'operations/orders'
+  | 'operations/alerts'
+  | 'inventory/stock'
+  | 'inventory/shipments'
+  | 'inventory/transfers'
+  | 'inventory/returns'
+  | 'inventory/counts'
+  | 'inventory/damage';
 
 const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
   'operations/orders': () => [
@@ -42,6 +50,73 @@ const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
     { key: 'resolvedBy', kind: 'text', optional: true },
     { key: 'resolvedAt', kind: 'datetime', optional: true },
   ],
+  'inventory/stock': (locale) => [
+    { key: 'sku', kind: 'ltr', sort: 'sku', primary: true },
+    { key: locale === 'ar' ? 'titleAr' : 'titleEn', kind: 'text' },
+    { key: 'barcode', kind: 'ltr', optional: true },
+    { key: 'store', kind: 'text' },
+    { key: 'merchant', kind: 'text' },
+    // Available first, so a phone card shows it.
+    { key: 'available', kind: 'number', sort: 'available' },
+    { key: 'onHand', kind: 'number', sort: 'onHand' },
+    { key: 'reserved', kind: 'number', sort: 'reserved' },
+    { key: 'level', kind: 'status' },
+  ],
+  'inventory/shipments': () => [
+    { key: 'reference', kind: 'ltr', sort: 'reference', primary: true },
+    { key: 'merchant', kind: 'text' },
+    { key: 'store', kind: 'text' },
+    { key: 'createdAt', kind: 'datetime', sort: 'created' },
+    { key: 'expectedAt', kind: 'date', optional: true },
+    { key: 'receivedAt', kind: 'datetime', optional: true },
+    { key: 'lines', kind: 'number', optional: true },
+    { key: 'expectedUnits', kind: 'number', sort: 'expectedUnits' },
+    { key: 'receivedUnits', kind: 'number', sort: 'receivedUnits' },
+    { key: 'extraUnits', kind: 'number', optional: true },
+    { key: 'shortUnits', kind: 'number', optional: true },
+    { key: 'status', kind: 'status' },
+  ],
+  'inventory/transfers': () => [
+    { key: 'reference', kind: 'ltr', sort: 'reference', primary: true },
+    { key: 'sender', kind: 'text' },
+    { key: 'receiver', kind: 'text' },
+    { key: 'destination', kind: 'text' },
+    { key: 'origin', kind: 'text', optional: true },
+    { key: 'createdAt', kind: 'datetime', sort: 'created' },
+    { key: 'sentAt', kind: 'datetime', optional: true },
+    { key: 'receivedAt', kind: 'datetime', optional: true },
+    { key: 'lines', kind: 'number', optional: true },
+    { key: 'units', kind: 'number', sort: 'units' },
+    { key: 'pickedUnits', kind: 'number' },
+    { key: 'receivedUnits', kind: 'number' },
+    { key: 'status', kind: 'status' },
+  ],
+  'inventory/returns': () => [
+    { key: 'reference', kind: 'ltr', sort: 'reference', primary: true },
+    { key: 'merchant', kind: 'text' },
+    { key: 'store', kind: 'text' },
+    { key: 'sources', kind: 'text', format: 'returnSources', optional: true },
+    { key: 'createdAt', kind: 'datetime', sort: 'created' },
+    { key: 'collectedAt', kind: 'datetime', optional: true },
+    { key: 'collectedBy', kind: 'text', optional: true },
+    { key: 'units', kind: 'number', sort: 'units' },
+    { key: 'pickedUnits', kind: 'number' },
+    { key: 'status', kind: 'status' },
+  ],
+  'inventory/counts': () => [
+    { key: 'bin', kind: 'ltr', primary: true },
+    { key: 'store', kind: 'text' },
+    { key: 'submittedBy', kind: 'text' },
+    { key: 'createdAt', kind: 'datetime', sort: 'created' },
+    { key: 'lines', kind: 'number', optional: true },
+    { key: 'expectedUnits', kind: 'number', optional: true },
+    { key: 'countedUnits', kind: 'number', optional: true },
+    { key: 'differences', kind: 'number', sort: 'differences' },
+    { key: 'netDifference', kind: 'number' },
+    { key: 'reviewedBy', kind: 'text', optional: true },
+    { key: 'reviewedAt', kind: 'datetime', optional: true },
+    { key: 'status', kind: 'status' },
+  ],
   'inventory/damage': (locale) => [
     { key: 'sku', kind: 'ltr', primary: true },
     { key: locale === 'ar' ? 'titleAr' : 'titleEn', kind: 'text' },
@@ -63,6 +138,11 @@ const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
 const HREFS: Record<AppListKey, string | undefined> = {
   'operations/orders': '/admin/orders/{id}',
   'operations/alerts': '/admin/orders/{orderId}',
+  'inventory/stock': '/admin/products?merchant={merchantId}&q={sku}',
+  'inventory/shipments': '/admin/shipments/{id}',
+  'inventory/transfers': '/admin/transfers/{id}',
+  'inventory/returns': '/admin/returns/{id}',
+  'inventory/counts': '/admin/counts/{id}',
   'inventory/damage': '/admin/damage/{id}',
 };
 
@@ -72,16 +152,46 @@ type Option = { value: string; label: string; labelAr?: string };
 export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
   const [app, id] = key.split('/') as [string, string];
   const meta: ListMeta = appListMeta(app, id)!;
-  const [t, statuses, stages, damage, alerts, locale, profile, options] = await Promise.all([
+  const [
+    t,
+    statuses,
+    stages,
+    damage,
+    alerts,
+    shipmentStatuses,
+    transfers,
+    returns,
+    counts,
+    locale,
+    profile,
+    options,
+  ] = await Promise.all([
     getTranslations('appLists'),
     getTranslations('orders.statuses'),
     getTranslations('orders.stages'),
     getTranslations('damage'),
     getTranslations('admin.alerts'),
+    getTranslations('merchant.shipments.statuses'),
+    getTranslations('transfers'),
+    getTranslations('returns'),
+    getTranslations('admin.counts'),
     getLocale(),
     getMyProfile(),
     apiGet<Record<string, Option[]>>(`/lists/${key}/options`),
   ]);
+  /** A document status in the words its own screens use. */
+  const statusName: ((s: string) => string) | null =
+    key === 'operations/orders'
+      ? (s) => statuses(s)
+      : key === 'inventory/shipments'
+        ? (s) => shipmentStatuses(s)
+        : key === 'inventory/transfers'
+          ? (s) => transfers(`statuses.${s}`)
+          : key === 'inventory/returns'
+            ? (s) => returns(`statuses.${s}`)
+            : key === 'inventory/counts'
+              ? (s) => counts(`statuses.${s}`)
+              : null;
   const label = (group: string, k: string) =>
     t.has(`${id}.${group}.${k}`) ? t(`${id}.${group}.${k}`) : t(`${group}.${k}`);
   const optionLabel = (o: Option) => (locale === 'ar' && o.labelAr ? o.labelAr : o.label);
@@ -90,10 +200,11 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
 
   const valueLabels: Record<string, Record<string, string>> = {};
   // Stores show as their code in rows and groups; the label adds their name.
-  const stores = options.store ?? [];
-  valueLabels.store = Object.fromEntries(
+  const stores = options.store ?? options.sender ?? [];
+  const storeNames = Object.fromEntries(
     stores.map((s) => [optionLabel(s).split(' · ')[0]!, optionLabel(s)]),
   );
+  valueLabels.store = storeNames;
   switch (key) {
     case 'operations/orders':
       valueLabels.status = Object.fromEntries(ORDER_STATUS_LIST.map((s) => [s, statuses(s)]));
@@ -111,6 +222,33 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
         (options.type ?? []).map((o) => [o.value, typeName(o.value)]),
       );
       valueLabels.status = { open: t('alerts.status.open'), handled: t('alerts.status.handled') };
+      break;
+    case 'inventory/stock':
+      valueLabels.level = {
+        out: t('stock.levels.out'),
+        low: t('stock.levels.low'),
+        ok: t('stock.levels.ok'),
+      };
+      break;
+    case 'inventory/shipments':
+    case 'inventory/returns':
+    case 'inventory/counts':
+      valueLabels.status = Object.fromEntries(
+        Object.keys(meta.filters)
+          .filter((k) => meta.filters[k] === 'status' && k !== 'open')
+          .map((s) => [s, statusName!(s)]),
+      );
+      break;
+    case 'inventory/transfers':
+      valueLabels.status = Object.fromEntries(
+        Object.keys(meta.filters)
+          .filter((k) => meta.filters[k] === 'status' && k !== 'open')
+          .map((s) => [s, statusName!(s)]),
+      );
+      valueLabels.sender = storeNames;
+      valueLabels.receiver = storeNames;
+      valueLabels.destination = storeNames;
+      valueLabels.origin = { manual: t('origin.manual'), refill: t('origin.refill') };
       break;
     case 'inventory/damage':
       valueLabels.cause = Object.fromEntries(
@@ -140,6 +278,18 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
     );
   if (key === 'operations/alerts' && canDo(profile, 'operations', 'use'))
     bulk.push({ key: 'resolve', label: t('bulk.resolve'), endpoint: '/admin/alerts/bulk-resolve' });
+  if (key === 'inventory/transfers' && canDo(profile, 'inventory', 'manage'))
+    bulk.push({
+      key: 'approve',
+      label: t('bulk.approveTransfers'),
+      endpoint: '/admin/transfers/bulk-approve',
+    });
+  if (key === 'inventory/counts' && canDo(profile, 'inventory', 'manage'))
+    bulk.push({
+      key: 'approve',
+      label: t('bulk.approveCounts'),
+      endpoint: '/admin/stock-counts/bulk-approve',
+    });
 
   return {
     listId: `${app}_${id}`,
@@ -152,8 +302,8 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
       key: k,
       group,
       label:
-        group === 'status' && key === 'operations/orders' && k !== 'active'
-          ? statuses(k)
+        group === 'status' && statusName && k !== 'active' && k !== 'open'
+          ? statusName(k)
           : group === 'cause'
             ? damage(`causes.${k}`)
             : label('filters', k),

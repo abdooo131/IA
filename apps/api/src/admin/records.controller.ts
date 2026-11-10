@@ -36,7 +36,7 @@ import {
   recordNoteSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
-import { assertMerchant, assertStore } from '../auth/access-scope';
+import { assertRecordScope } from '../auth/access-scope';
 import { Access, ANY_APP, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
@@ -71,8 +71,7 @@ export class RecordsController {
       throw new ForbiddenException({ error: 'no_access' });
     const ref = await recordRef(this.prisma, entityType, entityId);
     if (!ref) throw new NotFoundException({ error: 'not_found' });
-    if (ref.darkStoreId) assertStore(access, ref.darkStoreId);
-    if (ref.merchantId) assertMerchant(access, ref.merchantId);
+    assertRecordScope(access, ref);
     return ref;
   }
 

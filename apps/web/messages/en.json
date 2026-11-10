@@ -304,7 +304,15 @@
         "count_already_reviewed": "Someone already reviewed this count.",
         "generic": "Something went wrong. Try again."
       },
-      "product": "Product"
+      "product": "Product",
+      "fields": {
+        "store": "Store",
+        "bin": "Bin",
+        "counted": "Counted",
+        "reviewed": "Reviewed",
+        "note": "Review note"
+      },
+      "staleHint": "The bin changed after this count, so nothing was corrected. Ask staff to count it again."
     },
     "shipments": {
       "title": "Shipments (ASN)",
@@ -5365,7 +5373,8 @@
       "submitted": "Submitted",
       "valid": "Accepted",
       "invalid": "Invalid",
-      "settled": "Settled"
+      "settled": "Settled",
+      "stale": "Count again"
     }
   },
   "tickets": {
@@ -10046,7 +10055,17 @@
       "photos": "Photos",
       "notes": "Notes",
       "alerts": "Alerts",
-      "product": "Product"
+      "product": "Product",
+      "received": "Received / listed",
+      "sender": "From",
+      "receiver": "To",
+      "destination": "Then to",
+      "previousLeg": "Came from",
+      "nextLeg": "Continues as",
+      "unitsMoved": "Asked, sent, received",
+      "picked": "Picked / asked",
+      "stock": "Stock",
+      "differences": "Differences"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10170,7 +10189,36 @@
       "reportedBy": "Reported by",
       "settledBy": "Settled by",
       "compensation": "Paid to merchant (EGP)",
-      "riderCharge": "Charged to rider (EGP)"
+      "riderCharge": "Charged to rider (EGP)",
+      "barcode": "Barcode",
+      "onHand": "On shelves",
+      "reserved": "Reserved",
+      "available": "Available",
+      "level": "Stock level",
+      "reference": "Reference",
+      "expectedAt": "Expected on",
+      "receivedAt": "Received on",
+      "lines": "Products",
+      "expectedUnits": "Units listed",
+      "receivedUnits": "Units received",
+      "extraUnits": "Extra units",
+      "shortUnits": "Short units",
+      "sender": "From",
+      "receiver": "To",
+      "destination": "Then to",
+      "origin": "Made",
+      "sentAt": "Sent on",
+      "pickedUnits": "Units picked",
+      "sources": "Taken from",
+      "collectedAt": "Collected on",
+      "collectedBy": "Collected by",
+      "bin": "Bin",
+      "submittedBy": "Counted by",
+      "countedUnits": "Units counted",
+      "differences": "Products with a difference",
+      "netDifference": "Units difference",
+      "reviewedBy": "Reviewed by",
+      "reviewedAt": "Reviewed on"
     },
     "filters": {
       "active": "In progress",
@@ -10192,7 +10240,26 @@
       "with_order": "About an order",
       "pending": "Waiting",
       "settled": "Settled",
-      "company_pays": "We pay the merchant"
+      "company_pays": "We pay the merchant",
+      "in_stock": "Available to sell",
+      "low_stock": "Low stock",
+      "out_of_stock": "Out of stock",
+      "has_reserved": "Has reserved units",
+      "dark_stores": "Dark stores",
+      "hubs": "Hubs",
+      "extra": "More than listed",
+      "short": "Fewer than listed",
+      "to_hub": "To a hub",
+      "to_store": "To a dark store",
+      "refill": "Automatic refill",
+      "short_sent": "Sent short",
+      "short_received": "Arrived short",
+      "via_hub": "Through the hub",
+      "sellable": "Sellable units",
+      "damaged": "Damaged units",
+      "held": "Held units",
+      "with_differences": "With differences",
+      "no_differences": "No difference"
     },
     "groups": {
       "store": "Store",
@@ -10203,14 +10270,22 @@
       "source": "From",
       "type": "Type",
       "cause": "Cause",
-      "month": "Month"
+      "month": "Month",
+      "product": "Product",
+      "sender": "From",
+      "receiver": "To",
+      "destination": "Then to",
+      "origin": "Made"
     },
     "values": {
       "store": "Store",
       "merchant": "Merchant",
       "from": "From day",
       "to": "To day",
-      "type": "Type"
+      "type": "Type",
+      "sender": "From",
+      "receiver": "To",
+      "destination": "Then to"
     },
     "payment": {
       "cod": "Cash",
@@ -10223,7 +10298,9 @@
     "bulk": {
       "accept": "Accept",
       "cancel": "Cancel orders",
-      "resolve": "Mark as handled"
+      "resolve": "Mark as handled",
+      "approveTransfers": "Approve and hold the units",
+      "approveCounts": "Approve and correct stock"
     },
     "orders": {
       "exportName": "orders"
@@ -10240,6 +10317,59 @@
       "exportName": "damage-reports",
       "filters": {
         "pending": "Waiting to settle"
+      }
+    },
+    "origin": {
+      "manual": "By hand",
+      "refill": "Automatic refill"
+    },
+    "stock": {
+      "exportName": "stock",
+      "levels": {
+        "out": "Out of stock",
+        "low": "Low",
+        "ok": "In stock"
+      }
+    },
+    "shipments": {
+      "exportName": "shipments",
+      "intro": "Shipments merchants send to our stores and hubs. Open one to see its goods, every scan and what it was charged.",
+      "columns": {
+        "createdAt": "Created"
+      },
+      "filters": {
+        "open": "Still to receive"
+      }
+    },
+    "transfers": {
+      "exportName": "transfers",
+      "columns": {
+        "createdAt": "Created",
+        "units": "Units asked",
+        "pickedUnits": "Units sent"
+      },
+      "filters": {
+        "open": "In progress",
+        "manual": "By hand"
+      }
+    },
+    "returns": {
+      "exportName": "returns-to-merchants",
+      "intro": "Stock going back to merchants. Staff pick each unit by scan, then hand it over to the merchant’s collector.",
+      "columns": {
+        "createdAt": "Asked on",
+        "units": "Units"
+      },
+      "filters": {
+        "open": "In progress"
+      }
+    },
+    "counts": {
+      "exportName": "stock-counts",
+      "intro": "Blind counts of bins by store staff. Stock changes only when a count is approved; if the bin changed since the count, it must be counted again.",
+      "columns": {
+        "createdAt": "Counted on",
+        "expectedUnits": "System units"
       }
     }
   }

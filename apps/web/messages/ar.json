@@ -304,7 +304,15 @@
         "count_already_reviewed": "حد راجع الجرد ده قبلك.",
         "generic": "حصلت مشكلة، جرب تاني."
       },
-      "product": "المنتج"
+      "product": "المنتج",
+      "fields": {
+        "store": "المخزن",
+        "bin": "الرف",
+        "counted": "الجرد",
+        "reviewed": "المراجعة",
+        "note": "ملاحظة المراجعة"
+      },
+      "staleHint": "الرف اتغير بعد الجرد ده، فمفيش حاجة اتصححت. اطلب من الموظفين يجردوه تاني."
     },
     "shipments": {
       "title": "الشحنات (ASN)",
@@ -5308,7 +5316,8 @@
       "submitted": "مُقدّم",
       "valid": "مقبول",
       "invalid": "غير صالح",
-      "settled": "اتسوّى"
+      "settled": "اتسوّى",
+      "stale": "يتجرد تاني"
     }
   },
   "tickets": {
@@ -9989,7 +9998,17 @@
       "photos": "الصور",
       "notes": "الملاحظات",
       "alerts": "التنبيهات",
-      "product": "المنتج"
+      "product": "المنتج",
+      "received": "المستلم / المكتوب",
+      "sender": "من",
+      "receiver": "إلى",
+      "destination": "وبعدها إلى",
+      "previousLeg": "جاي من",
+      "nextLeg": "مكمّل كـ",
+      "unitsMoved": "مطلوب، متبعت، مستلم",
+      "picked": "المتجمع / المطلوب",
+      "stock": "المخزون",
+      "differences": "الفروق"
     },
     "chatter": {
       "title": "الملاحظات والسجل",
@@ -10113,7 +10132,36 @@
       "reportedBy": "بلّغ عنه",
       "settledBy": "سوّاه",
       "compensation": "اتدفع للتاجر (ج.م)",
-      "riderCharge": "على المندوب (ج.م)"
+      "riderCharge": "على المندوب (ج.م)",
+      "barcode": "الباركود",
+      "onHand": "على الرفوف",
+      "reserved": "محجوز",
+      "available": "متاح",
+      "level": "مستوى المخزون",
+      "reference": "المرجع",
+      "expectedAt": "موعد الوصول",
+      "receivedAt": "اتستلمت في",
+      "lines": "المنتجات",
+      "expectedUnits": "القطع المكتوبة",
+      "receivedUnits": "القطع المستلمة",
+      "extraUnits": "قطع زيادة",
+      "shortUnits": "قطع ناقصة",
+      "sender": "من",
+      "receiver": "إلى",
+      "destination": "وبعدها إلى",
+      "origin": "اتعملت",
+      "sentAt": "اتبعتت في",
+      "pickedUnits": "القطع المتجمعة",
+      "sources": "متاخدة من",
+      "collectedAt": "اتسلمت في",
+      "collectedBy": "استلمها",
+      "bin": "الرف",
+      "submittedBy": "عدّه",
+      "countedUnits": "القطع المعدودة",
+      "differences": "منتجات فيها فرق",
+      "netDifference": "فرق القطع",
+      "reviewedBy": "راجعه",
+      "reviewedAt": "اتراجع في"
     },
     "filters": {
       "active": "شغالة",
@@ -10135,7 +10183,26 @@
       "with_order": "عن طلب",
       "pending": "مستنية",
       "settled": "اتسوّت",
-      "company_pays": "إحنا بندفع للتاجر"
+      "company_pays": "إحنا بندفع للتاجر",
+      "in_stock": "متاح للبيع",
+      "low_stock": "مخزون قليل",
+      "out_of_stock": "خلصان",
+      "has_reserved": "فيه قطع محجوزة",
+      "dark_stores": "المخازن",
+      "hubs": "مراكز الفرز",
+      "extra": "أكتر من المكتوب",
+      "short": "أقل من المكتوب",
+      "to_hub": "لمركز فرز",
+      "to_store": "لمخزن",
+      "refill": "تعبئة تلقائية",
+      "short_sent": "اتبعتت ناقصة",
+      "short_received": "وصلت ناقصة",
+      "via_hub": "عن طريق مركز الفرز",
+      "sellable": "قطع صالحة للبيع",
+      "damaged": "قطع تالفة",
+      "held": "قطع محجوزة للمراجعة",
+      "with_differences": "فيها فروق",
+      "no_differences": "من غير فرق"
     },
     "groups": {
       "store": "المخزن",
@@ -10146,14 +10213,22 @@
       "source": "المصدر",
       "type": "النوع",
       "cause": "السبب",
-      "month": "الشهر"
+      "month": "الشهر",
+      "product": "المنتج",
+      "sender": "من",
+      "receiver": "إلى",
+      "destination": "وبعدها إلى",
+      "origin": "اتعملت"
     },
     "values": {
       "store": "المخزن",
       "merchant": "التاجر",
       "from": "من يوم",
       "to": "لحد يوم",
-      "type": "النوع"
+      "type": "النوع",
+      "sender": "من",
+      "receiver": "إلى",
+      "destination": "وبعدها إلى"
     },
     "payment": {
       "cod": "كاش",
@@ -10166,7 +10241,9 @@
     "bulk": {
       "accept": "قبول",
       "cancel": "إلغاء الطلبات",
-      "resolve": "تم التعامل معها"
+      "resolve": "تم التعامل معها",
+      "approveTransfers": "وافق واحجز القطع",
+      "approveCounts": "وافق وصحّح المخزون"
     },
     "orders": {
       "exportName": "orders"
@@ -10183,6 +10260,59 @@
       "exportName": "damage-reports",
       "filters": {
         "pending": "مستنية التسوية"
+      }
+    },
+    "origin": {
+      "manual": "يدوي",
+      "refill": "تعبئة تلقائية"
+    },
+    "stock": {
+      "exportName": "stock",
+      "levels": {
+        "out": "خلصان",
+        "low": "قليل",
+        "ok": "موجود"
+      }
+    },
+    "shipments": {
+      "exportName": "shipments",
+      "intro": "الشحنات اللي التجار بيبعتوها لمخازننا ومراكز الفرز. افتح أي شحنة تشوف بضاعتها وكل مسحة واتحاسبت على إيه.",
+      "columns": {
+        "createdAt": "اتعملت في"
+      },
+      "filters": {
+        "open": "لسه هتتستلم"
+      }
+    },
+    "transfers": {
+      "exportName": "transfers",
+      "columns": {
+        "createdAt": "اتعمل في",
+        "units": "القطع المطلوبة",
+        "pickedUnits": "القطع المتبعتة"
+      },
+      "filters": {
+        "open": "شغالة",
+        "manual": "يدوي"
+      }
+    },
+    "returns": {
+      "exportName": "returns-to-merchants",
+      "intro": "بضاعة راجعة للتجار. الموظفين بيجمعوا كل قطعة بالمسح، وبعدين بيسلموها للي جاي يستلم من طرف التاجر.",
+      "columns": {
+        "createdAt": "اتطلب في",
+        "units": "القطع"
+      },
+      "filters": {
+        "open": "شغالة"
+      }
+    },
+    "counts": {
+      "exportName": "stock-counts",
+      "intro": "جرد الرفوف من غير ما الموظف يعرف العدد. المخزون مبيتغيرش غير لما الجرد يتوافق عليه؛ ولو الرف اتغير بعد الجرد لازم يتجرد تاني.",
+      "columns": {
+        "createdAt": "اتجرد في",
+        "expectedUnits": "قطع السيستم"
       }
     }
   }

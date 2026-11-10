@@ -242,10 +242,10 @@ export default async function AdminMerchantPage({
               <Link className="text-link" href={`/admin/products?merchant=${id}`}>
                 {t('products.openProducts')}
               </Link>
-              <Link className="text-link" href={`/admin/shipments?merchant=${id}`}>
+              <Link className="text-link" href={`/admin/shipments?f=&v=merchant:${id}`}>
                 {t('products.openShipments')}
               </Link>
-              <Link className="text-link" href="/admin/stock">
+              <Link className="text-link" href={`/admin/stock?f=&v=merchant:${id}`}>
                 {t('products.openStock')}
               </Link>
             </p>

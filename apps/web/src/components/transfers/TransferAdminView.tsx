@@ -20,7 +20,14 @@ const KNOWN = [
 ];
 
 /** One transfer for admin: lines, its legs, approve a draft (quantities editable), cancel. */
-export function TransferAdminView({ detail }: { detail: TransferDetail }) {
+export function TransferAdminView({
+  detail,
+  framed = false,
+}: {
+  detail: TransferDetail;
+  /** Inside a document frame: the frame shows the number, status bar and legs */
+  framed?: boolean;
+}) {
   const t = useTranslations('transfers');
   const locale = useLocale();
   const router = useRouter();
@@ -42,15 +49,19 @@ export function TransferAdminView({ detail }: { detail: TransferDetail }) {
   }
 
   return (
-    <div className="mt-4 max-w-3xl space-y-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="ltr-iso text-h2">{detail.reference}</h1>
-        <TransferStatusChip status={detail.status} />
-        {detail.origin === 'refill' && (
-          <span className="text-caption text-text-muted">{t('auto')}</span>
-        )}
-      </div>
-      <StatusBar flow="transfer" status={detail.status} />
+    <div className={`${framed ? '' : 'mt-4 max-w-3xl'} space-y-4`}>
+      {!framed && (
+        <>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="ltr-iso text-h2">{detail.reference}</h1>
+            <TransferStatusChip status={detail.status} />
+            {detail.origin === 'refill' && (
+              <span className="text-caption text-text-muted">{t('auto')}</span>
+            )}
+          </div>
+          <StatusBar flow="transfer" status={detail.status} />
+        </>
+      )}
       <p className="text-body">
         <TransferRoute
           from={detail.from}
@@ -73,7 +84,7 @@ export function TransferAdminView({ detail }: { detail: TransferDetail }) {
           </>
         )}
       </p>
-      {(detail.previous || detail.next.length > 0) && (
+      {!framed && (detail.previous || detail.next.length > 0) && (
         <p className="text-body-sm">
           {detail.previous && (
             <Link href={`/admin/transfers/${detail.previous.id}`} className="text-link underline">
@@ -89,7 +100,10 @@ export function TransferAdminView({ detail }: { detail: TransferDetail }) {
       )}
       {detail.note && <p className="text-body-sm">{detail.note}</p>}
 
-      <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
+      <ul
+        id="lines"
+        className="scroll-mt-20 divide-y divide-line rounded-lg border border-line bg-surface"
+      >
         {detail.lines.map((l) => (
           <li key={l.skuId} className="flex flex-wrap items-center justify-between gap-3 p-3">
             <span className="min-w-0">

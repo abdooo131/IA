@@ -24,6 +24,11 @@ export interface RecordRef {
   href: string;
   darkStoreId: string | null;
   merchantId: string | null;
+  /**
+   * A record of several locations (a transfer: sender, receiver, final destination): a person
+   * limited to some stores may open it when one of them is theirs. darkStoreId is then null.
+   */
+  anyStoreIds?: string[];
 }
 
 /**
@@ -187,6 +192,68 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
           href: `/admin/damage/${id}`,
           darkStoreId: r.darkStoreId,
           merchantId: r.merchantId,
+        }
+      );
+    }
+    // UX phase C step 2: the Inventory documents.
+    case 'inbound_manifest': {
+      const r = await db.inboundManifest.findUnique({
+        where: { id },
+        select: { reference: true, darkStoreId: true, merchantId: true },
+      });
+      return (
+        r && {
+          label: r.reference,
+          href: `/admin/shipments/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: r.merchantId,
+        }
+      );
+    }
+    case 'transfer': {
+      const r = await db.transfer.findUnique({
+        where: { id },
+        select: { reference: true, fromId: true, toId: true, finalDestinationId: true },
+      });
+      return (
+        r && {
+          label: r.reference,
+          href: `/admin/transfers/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+          anyStoreIds: [r.fromId, r.toId, r.finalDestinationId].filter((x): x is string => !!x),
+        }
+      );
+    }
+    case 'merchant_return': {
+      const r = await db.merchantReturn.findUnique({
+        where: { id },
+        select: { reference: true, darkStoreId: true, merchantId: true },
+      });
+      return (
+        r && {
+          label: r.reference,
+          href: `/admin/returns/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: r.merchantId,
+        }
+      );
+    }
+    case 'stock_count': {
+      const r = await db.stockCount.findUnique({
+        where: { id },
+        select: {
+          darkStoreId: true,
+          darkStore: { select: { code: true } },
+          bin: { select: { code: true } },
+        },
+      });
+      return (
+        r && {
+          label: `${r.darkStore.code} · ${r.bin.code}`,
+          href: `/admin/counts/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: null,
         }
       );
     }

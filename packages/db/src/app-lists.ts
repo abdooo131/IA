@@ -19,12 +19,14 @@ import {
   previousMonth,
 } from '@shiplynow/shared';
 import type { Db } from './client';
+import { getSetting } from './settings';
 import { listGaps, type ListScope, queryList, type RegisteredList } from './list-query';
 
-// The list views of the other apps (UX phase C, step 1: Operations): orders, alerts and
-// damage reports. Each loads its most recent rows (LIST_MAX_ROWS) inside the person's stores
-// and merchants, narrowed in the database by the value filters chosen (store, merchant, days),
-// and the shared list engine applies the rest of the address.
+// The list views of the other apps (UX phase C; step 1 Operations: orders, alerts and damage
+// reports; step 2 Inventory: stock, shipments in, transfers, returns and stock counts). Each
+// loads its most recent rows (LIST_MAX_ROWS) inside the person's stores and merchants, narrowed
+// in the database by the value filters chosen (store, merchant, days), and the shared list
+// engine applies the rest of the address.
 
 const named = (key: string | null, label: string | null): GroupValue => ({
   key: key ?? '-',
@@ -457,6 +459,585 @@ const damage: ListDef<DamageListRow> = {
   sums: APP_LISTS.inventory.damage.sums,
 };
 
+// ─── inventory (UX phase C step 2) ──────────────────────────────────────────────
+
+const sum = <T>(rows: T[], of: (r: T) => number) => rows.reduce((s, r) => s + of(r), 0);
+const statusFilter = <R extends { status: string }>(statuses: readonly string[]) =>
+  Object.fromEntries(
+    statuses.map((s) => [s, { group: 'status', test: (r: R) => r.status === s }]),
+  ) as Record<string, { group: string; test: (r: R) => boolean }>;
+const storeRef = { select: { id: true, code: true, kind: true } } as const;
+
+// stock per store and product
+
+export interface StockListRow {
+  id: string;
+  storeId: string;
+  store: string;
+  storeKind: string;
+  merchantId: string;
+  merchant: string;
+  skuId: string;
+  sku: string;
+  barcode: string | null;
+  titleEn: string;
+  titleAr: string;
+  onHand: number;
+  reserved: number;
+  available: number;
+  lowStock: boolean;
+  outOfStock: boolean;
+  /** out (nothing to sell), low (at or under the threshold) or ok */
+  level: 'out' | 'low' | 'ok';
+}
+
+/**
+ * Stock per store and product, as GET /admin/stock counts it: available is on hand minus
+ * reserved minus the store's buffer (never below 0), low when at or under its threshold.
+ */
+async function loadStock(db: Db, scope: ListScope, state: ListState): Promise<StockListRow[]> {
+  const merchants = within(state.values.merchant, scope.merchantIds);
+  const levels = await db.stockLevel.findMany({
+    where: {
+      darkStoreId: within(state.values.store, scope.storeIds),
+      ...(merchants && { sku: { merchantId: merchants } }),
+    },
+    select: {
+      darkStoreId: true,
+      skuId: true,
+      onHand: true,
+      reserved: true,
+      darkStore: storeRef,
+      sku: {
+        select: {
+          sku: true,
+          barcode: true,
+          titleEn: true,
+          titleAr: true,
+          merchantId: true,
+          merchant: { select: { name: true } },
+        },
+      },
+    },
+    orderBy: [{ darkStore: { code: 'asc' } }, { sku: { sku: 'asc' } }],
+    take: LIST_MAX_ROWS,
+  });
+  const rules = new Map<string, { buffer: number; threshold: number }>();
+  for (const id of new Set(levels.map((l) => l.darkStoreId)))
+    rules.set(id, {
+      buffer: await getSetting(db, 'stock.buffer_units', id),
+      threshold: await getSetting(db, 'stock.low_stock_threshold', id),
+    });
+  return levels.map((l) => {
+    const { buffer, threshold } = rules.get(l.darkStoreId)!;
+    const available = Math.max(l.onHand - l.reserved - buffer, 0);
+    return {
+      id: `${l.darkStoreId}:${l.skuId}`,
+      storeId: l.darkStoreId,
+      store: l.darkStore.code,
+      storeKind: l.darkStore.kind,
+      merchantId: l.sku.merchantId,
+      merchant: l.sku.merchant.name,
+      skuId: l.skuId,
+      sku: l.sku.sku,
+      barcode: l.sku.barcode,
+      titleEn: l.sku.titleEn,
+      titleAr: l.sku.titleAr,
+      onHand: l.onHand,
+      reserved: l.reserved,
+      available,
+      lowStock: available <= threshold,
+      outOfStock: available === 0,
+      level: available === 0 ? 'out' : available <= threshold ? 'low' : 'ok',
+    };
+  });
+}
+
+const stock: ListDef<StockListRow> = {
+  id: 'stock',
+  filters: {
+    in_stock: { group: 'level', test: (r) => r.available > 0 },
+    low_stock: { group: 'level', test: (r) => r.lowStock },
+    out_of_stock: { group: 'level', test: (r) => r.outOfStock },
+    has_reserved: { group: 'reserved', test: (r) => r.reserved > 0 },
+    dark_stores: { group: 'kind', test: (r) => r.storeKind === 'dark_store' },
+    hubs: { group: 'kind', test: (r) => r.storeKind === 'hub' },
+  },
+  values: {
+    store: (r, v) => r.storeId === v,
+    merchant: (r, v) => r.merchantId === v,
+  },
+  groupBys: {
+    store: (r) => named(r.storeId, r.store),
+    merchant: (r) => named(r.merchantId, r.merchant),
+    product: (r) => named(r.skuId, `${r.sku} · ${r.titleEn}`),
+  },
+  search: (r) => [r.sku, r.barcode, r.titleEn, r.titleAr, r.merchant, r.store],
+  sorts: {
+    sku: (r) => r.sku,
+    onHand: (r) => r.onHand,
+    reserved: (r) => r.reserved,
+    available: (r) => r.available,
+  },
+  defaultSort: { key: 'sku', desc: false },
+  sums: APP_LISTS.inventory.stock.sums,
+};
+
+// shipments in (inbound manifests)
+
+export interface ShipmentListRow {
+  id: string;
+  reference: string;
+  status: string;
+  storeId: string;
+  store: string;
+  storeKind: string;
+  merchantId: string;
+  merchant: string;
+  createdAt: string;
+  createdDay: string;
+  expectedAt: string | null;
+  receivedAt: string | null;
+  lines: number;
+  expectedUnits: number;
+  receivedUnits: number;
+  /** Units received above what the merchant listed (products not listed included) */
+  extraUnits: number;
+  /** Units listed but not received, once the shipment is closed */
+  shortUnits: number;
+}
+
+async function loadShipments(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<ShipmentListRow[]> {
+  const rows = await db.inboundManifest.findMany({
+    where: {
+      darkStoreId: within(state.values.store, scope.storeIds),
+      merchantId: within(state.values.merchant, scope.merchantIds),
+      createdAt: dayRange(state),
+    },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      createdAt: true,
+      expectedAt: true,
+      receivedAt: true,
+      darkStoreId: true,
+      darkStore: storeRef,
+      merchantId: true,
+      merchant: { select: { name: true } },
+      lines: { select: { expectedQty: true, receivedQty: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((m) => ({
+    id: m.id,
+    reference: m.reference,
+    status: m.status,
+    storeId: m.darkStoreId,
+    store: m.darkStore.code,
+    storeKind: m.darkStore.kind,
+    merchantId: m.merchantId,
+    merchant: m.merchant.name,
+    createdAt: m.createdAt.toISOString(),
+    createdDay: cairoDay(m.createdAt),
+    expectedAt: m.expectedAt?.toISOString() ?? null,
+    receivedAt: m.receivedAt?.toISOString() ?? null,
+    lines: m.lines.length,
+    expectedUnits: sum(m.lines, (l) => l.expectedQty),
+    receivedUnits: sum(m.lines, (l) => l.receivedQty),
+    extraUnits: sum(m.lines, (l) => Math.max(0, l.receivedQty - l.expectedQty)),
+    shortUnits:
+      m.status === 'received' ? sum(m.lines, (l) => Math.max(0, l.expectedQty - l.receivedQty)) : 0,
+  }));
+}
+
+const shipments: ListDef<ShipmentListRow> = {
+  id: 'shipments',
+  filters: {
+    open: { group: 'status', test: (r) => r.status === 'expected' || r.status === 'receiving' },
+    ...statusFilter<ShipmentListRow>(['expected', 'receiving', 'received', 'cancelled']),
+    extra: { group: 'difference', test: (r) => r.extraUnits > 0 },
+    short: { group: 'difference', test: (r) => r.shortUnits > 0 },
+    to_hub: { group: 'kind', test: (r) => r.storeKind === 'hub' },
+    to_store: { group: 'kind', test: (r) => r.storeKind === 'dark_store' },
+    ...dayFilters<ShipmentListRow>((r) => r.createdDay),
+  },
+  values: {
+    store: (r, v) => r.storeId === v,
+    merchant: (r, v) => r.merchantId === v,
+    from: (r, v) => r.createdDay >= v,
+    to: (r, v) => r.createdDay <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    store: (r) => named(r.storeId, r.store),
+    merchant: (r) => named(r.merchantId, r.merchant),
+    day: (r) => named(r.createdDay, r.createdDay),
+    month: (r) => named(monthOfDay(r.createdDay), monthOfDay(r.createdDay)),
+  },
+  search: (r) => [r.reference, r.merchant, r.store],
+  sorts: {
+    reference: (r) => r.reference,
+    created: (r) => r.createdAt,
+    expectedUnits: (r) => r.expectedUnits,
+    receivedUnits: (r) => r.receivedUnits,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: APP_LISTS.inventory.shipments.sums,
+};
+
+// transfers between locations
+
+export interface TransferListRow {
+  id: string;
+  reference: string;
+  status: string;
+  origin: string;
+  senderId: string;
+  sender: string;
+  receiverId: string;
+  receiver: string;
+  destinationId: string | null;
+  destination: string | null;
+  /** The onward leg from the hub of a store to store transfer */
+  onward: boolean;
+  createdAt: string;
+  createdDay: string;
+  sentAt: string | null;
+  receivedAt: string | null;
+  lines: number;
+  units: number;
+  pickedUnits: number;
+  receivedUnits: number;
+  /** Sent fewer units than asked (units not found at the sender) */
+  shortSent: boolean;
+  /** The receiver closed with fewer units than were sent */
+  shortReceived: boolean;
+}
+
+/** A person's stores: transfers leaving, reaching or finally going to one of them. */
+function anyLeg(ids: string[]): Prisma.TransferWhereInput {
+  return {
+    OR: [{ fromId: { in: ids } }, { toId: { in: ids } }, { finalDestinationId: { in: ids } }],
+  };
+}
+
+async function loadTransfers(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<TransferListRow[]> {
+  const chosen = state.values.store;
+  const and: Prisma.TransferWhereInput[] = [];
+  if (scope.storeIds) and.push(anyLeg(scope.storeIds));
+  if (chosen) and.push(anyLeg([chosen]));
+  // A chosen location outside the person's stores shows nothing.
+  const picked = [chosen, state.values.sender, state.values.receiver, state.values.destination];
+  if (scope.storeIds && picked.some((id) => id && !scope.storeIds!.includes(id)))
+    and.push({ id: { in: [] } });
+  const rows = await db.transfer.findMany({
+    where: {
+      AND: and,
+      fromId: state.values.sender,
+      toId: state.values.receiver,
+      finalDestinationId: state.values.destination,
+      createdAt: dayRange(state),
+    },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      origin: true,
+      fromId: true,
+      toId: true,
+      finalDestinationId: true,
+      previousId: true,
+      createdAt: true,
+      sentAt: true,
+      receivedAt: true,
+      from: storeRef,
+      to: storeRef,
+      finalDestination: storeRef,
+      lines: { select: { quantity: true, pickedQty: true, receivedQty: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((t) => {
+    const units = sum(t.lines, (l) => l.quantity);
+    const picked = sum(t.lines, (l) => l.pickedQty);
+    const received = sum(t.lines, (l) => l.receivedQty);
+    const sent = t.status === 'in_transit' || t.status === 'received';
+    return {
+      id: t.id,
+      reference: t.reference,
+      status: t.status,
+      origin: t.origin,
+      senderId: t.fromId,
+      sender: t.from.code,
+      receiverId: t.toId,
+      receiver: t.to.code,
+      destinationId: t.finalDestinationId,
+      destination: t.finalDestination?.code ?? null,
+      onward: t.previousId !== null,
+      createdAt: t.createdAt.toISOString(),
+      createdDay: cairoDay(t.createdAt),
+      sentAt: t.sentAt?.toISOString() ?? null,
+      receivedAt: t.receivedAt?.toISOString() ?? null,
+      lines: t.lines.length,
+      units,
+      pickedUnits: picked,
+      receivedUnits: received,
+      shortSent: sent && picked < units,
+      shortReceived: t.status === 'received' && received < picked,
+    };
+  });
+}
+
+const OPEN_TRANSFER = ['draft', 'approved', 'picking', 'in_transit'];
+
+const transfers: ListDef<TransferListRow> = {
+  id: 'transfers',
+  filters: {
+    open: { group: 'status', test: (r) => OPEN_TRANSFER.includes(r.status) },
+    ...statusFilter<TransferListRow>([
+      'draft',
+      'approved',
+      'picking',
+      'in_transit',
+      'received',
+      'cancelled',
+    ]),
+    manual: { group: 'origin', test: (r) => r.origin === 'manual' },
+    refill: { group: 'origin', test: (r) => r.origin === 'refill' },
+    short_sent: { group: 'short', test: (r) => r.shortSent },
+    short_received: { group: 'short', test: (r) => r.shortReceived },
+    via_hub: { group: 'leg', test: (r) => r.destinationId !== null || r.onward },
+    ...dayFilters<TransferListRow>((r) => r.createdDay),
+  },
+  values: {
+    store: (r, v) => r.senderId === v || r.receiverId === v || r.destinationId === v,
+    sender: (r, v) => r.senderId === v,
+    receiver: (r, v) => r.receiverId === v,
+    destination: (r, v) => r.destinationId === v,
+    from: (r, v) => r.createdDay >= v,
+    to: (r, v) => r.createdDay <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    sender: (r) => named(r.senderId, r.sender),
+    receiver: (r) => named(r.receiverId, r.receiver),
+    destination: (r) => named(r.destinationId, r.destination),
+    origin: (r) => named(r.origin, r.origin),
+    day: (r) => named(r.createdDay, r.createdDay),
+  },
+  search: (r) => [r.reference, r.sender, r.receiver, r.destination],
+  sorts: {
+    reference: (r) => r.reference,
+    created: (r) => r.createdAt,
+    units: (r) => r.units,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: APP_LISTS.inventory.transfers.sums,
+};
+
+// returns to the merchant
+
+export interface ReturnListRow {
+  id: string;
+  reference: string;
+  status: string;
+  storeId: string;
+  store: string;
+  merchantId: string;
+  merchant: string;
+  createdAt: string;
+  createdDay: string;
+  collectedAt: string | null;
+  collectedBy: string | null;
+  /** Where the units come from: sellable, damaged, held (one or more) */
+  sources: string[];
+  lines: number;
+  units: number;
+  pickedUnits: number;
+}
+
+async function loadReturns(db: Db, scope: ListScope, state: ListState): Promise<ReturnListRow[]> {
+  const rows = await db.merchantReturn.findMany({
+    where: {
+      darkStoreId: within(state.values.store, scope.storeIds),
+      merchantId: within(state.values.merchant, scope.merchantIds),
+      createdAt: dayRange(state),
+    },
+    select: {
+      id: true,
+      reference: true,
+      status: true,
+      createdAt: true,
+      collectedAt: true,
+      collectedBy: true,
+      darkStoreId: true,
+      darkStore: storeRef,
+      merchantId: true,
+      merchant: { select: { name: true } },
+      lines: { select: { source: true, quantity: true, pickedQty: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((r) => ({
+    id: r.id,
+    reference: r.reference,
+    status: r.status,
+    storeId: r.darkStoreId,
+    store: r.darkStore.code,
+    merchantId: r.merchantId,
+    merchant: r.merchant.name,
+    createdAt: r.createdAt.toISOString(),
+    createdDay: cairoDay(r.createdAt),
+    collectedAt: r.collectedAt?.toISOString() ?? null,
+    collectedBy: r.collectedBy,
+    sources: [...new Set(r.lines.map((l) => l.source as string))].sort(),
+    lines: r.lines.length,
+    units: sum(r.lines, (l) => l.quantity),
+    pickedUnits: sum(r.lines, (l) => l.pickedQty),
+  }));
+}
+
+const returns: ListDef<ReturnListRow> = {
+  id: 'returns',
+  filters: {
+    open: {
+      group: 'status',
+      test: (r) => r.status !== 'collected' && r.status !== 'cancelled',
+    },
+    ...statusFilter<ReturnListRow>(['requested', 'picking', 'ready', 'collected', 'cancelled']),
+    ...Object.fromEntries(
+      ['sellable', 'damaged', 'held'].map((s) => [
+        s,
+        { group: 'source', test: (r: ReturnListRow) => r.sources.includes(s) },
+      ]),
+    ),
+    ...dayFilters<ReturnListRow>((r) => r.createdDay),
+  },
+  values: {
+    store: (r, v) => r.storeId === v,
+    merchant: (r, v) => r.merchantId === v,
+    from: (r, v) => r.createdDay >= v,
+    to: (r, v) => r.createdDay <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    store: (r) => named(r.storeId, r.store),
+    merchant: (r) => named(r.merchantId, r.merchant),
+    day: (r) => named(r.createdDay, r.createdDay),
+  },
+  search: (r) => [r.reference, r.merchant, r.store, r.collectedBy],
+  sorts: {
+    reference: (r) => r.reference,
+    created: (r) => r.createdAt,
+    units: (r) => r.units,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: APP_LISTS.inventory.returns.sums,
+};
+
+// stock counts
+
+export interface CountListRow {
+  id: string;
+  status: string;
+  storeId: string;
+  store: string;
+  bin: string;
+  binType: string;
+  submittedBy: string;
+  reviewedBy: string | null;
+  createdAt: string;
+  createdDay: string;
+  reviewedAt: string | null;
+  lines: number;
+  /** Products whose counted units differ from the system's */
+  differences: number;
+  /** Counted minus expected, over the whole bin */
+  netDifference: number;
+  expectedUnits: number;
+  countedUnits: number;
+}
+
+async function loadCounts(db: Db, scope: ListScope, state: ListState): Promise<CountListRow[]> {
+  const rows = await db.stockCount.findMany({
+    where: {
+      darkStoreId: within(state.values.store, scope.storeIds),
+      createdAt: dayRange(state),
+    },
+    select: {
+      id: true,
+      status: true,
+      createdAt: true,
+      reviewedAt: true,
+      darkStoreId: true,
+      darkStore: storeRef,
+      bin: { select: { code: true, type: true } },
+      submittedBy: { select: { name: true } },
+      reviewedBy: { select: { name: true } },
+      lines: { select: { expectedQty: true, countedQty: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((c) => ({
+    id: c.id,
+    status: c.status,
+    storeId: c.darkStoreId,
+    store: c.darkStore.code,
+    bin: c.bin.code,
+    binType: c.bin.type,
+    submittedBy: c.submittedBy.name,
+    reviewedBy: c.reviewedBy?.name ?? null,
+    createdAt: c.createdAt.toISOString(),
+    createdDay: cairoDay(c.createdAt),
+    reviewedAt: c.reviewedAt?.toISOString() ?? null,
+    lines: c.lines.length,
+    differences: c.lines.filter((l) => l.countedQty !== l.expectedQty).length,
+    netDifference: sum(c.lines, (l) => l.countedQty - l.expectedQty),
+    expectedUnits: sum(c.lines, (l) => l.expectedQty),
+    countedUnits: sum(c.lines, (l) => l.countedQty),
+  }));
+}
+
+const counts: ListDef<CountListRow> = {
+  id: 'counts',
+  filters: {
+    ...statusFilter<CountListRow>(['submitted', 'approved', 'rejected', 'stale']),
+    with_differences: { group: 'difference', test: (r) => r.differences > 0 },
+    no_differences: { group: 'difference', test: (r) => r.differences === 0 },
+    ...dayFilters<CountListRow>((r) => r.createdDay),
+  },
+  values: {
+    store: (r, v) => r.storeId === v,
+    from: (r, v) => r.createdDay >= v,
+    to: (r, v) => r.createdDay <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    store: (r) => named(r.storeId, r.store),
+    day: (r) => named(r.createdDay, r.createdDay),
+  },
+  search: (r) => [r.store, r.bin, r.submittedBy, r.reviewedBy],
+  sorts: {
+    created: (r) => r.createdAt,
+    differences: (r) => r.differences,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: APP_LISTS.inventory.counts.sums,
+};
+
 // ─── the registry ───────────────────────────────────────────────────────────────
 
 export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
@@ -465,6 +1046,11 @@ export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
     alerts: { def: alerts, load: loadAlerts },
   },
   inventory: {
+    stock: { def: stock, load: loadStock },
+    shipments: { def: shipments, load: loadShipments },
+    transfers: { def: transfers, load: loadTransfers },
+    returns: { def: returns, load: loadReturns },
+    counts: { def: counts, load: loadCounts },
     damage: { def: damage, load: loadDamage },
   },
 } satisfies Record<AppListApp, Record<string, RegisteredList>>;
@@ -492,17 +1078,19 @@ export async function appListOptions(db: Db, app: string, id: string, scope: Lis
     .filter(([, kind]) => kind === 'option')
     .map(([k]) => k);
   const out: Record<string, { value: string; label: string; labelAr?: string }[]> = {};
-  if (wants.includes('store')) {
+  const locations = ['store', 'sender', 'receiver', 'destination'].filter((k) => wants.includes(k));
+  if (locations.length) {
     const stores = await db.darkStore.findMany({
       where: { id: storeIn(scope), ...(id === 'orders' && { kind: 'dark_store' }) },
       select: { id: true, code: true, nameEn: true, nameAr: true },
       orderBy: { code: 'asc' },
     });
-    out.store = stores.map((s) => ({
+    const options = stores.map((s) => ({
       value: s.id,
       label: `${s.code} · ${s.nameEn}`,
       labelAr: `${s.code} · ${s.nameAr}`,
     }));
+    for (const k of locations) out[k] = options;
   }
   if (wants.includes('merchant')) {
     const merchants = await db.merchant.findMany({

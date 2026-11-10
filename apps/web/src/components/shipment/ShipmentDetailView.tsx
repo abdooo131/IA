@@ -11,9 +11,12 @@ import { ShipmentStatusChip } from './ShipmentStatusChip';
 export async function ShipmentDetailView({
   detail,
   backHref,
+  framed = false,
 }: {
   detail: ShipmentDetail;
   backHref: string;
+  /** Inside a document frame (admin): the frame shows the way back, number and status bar */
+  framed?: boolean;
 }) {
   const [t, locale] = await Promise.all([getTranslations('shipment'), getLocale()]);
   const when = (iso: string | null) =>
@@ -25,20 +28,24 @@ export async function ShipmentDetailView({
 
   return (
     <div className="space-y-5">
-      <Link href={backHref} className="text-body-sm font-bold text-link">
-        <span aria-hidden className="inline-block rtl:rotate-180">
-          ←
-        </span>{' '}
-        {t('back')}
-      </Link>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-h2">
-          {t('title', { reference: '' })}
-          <span className="ltr-iso">{detail.reference}</span>
-        </h1>
-        <ShipmentStatusChip status={detail.status} />
-      </div>
-      <StatusBar flow="shipment" status={detail.status} />
+      {!framed && (
+        <>
+          <Link href={backHref} className="text-body-sm font-bold text-link">
+            <span aria-hidden className="inline-block rtl:rotate-180">
+              ←
+            </span>{' '}
+            {t('back')}
+          </Link>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-h2">
+              {t('title', { reference: '' })}
+              <span className="ltr-iso">{detail.reference}</span>
+            </h1>
+            <ShipmentStatusChip status={detail.status} />
+          </div>
+          <StatusBar flow="shipment" status={detail.status} />
+        </>
+      )}
       <p className="text-body-sm text-text-muted">{t('totals', { received, expected })}</p>
 
       <section className={card}>
@@ -97,7 +104,7 @@ export async function ShipmentDetailView({
         </ol>
       </section>
 
-      <section className={card}>
+      <section id="lines" className={`${card} scroll-mt-20`}>
         <h2 className="text-h3">{t('products')}</h2>
         <ul className="mt-2 divide-y divide-line">
           {detail.lines.map((l) => {

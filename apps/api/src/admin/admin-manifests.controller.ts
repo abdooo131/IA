@@ -3,7 +3,8 @@ import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { getManifestDetail, type ManifestStatus, type Prisma } from '@shiplynow/db';
 import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
 import { assertMerchant, assertStore, merchantFilter, storeFilter } from '../auth/access-scope';
-import { type AccessProfile } from '@shiplynow/shared';
+import { type AccessProfile, canDo, type DocSmartButton } from '@shiplynow/shared';
+import { documentEntries, type DocEntry } from './doc-entries';
 import { PrismaService } from '../prisma/prisma.service';
 
 const STATUSES: ManifestStatus[] = ['expected', 'receiving', 'received', 'cancelled'];
@@ -98,5 +99,57 @@ export class AdminManifestsController {
     assertStore(access, row?.darkStoreId ?? null);
     assertMerchant(access, row?.merchantId ?? null);
     return detail;
+  }
+
+  /**
+   * The shipment's document frame (UX phase C step 2): smart buttons (merchant, store, its
+   * lines, units received against listed, the receiving fee entries for accounting) and the
+   * entries it booked.
+   */
+  @Get('manifests/:id/document')
+  async document(@Param('id') id: string, @CurrentAccess() access: AccessProfile) {
+    const m = await this.prisma.inboundManifest.findUnique({
+      where: { id },
+      select: {
+        darkStoreId: true,
+        merchantId: true,
+        merchant: { select: { name: true } },
+        darkStore: { select: { code: true } },
+        lines: { select: { expectedQty: true, receivedQty: true } },
+      },
+    });
+    if (!m) throw new NotFoundException({ error: 'manifest_not_found' });
+    assertStore(access, m.darkStoreId);
+    assertMerchant(access, m.merchantId);
+    const smart: DocSmartButton[] = [];
+    if (canDo(access, 'merchants', 'view'))
+      smart.push({
+        key: 'merchant',
+        count: null,
+        value: m.merchant.name,
+        href: `/admin/merchants/${m.merchantId}`,
+      });
+    smart.push(
+      {
+        key: 'store',
+        count: null,
+        value: m.darkStore.code,
+        href: `/admin/shipments?f=&v=store:${m.darkStoreId}`,
+      },
+      { key: 'lines', count: m.lines.length, href: '#lines' },
+      {
+        key: 'received',
+        count: null,
+        value: `${m.lines.reduce((s, l) => s + l.receivedQty, 0)} / ${m.lines.reduce((s, l) => s + l.expectedQty, 0)}`,
+        href: '#lines',
+      },
+    );
+    let entries: DocEntry[] = [];
+    if (canDo(access, 'accounting', 'view')) {
+      const booked = await documentEntries(this.prisma, `manifest:${id}:`);
+      entries = booked.entries;
+      smart.push(booked.button);
+    }
+    return { smart, entries };
   }
 }
