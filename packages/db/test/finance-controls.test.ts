@@ -76,6 +76,16 @@ describe('closing months', () => {
   it('blocks posting on or before the closed day, and only admin reopens with a reason', async () => {
     const yesterday = addDays(today(), -1);
     const twoDaysAgo = addDays(today(), -2);
+    // Money in the bank before the backdated expenses below (never spent before it came in).
+    await recordCapital(prisma, {
+      direction: 'in',
+      moneyAccountId: (await byKey('bank')).id,
+      amountPiastres: 100_000,
+      reference: 'Owner deposit',
+      day: addDays(today(), -6),
+      actorUserId: alice,
+      idempotencyKey: key(),
+    });
     await expect(
       closeBooks(prisma, { day: today(), actorUserId: alice, actorRole: 'finance' }),
     ).rejects.toThrow('day_not_over');

@@ -31,6 +31,7 @@ import {
   computeCommissions,
   listCommissions,
   listTargets,
+  repMonths,
   salesDashboard,
   setTarget,
 } from '../src/crm-sales';
@@ -644,6 +645,30 @@ describe('commission', () => {
       outcome: 'missed',
       status: 'closed',
     });
+  });
+
+  it("never counts in a rep's own view a merchant another rep won first", async () => {
+    const { merchantId } = await wonMerchant();
+    await activeIn(merchantId, [1, 2]);
+    // A later deal of repB marked won for the same merchant (repA won it first).
+    const later = await newDeal(repB, 'Same Merchant Again');
+    await prisma.crmDeal.update({
+      where: { id: later.id },
+      data: { stage: 'won', merchantId, wonById: repB.userId, wonAt: at(wonMonth, '20') },
+    });
+    const month = shiftMonth(wonMonth, 3);
+    const everyone = await repMonths(prisma, month);
+    expect(everyone.get(repA.userId)?.lines.map((l) => l.merchantId)).toEqual([merchantId]);
+    expect(everyone.get(repB.userId)).toBeUndefined();
+    // repB's own view agrees with everyone's; repA's still has it.
+    expect((await repMonths(prisma, month, repB.userId)).get(repB.userId)).toBeUndefined();
+    expect(
+      (await repMonths(prisma, month, repA.userId))
+        .get(repA.userId)
+        ?.lines.map((l) => l.merchantId),
+    ).toEqual([merchantId]);
+    const board = await salesDashboard(prisma, repB, { month });
+    expect(board.leaderboard.map((r) => r.actual.feeRevenuePiastres)).toEqual([0]);
   });
 
   it('estimates the running month: counted so far, what is still needed, what it would pay', async () => {

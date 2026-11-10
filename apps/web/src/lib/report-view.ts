@@ -79,7 +79,9 @@ export function linesHref(report: DrillReport, s: ReportState, line: DrillLine) 
   // The balance sheet is "as of" its day: every line up to it.
   if (report !== 'balance_sheet') q.set('from', s.from);
   q.set('to', s.to);
-  if (report === 'profit_and_loss') q.set('report', report);
+  // The balance sheet's earnings start after the last closed year (the API finds it).
+  if (report === 'profit_and_loss' || (report === 'balance_sheet' && line.code === 'earnings'))
+    q.set('report', report);
   if (s.store) q.set('store', s.store);
   if (s.merchant) q.set('merchant', s.merchant);
   q.set('back', `${REPORT_PAGES[report]}?${reportQuery(s)}`);

@@ -83,25 +83,44 @@ export function rangeDays(r: DayRange) {
   );
 }
 
+/** A day moved back by whole months; a month's last day stays a month's last day. */
+function backMonths(day: string, months: number) {
+  return day === monthEnd(day)
+    ? monthEnd(shiftDayByMonths(day, -months))
+    : shiftDayByMonths(day, -months);
+}
+
 /**
- * The period a comparison runs over. "previous" is the period just before: when the range
- * starts on the first of a month it moves back by the months it covers (a month to date
- * compares with the same days of the month before, a quarter with the quarter before),
- * otherwise by its own length in days. "last_year" is the same days a year earlier.
+ * The period a comparison runs over. "previous" is the period just before:
+ * - a year to date (from 1 January into a later quarter of the same year) compares with the
+ *   same days a year earlier;
+ * - a quarter to date (from a quarter's first day into a later month of that quarter, this
+ *   quarter's preset) compares with the quarter before, the same number of days into it
+ *   (a quarter's last day stays a quarter's last day). In the first quarter "this quarter"
+ *   and "this year" are the same days; they compare with the quarter before;
+ * - any other range starting on the first of a month moves back by the months it covers
+ *   (a month to date compares with the same days of the month before, whole months with the
+ *   months before);
+ * - otherwise the range moves back by its own length in days.
+ * "last_year" is the same days a year earlier.
  */
 export function comparisonRange(r: DayRange, mode: CompareMode): DayRange | null {
   if (mode === 'none') return null;
-  if (mode === 'last_year')
-    return { from: shiftDayByMonths(r.from, -12), to: shiftDayByMonths(r.to, -12) };
+  const yearBack = { from: shiftDayByMonths(r.from, -12), to: shiftDayByMonths(r.to, -12) };
+  if (mode === 'last_year') return yearBack;
   const a = parts(r.from);
   if (a.d === 1) {
     const b = parts(r.to);
+    if (a.m === 1 && b.y === a.y && b.m > 3) return yearBack;
+    if ((a.m - 1) % 3 === 0 && b.y === a.y && b.m > a.m && b.m <= a.m + 2) {
+      const from = shiftDayByMonths(r.from, -3);
+      const quarterEnd = addDays(r.from, -1);
+      if (r.to === monthEnd(r.to)) return { from, to: backMonths(r.to, 3) };
+      const to = addDays(from, rangeDays(r) - 1);
+      return { from, to: to < quarterEnd ? to : quarterEnd };
+    }
     const months = (b.y - a.y) * 12 + (b.m - a.m) + 1;
-    const to =
-      r.to === monthEnd(r.to)
-        ? monthEnd(shiftDayByMonths(r.to, -months))
-        : shiftDayByMonths(r.to, -months);
-    return { from: shiftDayByMonths(r.from, -months), to };
+    return { from: shiftDayByMonths(r.from, -months), to: backMonths(r.to, months) };
   }
   const n = rangeDays(r);
   return { from: addDays(r.from, -n), to: addDays(r.from, -1) };

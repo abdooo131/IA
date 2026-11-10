@@ -329,6 +329,17 @@ async function linesWhere(
   // Profit and loss (and profit per store) leave the year end entry out, as the reports do.
   if (q.report === 'profit_and_loss' || q.set === 'income_costs')
     and.push({ entry: { kind: { not: 'year_close' } } });
+  // The balance sheet's earnings line is the profit not yet closed into retained earnings
+  // as of its day: its lines start after the last year closed before that day, so the
+  // listed lines add up to the line.
+  if (q.report === 'balance_sheet' && q.set === 'income_costs') {
+    const close = await db.ledgerEntry.findFirst({
+      where: { kind: 'year_close', ...(q.to ? { occurredAt: { lt: end(q.to) } } : {}) },
+      orderBy: { occurredAt: 'desc' },
+      select: { occurredAt: true },
+    });
+    if (close) and.push({ occurredAt: { gt: close.occurredAt } });
+  }
   if (q.kind) and.push({ entry: { kind: q.kind } });
   if (q.store) where.darkStoreId = q.store === 'none' ? null : q.store;
   if (q.merchant) where.merchantId = q.merchant === 'none' ? null : q.merchant;

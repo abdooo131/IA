@@ -116,6 +116,23 @@ describe('report periods', () => {
     ).searchParams;
     expect(bs.get('group')).toBe('2100');
     expect(bs.get('from')).toBeNull();
+    // The earnings line names the balance sheet, so its lines start after the last closed year.
+    const earnings = new URL(
+      linesHref('balance_sheet', s, {
+        accountId: null,
+        walletGroup: null,
+        wallets: null,
+        code: 'earnings',
+        nameEn: '',
+        nameAr: '',
+        amountPiastres: 1,
+        compareAmountPiastres: null,
+      }),
+      'http://x',
+    ).searchParams;
+    expect(earnings.get('set')).toBe('income_costs');
+    expect(earnings.get('report')).toBe('balance_sheet');
+    expect(earnings.get('from')).toBeNull();
   });
 
   it('exports a report with its comparison columns', () => {

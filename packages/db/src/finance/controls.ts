@@ -5,6 +5,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import {
+  checkJournalEntry,
   eventTime,
   recordCapital,
   recordExpense,
@@ -248,8 +249,11 @@ async function submit(
 }
 
 /**
- * Keeps a movement as a request for a second person (once per idempotency key). Recurring
- * entries are always prepared this way, so someone confirms the money really left.
+ * Keeps a movement as a request for a second person (once per idempotency key while that
+ * request is pending or approved; a rejected or cancelled one never blocks asking again, so
+ * a corrected month's salaries can be sent after a rejection). Recurring entries are always
+ * prepared this way, so someone confirms the money really left. The posting itself keeps
+ * its own ledger idempotency key, so it still happens once.
  */
 export async function queueRequest(
   db: Db,
@@ -260,10 +264,15 @@ export async function queueRequest(
   // Same check the movement makes when it is finally posted, so a bad request fails now.
   eventTime(dayOf(payload));
   return inTransaction(db, async (tx) => {
+    // One request per key at a time, even when two people send it at the same moment.
+    const lockKey = `finance_request:${payload.input.idempotencyKey}`;
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))`;
     const seen = await tx.financeRequest.findFirst({
       where: {
         payload: { path: ['input', 'idempotencyKey'], equals: payload.input.idempotencyKey },
+        status: { in: ['pending', 'approved'] },
       },
+      orderBy: { createdAt: 'desc' },
     });
     if (seen) return seen;
     const request = await tx.financeRequest.create({
@@ -377,24 +386,15 @@ export const submitMerchantAdjustment = submitter<'merchant_adjustment', Adjustm
  * A journal entry. One that touches no bank or cash box is posted at once, as before. One
  * that moves real money follows the rule of the other money screens: money coming into a
  * bank or box waits for a second person while finance.approve_money_in is on, money going
- * out waits from the approval limit (finance.approval_threshold_piastres).
+ * out waits from the approval limit (finance.approval_threshold_piastres). Every check of
+ * the posting (checkJournalEntry) runs first, so a bad entry is refused when it is entered,
+ * never only when the approver opens it.
  */
 export async function submitJournalEntry(db: Db, input: JournalInput) {
-  const ids = [...new Set(input.lines.map((l) => l.accountId))];
-  const accounts = await db.ledgerAccount.findMany({
-    where: { id: { in: ids } },
-    select: { id: true, groupCode: true },
-  });
-  const isMoney = new Set(
-    accounts.filter((a) => a.groupCode === 1100 || a.groupCode === 1200).map((a) => a.id),
-  );
-  const net = new Map<string, number>();
-  for (const l of input.lines)
-    if (isMoney.has(l.accountId))
-      net.set(l.accountId, (net.get(l.accountId) ?? 0) + l.debitPiastres - l.creditPiastres);
+  const { money } = await checkJournalEntry(db, input);
   let moneyIn = 0;
   let moneyOut = 0;
-  for (const n of net.values()) {
+  for (const { net: n } of money.values()) {
     if (n > 0) moneyIn += n;
     else moneyOut -= n;
   }
