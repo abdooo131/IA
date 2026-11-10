@@ -257,6 +257,39 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
         }
       );
     }
+    // UX phase C step 3: merchants, their products and customer profiles.
+    case 'merchant': {
+      const r = await db.merchant.findUnique({ where: { id }, select: { name: true } });
+      return (
+        r && { label: r.name, href: `/admin/merchants/${id}`, darkStoreId: null, merchantId: id }
+      );
+    }
+    case 'sku': {
+      const r = await db.sku.findUnique({
+        where: { id },
+        select: { sku: true, merchantId: true },
+      });
+      return (
+        r && {
+          label: r.sku,
+          href: `/admin/products/${id}`,
+          darkStoreId: null,
+          merchantId: r.merchantId,
+        }
+      );
+    }
+    case 'customer': {
+      // A neutral label: reminders and their push notices never carry a customer's name.
+      const r = await db.customer.findUnique({ where: { id }, select: { id: true } });
+      return (
+        r && {
+          label: `CUS-${id.slice(-6).toUpperCase()}`,
+          href: `/admin/customers/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+        }
+      );
+    }
     default:
       return null;
   }

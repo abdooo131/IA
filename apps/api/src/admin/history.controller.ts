@@ -1,7 +1,7 @@
 import { Controller, ForbiddenException, Get, Param } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { listAudit, recordRef } from '@shiplynow/db';
-import { type AccessProfile, canDo, RECORD_APPS } from '@shiplynow/shared';
+import { type AccessProfile, canDo, RECORD_APPS, recordNeedsCustomerData } from '@shiplynow/shared';
 import { assertRecordScope } from '../auth/access-scope';
 import { Access, ANY_APP, CurrentAccess } from '../auth/decorators';
 import { PrismaService } from '../prisma/prisma.service';
@@ -31,6 +31,9 @@ export class HistoryController {
     const allowed =
       canDo(access, 'settings', 'manage') || apps.some((app) => canDo(access, app, 'view'));
     if (!allowed) throw new ForbiddenException({ error: 'no_access' });
+    // A named person's history (who opened the profile, merges) needs customer data too.
+    if (recordNeedsCustomerData(entityType) && !access.customerData)
+      throw new ForbiddenException({ error: 'no_access' });
     // A record of a known kind stays inside the person's stores and merchants.
     const ref = await recordRef(this.prisma, entityType, entityId);
     if (ref) assertRecordScope(access, ref);

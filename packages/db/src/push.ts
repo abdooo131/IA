@@ -188,10 +188,11 @@ export async function teamWith(
   db: Db,
   app: AccessApp,
   level: Exclude<AccessLevel, 'none'>,
-  scope: { storeId?: string | null; merchantId?: string | null } = {},
+  scope: { storeId?: string | null; merchantId?: string | null; customerData?: boolean } = {},
 ): Promise<string[]> {
   const where = {
     [app]: { in: FROM_LEVEL[level] },
+    ...(scope.customerData && { customerData: true }),
     user: { isActive: true, role: { in: [...TEAM_ROLES] } },
     ...(scope.storeId && {
       OR: [

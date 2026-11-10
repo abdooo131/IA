@@ -57,6 +57,18 @@ export const RETURN_LIST_STATUSES = [
 ] as const;
 export const COUNT_LIST_STATUSES = ['submitted', 'approved', 'rejected', 'stale'] as const;
 
+/** Customer segments (customer.* settings decide who falls in which) and cash risk levels. */
+export const CUSTOMER_LIST_SEGMENTS = [
+  'new',
+  'vip',
+  'loyal',
+  'one_time',
+  'at_risk',
+  'lost',
+  'no_orders',
+] as const;
+export const CUSTOMER_LIST_RISKS = ['high', 'medium', 'low', 'unknown'] as const;
+
 const statusFilters = <S extends readonly string[]>(statuses: S) =>
   Object.fromEntries(statuses.map((s) => [s, 'status'])) as Record<S[number], 'status'>;
 
@@ -200,6 +212,66 @@ export const APP_LISTS = {
       defaultFilters: ['pending'],
     },
   },
+  // UX phase C step 3: merchants and their products (Merchants app), customer profiles
+  // (Customers app, customer data only).
+  merchants: {
+    merchants: {
+      filters: {
+        active: 'state',
+        paused: 'state',
+        pending: 'approval',
+        approved: 'approval',
+        rejected: 'approval',
+        shopify_connected: 'shopify',
+        shopify_not_connected: 'shopify',
+        express_on: 'express',
+        express_off: 'express',
+        contract_in_force: 'contract',
+        no_contract: 'contract',
+        debit_wallet: 'wallet',
+        owed_money: 'wallet',
+        no_manager: 'manager',
+      },
+      values: { manager: 'option' },
+      groupBys: ['approval', 'manager', 'schedule', 'state'],
+      sorts: ['name', 'created', 'orders30', 'skus', 'balance'],
+      sums: ['orders30', 'skus', 'balance'],
+      defaultFilters: [],
+    },
+    products: {
+      filters: {
+        active: 'state',
+        inactive: 'state',
+        linked: 'shopify',
+        not_linked: 'shopify',
+        in_stock: 'stock',
+        out_of_stock: 'stock',
+        no_barcode: 'barcode',
+      },
+      values: { merchant: 'option' },
+      groupBys: ['merchant', 'state', 'shopify'],
+      sorts: ['sku', 'title', 'price', 'onHand', 'available'],
+      sums: ['onHand', 'reserved', 'available'],
+      defaultFilters: [],
+    },
+  },
+  customers: {
+    customers: {
+      filters: {
+        ...Object.fromEntries(CUSTOMER_LIST_SEGMENTS.map((s) => [s, 'segment'])),
+        ...Object.fromEntries(CUSTOMER_LIST_RISKS.map((r) => [`risk_${r}`, 'risk'])),
+        due_to_reorder: 'due',
+        with_phone: 'contact',
+        with_email: 'contact',
+        several_merchants: 'merchants',
+      },
+      values: { merchant: 'option', district: 'option' },
+      groupBys: ['segment', 'district', 'governorate', 'merchant', 'risk'],
+      sorts: ['name', 'orders', 'spend', 'last'],
+      sums: ['orders', 'spend'],
+      defaultFilters: [],
+    },
+  },
 } as const satisfies Partial<Record<AccessApp, Record<string, ListMeta>>>;
 
 export type AppListApp = keyof typeof APP_LISTS;
@@ -211,6 +283,12 @@ export type AppListRef = {
 export function appListMeta(app: string, id: string): ListMeta | null {
   const lists = (APP_LISTS as Record<string, Record<string, ListMeta>>)[app];
   return lists && Object.hasOwn(lists, id) ? lists[id]! : null;
+}
+
+/** Lists of named people: they also need the customer data switch. */
+export const APP_LISTS_WITH_CUSTOMER_DATA: readonly string[] = ['customers/customers'];
+export function appListNeedsCustomerData(app: string, id: string) {
+  return APP_LISTS_WITH_CUSTOMER_DATA.includes(`${app}/${id}`);
 }
 
 /** Every app list as app and id. */

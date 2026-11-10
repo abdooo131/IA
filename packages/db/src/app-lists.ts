@@ -8,6 +8,9 @@ import {
   cairoDay,
   cairoDayStart,
   canDo,
+  contractVersionLabel,
+  CUSTOMER_LIST_RISKS,
+  CUSTOMER_LIST_SEGMENTS,
   type GroupValue,
   LIST_MAX_ROWS,
   type ListCtx,
@@ -20,6 +23,7 @@ import {
 } from '@shiplynow/shared';
 import type { Db } from './client';
 import { getSetting } from './settings';
+import { type CustomerListRow, customerListRows } from './shopdata/customer-insights';
 import { listGaps, type ListScope, queryList, type RegisteredList } from './list-query';
 
 // The list views of the other apps (UX phase C; step 1 Operations: orders, alerts and damage
@@ -466,6 +470,12 @@ const statusFilter = <R extends { status: string }>(statuses: readonly string[])
   Object.fromEntries(
     statuses.map((s) => [s, { group: 'status', test: (r: R) => r.status === s }]),
   ) as Record<string, { group: string; test: (r: R) => boolean }>;
+/** Filters on one field of the row, one per value, all in one group. */
+const statusFilterOn = <R>(group: string, values: readonly string[], of: (r: R) => string) =>
+  Object.fromEntries(values.map((v) => [v, { group, test: (r: R) => of(r) === v }])) as Record<
+    string,
+    { group: string; test: (r: R) => boolean }
+  >;
 const storeRef = { select: { id: true, code: true, kind: true } } as const;
 
 // stock per store and product
@@ -1038,6 +1048,340 @@ const counts: ListDef<CountListRow> = {
   sums: APP_LISTS.inventory.counts.sums,
 };
 
+// ─── merchants and customers (UX phase C step 3) ────────────────────────────────
+
+export interface MerchantListRow {
+  id: string;
+  name: string;
+  legalName: string | null;
+  contactEmail: string | null;
+  contactPhone: string | null;
+  shopifyDomain: string | null;
+  /** pending (linked, not installed), active, uninstalled, or null without a store */
+  shopifyStatus: string | null;
+  shopifyConnected: boolean;
+  isActive: boolean;
+  /** active or paused */
+  state: string;
+  approval: string;
+  createdAt: string;
+  createdDay: string;
+  schedule: string;
+  expressPrice: number | null;
+  managerId: string | null;
+  manager: string | null;
+  /** The contract version in force today (CTR-000001 v2), or null */
+  contract: string | null;
+  skus: number;
+  /** Orders placed in the last 30 days */
+  orders30: number;
+  /** What we owe the merchant (their wallet); below 0 the merchant owes us */
+  balance: number;
+}
+
+const DAY_MS = 86_400_000;
+
+async function loadMerchants(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+  now: Date,
+): Promise<MerchantListRow[]> {
+  const rows = await db.merchant.findMany({
+    where: {
+      id: merchantIn(scope),
+      ...(state.values.manager && { accountManagerId: state.values.manager }),
+    },
+    select: {
+      id: true,
+      name: true,
+      legalName: true,
+      contactEmail: true,
+      contactPhone: true,
+      isActive: true,
+      approval: true,
+      createdAt: true,
+      payoutSchedule: true,
+      expressPricePiastres: true,
+      shopifyShopDomain: true,
+      accountManagerId: true,
+      accountManager: { select: { name: true } },
+      shopifyShop: { select: { status: true, shopDomain: true } },
+      _count: { select: { skus: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  const ids = rows.map((m) => m.id);
+  const today = cairoDay(now);
+  const [balances, orders, versions] = await Promise.all([
+    db.$queryRaw<{ merchant_id: string; owed: bigint }[]>`
+      SELECT a.merchant_id, -COALESCE(SUM(l.amount_piastres), 0) AS owed
+      FROM ledger_accounts a JOIN ledger_lines l ON l.account_id = a.id
+      WHERE a.type = 'merchant' AND a.merchant_id = ANY(${ids})
+      GROUP BY a.merchant_id`,
+    db.order.groupBy({
+      by: ['merchantId'],
+      where: { merchantId: { in: ids }, placedAt: { gte: new Date(now.getTime() - 30 * DAY_MS) } },
+      _count: { _all: true },
+    }),
+    db.merchantContractVersion.findMany({
+      where: {
+        contract: { merchantId: { in: ids } },
+        status: { in: ['active', 'superseded'] },
+        effectiveFrom: { lte: new Date(`${today}T00:00:00Z`) },
+      },
+      select: {
+        version: true,
+        effectiveFrom: true,
+        endDate: true,
+        contract: { select: { merchantId: true, number: true } },
+      },
+      orderBy: [{ effectiveFrom: 'desc' }, { version: 'desc' }],
+    }),
+  ]);
+  const owed = new Map(balances.map((b) => [b.merchant_id, Number(b.owed)]));
+  const placed = new Map(orders.map((o) => [o.merchantId, o._count._all]));
+  // The version in force is the latest one started (as versionInForce); an end date passed
+  // means no contract is in force any more.
+  const inForce = new Map<string, string | null>();
+  for (const v of versions) {
+    const m = v.contract.merchantId;
+    if (inForce.has(m)) continue;
+    const ended = v.endDate && v.endDate.toISOString().slice(0, 10) < today;
+    inForce.set(m, ended ? null : contractVersionLabel(v.contract.number, v.version));
+  }
+  return rows.map((m) => ({
+    id: m.id,
+    name: m.name,
+    legalName: m.legalName,
+    contactEmail: m.contactEmail,
+    contactPhone: m.contactPhone,
+    shopifyDomain: m.shopifyShop?.shopDomain ?? m.shopifyShopDomain,
+    shopifyStatus: m.shopifyShop?.status ?? null,
+    shopifyConnected: m.shopifyShop?.status === 'active',
+    isActive: m.isActive,
+    state: m.isActive ? 'active' : 'paused',
+    approval: m.approval,
+    createdAt: m.createdAt.toISOString(),
+    createdDay: cairoDay(m.createdAt),
+    schedule: m.payoutSchedule,
+    expressPrice: m.expressPricePiastres,
+    managerId: m.accountManagerId,
+    manager: m.accountManager?.name ?? null,
+    contract: inForce.get(m.id) ?? null,
+    skus: m._count.skus,
+    orders30: placed.get(m.id) ?? 0,
+    balance: owed.get(m.id) ?? 0,
+  }));
+}
+
+const merchants: ListDef<MerchantListRow> = {
+  id: 'merchants',
+  filters: {
+    active: { group: 'state', test: (r) => r.isActive },
+    paused: { group: 'state', test: (r) => !r.isActive },
+    ...statusFilterOn<MerchantListRow>(
+      'approval',
+      ['pending', 'approved', 'rejected'],
+      (r) => r.approval,
+    ),
+    shopify_connected: { group: 'shopify', test: (r) => r.shopifyConnected },
+    shopify_not_connected: { group: 'shopify', test: (r) => !r.shopifyConnected },
+    express_on: { group: 'express', test: (r) => r.expressPrice !== null },
+    express_off: { group: 'express', test: (r) => r.expressPrice === null },
+    contract_in_force: { group: 'contract', test: (r) => r.contract !== null },
+    no_contract: { group: 'contract', test: (r) => r.contract === null },
+    debit_wallet: { group: 'wallet', test: (r) => r.balance < 0 },
+    owed_money: { group: 'wallet', test: (r) => r.balance > 0 },
+    no_manager: { group: 'manager', test: (r) => r.managerId === null },
+  },
+  values: { manager: (r, v) => r.managerId === v },
+  groupBys: {
+    approval: (r) => named(r.approval, r.approval),
+    manager: (r) => named(r.managerId, r.manager),
+    schedule: (r) => named(r.schedule, r.schedule),
+    state: (r) => named(r.state, r.state),
+  },
+  search: (r) => [
+    r.name,
+    r.legalName,
+    r.contactEmail,
+    r.contactPhone,
+    r.contactPhone ? localPhone(r.contactPhone) : null,
+    r.shopifyDomain,
+    r.manager,
+  ],
+  sorts: {
+    name: (r) => r.name.toLowerCase(),
+    created: (r) => r.createdAt,
+    orders30: (r) => r.orders30,
+    skus: (r) => r.skus,
+    balance: (r) => r.balance,
+  },
+  defaultSort: { key: 'name', desc: false },
+  sums: APP_LISTS.merchants.merchants.sums,
+};
+
+// products (the merchants' catalogue)
+
+export interface ProductListRow {
+  id: string;
+  sku: string;
+  barcode: string | null;
+  titleEn: string;
+  titleAr: string;
+  merchantId: string;
+  merchant: string;
+  price: number;
+  weightGrams: number | null;
+  isActive: boolean;
+  state: string;
+  linked: boolean;
+  /** linked or not_linked */
+  shopify: string;
+  onHand: number;
+  reserved: number;
+  /** Sellable now over every store: on hand minus reserved minus each store's buffer */
+  available: number;
+  stores: number;
+}
+
+async function loadProducts(db: Db, scope: ListScope, state: ListState): Promise<ProductListRow[]> {
+  const rows = await db.sku.findMany({
+    where: { merchantId: within(state.values.merchant, scope.merchantIds) },
+    select: {
+      id: true,
+      sku: true,
+      barcode: true,
+      titleEn: true,
+      titleAr: true,
+      pricePiastres: true,
+      weightGrams: true,
+      isActive: true,
+      shopifyVariantId: true,
+      merchantId: true,
+      merchant: { select: { name: true } },
+      stockLevels: { select: { darkStoreId: true, onHand: true, reserved: true } },
+    },
+    orderBy: { updatedAt: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  const buffers = new Map<string, number>();
+  for (const id of new Set(rows.flatMap((r) => r.stockLevels.map((l) => l.darkStoreId))))
+    buffers.set(id, await getSetting(db, 'stock.buffer_units', id));
+  return rows.map((s) => ({
+    id: s.id,
+    sku: s.sku,
+    barcode: s.barcode,
+    titleEn: s.titleEn,
+    titleAr: s.titleAr,
+    merchantId: s.merchantId,
+    merchant: s.merchant.name,
+    price: s.pricePiastres,
+    weightGrams: s.weightGrams,
+    isActive: s.isActive,
+    state: s.isActive ? 'active' : 'inactive',
+    linked: s.shopifyVariantId !== null,
+    shopify: s.shopifyVariantId !== null ? 'linked' : 'not_linked',
+    onHand: sum(s.stockLevels, (l) => l.onHand),
+    reserved: sum(s.stockLevels, (l) => l.reserved),
+    available: sum(s.stockLevels, (l) =>
+      Math.max(l.onHand - l.reserved - (buffers.get(l.darkStoreId) ?? 0), 0),
+    ),
+    stores: s.stockLevels.filter((l) => l.onHand > 0).length,
+  }));
+}
+
+const products: ListDef<ProductListRow> = {
+  id: 'products',
+  filters: {
+    active: { group: 'state', test: (r) => r.isActive },
+    inactive: { group: 'state', test: (r) => !r.isActive },
+    linked: { group: 'shopify', test: (r) => r.linked },
+    not_linked: { group: 'shopify', test: (r) => !r.linked },
+    in_stock: { group: 'stock', test: (r) => r.available > 0 },
+    out_of_stock: { group: 'stock', test: (r) => r.available === 0 },
+    no_barcode: { group: 'barcode', test: (r) => !r.barcode },
+  },
+  values: { merchant: (r, v) => r.merchantId === v },
+  groupBys: {
+    merchant: (r) => named(r.merchantId, r.merchant),
+    state: (r) => named(r.state, r.state),
+    shopify: (r) => named(r.shopify, r.shopify),
+  },
+  search: (r) => [r.sku, r.barcode, r.titleEn, r.titleAr, r.merchant],
+  sorts: {
+    sku: (r) => r.sku,
+    title: (r) => r.titleEn.toLowerCase(),
+    price: (r) => r.price,
+    onHand: (r) => r.onHand,
+    available: (r) => r.available,
+  },
+  defaultSort: { key: 'sku', desc: false },
+  sums: APP_LISTS.merchants.products.sums,
+};
+
+// customers (named profiles: the API also needs the customer data switch)
+
+const customers: ListDef<CustomerListRow> = {
+  id: 'customers',
+  filters: {
+    ...statusFilterOn<CustomerListRow>('segment', CUSTOMER_LIST_SEGMENTS, (r) => r.segment),
+    ...Object.fromEntries(
+      CUSTOMER_LIST_RISKS.map((level) => [
+        `risk_${level}`,
+        { group: 'risk', test: (r: CustomerListRow) => r.risk === level },
+      ]),
+    ),
+    due_to_reorder: { group: 'due', test: (r) => r.due },
+    with_phone: { group: 'contact', test: (r) => r.phone !== null },
+    with_email: { group: 'contact', test: (r) => r.email !== null },
+    several_merchants: { group: 'merchants', test: (r) => r.merchants >= 2 },
+  },
+  values: {
+    merchant: (r, v) => r.merchantIds.includes(v),
+    district: (r, v) => r.districtId === v,
+  },
+  groupBys: {
+    segment: (r) => named(r.segment, r.segment),
+    district: (r) => named(r.districtId, r.district),
+    governorate: (r) => named(r.governorate, r.governorate),
+    merchant: (r) => named(r.mainMerchantId, r.mainMerchant),
+    risk: (r) => named(r.risk, r.risk),
+  },
+  search: (r) => [
+    r.name,
+    r.phone,
+    r.phone ? localPhone(r.phone) : null,
+    r.email,
+    r.city,
+    r.district,
+    r.districtAr,
+  ],
+  sorts: {
+    name: (r) => r.name.toLowerCase(),
+    orders: (r) => r.orders,
+    spend: (r) => r.spend,
+    last: (r) => r.lastOrderAt,
+  },
+  defaultSort: { key: 'spend', desc: true },
+  sums: APP_LISTS.customers.customers.sums,
+};
+
+function loadCustomers(db: Db, scope: ListScope, state: ListState, now: Date) {
+  return customerListRows(
+    db,
+    {
+      merchantId: state.values.merchant,
+      merchantIds: scope.merchantIds,
+      districtId: state.values.district,
+      limit: LIST_MAX_ROWS,
+    },
+    now,
+  );
+}
+
 // ─── the registry ───────────────────────────────────────────────────────────────
 
 export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
@@ -1052,6 +1396,13 @@ export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
     returns: { def: returns, load: loadReturns },
     counts: { def: counts, load: loadCounts },
     damage: { def: damage, load: loadDamage },
+  },
+  merchants: {
+    merchants: { def: merchants, load: loadMerchants },
+    products: { def: products, load: loadProducts },
+  },
+  customers: {
+    customers: { def: customers, load: loadCustomers },
   },
 } satisfies Record<AppListApp, Record<string, RegisteredList>>;
 
@@ -1099,6 +1450,23 @@ export async function appListOptions(db: Db, app: string, id: string, scope: Lis
       orderBy: { name: 'asc' },
     });
     out.merchant = merchants.map((m) => ({ value: m.id, label: m.name }));
+  }
+  if (wants.includes('manager')) {
+    // The account managers of the merchants the person may see.
+    const managers = await db.user.findMany({
+      where: { merchantsManaged: { some: { id: merchantIn(scope) } } },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+    });
+    out.manager = managers.map((u) => ({ value: u.id, label: u.name }));
+  }
+  if (wants.includes('district')) {
+    const districts = await db.geoArea.findMany({
+      where: { customers: { some: {} } },
+      select: { id: true, nameEn: true, nameAr: true },
+      orderBy: { nameEn: 'asc' },
+    });
+    out.district = districts.map((d) => ({ value: d.id, label: d.nameEn, labelAr: d.nameAr }));
   }
   if (wants.includes('type')) {
     const types = await db.alert.findMany({

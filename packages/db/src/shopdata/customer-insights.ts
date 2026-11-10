@@ -1,7 +1,7 @@
 import { Prisma } from '@prisma/client';
 import type { Db } from '../client';
 import { getSetting } from '../settings';
-import { customerRisk } from './customers';
+import { customerRisk, type RiskLevel, riskLevelOf } from './customers';
 
 // What we know about each person across every merchant. Purchases are the merchants' Shopify
 // orders (not tests) plus our own manual delivery orders; a Shopify order we delivered is
@@ -261,6 +261,150 @@ export async function listCustomers(
       fromShopifyTotals: c.from_shopify,
     })),
   };
+}
+
+/** One customer as the customers list view shows it (UX phase C step 3). */
+export interface CustomerListRow {
+  id: string;
+  name: string;
+  phone: string | null;
+  email: string | null;
+  governorate: string | null;
+  city: string | null;
+  districtId: string | null;
+  district: string | null;
+  districtAr: string | null;
+  orders: number;
+  spend: number;
+  merchants: number;
+  /** Every merchant the person bought from (our orders and Shopify orders) */
+  merchantIds: string[];
+  /** The merchant they bought from most */
+  mainMerchantId: string | null;
+  mainMerchant: string | null;
+  lastOrderAt: string | null;
+  segment: Segment;
+  risk: RiskLevel;
+  riskPct: number;
+  due: boolean;
+  expectedAt: string | null;
+  fromShopifyTotals: boolean;
+}
+
+/**
+ * The customers of the list view: every person with their totals, segment, district, main
+ * merchant and cash on delivery risk, highest spend first, at most `limit`. The chosen
+ * merchant, district and governorate (and the merchants a person is limited to) narrow the
+ * load in the database.
+ */
+export async function customerListRows(
+  db: Db,
+  filter: {
+    merchantId?: string;
+    /** Only customers who bought from one of these (an account manager's merchants) */
+    merchantIds?: string[] | null;
+    districtId?: string;
+    governorate?: string;
+    limit: number;
+  },
+  now: Date = new Date(),
+): Promise<CustomerListRow[]> {
+  const [r, minAttempts, mediumPct, highPct] = await Promise.all([
+    rules(db),
+    getSetting(db, 'customer.risk_min_attempts'),
+    getSetting(db, 'customer.risk_medium_pct'),
+    getSetting(db, 'customer.risk_high_pct'),
+  ]);
+  const where: Prisma.Sql[] = [Prisma.sql`TRUE`];
+  if (filter.merchantId)
+    where.push(Prisma.sql`EXISTS (SELECT 1 FROM pm WHERE pm.customer_id = c.id
+      AND pm.merchant_id = ${filter.merchantId})`);
+  if (filter.merchantIds)
+    where.push(Prisma.sql`EXISTS (SELECT 1 FROM pm WHERE pm.customer_id = c.id
+      AND pm.merchant_id = ANY(${filter.merchantIds}))`);
+  if (filter.districtId) where.push(Prisma.sql`c.district_id = ${filter.districtId}`);
+  if (filter.governorate) where.push(Prisma.sql`c.governorate = ${filter.governorate}`);
+  const rows = await db.$queryRaw<
+    (Row & {
+      district_id: string | null;
+      district_en: string | null;
+      district_ar: string | null;
+      merchant_ids: string[] | null;
+      main_id: string | null;
+      main_name: string | null;
+      attempts: bigint | null;
+      failed: bigint | null;
+      refused: bigint | null;
+      gap: number | null;
+      due: boolean;
+    })[]
+  >`
+    WITH pm AS (
+      SELECT p.customer_id, p.merchant_id, COUNT(*) FILTER (WHERE NOT p.cancelled) AS orders,
+        MAX(p.at) AS last_at
+      FROM (${PURCHASES}) p GROUP BY 1, 2),
+    main AS (
+      SELECT DISTINCT ON (customer_id) customer_id, merchant_id FROM pm
+      ORDER BY customer_id, orders DESC, last_at DESC NULLS LAST, merchant_id),
+    ids AS (SELECT customer_id, array_agg(merchant_id ORDER BY merchant_id) AS merchant_ids
+      FROM pm GROUP BY 1),
+    risk AS (
+      SELECT o.customer_id,
+        COUNT(*) FILTER (WHERE d.status IN ('delivered', 'failed')) AS attempts,
+        COUNT(*) FILTER (WHERE d.status = 'failed') AS failed,
+        COUNT(*) FILTER (WHERE d.failed_reason = 'refused') AS refused
+      FROM deliveries d JOIN orders o ON o.id = d.order_id
+      WHERE o.customer_id IS NOT NULL GROUP BY 1)
+    SELECT x.*, ${dueSql(r, now)} AS due FROM (
+      SELECT c.id, c.name, c.phone, c.email, c.governorate, c.city, c.district_id,
+        g.name_en AS district_en, g.name_ar AS district_ar,
+        t.orders, t.spend, t.merchants, t.last_at, t.from_shopify,
+        ${segmentSql(r, now)} AS segment, ${GAP} AS gap,
+        ids.merchant_ids, main.merchant_id AS main_id, mm.name AS main_name,
+        risk.attempts, risk.failed, risk.refused
+      FROM customers c JOIN (${TOTALS}) t ON t.id = c.id
+      LEFT JOIN geo_areas g ON g.id = c.district_id
+      LEFT JOIN main ON main.customer_id = c.id
+      LEFT JOIN merchants mm ON mm.id = main.merchant_id
+      LEFT JOIN ids ON ids.customer_id = c.id
+      LEFT JOIN risk ON risk.customer_id = c.id
+      WHERE ${Prisma.join(where, ' AND ')}
+    ) x
+    ORDER BY x.spend DESC, x.orders DESC, x.name, x.id
+    LIMIT ${filter.limit}`;
+  return rows.map((c) => {
+    const risk = riskLevelOf(
+      { attempts: n(c.attempts), failed: n(c.failed), refused: n(c.refused) },
+      { minAttempts, mediumPct, highPct },
+    );
+    return {
+      id: c.id,
+      name: c.name,
+      phone: c.phone,
+      email: c.email,
+      governorate: c.governorate,
+      city: c.city,
+      districtId: c.district_id,
+      district: c.district_en,
+      districtAr: c.district_ar,
+      orders: n(c.orders),
+      spend: n(c.spend),
+      merchants: n(c.merchants),
+      merchantIds: c.merchant_ids ?? [],
+      mainMerchantId: c.main_id,
+      mainMerchant: c.main_name,
+      lastOrderAt: c.last_at?.toISOString() ?? null,
+      segment: c.segment,
+      risk: risk.level,
+      riskPct: risk.pct,
+      due: c.due,
+      expectedAt:
+        c.gap != null && c.last_at
+          ? new Date(c.last_at.getTime() + c.gap * DAY).toISOString()
+          : null,
+      fromShopifyTotals: c.from_shopify,
+    };
+  });
 }
 
 /** The customer base as a whole: size, repeat buying, segments, places and shared shoppers. */

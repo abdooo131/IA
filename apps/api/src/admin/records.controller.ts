@@ -33,6 +33,7 @@ import {
   listFavoriteSchema,
   RECORD_APPS,
   recordActivitySchema,
+  recordNeedsCustomerData,
   recordNoteSchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
@@ -68,6 +69,9 @@ export class RecordsController {
   ) {
     const apps = RECORD_APPS[entityType] ?? [];
     if (!apps.some((app) => canDo(access, app, level)))
+      throw new ForbiddenException({ error: 'no_access' });
+    // A named person's record also needs the customer data switch.
+    if (recordNeedsCustomerData(entityType) && !access.customerData)
       throw new ForbiddenException({ error: 'no_access' });
     const ref = await recordRef(this.prisma, entityType, entityId);
     if (!ref) throw new NotFoundException({ error: 'not_found' });
@@ -125,6 +129,7 @@ export class RecordsController {
     const ids = await teamWith(this.prisma, app, 'view', {
       storeId: ref.darkStoreId,
       merchantId: ref.merchantId,
+      customerData: recordNeedsCustomerData(entityType),
     });
     return this.prisma.user.findMany({
       where: { id: { in: ids } },
@@ -150,6 +155,7 @@ export class RecordsController {
         ? await teamWith(this.prisma, app, 'view', {
             storeId: ref.darkStoreId,
             merchantId: ref.merchantId,
+            customerData: recordNeedsCustomerData(entityType),
           })
         : [];
       if (!may.includes(body.assigneeId)) throw new DomainError('assignee_not_allowed', 400);

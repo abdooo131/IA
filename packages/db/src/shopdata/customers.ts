@@ -343,6 +343,30 @@ export type RiskLevel = 'unknown' | 'low' | 'medium' | 'high';
  * failed attempts (refusals count double) as a share of attempts, against the customer.risk_*
  * settings. Too few attempts give "unknown", or "medium" if they ever refused.
  */
+/**
+ * The cash on delivery risk level from a customer's delivery attempts with us: failed and
+ * refused attempts against all of them, at the customer.risk_* thresholds. Too few attempts
+ * is unknown, unless the customer already refused once (medium).
+ */
+export function riskLevelOf(
+  counts: { attempts: number; failed: number; refused: number },
+  rules: { minAttempts: number; mediumPct: number; highPct: number },
+): { level: RiskLevel; pct: number } {
+  const { attempts, failed, refused } = counts;
+  const pct = attempts ? Math.min(100, Math.round(((failed + refused) * 100) / attempts)) : 0;
+  const level: RiskLevel =
+    attempts < rules.minAttempts
+      ? refused > 0
+        ? 'medium'
+        : 'unknown'
+      : pct >= rules.highPct
+        ? 'high'
+        : pct >= rules.mediumPct
+          ? 'medium'
+          : 'low';
+  return { level, pct };
+}
+
 export async function customerRisk(db: Db, customerId: string) {
   const [r] = await db.$queryRaw<
     { attempts: bigint; failed: bigint; refused: bigint; no_answer: bigint; short: bigint }[]
@@ -362,17 +386,14 @@ export async function customerRisk(db: Db, customerId: string) {
   const attempts = Number(r?.attempts ?? 0);
   const failed = Number(r?.failed ?? 0);
   const refused = Number(r?.refused ?? 0);
-  const pct = attempts ? Math.min(100, Math.round(((failed + refused) * 100) / attempts)) : 0;
-  const level: RiskLevel =
-    attempts < minAttempts
-      ? refused > 0
-        ? 'medium'
-        : 'unknown'
-      : pct >= highPct
-        ? 'high'
-        : pct >= mediumPct
-          ? 'medium'
-          : 'low';
+  const { level, pct } = riskLevelOf(
+    { attempts, failed, refused },
+    {
+      minAttempts,
+      mediumPct,
+      highPct,
+    },
+  );
   return {
     level,
     pct,

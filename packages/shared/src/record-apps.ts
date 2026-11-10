@@ -25,7 +25,7 @@ export const RECORD_APPS: Record<string, readonly AccessApp[]> = {
   shopify_shop: ['merchants'],
   shopify_app: ['merchants'],
   rider: ['operations', 'accounting'],
-  customer: [],
+  customer: ['customers'],
   payout: ['accounting'],
   cash_handover: ['accounting'],
   ledger_account: ['accounting'],
@@ -56,3 +56,14 @@ export const RECORD_APPS: Record<string, readonly AccessApp[]> = {
   rider_withdrawal: ['accounting'],
   petty_cash: ['accounting'],
 };
+
+/**
+ * Records about a named person (a customer profile): their history, notes and activities also
+ * need the customer data switch, whatever the app level (settings manage included).
+ */
+export const RECORD_NEEDS_CUSTOMER_DATA: readonly string[] = ['customer'];
+
+/** Whether a person may read or write a record type's chatter and history at a level. */
+export function recordNeedsCustomerData(entityType: string) {
+  return RECORD_NEEDS_CUSTOMER_DATA.includes(entityType);
+}

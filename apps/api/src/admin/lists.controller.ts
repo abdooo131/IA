@@ -13,6 +13,7 @@ import {
   type AccessProfile,
   type AccessTokenClaims,
   appListMeta,
+  appListNeedsCustomerData,
   canDo,
   type ListQuery,
   listQuerySchema,
@@ -42,6 +43,8 @@ export class ListsController {
   private scope(app: string, id: string, user: AccessTokenClaims, access: AccessProfile) {
     if (!appListMeta(app, id)) throw new NotFoundException({ error: 'list_not_found' });
     if (!canDo(access, app as AccessApp, 'view'))
+      throw new ForbiddenException({ error: 'no_access' });
+    if (appListNeedsCustomerData(app, id) && !access.customerData)
       throw new ForbiddenException({ error: 'no_access' });
     const scope: ListScope = {
       userId: user.sub,
