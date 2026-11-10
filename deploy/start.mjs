@@ -36,13 +36,23 @@ if (env.DATABASE_NAME) {
   log(`using database ${env.DATABASE_NAME}`);
 }
 
-log('applying database migrations');
-const migrate = spawnSync(
-  path.join(root, 'packages/db/node_modules/.bin/prisma'),
-  ['migrate', 'deploy', '--schema', path.join(root, 'packages/db/prisma/schema.prisma')],
-  { env, stdio: 'inherit' },
-);
-if (migrate.status !== 0) process.exit(migrate.status ?? 1);
+// A free instance sleeps when idle and starts from zero on the next visit: when every
+// migration in the image is already applied, the slow migration tool is skipped.
+const current = spawnSync(process.execPath, [path.join(root, 'deploy/migrations-current.mjs')], {
+  env,
+  stdio: 'inherit',
+});
+if (current.status === 0) {
+  log('database is up to date; no migrations to apply');
+} else {
+  log('applying database migrations');
+  const migrate = spawnSync(
+    path.join(root, 'packages/db/node_modules/.bin/prisma'),
+    ['migrate', 'deploy', '--schema', path.join(root, 'packages/db/prisma/schema.prisma')],
+    { env, stdio: 'inherit' },
+  );
+  if (migrate.status !== 0) process.exit(migrate.status ?? 1);
+}
 
 // Fresh start, starting data and the demo month run in deploy/prepare.mjs, a separate process,
 // so their memory is freed before the servers start.

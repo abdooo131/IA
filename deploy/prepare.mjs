@@ -52,19 +52,44 @@ if (env.SEED_ON_START === 'true') {
       'SEED_ON_START is true but SEED_ADMIN_EMAIL or SEED_ADMIN_PASSWORD is missing; skipping seed',
     );
   } else {
-    log('loading starting data (only missing rows are created)');
     const db = loadDb();
     const prisma = new db.PrismaClient();
+    // The seed only adds missing rows, so once it ran for this release (Render's commit) and
+    // this admin it has nothing to add: a free instance waking up skips it. A new deploy, a
+    // changed SEED_ADMIN_EMAIL or a fresh start (which empties the audit log) runs it again.
+    const release = env.RENDER_GIT_COMMIT;
+    const marker = release ? `${release}:${env.SEED_ADMIN_EMAIL}` : null;
     try {
-      await db.seed(prisma, {
-        admin: {
-          email: env.SEED_ADMIN_EMAIL,
-          password: env.SEED_ADMIN_PASSWORD,
-          name: env.SEED_ADMIN_NAME ?? 'Shiply Admin',
-        },
-        demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
-        log,
-      });
+      const done =
+        marker &&
+        (await prisma.auditLog.findFirst({
+          where: { action: 'deploy.seeded', entityType: 'deploy', entityId: marker },
+          select: { id: true },
+        }));
+      if (done) {
+        log('starting data already loaded for this release; skipped');
+      } else {
+        log('loading starting data (only missing rows are created)');
+        await db.seed(prisma, {
+          admin: {
+            email: env.SEED_ADMIN_EMAIL,
+            password: env.SEED_ADMIN_PASSWORD,
+            name: env.SEED_ADMIN_NAME ?? 'Shiply Admin',
+          },
+          demoPassword: env.SEED_DEMO_PASSWORD || env.SEED_ADMIN_PASSWORD,
+          log,
+        });
+        if (marker) {
+          await prisma.auditLog.create({
+            data: {
+              actorUserId: null,
+              action: 'deploy.seeded',
+              entityType: 'deploy',
+              entityId: marker,
+            },
+          });
+        }
+      }
     } finally {
       await prisma.$disconnect();
     }

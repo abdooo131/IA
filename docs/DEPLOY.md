@@ -166,5 +166,5 @@ fails, the log says so, nothing changed, and the app starts as usual.
 | --- | --- |
 | `DATABASE_URL is not set` in the logs | Add it under the service's **Environment** tab and redeploy |
 | `P1001: Can't reach database server` | Check the Neon string, keep `?sslmode=require` on the end |
-| The page takes a minute to open | The free service was asleep; it wakes on the first visit |
+| The page takes a minute to open | The free service was asleep; it wakes on the first visit. A wake up skips the migrations and the starting data when nothing changed, so it takes about half a minute. A paid instance (Starter or above) never sleeps |
 | `Wrong email or password` for the admin | The admin is created once. Changing `SEED_ADMIN_PASSWORD` later does not change an existing admin's password |
