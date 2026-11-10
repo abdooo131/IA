@@ -89,6 +89,7 @@ const T = {
       merchant_receipt: 'Payments from you',
       damage_compensation: 'Damage compensation',
       credit_note: 'Credit notes',
+      debit_note: 'Debit notes',
       adjustment: 'Adjustments',
     } as Record<string, string>,
   },
@@ -132,6 +133,7 @@ const T = {
       merchant_receipt: 'مدفوعات منك',
       damage_compensation: 'تعويض التلف',
       credit_note: 'إشعارات دائنة',
+      debit_note: 'إشعارات مدينة',
       adjustment: 'تسويات',
     } as Record<string, string>,
   },
@@ -291,5 +293,66 @@ export function invoiceEmail(input: {
       `${p(t.hello(input.merchantName))}${p(t.invoiceIntro(month))}${rows(lang, list)}${button(`${BASE_URL}/merchant/invoices`, t.viewInvoices)}`,
     ),
     text: `${t.hello(input.merchantName)}\n\n${t.invoiceIntro(month)}\n\n${textRows(list)}\n\n${t.viewInvoices}: ${BASE_URL}/merchant/invoices\n\n${t.team}`,
+  };
+}
+
+/** Words of the payment reminder to a merchant who owes us. */
+const REMINDER = {
+  en: {
+    subject: (amount: string) => `Payment reminder: you owe Shiply Now ${amount}`,
+    intro: (amount: string) =>
+      `Our fees and charges are more than the cash we collected for you, so your balance with us is ${amount} owed to Shiply Now.`,
+    ask: 'Please transfer it to our bank account, or reply to this email if something looks wrong.',
+    owed: 'You owe us',
+    since: 'In debit since',
+    reminder: 'Reminder',
+    oldest: 'Oldest unpaid amount',
+    days: (n: number) => `${n} days`,
+    open: 'See your balance and statement',
+  },
+  ar: {
+    subject: (amount: string) => `تذكير بالدفع: عليك ${amount} لشيبلي ناو`,
+    intro: (amount: string) =>
+      `رسومنا ومصاريفنا أكثر من النقدية التي حصّلناها لك، لذلك رصيدك معنا ${amount} مستحقة لشيبلي ناو.`,
+    ask: 'من فضلك حوّل المبلغ إلى حسابنا البنكي، أو رد على هذه الرسالة إن كان هناك خطأ.',
+    owed: 'المستحق عليك',
+    since: 'مدين منذ',
+    reminder: 'التذكير',
+    oldest: 'أقدم مبلغ غير مدفوع',
+    days: (n: number) => `${n} يوم`,
+    open: 'اعرض رصيدك وكشف حسابك',
+  },
+} as const;
+
+/** A payment reminder to a merchant whose wallet is in debit (they owe us). */
+export function paymentReminderEmail(input: {
+  lang: EmailLanguage;
+  merchantName: string;
+  amountPiastres: number;
+  since: Date;
+  number: number;
+  oldestDays: number | null;
+}): RenderedEmail {
+  const { lang } = input;
+  const t = T[lang];
+  const r = REMINDER[lang];
+  const amount = money(lang, input.amountPiastres);
+  const list: [string, string][] = [
+    [r.owed, amount],
+    [r.since, cairoDate(lang, input.since)],
+    ...(input.oldestDays !== null
+      ? ([[r.oldest, r.days(input.oldestDays)]] as [string, string][])
+      : []),
+    [r.reminder, String(input.number)],
+  ];
+  const subject = r.subject(lang === 'ar' ? `${egpText(input.amountPiastres)} ج.م` : amount);
+  return {
+    subject,
+    html: layout(
+      lang,
+      subject,
+      `${p(t.hello(input.merchantName))}${p(r.intro(amount))}${rows(lang, list)}${p(r.ask)}${button(`${BASE_URL}/merchant/wallet`, r.open)}`,
+    ),
+    text: `${t.hello(input.merchantName)}\n\n${r.intro(amount)}\n\n${textRows(list)}\n\n${r.ask}\n${r.open}: ${BASE_URL}/merchant/wallet\n\n${t.team}`,
   };
 }

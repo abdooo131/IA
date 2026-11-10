@@ -454,6 +454,8 @@ model Merchant {
   crmProposals       CrmProposal[]
   crmCommissionLines CrmCommissionLine[]
 
+  paymentReminders MerchantPaymentReminder[]
+
   @@index([accountManagerId])
   @@map("merchants")
 }
@@ -2660,6 +2662,8 @@ model CompanyProfile {
 enum TaxDocumentType {
   invoice
   credit_note
+  /// DN-000001: charges a merchant more after an invoice (migration 20261231170000)
+  debit_note
 
   @@map("tax_document_type")
 }
@@ -5087,4 +5091,30 @@ model StorageDay {
   createdAt DateTime @default(now()) @map("created_at")
 
   @@map("storage_days")
+}
+
+// ─── Payment reminders to merchants who owe us (migration 20261231170000) ──────
+
+/// One payment reminder sent to a merchant whose wallet is in debit: by the daily job or by
+/// finance (Send reminder now). Counted per debit period: the moment the wallet last turned
+/// to debit, so a merchant who paid and owes again starts from the first reminder.
+model MerchantPaymentReminder {
+  id             String   @id @default(cuid())
+  merchantId     String   @map("merchant_id")
+  /// When the wallet last turned to debit (the debit period this reminder belongs to)
+  periodStart    DateTime @map("period_start")
+  /// 1, 2, 3... within the debit period
+  number         Int
+  /// What the merchant owed when it was sent
+  amountPiastres Int      @map("amount_piastres")
+  /// Sent by hand from the receivables page (false: the daily job)
+  manual         Boolean  @default(false)
+  sentById       String?  @map("sent_by_id")
+  idempotencyKey String   @unique @map("idempotency_key")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  merchant Merchant @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  @@index([merchantId, periodStart])
+  @@map("merchant_payment_reminders")
 }

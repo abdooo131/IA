@@ -28,6 +28,7 @@ import {
   reverseAccruals,
   runMonthlyCharges,
   runRecurring,
+  runReceivableReminders,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
@@ -44,6 +45,8 @@ const STORAGE_LOCK = 735_002;
 const MONTHLY_LOCK = 735_003;
 /** Advisory lock id for the merchant contracts' monthly minimum fees. */
 const MINIMUM_FEE_LOCK = 735_021;
+/** Advisory lock id for the daily payment reminders to merchants who owe us. */
+const REMINDER_LOCK = 735_047;
 const EVERY_MS = 30_000;
 /** Notifications go out faster than the other jobs: a new order has minutes to be accepted. */
 const PUSH_EVERY_MS = 10_000;
@@ -77,6 +80,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private riderCashDone: string | null = null;
   /** The last Cairo day sales commission was worked out in this instance. */
   private commissionDone: string | null = null;
+  /** The last Cairo day payment reminders went out from this instance. */
+  private remindersDone: string | null = null;
 
   constructor(
     private readonly prisma: PrismaService,
@@ -107,6 +112,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runEmails();
       void this.runCrmReminders();
       void this.runCommissions();
+      void this.runPaymentReminders();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -266,6 +272,36 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: sales commission', error);
+      return null;
+    }
+  }
+
+  /**
+   * Once a Cairo day, after receivables.reminder_hour: payment reminders to merchants whose
+   * wallet stays in debit (receivables.* settings). Each reminder is keyed by the merchant, the
+   * debit period and its number, so repeats and other instances send nothing twice.
+   */
+  async runPaymentReminders(now: Date = new Date()) {
+    const day = cairoDay(now);
+    if (this.remindersDone === day) return null;
+    try {
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const [{ locked }] = (await tx.$queryRaw<
+            { locked: boolean }[]
+          >`SELECT pg_try_advisory_xact_lock(${REMINDER_LOCK}) AS locked`) as [{ locked: boolean }];
+          if (!locked) return null;
+          return runReceivableReminders(tx, now);
+        },
+        { timeout: 60_000 },
+      );
+      if (!result) return null;
+      // Too early: try again on a later run of the same day.
+      if (result.status !== 'too_early') this.remindersDone = day;
+      if (result.sent > 0) this.log.log(`Payment reminders: ${result.sent} merchants reminded`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: payment reminders', error);
       return null;
     }
   }

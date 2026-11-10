@@ -12,7 +12,9 @@ export type NotificationType =
   | 'return_collected'
   | 'damage_settled'
   | 'account_approved'
-  | 'payment_requested';
+  | 'payment_requested'
+  /** An automatic or hand sent payment reminder (merchant wallet in debit) */
+  | 'payment_reminder';
 
 /**
  * Records a notification for a merchant, shown in the merchant panel. This is the one

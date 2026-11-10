@@ -38,3 +38,4 @@ export * from './report-period';
 export * from './bank-match';
 export * from './expense-claims';
 export * from './loans';
+export * from './aging';

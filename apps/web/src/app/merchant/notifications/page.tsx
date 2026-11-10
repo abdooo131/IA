@@ -74,6 +74,13 @@ export default async function NotificationsPage() {
     }
     if (n.type === 'account_approved')
       return { title: t('account_approved'), lines: [], href: null, link: null };
+    if (n.type === 'payment_reminder')
+      return {
+        title: t('payment_reminder', { amount: formatEgp(Number(d.amountPiastres ?? 0)) }),
+        lines: [],
+        href: '/merchant/wallet',
+        link: t('openWallet'),
+      };
     if (n.type === 'payment_requested')
       return {
         title: t('payment_requested', { amount: formatEgp(Number(d.amountPiastres ?? 0)) }),

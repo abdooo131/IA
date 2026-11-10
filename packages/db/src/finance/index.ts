@@ -184,6 +184,21 @@ export {
   updateMerchantTax,
 } from './invoices';
 export {
+  type DebitNoteInput,
+  debitNoteAmounts,
+  issueDebitNote,
+  submitDebitNote,
+} from './debit-notes';
+export {
+  type AgingScope,
+  type ChequeAgingRow,
+  payablesAging,
+  type PayableAgingRow,
+  receivablesAging,
+  type ReceivableAgingRow,
+} from './aging';
+export { reminderRules, runReceivableReminders, sendReminderNow } from './reminders';
+export {
   bookCorporateTax,
   comparativeStatements,
   corporateTaxEstimate,

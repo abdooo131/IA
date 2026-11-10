@@ -862,6 +862,7 @@ const invoices: ListDef<InvoiceListRow> = {
   filters: {
     invoice: { group: 'type', test: (r) => r.type === 'invoice' },
     credit_note: { group: 'type', test: (r) => r.type === 'credit_note' },
+    debit_note: { group: 'type', test: (r) => r.type === 'debit_note' },
     not_sent: eta('not_sent'),
     sent: eta('sent'),
     accepted: eta('accepted'),

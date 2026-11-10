@@ -195,6 +195,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/profit', label: 'profitPerStore' },
           { href: '/finance/merchant-profit', label: 'merchantProfit' },
           { href: '/finance/reports/tags', label: 'costTagReport' },
+          { href: '/finance/payables-aging', label: 'payablesAging' },
           { href: '/finance/budgets', label: 'budgets' },
           { href: '/finance/statements', label: 'comparePeriods' },
           { href: '/finance/trial', label: 'trial' },

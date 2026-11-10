@@ -323,6 +323,7 @@ export async function dispatchPush(
     activityEvents,
     payslipEvents,
     expenseClaimEvents,
+    paymentReminderEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -1115,6 +1116,29 @@ const merchantEvents: Source = async (db, since) => {
       }),
     })),
   ];
+};
+
+/** Merchant users with the money right: a payment reminder (they owe us). */
+const paymentReminderEvents: Source = async (db, since) => {
+  const notes = await db.notification.findMany({
+    where: { createdAt: { gte: since }, type: 'payment_reminder' },
+    select: { id: true, merchantId: true, data: true },
+    take: 300,
+  });
+  return notes.map((n) => {
+    const data = (n.data ?? {}) as { amountPiastres?: number };
+    return {
+      key: `payment_reminder:${n.id}`,
+      make: async () => ({
+        userIds: await merchantUsersWith(db, n.merchantId, 'money'),
+        type: 'merchant_payout' as const,
+        text: 'merchant_payment_reminder' as const,
+        vars: { amount: egpText(Number(data.amountPiastres ?? 0)) },
+        url: '/merchant/wallet',
+        tag: `payment-reminder-${n.merchantId}`,
+      }),
+    };
+  });
 };
 
 /**

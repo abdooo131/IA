@@ -58,14 +58,14 @@ export interface EtaLine {
 
 /** Builds an ETA document (I invoice, C credit note) from our invoice, ready to sign. */
 export function etaDocument(input: {
-  type: 'I' | 'C';
+  type: 'I' | 'C' | 'D';
   issuer: EtaParty;
   receiver: EtaParty;
   issuedAt: Date;
   activityCode: string;
   internalId: string;
   lines: EtaLine[];
-  /** For a credit note: the uuid of the invoice it corrects */
+  /** For a credit or debit note: the uuid of the invoice it corrects */
   references?: string[];
 }): EtaObject {
   const party = (p: EtaParty, issuer: boolean): EtaObject => ({

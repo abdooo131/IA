@@ -828,6 +828,38 @@ export const SETTING_DEFINITIONS = {
       'A bill made from a purchase order may be at most this share (basis points: 200 is 2%) above the ordered prices of what was received',
     override: 'none',
   },
+  'receivables.reminders_enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'Merchants who owe us get automatic payment reminders (notification, email and push): 1 on, 0 off',
+    override: 'none',
+  },
+  'receivables.reminder_first_days': {
+    schema: z.number().int().min(1).max(365),
+    default: 3,
+    description: 'The first payment reminder goes after this many days in debit',
+    override: 'none',
+  },
+  'receivables.reminder_every_days': {
+    schema: z.number().int().min(1).max(365),
+    default: 7,
+    description: 'Then one payment reminder every this many days while the merchant still owes us',
+    override: 'none',
+  },
+  'receivables.reminder_max': {
+    schema: z.number().int().min(0).max(50),
+    default: 4,
+    description:
+      'At most this many payment reminders per debit period (reminders sent by hand count too)',
+    override: 'none',
+  },
+  'receivables.reminder_hour': {
+    schema: z.number().int().min(0).max(23),
+    default: 10,
+    description: 'Cairo hour from which the daily payment reminders are sent',
+    override: 'none',
+  },
 } as const satisfies Record<
   string,
   {

@@ -84,8 +84,9 @@ async function byNumber(db: Db, text: string, scope: ListScope): Promise<SearchH
         : null;
     }
     case 'invoice':
-    case 'credit_note': {
-      const type = doc.kind === 'invoice' ? 'invoice' : 'credit_note';
+    case 'credit_note':
+    case 'debit_note': {
+      const type = doc.kind;
       const r = await db.taxInvoice.findUnique({
         where: { type_number: { type, number: n } },
         include: { merchant: { select: { name: true } } },

@@ -14,6 +14,7 @@ const REPORTS: { key: string; href: string; tip?: InfoTerm; accountant?: boolean
   { key: 'merchantProfit', href: '/finance/merchant-profit' },
   { key: 'costTags', href: '/finance/reports/tags' },
   { key: 'receivables', href: '/finance/receivables', tip: 'receivables' },
+  { key: 'payablesAging', href: '/finance/payables-aging' },
   { key: 'budgets', href: '/finance/budgets' },
   { key: 'comparePeriods', href: '/finance/statements' },
   { key: 'taxes', href: '/finance/taxes' },
