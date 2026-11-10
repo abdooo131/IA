@@ -22,7 +22,7 @@ import javax.swing.JScrollPane;
 
 /**
  * Shows the AWB labels and prints them.
- * Choose "Microsoft Print to PDF" in the printer list to save a PDF instead.
+ * To save a PDF: on Mac use the PDF button in the print window, on Windows choose "Microsoft Print to PDF".
  */
 public class AwbPrintDialog extends JDialog {
 
@@ -89,7 +89,7 @@ public class AwbPrintDialog extends JDialog {
 		JScrollPane sp = new JScrollPane(preview);
 		sp.getVerticalScrollBar().setUnitIncrement(24);
 		getContentPane().add(sp, BorderLayout.CENTER);
-		JLabel tip = new JLabel("  Tip: to save as PDF, choose \"Microsoft Print to PDF\" as the printer.");
+		JLabel tip = new JLabel("  Tip: to save a PDF, use the PDF button in the Mac print window (Windows: \"Microsoft Print to PDF\").");
 		tip.setForeground(Color.DARK_GRAY);
 		getContentPane().add(tip, BorderLayout.SOUTH);
 

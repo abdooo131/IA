@@ -28,7 +28,7 @@ the amount to collect in a big box, order number, contents and notes.
 * The **Send Orders from CSV** window has a **Print AWBs...** button too.
 
 Pick the paper in the print window: **label sticker 10 x 15 cm**, **A4 with 4 labels**, or
-**A4 with 1 label**. To get a PDF instead, choose **Microsoft Print to PDF** as the printer.
+**A4 with 1 label**. To get a PDF instead: on Mac use the **PDF** button in the print window, on Windows choose **Microsoft Print to PDF**.
 
 Test orders are printed with a red **TEST, NOT SHIPPED** watermark. Check with Shipply that
 their couriers accept this label instead of their own waybill.
