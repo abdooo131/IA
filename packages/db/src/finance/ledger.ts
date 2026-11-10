@@ -417,7 +417,8 @@ export async function nextNumber(
     | 'purchase_orders'
     | 'crm_deals'
     | 'crm_proposals'
-    | 'rider_withdrawals',
+    | 'rider_withdrawals'
+    | 'expense_claims',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(

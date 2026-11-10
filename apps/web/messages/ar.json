@@ -535,7 +535,8 @@
         "rider__penalty_day_piastres": "قيمة يوم أجر المندوب للجزاءات (جنيه)",
         "fee__shipping_fee_piastres": "رسوم الشحن لكل طلب مسلم (جنيه)",
         "fee__packaging_charge_piastres": "رسوم التغليف لكل طلب مسلم (جنيه، صفر: علينا)",
-        "fee__failed_delivery_percent_bp": "التوصيل الفاشل نسبة من الشحنة للعقود ذات رسوم الشحن (%)"
+        "fee__failed_delivery_percent_bp": "التوصيل الفاشل نسبة من الشحنة للعقود ذات رسوم الشحن (%)",
+        "claims__max_age_days": "استرداد المصروفات: أقدم يوم دفع يمكن المطالبة به (أيام للخلف)"
       },
       "default": "الافتراضي {value}",
       "global": "في كل مكان",
@@ -2020,7 +2021,8 @@
       "product_handling": "رسوم بسعر المنتج",
       "packaging_charge": "رسوم التغليف",
       "rider_office_commission": "عمولة مكتب المناديب",
-      "rider_office_shortage": "نقل مستحقات المندوب على المكتب"
+      "rider_office_shortage": "نقل مستحقات المندوب على المكتب",
+      "expense_claim": "رد مصروف لموظف"
     },
     "accounts": {
       "merchant": "محفظة التاجر",
@@ -5367,7 +5369,8 @@
       "leaving": "سيغادر",
       "left": "غادر",
       "suspended": "موقوف",
-      "on_leave": "في إجازة"
+      "on_leave": "في إجازة",
+      "pending_accounting": "في انتظار الحسابات"
     }
   },
   "tickets": {
@@ -5906,7 +5909,8 @@
       "payMerchants": "الدفع للتجار",
       "recordExpense": "تسجيل مصروف",
       "closeMonthRun": "إقفال الشهر",
-      "riderOffices": "مكاتب المناديب"
+      "riderOffices": "مكاتب المناديب",
+      "expenseClaims": "استرداد المصروفات"
     },
     "hints": {
       "organisation": "الإدارات والوظائف والدرجات",
@@ -6806,6 +6810,14 @@
       "activity_due": {
         "name": "تذكيراتي",
         "hint": "تذكير خططته أنت أو زميل على سجل حان موعده."
+      },
+      "payslip_ready": {
+        "name": "قسائم مرتبي",
+        "hint": "قسيمة مرتب جديدة جاهزة بعد صرف المرتبات."
+      },
+      "expense_claim": {
+        "name": "استرداد المصروفات",
+        "hint": "تمت الموافقة على طلبك أو دفعه أو رفضه، أو طلب من فريقك في انتظارك."
       }
     }
   },
@@ -8970,7 +8982,11 @@
       "myLeaveHint": "الأرصدة والطلبات",
       "myViolationsHint": "الجزاءات والتظلم",
       "myCorrectionsHint": "اطلب تصحيح يوم",
-      "myInboxHint": "ما ينتظرك"
+      "myInboxHint": "ما ينتظرك",
+      "myPayslips": "قسائم المرتب",
+      "myClaims": "استرداد المصروفات",
+      "myPayslipsHint": "مرتبك الشهري",
+      "myClaimsHint": "استرد مصروف شغل"
     },
     "myLeaveTitle": "إجازاتي",
     "myLeaveIntro": "أرصدتك في سنة الإجازات الحالية وطلباتك. يوافق مديرك أولًا ثم شؤون العاملين.",
@@ -9055,11 +9071,15 @@
       "punch_in_future": "هذا الوقت لم يأتِ بعد.",
       "times_required": "اكتب وقتًا واحدًا على الأقل.",
       "idempotency_key_reused": "حدّث الصفحة وحاول مرة أخرى.",
-      "hr_item_already_paid": "خُصم بالفعل في مسير الرواتب."
+      "hr_item_already_paid": "خُصم بالفعل في مسير الرواتب.",
+      "own_claim": "لا أحد يقرر في طلبه الخاص.",
+      "claim_not_waiting": "هذا الطلب لم يعد في الانتظار."
     },
     "appealedOn": "تظلم يوم {at}",
     "appealByPerson": "تظلم الموظف",
-    "suggestedOneByOne": "أكّد واحدة بنوع تاني"
+    "suggestedOneByOne": "أكّد واحدة بنوع تاني",
+    "kindClaim": "طلب استرداد مصروف",
+    "claimReceipt": "عرض الإيصال"
   },
   "hr1": {
     "home": {
@@ -9855,7 +9875,10 @@
       "period": "الشهر",
       "issuedDay": "تاريخ الإصدار",
       "eta": "الفاتورة الإلكترونية",
-      "net": "قبل الضريبة"
+      "net": "قبل الضريبة",
+      "person": "الشخص",
+      "paidOn": "تاريخ الدفع",
+      "approvedBy": "وافق عليه"
     },
     "filters": {
       "draft": "مسودة",
@@ -9899,7 +9922,10 @@
       "not_sent": "لم تُرسل لمصلحة الضرائب",
       "sent": "أُرسلت، في الانتظار",
       "accepted": "مقبولة",
-      "needs_fix": "تحتاج تصحيحًا"
+      "needs_fix": "تحتاج تصحيحًا",
+      "pending_manager": "في انتظار المدير",
+      "pending_accounting": "موافق عليه، للدفع",
+      "company_wide": "على مستوى الشركة"
     },
     "groups": {
       "merchant": "التاجر",
@@ -9920,7 +9946,8 @@
       "category": "الفئة",
       "type": "النوع",
       "period": "الشهر",
-      "eta": "الفاتورة الإلكترونية"
+      "eta": "الفاتورة الإلكترونية",
+      "person": "الشخص"
     },
     "payouts": {
       "exportName": "المدفوعات"
@@ -9959,7 +9986,14 @@
     "bulk": {
       "approve": "موافقة",
       "reject": "رفض",
-      "approvePayouts": "الموافقة على المدفوعات"
+      "approvePayouts": "الموافقة على المدفوعات",
+      "approveClaims": "موافقة بصفتي المدير"
+    },
+    "expense_claims": {
+      "exportName": "expense-claims",
+      "filters": {
+        "waiting_for_me": "يمكنني دفعها (ليست لي)"
+      }
     }
   },
   "documents": {
@@ -9981,7 +10015,8 @@
       "pettyCash": "النثرية",
       "invoices": "الفواتير الضريبية",
       "purchaseOrders": "أوامر الشراء",
-      "storeCash": "نقدية المخازن"
+      "storeCash": "نقدية المخازن",
+      "expenseClaims": "استرداد المصروفات"
     },
     "fields": {
       "merchant": "التاجر",
@@ -10031,7 +10066,10 @@
       "expected": "المتوقع",
       "counted": "المعدود",
       "difference": "الفرق",
-      "officeMonth": "شهر العمولة"
+      "officeMonth": "شهر العمولة",
+      "paidOn": "تاريخ الدفع",
+      "approvedAt": "وقت الموافقة",
+      "paidFrom": "دُفع من"
     },
     "smart": {
       "merchant": "التاجر",
@@ -10101,7 +10139,8 @@
       "leaveDocument": "مستند الإجازة",
       "ladder": "نفس النوع قبل كده",
       "evidence": "الإثبات",
-      "riderOffice": "مكتب المناديب"
+      "riderOffice": "مكتب المناديب",
+      "person": "الشخص"
     },
     "chatter": {
       "title": "الملاحظات والسجل",
@@ -10158,7 +10197,8 @@
         "bank_statement": "كشف حساب بنكي",
         "order": "طلب",
         "merchant": "تاجر",
-        "supplier": "مورد"
+        "supplier": "مورد",
+        "expense_claim": "طلب استرداد مصروف"
       }
     }
   },
@@ -11039,6 +11079,118 @@
       "billed": "تم تجهيز {bill} بمبلغ {total} ج.م. العجز المنقول: {shortages} ج.م.",
       "already_billed": "مُفوتر بالفعل ({bill}). العجز المنقول: {shortages} ج.م.",
       "nothing_to_bill": "لا عمولة هذا الشهر. العجز المنقول: {shortages} ج.م."
+    }
+  },
+  "myPay": {
+    "payslipsTitle": "قسائم مرتبي",
+    "payslipsIntro": "قسيمة لكل شهر صُرف لك فيه مرتب. يظهر الشهر بعد صرف مرتباته.",
+    "payslipTitle": "قسيمة المرتب",
+    "noFile": "ليس لديك ملف موظف.",
+    "noPayslips": "لا توجد قسائم بعد.",
+    "perDelivery": "تُحاسب بالطلب الموصل، لذلك ليست لديك قسائم مرتب. أرباحك وسحوباتك في محفظتك.",
+    "openWallet": "افتح محفظتي",
+    "back": "كل القسائم",
+    "slipHeading": "قسيمة مرتب",
+    "position": "الوظيفة",
+    "department": "الإدارة",
+    "store": "المخزن",
+    "nationalId": "الرقم القومي",
+    "insuranceNumber": "الرقم التأميني",
+    "voucher": "القيد",
+    "paidAt": "تاريخ الصرف",
+    "paidFrom": "صُرف من",
+    "earnings": "المستحقات",
+    "basic": "المرتب الأساسي",
+    "salary": "المرتب",
+    "allowances": {
+      "housing": "بدل سكن",
+      "transport": "بدل انتقال",
+      "phone": "بدل تليفون",
+      "other": "بدل آخر"
+    },
+    "bonus": "مكافأة",
+    "commission": "عمولة مبيعات",
+    "deduction": "خصم آخر",
+    "unpaidDays": "أيام بدون أجر: {label}",
+    "violationDeduction": "خصم مخالفة: {label}",
+    "gross": "إجمالي الاستحقاق",
+    "deductions": "الاستقطاعات",
+    "insurance": "التأمينات الاجتماعية (على {wage} جنيه)",
+    "incomeTax": "ضريبة كسب العمل",
+    "martyrs": "صندوق الشهداء",
+    "advance": "استرداد سلفة",
+    "net": "صافي المرتب",
+    "companyShare": "دفعت الشركة أيضًا {amount} جنيه تأمينات اجتماعية عنك.",
+    "claimsTitle": "استرداد المصروفات",
+    "claimsIntro": "دفعت مصروف شغل من جيبك؟ اطلب استرداده مع صورة الإيصال. يوافق مديرك ثم تدفع لك الحسابات.",
+    "newClaim": "طلب جديد",
+    "noCategories": "لم تفتح الحسابات أي بند للاسترداد بعد.",
+    "amount": "المبلغ (جنيه)",
+    "category": "البند",
+    "companyWide": "على مستوى الشركة",
+    "paidOn": "يوم الدفع",
+    "paidOnHint": "اليوم أو حتى {days} يومًا للخلف.",
+    "note": "ملاحظة",
+    "notePlaceholder": "ماذا اشتريت ولماذا",
+    "receipt": "صورة الإيصال",
+    "noVat": "يُطلب المبلغ كاملًا؛ لا تُفصل ضريبة القيمة المضافة.",
+    "send": "أرسل الطلب",
+    "sent": "تم إرسال الطلب {number}.",
+    "cancelled": "تم سحب الطلب.",
+    "cancel": "اسحب الطلب",
+    "myClaims": "طلباتي",
+    "noClaims": "لا توجد طلبات بعد.",
+    "paidOnShort": "دُفع يوم {day}",
+    "waitingManager": "في انتظار مديرك.",
+    "waitingAccounting": "في انتظار الحسابات للدفع.",
+    "paidLine": "تم الرد {at}.",
+    "rejectedLine": "مرفوض: {reason}",
+    "statuses": {
+      "pending_manager": "في انتظار المدير",
+      "pending_accounting": "في انتظار الحسابات",
+      "paid": "مدفوع",
+      "rejected": "مرفوض",
+      "cancelled": "مسحوب"
+    },
+    "financeTitle": "استرداد المصروفات",
+    "financeIntro": "مصروفات شغل دفعها الموظفون من جيوبهم. يوافق المدير، وتردها أنت من بنك أو خزنة.",
+    "payFrom": "الدفع من",
+    "reference": "مرجع البنك (اختياري)",
+    "pay": "ادفع {amount}",
+    "reject": "رفض",
+    "rejectReason": "سبب الرفض",
+    "confirmReject": "ارفض الطلب",
+    "paidDone": "تم الدفع.",
+    "rejectedDone": "تم الرفض.",
+    "secondPersonHint": "وافقت على هذا الطلب بصفتك المدير: من حد الموافقة يجب أن يدفعه شخص آخر.",
+    "categories": {
+      "title": "البنود التي يمكن استردادها",
+      "intro": "تظهر هذه البنود فقط في نموذج الاسترداد في ملفي.",
+      "on": "يمكن استرداده",
+      "off": "لا يمكن استرداده"
+    },
+    "errors": {
+      "generic": "لم ينجح ذلك. حاول مرة أخرى.",
+      "network": "لا يوجد اتصال. حاول مرة أخرى.",
+      "validation_failed": "راجع النموذج وحاول مرة أخرى.",
+      "invalid_amount": "اكتب مبلغًا أكبر من صفر.",
+      "invalid_day": "اختر يوم الدفع.",
+      "receipt_required": "أضف صورة الإيصال.",
+      "day_in_future": "لا يمكن أن يكون اليوم في المستقبل.",
+      "claim_too_old": "يمكن الاسترداد حتى {days} يومًا للخلف فقط.",
+      "claim_category_not_found": "هذا البند لا يمكن استرداده.",
+      "store_not_found": "المخزن غير موجود.",
+      "employee_not_found": "ليس لديك ملف موظف.",
+      "employee_not_active": "ملفك غير نشط.",
+      "claim_not_cancellable": "تمت الموافقة عليه بالفعل؛ لا يمكن سحبه.",
+      "claim_not_waiting": "هذا الطلب لم يعد في الانتظار.",
+      "own_claim": "لا أحد يدفع أو يرفض طلبه الخاص.",
+      "same_person": "وافقت عليه بصفتك المدير: يجب أن يدفعه شخص آخر.",
+      "not_enough_money": "البنك أو الخزنة لا يكفي رصيدها.",
+      "account_not_found": "اختر بنكًا أو خزنة.",
+      "account_inactive": "هذا الحساب مغلق.",
+      "books_closed": "الدفاتر مقفلة لهذا اليوم.",
+      "store_not_allowed": "هذا الطلب يخص مخزنًا لا تغطيه."
     }
   }
 }

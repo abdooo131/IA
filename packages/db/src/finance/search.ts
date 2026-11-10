@@ -2,6 +2,7 @@ import {
   billNumber,
   chequeLabel,
   entryNumber,
+  expenseClaimNumber,
   handoverNumber,
   parseDocNumber,
   payoutNumber,
@@ -16,7 +17,7 @@ import { invoiceLabel } from './invoices';
 import type { ListScope } from '../list-query';
 
 // The one search of the Accounting app: a document number (JV-, PAY-, CH-, BILL-, INV-, CN-,
-// PO-, CHQ-, PC-, RW-, BS-), an order number or a merchant (or supplier) name, each with the
+// PO-, CHQ-, PC-, RW-, BS-, EC-), an order number or a merchant (or supplier) name, each with the
 // page it opens. People limited to some stores or merchants find only theirs.
 
 const inStores = (scope: ListScope, storeId: string | null) =>
@@ -148,6 +149,20 @@ async function byNumber(db: Db, text: string, scope: ListScope): Promise<SearchH
             label: withdrawalNumber(n),
             detail: r.rider.user.name,
             href: `/finance/rider-withdrawals/${r.id}`,
+          }
+        : null;
+    }
+    case 'expense_claim': {
+      const r = await db.expenseClaim.findUnique({
+        where: { number: n },
+        include: { user: { select: { name: true } } },
+      });
+      return r && inStores(scope, r.darkStoreId)
+        ? {
+            kind: 'expense_claim',
+            label: expenseClaimNumber(n),
+            detail: r.user.name,
+            href: `/finance/expense-claims/${r.id}`,
           }
         : null;
     }

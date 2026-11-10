@@ -50,6 +50,8 @@ describe('push notifications', () => {
       'document_expiring',
       'hr_request',
       'hr_update',
+      'payslip_ready',
+      'expense_claim',
       'activity_due',
     ]);
     const finance = { ...NO_ACCESS, ...JOB_ROLE_TEMPLATES.accountant };

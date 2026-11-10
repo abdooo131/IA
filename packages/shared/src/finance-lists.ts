@@ -114,6 +114,21 @@ export const FINANCE_LISTS = {
     sums: ['amount'],
     defaultFilters: [],
   },
+  expense_claims: {
+    filters: {
+      pending_manager: 'status',
+      pending_accounting: 'status',
+      paid: 'status',
+      rejected_or_cancelled: 'status',
+      waiting_for_me: 'who',
+      company_wide: 'store',
+      ...dateFilters,
+    },
+    groupBys: ['person', 'store', 'category', 'status', 'month'],
+    sorts: ['number', 'person', 'paid_on', 'created', 'amount'],
+    sums: ['amount'],
+    defaultFilters: ['pending_accounting'],
+  },
   invoices: {
     filters: {
       invoice: 'type',

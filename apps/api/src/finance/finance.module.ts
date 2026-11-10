@@ -14,6 +14,7 @@ import { ToolsController } from './tools.controller';
 import { FinanceController } from './finance.controller';
 import { RiderOfficesController } from './rider-offices.controller';
 import { RiderWithdrawalsController } from './rider-withdrawals.controller';
+import { ExpenseClaimsController } from './expense-claims.controller';
 import { FinanceViewsController } from './views.controller';
 import { FinanceRunsController } from './runs.controller';
 
@@ -34,6 +35,7 @@ import { FinanceRunsController } from './runs.controller';
     PurchasingController,
     RiderWithdrawalsController,
     RiderOfficesController,
+    ExpenseClaimsController,
     FinanceViewsController,
     FinanceRunsController,
   ],

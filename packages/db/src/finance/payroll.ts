@@ -290,11 +290,21 @@ export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUse
     if (recovery > owed) throw new DomainError('more_than_advance', 400);
     const net = slip.afterTax - recovery;
     if (net < 0) throw new DomainError('net_below_zero', 400);
+    // The package's parts, shown on the payslip (only when the run used the package's gross).
+    const fromPackage = salary && l.grossPiastres === undefined;
     rows.push({
       userId: user.id,
       name: user.name,
       tags,
       base,
+      basic: fromPackage ? salary.basicPiastres : null,
+      allowances: fromPackage
+        ? salary.allowances.map((a) => ({
+            kind: a.kind,
+            label: a.label,
+            amountPiastres: a.amountPiastres,
+          }))
+        : [],
       bonus,
       commission,
       commissionIds: commissions.map((c) => c.id),
@@ -387,6 +397,8 @@ export function runPayroll(db: Db, input: PayrollInput) {
           userId: r.userId,
           name: r.name,
           base: r.base,
+          basic: r.basic,
+          allowances: r.allowances,
           bonus: r.bonus,
           commission: r.commission,
           deduction: r.deduction,
@@ -429,6 +441,10 @@ export interface PayslipRow {
   userId: string;
   name: string;
   base: number;
+  /** The basic salary of the package the run used (null: older runs or a gross typed in) */
+  basic: number | null;
+  /** The package's allowances (housing, transport...) included in base */
+  allowances: { kind: string; label: string | null; amountPiastres: number }[];
   bonus: number;
   /** Sales commission paid with the salary */
   commission: number;
@@ -461,6 +477,8 @@ export async function payslips(db: Db, month: string) {
       ...p,
       name: p.name ?? '',
       base: p.base ?? p.gross,
+      basic: p.basic ?? null,
+      allowances: p.allowances ?? [],
       bonus: p.bonus ?? 0,
       commission: p.commission ?? 0,
       hrDeduction: p.hrDeduction ?? 0,
@@ -544,4 +562,59 @@ export function payStaffBonus(db: Db, input: BonusInput) {
     });
     return entry!;
   });
+}
+
+/**
+ * My HR: a person's own payslips, newest month first. A payslip exists only once the month's
+ * salary run is posted (a run waiting for a second person has no entry yet). Each carries the
+ * bank or cash box the run was paid from.
+ */
+export async function myPayslips(db: Db, userId: string) {
+  const match = JSON.stringify([{ userId }]);
+  const entries = await db.$queryRaw<{ id: string }[]>`
+    SELECT id FROM ledger_entries
+    WHERE kind = 'payroll' AND idempotency_key LIKE 'payroll:%'
+      AND data->'people' @> ${match}::jsonb
+    ORDER BY occurred_at DESC`;
+  if (!entries.length) return [];
+  const rows = await db.ledgerEntry.findMany({
+    where: { id: { in: entries.map((e) => e.id) } },
+    include: {
+      lines: {
+        where: { amountPiastres: { lt: 0 }, account: { groupCode: { in: MONEY_GROUPS } } },
+        include: {
+          account: { select: { id: true, code: true, nameEn: true, nameAr: true, type: true } },
+        },
+      },
+    },
+  });
+  const slips = [];
+  for (const e of rows) {
+    const month = e.idempotencyKey.slice('payroll:'.length);
+    const run = await payslips(db, month);
+    const person = run.people.find((p) => p.userId === userId);
+    if (!person) continue;
+    const from = e.lines[0]?.account ?? null;
+    slips.push({
+      month,
+      entryNumber: e.number,
+      paidAt: e.occurredAt,
+      paidFrom: from && {
+        code: from.code,
+        type: from.type,
+        nameEn: from.nameEn ?? from.code,
+        nameAr: from.nameAr ?? from.nameEn ?? from.code,
+      },
+      ...person,
+    });
+  }
+  return slips.sort((a, b) => (a.month < b.month ? 1 : -1));
+}
+
+/** One of my payslips by month, or a 404 when there is none (not posted, or not mine). */
+export async function myPayslip(db: Db, userId: string, month: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new DomainError('invalid_month', 400);
+  const slip = (await myPayslips(db, userId)).find((s) => s.month === month);
+  if (!slip) throw new DomainError('payslip_not_found', 404);
+  return slip;
 }

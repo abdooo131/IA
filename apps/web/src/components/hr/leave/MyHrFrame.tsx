@@ -11,13 +11,16 @@ const SECTIONS = [
   { href: '/my-file/leave', key: 'myLeave' },
   { href: '/my-file/violations', key: 'myViolations' },
   { href: '/my-file/corrections', key: 'myCorrections' },
+  { href: '/my-file/payslips', key: 'myPayslips' },
+  { href: '/my-file/claims', key: 'myClaims' },
   { href: '/my-file/inbox', key: 'myInbox' },
 ] as const;
 
 /**
  * The frame of the My HR pages (HR phase 3): the header, the way back and the sections of the
  * person's own HR (their file, leave, violations, attendance fixes and, for managers and HR,
- * the inbox with its count).
+ * the inbox with its count), then payslips and expense claims. Printing (a payslip) leaves the
+ * header and the sections out.
  */
 export async function MyHrFrame({
   current,
@@ -39,9 +42,11 @@ export async function MyHrFrame({
   ]);
   return (
     <div className="flex min-h-dvh flex-col">
-      <AppHeader />
-      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6">
-        <nav className="flex flex-wrap gap-2" aria-label={t('myHrSections')}>
+      <div className="print:hidden">
+        <AppHeader />
+      </div>
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 print:p-0">
+        <nav className="flex flex-wrap gap-2 print:hidden" aria-label={t('myHrSections')}>
           {SECTIONS.map((s) => (
             <Link
               key={s.href}
@@ -62,8 +67,10 @@ export async function MyHrFrame({
             </Link>
           ))}
         </nav>
-        <h1 className="mt-4 text-h2">{title}</h1>
-        {intro && <p className="mt-1 max-w-3xl text-body-sm text-text-muted">{intro}</p>}
+        <h1 className="mt-4 text-h2 print:hidden">{title}</h1>
+        {intro && (
+          <p className="mt-1 max-w-3xl text-body-sm text-text-muted print:hidden">{intro}</p>
+        )}
         {children}
       </main>
     </div>

@@ -7,6 +7,7 @@ import {
   violationNumber,
   chequeLabel,
   entryNumber,
+  expenseClaimNumber,
   handoverNumber,
   payoutNumber,
   pettyCashLabel,
@@ -112,6 +113,17 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
         darkStoreId: input?.darkStoreId ?? null,
         merchantId: null,
       };
+    }
+    case 'expense_claim': {
+      const r = await db.expenseClaim.findUnique({ where: { id } });
+      return (
+        r && {
+          label: expenseClaimNumber(r.number),
+          href: `/finance/expense-claims/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: null,
+        }
+      );
     }
     case 'petty_cash': {
       const r = await db.pettyCashExpense.findUnique({ where: { id } });

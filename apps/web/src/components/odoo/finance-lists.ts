@@ -90,6 +90,19 @@ const COLUMNS: Record<FinanceListId, Col[]> = {
     { key: 'status', kind: 'status' },
     { key: 'amount', kind: 'money', sort: 'amount' },
   ],
+  expense_claims: [
+    { key: 'number', kind: 'ltr', sort: 'number', primary: true },
+    { key: 'person', kind: 'text', sort: 'person' },
+    { key: 'store', kind: 'ltr' },
+    { key: 'category', kind: 'text' },
+    { key: 'note', kind: 'text', optional: true },
+    { key: 'paidOn', kind: 'date', sort: 'paid_on' },
+    { key: 'createdAt', kind: 'datetime', sort: 'created', optional: true },
+    { key: 'approvedBy', kind: 'text', optional: true },
+    { key: 'paidBy', kind: 'text', optional: true },
+    { key: 'status', kind: 'status' },
+    { key: 'amount', kind: 'money', sort: 'amount' },
+  ],
   invoices: [
     { key: 'number', kind: 'ltr', sort: 'number', primary: true },
     { key: 'type', kind: 'text' },
@@ -112,11 +125,12 @@ const HREFS: Partial<Record<FinanceListId, string>> = {
   approvals: '/finance/approvals/{id}',
   petty_cash: '/finance/petty-cash/{id}',
   invoices: '/finance/invoices/{id}',
+  expense_claims: '/finance/expense-claims/{id}',
 };
 
 /** The list view of one Accounting list, labelled in the reader's language. */
 export async function financeListConfig(id: FinanceListId): Promise<ListViewConfig> {
-  const [t, tf, tw, tr, tc, tp, ti, profile] = await Promise.all([
+  const [t, tf, tw, tr, tc, tp, ti, tm, profile] = await Promise.all([
     getTranslations('lists'),
     getTranslations('finance'),
     getTranslations('workflow'),
@@ -124,6 +138,7 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
     getTranslations('finance.cheques'),
     getTranslations('cashControl.petty'),
     getTranslations('finance.invoices'),
+    getTranslations('myPay'),
     getMyProfile(),
   ]);
   const meta: ListMeta = FINANCE_LISTS[id];
@@ -180,6 +195,12 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
         tp(`statuses.${k}`),
       );
       break;
+    case 'expense_claims':
+      valueLabels.status = states(
+        ['pending_manager', 'pending_accounting', 'paid', 'rejected', 'cancelled'],
+        (k) => (has(tm, `statuses.${k}`) ? tm(`statuses.${k}`) : null),
+      );
+      break;
     case 'invoices':
       valueLabels.type = { invoice: ti('taxInvoice'), credit_note: ti('creditNote') };
       valueLabels.eta = states(['not_sent', 'signed', 'submitted', 'valid', 'invalid', 'rejected']);
@@ -210,6 +231,15 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
       key: 'approve',
       label: t('bulk.approvePayouts'),
       endpoint: '/finance/payouts/bulk-approve',
+    });
+
+  // Expense claims: approve the manager step for the people the reader manages (each claim is
+  // checked on its own; others answer not_your_team).
+  if (id === 'expense_claims')
+    bulk.push({
+      key: 'approve',
+      label: t('bulk.approveClaims'),
+      endpoint: '/finance/expense-claims/bulk-approve',
     });
 
   return {

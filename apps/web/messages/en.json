@@ -535,7 +535,8 @@
         "rider__penalty_day_piastres": "A day of rider pay for penalties (EGP)",
         "fee__shipping_fee_piastres": "Shipping fee per delivered order (EGP)",
         "fee__packaging_charge_piastres": "Packaging charge per delivered order (EGP, 0: our cost)",
-        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)"
+        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)",
+        "claims__max_age_days": "Expense claims: oldest day paid that may be claimed (days back)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -2020,7 +2021,8 @@
       "product_handling": "Per product fee",
       "packaging_charge": "Packaging charge",
       "rider_office_commission": "Rider office commission",
-      "rider_office_shortage": "Rider dues moved to the office"
+      "rider_office_shortage": "Rider dues moved to the office",
+      "expense_claim": "Expense claim paid"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -5424,7 +5426,8 @@
       "leaving": "Leaving",
       "left": "Left",
       "suspended": "Suspended",
-      "on_leave": "On leave"
+      "on_leave": "On leave",
+      "pending_accounting": "Waiting for accounting"
     }
   },
   "tickets": {
@@ -5963,7 +5966,8 @@
       "payMerchants": "Pay merchants",
       "recordExpense": "Record an expense",
       "closeMonthRun": "Close the month",
-      "riderOffices": "Rider offices"
+      "riderOffices": "Rider offices",
+      "expenseClaims": "Expense claims"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -6863,6 +6867,14 @@
       "activity_due": {
         "name": "My reminders",
         "hint": "A reminder you or a colleague planned on a record is due."
+      },
+      "payslip_ready": {
+        "name": "My payslips",
+        "hint": "A new payslip is ready after the salary run."
+      },
+      "expense_claim": {
+        "name": "Expense claims",
+        "hint": "A claim of yours was approved, paid or refused, or one of your team waits for you."
       }
     }
   },
@@ -9027,7 +9039,11 @@
       "myLeaveHint": "Balances and requests",
       "myViolationsHint": "Penalties and appeals",
       "myCorrectionsHint": "Ask to fix a day",
-      "myInboxHint": "What waits for you"
+      "myInboxHint": "What waits for you",
+      "myPayslips": "Payslips",
+      "myClaims": "Expense claims",
+      "myPayslipsHint": "Your monthly pay",
+      "myClaimsHint": "Get a work cost back"
     },
     "myLeaveTitle": "My leave",
     "myLeaveIntro": "Your balances for this leave year and your requests. Your manager approves first, then HR.",
@@ -9112,11 +9128,15 @@
       "punch_in_future": "That time has not come yet.",
       "times_required": "Give at least one time.",
       "idempotency_key_reused": "Refresh the page and try again.",
-      "hr_item_already_paid": "Already taken in a salary run."
+      "hr_item_already_paid": "Already taken in a salary run.",
+      "own_claim": "Nobody decides their own claim.",
+      "claim_not_waiting": "This claim is no longer waiting."
     },
     "appealedOn": "Appealed on {at}",
     "appealByPerson": "The person's appeal",
-    "suggestedOneByOne": "Confirm one with another type"
+    "suggestedOneByOne": "Confirm one with another type",
+    "kindClaim": "Expense claim",
+    "claimReceipt": "See the receipt"
   },
   "hr1": {
     "home": {
@@ -9912,7 +9932,10 @@
       "period": "Month",
       "issuedDay": "Issued",
       "eta": "E-invoice",
-      "net": "Before VAT"
+      "net": "Before VAT",
+      "person": "Person",
+      "paidOn": "Paid on",
+      "approvedBy": "Approved by"
     },
     "filters": {
       "draft": "Draft",
@@ -9956,7 +9979,10 @@
       "not_sent": "Not sent to the tax authority",
       "sent": "Sent, waiting",
       "accepted": "Accepted",
-      "needs_fix": "Needs a fix"
+      "needs_fix": "Needs a fix",
+      "pending_manager": "Waiting for the manager",
+      "pending_accounting": "Approved, to pay",
+      "company_wide": "Company wide"
     },
     "groups": {
       "merchant": "Merchant",
@@ -9977,7 +10003,8 @@
       "category": "Category",
       "type": "Type",
       "period": "Month",
-      "eta": "E-invoice"
+      "eta": "E-invoice",
+      "person": "Person"
     },
     "payouts": {
       "exportName": "payouts"
@@ -10016,7 +10043,14 @@
     "bulk": {
       "approve": "Approve",
       "reject": "Reject",
-      "approvePayouts": "Approve payouts"
+      "approvePayouts": "Approve payouts",
+      "approveClaims": "Approve as their manager"
+    },
+    "expense_claims": {
+      "exportName": "expense-claims",
+      "filters": {
+        "waiting_for_me": "I may pay (not mine)"
+      }
     }
   },
   "documents": {
@@ -10038,7 +10072,8 @@
       "pettyCash": "Petty cash",
       "invoices": "Invoices",
       "purchaseOrders": "Purchase orders",
-      "storeCash": "Store cash"
+      "storeCash": "Store cash",
+      "expenseClaims": "Expense claims"
     },
     "fields": {
       "merchant": "Merchant",
@@ -10088,7 +10123,10 @@
       "expected": "Expected",
       "counted": "Counted",
       "difference": "Difference",
-      "officeMonth": "Commission month"
+      "officeMonth": "Commission month",
+      "paidOn": "Paid on",
+      "approvedAt": "Approved at",
+      "paidFrom": "Paid from"
     },
     "smart": {
       "merchant": "Merchant",
@@ -10158,7 +10196,8 @@
       "leaveDocument": "Leave note",
       "ladder": "Same type before",
       "evidence": "Evidence",
-      "riderOffice": "Rider office"
+      "riderOffice": "Rider office",
+      "person": "Person"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10215,7 +10254,8 @@
         "bank_statement": "Bank statement",
         "order": "Order",
         "merchant": "Merchant",
-        "supplier": "Supplier"
+        "supplier": "Supplier",
+        "expense_claim": "Expense claim"
       }
     }
   },
@@ -11096,6 +11136,118 @@
       "billed": "{bill} prepared, EGP {total}. Shortages moved: EGP {shortages}.",
       "already_billed": "already billed ({bill}). Shortages moved: EGP {shortages}.",
       "nothing_to_bill": "no commission this month. Shortages moved: EGP {shortages}."
+    }
+  },
+  "myPay": {
+    "payslipsTitle": "My payslips",
+    "payslipsIntro": "One payslip for each month you were paid a salary. A month shows once its salary run is paid.",
+    "payslipTitle": "Payslip",
+    "noFile": "You have no employee file.",
+    "noPayslips": "No payslips yet.",
+    "perDelivery": "You are paid per delivered order, so you have no payslips. Your earnings and withdrawals are in your wallet.",
+    "openWallet": "Open my wallet",
+    "back": "All payslips",
+    "slipHeading": "Payslip",
+    "position": "Position",
+    "department": "Department",
+    "store": "Store",
+    "nationalId": "National ID",
+    "insuranceNumber": "Insurance number",
+    "voucher": "Voucher",
+    "paidAt": "Paid on",
+    "paidFrom": "Paid from",
+    "earnings": "Earnings",
+    "basic": "Basic salary",
+    "salary": "Salary",
+    "allowances": {
+      "housing": "Housing allowance",
+      "transport": "Transport allowance",
+      "phone": "Phone allowance",
+      "other": "Other allowance"
+    },
+    "bonus": "Bonus",
+    "commission": "Sales commission",
+    "deduction": "Other deduction",
+    "unpaidDays": "Unpaid days: {label}",
+    "violationDeduction": "Violation deduction: {label}",
+    "gross": "Gross pay",
+    "deductions": "Deductions",
+    "insurance": "Social insurance (on {wage} EGP)",
+    "incomeTax": "Salary income tax",
+    "martyrs": "Martyrs fund",
+    "advance": "Advance taken back",
+    "net": "Net pay",
+    "companyShare": "The company also paid {amount} EGP social insurance for you.",
+    "claimsTitle": "Expense claims",
+    "claimsIntro": "Paid a work cost from your own pocket? Claim it back with a photo of the receipt. Your manager approves, then accounting pays you back.",
+    "newClaim": "New claim",
+    "noCategories": "Accounting has not opened any category for claims yet.",
+    "amount": "Amount (EGP)",
+    "category": "What it was for",
+    "companyWide": "Company wide",
+    "paidOn": "Day you paid",
+    "paidOnHint": "Today or up to {days} days back.",
+    "note": "Note",
+    "notePlaceholder": "What you bought and why",
+    "receipt": "Receipt photo",
+    "noVat": "The full amount is claimed; VAT is not split out.",
+    "send": "Send the claim",
+    "sent": "Claim {number} sent.",
+    "cancelled": "Claim taken back.",
+    "cancel": "Take it back",
+    "myClaims": "My claims",
+    "noClaims": "No claims yet.",
+    "paidOnShort": "Paid {day}",
+    "waitingManager": "Waiting for your manager.",
+    "waitingAccounting": "Waiting for accounting to pay it.",
+    "paidLine": "Paid back {at}.",
+    "rejectedLine": "Refused: {reason}",
+    "statuses": {
+      "pending_manager": "Waiting for the manager",
+      "pending_accounting": "Waiting for accounting",
+      "paid": "Paid",
+      "rejected": "Refused",
+      "cancelled": "Taken back"
+    },
+    "financeTitle": "Expense claims",
+    "financeIntro": "Work costs people paid from their own pocket. Their manager approves; you pay them back from a bank or cash box.",
+    "payFrom": "Pay from",
+    "reference": "Bank reference (optional)",
+    "pay": "Pay {amount}",
+    "reject": "Refuse",
+    "rejectReason": "Why it is refused",
+    "confirmReject": "Refuse the claim",
+    "paidDone": "Paid.",
+    "rejectedDone": "Refused.",
+    "secondPersonHint": "You approved this claim as the manager: from the approval limit someone else must pay it.",
+    "categories": {
+      "title": "Categories people may claim",
+      "intro": "Only these show in the claim form in My HR.",
+      "on": "Claimable",
+      "off": "Not claimable"
+    },
+    "errors": {
+      "generic": "That did not work. Try again.",
+      "network": "No connection. Try again.",
+      "validation_failed": "Check the form and try again.",
+      "invalid_amount": "Type an amount above zero.",
+      "invalid_day": "Choose the day you paid.",
+      "receipt_required": "Add a photo of the receipt.",
+      "day_in_future": "The day cannot be in the future.",
+      "claim_too_old": "Claims may go back at most {days} days.",
+      "claim_category_not_found": "This category cannot be claimed.",
+      "store_not_found": "Store not found.",
+      "employee_not_found": "You have no employee file.",
+      "employee_not_active": "Your file is not active.",
+      "claim_not_cancellable": "Someone already approved it; it can no longer be taken back.",
+      "claim_not_waiting": "This claim is no longer waiting.",
+      "own_claim": "Nobody pays or refuses their own claim.",
+      "same_person": "You approved it as the manager: someone else must pay it.",
+      "not_enough_money": "The bank or cash box does not hold enough.",
+      "account_not_found": "Choose a bank or cash box.",
+      "account_inactive": "That account is closed.",
+      "books_closed": "The books are closed for that day.",
+      "store_not_allowed": "This claim belongs to a store you do not cover."
     }
   }
 }

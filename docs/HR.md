@@ -396,8 +396,7 @@ Agreed with the owner on 2026-11-07; decisions taken while building are marked (
   document), my requests with cancel and attach. `/my-file/violations`: my violations, penalty
   and status, Appeal while the window is open. `/my-file/corrections`: ask to fix a day and
   follow it. `/my-file/inbox`: the manager inbox and my team's leave calendar.
-- Payslips are not shown to the person: no payslip view for employees exists yet (the payroll
-  run keeps them for Accounting with the salaries switch).
+- Payslips and expense claims: see "Payslips and expense claims in My HR as built" below.
 
 ### Screens
 
@@ -648,6 +647,33 @@ apps/api/src/hr/hr-flows.controller.ts. Migration `20261230090000_hr_phase2`.
   in the wallet (they are not listed for the office). The office earns its commission on each
   delivery's rider pay and takes over at month end what the rider cannot cover from the wallet
   (Accounting > Money out > Rider offices).
+
+## Payslips and expense claims in My HR as built
+
+- `/my-file/payslips`: every person on the salary run (pay basis `monthly_salary`) reads their
+  own payslips by month (`GET /me/payslips`, `GET /me/payslips/<YYYY-MM>`; the person always
+  comes from the session). A payslip is the person's line of the posted run (`payroll:<month>`
+  entry): a run waiting for a second person has no entry, so nothing shows until it is posted.
+  The page shows the basic salary and each allowance (stored on the run from this release; older
+  runs show one salary line), bonus, commission, other deductions, unpaid days and violation
+  deductions, gross, social insurance, salary tax, martyrs fund, advance taken back, net, the
+  voucher and the bank or cash box it was paid from; it prints without the menu, in English or
+  Arabic (`?lang=en|ar`). Per delivery riders have none and are sent to their wallet. Web push
+  `payslip_ready` once per person and month when the run is posted.
+- `/my-file/claims`: expense claims (EC-000001, gapless): a person claims back a work cost paid
+  from their own pocket: amount, a category finance marked claimable (`ledger_accounts.claimable`,
+  separate from the petty cash switch, set under Accounting > Money out > Expense claims), store
+  or company wide, the day paid (never ahead, at most `claims.max_age_days` back, default 60), a
+  note and a receipt photo they uploaded. Flow: pending_manager (the manager in force, found as
+  for leave; no manager: straight to pending_accounting) → pending_accounting → paid, or rejected
+  with a reason at either step, or cancelled by the person before anyone approved. The manager
+  decides in `/my-file/inbox` (and `/admin/hr/inbox`, counted in the badges). Accounting pays it
+  (accounting use) from a bank or cash box: one entry `expense_claim:<id>` (Dr the category, Cr
+  the bank or box, tagged with the store and the person; no VAT is split out), never more than
+  the bank or box holds (row locked, `mustHold`), the receipt attached to the entry. Nobody
+  decides or pays their own claim; from `finance.approval_threshold_piastres` the manager who
+  approved it may not pay it (`same_person`). Push type `expense_claim` (manager: new claim;
+  person: approved, paid, refused); Accounting hears of claims to pay through `finance_approval`.
 
 ## Build order
 

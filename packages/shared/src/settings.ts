@@ -788,6 +788,13 @@ export const SETTING_DEFINITIONS = {
       'Cash (piastres) a store box keeps; a petty expense that would leave less waits for finance',
     override: 'store',
   },
+  'claims.max_age_days': {
+    schema: z.number().int().min(1).max(365),
+    default: 60,
+    description:
+      'An expense claim may name a day paid at most this many days back (never a future day)',
+    override: 'none',
+  },
   'hr.office_lat': {
     schema: z.number().min(-90).max(90),
     default: 0,

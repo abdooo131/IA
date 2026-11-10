@@ -1,3 +1,4 @@
+import type { ExpenseClaim } from './my-pay-types';
 import type {
   CorrectionStatus,
   LeaveBalanceKind,
@@ -276,7 +277,7 @@ export interface Correction {
 export interface Inbox {
   isManager: boolean;
   hr: { use: boolean; manage: boolean };
-  manager: { leave: LeaveRequest[]; corrections: Correction[] };
+  manager: { leave: LeaveRequest[]; corrections: Correction[]; claims: ExpenseClaim[] };
   hrStep: { leave: LeaveRequest[]; corrections: Correction[] };
   appeals: {
     id: string;

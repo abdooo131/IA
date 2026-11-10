@@ -17,6 +17,7 @@ import {
   addDays,
   withdrawalNumber,
   billNumber,
+  expenseClaimNumber,
 } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { listGaps, type ListScope, queryList, type RegisteredList } from '../list-query';
@@ -274,6 +275,7 @@ export const KIND_FAMILIES: Record<string, readonly string[]> = {
     'supplier_bill_cancel',
     'bill_payment',
     'expense',
+    'expense_claim',
     'tax_payment',
     'po_receipt',
     'packaging_purchase',
@@ -520,6 +522,113 @@ const riderWithdrawals: ListDef<WithdrawalListRow> = {
   },
   defaultSort: { key: 'created', desc: true },
   sums: FINANCE_LISTS.rider_withdrawals.sums,
+};
+
+// ─── expense claims ─────────────────────────────────────────────────────────────
+
+export interface ExpenseClaimListRow {
+  id: string;
+  number: string;
+  personId: string;
+  person: string;
+  userId: string;
+  storeId: string | null;
+  store: string | null;
+  categoryId: string;
+  category: string;
+  status: string;
+  paidOn: string;
+  createdDay: string;
+  createdAt: string;
+  note: string;
+  approvedBy: string | null;
+  managerDecidedById: string | null;
+  paidBy: string | null;
+  amount: number;
+  /** Waiting for accounting and the reader may pay it (not their own, not the second person) */
+  canPay: boolean;
+}
+
+async function loadClaims(db: Db, scope: ListScope): Promise<ExpenseClaimListRow[]> {
+  const [rows, limit] = await Promise.all([
+    db.expenseClaim.findMany({
+      // People limited to some stores see their stores' claims and company wide ones.
+      where: scope.storeIds
+        ? { OR: [{ darkStoreId: { in: scope.storeIds } }, { darkStoreId: null }] }
+        : {},
+      include: {
+        user: { select: { name: true } },
+        darkStore: { select: { code: true } },
+        expenseAccount: { select: { code: true, nameEn: true } },
+        managerDecidedBy: { select: { name: true } },
+        paidBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: LIST_MAX_ROWS,
+    }),
+    getSetting(db, 'finance.approval_threshold_piastres'),
+  ]);
+  return rows.map((c) => ({
+    id: c.id,
+    number: expenseClaimNumber(c.number),
+    personId: c.employeeId,
+    person: c.user.name,
+    userId: c.userId,
+    storeId: c.darkStoreId,
+    store: c.darkStore?.code ?? null,
+    categoryId: c.expenseAccountId,
+    category: `${c.expenseAccount.code} ${c.expenseAccount.nameEn ?? ''}`.trim(),
+    status: c.status,
+    paidOn: dbDay(c.paidOn),
+    createdDay: cairoDay(c.createdAt),
+    createdAt: c.createdAt.toISOString(),
+    note: c.note,
+    approvedBy: c.managerDecidedBy?.name ?? null,
+    managerDecidedById: c.managerDecidedById,
+    paidBy: c.paidBy?.name ?? null,
+    amount: c.amountPiastres,
+    canPay:
+      c.status === 'pending_accounting' &&
+      c.userId !== scope.userId &&
+      !(c.managerDecidedById === scope.userId && limit > 0 && c.amountPiastres >= limit),
+  }));
+}
+
+const expenseClaims: ListDef<ExpenseClaimListRow> = {
+  id: 'expense_claims',
+  filters: {
+    pending_manager: { group: 'status', test: (r) => r.status === 'pending_manager' },
+    pending_accounting: { group: 'status', test: (r) => r.status === 'pending_accounting' },
+    paid: { group: 'status', test: (r) => r.status === 'paid' },
+    rejected_or_cancelled: {
+      group: 'status',
+      test: (r) => r.status === 'rejected' || r.status === 'cancelled',
+    },
+    // Approved claims I may pay now (never my own, never the second person rule broken).
+    waiting_for_me: {
+      group: 'who',
+      test: (r, ctx) => r.canPay && r.userId !== ctx.userId,
+    },
+    company_wide: { group: 'store', test: (r) => r.storeId === null },
+    ...dateFilters<ExpenseClaimListRow>((r) => r.createdDay),
+  },
+  groupBys: {
+    person: (r) => named(r.personId, r.person),
+    store: (r) => named(r.storeId, r.store),
+    category: (r) => named(r.categoryId, r.category),
+    status: (r) => named(r.status, r.status),
+    month: (r) => monthGroup(r.createdDay),
+  },
+  search: (r) => [r.number, r.person, r.store, r.category, r.note],
+  sorts: {
+    number: (r) => r.number,
+    person: (r) => r.person,
+    paid_on: (r) => r.paidOn,
+    created: (r) => r.createdAt,
+    amount: (r) => r.amount,
+  },
+  defaultSort: { key: 'created', desc: true },
+  sums: FINANCE_LISTS.expense_claims.sums,
 };
 
 // ─── approvals (finance requests) ───────────────────────────────────────────────
@@ -787,6 +896,7 @@ export const FINANCE_LIST_DEFS: Record<FinanceListId, RegisteredList> = {
   approvals: { def: approvals, load: loadApprovals },
   petty_cash: { def: pettyCash, load: loadPetty },
   invoices: { def: invoices, load: loadInvoices },
+  expense_claims: { def: expenseClaims, load: loadClaims },
 };
 
 /**

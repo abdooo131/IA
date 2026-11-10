@@ -115,6 +115,8 @@ export {
   giveAdvance,
   listStaffPay,
   payrollRules,
+  myPayslip,
+  myPayslips,
   payslips,
   payStaffBonus,
   previewPayroll,
@@ -289,3 +291,16 @@ export {
   riderOfficeOf,
   setRiderOffice,
 } from './rider-offices';
+export {
+  cancelExpenseClaim,
+  claimCategories,
+  claimsWaitingForManager,
+  type ClaimView,
+  expenseClaimDetail,
+  managerDecideClaim,
+  myExpenseClaims,
+  payExpenseClaim,
+  rejectExpenseClaim,
+  setClaimableCategory,
+  submitExpenseClaim,
+} from './expense-claims';
