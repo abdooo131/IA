@@ -23,7 +23,7 @@ import { addMonths } from './assets';
 import { chartOfAccounts } from './books';
 import { attachReceipt, queueRequest, RECEIPT_KINDS } from './controls';
 import { FEE_KINDS } from './invoices';
-import { balanceOf, post } from './ledger';
+import { balanceOf, lockedBalance, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -434,10 +434,12 @@ async function nextPettyNumber(tx: Tx) {
   return (last?.number ?? 0) + 1;
 }
 
-/** Locks the store row and reads what its cash box holds. */
+/**
+ * Locks the store's cash box (its ledger_accounts row, as every payment from a bank or box
+ * does) and reads what it holds.
+ */
 async function lockedBox(tx: Tx, darkStoreId: string) {
-  await tx.$queryRaw`SELECT id FROM dark_stores WHERE id = ${darkStoreId} FOR UPDATE`;
-  return balanceOf(tx, { type: 'store_cash', darkStoreId });
+  return (await lockedBalance(tx, { type: 'store_cash', darkStoreId })).balance;
 }
 
 type PettyRow = Prisma.PettyCashExpenseGetPayload<object>;

@@ -8,7 +8,7 @@ import {
   recordDeliveryCall,
   recordRiderLocation,
   requestWithdrawal,
-  riderCash,
+  cashToHandIn,
   riderWallet,
   riderWalletTotals,
 } from '@shiplynow/db';
@@ -52,7 +52,7 @@ export class RiderController {
       },
     });
     const [cash, wallet, pingSeconds] = await Promise.all([
-      riderCash(this.prisma, rider.id),
+      cashToHandIn(this.prisma, rider.id),
       riderWalletTotals(this.prisma, rider.id),
       getSetting(this.prisma, 'tracking.rider_ping_seconds', rider.darkStoreId),
     ]);

@@ -15,7 +15,7 @@ import { getSetting } from '../settings';
 import { eventTime } from './books';
 import { payoutNeedsApproval, submitMovement } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
-import { bankAccount } from './operations';
+import { assertPayoutOwed, bankAccount } from './operations';
 import { payBill, withholdingFor } from './payables';
 
 type Tx = Prisma.TransactionClient;
@@ -291,6 +291,8 @@ export async function bookCheque(db: Db, input: ChequeBookInput & { actorUserId:
     } else if (cheque.purpose === 'payout') {
       const payout = await tx.payout.findUniqueOrThrow({ where: { id: cheque.payoutId! } });
       if (payout.status !== 'draft') throw new DomainError('payout_not_draft');
+      // Never more than the merchant is owed now (the wallet may have dropped since the draft).
+      await assertPayoutOwed(tx, payout);
       const now = new Date();
       const updated = await tx.payout.updateMany({
         where: { id: payout.id, status: 'draft' },

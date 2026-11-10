@@ -153,10 +153,11 @@ export async function postDeliveryCompleted(
 }
 
 /**
- * A failed delivery is charged once per order: the contract's fixed failed delivery fee, or a
- * share of what the shipment would have cost (shipping fee, per product prices of its units,
- * order fee fixed and percent; never the COD fee, no cash was collected), at the band the
- * next delivered order would take (failedDeliveryRule).
+ * A failed delivery is charged on every failed attempt (one entry per delivery): the
+ * contract's fixed failed delivery fee, or a share of what the shipment would have cost
+ * (shipping fee, per product prices of its units, order fee fixed and percent; never the COD
+ * fee, no cash was collected), at the band the next delivered order would take
+ * (failedDeliveryRule).
  */
 export async function postDeliveryFailed(
   tx: Tx,
@@ -195,7 +196,9 @@ export async function postDeliveryFailed(
   }
   await post(tx, {
     kind: 'failed_fee',
-    idempotencyKey: `order:${delivery.orderId}:failed_fee`,
+    // One fee per attempt. Entries posted before this key existed were keyed
+    // order:<order id>:failed_fee (one per order); they stay valid as they are.
+    idempotencyKey: `delivery:${delivery.id}:failed_fee`,
     orderId: delivery.orderId,
     occurredAt: input.now,
     createdById: input.actorUserId,

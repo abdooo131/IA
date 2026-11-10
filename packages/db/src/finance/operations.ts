@@ -3,7 +3,7 @@ import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { payoutNeedsApproval } from './controls';
-import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
+import { type AccountRef, balanceOf, lockedBalance, nextNumber, post } from './ledger';
 import { queuePayoutEmails } from '../email';
 import { payoutMinimumFor } from './contracts';
 import { eventTime } from './books';
@@ -34,6 +34,20 @@ export async function bankAccount(tx: Db, bankAccountId?: string): Promise<Accou
 /** Cash a rider carries: collected on delivery and not yet handed to a store. */
 export function riderCash(db: Db, riderId: string) {
   return balanceOf(db, { type: 'rider_cash', riderId });
+}
+
+/**
+ * The cash a rider is expected to hand in now: their rider cash less the differences of
+ * earlier handovers still waiting for finance (a shortage less, a surplus more). Such a
+ * difference stays in rider cash until finance writes it off or charges the rider, so
+ * counting it again would record it on two handovers. Never below zero.
+ */
+export async function cashToHandIn(db: Db, riderId: string) {
+  const pending = await db.cashHandover.aggregate({
+    where: { riderId, status: 'pending' },
+    _sum: { differencePiastres: true },
+  });
+  return Math.max(0, (await riderCash(db, riderId)) - (pending._sum.differencePiastres ?? 0));
 }
 
 /** Rider pay earned and not yet paid (held or not; see rider-wallet.ts for what is available). */
@@ -68,7 +82,7 @@ export function recordCashHandover(
     if (rider.darkStoreId !== input.darkStoreId) throw new DomainError('rider_other_store');
     // Lock the rider row so two handovers for one rider cannot read the same balance.
     await tx.$queryRaw`SELECT id FROM riders WHERE id = ${rider.id} FOR UPDATE`;
-    const expected = Math.max(0, await riderCash(tx, rider.id));
+    const expected = await cashToHandIn(tx, rider.id);
     const difference = expected - input.countedPiastres;
     const handover = await tx.cashHandover.create({
       data: {
@@ -183,14 +197,17 @@ export function recordBankDeposit(
   },
 ) {
   positive(input.amountPiastres);
+  const idempotencyKey = `deposit:${input.idempotencyKey}`;
   return inTransaction(db, async (tx) => {
+    // A repeat answers the first deposit (the box no longer holds the money it took).
+    const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey } });
+    if (seen) return seen;
     const bank = await bankAccount(tx, input.bankAccountId);
-    await tx.$queryRaw`SELECT id FROM dark_stores WHERE id = ${input.darkStoreId} FOR UPDATE`;
-    const inBox = await balanceOf(tx, { type: 'store_cash', darkStoreId: input.darkStoreId });
-    if (input.amountPiastres > inBox) throw new DomainError('more_than_cash_in_store');
+    const box = await lockedBalance(tx, { type: 'store_cash', darkStoreId: input.darkStoreId });
+    if (input.amountPiastres > box.balance) throw new DomainError('more_than_cash_in_store');
     const entry = await post(tx, {
       kind: 'bank_deposit',
-      idempotencyKey: `deposit:${input.idempotencyKey}`,
+      idempotencyKey,
       createdById: input.actorUserId,
       memo: input.reference,
       data: { darkStoreId: input.darkStoreId, reference: input.reference },
@@ -279,6 +296,25 @@ export function createPayout(
   });
 }
 
+/**
+ * A payout is never more than the merchant is owed at the moment it is paid (what createPayout
+ * counts as owed now): fees, adjustments or credit notes posted after the draft may have
+ * lowered the wallet. Finance then cancels the draft and prepares a new one. Locks the
+ * merchant row as createPayout does.
+ */
+export async function assertPayoutOwed(
+  tx: Db,
+  payout: { merchantId: string; amountPiastres: number },
+) {
+  await tx.$queryRaw`SELECT id FROM merchants WHERE id = ${payout.merchantId} FOR UPDATE`;
+  const owed = await merchantOwed(tx, payout.merchantId);
+  if (payout.amountPiastres > owed)
+    throw new DomainError('payout_more_than_owed', 409, {
+      amountPiastres: payout.amountPiastres,
+      owedPiastres: owed,
+    });
+}
+
 /** Finance sent the bank transfer: the merchant's balance drops by the amount paid. */
 export function markPayoutPaid(
   db: Db,
@@ -299,6 +335,11 @@ export function markPayoutPaid(
     // From the approval limit, a second person must have approved it first.
     if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
       throw new DomainError('approval_needed');
+    // The wallet may have dropped since the draft (fees, adjustments, credit notes).
+    await assertPayoutOwed(tx, payout);
+    // Money never leaves a bank that does not hold it.
+    const from = await lockedBalance(tx, bank);
+    if (payout.amountPiastres > from.balance) throw new DomainError('not_enough_money');
     const now = eventTime(input.day);
     const updated = await tx.payout.updateMany({
       where: { id: payout.id, status: 'draft' },
@@ -374,13 +415,17 @@ export function recordMerchantReceipt(
   },
 ) {
   positive(input.amountPiastres);
+  const idempotencyKey = `receipt:${input.idempotencyKey}`;
   return inTransaction(db, async (tx) => {
+    // A repeat answers the first receipt and writes no second audit row.
+    const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey } });
+    if (seen) return seen;
     const bank = await bankAccount(tx, input.bankAccountId);
     const merchant = await tx.merchant.findUnique({ where: { id: input.merchantId } });
     if (!merchant) throw new DomainError('merchant_not_found', 404);
     const entry = await post(tx, {
       kind: 'merchant_receipt',
-      idempotencyKey: `receipt:${input.idempotencyKey}`,
+      idempotencyKey,
       createdById: input.actorUserId,
       memo: input.reference,
       data: { reference: input.reference },
@@ -417,12 +462,16 @@ export function recordMerchantAdjustment(
   if (!Number.isSafeInteger(input.amountPiastres) || input.amountPiastres === 0)
     throw new DomainError('invalid_amount', 400);
   if (input.reason.trim().length < 5) throw new DomainError('reason_required', 400);
+  const idempotencyKey = `adjustment:${input.idempotencyKey}`;
   return inTransaction(db, async (tx) => {
+    // A repeat answers the first adjustment and writes no second audit row.
+    const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey } });
+    if (seen) return seen;
     const merchant = await tx.merchant.findUnique({ where: { id: input.merchantId } });
     if (!merchant) throw new DomainError('merchant_not_found', 404);
     const entry = await post(tx, {
       kind: 'adjustment',
-      idempotencyKey: `adjustment:${input.idempotencyKey}`,
+      idempotencyKey,
       createdById: input.actorUserId,
       memo: input.reason,
       data: { reason: input.reason },

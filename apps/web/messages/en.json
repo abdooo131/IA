@@ -2342,6 +2342,7 @@
         "payout_not_found": "Payout not found.",
         "commission_not_payable": "This commission is not approved, already paid, or for another amount.",
         "below_payout_minimum": "What we owe is below the payout minimum of the merchant's contract; it waits until it reaches it.",
+        "payout_more_than_owed": "The merchant is owed less than this payout now (fees, adjustments or credit notes came after it was prepared). Cancel it and prepare it again.",
         "more_than_available": "That is more than you can withdraw now.",
         "withdrawal_not_approved": "Approve the request before paying it.",
         "withdrawal_already_paid": "This withdrawal is already paid.",

@@ -5,7 +5,7 @@ import {
   listRiderWithdrawals,
   payWithdrawal,
   recordCashHandover,
-  riderCash,
+  cashToHandIn,
   storeRiderCash,
 } from '@shiplynow/db';
 import { type AccessTokenClaims, cashHandoverSchema, withdrawalPaySchema } from '@shiplynow/shared';
@@ -49,7 +49,7 @@ export class StoreCashController {
             id: r.id,
             name: r.user.name,
             badgeCode: r.badgeCode,
-            cashPiastres: await riderCash(this.prisma, r.id),
+            cashPiastres: await cashToHandIn(this.prisma, r.id),
             heldSince: h?.heldSince ?? null,
             overdue: h?.overdue ?? false,
             outNow: await this.prisma.delivery.count({

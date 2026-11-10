@@ -334,6 +334,43 @@ describe('cheques issued', () => {
     ).rejects.toThrow('cheque_not_cancellable');
   });
 
+  it('refuses a payout cheque for more than the merchant is owed now', async () => {
+    await post(prisma, {
+      kind: 'cod_collected',
+      idempotencyKey: key(),
+      occurredAt: new Date(Date.now() - 86_400_000 * 2),
+      lines: [
+        { account: { type: 'bank' }, amount: 80_000 },
+        { account: { type: 'merchant', merchantId: f.merchant.id }, amount: -80_000 },
+      ],
+    });
+    const payout = await createPayout(prisma, {
+      merchantId: f.merchant.id,
+      cutoffAt: new Date(),
+      actorUserId: admin,
+    });
+    // Fees booked after the draft: the merchant is owed 75,000 now.
+    await merchantOwes(5_000);
+    await expect(
+      registerCheque(prisma, {
+        direction: 'issued',
+        purpose: 'payout',
+        chequeNumber: '10',
+        bankAccountId: (await byKey('bank')).id,
+        issueDate: today(),
+        dueDate: today(),
+        payoutId: payout.id,
+        idempotencyKey: key(),
+        actorUserId: admin,
+      }),
+    ).rejects.toMatchObject({ code: 'payout_more_than_owed' });
+    expect((await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } })).status).toBe(
+      'draft',
+    );
+    expect(await prisma.cheque.count()).toBe(0);
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(75_000);
+  });
+
   it('waits for a second person from the approval limit', async () => {
     const supplier = await createSupplier(prisma, { name: 'Builder', actorUserId: admin });
     const bill = await recordBill(prisma, {

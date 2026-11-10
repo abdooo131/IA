@@ -17,6 +17,7 @@ import {
   recordBankDeposit,
   recordCashHandover,
   recordMerchantAdjustment,
+  recordMerchantReceipt,
   reviewCashHandover,
   riderBonusOwed,
   riderCash,
@@ -29,10 +30,12 @@ import {
   acceptOrder,
   completeDelivery,
   createOrder,
+  decideFailedOrder,
   failDelivery,
   handToRider,
   packOrder,
   pickOrderItem,
+  returnToStore,
 } from '../src/orders';
 import { savePhoto } from '../src/photos';
 import { receive } from '../src/stock';
@@ -101,6 +104,17 @@ async function outForDelivery(qty: number, paymentMethod: 'cod' | 'prepaid' = 'c
   const delivery = await prisma.delivery.findFirstOrThrow({ where: { orderId: order.id } });
   return { order: full, delivery };
 }
+
+/** Owner capital into the main bank, so payments out of it are covered. */
+const fundBank = (amount: number) =>
+  post(prisma, {
+    kind: 'test_capital',
+    idempotencyKey: key(),
+    lines: [
+      { account: { type: 'bank' }, amount },
+      { account: { type: 'retained_earnings' }, amount: -amount },
+    ],
+  });
 
 async function deliver(qty: number, cash?: number) {
   const { order, delivery } = await outForDelivery(qty);
@@ -245,6 +259,45 @@ describe('fees on orders', () => {
     expect(await riderCash(prisma, riderId)).toBe(0);
   });
 
+  it('charges the failed delivery fee on every failed attempt', async () => {
+    const { order, delivery } = await outForDelivery(1);
+    const ids = { orderId: order.id, darkStoreId: f.store.id, actorUserId: admin };
+    await failDelivery(prisma, { deliveryId: delivery.id, riderUserId, reason: 'wrong_address' });
+    // Goods back, then a second attempt that fails too.
+    await returnToStore(prisma, ids);
+    await decideFailedOrder(prisma, { ...ids, decision: { action: 'retry' } });
+    await handToRider(prisma, { ...ids, badgeCode: 'RDR-1' });
+    const second = await prisma.delivery.findFirstOrThrow({
+      where: { orderId: order.id, status: 'picked_up' },
+    });
+    await failDelivery(prisma, { deliveryId: second.id, riderUserId, reason: 'wrong_address' });
+    const fees = await prisma.ledgerEntry.findMany({
+      where: { kind: 'failed_fee' },
+      orderBy: { number: 'asc' },
+    });
+    expect(fees.map((e) => e.idempotencyKey)).toEqual([
+      `delivery:${delivery.id}:failed_fee`,
+      `delivery:${second.id}:failed_fee`,
+    ]);
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(-2 * (2500 + share(2500, 1400)));
+  });
+
+  it('keeps a fee booked under the old per order key and still charges the next attempt', async () => {
+    // Fees posted before the per attempt key were keyed by the order: they stay as they are.
+    const { order, delivery } = await outForDelivery(1);
+    await post(prisma, {
+      kind: 'failed_fee',
+      idempotencyKey: `order:${order.id}:failed_fee`,
+      orderId: order.id,
+      lines: [
+        { account: { type: 'merchant', merchantId: f.merchant.id }, amount: 2500 },
+        { account: { type: 'revenue' }, amount: -2500 },
+      ],
+    });
+    await failDelivery(prisma, { deliveryId: delivery.id, riderUserId, reason: 'wrong_address' });
+    expect(await prisma.ledgerEntry.count({ where: { kind: 'failed_fee' } })).toBe(2);
+  });
+
   it('charges receiving per unit when a shipment is closed', async () => {
     await set('fee.receiving_per_unit_piastres', 150);
     const m = await createManifest(prisma, {
@@ -354,6 +407,91 @@ describe('cash', () => {
     expect(await balanceOf(prisma, { type: 'bank' })).toBe(9800);
   });
 
+  it('never counts a difference waiting for finance on the next handover', async () => {
+    await deliver(7); // 100.00 EGP collected
+    const short = await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 9000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    expect(short).toMatchObject({ status: 'pending', differencePiastres: 1000 });
+    await deliver(2); // 50.00 EGP more
+    const next = await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 5000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    expect(next).toMatchObject({
+      status: 'balanced',
+      expectedPiastres: 5000,
+      differencePiastres: 0,
+    });
+    await reviewCashHandover(prisma, {
+      handoverId: short.id,
+      decision: 'charge_rider',
+      note: 'Will bring it',
+      actorUserId: admin,
+    });
+    expect(await riderOwed(prisma, riderId)).toMatchObject({ duesPiastres: 1000 });
+    expect(await riderCash(prisma, riderId)).toBe(0);
+  });
+
+  it('never counts a surplus waiting for finance on the next handover', async () => {
+    await deliver(2); // 50.00 EGP collected
+    const over = await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 5500,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    expect(over).toMatchObject({ status: 'pending', differencePiastres: -500 });
+    await deliver(2);
+    const next = await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 5000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    expect(next).toMatchObject({ status: 'balanced', expectedPiastres: 5000 });
+    await reviewCashHandover(prisma, {
+      handoverId: over.id,
+      decision: 'write_off',
+      note: 'Customer tip',
+      actorUserId: admin,
+    });
+    expect(await riderCash(prisma, riderId)).toBe(0);
+  });
+
+  it('answers a repeated bank deposit with the first one and audits it once', async () => {
+    await deliver(2);
+    await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 5000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    const input = {
+      darkStoreId: f.store.id,
+      amountPiastres: 5000,
+      reference: 'DEP-9',
+      actorUserId: admin,
+      idempotencyKey: 'dep-retry',
+    };
+    const first = await recordBankDeposit(prisma, input);
+    // The box is empty now; the retry still answers the first deposit.
+    const again = await recordBankDeposit(prisma, input);
+    expect(again.id).toBe(first.id);
+    expect(await prisma.auditLog.count({ where: { action: 'finance.bank_deposit' } })).toBe(1);
+    expect(await balanceOf(prisma, { type: 'bank' })).toBe(5000);
+  });
+
   it('can leave a shortage on the rider to recover later', async () => {
     await deliver(2);
     const short = await recordCashHandover(prisma, {
@@ -392,9 +530,14 @@ describe('merchant payouts and rider bonuses', () => {
     ).rejects.toMatchObject({ code: 'payout_already_open' });
     // Nothing moves before it is paid.
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(7000);
+    // Money never leaves a bank that does not hold it.
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-55', actorUserId: admin }),
+    ).rejects.toMatchObject({ code: 'not_enough_money' });
+    await fundBank(7000);
     await markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-55', actorUserId: admin });
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(0);
-    expect(await balanceOf(prisma, { type: 'bank' })).toBe(-7000);
+    expect(await balanceOf(prisma, { type: 'bank' })).toBe(0);
     await expect(
       markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-55', actorUserId: admin }),
     ).rejects.toMatchObject({ code: 'payout_not_draft' });
@@ -407,6 +550,69 @@ describe('merchant payouts and rider bonuses', () => {
     });
     await cancelPayout(prisma, { payoutId: second.id, note: 'Bank holiday', actorUserId: admin });
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(4000);
+  });
+
+  it('never pays a draft for more than the merchant is owed when it is paid', async () => {
+    await deliver(4); // 70.00 EGP owed
+    const payout = await createPayout(prisma, {
+      merchantId: f.merchant.id,
+      cutoffAt: new Date(),
+      actorUserId: admin,
+    });
+    await fundBank(100_000);
+    // A charge after the draft lowers what is owed below the draft.
+    await recordMerchantAdjustment(prisma, {
+      merchantId: f.merchant.id,
+      amountPiastres: -1000,
+      reason: 'Charge for a damaged box',
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-56', actorUserId: admin }),
+    ).rejects.toMatchObject({ code: 'payout_more_than_owed' });
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(6000);
+    expect((await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } })).status).toBe(
+      'draft',
+    );
+    // Prepared again, it pays what is owed now.
+    await cancelPayout(prisma, {
+      payoutId: payout.id,
+      note: 'Charge after draft',
+      actorUserId: admin,
+    });
+    const again = await createPayout(prisma, {
+      merchantId: f.merchant.id,
+      cutoffAt: new Date(),
+      actorUserId: admin,
+    });
+    await markPayoutPaid(prisma, { payoutId: again.id, reference: 'TRX-57', actorUserId: admin });
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(0);
+  });
+
+  it('answers repeated merchant receipts and adjustments once, with one audit row each', async () => {
+    const receipt = {
+      merchantId: f.merchant.id,
+      amountPiastres: 1000,
+      reference: 'RCPT-1',
+      actorUserId: admin,
+      idempotencyKey: 'rcpt-1',
+    };
+    const r1 = await recordMerchantReceipt(prisma, receipt);
+    expect((await recordMerchantReceipt(prisma, receipt)).id).toBe(r1.id);
+    const adjustment = {
+      merchantId: f.merchant.id,
+      amountPiastres: 500,
+      reason: 'Goodwill credit for a late order',
+      actorUserId: admin,
+      idempotencyKey: 'adj-1',
+    };
+    const a1 = await recordMerchantAdjustment(prisma, adjustment);
+    expect((await recordMerchantAdjustment(prisma, adjustment)).id).toBe(a1.id);
+    expect(await prisma.auditLog.count({ where: { action: 'finance.merchant_receipt' } })).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'finance.merchant_adjustment' } })).toBe(
+      1,
+    );
   });
 
   it('writes a statement whose lines add up to the closing balance', async () => {
