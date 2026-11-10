@@ -4,6 +4,7 @@ import { myActivities } from '../records';
 import { getSetting } from '../settings';
 import { cashPosition, monthEndChecklist } from './cash-control';
 import { missingReceipts } from './controls';
+import { loanInstalmentsDue } from './loans';
 
 // The Accounting dashboard (Odoo style journal cards): one card per bank account and cash
 // box, the store boxes together, merchant payouts, supplier bills, merchant invoices, rider
@@ -452,6 +453,11 @@ export async function financeDashboard(
             key: 'missingReceipts',
             count: (await missingReceipts(db, 0)).count,
             href: '/finance/receipts',
+          },
+          {
+            key: 'loanInstalmentsDue',
+            ...(await loanInstalmentsDue(db, now, 7)),
+            href: '/finance/loans',
           },
         ]
       : []),

@@ -807,6 +807,13 @@ export const SETTING_DEFINITIONS = {
       'A packaging item (bags, boxes, labels) at or below this many units in a store raises a packaging_low alert; 0 turns it off',
     override: 'store',
   },
+  'storage.catch_up_days': {
+    schema: z.number().int().min(1).max(31),
+    default: 7,
+    description:
+      'Storage days the daily charge catches up after the server was asleep (the days before are left uncharged)',
+    override: 'none',
+  },
   'finance.po_bill_tolerance_bp': {
     schema: z.number().int().min(0).max(10_000),
     default: 200,

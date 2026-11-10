@@ -7,6 +7,7 @@ import { isCalendarDay } from './hours';
 //                     1400 other assets
 //                     1500 staff advances
 //   2000 liabilities  2100 merchants · 2200 rider bonuses · 2300 taxes · 2400 other liabilities
+//                     2700 loans
 //   3000 equity       3100 owner capital · 3200 owner drawings · 3300 opening balances
 //   4000 income       4100 fees · 4200 other income
 //   5000 expenses     5100 rider bonuses · 5200 damage · 5300 cash differences
@@ -252,6 +253,8 @@ export const ACCOUNT_GROUPS: AccountGroup[] = [
     manualType: null,
     money: false,
   },
+  // Loans the company borrowed: one account per loan (2701, 2702...), opened with the loan.
+  { code: 2700, category: 'liability', key: 'loans', party: false, manualType: null, money: false },
 ];
 
 export function accountGroup(code: number) {
@@ -298,9 +301,13 @@ export const createAccountSchema = z
       .optional()
       .transform((v) => (v ? v : undefined)),
     note: optionalText(300),
+    /** A bank account held in another currency (USD, EUR); banks only, EGP when left out */
+    currency: z.enum(['EGP', 'USD', 'EUR']).optional(),
   })
   .superRefine((v, ctx) => {
     const group = accountGroup(v.groupCode);
+    if (v.currency && v.currency !== 'EGP' && group?.code !== 1100)
+      ctx.addIssue({ code: 'custom', path: ['currency'], message: 'currency_banks_only' });
     if (!group?.manualType)
       ctx.addIssue({ code: 'custom', path: ['groupCode'], message: 'group_not_open' });
     if (group?.code === 1100 && (!v.bankName || !v.accountNumber))
@@ -333,6 +340,8 @@ export const moneyTransferSchema = z.object({
   fromAccountId: id,
   toAccountId: id,
   amountPiastres: piastres,
+  /** A bank account in another currency on either side: the amount in its cents */
+  foreignCents: z.number().int().min(1).max(1_000_000_000).optional(),
   reference,
   memo: optionalText(300),
   day: onDay,
@@ -352,6 +361,8 @@ export const expenseSchema = z.object({
   receiptPhotoId: id.optional(),
   /** The dark store the cost belongs to; empty is company wide */
   darkStoreId: id.optional(),
+  /** The user's own cost tag (a campaign, a project) on the expense line */
+  costTagId: id.optional(),
   idempotencyKey: key,
 });
 
@@ -388,6 +399,8 @@ export const journalEntrySchema = z.object({
         accountId: id,
         debitPiastres: z.number().int().min(0).max(1_000_000_000),
         creditPiastres: z.number().int().min(0).max(1_000_000_000),
+        /** The user's own cost tag on this line */
+        costTagId: id.optional(),
       }),
     )
     .min(2)
@@ -438,6 +451,8 @@ export const billSchema = z.object({
   memo: optionalText(300),
   /** The person the bill is for (an outsourced worker's month) */
   userId: id.optional(),
+  /** The user's own cost tag on the bill's cost line */
+  costTagId: id.optional(),
   /** A bill in another currency: its code, the amounts in its cents and the rate on the bill */
   currency: z
     .string()

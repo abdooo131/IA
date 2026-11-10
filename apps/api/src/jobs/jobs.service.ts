@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
-  accrueStorage,
+  chargeStorageDays,
   applyContractSchedules,
   chargeMinimumFees,
   computeCommissions,
@@ -334,8 +334,9 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   }
 
   /**
-   * Charges storage once for the Cairo day that just ended. Safe to run any number of times:
-   * every store and merchant pair has its own key for the day.
+   * Charges storage for the Cairo day that just ended and any day before it the server missed
+   * (up to storage.catch_up_days), each from that day's units snapshot (chargeStorageDays).
+   * Safe to run any number of times: every store and merchant pair has its own key per day.
    */
   async runStorageCharge(now: Date = new Date()) {
     const day = lastClosedDay(now);
@@ -347,14 +348,14 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
             { locked: boolean }[]
           >`SELECT pg_try_advisory_xact_lock(${STORAGE_LOCK}) AS locked`) as [{ locked: boolean }];
           if (!locked) return null;
-          return accrueStorage(tx, day);
+          return chargeStorageDays(tx, now);
         },
         { timeout: 60_000 },
       );
       if (result) {
         this.storageDone = day;
         if (result.charged > 0)
-          this.log.log(`Storage charged for ${day}: ${result.charged} entries`);
+          this.log.log(`Storage charged for ${result.days.join(', ')}: ${result.charged} entries`);
       }
       return result;
     } catch (error) {

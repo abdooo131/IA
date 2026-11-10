@@ -13,6 +13,8 @@ import { parseEgp } from '@/lib/money';
 import { ReceiptField } from './ReceiptField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { DateInput } from '@/components/DateInput';
+import { type CostTagOption, CostTagSelect } from './CostTagSelect';
+import { formatForeign } from '@/lib/foreign-money';
 
 export type MovementTab = 'transfer' | 'expense' | 'capital' | 'income' | 'journal';
 
@@ -23,7 +25,12 @@ const button =
 
 function label(a: BookAccount, locale: string, withBalance = false) {
   const name = locale === 'ar' ? a.nameAr || a.nameEn : a.nameEn;
-  return `${a.code} · ${name}${withBalance ? ` (${formatEgp(a.balancePiastres)})` : ''}`;
+  // A bank held in another currency shows that balance beside the EGP one.
+  const foreign =
+    a.currency && a.currency !== 'EGP' && a.foreignBalanceCents != null
+      ? ` · ${formatForeign(a.foreignBalanceCents, a.currency)}`
+      : '';
+  return `${a.code} · ${name}${withBalance ? ` (${formatEgp(a.balancePiastres)}${foreign})` : ''}`;
 }
 
 function AccountSelect({
@@ -138,13 +145,17 @@ function useMovement() {
 
 function Transfer({ money }: { money: BookAccount[] }) {
   const t = useTranslations('finance.movements');
+  const tf = useTranslations('loansFx.fx');
   const { action, submit, dirty, reset, formProps } = useMovement();
+  // A bank in another currency on either side also takes the amount in that currency.
+  const foreign = money.some((a) => a.currency && a.currency !== 'EGP');
   return (
     <form
       onSubmit={(e) =>
         void submit(e, '/finance/transfers', (f) => ({
           fromAccountId: f.get('from'),
           toAccountId: f.get('to'),
+          foreignCents: parseEgp(String(f.get('foreign') ?? '')) || undefined,
         }))
       }
       {...formProps}
@@ -153,6 +164,13 @@ function Transfer({ money }: { money: BookAccount[] }) {
       <AccountSelect name="from" accounts={money} title={t('from')} withBalance />
       <AccountSelect name="to" accounts={money} title={t('to')} withBalance />
       <Common />
+      {foreign && (
+        <label className="block text-caption sm:col-span-2">
+          {tf('foreignAmount')}
+          <input name="foreign" inputMode="decimal" dir="ltr" className={field} />
+          <span className="mt-1 block text-text-muted">{tf('foreignAmountHint')}</span>
+        </label>
+      )}
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -163,10 +181,12 @@ function Expense({
   money,
   expenses,
   stores,
+  costTags,
 }: {
   money: BookAccount[];
   expenses: BookAccount[];
   stores: StoreOption[];
+  costTags: CostTagOption[];
 }) {
   const t = useTranslations('finance.movements');
   const locale = useLocale();
@@ -179,6 +199,7 @@ function Expense({
           paidFromAccountId: f.get('from'),
           vatPiastres: parseEgp(String(f.get('vat') || '0')) ?? 0,
           darkStoreId: String(f.get('store') ?? '') || undefined,
+          costTagId: String(f.get('costTag') ?? '') || undefined,
         }))
       }
       {...formProps}
@@ -202,6 +223,7 @@ function Expense({
           ))}
         </select>
       </label>
+      <CostTagSelect tags={costTags} className={field} />
       <ReceiptField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
@@ -294,15 +316,16 @@ interface JournalLine {
   accountId: string;
   debit: string;
   credit: string;
+  costTagId: string;
 }
 
 /** A free entry for the accountant: as many lines as needed, debits must equal credits. */
-function Journal({ accounts }: { accounts: BookAccount[] }) {
+function Journal({ accounts, costTags }: { accounts: BookAccount[]; costTags: CostTagOption[] }) {
   const t = useTranslations('finance.movements');
   const tj = useTranslations('finance.journal');
   const locale = useLocale();
   const action = useFinanceAction();
-  const empty = (): JournalLine => ({ accountId: '', debit: '', credit: '' });
+  const empty = (): JournalLine => ({ accountId: '', debit: '', credit: '', costTagId: '' });
   const [lines, setLines] = useState<JournalLine[]>([empty(), empty()]);
   const [reason, setReason] = useState('');
   const [day, setDay] = useState(cairoDay(new Date()));
@@ -323,6 +346,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
         accountId: l.accountId,
         debitPiastres: amount(l.debit) ?? -1,
         creditPiastres: amount(l.credit) ?? -1,
+        costTagId: l.costTagId || undefined,
       }));
     const ok = await action.send<{ number: string }>(
       'POST',
@@ -346,6 +370,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
               <th className="py-1 text-start">{tj('account')}</th>
               <th className="py-1 text-start">{tj('debit')}</th>
               <th className="py-1 text-start">{tj('credit')}</th>
+              {costTags.length > 0 && <th className="py-1 text-start">{tj('costTag')}</th>}
               <th />
             </tr>
           </thead>
@@ -387,6 +412,17 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
                     className={field}
                   />
                 </td>
+                {costTags.length > 0 && (
+                  <td className="w-44 py-1 pe-2">
+                    <CostTagSelect
+                      tags={costTags}
+                      label={false}
+                      value={l.costTagId}
+                      onChange={(v) => set(i, { costTagId: v })}
+                      className={field}
+                    />
+                  </td>
+                )}
                 <td className="py-1">
                   {lines.length > 2 && (
                     <button
@@ -405,6 +441,7 @@ function Journal({ accounts }: { accounts: BookAccount[] }) {
               <td className="py-1">{t('totals')}</td>
               <td className="ltr-iso py-1">{formatEgp(debit)}</td>
               <td className="ltr-iso py-1">{formatEgp(credit)}</td>
+              {costTags.length > 0 && <td />}
               <td />
             </tr>
           </tbody>
@@ -488,10 +525,13 @@ export function MoneyMovements({
   accounts,
   stores,
   tab,
+  costTags = [],
 }: {
   accounts: BookAccount[];
   stores: StoreOption[];
   tab: MovementTab;
+  /** Active cost tags the expense and journal lines may carry */
+  costTags?: CostTagOption[];
 }) {
   const t = useTranslations('finance.movements');
   const money = accounts.filter((a) => a.money);
@@ -512,11 +552,16 @@ export function MoneyMovements({
         <p className="mb-3 text-body-sm text-text-muted">{t(`help.${tab}`)}</p>
         {tab === 'transfer' && <Transfer money={money} />}
         {tab === 'expense' && (
-          <Expense money={money} expenses={byGroup(5400, 5500)} stores={stores} />
+          <Expense
+            money={money}
+            expenses={byGroup(5400, 5500)}
+            stores={stores}
+            costTags={costTags}
+          />
         )}
         {tab === 'capital' && <Capital money={money} equity={byGroup(3100, 3200)} />}
         {tab === 'income' && <Income money={money} income={byGroup(4200)} />}
-        {tab === 'journal' && <Journal accounts={accounts} />}
+        {tab === 'journal' && <Journal accounts={accounts} costTags={costTags} />}
       </section>
     </div>
   );

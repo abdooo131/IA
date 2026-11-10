@@ -216,6 +216,8 @@ export const ledgerLinesQuerySchema = z.object({
   store: z.string().min(1).max(40).optional(),
   merchant: z.string().min(1).max(40).optional(),
   rider: z.string().min(1).max(40).optional(),
+  /** A cost tag id, or "none" for lines with no cost tag */
+  tag: z.string().min(1).max(40).optional(),
 });
 export type LedgerLinesQuery = z.infer<typeof ledgerLinesQuerySchema>;
 
@@ -238,6 +240,7 @@ export const LEDGER_LINE_GROUPS = [
   'rider',
   'kind',
   'account',
+  'tag',
 ] as const;
 export const LEDGER_LINE_SORTS = ['day', 'number', 'amount'] as const;
 export const LEDGER_LINE_SUMS = ['debit', 'credit', 'net'] as const;

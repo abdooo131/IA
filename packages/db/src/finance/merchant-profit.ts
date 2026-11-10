@@ -11,6 +11,8 @@ import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { contractPricesAt, versionInForce } from './contracts';
 import { addMonths } from './assets';
+import { lastClosedDay } from './postings';
+import { unitDays as storedUnitDays } from './storage';
 
 // What each merchant earns us in a Cairo month, against what serving them costs:
 //
@@ -20,8 +22,11 @@ import { addMonths } from './assets';
 //                   delivered orders
 //   store costs     each store's other costs (fuel, staff, supplies; rent apart), shared the
 //                   same way
-//   storage space   each store's rent, shared by units stored (unit days from the daily
-//                   storage charge; the units held now when nothing was charged)
+//   storage space   each store's rent, shared by unit days actually stored by every merchant
+//                   (stock_unit_days, written daily by the storage job whether or not the
+//                   merchant pays storage; days without a snapshot are worked out from the
+//                   stock movements, see storage.ts; the units held now only when the month
+//                   has no day over yet)
 //   damage          damage paid for the merchant's goods
 //   packaging       packaging costs tagged to the merchant
 //   other direct    any other cost tagged to the merchant (payment costs...)
@@ -73,7 +78,11 @@ export async function merchantProfitability(
   const from = cairoDayStart(`${input.month}-01`);
   const to = cairoDayStart(`${addMonths(input.month, 1)}-01`);
 
-  const [fees, direct, delivered, riderPay, storePool, rent, unitRows] = await Promise.all([
+  // Unit days: every day of the month that is over (all of them for a past month).
+  const monthLast = addDays(`${addMonths(input.month, 1)}-01`, -1);
+  const lastDone = lastClosedDay(new Date());
+  const unitTo = monthLast < lastDone ? monthLast : lastDone;
+  const [fees, direct, delivered, riderPay, storePool, rent, unitDays] = await Promise.all([
     db.$queryRaw<{ merchant_id: string; kind: string; amount: bigint }[]>`
       SELECT l.merchant_id, e.kind, -SUM(l.amount_piastres) AS amount
       FROM ledger_lines l JOIN ledger_accounts a ON a.id = l.account_id
@@ -128,25 +137,18 @@ export async function merchantProfitability(
         AND e.kind <> 'year_close'
         AND l.occurred_at >= ${from} AND l.occurred_at < ${to}
       GROUP BY l.dark_store_id`,
-    // Unit days per store and merchant, from the daily storage charge.
-    db.$queryRaw<{ dark_store_id: string; merchant_id: string; units: bigint }[]>`
-      SELECT e.data->>'darkStoreId' AS dark_store_id,
-        (SELECT l.merchant_id FROM ledger_lines l WHERE l.entry_id = e.id AND l.merchant_id IS NOT NULL LIMIT 1) AS merchant_id,
-        SUM((e.data->>'units')::int) AS units
-      FROM ledger_entries e
-      WHERE e.kind = 'storage_fee' AND e.occurred_at >= ${from} AND e.occurred_at < ${to}
-      GROUP BY 1, 2`,
+    // Unit days per store and merchant actually stored, for every merchant (storage.ts).
+    unitTo >= `${input.month}-01`
+      ? storedUnitDays(db, `${input.month}-01`, unitTo)
+      : new Map<string, Map<string, number>>(),
   ]);
 
-  // Units per store and merchant: unit days when storage was charged, else the units now.
-  const unitDays = new Map<string, Map<string, number>>();
+  // A store with rent but no unit days at all (the month has no day over yet): the units now.
   const addUnits = (store: string, merchant: string, n: number) => {
     const m = unitDays.get(store) ?? new Map<string, number>();
     m.set(merchant, (m.get(merchant) ?? 0) + n);
     unitDays.set(store, m);
   };
-  for (const r of unitRows)
-    if (r.dark_store_id && r.merchant_id) addUnits(r.dark_store_id, r.merchant_id, num(r.units));
   const rentStores = rent.map((r) => r.dark_store_id).filter((s) => !unitDays.has(s));
   if (rentStores.length) {
     const held = await db.binStock.findMany({

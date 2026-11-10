@@ -280,3 +280,18 @@ export { accountingDocument } from './documents';
 export { financeDashboard, type JournalCard, SPARK_DAYS, type TodayItem } from './dashboard';
 export { financeSearch } from './search';
 export { bulkApprovePayouts, bulkDecideRequests } from './bulk';
+export {
+  listLoans,
+  loanDetail,
+  loanInstalmentsDue,
+  type LoanInput,
+  type LoanPaymentInput,
+  payLoanInstalment,
+  recordLoan,
+  submitLoan,
+  submitLoanPayment,
+} from './loans';
+export { costTagReport, createCostTag, listCostTags, updateCostTag } from './cost-tags';
+export { bothBalances, foreignBanks, fxRateMicro, revalueForeignBank } from './fx';
+export { chargeStorageDays, unitDays, unitsAtDayEnds, unitsForDays } from './storage';
+export { accountBalances } from './books';

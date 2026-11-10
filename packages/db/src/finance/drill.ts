@@ -284,6 +284,9 @@ export interface LedgerLineRow {
   merchant: string | null;
   riderId: string | null;
   rider: string | null;
+  /** The user's own cost tag */
+  costTagId: string | null;
+  costTag: string | null;
   orderNumber: string | null;
   debit: number;
   credit: number;
@@ -344,6 +347,7 @@ async function linesWhere(
   if (q.store) where.darkStoreId = q.store === 'none' ? null : q.store;
   if (q.merchant) where.merchantId = q.merchant === 'none' ? null : q.merchant;
   if (q.rider) where.riderId = q.rider === 'none' ? null : q.rider;
+  if (q.tag) where.costTagId = q.tag === 'none' ? null : q.tag;
   // People limited to some stores see only those stores' lines.
   if (scope.storeIds) and.push({ darkStoreId: { in: scope.storeIds } });
   if (scope.merchantIds) and.push({ merchantId: { in: scope.merchantIds } });
@@ -352,7 +356,7 @@ async function linesWhere(
 }
 
 async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
-  const [rows, name, stores, merchants, riders] = await Promise.all([
+  const [rows, name, stores, merchants, riders, tags] = await Promise.all([
     db.ledgerLine.findMany({
       where,
       select: {
@@ -364,6 +368,7 @@ async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
         darkStoreId: true,
         merchantId: true,
         riderId: true,
+        costTagId: true,
         account: true,
         entry: {
           select: { number: true, kind: true, memo: true, order: { select: { number: true } } },
@@ -376,7 +381,9 @@ async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
     db.darkStore.findMany({ select: { id: true, code: true } }),
     db.merchant.findMany({ select: { id: true, name: true } }),
     db.rider.findMany({ select: { id: true, badgeCode: true, user: { select: { name: true } } } }),
+    db.costTag.findMany({ select: { id: true, nameEn: true } }),
   ]);
+  const tagName = new Map(tags.map((t) => [t.id, t.nameEn]));
   const storeName = new Map(stores.map((s) => [s.id, s.code]));
   const merchantName = new Map(merchants.map((m) => [m.id, m.name]));
   const riderName = new Map(riders.map((r) => [r.id, `${r.user.name} (${r.badgeCode})`]));
@@ -396,6 +403,8 @@ async function loadLedgerLines(db: Db, where: Prisma.LedgerLineWhereInput) {
     merchant: l.merchantId ? (merchantName.get(l.merchantId) ?? l.merchantId) : null,
     riderId: l.riderId,
     rider: l.riderId ? (riderName.get(l.riderId) ?? l.riderId) : null,
+    costTagId: l.costTagId,
+    costTag: l.costTagId ? (tagName.get(l.costTagId) ?? l.costTagId) : null,
     orderNumber: l.entry.order?.number ?? null,
     debit: l.amountPiastres > 0 ? l.amountPiastres : 0,
     credit: l.amountPiastres < 0 ? 0 - l.amountPiastres : 0,
@@ -433,8 +442,19 @@ export const LEDGER_LINES_DEF: ListDef<LedgerLineRow> = {
     rider: (r) => named(r.riderId, r.rider),
     kind: (r) => named(r.kind, r.kind),
     account: (r) => named(r.accountId, r.account),
+    tag: (r) => named(r.costTagId, r.costTag),
   },
-  search: (r) => [r.number, r.memo, r.orderNumber, r.kind, r.account, r.store, r.merchant, r.rider],
+  search: (r) => [
+    r.number,
+    r.memo,
+    r.orderNumber,
+    r.kind,
+    r.account,
+    r.store,
+    r.merchant,
+    r.rider,
+    r.costTag,
+  ],
   sorts: { day: (r) => r.at, number: (r) => r.number, amount: (r) => Math.abs(r.net) },
   defaultSort: { key: 'day', desc: true },
   sums: LEDGER_LINE_SUMS,

@@ -68,7 +68,7 @@ function tabOf(key: string): Tab {
   if (/^(sla|delivery|store|tracking)\./.test(key)) return 'delivery';
   if (/^(fee|rider)\./.test(key)) return 'fees';
   if (key.startsWith('signup.')) return 'merchants';
-  if (key.startsWith('finance.')) return 'money';
+  if (key.startsWith('finance.') || key.startsWith('storage.')) return 'money';
   if (/^(stock|refill)\./.test(key)) return 'stock';
   if (key.startsWith('customer.')) return 'customers';
   if (key.startsWith('ticket.')) return 'tickets';

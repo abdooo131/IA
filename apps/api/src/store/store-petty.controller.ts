@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { storePettyCash, submitPettyCash } from '@shiplynow/db';
+import { listCostTags, storePettyCash, submitPettyCash } from '@shiplynow/db';
 import { type AccessTokenClaims, pettyCashLabel, pettyCashSchema } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { Access, CurrentUser } from '../auth/decorators';
@@ -23,11 +23,19 @@ export class StorePettyController {
     private readonly access: StoreAccessService,
   ) {}
 
-  /** Categories staff may choose, what the box holds, the limits and recent expenses. */
+  /** Categories and cost tags staff may choose, what the box holds, the limits and recent expenses. */
   @Get()
   async overview(@Param('storeId') storeId: string, @CurrentUser() user: AccessTokenClaims) {
     await this.access.check(user, storeId);
-    return storePettyCash(this.prisma, storeId);
+    const [overview, tags] = await Promise.all([
+      storePettyCash(this.prisma, storeId),
+      listCostTags(this.prisma, { activeOnly: true }),
+    ]);
+    // The cost tags staff may put on an expense (a campaign, a project), optional.
+    return {
+      ...overview,
+      costTags: tags.map((t) => ({ id: t.id, nameEn: t.nameEn, nameAr: t.nameAr })),
+    };
   }
 
   @Post()

@@ -16,11 +16,14 @@ export function LinesFilters({
   merchants,
   riders,
   kinds,
+  tags = [],
 }: {
   stores: FilterOption[];
   merchants: FilterOption[];
   riders: FilterOption[];
   kinds: FilterOption[];
+  /** The user's own cost tags */
+  tags?: FilterOption[];
 }) {
   const t = useTranslations('finance.drill');
   const router = useRouter();
@@ -66,6 +69,7 @@ export function LinesFilters({
       {select('merchant', t('merchant'), t('allMerchants'), merchants, t('noMerchant'))}
       {select('rider', t('rider'), t('allRiders'), riders)}
       {select('kind', t('kind'), t('allKinds'), kinds)}
+      {tags.length > 0 && select('tag', t('tag'), t('allTags'), tags, t('noTag'))}
     </div>
   );
 }

@@ -535,7 +535,8 @@
         "rider__penalty_day_piastres": "A day of rider pay for penalties (EGP)",
         "fee__shipping_fee_piastres": "Shipping fee per delivered order (EGP)",
         "fee__packaging_charge_piastres": "Packaging charge per delivered order (EGP, 0: our cost)",
-        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)"
+        "fee__failed_delivery_percent_bp": "Failed delivery, share of the shipment for contracts with a shipping fee (%)",
+        "storage__catch_up_days": "Storage days charged after the server slept (most)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -2018,7 +2019,10 @@
       "rider_withdrawal": "Rider withdrawal",
       "shipping_fee": "Shipping fee",
       "product_handling": "Per product fee",
-      "packaging_charge": "Packaging charge"
+      "packaging_charge": "Packaging charge",
+      "loan_received": "Loan received",
+      "loan_payment": "Loan instalment",
+      "fx_revaluation": "Exchange revaluation"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -2097,7 +2101,8 @@
         "cheques_under_collection": "Cheques under collection",
         "cheques_payable": "Cheques payable",
         "merchant_deposits": "Merchant security deposits",
-        "rider_dues": "Rider dues"
+        "rider_dues": "Rider dues",
+        "loans": "Loans"
       },
       "back": "All accounts",
       "opening": "Opening balance",
@@ -2106,7 +2111,10 @@
       "closing": "Closing balance",
       "against": "Other side",
       "balance": "Balance",
-      "rider_dues": "Rider dues"
+      "rider_dues": "Rider dues",
+      "currency": "Currency",
+      "currencyHint": "A bank account in USD or EUR keeps its balance in that currency too; the books stay in EGP.",
+      "revalue": "Revalue"
     },
     "schedules": {
       "daily": "Daily",
@@ -2351,7 +2359,23 @@
         "withdrawal_not_requested": "This request can no longer be changed.",
         "withdrawal_not_open": "This request is already closed.",
         "own_withdrawal": "You cannot decide your own withdrawal.",
-        "withdrawal_not_found": "Withdrawal not found."
+        "withdrawal_not_found": "Withdrawal not found.",
+        "foreign_currency_account": "This bank account is in another currency: only transfers with the amount in that currency, bills in the same currency and loans paid in EGP elsewhere can use it.",
+        "foreign_amount_required": "Type the amount in the other currency too.",
+        "currency_mismatch": "The two accounts (or the bill and the account) are in different currencies.",
+        "foreign_payment_unsupported": "A bill with withholding tax or an advance taken back is paid from an EGP account.",
+        "currency_banks_only": "Only bank accounts can be held in another currency.",
+        "not_foreign_account": "This account is in EGP: there is nothing to revalue.",
+        "already_revalued": "This account was already revalued for that month.",
+        "cost_tag_inactive": "This cost tag is switched off.",
+        "cost_tag_not_found": "This cost tag no longer exists.",
+        "cost_tag_exists": "A cost tag with this name already exists.",
+        "loan_repaid": "This loan is fully repaid.",
+        "instalment_paid": "This instalment is already paid.",
+        "pay_in_order": "Pay the instalments in their order.",
+        "first_payment_too_early": "The first instalment must come after the day the money came in.",
+        "lender_required": "Choose who lent the money.",
+        "loan_not_found": "This loan was not found."
       }
     },
     "riders": {
@@ -2379,7 +2403,8 @@
       "voucher": "Voucher",
       "accrual": "Reverse this entry on the 1st of next month",
       "accrualHint": "For a cost or income of this month whose bill arrives later; when the real bill is entered next month, the two cancel out.",
-      "linesCsv": "every line (CSV)"
+      "linesCsv": "every line (CSV)",
+      "costTag": "Cost tag"
     },
     "trial": {
       "title": "Trial balance",
@@ -3335,7 +3360,8 @@
         "bankLines": "{count, plural, one {Bank line to match} other {Bank lines to match}}",
         "billsDue": "{count, plural, one {Bill due within 7 days} other {Bills due within 7 days}}",
         "missingReceipts": "{count, plural, one {Entry missing a receipt} other {Entries missing a receipt}}",
-        "myActivities": "{count, plural, one {Reminder of mine due} other {Reminders of mine due}}"
+        "myActivities": "{count, plural, one {Reminder of mine due} other {Reminders of mine due}}",
+        "loanInstalmentsDue": "{count, plural, one {Loan instalment due within 7 days} other {Loan instalments due within 7 days}}"
       },
       "quickLabel": "Quick actions",
       "quick": {
@@ -3409,6 +3435,11 @@
           "question": "What moved, line by line?",
           "text": "Every entry with its lines; exports for Odoo, Zoho Books, QuickBooks or Daftra.",
           "name": "Journal"
+        },
+        "costTags": {
+          "question": "What did each campaign or project cost?",
+          "text": "Income and costs of every cost tag (a campaign, a new branch) for any days, with a comparison.",
+          "name": "Costs and income by tag"
         }
       }
     },
@@ -3511,7 +3542,8 @@
           "orderNumber": "Order",
           "debit": "Debit",
           "credit": "Credit",
-          "net": "Net"
+          "net": "Net",
+          "costTag": "Cost tag"
         },
         "filters": {
           "debit": "Debits",
@@ -3531,9 +3563,14 @@
           "merchant": "Merchant",
           "rider": "Rider",
           "kind": "Kind",
-          "account": "Account"
+          "account": "Account",
+          "tag": "Cost tag"
         }
-      }
+      },
+      "tag": "Cost tag",
+      "allTags": "All tags",
+      "noTag": "No tag",
+      "tagReportTitle": "Costs and income by tag"
     },
     "bankMatch": {
       "statement": "Statement",
@@ -5950,7 +5987,10 @@
       "monthEndChecklist": "Month end checklist",
       "payMerchants": "Pay merchants",
       "recordExpense": "Record an expense",
-      "closeMonthRun": "Close the month"
+      "closeMonthRun": "Close the month",
+      "loans": "Loans",
+      "costTagReport": "Costs and income by tag",
+      "costTags": "Cost tags"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -6959,7 +6999,9 @@
         "validation_failed": "Check the amount, the note and the receipt.",
         "network": "No connection. Try again.",
         "generic": "Something went wrong. Try again."
-      }
+      },
+      "costTag": "Cost tag (optional)",
+      "noCostTag": "No tag"
     },
     "storeHome": {
       "pettyTile": "Petty cash",
@@ -11003,6 +11045,117 @@
         "late": "Late",
         "absent": "Absent"
       }
+    }
+  },
+  "loansFx": {
+    "loans": {
+      "title": "Loans",
+      "intro": "Money the company borrowed from a bank or the owner: what is still owed on each, the schedule and the next instalment.",
+      "new": "New loan",
+      "newHint": "Money coming in waits for a second person before it is booked. The schedule is worked out once, in whole piastres.",
+      "lender": "Lender",
+      "lenders": {
+        "supplier": "A bank or company",
+        "owner": "The owner"
+      },
+      "bankOrCompany": "Bank or company",
+      "supplierHint": "Lenders are kept as suppliers; open one on Supplier bills if it is missing.",
+      "ownerName": "Owner's name",
+      "receivedInto": "Received into",
+      "choose": "Choose…",
+      "amount": "Amount borrowed (EGP)",
+      "rate": "Interest a year (%)",
+      "rateShort": "Rate",
+      "method": "Method",
+      "methods": {
+        "declining": "Declining balance",
+        "flat": "Flat"
+      },
+      "methodHints": {
+        "declining": "Equal monthly instalments; interest on what is still owed.",
+        "flat": "Interest on the whole amount every month; principal in equal parts."
+      },
+      "months": "Months",
+      "startDay": "Day the money came in",
+      "firstPaymentDay": "First instalment",
+      "reference": "Reference",
+      "memo": "Note",
+      "preview": "{months} instalments of {instalment} EGP",
+      "previewTotals": "Interest {interest} EGP, total to pay {total} EGP, last instalment on {last}.",
+      "save": "Record the loan",
+      "saved": "The loan is recorded.",
+      "none": "No loans yet.",
+      "number": "Loan",
+      "owed": "Still owed",
+      "paidOf": "Paid",
+      "next": "Next instalment",
+      "repaid": "Repaid",
+      "active": "Being repaid",
+      "overdue": "overdue",
+      "interestTotal": "Interest in all",
+      "totalToPay": "Total to pay",
+      "summary": "From {lender}, {rate}% a year, {method}, {months} months from {start}.",
+      "receivedEntry": "Money received",
+      "payNext": "Pay instalment {seq} (due {due})",
+      "payNextSplit": "{amount} EGP: {principal} EGP off the loan and {interest} EGP interest.",
+      "paidFrom": "Paid from",
+      "payDay": "Day paid",
+      "pay": "Pay this instalment",
+      "paid": "Paid {number}",
+      "schedule": "Schedule",
+      "due": "Due",
+      "instalment": "Instalment",
+      "principal": "Principal",
+      "interest": "Interest",
+      "remaining": "Still owed after",
+      "state": "State",
+      "paidState": "Paid",
+      "unpaid": "Not paid",
+      "totals": "Totals"
+    },
+    "tags": {
+      "title": "Cost tags",
+      "intro": "Your own tags (a Ramadan campaign, a new branch project) put on expenses, journal lines, supplier bills and petty cash, beside the store and merchant.",
+      "report": "Costs and income by tag",
+      "new": "New cost tag",
+      "nameEn": "Name in English",
+      "nameAr": "Name in Arabic",
+      "save": "Open the tag",
+      "empty": "No cost tags yet.",
+      "lines": "{count, plural, =0 {Not used yet} one {On # line} other {On # lines}}",
+      "switchOff": "Switch off",
+      "switchOn": "Switch on",
+      "field": "Cost tag (optional)",
+      "none": "No tag"
+    },
+    "tagReport": {
+      "title": "Costs and income by tag",
+      "intro": "Every cost tag with the income and cost accounts its lines touched. Click a figure to see its lines.",
+      "from": "From",
+      "to": "To",
+      "show": "Show",
+      "empty": "No tagged lines in these days.",
+      "tag": "Tag and account",
+      "amount": "Amount",
+      "compared": "Compared",
+      "off": "switched off",
+      "allLines": "All its lines",
+      "income": "Income",
+      "cost": "Cost",
+      "costs": "Costs",
+      "net": "Net (income − costs)",
+      "totalCosts": "Costs of all tags",
+      "totalNet": "Net of all tags"
+    },
+    "fx": {
+      "foreignAmount": "Amount in the other currency (for a USD or EUR account)",
+      "foreignAmountHint": "Buying or selling a currency takes both amounts; the rate is worked out from them. Between two accounts in the same currency only this amount counts.",
+      "revalueHint": "Month end: the account's EGP balance becomes its balance in its currency × the rate you enter; the difference goes to 5901 exchange differences. Once per month.",
+      "month": "Month (YYYY-MM)",
+      "rate": "EGP for one {currency} at the month end",
+      "revalue": "Revalue",
+      "revalued": "Revalued: {amount} EGP difference.",
+      "close": "Close"
     }
   }
 }

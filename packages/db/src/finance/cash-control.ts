@@ -23,7 +23,7 @@ import { addMonths } from './assets';
 import { chartOfAccounts } from './books';
 import { attachReceipt, queueRequest, RECEIPT_KINDS } from './controls';
 import { FEE_KINDS } from './invoices';
-import { balanceOf, lockedBalance, post } from './ledger';
+import { assertActiveTag, balanceOf, lockedBalance, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -248,6 +248,9 @@ export async function cashPosition(
         darkStoreId: o?.darkStoreId ?? null,
         isActive: a.isActive,
         balancePiastres: a.balancePiastres,
+        /** A bank held in another currency: its currency and balance in its cents */
+        currency: a.currency,
+        foreignBalanceCents: a.foreignBalanceCents,
       };
     })
     .filter((a) => a.isActive || a.balancePiastres !== 0)
@@ -454,7 +457,11 @@ async function postPetty(tx: Tx, row: PettyRow, actorUserId: string) {
     memo: `${pettyCashLabel(row.number)} ${row.note}`,
     data: { pettyCashId: row.id, number: row.number },
     lines: [
-      { account: { id: row.expenseAccountId }, amount: row.amountPiastres },
+      {
+        account: { id: row.expenseAccountId },
+        amount: row.amountPiastres,
+        tags: row.costTagId ? { costTagId: row.costTagId } : undefined,
+      },
       {
         account: { type: 'store_cash', darkStoreId: row.darkStoreId },
         amount: -row.amountPiastres,
@@ -479,6 +486,8 @@ export async function submitPettyCash(
     amountPiastres: number;
     note: string;
     photoId: string;
+    /** The user's own cost tag (a campaign, a project) on the expense line */
+    costTagId?: string | null;
     actorUserId: string;
     idempotencyKey: string;
   },
@@ -508,6 +517,7 @@ export async function submitPettyCash(
       select: { kind: true },
     });
     if (!photo || photo.kind !== 'receipt') throw new DomainError('receipt_required', 400);
+    await assertActiveTag(tx, input.costTagId);
     const box = await lockedBox(tx, store.id);
     if (input.amountPiastres > box)
       throw new DomainError('not_enough_cash_in_box', 409, { boxPiastres: Math.max(0, box) });
@@ -525,6 +535,7 @@ export async function submitPettyCash(
         photoId: input.photoId,
         idempotencyKey: input.idempotencyKey,
         createdById: input.actorUserId,
+        costTagId: input.costTagId || null,
       },
     });
     let status: PettyCashStatus;
@@ -613,7 +624,11 @@ export async function reversePettyCash(
           account: { type: 'store_cash', darkStoreId: row.darkStoreId },
           amount: row.amountPiastres,
         },
-        { account: { id: row.expenseAccountId }, amount: -row.amountPiastres },
+        {
+          account: { id: row.expenseAccountId },
+          amount: -row.amountPiastres,
+          tags: row.costTagId ? { costTagId: row.costTagId } : undefined,
+        },
       ],
     });
     await tx.pettyCashExpense.update({

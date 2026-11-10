@@ -42,6 +42,7 @@ import {
 } from './assets';
 import { bookCheque, type ChequeBookInput, dropChequeRequest } from './cheques';
 import { type DepositInput, recordDeposit } from './contracts';
+import { type LoanInput, type LoanPaymentInput, payLoanInstalment, recordLoan } from './loans';
 
 import { type PackagingPurchaseInput, recordPackagingPurchase } from '../packaging';
 
@@ -178,7 +179,11 @@ export type RequestPayload =
   /** A merchant's security deposit received */
   | { kind: 'deposit_in'; input: Stored<DepositInput> }
   /** A merchant's security deposit paid back */
-  | { kind: 'deposit_out'; input: Stored<DepositInput> };
+  | { kind: 'deposit_out'; input: Stored<DepositInput> }
+  /** A loan received (money in); amountPiastres is the amount borrowed */
+  | { kind: 'loan_in'; input: Stored<LoanInput> & { amountPiastres: number } }
+  /** A loan instalment paid (money out); amountPiastres is the instalment */
+  | { kind: 'loan_payment'; input: Stored<LoanPaymentInput> & { amountPiastres: number } };
 
 /**
  * Money said to come in (owner capital, other income, a merchant paying us) and changes to
@@ -195,6 +200,7 @@ const ALWAYS_REVIEWED = new Set([
   'merchant_adjustment',
   'cheque_in',
   'deposit_in',
+  'loan_in',
 ]);
 
 /** Always reviewed: the kinds above, and a deposit given back into the merchant's balance. */
@@ -349,6 +355,14 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return recordDeposit(db, { ...p.input, actorUserId });
     case 'packaging_purchase':
       return recordPackagingPurchase(db, { ...p.input, actorUserId });
+    case 'loan_in': {
+      const { amountPiastres: _amount, ...input } = p.input;
+      return recordLoan(db, { ...input, actorUserId }).then((loan) => ({ id: loan.entryId }));
+    }
+    case 'loan_payment': {
+      const { amountPiastres: _amount, ...input } = p.input;
+      return payLoanInstalment(db, { ...input, actorUserId });
+    }
   }
 }
 
@@ -637,6 +651,8 @@ export const RECEIPT_KINDS = [
   'cheque_received',
   'deposit_received',
   'deposit_refunded',
+  'loan_received',
+  'loan_payment',
 ];
 
 /** Money movements without any receipt yet, newest first, and how many there are. */

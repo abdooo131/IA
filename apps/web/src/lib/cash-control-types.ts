@@ -23,6 +23,9 @@ export interface CashPosition {
       kind: 'bank' | 'cash_box' | 'store_box';
       darkStoreId: string | null;
       balancePiastres: number;
+      /** A bank held in another currency: its currency and balance in its cents */
+      currency?: string;
+      foreignBalanceCents?: number | null;
     }[];
     bankPiastres: number;
     boxPiastres: number;
@@ -108,6 +111,8 @@ export interface StorePettyCash {
   limitPiastres: number;
   floatPiastres: number;
   recent: PettyCashRow[];
+  /** Active cost tags (a campaign, a project) an expense may carry */
+  costTags?: { id: string; nameEn: string; nameAr: string }[];
 }
 
 export interface MonthEndChecklist {

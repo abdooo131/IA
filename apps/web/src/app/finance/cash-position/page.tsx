@@ -6,6 +6,7 @@ import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
 import type { CashPosition } from '@/lib/cash-control-types';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
+import { formatForeign } from '@/lib/foreign-money';
 
 export const dynamic = 'force-dynamic';
 
@@ -110,6 +111,11 @@ export default async function CashPositionPage() {
                   <td className={`${td} text-text-muted`}>{t(`money.kinds.${a.kind}`)}</td>
                   <td className={`${td} text-end`}>
                     <Amount piastres={a.balancePiastres} />
+                    {a.currency && a.currency !== 'EGP' && a.foreignBalanceCents != null && (
+                      <span className="ltr-iso block text-caption text-text-muted">
+                        {formatForeign(a.foreignBalanceCents, a.currency)}
+                      </span>
+                    )}
                   </td>
                 </tr>
               ))}

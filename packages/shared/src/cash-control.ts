@@ -94,6 +94,8 @@ export const pettyCashSchema = z.object({
   amountPiastres: z.number().int().min(1).max(100_000_000),
   note: z.string().trim().min(3).max(300),
   photoId: id,
+  /** The user's own cost tag (a campaign, a project) on the expense line */
+  costTagId: id.optional(),
   idempotencyKey: key,
 });
 

@@ -4,7 +4,8 @@ import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { eventTime } from './books';
-import { balanceOf, nextNumber, post } from './ledger';
+import { assertActiveTag, balanceOf, nextNumber, post } from './ledger';
+import { bookValueOut, impliedRateMicro } from './fx';
 
 type Tx = Prisma.TransactionClient;
 
@@ -219,6 +220,8 @@ export interface BillInput {
   memo?: string;
   /** The person the bill is for: an outsourced worker's month from their outsourcing company */
   userId?: string | null;
+  /** The user's own cost tag on the bill's cost line */
+  costTagId?: string | null;
   actorUserId: string;
   idempotencyKey: string;
 }
@@ -280,6 +283,7 @@ export async function recordBill(db: Db, input: BillInput) {
     }
     if (darkStoreId && !(await tx.darkStore.findUnique({ where: { id: darkStoreId } })))
       throw new DomainError('store_not_found', 404);
+    await assertActiveTag(tx, input.costTagId);
     const reference = input.reference.trim();
     if (
       await tx.bill.findFirst({
@@ -301,7 +305,13 @@ export async function recordBill(db: Db, input: BillInput) {
         {
           account: { id: expense.id },
           amount: net,
-          tags: person ? { userId: person.id, darkStoreId, riderId: person.riderId } : undefined,
+          tags:
+            person || input.costTagId
+              ? {
+                  ...(person ? { userId: person.id, darkStoreId, riderId: person.riderId } : {}),
+                  costTagId: input.costTagId ?? null,
+                }
+              : undefined,
         },
         { account: { type: 'vat_payable' }, amount: vat },
         { account: { type: 'supplier', supplierId: supplier.id }, amount: -total },
@@ -428,7 +438,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
     // paid: what it costs in EGP today. For a bill in another currency the two differ by
     // the change in the exchange rate.
     let settled: number;
-    let paid: number;
+    let paid = 0;
     let foreignCents = 0;
     if (bill.currency === 'EGP') {
       settled = input.amountPiastres ?? 0;
@@ -446,12 +456,23 @@ export async function payBill(db: Db, input: BillPaymentInput) {
         foreignCents === left
           ? bill.totalPiastres - bill.paidPiastres
           : centsToPiastres(foreignCents, Number(bill.fxRateMicro));
-      paid = centsToPiastres(foreignCents, rateMicro(input.fxRate ?? ''));
     }
-    const fxDiff = paid - settled;
     const money = input.viaChequesPayable
       ? null
       : await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    // A bank account in the bill's own currency pays the cents straight from its balance, at
+    // their book value in that account (fx.ts): the only difference left is the rate change
+    // between the bill and that book value, to 5901. Withholding and advances are in EGP, so
+    // such a payment has neither.
+    const fromForeign = money !== null && money.currency !== 'EGP';
+    if (fromForeign) {
+      if (bill.currency !== money.currency) throw new DomainError('currency_mismatch', 400);
+      if (bill.whtBp > 0 || (input.advanceRecoveryPiastres ?? 0) > 0)
+        throw new DomainError('foreign_payment_unsupported', 400);
+      paid = await bookValueOut(tx, money.id, foreignCents);
+    } else if (bill.currency !== 'EGP')
+      paid = centsToPiastres(foreignCents, rateMicro(input.fxRate ?? ''));
+    const fxDiff = paid - settled;
     const wht = withholdingFor(bill, settled);
     const recovery = input.advanceRecoveryPiastres ?? 0;
     if (!Number.isSafeInteger(recovery) || recovery < 0)
@@ -463,7 +484,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
     }
     const cash = paid - wht - recovery;
     if (cash < 0) throw new DomainError('net_below_zero', 400);
-    if (money && cash > (await balanceOf(tx, { id: money.id })))
+    if (money && !fromForeign && cash > (await balanceOf(tx, { id: money.id })))
       throw new DomainError('not_enough_money');
     const entry = await post(tx, {
       kind: 'bill_payment',
@@ -489,7 +510,13 @@ export async function payBill(db: Db, input: BillPaymentInput) {
           amount: settled,
         },
         { account: { type: 'fx_difference' }, amount: fxDiff },
-        { account: money ? { id: money.id } : { type: 'cheques_payable' }, amount: -cash },
+        {
+          account: money ? { id: money.id } : { type: 'cheques_payable' },
+          amount: -cash,
+          ...(fromForeign
+            ? { foreign: { cents: -foreignCents, rateMicro: impliedRateMicro(cash, foreignCents) } }
+            : {}),
+        },
         { account: { type: 'wht_payable' }, amount: -wht },
         ...(recovery
           ? [

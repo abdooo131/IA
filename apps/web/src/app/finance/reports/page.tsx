@@ -12,6 +12,7 @@ const REPORTS: { key: string; href: string; tip?: InfoTerm; accountant?: boolean
   { key: 'cashPosition', href: '/finance/cash-position' },
   { key: 'profitPerStore', href: '/finance/profit' },
   { key: 'merchantProfit', href: '/finance/merchant-profit' },
+  { key: 'costTags', href: '/finance/reports/tags' },
   { key: 'receivables', href: '/finance/receivables', tip: 'receivables' },
   { key: 'budgets', href: '/finance/budgets' },
   { key: 'comparePeriods', href: '/finance/statements' },

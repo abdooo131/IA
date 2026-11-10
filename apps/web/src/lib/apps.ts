@@ -180,6 +180,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/cash', label: 'storeCash' },
           { href: '/finance/bank', label: 'bankMatching' },
           { href: '/finance/receipts', label: 'receipts' },
+          { href: '/finance/loans', label: 'loans' },
         ],
       },
       {
@@ -191,6 +192,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/money-flow', label: 'cashFlow' },
           { href: '/finance/profit', label: 'profitPerStore' },
           { href: '/finance/merchant-profit', label: 'merchantProfit' },
+          { href: '/finance/reports/tags', label: 'costTagReport' },
           { href: '/finance/budgets', label: 'budgets' },
           { href: '/finance/statements', label: 'comparePeriods' },
           { href: '/finance/trial', label: 'trial' },
@@ -213,6 +215,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/accounts', label: 'accounts' },
           { href: '/finance/company', label: 'company' },
           { href: '/finance/contracts', label: 'contracts' },
+          { href: '/finance/cost-tags', label: 'costTags' },
           { href: '/finance/opening', label: 'opening', need: { owner: true } },
           settings('accounting'),
         ],

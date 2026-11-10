@@ -142,6 +142,10 @@ export async function freshStart(
       await run('tax invoice lines', 'DELETE FROM tax_invoice_lines');
       await run('credit notes', 'DELETE FROM tax_invoices WHERE original_id IS NOT NULL');
       await run('tax invoices', 'DELETE FROM tax_invoices');
+      await run('loan instalments', 'DELETE FROM loan_instalments');
+      await run('loans', 'DELETE FROM loans');
+      await run('stock unit days', 'DELETE FROM stock_unit_days');
+      await run('storage days', 'DELETE FROM storage_days');
       await run('bills', 'DELETE FROM bills');
       await run('prepayments', 'DELETE FROM prepayments');
       await run('fixed assets', 'DELETE FROM fixed_assets');
