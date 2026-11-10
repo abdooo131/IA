@@ -168,7 +168,7 @@ describe('finance controls end to end', () => {
     ).toHaveLength(1);
   });
 
-  it('refuses free journal entries that would put money in a bank', async () => {
+  it('keeps a journal entry that puts money in a bank for a second person', async () => {
     const finance = await agent('finance@shiplynow.local');
     const res = await finance
       .post('/finance/journal-entries')
@@ -184,7 +184,7 @@ describe('finance controls end to end', () => {
         reason: 'Found money',
         idempotencyKey: key(),
       })
-      .expect(409);
-    expect(res.body.error).toBe('money_account_not_allowed');
+      .expect(201);
+    expect(res.body).toMatchObject({ status: 'pending', requestId: expect.any(String) });
   });
 });

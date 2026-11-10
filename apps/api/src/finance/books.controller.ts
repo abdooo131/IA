@@ -8,10 +8,10 @@ import {
   DomainError,
   moneyAccounts,
   profitAndLoss,
-  recordJournalEntry,
   submitCapitalIn,
   submitDrawings,
   submitExpense,
+  submitJournalEntry,
   submitOtherIncome,
   transferMoney,
   trialBalance,
@@ -221,7 +221,7 @@ export class BooksController {
     @Body(new ZodValidationPipe(journalEntrySchema)) body: z.infer<typeof journalEntrySchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return voucher(await recordJournalEntry(this.prisma, { ...body, actorUserId: user.sub }));
+    return submitted(await submitJournalEntry(this.prisma, { ...body, actorUserId: user.sub }));
   }
 
   @Get('profit-and-loss')

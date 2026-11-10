@@ -2248,7 +2248,8 @@
         "not_balanced": "Debits must equal credits.",
         "invalid_line": "Each line needs an account and either a debit or a credit.",
         "wallet_not_allowed": "Merchant and rider wallets are changed from their own pages.",
-        "money_account_not_allowed": "Banks, cash boxes and riders' cash can't be changed by a journal entry. Use a transfer, deposit, expense or payout.",
+        "money_account_not_allowed": "Riders' cash can't be changed by a journal entry. Use the cash handover screens.",
+        "accrual_money_not_allowed": "An accrual can't include a bank or cash box, because it is reversed by itself next month.",
         "books_closed": "This date is in a closed month. Choose a later date, or ask an admin to reopen the month.",
         "approval_needed": "This payout needs a second person's approval first.",
         "same_person": "You prepared this, so another person must approve it.",
@@ -2402,7 +2403,7 @@
         "expense": "A bill you paid: choose what it was for and where the money came from. If the bill shows VAT, enter it so it can be claimed back.",
         "capital": "Money the owner puts into the company, or takes out of it.",
         "income": "Money received that is not a merchant fee, such as bank interest.",
-        "journal": "For the accountant: corrections and opening balances with any accounts. Debits must equal credits."
+        "journal": "For the accountant: any entry with as many lines as needed, banks and cash boxes included (for example rent and electricity paid together from the bank). Debits must equal credits."
       },
       "from": "From",
       "to": "To",
@@ -2424,7 +2425,7 @@
       "save": "Save",
       "saved": "Saved as {number}.",
       "badAmount": "Enter an amount in EGP, for example 1250.50.",
-      "journalIntro": "Each line has an account and either a debit or a credit.",
+      "journalIntro": "Each line has an account and either a debit or a credit. When money goes out of a bank or cash box from the approval limit, or comes into one, a second person approves it before it is posted.",
       "addLine": "Add a line",
       "removeLine": "Remove line",
       "totals": "Totals",
@@ -2495,6 +2496,7 @@
       "open": "Open",
       "kinds": {
         "expense": "Expense",
+        "journal": "Journal entry",
         "drawings": "Owner drawings",
         "capital_in": "Owner capital in",
         "other_income": "Other income",

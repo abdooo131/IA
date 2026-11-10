@@ -20,6 +20,7 @@ import {
   submitCapitalIn,
   submitDrawings,
   submitExpense,
+  submitJournalEntry,
   submitMerchantAdjustment,
 } from '../src/finance';
 import { savePhoto } from '../src/photos';
@@ -304,23 +305,94 @@ describe('opening balances', () => {
 });
 
 describe('money cannot be created on paper', () => {
-  it('refuses free journal entries on banks, cash boxes and riders cash', async () => {
+  // Rent and electricity paid together from the bank: two debits, one credit.
+  const rentAndPower = async (total: number, cib: string) => {
+    const power = Math.round(total / 5);
+    return [
+      {
+        accountId: (await byKey('expense:rent')).id,
+        debitPiastres: total - power,
+        creditPiastres: 0,
+      },
+      { accountId: (await byKey('expense:utilities')).id, debitPiastres: power, creditPiastres: 0 },
+      { accountId: cib, debitPiastres: 0, creditPiastres: total },
+    ];
+  };
+
+  it('posts a compound journal entry paid from the bank at once below the limit', async () => {
     const cib = await byKey('bank');
+    const before = await balanceOf(prisma, { id: cib.id });
+    // 9,999 EGP: below the 10,000 EGP limit.
+    const result = await submitJournalEntry(prisma, {
+      lines: await rentAndPower(999_900, cib.id),
+      reason: 'Rent and electricity, one transfer',
+      actorUserId: alice,
+      idempotencyKey: key(),
+    });
+    expect(result.status).toBe('posted');
+    expect(await balanceOf(prisma, { id: cib.id })).toBe(before - 999_900);
+    const lines = await prisma.ledgerLine.findMany({
+      where: { entryId: result.status === 'posted' ? result.entry.id : '' },
+    });
+    expect(lines).toHaveLength(3);
+  });
+
+  it('keeps money going out from the limit and any money coming in for a second person', async () => {
+    const cib = await byKey('bank');
+    const before = await balanceOf(prisma, { id: cib.id });
+    const out = await submitJournalEntry(prisma, {
+      lines: await rentAndPower(1_000_000, cib.id),
+      reason: 'Rent and electricity, one transfer',
+      actorUserId: alice,
+      idempotencyKey: key(),
+    });
+    expect(out.status).toBe('pending');
+    expect(await balanceOf(prisma, { id: cib.id })).toBe(before);
+    const requestId = out.status === 'pending' ? out.request.id : '';
+    await expect(
+      decideFinanceRequest(prisma, { requestId, approve: true, actorUserId: alice }),
+    ).rejects.toThrow('same_person');
+    await decideFinanceRequest(prisma, { requestId, approve: true, actorUserId: bob });
+    expect(await balanceOf(prisma, { id: cib.id })).toBe(before - 1_000_000);
+
+    // Money said to come in waits whatever the amount.
+    const found = await submitJournalEntry(prisma, {
+      lines: [
+        { accountId: cib.id, debitPiastres: 100, creditPiastres: 0 },
+        {
+          accountId: (await byKey('other_income:general')).id,
+          debitPiastres: 0,
+          creditPiastres: 100,
+        },
+      ],
+      reason: 'Found money',
+      actorUserId: alice,
+      idempotencyKey: key(),
+    });
+    expect(found.status).toBe('pending');
+    expect(await balanceOf(prisma, { id: cib.id })).toBe(before - 1_000_000);
+  });
+
+  it('never takes more than a bank holds, and keeps banks out of accruals', async () => {
+    const cib = await byKey('bank');
+    const held = await balanceOf(prisma, { id: cib.id });
     await expect(
       recordJournalEntry(prisma, {
-        lines: [
-          { accountId: cib.id, debitPiastres: 100_000, creditPiastres: 0 },
-          {
-            accountId: (await byKey('other_income:general')).id,
-            debitPiastres: 0,
-            creditPiastres: 100_000,
-          },
-        ],
-        reason: 'Found money',
+        lines: await rentAndPower(held + 100, cib.id),
+        reason: 'Too much',
         actorUserId: alice,
         idempotencyKey: key(),
       }),
-    ).rejects.toThrow('money_account_not_allowed');
+    ).rejects.toThrow('not_enough_money');
+    await expect(
+      recordJournalEntry(prisma, {
+        lines: await rentAndPower(1_000, cib.id),
+        reason: 'Accrued rent',
+        reverseNextMonth: true,
+        actorUserId: alice,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toThrow('accrual_money_not_allowed');
   });
 
   it('keeps every claimed money in and merchant balance change for a second person, at any amount', async () => {

@@ -68,6 +68,7 @@ export {
   submitPayroll,
   submitDrawings,
   submitExpense,
+  submitJournalEntry,
   submitMerchantAdjustment,
   submitMerchantReceipt,
   submitOtherIncome,

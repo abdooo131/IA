@@ -538,17 +538,27 @@ export async function recordJournalEntry(
     const key = `journal:${input.idempotencyKey}`;
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;
+    // Banks and cash boxes may take part (one payment spread over rent and electricity, Odoo
+    // style); the second person rule for them is applied before, by submitJournalEntry.
+    // Riders' cash and the merchant and rider wallets keep their own screens.
+    const money = new Map<string, { account: LedgerAccount; net: number }>();
     for (const l of lines) {
       const account = await tx.ledgerAccount.findUnique({ where: { id: l.accountId } });
       if (!account) throw new DomainError('account_not_found', 404);
       if (isWallet(account) && account.darkStoreId == null)
         throw new DomainError('wallet_not_allowed');
-      // Banks, cash boxes and riders' cash change only through documented movements
-      // (deposits, transfers, expenses, payouts...), never by a free entry: otherwise money
-      // could appear on paper that no bank or box ever received.
-      if (MONEY_GROUPS.includes(account.groupCode) || account.groupCode === 1300)
-        throw new DomainError('money_account_not_allowed');
+      if (account.groupCode === 1300) throw new DomainError('money_account_not_allowed');
+      if (MONEY_GROUPS.includes(account.groupCode)) {
+        const locked = await openAccount(tx, account.id, MONEY_GROUPS, 'account_not_found');
+        const seenMoney = money.get(account.id) ?? { account: locked, net: 0 };
+        seenMoney.net += l.amount;
+        money.set(account.id, seenMoney);
+      }
     }
+    // An accrual is reversed by itself next month: real money never comes back that way.
+    if (input.reverseNextMonth && money.size) throw new DomainError('accrual_money_not_allowed');
+    // Money cannot leave a bank or box that does not hold it.
+    for (const { account, net } of money.values()) if (net < 0) await mustHold(tx, account, -net);
     const reverseOn = input.reverseNextMonth
       ? `${addMonthText(cairoDay(at).slice(0, 7), 1)}-01`
       : undefined;

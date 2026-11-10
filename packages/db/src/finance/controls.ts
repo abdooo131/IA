@@ -4,7 +4,13 @@ import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
-import { eventTime, recordCapital, recordExpense, recordOtherIncome } from './books';
+import {
+  eventTime,
+  recordCapital,
+  recordExpense,
+  recordJournalEntry,
+  recordOtherIncome,
+} from './books';
 import { post } from './ledger';
 import { recordMerchantAdjustment, recordMerchantReceipt } from './operations';
 import {
@@ -127,6 +133,7 @@ async function needsApproval(db: Db, amount: number) {
 type ExpenseInput = Parameters<typeof recordExpense>[1];
 type CapitalInput = Omit<Parameters<typeof recordCapital>[1], 'direction'>;
 type IncomeInput = Parameters<typeof recordOtherIncome>[1];
+type JournalInput = Parameters<typeof recordJournalEntry>[1];
 type ReceiptInput = Parameters<typeof recordMerchantReceipt>[1];
 type AdjustmentInput = Parameters<typeof recordMerchantAdjustment>[1];
 type Stored<T> = Omit<T, 'actorUserId'>;
@@ -135,6 +142,8 @@ export type RequestPayload =
   | { kind: 'drawings'; input: Stored<CapitalInput> }
   | { kind: 'capital_in'; input: Stored<CapitalInput> }
   | { kind: 'other_income'; input: Stored<IncomeInput> }
+  /** A journal entry touching a bank or cash box; amountPiastres is the money moved */
+  | { kind: 'journal'; input: Stored<JournalInput> & { amountPiastres: number } }
   | { kind: 'merchant_receipt'; input: Stored<ReceiptInput> }
   | { kind: 'merchant_adjustment'; input: Stored<AdjustmentInput> }
   | { kind: 'staff_advance'; input: Stored<AdvanceInput> }
@@ -292,6 +301,10 @@ function execute(db: Db, p: RequestPayload, actorUserId: string): Promise<{ id: 
       return recordCapital(db, { ...p.input, direction: 'in', actorUserId });
     case 'other_income':
       return recordOtherIncome(db, { ...p.input, actorUserId });
+    case 'journal': {
+      const { amountPiastres: _moved, ...input } = p.input;
+      return recordJournalEntry(db, { ...input, actorUserId });
+    }
     case 'merchant_receipt':
       return recordMerchantReceipt(db, { ...p.input, actorUserId });
     case 'merchant_adjustment':
@@ -359,6 +372,48 @@ export const submitMerchantReceipt = submitter<'merchant_receipt', ReceiptInput>
 export const submitMerchantAdjustment = submitter<'merchant_adjustment', AdjustmentInput>(
   'merchant_adjustment',
 );
+
+/**
+ * A journal entry. One that touches no bank or cash box is posted at once, as before. One
+ * that moves real money follows the rule of the other money screens: money coming into a
+ * bank or box waits for a second person while finance.approve_money_in is on, money going
+ * out waits from the approval limit (finance.approval_threshold_piastres).
+ */
+export async function submitJournalEntry(db: Db, input: JournalInput) {
+  const ids = [...new Set(input.lines.map((l) => l.accountId))];
+  const accounts = await db.ledgerAccount.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, groupCode: true },
+  });
+  const isMoney = new Set(
+    accounts.filter((a) => a.groupCode === 1100 || a.groupCode === 1200).map((a) => a.id),
+  );
+  const net = new Map<string, number>();
+  for (const l of input.lines)
+    if (isMoney.has(l.accountId))
+      net.set(l.accountId, (net.get(l.accountId) ?? 0) + l.debitPiastres - l.creditPiastres);
+  let moneyIn = 0;
+  let moneyOut = 0;
+  for (const n of net.values()) {
+    if (n > 0) moneyIn += n;
+    else moneyOut -= n;
+  }
+  if (moneyIn === 0 && moneyOut === 0)
+    return { status: 'posted' as const, entry: await recordJournalEntry(db, input) };
+  const reviewed =
+    (moneyIn > 0 && (await getSetting(db, 'finance.approve_money_in')) === 1) ||
+    (moneyOut > 0 && (await needsApproval(db, moneyOut)));
+  if (!reviewed) return { status: 'posted' as const, entry: await recordJournalEntry(db, input) };
+  const { actorUserId, ...rest } = input;
+  return {
+    status: 'pending' as const,
+    request: await queueRequest(
+      db,
+      { kind: 'journal', input: { ...rest, amountPiastres: moneyIn + moneyOut } },
+      actorUserId,
+    ),
+  };
+}
 
 /** Requests waiting for (or decided by) a second person, newest first. */
 export async function listFinanceRequests(
