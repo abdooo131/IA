@@ -30,6 +30,7 @@ const DRILL_KEYS = [
   'store',
   'merchant',
   'rider',
+  'tag',
 ];
 const LIST_KEYS = ['q', 'f', 'g', 'sort', 'desc', 'page', 'size'];
 
@@ -40,6 +41,7 @@ const BACKS: Record<string, string> = {
   '/finance/trial': 'trial.title',
   '/finance/money-flow': 'period.cashTitle',
   '/finance/profit': 'profit.title',
+  '/finance/reports/tags': 'drill.tagReportTitle',
 };
 
 /**
@@ -59,7 +61,7 @@ export default async function ReportLinesPage({ searchParams }: { searchParams: 
     const v = one(params[k]);
     if (v !== undefined) list.set(k, v);
   }
-  const [data, accounts, options, overview, t, tf, ta, locale] = await Promise.all([
+  const [data, accounts, options, overview, t, tf, ta, locale, costTags] = await Promise.all([
     apiGet<ListResult<ListRow> & { meta: { naturalDebit: boolean | null; truncated: boolean } }>(
       `/finance/ledger-lines?${list}`,
     ),
@@ -70,7 +72,13 @@ export default async function ReportLinesPage({ searchParams }: { searchParams: 
     getTranslations('finance'),
     getTranslations('apps'),
     getLocale(),
+    apiTry<{ id: string; nameEn: string; nameAr: string }[]>('/finance/cost-tags'),
   ]);
+  const tagOptions = (costTags ?? []).map((c) => ({
+    id: c.id,
+    label: locale === 'ar' ? c.nameAr : c.nameEn,
+  }));
+  const tagName = tagOptions.find((c) => c.id === one(params.tag))?.label;
 
   const account = accounts.find((a) => a.id === one(params.account));
   const group = one(params.group);
@@ -86,7 +94,7 @@ export default async function ReportLinesPage({ searchParams }: { searchParams: 
       : set
         ? t(`sets.${set}`)
         : t('linesTitle');
-  const title = kind ? `${what} · ${kindName(kind)}` : what;
+  const title = [what, kind ? kindName(kind) : null, tagName ?? null].filter(Boolean).join(' · ');
   const from = one(params.from);
   const to = one(params.to) ?? cairoDay(new Date());
   const backParam = one(params.back) ?? '';
@@ -108,6 +116,7 @@ export default async function ReportLinesPage({ searchParams }: { searchParams: 
       { key: 'merchant', label: lineLabel('merchant'), kind: 'text' },
       { key: 'rider', label: lineLabel('rider'), kind: 'text', optional: true },
       { key: 'orderNumber', label: lineLabel('orderNumber'), kind: 'ltr', optional: true },
+      { key: 'costTag', label: lineLabel('costTag'), kind: 'text', optional: true },
       { key: 'debit', label: lineLabel('debit'), kind: 'money' },
       { key: 'credit', label: lineLabel('credit'), kind: 'money' },
       { key: 'net', label: lineLabel('net'), kind: 'money', sort: 'amount', optional: true },
@@ -207,6 +216,7 @@ export default async function ReportLinesPage({ searchParams }: { searchParams: 
         merchants={options.merchants}
         riders={riders}
         kinds={kinds}
+        tags={tagOptions}
       />
       <ListView config={config} data={data} />
       <p className="mt-2 text-caption text-text-muted">{t('lines.openHint')}</p>

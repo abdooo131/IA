@@ -47,7 +47,8 @@ export type SystemAccountKey =
   | 'packaging_stock'
   | 'goods_received'
   | 'rider_office_commission'
-  | 'rider_office_accrued';
+  | 'rider_office_accrued'
+  | 'loan_interest_expense';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -242,6 +243,13 @@ const SYSTEM_ACCOUNTS: Record<
     code: '2402',
     nameEn: 'Rider office commission accrued, not billed yet',
     nameAr: 'عمولة مكاتب المناديب المستحقة لم تصل فاتورتها',
+  },
+  loan_interest_expense: {
+    type: 'expense',
+    group: 5900,
+    code: '5904',
+    nameEn: 'Loan interest',
+    nameAr: 'فوائد القروض',
   },
 };
 
@@ -550,7 +558,18 @@ export interface PostInput {
   merchantId?: string | null;
   riderId?: string | null;
   /** Debit positive, credit negative. Lines of zero are dropped. A line's own tags win. */
-  lines: { account: AccountRef; amount: number; tags?: LineTags }[];
+  lines: { account: AccountRef; amount: number; tags?: LineTags; foreign?: ForeignAmount }[];
+}
+
+/**
+ * A line on a bank account held in another currency carries its amount in that currency's
+ * cents (signed like the line; 0 for a revaluation) and the rate used. Every line on such an
+ * account must say it: places that cannot handle another currency are refused by post().
+ */
+export interface ForeignAmount {
+  cents: number;
+  /** EGP for one unit × 1,000,000 */
+  rateMicro?: number | null;
 }
 
 /** Who and where a line counts for: profit per store, merchant, rider and team member. */
@@ -559,6 +578,8 @@ export interface LineTags {
   merchantId?: string | null;
   riderId?: string | null;
   userId?: string | null;
+  /** The user's own cost tag (a campaign, a project) */
+  costTagId?: string | null;
 }
 
 /**
@@ -589,6 +610,7 @@ export async function post(db: Db, input: PostInput) {
     if (seen) return seen;
     const occurredAt = input.occurredAt ?? new Date();
     await assertPeriodOpen(tx, occurredAt);
+    await checkLineExtras(tx, lines);
     const entry = await tx.ledgerEntry.create({
       data: {
         number: await nextNumber(tx, 'ledger_entries'),
@@ -615,11 +637,55 @@ export async function post(db: Db, input: PostInput) {
           merchantId: line.tags?.merchantId ?? tags.merchantId,
           riderId: line.tags?.riderId ?? tags.riderId,
           userId: line.tags?.userId ?? null,
+          costTagId: line.tags?.costTagId ?? null,
+          foreignCents: line.foreign?.cents ?? null,
+          fxRateMicro: line.foreign?.rateMicro != null ? BigInt(line.foreign.rateMicro) : null,
         },
       });
     }
     return entry;
   });
+}
+
+/**
+ * Checked before anything is written: a line on a bank account in another currency must carry
+ * its foreign amount (foreign_currency_account otherwise: payouts, rider withdrawals, petty
+ * cash, journal entries and the rest only move EGP), an EGP account never carries one, and a
+ * cost tag must exist.
+ */
+async function checkLineExtras(tx: Tx, lines: PostInput['lines']) {
+  const idOf = (l: PostInput['lines'][number]) => ('id' in l.account ? l.account.id : null);
+  const ids = lines.map(idOf).filter((x): x is string => x !== null);
+  const accounts = ids.length
+    ? await tx.ledgerAccount.findMany({
+        where: { id: { in: ids } },
+        select: { id: true, currency: true },
+      })
+    : [];
+  for (const l of lines) {
+    const id = idOf(l);
+    // Accounts given by type (wallets, system accounts, CIB) are always in EGP.
+    const currency = (id && accounts.find((a) => a.id === id)?.currency) || 'EGP';
+    if (currency !== 'EGP' && !l.foreign) throw new DomainError('foreign_currency_account');
+    if (l.foreign && currency === 'EGP') throw new Error('foreign amount on an EGP account');
+    if (l.foreign && !Number.isSafeInteger(l.foreign.cents))
+      throw new DomainError('amount_not_integer', 400);
+  }
+  // A tag switched off still counts on the lines it already has (and on their reversals);
+  // new expenses, journal lines, bills and petty cash check it is active (assertActiveTag).
+  const tagIds = [...new Set(lines.map((l) => l.tags?.costTagId).filter((t): t is string => !!t))];
+  if (tagIds.length) {
+    const found = await tx.costTag.count({ where: { id: { in: tagIds } } });
+    if (found !== tagIds.length) throw new DomainError('cost_tag_not_found', 404);
+  }
+}
+
+/** A cost tag chosen on a new expense, journal line, bill or petty cash must be active. */
+export async function assertActiveTag(db: Db, costTagId: string | null | undefined) {
+  if (!costTagId) return;
+  const tag = await db.costTag.findUnique({ where: { id: costTagId } });
+  if (!tag) throw new DomainError('cost_tag_not_found', 404);
+  if (!tag.isActive) throw new DomainError('cost_tag_inactive');
 }
 
 /**

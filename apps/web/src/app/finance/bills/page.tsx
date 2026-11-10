@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { SuppliersAndBills } from '@/components/finance/Payables';
+import type { CostTagOption } from '@/components/finance/CostTagSelect';
 import { FinanceListPage } from '@/components/odoo/FinanceListPage';
 import { apiGet } from '@/lib/api-server';
 import type { BillAgeing, BookAccount, StoreOption, SupplierRow } from '@/lib/finance-types';
@@ -12,12 +13,13 @@ export default async function FinanceBillsPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [params, suppliers, ageing, accounts, stores, t] = await Promise.all([
+  const [params, suppliers, ageing, accounts, stores, costTags, t] = await Promise.all([
     searchParams,
     apiGet<SupplierRow[]>('/finance/suppliers'),
     apiGet<BillAgeing>('/finance/bills-ageing'),
     apiGet<BookAccount[]>('/finance/accounts'),
     apiGet<StoreOption[]>('/finance/stores'),
+    apiGet<CostTagOption[]>('/finance/cost-tags?active=true'),
     getTranslations('finance.payables'),
   ]);
   return (
@@ -42,6 +44,7 @@ export default async function FinanceBillsPage({
           accounts={accounts}
           stores={stores}
           showOpenBills={false}
+          costTags={costTags}
         />
       }
     />

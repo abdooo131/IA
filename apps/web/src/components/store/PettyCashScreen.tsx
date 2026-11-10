@@ -38,6 +38,7 @@ export function PettyCashScreen({
   const [category, setCategory] = useState(initial.categories[0]?.id ?? '');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [costTag, setCostTag] = useState('');
   const [photoId, setPhotoId] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -59,6 +60,7 @@ export function PettyCashScreen({
         amountPiastres: piastres,
         note: note.trim(),
         photoId,
+        costTagId: costTag || undefined,
         idempotencyKey: key,
       },
     );
@@ -76,6 +78,7 @@ export function PettyCashScreen({
     });
     setAmount('');
     setNote('');
+    setCostTag('');
     setPhotoId(null);
     setKey(newActionKey());
     setForm((n) => n + 1);
@@ -123,6 +126,23 @@ export function PettyCashScreen({
               ))}
             </select>
           </label>
+          {(data.costTags ?? []).length > 0 && (
+            <label className="block text-body-sm font-semibold">
+              {t('costTag')}
+              <select
+                value={costTag}
+                onChange={(e) => setCostTag(e.target.value)}
+                className={input}
+              >
+                <option value="">{t('noCostTag')}</option>
+                {(data.costTags ?? []).map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {localized(c, locale)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="block text-body-sm font-semibold">
             {t('amount')}
             <input

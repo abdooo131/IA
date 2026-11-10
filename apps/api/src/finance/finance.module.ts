@@ -17,6 +17,7 @@ import { RiderWithdrawalsController } from './rider-withdrawals.controller';
 import { ExpenseClaimsController } from './expense-claims.controller';
 import { FinanceViewsController } from './views.controller';
 import { FinanceRunsController } from './runs.controller';
+import { LoansTagsFxController } from './loans-tags-fx.controller';
 
 @Module({
   imports: [CoverageModule],
@@ -38,6 +39,7 @@ import { FinanceRunsController } from './runs.controller';
     ExpenseClaimsController,
     FinanceViewsController,
     FinanceRunsController,
+    LoansTagsFxController,
   ],
   providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })

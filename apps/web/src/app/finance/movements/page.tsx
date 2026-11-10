@@ -1,5 +1,6 @@
 import { getTranslations } from 'next-intl/server';
 import { MoneyMovements, type MovementTab } from '@/components/finance/MoneyMovements';
+import type { CostTagOption } from '@/components/finance/CostTagSelect';
 import { apiGet } from '@/lib/api-server';
 import type { BookAccount, StoreOption } from '@/lib/finance-types';
 
@@ -12,9 +13,10 @@ export default async function FinanceMovementsPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   const tab = (await searchParams).tab as MovementTab;
-  const [accounts, stores, t] = await Promise.all([
+  const [accounts, stores, costTags, t] = await Promise.all([
     apiGet<BookAccount[]>('/finance/accounts'),
     apiGet<StoreOption[]>('/finance/stores'),
+    apiGet<CostTagOption[]>('/finance/cost-tags?active=true'),
     getTranslations('finance.movements'),
   ]);
   return (
@@ -24,6 +26,7 @@ export default async function FinanceMovementsPage({
       <MoneyMovements
         accounts={accounts}
         stores={stores}
+        costTags={costTags}
         tab={TABS.includes(tab) ? tab : 'transfer'}
       />
     </>

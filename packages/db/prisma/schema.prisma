@@ -1423,6 +1423,8 @@ model LedgerAccount {
   petty         Boolean           @default(false)
   /// An expense category employees may claim back (paid from their own pocket)
   claimable     Boolean           @default(false)
+  /// The currency a bank account is held in (EGP, USD, EUR); ledger amounts stay in EGP
+  currency      String            @default("EGP")
   isActive      Boolean           @default(true) @map("is_active")
   merchantId    String?           @map("merchant_id")
   riderId       String?           @map("rider_id")
@@ -1453,6 +1455,8 @@ model LedgerAccount {
   expenseClaims ExpenseClaim[]      @relation("expense_claim_account")
   claimsPaid    ExpenseClaim[]      @relation("expense_claim_paid_from")
   purchaseLines PurchaseOrderLine[]
+  loansIn       Loan[]              @relation("loan_money_account")
+  loansOwed     Loan[]              @relation("loan_liability_account")
 
   @@index([type])
   @@index([groupCode])
@@ -1496,6 +1500,8 @@ model LedgerEntry {
   pettyCash         PettyCashExpense[] @relation("petty_cash_entry")
   pettyCashReversal PettyCashExpense[] @relation("petty_cash_reversal")
   expenseClaims     ExpenseClaim[]
+  loans             Loan[]
+  loanInstalments   LoanInstalment[]
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -1515,6 +1521,12 @@ model LedgerLine {
   riderId        String?  @map("rider_id")
   /// The team member a salary or advance line is for
   userId         String?  @map("user_id")
+  /// The user's own analytic tag (a campaign, a project), one per line at most
+  costTagId      String?  @map("cost_tag_id")
+  /// A line on a bank account in another currency: the amount in its cents (signed like the
+  /// line) and the rate used (EGP for one unit × 1,000,000)
+  foreignCents   Int?     @map("foreign_cents")
+  fxRateMicro    BigInt?  @map("fx_rate_micro")
 
   entry     LedgerEntry        @relation(fields: [entryId], references: [id])
   account   LedgerAccount      @relation(fields: [accountId], references: [id])
@@ -1522,6 +1534,7 @@ model LedgerLine {
   merchant  Merchant?          @relation(fields: [merchantId], references: [id], onDelete: Restrict)
   rider     Rider?             @relation(fields: [riderId], references: [id], onDelete: Restrict)
   user      User?              @relation("ledger_line_user", fields: [userId], references: [id], onDelete: Restrict)
+  costTag   CostTag?           @relation(fields: [costTagId], references: [id], onDelete: Restrict)
   bankLine  BankStatementLine?
   /// Part of a bank line proven by several ledger lines
   bankMatch BankLineMatch?
@@ -1530,6 +1543,7 @@ model LedgerLine {
   @@index([darkStoreId, occurredAt])
   @@index([merchantId, occurredAt])
   @@index([riderId, occurredAt])
+  @@index([costTagId, occurredAt])
   @@map("ledger_lines")
 }
 
@@ -2380,6 +2394,7 @@ model Supplier {
   staff                 Employee[]      @relation("staffing_supplier")
   cheques               Cheque[]
   purchaseOrders        PurchaseOrder[]
+  loans                 Loan[]
 
   @@map("suppliers")
 }
@@ -3375,6 +3390,8 @@ model PettyCashExpense {
   reversedById     String?   @map("reversed_by_id")
   reversedAt       DateTime? @map("reversed_at")
   reverseReason    String?   @map("reverse_reason")
+  /// The cost tag of the expense line, when the person chose one
+  costTagId        String?   @map("cost_tag_id")
 
   darkStore      DarkStore       @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
   expenseAccount LedgerAccount   @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
@@ -3384,6 +3401,7 @@ model PettyCashExpense {
   request        FinanceRequest? @relation(fields: [requestId], references: [id], onDelete: Restrict)
   createdBy      User            @relation("petty_cash_created_by", fields: [createdById], references: [id], onDelete: Restrict)
   reversedBy     User?           @relation("petty_cash_reversed_by", fields: [reversedById], references: [id], onDelete: Restrict)
+  costTag        CostTag?        @relation(fields: [costTagId], references: [id], onDelete: Restrict)
 
   @@index([darkStoreId, createdAt])
   @@map("petty_cash_expenses")
@@ -4944,4 +4962,129 @@ model ExpenseClaim {
   @@index([status, createdAt])
   @@index([managerEmployeeId, status])
   @@map("expense_claims")
+}
+
+// ─── Loans, cost tags and stored units (migration 20261231180000_loans_tags_fx) ─────
+
+/// The user's own analytic tags (a campaign, a new branch project), set on expense lines,
+/// journal lines, bills and petty cash beside the store, merchant and rider tags.
+model CostTag {
+  id          String   @id @default(cuid())
+  nameEn      String   @unique @map("name_en")
+  nameAr      String   @map("name_ar")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdById String   @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  lines     LedgerLine[]
+  pettyCash PettyCashExpense[]
+
+  @@map("cost_tags")
+}
+
+enum LoanLender {
+  /// A bank or another company, kept as a supplier
+  supplier
+  /// The owner lending the company money
+  owner
+
+  @@map("loan_lender")
+}
+
+enum LoanMethod {
+  /// Equal monthly instalments; interest on the balance still owed
+  declining
+  /// Interest on the whole amount for every month, principal in equal parts
+  flat
+
+  @@map("loan_method")
+}
+
+enum LoanStatus {
+  active
+  repaid
+
+  @@map("loan_status")
+}
+
+/// Money the company borrowed (LN-000001, gapless). Owed in its own account under 2700 and
+/// repaid by the schedule's monthly instalments (principal and interest).
+model Loan {
+  id                 String     @id @default(cuid())
+  number             Int        @unique
+  lender             LoanLender
+  supplierId         String?    @map("supplier_id")
+  /// The owner's name when the owner lends
+  lenderName         String?    @map("lender_name")
+  principalPiastres  Int        @map("principal_piastres")
+  /// The bank or cash box the money came into
+  moneyAccountId     String     @map("money_account_id")
+  /// What we owe on this loan (2701, 2702...)
+  liabilityAccountId String     @unique @map("liability_account_id")
+  startDay           DateTime   @map("start_day") @db.Date
+  annualRateBp       Int        @map("annual_rate_bp")
+  method             LoanMethod
+  months             Int
+  firstPaymentDay    DateTime   @map("first_payment_day") @db.Date
+  reference          String
+  memo               String?
+  status             LoanStatus @default(active)
+  /// The entry that received the money
+  entryId            String     @unique @map("entry_id")
+  createdById        String     @map("created_by_id")
+  createdAt          DateTime   @default(now()) @map("created_at")
+
+  supplier         Supplier?        @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  moneyAccount     LedgerAccount    @relation("loan_money_account", fields: [moneyAccountId], references: [id], onDelete: Restrict)
+  liabilityAccount LedgerAccount    @relation("loan_liability_account", fields: [liabilityAccountId], references: [id], onDelete: Restrict)
+  entry            LedgerEntry      @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  instalments      LoanInstalment[]
+
+  @@map("loans")
+}
+
+/// One line of a loan's schedule, fixed when the loan is recorded. Paid once (its entry).
+model LoanInstalment {
+  id                 String    @id @default(cuid())
+  loanId             String    @map("loan_id")
+  seq                Int
+  dueDay             DateTime  @map("due_day") @db.Date
+  instalmentPiastres Int       @map("instalment_piastres")
+  interestPiastres   Int       @map("interest_piastres")
+  principalPiastres  Int       @map("principal_piastres")
+  /// What is still owed after this instalment
+  remainingPiastres  Int       @map("remaining_piastres")
+  paidAt             DateTime? @map("paid_at")
+  entryId            String?   @unique @map("entry_id")
+
+  loan  Loan         @relation(fields: [loanId], references: [id], onDelete: Restrict)
+  entry LedgerEntry? @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@unique([loanId, seq])
+  @@index([dueDay])
+  @@map("loan_instalments")
+}
+
+/// Units each merchant had in each store at the end of a Cairo day (every bin), written by
+/// the storage charge job for every merchant whether or not they pay storage. Merchant profit
+/// shares a store's rent by these unit days.
+model StockUnitDay {
+  darkStoreId String   @map("dark_store_id")
+  merchantId  String   @map("merchant_id")
+  day         DateTime @db.Date
+  units       Int
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@id([darkStoreId, merchantId, day])
+  @@index([day])
+  @@map("stock_unit_days")
+}
+
+/// A Cairo day the storage charge job has done (charged, or skipped inside closed books).
+model StorageDay {
+  day       DateTime @id @db.Date
+  charged   Int
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("storage_days")
 }

@@ -275,18 +275,30 @@ export async function postReturnFee(
  * Charges storage for one Cairo day: the units each merchant has in each store (every
  * bin, sellable or not) times the monthly rate divided by the days in that month. Run
  * after the day ends; each store and merchant is charged once per day whatever happens.
+ * `given` is the units of that day (the daily job passes the day's snapshot, storage.ts);
+ * without it the units held now are charged.
  */
-export async function accrueStorage(db: Db, day: string) {
+export async function accrueStorage(
+  db: Db,
+  day: string,
+  given?: { darkStoreId: string; merchantId: string; units: number }[],
+) {
   const [year, month] = day.split('-').map(Number) as [number, number];
   const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const rows = await db.binStock.findMany({
-    where: { quantity: { gt: 0 } },
-    select: {
-      quantity: true,
-      bin: { select: { darkStoreId: true } },
-      sku: { select: { merchantId: true } },
-    },
-  });
+  const rows = given
+    ? given.map((g) => ({
+        quantity: g.units,
+        bin: { darkStoreId: g.darkStoreId },
+        sku: { merchantId: g.merchantId },
+      }))
+    : await db.binStock.findMany({
+        where: { quantity: { gt: 0 } },
+        select: {
+          quantity: true,
+          bin: { select: { darkStoreId: true } },
+          sku: { select: { merchantId: true } },
+        },
+      });
   const units = new Map<string, { darkStoreId: string; merchantId: string; units: number }>();
   for (const r of rows) {
     const key = `${r.bin.darkStoreId}:${r.sku.merchantId}`;

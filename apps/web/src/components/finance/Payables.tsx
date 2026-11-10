@@ -23,6 +23,7 @@ import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { type CostTagOption, CostTagSelect } from './CostTagSelect';
 
 // Suppliers and bills, taxes, recurring expenses, prepayments and equipment, and merchants
 // who owe us. Every form posts through useFinanceAction, so money going out above the
@@ -387,10 +388,12 @@ function NewBill({
   suppliers,
   expenses,
   stores,
+  costTags = [],
 }: {
   suppliers: SupplierRow[];
   expenses: BookAccount[];
   stores: StoreOption[];
+  costTags?: CostTagOption[];
 }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
@@ -408,6 +411,7 @@ function NewBill({
     person: '',
     currency: 'EGP',
     rate: '',
+    costTag: '',
   };
   const [b, setB] = useState(blank);
   const active = suppliers.filter((s) => s.isActive);
@@ -522,6 +526,12 @@ function NewBill({
           className={field}
         />
       </Field>
+      <CostTagSelect
+        tags={costTags}
+        value={b.costTag}
+        onChange={(v) => setB({ ...b, costTag: v })}
+        className={field}
+      />
       {net && vat !== null && rateOk && (
         <p className="text-body-sm font-bold">{t('billTotal', { amount: formatEgp(net + vat) })}</p>
       )}
@@ -558,6 +568,7 @@ function NewBill({
                 : { netPiastres: net, vatPiastres: vat }),
               memo: b.memo,
               userId: b.person || undefined,
+              costTagId: b.costTag || undefined,
               idempotencyKey: newActionKey(),
             },
             (d) => t('billSaved', { number: d.number }),
@@ -629,6 +640,7 @@ export function SuppliersAndBills({
   accounts,
   stores,
   showOpenBills = true,
+  costTags = [],
 }: {
   suppliers: SupplierRow[];
   bills: BillRow[];
@@ -637,6 +649,8 @@ export function SuppliersAndBills({
   stores: StoreOption[];
   /** False when the page lists the bills in its own list view */
   showOpenBills?: boolean;
+  /** Active cost tags a new bill's cost line may carry */
+  costTags?: CostTagOption[];
 }) {
   const t = useTranslations('finance.payables');
   const name = useName();
@@ -730,7 +744,7 @@ export function SuppliersAndBills({
       )}
 
       <div id="new-bill" className="grid scroll-mt-20 gap-6 lg:grid-cols-2">
-        <NewBill suppliers={suppliers} expenses={expenses} stores={stores} />
+        <NewBill suppliers={suppliers} expenses={expenses} stores={stores} costTags={costTags} />
         <NewSupplier expenses={expenses} />
       </div>
 

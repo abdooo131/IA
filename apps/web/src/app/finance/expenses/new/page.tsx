@@ -1,6 +1,7 @@
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { QuickExpense } from '@/components/finance/QuickExpense';
+import type { CostTagOption } from '@/components/finance/CostTagSelect';
 import { apiGet } from '@/lib/api-server';
 import type { BookAccount, FinanceControls, StoreOption } from '@/lib/finance-types';
 
@@ -8,10 +9,11 @@ export const dynamic = 'force-dynamic';
 
 /** Record an expense: the short form for a cost paid from a bank or cash box. */
 export default async function RecordExpensePage() {
-  const [accounts, stores, controls, t] = await Promise.all([
+  const [accounts, stores, controls, costTags, t] = await Promise.all([
     apiGet<BookAccount[]>('/finance/accounts'),
     apiGet<StoreOption[]>('/finance/stores'),
     apiGet<FinanceControls>('/finance/controls'),
+    apiGet<CostTagOption[]>('/finance/cost-tags?active=true'),
     getTranslations('finance.quickExpense'),
   ]);
   // The same choices as the expense on Money movements: open banks and boxes, and the
@@ -34,6 +36,7 @@ export default async function RecordExpensePage() {
         categories={categories}
         stores={stores.filter((s) => s.kind === 'dark_store' || s.kind === 'hub')}
         limitPiastres={controls.approvalThresholdPiastres}
+        costTags={costTags}
       />
     </>
   );

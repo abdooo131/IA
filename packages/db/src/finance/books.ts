@@ -14,12 +14,14 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import {
   type AccountRef,
+  assertActiveTag,
   assertPeriodOpen,
   balanceOf,
   CATEGORY,
   nextAccountCode,
   post,
 } from './ledger';
+import { bookValueOut, bothBalances, foreignBalances, impliedRateMicro } from './fx';
 
 type Tx = Prisma.TransactionClient;
 
@@ -55,6 +57,7 @@ const LOCKED_KEYS = new Set([
   'asset_disposal',
   'cheques_under_collection',
   'cheques_payable',
+  'loan_interest_expense',
 ]);
 
 /** An account that belongs to a merchant, rider, store, supplier or team member (1500). */
@@ -138,13 +141,14 @@ export const natural = (category: LedgerAccount['category'], raw: number) =>
 
 /** Every account with its code, name, group and balance, in code order. */
 export async function chartOfAccounts(db: Db, options: { includeInactive?: boolean } = {}) {
-  const [accounts, sums, name] = await Promise.all([
+  const [accounts, sums, name, foreign] = await Promise.all([
     db.ledgerAccount.findMany({
       where: options.includeInactive ? undefined : { isActive: true },
       orderBy: { code: 'asc' },
     }),
     db.ledgerLine.groupBy({ by: ['accountId'], _sum: { amountPiastres: true } }),
     ownerNames(db),
+    foreignBalances(db),
   ]);
   return accounts.map((a) => {
     const raw = sums.find((s) => s.accountId === a.id)?._sum.amountPiastres ?? 0;
@@ -165,6 +169,10 @@ export async function chartOfAccounts(db: Db, options: { includeInactive?: boole
       locked: LOCKED_KEYS.has(a.key) || isWallet(a),
       money: accountGroup(a.groupCode)?.money ?? false,
       balancePiastres: natural(a.category, raw),
+      /** EGP, or the currency of a bank account held in another one */
+      currency: a.currency,
+      /** The balance in the account's own currency (cents); null for EGP accounts */
+      foreignBalanceCents: a.currency === 'EGP' ? null : (foreign.get(a.id) ?? 0),
     };
   });
 }
@@ -179,11 +187,17 @@ export async function createAccount(
     accountNumber?: string;
     iban?: string;
     note?: string;
+    /** A bank account held in another currency (USD, EUR); EGP when left out */
+    currency?: string;
     actorUserId: string;
   },
 ) {
   const group = accountGroup(input.groupCode);
   if (!group?.manualType) throw new DomainError('group_not_open', 400);
+  const currency = input.currency ?? 'EGP';
+  if (!['EGP', 'USD', 'EUR'].includes(currency)) throw new DomainError('invalid_currency', 400);
+  // Only banks may hold another currency: cash boxes, stores and the rest stay in EGP.
+  if (currency !== 'EGP' && group.code !== 1100) throw new DomainError('currency_banks_only', 400);
   if (group.code === 1100 && (!input.bankName || !input.accountNumber))
     throw new DomainError('bank_details_required', 400);
   const type: ManualAccountType = group.manualType;
@@ -218,6 +232,7 @@ export async function createAccount(
         accountNumber: input.accountNumber ?? null,
         iban: input.iban ?? null,
         note: input.note ?? null,
+        currency,
         createdById: input.actorUserId,
       },
     });
@@ -226,7 +241,7 @@ export async function createAccount(
       action: 'finance.account_create',
       entityType: 'ledger_account',
       entityId: account.id,
-      after: { code, nameEn: input.nameEn, group: group.code },
+      after: { code, nameEn: input.nameEn, group: group.code, currency },
     });
     return account;
   });
@@ -296,7 +311,7 @@ export async function updateAccount(
 // ─── money movements ───────────────────────────────────────────────────────────
 
 /** An open account of the given groups, locked so two moves cannot spend the same money. */
-async function openAccount(tx: Tx, id: string, groups: number[], notFound: string) {
+export async function openAccount(tx: Tx, id: string, groups: number[], notFound: string) {
   const rows = await tx.$queryRaw<{ id: string }[]>`
     SELECT id FROM ledger_accounts WHERE id = ${id} FOR UPDATE`;
   const account = rows.length ? await tx.ledgerAccount.findUnique({ where: { id } }) : null;
@@ -351,10 +366,16 @@ export interface MoveBase {
   idempotencyKey: string;
 }
 
-/** Bank to cash box, cash box to bank, bank to bank or cash box to cash box. */
+/**
+ * Bank to cash box, cash box to bank, bank to bank or cash box to cash box. When a side is a
+ * bank account in another currency, foreignCents is the amount in that currency: EGP to USD
+ * books the EGP paid against the cents bought; USD to EGP takes the cents out at their book
+ * value and puts the difference with the EGP received in 5901; USD to USD moves the cents at
+ * the sending account's book value (amountPiastres is then not used). See fx.ts.
+ */
 export async function transferMoney(
   db: Db,
-  input: MoveBase & { fromAccountId: string; toAccountId: string },
+  input: MoveBase & { fromAccountId: string; toAccountId: string; foreignCents?: number },
 ) {
   positive(input.amountPiastres);
   if (input.fromAccountId === input.toAccountId) throw new DomainError('same_account', 400);
@@ -366,18 +387,20 @@ export async function transferMoney(
       where: { idempotencyKey: `transfer:${input.idempotencyKey}` },
     });
     if (seen) return seen;
-    await mustHold(tx, from, input.amountPiastres, at);
+    const lines = await transferLines(tx, from, to, input, at);
     const entry = await post(tx, {
       kind: 'money_transfer',
       idempotencyKey: `transfer:${input.idempotencyKey}`,
       occurredAt: at,
       createdById: input.actorUserId,
       memo: input.memo ?? input.reference,
-      data: { reference: input.reference, from: from.code, to: to.code },
-      lines: [
-        { account: { id: to.id }, amount: input.amountPiastres },
-        { account: { id: from.id }, amount: -input.amountPiastres },
-      ],
+      data: {
+        reference: input.reference,
+        from: from.code,
+        to: to.code,
+        ...(input.foreignCents ? { foreignCents: input.foreignCents } : {}),
+      },
+      lines,
     });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
@@ -390,6 +413,68 @@ export async function transferMoney(
   });
 }
 
+/** The lines of a transfer, in EGP and, for an account in another currency, its own cents. */
+async function transferLines(
+  tx: Tx,
+  from: LedgerAccount,
+  to: LedgerAccount,
+  input: { amountPiastres: number; foreignCents?: number },
+  at: Date,
+): Promise<Parameters<typeof post>[1]['lines']> {
+  const amount = input.amountPiastres;
+  const fromFx = from.currency !== 'EGP';
+  const toFx = to.currency !== 'EGP';
+  if (!fromFx && !toFx) {
+    await mustHold(tx, from, amount, at);
+    return [
+      { account: { id: to.id }, amount },
+      { account: { id: from.id }, amount: -amount },
+    ];
+  }
+  const cents = input.foreignCents ?? 0;
+  if (!Number.isSafeInteger(cents) || cents <= 0)
+    throw new DomainError('foreign_amount_required', 400);
+  if (fromFx && toFx && from.currency !== to.currency)
+    throw new DomainError('currency_mismatch', 400);
+  if (!fromFx) {
+    // Buying the currency: the EGP paid is what the cents cost.
+    await mustHold(tx, from, amount, at);
+    return [
+      {
+        account: { id: to.id },
+        amount,
+        foreign: { cents, rateMicro: impliedRateMicro(amount, cents) },
+      },
+      { account: { id: from.id }, amount: -amount },
+    ];
+  }
+  // The cents leave at their book value in the sending account.
+  const book = await bookValueOut(tx, from.id, cents);
+  const out = {
+    account: { id: from.id },
+    amount: -book,
+    foreign: { cents: -cents, rateMicro: impliedRateMicro(book, cents) },
+  };
+  if (toFx)
+    return [
+      {
+        account: { id: to.id },
+        amount: book,
+        foreign: { cents, rateMicro: out.foreign.rateMicro },
+      },
+      out,
+    ];
+  // Selling the currency: what was received against what the cents stood for in the books.
+  return [
+    { account: { id: to.id }, amount },
+    out,
+    { account: { type: 'fx_difference' }, amount: book - amount },
+  ];
+}
+
+/** The EGP and own currency balances of a bank account (see fx.ts). */
+export const accountBalances = (db: Db, accountId: string) => bothBalances(db, accountId);
+
 /** A bill paid from a bank or cash box, booked to an expense category (VAT apart). */
 export async function recordExpense(
   db: Db,
@@ -400,6 +485,8 @@ export async function recordExpense(
     memo: string;
     /** The dark store the cost belongs to; none is a company wide cost */
     darkStoreId?: string | null;
+    /** The user's own cost tag (a campaign, a project) on the expense line */
+    costTagId?: string | null;
   },
 ) {
   positive(input.amountPiastres);
@@ -422,6 +509,7 @@ export async function recordExpense(
     await mustHold(tx, from, input.amountPiastres, at);
     if (input.darkStoreId && !(await tx.darkStore.findUnique({ where: { id: input.darkStoreId } })))
       throw new DomainError('store_not_found', 404);
+    await assertActiveTag(tx, input.costTagId);
     const entry = await post(tx, {
       darkStoreId: input.darkStoreId ?? null,
       kind: 'expense',
@@ -431,7 +519,11 @@ export async function recordExpense(
       memo: input.memo,
       data: { reference: input.reference, vat },
       lines: [
-        { account: { id: expense.id }, amount: input.amountPiastres - vat },
+        {
+          account: { id: expense.id },
+          amount: input.amountPiastres - vat,
+          tags: input.costTagId ? { costTagId: input.costTagId } : undefined,
+        },
         // VAT we paid on a bill is claimed back against the VAT we owe.
         { account: { type: 'vat_payable' }, amount: vat },
         { account: { id: from.id }, amount: -input.amountPiastres },
@@ -542,7 +634,13 @@ export async function recordOtherIncome(
 }
 
 export interface JournalEntryInput {
-  lines: { accountId: string; debitPiastres: number; creditPiastres: number }[];
+  lines: {
+    accountId: string;
+    debitPiastres: number;
+    creditPiastres: number;
+    /** The user's own cost tag on this line */
+    costTagId?: string | null;
+  }[];
   reason: string;
   day?: string;
   /** An accrual: reversed by itself on the first day of the next month */
@@ -570,7 +668,11 @@ export async function checkJournalEntry(db: Db, input: JournalEntryInput, lock =
       l.debitPiastres > 0 === l.creditPiastres > 0
     )
       throw new DomainError('invalid_line', 400);
-    return { accountId: l.accountId, amount: l.debitPiastres - l.creditPiastres };
+    return {
+      accountId: l.accountId,
+      amount: l.debitPiastres - l.creditPiastres,
+      costTagId: l.costTagId ?? null,
+    };
   });
   if (lines.length < 2) throw new DomainError('invalid_line', 400);
   if (lines.reduce((s, l) => s + l.amount, 0) !== 0) throw new DomainError('not_balanced', 400);
@@ -583,6 +685,7 @@ export async function checkJournalEntry(db: Db, input: JournalEntryInput, lock =
       throw new DomainError('wallet_not_allowed');
     if (account.groupCode === 1300) throw new DomainError('money_account_not_allowed');
     if (!account.isActive) throw new DomainError('account_inactive');
+    await assertActiveTag(db, l.costTagId);
     if (MONEY_GROUPS.includes(account.groupCode)) {
       const checked = lock
         ? await openAccount(db, account.id, MONEY_GROUPS, 'account_not_found')
@@ -627,7 +730,11 @@ export async function recordJournalEntry(
       createdById: input.actorUserId,
       memo: input.reason,
       data: { reason: input.reason, ...(reverseOn ? { reverseOn } : {}) },
-      lines: lines.map((l) => ({ account: { id: l.accountId }, amount: l.amount })),
+      lines: lines.map((l) => ({
+        account: { id: l.accountId },
+        amount: l.amount,
+        tags: l.costTagId ? { costTagId: l.costTagId } : undefined,
+      })),
     });
     await recordAudit(tx, {
       actorUserId: input.actorUserId,

@@ -12,6 +12,7 @@ import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { quickExpenseBody } from '@/lib/quick-expense';
 import { ReceiptField } from './ReceiptField';
+import { type CostTagOption, CostTagSelect } from './CostTagSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 // "Record an expense" (Accounting UX phase B): one short form for a cost paid from a bank or
@@ -29,11 +30,14 @@ export function QuickExpense({
   categories,
   stores,
   limitPiastres,
+  costTags = [],
 }: {
   money: BookAccount[];
   categories: BookAccount[];
   stores: StoreOption[];
   limitPiastres: number;
+  /** Active cost tags (a campaign, a project) the expense may carry */
+  costTags?: CostTagOption[];
 }) {
   const t = useTranslations('finance.quickExpense');
   const locale = useLocale();
@@ -76,7 +80,11 @@ export function QuickExpense({
     const r = await action.send<Result>(
       'POST',
       '/finance/expenses',
-      { ...body.value, idempotencyKey: key },
+      {
+        ...body.value,
+        costTagId: String(f.get('costTag') ?? '') || undefined,
+        idempotencyKey: key,
+      },
       () => t('posted'),
     );
     if (r) {
@@ -232,6 +240,7 @@ export function QuickExpense({
         <input name="reference" maxLength={100} dir="auto" className={field} />
         <span className="mt-1 block text-text-muted">{t('referenceHint')}</span>
       </label>
+      <CostTagSelect tags={costTags} className={field} />
       <ReceiptField />
       {limitPiastres > 0 && (
         <p

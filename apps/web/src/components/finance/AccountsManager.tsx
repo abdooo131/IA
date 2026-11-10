@@ -1,12 +1,14 @@
 'use client';
 
 import { FormFooter } from '@/components/workflow/FormFooter';
-import { ACCOUNT_CATEGORIES, ACCOUNT_GROUPS } from '@shiplynow/shared';
+import { ACCOUNT_CATEGORIES, ACCOUNT_GROUPS, BANK_CURRENCIES } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { type FormEvent, useState } from 'react';
 import type { BookAccount } from '@/lib/finance-types';
 import { Amount } from './Amount';
+import { formatForeign } from '@/lib/foreign-money';
+import { RevalueForm } from './LoansFx';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const field =
@@ -42,6 +44,7 @@ function NewAccount({ onDone }: { onDone: () => void }) {
         accountNumber: text('accountNumber'),
         iban: text('iban'),
         note: text('note'),
+        currency: group === 1100 ? text('currency') : undefined,
       },
       (d) => t('created', { code: d.code }),
     );
@@ -96,6 +99,17 @@ function NewAccount({ onDone }: { onDone: () => void }) {
                 placeholder="EG00 0000 0000 0000 0000 0000 0000 0"
                 className={field}
               />
+            </label>
+            <label className="block text-caption">
+              {t('currency')}
+              <select name="currency" defaultValue="EGP" className={field}>
+                {BANK_CURRENCIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <span className="mt-1 block text-text-muted">{t('currencyHint')}</span>
             </label>
           </>
         )}
@@ -194,6 +208,8 @@ function AccountRow({ account }: { account: BookAccount }) {
   const locale = useLocale();
   const action = useFinanceAction();
   const [editing, setEditing] = useState(false);
+  const [revaluing, setRevaluing] = useState(false);
+  const foreign = !!account.currency && account.currency !== 'EGP';
   const bank = [account.bankName, account.accountNumber, account.iban].filter(Boolean).join(' · ');
   return (
     <li className={`py-2 ${account.isActive ? '' : 'opacity-60'}`}>
@@ -213,11 +229,21 @@ function AccountRow({ account }: { account: BookAccount }) {
         </div>
         <span className="text-end">
           <Amount piastres={account.balancePiastres} strong />
+          {foreign && account.foreignBalanceCents != null && (
+            <span className="ltr-iso block text-caption text-text-muted">
+              {formatForeign(account.foreignBalanceCents, account.currency!)}
+            </span>
+          )}
         </span>
         <div className="flex gap-1">
           <button type="button" className={button} onClick={() => setEditing(!editing)}>
             {t('edit')}
           </button>
+          {foreign && account.isActive && (
+            <button type="button" className={button} onClick={() => setRevaluing(!revaluing)}>
+              {t('revalue')}
+            </button>
+          )}
           {!account.locked && (
             <button
               type="button"
@@ -236,6 +262,13 @@ function AccountRow({ account }: { account: BookAccount }) {
         </div>
       </div>
       {editing && <EditAccount account={account} onDone={() => setEditing(false)} />}
+      {revaluing && (
+        <RevalueForm
+          accountId={account.id}
+          currency={account.currency!}
+          onDone={() => setRevaluing(false)}
+        />
+      )}
       <ActionMessage message={action.message} />
     </li>
   );

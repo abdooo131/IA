@@ -174,6 +174,10 @@ export interface BookAccount {
   locked: boolean;
   money: boolean;
   balancePiastres: number;
+  /** EGP, or the currency of a bank account held in another one */
+  currency?: string;
+  /** The balance in the account's own currency (cents); null for EGP accounts */
+  foreignBalanceCents?: number | null;
 }
 
 export interface AccountStatement {

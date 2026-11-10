@@ -37,3 +37,4 @@ export * from './record-apps';
 export * from './report-period';
 export * from './bank-match';
 export * from './expense-claims';
+export * from './loans';
