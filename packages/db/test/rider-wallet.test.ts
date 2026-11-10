@@ -12,6 +12,7 @@ import {
   payWithdrawal,
   previewPayroll,
   recordCapital,
+  recordBankDeposit,
   recordCashHandover,
   rejectWithdrawal,
   requestWithdrawal,
@@ -407,6 +408,55 @@ describe('withdrawals', () => {
     expect(await balanceOf(prisma, { type: 'store_cash', darkStoreId: f.store.id })).toBe(
       box - 12_000,
     );
+  });
+
+  it('locks the store box: two payments at once cannot both spend the same cash', async () => {
+    await deliver(4); // 4 × 40.00 cash collected
+    const later = await whenAvailable();
+    const w = await request(12_000, later, key(), { method: 'store_cash' });
+    await approveWithdrawal(prisma, { withdrawalId: w.id, actorUserId: admin });
+    await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 16_000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    const box = await prisma.ledgerAccount.findUniqueOrThrow({
+      where: { key: `store_cash:${f.store.id}` },
+    });
+    // Someone else holds the box for a moment, so both payments start before either posts.
+    let held!: () => void;
+    const holding = new Promise<void>((resolve) => (held = resolve));
+    const holder = prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM ledger_accounts WHERE id = ${box.id} FOR UPDATE`;
+      held();
+      await tx.$executeRaw`SELECT pg_sleep(1.5)`;
+    });
+    await holding;
+    const results = await Promise.allSettled([
+      payWithdrawal(prisma, {
+        withdrawalId: w.id,
+        reference: 'Cash at store',
+        actorUserId: other,
+        storeId: f.store.id,
+        now: later,
+      }),
+      recordBankDeposit(prisma, {
+        darkStoreId: f.store.id,
+        amountPiastres: 16_000,
+        reference: 'DEP-1',
+        actorUserId: admin,
+        idempotencyKey: key(),
+      }),
+    ]);
+    await holder;
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const refused = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+    expect(['not_enough_money', 'more_than_cash_in_store']).toContain(refused.reason.code);
+    expect(
+      await balanceOf(prisma, { type: 'store_cash', darkStoreId: f.store.id }),
+    ).toBeGreaterThanOrEqual(0);
   });
 
   it('needs a second person to pay from the approval limit', async () => {

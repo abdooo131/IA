@@ -16,7 +16,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { payoutNeedsApproval } from './controls';
-import { type AccountRef, accountKey, balanceOf, nextNumber, post } from './ledger';
+import { type AccountRef, accountKey, balanceOf, lockedBalance, nextNumber, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -481,21 +481,22 @@ export function payWithdrawal(
 
     // Where the money comes from.
     let source: AccountRef;
-    let sourceId: string;
     const storeBox = { type: 'store_cash', darkStoreId: w.darkStoreId } as const;
     if (input.storeId) {
       source = storeBox;
-      sourceId = (await ensureAccountId(tx, storeBox))!;
     } else if (input.moneyAccountId) {
       const account = await moneyAccountFor(tx, input.moneyAccountId);
       source = { id: account.id };
-      sourceId = account.id;
     } else {
       source = w.method === 'store_cash' ? storeBox : { type: 'bank' };
-      sourceId = (await ensureAccountId(tx, source))!;
     }
-    if (w.amountPiastres > (await balanceOf(tx, { id: sourceId })))
+    // The bank or box row is locked before its balance is read, as every other payment from
+    // it does, so two payments at once cannot both spend the same money. An account nobody
+    // posted to yet holds nothing.
+    const held = await lockedBalance(tx, source);
+    if (!held.accountId || w.amountPiastres > held.balance)
       throw new DomainError('not_enough_money', 409);
+    const sourceId = held.accountId;
 
     // The wallet without this request must still cover what the rider receives.
     const { totals, owed, open } = await riderWalletTotals(tx, w.riderId, now);
@@ -565,15 +566,6 @@ export function payWithdrawal(
     });
     return (await views(tx, [after]))[0]!;
   });
-}
-
-/** The id of an account by its reference, opened when first used (a store box, the bank). */
-async function ensureAccountId(tx: Tx, ref: AccountRef) {
-  if ('id' in ref) return ref.id;
-  const found = await tx.ledgerAccount.findUnique({ where: { key: accountKey(ref) } });
-  if (found) return found.id;
-  // Opening it with a zero entry is not possible; an account nobody posted to holds nothing.
-  throw new DomainError('not_enough_money', 409);
 }
 
 export interface WithdrawalFilter {

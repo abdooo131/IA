@@ -652,6 +652,29 @@ export async function balanceOf(db: Db, ref: AccountRef, before?: Date): Promise
   return result._sum.amountPiastres ?? 0;
 }
 
+/**
+ * Locks an account's row (ledger_accounts, FOR UPDATE) and reads its balance. Every check that
+ * a bank or cash box holds the money about to leave it takes this lock first, so two payments
+ * from one box at the same time are checked one after the other and cannot both spend the
+ * same money. Must run inside the transaction that posts the payment. An account nobody ever
+ * posted to does not exist yet and holds nothing (accountId null, balance 0).
+ */
+export async function lockedBalance(
+  tx: Tx,
+  ref: AccountRef,
+): Promise<{ accountId: string | null; balance: number }> {
+  const found =
+    'id' in ref
+      ? { id: ref.id }
+      : await tx.ledgerAccount.findUnique({
+          where: { key: accountKey(ref) },
+          select: { id: true },
+        });
+  if (!found) return { accountId: null, balance: 0 };
+  await tx.$queryRaw`SELECT id FROM ledger_accounts WHERE id = ${found.id} FOR UPDATE`;
+  return { accountId: found.id, balance: await balanceOf(tx, { id: found.id }) };
+}
+
 /** Balances of every account of the given types, keyed by account key. */
 export async function balancesByType(db: Db, types: LedgerAccountType[]) {
   const accounts = await db.ledgerAccount.findMany({ where: { type: { in: types } } });

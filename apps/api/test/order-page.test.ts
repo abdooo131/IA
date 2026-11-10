@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
+import { post } from '@shiplynow/db';
 import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -188,6 +189,15 @@ describe('order page: notes, money and what each viewer sees', () => {
     expect((await merchant.get(`/merchant/orders/${id}/money`)).body.payout).toEqual({
       status: 'draft',
       number,
+    });
+    // The bank must hold the payout (owner capital in).
+    await post(prisma, {
+      kind: 'capital_in',
+      idempotencyKey: `test-capital-${randomUUID()}`,
+      lines: [
+        { account: { type: 'bank' }, amount: cash },
+        { account: { type: 'retained_earnings' }, amount: -cash },
+      ],
     });
     await admin
       .post(`/finance/payouts/${payout.body.id}/paid`)

@@ -24,7 +24,7 @@ import {
   recordBill,
   recordCashHandover,
   reviewCashHandover,
-  riderCash,
+  cashToHandIn,
   submitBillPayment,
   submitCapitalIn,
   submitExpense,
@@ -1074,7 +1074,7 @@ async function simulate(
     } catch (error) {
       // Over the store's rider cash limit: the rider hands in the cash first, then takes it.
       if (!(error instanceof DomainError) || error.code !== 'rider_cash_limit') throw error;
-      const held = await riderCash(db, rider.id);
+      const held = await cashToHandIn(db, rider.id);
       if (held > 0)
         await recordCashHandover(db, {
           riderId: rider.id,
@@ -1572,7 +1572,7 @@ async function simulate(
       sim.atGlobal(evening, async () => {
         for (const s of w.stores)
           for (const r of s.riders) {
-            const expected = await riderCash(db, r.id);
+            const expected = await cashToHandIn(db, r.id);
             if (expected <= 0) continue;
             const short = rnd.chance(0.03) ? rnd.int(1, 4) * 500 : 0;
             const handover = await recordCashHandover(db, {

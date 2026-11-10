@@ -30,7 +30,7 @@ import { getSetting } from '../settings';
 import { addMonths } from './assets';
 import { eventTime } from './books';
 import { submitMovement } from './controls';
-import { balanceOf, post, share } from './ledger';
+import { balanceOf, lockedBalance, post, share } from './ledger';
 import { bankAccount, merchantOwed } from './operations';
 import { accrueStorage, lastClosedDay } from './postings';
 
@@ -1210,7 +1210,7 @@ export function recordDeposit(db: Db, input: DepositInput) {
     const other = input.via === 'bank' ? await bankAccount(tx, input.bankAccountId) : wallet;
     if (input.direction === 'out') {
       if (amount > (await depositHeld(tx, merchant.id))) throw new DomainError('more_than_deposit');
-      if (input.via === 'bank' && amount > (await balanceOf(tx, other)))
+      if (input.via === 'bank' && amount > (await lockedBalance(tx, other)).balance)
         throw new DomainError('not_enough_money');
     } else if (input.via === 'wallet' && amount > (await merchantOwed(tx, merchant.id)))
       throw new DomainError('more_than_owed');
