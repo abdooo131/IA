@@ -35,7 +35,7 @@ public class ShipplyClient {
 			.build();
 
 	public ShipplyClient(String apiKey) {
-		this(apiKey, BASE_URL);
+		this(apiKey, System.getProperty("shipply.baseUrl", BASE_URL)); // override only for testing
 	}
 
 	public ShipplyClient(String apiKey, String baseUrl) {
@@ -50,15 +50,73 @@ public class ShipplyClient {
 	/** Creates a client using SHIPPLY_API_KEY or shipply.properties. */
 	public static ShipplyClient fromEnvironment() throws IOException {
 		String key = System.getenv("SHIPPLY_API_KEY");
-		Path file = Path.of("shipply.properties");
-		if ((key == null || key.isBlank()) && Files.exists(file)) {
-			Properties p = new Properties();
-			try (InputStream in = Files.newInputStream(file)) {
-				p.load(in);
-			}
-			key = p.getProperty("api.key");
+		if (key == null || key.isBlank()) {
+			key = loadSavedKey();
 		}
 		return new ShipplyClient(key);
+	}
+
+	public static final Path KEY_FILE = Path.of("shipply.properties");
+
+	/** The key saved in shipply.properties, or null. */
+	public static String loadSavedKey() throws IOException {
+		if (!Files.exists(KEY_FILE)) {
+			return null;
+		}
+		Properties p = new Properties();
+		try (InputStream in = Files.newInputStream(KEY_FILE)) {
+			p.load(in);
+		}
+		return p.getProperty("api.key");
+	}
+
+	/** Saves the key to shipply.properties (this file is in .gitignore). */
+	public static void saveKey(String key) throws IOException {
+		Properties p = new Properties();
+		p.setProperty("api.key", key.trim());
+		try (java.io.OutputStream out = Files.newOutputStream(KEY_FILE)) {
+			p.store(out, "Shipply API key. Never commit or share this file.");
+		}
+	}
+
+	/** One governorate or city: our id plus a display name. */
+	public static class Place {
+		public final String id;
+		public final String name;
+
+		Place(String id, String name) {
+			this.id = id;
+			this.name = name;
+		}
+
+		@Override
+		public String toString() {
+			return name;
+		}
+	}
+
+	/** GET /governorates */
+	public java.util.List<Place> listGovernorates() throws IOException, InterruptedException {
+		return places(send("GET", "/governorates", null).json);
+	}
+
+	/** GET /governorates/{id}/cities */
+	public java.util.List<Place> listCities(String governorateId) throws IOException, InterruptedException {
+		return places(send("GET", "/governorates/" + encode(governorateId) + "/cities", null).json);
+	}
+
+	private static java.util.List<Place> places(Object root) {
+		java.util.List<Place> list = new java.util.ArrayList<>();
+		Object data = Json.get(root, "data");
+		if (data instanceof java.util.List) {
+			for (Object item : (java.util.List<?>) data) {
+				String ar = Json.str(item, "name_ar");
+				String en = Json.str(item, "name_en");
+				String name = en == null || en.isBlank() ? ar : en + "    " + ar;
+				list.add(new Place(Json.str(item, "id"), name));
+			}
+		}
+		return list;
 	}
 
 	public boolean isTestKey() {

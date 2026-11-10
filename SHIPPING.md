@@ -3,7 +3,23 @@
 The app sends your orders to the Shipply (Eve Chantelle Merchant API, https://shipply.site/docs/api)
 and gets back an **AWB** for each one. The AWB is Shipply's `order_number`, for example `EVE-000123`.
 
-## 1. Add your API key
+## Quickest way: the New Order page
+
+Open **Shipping → New Order (API key + form)** in the app.
+
+1. Paste your key in the **Shipply API key** box at the top and click **Save & Connect**.
+   It is saved in `shipply.properties` on your computer, so next time it connects by itself.
+   The line under the box tells you if you are in **TEST** mode (nothing is shipped) or **LIVE**.
+2. Fill in the order. Only order number (filled in for you), customer name, phone and address are
+   required. Governorate and City lists come straight from Shipply.
+3. Click **Create order**. The AWB appears in large text with a **Copy AWB** button, and every
+   order you create is listed on the right.
+
+## Many orders at once: CSV file
+
+### 1. Add your API key
+
+(Already done if you used the New Order page.)
 
 In the Shipply dashboard open **Integrations → REST API** and create a **Test** key first
 (it starts with `ec_test_`; sandbox orders are never picked up or billed).
@@ -17,7 +33,7 @@ Then either:
 
 When everything works, swap in a **Live** key (`ec_live_`).
 
-## 2. Prepare your orders
+### 2. Prepare your orders
 
 Fill `orders_template.csv` (in Excel: Save As **CSV UTF-8**). Required columns:
 `external_id`, `customer_name`, `phone`, `address_line`.
@@ -29,9 +45,9 @@ Optional: `secondary_phone`, `governorate`, `city`, `area`, `address_notes`, `co
 `external_id` is your own order number. Sending the same one again never creates a duplicate,
 so it's safe to resend a file.
 
-## 3. Send
+### 3. Send
 
-**In the app:** menu **Shipping → Send Orders (get AWBs)**, choose the CSV, click
+**In the app:** menu **Shipping → Send Orders from CSV (get AWBs)**, choose the CSV, click
 **Send to Shipply**, then **Save AWBs...**.
 
 **From the command line** (after building into `bin`):

@@ -86,7 +86,11 @@ public class MainApp extends JFrame {
 		JMenu mnShipping = new JMenu("Shipping");
 		menuBar.add(mnShipping);
 
-		JMenuItem mntmSendOrders = new JMenuItem("Send Orders (get AWBs)");
+		JMenuItem mntmNewOrder = new JMenuItem("New Order (API key + form)");
+		mntmNewOrder.addActionListener(e -> new NewOrderGui().setVisible(true));
+		mnShipping.add(mntmNewOrder);
+
+		JMenuItem mntmSendOrders = new JMenuItem("Send Orders from CSV (get AWBs)");
 		mntmSendOrders.addActionListener(e -> new ShipOrdersGui().setVisible(true));
 		mnShipping.add(mntmSendOrders);
 

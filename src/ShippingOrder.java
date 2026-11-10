@@ -12,6 +12,8 @@ public class ShippingOrder {
 	public String governorate;     // optional, Arabic or English name
 	public String city;            // optional
 	public String area;            // optional
+	public String governorateId;   // optional Shipply ids; when set, names are ignored by the API
+	public String cityId;
 	public String addressNotes;    // landmarks
 	public double codAmount;       // cash to collect, 0 if already paid
 	public String packageSize;     // small_medium, large, x_large, xxl, light_bulky, heavy_bulky
@@ -33,9 +35,14 @@ public class ShippingOrder {
 		b.append('}');
 
 		b.append(",\"address\":{\"line\":").append(Json.quote(addressLine));
-		if (notBlank(governorate)) b.append(",\"governorate\":").append(Json.quote(governorate));
-		if (notBlank(city)) b.append(",\"city\":").append(Json.quote(city));
-		if (notBlank(area)) b.append(",\"area\":").append(Json.quote(area));
+		if (notBlank(governorateId)) {
+			b.append(",\"governorate_id\":").append(Json.quote(governorateId));
+			if (notBlank(cityId)) b.append(",\"city_id\":").append(Json.quote(cityId));
+		} else {
+			if (notBlank(governorate)) b.append(",\"governorate\":").append(Json.quote(governorate));
+			if (notBlank(city)) b.append(",\"city\":").append(Json.quote(city));
+			if (notBlank(area)) b.append(",\"area\":").append(Json.quote(area));
+		}
 		if (notBlank(addressNotes)) b.append(",\"notes\":").append(Json.quote(addressNotes));
 		b.append('}');
 
