@@ -316,13 +316,34 @@ export async function prepareInvoices(
   return { month: input.month, created };
 }
 
-/** What credit notes already took back from an invoice. */
-async function credited(tx: Tx | Db, invoiceId: string) {
+/** What credit notes already took back from an invoice (fees and VAT). */
+async function creditedSoFar(tx: Tx | Db, invoiceId: string) {
   const sum = await tx.taxInvoice.aggregate({
     where: { originalId: invoiceId },
-    _sum: { netPiastres: true },
+    _sum: { netPiastres: true, vatPiastres: true },
   });
-  return sum._sum.netPiastres ?? 0;
+  return { net: sum._sum.netPiastres ?? 0, vat: sum._sum.vatPiastres ?? 0 };
+}
+
+/**
+ * The VAT a credit note gives back, from the running total like withholding on bill
+ * payments: the VAT on everything credited so far, this note included, less what earlier
+ * notes gave back. The notes together never pass the invoice's VAT, and the note that
+ * brings the credited fees to the whole invoice gives back exactly the VAT left.
+ */
+export function creditNoteVat(
+  invoice: { netPiastres: number; vatPiastres: number },
+  before: { net: number; vat: number },
+  amount: number,
+) {
+  if (!invoice.netPiastres) return 0;
+  const net = before.net + amount;
+  const total =
+    net >= invoice.netPiastres
+      ? invoice.vatPiastres
+      : Math.round((net * invoice.vatPiastres) / invoice.netPiastres);
+  // total never passes the invoice's VAT; a note never takes VAT the other way.
+  return Math.max(total - before.vat, 0);
 }
 
 export interface CreditNoteInput {
@@ -350,11 +371,10 @@ export async function issueCreditNote(db: Db, input: CreditNoteInput) {
     await tx.$executeRaw`SELECT id FROM tax_invoices WHERE id = ${input.invoiceId} FOR UPDATE`;
     const invoice = await tx.taxInvoice.findUnique({ where: { id: input.invoiceId } });
     if (!invoice || invoice.type !== 'invoice') throw new DomainError('invoice_not_found', 404);
-    if (input.amountPiastres > invoice.netPiastres - (await credited(tx, invoice.id)))
+    const before = await creditedSoFar(tx, invoice.id);
+    if (input.amountPiastres > invoice.netPiastres - before.net)
       throw new DomainError('more_than_invoiced');
-    const vat = invoice.netPiastres
-      ? Math.round((input.amountPiastres * invoice.vatPiastres) / invoice.netPiastres)
-      : 0;
+    const vat = creditNoteVat(invoice, before, input.amountPiastres);
     const entry = await post(tx, {
       kind: 'credit_note',
       idempotencyKey: key,

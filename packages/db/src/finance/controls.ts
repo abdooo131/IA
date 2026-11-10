@@ -232,9 +232,12 @@ async function submit(
 ) {
   const amount = Math.abs(amountOf(payload));
   if (!Number.isSafeInteger(amount) || amount <= 0) throw new DomainError('invalid_amount', 400);
-  const reviewed = alwaysReviewed(payload)
-    ? (await getSetting(db, 'finance.approve_money_in')) === 1
-    : await needsApproval(db, amount);
+  // A credit note always waits for a second person, whatever finance.approve_money_in says.
+  const reviewed =
+    payload.kind === 'credit_note' ||
+    (alwaysReviewed(payload)
+      ? (await getSetting(db, 'finance.approve_money_in')) === 1
+      : await needsApproval(db, amount));
   if (!reviewed) {
     const entry = await execute(db, payload, actorUserId);
     if (receiptPhotoId)

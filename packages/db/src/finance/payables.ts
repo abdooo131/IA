@@ -634,13 +634,28 @@ function quarterRange(year: number, quarter: number) {
 }
 
 /**
+ * Bill payments undone since: a cheque that bounced or was cancelled turns its booking (the
+ * bill payment) round, so that payment and its withholding never happened.
+ */
+export async function reversedPaymentIds(db: Db) {
+  const rows = await db.$queryRaw<{ id: string }[]>`
+    SELECT e.data->>'reverses' AS id FROM ledger_entries e
+    WHERE e.kind IN ('cheque_bounced', 'cheque_cancelled') AND e.data->>'reverses' IS NOT NULL`;
+  return rows.map((r) => r.id);
+}
+
+/**
  * Withholding tax kept from suppliers in a quarter, per supplier with their tax id: what was
  * paid to them before VAT and what was withheld (the quarterly form 41 return).
  */
 export async function whtReport(db: Db, input: { year: number; quarter: number }) {
   const range = quarterRange(input.year, input.quarter);
   const entries = await db.ledgerEntry.findMany({
-    where: { kind: 'bill_payment', occurredAt: { gte: range.from, lt: range.to } },
+    where: {
+      kind: 'bill_payment',
+      occurredAt: { gte: range.from, lt: range.to },
+      id: { notIn: await reversedPaymentIds(db) },
+    },
     select: { data: true },
   });
   const suppliers = await db.supplier.findMany({ select: { id: true, name: true, taxId: true } });

@@ -242,6 +242,9 @@ function monthEnd(month: string) {
 /** What the month's run would pay each person, checked, before anything is posted. */
 export async function previewPayroll(db: Db, input: Omit<PayrollInput, 'actorUserId'>) {
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(input.month)) throw new DomainError('invalid_month', 400);
+  // The current month may be paid while it runs (salaries are paid at its end, dated now);
+  // a month that has not started cannot.
+  if (input.month > cairoDay(new Date()).slice(0, 7)) throw new DomainError('future_month', 400);
   if (input.lines.length === 0) throw new DomainError('nothing_to_pay', 400);
   if (new Set(input.lines.map((l) => l.userId)).size !== input.lines.length)
     throw new DomainError('person_twice', 400);

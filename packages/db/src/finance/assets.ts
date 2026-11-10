@@ -251,35 +251,51 @@ export async function runMonthlyCharges(db: Db, now: Date = new Date()) {
   }
   const assets = await db.fixedAsset.findMany();
   for (const a of assets) {
-    const base = a.costPiastres - a.salvagePiastres;
     try {
-      for (let i = 0; i < a.lifeMonths; i++) {
-        const month = addMonths(a.startMonth, i);
-        if (month > lastDone) break;
-        // Sold or scrapped: nothing from the month it left.
-        if (a.disposedAt && month >= cairoDay(a.disposedAt).slice(0, 7)) break;
-        const key = `depr:${a.id}:${month}`;
-        if (await db.ledgerEntry.findUnique({ where: { idempotencyKey: key } })) continue;
-        const amount = monthlyPart(base, a.lifeMonths, i);
-        const entry = await post(db, {
-          kind: 'depreciation',
-          idempotencyKey: key,
-          occurredAt: await chargeTime(db, month),
-          memo: `${a.name} ${month}`,
-          darkStoreId: a.darkStoreId,
-          data: { assetId: a.id, month, part: i + 1, of: a.lifeMonths },
-          lines: [
-            { account: { type: 'depreciation_expense' }, amount },
-            { account: { type: 'accumulated_depreciation' }, amount: -amount },
-          ],
-        });
-        if (entry) charged++;
-      }
+      charged += await chargeDepreciation(db, a, lastDone);
     } catch (error) {
       failed.push({ id: a.id, error: error instanceof Error ? error.message : String(error) });
     }
   }
   return { charged, failed };
+}
+
+type DepreciableAsset = Pick<
+  Prisma.FixedAssetGetPayload<object>,
+  'id' | 'name' | 'costPiastres' | 'salvagePiastres' | 'lifeMonths' | 'startMonth' | 'darkStoreId'
+> & { disposedAt: Date | null };
+
+/**
+ * Charges an asset's depreciation for every month up to `lastMonth` not charged yet (one
+ * key per asset and month). A sold or scrapped asset is never charged for the month it left
+ * or later. Returns how many months were charged.
+ */
+export async function chargeDepreciation(db: Db, a: DepreciableAsset, lastMonth: string) {
+  const base = a.costPiastres - a.salvagePiastres;
+  let charged = 0;
+  for (let i = 0; i < a.lifeMonths; i++) {
+    const month = addMonths(a.startMonth, i);
+    if (month > lastMonth) break;
+    // Sold or scrapped: nothing from the month it left.
+    if (a.disposedAt && month >= cairoDay(a.disposedAt).slice(0, 7)) break;
+    const key = `depr:${a.id}:${month}`;
+    if (await db.ledgerEntry.findUnique({ where: { idempotencyKey: key } })) continue;
+    const amount = monthlyPart(base, a.lifeMonths, i);
+    const entry = await post(db, {
+      kind: 'depreciation',
+      idempotencyKey: key,
+      occurredAt: await chargeTime(db, month),
+      memo: `${a.name} ${month}`,
+      darkStoreId: a.darkStoreId,
+      data: { assetId: a.id, month, part: i + 1, of: a.lifeMonths },
+      lines: [
+        { account: { type: 'depreciation_expense' }, amount },
+        { account: { type: 'accumulated_depreciation' }, amount: -amount },
+      ],
+    });
+    if (entry) charged++;
+  }
+  return charged;
 }
 
 /** How much of each entry kind keyed by item has been charged so far. */

@@ -20,16 +20,29 @@ const monthEndExclusive = (month: string) => monthStart(addMonths(month, 1));
 // ─── VAT ───────────────────────────────────────────────────────────────────────
 
 /**
- * VAT per month of a year: charged on our fees (output), claimed back on bills and
- * expenses (input), what is due for the month, and what was paid to the tax authority.
+ * Entries whose VAT is VAT claimed back on purchases: bills (purchase order bills
+ * included), a bill cancelled (it takes its claim back) and expenses paid at once.
+ */
+export const VAT_PURCHASE_KINDS = ['supplier_bill', 'supplier_bill_cancel', 'expense'];
+
+/**
+ * VAT per month of a year: charged on our fees (output, less credit notes), claimed back on
+ * bills and expenses (input, less cancelled bills), what is due for the month, and what was
+ * paid to the tax authority. Columns follow the entry's kind, not the line's sign, so a
+ * credit note lowers output and a cancelled bill lowers input; other entries (journal
+ * entries) go by sign.
  */
 export async function vatReport(db: Db, year: number) {
   if (!Number.isInteger(year) || year < 2000 || year > 2100)
     throw new DomainError('invalid_year', 400);
+  const purchaseKinds = VAT_PURCHASE_KINDS;
   const rows = await db.$queryRaw<{ month: string; output: bigint; input: bigint; paid: bigint }[]>`
-    SELECT to_char(l.occurred_at AT TIME ZONE 'Africa/Cairo', 'YYYY-MM') AS month,
-      COALESCE(-SUM(l.amount_piastres) FILTER (WHERE e.kind <> 'tax_payment' AND l.amount_piastres < 0), 0) AS output,
-      COALESCE(SUM(l.amount_piastres) FILTER (WHERE e.kind <> 'tax_payment' AND l.amount_piastres > 0), 0) AS input,
+    SELECT to_char((l.occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo', 'YYYY-MM') AS month,
+      COALESCE(-SUM(l.amount_piastres) FILTER (WHERE e.kind = 'credit_note'
+        OR (e.kind <> 'tax_payment' AND NOT e.kind = ANY(${purchaseKinds}) AND l.amount_piastres < 0)), 0) AS output,
+      COALESCE(SUM(l.amount_piastres) FILTER (WHERE e.kind = ANY(${purchaseKinds})
+        OR (e.kind NOT IN ('tax_payment', 'credit_note') AND NOT e.kind = ANY(${purchaseKinds})
+            AND l.amount_piastres > 0)), 0) AS input,
       COALESCE(SUM(l.amount_piastres) FILTER (WHERE e.kind = 'tax_payment'), 0) AS paid
     FROM ledger_lines l
       JOIN ledger_accounts a ON a.id = l.account_id
@@ -374,7 +387,7 @@ async function profitBalances(tx: Tx | Db, before: Date) {
 export async function yearCloseStatus(db: Db, now: Date = new Date()) {
   const [years, closed] = await Promise.all([
     db.$queryRaw<{ year: number }[]>`
-      SELECT DISTINCT EXTRACT(YEAR FROM occurred_at AT TIME ZONE 'Africa/Cairo')::int AS year
+      SELECT DISTINCT EXTRACT(YEAR FROM (occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo')::int AS year
       FROM ledger_lines ORDER BY 1`,
     db.ledgerEntry.findMany({
       where: { kind: 'year_close' },
@@ -478,7 +491,7 @@ export async function journalLines(db: Db, input: { from: string; to: string }) 
       merchant: string | null;
     }[]
   >`
-    SELECT to_char(l.occurred_at AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') AS day,
+    SELECT to_char((l.occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') AS day,
       e.number, e.kind, e.memo, a.code,
       COALESCE(a.name_en, m.name, s.name_en, u.name, sup.name) AS name_en,
       COALESCE(a.name_ar, m.name, s.name_ar, u.name, sup.name) AS name_ar,

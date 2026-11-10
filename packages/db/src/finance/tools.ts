@@ -2,6 +2,7 @@ import { cairoDay, cairoDayStart, isCalendarDay } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { addMonths, chargeDepreciation } from './assets';
 import { eventTime } from './books';
 import { post } from './ledger';
 
@@ -117,6 +118,18 @@ export async function disposeAsset(db: Db, input: DisposalInput) {
     const asset = await tx.fixedAsset.findUnique({ where: { id: input.assetId } });
     if (!asset) throw new DomainError('asset_not_found', 404);
     if (asset.disposedAt) throw new DomainError('asset_already_disposed');
+    // Depreciation stops from the disposal month. A month from then on already charged
+    // (a disposal dated back) would leave depreciation booked after the asset left and
+    // split the result wrongly between depreciation and the loss: refused.
+    const disposalMonth = cairoDay(at).slice(0, 7);
+    const [later] = await tx.$queryRaw<{ n: bigint }[]>`
+      SELECT COUNT(*) AS n FROM ledger_entries
+      WHERE kind = 'depreciation' AND data->>'assetId' = ${asset.id}
+        AND data->>'month' >= ${disposalMonth}`;
+    if (Number(later?.n ?? 0) > 0) throw new DomainError('disposal_before_charged_month');
+    // Months before the disposal not charged yet are charged first, so the books are right
+    // at disposal and nothing is charged after the asset is gone.
+    await chargeDepreciation(tx, { ...asset, disposedAt: null }, addMonths(disposalMonth, -1));
     const [row] = await tx.$queryRaw<{ total: bigint | null }[]>`
       SELECT SUM(l.amount_piastres) AS total FROM ledger_entries e
         JOIN ledger_lines l ON l.entry_id = e.id AND l.amount_piastres > 0

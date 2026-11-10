@@ -6,7 +6,9 @@ import { getSetting } from '../settings';
 import { addMonths } from './assets';
 import { balanceSheet, profitAndLoss } from './books';
 import { balanceOf, post } from './ledger';
+import { reversedPaymentIds } from './payables';
 import { payslips } from './payroll';
+import { VAT_PURCHASE_KINDS } from './period';
 
 // Worksheets for the returns the accountant files, built from the books: the monthly VAT
 // return, the quarterly withholding tax list (form 41) payment by payment, the monthly
@@ -35,7 +37,7 @@ export async function vatReturn(db: Db, month: string) {
     SELECT e.kind,
       SUM(l.amount_piastres) FILTER (WHERE a.key = 'revenue') AS revenue,
       SUM(l.amount_piastres) FILTER (WHERE a.key = 'vat_payable') AS vat,
-      SUM(l.amount_piastres) FILTER (WHERE a.category = 'expense') AS expense
+      SUM(l.amount_piastres) FILTER (WHERE a.category = 'expense' OR a.key = 'goods_received') AS expense
     FROM ledger_entries e
       JOIN ledger_lines l ON l.entry_id = e.id
       JOIN ledger_accounts a ON a.id = l.account_id
@@ -53,13 +55,18 @@ export async function vatReturn(db: Db, month: string) {
   for (const r of rows) {
     const revenue = -Number(r.revenue ?? 0);
     const vat = -Number(r.vat ?? 0);
+    // By the entry's kind: a cancelled bill takes its purchase and VAT back in its month,
+    // a purchase order bill's cost sits in goods received not billed (2401).
     if (r.kind === 'credit_note') {
       creditNotes += -revenue;
       creditNoteVat += -vat;
-    } else if (revenue > 0) {
+    } else if (VAT_PURCHASE_KINDS.includes(r.kind)) {
+      purchases += Number(r.expense ?? 0);
+      inputVat += -vat;
+    } else if (revenue !== 0 || vat > 0) {
       sales += revenue;
       outputVat += vat;
-    } else if (vat < 0) {
+    } else {
       purchases += Number(r.expense ?? 0);
       inputVat += -vat;
     }
@@ -99,7 +106,12 @@ export async function withholdingPayments(db: Db, input: { year: number; quarter
   const from = cairoDayStart(`${first}-01`);
   const to = cairoDayStart(`${addMonths(first, 3)}-01`);
   const entries = await db.ledgerEntry.findMany({
-    where: { kind: 'bill_payment', occurredAt: { gte: from, lt: to } },
+    where: {
+      kind: 'bill_payment',
+      occurredAt: { gte: from, lt: to },
+      // A payment by a cheque that bounced or was cancelled was never made.
+      id: { notIn: await reversedPaymentIds(db) },
+    },
     orderBy: { occurredAt: 'asc' },
     select: { number: true, occurredAt: true, data: true },
   });
