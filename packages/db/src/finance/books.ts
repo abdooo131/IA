@@ -12,7 +12,14 @@ import {
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
-import { type AccountRef, balanceOf, CATEGORY, nextAccountCode, post } from './ledger';
+import {
+  type AccountRef,
+  assertPeriodOpen,
+  balanceOf,
+  CATEGORY,
+  nextAccountCode,
+  post,
+} from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -50,9 +57,15 @@ const LOCKED_KEYS = new Set([
   'cheques_payable',
 ]);
 
+/** An account that belongs to a merchant, rider, store, supplier or team member (1500). */
 export const isWallet = (
-  a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId' | 'supplierId'>,
-) => a.merchantId != null || a.riderId != null || a.darkStoreId != null || a.supplierId != null;
+  a: Pick<LedgerAccount, 'merchantId' | 'riderId' | 'darkStoreId' | 'supplierId' | 'userId'>,
+) =>
+  a.merchantId != null ||
+  a.riderId != null ||
+  a.darkStoreId != null ||
+  a.supplierId != null ||
+  a.userId != null;
 
 /** YYYY-MM plus n months. */
 function addMonthText(month: string, n: number) {
@@ -294,9 +307,35 @@ async function openAccount(tx: Tx, id: string, groups: number[], notFound: strin
 
 const MONEY_GROUPS = [1100, 1200];
 
-/** Money cannot leave a bank or cash box that does not hold it. */
-async function mustHold(tx: Tx, account: LedgerAccount, amount: number) {
-  if (amount > (await balanceOf(tx, { id: account.id }))) throw new DomainError('not_enough_money');
+/**
+ * Money cannot leave a bank or cash box that does not hold it: neither at the movement's own
+ * moment (a past day for a backdated movement) nor at any moment after it up to now, so a
+ * backdated payment never turns an earlier or today's balance negative. Lines at the same
+ * moment count together.
+ */
+export async function mustHold(
+  tx: Tx,
+  account: Pick<LedgerAccount, 'id'>,
+  amount: number,
+  at: Date = new Date(),
+) {
+  // A day inside closed books answers books_closed, whatever the balance.
+  await assertPeriodOpen(tx, at);
+  const rows = await tx.$queryRaw<{ at_balance: bigint | null; later_min: bigint | null }[]>`
+    WITH moments AS (
+      SELECT occurred_at, SUM(amount_piastres)::bigint AS amount FROM ledger_lines
+      WHERE account_id = ${account.id} GROUP BY occurred_at
+    ), running AS (
+      SELECT occurred_at, (SUM(amount) OVER (ORDER BY occurred_at))::bigint AS balance
+      FROM moments
+    )
+    SELECT
+      (SELECT balance FROM running WHERE occurred_at <= ${at}
+        ORDER BY occurred_at DESC LIMIT 1) AS at_balance,
+      (SELECT MIN(balance) FROM running WHERE occurred_at > ${at}) AS later_min`;
+  const atBalance = Number(rows[0]?.at_balance ?? 0);
+  const laterMin = rows[0]?.later_min == null ? atBalance : Number(rows[0].later_min);
+  if (amount > Math.min(atBalance, laterMin)) throw new DomainError('not_enough_money');
 }
 
 const positive = (amount: number) => {
@@ -327,7 +366,7 @@ export async function transferMoney(
       where: { idempotencyKey: `transfer:${input.idempotencyKey}` },
     });
     if (seen) return seen;
-    await mustHold(tx, from, input.amountPiastres);
+    await mustHold(tx, from, input.amountPiastres, at);
     const entry = await post(tx, {
       kind: 'money_transfer',
       idempotencyKey: `transfer:${input.idempotencyKey}`,
@@ -380,7 +419,7 @@ export async function recordExpense(
       where: { idempotencyKey: `expense:${input.idempotencyKey}` },
     });
     if (seen) return seen;
-    await mustHold(tx, from, input.amountPiastres);
+    await mustHold(tx, from, input.amountPiastres, at);
     if (input.darkStoreId && !(await tx.darkStore.findUnique({ where: { id: input.darkStoreId } })))
       throw new DomainError('store_not_found', 404);
     const entry = await post(tx, {
@@ -434,7 +473,7 @@ export async function recordCapital(
     const key = `capital:${input.idempotencyKey}`;
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;
-    if (input.direction === 'out') await mustHold(tx, money, input.amountPiastres);
+    if (input.direction === 'out') await mustHold(tx, money, input.amountPiastres, at);
     const sign = input.direction === 'in' ? 1 : -1;
     const entry = await post(tx, {
       kind: input.direction === 'in' ? 'capital_in' : 'capital_out',
@@ -502,23 +541,25 @@ export async function recordOtherIncome(
   });
 }
 
+export interface JournalEntryInput {
+  lines: { accountId: string; debitPiastres: number; creditPiastres: number }[];
+  reason: string;
+  day?: string;
+  /** An accrual: reversed by itself on the first day of the next month */
+  reverseNextMonth?: boolean;
+}
+
 /**
- * A free journal entry for the accountant (accruals, reclassifications, opening balances).
- * Lines must balance and carry either a debit or a credit. Wallets of merchants and riders
- * are left to their own screens, so their statements always tell the whole story.
+ * The checks of a free journal entry, run when it is entered (also when it then waits for a
+ * second person) and again when it is posted: a written reason, two or more lines each with
+ * either a debit or a credit, balanced, a day that is not in the future, accounts that exist
+ * and are open, no wallets of merchants, riders, suppliers or team members (they keep their
+ * own screens, so their statements always tell the whole story) and no riders' cash. Banks
+ * and cash boxes (store boxes included) may take part, but never in an accrual. With `lock`
+ * (inside the posting transaction) the banks and boxes are locked so two movements cannot
+ * spend the same money. Returns the signed lines, the moment and each bank or box's net.
  */
-export async function recordJournalEntry(
-  db: Db,
-  input: {
-    lines: { accountId: string; debitPiastres: number; creditPiastres: number }[];
-    reason: string;
-    day?: string;
-    /** An accrual: reversed by itself on the first day of the next month */
-    reverseNextMonth?: boolean;
-    actorUserId: string;
-    idempotencyKey: string;
-  },
-) {
+export async function checkJournalEntry(db: Db, input: JournalEntryInput, lock = false) {
   if (input.reason.trim().length < 5) throw new DomainError('reason_required', 400);
   const lines = input.lines.map((l) => {
     if (
@@ -534,31 +575,48 @@ export async function recordJournalEntry(
   if (lines.length < 2) throw new DomainError('invalid_line', 400);
   if (lines.reduce((s, l) => s + l.amount, 0) !== 0) throw new DomainError('not_balanced', 400);
   const at = eventTime(input.day);
+  const money = new Map<string, { account: LedgerAccount; net: number }>();
+  for (const l of lines) {
+    const account = await db.ledgerAccount.findUnique({ where: { id: l.accountId } });
+    if (!account) throw new DomainError('account_not_found', 404);
+    if (isWallet(account) && account.darkStoreId == null)
+      throw new DomainError('wallet_not_allowed');
+    if (account.groupCode === 1300) throw new DomainError('money_account_not_allowed');
+    if (!account.isActive) throw new DomainError('account_inactive');
+    if (MONEY_GROUPS.includes(account.groupCode)) {
+      const checked = lock
+        ? await openAccount(db, account.id, MONEY_GROUPS, 'account_not_found')
+        : account;
+      const seenMoney = money.get(account.id) ?? { account: checked, net: 0 };
+      seenMoney.net += l.amount;
+      money.set(account.id, seenMoney);
+    }
+  }
+  // An accrual is reversed by itself next month: real money never comes back that way.
+  if (input.reverseNextMonth && money.size) throw new DomainError('accrual_money_not_allowed');
+  return { lines, at, money };
+}
+
+/**
+ * A free journal entry for the accountant (accruals, reclassifications, opening balances).
+ * Checked by checkJournalEntry. Banks and cash boxes may take part (one payment spread over
+ * rent and electricity, Odoo style); the second person rule for them is applied before, by
+ * submitJournalEntry.
+ */
+export async function recordJournalEntry(
+  db: Db,
+  input: JournalEntryInput & { actorUserId: string; idempotencyKey: string },
+) {
+  // The checks that need no database fail before the transaction starts.
+  eventTime(input.day);
   return inTransaction(db, async (tx) => {
     const key = `journal:${input.idempotencyKey}`;
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;
-    // Banks and cash boxes may take part (one payment spread over rent and electricity, Odoo
-    // style); the second person rule for them is applied before, by submitJournalEntry.
-    // Riders' cash and the merchant and rider wallets keep their own screens.
-    const money = new Map<string, { account: LedgerAccount; net: number }>();
-    for (const l of lines) {
-      const account = await tx.ledgerAccount.findUnique({ where: { id: l.accountId } });
-      if (!account) throw new DomainError('account_not_found', 404);
-      if (isWallet(account) && account.darkStoreId == null)
-        throw new DomainError('wallet_not_allowed');
-      if (account.groupCode === 1300) throw new DomainError('money_account_not_allowed');
-      if (MONEY_GROUPS.includes(account.groupCode)) {
-        const locked = await openAccount(tx, account.id, MONEY_GROUPS, 'account_not_found');
-        const seenMoney = money.get(account.id) ?? { account: locked, net: 0 };
-        seenMoney.net += l.amount;
-        money.set(account.id, seenMoney);
-      }
-    }
-    // An accrual is reversed by itself next month: real money never comes back that way.
-    if (input.reverseNextMonth && money.size) throw new DomainError('accrual_money_not_allowed');
+    const { lines, at, money } = await checkJournalEntry(tx, input, true);
     // Money cannot leave a bank or box that does not hold it.
-    for (const { account, net } of money.values()) if (net < 0) await mustHold(tx, account, -net);
+    for (const { account, net } of money.values())
+      if (net < 0) await mustHold(tx, account, -net, at);
     const reverseOn = input.reverseNextMonth
       ? `${addMonthText(cairoDay(at).slice(0, 7), 1)}-01`
       : undefined;

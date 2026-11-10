@@ -56,13 +56,17 @@ function whoFor(actor: CrmActor, ownerId?: string | null) {
 
 // ─── counted fees and commission per rep and month ─────────────────────────────────
 
-/** Merchants won with their commission terms: the first win of each merchant. */
+/**
+ * Merchants won with their commission terms: the first win of each merchant. The first win
+ * is found over every rep's deals before keeping one rep's, so a merchant another rep won
+ * first never counts for a later winner.
+ */
 async function commissionDeals(db: Db, userId: string | null) {
   const deals = await db.crmDeal.findMany({
     where: {
       stage: 'won',
       merchantId: { not: null },
-      wonById: userId ?? { not: null },
+      wonById: { not: null },
       wonAt: { not: null },
     },
     select: {
@@ -79,11 +83,12 @@ async function commissionDeals(db: Db, userId: string | null) {
     orderBy: { wonAt: 'asc' },
   });
   const seen = new Set<string>();
-  return deals.filter((d) => {
+  const firstWins = deals.filter((d) => {
     if (seen.has(d.merchantId!)) return false;
     seen.add(d.merchantId!);
     return true;
   });
+  return userId ? firstWins.filter((d) => d.wonById === userId) : firstWins;
 }
 
 /** Fees before VAT booked to a merchant between two moments. */
