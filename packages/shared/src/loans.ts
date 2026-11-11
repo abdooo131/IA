@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { attachmentIdsField } from './attachments';
 import { isCalendarDay } from './hours';
 
 // Loans the company borrowed, cost tags, and bank accounts in another currency
@@ -162,6 +163,7 @@ const piastres = z.number().int().min(1).max(1_000_000_000);
 
 export const loanSchema = z
   .object({
+    attachmentIds: attachmentIdsField,
     /** In Egypt companies borrow only from banks (owner, 2026-11-11). */
     lender: z.literal('bank').default('bank'),
     /** The bank's name: one of EGYPT_BANKS (English name) or typed for another bank */
@@ -190,6 +192,7 @@ export type LoanBody = z.infer<typeof loanSchema>;
 
 /** Pays the next unpaid instalment of a loan from a bank or cash box. */
 export const loanPaymentSchema = z.object({
+  attachmentIds: attachmentIdsField,
   moneyAccountId: id,
   reference: z.string().trim().min(2).max(100),
   day: day.optional(),

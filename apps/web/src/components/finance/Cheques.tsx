@@ -16,7 +16,7 @@ import { newActionKey } from '@/lib/ids';
 import { isoToDayFirst } from '@/lib/day-first';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
-import { ReceiptField } from './ReceiptField';
+import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 // The cheques register: the list with its due panel, the form to register a cheque received
@@ -176,7 +176,8 @@ export function ChequeRegisterForm({ options }: { options: ChequeOptions }) {
     bankAccountId: options.banks[0]?.id ?? '',
     note: '',
   });
-  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
+  const [round, setRound] = useState(0);
   const set = (k: keyof typeof form) => (v: string) => setForm((f) => ({ ...f, [k]: v }));
   const name = (a: { code: string; nameEn: string; nameAr: string }) =>
     `${a.code} ${locale === 'ar' ? a.nameAr : a.nameEn}`;
@@ -207,7 +208,7 @@ export function ChequeRegisterForm({ options }: { options: ChequeOptions }) {
         ...(purpose === 'other_income' ? { incomeAccountId: form.incomeAccountId } : {}),
         ...(direction === 'issued' ? { bankAccountId: form.bankAccountId } : {}),
         ...(form.note.trim() ? { note: form.note } : {}),
-        ...(photoId ? { receiptPhotoId: photoId } : {}),
+        attachmentIds: files,
         idempotencyKey: newActionKey(),
       },
       () => t('registered'),
@@ -215,7 +216,7 @@ export function ChequeRegisterForm({ options }: { options: ChequeOptions }) {
     if (done) {
       setForm((f) => ({ ...f, chequeNumber: '', amount: '', partyName: '', note: '' }));
       formEl.reset();
-      setPhotoId(null);
+      setRound((r) => r + 1);
     }
   }
 
@@ -407,7 +408,7 @@ export function ChequeRegisterForm({ options }: { options: ChequeOptions }) {
       </Field>
       <div className="text-caption sm:col-span-2">
         <span className="mb-1 block">{t('photo')}</span>
-        <ReceiptField onChange={setPhotoId} />
+        <AttachmentField onChange={setFiles} resetKey={round} />
       </div>
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <button type="submit" disabled={busy} className={primary}>

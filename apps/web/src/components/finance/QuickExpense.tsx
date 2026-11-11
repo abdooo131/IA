@@ -11,7 +11,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { quickExpenseBody } from '@/lib/quick-expense';
-import { ReceiptField } from './ReceiptField';
+import { AttachmentField } from './AttachmentField';
 import { type CostTagOption, CostTagSelect } from './CostTagSelect';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
@@ -72,7 +72,7 @@ export function QuickExpense({
         day: String(f.get('day') ?? ''),
         reference: String(f.get('reference') ?? ''),
         note: String(f.get('note') ?? ''),
-        receiptPhotoId: String(f.get('receiptPhotoId') ?? ''),
+        receiptPhotoId: '',
       },
       today,
     );
@@ -83,6 +83,7 @@ export function QuickExpense({
       {
         ...body.value,
         costTagId: String(f.get('costTag') ?? '') || undefined,
+        attachmentIds: f.getAll('attachmentIds').map(String),
         idempotencyKey: key,
       },
       () => t('posted'),
@@ -241,7 +242,7 @@ export function QuickExpense({
         <span className="mt-1 block text-text-muted">{t('referenceHint')}</span>
       </label>
       <CostTagSelect tags={costTags} className={field} />
-      <ReceiptField />
+      <AttachmentField />
       {limitPiastres > 0 && (
         <p
           className={`text-body-sm sm:col-span-2 ${waits ? 'font-semibold text-status-needs-action' : 'text-text-muted'}`}

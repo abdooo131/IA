@@ -20,6 +20,7 @@ import type { Db } from '../client';
 import { getSetting } from '../settings';
 import { invoiceLabel } from './invoices';
 import { pettyStatusOf } from './cash-control';
+import { attachmentsFor, photoAttachment } from './attachments';
 
 // Document pages (Odoo form views): one descriptor per accounting document with its fields,
 // lines, smart buttons (counts linking to related records) and attachments. The web renders
@@ -37,20 +38,16 @@ const journalHref = (entryIds: string[], q: string) =>
     ? `/finance/journal/${entryIds[0]}`
     : `/finance/journal?q=${encodeURIComponent(q)}&f=`;
 
-async function receipts(
+/** The files of entries, a payout or a request (also through requests and payouts). */
+function receipts(
   db: Db,
   where: { entryId?: { in: string[] }; payoutId?: string; requestId?: string },
 ) {
-  const rows = await db.financeReceipt.findMany({
-    where,
-    include: { createdBy: { select: { name: true } } },
-    orderBy: { createdAt: 'asc' },
+  return attachmentsFor(db, {
+    entryIds: where.entryId?.in ?? [],
+    payoutIds: where.payoutId ? [where.payoutId] : [],
+    requestIds: where.requestId ? [where.requestId] : [],
   });
-  return rows.map((r) => ({
-    photoId: r.photoId,
-    at: r.createdAt.toISOString(),
-    by: r.createdBy.name,
-  }));
 }
 
 const base = (
@@ -137,6 +134,7 @@ async function payoutDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     ]),
     smart,
     attachments: files,
+    attachTarget: { payoutId: p.id },
     data: {
       merchantId: p.merchantId,
       amountPiastres: p.amountPiastres,
@@ -254,6 +252,7 @@ async function billDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       : null,
     smart,
     attachments: files,
+    attachTarget: b.entryId ? { entryId: b.entryId } : null,
     data: { supplierId: b.supplierId, darkStoreId: b.darkStoreId },
   });
 }
@@ -321,18 +320,64 @@ async function sourceOf(db: Db, e: { id: string; idempotencyKey: string; orderId
   return null;
 }
 
+/** The name an account shows: its own, else its owner's (a merchant's or rider's wallet). */
+function accountName(
+  a: {
+    nameEn: string | null;
+    nameAr: string | null;
+    merchant: { name: string } | null;
+    rider: { badgeCode: string; user: { name: string } } | null;
+    darkStore: { code: string; nameEn: string; nameAr: string } | null;
+    user: { name: string } | null;
+    supplier: { name: string } | null;
+  },
+  lang: 'en' | 'ar',
+) {
+  const own = lang === 'ar' ? (a.nameAr ?? a.nameEn) : (a.nameEn ?? a.nameAr);
+  if (own) return own;
+  if (a.merchant) return a.merchant.name;
+  if (a.rider) return `${a.rider.user.name} (${a.rider.badgeCode})`;
+  if (a.darkStore) return lang === 'ar' ? a.darkStore.nameAr : a.darkStore.nameEn;
+  if (a.supplier) return a.supplier.name;
+  if (a.user) return a.user.name;
+  return '';
+}
+
+const accountOwner = {
+  select: {
+    nameEn: true,
+    nameAr: true,
+    code: true,
+    merchant: { select: { name: true } },
+    rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+    darkStore: { select: { code: true, nameEn: true, nameAr: true } },
+    user: { select: { name: true } },
+    supplier: { select: { name: true } },
+  },
+} as const;
+
 async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   const e = await db.ledgerEntry.findUnique({
     where: { id },
     include: {
       createdBy: { select: { name: true } },
       order: { select: { id: true, number: true } },
+      requests: {
+        select: {
+          id: true,
+          requestedBy: { select: { name: true } },
+          decidedBy: { select: { name: true } },
+          decidedAt: true,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 1,
+      },
       lines: {
         include: {
-          account: { select: { code: true, nameEn: true, nameAr: true } },
+          account: accountOwner,
           darkStore: { select: { code: true } },
           merchant: { select: { name: true } },
-          rider: { select: { badgeCode: true } },
+          rider: { select: { badgeCode: true, user: { select: { name: true } } } },
         },
         orderBy: { amountPiastres: 'desc' },
       },
@@ -340,15 +385,28 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   });
   if (!e) return null;
   const number = entryNumber(e.number);
-  const [files, source] = await Promise.all([
+  const [files, source, company] = await Promise.all([
     receipts(db, { entryId: { in: [e.id] } }),
     sourceOf(db, e),
+    db.companyProfile.findUnique({
+      where: { id: 'company' },
+      select: { legalNameEn: true, legalNameAr: true, taxRegistrationNumber: true },
+    }),
   ]);
+  const request = e.requests[0] ?? null;
+  const reference = (e.data as { reference?: unknown } | null)?.reference;
   const smart: DocSmartButton[] = [
     { key: 'lines', count: e.lines.length, href: '#lines' },
     { key: 'receipts', count: files.length, href: '#attachments' },
   ];
   if (source) smart.push({ key: 'source', count: null, value: source.value, href: source.href });
+  if (request)
+    smart.push({
+      key: 'request',
+      count: null,
+      value: request.decidedBy?.name ?? request.requestedBy.name,
+      href: `/finance/approvals/${request.id}`,
+    });
   if (e.order)
     smart.push({
       key: 'order',
@@ -356,6 +414,10 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       value: e.order.number,
       href: `/admin/orders/${e.order.id}`,
     });
+  const total = e.lines.reduce((s, l) => s + Math.max(l.amountPiastres, 0), 0);
+  // Who made it: the person who asked when it went through a second person, else the poster.
+  const madeBy = request?.requestedBy.name ?? e.createdBy?.name ?? null;
+  const approvedBy = request?.decidedBy?.name ?? null;
   return base('ledger_entry', e.id, {
     number,
     title: e.memo ?? e.kind,
@@ -364,40 +426,51 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('kind', e.kind),
       f('day', cairoDay(e.occurredAt), 'date'),
       f('memo', e.memo, 'multiline'),
+      f('reference', typeof reference === 'string' ? reference : null, 'ltr'),
+      f('source', source?.value ?? null, 'ltr', source?.href),
       f(
         'order',
         e.order?.number ?? null,
         'ltr',
         e.order ? `/admin/orders/${e.order.id}` : undefined,
       ),
-      f('createdBy', e.createdBy?.name ?? null),
+      f('createdBy', madeBy),
       f('createdAt', iso(e.createdAt), 'datetime'),
-      f(
-        'amount',
-        e.lines.reduce((s, l) => s + Math.max(l.amountPiastres, 0), 0),
-        'money',
-      ),
+      f('approvedBy', approvedBy),
+      f('approvedAt', iso(request?.decidedAt), 'datetime'),
+      f('amount', total, 'money'),
     ]),
     lines: {
       columns: [
         { key: 'account', kind: 'text' },
-        { key: 'partner', kind: 'text' },
         { key: 'store', kind: 'ltr' },
+        { key: 'merchant', kind: 'text' },
+        { key: 'rider', kind: 'text' },
         { key: 'debit', kind: 'money' },
         { key: 'credit', kind: 'money' },
       ],
       rows: e.lines.map((l) => ({
         id: l.id,
-        account: `${l.account.code} ${l.account.nameEn}`,
-        accountAr: `${l.account.code} ${l.account.nameAr}`,
-        partner: l.merchant?.name ?? l.rider?.badgeCode ?? null,
+        account: `${l.account.code} ${accountName(l.account, 'en')}`.trim(),
+        accountAr: `${l.account.code} ${accountName(l.account, 'ar')}`.trim(),
         store: l.darkStore?.code ?? null,
+        merchant: l.merchant?.name ?? null,
+        rider: l.rider ? `${l.rider.user.name} (${l.rider.badgeCode})` : null,
         debit: l.amountPiastres > 0 ? l.amountPiastres : null,
         credit: l.amountPiastres < 0 ? -l.amountPiastres : null,
       })),
     },
     smart,
     attachments: files,
+    attachTarget: { entryId: e.id },
+    data: {
+      companyNameEn: company?.legalNameEn || null,
+      companyNameAr: company?.legalNameAr || null,
+      companyTaxNumber: company?.taxRegistrationNumber || null,
+      madeBy,
+      approvedBy,
+      sourceLabel: source?.value ?? null,
+    },
   });
 }
 
@@ -417,6 +490,16 @@ async function chequeDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     (x): x is string => !!x,
   );
   const number = chequeLabel(c.number);
+  const [requests, own] = await Promise.all([
+    db.financeRequest.findMany({
+      where: { payload: { path: ['input', 'chequeId'], equals: c.id } },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    c.photoId ? photoAttachment(db, c.photoId, c.createdAt, null) : null,
+  ]);
+  const linked = await attachmentsFor(db, { entryIds, requestIds: requests.map((r) => r.id) });
+  const files = [...(own ? [own] : []), ...linked.filter((a) => a.photoId !== c.photoId)];
   const smart: DocSmartButton[] = [
     { key: 'entries', count: entryIds.length, href: journalHref(entryIds, number) },
   ];
@@ -452,7 +535,12 @@ async function chequeDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('dueDate', dbDay(c.dueDate), 'date'),
     ]),
     smart,
-    attachments: c.photoId ? [{ photoId: c.photoId, at: c.createdAt.toISOString(), by: null }] : [],
+    attachments: files,
+    attachTarget: c.bookEntryId
+      ? { entryId: c.bookEntryId }
+      : requests[0]
+        ? { requestId: requests[0].id }
+        : null,
     data: { merchantId: c.merchantId },
   });
 }
@@ -507,6 +595,7 @@ async function withdrawalDoc(db: Db, id: string): Promise<DocDescriptor | null> 
     ]),
     smart,
     attachments: files,
+    attachTarget: w.entryId ? { entryId: w.entryId } : null,
     data: { darkStoreId: w.darkStoreId, riderId: w.riderId },
   });
 }
@@ -528,7 +617,10 @@ async function requestDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     unknown
   >;
   const text = (k: string) => (typeof input[k] === 'string' ? (input[k] as string) : null);
-  const files = await receipts(db, { requestId: r.id });
+  const files = await receipts(db, {
+    requestId: r.id,
+    entryId: r.entry ? { in: [r.entry.id] } : undefined,
+  });
   const smart: DocSmartButton[] = [{ key: 'receipts', count: files.length, href: '#attachments' }];
   if (r.entry)
     smart.push({
@@ -556,6 +648,7 @@ async function requestDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     ]),
     smart,
     attachments: files,
+    attachTarget: r.entry ? { entryId: r.entry.id } : { requestId: r.id },
     data: { requestedById: r.requestedById, darkStoreId: text('darkStoreId') },
   });
 }
@@ -615,7 +708,20 @@ async function pettyDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('reason', p.reverseReason, 'multiline'),
     ]),
     smart,
-    attachments: [{ photoId: p.photoId, at: p.createdAt.toISOString(), by: p.createdBy.name }],
+    attachments: [
+      await photoAttachment(db, p.photoId, p.createdAt, p.createdBy.name),
+      ...(
+        await attachmentsFor(db, {
+          entryIds: [p.entry?.id, p.reversalEntry?.id].filter((x): x is string => !!x),
+          requestIds: p.request ? [p.request.id] : [],
+        })
+      ).filter((a) => a.photoId !== p.photoId),
+    ],
+    attachTarget: p.entry
+      ? { entryId: p.entry.id }
+      : p.request
+        ? { requestId: p.request.id }
+        : null,
     data: { darkStoreId: p.darkStoreId },
   });
 }
@@ -778,7 +884,13 @@ async function claimDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('reason', c.rejectReason, 'multiline'),
     ]),
     smart,
-    attachments: [{ photoId: c.photoId, at: c.createdAt.toISOString(), by: c.user.name }],
+    attachments: [
+      await photoAttachment(db, c.photoId, c.createdAt, c.user.name),
+      ...(c.entry ? await attachmentsFor(db, { entryIds: [c.entry.id] }) : []).filter(
+        (a) => a.photoId !== c.photoId,
+      ),
+    ],
+    attachTarget: c.entry ? { entryId: c.entry.id } : null,
     actions: c.status === 'pending_accounting' ? ['pay', 'reject'] : [],
     data: {
       darkStoreId: c.darkStoreId,
@@ -864,7 +976,13 @@ async function basataDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('settledOn', d.settlement ? dbDay(d.settlement.receivedOn) : null, 'date'),
     ]),
     smart,
-    attachments: [{ photoId: d.photoId, at: d.createdAt.toISOString(), by: d.rider.user.name }],
+    attachments: [
+      await photoAttachment(db, d.photoId, d.createdAt, d.rider.user.name),
+      ...(d.entry ? await attachmentsFor(db, { entryIds: [d.entry.id] }) : []).filter(
+        (a) => a.photoId !== d.photoId,
+      ),
+    ],
+    attachTarget: d.entry ? { entryId: d.entry.id } : null,
     actions: d.status === 'pending' ? ['approve', 'reject'] : [],
     data: {
       darkStoreId: d.darkStoreId,

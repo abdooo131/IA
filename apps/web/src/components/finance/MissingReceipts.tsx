@@ -1,25 +1,26 @@
 'use client';
 
+import Link from 'next/link';
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { MissingReceipt } from '@/lib/finance-types';
 import { formatCairoDateTime } from '@/lib/format';
 import { Amount } from './Amount';
-import { ReceiptField } from './ReceiptField';
+import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 function Row({ entry }: { entry: MissingReceipt }) {
   const t = useTranslations('finance');
   const locale = useLocale();
   const action = useFinanceAction();
-  const [photo, setPhoto] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
   return (
     <li className="space-y-2 px-3 py-3 text-body-sm">
       <div className="flex flex-wrap justify-between gap-2">
         <span>
-          <span className="ltr-iso me-2 font-bold text-link">
+          <Link href={`/finance/journal/${entry.id}`} className="ltr-iso me-2 font-bold text-link">
             JV-{String(entry.number).padStart(6, '0')}
-          </span>
+          </Link>
           {t.has(`kinds.${entry.kind}`) ? t(`kinds.${entry.kind}`) : entry.kind}
           {entry.memo && <span className="text-text-muted"> · {entry.memo}</span>}
         </span>
@@ -29,12 +30,12 @@ function Row({ entry }: { entry: MissingReceipt }) {
         </span>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <ReceiptField onChange={setPhoto} />
+        <AttachmentField onChange={setFiles} />
         <button
           type="button"
-          disabled={!photo || action.busy}
+          disabled={files.length === 0 || action.busy}
           onClick={() =>
-            void action.send('POST', '/finance/attachments', { entryId: entry.id, photoId: photo })
+            void action.send('POST', '/finance/attachments', { entryId: entry.id, photoIds: files })
           }
           className="h-10 rounded-md bg-primary px-4 font-bold text-on-primary disabled:opacity-50"
         >

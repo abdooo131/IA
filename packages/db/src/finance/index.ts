@@ -359,3 +359,20 @@ export {
   unfreezeRider,
   unsettledBasataDeposits,
 } from './basata';
+export {
+  type AttachmentView,
+  type AttachTarget,
+  attachmentIdsOf,
+  attachmentsFor,
+  claimRecordPhoto,
+  discardFinanceFile,
+  FINANCE_FILE_TYPES,
+  linkAttachments,
+  MAX_ATTACHMENTS,
+  MAX_FINANCE_IMAGE_BYTES,
+  MAX_FINANCE_PDF_BYTES,
+  movementTarget,
+  purgeUnlinkedUploads,
+  saveFinanceFile,
+  withAttachments,
+} from './attachments';

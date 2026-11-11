@@ -108,7 +108,7 @@ export default async function AccountStatementPage({
                   </td>
                   <td className="px-3 py-2">
                     <Link
-                      href={`/finance/journal?number=${l.number}`}
+                      href={`/finance/journal/${l.entryId}`}
                       className="ltr-iso font-bold text-link"
                     >
                       {l.number}

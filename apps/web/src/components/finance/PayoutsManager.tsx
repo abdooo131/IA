@@ -6,7 +6,7 @@ import type { PayoutRow } from '@/lib/finance-types';
 import { formatCairoDateTime, formatCutoffDay } from '@/lib/format';
 import { Amount } from './Amount';
 import { BankSelect } from './BankSelect';
-import { ReceiptField } from './ReceiptField';
+import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { DateInput } from '@/components/DateInput';
 
@@ -24,7 +24,7 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
   const [bank, setBank] = useState('');
   const [cancelNote, setCancelNote] = useState('');
   const [cancelling, setCancelling] = useState(false);
-  const [slip, setSlip] = useState<string | null>(null);
+  const [slips, setSlips] = useState<string[]>([]);
   return (
     <li className="space-y-2 rounded-lg border border-line bg-surface p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -62,7 +62,7 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
           </p>
         )
       )}
-      <ReceiptField onChange={setSlip} />
+      <AttachmentField onChange={setSlips} />
       <div className="flex flex-wrap gap-2">
         <input
           value={reference}
@@ -81,7 +81,7 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
             void action.send('POST', `/finance/payouts/${payout.id}/paid`, {
               reference,
               bankAccountId: bank || undefined,
-              receiptPhotoId: slip ?? undefined,
+              attachmentIds: slips,
             })
           }
         >

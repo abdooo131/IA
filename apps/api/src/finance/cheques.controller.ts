@@ -15,6 +15,7 @@ import {
   merchantProfitDetail,
   registerCheque,
   submitDeposit,
+  withAttachments,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -91,7 +92,13 @@ export class ChequesController {
     @Body(new ZodValidationPipe(chequeSchema)) body: ChequeBody,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const result = await registerCheque(this.prisma, { ...body, actorUserId: user.sub });
+    const { attachmentIds, ...rest } = body;
+    // Files go to the booking entry, or to its request while it waits for a second person.
+    const result = await withAttachments(
+      this.prisma,
+      { ids: attachmentIds, actorUserId: user.sub },
+      (db) => registerCheque(db, { ...rest, actorUserId: user.sub }),
+    );
     return {
       id: result.cheque.id,
       status: result.status,
@@ -158,8 +165,11 @@ export class ChequesController {
     @Body(new ZodValidationPipe(depositSchema)) body: DepositBody,
     @CurrentUser() user: AccessTokenClaims,
   ) {
+    const { attachmentIds, ...rest } = body;
     return submitted(
-      await submitDeposit(this.prisma, { ...body, merchantId, actorUserId: user.sub }),
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitDeposit(db, { ...rest, merchantId, actorUserId: user.sub }),
+      ),
     );
   }
 

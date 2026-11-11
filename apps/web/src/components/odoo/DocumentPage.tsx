@@ -86,6 +86,7 @@ export async function DocumentPage({
       actions={actions}
       smart={doc.smart}
       attachments={doc.attachments}
+      attachTarget={doc.attachTarget ?? null}
       entityType={doc.entityType}
       canWrite={canWrite}
     >

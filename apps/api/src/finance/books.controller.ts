@@ -16,6 +16,7 @@ import {
   transferMoney,
   trialBalance,
   updateAccount,
+  withAttachments,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -183,7 +184,15 @@ export class BooksController {
     @Body(new ZodValidationPipe(moneyTransferSchema)) body: z.infer<typeof moneyTransferSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return voucher(await transferMoney(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return voucher(
+      await withAttachments(
+        this.prisma,
+        { ids: attachmentIds, actorUserId: user.sub },
+        (db) => transferMoney(db, { ...rest, actorUserId: user.sub }),
+        (entry) => ({ entryId: entry.id }),
+      ),
+    );
   }
 
   @Post('expenses')
@@ -191,7 +200,12 @@ export class BooksController {
     @Body(new ZodValidationPipe(expenseSchema)) body: z.infer<typeof expenseSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitExpense(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitExpense(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   @Post('capital')
@@ -199,12 +213,12 @@ export class BooksController {
     @Body(new ZodValidationPipe(capitalSchema)) body: z.infer<typeof capitalSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const { direction, ...rest } = body;
+    const { direction, attachmentIds, ...rest } = body;
     const input = { ...rest, actorUserId: user.sub };
     return submitted(
-      direction === 'in'
-        ? await submitCapitalIn(this.prisma, input)
-        : await submitDrawings(this.prisma, input),
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        direction === 'in' ? submitCapitalIn(db, input) : submitDrawings(db, input),
+      ),
     );
   }
 
@@ -213,7 +227,12 @@ export class BooksController {
     @Body(new ZodValidationPipe(otherIncomeSchema)) body: z.infer<typeof otherIncomeSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitOtherIncome(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitOtherIncome(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   @Post('journal-entries')
@@ -221,7 +240,12 @@ export class BooksController {
     @Body(new ZodValidationPipe(journalEntrySchema)) body: z.infer<typeof journalEntrySchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitJournalEntry(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitJournalEntry(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   @Get('profit-and-loss')

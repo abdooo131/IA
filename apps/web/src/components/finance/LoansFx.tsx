@@ -12,6 +12,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
+import { useAttachments } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 // Loans the company borrowed, the user's own cost tags and the month end revaluation of
@@ -90,6 +91,7 @@ export function NewLoan({ money }: { money: BookAccount[] }) {
   const t = useTranslations('loansFx.loans');
   const locale = useLocale();
   const action = useFinanceAction();
+  const files = useAttachments();
   const today = cairoDay(new Date());
   const blank = {
     /** One of EGYPT_BANKS (English name), or OTHER with the name typed in otherBank */
@@ -145,12 +147,14 @@ export function NewLoan({ money }: { money: BookAccount[] }) {
         firstPaymentDay: l.firstPaymentDay,
         reference: l.reference.trim(),
         memo: l.memo.trim() || undefined,
+        attachmentIds: files.ids,
         idempotencyKey: key,
       },
       () => t('saved'),
     );
     if (ok) {
       setL(blank);
+      files.reset();
       setKey(newActionKey());
     }
   }
@@ -300,11 +304,12 @@ export function NewLoan({ money }: { money: BookAccount[] }) {
           </p>
         </div>
       )}
+      {files.field()}
       <FormFooter
         dirty={dirty}
         busy={action.busy}
         saveLabel={t('save')}
-        disabled={!ready}
+        disabled={!ready || files.busy}
         onSave={() => void save()}
         onCancel={() => setL(blank)}
       />
@@ -381,6 +386,7 @@ export function LoanDetail({ loan, money }: { loan: LoanDetailData; money: BookA
   const t = useTranslations('loansFx.loans');
   const locale = useLocale();
   const action = useFinanceAction();
+  const files = useAttachments();
   const today = cairoDay(new Date());
   const [from, setFrom] = useState(loan.moneyAccount.id);
   const [reference, setReference] = useState('');
@@ -394,11 +400,18 @@ export function LoanDetail({ loan, money }: { loan: LoanDetailData; money: BookA
     const ok = await action.send<{ number?: string }>(
       'POST',
       `/finance/loans/${loan.id}/pay`,
-      { moneyAccountId: from, reference: reference.trim(), day, idempotencyKey: key },
+      {
+        moneyAccountId: from,
+        reference: reference.trim(),
+        day,
+        attachmentIds: files.ids,
+        idempotencyKey: key,
+      },
       (d) => t('paid', { number: d.number ?? '' }),
     );
     if (ok) {
       setReference('');
+      files.reset();
       setKey(newActionKey());
     }
   }
@@ -479,10 +492,11 @@ export function LoanDetail({ loan, money }: { loan: LoanDetailData; money: BookA
               />
             </label>
           </div>
+          {files.field()}
           <button
             type="button"
             className={primary}
-            disabled={action.busy || reference.trim().length < 2 || !from}
+            disabled={action.busy || files.busy || reference.trim().length < 2 || !from}
             onClick={() => void pay()}
           >
             {t('pay')}

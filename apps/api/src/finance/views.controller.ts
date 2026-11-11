@@ -1,5 +1,5 @@
-import { Body, Controller, Get, NotFoundException, Param, Post, Query } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { Body, Controller, Get, NotFoundException, Param, Post, Query, Res } from '@nestjs/common';
+import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   accountingDocument,
   bulkApprovePayouts,
@@ -22,12 +22,14 @@ import {
   type ListQuery,
   listQuerySchema,
 } from '@shiplynow/shared';
+import type { Response } from 'express';
 import type { z } from 'zod';
 import { assertMerchant, assertStore, limitedMerchants, limitedStores } from '../auth/access-scope';
 import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
+import { journalVoucherPdf } from './voucher-pdf';
 
 /** The person's scope for lists, the dashboard and the search. */
 export function scopeOf(user: AccessTokenClaims, access: AccessProfile): ListScope {
@@ -102,6 +104,32 @@ export class FinanceViewsController {
     const merchant = doc.data.merchantId;
     if (typeof merchant === 'string') assertMerchant(access, merchant);
     return doc;
+  }
+
+  /**
+   * A journal entry's voucher as a PDF in English or Arabic (?lang=). ?kind= is the entry's
+   * type in plain words as the page shows it (printed as text only).
+   */
+  @Get('journal/:id/voucher.pdf')
+  @ApiQuery({ name: 'lang', required: false, enum: ['en', 'ar'] })
+  @ApiQuery({ name: 'kind', required: false })
+  async voucher(
+    @Param('id') id: string,
+    @Query('lang') lang: string | undefined,
+    @Query('kind') kind: string | undefined,
+    @Res() res: Response,
+  ) {
+    const doc = await accountingDocument(this.prisma, 'ledger_entry', id);
+    if (!doc) throw new NotFoundException({ error: 'not_found' });
+    const language = lang === 'ar' ? 'ar' : 'en';
+    const pdf = await journalVoucherPdf(doc, language, kind ? kind.slice(0, 80) : null);
+    res.setHeader('content-type', 'application/pdf');
+    res.setHeader(
+      'content-disposition',
+      `attachment; filename="${doc.number.toLowerCase()}-${language}.pdf"`,
+    );
+    res.setHeader('cache-control', 'private, no-store');
+    res.send(pdf);
   }
 
   /** Finds a document by number, an order or a merchant. */

@@ -37,7 +37,7 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
     ) : null;
   const entry = (e: { id: string; number: string } | null) =>
     e ? (
-      <Link href={`/finance/journal?q=${e.number}&f=`} className="ltr-iso font-bold text-link">
+      <Link href={`/finance/journal/${e.id}`} className="ltr-iso font-bold text-link">
         {e.number}
       </Link>
     ) : null;

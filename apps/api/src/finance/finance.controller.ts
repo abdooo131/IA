@@ -18,6 +18,8 @@ import {
   reviewCashHandover,
   submitMerchantAdjustment,
   submitMerchantReceipt,
+  linkAttachments,
+  withAttachments,
 } from '@shiplynow/db';
 import {
   type AccessProfile,
@@ -98,14 +100,23 @@ export class FinanceController {
     @Body(new ZodValidationPipe(bankDepositSchema)) body: z.infer<typeof bankDepositSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const { receiptPhotoId, ...rest } = body;
-    const entry = await recordBankDeposit(this.prisma, { ...rest, actorUserId: user.sub });
-    if (receiptPhotoId)
-      await attachReceipt(this.prisma, {
-        entryId: entry.id,
-        photoId: receiptPhotoId,
+    const { receiptPhotoId, attachmentIds, ...rest } = body;
+    // The deposit, its receipt and its files are saved together.
+    const entry = await this.prisma.$transaction(async (tx) => {
+      const posted = await recordBankDeposit(tx, { ...rest, actorUserId: user.sub });
+      if (receiptPhotoId)
+        await attachReceipt(tx, {
+          entryId: posted.id,
+          photoId: receiptPhotoId,
+          actorUserId: user.sub,
+        });
+      await linkAttachments(tx, {
+        ids: attachmentIds,
         actorUserId: user.sub,
+        target: { entryId: posted.id },
       });
+      return posted;
+    });
     return { id: entry.id };
   }
 
@@ -162,12 +173,19 @@ export class FinanceController {
     @Body(new ZodValidationPipe(payoutPaidSchema)) body: z.infer<typeof payoutPaidSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const result = await markPayoutPaid(this.prisma, {
-      payoutId: id,
-      reference: body.reference,
-      bankAccountId: body.bankAccountId,
-      actorUserId: user.sub,
-    });
+    // Files chosen in the form are linked to the payout in the payment's transaction.
+    const result = await withAttachments(
+      this.prisma,
+      { ids: body.attachmentIds, actorUserId: user.sub },
+      (db) =>
+        markPayoutPaid(db, {
+          payoutId: id,
+          reference: body.reference,
+          bankAccountId: body.bankAccountId,
+          actorUserId: user.sub,
+        }),
+      () => ({ payoutId: id }),
+    );
     if (body.receiptPhotoId)
       await attachReceipt(this.prisma, {
         payoutId: id,
@@ -191,7 +209,12 @@ export class FinanceController {
     @Body(new ZodValidationPipe(merchantReceiptSchema)) body: z.infer<typeof merchantReceiptSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitMerchantReceipt(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitMerchantReceipt(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   @Post('adjustments')

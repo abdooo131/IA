@@ -143,7 +143,7 @@ async function openLedgerLines(tx: Tx | Db, accountId: string, from?: Date) {
       bankMatch: null,
       ...(from ? { occurredAt: { gte: from } } : {}),
     },
-    include: { entry: { select: { number: true, kind: true, memo: true } } },
+    include: { entry: { select: { id: true, number: true, kind: true, memo: true } } },
     orderBy: { occurredAt: 'asc' },
   });
 }
@@ -455,6 +455,7 @@ export async function reconciliation(db: Db, input: { accountId: string; day?: s
     })),
     booksOnly: booksOpen.map((l) => ({
       id: l.id,
+      entryId: l.entry.id,
       entryNumber: l.entry.number,
       kind: l.entry.kind,
       memo: l.entry.memo,

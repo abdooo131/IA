@@ -22,6 +22,7 @@ import {
   taxesOwed,
   updateSupplier,
   whtReport,
+  withAttachments,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -103,7 +104,14 @@ export class PayablesController {
     @Body(new ZodValidationPipe(billSchema)) body: z.infer<typeof billSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    const bill = await recordBill(this.prisma, { ...body, actorUserId: user.sub });
+    const { attachmentIds, ...rest } = body;
+    // The supplier's invoice is linked to the bill's entry in the same transaction.
+    const bill = await withAttachments(
+      this.prisma,
+      { ids: attachmentIds, actorUserId: user.sub },
+      (db) => recordBill(db, { ...rest, actorUserId: user.sub }),
+      (b) => (b.entryId ? { entryId: b.entryId } : null),
+    );
     return { id: bill.id, number: billNumber(bill.number) };
   }
 
@@ -127,8 +135,11 @@ export class PayablesController {
     @Body(new ZodValidationPipe(billPaymentSchema)) body: z.infer<typeof billPaymentSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
+    const { attachmentIds, ...rest } = body;
     return submitted(
-      await submitBillPayment(this.prisma, { ...body, billId: id, actorUserId: user.sub }),
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitBillPayment(db, { ...rest, billId: id, actorUserId: user.sub }),
+      ),
     );
   }
 
@@ -162,7 +173,12 @@ export class PayablesController {
     @Body(new ZodValidationPipe(taxPaymentSchema)) body: z.infer<typeof taxPaymentSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitTaxPayment(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitTaxPayment(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   // ─── recurring expenses ────────────────────────────────────────────────────
@@ -215,7 +231,12 @@ export class PayablesController {
     @Body(new ZodValidationPipe(prepaymentSchema)) body: z.infer<typeof prepaymentSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitPrepayment(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitPrepayment(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   @Get('assets')
@@ -228,7 +249,12 @@ export class PayablesController {
     @Body(new ZodValidationPipe(assetSchema)) body: z.infer<typeof assetSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitAssetPurchase(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitAssetPurchase(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   // ─── merchants who owe us ──────────────────────────────────────────────────
