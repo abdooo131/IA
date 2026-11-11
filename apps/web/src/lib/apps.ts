@@ -143,6 +143,7 @@ export const APPS: AppDef[] = [
         pages: [
           { href: '/finance', label: 'accountingDashboard', exact: true },
           { href: '/finance/approvals', label: 'approvals' },
+          { href: '/finance/due', label: 'paymentsDue' },
         ],
       },
       {

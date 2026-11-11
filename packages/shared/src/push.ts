@@ -34,6 +34,7 @@ export const PUSH_TYPES = [
   'expense_claim',
   'basata_deposit',
   'rider_frozen',
+  'payment_due',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -68,7 +69,8 @@ export function pushTypesFor(me: MyAccess): PushType[] {
   const p: AccessProfile = me.profile;
   const list: PushType[] = [];
   if (canDo(p, 'store', 'use')) list.push('order_new', 'order_late', 'stock_arriving');
-  if (canDo(p, 'accounting', 'use')) list.push('finance_approval', 'cash_difference');
+  if (canDo(p, 'accounting', 'use'))
+    list.push('finance_approval', 'cash_difference', 'payment_due');
   if (canDo(p, 'store', 'manage') || canDo(p, 'accounting', 'use'))
     list.push('rider_cash_overdue', 'rider_frozen');
   if (canDo(p, 'operations', 'manage')) list.push('ops_alert');
@@ -409,6 +411,15 @@ export const PUSH_TEXT = {
     en: ['You can work again', 'Accounting unfroze your account.'],
     ar: ['يمكنك العمل مرة أخرى', 'الحسابات ألغت إيقاف حسابك.'],
   },
+  // "Coming up and due": a payment is due in finance.due_reminder_days days, or today.
+  payment_due_soon: {
+    en: ['Due on {day}: {kind}', '{label}{party}: {amount} EGP. Open Coming up and due.'],
+    ar: ['مستحق يوم {day}: {kind}', '{label}{party}: {amount} جنيه. افتح المستحقات القادمة.'],
+  },
+  payment_due_today: {
+    en: ['Due today: {kind}', '{label}{party}: {amount} EGP.'],
+    ar: ['مستحق اليوم: {kind}', '{label}{party}: {amount} جنيه.'],
+  },
   correction_waiting_manager: {
     en: ['Attendance fix from {person}', '{day}: {problem}'],
     ar: ['طلب تصحيح حضور من {person}', '{day}: {problem}'],
@@ -507,3 +518,16 @@ export interface MyPush {
     failures: number;
   }[];
 }
+
+/** The kinds of "Coming up and due" in words, for notifications. */
+export const PAYMENT_DUE_KIND_WORDS: Record<
+  'recurring' | 'bill' | 'loan' | 'salaries' | 'tax' | 'payout',
+  { en: string; ar: string }
+> = {
+  recurring: { en: 'Recurring expense', ar: 'مصروف متكرر' },
+  bill: { en: 'Supplier bill', ar: 'فاتورة مورد' },
+  loan: { en: 'Loan instalment', ar: 'قسط قرض' },
+  salaries: { en: 'Salaries', ar: 'المرتبات' },
+  tax: { en: 'Taxes', ar: 'الضرائب' },
+  payout: { en: 'Merchant payouts', ar: 'مدفوعات التجار' },
+};

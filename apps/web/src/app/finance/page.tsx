@@ -2,6 +2,7 @@ import { getLocale, getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import { Sparkline } from '@/components/charts/Sparkline';
 import { Icon, type IconName } from '@/components/Icon';
+import { type PaymentsDueData, PaymentsDueGroups } from '@/components/finance/PaymentsDue';
 import { canDo } from '@shiplynow/shared';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
@@ -58,8 +59,9 @@ const ICONS: Record<string, IconName> = {
  * invoices, rider withdrawals and approvals, each with its balance, 30 days and what waits.
  */
 export default async function FinanceDashboardPage() {
-  const [data, t, tf, locale, me] = await Promise.all([
+  const [data, due, t, tf, locale, me] = await Promise.all([
     apiGet<Dashboard>('/finance/dashboard'),
+    apiGet<PaymentsDueData>('/finance/payments-due?days=30'),
     getTranslations('finance.dashboard'),
     getTranslations('finance'),
     getLocale(),
@@ -197,6 +199,24 @@ export default async function FinanceDashboardPage() {
               </ul>
             )}
           </div>
+        </div>
+      </section>
+
+      <section
+        aria-labelledby="coming-due"
+        className="mt-5 rounded-lg border border-line bg-surface p-4"
+      >
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 id="coming-due" className="text-h3">
+            {t('due.title')}
+          </h2>
+          <Link href="/finance/due" className="text-body-sm font-bold text-link">
+            {t('due.seeAll')}
+          </Link>
+        </div>
+        <p className="mt-1 text-body-sm text-text-muted">{t('due.intro')}</p>
+        <div className="mt-3">
+          <PaymentsDueGroups data={due} limit={5} />
         </div>
       </section>
 

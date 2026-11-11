@@ -7,6 +7,7 @@ import {
   financeDashboard,
   financeSearch,
   type ListScope,
+  paymentsDue,
   queryFinanceList,
 } from '@shiplynow/db';
 import {
@@ -21,6 +22,8 @@ import {
   type FinanceListId,
   type ListQuery,
   listQuerySchema,
+  type PaymentsDueQuery,
+  paymentsDueQuerySchema,
 } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { assertMerchant, assertStore, limitedMerchants, limitedStores } from '../auth/access-scope';
@@ -61,6 +64,24 @@ export class FinanceViewsController {
       stores: limitedStores(access),
       canApprove: canDo(access, 'accounting', 'manage'),
       now: this.clock.now(),
+    });
+  }
+
+  /**
+   * Coming up and due: known payments (recurring expenses, supplier bills, loan instalments,
+   * salaries, taxes, merchant payouts) up to `days` ahead (30 on the dashboard, 90 on the full
+   * page), grouped overdue, within 7 days, within 30 days and later. People limited to some
+   * stores see their stores' items and company wide ones, never merchant payouts.
+   */
+  @Get('payments-due')
+  due(
+    @Query(new ZodValidationPipe(paymentsDueQuerySchema)) query: PaymentsDueQuery,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    return paymentsDue(this.prisma, this.clock.now(), {
+      stores: limitedStores(access),
+      days: query.days,
+      kinds: query.kinds,
     });
   }
 
