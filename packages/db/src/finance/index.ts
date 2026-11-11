@@ -151,6 +151,7 @@ export {
   payoutRun,
   prepareDuePayouts,
 } from './payout-run';
+export { type BudgetCell, budgetYear, copyBudgetYear, setQuarterBudget } from './budgets';
 export {
   budgetVsActual,
   cashFlow,

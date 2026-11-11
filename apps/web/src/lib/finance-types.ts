@@ -556,6 +556,57 @@ export interface BudgetReport {
   costs: { budgetPiastres: number; actualPiastres: number };
 }
 
+export interface BudgetCell {
+  budgetPiastres: number;
+  actualPiastres: number;
+  /** Better than plan is positive */
+  variancePiastres: number;
+  /** Variance as a share of the budget, null without a budget */
+  percentBp: number | null;
+}
+
+export interface BudgetMonthCell extends BudgetCell {
+  month: string;
+  quarter: number;
+  /** Changed by hand after the quarter was split */
+  manual: boolean;
+}
+
+export interface BudgetQuarterCell extends BudgetCell {
+  quarter: number;
+  edited: boolean;
+  uneven: boolean;
+}
+
+export interface BudgetTotals {
+  months: (BudgetCell & { month: string })[];
+  quarters: (BudgetCell & { quarter: number })[];
+  year: BudgetCell;
+}
+
+export interface BudgetYearReport {
+  year: number;
+  /** 'all', 'company' or a store id */
+  scope: string;
+  groupCode: number | null;
+  groups: number[];
+  rows: {
+    accountId: string;
+    code: string;
+    groupCode: number;
+    category: 'revenue' | 'expense';
+    nameEn: string;
+    nameAr: string;
+    isActive: boolean;
+    months: BudgetMonthCell[];
+    quarters: BudgetQuarterCell[];
+    year: BudgetCell;
+  }[];
+  income: BudgetTotals;
+  costs: BudgetTotals;
+  profit: BudgetTotals;
+}
+
 export interface CashFlowReport {
   from: string;
   to: string;
