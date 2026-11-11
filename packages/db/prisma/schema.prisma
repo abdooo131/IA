@@ -2642,6 +2642,8 @@ model Budget {
   accountId      String   @map("account_id")
   darkStoreId    String?  @map("dark_store_id")
   amountPiastres Int      @map("amount_piastres")
+  /// Changed by hand after its quarter was split equally (or set month by month)
+  manual         Boolean  @default(false)
   updatedById    String   @map("updated_by_id")
   updatedAt      DateTime @default(now()) @map("updated_at")
 
@@ -2649,6 +2651,7 @@ model Budget {
   darkStore DarkStore?    @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
   updatedBy User          @relation("budget_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
 
+  @@index([month])
   @@map("budgets")
 }
 

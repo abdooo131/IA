@@ -86,7 +86,10 @@ export async function vatReport(db: Db, year: number) {
 
 // ─── budgets ───────────────────────────────────────────────────────────────────
 
-/** Sets (or clears with 0) the budget of an income or expense account for a month. */
+/**
+ * Sets (or clears with 0) the budget of an income or expense account for a month. The month
+ * counts as changed by hand: its quarter (budgets.ts) is then the sum of its months.
+ */
 export async function setBudget(
   db: Db,
   input: {
@@ -115,6 +118,7 @@ export async function setBudget(
           where: { id: before.id },
           data: {
             amountPiastres: input.amountPiastres,
+            manual: true,
             updatedById: input.actorUserId,
             updatedAt: new Date(),
           },
@@ -125,6 +129,7 @@ export async function setBudget(
             accountId: account.id,
             darkStoreId: storeId,
             amountPiastres: input.amountPiastres,
+            manual: true,
             updatedById: input.actorUserId,
           },
         });
@@ -133,8 +138,9 @@ export async function setBudget(
       action: 'finance.budget_set',
       entityType: 'budget',
       entityId: row.id,
-      before: { amount: before?.amountPiastres ?? null },
+      before: { amount: before?.amountPiastres ?? null, manual: before?.manual ?? null },
       after: {
+        manual: true,
         month: input.month,
         account: account.code,
         store: storeId,

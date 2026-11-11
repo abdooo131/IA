@@ -17,19 +17,16 @@ import type {
   BankReconciliation,
   BankStatementRow,
   BookAccount,
-  BudgetReport,
   CashFlowReport,
   CashForecast,
-  StoreOption,
   VatReport,
   YearStatus,
 } from '@/lib/finance-types';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
-import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
-// Bank reconciliation, VAT per month, budgets, cash flow with a four week forecast, and
+// Bank reconciliation, VAT per month, cash flow with a four week forecast, and
 // the year end with the exports for the accountant and the auditor.
 
 const field = 'h-10 w-full rounded-md border border-line bg-surface px-2 text-body-sm';
@@ -626,152 +623,6 @@ export function VatView({ report }: { report: VatReport }) {
         </tr>
       </Table>
       <p className="text-caption text-text-muted">{t('vatHint')}</p>
-    </div>
-  );
-}
-
-// ─── budgets ─────────────────────────────────────────────────────────────────
-
-function BudgetCell({
-  row,
-  month,
-  storeId,
-}: {
-  row: BudgetReport['rows'][number];
-  month: string;
-  storeId: string;
-}) {
-  const t = useTranslations('finance.period');
-  const action = useFinanceAction();
-  const [text, setText] = useState(row.budgetPiastres ? (row.budgetPiastres / 100).toFixed(2) : '');
-  const value = text.trim() === '' ? 0 : parseEgp(text);
-  return (
-    <span className="flex items-center justify-end gap-2">
-      <input
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        inputMode="decimal"
-        dir="ltr"
-        aria-label={t('budget')}
-        placeholder="0.00"
-        className={`${field} w-28 text-end`}
-      />
-      <button
-        type="button"
-        className={secondary}
-        disabled={action.busy || value === null || value === row.budgetPiastres}
-        onClick={() =>
-          void action.send('PUT', '/finance/budgets', {
-            month,
-            accountId: row.accountId,
-            darkStoreId: storeId || undefined,
-            amountPiastres: value,
-          })
-        }
-      >
-        {t('save')}
-      </button>
-      {action.message?.error && <ActionMessage message={action.message} />}
-    </span>
-  );
-}
-
-export function Budgets({ report, stores }: { report: BudgetReport; stores: StoreOption[] }) {
-  const t = useTranslations('finance.period');
-  const locale = useLocale();
-  const router = useRouter();
-  const storeId = report.darkStoreId ?? '';
-  const go = (month: string, store: string) =>
-    router.push(`?${new URLSearchParams({ month, ...(store ? { storeId: store } : {}) })}`);
-  const section = (category: 'revenue' | 'expense') => {
-    const rows = report.rows.filter((r) => r.category === category);
-    return (
-      <section className="space-y-2">
-        <h2 className="text-h3">{category === 'revenue' ? t('income') : t('costs')}</h2>
-        <Table
-          head={
-            <>
-              <th className={th}>{t('account')}</th>
-              <th className={`${th} text-end`}>{t('budget')}</th>
-              <th className={`${th} text-end`}>{t('actual')}</th>
-              <th className={`${th} text-end`}>{t('variance')}</th>
-            </>
-          }
-        >
-          {rows.map((r) => (
-            <tr key={r.accountId} className="border-t border-line">
-              <td className={td}>
-                <span className="ltr-iso text-text-muted">{r.code}</span>{' '}
-                {locale === 'ar' ? r.nameAr : r.nameEn}
-              </td>
-              <td className={td}>
-                <BudgetCell
-                  key={`${report.month}${storeId}`}
-                  row={r}
-                  month={report.month}
-                  storeId={storeId}
-                />
-              </td>
-              <td className={`${td} text-end`}>
-                <Amount piastres={r.actualPiastres} />
-              </td>
-              <td
-                className={`${td} text-end ${r.budgetPiastres && r.variancePiastres < 0 ? 'text-danger' : r.budgetPiastres && r.variancePiastres > 0 ? 'text-status-delivered' : ''}`}
-              >
-                {r.budgetPiastres ? <Amount piastres={r.variancePiastres} strong /> : '-'}
-              </td>
-            </tr>
-          ))}
-        </Table>
-      </section>
-    );
-  };
-  return (
-    <div className="mt-4 space-y-8">
-      <div className="flex flex-wrap items-end gap-3">
-        <label className="text-caption">
-          {t('month')}
-          <input
-            type="month"
-            value={report.month}
-            onChange={(e) => e.target.value && go(e.target.value, storeId)}
-            dir="ltr"
-            className={`${field} mt-1 block w-44`}
-          />
-        </label>
-        <label className="text-caption">
-          {t('store')}
-          <select
-            value={storeId}
-            onChange={(e) => go(report.month, e.target.value)}
-            className={`${field} mt-1 block w-56`}
-          >
-            <option value="">{t('wholeCompany')}</option>
-            {stores.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.code} {locale === 'ar' ? s.nameAr : s.nameEn}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Stat
-          label={t('income')}
-          hint={t('ofBudget', { amount: formatEgp(report.income.budgetPiastres) })}
-        >
-          <Amount piastres={report.income.actualPiastres} />
-        </Stat>
-        <Stat
-          label={t('costs')}
-          hint={t('ofBudget', { amount: formatEgp(report.costs.budgetPiastres) })}
-        >
-          <Amount piastres={report.costs.actualPiastres} />
-        </Stat>
-      </div>
-      {!storeId && <p className="text-caption text-text-muted">{t('budgetCompanyHint')}</p>}
-      {section('revenue')}
-      {section('expense')}
     </div>
   );
 }
