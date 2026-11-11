@@ -30,6 +30,7 @@ import {
   unitsAtDayEnds,
   updateCostTag,
   bothBalances,
+  cashFlow,
 } from '../src/finance';
 import { ledgerLinesList } from '../src/finance/drill';
 import { submitPettyCash, setPettyCategory } from '../src/finance/cash-control';
@@ -164,6 +165,14 @@ describe('loans', () => {
     expect(sheet.liabilities.find((l) => l.code === '2701')?.amountPiastres).toBe(1_200_000);
     // One instalment overdue (10 days ago) and none other within 7 days.
     expect(await loanInstalmentsDue(prisma)).toMatchObject({ count: 1 });
+    // The cash flow shows the money borrowed as financing, never operating.
+    const flow = await cashFlow(prisma, {
+      from: new Date(Date.now() - 60 * 86_400_000),
+      to: new Date(Date.now() + 60_000),
+    });
+    const section = (name: string) => flow.sections.find((s) => s.section === name)!;
+    expect(section('financing').netPiastres).toBe(1_200_000);
+    expect(section('operating').rows.some((r) => r.kind.startsWith('loan'))).toBe(false);
   });
 
   it('pays instalments in order: principal off the loan, interest to 5904, never more than held', async () => {

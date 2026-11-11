@@ -218,10 +218,15 @@ export async function budgetVsActual(db: Db, input: { month: string; darkStoreId
 /** Banks, cash boxes and cash riders carry: everything that is money. */
 const MONEY_GROUPS = [1100, 1200, 1300];
 
+// Money borrowed and repaid is financing (a whole instalment, interest included, which IAS 7
+// allows); buying and selling equipment is investing; everything else is operating.
 const SECTION: Record<string, 'investing' | 'financing'> = {
   asset_purchase: 'investing',
+  asset_disposal: 'investing',
   capital_in: 'financing',
   capital_out: 'financing',
+  loan_received: 'financing',
+  loan_payment: 'financing',
 };
 
 async function moneyAt(db: Db, at: Date, store: string | null = null) {
