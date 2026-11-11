@@ -519,6 +519,9 @@ async function accountId(tx: Tx, ref: AccountRef): Promise<string> {
   return created.id;
 }
 
+/** The id of an account, opening a system account or wallet the first time it is named. */
+export const accountIdOf = accountId;
+
 /** The accounting category of each kind of account. */
 export const CATEGORY: Record<LedgerAccountType, AccountCategory> = {
   bank: 'asset',

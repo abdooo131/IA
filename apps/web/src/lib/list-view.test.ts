@@ -92,6 +92,7 @@ describe('Accounting menus by job', () => {
       'moneyOut',
       'cashBank',
       'reporting',
+      'planning',
       'monthEnd',
       'setup',
     ]);

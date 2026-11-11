@@ -199,10 +199,17 @@ export const APPS: AppDef[] = [
           { href: '/finance/merchant-profit', label: 'merchantProfit' },
           { href: '/finance/reports/tags', label: 'costTagReport' },
           { href: '/finance/payables-aging', label: 'payablesAging' },
-          { href: '/finance/budgets', label: 'budgets' },
           { href: '/finance/statements', label: 'comparePeriods' },
           { href: '/finance/trial', label: 'trial' },
           { href: '/finance/journal', label: 'journal' },
+        ],
+      },
+      {
+        // Planning: the 12 month forecast scenarios and the budgets they can be turned into.
+        label: 'planning',
+        pages: [
+          { href: '/finance/forecast', label: 'forecast' },
+          { href: '/finance/budgets', label: 'budgets' },
         ],
       },
       {
