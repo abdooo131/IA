@@ -762,13 +762,13 @@ export interface ComparativeStatements {
 // ─── rider supply offices ──────────────────────────────────────────────────────
 
 export interface RiderOfficeWallet {
-  /** What we owe the office now (negative: what it owes us) */
+  /** What we owe the office today, this month's commission included (negative: it owes us) */
   owedPiastres: number;
   openBills: number;
   openBillsPiastres: number;
   /** What the office owes us beyond its open bills, set off when paying them */
   owesUsPiastres: number;
-  /** Commission accrued and not billed yet */
+  /** Commission earned and not billed yet (already part of owedPiastres) */
   unbilledPiastres: number;
 }
 
@@ -840,6 +840,28 @@ export interface RiderOfficeDetail {
     leftPiastres: number;
     status: 'open' | 'paid' | 'cancelled';
   }[];
+}
+
+export interface OfficeAccountDay {
+  day: string;
+  deliveries: number;
+  commissionPiastres: number;
+  shortagesPiastres: number;
+  billedPiastres: number;
+  paymentsPiastres: number;
+  otherPiastres: number;
+  /** What we owe the office at the end of the day (negative: what it owes us) */
+  balancePiastres: number;
+}
+
+/** The office's account day by day for a month (GET /finance/rider-offices/:id/account). */
+export interface RiderOfficeAccount {
+  office: { id: string; name: string };
+  month: string;
+  openingPiastres: number;
+  closingPiastres: number;
+  days: OfficeAccountDay[];
+  totals: Omit<OfficeAccountDay, 'day' | 'balancePiastres'>;
 }
 
 export interface OfficeBillResult {

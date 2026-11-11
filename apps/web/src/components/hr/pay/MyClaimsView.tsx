@@ -36,6 +36,7 @@ export function MyClaimsView({ data }: { data: MyExpenseClaims }) {
   const [category, setCategory] = useState(data.categories[0]?.id ?? '');
   const [store, setStore] = useState('');
   const [amount, setAmount] = useState('');
+  const [vat, setVat] = useState('');
   const [paidOn, setPaidOn] = useState(data.today);
   const [note, setNote] = useState('');
   const [photoId, setPhotoId] = useState<string | null>(null);
@@ -53,11 +54,16 @@ export function MyClaimsView({ data }: { data: MyExpenseClaims }) {
     const piastres = parseEgp(amount);
     if (piastres === null || piastres <= 0)
       return setMessage({ text: explain('invalid_amount'), error: true });
+    // VAT is optional: empty is none; otherwise at least 0 and less than the amount.
+    const vatPiastres = vat.trim() === '' ? 0 : parseEgp(vat);
+    if (vatPiastres === null || vatPiastres < 0 || vatPiastres >= piastres)
+      return setMessage({ text: explain('invalid_vat'), error: true });
     if (!photoId) return setMessage({ text: explain('receipt_required'), error: true });
     if (!paidOn) return setMessage({ text: explain('invalid_day'), error: true });
     setBusy(true);
     const result = await apiSend<ExpenseClaim>('POST', '/me/expense-claims', {
       amountPiastres: piastres,
+      vatPiastres: vatPiastres > 0 ? vatPiastres : null,
       expenseAccountId: category,
       darkStoreId: store || null,
       paidOn,
@@ -69,6 +75,7 @@ export function MyClaimsView({ data }: { data: MyExpenseClaims }) {
     if (!result.ok) return setMessage({ text: explain(result.error, result.details), error: true });
     setMessage({ text: t('sent', { number: result.data.number }), error: false });
     setAmount('');
+    setVat('');
     setNote('');
     setPhotoId(null);
     setKey(newActionKey());
@@ -109,6 +116,19 @@ export function MyClaimsView({ data }: { data: MyExpenseClaims }) {
                 className={`${field} ltr-iso mt-1`}
                 placeholder="0.00"
               />
+            </label>
+            <label className="block text-body-sm font-semibold">
+              {t('vat')}
+              <input
+                inputMode="decimal"
+                value={vat}
+                onChange={(e) => setVat(e.target.value)}
+                className={`${field} ltr-iso mt-1`}
+                placeholder="0.00"
+              />
+              <span className="mt-1 block text-caption font-normal text-text-muted">
+                {t('vatHint')}
+              </span>
             </label>
             <label className="block text-body-sm font-semibold">
               {t('category')}
@@ -199,6 +219,11 @@ export function MyClaimsView({ data }: { data: MyExpenseClaims }) {
                   <Amount piastres={c.amountPiastres} strong /> · {name(c.category)} ·{' '}
                   {c.store ? c.store.code : t('companyWide')}
                 </p>
+                {c.vatPiastres > 0 && (
+                  <p className="text-caption text-text-muted">
+                    {t('vatLine')} <Amount piastres={c.vatPiastres} />
+                  </p>
+                )}
                 <p className="text-caption text-text-muted">
                   {t('paidOnShort', { day: formatDay(c.paidOn) })} · {c.note}
                 </p>

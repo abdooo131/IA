@@ -101,6 +101,7 @@ const COLUMNS: Record<FinanceListId, Col[]> = {
     { key: 'approvedBy', kind: 'text', optional: true },
     { key: 'paidBy', kind: 'text', optional: true },
     { key: 'status', kind: 'status' },
+    { key: 'vat', kind: 'money' },
     { key: 'amount', kind: 'money', sort: 'amount' },
   ],
   invoices: [

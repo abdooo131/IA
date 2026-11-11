@@ -12,6 +12,7 @@ import {
   post,
   prepareOfficeBills,
   recordCapital,
+  riderOfficeAccount,
   riderOfficeDetail,
   setRiderOffice,
   trialBalance,
@@ -180,12 +181,14 @@ describe('rider office commission', () => {
       payPiastres: 3000,
       commissionBp: 2000,
     });
+    // An expense at once, and straight on the office's own supplier wallet (no 2402).
     const expense = entry!.lines.find((l) => l.account.key === 'rider_office_commission')!;
-    const accrued = entry!.lines.find((l) => l.account.key === 'rider_office_accrued')!;
+    const wallet = entry!.lines.find((l) => l.account.supplierId === officeId)!;
+    expect(entry!.lines).toHaveLength(2);
     expect(expense.amountPiastres).toBe(600);
-    expect(accrued.amountPiastres).toBe(-600);
+    expect(wallet.amountPiastres).toBe(-600);
     expect(expense.account.code).toBe('5102');
-    expect(accrued.account.code).toBe('2402');
+    expect(wallet.account.type).toBe('supplier');
     for (const l of entry!.lines)
       expect(l).toMatchObject({
         darkStoreId: f.store.id,
@@ -194,6 +197,27 @@ describe('rider office commission', () => {
       });
     // The rider is paid exactly as without an office.
     expect(await balanceOf(prisma, { type: 'rider_bonus', riderId })).toBe(-3000);
+    await expectBalanced();
+  });
+
+  it("raises the office's balance delivery by delivery, unbilled commission included", async () => {
+    await link();
+    const wallet = () => balanceOf(prisma, { type: 'supplier', supplierId: officeId });
+    await deliver(1);
+    expect(await wallet()).toBe(-600);
+    await deliver(1);
+    expect(await wallet()).toBe(-1200);
+    await deliver(1);
+    expect(await wallet()).toBe(-1800);
+    const list = await listRiderOffices(prisma, { month });
+    expect(list.rows[0]).toMatchObject({
+      deliveries: 3,
+      commissionPiastres: 1800,
+      owedPiastres: 1800,
+      unbilledPiastres: 1800,
+      openBills: 0,
+      owesUsPiastres: 0,
+    });
     await expectBalanced();
   });
 
@@ -212,7 +236,8 @@ describe('rider office commission', () => {
     expect(rows.map((e) => (e.data as { commissionBp: number }).commissionBp)).toEqual([
       2000, 1250,
     ]);
-    expect(await balanceOf(prisma, { type: 'rider_office_accrued' })).toBe(-(600 + 375));
+    expect(await balanceOf(prisma, { type: 'supplier', supplierId: officeId })).toBe(-(600 + 375));
+    expect(await balanceOf(prisma, { type: 'rider_office_accrued' })).toBe(0);
     const audit = await prisma.auditLog.findMany({
       where: { action: 'finance.rider_office_update' },
     });
@@ -370,6 +395,161 @@ describe('month end and the monthly bill', () => {
       owesUsPiastres: 1670,
     });
     await expectBalanced();
+  });
+
+  it('bills only the VAT on top of the wallet, plus what older deliveries left in 2402', async () => {
+    await set('fee.vat_bp', 1400);
+    await link();
+    // A delivery booked before the change: its commission sits in 2402 commission accrued.
+    await post(prisma, {
+      kind: 'rider_office_commission',
+      idempotencyKey: key(),
+      riderId,
+      data: { supplierId: officeId, riderId, payPiastres: 3000, commissionBp: 2000 },
+      lines: [
+        { account: { type: 'rider_office_commission' }, amount: 600 },
+        { account: { type: 'rider_office_accrued' }, amount: -600 },
+      ],
+    });
+    await deliver(1); // and one booked now, straight on the wallet
+    expect(await balanceOf(prisma, { type: 'supplier', supplierId: officeId })).toBe(-600);
+    const [r] = (await prepareOfficeBills(prisma, { month, actorUserId: admin, now: nextMonth }))
+      .offices;
+    expect(r).toMatchObject({
+      status: 'billed',
+      commissionPiastres: 1200,
+      vatPiastres: 168,
+      totalPiastres: 1368,
+    });
+    const bill = await prisma.bill.findUniqueOrThrow({
+      where: { id: r!.billId },
+      include: { entry: { include: { lines: { include: { account: true } } } } },
+    });
+    const line = (k: string) =>
+      bill.entry!.lines.find((l) => l.account.key === k || l.account.supplierId === k)
+        ?.amountPiastres;
+    // Nothing is counted twice: the bill moves 6.00 out of 2402 and adds 1.68 VAT.
+    expect(line('rider_office_accrued')).toBe(600);
+    expect(line('vat_payable')).toBe(168);
+    expect(line(officeId)).toBe(-768);
+    expect(line('rider_office_commission')).toBeUndefined();
+    expect(bill.entry!.data).toMatchObject({ commissionPiastres: 1200, onWalletPiastres: 600 });
+    const cost = await prisma.ledgerAccount.findUniqueOrThrow({
+      where: { key: 'rider_office_commission' },
+    });
+    expect(bill.expenseAccountId).toBe(cost.id);
+    expect(await balanceOf(prisma, { type: 'rider_office_accrued' })).toBe(0);
+    // The wallet now holds exactly the bill's total.
+    expect(await balanceOf(prisma, { type: 'supplier', supplierId: officeId })).toBe(-1368);
+    expect(await vatReturn(prisma, month)).toMatchObject({
+      purchasesPiastres: 1200,
+      inputVatPiastres: 168,
+    });
+    // The expense was booked once, at the deliveries.
+    expect(await balanceOf(prisma, { type: 'rider_office_commission' })).toBe(1200);
+    await expectBalanced();
+  });
+
+  it('bills an office without a tax number with no VAT and no entry of its own', async () => {
+    await set('fee.vat_bp', 1400);
+    await prisma.supplier.update({ where: { id: officeId }, data: { taxId: null } });
+    await link();
+    await deliver(2);
+    const [r] = (await prepareOfficeBills(prisma, { month, actorUserId: admin, now: nextMonth }))
+      .offices;
+    expect(r).toMatchObject({
+      status: 'billed',
+      commissionPiastres: 1200,
+      vatPiastres: 0,
+      totalPiastres: 1200,
+    });
+    const bill = await prisma.bill.findUniqueOrThrow({ where: { id: r!.billId } });
+    expect(bill).toMatchObject({ netPiastres: 1200, vatPiastres: 0, totalPiastres: 1200 });
+    expect(bill.entryId).toBeNull();
+    expect(await balanceOf(prisma, { type: 'supplier', supplierId: officeId })).toBe(-1200);
+    // Paid as any bill: withholding on the commission, the wallet back to 0.
+    await payBill(prisma, {
+      billId: bill.id,
+      amountPiastres: 1200,
+      moneyAccountId: bankId,
+      reference: 'TRX-1',
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    expect(await balanceOf(prisma, { type: 'supplier', supplierId: officeId })).toBe(0);
+    expect(await balanceOf(prisma, { type: 'wht_payable' })).toBe(-36);
+    await expectBalanced();
+  });
+
+  it("shows the office's account day by day with its running balance", async () => {
+    await set('fee.vat_bp', 1400);
+    await link();
+    await deliver(2); // today: 12.00 commission
+    await prepareOfficeBills(prisma, { month, actorUserId: admin, now: nextMonth });
+    const bill = await prisma.bill.findFirstOrThrow({ where: { supplierId: officeId } });
+    await payBill(prisma, {
+      billId: bill.id,
+      amountPiastres: 1368,
+      moneyAccountId: bankId,
+      reference: 'TRX-2',
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    const today = cairoDay(new Date());
+    const account = await riderOfficeAccount(prisma, {
+      supplierId: officeId,
+      month,
+      now: nextMonth,
+    });
+    const last = addMonths(month, 1);
+    expect(account.days[0]!.day).toBe(`${month}-01`);
+    expect(account.days.at(-1)!.day < `${last}-01`).toBe(true);
+    expect(account.openingPiastres).toBe(0);
+    const day = account.days.find((d) => d.day === today)!;
+    // Commission up, the payment down, both today; the bill's VAT on the month's last day.
+    expect(day).toMatchObject({
+      deliveries: 2,
+      commissionPiastres: 1200,
+      paymentsPiastres: 1368,
+      shortagesPiastres: 0,
+    });
+    const end = account.days.at(-1)!;
+    if (end.day !== today) {
+      expect(end).toMatchObject({ billedPiastres: 168, deliveries: 0 });
+      expect(day.balancePiastres).toBe(1200 - 1368);
+    }
+    expect(end.balancePiastres).toBe(0);
+    expect(account.closingPiastres).toBe(0);
+    expect(account.totals).toMatchObject({
+      deliveries: 2,
+      commissionPiastres: 1200,
+      billedPiastres: 168,
+      paymentsPiastres: 1368,
+      otherPiastres: 0,
+    });
+    // Each day's balance is the one before plus its movements.
+    let running = account.openingPiastres;
+    for (const d of account.days) {
+      running +=
+        d.commissionPiastres -
+        d.shortagesPiastres +
+        d.billedPiastres -
+        d.paymentsPiastres +
+        d.otherPiastres;
+      expect(d.balancePiastres).toBe(running);
+    }
+    // The running month stops at today; the next month opens with the closing balance.
+    const running2 = await riderOfficeAccount(prisma, { supplierId: officeId, month });
+    expect(running2.days.at(-1)!.day).toBe(today);
+    const next = await riderOfficeAccount(prisma, {
+      supplierId: officeId,
+      month: last,
+      now: afterThat,
+    });
+    expect(next.openingPiastres).toBe(0);
+    await expect(
+      riderOfficeAccount(prisma, { supplierId: officeId, month: '2026-13' }),
+    ).rejects.toMatchObject({ code: 'invalid_month' });
   });
 
   it('carries a debit into the next month and never makes a negative bill', async () => {

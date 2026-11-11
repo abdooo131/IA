@@ -18,6 +18,8 @@ import {
   setClaimableCategory,
   submitExpenseClaim,
   submitPayroll,
+  vatReport,
+  vatReturn,
 } from '../src/finance';
 import { hrInbox } from '../src/hr-inbox';
 import { dispatchPush, type PushMessage, type PushSender, type PushTarget } from '../src/push';
@@ -184,7 +186,12 @@ describe('expense claims', () => {
   const claim = async (
     userId: string,
     accountId: string,
-    extra: Partial<{ amountPiastres: number; paidOn: string; darkStoreId: string | null }> = {},
+    extra: Partial<{
+      amountPiastres: number;
+      vatPiastres: number | null;
+      paidOn: string;
+      darkStoreId: string | null;
+    }> = {},
   ) =>
     submitExpenseClaim(prisma, {
       userId,
@@ -256,6 +263,60 @@ describe('expense claims', () => {
     await payExpenseClaim(prisma, { claimId: c.id, moneyAccountId: bank.id, actorUserId: admin });
     expect(await balanceOf(prisma, { id: bank.id })).toBe(before - 25_000);
     expect((await myExpenseClaims(prisma, staff.userId)).claims[0]!.status).toBe('paid');
+  });
+
+  it('splits the VAT of a tax invoice receipt: paid back in full, VAT claimed as input VAT', async () => {
+    const { boss, staff, fuel } = await setup();
+    const c = await claim(staff.userId, fuel.id, { amountPiastres: 11_400, vatPiastres: 1_400 });
+    expect(c.vatPiastres).toBe(1_400);
+    await managerDecideClaim(prisma, { claimId: c.id, actorUserId: boss.userId, approve: true });
+    const bank = await byKey('bank');
+    const before = await balanceOf(prisma, { id: bank.id });
+    await payExpenseClaim(prisma, { claimId: c.id, moneyAccountId: bank.id, actorUserId: admin });
+    const vatAccount = await byKey('vat_payable');
+    // The person gets the full amount; the category takes the amount less VAT.
+    expect(await balanceOf(prisma, { id: bank.id })).toBe(before - 11_400);
+    const entry = await prisma.ledgerEntry.findUniqueOrThrow({
+      where: { idempotencyKey: `expense_claim:${c.id}` },
+      include: { lines: true },
+    });
+    expect(entry.lines.find((l) => l.accountId === fuel.id)!.amountPiastres).toBe(10_000);
+    expect(entry.lines.find((l) => l.accountId === vatAccount.id)!.amountPiastres).toBe(1_400);
+    expect(entry.data).toMatchObject({ vat: 1_400 });
+    // The VAT return and report count it as input VAT on a purchase of 100.00.
+    const ret = await vatReturn(prisma, today.slice(0, 7));
+    expect(ret).toMatchObject({ purchasesPiastres: 10_000, inputVatPiastres: 1_400 });
+    const report = await vatReport(prisma, Number(today.slice(0, 4)));
+    expect(report.months.find((m) => m.month === today.slice(0, 7))).toMatchObject({
+      inputPiastres: 1_400,
+      outputPiastres: 0,
+    });
+  });
+
+  it('refuses VAT at or above the amount; a claim without VAT books no VAT line', async () => {
+    const { boss, staff, fuel } = await setup();
+    expect(
+      await refusal(claim(staff.userId, fuel.id, { amountPiastres: 5_000, vatPiastres: 5_000 })),
+    ).toBe('invalid_vat');
+    expect(
+      await refusal(claim(staff.userId, fuel.id, { amountPiastres: 5_000, vatPiastres: -1 })),
+    ).toBe('invalid_vat');
+    const c = await claim(staff.userId, fuel.id, { vatPiastres: null });
+    expect(c.vatPiastres).toBe(0);
+    expect((await prisma.expenseClaim.findUniqueOrThrow({ where: { id: c.id } })).vatPiastres).toBe(
+      null,
+    );
+    await managerDecideClaim(prisma, { claimId: c.id, actorUserId: boss.userId, approve: true });
+    const bank = await byKey('bank');
+    await payExpenseClaim(prisma, { claimId: c.id, moneyAccountId: bank.id, actorUserId: admin });
+    const entry = await prisma.ledgerEntry.findUniqueOrThrow({
+      where: { idempotencyKey: `expense_claim:${c.id}` },
+      include: { lines: { include: { account: true } } },
+    });
+    expect(entry.lines).toHaveLength(2);
+    expect(entry.lines.some((l) => l.account.key === 'vat_payable')).toBe(false);
+    expect(entry.lines.find((l) => l.accountId === fuel.id)!.amountPiastres).toBe(25_000);
+    expect(await vatReturn(prisma, today.slice(0, 7))).toMatchObject({ inputVatPiastres: 0 });
   });
 
   it('a person without a manager goes straight to accounting and may cancel until paid', async () => {

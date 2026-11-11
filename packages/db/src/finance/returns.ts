@@ -32,9 +32,16 @@ export async function vatReturn(db: Db, month: string) {
   if (!MONTH.test(month)) throw new DomainError('invalid_month', 400);
   const { from, to } = monthRange(month);
   const rows = await db.$queryRaw<
-    { kind: string; revenue: bigint | null; vat: bigint | null; expense: bigint | null }[]
+    {
+      kind: string;
+      revenue: bigint | null;
+      vat: bigint | null;
+      expense: bigint | null;
+      on_wallet: bigint | null;
+    }[]
   >`
     SELECT e.kind,
+      SUM((e.data->>'onWalletPiastres')::int) FILTER (WHERE a.key = 'vat_payable') AS on_wallet,
       SUM(l.amount_piastres) FILTER (WHERE a.key = 'revenue') AS revenue,
       SUM(l.amount_piastres) FILTER (WHERE a.key = 'vat_payable') AS vat,
       SUM(l.amount_piastres) FILTER (WHERE a.category = 'expense' OR a.key IN ('goods_received', 'rider_office_accrued')) AS expense
@@ -60,12 +67,14 @@ export async function vatReturn(db: Db, month: string) {
     const vat = -Number(r.vat ?? 0);
     // By the entry's kind: a cancelled bill takes its purchase and VAT back in its month,
     // a purchase order bill's cost sits in goods received not billed (2401), a rider office's
-    // commission bill in its accrued commission (2402).
+    // commission bill in its accrued commission (2402) for deliveries booked before 2026-11-11;
+    // since then the commission is on the office wallet at delivery and the bill's entry
+    // carries it as onWalletPiastres (one vat_payable line per entry, so counted once).
     if (r.kind === 'credit_note') {
       creditNotes += -revenue;
       creditNoteVat += -vat;
     } else if (VAT_PURCHASE_KINDS.includes(r.kind)) {
-      purchases += Number(r.expense ?? 0);
+      purchases += Number(r.expense ?? 0) + Number(r.on_wallet ?? 0);
       inputVat += -vat;
     } else if (revenue !== 0 || vat > 0) {
       sales += revenue;

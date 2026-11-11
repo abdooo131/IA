@@ -126,7 +126,7 @@ export const FINANCE_LISTS = {
     },
     groupBys: ['person', 'store', 'category', 'status', 'month'],
     sorts: ['number', 'person', 'paid_on', 'created', 'amount'],
-    sums: ['amount'],
+    sums: ['amount', 'vat'],
     defaultFilters: ['pending_accounting'],
   },
   invoices: {

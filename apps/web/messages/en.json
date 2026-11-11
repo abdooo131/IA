@@ -11232,7 +11232,7 @@
   },
   "riderOffices": {
     "title": "Rider offices",
-    "intro": "Offices that supply riders. We pay each rider ourselves, as usual; the office earns a commission on the rider pay of every delivered order. Once a month is over, prepare the office bills: what a rider still owes beyond their wallet moves onto the office, and the month's commission becomes a normal supplier bill.",
+    "intro": "Offices that supply riders. We pay each rider ourselves, as usual; the office earns a commission on the rider pay of every delivered order, added to the office's account at each delivery. Once a month is over, prepare the office bills: what a rider still owes beyond their wallet moves onto the office, and the month's commission becomes a supplier bill (VAT added when the office has a tax number).",
     "month": "Month",
     "openLastMonth": "Open last month",
     "prepareBills": "Prepare office bills for {month}",
@@ -11248,11 +11248,11 @@
     "commission": "Commission",
     "shortages": "Shortages moved",
     "bill": "Bill",
-    "balance": "We owe",
+    "balance": "Balance today",
     "owesUs": "Owes us",
     "total": "Total",
     "noTaxId": "No tax number: no VAT",
-    "howItWorks": "Commission = rider pay per delivered order × the office's rate, booked at each delivery at the rate of that moment. Shortages: a rider's dues are taken from their own earnings first; only what is left at month end moves onto the office. VAT is added when the office has a tax number; withholding tax is kept back when the bill is paid.",
+    "howItWorks": "Commission = rider pay per delivered order × the office's rate, booked at each delivery at the rate of that moment, straight on the office's account: \"Balance today\" is what we owe the office now, this month's commission included. Shortages: a rider's dues are taken from their own earnings first; only what is left at month end moves onto the office. The monthly bill adds VAT when the office has a tax number; withholding tax is kept back when the bill is paid.",
     "addTitle": "Mark a supplier as a rider office",
     "addHint": "Add the office as a supplier first (Bills), then set its commission here. HR then links riders to it on their file.",
     "supplier": "Supplier",
@@ -11260,7 +11260,7 @@
     "add": "Mark as rider office",
     "saveRate": "Save rate",
     "rateHint": "A new rate counts for deliveries from now on; earlier deliveries keep the rate they were booked at.",
-    "unbilled": "Commission not billed yet",
+    "unbilled": "Commission not billed yet (in the balance)",
     "openBills": "Open bills",
     "owesUsHint": "The office owes us EGP {amount} (shortages of its riders). It is set off when its next bill is paid.",
     "ridersTitle": "Riders",
@@ -11296,6 +11296,27 @@
       "billed": "{bill} prepared, EGP {total}. Shortages moved: EGP {shortages}.",
       "already_billed": "already billed ({bill}). Shortages moved: EGP {shortages}.",
       "nothing_to_bill": "no commission this month. Shortages moved: EGP {shortages}."
+    },
+    "account": {
+      "title": "Daily account",
+      "hint": "What we owe the office, day by day: each delivery's commission raises it, shortages moved and payments lower it, the monthly bill adds its VAT.",
+      "month": "Month",
+      "csv": "Download CSV",
+      "day": "Day",
+      "deliveries": "Deliveries",
+      "commission": "Commission",
+      "shortages": "Shortages moved",
+      "billed": "Bills (VAT)",
+      "payments": "Payments",
+      "other": "Other",
+      "balance": "We owe",
+      "opening": "Balance before the month",
+      "closing": "Balance at month end",
+      "closingToday": "Balance today",
+      "total": "Total",
+      "showQuietDays": "Show days without movements",
+      "nothingThisMonth": "Nothing moved on the account this month.",
+      "notStarted": "This month has not started yet."
     }
   },
   "myPay": {
@@ -11350,7 +11371,7 @@
     "note": "Note",
     "notePlaceholder": "What you bought and why",
     "receipt": "Receipt photo",
-    "noVat": "The full amount is claimed; VAT is not split out.",
+    "noVat": "You are paid back the full amount. VAT is split out only when you enter it above.",
     "send": "Send the claim",
     "sent": "Claim {number} sent.",
     "cancelled": "Claim taken back.",
@@ -11407,8 +11428,12 @@
       "account_not_found": "Choose a bank or cash box.",
       "account_inactive": "That account is closed.",
       "books_closed": "The books are closed for that day.",
-      "store_not_allowed": "This claim belongs to a store you do not cover."
-    }
+      "store_not_allowed": "This claim belongs to a store you do not cover.",
+      "invalid_vat": "VAT must be 0 or more and less than the amount."
+    },
+    "vat": "VAT on the receipt (EGP, optional)",
+    "vatHint": "Fill it only when the receipt is a proper tax invoice showing the seller's tax number. You are still paid back the full amount.",
+    "vatLine": "Of which VAT"
   },
   "loansFx": {
     "loans": {

@@ -6,8 +6,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import type {
+  OfficeAccountDay,
   OfficeBillResult,
   RiderOfficeDetail as Detail,
+  RiderOfficeAccount,
   RiderOfficeList,
   SupplierRow,
 } from '@/lib/finance-types';
@@ -377,10 +379,13 @@ export function RiderOfficeView({
   data,
   canUse,
   canManage,
+  account,
 }: {
   data: Detail;
   canUse: boolean;
   canManage: boolean;
+  /** The daily account section, read on the server for the month in the address */
+  account?: ReactNode;
 }) {
   const t = useTranslations('riderOffices');
   const locale = useLocale();
@@ -408,6 +413,8 @@ export function RiderOfficeView({
         </p>
       )}
       {canManage && <RateEditor office={office} />}
+
+      {account}
 
       <section className="space-y-2">
         <h2 className="text-h3">{t('ridersTitle')}</h2>
@@ -550,5 +557,201 @@ export function RiderOfficeView({
         )}
       </section>
     </div>
+  );
+}
+
+/** A movement of what we owe: plain when it goes up, "−" in red when it goes down. */
+function Move({ piastres, down = false }: { piastres: number; down?: boolean }) {
+  if (piastres === 0) return <span className="text-text-muted">–</span>;
+  return (
+    <span className={down ? 'text-danger' : undefined}>
+      {down ? '−' : ''}
+      <Amount piastres={piastres} />
+    </span>
+  );
+}
+
+const moved = (d: Omit<OfficeAccountDay, 'day' | 'balancePiastres'>) =>
+  d.deliveries > 0 ||
+  d.commissionPiastres !== 0 ||
+  d.shortagesPiastres !== 0 ||
+  d.billedPiastres !== 0 ||
+  d.paymentsPiastres !== 0 ||
+  d.otherPiastres !== 0;
+
+/**
+ * The office's account day by day for a month: commission booked at each delivery raises what
+ * we owe, shortages moved and payments lower it, the monthly bill adds its VAT. Oldest day
+ * first, opening with the balance before the month, totals and a CSV.
+ */
+export function OfficeAccountView({ account }: { account: RiderOfficeAccount }) {
+  const t = useTranslations('riderOffices.account');
+  const locale = useLocale();
+  const router = useRouter();
+  const thisMonth = cairoDay(new Date()).slice(0, 7);
+  const active = account.days.filter(moved);
+  const [all, setAll] = useState(false);
+  const shown = all ? account.days : active;
+  const hasOther = account.totals.otherPiastres !== 0;
+  const csvHref = `/api/finance/rider-offices/${account.office.id}/account.csv?month=${account.month}&lang=${locale}`;
+  const cells = (d: Omit<OfficeAccountDay, 'day' | 'balancePiastres'>) => (
+    <>
+      <td className={tdEnd}>{d.deliveries}</td>
+      <td className={tdEnd}>
+        <Move piastres={d.commissionPiastres} />
+      </td>
+      <td className={tdEnd}>
+        <Move piastres={d.shortagesPiastres} down />
+      </td>
+      <td className={tdEnd}>
+        <Move piastres={d.billedPiastres} />
+      </td>
+      <td className={tdEnd}>
+        <Move piastres={d.paymentsPiastres} down />
+      </td>
+      {hasOther && (
+        <td className={tdEnd}>
+          <Move piastres={d.otherPiastres} />
+        </td>
+      )}
+    </>
+  );
+  const facts: {
+    key: 'commission' | 'shortages' | 'billed' | 'payments' | 'other';
+    pick: (d: OfficeAccountDay) => number;
+    down?: boolean;
+  }[] = [
+    { key: 'commission', pick: (d) => d.commissionPiastres },
+    { key: 'shortages', pick: (d) => d.shortagesPiastres, down: true },
+    { key: 'billed', pick: (d) => d.billedPiastres },
+    { key: 'payments', pick: (d) => d.paymentsPiastres, down: true },
+    { key: 'other', pick: (d) => d.otherPiastres },
+  ];
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="text-h3">{t('title')}</h2>
+          <p className="text-caption text-text-muted">{t('hint')}</p>
+        </div>
+        <div className="flex flex-wrap items-end gap-2">
+          <label className="text-caption">
+            {t('month')}
+            <input
+              type="month"
+              value={account.month}
+              max={thisMonth}
+              onChange={(e) =>
+                e.target.value && router.push(`?month=${e.target.value}`, { scroll: false })
+              }
+              dir="ltr"
+              className={`${field} mt-1 block w-44`}
+            />
+          </label>
+          <a href={csvHref} className={`${secondary} content-center`}>
+            {t('csv')}
+          </a>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <Stat label={t('opening')}>
+          <Balance owed={account.openingPiastres} />
+        </Stat>
+        <Stat label={t('commission')}>
+          <Amount piastres={account.totals.commissionPiastres} />
+        </Stat>
+        <Stat label={t('deliveries')}>{account.totals.deliveries}</Stat>
+        <Stat label={account.month === thisMonth ? t('closingToday') : t('closing')}>
+          <Balance owed={account.closingPiastres} />
+        </Stat>
+      </div>
+
+      {account.days.length === 0 ? (
+        <p className="text-body-sm text-text-muted">{t('notStarted')}</p>
+      ) : (
+        <>
+          {active.length < account.days.length && (
+            <label className="flex items-center gap-2 text-body-sm">
+              <input type="checkbox" checked={all} onChange={(e) => setAll(e.target.checked)} />
+              {t('showQuietDays')}
+            </label>
+          )}
+          {shown.length === 0 && (
+            <p className="text-body-sm text-text-muted">{t('nothingThisMonth')}</p>
+          )}
+          {/* Phones: one card per day */}
+          <ul className="space-y-2 md:hidden">
+            {shown.map((d) => (
+              <li key={d.day} className="rounded-lg border border-line bg-surface p-3">
+                <div className="flex items-start justify-between gap-2">
+                  <span className="ltr-iso font-bold">{d.day}</span>
+                  <Balance owed={d.balancePiastres} />
+                </div>
+                <dl className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-body-sm">
+                  {d.deliveries > 0 && (
+                    <>
+                      <dt className="text-text-muted">{t('deliveries')}</dt>
+                      <dd className="text-end">{d.deliveries}</dd>
+                    </>
+                  )}
+                  {facts
+                    .filter((f) => f.pick(d) !== 0)
+                    .map((f) => (
+                      <div key={f.key} className="contents">
+                        <dt className="text-text-muted">{t(f.key)}</dt>
+                        <dd className="text-end">
+                          <Move piastres={f.pick(d)} down={f.down} />
+                        </dd>
+                      </div>
+                    ))}
+                </dl>
+              </li>
+            ))}
+          </ul>
+          <div className="hidden md:block">
+            <Table
+              head={
+                <>
+                  <th className={th}>{t('day')}</th>
+                  <th className={thEnd}>{t('deliveries')}</th>
+                  <th className={thEnd}>{t('commission')}</th>
+                  <th className={thEnd}>{t('shortages')}</th>
+                  <th className={thEnd}>{t('billed')}</th>
+                  <th className={thEnd}>{t('payments')}</th>
+                  {hasOther && <th className={thEnd}>{t('other')}</th>}
+                  <th className={thEnd}>{t('balance')}</th>
+                </>
+              }
+            >
+              <tr className="border-t border-line text-text-muted">
+                <td className={td} colSpan={hasOther ? 7 : 6}>
+                  {t('opening')}
+                </td>
+                <td className={tdEnd}>
+                  <Balance owed={account.openingPiastres} />
+                </td>
+              </tr>
+              {shown.map((d) => (
+                <tr key={d.day} className="border-t border-line">
+                  <td className={`${td} ltr-iso`}>{d.day}</td>
+                  {cells(d)}
+                  <td className={tdEnd}>
+                    <Balance owed={d.balancePiastres} />
+                  </td>
+                </tr>
+              ))}
+              <tr className="border-t border-line font-bold">
+                <td className={td}>{t('total')}</td>
+                {cells(account.totals)}
+                <td className={tdEnd}>
+                  <Balance owed={account.closingPiastres} />
+                </td>
+              </tr>
+            </Table>
+          </div>
+        </>
+      )}
+    </section>
   );
 }

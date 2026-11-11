@@ -4925,6 +4925,9 @@ model ExpenseClaim {
   /// An expense category finance marked claimable
   expenseAccountId   String             @map("expense_account_id")
   amountPiastres     Int                @map("amount_piastres")
+  /// VAT shown on the receipt (a tax invoice with the seller's tax number), claimed back as
+  /// input VAT when paid; null or 0: none. Always less than the amount (paid back in full)
+  vatPiastres        Int?               @map("vat_piastres")
   /// The Cairo day the person paid
   paidOn             DateTime           @map("paid_on") @db.Date
   note               String

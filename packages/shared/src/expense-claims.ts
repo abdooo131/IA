@@ -33,6 +33,11 @@ export function claimCancellable(c: {
 /** A person claims a work cost back from My HR. */
 export const expenseClaimSchema = z.object({
   amountPiastres: z.number().int().min(1).max(100_000_000),
+  /**
+   * VAT shown on the receipt, only when it is a proper tax invoice with the seller's tax
+   * number; less than the amount (the person is paid back the full amount either way)
+   */
+  vatPiastres: z.number().int().min(0).max(100_000_000).nullable().optional(),
   expenseAccountId: id,
   /** The store the cost belongs to; null is a company wide cost */
   darkStoreId: id.nullable(),

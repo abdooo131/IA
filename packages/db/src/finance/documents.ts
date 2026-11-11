@@ -761,6 +761,8 @@ async function claimDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('store', c.darkStore?.code ?? null, 'ltr'),
       f('category', `${c.expenseAccount.code} ${c.expenseAccount.nameEn ?? ''}`.trim()),
       f('amount', c.amountPiastres, 'money'),
+      // VAT on a tax invoice receipt, claimed back when paid (inside the amount)
+      f('vat', c.vatPiastres || null, 'money'),
       f('paidOn', dbDay(c.paidOn), 'date'),
       f('note', c.note, 'multiline'),
       f('createdAt', iso(c.createdAt), 'datetime'),

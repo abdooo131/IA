@@ -29,11 +29,13 @@ type Tx = Prisma.TransactionClient;
 //
 // Paying posts one entry, tagged with the store (none: company wide) and the person:
 //
-//   Dr expense category (claimable)   amount
+//   Dr expense category (claimable)   amount − VAT
+//   Dr VAT payable (input VAT)        VAT      (only when the receipt is a tax invoice)
 //   Cr bank or cash box               amount   (never more than it holds, row locked)
 //
-// No VAT is split out: the receipt is a small purchase paid by a person, so the whole amount is
-// the cost. Nobody decides their own claim; from finance.approval_threshold_piastres the
+// VAT is optional: the person types it only when the receipt is a proper tax invoice with the
+// seller's tax number; it is claimed back like an expense's VAT (recordExpense), and the person
+// is still paid back the full amount. Nobody decides their own claim; from finance.approval_threshold_piastres the
 // person who pays must not be the manager who approved it (the second person rule).
 
 const EXPENSE_GROUPS = [5400, 5500];
@@ -132,6 +134,7 @@ export function claimView(c: ClaimRow) {
       nameAr: c.expenseAccount.nameAr ?? c.expenseAccount.nameEn ?? '',
     },
     amountPiastres: c.amountPiastres,
+    vatPiastres: c.vatPiastres ?? 0,
     paidOn: dayText(c.paidOn),
     note: c.note,
     photoId: c.photoId,
@@ -187,6 +190,9 @@ export function submitExpenseClaim(
     }
     if (!Number.isSafeInteger(body.amountPiastres) || body.amountPiastres <= 0)
       throw new DomainError('invalid_amount', 400);
+    const vat = body.vatPiastres ?? 0;
+    if (!Number.isSafeInteger(vat) || vat < 0 || vat >= body.amountPiastres)
+      throw new DomainError('invalid_vat', 400);
     const e = await tx.employee.findUnique({
       where: { userId: input.userId },
       include: { user: { select: { isActive: true } } },
@@ -226,6 +232,7 @@ export function submitExpenseClaim(
         darkStoreId: body.darkStoreId,
         expenseAccountId: account.id,
         amountPiastres: body.amountPiastres,
+        vatPiastres: vat > 0 ? vat : null,
         paidOn: dayDate(body.paidOn),
         note: body.note.trim(),
         photoId: body.photoId,
@@ -244,6 +251,7 @@ export function submitExpenseClaim(
       after: {
         number: expenseClaimNumber(created.number),
         amount: created.amountPiastres,
+        vat,
         account: account.code,
         darkStoreId: created.darkStoreId,
         paidOn: body.paidOn,
@@ -416,6 +424,7 @@ export function payExpenseClaim(
     const reference = input.reference?.trim() || null;
     const tags = { darkStoreId: c.darkStoreId, userId: c.userId };
     const label = expenseClaimNumber(c.number);
+    const vat = c.vatPiastres ?? 0;
     const entry = await post(tx, {
       kind: 'expense_claim',
       idempotencyKey: `expense_claim:${c.id}`,
@@ -428,10 +437,13 @@ export function payExpenseClaim(
         number: label,
         userId: c.userId,
         paidOn: dayText(c.paidOn),
+        vat,
         ...(reference ? { reference } : {}),
       },
       lines: [
-        { account: { id: c.expenseAccountId }, amount: c.amountPiastres, tags },
+        { account: { id: c.expenseAccountId }, amount: c.amountPiastres - vat, tags },
+        // VAT on a tax invoice is claimed back against the VAT we owe, as for an expense.
+        { account: { type: 'vat_payable' }, amount: vat, tags },
         { account: { id: money.id }, amount: -c.amountPiastres, tags },
       ],
     });
@@ -454,6 +466,7 @@ export function payExpenseClaim(
     await audit(tx, input.actorUserId, 'pay', c, {
       status: 'paid',
       amount: c.amountPiastres,
+      vat,
       from: money.code,
       entryId: entry!.id,
       ...(reference ? { reference } : {}),

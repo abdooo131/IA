@@ -267,13 +267,26 @@ describe('payslips and expense claims', () => {
     expect((await rider.post('/me/expense-claims').send(body).expect(400)).body.error).toBe(
       'claim_too_old',
     );
+    // VAT on the receipt is optional, never the whole amount or more.
+    const vatTooBig = { ...body, paidOn: today, vatPiastres: 5_000, idempotencyKey: key() };
+    expect((await rider.post('/me/expense-claims').send(vatTooBig).expect(400)).body.error).toBe(
+      'invalid_vat',
+    );
+    const withVat = (
+      await rider
+        .post('/me/expense-claims')
+        .send({ ...body, paidOn: today, vatPiastres: 614, idempotencyKey: key() })
+        .expect(201)
+    ).body;
+    expect(withVat).toMatchObject({ amountPiastres: 5_000, vatPiastres: 614 });
+    await rider.post(`/me/expense-claims/${withVat.id}/cancel`).expect(201);
     const claim = (
       await rider
         .post('/me/expense-claims')
         .send({ ...body, paidOn: today, idempotencyKey: key() })
         .expect(201)
     ).body;
-    expect(claim).toMatchObject({ number: 'EC-000001', cancellable: true });
+    expect(claim).toMatchObject({ number: 'EC-000002', cancellable: true, vatPiastres: 0 });
     const staff = await agent('staff.newcairo@shiplynow.local');
     await staff.post(`/me/expense-claims/${claim.id}/cancel`).expect(404);
     expect(

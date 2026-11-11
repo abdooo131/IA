@@ -138,7 +138,7 @@ describe('rider offices', () => {
     });
     const last = addMonths(cairoDay(new Date()).slice(0, 7), -1);
     const at = new Date(`${last}-15T10:00:00Z`);
-    // A commission booked last month, as a delivery books it.
+    // A commission booked last month, as a delivery books it: straight on the office wallet.
     await post(prisma, {
       kind: 'rider_office_commission',
       idempotencyKey: 'test:office:1',
@@ -147,11 +147,14 @@ describe('rider offices', () => {
       data: { supplierId: officeId, riderId, payPiastres: 30_000, commissionBp: 2000 },
       lines: [
         { account: { type: 'rider_office_commission' }, amount: 6000 },
-        { account: { type: 'rider_office_accrued' }, amount: -6000 },
+        { account: { type: 'supplier', supplierId: officeId }, amount: -6000 },
       ],
     });
     const viewer = await person('viewer@t.eg', 'accountant', 'finance');
     const officer = await person('officer@t.eg', 'finance_officer', 'finance');
+    // Before any bill, "Balance today" already counts the commission.
+    const listed = await viewer.get(`/finance/rider-offices?month=${last}`).expect(200);
+    expect(listed.body.rows[0]).toMatchObject({ owedPiastres: 6000, unbilledPiastres: 6000 });
     await viewer.post('/finance/rider-offices/prepare-bills').send({ month: last }).expect(403);
     const thisMonth = cairoDay(new Date()).slice(0, 7);
     const early = await officer
@@ -178,10 +181,63 @@ describe('rider offices', () => {
     expect(again.body.offices[0].status).toBe('already_billed');
     expect(await prisma.bill.count({ where: { supplierId: officeId } })).toBe(1);
     const bills = await officer.get(`/finance/bills?supplierId=${officeId}`).expect(200);
+    // VAT (fee.vat_bp) only on top: the bill's total is what the wallet now holds.
     expect(bills.body[0]).toMatchObject({ officeMonth: last, netPiastres: 6000 });
+    const after = await viewer.get(`/finance/rider-offices?month=${last}`).expect(200);
+    expect(after.body.rows[0]).toMatchObject({
+      owedPiastres: bills.body[0].totalPiastres,
+      unbilledPiastres: 0,
+    });
     await officer
       .post(`/finance/bills/${bills.body[0].id}/cancel`)
       .send({ reason: 'entered by mistake' })
       .expect(409);
+  });
+
+  it('shows the daily account to accounting view, with a CSV', async () => {
+    await prisma.supplier.update({
+      where: { id: officeId },
+      data: { isRiderOffice: true, commissionBp: 2000 },
+    });
+    const month = cairoDay(new Date()).slice(0, 7);
+    await post(prisma, {
+      kind: 'rider_office_commission',
+      idempotencyKey: 'test:office:day',
+      riderId,
+      data: { supplierId: officeId, riderId, payPiastres: 3000, commissionBp: 2000 },
+      lines: [
+        { account: { type: 'rider_office_commission' }, amount: 600 },
+        { account: { type: 'supplier', supplierId: officeId }, amount: -600 },
+      ],
+    });
+    const viewer = await person('viewer@t.eg', 'accountant', 'finance');
+    const account = await viewer.get(`/finance/rider-offices/${officeId}/account`).expect(200);
+    expect(account.body).toMatchObject({
+      month,
+      openingPiastres: 0,
+      closingPiastres: 600,
+      totals: { deliveries: 1, commissionPiastres: 600 },
+    });
+    expect(account.body.days.at(-1)).toMatchObject({
+      day: cairoDay(new Date()),
+      deliveries: 1,
+      balancePiastres: 600,
+    });
+    await viewer.get(`/finance/rider-offices/${officeId}/account?month=2026-13`).expect(400);
+    const csv = await viewer
+      .get(`/finance/rider-offices/${officeId}/account.csv?month=${month}`)
+      .expect(200);
+    expect(csv.headers['content-type']).toContain('text/csv');
+    expect(csv.text.split('\r\n')[0]).toBe(
+      '\uFEFFDay,Deliveries,Commission,Shortages moved,Bills (VAT),Payments,Other,Balance we owe',
+    );
+    expect(csv.text).toContain('Total,1,6.00,0.00,0.00,0.00,0.00,6.00');
+    const ar = await viewer
+      .get(`/finance/rider-offices/${officeId}/account.csv?month=${month}&lang=ar`)
+      .expect(200);
+    expect(ar.text).toContain('الرصيد');
+    // People without accounting never see it.
+    const hr = await person('hr@t.eg', 'hr_officer');
+    await hr.get(`/finance/rider-offices/${officeId}/account`).expect(403);
   });
 });

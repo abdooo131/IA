@@ -56,6 +56,8 @@ export interface ExpenseClaim {
   darkStoreId: string | null;
   category: { id: string; code: string; nameEn: string; nameAr: string };
   amountPiastres: number;
+  /** VAT on the receipt (a tax invoice), inside the amount; 0 when none */
+  vatPiastres: number;
   paidOn: string;
   note: string;
   photoId: string;

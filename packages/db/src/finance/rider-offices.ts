@@ -5,7 +5,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { addMonths } from './assets';
-import { balanceOf, lockedBalance, nextNumber, post, share } from './ledger';
+import { accountKey, balanceOf, lockedBalance, nextNumber, post, share } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -15,15 +15,20 @@ type Tx = Prisma.TransactionClient;
 // exactly as without an office (wallet, hold, withdrawals); the office earns only its
 // commission on top:
 //
-//   each delivery   Dr 5102 rider office commission   Cr 2402 commission accrued
-//                   (same transaction as the rider pay, tagged with store, merchant, rider, order)
+//   each delivery   Dr 5102 rider office commission   Cr 2500 office wallet
+//                   (same transaction as the rider pay, tagged with store, merchant, rider, order;
+//                   the office's own account grows delivery by delivery: owner, 2026-11-11)
 //   month end       Dr 2500 office wallet              Cr 1350 rider dues
 //                   (what a linked rider still owes beyond everything their 2200 wallet holds:
 //                   "rider first, then office")
-//   monthly bill    Dr 2402 accrued   Dr VAT (office with a tax number)   Cr 2500 office wallet
-//                   a normal supplier bill (BILL-), paid with payBill (withholding, cheques,
-//                   second person rule); the shortages already on the wallet are set off when
-//                   paying (offsetPiastres), or carry into the next month when larger.
+//   monthly bill    Dr VAT (office with a tax number)   Cr 2500 office wallet
+//                   a normal supplier bill (BILL-) for the month's commission plus VAT, paid
+//                   with payBill (withholding, cheques, second person rule). The commission is
+//                   already on the wallet, so the bill's entry books only the VAT, plus any
+//                   commission of that month still in 2402 commission accrued (deliveries
+//                   booked before 2026-11-11: Dr 2402 Cr 2500). The shortages already on the
+//                   wallet are set off when paying (offsetPiastres), or carry into the next
+//                   month when larger.
 
 const MONTH = /^\d{4}-(0[1-9]|1[0-2])$/;
 
@@ -107,7 +112,7 @@ export async function postRiderOfficeCommission(
     },
     lines: [
       { account: { type: 'rider_office_commission' }, amount },
-      { account: { type: 'rider_office_accrued' }, amount: -amount },
+      { account: { type: 'supplier', supplierId: office.id }, amount: -amount },
     ],
   });
 }
@@ -218,20 +223,29 @@ async function officeRiders(db: Db, supplierId: string) {
   return people.filter((p) => p.user.rider);
 }
 
-/** Commission accrued for an office between two moments (credits on 2402, shown positive). */
-async function accruedBetween(db: Db, supplierId: string, from: Date, to: Date) {
-  const rows = await db.$queryRaw<{ amount: bigint | null; n: bigint; pay: bigint | null }[]>`
-    SELECT -SUM(l.amount_piastres) AS amount, COUNT(*) AS n,
-      SUM((e.data->>'payPiastres')::int) AS pay
+/**
+ * Commission earned by an office between two moments: the 5102 expense of its delivery
+ * entries (whichever account was credited), and the part of it still in 2402 commission
+ * accrued (deliveries booked before the office wallet took the commission directly).
+ */
+async function commissionBetween(db: Db, supplierId: string, from: Date, to: Date) {
+  const rows = await db.$queryRaw<
+    { amount: bigint | null; accrued: bigint | null; n: bigint; pay: bigint | null }[]
+  >`
+    SELECT SUM(l.amount_piastres) FILTER (WHERE a.key = 'rider_office_commission') AS amount,
+      -SUM(l.amount_piastres) FILTER (WHERE a.key = 'rider_office_accrued') AS accrued,
+      COUNT(*) FILTER (WHERE a.key = 'rider_office_commission') AS n,
+      SUM((e.data->>'payPiastres')::int) FILTER (WHERE a.key = 'rider_office_commission') AS pay
     FROM ledger_lines l
       JOIN ledger_entries e ON e.id = l.entry_id
       JOIN ledger_accounts a ON a.id = l.account_id
-    WHERE a.key = 'rider_office_accrued' AND e.kind = 'rider_office_commission'
+    WHERE e.kind = 'rider_office_commission'
       AND e.data->>'supplierId' = ${supplierId}
       AND l.occurred_at >= ${from} AND l.occurred_at < ${to}`;
   const r = rows[0];
   return {
     commissionPiastres: Number(r?.amount ?? 0),
+    accruedPiastres: Number(r?.accrued ?? 0),
     deliveries: Number(r?.n ?? 0),
     payPiastres: Number(r?.pay ?? 0),
   };
@@ -384,7 +398,12 @@ async function prepareOne(
         vatPiastres: existing.vatPiastres,
         totalPiastres: existing.totalPiastres,
       };
-    const { commissionPiastres: net } = await accruedBetween(tx, office.id, from, to);
+    const { commissionPiastres: net, accruedPiastres: accrued } = await commissionBetween(
+      tx,
+      office.id,
+      from,
+      to,
+    );
     if (net <= 0)
       return {
         ...base,
@@ -398,6 +417,10 @@ async function prepareOne(
     const total = net + vat;
     const reference = `COMM-${input.month}`;
     const memo = `${office.name} rider commission ${input.month}`;
+    // The commission booked at delivery is already on the office wallet; the bill adds only
+    // the VAT and moves what older deliveries left in 2402. Nothing to post when both are 0
+    // (an office without a tax number whose month was all booked on its wallet).
+    const onWallet = net - accrued;
     const entry = await post(tx, {
       kind: 'supplier_bill',
       idempotencyKey: `bill:office_bill:${office.id}:${input.month}`,
@@ -411,15 +434,18 @@ async function prepareOne(
         userId: null,
         officeMonth: input.month,
         commissionPiastres: net,
+        /** The month's commission already on the office wallet at delivery (net, before VAT) */
+        onWalletPiastres: onWallet,
+        accruedPiastres: accrued,
       },
       lines: [
-        { account: { type: 'rider_office_accrued' }, amount: net },
+        { account: { type: 'rider_office_accrued' }, amount: accrued },
         { account: { type: 'vat_payable' }, amount: vat },
-        { account: { type: 'supplier', supplierId: office.id }, amount: -total },
+        { account: { type: 'supplier', supplierId: office.id }, amount: -(accrued + vat) },
       ],
     });
-    const accrued = await tx.ledgerAccount.findUniqueOrThrow({
-      where: { key: 'rider_office_accrued' },
+    const expense = await tx.ledgerAccount.findUniqueOrThrow({
+      where: { key: 'rider_office_commission' },
     });
     const bill = await tx.bill.create({
       data: {
@@ -428,14 +454,14 @@ async function prepareOne(
         reference,
         billDate: new Date(`${billDay}T00:00:00Z`),
         dueDate: new Date(`${cairoDay(input.now)}T00:00:00Z`),
-        expenseAccountId: accrued.id,
+        expenseAccountId: expense.id,
         netPiastres: net,
         vatPiastres: vat,
         totalPiastres: total,
         whtBp: office.whtBp,
         memo,
         officeMonth: input.month,
-        entryId: entry!.id,
+        entryId: entry?.id ?? null,
         createdById: input.actorUserId,
       },
     });
@@ -513,9 +539,12 @@ export async function prepareOfficeBills(
 
 // ─── screens ───────────────────────────────────────────────────────────────────
 
-/** An office's wallet: what we owe it (positive) or it owes us (negative), and open bills. */
+/**
+ * An office's wallet: what we owe it today (positive, the month's commission not billed yet
+ * included, since each delivery credits the wallet) or it owes us (negative), and open bills.
+ */
 async function walletOf(db: Db, supplierId: string) {
-  const [balance, open, accrued] = await Promise.all([
+  const [balance, open, earned, billed] = await Promise.all([
     balanceOf(db, { type: 'supplier', supplierId }),
     db.bill.aggregate({
       where: { supplierId, status: 'open' },
@@ -523,22 +552,27 @@ async function walletOf(db: Db, supplierId: string) {
       _count: { _all: true },
     }),
     db.$queryRaw<{ amount: bigint | null }[]>`
-      SELECT -SUM(l.amount_piastres) AS amount
+      SELECT SUM(l.amount_piastres) AS amount
       FROM ledger_lines l
         JOIN ledger_entries e ON e.id = l.entry_id
         JOIN ledger_accounts a ON a.id = l.account_id
-      WHERE a.key = 'rider_office_accrued' AND e.data->>'supplierId' = ${supplierId}`,
+      WHERE a.key = 'rider_office_commission' AND e.kind = 'rider_office_commission'
+        AND e.data->>'supplierId' = ${supplierId}`,
+    db.bill.aggregate({
+      where: { supplierId, officeMonth: { not: null } },
+      _sum: { netPiastres: true },
+    }),
   ]);
   const openLeft = (open._sum.totalPiastres ?? 0) - (open._sum.paidPiastres ?? 0);
   return {
-    /** What we owe the office now (negative: what it owes us) */
+    /** What we owe the office today (negative: what it owes us) */
     owedPiastres: 0 - balance,
     openBills: open._count._all,
     openBillsPiastres: openLeft,
     /** What the office owes us beyond its open bills, set off when paying them */
     owesUsPiastres: Math.max(0, balance + openLeft),
-    /** Commission accrued and not billed yet */
-    unbilledPiastres: Number(accrued[0]?.amount ?? 0),
+    /** Commission earned and not billed yet (already part of owedPiastres) */
+    unbilledPiastres: Number(earned[0]?.amount ?? 0) - (billed._sum.netPiastres ?? 0),
   };
 }
 
@@ -563,7 +597,7 @@ export async function listRiderOffices(db: Db, input: { month: string }) {
   const rows = [];
   for (const o of offices) {
     const [month, shortages, wallet, bill] = await Promise.all([
-      accruedBetween(db, o.id, from, to),
+      commissionBetween(db, o.id, from, to),
       shortagesFor(db, o.id, input.month),
       walletOf(db, o.id),
       db.bill.findUnique({
@@ -617,12 +651,12 @@ export async function riderOfficeDetail(db: Db, input: { supplierId: string; now
     officeRiders(db, office.id),
     db.$queryRaw<{ month: string; amount: bigint; n: bigint; pay: bigint | null }[]>`
       SELECT to_char(l.occurred_at AT TIME ZONE 'UTC' AT TIME ZONE 'Africa/Cairo', 'YYYY-MM') AS month,
-        -SUM(l.amount_piastres) AS amount, COUNT(*) AS n,
+        SUM(l.amount_piastres) AS amount, COUNT(*) AS n,
         SUM((e.data->>'payPiastres')::int) AS pay
       FROM ledger_lines l
         JOIN ledger_entries e ON e.id = l.entry_id
         JOIN ledger_accounts a ON a.id = l.account_id
-      WHERE a.key = 'rider_office_accrued' AND e.kind = 'rider_office_commission'
+      WHERE a.key = 'rider_office_commission' AND e.kind = 'rider_office_commission'
         AND e.data->>'supplierId' = ${office.id}
         AND l.occurred_at >= ${from} AND l.occurred_at < ${to}
       GROUP BY 1`,
@@ -656,11 +690,11 @@ export async function riderOfficeDetail(db: Db, input: { supplierId: string; now
   // This month's figures per rider: deliveries and commission, what they owe and hold now.
   const { from: monthFrom } = monthRange(thisMonth);
   const perRider = await db.$queryRaw<{ rider_id: string; amount: bigint; n: bigint }[]>`
-    SELECT e.data->>'riderId' AS rider_id, -SUM(l.amount_piastres) AS amount, COUNT(*) AS n
+    SELECT e.data->>'riderId' AS rider_id, SUM(l.amount_piastres) AS amount, COUNT(*) AS n
     FROM ledger_lines l
       JOIN ledger_entries e ON e.id = l.entry_id
       JOIN ledger_accounts a ON a.id = l.account_id
-    WHERE a.key = 'rider_office_accrued' AND e.kind = 'rider_office_commission'
+    WHERE a.key = 'rider_office_commission' AND e.kind = 'rider_office_commission'
       AND e.data->>'supplierId' = ${office.id} AND l.occurred_at >= ${monthFrom}
     GROUP BY 1`;
   const riders = [];
@@ -711,5 +745,109 @@ export async function riderOfficeDetail(db: Db, input: { supplierId: string; now
       billDate: b.billDate.toISOString().slice(0, 10),
       leftPiastres: b.status === 'open' ? b.totalPiastres - b.paidPiastres : 0,
     })),
+  };
+}
+
+export type OfficeAccountDay = {
+  /** Cairo day YYYY-MM-DD */
+  day: string;
+  deliveries: number;
+  /** Commission booked on the wallet that day (what we owe goes up) */
+  commissionPiastres: number;
+  /** Rider shortages moved onto the office (what we owe goes down) */
+  shortagesPiastres: number;
+  /** Monthly bills: their VAT, plus commission moved from 2402 for deliveries booked before */
+  billedPiastres: number;
+  /** Bill payments: settled, less any amount set off (what we owe goes down) */
+  paymentsPiastres: number;
+  /** Anything else on the wallet (cheque bounces and the like), as a change of what we owe */
+  otherPiastres: number;
+  /** What we owe the office at the end of the day (negative: what it owes us) */
+  balancePiastres: number;
+};
+
+const ACCOUNT_KINDS = [
+  'rider_office_commission',
+  'rider_office_shortage',
+  'supplier_bill',
+  'bill_payment',
+];
+
+/**
+ * The office's account day by day for a Cairo month (the office page's daily account): every
+ * day of the month up to today, oldest first, with the commission earned, shortages moved,
+ * bills, payments and the running balance of what we owe it, opening with the balance before
+ * the month. Read from the lines of its 2500 supplier wallet.
+ */
+export async function riderOfficeAccount(
+  db: Db,
+  input: { supplierId: string; month: string; now?: Date },
+) {
+  const now = input.now ?? new Date();
+  const { from, to } = monthRange(input.month);
+  const office = await db.supplier.findUnique({
+    where: { id: input.supplierId },
+    select: { id: true, name: true, isRiderOffice: true },
+  });
+  if (!office || !office.isRiderOffice) throw new DomainError('rider_office_not_found', 404);
+  const ref = { type: 'supplier' as const, supplierId: office.id };
+  const [before, rows] = await Promise.all([
+    balanceOf(db, ref, from),
+    db.$queryRaw<{ day: string; kind: string; amount: bigint; n: bigint }[]>`
+      SELECT to_char((l.occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo', 'YYYY-MM-DD') AS day,
+        e.kind, SUM(l.amount_piastres) AS amount, COUNT(*) AS n
+      FROM ledger_lines l
+        JOIN ledger_entries e ON e.id = l.entry_id
+        JOIN ledger_accounts a ON a.id = l.account_id
+      WHERE a.key = ${accountKey(ref)}
+        AND l.occurred_at >= ${from} AND l.occurred_at < ${to}
+      GROUP BY 1, 2`,
+  ]);
+  const today = cairoDay(now);
+  const lastDay = lastDayOf(input.month);
+  const end = today < lastDay ? today : lastDay;
+  const opening = 0 - before;
+  let balance = opening;
+  const days: OfficeAccountDay[] = [];
+  for (let day = `${input.month}-01`; day <= end; day = addDays(day, 1)) {
+    const mine = rows.filter((r) => r.day === day);
+    // Wallet lines are debits (+) and credits (−); credits raise what we owe the office.
+    const net = (keep: (kind: string) => boolean) =>
+      mine.filter((r) => keep(r.kind)).reduce((s, r) => s + Number(r.amount), 0);
+    const row = {
+      day,
+      deliveries: mine
+        .filter((r) => r.kind === 'rider_office_commission')
+        .reduce((s, r) => s + Number(r.n), 0),
+      commissionPiastres: 0 - net((k) => k === 'rider_office_commission'),
+      shortagesPiastres: net((k) => k === 'rider_office_shortage'),
+      billedPiastres: 0 - net((k) => k === 'supplier_bill'),
+      paymentsPiastres: net((k) => k === 'bill_payment'),
+      otherPiastres: 0 - net((k) => !ACCOUNT_KINDS.includes(k)),
+    };
+    balance +=
+      row.commissionPiastres -
+      row.shortagesPiastres +
+      row.billedPiastres -
+      row.paymentsPiastres +
+      row.otherPiastres;
+    days.push({ ...row, balancePiastres: balance });
+  }
+  const sum = (k: Exclude<keyof OfficeAccountDay, 'day' | 'balancePiastres'>) =>
+    days.reduce((s, d) => s + d[k], 0);
+  return {
+    office: { id: office.id, name: office.name },
+    month: input.month,
+    openingPiastres: opening,
+    closingPiastres: balance,
+    days,
+    totals: {
+      deliveries: sum('deliveries'),
+      commissionPiastres: sum('commissionPiastres'),
+      shortagesPiastres: sum('shortagesPiastres'),
+      billedPiastres: sum('billedPiastres'),
+      paymentsPiastres: sum('paymentsPiastres'),
+      otherPiastres: sum('otherPiastres'),
+    },
   };
 }

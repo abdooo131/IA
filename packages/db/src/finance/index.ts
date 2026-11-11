@@ -302,6 +302,8 @@ export {
   listRiderOffices,
   type OfficeBillResult,
   prepareOfficeBills,
+  type OfficeAccountDay,
+  riderOfficeAccount,
   riderOfficeDetail,
   riderOfficeOf,
   setRiderOffice,

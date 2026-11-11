@@ -21,9 +21,15 @@ const monthEndExclusive = (month: string) => monthStart(addMonths(month, 1));
 
 /**
  * Entries whose VAT is VAT claimed back on purchases: bills (purchase order bills
- * included), a bill cancelled (it takes its claim back) and expenses paid at once.
+ * included), a bill cancelled (it takes its claim back), expenses paid at once and employee
+ * expense claims paid back with a tax invoice.
  */
-export const VAT_PURCHASE_KINDS = ['supplier_bill', 'supplier_bill_cancel', 'expense'];
+export const VAT_PURCHASE_KINDS = [
+  'supplier_bill',
+  'supplier_bill_cancel',
+  'expense',
+  'expense_claim',
+];
 
 /**
  * VAT per month of a year: charged on our fees (output, less credit notes), claimed back on

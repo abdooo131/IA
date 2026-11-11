@@ -545,6 +545,8 @@ export interface ExpenseClaimListRow {
   managerDecidedById: string | null;
   paidBy: string | null;
   amount: number;
+  /** VAT on the receipt (a tax invoice), claimed back when paid; 0 when none */
+  vat: number;
   /** Waiting for accounting and the reader may pay it (not their own, not the second person) */
   canPay: boolean;
 }
@@ -587,6 +589,7 @@ async function loadClaims(db: Db, scope: ListScope): Promise<ExpenseClaimListRow
     managerDecidedById: c.managerDecidedById,
     paidBy: c.paidBy?.name ?? null,
     amount: c.amountPiastres,
+    vat: c.vatPiastres ?? 0,
     canPay:
       c.status === 'pending_accounting' &&
       c.userId !== scope.userId &&
