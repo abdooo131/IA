@@ -254,10 +254,17 @@ describe('email outbox', () => {
     let now = new Date();
     const errors: unknown[] = [];
     expect(
-      await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, renderAttachment, onError: (e) => errors.push(e) }),
+      await dispatchEmails(prisma, mailer, {
+        baseUrl: 'x',
+        now,
+        renderAttachment,
+        onError: (e) => errors.push(e),
+      }),
     ).toEqual({ sent: 0, failed: 1, gaveUp: 0 });
     // Not due again before the wait is over.
-    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, renderAttachment })).toMatchObject({
+    expect(
+      await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, renderAttachment }),
+    ).toMatchObject({
       failed: 0,
     });
     for (let i = 2; i <= EMAIL_MAX_ATTEMPTS; i++) {
@@ -275,7 +282,9 @@ describe('email outbox', () => {
 
     mailer.fail = false;
     await retryEmail(prisma, { emailId: row.id, actorUserId: admin });
-    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x', renderAttachment })).toMatchObject({ sent: 1 });
+    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x', renderAttachment })).toMatchObject({
+      sent: 1,
+    });
     await expect(retryEmail(prisma, { emailId: row.id, actorUserId: admin })).rejects.toThrow(
       'email_already_sent',
     );

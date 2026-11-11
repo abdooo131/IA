@@ -178,8 +178,7 @@ export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: str
       checksTotal: checks.length,
       /** The second person check was ticked by the person looking: they may not pay it */
       viewedByMe:
-        !!second &&
-        p.checkMarks.some((m) => m.checkId === second.id && m.userId === input.userId),
+        !!second && p.checkMarks.some((m) => m.checkId === second.id && m.userId === input.userId),
     };
   });
 

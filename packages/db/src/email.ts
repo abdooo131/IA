@@ -269,7 +269,12 @@ export async function queuePayoutEmails(tx: Tx, payoutId: string) {
       ref: `payout_soa_pdf:${payout.id}:${notice.language}`,
     });
   if (notice && payout.proof) {
-    const ext = payout.proof.contentType === 'application/pdf' ? 'pdf' : payout.proof.contentType === 'image/png' ? 'png' : 'jpg';
+    const ext =
+      payout.proof.contentType === 'application/pdf'
+        ? 'pdf'
+        : payout.proof.contentType === 'image/png'
+          ? 'png'
+          : 'jpg';
     refs.push({
       filename: `${proofNumber(payout.proof.number)}.${ext}`,
       contentType: payout.proof.contentType,

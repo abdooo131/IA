@@ -35,6 +35,11 @@ export interface PayRunData {
     createdBy: string;
     mine: boolean;
     ready: boolean;
+    soa: { number: string; netPiastres: number } | null;
+    proof: { number: string; amountPiastres: number; reference: string } | null;
+    checksDone: number;
+    checksTotal: number;
+    viewedByMe: boolean;
   }[];
   paid: {
     id: string;

@@ -48,7 +48,13 @@ async function nextControlNumber(tx: Tx, table: 'payout_statements' | 'payout_pr
  */
 export async function buildPayoutStatement(
   tx: Db,
-  payout: { id: string; number: number; merchantId: string; cutoffAt: Date; amountPiastres: number },
+  payout: {
+    id: string;
+    number: number;
+    merchantId: string;
+    cutoffAt: Date;
+    amountPiastres: number;
+  },
   soaSerial: number,
 ): Promise<PayoutStatementData> {
   const merchant = await tx.merchant.findUniqueOrThrow({
@@ -255,7 +261,11 @@ export async function addPayoutProof(
     const proof = existing
       ? await tx.payoutProof.update({ where: { id: existing.id }, data: file })
       : await tx.payoutProof.create({
-          data: { ...file, number: await nextControlNumber(tx, 'payout_proofs'), payoutId: payout.id },
+          data: {
+            ...file,
+            number: await nextControlNumber(tx, 'payout_proofs'),
+            payoutId: payout.id,
+          },
         });
     if (existing)
       cleared = (await tx.payoutCheckMark.deleteMany({ where: { payoutId: payout.id } })).count;
@@ -487,7 +497,9 @@ export async function assertReadyToPay(
     throw new DomainError('soa_mismatch', 409);
   const missing = checks.filter((c) => !marks.some((m) => m.checkId === c.id));
   if (missing.length)
-    throw new DomainError('checks_incomplete', 409, { missing: missing.map((c) => c.code).join(',') });
+    throw new DomainError('checks_incomplete', 409, {
+      missing: missing.map((c) => c.code).join(','),
+    });
   const second = checks.find((c) => c.code === SECOND_PERSON_CHECK);
   if (second && marks.find((m) => m.checkId === second.id)?.userId === payerId)
     throw new DomainError('same_person', 403);

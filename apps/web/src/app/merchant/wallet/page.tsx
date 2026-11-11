@@ -1,5 +1,6 @@
 import { addDays, cairoDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
+import Link from 'next/link';
 import { Amount } from '@/components/finance/Amount';
 import { type BankDetails, BankDetailsForm } from '@/components/finance/BankDetailsForm';
 import { EmailSettingsForm } from '@/components/merchant/EmailSettingsForm';
@@ -24,6 +25,10 @@ interface Wallet {
     status: 'draft' | 'paid';
     reference: string | null;
     paidAt: string | null;
+    soa: { number: string; netPiastres: number } | null;
+    pot: { number: string; amountPiastres: number; reference: string; contentType: string } | null;
+    paidByCheque: boolean;
+    matches: boolean;
   }[];
 }
 
@@ -88,28 +93,94 @@ export default async function MerchantWalletPage({
         ) : (
           <ul className="mt-2 divide-y divide-line rounded-lg border border-line bg-surface">
             {wallet.payouts.map((p) => (
-              <li
-                key={p.id}
-                className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-body-sm"
-              >
-                <span>
-                  <span className="font-bold">
-                    {p.status === 'paid' ? t('paid') : t('waiting')}
-                  </span>
-                  <span className="ltr-iso block text-caption text-text-muted">
-                    {p.paidAt
-                      ? formatCairoDateTime(p.paidAt, locale)
-                      : formatCutoffDay(p.cutoffAt, locale)}
-                  </span>
-                  {p.reference && (
-                    <span className="ltr-iso block text-caption text-text-muted">
-                      {t('reference', { reference: p.reference })}
+              <li key={p.id} className="space-y-3 px-4 py-3 text-body-sm">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <span className="font-bold">
+                      {p.status === 'paid' ? t('paid') : t('waiting')}
                     </span>
-                  )}
-                </span>
-                <span className="text-h3">
-                  <Amount piastres={p.amountPiastres} /> {tf('egp')}
-                </span>
+                    <span className="ltr-iso block text-caption text-text-muted">
+                      {p.paidAt
+                        ? formatCairoDateTime(p.paidAt, locale)
+                        : formatCutoffDay(p.cutoffAt, locale)}
+                    </span>
+                    {p.reference && (
+                      <span className="ltr-iso block text-caption text-text-muted">
+                        {t('reference', { reference: p.reference })}
+                      </span>
+                    )}
+                  </span>
+                  <span className="text-h3">
+                    <Amount piastres={p.amountPiastres} /> {tf('egp')}
+                  </span>
+                </div>
+                {/* The statement of account and the proof of transfer side by side. */}
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <div className="rounded-md border border-line p-2">
+                    <p className="text-caption text-text-muted">{t('soa')}</p>
+                    {p.soa ? (
+                      <>
+                        <p className="ltr-iso font-bold">{p.soa.number}</p>
+                        <p>
+                          <Amount piastres={p.soa.netPiastres} /> {tf('egp')}
+                        </p>
+                        <p className="flex flex-wrap gap-3 text-caption">
+                          <Link
+                            className="font-bold text-link"
+                            href={`/merchant/wallet/payouts/${p.id}`}
+                          >
+                            {t('viewSoa')}
+                          </Link>
+                          <a
+                            className="font-bold text-link"
+                            href={`/api/merchant/finance/payouts/${p.id}/statement.pdf?lang=${locale === 'ar' ? 'ar' : 'en'}`}
+                          >
+                            {t('pdf')}
+                          </a>
+                        </p>
+                      </>
+                    ) : (
+                      <p className="text-caption text-text-muted">{t('potWaiting')}</p>
+                    )}
+                  </div>
+                  <div className="rounded-md border border-line p-2">
+                    <p className="text-caption text-text-muted">{t('pot')}</p>
+                    {p.pot ? (
+                      <>
+                        <p className="ltr-iso font-bold">{p.pot.number}</p>
+                        <p>
+                          <Amount piastres={p.pot.amountPiastres} /> {tf('egp')}
+                        </p>
+                        <a
+                          className="text-caption font-bold text-link"
+                          href={`/api/merchant/finance/payouts/${p.id}/proof`}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          {t('viewSlip')}
+                        </a>
+                      </>
+                    ) : (
+                      <p className="text-caption text-text-muted">
+                        {p.paidByCheque ? t('byCheque') : t('potWaiting')}
+                      </p>
+                    )}
+                  </div>
+                  <div
+                    className={`rounded-md border p-2 ${p.matches ? 'border-status-delivered' : 'border-line'}`}
+                  >
+                    {p.matches ? (
+                      <>
+                        <p className="font-bold">✓ {t('matches')}</p>
+                        <p className="text-caption text-text-muted">{t('matchesHint')}</p>
+                      </>
+                    ) : (
+                      <p className="text-caption text-text-muted">
+                        {p.status === 'paid' && !p.paidByCheque ? t('differs') : t('potWaiting')}
+                      </p>
+                    )}
+                  </div>
+                </div>
               </li>
             ))}
           </ul>

@@ -136,13 +136,17 @@ export async function payoutStatementPdf(
   for (const o of s.orders) {
     const fees = Object.values(o.fees).reduce((a, b) => a + b, 0);
     pdf.row(
-      [o.orderNumber, egpText(o.codPiastres), egpText(fees), egpText(o.vatPiastres), egpText(o.netPiastres)].map(
-        (text, i) => ({
-          text,
-          width: W[i]!,
-          align: i === 0 ? ('start' as const) : ('end' as const),
-        }),
-      ),
+      [
+        o.orderNumber,
+        egpText(o.codPiastres),
+        egpText(fees),
+        egpText(o.vatPiastres),
+        egpText(o.netPiastres),
+      ].map((text, i) => ({
+        text,
+        width: W[i]!,
+        align: i === 0 ? ('start' as const) : ('end' as const),
+      })),
       { size: 9 },
     );
   }

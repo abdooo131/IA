@@ -12,9 +12,11 @@ import type { BookAccount } from '@/lib/finance-types';
 import { formatCairoDateTime } from '@/lib/format';
 import { PAY_STEPS, type PayRunData, type PayStep } from '@/lib/pay-run';
 import { Amount } from './Amount';
+import { ProofUpload } from './ProofUpload';
 
 // The guided Pay merchants run (Accounting UX phase B): who is due today, review, approve,
-// the bank's bulk file, mark paid with one reference, and what was done. Where it stands is
+// the bank's bulk file, mark paid (each payout with its own proof of transfer and checks), and
+// what was done. Where it stands is
 // read from the payouts themselves, so it can be left and picked up again.
 
 const primary =
@@ -369,7 +371,7 @@ export function PayMerchantsRun({
     const total = ready.filter((d) => payIds.has(d.id)).reduce((s, d) => s + d.amountPiastres, 0);
     body = (
       <>
-        <p className="text-body-sm text-text-muted">{t('payIntro')}</p>
+        <p className="text-body-sm text-text-muted">{t('payIntroProof')}</p>
         {ready.length === 0 ? (
           <p className="rounded-lg border border-dashed border-line bg-surface p-6 text-center text-body-sm text-text-muted">
             {t('nothingToPay')}
@@ -378,8 +380,8 @@ export function PayMerchantsRun({
           <>
             <ul className="divide-y divide-line rounded-lg border border-line bg-surface">
               {ready.map((d) => (
-                <li key={d.id}>
-                  <label className="flex flex-wrap items-center gap-3 px-3 py-2 text-body-sm">
+                <li key={d.id} className="space-y-2 px-3 py-2">
+                  <label className="flex flex-wrap items-center gap-3 text-body-sm">
                     <input
                       type="checkbox"
                       className="h-4 w-4"
@@ -397,6 +399,37 @@ export function PayMerchantsRun({
                     <span className="min-w-0 flex-1">{d.merchant}</span>
                     <Amount piastres={d.amountPiastres} strong />
                   </label>
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 ps-7 text-caption">
+                    <span className={d.proof ? '' : 'text-danger'}>
+                      {t('proof')}:{' '}
+                      {d.proof ? (
+                        <span className="ltr-iso">
+                          {d.proof.number} · {d.proof.reference}
+                        </span>
+                      ) : (
+                        t('noProof')
+                      )}
+                    </span>
+                    <span
+                      className={d.checksDone < d.checksTotal ? 'text-danger' : 'text-text-muted'}
+                    >
+                      {t('checksCount', { done: d.checksDone, total: d.checksTotal })}
+                    </span>
+                    <Link href={`/finance/payouts/${d.id}#payout-controls`} className="text-link">
+                      {t('openPayout')}
+                    </Link>
+                    {d.viewedByMe && <span className="text-text-muted">{t('viewedByMe')}</span>}
+                  </div>
+                  {canWrite && !d.proof && (
+                    <details className="ps-7">
+                      <summary className="cursor-pointer text-body-sm font-bold text-link">
+                        {t('uploadProof')}
+                      </summary>
+                      <div className="pt-2">
+                        <ProofUpload payoutId={d.id} amountPiastres={d.amountPiastres} compact />
+                      </div>
+                    </details>
+                  )}
                 </li>
               ))}
             </ul>
@@ -406,7 +439,7 @@ export function PayMerchantsRun({
                 <input
                   value={reference}
                   onChange={(e) => setReference(e.target.value)}
-                  placeholder={t('referenceHint')}
+                  placeholder={t('referenceOptional')}
                   dir="ltr"
                   className={field}
                 />
@@ -435,13 +468,13 @@ export function PayMerchantsRun({
               <button
                 type="button"
                 className={primary}
-                disabled={busy || payIds.size === 0 || reference.trim().length < 2}
+                disabled={busy || payIds.size === 0 || reference.trim().length === 1}
                 onClick={async () => {
                   const r = await post<{ results: { id: string; ok: boolean; error?: string }[] }>(
                     '/finance/payouts/run/mark-paid',
                     {
                       ids: [...payIds],
-                      reference: reference.trim(),
+                      reference: reference.trim() || undefined,
                       day: day && day !== cairoDay(new Date()) ? day : undefined,
                       bankAccountId: bank || undefined,
                     },
@@ -453,7 +486,10 @@ export function PayMerchantsRun({
                       text: t('paidSome', {
                         ok: r.results.length - refused.length,
                         refused: refused.length,
-                        reason: errorText(refused[0]!.error ?? 'generic'),
+                        reason:
+                          refused[0]!.error === 'same_person'
+                            ? t('paySamePerson')
+                            : errorText(refused[0]!.error ?? 'generic'),
                       }),
                       error: true,
                     });

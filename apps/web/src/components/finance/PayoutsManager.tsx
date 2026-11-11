@@ -16,8 +16,17 @@ const button =
 const primary =
   'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted';
 
-function DraftCard({ payout }: { payout: PayoutRow }) {
+function DraftCard({
+  payout,
+  blockers,
+}: {
+  payout: PayoutRow;
+  /** What still stands before the viewer can mark it paid (proof, checks); unknown when absent */
+  blockers?: string[];
+}) {
   const t = useTranslations('finance.payouts');
+  const tc = useTranslations('finance.payoutControls');
+  const blocked = (blockers ?? []).length > 0;
   const locale = useLocale();
   const action = useFinanceAction();
   const [reference, setReference] = useState('');
@@ -68,18 +77,18 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
           value={reference}
           onChange={(e) => setReference(e.target.value)}
           dir="ltr"
-          placeholder={t('transferRef')}
-          aria-label={t('transferRef')}
+          placeholder={t('transferRefOptional')}
+          aria-label={t('transferRefOptional')}
           className={`${field} min-w-0 flex-1`}
         />
         <BankSelect value={bank} onChange={setBank} className={field} />
         <button
           type="button"
           className={primary}
-          disabled={action.busy || reference.trim().length < 2 || payout.needsApproval}
+          disabled={action.busy || reference.trim().length === 1 || payout.needsApproval || blocked}
           onClick={() =>
             void action.send('POST', `/finance/payouts/${payout.id}/paid`, {
-              reference,
+              reference: reference.trim() || undefined,
               bankAccountId: bank || undefined,
               receiptPhotoId: slip ?? undefined,
             })
@@ -111,6 +120,13 @@ function DraftCard({ payout }: { payout: PayoutRow }) {
             {t('cancelPayout')}
           </button>
         </div>
+      )}
+      {blocked && (
+        <ul className="text-caption text-text-muted">
+          {blockers!.map((b) => (
+            <li key={b}>{tc.has(`blockers.${b}`) ? tc(`blockers.${b}`) : b}</li>
+          ))}
+        </ul>
       )}
       <ActionMessage message={action.message} />
     </li>

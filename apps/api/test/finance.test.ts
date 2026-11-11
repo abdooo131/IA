@@ -4,13 +4,7 @@ import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import {
-  contractPrices,
-  createTestApp,
-  FixedClock,
-  readyToPay,
-  resetAndSeed,
-} from './helpers';
+import { contractPrices, createTestApp, FixedClock, readyToPay, resetAndSeed } from './helpers';
 
 const DEMO = 'demo-password-1';
 const NOON_CAIRO = new Date('2026-01-14T10:00:00Z');

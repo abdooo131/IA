@@ -46,7 +46,11 @@ describe('payout statement of account and proof of transfer', () => {
 
   it('freezes the SOA, needs the POT and a second person, and shows both to the merchant', async () => {
     const admin = await agent('admin@test.eg', 'admin-password-1');
-    await createUser(prisma, { email: 'viewer@test.eg', password: 'viewer-password-1', role: 'finance' });
+    await createUser(prisma, {
+      email: 'viewer@test.eg',
+      password: 'viewer-password-1',
+      role: 'finance',
+    });
     const viewer = await agent('viewer@test.eg', 'viewer-password-1');
     const clerkUser = await createUser(prisma, {
       email: 'clerk@test.eg',
@@ -91,7 +95,9 @@ describe('payout statement of account and proof of transfer', () => {
     expect(refused.body.error).toBe('pot_required');
     const upload = (amount: number, type = 'application/pdf', body: Buffer = SLIP_PDF) =>
       clerk
-        .post(`/finance/payouts/${id}/proof?name=slip.pdf&amountPiastres=${amount}&reference=CIB-9001`)
+        .post(
+          `/finance/payouts/${id}/proof?name=slip.pdf&amountPiastres=${amount}&reference=CIB-9001`,
+        )
         .set('content-type', type)
         .send(body);
     expect((await upload(42_000).expect(409)).body.error).toBe('pot_amount_mismatch');
@@ -111,7 +117,10 @@ describe('payout statement of account and proof of transfer', () => {
     expect((await admin.post(`/finance/payouts/${id}/paid`).send({}).expect(409)).body.error).toBe(
       'checks_incomplete',
     );
-    await viewer.post(`/finance/payouts/${id}/checks/${check.id}`).send({ note: 'Seen' }).expect(201);
+    await viewer
+      .post(`/finance/payouts/${id}/checks/${check.id}`)
+      .send({ note: 'Seen' })
+      .expect(201);
     // The second person may not pay it themself.
     controls = await viewer.get(`/finance/payouts/${id}/controls`).expect(200);
     expect(controls.body.blockers).toEqual(['same_person']);
@@ -164,9 +173,11 @@ describe('payout statement of account and proof of transfer', () => {
     await merchant.get(`/merchant/finance/payouts/${next.body.id}/statement`).expect(200);
     await merchant.get(`/merchant/finance/payouts/${next.body.id}/proof`).expect(404);
     const waiting = await merchant.get('/merchant/finance').expect(200);
-    expect(
-      waiting.body.payouts.find((p: { id: string }) => p.id === next.body.id),
-    ).toMatchObject({ status: 'draft', soa: { number: 'SOA-000003' }, pot: null });
+    expect(waiting.body.payouts.find((p: { id: string }) => p.id === next.body.id)).toMatchObject({
+      status: 'draft',
+      soa: { number: 'SOA-000003' },
+      pot: null,
+    });
     await merchant.get(`/finance/payouts/${next.body.id}/controls`).expect(403);
   });
 
@@ -196,27 +207,36 @@ describe('payout statement of account and proof of transfer', () => {
       (await admin.patch(`/finance/payout-checks/${system.id}`).send({ active: false }).expect(409))
         .body.error,
     ).toBe('check_is_system');
-    await clerk.patch(`/finance/payout-checks/${created.body.id}`).send({ active: false }).expect(403);
+    await clerk
+      .patch(`/finance/payout-checks/${created.body.id}`)
+      .send({ active: false })
+      .expect(403);
     await admin
       .patch(`/finance/payout-checks/${created.body.id}`)
       .send({ active: false })
       .expect(200);
 
     // The custom check, while active, is ticked by anyone with accounting use (the payer too).
-    await admin.patch(`/finance/payout-checks/${created.body.id}`).send({ active: true }).expect(200);
+    await admin
+      .patch(`/finance/payout-checks/${created.body.id}`)
+      .send({ active: true })
+      .expect(200);
     await owe(merchantId, 5_000);
     const payout = await admin
       .post('/finance/payouts')
       .send({ merchantId, cutoffDay: today })
       .expect(201);
-    await clerk.post(`/finance/payouts/${payout.body.id}/checks/${created.body.id}`).send({}).expect(201);
+    await clerk
+      .post(`/finance/payouts/${payout.body.id}/checks/${created.body.id}`)
+      .send({})
+      .expect(201);
     const controls = await clerk.get(`/finance/payouts/${payout.body.id}/controls`).expect(200);
     expect(controls.body.checks).toMatchObject([
       { code: 'second_person_viewed', mark: null },
       { code: 'iban_matches', mark: { by: 'clerk@test.eg', mine: true } },
     ]);
-    expect(
-      await prisma.auditLog.count({ where: { action: 'finance.payout_check_create' } }),
-    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'finance.payout_check_create' } })).toBe(
+      1,
+    );
   });
 });

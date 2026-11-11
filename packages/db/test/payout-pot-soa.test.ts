@@ -148,11 +148,16 @@ describe('statement of account', () => {
 
     // Never changed afterwards, even by hand in the database.
     await expect(
-      prisma.payoutStatement.updateMany({ where: { payoutId: payout.id }, data: { netPiastres: 1 } }),
+      prisma.payoutStatement.updateMany({
+        where: { payoutId: payout.id },
+        data: { netPiastres: 1 },
+      }),
     ).rejects.toThrow('payout_statement_frozen');
     await expect(prisma.payoutStatement.deleteMany({})).rejects.toThrow('payout_statement_frozen');
     expect(
-      await prisma.auditLog.count({ where: { action: 'finance.payout_statement', entityId: payout.id } }),
+      await prisma.auditLog.count({
+        where: { action: 'finance.payout_statement', entityId: payout.id },
+      }),
     ).toBe(1);
   });
 
@@ -172,7 +177,9 @@ describe('statement of account', () => {
     expect(s.netPiastres).toBe(7_000);
 
     // Prepared by the run, each draft has its statement too.
-    const other = await prisma.merchant.create({ data: { name: 'Other', payoutSchedule: 'daily' } });
+    const other = await prisma.merchant.create({
+      data: { name: 'Other', payoutSchedule: 'daily' },
+    });
     await cod(3_000, undefined, other.id);
     const run = await prepareDuePayouts(prisma, {
       cutoffDay: new Date(Date.now() + 86_400_000).toISOString().slice(0, 10),
@@ -198,7 +205,11 @@ describe('statement of account', () => {
     });
     expect(payout.amountPiastres).toBe(8_860);
     const s = await getPayoutStatement(prisma, payout.id);
-    expect(s).toMatchObject({ closingPiastres: 10_000, heldBackPiastres: 1_140, netPiastres: 8_860 });
+    expect(s).toMatchObject({
+      closingPiastres: 10_000,
+      heldBackPiastres: 1_140,
+      netPiastres: 8_860,
+    });
   });
 });
 
@@ -287,9 +298,9 @@ describe('proof of transfer', () => {
     const again = await proof(payout.id, 5_000);
     expect(again.number).toBe('POT-000001');
     expect(await prisma.payoutCheckMark.count()).toBe(0);
-    expect(
-      await prisma.auditLog.count({ where: { action: 'finance.payout_proof_replace' } }),
-    ).toBe(1);
+    expect(await prisma.auditLog.count({ where: { action: 'finance.payout_proof_replace' } })).toBe(
+      1,
+    );
   });
 });
 
@@ -333,7 +344,9 @@ describe('payout checks', () => {
     await markPayoutCheck(prisma, { payoutId: payout.id, checkId: custom.id, actorUserId: viewer });
     await markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: viewer });
     expect(
-      await prisma.auditLog.count({ where: { action: 'finance.payout_check', entityId: payout.id } }),
+      await prisma.auditLog.count({
+        where: { action: 'finance.payout_check', entityId: payout.id },
+      }),
     ).toBe(2);
 
     // A check switched off no longer counts; the system check cannot be switched off.
