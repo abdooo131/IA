@@ -20,7 +20,11 @@ async function bootstrap() {
   SwaggerModule.setup('docs', app, () => SwaggerModule.createDocument(app, docs));
 
   const port = app.get<ConfigService<Env, true>>(ConfigService).get('API_PORT', { infer: true });
-  await app.listen(port);
+  // Behind the web app the API only listens inside the machine (API_HOST, set by
+  // deploy/start.mjs): a host such as Render scans open ports, and a public API port could be
+  // taken for the site. Local development keeps the default (every interface).
+  const host = process.env.API_HOST;
+  await (host ? app.listen(port, host) : app.listen(port));
   console.log(`Shiply Now API on http://localhost:${port} (docs at /docs)`);
 }
 

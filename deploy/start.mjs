@@ -11,6 +11,8 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const env = { ...process.env };
 env.NODE_ENV ??= 'production';
 env.API_PORT ??= '4000';
+// The API listens only inside the container; the web app on $PORT is the only public door.
+env.API_HOST ??= '127.0.0.1';
 env.API_URL ??= `http://127.0.0.1:${env.API_PORT}`;
 const port = env.PORT ?? '3000';
 // Render provides its public address; anywhere else set WEB_ORIGIN yourself.
