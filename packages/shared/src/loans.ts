@@ -126,6 +126,35 @@ function row(
   };
 }
 
+/** Banks working in Egypt, offered when a loan is recorded (any other bank can be typed). */
+export const EGYPT_BANKS: { en: string; ar: string }[] = [
+  { en: 'National Bank of Egypt', ar: 'البنك الأهلي المصري' },
+  { en: 'Banque Misr', ar: 'بنك مصر' },
+  { en: 'CIB', ar: 'البنك التجاري الدولي' },
+  { en: 'Banque du Caire', ar: 'بنك القاهرة' },
+  { en: 'QNB Egypt', ar: 'بنك قطر الوطني مصر' },
+  { en: 'Bank of Alexandria', ar: 'بنك الإسكندرية' },
+  { en: 'HSBC Egypt', ar: 'بنك إتش إس بي سي مصر' },
+  { en: 'Arab African International Bank', ar: 'البنك العربي الأفريقي الدولي' },
+  { en: 'Housing and Development Bank', ar: 'بنك التعمير والإسكان' },
+  { en: 'Agricultural Bank of Egypt', ar: 'البنك الزراعي المصري' },
+  { en: 'Suez Canal Bank', ar: 'بنك قناة السويس' },
+  { en: 'Faisal Islamic Bank of Egypt', ar: 'بنك فيصل الإسلامي المصري' },
+  { en: 'Abu Dhabi Islamic Bank Egypt', ar: 'مصرف أبوظبي الإسلامي مصر' },
+  { en: 'Emirates NBD Egypt', ar: 'بنك الإمارات دبي الوطني مصر' },
+  { en: 'First Abu Dhabi Bank Misr', ar: 'بنك أبوظبي الأول مصر' },
+  { en: 'Credit Agricole Egypt', ar: 'بنك كريدي أجريكول مصر' },
+  { en: 'Al Baraka Bank Egypt', ar: 'بنك البركة مصر' },
+  { en: 'Attijariwafa Bank Egypt', ar: 'بنك التجاري وفا مصر' },
+  { en: 'Mashreq Bank Egypt', ar: 'بنك المشرق مصر' },
+];
+
+/** A lender's name in the reader's language when it is one of EGYPT_BANKS. */
+export function bankName(name: string, locale: string): string {
+  const bank = EGYPT_BANKS.find((b) => b.en === name);
+  return bank ? (locale === 'ar' ? bank.ar : bank.en) : name;
+}
+
 const id = z.string().min(1).max(64);
 const key = z.string().min(8).max(100);
 const day = z.string().refine(isCalendarDay, 'invalid_day');
@@ -133,11 +162,10 @@ const piastres = z.number().int().min(1).max(1_000_000_000);
 
 export const loanSchema = z
   .object({
-    lender: z.enum(['supplier', 'owner']),
-    /** The bank or company lending (a supplier) */
-    supplierId: id.optional(),
-    /** The owner's name when the owner lends */
-    lenderName: z.string().trim().min(2).max(120).optional(),
+    /** In Egypt companies borrow only from banks (owner, 2026-11-11). */
+    lender: z.literal('bank').default('bank'),
+    /** The bank's name: one of EGYPT_BANKS (English name) or typed for another bank */
+    lenderName: z.string().trim().min(2).max(120),
     principalPiastres: piastres,
     moneyAccountId: id,
     startDay: day,
@@ -151,10 +179,6 @@ export const loanSchema = z
     idempotencyKey: key,
   })
   .superRefine((v, ctx) => {
-    if (v.lender === 'supplier' && !v.supplierId)
-      ctx.addIssue({ code: 'custom', path: ['supplierId'], message: 'lender_required' });
-    if (v.lender === 'owner' && !v.lenderName)
-      ctx.addIssue({ code: 'custom', path: ['lenderName'], message: 'lender_required' });
     if (v.firstPaymentDay <= v.startDay)
       ctx.addIssue({
         code: 'custom',

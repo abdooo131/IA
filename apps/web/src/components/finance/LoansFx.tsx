@@ -1,13 +1,13 @@
 'use client';
 
-import { addDays, cairoDay, loanSchedule } from '@shiplynow/shared';
+import { addDays, bankName, cairoDay, EGYPT_BANKS, loanSchedule } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useState } from 'react';
 import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
 import { isoToDayFirst } from '@/lib/day-first';
-import type { BookAccount, SupplierRow } from '@/lib/finance-types';
+import type { BookAccount } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
@@ -16,6 +16,9 @@ import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 // Loans the company borrowed, the user's own cost tags and the month end revaluation of
 // bank accounts in another currency. Every word is in the loansFx messages.
+
+/** The bank list's last choice: a bank not on the list, typed by hand. */
+const OTHER = '__other__';
 
 const field =
   'mt-1 block h-10 w-full rounded-md border border-line bg-surface px-3 text-body-sm text-text';
@@ -82,16 +85,16 @@ export interface LoanDetailData {
   nextSeq: number | null;
 }
 
-/** A loan received: lender, amount, where it came in, rate, method and the schedule preview. */
-export function NewLoan({ money, suppliers }: { money: BookAccount[]; suppliers: SupplierRow[] }) {
+/** A loan received from a bank: the bank, amount, where it came in, rate, method and the schedule. */
+export function NewLoan({ money }: { money: BookAccount[] }) {
   const t = useTranslations('loansFx.loans');
   const locale = useLocale();
   const action = useFinanceAction();
   const today = cairoDay(new Date());
   const blank = {
-    lender: 'supplier' as 'supplier' | 'owner',
-    supplierId: '',
-    lenderName: '',
+    /** One of EGYPT_BANKS (English name), or OTHER with the name typed in otherBank */
+    bank: '',
+    otherBank: '',
     amount: '',
     rate: '',
     method: 'declining' as 'declining' | 'flat',
@@ -121,21 +124,18 @@ export function NewLoan({ money, suppliers }: { money: BookAccount[]; suppliers:
   } catch {
     preview = null;
   }
+  const lenderName = (l.bank === OTHER ? l.otherBank : l.bank).trim();
   const dirty = JSON.stringify(l) !== JSON.stringify(blank);
   const ready =
-    !!preview &&
-    !!l.moneyAccountId &&
-    l.reference.trim().length >= 2 &&
-    (l.lender === 'supplier' ? !!l.supplierId : l.lenderName.trim().length >= 2);
+    !!preview && !!l.moneyAccountId && l.reference.trim().length >= 2 && lenderName.length >= 2;
 
   async function save() {
     const ok = await action.send(
       'POST',
       '/finance/loans',
       {
-        lender: l.lender,
-        supplierId: l.lender === 'supplier' ? l.supplierId : undefined,
-        lenderName: l.lender === 'owner' ? l.lenderName.trim() : undefined,
+        lender: 'bank',
+        lenderName,
         principalPiastres: principal,
         moneyAccountId: l.moneyAccountId,
         startDay: l.startDay,
@@ -159,45 +159,29 @@ export function NewLoan({ money, suppliers }: { money: BookAccount[]; suppliers:
     <section className="max-w-3xl space-y-3 rounded-lg border border-line bg-surface p-4">
       <h2 className="text-h3">{t('new')}</h2>
       <p className="text-caption text-text-muted">{t('newHint')}</p>
-      <fieldset className="flex gap-4 text-body-sm">
-        <legend className="text-caption">{t('lender')}</legend>
-        {(['supplier', 'owner'] as const).map((k) => (
-          <label key={k} className="flex items-center gap-2">
-            <input
-              type="radio"
-              checked={l.lender === k}
-              onChange={() => setL({ ...l, lender: k })}
-            />
-            {t(`lenders.${k}`)}
-          </label>
-        ))}
-      </fieldset>
       <div className="grid gap-3 sm:grid-cols-2">
-        {l.lender === 'supplier' ? (
+        <label className="block text-caption">
+          {t('bank')}
+          <select
+            value={l.bank}
+            onChange={(e) => setL({ ...l, bank: e.target.value })}
+            className={field}
+          >
+            <option value="">{t('choose')}</option>
+            {EGYPT_BANKS.map((b) => (
+              <option key={b.en} value={b.en}>
+                {locale === 'ar' ? b.ar : b.en}
+              </option>
+            ))}
+            <option value={OTHER}>{t('otherBank')}</option>
+          </select>
+        </label>
+        {l.bank === OTHER && (
           <label className="block text-caption">
-            {t('bankOrCompany')}
-            <select
-              value={l.supplierId}
-              onChange={(e) => setL({ ...l, supplierId: e.target.value })}
-              className={field}
-            >
-              <option value="">{t('choose')}</option>
-              {suppliers
-                .filter((s) => s.isActive)
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-            </select>
-            <span className="mt-1 block text-text-muted">{t('supplierHint')}</span>
-          </label>
-        ) : (
-          <label className="block text-caption">
-            {t('ownerName')}
+            {t('otherBankName')}
             <input
-              value={l.lenderName}
-              onChange={(e) => setL({ ...l, lenderName: e.target.value })}
+              value={l.otherBank}
+              onChange={(e) => setL({ ...l, otherBank: e.target.value })}
               className={field}
             />
           </label>
@@ -332,6 +316,7 @@ export function NewLoan({ money, suppliers }: { money: BookAccount[]; suppliers:
 /** Every loan with what is still owed and its next instalment. */
 export function LoansTable({ loans }: { loans: LoanRow[] }) {
   const t = useTranslations('loansFx.loans');
+  const locale = useLocale();
   if (loans.length === 0) return <p className="text-body-sm text-text-muted">{t('none')}</p>;
   return (
     <div className="overflow-x-auto rounded-lg border border-line bg-surface p-3">
@@ -356,7 +341,7 @@ export function LoansTable({ loans }: { loans: LoanRow[] }) {
                 </Link>
                 <span className="ltr-iso block text-caption text-text-muted">{l.account.code}</span>
               </td>
-              <td className={td}>{l.lenderName}</td>
+              <td className={td}>{bankName(l.lenderName, locale)}</td>
               <td className={`${td} text-end`}>
                 <Amount piastres={l.principalPiastres} />
               </td>
@@ -437,7 +422,7 @@ export function LoanDetail({ loan, money }: { loan: LoanDetailData; money: BookA
       </div>
       <p className="text-body-sm text-text-muted">
         {t('summary', {
-          lender: loan.lenderName,
+          lender: bankName(loan.lenderName, locale),
           rate: percent(loan.annualRateBp),
           method: t(`methods.${loan.method}`),
           months: loan.months,

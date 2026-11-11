@@ -5017,9 +5017,11 @@ model CostTag {
 }
 
 enum LoanLender {
-  /// A bank or another company, kept as a supplier
+  /// A bank, named in lender_name (the only lender for new loans; owner, 2026-11-11)
+  bank
+  /// Older loans only: a bank or company kept as a supplier
   supplier
-  /// The owner lending the company money
+  /// Older loans only: the owner lending the company money
   owner
 
   @@map("loan_lender")
@@ -5048,7 +5050,7 @@ model Loan {
   number             Int        @unique
   lender             LoanLender
   supplierId         String?    @map("supplier_id")
-  /// The owner's name when the owner lends
+  /// The bank's name (the owner's name on older owner loans)
   lenderName         String?    @map("lender_name")
   principalPiastres  Int        @map("principal_piastres")
   /// The bank or cash box the money came into

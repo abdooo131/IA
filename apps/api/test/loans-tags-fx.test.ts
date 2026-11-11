@@ -59,8 +59,8 @@ describe('loans, cost tags and bank accounts in another currency', () => {
     const sent = await a
       .post('/finance/loans')
       .send({
-        lender: 'owner',
-        lenderName: 'Owner',
+        lender: 'bank',
+        lenderName: 'Banque Misr',
         principalPiastres: 600_000,
         moneyAccountId: (await bank()).id,
         startDay: addDays(today(), -35),

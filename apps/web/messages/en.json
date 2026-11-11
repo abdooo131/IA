@@ -2403,7 +2403,7 @@
         "instalment_paid": "This instalment is already paid.",
         "pay_in_order": "Pay the instalments in their order.",
         "first_payment_too_early": "The first instalment must come after the day the money came in.",
-        "lender_required": "Choose who lent the money.",
+        "lender_required": "Choose the bank that lent the money.",
         "loan_not_found": "This loan was not found.",
         "invalid_fee_kind": "Choose a fee for every line.",
         "invalid_lines": "Add between 1 and 20 lines.",
@@ -11559,17 +11559,10 @@
   "loansFx": {
     "loans": {
       "title": "Loans",
-      "intro": "Money the company borrowed from a bank or the owner: what is still owed on each, the schedule and the next instalment.",
+      "intro": "Money the company borrowed from a bank: what is still owed on each loan, the schedule and the next instalment.",
       "new": "New loan",
       "newHint": "Money coming in waits for a second person before it is booked. The schedule is worked out once, in whole piastres.",
-      "lender": "Lender",
-      "lenders": {
-        "supplier": "A bank or company",
-        "owner": "The owner"
-      },
-      "bankOrCompany": "Bank or company",
-      "supplierHint": "Lenders are kept as suppliers; open one on Supplier bills if it is missing.",
-      "ownerName": "Owner's name",
+      "lender": "Bank",
       "receivedInto": "Received into",
       "choose": "Choose…",
       "amount": "Amount borrowed (EGP)",
@@ -11620,7 +11613,10 @@
       "state": "State",
       "paidState": "Paid",
       "unpaid": "Not paid",
-      "totals": "Totals"
+      "totals": "Totals",
+      "bank": "Bank",
+      "otherBank": "Another bank (type its name)",
+      "otherBankName": "Bank name"
     },
     "tags": {
       "title": "Cost tags",

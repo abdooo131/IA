@@ -13,8 +13,8 @@ import { eventTime, mustHold, openAccount } from './books';
 import { submitMovement } from './controls';
 import { nextAccountCode, post } from './ledger';
 
-// Money the company borrowed: from a bank or another company (kept as a supplier) or from the
-// owner. Each loan has its own account under 2700 (2701, 2702...) so the balance sheet shows
+// Money the company borrowed. In Egypt companies borrow only from banks (owner, 2026-11-11):
+// new loans name their bank; the older supplier and owner lenders stay readable. Each loan has its own account under 2700 (2701, 2702...) so the balance sheet shows
 // what is still owed on each, and a schedule of monthly instalments fixed when it is recorded
 // (loanSchedule in packages/shared/src/loans.ts).
 //
@@ -30,9 +30,9 @@ import { nextAccountCode, post } from './ledger';
 const MONEY_GROUPS = [1100, 1200];
 
 export interface LoanInput {
-  lender: 'supplier' | 'owner';
-  supplierId?: string | null;
-  lenderName?: string | null;
+  lender?: 'bank';
+  /** The bank's name */
+  lenderName: string;
   principalPiastres: number;
   moneyAccountId: string;
   startDay: string;
@@ -61,9 +61,7 @@ function checkLoan(input: Omit<LoanInput, 'actorUserId'>) {
     throw new DomainError('invalid_date', 400);
   if (input.firstPaymentDay <= input.startDay)
     throw new DomainError('first_payment_too_early', 400);
-  if (input.lender === 'supplier' && !input.supplierId)
-    throw new DomainError('lender_required', 400);
-  if (input.lender === 'owner' && !input.lenderName?.trim())
+  if ((input.lender ?? 'bank') !== 'bank' || (input.lenderName?.trim().length ?? 0) < 2)
     throw new DomainError('lender_required', 400);
   // The day the money came in is never in the future (eventTime refuses it).
   eventTime(input.startDay);
@@ -80,13 +78,8 @@ export async function recordLoan(db: Db, input: LoanInput) {
   return inTransaction(db, async (tx) => {
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return tx.loan.findUniqueOrThrow({ where: { entryId: seen.id } });
-    const money = await openAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
-    let lenderLabel = input.lenderName?.trim() ?? '';
-    if (input.lender === 'supplier') {
-      const supplier = await tx.supplier.findUnique({ where: { id: input.supplierId! } });
-      if (!supplier || !supplier.isActive) throw new DomainError('supplier_not_found', 404);
-      lenderLabel = supplier.name;
-    }
+    const money = await openAccount(tx, input.moneyAccountId, [1100], 'account_not_found');
+    const lenderLabel = input.lenderName.trim();
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('number:loans'))`;
     const last = await tx.loan.findFirst({ orderBy: { number: 'desc' }, select: { number: true } });
     const number = (last?.number ?? 0) + 1;
@@ -126,9 +119,9 @@ export async function recordLoan(db: Db, input: LoanInput) {
     const loan = await tx.loan.create({
       data: {
         number,
-        lender: input.lender,
-        supplierId: input.lender === 'supplier' ? input.supplierId! : null,
-        lenderName: input.lender === 'owner' ? lenderLabel : null,
+        lender: 'bank',
+        supplierId: null,
+        lenderName: lenderLabel,
         principalPiastres: input.principalPiastres,
         moneyAccountId: money.id,
         liabilityAccountId: liability.id,

@@ -123,10 +123,9 @@ describe('loan schedule', () => {
 
 describe('loans', () => {
   const loanInput = async (extra: Record<string, unknown> = {}) => {
-    const bank = await createSupplier(prisma, { name: 'NBE', actorUserId: admin });
     return {
-      lender: 'supplier' as const,
-      supplierId: bank.id,
+      lender: 'bank' as const,
+      lenderName: 'National Bank of Egypt',
       principalPiastres: 1_200_000,
       moneyAccountId: (await byKey('bank')).id,
       startDay: addDays(today(), -40),
