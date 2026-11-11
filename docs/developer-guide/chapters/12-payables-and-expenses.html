@@ -1,0 +1,281 @@
+<section class="chapter" id="ch-payables">
+<h1>12. Expenses, suppliers, bills and the assets we pay for</h1>
+
+<p>This chapter covers money going out to suppliers and for the company's own costs: expenses paid at once, supplier bills with withholding tax, bills in another currency, cheques, purchase orders, packaging stock, recurring expenses, prepayments, equipment and depreciation, accruals, loans, cost tags, bank accounts in another currency and expense claims. Amounts are integer piastres.</p>
+
+<h2 id="pe-rules">12.1 Rules shared by every movement of money</h2>
+<h3>Money accounts</h3>
+<p>Money leaves or enters only through banks (group 1100, CIB is 1101) and cash boxes (group 1200, store boxes included). Before money leaves, the account row is locked (<code>SELECT ... FOR UPDATE</code>) and its balance read, so two payments at the same moment are checked one after the other. Most movements use <code>mustHold(tx, account, amount, at)</code> in <code>packages/db/src/finance/books.ts</code>:</p>
+<pre class="code">running balance of the account at each distinct moment (lines at one moment count together)
+atBalance = running balance at the movement's own moment (latest moment &lt;= at)
+laterMin  = lowest running balance at any moment after it (atBalance when none)
+refuse not_enough_money when amount &gt; min(atBalance, laterMin)</pre>
+<p>A backdated payment therefore never turns an earlier or a later balance negative. A moment inside closed books answers <code>books_closed</code> first.</p>
+<h3>Dates</h3>
+<p><code>eventTime(day)</code>: no day or today means now; a past Cairo day is booked at its noon (Cairo time); a future day is refused (<code>future_date</code>).</p>
+<h3>The second person rule</h3>
+<p><code>submit()</code> in <code>packages/db/src/finance/controls.ts</code> either posts at once or stores a <code>finance_requests</code> row that another person decides (<code>decideFinanceRequest()</code>; nobody decides their own request: <code>same_person</code>; a rejection needs a note).</p>
+<table class="data"><thead><tr><th>Request kinds</th><th>When it waits</th></tr></thead><tbody>
+<tr><td><code>capital_in</code>, <code>other_income</code>, <code>merchant_receipt</code>, <code>merchant_adjustment</code>, <code>cheque_in</code>, <code>deposit_in</code>, <code>loan_in</code>, <code>debit_note</code>, <code>asset_disposal</code>, and <code>deposit_out</code> through the merchant's wallet</td><td>always, while <code>finance.approve_money_in</code> is 1 (default 1)</td></tr>
+<tr><td><code>credit_note</code></td><td>always, whatever the setting</td></tr>
+<tr><td>everything else (expenses, drawings, bill payments, tax payments, prepayments, asset purchases, packaging purchases, advances, bonuses, payroll, loan payments, issued cheques, journal entries moving money out)</td><td>when the amount is at least <code>finance.approval_threshold_piastres</code> (default 1,000,000 = 10,000 EGP; 0 turns it off)</td></tr>
+</tbody></table>
+<p>The request keeps the client's idempotency key; one request per key exists while it is pending or approved (a rejected one can be sent again). When approved, the same posting function runs with its own ledger key, so it still posts once.</p>
+
+<h2 id="pe-expense">12.2 Expenses paid at once</h2>
+<p><code>recordExpense()</code> in <code>books.ts</code>, through <code>submitExpense()</code>. The amount entered is what was paid, VAT included; the VAT is typed from the receipt (it is never computed) and must be less than the amount. The category is an open account of groups 5400 or 5500. Optional: store (none is company wide), cost tag, receipt photo.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>expense category (54nn or 55nn)</td><td>amount − vat</td><td></td><td>store, cost tag</td></tr>
+<tr><td>2301 VAT payable (input VAT claimed back)</td><td>vat</td><td></td><td>store</td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td>store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>expense:&lt;clientKey&gt;</code>; kind <code>expense</code>.</p>
+<div class="example"><p>Internet bill paid from CIB, 1,140 EGP with 140 EGP VAT on the tax invoice: Dr 5406 Utilities and internet 100,000; Dr 2301 14,000; Cr 1101 114,000.</p></div>
+
+<h2 id="pe-suppliers">12.3 Suppliers</h2>
+<p>A supplier has a name, a tax id, a default expense account and a withholding tax rate <code>whtBp</code> (basis points of the amount before VAT, 0 to 10,000). Its wallet is <code>2500-nnnn</code> (credit: we owe it). Rider offices are suppliers with <code>is_rider_office</code> (chapter 11).</p>
+<div class="note" data-todo="suppliers-page">To be completed after the update: the new suppliers page (list, supplier document, balances and actions) is being finished; its screens and any new supplier fields will be documented here.</div>
+
+<h2 id="pe-bills">12.4 Supplier bills</h2>
+<p><code>recordBill()</code> in <code>packages/db/src/finance/payables.ts</code>. A bill books its cost and VAT when it arrives, and the supplier is owed until paid. Number <code>BILL-000001</code> onward (gapless). Net and VAT are entered (VAT never computed); the bill date gives the entry's time through <code>eventTime()</code>; the due date may not be before it. A bill may name a team member (an outsourced person's month, only from their own outsourcing company: <code>not_their_company</code>); the cost line then carries the person, their store and rider tags. Supplier, reference and person together are unique (<code>bill_exists</code>).</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>expense category</td><td>net</td><td></td><td>store, person, rider, cost tag</td></tr>
+<tr><td>2301 VAT payable (input VAT)</td><td>vat</td><td></td><td>store</td></tr>
+<tr><td>2500 supplier wallet</td><td></td><td>net + vat</td><td>store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>bill:&lt;clientKey&gt;</code>; kind <code>supplier_bill</code>; the bill row stores net, VAT, total, <code>whtBp</code> (copied from the supplier at that moment) and the entry.</p>
+<h3>Cancelling a bill</h3>
+<p><code>cancelBill()</code>: only an open bill with nothing paid, with a reason of at least 5 characters. Not for bills from a purchase order or a rider office. A new entry reverses it (rows are append only):</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2500 supplier wallet</td><td>total</td><td></td><td>store</td></tr>
+<tr><td>expense category</td><td></td><td>net</td><td></td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>vat</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>bill_cancel:&lt;billId&gt;</code>; kind <code>supplier_bill_cancel</code>.</p>
+
+<h2 id="pe-payments">12.5 Paying a bill and withholding tax</h2>
+<p><code>payBill()</code>, through <code>submitBillPayment()</code> (second person from the limit). A bill can be paid in several payments. The amount entered is how much of the bill the payment settles, withholding tax included.</p>
+<h3>Withholding exact to the piastre</h3>
+<p>Withholding is a share of the amount before VAT. It is computed on the running total paid, so the payments together always withhold exactly <code>round(net × whtBp / 10,000)</code> once the bill is fully paid:</p>
+<pre class="code">withheldAt(paid) = round(net * whtBp * paid / (10000 * total))      (Math.round)
+wht(this payment) = withheldAt(paidBefore + settled) − withheldAt(paidBefore)
+cash = paid − wht − advanceRecovery − offset          (refused when negative)</pre>
+<p>Other options: <code>advanceRecoveryPiastres</code> for a bill naming a person (an advance we gave them, taken back from what we pay their company; never more than their 1500 balance), <code>offsetPiastres</code> (what the supplier owes us beyond its open bills, chapter 11), <code>viaChequesPayable</code> (paid by a cheque we wrote: credit 2451 instead of a bank). The bank or box must hold the cash.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2500 supplier wallet</td><td>settled − offset</td><td></td><td>store</td></tr>
+<tr><td>5901 exchange differences</td><td>fxDiff (when positive)</td><td>−fxDiff (when negative)</td><td></td></tr>
+<tr><td>bank, cash box or 2451 cheques payable</td><td></td><td>cash</td><td></td></tr>
+<tr><td>2302 Withholding tax payable</td><td></td><td>wht</td><td></td></tr>
+<tr><td>1500 staff advance of the person</td><td></td><td>advanceRecovery</td><td>user</td></tr>
+</tbody></table>
+<p>Idempotency key <code>bill_payment:&lt;clientKey&gt;</code>; kind <code>bill_payment</code>; data stores <code>gross</code> (settled), <code>wht</code>, <code>recovery</code>, <code>offset</code>, <code>fxDiff</code> and <code>net = round(bill.net × settled / bill.total)</code>, the amount before VAT used by form 41. The bill becomes <code>paid</code> when <code>paidPiastres</code> reaches the total.</p>
+<div class="example">
+<p>Bill: net 10,000 EGP, VAT 1,400 EGP, total 1,140,000 piastres, withholding 3% (300 bp). Full withholding = 30,000.</p>
+<ul>
+<li>Payment 1 settles 3,333.33 EGP (333,333): withheldAt(333,333) = round(1,000,000 × 300 × 333,333 / 11,400,000,000) = round(8,771.92) = 8,772. Cash 324,561.</li>
+<li>Payment 2 settles the remaining 806,667: withheldAt(1,140,000) = 30,000, so wht = 30,000 − 8,772 = 21,228. Cash 785,439.</li>
+</ul>
+<p>Withheld in total 30,000 exactly. Each payment: Dr supplier (settled), Cr bank (cash), Cr 2302 (wht).</p>
+</div>
+
+<h2 id="pe-fxbills">12.6 Bills in another currency</h2>
+<p>A bill may be in another currency (<code>bills.currency</code>, three upper case letters). The rate is typed as text and stored exactly as <code>fx_rate_micro</code> = EGP per unit × 1,000,000 (<code>rateMicro()</code>: up to 6 decimals, no float). Foreign amounts are cents.</p>
+<pre class="code">centsToPiastres(cents, micro) = floor((cents * micro + 500000) / 1000000)     (half up)
+bill.net   = centsToPiastres(foreignNetCents, billMicro)
+bill.vat   = centsToPiastres(foreignVatCents, billMicro)
+foreignTotal = foreignNetCents + foreignVatCents</pre>
+<p>A payment is entered in the bill's cents at today's rate:</p>
+<pre class="code">settled = (cents == foreignTotal − foreignPaid) ? total − paidPiastres          (last payment settles exactly)
+                                                : centsToPiastres(cents, billMicro)
+paid    = centsToPiastres(cents, todayMicro)
+          (or, paid from a bank account held in that currency, the cents' book value, 12.14)
+fxDiff  = paid − settled      → 5901 exchange differences (loss positive, gain negative)</pre>
+<div class="example"><p>A USD 1,000.00 bill (100,000 cents, no VAT) at 48.75: net = floor((100,000 × 48,750,000 + 500,000) / 1,000,000) = 4,875,000 piastres. Paid in full when the rate is 49.10 from an EGP bank: paid = 4,910,000; settled = 4,875,000; fxDiff = 35,000. Entry: Dr supplier 4,875,000; Dr 5901 35,000; Cr bank 4,910,000.</p></div>
+
+<h2 id="pe-cheques">12.7 Cheques</h2>
+<p>The register is <code>packages/db/src/finance/cheques.ts</code>; numbers <code>CHQ-000001</code> onward (gapless). Purposes: received (merchant balance, security deposit, supplier refund, other income) and issued (a bill, a payout, a deposit paid back).</p>
+<pre class="diagram">
+ received: awaiting_approval ─book─▶ received ─deposit─▶ deposited ─clear─▶ cleared
+                                        └────────────────bounce / cancel────▶ bounced / cancelled
+ issued:   awaiting_approval ─book─▶ issued ─clear─▶ cleared
+                                        └──bounce / cancel──▶ bounced / cancelled
+</pre>
+<h3>Booking</h3>
+<p>Registering a received cheque submits a <code>cheque_in</code> request (always reviewed while <code>finance.approve_money_in</code> is 1); an issued cheque submits <code>cheque_out</code> (from the approval limit); a payout cheque books at once (the payout's own approval applies). Until booked the cheque is <code>awaiting_approval</code>; a rejected request cancels it.</p>
+<table class="data"><thead><tr><th>Booking</th><th>Debit</th><th>Credit</th><th>Key and kind</th></tr></thead><tbody>
+<tr><td>Received</td><td>1151 Cheques under collection</td><td>party: merchant wallet, merchant deposit 2600, supplier wallet, or the income account</td><td><code>cheque:&lt;id&gt;:book</code>, <code>cheque_received</code></td></tr>
+<tr><td>Issued for a bill</td><td colspan="2"><code>payBill()</code> with <code>viaChequesPayable</code>: Dr supplier, Cr 2451 Cheques payable (cash part), Cr 2302 (withholding)</td><td><code>bill_payment:cheque:&lt;id&gt;</code>, <code>bill_payment</code></td></tr>
+<tr><td>Issued for a payout</td><td>2100 merchant wallet</td><td>2451 Cheques payable</td><td><code>payout:&lt;payoutId&gt;</code>, <code>merchant_payout</code></td></tr>
+<tr><td>Issued, deposit paid back</td><td>2600 merchant deposit</td><td>2451 Cheques payable</td><td><code>cheque:&lt;id&gt;:book</code>, <code>deposit_refunded</code></td></tr>
+</tbody></table>
+<p>For a bill the cheque's amount is the cash part; <code>settledFor()</code> finds the amount of the bill it settles: it starts from <code>round(cash × total / (total − net × whtBp / 10,000))</code> and walks by single piastres until <code>settled − wht(settled) = cash</code> (refused with <code>cheque_amount_mismatch</code> if no amount fits, for example after a partial payment meanwhile).</p>
+<h3>Clearing</h3>
+<p>A received cheque cannot clear before its due day (<code>cheque_not_due</code>); an issued one needs the bank to hold the amount.</p>
+<table class="data"><thead><tr><th>Direction</th><th>Debit</th><th>Credit</th></tr></thead><tbody>
+<tr><td>Received</td><td>bank</td><td>1151 Cheques under collection</td></tr>
+<tr><td>Issued</td><td>2451 Cheques payable</td><td>bank</td></tr>
+</tbody></table>
+<p>Idempotency key <code>cheque:&lt;id&gt;:clear</code>; kind <code>cheque_cleared</code>. Depositing a received cheque at the bank moves no money (status only).</p>
+<h3>Bounce or cancel</h3>
+<p>A bounce is possible while a received cheque is received or deposited, or an issued one is issued (reason of at least 3 characters). A cancel (note of at least 3 characters) is possible while the cheque is awaiting approval (its request is dropped, nothing was posted) or booked but not yet deposited or cleared. Both post the booking entry's lines turned round, with their tags (key <code>cheque:&lt;id&gt;:reverse</code>, kind <code>cheque_bounced</code> or <code>cheque_cancelled</code>). For a bill, its <code>paidPiastres</code> goes down by the amount settled and it is open again; a payout paid by the cheque is cancelled. A bounce raises a <code>cheque_bounced</code> alert. Withholding lists leave out payments whose cheque bounced or was cancelled (chapter 15).</p>
+
+<h2 id="pe-po">12.8 Purchase orders</h2>
+<p><code>packages/db/src/purchasing.ts</code>. Numbers <code>PO-000001</code> onward. Flow: asked (accounting use), approved at once below <code>finance.approval_threshold_piastres</code>, otherwise by another person with accounting manage (<code>same_person</code>); ordered; received in parts; billed; closed. A line is packaging (a packaging item), expense (an expense category) or asset (a life in months).</p>
+<h3>Receiving</h3>
+<p>Each delivery is recorded once per key (<code>purchase_order_receipts</code>). Packaging lines enter packaging stock at the ordered price; the liability waits in 2401 until the bill arrives.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1402 Packaging stock</td><td>sum(quantity × unit price) of packaging lines</td><td></td><td>store</td></tr>
+<tr><td>1601 Equipment and vehicles</td><td>sum(quantity × unit price) of asset lines</td><td></td><td>store</td></tr>
+<tr><td>2401 Goods received, not billed yet</td><td></td><td>both</td><td>store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>po_receipt:&lt;clientKey&gt;</code>; kind <code>po_receipt</code>. Expense lines book nothing on receipt.</p>
+<h3>Billing</h3>
+<p><code>billPurchaseOrder()</code> bills everything received and not yet billed. The tolerance check:</p>
+<pre class="code">expected = sum((receivedQty − billedQty) * unitPrice) of the open lines
+refuse bill_above_order when net &gt; expected + share(expected, finance.po_bill_tolerance_bp)
+        (default 200 bp = 2%)</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2401 Goods received (packaging and asset lines)</td><td>ordered value</td><td></td><td>store</td></tr>
+<tr><td>expense categories of expense lines</td><td>ordered value</td><td></td><td>store</td></tr>
+<tr><td>difference account: the first expense line's account, else 5404 Packaging when the order has packaging, else 5409 Other expenses</td><td>net − expected (may be negative)</td><td></td><td>store</td></tr>
+<tr><td>2301 VAT payable</td><td>vat</td><td></td><td></td></tr>
+<tr><td>2500 supplier wallet</td><td></td><td>net + vat</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>bill:po:&lt;clientKey&gt;</code>; kind <code>supplier_bill</code>. Paid like any bill; it cannot be cancelled by reversal (<code>bill_from_purchase_order</code>). Closing: cancelled when nothing came, refused while receipts are unbilled.</p>
+<div class="note" data-todo="po-asset-lines">To be completed after the update: purchase orders with asset lines (one fixed asset per unit received, depreciated from the month it arrived, its store from the line or the order) are being finished; the final rules for asset lines, their bills and their screens will be documented here.</div>
+
+<h2 id="pe-packaging">12.9 Packaging stock at average cost</h2>
+<p>Packaging (bags, boxes, labels, tape) is our own stock, never <code>stock_movements</code> (<code>packages/db/src/packaging.ts</code>): <code>packaging_levels</code> keeps units and value per store and item; <code>packaging_movements</code> is append only (receive, consume, adjust, count). Each movement is written first, then the level changes with a guarded update that never lets units or value go below zero.</p>
+<pre class="code">valueOut(level, qty) = qty &gt;= level.onHand ? level.value                 (the last unit takes what is left)
+                                           : round(level.value * qty / level.onHand)
+average cost shown = round(value / onHand)
+on receipt: item.unitCostPiastres = round(value / qty)    (used for found units in adjustments)</pre>
+<h3>Bought and paid at once</h3>
+<p><code>recordPackagingPurchase()</code> through the second person rule (from the limit): Dr 1402 Packaging stock, Cr bank or box; key <code>packaging_purchase:&lt;clientKey&gt;</code>; kind <code>packaging_purchase</code>; units received at the amount paid.</p>
+<h3>Used when an order is packed</h3>
+<p><code>consumePackagingForOrder()</code> uses the most specific recipe (merchant at the store, merchant, store, everyone) plus the box staff chose. Packing is never blocked: missing units raise one <code>packaging_short</code> alert; what is available is used.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5404 Packaging and supplies</td><td>sum of valueOut</td><td></td><td>order, store, merchant</td></tr>
+<tr><td>1402 Packaging stock</td><td></td><td>same</td><td>same</td></tr>
+</tbody></table>
+<p>Idempotency key <code>packaging:&lt;orderId&gt;</code>; kind <code>packaging_used</code>. The order tag makes the cost appear in merchant profit and cost per order. <code>stock.packaging_low_units</code> (default 50, store override, 0 off) raises one <code>packaging_low</code> alert per store and item. Adjustments post kind <code>packaging_adjustment</code>: lost units leave at average cost, found units come in at the item's unit cost.</p>
+<div class="example"><p>A store holds 200 bags valued 3,000 EGP (300,000). An order uses 3 bags: valueOut = round(300,000 × 3 / 200) = 4,500. Dr 5404 4,500; Cr 1402 4,500. The level becomes 197 bags, 295,500.</p></div>
+
+<h2 id="pe-recurring">12.10 Recurring expenses</h2>
+<p><code>packages/db/src/finance/recurring.ts</code>. A recurring expense (rent, internet, software) is entered once: category, money account, amount, optional VAT, store, memo, reference, day of month 1 to 28, start month and optional end month. Once its day of the month has come (the daily job checks <code>today &gt;= dayOfMonth</code>, so a late run still catches it), the job <code>runRecurring()</code> prepares that month's expense as a request, always queued for a second person (never posted by itself) with idempotency key <code>recurring:&lt;id&gt;:&lt;YYYY-MM&gt;</code> and the day set to that month's day. On approval it posts as an ordinary expense (key <code>expense:recurring:&lt;id&gt;:&lt;YYYY-MM&gt;</code>, kind <code>expense</code>).</p>
+
+<h2 id="pe-prepaid">12.11 Prepayments</h2>
+<p><code>recordPrepayment()</code> in <code>packages/db/src/finance/assets.ts</code>: months paid ahead (1 to 120), first month charged, expense category, optional store. Through the second person rule from the limit.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1401 Prepaid expenses</td><td>amount</td><td></td><td>store</td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td></td></tr>
+</tbody></table>
+<p>Key <code>prepayment:&lt;clientKey&gt;</code>; kind <code>prepayment</code>. Each month that is over, <code>runMonthlyCharges()</code> moves one part to the expense:</p>
+<pre class="code">monthlyPart(amount, months, i) = i == months − 1 ? amount − floor(amount / months) * (months − 1)
+                                                 : floor(amount / months)</pre>
+<p>Posting Dr expense category, Cr 1401; key <code>prepaid:&lt;prepaymentId&gt;:&lt;YYYY-MM&gt;</code>; kind <code>prepayment_release</code>; dated the month's last day at 23:00 Cairo (<code>monthEnd()</code>), or the first open moment when that month is closed.</p>
+<div class="example"><p>Rent of 120,000 EGP paid for 7 months: floor(12,000,000 / 7) = 1,714,285 for months 1 to 6 and 12,000,000 − 6 × 1,714,285 = 1,714,290 for month 7.</p></div>
+
+<h2 id="pe-assets">12.12 Equipment, depreciation and disposal</h2>
+<p><code>recordAssetPurchase()</code>: cost, salvage (0 to less than cost), life 1 to 600 months, start month, store. Dr 1601 Equipment and vehicles, Cr bank or box; key <code>asset:&lt;clientKey&gt;</code>; kind <code>asset_purchase</code>; through the second person rule from the limit.</p>
+<h3>Straight line depreciation</h3>
+<pre class="code">base   = cost − salvage
+charge month i (0 based) = monthlyPart(base, lifeMonths, i)</pre>
+<p>Posting Dr 5601 Depreciation, Cr 1701 Accumulated depreciation (an asset account with a credit balance, shown as a negative asset); key <code>depr:&lt;assetId&gt;:&lt;YYYY-MM&gt;</code>; kind <code>depreciation</code>; dated as prepayments. Only months that are over are charged; a disposed asset is never charged for its disposal month or later.</p>
+<h3>Sold or scrapped</h3>
+<p><code>disposeAsset()</code> in <code>packages/db/src/finance/tools.ts</code>, through the second person rule (always reviewed while money in needs approval). It refuses a disposal dated in or before a month already depreciated (<code>disposal_before_charged_month</code>), first charges the months before the disposal month that were not charged, then:</p>
+<pre class="code">depreciated = sum of the asset's depreciation entries
+loss        = cost − depreciated − salePrice      (negative is a gain)</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1701 Accumulated depreciation</td><td>depreciated</td><td></td><td>store</td></tr>
+<tr><td>bank or cash box</td><td>sale price</td><td></td><td></td></tr>
+<tr><td>5902 Loss or gain on equipment sold</td><td>loss</td><td>(gain)</td><td></td></tr>
+<tr><td>1601 Equipment and vehicles</td><td></td><td>cost</td><td></td></tr>
+</tbody></table>
+<p>Key <code>asset_disposal:&lt;clientKey&gt;</code>; kind <code>asset_disposal</code>.</p>
+<div class="example"><p>A van bought for 36,000 EGP over 36 months, no salvage: 100,000 piastres a month. Sold after 12 charged months for 20,000 EGP: depreciated 1,200,000; loss = 3,600,000 − 1,200,000 − 2,000,000 = 400,000. Dr 1701 1,200,000; Dr bank 2,000,000; Dr 5902 400,000; Cr 1601 3,600,000.</p></div>
+
+<h2 id="pe-accruals">12.13 Accruals</h2>
+<p>A journal entry may be an accrual (kind <code>accrual</code>, data <code>reverseOn</code> = the first day of the next month). The daily job <code>reverseAccruals()</code> posts the same lines with the signs turned and the same tags on that day at 00:00 Cairo (or the first open moment when that day is in closed books); key <code>accrual_reversal:&lt;entryId&gt;</code>; kind <code>accrual_reversal</code>. An accrual may not touch a bank or cash box (<code>accrual_money_not_allowed</code>).</p>
+<div class="note" data-todo="journal-page">To be completed after the update: the journal page (entering and reviewing journal entries, including accruals) is being reworked; its screens will be documented here.</div>
+
+<h2 id="pe-fxbanks">12.14 Bank accounts in another currency</h2>
+<p><code>packages/db/src/finance/fx.ts</code>. The books stay in EGP; each line on a USD or EUR bank account carries its EGP amount plus <code>foreign_cents</code> (signed like the line) and the rate used (<code>fx_rate_micro</code>). <code>post()</code> refuses a line on such an account without its foreign amount (<code>foreign_currency_account</code>), so payouts, withdrawals and petty cash can never use one. Each account has two balances: EGP (the books) and cents (the bank).</p>
+<pre class="code">bookValueOut(account, cents) = cents == heldCents ? egpBalance
+                             : floor((egpBalance * cents + floor(heldCents / 2)) / heldCents)
+impliedRateMicro(piastres, cents) = floor((|piastres| * 1000000 + |cents| / 2) / |cents|)</pre>
+<table class="data"><thead><tr><th>Movement</th><th>Lines</th></tr></thead><tbody>
+<tr><td>Buy currency</td><td>Dr foreign bank (EGP paid, +cents), Cr EGP bank</td></tr>
+<tr><td>Sell currency</td><td>Dr EGP bank (EGP received), Dr or Cr 5901 (book value − received), Cr foreign bank (book value, −cents)</td></tr>
+<tr><td>Foreign to foreign (same currency)</td><td>Dr receiving bank (book value, +cents), Cr sending bank (book value, −cents)</td></tr>
+<tr><td>Pay a bill in that currency</td><td>Dr supplier (bill rate), Dr or Cr 5901, Cr foreign bank (book value, −cents); no withholding or advance recovery allowed</td></tr>
+<tr><td>Month end revaluation</td><td>Dr or Cr foreign bank (0 cents), Cr or Dr 5901</td></tr>
+</tbody></table>
+<p>Transfers use key <code>transfer:&lt;clientKey&gt;</code>, kind <code>money_transfer</code>. Revaluation, once per account and month that is over, at the month's last millisecond:</p>
+<pre class="code">target = floor((foreignCentsAtMonthEnd * rateMicro + 500000) / 1000000)
+diff   = target − egpBalanceAtMonthEnd</pre>
+<p>Key <code>fx_reval:&lt;accountId&gt;:&lt;YYYY-MM&gt;</code>; kind <code>fx_revaluation</code>.</p>
+<div class="example"><p>A USD account holds 50,000.00 USD (5,000,000 cents) booked at 2,430,000 EGP (243,000,000 piastres). At month end the rate is 48.90: target = floor((5,000,000 × 48,900,000 + 500,000) / 1,000,000) = 244,500,000; diff 1,500,000. Dr USD bank 1,500,000 (0 cents); Cr 5901 1,500,000 (a gain of 15,000 EGP shown as a credit on the expense account).</p></div>
+
+<h2 id="pe-loans">12.15 Loans</h2>
+<p><code>packages/db/src/finance/loans.ts</code> and <code>packages/shared/src/loans.ts</code>. A loan is borrowed from a bank (new loans name their bank; older supplier and owner lenders stay readable). On approval it gets <code>LN-000001</code> and its own liability account (group 2700: 2701, 2702...). The money comes into a bank (group 1100 only). Money in waits for a second person (<code>loan_in</code>).</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>bank</td><td>principal</td><td></td><td></td></tr>
+<tr><td>27nn the loan</td><td></td><td>principal</td><td></td></tr>
+</tbody></table>
+<p>Key <code>loan:&lt;clientKey&gt;</code>; kind <code>loan_received</code>.</p>
+<h3>The schedule (whole piastres, worked out once)</h3>
+<p>Monthly rate r = bp / 120,000. <code>mulDivRound(a, b, c) = (2ab + c) / (2c)</code> in BigInt, which is round half up of a × b / c.</p>
+<pre class="code">declining (equal instalment, annuity):
+    A = (120000 + bp)^n ;  B = 120000^n
+    instalment = mulDivRound(P * bp, A, 120000 * (A − B))     (bp 0: mulDivRound(P, 1, n))
+    each month: interest = mulDivRound(remaining, bp, 120000)
+                principal = instalment − interest (last month, or when larger than remaining: remaining)
+flat:
+    totalInterest = mulDivRound(P, bp * n, 120000)
+    interestEach  = floor(totalInterest / n); principalEach = floor(P / n)
+    last month takes what is left of both
+due days: the same day each month; a missing day becomes the month's last day</pre>
+<div class="example">
+<p>100,000 EGP (10,000,000 piastres) at 24% a year (2,400 bp) over 12 months, first payment 31 January 2026.</p>
+<table class="data"><thead><tr><th>Method</th><th>Instalment 1</th><th>Interest 1</th><th>Principal 1</th><th>Instalment 12</th></tr></thead><tbody>
+<tr><td>Declining</td><td>945,596</td><td>200,000</td><td>745,596</td><td>945,597 (interest 18,541, principal 927,056)</td></tr>
+<tr><td>Flat</td><td>1,033,333</td><td>200,000</td><td>833,333</td><td>1,033,337 (principal 833,337)</td></tr>
+</tbody></table>
+<p>The second declining instalment is due 28 February 2026 (no 31st).</p>
+</div>
+<h3>Paying an instalment</h3>
+<p><code>payLoanInstalment()</code>: instalments are paid in order (<code>pay_in_order</code>), the money account must hold the instalment (<code>mustHold</code>), second person from the limit. Interest is booked when paid.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>27nn the loan</td><td>principal part</td><td></td><td></td></tr>
+<tr><td>5904 Loan interest</td><td>interest part</td><td></td><td></td></tr>
+<tr><td>bank or cash box</td><td></td><td>instalment</td><td></td></tr>
+</tbody></table>
+<p>Key <code>loan_payment:&lt;loanId&gt;:&lt;seq&gt;</code>; kind <code>loan_payment</code>.</p>
+
+<h2 id="pe-tags">12.16 Cost tags</h2>
+<p>Besides the store, merchant, rider and person tags every line carries, accounting manage may open cost tags (a campaign, a project). Expenses, journal entry lines, supplier bills and petty cash may put one tag on their cost line (<code>ledger_lines.cost_tag_id</code>; a new choice must be active; a tag switched off keeps counting on its old lines). The report "Costs and income by tag" and the ledger lines filter read it (<code>packages/db/src/finance/cost-tags.ts</code>).</p>
+
+<h2 id="pe-claims">12.17 Expense claims</h2>
+<p><code>packages/db/src/finance/expense-claims.ts</code>. An employee claims a work cost paid from their own pocket: a category finance marked claimable, store or company wide, the day paid (not in the future, not older than <code>claims.max_age_days</code>, default 60), a required receipt photo and an optional VAT from a proper tax invoice (less than the amount). Number <code>EC-000001</code>. The manager in force approves (none: straight to accounting); accounting use pays from a bank or box, or either rejects with a reason; the person may cancel before any approval; nobody decides their own claim; from the approval limit the payer is not the approving manager (<code>same_person</code>). The money account must hold it (<code>mustHold</code>).</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>expense category</td><td>amount − vat</td><td></td><td>store, user</td></tr>
+<tr><td>2301 VAT payable (input VAT)</td><td>vat</td><td></td><td>store, user</td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td>store, user</td></tr>
+</tbody></table>
+<p>Key <code>expense_claim:&lt;claimId&gt;</code>; kind <code>expense_claim</code>. The person is always paid the full amount; the VAT only splits the cost. The receipt photo stays with the entry.</p>
+
+<div class="note" data-todo="attachments-in-forms">To be completed after the update: attaching receipts and documents directly inside the creation forms (bills, expenses, payments) is being finished; how attachments are stored and linked to entries will be documented here.</div>
+
+<h2 id="pe-code">12.18 Where the code lives</h2>
+<table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>Money checks, expenses, transfers</td><td><code>packages/db/src/finance/books.ts</code>: <code>eventTime</code>, <code>mustHold</code>, <code>recordExpense</code>, <code>transferMoney</code></td></tr>
+<tr><td>Second person rule</td><td><code>packages/db/src/finance/controls.ts</code>: <code>submit</code>, <code>queueRequest</code>, <code>decideFinanceRequest</code>, <code>approvalThreshold</code></td></tr>
+<tr><td>Suppliers, bills, payments, taxes</td><td><code>packages/db/src/finance/payables.ts</code>: <code>recordBill</code>, <code>cancelBill</code>, <code>withholdingFor</code>, <code>payBill</code>, <code>payTax</code>, <code>rateMicro</code>, <code>centsToPiastres</code></td></tr>
+<tr><td>Cheques</td><td><code>packages/db/src/finance/cheques.ts</code>: <code>registerCheque</code>, <code>bookCheque</code>, <code>settledFor</code>, <code>clearCheque</code>, <code>bounceCheque</code>, <code>cancelCheque</code></td></tr>
+<tr><td>Purchase orders, packaging</td><td><code>packages/db/src/purchasing.ts</code>, <code>packages/db/src/packaging.ts</code></td></tr>
+<tr><td>Prepayments, assets</td><td><code>packages/db/src/finance/assets.ts</code>: <code>monthlyPart</code>, <code>runMonthlyCharges</code>, <code>chargeDepreciation</code>; <code>tools.ts</code>: <code>disposeAsset</code>, <code>reverseAccruals</code></td></tr>
+<tr><td>Foreign currency</td><td><code>packages/db/src/finance/fx.ts</code>: <code>bookValueOut</code>, <code>revalueForeignBank</code></td></tr>
+<tr><td>Loans</td><td><code>packages/shared/src/loans.ts</code>: <code>loanSchedule</code>; <code>packages/db/src/finance/loans.ts</code>: <code>recordLoan</code>, <code>payLoanInstalment</code></td></tr>
+</tbody></table>
+</section>

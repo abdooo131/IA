@@ -1,0 +1,242 @@
+<section class="chapter" id="ch-taxes-reports">
+<h1>15. Taxes, reports, reconciliation and closing</h1>
+
+<p>This chapter explains how the tax worksheets are built from the ledger (VAT, withholding, salary tax and insurance, company income tax), how tax is paid, how the financial statements and drill down reports compute and compare, how profit per store and the fully loaded cost per order share costs, how cash flow and the four week forecast work, how bank lines are matched, what the month end checklist checks, how a year is closed, and what the exports contain. Every report reads the ledger lines; nothing is stored as a balance.</p>
+
+<h2 id="tr-time">15.1 Periods and Cairo time</h2>
+<p>Reports take Cairo calendar days. A day <code>D</code> covers <code>[cairoDayStart(D), cairoDayStart(D + 1))</code>; <code>cairoDayStart()</code> (<code>packages/shared</code>) applies Egypt's summer time, never a fixed offset. In SQL a moment's Cairo day or month is always taken as <code>(occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo'</code>. Drill down reports refuse ranges longer than 400 days (<code>range_too_long</code>).</p>
+
+<h2 id="tr-vat">15.2 VAT report (per month of a year)</h2>
+<p><code>vatReport(db, year)</code> in <code>packages/db/src/finance/period.ts</code> reads every line on 2301 VAT payable in the year, by Cairo month. Columns follow the entry's kind, not only the line's sign:</p>
+<pre class="code">purchase kinds = supplier_bill, supplier_bill_cancel, expense, expense_claim
+output = −sum(lines) where kind = credit_note
+                        or (kind not tax_payment, not a purchase kind, and line &lt; 0)
+input  =  sum(lines) where kind is a purchase kind
+                        or (kind not tax_payment, not credit_note, not a purchase kind, and line &gt; 0)
+paid   =  sum(lines) where kind = tax_payment
+due    = output − input</pre>
+<p>So a credit note lowers output, a cancelled bill lowers input, a debit note raises output, a rider office bill (kind <code>supplier_bill</code>) is input, and other entries (journal entries) go by sign.</p>
+
+<h2 id="tr-vatreturn">15.3 Monthly VAT return</h2>
+<p><code>vatReturn(db, month)</code> in <code>packages/db/src/finance/returns.ts</code> builds the return worksheet from the entries of the month that have a 2301 line (year close and tax payments excluded), grouped by kind:</p>
+<pre class="code">for each kind: revenue = −sum(4101 lines); vat = −sum(2301 lines)
+               expense = sum(lines on expense accounts, 2401 goods received and 2402 commission accrued)
+credit_note        : creditNotes += −revenue ; creditNoteVat += −vat
+purchase kinds     : purchases += expense + sum(data.onWalletPiastres) ; inputVat += −vat
+revenue ≠ 0 or vat &gt; 0 (fees, minimum, debit notes...):
+                     sales += revenue ; outputVat += vat
+                     (debit notes also shown apart as "of which")
+otherwise          : purchases += expense ; inputVat += −vat
+carriedIn = max(0, balance of 2301 before the month)        (a debit balance is credit carried in)
+due       = outputVat − creditNoteVat − inputVat − carriedIn
+duePiastres = max(due, 0) ; carriedOut = due &lt; 0 ? −due : 0
+paidSince = VAT tax payments booked after the month</pre>
+<p>A rider office's commission since 11 November 2026 is booked on the office wallet at each delivery, so its month end bill entry carries only the VAT; <code>onWalletPiastres</code> in the bill entry's data adds the commission back to purchases (counted once, since the entry has one 2301 line).</p>
+<div class="example"><p>November: fees 400,000 EGP with VAT 56,000; one credit note of 1,000 EGP with VAT 140; bills and expenses with VAT claimed 9,000; a debit balance of 2,000 carried in from October. Due = 56,000 − 140 − 9,000 − 2,000 = 44,860 EGP; nothing carried out.</p></div>
+<p>The month end checklist has a hand ticked item for the VAT return (15.15).</p>
+
+<h2 id="tr-wht">15.4 Withholding tax, form 41</h2>
+<p><code>withholdingPayments(db, { year, quarter })</code> lists every bill payment of the quarter that kept withholding tax, one row per payment, leaving out payments made by a cheque that later bounced or was cancelled (<code>reversedPaymentIds()</code>):</p>
+<pre class="code">row: day, voucher JV number, supplier, tax id,
+     net (amount before VAT of the payment = data.net = round(bill.net * settled / bill.total)),
+     rate = net ? round(wht * 10000 / net) : supplier.whtBp,
+     withheld = data.wht</pre>
+<p>The CSV (<code>form41-&lt;year&gt;-Q&lt;n&gt;.csv</code>) has the columns: Tax registration number, Name, Date, Amount before VAT, Rate % (two decimals), Withheld, Voucher. <code>whtReport()</code> in <code>payables.ts</code> gives the same quarter per supplier, flagging suppliers with withholding and no tax id.</p>
+
+<h2 id="tr-payrollforms">15.5 Salary tax and social insurance lists</h2>
+<p><code>payrollForms(db, month)</code> reads the month's <code>payroll:&lt;month&gt;</code> entry (chapter 14) and joins each person's national id and social insurance number from their employee file. Totals: gross, income tax, insured wages, both insurance shares, martyrs fund; <code>missingIds</code> counts people without an id or number. Two CSVs (salaries switch needed): the salary tax list and the social insurance list (Insurance number, National ID, Name, Insured wage, Employee share, Company share, Total).</p>
+
+<h2 id="tr-corporate">15.6 Company income tax</h2>
+<pre class="code">corporateTaxEstimate(year):
+    pl              = profit and loss of the year (year close entry left out)
+    booked          = the 5801 Company income tax line of that year
+    profitBeforeTax = pl.profit + booked
+    estimate        = profitBeforeTax &gt; 0 ? round(profitBeforeTax * finance.corporate_tax_bp / 10000) : 0
+                      (setting default 2250 = 22.5%)</pre>
+<p>The accountant settles the amount (the taxable profit may differ from accounting profit). <code>bookCorporateTax()</code> books it before the year is closed, only for a year that is over, and only the difference with what is booked:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5801 Company income tax</td><td>difference</td><td></td><td></td></tr>
+<tr><td>2306 Company income tax payable</td><td></td><td>difference</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>corporate_tax:&lt;year&gt;:&lt;n&gt;</code> where n is the number of earlier corporate tax entries of the year plus one; kind <code>corporate_tax</code>; dated two milliseconds before the year ends. A lower amount posts a negative difference (the lines turn round).</p>
+<div class="example"><p>Profit before tax 2,400,000 EGP: estimate round(240,000,000 × 2,250 / 10,000) = 54,000,000 piastres (540,000 EGP). The accountant settles on 520,000 EGP: Dr 5801 52,000,000, Cr 2306 52,000,000. Changed later to 530,000 EGP: a second entry Dr 5801 1,000,000, Cr 2306 1,000,000.</p></div>
+
+<h2 id="tr-taxpay">15.7 Paying taxes</h2>
+<p><code>payTax()</code> in <code>payables.ts</code>, through the second person rule from the limit. The tax is one of: VAT (2301), withholding (2302), salary income tax (2303), social insurance (2304, both shares), martyrs fund (2305), company income tax (2306). Never more than owed now (<code>more_than_owed</code>, under an advisory lock per tax); the money account must hold it.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>the tax payable account</td><td>amount</td><td></td><td></td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td></td></tr>
+</tbody></table>
+<p>Key <code>tax_payment:&lt;clientKey&gt;</code>; kind <code>tax_payment</code>; data <code>{ tax, reference }</code>. <code>taxesOwed()</code> shows what is owed per tax (0 − balance).</p>
+
+<h2 id="tr-statements">15.8 Financial statements</h2>
+<p>All three are in <code>packages/db/src/finance/books.ts</code>; they sum lines per account (<code>sumsByAccount()</code>) with optional store and merchant filters. A balance is shown "as an accountant reads it": <code>natural(category, debit − credit)</code> keeps the sign for assets and expenses and flips it for liabilities, equity and income.</p>
+<table class="data"><thead><tr><th>Report</th><th>Lines read</th><th>Result</th></tr></thead><tbody>
+<tr><td>Trial balance</td><td>all lines of the period</td><td>per account: debits, credits, balance; total debits always equal total credits (unfiltered)</td></tr>
+<tr><td>Profit and loss</td><td>income and expense accounts in the period, the <code>year_close</code> entry left out</td><td>income, expenses, profit = income − expenses</td></tr>
+<tr><td>Balance sheet</td><td>all lines before the end of the chosen day</td><td>assets, liabilities, equity, plus earnings = income − expenses not yet closed into 3401; wallets shown as one line per group (store boxes kept apart)</td></tr>
+</tbody></table>
+<p>Accumulated depreciation (1701) is an asset account with a credit balance, so it appears as a negative asset. With a store or merchant filter only the lines tagged with them count, so a filtered report may not balance (the screen says so).</p>
+
+<h2 id="tr-drill">15.9 Drill down and comparisons</h2>
+<p><code>drillReport()</code> in <code>packages/db/src/finance/drill.ts</code> runs the same three reports once for the period and once for the comparison, every line keyed by its account; a click opens the ledger lines behind the line (<code>GET /finance/ledger-lines</code>), whose total is the report line exactly. For the balance sheet the earnings drill starts after the last year close.</p>
+<h3>Comparison periods</h3>
+<p><code>comparisonRange(range, mode)</code> in <code>packages/shared/src/report-period.ts</code>:</p>
+<ul>
+<li><code>last_year</code>: the same days a year earlier (a day the month lacks becomes its last day).</li>
+<li><code>previous</code>, in this order:
+<ol>
+<li>a year to date (from 1 January to a day in a later quarter of the same year): the same days a year earlier;</li>
+<li>a quarter to date (from a quarter's first day to a later month of that quarter): the quarter before, the same number of days into it, never past that quarter's end (a quarter's last day stays a quarter's last day);</li>
+<li>any other range starting on the 1st: moved back by the number of months it covers (a month's last day stays a month's last day);</li>
+<li>otherwise: moved back by its own length in days.</li>
+</ol></li>
+</ul>
+<div class="example">
+<table class="data"><thead><tr><th>Range</th><th>Previous</th></tr></thead><tbody>
+<tr><td>1 to 11 November 2026 (month to date)</td><td>1 to 11 October 2026</td></tr>
+<tr><td>1 October to 11 November 2026 (quarter to date)</td><td>1 July to 11 August 2026</td></tr>
+<tr><td>1 October to 31 December 2026 (whole quarter)</td><td>1 July to 30 September 2026</td></tr>
+<tr><td>1 January to 11 November 2026 (year to date)</td><td>1 January to 11 November 2025</td></tr>
+<tr><td>5 to 11 November 2026 (7 days)</td><td>29 October to 4 November 2026</td></tr>
+</tbody></table>
+</div>
+<p>Change and percent: <code>change = current − previous</code>; <code>percent = previous == 0 ? none : round(change / |previous| × 1000) / 10</code> (one decimal). Presets: this month, last month, this quarter, this year, last year, custom. Exports: PDF (English or Arabic, made on the API), CSV and Excel.</p>
+
+<h2 id="tr-profit">15.10 Profit per store and the fully loaded cost per order</h2>
+<p><code>profitBy(db, { from, to, by })</code> in <code>packages/db/src/finance/profit.ts</code> groups income (−sum of revenue category lines) and costs (sum of expense category lines) by the line's store, merchant or rider tag, <code>year_close</code> left out; lines without the tag form one company wide row.</p>
+<p><code>costPerOrder()</code>:</p>
+<pre class="code">orders(s)       = delivered orders of store s in the period (deliveredAt in range)
+allOrders       = sum over stores
+companyCosts    = costs of the untagged (company wide) row
+shared(s)       = allOrders &gt; 0 ? round(companyCosts * orders(s) / allOrders) : 0
+incomePerOrder  = round(income(s) / orders(s))
+directPerOrder  = round(directCosts(s) / orders(s))
+fullCostPerOrder= round((directCosts(s) + shared(s)) / orders(s))
+profitPerOrder  = round((income(s) − directCosts(s) − shared(s)) / orders(s))
+(null when the store delivered nothing)</pre>
+<div class="example"><p>Store A delivered 3,000 orders, store B 1,000. Company wide costs 200,000 EGP. A's share = round(20,000,000 × 3,000 / 4,000) = 15,000,000 (150,000 EGP). A's direct costs 240,000 EGP: direct cost per order 80 EGP, fully loaded (240,000 + 150,000) / 3,000 = 130 EGP.</p></div>
+
+<h2 id="tr-cashflow">15.11 Cash flow (direct method)</h2>
+<p><code>cashFlow(db, { from, to, darkStoreId? })</code> in <code>period.ts</code>. Money is every line on groups 1100 (banks), 1200 (cash boxes, Money at Basata included) and 1300 (rider cash).</p>
+<pre class="code">opening = sum of money lines before from ; closing = sum before to
+per entry: net = sum of its money lines in the period
+per kind : in  = sum of net over entries with net &gt; 0
+           out = −sum of net over entries with net &lt; 0
+section  : asset_purchase → investing ; capital_in, capital_out → financing ; every other kind → operating</pre>
+<p>Because each entry is netted first, a move between our own money accounts (a bank deposit from a box, a handover from rider cash to a box, a transfer between banks) nets to 0 and does not appear. Loan entries are operating in the current mapping. With a store, only money lines tagged with that store count.</p>
+
+<h2 id="tr-forecast">15.12 Four week cash forecast</h2>
+<p><code>cashForecast(db, now)</code> in <code>period.ts</code>:</p>
+<pre class="code">planned kinds = expense, bill_payment, payroll, tax_payment, staff_advance, prepayment,
+                asset_purchase, capital_in, capital_out, other_income
+trading       = sum(in − out) of moneyByKind over the last 56 days, planned kinds left out
+weeklyTrading = round(trading / 8)
+money now     = sum of money lines (1100, 1200, 1300) up to now
+for week w = 0..3 (7 days from today):
+    bills     = remaining of open bills due in the week (week 0 also takes overdue ones)
+    recurring = amount of each active recurring expense whose day of month falls in the week
+                (within its start and end months)
+    salaries  = (number of month ends in the week) × gross of every package in force today
+                for active employees on our payroll
+    taxes     = week 0 only: VAT and withholding owed now (never below 0)
+    closing   = opening + weeklyTrading − (bills + recurring + salaries + taxes)</pre>
+<div class="note" data-todo="forecast">To be completed after the update: the Forecast screen and its rules are being reworked; the final forecast formula (and any change to the one above) will be documented here.</div>
+<div class="note" data-todo="coming-up-and-due">To be completed after the update: the "Coming up and due" view (what is due to be paid or collected in the coming days) is being finished and will be documented here.</div>
+
+<h2 id="tr-budgets">15.13 Budgets</h2>
+<p>Budgets are per income or expense account, month and store (or company wide); <code>budgetVsActual()</code> in <code>period.ts</code> shows the variance for a month (with a store: only that store's budgets and lines; without: the whole company).</p>
+<div class="note" data-todo="budgets-by-quarter">To be completed after the update: budgets by quarter (a quarter as the sum of its months unless set by hand) are being finished and will be documented here.</div>
+
+<h2 id="tr-bank">15.14 Bank reconciliation</h2>
+<h3>Importing statements</h3>
+<p>Finance uploads the bank's statement as .xlsx or CSV (read on the server without a spreadsheet library; old .xls is refused with a "save as" hint), picks the columns (guessed from English and Arabic headers; debit and credit columns or one signed amount). Dates and amounts are parsed by <code>parseStatementDate()</code> and <code>parseStatementAmount()</code> (<code>packages/shared/src/statement.ts</code>: day first dates, month names, Excel day numbers; brackets, a minus or DR make an amount negative; no floats). Each upload is a statement <code>BS-000001</code> onward. Each line gets a fingerprint:</p>
+<pre class="code">base = day | amount | balance | description | reference
+n    = how many times the same base appeared earlier in this file (1, 2...)
+fingerprint = sha256(base | n)</pre>
+<p>Lines whose fingerprint already exists for the account are skipped, so overlapping uploads add nothing, while two equal transfers on one day in one file are both kept. A future day or an amount of 0 is refused.</p>
+<h3>Automatic matching</h3>
+<p><code>autoMatch()</code> in <code>packages/db/src/finance/bank.ts</code> runs after an import and when the screens open. For each unmatched bank line, oldest first, it takes the ledger lines of the same account with exactly the same amount within 3 days that prove no bank line yet; when exactly one is the closest it is matched; two equally close ones are left for a person. Matching never records money.</p>
+<h3>Suggestions for a person</h3>
+<p><code>rankSuggestions(bankLine, openLines)</code> in <code>packages/shared/src/bank-match.ts</code>:</p>
+<table class="data"><thead><tr><th>Rank</th><th>Reason</th><th>Rule</th><th>One click match</th></tr></thead><tbody>
+<tr><td>0</td><td><code>same_day</code></td><td>same amount, same Cairo day</td><td>yes</td></tr>
+<tr><td>1</td><td><code>within_3_days</code></td><td>same amount, at most 3 days apart</td><td>yes</td></tr>
+<tr><td>2</td><td><code>sum</code></td><td>two or three open lines (same direction, smaller, within 7 days; at most 40 candidates, at most 6 sums) adding up exactly</td><td>yes</td></tr>
+<tr><td>3</td><td><code>same_amount</code></td><td>same amount, further than 3 days</td><td>yes</td></tr>
+<tr><td>4</td><td><code>near_amount</code></td><td>same sign, within max(100 piastres, round(5% of the bank amount)), within 7 days</td><td>no</td></tr>
+<tr><td>5</td><td><code>partial</code></td><td>same direction, smaller, within 7 days, not part of a sum and not near</td><td>no</td></tr>
+</tbody></table>
+<p>Sorted by rank, then by distance from the bank amount, then by day gap, then by ids; at most 12 shown. Lines picked by hand match when they add up exactly (<code>sumMatches()</code>; the extra lines are kept in <code>bank_line_matches</code>; a trigger lets a ledger line prove only one bank line; reopening removes them). Money out with no entry can be booked as bank charges in one tap (<code>bookBankCharge()</code>: an expense on 5501 Bank charges through the second person rule, key <code>expense:bankcharge:&lt;bankLineId&gt;</code>, then matched); a line that needs no entry is set aside with a reason of at least 5 characters. Money in is never created from a statement line.</p>
+<h3>Reconciliation view</h3>
+<p><code>reconciliation(db, { accountId, day })</code>: book balance at the end of the day, the last bank balance printed on a statement line up to that day, the difference, bank lines not in the books, and book lines not on any statement since the first day a statement covers.</p>
+
+<h2 id="tr-monthend">15.15 Month end checklist and closing the books</h2>
+<p><code>monthEndChecklist(db, month)</code> in <code>packages/db/src/finance/cash-control.ts</code> checks a month live:</p>
+<table class="data"><thead><tr><th>Item</th><th>Counted as left</th><th>Waits for the month's end</th></tr></thead><tbody>
+<tr><td><code>cash_handovers</code></td><td>pending handover differences created before the month's end, plus riders still holding cash collected before it</td><td>no</td></tr>
+<tr><td><code>bank_lines</code></td><td>unmatched statement lines dated in the month</td><td>no</td></tr>
+<tr><td><code>receipts</code></td><td>entries of receipt kinds in the month with no receipt photo (on the entry, its request or its payout)</td><td>no</td></tr>
+<tr><td><code>petty_cash</code></td><td>petty expenses created before the month's end still waiting for approval</td><td>no</td></tr>
+<tr><td><code>invoices</code></td><td>merchants with fee income in the month and no invoice for it</td><td>yes</td></tr>
+<tr><td><code>payroll</code></td><td>1 when no <code>payroll:&lt;month&gt;</code> entry and some salary package exists</td><td>yes</td></tr>
+<tr><td><code>storage</code></td><td>days of the month (up to yesterday, from the first storage charge ever) with no storage entry</td><td>no</td></tr>
+<tr><td><code>depreciation</code></td><td>prepayment and asset months due for the month whose key (<code>prepaid:</code> or <code>depr:</code>) has no entry</td><td>yes</td></tr>
+<tr><td><code>vat_return</code></td><td>always ticked by hand</td><td>yes</td></tr>
+<tr><td><code>books_closed</code></td><td>1 until the books are closed through the month's last day</td><td>yes</td></tr>
+</tbody></table>
+<p>Any item except <code>books_closed</code> can be ticked by hand with a note of at least 3 characters (<code>month_end_marks</code>, audited). The month is ready to close when it is over and every other item is done. Closing (<code>closeBooks()</code> in <code>controls.ts</code>, accounting manage) sets <code>books_lock.closedThrough</code> to a day already over and <code>lockedBefore</code> to the start of the next day; <code>post()</code> and a database trigger then refuse lines before it (<code>books_closed</code>). Moving the date back reopens days: admin only, with a reason of at least 5 characters, audited as <code>finance.books_reopen</code>.</p>
+
+<h2 id="tr-yearclose">15.16 Closing a year</h2>
+<p><code>closeYear(db, { year })</code> in <code>period.ts</code> (approve level), once per year, years in order (refused while an earlier year still has income or expense balances: <code>earlier_year_open</code>), only a year that is over:</p>
+<pre class="code">balances = per income and expense account, sum of lines before the year's end (non zero only)
+total    = sum(balances)          (= −profit, since income is a credit)
+lines    = each account: −balance ; 3401 Retained earnings: +total</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>each income account</td><td>its credit balance</td><td></td><td></td></tr>
+<tr><td>each expense account</td><td></td><td>its debit balance</td><td></td></tr>
+<tr><td>3401 Retained earnings</td><td>loss</td><td>profit</td><td></td></tr>
+</tbody></table>
+<p>Key <code>year_close:&lt;year&gt;</code>; kind <code>year_close</code>; dated the year's last millisecond (Cairo). A lock past that moment is lifted for this entry and put back in the same transaction; the books are then closed through 31 December (or later if they already were). Profit and loss, profit per store and merchant profit leave the <code>year_close</code> entry out, so the closed year still shows its result. Book the company income tax (15.6) before closing.</p>
+
+<h2 id="tr-exports">15.17 Exports</h2>
+<h3>Journal CSV</h3>
+<p><code>journalLines(db, { from, to })</code> returns every ledger line between two Cairo days, one row per line, ordered by entry number then amount (debits first). The CSV (<code>GET /finance/export/journal.csv</code>, <code>apps/api/src/finance/period.controller.ts</code>) is importable by Odoo, Zoho Books, QuickBooks and Daftra:</p>
+<table class="data"><thead><tr><th>Column</th><th>Value</th></tr></thead><tbody>
+<tr><td>Date</td><td>Cairo day of the line</td></tr>
+<tr><td>Journal number</td><td><code>JV-nnnnnn</code></td></tr>
+<tr><td>Kind</td><td>entry kind</td></tr>
+<tr><td>Description</td><td>entry memo</td></tr>
+<tr><td>Account code</td><td>chart code</td></tr>
+<tr><td>Account name</td><td>English name, else the owner's name (merchant, store, user, supplier)</td></tr>
+<tr><td>Account name (Arabic)</td><td>Arabic name, else as above</td></tr>
+<tr><td>Debit</td><td>EGP with two decimals when the line is a debit, else empty</td></tr>
+<tr><td>Credit</td><td>EGP with two decimals when the line is a credit, else empty</td></tr>
+<tr><td>Store</td><td>store code of the line's tag</td></tr>
+<tr><td>Merchant</td><td>merchant name of the line's tag</td></tr>
+</tbody></table>
+<h3>Audit pack</h3>
+<p><code>GET /finance/export/audit-pack.zip</code> (a stored zip, no library) holds, in a folder <code>audit-&lt;from&gt;-&lt;to&gt;</code>:</p>
+<ul>
+<li><code>journal.csv</code>: the journal above for the period;</li>
+<li><code>trial-balance.csv</code>: Account code, Account name, Debit, Credit for the period;</li>
+<li><code>chart-of-accounts.csv</code>: Code, Name, Name (Arabic), Category, Group, Active, Balance now (inactive accounts included);</li>
+<li><code>vat-&lt;year&gt;.csv</code>: Month, VAT on our fees, VAT claimed back, Due, Paid for the year of the period's last day;</li>
+<li><code>receipts/JV-nnnnnn-k.jpg</code> (or png, webp): every receipt photo attached to an entry, its request or its payout in the period, named by voucher.</li>
+</ul>
+<p>All CSVs follow the house rules: <code>UTF-8</code> byte order mark, formula prefixes neutralised, money as EGP text from integers.</p>
+<div class="note" data-todo="journal-page">To be completed after the update: the journal page (browsing and entering entries) is being reworked; its screens and filters will be documented here.</div>
+
+<h2 id="tr-code">15.18 Where the code lives</h2>
+<table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>VAT report, cash flow, forecast, year close, journal export</td><td><code>packages/db/src/finance/period.ts</code>: <code>vatReport</code>, <code>cashFlow</code>, <code>cashForecast</code>, <code>closeYear</code>, <code>journalLines</code>, <code>receiptPhotos</code>, <code>budgetVsActual</code></td></tr>
+<tr><td>Tax returns</td><td><code>packages/db/src/finance/returns.ts</code>: <code>vatReturn</code>, <code>withholdingPayments</code>, <code>payrollForms</code>, <code>corporateTaxEstimate</code>, <code>bookCorporateTax</code>, <code>comparativeStatements</code></td></tr>
+<tr><td>Tax payments, withholding report</td><td><code>packages/db/src/finance/payables.ts</code>: <code>payTax</code>, <code>taxesOwed</code>, <code>whtReport</code></td></tr>
+<tr><td>Statements</td><td><code>packages/db/src/finance/books.ts</code>: <code>trialBalance</code>, <code>profitAndLoss</code>, <code>balanceSheet</code>, <code>natural</code></td></tr>
+<tr><td>Drill down and periods</td><td><code>packages/db/src/finance/drill.ts</code>; <code>packages/shared/src/report-period.ts</code>: <code>comparisonRange</code>, <code>presetRange</code>, <code>changeOf</code></td></tr>
+<tr><td>Profit</td><td><code>packages/db/src/finance/profit.ts</code>: <code>profitBy</code>, <code>costPerOrder</code></td></tr>
+<tr><td>Bank</td><td><code>packages/db/src/finance/bank.ts</code>: <code>importStatement</code>, <code>autoMatch</code>, <code>bookBankCharge</code>, <code>reconciliation</code>; <code>packages/shared/src/bank-match.ts</code>: <code>rankSuggestions</code>, <code>sumMatches</code></td></tr>
+<tr><td>Month end and books lock</td><td><code>packages/db/src/finance/cash-control.ts</code>: <code>monthEndChecklist</code>, <code>markMonthEndItem</code>; <code>controls.ts</code>: <code>closeBooks</code></td></tr>
+<tr><td>Export endpoints</td><td><code>apps/api/src/finance/period.controller.ts</code></td></tr>
+</tbody></table>
+</section>

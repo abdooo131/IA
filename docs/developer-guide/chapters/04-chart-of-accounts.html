@@ -1,0 +1,199 @@
+<section class="chapter" id="ch-chart-of-accounts">
+<h1>Chart of accounts</h1>
+
+<p>Every ledger account has a code taken from its group. The first digit of a code is the account's category; the first four digits are its group. Groups and their rules live in <code>ACCOUNT_GROUPS</code> (<code>packages/shared/src/accounts.ts</code>); the accounts the system itself uses, with their preferred codes and names, live in <code>SYSTEM_ACCOUNTS</code> and <code>DEFAULT_ACCOUNTS</code> (<code>packages/db/src/finance/ledger.ts</code>). The chart was introduced by the migration <code>20261108090100_chart_of_accounts</code>, which also numbered every account that existed before.</p>
+
+<h2 id="coa-categories">Categories</h2>
+<table class="data">
+<thead><tr><th>First digit</th><th>Category</th><th>Normal balance</th><th>Shown as</th></tr></thead>
+<tbody>
+<tr><td>1</td><td><code>asset</code>: what the company owns or is owed (banks, cash, rider cash, advances, equipment)</td><td>Debit</td><td>As is</td></tr>
+<tr><td>2</td><td><code>liability</code>: what the company owes (merchants, riders, taxes, suppliers, loans)</td><td>Credit</td><td>Sign flipped</td></tr>
+<tr><td>3</td><td><code>equity</code>: owner capital, drawings, opening balances, retained earnings</td><td>Credit</td><td>Sign flipped</td></tr>
+<tr><td>4</td><td><code>revenue</code>: fee income and other income</td><td>Credit</td><td>Sign flipped</td></tr>
+<tr><td>5</td><td><code>expense</code>: running costs, rider pay, damage, depreciation, taxes on profit</td><td>Debit</td><td>As is</td></tr>
+</tbody>
+</table>
+<p>The category of an account is fixed by its type (<code>CATEGORY</code> in <code>ledger.ts</code>). Accumulated depreciation (1701) is an asset account that normally carries a credit balance, so it shows as a negative amount among the assets and reduces the value of equipment.</p>
+
+<h2 id="coa-groups">Groups</h2>
+<p>Each group says whether each party has its own wallet in it (party), whether finance can open accounts in it by hand (and of which type), and whether it holds money that can be moved (banks and cash boxes).</p>
+<table class="data">
+<thead><tr><th>Group</th><th>Category</th><th>Name</th><th>Party wallets</th><th>Opened by finance as</th><th>Money</th></tr></thead>
+<tbody>
+<tr><td>1100</td><td>asset</td><td>Banks</td><td>no</td><td><code>bank</code></td><td>yes</td></tr>
+<tr><td>1150</td><td>asset</td><td>Cheques under collection</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>1200</td><td>asset</td><td>Cash boxes (company boxes and store boxes)</td><td>no</td><td><code>cash_box</code></td><td>yes</td></tr>
+<tr><td>1300</td><td>asset</td><td>Cash with riders</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>1350</td><td>asset</td><td>Rider dues (what a rider owes us)</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>1400</td><td>asset</td><td>Other assets</td><td>no</td><td><code>other_asset</code></td><td>no</td></tr>
+<tr><td>1500</td><td>asset</td><td>Staff advances</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>1600</td><td>asset</td><td>Fixed assets (equipment and vehicles)</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>1700</td><td>asset</td><td>Accumulated depreciation</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>2100</td><td>liability</td><td>Merchants</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>2200</td><td>liability</td><td>Rider bonuses (rider pay earned, not yet withdrawn)</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>2300</td><td>liability</td><td>Taxes</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>2400</td><td>liability</td><td>Other liabilities</td><td>no</td><td><code>other_liability</code></td><td>no</td></tr>
+<tr><td>2450</td><td>liability</td><td>Cheques payable</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>2500</td><td>liability</td><td>Suppliers</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>2600</td><td>liability</td><td>Merchant security deposits</td><td>yes</td><td></td><td>no</td></tr>
+<tr><td>2700</td><td>liability</td><td>Loans (one account per loan)</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>3100</td><td>equity</td><td>Owner capital</td><td>no</td><td><code>equity</code></td><td>no</td></tr>
+<tr><td>3200</td><td>equity</td><td>Owner drawings</td><td>no</td><td><code>equity</code></td><td>no</td></tr>
+<tr><td>3300</td><td>equity</td><td>Opening balances</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>3400</td><td>equity</td><td>Retained earnings</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>4100</td><td>revenue</td><td>Fees</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>4200</td><td>revenue</td><td>Other income</td><td>no</td><td><code>other_income</code></td><td>no</td></tr>
+<tr><td>5100</td><td>expense</td><td>Rider costs</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>5200</td><td>expense</td><td>Damage</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>5300</td><td>expense</td><td>Cash differences</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>5400</td><td>expense</td><td>Operating expenses</td><td>no</td><td><code>expense</code></td><td>no</td></tr>
+<tr><td>5500</td><td>expense</td><td>Bank charges</td><td>no</td><td><code>expense</code></td><td>no</td></tr>
+<tr><td>5600</td><td>expense</td><td>Depreciation</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>5700</td><td>expense</td><td>Staff costs</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>5800</td><td>expense</td><td>Company income tax</td><td>no</td><td></td><td>no</td></tr>
+<tr><td>5900</td><td>expense</td><td>Other costs</td><td>no</td><td></td><td>no</td></tr>
+</tbody>
+</table>
+
+<h2 id="coa-accounts">Accounts by code</h2>
+<p>The table lists every account the system knows by key, with the code it takes when first used and what posts to it. English names are the ones stored in <code>name_en</code>; every account also has an Arabic name.</p>
+<table class="data">
+<thead><tr><th>Code</th><th>Key</th><th>Name</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>1101</td><td><code>bank</code></td><td>The company's main bank account (named CIB in the code)</td><td>The default bank for deposits, payouts, receipts and bonus payouts when no other bank is named. Further banks get 1102, 1103 and so on.</td></tr>
+<tr><td>1151</td><td><code>cheques_under_collection</code></td><td>Cheques under collection</td><td>Cheques received and booked but not yet paid by the bank.</td></tr>
+<tr><td>12xx</td><td><code>store_cash:&lt;store&gt;</code></td><td>The store's cash box</td><td>Cash counted at handover; deposits to the bank and petty cash leave from it. Opened automatically, next free code in 1200.</td></tr>
+<tr><td>12xx</td><td><code>basata_transit</code></td><td>Money at Basata, on its way to the bank</td><td>Approved rider deposits at Basata branches until Basata's daily transfer reaches the bank. Next free code in 1200.</td></tr>
+<tr><td><code>1300-nnnn</code></td><td><code>rider_cash:&lt;rider&gt;</code></td><td>Rider's cash</td><td>Cash on delivery the rider collected and still carries.</td></tr>
+<tr><td><code>1350-nnnn</code></td><td><code>rider_dues:&lt;rider&gt;</code></td><td>Rider's dues</td><td>What a rider owes the company (shortages kept on them, damage charges, penalties), taken from their next withdrawal.</td></tr>
+<tr><td>1401</td><td><code>prepaid</code></td><td>Prepaid expenses</td><td>Money paid once for several months (a year's rent), released monthly.</td></tr>
+<tr><td>1402</td><td><code>packaging_stock</code></td><td>Packaging stock</td><td>Bags, boxes, labels and tape bought, at average cost, until used at packing.</td></tr>
+<tr><td><code>1500-nnnn</code></td><td><code>staff_advance:&lt;user&gt;</code></td><td>Staff advance of a person</td><td>Money advanced to a team member, recovered from salary or withdrawal.</td></tr>
+<tr><td>1601</td><td><code>fixed_assets</code></td><td>Equipment and vehicles</td><td>Equipment bought, at cost.</td></tr>
+<tr><td>1701</td><td><code>accumulated_depreciation</code></td><td>Accumulated depreciation</td><td>Straight line depreciation charged so far (credit balance).</td></tr>
+<tr><td><code>2100-nnnn</code></td><td><code>merchant:&lt;merchant&gt;</code></td><td>Merchant's wallet</td><td>What we owe the merchant: cash collected for them minus our fees and VAT, minus payouts. A debit balance means the merchant owes us.</td></tr>
+<tr><td><code>2200-nnnn</code></td><td><code>rider_bonus:&lt;rider&gt;</code></td><td>Rider's earnings</td><td>Rider pay per delivered order, until withdrawn.</td></tr>
+<tr><td>2301</td><td><code>vat_payable</code></td><td>VAT payable</td><td>VAT on our fees (output) less VAT claimed back on purchases (input).</td></tr>
+<tr><td>2302</td><td><code>wht_payable</code></td><td>Withholding tax payable</td><td>Withholding tax kept back from supplier payments.</td></tr>
+<tr><td>2303</td><td><code>payroll_tax_payable</code></td><td>Salary income tax payable</td><td>Tax deducted from salaries.</td></tr>
+<tr><td>2304</td><td><code>social_insurance_payable</code></td><td>Social insurance payable</td><td>Employee and company shares of social insurance.</td></tr>
+<tr><td>2305</td><td><code>martyrs_fund_payable</code></td><td>Martyrs fund payable</td><td>The martyrs fund deduction.</td></tr>
+<tr><td>2306</td><td><code>corporate_tax_payable</code></td><td>Company income tax payable</td><td>The year's company income tax agreed with the accountant.</td></tr>
+<tr><td>2401</td><td><code>goods_received</code></td><td>Goods received, not billed yet</td><td>Purchase order receipts until the supplier's bill arrives.</td></tr>
+<tr><td>2402</td><td><code>rider_office_accrued</code></td><td>Rider office commission accrued, not billed yet</td><td>Used by the first version of rider office commission; new commission goes straight to the office's supplier wallet.</td></tr>
+<tr><td>2451</td><td><code>cheques_payable</code></td><td>Cheques payable</td><td>Cheques we wrote that the bank has not paid yet.</td></tr>
+<tr><td><code>2500-nnnn</code></td><td><code>supplier:&lt;supplier&gt;</code></td><td>Supplier's wallet</td><td>What we owe the supplier for bills not yet paid (rider offices are suppliers too).</td></tr>
+<tr><td><code>2600-nnnn</code></td><td><code>merchant_deposit:&lt;merchant&gt;</code></td><td>Merchant's security deposit</td><td>A deposit held under the merchant's contract, paid back when it ends.</td></tr>
+<tr><td>2701, 2702...</td><td>one per loan</td><td>The loan</td><td>Principal still owed on each bank loan, opened with the loan.</td></tr>
+<tr><td>3101</td><td><code>equity:capital</code></td><td>Owner capital</td><td>Money the owner puts in.</td></tr>
+<tr><td>3201</td><td><code>equity:drawings</code></td><td>Owner drawings</td><td>Money the owner takes out.</td></tr>
+<tr><td>3301</td><td><code>equity:opening</code></td><td>Opening balances</td><td>The other side of the one time opening balances entry.</td></tr>
+<tr><td>3401</td><td><code>retained_earnings</code></td><td>Retained earnings</td><td>Profit of closed years.</td></tr>
+<tr><td>4101</td><td><code>revenue</code></td><td>Delivery and service fees</td><td>Every fee charged to merchants (one income account; the entry kind tells the fee kind).</td></tr>
+<tr><td>4201</td><td><code>other_income:general</code></td><td>Other income</td><td>Income that is not a fee. Finance can open more 4200 accounts.</td></tr>
+<tr><td>5101</td><td><code>rider_bonus_expense</code></td><td>Rider pay per delivered order</td><td>Rider pay, and the credit side of rider penalties.</td></tr>
+<tr><td>5102</td><td><code>rider_office_commission</code></td><td>Rider office commission</td><td>The office's commission on rider pay, at each delivery.</td></tr>
+<tr><td>5201</td><td><code>damage_expense</code></td><td>Damage paid by us</td><td>Merchant compensation for units damaged in our care.</td></tr>
+<tr><td>5301</td><td><code>cash_difference</code></td><td>Cash shortages and surpluses</td><td>Handover differences written off.</td></tr>
+<tr><td>5401 to 5409</td><td><code>expense:rent</code>, <code>expense:salaries</code>, <code>expense:fuel</code>, <code>expense:packaging</code>, <code>expense:marketing</code>, <code>expense:utilities</code>, <code>expense:maintenance</code>, <code>expense:government</code>, <code>expense:other</code></td><td>Rent; Salaries and wages; Fuel and transport; Packaging and supplies; Marketing; Utilities and internet; Maintenance; Government fees; Other expenses</td><td>Running costs. Salaries post to 5402; packaging used at packing posts to 5404. Finance can open more 5400 categories.</td></tr>
+<tr><td>5501</td><td><code>expense:bank_charges</code></td><td>Bank charges</td><td>Bank fees, also booked from bank statement lines.</td></tr>
+<tr><td>55xx</td><td><code>basata_fees</code></td><td>Basata fees</td><td>What Basata keeps from each daily transfer. Next free code in 5500.</td></tr>
+<tr><td>5601</td><td><code>depreciation_expense</code></td><td>Depreciation</td><td>Monthly depreciation of equipment.</td></tr>
+<tr><td>5701</td><td><code>social_insurance_expense</code></td><td>Social insurance, company share</td><td>The company's share of social insurance.</td></tr>
+<tr><td>5702</td><td><code>staff_bonus_expense</code></td><td>Staff bonuses</td><td>Bonuses paid directly (outsourced people).</td></tr>
+<tr><td>5801</td><td><code>income_tax_expense</code></td><td>Company income tax</td><td>The year's company income tax.</td></tr>
+<tr><td>5901</td><td><code>fx_difference</code></td><td>Exchange rate differences</td><td>Differences on foreign currency bills, transfers and revaluation.</td></tr>
+<tr><td>5902</td><td><code>asset_disposal</code></td><td>Loss or gain on equipment sold</td><td>The rest when equipment is sold or scrapped.</td></tr>
+<tr><td>5904</td><td><code>loan_interest_expense</code></td><td>Loan interest</td><td>Interest part of loan instalments.</td></tr>
+</tbody>
+</table>
+<p>The codes in this table are the preferred codes. When a preferred code is already taken by another account, the account takes the next free code of its group instead (both in <code>accountId</code> when a system account is first used, and in <code>ensureDefaultAccounts</code> for the default accounts).</p>
+<div class="note">A few names stored in an older migration differ from the current code (for example 5101 was first named "Rider delivery bonuses" and is now "Rider pay per delivered order" in <code>SYSTEM_ACCOUNTS</code>). Accounts keep the name they were created with unless finance renames them; the code only gives a name when it creates an account.</div>
+
+<h2 id="coa-wallets">System accounts and party wallets</h2>
+<p>There are three kinds of accounts:</p>
+<ul>
+<li>System accounts exist once and are found by key (<code>revenue</code>, <code>vat_payable</code>, <code>bank</code>, <code>retained_earnings</code>...). The code posts to them by kind: <code>{ account: { type: 'vat_payable' } }</code>. They can be renamed but never closed: their keys are in <code>LOCKED_KEYS</code> in <code>books.ts</code>.</li>
+<li>Party wallets belong to one merchant, rider, supplier, team member or store. They carry the owner in <code>merchant_id</code>, <code>rider_id</code>, <code>supplier_id</code>, <code>user_id</code> or <code>dark_store_id</code>, have no stored name (they show their owner's name) and can be neither renamed nor closed. <code>isWallet(account)</code> is true for them.</li>
+<li>Company accounts opened by finance: banks, cash boxes, other assets and liabilities, equity accounts, income and expense categories. Their key is <code>acct:&lt;code&gt;</code>.</li>
+</ul>
+<p>A wallet or system account is created the first time a posting names it. The function <code>accountId</code> in <code>ledger.ts</code> looks the key up; when it is missing it chooses the code (the preferred one, or the next free one), and creates the row with <code>upsert</code> so two transactions creating the same wallet at once do not collide:</p>
+<pre class="code">const WALLET_GROUPS = {
+  store_cash: { group: 1200, party: false },
+  rider_cash: { group: 1300, party: true },
+  merchant: { group: 2100, party: true },
+  rider_bonus: { group: 2200, party: true },
+  rider_dues: { group: 1350, party: true },
+  staff_advance: { group: 1500, party: true },
+  supplier: { group: 2500, party: true },
+  merchant_deposit: { group: 2600, party: true },
+};</pre>
+
+<h3 id="coa-numbering">How codes are numbered</h3>
+<p><code>nextAccountCode(tx, group, party)</code> takes the advisory lock <code>ledger_account_code</code> for the transaction, then:</p>
+<ul>
+<li>for a party group, finds the highest four digit suffix used in that group and adds one: <code>2100-0001</code>, <code>2100-0002</code>... It refuses <code>group_full</code> after <code>9999</code>;</li>
+<li>for a company group, finds the highest plain numeric code in the group and adds one: <code>1101</code>, <code>1102</code>... It refuses <code>group_full</code> after the group's 99th code.</li>
+</ul>
+<pre class="code">export async function nextAccountCode(tx: Tx, group: number, party: boolean) {
+  await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('ledger_account_code'))`;
+  if (party) {
+    const prefix = `${group}-`;
+    const rows = await tx.$queryRaw`
+      SELECT MAX(CAST(substr(code, 6) AS INTEGER)) AS max FROM ledger_accounts
+      WHERE group_code = ${group} AND code LIKE ${prefix + '%'}`;
+    const next = (rows[0]?.max ?? 0) + 1;
+    if (next &gt; 9999) throw new DomainError('group_full');
+    return `${prefix}${String(next).padStart(4, '0')}`;
+  }
+  const rows = await tx.$queryRaw`
+    SELECT MAX(CAST(code AS INTEGER)) AS max FROM ledger_accounts
+    WHERE group_code = ${group} AND code ~ '^[0-9]+$'`;
+  const next = Math.max(rows[0]?.max ?? group, group) + 1;
+  if (next &gt; group + 99) throw new DomainError('group_full');
+  return String(next);
+}</pre>
+<p>Store cash boxes are company accounts (not party wallets) of group 1200, so they take plain codes (1201 onward when they were first numbered, the next free code later). Loans call <code>nextAccountCode(tx, 2700, false)</code> when a loan is recorded.</p>
+
+<h3 id="coa-open">Opening, renaming and closing accounts</h3>
+<p><code>createAccount</code> in <code>books.ts</code> (route <code>POST /finance/accounts</code>, accounting use) opens an account in a group whose <code>manualType</code> is set: 1100, 1200, 1400, 2400, 3100, 3200, 4200, 5400 or 5500. Any other group answers <code>group_not_open</code>. The rules:</p>
+<ul>
+<li>a bank (1100) needs a bank name and an account number (<code>bank_details_required</code>), and the same bank and number cannot be entered twice (<code>bank_account_exists</code>);</li>
+<li>only a bank may be held in USD or EUR (<code>currency_banks_only</code>);</li>
+<li>names are unique inside the group in either language (<code>account_name_taken</code>);</li>
+<li>the code comes from <code>nextAccountCode</code>; the key is <code>acct:&lt;code&gt;</code>;</li>
+<li>an audit row <code>finance.account_create</code> is written.</li>
+</ul>
+<p><code>updateAccount</code> (<code>PATCH /finance/accounts/:id</code>) renames an account and edits bank details. Wallets cannot be renamed or closed (<code>account_locked</code>). A system account cannot be closed (<code>account_locked</code>). Any other account can be closed only when its balance is zero (<code>account_has_balance</code>). A closed account cannot receive new lines (<code>account_inactive</code>), but its history stays.</p>
+
+<figure class="shot" data-shot="finance-chart-of-accounts"><figcaption>The chart of accounts at <code>/finance/accounts</code>: accounts listed in code order grouped by category, each with its code, name and balance, and the form to open a new account with the group chosen.</figcaption></figure>
+
+<h2 id="coa-journal">Which accounts a journal entry may touch</h2>
+<p>A free journal entry is the accountant's tool for accruals, reclassifications and compound payments. Because a journal entry could otherwise create or hide money, <code>checkJournalEntry</code> in <code>books.ts</code> limits the accounts it may use. It runs when the entry is entered and again when it is posted (also after a second person approves it).</p>
+<table class="data">
+<thead><tr><th>Account</th><th>Allowed?</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>System and company accounts (income, expenses, taxes, other assets and liabilities, equity, loans)</td><td>Yes</td><td>This is what journal entries are for.</td></tr>
+<tr><td>Banks (1100) and company cash boxes (1200), including store cash boxes</td><td>Yes, with conditions</td><td>Allowed since the owner asked for compound entries such as rent and electricity paid together from the bank. Money out of a bank or box is checked with <code>mustHold</code> at the entry's moment; money in waits for a second person while <code>finance.approve_money_in</code> is 1; money out waits from the approval limit (see <code>submitJournalEntry</code>).</td></tr>
+<tr><td>Banks and boxes in an accrual (an entry reversed by itself next month)</td><td>No: <code>accrual_money_not_allowed</code></td><td>Real money never comes back by itself.</td></tr>
+<tr><td>Wallets of merchants, riders, suppliers, team members and merchant deposits (2100, 2200, 1300, 1350, 1500, 2500, 2600)</td><td>No: <code>wallet_not_allowed</code></td><td>Each party keeps its own screens, so its statement always tells the whole story (merchant adjustments, rider charges, bills, advances).</td></tr>
+<tr><td>Rider cash (1300)</td><td>No</td><td>Rider cash accounts are wallets, so they are refused as wallets; the code also refuses group 1300 with <code>money_account_not_allowed</code> as a second guard. Rider cash moves only through handovers and deposits.</td></tr>
+<tr><td>Closed accounts</td><td>No: <code>account_inactive</code></td><td></td></tr>
+</tbody>
+</table>
+<pre class="code">for (const l of lines) {
+  const account = await db.ledgerAccount.findUnique({ where: { id: l.accountId } });
+  if (!account) throw new DomainError('account_not_found', 404);
+  if (isWallet(account) &amp;&amp; account.darkStoreId == null) throw new DomainError('wallet_not_allowed');
+  if (account.groupCode === 1300) throw new DomainError('money_account_not_allowed');
+  if (!account.isActive) throw new DomainError('account_inactive');
+  await assertActiveTag(db, l.costTagId);
+  ...
+}
+if (input.reverseNextMonth &amp;&amp; money.size) throw new DomainError('accrual_money_not_allowed');</pre>
+<p>Other checks of a journal entry: a written reason of at least five characters (<code>reason_required</code>), between two and twenty lines each with either a debit or a credit (<code>invalid_line</code>), debits equal to credits (<code>not_balanced</code>), a day that is not in the future (<code>future_date</code>), and active cost tags. Its idempotency key is <code>journal:&lt;client key&gt;</code>; its kind is <code>journal</code>, or <code>accrual</code> with <code>data.reverseOn</code> set to the first day of the next month, when the daily job posts the reversal (<code>accrual_reversal:&lt;id&gt;</code>).</p>
+
+<h2 id="coa-opening">Opening balances</h2>
+<p>The balances the books start from are posted once by an owner (accounting manage and settings manage) with <code>recordOpeningBalances</code>. Amounts are typed as an accountant reads them (positive on the account's normal side) and turned into debits and credits with <code>debitNormal</code>; the difference goes to 3301 opening balances. The entry is dated at the very start of the first Cairo day and keyed <code>opening_balance</code>, so a second attempt answers <code>opening_already_posted</code>; corrections are journal entries.</p>
+</section>

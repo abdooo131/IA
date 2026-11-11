@@ -1,0 +1,412 @@
+<section class="chapter" id="ch-s33-reports-planning">
+<h1>Screens: Reporting and Planning</h1>
+
+<p>This chapter walks through every screen of the Accounting app's <strong>Reporting</strong> and <strong>Planning</strong> menus exactly as a user sees them, plus the journal entry page and the approval request page that the reports lead to. For each screen it gives the address, the menu path, who may open it and which buttons need more rights, a picture of the whole screen, a table of every control, and pictures of the important states. The numbers behind the reports (how a profit is summed, how the forecast and budgets compute) are explained in the chapter <em>Taxes, reports, reconciliation and closing</em>; this chapter is about the screens.</p>
+
+<div class="note">All screens here need <strong>Accounting view</strong> to open (every GET route of the API defaults to view). Anything that writes needs <strong>Accounting use</strong>; approving a forecast, opening it again, writing it into the budget and deciding an approval request need <strong>Accounting manage</strong>. People limited to some stores see only the lines and boxes of their stores. The pictures use the throwaway demo database; the demo people (for example the finance user and the second approver) are fictional.</div>
+
+<!-- ───────────────────────────── All reports ───────────────────────────── -->
+<h2 id="s33-reports">All reports</h2>
+<p><strong>Address:</strong> <code>/finance/reports</code>. <strong>Menu:</strong> Accounting, Reporting, All reports. <strong>Who:</strong> Accounting view. The page holds no data of its own: it is a list of cards, each titled with the plain question the report answers (<code>apps/web/src/app/finance/reports/page.tsx</code>, texts under <code>finance.reportsPage</code>).</p>
+<figure class="shot" data-shot="s33-reports"><figcaption>All reports: twelve question cards, then two cards "For the accountant" (/finance/reports).</figcaption></figure>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Card title (the question, blue link)</td><td>Opens the report</td><td>Every card shows the question, one sentence of what it contains and the report's usual name below</td><td>Opens: Profit and loss, Balance sheet, Cash flow, Cash position, Profit per store, Merchant profit, Costs and income by tag, Receivables aging, Payables aging, Budgets, Compare periods, Taxes</td></tr>
+<tr><td>(i) InfoTip beside a name</td><td>Explains an accountant's word (balance sheet, cash flow, receivables, trial balance, journal)</td><td>Hover or tap</td><td>A small bubble with the plain explanation</td></tr>
+<tr><td>For the accountant</td><td>Trial balance and Journal</td><td>Same rights</td><td>Opens <code>/finance/trial</code> or <code>/finance/journal</code></td></tr>
+</tbody></table>
+
+<!-- ───────────────────────────── Drill down reports ───────────────────────────── -->
+<h2 id="s33-pl">Profit and loss, Balance sheet and Trial balance (the drill down report page)</h2>
+<p><strong>Addresses:</strong> <code>/finance/profit-and-loss</code>, <code>/finance/balance-sheet</code> (the earlier <code>?day=</code> still opens that day), <code>/finance/trial</code>. <strong>Menu:</strong> Reporting, then Profit and loss, Balance sheet or Trial balance. <strong>Who:</strong> Accounting view. The three are one component, <code>DrillReportPage</code> with <code>ReportFilterBar</code> and <code>DrillReportView</code> (<code>apps/web/src/components/finance/reports</code>), fed by <code>GET /finance/reports/:report</code> (<code>drillReport</code> in <code>packages/db/src/finance/drill.ts</code>). With no filters in the address the period is this month up to today and there is no comparison.</p>
+<figure class="shot" data-shot="s33-pl"><figcaption>Profit and loss for last month, no comparison: Income and Expenses sections, each account a link, then the Loss line (/finance/profit-and-loss?preset=last_month).</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-compare"><figcaption>The same report for this quarter compared with the period before: Amount, Compared, Change and % columns; the line under the dates names the comparison days (/finance/profit-and-loss?from=2026-10-01&amp;to=2026-11-11&amp;compare=previous).</figcaption></figure>
+
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Period</td><td>Presets: This month, Last month, This quarter, This year, Last year, Choose days</td><td>A preset fills From and To at once (<code>presetRange</code> in <code>packages/shared/src/report-period.ts</code>); typing a day switches the preset to Choose days</td><td>Nothing reloads until Show</td></tr>
+<tr><td>From, To (DateInput, day first)</td><td>The Cairo days of the report</td><td>Never after today; From after To is swapped; the API refuses more than 400 days (<code>range_too_long</code>)</td><td>Written as <code>from</code> and <code>to</code> in the address</td></tr>
+<tr><td>As of (balance sheet only)</td><td>The day the balance sheet is taken at the end of</td><td>Replaces From and To; the balance sheet sums every line up to that day</td><td>Header reads "At the end of dd/mm/yyyy"</td></tr>
+<tr><td>Compare with</td><td>No comparison, The period before, The same days last year</td><td>The period before: a range starting on the 1st moves back by its months (this quarter to date goes back one quarter), any other range by its own length</td><td>Adds the Compared, Change and % columns and a "Compared with" line</td></tr>
+<tr><td>Store</td><td>All stores or one store</td><td>Counts only lines tagged with that store, so the totals may not balance; the hint says so</td><td>The balance sheet's "balances" pill is hidden while filtered</td></tr>
+<tr><td>Merchant</td><td>All merchants or one merchant</td><td>Same rule as Store</td><td>Same</td></tr>
+<tr><td>Show (blue)</td><td>Writes the filters into the address and reloads</td><td>The address is the state: Back and a shared link open the same report</td><td>New figures</td></tr>
+<tr><td>Export</td><td>Opens a menu: PDF in English, PDF in Arabic, CSV, Excel</td><td>PDFs are made on the API (<code>GET /finance/reports/:report/export.pdf?lang=</code>, pdfkit, Arabic laid out right to left); CSV and Excel are built in the browser from the same rows (<code>exportCsv</code>, <code>exportXlsx</code>; Excel sheets are right to left for Arabic readers)</td><td>A download named <code>profit-and-loss-&lt;to day&gt;</code>, <code>balance-sheet-…</code> or <code>trial-balance-…</code></td></tr>
+<tr><td>Section header (Income, Expenses; Assets, Liabilities, Equity)</td><td>Folds or opens the section</td><td>The chevron turns; the section total stays visible when folded</td><td>Only the header row shows</td></tr>
+<tr><td>Account line (code and name, blue)</td><td>Opens the ledger lines behind the line</td><td>Wallet groups (merchant balances, rider bonuses owed, staff advances...) are one line "Group: N wallets"; Profit so far (balance sheet) opens all income and cost lines</td><td>Opens <code>/finance/reports/lines</code> with the same days, store and merchant and a way back</td></tr>
+<tr><td>Amount / Balance column</td><td>Income and liabilities are shown with the sign flipped so a normal balance is positive</td><td>A negative figure is red</td><td>None</td></tr>
+<tr><td>Compared, Change, %</td><td>The comparison figure, the change and its percent of the earlier figure</td><td>% is a dash when the earlier figure was 0; a rise is green, a fall red</td><td>None</td></tr>
+<tr><td>Debit, Credit (trial balance only)</td><td>Each account's debit and credit totals</td><td>The two totals must be equal</td><td>Bottom line "Difference (must be 0)"</td></tr>
+<tr><td>Bottom line</td><td>Profit or Loss (P&amp;L), Difference (must be 0) on the balance sheet and trial balance</td><td>The balance sheet also shows the pill "Assets equal liabilities plus equity" or, in red, "Does not balance, call support"</td><td>None</td></tr>
+</tbody></table>
+
+<figure class="shot" data-shot="s33-pl-filterbar"><figcaption>The filter bar every drill down report shares: Period, From, To, Compare with, Store, Merchant and Show.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-export-open"><figcaption>The Export menu open: PDF in English, PDF in Arabic, CSV, Excel.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-folded"><figcaption>The Income section folded: only its header and total stay.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-store"><figcaption>Filtered to one store: the hint "Only lines tagged with the chosen store or merchant are counted, so the totals may not balance" appears under the bar.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-pdf-en"><figcaption>First page of the PDF in English made by the API.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-pdf-ar"><figcaption>The same report as the PDF in Arabic, laid out right to left.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-ar"><figcaption>The page itself in Arabic (cookie shiply_locale=ar): the whole layout mirrors, figures stay left to right.</figcaption></figure>
+<figure class="shot" data-shot="s33-pl-phone"><figcaption>On a phone each section is a card; every line shows its amount and, under it, the compared figure and percent.</figcaption></figure>
+<figure class="shot" data-shot="s33-bs"><figcaption>Balance sheet as of today compared with the end of the month before, with the green "Assets equal liabilities plus equity" pill (/finance/balance-sheet?compare=previous).</figcaption></figure>
+<figure class="shot" data-shot="s33-trial"><figcaption>Trial balance for this quarter: Debit, Credit and Balance per account; the difference row must read 0.00 (/finance/trial).</figcaption></figure>
+
+<h3>The ledger lines behind a report line</h3>
+<p><strong>Address:</strong> <code>/finance/reports/lines?account=&lt;id&gt;</code> (or <code>group=</code> a wallet group, <code>set=income_costs</code> or <code>set=money</code>), with <code>from</code>, <code>to</code>, <code>store</code>, <code>merchant</code>, <code>rider</code>, <code>kind</code>, <code>tag</code> and <code>back</code>. It is opened from a report line, a profit per store row, a cash flow kind or a cost tag. Data: <code>GET /finance/ledger-lines</code>. Breadcrumbs lead back to the report with its filters (only for our own report pages, listed in <code>BACKS</code>).</p>
+<figure class="shot" data-shot="s33-lines"><figcaption>5401 Rent opened from the profit and loss: three figure cards (Debits, Credits, Report figure from 8 lines), the drill filters, then the list of lines; each row opens its journal entry.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Breadcrumbs (Accounting / report / what)</td><td>Back to the report with the same filters</td><td>Only addresses under <code>/finance/</code> named in the page's list are trusted as a way back</td><td>The report reopens as it was</td></tr>
+<tr><td>Debits, Credits, Report figure cards</td><td>Totals of the passing lines; Report figure is the net in the report's sign (credit accounts flipped)</td><td>"From N lines" counts the passing lines</td><td>Matches the report line it came from</td></tr>
+<tr><td>Store</td><td>All stores, No store (company wide), or one store</td><td>Each change rewrites only its own parameter and goes back to page 1</td><td>The list reloads at once</td></tr>
+<tr><td>Merchant</td><td>All merchants, No merchant, or one merchant</td><td>Same</td><td>Same</td></tr>
+<tr><td>Rider</td><td>All riders or one rider (name and badge)</td><td>Same</td><td>Same</td></tr>
+<tr><td>Kind of entry</td><td>All kinds or one kind (Order fee, Expense, Payout to merchant...)</td><td>Same</td><td>Same</td></tr>
+<tr><td>Cost tag</td><td>All tags, No tag, or one tag</td><td>Shown only when cost tags exist</td><td>Same</td></tr>
+<tr><td>Search and Filters (list view)</td><td>Search entry number, memo, order, merchant, store; filters Debits, Credits, Deliveries and fees, Cash, Payouts, Bills, Journal entries by hand, With an order, No store; group by Month, Day, Store, Merchant, Rider, Kind, Account, Cost tag</td><td>Filters of one group are joined by "or", groups by "and"</td><td>See "The list view" in the journal section</td></tr>
+<tr><td>Columns</td><td>Entry, Day, Kind, Memo, Account (hidden when one account is drilled), Store, Merchant, Rider, Order, Cost tag, Debit, Credit, Net</td><td>Optional columns are switched on in Columns</td><td>None</td></tr>
+<tr><td>A row</td><td>Opens the journal entry</td><td>The row ids are kept for previous and next on the entry page</td><td><code>/finance/journal/&lt;id&gt;</code></td></tr>
+<tr><td>"Only the newest lines are listed" (red)</td><td>Shown when more than 5,000 lines match</td><td><code>LIST_MAX_ROWS</code></td><td>Narrow the days to see all</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-lines-store"><figcaption>The same drill with Store set to "No store (company wide)": the figures change at once.</figcaption></figure>
+<figure class="shot" data-shot="s33-lines-grouped"><figcaption>All income and cost lines of the period grouped by kind of entry, with a subtotal per group.</figcaption></figure>
+
+<!-- ───────────────────────────── Cash flow ───────────────────────────── -->
+<h2 id="s33-cashflow">Cash flow and the four week forecast</h2>
+<p><strong>Address:</strong> <code>/finance/money-flow</code>. <strong>Menu:</strong> Reporting, Cash flow. <strong>Who:</strong> Accounting view. Data: <code>GET /finance/cash-flow</code> (direct method over banks, cash boxes and rider cash) and <code>GET /finance/cash-forecast</code>. The forecast always covers the next four weeks from today; the filters change only "What happened".</p>
+<figure class="shot" data-shot="s33-cashflow"><figcaption>Cash flow: Next four weeks table at the top, then What happened with Start and End cards and the three sections (/finance/money-flow).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Next four weeks: Week, Start, Trading, Bills due, Recurring, Salaries, Taxes, End</td><td>One row per week</td><td>Trading is the average weekly result of fees, COD collected and payouts over the last eight weeks (the hint names the amount); bills, recurring expenses, salaries at month end and taxes owed come from what is known</td><td>A red line "Money runs out in this forecast: plan a payout date, a delay or owner money now" appears when any End is below zero</td></tr>
+<tr><td>Period, From, To, Store, Show</td><td>The period of What happened</td><td>No comparison and no merchant on this page</td><td>Address <code>from</code>, <code>to</code>, <code>store</code></td></tr>
+<tr><td>Start, End cards</td><td>Money at the start and at the end of the period</td><td>Money means banks, cash boxes and rider cash</td><td>None</td></tr>
+<tr><td>Running the business, Equipment, Owner money</td><td>Sections with their net total in the title</td><td>Moves between our own banks and boxes cancel out and are not shown</td><td>None</td></tr>
+<tr><td>Kind (blue link), In, Out</td><td>Money in and out per kind of entry</td><td>Out is shown negative in red</td><td>Opens the money lines of that kind (<code>set=money&amp;kind=</code>)</td></tr>
+</tbody></table>
+
+<!-- ───────────────────────────── Profit per store ───────────────────────────── -->
+<h2 id="s33-profit">Profit per store</h2>
+<p><strong>Address:</strong> <code>/finance/profit?by=store|merchant|rider</code>. <strong>Menu:</strong> Reporting, Profit per store (the page title reads "Profit by store"). <strong>Who:</strong> Accounting view. Data: <code>GET /finance/profit</code> and <code>GET /finance/cost-per-order</code>.</p>
+<figure class="shot" data-shot="s33-profit"><figcaption>Profit by store for this quarter, then Cost per delivered order per store (/finance/profit).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Period, From, To, Show</td><td>The days</td><td>No comparison, store or merchant filter here</td><td>Address <code>from</code>, <code>to</code>, <code>by</code></td></tr>
+<tr><td>Store, Merchant, Rider tabs</td><td>Changes the dimension</td><td>Keeps the days</td><td>Rows per store, merchant or rider</td></tr>
+<tr><td>Name (blue)</td><td>Opens every income and cost line of that store, merchant or rider</td><td>"Company wide" opens lines without a store; for riders the company wide row is plain text</td><td><code>/finance/reports/lines?set=income_costs&amp;store=…</code></td></tr>
+<tr><td>Income, Costs, Profit</td><td>Sums of the tagged lines</td><td>A loss is red</td><td>Total row at the bottom</td></tr>
+<tr><td>Cost per delivered order: Delivered, Fees per order, Store costs per order, Full cost per order, Profit per order</td><td>Per store</td><td>Full cost adds each store's share of company wide costs, by its part of all delivered orders</td><td>The hint asks to tag every expense with its store</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-profit-merchant"><figcaption>The Merchant tab: income, costs and profit per merchant.</figcaption></figure>
+
+<!-- ───────────────────────────── Merchant profit ───────────────────────────── -->
+<h2 id="s33-mprofit">Merchant profit and the what if</h2>
+<p><strong>Addresses:</strong> <code>/finance/merchant-profit?month=YYYY-MM</code> and <code>/finance/merchant-profit/&lt;merchantId&gt;?month=</code>. <strong>Menu:</strong> Reporting, Merchant profit. <strong>Who:</strong> Accounting view. Data: <code>GET /finance/merchant-profit</code>. The method is explained in <em>Merchant money</em>.</p>
+<figure class="shot" data-shot="s33-mprofit"><figcaption>Profit per merchant for this month: Delivered, Fees, Costs, Margin, Per order, Margin % and a total row (/finance/merchant-profit).</figcaption></figure>
+<figure class="shot" data-shot="s33-mprofit-merchant"><figcaption>One merchant's month: volume, fees by kind, every cost line, margin, stores with their share of deliveries and unit days, and the What if (/finance/merchant-profit/&lt;id&gt;?month=2026-11).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Month, Show</td><td>Picks the Cairo month</td><td>One month at a time</td><td>Address <code>month</code></td></tr>
+<tr><td>Merchant name</td><td>Opens the merchant's month</td><td>None</td><td>Detail page</td></tr>
+<tr><td>← Back</td><td>Back to the list</td><td>Keeps the month</td><td>List</td></tr>
+<tr><td>Fees by kind</td><td>Fees before VAT per kind, credit notes negative, debit notes positive</td><td>From the merchant's tagged revenue lines</td><td>None</td></tr>
+<tr><td>Costs</td><td>Rider bonuses, office commission, share of rider salaries, share of store running costs, storage space (rent by unit days), damage paid, packaging, other costs tagged to the merchant</td><td>Shares follow the merchant's part of each store's deliveries and unit days (shown under Stores)</td><td>Margin and Per order</td></tr>
+<tr><td>What if: Shipping fee, Order fee fixed, Order fee share of products, COD fee, Monthly minimum</td><td>Type new prices</td><td>Recalculates at once in the browser on the same month's volume; other fees and every cost stay as booked; volume tiers are left out (a note says so when the merchant has tiers)</td><td>The Result table: Booked against What if for shipping, order, COD, other fees, minimum top up, fees, costs, margin, per order</td></tr>
+<tr><td>Back to current values</td><td>Refills the fields with the contract's prices</td><td>None</td><td>What if equals Booked again</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-mprofit-whatif"><figcaption>What if with a 25 EGP shipping fee and a 5,000 EGP monthly minimum: shipping fees 1,625.00 and a minimum top up of 750.39 lift the fees to exactly 5,000.00.</figcaption></figure>
+
+<!-- ───────────────────────────── Tags ───────────────────────────── -->
+<h2 id="s33-tags">Costs and income by tag</h2>
+<p><strong>Address:</strong> <code>/finance/reports/tags?from=&amp;to=&amp;compare=</code>. <strong>Menu:</strong> Reporting, Costs and income by tag. <strong>Who:</strong> Accounting view (tags are opened by Accounting manage under Setup, Cost tags). Data: <code>GET /finance/cost-tags/report</code>. Default period: this month to today.</p>
+<figure class="shot" data-shot="s33-tags"><figcaption>The Ramadan campaign tag with the marketing account its two expenses touched, its income, costs and net, compared with the period before.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>From, To, Compare with, Show</td><td>A plain GET form</td><td>Same compare modes as the drill reports</td><td>The address holds the three values</td></tr>
+<tr><td>Tag row (blue band)</td><td>The tag's name; "(switched off)" when the tag is inactive</td><td>Only tags with lines in the days are listed</td><td>None</td></tr>
+<tr><td>All its lines</td><td>Opens every income and cost line carrying the tag</td><td>None</td><td>Ledger lines with <code>tag=</code></td></tr>
+<tr><td>Account rows, Income, Costs, Net</td><td>Per account the amount (a link to its lines), then the tag's totals</td><td>Net is income minus costs</td><td>None</td></tr>
+<tr><td>Costs of all tags, Net of all tags</td><td>Totals over every tag</td><td>None</td><td>None</td></tr>
+<tr><td>Empty state</td><td>"No tagged lines in these days."</td><td>None</td><td>None</td></tr>
+</tbody></table>
+
+<!-- ───────────────────────────── Payables aging ───────────────────────────── -->
+<h2 id="s33-payables">Payables aging</h2>
+<p><strong>Address:</strong> <code>/finance/payables-aging?day=&amp;q=&amp;store=</code>. <strong>Menu:</strong> Reporting, Payables aging. <strong>Who:</strong> Accounting view. Data: <code>GET /finance/aging/payables</code>. Each open supplier bill counts from its due day with what was still unpaid at the end of the chosen day; a bill in another currency shows its EGP value at the bill's rate.</p>
+<figure class="shot" data-shot="s33-payables"><figcaption>What we owe suppliers, by age: one row per supplier in the five bands (/finance/payables-aging).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>How is this counted?</td><td>Opens the method in one paragraph</td><td>None</td><td>Text folds open</td></tr>
+<tr><td>As of, Search (supplier or bill), Store, Show</td><td>The day, a name or bill number, a store</td><td>Store keeps only bills tagged with it</td><td>Reloads</td></tr>
+<tr><td>We owe suppliers</td><td>The grand total</td><td>None</td><td>None</td></tr>
+<tr><td>Supplier name (underlined)</td><td>Opens or folds the supplier's bills</td><td>Each bill shows its number, supplier reference, due day, days late and store</td><td>Bill number opens the bill</td></tr>
+<tr><td>Not yet due, 1 to 30, 31 to 60, 61 to 90, Over 90 days, Total</td><td>Amounts per band</td><td>Not yet due includes a bill due on the chosen day (0 days late)</td><td>Total row</td></tr>
+<tr><td>Export</td><td>PDF in English, PDF in Arabic, CSV, Excel</td><td>PDF from <code>GET /finance/aging/payables/export.pdf</code></td><td>A file named <code>owed-to-suppliers</code></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-payables-open"><figcaption>A supplier opened: two bills, one 11 days late, one due today.</figcaption></figure>
+<figure class="shot" data-shot="s33-payables-export"><figcaption>The Export menu of the aging report.</figcaption></figure>
+
+<!-- ───────────────────────────── Compare periods ───────────────────────────── -->
+<h2 id="s33-statements">Compare periods (financial statements)</h2>
+<p><strong>Address:</strong> <code>/finance/statements?from=&amp;to=</code>. <strong>Menu:</strong> Reporting, Compare periods. <strong>Who:</strong> Accounting view. Data: <code>GET /finance/comparative-statements</code>. Default: last month. The page prints profit and loss for the chosen days and the balance sheet on the last day, each next to the same number of days just before.</p>
+<figure class="shot" data-shot="s33-statements"><figcaption>Financial statements for October next to the 31 days before (/finance/statements).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>From, To (browser date boxes), Show</td><td>The period</td><td>These are the browser's own date fields, not the house DateInput (see the issues list)</td><td>Address <code>from</code>, <code>to</code></td></tr>
+<tr><td>Print or save as PDF</td><td>Opens the browser's print dialog</td><td>Printing hides the menus and the form</td><td>A clean two statement print</td></tr>
+<tr><td>Profit and loss table</td><td>Every income and cost account, totals and profit, current and earlier column</td><td>Column headers show the two ranges</td><td>None</td></tr>
+<tr><td>Balance sheet table</td><td>Assets, liabilities and equity on the last day of each range; wallet groups with their count, "Profit not yet closed into equity"</td><td>None</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-statements-print"><figcaption>The print view: the menus and the date form are hidden.</figcaption></figure>
+
+<!-- ───────────────────────────── Journal list ───────────────────────────── -->
+<h2 id="s33-journal">The journal list</h2>
+<p><strong>Address:</strong> <code>/finance/journal</code>. <strong>Menu:</strong> Reporting, Journal (also "What moved, line by line?" on All reports). <strong>Who:</strong> Accounting view; people limited to some stores see only entries with a line of their stores. It is the generic list view (<code>ListView</code>, <code>apps/web/src/components/odoo/ListView.tsx</code>) fed by <code>GET /finance/lists/journal</code>; the server side definition is <code>journal</code> in <code>packages/db/src/finance/lists.ts</code> and its keys are <code>FINANCE_LISTS.journal</code> in <code>packages/shared/src/finance-lists.ts</code>. It opens on "Last 7 days", newest first, 50 rows a page.</p>
+
+<h3>How the page looks, top to bottom</h3>
+<figure class="shot" data-shot="s33-jl-annotated"><figcaption>The journal list with its parts numbered (/finance/journal).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>App grid button</td><td>Nine square icon, top left of every app</td><td>Back to <code>/home</code> and its app tiles</td></tr>
+<tr><td>2</td><td>App name</td><td>Green Accounting icon and the word Accounting</td><td>Opens the Accounting dashboard <code>/finance</code></td></tr>
+<tr><td>3</td><td>Menus</td><td>Dashboard (with an amber count of what waits for me), Money in, Money out, Cash and bank (count of open items), Reporting (underlined blue: the current menu), Planning, Month end, Setup</td><td>Each opens its list of pages; a menu with one page is a link</td></tr>
+<tr><td>4</td><td>One search</td><td>Box with the hint "PAY-12, BILL-3, an order or a name"</td><td>Finds any document by number, an order or a merchant or supplier (see "Searching and filtering the journal")</td></tr>
+<tr><td>5</td><td>Settings button</td><td>Gear</td><td>Account menu: Help, Tickets, language, theme, Sign out</td></tr>
+<tr><td>6</td><td>Title</td><td>Journal and an (i) that explains the word</td><td>The (i) opens the explanation</td></tr>
+<tr><td>7</td><td>Every line CSV</td><td>A white button "Export to Excel · every line (CSV)"</td><td>Downloads <code>/api/finance/ledger/export.csv</code>: one row per ledger line of the whole books (the accountant's file for Odoo, Zoho Books, QuickBooks, Daftra)</td></tr>
+<tr><td>8</td><td>Facet chip</td><td>Light blue chip "Filter Last 7 days" with ×</td><td>× removes the filter; Backspace in an empty search box removes the last chip</td></tr>
+<tr><td>9</td><td>Search box</td><td>"Search…"</td><td>Typing searches; the text becomes a Search chip and <code>q</code> in the address</td></tr>
+<tr><td>10</td><td>Filters</td><td>Funnel and the word Filters</td><td>Opens the panel Filters, Group by, Favourites</td></tr>
+<tr><td>11</td><td>Range</td><td>"1–50 of 587", or "17 records in 4 groups" when grouped</td><td>None</td></tr>
+<tr><td>12</td><td>Export</td><td>White button</td><td>Menu: CSV (Excel, any program), Excel workbook (.xlsx), and "Only the N selected" when rows are ticked</td></tr>
+<tr><td>13</td><td>Columns</td><td>White button</td><td>Ticks for Number (fixed), Day, Type, What, Order, Accounts, By, Receipts, Debit total; the choice is saved per person</td></tr>
+<tr><td>14</td><td>Previous and next page</td><td>‹ and › (greyed at the ends)</td><td>Changes <code>page</code></td></tr>
+<tr><td>15</td><td>Per page</td><td>25, 50, 100 or 200</td><td>Changes <code>size</code></td></tr>
+<tr><td>16</td><td>Select all</td><td>Checkbox in the header</td><td>Ticks every row of the page</td></tr>
+<tr><td>17</td><td>Sortable header</td><td>NUMBER, DAY and DEBIT TOTAL (EGP) are buttons; the sorted one shows ▲ or ▼</td><td>First click sorts ascending, second descending (<code>sort</code>, <code>desc</code>)</td></tr>
+<tr><td>18</td><td>A row</td><td>Number (bold blue), Day, Type, What (the memo), Debit total. Hover turns the row light grey; a ticked row is light blue</td><td>Anywhere on the row opens the entry; Ctrl or Cmd click opens it in a new tab; the checkbox only ticks</td></tr>
+<tr><td>19</td><td>Debit total (EGP)</td><td>The sum of the entry's debit lines</td><td>Sort by amount</td></tr>
+<tr><td>20</td><td>Totals row</td><td>"Total" and the sum of Debit total over every passing row, not only this page</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-jl-bottom"><figcaption>The bottom of the list: the grey Total row sums every row that passes the filters (part 20).</figcaption></figure>
+
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Search</td><td>Matches number, memo, order number, kind key, account codes and the preparer's name</td><td>Case insensitive, inside the newest 5,000 entries</td><td>Search chip</td></tr>
+<tr><td>Filters (date group)</td><td>Today, This month, Last month, Last 7 days</td><td>Joined by "or" inside the group</td><td>Filter chip, <code>f=</code></td></tr>
+<tr><td>Filters (kind group)</td><td>Deliveries and fees, Cash and bank, Payouts, Bills and expenses, Written by hand</td><td>Kind families listed below</td><td>Same</td></tr>
+<tr><td>From an order</td><td>Entries linked to an order</td><td>Own group</td><td>Same</td></tr>
+<tr><td>Missing a receipt</td><td>Entries made by a person, not from an order, with no receipt attached</td><td>Own group</td><td>Same</td></tr>
+<tr><td>Group by</td><td>Type, Day, Month, Prepared by</td><td>Up to two levels, in the order picked ("Pick up to two, in order")</td><td>Group rows with a count and a subtotal; click a group to open it</td></tr>
+<tr><td>Favourites: Save this search as, Open the list with it, Save</td><td>Saves the filters, grouping, sort and search under a name</td><td>Per person (<code>user_list_favorites</code>); one may be the default, which opens when the address names no view; audited <code>list.favorite_save</code></td><td>A starred favourite in the panel; × deletes it</td></tr>
+<tr><td>Export</td><td>CSV or .xlsx of the passing rows (or the ticked rows)</td><td>Money as EGP numbers; Arabic sheets right to left; at most the 5,000 loaded rows</td><td>File <code>journal</code></td></tr>
+<tr><td>Checkboxes and the dark bar</td><td>Shows "N selected" and Clear</td><td>The journal has no bulk actions: selection is for exporting only</td><td>Export offers "Only the N selected"</td></tr>
+<tr><td>Phone</td><td>Each row is a card (number, up to four fields, amount)</td><td>None</td><td>Tap opens the entry</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-jl-filters-open"><figcaption>The Filters panel open: Filters (the date group, the kind group, From an order, Missing a receipt), Group by, Favourites.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-sorted"><figcaption>Sorted by Debit total, highest first (▼ on the header), with the optional columns Order, Accounts, By and Receipts switched on.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-more-columns"><figcaption>The optional columns switched on: Order, Accounts (codes of the lines), By (who prepared it) and Receipts.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-columns"><figcaption>The Columns menu.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-selected"><figcaption>Three rows ticked: they turn light blue and the dark bar "3 selected" with Clear sticks to the bottom.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-export-menu"><figcaption>The Export menu with "Only the 3 selected".</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-empty"><figcaption>Empty state: "Nothing here. Remove a filter or search for something else."</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-phone"><figcaption>The journal on a phone: one card per entry.</figcaption></figure>
+
+<!-- ───────────────────────────── Searching ───────────────────────────── -->
+<h2 id="s33-journal-search">Searching and filtering the journal</h2>
+<p>There are four ways to find an entry: the Accounting top bar search, the journal list's search and filters, a report's drill down, and the smart buttons of other documents.</p>
+<h3>1. The top bar search (every Accounting page)</h3>
+<p><code>GET /finance/search?q=</code> (<code>packages/db/src/finance/search.ts</code>). A document number is read by <code>parseDocNumber</code> (<code>packages/shared/src/documents.ts</code>) in loose forms: the prefix in any case, then spaces, a hyphen or # or nothing, leading zeros optional. "JV-002577", "jv 2577", "JV2577" and "jv-#2577" all find JV-002577. Prefixes: JV journal entry, PAY payout, CH cash handover, BILL bill, INV invoice, CN credit note, DN debit note, PO purchase order, CHQ cheque, PC petty cash, RW rider withdrawal, BS bank statement, EC expense claim, BD Basata deposit. Other text finds order numbers (SN…) and merchant or supplier names. People limited to some stores or merchants find only theirs. A result shows the number, its kind and a detail line; Enter or a click opens it; the panel ends with "All reports".</p>
+<figure class="shot" data-shot="s33-search-jv"><figcaption>"jv 2577" typed in the top bar: JV-002577, Journal entry, with its memo.</figcaption></figure>
+<figure class="shot" data-shot="s33-search-bill"><figcaption>"bill 3" finds BILL-000003.</figcaption></figure>
+<h3>2. The journal list</h3>
+<p>The search box matches, for each entry: the number (JV-00xxxx), the memo, the order number, the kind key (for example <code>expense</code>, <code>order_fee</code>), the account codes of its lines (so "1101" finds every entry touching CIB) and the name of the person who prepared it. The predefined filters and what they mean:</p>
+<table class="data"><thead><tr><th>Filter</th><th>Group</th><th>Meaning (code)</th></tr></thead><tbody>
+<tr><td>Today</td><td>date</td><td>The entry's Cairo day is today</td></tr>
+<tr><td>This month</td><td>date</td><td>Its Cairo month is this month</td></tr>
+<tr><td>Last month</td><td>date</td><td>Its Cairo month is the month before</td></tr>
+<tr><td>Last 7 days</td><td>date</td><td>Its day is today or one of the six days before (the default)</td></tr>
+<tr><td>Deliveries and fees</td><td>kind</td><td>cod_collected, order_fee, cod_fee, failed_fee, receiving_fee, storage_fee, rider_bonus, return_fee, minimum_fee</td></tr>
+<tr><td>Cash and bank</td><td>kind</td><td>cash_handover, cash_difference, bank_deposit, money_transfer, petty_cash, petty_cash_reversal, basata_deposit, basata_deadline_charge, basata_settlement</td></tr>
+<tr><td>Payouts</td><td>kind</td><td>merchant_payout, rider_bonus_payout, rider_withdrawal</td></tr>
+<tr><td>Bills and expenses</td><td>kind</td><td>supplier_bill, supplier_bill_cancel, bill_payment, expense, expense_claim, tax_payment, po_receipt, packaging_purchase</td></tr>
+<tr><td>Written by hand</td><td>kind</td><td>journal, adjustment</td></tr>
+<tr><td>From an order</td><td>source</td><td>The entry has an order</td></tr>
+<tr><td>Missing a receipt</td><td>receipt</td><td>No receipt attached, made by a person (not a job) and not from an order</td></tr>
+</tbody></table>
+<p>Filters in one group are joined by "or" ("Bills and expenses or Written by hand" is one chip), groups by "and". The journal list has no value filters (no store or day pickers): exact days are reached through the drill down lines list, which takes <code>from</code> and <code>to</code>. Group by: Type, Day, Month, Prepared by (up to two levels). Sorting: Number, Day (by the exact moment), Debit total. The state lives in the address: <code>q</code>, <code>f</code> (always written, so removing the last filter does not bring the default back), <code>g</code>, <code>sort</code>, <code>desc</code>, <code>page</code>, <code>size</code>.</p>
+<figure class="shot" data-shot="s33-jl-filters-chosen"><figcaption>This month and "Bills and expenses or Written by hand", grouped by Type: three chips in the search bar, ticks in the panel, "1" beside Type.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-grouped"><figcaption>The same list grouped by Type: Bill paid 3, Expense 10, Supplier bill 3, Tax paid 1, each with its subtotal, and the total.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-group-open"><figcaption>The Expense group opened: its entries listed under the group row.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-group-two"><figcaption>Two levels: Last 7 days grouped by Day, then Type.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-favourite-form"><figcaption>Favourites: the name typed and "Open the list with it" ticked.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-favourite-saved"><figcaption>The saved favourite with its star; clicking it applies the search, × deletes it.</figcaption></figure>
+<figure class="shot" data-shot="s33-jl-search"><figcaption>Searching an order number (SN100611) finds its delivery entries: COD collected, order fee, COD fee, rider pay.</figcaption></figure>
+<h3>3. The ledger lines drill list</h3>
+<p>From any report line (see the drill down report page above) the ledger lines list adds what the journal lacks: a day range (<code>from</code>, <code>to</code>), Store (including No store), Merchant (including No merchant), Rider, Kind of entry and Cost tag pickers, and the filters Debits, Credits, Deliveries and fees, Cash, Payouts, Bills, Journal entries by hand, With an order, No store, grouped by Month, Day, Store, Merchant, Rider, Kind, Account or Cost tag. Each row opens its journal entry.</p>
+<h3>4. Smart buttons of other documents</h3>
+<p>A bill, payout, cheque, approval request or order shows a "Journal entries" or "Journal entry" tile that opens its own entries.</p>
+
+<!-- ───────────────────────────── Journal entry page ───────────────────────────── -->
+<h2 id="s33-entry">The journal entry page</h2>
+<p><strong>Address:</strong> <code>/finance/journal/&lt;id&gt;</code>. Opened from the journal list, a ledger line, a search result or a smart button. <strong>Who:</strong> Accounting view; writing a note, a reminder or adding a file needs Accounting use. Data: <code>GET /finance/documents/ledger_entry/:id</code> (<code>entryDoc</code> in <code>packages/db/src/finance/documents.ts</code>), framed by <code>DocumentFrame</code>. An entry has no edit button: ledger rows are append only (database triggers refuse UPDATE and DELETE).</p>
+
+<h3>How the page looks, top to bottom</h3>
+<figure class="shot" data-shot="s33-je-annotated"><figcaption>JV-002577, a journal entry made by hand from the CIB bank, approved by a second person, with two attachments; its parts numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Journal / JV-002577</td><td>Journal returns to the list with the filters it was opened from</td></tr>
+<tr><td>2</td><td>Position, previous, next</td><td>"2 / 50" and ‹ › buttons</td><td>Opens the previous or next entry of the list the person came from (the row ids are kept in sessionStorage); "1 / 1" when opened from a search</td></tr>
+<tr><td>3</td><td>Number and title</td><td>JV-002577 in large bold, the memo below in grey</td><td>None</td></tr>
+<tr><td>4</td><td>Status pill</td><td>"Posted" in a white pill with a grey outline. An entry is always Posted: there is no draft, cancelled or reversed state on the entry itself, and no status bar (no workflow)</td><td>None</td></tr>
+<tr><td>5</td><td>Print or save as PDF (blue)</td><td>Browser print of the A4 voucher</td><td>Print dialog; the screen page is hidden and the voucher shown</td></tr>
+<tr><td>6</td><td>PDF in English</td><td>White button</td><td>Downloads <code>/api/finance/journal/&lt;id&gt;/voucher.pdf?lang=en</code></td></tr>
+<tr><td>7</td><td>PDF in Arabic</td><td>White button</td><td>The same voucher in Arabic (<code>lang=ar</code>)</td></tr>
+<tr><td>8</td><td>Lines tile</td><td>Count of lines (3) and "Lines"</td><td>Jumps to the lines table</td></tr>
+<tr><td>9</td><td>Receipts tile</td><td>Count of attachments (2) and "Receipts"</td><td>0 files: jumps to Attachments to add one; 1 file: opens it in a new tab; several: opens the viewer "All attachments"</td></tr>
+<tr><td>(10)</td><td>Posted for tile</td><td>The source document (a bill, payout, petty cash, invoice, cheque, withdrawal, claim, handover or the request kind)</td><td>Opens that document</td></tr>
+<tr><td>10</td><td>Approval tile</td><td>Name of the person who decided (Omar Lotfy) and "Approval"; only when the entry went through a second person</td><td>Opens the approval request</td></tr>
+<tr><td>(order)</td><td>Order tile</td><td>The order number, on delivery entries</td><td>Opens the order page</td></tr>
+<tr><td>11</td><td>Type, Day, What, Reference, Posted for, Order</td><td>Kind in words, Cairo day, memo, reference when the entry has one</td><td>Posted for and Order are links</td></tr>
+<tr><td>12</td><td>Prepared by, Prepared on</td><td>The person who asked when the entry went through a second person, else the poster; the posting moment</td><td>None</td></tr>
+<tr><td>13</td><td>Approved by, Approved at</td><td>The second person and the decision moment; absent when no approval was needed</td><td>None</td></tr>
+<tr><td>14</td><td>Amount</td><td>Sum of the debit lines, bold, in EGP</td><td>None</td></tr>
+<tr><td>15</td><td>Lines table</td><td>Account (code and name; a wallet shows its owner), Store (code), Merchant, Rider (name and badge), Debit, Credit; largest debit first</td><td>None</td></tr>
+<tr><td>16</td><td>Totals row</td><td>"Total" with the debit and credit totals, always equal</td><td>None</td></tr>
+<tr><td>17</td><td>Log a note (tab)</td><td>Text box "Write what others should know. Notes cannot be changed later." and Post note</td><td>Adds an append only note (audited <code>record.note</code>)</td></tr>
+<tr><td>18</td><td>Remind me (tab)</td><td>On (a Cairo day), Remind (Me or another person who may open the record), What to do, Schedule</td><td>Adds a planned activity; a push <code>activity_due</code> is sent once on its day</td></tr>
+<tr><td>19</td><td>Planned</td><td>Open reminders with day, "today" or "late", the person, and Done</td><td>Done closes it (only the person reminded or who planned it)</td></tr>
+<tr><td>20</td><td>Notes</td><td>Notes newest first with the writer's initial, name and time</td><td>None</td></tr>
+<tr><td>21</td><td>Attachments</td><td>A square thumbnail per photo, a tile with a red PDF icon and the file name per PDF; "No receipt or photo yet." when empty</td><td>One click opens the file in a new tab</td></tr>
+<tr><td>22</td><td>Add receipts or documents</td><td>Opens the attachment field (drop files, Choose files, Take a photo; photos or PDF up to 5 MB, at most 10) and Save files</td><td>The files are linked to the entry (audited "Receipts or documents added")</td></tr>
+<tr><td>23</td><td>History</td><td>The audit rows of the entry: action in words, time, person, each changed field "before → after"</td><td>None</td></tr>
+</tbody></table>
+
+<figure class="shot" data-shot="s33-je-viewer"><figcaption>The viewer "All attachments", opened by the Receipts tile when there are several files: the photo and the PDF tile, each with who added it, and Close.</figcaption></figure>
+<figure class="shot" data-shot="s33-je-remind-form"><figcaption>Remind me filled in: day, person and what to do.</figcaption></figure>
+<figure class="shot" data-shot="s33-je-chatter-after"><figcaption>After Schedule and Post note: the reminder under Planned (brown dot, "today", Done) and the note under Notes.</figcaption></figure>
+<figure class="shot" data-shot="s33-je-print"><figcaption>The print view (Print or save as PDF): company, "Journal voucher JV-002577", number, date, type, description, posted for, the lines with Store, merchant or rider, totals, "Amounts in EGP", and three boxes Prepared by, Checked by, Approved by with signature lines.</figcaption></figure>
+<figure class="shot" data-shot="s33-voucher-en"><figcaption>The voucher PDF in English made by the API.</figcaption></figure>
+<figure class="shot" data-shot="s33-voucher-ar"><figcaption>The voucher PDF in Arabic.</figcaption></figure>
+<figure class="shot" data-shot="s33-je-phone"><figcaption>The entry on a phone: tiles three to a row, fields in one column, the lines table scrolls sideways, the chatter below.</figcaption></figure>
+
+<h3>The same page for other kinds of entry</h3>
+<figure class="shot" data-shot="s33-je-delivery"><figcaption>A delivery entry (JV-002548, Order fee): two lines on the merchant's wallet and fee income tagged with store ZAM and the merchant; tiles Lines 2, Receipts 0, Order SN100611; no approval; History "Nothing recorded yet." because jobs and deliveries are audited on the order.</figcaption></figure>
+<figure class="shot" data-shot="s33-je-expense"><figcaption>An expense below the approval limit (JV-002575): posted at once, so no Approval tile; Receipts 1 opens the single photo directly; the photo appears under Attachments.</figcaption></figure>
+<figure class="shot" data-shot="s33-je-reversal"><figcaption>A correction entry (JV-002562, Supplier bill cancelled): the reversing lines of the bill, with "Posted for BILL-000002" linking to the bill it cancels.</figcaption></figure>
+
+<!-- ───────────────────────────── Entry status ───────────────────────────── -->
+<h2 id="s33-entry-status">Journal entry status</h2>
+<p>An entry is written to the books only when it is posted. Posting (<code>post()</code> in <code>packages/db/src/finance/ledger.ts</code>) inserts the entry and its lines in one transaction; the lines must add up to zero (a deferred trigger refuses anything else) and the rows can never be changed afterwards. That is why the entry page always shows the pill <strong>Posted</strong> and nothing else.</p>
+<h3>Money that needs a second person</h3>
+<p>Money going out from <code>finance.approval_threshold_piastres</code> (10,000 EGP by default) and every claimed money in (while <code>finance.approve_money_in</code> is 1) is not posted when it is asked. It is stored as a <strong>finance request</strong> (<code>finance_requests</code>) and waits in Money in or Dashboard, Approvals. Nothing appears in the journal, the reports or the balances until a second person approves it.</p>
+<table class="data"><thead><tr><th>Request state</th><th>How it looks</th><th>What happened</th><th>Journal</th></tr></thead><tbody>
+<tr><td>Waiting (pending)</td><td>Number REQ-xxxxxx, status bar "Waiting" filled blue, "Approved" grey; the request card with Approve, Reason to reject and Reject (or, for the person who asked, "You asked for this, so another person must approve it." and Withdraw)</td><td>Asked by, day, amount, kind and receipts are stored</td><td>Nothing yet</td></tr>
+<tr><td>Approved</td><td>"Waiting" with a check mark, "Approved" filled blue; the title becomes the entry number; tiles Receipts and Journal entry; fields Decided by and Decided on</td><td>The entry was posted in the approval's transaction</td><td>The posted entry with Prepared by (the asker) and Approved by (the decider)</td></tr>
+<tr><td>Rejected</td><td>Steps "Waiting", "Approved" grey, side state "Rejected" filled red; field Decision note</td><td>A reason is required</td><td>Nothing is posted</td></tr>
+<tr><td>Withdrawn (cancelled)</td><td>Side state "Withdrawn" filled red</td><td>The asker withdrew it before a decision</td><td>Nothing is posted</td></tr>
+</tbody></table>
+<p>Deciding needs <strong>Accounting manage</strong> (<code>POST /finance/requests/:id/decide</code>) and never by the person who asked (<code>same_person</code>).</p>
+<figure class="shot" data-shot="s33-ap-pending-own"><figcaption>The request as its asker sees it: no Approve button, the note "You asked for this, so another person must approve it." and Withdraw.</figcaption></figure>
+<figure class="shot" data-shot="s33-ap-not-in-journal"><figcaption>While it waits, the journal finds nothing for it (Today, search "Rent and electricity").</figcaption></figure>
+<figure class="shot" data-shot="s33-ap-pending"><figcaption>The same request as the second person sees it (/finance/approvals/&lt;id&gt;): REQ number, status bar Waiting, the card with the amount, "Asked by", Approve, Reason to reject and Reject; tile Receipts 2; fields Type, Amount, Reference, Day, Asked by, Prepared on; the chatter with both attachments and the History.</figcaption></figure>
+<figure class="shot" data-shot="s33-ap-reject-note"><figcaption>The second person types a reason; Reject stays disabled until a reason is written.</figcaption></figure>
+<figure class="shot" data-shot="s33-ap-rejected"><figcaption>A rejected request: "Rejected" in red, Decided by, Decided on and the Decision note; History "finance.request_reject" with the note.</figcaption></figure>
+<figure class="shot" data-shot="s33-ap-approved"><figcaption>An approved request: the status bar moved to Approved, the tile JV-002577 Journal entry opens the posted entry.</figcaption></figure>
+<p>The posted entry after approval is the one shown at the top of the journal entry page section: Prepared by is the asker, Approved by and Approved at the decider, and its Approval tile leads back to this request.</p>
+
+<h3>Corrections are new entries</h3>
+<p>Nothing is ever edited. A correction is a new entry whose lines turn the first one round, or an adjustment with a written reason:</p>
+<table class="data"><thead><tr><th>Correction</th><th>Kind of the new entry</th><th>Where the link shows</th></tr></thead><tbody>
+<tr><td>Cancelling an unpaid bill</td><td>supplier_bill_cancel</td><td>"Posted for BILL-…" tile and field on the reversing entry; the bill lists both entries</td></tr>
+<tr><td>Reversing a store petty cash expense</td><td>petty_cash_reversal</td><td>"Posted for PC-…" on the reversing entry; the petty cash page lists both</td></tr>
+<tr><td>Accrual reversed on the 1st of next month (daily job, key <code>accrual_reversal:&lt;id&gt;</code>)</td><td>accrual_reversal</td><td>Only the memo "Reversal: …"; no tile or link to the accrual (see the issues list)</td></tr>
+<tr><td>A bounced or cancelled cheque</td><td>the booking turned round</td><td>"Posted for CHQ-…" on both entries</td></tr>
+<tr><td>Credit note or debit note on an invoice</td><td>credit_note, debit_note</td><td>"Posted for CN-… / DN-…"</td></tr>
+<tr><td>Any other mistake</td><td>journal or adjustment (Money movements, Journal entry, with a reason)</td><td>The reason is the memo; no automatic link</td></tr>
+</tbody></table>
+<h3>Closed books</h3>
+<p>Once the books are closed through a day (<code>books_lock.locked_before</code>), <code>post()</code> and a database trigger refuse any line dated before the lock: the forms answer "This date is in a closed month. Choose a later date, or ask an admin to reopen the month." (<code>books_closed</code>). Entries already in the closed days stay readable and can still receive notes, reminders and attachments, but no new lines; a correction is posted on an open day. Jobs that would date a line inside closed books move it to the first open day (accrual reversals, storage catch up, depreciation).</p>
+
+<!-- ───────────────────────────── Forecast ───────────────────────────── -->
+<h2 id="s33-forecast">Forecast</h2>
+<p><strong>Addresses:</strong> <code>/finance/forecast</code> (list and new scenario) and <code>/finance/forecast/&lt;id&gt;?tab=drivers|pl|bs|cf|compare</code>. <strong>Menu:</strong> Planning, Forecast. <strong>Who:</strong> Accounting view reads; Accounting use creates, edits, copies, renames and deletes drafts; Accounting manage approves, opens again and uses as budget (<code>apps/api/src/finance/forecast.controller.ts</code>). A scenario covers the next 12 months from the current month and starts from the last three complete months of the books (fewer when the books are younger).</p>
+<figure class="shot" data-shot="s33-fc-list"><figcaption>The forecast page before any scenario: New scenario form (Name, Start from) and "No scenarios yet." (/finance/forecast).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Name</td><td>The scenario's name (Expected, Best case, Worst case)</td><td>Required</td><td>None</td></tr>
+<tr><td>Start from</td><td>"The system's suggestion from the books" or "A copy of FC-… name"</td><td>The suggestion is built by <code>GET /finance/forecasts/suggestion</code></td><td>None</td></tr>
+<tr><td>Create</td><td><code>POST /finance/forecasts</code></td><td>Accounting use</td><td>Opens the new scenario FC-00000N</td></tr>
+<tr><td>List columns</td><td>Scenario, Status, First month, Income 12 months, Profit 12 months, Cash at the end, Lowest cash, Delivered orders 12 months</td><td>None</td><td>A row opens the scenario</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-fc-new-form"><figcaption>New scenario filled in: Name "Expected", Start from the system's suggestion.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-list-two"><figcaption>The list with two scenarios.</figcaption></figure>
+
+<h3>The scenario page</h3>
+<figure class="shot" data-shot="s33-fc-drivers"><figcaption>A new scenario on the Drivers tab: header with Save changes, Approve, Copy, Rename, Delete; four summary cards; the cash warnings in red; tabs; the drivers by month.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Forecast FC-000001 (link), name, status pill</td><td>Back to the list; Draft (grey pill) or Approved (green pill)</td><td>"Based on the books of … to …", "Copied from …", "Approved by …"</td><td>None</td></tr>
+<tr><td>Save changes</td><td>Saves changed drivers (<code>PUT :id/drivers</code>) and lines set by hand (<code>PUT :id/overrides</code>)</td><td>Draft only, Accounting use; disabled while nothing changed</td><td>"Saved."</td></tr>
+<tr><td>Discard changes</td><td>Back to the saved values</td><td>Shown only while changed; leaving the page with changes asks first</td><td>None</td></tr>
+<tr><td>Approve</td><td><code>POST :id/approve</code></td><td>Accounting manage; disabled while there are unsaved changes; an approved scenario cannot be changed (<code>forecast_approved</code>)</td><td>"Approved. It can now be used as the budget."</td></tr>
+<tr><td>Open again</td><td><code>POST :id/reopen</code></td><td>Approved only, Accounting manage</td><td>Back to Draft</td></tr>
+<tr><td>Use as budget</td><td>Opens the preview, then writes the budget</td><td>Approved only, Accounting manage</td><td>See below</td></tr>
+<tr><td>Copy</td><td>Asks "Name of the copy" (proposes "name (copy)")</td><td>Accounting use</td><td>Opens the copy as a new draft</td></tr>
+<tr><td>Rename</td><td>Asks "New name"</td><td>Accounting use</td><td>None</td></tr>
+<tr><td>Delete</td><td>"Delete this scenario? This cannot be undone."</td><td>Draft only</td><td>Back to the list</td></tr>
+<tr><td>Summary cards</td><td>Income 12 months, Profit 12 months, Cash at the end, Delivered orders 12 months</td><td>Recomputed live in the browser (<code>forecastCompute</code>) with every change</td><td>None</td></tr>
+<tr><td>Warnings (red)</td><td>"Mar 27: cash goes below zero (… EGP short).", more repaid than borrowed, merchants would owe us</td><td>One line per month that breaks</td><td>None</td></tr>
+<tr><td>Tabs</td><td>Drivers, Profit and loss, Balance sheet, Cash flow, Compare</td><td>The tab is kept in the address (<code>?tab=</code>)</td><td>None</td></tr>
+<tr><td>CSV, Excel, Print</td><td>Exports or prints the tab shown</td><td>None</td><td>A file or the print dialog</td></tr>
+<tr><td>Driver cells</td><td>Tap a month to change it; leave it empty to clear it</td><td>Bold: set for that month; grey: carried from an earlier month or worked out. Groups: Orders, Fee income per delivered order (before VAT), Cash and VAT, Costs, Equipment, loans and owner; "Add a fee per order", "Add an income or cost account"</td><td>The whole forecast recalculates at once</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-fc-driver-editing"><figcaption>Editing a driver: the November cell of "Delivered orders in the month" becomes an input.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-driver-changed"><figcaption>After 500 orders in November and 5% monthly growth from December: later months are worked out (525, 551…), the cards and warnings change at once, "Unsaved changes" appears with Save changes and Discard changes; Approve is disabled.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-saved"><figcaption>After Save changes.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-pl"><figcaption>Profit and loss tab: income by fee kind, every cost line, total income, total costs and profit by month.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-pl-override"><figcaption>A line set by hand: rent of a later month typed on the Profit and loss tab, with "Why (kept with the lines you set by hand when you save)". A hand set line wins over the drivers and later shows "Set by hand by name: note".</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-bs"><figcaption>Balance sheet tab: banks and cash boxes, cash with riders, equipment after depreciation, owed to merchants, VAT payable, loans, capital, retained earnings, and the check row.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-cf"><figcaption>Cash flow tab with the cash warnings above: from operations (profit, add back depreciation, changes in merchant money, VAT and rider cash), investing, financing, change in cash, cash at the start and end.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-compare"><figcaption>Compare tab: up to six scenarios ticked, a summary table, profit per month and cash at the end of each month side by side.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-approved"><figcaption>An approved scenario: green Approved pill, "Approved by", buttons Use as budget, Open again, Copy, Rename.</figcaption></figure>
+
+<h3>Use as budget</h3>
+<p><code>GET :id/budget-preview</code> then <code>POST :id/to-budget</code>. It writes the scenario's income and costs of its 12 months into the <strong>company wide</strong> budgets; store budgets are never touched; amounts below zero are left out (a budget is never negative).</p>
+<figure class="shot" data-shot="s33-fc-budget-preview"><figcaption>First time: "None of these months and accounts has a budget yet." with Write the budget and Cancel.</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-budget-written"><figcaption>After Write the budget: "Budget written: N rows; M left as they were."</figcaption></figure>
+<figure class="shot" data-shot="s33-fc-budget-replace"><figcaption>A second time: "143 of these months and accounts already have a budget:" with Month, Account, Budget now and This scenario, and the choice Replace them or Keep them, write the rest.</figcaption></figure>
+
+<!-- ───────────────────────────── Budgets ───────────────────────────── -->
+<h2 id="s33-budgets">Budgets</h2>
+<p><strong>Address:</strong> <code>/finance/budgets?year=&amp;scope=&amp;group=</code>. <strong>Menu:</strong> Planning, Budgets. <strong>Who:</strong> Accounting view reads ("You can read budgets here; changing them needs accounting use."); Accounting use changes and copies. People limited to some stores see only their stores' budgets. Data: <code>GET /finance/budgets/year</code>, <code>PUT /finance/budgets/quarter</code>, <code>POST /finance/budgets/copy</code> (<code>apps/api/src/finance/budgets.controller.ts</code>).</p>
+<figure class="shot" data-shot="s33-bd-all"><figcaption>Budgets for the whole company (read only): Income, Costs and Profit cards with their budget, then one row per account with Q1 to Q4 and the year (/finance/budgets).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Year</td><td>The calendar year</td><td>Address <code>year</code></td><td>Reloads</td></tr>
+<tr><td>Budget for</td><td>Whole company (read only), Company wide, or a store</td><td>Whole company adds every store's budget and the company wide ones; to change, choose Company wide or a store. Actuals follow the scope (Company wide counts only lines without a store)</td><td>Address <code>scope</code></td></tr>
+<tr><td>Account group</td><td>All groups or one group (4100 Fee income … 5900 Other costs)</td><td>Address <code>group</code></td><td>Fewer rows</td></tr>
+<tr><td>Only accounts with a budget or actual</td><td>Hides empty rows</td><td>None</td><td>None</td></tr>
+<tr><td>Export</td><td>CSV or Excel of the table shown</td><td>None</td><td>A file</td></tr>
+<tr><td>Copy &lt;last year&gt; budget</td><td>Opens the copy box: "Raise by %", Copy, Cancel</td><td>Copies last year of the same scope; the percent may be negative or empty; if the year already has a budget it asks "Replace it with the copy?" with Replace</td><td>"N months copied"</td></tr>
+<tr><td>+ Q1 … + Q4 (headers)</td><td>Opens a quarter into its three months (− folds it)</td><td>Several quarters may be open</td><td>Month columns in grey appear after the quarter</td></tr>
+<tr><td>Quarter field</td><td>Type the quarter's budget and leave the field (or Enter)</td><td>Split equally into its months, the last month taking the leftover piastres; it replaces any month changed by hand</td><td>Saved at once</td></tr>
+<tr><td>Month field</td><td>Change one month by hand</td><td>The quarter becomes the sum of its months</td><td>A small brown dot "Changed by hand" before the month and before its quarter</td></tr>
+<tr><td>Under each figure</td><td>"Actual …" then the variance and its percent</td><td>Green is better than plan, red worse (for costs, spending less is better); a dash when there is no budget</td><td>None</td></tr>
+<tr><td>Year column</td><td>Budget, actual and variance of the year</td><td>None</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s33-bd-q4-open"><figcaption>Company wide 2026 with Q4 opened into October, November and December.</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-edit-quarter"><figcaption>Typing 9,000 into the Q4 field of 5405 Marketing: on leaving the field it is split 3,000 a month.</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-by-hand"><figcaption>November of Marketing changed to 4,500 by hand: brown dots on November and Q4, Q4 now 10,500; months written from the forecast also carry dots.</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-export"><figcaption>The Export menu: CSV and Excel.</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-copy-form"><figcaption>The copy box for the Maadi store: "Copies the 2026 budget of MAA to 2027. Leave the percent empty to copy it as it is.", Raise by % set to 5, Copy 2026 to 2027 and Cancel.</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-copied"><figcaption>After the copy, 2027 for the Maadi store, Fee income group, Q4 open: 4101 is 31,500.00 (10,500.00 a month), 5% above the 30,000.00 of 2026.</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-copy-replace"><figcaption>Copying into a year that already has a budget here asks "2027 already has a budget here. Replace it with the copy?" with Replace (the budget is replaced only on that second click).</figcaption></figure>
+<figure class="shot" data-shot="s33-bd-phone"><figcaption>Budgets on a phone: the table scrolls sideways with the account column fixed.</figcaption></figure>
+
+<!-- ───────────────────────────── Issues ───────────────────────────── -->
+<h2 id="s33-issues">Issues noticed while writing this chapter</h2>
+<ol>
+<li><strong>"Posted for" shows a raw key.</strong> On an entry posted through an approval, the Posted for field, its tile and the printed voucher show the request kind <code>journal</code> (or <code>expense</code>...) in lower case instead of words or the request number. Cause: <code>sourceOf()</code> in <code>packages/db/src/finance/documents.ts</code> returns <code>request.kind</code> as the value. It also duplicates the Approval tile.</li>
+<li><strong>History shows untranslated action keys and raw piastres.</strong> On the approval request page the History lists <code>finance.request_create</code>, <code>finance.request_approve</code>, <code>finance.request_reject</code> as keys, and "amount: – → 1350000" in piastres instead of 13,500.00 EGP.</li>
+<li><strong>The Arabic voucher PDF prints the type in English.</strong> <code>/finance/journal/&lt;id&gt;/voucher.pdf?lang=ar</code> shows "Journal entry" in the Arabic voucher; the page builds the <code>kind</code> label with <code>getTranslations({ locale: 'ar' })</code>, which appears to return the current (English) messages. The Arabic footer also shows a double separator "شيبلي ناو - - JV-…".</li>
+<li><strong>The approval request page does not show the lines.</strong> The second person sees the amount, reference and receipts but not which accounts will be debited and credited (for a journal entry: rent, utilities, CIB) before approving.</li>
+<li><strong>Approve and Reject are shown to Accounting use.</strong> The request card appears for anyone with Accounting use, but <code>POST /finance/requests/:id/decide</code> needs Accounting manage, so a use level person gets a refusal after clicking.</li>
+<li><strong>After approval the request page takes the entry's number.</strong> Breadcrumbs read "Approvals / JV-002577" and the title JV-002577 instead of the request number, which is confusing beside the Journal entry tile with the same number.</li>
+<li><strong>Accrual reversals have no link to the accrual.</strong> <code>accrual_reversal</code> entries store <code>data.accrualId</code> but the entry page shows no Posted for tile or field for it; only the memo "Reversal: …" connects them.</li>
+<li><strong>Compare periods uses browser date boxes.</strong> <code>/finance/statements</code> uses <code>type="date"</code> fields (shown mm/dd/yyyy in an English browser) instead of the house DateInput (day first), and its column headers and balance sheet title show ISO days (2026-10-01 → 2026-10-31). The cash flow forecast's Week column also shows ISO days.</li>
+<li><strong>Wallet group 1350 has no name in the drill reports.</strong> The balance sheet shows "1350: 2 wallets" because <code>finance.reports.groups</code> has no <code>g1350</code> (Rider dues); Compare periods names it correctly.</li>
+<li><strong>Label of the journal's CSV button.</strong> It reads "Export to Excel · every line (CSV)" (the general <code>finance.export</code> text "Export to Excel" joined to "every line (CSV)"), which mixes two formats in one label.</li>
+<li><strong>Merchant profit what if differs from booked at current prices.</strong> With the contract's own prices the What if shows order fees 1,746.12 against 1,746.31 booked (0.19 EGP), so a reader sees a change where nothing was changed (rounding per order against the booked sum, or tiers).</li>
+<li><strong>Use as budget lists rows whose budget would not change.</strong> The replace preview lists all 143 existing rows even when Budget now equals This scenario, which hides the few that really change.</li>
+<li><strong>Prepared on of an approved entry is the approval moment.</strong> On JV-002577, Prepared on and Approved at are both 23:13 while the request was asked at 23:11; the entry's own History also names the asker as the actor at 23:13.</li>
+<li><strong>Menu label and title differ.</strong> The menu says "Profit per store", the page title says "Profit by store".</li>
+</ol>
+</section>

@@ -1,0 +1,339 @@
+<section class="chapter" id="ch-ledger-core">
+<h1>The ledger core</h1>
+
+<p>All money in Shiply Now lives in one double entry ledger. Every money event, from a rider collecting cash at a door to the year end close, is one ledger entry made of two or more lines whose amounts add up to zero. Balances are never stored; they are always summed from the lines. This chapter describes the tables, the one function that writes to them, the database rules that guard them, how balances are read and checked, and how periods are closed.</p>
+
+<div class="rule">Money is a double entry ledger in piastres. Every entry's lines add up to zero (a deferred database trigger refuses anything else) and ledger rows are append only; corrections are new entries. Balances are always summed from lines, never stored. Debit is positive.</div>
+
+<h2 id="ledger-tables">Tables</h2>
+<p>Three tables hold the ledger. They are defined in <code>packages/db/prisma/schema.prisma</code> (models <code>LedgerAccount</code>, <code>LedgerEntry</code>, <code>LedgerLine</code>) and created by the migration <code>20261027090000_finance</code>, with columns added by later migrations (profit dimensions, cost tags, foreign currency).</p>
+<pre class="diagram">
+ ledger_accounts 1 ──────────────&lt; ledger_lines &gt;────────────── 1 ledger_entries
+   id, key, code, type,              id, entry_id, account_id,        id, number (JV),
+   category, group_code,             amount_piastres (+ debit,        kind, memo,
+   names, bank fields,               − credit), occurred_at,          occurred_at,
+   currency, is_active,              dark_store_id, merchant_id,      order_id,
+   owner columns                     rider_id, user_id,               idempotency_key,
+   (merchant_id, rider_id,           cost_tag_id,                     data (json),
+    dark_store_id, user_id,          foreign_cents, fx_rate_micro     created_by_id
+    supplier_id)
+</pre>
+
+<h3 id="ledger-accounts-table">ledger_accounts</h3>
+<p>One row per account: a company account (a bank, a cash box, an expense category) or a wallet that belongs to one party (a merchant, a rider, a store's box, a supplier, a team member).</p>
+<table class="data">
+<thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>key</code> (unique)</td><td>A stable key the code uses to find the account: <code>merchant:&lt;id&gt;</code>, <code>rider_cash:&lt;id&gt;</code>, <code>store_cash:&lt;id&gt;</code>, <code>revenue</code>, <code>vat_payable</code>, <code>equity:capital</code>, or <code>acct:&lt;code&gt;</code> for accounts finance opens by hand.</td></tr>
+<tr><td><code>code</code> (unique)</td><td>Chart of accounts number: <code>1101</code> for a company account, <code>2100-0001</code> for a party wallet. Given from the group's sequence.</td></tr>
+<tr><td><code>type</code></td><td>Enum <code>ledger_account_type</code>: <code>merchant</code>, <code>rider_cash</code>, <code>rider_bonus</code>, <code>rider_dues</code>, <code>store_cash</code>, <code>bank</code>, <code>cash_box</code>, <code>revenue</code>, <code>other_income</code>, <code>vat_payable</code>, <code>rider_bonus_expense</code>, <code>cash_difference</code>, <code>damage_expense</code>, <code>expense</code>, <code>other_asset</code>, <code>other_liability</code>, <code>equity</code>, <code>staff_advance</code>, <code>supplier</code>, <code>merchant_deposit</code>.</td></tr>
+<tr><td><code>category</code></td><td>Enum <code>account_category</code>: <code>asset</code>, <code>liability</code>, <code>equity</code>, <code>revenue</code>, <code>expense</code>. Fixed by the type through the <code>CATEGORY</code> map in <code>ledger.ts</code>. It is the first digit of the code (1 to 5).</td></tr>
+<tr><td><code>group_code</code></td><td>The group the code was taken from (1100 banks, 5400 operating expenses...).</td></tr>
+<tr><td><code>name_en</code>, <code>name_ar</code></td><td>Names in both languages. Party and store accounts have none; they show their owner's name.</td></tr>
+<tr><td><code>bank_name</code>, <code>account_number</code>, <code>iban</code>, <code>note</code></td><td>Bank details (required for group 1100).</td></tr>
+<tr><td><code>currency</code></td><td><code>EGP</code> by default; a bank account may be held in <code>USD</code> or <code>EUR</code>. Ledger amounts stay in EGP.</td></tr>
+<tr><td><code>petty</code>, <code>claimable</code></td><td>An expense category store staff may pick for petty cash, or employees may claim back.</td></tr>
+<tr><td><code>is_active</code></td><td>Closed accounts are kept; only an empty account can be closed.</td></tr>
+<tr><td><code>merchant_id</code>, <code>rider_id</code>, <code>dark_store_id</code>, <code>user_id</code>, <code>supplier_id</code></td><td>The owner of a wallet. An account with any of them set is a wallet (<code>isWallet</code>).</td></tr>
+</tbody>
+</table>
+
+<h3 id="ledger-entries-table">ledger_entries</h3>
+<p>One row per money event.</p>
+<table class="data">
+<thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>number</code> (unique)</td><td>Gapless serial number shown as <code>JV-000001</code>.</td></tr>
+<tr><td><code>kind</code></td><td>What happened: <code>cod_collected</code>, <code>order_fee</code>, <code>cash_handover</code>, <code>merchant_payout</code>, <code>expense</code>, <code>journal</code>, <code>year_close</code> and about sixty more (see below).</td></tr>
+<tr><td><code>memo</code></td><td>A short text (an order number, a reference, the reason of a journal entry).</td></tr>
+<tr><td><code>occurred_at</code></td><td>When the event happened (UTC). A backdated event is booked at noon Cairo time of its day.</td></tr>
+<tr><td><code>order_id</code></td><td>The order the entry belongs to, when there is one.</td></tr>
+<tr><td><code>idempotency_key</code> (unique)</td><td>Same key means the same event: a second post returns the first entry.</td></tr>
+<tr><td><code>data</code></td><td>JSON details of the event (fee basis, tier, handover counts, the day of a storage charge, <code>reverseOn</code> of an accrual).</td></tr>
+<tr><td><code>created_by_id</code></td><td>The user who caused it, or null for jobs.</td></tr>
+</tbody>
+</table>
+
+<h3 id="ledger-lines-table">ledger_lines</h3>
+<p>One side of an entry. Debit is positive, credit is negative, in piastres. A line of zero is refused by a CHECK constraint (<code>ledger_lines_amount_not_zero</code>).</p>
+<table class="data">
+<thead><tr><th>Column</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>entry_id</code>, <code>account_id</code></td><td>The entry and the account.</td></tr>
+<tr><td><code>amount_piastres</code></td><td>Signed integer: positive is a debit, negative a credit.</td></tr>
+<tr><td><code>occurred_at</code></td><td>Copied from the entry, so balances at a moment need no join.</td></tr>
+<tr><td><code>dark_store_id</code>, <code>merchant_id</code>, <code>rider_id</code></td><td>Tags: where and for whom the line counts. They drive profit per store, merchant and rider, cost per order and every report filter by store or merchant.</td></tr>
+<tr><td><code>user_id</code></td><td>The team member a salary or advance line is for.</td></tr>
+<tr><td><code>cost_tag_id</code></td><td>The user's own analytic tag (a campaign, a project), at most one per line.</td></tr>
+<tr><td><code>foreign_cents</code>, <code>fx_rate_micro</code></td><td>For a line on a bank account in another currency: the amount in that currency's cents (signed like the line) and the rate used, EGP for one unit times 1,000,000.</td></tr>
+</tbody>
+</table>
+<p>Indexes exist on <code>(account_id, occurred_at)</code> and on each tag with <code>occurred_at</code>, because nearly every report sums lines of an account, or of a tag, over a period.</p>
+
+<h2 id="ledger-post">post(): the only way to write</h2>
+<p>Every domain function that moves money calls <code>post</code> in <code>packages/db/src/finance/ledger.ts</code>. Nothing else inserts into the ledger tables. Its input:</p>
+<pre class="code">export interface PostInput {
+  kind: string;
+  idempotencyKey: string;
+  occurredAt?: Date;
+  memo?: string;
+  orderId?: string | null;
+  data?: Prisma.InputJsonValue;
+  createdById?: string | null;
+  /** Where the whole entry counts; worked out from the order and wallets when left out. */
+  darkStoreId?: string | null;
+  merchantId?: string | null;
+  riderId?: string | null;
+  /** Debit positive, credit negative. Lines of zero are dropped. A line's own tags win. */
+  lines: { account: AccountRef; amount: number; tags?: LineTags; foreign?: ForeignAmount }[];
+}</pre>
+<p>An account is named by an <code>AccountRef</code>: by kind for wallets and system accounts (<code>{ type: 'merchant', merchantId }</code>, <code>{ type: 'vat_payable' }</code>) or by id for any account (<code>{ id }</code>). Accounts named by kind are created the first time they are used (see the chart of accounts chapter).</p>
+
+<h3 id="ledger-post-steps">Step by step</h3>
+<ol>
+<li>Drop zero lines and check integers. Lines of zero are removed. Any amount that is not a safe integer is refused with <code>amount_not_integer</code>. If no line is left, <code>post</code> returns null and writes nothing. This is why a fee of 0 under a contract books nothing.</li>
+<li>Check the balance in code. The sum of the lines must be zero and there must be at least two lines; otherwise <code>post</code> throws a plain <code>Error</code> (a programming mistake, not a business refusal), which answers 500.</li>
+<li>Open a transaction (or join the caller's) with <code>inTransaction</code>.</li>
+<li>Idempotency. If an entry with the same <code>idempotency_key</code> exists, return it and write nothing.</li>
+<li>Books lock. <code>assertPeriodOpen(tx, occurredAt)</code> refuses a moment before <code>books_lock.locked_before</code> with <code>books_closed</code>.</li>
+<li>Line extras. <code>checkLineExtras</code>: a line on a bank account in another currency must carry its foreign amount (<code>foreign_currency_account</code> otherwise), an EGP account never carries one, foreign cents must be integers, and every cost tag named must exist.</li>
+<li>Serial number. <code>nextNumber(tx, 'ledger_entries')</code> takes a transaction level advisory lock on <code>hashtext('number:ledger_entries')</code> and returns <code>MAX(number) + 1</code>. The lock is held until the transaction ends, so two postings cannot take the same number and no number is skipped.</li>
+<li>Insert the entry.</li>
+<li>Resolve accounts. Each <code>AccountRef</code> becomes an account id, creating the account when a wallet or system account is used for the first time.</li>
+<li>Work out the tags with <code>entryTags</code> (below).</li>
+<li>Insert the lines, each with its tags (a line's own tags win over the entry's), cost tag and foreign amount.</li>
+<li>Commit. At commit the deferred trigger checks again that the entry balances.</li>
+</ol>
+<pre class="code">export async function post(db: Db, input: PostInput) {
+  const lines = input.lines.filter((l) =&gt; l.amount !== 0);
+  for (const l of lines)
+    if (!Number.isSafeInteger(l.amount)) throw new DomainError('amount_not_integer', 400);
+  if (lines.length === 0) return null;
+  const total = lines.reduce((s, l) =&gt; s + l.amount, 0);
+  if (total !== 0 || lines.length &lt; 2) throw new Error(`unbalanced ledger entry ${input.kind}`);
+
+  return inTransaction(db, async (tx) =&gt; {
+    const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: input.idempotencyKey } });
+    if (seen) return seen;
+    const occurredAt = input.occurredAt ?? new Date();
+    await assertPeriodOpen(tx, occurredAt);
+    await checkLineExtras(tx, lines);
+    const entry = await tx.ledgerEntry.create({
+      data: { number: await nextNumber(tx, 'ledger_entries'), kind: input.kind, ... },
+    });
+    ...
+  });
+}</pre>
+<div class="note">Because <code>nextNumber</code> serialises every posting on one advisory lock, two postings never run their number step at the same time. For a pilot volume this is the price of gapless numbers. A system with much higher volume could number entries at the end of the day instead.</div>
+
+<h3 id="ledger-tags">Tag inference order</h3>
+<p>Every line carries a store, merchant and rider tag when one can be found, so reports can split income and costs without extra bookkeeping. <code>entryTags</code> fills each tag in this order, stopping at the first value found:</p>
+<ol>
+<li>what the caller passed on the entry (<code>darkStoreId</code>, <code>merchantId</code>, <code>riderId</code>);</li>
+<li>the order of the entry (<code>orders.dark_store_id</code> and <code>orders.merchant_id</code>);</li>
+<li>the owners of the wallets on the entry's lines (a merchant wallet gives the merchant, a rider wallet the rider, a store box the store);</li>
+<li>for the store only: the rider's own store.</li>
+</ol>
+<p>A tag given on a single line (<code>lines[i].tags</code>) wins over the entry's tag for that line. The <code>user_id</code> and <code>cost_tag_id</code> of a line come only from the line's own tags. Lines with no store are company wide.</p>
+
+<h3 id="ledger-kinds">Entry kinds</h3>
+<p>The <code>kind</code> is free text so new events need no migration, but every value comes from code. The kinds posted today, grouped by source:</p>
+<table class="data">
+<thead><tr><th>Source</th><th>Kinds</th></tr></thead>
+<tbody>
+<tr><td>Deliveries (<code>postings.ts</code>)</td><td><code>cod_collected</code>, <code>shipping_fee</code>, <code>product_handling</code>, <code>order_fee</code>, <code>cod_fee</code>, <code>packaging_charge</code>, <code>rider_bonus</code>, <code>failed_fee</code>, <code>receiving_fee</code>, <code>storage_fee</code>, <code>return_fee</code></td></tr>
+<tr><td>Contracts</td><td><code>minimum_fee</code>, <code>deposit_received</code>, <code>deposit_refunded</code></td></tr>
+<tr><td>Cash and payouts (<code>operations.ts</code>)</td><td><code>cash_handover</code>, <code>cash_difference</code>, <code>bank_deposit</code>, <code>merchant_payout</code>, <code>merchant_receipt</code>, <code>adjustment</code></td></tr>
+<tr><td>Riders</td><td><code>rider_withdrawal</code>, <code>rider_shortage_charge</code>, <code>rider_penalty</code>, <code>rider_office_commission</code>, <code>rider_office_shortage</code>, <code>basata_deposit</code>, <code>basata_deadline_charge</code>, <code>basata_settlement</code></td></tr>
+<tr><td>Damage and packaging</td><td><code>damage_compensation</code>, <code>damage_rider_charge</code>, <code>packaging_purchase</code>, <code>packaging_used</code>, <code>packaging_adjustment</code></td></tr>
+<tr><td>Books (<code>books.ts</code>)</td><td><code>money_transfer</code>, <code>expense</code>, <code>capital_in</code>, <code>capital_out</code>, <code>other_income</code>, <code>journal</code>, <code>accrual</code>, <code>accrual_reversal</code>, <code>opening_balance</code></td></tr>
+<tr><td>Payables and taxes</td><td><code>supplier_bill</code>, <code>supplier_bill_cancel</code>, <code>bill_payment</code>, <code>tax_payment</code>, <code>po_receipt</code>, <code>corporate_tax</code></td></tr>
+<tr><td>Assets and loans</td><td><code>prepayment</code>, <code>prepayment_release</code>, <code>asset_purchase</code>, <code>depreciation</code>, <code>asset_disposal</code>, <code>loan_received</code>, <code>loan_payment</code>, <code>fx_revaluation</code></td></tr>
+<tr><td>Cheques</td><td><code>cheque_received</code>, <code>cheque_cleared</code>, <code>cheque_bounced</code>, <code>cheque_cancelled</code></td></tr>
+<tr><td>Invoices</td><td><code>credit_note</code>, <code>debit_note</code></td></tr>
+<tr><td>People</td><td><code>payroll</code>, <code>staff_advance</code>, <code>staff_bonus</code>, <code>expense_claim</code>, <code>petty_cash</code>, <code>petty_cash_reversal</code></td></tr>
+<tr><td>Year end</td><td><code>year_close</code></td></tr>
+</tbody>
+</table>
+
+<h3 id="ledger-idempotency">Idempotency keys</h3>
+<p>Each posting's key names the event it belongs to, so running the same code twice (a retry, a job that overlaps, a double tap) posts once. Keys built from records:</p>
+<table class="data">
+<thead><tr><th>Event</th><th>Key</th></tr></thead>
+<tbody>
+<tr><td>Cash collected at delivery</td><td><code>delivery:&lt;delivery id&gt;:cod</code></td></tr>
+<tr><td>Each fee of a delivered order</td><td><code>order:&lt;order id&gt;:order_fee</code>, <code>:cod_fee</code>, <code>:shipping_fee</code>, <code>:product_handling</code>, <code>:packaging_charge</code></td></tr>
+<tr><td>Rider pay</td><td><code>delivery:&lt;delivery id&gt;:bonus</code></td></tr>
+<tr><td>Failed attempt fee</td><td><code>delivery:&lt;delivery id&gt;:failed_fee</code></td></tr>
+<tr><td>Receiving fee</td><td><code>manifest:&lt;manifest id&gt;:receiving_fee</code></td></tr>
+<tr><td>Storage of a day</td><td><code>storage:&lt;day&gt;:&lt;store id&gt;:&lt;merchant id&gt;</code></td></tr>
+<tr><td>Cash handover</td><td><code>handover:&lt;handover id&gt;</code></td></tr>
+<tr><td>Payout paid</td><td><code>payout:&lt;payout id&gt;</code></td></tr>
+<tr><td>Salary run</td><td><code>payroll:&lt;YYYY-MM&gt;</code></td></tr>
+<tr><td>Recurring expense</td><td><code>recurring:&lt;id&gt;:&lt;month&gt;</code></td></tr>
+<tr><td>Year close</td><td><code>year_close:&lt;year&gt;</code></td></tr>
+<tr><td>Opening balances</td><td><code>opening_balance</code> (one per company)</td></tr>
+</tbody>
+</table>
+<p>Postings started by a person (an expense, a transfer, a journal entry) use the client generated idempotency key of the request, with a prefix: <code>expense:&lt;key&gt;</code>, <code>transfer:&lt;key&gt;</code>, <code>journal:&lt;key&gt;</code>. A form in the web app creates its key with <code>newActionKey()</code> (<code>apps/web/src/lib/ids.ts</code>, a random UUID with a fallback for plain http) and keeps it until the action succeeds, so a double click or a retry after a lost answer posts once.</p>
+
+<h2 id="ledger-example">Worked example: a delivered order</h2>
+<div class="example">
+<p>A merchant's contract charges an order fee of 15.00 EGP fixed plus 2% of the products value, no COD fee, no shipping fee. VAT is 14% (<code>fee.vat_bp</code> = 1400). Rider pay is 20.00 EGP per delivered order. A rider delivers an order whose products are worth 500.00 EGP and collects 550.00 EGP in cash. <code>postDeliveryCompleted</code> runs inside the delivery transaction and posts:</p>
+<table class="data">
+<thead><tr><th>Entry kind</th><th>Account</th><th>Debit</th><th>Credit</th></tr></thead>
+<tbody>
+<tr><td><code>cod_collected</code></td><td>1300 rider cash (rider's wallet)</td><td>550.00</td><td></td></tr>
+<tr><td><code>cod_collected</code></td><td>2100 merchant (merchant's wallet)</td><td></td><td>550.00</td></tr>
+<tr><td><code>order_fee</code></td><td>2100 merchant</td><td>28.50</td><td></td></tr>
+<tr><td><code>order_fee</code></td><td>4101 delivery and service fees</td><td></td><td>25.00</td></tr>
+<tr><td><code>order_fee</code></td><td>2301 VAT payable</td><td></td><td>3.50</td></tr>
+<tr><td><code>rider_bonus</code></td><td>5101 rider pay per delivered order</td><td>20.00</td><td></td></tr>
+<tr><td><code>rider_bonus</code></td><td>2200 rider bonus (rider's wallet)</td><td></td><td>20.00</td></tr>
+</tbody>
+</table>
+<p>The order fee is <code>1500 + share(50000, 200) = 1500 + 1000 = 2500</code> piastres and its VAT is <code>share(2500, 1400) = 350</code> piastres. The COD fee, shipping fee, per product prices and packaging charge are 0 here, so their posts write nothing. Every line is tagged with the order's store and merchant; the lines of the two entries that touch a rider wallet (<code>cod_collected</code> and <code>rider_bonus</code>) are also tagged with the rider, because the tags are worked out per entry. Afterwards the merchant's wallet holds a credit of 521.50 EGP: the company owes the merchant the cash collected minus the fee and its VAT.</p>
+</div>
+<p>The fee lines come from one helper, so every fee kind charges VAT the same way:</p>
+<pre class="code">async function feeLines(tx: Tx, merchantId: string, fee: number) {
+  const vat = share(fee, await getSetting(tx, 'fee.vat_bp'));
+  const merchant: AccountRef = { type: 'merchant', merchantId };
+  return [
+    { account: merchant, amount: fee + vat },
+    { account: { type: 'revenue' } as AccountRef, amount: -fee },
+    { account: { type: 'vat_payable' } as AccountRef, amount: -vat },
+  ];
+}</pre>
+
+<h2 id="ledger-triggers">Database guards</h2>
+<p>The code checks every rule first so it can answer with a clear code, but the database enforces the hard rules too, whatever the caller.</p>
+
+<h3 id="ledger-append-only">Append only</h3>
+<pre class="code">-- Ledger rows are history: never changed or removed (corrections are new entries).
+CREATE TRIGGER "ledger_entries_append_only" BEFORE UPDATE OR DELETE ON "ledger_entries"
+  FOR EACH ROW EXECUTE FUNCTION "reject_append_only_change"();
+CREATE TRIGGER "ledger_lines_append_only" BEFORE UPDATE OR DELETE ON "ledger_lines"
+  FOR EACH ROW EXECUTE FUNCTION "reject_append_only_change"();</pre>
+<p><code>reject_append_only_change()</code> (from the first migration) raises an error with <code>restrict_violation</code>. The same function guards <code>stock_movements</code>, <code>order_events</code>, <code>audit_log</code>, ticket messages, order notes, record notes and packaging movements. A mistake in the books is corrected by a new entry that turns the old one round (a reversal) or by an adjustment with a written reason.</p>
+
+<h3 id="ledger-balance-trigger">Every entry balances</h3>
+<pre class="code">CREATE FUNCTION "ledger_entry_must_balance"() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE total BIGINT; lines INT;
+BEGIN
+  SELECT COALESCE(SUM("amount_piastres"), 0), COUNT(*) INTO total, lines
+    FROM "ledger_lines" WHERE "entry_id" = NEW."entry_id";
+  IF total &lt;&gt; 0 OR lines &lt; 2 THEN
+    RAISE EXCEPTION 'ledger entry % does not balance (total %, % lines)', NEW."entry_id", total, lines;
+  END IF;
+  RETURN NULL;
+END $$;
+
+CREATE CONSTRAINT TRIGGER "ledger_lines_balance" AFTER INSERT ON "ledger_lines"
+  DEFERRABLE INITIALLY DEFERRED
+  FOR EACH ROW EXECUTE FUNCTION "ledger_entry_must_balance"();</pre>
+<p>The trigger is deferred to commit time, so <code>post</code> can insert the lines one by one; at commit each entry touched must add up to zero with at least two lines, or the whole transaction fails.</p>
+
+<h3 id="ledger-period-trigger">Closed periods</h3>
+<pre class="code">CREATE FUNCTION "ledger_line_period_open"() RETURNS trigger LANGUAGE plpgsql AS $$
+DECLARE lock_at TIMESTAMP(3);
+BEGIN
+  SELECT "locked_before" INTO lock_at FROM "books_lock" WHERE "id" = 'books';
+  IF lock_at IS NOT NULL AND NEW."occurred_at" &lt; lock_at THEN
+    RAISE EXCEPTION 'books_closed: % is inside a closed period', NEW."occurred_at";
+  END IF;
+  RETURN NEW;
+END $$;
+CREATE TRIGGER "ledger_lines_period_open" BEFORE INSERT ON "ledger_lines"
+  FOR EACH ROW EXECUTE FUNCTION "ledger_line_period_open"();</pre>
+<p>Other money tables carry CHECK constraints too (for example a cash handover's difference must equal expected minus counted, and a payout's amount must be positive). Tax invoices and frozen contract versions are protected by their own triggers.</p>
+
+<h2 id="ledger-balances">Balances</h2>
+<p>No balance column exists anywhere. A balance is the sum of an account's lines, optionally before a moment:</p>
+<pre class="code">/** Debit minus credit of one account, optionally up to (not including) a moment. */
+export async function balanceOf(db: Db, ref: AccountRef, before?: Date): Promise&lt;number&gt; {
+  const result = await db.ledgerLine.aggregate({
+    where: {
+      account: 'id' in ref ? { id: ref.id } : { key: accountKey(ref) },
+      occurredAt: before ? { lt: before } : undefined,
+    },
+    _sum: { amountPiastres: true },
+  });
+  return result._sum.amountPiastres ?? 0;
+}</pre>
+<p><code>balancesByType</code> sums many accounts in one grouped query. Reports such as the trial balance sum debits and credits per account over a period with one SQL query (<code>sumsByAccount</code> in <code>books.ts</code>), optionally filtered by the store or merchant tag and optionally leaving out the <code>year_close</code> entry.</p>
+
+<h3 id="ledger-sign">Sign convention</h3>
+<p>Raw balances are debit minus credit. Assets and expenses normally have a debit (positive) balance; liabilities, equity and income normally have a credit (negative) balance. Screens and reports show every balance as an accountant reads it, positive on its normal side:</p>
+<pre class="code">/** Debit balances are normal for assets and expenses; the rest are shown with the sign flipped. */
+export function debitNormal(category: AccountCategoryName) {
+  return category === 'asset' || category === 'expense';
+}
+
+/** The balance as an accountant reads it: assets and expenses debit, the rest credit. */
+export const natural = (category, raw: number) =&gt; (debitNormal(category) ? raw : 0 - raw);</pre>
+<p>So what we owe a merchant (a credit on their 2100 wallet) is shown as a positive amount owed: <code>merchantOwed</code> returns the balance with its sign flipped. When a merchant's wallet turns to a debit balance (fees and charges passed the cash collected), the merchant owes us; the receivables and aging screens list those merchants.</p>
+
+<h2 id="ledger-checks">Holding money: lockedBalance and mustHold</h2>
+<div class="rule">Money cannot leave a bank or cash box that does not hold it: neither at the movement's own moment (a past day for a backdated movement) nor at any later moment up to now.</div>
+<p>Two payments from the same box at the same time must not both spend the same money. Every check that a bank or box holds an amount takes a row lock on the account first, inside the transaction that posts the payment:</p>
+<pre class="code">export async function lockedBalance(tx: Tx, ref: AccountRef) {
+  const found = 'id' in ref ? { id: ref.id }
+    : await tx.ledgerAccount.findUnique({ where: { key: accountKey(ref) }, select: { id: true } });
+  if (!found) return { accountId: null, balance: 0 };
+  await tx.$queryRaw`SELECT id FROM ledger_accounts WHERE id = ${found.id} FOR UPDATE`;
+  return { accountId: found.id, balance: await balanceOf(tx, { id: found.id }) };
+}</pre>
+<p><code>openAccount</code> in <code>books.ts</code> takes the same <code>FOR UPDATE</code> lock and checks that the account belongs to the expected groups and is open. <code>mustHold</code> then checks the amount against the running balance, which matters for backdated movements: paying 1,000 EGP dated last Tuesday must not make last Wednesday's balance negative, even if the box holds enough today.</p>
+<pre class="code">export async function mustHold(tx: Tx, account: Pick&lt;LedgerAccount, 'id'&gt;, amount: number, at = new Date()) {
+  await assertPeriodOpen(tx, at);
+  const rows = await tx.$queryRaw`
+    WITH moments AS (
+      SELECT occurred_at, SUM(amount_piastres)::bigint AS amount FROM ledger_lines
+      WHERE account_id = ${account.id} GROUP BY occurred_at
+    ), running AS (
+      SELECT occurred_at, (SUM(amount) OVER (ORDER BY occurred_at))::bigint AS balance FROM moments
+    )
+    SELECT
+      (SELECT balance FROM running WHERE occurred_at &lt;= ${at} ORDER BY occurred_at DESC LIMIT 1) AS at_balance,
+      (SELECT MIN(balance) FROM running WHERE occurred_at &gt; ${at}) AS later_min`;
+  const atBalance = Number(rows[0]?.at_balance ?? 0);
+  const laterMin = rows[0]?.later_min == null ? atBalance : Number(rows[0].later_min);
+  if (amount &gt; Math.min(atBalance, laterMin)) throw new DomainError('not_enough_money');
+}</pre>
+<p>Lines at the same moment count together. The check refuses with <code>not_enough_money</code>. A day inside closed books answers <code>books_closed</code> first, whatever the balance.</p>
+
+<h2 id="ledger-time">Cairo days and months</h2>
+<p>A movement entered for a past day is booked at noon Cairo time of that day; one entered for today is booked now. A future day is refused:</p>
+<pre class="code">/** When a money event happened: a past Cairo day at noon, or now for today and no day. */
+export function eventTime(day: string | undefined, now: Date = new Date()) {
+  if (!day || day === cairoDay(now)) return now;
+  if (!isCalendarDay(day)) throw new DomainError('invalid_date', 400);
+  if (day &gt; cairoDay(now)) throw new DomainError('future_date', 400);
+  return new Date(cairoDayStart(day).getTime() + 12 * 3600_000);
+}</pre>
+<p>A period of Cairo days <code>[from, to]</code> is turned into instants as <code>cairoDayStart(from)</code> (included) to <code>cairoDayStart(addDays(to, 1))</code> (excluded). In SQL, grouping by Cairo day or month always converts from UTC first, because <code>occurred_at</code> is stored without a time zone:</p>
+<pre class="code">SELECT to_char((l.occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo', 'YYYY-MM') AS month, ...</pre>
+<p>Writing only <code>AT TIME ZONE 'Africa/Cairo'</code> on a value without a time zone would read it as Cairo time and shift it the wrong way; the double conversion was made a rule after a review found this mistake.</p>
+
+<h2 id="ledger-books-lock">Closing the books</h2>
+<p>The table <code>books_lock</code> has a single row (<code>id = 'books'</code>, enforced by a CHECK) holding <code>closed_through</code> (a Cairo day) and <code>locked_before</code> (the instant the next Cairo day starts). Nothing may be posted before <code>locked_before</code>: <code>assertPeriodOpen</code> answers <code>books_closed</code> and the database trigger refuses it as well.</p>
+<p><code>closeBooks</code> in <code>controls.ts</code>:</p>
+<ul>
+<li>accepts only a day already over in Cairo (<code>day_not_over</code> otherwise);</li>
+<li>takes the advisory lock <code>books_lock</code> so two people cannot move it at once;</li>
+<li>moving the date forward closes more days; moving it back reopens days and needs an admin (in the API: a person with settings manage) and a reason of at least five characters (<code>reopen_admin_only</code>, <code>reason_required</code>);</li>
+<li>writes an audit row <code>finance.books_close</code> or <code>finance.books_reopen</code> with the old and new day.</li>
+</ul>
+<p>Jobs respect the lock: a storage day, a depreciation month or a recurring month that falls inside closed books is skipped or charged on the first open day, as each job's rules say.</p>
+
+<h2 id="ledger-year-close">Closing a year</h2>
+<p><code>closeYear</code> in <code>period.ts</code> moves the year's profit into retained earnings:</p>
+<ol>
+<li>Only a year already over can be closed (<code>year_not_over</code>), each year once (<code>year_already_closed</code>, the entry key is <code>year_close:&lt;year&gt;</code>) and in order (<code>earlier_year_open</code> when income or expense accounts still carry balances from before 1 January of that year).</li>
+<li>Under the <code>books_lock</code> advisory lock, it sums every income and expense account up to the end of the year.</li>
+<li>The closing entry is dated one millisecond before the new year (in Cairo time). If the books are locked past that moment, the lock is moved just before it for this one entry, in the same transaction.</li>
+<li>It posts one <code>year_close</code> entry: each income and expense balance turned round to zero, and the total against 3401 retained earnings.</li>
+<li>It sets the books lock through 31 December (or keeps a later lock), and writes the audit row <code>finance.year_close</code>.</li>
+</ol>
+<p>Profit and loss reports leave the <code>year_close</code> entry out, so a closed year still shows its income and costs. The balance sheet shows the profit of the current year (not yet closed) as its own line next to equity, so assets always equal liabilities plus equity plus earnings.</p>
+</section>

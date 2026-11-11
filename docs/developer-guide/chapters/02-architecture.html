@@ -1,0 +1,332 @@
+<section class="chapter" id="ch-architecture">
+<h1>Architecture</h1>
+
+<p>Shiply Now is one TypeScript monorepo managed with pnpm workspaces. Strict mode is on everywhere. One database (PostgreSQL 16 with PostGIS) holds every record, and one Docker image runs both servers. This chapter describes the layout, the path a request takes, background jobs, deployment and tests, then maps every file that belongs to the accounting system.</p>
+
+<h2 id="arch-layout">Monorepo layout</h2>
+<table class="data">
+<thead><tr><th>Folder</th><th>Package</th><th>What it is</th></tr></thead>
+<tbody>
+<tr><td><code>apps/api</code></td><td><code>@shiplynow/api</code></td><td>The REST API, built with NestJS 11. Controllers check access and validate input, then call domain functions from <code>packages/db</code>. OpenAPI documentation is generated at <code>/docs</code>. Background jobs run inside this process.</td></tr>
+<tr><td><code>apps/web</code></td><td><code>@shiplynow/web</code></td><td>The Next.js app (app router). It holds every screen: the public site, <code>/home</code> and the admin apps, <code>/finance</code>, <code>/store</code>, <code>/rider</code>, <code>/merchant</code>, <code>/my-file</code> and the public tracking page. It never talks to the database; it calls the API.</td></tr>
+<tr><td><code>apps/shopify</code></td><td></td><td>The Shopify app configuration and the theme app extension (the storefront zone widget). The server side of the Shopify integration lives in <code>apps/api/src/shopify</code>.</td></tr>
+<tr><td><code>packages/db</code></td><td><code>@shiplynow/db</code></td><td>The Prisma schema and migrations, and every domain function that reads or writes the database: stock, orders, the ledger and the rest of accounting, HR, sales, push. Each change runs in a transaction.</td></tr>
+<tr><td><code>packages/shared</code></td><td><code>@shiplynow/shared</code></td><td>Pure code used by both the API and the web app: zod schemas of request bodies, constants, setting definitions with their defaults, access rules, Cairo time helpers, list view state, pure calculations (tax bands, contract prices, aging buckets, bank match ranking, export files).</td></tr>
+<tr><td><code>deploy</code></td><td></td><td>Start scripts of the production container (<code>start.mjs</code>, <code>prepare.mjs</code>, <code>migrations-current.mjs</code>).</td></tr>
+<tr><td><code>docs</code></td><td></td><td>Design notes (architecture, access, HR, sales, zones, deployment, backups, load test, standard operating procedures).</td></tr>
+<tr><td><code>scripts</code></td><td></td><td>Tools: the Shopify tunnel, the merchant app generator, the load test, the electronic invoice signer for the finance PC, and the SOP builder.</td></tr>
+</tbody>
+</table>
+<p>The dependency direction is strict: <code>shared</code> depends on nothing of ours; <code>db</code> depends on <code>shared</code>; <code>api</code> depends on both; <code>web</code> depends only on <code>shared</code> (its data comes over HTTP). Because business rules live in <code>packages/db</code>, the seed, the demo loader, the API and the background jobs all use exactly the same implementation of each rule.</p>
+
+<h2 id="arch-request">How a request flows</h2>
+<p>The browser only ever talks to the web app's origin. The web app forwards every <code>/api/...</code> call to the API, so the authentication cookies stay first party. Server components of the web app call the API directly with the user's token.</p>
+<pre class="diagram">
+ Browser (React client component)            Next.js server component
+        |  fetch('/api/finance/expenses')            |  apiGet('/finance/dashboard')
+        |  cookie: access JWT                        |  Authorization: Bearer &lt;JWT from cookie&gt;
+        v                                            |
+ +-----------------------------------+               |
+ | apps/web  app/api/[...path]/route |               |
+ | proxy: copies method, headers,    |               |
+ | body; reads API_URL at runtime    |               |
+ +-----------------------------------+               |
+        |                                            |
+        +----------------------+---------------------+
+                               v
+ +---------------------------------------------------------------+
+ | apps/api  NestJS                                              |
+ |  global guards, in order:                                     |
+ |   1 JwtAuthGuard   token from Bearer header or cookie;        |
+ |                    @Public routes skip it                     |
+ |   2 RolesGuard     @Roles(...) when a route names roles       |
+ |   3 AccessGuard    @Access(app, level, options): reads the    |
+ |                    access profile fresh; store and merchant   |
+ |                    scope; @MerchantRight for merchant users   |
+ |  ZodValidationPipe body or query against a shared zod schema  |
+ |  Controller method                                            |
+ +---------------------------------------------------------------+
+                               |
+                               v
+ +---------------------------------------------------------------+
+ | packages/db  domain function, for example submitExpense()     |
+ |  checks business rules, throws DomainError(code) on refusal   |
+ |  inTransaction(): one Prisma transaction                      |
+ |   post() ledger entry + lines, audit_log row, document row    |
+ +---------------------------------------------------------------+
+                               |
+                               v
+ +---------------------------------------------------------------+
+ | PostgreSQL 16 + PostGIS                                       |
+ |  CHECK constraints, append only triggers, deferred balance    |
+ |  trigger, books lock trigger                                  |
+ +---------------------------------------------------------------+
+                               |
+       answer: JSON, or { error: code } with 4xx from AppErrorFilter
+</pre>
+
+<h3 id="arch-proxy">The /api proxy</h3>
+<p>The file <code>apps/web/src/app/api/[...path]/route.ts</code> is a route handler that exports the same function for every HTTP method. It rebuilds the target address from <code>API_URL</code> (read at runtime, so one build works on any host), removes hop by hop headers, forwards the body as bytes, and copies the answer back keeping each <code>Set-Cookie</code> header separate. A network failure answers <code>502 { error: 'api_unreachable' }</code>. A Next.js rewrite is not used because it would freeze the API address at build time.</p>
+
+<h3 id="arch-middleware">Middleware</h3>
+<p><code>apps/web/src/middleware.ts</code> runs on the Node.js runtime (so the JWT secret is read at runtime and never bundled) for <code>/admin</code>, <code>/store</code>, <code>/rider</code>, <code>/merchant</code>, <code>/finance</code> and <code>/home</code>. It reads the access token's claims and calls <code>decideAccess</code> (<code>apps/web/src/lib/access.ts</code>), which answers allow, send to login, refresh the session first, or redirect to the person's own area. On allow it adds the path in a request header so the app frame can show not found for a page the person may not open.</p>
+
+<h3 id="arch-auth">Authentication</h3>
+<p>Sign in sets an httpOnly access JWT cookie (HS256) and an opaque refresh token stored hashed and rotated on every use. <code>JwtAuthGuard</code> (<code>apps/api/src/auth/jwt-auth.guard.ts</code>) accepts the token from an <code>Authorization: Bearer</code> header (used by server components) or from the cookie (used through the proxy), verifies it and puts <code>{ sub, email, role }</code> on the request. A missing or bad token answers <code>401 { error: 'unauthenticated' }</code>.</p>
+
+<h3 id="arch-guards">Guards and decorators</h3>
+<p>The three guards are registered globally in <code>apps/api/src/auth/auth.module.ts</code> with <code>APP_GUARD</code>, so no route can forget them. The decorators in <code>apps/api/src/auth/decorators.ts</code> are:</p>
+<ul>
+<li><code>@Public()</code>: skips authentication. Used for routes checked another way (Shopify signatures, Slack signatures, the public tracking page, the website lead form).</li>
+<li><code>@Roles(...roles)</code>: the route is for these roles only.</li>
+<li><code>@Access(app, level?, options?)</code>: the route is for team members whose access profile reaches <code>level</code> in <code>app</code>. Without a level, <code>GET</code> and <code>HEAD</code> need view and other methods need use. Options add <code>customerData</code>, <code>salaries</code>, a store or merchant route parameter to check, and further levels in other apps (<code>also</code>). A method decorator overrides the class decorator.</li>
+<li><code>@MerchantRight(right)</code>: a merchant member needs that right (owners have all); <code>'owner'</code> limits the route to owners.</li>
+<li><code>@CurrentUser()</code> and <code>@CurrentAccess()</code>: parameter decorators that give the handler the claims and the access profile the guard loaded.</li>
+</ul>
+<p>Every accounting controller carries <code>@Access('accounting')</code> on the class, and stronger levels on single methods:</p>
+<pre class="code">@Access('accounting')
+@Controller('finance')
+export class ControlsController {
+  @Post('requests/:id/decide')
+  @Access('accounting', 'manage')
+  async decide(@Param('id') id: string, @Body(new ZodValidationPipe(decideRequestSchema)) body, @CurrentUser() user) {
+    ...
+  }
+}</pre>
+<p>A test (<code>apps/api/test/route-access.test.ts</code>) fails when any route has none of <code>@Public</code>, <code>@Access</code> or <code>@Roles</code>, unless it is on an explicit list of routes open to any signed in user.</p>
+
+<h3 id="arch-domain">Domain functions and transactions</h3>
+<p>A controller does little more than call one domain function with the caller's user id. Domain functions take a <code>Db</code>, which is either the Prisma client or a transaction client, and run their work through <code>inTransaction</code>:</p>
+<pre class="code">/** Either the full client or the client handed to a $transaction callback. */
+export type Db = PrismaClient | Prisma.TransactionClient;
+
+/** Runs fn in a transaction; joins the caller's transaction when db already is one. */
+export function inTransaction&lt;T&gt;(db: Db, fn: (tx: Prisma.TransactionClient) =&gt; Promise&lt;T&gt;) {
+  if ('$transaction' in db) return db.$transaction(fn);
+  return fn(db);
+}</pre>
+<p>This lets a delivery, its ledger postings, its order events and its audit rows share one transaction: <code>completeDelivery</code> in <code>orders.ts</code> calls <code>postDeliveryCompleted(tx, ...)</code>, which calls <code>post(tx, ...)</code> several times, all inside the same transaction. Either everything is written or nothing is.</p>
+
+<h3 id="arch-errors">Refusals and errors</h3>
+<p>A business rule refusal throws <code>DomainError(code, status = 409, details?)</code> from <code>packages/db/src/domain-error.ts</code>. The global filter <code>AppErrorFilter</code> (<code>apps/api/src/common/domain-error.filter.ts</code>) turns it into <code>{ error: code, ...details }</code> with that status. Validation failures answer <code>400 { error: 'validation_failed', issues }</code>. HTTP errors keep their usual answer. Anything unexpected answers 500 and raises one <code>server_error</code> admin alert per source and message through <code>ErrorReporter</code>, storing only the method and path, never bodies or query strings.</p>
+
+<h2 id="arch-jobs">Background jobs</h2>
+<p>There is no queue service and no Redis. <code>JobsService</code> (<code>apps/api/src/jobs/jobs.service.ts</code>) starts two timers when the API boots: one every 30 seconds for the business jobs and one every 10 seconds for web push. Each job:</p>
+<ul>
+<li>opens a transaction and takes a Postgres transaction level advisory lock with <code>pg_try_advisory_xact_lock(&lt;fixed id&gt;)</code>; if another API instance holds it, this run does nothing;</li>
+<li>is idempotent: every ledger posting it makes has an idempotency key (for example <code>storage:&lt;day&gt;:&lt;store&gt;:&lt;merchant&gt;</code>), so running twice changes nothing;</li>
+<li>remembers in memory the last Cairo day or slot it finished, to skip needless work, but never relies on that memory for correctness;</li>
+<li>reports a thrown error through <code>ErrorReporter</code> instead of crashing.</li>
+</ul>
+<pre class="code">const result = await this.prisma.$transaction(async (tx) =&gt; {
+  const [{ locked }] = await tx.$queryRaw`SELECT pg_try_advisory_xact_lock(${STORAGE_LOCK}) AS locked`;
+  if (!locked) return null;
+  return chargeStorageDays(tx, now);
+}, { timeout: 60_000 });</pre>
+<p>The accounting jobs are: the daily storage charge (with catch up of missed days), the monthly finance run (recurring expenses prepared as requests, prepayment releases and depreciation, accrual reversals), contract monthly minimum fees and contract payout schedules, the rider cash overdue check every ten minutes, payment reminders to merchants in debit, and the Basata cash deposit deadline. The electronic invoice sync (<code>EtaSync</code> in <code>apps/api/src/finance/eta.ts</code>) has its own one minute timer and sends nothing without its credentials. Merchant emails are sent from an outbox by the same job loop. Jobs can be switched off with <code>JOBS_ENABLED</code>; they are off by default in tests.</p>
+
+<h2 id="arch-deploy">Deployment</h2>
+<p>One Docker image runs everything. <code>deploy/start.mjs</code>:</p>
+<ol>
+<li>checks that the database address and the JWT secret are set, and optionally swaps the database name (<code>DATABASE_NAME</code>);</li>
+<li>runs <code>deploy/migrations-current.mjs</code>; when every migration folder is already applied it skips <code>prisma migrate deploy</code> (a sleeping free instance wakes faster), otherwise it applies the migrations;</li>
+<li>runs <code>deploy/prepare.mjs</code> in a separate process: the one time fresh start when asked, the seed (which only adds missing rows and never overwrites admin edits), and the demo month when <code>DEMO_LOAD</code> is true;</li>
+<li>starts the API on <code>127.0.0.1:API_PORT</code> (inside the container only) and the web app on <code>$PORT</code> (the only public door). If either stops, the container stops so the host restarts it.</li>
+</ol>
+<p>One <code>.env</code> file at the repository root serves every app in development; <code>.env.example</code> lists every variable. Secrets are never committed. Backups are the database provider's restore window plus a nightly encrypted dump kept as a CI artifact (see <code>docs/BACKUP.md</code>).</p>
+
+<h2 id="arch-testing">Testing</h2>
+<table class="data">
+<thead><tr><th>Package</th><th>Runner</th><th>What runs</th></tr></thead>
+<tbody>
+<tr><td><code>packages/shared</code></td><td>Vitest</td><td>Pure unit tests (tax bands, aging buckets, list state, report periods, contract pricing, bank statements).</td></tr>
+<tr><td><code>packages/db</code></td><td>Vitest against a real PostgreSQL with PostGIS</td><td>Domain tests per area (<code>finance.test.ts</code>, <code>finance-controls.test.ts</code>, <code>books.test.ts</code>, <code>database-rules.test.ts</code> and many more). They use <code>TEST_DATABASE_URL</code>, never the normal database address, because every file wipes the tables. A global setup applies the migrations first. Files run one after another.</td></tr>
+<tr><td><code>apps/api</code></td><td>Vitest with SWC and Supertest</td><td>The whole Nest app is built with <code>createTestApp</code> (<code>apps/api/test/helpers.ts</code>), which can replace each external boundary with a fake: <code>Clock</code>, <code>Geocoder</code>, <code>ShopifyAdmin</code>, <code>EtaClient</code>, <code>Slack</code>, <code>PushSender</code>, <code>Mailer</code>, <code>Overpass</code>. Requests go through the real guards and filters.</td></tr>
+<tr><td><code>apps/web</code></td><td>Vitest</td><td>Pure helpers (list view, money parsing, report view, close run), the app menu rules, the translations (same keys in both languages, no dots in keys) and the WCAG contrast test of the brand tokens.</td></tr>
+</tbody>
+</table>
+<p>Every step of work ends with lint, typecheck and tests (<code>pnpm lint</code>, <code>pnpm typecheck</code>, <code>pnpm test</code>). The project rules also name Playwright for key web flows, but no Playwright suite is present in the repository at the time of writing.</p>
+
+<h2 id="arch-codemap">Accounting code map</h2>
+<p>The tables below list every file that belongs to the accounting system, with what it holds and its main exported functions. Files marked as in progress were being added while this document was written.</p>
+
+<h3 id="arch-map-db">packages/db/src/finance</h3>
+<table class="data">
+<thead><tr><th>File</th><th>What it holds</th><th>Main exports</th></tr></thead>
+<tbody>
+<tr><td><code>ledger.ts</code></td><td>The ledger core: account references, system accounts with their codes, default accounts, account code sequences, gapless numbers, the only posting function, balances.</td><td><code>post</code>, <code>assertPeriodOpen</code>, <code>balanceOf</code>, <code>lockedBalance</code>, <code>balancesByType</code>, <code>share</code>, <code>nextAccountCode</code>, <code>nextNumber</code>, <code>accountKey</code>, <code>ensureDefaultAccounts</code>, <code>DEFAULT_ACCOUNTS</code>, <code>CATEGORY</code>, <code>assertActiveTag</code></td></tr>
+<tr><td><code>books.ts</code></td><td>The company books on top of the ledger: chart of accounts, opening and closing accounts, money movements between banks and boxes, expenses, owner capital and drawings, other income, free journal entries, account statement, trial balance, profit and loss, balance sheet.</td><td><code>chartOfAccounts</code>, <code>createAccount</code>, <code>updateAccount</code>, <code>openAccount</code>, <code>mustHold</code>, <code>transferMoney</code>, <code>recordExpense</code>, <code>recordCapital</code>, <code>recordOtherIncome</code>, <code>checkJournalEntry</code>, <code>recordJournalEntry</code>, <code>accountStatement</code>, <code>trialBalance</code>, <code>profitAndLoss</code>, <code>balanceSheet</code>, <code>moneyAccounts</code>, <code>isWallet</code>, <code>eventTime</code>, <code>natural</code>, <code>ownerNames</code></td></tr>
+<tr><td><code>postings.ts</code></td><td>Postings made by operations events in the event's own transaction: delivery completed (COD to merchant, every fee kind, rider pay, office commission), failed delivery fee, receiving fee, return fee, daily storage.</td><td><code>postDeliveryCompleted</code>, <code>postDeliveryFailed</code>, <code>postReceivingFee</code>, <code>postReturnFee</code>, <code>accrueStorage</code>, <code>lastClosedDay</code></td></tr>
+<tr><td><code>operations.ts</code></td><td>Rider cash and handovers to stores, bank deposits from store boxes, what is owed to merchants, payouts (create, mark paid, cancel), merchant receipts and adjustments.</td><td><code>riderCash</code>, <code>cashToHandIn</code>, <code>recordCashHandover</code>, <code>reviewCashHandover</code>, <code>recordBankDeposit</code>, <code>merchantOwed</code>, <code>payoutDueOn</code>, <code>createPayout</code>, <code>assertPayoutOwed</code>, <code>markPayoutPaid</code>, <code>cancelPayout</code>, <code>recordMerchantReceipt</code>, <code>recordMerchantAdjustment</code>, <code>bankAccount</code>, <code>riderBonusOwed</code></td></tr>
+<tr><td><code>controls.ts</code></td><td>Controls on the books: books lock, the second person rule (requests), payout approval, receipt photos, opening balances, and the submit wrappers that post at once or queue a request.</td><td><code>booksLock</code>, <code>closeBooks</code>, <code>approvalThreshold</code>, <code>queueRequest</code>, <code>submitMovement</code>, <code>submitExpense</code>, <code>submitDrawings</code>, <code>submitCapitalIn</code>, <code>submitOtherIncome</code>, <code>submitMerchantReceipt</code>, <code>submitMerchantAdjustment</code>, <code>submitJournalEntry</code>, <code>submitAdvance</code>, <code>submitPayroll</code>, <code>submitBillPayment</code>, <code>submitTaxPayment</code>, <code>submitPrepayment</code>, <code>submitAssetPurchase</code>, <code>submitPackagingPurchase</code>, <code>submitStaffBonus</code>, <code>submitCreditNote</code>, <code>submitAssetDisposal</code>, <code>listFinanceRequests</code>, <code>decideFinanceRequest</code>, <code>cancelFinanceRequest</code>, <code>payoutNeedsApproval</code>, <code>approvePayout</code>, <code>attachReceipt</code>, <code>receiptsFor</code>, <code>missingReceipts</code>, <code>recordOpeningBalances</code>, <code>RECEIPT_KINDS</code></td></tr>
+<tr><td><code>reports.ts</code></td><td>Wallet lists, merchant statements, ledger entry list, cash handover list, payout list.</td><td><code>financeWallets</code>, <code>merchantStatement</code>, <code>listLedgerEntries</code>, <code>listCashHandovers</code>, <code>listPayouts</code></td></tr>
+<tr><td><code>payout-run.ts</code></td><td>The guided Pay merchants run; nothing is stored for the run itself.</td><td><code>prepareDuePayouts</code>, <code>payoutRun</code>, <code>markPayoutsPaid</code>, <code>PAY_RUN_STEPS</code></td></tr>
+<tr><td><code>payables.ts</code></td><td>Suppliers, bills (also in another currency), bill payments with withholding tax, bill ageing, withholding report, taxes owed and tax payments.</td><td><code>createSupplier</code>, <code>updateSupplier</code>, <code>listSuppliers</code>, <code>recordBill</code>, <code>cancelBill</code>, <code>payBill</code>, <code>withholdingFor</code>, <code>listBills</code>, <code>billAgeing</code>, <code>whtReport</code>, <code>taxesOwed</code>, <code>payTax</code>, <code>rateMicro</code>, <code>centsToPiastres</code>, <code>TAXES</code></td></tr>
+<tr><td><code>assets.ts</code></td><td>Prepayments and equipment, monthly release and straight line depreciation.</td><td><code>recordPrepayment</code>, <code>recordAssetPurchase</code>, <code>runMonthlyCharges</code>, <code>chargeDepreciation</code>, <code>listPrepayments</code>, <code>listFixedAssets</code>, <code>monthlyPart</code></td></tr>
+<tr><td><code>tools.ts</code></td><td>Merchant bank details, the bulk payout bank file, equipment sold or scrapped, accrual reversal.</td><td><code>updateMerchantBank</code>, <code>payoutBankFile</code>, <code>disposeAsset</code>, <code>reverseAccruals</code></td></tr>
+<tr><td><code>recurring.ts</code></td><td>Monthly recurring expenses, prepared as requests on their day.</td><td><code>createRecurring</code>, <code>setRecurringActive</code>, <code>listRecurring</code>, <code>runRecurring</code></td></tr>
+<tr><td><code>bank.ts</code></td><td>Bank statement import with fingerprints, automatic and manual matching, bank charges, setting lines aside, reconciliation view.</td><td><code>importStatement</code>, <code>autoMatch</code>, <code>matchBankLine</code>, <code>matchBankLines</code>, <code>reopenBankLine</code>, <code>ignoreBankLine</code>, <code>bookBankCharge</code>, <code>listStatements</code>, <code>reconciliation</code>, <code>bankMatching</code></td></tr>
+<tr><td><code>period.ts</code></td><td>Period reports and the year end: VAT report, budget against actual, cash flow and four week forecast, year close, journal lines export, receipt photos for the audit pack.</td><td><code>vatReport</code>, <code>setBudget</code>, <code>budgetVsActual</code>, <code>cashFlow</code>, <code>cashForecast</code>, <code>yearCloseStatus</code>, <code>closeYear</code>, <code>journalLines</code>, <code>receiptPhotos</code>, <code>VAT_PURCHASE_KINDS</code></td></tr>
+<tr><td><code>budgets.ts</code></td><td>Budgets planned per quarter, then split by month (in progress).</td><td><code>setQuarterBudget</code>, <code>budgetYear</code>, <code>copyBudgetYear</code></td></tr>
+<tr><td><code>drill.ts</code></td><td>Drill down reports (profit and loss, balance sheet, trial balance with comparison) and the ledger lines list behind any report line.</td><td><code>drillReport</code>, <code>ledgerLinesList</code>, <code>LEDGER_LINES_DEF</code>, <code>ledgerLinesGaps</code></td></tr>
+<tr><td><code>profit.ts</code></td><td>Profit by store, merchant or rider from the line tags; cost per delivered order.</td><td><code>profitBy</code>, <code>costPerOrder</code></td></tr>
+<tr><td><code>merchant-profit.ts</code></td><td>What each merchant earns us in a Cairo month against what serving them costs.</td><td><code>merchantProfitability</code>, <code>merchantProfitDetail</code></td></tr>
+<tr><td><code>cost-tags.ts</code></td><td>User defined cost tags and the report by tag.</td><td><code>listCostTags</code>, <code>createCostTag</code>, <code>updateCostTag</code>, <code>costTagReport</code></td></tr>
+<tr><td><code>fx.ts</code></td><td>Bank accounts in USD or EUR: rates, both balances, book value transfers, month end revaluation.</td><td><code>fxRateMicro</code>, <code>impliedRateMicro</code>, <code>bothBalances</code>, <code>bookValueOut</code>, <code>foreignBalances</code>, <code>revalueForeignBank</code>, <code>foreignBanks</code></td></tr>
+<tr><td><code>loans.ts</code></td><td>Bank loans: one 2700 account each, instalment schedule, payments in order, interest.</td><td><code>recordLoan</code>, <code>submitLoan</code>, <code>payLoanInstalment</code>, <code>submitLoanPayment</code>, <code>listLoans</code>, <code>loanDetail</code>, <code>loanInstalmentsDue</code></td></tr>
+<tr><td><code>cheques.ts</code></td><td>The cheques register: book, deposit, clear, bounce, cancel.</td><td><code>registerCheque</code>, <code>bookCheque</code>, <code>depositCheque</code>, <code>clearCheque</code>, <code>bounceCheque</code>, <code>cancelCheque</code>, <code>dropChequeRequest</code>, <code>listCheques</code>, <code>chequesDue</code>, <code>getCheque</code></td></tr>
+<tr><td><code>contracts.ts</code></td><td>Merchant contracts as versions with every price, tiers, terms; prices in force on a day; minimum fees; credit limit; security deposits.</td><td><code>contractPricesAt</code>, <code>versionInForce</code>, <code>pricesForDay</code>, <code>standardPrices</code>, <code>productPricesFor</code>, <code>payoutMinimumFor</code>, <code>deliveryAttemptsFor</code>, <code>createContractDraft</code>, <code>updateContractDraft</code>, <code>activateContractVersion</code>, <code>applyContractSchedules</code>, <code>chargeMinimumFees</code>, <code>assertWithinCreditLimit</code>, <code>recordDeposit</code>, <code>submitDeposit</code>, <code>listContracts</code></td></tr>
+<tr><td><code>invoices.ts</code></td><td>Monthly tax invoices per merchant from booked fees, credit notes, company tax profile, the electronic invoice (ETA) flow.</td><td><code>prepareInvoices</code>, <code>monthlyFees</code>, <code>issueCreditNote</code>, <code>creditNoteVat</code>, <code>listInvoices</code>, <code>getInvoice</code>, <code>companyProfile</code>, <code>updateCompanyProfile</code>, <code>updateMerchantTax</code>, <code>etaReadiness</code>, <code>documentsToSign</code>, <code>saveSignatures</code>, <code>recordEtaResult</code>, <code>resendInvoice</code>, <code>nextDocumentNumber</code>, <code>FEE_KINDS</code></td></tr>
+<tr><td><code>debit-notes.ts</code></td><td>Debit notes linked to an invoice.</td><td><code>debitNoteAmounts</code>, <code>issueDebitNote</code>, <code>submitDebitNote</code></td></tr>
+<tr><td><code>returns.ts</code></td><td>Tax return worksheets: VAT return, withholding list (form 41), payroll tax and insurance lists, company income tax estimate and booking, comparative statements.</td><td><code>vatReturn</code>, <code>withholdingPayments</code>, <code>payrollForms</code>, <code>corporateTaxEstimate</code>, <code>bookCorporateTax</code>, <code>comparativeStatements</code></td></tr>
+<tr><td><code>payroll.ts</code></td><td>Salary run from HR packages with Egyptian deductions, staff advances, staff bonuses, payslips.</td><td><code>payrollRules</code>, <code>listStaffPay</code>, <code>giveAdvance</code>, <code>previewPayroll</code>, <code>runPayroll</code>, <code>payslips</code>, <code>payStaffBonus</code>, <code>myPayslips</code>, <code>myPayslip</code></td></tr>
+<tr><td><code>expense-claims.ts</code></td><td>Employee expense claims: manager step, accounting pays.</td><td><code>submitExpenseClaim</code>, <code>managerDecideClaim</code>, <code>cancelExpenseClaim</code>, <code>rejectExpenseClaim</code>, <code>payExpenseClaim</code>, <code>claimCategories</code>, <code>setClaimableCategory</code>, <code>myExpenseClaims</code>, <code>expenseClaimDetail</code>, <code>claimsWaitingForManager</code></td></tr>
+<tr><td><code>rider-wallet.ts</code></td><td>Rider pay wallet: hold days, what a rider owes, withdrawals (request, approve, reject, pay), shortage and penalty charges.</td><td><code>riderWallet</code>, <code>riderWalletTotals</code>, <code>riderOwed</code>, <code>requestWithdrawal</code>, <code>cancelWithdrawal</code>, <code>approveWithdrawal</code>, <code>rejectWithdrawal</code>, <code>payWithdrawal</code>, <code>listRiderWithdrawals</code>, <code>riderWalletSummaries</code>, <code>chargeShortageToRider</code>, <code>chargeRiderPenalty</code>, <code>chargeRiderPenalties</code></td></tr>
+<tr><td><code>rider-offices.ts</code></td><td>Rider supply offices: commission at each delivery, month end office bills, daily office account.</td><td><code>postRiderOfficeCommission</code>, <code>setRiderOffice</code>, <code>prepareOfficeBills</code>, <code>listRiderOffices</code>, <code>riderOfficeDetail</code>, <code>riderOfficeAccount</code>, <code>riderOfficeOf</code></td></tr>
+<tr><td><code>cash-control.ts</code></td><td>Rider cash limit and age, cash position, petty cash at stores, the month end checklist.</td><td><code>checkRiderCashLimit</code>, <code>checkRiderCashOverdue</code>, <code>ridersHoldingCash</code>, <code>storeRiderCash</code>, <code>cashPosition</code>, <code>submitPettyCash</code>, <code>postApprovedPettyCash</code>, <code>reversePettyCash</code>, <code>listPettyCash</code>, <code>pettyCategories</code>, <code>setPettyCategory</code>, <code>monthEndChecklist</code>, <code>markMonthEndItem</code>, <code>unmarkMonthEndItem</code></td></tr>
+<tr><td><code>basata.ts</code></td><td>Rider cash deposits through Basata branches, the daily deadline, frozen riders, Basata transfers to the bank.</td><td><code>submitBasataDeposit</code>, <code>approveBasataDeposit</code>, <code>rejectBasataDeposit</code>, <code>runDepositDeadline</code>, <code>assertNotFrozen</code>, <code>unfreezeRider</code>, <code>listFrozenRiders</code>, <code>recordBasataSettlement</code>, <code>listBasataSettlements</code>, <code>basataPosition</code></td></tr>
+<tr><td><code>storage.ts</code></td><td>Units per store, merchant and Cairo day; daily storage charge with catch up.</td><td><code>unitsAtDayEnds</code>, <code>unitsForDays</code>, <code>chargeStorageDays</code>, <code>unitDays</code></td></tr>
+<tr><td><code>aging.ts</code></td><td>Receivables and payables by age as of a Cairo day.</td><td><code>receivablesAging</code>, <code>payablesAging</code></td></tr>
+<tr><td><code>receivables.ts</code></td><td>Merchants whose wallet turned debit and the payment request notification.</td><td><code>merchantsOwingUs</code>, <code>requestMerchantPayment</code></td></tr>
+<tr><td><code>reminders.ts</code></td><td>Daily payment reminders to merchants in debit.</td><td><code>reminderRules</code>, <code>runReceivableReminders</code>, <code>sendReminderNow</code></td></tr>
+<tr><td><code>lists.ts</code></td><td>Server side of the Accounting list views: one definition and loader per list.</td><td><code>FINANCE_LIST_DEFS</code>, <code>queryFinanceList</code>, <code>financeListGaps</code></td></tr>
+<tr><td><code>documents.ts</code></td><td>Document page descriptors for every accounting document.</td><td><code>accountingDocument</code></td></tr>
+<tr><td><code>dashboard.ts</code></td><td>The Accounting dashboard: today strip and journal cards with 30 day sparklines.</td><td><code>financeDashboard</code>, <code>SPARK_DAYS</code></td></tr>
+<tr><td><code>search.ts</code></td><td>The one search of the Accounting app.</td><td><code>financeSearch</code></td></tr>
+<tr><td><code>bulk.ts</code></td><td>Bulk approve of requests and payouts, each record on its own.</td><td><code>bulkDecideRequests</code>, <code>bulkApprovePayouts</code></td></tr>
+<tr><td><code>payments-due.ts</code></td><td>In progress: the Coming up and due list of known future payments.</td><td><code>paymentsDue</code>, <code>dueGroupOf</code></td></tr>
+<tr><td><code>forecast.ts</code></td><td>In progress: the 12 month forecast scenarios.</td><td><code>forecastSuggestion</code>, <code>createForecast</code>, <code>forecastToBudget</code> and others</td></tr>
+<tr><td><code>index.ts</code></td><td>Exports again the public functions of the folder for <code>@shiplynow/db</code>.</td><td></td></tr>
+</tbody>
+</table>
+<div class="note" data-todo="payments-due-and-forecast">To be completed after the update: the Coming up and due card (<code>payments-due.ts</code>) and the Forecast area (<code>forecast.ts</code>, <code>packages/shared/src/forecast.ts</code>).</div>
+
+<h3 id="arch-map-db-other">packages/db/src, outside the finance folder</h3>
+<table class="data">
+<thead><tr><th>File</th><th>Accounting role</th></tr></thead>
+<tbody>
+<tr><td><code>client.ts</code></td><td><code>Db</code> type and <code>inTransaction</code>.</td></tr>
+<tr><td><code>domain-error.ts</code></td><td><code>DomainError</code>, the business refusal with a code and status.</td></tr>
+<tr><td><code>audit.ts</code></td><td><code>recordAudit</code>: one <code>audit_log</code> row in the caller's transaction; the audit list used by History.</td></tr>
+<tr><td><code>settings.ts</code></td><td><code>getSetting</code>: a setting's value (store override, then global, then the code default).</td></tr>
+<tr><td><code>orders.ts</code></td><td>Calls <code>postDeliveryCompleted</code> and <code>postDeliveryFailed</code> inside the delivery transaction.</td></tr>
+<tr><td><code>inbound.ts</code></td><td>Calls <code>postReceivingFee</code> when a shipment is closed.</td></tr>
+<tr><td><code>returns.ts</code></td><td>Calls <code>postReturnFee</code> when a return is handed to the merchant.</td></tr>
+<tr><td><code>damage.ts</code></td><td>Posts <code>damage_compensation</code> and <code>damage_rider_charge</code> when admin settles a damage report.</td></tr>
+<tr><td><code>packaging.ts</code></td><td>Packaging stock bought, used (<code>packaging_used</code> at pack time) and adjusted.</td></tr>
+<tr><td><code>purchasing.ts</code></td><td>Purchase orders: receipts (<code>po_receipt</code>) and the bill from an order (<code>supplier_bill</code>).</td></tr>
+<tr><td><code>records.ts</code></td><td>Chatter back end: record references and scope, notes, scheduled activities.</td></tr>
+<tr><td><code>list-query.ts</code></td><td><code>queryList</code>, <code>listStateOf</code>, <code>listGaps</code>, <code>ListScope</code>: the list helper every list endpoint uses.</td></tr>
+<tr><td><code>push.ts</code></td><td>Web push dispatch, including finance approvals and rider wallet notices.</td></tr>
+<tr><td><code>email.ts</code>, <code>email-templates.ts</code></td><td>Merchant email outbox (statements, payout paid, invoices, payment reminders).</td></tr>
+<tr><td><code>crm-sales.ts</code></td><td>Sales commission, paid through the salary run or as a staff bonus.</td></tr>
+<tr><td><code>hr-pay.ts</code>, <code>hr-exit.ts</code>, <code>hr-violations.ts</code></td><td>Salary packages read by payroll, the exit settlement, final violation deductions.</td></tr>
+<tr><td><code>fresh-start.ts</code>, <code>demo/</code>, <code>seed/</code></td><td>The one time wipe before real use, the demo month loader, and the seed (default accounts through <code>ensureDefaultAccounts</code>).</td></tr>
+</tbody>
+</table>
+
+<h3 id="arch-map-shared">packages/shared/src</h3>
+<table class="data">
+<thead><tr><th>File</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><td><code>accounts.ts</code></td><td>Account categories and groups (<code>ACCOUNT_GROUPS</code>, <code>accountGroup</code>, <code>debitNormal</code>), document number formats (<code>entryNumber</code>, <code>payoutNumber</code>, <code>handoverNumber</code>, <code>billNumber</code>), zod schemas of accounts, transfers, expenses, capital, other income, journal entries, suppliers, bills, payments, taxes, recurring, prepayments, assets, budgets, company profile, merchant tax and bank details, credit notes, asset disposal.</td></tr>
+<tr><td><code>finance.ts</code></td><td>Payout schedules, schemas of handovers, deposits, payouts, merchant receipts and adjustments, books lock, request decisions, receipts, opening balances, advances, bonuses, payroll; <code>LEDGER_KINDS</code>.</td></tr>
+<tr><td><code>settings.ts</code></td><td><code>SETTING_DEFINITIONS</code>: every business value with its zod schema, default, description and whether a store may override it (fees, VAT, approval limit, cash limits, payroll rates).</td></tr>
+<tr><td><code>hours.ts</code></td><td>Cairo time: <code>cairoDay</code>, <code>cairoDayStart</code>, <code>cairoAt</code>, <code>addDays</code>, <code>isCalendarDay</code>.</td></tr>
+<tr><td><code>access.ts</code></td><td>Access apps and levels, job role templates, <code>canDo</code>, <code>canUseStore</code>, <code>canUseMerchant</code>.</td></tr>
+<tr><td><code>record-apps.ts</code></td><td><code>RECORD_APPS</code>: which app's people may read a record's history, notes and activities.</td></tr>
+<tr><td><code>list-view.ts</code></td><td>List view state in the address, <code>runList</code>, <code>ListDef</code>, favourites and bulk schemas.</td></tr>
+<tr><td><code>finance-lists.ts</code></td><td><code>FINANCE_LISTS</code>: each Accounting list's filters, groupings, sorts, sums and default filters.</td></tr>
+<tr><td><code>app-lists.ts</code></td><td><code>APP_LISTS</code>: the same for lists of the other apps.</td></tr>
+<tr><td><code>documents.ts</code></td><td><code>ACCOUNTING_DOCS</code>, <code>DocDescriptor</code>, <code>DOC_PREFIXES</code>, <code>parseDocNumber</code>, <code>DOC_LISTS</code>.</td></tr>
+<tr><td><code>report-period.ts</code></td><td>Report periods, presets and comparison ranges; drill report types; ledger lines query.</td></tr>
+<tr><td><code>bank-match.ts</code></td><td><code>rankSuggestions</code>, <code>sumMatches</code>: bank line match suggestions.</td></tr>
+<tr><td><code>statement.ts</code></td><td>Reading bank statement dates and amounts in many shapes; import schemas.</td></tr>
+<tr><td><code>export-file.ts</code></td><td><code>exportCsv</code> and <code>exportXlsx</code> (a stored zip written by hand, no library).</td></tr>
+<tr><td><code>aging.ts</code></td><td>Aging bands and buckets, oldest first matching of open debits, reminder rules, debit note schema.</td></tr>
+<tr><td><code>budgets.ts</code></td><td>Quarters and the split of a quarter into months (in progress).</td></tr>
+<tr><td><code>cash-control.ts</code></td><td>Cash age buckets, next payout day, petty cash schemas, month end items.</td></tr>
+<tr><td><code>rider-wallet.ts</code></td><td>Withdrawal methods and statuses, hold rules, <code>availableFrom</code>, <code>walletTotals</code>, <code>withdrawalDeductions</code>.</td></tr>
+<tr><td><code>loans.ts</code></td><td>Loan schedule (declining or flat), Egyptian banks list, cost tag schemas, currencies.</td></tr>
+<tr><td><code>basata.ts</code></td><td>Basata deposit and settlement numbers, schemas, deadline helpers.</td></tr>
+<tr><td><code>expense-claims.ts</code></td><td>Expense claim numbers, statuses and schemas; payslip line type.</td></tr>
+<tr><td><code>payroll.ts</code></td><td>Egyptian salary deductions from settings: <code>yearlyIncomeTax</code>, <code>monthlyPayslip</code>.</td></tr>
+<tr><td><code>purchasing.ts</code></td><td>Email kinds, packaging schemas, purchase order numbers, statuses and schemas.</td></tr>
+<tr><td><code>contracts.ts</code></td><td>Cheques register types and schemas, contract prices and tiers, failed delivery rule, contract calculator and what if.</td></tr>
+<tr><td><code>eta.ts</code></td><td>The ETA electronic invoice document and its canonical text for signing.</td></tr>
+<tr><td><code>forecast.ts</code>, <code>payments-due.ts</code></td><td>In progress (Forecast area, Coming up and due).</td></tr>
+</tbody>
+</table>
+
+<h3 id="arch-map-api">apps/api/src/finance and related controllers</h3>
+<table class="data">
+<thead><tr><th>File</th><th>Routes and role</th></tr></thead>
+<tbody>
+<tr><td><code>finance.module.ts</code></td><td>Registers every finance controller and the ETA sync.</td></tr>
+<tr><td><code>finance.controller.ts</code></td><td><code>/finance</code>: overview, cash handovers and their review, bank deposits, payouts (list, create, prepare due, mark paid, cancel), merchant receipts and adjustments, payout schedule, merchant statements and CSV, owed amount, ledger entries and CSV.</td></tr>
+<tr><td><code>books.controller.ts</code></td><td>Chart of accounts, money accounts, open and update accounts, account statement and CSV, transfers, expenses, capital, other income, journal entries, profit and loss, balance sheet, trial balance.</td></tr>
+<tr><td><code>controls.controller.ts</code></td><td>Controls summary, books lock (manage), requests list, decide (manage), cancel, payout approve (manage), attachments, missing receipts, opening balances (accounting and settings manage).</td></tr>
+<tr><td><code>views.controller.ts</code></td><td>Dashboard, payments due, list views <code>GET /finance/lists/:id</code>, document pages <code>GET /finance/documents/:type/:id</code>, search, bulk decide requests and bulk approve payouts (manage).</td></tr>
+<tr><td><code>runs.controller.ts</code></td><td>Drill reports and their PDF, ledger lines, bank matching and match many, the Pay merchants run and its mark paid.</td></tr>
+<tr><td><code>payables.controller.ts</code></td><td>Suppliers, bills, bill payments, ageing, taxes and withholding, tax payments, recurring expenses, prepayments, assets, receivables and payment requests.</td></tr>
+<tr><td><code>period.controller.ts</code></td><td>Bank statements (read file, import, list), reconciliation and line actions, VAT report, budgets, cash flow and forecast, year close (manage), journal CSV, audit pack zip, tax return worksheets, comparative statements.</td></tr>
+<tr><td><code>invoices.controller.ts</code></td><td>Invoices, prepare a month, credit notes, resend, ETA sync and readiness, company profile, signer key (owners), merchant tax details, documents to sign and signatures; <code>EtaSignerController</code> at <code>/eta-signer</code> for the signing program.</td></tr>
+<tr><td><code>cheques.controller.ts</code></td><td>Cheques register and actions, contracts overview, security deposits, merchant profit.</td></tr>
+<tr><td><code>cash-control.controller.ts</code></td><td>Cash position and CSV, petty cash list, categories, reversal, month end checklist and marks.</td></tr>
+<tr><td><code>profit.controller.ts</code></td><td>Profit per tag, cost per order, stores list, staff pay, commissions, bonuses, payslips, advances, payroll preview and run (with the salaries switch).</td></tr>
+<tr><td><code>loans-tags-fx.controller.ts</code></td><td>Loans and instalment payments, cost tags and their report, foreign banks and revaluation.</td></tr>
+<tr><td><code>rider-withdrawals.controller.ts</code></td><td>Rider withdrawals and wallets; approve, reject, pay.</td></tr>
+<tr><td><code>rider-offices.controller.ts</code></td><td>Rider offices, their daily account and CSV, commission rate, prepare office bills.</td></tr>
+<tr><td><code>expense-claims.controller.ts</code></td><td>Claimable categories, claim detail, pay, reject, bulk approve.</td></tr>
+<tr><td><code>basata.controller.ts</code></td><td>Basata deposits review, settlements, frozen riders and unfreeze.</td></tr>
+<tr><td><code>aging.controller.ts</code></td><td>Receivables and payables aging with PDF, reminder now, debit notes.</td></tr>
+<tr><td><code>purchasing.controller.ts</code></td><td>Purchase orders: decide, ordered, receive, bill, close.</td></tr>
+<tr><td><code>tools.controller.ts</code></td><td>Payout bank file and CSV, merchant bank details, asset disposal.</td></tr>
+<tr><td><code>budgets.controller.ts</code>, <code>forecast.controller.ts</code></td><td>In progress: budgets by quarter, forecasts.</td></tr>
+<tr><td><code>report-pdf.ts</code>, <code>aging-pdf.ts</code></td><td>PDF of drill reports and aging reports in English or Arabic.</td></tr>
+<tr><td><code>spreadsheet.ts</code></td><td><code>readSpreadsheet</code>: reads an uploaded .xlsx or CSV bank statement without a spreadsheet library.</td></tr>
+<tr><td><code>finance-csv.ts</code></td><td>CSV answer helper with a Cairo time stamp in the file name.</td></tr>
+<tr><td><code>eta.ts</code></td><td><code>HttpEtaClient</code> (the boundary to the tax authority) and <code>EtaSync</code> (submits signed documents and polls results every minute).</td></tr>
+<tr><td><code>../admin/records.controller.ts</code></td><td>Chatter: notes and activities of any record, my activities, list favourites and column preferences.</td></tr>
+<tr><td><code>../admin/history.controller.ts</code></td><td><code>GET /history/:entityType/:entityId</code> from <code>audit_log</code>.</td></tr>
+<tr><td><code>../admin/lists.controller.ts</code></td><td><code>GET /lists/:app/:id</code> for the other apps' list views.</td></tr>
+<tr><td><code>../merchant/merchant-finance.controller.ts</code></td><td>The merchant's wallet: payout schedule, statement and CSV, invoices, bank details.</td></tr>
+<tr><td><code>../rider/rider.controller.ts</code></td><td>The rider's wallet, Basata deposits and withdrawals.</td></tr>
+<tr><td><code>../store/store-cash.controller.ts</code>, <code>../store/store-petty.controller.ts</code></td><td>Cash handovers counted at the store, cash withdrawals paid by the store manager, petty cash.</td></tr>
+<tr><td><code>../hr/my-pay.controller.ts</code></td><td>My payslips and my expense claims; managers approve their team's claims.</td></tr>
+<tr><td><code>../common/pdf.ts</code></td><td><code>PdfWriter</code>: pdfkit pages with right to left word layout for Arabic.</td></tr>
+<tr><td><code>../common/bulk.ts</code></td><td><code>eachRecord</code>: runs a single record action for each id of a bulk action.</td></tr>
+</tbody>
+</table>
+
+<h3 id="arch-map-web">apps/web: pages, components and helpers</h3>
+<p>Pages under <code>apps/web/src/app/finance</code> are thin server components: they fetch from the API with <code>apiGet</code> and render a component. The table lists the folders.</p>
+<table class="data">
+<thead><tr><th>Page folder</th><th>Main component</th></tr></thead>
+<tbody>
+<tr><td><code>layout.tsx</code></td><td><code>AppShell</code> with <code>AccountingSearch</code> and menu badges (approvals waiting, missing receipts).</td></tr>
+<tr><td><code>page.tsx</code> (<code>/finance</code>)</td><td>Accounting dashboard: today strip, journal cards with <code>Sparkline</code>.</td></tr>
+<tr><td><code>accounts</code>, <code>accounts/[id]</code></td><td><code>AccountsManager</code>; account statement with History.</td></tr>
+<tr><td><code>approvals</code>, <code>approvals/[id]</code></td><td><code>FinanceListPage</code> (list <code>approvals</code>); <code>DocumentPage</code> with <code>Approvals</code> actions.</td></tr>
+<tr><td><code>payouts</code>, <code>payouts/[id]</code>, <code>payouts/run</code></td><td>List with <code>BankFilePanel</code> and <code>PayoutsManager</code>; document page; <code>PayMerchantsRun</code>.</td></tr>
+<tr><td><code>bills</code>, <code>bills/[id]</code>, <code>suppliers</code>, <code>suppliers/[id]</code></td><td>Lists and document pages with <code>Payables</code> forms.</td></tr>
+<tr><td><code>journal</code>, <code>journal/[id]</code></td><td>Journal list view; entry document page with print.</td></tr>
+<tr><td><code>cheques</code>, <code>cheques/[id]</code></td><td>List and register form; cheque document page.</td></tr>
+<tr><td><code>rider-withdrawals</code>, <code>rider-withdrawals/[id]</code>, <code>riders</code></td><td>Withdrawal list and page; <code>RiderWallets</code>.</td></tr>
+<tr><td><code>petty-cash</code>, <code>petty-cash/[id]</code></td><td>List and <code>PettyCashDesk</code>.</td></tr>
+<tr><td><code>invoices</code>, <code>invoices/[id]</code>, <code>company</code></td><td>Invoice list, <code>InvoiceView</code> with debit notes and print, company tax details.</td></tr>
+<tr><td><code>purchase-orders</code>, <code>purchase-orders/[id]</code></td><td><code>PurchaseOrders</code>.</td></tr>
+<tr><td><code>expense-claims</code>, <code>expense-claims/[id]</code></td><td>List with <code>ClaimCategories</code>; <code>ClaimActions</code>.</td></tr>
+<tr><td><code>basata</code>, <code>basata/[id]</code>, <code>basata/transfer</code>, <code>frozen-riders</code></td><td>Deposit list (<code>AppListPage</code>), <code>BasataActions</code>, <code>BasataSettlementForm</code>, <code>FrozenRiders</code>.</td></tr>
+<tr><td><code>cash</code>, <code>cash-position</code>, <code>bank</code>, <code>receipts</code>, <code>movements</code>, <code>expenses/new</code></td><td><code>CashDesk</code>, cash position with <code>StatCard</code>, <code>BankMatching</code>, <code>MissingReceipts</code>, <code>MoneyMovements</code>, <code>QuickExpense</code>.</td></tr>
+<tr><td><code>merchants</code>, <code>merchants/[id]</code>, <code>receivables</code>, <code>payables-aging</code>, <code>contracts</code>, <code>merchant-profit</code></td><td><code>MerchantWallets</code>, <code>StatementView</code>, <code>Aging</code>, <code>Contracts</code>, <code>MerchantProfit</code>.</td></tr>
+<tr><td><code>profit-and-loss</code>, <code>balance-sheet</code>, <code>trial</code>, <code>reports</code>, <code>reports/lines</code>, <code>reports/tags</code>, <code>money-flow</code>, <code>profit</code>, <code>statements</code></td><td><code>DrillReportPage</code>, report index with <code>InfoTip</code>, ledger lines <code>ListView</code>, cost tag report, cash flow, profit per store, comparative statements.</td></tr>
+<tr><td><code>month-end</code>, <code>month-end/run</code>, <code>close</code>, <code>year-end</code>, <code>taxes</code>, <code>vat</code>, <code>tax-returns</code></td><td><code>MonthEndChecklistView</code>, <code>CloseMonthRun</code>, <code>CloseBooks</code>, <code>YearEnd</code>, taxes with tabs (the last two redirect to tabs).</td></tr>
+<tr><td><code>payroll</code>, <code>payroll/payslips</code>, <code>rider-offices</code>, <code>loans</code>, <code>cost-tags</code>, <code>recurring</code>, <code>assets</code>, <code>opening</code>, <code>emails</code></td><td><code>Payroll</code>, payslips print, <code>RiderOffices</code>, <code>LoansFx</code>, <code>Payables</code> forms, <code>OpeningBalances</code>, <code>EmailOutbox</code>.</td></tr>
+<tr><td><code>budgets</code>, <code>forecast</code>, <code>due</code></td><td>In progress: <code>BudgetPlan</code>, <code>Forecast</code>, <code>PaymentsDue</code>.</td></tr>
+</tbody>
+</table>
+<p>Components in <code>apps/web/src/components/finance</code>: <code>AccountsManager</code>, <code>Aging</code>, <code>Amount</code>, <code>Approvals</code>, <code>BankDetailsForm</code>, <code>BankFilePanel</code>, <code>BankMatching</code>, <code>BankSelect</code>, <code>BasataActions</code>, <code>BasataSettlementForm</code>, <code>BudgetPlan</code>, <code>CashDesk</code>, <code>Cheques</code>, <code>ClaimActions</code>, <code>ClaimCategories</code>, <code>CloseBooks</code>, <code>CloseMonthRun</code>, <code>Contracts</code> (deposit form), <code>CorporateTaxForm</code>, <code>CostTagSelect</code>, <code>DebitNoteForm</code>, <code>EmailOutbox</code>, <code>Forecast</code>, <code>FrozenRiders</code>, <code>InvoiceView</code>, <code>Invoices</code>, <code>LoansFx</code>, <code>MerchantProfit</code>, <code>MerchantWallets</code>, <code>MissingReceipts</code>, <code>MoneyMovements</code>, <code>MonthEndChecklist</code>, <code>OpeningBalances</code>, <code>PayMerchantsRun</code>, <code>Payables</code>, <code>PaymentsDue</code>, <code>PayoutsManager</code>, <code>Payroll</code>, <code>PeriodReports</code>, <code>PettyCashDesk</code>, <code>PrintButton</code>, <code>PurchaseOrders</code>, <code>QuickExpense</code>, <code>ReceiptField</code>, <code>ReportTable</code>, <code>RiderOffices</code>, <code>RiderWallets</code>, <code>RiderWithdrawals</code>, <code>StatementView</code>, <code>useFinanceAction</code> (sends one action, shows the translated result, refreshes the page), and <code>reports/</code> (<code>DrillReportPage</code>, <code>DrillReportView</code>, <code>LinesFilters</code>, <code>ReportFilterBar</code>).</p>
+<p>Components in <code>apps/web/src/components/odoo</code> are the generic building blocks described in the UI chapter: <code>ListView</code>, <code>FinanceListPage</code>, <code>AppListPage</code>, <code>DocumentFrame</code>, <code>DocumentPage</code>, <code>Chatter</code>, <code>RecordNav</code>, <code>DocEntries</code>, <code>InfoTip</code>, <code>AccountingSearch</code>, and the configuration files <code>finance-lists.ts</code>, <code>app-lists.ts</code> and <code>list-formatters.ts</code>.</p>
+<p>Helpers in <code>apps/web/src/lib</code> used by accounting: <code>money.ts</code> (<code>parseEgp</code>), <code>format.ts</code> (<code>formatEgp</code>, Cairo date formats), <code>day-first.ts</code>, <code>list-view.ts</code>, <code>workflows.ts</code>, <code>report-view.ts</code>, <code>close-run.ts</code>, <code>pay-run.ts</code>, <code>quick-expense.ts</code>, <code>foreign-money.ts</code>, <code>rider-wallet.ts</code>, <code>my-pay.ts</code>, <code>legacy-list.ts</code>, <code>csv.ts</code>, and the answer types <code>finance-types.ts</code>, <code>aging-types.ts</code>, <code>cash-control-types.ts</code>, <code>my-pay-types.ts</code>, <code>basata.ts</code>, <code>purchasing-types.ts</code>.</p>
+</section>

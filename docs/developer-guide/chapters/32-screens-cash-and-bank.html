@@ -1,0 +1,503 @@
+<section class="chapter" id="s32-cash-and-bank">
+<h1>Screens: Cash and bank</h1>
+
+<p>This chapter walks through every screen of the <strong>Cash and bank</strong> menu of the Accounting app, then the two rider screens and the two store screens that feed it. Every screenshot was taken on the local demo copy (Cairo time 11 Nov 2026, about 23:00) after performing the actions shown, so each figure also shows the real result of the action. The money rules behind these screens (accounts, postings, ages, deadlines) are explained in chapter 11, <em>Cash on delivery, riders, store boxes and rider pay</em>, and in chapter 12, <em>Payables and expenses</em> (sections Loans and Bank accounts in another currency). The red numbered circles on the screenshots were added for this guide; each figure with circles is followed by a legend table.</p>
+
+<div class="note">Access in one line: every page of this menu opens with Accounting <code>view</code> (GET routes). Every button that changes something needs Accounting <code>use</code> (POST routes default to use in <code>AccessGuard</code>), except where a row says otherwise. People limited to some stores see only the riders, boxes, handovers and Basata deposits of their stores; banks, merchants, bills and loans stay company wide.</div>
+
+<p>The menu path for all Accounting screens below is <strong>Accounting app tile, top bar menu Cash and bank</strong>. The orange counter beside <em>Cash and bank</em> in the top bar adds up the items waiting on the pages of that menu (open bank lines, Basata deposits waiting, money movements without a receipt and so on), so it changes while you work.</p>
+
+<!-- ===================================================== -->
+<h2 id="s32-cash-position">Cash position</h2>
+<p>Address <code>/finance/cash-position</code>. Menu: Cash and bank, Cash position. Opens with Accounting view; there is no button that changes data on this page. It answers one question: where is the money right now. Data comes from <code>GET /finance/cash-position</code> (function <code>cashPosition</code> in <code>packages/db/src/finance/cash-control.ts</code>), the CSV from <code>GET /finance/cash-position/export.csv</code>.</p>
+
+<figure class="shot" data-shot="s32-cash-position"><figcaption>Cash position at /finance/cash-position with every part numbered. One deposit (100.00 EGP) is waiting for review in the Basata block; merchants have draft payouts; two supplier bills are due.</figcaption></figure>
+
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Export CSV</td><td>White button with blue text, top right.</td><td>Downloads the CSV described below (one row per bank, box, rider, merchant and bill, then the net).</td></tr>
+<tr><td>2</td><td>In banks</td><td>Stat card, blue wallet icon, the sum of all open bank accounts (group 1100) in EGP.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>In cash boxes</td><td>Stat card, blue cash icon, the sum of company cash boxes and store boxes (group 1200, Money at Basata included).</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Cash with riders</td><td>Stat card, blue scooter icon, all rider cash (1300 wallets). When any rider has overdue cash the card turns to the needs action color (orange) with a dot and the hint "N EGP overdue".</td><td>Nothing.</td></tr>
+<tr><td>5</td><td>Net position</td><td>Stat card with a short green bar on top when the net is zero or more, orange when negative. Hint text explains the formula.</td><td>Nothing.</td></tr>
+<tr><td>6</td><td>Banks and cash boxes</td><td>Table Code, Name, Kind, EGP with a bold Total. A bank in USD or EUR shows its foreign balance in small grey text under the EGP amount.</td><td>Section only.</td></tr>
+<tr><td>7</td><td>Account name</td><td>Blue link.</td><td>Opens the account page <code>/finance/accounts/&lt;id&gt;</code> with its lines.</td></tr>
+<tr><td>8</td><td>Kind</td><td>Grey text: Bank, Cash box, Store cash box or At Basata.</td><td>Nothing.</td></tr>
+<tr><td>9</td><td>Basata block</td><td>Shown only while something is at Basata or waiting. Left: "At Basata, on its way to the bank (N deposits)" with the amount approved but not yet transferred; right: "Waiting for review (N deposits, still rider cash)".</td><td>Nothing.</td></tr>
+<tr><td>10</td><td>Open Basata deposits</td><td>Blue link.</td><td>Opens <code>/finance/basata</code>.</td></tr>
+<tr><td>11</td><td>Cash with riders</td><td>One row per rider holding cash: bold name, grey badge, store and "holding for N h" (hours since the oldest collection still held), then the cash split by age and the total in bold. Empty state: "No rider is holding cash."</td><td>Section only.</td></tr>
+<tr><td>12</td><td>Under 4 h</td><td>Cash younger than <code>finance.rider_cash_warn_hours</code> (4 in the demo; the header shows the setting).</td><td>Nothing.</td></tr>
+<tr><td>13</td><td>Getting old</td><td>Cash between the warn hours and <code>finance.rider_cash_max_hours</code> (12).</td><td>Nothing.</td></tr>
+<tr><td>14</td><td>Overdue</td><td>Cash older than the max hours of the rider's store; a value above zero is bold orange.</td><td>Nothing.</td></tr>
+<tr><td>15</td><td>Owed to merchants</td><td>Merchants we owe, with a grey line "Merchants owe us N EGP (not counted as cash)" when some wallets are in debit. Empty state: "We owe no merchant anything."</td><td>Merchant names are blue links to <code>/finance/merchants/&lt;id&gt;</code>.</td></tr>
+<tr><td>16</td><td>Next payout</td><td>The next day of the merchant's payout schedule (short weekday and date) and the schedule below in grey: Daily, Sunday and Wednesday, Sunday.</td><td>Nothing.</td></tr>
+<tr><td>17</td><td>Draft payout</td><td>Amount of an open draft payout, or a dash.</td><td>Nothing.</td></tr>
+<tr><td>18</td><td>Bills due within 7 days</td><td>Each open supplier bill due in 7 days or already overdue: blue BILL number, supplier and reference, then "Due Wed 11 Nov" in grey or "Overdue since Sat 31 Oct" in bold orange, amount left on the right. Empty state: "No bill is due this week."</td><td>The BILL number opens the bills list <code>/finance/bills</code>.</td></tr>
+<tr><td>19</td><td>Net position table</td><td>Banks and cash boxes, plus Cash with riders, minus Owed to merchants (red, negative), minus Bills due (red), equals Net position in bold.</td><td>Nothing.</td></tr>
+</tbody></table>
+
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Export CSV</td><td>Downloads <code>cash-position.csv</code></td><td>Same scope as the page (store limited people get only their boxes and riders). UTF 8 with byte order mark, formula safe cells.</td><td>Columns <code>section, code, name, date, amount_egp, detail, note</code>. Sections: <code>bank</code>, <code>store_box</code>, <code>cash_box</code>, <code>basata</code>, <code>rider_cash</code> (date = held since, detail "fresh / aging / overdue"), <code>merchant_owed</code> (negative, date = next payout day, detail = schedule), <code>bill_due</code> (negative, note "overdue" when late) and one <code>net_position</code> row.</td></tr>
+<tr><td>Store scope banner</td><td>Shown only to people limited to some stores</td><td>Text: "You see only the cash of your stores. Banks, merchants, bills and the net position are company wide."</td><td>Rider and box rows are filtered by store.</td></tr>
+</tbody></table>
+<div class="rule">The intro line prints the moment the figures were read ("Where the money is now (11 Nov 2026, 23:12)"). Rider cash is aged oldest first: cash handed in or deposited pays off the oldest collections, so the age comes from the newest collections still covering the balance (chapter 11, Cash age and the overdue alert).</div>
+
+<!-- ===================================================== -->
+<h2 id="s32-store-cash">Store cash (handover differences and bank deposits)</h2>
+<p>Address <code>/finance/cash</code>, page title <strong>Cash</strong>. Menu: Cash and bank, Store cash. Opens with Accounting view; the decision buttons and Deposit to bank need Accounting use. Data: <code>GET /finance/handovers?status=pending</code>, <code>GET /finance/handovers</code> (the 50 newest are shown) and <code>GET /finance/overview</code> for the store boxes. Component <code>CashDesk</code> (<code>apps/web/src/components/finance/CashDesk.tsx</code>).</p>
+
+<p>The two differences on the figure were created on the store side (see <a href="#s32-store-handover">Store app: Cash from riders</a>): Hany counted 1,300.00 against 1,342.00 expected, and Mahmoud handed in 370.00 against 369.00.</p>
+
+<figure class="shot" data-shot="s32-cash"><figcaption>Store cash at /finance/cash with two handover differences waiting (a shortage and a surplus), the three store boxes and the recent handovers with their statuses.</figcaption></figure>
+
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Differences to review</td><td>One card per handover whose counted cash differed from what was expected (status pending). Each card has an orange border. Empty state: "No differences waiting."</td><td>Section only.</td></tr>
+<tr><td>2</td><td>Rider line</td><td>Rider name, badge in brackets, store; under it the time and "Received by" the staff member who counted.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Difference</td><td>Bold orange "Short 42.00" (less cash than expected) or "Over 1.00" (more).</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Expected and counted</td><td>"Expected 1,342.00 · Counted 1,300.00" and the staff note if one was written.</td><td>Nothing.</td></tr>
+<tr><td>5</td><td>Why?</td><td>Text box for the decision note.</td><td>Typing at least 3 characters enables the two buttons.</td></tr>
+<tr><td>6</td><td>Write off</td><td>Grey outline button, disabled until the note has 3 characters.</td><td>Posts the difference to 5301 cash shortages and surpluses (a shortage is a loss, a surplus income) and closes the card.</td></tr>
+<tr><td>7</td><td>Keep on rider</td><td>Same style.</td><td>A shortage moves from rider cash to the rider's 1350 dues wallet (taken from his next withdrawal); a surplus stays in rider cash. Closes the card.</td></tr>
+<tr><td>8</td><td>Store cash boxes</td><td>One card per dark store.</td><td>Section only.</td></tr>
+<tr><td>9</td><td>In the box</td><td>The store box balance.</td><td>Nothing.</td></tr>
+<tr><td>10</td><td>Amount (EGP)</td><td>Amount to take to the bank. The deposit fields appear only when the box holds cash.</td><td>Typing.</td></tr>
+<tr><td>11</td><td>Reference</td><td>Bank slip reference, at least 2 characters.</td><td>Typing.</td></tr>
+<tr><td>12</td><td>Bank (not visible here)</td><td>A bank list appears beside the reference only when more than one bank account exists; empty means the main bank CIB 1101.</td><td>Chooses the bank.</td></tr>
+<tr><td>13</td><td>Deposit to bank</td><td>Outline button, disabled until amount and reference are valid and files finished uploading.</td><td>Posts the bank deposit (Dr bank, Cr store box) with the files attached; message "Deposit recorded."</td></tr>
+<tr><td>14</td><td>Receipts and documents</td><td>The shared attachment field: Choose files, Take a photo, drop zone, hint "Photos or PDF files, up to 5 MB each, at most 10".</td><td>Uploads at once; thumbnails appear with a cross to remove.</td></tr>
+<tr><td>15</td><td>Recent handovers</td><td>Table of the 50 newest handovers: blue CH number with rider name and time, store, Expected, Counted, Difference, status.</td><td>Nothing (the CH number is styled as a link but is plain text).</td></tr>
+<tr><td>16</td><td>Difference</td><td>Counted minus expected: 1.00 for a surplus, red −42.00 for a shortage, 0.00 when balanced.</td><td>Nothing.</td></tr>
+<tr><td>17</td><td>Status</td><td>Column without a header. Plain text, no pill: Balanced, Waiting, Written off, On rider; the decision note in grey under a decided status.</td><td>Nothing.</td></tr>
+</tbody></table>
+
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Why? + Write off</td><td><code>POST /finance/handovers/:id/review</code> with <code>decision: write_off</code></td><td>Note 3 to 300 characters; only a pending handover (<code>handover_not_pending</code> otherwise); Accounting use.</td><td>Entry kind <code>cash_difference</code>, key <code>handover:&lt;id&gt;:write_off</code>; status Written off; audit <code>finance.cash_handover_review</code>.</td></tr>
+<tr><td>Why? + Keep on rider</td><td>Same route with <code>decision: charge_rider</code></td><td>Same rules.</td><td>Entry kind <code>rider_shortage_charge</code> (Dr 1350 rider dues, Cr 1300 rider cash) for a shortage; status On rider; the rider sees "You owe" in his wallet.</td></tr>
+<tr><td>Amount, Reference, files, Deposit to bank</td><td><code>POST /finance/deposits</code></td><td>Amount above zero and never more than the box holds; reference 2 to 100 characters; idempotency key per click; books lock.</td><td>Entry kind <code>bank_deposit</code>; the box balance drops at once (Maadi went from 4,087.00 to 2,087.00 in the figures).</td></tr>
+</tbody></table>
+
+<figure class="shot" data-shot="s32-cash-review-filled"><figcaption>Both difference cards; the note typed on Hany's card enables Write off and Keep on rider.</figcaption></figure>
+<figure class="shot" data-shot="s32-cash-deposit-filled"><figcaption>Deposit to bank from the Maadi box: 2,000 EGP, reference DEP-MAADI-1111 and a slip photo uploaded. The reference box is narrow in the three column layout, so the start of the text is cut off while typing.</figcaption></figure>
+<figure class="shot" data-shot="s32-cash-after"><figcaption>After the decisions and the deposit: no differences waiting, Maadi box down to 2,087.00, and the handovers show every status: Written off (with the note), On rider (with the note) and Balanced.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-bank">Bank matching</h2>
+<p>Address <code>/finance/bank</code> (optional query <code>?account=&lt;id&gt;&amp;statement=&amp;month=&amp;q=</code>). Menu: Cash and bank, Bank matching. Opens with Accounting view; Match, Book as a bank charge, Set aside and Import statement need Accounting use (the matching buttons are hidden without it). Components <code>BankReconcile</code> and <code>StatementUpload</code> (<code>PeriodReports.tsx</code>) and <code>BankMatching</code> (<code>BankMatching.tsx</code>). Data: <code>GET /finance/bank-reconciliation/:accountId</code>, <code>GET /finance/bank-statements</code>, <code>GET /finance/bank-matching/:accountId</code>.</p>
+
+<h3>Before any statement</h3>
+<figure class="shot" data-shot="s32-bank-empty"><figcaption>Bank matching before the first statement: the bank's own balance and the difference show a dash with "No statement uploaded yet.", and the matching area already says "Every bank line is matched".</figcaption></figure>
+
+<h3>Uploading a statement and picking the columns</h3>
+<p>The guide used a CSV in the CIB layout created for the purpose: a title row, an account row, then the header <code>Date, Value Date, Description, Reference, Debit, Credit, Balance</code> and 21 lines from 3 to 11 November (cash deposits, InstaPay batches, merchant payouts, a 25.00 maintenance fee, a 150.00 duplicate posting and its reversal, the Maadi deposit and the Basata transfer recorded on this chapter's other screens, a 849.50 card purchase and a 1,000.00 transfer from an unknown sender).</p>
+<figure class="shot" data-shot="s32-bank-upload-columns"><figcaption>Upload a statement after choosing the file: the header row was found on row 3, the columns were guessed from their names, and the first five lines are previewed.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Bank</td><td>The open bank accounts of group 1100 ("1101 CIB").</td><td>Chooses which bank account the lines belong to.</td></tr>
+<tr><td>2</td><td>File</td><td>The browser's own file button; accepts .xlsx, .csv and .txt.</td><td>Sends the file to <code>POST /finance/bank-statements/read</code>, which answers its rows; nothing is stored yet.</td></tr>
+<tr><td>3</td><td>Header row</td><td>The first 30 rows as "n: first three cells".</td><td>Choosing another row guesses the columns again from that row.</td></tr>
+<tr><td>4</td><td>Date</td><td>Required column. The guess took "Value Date" here (both columns hold the same days in this file).</td><td>Pick the column holding the day.</td></tr>
+<tr><td>5</td><td>Description</td><td>Optional (None allowed).</td><td>When empty the reference is used, else "-".</td></tr>
+<tr><td>6</td><td>Reference</td><td>Optional.</td><td>Kept with the line, up to 100 characters.</td></tr>
+<tr><td>7</td><td>Amount (one column, out is minus)</td><td>None when the file has separate debit and credit columns.</td><td>Choosing a column hides Money out and Money in.</td></tr>
+<tr><td>8</td><td>Money out</td><td>Shown only while Amount is None.</td><td>Debit column.</td></tr>
+<tr><td>9</td><td>Money in</td><td>Shown only while Amount is None.</td><td>Credit column.</td></tr>
+<tr><td>10</td><td>Balance</td><td>Optional running balance.</td><td>The last balance becomes "Bank's own balance".</td></tr>
+<tr><td>11</td><td>Count line</td><td>"21 lines read from cib-statement-nov-2026.csv. First lines:" Rows without a valid day or amount are skipped.</td><td>Nothing.</td></tr>
+<tr><td>12</td><td>Preview</td><td>Date (ISO form), Description, Amount, Balance of the first 5 lines.</td><td>Nothing.</td></tr>
+<tr><td>13</td><td>Import statement</td><td>Blue button, disabled with no lines.</td><td><code>POST /finance/bank-statements</code>; message "BS-000001: 21 lines added, 0 already there, 14 matched."</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-bank-imported"><figcaption>The import result. 14 of 21 lines were matched automatically because each had a single closest ledger line of the same amount within 3 days.</figcaption></figure>
+<div class="rule">Rules of the upload: old .xls files are refused with "This is an old .xls file. Open it in Excel and save it as .xlsx or CSV."; an unreadable file answers "This file could not be read. Save it as .xlsx or CSV and try again."; an empty one "The file is empty.". Each line is stored with a fingerprint, so uploading overlapping days adds only the new lines ("N already there"). At most 5,000 lines per import. Statements are numbered BS-000001 onward.</div>
+
+<h3>The matching screen</h3>
+<figure class="shot" data-shot="s32-bank"><figcaption>Bank matching after the import: 7 bank lines open on the left, the selected line's suggestions and actions on the right, the books only list folded, the upload panel and the uploaded statements.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Bank in our books</td><td>The bank account balance in the ledger on the day shown.</td><td>Nothing. With several banks a row of bank buttons appears above the cards; the chosen one has a blue border.</td></tr>
+<tr><td>2</td><td>Bank's own balance</td><td>The last balance of the newest statement and its day; a dash before any statement.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Difference</td><td>Books minus bank: green "Matches" at zero, red amount otherwise; under it "N matched, N set aside". (Here the difference is large because the made up statement starts from an invented opening balance.)</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Statement</td><td>"BS-000001 · file name · from → to"; "No statement uploaded yet" before the first.</td><td>Shows the lines of that statement only (<code>?statement=</code>).</td></tr>
+<tr><td>5</td><td>Progress bar</td><td>Blue bar and "14 of 21 lines done (67%)": matched and set aside lines count as done.</td><td>Nothing.</td></tr>
+<tr><td>6</td><td>Month</td><td>All months or one month of bank lines.</td><td>Filters the open lines (<code>?month=</code>).</td></tr>
+<tr><td>7</td><td>Search</td><td>Placeholder "Words, amount or day".</td><td>Enter applies it (<code>?q=</code>); the / key jumps here.</td></tr>
+<tr><td>8</td><td>N bank lines open</td><td>Count of open lines (all statements of the account).</td><td>Nothing.</td></tr>
+<tr><td>9</td><td>Keys hint</td><td>"↑ ↓ or j k choose a line · Enter matches the top suggestion · / searches".</td><td>Nothing.</td></tr>
+<tr><td>10</td><td>Bank line</td><td>Day and statement/line number in grey, description in bold, amount on the right (money out in red with a minus), and a grey chip with the reason of its best suggestion. The selected line has a light blue background.</td><td>Selects the line; the right panel follows.</td></tr>
+<tr><td>11</td><td>Selected line</td><td>Description, day, statement/line and bank reference, amount in large type.</td><td>Nothing.</td></tr>
+<tr><td>12</td><td>Suggestions</td><td>Ranked ledger lines that could prove this bank line, each with a reason chip. Matchable reasons have a blue chip and a Match button; Near amount and Could be part of it have grey chips and no button. Empty: "Nothing in the books fits this line. Record it, then match it."</td><td>The JV numbers open the journal entry.</td></tr>
+<tr><td>13</td><td>Match (top suggestion)</td><td>The first matchable suggestion has a blue filled Match button; later ones a white one. (Not visible on the figure because the selected line has no suggestion.)</td><td>Matches at once; see the controls table.</td></tr>
+<tr><td>14</td><td>Pick lines by hand</td><td>A folded panel listing open ledger lines of the same direction within 10 days of the bank line (3 days window plus 7).</td><td>Opens the list with check boxes and a running total.</td></tr>
+<tr><td>15</td><td>Book as a bank charge</td><td>Shown only for money out lines.</td><td>Books the line as a bank charges expense and matches it.</td></tr>
+<tr><td>16</td><td>Why it needs no entry</td><td>Text box, placeholder "(at least 5 characters)".</td><td>Enables Set aside at 5 characters.</td></tr>
+<tr><td>17</td><td>Set aside</td><td>Grey outline button.</td><td>Marks the line as needing no entry, with the reason.</td></tr>
+<tr><td>18</td><td>Reminder</td><td>"Matching never records money. Money that came in is recorded first (it may need a second person), then matched."</td><td>Nothing.</td></tr>
+</tbody></table>
+
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Match (a suggestion)</td><td><code>POST /finance/bank-lines/:id/match-many</code> with the suggestion's ledger line ids</td><td>The lines must add up exactly to the bank amount (<code>amounts_differ</code>), belong to this bank account (<code>ledger_line_not_found</code>), not prove another bank line already (<code>ledger_line_matched</code>, also enforced by a trigger on <code>bank_line_matches</code>); the bank line must still be open (<code>bank_line_not_open</code>). At most 20 ledger lines.</td><td>"Matched."; the line leaves the open list, progress moves on. No money is recorded.</td></tr>
+<tr><td>Enter key</td><td>Same as Match on the top matchable suggestion</td><td>Ignored while typing in a box or with Ctrl, Alt or Cmd held.</td><td>Same.</td></tr>
+<tr><td>Up and Down arrows, j and k</td><td>Move the selection through the open lines</td><td>Same exceptions.</td><td>The list scrolls to keep the line in view.</td></tr>
+<tr><td>/ key</td><td>Focuses the search box</td><td></td><td></td></tr>
+<tr><td>Pick lines by hand, check boxes, Match N lines</td><td>Matches the ticked lines with <code>match-many</code></td><td>The button is enabled only when the ticked amounts add up exactly; the total turns green ("Picked −1,350.00, left 0.00").</td><td>"Matched."</td></tr>
+<tr><td>Book as a bank charge</td><td><code>POST /finance/bank-lines/:id/bank-charge</code></td><td>Money out only (<code>not_money_out</code>); uses the expense path, so from <code>finance.approval_threshold_piastres</code> it waits for a second person.</td><td>"Booked as a bank charge and matched." or "Saved and sent for approval. A second person must approve it before it is posted."</td></tr>
+<tr><td>Why + Set aside</td><td><code>POST /finance/bank-lines/:id/ignore</code></td><td>Reason 5 to 300 characters (<code>note_required</code>).</td><td>"Set aside."; counted in "N set aside" and as done in the progress.</td></tr>
+<tr><td>In the books, not in the bank (N)</td><td>Folded list of ledger lines on this bank since the first statement day that no bank line proves</td><td>Hint: "a deposit not made, a cheque not cleared, or a typo. Find out why."</td><td>Each JV number opens the entry.</td></tr>
+<tr><td>Uploaded statements</td><td>Table Statement, Days, Lines (with "N already uploaded"), Uploaded by and when</td><td></td><td>Read only.</td></tr>
+</tbody></table>
+<div class="note">A bank line has three states: <strong>open</strong> (listed on the left), <strong>matched</strong> and <strong>set aside</strong>. Matched and set aside lines are no longer listed; they show only as the counts in the Difference card, the progress bar and the statement's lines. The API has <code>POST /finance/bank-lines/:id/reopen</code>, but no button on this screen calls it.</div>
+
+<figure class="shot" data-shot="s32-bank-sum"><figcaption>A credit of 5,090.00 whose top suggestion is two deposits of the same day that add up exactly (blue chip "Lines that add up exactly", blue Match button); a near amount is shown in grey without a button.</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-pick-hand"><figcaption>Pick lines by hand for the 1,350.00 InstaPay batch: two rider withdrawals ticked, the total turns green at "left 0.00" and Match 2 lines is enabled. After clicking, the panel says "Matched."</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-panel-out"><figcaption>A money out line (−150.00 duplicate posting) with every action numbered: 1 the line, 2 suggestions that could be part of it (no button), 3 Pick lines by hand open, 4 a ticked line, 5 the running total in grey because it does not add up, 6 Match 1 line disabled, 7 Book as a bank charge, 8 a reason that is too short, 9 Set aside still disabled.</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-near"><figcaption>The 849.50 card purchase: the only close ledger line is 850.00, shown as "Near amount" with no Match button, because amounts must be exact.</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-charge-done"><figcaption>After Book as a bank charge on the 25.00 maintenance fee: "Booked as a bank charge and matched." (posted at once, below the approval limit).</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-nosuggest"><figcaption>The 1,000.00 transfer from an unknown sender: "Nothing in the books fits this line. Record it, then match it." Money in is never created from a bank line.</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-keys"><figcaption>The open list after pressing k: the selection moved up one line (light blue background).</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-books-only"><figcaption>"In the books, not in the bank" unfolded: ledger lines on CIB since the statement's first day that no bank line proves yet.</figcaption></figure>
+<figure class="shot" data-shot="s32-bank-after"><figcaption>The screen after the work: 18 of 21 lines done (86%), "17 matched, 1 set aside", three lines left open.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-basata-list">Basata deposits</h2>
+<p>Address <code>/finance/basata</code>. Menu: Cash and bank, Basata deposits. Opens with Accounting view; Record Basata transfer and the bulk Approve deposits need Accounting use. It is a standard list view (<code>AppListPage</code>, list <code>accounting/basata_deposits</code>, data <code>GET /lists/accounting/basata_deposits</code>; definition in <code>packages/shared/src/app-lists.ts</code>). It opens on the filter Waiting for review.</p>
+<figure class="shot" data-shot="s32-basata-list"><figcaption>Basata deposits at /finance/basata, three deposits waiting for review.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Record Basata transfer</td><td>Blue filled button (Accounting use only).</td><td>Opens <code>/finance/basata/transfer</code>.</td></tr>
+<tr><td>2</td><td>Frozen riders</td><td>White button with blue text.</td><td>Opens <code>/finance/frozen-riders</code>.</td></tr>
+<tr><td>3</td><td>Filter chip</td><td>Light blue chip "Filter Waiting for review" with a cross.</td><td>The cross removes the filter (the list then shows every deposit).</td></tr>
+<tr><td>4</td><td>Search</td><td>Typed search over number, rider, badge, store and reference.</td><td>Enter adds a search chip.</td></tr>
+<tr><td>5</td><td>Filters</td><td>Funnel icon.</td><td>Opens the Filters, Group by and Favourites panel.</td></tr>
+<tr><td>6</td><td>Count</td><td>"1–3 of 3".</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Export</td><td>White button.</td><td>CSV or Excel of the passing rows (only the ticked rows when some are ticked).</td></tr>
+<tr><td>8</td><td>Columns</td><td>White button.</td><td>Shows the optional columns: Badge, Sent at, Decided by, Reason, Transfer.</td></tr>
+<tr><td>9</td><td>Per page</td><td>50 by default.</td><td>Changes the page size.</td></tr>
+<tr><td>10</td><td>Select all</td><td>Header check box.</td><td>Ticks every row on the page and shows the bulk bar.</td></tr>
+<tr><td>11</td><td>Deposit number</td><td>Blue BD number.</td><td>Opens the deposit page <code>/finance/basata/&lt;id&gt;</code>.</td></tr>
+<tr><td>12</td><td>Status</td><td>Column of pills.</td><td>Sorting is by number, deposited, sent or amount (column headers with a sort key).</td></tr>
+<tr><td>13</td><td>Status pill</td><td>Rounded pill with a thin grey border and dark text. The three statuses (Waiting for review, Approved, Rejected) use the same neutral look; there is no color per status in this list.</td><td>Nothing.</td></tr>
+<tr><td>14</td><td>Total</td><td>Sum of Amount (EGP) over every passing row.</td><td>Nothing.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Filters: Store, Rider</td><td>Pick lists (values <code>v=store:&lt;id&gt;</code>, <code>v=rider:&lt;id&gt;</code>)</td><td>Only stores and riders in the person's scope.</td><td>Applied at once, shown as a chip such as "Rider: Mahmoud Hassan (RDR-0002)".</td></tr>
+<tr><td>Filters: From, To, Apply days</td><td>Deposited day range (dd/mm/yyyy)</td><td>Cairo days.</td><td>Chip with the days.</td></tr>
+<tr><td>Filters: Waiting for review, Approved, Rejected</td><td>Status group</td><td>OR inside the group.</td><td></td></tr>
+<tr><td>Filters: Not at the bank yet, Reached the bank</td><td>Settled group: whether a Basata transfer (BT) covers the deposit</td><td></td><td></td></tr>
+<tr><td>Filters: Sent after the deadline</td><td>Timing</td><td>Deposits sent after their deadline day's hour.</td><td></td></tr>
+<tr><td>Filters: Today ... Last month</td><td>Date presets</td><td></td><td></td></tr>
+<tr><td>Group by</td><td>Status, Store, Rider, Day, Transfer</td><td>Up to two levels, in order.</td><td>Group rows with counts and amount subtotals.</td></tr>
+<tr><td>Favourites</td><td>Save this search as, Open the list with it, Save</td><td>Per person.</td><td>Saved view in the Favourites list.</td></tr>
+<tr><td>Row check boxes, Approve deposits, Clear</td><td><code>POST /finance/basata/deposits/bulk-approve</code></td><td>Accounting use; each deposit checked on its own (scope, not the person's own deposit, still pending, not more than the rider's cash).</td><td>Navy bulk bar "1 selected" with a blue Approve deposits button; per row results.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-basata-filters"><figcaption>The Filters panel of Basata deposits: values (Store, Rider, From, To and Apply days), the status, settled and timing filters, Group by and Favourites.</figcaption></figure>
+<figure class="shot" data-shot="s32-basata-bulk"><figcaption>One row ticked: the row turns light blue and the navy bulk bar offers Approve deposits and Clear.</figcaption></figure>
+<figure class="shot" data-shot="s32-basata-list-all"><figcaption>With the filter removed: one deposit of each status, Waiting for review, Rejected and Approved, all in the same neutral pill.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-basata-deposit">A Basata deposit</h2>
+<p>Address <code>/finance/basata/&lt;id&gt;</code>, opened from the list. Opens with Accounting view (the deposit's store must be in scope); Approve and Reject need Accounting use and show only while the deposit is waiting. Built on <code>DocumentPage</code> with <code>GET /finance/documents/basata_deposit/:id</code> and <code>GET /finance/basata/deposits/:id</code>; the buttons are <code>BasataActions</code>.</p>
+<figure class="shot" data-shot="s32-basata-deposit"><figcaption>Deposit BD-000001 waiting for review, with the receipt photo on the left, the rider's figures in the middle and the chatter on the right.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Basata deposits / BD-000001.</td><td>Back to the dashboard or to the list with its filters.</td></tr>
+<tr><td>2</td><td>Title</td><td>Deposit number and, under it, the rider and badge.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Status bar</td><td>Waiting then Approved; the current step is a blue filled tab, a passed step has a tick; Rejected appears as a red filled tab after the other two.</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Approve N EGP</td><td>Blue filled button with the amount.</td><td>Approves; see controls.</td></tr>
+<tr><td>5</td><td>Reject</td><td>White button with red border and text.</td><td>Opens the reason box.</td></tr>
+<tr><td>6</td><td>Rider wallet</td><td>Smart button with the rider name (cut with an ellipsis) and "Rider wallet". After approval a second smart button "JV-002570 Journal entry" appears.</td><td>Opens the rider's wallet page or the entry.</td></tr>
+<tr><td>7</td><td>Receipt photo</td><td>The rider's photo, large.</td><td>Opens the photo in a new tab at full size.</td></tr>
+<tr><td>8</td><td>Amount</td><td>Large "400.00 EGP".</td><td>Nothing.</td></tr>
+<tr><td>9</td><td>Basata reference</td><td>As typed by the rider.</td><td>Nothing.</td></tr>
+<tr><td>10</td><td>Deposited at</td><td>The time the rider gave.</td><td>Nothing.</td></tr>
+<tr><td>11</td><td>Sent at</td><td>When the rider sent it.</td><td>Nothing.</td></tr>
+<tr><td>12</td><td>Rider</td><td>Name, badge and store code; a bold red "Frozen" when the rider is frozen.</td><td>Nothing.</td></tr>
+<tr><td>13</td><td>Rider cash now (EGP)</td><td>The rider's 1300 balance now. "Taken at a deadline, not given back (EGP)" in red appears under it when a deadline took cash.</td><td>Nothing.</td></tr>
+<tr><td>14</td><td>Log a note</td><td>Chatter tab: note box and Post note (notes cannot be changed later).</td><td>Adds a note to the record.</td></tr>
+<tr><td>15</td><td>Remind me</td><td>Chatter tab: a day, a note and a person.</td><td>Plans an activity; listed under Planned.</td></tr>
+<tr><td>16</td><td>Attachments</td><td>The receipt thumbnail; after a decision an "Add receipts or documents" button appears.</td><td>A thumbnail opens the file in a new browser tab.</td></tr>
+<tr><td>17</td><td>History</td><td>Audit rows newest first, with the raw action code (<code>basata_deposit.submit</code>, <code>basata_deposit.approve</code>) and the changed values (amounts in piastres).</td><td>Nothing.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Approve N EGP</td><td><code>POST /finance/basata/deposits/:id/approve</code></td><td>Accounting use; never the rider himself ("You cannot decide your own deposit." replaces the buttons); only waiting (<code>deposit_not_pending</code>); amount not above the rider's cash plus what a deadline took (<code>more_than_cash</code>); books lock.</td><td>"Approved." Entry Dr Money at Basata (1205), Cr 1300 rider cash; any part beyond what he still held gives back earlier deadline deductions, oldest first. The page shows "400.00 EGP from rider cash, 0.00 EGP given back for an earlier deadline."</td></tr>
+<tr><td>Reject, Why is it refused?, Reject the deposit</td><td><code>POST /finance/basata/deposits/:id/reject</code></td><td>Reason 5 to 300 characters; the confirm button stays pale until then. The hint says: "At least 5 characters. The rider sees it. After the deadline the cash is taken from the rider at once."</td><td>"Rejected." The reason shows in red. When the deposit's deadline has passed, the deposit amount is taken from the rider (to his office wallet, else his 1350 dues) and he is frozen.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-basata-reject-form"><figcaption>Reject opened with a 3 character reason: Reject the deposit stays disabled (pale red).</figcaption></figure>
+<figure class="shot" data-shot="s32-basata-approved"><figcaption>After Approve: status bar on Approved with Waiting ticked, a journal entry smart button, Decided by with the split of the amount, and the approval in History.</figcaption></figure>
+<figure class="shot" data-shot="s32-basata-rejected"><figcaption>BD-000002 rejected after its deadline: red Rejected tab, the reason in red, the rider tagged Frozen and 150.00 taken at the deadline. (For this figure the deposit's deadline day was set to the day before, so the rejection fell after its deadline.)</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-basata-transfer">Record Basata transfer</h2>
+<p>Address <code>/finance/basata/transfer</code>. Reached from the button on Basata deposits (no menu entry). Needs Accounting use to save. Data <code>GET /finance/basata/settlements/new</code>; component <code>BasataSettlementForm</code>.</p>
+<figure class="shot" data-shot="s32-basata-transfer"><figcaption>Record Basata transfer with one approved deposit waiting to be covered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Basata deposits</td><td>Blue back link.</td><td>Back to the list.</td></tr>
+<tr><td>2</td><td>Bank</td><td>EGP bank accounts of group 1100, CIB first.</td><td>Chooses where the money arrived.</td></tr>
+<tr><td>3</td><td>Day it arrived</td><td>Day first date box, today by default, never in the future. The label sits beside the box instead of above it.</td><td>Calendar icon opens the date picker.</td></tr>
+<tr><td>4</td><td>Amount that arrived (EGP)</td><td>What Basata actually transferred.</td><td>Typing updates the fee line.</td></tr>
+<tr><td>5</td><td>Bank reference</td><td>Optional, up to 100 characters.</td><td>Typing.</td></tr>
+<tr><td>6</td><td>Receipts and documents</td><td>Attachment field (the transfer advice).</td><td>Upload.</td></tr>
+<tr><td>7</td><td>Summary</td><td>"1 deposits, 400.00 EGP. Basata's fee: 5.00 EGP." (a dash before an amount is typed).</td><td>Nothing.</td></tr>
+<tr><td>8</td><td>Deposit check boxes</td><td>Every approved deposit not yet settled, all ticked at first: number, rider and store code, deposited at, amount.</td><td>Untick deposits the transfer did not cover.</td></tr>
+<tr><td>9</td><td>Record the transfer</td><td>Blue button, pale when no deposit is ticked or no bank.</td><td>Saves; see controls.</td></tr>
+<tr><td>10</td><td>Recent transfers</td><td>Transfer (BT number, links to its journal entry), Day it arrived (ISO form), Bank, Deposits, Amount that arrived, Fee. Empty: "No transfers yet."</td><td>The BT number opens the entry.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Record the transfer</td><td><code>POST /finance/basata/settlements</code></td><td>Amount above zero ("Enter the amount that reached the bank."); never more than the ticked deposits ("The amount is more than the deposits chosen.", shown as soon as typed); only approved and unsettled deposits; day not in the future; books lock; no second person (money already ours moving between our accounts).</td><td>"Recorded." Entry Dr bank 395.00, Dr Basata fees 5.00, Cr Money at Basata 400.00; transfer BT-000001; the deposits become Reached the bank. The bank line is then matched on Bank matching.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-basata-transfer-error"><figcaption>An amount above the deposits: the fee reads −10.00 and the red message "The amount is more than the deposits chosen." appears.</figcaption></figure>
+<figure class="shot" data-shot="s32-basata-transfer-filled"><figcaption>Filled: 395 EGP arrived at CIB with reference CIB-IN-88231 and the transfer advice PDF; the fee is 5.00 EGP.</figcaption></figure>
+<figure class="shot" data-shot="s32-basata-transfer-done"><figcaption>After saving: "No approved deposits wait for a transfer.", the button is pale, and BT-000001 is listed under Recent transfers.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-frozen">Frozen riders</h2>
+<p>Address <code>/finance/frozen-riders</code>. Menu: Cash and bank, Frozen riders (also a button on Basata deposits and a link on each deposit page). Opens with Accounting view; Unfreeze needs Accounting use (a store manager cannot unfreeze). Data <code>GET /finance/frozen-riders</code>; component <code>FrozenRiders</code>.</p>
+<figure class="shot" data-shot="s32-frozen"><figcaption>One frozen rider after his deposit was refused after the deadline.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Rider</td><td>Bold name and grey badge.</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>Why and when</td><td>Store · reason · time frozen. Reasons: "Cash held after the deadline" or "Deposit refused after the deadline". "Office: name" appears for a rider supplied by an office.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Their deposits</td><td>Blue link, top right.</td><td>Opens Basata deposits filtered on this rider (all statuses).</td></tr>
+<tr><td>4</td><td>Cash to hand in (EGP)</td><td>What he still holds.</td><td>Nothing.</td></tr>
+<tr><td>5</td><td>Taken, not given back (EGP)</td><td>Red: what the deadline took and no later deposit gave back.</td><td>Nothing.</td></tr>
+<tr><td>6</td><td>Deposits waiting (EGP)</td><td>His Basata deposits waiting for review.</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Unfreeze</td><td>Button with blue border and text.</td><td>Opens the reason box with Unfreeze the rider and Cancel.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Unfreeze, reason, Unfreeze the rider</td><td><code>POST /finance/frozen-riders/:riderId/unfreeze</code></td><td>Reason 5 to 300 characters ("Why may the rider work again? (at least 5 characters)"); the rider must be frozen (<code>rider_not_frozen</code>); his store in scope. Audited <code>rider.unfreeze</code>, kept in the freeze history.</td><td>The rider may take orders and ask for money again. The money taken is not given back by unfreezing; only a later approved deposit gives it back.</td></tr>
+<tr><td>Cancel</td><td>Closes the reason box</td><td></td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-frozen-unfreeze-form"><figcaption>The reason box opened and filled.</figcaption></figure>
+<figure class="shot" data-shot="s32-frozen-their-deposits"><figcaption>Their deposits: the Basata list opened on the rider value chip with every status.</figcaption></figure>
+<figure class="shot" data-shot="s32-frozen-done"><figcaption>After unfreezing the only frozen rider: the empty state "No rider is frozen." (The confirmation "The rider can work again." is not shown when the list becomes empty.)</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-receipts">Missing receipts</h2>
+<p>Address <code>/finance/receipts</code>, page title <strong>Receipts</strong>. Menu: Cash and bank, Missing receipts. Opens with Accounting view; Save receipt needs Accounting use. Data <code>GET /finance/attachments/missing</code> (function <code>missingReceipts</code>): money movements of the kinds listed in <code>RECEIPT_KINDS</code> (expense, bank deposit, money transfer, capital in and out, other income, payouts, merchant receipts, bill and tax payments, prepayment, equipment, staff advance and bonus, petty cash, expense claim, Basata deposit, cheques, security deposits, loan received and loan payment) that have no receipt on the entry, on its approval request or on its payout. The newest 200 are listed.</p>
+<figure class="shot" data-shot="s32-receipts"><figcaption>Missing receipts with the count in the intro and one row per entry.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Count</td><td>"74 money movements have no receipt or transfer slip yet. Auditors will ask for them." Empty state: "Every money movement has its receipt."</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>Entry number</td><td>Blue JV number, entry kind name and memo in grey.</td><td>Opens the journal entry page.</td></tr>
+<tr><td>3</td><td>Amount and time</td><td>Amount in EGP (sum of the debit lines) and when it was booked, on the right.</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Choose files</td><td>Attachment field (photos and PDF, 5 MB each, at most 10).</td><td>File picker; drop also works.</td></tr>
+<tr><td>5</td><td>Take a photo</td><td>Opens the phone camera.</td><td>Adds the photo.</td></tr>
+<tr><td>6</td><td>Save receipt</td><td>Blue button, pale until at least one file has uploaded.</td><td>Links the files to the entry.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Choose files or Take a photo</td><td>Uploads each file at once to <code>POST /finance/files</code></td><td>Photos are shrunk in the browser; PDF up to 5 MB; other types refused ("name is not a photo or a PDF file."); more than 10 refused ("At most 10 files.").</td><td>Thumbnails (PDF shows a red PDF tile), each with a cross that deletes the upload.</td></tr>
+<tr><td>Save receipt</td><td><code>POST /finance/attachments</code> with <code>entryId</code> and <code>photoIds</code></td><td>Accounting use; the entry must exist.</td><td>The files are linked in one transaction; History on the entry shows "Receipts or documents added, count 2". The row stays until the page is reloaded, then leaves the list.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-receipts-files"><figcaption>A photo and a PDF chosen for JV-002585, Save receipt enabled.</figcaption></figure>
+<figure class="shot" data-shot="s32-receipts-entry"><figcaption>The journal entry after saving: the Receipts smart button counts 2, both files show under Attachments (a thumbnail and a PDF tile), and History records the addition. Clicking a file opens it in a new browser tab; there is no viewer inside the page.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-loans">Loans</h2>
+<p>Address <code>/finance/loans</code>. Menu: Cash and bank, Loans. Opens with Accounting view; the New loan form is shown only with Accounting use. Data <code>GET /finance/loans</code>; components <code>LoansTable</code> and <code>NewLoan</code> (<code>LoansFx.tsx</code>). The calculation of the schedule is in chapter 12, Loans.</p>
+<figure class="shot" data-shot="s32-loans-empty"><figcaption>Loans before the first loan: "No loans yet." and the empty New loan form, every field numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Empty state</td><td>"No loans yet."; replaced by the loans table once a loan exists.</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>New loan</td><td>Section with the hint "Money coming in waits for a second person before it is booked. The schedule is worked out once, in whole piastres."</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Bank</td><td>Choose…, then the 19 Egyptian banks of <code>EGYPT_BANKS</code> (names in the page language), then "Another bank (type its name)".</td><td>Another bank adds a Bank name box beside it.</td></tr>
+<tr><td>4</td><td>Received into</td><td>Our open EGP bank accounts (code 11xx) with their balance, CIB 1101 chosen by default.</td><td>Chooses where the money came in.</td></tr>
+<tr><td>5</td><td>Amount borrowed (EGP)</td><td>Pounds and piastres, read without floats.</td><td>Typing.</td></tr>
+<tr><td>6</td><td>Interest a year (%)</td><td>Placeholder 22.5; stored as basis points.</td><td>Typing.</td></tr>
+<tr><td>7</td><td>Method</td><td>Declining balance (hint "Equal monthly instalments; interest on what is still owed.") or Flat ("Interest on the whole amount every month; principal in equal parts.").</td><td>Changes the method and its hint.</td></tr>
+<tr><td>8</td><td>Months</td><td>12 by default, 1 to 600.</td><td>Typing.</td></tr>
+<tr><td>9</td><td>Day the money came in</td><td>Day first date box, today by default, never in the future.</td><td>Date picker.</td></tr>
+<tr><td>10</td><td>First instalment</td><td>30 days after today by default; must be after the day the money came in.</td><td>Date picker. (Its label sits beside the box.)</td></tr>
+<tr><td>11</td><td>Reference</td><td>At least 2 characters.</td><td>Typing.</td></tr>
+<tr><td>12</td><td>Note</td><td>Optional, up to 300 characters.</td><td>Typing.</td></tr>
+<tr><td>13</td><td>Receipts and documents</td><td>The loan agreement or bank advice.</td><td>Upload.</td></tr>
+<tr><td>14</td><td>Record the loan</td><td>Blue button, grey until the bank name, a valid preview, Received into and a reference are present.</td><td>Sends the loan for approval.</td></tr>
+<tr><td>15</td><td>Cancel</td><td>White button; an orange "Unsaved changes" appears beside the buttons when anything was typed.</td><td>Clears the form (asks first when there are changes).</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Schedule preview</td><td>Appears as soon as amount, rate, months and both days are valid</td><td>Worked out in the browser with the same <code>loanSchedule</code> as the server.</td><td>"12 instalments of 9,168.00 EGP" and "Interest 10,015.99 EGP, total to pay 110,015.99 EGP, last instalment on 01/09/2027."</td></tr>
+<tr><td>Record the loan</td><td><code>POST /finance/loans</code></td><td>Lender is always a bank; name 2 to 120 characters; first instalment after the start day (<code>first_payment_too_early</code>); money in always waits for a second person while <code>finance.approve_money_in</code> is 1.</td><td>"Saved and sent for approval. A second person must approve it before it is posted." A request of kind <code>loan_in</code> appears in Approvals.</td></tr>
+<tr><td>Approve in Approvals</td><td><code>POST /finance/requests/:id/decide</code> by another person with Accounting manage</td><td>Never the person who asked (<code>same_person</code>); the start day must be in open books.</td><td>Loan LN-000001 is created with its own 2700 account (2701), entry Dr bank, Cr 2701, and the full schedule.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-loans-form-filled"><figcaption>New loan filled with Another bank, 100,000 EGP at 18% declining over 12 months, the preview, the agreement PDF and the Unsaved changes marker.</figcaption></figure>
+<figure class="shot" data-shot="s32-loans-saved"><figcaption>After Record the loan: the form is cleared and the message says it waits for a second person.</figcaption></figure>
+<figure class="shot" data-shot="s32-loans-approval"><figcaption>The loan request as the second person sees it in Approvals (REQ page): Approve, a reason box and Reject. The heading shows the raw text <code>finance.approvals.kinds.loan_in</code> and Type shows <code>loan_in</code>, because this request kind has no translation.</figcaption></figure>
+<figure class="shot" data-shot="s32-loans-approve-result"><figcaption>An error state: approving a loan whose start day (1 Sep 2026) lies in closed books answers "This date is in a closed month. Choose a later date, or ask an admin to reopen the month." The New loan form accepted that day; the lock is only checked at approval. The request was then rejected with a reason and the loan recorded again from 1 Oct 2026.</figcaption></figure>
+<figure class="shot" data-shot="s32-loans-list"><figcaption>The loans table once the loan is approved, every column numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Loan</td><td>Blue LN number.</td><td>Opens the loan page.</td></tr>
+<tr><td>2</td><td>Account</td><td>The loan's own account code (2701) in grey.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Bank</td><td>The lender, in the page language for a listed bank.</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Amount borrowed (EGP)</td><td>The principal.</td><td>Nothing.</td></tr>
+<tr><td>5</td><td>Still owed</td><td>Bold: principal not yet repaid (the 2701 balance).</td><td>Nothing.</td></tr>
+<tr><td>6</td><td>Rate</td><td>"18% · Declining balance".</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Paid</td><td>Instalments paid out of the total, "0 / 12".</td><td>Nothing.</td></tr>
+<tr><td>8</td><td>Next instalment</td><td>Due day and amount; red with "(overdue)" when the due day has passed; "Repaid" when nothing is left.</td><td>Nothing.</td></tr>
+</tbody></table>
+
+<!-- ===================================================== -->
+<h2 id="s32-loan-page">A loan page</h2>
+<p>Address <code>/finance/loans/&lt;id&gt;</code>. Opens with Accounting view; Pay next is shown only with Accounting use. Data <code>GET /finance/loans/:id</code>; component <code>LoanDetail</code>.</p>
+<figure class="shot" data-shot="s32-loan-page"><figcaption>Loan LN-000001 before any payment: both past instalments are overdue (red), the rest Not paid.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Loans.</td><td>Back.</td></tr>
+<tr><td>2</td><td>Title</td><td>LN number and bank.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>State line</td><td>"Being repaid" or "Repaid", reference and note.</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Amount borrowed (EGP)</td><td>Card.</td><td>Nothing.</td></tr>
+<tr><td>5</td><td>Still owed</td><td>Card; falls by the principal of each paid instalment.</td><td>Nothing.</td></tr>
+<tr><td>6</td><td>Interest in all</td><td>Card: total interest of the schedule.</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Total to pay</td><td>Card: principal plus interest.</td><td>Nothing.</td></tr>
+<tr><td>8</td><td>Summary</td><td>"From Example Lending Bank, 18% a year, Declining balance, 12 months from 01/10/2026."</td><td>Nothing.</td></tr>
+<tr><td>9</td><td>Links</td><td>"2701 · Loan LN-000001 Example Lending Bank" and "Money received".</td><td>Open the loan account and the entry that received the money.</td></tr>
+<tr><td>10</td><td>Pay instalment N (due day)</td><td>Section for the next unpaid instalment only (instalments are paid in order).</td><td>Nothing.</td></tr>
+<tr><td>11</td><td>Split</td><td>"9,168.00 EGP: 7,668.00 EGP off the loan and 1,500.00 EGP interest."</td><td>Nothing.</td></tr>
+<tr><td>12</td><td>Paid from</td><td>Every open EGP bank or cash box with its balance; the account the loan came into is chosen first.</td><td>Chooses the account.</td></tr>
+<tr><td>13</td><td>Reference</td><td>At least 2 characters.</td><td>Enables the button.</td></tr>
+<tr><td>14</td><td>Day paid</td><td>Today by default, never in the future.</td><td>Date picker.</td></tr>
+<tr><td>15</td><td>Receipts and documents</td><td>Attachment field.</td><td>Upload.</td></tr>
+<tr><td>16</td><td>Pay this instalment</td><td>Blue button, grey until a reference is typed.</td><td>Pays; see controls.</td></tr>
+<tr><td>17</td><td>Schedule</td><td>#, Due, Instalment (bold), Principal, Interest, Still owed after, State; Totals row.</td><td>Nothing.</td></tr>
+<tr><td>18</td><td>State</td><td>"Paid" as a blue link to its entry; "overdue" in red (and the due day in red) when unpaid and past due; "Not paid" in grey otherwise.</td><td>Paid opens the payment's journal entry.</td></tr>
+<tr><td>19</td><td>Totals</td><td>Sums of instalments, principal and interest; the last instalment absorbs the rounding (9,167.99).</td><td>Nothing.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Pay this instalment</td><td><code>POST /finance/loans/:id/pay</code></td><td>Accounting use; the account must hold the money now and at every later moment (<code>not_enough_money</code>); books lock; at once below <code>finance.approval_threshold_piastres</code> (10,000 EGP in the demo), otherwise it waits in Approvals for another person.</td><td>"Paid JV-002603". Entry Dr 2701 principal, Dr 5904 interest, Cr bank. The section moves to the next instalment.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-loan-pay-filled"><figcaption>Pay instalment 1 filled: paid from CIB, reference CIB-LOAN-0001, day 05/10/2026.</figcaption></figure>
+<figure class="shot" data-shot="s32-loan-page-after"><figcaption>After paying instalment 1: Still owed 92,332.00, instalment 1 Paid (blue link), instalment 2 overdue in red, the others Not paid, and the form now offers instalment 2.</figcaption></figure>
+<figure class="shot" data-shot="s32-loans-list-after"><figcaption>The loans table after the payment: Paid 1 / 12, still owed 92,332.00, next instalment 05/11/2026 overdue in red.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-rider-wallet">Rider app: My wallet</h2>
+<p>Address <code>/rider/wallet</code>, opened from the rider home (phone). Only the rider himself; data <code>GET /rider/wallet</code>, component <code>RiderWallet</code>. Rules in chapter 11, sections The withdrawal hold, The wallet figures and Withdrawals.</p>
+<figure class="shot" data-shot="s32-rider-wallet"><figcaption>My wallet on a phone (rider RDR-0002) with every part numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Available to withdraw</td><td>Navy wallet card, label in spaced capitals, amount in Cream, Lime note "810.00 EGP more is on hold", faint S mark.</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>Earned this month</td><td>Card with a green delivered icon.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>On hold</td><td>Card with a violet clock icon: earnings still inside their hold.</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Earned in total</td><td>Card with a blue wallet icon.</td><td>Nothing.</td></tr>
+<tr><td>5</td><td>Withdrawals waiting</td><td>Card with arrows icon: open requests.</td><td>Nothing.</td></tr>
+<tr><td>6</td><td>Rules</td><td>"You earn 30.00 EGP for every delivered order. Each earning is on hold for 5 working days after the delivery day (Fridays and official holidays do not count), then you can withdraw it."</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Withdraw money</td><td>Full width blue button. Replaced by "You already have a withdrawal waiting..." or "Nothing is available yet..." when a request is not possible.</td><td>Opens the withdrawal form.</td></tr>
+<tr><td>8</td><td>My withdrawals</td><td>Cards: RW number and amount, method and details, request time; "Paid ... · reference" in green; "Not approved: reason" for a rejection; "N EGP taken for what you owed" when dues were netted. Empty: "No withdrawals yet."</td><td>Cancel request on a waiting one; Show more after 5.</td></tr>
+<tr><td>9</td><td>Status</td><td>Status word at the right of each card: Waiting, Approved, Paid (green), Not approved, Cancelled (grey pill).</td><td>Nothing.</td></tr>
+<tr><td>10</td><td>My earnings</td><td>One row per delivered order: order number, time and store, 30.00.</td><td>Show more adds 30 rows.</td></tr>
+<tr><td>11</td><td>Earning state</td><td>"Available from 18/11/2026" in violet while on hold, "Available" in green after.</td><td>Nothing.</td></tr>
+<tr><td>12</td><td>Show more</td><td>Outline button.</td><td>Shows more rows.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-rider-wallet-form"><figcaption>The withdrawal form opened; the last method used (InstaPay) is offered again.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Amount you receive (EGP)</td><td>Filled with everything available.</td><td>Typing updates the summary.</td></tr>
+<tr><td>2</td><td>All available</td><td>Outline button.</td><td>Puts the whole available amount back.</td></tr>
+<tr><td>3</td><td>Limits</td><td>"Up to 390.00 EGP. At least 100.00 EGP, unless you take everything available."</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>How do you want the money?</td><td>Four radio tiles: Cash at the store, InstaPay, Mobile wallet, Bank transfer; the chosen tile has a blue border and light blue ground.</td><td>Shows the fields of that method.</td></tr>
+<tr><td>5</td><td>Method field</td><td>InstaPay address or phone (name@instapay). Cash at the store shows "The store manager at Maadi hands you the cash once Accounting approves it."; Mobile wallet shows Wallet (Vodafone Cash, Etisalat Cash, Orange Cash, WE Pay) and Wallet phone number; Bank transfer shows Bank, IBAN (EG and 27 digits) and Account holder.</td><td>Typing.</td></tr>
+<tr><td>6</td><td>Summary</td><td>Taken from your wallet, "What you owe, taken first" in orange when dues exist, and You receive in bold.</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Send request</td><td>Blue button.</td><td><code>POST /rider/withdrawals</code>: "Request sent. Accounting will review it."</td></tr>
+<tr><td>8</td><td>Back</td><td>Outline button.</td><td>Closes the form.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Send request</td><td>Creates RW-nnnnnn</td><td>Not more than available ("That is more than you can withdraw now."); at least <code>rider.min_withdrawal_piastres</code> unless everything ("That is below the smallest withdrawal."); at most <code>rider.max_open_withdrawals</code> open; frozen riders refused (<code>rider_frozen</code>); IBAN EG plus 27 digits, Egyptian mobile, InstaPay handle checked; idempotency key.</td><td>Status Waiting; the amount leaves Available at once.</td></tr>
+<tr><td>Cancel request</td><td><code>POST /rider/withdrawals/:id/cancel</code></td><td>Only while Waiting (before approval).</td><td>"Request cancelled. The amount is available again."; status Cancelled.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-rider-wallet-form-mobile"><figcaption>Mobile wallet chosen: the wallet list and the wallet phone number.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-wallet-error-amount"><figcaption>Error: 5,000 EGP is more than available; the red message appears above the buttons.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-wallet-error-iban"><figcaption>Error: a short IBAN. The server refuses the request and the screen shows the general "Check the details and try again." rather than the specific IBAN message.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-wallet-after"><figcaption>After a request and a cancelled one: Withdrawals waiting 200.00, the hint "You already have a withdrawal waiting...", RW-000023 Waiting with Cancel request, RW-000022 Cancelled (grey pill) and earlier Paid ones. The Waiting and Paid status words have no tinted background; only Cancelled shows a pill ground.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-wallet-frozen"><figcaption>The same wallet after the deadline charge: Available drops to 40.00 and a "You owe 150.00 EGP" panel lists what will be taken from the next withdrawal.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-rider-basata">Rider app: Deposit at Basata</h2>
+<p>Address <code>/rider/basata</code>, from the rider home. Only the rider himself; data <code>GET /rider/basata</code>, component <code>RiderBasata</code>. Works also while frozen (a frozen rider can still deposit).</p>
+<figure class="shot" data-shot="s32-rider-basata"><figcaption>Deposit at Basata before any deposit, every part numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Cash to hand in (EGP)</td><td>Rider cash minus deposits waiting and handover differences waiting.</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>Deposits waiting for review (EGP)</td><td>Sum of his pending deposits. "Taken at the deadline (EGP)" in red with "Deposit it at Basata and it is given back once accounting approves." appears when a deadline took cash.</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Deadline</td><td>"Hand in or deposit your cash by 12 Nov 2026, 23:00." (the next <code>cash.deposit_deadline_hour</code>).</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Photo of the Basata receipt</td><td>Light blue camera button; after a photo it shows a preview and becomes "Retake".</td><td>Opens the camera (or the file picker on a computer); uploads a photo of kind <code>basata_receipt</code>.</td></tr>
+<tr><td>5</td><td>Amount deposited (EGP)</td><td>Filled with the most he may deposit.</td><td>Typing.</td></tr>
+<tr><td>6</td><td>At most</td><td>"At most 1,019.00 EGP." (cash to hand in plus what a deadline took).</td><td>Nothing.</td></tr>
+<tr><td>7</td><td>Basata reference number</td><td>Capitals, up to 60 characters.</td><td>Typing.</td></tr>
+<tr><td>8</td><td>Deposited at</td><td>Date and time box, now by default, never later than now.</td><td>Picker.</td></tr>
+<tr><td>9</td><td>Send the deposit</td><td>Full width blue button ("Sending…" while busy); disabled when nothing may be deposited.</td><td><code>POST /rider/basata/deposits</code>.</td></tr>
+<tr><td>10</td><td>My deposits</td><td>Number, status word in color (Waiting for review orange, Approved green, Rejected red), reference, amount, time, and the rejection reason in red. Empty: "No deposits yet."</td><td>Nothing.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Send the deposit</td><td>Creates BD-nnnnnn</td><td>Photo required ("Take a photo of the Basata receipt first."); amount above zero and not above the maximum ("That is more than the cash you have to hand in."); reference at least 3 characters and used once ("This reference was already sent."); time not in the future; Basata channel open for the store (<code>cash.basata_enabled</code>, else the form is replaced by "Basata deposits are closed for your store right now. Hand your cash to the store."); idempotency key.</td><td>"Sent. Accounting will check the receipt." The deposit is listed as Waiting for review and counts as handed in for the cash limit, the overdue alert and the deadline.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-rider-basata-error-photo"><figcaption>Error: Send without a photo.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-basata-filled"><figcaption>The form filled: receipt photo taken (preview and Retake), 400 EGP, reference BST-778812.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-basata-error-reference"><figcaption>Error: a reference that was already sent.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-basata-three"><figcaption>Three deposits sent: 650.00 waiting for review, cash to hand in down to 369.00.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-basata-frozen"><figcaption>After finance approved one deposit and rejected another after its deadline: the red frozen banner ("Your account is frozen", the reason and what to do), 150.00 taken at the deadline, and the three statuses in their colors.</figcaption></figure>
+<figure class="shot" data-shot="s32-rider-home-frozen"><figcaption>The rider home shows the same frozen banner; a frozen rider gets no orders at handover until Accounting unfreezes him.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-store-handover">Store app: Cash from riders</h2>
+<p>Address <code>/store/&lt;storeId&gt;/cash</code>, from the store home tile Rider cash, the Riders holding cash card ("Collect cash") or the Cash tab of the bottom bar. Store staff of that store (store use); data <code>GET /stores/:id/cash</code>, component <code>RiderCashScreen</code>. Store managers (store manage) also see "Rider withdrawals in cash" under it, where they record cash given for approved withdrawals (<code>StoreWithdrawals</code>); the demo staff account is not a manager, so that block does not show here.</p>
+<figure class="shot" data-shot="s32-store-cash"><figcaption>Cash from riders on the Maadi store phone before counting, every part numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title and intro</td><td>"Count the cash the rider hands in, then enter the total. Any difference goes to finance." A red box "Handing cash to the store is closed for now. Riders deposit their cash at Basata instead." appears when <code>cash.store_handover_enabled</code> is 0.</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>Rider card</td><td>Name and badge; "Frozen: cash not handed in by the deadline" in red for a frozen rider; "N orders still out" in orange when he still carries orders.</td><td>Opens the counting fields under the card (tap again to close).</td></tr>
+<tr><td>3</td><td>Carrying</td><td>The cash he should hand in now (cash minus differences and deposits waiting).</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Recent handovers</td><td>Name, time, counted amount and status (Balanced, Waiting, Written off, On rider).</td><td>Nothing.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-store-cash-count"><figcaption>Counting Hany: 1 Cash counted (EGP), 2 the note (placeholder "Why?"), 3 Record handover.</figcaption></figure>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Record handover</td><td><code>POST /stores/:id/cash/handovers</code></td><td>Counted amount required ("Enter the amount counted."); the rider must belong to the store (<code>rider_other_store</code>); refused while the store channel is closed; note up to 300 characters; idempotency key per attempt.</td><td>Counted cash moves to the store box at once (CH number). Balanced: "Recorded. It matches." in grey. Short: red box "Recorded. 42.00 short; finance will review it." Over: "Recorded. 1.00 more than expected; finance will review it." Differences wait on <a href="#s32-store-cash">Store cash</a>.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-store-cash-short"><figcaption>After recording 1,300.00 for Hany: the red difference message, Hany now carrying 0.00 and the handover Waiting.</figcaption></figure>
+<figure class="shot" data-shot="s32-store-cash-over"><figcaption>After recording 370.00 for Mahmoud against 369.00 expected: "Recorded. 1.00 more than expected; finance will review it."</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-store-petty">Store app: Petty cash</h2>
+<p>Address <code>/store/&lt;storeId&gt;/petty-cash</code>, from the store home tile Petty cash. Store staff (store use); data <code>GET /stores/:id/petty-cash</code>, component <code>PettyCashScreen</code>. Finance reviews these at Accounting, Money out, Petty cash (another chapter).</p>
+<figure class="shot" data-shot="s32-store-petty"><figcaption>Petty cash on the Maadi store phone, every part numbered.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>In the store box (EGP)</td><td>The box balance in large type.</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>Limit hint</td><td>"Above 500.00 EGP, or when the box would keep less than 1,000.00 EGP, finance approves it first." (<code>finance.petty_cash_limit_piastres</code> and <code>finance.petty_cash_float_piastres</code>).</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>What was it for</td><td>The expense categories finance opened for stores (ledger accounts marked petty). Without any: "Finance has not opened any petty cash category yet." and no form.</td><td>Chooses the category. A Cost tag (optional) list appears under it when cost tags exist.</td></tr>
+<tr><td>4</td><td>Amount (EGP)</td><td>Placeholder 0.00.</td><td>Typing.</td></tr>
+<tr><td>5</td><td>Note</td><td>Placeholder "What did you buy?"; at least 3 characters.</td><td>Typing.</td></tr>
+<tr><td>6</td><td>Choose files</td><td>Under "Receipt photo", the attachment field marked with * (required).</td><td>File picker; the first file is the receipt photo, the rest extra attachments.</td></tr>
+<tr><td>7</td><td>Take a photo</td><td>Camera.</td><td>Adds the photo.</td></tr>
+<tr><td>8</td><td>Pay from the box</td><td>Full width button, grey until a receipt, an amount and a 3 character note are present.</td><td>Saves.</td></tr>
+<tr><td>9</td><td>Recent petty cash</td><td>PC number, status (Paid, Waiting for approval, Rejected, Withdrawn, Reversed), note and time, amount. Empty: "Nothing yet."</td><td>Nothing.</td></tr>
+</tbody></table>
+<h3>Controls on this screen</h3>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Pay from the box</td><td><code>POST /stores/:id/petty-cash</code></td><td>Receipt required ("Take a photo of the receipt first."); amount above zero; never more than the box holds ("The box does not hold that much cash."); category open for petty cash; above the limit or below the float it waits for a second person; idempotency key.</td><td>"Saved as PC-000001. Paid from the box." (posted: Dr category, Cr store box, store tag) or "Saved as PC-nnnnnn. Waiting for finance to approve it."</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s32-store-petty-noreceipt"><figcaption>Amount and note typed but no receipt yet: the button stays grey.</figcaption></figure>
+<figure class="shot" data-shot="s32-store-petty-filled"><figcaption>The receipt photo chosen (thumbnail with a cross); Pay from the box is enabled.</figcaption></figure>
+<figure class="shot" data-shot="s32-store-petty-done"><figcaption>After saving 85.00: "Saved as PC-000001. Paid from the box.", the box down to 4,087.00 and the expense listed as Paid.</figcaption></figure>
+
+<!-- ===================================================== -->
+<h2 id="s32-statuses">Statuses on these screens at a glance</h2>
+<table class="data"><thead><tr><th>Object</th><th>Status</th><th>How it looks and where</th></tr></thead><tbody>
+<tr><td rowspan="4">Cash handover (CH)</td><td>Balanced</td><td>Plain text "Balanced" in Recent handovers (finance desk and store phone).</td></tr>
+<tr><td>Waiting (pending)</td><td>"Waiting" as plain text; the handover also has an orange bordered card under Differences to review.</td></tr>
+<tr><td>Written off</td><td>Plain text with the note in grey under it.</td></tr>
+<tr><td>On rider (charged_to_rider)</td><td>Plain text with the note; the rider sees "You owe" in his wallet.</td></tr>
+<tr><td rowspan="3">Basata deposit (BD)</td><td>Waiting for review</td><td>Finance list: neutral grey bordered pill; deposit page: blue Waiting tab; rider phone: orange text.</td></tr>
+<tr><td>Approved</td><td>Neutral pill; blue Approved tab with Waiting ticked; rider phone: green text.</td></tr>
+<tr><td>Rejected</td><td>Neutral pill; red Rejected tab; reason in red on the page and on the rider phone.</td></tr>
+<tr><td rowspan="3">Bank line</td><td>Open</td><td>Listed on the left of Bank matching with its best reason chip.</td></tr>
+<tr><td>Matched</td><td>Leaves the list; counted in "N matched" and in the progress bar.</td></tr>
+<tr><td>Set aside</td><td>Leaves the list; counted in "N set aside" and in the progress bar.</td></tr>
+<tr><td rowspan="2">Loan (LN)</td><td>Being repaid</td><td>Grey text under the title on the loan page; the table shows the next instalment.</td></tr>
+<tr><td>Repaid</td><td>Grey "Repaid" under the title and in the Next instalment column.</td></tr>
+<tr><td rowspan="3">Loan instalment</td><td>Paid</td><td>Blue link "Paid" to its entry.</td></tr>
+<tr><td>Overdue</td><td>Red "overdue" and red due day; red "(overdue)" in the loans table.</td></tr>
+<tr><td>Not paid</td><td>Grey "Not paid".</td></tr>
+<tr><td rowspan="5">Rider withdrawal (RW)</td><td>Waiting (requested)</td><td>Status word at the card's right, with Cancel request under the card.</td></tr>
+<tr><td>Approved</td><td>Status word; for cash at the store the manager sees it with Cash given.</td></tr>
+<tr><td>Paid</td><td>Green word and a green "Paid ... · reference" line.</td></tr>
+<tr><td>Not approved (rejected)</td><td>Status word and "Not approved: reason".</td></tr>
+<tr><td>Cancelled</td><td>Grey pill.</td></tr>
+<tr><td rowspan="2">Rider</td><td>Frozen</td><td>Red banner on the rider home and Basata screen; red "Frozen" tag on deposit pages; red line on the store rider card; a card on Frozen riders.</td></tr>
+<tr><td>Not frozen</td><td>No banner; "No rider is frozen." on Frozen riders.</td></tr>
+</tbody></table>
+</section>

@@ -1,0 +1,346 @@
+<section class="chapter" id="ch-controls-and-access">
+<h1>Controls and access</h1>
+
+<p>The ledger guarantees that the books always balance. The controls in this chapter guarantee that the right people move money, that large or sensitive movements are seen by a second person, that closed periods stay closed, and that every change can be traced. They are implemented in <code>packages/shared/src/access.ts</code>, <code>apps/api/src/auth</code>, <code>packages/db/src/finance/controls.ts</code> and <code>packages/db/src/audit.ts</code>.</p>
+
+<h2 id="ctl-access">Access profiles</h2>
+<p>Team members (roles <code>admin</code>, <code>finance</code>, <code>store_staff</code>) each have one access profile, stored in <code>user_access</code> (one row per user) and <code>user_stores</code> (the stores of a person limited to some stores). A profile holds:</p>
+<ul>
+<li>a level per app: <code>store</code>, <code>operations</code>, <code>inventory</code>, <code>merchants</code>, <code>customers</code>, <code>accounting</code>, <code>hr</code>, <code>sales</code>, <code>settings</code>. Levels are <code>none</code> &lt; <code>view</code> &lt; <code>use</code> &lt; <code>manage</code>. The store screens have no view level and settings has only none and manage;</li>
+<li><code>all_stores</code>: every store, or only the listed ones;</li>
+<li>switches: <code>customer_data</code> (named customer profiles), <code>salaries</code> (salaries, payslips, payroll), <code>own_merchants_only</code> (account managers see only their merchants), <code>own_deals_only</code> (sales reps see only their deals);</li>
+<li><code>job_role</code>: the template the profile was last filled from, or <code>custom</code>.</li>
+</ul>
+<p>Job roles are templates in <code>JOB_ROLE_TEMPLATES</code>. The ones that matter for accounting:</p>
+<table class="data">
+<thead><tr><th>Job role</th><th>Accounting</th><th>Other apps</th><th>Salaries</th></tr></thead>
+<tbody>
+<tr><td><code>owner</code></td><td>manage</td><td>manage everywhere, settings manage</td><td>yes</td></tr>
+<tr><td><code>finance_manager</code></td><td>manage</td><td>operations, inventory, merchants view</td><td>yes</td></tr>
+<tr><td><code>finance_officer</code></td><td>use</td><td>operations, inventory, merchants view</td><td>no</td></tr>
+<tr><td><code>accountant</code></td><td>view</td><td>operations, inventory, merchants view</td><td>no</td></tr>
+<tr><td><code>store_manager</code></td><td>none</td><td>store manage (pays approved cash withdrawals from its store box and may let a rider carry cash above the limit, with a reason), operations and inventory use</td><td>no</td></tr>
+</tbody>
+</table>
+<p>What the accounting levels mean in practice:</p>
+<table class="data">
+<thead><tr><th>Level</th><th>May do</th></tr></thead>
+<tbody>
+<tr><td>view</td><td>Open every Accounting page and report, export lists and reports. Every <code>GET</code> route under <code>/finance</code>.</td></tr>
+<tr><td>use</td><td>Prepare and record: expenses, transfers, journal entries, payouts (prepare, mark paid), bills and payments, cheques, rider withdrawals (approve, pay), expense claims (pay), petty cash, invoices, month end ticks by hand. Every <code>POST</code>, <code>PUT</code>, <code>PATCH</code>, <code>DELETE</code> without a stronger level.</td></tr>
+<tr><td>manage</td><td>Decide what a second person decides: approve or reject requests, approve payouts (also in bulk), close the books, close a year, reverse a petty cash expense, open cost tags, revalue foreign banks, set a rider office's commission, book the company income tax, edit the company tax profile.</td></tr>
+<tr><td>manage plus settings manage</td><td>Owner only actions: post the opening balances, create the electronic invoice signer key, reopen closed days.</td></tr>
+</tbody>
+</table>
+<p>Routes that read or change salaries (payroll preview and run, staff pay, payslips, advances, bonuses, payroll tax lists) also need the <code>salaries</code> switch, declared as <code>@Access('accounting', 'use', { salaries: true })</code>.</p>
+<p>The old <code>users.finance_level</code> column (view, prepare, approve) still exists in the database but no longer decides anything; the accounting level replaced it.</p>
+
+<h3 id="ctl-guard">How a route is protected</h3>
+<p>The <code>AccessGuard</code> (<code>apps/api/src/auth/access.guard.ts</code>) runs on every request after the JWT guard. For a route with an <code>@Access</code> rule:</p>
+<ol>
+<li>A rider or merchant passes only where the route's <code>@Roles</code> names them; otherwise <code>403 { error: 'forbidden' }</code>.</li>
+<li>For a team member it loads the access profile fresh from the database, once per request (<code>loadAccess</code>), so a change made by an admin applies at once without signing in again.</li>
+<li>The needed level is the rule's level, or view for <code>GET</code> and <code>HEAD</code> and use for the rest. The person must reach it in one of the rule's apps, and every level listed in <code>also</code>; otherwise <code>403 { error: 'no_access' }</code>.</li>
+<li><code>customerData</code> and <code>salaries</code> in the rule need the switches.</li>
+<li>Any store id the request names (<code>:storeId</code>, the rule's <code>storeParam</code>, <code>?darkStoreId</code>) must be one of the person's stores (<code>store_not_allowed</code>), and any merchant id must be one of theirs when they are limited (<code>merchant_not_allowed</code>).</li>
+<li>For merchant users, <code>@MerchantRight</code> checks the member's rights.</li>
+</ol>
+<p>Lists and reports go further than the guard: a person limited to some stores sees only rows of their stores. List loaders receive a <code>ListScope</code> (<code>{ userId, storeIds, merchantIds }</code>, null meaning all) built by <code>scopeOf(user, access)</code>; single records outside the scope answer <code>store_not_allowed</code>. The cash position and the dashboard show such a person only their boxes, riders and handovers.</p>
+<p>The web app applies the same rules to decide what to show: each page in <code>apps/web/src/lib/apps.ts</code> names the level it needs, menus hide pages a person may not open, and opening one directly shows not found. The API remains the authority.</p>
+
+<figure class="shot" data-shot="settings-user-access"><figcaption>The access editor on the users page (<code>/admin/users</code>, Settings app): a user's job role, a level per app, all stores or chosen stores, and the switches for customer data and salaries.</figcaption></figure>
+
+<h2 id="ctl-second-person">The second person rule</h2>
+<div class="rule">Money said to come in, and changes to what we owe a merchant, wait for a second person while <code>finance.approve_money_in</code> is 1. Money going out waits for a second person from <code>finance.approval_threshold_piastres</code>. Nobody approves their own request or payout.</div>
+<p>The reason is simple: if one person could record money coming in on paper and then pay it out as a payout or an expense, money could be created and taken. So every claimed money in is checked by someone else, and every large payment too.</p>
+<table class="data">
+<thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>finance.approve_money_in</code></td><td>1</td><td>Owner capital, other income, merchant payments to us, merchant balance changes, cheques received, deposits received, loans received, asset disposals and debit notes wait for a second person (1) or post at once (0).</td></tr>
+<tr><td><code>finance.approval_threshold_piastres</code></td><td>1,000,000 (10,000 EGP)</td><td>Payouts, expenses, drawings and other money going out from this amount need a second person; 0 turns it off.</td></tr>
+</tbody>
+</table>
+
+<h3 id="ctl-submit">Post now or wait</h3>
+<p>Every money screen calls a <code>submit...</code> function instead of the posting function directly. <code>submit</code> in <code>controls.ts</code> decides:</p>
+<pre class="code">const reviewed =
+  payload.kind === 'credit_note' ||
+  (alwaysReviewed(payload)
+    ? (await getSetting(db, 'finance.approve_money_in')) === 1
+    : await needsApproval(db, amount));
+if (!reviewed) {
+  const entry = await execute(db, payload, actorUserId);
+  if (receiptPhotoId) await attachReceipt(db, { entryId: entry.id, photoId: receiptPhotoId, actorUserId });
+  return { status: 'posted' as const, entry };
+}
+return { status: 'pending' as const, request: await queueRequest(db, payload, actorUserId, receiptPhotoId) };</pre>
+<p>The answer tells the screen what happened: <code>{ status: 'posted', entry }</code> or <code>{ status: 'pending', request }</code>. The web helper <code>useFinanceAction</code> shows "sent for approval" for a pending answer.</p>
+<pre class="diagram">
+ money in (capital, other income, merchant receipt, adjustment, cheque in,
+           deposit in, loan in, disposal, debit note)
+   └─ finance.approve_money_in = 1 ──▶ request: pending
+   └─ finance.approve_money_in = 0 ──▶ posted at once
+
+ credit note ─────────────────────────▶ request: pending (always)
+
+ money out (expense, drawings, bill payment, tax payment, prepayment, asset,
+            packaging, advance, bonus, payroll, petty cash, cheque out,
+            deposit out, loan payment)
+   └─ amount &lt; limit (or limit 0) ───▶ posted at once
+   └─ amount ≥ limit ────────────────▶ request: pending
+
+ request: pending ──approve (another person, accounting manage)──▶ approved ──▶ posted
+                  ──reject (another person, with a note)─────────▶ rejected
+                  ──cancel (the person who asked)────────────────▶ cancelled
+</pre>
+<p>Journal entries follow the same rule through <code>submitJournalEntry</code>: an entry that touches no bank or cash box posts at once; one that brings money into a bank or box waits while <code>finance.approve_money_in</code> is 1; one that takes money out waits from the limit. All checks of the entry run before it is queued, so a bad entry is refused when it is entered, not when the approver opens it.</p>
+
+<h3 id="ctl-requests">finance_requests</h3>
+<p>A waiting movement is a row of <code>finance_requests</code>: <code>kind</code>, <code>amount_piastres</code>, <code>payload</code> (the movement exactly as it was entered, as JSON), <code>status</code> (<code>pending</code>, <code>approved</code>, <code>rejected</code>, <code>cancelled</code>), the requester, the decider, the time, the decision note and, once approved, the ledger entry it posted. Receipt photos can be attached to a request and follow it.</p>
+<p>Request kinds (<code>RequestPayload</code> in <code>controls.ts</code>):</p>
+<table class="data">
+<thead><tr><th>Direction</th><th>Kinds</th></tr></thead>
+<tbody>
+<tr><td>Money in or merchant balance (always reviewed while approve_money_in is 1)</td><td><code>capital_in</code>, <code>other_income</code>, <code>merchant_receipt</code>, <code>merchant_adjustment</code>, <code>cheque_in</code>, <code>deposit_in</code>, <code>loan_in</code>, <code>asset_disposal</code>, <code>debit_note</code>, and <code>deposit_out</code> when the deposit goes back into the merchant's balance</td></tr>
+<tr><td>Always reviewed</td><td><code>credit_note</code></td></tr>
+<tr><td>Money out (reviewed from the limit)</td><td><code>expense</code>, <code>drawings</code>, <code>journal</code> (money part), <code>staff_advance</code>, <code>staff_bonus</code>, <code>payroll</code>, <code>bill_payment</code>, <code>tax_payment</code>, <code>prepayment</code>, <code>asset_purchase</code>, <code>packaging_purchase</code>, <code>petty_cash</code>, <code>cheque_out</code>, <code>deposit_out</code>, <code>loan_payment</code></td></tr>
+</tbody>
+</table>
+<p>Rules of the lifecycle:</p>
+<ul>
+<li>One request per key. <code>queueRequest</code> takes an advisory lock on the movement's idempotency key and returns an existing request with the same key while it is pending or approved. A rejected or cancelled request never blocks asking again, so a corrected month's salaries can be sent after a rejection.</li>
+<li>Checked when entered. The day is checked with <code>eventTime</code> before the request is stored, so a future date fails at once.</li>
+<li>Never one's own. <code>decideFinanceRequest</code> refuses when the decider is the requester: <code>403 same_person</code>. Rejecting needs a note (<code>note_required</code>).</li>
+<li>Claimed once. The decision first runs an <code>updateMany ... where status = 'pending'</code>; if it changed no row, someone else decided first and the answer is <code>request_not_pending</code>. Two approvers clicking at once cannot both post.</li>
+<li>Posted as entered, by the requester. On approval the stored payload is executed in the same transaction, with the requester as the author of the posting. Every check of the movement runs again then (a bank may no longer hold the money).</li>
+<li>Cancel by the requester only (<code>not_your_request</code>), while pending. A cancelled or rejected cheque request also cancels its cheque.</li>
+<li>Audited: <code>finance.request_create</code>, <code>finance.request_approve</code>, <code>finance.request_reject</code>, <code>finance.request_cancel</code>.</li>
+</ul>
+
+<figure class="shot" data-shot="finance-approvals-list"><figcaption>The approvals list at <code>/finance/approvals</code>: waiting requests and payouts with kind, amount, requester and day, a few rows ticked and the bulk bar showing Approve and Reject.</figcaption></figure>
+
+<h3 id="ctl-payouts">Payouts</h3>
+<p>Payouts to merchants follow the same idea without a request row. A payout is prepared as a draft (one open draft per merchant). From the approval limit, <code>approvePayout</code> must be called by another person than the one who prepared it (<code>same_person</code>), and <code>markPayoutPaid</code> refuses an unapproved large payout with <code>approval_needed</code>. Marking paid also checks that the merchant is still owed at least the payout (<code>payout_more_than_owed</code>) and that the bank holds the money (<code>not_enough_money</code>). Bulk approval approves only payouts at or above the limit (<code>approval_not_needed</code> for the others) and never one's own.</p>
+<div class="note" data-todo="payout-soa-pot">To be completed after the update: payouts now also need a frozen Statement of Account and a Proof of Transfer, with a second person check ticked by someone else than the payer, before they can be marked paid (<code>assertReadyToPay</code>).</div>
+
+<h3 id="ctl-other-pairs">Other two person checks</h3>
+<p>Several flows have their own form of the rule, each refusing self decisions:</p>
+<ul>
+<li>Rider withdrawals: a rider never approves their own (<code>own_withdrawal</code>); from the approval limit the payer must not be the approver (<code>same_person</code>).</li>
+<li>Expense claims: nobody decides their own; from the limit the payer is not the approving manager.</li>
+<li>Basata deposits: finance never decides a deposit of their own (<code>own_deposit</code>).</li>
+<li>Purchase orders: approved at once below the limit, otherwise by another person with accounting manage.</li>
+<li>Petty cash: above <code>finance.petty_cash_limit_piastres</code> (500 EGP) or when the box would keep less than <code>finance.petty_cash_float_piastres</code> (1,000 EGP), the expense waits as a <code>petty_cash</code> request.</li>
+</ul>
+
+<h2 id="ctl-books-lock">Books lock and reopening</h2>
+<p>The books are closed through a Cairo day (the ledger core chapter explains the table and the trigger). In the API, <code>POST /finance/books-lock</code> needs accounting manage. Moving the date back reopens days: the controller passes the role <code>admin</code> only when the person also has settings manage, and <code>closeBooks</code> then requires a reason of at least five characters. Both directions are audited (<code>finance.books_close</code>, <code>finance.books_reopen</code>) with the old and the new day. The month end checklist and the Close the month run end with this same lock; closing a year sets it through 31 December.</p>
+
+<figure class="shot" data-shot="finance-close-books"><figcaption>The Close the books page at <code>/finance/close</code>: the day the books are closed through, who closed them and when, the day picker, and the reason box that appears when an earlier day is chosen (reopening).</figcaption></figure>
+
+<h2 id="ctl-audit">Audit log and History</h2>
+<div class="rule">Every action is audited: who, what, when, before and after.</div>
+<p><code>audit_log</code> rows hold <code>actor_user_id</code>, <code>action</code>, <code>entity_type</code>, <code>entity_id</code>, <code>before</code> and <code>after</code> (JSON) and <code>created_at</code>. The table is append only (trigger <code>audit_log_append_only</code>). Rows are written with <code>recordAudit(tx, ...)</code> in the same transaction as the change, so a change without its audit row cannot exist.</p>
+<pre class="code">export function recordAudit(tx: Prisma.TransactionClient, entry: AuditEntry) {
+  return tx.auditLog.create({
+    data: {
+      actorUserId: entry.actorUserId,
+      action: entry.action,
+      entityType: entry.entityType,
+      entityId: entry.entityId,
+      before: entry.before ?? undefined,
+      after: entry.after ?? undefined,
+    },
+  });
+}</pre>
+<p>Accounting actions are named <code>finance.&lt;what&gt;</code>: for example <code>finance.expense</code>, <code>finance.journal</code>, <code>finance.money_transfer</code>, <code>finance.payout_create</code>, <code>finance.payout_approve</code>, <code>finance.payout_paid</code>, <code>finance.payout_cancel</code>, <code>finance.cash_handover</code>, <code>finance.cash_handover_review</code>, <code>finance.bill_create</code>, <code>finance.bill_payment</code>, <code>finance.cheque_book</code>, <code>finance.credit_note</code>, <code>finance.debit_note</code>, <code>finance.invoice_issue</code>, <code>finance.receipt_attach</code>, <code>finance.account_create</code>, <code>finance.account_update</code>, <code>finance.opening_balances</code>, <code>finance.year_close</code>, <code>finance.month_end_mark</code>, <code>finance.payroll</code>. Contract changes use <code>merchant.contract_*</code>, chatter uses <code>record.note</code> and <code>record.activity</code>.</p>
+<p>The History panel of a document page reads <code>GET /history/:entityType/:entityId</code> (<code>apps/api/src/admin/history.controller.ts</code>), newest first, up to 100 rows. Who may read it is decided by <code>RECORD_APPS</code> (<code>packages/shared/src/record-apps.ts</code>): money records (<code>payout</code>, <code>ledger_entry</code>, <code>bill</code>, <code>finance_request</code>, <code>cheque</code>, <code>tax_invoice</code>, <code>rider_withdrawal</code>, <code>petty_cash</code>, <code>expense_claim</code>, <code>basata_deposit</code>, <code>books</code> and others) need accounting view; merchants and riders can be read by their own app or accounting. Record types not listed are for settings manage. A known record must also be inside the person's stores and merchants. The full audit log is browsable in the Settings app at <code>/admin/audit</code>.</p>
+
+<h2 id="ctl-idempotency">Idempotency</h2>
+<div class="rule">Every staff action sends a client generated idempotency key, so double taps and retries apply once. Background jobs are idempotent and safe to run twice.</div>
+<p>Idempotency is enforced at three levels:</p>
+<ol>
+<li>The ledger: <code>ledger_entries.idempotency_key</code> is unique and <code>post</code> returns the existing entry for a known key (see the ledger core chapter).</li>
+<li>Documents: tables created by a person's action (cash handovers, rider withdrawals, Basata deposits, petty cash and others) store the request's idempotency key with a unique index, and the domain function returns the existing row for a repeat. Some movements answer a repeat with the first entry and write one audit row only (deposits, merchant receipts, adjustments).</li>
+<li>Requests: <code>queueRequest</code> keeps one pending or approved request per key, under an advisory lock.</li>
+</ol>
+<p>Jobs use keys built from the record and the period (a storage day, a month, a deadline day), so a job that runs on two instances at once, or again after a restart, changes nothing.</p>
+
+<h2 id="ctl-errors">Error answers</h2>
+<p>A refusal answers JSON <code>{ error: code }</code> with a 4xx status (409 by default, 400 for bad input, 403 for access and same person, 404 for missing records). Some refusals carry plain values beside the code (for example <code>payout_more_than_owed</code> carries <code>amountPiastres</code> and <code>owedPiastres</code>). Input that fails its zod schema answers <code>400 { error: 'validation_failed', issues }</code>. The web app shows the English or Arabic message for the code from <code>finance.merchants.errors</code> in the messages files, or a generic message for an unknown code. The table lists every accounting error code with its English message as shown to the user.</p>
+<table class="data">
+<thead><tr><th>Code</th><th>English message</th></tr></thead>
+<tbody>
+<tr><td><code>nothing_to_pay</code></td><td>Nothing is owed to this merchant up to that day.</td></tr>
+<tr><td><code>payout_already_open</code></td><td>This merchant already has a payout waiting.</td></tr>
+<tr><td><code>reason_required</code></td><td>Write a reason of at least 5 characters.</td></tr>
+<tr><td><code>invalid_amount</code></td><td>Enter an amount.</td></tr>
+<tr><td><code>more_than_cash_in_store</code></td><td>That is more than the cash in this store.</td></tr>
+<tr><td><code>more_than_owed</code></td><td>That is more than the rider has earned.</td></tr>
+<tr><td><code>handover_not_pending</code></td><td>Someone already reviewed this.</td></tr>
+<tr><td><code>payout_not_draft</code></td><td>This payout was already handled.</td></tr>
+<tr><td><code>validation_failed</code></td><td>Check the fields.</td></tr>
+<tr><td><code>generic</code></td><td>Something went wrong. Try again.</td></tr>
+<tr><td><code>account_name_taken</code></td><td>An account with that name already exists in this group.</td></tr>
+<tr><td><code>bank_account_exists</code></td><td>That bank account is already in the chart.</td></tr>
+<tr><td><code>bank_details_required</code></td><td>Enter the bank name and account number.</td></tr>
+<tr><td><code>group_not_open</code></td><td>Accounts in this group are opened by the system.</td></tr>
+<tr><td><code>group_full</code></td><td>This group has no free numbers left.</td></tr>
+<tr><td><code>account_locked</code></td><td>The system uses this account, so it cannot be closed or renamed here.</td></tr>
+<tr><td><code>account_has_balance</code></td><td>Move its balance out first; only an empty account can be closed.</td></tr>
+<tr><td><code>account_inactive</code></td><td>That account is closed.</td></tr>
+<tr><td><code>account_not_found</code></td><td>Choose a bank or cash box.</td></tr>
+<tr><td><code>bank_account_not_found</code></td><td>Choose a bank account.</td></tr>
+<tr><td><code>expense_account_not_found</code></td><td>Choose an expense category.</td></tr>
+<tr><td><code>income_account_not_found</code></td><td>Choose an income account.</td></tr>
+<tr><td><code>equity_account_not_found</code></td><td>Choose an equity account.</td></tr>
+<tr><td><code>not_enough_money</code></td><td>There is not that much money in the account it comes from.</td></tr>
+<tr><td><code>same_account</code></td><td>From and to must be different accounts.</td></tr>
+<tr><td><code>future_date</code></td><td>The date cannot be in the future.</td></tr>
+<tr><td><code>invalid_vat</code></td><td>VAT must be less than the amount.</td></tr>
+<tr><td><code>not_balanced</code></td><td>Debits must equal credits.</td></tr>
+<tr><td><code>invalid_line</code></td><td>Each line needs an account and either a debit or a credit.</td></tr>
+<tr><td><code>wallet_not_allowed</code></td><td>Merchant and rider wallets are changed from their own pages.</td></tr>
+<tr><td><code>money_account_not_allowed</code></td><td>Riders&#x27; cash can&#x27;t be changed by a journal entry. Use the cash handover screens.</td></tr>
+<tr><td><code>accrual_money_not_allowed</code></td><td>An accrual can&#x27;t include a bank or cash box, because it is reversed by itself next month.</td></tr>
+<tr><td><code>books_closed</code></td><td>This date is in a closed month. Choose a later date, or ask an admin to reopen the month.</td></tr>
+<tr><td><code>approval_needed</code></td><td>This payout needs a second person&#x27;s approval first.</td></tr>
+<tr><td><code>same_person</code></td><td>You prepared this, so another person must approve it.</td></tr>
+<tr><td><code>already_approved</code></td><td>Already approved.</td></tr>
+<tr><td><code>finance_level_too_low</code></td><td>Your finance access doesn&#x27;t allow this. Ask an admin.</td></tr>
+<tr><td><code>request_not_pending</code></td><td>Someone already handled this.</td></tr>
+<tr><td><code>not_your_request</code></td><td>Only the person who asked can withdraw it.</td></tr>
+<tr><td><code>note_required</code></td><td>Write why you reject it.</td></tr>
+<tr><td><code>reopen_admin_only</code></td><td>Only an admin can reopen a closed month.</td></tr>
+<tr><td><code>day_not_over</code></td><td>You can close only days that are over.</td></tr>
+<tr><td><code>opening_already_posted</code></td><td>Opening balances were already posted. Correct them with a journal entry.</td></tr>
+<tr><td><code>account_twice</code></td><td>An account appears twice.</td></tr>
+<tr><td><code>nothing_to_post</code></td><td>Enter at least one amount.</td></tr>
+<tr><td><code>store_not_found</code></td><td>Store not found.</td></tr>
+<tr><td><code>salary_not_set</code></td><td>Set this person&#x27;s salary first.</td></tr>
+<tr><td><code>more_than_advance</code></td><td>That is more than the person owes as an advance.</td></tr>
+<tr><td><code>net_below_zero</code></td><td>Deductions are larger than the salary.</td></tr>
+<tr><td><code>payroll_already_run</code></td><td>This month&#x27;s salaries were already paid.</td></tr>
+<tr><td><code>future_month</code></td><td>A month that has not started yet cannot be paid.</td></tr>
+<tr><td><code>invalid_month</code></td><td>Choose a valid month.</td></tr>
+<tr><td><code>person_twice</code></td><td>A person appears twice.</td></tr>
+<tr><td><code>user_not_found</code></td><td>Person not found.</td></tr>
+<tr><td><code>supplier_exists</code></td><td>A supplier with this name already exists.</td></tr>
+<tr><td><code>supplier_not_found</code></td><td>Supplier not found or closed.</td></tr>
+<tr><td><code>bill_exists</code></td><td>This supplier invoice number is already entered.</td></tr>
+<tr><td><code>bill_not_found</code></td><td>Bill not found.</td></tr>
+<tr><td><code>bill_not_open</code></td><td>This bill is already paid or cancelled.</td></tr>
+<tr><td><code>expense_account_required</code></td><td>Choose the expense category (or set one on the supplier).</td></tr>
+<tr><td><code>due_before_bill</code></td><td>The due date cannot be before the bill date.</td></tr>
+<tr><td><code>invalid_wht</code></td><td>Withholding tax must be between 0% and 100%.</td></tr>
+<tr><td><code>invalid_salvage</code></td><td>What it is worth at the end must be less than its price.</td></tr>
+<tr><td><code>invalid_months</code></td><td>Number of months is not valid.</td></tr>
+<tr><td><code>nothing_owed</code></td><td>This merchant does not owe us anything.</td></tr>
+<tr><td><code>end_before_start</code></td><td>The last month cannot be before the first.</td></tr>
+<tr><td><code>invalid_day_of_month</code></td><td>Day of month must be 1 to 28.</td></tr>
+<tr><td><code>recurring_not_found</code></td><td>Recurring expense not found.</td></tr>
+<tr><td><code>merchant_not_found</code></td><td>Merchant not found.</td></tr>
+<tr><td><code>invalid_quarter</code></td><td>Quarter not valid.</td></tr>
+<tr><td><code>invalid_date</code></td><td>Date not valid.</td></tr>
+<tr><td><code>bank_line_not_found</code></td><td>Bank line not found.</td></tr>
+<tr><td><code>bank_line_not_open</code></td><td>This bank line is already matched or set aside.</td></tr>
+<tr><td><code>ledger_line_not_found</code></td><td>Entry line not found.</td></tr>
+<tr><td><code>ledger_line_matched</code></td><td>That entry already matches another bank line.</td></tr>
+<tr><td><code>amounts_differ</code></td><td>The amounts are different.</td></tr>
+<tr><td><code>not_money_out</code></td><td>Only money out can be bank charges.</td></tr>
+<tr><td><code>nothing_to_import</code></td><td>No lines to import.</td></tr>
+<tr><td><code>year_not_over</code></td><td>This year is not over yet.</td></tr>
+<tr><td><code>year_already_closed</code></td><td>This year is already closed.</td></tr>
+<tr><td><code>earlier_year_open</code></td><td>Close the earlier year first.</td></tr>
+<tr><td><code>invalid_year</code></td><td>Year not valid.</td></tr>
+<tr><td><code>range_too_long</code></td><td>Choose at most about a year.</td></tr>
+<tr><td><code>invalid_range</code></td><td>The end is before the start.</td></tr>
+<tr><td><code>outsourced_not_on_payroll</code></td><td>This person is paid by their outsourcing company, not by our payroll.</td></tr>
+<tr><td><code>employee_bonus_in_payroll</code></td><td>Employees get bonuses in the salary run, where they are taxed.</td></tr>
+<tr><td><code>staffing_company_required</code></td><td>Choose the outsourcing company.</td></tr>
+<tr><td><code>not_their_company</code></td><td>This person is hired through another company.</td></tr>
+<tr><td><code>no_person_on_bill</code></td><td>Advances are taken back only on a bill for one person.</td></tr>
+<tr><td><code>month_not_over</code></td><td>That month is not over yet.</td></tr>
+<tr><td><code>invoice_not_found</code></td><td>Invoice not found.</td></tr>
+<tr><td><code>more_than_invoiced</code></td><td>More than is left on this invoice.</td></tr>
+<tr><td><code>invoice_not_rejected</code></td><td>Only a rejected or invalid invoice can be sent again.</td></tr>
+<tr><td><code>invalid_tax_number</code></td><td>A tax registration number has 9 digits.</td></tr>
+<tr><td><code>invalid_activity_code</code></td><td>An activity code has 4 digits.</td></tr>
+<tr><td><code>invalid_national_id</code></td><td>A national ID has 14 digits.</td></tr>
+<tr><td><code>invalid_iban</code></td><td>An Egyptian IBAN is EG followed by 27 digits.</td></tr>
+<tr><td><code>invalid_rate</code></td><td>Write the rate as a number, for example 48.50.</td></tr>
+<tr><td><code>invalid_currency</code></td><td>Currency not valid.</td></tr>
+<tr><td><code>asset_not_found</code></td><td>Equipment not found.</td></tr>
+<tr><td><code>asset_already_disposed</code></td><td>Already sold or scrapped.</td></tr>
+<tr><td><code>disposal_before_charged_month</code></td><td>Depreciation is already booked for that month or later: choose a later day.</td></tr>
+<tr><td><code>not_enough_cash_in_box</code></td><td>The store box does not hold that much cash.</td></tr>
+<tr><td><code>petty_cash_reversed</code></td><td>This petty expense was already reversed.</td></tr>
+<tr><td><code>petty_cash_not_posted</code></td><td>Only a posted petty expense can be reversed.</td></tr>
+<tr><td><code>invalid_item</code></td><td>This item cannot be ticked by hand.</td></tr>
+<tr><td><code>mark_not_found</code></td><td>This item was not ticked.</td></tr>
+<tr><td><code>cheque_exists</code></td><td>This cheque (bank and number) is already in the register.</td></tr>
+<tr><td><code>cheque_not_due</code></td><td>This cheque is post dated: it can be cleared on its due day.</td></tr>
+<tr><td><code>cheque_not_open</code></td><td>This cheque cannot do that in its current state.</td></tr>
+<tr><td><code>cheque_not_cancellable</code></td><td>Only a cheque not yet deposited or cleared can be cancelled.</td></tr>
+<tr><td><code>cheque_amount_mismatch</code></td><td>The bill changed since this cheque was written. Cancel it and write a new one.</td></tr>
+<tr><td><code>cheque_egp_only</code></td><td>Cheques pay bills in EGP only.</td></tr>
+<tr><td><code>cheque_not_found</code></td><td>Cheque not found.</td></tr>
+<tr><td><code>bank_name_required</code></td><td>Enter the bank the cheque is drawn on.</td></tr>
+<tr><td><code>bank_account_required</code></td><td>Choose our bank account the cheque is drawn on.</td></tr>
+<tr><td><code>party_name_required</code></td><td>Enter who wrote the cheque.</td></tr>
+<tr><td><code>purpose_direction</code></td><td>This purpose does not fit the direction.</td></tr>
+<tr><td><code>due_before_issue</code></td><td>The due date cannot be before the issue date.</td></tr>
+<tr><td><code>more_than_deposit</code></td><td>That is more than the deposit we hold.</td></tr>
+<tr><td><code>merchant_over_credit_limit</code></td><td>The merchant is over the credit limit.</td></tr>
+<tr><td><code>tier_twice</code></td><td>Each band needs its own starting order.</td></tr>
+<tr><td><code>tier_empty</code></td><td>Give each band a fixed fee, a percentage or both.</td></tr>
+<tr><td><code>payout_not_found</code></td><td>Payout not found.</td></tr>
+<tr><td><code>commission_not_payable</code></td><td>This commission is not approved, already paid, or for another amount.</td></tr>
+<tr><td><code>below_payout_minimum</code></td><td>What we owe is below the payout minimum of the merchant&#x27;s contract; it waits until it reaches it.</td></tr>
+<tr><td><code>payout_more_than_owed</code></td><td>The merchant is owed less than this payout now (fees, adjustments or credit notes came after it was prepared). Cancel it and prepare it again.</td></tr>
+<tr><td><code>more_than_available</code></td><td>That is more than you can withdraw now.</td></tr>
+<tr><td><code>withdrawal_not_approved</code></td><td>Approve the request before paying it.</td></tr>
+<tr><td><code>withdrawal_already_paid</code></td><td>This withdrawal is already paid.</td></tr>
+<tr><td><code>withdrawal_not_requested</code></td><td>This request can no longer be changed.</td></tr>
+<tr><td><code>withdrawal_not_open</code></td><td>This request is already closed.</td></tr>
+<tr><td><code>own_withdrawal</code></td><td>You cannot decide your own withdrawal.</td></tr>
+<tr><td><code>withdrawal_not_found</code></td><td>Withdrawal not found.</td></tr>
+<tr><td><code>rider_office_not_found</code></td><td>This supplier is not a rider office.</td></tr>
+<tr><td><code>later_month_prepared</code></td><td>A later month is already prepared for this office. Months are prepared in order.</td></tr>
+<tr><td><code>office_has_riders</code></td><td>Riders are still linked to this office. Unlink them on their HR file first.</td></tr>
+<tr><td><code>supplier_has_staff</code></td><td>People on a monthly salary are hired through this supplier. A rider office takes only riders paid per delivery.</td></tr>
+<tr><td><code>invalid_commission</code></td><td>The commission must be between 0 and 100%.</td></tr>
+<tr><td><code>more_than_they_owe</code></td><td>That is more than the supplier owes us.</td></tr>
+<tr><td><code>bill_from_rider_office</code></td><td>A rider office&#x27;s commission bill cannot be cancelled.</td></tr>
+<tr><td><code>foreign_currency_account</code></td><td>This bank account is in another currency: only transfers with the amount in that currency, bills in the same currency and loans paid in EGP elsewhere can use it.</td></tr>
+<tr><td><code>foreign_amount_required</code></td><td>Type the amount in the other currency too.</td></tr>
+<tr><td><code>currency_mismatch</code></td><td>The two accounts (or the bill and the account) are in different currencies.</td></tr>
+<tr><td><code>foreign_payment_unsupported</code></td><td>A bill with withholding tax or an advance taken back is paid from an EGP account.</td></tr>
+<tr><td><code>currency_banks_only</code></td><td>Only bank accounts can be held in another currency.</td></tr>
+<tr><td><code>not_foreign_account</code></td><td>This account is in EGP: there is nothing to revalue.</td></tr>
+<tr><td><code>already_revalued</code></td><td>This account was already revalued for that month.</td></tr>
+<tr><td><code>cost_tag_inactive</code></td><td>This cost tag is switched off.</td></tr>
+<tr><td><code>cost_tag_not_found</code></td><td>This cost tag no longer exists.</td></tr>
+<tr><td><code>cost_tag_exists</code></td><td>A cost tag with this name already exists.</td></tr>
+<tr><td><code>loan_repaid</code></td><td>This loan is fully repaid.</td></tr>
+<tr><td><code>instalment_paid</code></td><td>This instalment is already paid.</td></tr>
+<tr><td><code>pay_in_order</code></td><td>Pay the instalments in their order.</td></tr>
+<tr><td><code>first_payment_too_early</code></td><td>The first instalment must come after the day the money came in.</td></tr>
+<tr><td><code>lender_required</code></td><td>Choose the bank that lent the money.</td></tr>
+<tr><td><code>loan_not_found</code></td><td>This loan was not found.</td></tr>
+<tr><td><code>invalid_fee_kind</code></td><td>Choose a fee for every line.</td></tr>
+<tr><td><code>invalid_lines</code></td><td>Add between 1 and 20 lines.</td></tr>
+<tr><td><code>invalid_quantity</code></td><td>Enter a quantity of at least 1.</td></tr>
+<tr><td><code>merchant_not_allowed</code></td><td>This merchant is not one of yours.</td></tr>
+<tr><td><code>store_not_allowed</code></td><td>This store is not one of yours.</td></tr>
+<tr><td><code>budget_year_empty</code></td><td>The year to copy from has no budget here.</td></tr>
+<tr><td><code>budget_year_not_empty</code></td><td>That year already has a budget here.</td></tr>
+<tr><td><code>same_year</code></td><td>Choose two different years.</td></tr>
+<tr><td><code>pot_required</code></td><td>Upload the proof of transfer first.</td></tr>
+<tr><td><code>pot_amount_mismatch</code></td><td>The amount on the slip is not the payout amount.</td></tr>
+<tr><td><code>soa_mismatch</code></td><td>The statement net is not the payout amount.</td></tr>
+<tr><td><code>checks_incomplete</code></td><td>Tick every payout check first.</td></tr>
+</tbody>
+</table>
+<p>Some screens keep their own short messages for codes in their context: the bank matching screen (<code>finance.bankMatch.errors</code>), the Pay merchants run (<code>finance.payRun.errors</code>, including <code>approval_not_needed</code>), the Record an expense form (<code>finance.quickExpense.errors</code>, checked in the browser before sending), rider pay (<code>riderPay.errors</code>, including <code>below_minimum</code>, <code>withdrawal_already_open</code>, <code>invalid_instapay</code>), Basata (<code>basata.errors</code>, including <code>own_deposit</code>, <code>deposit_not_pending</code>, <code>more_than_cash</code>), the store cash screens (<code>storeCash.errors</code>, <code>cashControl.pettyStore.errors</code>), the chatter (<code>documents.chatter.errors</code>) and bulk results in list views (<code>listView.errors</code>).</p>
+</section>

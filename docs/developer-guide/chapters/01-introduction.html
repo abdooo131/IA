@@ -1,0 +1,102 @@
+<section class="chapter" id="ch-introduction">
+<h1>Introduction</h1>
+
+<h2 id="intro-purpose">Purpose of this document</h2>
+<p>This document explains how the accounting system of Shiply Now is built and how its user interface works. It is written for an outside developer who is building a similar system and wants to understand the design decisions, the data model, the rules the code enforces and the screens that sit on top of them. It is not a user manual: it describes how the parts fit together and why, with short excerpts of the real code.</p>
+<p>Every statement in this document was checked against the source code of the monorepo. Where the code and an older design note differ, the code wins. Where a feature was still being finished when this document was written, the text says so in a marked note instead of describing it.</p>
+
+<h2 id="intro-product">What Shiply Now is</h2>
+<p>Shiply Now is a 60 minute delivery service for merchants who sell on Shopify, run from small dark stores in Greater Cairo. A dark store is a small warehouse that is not open to the public. A merchant sends stock to a dark store before any customer orders. When a customer orders, the store only picks, packs and hands the parcel to a rider, so the delivery can reach the customer within the promised time.</p>
+<p>The system is a standalone pilot. It covers the whole chain:</p>
+<ul>
+<li>dark stores (and hubs, which are sorting facilities) with delivery zones built from areas of Greater Cairo and opening hours;</li>
+<li>the merchant catalog, matched to Shopify variants by SKU;</li>
+<li>stock per store and bin, changed only through an append only log of stock movements;</li>
+<li>a Shopify app that registers one fulfillment location per merchant shop and dark store, receives fulfillment requests and reports stock and tracking;</li>
+<li>the order queue of each store with service level timers, and the staff screens that receive, pick, pack and hand over parcels;</li>
+<li>the rider screens that deliver, collect cash on delivery and take proof photos;</li>
+<li>an admin desk for operations, inventory, merchants, customers, human resources and sales;</li>
+<li>an accounting system: a double entry ledger in piastres, cash control, merchant payouts, supplier bills, taxes, payroll and reports.</li>
+</ul>
+<p>Cash on delivery is common in Egypt, so a large part of the accounting is about cash that riders collect for merchants, how it reaches a store box or a bank, and how and when the merchant is paid back what is theirs after our fees.</p>
+
+<h2 id="intro-roles">Roles</h2>
+<p>Every user account has one role. The role decides which area of the web app a person lands in. Team roles then receive a finer access profile per app (see the chapter on controls and access).</p>
+<table class="data">
+<thead><tr><th>Role</th><th>Who</th><th>Main area</th></tr></thead>
+<tbody>
+<tr><td><code>admin</code></td><td>Team members who run the business (owner, managers, office staff). Their rights come from an access profile.</td><td><code>/home</code> app tiles, then <code>/admin/...</code> and <code>/finance/...</code></td></tr>
+<tr><td><code>finance</code></td><td>Accounting staff. Also a team role with an access profile; by default they see only the Accounting app.</td><td><code>/finance</code></td></tr>
+<tr><td><code>store_staff</code></td><td>People who work in a dark store or hub: receiving, picking, packing, cash handover, petty cash.</td><td><code>/store/&lt;store id&gt;</code></td></tr>
+<tr><td><code>rider</code></td><td>Delivery riders. They see their deliveries, their cash, their wallet of earnings and their cash deposits.</td><td><code>/rider</code></td></tr>
+<tr><td><code>merchant</code></td><td>Users of a merchant company (owner or member with rights). They see orders, products, shipments, wallet, invoices and contract of their own merchant only.</td><td><code>/merchant</code></td></tr>
+</tbody>
+</table>
+<p>The three team roles (<code>admin</code>, <code>finance</code>, <code>store_staff</code>) are listed in <code>TEAM_ROLES</code> in <code>packages/shared/src/access.ts</code>. Their real rights come from a per app access level (none, view, use, manage), so two admins can have very different rights. Riders and merchants keep their own fixed areas.</p>
+
+<h2 id="intro-apps">The apps</h2>
+<p>The desk for team members is organised like Odoo: a home screen of app tiles at <code>/home</code>, and inside each app a top bar with that app's menus. The apps are defined once in <code>apps/web/src/lib/apps.ts</code>:</p>
+<table class="data">
+<thead><tr><th>App</th><th>Access app</th><th>What it holds</th></tr></thead>
+<tbody>
+<tr><td>Operations</td><td><code>operations</code></td><td>Overview dashboard, orders, alerts, stores, zones, addresses.</td></tr>
+<tr><td>Inventory</td><td><code>inventory</code></td><td>Stock levels, shipments received, transfers, returns to merchants, damage, counts, packaging.</td></tr>
+<tr><td>Merchants</td><td><code>merchants</code></td><td>Merchants and their contracts, products, Shopify stores.</td></tr>
+<tr><td>Customers</td><td><code>customers</code></td><td>Customer profiles (needs the customer data switch), places, market data.</td></tr>
+<tr><td>Accounting</td><td><code>accounting</code></td><td>Everything under <code>/finance</code>: dashboard, money in, money out, cash and bank, reports, planning, month end, setup.</td></tr>
+<tr><td>HR</td><td><code>hr</code></td><td>Employees, time and attendance, leave, discipline, inbox, organisation.</td></tr>
+<tr><td>Sales</td><td><code>sales</code></td><td>Pipeline, leads, companies, proposals, targets, commission.</td></tr>
+<tr><td>Settings</td><td><code>settings</code></td><td>Users and access, audit log, system settings.</td></tr>
+</tbody>
+</table>
+<p>A person who may use the store screens also gets a Store screens tile. Each app keeps its own Configuration page for its settings at <code>/admin/settings/&lt;app&gt;</code>, visible only with settings manage.</p>
+<p>Merchants, riders and store staff do not use the app tiles. They have their own mobile first areas: <code>/merchant</code> (with a sidebar), <code>/rider</code> and <code>/store</code>. Every team member and rider also has My HR at <code>/my-file</code> (leave, payslips, expense claims). There is a public company website at <code>/</code> and a public tracking page for each order at <code>/t/&lt;token&gt;</code>.</p>
+
+<figure class="shot" data-shot="ui-home-tiles"><figcaption>The home screen at <code>/home</code> for a person with every app open: the grid of app tiles (Operations, Inventory, Merchants, Customers, Accounting, HR, Sales, Settings and Store screens), each tile in its own color with its icon.</figcaption></figure>
+
+<h2 id="intro-reading">How to read this document</h2>
+<p>The document moves from the foundation upward:</p>
+<ol>
+<li>The architecture chapter shows the monorepo layout, how one request travels from the browser to the database and back, where background jobs run, how the system is deployed and tested, and a full map of every accounting file.</li>
+<li>The ledger core chapter explains the double entry ledger: its tables, the one function that writes to it, the database triggers that guard it, how balances are read, and how the books are closed.</li>
+<li>The chart of accounts chapter lists every account group and code and explains which accounts are opened by the system, which by finance, and which ones a manual journal entry may touch.</li>
+<li>The controls and access chapter covers access profiles, the second person rule, the books lock, the audit log, idempotency and the error answers.</li>
+<li>The UI development chapter explains how the web app is built: routing, data fetching, translation, the brand tokens, the app frame and every reusable building block (list views, document pages, forms, reports, charts, printing, push).</li>
+</ol>
+<p>Each chapter can be read on its own, but the ledger core chapter is the base for everything about money. Code excerpts are short and real; file paths are relative to the repository root. Placeholders marked as screenshots show where a picture of the running interface belongs.</p>
+
+<h2 id="intro-conventions">Conventions</h2>
+
+<h3 id="intro-money">Money in piastres</h3>
+<div class="rule">Money is stored as integers in piastres (1 Egyptian pound, EGP, is 100 piastres). Never as a floating point number. Values are converted to EGP only for display.</div>
+<p>Every money column in the database ends in <code>_piastres</code> (for example <code>amount_piastres</code> on <code>ledger_lines</code>) and is an integer. The ledger refuses any line whose amount is not a safe integer. Percentages are stored as basis points, where 10,000 basis points are 100%: a fee of 2.5% is stored as <code>250</code> and VAT of 14% as <code>1400</code>. A share of an amount is computed in whole piastres, rounded half up, by one helper:</p>
+<pre class="code">/** A share in basis points of an amount, rounded half up, in whole piastres. */
+export function share(amount: number, basisPoints: number): number {
+  return Math.floor((amount * basisPoints + 5_000) / 10_000);
+}</pre>
+<p>Amounts typed by a person are converted from text to piastres without going through a float (<code>parseEgp</code> in <code>apps/web/src/lib/money.ts</code>, described in the UI chapter). Amounts are shown with two decimals and Latin digits, kept left to right inside Arabic text.</p>
+
+<h3 id="intro-egp">Display in EGP</h3>
+<p>The screens show EGP with two decimals, for example <code>1,249.50</code>. A negative amount shows in the danger color. Exports to CSV and Excel write money as EGP numbers with two decimals so that a spreadsheet can add them up.</p>
+
+<h3 id="intro-time">Cairo time</h3>
+<p>The business runs on Cairo time, and Egypt has summer time, so the offset from UTC is not fixed (two hours in winter, three in summer). The rules are:</p>
+<ul>
+<li>Instants are stored in UTC (<code>occurred_at</code>, <code>created_at</code>).</li>
+<li>A business day is a Cairo calendar day written as <code>YYYY-MM-DD</code>. The helpers <code>cairoDay(instant)</code> and <code>cairoDayStart(day)</code> in <code>packages/shared/src/hours.ts</code> convert between the two and honour summer time. A fixed <code>+02:00</code> is never used.</li>
+<li>In SQL, a Cairo day or month is computed by converting from UTC first: <code>(occurred_at AT TIME ZONE 'UTC') AT TIME ZONE 'Africa/Cairo'</code>.</li>
+<li>Admin and accounting date filters take Cairo days. A money event dated on a past day is booked at noon Cairo time of that day.</li>
+<li>Date boxes in the interface are typed and shown day first (<code>dd/mm/yyyy</code>), as in Egypt, and sent to the API as <code>YYYY-MM-DD</code>.</li>
+</ul>
+
+<h3 id="intro-vat">VAT</h3>
+<p>VAT is added on top of our fees. Its rate is one global setting, <code>fee.vat_bp</code>, in basis points. The setting's code default is 0; the owner set it to 1400 (14%) when the finance module went live. The same rate applies to rider office bills when the office has a tax number. VAT is never stored per merchant. When a fee is charged, the merchant's balance goes down by the fee plus its VAT, the fee is booked as income and the VAT is booked as owed to the tax authority (account 2301). Fees and VAT are computed separately, each rounded to whole piastres.</p>
+
+<h3 id="intro-numbers">Document numbers</h3>
+<p>Accounting documents carry gapless serial numbers with a prefix, padded to six digits: <code>JV-000001</code> for a journal entry, <code>PAY-</code> for payouts, <code>CH-</code> for cash handovers, <code>BILL-</code>, <code>INV-</code>, <code>CN-</code>, <code>DN-</code>, <code>PO-</code>, <code>CHQ-</code>, <code>PC-</code>, <code>RW-</code>, <code>BS-</code>, <code>EC-</code>, <code>BD-</code> and others. Numbers are taken inside the transaction that creates the document, under a database lock, so there are no gaps and no duplicates.</p>
+
+<h3 id="intro-language">Language and wording</h3>
+<p>The interface exists in English (left to right) and Arabic (right to left). Every string goes through translation files; none is written into a component. The code and its comments use plain words. This document follows the same habit, and uses the words of the code (for example "wallet" for an account that belongs to one merchant, rider, supplier or team member).</p>
+
+<div class="note" data-todo="accounting-update-batch">To be completed after the update: a batch of accounting changes was being finished when this document was written (merchant payout Statement of Account and Proof of Transfer with a second person check, a separate Suppliers page, purchase orders with asset lines, budgets by quarter, a Forecast area, a Coming up and due card, attachments inside every money form, a journal entry page with print). These features are not described in detail here; notes like this one mark where they belong.</div>
+</section>

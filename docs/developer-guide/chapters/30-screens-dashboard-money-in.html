@@ -1,0 +1,562 @@
+<section class="chapter" id="ch-s30-screens-dashboard-money-in">
+<h1>Screens: Dashboard and Money in</h1>
+
+<p>This chapter walks through the Accounting app exactly as a finance user sees it, from the app tile to the last screen of the Money in menu, and then shows the merchant's side of the same payout. Every screenshot was taken on the local demo copy on 11/11/2026 with two finance users: the preparer (accounting use) and a second finance user (accounting manage) who approves and confirms. Every action shown was really performed, so the results (entries, numbers, statuses) are the system's own answers.</p>
+
+<div class="note">Access words used below. View: may open the screen and read. Use: may prepare, upload, mark paid, register and cancel. Manage: may also approve what waits for a second person (payouts above the limit, Approvals requests, bulk approve). Every route of the Accounting API is guarded by <code>@Access('accounting')</code>; reading needs view, writing needs use, and the routes listed as manage carry <code>@Access('accounting', 'manage')</code> (<code>requests/:id/decide</code>, <code>requests/bulk-decide</code>, <code>payouts/:id/approve</code>, <code>payouts/bulk-approve</code>, payout checks setup). On top of the level, the second person rule is checked by the server: nobody approves what they asked for, and the person who confirmed the statement and slip of a payout cannot be the one who marks it paid.</div>
+
+<div class="note">VAT shows 0.00 on every fee, invoice and note in these screenshots because the demo database holds <code>fee.vat_bp</code> = 0. With the owner's 14% the same screens show the VAT column filled.</div>
+
+
+<h2 id="s30-home">Entering Accounting: the app home</h2>
+<p>Address: <code>/home</code>. Who: every team member with an account; a finance user lands here after sign in. Each tile is shown only when the person's access profile allows that app (the pages and their needed level are defined once in <code>apps/web/src/lib/apps.ts</code>). The demo finance user has view on Operations, Inventory and Merchants and manage on Accounting, so four tiles show; the admin sees every app.</p>
+<figure class="shot" data-shot="s30-home-finance"><figcaption>The app home of the finance user: a greeting with the person's name and one tile per app the access profile allows. Accounting is the green wallet tile. Address <code>/home</code>.</figcaption></figure>
+<figure class="shot" data-shot="s30-home-admin"><figcaption>The same home for the admin: every app tile is shown. Address <code>/home</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Greeting</td><td>Shows "Hello" and the person's name</td><td>Name from the user account</td><td>None</td></tr>
+<tr><td>App tile (icon, name, one line description)</td><td>Opens the app's first page</td><td>Shown only if the profile has at least view on that app</td><td>Accounting opens <code>/finance</code>, the dashboard</td></tr>
+<tr><td>Settings button (bottom of the tile page and every app top bar)</td><td>Opens the account menu</td><td>Same for every signed in person</td><td>See "The top bar" below</td></tr>
+</tbody></table>
+
+<h2 id="s30-topbar">The top bar of Accounting</h2>
+<p>Address: on every page under <code>/finance</code>. Who: anyone with accounting view. The bar is <code>AppShell</code> with the Accounting search and badges.</p>
+<figure class="shot" data-shot="s30-topbar"><figcaption>The Accounting top bar: grid button, app name, the eight menus with their badges, the search box and the Settings button.</figcaption></figure>
+<figure class="shot" data-shot="s30-menu-dashboard"><figcaption>The Dashboard menu open: Dashboard, Approvals and Coming up and due. The badge on the menu counts what waits in it for this person.</figcaption></figure>
+<figure class="shot" data-shot="s30-menu-moneyin"><figcaption>The Money in menu open: Merchant wallets, Pay merchants, Payouts, Tax invoices, Money owed to us, Cheques, Emails to merchants.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Grid button (four squares, label "All apps")</td><td>Goes back to the app tiles</td><td>Always shown</td><td>Opens <code>/home</code></td></tr>
+<tr><td>Green wallet icon and "Accounting"</td><td>Opens the dashboard</td><td>Always shown</td><td>Opens <code>/finance</code></td></tr>
+<tr><td>Dashboard menu</td><td>Dashboard, Approvals, Coming up and due</td><td>Badge (brown pill, white number) counts approvals waiting for me</td><td>The underline in Shiply Blue marks the menu of the current page</td></tr>
+<tr><td>Money in menu</td><td>The seven pages of this chapter</td><td>Each item is shown only if the profile allows it</td><td>Opens the page</td></tr>
+<tr><td>Money out, Cash and bank, Reporting, Planning, Month end, Setup</td><td>Menus of the other chapters</td><td>Cash and bank shows a badge with the entries missing a receipt</td><td>Opens a list of pages</td></tr>
+<tr><td>Search box (placeholder <code>PAY-12, BILL-3, an order or a merchant</code>)</td><td>Finds a document, order or merchant</td><td>Starts after two characters, waits 200 ms after typing, asks <code>GET /finance/search</code>; arrows move, Enter opens the first hit, Escape closes; on phones it opens from a magnifier button</td><td>A list of hits with the number in blue and the kind on the right; "Nothing found." when empty</td></tr>
+<tr><td>Settings button (gear)</td><td>Opens the account menu</td><td>Same menu on every signed in screen</td><td>Help, Notifications, Tickets, My HR, language (English or Arabic), theme (System, Light, Dark), Sign out</td></tr>
+</tbody></table>
+<h3>Search examples</h3>
+<p>Numbers are read in loose forms by <code>parseDocNumber</code>: <code>PAY-1</code>, <code>pay 1</code> and <code>PAY-000001</code> all find the same payout. The search covers JV, PAY, CH, BILL, INV, CN, DN, PO, CHQ, PC, RW, BS, EC, BD numbers, order numbers and merchant and supplier names, always inside the person's stores and merchants.</p>
+<figure class="shot" data-shot="s30-search-pay"><figcaption>Typing <code>PAY-1</code> finds <code>PAY-000001</code>, kind Payout, with the merchant below.</figcaption></figure>
+<figure class="shot" data-shot="s30-search-bill"><figcaption>Typing <code>BILL-1</code> finds <code>BILL-000001</code>, kind Bill, with the supplier below.</figcaption></figure>
+<figure class="shot" data-shot="s30-search-jv"><figcaption>Typing <code>JV-12</code> finds journal entry <code>JV-000012</code> with its memo below.</figcaption></figure>
+<figure class="shot" data-shot="s30-settings-menu"><figcaption>The Settings menu opened from the gear: Help, Notifications, Tickets, My HR, language, theme and Sign out.</figcaption></figure>
+<figure class="shot" data-shot="s30-dashboard-phone"><figcaption>On a phone the menus fold into one Menu button and the search becomes a magnifier button; the quick actions wrap. Address <code>/finance</code>.</figcaption></figure>
+
+
+<h2 id="s30-dashboard">Dashboard</h2>
+<p>Address: <code>/finance</code>, menu Dashboard &gt; Dashboard. Who: accounting view. The quick action Record an expense is shown only with accounting use; card actions that change the books are hidden without use. People limited to some stores see only their boxes, riders and handovers. Data comes from <code>GET /finance/dashboard</code> and <code>GET /finance/payments-due?days=30</code>.</p>
+<figure class="shot" data-shot="s30-dashboard-marked"><figcaption>The Accounting dashboard with numbered parts (legend below). Address <code>/finance</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Grid button</td><td>Four grey squares</td><td>Back to <code>/home</code></td></tr>
+<tr><td>2</td><td>App name</td><td>Green wallet tile and "Accounting" in Navy</td><td>Reloads the dashboard</td></tr>
+<tr><td>3</td><td>Dashboard menu with badge</td><td>Blue text and blue underline (current menu); brown pill with the count of approvals waiting for me</td><td>Opens the menu</td></tr>
+<tr><td>4</td><td>Cash and bank badge</td><td>Brown pill: entries missing a receipt</td><td>Opens the menu</td></tr>
+<tr><td>5</td><td>Search box</td><td>Grey outline, magnifier, placeholder</td><td>See the top bar</td></tr>
+<tr><td>6</td><td>Settings</td><td>Gear in a rounded square</td><td>Account menu</td></tr>
+<tr><td>7</td><td>Title and intro</td><td>"Accounting", "What needs someone today, then every bank, box and book." and today's Cairo date (dd/mm/yyyy)</td><td>None</td></tr>
+<tr><td>8</td><td>All reports</td><td>Blue link at the right</td><td>Opens <code>/finance/reports</code></td></tr>
+<tr><td>9</td><td>Record an expense</td><td>White button, blue receipt icon; only with accounting use</td><td>Opens <code>/finance/expenses/new</code></td></tr>
+<tr><td>10</td><td>Pay merchants</td><td>White button, blue arrows icon</td><td>Opens the guided run <code>/finance/payouts/run</code></td></tr>
+<tr><td>11</td><td>Match the bank</td><td>White button, wallet icon</td><td>Opens <code>/finance/bank</code></td></tr>
+<tr><td>12</td><td>Close the month</td><td>White button, warning triangle</td><td>Opens <code>/finance/month-end/run?month=</code> of last month</td></tr>
+<tr><td>13</td><td>Today strip items</td><td>One tile per waiting item with a count in a blue circle and, where it applies, an EGP amount below; only items with a count above 0 are shown (approvals for me, payouts due today, rider withdrawals, handovers with a difference, bank lines to match, bills due within 7 days, entries missing a receipt, my reminders). When nothing waits: "Nothing waits for anyone. Well done."</td><td>Opens the list filtered to that item (for example bills with <code>?f=due_7_days</code>)</td></tr>
+<tr><td>14</td><td>Month end tile</td><td>Grey tile "Month end for <code>2026-10</code>" with "n items left", "Everything is ready: close the books." or "The books are closed for this month.", and done/total on the right</td><td>Opens the Close the month run on that month</td></tr>
+<tr><td>15</td><td>My reminders due</td><td>Grey tile; each reminder has a dot (red when overdue, amber when due today), the record label in blue and the note; "Nothing due today." when empty</td><td>Opens the record</td></tr>
+<tr><td>16</td><td>Overdue</td><td>Red title with the count, total in EGP; rows of payments past their day, or "Nothing here."</td><td>A row opens the screen that pays it</td></tr>
+<tr><td>17</td><td>Due this week</td><td>Navy title, count and total; at most five rows (kind · label, day or "Today" · detail, amount); "n more" link when longer</td><td>Merchant payout rows open Pay merchants; bills open the bill</td></tr>
+<tr><td>18</td><td>Next 30 days</td><td>Same layout for the rest of the 30 days; salaries say "estimate"</td><td>Salaries open <code>/finance/payroll</code>, taxes <code>/finance/taxes</code></td></tr>
+<tr><td>19</td><td>See the next 90 days</td><td>Blue link</td><td>Opens <code>/finance/due</code></td></tr>
+<tr><td>20</td><td>Bank card (one per bank and company cash box)</td><td>Icon in a blue square, name, code and "Balance"</td><td>None</td></tr>
+<tr><td>21</td><td>Card balance</td><td>Large number in EGP; red when below zero</td><td>None</td></tr>
+<tr><td>22</td><td>Sparkline</td><td>Shiply Blue line with a light fill of the last 30 days and its caption ("Balance each day", "Paid each day"...)</td><td>None</td></tr>
+<tr><td>23</td><td>Waiting lines</td><td>Blue and bold when the count is above 0, grey when 0 (for example "No bank lines to match")</td><td>Opens the filtered list</td></tr>
+<tr><td>24</td><td>Card actions</td><td>First action blue filled, the others white outlined</td><td>Bank: Match lines, Statement; Store boxes: Store cash, Deposit; Payouts: Pay merchants, Prepare payouts, Wallets</td></tr>
+<tr><td>25</td><td>Store cash boxes card</td><td>Total of all store boxes, sparkline</td><td>None</td></tr>
+<tr><td>26</td><td>Store parts</td><td>Up to five stores with their box balance</td><td>None</td></tr>
+<tr><td>27</td><td>Riders holding cash</td><td>"6 riders hold cash" with the amount, blue when above 0</td><td>Opens the cash position</td></tr>
+<tr><td>28</td><td>Merchant payouts card</td><td>Owed to merchants; waits: payouts due today, drafts to pay, waiting for my approval</td><td>Pay merchants, Prepare payouts, Wallets</td></tr>
+<tr><td>29</td><td>Supplier bills card</td><td>Owed to suppliers; bills due in 7 days, overdue</td><td>New bill, Pay bills</td></tr>
+<tr><td>30</td><td>Merchant invoices card</td><td>Invoiced this month; e invoices to fix, not sent yet</td><td>Invoices</td></tr>
+<tr><td>31</td><td>Rider withdrawals card</td><td>Asked, not yet paid; to approve, to pay</td><td>Withdrawals, Rider wallets</td></tr>
+<tr><td>32</td><td>Approvals card</td><td>Amount waiting for a second person; "Nothing for me to approve", "1 of mine waiting"</td><td>Approvals</td></tr>
+</tbody></table>
+<div class="rule">The dashboard posts nothing. Every number is read from the ledger and the documents at request time; balances are always summed from lines, never stored.</div>
+
+
+<h2 id="s30-approvals">Approvals</h2>
+<p>Address: <code>/finance/approvals</code>, menu Dashboard &gt; Approvals. Who: accounting view reads the list; accounting use may withdraw their own request; accounting manage approves and rejects (one at a time or in bulk). The list is a list view fed by <code>GET /finance/lists/approvals</code>.</p>
+<p>What lands here: money going out from <code>finance.approval_threshold_piastres</code> (10,000.00 EGP in the demo) and every claimed money in (owner capital, other income, merchant payments, merchant balance changes, cheques received, credit and debit notes). The intro sentence prints the live limit. When payouts wait for a manager, a yellow outlined banner "n payouts wait for a second person: open them" links to <code>/finance/payouts?f=for_me_to_approve</code>.</p>
+<figure class="shot" data-shot="s30-approvals-list"><figcaption>Approvals opened by the second finance user: the default filter Waiting is applied. Address <code>/finance/approvals</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title</td><td>"Approvals"</td><td>None</td></tr>
+<tr><td>2</td><td>Intro</td><td>The rule with the current limit</td><td>None</td></tr>
+<tr><td>3</td><td>Facet chip</td><td>Light blue chip "Filter Waiting" with a blue ×</td><td>× removes the filter; Backspace in the search removes the last chip</td></tr>
+<tr><td>4</td><td>Search</td><td>"Search…": searches kind, reference and person</td><td>Adds a Search chip</td></tr>
+<tr><td>5</td><td>Filters</td><td>Funnel icon</td><td>Opens Filters, Group by and Favourites</td></tr>
+<tr><td>6</td><td>Range</td><td>"1–6 of 6"</td><td>None</td></tr>
+<tr><td>7</td><td>Export</td><td>White button</td><td>CSV or Excel workbook; only ticked rows when some are ticked</td></tr>
+<tr><td>8</td><td>Columns</td><td>White button</td><td>Shows the optional columns Decided by, Entry, Receipts</td></tr>
+<tr><td>9</td><td>Per page</td><td>25, 50, 100, 200</td><td>Changes the page size</td></tr>
+<tr><td>10</td><td>Select all</td><td>Checkbox in the header</td><td>Ticks every row of the page and shows the bulk bar</td></tr>
+<tr><td>11</td><td>What</td><td>The request kind in blue (Owner capital in, Expense, Merchant balance change, Cheque received, Credit note to a merchant...); sortable</td><td>Opens the request page</td></tr>
+<tr><td>12</td><td>Reference</td><td>The reference typed by the asker</td><td>None</td></tr>
+<tr><td>13</td><td>Asked by</td><td>The person who asked</td><td>None</td></tr>
+<tr><td>14</td><td>Created</td><td>Day and time in Cairo; sortable</td><td>Sorts</td></tr>
+<tr><td>15</td><td>Status</td><td>Status pill</td><td>None</td></tr>
+<tr><td>16</td><td>Amount (EGP)</td><td>Right aligned; sortable</td><td>Sorts</td></tr>
+<tr><td>17</td><td>Status pill</td><td>Waiting, Approved, Rejected or Withdrawn: dark text in a thin grey outlined pill (the four states look the same in the list; only the word differs)</td><td>None</td></tr>
+<tr><td>18</td><td>Total row</td><td>Sum of Amount over every passing row, not only the page</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-approvals-filters"><figcaption>The Filters panel: status (Waiting, Approved, Rejected, Withdrawn), who (Waiting for me (not mine), Asked by me), direction (Money in, Money out), dates (This month, Last month, Last 7 days); Group by Type, Status, Asked by, Month; Favourites to save the search.</figcaption></figure>
+<table class="data"><thead><tr><th>Filter or grouping</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Waiting, Approved, Rejected, Withdrawn</td><td>One group: ticked ones are joined with "or"</td></tr>
+<tr><td>Waiting for me (not mine)</td><td>Pending requests asked by someone else</td></tr>
+<tr><td>Asked by me</td><td>Requests I asked for</td></tr>
+<tr><td>Money in, Money out</td><td>By the direction of the request kind</td></tr>
+<tr><td>This month, Last month, Last 7 days</td><td>Cairo days of creation</td></tr>
+<tr><td>Group by</td><td>Up to two levels, in order, with counts and subtotals</td></tr>
+<tr><td>Favourites</td><td>"Save this search as", "Open the list with it" (default), Save; kept per person</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-approvals-all-statuses"><figcaption>With the Waiting chip removed every state shows: Approved, Withdrawn, Rejected and Waiting pills side by side.</figcaption></figure>
+
+<h3>An approval request page</h3>
+<p>Address: <code>/finance/approvals/&lt;id&gt;</code>. The page is a <code>DocumentPage</code> fed by <code>GET /finance/documents/finance_request/&lt;id&gt;</code>; the action card appears only while the request is pending and the reader has accounting use.</p>
+<figure class="shot" data-shot="s30-approval-page-marked"><figcaption>A pending request as the second finance user sees it, with numbered parts. Address <code>/finance/approvals/&lt;id&gt;</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Approvals / <code>REQ-xxxxxx</code> (the last six characters of the id)</td><td>Back to the list with its filters</td></tr>
+<tr><td>2</td><td>Title</td><td>The request label and its reference below</td><td>None</td></tr>
+<tr><td>3</td><td>Status bar</td><td>Waiting then Approved; the current step is a Shiply Blue filled segment with white text; a passed step has a tick; Rejected and Withdrawn appear as a red filled segment at the end</td><td>None</td></tr>
+<tr><td>4</td><td>Kind</td><td>Bold kind ("Owner capital in"), reference, memo</td><td>None</td></tr>
+<tr><td>5</td><td>Amount</td><td>Large "21,000.00 EGP"</td><td>None</td></tr>
+<tr><td>6</td><td>Asked line</td><td>"Asked by name · time · dated day · no receipt / n receipts"</td><td>None</td></tr>
+<tr><td>7</td><td>Approve</td><td>Blue filled button; shown only to someone other than the asker</td><td>Posts <code>POST /finance/requests/&lt;id&gt;/decide {approve: true}</code>: the entry is posted and the request becomes Approved</td></tr>
+<tr><td>8</td><td>Reason to reject</td><td>Text field</td><td>Needed for Reject</td></tr>
+<tr><td>9</td><td>Reject</td><td>White button with red text; disabled until the reason has 3 characters</td><td>Rejects with the reason; nothing is posted</td></tr>
+<tr><td>10</td><td>Smart button Receipts</td><td>Blue count and label</td><td>Opens the attachments</td></tr>
+<tr><td>11</td><td>Fields</td><td>Type, Amount, Reference, What, Day, Asked by, Prepared on, and once decided Decided by, Decided on, Decision note, Entry</td><td>Entry opens the journal entry</td></tr>
+<tr><td>12</td><td>Log a note</td><td>Chatter tab; "Notes cannot be changed later"</td><td>Posts an append only note</td></tr>
+<tr><td>13</td><td>Remind me</td><td>Chatter tab</td><td>Plans a reminder on a Cairo day for a person who may open the record</td></tr>
+<tr><td>14</td><td>Add receipts or documents</td><td>White button under Attachments</td><td>Adds files to the request</td></tr>
+<tr><td>15</td><td>History</td><td>Blue dots, newest first, each audit row with who, when and before → after</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-approval-page-own"><figcaption>The asker opening their own request: "You asked for this, so another person must approve it." and a Withdraw button instead of Approve and Reject.</figcaption></figure>
+<figure class="shot" data-shot="s30-approval-reject-filled"><figcaption>The second person typed a reason; Reject is now enabled (red text).</figcaption></figure>
+<h3>The four states of a request</h3>
+<figure class="shot" data-shot="s30-approval-page-pending"><figcaption>Waiting: blue Waiting segment, the action card with Approve, the reason field and Reject.</figcaption></figure>
+<figure class="shot" data-shot="s30-approval-page-approved"><figcaption>Approved by the second user: the status bar shows Waiting ticked and Approved filled blue; the fields show Decided by, Decided on and the entry it posted.</figcaption></figure>
+<figure class="shot" data-shot="s30-approval-page-rejected"><figcaption>Rejected: a red Rejected segment at the end of the bar; Decision note shows the reason; nothing was posted.</figcaption></figure>
+<figure class="shot" data-shot="s30-approval-page-withdrawn"><figcaption>Withdrawn by the asker: a red Withdrawn segment; the request can no longer be decided.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Approve</td><td><code>POST /finance/requests/&lt;id&gt;/decide</code></td><td>Accounting manage; never one's own (<code>same_person</code>); the request must still be pending (<code>request_not_pending</code>: "Someone already handled this."); money checks run again at approval (a bank must still hold the money)</td><td>Entry posted (JV number), status Approved, audit <code>finance.request_approve</code></td></tr>
+<tr><td>Reject</td><td>Same route with <code>approve: false</code></td><td>Reason of at least 3 characters (<code>note_required</code>: "Write why you reject it.")</td><td>Status Rejected, nothing posted; a cheque waiting on it is cancelled</td></tr>
+<tr><td>Withdraw</td><td><code>POST /finance/requests/&lt;id&gt;/cancel</code></td><td>Only the asker (<code>not_your_request</code>: "Only the person who asked can withdraw it.")</td><td>Status Withdrawn</td></tr>
+</tbody></table>
+
+<h3>Bulk approve and reject</h3>
+<p>Ticking rows shows the sticky bulk bar in Navy at the bottom: "n selected", Approve (blue), Reject (outlined), Clear, and a note field ("Note (optional; needed to reject)"). The bar is shown only with accounting manage. Each request is still checked on its own by <code>POST /finance/requests/bulk-decide</code>; the answer lists every row as done or refused.</p>
+<figure class="shot" data-shot="s30-approvals-bulkbar"><figcaption>The preparer ticked one of her own requests: the Navy bulk bar shows "1 selected", Approve, Reject and Clear.</figcaption></figure>
+<figure class="shot" data-shot="s30-approvals-bulk-refused"><figcaption>Bulk approve of one's own request: "0 done, 1 refused" with the reason "You prepared this, so another person must approve it. (1)" in an amber outlined box.</figcaption></figure>
+<figure class="shot" data-shot="s30-approvals-bulk-done"><figcaption>The second finance user approved the same request in bulk with the note "Bank slip seen": "1 done, 0 refused" and the row left the Waiting list.</figcaption></figure>
+<figure class="shot" data-shot="s30-approvals-bulk-select"><figcaption>The second user ticks a credit note and a debit note request (see Invoices) before approving both at once.</figcaption></figure>
+<figure class="shot" data-shot="s30-approvals-bulk-notes-done"><figcaption>Both notes approved in one tap: each was checked and posted on its own.</figcaption></figure>
+
+
+<h2 id="s30-due">Coming up and due</h2>
+<p>Address: <code>/finance/due</code>, menu Dashboard &gt; Coming up and due. Who: accounting view. Data: <code>GET /finance/payments-due?days=90</code>, with <code>kinds=</code> when a kind is chosen. Nothing can be paid from this page; each row links to the screen that pays it.</p>
+<figure class="shot" data-shot="s30-due"><figcaption>Every known payment of the next 90 days, grouped Overdue, Due this week, Next 30 days and Later. Address <code>/finance/due</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title and intro</td><td>"Every payment we already know about until dd/mm/yyyy, each linked to the screen that pays it."</td><td>None</td></tr>
+<tr><td>2</td><td>How is this counted?</td><td>Blue fold link</td><td>Opens the method text (below)</td></tr>
+<tr><td>3</td><td>Everything chip</td><td>Selected chip: blue outline, light blue fill, blue text</td><td>Removes the kind filter</td></tr>
+<tr><td>4</td><td>Kind chips</td><td>Recurring expense, Supplier bill, Loan instalment, Salaries, Taxes, Merchant payout; white when not chosen</td><td>Opens <code>/finance/due?kind=&lt;kind&gt;</code></td></tr>
+<tr><td>5</td><td>Merchant payout chip</td><td>Example of a kind chip</td><td>Shows only payouts</td></tr>
+<tr><td>6</td><td>Overdue</td><td>Red title, count and total</td><td>Rows open the payer screen</td></tr>
+<tr><td>7</td><td>Due this week</td><td>Navy title, count and total</td><td>Same</td></tr>
+<tr><td>8</td><td>Next 30 days</td><td>Navy title</td><td>Same</td></tr>
+<tr><td>9</td><td>Later</td><td>Grey title, up to day 90</td><td>Same</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-due-method"><figcaption>The method under "How is this counted?": recurring expenses until approved, open bills by due day, unpaid loan instalments, salaries estimated from the packages in force, taxes owed at the end of this or next month, merchant payouts on each merchant's next payout day.</figcaption></figure>
+<figure class="shot" data-shot="s30-due-payout"><figcaption>Filtered to Merchant payout: only the payout rows remain; the chip is selected. Address <code>/finance/due?kind=payout</code>.</figcaption></figure>
+<figure class="shot" data-shot="s30-due-empty"><figcaption>Empty state: filtered to Loan instalment with no loans, every group reads "Nothing here." with 0.00 EGP.</figcaption></figure>
+<div class="rule">People limited to some stores see their stores' items and company wide ones, but not merchant payouts.</div>
+
+
+<h2 id="s30-wallets">Merchant wallets</h2>
+<p>Address: <code>/finance/merchants</code>, menu Money in &gt; Merchant wallets. Who: accounting view reads; the schedule, Prepare payout, Record payment received and Adjustment need accounting use. Data: <code>GET /finance/overview</code>. For the money rules see the chapter "Merchant money: wallets, payouts, receivables, invoices and profit".</p>
+<figure class="shot" data-shot="s30-wallets"><figcaption>One card per merchant with what we owe them and the actions. Address <code>/finance/merchants</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title</td><td>"Merchant wallets"</td><td>None</td></tr>
+<tr><td>2</td><td>Merchant name</td><td>Navy heading; under it "Payout waiting: amount" while a draft payout exists</td><td>None</td></tr>
+<tr><td>3</td><td>Balance</td><td>"We owe" (credit) or "Owes us" (debit) above the amount in EGP, always shown positive</td><td>None</td></tr>
+<tr><td>4</td><td>Payout schedule</td><td>Daily, Twice a week (Sun, Wed), Weekly (Sun)</td><td>Saves at once with <code>PATCH /finance/merchants/&lt;id&gt;/payout-schedule</code> (audited); a message "Done." appears</td></tr>
+<tr><td>5</td><td>Statement</td><td>White button with blue text</td><td>Opens the wallet statement <code>/finance/merchants/&lt;id&gt;</code></td></tr>
+<tr><td>6</td><td>Prepare payout</td><td>White button; greyed when nothing is owed or a draft already exists</td><td>Prepares one payout up to the end of today (<code>POST /finance/payouts</code>); the SOA is frozen in the same transaction</td></tr>
+<tr><td>7</td><td>Record payment received</td><td>White button</td><td>Opens the receipt panel</td></tr>
+<tr><td>8</td><td>Adjustment</td><td>White button</td><td>Opens the adjustment panel</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-wallets-receipt"><figcaption>Record payment received: Amount (EGP), Reference, Save and the Receipts and documents field (Choose files, Take a photo, drop zone; photos or PDF up to 5 MB each, at most 10). A bank picker appears only when more than one bank is open.</figcaption></figure>
+<figure class="shot" data-shot="s30-wallets-adjust-error"><figcaption>Adjustment with the hint "Positive gives the merchant credit, negative charges them. Always write the reason." Saving with no amount shows the red message "Enter an amount."</figcaption></figure>
+<figure class="shot" data-shot="s30-wallets-prepared"><figcaption>After Prepare payout: "Done.", the line "Payout waiting: 11,363.19" under the name, and Prepare payout greyed.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Prepare payout</td><td><code>POST /finance/payouts {merchantId, cutoffDay: today}</code></td><td><code>nothing_to_pay</code>: "Nothing is owed to this merchant up to that day."; <code>payout_already_open</code>: "This merchant already has a payout waiting."; below the contract minimum it is skipped</td><td>Draft payout <code>PAY-</code> with its frozen <code>SOA-</code>; needs approval when at or above the limit</td></tr>
+<tr><td>Record payment received: Save</td><td><code>POST /finance/receipts</code> with an idempotency key and the files</td><td>Always waits for a second person while <code>finance.approve_money_in</code> is 1</td><td>"Saved and sent for approval..." and a row in Approvals (Merchant paid us)</td></tr>
+<tr><td>Adjustment: Save</td><td><code>POST /finance/adjustments</code></td><td>Reason of at least 5 characters (<code>reason_required</code>); waits for a second person</td><td>A Merchant balance change request in Approvals; once approved, entry kind <code>adjustment</code></td></tr>
+</tbody></table>
+
+<h3>A merchant wallet statement</h3>
+<p>Address: <code>/finance/merchants/&lt;id&gt;?from=&amp;to=</code> (default the last 30 Cairo days). Data: <code>GET /finance/statements/&lt;id&gt;</code>, the same <code>merchantStatement</code> the merchant reads.</p>
+<figure class="shot" data-shot="s30-wallet-statement"><figcaption>The wallet statement of Lotus Beauty from 01/11/2026 to 11/11/2026, numbered parts in the legend. Address <code>/finance/merchants/&lt;id&gt;</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Back</td><td>Blue link with an arrow</td><td>Back to Merchant wallets</td></tr>
+<tr><td>2</td><td>Title</td><td>"Statement: merchant"</td><td>None</td></tr>
+<tr><td>3</td><td>From</td><td>Date box typed and shown dd/mm/yyyy with a calendar icon</td><td>Sets the first day</td></tr>
+<tr><td>4</td><td>To</td><td>Same</td><td>Sets the last day</td></tr>
+<tr><td>(next to 4)</td><td>Show</td><td>Light blue button</td><td>Reloads with the days in the address</td></tr>
+<tr><td>6</td><td>Export to Excel</td><td>White button</td><td>Downloads <code>/api/finance/statements/&lt;id&gt;/export.csv</code> (UTF 8 with byte order mark)</td></tr>
+<tr><td>7</td><td>Opening balance</td><td>What we owed at the start; then one figure per entry kind (Order fee, Payout to merchant, COD collected, COD fee, Storage fee, Failed delivery fee...) with charges in red and minus</td><td>None</td></tr>
+<tr><td>8</td><td>Closing balance</td><td>What we owe at the end</td><td>None</td></tr>
+<tr><td>9</td><td>Lines</td><td>Date, Type, Order or reference, EGP (red when it lowers what we owe), Balance after the line</td><td>None</td></tr>
+</tbody></table>
+
+
+<h2 id="s30-payrun">Pay merchants (the guided run)</h2>
+<p>Address: <code>/finance/payouts/run?step=&amp;cutoff=</code>, menu Money in &gt; Pay merchants. Who: accounting view reads every step; Prepare, Upload proof and Mark paid need accounting use; Approve needs accounting manage. Data: <code>GET /finance/payouts/run</code> (nothing is stored for the run; where it stands is read from the payouts). The page opens on the step the payouts say is next; any step can be opened from the step chips. The money rules are in "Merchant money, payouts".</p>
+<p>To show a full run the three demo merchants were set to the Daily schedule (on 11/11/2026, a Wednesday, the weekly Sunday schedule makes nobody due) and two merchants got bank details.</p>
+<figure class="shot" data-shot="s30-run-prepare"><figcaption>Step 1 Prepare with numbered parts: who is due today, what is owed up to the cutoff day and whether bank details are ready. Address <code>/finance/payouts/run?step=prepare</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title and intro</td><td>"Pay merchants"</td><td>None</td></tr>
+<tr><td>2</td><td>All payouts</td><td>Blue link</td><td>Opens <code>/finance/payouts</code></td></tr>
+<tr><td>5</td><td>Today line</td><td>"Today 11/11/2026; paying what is owed up to the end of 10/11/2026."</td><td>None</td></tr>
+<tr><td>4</td><td>Step chips</td><td>Prepare, Review, Approve, Bank file, Mark paid, Done. The open step has a blue outline and a blue number; a step with nothing waiting shows a green tick; a step with work shows its grey number</td><td>Opens that step (<code>?step=</code>)</td></tr>
+<tr><td>(in the card)</td><td>Owed up to the end of</td><td>Date box, default yesterday, never after today</td><td>Changes the cutoff (<code>?cutoff=</code>)</td></tr>
+<tr><td>6</td><td>Prepare n payouts</td><td>Blue button; "Nothing to prepare" when none is ready</td><td>Prepares a payout for every row in state To prepare</td></tr>
+<tr><td>7</td><td>Table</td><td>Merchant (blue link to the wallet), Schedule, Owed, Minimum, Bank details (green "Ready" or red "Missing" pill), State</td><td>Merchant opens its statement</td></tr>
+<tr><td>8</td><td>State</td><td>To prepare, Prepared, Paid today, Below the minimum, Nothing owed</td><td>None</td></tr>
+<tr><td>9</td><td>Next</td><td>White button (Back on later steps)</td><td>Next step</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-run-prepared"><figcaption>After Prepare 3 payouts: the message "3 prepared, 0 skipped." and the rows now read Prepared.</figcaption></figure>
+<figure class="shot" data-shot="s30-run-review"><figcaption>Step 2 Review: three stat boxes (n payouts with the total, To approve, Without bank details in red), then each payout with Bank details (red underlined "Missing" links to the merchant) and Approval (Not needed, Waits for approval, Approved by name).</figcaption></figure>
+<figure class="shot" data-shot="s30-run-approve-own"><figcaption>Step 3 Approve when nothing waits: the dashed box "Nothing waits for approval." and "3 payouts are under the limit and need no approval."</figcaption></figure>
+<figure class="shot" data-shot="s30-run-approve"><figcaption>Step 3 Approve as the second finance user: one payout of 11,363.19 EGP is above the 10,000 EGP limit; its checkbox is ticked and the button reads "Approve 1 payout". A payout one prepared shows "You prepared it, so someone else approves it." with no checkbox.</figcaption></figure>
+<figure class="shot" data-shot="s30-run-approved"><figcaption>After approving: "1 approved, 0 refused."</figcaption></figure>
+<figure class="shot" data-shot="s30-run-file"><figcaption>Step 4 Bank file: "1 payout in the file" with its total, "Not in the file 1", Download the bank file (blue) and below each payout left out with the reason (red "Missing" for bank details, or Waits for approval).</figcaption></figure>
+<figure class="shot" data-shot="s30-run-pay"><figcaption>Step 5 Mark paid with numbered parts (legend below).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Row checkbox</td><td>Ticked by default for every payout ready to pay (approved where needed, bank details present)</td><td>Includes or leaves out the row</td></tr>
+<tr><td>2</td><td>Proof</td><td>"Proof: <code>POT-000014 · TRF-DOC-1002</code>", or red "Proof: No proof"</td><td>None</td></tr>
+<tr><td>3</td><td>Checks</td><td>"n of m checks", red until all are ticked</td><td>None</td></tr>
+<tr><td>4</td><td>Open to confirm</td><td>Blue link</td><td>Opens the payout page at its Statement, proof and checks section</td></tr>
+<tr><td>5</td><td>Upload proof</td><td>Blue fold, shown while the row has no proof</td><td>Opens the compact proof form (file, amount prefilled, reference)</td></tr>
+<tr><td>6</td><td>Bank reference</td><td>"Empty uses the reference on each slip"</td><td>One reference for all ticked rows</td></tr>
+<tr><td>7</td><td>Paid on</td><td>Date box, default today, never in the future</td><td>A past day is booked at its noon; closed books refuse it</td></tr>
+<tr><td>8</td><td>From bank</td><td>Every open bank account ("1101 · CIB")</td><td>The bank the payouts leave from</td></tr>
+<tr><td>9</td><td>Mark n payouts paid (amount EGP)</td><td>Blue button</td><td><code>POST /finance/payouts/run/mark-paid</code>: <code>markPayoutPaid</code> once per payout in its own transaction</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-run-pay-refused-noproof"><figcaption>Refusal, no proof: the row shows red "Proof: No proof" and "0 of 2 checks"; Mark 1 payout paid answers in red "0 marked paid, 1 refused: Upload the proof of transfer first."</figcaption></figure>
+<figure class="shot" data-shot="s30-run-row-proof"><figcaption>Upload proof on the row: a PNG bank slip chosen, the amount prefilled with the payout amount and the reference typed from the slip.</figcaption></figure>
+<figure class="shot" data-shot="s30-run-pay-proofed"><figcaption>After the upload the row shows the POT number and reference; the checks are still to be ticked on the payout page.</figcaption></figure>
+<figure class="shot" data-shot="s30-run-pay-refused-same"><figcaption>Refusal, same person: the preparer confirmed the statement and slip herself ("You confirmed it, so someone else marks it paid." on the row) and then pressed Mark paid: "0 marked paid, 1 refused: You confirmed the statement and the slip, so someone else marks it paid."</figcaption></figure>
+<figure class="shot" data-shot="s30-run-done"><figcaption>Step 6 Done after the second finance user marked it paid: n paid today with the total, Emails queued, Still prepared, and each paid payout with its bank reference, time and the number of emails queued; links All payouts and Merchant emails.</figcaption></figure>
+<div class="rule">Marking paid by transfer needs, beyond the approval and the bank balance: a proof of transfer (<code>pot_required</code>), the proof amount equal to the payout (<code>pot_amount_mismatch</code>), the frozen statement net equal to the payout (<code>soa_mismatch</code>), every active check ticked (<code>checks_incomplete</code>) and the second person check ticked by someone other than the payer (<code>same_person</code>). These are checked by <code>assertReadyToPay</code> in <code>packages/db/src/finance/payout-proof.ts</code>.</div>
+
+
+<h2 id="s30-payouts">Payouts list</h2>
+<p>Address: <code>/finance/payouts</code>, menu Money in &gt; Payouts. Who: accounting view reads; the prepare form needs accounting use; bulk Approve payouts needs accounting manage. List data: <code>GET /finance/lists/payouts</code>.</p>
+<figure class="shot" data-shot="s30-payouts-list"><figcaption>Payouts with every state (Draft, Cancelled, Paid), sorted by number, newest first. Address <code>/finance/payouts?sort=number&amp;desc=1</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title and intro</td><td>"Nothing is paid automatically."</td><td>None</td></tr>
+<tr><td>2</td><td>Up to the end of</td><td>Date box, default today, never after today</td><td>Sets the cutoff</td></tr>
+<tr><td>3</td><td>Prepare all due today</td><td>Blue button</td><td><code>POST /finance/payouts/due</code>: one payout per merchant whose schedule falls today; "n payouts prepared." or "No merchant is due today with money owed."</td></tr>
+<tr><td>(card)</td><td>Bank transfer file</td><td>Explains the bulk file; lists in red each draft left out (<code>PAY-000013</code> Bayt Home &amp; Care: no bank account (merchant fills it in Wallet)); a download link when drafts are ready</td><td>Downloads the CIB bulk CSV</td></tr>
+<tr><td>5</td><td>Search</td><td>Number, merchant, reference</td><td>Adds a Search chip</td></tr>
+<tr><td>6</td><td>Filters</td><td>Funnel</td><td>Opens the panel</td></tr>
+<tr><td>7</td><td>Export</td><td>White button</td><td>CSV or Excel</td></tr>
+<tr><td>8</td><td>Columns</td><td>White button</td><td>Optional Covers up to, By, Paid by, Reference</td></tr>
+<tr><td>9</td><td>Select all</td><td>Checkbox</td><td>Shows the bulk bar (Approve payouts) for managers</td></tr>
+<tr><td>10</td><td>Number</td><td><code>PAY-</code> in blue; the arrow shows the sort</td><td>Opens the payout page</td></tr>
+<tr><td>11</td><td>Merchant</td><td>Name</td><td>Sorts</td></tr>
+<tr><td>12</td><td>Created</td><td>dd/mm/yyyy</td><td>Sorts</td></tr>
+<tr><td>13</td><td>Needs approval</td><td>Yes while a draft still waits for a second person; No otherwise (also after it was approved)</td><td>None</td></tr>
+<tr><td>14</td><td>Status</td><td>Pill</td><td>None</td></tr>
+<tr><td>17</td><td>Cancelled pill</td><td>Grey outlined pill "Cancelled"</td><td>None</td></tr>
+<tr><td>18</td><td>Paid pill</td><td>Grey outlined pill "Paid"; a draft shows "Draft"</td><td>None</td></tr>
+<tr><td>15</td><td>Amount (EGP)</td><td>Right aligned, sortable</td><td>Sorts</td></tr>
+<tr><td>19</td><td>Total</td><td>Sum over every passing row</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-payouts-filters"><figcaption>Filters: Draft, Paid, Cancelled; Needs a second person, Waiting for my approval; This month, Last month, Last 7 days; Prepared by me. Group by Merchant, Status, Month, Prepared by. Favourites.</figcaption></figure>
+<figure class="shot" data-shot="s30-payouts-columns"><figcaption>The Columns chooser: optional columns can be shown or hidden; the choice is kept per person.</figcaption></figure>
+<figure class="shot" data-shot="s30-payouts-export"><figcaption>The Export menu: CSV (Excel, any program) and Excel workbook (.xlsx); "Only the n selected" when rows are ticked.</figcaption></figure>
+<div class="rule">Bulk Approve payouts (<code>POST /finance/payouts/bulk-approve</code>) approves only payouts at or above the limit (<code>approval_not_needed</code>: "Below the approval limit: no approval needed") and never one's own.</div>
+
+
+<h2 id="s30-payout-page">A payout page: statement, proof, checks and mark paid</h2>
+<p>Address: <code>/finance/payouts/&lt;id&gt;</code>. Who: accounting view reads; uploading, ticking a check, Mark as paid and Cancel need accounting use; Approve needs accounting manage. Data: <code>GET /finance/documents/payout/&lt;id&gt;</code> and <code>GET /finance/payouts/&lt;id&gt;/controls</code>. The flow, as the page's own intro says: the statement of account is frozen when the payout is prepared, the bank slip is uploaded with the amount and reference typed from it, every check is ticked, and someone other than the payer confirms the statement and the slip.</p>
+<figure class="shot" data-shot="s30-payout-draft"><figcaption>A draft payout with numbered parts, before any proof. Address <code>/finance/payouts/&lt;id&gt;</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Payouts / <code>PAY-000014</code></td><td>Back to the list with its filters</td></tr>
+<tr><td>2</td><td>Title</td><td>Payout number and merchant</td><td>None</td></tr>
+<tr><td>3</td><td>Status bar</td><td>Draft (blue filled) then Paid; Cancelled appears as a red segment at the end</td><td>None</td></tr>
+<tr><td>4</td><td>Cutoff line</td><td>"Up to 10 Nov 2026 · Prepared by name"</td><td>None</td></tr>
+<tr><td>5</td><td>Amount</td><td>Large EGP amount</td><td>None</td></tr>
+<tr><td>(above 6)</td><td>Approval banner</td><td>Amber outlined box "This payout is above the approval limit: another person must approve it before it is paid." with a blue Approve button; after approval "Approved by name"</td><td>Approve: <code>POST /finance/payouts/&lt;id&gt;/approve</code></td></tr>
+<tr><td>6</td><td>Receipts and documents</td><td>Optional extra files (Choose files, Take a photo, drop zone)</td><td>Attached to the payout entry when paid</td></tr>
+<tr><td>7</td><td>Bank reference</td><td>"Bank reference (empty uses the slip)"</td><td>Overrides the slip's reference</td></tr>
+<tr><td>8</td><td>Mark as paid</td><td>Blue button, greyed while anything blocks (approval, proof, checks, same person)</td><td><code>POST /finance/payouts/&lt;id&gt;/paid</code></td></tr>
+<tr><td>9</td><td>Cancel</td><td>White button</td><td>Opens "Why cancel?" and a red Cancel</td></tr>
+<tr><td>10</td><td>Blockers</td><td>Grey lines: "Upload the proof of transfer first.", "Some checks are not ticked yet."</td><td>None</td></tr>
+<tr><td>11</td><td>Smart button Merchant</td><td>Merchant name in blue</td><td>Opens the merchant page</td></tr>
+<tr><td>12</td><td>Journal entries</td><td>Count of entries (1 once paid)</td><td>Opens them</td></tr>
+<tr><td>13</td><td>Emails</td><td>Emails queued for this payout</td><td>Opens Emails to merchants</td></tr>
+<tr><td>14</td><td>Statement</td><td>The <code>SOA-</code> number</td><td>Opens the statement section</td></tr>
+<tr><td>15</td><td>Proof of transfer</td><td>0 or the <code>POT-</code> number</td><td>Opens the proof section</td></tr>
+<tr><td>16</td><td>Fields</td><td>Merchant, Amount, Covers everything up to, Prepared by, Prepared on, Statement of account; later Approved by, Paid by, Paid on, Reference, Proof of transfer, Reference on the slip, Note (cancel reason)</td><td>Merchant opens its page</td></tr>
+<tr><td>17</td><td>Statement of account box</td><td><code>SOA-</code> number, period (<code>yyyy-mm-dd</code> to <code>yyyy-mm-dd</code>), Balance at the start, Balance at the cutoff, "Charges after the cutoff, held back" when not zero, Net to transfer in bold</td><td>None</td></tr>
+<tr><td>18</td><td>PDF in English</td><td>Blue link</td><td>Downloads <code>statement.pdf?lang=en</code></td></tr>
+<tr><td>19</td><td>PDF in Arabic</td><td>Blue link</td><td>Downloads <code>statement.pdf?lang=ar</code></td></tr>
+<tr><td>20</td><td>CSV</td><td>Blue link</td><td>Downloads <code>statement.csv</code></td></tr>
+<tr><td>21</td><td>Proof of transfer box</td><td>"No proof yet. Upload the bank slip after the transfer."; once uploaded the <code>POT-</code> number, amount, reference, "Uploaded by name, time" and View slip; for a cheque payout "Paid by cheque: the cheque register is its proof."</td><td>None</td></tr>
+<tr><td>22</td><td>Bank slip</td><td>File input "Bank slip (PDF, JPG or PNG, up to 5 MB)"</td><td>Chooses the file</td></tr>
+<tr><td>23</td><td>Amount on the slip (EGP)</td><td>Prefilled with the payout amount; the person checks it against the slip</td><td>None</td></tr>
+<tr><td>24</td><td>Bank reference on the slip</td><td>Text, at least 2 characters</td><td>None</td></tr>
+<tr><td>25</td><td>Upload proof</td><td>Blue button, greyed until a file is chosen and the reference has 2 characters; "Replace proof" once a proof exists</td><td><code>POST /finance/payouts/&lt;id&gt;/proof</code> with the file as the body</td></tr>
+<tr><td>26</td><td>Match line</td><td>Grey box "Does not match yet"; green outlined box "✓ Matches: statement net, slip amount and payout amount are equal"</td><td>None</td></tr>
+<tr><td>27</td><td>Second person check</td><td>"Second person viewed the statement and the proof of transfer" with the hint below; "Not done yet" or "name, time" with a tick</td><td>None</td></tr>
+<tr><td>28</td><td>Confirm</td><td>White button with an optional note field</td><td><code>POST /finance/payouts/&lt;id&gt;/checks/&lt;checkId&gt;</code></td></tr>
+<tr><td>29</td><td>Other checks</td><td>Checks finance added in Setup &gt; Payout checks (here "Statement sent to the merchant")</td><td>Confirm ticks it</td></tr>
+<tr><td>30</td><td>Ready line</td><td>The same blockers, or "Ready to be marked paid."</td><td>None</td></tr>
+<tr><td>31</td><td>Log a note</td><td>Chatter</td><td>Append only note</td></tr>
+<tr><td>32</td><td>Remind me</td><td>Chatter</td><td>Reminder on a day</td></tr>
+<tr><td>33</td><td>Add receipts or documents</td><td>Attachments</td><td>Adds files</td></tr>
+<tr><td>34</td><td>History</td><td>Audit rows: Payout prepared, statement frozen, proof, approve, checks, Payout paid</td><td>None</td></tr>
+</tbody></table>
+
+<h3>The frozen Statement of Account</h3>
+<p>The SOA is made by <code>freezePayoutStatement</code> in the same transaction as the payout (numbers <code>SOA-000001</code> onward, gapless under an advisory lock) from the merchant's own statement: from the previous paid payout's cutoff to this cutoff, per order and by kind with the VAT inside each fee. It never changes afterwards; the PDF says so on its first lines.</p>
+<figure class="shot" data-shot="s30-soa-pdf-en"><figcaption>The SOA PDF in English, page 1: number, payout, merchant, period in Cairo days, "Frozen on ... when the payout was prepared; it never changes.", the Summary (Balance at the start, Cash collected for you, each fee kind, Payouts, VAT included in the fees, Balance at the cutoff, Net to transfer) and the Orders table (Cash collected, Fees, VAT, Net). Made by <code>payout-statement-pdf.ts</code>.</figcaption></figure>
+<figure class="shot" data-shot="s30-soa-pdf-ar"><figcaption>The same SOA in Arabic, laid out right to left with IBM Plex Sans Arabic.</figcaption></figure>
+
+<h3>Approving a payout above the limit</h3>
+<figure class="shot" data-shot="s30-payout-needs-approval"><figcaption>A payout of 11,363.19 EGP prepared from the wallet: the amber approval banner with Approve; Mark as paid is greyed.</figcaption></figure>
+<figure class="shot" data-shot="s30-payout-approve-own-error"><figcaption>The preparer pressing Approve on her own payout: the red message "You prepared this, so another person must approve it." The second finance user approves it from the run (step 3) or from this page.</figcaption></figure>
+
+<h3>Uploading the Proof of Transfer and its refusals</h3>
+<figure class="shot" data-shot="s30-pot-error-type"><figcaption>Refusal, wrong file type: a .txt file is chosen; the red message "Send a PDF, JPG or PNG file." (checked in the browser, and again on the server by the file's first bytes).</figcaption></figure>
+<figure class="shot" data-shot="s30-pot-error-amount"><figcaption>Refusal, amount mismatch: the slip amount typed as 11000 while the payout is 11,363.19; the server answers <code>pot_amount_mismatch</code>, shown as "The amount typed from the slip must be the payout amount." Nothing is saved.</figcaption></figure>
+<figure class="shot" data-shot="s30-pot-filled"><figcaption>The correct entry: the PDF slip chosen, amount 11363.19, reference <code>TRF-DOC-1001</code>.</figcaption></figure>
+<figure class="shot" data-shot="s30-pot-uploaded"><figcaption>Proof saved as <code>POT-000013</code>: amount, reference, "Uploaded by name, time", View slip and the fold Replace proof. The match line turned green: "✓ Matches: statement net, slip amount and payout amount are equal". Still "Some checks are not ticked yet."</figcaption></figure>
+<figure class="shot" data-shot="s30-slip-view"><figcaption>View slip opens the stored file in a new tab (<code>GET /finance/payouts/&lt;id&gt;/proof</code>); here a PNG slip.</figcaption></figure>
+<div class="note">The system compares the amount typed from the slip with the payout; it does not read the image. In the demo the Nile Pantry slip picture shows another amount than the one typed: the second person check exists exactly to catch that, by a person opening the slip.</div>
+<table class="data"><thead><tr><th>Refusal</th><th>Code</th><th>Message on screen</th></tr></thead><tbody>
+<tr><td>File not PDF, JPG or PNG</td><td><code>file_type_not_allowed</code></td><td>Send a PDF, JPG or PNG file.</td></tr>
+<tr><td>File over 5 MB or empty</td><td><code>file_too_large</code></td><td>The file is larger than 5 MB.</td></tr>
+<tr><td>Amount typed is not a number</td><td><code>invalid_amount</code> (browser)</td><td>Type the amount in EGP, for example 1250.50.</td></tr>
+<tr><td>Amount typed differs from the payout</td><td><code>pot_amount_mismatch</code></td><td>The amount typed from the slip must be the payout amount.</td></tr>
+<tr><td>Reference under 2 characters</td><td><code>pot_required</code></td><td>Upload the proof of transfer first.</td></tr>
+<tr><td>Payout no longer a draft</td><td><code>payout_not_draft</code></td><td>This payout is no longer waiting.</td></tr>
+</tbody></table>
+<div class="rule">While the payout is a draft a wrong proof can be replaced: its POT number is kept, the file, amount and reference change, and every check already ticked is cleared ("Replacing the proof clears the ticks given on the old one."). Audited as <code>finance.payout_proof_replace</code>.</div>
+
+<h3>The checks, ticked by the second user</h3>
+<figure class="shot" data-shot="s30-checks-ticked"><figcaption>The second finance user opened the statement and the slip, then confirmed both checks with a note. Each check shows a tick, the name and time. The bottom line tells this user "You confirmed the statement and the slip, so someone else marks it paid."</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Confirm (second person check)</td><td>Ticks the check with the optional note</td><td>Accounting use; only on a draft; needs the proof and the statement first (<code>pot_required</code>); ticking twice changes nothing; cannot be switched off in setup (<code>check_is_system</code>)</td><td>Audit <code>finance.payout_check</code>; this person can no longer mark the payout paid</td></tr>
+<tr><td>Confirm (other checks)</td><td>Ticks a check added in setup</td><td>Any accounting user; a new check applies to every payout still a draft</td><td>Audit row</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-payout-same-person"><figcaption>The same person refusal on the payout page: the preparer confirmed the checks herself on Nile Pantry's payout; Mark as paid stays greyed with "You confirmed the statement and the slip, so someone else marks it paid."</figcaption></figure>
+
+<h3>Mark paid and the paid state</h3>
+<figure class="shot" data-shot="s30-payout-ready"><figcaption>Ready: approved, proof matches, both checks ticked by the second user; for the preparer Mark as paid is now blue.</figcaption></figure>
+<figure class="shot" data-shot="s30-payout-paid"><figcaption>Paid: the status bar shows Draft ticked and Paid filled blue; smart buttons show 1 journal entry, 2 emails (payout notice with SOA and POT attached, statement with its CSV), the SOA and POT numbers; fields show Approved by, Paid by, Paid on, Reference (taken from the slip), Proof of transfer and Reference on the slip. The action card is gone.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Mark as paid</td><td><code>POST /finance/payouts/&lt;id&gt;/paid</code> with the reference (or the slip's), bank and files</td><td>Approval where needed (<code>approval_needed</code>), proof, amounts, checks, not the second person (<code>same_person</code>), the merchant still owed at least the amount (<code>payout_more_than_owed</code>), the bank holds it (<code>not_enough_money</code>), books open (<code>books_closed</code>)</td><td>Entry <code>merchant_payout</code> (Dr merchant wallet, Cr bank), status Paid, emails queued; see "Merchant money, payouts"</td></tr>
+<tr><td>Cancel</td><td><code>POST /finance/payouts/&lt;id&gt;/cancel {note}</code></td><td>Only a draft; a reason of at least 3 characters</td><td>Status Cancelled, nothing posted; the merchant can be prepared again</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-payout-cancel-form"><figcaption>Cancel opens "Why cancel?" and a red Cancel button, enabled once the reason has 3 characters.</figcaption></figure>
+<figure class="shot" data-shot="s30-payout-cancelled"><figcaption>Cancelled: a red Cancelled segment at the end of the status bar, the reason under Note, the SOA still kept; no proof, no entry.</figcaption></figure>
+<figure class="shot" data-shot="s30-payout-cheque"><figcaption>A payout paid by an issued cheque: Draft ticked and Paid, smart button Cheques 1, Reference <code>CHQ-000005 7700101</code> and the proof box "Paid by cheque: the cheque register is its proof."</figcaption></figure>
+<figure class="shot" data-shot="s30-payout-checks-setup"><figcaption>Setup &gt; Payout checks (<code>/finance/payout-checks</code>, accounting manage): the built in second person check (cannot be switched off) and the checks finance adds with code, English and Arabic labels, order and On.</figcaption></figure>
+
+
+<h2 id="s30-invoices">Tax invoices</h2>
+<p>Address: <code>/finance/invoices</code>, menu Money in &gt; Tax invoices. Who: accounting view reads; Issue the month's invoices, credit and debit notes need accounting use; the notes then wait for a second person with accounting manage. List data: <code>GET /finance/lists/invoices</code>; the readiness box: <code>GET /finance/eta/readiness</code>. The rules are in "Merchant money, invoices" and "Merchant money, ETA".</p>
+<figure class="shot" data-shot="s30-invoices-list"><figcaption>Tax invoices with the readiness box, the month form and the list holding invoices, a credit note and a debit note. Address <code>/finance/invoices</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td><code>E-invoice</code> system box</td><td>Red outlined box listing what stops sending: the connection (ETA client id and secret), the switch, each missing company field, the signing key, missing item codes; then the count per state</td><td>Green "Everything is set..." when nothing is missing</td><td>Company tax details button opens <code>/finance/company</code>; "Send and check now" appears when sending is on</td></tr>
+<tr><td>Month</td><td>Month picker</td><td>Only a month that is over</td><td>None</td></tr>
+<tr><td>Issue the month's invoices</td><td><code>POST /finance/invoices/prepare</code></td><td>One invoice per merchant and month; running again adds only merchants without one</td><td>"n invoices issued for month" or "No new invoices for month"</td></tr>
+<tr><td>Number</td><td><code>INV-</code>, <code>CN-</code>, <code>DN-</code> in blue</td><td>Gapless</td><td>Opens the document</td></tr>
+<tr><td>Type</td><td>Tax invoice, Credit note, Debit note</td><td>Filter by type</td><td>None</td></tr>
+<tr><td>Merchant, Month, Issued</td><td>Text, <code>yyyy-mm</code>, dd/mm/yyyy</td><td>Sortable merchant, issued</td><td>None</td></tr>
+<tr><td><code>E-invoice</code> state pill</td><td>Not sent, Signed, Submitted, Valid, Invalid, Rejected</td><td>Filters Not sent to the tax authority, Sent, waiting, Accepted, Needs a fix</td><td>None</td></tr>
+<tr><td>Before VAT (optional), VAT, Total (EGP)</td><td>Money columns with totals</td><td>Sums over every passing row</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-invoices-issue-again"><figcaption>Running Issue the month's invoices again for October: no new invoice, because every merchant already has one.</figcaption></figure>
+
+<h3>An invoice page</h3>
+<p>Address: <code>/finance/invoices/&lt;id&gt;</code>.</p>
+<figure class="shot" data-shot="s30-invoice-marked"><figcaption>Invoice <code>INV-000001</code> with numbered parts, after a credit note and a debit note were issued against it.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Invoices / number</td><td>Back to the list</td></tr>
+<tr><td>2</td><td>Title</td><td>Number and merchant</td><td>None</td></tr>
+<tr><td>3</td><td>Status bar, current</td><td>Not sent in blue; the steps are Not sent, Signed, Submitted, Accepted</td><td>None</td></tr>
+<tr><td>4</td><td>Last step</td><td>Accepted (the tax authority answered valid); Invalid and Rejected appear as red segments</td><td>None</td></tr>
+<tr><td>5</td><td>Print or save as PDF</td><td>Blue button</td><td>Opens the browser print; printing hides the menus</td></tr>
+<tr><td>6</td><td>Credit notes</td><td>Count</td><td>Lists them</td></tr>
+<tr><td>7</td><td>Debit notes</td><td>Count</td><td>Lists them</td></tr>
+<tr><td>8</td><td>Document head</td><td>"Tax invoice", number, issue time, "For <code>yyyy-mm</code>"; our tax registration number at the left</td><td>None</td></tr>
+<tr><td>9</td><td>Bill to</td><td>Merchant and its tax number (a dash without one: invoiced as a person)</td><td>None</td></tr>
+<tr><td>10</td><td>Lines</td><td>One line per fee kind: Description, Quantity, Before VAT, VAT, Total, then the totals in bold</td><td>None</td></tr>
+<tr><td>11</td><td>Acceptance line</td><td>"Not yet accepted by the e invoice system." or the ETA document id</td><td>None</td></tr>
+<tr><td>12</td><td><code>E-invoice:</code> state</td><td>Waiting for signature, Signed, sending, Sent, checking, Valid, Invalid, Rejected; for Invalid or Rejected a hint and Send again</td><td>Send again: <code>POST /finance/invoices/&lt;id&gt;/resend</code></td></tr>
+<tr><td>(above 13)</td><td>Credit notes: and Debit notes: links</td><td>Underlined numbers</td><td>Open the note</td></tr>
+<tr><td>13</td><td>Credit note amount and reason</td><td>Amount before VAT (EGP), Reason</td><td>None</td></tr>
+<tr><td>14</td><td>Issue credit note</td><td>Light blue until both fields are filled</td><td><code>POST /finance/invoices/&lt;id&gt;/credit-notes</code>; always waits for a second person</td></tr>
+<tr><td>15</td><td>Debit note lines</td><td>Fee kind, Quantity, Amount before VAT, Remove; Add a line</td><td>Builds the lines</td></tr>
+<tr><td>16</td><td>Reason and store</td><td>Reason (shown on the debit note); store or "No store (company wide)"</td><td>None</td></tr>
+<tr><td>17</td><td>Issue debit note</td><td>Light blue until filled</td><td><code>POST /finance/invoices/&lt;id&gt;/debit-notes</code>; waits for a second person</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-cn-sent"><figcaption>Credit note sent: "Saved and sent for approval. A second person must approve it before it is posted."</figcaption></figure>
+<figure class="shot" data-shot="s30-dn-filled"><figcaption>The debit note form filled: one Storage fee line of 80 EGP, the reason and the Maadi store.</figcaption></figure>
+<figure class="shot" data-shot="s30-dn-sent"><figcaption>Debit note sent for approval; the form resets.</figcaption></figure>
+<figure class="shot" data-shot="s30-invoice-with-notes"><figcaption>After the second user approved both notes: the smart buttons count 1 credit note and 1 debit note.</figcaption></figure>
+<figure class="shot" data-shot="s30-credit-note"><figcaption>Credit note <code>CN-000001</code>: "Credit note", "Against <code>INV-000001</code>", the reason, one line giving back 150.00 before VAT with proportional VAT, smart buttons to the journal entry and the original invoice.</figcaption></figure>
+<figure class="shot" data-shot="s30-debit-note"><figcaption>Debit note <code>DN-000001</code>: "Debit note", "Against <code>INV-000001</code>", "Storage fee: Storage of 40 units missed on 30 October", 80.00 before VAT; status bar Not sent; ETA document type D is sent only after the invoice itself.</figcaption></figure>
+<table class="data"><thead><tr><th>Refusal</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Credit note above what is left</td><td>A credit note gives back VAT from the running total, never more than the invoice's VAT and fees</td></tr>
+<tr><td>Same person approving</td><td>Credit and debit notes always wait for someone other than the asker</td></tr>
+<tr><td>Fixed amounts</td><td>Once issued, invoice and note amounts and lines are fixed by a database trigger</td></tr>
+</tbody></table>
+
+
+<h2 id="s30-receivables">Who owes us, by age (Receivables aging)</h2>
+<p>Address: <code>/finance/receivables?asOf=&amp;q=</code>, menu Money in &gt; Money owed to us. Who: accounting view reads; Send reminder now needs accounting use. To show a row, a merchant charge of 2,500 EGP (an Adjustment) was asked and approved for Nile Pantry.</p>
+<figure class="shot" data-shot="s30-receivables"><figcaption>One merchant owes 649.94 EGP, not yet due. Address <code>/finance/receivables</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Title with the i tip</td><td>Explains "receivables"</td><td>InfoTip</td><td>A small explanation</td></tr>
+<tr><td>How is this counted?</td><td>Fold with the method</td><td>Each charge counts from the day it was booked; cash collected and payments pay the oldest first (first in, first out); cheques count from the day they may be cashed</td><td>Text</td></tr>
+<tr><td>As of</td><td>Date box</td><td>Any past day</td><td>Ages as of that day</td></tr>
+<tr><td>Search</td><td>"Merchant or cheque"</td><td>Text</td><td>Narrows the rows</td></tr>
+<tr><td>Show</td><td>Blue button</td><td>Puts both in the address</td><td>Reloads</td></tr>
+<tr><td>Owed to us:</td><td>Grand total</td><td>Merchants plus cheques under collection</td><td>None</td></tr>
+<tr><td>Export</td><td>Menu: PDF in English, PDF in Arabic, CSV, Excel</td><td>Same rows</td><td>Downloads <code>who-owes-us</code></td></tr>
+<tr><td>Reminder rule line</td><td>"Automatic reminders ... the first after 3 days in debit, then every 7 days, at most 4"</td><td>From <code>receivables.*</code> settings; "switched off" text when disabled</td><td>None</td></tr>
+<tr><td>Merchants who owe us table</td><td>Merchant (link, phone, "Oldest unpaid: day (n days)"), Not yet due, 1 to 30 days, 31 to 60, 61 to 90, Over 90, Total, Reminders</td><td>Buckets by age</td><td>The merchant link opens the wallet statement</td></tr>
+<tr><td>Send reminder now</td><td>Sends notification, email and push at once</td><td>Counts toward the most; goes even past it</td><td>"Reminder n sent." and the Reminders cell "1 sent, last time"</td></tr>
+<tr><td>Cheques waiting to be collected</td><td>Second table when cheques are under collection</td><td>By due day</td><td>Opens the cheque</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-receivables-open"><figcaption>The method folded open and the Export menu (PDF in English, PDF in Arabic, CSV, Excel).</figcaption></figure>
+<figure class="shot" data-shot="s30-receivables-reminded"><figcaption>After Send reminder now: "Reminder 1 sent." under the button and "1 sent, last 11 Nov 2026, 23:21" in Reminders.</figcaption></figure>
+<figure class="shot" data-shot="s30-receivables-empty"><figcaption>Empty state as of an earlier day: "No merchant owes us anything on this day."</figcaption></figure>
+
+
+<h2 id="s30-cheques">Cheques register</h2>
+<p>Address: <code>/finance/cheques</code>, menu Money in &gt; Cheques. Who: accounting view reads; Register, Deposit at bank, Bank paid it, Bounced and Cancel cheque need accounting use; a received cheque then waits for a second person with accounting manage. The rules are in "Cash and riders" and "Merchant money".</p>
+<figure class="shot" data-shot="s30-cheques-list"><figcaption>The register with every state: the due lists (Overdue in red, Due this week), the Register a cheque form, and the list with Issued, Cancelled, Waiting for approval, Bounced and Cleared. Address <code>/finance/cheques</code>.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheques-empty"><figcaption>Before any cheque: "Nothing due." under both due lists and an empty list.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Overdue (n)</td><td>Red title; open cheques past their due day</td><td>Received not cleared, issued not cleared</td><td>Row opens the cheque</td></tr>
+<tr><td>Due this week (n)</td><td>Register no., Direction (with the purpose below), Drawer or payee (bank below), Cheque number, Due date, Amount, Status pill</td><td>Next 7 days</td><td>Same</td></tr>
+<tr><td>Direction</td><td>Received or Issued</td><td>Changes the For list</td><td>None</td></tr>
+<tr><td>For</td><td>Received: Merchant pays what they owe, Merchant security deposit, Supplier pays us back, Other income. Issued: Supplier bill, Merchant payout, Security deposit paid back</td><td>Shows the matching picker (Merchant, Supplier, Income account, Bill, Draft payout)</td><td>None</td></tr>
+<tr><td>Drawn on bank</td><td>Received only</td><td>2 to 80 characters</td><td>None</td></tr>
+<tr><td>Cheque number</td><td>The printed number</td><td>Required</td><td>None</td></tr>
+<tr><td>Amount (EGP)</td><td>For a bill: "Settles of the bill (EGP, tax kept back included)"; a payout cheque takes the payout amount</td><td>Above 0</td><td>None</td></tr>
+<tr><td>Drawer or payee</td><td>"Left empty: the merchant or supplier's name"</td><td>Optional</td><td>None</td></tr>
+<tr><td>Issue date, Due date</td><td>Date boxes, default today</td><td>Due not before issue (<code>due_before_issue</code>)</td><td>None</td></tr>
+<tr><td>Our bank account</td><td>Issued only</td><td>An open bank</td><td>None</td></tr>
+<tr><td>Note, Photo of the cheque (Receipts and documents)</td><td>Optional</td><td>Photos or PDF up to 5 MB, at most 10</td><td>Attached to the booking entry or its request</td></tr>
+<tr><td>Register</td><td><code>POST /finance/cheques</code></td><td>Received: always waits for a second person; issued: from the approval limit (a payout cheque follows the payout's own approval)</td><td>"Saved and sent for approval..." or "Cheque registered and booked."</td></tr>
+<tr><td>List</td><td>Number, Direction, From or to, Cheque no., Due, Status, Amount; optional Bank</td><td>Filters Received, Issued, Awaiting approval, Open, Cleared, Bounced or cancelled, Overdue, Due in 7 days; group by Direction, Status, From or to, Bank, Month</td><td>Opens the cheque</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-cheque-form"><figcaption>Register a cheque filled: Received, Merchant pays what they owe, Nile Pantry, Demo Bank, number and amount.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-registered"><figcaption>After Register: "Saved and sent for approval. A second person must approve it before it is posted."</figcaption></figure>
+
+<h3>A cheque page and its states</h3>
+<p>Address: <code>/finance/cheques/&lt;id&gt;</code>. The status bar of a received cheque is Waiting for approval, Received, Deposited, Cleared; an issued cheque is Issued, Cleared; Bounced and Cancelled appear as red segments. The action card shows only the actions the state allows.</p>
+<figure class="shot" data-shot="s30-cheque-awaiting"><figcaption>Waiting for approval, with numbered parts (legend below).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Cheques / <code>CHQ-000003</code></td><td>Back to the register</td></tr>
+<tr><td>2</td><td>Title</td><td>Register number and party</td><td>None</td></tr>
+<tr><td>3</td><td>Status bar</td><td>Current step blue filled; passed steps ticked; Bounced or Cancelled red</td><td>None</td></tr>
+<tr><td>4</td><td>Actions</td><td>Deposit at bank (white, received only), Bank paid it (blue), Bounced (red), Cancel cheque (white), each opening a small form with Our bank account, On (empty: today), and the reason where needed</td><td>See the table below</td></tr>
+<tr><td>5</td><td>Smart buttons</td><td>Merchant or supplier, Journal entries count</td><td>Open them</td></tr>
+<tr><td>6</td><td>Fields</td><td>Direction, For, Drawer or payee, Drawn on bank, Cheque number, Amount, Issue date, Due date, Merchant, Our bank account, Status (with the bounce reason or cancel note), Registered by</td><td>None</td></tr>
+<tr><td>7</td><td>Waiting line</td><td>"Waiting for a second person in Approvals." with a grey pill</td><td>None</td></tr>
+<tr><td>8</td><td>Open Approvals</td><td>Blue link</td><td>Opens <code>/finance/approvals</code></td></tr>
+<tr><td>9</td><td>History</td><td>Cheque registered, booked, deposited, cleared, bounced, cancelled</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-cheque-received"><figcaption>Received (approved by the second user): entry Booked <code>JV-002593</code> (Dr 1151 cheques under collection, Cr the merchant wallet); actions Deposit at bank, Bank paid it, Bounced, Cancel cheque.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-deposit-form"><figcaption>Deposit at bank opens Our bank account and On (empty: today), with Deposit at bank and Cancel.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-deposited"><figcaption>Deposited: Received ticked, Deposited filled; Cancel cheque is no longer offered.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-cleared"><figcaption>Cleared: every step ticked and Cleared filled; Entries Booked and Cleared (Dr bank, Cr 1151); no actions left.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-bounce-form"><figcaption>Bounced opens "Why it bounced" and On; the red Bounced button is enabled after 3 characters.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-bounced"><figcaption>Bounced: a red Bounced segment, a red Bounced pill, Status "Bounced: Not enough funds on the account", entries Booked and Undone (the booking turned round); a <code>cheque_bounced</code> alert is raised and the debt is back on the merchant.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-cancelled"><figcaption>Cancelled before deposit: a red Cancelled segment, "Cancelled: Merchant asked to pay by transfer instead", entries Booked and Undone.</figcaption></figure>
+<figure class="shot" data-shot="s30-cheque-issued"><figcaption>Issued (for a merchant payout): status bar Issued then Cleared; booked against 2451 cheques payable; the payout became Paid at once (see the payout page above).</figcaption></figure>
+<table class="data"><thead><tr><th>Action</th><th>Route</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Deposit at bank</td><td><code>POST /finance/cheques/&lt;id&gt;/deposit</code></td><td>Received cheques in state Received</td><td>Deposited, no money moves yet</td></tr>
+<tr><td>Bank paid it</td><td><code>.../clear</code></td><td>Received: never before its due day, into the bank; issued: out of the bank, which must hold it</td><td>Cleared with its entry</td></tr>
+<tr><td>Bounced</td><td><code>.../bounce {reason}</code></td><td>Open cheques; reason of 3 characters</td><td>Booking reversed, bill reopened or payout cancelled, alert</td></tr>
+<tr><td>Cancel cheque</td><td><code>.../cancel {note}</code></td><td>Waiting for approval, Received or Issued only (before deposit or clear)</td><td>Booking reversed where booked</td></tr>
+</tbody></table>
+
+
+<h2 id="s30-emails">Emails to merchants</h2>
+<p>Address: <code>/finance/emails?status=</code>, menu Money in &gt; Emails to merchants. Who: accounting view reads; Send again needs accounting use. Emails are written to <code>email_outbox</code> in the same transaction as their event and sent by the API job through the Mailer; without SMTP nothing is sent.</p>
+<figure class="shot" data-shot="s30-emails"><figcaption>Emails to merchants with numbered parts: the payout of 11/11 queued a Statement (with its CSV) and a Payout sent notice (with the SOA PDF and the POT file). Address <code>/finance/emails</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title and intro</td><td>"Each email is sent once; a failed one is tried again with growing waits, then marked failed"</td><td>None</td></tr>
+<tr><td>2</td><td>Not set up box</td><td>"Email is not set up. Emails wait here until SMTP is configured on the server"</td><td>None</td></tr>
+<tr><td>3</td><td>All</td><td>Selected chip in blue</td><td>Shows every email</td></tr>
+<tr><td>(next)</td><td>Waiting (n)</td><td>Chip with the count</td><td><code>?status=pending</code></td></tr>
+<tr><td>5</td><td>Sent</td><td>Chip</td><td><code>?status=sent</code></td></tr>
+<tr><td>6</td><td>Failed</td><td>Chip</td><td><code>?status=failed</code></td></tr>
+<tr><td>7</td><td>Table</td><td>Created, Email (kind: Statement, Payout sent, Tax invoice, Payment reminder; the subject in the merchant's chosen language; each attachment with a clip icon), Merchant, To, State (Waiting in amber, Sent, Failed in red) with "Not tried yet" or "n tries"</td><td>None</td></tr>
+<tr><td>8</td><td>Preview and Send again</td><td>White Preview button; blue Send again</td><td>Preview shows the email below the table with Close; Send again queues it again ("It will be sent again in a moment.")</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-email-preview"><figcaption>Preview of a queued email shown under the list, with Close.</figcaption></figure>
+
+
+<h2 id="s30-merchant-wallet">The merchant's side: Wallet with SOA and POT</h2>
+<p>Address: <code>/merchant/wallet</code>, merchant sidebar &gt; Wallet. Who: a merchant user with the money right (owners always). Data: <code>/merchant/finance/*</code>, limited to the merchant's own payouts; a proof file is served to the merchant only once the payout is paid.</p>
+<figure class="shot" data-shot="s30-m-wallet-top"><figcaption>The top of the merchant wallet: the Navy balance card "We owe you EGP 0.00" with "You are paid: Daily" in Lime, the schedule choice, the bank account for payouts and the billing emails. Address <code>/merchant/wallet</code>.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Balance card</td><td>"We owe you" or "You owe us" with the amount</td><td>Summed from the wallet lines</td><td>None</td></tr>
+<tr><td>How often should we pay you?</td><td>Daily, Twice a week (Sun, Wed), Weekly (Sun)</td><td><code>PATCH /merchant/finance/payout-schedule</code>, audited</td><td>"Saved. Your next payout follows this schedule."</td></tr>
+<tr><td>Bank account for payouts</td><td>Account holder name, Bank, Account number, IBAN, Save</td><td>IBAN is EG and 27 digits; finance sees the same values</td><td>Saved; payouts without it stay out of the bank file</td></tr>
+<tr><td>Billing emails</td><td>Addresses (up to five), language, which emails to send</td><td>Empty sends to the contact email</td><td>Saved</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-m-wallet-payouts"><figcaption>The Payouts section: every payout with its statement and proof side by side.</figcaption></figure>
+<figure class="shot" data-shot="s30-m-wallet-payout"><figcaption>One paid payout as the merchant sees it, with numbered parts (legend below).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>State</td><td>"Paid" in bold, or "Being prepared" for a draft</td><td>None</td></tr>
+<tr><td>2</td><td>Paid time and reference</td><td>"Transfer reference <code>TRF-DOC-1001</code>"</td><td>None</td></tr>
+<tr><td>3</td><td>Amount</td><td>Large EGP amount</td><td>None</td></tr>
+<tr><td>4</td><td>Statement of account box</td><td><code>SOA-</code> number and its net</td><td>None</td></tr>
+<tr><td>5</td><td>View</td><td>Blue link</td><td>Opens <code>/merchant/wallet/payouts/&lt;id&gt;</code></td></tr>
+<tr><td>6</td><td>PDF</td><td>Blue link</td><td>Downloads the SOA PDF in the page language</td></tr>
+<tr><td>7</td><td>Proof of transfer box</td><td><code>POT-</code> number and its amount; "Shown once paid" while a draft; "Paid by cheque" for a cheque payout</td><td>None</td></tr>
+<tr><td>8</td><td>View slip</td><td>Blue link</td><td>Opens the bank slip</td></tr>
+<tr><td>9</td><td>Matches mark</td><td>Green outlined box "✓ Matches" and "Statement net, transfer amount and payout amount are equal"; otherwise "Check with us" (paid without a match) or "Shown once paid"</td><td>None</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s30-m-wallet-phone"><figcaption>The same payout card on a phone: statement, proof and the Matches mark stack in one column.</figcaption></figure>
+
+<h3>The merchant's SOA page</h3>
+<p>Address: <code>/merchant/wallet/payouts/&lt;id&gt;</code>. It reads the frozen statement (<code>getPayoutStatement</code> with the merchant's id; another merchant's payout answers 404).</p>
+<figure class="shot" data-shot="s30-m-soa"><figcaption>Statement of account <code>SOA-000016</code> as the merchant sees it: Back to wallet, payout and period, "Frozen when the payout was prepared; it never changes." with the time, PDF in English, PDF in Arabic, CSV, the Summary (charges in red) and the Orders table (Cash collected, Fees, VAT, Net in bold, red when below zero); Other movements below.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Back to wallet</td><td>Returns to <code>/merchant/wallet</code></td><td>None</td><td>None</td></tr>
+<tr><td>PDF in English, PDF in Arabic, CSV</td><td>Download the frozen statement</td><td>Same file finance sends by email</td><td>File</td></tr>
+<tr><td>Summary</td><td>Balance at the start, each kind, VAT included in the fees, Balance at the cutoff, Charges after the cutoff held back (when any), Net to transfer</td><td>Frozen numbers</td><td>None</td></tr>
+<tr><td>Orders</td><td>Order, Cash collected, Fees, VAT, Net</td><td>One row per order of the period</td><td>None</td></tr>
+<tr><td>Other movements</td><td>Day, Type, Reference, amount (payouts, receipts, adjustments)</td><td>"Nothing in this period." when empty</td><td>None</td></tr>
+</tbody></table>
+
+<h2 id="s30-states">Status summary</h2>
+<table class="data"><thead><tr><th>Record</th><th>States and how they look</th></tr></thead><tbody>
+<tr><td>Approval request</td><td>Waiting (blue segment), Approved (blue segment, Waiting ticked), Rejected and Withdrawn (red segment); in the list every state is a grey outlined pill with its word</td></tr>
+<tr><td>Payout</td><td>Draft (blue segment; list pill "Draft"), Paid (blue segment, Draft ticked), Cancelled (red segment); the merchant sees "Being prepared" or "Paid"</td></tr>
+<tr><td>Tax invoice, credit note, debit note</td><td>Not sent (Waiting for signature), Signed (Signed, sending), Submitted (Sent, checking), Accepted (Valid); Invalid and Rejected in red with Send again. Only Not sent could be shown: the demo has no ETA connection</td></tr>
+<tr><td>Cheque received</td><td>Waiting for approval, Received, Deposited, Cleared; Bounced and Cancelled in red</td></tr>
+<tr><td>Cheque issued</td><td>Waiting for approval (above the limit), Issued, Cleared; Bounced and Cancelled in red</td></tr>
+<tr><td>Email</td><td>Waiting (amber), Sent, Failed (red)</td></tr>
+</tbody></table>
+</section>

@@ -1,0 +1,196 @@
+<section class="chapter" id="ch-payroll">
+<h1>14. Payroll and staff costs</h1>
+
+<p>This chapter explains how a month's salaries are worked out and booked: salary packages kept by HR, Egyptian social insurance, the martyrs fund and salary income tax computed from settings, advances, bonuses, sales commission, unpaid leave and violation deductions, outsourced staff billed by their company, and payslips. All arithmetic is in integer piastres. The deduction helper is the same half up share used everywhere:</p>
+<pre class="code">share(amount, bp) = floor((amount * bp + 5000) / 10000)</pre>
+
+<h2 id="py-who">14.1 Who is on the payroll</h2>
+<table class="data"><thead><tr><th>Person</th><th>How they are paid</th><th>On the salary run</th></tr></thead><tbody>
+<tr><td>Employee paid a monthly salary (<code>employees.employment = employee</code>, <code>pay_basis = monthly_salary</code>)</td><td>the monthly salary run</td><td>yes</td></tr>
+<tr><td>Rider paid per delivery (<code>pay_basis = per_delivery</code>; only riders may be)</td><td>rider wallet, per delivered order (chapter 11); no tax, no insurance</td><td>no (<code>per_delivery_not_on_payroll</code>)</td></tr>
+<tr><td>Outsourced person (<code>employment = outsourced</code> with a staffing supplier)</td><td>their outsourcing company, by a supplier bill tagged with them; we may give them advances and bonuses directly</td><td>no (<code>outsourced_not_on_payroll</code>)</td></tr>
+</tbody></table>
+<p><code>listStaffPay()</code> in <code>packages/db/src/finance/payroll.ts</code> lists active admin, finance, store staff and rider accounts with no employee file or a monthly salary file, with the package in force today and the advance they owe.</p>
+
+<h2 id="py-packages">14.2 Salary packages</h2>
+<p>HR keeps salary packages (<code>salary_packages</code> with <code>salary_allowances</code>): from a day, a basic salary, an insured wage, and allowances (kind, label, amount). History is kept. Accounting never edits them.</p>
+<pre class="code">packageInForce(employee, day) = the package with the latest effectiveFrom &lt;= day,
+                                else (before the first package) the first package
+packageGross(package)         = basic + sum(allowances)</pre>
+<p>The run reads the package in force on the month's last day (<code>packages/db/src/hr-pay.ts</code>).</p>
+
+<h2 id="py-rules">14.3 The rules, all from settings</h2>
+<p>Every rate, band and limit is a global setting the accountant edits (<code>packages/shared/src/settings.ts</code>); <code>payrollRules()</code> reads them. The defaults follow the law as known in 2026 and must be confirmed.</p>
+<table class="data"><thead><tr><th>Setting</th><th>Default</th><th>Meaning</th></tr></thead><tbody>
+<tr><td><code>payroll.si_employee_bp</code></td><td>1100 (11%)</td><td>employee share of the insured wage</td></tr>
+<tr><td><code>payroll.si_employer_bp</code></td><td>1875 (18.75%)</td><td>company share of the insured wage</td></tr>
+<tr><td><code>payroll.si_min_wage_piastres</code></td><td>270,000 (2,700 EGP)</td><td>lowest monthly insured wage</td></tr>
+<tr><td><code>payroll.si_max_wage_piastres</code></td><td>1,670,000 (16,700 EGP)</td><td>highest monthly insured wage</td></tr>
+<tr><td><code>payroll.martyrs_fund_bp</code></td><td>5 (0.05%)</td><td>martyrs fund on gross</td></tr>
+<tr><td><code>payroll.personal_exemption_piastres</code></td><td>2,000,000 (20,000 EGP a year)</td><td>yearly personal exemption</td></tr>
+<tr><td><code>hr.payroll_days_per_month</code></td><td>30</td><td>a day of pay = basic / this</td></tr>
+</tbody></table>
+<h3>Yearly salary tax bands</h3>
+<table class="data"><thead><tr><th>Band</th><th>Yearly taxable income up to (setting <code>payroll.tax_band_n_to_piastres</code>)</th><th>Rate (setting <code>payroll.tax_band_n_bp</code>)</th></tr></thead><tbody>
+<tr><td>1</td><td>40,000 EGP (4,000,000)</td><td>0%</td></tr>
+<tr><td>2</td><td>55,000 EGP (5,500,000)</td><td>10% (1000)</td></tr>
+<tr><td>3</td><td>70,000 EGP (7,000,000)</td><td>15% (1500)</td></tr>
+<tr><td>4</td><td>200,000 EGP (20,000,000)</td><td>20% (2000)</td></tr>
+<tr><td>5</td><td>400,000 EGP (40,000,000)</td><td>22.5% (2250)</td></tr>
+<tr><td>6</td><td>1,200,000 EGP (120,000,000)</td><td>25% (2500)</td></tr>
+<tr><td>above</td><td></td><td>27.5% (<code>payroll.tax_top_bp</code> 2750)</td></tr>
+</tbody></table>
+<h3>High earners lose the low bands</h3>
+<table class="data"><thead><tr><th>Setting</th><th>Default</th><th>Above it</th></tr></thead><tbody>
+<tr><td><code>payroll.tax_skip_1_from_piastres</code></td><td>600,000 EGP (60,000,000)</td><td>band 1 taxed at band 2's rate</td></tr>
+<tr><td><code>payroll.tax_skip_2_from_piastres</code></td><td>700,000 EGP (70,000,000)</td><td>bands 1 to 2 at band 3's rate</td></tr>
+<tr><td><code>payroll.tax_skip_3_from_piastres</code></td><td>800,000 EGP (80,000,000)</td><td>bands 1 to 3 at band 4's rate</td></tr>
+<tr><td><code>payroll.tax_skip_4_from_piastres</code></td><td>900,000 EGP (90,000,000)</td><td>bands 1 to 4 at band 5's rate</td></tr>
+<tr><td><code>payroll.tax_skip_5_from_piastres</code></td><td>1,200,000 EGP (120,000,000)</td><td>bands 1 to 5 at band 6's rate</td></tr>
+</tbody></table>
+<p>A threshold of 0 turns that step off. The highest threshold the income passes decides how many low bands are skipped.</p>
+
+<h2 id="py-calc">14.4 The payslip calculation</h2>
+<p>Pure functions in <code>packages/shared/src/payroll.ts</code>; the run is <code>previewPayroll()</code> then <code>runPayroll()</code> in <code>packages/db/src/finance/payroll.ts</code>.</p>
+<pre class="code">base       = line.grossPiastres given by finance, else packageGross(package in force on the month's last day)
+bonus      = taxed bonus entered for the month (overtime, target bonus)
+commission = sum of approved, unpaid sales commissions of months &lt;= this month
+deduction  = penalties or unpaid days entered by finance
+hrItems    = unpaid leave days and final violation deductions HR hands over (14.8)
+gross      = base + bonus + commission − deduction − hrItems      (refused when negative)
+
+insured    = min(max(package.insuredWage ?? gross, siMinWage), siMaxWage)
+siEmployee = gross &gt; 0 ? share(insured, siEmployeeBp) : 0
+siEmployer = gross &gt; 0 ? share(insured, siEmployerBp) : 0
+martyrs    = share(gross, martyrsBp)
+
+yearlyTaxable = (gross − siEmployee) * 12 − personalExemption
+incomeTax     = floor((yearlyIncomeTax(yearlyTaxable) + 6) / 12)     (the yearly tax / 12, half up)
+afterTax      = gross − siEmployee − martyrs − incomeTax
+net           = afterTax − advanceRecovery                            (refused when negative)</pre>
+<h3>Yearly income tax</h3>
+<pre class="code">yearlyIncomeTax(taxable):
+    if taxable &lt;= 0: return 0
+    rates = band rates
+    skipped = 0
+    for k in 0..4: if skipFrom[k] &gt; 0 and taxable &gt; skipFrom[k]: skipped = k + 1
+    for i in 0..skipped−1: rates[i] = rates[skipped] (or the top rate)
+    tax = 0; lower = 0
+    for each band i: if taxable &lt;= lower: stop
+                     tax += share(min(taxable, band.to) − lower, rates[i]); lower = band.to
+    if taxable &gt; lower: tax += share(taxable − lower, topBp)
+    return tax</pre>
+<p>Each band's tax is rounded half up to the piastre on its own.</p>
+<div class="example">
+<p>High earner check: yearly taxable 650,000 EGP (65,000,000). It passes the first threshold only, so band 1 is taxed at 10%:</p>
+<ul>
+<li>band 1: 4,000,000 × 10% = 400,000</li>
+<li>band 2: 1,500,000 × 10% = 150,000</li>
+<li>band 3: 1,500,000 × 15% = 225,000</li>
+<li>band 4: 13,000,000 × 20% = 2,600,000</li>
+<li>band 5: 20,000,000 × 22.5% = 4,500,000</li>
+<li>band 6: 25,000,000 × 25% = 6,250,000</li>
+</ul>
+<p>Yearly tax 14,125,000 piastres (141,250 EGP).</p>
+</div>
+
+<h2 id="py-run">14.5 The salary run and its posting</h2>
+<p><code>submitPayroll()</code> checks everything with <code>previewPayroll()</code> (month not in the future: <code>future_month</code>; each person once; salary set: <code>salary_not_set</code>; recovery not above the advance owed: <code>more_than_advance</code>), then posts at once below <code>finance.approval_threshold_piastres</code> or waits for a second person (the amount compared is the total net). The run happens once per month: <code>payroll_already_run</code>. The money account (bank or box) is locked and must hold the total net.</p>
+<p>The entry is dated the month's last day at 23:00 Cairo when the month is over, else now (the current month may be paid while it runs). One entry for everyone:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5402 Salaries and wages (one line per person)</td><td>gross</td><td></td><td>user, store, rider</td></tr>
+<tr><td>5701 Social insurance, company share (per person)</td><td>siEmployer</td><td></td><td>user, store, rider</td></tr>
+<tr><td>1500 staff advance (per person)</td><td></td><td>advanceRecovery</td><td>user, store</td></tr>
+<tr><td>2303 Salary income tax payable</td><td></td><td>sum(incomeTax)</td><td></td></tr>
+<tr><td>2304 Social insurance payable</td><td></td><td>sum(siEmployee + siEmployer)</td><td></td></tr>
+<tr><td>2305 Martyrs fund payable</td><td></td><td>sum(martyrs)</td><td></td></tr>
+<tr><td>bank or cash box</td><td></td><td>sum(net)</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>payroll:&lt;YYYY-MM&gt;</code>; kind <code>payroll</code>. The entry's data keeps every person's figures (base, basic, allowances, bonus, commission, deductions, HR items, gross, insured wage, both insurance shares, martyrs, tax, recovery, net): payslips and the tax and insurance lists are read from it. In the same transaction the HR items are marked as taken (<code>markHrPayrollItems()</code>, each once) and the commissions are marked paid. The taxes owed are paid later from Taxes (chapter 15).</p>
+
+<h2 id="py-advances">14.6 Advances and bonuses</h2>
+<h3>Staff advances</h3>
+<p><code>giveAdvance()</code>, through the second person rule from the limit. The person's 1500 wallet (<code>1500-nnnn</code>, an asset) holds what they owe.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1500 staff advance</td><td>amount</td><td></td><td>user, store, rider</td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td></td></tr>
+</tbody></table>
+<p>Key <code>advance:&lt;clientKey&gt;</code>; kind <code>staff_advance</code>. It is taken back from a salary run (employees), from the payment of an outsourced person's bill (<code>advanceRecoveryPiastres</code>, chapter 12) or from a rider withdrawal (chapter 11).</p>
+<h3>Bonuses</h3>
+<p>An employee's bonus goes through the run (taxed, part of gross). An outsourced person's bonus is paid directly with <code>payStaffBonus()</code> (refused for employees: <code>employee_bonus_in_payroll</code>), through the second person rule from the limit:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5702 Staff bonuses</td><td>amount</td><td></td><td>user, store, rider</td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td></td></tr>
+</tbody></table>
+<p>Key <code>staff_bonus:&lt;clientKey&gt;</code>; kind <code>staff_bonus</code>. It may pay an approved sales commission of the same amount (<code>commission_not_payable</code> otherwise).</p>
+
+<h2 id="py-commission">14.7 Sales commission in payroll</h2>
+<p>Sales commission is computed by the Sales app (<code>packages/db/src/crm-sales.ts</code>, <code>packages/shared/src/crm-sales.ts</code>). Once a Cairo month is over, for each sales rep (key <code>commission:&lt;rep&gt;:&lt;month&gt;</code>):</p>
+<pre class="code">counted fees = fees before VAT (revenue lines tagged with the merchant) of the rep's qualified won
+               merchants inside their commission months
+hit        = a fees target above 0 exists and counted fees &gt;= target
+commission = hit ? sum over deals of commissionOn(dealFees, deal.commission_bp) : 0
+commissionOn(fees, bp) = share(max(0, fees), bp)</pre>
+<p>A hit is a draft approved (or adjusted with a reason) by another sales manager. Approved commissions of months up to the run's month (<code>payableCommissions()</code>) are added to the employee's gross in the salary run, taxed; outsourced reps are paid by a direct staff bonus.</p>
+
+<h2 id="py-hr">14.8 Unpaid leave and violation deductions</h2>
+<p><code>hrPayrollItems()</code> in <code>packages/db/src/hr-inbox.ts</code> hands the run, for an employee, every unpaid leave day and every final violation deduction up to the month's last day that no run has taken:</p>
+<pre class="code">dayDeduction(basic, days, perMonth) = round(basic * days / perMonth)    (perMonth = hr.payroll_days_per_month)
+unpaid leave day item  = dayDeduction(basic, day fraction, perMonth)
+violation item         = penalty deduction_amount ? violation.amountPiastres
+                                                  : dayDeduction(basic, violation.days, perMonth)</pre>
+<p>They reduce the gross before tax. Outsourced people's deductions are only listed for their company. Riders paid per delivery are charged to their wallet instead (chapter 11).</p>
+
+<h2 id="py-outsourced">14.9 Outsourced staff</h2>
+<p>An outsourced person's month is a supplier bill from their own outsourcing company (chapter 12) naming the person: the cost line carries the user, store and rider tags, so the person's cost appears in profit per store and merchant profit. Paying it can take back their advance (Cr 1500). The bill's expense account is the one chosen (for example 5402 Salaries and wages).</p>
+
+<h2 id="py-payslips">14.10 Payslips</h2>
+<p>Employees on the salary run see only their own payslips in My HR (<code>myPayslips()</code>, <code>myPayslip()</code>), read from the posted <code>payroll:&lt;month&gt;</code> entry; printable in English or Arabic; a <code>payslip_ready</code> push tells them. Riders paid per delivery see their wallet instead.</p>
+
+<h2 id="py-example">14.11 A full worked payslip</h2>
+<div class="example">
+<p>Month: October 2026. Employee with a package: basic 12,000 EGP, transport allowance 2,600 EGP, insured wage 10,000 EGP. Finance adds a 800 EGP target bonus. HR hands over 1 unpaid leave day. The employee owes a 500 EGP advance, recovered in full.</p>
+<table class="data"><thead><tr><th>Step</th><th>Formula</th><th>Piastres</th><th>EGP</th></tr></thead><tbody>
+<tr><td>Base</td><td>1,200,000 + 260,000</td><td>1,460,000</td><td>14,600.00</td></tr>
+<tr><td>Bonus</td><td></td><td>80,000</td><td>800.00</td></tr>
+<tr><td>Unpaid day</td><td>round(1,200,000 × 1 / 30)</td><td>40,000</td><td>400.00</td></tr>
+<tr><td>Gross</td><td>1,460,000 + 80,000 − 40,000</td><td>1,500,000</td><td>15,000.00</td></tr>
+<tr><td>Insured wage</td><td>min(max(1,000,000, 270,000), 1,670,000)</td><td>1,000,000</td><td>10,000.00</td></tr>
+<tr><td>Employee insurance</td><td>share(1,000,000, 1100)</td><td>110,000</td><td>1,100.00</td></tr>
+<tr><td>Company insurance</td><td>share(1,000,000, 1875)</td><td>187,500</td><td>1,875.00</td></tr>
+<tr><td>Martyrs fund</td><td>share(1,500,000, 5) = floor(750.5)</td><td>750</td><td>7.50</td></tr>
+<tr><td>Yearly taxable</td><td>(1,500,000 − 110,000) × 12 − 2,000,000</td><td>14,680,000</td><td>146,800.00</td></tr>
+<tr><td>Band 1</td><td>4,000,000 at 0%</td><td>0</td><td></td></tr>
+<tr><td>Band 2</td><td>1,500,000 at 10%</td><td>150,000</td><td></td></tr>
+<tr><td>Band 3</td><td>1,500,000 at 15%</td><td>225,000</td><td></td></tr>
+<tr><td>Band 4</td><td>7,680,000 at 20%</td><td>1,536,000</td><td></td></tr>
+<tr><td>Yearly tax</td><td></td><td>1,911,000</td><td>19,110.00</td></tr>
+<tr><td>Monthly income tax</td><td>floor((1,911,000 + 6) / 12)</td><td>159,250</td><td>1,592.50</td></tr>
+<tr><td>After tax</td><td>1,500,000 − 110,000 − 750 − 159,250</td><td>1,230,000</td><td>12,300.00</td></tr>
+<tr><td>Advance recovered</td><td></td><td>50,000</td><td>500.00</td></tr>
+<tr><td>Net paid</td><td></td><td>1,180,000</td><td>11,800.00</td></tr>
+</tbody></table>
+<p>Posting (this person alone, from CIB), dated 31 October 2026 23:00 Cairo, key <code>payroll:2026-10</code>, kind <code>payroll</code>:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5402 Salaries and wages</td><td>15,000.00</td><td></td><td>user, store</td></tr>
+<tr><td>5701 Social insurance, company share</td><td>1,875.00</td><td></td><td>user, store</td></tr>
+<tr><td>1500 staff advance</td><td></td><td>500.00</td><td>user, store</td></tr>
+<tr><td>2303 Salary income tax payable</td><td></td><td>1,592.50</td><td></td></tr>
+<tr><td>2304 Social insurance payable</td><td></td><td>2,975.00</td><td></td></tr>
+<tr><td>2305 Martyrs fund payable</td><td></td><td>7.50</td><td></td></tr>
+<tr><td>1101 CIB</td><td></td><td>11,800.00</td><td></td></tr>
+</tbody></table>
+<p>Debits 16,875.00 = credits 16,875.00. The cost to the company is gross plus the company insurance: 16,875.00 EGP.</p>
+<p>For comparison, a gross of 60,000 EGP with no insured wage on the package: the insured wage is clamped to 16,700 EGP, employee insurance 1,837.00, company insurance 3,131.25, martyrs 30.00, income tax 12,353.25, after tax 45,779.75 EGP.</p>
+</div>
+
+<h2 id="py-code">14.12 Where the code lives</h2>
+<table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>Deduction rules</td><td><code>packages/shared/src/payroll.ts</code>: <code>yearlyIncomeTax</code>, <code>monthlyPayslip</code></td></tr>
+<tr><td>Run, advances, bonuses, payslips</td><td><code>packages/db/src/finance/payroll.ts</code>: <code>payrollRules</code>, <code>listStaffPay</code>, <code>giveAdvance</code>, <code>previewPayroll</code>, <code>runPayroll</code>, <code>payStaffBonus</code>, <code>payslips</code>, <code>myPayslips</code></td></tr>
+<tr><td>Second person</td><td><code>packages/db/src/finance/controls.ts</code>: <code>submitPayroll</code>, <code>submitAdvance</code>, <code>submitStaffBonus</code></td></tr>
+<tr><td>Packages</td><td><code>packages/db/src/hr-pay.ts</code>: <code>packageInForce</code>, <code>packageGross</code></td></tr>
+<tr><td>HR deductions</td><td><code>packages/db/src/hr-inbox.ts</code>: <code>hrPayrollItems</code>, <code>markHrPayrollItems</code>; <code>packages/shared/src/hr-leave.ts</code>: <code>dayDeduction</code></td></tr>
+<tr><td>Commission</td><td><code>packages/db/src/crm-sales.ts</code>: <code>payableCommissions</code>, <code>markCommissionsPaid</code>; <code>packages/shared/src/crm-sales.ts</code>: <code>commissionOn</code>, <code>commissionMonthIndex</code></td></tr>
+</tbody></table>
+</section>

@@ -1,0 +1,540 @@
+<section class="chapter" id="ch-s34">
+<h1>Screens: Month end, Setup and common parts</h1>
+
+<p>This chapter shows the screens under the Accounting menus <strong>Month end</strong> and <strong>Setup</strong>, the Accounting settings page, and then the common parts that every Accounting screen is built from: the list view, the document page frame, the status bar and the status pills, smart buttons, the chatter, the attachment field and viewer, the form footer and the settings menu. It ends with how the same screens look for a person with fewer rights, on a phone, in Arabic and in the dark theme.</p>
+
+<p>Every screenshot was taken on the demo copy of the system on 11 November 2026 (Cairo), signed in as the owner unless the caption says otherwise. Names of demo staff and riders are blurred in the screenshots. Numbered red markers on a screenshot are added for this guide; they are not part of the screen.</p>
+
+<div class="note">Access words used in this chapter: <strong>view</strong>, <strong>use</strong> and <strong>manage</strong> are the levels a person holds on the Accounting app (<code>user_access.accounting</code>). The API decides every call: a GET needs view, any other call needs use, unless the route names another level (<code>@Access('accounting', 'manage')</code>). <strong>Owner</strong> means accounting manage plus settings manage (<code>isOwner()</code> in <code>apps/web/src/lib/apps.ts</code>). A page link is shown in a menu only to people who can open it.</div>
+
+<!-- ───────────────────────── Close the month run ───────────────────────── -->
+<h2 id="s34-close-run">Close the month (guided run)</h2>
+<p><strong>Address:</strong> <code>/finance/month-end/run?month=YYYY-MM&amp;step=&lt;item&gt;</code>. <strong>Menu:</strong> Accounting, Month end, Close the month. Also from the dashboard quick action <em>Close the month</em> and the dashboard tile <em>Month end for ...</em>.</p>
+<p><strong>Who:</strong> anyone with accounting view opens it. Ticking an item by hand and untick need accounting use. Closing the books needs accounting manage. Code: <code>apps/web/src/app/finance/month-end/run/page.tsx</code>, <code>components/finance/CloseMonthRun.tsx</code>, <code>lib/close-run.ts</code>. Data: <code>GET /finance/month-end?month=</code> (the live checklist, <code>monthEndChecklist</code> in <code>packages/db</code>).</p>
+<p>The run walks the month end checklist one item at a time. Without <code>month</code> it opens last month; without <code>step</code> it opens the first item that is not done (<code>firstOpenStep</code>), or the closing step when all are done. Nothing on this screen decides a rule; each item is computed live from the books every time the page loads.</p>
+<figure class="shot" data-shot="s34-close-run"><figcaption>Close the month 2026-10, opened on its first open item (Receipts attached, 40 left), with numbered markers. Address /finance/month-end/run?month=2026-10.</figcaption></figure>
+
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Month</td><td>Chooses the month (this month and the 12 before it).</td><td>Changing it opens the first step, Rider cash counted.</td><td>The address changes to the new month; the checklist is read again.</td></tr>
+<tr><td>2</td><td>Progress bar and "N of 9 done"</td><td>Shows how many items before closing are done.</td><td>Counts the nine items, not "Books closed". Adds "The month is not over yet." before the month ends and "The books of this month are closed." after closing.</td><td>Blue bar on a light grey track.</td></tr>
+<tr><td>3</td><td>Step list (1 to 10)</td><td>Opens a step. The current step is highlighted (light blue ground, blue bold text, blue filled dot); a done step has a green dot with a white tick; an open step has an empty grey ring and, for an automatic item, its count of open records in a small pill.</td><td>Step 10 is always Close the books.</td><td>The right panel shows that step.</td></tr>
+<tr><td>4</td><td>Item panel: name, hint and state pill</td><td>The item's name, what it checks, and its state.</td><td>State pill: <em>Done</em> (green text on light blue), <em>N left</em> (orange text), <em>Tick when done</em> (orange, manual item), <em>After the month ends</em> (grey).</td><td>Below it a line explains why the item matters (<code>finance.closeRun.why.*</code>).</td></tr>
+<tr><td>5</td><td>Fix button (for example Attach receipts)</td><td>Opens the screen that fixes the item.</td><td>Shown only while the item is not done. Targets: Count rider cash <code>/finance/cash</code>; Match bank lines <code>/finance/bank?month=</code>; Attach receipts <code>/finance/receipts</code>; Decide petty cash <code>/finance/petty-cash?status=pending</code>; Issue tax invoices <code>/finance/invoices</code>; Run payroll <code>/finance/payroll</code>; Check storage entries <code>/finance/journal</code>; Check equipment and prepaid <code>/finance/assets</code>; Prepare the VAT return <code>/finance/taxes?tab=returns</code>.</td><td>The other screen opens; come back and press Check again.</td></tr>
+<tr><td>6</td><td>Check again</td><td>Reads the checklist again.</td><td>None.</td><td>The page refreshes in place (it fades while loading).</td></tr>
+<tr><td>7</td><td>Tick by hand (note and Tick)</td><td>Marks an exception as done with a note.</td><td>Accounting use. Not for Books closed, not when the item is already ticked, not when an automatic item is already done. Tick stays grey until the note has 3 characters. <code>POST /finance/month-end/:month/marks</code> with <code>{ item, note }</code>; audited.</td><td>"Ticked." and the line "Ticked by &lt;name&gt;: &lt;note&gt; · &lt;time&gt;"; the item counts as done.</td></tr>
+<tr><td>8</td><td>Back</td><td>Opens the step before.</td><td>Hidden on step 1.</td><td>Previous step.</td></tr>
+<tr><td>9</td><td>Next open item / Go to closing</td><td>Opens the next step that is not done, or closing when none is left.</td><td>Blue when the current item is done, white otherwise.</td><td>Next step.</td></tr>
+<tr><td>10</td><td>Checklist on one page</td><td>Opens the plain checklist for the same month.</td><td>None.</td><td><code>/finance/month-end?month=</code></td></tr>
+<tr><td>(after a tick)</td><td>Untick</td><td>Removes the hand tick.</td><td>Accounting use. <code>DELETE /finance/month-end/:month/marks/:item</code>; audited.</td><td>The item goes back to its live state.</td></tr>
+</tbody></table>
+
+<h3>The nine items and the closing step</h3>
+<table class="data"><thead><tr><th>Step</th><th>Item (<code>MONTH_END_ITEMS</code>)</th><th>Done when</th><th>Kind</th></tr></thead><tbody>
+<tr><td>1</td><td>Rider cash counted (<code>cash_handovers</code>)</td><td>Every rider handed in the month's cash and every handover difference is settled.</td><td>Automatic</td></tr>
+<tr><td>2</td><td>Bank lines matched (<code>bank_lines</code>)</td><td>Every bank statement line of the month is matched or set aside.</td><td>Automatic</td></tr>
+<tr><td>3</td><td>Receipts attached (<code>receipts</code>)</td><td>Every money movement of the month has a receipt or transfer slip.</td><td>Automatic</td></tr>
+<tr><td>4</td><td>Petty cash decided (<code>petty_cash</code>)</td><td>No petty expense of the month waits for approval.</td><td>Automatic</td></tr>
+<tr><td>5</td><td>Tax invoices issued (<code>invoices</code>)</td><td>Every merchant charged fees in the month has its invoice.</td><td>Automatic, after the month ends</td></tr>
+<tr><td>6</td><td>Payroll run (<code>payroll</code>)</td><td>The month's salaries are booked and paid.</td><td>Automatic, after the month ends</td></tr>
+<tr><td>7</td><td>Storage charged (<code>storage</code>)</td><td>Storage was charged for every day of the month.</td><td>Automatic</td></tr>
+<tr><td>8</td><td>Depreciation and prepaid months (<code>depreciation</code>)</td><td>Depreciation and prepaid months are charged for the month.</td><td>Automatic, after the month ends</td></tr>
+<tr><td>9</td><td>VAT return prepared (<code>vat_return</code>)</td><td>Ticked by hand once the return is prepared.</td><td>Manual</td></tr>
+<tr><td>10</td><td>Close the books</td><td>The books lock covers the month's last day.</td><td>The closing step</td></tr>
+</tbody></table>
+
+<figure class="shot" data-shot="s34-close-run-tick"><figcaption>Step 9, VAT return prepared, with the hand tick note typed and the Tick button now enabled.</figcaption></figure>
+<figure class="shot" data-shot="s34-close-run-ticked"><figcaption>After Tick: the state pill reads Done, the line "Ticked by ... : note · time" appears, Untick replaces the tick box and the next button reads Go to closing.</figcaption></figure>
+
+<h3>The closing step</h3>
+<figure class="shot" data-shot="s34-close-run-close"><figcaption>Step 10, Close the books, while one item is still open: the open item is listed as a link with its count and the close button stays pale (disabled).</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Still open list</td><td>Each item not yet done, as a link to its step, with its state.</td><td>Shown only while items are open.</td><td>Click opens the step.</td></tr>
+<tr><td>Close the books through dd/mm/yyyy</td><td>Closes the books through the month's last day.</td><td>Accounting manage (others see "Closing the books needs accounting manage."). Enabled only when every item is done or ticked (<code>readyToClose</code>) and the month is over. <code>POST /finance/books-lock { day }</code>, the same lock as Close the books.</td><td>"The books are closed through dd/mm/yyyy." The panel then shows the closed line on a light blue ground.</td></tr>
+<tr><td>Hint</td><td>"The button works once every item above is done or ticked with a note."</td><td>Text only.</td><td>None.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-close-run-notover"><figcaption>The closing step for the running month 2026-11: "The month is not over yet. Come back after its last day." and no button.</figcaption></figure>
+<div class="rule">Closing stops every posting dated on or before the closed day: <code>post()</code> and a database trigger refuse such lines with <code>books_closed</code> ("This date is in a closed month. Choose a later date, or ask an admin to reopen the month."). See the chapter Taxes, reports, reconciliation and closing for the lock itself.</div>
+
+<!-- ───────────────────────── Month end checklist ───────────────────────── -->
+<h2 id="s34-month-end">Month end checklist</h2>
+<p><strong>Address:</strong> <code>/finance/month-end?month=YYYY-MM</code>. <strong>Menu:</strong> Accounting, Month end, Month end checklist. <strong>Who:</strong> accounting view opens; Tick by hand and Untick need use; the close button needs manage. Code: <code>app/finance/month-end/page.tsx</code>, <code>components/finance/MonthEndChecklist.tsx</code>.</p>
+<p>The same live checklist as the run, on one page. Without <code>month</code> it shows last month.</p>
+<figure class="shot" data-shot="s34-month-end"><figcaption>Month end checklist for 2026-10: eight items done, Receipts attached with 40 left, the VAT return ticked by hand, and the close section at the bottom.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Close the month step by step</td><td>Opens the guided run for this month.</td><td>None.</td><td><code>/finance/month-end/run?month=</code></td></tr>
+<tr><td>Month</td><td>Chooses the month (this month and 12 before).</td><td>None.</td><td>The page reloads for that month.</td></tr>
+<tr><td>"N of 10 done"</td><td>Counts all ten items, Books closed included.</td><td>Note: the guided run counts nine (without Books closed), so the two screens show different totals for the same month.</td><td>"The month is not over yet." is added before the month ends.</td></tr>
+<tr><td>Item row: dot, name, hint</td><td>Green dot with a white tick when done, an empty grey ring when not.</td><td>None.</td><td>A ticked item also shows "Ticked by &lt;name&gt;: &lt;note&gt; · time".</td></tr>
+<tr><td>State text</td><td><em>Done</em> (green), <em>N left</em> (orange), <em>Tick when done</em> (orange), <em>After the month ends</em> (grey).</td><td>Computed live.</td><td>None.</td></tr>
+<tr><td>Open</td><td>Opens the screen where the item is worked on.</td><td>Links: the same targets as the run, except VAT return opens <code>/finance/tax-returns</code> (which redirects to the Tax returns tab) and Books closed opens <code>/finance/close</code>.</td><td>Another screen.</td></tr>
+<tr><td>Tick by hand</td><td>Opens a note field and a Tick button under the row.</td><td>Accounting use; same limits as in the run (note of 3 characters or more, never Books closed).</td><td>The item is ticked with the note.</td></tr>
+<tr><td>Untick</td><td>Removes a hand tick.</td><td>Accounting use.</td><td>Back to the live state.</td></tr>
+<tr><td>Close section</td><td>"Every item is done. Close the books to stop any change in this month." or "Finish the items above, or tick them with a note, before closing the books."</td><td>Button <em>Close the books through YYYY-MM-DD</em>: accounting manage, enabled only when ready.</td><td>"The books are closed through YYYY-MM-DD."</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-month-end-tick"><figcaption>Tick by hand opened on Receipts attached, with a note typed.</figcaption></figure>
+<div class="note">Small inconsistency: the run shows the closed day as dd/mm/yyyy while the checklist page shows YYYY-MM-DD in its close button and closed line.</div>
+
+<!-- ───────────────────────── Close the books ───────────────────────── -->
+<h2 id="s34-close-books">Close the books</h2>
+<p><strong>Address:</strong> <code>/finance/close</code>. <strong>Menu:</strong> Accounting, Month end, Close the books (page title "Close month"). <strong>Who:</strong> the page opens with accounting view; closing needs accounting manage; moving the date back (reopening) also needs settings manage and a reason. Code: <code>app/finance/close/page.tsx</code>, <code>components/finance/CloseBooks.tsx</code>; API <code>POST /finance/books-lock</code> (<code>closeBooks</code>).</p>
+<figure class="shot" data-shot="s34-close-books"><figcaption>Close the books before anything was closed: "No month is closed yet."</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Status line</td><td>"The books are closed through YYYY-MM-DD (by &lt;name&gt;)." or "No month is closed yet."</td><td>From <code>GET /finance/controls</code>.</td><td>None.</td></tr>
+<tr><td>Close the books through (date box)</td><td>The last day to close. Typed day first (dd/mm/yyyy) or picked with the calendar button.</td><td>The calendar stops at yesterday; a typed later day is refused by the API with <code>day_not_over</code>.</td><td>None until the button is pressed.</td></tr>
+<tr><td>Why reopen? (required, kept in the history)</td><td>Appears only when the chosen day is before the closed day (reopening).</td><td>Only for people with settings manage; others see "Moving the date back reopens closed days: only someone who manages settings can do it." The button stays disabled until the reason has 5 characters.</td><td>The reason is stored in the audit log.</td></tr>
+<tr><td>Close / Reopen to this day</td><td>Sends the lock.</td><td>Accounting manage. Only days that are over. Reopen: settings manage and a reason (<code>reason_required</code> otherwise).</td><td>"Done." and the status line shows the new day; every close and reopen is audited.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-close-books-error"><figcaption>Error: today typed as the day to close. The API answers day_not_over, shown in red as "You can close only days that are over."</figcaption></figure>
+<figure class="shot" data-shot="s34-close-books-done"><figcaption>After closing through 30/09/2026: "Done." and the status line names the day and who closed it.</figcaption></figure>
+<figure class="shot" data-shot="s34-close-books-reopen"><figcaption>An earlier day chosen while September is closed: the reason field appears and the button becomes Reopen to this day.</figcaption></figure>
+
+<!-- ───────────────────────── Year end ───────────────────────── -->
+<h2 id="s34-year-end">Year end and export</h2>
+<p><strong>Address:</strong> <code>/finance/year-end</code>. <strong>Menu:</strong> Accounting, Month end, Year end. <strong>Who:</strong> accounting view opens and downloads; Close year needs accounting manage (<code>POST /finance/year-close</code>). Code: <code>YearEnd</code> in <code>components/finance/PeriodReports.tsx</code>.</p>
+<figure class="shot" data-shot="s34-year-end"><figcaption>Year end and export: the only year with entries, 2026, is Running, so no Close year button shows. Below, the exports with the day range.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Years table: Year, State</td><td>Every year that has entries. State: <em>Running</em> (not over), <em>Over, not closed</em>, <em>Closed (JV-xxxxxx)</em>.</td><td>From <code>GET /finance/year-close</code>.</td><td>"No entries yet." when empty.</td></tr>
+<tr><td>Close year</td><td>Shown on a year that is over and not closed. First press shows <em>Yes, close YYYY</em> and <em>Cancel</em>.</td><td>Accounting manage. Years in order (<code>earlier_year_open</code>), once (<code>year_already_closed</code>), only when over (<code>year_not_over</code>). Book the company income tax first (Taxes, Tax returns).</td><td>"Closed with JV-xxxxxx; profit EGP n moved to retained earnings." Income and expense balances move to 3401 at the year's last moment and the books close through 31 December.</td></tr>
+<tr><td>From, To</td><td>The day range of the exports (default 1 January to today).</td><td>Days not later than today.</td><td>None.</td></tr>
+<tr><td>Last year, Last month</td><td>Set the range to last calendar year or last month.</td><td>None.</td><td>The two boxes change.</td></tr>
+<tr><td>Download journal (CSV)</td><td>One row per ledger line: date, voucher, account code, debit, credit.</td><td>Accounting view. <code>/api/finance/export/journal.csv?from=&amp;to=</code>.</td><td>A CSV that imports into common accounting programs.</td></tr>
+<tr><td>Download audit pack (zip)</td><td>Journal, trial balance, chart of accounts, VAT by month, every receipt photo named by voucher.</td><td><code>/api/finance/export/audit-pack.zip?from=&amp;to=</code>.</td><td>A zip file.</td></tr>
+</tbody></table>
+<div class="note">Layout fault: the labels From and To sit on the same line as their date boxes with no space ("From01/01/2026"), unlike every other form where the label is above the box.</div>
+
+<!-- ───────────────────────── Taxes ───────────────────────── -->
+<h2 id="s34-taxes">Taxes</h2>
+<p><strong>Address:</strong> <code>/finance/taxes?tab=owed|vat|returns</code>. The old addresses <code>/finance/vat</code> and <code>/finance/tax-returns</code> open the matching tab. <strong>Menu:</strong> Accounting, Month end, Taxes owed. <strong>Who:</strong> accounting view reads all tabs; Pay tax needs use (and the second person rule from the approval limit); Book the tax needs manage; the salary lists need the salaries switch. Code: <code>app/finance/taxes/page.tsx</code>, <code>ReturnsTab.tsx</code>, <code>Taxes</code> in <code>components/finance/Payables.tsx</code>, <code>CorporateTaxForm.tsx</code>.</p>
+
+<h3>Tab Taxes owed</h3>
+<figure class="shot" data-shot="s34-taxes-owed"><figcaption>Taxes owed: five balance cards, the Pay tax form and the withholding list of the current quarter. VAT we owe is negative (a credit), shown in red.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Tabs Taxes owed, VAT report, Tax returns</td><td>Switch the tab; the current one is blue with a blue underline.</td><td>Kept in the address (<code>?tab=</code>).</td><td>None.</td></tr>
+<tr><td>(i) after the intro</td><td>InfoTip explaining withholding tax.</td><td>None.</td><td>A small popup.</td></tr>
+<tr><td>Cards Salary income tax, Social insurance, Martyrs fund</td><td>What we owe now on 2303, 2304 and 2305, with how it is paid.</td><td>Balances summed from ledger lines.</td><td>None.</td></tr>
+<tr><td>Cards VAT we owe, Withholding tax we owe</td><td>Balance of 2301 and 2302.</td><td>A negative amount is shown in red: VAT claimed back exceeds VAT charged.</td><td>None.</td></tr>
+<tr><td>Pay tax: Tax</td><td>Withholding tax, VAT, Salary income tax, Social insurance, Martyrs fund, Company income tax.</td><td>None.</td><td>None.</td></tr>
+<tr><td>Amount (EGP)</td><td>Amount paid.</td><td>Pounds with up to two decimals; converted to piastres without floats.</td><td>None.</td></tr>
+<tr><td>Paid from</td><td>An open bank or cash box (default the first, 1101 CIB).</td><td>None.</td><td>None.</td></tr>
+<tr><td>Reference</td><td>The payment reference (for example the e tax portal number).</td><td>At least 2 characters.</td><td>None.</td></tr>
+<tr><td>Receipts and documents</td><td>The attachment field (see Common parts).</td><td>The button waits while files upload.</td><td>Files are linked to the posted entry.</td></tr>
+<tr><td>Pay tax</td><td>Posts the payment: Dr the tax account, Cr the bank or box.</td><td>Accounting use. Never more than owed (<code>more_than_owed</code>), never more than the bank holds (<code>not_enough_money</code>). From finance.approval_threshold_piastres it waits in Approvals for a second person. Idempotency key per press.</td><td>"Done." (posted) or "Sent for approval." The form empties.</td></tr>
+<tr><td>Withholding tax, Q n YYYY: Q1 to Q4, previous year</td><td>Chooses the quarter of the withholding list.</td><td>The current quarter is outlined in blue.</td><td>Address <code>?year=&amp;quarter=</code>.</td></tr>
+<tr><td>Columns Supplier, Tax id, Payments, Paid before VAT, Withheld; Total</td><td>Withholding kept back per supplier in the quarter.</td><td>A supplier without a tax id shows "No tax id" in red, and a red line counts them above the table.</td><td>"No withholding tax in this quarter." when empty.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-taxes-pay-form"><figcaption>Pay tax filled in: VAT, 10 EGP from 1101 CIB, a reference and two files chosen.</figcaption></figure>
+<figure class="shot" data-shot="s34-taxes-pay-error"><figcaption>Error: paying VAT while VAT we owe is a credit. The API answers more_than_owed, but the screen shows "That is more than the rider has earned.", a message written for rider withdrawals (a wording fault, listed at the end).</figcaption></figure>
+<figure class="shot" data-shot="s34-taxes-pay-result"><figcaption>Result: 10 EGP of withholding tax paid with a receipt photo. Below the approval limit it posts at once ("Done."); the entry JV-002555 is shown under Common parts, document page.</figcaption></figure>
+<figure class="shot" data-shot="s34-taxes-wht-empty"><figcaption>Empty state of the withholding list (Q1 2026): "No withholding tax in this quarter."</figcaption></figure>
+
+<h3>Tab VAT report</h3>
+<figure class="shot" data-shot="s34-taxes-vat"><figcaption>VAT report 2026 by month: VAT on our fees, VAT claimed back, Due and Paid.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Year buttons (year before, year after)</td><td>Open another year.</td><td><code>?tab=vat&amp;year=</code></td><td>None.</td></tr>
+<tr><td>Columns Month, VAT on our fees, VAT claimed back, Due (bold), Paid; Total row</td><td>Monthly VAT from the 2301 lines, by entry kind (see the chapter Taxes, reports, reconciliation and closing).</td><td>A minus Due is a credit carried to the next return.</td><td>None.</td></tr>
+</tbody></table>
+
+<h3>Tab Tax returns</h3>
+<figure class="shot" data-shot="s34-taxes-returns"><figcaption>Tax returns: the VAT return of 2026-10, withholding Q4 2026 (form 41), salary tax and social insurance 2026-10, and company income tax 2025.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Print or save as PDF</td><td>Prints the tab; menus and buttons are hidden in print.</td><td>None.</td><td>The browser print dialog.</td></tr>
+<tr><td>VAT return: month box and Show</td><td>Chooses the month (default last month).</td><td><code>?tab=returns&amp;month=</code></td><td>Boxes: Taxable sales, VAT on sales, (debit notes when any), Credit notes, VAT on credit notes, Purchases with VAT, VAT claimed back, Credit carried from earlier months, VAT due this month (bold), Credit carried to next month. Negative boxes show in red.</td></tr>
+<tr><td>Withholding tax Q n (form 41): Download CSV</td><td>One line per payment that kept withholding.</td><td>Quarter from the address (default current). Columns Tax number (Missing in red), Name, Date, Before VAT, Rate, Withheld; Total.</td><td>CSV for the portal's form 41. "Nothing in this period." when empty.</td></tr>
+<tr><td>Salary tax and social insurance: Salary tax list (CSV), Insurance list (CSV)</td><td>Totals of the month's salary run.</td><td>Needs the salaries switch. A red line counts employees without national ID or insurance number.</td><td>Gross salaries, Salary income tax, Insured wages, Insurance employee and company share, Insurance to pay, Martyrs fund. "No salary run for this month." when none.</td></tr>
+<tr><td>Company income tax: year box and Show</td><td>Profit before tax × finance.corporate_tax_bp.</td><td>Default last year.</td><td>Profit before tax, Rate, Estimated tax, Already booked.</td></tr>
+<tr><td>Amount to book and Book the tax</td><td>Books the amount agreed with the accountant at the year's last moment (5801 against 2306); booking again books only the difference.</td><td>Accounting manage; before the year is closed.</td><td>"Done."</td></tr>
+</tbody></table>
+
+<!-- ───────────────────────── Chart of accounts ───────────────────────── -->
+<h2 id="s34-accounts">Chart of accounts</h2>
+<p><strong>Address:</strong> <code>/finance/accounts</code> (<code>?all=true</code> shows closed accounts). <strong>Menu:</strong> Accounting, Setup, Chart of accounts. <strong>Who:</strong> accounting view reads; opening, editing, closing and reopening an account need accounting use (<code>POST /finance/accounts</code>, <code>PATCH /finance/accounts/:id</code>; the buttons are shown to everyone who can open the page and the API refuses the rest). Code: <code>components/finance/AccountsManager.tsx</code>.</p>
+<figure class="shot" data-shot="s34-accounts"><figcaption>Chart of accounts, top of the page, with markers.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Open a new account</td><td>Opens the new account form.</td><td>Hidden while the form is open.</td><td>The form appears under the toolbar.</td></tr>
+<tr><td>2</td><td>Search by number, name or bank</td><td>Filters the rows as you type (code, English and Arabic names, bank, account number).</td><td>In the browser only.</td><td>Categories with no match disappear. With no match at all the page shows nothing, with no message.</td></tr>
+<tr><td>3</td><td>Show closed accounts / Hide closed accounts</td><td>Includes or leaves out closed accounts.</td><td><code>?all=true</code></td><td>Closed rows are pale with a "Closed" pill.</td></tr>
+<tr><td>4</td><td>Category card (1000 Assets, 2000 Liabilities, 3000 Equity, 4000 Income, 5000 Expenses)</td><td>Groups the accounts.</td><td>The first digit is the category.</td><td>None.</td></tr>
+<tr><td>5</td><td>Group heading (for example 1100 · Banks)</td><td>The account group.</td><td>Groups from <code>ACCOUNT_GROUPS</code>.</td><td>None.</td></tr>
+<tr><td>6</td><td>Code</td><td>The account number. Company accounts take the next number of their group (1101, 1102); party wallets take &lt;group&gt;-0001 onward.</td><td>Given automatically.</td><td>None.</td></tr>
+<tr><td>7</td><td>Name (link)</td><td>Opens the account statement.</td><td>Bank details and the note show under it in grey.</td><td><code>/finance/accounts/:id</code></td></tr>
+<tr><td>8</td><td>Balance</td><td>Summed from ledger lines; liabilities, equity and income shown with the sign flipped. A foreign bank also shows its USD or EUR balance.</td><td>Never stored.</td><td>None.</td></tr>
+<tr><td>9</td><td>Edit</td><td>Opens the edit form under the row.</td><td>Wallet names cannot be changed; only bank accounts show bank fields.</td><td>Save or Cancel (form footer).</td></tr>
+<tr><td>(row)</td><td>Revalue</td><td>Month end revaluation of a USD or EUR bank at a rate typed.</td><td>Foreign currency banks only.</td><td>Posts the difference to 5901.</td></tr>
+<tr><td>(row)</td><td>Close account / Reopen</td><td>Closes or reopens the account. A confirm dialog asks "Close this account? It must have a zero balance, and no new money can use it."</td><td>Hidden on system accounts (<code>locked</code>). Only an empty account closes.</td><td>The row disappears (closed) unless closed accounts are shown.</td></tr>
+</tbody></table>
+
+<h3>Open a new account</h3>
+<table class="data"><thead><tr><th>Field</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>Group</td><td>The group the account belongs to; it decides the code.</td><td>Only groups that may be opened by hand: 1100 Banks, 1200 Cash boxes, 1400 Other assets, 2400 Other liabilities, 3100 Owner capital, 3200 Owner drawings, 4200 Other income, 5400 Operating expenses, 5500 Bank charges.</td></tr>
+<tr><td>Name in English, Name in Arabic</td><td>The two names.</td><td>Required, at least 2 characters each.</td></tr>
+<tr><td>Bank, Account number</td><td>Bank details.</td><td>Banks only; required.</td></tr>
+<tr><td>IBAN (optional)</td><td>Bank IBAN.</td><td>Banks only.</td></tr>
+<tr><td>Currency</td><td>EGP, USD or EUR.</td><td>Banks only. A foreign bank keeps its balance in that currency too; the books stay in EGP.</td></tr>
+<tr><td>Note</td><td>Free note.</td><td>Optional.</td></tr>
+<tr><td>Open account, Cancel, Unsaved changes</td><td>The form footer.</td><td>Cancel asks before throwing changes away.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-accounts-new"><figcaption>The new account form for a bank, filled in, with "Unsaved changes" in orange beside the buttons.</figcaption></figure>
+<figure class="shot" data-shot="s34-accounts-created"><figcaption>After opening an Office cash box: it received the next code of its group, 1204, and shows a Close account button because it is empty and not a system account. The form closes on success, so the message "Account 1204 opened." is never seen.</figcaption></figure>
+<figure class="shot" data-shot="s34-accounts-closed"><figcaption>The same account after Close account, seen with Show closed accounts: pale, with a Closed pill and a Reopen button.</figcaption></figure>
+<figure class="shot" data-shot="s34-accounts-edit"><figcaption>Edit opened on 1101 CIB: names, bank, account number, IBAN and note, with Save and Cancel.</figcaption></figure>
+<figure class="shot" data-shot="s34-accounts-close-error"><figcaption>Error: Close account on 5401 Rent, which holds a balance: "Move its balance out first; only an empty account can be closed."</figcaption></figure>
+
+<h3>Account statement</h3>
+<p><strong>Address:</strong> <code>/finance/accounts/:id?from=&amp;to=</code> (default the last 30 days). Accounting view.</p>
+<figure class="shot" data-shot="s34-account-statement"><figcaption>Statement of 1101 CIB: opening balance, total debit, total credit, closing balance, and one row per line with its voucher.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>All accounts</td><td>Back to the chart.</td><td>None.</td><td><code>/finance/accounts</code></td></tr>
+<tr><td>From, To, Show</td><td>The days of the statement.</td><td>Cairo days.</td><td>The page reloads.</td></tr>
+<tr><td>Export to Excel</td><td>The same rows as CSV.</td><td><code>/api/finance/accounts/:id/statement.csv</code></td><td>A CSV file.</td></tr>
+<tr><td>Columns When, Voucher (link), What, Other side, Debit, Credit, Balance</td><td>Each line with its running balance.</td><td>The voucher opens the journal entry.</td><td>None.</td></tr>
+</tbody></table>
+
+<!-- ───────────────────────── Company tax details ───────────────────────── -->
+<h2 id="s34-company">Company tax details</h2>
+<p><strong>Address:</strong> <code>/finance/company</code>. <strong>Menu:</strong> Accounting, Setup, Company tax details. <strong>Who:</strong> accounting view reads; Save of our details needs accounting manage (<code>PUT /finance/company-profile</code>); New signing key is owner only (shown only to owners); merchant tax and bank details need accounting use. Code: <code>CompanyTax</code> in <code>components/finance/Invoices.tsx</code>.</p>
+<figure class="shot" data-shot="s34-company"><figcaption>Company tax details: our legal details, the item code per fee kind and the e invoice switch. In the demo the details are still empty.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Legal name (Arabic), Legal name (English)</td><td>Our legal names as registered.</td><td>Printed on invoices and sent to the tax authority.</td><td>None.</td></tr>
+<tr><td>Tax registration number (9 digits), Activity code (4 digits), Branch code (0 for the head office)</td><td>Our tax identity.</td><td>Checked on save.</td><td>None.</td></tr>
+<tr><td>Governorate, City or area, Street, Building number</td><td>Our address.</td><td>Required for e invoices.</td><td>None.</td></tr>
+<tr><td>Item codes (one per fee kind: Shipping fee, Per product handling fee, Delivery service fee, Cash on delivery handling fee, Failed delivery fee, Receiving fee, Storage fee, Return to merchant fee, Fee adjustment, Monthly minimum fee top up, Packaging charge)</td><td>The item code (EGS) registered on the e invoice portal for each fee.</td><td>Needed only once a contract, the standard price or a booking uses that fee.</td><td>Used on each invoice line.</td></tr>
+<tr><td>Send invoices to the e invoice system</td><td>The e invoice switch.</td><td>Nothing is sent without ETA credentials.</td><td>None.</td></tr>
+<tr><td>Save</td><td>Saves the details, codes and switch.</td><td>Accounting manage; audited.</td><td>"Done."</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-company-signer"><figcaption>Signing program: whether a signing key exists, and New signing key for owners.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>New signing key</td><td>Makes the key the signing program on the finance PC uses.</td><td>Owner only. The old key stops working.</td><td>The key is shown once in a grey box: "Copy this key into the signing program now; it is shown only once."</td></tr>
+<tr><td>Merchants' tax details (one row per merchant)</td><td>Click a row to open it. The right side reads "Company, complete", "Company, address missing" or "Person (no tax number)".</td><td>A merchant with a tax number is invoiced as a company and needs its full address.</td><td>Fields Legal name, Tax registration number, Governorate, City or area, Street, Building number with Save (<code>PUT /finance/merchants/:id/tax</code>), then Bank account for payouts (<code>/finance/merchants/:id/bank</code>).</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-company-merchant"><figcaption>A merchant row opened: tax fields, Save and the payout bank account form.</figcaption></figure>
+
+<!-- ───────────────────────── Contracts ───────────────────────── -->
+<h2 id="s34-contracts">Merchant contracts and deposits</h2>
+<p><strong>Address:</strong> <code>/finance/contracts</code>. <strong>Menu:</strong> Accounting, Setup, Merchant contracts. <strong>Who:</strong> accounting view reads; the Deposit column shows only with accounting use; the merchant name links to the merchant page only with merchants view. Contracts are changed only in the Merchants app (merchants manage). Data: <code>GET /finance/contracts</code> (<code>listContracts</code>).</p>
+<p>The demo copy had no contract at first; the page then shows its empty state "No contracts yet. Open a merchant in the Merchants app to add one." A draft version was made for Lotus Beauty to show a row.</p>
+<figure class="shot" data-shot="s34-contracts"><figcaption>Merchant contracts with one contract that has only a draft version: CTR-000001 · draft waiting, no version in force, so the period reads "– → Open ended" and the agreed terms are dashes.</figcaption></figure>
+<table class="data"><thead><tr><th>Column / control</th><th>What it shows or does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>Merchant</td><td>Name (link to the merchant), the version in force (CTR-000001 v2) or the contract number, "draft waiting" when a draft exists, and "Over limit" in red when the balance owed passes the credit limit.</td><td>Version in force on today's Cairo day.</td></tr>
+<tr><td>Period</td><td>Start → end (or "Open ended") and "Notice by" (end minus notice days).</td><td>From the version in force.</td></tr>
+<tr><td>Monthly minimum, Deposit agreed, Credit limit</td><td>Terms of the version in force; a dash when not set.</td><td>Amounts in EGP.</td></tr>
+<tr><td>Deposit held</td><td>Balance of the merchant's 2600 deposit wallet.</td><td>Summed from ledger lines.</td></tr>
+<tr><td>Balance</td><td>What the merchant owes us (positive) or we owe them.</td><td>From the merchant wallet.</td></tr>
+<tr><td>Deposit</td><td>Opens the deposit form in the row.</td><td>Accounting use.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-contracts-deposit"><figcaption>The deposit form opened: Movement Received, Through Our bank, 5000 EGP, a reference and a receipt photo.</figcaption></figure>
+<table class="data"><thead><tr><th>Field</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Movement</td><td>Received or Paid back.</td><td>None.</td><td>None.</td></tr>
+<tr><td>Through</td><td>Our bank, or The merchant's balance.</td><td>From the balance moves money between the merchant wallet and the deposit wallet.</td><td>None.</td></tr>
+<tr><td>Amount (EGP), Reference</td><td>Amount and reference.</td><td>Reference 2 to 100 characters.</td><td>None.</td></tr>
+<tr><td>Receipts and documents</td><td>Attachment field.</td><td>Optional.</td><td>Linked to the entry or request.</td></tr>
+<tr><td>Record, Cancel</td><td>Sends <code>POST /finance/merchants/:id/deposit</code> with an idempotency key; Cancel closes the form.</td><td>Second person rule: money received waits while finance.approve_money_in is 1; paid back waits from the approval limit.</td><td>"Sent for approval." or "Done."; Deposit held changes once posted.</td></tr>
+</tbody></table>
+
+<!-- ───────────────────────── Cost tags ───────────────────────── -->
+<h2 id="s34-cost-tags">Cost tags</h2>
+<p><strong>Address:</strong> <code>/finance/cost-tags</code>. <strong>Menu:</strong> Accounting, Setup, Cost tags. <strong>Who:</strong> accounting view sees a plain list of tag names; accounting manage sees the form and the switches (<code>POST</code> and <code>PATCH /finance/cost-tags</code>).</p>
+<figure class="shot" data-shot="s34-cost-tags"><figcaption>Cost tags before any tag exists: the New cost tag form and the empty state "No cost tags yet."</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Costs and income by tag</td><td>Opens the tag report.</td><td>None.</td><td><code>/finance/reports/tags</code></td></tr>
+<tr><td>Name in English, Name in Arabic</td><td>The tag's names.</td><td>Each at least 2 characters.</td><td>None.</td></tr>
+<tr><td>Open the tag, Cancel</td><td>Form footer: saves the tag or empties the fields.</td><td>Accounting manage; audited.</td><td>The tag appears in the list; "Done."</td></tr>
+<tr><td>Tag row: name and "Not used yet" / "On n lines"</td><td>How many ledger lines carry it.</td><td>None.</td><td>None.</td></tr>
+<tr><td>Switch off / Switch on</td><td>Stops or allows choosing the tag on new expenses, journal lines, bills and petty cash.</td><td>Accounting manage. Lines already tagged keep it.</td><td>An off tag is pale.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-cost-tags-new"><figcaption>New cost tag filled in.</figcaption></figure>
+<figure class="shot" data-shot="s34-cost-tags-created"><figcaption>The tag Ramadan campaign opened: "Done." and the row "Not used yet" with Switch off.</figcaption></figure>
+
+<!-- ───────────────────────── Payout checks ───────────────────────── -->
+<h2 id="s34-payout-checks">Payout checks</h2>
+<p><strong>Address:</strong> <code>/finance/payout-checks</code>. <strong>Menu:</strong> Accounting, Setup, Payout checks. <strong>Who:</strong> accounting view reads; editing and adding need accounting manage. Code: <code>components/finance/PayoutChecksEditor.tsx</code>.</p>
+<p>These are the boxes Accounting ticks on every payout before it can be marked paid (the payout page shows "Some checks are not ticked yet." until all active checks are ticked). The built in check <em>Second person viewed the statement and the proof of transfer</em> (<code>second_person_viewed</code>) always exists and cannot be switched off.</p>
+<figure class="shot" data-shot="s34-payout-checks"><figcaption>Payout checks with only the built in check: its code, "Built in · On", the English and Arabic labels, the order 0 and the greyed On box.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Row header</td><td>Label, code, "Built in" for the system check, On or Off.</td><td>None.</td><td>None.</td></tr>
+<tr><td>Label in English, Label in Arabic, Order, On</td><td>Edit a check. A Save button appears once something changed.</td><td>Accounting manage. On cannot be switched off on the built in check (<code>check_is_system</code>).</td><td>Saved; "Added by &lt;name&gt;" under checks people added.</td></tr>
+<tr><td>Add check: Code, Label in English, Label in Arabic</td><td>A new check.</td><td>Code: small letters, digits and underscores, unique (<code>check_code_taken</code>: "A check with this code exists."). All three required. Order is the last one plus 10.</td><td>The new check appears, switched on.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-payout-checks-add"><figcaption>Add check filled in: statement_sent.</figcaption></figure>
+<figure class="shot" data-shot="s34-payout-checks-added"><figcaption>After Add check: the new check with order 10, On, and "Added by Shiply Admin".</figcaption></figure>
+
+<!-- ───────────────────────── Opening balances ───────────────────────── -->
+<h2 id="s34-opening">Opening balances</h2>
+<p><strong>Address:</strong> <code>/finance/opening</code>. <strong>Menu:</strong> Accounting, Setup, Opening balances, shown to owners only; anyone else gets the not found page. <strong>API:</strong> <code>POST /finance/opening-balances</code> needs accounting manage and settings manage.</p>
+<figure class="shot" data-shot="s34-opening"><figcaption>Opening balances with two balances typed (not posted in the demo). Every open account except Opening balances (3300), income and expenses is listed.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Starting day</td><td>The day the books start (default today).</td><td>Not later than today.</td><td>Posted at the start of that day.</td></tr>
+<tr><td>Balance (EGP) per account</td><td>Type each balance as an accountant reads it: money held, or the amount owed.</td><td>A minus sign only for the opposite side (for example an overdrawn bank). A wrong number disables the button.</td><td>None.</td></tr>
+<tr><td>Post opening balances</td><td>Posts one entry; the difference goes to 3301 Opening balances.</td><td>Owner only, once (<code>opening_already_posted</code>). Disabled with no amount.</td><td>Afterwards the page shows only "Opening balances were already posted. Correct them with a journal entry."</td></tr>
+</tbody></table>
+
+<!-- ───────────────────────── Accounting settings ───────────────────────── -->
+<h2 id="s34-settings">Accounting settings</h2>
+<p><strong>Address:</strong> <code>/admin/settings/accounting</code>. <strong>Menu:</strong> Accounting, Setup, Settings (shown only to people with settings manage). <strong>Who:</strong> every team member's pages may read settings (<code>GET /admin/settings</code>); changing one needs settings manage (<code>PUT /admin/settings</code>, audited). Code: <code>components/admin/SettingsEditor.tsx</code>; definitions and defaults in <code>packages/shared/src/settings.ts</code>.</p>
+<figure class="shot" data-shot="s34-settings-fees"><figcaption>Accounting settings, tab Fees, with markers on one setting card.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Tabs Fees, Salaries and tax, Money controls</td><td>Show one group of settings.</td><td>The tab is kept only while on the page.</td><td>None.</td></tr>
+<tr><td>2</td><td>Fees note</td><td>"These are the standard prices. A merchant's own prices, tiers and terms are set in their contract."</td><td>Fees tab only.</td><td>None.</td></tr>
+<tr><td>3</td><td>Setting name</td><td>Plain name with its unit.</td><td>Two settings have no plain name and show their key (finance.corporate_tax_bp, finance.payout_minimum_piastres).</td><td>None.</td></tr>
+<tr><td>4</td><td>Key and Default</td><td>The setting key and its default value.</td><td>The default is used until a value is saved.</td><td>None.</td></tr>
+<tr><td>5</td><td>Everywhere</td><td>The global value.</td><td>None.</td><td>None.</td></tr>
+<tr><td>6</td><td>Value box with unit</td><td>Money in EGP (stored as piastres), shares in percent (stored as basis points), other values as whole numbers.</td><td>"Enter a whole number." for a value that is not one; "That value is outside what this setting allows." for one outside the range.</td><td>None.</td></tr>
+<tr><td>7</td><td>Save</td><td>Saves the value.</td><td>Pale until the value changes. Settings manage.</td><td>"Saved." and "Changed by &lt;name&gt;, &lt;time&gt;".</td></tr>
+<tr><td>(card)</td><td>Different value for a store: store list, value, Save; Remove on an override</td><td>A store's own value.</td><td>Only settings whose override is "store".</td><td>The store row appears under Everywhere; Remove deletes it.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-settings-override"><figcaption>A store value being added: Maadi, 3000 EGP for the rider cash limit.</figcaption></figure>
+<figure class="shot" data-shot="s34-settings-error"><figcaption>Error: 23.5 typed for the daily cash deadline hour: "Enter a whole number." in red at the top right of the card.</figcaption></figure>
+<figure class="shot" data-shot="s34-settings-payroll"><figcaption>Tab Salaries and tax (top of the page).</figcaption></figure>
+<figure class="shot" data-shot="s34-settings-money"><figcaption>Tab Money controls (top of the page).</figcaption></figure>
+
+<h3>Every Accounting setting and its default</h3>
+<p>"Store" in the last column means a dark store may have its own value. Money is shown in EGP, shares in percent.</p>
+<h4>Tab Fees</h4>
+<table class="data"><thead><tr><th>Key</th><th>Name on screen</th><th>Default</th><th>Store</th></tr></thead><tbody>
+<tr><td><code>fee.order_fixed_piastres</code></td><td>Order fee, fixed (EGP)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.order_percent_bp</code></td><td>Order fee, share of products (%)</td><td>0.00%</td><td>No</td></tr>
+<tr><td><code>fee.cod_percent_bp</code></td><td>COD fee, share of cash (%)</td><td>0.00%</td><td>No</td></tr>
+<tr><td><code>fee.failed_delivery_piastres</code></td><td>Failed delivery fee (EGP)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.receiving_per_unit_piastres</code></td><td>Receiving fee per unit (EGP)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.storage_per_unit_month_piastres</code></td><td>Storage per unit per month (EGP)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.return_per_unit_piastres</code></td><td>Return to merchant fee per unit (EGP)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.shipping_fee_piastres</code></td><td>Shipping fee per delivered order (EGP)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.packaging_charge_piastres</code></td><td>Packaging charge per delivered order (EGP, 0: our cost)</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>fee.failed_delivery_percent_bp</code></td><td>Failed delivery, share of the shipment for contracts with a shipping fee (%)</td><td>100.00%</td><td>No</td></tr>
+<tr><td><code>fee.vat_bp</code></td><td>VAT on our fees (%)</td><td>0.00% (the owner set 14% on 2026-11-11)</td><td>No</td></tr>
+<tr><td><code>rider.bonus_per_delivery_piastres</code></td><td>Rider pay per delivered order (EGP)</td><td>0.00</td><td>Store</td></tr>
+<tr><td><code>rider.withdraw_hold_working_days</code></td><td>Rider pay hold (working days)</td><td>5</td><td>No</td></tr>
+<tr><td><code>rider.weekend_days</code></td><td>Days off for the hold (weekday digits, 5 = Friday)</td><td>5</td><td>No</td></tr>
+<tr><td><code>rider.min_withdrawal_piastres</code></td><td>Smallest rider withdrawal (EGP)</td><td>100.00</td><td>No</td></tr>
+<tr><td><code>rider.max_open_withdrawals</code></td><td>Open withdrawals per rider</td><td>1</td><td>No</td></tr>
+<tr><td><code>rider.penalty_day_piastres</code></td><td>A day of rider pay for penalties (EGP)</td><td>200.00</td><td>Store</td></tr>
+</tbody></table>
+<h4>Tab Salaries and tax</h4>
+<table class="data"><thead><tr><th>Key</th><th>Name on screen</th><th>Default</th></tr></thead><tbody>
+<tr><td><code>payroll.tax_band_1_to_piastres</code> / <code>_1_bp</code></td><td>Salary tax band 1: yearly income up to / rate</td><td>40,000.00 EGP / 0%</td></tr>
+<tr><td><code>payroll.tax_band_2_to_piastres</code> / <code>_2_bp</code></td><td>Band 2</td><td>55,000.00 EGP / 10%</td></tr>
+<tr><td><code>payroll.tax_band_3_to_piastres</code> / <code>_3_bp</code></td><td>Band 3</td><td>70,000.00 EGP / 15%</td></tr>
+<tr><td><code>payroll.tax_band_4_to_piastres</code> / <code>_4_bp</code></td><td>Band 4</td><td>200,000.00 EGP / 20%</td></tr>
+<tr><td><code>payroll.tax_band_5_to_piastres</code> / <code>_5_bp</code></td><td>Band 5</td><td>400,000.00 EGP / 22.5%</td></tr>
+<tr><td><code>payroll.tax_band_6_to_piastres</code> / <code>_6_bp</code></td><td>Band 6</td><td>1,200,000.00 EGP / 25%</td></tr>
+<tr><td><code>payroll.tax_top_bp</code></td><td>Salary tax rate above the last band (%)</td><td>27.5%</td></tr>
+<tr><td><code>payroll.tax_skip_1_from_piastres</code> to <code>_5_</code></td><td>Above this yearly income, bands 1 to n lose their lower rate (EGP)</td><td>600,000 / 700,000 / 800,000 / 900,000 / 1,200,000 EGP (0 turns one off)</td></tr>
+<tr><td><code>finance.corporate_tax_bp</code></td><td>(key shown, no plain name) company income tax rate</td><td>22.5%</td></tr>
+<tr><td><code>payroll.personal_exemption_piastres</code></td><td>Salary tax: yearly personal exemption (EGP)</td><td>20,000.00</td></tr>
+<tr><td><code>payroll.si_employee_bp</code></td><td>Social insurance, employee share (%)</td><td>11%</td></tr>
+<tr><td><code>payroll.si_employer_bp</code></td><td>Social insurance, company share (%)</td><td>18.75%</td></tr>
+<tr><td><code>payroll.si_min_wage_piastres</code></td><td>Lowest monthly insured wage (EGP)</td><td>2,700.00</td></tr>
+<tr><td><code>payroll.si_max_wage_piastres</code></td><td>Highest monthly insured wage (EGP)</td><td>16,700.00</td></tr>
+<tr><td><code>payroll.martyrs_fund_bp</code></td><td>Martyrs fund, share of gross salary (%)</td><td>0.05%</td></tr>
+</tbody></table>
+<h4>Tab Money controls</h4>
+<table class="data"><thead><tr><th>Key</th><th>Name on screen</th><th>Default</th><th>Store</th></tr></thead><tbody>
+<tr><td><code>finance.approval_threshold_piastres</code></td><td>Second approver from (EGP)</td><td>10,000.00 (0 turns it off)</td><td>No</td></tr>
+<tr><td><code>finance.approve_money_in</code></td><td>Second person checks all money coming in (1 yes, 0 no)</td><td>1</td><td>No</td></tr>
+<tr><td><code>finance.payout_minimum_piastres</code></td><td>(key shown, no plain name) payouts wait until we owe at least this</td><td>0.00</td><td>No</td></tr>
+<tr><td><code>finance.rider_cash_limit_piastres</code></td><td>Most cash a rider may hold, with the orders they carry (EGP, 0 off)</td><td>5,000.00</td><td>Store</td></tr>
+<tr><td><code>finance.rider_cash_max_hours</code></td><td>Rider cash is overdue after (hours)</td><td>12</td><td>Store</td></tr>
+<tr><td><code>finance.rider_cash_warn_hours</code></td><td>Cash position: rider cash is getting old after (hours)</td><td>4</td><td>No</td></tr>
+<tr><td><code>finance.petty_cash_limit_piastres</code></td><td>Petty cash above this waits for finance (EGP, 0 off)</td><td>500.00</td><td>Store</td></tr>
+<tr><td><code>finance.petty_cash_float_piastres</code></td><td>Cash a store box keeps; petty cash below it waits for finance (EGP)</td><td>1,000.00</td><td>Store</td></tr>
+<tr><td><code>cash.store_handover_enabled</code></td><td>Riders may hand cash to the store (1 open, 0 closed)</td><td>1</td><td>Store</td></tr>
+<tr><td><code>cash.basata_enabled</code></td><td>Riders may deposit cash at Basata (1 open, 0 closed)</td><td>1</td><td>Store</td></tr>
+<tr><td><code>cash.deposit_deadline_enabled</code></td><td>Take cash held at the deadline and freeze the rider (1 on, 0 off)</td><td>1</td><td>No</td></tr>
+<tr><td><code>cash.deposit_deadline_hour</code></td><td>Daily cash deadline (Cairo hour, 0 to 23)</td><td>23</td><td>No</td></tr>
+<tr><td><code>claims.max_age_days</code></td><td>Expense claims: oldest day paid that may be claimed (days back)</td><td>60</td><td>No</td></tr>
+<tr><td><code>storage.catch_up_days</code></td><td>Storage days charged after the server slept (most)</td><td>7</td><td>No</td></tr>
+<tr><td><code>finance.po_bill_tolerance_bp</code></td><td>Bill above purchase order allowed by (%)</td><td>2%</td><td>No</td></tr>
+<tr><td><code>receivables.reminders_enabled</code></td><td>Automatic payment reminders to merchants who owe us (1 on, 0 off)</td><td>1</td><td>No</td></tr>
+<tr><td><code>receivables.reminder_first_days</code></td><td>First payment reminder after this many days in debit</td><td>3</td><td>No</td></tr>
+<tr><td><code>receivables.reminder_every_days</code></td><td>Then a payment reminder every (days)</td><td>7</td><td>No</td></tr>
+<tr><td><code>receivables.reminder_max</code></td><td>Most payment reminders per debit period (hand sent ones count)</td><td>4</td><td>No</td></tr>
+<tr><td><code>receivables.reminder_hour</code></td><td>Payment reminders go out from this Cairo hour</td><td>10</td><td>No</td></tr>
+<tr><td><code>finance.due_reminder_days</code></td><td>Phone reminder of a payment this many days before it is due (and on the day)</td><td>3</td><td>No</td></tr>
+</tbody></table>
+<div class="note">Settings are keyed by (key, scope). A merchant scope is refused (<code>scope_not_allowed</code>): a merchant's own prices live in the merchant contract. The order of the tabs follows <code>tabOf()</code> in <code>SettingsEditor.tsx</code>: keys starting fee. or rider. go to Fees; payroll. and finance.corporate_tax_bp to Salaries and tax; finance., claims., storage., receivables. and cash. to Money controls.</div>
+
+<!-- ───────────────────────── Common parts ───────────────────────── -->
+<h2 id="s34-list-view">Common part: the list view</h2>
+<p>Every Accounting list (payouts, bills, journal, cheques, rider withdrawals, approvals, petty cash, invoices, purchase orders and more) is the same <code>ListView</code> (<code>components/odoo/ListView.tsx</code>), fed by <code>GET /finance/lists/:id</code>. The whole state lives in the address: <code>q</code> search, <code>f</code> filters, <code>v</code> value filters, <code>g</code> group by, <code>sort</code>/<code>desc</code>, <code>page</code>, <code>size</code>. The server loads at most 5,000 newest rows inside the person's stores and merchants, then searches, filters, groups, totals and pages them.</p>
+<figure class="shot" data-shot="s34-list-view"><figcaption>The journal list filtered to Bills and expenses, with markers. Address /finance/journal?f=bills.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Search box</td><td>Magnifier icon, placeholder "Search…", a white box with a grey border that turns blue when focused.</td><td>Type and press Enter: adds a Search chip; Backspace in an empty box removes the last chip.</td></tr>
+<tr><td>2</td><td>Facet chip</td><td>A pill on light blue (#E5ECFF) with a grey word (Search, Filter, Group by) and the value in blue; several filters of one group are joined by "or"; a small × at the end.</td><td>× removes that chip. Removing the last filter keeps the list unfiltered (the defaults never come back by themselves).</td></tr>
+<tr><td>3</td><td>Filters</td><td>Funnel icon and the word Filters (icon only on phones).</td><td>Opens the panel Filters, Group by, Favourites.</td></tr>
+<tr><td>4</td><td>Range</td><td>Grey text "1–40 of 40", or "40 records in 6 groups" when grouped.</td><td>None.</td></tr>
+<tr><td>5</td><td>Export</td><td>White button.</td><td>Opens "CSV (Excel, any program)", "Excel workbook (.xlsx)" and, when rows are ticked, "Only the n selected".</td></tr>
+<tr><td>6</td><td>Columns</td><td>White button.</td><td>Opens the column chooser.</td></tr>
+<tr><td>7</td><td>Previous and next page (‹ ›)</td><td>Two small square buttons; a pale one is disabled. Shown only when there is more than one page and the list is not grouped.</td><td>Moves one page.</td></tr>
+<tr><td>8</td><td>Per page</td><td>A select (20, 50, 100).</td><td>Changes the page size and goes to page 1.</td></tr>
+<tr><td>9</td><td>Select all</td><td>Checkbox in the header.</td><td>Ticks every row on the page and shows the bulk bar.</td></tr>
+<tr><td>10</td><td>Column header</td><td>Grey capitals; money columns are right aligned with "(EGP)".</td><td>Sorts by that column; a second click reverses.</td></tr>
+<tr><td>11</td><td>Row</td><td>Checkbox, the number in blue bold (a link), other cells in normal text; status cells as pills.</td><td>The number opens the document page; the list's rows are remembered for previous and next.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-list-paging"><figcaption>The toolbar of the unfiltered journal (2,576 entries): range, Export, Columns, previous and next page, and Per page.</figcaption></figure>
+<figure class="shot" data-shot="s34-list-filters"><figcaption>The Filters panel open: Filters in groups separated by lines (a tick marks the ones on), Group by (numbers 1 and 2 mark the order), Favourites with "Save this search as", "Open the list with it" and Save.</figcaption></figure>
+<table class="data"><thead><tr><th>Panel part</th><th>What it does</th><th>Rule</th></tr></thead><tbody>
+<tr><td>Filters</td><td>Each filter toggles on or off.</td><td>Filters in the same group are joined by OR, groups by AND. Some lists add pick lists and day boxes (store, merchant, from, to) with an Apply days button.</td></tr>
+<tr><td>Group by</td><td>Groups the rows; pick up to two in order.</td><td>Groups show a count and the subtotal of money columns; a group opens with its chevron.</td></tr>
+<tr><td>Favourites</td><td>Saves the current search under a name; ★ marks the default (opens when the address names no view), ☆ the others; × deletes.</td><td>Per person and list (<code>user_list_favorites</code>), audited.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-list-columns"><figcaption>The column chooser: Number is always shown (greyed tick); the rest can be ticked on or off. The choice is kept per person (user_list_prefs) and in the browser.</figcaption></figure>
+<figure class="shot" data-shot="s34-list-export"><figcaption>The Export menu. Excel files are written without any library; money is exported as EGP numbers and Arabic sheets read right to left.</figcaption></figure>
+<figure class="shot" data-shot="s34-list-grouped"><figcaption>Grouped by Type: each group with its count in a grey pill and its subtotal, and a Total row at the bottom.</figcaption></figure>
+<figure class="shot" data-shot="s34-list-bulk"><figcaption>Payouts with two rows ticked: ticked rows turn light blue and the bulk bar sticks to the bottom of the screen.</figcaption></figure>
+<figure class="shot" data-shot="s34-list-bulkbar"><figcaption>The bulk bar: Navy ground, white text "2 selected", the list's actions as blue buttons (a danger action is outlined white), and Clear.</figcaption></figure>
+<table class="data"><thead><tr><th>Bulk bar part</th><th>What it does</th><th>Rule</th></tr></thead><tbody>
+<tr><td>"n selected"</td><td>How many rows are ticked.</td><td>None.</td></tr>
+<tr><td>Action buttons (for example Approve payouts)</td><td>Sends <code>{ ids, note? }</code> to the action's endpoint.</td><td>Each record is still checked on its own; an action that needs a note or a choice first opens its field, the next press runs it. Payouts: only those at or above the approval limit, never one's own.</td></tr>
+<tr><td>Reason or note field</td><td>"Reason (needed to reject)" or "Note (optional; needed to reject)".</td><td>Up to 300 characters.</td></tr>
+<tr><td>Clear</td><td>Unticks all rows.</td><td>None.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-list-bulk-result"><figcaption>The result box after a bulk action: "0 done, 2 refused" with each reason and its count; an orange border when something was refused, × closes it.</figcaption></figure>
+<figure class="shot" data-shot="s34-list-empty"><figcaption>Empty state of a list: "Nothing here" and "Remove a filter or search for something else."</figcaption></figure>
+
+<h2 id="s34-doc-frame">Common part: the document page frame</h2>
+<p>Every document page (payout, bill, journal entry, cheque, rider withdrawal, approval, petty cash, invoice, purchase order, expense claim, Basata deposit, handover) is drawn by <code>DocumentFrame</code> (<code>components/odoo/DocumentFrame.tsx</code>) from <code>GET /finance/documents/:type/:id</code>. The chatter sits beside the content from the lg width, below it on narrower screens.</p>
+<figure class="shot" data-shot="s34-doc-frame"><figcaption>The journal entry JV-002555 (the tax payment made above), opened from the filtered journal list, with markers. Address /finance/journal/&lt;id&gt;.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, icons, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>"Accounting / Journal / JV-002555": the app and list in blue links, the number in bold.</td><td>Accounting opens the dashboard; the list name opens the list with the filters the person came from.</td></tr>
+<tr><td>2</td><td>Previous and next record</td><td>"11 / 42" and two square arrow buttons. Shown only when the page was opened from a list.</td><td>Opens the previous or next row of that list.</td></tr>
+<tr><td>3</td><td>Number and title</td><td>The number large and bold; the title in grey under it.</td><td>None.</td></tr>
+<tr><td>4</td><td>Status pill (documents without a path)</td><td>A white pill with a grey border and bold text, here "Posted".</td><td>None. Documents with a path show the status bar instead.</td></tr>
+<tr><td>(actions)</td><td>Action bar</td><td>A white card with the document's buttons (here Print or save as PDF in blue, PDF in English, PDF in Arabic).</td><td>The actions of that document.</td></tr>
+<tr><td>5</td><td>Smart buttons</td><td>White tiles: the count or value in blue bold on top, the label in grey below (here 2 Lines, 2 Receipts). A tile turns blue bordered on hover.</td><td>Opens the related records; Receipts and Attachments open the files themselves (one file opens in a new tab, several open the attachment viewer).</td></tr>
+<tr><td>6</td><td>Details</td><td>Label in grey, value under it; amounts bold with EGP. Then the lines table with Total.</td><td>Links in values open the record.</td></tr>
+<tr><td>7</td><td>Chatter tabs</td><td>"Log a note" and "Remind me"; the chosen one has a light blue ground and blue text. Shown only with use on the record's app.</td><td>Switches the form.</td></tr>
+<tr><td>8</td><td>Note box</td><td>Placeholder "Write what others should know. Notes cannot be changed later."; Post note is grey until text is typed.</td><td>Post note adds an append only note (audited record.note).</td></tr>
+<tr><td>9</td><td>Planned</td><td>Reminders not done: a green dot (orange when late, "late"/"today" added), the text, day and who, and a Done button. "Nothing planned." when empty.</td><td>Done closes it (only the person reminded or who planned it).</td></tr>
+<tr><td>10</td><td>Notes</td><td>Each note with the writer's initial in a light blue circle, name in bold, time in grey. "No notes yet." when empty.</td><td>None.</td></tr>
+<tr><td>11</td><td>Attachments</td><td>Thumbnails three to a row: a photo preview, or a red PDF icon with the file name. "No receipt or photo yet." when empty. Add receipts or documents below (with use).</td><td>A tile opens the file; Add receipts or documents opens the attachment field with Save files.</td></tr>
+<tr><td>12</td><td>History</td><td>A timeline from the audit log: a blue dot, the action in bold, time and person in grey, then each changed field as "field: before → after".</td><td>None.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s34-doc-payout"><figcaption>A payout document (PAY-000013, draft) with markers: (1) breadcrumbs, (2) number and merchant, (3) the status bar's current step in blue, (4) the next step in grey, (5) the action card (attachment field, bank reference, Mark as paid, Cancel, and the reasons it cannot be paid yet), (6, 7) smart buttons Merchant, Journal entries, Receipts, Emails, Statement and Proof of transfer.</figcaption></figure>
+<figure class="shot" data-shot="s34-doc-add-files"><figcaption>Add receipts or documents opened under Attachments, with a PDF chosen and Save files.</figcaption></figure>
+<figure class="shot" data-shot="s34-doc-note-typed"><figcaption>A note typed in Log a note; Post note is now blue.</figcaption></figure>
+<figure class="shot" data-shot="s34-doc-remind"><figcaption>Remind me: On (a day), Remind (Me or another person who may open the record), What to do, and Schedule.</figcaption></figure>
+<figure class="shot" data-shot="s34-doc-remind-error"><figcaption>Error: a reminder on a past day: "Pick today or a later day." Other chatter errors: "That person cannot open this record.", "You can read this record but not write on it.", "Only the person reminded or who planned it can close it."</figcaption></figure>
+<figure class="shot" data-shot="s34-doc-chatter"><figcaption>The chatter after a note and a reminder: Planned, Notes, Attachments (photo and PDF) and History.</figcaption></figure>
+<div class="note">Two History faults visible here: the tax payment row shows the raw action key "finance.tax_payment" instead of a sentence, and its amount as raw piastres ("amount: – → 1000" for 10.00 EGP).</div>
+
+<h2 id="s34-attachments">Common part: the attachment field and viewer</h2>
+<p><code>AttachmentField</code> (<code>components/finance/AttachmentField.tsx</code>) is used in every finance form that takes receipts: Pay tax, deposits, payouts, expenses, bills, petty cash and more.</p>
+<figure class="shot" data-shot="s34-attach-field"><figcaption>The attachment field with a photo and a PDF chosen, with markers.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Choose files</td><td>White button.</td><td>Opens the file picker (several files; JPEG, PNG, WebP or PDF).</td></tr>
+<tr><td>2</td><td>Take a photo</td><td>White button.</td><td>Opens the phone camera (back camera).</td></tr>
+<tr><td>3</td><td>Drop zone</td><td>Dashed grey border; "Drop files here, or choose them" and "Photos or PDF files, up to 5 MB each, at most 10". The border turns blue while a file is dragged over it.</td><td>Dropping files adds them.</td></tr>
+<tr><td>4</td><td>Photo tile</td><td>A preview with the file name; "Uploading…" while it uploads; a red border if the upload failed.</td><td>None.</td></tr>
+<tr><td>5</td><td>PDF tile</td><td>"PDF" in red bold on grey, with the file name.</td><td>None.</td></tr>
+<tr><td>6</td><td>× on a tile</td><td>A round white button at the top corner.</td><td>Removes the file; an uploaded file is deleted at once (<code>DELETE /finance/files/:id</code>).</td></tr>
+</tbody></table>
+<div class="rule">Each file uploads as soon as it is chosen (<code>POST /finance/files</code>) and waits unlinked; the form sends the ids as <code>attachmentIds</code> and its save links them in the same transaction. Photos are shrunk in the browser like every receipt photo; PDFs are sent as they are, at most 5 MB. The save waits while files upload ("Wait until the files finish uploading."). Errors: "{name} is not a photo or a PDF file.", "{name} is larger than 5 MB.", "At most 10 files.", "Upload failed. Try again.", and for a required field "Add the receipt before saving.". Unlinked files are deleted by the daily job.</div>
+<figure class="shot" data-shot="s34-attach-removed"><figcaption>After × on the PDF: only the photo remains.</figcaption></figure>
+<figure class="shot" data-shot="s34-attach-viewer"><figcaption>The attachment viewer ("All attachments"), opened from the Receipts smart button of a record with two files: large tiles four to a row on a wide screen, who added each, and Close. Clicking outside also closes it; a tile opens the file.</figcaption></figure>
+
+<h2 id="s34-form-footer">Common part: the form footer</h2>
+<p><code>FormFooter</code> (<code>components/workflow/FormFooter.tsx</code>) ends every create and edit form.</p>
+<figure class="shot" data-shot="s34-form-footer"><figcaption>The form footer of New cost tag after typing: (1) the save button (pale while the form is not valid), (2) Cancel, (3) "Unsaved changes" in bold orange.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Save (its own label per form, for example Open the tag, Open account)</td><td>Blue; grey while disabled; "Saving…" while busy.</td><td>Saves the form.</td></tr>
+<tr><td>2</td><td>Cancel</td><td>Navy outlined.</td><td>When there are changes the browser asks "Throw away the changes you made?"; then empties or leaves the form.</td></tr>
+<tr><td>3</td><td>Unsaved changes</td><td>Bold orange text, only while the form differs from what is saved.</td><td>None. Leaving the page by a link or closing the tab asks "You have changes that are not saved. Leave anyway?"</td></tr>
+</tbody></table>
+
+<h2 id="s34-settings-menu">Common part: the settings menu</h2>
+<p>The gear button at the right of the top bar (<code>AccountMenu</code>, <code>components/AccountMenu.tsx</code>) holds the personal settings. Escape or a click outside closes it.</p>
+<figure class="shot" data-shot="s34-settings-menu"><figcaption>The settings menu open, with markers.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>0</td><td>Gear button</td><td>A gear icon (with the person's photo beside it once their HR photo exists).</td><td>Opens and closes the panel.</td></tr>
+<tr><td>1</td><td>Help</td><td>Blue link button.</td><td><code>/help</code>: the SOP of the person's role (admins can read every role).</td></tr>
+<tr><td>2</td><td>Notifications</td><td>Blue link button.</td><td><code>/notifications</code>: phone notification switches.</td></tr>
+<tr><td>3</td><td>Tickets</td><td>Blue link button, with a count when tickets wait (not for merchants).</td><td><code>/tickets</code></td></tr>
+<tr><td>4</td><td>My HR</td><td>Blue link button (team members).</td><td><code>/my-file</code></td></tr>
+<tr><td>5</td><td>Language</td><td>English or العربية.</td><td>Sets the <code>shiply_locale</code> cookie and reloads the page in that language and direction.</td></tr>
+<tr><td>6</td><td>Theme</td><td>System, Light or Dark.</td><td>Sets the <code>shiply_theme</code> cookie.</td></tr>
+<tr><td>7</td><td>Sign out</td><td>Bold dark text button.</td><td>Ends the session.</td></tr>
+</tbody></table>
+
+<h2 id="s34-statuses">Statuses and their colors</h2>
+<p>Accounting shows a status in three ways.</p>
+<ul>
+<li><strong>Status bar</strong> on a document page with a path (<code>StatusBar</code>, <code>lib/workflows.ts</code>): steps left to right in one white bar with grey borders. A done step has a ✓ and normal dark text; the current step has a Shiply Blue (#0046FC) ground with white bold text; later steps are grey (#5B6B82). A side state (cancelled, rejected...) is added at the end on a red (#B42318) ground with white bold text, and then no step is lit. On phones only the step before, the current one and the next show.</li>
+<li><strong>Status pill</strong> in lists and on documents without a path: a white pill with a grey (#DFE5EE) border and dark text, the same for every status. Exceptions: cheques (cleared in green, bounced and cancelled in red, the rest grey) and forecasts (Approved green on a light green tint, Draft grey on a light grey tint).</li>
+<li><strong>Text states</strong>: the month end checklist (Done green #0F6A35, n left and Tick when done orange #9A4100, After the month ends grey) and loans (Active or Repaid in grey under the title).</li>
+</ul>
+<p>In the dark theme the same roles use lighter tones (for example green #5FD38D, orange #FFB35C) on Navy grounds.</p>
+<table class="data"><thead><tr><th>Document</th><th>Path (blue when current)</th><th>Side states (red)</th><th>When each appears</th></tr></thead><tbody>
+<tr><td>Payout (<code>payout</code>)</td><td>Draft → Paid</td><td>Cancelled</td><td>Draft when prepared (it may still need approval: "Needs approval" column); Paid when marked paid with the bank reference; Cancelled when a draft is cancelled or a payout cheque bounces.</td></tr>
+<tr><td>Bill (<code>bill</code>)</td><td>Waiting for answer → Paid (the label of the state open is shared with tickets)</td><td>Cancelled</td><td>Open when booked; Paid when fully paid; Cancelled by a reversing entry.</td></tr>
+<tr><td>Rider withdrawal (<code>rider_withdrawal</code>)</td><td>Requested → Approved → Paid</td><td>Rejected, Cancelled</td><td>Requested by the rider; approved by accounting use; paid from a bank or box; rejected with a reason; cancelled by the rider before approval.</td></tr>
+<tr><td>Approval request (<code>finance_request</code>)</td><td>Waiting → Approved</td><td>Rejected, Cancelled</td><td>Waits for a second person; approved posts the entry; rejected with a note; cancelled by the person who asked.</td></tr>
+<tr><td>Petty cash (<code>petty_cash</code>)</td><td>Waiting → Posted</td><td>Rejected, Cancelled, Reversed</td><td>Waiting when above the limit or below the float; posted; reversed by accounting manage with a reason.</td></tr>
+<tr><td>Tax invoice e invoice state (<code>eta</code>)</td><td>Not sent → Signed → Submitted → Accepted</td><td>Invalid, Rejected</td><td>Signed by the signing program, submitted by EtaSync, accepted (valid) or invalid or rejected by the tax authority.</td></tr>
+<tr><td>Purchase order (<code>purchase_order</code>)</td><td>Requested → Approved → Ordered → Received → Billed → Closed</td><td>Rejected, Cancelled</td><td>Approved at once below the limit, else by another person; received in parts; billed; closed.</td></tr>
+<tr><td>Cheque received (<code>cheque_received</code>)</td><td>Waiting for approval → Received → Deposited → Cleared</td><td>Bounced, Cancelled</td><td>Always waits for a second person; deposited at the bank; cleared never before its due day.</td></tr>
+<tr><td>Cheque issued (<code>cheque_issued</code>)</td><td>Waiting for approval → Issued → Cleared</td><td>Bounced, Cancelled</td><td>Booked against 2451; cleared out of the bank.</td></tr>
+<tr><td>Expense claim (<code>expense_claim</code>)</td><td>Manager → Waiting for accounting → Paid</td><td>Rejected, Cancelled</td><td>The manager in force approves, accounting pays.</td></tr>
+<tr><td>Basata deposit (<code>basata_deposit</code>)</td><td>Waiting → Approved</td><td>Rejected</td><td>Sent by the rider with the receipt; approved or rejected by accounting use.</td></tr>
+<tr><td>Cash handover (<code>handover</code>)</td><td>Waiting → Balanced</td><td>Written off, On the rider</td><td>A difference waits for finance, who write it off or keep it on the rider.</td></tr>
+<tr><td>Journal entry</td><td colspan="2">No path: a grey pill Posted (or Reversed)</td><td>Every posted entry.</td></tr>
+<tr><td>Loan</td><td colspan="2">No pill: "Active" or "Repaid" in the grey line under the title</td><td>Repaid once the last instalment is paid.</td></tr>
+<tr><td>Forecast</td><td colspan="2">Pill Draft (grey tint) or Approved (green tint)</td><td>Approved by accounting manage; Reopen makes it a draft again.</td></tr>
+</tbody></table>
+<p>The strips below are the real status bars of demo records for each status that exists in the demo copy (cheques, expense claims, loans and forecasts had no record).</p>
+<figure class="shot" data-shot="s34-status-payouts"><figcaption>Payout status bars: cancelled, draft, paid.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-bills"><figcaption>Bill status bars: cancelled, open (labelled "Waiting for answer"), paid.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-rider-withdrawals"><figcaption>Rider withdrawal status bars: cancelled, paid, requested.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-approvals"><figcaption>Approval request status bars: approved, cancelled, pending, rejected.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-petty-cash"><figcaption>Petty cash status bar: posted.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-invoices"><figcaption>Tax invoice e invoice status bar: not sent.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-purchase-orders"><figcaption>Purchase order status bars: cancelled, closed, rejected.</figcaption></figure>
+<figure class="shot" data-shot="s34-status-basata"><figcaption>Basata deposit status bars: approved, pending, rejected.</figcaption></figure>
+<div class="note">The bill state open is labelled "Waiting for answer" because the label <code>workflow.states.open</code> is shared with tickets. On a bill it should read Open or Unpaid.</div>
+
+<h2 id="s34-access">Access: the same screen for view and for use</h2>
+<p>The pages hide what a person cannot do, and the API refuses it anyway. Below, the same demo user with accounting <strong>view</strong>, then with accounting <strong>use</strong>.</p>
+<figure class="shot" data-shot="s34-access-view"><figcaption>Month end checklist with accounting view: Open links only, no Tick by hand, no close button.</figcaption></figure>
+<figure class="shot" data-shot="s34-access-use"><figcaption>The same page with accounting use: Tick by hand appears on items that may be ticked; the close button still needs manage, so only the "Finish the items above..." line shows.</figcaption></figure>
+<figure class="shot" data-shot="s34-access-contracts-view"><figcaption>Merchant contracts with accounting view: no Deposit column, and the merchant name is plain text because this user has no merchants view.</figcaption></figure>
+<figure class="shot" data-shot="s34-access-contracts-use"><figcaption>The same page with accounting use: the Deposit column and button appear.</figcaption></figure>
+<table class="data"><thead><tr><th>Screen</th><th>View</th><th>Use adds</th><th>Manage adds</th></tr></thead><tbody>
+<tr><td>Close the month, Month end checklist</td><td>Read, Open, Check again</td><td>Tick by hand, Untick</td><td>Close the books</td></tr>
+<tr><td>Close the books</td><td>Read the closed day</td><td>(button shown, refused)</td><td>Close; reopen also needs settings manage</td></tr>
+<tr><td>Year end</td><td>Read, downloads</td><td>None</td><td>Close year</td></tr>
+<tr><td>Taxes</td><td>Read every tab</td><td>Pay tax</td><td>Book the company income tax</td></tr>
+<tr><td>Chart of accounts</td><td>Read, statements</td><td>Open, edit, close, reopen, revalue</td><td>None</td></tr>
+<tr><td>Company tax details</td><td>Read</td><td>Merchant tax and bank details</td><td>Save our details; signing key: owner</td></tr>
+<tr><td>Merchant contracts</td><td>Read</td><td>Deposit</td><td>None</td></tr>
+<tr><td>Cost tags</td><td>List of names</td><td>None</td><td>Form, switch on and off</td></tr>
+<tr><td>Payout checks</td><td>Read</td><td>None</td><td>Edit, add</td></tr>
+<tr><td>Opening balances</td><td colspan="3">Owner only (accounting manage and settings manage)</td></tr>
+<tr><td>Accounting settings</td><td colspan="3">Settings manage only</td></tr>
+</tbody></table>
+
+<h2 id="s34-phone">Phone layout</h2>
+<p>On a phone (iPhone 13 width) the top bar keeps the grid button, the app name, a search icon, one Menu button for all the menus, and the gear. Lists become cards, and the document chatter moves below the content.</p>
+<figure class="shot" data-shot="s34-phone-dashboard"><figcaption>The Accounting dashboard on a phone.</figcaption></figure>
+<figure class="shot" data-shot="s34-phone-list"><figcaption>The payouts list on a phone: the Filters button is an icon, and each row is a card with a checkbox, the number, the status pill, the other columns as label and value, and the amount at the bottom right.</figcaption></figure>
+<figure class="shot" data-shot="s34-phone-document"><figcaption>A journal entry on a phone: breadcrumbs, number, pill, action buttons wrapped, smart buttons three to a row and the details one under the other.</figcaption></figure>
+
+<h2 id="s34-arabic">Arabic, right to left</h2>
+<p>With the language Arabic (cookie <code>shiply_locale=ar</code>) every screen mirrors: menus start at the right, the grid button and app name sit at the right, the gear and search at the left, and the chatter is on the left of the content. Numbers, codes and days stay left to right (<code>ltr-iso</code>). Text people typed (notes, memos) is shown as typed.</p>
+<figure class="shot" data-shot="s34-ar-dashboard"><figcaption>The Accounting dashboard in Arabic.</figcaption></figure>
+<figure class="shot" data-shot="s34-ar-list"><figcaption>The journal list in Arabic, filtered to bills and expenses.</figcaption></figure>
+<figure class="shot" data-shot="s34-ar-document"><figcaption>The journal entry JV-002555 in Arabic: breadcrumbs and number at the right, the status pill at the left, the chatter on the left.</figcaption></figure>
+
+<h2 id="s34-dark">Dark theme</h2>
+<figure class="shot" data-shot="s34-dark-dashboard"><figcaption>The Accounting dashboard in the dark theme (cookie shiply_theme=dark): Navy grounds, lighter blue links, and the count badges in amber.</figcaption></figure>
+
+<h2 id="s34-faults">Faults seen while taking these screenshots</h2>
+<ol>
+<li><strong>Wrong message when paying too much tax.</strong> Pay tax refused with <code>more_than_owed</code> shows "That is more than the rider has earned." The key <code>finance.merchants.errors.more_than_owed</code> is worded for rider withdrawals and is reused by every finance form. Seen on Taxes, Taxes owed, paying 10 EGP of VAT while VAT is a credit.</li>
+<li><strong>Raw history entries.</strong> On the journal entry of a tax payment the History shows the action key "finance.tax_payment" instead of a sentence, and the amount as piastres ("amount: – → 1000" for 10.00 EGP).</li>
+<li><strong>Bill status label.</strong> The bill state <code>open</code> reads "Waiting for answer" in the status bar, because the label is shared with tickets.</li>
+<li><strong>Two settings without a name.</strong> <code>finance.corporate_tax_bp</code> (Salaries and tax) and <code>finance.payout_minimum_piastres</code> (Money controls) show their raw key as the title: no entry under <code>admin.settings.names</code>.</li>
+<li><strong>Success message never seen.</strong> Chart of accounts, Open a new account: the form closes on success and its message "Account n opened." goes with it.</li>
+<li><strong>Search with no result shows nothing.</strong> Chart of accounts search that matches nothing leaves an empty page with no "nothing found" line.</li>
+<li><strong>Year end labels.</strong> The From and To labels sit on the same line as their date boxes with no space ("From01/01/2026").</li>
+<li><strong>Two totals for one month.</strong> The month end checklist counts 10 items ("8 of 10 done") while the guided run counts 9 ("8 of 9 done") for the same month; and the checklist writes the closed day as YYYY-MM-DD while the run uses dd/mm/yyyy.</li>
+<li><strong>Close the books typed date.</strong> The date box limits only the calendar to yesterday; a typed later day is sent and refused by the API ("You can close only days that are over."). A check in the form would avoid the round trip.</li>
+</ol>
+</section>

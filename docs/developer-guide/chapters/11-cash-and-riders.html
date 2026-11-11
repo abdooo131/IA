@@ -1,0 +1,284 @@
+<section class="chapter" id="ch-cash-riders">
+<h1>11. Cash on delivery, riders, store boxes and rider pay</h1>
+
+<p>This chapter follows the physical cash from the customer's hand to the bank, and the rider's earnings from the delivery to the withdrawal. It also covers what riders owe, Basata deposits, petty cash paid from store boxes and the rider supply offices. Amounts are integer piastres; <code>share(a, bp) = floor((a * bp + 5000) / 10000)</code> as in chapter 10.</p>
+
+<pre class="diagram">
+ customer pays COD
+        │  cod_collected (at delivery)
+        ▼
+ 1300 rider cash ──cash_handover──▶ 1200 store box ──bank_deposit──▶ 1100 bank
+        │                                  │
+        │                                  └─petty_cash──▶ 54xx/55xx expense
+        │
+        ├──basata_deposit (approved)──▶ 1200 Money at Basata ──basata_settlement──▶ 1100 bank
+        │                                                         └─▶ 55xx Basata fees
+        ├──difference written off──▶ 5301 cash shortages and surpluses
+        ├──shortage kept on rider──▶ 1350 rider dues
+        └──deadline charge──▶ 1350 rider dues, or 2500 the rider office's wallet
+
+ rider earns per delivery: 5101 rider pay ──▶ 2200 rider wallet ──rider_withdrawal──▶ bank or box
+                                                    (dues 1350 and advance 1500 netted)
+</pre>
+
+<h2 id="cr-accounts">11.1 Accounts used</h2>
+<table class="data"><thead><tr><th>Code</th><th>Account</th><th>Owner</th><th>Normal balance</th></tr></thead><tbody>
+<tr><td><code>1300-nnnn</code></td><td>Rider cash: COD collected and not handed in</td><td>one per rider</td><td>debit (asset)</td></tr>
+<tr><td><code>1350-nnnn</code></td><td>Rider dues: what the rider owes the company</td><td>one per rider</td><td>debit (asset)</td></tr>
+<tr><td><code>12nn</code></td><td>Store cash box</td><td>one per dark store (next free code of group 1200)</td><td>debit</td></tr>
+<tr><td><code>12nn</code></td><td>Money at Basata, on its way to the bank (system key <code>basata_transit</code>)</td><td>company</td><td>debit</td></tr>
+<tr><td><code>2200-nnnn</code></td><td>Rider wallet: pay earned and not withdrawn</td><td>one per rider</td><td>credit (liability)</td></tr>
+<tr><td><code>1500-nnnn</code></td><td>Staff advance</td><td>one per team member</td><td>debit</td></tr>
+<tr><td><code>2500-nnnn</code></td><td>Supplier wallet, also used for a rider office</td><td>one per supplier</td><td>credit</td></tr>
+<tr><td>5101</td><td>Rider pay per delivered order</td><td>company</td><td>expense</td></tr>
+<tr><td>5102</td><td>Rider office commission</td><td>company</td><td>expense</td></tr>
+<tr><td>5301</td><td>Cash shortages and surpluses</td><td>company</td><td>expense</td></tr>
+<tr><td><code>55nn</code></td><td>Basata fees (next free code of group 5500)</td><td>company</td><td>expense</td></tr>
+</tbody></table>
+
+<h2 id="cr-cod">11.2 COD collection</h2>
+<p>At delivery the rider enters the cash collected. The delivery transaction posts <code>cod_collected</code> (Dr 1300 rider cash, Cr 2100 merchant wallet, key <code>delivery:&lt;deliveryId&gt;:cod</code>, see chapter 10). When the collected amount differs from the expected COD a <code>cod_mismatch</code> alert is created; the posting always uses what was collected.</p>
+
+<h2 id="cr-limit">11.3 Rider cash limit at handover to the rider</h2>
+<p>Before a cash order is handed to a rider, <code>checkRiderCashLimit()</code> in <code>packages/db/src/finance/cash-control.ts</code> locks the rider row and checks:</p>
+<pre class="code">cash     = max(0, balance(1300 rider cash) − pending Basata deposits)
+carrying = sum(codExpectedPiastres) of the rider's deliveries in status assigned or picked_up
+total    = cash + carrying + this order's COD
+refuse with rider_cash_limit when total &gt; finance.rider_cash_limit_piastres</pre>
+<p>Setting <code>finance.rider_cash_limit_piastres</code>: default 500,000 (5,000 EGP), store override, 0 turns the check off. Prepaid orders are not checked. A store manager (store manage) may hand it over anyway with a reason of at least 5 characters; the override is audited as <code>order.rider_cash_override</code> with the amounts. A frozen rider (11.8) gets no orders at all.</p>
+
+<h2 id="cr-age">11.4 Cash age and the overdue alert</h2>
+<p>Cash is handed in oldest first, so the cash a rider still holds is made of the newest collections. <code>heldPieces(balance, collections)</code> in <code>packages/shared/src/cash-control.ts</code> walks the rider's positive 1300 lines newest first and takes from each until the balance is covered; any balance with no collection behind it counts as collected at time 0 (very old).</p>
+<pre class="code">pieces = []
+left = balance
+for c in collections (newest first):
+    take = min(left, c.amount); pieces.push(take at c.at); left −= take
+if left &gt; 0: pieces.push(left at epoch)</pre>
+<p>Buckets for Cash position: fresh (younger than <code>finance.rider_cash_warn_hours</code>, default 4), aging (up to the maximum), overdue (older than <code>finance.rider_cash_max_hours</code>, default 12, store override). The job <code>checkRiderCashOverdue()</code> runs every ten minutes and raises one <code>rider_cash_overdue</code> alert per rider and Cairo day (key <code>rider_cash_overdue:&lt;riderId&gt;:&lt;day&gt;</code>) when any piece is older than the maximum. Pending Basata deposits count as handed in for this check (they cover the oldest cash).</p>
+
+<h2 id="cr-handover">11.5 Cash handover to the store box</h2>
+<h3>What the rider is expected to hand in</h3>
+<p><code>cashToHandIn()</code> in <code>packages/db/src/finance/operations.ts</code>:</p>
+<pre class="code">expected = max(0, balance(1300 rider cash)
+                  − sum(differencePiastres of this rider's handovers still pending)
+                  − sum(amountPiastres of this rider's Basata deposits still pending))</pre>
+<p>A pending difference stays in rider cash until finance decides, so it must not be expected again.</p>
+<h3>Recording the handover</h3>
+<p>Staff count the cash and enter the total. <code>recordCashHandover()</code> refuses when <code>cash.store_handover_enabled</code> is 0 for the store (<code>store_handover_closed</code>) or the rider belongs to another store, locks the rider row, computes <code>difference = expected − counted</code> and creates a handover row <code>CH-000001</code> onward (gapless) with status <code>balanced</code> when the difference is 0, otherwise <code>pending</code>. The counted cash moves at once:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>12nn store cash box</td><td>counted</td><td></td><td>store (from the box), rider</td></tr>
+<tr><td>1300 rider cash</td><td></td><td>counted</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>handover:&lt;handoverId&gt;</code>; kind <code>cash_handover</code>. The staff action also carries its own client idempotency key, stored on the handover row.</p>
+
+<h3>Finance decides a difference</h3>
+<p><code>reviewCashHandover()</code> takes a pending handover, a decision and a note:</p>
+<ul>
+<li><code>write_off</code>: the difference becomes a company loss (shortage) or gain (surplus).</li>
+<li><code>charge_rider</code>: a shortage moves to the rider's dues and is taken from their next withdrawal; a surplus is only marked (it stays in rider cash, no entry).</li>
+</ul>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5301 cash shortages and surpluses</td><td>difference (shortage)</td><td>|difference| (surplus)</td><td>rider, store</td></tr>
+<tr><td>1300 rider cash</td><td>|difference| (surplus)</td><td>difference (shortage)</td><td></td></tr>
+</tbody></table>
+<p>Write off: key <code>handover:&lt;id&gt;:write_off</code>, kind <code>cash_difference</code>.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1350 rider dues</td><td>shortage</td><td></td><td>rider, store</td></tr>
+<tr><td>1300 rider cash</td><td></td><td>shortage</td><td></td></tr>
+</tbody></table>
+<p>Charge rider: key <code>handover:&lt;id&gt;:charge_rider</code>, kind <code>rider_shortage_charge</code> (<code>chargeShortageToRider()</code> in <code>rider-wallet.ts</code>).</p>
+<div class="example"><p>The rider holds 1,200 EGP (120,000 piastres), no pending items. Staff count 1,150 EGP. Handover entry: Dr store box 115,000, Cr rider cash 115,000; difference 5,000 pending (rider cash still shows 5,000). Finance charges the rider: Dr 1350 5,000, Cr 1300 5,000. Rider cash is now 0 and the rider owes 50 EGP, netted from the next withdrawal.</p></div>
+
+<h2 id="cr-deposit">11.6 Bank deposit from a store box</h2>
+<p><code>recordBankDeposit()</code>: finance takes cash from a store box to a bank (default CIB 1101). The box row is locked and the amount may not exceed what it holds (<code>more_than_cash_in_store</code>).</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1101 bank (or the chosen 11nn)</td><td>amount</td><td></td><td>store (from the box)</td></tr>
+<tr><td>12nn store cash box</td><td></td><td>amount</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>deposit:&lt;clientKey&gt;</code>; kind <code>bank_deposit</code>. A repeat answers the first entry.</p>
+
+<h2 id="cr-petty">11.7 Petty cash from a store box</h2>
+<p>Store staff (store use) pay a small expense from their store box with <code>submitPettyCash()</code> (<code>cash-control.ts</code>): an expense category finance marked as petty (an active account of groups 5400 or 5500 with <code>petty</code> on), a note of at least 3 characters, a required receipt photo (photo kind <code>receipt</code>) and an optional cost tag. Number <code>PC-000001</code> onward.</p>
+<pre class="code">box        = locked balance of the store box
+refuse not_enough_cash_in_box when amount &gt; box
+overLimit  = limit &gt; 0 and amount &gt; finance.petty_cash_limit_piastres   (default 50,000, store override)
+belowFloat = box − amount &lt; finance.petty_cash_float_piastres            (default 100,000, store override)
+if overLimit or belowFloat: wait as a petty_cash finance request (second person)
+else: post at once</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>chosen expense category</td><td>amount</td><td></td><td>store, cost tag</td></tr>
+<tr><td>12nn store cash box</td><td></td><td>amount</td><td>store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>petty:&lt;pettyId&gt;</code>; kind <code>petty_cash</code>. When approved later, the box is checked again. Reversal by accounting manage with a reason of at least 5 characters: the same lines turned round, key <code>petty_reversal:&lt;pettyId&gt;</code>, kind <code>petty_cash_reversal</code>.</p>
+<div class="example"><p>Limit 500 EGP, float 1,000 EGP, the box holds 1,300 EGP. A 250 EGP expense leaves 1,050: posted at once. A 400 EGP expense would leave 900, below the float: it waits for finance.</p></div>
+
+<h2 id="cr-basata">11.8 Basata deposits</h2>
+<p>Riders may deposit cash at a Basata branch instead of the store (<code>packages/db/src/finance/basata.ts</code>). Both channels can be closed per store: <code>cash.basata_enabled</code> and <code>cash.store_handover_enabled</code> (default 1, store override).</p>
+
+<h3>The rider sends a deposit</h3>
+<p><code>submitBasataDeposit()</code>: amount, Basata reference (spaces removed, upper case, used once across all deposits), deposit time (not in the future, one minute of slack), the rider's own photo of the receipt (kind <code>basata_receipt</code>). Number <code>BD-000001</code> onward. The most the rider may deposit:</p>
+<pre class="code">max = cashToHandIn(rider) + deadline deductions not given back yet</pre>
+<p>Each deposit records the Cairo day whose deadline it counts for (<code>deadlineDayOf()</code>): the first deadline at or after the moment it was sent. No money moves until Accounting decides.</p>
+
+<h3>Accounting approves</h3>
+<p><code>approveBasataDeposit()</code> (accounting use, never one's own). With <code>held</code> = rider cash less pending handover differences:</p>
+<pre class="code">heldPart = min(amount, held)
+rest     = amount − heldPart        (a late deposit of cash a deadline already took)
+for each open deadline deduction, oldest first, while rest &gt; 0:
+    give = min(rest, deduction.amount − deduction.givenBack)
+    if the deduction was charged to an office: credit the office wallet give
+    else: credit 1350 dues up to what the rider still owes; the remainder credits 2200 wallet</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>12nn Money at Basata</td><td>amount</td><td></td><td>rider, store</td></tr>
+<tr><td>1300 rider cash</td><td></td><td>heldPart</td><td>rider, store</td></tr>
+<tr><td>2500 office wallet, 1350 rider dues or 2200 rider wallet</td><td></td><td>given back parts</td><td>rider, store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>basata_deposit:&lt;depositId&gt;</code>; kind <code>basata_deposit</code>. The receipt photo is attached to the entry. Rejection needs a reason of at least 5 characters and moves no money, except that when the deposit's deadline has already passed (and the deadline rule is on) the cash is taken from the rider at once, as at the deadline (key <code>basata_rejected:&lt;depositId&gt;</code>).</p>
+
+<h3>The daily deadline</h3>
+<p>Every rider must have handed in or deposited the day's cash by <code>cash.deposit_deadline_hour</code> (default 23, Cairo, global) while <code>cash.deposit_deadline_enabled</code> is 1. The job <code>runDepositDeadline()</code> works from the books as of the deadline instant, so a run after the server slept sees what was true then:</p>
+<pre class="code">heldAtDeadline = max(0, balance(1300) before the deadline
+                      − differences of handovers made before it and still pending then
+                      − deposits sent before it and not decided before it)
+charged = max(0, min(heldAtDeadline, cashToHandIn(rider) now))</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2500 rider office wallet (rider linked to an office) or 1350 rider dues (no office)</td><td>charged</td><td></td><td>rider, store</td></tr>
+<tr><td>1300 rider cash</td><td></td><td>charged</td><td>rider, store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>basata_deadline:&lt;riderId&gt;:&lt;YYYY-MM-DD&gt;</code>; kind <code>basata_deadline_charge</code>. A moment inside closed books is booked at the first open moment. The deduction is kept in <code>rider_cash_deductions</code> (amount and what later deposits gave back). The rider is frozen (reason <code>deposit_deadline</code> or <code>deposit_rejected</code>) and one <code>rider_frozen</code> alert is raised. The first run ever only marks its starting day and takes nothing. Each Cairo day is processed once (<code>cash_deadline_runs</code>); while the rule is off the days are marked skipped.</p>
+<p>A frozen rider gets no orders at handover and cannot withdraw (<code>rider_frozen</code>), but can sign in and deposit. Only Accounting (accounting use) unfreezes, with a reason of at least 5 characters.</p>
+<div class="example"><p>At 23:00 a rider still holds 800 EGP and is linked to an office: Dr office wallet 80,000, Cr rider cash 80,000; the office will have it deducted from its next payment. Without an office: Dr 1350 80,000. If the rider deposits the 800 EGP the next morning and Accounting approves it, heldPart is 0, rest is 80,000, and the whole amount credits back the office wallet (or the dues).</p></div>
+
+<h3>Basata's daily transfer</h3>
+<p><code>recordBasataSettlement()</code>: finance enters the bank, the day the money arrived, the amount and the approved deposits it covers. Number <code>BT-000001</code> onward.</p>
+<pre class="code">total = sum(amount of the chosen approved deposits)
+fee   = total − amountReceived          (refused when negative: more_than_deposits)
+refuse not_enough_money when total &gt; balance(Money at Basata)</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>11nn bank</td><td>amount received</td><td></td><td></td></tr>
+<tr><td>55nn Basata fees</td><td>fee</td><td></td><td></td></tr>
+<tr><td>12nn Money at Basata</td><td></td><td>total</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>basata_settlement:&lt;clientKey&gt;</code>; kind <code>basata_settlement</code>. A past day is booked at its noon (Cairo). No second person (money between our own accounts) but audited; the bank line is then matched in bank matching (chapter 15).</p>
+<div class="example"><p>Three approved deposits total 6,000 EGP; the bank receives 5,985 EGP. Dr bank 598,500, Dr Basata fees 1,500, Cr Money at Basata 600,000.</p></div>
+
+<h2 id="cr-pay">11.9 Rider pay per delivery</h2>
+<p>Riders earn only <code>rider.bonus_per_delivery_piastres</code> (default 0, store override, shown as "Rider pay per delivered order") per delivered order. It is posted at delivery (Dr 5101, Cr 2200 rider wallet, key <code>delivery:&lt;deliveryId&gt;:bonus</code>, kind <code>rider_bonus</code>; chapter 10). Failed attempts earn nothing. There is no salary, tax or insurance for riders paid per delivery; they are never on the salary run (<code>employees.pay_basis = per_delivery</code>).</p>
+
+<h2 id="cr-hold">11.10 The withdrawal hold</h2>
+<p>Each earning is on hold for <code>rider.withdraw_hold_working_days</code> (default 5, global) working days after its Cairo delivery day and is available from the start of the next day. <code>availableFrom(day, rules)</code> in <code>packages/shared/src/rider-wallet.ts</code>:</p>
+<pre class="code">d = deliveryDay; left = holdDays
+while left &gt; 0:
+    d = d + 1 day
+    if weekday(d) in weekend or d is an official holiday: continue
+    left −= 1
+availableOn = d + 1 day           (with holdDays 0: the day after the delivery)</pre>
+<p>Weekend days come from <code>rider.weekend_days</code> (default 5): each decimal digit is a JavaScript weekday of the Cairo date, 0 Sunday to 6 Saturday. 5 is Friday, 56 is Friday and Saturday; Sunday is written last (50) because a leading 0 would be lost in the integer. Official holidays are HR's holiday rows. Weekdays are taken from the calendar day itself (<code>new Date(day + 'T00:00:00Z').getUTCDay()</code>).</p>
+<div class="example"><p>Delivery on Wednesday 11 November 2026, hold 5, weekend Friday. Working days counted: Thu 12, (Fri 13 skipped), Sat 14, Sun 15, Mon 16, Tue 17. Available from Wednesday 18 November. If Sunday 15 November were an official holiday, it would be available from Thursday 19 November.</p></div>
+
+<h2 id="cr-wallet">11.11 The wallet figures</h2>
+<p>Nothing is stored: <code>riderWalletTotals()</code> (<code>packages/db/src/finance/rider-wallet.ts</code>) reads the rider's 2200 lines (credits are earnings, debits are amounts paid out including deductions and old <code>rider_bonus_payout</code> entries), the dues (1350) and advance (1500) balances, and open withdrawals, then <code>walletTotals()</code> computes:</p>
+<pre class="code">earnedAll = sum of all earnings
+matured   = sum of earnings whose availableOn &lt;= today
+onHold    = earnedAll − matured
+paid      = sum of debits on the 2200 wallet
+owed      = max(0, dues) + max(0, advance)
+pending   = sum(amount) of open withdrawals (requested or approved)
+available = max(0, matured − paid − owed − pending)
+balance   = earnedAll − paid</pre>
+<p>What the rider owes is netted before they ask, so the amount they ask for is what they receive.</p>
+
+<h2 id="cr-withdraw">11.12 Withdrawals</h2>
+<h3>Request</h3>
+<p><code>requestWithdrawal()</code> (the rider, from the rider app; idempotency key; number <code>RW-000001</code> onward, gapless). It locks the rider and refuses: a disabled account; a frozen rider; more than <code>rider.max_open_withdrawals</code> open (default 1); more than available; less than <code>rider.min_withdrawal_piastres</code> (default 10,000) unless it is everything available. Methods: cash at the store, InstaPay (name@instapay or a mobile), mobile wallet (Vodafone Cash, Etisalat Cash, Orange Cash, WE Pay; an Egyptian mobile), bank (IBAN <code>EG</code> plus 27 digits). The owed amounts are set aside on the request, dues first, then the advance, never counting twice what other open requests already set aside:</p>
+<pre class="code">setAside = sum(deduction) of other open requests
+dues     = max(0, owedDues − setAside)
+advance  = max(0, owedAdvance − max(0, setAside − owedDues))</pre>
+<h3>Approve, reject, cancel</h3>
+<p>Accounting (accounting use, never the rider) approves; rejection needs a reason (requested or approved); the rider may cancel before approval. Rejection and cancel free the amount at once.</p>
+<h3>Pay</h3>
+<p><code>payWithdrawal()</code> refuses the rider's own request, an unapproved one, and, from <code>finance.approval_threshold_piastres</code> (default 1,000,000; 0 turns it off), a payer who is also the approver (<code>same_person</code>). The source is the chosen open bank or box, else the store box for cash at the store, else CIB 1101; a store manager pays cash only from their store's box. The source row is locked and must hold the amount. Deductions are capped by what is still owed now; the wallet must still cover everything leaving it:</p>
+<pre class="code">dues     = min(storedDues, owedDues now)
+advance  = min(storedAdvance, owedAdvance now)
+free     = matured − paid − (amount + deductions of the other open requests)
+refuse more_than_available when amount + dues + advance &gt; free</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2200 rider wallet</td><td>amount + dues + advance</td><td></td><td>rider, store</td></tr>
+<tr><td>1350 rider dues</td><td></td><td>dues</td><td>rider, store</td></tr>
+<tr><td>1500 staff advance (the rider's user)</td><td></td><td>advance</td><td>rider, store, user</td></tr>
+<tr><td>bank or cash box</td><td></td><td>amount</td><td>rider, store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>rider_withdrawal:&lt;withdrawalId&gt;</code>; kind <code>rider_withdrawal</code>.</p>
+<div class="example"><p>Matured 1,000 EGP, already paid 300, dues 50 (a cash shortage), advance 100, no open request. Available = 1,000 − 300 − 150 = 550 EGP. The rider asks for 550 EGP by InstaPay. Paid from CIB: Dr 2200 70,000; Cr 1350 5,000; Cr 1500 10,000; Cr 1101 55,000. After it the dues and advance are 0 and the wallet's available is 0.</p></div>
+
+<h2 id="cr-dues">11.13 What riders owe (1350) and penalties</h2>
+<p>The 1350 rider dues wallet receives: shortages finance keeps on the rider (11.5), damage charged to the rider (chapter 10), deadline charges of riders without an office (11.8), and final violation deductions of riders paid per delivery. A staff advance given to a rider stays in 1500 and is netted the same way.</p>
+<p>Penalty: <code>chargeRiderPenalty()</code> (job <code>chargeRiderPenalties()</code>, safe to run twice). For a final violation with a deduction:</p>
+<pre class="code">amount = penalty == deduction_amount ? violation.amountPiastres
+       : floor((round(days * 100) * rider.penalty_day_piastres + 50) / 100)
+         (days come in quarters; worked in hundredths so no float reaches money)</pre>
+<p><code>rider.penalty_day_piastres</code>: default 20,000, store override.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1350 rider dues</td><td>amount</td><td></td><td>rider, store</td></tr>
+<tr><td>5101 rider pay</td><td></td><td>amount</td><td>rider, store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>violation:&lt;violationId&gt;:rider_penalty</code>; kind <code>rider_penalty</code>. The violation is marked as taken (also when the amount is 0) so it never reaches the salary run.</p>
+<div class="example"><p>Deduction of 1.25 days at 200 EGP per day: floor((125 × 20,000 + 50) / 100) = 25,000 piastres.</p></div>
+
+<h2 id="cr-offices">11.14 Rider supply offices</h2>
+<p>An office is a supplier with <code>is_rider_office</code> and its own <code>commission_bp</code> (accounting manage, audited). A rider paid per delivery links to one office through HR (employment outsourced, staffing supplier = the office). We pay the rider as usual; the office earns a commission on that pay. Code: <code>packages/db/src/finance/rider-offices.ts</code>.</p>
+<h3>Commission at each delivery</h3>
+<pre class="code">commission = share(riderPay, office.commissionBp)     (the rate at that moment)</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5102 rider office commission</td><td>commission</td><td></td><td>order, store, merchant, rider</td></tr>
+<tr><td>2500 office supplier wallet</td><td></td><td>commission</td><td>same</td></tr>
+</tbody></table>
+<p>Idempotency key <code>delivery:&lt;deliveryId&gt;:office_commission</code>; kind <code>rider_office_commission</code>; data holds supplier, rider, pay and rate. Deliveries booked before 11 November 2026 credited 2402 "commission accrued, not billed yet" instead of the wallet; the month end bill clears what is left there.</p>
+
+<h3>Month end: shortages moved to the office, then the bill</h3>
+<p>"Prepare office bills" (accounting use) runs <code>prepareOfficeBills()</code> for a month that is over, in month order (<code>later_month_prepared</code> otherwise). For each office, under an advisory lock, dated the month's last second (or now when the books are closed by then):</p>
+<ol>
+<li>For each linked rider, what they still owed at the end of the month beyond everything their wallet held then moves onto the office:
+<pre class="code">duesAtEnd   = balance(1350) before the month end
+holdsAtEnd  = 0 − balance(2200) before the month end
+uncovered   = duesAtEnd − max(0, holdsAtEnd)
+moved       = min(uncovered, dues now)     (only when &gt; 0)</pre>
+Posting Dr office 2500 wallet, Cr 1350 rider dues; key <code>office_shortage:&lt;riderId&gt;:&lt;YYYY-MM&gt;</code>; kind <code>rider_office_shortage</code>.</li>
+<li>One bill per office and month (<code>BILL-</code> numbering), from the month's commission:
+<pre class="code">net      = sum of 5102 lines of the office's commission entries in the month
+accrued  = part of it still sitting in 2402 (older deliveries)
+vat      = office has a tax number ? share(net, fee.vat_bp) : 0
+total    = net + vat
+onWallet = net − accrued</pre>
+</li>
+</ol>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2402 commission accrued</td><td>accrued</td><td></td><td></td></tr>
+<tr><td>2301 VAT payable (input VAT)</td><td>vat</td><td></td><td></td></tr>
+<tr><td>2500 office supplier wallet</td><td></td><td>accrued + vat</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key <code>bill:office_bill:&lt;supplierId&gt;:&lt;YYYY-MM&gt;</code>; kind <code>supplier_bill</code>; data stores <code>onWalletPiastres</code> so the VAT return still counts the whole purchase (chapter 15). No bill when nothing was earned; a bill is never negative, cannot be cancelled, and is due the day it is prepared. Shortages larger than the commission leave the office wallet in debit, carried to the next month.</p>
+
+<h3>Paying the office with an offset</h3>
+<p><code>payBill()</code> (chapter 12) accepts <code>offsetPiastres</code>: what the supplier owes us beyond its open bills (wallet balance plus open bills' remaining amounts, under a lock per supplier). The bill is settled in full, withholding tax stays computed on the whole amount settled, and less money leaves the bank.</p>
+<pre class="code">cash = settled − withholding − advanceRecovery − offset   (refused when negative)</pre>
+<div class="example">
+<p>November: the office's riders made deliveries paying 125,000 EGP; commission 10%: 12,500 EGP (1,250,000 piastres) credited to the office wallet delivery by delivery. The office has a tax number: VAT 175,000. One rider owed 300 EGP at month end while his wallet held 100 EGP: 200 EGP (20,000) moves onto the office.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2500 office wallet</td><td>200.00</td><td></td><td>shortage entry</td></tr>
+<tr><td>1350 rider dues</td><td></td><td>200.00</td><td>rider</td></tr>
+<tr><td>2301 VAT payable</td><td>1,750.00</td><td></td><td>office bill entry</td></tr>
+<tr><td>2500 office wallet</td><td></td><td>1,750.00</td><td></td></tr>
+</tbody></table>
+<p>Bill total 14,250 EGP. The office has 1% withholding: withholding = round(1,250,000 × 100 × 1,425,000 / (10,000 × 1,425,000)) = 12,500. Paid with an offset of 20,000: cash = 1,425,000 − 12,500 − 20,000 = 1,392,500. Payment entry: Dr office wallet 1,405,000 (settled minus offset); Cr bank 1,392,500; Cr 2302 withholding 12,500. The office wallet ends at 0.</p>
+</div>
+
+<h2 id="cr-code">11.15 Where the code lives</h2>
+<table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>Handover, deposit to bank</td><td><code>packages/db/src/finance/operations.ts</code>: <code>cashToHandIn</code>, <code>recordCashHandover</code>, <code>reviewCashHandover</code>, <code>recordBankDeposit</code></td></tr>
+<tr><td>Cash limit, age, petty cash</td><td><code>packages/db/src/finance/cash-control.ts</code>: <code>checkRiderCashLimit</code>, <code>riderCashPieces</code>, <code>checkRiderCashOverdue</code>, <code>submitPettyCash</code>, <code>postApprovedPettyCash</code>, <code>reversePettyCash</code>; <code>packages/shared/src/cash-control.ts</code>: <code>heldPieces</code>, <code>cashAgeBucket</code></td></tr>
+<tr><td>Basata</td><td><code>packages/db/src/finance/basata.ts</code>: <code>submitBasataDeposit</code>, <code>approveBasataDeposit</code>, <code>rejectBasataDeposit</code>, <code>runDepositDeadline</code>, <code>riderCashAtDeadline</code>, <code>recordBasataSettlement</code>; <code>packages/shared/src/basata.ts</code>: <code>depositDeadline</code>, <code>deadlineDayOf</code></td></tr>
+<tr><td>Rider wallet</td><td><code>packages/db/src/finance/rider-wallet.ts</code>: <code>riderWalletTotals</code>, <code>requestWithdrawal</code>, <code>payWithdrawal</code>, <code>chargeShortageToRider</code>, <code>chargeRiderPenalty</code>; <code>packages/shared/src/rider-wallet.ts</code>: <code>availableFrom</code>, <code>weekendDays</code>, <code>walletTotals</code>, <code>withdrawalDeductions</code></td></tr>
+<tr><td>Rider offices</td><td><code>packages/db/src/finance/rider-offices.ts</code>: <code>riderOfficeOf</code>, <code>postRiderOfficeCommission</code>, <code>prepareOfficeBills</code></td></tr>
+</tbody></table>
+</section>

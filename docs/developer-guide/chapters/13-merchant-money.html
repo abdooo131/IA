@@ -1,0 +1,269 @@
+<section class="chapter" id="ch-merchant-money">
+<h1>13. Merchant money: wallets, payouts, receivables, invoices and profit</h1>
+
+<p>This chapter covers what happens to a merchant's balance after the fees of chapter 10 are booked: how the balance is read, how payouts are prepared and paid, how a merchant who owes us is followed up, how the monthly tax invoice and its credit and debit notes are made, how documents reach the Egyptian Tax Authority (ETA), how security deposits are held, and how the merchant profit report shares costs.</p>
+
+<h2 id="mm-wallet">13.1 The merchant wallet and its sign</h2>
+<p>Each merchant has one wallet account (type <code>merchant</code>, code <code>2100-nnnn</code>, category liability). In the ledger debit is positive, so:</p>
+<pre class="code">raw balance  = sum(amount_piastres) of the wallet's lines
+owed to the merchant = 0 − raw balance          (merchantOwed() in operations.ts)
+owed &gt; 0 : we owe the merchant (credit balance)
+owed &lt; 0 : the merchant owes us (debit balance, a receivable)</pre>
+<p>What moves the wallet:</p>
+<table class="data"><thead><tr><th>Event</th><th>Effect on what we owe</th><th>Entry kind</th></tr></thead><tbody>
+<tr><td>COD collected</td><td>up by the cash</td><td><code>cod_collected</code></td></tr>
+<tr><td>Every fee plus its VAT, minimum top up</td><td>down</td><td>fee kinds of chapter 10</td></tr>
+<tr><td>Damage compensation</td><td>up</td><td><code>damage_compensation</code></td></tr>
+<tr><td>Payout paid</td><td>down</td><td><code>merchant_payout</code></td></tr>
+<tr><td>Payment received from the merchant</td><td>up</td><td><code>merchant_receipt</code></td></tr>
+<tr><td>Adjustment (credit or charge)</td><td>up or down</td><td><code>adjustment</code></td></tr>
+<tr><td>Credit note</td><td>up (fees and VAT given back)</td><td><code>credit_note</code></td></tr>
+<tr><td>Debit note</td><td>down</td><td><code>debit_note</code></td></tr>
+<tr><td>Security deposit taken from or paid back into the wallet</td><td>down or up</td><td><code>deposit_received</code>, <code>deposit_refunded</code></td></tr>
+<tr><td>Cheque received against the balance</td><td>up</td><td><code>cheque_received</code></td></tr>
+</tbody></table>
+<p>The customer's delivery fee is part of the cash collected, so it stays with the merchant. Balances are never stored: every screen sums the lines.</p>
+
+<h2 id="mm-statement">13.2 Merchant statements</h2>
+<p><code>merchantStatement(db, merchantId, from, to)</code> in <code>packages/db/src/finance/reports.ts</code> reads the wallet from the merchant's side:</p>
+<pre class="code">openingOwed = 0 − sum(wallet lines before from)
+for each line in [from, to), ordered by time then id:
+    amount (merchant's side) = 0 − line.amount
+    running = running − line.amount
+closingOwed = running
+byKind[kind] = sum of amounts per entry kind</pre>
+<p>Each line keeps the entry kind, memo and order number. The merchant reads it at <code>/merchant/wallet</code>. When a payout is marked paid, the statement of the payout period and its CSV are queued as an email (<code>queuePayoutEmails()</code>, sent by the email outbox job through the Mailer boundary).</p>
+
+<h2 id="mm-payouts">13.3 Payouts</h2>
+<h3>Schedules</h3>
+<p><code>merchants.payout_schedule</code>: <code>daily</code>, <code>twice_weekly</code> (Sunday and Wednesday) or <code>weekly</code> (Sunday). The merchant chooses it (audited); finance can change it; an activated contract version may set it once when it takes effect. <code>payoutDueOn(schedule, weekday)</code> in <code>operations.ts</code> (weekday 0 is Sunday, of the Cairo date); <code>nextPayoutDay()</code> in <code>packages/shared/src/cash-control.ts</code> gives the next due day.</p>
+<h3>Preparing a draft</h3>
+<p><code>createPayout(db, { merchantId, cutoffAt })</code> locks the merchant row and:</p>
+<pre class="code">refuse payout_already_open when the merchant has a draft (one open draft per merchant)
+owedAtCutoff = merchantOwed(merchant, before cutoffAt)
+amount       = min(owedAtCutoff, merchantOwed(merchant) now)      (fees after the cutoff may have lowered it)
+refuse nothing_to_pay when amount &lt;= 0
+minimum      = version in force on the cutoff day: minimumPayoutPiastres,
+               else finance.payout_minimum_piastres (default 0)
+refuse below_payout_minimum when amount &lt; minimum</pre>
+<p>The cutoff is the end of a Cairo day (<code>cairoDayStart(day + 1)</code>). The draft gets <code>PAY-000001</code> onward (gapless). No money moves for a draft.</p>
+<h3>Approval</h3>
+<p>From <code>finance.approval_threshold_piastres</code> (default 1,000,000; 0 off), a second person approves (<code>approvePayout()</code> in <code>controls.ts</code>): never the one who prepared it (<code>same_person</code>), only once.</p>
+<h3 id="mm-soa">Statement of account (SOA)</h3>
+<p>Every payout carries a statement of account frozen when it is prepared. <code>createPayout()</code> calls <code>freezePayoutStatement()</code> (<code>packages/db/src/finance/payout-proof.ts</code>) in the same transaction as the draft, so a draft never exists without its statement. The statement is built by <code>buildPayoutStatement()</code> from <code>merchantStatement()</code> (13.2), the statement the merchant reads in the wallet, so its numbers are the wallet's numbers:</p>
+<pre class="code">from     = cutoffAt of the merchant's last paid payout whose cutoff is not after this one,
+           else the merchant's creation time (never after this cutoff)
+to       = this payout's cutoffAt
+s        = merchantStatement(merchant, from, to)
+for each wallet line of s:
+    vat  = the vat_payable lines of the same entry, shown once (on the entry's first line)
+orders   = lines that name an order, except merchant_payout and merchant_receipt:
+           cod = sum of cod_collected ; fees[kind] = sum of every other kind ; vat ; net
+other    = every remaining line (storage, receiving, receipts, adjustments, notes, payouts)
+opening  = s.openingOwed
+closing  = s.closingOwed                     (what was owed at the cutoff)
+net      = payout.amountPiastres             (what is transferred)
+heldBack = closing − net                     (charges booked after the cutoff that lowered the amount)
+refuse soa_mismatch when net differs from the payout's amount</pre>
+<p>The whole statement (<code>PayoutStatementData</code>, version 1, in <code>packages/shared/src/payout-proof.ts</code>) is stored as JSON in <code>payout_statements.data</code>, with the period, opening, closing, held back and net also in their own columns. Numbers <code>SOA-000001</code> onward are gapless, taken under an advisory lock inside the transaction. A database trigger refuses every <code>UPDATE</code> or <code>DELETE</code> of a statement (<code>payout_statement_frozen</code>) and a <code>CHECK</code> keeps its net above 0. The freeze is audited as <code>finance.payout_statement</code>. A draft prepared before statements existed gets its statement when its proof is uploaded; a payout that has one keeps it.</p>
+<p>The statement is served three ways, all from the frozen JSON:</p>
+<ul>
+<li>JSON: <code>GET /finance/payouts/:id/statement</code>.</li>
+<li>PDF in English or Arabic (<code>GET /finance/payouts/:id/statement.pdf?lang=</code>, <code>apps/api/src/finance/payout-statement-pdf.ts</code>, pdfkit through <code>PdfWriter</code>): the summary by kind with the VAT inside the fees, every order of the period, the other movements and, once there is a proof, the proof of transfer with a line saying whether the three amounts match.</li>
+<li>CSV (<code>statement.csv</code>): a heading row (statement, payout, merchant), then one row per movement with the Cairo date and time, type, order, reference, amount, VAT and running balance, framed by the opening and closing balances, then the amount held back after the cutoff and the net to transfer. House CSV rules apply (byte order mark, formula prefixes neutralised, money as EGP text from integers).</li>
+</ul>
+
+<h3 id="mm-pot">Proof of transfer (POT)</h3>
+<p><code>addPayoutProof()</code> stores the bank slip of the transfer. The upload is <code>POST /finance/payouts/:id/proof</code>: the body is the file itself, the query carries its <code>name</code>, the <code>amountPiastres</code> and the bank <code>reference</code> typed from the slip (<code>payoutProofQuerySchema</code>). It refuses:</p>
+<table class="data"><thead><tr><th>Code</th><th>When</th></tr></thead><tbody>
+<tr><td><code>file_type_not_allowed</code></td><td>The type is not PDF, JPEG or PNG, or the first bytes of the file do not match the type it claims.</td></tr>
+<tr><td><code>file_too_large</code></td><td>The file is empty or above 5 MB (<code>PAYOUT_PROOF_MAX_BYTES</code>).</td></tr>
+<tr><td><code>pot_required</code></td><td>The reference is shorter than 2 characters.</td></tr>
+<tr><td><code>payout_not_draft</code></td><td>The payout is paid or cancelled.</td></tr>
+<tr><td><code>pot_amount_mismatch</code> (409)</td><td>The amount typed from the slip is not the payout's amount (both amounts are returned).</td></tr>
+</tbody></table>
+<p>The system compares the typed amount with the payout; it never reads the image. That is why the second person check below asks a person to open the slip. A payout has at most one proof (<code>payout_proofs</code>, numbers <code>POT-000001</code> onward, gapless). While the payout is a draft, uploading again replaces the file, amount and reference, keeps the POT number, and deletes every check already ticked on the payout, because those ticks confirmed another file. The upload is audited as <code>finance.payout_proof</code>, a replacement as <code>finance.payout_proof_replace</code> with the old and new file, amount and reference. Once the payout is paid a trigger (<code>payout_paid_frozen</code>) refuses any change or deletion of its proof and of its check marks.</p>
+
+<h3 id="mm-checks">Payout checks</h3>
+<p><code>payout_checks</code> lists what Accounting confirms before a payout is paid; <code>payout_check_marks</code> records each tick (payout, check, person, moment, optional note of at most 300 characters).</p>
+<ul>
+<li>The system check <code>second_person_viewed</code> ("Second person viewed the statement and the proof of transfer") is inserted by the migration and repaired by <code>ensurePayoutChecks()</code> if the table was emptied. It cannot be switched off (<code>check_is_system</code>). It can be ticked only once the payout has its proof (<code>pot_required</code>) and its statement (<code>soa_mismatch</code>), since it confirms both were seen.</li>
+<li>Accounting manage adds checks (<code>createPayoutCheck()</code>: a code of lower case letters, digits and underscores starting with a letter, an English and an Arabic label, an order; a code used twice answers <code>check_code_taken</code>) and changes labels, order or the active switch (<code>updatePayoutCheck()</code>). Both are audited (<code>finance.payout_check_create</code>, <code>finance.payout_check_update</code>).</li>
+<li>Only active checks count. A new active check is needed at once on every payout still a draft.</li>
+<li><code>markPayoutCheck()</code> ticks one active check on a draft (accounting use; <code>check_not_found</code> for an unknown or inactive check), audited as <code>finance.payout_check</code>. Ticking the same check again returns the first tick and changes nothing.</li>
+</ul>
+
+<h3 id="mm-ready">Ready to pay: the flow and the refusals</h3>
+<pre class="diagram">prepare (createPayout) ───▶ draft PAY-nnnnnn with its SOA frozen
+   │
+   ├── amount ≥ finance.approval_threshold_piastres ──▶ approvePayout() by another person
+   ├── upload the POT (amount = payout amount, bank reference)
+   ├── tick every active check; second_person_viewed by someone who will not pay
+   ▼
+markPayoutPaid() ──▶ assertReadyToPay() ──▶ posting (below) ──▶ payout emails with SOA and POT</pre>
+<p>Approval and the proof are independent: the proof may be uploaded before or after the approval, but marking paid needs both. <code>assertReadyToPay(tx, payout, payerId)</code> runs inside <code>markPayoutPaid()</code> after the approval check and before the owed and bank checks, and refuses in this order:</p>
+<table class="data"><thead><tr><th>Code</th><th>Status</th><th>When</th></tr></thead><tbody>
+<tr><td><code>pot_required</code></td><td>409</td><td>No proof of transfer.</td></tr>
+<tr><td><code>pot_amount_mismatch</code></td><td>409</td><td>The proof's amount is not the payout's amount.</td></tr>
+<tr><td><code>soa_mismatch</code></td><td>409</td><td>No frozen statement, or its net is not the payout's amount.</td></tr>
+<tr><td><code>checks_incomplete</code></td><td>409</td><td>An active check is not ticked; the answer lists the missing codes, comma separated.</td></tr>
+<tr><td><code>same_person</code></td><td>403</td><td>The person marking it paid is the one who ticked <code>second_person_viewed</code>.</td></tr>
+</tbody></table>
+<p>It returns the proof's reference, which becomes the payout's reference when the person marking it paid types none. The posting itself did not change. <code>payoutControls()</code> (<code>GET /finance/payouts/:id/controls</code>) gives the payout page everything at once: the statement summary, the proof, each check with who ticked it and when, <code>matches</code> (statement net, proof amount and payout amount are the same number of piastres: <code>payoutMatches()</code>) and <code>blockers</code>, the refusal codes the person looking would get if they marked it paid now.</p>
+<p>A payout paid by an issued cheque does not go through <code>markPayoutPaid()</code>: the cheque register is its proof, and no proof upload or checks are asked.</p>
+<h3 id="mm-soa-merchant">What the merchant sees</h3>
+<p>Merchant users with the money right read their own payouts' documents under <code>/merchant/finance/payouts/:id/</code>: <code>statement</code>, <code>statement.pdf</code> (Arabic unless <code>lang=en</code>), <code>statement.csv</code> and <code>proof</code>; another merchant's payout answers 404, and the proof only once the payout is paid (<code>proof_not_found</code> before). <code>/merchant/wallet</code> lists each payout with its SOA and POT side by side and a Matches mark. When a payout is marked paid, <code>queuePayoutEmails()</code> attaches to the payout paid email the SOA as a PDF in the merchant's email language and the POT file, both made or read only when the email is sent (references <code>payout_soa_pdf:&lt;payoutId&gt;:&lt;en|ar&gt;</code> and <code>payout_proof:&lt;payoutId&gt;</code>).</p>
+<p>The screens are shown in the chapter Screens: Dashboard and Money in (sections "A payout page: statement, proof, checks and mark paid" and "The merchant's side: Wallet with SOA and POT"); the checks are edited on the Payout checks screen of Screens: Month end, Setup and common parts.</p>
+<h3>Marking a payout paid</h3>
+<p><code>markPayoutPaid()</code>: the draft must be approved when it needed approval (<code>approval_needed</code>); it must pass <code>assertReadyToPay()</code> (proof, statement and checks, above); it is never more than what is owed now (<code>assertPayoutOwed()</code>, error <code>payout_more_than_owed</code>); the bank (default CIB 1101) is locked and must hold the amount (<code>not_enough_money</code>); a past Cairo day is booked at its noon; the books lock applies.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2100 merchant wallet</td><td>amount</td><td></td><td>merchant</td></tr>
+<tr><td>11nn bank</td><td></td><td>amount</td><td>merchant</td></tr>
+</tbody></table>
+<p>Idempotency key <code>payout:&lt;payoutId&gt;</code>; kind <code>merchant_payout</code>; memo = bank reference (the one typed when marking paid, else the proof's). Files chosen in the mark paid form are linked to the payout in the same transaction (see Attachments in chapter 12). A payout can also be paid by a cheque (chapter 12: Dr wallet, Cr 2451, same key). A draft may be cancelled with a note.</p>
+<h3>The Pay merchants run</h3>
+<p><code>prepareDuePayouts()</code> in <code>packages/db/src/finance/payout-run.ts</code> prepares a draft for every active merchant whose schedule is due on today's Cairo weekday, of what is owed up to the end of a chosen day (default yesterday); merchants with nothing owed, below their minimum or with an open draft are listed as skipped with the reason. Nothing is stored for the run itself; its state is read from the payouts. The run's "mark paid" step (<code>markPayoutsPaid()</code>) calls <code>markPayoutPaid()</code> once per payout in its own transaction, with one bank and one day, so one refusal never stops the others. Each payout needs its own proof of transfer and its checks (a row without a proof answers <code>pot_required</code>); its reference is the one typed on its proof unless one reference is given for all. A payout already paid (with the given reference, when one is given) counts as done, so pressing twice changes nothing. The run shows for each draft its SOA number, its proof, how many active checks are ticked and whether the person looking ticked the second person check (they may not pay it then).</p>
+<h3>The bulk transfer file</h3>
+<p><code>payoutBankFile()</code> in <code>packages/db/src/finance/tools.ts</code> lists draft payouts that are ready (approved when they needed approval, and with bank details: an IBAN, or a bank name and account number). The CSV (<code>GET /finance/payouts/bank-file.csv</code>, <code>apps/api/src/finance/tools.controller.ts</code>) has one row per payout:</p>
+<table class="data"><thead><tr><th>Column</th><th>Value</th></tr></thead><tbody>
+<tr><td>Beneficiary name</td><td>the merchant's beneficiary name, else legal name, else name</td></tr>
+<tr><td>Bank</td><td>bank name</td></tr>
+<tr><td>Account number</td><td>bank account number</td></tr>
+<tr><td>IBAN</td><td><code>EG</code> plus 27 digits</td></tr>
+<tr><td>Amount</td><td>EGP with two decimals, integers only (<code>egp()</code>)</td></tr>
+<tr><td>Currency</td><td><code>EGP</code></td></tr>
+<tr><td>Reference</td><td>the payout number <code>PAY-nnnnnn</code></td></tr>
+<tr><td>Merchant</td><td>merchant name</td></tr>
+</tbody></table>
+<p>The columns are the usual bulk transfer columns, to be matched to CIB's own template. CSV files follow the house rules: <code>UTF-8</code> byte order mark, and a cell starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code> is prefixed with an apostrophe unless it is a plain number.</p>
+
+<h2 id="mm-receipts">13.4 Receipts and adjustments</h2>
+<p>A merchant who owes us (fees above their COD) pays by bank transfer: <code>recordMerchantReceipt()</code>, always reviewed by a second person while <code>finance.approve_money_in</code> is 1.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>11nn bank</td><td>amount</td><td></td><td>merchant</td></tr>
+<tr><td>2100 merchant wallet</td><td></td><td>amount</td><td>merchant</td></tr>
+</tbody></table>
+<p>Key <code>receipt:&lt;clientKey&gt;</code>; kind <code>merchant_receipt</code>.</p>
+<p>An adjustment (<code>recordMerchantAdjustment()</code>) needs a reason of at least 5 characters and is always reviewed while money in needs approval. A positive amount credits the merchant against fee income; a negative one charges them.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>4101 fee income</td><td>amount (credit to the merchant)</td><td>|amount| (charge)</td><td>merchant</td></tr>
+<tr><td>2100 merchant wallet</td><td>|amount| (charge)</td><td>amount (credit)</td><td>merchant</td></tr>
+</tbody></table>
+<p>Key <code>adjustment:&lt;clientKey&gt;</code>; kind <code>adjustment</code>. No VAT: a correction with VAT is made with a credit or debit note (13.7).</p>
+
+<h2 id="mm-aging">13.5 Who owes us, by age (first in, first out)</h2>
+<p><code>receivablesAging()</code> in <code>packages/db/src/finance/aging.ts</code> lists, as of the end of a Cairo day, merchants whose wallet is in debit and received cheques still under collection. A wallet has no due dates, so each debit counts from the day it was booked, and every credit pays the oldest debit still open (<code>openDebits()</code> in <code>packages/shared/src/aging.ts</code>):</p>
+<pre class="code">open = []; credit = 0
+for each wallet line in time order (debit positive):
+    if amount &gt; 0: used = min(credit, amount); credit −= used
+                   if amount &gt; used: open.push(amount − used on its day)
+    if amount &lt; 0: pay = −amount
+                   while pay &gt; 0 and open not empty: take from open[0] (oldest)
+                   credit += pay left over
+age of an open debit = Cairo days from its day to the as of day
+band: age &lt;= 0 current (not yet due), 1 to 30, 31 to 60, 61 to 90, over 90</pre>
+<p>The open debits always add up to the debit balance. The debit period starts at the first line after the balance was last zero or in credit. Cheques under collection are aged by their due day. Rider cash, rider dues and staff advances are not listed: they are taken back from handovers, withdrawals or salaries. Exports: CSV, Excel and PDF. <code>/finance/payables-aging</code> ages open supplier bills by due day the same way.</p>
+<div class="example">
+<p>As of 30 November. Wallet lines: 1 Oct storage and fees +3,000 EGP; 5 Oct COD −1,000; 20 Oct fees +2,500; 25 Nov fees +1,200. FIFO: the 1,000 credit pays part of the 1 October debit, leaving 2,000 (1 Oct, 60 days: band 31 to 60), 2,500 (20 Oct, 41 days: 31 to 60), 1,200 (25 Nov, 5 days: 1 to 30). Balance 5,700 EGP owed to us.</p>
+</div>
+
+<h2 id="mm-reminders">13.6 Payment reminders</h2>
+<p><code>packages/db/src/finance/reminders.ts</code>. A reminder is a notification in the merchant panel, a <code>payment_reminder</code> email to the billing emails (unless opted out) and a web push. The daily job runs once <code>receivables.reminder_hour</code> (default 10, Cairo) has passed, while <code>receivables.reminders_enabled</code> is 1:</p>
+<pre class="code">reminderDue(sinceDay, today, sent, lastDay):
+    sent &gt;= receivables.reminder_max (default 4)        → no
+    sent == 0 → days(sinceDay, today) &gt;= receivables.reminder_first_days (default 3)
+    else      → days(lastDay, today)  &gt;= max(receivables.reminder_every_days (default 7), 1)</pre>
+<p>Counted per debit period (<code>merchant_payment_reminders.period_start</code>); a wallet back to zero or credit ends the period. Each automatic reminder's key holds the merchant, the period and its number, so a second run sends nothing twice. "Send reminder now" is sent even past the maximum, counts toward it and restarts the wait.</p>
+
+<h2 id="mm-invoices">13.7 Tax invoices, credit notes and debit notes</h2>
+<p><code>packages/db/src/finance/invoices.ts</code> and <code>debit-notes.ts</code>. The fees were booked when they happened; an invoice is only the document for them. Documents live in <code>tax_invoices</code> with types <code>invoice</code> (<code>INV-000001</code>), <code>credit_note</code> (<code>CN-000001</code>) and <code>debit_note</code> (<code>DN-000001</code>), each numbered without gaps under an advisory lock. Amounts and lines are fixed by a database trigger once issued.</p>
+<h3>Monthly invoice</h3>
+<p><code>prepareInvoices(db, { month })</code> runs only for a month that is over, once per merchant and month. <code>monthlyFees()</code> reads the ledger:</p>
+<pre class="code">entries of the fee kinds (shipping_fee, product_handling, order_fee, cod_fee, failed_fee,
+  receiving_fee, storage_fee, return_fee, adjustment, minimum_fee, packaging_charge)
+  that have a 4101 line tagged with the merchant inside the Cairo month
+per kind: quantity = number of entries
+          net = −sum(4101 lines) ; vat = −sum(2301 lines)
+kinds with net &lt;= 0 are left out
+invoice net = sum(net); vat = sum(vat); total = net + vat</pre>
+<p>The invoice VAT is the VAT actually booked entry by entry, not 14% of the total. An invoice notice email is queued with a link to <code>/merchant/invoices</code>.</p>
+<h3>Credit note</h3>
+<p><code>issueCreditNote()</code> gives back part of an invoice's fees, always through a second person. The amount (fees before VAT) may not exceed what is left uncredited. VAT comes from the running total, like withholding:</p>
+<pre class="code">creditNoteVat(invoice, before, amount):
+    n = before.net + amount
+    total = n &gt;= invoice.net ? invoice.vat : round(n * invoice.vat / invoice.net)
+    return max(total − before.vat, 0)</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>4101 fee income</td><td>amount</td><td></td><td>merchant</td></tr>
+<tr><td>2301 VAT payable</td><td>vat</td><td></td><td>merchant</td></tr>
+<tr><td>2100 merchant wallet</td><td></td><td>amount + vat</td><td>merchant</td></tr>
+</tbody></table>
+<p>Key <code>credit_note:&lt;clientKey&gt;</code>; kind <code>credit_note</code>; one document line of kind <code>adjustment</code> with the reason.</p>
+<div class="example"><p>Invoice net 12,345.67 EGP (1,234,567), VAT 1,728.39 (172,839). Credit note 1: 100,001 → VAT round(100,001 × 172,839 / 1,234,567) = 14,000. Credit note 2 for the rest, 1,134,566 → total reaches the invoice net, VAT = 172,839 − 14,000 = 158,839. Together exactly the invoice VAT.</p></div>
+<h3>Debit note</h3>
+<p><code>issueDebitNote()</code> charges a merchant more after an invoice (a missed fee, a correction). It always names an invoice of the merchant; one line per fee kind (the invoice kinds plus an adjustment) with its amount before VAT; VAT per line at <code>fee.vat_bp</code> read when the note is asked for (frozen on the request so the approver sees the exact amounts):</p>
+<pre class="code">line.vat = share(line.net, vatBp); net = sum; vat = sum; total = net + vat</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2100 merchant wallet</td><td>total</td><td></td><td>merchant, store (when given)</td></tr>
+<tr><td>4101 fee income</td><td></td><td>net</td><td></td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>vat</td><td></td></tr>
+</tbody></table>
+<p>Key <code>debit_note:&lt;clientKey&gt;</code>; kind <code>debit_note</code>. It waits for a second person like every merchant balance change. Its kind is not a monthly fee kind, so the next invoice never counts it again; it is output VAT in the VAT report and return.</p>
+
+<h2 id="mm-eta">13.8 ETA electronic invoices</h2>
+<pre class="diagram">
+ tax_invoices row ──buildDocument()──▶ ETA document v1.0 (JSON) ──stored──▶ read back
+        ──etaCanonical()──▶ canonical text ──/eta-signer──▶ signing program on the finance PC
+        (USB token, CAdES BES) ──signature──▶ saveSignatures() ──EtaSync every minute──▶ ETA
+        ──▶ submitted (uuid) ──▶ valid | invalid | rejected ──fix──▶ resendInvoice() ──▶ not_sent
+</pre>
+<ul>
+<li><code>etaDocument()</code> (<code>packages/shared/src/eta.ts</code>) builds the document: type I (invoice), C (credit note) or D (debit note); issuer from <code>company_profile</code> (type B, branch id); receiver type B when the merchant has a tax registration number (then a full address is required, else <code>merchant_address_missing</code>), else P; one line per document line with item type EGS, the item code per fee kind from <code>company_profile</code>, unit EA, tax T1 subtype V009 at the rate the fee was actually charged (<code>round(vat × 10,000 / net) / 100</code> percent); amounts are EGP numbers with two decimals (<code>piastres / 100</code>); <code>dateTimeIssued</code> in UTC without fractions. A note references the original invoice's uuid and waits until the invoice was sent (<code>original_not_sent</code>).</li>
+<li><code>etaCanonical()</code>: every property name upper case and quoted, followed by its value; an array gives its name once and again before each element; plain values quoted as written; the <code>signatures</code> property left out. Because the database may reorder JSON keys and ETA rebuilds the canonical text from what it receives, the document is first stored, read back, and the canonical text is made from the stored copy (<code>documentsToSign()</code>). The text is fixed the first time it is handed out.</li>
+<li>The signing program (<code>scripts/eta-signer</code>, PowerShell) asks <code>/eta-signer</code> (public, checked with the signer key from <code>company_profile</code>, shown once) for texts and returns signatures.</li>
+<li><code>EtaSync</code> (<code>apps/api/src/finance/eta.ts</code>) every minute submits signed documents and asks the status of submitted ones through the <code>EtaClient</code> boundary (environment names <code>ETA_ENV</code>, <code>ETA_CLIENT_ID</code>, <code>ETA_CLIENT_SECRET</code>; nothing is sent without them).</li>
+<li>A rejected or invalid document is corrected (tax details, an item code) and sent again with <code>resendInvoice()</code>: its text, signature and document are cleared and it waits for a new signature.</li>
+</ul>
+
+<h2 id="mm-deposits">13.9 Security deposits</h2>
+<p>A contract may ask for a security deposit. It is held in the merchant's deposit wallet (type <code>merchant_deposit</code>, code <code>2600-nnnn</code>, a liability). <code>recordDeposit()</code> in <code>contracts.ts</code> through <code>submitDeposit()</code>:</p>
+<table class="data"><thead><tr><th>Direction and channel</th><th>Lines</th><th>Checks and approval</th></tr></thead><tbody>
+<tr><td>In, by bank</td><td>Dr bank, Cr 2600</td><td>always reviewed (money in)</td></tr>
+<tr><td>In, from the wallet</td><td>Dr 2100 wallet, Cr 2600</td><td>never more than we owe the merchant (<code>more_than_owed</code>); always reviewed</td></tr>
+<tr><td>Out, by bank</td><td>Dr 2600, Cr bank</td><td>never more than held (<code>more_than_deposit</code>); the bank must hold it; from the approval limit</td></tr>
+<tr><td>Out, into the wallet</td><td>Dr 2600, Cr 2100 wallet</td><td>never more than held; always reviewed</td></tr>
+</tbody></table>
+<p>Key <code>deposit:&lt;clientKey&gt;</code>; kinds <code>deposit_received</code> and <code>deposit_refunded</code>. Deposits can also come or go by cheque (chapter 12).</p>
+
+<h2 id="mm-profit">13.10 Merchant profit report</h2>
+<p><code>merchantProfitability(db, { month })</code> in <code>packages/db/src/finance/merchant-profit.ts</code>, per merchant and Cairo month (the <code>year_close</code> entry is always left out):</p>
+<table class="data"><thead><tr><th>Part</th><th>How it is computed</th></tr></thead><tbody>
+<tr><td>Fees by kind</td><td>−sum of revenue lines tagged with the merchant, per entry kind (before VAT)</td></tr>
+<tr><td>Rider pay</td><td>expense lines of type <code>rider_bonus_expense</code> tagged with the merchant</td></tr>
+<tr><td>Rider office commission</td><td>lines on 5102 tagged with the merchant</td></tr>
+<tr><td>Damage</td><td>lines of type <code>damage_expense</code> tagged with the merchant</td></tr>
+<tr><td>Packaging</td><td>lines on 5404 tagged with the merchant</td></tr>
+<tr><td>Other direct</td><td>any other expense line tagged with the merchant</td></tr>
+<tr><td>Rider salaries share</td><td>each store's expense lines tagged with a rider user and no merchant, shared by the merchant's part of the store's delivered orders</td></tr>
+<tr><td>Store costs share</td><td>each store's other untagged expense lines (rent apart, no rider user), shared the same way</td></tr>
+<tr><td>Storage space share</td><td>each store's rent (5401) shared by unit days actually stored (<code>stock_unit_days</code>, chapter 10); when a store has rent but no day of the month is over yet, the units held now</td></tr>
+</tbody></table>
+<pre class="code">shareOf(pool, part, whole) = whole &gt; 0 ? round(pool * part / whole) : 0
+margin          = fees − costs
+marginPerOrder  = round(margin / deliveredOrders)
+marginBp        = round(margin * 10000 / fees)</pre>
+<p>The detail view adds a what if (<code>whatIf()</code> in <code>packages/shared/src/contracts.ts</code>): shipping, order and COD fees recomputed on the month's delivered orders, products value and cash with other values; other fees kept; a minimum tops up; costs do not change.</p>
+<div class="example"><p>A store's rent in November is 30,000 EGP and its merchants stored 90,000 unit days, of which merchant A 27,000: A's storage space share = round(3,000,000 × 27,000 / 90,000) = 900,000 (9,000 EGP), whether or not A pays storage fees.</p></div>
+
+<h2 id="mm-code">13.11 Where the code lives</h2>
+<table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>Wallet, payouts, receipts, adjustments</td><td><code>packages/db/src/finance/operations.ts</code>: <code>merchantOwed</code>, <code>payoutDueOn</code>, <code>createPayout</code>, <code>assertPayoutOwed</code>, <code>markPayoutPaid</code>, <code>cancelPayout</code>, <code>recordMerchantReceipt</code>, <code>recordMerchantAdjustment</code></td></tr>
+<tr><td>Payout run and bank file</td><td><code>packages/db/src/finance/payout-run.ts</code>; <code>packages/db/src/finance/tools.ts</code>: <code>payoutBankFile</code>, <code>updateMerchantBank</code></td></tr>
+<tr><td>Statements</td><td><code>packages/db/src/finance/reports.ts</code>: <code>merchantStatement</code>, <code>financeWallets</code></td></tr>
+<tr><td>Aging and reminders</td><td><code>packages/shared/src/aging.ts</code>: <code>openDebits</code>, <code>agingBand</code>, <code>reminderDue</code>; <code>packages/db/src/finance/aging.ts</code>, <code>reminders.ts</code></td></tr>
+<tr><td>Invoices and notes</td><td><code>packages/db/src/finance/invoices.ts</code>: <code>monthlyFees</code>, <code>prepareInvoices</code>, <code>creditNoteVat</code>, <code>issueCreditNote</code>, <code>buildDocument</code>, <code>documentsToSign</code>; <code>debit-notes.ts</code>: <code>debitNoteAmounts</code>, <code>issueDebitNote</code></td></tr>
+<tr><td>ETA</td><td><code>packages/shared/src/eta.ts</code>: <code>etaDocument</code>, <code>etaCanonical</code>; <code>apps/api/src/finance/eta.ts</code>: <code>EtaSync</code>, <code>EtaClient</code></td></tr>
+<tr><td>Deposits</td><td><code>packages/db/src/finance/contracts.ts</code>: <code>recordDeposit</code>, <code>submitDeposit</code>, <code>depositHeld</code></td></tr>
+<tr><td>Merchant profit</td><td><code>packages/db/src/finance/merchant-profit.ts</code>: <code>merchantProfitability</code>, <code>merchantProfitDetail</code></td></tr>
+</tbody></table>
+</section>

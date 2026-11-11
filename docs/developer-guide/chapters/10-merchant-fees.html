@@ -1,0 +1,290 @@
+<section class="chapter" id="ch-merchant-fees">
+<h1>10. Merchant fees: contracts, prices and the postings of each event</h1>
+
+<p>This chapter explains how the system decides what a merchant pays for every delivered order, failed attempt, received unit, stored unit, returned unit and month, and exactly which ledger entries each event writes. Every amount is an integer number of piastres (100 piastres = 1 EGP). Every percentage is an integer number of basis points (bp: 10,000 bp = 100%). No floating point number ever reaches money.</p>
+
+<h2 id="mf-conventions">10.1 Conventions used by every fee</h2>
+
+<h3>The rounding helper</h3>
+<p>All percentage shares of money in the fee code use one helper, <code>share()</code> in <code>packages/db/src/finance/ledger.ts</code> (identical to <code>bpShare()</code> in <code>packages/shared/src/contracts.ts</code>):</p>
+<pre class="code">share(amount, bp) = floor((amount * bp + 5000) / 10000)</pre>
+<p>This is "round half up" to the whole piastre for non negative amounts. Example: 12.5 piastres becomes 13, 12.49 becomes 12.</p>
+
+<h3>One entry per fee kind, VAT on each entry</h3>
+<p>Each fee is its own ledger entry with its own entry kind and its own idempotency key. The VAT of a fee is computed on that fee alone: <code>vat = share(fee, fee.vat_bp)</code>. The entry has three lines, built by <code>feeLines()</code> in <code>packages/db/src/finance/postings.ts</code>:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2100 merchant wallet (<code>2100-nnnn</code>)</td><td>fee + vat</td><td></td><td>store, merchant, order (when the event has an order)</td></tr>
+<tr><td>4101 Delivery and service fees</td><td></td><td>fee</td><td>same</td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>vat</td><td>same</td></tr>
+</tbody></table>
+<p>Because VAT is rounded per entry, the VAT of an order can differ by a piastre from 14% of the sum of its fees. A developer rebuilding the system must keep the per entry rounding, because the monthly tax invoice adds up the VAT that was actually booked (chapter 13).</p>
+
+<h3>Rules every posting obeys</h3>
+<ul>
+<li>Lines of 0 are dropped by <code>post()</code>. When every line is 0 nothing is written and <code>post()</code> returns null. So a fee of 0 (for example a shipping fee on a contract that has none) leaves no entry at all.</li>
+<li>The lines of an entry must add up to 0, otherwise <code>post()</code> throws; a deferred database trigger refuses an unbalanced entry as well.</li>
+<li>The same idempotency key posts once: a repeat returns the first entry. All keys in this chapter are unique per event, so a retried transaction or a job that runs twice changes nothing.</li>
+<li>Sign convention in the ledger: debit is positive, credit is negative. A merchant wallet is a liability; a credit balance means we owe the merchant, a debit balance means the merchant owes us.</li>
+<li>Tags: when the caller gives no store or merchant tag, <code>post()</code> takes them from the entry's order, then from the wallets on its lines, then from the rider's store (<code>entryTags()</code> in <code>ledger.ts</code>).</li>
+</ul>
+
+<h2 id="mf-contracts">10.2 Merchant contracts v2: versions and the version in force</h2>
+
+<p>Each merchant has at most one contract (table <code>merchant_contracts</code>, numbered <code>CTR-000001</code> onward without gaps). A contract is made of versions (table <code>merchant_contract_versions</code>, numbered 1, 2, 3 per contract). A version holds the whole deal:</p>
+<table class="data"><thead><tr><th>Group</th><th>Fields</th><th>Meaning of null</th></tr></thead><tbody>
+<tr><td>Nine prices</td><td><code>shippingFeePiastres</code>, <code>orderFixedPiastres</code>, <code>orderPercentBp</code>, <code>codPercentBp</code>, <code>failedDeliveryPiastres</code>, <code>receivingPerUnitPiastres</code>, <code>storagePerUnitMonthPiastres</code>, <code>returnPerUnitPiastres</code>, <code>packagingChargePiastres</code></td><td>null means the standard price (the global setting); 0 is an explicit price of zero</td></tr>
+<tr><td>Failed share</td><td><code>failedDeliveryPercentBp</code></td><td>null: see the failed delivery rule (10.8)</td></tr>
+<tr><td>Per product prices</td><td>rows in <code>merchant_contract_version_products</code> (version, product, price per unit), at most 5,000</td><td>a product without a row is charged nothing for this fee</td></tr>
+<tr><td>Volume tiers</td><td>rows in <code>merchant_contract_version_tiers</code>, at most 20, each with <code>fromOrder</code> and nine nullable prices</td><td>null keeps the version's price</td></tr>
+<tr><td>Payment terms</td><td>payout schedule, minimum payout, monthly minimum fee, security deposit, credit limit</td><td>null: the merchant's own schedule or the global setting</td></tr>
+<tr><td>Promises</td><td>promise minutes (informative), delivery attempts included, stores and areas (informative)</td><td>null: the store setting <code>delivery.max_attempts</code></td></tr>
+<tr><td>Dates</td><td><code>startDate</code>, <code>endDate</code>, <code>noticeDays</code>, <code>effectiveFrom</code></td><td>no end date: open ended</td></tr>
+</tbody></table>
+
+<h3>Statuses and activation</h3>
+<pre class="diagram">
+ draft ──activate(effectiveFrom)──▶ active ──a later version activated──▶ superseded
+   │                                  (shown as "ended" once endDate has passed)
+   └── deleted (only a draft)
+</pre>
+<p><code>activateContractVersion()</code> in <code>packages/db/src/finance/contracts.ts</code> refuses: a version that is not a draft; an effective day before today (Cairo); an effective day before the effective day of the last activated version (<code>effective_before_last_version</code>); an effective day inside closed books (<code>books_closed</code>); an effective day after the version's end date. The previous active version becomes superseded. Activated versions and their product prices are frozen by a database trigger. The action is audited as <code>merchant.contract_activate</code> with the full terms before and after. When the version takes effect today, its agreed payout schedule is written on the merchant at once; a later effective day leaves it to the daily job <code>applyContractSchedules()</code>, once per version.</p>
+
+<h3>The version in force</h3>
+<div class="rule">Every charge reads the version in force on the Cairo calendar day of its event. <code>versionInForce(db, merchantId, day)</code> returns the activated version (status active or superseded) with the latest <code>effectiveFrom</code> not after that day; when two share the day, the higher version number wins. No version means standard prices for everything.</div>
+<p>The event day for each fee:</p>
+<table class="data"><thead><tr><th>Fee</th><th>Event moment</th></tr></thead><tbody>
+<tr><td>Shipping, per product, order, COD, packaging charge</td><td>the delivery moment (rider marks delivered)</td></tr>
+<tr><td>Failed delivery</td><td>the failed attempt</td></tr>
+<tr><td>Receiving</td><td>staff close the shipment (inbound manifest)</td></tr>
+<tr><td>Storage</td><td>the last millisecond of the stored Cairo day</td></tr>
+<tr><td>Return</td><td>staff hand the return parcel to the collector</td></tr>
+<tr><td>Monthly minimum</td><td>each day of the month separately (10.12)</td></tr>
+</tbody></table>
+<p>The version's dates (<code>startDate</code> to <code>endDate</code>) are different from its effective day. Tiers and the monthly minimum only count on days the dates cover (<code>covers()</code> in <code>contracts.ts</code>); prices of the version still apply outside them as long as it is the version in force.</p>
+
+<h2 id="mf-standard">10.3 Standard prices from the settings</h2>
+<p>The standard price of every fee is a global setting (scope <code>global</code> only; a merchant scope is refused with <code>scope_not_allowed</code>). Definitions and defaults live in <code>packages/shared/src/settings.ts</code>; <code>standardPrices()</code> in <code>contracts.ts</code> reads them.</p>
+<table class="data"><thead><tr><th>Setting key</th><th>Unit</th><th>Default in code</th><th>Used for</th></tr></thead><tbody>
+<tr><td><code>fee.shipping_fee_piastres</code></td><td>piastres per delivered order</td><td>0</td><td>shipping fee (often all inclusive)</td></tr>
+<tr><td><code>fee.order_fixed_piastres</code></td><td>piastres per delivered order</td><td>0</td><td>order fee, fixed part</td></tr>
+<tr><td><code>fee.order_percent_bp</code></td><td>bp of products value</td><td>0</td><td>order fee, percent part</td></tr>
+<tr><td><code>fee.cod_percent_bp</code></td><td>bp of cash collected</td><td>0</td><td>COD fee</td></tr>
+<tr><td><code>fee.failed_delivery_piastres</code></td><td>piastres per failed attempt</td><td>0</td><td>fixed failed delivery fee</td></tr>
+<tr><td><code>fee.failed_delivery_percent_bp</code></td><td>bp of shipment charges</td><td>10000 (100%)</td><td>failed share for contracts with a shipping fee</td></tr>
+<tr><td><code>fee.receiving_per_unit_piastres</code></td><td>piastres per unit received</td><td>0</td><td>receiving fee</td></tr>
+<tr><td><code>fee.storage_per_unit_month_piastres</code></td><td>piastres per unit per month</td><td>0</td><td>storage fee (charged daily)</td></tr>
+<tr><td><code>fee.return_per_unit_piastres</code></td><td>piastres per unit returned</td><td>0</td><td>return fee</td></tr>
+<tr><td><code>fee.packaging_charge_piastres</code></td><td>piastres per delivered order</td><td>0</td><td>packaging charge (0: packaging is our own cost)</td></tr>
+<tr><td><code>fee.vat_bp</code></td><td>bp</td><td>0 in code; set to 1400 (14%) by the owner on 11 November 2026</td><td>VAT added on top of every fee</td></tr>
+<tr><td><code>finance.payout_minimum_piastres</code></td><td>piastres</td><td>0</td><td>minimum payout when the contract has none (chapter 13)</td></tr>
+</tbody></table>
+<p>The mapping between each price, its setting, its column on a tier and its entry kind is the constant <code>CONTRACT_PRICES</code> in <code>packages/shared/src/contracts.ts</code>.</p>
+
+<h2 id="mf-resolve">10.4 Resolving a price field by field</h2>
+<p><code>resolvePrices(version, tier, standard)</code> resolves each of the nine prices independently:</p>
+<pre class="code">price[k] = tier[k]  ?? version[k]  ?? standard[k]
+           (band)     (contract)     (global setting)</pre>
+<p>The function used by the postings is <code>contractPricesAt(db, { merchantId, at, orderId? })</code>, which calls <code>pricesForDay()</code>. It returns the resolved prices, the failed delivery rule (10.8), the id of the version (for per product prices), the contract label, the band used (<code>tierFrom</code>) and the order's place in the month (<code>nth</code>).</p>
+
+<h3>The all inclusive preset</h3>
+<p>Most merchants pay one shipping fee that covers everything. The preset <code>allInclusivePrices()</code> (constant <code>ALL_INCLUSIVE_ZERO_KEYS</code>) sets order fixed, order percent, COD, receiving, storage, return and packaging charge to an explicit 0 (null would mean the standard price), clears the fixed failed fee (null) and sets <code>failedDeliveryPercentBp</code> to 10000 (failed attempts cost 100% of the shipment charges).</p>
+
+<h2 id="mf-tiers">10.5 Volume tiers</h2>
+<p>A tier says: "from the nth delivered order of the Cairo month, these prices replace the version's". <code>tierFor(tiers, nth)</code> picks the tier with the highest <code>fromOrder</code> not above <code>nth</code>; before the first band there is none.</p>
+<div class="rule">The order that crosses into a band and every later order of the month pay the band's prices. Earlier orders are never charged again and never rebated. The count restarts each Cairo month.</div>
+<h3>How nth is counted</h3>
+<ul>
+<li>For a delivered order: the merchant row is locked (<code>SELECT ... FOR UPDATE</code>) so two deliveries at the same moment count one after the other, then <code>nth = (delivered orders of the merchant with deliveredAt from the start of the Cairo month up to now, this order excluded) + 1</code>.</li>
+<li>For any other charge (failed delivery, receiving, storage, return): <code>nth</code> is the place the next delivered order would take at that moment, the same count without locking.</li>
+<li><code>nth</code> is only computed when the version in force has tiers and its dates cover the day; otherwise no tier applies.</li>
+<li>Per product prices never take tiers.</li>
+</ul>
+<div class="example">
+<p>Version: order fixed 15 EGP (1,500 piastres), tier from order 501 with fixed fee 10 EGP (1,000). In November the merchant's 500th delivered order pays 1,500 piastres; the 501st and every later November order pay 1,000; on 1 December the count restarts and the first order pays 1,500 again. Orders 1 to 500 are not recharged.</p>
+</div>
+
+<h2 id="mf-kinds">10.6 Fee kinds</h2>
+<table class="data"><thead><tr><th>Entry kind</th><th>Formula (before VAT)</th><th>Charged when</th><th>Idempotency key</th></tr></thead><tbody>
+<tr><td><code>shipping_fee</code></td><td>price <code>shippingFeePiastres</code></td><td>delivered</td><td><code>order:&lt;orderId&gt;:shipping_fee</code></td></tr>
+<tr><td><code>product_handling</code></td><td>sum over delivered (picked) lines of <code>pickedQty * productPrice</code>; products without a price add 0</td><td>delivered</td><td><code>order:&lt;orderId&gt;:product_handling</code></td></tr>
+<tr><td><code>order_fee</code></td><td><code>orderFixed + share(products, orderPercentBp)</code>, products = sum of <code>pickedQty * unitPricePiastres</code></td><td>delivered</td><td><code>order:&lt;orderId&gt;:order_fee</code></td></tr>
+<tr><td><code>cod_fee</code></td><td><code>share(cashCollected, codPercentBp)</code></td><td>delivered</td><td><code>order:&lt;orderId&gt;:cod_fee</code></td></tr>
+<tr><td><code>packaging_charge</code></td><td>price <code>packagingChargePiastres</code></td><td>delivered</td><td><code>order:&lt;orderId&gt;:packaging_charge</code></td></tr>
+<tr><td><code>failed_fee</code></td><td>see 10.8</td><td>each failed attempt</td><td><code>delivery:&lt;deliveryId&gt;:failed_fee</code> (entries made before this key existed keep <code>order:&lt;orderId&gt;:failed_fee</code>)</td></tr>
+<tr><td><code>receiving_fee</code></td><td><code>sum(receivedQty) * receivingPerUnit</code></td><td>shipment closed</td><td><code>manifest:&lt;manifestId&gt;:receiving_fee</code></td></tr>
+<tr><td><code>storage_fee</code></td><td>see 10.10</td><td>each Cairo day, per store and merchant</td><td><code>storage:&lt;day&gt;:&lt;storeId&gt;:&lt;merchantId&gt;</code></td></tr>
+<tr><td><code>return_fee</code></td><td><code>sum(pickedQty) * returnPerUnit</code></td><td>return handed over</td><td><code>return:&lt;returnId&gt;:return_fee</code></td></tr>
+<tr><td><code>minimum_fee</code></td><td>top up to the monthly minimum (10.12)</td><td>first run after the month ends</td><td><code>minimum_fee:&lt;merchantId&gt;:&lt;YYYY-MM&gt;</code></td></tr>
+</tbody></table>
+<p>Units cancelled before delivery (<code>pickedQty</code> 0) are never charged by the products based fees. The customer's delivery fee (what the shopper paid for 60 minute delivery) is not ours: it is part of the cash collected and goes to the merchant wallet.</p>
+
+<h2 id="mf-delivery">10.7 The delivery posting</h2>
+<p>When the rider marks an order delivered (<code>packages/db/src/orders.ts</code>), the same database transaction updates the delivery (status, <code>codCollectedPiastres</code>), moves the order to delivered, raises a <code>cod_mismatch</code> alert when the collected cash differs from the expected COD, and calls <code>postDeliveryCompleted()</code> in <code>postings.ts</code>. That function writes these entries in this order:</p>
+<ol>
+<li><code>cod_collected</code>: the cash now belongs to the merchant.</li>
+<li><code>shipping_fee</code>, <code>product_handling</code>, <code>order_fee</code>, <code>cod_fee</code>, <code>packaging_charge</code> (each skipped when 0).</li>
+<li><code>rider_bonus</code>: the rider's pay for the delivery.</li>
+<li><code>rider_office_commission</code>, only when the rider is linked to an active rider office (chapter 11).</li>
+</ol>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1300 rider cash (<code>1300-nnnn</code>)</td><td>cash collected</td><td></td><td>store, merchant (from the order), rider</td></tr>
+<tr><td>2100 merchant wallet</td><td></td><td>cash collected</td><td>same</td></tr>
+</tbody></table>
+<p>Idempotency key: <code>delivery:&lt;deliveryId&gt;:cod</code>; entry kind: <code>cod_collected</code>. A prepaid order has cash 0, so no COD entry and a COD fee of 0.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5101 Rider pay per delivered order</td><td>pay</td><td></td><td>store, merchant, rider</td></tr>
+<tr><td>2200 rider wallet (<code>2200-nnnn</code>)</td><td></td><td>pay</td><td>same</td></tr>
+</tbody></table>
+<p>Idempotency key: <code>delivery:&lt;deliveryId&gt;:bonus</code>; entry kind: <code>rider_bonus</code>. Pay = setting <code>rider.bonus_per_delivery_piastres</code> (default 0, store override allowed) of the order's store.</p>
+
+<div class="example">
+<p>Contract in force: order fee 15 EGP fixed plus 2% of products, COD fee 1%, shipping fee 0, packaging charge 0, no per product prices, VAT 14%. Order: 2 units at 250 EGP, products value 50,000 piastres. The customer pays 550 EGP cash (products plus a 50 EGP delivery fee set by the merchant): cash collected 55,000 piastres. Rider pay 25 EGP (2,500). The rider belongs to an office with a 10% commission.</p>
+<ul>
+<li>Order fee = 1,500 + share(50,000, 200) = 1,500 + 1,000 = 2,500; VAT = share(2,500, 1400) = 350.</li>
+<li>COD fee = share(55,000, 100) = 550; VAT = share(550, 1400) = 77.</li>
+<li>Office commission = share(2,500, 1000) = 250.</li>
+</ul>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1300 rider cash</td><td>550.00</td><td></td><td>order, store, merchant, rider</td></tr>
+<tr><td>2100 merchant wallet</td><td></td><td>550.00</td><td>same</td></tr>
+<tr><td>2100 merchant wallet</td><td>28.50</td><td></td><td>order fee entry</td></tr>
+<tr><td>4101 fee income</td><td></td><td>25.00</td><td></td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>3.50</td><td></td></tr>
+<tr><td>2100 merchant wallet</td><td>6.27</td><td></td><td>COD fee entry</td></tr>
+<tr><td>4101 fee income</td><td></td><td>5.50</td><td></td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>0.77</td><td></td></tr>
+<tr><td>5101 rider pay</td><td>25.00</td><td></td><td>rider bonus entry</td></tr>
+<tr><td>2200 rider wallet</td><td></td><td>25.00</td><td></td></tr>
+<tr><td>5102 rider office commission</td><td>2.50</td><td></td><td>office commission entry</td></tr>
+<tr><td>2500 office supplier wallet</td><td></td><td>2.50</td><td></td></tr>
+</tbody></table>
+<p>Five separate entries (amounts in EGP). Keys: <code>delivery:D:cod</code>, <code>order:O:order_fee</code>, <code>order:O:cod_fee</code>, <code>delivery:D:bonus</code>, <code>delivery:D:office_commission</code>. The merchant's balance moves by 55,000 − 2,850 − 627 = 51,523 piastres (515.23 EGP) in their favour. The shipping fee, per product and packaging entries are not written because they are 0.</p>
+</div>
+
+<h2 id="mf-failed">10.8 The failed delivery rule</h2>
+<p>A failed attempt is charged on every attempt (one entry per delivery row), by <code>postDeliveryFailed()</code> in <code>postings.ts</code>, inside the same transaction as the failure. The rule is <code>failedDeliveryRule(version, tier, resolvedPrices, standardPercentBp)</code> in <code>packages/shared/src/contracts.ts</code>, applied in this order:</p>
+<ol>
+<li>A fixed failed fee set on the band or on the version (0 included) is used as it is.</li>
+<li>Else the version's <code>failedDeliveryPercentBp</code>, as a share of the shipment charges.</li>
+<li>Else, when the resolved shipping fee is above 0, <code>fee.failed_delivery_percent_bp</code> (default 10000) of the shipment charges.</li>
+<li>Else the resolved fixed failed fee (the standard <code>fee.failed_delivery_piastres</code>); contracts without a shipping fee behave as before shipping fees existed.</li>
+</ol>
+<p>The shipment charges are computed by <code>shipmentCharges()</code>:</p>
+<pre class="code">shipment = shippingFee
+         + productHandling(picked units at their product prices)
+         + orderFixed
+         + share(productsValue, orderPercentBp)
+failedFee = (mode fixed)   ? fixedPiastres
+          : (mode percent) ? share(shipment, bp)</pre>
+<p>The COD fee and the packaging charge are never part of the shipment charges (no cash was collected; packaging may be reused). Prices come from <code>contractPricesAt()</code> without an order id, so the band is the one the next delivered order of the month would take.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2100 merchant wallet</td><td>fee + VAT</td><td></td><td>order, store, merchant</td></tr>
+<tr><td>4101 fee income</td><td></td><td>fee</td><td></td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>VAT</td><td></td></tr>
+</tbody></table>
+<p>Idempotency key: <code>delivery:&lt;deliveryId&gt;:failed_fee</code>; entry kind: <code>failed_fee</code>; data holds the reason, the mode and, for percent mode, <code>percentBp</code> and <code>shipmentPiastres</code>. A failed attempt earns the rider nothing.</p>
+<div class="example">
+<p>All inclusive contract: shipping fee 60 EGP (6,000 piastres), everything else 0, failed share 100%. Shipment charges = 6,000 + 0 + 0 + share(50,000, 0) = 6,000. Failed fee = share(6,000, 10000) = 6,000; VAT = share(6,000, 1400) = 840. The merchant is charged 68.40 EGP for the attempt. With a share of 5,000 bp the fee would be 3,000 and VAT 420. With a fixed failed fee of 20 EGP set on the version (and no share), the fee is 2,000 whatever the shipment.</p>
+</div>
+
+<h2 id="mf-receiving">10.9 Receiving fee</h2>
+<p><code>postReceivingFee()</code> runs when staff close an inbound manifest (<code>packages/db/src/inbound.ts</code>), in the closing transaction. Units are all <code>receivedQty</code> of the manifest lines, including extra units and products not listed. Price is <code>receivingPerUnitPiastres</code> of the version in force at the closing moment, at the band of the next delivered order.</p>
+<pre class="code">fee = sum(line.receivedQty) * receivingPerUnitPiastres
+vat = share(fee, fee.vat_bp)</pre>
+<p>Posting: the standard fee lines (merchant wallet debit, fee income and VAT credit), store tag = the manifest's store. Idempotency key <code>manifest:&lt;manifestId&gt;:receiving_fee</code>; kind <code>receiving_fee</code>.</p>
+<div class="example"><p>120 units received at 2 EGP: fee 24,000 piastres, VAT 3,360; merchant debited 27,360 (273.60 EGP).</p></div>
+
+<h2 id="mf-storage">10.10 Storage, charged daily with catch up</h2>
+<h3>Formula</h3>
+<p><code>accrueStorage(db, day, units)</code> in <code>postings.ts</code> charges one Cairo day for every store and merchant pair. Units are every unit of the merchant in every bin of the store at the end of the day, sellable or not (receiving, damaged and held bins included).</p>
+<pre class="code">daysInMonth = number of days of the calendar month of `day`
+fee = floor((units * storagePerUnitMonthPiastres + floor(daysInMonth / 2)) / daysInMonth)
+vat = share(fee, fee.vat_bp)
+skip the pair when fee &lt;= 0</pre>
+<p>This is the monthly price divided by the days of the month, rounded half up per store, merchant and day. The prices are those of the version in force on that day at the band the month's deliveries reached (next delivered order). The entry is dated the last millisecond of the day (<code>cairoDayStart(day + 1) − 1 ms</code>), so statements show it on that day.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2100 merchant wallet</td><td>fee + VAT</td><td></td><td>store, merchant</td></tr>
+<tr><td>4101 fee income</td><td></td><td>fee</td><td>store, merchant</td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>VAT</td><td>store, merchant</td></tr>
+</tbody></table>
+<p>Idempotency key <code>storage:&lt;YYYY-MM-DD&gt;:&lt;storeId&gt;:&lt;merchantId&gt;</code>; kind <code>storage_fee</code>; data holds day, store, units and monthly price. A day inside closed books is skipped silently (<code>postUnlessClosed()</code> swallows <code>books_closed</code>), never retried.</p>
+<div class="example"><p>300 units at 1.50 EGP per unit per month (150 piastres). In November (30 days): floor((45,000 + 15) / 30) = 1,500 piastres per day. In December (31 days): floor((45,000 + 15) / 31) = 1,452 piastres, VAT share(1,452, 1400) = 203.</p></div>
+
+<h3>Units of a past day and the catch up</h3>
+<p>The free hosting sleeps, so the daily job may run late. <code>chargeStorageDays()</code> in <code>packages/db/src/finance/storage.ts</code>:</p>
+<ol>
+<li>finds the last day already done (the newest <code>storage_days</code> row, or before that table existed, the newest day in a <code>storage_fee</code> entry);</li>
+<li>charges every day after it up to the last finished Cairo day, at most <code>storage.catch_up_days</code> days (default 7, global; older missed days stay uncharged);</li>
+<li>for each day, reads the units of that day from the snapshot table <code>stock_unit_days</code>, or works them out once from the stock and writes the snapshot (first writer wins);</li>
+<li>charges the day and writes a <code>storage_days</code> row (also for a day skipped by closed books).</li>
+</ol>
+<p>Units of a past day are exact because stock only changes through append only stock movements: <code>unitsAtDayEnds()</code> takes the units held now per store and merchant and undoes every movement (into or out of a bin) made after the end of that day. A negative result counts as 0. The snapshot is written for every merchant, also those paying no storage, because the merchant profit report shares rent by these unit days (chapter 13).</p>
+<p>The API job <code>runStorageCharge()</code> (<code>apps/api/src/jobs/jobs.service.ts</code>) runs it under a Postgres advisory lock (<code>pg_try_advisory_xact_lock</code>), at most once per finished day per process.</p>
+
+<h2 id="mf-return">10.11 Return fee</h2>
+<p><code>postReturnFee()</code> runs when staff hand a return parcel to the merchant's collector (<code>packages/db/src/returns.ts</code>). Units are the sum of <code>pickedQty</code> of the return lines.</p>
+<pre class="code">fee = sum(line.pickedQty) * returnPerUnitPiastres</pre>
+<p>Standard fee lines; store tag = the return's store. Idempotency key <code>return:&lt;returnId&gt;:return_fee</code>; kind <code>return_fee</code>.</p>
+
+<h2 id="mf-minimum">10.12 Monthly minimum fee</h2>
+<p>A version may set <code>minimumMonthlyFeePiastres</code>. After a month ends, <code>chargeMinimumFees()</code> in <code>contracts.ts</code> (job <code>runContractMinimums()</code>, once per Cairo day, under an advisory lock) tops the month up.</p>
+<pre class="code">for each day d of the month:
+    v = versionInForce(merchant, d)
+    if v has a minimum and v's dates cover d: sum += v.minimum; days += 1
+minimum = days &gt; 0 ? round(sum / daysInMonth) : 0        (Math.round)
+fees    = fee income (4101, before VAT) tagged with the merchant in the month,
+          minimum_fee entries excluded (credit notes and adjustments reduce it)
+topUp   = minimum − fees;   charge only when topUp &gt; 0
+vat     = share(topUp, fee.vat_bp)</pre>
+<p>A minimum is therefore shared out by days: a contract that starts on the 16th of a 30 day month with a 3,000 EGP minimum gives a minimum of round(15 × 300,000 / 30) = 150,000 piastres. Before charging on the first day after the month, the month's last storage day is charged first (<code>accrueStorage(db, last)</code>), so it counts in the fees. The entry is dated the last millisecond of the month; a month inside closed books is skipped.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>2100 merchant wallet</td><td>topUp + VAT</td><td></td><td>merchant</td></tr>
+<tr><td>4101 fee income</td><td></td><td>topUp</td><td>merchant</td></tr>
+<tr><td>2301 VAT payable</td><td></td><td>VAT</td><td>merchant</td></tr>
+</tbody></table>
+<p>Idempotency key <code>minimum_fee:&lt;merchantId&gt;:&lt;YYYY-MM&gt;</code>; kind <code>minimum_fee</code>.</p>
+<div class="example"><p>Minimum 5,000 EGP for all of November; fees booked 3,200 EGP. Top up 180,000 piastres, VAT share(180,000, 1400) = 25,200. The merchant is debited 2,052 EGP on 30 November 23:59:59.999 Cairo time.</p></div>
+
+<h2 id="mf-vat">10.13 VAT on top</h2>
+<p>VAT is never part of a contract. It is the single global setting <code>fee.vat_bp</code> read at the moment each fee is booked, added on top of every fee kind (including the minimum top up). Contract screens show it but cannot change it. The VAT credited to 2301 on fees is the output VAT of the VAT report and return (chapter 15).</p>
+
+<h2 id="mf-damage">10.14 Damage compensation and rider charge</h2>
+<p>Units go to the damaged bin only through a damage report with a cause (<code>arrived_damaged</code>, <code>store_handling</code>, <code>delivery</code>, <code>customer</code>, <code>expired</code>). Admin settles it with <code>settleDamage()</code> in <code>packages/db/src/damage.ts</code>, confirming or changing the cause (a change needs a note). The money moves in the same transaction; settling twice is refused.</p>
+<pre class="code">companyPays  = cause in ('store_handling', 'delivery')        (COMPANY_CAUSES)
+compensation = companyPays ? quantity * product.pricePiastres : 0
+riderCharge  = chargeRider ? compensation : 0
+               (chargeRider allowed only for cause 'delivery' with a rider on the report)</pre>
+<p>No VAT: compensation is not a fee.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5201 Damage paid by us</td><td>compensation</td><td></td><td>store, merchant</td></tr>
+<tr><td>2100 merchant wallet</td><td></td><td>compensation</td><td>store, merchant</td></tr>
+</tbody></table>
+<p>Idempotency key <code>damage:&lt;reportId&gt;:compensation</code>; kind <code>damage_compensation</code>.</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1350 rider dues (<code>1350-nnnn</code>)</td><td>riderCharge</td><td></td><td>store, rider</td></tr>
+<tr><td>5201 Damage paid by us</td><td></td><td>riderCharge</td><td>store, rider</td></tr>
+</tbody></table>
+<p>Idempotency key <code>damage:&lt;reportId&gt;:rider_charge</code>; kind <code>damage_rider_charge</code>. The rider owes it and it is taken from their next withdrawal (chapter 11).</p>
+<div class="example"><p>3 units of a product priced 200 EGP, cause delivery, rider charged: compensation 60,000 piastres credited to the merchant; 60,000 moved onto the rider's dues; the net cost to the company is 0.</p></div>
+
+<h2 id="mf-credit">10.15 Credit limit</h2>
+<p><code>assertWithinCreditLimit()</code> refuses a new shipment while the merchant owes us more than the version's <code>creditLimitPiastres</code> (error <code>merchant_over_credit_limit</code>), and raises one <code>merchant_over_credit_limit</code> alert per merchant and Cairo day (key <code>credit_limit:&lt;merchantId&gt;:&lt;day&gt;</code>). No limit set means no check.</p>
+
+<h2 id="mf-calc">10.16 The contract calculator</h2>
+<p>The contract editor, the sales proposals and the merchant profit what if use pure functions in <code>packages/shared/src/contracts.ts</code> that mirror the postings:</p>
+<ul>
+<li><code>orderCharge(terms, standard, vatBp, input)</code>: one shipment at its band, every fee and the VAT computed per fee (as booked), plus what the same shipment costs if the attempt fails.</li>
+<li><code>monthEstimate(...)</code>: orders spread evenly over the month (bands walked from where each starts), storage day by day at the band reached so far (<code>soFar = floor(orders * d / days)</code>), the minimum topping the fees up, VAT on the month total.</li>
+<li><code>whatIf(base, params)</code>: recomputes shipping, order and COD fees for a booked month, keeps other fees, applies a minimum.</li>
+</ul>
+
+<h2 id="mf-code">10.17 Where the code lives</h2>
+<table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>Fee postings</td><td><code>packages/db/src/finance/postings.ts</code>: <code>feeLines</code>, <code>postDeliveryCompleted</code>, <code>postDeliveryFailed</code>, <code>postReceivingFee</code>, <code>postReturnFee</code>, <code>accrueStorage</code></td></tr>
+<tr><td>Contract resolution</td><td><code>packages/db/src/finance/contracts.ts</code>: <code>standardPrices</code>, <code>versionInForce</code>, <code>contractPricesAt</code>, <code>pricesForDay</code>, <code>productPricesFor</code>, <code>activateContractVersion</code>, <code>minimumForMonth</code>, <code>chargeMinimumFees</code>, <code>assertWithinCreditLimit</code></td></tr>
+<tr><td>Pure price rules</td><td><code>packages/shared/src/contracts.ts</code>: <code>CONTRACT_PRICES</code>, <code>tierFor</code>, <code>resolvePrices</code>, <code>failedDeliveryRule</code>, <code>shipmentCharges</code>, <code>productHandlingCharge</code>, <code>bpShare</code></td></tr>
+<tr><td>Storage days</td><td><code>packages/db/src/finance/storage.ts</code>: <code>chargeStorageDays</code>, <code>unitsAtDayEnds</code>, <code>unitsForDays</code></td></tr>
+<tr><td>Rider office commission</td><td><code>packages/db/src/finance/rider-offices.ts</code>: <code>postRiderOfficeCommission</code></td></tr>
+<tr><td>Damage</td><td><code>packages/db/src/damage.ts</code>: <code>settleDamage</code></td></tr>
+</tbody></table>
+</section>

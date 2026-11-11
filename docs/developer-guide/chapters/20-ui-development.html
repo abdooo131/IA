@@ -1,0 +1,413 @@
+<section class="chapter" id="ch-ui-development">
+<h1>UI development</h1>
+
+<p>The web app (<code>apps/web</code>) is a Next.js app router project in TypeScript with Tailwind CSS. It holds no business rule of its own: every number and every decision comes from the API, and the screens only collect input, show answers and keep state in the address bar. This chapter explains how pages are built, how text and direction are handled, the brand tokens, the app frame, and every reusable building block, with the props a developer needs.</p>
+
+<h2 id="ui-structure">App router structure</h2>
+<p>Pages live in <code>apps/web/src/app</code>. Each area is a folder with a <code>layout.tsx</code> that draws the frame and pages under it:</p>
+<table class="data">
+<thead><tr><th>Folder</th><th>Area</th><th>Frame</th></tr></thead>
+<tbody>
+<tr><td><code>app/page.tsx</code>, <code>how-it-works</code>, <code>solutions</code>, <code>contact</code>, <code>team</code></td><td>Public company site</td><td><code>SiteShell</code> (its own scoped styles)</td></tr>
+<tr><td><code>home</code></td><td>App tiles for team members</td><td>None (a grid of tiles)</td></tr>
+<tr><td><code>admin</code></td><td>Operations, Inventory, Merchants, Customers, HR, Sales, Settings</td><td><code>AppShell</code></td></tr>
+<tr><td><code>finance</code></td><td>Accounting</td><td><code>AppShell</code> with the Accounting search and badges</td></tr>
+<tr><td><code>store</code></td><td>Dark store staff (mobile first)</td><td><code>store/[storeId]/layout.tsx</code> with <code>BottomTabs</code></td></tr>
+<tr><td><code>rider</code></td><td>Riders (mobile first)</td><td>Each page draws <code>AppHeader</code></td></tr>
+<tr><td><code>merchant</code></td><td>Merchant users</td><td><code>DashboardShell</code> (Navy sidebar)</td></tr>
+<tr><td><code>my-file</code></td><td>My HR for every team member and rider</td><td></td></tr>
+<tr><td><code>t/[token]</code>, <code>p/[token]</code>, <code>setup/[token]</code></td><td>Public tracking page, public proposal, one time password setup</td><td></td></tr>
+<tr><td><code>api/[...path]</code></td><td>The proxy to the API</td><td>Route handler</td></tr>
+</tbody>
+</table>
+<p>Accounting pages follow one pattern: a server component page reads its <code>searchParams</code>, fetches what it needs with <code>apiGet</code>, and renders building blocks. Most pages set <code>export const dynamic = 'force-dynamic'</code> because their data is always live.</p>
+<pre class="code">// apps/web/src/app/finance/layout.tsx
+export const dynamic = 'force-dynamic';
+
+/** The Accounting app. */
+export default async function FinanceLayout({ children }: { children: ReactNode }) {
+  const controls = await apiGet&lt;FinanceControls&gt;('/finance/controls');
+  return (
+    &lt;AppShell
+      search={&lt;AccountingSearch /&gt;}
+      badges={{
+        '/finance/approvals': controls.waiting + controls.payoutsToApprove,
+        '/finance/receipts': controls.missingReceipts,
+      }}
+    &gt;
+      {children}
+    &lt;/AppShell&gt;
+  );
+}</pre>
+
+<h2 id="ui-data">Fetching data</h2>
+<h3 id="ui-server-fetch">Server components</h3>
+<p><code>apps/web/src/lib/api-server.ts</code> (marked <code>server-only</code>) reads the access token from the cookie and calls the API directly at <code>API_URL</code> with an <code>Authorization: Bearer</code> header and <code>cache: 'no-store'</code>:</p>
+<ul>
+<li><code>apiGet&lt;T&gt;(path)</code>: a 401 redirects to <code>/login</code>; a 404 or 403 shows the not found page (a record of another store, an old link); other errors throw.</li>
+<li><code>apiTry&lt;T&gt;(path)</code>: for a secondary part of a page; answers null instead of failing, so the rest of the page still shows.</li>
+<li><code>getMyAccess()</code>: <code>GET /me/access</code>, cached once per request with React <code>cache</code>, so every layout and page asking gets one call. <code>getMyProfile()</code> returns the team member's access profile; <code>getMerchantRights()</code> and <code>requireMerchantRight()</code> serve merchant pages.</li>
+</ul>
+<h3 id="ui-client-fetch">Client components</h3>
+<p>Client components (files starting with <code>'use client'</code>) call the API through the same origin proxy, so the httpOnly cookie is sent: <code>apiSend(method, path, body)</code> and <code>apiGetClient(path)</code> in <code>apps/web/src/lib/api-client.ts</code>. Both return <code>{ ok: true, data }</code> or <code>{ ok: false, error, details? }</code> and never throw; a network failure answers <code>error: 'network'</code>. After a successful change the component calls <code>router.refresh()</code> so the server components fetch fresh data. The accounting helper <code>useFinanceAction()</code> wraps this: it sends one action, shows the translated result or error message, says "sent for approval" when the answer is <code>{ status: 'pending' }</code>, and refreshes.</p>
+<h3 id="ui-proxy">The /api proxy and the middleware</h3>
+<p>The browser never calls the API host. <code>app/api/[...path]/route.ts</code> forwards every method to <code>API_URL</code> read at runtime, so one build runs on any host (described in the architecture chapter). <code>middleware.ts</code> runs on the Node.js runtime for the signed in areas, decides with <code>decideAccess</code> whether to allow, send to login, refresh the session or redirect to the person's own area, and passes the path in a request header so <code>AppShell</code> can show not found for a page the person may not open.</p>
+
+<h2 id="ui-i18n">Translations, Arabic and right to left</h2>
+<div class="rule">The UI supports Arabic (right to left) and English (left to right). Strings go through translation files, never written into components.</div>
+<p>Translations use <code>next-intl</code>. The locale comes from the cookie <code>shiply_locale</code> (<code>en</code> or <code>ar</code>, default <code>en</code>), not from the address, so areas keep plain paths like <code>/finance</code>. <code>apps/web/src/i18n/request.ts</code> loads <code>messages/&lt;locale&gt;.json</code> for each request. The theme is the cookie <code>shiply_theme</code> (<code>system</code>, <code>light</code>, <code>dark</code>). The language and theme menu sets the cookie with <code>document.cookie</code> and calls <code>router.refresh()</code>.</p>
+<p>Messages are one JSON file per language with top level namespaces per area: <code>common</code>, <code>admin</code>, <code>store</code>, <code>merchant</code>, <code>rider</code>, <code>finance</code>, <code>workflow</code>, <code>listView</code>, <code>lists</code>, <code>documents</code>, <code>infoTips</code>, <code>apps</code>, <code>hr</code>, <code>sales</code>, <code>cashControl</code>, <code>contracts</code>, <code>riderPay</code>, <code>basata</code> and others. Server components use <code>getTranslations('finance.journal')</code>; client components use <code>useTranslations('listView')</code>. Values take ICU placeholders: <code>t('label', { term })</code>. <code>t.has(key)</code> is used to fall back when a code may have no message (for example unknown error codes fall back to <code>generic</code>).</p>
+<div class="rule">Translation keys never contain dots, because <code>next-intl</code> treats dots as nesting. Setting names such as <code>sla.pick_minutes</code> become keys like <code>sla__pick_minutes</code>.</div>
+<p>A test (<code>apps/web/src/lib/messages.test.ts</code>) fails when Arabic and English do not have exactly the same keys, or when any key contains a dot.</p>
+<p>Direction is set once on <code>&lt;html&gt;</code>: the root layout writes <code>lang</code> and <code>dir</code> (<code>rtl</code> for Arabic) from the locale. Components then use logical Tailwind classes that follow the direction (<code>ms-</code>, <code>me-</code>, <code>ps-</code>, <code>start-</code>, <code>end-</code>, <code>border-s</code>) and the <code>rtl:</code> variant where a picture must turn (a chevron uses <code>rtl:rotate-180</code>). Numbers, phones, amounts, document numbers and order numbers stay left to right inside Arabic text with the class <code>ltr-iso</code>:</p>
+<pre class="code">/* Numbers, phones and order IDs stay left to right inside Arabic text. */
+.ltr-iso {
+  direction: ltr;
+  unicode-bidi: isolate;
+}</pre>
+<p>Amounts and dates always use Latin digits (the date formatters use <code>ar-EG-u-nu-latn</code>). Arabic text never takes letter spacing, because it breaks the joining of letters. Charts keep time running left to right in Arabic too. The brand's S arrow mark is never mirrored.</p>
+
+<h2 id="ui-theme">Theme and brand tokens</h2>
+<p>Colors, type, space, radius and shadow are CSS custom properties in <code>apps/web/src/styles/shiply-tokens.css</code>, named by role, not by color. A Tailwind preset (<code>apps/web/src/styles/shiply.tailwind.js</code>) maps Tailwind names to these variables, so dark mode needs no extra classes in page code:</p>
+<pre class="code">colors: {
+  shiply: { cream: '#FAF1E8', navy: '#082341', blue: '#0046FC', lime: '#CFF905' },
+  bg: 'var(--shiply-bg)',
+  surface: 'var(--shiply-surface)',
+  text: 'var(--shiply-text)',
+  'text-muted': 'var(--shiply-text-muted)',
+  primary: 'var(--shiply-primary)',
+  'on-primary': 'var(--shiply-on-primary)',
+  // Lime: one highlight per screen at most, always with on-accent (Navy) text.
+  accent: 'var(--shiply-accent)',
+  'on-accent': 'var(--shiply-on-accent)',
+  ...
+}</pre>
+<h3 id="ui-palette">Palette</h3>
+<table class="data">
+<thead><tr><th>Brand color</th><th>Hex</th><th>Use</th></tr></thead>
+<tbody>
+<tr><td>Cream</td><td><code>#FAF1E8</code></td><td>Brand grounds, text on Navy cards</td></tr>
+<tr><td>Navy</td><td><code>#082341</code></td><td>Text, the dark theme ground, the merchant sidebar, wallet cards</td></tr>
+<tr><td>Shiply Blue</td><td><code>#0046FC</code></td><td>Actions, links, charts</td></tr>
+<tr><td>Lime</td><td><code>#CFF905</code></td><td>Accent: at most one highlight per screen, never text on white or Cream, text on Lime is always Navy</td></tr>
+</tbody>
+</table>
+<table class="data">
+<thead><tr><th>Role</th><th>Light</th><th>Dark</th></tr></thead>
+<tbody>
+<tr><td><code>bg</code> (page)</td><td><code>#F3F6FA</code></td><td><code>#082341</code></td></tr>
+<tr><td><code>surface</code> (cards)</td><td><code>#FFFFFF</code></td><td><code>#0D2B4D</code></td></tr>
+<tr><td><code>surface-raised</code></td><td><code>#F3F6FA</code></td><td><code>#133559</code></td></tr>
+<tr><td><code>line</code></td><td><code>#DFE5EE</code></td><td><code>#24476F</code></td></tr>
+<tr><td><code>line-strong</code> (form fields, 3:1)</td><td><code>#7F8798</code></td><td><code>#6B85AB</code></td></tr>
+<tr><td><code>text</code></td><td><code>#082341</code></td><td><code>#FAF1E8</code></td></tr>
+<tr><td><code>text-muted</code></td><td><code>#5B6B82</code></td><td><code>#BFCBE0</code></td></tr>
+<tr><td><code>primary</code></td><td><code>#0046FC</code></td><td><code>#3366FF</code></td></tr>
+<tr><td><code>link</code></td><td><code>#0046FC</code></td><td><code>#9DB5FF</code></td></tr>
+<tr><td><code>accent</code> / <code>on-accent</code></td><td><code>#CFF905</code> / <code>#082341</code></td><td>same</td></tr>
+<tr><td><code>danger</code></td><td><code>#B42318</code></td><td><code>#FF8A7A</code></td></tr>
+<tr><td><code>status-new</code></td><td><code>#4E5A72</code></td><td><code>#B3BFD0</code></td></tr>
+<tr><td><code>status-in-progress</code></td><td><code>#6A3FD6</code></td><td><code>#B9A2FF</code></td></tr>
+<tr><td><code>status-heading-to-customer</code></td><td><code>#A8188E</code></td><td><code>#F28BDE</code></td></tr>
+<tr><td><code>status-delivered</code></td><td><code>#0F6A35</code></td><td><code>#5FD38D</code></td></tr>
+<tr><td><code>status-needs-action</code></td><td><code>#9A4100</code></td><td><code>#FFB35C</code></td></tr>
+<tr><td><code>status-returning</code></td><td><code>#B42318</code></td><td><code>#FF8A7A</code></td></tr>
+<tr><td><code>hero</code> / <code>hero-ink</code> / <code>hero-accent</code> (wallet cards)</td><td><code>#082341</code> / <code>#FAF1E8</code> / <code>#CFF905</code></td><td><code>#0046FC</code> / <code>#FFFFFF</code> / <code>#CFF905</code></td></tr>
+</tbody>
+</table>
+<p>The dark theme applies with <code>[data-theme="dark"]</code> on <code>&lt;html&gt;</code> (an explicit choice) or with the operating system setting when the person chose system (<code>@media (prefers-color-scheme: dark)</code> on <code>:root:not([data-theme='light'])</code>). The two dark blocks are identical, and <code>.shiply-on-navy</code> applies the same dark roles inside a light page (the merchant sidebar). Buttons are component classes in <code>globals.css</code>: <code>btn-primary</code> (Blue), <code>btn-secondary</code> (Navy outline), <code>btn-accent</code> (Lime with Navy text). Status pills use the status color as text on a 14% tint of itself.</p>
+<h3 id="ui-fonts">Fonts and type</h3>
+<p>Fonts are self hosted woff2 files: Plus Jakarta Sans 400 to 800 for Latin and IBM Plex Sans Arabic 400 to 700 for Arabic pages (its 700 also serves 800). Type sizes are tokens and Tailwind sizes: <code>display</code> 56px, <code>h1</code> 40px, <code>h2</code> 28px, <code>h3</code> 20px, <code>body-lg</code> 18px, <code>body</code> 16px, <code>body-sm</code> 14px, <code>caption</code> 13px, <code>label</code> 12px with letter spacing, and <code>number-lg</code> 28px for big numbers. Tables of numbers use the class <code>tabular</code> (tabular figures).</p>
+<h3 id="ui-wcag">Contrast test</h3>
+<p><code>apps/web/src/styles/tokens.test.ts</code> parses the token file and checks every text and interface pair the components use against WCAG AA in both themes: 4.5:1 for text on every ground (text, muted text, link, danger and each status color on <code>bg</code>, <code>surface</code> and <code>surface-raised</code>), 3:1 for form borders, focus rings and buttons against the page, plus <code>on-primary</code> on <code>primary</code>, <code>on-accent</code> on <code>accent</code>, <code>on-status</code> on every status color and the hero pairs. It also checks that the system dark block, the explicit dark block and <code>.shiply-on-navy</code> are identical, and that each app tile's icon color (white or Navy, chosen by <code>tileInk</code>) is readable on the tile.</p>
+
+<figure class="shot" data-shot="ui-theme-light-dark"><figcaption>The Accounting dashboard at <code>/finance</code> shown twice side by side: in the light theme (grey page, white cards, Navy text) and in the dark theme (Navy grounds, Cream text), with the same cards and sparklines.</figcaption></figure>
+
+<h2 id="ui-layout">Layout: apps, top bar and menus</h2>
+<p>Team members land on <code>/home</code>, a screen of app tiles. The tiles come from <code>appsFor(profile)</code>: an app shows when the person has at least view on its access app (Settings needs manage) and at least one page they may open. A person with store use also gets the Store screens tile.</p>
+<p>Inside an app, <code>AppShell</code> (a server component) draws the <code>AppBar</code> and the page. It reads the profile, the theme and the path header; when the path is a page on a menu the person may not open, it answers not found. <code>AppBar</code> holds the grid button back to <code>/home</code>, the app's name, its menus and the account menu. A menu with one page is a plain link; a menu with several opens a list. Counts (<code>badges</code>) show next to a page and its menu. On phones (below the <code>lg</code> breakpoint) the menus fold into one Menu button that lists them all.</p>
+<p>Every app, menu and page is defined once in <code>apps/web/src/lib/apps.ts</code>. Pages keep their addresses; the file only says which app and menu each belongs to and what access it needs:</p>
+<pre class="code">export interface PageNeed {
+  app?: AccessApp;        // the app whose level is needed (default: the page's app)
+  level?: AccessLevel;    // default view
+  customerData?: boolean;
+  salaries?: boolean;
+  owner?: boolean;        // accounting manage and settings manage
+}
+export interface AppPage { href: string; label: string; exact?: boolean; need?: PageNeed }
+
+// part of the Accounting app
+{
+  label: 'moneyOut',
+  pages: [
+    { href: '/finance/expenses/new', label: 'recordExpense', need: { level: 'use' } },
+    { href: '/finance/bills', label: 'bills' },
+    { href: '/finance/payroll', label: 'payroll', exact: true, need: { salaries: true } },
+    ...
+  ],
+}</pre>
+<p>The Accounting menus are organised by job: Dashboard, Money in, Money out, Cash and bank, Reports, Planning, Month end and Setup. <code>locate(pathname)</code> finds the page with the longest matching address, so a document such as <code>/finance/bills/&lt;id&gt;</code> lights the Bills menu. <code>canOpenPage</code> applies the page's need with <code>canDo</code> from <code>packages/shared</code>, the same function the API uses. A test (<code>apps/web/src/lib/apps.test.ts</code>) checks which apps and pages each job role sees.</p>
+<p>The account menu (<code>AccountMenu</code>) is one Settings button on every signed in screen. It opens Help (the standard operating procedure of the person's role), Notifications, Tickets (team members and riders only), language, theme and Sign out, so these never take a row of a phone screen. It shows the person's photo from My HR when there is one.</p>
+<p>Grid cells never grow wider than their column (<code>.grid &gt; * { min-width: 0 }</code> in <code>globals.css</code>), so a wide table scrolls inside its own box and pages never slide sideways on a phone.</p>
+
+<figure class="shot" data-shot="ui-app-bar-accounting"><figcaption>The Accounting top bar on a desktop at <code>/finance/bills</code>: the grid button, the Accounting name, the menus (Dashboard, Money in, Money out with its list open, Cash and bank, Reports, Planning, Month end, Setup), the search box and the account menu button; the Approvals count badge visible.</figcaption></figure>
+<figure class="shot" data-shot="ui-app-bar-phone"><figcaption>The same page on a phone width: the top bar with the grid button, the app name and the single Menu button opened, listing every menu and page.</figcaption></figure>
+
+<h2 id="ui-listview">ListView</h2>
+<p><code>ListView</code> (<code>apps/web/src/components/odoo/ListView.tsx</code>, a client component) is the Odoo style list: a search bar with facet chips, a Filters, Group by and Favourites panel, a column chooser, row selection with a bulk action bar, CSV and Excel exports, totals of money and count columns, paging, and cards on phones.</p>
+<pre class="code">&lt;ListView config={config} data={data} toolbar={&lt;NewBillButton /&gt;} /&gt;</pre>
+<table class="data">
+<thead><tr><th>Prop</th><th>Type</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>config</code></td><td><code>ListViewConfig</code></td><td>The list's columns, filters, value filters, groupings, labels, row link, bulk actions, default filters and export name.</td></tr>
+<tr><td><code>data</code></td><td><code>ListResult</code></td><td>The rows of the current page (or the groups), totals and counts, fetched by the server page for the current address.</td></tr>
+<tr><td><code>toolbar</code></td><td>React node</td><td>The page's own buttons next to the search (New bill, an export of lines).</td></tr>
+</tbody>
+</table>
+<p>The configuration type (<code>apps/web/src/lib/list-view.ts</code>):</p>
+<pre class="code">export interface ListViewConfig {
+  listId: string;                 // favourites and chosen columns are kept per list id
+  endpoint: string;               // GET, the list state as query
+  columns: ListColumn[];          // key, label, kind, optional, sort, primary, format
+  filters: { key: string; group: string; label: string }[];
+  values?: ListValueFilter[];     // a store, a merchant, a first or last day
+  groupBys: { key: string; label: string }[];
+  valueLabels: Record&lt;string, Record&lt;string, string&gt;&gt;;   // statuses and kinds in words
+  rowHref?: string;               // each row opens this page; {id} or any {field} is filled in
+  bulkActions?: BulkAction[];
+  defaultFilters: string[];
+  exportName: string;
+  navIdKey?: string; navTrail?: { label: string; href: string }[]; navLabel?: string;
+}</pre>
+<p>Column kinds are <code>text</code>, <code>ltr</code>, <code>money</code>, <code>number</code>, <code>date</code>, <code>datetime</code>, <code>status</code> and <code>bool</code>. A column marked <code>optional</code> is hidden until chosen; <code>primary</code> is the card title on phones; <code>format</code> names a formatter that builds a sentence from the row (an alert as one sentence).</p>
+
+<h3 id="ui-list-state">State in the address</h3>
+<p>The list's whole state lives in the address, so Back works and a view can be shared as a link. The parameters, read and written by <code>parseListState</code> and <code>serializeListState</code> in <code>packages/shared/src/list-view.ts</code>:</p>
+<table class="data">
+<thead><tr><th>Parameter</th><th>Meaning</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td><code>q</code></td><td>Typed search, matched across the row's search fields with Arabic letter forms and case folded</td><td><code>q=nile</code></td></tr>
+<tr><td><code>f</code></td><td>Predefined filters, comma separated. Always written, even empty, so removing the last filter does not bring the defaults back</td><td><code>f=open,overdue</code></td></tr>
+<tr><td><code>g</code></td><td>Group by, one or two levels</td><td><code>g=supplier,month</code></td></tr>
+<tr><td><code>sort</code>, <code>desc</code></td><td>Sort key and direction</td><td><code>sort=due_day&amp;desc=1</code></td></tr>
+<tr><td><code>page</code>, <code>size</code></td><td>Page (from 1) and page size (25, 50, 100 or 200; 50 by default)</td><td><code>page=2&amp;size=100</code></td></tr>
+<tr><td><code>v</code></td><td>Value filters as <code>key:value</code> pairs: a store, a merchant, a first or last Cairo day</td><td><code>v=store:abc,from:2026-11-01</code></td></tr>
+</tbody>
+</table>
+<p>Filters in the same group are joined by "or"; filter groups and value filters are joined by "and", as in Odoo. Unknown keys are dropped when the state is read, so an old shared link still opens. Any change of what is shown goes back to page 1. Other parameters of the address (a tab) are kept.</p>
+
+<h3 id="ui-list-panel">Search, filters, grouping and favourites</h3>
+<p>The search bar shows one chip per active facet: the typed search, one chip per filter group (its filters joined by "or"), the value filters and the grouping. Backspace in an empty search box removes the last chip. The Filters panel lists the predefined filters by group and the value filters: pick lists apply at once, days apply with an Apply days button. The Group by panel toggles up to two levels; a grouped list first shows the groups with counts and subtotals, and opening a group fetches its rows with <code>open=&lt;keys joined by a newline&gt;</code>.</p>
+<p>Favourites save the current view under a name, per person and per list (<code>user_list_favorites</code>, routes <code>GET/POST/DELETE /me/list-favorites</code>, audited <code>list.favorite_save</code>). One favourite can be the default: it opens when the address names no list state. The column chooser saves the visible columns per person (<code>PUT /me/list-prefs/:list</code>) and caches them in <code>localStorage</code> (<code>shiply-cols:&lt;listId&gt;</code>), wrapped in try and catch because storage may be off.</p>
+
+<h3 id="ui-list-bulk">Selection and bulk actions</h3>
+<p>Ticking rows shows a sticky bulk bar with the list's actions. A bulk action is declarative:</p>
+<pre class="code">export interface BulkAction {
+  key: string;
+  label: string;
+  endpoint: string;               // POSTed with { ids, note?, ...body }
+  body?: Record&lt;string, unknown&gt;;
+  note?: 'required' | 'optional'; // a reason asked before it runs
+  tone?: 'primary' | 'danger';
+  choice?: { field: string; label: string; options: { value: string; label: string }[] };
+}</pre>
+<p>The endpoint answers <code>{ results: [{ id, ok, error }] }</code>. On the API, <code>eachRecord</code> (<code>apps/api/src/common/bulk.ts</code>) runs the single record action for each id in its own transaction, so each record still goes through every rule (never one's own, the approval limit, scope) and one refusal never stops the others. The bar then shows how many succeeded and why the others were refused, in the reader's language (<code>listView.errors</code>).</p>
+
+<h3 id="ui-list-export">Exports, totals and paging</h3>
+<p>Export CSV and Export Excel fetch every row that passes the current state (<code>all=1</code>, up to <code>LIST_MAX_ROWS</code>, 5,000), keep only the ticked rows when some are ticked, and build the file in the browser with <code>exportCsv</code> or <code>exportXlsx</code> from <code>packages/shared/src/export-file.ts</code>:</p>
+<ul>
+<li>CSV starts with a <code>UTF-8</code> byte order mark so Excel shows Arabic, uses Windows line ends, and prefixes cells starting with <code>=</code>, <code>+</code>, <code>-</code> or <code>@</code> with a quote (unless they are plain numbers) so a spreadsheet never runs them as formulas;</li>
+<li>Excel is a minimal .xlsx written by hand: one sheet, inline strings and numbers, stored in a zip with its own CRC32, no library; an Arabic export sets the sheet right to left;</li>
+<li>money columns are written as EGP numbers with two decimals, dates as <code>YYYY-MM-DD</code>, statuses in the reader's words.</li>
+</ul>
+<p>Totals of the summed columns cover every row that passed the filters, not only the page. Paging shows the counts and the page size choice. On phones (below <code>md</code>) rows become cards with the primary column as title.</p>
+
+<h3 id="ui-list-server">Server side: runList, queryList and FINANCE_LISTS</h3>
+<p>The filter, grouping and sort keys of each Accounting list are declared once in <code>FINANCE_LISTS</code> (<code>packages/shared/src/finance-lists.ts</code>); the other apps' lists in <code>APP_LISTS</code>:</p>
+<pre class="code">bills: {
+  filters: { open: 'status', paid: 'status', cancelled: 'status',
+             overdue: 'due', due_7_days: 'due', this_month: 'date', last_month: 'date', last_7_days: 'date' },
+  groupBys: ['supplier', 'status', 'store', 'account', 'month'],
+  sorts: ['number', 'supplier', 'bill_day', 'due_day', 'total', 'left'],
+  sums: ['total', 'vat', 'paid', 'left'],
+  defaultFilters: ['open'],
+},</pre>
+<p>The web builds its menus from these keys (<code>components/odoo/finance-lists.ts</code> adds columns and labels). The API implements them in <code>FINANCE_LIST_DEFS</code> (<code>packages/db/src/finance/lists.ts</code>): for each list a <code>ListDef</code> (filter tests, group functions, value filters, search fields, sort functions, sums) and a loader. <code>queryList</code> (<code>packages/db/src/list-query.ts</code>) reads the state from the query, loads the newest rows inside the person's scope (narrowed in the database by a chosen store, merchant or days before the 5,000 row cap), and <code>runList</code> applies search, filters, value filters, grouping with counts and subtotals, totals, sorting and paging. <code>financeListGaps()</code> and <code>appListGaps()</code> prove in tests that both sides know exactly the same keys. The endpoint is <code>GET /finance/lists/:id</code> (accounting view) or <code>GET /lists/:app/:id</code>.</p>
+<p>A page uses the list through <code>FinanceListPage</code>, which fetches the configuration and the data in parallel and renders the title, an intro sentence, the page's own panels and the list:</p>
+<pre class="code">export default async function FinanceJournalPage({ searchParams }) {
+  const [params, t] = await Promise.all([searchParams, getTranslations('finance.journal')]);
+  return (
+    &lt;FinanceListPage id="journal" searchParams={params}
+      title={&lt;&gt;{t('title')}&lt;InfoTip term="journal" /&gt;&lt;/&gt;} intro={t('intro')} /&gt;
+  );
+}</pre>
+
+<figure class="shot" data-shot="ui-list-view-filters"><figcaption>The bills list at <code>/finance/bills</code> with the Filters panel open: filters grouped (status, due, date), the store and merchant pick lists, facet chips in the search bar, and the totals row under the money columns.</figcaption></figure>
+<figure class="shot" data-shot="ui-list-view-grouped"><figcaption>The journal at <code>/finance/journal</code> grouped by kind and then by day: group rows with counts and subtotals, one group opened showing its entries.</figcaption></figure>
+<figure class="shot" data-shot="ui-list-view-bulk"><figcaption>The approvals list at <code>/finance/approvals</code> with three rows ticked: the sticky bulk bar with Approve and Reject, and after running, the result line saying how many were approved and why one was refused.</figcaption></figure>
+<figure class="shot" data-shot="ui-list-view-phone"><figcaption>The payouts list at <code>/finance/payouts</code> on a phone width: rows shown as cards with the payout number as title, status and amount.</figcaption></figure>
+
+<h2 id="ui-documents">DocumentFrame and DocumentPage</h2>
+<p>Every record with its own page (a bill, a payout, a journal entry, an order, a merchant, an employee) is shown in one frame, <code>DocumentFrame</code> (<code>components/odoo/DocumentFrame.tsx</code>, a server component). From top to bottom:</p>
+<ol>
+<li>Breadcrumbs: the app's home, then the list the person came from, with its filters kept, then the record number.</li>
+<li>Previous and next (<code>RecordNav</code>): when a row is opened from a list view, <code>ListView</code> stores the ids of the rows the person saw, the list address and the row link template in <code>sessionStorage</code> under <code>shiply-doc-nav</code>. The document page reads it and shows "3 / 25" with previous and next links, like Odoo.</li>
+<li>Header and status bar: the number, the title and the <code>StatusBar</code> of the record's workflow.</li>
+<li>Actions: the document's action buttons (approve, mark paid, cancel), components of the page.</li>
+<li>Smart buttons: counts of related records linking to them (a payout's merchant, entries, receipts, emails; a bill's supplier, payments, entries, attachments). Three to a row on phones.</li>
+<li>Content and, beside it from the <code>lg</code> breakpoint (or <code>xl</code> for wide pages), the chatter; below the content on narrower screens.</li>
+</ol>
+<table class="data">
+<thead><tr><th>Prop</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>root</code>, <code>list</code></td><td>Breadcrumb links: the app's home and the document's list.</td></tr>
+<tr><td><code>id</code>, <code>number</code>, <code>numberLtr</code>, <code>title</code></td><td>The record and how it is named.</td></tr>
+<tr><td><code>status</code>, <code>statusLabel</code>, <code>flow</code></td><td>The status and the workflow name; without a flow the status shows as a pill.</td></tr>
+<tr><td><code>actions</code>, <code>smart</code>, <code>attachments</code></td><td>Action buttons, smart buttons (<code>DocSmartButton[]</code>), photos with what each shows.</td></tr>
+<tr><td><code>entityType</code>, <code>canWrite</code></td><td>The audit entity type the chatter and history hang off, and whether the person may write notes.</td></tr>
+<tr><td><code>notes</code></td><td>Notes from another thread (an order shows its team notes instead of record notes).</td></tr>
+<tr><td><code>asideFrom</code>, <code>header</code>, <code>historyPath</code></td><td>Where the chatter moves beside the content, a custom header, another history endpoint.</td></tr>
+</tbody>
+</table>
+<p>For accounting documents, <code>DocumentPage</code> (<code>components/odoo/DocumentPage.tsx</code>) builds the whole page from a <code>DocDescriptor</code> that the API returns at <code>GET /finance/documents/:type/:id</code> (built by <code>accountingDocument</code> in <code>packages/db/src/finance/documents.ts</code>): fields with a kind (<code>money</code>, <code>date</code>, <code>datetime</code>, <code>status</code>, <code>ltr</code>, <code>percent</code>, <code>multiline</code>, <code>text</code>), optional lines with columns, smart buttons, attachments, the actions the reader may take now and the values those actions need. The page passes its own action components in <code>actions</code> and any custom content (an invoice as printed, a cheque register) as children.</p>
+<pre class="code">&lt;DocumentPage doc={doc} actions={&lt;PayBill bill={bill} accounts={accounts} /&gt;} /&gt;</pre>
+
+<h3 id="ui-status-bar">Status bar and workflows</h3>
+<p><code>apps/web/src/lib/workflows.ts</code> holds the path and side states of every kind of document:</p>
+<pre class="code">payout: { path: ['draft', 'paid'], side: ['cancelled'] },
+bill: { path: ['open', 'paid'], side: ['cancelled'] },
+rider_withdrawal: { path: ['requested', 'approved', 'paid'], side: ['rejected', 'cancelled'] },
+finance_request: { path: ['pending', 'approved'], side: ['rejected', 'cancelled'] },
+petty_cash: { path: ['pending', 'posted'], side: ['rejected', 'cancelled', 'reversed'] },
+cheque_received: { path: ['awaiting_approval', 'received', 'deposited', 'cleared'], side: ['bounced', 'cancelled'] },
+purchase_order: { path: ['requested', 'approved', 'ordered', 'received', 'billed', 'closed'], side: ['rejected', 'cancelled'] },</pre>
+<p><code>StatusBar</code> draws the path with done steps ticked, the current step lit in the primary color and later steps muted. A side state replaces the end of the path in red. On phones only the step before, the current step and the next one show.</p>
+
+<h3 id="ui-chatter">Chatter</h3>
+<p>The chatter sits beside the content. It has four parts:</p>
+<ul>
+<li>Notes: append only (trigger on <code>record_notes</code>), audited <code>record.note</code>. Routes <code>GET/POST /records/:entityType/:entityId/notes</code>.</li>
+<li>Activities ("Remind me"): a Cairo day, a note and a person who may open the record (<code>GET /records/:entityType/:entityId/people</code> lists them). Done by that person or whoever planned it (<code>POST /records/activities/:id/done</code>). A web push <code>activity_due</code> is sent once on its day, and the person's activities are listed on the Accounting dashboard (<code>GET /me/activities</code>).</li>
+<li>Attachments: receipt photos and other photos of the record, each labelled with what it shows.</li>
+<li>History: the audit rows of the record (<code>RecordHistory</code>, from <code>GET /history/:entityType/:entityId</code>).</li>
+</ul>
+<p>Reading needs view on the record's app (<code>RECORD_APPS</code>) and the record inside the person's stores and merchants; writing needs use. Customer records also need the customer data switch.</p>
+
+<figure class="shot" data-shot="ui-document-bill"><figcaption>A bill document page at <code>/finance/bills/&lt;id&gt;</code>: breadcrumbs Accounting / Bills / BILL number, the "3 / 25" previous and next control, the status bar (Open, Paid), the Pay and Cancel actions, smart buttons (supplier, payments, entries, attachments), the fields, and the chatter on the right with a note, a reminder and the history.</figcaption></figure>
+<figure class="shot" data-shot="ui-document-journal-entry"><figcaption>A journal entry at <code>/finance/journal/&lt;id&gt;</code>: the JV number, kind, day and memo fields, the lines table with account, debit and credit, smart buttons to the source document and the order, and the Print button.</figcaption></figure>
+<div class="note" data-todo="journal-entry-print">To be completed after the update: the journal entry page with print, and attachments inside every money form.</div>
+
+<h2 id="ui-forms">Forms: FormFooter and unsaved changes</h2>
+<p>Creation and edit forms end with <code>FormFooter</code> (<code>components/workflow/FormFooter.tsx</code>): Save, Cancel and an "Unsaved changes" marker.</p>
+<table class="data">
+<thead><tr><th>Prop</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>dirty</code></td><td>The form has changes; shows the marker and turns on the leave guard.</td></tr>
+<tr><td><code>busy</code></td><td>Saving; disables both buttons and turns the guard off.</td></tr>
+<tr><td><code>saveLabel</code>, <code>disabled</code></td><td>Another label for Save; Save disabled.</td></tr>
+<tr><td><code>cancelHref</code>, <code>onCancel</code></td><td>Where Cancel goes, or what it runs; without both it goes back one page.</td></tr>
+<tr><td><code>onSave</code></td><td>Without it, Save submits the surrounding form.</td></tr>
+</tbody>
+</table>
+<p>Cancel asks before throwing changes away. The hook <code>useUnsavedChanges(dirty)</code> asks before leaving: the browser's own question on closing or reloading the tab (<code>beforeunload</code>), and a confirm on any link click inside the app (a click listener in the capture phase that cancels the navigation when the person says no).</p>
+<p>Money forms create one idempotency key per action with <code>newActionKey()</code> (<code>apps/web/src/lib/ids.ts</code>), send it with the body, and make a new key only when the person starts another action, so a double tap posts once. Forms that move money take a receipt photo through <code>ReceiptField</code>, which uploads the photo at once (<code>POST /photos?kind=receipt</code>) and sends its id with the form.</p>
+
+<figure class="shot" data-shot="ui-form-record-expense"><figcaption>The Record an expense form at <code>/finance/expenses/new</code> with values typed: amount, category, store, paid from (with its balance shown), day, VAT, note, receipt photo, the line saying whether it will post now or wait for approval, and the footer with Save, Cancel and "Unsaved changes".</figcaption></figure>
+
+<h2 id="ui-dates-money">DateInput, Amount and money parsing</h2>
+<h3 id="ui-dateinput">DateInput</h3>
+<p><code>DateInput</code> (<code>components/DateInput.tsx</code>) is a text box that always reads day first (<code>dd/mm/yyyy</code>), as in Egypt, whatever language the browser runs in (the browser's own date box follows the device and may show month first). The form still receives <code>YYYY-MM-DD</code> under <code>name</code>, and a calendar button opens the device's own picker. Props: <code>name</code>, <code>value</code> or <code>defaultValue</code>, <code>onChange</code> (receives <code>{ target: { value } }</code> like an input), <code>max</code>, <code>className</code>. An unreadable date marks the box invalid. The conversions are <code>isoToDayFirst</code> and <code>dayFirstToIso</code> in <code>lib/day-first.ts</code>, which refuse days that do not exist.</p>
+<h3 id="ui-amount">Amount and formatting</h3>
+<pre class="code">/** An EGP amount, kept left to right in Arabic, red when negative. */
+export function Amount({ piastres, strong = false }: { piastres: number; strong?: boolean }) {
+  const value = piastres === 0 ? 0 : piastres;   // -0 shows as 0.00, never "-0.00"
+  return (
+    &lt;span className={`ltr-iso ${strong ? 'font-bold' : ''} ${value &lt; 0 ? 'text-danger' : ''}`}&gt;
+      {formatEgp(value)}
+    &lt;/span&gt;
+  );
+}</pre>
+<p><code>formatEgp</code> (<code>lib/format.ts</code>) shows piastres as EGP with two decimals and Latin digits. Other formatters show Cairo times and dates (<code>formatCairoTime</code>, <code>formatCairoDateTime</code>, <code>formatCutoffDay</code>).</p>
+<h3 id="ui-parse-egp">Parsing typed amounts without floats</h3>
+<pre class="code">/** EGP typed by a person ("1,249.50", "-20") to integer piastres without going through a float. */
+export function parseEgp(text: string, { allowNegative = false } = {}): number | null {
+  const clean = text.trim().replace(/,/g, '');
+  const match = /^(-)?(\d+)(?:\.(\d{1,2}))?$/.exec(clean);
+  if (!match || (match[1] &amp;&amp; !allowNegative)) return null;
+  const value = Number(match[2]) * 100 + Number((match[3] ?? '').padEnd(2, '0'));
+  return match[1] ? 0 - value : value;
+}</pre>
+<p>The integer part and the decimals are read separately, so "0.29" is 29 piastres exactly, where a float would give 28.999. Contract price imports on the API use the same idea (<code>egpTextToPiastres</code> in <code>packages/shared/src/contracts.ts</code>).</p>
+
+<h2 id="ui-cards-charts">StatCard, WalletCard and charts</h2>
+<p><code>StatCard</code> (<code>components/StatCard.tsx</code>) is the dashboard number card after the brand guide's product screen: a soft rounded card, the icon on top in the status color (or a short color mark without an icon), the large tabular number, then the label. Props: <code>label</code>, <code>value</code> (already formatted), <code>hint</code>, <code>tone</code> (<code>primary</code>, <code>new</code>, <code>in-progress</code>, <code>heading-to-customer</code>, <code>delivered</code>, <code>needs-action</code>, <code>returning</code>), <code>icon</code>, and <code>alert</code> (the number takes the needs action color).</p>
+<p><code>WalletCard</code> (<code>components/WalletCard.tsx</code>) is the money balance card after the guide's cash on delivery balance card: a Navy ground (Shiply Blue in the dark theme), a small spaced label, the amount large in Cream, the note in Lime and the S arrow mark faint in a corner. Props: <code>label</code>, <code>value</code>, <code>hint</code>, <code>icon</code>, <code>large</code>. It is used for wallets and balances only.</p>
+<p>Charts are drawn in HTML and SVG without a chart library, one series in the primary color:</p>
+<ul>
+<li><code>Sparkline</code> (<code>components/charts/Sparkline.tsx</code>): a small SVG line of the last days for dashboard cards. Props: <code>values</code>, <code>label</code> (the summary screen readers get), <code>width</code>, <code>height</code>. Time runs left to right in Arabic too.</li>
+<li><code>ColumnChart</code>: one series of columns over time, in HTML so text stays crisp in both languages; each column shows its exact value on hover or focus, and a hidden table gives screen readers the same numbers.</li>
+<li><code>TargetBars</code>: progress against targets (sales).</li>
+</ul>
+
+<figure class="shot" data-shot="ui-finance-dashboard"><figcaption>The Accounting dashboard at <code>/finance</code>: the Today strip (approvals waiting for me, payouts due today, rider withdrawals, handovers with a difference, bank lines to match, bills due in 7 days, entries missing a receipt), the quick actions, and the journal cards (bank, cash boxes, store boxes, payouts, bills, invoices, withdrawals, approvals) each with its balance and 30 day sparkline.</figcaption></figure>
+<figure class="shot" data-shot="ui-statcard-walletcard"><figcaption>The cash position at <code>/finance/cash-position</code> showing several StatCards with icons and tones, next to a merchant wallet balance shown as a WalletCard on <code>/merchant/wallet</code>.</figcaption></figure>
+<div class="note" data-todo="coming-up-and-due">To be completed after the update: the Coming up and due card on the dashboard and its page at <code>/finance/due</code>.</div>
+
+<h2 id="ui-drill">DrillReportPage</h2>
+<p>Profit and loss, the balance sheet and the trial balance are one component, <code>DrillReportPage</code> (<code>components/finance/reports/DrillReportPage.tsx</code>, a server component):</p>
+<pre class="code">&lt;DrillReportPage report="profit_and_loss" searchParams={params}
+  title={t('title')} intro={t('intro')} term="balanceSheet" before={(data) =&gt; ...} /&gt;</pre>
+<table class="data">
+<thead><tr><th>Prop</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td><code>report</code></td><td><code>profit_and_loss</code>, <code>balance_sheet</code> or <code>trial_balance</code>.</td></tr>
+<tr><td><code>searchParams</code></td><td>The address, holding <code>from</code>, <code>to</code>, <code>compare</code> (<code>none</code>, <code>previous</code>, <code>last_year</code>), <code>store</code> and <code>merchant</code>.</td></tr>
+<tr><td><code>title</code>, <code>intro</code>, <code>term</code></td><td>Heading, a plain sentence, and an <code>InfoTip</code> term.</td></tr>
+<tr><td><code>before</code></td><td>A status line above the report (the balance sheet says whether it balances).</td></tr>
+</tbody>
+</table>
+<p>It reads the state with <code>readReportState</code> (<code>lib/report-view.ts</code>), fetches <code>GET /finance/reports/:report</code> (built by <code>drillReport</code> in <code>packages/db/src/finance/drill.ts</code>) and the store and merchant choices, and renders <code>ReportFilterBar</code> (period presets this month, last month, this quarter, this year, last year or chosen Cairo days, the comparison, store and merchant) and <code>DrillReportView</code>. Sections fold; each line shows the comparison amount, the change and the percent, and links to <code>/finance/reports/lines</code>, a list view of the ledger lines behind it with the same filters (<code>GET /finance/ledger-lines</code>), whose rows open the journal entry. Breadcrumbs lead back to the report with its filters. A report filtered by store or merchant counts only lines tagged with them, so it may not balance, and says so. Exports are CSV, Excel and a PDF in English or Arabic made on the API.</p>
+
+<figure class="shot" data-shot="ui-drill-profit-and-loss"><figcaption>Profit and loss at <code>/finance/profit-and-loss?compare=previous</code>: the filter bar with this month and the comparison chosen, income and expense sections with each account, the compared amount, the change and the percent, and the export buttons.</figcaption></figure>
+<figure class="shot" data-shot="ui-drill-lines"><figcaption>The ledger lines behind one account at <code>/finance/reports/lines</code>, opened from a profit and loss line: breadcrumbs back to the report, the lines list with entry number, day, store, merchant and amount, and the total.</figcaption></figure>
+
+<h2 id="ui-infotip-search">InfoTip and the Accounting search</h2>
+<p><code>InfoTip</code> explains an accountant's word in plain language: a small "i" next to a title that opens a tooltip on hover, focus or tap. Its prop <code>term</code> is one of <code>journal</code>, <code>trialBalance</code>, <code>receivables</code>, <code>accrual</code>, <code>withholding</code>, <code>balanceSheet</code>, <code>cashFlow</code>; the words live under <code>infoTips</code> in the messages.</p>
+<p><code>AccountingSearch</code> is the one search box in the Accounting top bar (<code>GET /finance/search</code>). It understands document numbers typed loosely: <code>parseDocNumber</code> reads <code>PAY-000123</code>, <code>pay-123</code>, <code>pay 123</code> or <code>PAY123</code> as payout 123, for every prefix (<code>JV</code>, <code>PAY</code>, <code>CH</code>, <code>BILL</code>, <code>INV</code>, <code>CN</code>, <code>DN</code>, <code>PO</code>, <code>CHQ</code>, <code>PC</code>, <code>RW</code>, <code>BS</code>, <code>EC</code>, <code>BD</code>). It also finds order numbers and merchant and supplier names, inside the person's scope.</p>
+
+<figure class="shot" data-shot="ui-infotip-search"><figcaption>The journal title at <code>/finance/journal</code> with its InfoTip open, and the Accounting search in the top bar with "pay 12" typed and its results showing the payout.</figcaption></figure>
+
+<h2 id="ui-print-pdf">Printing and PDF generation</h2>
+<p>Two ways produce paper:</p>
+<ul>
+<li>Browser print for invoices, payslips, statements and comparative statements: <code>PrintButton</code> calls <code>window.print()</code>, the person saves as PDF from the print window. Menus, buttons and the chatter carry <code>print:hidden</code>, the main area drops its width limit, and <code>@media print</code> in <code>globals.css</code> prints black on white.</li>
+<li>Server PDF with pdfkit for documents that must look the same everywhere: the drill reports (<code>GET /finance/reports/:report/export.pdf?lang=en|ar</code>, <code>report-pdf.ts</code>), the aging reports (<code>aging-pdf.ts</code>) and the merchant contract.</li>
+</ul>
+<p>pdfkit shapes Arabic letters through fontkit, but it lays a line out as one left to right run. <code>PdfWriter</code> in <code>apps/api/src/common/pdf.ts</code> therefore lays words out itself: each word is measured and drawn on its own, in visual order. Words with Arabic letters read right to left inside their run, numbers and Latin words left to right, and an Arabic page places the runs from the right. Brackets are mirrored inside Arabic runs, and lines wrap by words. The fonts are the brand fonts (<code>apps/api/assets/fonts</code>).</p>
+<pre class="code">/** A line's words in the order they are drawn from left to right. */
+export function visualWords(text: string, rtl: boolean): { word: string; arabic: boolean }[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const runs: { arabic: boolean; words: string[] }[] = [];
+  for (const word of words) {
+    const arabic = LETTER_OR_DIGIT.test(word) ? ARABIC.test(word) : (runs[runs.length - 1]?.arabic ?? rtl);
+    const last = runs[runs.length - 1];
+    if (last &amp;&amp; last.arabic === arabic) last.words.push(word);
+    else runs.push({ arabic, words: [word] });
+  }
+  const ordered = rtl ? [...runs].reverse() : runs;
+  return ordered.flatMap((r) =&gt; (r.arabic ? [...r.words].reverse() : r.words).map((word) =&gt; ({ word, arabic: r.arabic })));
+}</pre>
+
+<figure class="shot" data-shot="ui-pdf-arabic-report"><figcaption>The balance sheet PDF in Arabic, downloaded from <code>/finance/balance-sheet</code>: title and headers right to left, account names in Arabic, amounts in Latin digits left to right.</figcaption></figure>
+
+<h2 id="ui-push">Push notifications</h2>
+<p>The app is an installable web app with web push for every role. The parts:</p>
+<ul>
+<li>Browser: <code>PushRegistrar</code> (in the root layout, production builds with push keys only) registers <code>/sw.js</code> and, for a signed in person who already allowed notifications, sends the device's subscription and language to <code>POST /me/push/subscriptions</code> again when it changed. The <code>/notifications</code> page (<code>PushSettings</code>) asks for permission and lets the person switch each type on or off. On an iPhone it needs Add to Home Screen.</li>
+<li>Server: devices are stored in <code>push_subscriptions</code> (deleted when the push service answers 404 or 410), choices in <code>notification_preferences</code> (on by default). <code>dispatchPush</code> (<code>packages/db/src/push.ts</code>) runs every 10 seconds from the API jobs, reads the last 15 minutes of events, and notifies only people who may open the linked page, in the device's language. Each event key is claimed once in <code>push_sent</code>, so overlaps send nothing twice. Sending sits behind the <code>PushSender</code> boundary (<code>HttpPush</code> with the VAPID keys; <code>FakePush</code> in tests); without keys nothing is sent.</li>
+</ul>
+<p>Types that concern accounting: <code>finance_approval</code> (a request or withdrawal waiting), <code>cash_difference</code>, <code>rider_cash_overdue</code>, <code>rider_wallet</code> (approved, paid or rejected withdrawal), <code>merchant_payout</code>, <code>activity_due</code> (a chatter reminder), <code>payslip_ready</code>, <code>expense_claim</code>, <code>basata_deposit</code>, <code>rider_frozen</code>. The texts in both languages live in <code>packages/shared/src/push.ts</code>, and <code>pushTypesFor</code> decides which types a person can receive from what they may open.</p>
+<div class="note" data-todo="payment-due-push">To be completed after the update: the <code>payment_due</code> push type that tells Accounting of payments coming up.</div>
+
+<figure class="shot" data-shot="ui-notifications-settings"><figcaption>The notifications page at <code>/notifications</code> for a finance user: the switch to allow notifications on this device and the list of types (approvals, cash differences, rider cash overdue, reminders) with their on and off switches.</figcaption></figure>
+</section>

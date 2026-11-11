@@ -1,0 +1,578 @@
+<section class="chapter" id="ch-s31">
+<h1>Screens: Money out</h1>
+
+<p>This chapter walks through every screen of the Accounting app's <strong>Money out</strong> menu exactly as a user sees it: what is on the page, what each control does, the rule behind it, who may use it and what the result looks like. The menu holds, in this order: Record an expense, Suppliers, Bills (page title Supplier bills), Purchase orders, Expenses and transfers (page title Money movements), Petty cash, Rider withdrawals, Expense claims, Riders (page title Rider wallets), Rider offices, Payroll (page title Salaries) and Payslips, both only with the salaries switch, Recurring expenses and Equipment (page title Prepaid and equipment). Every page keeps its own address, so a link can be shared.</p>
+
+<p>The screenshots come from the demo database. The demo team members' names are replaced by role labels (Finance User, Finance Approver, Store Staff A, Rider B and so on) and phone numbers are hidden. Red numbered circles on a screenshot point to the parts described in the legend table under it; they are not part of the app.</p>
+
+<h3>Rules shared by every Money out screen</h3>
+<ul>
+<li><strong>Access.</strong> Every screen needs the Accounting app at <code>view</code> level. Saving anything needs <code>use</code>; a few decisions need <code>manage</code> (named per control below). People limited to some stores see only those stores' rows, boxes and riders. The API checks every call again (AccessGuard), so a hidden button is never the only protection: a refused call answers <code>403 no_access</code> or <code>store_not_allowed</code>.</li>
+<li><strong>The approval limit.</strong> Money going out (expenses, bill payments, drawings, advances, prepayments, equipment, journal entries taking money out of a bank or box) is posted at once below <code>finance.approval_threshold_piastres</code> (default 10,000.00 EGP; 0 turns the rule off). From the limit it waits in <em>Dashboard &gt; Approvals</em> for a second person. Money coming in (owner capital, other income, journal entries putting money into a bank or box) always waits while <code>finance.approve_money_in</code> is 1. Selling or scrapping equipment always waits. Nobody approves their own request (<code>same_person</code>). See the chapter Controls and access for the request kinds.</li>
+<li><strong>Money must exist.</strong> A bank or cash box never pays more than it holds at the moment of the payment or at any later moment (<code>not_enough_money</code>), and nothing is dated in closed books (<code>books_closed</code>) or in the future (<code>future_date</code>). See the chapter Expenses, suppliers, bills and the assets we pay for, rules shared by every movement of money.</li>
+<li><strong>Idempotency.</strong> Every save sends a fresh key made when the form opens, so a double tap or a retry posts once.</li>
+<li><strong>Amounts.</strong> Typed in EGP with up to two decimals (<code>1250.50</code>), sent to the API in piastres, never as floats.</li>
+</ul>
+
+<h3>The attachment field (Receipts and documents)</h3>
+<p>Most Money out forms carry the same field to attach receipts, invoices and slips <em>before</em> saving (component <code>AttachmentField</code>). It is described once here and named "attachment field" in the tables below.</p>
+<figure class="shot" data-shot="s31-expense-attachments"><figcaption>The attachment field with a PNG receipt and a PDF invoice chosen, before the form is saved (/finance/expenses/new).</figcaption></figure>
+<table class="data"><thead><tr><th>Part</th><th>What it shows</th><th>What it does and its limits</th></tr></thead><tbody>
+<tr><td>Label "Receipts and documents"</td><td>Plain caption above a dashed box</td><td>The whole box is also a drop zone: files dragged onto it are added.</td></tr>
+<tr><td>Choose files</td><td>White button with a grey border</td><td>Opens the file picker (several files at once). Accepts JPEG, PNG and WebP photos and PDF files only; anything else shows "<em>name</em> is not a photo or a PDF file."</td></tr>
+<tr><td>Take a photo</td><td>White button</td><td>Opens the phone camera (on a computer, the file picker).</td></tr>
+<tr><td>Hint</td><td>"Photos or PDF files, up to 5 MB each, at most 10"</td><td>A PDF above 5 MB shows "<em>name</em> is larger than 5 MB."; an 11th file shows "At most 10 files." Photos are shrunk in the browser like every receipt photo.</td></tr>
+<tr><td>File tiles</td><td>A photo shows its picture; a PDF shows a red "PDF" label; the file name under it; a round × button in the corner</td><td>Each file is uploaded at once (<code>POST /finance/files</code>) and waits unlinked. While a file uploads the tile says "Uploading…" and the form cannot be saved ("Wait until the files finish uploading."). A failed upload says "Upload failed. Try again." The × removes the file and deletes the upload.</td></tr>
+<tr><td>On save</td><td>The tiles disappear when the form is reset</td><td>The form sends the ids as <code>attachmentIds</code>; the save links them to the record (journal entry, bill, payment, request) in the same transaction. They then appear under Attachments in the record's chatter and in its Receipts smart button.</td></tr>
+</tbody></table>
+
+<h3>The list view</h3>
+<p>Suppliers, Supplier bills, Petty cash, Rider withdrawals and Expense claims are list views (component <code>ListView</code>, see the chapter UI development). Their shared controls are: the <strong>search bar</strong> with facet chips (a light blue rounded chip such as "Filter Open ×"; the × removes it; Backspace in an empty search box removes the last chip), <strong>Filters</strong> (opens a panel of three columns: Filters, Group by, Favourites), <strong>Export</strong> (CSV or Excel of the rows passing the filters, or only the ticked rows), <strong>Columns</strong> (shows or hides optional columns, remembered per person), <strong>Per page</strong> (20, 50, 100), the count "1–5 of 5", a tick box per row and one in the header (select all), sortable column headers (click once ascending, again descending), a <strong>Total</strong> row summing money columns over every passing row, and cards instead of a table on phones. The list state lives in the address (<code>f</code> filters, <code>g</code> grouping, <code>q</code> search, <code>sort</code>, <code>page</code>), so the view can be bookmarked. Filters inside one group are joined by "or", groups by "and". Favourites saves the current search under a name ("Open the list with it" makes it the default).</p>
+
+<h2 id="s31-expense">Record an expense</h2>
+<p><strong>Address:</strong> <code>/finance/expenses/new</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Record an expense (shown only to people with Accounting <code>use</code>). Also opened from the dashboard quick action and from a cash box card. <strong>Who:</strong> Accounting <code>use</code> to save; the page itself needs <code>use</code>. The form is the short version of the Expense tab of Money movements and calls the same <code>POST /finance/expenses</code>.</p>
+<figure class="shot" data-shot="s31-expense-form"><figcaption>Record an expense, empty, with numbered parts (/finance/expenses/new).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows (colors, wording)</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title and intro</td><td>"Record an expense", grey text: a cost paid from a bank or cash box; from the approval limit it waits for a second person</td><td>Nothing.</td></tr>
+<tr><td>2</td><td>All money movements</td><td>Blue link</td><td>Opens Money movements on its Expense tab (the full form with cost tag, store and VAT).</td></tr>
+<tr><td>3</td><td>Amount paid (EGP)</td><td>Large input, focused when the page opens (blue ring)</td><td>The total paid, VAT included.</td></tr>
+<tr><td>4</td><td>Category</td><td>Select "Choose…", then every open account of groups 5400 (operating expenses) and 5500 (other expenses), as "5406 · Utilities and internet"</td><td>The expense account debited.</td></tr>
+<tr><td>5</td><td>Store</td><td>Select, "Company wide" first, then dark stores and hubs "Maadi (MAA)"</td><td>Tags every line of the entry with the store, for profit per store. Company wide leaves it empty.</td></tr>
+<tr><td>6</td><td>Paid from</td><td>Select of open banks and cash boxes with their balance "1101 · CIB (394,558.20)"; CIB is chosen by default</td><td>The money account credited. When the amount is above the balance a red line appears: "That is more than this account holds."</td></tr>
+<tr><td>7</td><td>Day paid</td><td>Date box shown day first (dd/mm/yyyy), today by default, a calendar button</td><td>A past day is booked at that day's noon, Cairo time. A future day is refused.</td></tr>
+<tr><td>8</td><td>The receipt shows VAT</td><td>Tick box, off</td><td>When ticked, a field "VAT included in the amount (EGP)" appears with the hint "Claimed back against VAT owed."</td></tr>
+<tr><td>9</td><td>What was it for?</td><td>Required text, 3 to 300 characters</td><td>Becomes the entry's memo.</td></tr>
+<tr><td>10</td><td>Receipt or bill number (optional)</td><td>Text, up to 100 characters; hint "Left empty, the note is used."</td><td>Becomes the entry's reference.</td></tr>
+<tr><td>11, 12</td><td>Choose files, Take a photo</td><td>The attachment field</td><td>See The attachment field above.</td></tr>
+<tr><td>13</td><td>Limit line</td><td>Grey: "Expenses from 10,000.00 EGP wait for a second person." When the amount reaches the limit it turns orange and bold: "From 10,000.00 EGP this waits in Approvals for a second person."</td><td>Nothing; it tells in advance whether the save posts or waits. Hidden when the limit is 0.</td></tr>
+<tr><td>14</td><td>Record the expense</td><td>Blue button; reads "Send for approval" when the amount reaches the limit</td><td>Checks the form, then sends it. An "Unsaved changes" marker in orange appears beside the buttons once anything is typed.</td></tr>
+<tr><td>15</td><td>Cancel</td><td>White outlined button</td><td>Asks before throwing away typed values, then empties the form and makes a new idempotency key.</td></tr>
+</tbody></table>
+
+<h3>Checks before sending and error messages</h3>
+<table class="data"><thead><tr><th>Situation</th><th>Message (red, under the buttons)</th></tr></thead><tbody>
+<tr><td>Amount empty or zero</td><td>Enter the amount paid.</td></tr>
+<tr><td>VAT not an amount</td><td>Enter the VAT as an amount in EGP.</td></tr>
+<tr><td>VAT equal to or above the amount</td><td>VAT must be less than the amount.</td></tr>
+<tr><td>No category / no money account</td><td>Choose a category. / Choose where it was paid from.</td></tr>
+<tr><td>Day not valid / in the future</td><td>Choose a valid day. / The day cannot be in the future.</td></tr>
+<tr><td>Note shorter than 3 characters</td><td>Write what it was for (at least 3 characters).</td></tr>
+<tr><td>API refusals</td><td><code>not_enough_money</code>, <code>books_closed</code> and the other finance errors, in plain words.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-expense-error"><figcaption>An error before sending: VAT of 150 on an amount of 100 gives "VAT must be less than the amount." The orange "Unsaved changes" marker shows the form was edited.</figcaption></figure>
+
+<h3>Posted at once</h3>
+<p>An internet bill of 850.00 EGP with 104.39 EGP VAT, tagged to Maadi, paid from CIB, with a PNG receipt and a PDF invoice, is below the limit and is posted at once. The form is replaced by a confirmation card: "The expense is recorded.", the voucher number as a blue link, and two buttons, <em>Record another</em> (empties the form with a new key) and <em>Back to the dashboard</em>.</p>
+<figure class="shot" data-shot="s31-expense-filled"><figcaption>The form filled in, VAT ticked and two files attached, before saving.</figcaption></figure>
+<figure class="shot" data-shot="s31-expense-posted"><figcaption>The confirmation after posting, with the voucher JV-002551 as a link.</figcaption></figure>
+<p>The entry (<code>expense</code> kind) is: Dr 5406 Utilities and internet 745.61, Dr 2301 VAT payable 104.39 (input VAT claimed back), Cr 1101 CIB 850.00, every line tagged MAA. See the chapter Expenses, suppliers, bills and the assets we pay for, expenses paid at once.</p>
+<figure class="shot" data-shot="s31-expense-entry"><figcaption>The resulting journal entry page (/finance/journal/&lt;id&gt;) with its two files under Attachments.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Journal / JV-002551, blue links</td><td>Back to the journal list with the filters it had.</td></tr>
+<tr><td>2</td><td>Voucher number and memo</td><td>"JV-002551", grey memo under it</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Status pill</td><td>"Posted", grey outlined pill on the right</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Print or save as PDF</td><td>Blue button</td><td>Prints the voucher from the browser (the menu is hidden in print).</td></tr>
+<tr><td>5, 6</td><td>PDF in English, PDF in Arabic</td><td>White buttons</td><td>Download the voucher as a PDF made on the API.</td></tr>
+<tr><td>7</td><td>Lines smart button</td><td>"3 Lines"</td><td>Scrolls to the lines table.</td></tr>
+<tr><td>8</td><td>Receipts smart button</td><td>"2 Receipts"</td><td>With one file it opens the file; with several it opens the attachment viewer (below); with none it jumps to the attachments section.</td></tr>
+<tr><td>9</td><td>Lines table</td><td>Account, Store, Merchant, Rider, Debit, Credit; amounts in bold with EGP; a Total row</td><td>Nothing; the lines never change after posting.</td></tr>
+<tr><td>10, 11</td><td>Log a note, Remind me</td><td>Chatter tabs; a text box "Notes cannot be changed later" and a grey Post note button</td><td>Adds an append only note, or plans a reminder on a Cairo day for a person who may open the entry.</td></tr>
+<tr><td>12</td><td>Attachments</td><td>Thumbnails: the PNG as a picture, the PDF as a red document icon with its name</td><td>Opens the file in a new tab.</td></tr>
+<tr><td>13</td><td>Add receipts or documents</td><td>White button</td><td>Attaches more files after posting.</td></tr>
+<tr><td>14</td><td>History</td><td>Blue dots, newest first: "Receipts or documents added" (count 2) and "Expense recorded" with the values (amounts in piastres)</td><td>Nothing; read from <code>audit_log</code>.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-attachment-viewer"><figcaption>The attachment viewer opened from the "2 Receipts" smart button: one tile per file with its name, and a Close button. Clicking outside the dialog closes it.</figcaption></figure>
+
+<h3>Waiting in Approvals above the limit</h3>
+<p>A shelving repair of 12,500.00 EGP reaches the limit: the limit line turns orange and the button reads <em>Send for approval</em>. After sending, the card reads "Sent for approval. It is posted when another person approves it in Approvals." with <em>Open the request</em>.</p>
+<figure class="shot" data-shot="s31-expense-willwait"><figcaption>An amount above the limit: orange warning and the "Send for approval" button, with a PDF attached.</figcaption></figure>
+<figure class="shot" data-shot="s31-expense-pending"><figcaption>The confirmation after sending for approval.</figcaption></figure>
+<figure class="shot" data-shot="s31-expense-request"><figcaption>The request REQ-52VRJG as the asker sees it: status bar Waiting, "You asked for this, so another person must approve it." and a Withdraw button; the PDF is already attached.</figcaption></figure>
+<figure class="shot" data-shot="s31-approval-expense-done"><figcaption>After the second person approved: the status bar reads Approved and a smart button opens the journal entry it posted.</figcaption></figure>
+
+<h2 id="s31-suppliers">Suppliers</h2>
+<p><strong>Address:</strong> <code>/finance/suppliers</code>; one supplier at <code>/finance/suppliers/&lt;id&gt;</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Suppliers. <strong>Who:</strong> Accounting <code>view</code> to read; <code>use</code> to add or edit (the New supplier button and form are hidden without it). Rider offices and staffing companies are suppliers too.</p>
+<figure class="shot" data-shot="s31-suppliers-list"><figcaption>The suppliers list, opening on the default filter "In use" (/finance/suppliers).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>New supplier</td><td>Blue button; jumps to the New supplier form under the list</td><td>Accounting <code>use</code></td><td>The form scrolls into view.</td></tr>
+<tr><td>2</td><td>Chip "Filter In use"</td><td>The default filter</td><td>Removing it shows suppliers not in use too</td><td>The list reloads.</td></tr>
+<tr><td>3</td><td>Search</td><td>Searches name, tax number, phone and email</td><td>Loose match, case ignored</td><td>A "Search" chip.</td></tr>
+<tr><td>4</td><td>Filters</td><td>Opens the panel</td><td>Filters: In use, Not in use; Rider offices, Staffing companies; With a tax number, Without a tax number; They owe us, We owe them. Group by: Type, In use or not</td><td>See the panel below.</td></tr>
+<tr><td>5, 6, 7</td><td>Export, Columns, Per page</td><td>As in every list view</td><td>Optional columns: Phone, Email, Withholding %, Account, People (riders or staff linked)</td><td>File <code>suppliers.csv</code> or <code>.xlsx</code>.</td></tr>
+<tr><td>8</td><td>Select all</td><td>Ticks every row on the page</td><td>No bulk action on suppliers; ticking limits the export</td><td>Only ticked rows are exported.</td></tr>
+<tr><td>9</td><td>Supplier</td><td>Name, blue link; sortable</td><td></td><td>Opens the supplier page.</td></tr>
+<tr><td>10</td><td>Type</td><td>Supplier, Rider office or Staffing company</td><td></td><td></td></tr>
+<tr><td>11</td><td>Tax number</td><td>As entered</td><td></td><td></td></tr>
+<tr><td>12</td><td>Open bills</td><td>Count of open bills; sortable</td><td></td><td></td></tr>
+<tr><td>13</td><td>Status</td><td>Grey pill "Active" or "Inactive"</td><td></td><td></td></tr>
+<tr><td>14</td><td>We owe them (EGP)</td><td>Balance of the supplier's 2500 wallet, credit shown positive; sortable; summed in Total</td><td>Below zero the supplier owes us (a rider office's shortages)</td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-suppliers-list-filters"><figcaption>The Filters panel of Suppliers: Filters (ticked ones carry a check mark), Group by ("Pick up to two, in order") and Favourites with "Save this search as", "Open the list with it" and Save.</figcaption></figure>
+
+<h3>New supplier</h3>
+<figure class="shot" data-shot="s31-supplier-new-filled"><figcaption>The New supplier form filled in.</figcaption></figure>
+<table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>Supplier</td><td>The name</td><td>Required, 2 to 80 characters</td><td></td></tr>
+<tr><td>Tax id</td><td>The supplier's tax registration number</td><td>Optional, up to 30 characters. A rider office with a tax number gets VAT on its monthly bill</td><td></td></tr>
+<tr><td>Phone, Email</td><td>Contact details</td><td>Optional; an email must look like one (<code>invalid_email</code>)</td><td></td></tr>
+<tr><td>Withholding %</td><td>Withholding tax kept back from each payment, on the amount before VAT</td><td>0 to 100, stored as basis points (1% = 100); default 1. Hint: "usually 1% for supplies and 3% for services"</td><td>Used by every bill payment.</td></tr>
+<tr><td>Usual expense category</td><td>Default category proposed on a new bill</td><td>Open 5400 or 5500 accounts; None allowed</td><td></td></tr>
+<tr><td>Add supplier</td><td>Saves (<code>POST /finance/suppliers</code>)</td><td>Disabled (light blue) until a name is typed; Accounting <code>use</code>; audited <code>finance.supplier_create</code></td><td>Opens the new supplier's page. Its wallet account (<code>2500-000n</code>) is opened when it is first needed.</td></tr>
+</tbody></table>
+
+<h3>The supplier page</h3>
+<figure class="shot" data-shot="s31-supplier-page"><figcaption>A supplier page with two open bills (/finance/suppliers/&lt;id&gt;).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Suppliers / title</td><td>Back to the list with its filters.</td></tr>
+<tr><td>2</td><td>Title</td><td>The supplier's wallet code (2500-0002) once it has one, else its name; the name in grey under it</td><td>Nothing.</td></tr>
+<tr><td>3</td><td>Status pill</td><td>"Active" or "Inactive"</td><td>Nothing.</td></tr>
+<tr><td>4</td><td>Edit supplier</td><td>White button in the top bar (Accounting <code>use</code>)</td><td>Opens the edit form in place (below).</td></tr>
+<tr><td>5</td><td>Bills smart button</td><td>Count of all its bills, cancelled included</td><td>Opens Supplier bills searched on the supplier's name, every status (<code>/finance/bills?q=&lt;name&gt;&amp;f=</code>).</td></tr>
+<tr><td>6</td><td>Payments smart button</td><td>Count of bill payments</td><td>Opens the journal searched on the supplier's name.</td></tr>
+<tr><td>7</td><td>Purchase orders smart button</td><td>Count</td><td>Opens Purchase orders for this supplier ("Orders of <em>name</em>." with "Show every supplier").</td></tr>
+<tr><td>8</td><td>Balance (we owe)</td><td>Blue amount</td><td>Opens the ledger lines report of the supplier's wallet account (<code>/finance/reports/lines?account=&lt;id&gt;</code>).</td></tr>
+<tr><td></td><td>Details</td><td>Name, tax number, email, withholding tax, usual category, account, open bills, "We owe them (below zero they owe us)", prepared on</td><td>Nothing.</td></tr>
+<tr><td></td><td>Chatter</td><td>Log a note, Remind me, Attachments, History</td><td>As on every document page.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-supplier-edit"><figcaption>Edit supplier opened: the same fields as the new form plus "In use (new bills and purchase orders can name it)", Save changes and Cancel.</figcaption></figure>
+<p>Untick <em>In use</em> to retire a supplier: it disappears from the New bill and New purchase order choices; its bills and history stay. Saving (<code>PATCH /finance/suppliers/&lt;id&gt;</code>) shows "Saved." and is audited.</p>
+
+<h2 id="s31-bills">Supplier bills</h2>
+<p><strong>Address:</strong> <code>/finance/bills</code>; one bill at <code>/finance/bills/&lt;id&gt;</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Bills. <strong>Who:</strong> Accounting <code>view</code> to read; <code>use</code> to enter, pay or cancel a bill. A bill books its cost when it arrives (Dr expense and VAT, Cr the supplier's 2500 wallet) and is paid later in one or more payments that keep back withholding tax. See the chapter Expenses, suppliers, bills and the assets we pay for, supplier bills and bill payments.</p>
+<figure class="shot" data-shot="s31-bills-list"><figcaption>Supplier bills opening on the default filter "Open", with the ageing table under the list (/finance/bills).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>New bill</td><td>Blue button; jumps to the New bill form</td><td>Accounting <code>use</code> to save</td><td></td></tr>
+<tr><td>2</td><td>Chip "Filter Open"</td><td>Default filter</td><td>Remove it to see paid and cancelled bills</td><td></td></tr>
+<tr><td>3</td><td>Search</td><td>Bill number, supplier, supplier's invoice number, note</td><td></td><td></td></tr>
+<tr><td>4</td><td>Filters</td><td>Filters: Open, Paid, Cancelled; Overdue, Due in 7 days; This month, Last month, Last 7 days. Group by: Supplier, Status, Store, Account, Month</td><td>OR inside a group, AND across</td><td>Grouped rows show counts and subtotals.</td></tr>
+<tr><td>5, 6, 7</td><td>Export, Columns, Per page</td><td>Optional columns: Reference, Store, Account, VAT, Paid</td><td></td><td><code>bills.csv</code> / <code>.xlsx</code></td></tr>
+<tr><td>8</td><td>Select all</td><td>Ticks rows</td><td>No bulk action; limits the export</td><td></td></tr>
+<tr><td>9</td><td>Number</td><td><code>BILL-000001</code> onward, gapless; blue link; sortable</td><td></td><td>Opens the bill page.</td></tr>
+<tr><td>10</td><td>Supplier</td><td>Sortable</td><td></td><td></td></tr>
+<tr><td>11, 12</td><td>Bill date, Due</td><td>Day first; sortable</td><td></td><td></td></tr>
+<tr><td>13</td><td>Status</td><td>Grey outlined pill. An open bill reads "Waiting for answer" (see the note below), then Paid, Cancelled</td><td></td><td></td></tr>
+<tr><td>14, 15</td><td>Total (EGP), Left to pay</td><td>Bill total with VAT, and what is still unpaid; both summed in Total; sortable</td><td>Withholding kept back counts as paid</td><td></td></tr>
+<tr><td>16, 17</td><td>What we owe, by how late</td><td>Ageing per supplier: Not due, 1 to 30 days, 31 to 60, 61 to 90, Over 90, Total. Late amounts are red. With nothing owed: "We owe no supplier anything."</td><td>By due day, Cairo time</td><td>The same figures as Who we owe, by age.</td></tr>
+</tbody></table>
+<div class="note">The open status reads "Waiting for answer" in the list pill and the status bar. That wording belongs to tickets; the bill workflow should read "Open" (reported as a bug).</div>
+<figure class="shot" data-shot="s31-bills-list-filters"><figcaption>The Filters panel of Supplier bills.</figcaption></figure>
+<figure class="shot" data-shot="s31-bills-all"><figcaption>Every status at once (filter chip removed): two open bills, one paid, one paid in two parts and one cancelled.</figcaption></figure>
+
+<h3>New bill</h3>
+<figure class="shot" data-shot="s31-bill-new-filled"><figcaption>The New bill form filled in, with a PDF invoice and a PNG quote attached.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Supplier</td><td>"Choose a supplier", then suppliers in use</td><td>Required</td><td>Its usual category is proposed.</td></tr>
+<tr><td>2</td><td>New supplier</td><td>Blue link</td><td></td><td>Opens Suppliers at its New supplier form.</td></tr>
+<tr><td>3</td><td>Supplier's invoice number</td><td>The supplier's own number</td><td>Required, 2 to 100 characters; once per supplier: a second bill with the same number answers "This supplier invoice number is already entered."</td><td></td></tr>
+<tr><td>4, 5</td><td>Bill date, Due date</td><td>Day first date boxes, today by default</td><td>The bill date may not be in the future or in closed books; the due date may not be before the bill date (<code>due_before_bill</code>)</td><td>The cost counts in the bill date's month; ageing uses the due date.</td></tr>
+<tr><td>6</td><td>Expense category</td><td>Open 5400 and 5500 accounts</td><td>Required</td><td>The account debited.</td></tr>
+<tr><td>7</td><td>Store</td><td>"Company wide" or a store</td><td></td><td>Tags the cost line.</td></tr>
+<tr><td>8</td><td>Currency</td><td>EGP, USD, EUR, GBP, SAR, AED</td><td>Another currency adds "EGP for 1 <em>USD</em> on the bill date" and the amounts are typed in that currency</td><td>Booked in EGP at the bill's rate; see bills in another currency.</td></tr>
+<tr><td>9</td><td>Amount before VAT (EGP)</td><td>Net amount, right aligned</td><td>Above 0</td><td></td></tr>
+<tr><td>10</td><td>VAT (EGP)</td><td>VAT on the invoice</td><td>0 or more</td><td>Booked to 2301 as input VAT.</td></tr>
+<tr><td>11</td><td>Note</td><td>Free text up to 300 characters</td><td></td><td></td></tr>
+<tr><td></td><td>Cost tag (optional)</td><td>Shown when active cost tags exist</td><td></td><td>Tags the cost line.</td></tr>
+<tr><td>12</td><td>Bill total</td><td>"Bill total: EGP 6,840.00", bold, updated as you type</td><td></td><td></td></tr>
+<tr><td>13</td><td>Attachment field</td><td>The invoice and any documents</td><td>See above</td><td>Linked to the bill.</td></tr>
+<tr><td>14</td><td>Save bill</td><td>Saves (<code>POST /finance/bills</code>)</td><td>Disabled until the required fields are filled</td><td>"Saved as BILL-000005." under the button; the form empties.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-bill-duplicate-error"><figcaption>The error shown when the supplier's invoice number was already entered for that supplier.</figcaption></figure>
+<figure class="shot" data-shot="s31-bill-new-usd"><figcaption>Currency set to USD: the rate on the bill date is asked and the amounts are typed in dollars.</figcaption></figure>
+
+<h3>The bill page</h3>
+<figure class="shot" data-shot="s31-bill-page-open"><figcaption>An open bill of 6,840.00 EGP before any payment (/finance/bills/&lt;id&gt;).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Bills / BILL-000005</td><td>Back to the list with its filters (previous and next records of that list are kept).</td></tr>
+<tr><td>2</td><td>Number and supplier</td><td>Bill number, supplier name in grey</td><td></td></tr>
+<tr><td></td><td>Status bar</td><td>Open step in blue (reads "Waiting for answer"), then Paid; Cancelled appears in red only when cancelled</td><td></td></tr>
+<tr><td>4</td><td>Amount</td><td>Prefilled with what is left to pay</td><td>Change it to pay in parts.</td></tr>
+<tr><td>5</td><td>Paid from</td><td>Open banks and cash boxes, CIB first</td><td></td></tr>
+<tr><td>6</td><td>Reference</td><td>Bank reference, placeholder only</td><td>Required, at least 2 characters; the Pay button stays light blue until then.</td></tr>
+<tr><td></td><td>Withholding line</td><td>Grey: "Withholding tax kept back: EGP 60.00. Leaves the bank: EGP 6,780.00."</td><td>Shown when the supplier has a withholding rate; recalculated as you type.</td></tr>
+<tr><td>7</td><td>Attachment field</td><td>The transfer slip</td><td>Linked to the payment entry.</td></tr>
+<tr><td>8</td><td>Pay</td><td>Blue button</td><td>Posts the payment (<code>POST /finance/bills/&lt;id&gt;/payments</code>), or sends it to Approvals from the approval limit.</td></tr>
+<tr><td>9</td><td>Why cancel</td><td>Placeholder "Why cancel (entered by mistake...)"</td><td>At least 5 characters.</td></tr>
+<tr><td>10</td><td>Cancel bill</td><td>White button with grey text</td><td>Only for a bill with nothing paid and not a rider office bill; posts a reversing entry.</td></tr>
+<tr><td></td><td>Smart buttons</td><td>Supplier; Payments (count); Journal entries (count); Attachments (count)</td><td>Supplier opens the bills searched by the supplier; Payments opens the journal searched by the supplier's invoice number; Journal entries opens the journal searched by the bill number.</td></tr>
+<tr><td></td><td>Details</td><td>Supplier, supplier's invoice no., bill date, due date, account, store, before VAT, VAT, total, paid so far, left to pay, withholding tax %, what</td><td></td></tr>
+<tr><td></td><td>Payments table</td><td>Entry (link), day, amount, Total; shown once paid</td><td>Opens the payment's journal entry.</td></tr>
+</tbody></table>
+<h4>Paying with withholding tax</h4>
+<p>The supplier keeps 1% withholding on the amount before VAT. Each payment keeps back its share: <code>wht = net × rate × paid ÷ total</code>, rounded to the piastre, and the last payment makes the total exact. Paying 3,000.00 of 6,840.00 keeps back 26.32 (6,000 × 1% × 3,000 ÷ 6,840) and 2,973.68 leaves CIB; paying the remaining 3,840.00 keeps back 33.68 and 3,806.32 leaves CIB; 60.00 in all, exactly 1% of 6,000.00. Each payment entry is Dr supplier wallet, Cr 2302 withholding tax payable, Cr the bank. See the chapter Expenses, suppliers, bills and the assets we pay for, bill payments, and Taxes for the quarterly form 41.</p>
+<figure class="shot" data-shot="s31-bill-pay-filled"><figcaption>The payment form for the rest of the bill: 3,840.00, CIB, a reference, and the withholding line "EGP 33.68. Leaves the bank: EGP 3,806.32."</figcaption></figure>
+<figure class="shot" data-shot="s31-bill-page-partial"><figcaption>After the first payment: paid so far 3,000.00, left to pay 3,840.00, one payment entry, the slip under Attachments. The bill stays open.</figcaption></figure>
+<figure class="shot" data-shot="s31-bill-page-paid"><figcaption>Fully paid: the status bar moves to Paid (blue), the pay and cancel forms disappear, two payment entries add up to 6,840.00.</figcaption></figure>
+<figure class="shot" data-shot="s31-bill-page-cancelled"><figcaption>A cancelled bill: Cancelled in red at the end of the status bar, left to pay 0.00, and the reason in the history (finance.bill_cancel).</figcaption></figure>
+<figure class="shot" data-shot="s31-bill-page-overdue"><figcaption>An overdue open bill (due 31/10/2026): it still shows the pay form; the ageing table lists it in red under 1 to 30 days.</figcaption></figure>
+<figure class="shot" data-shot="s31-bill-payments"><figcaption>The Payments smart button opens the journal searched on the supplier's invoice number, listing the two payment entries.</figcaption></figure>
+
+<h2 id="s31-po">Purchase orders</h2>
+<p><strong>Address:</strong> <code>/finance/purchase-orders</code> (filter <code>?status=</code>, supplier <code>?supplierId=</code>); one order at <code>/finance/purchase-orders/&lt;id&gt;</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Purchase orders. <strong>Who:</strong> Accounting <code>use</code> asks for, sends, receives (Inventory <code>use</code> may receive too), bills and closes an order; approving or rejecting needs Accounting <code>manage</code> and another person than the asker. An order below the approval limit is approved at once ("Below the approval limit"). See the chapter Expenses, suppliers, bills and the assets we pay for, purchase orders.</p>
+<figure class="shot" data-shot="s31-po-list"><figcaption>Purchase orders with one order closed, one rejected and one cancelled (/finance/purchase-orders).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1 to 3</td><td>Show: All, Requested, Approved, Ordered, Received, Billed, Closed</td><td>Rounded filter buttons; the chosen one is blue</td><td>Each button shows one state; rejected and cancelled orders appear under All only</td><td>Reloads with <code>?status=</code>.</td></tr>
+<tr><td>4</td><td>Number</td><td><code>PO-000001</code> onward, gapless, blue link</td><td></td><td>Opens the order.</td></tr>
+<tr><td>5, 6</td><td>Supplier, Store</td><td>Store or "Company wide"</td><td></td><td></td></tr>
+<tr><td>7</td><td>State</td><td>Plain text: Requested, Approved, Ordered (with a grey share such as "60% received" while partly received), Received, Billed, Closed, Rejected, Cancelled</td><td></td><td></td></tr>
+<tr><td>8</td><td>Total before VAT</td><td>Sum of the lines</td><td></td><td></td></tr>
+<tr><td>9</td><td>Asked by</td><td>Person and time</td><td></td><td></td></tr>
+<tr><td>10</td><td>New purchase order</td><td>The form below the list</td><td>Accounting <code>use</code></td><td>See below.</td></tr>
+</tbody></table>
+<h3>New purchase order: a packaging line, an expense line and an asset</h3>
+<figure class="shot" data-shot="s31-po-new-filled"><figcaption>A new order mixing a packaging item (bubble wrap), an expense (deep cleaning) and an asset (a laptop, 36 months), with the supplier's quote photo.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Supplier</td><td>Active suppliers</td><td>Required (<code>supplier_not_found</code> "Choose an active supplier.")</td><td></td></tr>
+<tr><td>2</td><td>Store</td><td>"Company wide" or a dark store</td><td>Packaging needs a store ("Packaging goes into a store: choose the store.")</td><td>Packaging received goes into that store's packaging stock.</td></tr>
+<tr><td>3</td><td>Line type</td><td>Packaging item, Expense, Asset (equipment)</td><td>One type per line</td><td>Changes the fields of the line.</td></tr>
+<tr><td>4</td><td>Packaging item</td><td>Active packaging items "BUBBLE Bubble wrap roll"</td><td>Items are created in Inventory &gt; Packaging; with none the list is empty</td><td>Fills the description and the expected unit cost.</td></tr>
+<tr><td>5, 6</td><td>Quantity, Unit price (EGP)</td><td>Whole quantity, price per unit</td><td>An asset needs a price above zero</td><td></td></tr>
+<tr><td>7</td><td>Expense category</td><td>On an expense line: open 5400 and 5500 accounts</td><td></td><td>Booked when the bill is made.</td></tr>
+<tr><td>8</td><td>Description</td><td>Free text</td><td></td><td></td></tr>
+<tr><td>9</td><td>Used for (months)</td><td>On an asset line: its life</td><td>1 to 600 ("Enter the months the asset is used, 1 to 600.")</td><td>Depreciated straight line over these months.</td></tr>
+<tr><td>10</td><td>Store of the asset</td><td>"The order's store" or another store</td><td></td><td>Tags the asset and its depreciation.</td></tr>
+<tr><td>11</td><td>Asset hint</td><td>"When it arrives an asset is booked as equipment (1601), one record per unit, and depreciated every month over its months."</td><td></td><td></td></tr>
+<tr><td>12</td><td>Remove line</td><td>White button on each line</td><td>At least one line stays</td><td></td></tr>
+<tr><td>13</td><td>Add a line</td><td>White button</td><td></td><td>A new expense line.</td></tr>
+<tr><td>14</td><td>Note</td><td>Free text</td><td></td><td></td></tr>
+<tr><td>15</td><td>Supplier quote</td><td>"Attach receipt photo" (one photo; "Change photo" and "Photo attached" once chosen)</td><td>A photo only; this field is not the multi file attachment field</td><td>Shown as "Open the quote photo" on the order.</td></tr>
+<tr><td>16</td><td>Total before VAT</td><td>Live total (30,700.00)</td><td></td><td></td></tr>
+<tr><td>17, 18</td><td>Save, Cancel</td><td>FormFooter with "Unsaved changes"</td><td>Save is grey until the order is valid</td><td>Opens the new order.</td></tr>
+</tbody></table>
+
+<h3>The purchase order page and its states</h3>
+<p>The status bar runs Requested, Approved, Ordered, Received, Billed, Closed; done steps carry a check mark, the current one is blue, and Rejected or Cancelled appear in red. Smart buttons: Lines (count), Deliveries (receipts), Bills. The details show the store, total before VAT, "Asked by" with the time, "Approved by" (the person, "Below the approval limit" or "Not yet"), the note and "Open the quote photo". The lines table shows Line type, Description, Goes to (the packaging item, the expense account, or "Equipment, 36 months, MAA Maadi" with "1 asset in the register"), Quantity, Unit price, Received and Billed.</p>
+<figure class="shot" data-shot="s31-po-page-requested-asker"><figcaption>Requested, as the asker sees it: "Waiting for another person with the approve level." and the close field.</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-requested"><figcaption>Requested, as a second person with Accounting manage sees it.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Breadcrumbs</td><td>Accounting / Purchase orders / PO-000001</td><td>Back to the list.</td></tr>
+<tr><td>2</td><td>Number</td><td>PO number, supplier in grey</td><td></td></tr>
+<tr><td>3</td><td>Note (needed to reject)</td><td>Text box in the Approval card</td><td>Required only to reject.</td></tr>
+<tr><td>4</td><td>Approve</td><td>Blue button</td><td>"Approved." The order moves to Approved. The asker gets "Someone else must approve what you asked for." if they try.</td></tr>
+<tr><td>5</td><td>Reject</td><td>White button with red text, disabled until a note is typed</td><td>"Rejected." The order ends in red Rejected.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-po-page-approved"><figcaption>Approved: "Mark as sent to the supplier" (Accounting use) and the close field with "Cancel the order".</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-ordered"><figcaption>Ordered: the Receive goods card, one quantity box per line with "(10 still to come)".</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Receive goods</td><td>Heading and "Enter what arrived now; the rest can come later."</td><td></td></tr>
+<tr><td>2</td><td>Quantity box</td><td>One per line still to come</td><td>Whole numbers; more than ordered answers "More than was ordered."</td></tr>
+<tr><td>3</td><td>Still to come</td><td>Grey "(10 still to come)"</td><td></td></tr>
+<tr><td>4</td><td>Receive</td><td>Blue button</td><td>"Received." Packaging goes into the store's packaging stock (Dr 1402 Packaging stock, Cr 2401 Goods received not billed, at the ordered price); each asset unit becomes an equipment record (Dr 1601, Cr 2401). Each delivery is booked once per key.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-po-page-partly"><figcaption>Partly received: 6 of 10 rolls, the cleaning and the laptop received; the laptop line links "1 asset in the register"; the Make the bill card appears.</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-received"><figcaption>Received: every line arrived; only Make the bill and Close remain.</figcaption></figure>
+<figure class="shot" data-shot="s31-po-bill-form"><figcaption>Make the bill from the order.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Hint</td><td>"What was received is worth 30,700.00 at the ordered prices; the bill may be at most 31,314.00."</td><td>At most <code>finance.po_bill_tolerance_bp</code> above (default 2%)</td><td>Above it: "The bill is above the ordered prices by more than allowed."</td></tr>
+<tr><td>2</td><td>Supplier invoice number</td><td></td><td>Once per supplier ("This supplier invoice number is already recorded.")</td><td></td></tr>
+<tr><td>3, 4</td><td>Bill date, Due date</td><td>Day first</td><td></td><td></td></tr>
+<tr><td>5</td><td>Amount before VAT (EGP)</td><td>Prefilled with the received value</td><td></td><td>The difference to the ordered value goes to the order's expense.</td></tr>
+<tr><td>6</td><td>VAT (EGP)</td><td></td><td></td><td></td></tr>
+<tr><td>7</td><td>Make the bill</td><td>Blue button</td><td>Accounting use</td><td>"Bill recorded. Pay it from Bills." A normal bill (BILL-000006, 34,998.00 with VAT 4,298.00) that clears 2401, books the cleaning to 5407 and VAT to 2301, against the supplier's wallet. It is paid from Supplier bills and cannot be cancelled by reversal.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-po-page-billed"><figcaption>Billed: the Bills table lists BILL-000006 with its amount and "Open"; the close field reads "Close the order".</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-closed"><figcaption>Closed with a note. The close note is shown after "Approved by" (reported as a display bug).</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-rejected"><figcaption>Rejected by the second person, red Rejected at the end of the status bar; the line "Approved by" shows the rejecter and the note (the label should read Decided by).</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-approved-below"><figcaption>An 800.00 EGP order approved at once: "Approved by: Below the approval limit".</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-cancelled"><figcaption>Cancelled: closed before anything arrived; the button read "Cancel the order" and ends in red Cancelled.</figcaption></figure>
+<p>Close rules: "Why it is closed (needed)" must be filled; closing is refused while received goods are not billed ("Bill what was received before closing."). With nothing received the button reads <em>Cancel the order</em> and the order ends Cancelled; otherwise <em>Close the order</em> and it ends Closed.</p>
+
+<h2 id="s31-movements">Money movements</h2>
+<p><strong>Address:</strong> <code>/finance/movements?tab=transfer|expense|capital|income|journal</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Expenses and transfers. <strong>Who:</strong> Accounting <code>use</code> to save. Five tabs, each a form that posts a voucher (JV number) or sends a request to Approvals. Every tab ends with the attachment field and Save / Cancel (FormFooter). After a save the message under the buttons reads "Saved as JV-002584." or "Saved and sent for approval. A second person must approve it before it is posted.", and the form empties.</p>
+<figure class="shot" data-shot="s31-mov-transfer"><figcaption>The Transfer tab with the five tabs (/finance/movements?tab=transfer).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1 to 5</td><td>Tabs Transfer, Expense, Owner money, Other income, Journal entry</td><td>The chosen tab has a light blue ground and blue text; each tab has a grey help line on top of its form</td><td></td><td>Changes <code>?tab=</code>.</td></tr>
+<tr><td>6</td><td>From</td><td>Banks and cash boxes with balances</td><td>Required; must hold the amount</td><td>Credited.</td></tr>
+<tr><td>7</td><td>To</td><td>Banks and cash boxes</td><td>Required; not the same account</td><td>Debited.</td></tr>
+<tr><td>8</td><td>Amount (EGP) (EGP)</td><td>The amount (the label repeats "(EGP)", a known label bug)</td><td>"Enter an amount in EGP, for example 1250.50."</td><td></td></tr>
+<tr><td>9</td><td>Reference</td><td>Required, 2 characters or more</td><td></td><td></td></tr>
+<tr><td>10</td><td>Date</td><td>Day first, today by default</td><td>Never future, never in closed books</td><td></td></tr>
+<tr><td>11</td><td>Note (optional)</td><td>Memo</td><td></td><td></td></tr>
+<tr><td>12</td><td>Attachment field</td><td></td><td></td><td></td></tr>
+<tr><td>13, 14</td><td>Save, Cancel</td><td></td><td>From the approval limit the transfer waits; a foreign currency account adds "Foreign amount"</td><td>Transfer of 2,000.00 from CIB to the Maadi box: "Saved as JV-002584." (Dr 1201, Cr 1101).</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-mov-transfer-saved"><figcaption>The transfer saved: the form empties and shows the voucher number.</figcaption></figure>
+
+<h3>Expense tab</h3>
+<figure class="shot" data-shot="s31-mov-expense"><figcaption>The Expense tab: the full expense form.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Expense category</td><td>Open 5400 and 5500 accounts</td><td>Required</td></tr>
+<tr><td>2</td><td>Paid from</td><td>Banks and boxes with balance</td><td>Must hold the amount</td></tr>
+<tr><td>3</td><td>VAT included in the amount (EGP, optional)</td><td>Input VAT to claim back</td><td>Below the amount</td></tr>
+<tr><td>4</td><td>Belongs to store</td><td>"Company wide (no store)" or a store</td><td></td></tr>
+<tr><td>5</td><td>Cost tag (optional)</td><td>"No tag" or an active tag</td><td></td></tr>
+<tr><td>6 to 9</td><td>Amount, Reference, Date, What was it for</td><td>Here the note is required ("What was it for", 3 characters or more)</td><td></td></tr>
+<tr><td>10 to 12</td><td>Attachment field, Save, Cancel</td><td>Same posting as Record an expense</td><td>Posted, or waiting from the limit</td></tr>
+</tbody></table>
+
+<h3>Owner money tab (capital and drawings)</h3>
+<figure class="shot" data-shot="s31-mov-capital"><figcaption>Owner money with "Owner puts money in" chosen.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Direction</td><td>Radio: Owner puts money in / Owner takes money out</td><td></td><td>Switches the money label between To and From and the default equity account.</td></tr>
+<tr><td>2</td><td>To / From</td><td>The bank or box</td><td>Money out must be held</td><td></td></tr>
+<tr><td>3</td><td>Equity account</td><td>"3101 · default" for money in (capital), "3201 · default" for money out (drawings), or another 3100 or 3200 account</td><td></td><td></td></tr>
+<tr><td>4 to 10</td><td>Amount, Reference, Date, Note, attachment field, Save, Cancel</td><td></td><td>Money in always waits for a second person; drawings wait from the limit</td><td>50,000.00 in: "Saved and sent for approval…". 1,500.00 out: "Saved as JV-002585." (Dr 3201, Cr 1101).</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-mov-capital-saved"><figcaption>Owner capital in with a PDF attached, sent for approval.</figcaption></figure>
+<figure class="shot" data-shot="s31-mov-drawings-saved"><figcaption>Drawings ("Owner takes money out", 3201 default) posted at once below the limit.</figcaption></figure>
+
+<h3>Other income tab</h3>
+<figure class="shot" data-shot="s31-mov-income"><figcaption>Other income: income account (4200 group), the bank or box it came into, amount, reference, date, "What was it for" (required), attachments.</figcaption></figure>
+<p>Money in always waits for a second person while <code>finance.approve_money_in</code> is 1. Bank interest of 450.00 EGP was sent for approval.</p>
+<figure class="shot" data-shot="s31-mov-income-saved"><figcaption>Other income sent for approval.</figcaption></figure>
+
+<h3>Journal entry tab</h3>
+<p>For the accountant: any balanced entry with as many lines as needed, banks and cash boxes included (for example rent and electricity paid together from the bank). It is checked in full before saving or queuing (<code>checkJournalEntry</code>): debits equal credits, at least two lines, each line either a debit or a credit, no merchant or rider wallet, no staff advance wallet, no rider cash (<code>money_account_not_allowed</code>), money out never above what a bank or box holds, an accrual may not touch a bank or box (<code>accrual_money_not_allowed</code>). Money coming into a bank or box waits for a second person; money going out waits from the approval limit; otherwise it posts at once.</p>
+<figure class="shot" data-shot="s31-mov-journal"><figcaption>The Journal entry tab, empty, with two lines.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Account</td><td>Every account allowed in a journal entry, "5401 · Rent"</td><td>Wallets and rider cash are left out</td></tr>
+<tr><td>2, 3</td><td>Debit, Credit</td><td>Typing in one empties the other</td><td>Amounts in EGP</td></tr>
+<tr><td>4</td><td>Cost tag</td><td>"No tag" or an active tag, per line</td><td>Column shown when cost tags exist</td></tr>
+<tr><td></td><td>× Remove line</td><td>Shown on every line once there are three or more</td><td></td></tr>
+<tr><td>5</td><td>Totals</td><td>Debit and credit totals; when they differ a red line "Debits and credits differ by 200.00 EGP." and Save stays grey</td><td></td></tr>
+<tr><td>6</td><td>Add a line</td><td>Adds an empty line</td><td></td></tr>
+<tr><td>7</td><td>Reason (at least 5 letters)</td><td>The entry's memo</td><td>Required</td></tr>
+<tr><td>8</td><td>Date</td><td>Day first</td><td>Not future, not in closed books</td></tr>
+<tr><td>9</td><td>Reverse this entry on the 1st of next month</td><td>Tick box with the hint "For a cost or income of this month whose bill arrives later…"</td><td>An accrual; the daily job reverses it on the first day of next month</td></tr>
+<tr><td>10</td><td>Attachment field</td><td></td><td></td></tr>
+<tr><td>11, 12</td><td>Save, Cancel</td><td></td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-mov-journal-unbalanced"><figcaption>Three lines (rent 8,000.00 and utilities 1,200.00 debited, CIB 9,000.00 credited): the red difference line and a grey Save.</figcaption></figure>
+<figure class="shot" data-shot="s31-mov-journal-filled"><figcaption>Balanced at 9,200.00 with a PDF and a PNG attached; Save turns blue.</figcaption></figure>
+<figure class="shot" data-shot="s31-mov-journal-saved"><figcaption>Saved as JV-002588: money out of 9,200.00 is below the limit, so it posted at once.</figcaption></figure>
+
+<h2 id="s31-petty">Petty cash</h2>
+<p><strong>Address:</strong> <code>/finance/petty-cash</code>; one record at <code>/finance/petty-cash/&lt;id&gt;</code>; the store side at <code>/store/&lt;storeId&gt;/petty-cash</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Petty cash; staff open it from the store home. <strong>Who:</strong> store staff with Store <code>use</code> pay from their store box; Accounting <code>view</code> reads the list; Accounting <code>use</code> opens or closes petty cash categories; reversing needs Accounting <code>manage</code>. A payment above <code>finance.petty_cash_limit_piastres</code> (500.00 EGP), or one that would leave the box below <code>finance.petty_cash_float_piastres</code> (1,000.00 EGP), waits in Approvals as a petty_cash request. See the chapter Cash and riders, petty cash.</p>
+
+<h3>The store side (phone)</h3>
+<figure class="shot" data-shot="s31-petty-store-filled"><figcaption>Petty cash on a store staff phone, filled in with a receipt photo (/store/&lt;storeId&gt;/petty-cash).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What it does</th></tr></thead><tbody>
+<tr><td>1</td><td>In the store box (EGP)</td><td>White card with the box balance in large bold figures</td><td>Read from the store's 1200 cash box.</td></tr>
+<tr><td>2</td><td>Limit hint</td><td>"Above 500.00 EGP, or when the box would keep less than 1,000.00 EGP, finance approves it first."</td><td></td></tr>
+<tr><td>3</td><td>What was it for</td><td>Only the categories finance opened to stores (by name, without code)</td><td>With none: "Finance has not opened any petty cash category yet."</td></tr>
+<tr><td>4</td><td>Cost tag (optional)</td><td>"No tag" or an active tag</td><td></td></tr>
+<tr><td>5</td><td>Amount (EGP)</td><td></td><td>"Enter the amount paid."; above the box: "The box does not hold that much cash."</td></tr>
+<tr><td>6</td><td>Note</td><td>Placeholder "What did you buy?"</td><td>Required ("Write what it was for.")</td></tr>
+<tr><td>7</td><td>Receipt photo</td><td>The attachment field, required (marked with *)</td><td>"Pay from the box" stays grey until a receipt is added.</td></tr>
+<tr><td>8</td><td>Pay from the box</td><td>Blue button</td><td>"Saved as PC-000002. Paid from the box." or "Saved as PC-000003. Waiting for finance to approve it."</td></tr>
+<tr><td>9</td><td>Recent petty cash</td><td>Number, status in green (Paid) or grey (Waiting for approval, Rejected, Reversed), note, person, time, amount</td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-petty-store-recent"><figcaption>The recent list after several payments: paid, waiting for approval, rejected and reversed.</figcaption></figure>
+<p>A posted payment is Dr the category, Cr the store's box, tagged with the store and the cost tag. The store's <em>Cash</em> screen (<code>/store/&lt;storeId&gt;/cash</code>) is where staff count riders' cash handovers and a store manager pays approved cash withdrawals; it is covered in the cash chapter.</p>
+<figure class="shot" data-shot="s31-store-cash"><figcaption>The store's Cash from riders screen on a phone, reached from the Cash tab (/store/&lt;storeId&gt;/cash).</figcaption></figure>
+
+<h3>The finance list</h3>
+<figure class="shot" data-shot="s31-petty-list"><figcaption>Petty cash in Accounting, no default filter, and the petty cash categories under it (/finance/petty-cash).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Search</td><td>Number, note, category, store</td><td></td></tr>
+<tr><td>2</td><td>Filters</td><td>Paid, Waiting for approval, Rejected or withdrawn, Reversed; This month, Last month, Last 7 days. Group by Store, Category, Status, Prepared by, Month</td><td></td></tr>
+<tr><td>3 to 5</td><td>Export, Columns, Per page</td><td>Optional column Prepared by</td><td></td></tr>
+<tr><td>6</td><td>Select all</td><td>No bulk action</td><td></td></tr>
+<tr><td>7</td><td>Number</td><td><code>PC-000001</code> onward, gapless; opens the record</td><td></td></tr>
+<tr><td>8 to 11</td><td>Store, Category, Note, Created</td><td>Store code, account code and name, note, Cairo time</td><td></td></tr>
+<tr><td>12</td><td>Status</td><td>Grey outlined pill: Paid, Waiting for approval, Rejected, Withdrawn, Reversed</td><td></td></tr>
+<tr><td>13</td><td>Amount (EGP)</td><td>Summed in Total</td><td></td></tr>
+<tr><td>14</td><td>Petty cash categories</td><td>Every 5400 and 5500 account with a tick box "Open to stores" or "Not for stores"</td><td>Accounting <code>use</code>; each change is saved at once (<code>POST /finance/petty-cash/categories/&lt;id&gt;</code>) and audited</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-petty-list-filters"><figcaption>The Filters panel of Petty cash.</figcaption></figure>
+
+<h3>The petty cash page and its states</h3>
+<figure class="shot" data-shot="s31-petty-page-reverse"><figcaption>A paid record with the reverse form opened (/finance/petty-cash/&lt;id&gt;).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title</td><td>PC number, store code in grey</td><td></td></tr>
+<tr><td>2</td><td>Breadcrumbs</td><td>Accounting / Petty cash / PC-000004</td><td>Back to the list.</td></tr>
+<tr><td></td><td>Status bar</td><td>Waiting, Posted; Rejected or Reversed in red</td><td></td></tr>
+<tr><td></td><td>Summary card</td><td>Number, status word in green "Paid", store, category, note, person, time, amount in bold</td><td></td></tr>
+<tr><td>4</td><td>Receipt, Reverse</td><td>Blue links on the right</td><td>Receipt opens the photo; Reverse (Accounting <code>manage</code>) opens the reason box. A waiting record shows "Approvals" instead.</td></tr>
+<tr><td>5</td><td>Reason to reverse</td><td>Text box</td><td>Required.</td></tr>
+<tr><td>6</td><td>Reverse and return to the box</td><td>Blue button, light until a reason is typed</td><td>Posts the reversal (the lines turned round) and the record becomes Reversed.</td></tr>
+<tr><td>7</td><td>Journal entry smart button</td><td>The JV number</td><td>Opens the entry.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-petty-page-reversed"><figcaption>Reversed: red Reversed in the status bar, two smart buttons (Journal entry and Reversal entry), "Reversed by" and the reason.</figcaption></figure>
+<figure class="shot" data-shot="s31-petty-page-rejected"><figcaption>Rejected in Approvals: red Rejected, the decision note, and no journal entry. The smart button shows the raw word "rejected" (reported as a bug; a waiting record shows "pending").</figcaption></figure>
+
+<h2 id="s31-rw">Rider withdrawals</h2>
+<p><strong>Address:</strong> <code>/finance/rider-withdrawals</code>; one request at <code>/finance/rider-withdrawals/&lt;id&gt;</code>; the rider side at <code>/rider/wallet</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Rider withdrawals. <strong>Who:</strong> Accounting <code>use</code> approves, rejects and pays; never the rider. From the approval limit the payer must not be the approver (<code>same_person</code>). A store manager may pay an approved cash request at the store from the store box. See the chapter Cash and riders, rider pay and withdrawals.</p>
+<figure class="shot" data-shot="s31-rw-rider-form"><figcaption>The rider asks on the phone: amount (with "All available"), the way to be paid (Cash at the store, InstaPay, Mobile wallet, Bank transfer), the InstaPay address, and "Taken from your wallet / You receive" before Send request.</figcaption></figure>
+<figure class="shot" data-shot="s31-rw-list"><figcaption>Rider withdrawals with every status shown (/finance/rider-withdrawals; the default filter is Asked or Approved).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Chip</td><td>Default "Asked or Approved"; here every status</td><td></td></tr>
+<tr><td>2</td><td>Search</td><td>Number, rider, badge</td><td></td></tr>
+<tr><td>3</td><td>Filters</td><td>Asked, Approved, Paid, Rejected or cancelled; dates. Group by Store, Rider, Status, Way of payment, Month</td><td></td></tr>
+<tr><td>4 to 6</td><td>Export, Columns, Per page</td><td>Optional columns Badge and Deducted (what the rider owed, taken first)</td><td></td></tr>
+<tr><td>7</td><td>Select all</td><td>No bulk action</td><td></td></tr>
+<tr><td>8 to 12</td><td>Number (<code>RW-000001</code>, opens the request), Rider, Store, Paid by way of, Created</td><td>Sortable number, rider, created and amount</td><td></td></tr>
+<tr><td>13</td><td>Status</td><td>Pill: Waiting, Approved, Paid, Not approved, Cancelled</td><td></td></tr>
+<tr><td></td><td>Amount (EGP)</td><td>What the rider receives; summed</td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-rw-list-filters"><figcaption>The Filters panel of Rider withdrawals.</figcaption></figure>
+<figure class="shot" data-shot="s31-rw-page-requested"><figcaption>A request waiting (status bar Requested).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1, 2</td><td>Breadcrumbs, number</td><td>RW number, rider label in grey</td><td></td></tr>
+<tr><td></td><td>Card</td><td>RW number, rider and badge, store, time, way of payment and address; status word and amount on the right; deductions line when the rider owed something</td><td></td></tr>
+<tr><td>3</td><td>Approve</td><td>Blue button</td><td>"Approved." The request moves to Approved; the amount stays set aside.</td></tr>
+<tr><td>4</td><td>Reject</td><td>White button</td><td>Opens "Why (the rider sees this)" and Save; at least 3 characters. The amount is freed at once and the rider sees "Not approved: <em>reason</em>".</td></tr>
+<tr><td></td><td>Smart buttons</td><td>Rider wallet (badge), Journal entries, Receipts</td><td>Rider wallet opens the rider's wallet account lines.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-rw-reject-form"><figcaption>Reject opened with the reason the rider will see.</figcaption></figure>
+<figure class="shot" data-shot="s31-rw-page-rejected"><figcaption>Rejected: "Not approved" in red at the end of the status bar.</figcaption></figure>
+<figure class="shot" data-shot="s31-rw-page-cancelled"><figcaption>Cancelled by the rider before approval.</figcaption></figure>
+<figure class="shot" data-shot="s31-rw-page-approved"><figcaption>Approved, with Pay opened.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Pay from</td><td>Default "The rider's store cash box" for cash at the store, "The main bank (CIB)" for the others; any open bank or box may be chosen</td><td>Must hold the amount</td></tr>
+<tr><td>2</td><td>Reference</td><td>Bank or cash reference</td><td>At least 2 characters</td></tr>
+<tr><td>3</td><td>Mark paid</td><td>Posts Dr 2200 rider wallet (amount plus deductions), Cr 1350 dues, Cr 1500 advance, Cr the bank or box</td><td>"Paid." From the approval limit the approver cannot pay ("You approved this, so another person must pay it.")</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-rw-page-paid"><figcaption>Paid: Paid in blue, one journal entry, "Paid by", "Paid on" and the reference. "Paid by way of" shows the raw method value (store_cash; reported as a display bug).</figcaption></figure>
+
+<h2 id="s31-claims">Expense claims</h2>
+<p><strong>Address:</strong> <code>/finance/expense-claims</code>; one claim at <code>/finance/expense-claims/&lt;id&gt;</code>; the employee side at <code>/my-file/claims</code>; the manager decides in <code>/my-file/inbox</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Expense claims. <strong>Who:</strong> any employee claims; the manager in force approves first (none: straight to accounting); Accounting <code>use</code> pays or refuses; choosing which categories may be claimed needs Accounting <code>manage</code>. Nobody decides their own claim; from the approval limit the payer is not the approving manager. See the chapter Expenses, suppliers, bills and the assets we pay for, expense claims.</p>
+<figure class="shot" data-shot="s31-claim-form"><figcaption>The employee's claim form in My HR: amount, VAT on the receipt (optional), what it was for, store, day paid (today or up to 60 days back), note and receipt photo.</figcaption></figure>
+<figure class="shot" data-shot="s31-claim-manager-inbox"><figcaption>The manager's Inbox: one card per claim with "See the receipt", Approve and Refuse.</figcaption></figure>
+<figure class="shot" data-shot="s31-claims-list"><figcaption>Expense claims with every status (/finance/expense-claims; the default filter is "Approved, to pay").</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Chip</td><td>Default "Approved, to pay"</td><td></td></tr>
+<tr><td>2, 3</td><td>Search, Filters</td><td>Filters: Waiting for the manager, Approved to pay, Paid, Rejected or withdrawn; "I may pay (not mine)"; Company wide; dates. Group by Person, Store, Category, Status, Month</td><td></td></tr>
+<tr><td>4 to 6</td><td>Export, Columns, Per page</td><td>Optional columns Note, Created, Approved by, Paid by</td><td></td></tr>
+<tr><td>7</td><td>Select all</td><td>For a manager, the bulk action "Approve claims" approves the manager step of people they manage</td><td>Never one's own</td></tr>
+<tr><td>8 to 12</td><td>Number (<code>EC-000001</code>), Person, Store, Category, Paid on</td><td></td><td></td></tr>
+<tr><td>13</td><td>Status</td><td>Pill: Waiting for the manager, Waiting for accounting, Paid, Refused, Taken back</td><td></td></tr>
+<tr><td>14, 15</td><td>VAT, Amount (EGP)</td><td>Both summed</td><td></td></tr>
+<tr><td>16</td><td>Categories people may claim</td><td>Tick box per 5400 and 5500 account: Claimable or Not claimable</td><td>Accounting <code>manage</code>; only claimable ones show in the claim form</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-claims-list-filters"><figcaption>The Filters panel of Expense claims.</figcaption></figure>
+<figure class="shot" data-shot="s31-claim-page-accounting"><figcaption>A claim approved by the manager and waiting for accounting.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1, 2</td><td>Breadcrumbs, number</td><td>EC number and person</td><td></td></tr>
+<tr><td></td><td>Status bar</td><td>Manager, Waiting for accounting, Paid; Rejected or Cancelled in red</td><td></td></tr>
+<tr><td>3</td><td>Pay from</td><td>Open banks and boxes with balances</td><td>Must hold the amount.</td></tr>
+<tr><td>4</td><td>Bank reference (optional)</td><td></td><td></td></tr>
+<tr><td>5</td><td>Pay 180.00</td><td>Blue button with the amount</td><td>Posts Dr the category (and Dr 2301 for VAT on a tax invoice), Cr the bank or box, store and person tags. The person is paid the full amount.</td></tr>
+<tr><td>6</td><td>Refuse</td><td>White button with red border</td><td>Opens "Why it is refused" and "Refuse the claim" (at least 3 characters).</td></tr>
+<tr><td></td><td>Smart buttons</td><td>Person (opens the list searched on them), Journal entry once paid</td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-claim-page-paid"><figcaption>Paid from the Maadi box: Paid in blue, the journal entry, "Paid from 1201" and the reference.</figcaption></figure>
+<figure class="shot" data-shot="s31-claim-reject-form"><figcaption>Refuse opened with its reason.</figcaption></figure>
+<figure class="shot" data-shot="s31-claim-page-rejected"><figcaption>Refused: Rejected in red, "Rejected by" and the reason.</figcaption></figure>
+<figure class="shot" data-shot="s31-claim-page-cancelled"><figcaption>Taken back by the employee before any decision: Cancelled in red.</figcaption></figure>
+<figure class="shot" data-shot="s31-claim-page-manager"><figcaption>Still with the manager: no buttons for accounting yet.</figcaption></figure>
+
+<h2 id="s31-riders">Riders (rider wallets)</h2>
+<p><strong>Address:</strong> <code>/finance/riders</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Riders (page title Rider wallets). <strong>Who:</strong> Accounting <code>view</code>; read only. One card per rider in the person's stores.</p>
+<figure class="shot" data-shot="s31-riders"><figcaption>Rider wallets (/finance/riders).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>Rule</th></tr></thead><tbody>
+<tr><td>1</td><td>Rider withdrawals</td><td>Blue link in the intro</td><td>Opens Rider withdrawals.</td></tr>
+<tr><td>2</td><td>Card title</td><td>Rider, badge, store</td><td></td></tr>
+<tr><td>3</td><td>Cash carrying</td><td>Cash on delivery in the rider's 1300 account</td><td>Handed in at the store or deposited at Basata.</td></tr>
+<tr><td>4</td><td>In the wallet</td><td>Balance of the 2200 rider pay wallet</td><td>Rider pay per delivered order, less what was paid out.</td></tr>
+<tr><td>5</td><td>On hold</td><td>Earnings still in their hold</td><td><code>rider.withdraw_hold_working_days</code> working days after the delivery day.</td></tr>
+<tr><td>6</td><td>You owe</td><td>Dues (1350) plus any staff advance</td><td>Taken first from the next withdrawal.</td></tr>
+<tr><td>7</td><td>Available to withdraw</td><td>Matured earnings less paid out, owed and open withdrawals</td><td>Always summed from the ledger, never stored.</td></tr>
+</tbody></table>
+
+<h2 id="s31-offices">Rider offices</h2>
+<p><strong>Address:</strong> <code>/finance/rider-offices</code> (<code>?month=YYYY-MM</code>); one office at <code>/finance/rider-offices/&lt;id&gt;</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Rider offices. <strong>Who:</strong> Accounting <code>view</code> reads; <code>use</code> prepares the month end bills; <code>manage</code> marks a supplier as an office and changes its rate. HR links riders to an office on their file. See the chapter Cash and riders, rider supply offices.</p>
+<figure class="shot" data-shot="s31-offices-list"><figcaption>Rider offices with one office and one linked rider (/finance/rider-offices).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1</td><td>Month</td><td>Month picker</td><td></td><td>The table shows that month.</td></tr>
+<tr><td>2</td><td>Prepare office bills for <em>month</em></td><td>Blue button, light while the month is not over ("Bills are prepared once the month is over.")</td><td>Accounting <code>use</code>; months in order</td><td>For each office: moves what linked riders still owe beyond their wallet onto the office, then makes one bill from the month's commission (VAT only with a tax number). The result lists each office, e.g. "no commission this month. Shortages moved: EGP 0.00."</td></tr>
+<tr><td>3</td><td>Open last month</td><td>Blue link</td><td></td><td>Sets <code>?month=</code> to last month.</td></tr>
+<tr><td></td><td>Office</td><td>Name (link); "No tax number: no VAT" in grey when it has none</td><td></td><td>Opens the office page.</td></tr>
+<tr><td>5 to 11</td><td>Commission, Riders, Deliveries, Commission, Shortages moved, Bill, Balance today</td><td>Rate, linked riders, the month's deliveries and commission, shortages moved, the bill number or a dash, what we owe now; Total row</td><td></td><td></td></tr>
+<tr><td>12</td><td>How it works</td><td>Grey paragraph on commission and shortages</td><td></td><td></td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-office-mark"><figcaption>Mark a supplier as a rider office: Supplier, Commission % (default 20) and "Mark as rider office" (Accounting manage).</figcaption></figure>
+<figure class="shot" data-shot="s31-offices-prepared"><figcaption>After "Prepare office bills for 2026-10": "Prepared." and one line per office.</figcaption></figure>
+<figure class="shot" data-shot="s31-office-page"><figcaption>An office page with its daily account (/finance/rider-offices/&lt;id&gt;). The demo office was linked today, so no delivery has earned commission yet.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Back to rider offices</td><td>Blue link</td><td>Back to the list.</td></tr>
+<tr><td>2</td><td>Title</td><td>Office name; "Tax number 611223344 · Withholding 3%"</td><td></td></tr>
+<tr><td>3 to 6</td><td>Commission, Balance today, Commission not billed yet (in the balance), Open bills</td><td>White stat cards</td><td></td></tr>
+<tr><td>7, 8</td><td>Commission %, Save rate</td><td>Rate box and button (Accounting <code>manage</code>); hint "A new rate counts for deliveries from now on; earlier deliveries keep the rate they were booked at."</td><td>Audited.</td></tr>
+<tr><td>9</td><td>Daily account</td><td>"What we owe the office, day by day": balance before the month, commission, deliveries, balance today; a table Day, Deliveries, Commission, Shortages moved, Bills (VAT), Payments, We owe; "Nothing moved on the account this month." when empty</td><td></td></tr>
+<tr><td>10</td><td>Month</td><td>Month picker of the daily account</td><td>Reloads with <code>?month=</code>.</td></tr>
+<tr><td>11</td><td>Download CSV</td><td>White button</td><td>The daily account as CSV.</td></tr>
+<tr><td>12</td><td>Show days without movements</td><td>Tick box</td><td>Adds empty days.</td></tr>
+<tr><td>13</td><td>Riders</td><td>Rider (link), store, deliveries and commission this month, rider wallet, rider owes</td><td>The rider opens their file.</td></tr>
+<tr><td>14</td><td>Month by month</td><td>Last 12 months: deliveries, rider pay, commission, shortages moved, bill ("Month running", "Not prepared" or the bill)</td><td></td></tr>
+<tr><td>15</td><td>Prepare this bill</td><td>The oldest month not prepared, then the button</td><td>Prepares that month for this office.</td></tr>
+<tr><td>16</td><td>Bills</td><td>Bill, month, net, VAT, bill total, left to pay, status; "No bills yet."</td><td>The bill opens its page, where it is paid with the office's shortages set off.</td></tr>
+</tbody></table>
+
+<h2 id="s31-payroll">Salaries and payslips</h2>
+<p><strong>Address:</strong> <code>/finance/payroll</code> and <code>/finance/payroll/payslips?month=YYYY-MM</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Payroll and Payslips, shown only with the salaries switch. <strong>Who:</strong> Accounting <code>view</code> with salaries to read; <code>use</code> with salaries to give advances, bonuses and run payroll. Packages are kept in HR. See the chapter Payroll and staff costs.</p>
+<figure class="shot" data-shot="s31-payroll"><figcaption>Salaries with the October run checked (/finance/payroll).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Team</td><td>Person (link to the HR file), Hired as (Employee or "Outsourced: <em>company</em>"), Salary package (gross with "Basic … + allowances … from <em>day</em>"), Advance owed</td><td>Per delivery riders are not listed.</td></tr>
+<tr><td>2</td><td>Set in HR</td><td>"Not set" and a blue link</td><td>Opens the person's HR file, Pay tab.</td></tr>
+<tr><td>3</td><td>Give an advance</td><td>Person, Amount, Reference, money account, button</td><td>Dr 1500 staff advance wallet, Cr the bank or box; from the limit it waits.</td></tr>
+<tr><td>4</td><td>Bonus to an outsourced person</td><td>Same fields</td><td>Dr 5702 staff bonus; employees get bonuses in the run instead, where they are taxed.</td></tr>
+<tr><td>5</td><td>Month</td><td>Month picker of the run</td><td>No month after the current one (<code>future_month</code>).</td></tr>
+<tr><td>6</td><td>Paid from</td><td>Bank or box</td><td></td></tr>
+<tr><td>7</td><td>Payslips</td><td>White button</td><td>Opens the payslips of the month.</td></tr>
+<tr><td>8</td><td>Include tick box</td><td>One per employee</td><td>Leaves a person out of this run.</td></tr>
+<tr><td>9</td><td>Bonus, Deduction, Advance back</td><td>Amounts per person</td><td></td></tr>
+<tr><td>10</td><td>Check the run</td><td>White button</td><td>Preview: gross, insurance, income tax, martyrs fund, advance back, net per person (with commission and HR deductions noted).</td></tr>
+<tr><td>11</td><td>Owed to the state, Net to pay, Cost to the company</td><td>Totals of the preview</td><td></td></tr>
+<tr><td>12</td><td>Pay salaries for <em>month</em></td><td>Blue button</td><td>Books the run once per month (key <code>payroll:YYYY-MM</code>); waits for a second person from the limit.</td></tr>
+</tbody></table>
+<div class="note">The October 2026 run was already paid in the demo (its payslips exist), yet the run section still offers "Pay salaries for 2026-10" without saying it was paid; repeating it only returns the first run (reported).</div>
+<figure class="shot" data-shot="s31-payslips"><figcaption>Payslips of a month: one card per employee with salary, gross, social insurance, income tax, martyrs fund (negatives in red) and net, the voucher number, and Print or save as PDF.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Title "Payslips 2026-10"</td><td>The month from <code>?month=</code></td></tr>
+<tr><td>2</td><td>Back to salaries</td><td>Returns to Salaries.</td></tr>
+<tr><td>3</td><td>Print or save as PDF</td><td>Prints every card; the menu is hidden in print.</td></tr>
+</tbody></table>
+
+<h2 id="s31-recurring">Recurring expenses</h2>
+<p><strong>Address:</strong> <code>/finance/recurring</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Recurring expenses. <strong>Who:</strong> Accounting <code>use</code> to add, stop or start again. On its day each month the job prepares that month's expense as a request in Approvals; nothing is paid by itself.</p>
+<figure class="shot" data-shot="s31-recurring-list"><figcaption>Recurring expenses with one item (/finance/recurring).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What it does</th></tr></thead><tbody>
+<tr><td>1</td><td>Name</td><td>Name and "2026-11 to no end"</td><td></td></tr>
+<tr><td>2</td><td>Expense category</td><td>Account and the money account under it</td><td></td></tr>
+<tr><td>3</td><td>Amount</td><td>With VAT</td><td></td></tr>
+<tr><td>4</td><td>Every month</td><td>"Day 5"</td><td></td></tr>
+<tr><td>5</td><td>This month</td><td>"Prepared, in Approvals", "Waiting for its day" or "Stopped"</td><td></td></tr>
+<tr><td>6</td><td>Stop / Start again</td><td>White button</td><td>Switches the item off or on (audited).</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-recurring-form"><figcaption>New recurring expense filled in.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>Rule / limits</th></tr></thead><tbody>
+<tr><td>1</td><td>Name</td><td>2 to 80 characters</td></tr>
+<tr><td>2</td><td>Expense category</td><td>5400 or 5500 account</td></tr>
+<tr><td>3</td><td>Paid from</td><td>Bank or box</td></tr>
+<tr><td>4</td><td>Store</td><td>Company wide or a store</td></tr>
+<tr><td>5, 6</td><td>Amount with VAT, Of which VAT</td><td>VAT below the amount</td></tr>
+<tr><td>7, 8</td><td>Note, Reference</td><td>Note 3 to 300 characters; reference required</td></tr>
+<tr><td>9</td><td>Day of month (1 to 28)</td><td>1 to 28, so every month has it</td></tr>
+<tr><td>10, 11</td><td>First month, Last month (optional)</td><td>The last month not before the first (<code>end_before_start</code>)</td></tr>
+<tr><td>12</td><td>Save recurring expense</td><td>Accounting <code>use</code>; the new item appears in the list with "Waiting for its day"</td></tr>
+</tbody></table>
+
+<h2 id="s31-assets">Prepaid and equipment (assets)</h2>
+<p><strong>Address:</strong> <code>/finance/assets</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Equipment. <strong>Who:</strong> Accounting <code>view</code> reads; <code>use</code> pays ahead, buys equipment and sends a sale or scrapping. There is no separate page per asset: each asset is one row of the Equipment register, and its entries are reached through the journal (reference) or the ledger lines of 1601. Equipment received on a purchase order appears here automatically. See the chapter Expenses, suppliers, bills and the assets we pay for, prepayments, equipment and depreciation.</p>
+<figure class="shot" data-shot="s31-assets-register"><figcaption>The register after a purchase order laptop, a bought shelving unit (then sold) and an insurance paid ahead (/finance/assets).</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
+<tr><td></td><td>Paid ahead</td><td>What, paid, per month, months charged ("0 of 12 from 2026-11"), still ahead; "Nothing paid ahead." when empty</td><td></td></tr>
+<tr><td>1</td><td>What</td><td>Equipment name and store</td><td></td></tr>
+<tr><td>2</td><td>Price (EGP)</td><td>Cost</td><td></td></tr>
+<tr><td>3</td><td>Per month</td><td>Depreciation each month: (price − worth at the end) ÷ months, in whole piastres (28,000 ÷ 36 = 777.77; the last month takes the rest)</td><td></td></tr>
+<tr><td>4</td><td>Months charged</td><td>"0 of 36 from 2026-11"</td><td>Charged once each month is over (key <code>depr:&lt;id&gt;:&lt;month&gt;</code>).</td></tr>
+<tr><td>5</td><td>Value now</td><td>Cost less depreciation charged, bold</td><td></td></tr>
+<tr><td>6</td><td>Sold or scrapped</td><td>Grey text, value 0.00</td><td>The asset left the books.</td></tr>
+<tr><td>7</td><td>Sell or scrap</td><td>White button under the value</td><td>Opens the disposal form.</td></tr>
+</tbody></table>
+<figure class="shot" data-shot="s31-assets-forms"><figcaption>Pay ahead and Buy equipment, filled in.</figcaption></figure>
+<table class="data"><thead><tr><th>#</th><th>Control</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
+<tr><td>1 to 8</td><td>Pay ahead: What, Expense category, Amount, Months, First month, Store, Paid from, Reference</td><td>Months 1 to 120; the bank or box must hold it; from the limit it waits</td><td>Dr 1401 Prepayments, Cr the bank; then one share a month to the category.</td></tr>
+<tr><td>9</td><td>"About EGP 500.00 each month."</td><td>Live hint</td><td></td></tr>
+<tr><td>10</td><td>Save</td><td>With the attachment field above it</td><td></td></tr>
+<tr><td>11 to 18</td><td>Buy equipment: What, Price, Worth at the end, Life in months, First month, Store, Paid from, Reference</td><td>Worth at the end below the price (<code>invalid_salvage</code>); life 1 to 600 months</td><td>Dr 1601 Equipment, Cr the bank.</td></tr>
+<tr><td>19</td><td>"About EGP 140.00 depreciation each month."</td><td>(9,000 − 600) ÷ 60</td><td></td></tr>
+<tr><td>20</td><td>Save</td><td>With the attachment field</td><td></td></tr>
+</tbody></table>
+<h3>Selling or scrapping an asset</h3>
+<figure class="shot" data-shot="s31-asset-dispose"><figcaption>Sell or scrap opened: Sold for (EGP, 0 if scrapped), the account the money comes into (shown only when sold for more than 0), the reason, the hint and "Take off the books".</figcaption></figure>
+<figure class="shot" data-shot="s31-asset-dispose-sent"><figcaption>After sending: "Saved and sent for approval. A second person must approve it before it is posted."</figcaption></figure>
+<p>A disposal always waits for a second person (<code>asset_disposal</code>). On approval the cost and accumulated depreciation leave the books, the sale money comes into the bank, and the rest goes to 5902 (here a loss of 1,500.00: value 9,000.00, sold for 7,500.00). Months before the disposal month are charged first; a disposal in or before a month already charged is refused (<code>disposal_before_charged_month</code>).</p>
+<figure class="shot" data-shot="s31-approval-disposal-approver"><figcaption>The disposal request as the second person sees it: Approve, "Reason to reject" and Reject.</figcaption></figure>
+<figure class="shot" data-shot="s31-approval-disposal-done"><figcaption>Approved: the request shows its journal entry; the register then shows "Sold or scrapped".</figcaption></figure>
+</section>
