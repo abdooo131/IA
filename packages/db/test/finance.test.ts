@@ -39,7 +39,7 @@ import {
 } from '../src/orders';
 import { savePhoto } from '../src/photos';
 import { receive } from '../src/stock';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, readyToPay, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
@@ -531,6 +531,7 @@ describe('merchant payouts and rider bonuses', () => {
     // Nothing moves before it is paid.
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(7000);
     // Money never leaves a bank that does not hold it.
+    await readyToPay(payout.id, { uploaderId: admin });
     await expect(
       markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-55', actorUserId: admin }),
     ).rejects.toMatchObject({ code: 'not_enough_money' });
@@ -568,6 +569,7 @@ describe('merchant payouts and rider bonuses', () => {
       actorUserId: admin,
       idempotencyKey: key(),
     });
+    await readyToPay(payout.id, { uploaderId: admin });
     await expect(
       markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-56', actorUserId: admin }),
     ).rejects.toMatchObject({ code: 'payout_more_than_owed' });
@@ -586,6 +588,7 @@ describe('merchant payouts and rider bonuses', () => {
       cutoffAt: new Date(),
       actorUserId: admin,
     });
+    await readyToPay(again.id, { uploaderId: admin });
     await markPayoutPaid(prisma, { payoutId: again.id, reference: 'TRX-57', actorUserId: admin });
     expect(await merchantOwed(prisma, f.merchant.id)).toBe(0);
   });

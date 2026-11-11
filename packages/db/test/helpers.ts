@@ -82,3 +82,42 @@ export async function binQty(binId: string, skuId: string) {
   const row = await prisma.binStock.findUnique({ where: { binId_skuId: { binId, skuId } } });
   return row?.quantity ?? 0;
 }
+
+/** A tiny PDF standing in for a bank transfer slip. */
+export const slipPdf = () => Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+
+/**
+ * Makes a draft payout payable: uploads its proof of transfer (amount and reference typed
+ * from the slip) and has a second person, never the payer, tick every active payout check.
+ */
+export async function readyToPay(
+  payoutId: string,
+  opts: { uploaderId: string; viewerId?: string; reference?: string },
+) {
+  const { addPayoutProof, listPayoutChecks, markPayoutCheck } = await import('../src/finance');
+  const payout = await prisma.payout.findUniqueOrThrow({ where: { id: payoutId } });
+  const viewerId =
+    opts.viewerId ??
+    (
+      await prisma.user.create({
+        data: {
+          email: `viewer-${Math.random().toString(36).slice(2)}@t.eg`,
+          name: 'Second person',
+          role: 'finance',
+          passwordHash: 'x',
+        },
+      })
+    ).id;
+  await addPayoutProof(prisma, {
+    payoutId,
+    fileName: 'slip.pdf',
+    contentType: 'application/pdf',
+    data: slipPdf(),
+    amountPiastres: payout.amountPiastres,
+    reference: opts.reference ?? `TRF-${payout.number}`,
+    actorUserId: opts.uploaderId,
+  });
+  for (const check of await listPayoutChecks(prisma, { activeOnly: true }))
+    await markPayoutCheck(prisma, { payoutId, checkId: check.id, actorUserId: viewerId });
+  return { viewerId };
+}

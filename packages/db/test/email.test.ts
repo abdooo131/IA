@@ -12,12 +12,14 @@ import {
 } from '../src/email';
 import { invoiceEmail, payoutPaidEmail, statementEmail } from '../src/email-templates';
 import { addMonths, createPayout, markPayoutPaid, post, prepareInvoices } from '../src/finance';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, readyToPay, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
 let n = 0;
 const key = () => `em-${++n}-${Math.random()}`;
+/** The API makes the statement of account PDF when the email is sent; a stand in here. */
+const renderAttachment = async (ref: string) => Buffer.from(`%PDF-1.4 ${ref}`);
 
 /** Records emails instead of sending them; can be told to fail. */
 class FakeMailer implements Mailer {
@@ -49,6 +51,7 @@ async function paidPayout(reference = 'TRX-1') {
     cutoffAt: new Date(),
     actorUserId: admin,
   });
+  await readyToPay(payout.id, { uploaderId: admin, reference });
   await markPayoutPaid(prisma, { payoutId: payout.id, reference, actorUserId: admin });
   return payout;
 }
@@ -189,11 +192,21 @@ describe('email outbox', () => {
     const mailer = new FakeMailer();
     await owe(10_000);
     await paidPayout();
-    const opts = { baseUrl: 'https://shiply.example/' };
+    const opts = { baseUrl: 'https://shiply.example/', renderAttachment };
     expect(await dispatchEmails(prisma, mailer, opts)).toEqual({ sent: 2, failed: 0, gaveUp: 0 });
     expect(await dispatchEmails(prisma, mailer, opts)).toEqual({ sent: 0, failed: 0, gaveUp: 0 });
     expect(mailer.sent).toHaveLength(2);
-    const statement = mailer.sent.find((m) => m.attachments?.length)!;
+    const statement = mailer.sent.find((m) =>
+      m.attachments?.some((a) => a.filename.endsWith('.csv')),
+    )!;
+    // The payout notice carries the statement of account PDF and the proof of transfer.
+    const notice = mailer.sent.find((m) => m !== statement)!;
+    expect(notice.attachments!.map((a) => [a.filename, a.contentType])).toEqual([
+      ['SOA-000001.pdf', 'application/pdf'],
+      ['POT-000001.pdf', 'application/pdf'],
+    ]);
+    expect(notice.attachments![0]!.content.toString('utf8')).toContain('payout_soa_pdf:');
+    expect(notice.attachments![1]!.content.toString('utf8')).toMatch(/^%PDF/);
     expect(statement.html).toContain('https://shiply.example/brand/app-icon-192.png');
     expect(statement.html).not.toContain('%BASE_URL%');
     expect(statement.attachments![0]!.content.toString('utf8')).toContain('opening_balance');
@@ -241,15 +254,15 @@ describe('email outbox', () => {
     let now = new Date();
     const errors: unknown[] = [];
     expect(
-      await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, onError: (e) => errors.push(e) }),
+      await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, renderAttachment, onError: (e) => errors.push(e) }),
     ).toEqual({ sent: 0, failed: 1, gaveUp: 0 });
     // Not due again before the wait is over.
-    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x', now })).toMatchObject({
+    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, renderAttachment })).toMatchObject({
       failed: 0,
     });
     for (let i = 2; i <= EMAIL_MAX_ATTEMPTS; i++) {
       now = new Date(now.getTime() + 3_600_000);
-      await dispatchEmails(prisma, mailer, { baseUrl: 'x', now });
+      await dispatchEmails(prisma, mailer, { baseUrl: 'x', now, renderAttachment });
     }
     const row = await prisma.emailOutbox.findFirstOrThrow();
     expect(row).toMatchObject({
@@ -262,7 +275,7 @@ describe('email outbox', () => {
 
     mailer.fail = false;
     await retryEmail(prisma, { emailId: row.id, actorUserId: admin });
-    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x' })).toMatchObject({ sent: 1 });
+    expect(await dispatchEmails(prisma, mailer, { baseUrl: 'x', renderAttachment })).toMatchObject({ sent: 1 });
     await expect(retryEmail(prisma, { emailId: row.id, actorUserId: admin })).rejects.toThrow(
       'email_already_sent',
     );

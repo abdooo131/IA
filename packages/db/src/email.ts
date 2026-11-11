@@ -1,5 +1,12 @@
 import type { EmailStatus, Prisma } from '@prisma/client';
-import { EMAIL_KINDS, type EmailKind, type EmailLanguage, payoutNumber } from '@shiplynow/shared';
+import {
+  EMAIL_KINDS,
+  type EmailKind,
+  type EmailLanguage,
+  payoutNumber,
+  proofNumber,
+  soaNumber,
+} from '@shiplynow/shared';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -55,8 +62,21 @@ export function emailRetryWait(attempts: number) {
 interface StoredAttachment {
   filename: string;
   contentType: string;
-  content: string;
+  /** The file, base64; or empty when `ref` names a file made or read when the email is sent */
+  content?: string;
+  /** payout_proof:<payoutId> (read here) or payout_soa_pdf:<payoutId>:<en|ar> (made by the API) */
+  ref?: string;
 }
+
+/** An attachment made or read when the email is sent, so large files are not copied. */
+export interface RefAttachment {
+  filename: string;
+  contentType: string;
+  ref: string;
+}
+
+/** Makes a referenced attachment the database cannot make itself (a PDF made by the API). */
+export type AttachmentRenderer = (ref: string) => Promise<Buffer | null>;
 
 /** Queues one email once per idempotency key (a repeat changes nothing). */
 export async function queueEmail(
@@ -68,15 +88,24 @@ export async function queueEmail(
     language: EmailLanguage;
     email: RenderedEmail;
     attachments?: MailAttachment[];
+    refs?: RefAttachment[];
     idempotencyKey: string;
   },
 ) {
   if (!input.to.length) return null;
-  const stored: StoredAttachment[] | undefined = input.attachments?.map((a) => ({
-    filename: a.filename,
-    contentType: a.contentType,
-    content: a.content.toString('base64'),
-  }));
+  const files: StoredAttachment[] = [
+    ...(input.attachments ?? []).map((a) => ({
+      filename: a.filename,
+      contentType: a.contentType,
+      content: a.content.toString('base64'),
+    })),
+    ...(input.refs ?? []).map((a) => ({
+      filename: a.filename,
+      contentType: a.contentType,
+      ref: a.ref,
+    })),
+  ];
+  const stored: StoredAttachment[] | undefined = files.length ? files : undefined;
   await tx.emailOutbox.createMany({
     data: [
       {
@@ -222,10 +251,31 @@ export function statementCsv(s: Awaited<ReturnType<typeof merchantStatement>>) {
 export async function queuePayoutEmails(tx: Tx, payoutId: string) {
   const payout = await tx.payout.findUniqueOrThrow({
     where: { id: payoutId },
-    include: { merchant: { select: { id: true, createdAt: true } } },
+    include: {
+      merchant: { select: { id: true, createdAt: true } },
+      statement: { select: { number: true } },
+      proof: { select: { number: true, fileName: true, contentType: true } },
+    },
   });
   if (payout.status !== 'paid' || !payout.paidAt) return;
   const notice = await merchantEmailTarget(tx, payout.merchantId, 'payout_paid');
+  // The notice carries the statement of account (PDF in the merchant's language, made by the
+  // API when the email is sent) and the proof of transfer.
+  const refs: RefAttachment[] = [];
+  if (notice && payout.statement)
+    refs.push({
+      filename: `${soaNumber(payout.statement.number)}.pdf`,
+      contentType: 'application/pdf',
+      ref: `payout_soa_pdf:${payout.id}:${notice.language}`,
+    });
+  if (notice && payout.proof) {
+    const ext = payout.proof.contentType === 'application/pdf' ? 'pdf' : payout.proof.contentType === 'image/png' ? 'png' : 'jpg';
+    refs.push({
+      filename: `${proofNumber(payout.proof.number)}.${ext}`,
+      contentType: payout.proof.contentType,
+      ref: `payout_proof:${payout.id}`,
+    });
+  }
   if (notice)
     await queueEmail(tx, {
       kind: 'payout_paid',
@@ -240,6 +290,7 @@ export async function queuePayoutEmails(tx: Tx, payoutId: string) {
         reference: payout.reference ?? '',
         paidAt: payout.paidAt,
       }),
+      refs,
       idempotencyKey: `payout_paid:${payout.id}`,
     });
   const target = await merchantEmailTarget(tx, payout.merchantId, 'statement');
@@ -307,6 +358,21 @@ export async function queueInvoiceEmail(tx: Tx, invoiceId: string) {
 
 // ─── sending ───────────────────────────────────────────────────────────────────
 
+/** A referenced attachment's bytes; one that cannot be made fails the try (it is retried). */
+async function resolveAttachment(db: Db, ref: string, render?: AttachmentRenderer) {
+  if (ref.startsWith('payout_proof:')) {
+    const proof = await db.payoutProof.findUnique({
+      where: { payoutId: ref.slice('payout_proof:'.length) },
+      select: { data: true },
+    });
+    if (proof) return Buffer.from(proof.data);
+  } else if (render) {
+    const made = await render(ref);
+    if (made) return made;
+  }
+  throw new Error(`attachment ${ref.split(':')[0]} not available`);
+}
+
 const withBase = (text: string, baseUrl: string) =>
   text.split(BASE_URL).join(baseUrl.replace(/\/+$/, ''));
 
@@ -324,7 +390,14 @@ export interface EmailDispatchResult {
 export async function dispatchEmails(
   db: Db,
   mailer: Mailer,
-  opts: { baseUrl: string; now?: Date; batch?: number; onError?: (error: unknown) => void },
+  opts: {
+    baseUrl: string;
+    now?: Date;
+    batch?: number;
+    onError?: (error: unknown) => void;
+    /** Makes referenced attachments the database cannot make (the SOA PDF) */
+    renderAttachment?: AttachmentRenderer;
+  },
 ): Promise<EmailDispatchResult> {
   const result = { sent: 0, failed: 0, gaveUp: 0 };
   if (!mailer.enabled) return result;
@@ -344,12 +417,16 @@ export async function dispatchEmails(
     return tx.emailOutbox.findMany({ where: { id: { in: rows.map((r) => r.id) } } });
   });
   for (const row of claimed) {
-    const attachments = ((row.attachments ?? []) as unknown as StoredAttachment[]).map((a) => ({
-      filename: a.filename,
-      contentType: a.contentType,
-      content: Buffer.from(a.content, 'base64'),
-    }));
     try {
+      const attachments: MailAttachment[] = [];
+      for (const a of (row.attachments ?? []) as unknown as StoredAttachment[])
+        attachments.push({
+          filename: a.filename,
+          contentType: a.contentType,
+          content: a.ref
+            ? await resolveAttachment(db, a.ref, opts.renderAttachment)
+            : Buffer.from(a.content ?? '', 'base64'),
+        });
       await mailer.send({
         to: row.toEmails,
         subject: row.subject,

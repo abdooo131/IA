@@ -38,6 +38,7 @@ import {
 } from '../finance/rider-wallet';
 import { accrueStorage } from '../finance/postings';
 import { contractPricesAt } from '../finance/contracts';
+import { addPayoutProof, listPayoutChecks, markPayoutCheck } from '../finance/payout-proof';
 import { closeManifest, createManifest, receiveOnManifest } from '../inbound';
 import {
   acceptOrder,
@@ -1465,11 +1466,24 @@ async function simulate(
           if (await payoutNeedsApproval(db, payout.amountPiastres))
             await approvePayout(db, { payoutId: payout.id, actorUserId: w.approver });
           ahead(40 * MIN);
-          await markPayoutPaid(db, {
+          // The bank slip (a one page PDF), then a second person views the SOA and the POT.
+          const reference = `CIB-PAY-${day.replace(/-/g, '')}-${payout.number}`;
+          await addPayoutProof(db, {
             payoutId: payout.id,
-            reference: `CIB-PAY-${day.replace(/-/g, '')}-${payout.number}`,
+            fileName: `${reference}.pdf`,
+            contentType: 'application/pdf',
+            data: demoSlip(reference, payout.amountPiastres),
+            amountPiastres: payout.amountPiastres,
+            reference,
             actorUserId: w.preparer,
           });
+          for (const check of await listPayoutChecks(db, { activeOnly: true }))
+            await markPayoutCheck(db, {
+              payoutId: payout.id,
+              checkId: check.id,
+              actorUserId: w.approver,
+            });
+          await markPayoutPaid(db, { payoutId: payout.id, reference, actorUserId: w.preparer });
           c.payouts++;
         }
       });
@@ -1693,4 +1707,14 @@ function hash(text: string) {
   let h = 0;
   for (let i = 0; i < text.length; i++) h = (Math.imul(31, h) + text.charCodeAt(i)) | 0;
   return h;
+}
+
+/** A minimal one page PDF standing in for the bank's transfer slip in the demo month. */
+function demoSlip(reference: string, amountPiastres: number) {
+  const text = `CIB transfer ${reference} EGP ${Math.floor(amountPiastres / 100)}.${String(amountPiastres % 100).padStart(2, '0')}`;
+  const stream = `BT /F1 12 Tf 40 760 Td (${text}) Tj ET`;
+  return Buffer.from(
+    `%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 595 842]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n4 0 obj<</Length ${stream.length}>>stream\n${stream}\nendstream endobj\n5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\ntrailer<</Root 1 0 R>>\n%%EOF\n`,
+    'latin1',
+  );
 }

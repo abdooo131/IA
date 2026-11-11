@@ -10,6 +10,7 @@ import { eventTime } from './books';
 import { cairoDay } from '@shiplynow/shared';
 import { chargeShortageToRider } from './rider-wallet';
 import { getSetting } from '../settings';
+import { assertReadyToPay, freezePayoutStatement } from './payout-proof';
 
 /** Flips a sign without producing -0. */
 const negate = (value: number) => 0 - value;
@@ -301,6 +302,8 @@ export function createPayout(
         createdById: input.actorUserId,
       },
     });
+    // The statement of account (SOA) is frozen with the draft: its net is this amount.
+    await freezePayoutStatement(tx, payout.id, input.actorUserId);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.payout_create',
@@ -331,12 +334,17 @@ export async function assertPayoutOwed(
     });
 }
 
-/** Finance sent the bank transfer: the merchant's balance drops by the amount paid. */
+/**
+ * Finance sent the bank transfer: the merchant's balance drops by the amount paid. Needs the
+ * payout's proof of transfer (its amount the payout's), its frozen statement (net the same)
+ * and every active payout check, the second person check ticked by someone else than the
+ * payer (assertReadyToPay). The reference defaults to the one typed on the proof.
+ */
 export function markPayoutPaid(
   db: Db,
   input: {
     payoutId: string;
-    reference: string;
+    reference?: string;
     bankAccountId?: string;
     /** The Cairo day the transfer went out (a past day is booked at its noon); empty is now */
     day?: string;
@@ -351,6 +359,9 @@ export function markPayoutPaid(
     // From the approval limit, a second person must have approved it first.
     if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
       throw new DomainError('approval_needed');
+    // Proof of transfer, statement of account and the checks before paying.
+    const proof = await assertReadyToPay(tx, payout, input.actorUserId);
+    const reference = input.reference?.trim() || proof.reference;
     // The wallet may have dropped since the draft (fees, adjustments, credit notes).
     await assertPayoutOwed(tx, payout);
     // Money never leaves a bank that does not hold it.
@@ -361,7 +372,7 @@ export function markPayoutPaid(
       where: { id: payout.id, status: 'draft' },
       data: {
         status: 'paid',
-        reference: input.reference,
+        reference,
         paidById: input.actorUserId,
         paidAt: now,
       },
@@ -372,8 +383,8 @@ export function markPayoutPaid(
       idempotencyKey: `payout:${payout.id}`,
       occurredAt: now,
       createdById: input.actorUserId,
-      memo: input.reference,
-      data: { payoutId: payout.id, reference: input.reference },
+      memo: reference,
+      data: { payoutId: payout.id, reference },
       lines: [
         {
           account: { type: 'merchant', merchantId: payout.merchantId },
@@ -388,7 +399,7 @@ export function markPayoutPaid(
       entityType: 'payout',
       entityId: payout.id,
       before: { status: 'draft' },
-      after: { status: 'paid', reference: input.reference, amount: payout.amountPiastres },
+      after: { status: 'paid', reference, amount: payout.amountPiastres },
     });
     // The payout notice and the period's statement go out with the payment, or not at all.
     await queuePayoutEmails(tx, payout.id);

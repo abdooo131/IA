@@ -24,7 +24,7 @@ import {
   submitMerchantAdjustment,
 } from '../src/finance';
 import { savePhoto } from '../src/photos';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, readyToPay, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let alice: string;
@@ -219,6 +219,7 @@ describe('a second person for large amounts', () => {
       cutoffAt: new Date(),
       actorUserId: alice,
     });
+    await readyToPay(payout.id, { uploaderId: alice, viewerId: bob });
     const pay = () =>
       markPayoutPaid(prisma, { payoutId: payout.id, reference: 'TRX-1', actorUserId: alice });
     await expect(pay()).rejects.toThrow('approval_needed');

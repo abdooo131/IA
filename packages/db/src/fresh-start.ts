@@ -28,6 +28,9 @@ const GUARDED_TABLES = [
   'merchant_contract_versions',
   'merchant_contract_version_tiers',
   'record_notes',
+  'payout_statements',
+  'payout_proofs',
+  'payout_check_marks',
 ];
 
 export type TableCounts = Record<string, number>;
@@ -151,6 +154,9 @@ export async function freshStart(
       await run('fixed assets', 'DELETE FROM fixed_assets');
       await run('recurring entries', 'DELETE FROM recurring_entries');
       await run('budgets', 'DELETE FROM budgets');
+      await run('payout check marks', 'DELETE FROM payout_check_marks');
+      await run('payout proofs', 'DELETE FROM payout_proofs');
+      await run('payout statements', 'DELETE FROM payout_statements');
       await run('payouts', 'DELETE FROM payouts');
       await run('cash handovers', 'DELETE FROM cash_handovers');
       await run('rider withdrawals', 'DELETE FROM rider_withdrawals');

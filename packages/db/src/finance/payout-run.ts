@@ -5,12 +5,16 @@ import {
   cairoDay,
   cairoDayStart,
   payoutNumber,
+  proofNumber,
+  SECOND_PERSON_CHECK,
+  soaNumber,
 } from '@shiplynow/shared';
 import type { Db } from '../client';
 import { DomainError } from '../domain-error';
 import { approvalThreshold } from './controls';
 import { payoutMinimumFor } from './contracts';
 import { createPayout, markPayoutPaid, merchantOwed, payoutDueOn } from './operations';
+import { listPayoutChecks } from './payout-proof';
 
 // The guided "Pay merchants" run (Accounting UX phase B). Nothing is stored for the run itself:
 // where it stands is read from the payouts (drafts, approvals, paid today), so it can be left
@@ -87,6 +91,9 @@ export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: str
         },
         approvedBy: { select: { name: true } },
         createdBy: { select: { name: true } },
+        proof: { select: { number: true, amountPiastres: true, reference: true } },
+        statement: { select: { number: true, netPiastres: true } },
+        checkMarks: { select: { checkId: true, userId: true } },
       },
     }),
     db.payout.findMany({
@@ -96,6 +103,8 @@ export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: str
     }),
     approvalThreshold(db),
   ]);
+  const checks = await listPayoutChecks(db, { activeOnly: true });
+  const second = checks.find((c) => c.code === SECOND_PERSON_CHECK);
   const hasBank = (m: {
     iban: string | null;
     bankName: string | null;
@@ -152,6 +161,25 @@ export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: str
       mine: p.createdById === input.userId,
       /** In the bank file and payable: approved when it needed it, with bank details */
       ready: (!needsApproval || approved) && bank,
+      /** The frozen statement of account (its net is the amount) */
+      soa: p.statement
+        ? { number: soaNumber(p.statement.number), netPiastres: p.statement.netPiastres }
+        : null,
+      /** The proof of transfer uploaded for it, if any */
+      proof: p.proof
+        ? {
+            number: proofNumber(p.proof.number),
+            amountPiastres: p.proof.amountPiastres,
+            reference: p.proof.reference,
+          }
+        : null,
+      /** Active checks ticked, of all active checks */
+      checksDone: checks.filter((c) => p.checkMarks.some((m) => m.checkId === c.id)).length,
+      checksTotal: checks.length,
+      /** The second person check was ticked by the person looking: they may not pay it */
+      viewedByMe:
+        !!second &&
+        p.checkMarks.some((m) => m.checkId === second.id && m.userId === input.userId),
     };
   });
 
@@ -224,15 +252,17 @@ export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: str
 }
 
 /**
- * Marks several payouts paid with one bank reference and day: each through markPayoutPaid in
- * its own transaction, so one refusal never stops the others. A payout already paid with the
- * same reference counts as done, so pressing twice changes nothing.
+ * Marks several payouts paid on one day: each through markPayoutPaid in its own transaction,
+ * so one refusal never stops the others. Each payout needs its own proof of transfer (a row
+ * without one is refused with pot_required) and its checks; its reference is the one typed on
+ * its proof unless one reference is given for all. A payout already paid (with the given
+ * reference, when one is given) counts as done, so pressing twice changes nothing.
  */
 export async function markPayoutsPaid(
   db: Db,
   input: {
     ids: string[];
-    reference: string;
+    reference?: string;
     day?: string;
     bankAccountId?: string;
     actorUserId: string;
@@ -245,14 +275,15 @@ export async function markPayoutsPaid(
       results.push({ id, ok: false, error: 'payout_not_found' });
       continue;
     }
-    if (payout.status === 'paid' && payout.reference === input.reference.trim()) {
+    const reference = input.reference?.trim() || undefined;
+    if (payout.status === 'paid' && (!reference || payout.reference === reference)) {
       results.push({ id, ok: true, already: true });
       continue;
     }
     try {
       await markPayoutPaid(db, {
         payoutId: id,
-        reference: input.reference.trim(),
+        reference,
         bankAccountId: input.bankAccountId,
         day: input.day,
         actorUserId: input.actorUserId,

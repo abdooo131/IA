@@ -21,7 +21,7 @@ import {
   updateAccount,
   createPayout,
 } from '../src/finance';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, readyToPay, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
@@ -372,6 +372,7 @@ describe('money movements', () => {
       actorUserId: admin,
     });
     expect(payout.number).toBe(1);
+    await readyToPay(payout.id, { uploaderId: admin });
     await markPayoutPaid(prisma, {
       payoutId: payout.id,
       reference: 'TRX 1',
