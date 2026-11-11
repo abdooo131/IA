@@ -333,9 +333,10 @@ model DarkStore {
   punches        Punch[]
   attendanceDays AttendanceDay[]
 
-  pettyCash       PettyCashExpense[]
-  packagingLevels PackagingLevel[]
-  purchaseOrders  PurchaseOrder[]
+  pettyCash               PettyCashExpense[]
+  packagingLevels         PackagingLevel[]
+  purchaseOrders          PurchaseOrder[]
+  purchaseOrderAssetLines PurchaseOrderLine[] @relation("purchase_order_line_asset_store")
 
   @@map("dark_stores")
 }
@@ -2530,26 +2531,30 @@ model Prepayment {
 
 /// Equipment bought once and depreciated straight line every month.
 model FixedAsset {
-  id              String    @id @default(cuid())
-  name            String
-  costPiastres    Int       @map("cost_piastres")
-  salvagePiastres Int       @default(0) @map("salvage_piastres")
-  lifeMonths      Int       @map("life_months")
+  id                  String    @id @default(cuid())
+  name                String
+  costPiastres        Int       @map("cost_piastres")
+  salvagePiastres     Int       @default(0) @map("salvage_piastres")
+  lifeMonths          Int       @map("life_months")
   /// YYYY-MM, the first month of depreciation
-  startMonth      String    @map("start_month")
-  darkStoreId     String?   @map("dark_store_id")
-  entryId         String    @map("entry_id")
+  startMonth          String    @map("start_month")
+  darkStoreId         String?   @map("dark_store_id")
+  entryId             String    @map("entry_id")
   /// Sold or scrapped: no depreciation from that month on
-  disposedAt      DateTime? @map("disposed_at")
-  disposalEntryId String?   @map("disposal_entry_id")
-  createdById     String    @map("created_by_id")
-  createdAt       DateTime  @default(now()) @map("created_at")
+  disposedAt          DateTime? @map("disposed_at")
+  disposalEntryId     String?   @map("disposal_entry_id")
+  /// Bought through a purchase order: the asset line it was received on (one asset per unit)
+  purchaseOrderLineId String?   @map("purchase_order_line_id")
+  createdById         String    @map("created_by_id")
+  createdAt           DateTime  @default(now()) @map("created_at")
 
-  darkStore     DarkStore?   @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
-  entry         LedgerEntry  @relation(fields: [entryId], references: [id], onDelete: Restrict)
-  disposalEntry LedgerEntry? @relation("asset_disposal", fields: [disposalEntryId], references: [id], onDelete: Restrict)
-  createdBy     User         @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  darkStore         DarkStore?         @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  entry             LedgerEntry        @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  disposalEntry     LedgerEntry?       @relation("asset_disposal", fields: [disposalEntryId], references: [id], onDelete: Restrict)
+  createdBy         User               @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  purchaseOrderLine PurchaseOrderLine? @relation(fields: [purchaseOrderLineId], references: [id], onDelete: Restrict)
 
+  @@index([purchaseOrderLineId])
   @@map("fixed_assets")
 }
 
@@ -3901,23 +3906,39 @@ model PurchaseOrder {
   @@map("purchase_orders")
 }
 
-/// One thing ordered: a packaging item (received into packaging stock) or a cost line.
+enum PurchaseOrderLineKind {
+  packaging
+  expense
+  asset
+
+  @@map("purchase_order_line_kind")
+}
+
+/// One thing ordered: a packaging item (received into packaging stock), a cost line, or
+/// equipment (an asset: received into 1601 and depreciated monthly, one fixed asset per unit).
 model PurchaseOrderLine {
-  id                String  @id @default(cuid())
-  purchaseOrderId   String  @map("purchase_order_id")
-  lineNo            Int     @map("line_no")
-  packagingItemId   String? @map("packaging_item_id")
-  /// For a line that is not packaging: the expense it is booked to when billed
-  expenseAccountId  String? @map("expense_account_id")
+  id                String                @id @default(cuid())
+  purchaseOrderId   String                @map("purchase_order_id")
+  lineNo            Int                   @map("line_no")
+  kind              PurchaseOrderLineKind @default(expense)
+  packagingItemId   String?               @map("packaging_item_id")
+  /// For a cost line: the expense it is booked to when billed
+  expenseAccountId  String?               @map("expense_account_id")
+  /// For an asset line: the months it is depreciated over
+  assetLifeMonths   Int?                  @map("asset_life_months")
+  /// For an asset line: the store the asset belongs to (else the order's store, else none)
+  assetDarkStoreId  String?               @map("asset_dark_store_id")
   description       String
   quantity          Int
-  unitPricePiastres Int     @map("unit_price_piastres")
-  receivedQty       Int     @default(0) @map("received_qty")
-  billedQty         Int     @default(0) @map("billed_qty")
+  unitPricePiastres Int                   @map("unit_price_piastres")
+  receivedQty       Int                   @default(0) @map("received_qty")
+  billedQty         Int                   @default(0) @map("billed_qty")
 
   purchaseOrder  PurchaseOrder  @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
   packagingItem  PackagingItem? @relation(fields: [packagingItemId], references: [id], onDelete: Restrict)
   expenseAccount LedgerAccount? @relation(fields: [expenseAccountId], references: [id], onDelete: Restrict)
+  assetDarkStore DarkStore?     @relation("purchase_order_line_asset_store", fields: [assetDarkStoreId], references: [id], onDelete: Restrict)
+  fixedAssets    FixedAsset[]
 
   @@unique([purchaseOrderId, lineNo])
   @@map("purchase_order_lines")

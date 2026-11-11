@@ -129,6 +129,22 @@ export const FINANCE_LISTS = {
     sums: ['amount', 'vat'],
     defaultFilters: ['pending_accounting'],
   },
+  suppliers: {
+    filters: {
+      active: 'status',
+      inactive: 'status',
+      rider_office: 'kind',
+      staffing_company: 'kind',
+      has_tax_number: 'tax',
+      no_tax_number: 'tax',
+      owes_us: 'balance',
+      we_owe_them: 'balance',
+    },
+    groupBys: ['kind', 'status'],
+    sorts: ['name', 'balance', 'open_bills'],
+    sums: ['balance'],
+    defaultFilters: ['active'],
+  },
   invoices: {
     filters: {
       invoice: 'type',

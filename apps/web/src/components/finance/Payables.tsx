@@ -2,6 +2,8 @@
 
 import { cairoDay } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { DateInput } from '@/components/DateInput';
 import {
@@ -300,9 +302,11 @@ export function CancelBill({ bill }: { bill: BillRow }) {
   );
 }
 
-function NewSupplier({ expenses }: { expenses: BookAccount[] }) {
+/** A new supplier; once added its page opens. */
+export function NewSupplier({ expenses }: { expenses: BookAccount[] }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
+  const router = useRouter();
   const blank = { name: '', taxId: '', phone: '', email: '', wht: '', expense: '' };
   const [s, setS] = useState(blank);
   const bp = percentToBp(s.wht);
@@ -366,7 +370,7 @@ function NewSupplier({ expenses }: { expenses: BookAccount[] }) {
         className={primary}
         disabled={action.busy || s.name.trim().length < 2 || bp === null}
         onClick={async () => {
-          const ok = await action.send('POST', '/finance/suppliers', {
+          const made = await action.send<{ id: string }>('POST', '/finance/suppliers', {
             name: s.name,
             taxId: s.taxId,
             phone: s.phone,
@@ -374,11 +378,156 @@ function NewSupplier({ expenses }: { expenses: BookAccount[] }) {
             whtBp: bp,
             defaultExpenseAccountId: s.expense || undefined,
           });
-          if (ok) setS(blank);
+          if (made) {
+            setS(blank);
+            router.push(`/finance/suppliers/${made.id}`);
+          }
         }}
       >
         {t('addSupplier')}
       </button>
+      <ActionMessage message={action.message} />
+    </Card>
+  );
+}
+
+export interface SupplierDetails {
+  id: string;
+  name: string;
+  taxId: string | null;
+  phone: string | null;
+  email: string | null;
+  whtBp: number;
+  defaultExpenseAccountId: string | null;
+  isActive: boolean;
+}
+
+/** Edits a supplier's details on its page, or stops using it (it can no longer be billed). */
+export function EditSupplier({
+  supplier,
+  expenses,
+}: {
+  supplier: SupplierDetails;
+  expenses: BookAccount[];
+}) {
+  const t = useTranslations('finance.payables');
+  const action = useFinanceAction();
+  const start = {
+    name: supplier.name,
+    taxId: supplier.taxId ?? '',
+    phone: supplier.phone ?? '',
+    email: supplier.email ?? '',
+    wht: String(supplier.whtBp / 100),
+    expense: supplier.defaultExpenseAccountId ?? '',
+    isActive: supplier.isActive,
+  };
+  const [s, setS] = useState(start);
+  const [open, setOpen] = useState(false);
+  const bp = percentToBp(s.wht);
+  if (!open)
+    return (
+      <button type="button" className={secondary} onClick={() => setOpen(true)}>
+        {t('editSupplier')}
+      </button>
+    );
+  return (
+    <Card title={t('editSupplier')}>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Field label={t('supplierName')}>
+          <input
+            value={s.name}
+            onChange={(e) => setS({ ...s, name: e.target.value })}
+            className={field}
+          />
+        </Field>
+        <Field label={t('taxId')}>
+          <input
+            value={s.taxId}
+            onChange={(e) => setS({ ...s, taxId: e.target.value })}
+            dir="ltr"
+            className={field}
+          />
+        </Field>
+        <Field label={t('phone')}>
+          <input
+            value={s.phone}
+            onChange={(e) => setS({ ...s, phone: e.target.value })}
+            dir="ltr"
+            className={field}
+          />
+        </Field>
+        <Field label={t('email')}>
+          <input
+            value={s.email}
+            onChange={(e) => setS({ ...s, email: e.target.value })}
+            dir="ltr"
+            className={field}
+          />
+        </Field>
+        <Field label={t('whtPercent')}>
+          <input
+            value={s.wht}
+            onChange={(e) => setS({ ...s, wht: e.target.value })}
+            inputMode="decimal"
+            dir="ltr"
+            className={field}
+          />
+        </Field>
+        <Field label={t('defaultExpense')}>
+          <AccountSelect
+            accounts={expenses}
+            value={s.expense}
+            onChange={(v) => setS({ ...s, expense: v })}
+            label={t('defaultExpense')}
+            empty={t('none')}
+          />
+        </Field>
+      </div>
+      <label className="flex items-center gap-2 text-body-sm">
+        <input
+          type="checkbox"
+          checked={s.isActive}
+          onChange={(e) => setS({ ...s, isActive: e.target.checked })}
+        />
+        {t('supplierActive')}
+      </label>
+      <p className="text-caption text-text-muted">{t('whtHint')}</p>
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className={primary}
+          disabled={action.busy || s.name.trim().length < 2 || bp === null}
+          onClick={async () => {
+            const ok = await action.send(
+              'PATCH',
+              `/finance/suppliers/${supplier.id}`,
+              {
+                name: s.name,
+                taxId: s.taxId,
+                phone: s.phone,
+                email: s.email,
+                whtBp: bp,
+                defaultExpenseAccountId: s.expense || undefined,
+                isActive: s.isActive,
+              },
+              () => t('supplierSaved'),
+            );
+            if (ok) setOpen(false);
+          }}
+        >
+          {t('saveSupplier')}
+        </button>
+        <button
+          type="button"
+          className={secondary}
+          onClick={() => {
+            setS(start);
+            setOpen(false);
+          }}
+        >
+          {t('cancelEdit')}
+        </button>
+      </div>
       <ActionMessage message={action.message} />
     </Card>
   );
@@ -427,20 +576,28 @@ function NewBill({
   return (
     <Card title={t('newBill')}>
       <div className="grid gap-3 sm:grid-cols-2">
-        <Field label={t('supplier')}>
-          <select
-            value={b.supplierId}
-            onChange={(e) => setB({ ...b, supplierId: e.target.value, person: '' })}
-            className={field}
+        <div>
+          <Field label={t('supplier')}>
+            <select
+              value={b.supplierId}
+              onChange={(e) => setB({ ...b, supplierId: e.target.value, person: '' })}
+              className={field}
+            >
+              <option value="">{t('chooseSupplier')}</option>
+              {active.map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Link
+            href="/finance/suppliers#new-supplier"
+            className="mt-1 inline-block text-caption text-link"
           >
-            <option value="">{t('chooseSupplier')}</option>
-            {active.map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </Field>
+            {t('newSupplierLink')}
+          </Link>
+        </div>
         <Field label={t('invoiceNumber')}>
           <input
             value={b.reference}
@@ -743,61 +900,9 @@ export function SuppliersAndBills({
         </section>
       )}
 
-      <div id="new-bill" className="grid scroll-mt-20 gap-6 lg:grid-cols-2">
+      <div id="new-bill" className="max-w-3xl scroll-mt-20">
         <NewBill suppliers={suppliers} expenses={expenses} stores={stores} costTags={costTags} />
-        <NewSupplier expenses={expenses} />
       </div>
-
-      <section className="space-y-2">
-        <h2 className="text-h3">{t('suppliers')}</h2>
-        {suppliers.length === 0 ? (
-          <p className="text-body-sm text-text-muted">{t('noSuppliers')}</p>
-        ) : (
-          <Table
-            head={
-              <>
-                <th className={th}>{t('supplierName')}</th>
-                <th className={th}>{t('taxId')}</th>
-                <th className={`${th} text-end`}>{t('whtPercent')}</th>
-                <th className={`${th} text-end`}>{t('openBillsCount')}</th>
-                <th className={`${th} text-end`}>{t('owed')}</th>
-              </>
-            }
-          >
-            {suppliers.map((s) => (
-              <tr key={s.id} className={`border-t border-line ${s.isActive ? '' : 'opacity-60'}`}>
-                <td className={td}>
-                  {s.name}
-                  {s.accountCode && (
-                    <span className="ms-2 ltr-iso text-caption text-text-muted">
-                      {s.accountCode}
-                    </span>
-                  )}
-                  {s.isRiderOffice && (
-                    <a
-                      href={`/finance/rider-offices/${s.id}`}
-                      className="mt-0.5 block text-caption text-link"
-                    >
-                      {t('riderOffice', {
-                        percent: s.commissionBp / 100,
-                        riders: s.staff.length,
-                      })}
-                    </a>
-                  )}
-                </td>
-                <td className={`${td} ltr-iso`}>
-                  {s.taxId ?? <span className="text-danger">{t('noTaxId')}</span>}
-                </td>
-                <td className={`${td} text-end ltr-iso`}>{(s.whtBp / 100).toFixed(2)}%</td>
-                <td className={`${td} text-end`}>{s.openBills}</td>
-                <td className={`${td} text-end`}>
-                  <Amount piastres={s.owedPiastres} strong />
-                </td>
-              </tr>
-            ))}
-          </Table>
-        )}
-      </section>
     </div>
   );
 }

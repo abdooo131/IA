@@ -75,6 +75,7 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
         <table className="w-full text-body-sm">
           <thead>
             <tr>
+              <th className={th}>{t('lineKind')}</th>
               <th className={th}>{t('description')}</th>
               <th className={th}>{t('account')}</th>
               <th className={`${th} text-end`}>{t('quantity')}</th>
@@ -86,13 +87,28 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
           <tbody>
             {order.lines.map((l) => (
               <tr key={l.id} className="border-t border-line">
+                <td className={td}>{t(`lineKinds.${l.kind}`)}</td>
                 <td className={td}>{l.description}</td>
                 <td className={td}>
-                  {l.packagingItem
-                    ? `${t('packagingLine')}: ${name(l.packagingItem)}`
-                    : l.expenseAccount
+                  {l.kind === 'packaging' && l.packagingItem
+                    ? name(l.packagingItem)
+                    : l.kind === 'expense' && l.expenseAccount
                       ? name(l.expenseAccount)
-                      : ''}
+                      : l.kind === 'asset'
+                        ? t('assetGoesTo', {
+                            months: l.assetLifeMonths ?? 0,
+                            store: l.assetDarkStore
+                              ? name(l.assetDarkStore)
+                              : order.darkStore
+                                ? name(order.darkStore)
+                                : t('noStore'),
+                          })
+                        : ''}
+                  {l.fixedAssets.length > 0 && (
+                    <a href="/finance/assets" className="block text-caption text-link">
+                      {t('assetsMade', { count: l.fixedAssets.length })}
+                    </a>
+                  )}
                 </td>
                 <td className={`${td} text-end`}>{l.quantity}</td>
                 <td className={`${td} text-end`}>{formatEgp(l.unitPricePiastres)}</td>

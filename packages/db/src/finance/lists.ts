@@ -247,6 +247,88 @@ const bills: ListDef<BillListRow> = {
   sums: FINANCE_LISTS.bills.sums,
 };
 
+// ─── suppliers ──────────────────────────────────────────────────────────────────
+
+export interface SupplierListRow {
+  id: string;
+  name: string;
+  /** supplier, rider_office or staffing_company (people hired through it) */
+  kind: string;
+  status: 'active' | 'inactive';
+  taxId: string | null;
+  phone: string | null;
+  email: string | null;
+  whtPercent: number;
+  accountCode: string | null;
+  openBills: number;
+  people: number;
+  /** What we owe them; below zero they owe us */
+  balance: number;
+}
+
+async function loadSuppliers(db: Db): Promise<SupplierListRow[]> {
+  const rows = await db.supplier.findMany({
+    include: {
+      accounts: { select: { id: true, code: true } },
+      _count: {
+        select: {
+          bills: { where: { status: 'open' } },
+          staff: { where: { status: { not: 'left' } } },
+        },
+      },
+    },
+    orderBy: { name: 'asc' },
+    take: LIST_MAX_ROWS,
+  });
+  const sums = await db.ledgerLine.groupBy({
+    by: ['accountId'],
+    where: { accountId: { in: rows.flatMap((s) => s.accounts.map((a) => a.id)) } },
+    _sum: { amountPiastres: true },
+  });
+  const sumOf = new Map(sums.map((x) => [x.accountId, x._sum.amountPiastres ?? 0]));
+  return rows.map((s) => ({
+    id: s.id,
+    name: s.name,
+    kind: s.isRiderOffice ? 'rider_office' : s._count.staff > 0 ? 'staffing_company' : 'supplier',
+    status: s.isActive ? 'active' : 'inactive',
+    taxId: s.taxId,
+    phone: s.phone,
+    email: s.email,
+    whtPercent: s.whtBp / 100,
+    accountCode: s.accounts[0]?.code ?? null,
+    openBills: s._count.bills,
+    people: s._count.staff,
+    // Their wallet holds a credit balance when we owe them: shown positive.
+    balance: -s.accounts.reduce((t, a) => t + (sumOf.get(a.id) ?? 0), 0),
+  }));
+}
+
+const suppliers: ListDef<SupplierListRow> = {
+  id: 'suppliers',
+  filters: {
+    active: { group: 'status', test: (r) => r.status === 'active' },
+    inactive: { group: 'status', test: (r) => r.status === 'inactive' },
+    rider_office: { group: 'kind', test: (r) => r.kind === 'rider_office' },
+    staffing_company: { group: 'kind', test: (r) => r.kind === 'staffing_company' },
+    has_tax_number: { group: 'tax', test: (r) => !!r.taxId },
+    no_tax_number: { group: 'tax', test: (r) => !r.taxId },
+    owes_us: { group: 'balance', test: (r) => r.balance < 0 },
+    we_owe_them: { group: 'balance', test: (r) => r.balance > 0 },
+  },
+  groupBys: {
+    kind: (r) => named(r.kind, r.kind),
+    status: (r) => named(r.status, r.status),
+  },
+  search: (r) => [r.name, r.taxId, r.phone, r.email, r.accountCode],
+  sorts: {
+    name: (r) => r.name.toLowerCase(),
+    balance: (r) => r.balance,
+    open_bills: (r) => r.openBills,
+  },
+  defaultSort: { key: 'name', desc: false },
+  sums: FINANCE_LISTS.suppliers.sums,
+};
+
 // ─── journal ────────────────────────────────────────────────────────────────────
 
 export const KIND_FAMILIES: Record<string, readonly string[]> = {
@@ -897,6 +979,7 @@ const invoices: ListDef<InvoiceListRow> = {
 export const FINANCE_LIST_DEFS: Record<FinanceListId, RegisteredList> = {
   payouts: { def: payouts, load: loadPayouts },
   bills: { def: bills, load: loadBills },
+  suppliers: { def: suppliers, load: loadSuppliers },
   journal: { def: journal, load: loadJournal },
   cheques: { def: cheques, load: loadCheques },
   rider_withdrawals: { def: riderWithdrawals, load: loadWithdrawals },

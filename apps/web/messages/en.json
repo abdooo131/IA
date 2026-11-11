@@ -2696,7 +2696,7 @@
       "hrDeductionLine": "HR: {label}"
     },
     "payables": {
-      "billsTitle": "Suppliers and bills",
+      "billsTitle": "Supplier bills",
       "billsIntro": "Enter a supplier's bill when it arrives: its cost counts in that month even if you pay later. Pay it in one or several payments; withholding tax is kept back automatically and owed to the tax authority.",
       "taxesTitle": "Taxes",
       "taxesIntro": "What we owe the Egyptian Tax Authority now, paying it, and the quarterly withholding tax list (form 41) with each supplier's tax id.",
@@ -2857,7 +2857,15 @@
       "disposed": "Sold or scrapped",
       "newBillButton": "New bill",
       "offset": "Set off what the office owes us (up to EGP {amount})",
-      "riderOffice": "Rider office · {percent}% commission · {riders} riders"
+      "riderOffice": "Rider office · {percent}% commission · {riders} riders",
+      "suppliersTitle": "Suppliers",
+      "suppliersIntro": "Everyone the company buys from: shops, landlords, rider offices and staffing companies. Open a supplier to see its bills, payments, purchase orders and what we owe them, or to change its details.",
+      "newSupplierLink": "New supplier",
+      "editSupplier": "Edit supplier",
+      "saveSupplier": "Save changes",
+      "supplierSaved": "Saved.",
+      "cancelEdit": "Cancel",
+      "supplierActive": "In use (new bills and purchase orders can name it)"
     },
     "period": {
       "bankTitle": "Bank matching",
@@ -5627,7 +5635,8 @@
       "left": "Left",
       "suspended": "Suspended",
       "on_leave": "On leave",
-      "pending_accounting": "Waiting for accounting"
+      "pending_accounting": "Waiting for accounting",
+      "inactive": "Not in use"
     }
   },
   "tickets": {
@@ -6173,7 +6182,8 @@
       "costTags": "Cost tags",
       "payablesAging": "Owed to suppliers, by age",
       "basataDeposits": "Basata deposits",
-      "frozenRiders": "Frozen riders"
+      "frozenRiders": "Frozen riders",
+      "suppliers": "Suppliers"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -7767,7 +7777,7 @@
       "same_person": "Someone else must approve what you asked for.",
       "note_required": "Write a short note.",
       "store_required": "Packaging goes into a store: choose the store.",
-      "packaging_or_expense": "Each line is either packaging or a cost, not both.",
+      "packaging_or_expense": "Each line is one type: a packaging item, an expense or an asset.",
       "packaging_item_not_found": "That packaging item is not available.",
       "packaging_item_exists": "An item with this code already exists.",
       "packaging_not_enough": "The store does not hold that many.",
@@ -7788,7 +7798,10 @@
       "email_already_sent": "This email was already sent.",
       "no_access": "You cannot do this.",
       "reason_required": "Write a reason.",
-      "duplicate_item": "An item is listed twice."
+      "duplicate_item": "An item is listed twice.",
+      "invalid_months": "Enter the months the asset is used, 1 to 600.",
+      "invalid_amount": "Enter a price; an asset needs a price above zero.",
+      "store_not_found": "Choose a store that exists."
     },
     "emails": {
       "title": "Emails to merchants",
@@ -7904,7 +7917,7 @@
     },
     "orders": {
       "title": "Purchase orders",
-      "intro": "Ask for a purchase, have it approved (a second person from the approval limit), send it, receive it in parts, then make the supplier bill from it. Packaging received goes into the store's packaging stock.",
+      "intro": "Anything the company buys goes through a purchase order: packaging, costs such as cleaning or repairs, and assets such as laptops or shelves. Ask for it, have it approved (a second person from the approval limit), send it, receive it in parts, then make the supplier bill from it. Packaging received goes into the store's packaging stock; an asset becomes equipment, depreciated every month.",
       "filter": "Show",
       "all": "All",
       "empty": "No purchase orders yet.",
@@ -7921,7 +7934,7 @@
       "partly": "{share}% received",
       "new": "New purchase order",
       "choose": "Choose",
-      "lineKind": "Line",
+      "lineKind": "Line type",
       "packagingLine": "Packaging",
       "expenseLine": "Other cost",
       "item": "Packaging item",
@@ -7969,7 +7982,21 @@
       "closeNote": "Why it is closed (needed)",
       "close": "Close the order",
       "cancelOrder": "Cancel the order",
-      "closedMsg": "Done."
+      "closedMsg": "Done.",
+      "newHint": "One order can mix packaging items, expenses and assets.",
+      "lineKinds": {
+        "packaging": "Packaging item",
+        "expense": "Expense",
+        "asset": "Asset (equipment)"
+      },
+      "assetLife": "Used for (months)",
+      "assetStore": "Store of the asset",
+      "assetStoreOrder": "The order's store",
+      "assetHint": "When it arrives an asset is booked as equipment (1601), one record per unit, and depreciated every month over its months.",
+      "assetGoesTo": "Equipment, {months} months, {store}",
+      "assetsMade": "{count, plural, one {# asset in the register} other {# assets in the register}}",
+      "forSupplier": "Orders of {name}.",
+      "allSuppliers": "Show every supplier"
     }
   },
   "site": {
@@ -10277,6 +10304,40 @@
       "filters": {
         "waiting_for_me": "I may pay (not mine)"
       }
+    },
+    "suppliers": {
+      "exportName": "suppliers",
+      "columns": {
+        "name": "Supplier",
+        "kind": "Type",
+        "taxId": "Tax number",
+        "phone": "Phone",
+        "email": "Email",
+        "whtPercent": "Withholding %",
+        "accountCode": "Account",
+        "people": "People",
+        "openBills": "Open bills",
+        "balance": "We owe them (EGP)"
+      },
+      "filters": {
+        "active": "In use",
+        "inactive": "Not in use",
+        "rider_office": "Rider offices",
+        "staffing_company": "Staffing companies",
+        "has_tax_number": "With a tax number",
+        "no_tax_number": "Without a tax number",
+        "owes_us": "They owe us",
+        "we_owe_them": "We owe them"
+      },
+      "groups": {
+        "kind": "Type",
+        "status": "In use or not"
+      },
+      "kinds": {
+        "supplier": "Supplier",
+        "rider_office": "Rider office",
+        "staffing_company": "Staffing company"
+      }
     }
   },
   "documents": {
@@ -10300,7 +10361,8 @@
       "purchaseOrders": "Purchase orders",
       "storeCash": "Store cash",
       "expenseClaims": "Expense claims",
-      "basataDeposits": "Basata deposits"
+      "basataDeposits": "Basata deposits",
+      "suppliers": "Suppliers"
     },
     "fields": {
       "merchant": "Merchant",
@@ -10358,7 +10420,17 @@
       "deadlineDay": "Counts for the deadline of",
       "heldPart": "From rider cash",
       "givenBack": "Given back",
-      "settledOn": "Reached the bank on"
+      "settledOn": "Reached the bank on",
+      "name": "Name",
+      "taxId": "Tax number",
+      "phone": "Phone",
+      "email": "Email",
+      "defaultExpense": "Usual expense category",
+      "walletAccount": "Account",
+      "commission": "Office commission",
+      "people": "People hired through them",
+      "openBills": "Open bills",
+      "weOwe": "We owe them (below zero they owe us)"
     },
     "smart": {
       "merchant": "Merchant",
@@ -10431,7 +10503,9 @@
       "riderOffice": "Rider office",
       "person": "Person",
       "debitNotes": "Debit notes",
-      "settlement": "Basata transfer"
+      "settlement": "Basata transfer",
+      "purchaseOrders": "Purchase orders",
+      "supplierBalance": "Balance (we owe)"
     },
     "chatter": {
       "title": "Notes and history",

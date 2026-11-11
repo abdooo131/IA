@@ -23,12 +23,15 @@ import {
   requestPurchaseOrder,
 } from '../src/purchasing';
 import {
+  addMonths,
   balanceOf,
   cancelBill,
   createSupplier,
   ensureDefaultAccounts,
+  listFixedAssets,
   payBill,
   recordCapital,
+  runMonthlyCharges,
 } from '../src/finance';
 import { setSetting } from '../src/settings';
 import { receive } from '../src/stock';
@@ -519,6 +522,159 @@ describe('purchase orders', () => {
         actorUserId: admin,
       }),
     ).toEqual({ status: 'closed' });
+  });
+
+  it('buys equipment: receiving opens one asset per unit on 1601, the bill clears 2401, depreciation runs', async () => {
+    const s = await supplier();
+    const ask = (line: Record<string, unknown>) =>
+      requestPurchaseOrder(prisma, {
+        supplierId: s.id,
+        lines: [{ description: 'Laptop', quantity: 1, unitPricePiastres: 100, ...line }],
+        actorUserId: admin,
+        idempotencyKey: key(),
+      });
+    // An asset line names its life only, and is worth something.
+    const bag = await item('BAG');
+    await expect(ask({ packagingItemId: bag.id, assetLifeMonths: 12 })).rejects.toThrow(
+      'packaging_or_expense',
+    );
+    await expect(ask({ assetLifeMonths: 0 })).rejects.toThrow('invalid_months');
+    await expect(ask({ assetLifeMonths: 12, unitPricePiastres: 0 })).rejects.toThrow(
+      'invalid_amount',
+    );
+
+    // Two laptops of 36,000 EGP for the test store, three years each, and a cost line.
+    const other = await byKey('expense:other');
+    const po = await requestPurchaseOrder(prisma, {
+      supplierId: s.id,
+      lines: [
+        {
+          assetLifeMonths: 36,
+          assetDarkStoreId: f.store.id,
+          description: 'Laptop',
+          quantity: 2,
+          unitPricePiastres: 3_600_000,
+        },
+        {
+          expenseAccountId: other.id,
+          description: 'Delivery',
+          quantity: 1,
+          unitPricePiastres: 5_000,
+        },
+      ],
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    expect(po.status).toBe('requested'); // above the approval limit
+    await decidePurchaseOrder(prisma, {
+      purchaseOrderId: po.id,
+      approve: true,
+      actorUserId: approver,
+    });
+    await markPurchaseOrdered(prisma, { purchaseOrderId: po.id, actorUserId: admin });
+    let full = await getPurchaseOrder(prisma, po.id);
+    const [laptops, delivery] = full.lines;
+    expect(laptops).toMatchObject({
+      kind: 'asset',
+      assetLifeMonths: 36,
+      assetDarkStoreId: f.store.id,
+    });
+    expect(delivery).toMatchObject({ kind: 'expense' });
+
+    const rk = key();
+    const arrive = () =>
+      receivePurchaseOrder(prisma, {
+        purchaseOrderId: po.id,
+        lines: [
+          { lineId: laptops!.id, quantity: 2 },
+          { lineId: delivery!.id, quantity: 1 },
+        ],
+        actorUserId: admin,
+        idempotencyKey: rk,
+      });
+    expect(await arrive()).toEqual({ replayed: false, status: 'received' });
+    expect(await arrive()).toMatchObject({ replayed: true }); // a retry opens nothing twice
+    expect(await balance('fixed_assets')).toBe(7_200_000);
+    expect(await balance('goods_received')).toBe(-7_200_000);
+    const assets = await prisma.fixedAsset.findMany({ orderBy: { name: 'asc' } });
+    expect(assets).toHaveLength(2);
+    const startMonth = cairoDay(new Date()).slice(0, 7);
+    for (const a of assets)
+      expect(a).toMatchObject({
+        costPiastres: 3_600_000,
+        lifeMonths: 36,
+        startMonth,
+        darkStoreId: f.store.id,
+        purchaseOrderLineId: laptops!.id,
+      });
+    expect(assets.map((a) => a.name)).toEqual(['Laptop (1/2)', 'Laptop (2/2)']);
+    full = await getPurchaseOrder(prisma, po.id);
+    expect(full.lines[0]!.fixedAssets).toHaveLength(2);
+
+    // Billed 72,100.00 for 72,050.00 ordered: 2401 cleared, the difference on the cost line.
+    const bill = await billPurchaseOrder(prisma, {
+      purchaseOrderId: po.id,
+      reference: 'LAP-1',
+      billDate: cairoDay(new Date()),
+      dueDate: cairoDay(new Date()),
+      netPiastres: 7_210_000,
+      vatPiastres: 0,
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    expect(bill.totalPiastres).toBe(7_210_000);
+    expect(await balance('goods_received')).toBe(0);
+    expect(await balance('fixed_assets')).toBe(7_200_000);
+    expect(await balance('expense:other')).toBe(5_000 + 5_000);
+
+    // Depreciation runs by itself once the month is over: 1,000 EGP a laptop a month.
+    const next = addMonths(startMonth, 1);
+    await runMonthlyCharges(prisma, new Date(`${next}-15T10:00:00Z`));
+    await runMonthlyCharges(prisma, new Date(`${next}-15T10:00:00Z`)); // safe twice
+    expect(await balance('depreciation_expense')).toBe(200_000);
+    expect(await balance('accumulated_depreciation')).toBe(-200_000);
+    const register = await listFixedAssets(prisma);
+    expect(register.map((a) => a.bookValuePiastres)).toEqual([3_500_000, 3_500_000]);
+  });
+
+  it('puts the bill difference of an order of assets only on other expenses', async () => {
+    const s = await supplier();
+    const po = await requestPurchaseOrder(prisma, {
+      supplierId: s.id,
+      darkStoreId: f.store.id,
+      lines: [
+        { assetLifeMonths: 24, description: 'Printer', quantity: 1, unitPricePiastres: 500_000 },
+      ],
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    await markPurchaseOrdered(prisma, { purchaseOrderId: po.id, actorUserId: admin });
+    const [line] = (await getPurchaseOrder(prisma, po.id)).lines;
+    await receivePurchaseOrder(prisma, {
+      purchaseOrderId: po.id,
+      lines: [{ lineId: line!.id, quantity: 1 }],
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    const asset = await prisma.fixedAsset.findFirstOrThrow();
+    expect(asset).toMatchObject({
+      name: 'Printer',
+      darkStoreId: f.store.id,
+      costPiastres: 500_000,
+    });
+    await billPurchaseOrder(prisma, {
+      purchaseOrderId: po.id,
+      reference: 'PR-1',
+      billDate: cairoDay(new Date()),
+      dueDate: cairoDay(new Date()),
+      netPiastres: 495_000,
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    expect(await balance('goods_received')).toBe(0);
+    expect(await balance('expense:other')).toBe(-5_000);
+    expect(await balance('expense:packaging')).toBe(0);
+    expect(await balance('fixed_assets')).toBe(500_000);
   });
 
   it('cancels an order nothing arrived for', async () => {

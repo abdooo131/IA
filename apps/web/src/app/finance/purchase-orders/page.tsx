@@ -15,12 +15,27 @@ const td = 'px-3 py-2';
 export default async function PurchaseOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ status?: string }>;
+  searchParams: Promise<{ status?: string; supplierId?: string }>;
 }) {
   const q = await searchParams;
   const status = STATUSES.find((s) => s === q.status) ?? '';
+  // A supplier's page opens its orders (?supplierId=); the status filter keeps it.
+  const supplierId =
+    typeof q.supplierId === 'string' && /^[\w-]{1,40}$/.test(q.supplierId) ? q.supplierId : '';
+  const query = new URLSearchParams({
+    ...(status ? { status } : {}),
+    ...(supplierId ? { supplierId } : {}),
+  }).toString();
+  const filterHref = (s: string) => {
+    const p = new URLSearchParams({
+      ...(s ? { status: s } : {}),
+      ...(supplierId ? { supplierId } : {}),
+    });
+    const text = p.toString();
+    return text ? `/finance/purchase-orders?${text}` : '/finance/purchase-orders';
+  };
   const [orders, me, t, tw, locale] = await Promise.all([
-    apiGet<PurchaseOrderRow[]>(`/finance/purchase-orders${status ? `?status=${status}` : ''}`),
+    apiGet<PurchaseOrderRow[]>(`/finance/purchase-orders${query ? `?${query}` : ''}`),
     getMyProfile(),
     getTranslations('purchasing.orders'),
     getTranslations('workflow'),
@@ -43,7 +58,7 @@ export default async function PurchaseOrdersPage({
         {(['', ...STATUSES] as const).map((s) => (
           <a
             key={s || 'all'}
-            href={s ? `/finance/purchase-orders?status=${s}` : '/finance/purchase-orders'}
+            href={filterHref(s)}
             aria-current={status === s ? 'page' : undefined}
             className={`rounded-full border px-3 py-1 text-body-sm ${
               status === s ? 'border-primary bg-selected-bg font-bold text-link' : 'border-line'
@@ -53,6 +68,14 @@ export default async function PurchaseOrdersPage({
           </a>
         ))}
       </nav>
+      {supplierId && (
+        <p className="mt-2 text-body-sm">
+          {t('forSupplier', { name: orders[0]?.supplier.name ?? '' })}{' '}
+          <a href="/finance/purchase-orders" className="text-link">
+            {t('allSuppliers')}
+          </a>
+        </p>
+      )}
       {orders.length === 0 ? (
         <p className="mt-4 text-body-sm text-text-muted">{t('empty')}</p>
       ) : (

@@ -111,6 +111,11 @@ export interface PurchaseOrderRow {
 export interface PurchaseOrderLine {
   id: string;
   lineNo: number;
+  kind: 'packaging' | 'expense' | 'asset';
+  assetLifeMonths: number | null;
+  assetDarkStore: NamedStore | null;
+  /** The fixed assets opened when an asset line was received (one per unit) */
+  fixedAssets: { id: string; name: string }[];
   description: string;
   quantity: number;
   unitPricePiastres: number;

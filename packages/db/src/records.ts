@@ -159,6 +159,17 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
         }
       );
     }
+    case 'supplier': {
+      const r = await db.supplier.findUnique({ where: { id } });
+      return (
+        r && {
+          label: r.name,
+          href: `/finance/suppliers/${id}`,
+          darkStoreId: null,
+          merchantId: null,
+        }
+      );
+    }
     case 'purchase_order': {
       const r = await db.purchaseOrder.findUnique({ where: { id } });
       return (

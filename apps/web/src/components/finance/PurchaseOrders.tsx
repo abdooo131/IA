@@ -1,6 +1,6 @@
 'use client';
 
-import { cairoDay } from '@shiplynow/shared';
+import { cairoDay, PURCHASE_LINE_KINDS, type PurchaseLineKind } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
@@ -38,21 +38,32 @@ const named = (locale: string, a: { code?: string; nameEn: string; nameAr: strin
   `${a.code ? `${a.code} ` : ''}${locale === 'ar' ? a.nameAr : a.nameEn}`;
 
 interface LineDraft {
-  kind: 'packaging' | 'expense';
+  kind: PurchaseLineKind;
+  /** The packaging item or the expense category; for an asset, its store (empty: the order's) */
   ref: string;
+  /** An asset's months of use */
+  life: string;
   description: string;
   quantity: string;
   price: string;
 }
 const emptyLine = (): LineDraft => ({
-  kind: 'packaging',
+  kind: 'expense',
   ref: '',
+  life: '36',
   description: '',
   quantity: '1',
   price: '',
 });
+const months = (text: string) => {
+  const n = /^\d{1,3}$/.test(text.trim()) ? Number(text) : 0;
+  return n >= 1 && n <= 600 ? n : null;
+};
 
-/** A new purchase order: supplier, store, lines (packaging or a cost), note and the quote. */
+/**
+ * A new purchase order for anything the company buys: supplier, store, lines (a packaging
+ * item, an expense or an asset such as a laptop), note and the quote.
+ */
 export function NewPurchaseOrder({
   suppliers,
   stores,
@@ -90,7 +101,13 @@ export function NewPurchaseOrder({
   const total = parsed.reduce((s, l) => s + (l.qty ?? 0) * (l.unit ?? 0), 0);
   const valid =
     supplierId &&
-    parsed.every((l) => l.ref && l.description.trim().length >= 2 && l.qty && l.unit !== null);
+    parsed.every(
+      (l) =>
+        (l.kind === 'asset' ? months(l.life) !== null && !!l.unit : !!l.ref) &&
+        l.description.trim().length >= 2 &&
+        l.qty &&
+        l.unit !== null,
+    );
 
   async function save() {
     setBusy(true);
@@ -101,7 +118,11 @@ export function NewPurchaseOrder({
       ...(note.trim() ? { note: note.trim() } : {}),
       ...(photoId ? { quotePhotoId: photoId } : {}),
       lines: parsed.map((l) => ({
-        ...(l.kind === 'packaging' ? { packagingItemId: l.ref } : { expenseAccountId: l.ref }),
+        ...(l.kind === 'packaging'
+          ? { packagingItemId: l.ref }
+          : l.kind === 'expense'
+            ? { expenseAccountId: l.ref }
+            : { assetLifeMonths: months(l.life), ...(l.ref ? { assetDarkStoreId: l.ref } : {}) }),
         description: l.description.trim(),
         quantity: l.qty,
         unitPricePiastres: l.unit,
@@ -116,6 +137,7 @@ export function NewPurchaseOrder({
   return (
     <section className="mt-4 space-y-3 rounded-lg border border-line bg-surface p-4">
       <h2 className="text-h3">{t('new')}</h2>
+      <p className="text-caption text-text-muted">{t('newHint')}</p>
       <div className="grid gap-3 sm:grid-cols-2">
         <Field label={t('supplier')}>
           <select
@@ -155,31 +177,64 @@ export function NewPurchaseOrder({
                 onChange={(e) => change(i, { kind: e.target.value as LineDraft['kind'], ref: '' })}
                 className={field}
               >
-                <option value="packaging">{t('packagingLine')}</option>
-                <option value="expense">{t('expenseLine')}</option>
-              </select>
-            </Field>
-            <Field label={l.kind === 'packaging' ? t('item') : t('expense')}>
-              <select
-                value={l.ref}
-                onChange={(e) => {
-                  const item = items.find((x) => x.id === e.target.value);
-                  change(i, {
-                    ref: e.target.value,
-                    ...(item && !l.description ? { description: named(locale, item) } : {}),
-                  });
-                }}
-                className={field}
-              >
-                <option value="">{t('choose')}</option>
-                {(l.kind === 'packaging' ? items.filter((x) => x.isActive) : expenses).map((x) => (
-                  <option key={x.id} value={x.id}>
-                    {named(locale, x)}
+                {PURCHASE_LINE_KINDS.map((k) => (
+                  <option key={k} value={k}>
+                    {t(`lineKinds.${k}`)}
                   </option>
                 ))}
               </select>
             </Field>
-            <div className="sm:col-span-2">
+            {l.kind === 'asset' ? (
+              <>
+                <Field label={t('assetLife')}>
+                  <input
+                    value={l.life}
+                    onChange={(e) => change(i, { life: e.target.value })}
+                    inputMode="numeric"
+                    dir="ltr"
+                    className={`${field} text-end`}
+                  />
+                </Field>
+                <Field label={t('assetStore')}>
+                  <select
+                    value={l.ref}
+                    onChange={(e) => change(i, { ref: e.target.value })}
+                    className={field}
+                  >
+                    <option value="">{t('assetStoreOrder')}</option>
+                    {stores.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {named(locale, s)}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            ) : (
+              <Field label={l.kind === 'packaging' ? t('item') : t('expense')}>
+                <select
+                  value={l.ref}
+                  onChange={(e) => {
+                    const item = items.find((x) => x.id === e.target.value);
+                    change(i, {
+                      ref: e.target.value,
+                      ...(item && !l.description ? { description: named(locale, item) } : {}),
+                    });
+                  }}
+                  className={field}
+                >
+                  <option value="">{t('choose')}</option>
+                  {(l.kind === 'packaging' ? items.filter((x) => x.isActive) : expenses).map(
+                    (x) => (
+                      <option key={x.id} value={x.id}>
+                        {named(locale, x)}
+                      </option>
+                    ),
+                  )}
+                </select>
+              </Field>
+            )}
+            <div className={l.kind === 'asset' ? '' : 'sm:col-span-2'}>
               <Field label={t('description')}>
                 <input
                   value={l.description}
@@ -207,6 +262,9 @@ export function NewPurchaseOrder({
                 className={`${field} text-end`}
               />
             </Field>
+            {l.kind === 'asset' && (
+              <p className="text-caption text-text-muted sm:col-span-6">{t('assetHint')}</p>
+            )}
             {lines.length > 1 && (
               <button
                 type="button"

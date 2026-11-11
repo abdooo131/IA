@@ -18,6 +18,7 @@ export const ACCOUNTING_DOCS = [
   'cash_handover',
   'expense_claim',
   'basata_deposit',
+  'supplier',
 ] as const;
 export type AccountingDoc = (typeof ACCOUNTING_DOCS)[number];
 
@@ -119,6 +120,7 @@ export const DOC_LISTS: Record<AccountingDoc, { list: string; href: string }> = 
   cash_handover: { list: 'storeCash', href: '/finance/cash' },
   expense_claim: { list: 'expenseClaims', href: '/finance/expense-claims' },
   basata_deposit: { list: 'basataDeposits', href: '/finance/basata' },
+  supplier: { list: 'suppliers', href: '/finance/suppliers' },
 };
 
 /** What the one search answers: a document, an order or a merchant, and where it opens. */

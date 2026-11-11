@@ -37,6 +37,19 @@ const COLUMNS: Record<FinanceListId, Col[]> = {
     { key: 'paid', kind: 'money', optional: true },
     { key: 'left', kind: 'money', sort: 'left' },
   ],
+  suppliers: [
+    { key: 'name', kind: 'text', sort: 'name', primary: true },
+    { key: 'kind', kind: 'text' },
+    { key: 'taxId', kind: 'ltr' },
+    { key: 'phone', kind: 'ltr', optional: true },
+    { key: 'email', kind: 'ltr', optional: true },
+    { key: 'whtPercent', kind: 'number', optional: true },
+    { key: 'accountCode', kind: 'ltr', optional: true },
+    { key: 'people', kind: 'number', optional: true },
+    { key: 'openBills', kind: 'number', sort: 'open_bills' },
+    { key: 'status', kind: 'status' },
+    { key: 'balance', kind: 'money', sort: 'balance' },
+  ],
   journal: [
     { key: 'number', kind: 'ltr', sort: 'number', primary: true },
     { key: 'day', kind: 'date', sort: 'day' },
@@ -120,6 +133,7 @@ const COLUMNS: Record<FinanceListId, Col[]> = {
 const HREFS: Partial<Record<FinanceListId, string>> = {
   payouts: '/finance/payouts/{id}',
   bills: '/finance/bills/{id}',
+  suppliers: '/finance/suppliers/{id}',
   journal: '/finance/journal/{id}',
   cheques: '/finance/cheques/{id}',
   rider_withdrawals: '/finance/rider-withdrawals/{id}',
@@ -158,6 +172,12 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
       break;
     case 'bills':
       valueLabels.status = states(['open', 'paid', 'cancelled']);
+      break;
+    case 'suppliers':
+      valueLabels.status = states(['active', 'inactive']);
+      valueLabels.kind = Object.fromEntries(
+        ['supplier', 'rider_office', 'staffing_company'].map((k) => [k, t(`suppliers.kinds.${k}`)]),
+      );
       break;
     case 'journal': {
       const kinds = Object.keys(tf.raw('kinds') as Record<string, string>);

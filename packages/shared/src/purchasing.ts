@@ -105,6 +105,10 @@ export const PURCHASE_ORDER_STATUSES = [
 ] as const;
 export type PurchaseOrderStatusName = (typeof PURCHASE_ORDER_STATUSES)[number];
 
+/** What a purchase order line is: packaging, a cost (expense) or an asset (equipment). */
+export const PURCHASE_LINE_KINDS = ['packaging', 'expense', 'asset'] as const;
+export type PurchaseLineKind = (typeof PURCHASE_LINE_KINDS)[number];
+
 export const purchaseOrderSchema = z.object({
   supplierId: id,
   darkStoreId: id.optional(),
@@ -116,13 +120,24 @@ export const purchaseOrderSchema = z.object({
         .object({
           /** A packaging item (received into packaging stock), or... */
           packagingItemId: id.optional(),
-          /** ...an expense category for anything else */
+          /** ...an expense category for a cost, or... */
           expenseAccountId: id.optional(),
+          /** ...an asset (equipment): the months it is depreciated over */
+          assetLifeMonths: z.number().int().min(1).max(600).optional(),
+          /** An asset line's store (else the order's store) */
+          assetDarkStoreId: id.optional(),
           description: text(2, 160),
           quantity: z.number().int().min(1).max(1_000_000),
           unitPricePiastres: z.number().int().min(0).max(1_000_000_000),
         })
-        .refine((l) => !!l.packagingItemId !== !!l.expenseAccountId, 'packaging_or_expense'),
+        .refine(
+          (l) =>
+            [!!l.packagingItemId, !!l.expenseAccountId, l.assetLifeMonths !== undefined].filter(
+              Boolean,
+            ).length === 1 &&
+            (!l.assetDarkStoreId || l.assetLifeMonths !== undefined),
+          'packaging_or_expense',
+        ),
     )
     .min(1)
     .max(50),

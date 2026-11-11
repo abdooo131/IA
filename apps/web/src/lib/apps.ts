@@ -161,6 +161,7 @@ export const APPS: AppDef[] = [
         label: 'moneyOut',
         pages: [
           { href: '/finance/expenses/new', label: 'recordExpense', need: { level: 'use' } },
+          { href: '/finance/suppliers', label: 'suppliers' },
           { href: '/finance/bills', label: 'bills' },
           { href: '/finance/purchase-orders', label: 'purchaseOrders' },
           { href: '/finance/movements', label: 'movements' },

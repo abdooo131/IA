@@ -7,7 +7,10 @@ import type { BillAgeing, BookAccount, StoreOption, SupplierRow } from '@/lib/fi
 
 export const dynamic = 'force-dynamic';
 
-/** Supplier bills as a list view, then the ageing, a new bill and the suppliers. */
+/**
+ * Supplier bills as a list view, then the ageing and a new bill. Suppliers have their own
+ * page (/finance/suppliers); the bill form links there to add one.
+ */
 export default async function FinanceBillsPage({
   searchParams,
 }: {

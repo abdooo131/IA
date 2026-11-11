@@ -5,6 +5,7 @@ import {
   billNumber,
   cairoDay,
   chequeLabel,
+  egpText,
   type DocDescriptor,
   type DocField,
   type DocSmartButton,
@@ -700,6 +701,121 @@ async function purchaseOrderDoc(db: Db, id: string): Promise<DocDescriptor | nul
   });
 }
 
+// ─── supplier ───────────────────────────────────────────────────────────────────
+
+/**
+ * A supplier's page: its details (edited on the page), what we owe them (their 2500 wallet,
+ * below zero they owe us), and smart buttons to their bills, payments, purchase orders and
+ * the ledger lines of their wallet.
+ */
+async function supplierDoc(db: Db, id: string): Promise<DocDescriptor | null> {
+  const s = await db.supplier.findUnique({
+    where: { id },
+    include: {
+      accounts: { select: { id: true, code: true } },
+      defaultExpenseAccount: { select: { id: true, code: true, nameEn: true } },
+      _count: {
+        select: {
+          bills: true,
+          purchaseOrders: true,
+          cheques: true,
+          staff: { where: { status: { not: 'left' } } },
+        },
+      },
+    },
+  });
+  if (!s) return null;
+  const accountIds = s.accounts.map((a) => a.id);
+  const [sum, bills, openBills] = await Promise.all([
+    db.ledgerLine.aggregate({
+      where: { accountId: { in: accountIds } },
+      _sum: { amountPiastres: true },
+    }),
+    db.bill.findMany({ where: { supplierId: s.id }, select: { id: true } }),
+    db.bill.count({ where: { supplierId: s.id, status: 'open' } }),
+  ]);
+  const payments = bills.length
+    ? await db.ledgerEntry.findMany({
+        where: {
+          kind: 'bill_payment',
+          OR: bills.map((b) => ({ data: { path: ['billId'], equals: b.id } })),
+        },
+        select: { id: true },
+      })
+    : [];
+  // Their wallet holds a credit balance when we owe them: shown positive.
+  const owed = -(sum._sum.amountPiastres ?? 0);
+  const account = s.accounts[0];
+  const q = encodeURIComponent(s.name);
+  const smart: DocSmartButton[] = [
+    { key: 'bills', count: s._count.bills, href: `/finance/bills?q=${q}&f=` },
+    {
+      key: 'payments',
+      count: payments.length,
+      href: journalHref(
+        payments.map((p) => p.id),
+        s.name,
+      ),
+    },
+    {
+      key: 'purchaseOrders',
+      count: s._count.purchaseOrders,
+      href: `/finance/purchase-orders?supplierId=${s.id}`,
+    },
+    {
+      key: 'supplierBalance',
+      count: null,
+      value: `${egpText(owed)} EGP`,
+      href: account ? `/finance/reports/lines?account=${account.id}` : '#details',
+    },
+  ];
+  if (s._count.cheques)
+    smart.push({ key: 'cheques', count: s._count.cheques, href: `/finance/cheques?q=${q}&f=` });
+  if (s.isRiderOffice)
+    smart.push({
+      key: 'riderOffice',
+      count: null,
+      value: s.name,
+      href: `/finance/rider-offices/${s.id}`,
+    });
+  return base('supplier', s.id, {
+    number: account?.code ?? s.name,
+    title: s.name,
+    status: s.isActive ? 'active' : 'inactive',
+    fields: present([
+      f('name', s.name),
+      f('taxId', s.taxId, 'ltr'),
+      f('phone', s.phone, 'ltr'),
+      f('email', s.email, 'ltr'),
+      f('withholding', s.whtBp / 100, 'percent'),
+      f(
+        'defaultExpense',
+        s.defaultExpenseAccount
+          ? `${s.defaultExpenseAccount.code} ${s.defaultExpenseAccount.nameEn}`
+          : null,
+      ),
+      f('walletAccount', account?.code ?? null, 'ltr'),
+      f('commission', s.isRiderOffice ? s.commissionBp / 100 : null, 'percent'),
+      f('people', s._count.staff || null),
+      f('openBills', openBills),
+      f('weOwe', owed, 'money'),
+      f('createdAt', iso(s.createdAt), 'datetime'),
+    ]),
+    smart,
+    data: {
+      name: s.name,
+      taxId: s.taxId,
+      phone: s.phone,
+      email: s.email,
+      whtBp: s.whtBp,
+      defaultExpenseAccountId: s.defaultExpenseAccountId,
+      isActive: s.isActive,
+      isRiderOffice: s.isRiderOffice,
+      owedPiastres: owed,
+    },
+  });
+}
+
 async function handoverDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   const h = await db.cashHandover.findUnique({
     where: { id },
@@ -888,6 +1004,7 @@ const BUILDERS: Record<AccountingDoc, (db: Db, id: string) => Promise<DocDescrip
   cash_handover: handoverDoc,
   expense_claim: claimDoc,
   basata_deposit: basataDoc,
+  supplier: supplierDoc,
 };
 
 /** The document page of one accounting record, or null when it does not exist. */
