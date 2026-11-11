@@ -1,7 +1,15 @@
 import { cairoDay } from '@shiplynow/shared';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { hashPassword, type Role, seed, writeAccess } from '@shiplynow/db';
+import {
+  addPayoutProof,
+  hashPassword,
+  listPayoutChecks,
+  markPayoutCheck,
+  type Role,
+  seed,
+  writeAccess,
+} from '@shiplynow/db';
 import { JOB_ROLE_TEMPLATES, type JobRole } from '@shiplynow/shared';
 import { AppModule } from '../src/app.module';
 import { Clock } from '../src/common/clock';
@@ -170,4 +178,32 @@ export async function contractPrices(
     .post(`/admin/merchants/${merchantId}/contract/versions/${draft.body.id}/activate`)
     .send({ effectiveFrom: today })
     .expect(201);
+}
+
+/** A tiny PDF standing in for a bank transfer slip. */
+export const SLIP_PDF = Buffer.from('%PDF-1.4\n1 0 obj<<>>endobj\ntrailer<<>>\n%%EOF\n');
+
+/**
+ * Makes a draft payout payable (payout proof of transfer and checks): a second finance person
+ * uploads the bank slip with the payout's amount and ticks every active payout check, so the
+ * person who marks it paid is never the second person.
+ */
+export async function readyToPay(prisma: PrismaService, payoutId: string, reference = 'TRX-SLIP') {
+  const email = 'second.person@test.eg';
+  const second =
+    (await prisma.user.findUnique({ where: { email } })) ??
+    (await createUser(prisma, { email, password: 'second-password-1', role: 'finance' }));
+  const payout = await prisma.payout.findUniqueOrThrow({ where: { id: payoutId } });
+  await addPayoutProof(prisma, {
+    payoutId,
+    fileName: 'slip.pdf',
+    contentType: 'application/pdf',
+    data: SLIP_PDF,
+    amountPiastres: payout.amountPiastres,
+    reference,
+    actorUserId: second.id,
+  });
+  for (const check of await listPayoutChecks(prisma, { activeOnly: true }))
+    await markPayoutCheck(prisma, { payoutId, checkId: check.id, actorUserId: second.id });
+  return second;
 }

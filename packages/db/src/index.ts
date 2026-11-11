@@ -222,7 +222,12 @@ export {
 } from './attendance';
 export * from './push';
 export * from './email';
-export { BASE_URL as EMAIL_BASE_URL, escapeHtml, egpText } from './email-templates';
+export {
+  BASE_URL as EMAIL_BASE_URL,
+  escapeHtml,
+  egpText,
+  statementKindLabel,
+} from './email-templates';
 export * from './packaging';
 export * from './purchasing';
 export * from './crm';

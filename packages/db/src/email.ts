@@ -289,6 +289,7 @@ export async function queuePayoutEmails(tx: Tx, payoutId: string) {
         amountPiastres: payout.amountPiastres,
         reference: payout.reference ?? '',
         paidAt: payout.paidAt,
+        attached: refs.length > 0,
       }),
       refs,
       idempotencyKey: `payout_paid:${payout.id}`,

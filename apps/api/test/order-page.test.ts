@@ -5,7 +5,13 @@ import { cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, FixedClock, resetAndSeed, contractPrices } from './helpers';
+import {
+  contractPrices,
+  createTestApp,
+  FixedClock,
+  readyToPay,
+  resetAndSeed,
+} from './helpers';
 
 const DEMO = 'demo-password-1';
 const NOON_CAIRO = new Date('2026-01-14T10:00:00Z');
@@ -199,6 +205,7 @@ describe('order page: notes, money and what each viewer sees', () => {
         { account: { type: 'retained_earnings' }, amount: -cash },
       ],
     });
+    await readyToPay(prisma, payout.body.id);
     await admin
       .post(`/finance/payouts/${payout.body.id}/paid`)
       .send({ reference: 'TRX-9' })

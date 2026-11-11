@@ -63,6 +63,8 @@ const T = {
     attached: 'The full statement is attached (CSV, opens in Excel).',
     payoutSubject: (number: string) => `Payout ${number} is on its way`,
     payoutIntro: (amount: string) => `We sent you ${amount} by bank transfer.`,
+    payoutAttached:
+      'Your statement of account for this payout (PDF) and the proof of transfer from the bank are attached.',
     amount: 'Amount',
     reference: 'Bank reference',
     paidOn: 'Paid on',
@@ -107,6 +109,7 @@ const T = {
     attached: 'الكشف الكامل مرفق (ملف CSV يفتح في إكسل).',
     payoutSubject: (number: string) => `الدفعة ${number} في الطريق إليك`,
     payoutIntro: (amount: string) => `أرسلنا لك ${amount} بتحويل بنكي.`,
+    payoutAttached: 'مرفق كشف حسابك عن هذه الدفعة (PDF) وإثبات التحويل من البنك.',
     amount: 'المبلغ',
     reference: 'مرجع البنك',
     paidOn: 'تاريخ الدفع',
@@ -240,6 +243,8 @@ export function payoutPaidEmail(input: {
   amountPiastres: number;
   reference: string;
   paidAt: Date;
+  /** The statement of account and the proof of transfer travel with it */
+  attached?: boolean;
 }): RenderedEmail {
   const { lang } = input;
   const t = T[lang];
@@ -256,9 +261,9 @@ export function payoutPaidEmail(input: {
     html: layout(
       lang,
       subject,
-      `${p(t.hello(input.merchantName))}${p(t.payoutIntro(amount))}${rows(lang, list)}${button(`${BASE_URL}/merchant/wallet`, t.open)}`,
+      `${p(t.hello(input.merchantName))}${p(t.payoutIntro(amount))}${rows(lang, list)}${input.attached ? p(t.payoutAttached) : ''}${button(`${BASE_URL}/merchant/wallet`, t.open)}`,
     ),
-    text: `${t.hello(input.merchantName)}\n\n${t.payoutIntro(amount)}\n\n${textRows(list)}\n\n${BASE_URL}/merchant/wallet\n\n${t.team}`,
+    text: `${t.hello(input.merchantName)}\n\n${t.payoutIntro(amount)}\n\n${textRows(list)}\n\n${input.attached ? `${t.payoutAttached}\n\n` : ''}${BASE_URL}/merchant/wallet\n\n${t.team}`,
   };
 }
 
@@ -355,4 +360,9 @@ export function paymentReminderEmail(input: {
     ),
     text: `${t.hello(input.merchantName)}\n\n${r.intro(amount)}\n\n${textRows(list)}\n\n${r.ask}\n${r.open}: ${BASE_URL}/merchant/wallet\n\n${t.team}`,
   };
+}
+
+/** The name of a statement line's kind in a language (the words merchants see everywhere). */
+export function statementKindLabel(lang: EmailLanguage, kind: string) {
+  return T[lang].kinds[kind] ?? kind.replace(/_/g, ' ');
 }
