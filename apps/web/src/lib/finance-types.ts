@@ -928,3 +928,52 @@ export interface OfficeBillResult {
   totalPiastres: number;
   shortagesPiastres: number;
 }
+
+/** A payout's statement of account, proof of transfer and checks (GET /finance/payouts/:id/controls). */
+export interface PayoutControlsData {
+  payoutId: string;
+  status: 'draft' | 'paid' | 'cancelled';
+  amountPiastres: number;
+  soa: {
+    number: string;
+    openingPiastres: number;
+    closingPiastres: number;
+    heldBackPiastres: number;
+    netPiastres: number;
+    fromDay: string;
+    toDay: string;
+    frozenAt: string;
+  } | null;
+  pot: {
+    number: string;
+    fileName: string;
+    contentType: string;
+    sizeBytes: number;
+    amountPiastres: number;
+    reference: string;
+    uploadedAt: string;
+    uploadedBy: string;
+  } | null;
+  paidByCheque: boolean;
+  checks: {
+    id: string;
+    code: string;
+    labelEn: string;
+    labelAr: string;
+    system: boolean;
+    mark: { by: string; byId: string; at: string; note: string | null; mine: boolean } | null;
+  }[];
+  matches: boolean;
+  blockers: string[];
+}
+
+export interface PayoutCheckRow {
+  id: string;
+  code: string;
+  labelEn: string;
+  labelAr: string;
+  active: boolean;
+  system: boolean;
+  sort: number;
+  createdBy: string | null;
+}

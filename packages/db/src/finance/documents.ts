@@ -12,8 +12,11 @@ import {
   entryNumber,
   expenseClaimNumber,
   handoverNumber,
+  payoutMatches,
   payoutNumber,
   pettyCashLabel,
+  proofNumber,
+  soaNumber,
   purchaseOrderNumber,
   withdrawalNumber,
 } from '@shiplynow/shared';
@@ -81,11 +84,17 @@ async function payoutDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       createdBy: { select: { name: true } },
       paidBy: { select: { name: true } },
       approvedBy: { select: { name: true } },
+      statement: { select: { number: true, netPiastres: true } },
+      proof: { select: { number: true, amountPiastres: true, reference: true } },
       _count: { select: { cheques: true } },
     },
   });
   if (!p) return null;
   const number = payoutNumber(p.number);
+  const activeChecks = await db.payoutCheck.count({ where: { active: true } });
+  const ticked = await db.payoutCheckMark.count({
+    where: { payoutId: p.id, check: { active: true } },
+  });
   const [entries, emails, files, limit] = await Promise.all([
     db.ledgerEntry.findMany({
       where: { idempotencyKey: { startsWith: `payout:${p.id}` } },
@@ -113,6 +122,19 @@ async function payoutDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     { key: 'receipts', count: files.length, href: '#attachments' },
     { key: 'emails', count: emails, href: `/finance/emails?merchantId=${p.merchantId}` },
   ];
+  if (p.statement)
+    smart.push({
+      key: 'statement',
+      count: null,
+      value: soaNumber(p.statement.number),
+      href: '#payout-controls',
+    });
+  smart.push({
+    key: 'proof',
+    count: p.proof ? null : 0,
+    value: p.proof ? proofNumber(p.proof.number) : undefined,
+    href: '#payout-controls',
+  });
   if (p._count.cheques)
     smart.push({
       key: 'cheques',
@@ -134,6 +156,9 @@ async function payoutDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('paidBy', p.paidBy?.name ?? null),
       f('paidAt', iso(p.paidAt), 'datetime'),
       f('reference', p.reference, 'ltr'),
+      f('statement', p.statement ? soaNumber(p.statement.number) : null, 'ltr'),
+      f('proof', p.proof ? proofNumber(p.proof.number) : null, 'ltr'),
+      f('proofReference', p.proof?.reference ?? null, 'ltr'),
       f('note', p.note, 'multiline'),
     ]),
     smart,
@@ -144,6 +169,14 @@ async function payoutDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       createdById: p.createdById,
       needsApproval:
         p.status === 'draft' && limit > 0 && p.amountPiastres >= limit && !p.approvedById,
+      hasStatement: !!p.statement,
+      hasProof: !!p.proof,
+      checksDone: ticked >= activeChecks,
+      matches: payoutMatches({
+        amountPiastres: p.amountPiastres,
+        soaNetPiastres: p.statement?.netPiastres ?? null,
+        potAmountPiastres: p.proof?.amountPiastres ?? null,
+      }),
     },
   });
 }

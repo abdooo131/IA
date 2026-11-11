@@ -42,16 +42,20 @@ export const createPayoutSchema = z.object({
 export const duePayoutsSchema = z.object({ cutoffDay: day });
 
 export const payoutPaidSchema = z.object({
-  reference: z.string().trim().min(2).max(100),
+  /** Empty uses the bank reference typed on the payout's proof of transfer */
+  reference: z.string().trim().min(2).max(100).optional(),
   /** The bank transfer slip photo, uploaded first */
   receiptPhotoId: id.optional(),
   /** Which bank; empty uses the main bank (CIB, 1101) */
   bankAccountId: id.optional(),
 });
-/** The Pay merchants run: several payouts marked paid with one bank reference and day. */
+/**
+ * The Pay merchants run: several payouts marked paid on one day, each with its own proof of
+ * transfer (its reference unless one reference is given for all).
+ */
 export const payoutsMarkPaidSchema = z.object({
   ids: z.array(id).min(1).max(200),
-  reference: z.string().trim().min(2).max(100),
+  reference: z.string().trim().min(2).max(100).optional(),
   /** The Cairo day the transfer went out; empty is now */
   day: day.optional(),
   bankAccountId: id.optional(),

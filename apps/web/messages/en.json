@@ -2228,7 +2228,8 @@
       },
       "needsApproval": "This payout is above the approval limit: another person must approve it before it is paid.",
       "approve": "Approve",
-      "approvedBy": "Approved by {name}"
+      "approvedBy": "Approved by {name}",
+      "transferRefOptional": "Bank reference (empty uses the slip)"
     },
     "merchants": {
       "title": "Merchant wallets",
@@ -2413,7 +2414,11 @@
         "store_not_allowed": "This store is not one of yours.",
         "budget_year_empty": "The year to copy from has no budget here.",
         "budget_year_not_empty": "That year already has a budget here.",
-        "same_year": "Choose two different years."
+        "same_year": "Choose two different years.",
+        "pot_required": "Upload the proof of transfer first.",
+        "pot_amount_mismatch": "The amount on the slip is not the payout amount.",
+        "soa_mismatch": "The statement net is not the payout amount.",
+        "checks_incomplete": "Tick every payout check first."
       }
     },
     "riders": {
@@ -3764,8 +3769,21 @@
         "approval_needed": "This payout needs a second person to approve it first.",
         "same_person": "Someone else must approve a payout you prepared.",
         "approval_not_needed": "This payout is under the limit and needs no approval.",
-        "future_date": "The day cannot be in the future."
-      }
+        "future_date": "The day cannot be in the future.",
+        "pot_required": "Upload the proof of transfer first.",
+        "pot_amount_mismatch": "The amount on the slip is not the payout amount.",
+        "soa_mismatch": "The statement net is not the payout amount.",
+        "checks_incomplete": "Some payout checks are not ticked yet."
+      },
+      "payIntroProof": "Each payout needs its own proof of transfer: upload the bank slip on its row with the amount and reference typed from it, then someone other than the payer confirms it on the payout page. Rows without a proof or checks are refused.",
+      "referenceOptional": "Empty uses the reference on each slip",
+      "proof": "Proof",
+      "noProof": "No proof",
+      "checksCount": "{done} of {total} checks",
+      "openPayout": "Open to confirm",
+      "viewedByMe": "You confirmed it, so someone else marks it paid.",
+      "uploadProof": "Upload proof",
+      "paySamePerson": "You confirmed the statement and the slip, so someone else marks it paid."
     },
     "closeRun": {
       "title": "Close the month {month}",
@@ -4041,6 +4059,84 @@
       "none": "Nothing here.",
       "noAmount": "Not known yet",
       "more": "{count} more"
+    },
+    "payoutControls": {
+      "title": "Statement, proof and checks",
+      "intro": "Before a payout is marked paid its statement of account is frozen, the bank slip is uploaded with the amount and reference typed from it, and every check is ticked. Someone other than the payer confirms the statement and the slip.",
+      "soa": "Statement of account",
+      "soaMissing": "No statement yet. It is made when the proof is uploaded.",
+      "period": "{from} to {to}",
+      "opening": "Balance at the start",
+      "closing": "Balance at the cutoff",
+      "heldBack": "Charges after the cutoff, held back",
+      "net": "Net to transfer",
+      "pdfEn": "PDF in English",
+      "pdfAr": "PDF in Arabic",
+      "csv": "CSV",
+      "pot": "Proof of transfer",
+      "potMissing": "No proof yet. Upload the bank slip after the transfer.",
+      "file": "Bank slip (PDF, JPG or PNG, up to 5 MB)",
+      "amount": "Amount on the slip (EGP)",
+      "reference": "Bank reference on the slip",
+      "upload": "Upload proof",
+      "replace": "Replace proof",
+      "replaceHint": "Replacing the proof clears the ticks given on the old one.",
+      "viewSlip": "View slip",
+      "uploadedBy": "Uploaded by {name}, {time}",
+      "uploaded": "Proof saved.",
+      "matches": "Matches: statement net, slip amount and payout amount are equal",
+      "differs": "Does not match yet",
+      "checks": "Checks before paying",
+      "tick": "Confirm",
+      "note": "Note (optional)",
+      "tickedBy": "{name}, {time}",
+      "notTicked": "Not done yet",
+      "secondPersonHint": "Someone other than the person who marks it paid opens the statement and the slip, then confirms them.",
+      "ready": "Ready to be marked paid.",
+      "paidByCheque": "Paid by cheque: the cheque register is its proof.",
+      "blockers": {
+        "pot_required": "Upload the proof of transfer first.",
+        "pot_amount_mismatch": "The amount on the slip is not the payout amount.",
+        "soa_mismatch": "The statement net is not the payout amount.",
+        "checks_incomplete": "Some checks are not ticked yet.",
+        "same_person": "You confirmed the statement and the slip, so someone else marks it paid."
+      },
+      "errors": {
+        "pot_required": "Upload the proof of transfer first.",
+        "pot_amount_mismatch": "The amount typed from the slip must be the payout amount.",
+        "soa_mismatch": "The statement net is not the payout amount. Cancel and prepare it again.",
+        "checks_incomplete": "Tick every check first.",
+        "same_person": "Someone other than the payer must confirm the statement and the slip.",
+        "file_type_not_allowed": "Send a PDF, JPG or PNG file.",
+        "file_too_large": "The file is larger than 5 MB.",
+        "payout_not_draft": "This payout is no longer waiting.",
+        "check_not_found": "This check is not active.",
+        "invalid_amount": "Type the amount in EGP, for example 1250.50.",
+        "validation_failed": "Check the fields.",
+        "generic": "Could not save. Try again."
+      }
+    },
+    "payoutChecks": {
+      "title": "Payout checks",
+      "intro": "What Accounting ticks on every payout before it is marked paid. The second person check is built in and cannot be switched off.",
+      "code": "Code",
+      "labelEn": "Label in English",
+      "labelAr": "Label in Arabic",
+      "sort": "Order",
+      "active": "On",
+      "system": "Built in",
+      "add": "Add check",
+      "save": "Save",
+      "on": "On",
+      "off": "Off",
+      "createdBy": "Added by {name}",
+      "codeHint": "Small letters, digits and underscores, for example iban_matches",
+      "errors": {
+        "check_code_taken": "A check with this code exists.",
+        "check_is_system": "The built in check cannot be switched off.",
+        "validation_failed": "Check the fields.",
+        "generic": "Could not save. Try again."
+      }
     }
   },
   "storeCash": {
@@ -4086,7 +4182,42 @@
     "scheduleTitle": "How often should we pay you?",
     "scheduleSaved": "Saved. Your next payout follows this schedule.",
     "scheduleError": "Could not save. Try again.",
-    "scheduleHint": "Finance prepares each payout on your days and sends it by bank transfer. You see the reference here once it is paid."
+    "scheduleHint": "Finance prepares each payout on your days and sends it by bank transfer. You see the reference here once it is paid.",
+    "soa": "Statement of account",
+    "pot": "Proof of transfer",
+    "viewSoa": "View",
+    "pdf": "PDF",
+    "viewSlip": "View slip",
+    "potWaiting": "Shown once paid",
+    "byCheque": "Paid by cheque",
+    "matches": "Matches",
+    "matchesHint": "Statement net, transfer amount and payout amount are equal",
+    "differs": "Check with us",
+    "soaTitle": "Statement of account {number}",
+    "payoutLabel": "Payout {number}",
+    "period": "From {from} to the end of {to}",
+    "frozen": "Frozen when the payout was prepared; it never changes.",
+    "summary": "Summary",
+    "opening": "Balance at the start",
+    "vatIncluded": "VAT included in the fees",
+    "closing": "Balance at the cutoff",
+    "heldBack": "Charges after the cutoff, held back",
+    "net": "Net to transfer",
+    "orders": "Orders",
+    "order": "Order",
+    "cod": "Cash collected",
+    "fees": "Fees",
+    "vat": "VAT",
+    "orderNet": "Net",
+    "other": "Other movements",
+    "day": "Day",
+    "type": "Type",
+    "ref": "Reference",
+    "none": "Nothing in this period.",
+    "back": "Back to wallet",
+    "csv": "CSV",
+    "pdfEn": "PDF in English",
+    "pdfAr": "PDF in Arabic"
   },
   "riderWallet": {
     "cash": "Cash with you: {amount} EGP",
@@ -6292,7 +6423,8 @@
       "frozenRiders": "Frozen riders",
       "suppliers": "Suppliers",
       "forecast": "Forecast",
-      "paymentsDue": "Coming up and due"
+      "paymentsDue": "Coming up and due",
+      "payoutChecks": "Payout checks"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -10544,7 +10676,10 @@
       "commission": "Office commission",
       "people": "People hired through them",
       "openBills": "Open bills",
-      "weOwe": "We owe them (below zero they owe us)"
+      "weOwe": "We owe them (below zero they owe us)",
+      "statement": "Statement of account",
+      "proof": "Proof of transfer",
+      "proofReference": "Reference on the slip"
     },
     "smart": {
       "merchant": "Merchant",
@@ -10619,7 +10754,9 @@
       "debitNotes": "Debit notes",
       "settlement": "Basata transfer",
       "purchaseOrders": "Purchase orders",
-      "supplierBalance": "Balance (we owe)"
+      "supplierBalance": "Balance (we owe)",
+      "statement": "Statement",
+      "proof": "Proof of transfer"
     },
     "chatter": {
       "title": "Notes and history",

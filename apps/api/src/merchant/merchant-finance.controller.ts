@@ -13,10 +13,13 @@ import {
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   getInvoice,
+  getPayoutProofFile,
+  getPayoutStatement,
   listInvoices,
   listPayouts,
   merchantOwed,
   merchantStatement,
+  payoutStatementCsv,
   recordAudit,
   updateMerchantBank,
 } from '@shiplynow/db';
@@ -24,7 +27,10 @@ import {
   type AccessTokenClaims,
   cairoDay,
   merchantBankSchema,
+  payoutMatches,
   payoutScheduleSchema,
+  proofNumber,
+  soaNumber,
 } from '@shiplynow/shared';
 import type { Response } from 'express';
 import type { z } from 'zod';
@@ -33,6 +39,12 @@ import { Clock } from '../common/clock';
 import { parseRange } from '../common/dates';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { cairoStamp, csv, egp } from '../finance/finance-csv';
+import {
+  sendProofFile,
+  sendStatementCsv,
+  sendStatementPdf,
+  statementPdfFor,
+} from '../finance/payout-statement-pdf';
 import { PrismaService } from '../prisma/prisma.service';
 
 /** A merchant's own wallet: what we owe them, their statement and their payouts. */
@@ -85,20 +97,61 @@ export class MerchantFinanceController {
   async wallet(@CurrentUser() user: AccessTokenClaims) {
     const merchant = await this.merchantOf(user);
     const payouts = await listPayouts(this.prisma, { merchantId: merchant.id, take: 50 });
+    const ids = payouts.map((p) => p.id);
+    const [statements, proofs, cheques] = await Promise.all([
+      this.prisma.payoutStatement.findMany({
+        where: { payoutId: { in: ids } },
+        select: { payoutId: true, number: true, netPiastres: true },
+      }),
+      this.prisma.payoutProof.findMany({
+        where: { payoutId: { in: ids }, payout: { status: 'paid' } },
+        select: {
+          payoutId: true,
+          number: true,
+          amountPiastres: true,
+          reference: true,
+          contentType: true,
+        },
+      }),
+      this.prisma.cheque.findMany({
+        where: { payoutId: { in: ids } },
+        select: { payoutId: true },
+      }),
+    ]);
     return {
       owedPiastres: await merchantOwed(this.prisma, merchant.id),
       payoutSchedule: merchant.payoutSchedule,
       // Merchants see payouts once they are scheduled or paid, never who handled them.
       payouts: payouts
         .filter((p) => p.status !== 'cancelled')
-        .map((p) => ({
-          id: p.id,
-          cutoffAt: p.cutoffAt,
-          amountPiastres: p.amountPiastres,
-          status: p.status,
-          reference: p.status === 'paid' ? p.reference : null,
-          paidAt: p.paidAt,
-        })),
+        .map((p) => {
+          const soa = statements.find((x) => x.payoutId === p.id);
+          // The proof of transfer is shown once the payout is paid.
+          const pot = proofs.find((x) => x.payoutId === p.id);
+          return {
+            id: p.id,
+            cutoffAt: p.cutoffAt,
+            amountPiastres: p.amountPiastres,
+            status: p.status,
+            reference: p.status === 'paid' ? p.reference : null,
+            paidAt: p.paidAt,
+            soa: soa ? { number: soaNumber(soa.number), netPiastres: soa.netPiastres } : null,
+            pot: pot
+              ? {
+                  number: proofNumber(pot.number),
+                  amountPiastres: pot.amountPiastres,
+                  reference: pot.reference,
+                  contentType: pot.contentType,
+                }
+              : null,
+            paidByCheque: cheques.some((c) => c.payoutId === p.id),
+            matches: payoutMatches({
+              amountPiastres: p.amountPiastres,
+              soaNetPiastres: soa?.netPiastres ?? null,
+              potAmountPiastres: pot?.amountPiastres ?? null,
+            }),
+          };
+        }),
     };
   }
 
@@ -152,6 +205,65 @@ export class MerchantFinanceController {
         ],
       ),
     );
+  }
+
+  /** A payout of this merchant that the merchant may see (scheduled or paid, never cancelled). */
+  private async ownPayout(user: AccessTokenClaims, payoutId: string) {
+    const merchant = await this.merchantOf(user);
+    const payout = await this.prisma.payout.findUnique({
+      where: { id: payoutId },
+      select: { merchantId: true, status: true },
+    });
+    if (!payout || payout.merchantId !== merchant.id || payout.status === 'cancelled')
+      throw new NotFoundException({ error: 'payout_not_found' });
+    return merchant;
+  }
+
+  /** The statement of account frozen with one of the merchant's payouts. */
+  @Get('payouts/:id/statement')
+  async payoutStatement(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+    const merchant = await this.ownPayout(user, id);
+    return getPayoutStatement(this.prisma, id, merchant.id);
+  }
+
+  @Get('payouts/:id/statement.pdf')
+  @ApiQuery({ name: 'lang', required: false, enum: ['en', 'ar'] })
+  async payoutStatementPdf(
+    @Param('id') id: string,
+    @Query('lang') lang: string | undefined,
+    @CurrentUser() user: AccessTokenClaims,
+    @Res() res: Response,
+  ) {
+    const merchant = await this.ownPayout(user, id);
+    const language = lang === 'en' ? 'en' : 'ar';
+    const made = await statementPdfFor(this.prisma, {
+      payoutId: id,
+      lang: language,
+      merchantId: merchant.id,
+    });
+    sendStatementPdf(res, made.pdf, made.number, language);
+  }
+
+  @Get('payouts/:id/statement.csv')
+  async payoutStatementCsv(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Res() res: Response,
+  ) {
+    const merchant = await this.ownPayout(user, id);
+    const s = await getPayoutStatement(this.prisma, id, merchant.id);
+    sendStatementCsv(res, payoutStatementCsv(s), s.number);
+  }
+
+  /** The bank's proof of transfer, once the payout is paid. */
+  @Get('payouts/:id/proof')
+  async payoutProof(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Res() res: Response,
+  ) {
+    const merchant = await this.ownPayout(user, id);
+    sendProofFile(res, await getPayoutProofFile(this.prisma, id, merchant.id));
   }
 
   /** The merchant's tax invoices and credit notes from us. */

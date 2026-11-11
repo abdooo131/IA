@@ -244,6 +244,8 @@ describe('accounting list views, documents and the chatter', () => {
       'entries',
       'receipts',
       'emails',
+      // No proof of transfer yet (this draft was made without a statement of account).
+      'proof',
     ]);
     await a.get('/finance/documents/payout/nope').expect(404);
     await a.get(`/finance/documents/unknown/${p.id}`).expect(404);

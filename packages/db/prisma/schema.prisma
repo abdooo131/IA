@@ -111,6 +111,10 @@ model User {
   payoutsCreated           Payout[]                  @relation("payout_created_by")
   payoutsPaid              Payout[]                  @relation("payout_paid_by")
   payoutsApproved          Payout[]                  @relation("payout_approved_by")
+  payoutStatements         PayoutStatement[]         @relation("payout_statement_created_by")
+  payoutProofs             PayoutProof[]             @relation("payout_proof_uploaded_by")
+  payoutChecksCreated      PayoutCheck[]             @relation("payout_check_created_by")
+  payoutCheckMarks         PayoutCheckMark[]         @relation("payout_check_mark_by")
   booksLocks               BooksLock[]
   financeRequests          FinanceRequest[]          @relation("finance_request_by")
   financeDecisions         FinanceRequest[]          @relation("finance_request_decided_by")
@@ -448,8 +452,9 @@ model Merchant {
   users            User[]
   notifications    Notification[]
 
-  ledgerAccounts LedgerAccount[]
-  payouts        Payout[]
+  ledgerAccounts   LedgerAccount[]
+  payouts          Payout[]
+  payoutStatements PayoutStatement[]
 
   shopifyShop ShopifyShop?
 
@@ -1716,15 +1721,108 @@ model Payout {
   createdAt      DateTime     @default(now()) @map("created_at")
   updatedAt      DateTime     @updatedAt @map("updated_at")
 
-  merchant   Merchant         @relation(fields: [merchantId], references: [id])
-  createdBy  User             @relation("payout_created_by", fields: [createdById], references: [id])
-  paidBy     User?            @relation("payout_paid_by", fields: [paidById], references: [id])
-  approvedBy User?            @relation("payout_approved_by", fields: [approvedById], references: [id])
+  merchant   Merchant          @relation(fields: [merchantId], references: [id])
+  createdBy  User              @relation("payout_created_by", fields: [createdById], references: [id])
+  paidBy     User?             @relation("payout_paid_by", fields: [paidById], references: [id])
+  approvedBy User?             @relation("payout_approved_by", fields: [approvedById], references: [id])
   receipts   FinanceReceipt[]
   cheques    Cheque[]
+  statement  PayoutStatement?
+  proof      PayoutProof?
+  checkMarks PayoutCheckMark[]
 
   @@index([merchantId, status])
   @@map("payouts")
+}
+
+/// The statement of account (SOA-000001) frozen when a payout is prepared: opening balance,
+/// every movement of the period (per order and by kind, VAT shown), closing balance and the
+/// net to transfer, which equals the payout's amount. Never changed afterwards (trigger).
+model PayoutStatement {
+  id               String   @id @default(cuid())
+  /// Gapless serial number shown as SOA-000001
+  number           Int      @unique
+  payoutId         String   @unique @map("payout_id")
+  merchantId       String   @map("merchant_id")
+  periodFrom       DateTime @map("period_from")
+  periodTo         DateTime @map("period_to")
+  openingPiastres  Int      @map("opening_piastres")
+  closingPiastres  Int      @map("closing_piastres")
+  /// Charges booked after the cutoff that lowered what is paid now (closing minus net)
+  heldBackPiastres Int      @map("held_back_piastres")
+  netPiastres      Int      @map("net_piastres")
+  /// The frozen statement (PayoutStatementData in packages/shared)
+  data             Json
+  createdById      String?  @map("created_by_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  payout    Payout   @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  merchant  Merchant @relation(fields: [merchantId], references: [id], onDelete: Restrict)
+  createdBy User?    @relation("payout_statement_created_by", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([merchantId])
+  @@map("payout_statements")
+}
+
+/// The proof of transfer (POT-000001): the bank slip (JPEG, PNG or PDF, at most 5 MB) with the
+/// amount and bank reference typed from it. A payout is marked paid only with one.
+model PayoutProof {
+  id             String   @id @default(cuid())
+  /// Gapless serial number shown as POT-000001
+  number         Int      @unique
+  payoutId       String   @unique @map("payout_id")
+  fileName       String   @map("file_name")
+  contentType    String   @map("content_type")
+  sizeBytes      Int      @map("size_bytes")
+  data           Bytes
+  amountPiastres Int      @map("amount_piastres")
+  reference      String
+  uploadedById   String   @map("uploaded_by_id")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  payout     Payout @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  uploadedBy User   @relation("payout_proof_uploaded_by", fields: [uploadedById], references: [id], onDelete: Restrict)
+
+  @@map("payout_proofs")
+}
+
+/// Checks Accounting ticks before a payout is marked paid (Accounting > Setup > Payout checks).
+/// second_person_viewed is a system check: someone other than the payer confirmed the SOA and POT.
+model PayoutCheck {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  labelEn     String   @map("label_en")
+  labelAr     String   @map("label_ar")
+  active      Boolean  @default(true)
+  /// A system check cannot be switched off
+  system      Boolean  @default(false)
+  sort        Int      @default(0)
+  createdById String?  @map("created_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  createdBy User?             @relation("payout_check_created_by", fields: [createdById], references: [id], onDelete: SetNull)
+  marks     PayoutCheckMark[]
+
+  @@map("payout_checks")
+}
+
+/// One tick of a check on a payout: who, when and an optional note (audited).
+model PayoutCheckMark {
+  id        String   @id @default(cuid())
+  payoutId  String   @map("payout_id")
+  checkId   String   @map("check_id")
+  userId    String   @map("user_id")
+  note      String?
+  createdAt DateTime @default(now()) @map("created_at")
+
+  payout Payout      @relation(fields: [payoutId], references: [id], onDelete: Restrict)
+  check  PayoutCheck @relation(fields: [checkId], references: [id], onDelete: Restrict)
+  user   User        @relation("payout_check_mark_by", fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([payoutId, checkId])
+  @@map("payout_check_marks")
 }
 
 // ─── Shopify ───────────────────────────────────────────────────────────────────

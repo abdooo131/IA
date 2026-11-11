@@ -111,6 +111,7 @@ export async function financeWallets(db: Db) {
 
 export interface StatementLine {
   at: Date;
+  entryId: string;
   kind: string;
   memo: string | null;
   orderId: string | null;
@@ -145,6 +146,7 @@ export async function merchantStatement(db: Db, merchantId: string, from: Date, 
     running -= l.amountPiastres;
     return {
       at: l.occurredAt,
+      entryId: l.entryId,
       kind: l.entry.kind,
       memo: l.entry.memo,
       orderId: l.entry.orderId,

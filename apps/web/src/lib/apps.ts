@@ -230,6 +230,7 @@ export const APPS: AppDef[] = [
           { href: '/finance/company', label: 'company' },
           { href: '/finance/contracts', label: 'contracts' },
           { href: '/finance/cost-tags', label: 'costTags' },
+          { href: '/finance/payout-checks', label: 'payoutChecks' },
           { href: '/finance/opening', label: 'opening', need: { owner: true } },
           settings('accounting'),
         ],

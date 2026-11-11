@@ -30,7 +30,7 @@ import {
 } from '../src/finance';
 import { monthEndChecklist } from '../src/finance/cash-control';
 import { setSetting } from '../src/settings';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, readyToPay, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
@@ -333,6 +333,7 @@ describe('pay merchants run', () => {
     expect(run.totals.readyPiastres).toBe(250_000);
 
     const ids = run.drafts.map((d) => d.id);
+    for (const id of ids) await readyToPay(id, { uploaderId: admin, viewerId: other });
     const paid = await markPayoutsPaid(prisma, {
       ids,
       reference: 'CIB-BULK-1',

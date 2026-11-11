@@ -36,7 +36,7 @@ import { submitPettyCash, setPettyCategory } from '../src/finance/cash-control';
 import { savePhoto } from '../src/photos';
 import { setSetting } from '../src/settings';
 import { receive } from '../src/stock';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, readyToPay, resetDatabase } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
@@ -536,6 +536,7 @@ describe('bank accounts in another currency', () => {
       cutoffAt: new Date(),
       actorUserId: admin,
     });
+    await readyToPay(payout.id, { uploaderId: admin });
     await expect(
       markPayoutPaid(prisma, {
         payoutId: payout.id,

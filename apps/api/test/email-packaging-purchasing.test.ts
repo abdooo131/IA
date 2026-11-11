@@ -7,7 +7,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { Mailer } from '../src/email/mailer';
 import { JobsService } from '../src/jobs/jobs.service';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, createUser, FixedClock, resetAndSeed } from './helpers';
+import { createTestApp, createUser, FixedClock, readyToPay, resetAndSeed } from './helpers';
 
 const DEMO = 'demo-password-1';
 const NOON_CAIRO = new Date('2026-01-14T10:00:00Z');
@@ -97,6 +97,7 @@ describe('emails, packaging and purchase orders', () => {
       .post('/finance/payouts')
       .send({ merchantId, cutoffDay: cairoDay(new Date()) })
       .expect(201);
+    await readyToPay(prisma, payout.body.id);
     await finance
       .post(`/finance/payouts/${payout.body.id}/paid`)
       .send({ reference: 'TRX-9' })

@@ -4,7 +4,7 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { post, setSetting } from '@shiplynow/db';
 import type { PrismaService } from '../src/prisma/prisma.service';
-import { createTestApp, createUser, grantAccess, resetAndSeed } from './helpers';
+import { createTestApp, createUser, grantAccess, readyToPay, resetAndSeed } from './helpers';
 
 const DEMO = 'demo-password-1';
 const JPEG = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 0, 16, 0x4a, 0x46, 0x49, 0x46, 0, 1, 0xff, 0xd9]);
@@ -180,6 +180,7 @@ describe('accounting UX phase B: drill down reports, bank matching and the runs'
     run = await a.get('/finance/payouts/run').expect(200);
     expect(run.body.current).toBe('file');
     const ids = run.body.drafts.map((d: { id: string }) => d.id);
+    for (const id of ids) await readyToPay(prisma, id);
     const paid = await a
       .post('/finance/payouts/run/mark-paid')
       .send({ ids, reference: 'CIB-BULK-7' })

@@ -43,3 +43,4 @@ export * from './basata';
 export * from './budgets';
 export * from './forecast';
 export * from './payments-due';
+export * from './payout-proof';
