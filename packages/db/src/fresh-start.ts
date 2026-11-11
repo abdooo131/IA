@@ -151,6 +151,7 @@ export async function freshStart(
       await run('fixed assets', 'DELETE FROM fixed_assets');
       await run('recurring entries', 'DELETE FROM recurring_entries');
       await run('budgets', 'DELETE FROM budgets');
+      await run('forecasts', 'DELETE FROM forecasts');
       await run('payouts', 'DELETE FROM payouts');
       await run('cash handovers', 'DELETE FROM cash_handovers');
       await run('rider withdrawals', 'DELETE FROM rider_withdrawals');

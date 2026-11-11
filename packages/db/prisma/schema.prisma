@@ -128,6 +128,10 @@ model User {
   taxInvoicesMade          TaxInvoice[]              @relation("tax_invoice_created_by")
   bankLinesDecided         BankStatementLine[]       @relation("bank_line_decided_by")
   budgetsSet               Budget[]                  @relation("budget_updated_by")
+  forecastsCreated         Forecast[]                @relation("forecast_created_by")
+  forecastsApproved        Forecast[]                @relation("forecast_approved_by")
+  forecastDriversSet       ForecastDriver[]          @relation("forecast_driver_by")
+  forecastOverridesSet     ForecastOverride[]        @relation("forecast_override_by")
   bills                    Bill[]
   recurringEntries         RecurringEntry[]
   prepayments              Prepayment[]
@@ -2645,6 +2649,81 @@ model Budget {
   updatedBy User          @relation("budget_updated_by", fields: [updatedById], references: [id], onDelete: Restrict)
 
   @@map("budgets")
+}
+
+enum ForecastStatus {
+  draft
+  approved
+}
+
+/// A named forecast of the next 12 Cairo months (Accounting > Planning > Forecast).
+model Forecast {
+  id           String         @id @default(cuid())
+  /// Shown as FC-000001
+  number       Int            @unique
+  name         String
+  status       ForecastStatus @default(draft)
+  /// YYYY-MM of the first month forecast
+  startMonth   String         @map("start_month")
+  /// YYYY-MM: the complete months of the books the suggestion was built from (none: no data)
+  basedOnFrom  String?        @map("based_on_from")
+  basedOnTo    String?        @map("based_on_to")
+  /// Balances at the start of the first month (ForecastOpening, piastres)
+  opening      Json
+  copiedFromId String?        @map("copied_from_id")
+  createdById  String         @map("created_by_id")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+  approvedById String?        @map("approved_by_id")
+  approvedAt   DateTime?      @map("approved_at")
+
+  copiedFrom Forecast?          @relation("forecast_copies", fields: [copiedFromId], references: [id], onDelete: SetNull)
+  copies     Forecast[]         @relation("forecast_copies")
+  createdBy  User               @relation("forecast_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  approvedBy User?              @relation("forecast_approved_by", fields: [approvedById], references: [id], onDelete: Restrict)
+  drivers    ForecastDriver[]
+  overrides  ForecastOverride[]
+
+  @@map("forecasts")
+}
+
+/// A driver of a forecast for a month (see packages/shared/src/forecast.ts).
+model ForecastDriver {
+  id          String   @id @default(cuid())
+  forecastId  String   @map("forecast_id")
+  /// YYYY-MM
+  month       String
+  /// orders, growth_bp, fee:<kind>, fixed:<account id>...
+  key         String
+  value       Int
+  updatedById String   @map("updated_by_id")
+  updatedAt   DateTime @default(now()) @map("updated_at")
+
+  forecast  Forecast @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+  updatedBy User     @relation("forecast_driver_by", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([forecastId, month, key])
+  @@map("forecast_drivers")
+}
+
+/// A profit and loss line of a month set by hand: wins over the computed value.
+model ForecastOverride {
+  id             String   @id @default(cuid())
+  forecastId     String   @map("forecast_id")
+  /// YYYY-MM
+  month          String
+  /// rent, salaries, fee:<kind>, fixed:<account id>...
+  lineKey        String   @map("line_key")
+  amountPiastres Int      @map("amount_piastres")
+  note           String?
+  updatedById    String   @map("updated_by_id")
+  updatedAt      DateTime @default(now()) @map("updated_at")
+
+  forecast  Forecast @relation(fields: [forecastId], references: [id], onDelete: Cascade)
+  updatedBy User     @relation("forecast_override_by", fields: [updatedById], references: [id], onDelete: Restrict)
+
+  @@unique([forecastId, month, lineKey])
+  @@map("forecast_overrides")
 }
 
 enum EmploymentType {

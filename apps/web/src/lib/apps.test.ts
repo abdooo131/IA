@@ -195,6 +195,13 @@ describe('Accounting UX phase B pages', () => {
     expect(locate('/finance/payouts/abc')?.page?.label).toBe('payouts');
   });
 
+  it('puts the forecast and the budgets under Planning', () => {
+    expect(pages('accountant')).toEqual(
+      expect.arrayContaining(['/finance/forecast', '/finance/budgets']),
+    );
+    expect(locate('/finance/forecast/abc')?.page?.label).toBe('forecast');
+  });
+
   it('shows Record an expense only to people who may post (accounting use)', () => {
     expect(pages('accountant')).toContain('/finance/payouts/run');
     expect(pages('accountant')).not.toContain('/finance/expenses/new');

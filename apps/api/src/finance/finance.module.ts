@@ -20,6 +20,7 @@ import { FinanceViewsController } from './views.controller';
 import { FinanceRunsController } from './runs.controller';
 import { LoansTagsFxController } from './loans-tags-fx.controller';
 import { AgingController } from './aging.controller';
+import { ForecastController } from './forecast.controller';
 
 @Module({
   imports: [CoverageModule],
@@ -44,6 +45,7 @@ import { AgingController } from './aging.controller';
     FinanceRunsController,
     LoansTagsFxController,
     AgingController,
+    ForecastController,
   ],
   providers: [{ provide: EtaClient, useClass: HttpEtaClient }, EtaSync],
 })

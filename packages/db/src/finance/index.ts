@@ -359,3 +359,18 @@ export {
   unfreezeRider,
   unsettledBasataDeposits,
 } from './basata';
+export {
+  compareForecasts,
+  createForecast,
+  deleteForecast,
+  forecastBudgetPreview,
+  forecastDetail,
+  forecastOpening,
+  forecastSuggestion,
+  forecastToBudget,
+  listForecasts,
+  renameForecast,
+  saveForecastDrivers,
+  saveForecastOverrides,
+  setForecastStatus,
+} from './forecast';
