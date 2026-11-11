@@ -4,7 +4,7 @@ import { useTranslations } from 'next-intl';
 import { type ReactNode, useState } from 'react';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
-import { ReceiptField } from './ReceiptField';
+import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 // The security deposit form (Accounting). The contract itself lives in
@@ -35,7 +35,7 @@ export function DepositForm({ merchantId }: { merchantId: string }) {
   const [via, setVia] = useState<'bank' | 'wallet'>('bank');
   const [amount, setAmount] = useState('');
   const [reference, setReference] = useState('');
-  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
   if (!open)
     return (
       <button type="button" className={secondary} onClick={() => setOpen(true)}>
@@ -51,7 +51,7 @@ export function DepositForm({ merchantId }: { merchantId: string }) {
       via,
       amountPiastres: piastres,
       reference,
-      ...(photoId ? { receiptPhotoId: photoId } : {}),
+      attachmentIds: files,
       idempotencyKey: newActionKey(),
     });
     if (done) {
@@ -101,7 +101,7 @@ export function DepositForm({ merchantId }: { merchantId: string }) {
           className={field}
         />
       </Field>
-      <ReceiptField onChange={setPhotoId} />
+      <AttachmentField onChange={setFiles} />
       <div className="flex flex-wrap items-center gap-2 sm:col-span-2">
         <button type="submit" disabled={busy} className={primary}>
           {t('submit')}

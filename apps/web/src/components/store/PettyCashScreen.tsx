@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useState } from 'react';
-import { ReceiptField } from '@/components/finance/ReceiptField';
+import { AttachmentField } from '@/components/finance/AttachmentField';
 import { localized } from '@/lib/admin-types';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import type { StorePettyCash } from '@/lib/cash-control-types';
@@ -39,7 +39,9 @@ export function PettyCashScreen({
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [costTag, setCostTag] = useState('');
-  const [photoId, setPhotoId] = useState<string | null>(null);
+  const [files, setFiles] = useState<string[]>([]);
+  const [round, setRound] = useState(0);
+  const photoId = files[0] ?? null;
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   // One key per attempt, so a double tap or a retry records the expense once.
@@ -60,6 +62,7 @@ export function PettyCashScreen({
         amountPiastres: piastres,
         note: note.trim(),
         photoId,
+        attachmentIds: files.slice(1),
         costTagId: costTag || undefined,
         idempotencyKey: key,
       },
@@ -79,7 +82,7 @@ export function PettyCashScreen({
     setAmount('');
     setNote('');
     setCostTag('');
-    setPhotoId(null);
+    setRound((r) => r + 1);
     setKey(newActionKey());
     setForm((n) => n + 1);
     const fresh = await apiGetClient<StorePettyCash>(`/stores/${storeId}/petty-cash`);
@@ -164,7 +167,7 @@ export function PettyCashScreen({
           </label>
           <div>
             <p className="mb-1 text-body-sm font-semibold">{t('receipt')}</p>
-            <ReceiptField onChange={setPhotoId} />
+            <AttachmentField onChange={setFiles} resetKey={round} required />
           </div>
           <button
             type="submit"

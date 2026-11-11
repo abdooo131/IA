@@ -12,6 +12,7 @@ import {
   riderFreezeState,
   unfreezeRider,
   unsettledBasataDeposits,
+  withAttachments,
 } from '@shiplynow/db';
 import {
   type AccessProfile,
@@ -154,11 +155,11 @@ export class BasataController {
     @CurrentAccess() access: AccessProfile,
   ) {
     for (const id of new Set(body.depositIds)) await this.depositInScope(id, access);
-    return recordBasataSettlement(this.prisma, {
-      body,
-      actorUserId: user.sub,
-      now: this.clock.now(),
-    });
+    const { attachmentIds, ...rest } = body;
+    // Basata's transfer slip is linked to the settlement's entry in the same transaction.
+    return withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+      recordBasataSettlement(db, { body: rest, actorUserId: user.sub, now: this.clock.now() }),
+    );
   }
 
   @Get('basata/settlements')

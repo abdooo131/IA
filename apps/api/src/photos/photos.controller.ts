@@ -87,6 +87,12 @@ export class PhotosController {
         throw new NotFoundException({ error: 'photo_not_found' });
     }
     res.setHeader('content-type', photo.contentType);
+    // A PDF opens in the browser under its own name (finance attachments keep it).
+    if (photo.fileName)
+      res.setHeader(
+        'content-disposition',
+        `inline; filename*=UTF-8''${encodeURIComponent(photo.fileName)}`,
+      );
     res.setHeader('cache-control', 'private, max-age=86400');
     res.send(Buffer.from(photo.data));
   }

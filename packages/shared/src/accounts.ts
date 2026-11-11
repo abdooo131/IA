@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { attachmentIdsField } from './attachments';
 import { isCalendarDay } from './hours';
 
 // Chart of accounts. The first digit of a code is its category, the next three its group:
@@ -337,6 +338,7 @@ const onDay = day.optional();
 const reference = z.string().trim().min(2).max(100);
 
 export const moneyTransferSchema = z.object({
+  attachmentIds: attachmentIdsField,
   fromAccountId: id,
   toAccountId: id,
   amountPiastres: piastres,
@@ -349,6 +351,7 @@ export const moneyTransferSchema = z.object({
 });
 
 export const expenseSchema = z.object({
+  attachmentIds: attachmentIdsField,
   expenseAccountId: id,
   paidFromAccountId: id,
   amountPiastres: piastres,
@@ -367,6 +370,7 @@ export const expenseSchema = z.object({
 });
 
 export const capitalSchema = z.object({
+  attachmentIds: attachmentIdsField,
   direction: z.enum(['in', 'out']),
   moneyAccountId: id,
   equityAccountId: id.optional(),
@@ -380,6 +384,7 @@ export const capitalSchema = z.object({
 });
 
 export const otherIncomeSchema = z.object({
+  attachmentIds: attachmentIdsField,
   incomeAccountId: id,
   moneyAccountId: id,
   amountPiastres: piastres,
@@ -393,6 +398,7 @@ export const otherIncomeSchema = z.object({
 
 /** A free journal entry for the accountant: lines must balance, a reason is required. */
 export const journalEntrySchema = z.object({
+  attachmentIds: attachmentIdsField,
   lines: z
     .array(
       z.object({
@@ -440,6 +446,7 @@ export const updateSupplierSchema = supplierSchema.partial().extend({
 });
 
 export const billSchema = z.object({
+  attachmentIds: attachmentIdsField,
   supplierId: id,
   reference,
   billDate: day,
@@ -471,6 +478,7 @@ export const billSchema = z.object({
 export const cancelBillSchema = z.object({ reason: z.string().trim().min(5).max(300) });
 
 export const billPaymentSchema = z.object({
+  attachmentIds: attachmentIdsField,
   /** In EGP; for a bill in another currency, use foreignAmountCents and fxRate instead */
   amountPiastres: piastres.optional(),
   foreignAmountCents: z.number().int().min(1).max(1_000_000_000).optional(),
@@ -489,6 +497,7 @@ export const billPaymentSchema = z.object({
 });
 
 export const taxPaymentSchema = z.object({
+  attachmentIds: attachmentIdsField,
   tax: z.enum(['vat', 'wht', 'payroll_tax', 'social_insurance', 'martyrs_fund', 'corporate_tax']),
   amountPiastres: piastres,
   moneyAccountId: id,
@@ -518,6 +527,7 @@ export const recurringSchema = z
   });
 
 export const prepaymentSchema = z.object({
+  attachmentIds: attachmentIdsField,
   name,
   expenseAccountId: id,
   amountPiastres: piastres,
@@ -533,6 +543,7 @@ export const prepaymentSchema = z.object({
 
 export const assetSchema = z
   .object({
+    attachmentIds: attachmentIdsField,
     name,
     amountPiastres: piastres,
     salvagePiastres: z.number().int().min(0).max(1_000_000_000).default(0),

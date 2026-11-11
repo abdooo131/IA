@@ -12,6 +12,7 @@ import {
   recordJournalEntry,
   recordOtherIncome,
 } from './books';
+import { claimRecordPhoto } from './attachments';
 import { post } from './ledger';
 import { recordMerchantAdjustment, recordMerchantReceipt } from './operations';
 import {
@@ -249,12 +250,14 @@ async function submit(
     (alwaysReviewed(payload)
       ? (await getSetting(db, 'finance.approve_money_in')) === 1
       : await needsApproval(db, amount));
-  if (!reviewed) {
-    const entry = await execute(db, payload, actorUserId);
-    if (receiptPhotoId)
-      await attachReceipt(db, { entryId: entry.id, photoId: receiptPhotoId, actorUserId });
-    return { status: 'posted' as const, entry };
-  }
+  if (!reviewed)
+    // The receipt is linked in the posting's own transaction.
+    return inTransaction(db, async (tx) => {
+      const entry = await execute(tx, payload, actorUserId);
+      if (receiptPhotoId)
+        await attachReceipt(tx, { entryId: entry.id, photoId: receiptPhotoId, actorUserId });
+      return { status: 'posted' as const, entry };
+    });
   return {
     status: 'pending' as const,
     request: await queueRequest(db, payload, actorUserId, receiptPhotoId),
@@ -593,6 +596,8 @@ export async function attachReceipt(
   if (targets.length !== 1) throw new DomainError('receipt_target_invalid', 400);
   const photo = await db.photo.findUnique({ where: { id: input.photoId }, select: { kind: true } });
   if (!photo || photo.kind !== 'receipt') throw new DomainError('photo_not_found', 404);
+  // A file from the attachment field is taken once, and only by whoever uploaded it.
+  await claimRecordPhoto(db, input.photoId, input.actorUserId);
   if (input.entryId && !(await db.ledgerEntry.findUnique({ where: { id: input.entryId } })))
     throw new DomainError('entry_not_found', 404);
   if (input.payoutId && !(await db.payout.findUnique({ where: { id: input.payoutId } })))

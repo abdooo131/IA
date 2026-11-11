@@ -1282,6 +1282,10 @@ model Photo {
   contentType String    @map("content_type")
   data        Bytes
   sizeBytes   Int       @map("size_bytes")
+  /// The file's own name (a PDF), shown beside its icon
+  fileName    String?   @map("file_name")
+  /// Uploaded from a finance form and not saved with a record yet (deleted after a day)
+  unlinked    Boolean   @default(false)
   createdById String?   @map("created_by_id")
   createdAt   DateTime  @default(now()) @map("created_at")
 
@@ -1297,6 +1301,7 @@ model Photo {
 
   basataDeposits BasataDeposit[]
 
+  @@index([unlinked, createdAt])
   @@map("photos")
 }
 

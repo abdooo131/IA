@@ -84,6 +84,19 @@ export interface DocLineColumn {
   kind: DocFieldKind;
 }
 
+/** A receipt or document on a record: a photo or a PDF (served at /api/photos/<photoId>). */
+export interface DocAttachmentView {
+  photoId: string;
+  at: string;
+  by: string | null;
+  /** image/jpeg, image/png, image/webp or application/pdf; missing means a photo */
+  contentType?: string;
+  /** A PDF's own name */
+  fileName?: string | null;
+  /** What the photo shows (pack, delivery, door, receipt); labels under documents.chatter */
+  kind?: string;
+}
+
 /** A document page's content; T is the document kind (the Accounting ones by default). */
 export interface DocDescriptor<T extends string = AccountingDoc> {
   type: T;
@@ -99,7 +112,9 @@ export interface DocDescriptor<T extends string = AccountingDoc> {
   fields: DocField[];
   lines: { columns: DocLineColumn[]; rows: Record<string, string | number | null>[] } | null;
   smart: DocSmartButton[];
-  attachments: { photoId: string; at: string; by: string | null }[];
+  attachments: DocAttachmentView[];
+  /** Where Add a receipt links new files (an entry, a payout or a request); null: none */
+  attachTarget?: { entryId: string } | { payoutId: string } | { requestId: string } | null;
   /** Actions the reader may take now (keys the page knows how to show) */
   actions: string[];
   /** Extra values an action needs (an amount, a merchant id) */

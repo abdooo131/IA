@@ -30,6 +30,7 @@ import {
   runRecurring,
   runReceivableReminders,
   runDepositDeadline,
+  purgeUnlinkedUploads,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
@@ -76,6 +77,8 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
   private minimumDone: string | null = null;
   /** The last hour employee documents were checked in this instance. */
   private documentsDone: string | null = null;
+  /** The hour unlinked finance uploads were last cleared */
+  private uploadsDone: string | null = null;
   /** The last ten minute slot the attendance close ran in this instance. */
   private attendanceDone: string | null = null;
   private closingAttendance = false;
@@ -117,6 +120,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runCommissions();
       void this.runPaymentReminders();
       void this.runDepositDeadline();
+      void this.runUploadPurge();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -166,6 +170,25 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return null;
     } finally {
       this.linking = false;
+    }
+  }
+
+  /**
+   * Once an hour: deletes receipts and documents uploaded from a finance form that no saved
+   * form linked within a day. A linked file is never touched, so repeats change nothing.
+   */
+  async runUploadPurge(now: Date = new Date()) {
+    const hour = now.toISOString().slice(0, 13);
+    if (this.uploadsDone === hour) return null;
+    try {
+      const result = await purgeUnlinkedUploads(this.prisma, now);
+      this.uploadsDone = hour;
+      if (result.deleted > 0)
+        this.log.log(`Finance uploads: ${result.deleted} unused files deleted`);
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: upload purge', error);
+      return null;
     }
   }
 

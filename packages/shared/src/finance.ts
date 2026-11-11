@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { attachmentIdsField } from './attachments';
 import { isCalendarDay } from './hours';
 
 const id = z.string().min(1).max(64);
@@ -23,6 +24,7 @@ export const reviewHandoverSchema = z.object({
 });
 
 export const bankDepositSchema = z.object({
+  attachmentIds: attachmentIdsField,
   darkStoreId: id,
   /** Which bank; empty uses the main bank (CIB, 1101) */
   bankAccountId: id.optional(),
@@ -42,6 +44,7 @@ export const createPayoutSchema = z.object({
 export const duePayoutsSchema = z.object({ cutoffDay: day });
 
 export const payoutPaidSchema = z.object({
+  attachmentIds: attachmentIdsField,
   /** Empty uses the bank reference typed on the payout's proof of transfer */
   reference: z.string().trim().min(2).max(100).optional(),
   /** The bank transfer slip photo, uploaded first */
@@ -63,6 +66,7 @@ export const payoutsMarkPaidSchema = z.object({
 export const payoutCancelSchema = z.object({ note: z.string().trim().min(3).max(300) });
 
 export const merchantReceiptSchema = z.object({
+  attachmentIds: attachmentIdsField,
   merchantId: id,
   /** Which bank; empty uses the main bank (CIB, 1101) */
   bankAccountId: id.optional(),
@@ -137,13 +141,19 @@ export const decideRequestSchema = z.object({
 /** A receipt photo for exactly one entry, payout or request. */
 export const attachReceiptSchema = z
   .object({
-    photoId: id,
+    /** A photo uploaded with POST /photos?kind=receipt (the earlier way) */
+    photoId: id.optional(),
+    /** Files uploaded with POST /finance/files (photos or PDF) */
+    photoIds: attachmentIdsField,
     entryId: id.optional(),
     payoutId: id.optional(),
     requestId: id.optional(),
   })
   .refine((v) => [v.entryId, v.payoutId, v.requestId].filter(Boolean).length === 1, {
     message: 'one_target',
+  })
+  .refine((v) => Boolean(v.photoId) || (v.photoIds?.length ?? 0) > 0, {
+    message: 'no_file',
   });
 
 /** Starting balances, as an accountant reads them (positive on the account's normal side). */

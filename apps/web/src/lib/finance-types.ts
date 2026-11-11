@@ -514,6 +514,7 @@ export interface BankReconciliation {
   }[];
   booksOnly: {
     id: string;
+    entryId: string;
     entryNumber: number;
     kind: string;
     memo: string | null;

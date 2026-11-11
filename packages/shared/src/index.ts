@@ -8,6 +8,7 @@ export * from './settings';
 export * from './store';
 export * from './admin';
 export * from './finance';
+export * from './attachments';
 export * from './tracking';
 export * from './geo-text';
 export * from './accounts';

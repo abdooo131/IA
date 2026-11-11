@@ -9,6 +9,7 @@ import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
 import { BankSelect } from './BankSelect';
+import { useAttachments } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const SCHEDULES: PayoutSchedule[] = ['daily', 'twice_weekly', 'weekly'];
@@ -26,6 +27,7 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
   const [amount, setAmount] = useState('');
   const [text, setText] = useState('');
   const [bank, setBank] = useState('');
+  const files = useAttachments();
 
   const piastres = parseEgp(amount, { allowNegative: panel === 'adjust' });
   async function submit() {
@@ -37,6 +39,7 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
             amountPiastres: piastres,
             reference: text,
             bankAccountId: bank || undefined,
+            attachmentIds: files.ids,
             idempotencyKey: newActionKey(),
           })
         : await action.send('POST', '/finance/adjustments', {
@@ -46,6 +49,7 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
             idempotencyKey: newActionKey(),
           });
     if (ok) {
+      files.reset();
       setPanel(null);
       setAmount('');
       setText('');
@@ -153,12 +157,13 @@ function MerchantCard({ merchant, today }: { merchant: Merchant; today: string }
             <button
               type="button"
               className={button}
-              disabled={action.busy}
+              disabled={action.busy || files.busy}
               onClick={() => void submit()}
             >
               {tf('save')}
             </button>
           </div>
+          {panel === 'receipt' && files.field()}
         </div>
       )}
       <ActionMessage message={action.message} />

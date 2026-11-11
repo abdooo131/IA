@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { attachmentIdsField } from './attachments';
 import type { PayoutScheduleName } from './finance';
 
 // Cash controls: what riders may carry, petty cash at the stores, the daily cash position and
@@ -90,6 +91,7 @@ export type PettyCashStatus = (typeof PETTY_CASH_STATUSES)[number];
 
 /** Store staff pay a small expense from the store's cash box, with a receipt photo. */
 export const pettyCashSchema = z.object({
+  attachmentIds: attachmentIdsField,
   expenseAccountId: id,
   amountPiastres: z.number().int().min(1).max(100_000_000),
   note: z.string().trim().min(3).max(300),

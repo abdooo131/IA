@@ -10,6 +10,7 @@ import type { BasataSettlementForm as FormData } from '@/lib/basata';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
+import { useAttachments } from './AttachmentField';
 
 const field = 'h-10 rounded-md border border-line-strong bg-surface px-3 text-body-sm';
 
@@ -30,6 +31,7 @@ export function BasataSettlementForm({ data, today }: { data: FormData; today: s
   const [chosen, setChosen] = useState<Set<string>>(new Set(data.deposits.map((d) => d.id)));
   const [key, setKey] = useState(newActionKey);
   const [busy, setBusy] = useState(false);
+  const files = useAttachments();
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   const total = useMemo(
@@ -59,6 +61,7 @@ export function BasataSettlementForm({ data, today }: { data: FormData; today: s
       amountPiastres: received,
       depositIds: [...chosen],
       ...(reference.trim() && { reference: reference.trim() }),
+      attachmentIds: files.ids,
       idempotencyKey: key,
     });
     setBusy(false);
@@ -70,6 +73,7 @@ export function BasataSettlementForm({ data, today }: { data: FormData; today: s
     setMessage({ text: t('done'), error: false });
     setAmount('');
     setReference('');
+    files.reset();
     setKey(newActionKey());
     router.refresh();
   }
@@ -128,6 +132,8 @@ export function BasataSettlementForm({ data, today }: { data: FormData; today: s
         </label>
       </div>
 
+      {files.field()}
+
       <p className="text-body-sm">
         {t('summary', {
           count: chosen.size,
@@ -182,7 +188,7 @@ export function BasataSettlementForm({ data, today }: { data: FormData; today: s
 
       <button
         type="submit"
-        disabled={busy || chosen.size === 0 || !bank}
+        disabled={busy || files.busy || chosen.size === 0 || !bank}
         className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-body-sm font-bold text-on-primary disabled:opacity-50"
       >
         {t('save')}

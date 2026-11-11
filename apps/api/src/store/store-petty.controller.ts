@@ -1,6 +1,12 @@
 import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { listCostTags, storePettyCash, submitPettyCash } from '@shiplynow/db';
+import {
+  claimRecordPhoto,
+  linkAttachments,
+  listCostTags,
+  storePettyCash,
+  submitPettyCash,
+} from '@shiplynow/db';
 import { type AccessTokenClaims, pettyCashLabel, pettyCashSchema } from '@shiplynow/shared';
 import type { z } from 'zod';
 import { Access, CurrentUser } from '../auth/decorators';
@@ -45,11 +51,33 @@ export class StorePettyController {
     @CurrentUser() user: AccessTokenClaims,
   ) {
     await this.access.check(user, storeId);
-    const result = await submitPettyCash(this.prisma, {
-      ...body,
-      darkStoreId: storeId,
-      actorUserId: user.sub,
-    });
+    const { attachmentIds, ...rest } = body;
+    // The receipt and any further files are taken and linked in the expense's transaction.
+    const result = await this.prisma.$transaction(
+      async (tx) => {
+        await claimRecordPhoto(tx, rest.photoId, user.sub);
+        const saved = await submitPettyCash(tx, {
+          ...rest,
+          darkStoreId: storeId,
+          actorUserId: user.sub,
+        });
+        const extra = attachmentIds?.filter((id) => id !== rest.photoId) ?? [];
+        if (extra.length) {
+          const row = await tx.pettyCashExpense.findUniqueOrThrow({
+            where: { id: saved.id },
+            select: { entryId: true, requestId: true },
+          });
+          const target = row.entryId
+            ? { entryId: row.entryId }
+            : row.requestId
+              ? { requestId: row.requestId }
+              : null;
+          if (target) await linkAttachments(tx, { ids: extra, actorUserId: user.sub, target });
+        }
+        return saved;
+      },
+      { timeout: 30_000, maxWait: 10_000 },
+    );
     return { ...result, label: pettyCashLabel(result.number) };
   }
 }

@@ -9,6 +9,7 @@ import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
 import { BankSelect } from './BankSelect';
+import { useAttachments } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
@@ -76,6 +77,7 @@ function Review({ handover }: { handover: CashHandoverRow }) {
 }
 
 function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
+  const files = useAttachments();
   const t = useTranslations('finance.cash');
   const tf = useTranslations('finance');
   const locale = useLocale();
@@ -115,7 +117,7 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
           <button
             type="button"
             className={button}
-            disabled={action.busy || !piastres || reference.trim().length < 2}
+            disabled={action.busy || files.busy || !piastres || reference.trim().length < 2}
             onClick={async () => {
               const ok = await action.send(
                 'POST',
@@ -125,6 +127,7 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
                   amountPiastres: piastres,
                   reference,
                   bankAccountId: bank || undefined,
+                  attachmentIds: files.ids,
                   idempotencyKey: newActionKey(),
                 },
                 () => t('depositDone'),
@@ -132,11 +135,13 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
               if (ok) {
                 setAmount('');
                 setReference('');
+                files.reset();
               }
             }}
           >
             {t('deposit')}
           </button>
+          {files.field()}
         </div>
       )}
       <ActionMessage message={action.message} />

@@ -12,6 +12,8 @@ import {
   missingReceipts,
   receiptsFor,
   recordOpeningBalances,
+  DomainError,
+  linkAttachments,
 } from '@shiplynow/db';
 import {
   type AccessProfile,
@@ -115,13 +117,30 @@ export class ControlsController {
     return approvePayout(this.prisma, { payoutId: id, actorUserId: user.sub });
   }
 
-  /** Attach a receipt photo (uploaded first with POST /photos?kind=receipt). */
+  /**
+   * Add receipts to a record later: files uploaded with POST /finance/files (photoIds, photos or
+   * PDF) or one photo uploaded the earlier way with POST /photos?kind=receipt (photoId).
+   */
   @Post('attachments')
   attach(
     @Body(new ZodValidationPipe(attachReceiptSchema)) body: z.infer<typeof attachReceiptSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return attachReceipt(this.prisma, { ...body, actorUserId: user.sub });
+    const { photoId, photoIds, entryId, payoutId, requestId } = body;
+    const target = entryId ? { entryId } : payoutId ? { payoutId } : { requestId: requestId! };
+    return this.prisma.$transaction(async (tx) => {
+      if (photoIds?.length) {
+        if (entryId && !(await tx.ledgerEntry.findUnique({ where: { id: entryId } })))
+          throw new DomainError('entry_not_found', 404);
+        if (payoutId && !(await tx.payout.findUnique({ where: { id: payoutId } })))
+          throw new DomainError('payout_not_found', 404);
+        if (requestId && !(await tx.financeRequest.findUnique({ where: { id: requestId } })))
+          throw new DomainError('request_not_found', 404);
+        await linkAttachments(tx, { ids: photoIds, actorUserId: user.sub, target });
+      }
+      if (photoId) await attachReceipt(tx, { ...target, photoId, actorUserId: user.sub });
+      return { attached: (photoIds?.length ?? 0) + (photoId ? 1 : 0) };
+    });
   }
 
   @Get('attachments/missing')

@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { attachmentIdsField } from './attachments';
 import { PAYOUT_SCHEDULES } from './finance';
 import { isCalendarDay } from './hours';
 import type { SettingKey } from './settings';
@@ -42,6 +43,7 @@ export const chequeLabel = (n: number) => `CHQ-${String(n).padStart(6, '0')}`;
 
 export const chequeSchema = z
   .object({
+    attachmentIds: attachmentIdsField,
     direction: z.enum(CHEQUE_DIRECTIONS),
     purpose: z.enum(CHEQUE_PURPOSES),
     /** The number printed on the cheque */
@@ -636,6 +638,7 @@ export function monthEstimate(
 
 /** A security deposit received (in) or paid back (out), by bank or through the wallet. */
 export const depositSchema = z.object({
+  attachmentIds: attachmentIdsField,
   direction: z.enum(['in', 'out']),
   /** bank: money moves through our bank; wallet: taken from or added to the merchant's balance */
   via: z.enum(['bank', 'wallet']),

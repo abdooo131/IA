@@ -12,6 +12,7 @@ import {
   submitLoan,
   submitLoanPayment,
   updateCostTag,
+  withAttachments,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
@@ -65,7 +66,12 @@ export class LoansTagsFxController {
     @Body(new ZodValidationPipe(loanSchema)) body: z.infer<typeof loanSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
-    return submitted(await submitLoan(this.prisma, { ...body, actorUserId: user.sub }));
+    const { attachmentIds, ...rest } = body;
+    return submitted(
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitLoan(db, { ...rest, actorUserId: user.sub }),
+      ),
+    );
   }
 
   /** Pays the loan's next instalment: at once below the approval limit, else waiting. */
@@ -75,8 +81,11 @@ export class LoansTagsFxController {
     @Body(new ZodValidationPipe(loanPaymentSchema)) body: z.infer<typeof loanPaymentSchema>,
     @CurrentUser() user: AccessTokenClaims,
   ) {
+    const { attachmentIds, ...rest } = body;
     return submitted(
-      await submitLoanPayment(this.prisma, { ...body, loanId: id, actorUserId: user.sub }),
+      await withAttachments(this.prisma, { ids: attachmentIds, actorUserId: user.sub }, (db) =>
+        submitLoanPayment(db, { ...rest, loanId: id, actorUserId: user.sub }),
+      ),
     );
   }
 

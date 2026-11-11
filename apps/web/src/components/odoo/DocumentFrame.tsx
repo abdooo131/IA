@@ -1,4 +1,4 @@
-import type { DocSmartButton } from '@shiplynow/shared';
+import type { DocDescriptor, DocSmartButton } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
@@ -6,6 +6,7 @@ import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { StatusBar } from '@/components/workflow/StatusBar';
 import { getCurrentUser } from '@/lib/server-session';
 import type { WorkflowName } from '@/lib/workflows';
+import { AddAttachments, AttachmentsSmart, AttachmentTile } from './Attachments';
 import { Chatter, type ChatterNotes } from './Chatter';
 import { ListCrumb, RecordNav } from './RecordNav';
 
@@ -21,7 +22,13 @@ export interface DocAttachment {
   by: string | null;
   /** What the photo shows (pack, delivery, door, receipt); labels under documents.chatter */
   kind?: string;
+  /** application/pdf for a PDF; missing means a photo */
+  contentType?: string;
+  fileName?: string | null;
 }
+
+/** Smart buttons that count the record's files: they open the files themselves. */
+const FILE_BUTTONS = new Set(['receipts', 'attachments']);
 
 export async function DocumentFrame({
   root,
@@ -36,6 +43,7 @@ export async function DocumentFrame({
   actions,
   smart = [],
   attachments = [],
+  attachTarget = null,
   entityType,
   canWrite,
   notes,
@@ -59,6 +67,8 @@ export async function DocumentFrame({
   actions?: ReactNode;
   smart?: DocSmartButton[];
   attachments?: DocAttachment[];
+  /** Where Add receipts links new files; null hides it */
+  attachTarget?: DocDescriptor['attachTarget'];
   /** The audit entity type the chatter and history hang off */
   entityType: string;
   canWrite: boolean;
@@ -77,6 +87,8 @@ export async function DocumentFrame({
     asideFrom === 'xl'
       ? 'xl:grid-cols-[minmax(0,1fr)_340px]'
       : 'lg:grid-cols-[minmax(0,1fr)_360px]';
+  const smartClass =
+    'flex min-h-12 flex-col justify-center rounded-md border border-line bg-surface px-2 py-1.5 hover:border-primary hover:bg-surface-raised sm:min-w-[120px] sm:px-3';
   const attachmentLabel = (a: DocAttachment) =>
     a.kind && t.has(`chatter.photoKinds.${a.kind}`)
       ? t(`chatter.photoKinds.${a.kind}`)
@@ -140,15 +152,22 @@ export async function DocumentFrame({
         >
           {smart.map((s) => (
             <li key={s.key} className="min-w-0">
-              <Link
-                href={s.href}
-                className="flex min-h-12 flex-col justify-center rounded-md border border-line bg-surface px-2 py-1.5 hover:border-primary hover:bg-surface-raised sm:min-w-[120px] sm:px-3"
-              >
-                <span className="ltr-iso truncate text-body font-bold text-link sm:max-w-[220px]">
-                  {s.count ?? s.value}
-                </span>
-                <span className="truncate text-caption text-text-muted">{t(`smart.${s.key}`)}</span>
-              </Link>
+              {FILE_BUTTONS.has(s.key) && s.href === '#attachments' ? (
+                <AttachmentsSmart
+                  files={attachments}
+                  label={t(`smart.${s.key}`)}
+                  className={smartClass}
+                />
+              ) : (
+                <Link href={s.href} className={smartClass}>
+                  <span className="ltr-iso truncate text-body font-bold text-link sm:max-w-[220px]">
+                    {s.count ?? s.value}
+                  </span>
+                  <span className="truncate text-caption text-text-muted">
+                    {t(`smart.${s.key}`)}
+                  </span>
+                </Link>
+              )}
             </li>
           ))}
         </ul>
@@ -175,18 +194,7 @@ export async function DocumentFrame({
               <ul className="mt-2 grid grid-cols-3 gap-2">
                 {attachments.map((a) => (
                   <li key={a.photoId}>
-                    <a
-                      href={`/api/photos/${a.photoId}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="block"
-                    >
-                      <img
-                        src={`/api/photos/${a.photoId}`}
-                        alt={attachmentLabel(a)}
-                        className="aspect-square w-full rounded-md border border-line object-cover"
-                      />
-                    </a>
+                    <AttachmentTile file={a} label={attachmentLabel(a)} />
                     {a.kind && (
                       <span className="mt-0.5 block truncate text-caption text-text-muted">
                         {attachmentLabel(a)}
@@ -196,6 +204,7 @@ export async function DocumentFrame({
                 ))}
               </ul>
             )}
+            {canWrite && attachTarget && <AddAttachments target={attachTarget} />}
           </section>
           <RecordHistory entityType={entityType} entityId={id} path={historyPath} />
         </aside>

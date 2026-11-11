@@ -786,7 +786,8 @@
         "record__note": "Note written",
         "record__activity": "Reminder planned",
         "record__activity_done": "Reminder done",
-        "list__favorite_save": "List view saved"
+        "list__favorite_save": "List view saved",
+        "finance__receipt_attach": "Receipts or documents added"
       }
     },
     "users": {
@@ -10679,7 +10680,8 @@
       "weOwe": "We owe them (below zero they owe us)",
       "statement": "Statement of account",
       "proof": "Proof of transfer",
-      "proofReference": "Reference on the slip"
+      "proofReference": "Reference on the slip",
+      "source": "Posted for"
     },
     "smart": {
       "merchant": "Merchant",
@@ -10793,7 +10795,15 @@
         "pack": "Packed",
         "delivery": "Delivered",
         "door": "At the door"
-      }
+      },
+      "openFile": "Open {name}",
+      "pdfFile": "PDF document",
+      "photoFile": "Photo",
+      "addFiles": "Add receipts or documents",
+      "saveFiles": "Save files",
+      "filesAdded": "Files added.",
+      "viewer": "All attachments",
+      "close": "Close"
     },
     "search": {
       "label": "Find a document, order or merchant",
@@ -12306,5 +12316,43 @@
       "no_access": "You cannot do this.",
       "validation_failed": "Check the values: whole numbers only, two decimals at most."
     }
+  },
+  "attachments": {
+    "label": "Receipts and documents",
+    "drop": "Drop files here, or choose them",
+    "choose": "Choose files",
+    "camera": "Take a photo",
+    "hint": "Photos or PDF files, up to 5 MB each, at most 10",
+    "required": "Add the receipt before saving.",
+    "uploading": "Uploading…",
+    "failed": "Upload failed. Try again.",
+    "tooLarge": "{name} is larger than 5 MB.",
+    "wrongType": "{name} is not a photo or a PDF file.",
+    "tooMany": "At most 10 files.",
+    "remove": "Remove {name}",
+    "pdf": "PDF",
+    "waitUpload": "Wait until the files finish uploading."
+  },
+  "voucher": {
+    "title": "Journal voucher",
+    "print": "Print voucher",
+    "pdfEn": "PDF in English",
+    "pdfAr": "PDF in Arabic",
+    "number": "Voucher number",
+    "date": "Date",
+    "type": "Type",
+    "description": "Description",
+    "postedFor": "Posted for",
+    "account": "Account",
+    "details": "Store, merchant or rider",
+    "debit": "Debit",
+    "credit": "Credit",
+    "total": "Total",
+    "preparedBy": "Prepared by",
+    "approvedBy": "Approved by",
+    "checkedBy": "Checked by",
+    "signature": "Signature",
+    "taxNumber": "Tax registration number",
+    "amounts": "Amounts in EGP"
   }
 }

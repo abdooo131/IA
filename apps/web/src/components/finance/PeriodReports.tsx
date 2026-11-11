@@ -497,7 +497,12 @@ export function BankReconcile({
                   <tr key={l.id} className="border-t border-line">
                     <td className={td}>{formatCairoDateTime(l.at, locale)}</td>
                     <td className={td}>
-                      <span className="ltr-iso font-bold">{entryNumber(l.entryNumber)}</span>{' '}
+                      <Link
+                        href={`/finance/journal/${l.entryId}`}
+                        className="ltr-iso font-bold text-link"
+                      >
+                        {entryNumber(l.entryNumber)}
+                      </Link>{' '}
                       {tf.has(`kinds.${l.kind}`) ? tf(`kinds.${l.kind}`) : l.kind}
                       {l.memo && (
                         <span className="block text-caption text-text-muted">{l.memo}</span>

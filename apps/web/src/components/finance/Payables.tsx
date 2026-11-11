@@ -24,6 +24,7 @@ import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
+import { useAttachments } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { type CostTagOption, CostTagSelect } from './CostTagSelect';
 
@@ -176,6 +177,7 @@ export function PayBill({
 }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
+  const files = useAttachments();
   const foreign = bill.currency !== 'EGP';
   const [amount, setAmount] = useState(
     ((foreign ? (bill.foreignLeftCents ?? 0) : bill.leftPiastres) / 100).toFixed(2),
@@ -244,11 +246,13 @@ export function PayBill({
           })}
         </p>
       )}
+      {files.field()}
       <button
         type="button"
         className={primary}
         disabled={
           action.busy ||
+          files.busy ||
           !value ||
           !from ||
           reference.trim().length < 2 ||
@@ -256,8 +260,8 @@ export function PayBill({
           offsetValue === null ||
           !rateOk
         }
-        onClick={() =>
-          void action.send('POST', `/finance/bills/${bill.id}/payments`, {
+        onClick={async () => {
+          const ok = await action.send('POST', `/finance/bills/${bill.id}/payments`, {
             ...(foreign
               ? { foreignAmountCents: typed, fxRate: rate.trim() }
               : { amountPiastres: value }),
@@ -265,9 +269,11 @@ export function PayBill({
             reference,
             advanceRecoveryPiastres: recoveryValue || undefined,
             offsetPiastres: offsetValue || undefined,
+            attachmentIds: files.ids,
             idempotencyKey: newActionKey(),
-          })
-        }
+          });
+          if (ok) files.reset();
+        }}
       >
         {t('pay')}
       </button>
@@ -546,6 +552,7 @@ function NewBill({
 }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
+  const files = useAttachments();
   const today = cairoDay(new Date());
   const blank = {
     supplierId: '',
@@ -692,11 +699,13 @@ function NewBill({
       {net && vat !== null && rateOk && (
         <p className="text-body-sm font-bold">{t('billTotal', { amount: formatEgp(net + vat) })}</p>
       )}
+      {files.field()}
       <button
         type="button"
         className={primary}
         disabled={
           action.busy ||
+          files.busy ||
           !b.supplierId ||
           b.reference.trim().length < 2 ||
           !net ||
@@ -726,12 +735,16 @@ function NewBill({
               memo: b.memo,
               userId: b.person || undefined,
               costTagId: b.costTag || undefined,
+              attachmentIds: files.ids,
               idempotencyKey: newActionKey(),
             },
             (d) => t('billSaved', { number: d.number }),
           );
           // The next person on the same invoice: keep the supplier, number and dates.
-          if (ok) setB(b.person ? { ...b, person: '', net: '', vat: '', memo: '' } : blank);
+          if (ok) {
+            setB(b.person ? { ...b, person: '', net: '', vat: '', memo: '' } : blank);
+            files.reset();
+          }
         }}
       >
         {t('saveBill')}
@@ -946,6 +959,7 @@ export function Taxes({
 }) {
   const t = useTranslations('finance.payables');
   const action = useFinanceAction();
+  const files = useAttachments();
   const money = accounts.filter((a) => a.money && a.isActive);
   const [tax, setTax] = useState<TaxKind>('wht');
   const [amount, setAmount] = useState('');
@@ -1016,21 +1030,24 @@ export function Taxes({
             />
           </Field>
         </div>
+        {files.field()}
         <button
           type="button"
           className={primary}
-          disabled={action.busy || !value || !from || reference.trim().length < 2}
+          disabled={action.busy || files.busy || !value || !from || reference.trim().length < 2}
           onClick={async () => {
             const ok = await action.send('POST', '/finance/taxes/payments', {
               tax,
               amountPiastres: value,
               moneyAccountId: from,
               reference,
+              attachmentIds: files.ids,
               idempotencyKey: newActionKey(),
             });
             if (ok) {
               setAmount('');
               setReference('');
+              files.reset();
             }
           }}
         >
@@ -1345,6 +1362,8 @@ export function PrepaidAndAssets({
   const name = useName();
   const pre = useFinanceAction();
   const buy = useFinanceAction();
+  const preFiles = useAttachments();
+  const buyFiles = useAttachments();
   const money = accounts.filter((a) => a.money && a.isActive);
   const expenses = accounts.filter((a) => [5400, 5500].includes(a.groupCode) && a.isActive);
   const blankP = {
@@ -1545,11 +1564,13 @@ export function PrepaidAndAssets({
               {t('eachMonth', { amount: formatEgp(Math.floor(pAmount / pMonths)) })}
             </p>
           )}
+          {preFiles.field()}
           <button
             type="button"
             className={primary}
             disabled={
               pre.busy ||
+              preFiles.busy ||
               p.name.trim().length < 2 ||
               !pAmount ||
               !Number.isInteger(pMonths) ||
@@ -1567,9 +1588,13 @@ export function PrepaidAndAssets({
                 darkStoreId: p.store || undefined,
                 moneyAccountId: p.from,
                 reference: p.reference,
+                attachmentIds: preFiles.ids,
                 idempotencyKey: newActionKey(),
               });
-              if (ok) setP(blankP);
+              if (ok) {
+                setP(blankP);
+                preFiles.reset();
+              }
             }}
           >
             {t('savePrepaid')}
@@ -1635,11 +1660,13 @@ export function PrepaidAndAssets({
               })}
             </p>
           )}
+          {buyFiles.field()}
           <button
             type="button"
             className={primary}
             disabled={
               buy.busy ||
+              buyFiles.busy ||
               a.name.trim().length < 2 ||
               !aAmount ||
               salvage === null ||
@@ -1659,9 +1686,13 @@ export function PrepaidAndAssets({
                 darkStoreId: a.store || undefined,
                 moneyAccountId: a.from,
                 reference: a.reference,
+                attachmentIds: buyFiles.ids,
                 idempotencyKey: newActionKey(),
               });
-              if (ok) setA(blankA);
+              if (ok) {
+                setA(blankA);
+                buyFiles.reset();
+              }
             }}
           >
             {t('saveAsset')}

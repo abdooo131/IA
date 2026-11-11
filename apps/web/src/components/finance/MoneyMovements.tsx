@@ -10,7 +10,7 @@ import type { BookAccount } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
-import { ReceiptField } from './ReceiptField';
+import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { DateInput } from '@/components/DateInput';
 import { type CostTagOption, CostTagSelect } from './CostTagSelect';
@@ -124,7 +124,7 @@ function useMovement() {
         day: String(f.get('day') ?? '') || undefined,
         memo: memo || undefined,
         idempotencyKey: newActionKey(),
-        receiptPhotoId: String(f.get('receiptPhotoId') ?? '') || undefined,
+        attachmentIds: f.getAll('attachmentIds').map(String),
         ...build(f, amount),
       },
       (d) => t('saved', { number: d.number }),
@@ -171,6 +171,7 @@ function Transfer({ money }: { money: BookAccount[] }) {
           <span className="mt-1 block text-text-muted">{tf('foreignAmountHint')}</span>
         </label>
       )}
+      <AttachmentField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -224,7 +225,7 @@ function Expense({
         </select>
       </label>
       <CostTagSelect tags={costTags} className={field} />
-      <ReceiptField />
+      <AttachmentField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -281,7 +282,7 @@ function Capital({ money, equity }: { money: BookAccount[]; equity: BookAccount[
         </select>
       </label>
       <Common />
-      <ReceiptField />
+      <AttachmentField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -305,7 +306,7 @@ function Income({ money, income }: { money: BookAccount[]; income: BookAccount[]
       <AccountSelect name="income" accounts={income} title={t('incomeAccount')} />
       <AccountSelect name="money" accounts={money} title={t('to')} withBalance />
       <Common memoRequired />
-      <ReceiptField />
+      <AttachmentField />
       <Submit busy={action.busy} dirty={dirty} onCancel={reset} />
       <ActionMessage message={action.message} />
     </form>
@@ -330,6 +331,9 @@ function Journal({ accounts, costTags }: { accounts: BookAccount[]; costTags: Co
   const [reason, setReason] = useState('');
   const [day, setDay] = useState(cairoDay(new Date()));
   const [accrual, setAccrual] = useState(false);
+  const [files, setFiles] = useState<string[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [round, setRound] = useState(0);
   const amount = (v: string) => (v.trim() ? parseEgp(v) : 0);
   const debit = lines.reduce((s, l) => s + (amount(l.debit) ?? 0), 0);
   const credit = lines.reduce((s, l) => s + (amount(l.credit) ?? 0), 0);
@@ -351,12 +355,20 @@ function Journal({ accounts, costTags }: { accounts: BookAccount[]; costTags: Co
     const ok = await action.send<{ number: string }>(
       'POST',
       '/finance/journal-entries',
-      { lines: body, reason, day, reverseNextMonth: accrual, idempotencyKey: newActionKey() },
+      {
+        lines: body,
+        reason,
+        day,
+        reverseNextMonth: accrual,
+        attachmentIds: files,
+        idempotencyKey: newActionKey(),
+      },
       (d) => t('saved', { number: d.number }),
     );
     if (ok) {
       setLines([empty(), empty()]);
       setReason('');
+      setRound((r) => r + 1);
     }
   }
 
@@ -488,15 +500,17 @@ function Journal({ accounts, costTags }: { accounts: BookAccount[]; costTags: Co
           <span className="block text-caption text-text-muted">{tj('accrualHint')}</span>
         </span>
       </label>
+      <AttachmentField onChange={setFiles} onBusy={setUploading} resetKey={round} />
       <FormFooter
         dirty={dirty}
         busy={action.busy}
         saveLabel={t('save')}
-        disabled={debit === 0 || debit !== credit || reason.trim().length < 5}
+        disabled={debit === 0 || debit !== credit || reason.trim().length < 5 || uploading}
         onSave={() => void save()}
         onCancel={() => {
           setLines([empty(), empty()]);
           setReason('');
+          setRound((r) => r + 1);
         }}
       />
       <ActionMessage message={action.message} />

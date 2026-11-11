@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { attachmentIdsField } from './attachments';
 import { cairoAt, cairoDay, addDays } from './hours';
 
 // Basata cash deposits (owner, 2026-11-11): the company goes cashless. A rider deposits the
@@ -41,6 +42,7 @@ export const unfreezeRiderSchema = z.object({ reason: z.string().trim().min(5).m
 
 /** Basata's daily transfer reached the bank: what arrived and the deposits it covers. */
 export const basataSettlementSchema = z.object({
+  attachmentIds: attachmentIdsField,
   /** The bank it reached (default the main bank, CIB) */
   bankAccountId: id.optional(),
   /** The Cairo day the money arrived (never in the future) */

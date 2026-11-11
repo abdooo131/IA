@@ -885,12 +885,24 @@ function TableRow({
   onOpen: () => void;
 }) {
   const t = useTranslations('listView');
+  const router = useRouter();
   const href = rowHrefOf(config.rowHref, row);
   return (
     <tr
-      className={`border-b border-line last:border-0 ${selected ? 'bg-selected-bg' : 'hover:bg-surface-raised'}`}
+      // The whole row opens the record (Odoo style), not only its number; the checkbox, links
+      // and buttons inside keep their own click. Ctrl or Cmd click opens it in a new tab.
+      onClick={(e) => {
+        if (!href) return;
+        const target = e.target as HTMLElement;
+        if (target.closest('a, button, input, select, textarea, label, [data-no-open]')) return;
+        if (window.getSelection()?.toString()) return;
+        onOpen();
+        if (e.metaKey || e.ctrlKey) window.open(href, '_blank', 'noopener');
+        else router.push(href);
+      }}
+      className={`border-b border-line last:border-0 ${href ? 'cursor-pointer' : ''} ${selected ? 'bg-selected-bg' : 'hover:bg-surface-raised'}`}
     >
-      <td className="px-3 py-2">
+      <td className="px-3 py-2" data-no-open>
         <input
           type="checkbox"
           checked={selected}
