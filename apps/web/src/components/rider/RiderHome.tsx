@@ -11,12 +11,18 @@ import { WalletCard } from '@/components/WalletCard';
 import { formatEgp } from '@/lib/format';
 import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
+import type { FreezeReason } from '@/lib/basata';
+import { FrozenBanner } from './RiderBasata';
 import { useRiderLocation } from './useRiderLocation';
 
 export interface RiderMe {
   name: string;
   badgeCode: string;
   pingSeconds: number;
+  /** Basata deposits: frozen for cash not handed in by the deadline (only Accounting unfreezes) */
+  frozen: { at: string; reason: FreezeReason | null } | null;
+  /** The Basata deposit channel is open for the rider's store */
+  basataEnabled: boolean;
   darkStore: { code: string; nameEn: string; nameAr: string };
   today: { delivered: number; failed: number; codCollectedPiastres: number };
   wallet: {
@@ -119,6 +125,8 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
         </p>
       </header>
 
+      {me.frozen && <FrozenBanner reason={me.frozen.reason} />}
+
       <section className="space-y-3">
         <h2 className="text-h3">{t('active')}</h2>
         {location === 'sharing' && (
@@ -162,6 +170,14 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
             value={tw('amount', { amount: formatEgp(me.wallet.cashPiastres) })}
             hint={me.wallet.cashPiastres > 0 ? tw('handIn') : undefined}
           />
+          {me.basataEnabled && (
+            <Link
+              href="/rider/basata"
+              className="flex h-12 items-center justify-center rounded-md border border-primary bg-surface font-bold text-link"
+            >
+              {tw('depositAtBasata')}
+            </Link>
+          )}
           <Link href="/rider/wallet" className="block rounded-xl focus-visible:outline-2">
             <WalletCard
               icon="wallet"

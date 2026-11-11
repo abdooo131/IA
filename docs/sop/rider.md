@@ -101,6 +101,24 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - Difference: tell staff what happened so they write it in the note; finance decides.
 
+### Deposit your cash at Basata
+
+1. Go to a Basata branch with the cash you collected and deposit it.
+2. In the rider app tap Deposit at Basata: take a photo of the receipt, type the amount, the reference number on the receipt and when you deposited.
+3. Tap Send the deposit. It shows Waiting for review until accounting checks it.
+4. Hand in or deposit all your cash before the daily deadline shown on the screen (23:00 unless accounting says otherwise).
+
+**Check it went right**
+
+- My deposits shows it as Waiting for review, then Approved.
+- Cash to hand in went down by the amount.
+
+**If something is wrong**
+
+- Cash still with you after the deadline is taken from you (from your office or your wallet) and your account is frozen: deposit it at Basata and call accounting; only accounting unfreezes you.
+- Refused: read the reason under the deposit, fix it and send it again with the right receipt.
+- The reference was already sent: check the number on the receipt; never send one receipt twice.
+
 ### My wallet and withdrawals
 
 1. You earn a fixed amount for every delivered order (shown in My wallet). A failed attempt earns nothing. There is no salary, tax or insurance.
@@ -239,6 +257,24 @@ Also inside the app: settings menu (top of every screen), Help.
 **لو فيه مشكلة**
 
 - فيه فرق: قول للموظف اللي حصل عشان يكتبه في الملاحظة؛ الماليات بتقرر.
+
+### إيداع الفلوس في بساطة
+
+1. روح أي فرع بساطة بالفلوس اللي حصّلتها وأودعها.
+2. في تطبيق المندوب دوس إيداع في بساطة: صوّر الإيصال، واكتب المبلغ ورقم المرجع اللي على الإيصال ووقت الإيداع.
+3. دوس إرسال الإيداع. هيفضل في انتظار المراجعة لحد ما الحسابات تراجعه.
+4. سلّم أو أودع كل فلوسك قبل الموعد اليومي اللي ظاهر على الشاشة (11 بالليل إلا لو الحسابات قالت غير كده).
+
+**اتأكد إنها مشيت صح**
+
+- إيداعاتي بتوريه في انتظار المراجعة، وبعدين مقبول.
+- النقدية المطلوب تسليمها نقصت بالمبلغ.
+
+**لو فيه مشكلة**
+
+- الفلوس اللي معاك بعد الموعد بتتخصم منك (من مكتبك أو من محفظتك) وحسابك بيتوقف: أودعها في بساطة وكلّم الحسابات؛ الحسابات بس هي اللي تلغي الإيقاف.
+- اترفض: اقرا السبب تحت الإيداع، صلّح وابعته تاني بالإيصال الصح.
+- المرجع اتبعت قبل كده: راجع الرقم اللي على الإيصال؛ عمرك ما تبعت نفس الإيصال مرتين.
 
 ### محفظتي والسحب
 

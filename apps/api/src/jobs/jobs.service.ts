@@ -29,6 +29,7 @@ import {
   runMonthlyCharges,
   runRecurring,
   runReceivableReminders,
+  runDepositDeadline,
 } from '@shiplynow/db';
 import { cairoClock, cairoDay } from '@shiplynow/shared';
 import type { Env } from '../config/env';
@@ -47,6 +48,8 @@ const MONTHLY_LOCK = 735_003;
 const MINIMUM_FEE_LOCK = 735_021;
 /** Advisory lock id for the daily payment reminders to merchants who owe us. */
 const REMINDER_LOCK = 735_047;
+/** Advisory lock id for the Basata cash deposit deadline. */
+const DEPOSIT_DEADLINE_LOCK = 735_061;
 const EVERY_MS = 30_000;
 /** Notifications go out faster than the other jobs: a new order has minutes to be accepted. */
 const PUSH_EVERY_MS = 10_000;
@@ -113,6 +116,7 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       void this.runCrmReminders();
       void this.runCommissions();
       void this.runPaymentReminders();
+      void this.runDepositDeadline();
     }, EVERY_MS);
     this.timer.unref();
     this.pushTimer = setInterval(() => void this.runPush(), PUSH_EVERY_MS);
@@ -302,6 +306,37 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
       return result;
     } catch (error) {
       await this.reporter.report('job: payment reminders', error);
+      return null;
+    }
+  }
+
+  /**
+   * Basata cash deposits: once the day's deposit deadline (cash.deposit_deadline_hour, Cairo)
+   * has passed, cash each rider still held then is taken from them and they are frozen. Worked
+   * out from the books as of the deadline, so a run after the server slept is still right; each
+   * Cairo day runs once (cash_deadline_runs) and each rider and day has its own key.
+   */
+  async runDepositDeadline(now: Date = new Date()) {
+    try {
+      const result = await this.prisma.$transaction(
+        async (tx) => {
+          const [{ locked }] = (await tx.$queryRaw<
+            { locked: boolean }[]
+          >`SELECT pg_try_advisory_xact_lock(${DEPOSIT_DEADLINE_LOCK}) AS locked`) as [
+            { locked: boolean },
+          ];
+          if (!locked) return null;
+          return runDepositDeadline(tx, now);
+        },
+        { timeout: 120_000 },
+      );
+      if (result && result.days.length > 0)
+        this.log.log(
+          `Deposit deadline ${result.days.join(', ')}: ${result.frozen} riders frozen, ${result.chargedPiastres} piastres taken`,
+        );
+      return result;
+    } catch (error) {
+      await this.reporter.report('job: deposit deadline', error);
       return null;
     }
   }

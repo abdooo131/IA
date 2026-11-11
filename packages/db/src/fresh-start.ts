@@ -155,6 +155,15 @@ export async function freshStart(
       await run('cash handovers', 'DELETE FROM cash_handovers');
       await run('rider withdrawals', 'DELETE FROM rider_withdrawals');
       await run('expense claims', 'DELETE FROM expense_claims');
+      await run('rider cash deductions', 'DELETE FROM rider_cash_deductions');
+      await run('basata deposits', 'DELETE FROM basata_deposits');
+      await run('basata transfers', 'DELETE FROM basata_settlements');
+      await run('rider freezes', 'DELETE FROM rider_freezes');
+      await run('cash deadline runs', 'DELETE FROM cash_deadline_runs');
+      await run(
+        'rider freeze flags',
+        'UPDATE riders SET frozen_at = NULL, frozen_reason = NULL, frozen_by_id = NULL',
+      );
       await run('ledger lines', 'DELETE FROM ledger_lines');
       await run('ledger entries', 'DELETE FROM ledger_entries');
       await run('books lock', 'DELETE FROM books_lock');

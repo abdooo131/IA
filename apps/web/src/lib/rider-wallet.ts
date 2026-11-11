@@ -79,6 +79,8 @@ export interface RiderWalletRow {
   badgeCode: string;
   darkStore: StoreRef;
   cashPiastres: number;
+  /** Basata deposits: frozen for cash not handed in by the deadline */
+  frozen: boolean;
   wallet: WalletTotals;
 }
 

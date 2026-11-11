@@ -10,11 +10,27 @@ import { parseEgp } from '@/lib/money';
 import { Message } from './useStoreAction';
 
 export interface CashScreenData {
-  riders: { id: string; name: string; badgeCode: string; cashPiastres: number; outNow: number }[];
+  /** The store channel is open (cash.store_handover_enabled); Basata stays open when it is not */
+  handoverEnabled?: boolean;
+  riders: {
+    id: string;
+    name: string;
+    badgeCode: string;
+    cashPiastres: number;
+    outNow: number;
+    /** Frozen for cash not handed in by the deposit deadline (only Accounting unfreezes) */
+    frozen?: boolean;
+  }[];
   recent: CashHandoverRow[];
 }
 
-const KNOWN = ['rider_other_store', 'invalid_amount', 'validation_failed', 'network'];
+const KNOWN = [
+  'rider_other_store',
+  'invalid_amount',
+  'validation_failed',
+  'network',
+  'store_handover_closed',
+];
 
 /** Staff count each rider's cash at the end of a shift; differences go to finance. */
 export function RiderCashScreen({
@@ -74,6 +90,11 @@ export function RiderCashScreen({
     <div className="mt-2 space-y-4">
       <h1 className="text-h2">{t('title')}</h1>
       <p className="text-body-sm text-text-muted">{t('intro')}</p>
+      {data.handoverEnabled === false && (
+        <p role="status" className="rounded-md border border-danger p-3 text-body-sm text-danger">
+          {t('handoverClosed')}
+        </p>
+      )}
       <Message message={message} />
       {data.riders.length === 0 && <p className="text-body text-text-muted">{t('none')}</p>}
       <ul className="space-y-3">
@@ -92,6 +113,9 @@ export function RiderCashScreen({
                 <span className="ltr-iso whitespace-nowrap text-caption text-text-muted">
                   {r.badgeCode}
                 </span>
+                {r.frozen && (
+                  <span className="block text-caption font-bold text-danger">{t('frozen')}</span>
+                )}
                 {r.outNow > 0 && (
                   <span className="block text-caption text-status-needs-action">
                     {t('outNow', { count: r.outNow })}
@@ -126,7 +150,7 @@ export function RiderCashScreen({
                 />
                 <button
                   type="button"
-                  disabled={busy || counted.trim() === ''}
+                  disabled={busy || counted.trim() === '' || data.handoverEnabled === false}
                   onClick={() => void record()}
                   className="h-12 w-full rounded-md bg-primary font-bold text-on-primary active:bg-primary-pressed disabled:bg-line disabled:text-text-muted"
                 >

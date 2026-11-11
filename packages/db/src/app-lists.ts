@@ -2,6 +2,8 @@ import type { Prisma } from '@prisma/client';
 import {
   addDays,
   APP_LISTS,
+  basataDepositNumber,
+  basataSettlementNumber,
   type AppListApp,
   appListMeta,
   appListRefs,
@@ -2397,6 +2399,112 @@ const suggestions: ListDef<SuggestionListRow> = {
   sums: APP_LISTS.hr.suggestions.sums,
 };
 
+// ─── Accounting: Basata cash deposits ───────────────────────────────────────────
+
+export interface BasataDepositListRow {
+  id: string;
+  number: string;
+  status: string;
+  riderId: string;
+  rider: string;
+  badge: string;
+  storeId: string;
+  store: string;
+  amount: number;
+  reference: string;
+  depositedAt: string;
+  depositedDay: string;
+  createdAt: string;
+  createdDay: string;
+  /** Sent after the deadline of the day the cash was deposited */
+  late: boolean;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  rejectReason: string | null;
+  settlementId: string | null;
+  settlement: string | null;
+}
+
+async function loadBasataDeposits(
+  db: Db,
+  scope: ListScope,
+  state: ListState,
+): Promise<BasataDepositListRow[]> {
+  const rows = await db.basataDeposit.findMany({
+    where: {
+      darkStoreId: within(state.values.store, scope.storeIds),
+      ...(state.values.rider && { riderId: state.values.rider }),
+      depositedAt: dayRange(state),
+    },
+    include: {
+      rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+      darkStore: storeRef,
+      decidedBy: { select: { name: true } },
+      settlement: { select: { number: true } },
+    },
+    orderBy: { number: 'desc' },
+    take: LIST_MAX_ROWS,
+  });
+  return rows.map((d) => ({
+    id: d.id,
+    number: basataDepositNumber(d.number),
+    status: d.status,
+    riderId: d.riderId,
+    rider: d.rider.user.name,
+    badge: d.rider.badgeCode,
+    storeId: d.darkStoreId,
+    store: d.darkStore.code,
+    amount: d.amountPiastres,
+    reference: d.reference,
+    depositedAt: d.depositedAt.toISOString(),
+    depositedDay: cairoDay(d.depositedAt),
+    createdAt: d.createdAt.toISOString(),
+    createdDay: cairoDay(d.createdAt),
+    late: d.deadlineDay.toISOString().slice(0, 10) > cairoDay(d.depositedAt),
+    decidedBy: d.decidedBy?.name ?? null,
+    decidedAt: d.decidedAt?.toISOString() ?? null,
+    rejectReason: d.rejectReason,
+    settlementId: d.settlementId,
+    settlement: d.settlement ? basataSettlementNumber(d.settlement.number) : null,
+  }));
+}
+
+const basataDeposits: ListDef<BasataDepositListRow> = {
+  id: 'basata_deposits',
+  filters: {
+    ...statusFilter<BasataDepositListRow>(['pending', 'approved', 'rejected']),
+    not_settled: {
+      group: 'settled',
+      test: (r) => r.status === 'approved' && r.settlementId === null,
+    },
+    settled: { group: 'settled', test: (r) => r.settlementId !== null },
+    late: { group: 'timing', test: (r) => r.late },
+    ...dayFilters<BasataDepositListRow>((r) => r.depositedDay),
+  },
+  values: {
+    store: (r, v) => r.storeId === v,
+    rider: (r, v) => r.riderId === v,
+    from: (r, v) => r.depositedDay >= v,
+    to: (r, v) => r.depositedDay <= v,
+  },
+  groupBys: {
+    status: (r) => named(r.status, r.status),
+    store: (r) => named(r.storeId, r.store),
+    rider: (r) => named(r.riderId, `${r.rider} (${r.badge})`),
+    day: (r) => named(r.depositedDay, r.depositedDay),
+    settlement: (r) => named(r.settlementId, r.settlement),
+  },
+  search: (r) => [r.number, r.rider, r.badge, r.reference, r.store, r.settlement],
+  sorts: {
+    number: (r) => r.number,
+    deposited: (r) => r.depositedAt,
+    created: (r) => r.createdAt,
+    amount: (r) => r.amount,
+  },
+  defaultSort: { key: 'number', desc: true },
+  sums: APP_LISTS.accounting.basata_deposits.sums,
+};
+
 // ─── the registry ───────────────────────────────────────────────────────────────
 
 export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
@@ -2429,6 +2537,9 @@ export const APP_LIST_DEFS: Record<string, Record<string, RegisteredList>> = {
     leave: { def: leave, load: loadLeave },
     violations: { def: violations, load: loadViolations },
     suggestions: { def: suggestions, load: loadSuggestions },
+  },
+  accounting: {
+    basata_deposits: { def: basataDeposits, load: loadBasataDeposits },
   },
 } satisfies Record<AppListApp, Record<string, RegisteredList>>;
 
@@ -2468,6 +2579,15 @@ export async function appListOptions(db: Db, app: string, id: string, scope: Lis
       labelAr: `${s.code} · ${s.nameAr}`,
     }));
     for (const k of locations) out[k] = options;
+  }
+  if (wants.includes('rider')) {
+    // The riders of the person's stores.
+    const riders = await db.rider.findMany({
+      where: { darkStoreId: storeIn(scope) },
+      select: { id: true, badgeCode: true, user: { select: { name: true } } },
+      orderBy: { badgeCode: 'asc' },
+    });
+    out.rider = riders.map((r) => ({ value: r.id, label: `${r.user.name} (${r.badgeCode})` }));
   }
   if (wants.includes('merchant')) {
     const merchants = await db.merchant.findMany({

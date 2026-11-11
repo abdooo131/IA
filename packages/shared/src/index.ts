@@ -39,3 +39,4 @@ export * from './bank-match';
 export * from './expense-claims';
 export * from './loans';
 export * from './aging';
+export * from './basata';

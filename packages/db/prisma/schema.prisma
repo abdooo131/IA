@@ -180,6 +180,10 @@ model User {
   expenseClaimsApproved    ExpenseClaim[]            @relation("expense_claim_manager_decided_by")
   expenseClaimsPaid        ExpenseClaim[]            @relation("expense_claim_paid_by")
   expenseClaimsRejected    ExpenseClaim[]            @relation("expense_claim_rejected_by")
+  basataDecided            BasataDeposit[]           @relation("basata_deposit_decided_by")
+  basataSettlements        BasataSettlement[]        @relation("basata_settlement_created_by")
+  ridersFrozen             RiderFreeze[]             @relation("rider_freeze_frozen_by")
+  ridersUnfrozen           RiderFreeze[]             @relation("rider_freeze_unfrozen_by")
 
   @@index([darkStoreId])
   @@index([merchantId])
@@ -314,6 +318,7 @@ model DarkStore {
   cashHandovers    CashHandover[]
   riderWithdrawals RiderWithdrawal[]
   expenseClaims    ExpenseClaim[]
+  basataDeposits   BasataDeposit[]
 
   shopifyLocations ShopifyLocation[]
 
@@ -1118,6 +1123,13 @@ model Rider {
   lastLat        Float?    @map("last_lat")
   lastLng        Float?    @map("last_lng")
   lastLocationAt DateTime? @map("last_location_at")
+  /// Frozen (missed the cash deposit deadline): takes no orders and cannot withdraw until
+  /// Accounting unfreezes them; the history is in rider_freezes
+  frozenAt       DateTime? @map("frozen_at")
+  /// deposit_deadline or deposit_rejected
+  frozenReason   String?   @map("frozen_reason")
+  /// Who froze them (null: the deadline job)
+  frozenById     String?   @map("frozen_by_id")
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
@@ -1131,6 +1143,10 @@ model Rider {
 
   ledgerLines LedgerLine[]
   withdrawals RiderWithdrawal[]
+
+  basataDeposits BasataDeposit[]
+  cashDeductions RiderCashDeduction[]
+  freezes        RiderFreeze[]
 
   @@map("riders")
 }
@@ -1243,6 +1259,8 @@ enum PhotoKind {
   pack
   delivery
   receipt
+  /// The receipt a Basata branch gives a rider who deposited cash
+  basata_receipt
 
   @@map("photo_kind")
 }
@@ -1266,6 +1284,8 @@ model Photo {
 
   pettyCash     PettyCashExpense[]
   expenseClaims ExpenseClaim[]
+
+  basataDeposits BasataDeposit[]
 
   @@map("photos")
 }
@@ -1460,6 +1480,8 @@ model LedgerAccount {
   loansIn       Loan[]              @relation("loan_money_account")
   loansOwed     Loan[]              @relation("loan_liability_account")
 
+  basataSettlements BasataSettlement[]
+
   @@index([type])
   @@index([groupCode])
   @@map("ledger_accounts")
@@ -1504,6 +1526,10 @@ model LedgerEntry {
   expenseClaims     ExpenseClaim[]
   loans             Loan[]
   loanInstalments   LoanInstalment[]
+
+  basataDeposits    BasataDeposit[]
+  basataSettlements BasataSettlement[]
+  cashDeductions    RiderCashDeduction[]
 
   @@index([kind, occurredAt])
   @@index([orderId])
@@ -2389,14 +2415,15 @@ model Supplier {
   createdById             String   @map("created_by_id")
   createdAt               DateTime @default(now()) @map("created_at")
 
-  defaultExpenseAccount LedgerAccount?  @relation("supplier_default_expense", fields: [defaultExpenseAccountId], references: [id])
-  createdBy             User            @relation(fields: [createdById], references: [id], onDelete: Restrict)
+  defaultExpenseAccount LedgerAccount?       @relation("supplier_default_expense", fields: [defaultExpenseAccountId], references: [id])
+  createdBy             User                 @relation(fields: [createdById], references: [id], onDelete: Restrict)
   accounts              LedgerAccount[]
   bills                 Bill[]
-  staff                 Employee[]      @relation("staffing_supplier")
+  staff                 Employee[]           @relation("staffing_supplier")
   cheques               Cheque[]
   purchaseOrders        PurchaseOrder[]
   loans                 Loan[]
+  riderCashDeductions   RiderCashDeduction[]
 
   @@map("suppliers")
 }
@@ -5120,4 +5147,153 @@ model MerchantPaymentReminder {
 
   @@index([merchantId, periodStart])
   @@map("merchant_payment_reminders")
+}
+
+// ─── Basata cash deposits (migration 20261231200000_basata_deposits) ─────────────
+
+enum BasataDepositStatus {
+  pending
+  approved
+  rejected
+
+  @@map("basata_deposit_status")
+}
+
+/// A rider deposited the cash they collected at a Basata branch (BD-000001, gapless). Finance
+/// checks the receipt photo and approves (Dr Money at Basata, Cr 1300 rider cash) or rejects
+/// it. Basata's daily transfer to the bank settles approved deposits.
+model BasataDeposit {
+  id                String              @id @default(cuid())
+  number            Int                 @unique
+  riderId           String              @map("rider_id")
+  /// The rider's store when the deposit was sent (scope and the store's settings)
+  darkStoreId       String              @map("dark_store_id")
+  amountPiastres    Int                 @map("amount_piastres")
+  /// Basata's reference number on the receipt; never used twice
+  reference         String              @unique
+  /// When the rider says they deposited (never in the future)
+  depositedAt       DateTime            @map("deposited_at")
+  /// The receipt photo (kind basata_receipt), required
+  photoId           String              @map("photo_id")
+  status            BasataDepositStatus @default(pending)
+  /// The Cairo day whose deposit deadline it counts for (the first deadline after it was sent)
+  deadlineDay       DateTime            @map("deadline_day") @db.Date
+  decidedById       String?             @map("decided_by_id")
+  decidedAt         DateTime?           @map("decided_at")
+  rejectReason      String?             @map("reject_reason")
+  entryId           String?             @unique @map("entry_id")
+  /// On approval: the part taken from the rider's cash (1300)
+  heldPiastres      Int?                @map("held_piastres")
+  /// On approval: the part given back for an earlier deadline deduction
+  givenBackPiastres Int                 @default(0) @map("given_back_piastres")
+  settlementId      String?             @map("settlement_id")
+  idempotencyKey    String              @unique @map("idempotency_key")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  rider      Rider                @relation(fields: [riderId], references: [id], onDelete: Restrict)
+  darkStore  DarkStore            @relation(fields: [darkStoreId], references: [id], onDelete: Restrict)
+  photo      Photo                @relation(fields: [photoId], references: [id], onDelete: Restrict)
+  decidedBy  User?                @relation("basata_deposit_decided_by", fields: [decidedById], references: [id], onDelete: Restrict)
+  entry      LedgerEntry?         @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  settlement BasataSettlement?    @relation(fields: [settlementId], references: [id], onDelete: Restrict)
+  deductions RiderCashDeduction[]
+
+  @@index([riderId, status])
+  @@index([status, createdAt])
+  @@index([settlementId])
+  @@map("basata_deposits")
+}
+
+/// Basata's transfer of approved deposits to our bank, less its fee (BT-000001, gapless):
+/// Dr bank (amount received), Dr Basata fees (the difference), Cr Money at Basata.
+model BasataSettlement {
+  id               String   @id @default(cuid())
+  number           Int      @unique
+  bankAccountId    String   @map("bank_account_id")
+  /// The Cairo day the money reached the bank
+  receivedOn       DateTime @map("received_on") @db.Date
+  amountPiastres   Int      @map("amount_piastres")
+  depositsPiastres Int      @map("deposits_piastres")
+  feePiastres      Int      @map("fee_piastres")
+  reference        String?
+  entryId          String   @unique @map("entry_id")
+  createdById      String   @map("created_by_id")
+  idempotencyKey   String   @unique @map("idempotency_key")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  bankAccount LedgerAccount   @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  entry       LedgerEntry     @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  createdBy   User            @relation("basata_settlement_created_by", fields: [createdById], references: [id], onDelete: Restrict)
+  deposits    BasataDeposit[]
+
+  @@map("basata_settlements")
+}
+
+/// Cash a rider still held at a deposit deadline (or a deposit refused after it), taken from
+/// them: to their rider office's wallet (2500) or their rider dues (1350). A deposit approved
+/// later gives it back (given_back_piastres), oldest first. One row per key.
+model RiderCashDeduction {
+  id                String   @id @default(cuid())
+  riderId           String   @map("rider_id")
+  /// deadline or rejected
+  kind              String
+  /// The Cairo day of the deadline
+  day               DateTime @db.Date
+  /// For kind rejected: the deposit that was refused
+  depositId         String?  @map("deposit_id")
+  /// What the rider held at the deadline (or the refused amount)
+  heldPiastres      Int      @map("held_piastres")
+  /// What was taken (never more than the rider still held when it was booked; may be 0)
+  amountPiastres    Int      @map("amount_piastres")
+  /// The rider office charged; null: the rider's own dues (1350)
+  supplierId        String?  @map("supplier_id")
+  entryId           String?  @unique @map("entry_id")
+  givenBackPiastres Int      @default(0) @map("given_back_piastres")
+  /// basata_deadline:<rider>:<day> or basata_rejected:<deposit>
+  key               String   @unique
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  rider    Rider          @relation(fields: [riderId], references: [id], onDelete: Restrict)
+  deposit  BasataDeposit? @relation(fields: [depositId], references: [id], onDelete: Restrict)
+  supplier Supplier?      @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  entry    LedgerEntry?   @relation(fields: [entryId], references: [id], onDelete: Restrict)
+
+  @@index([riderId, createdAt])
+  @@map("rider_cash_deductions")
+}
+
+/// Every time a rider was frozen and unfrozen (only Accounting unfreezes, with a reason).
+model RiderFreeze {
+  id             String    @id @default(cuid())
+  riderId        String    @map("rider_id")
+  /// deposit_deadline or deposit_rejected
+  reason         String
+  /// The Cairo day of the deadline that froze them
+  day            DateTime? @db.Date
+  amountPiastres Int       @default(0) @map("amount_piastres")
+  frozenAt       DateTime  @map("frozen_at")
+  frozenById     String?   @map("frozen_by_id")
+  unfrozenAt     DateTime? @map("unfrozen_at")
+  unfrozenById   String?   @map("unfrozen_by_id")
+  unfreezeReason String?   @map("unfreeze_reason")
+
+  rider      Rider @relation(fields: [riderId], references: [id], onDelete: Restrict)
+  frozenBy   User? @relation("rider_freeze_frozen_by", fields: [frozenById], references: [id], onDelete: Restrict)
+  unfrozenBy User? @relation("rider_freeze_unfrozen_by", fields: [unfrozenById], references: [id], onDelete: Restrict)
+
+  @@index([riderId, frozenAt])
+  @@map("rider_freezes")
+}
+
+/// The deposit deadline job, once per Cairo day (skipped: the deadline was switched off).
+model CashDeadlineRun {
+  day             DateTime @id @db.Date
+  deadlineAt      DateTime @map("deadline_at")
+  skipped         Boolean  @default(false)
+  frozen          Int      @default(0)
+  chargedPiastres Int      @default(0) @map("charged_piastres")
+  ranAt           DateTime @default(now()) @map("ran_at")
+
+  @@map("cash_deadline_runs")
 }

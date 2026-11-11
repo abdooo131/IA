@@ -379,7 +379,8 @@
         "crm_followup_overdue": "Sales follow up overdue: {company}, {subject} ({owner})",
         "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
         "hr_termination_review": "{nameEn}: {number} reached termination review",
-        "zone_areas_review": "Zone areas to review: some areas were split between zones or some zones kept their drawn outline"
+        "zone_areas_review": "Zone areas to review: some areas were split between zones or some zones kept their drawn outline",
+        "rider_frozen": "{rider} ({badge}) frozen: held {amountEgp} EGP after the deadline of {day}"
       },
       "handledBy": "Handled by {name}",
       "typeNames": {
@@ -411,7 +412,8 @@
         "crm_followup_overdue": "Follow up overdue",
         "crm_deal_stale": "Deal not moving",
         "hr_termination_review": "Termination review",
-        "zone_areas_review": "Zone areas to review"
+        "zone_areas_review": "Zone areas to review",
+        "rider_frozen": "Rider frozen"
       }
     },
     "settings": {
@@ -542,7 +544,11 @@
         "receivables__reminder_first_days": "First payment reminder after this many days in debit",
         "receivables__reminder_every_days": "Then a payment reminder every (days)",
         "receivables__reminder_max": "Most payment reminders per debit period (hand sent ones count)",
-        "receivables__reminder_hour": "Payment reminders go out from this Cairo hour"
+        "receivables__reminder_hour": "Payment reminders go out from this Cairo hour",
+        "cash__store_handover_enabled": "Riders may hand cash to the store (1 open, 0 closed)",
+        "cash__basata_enabled": "Riders may deposit cash at Basata (1 open, 0 closed)",
+        "cash__deposit_deadline_enabled": "Take cash held at the deadline and freeze the rider (1 on, 0 off)",
+        "cash__deposit_deadline_hour": "Daily cash deadline (Cairo hour, 0 to 23)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -625,7 +631,9 @@
         "purchase_order": "Purchase order",
         "packaging_item": "Packaging item",
         "packaging_recipe": "Packaging recipe",
-        "email": "Email"
+        "email": "Email",
+        "basata_deposit": "Basata deposit",
+        "basata_settlement": "Basata transfer"
       },
       "actions": {
         "alert__resolve": "Alert handled",
@@ -2033,7 +2041,10 @@
       "loan_received": "Loan received",
       "loan_payment": "Loan instalment",
       "fx_revaluation": "Exchange revaluation",
-      "debit_note": "Debit note"
+      "debit_note": "Debit note",
+      "basata_deposit": "Basata deposit approved",
+      "basata_deadline_charge": "Cash taken at the deadline",
+      "basata_settlement": "Basata transfer to the bank"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -2411,7 +2422,8 @@
       "paid": "Bonus paid.",
       "store": "Store",
       "badge": "Badge",
-      "pending": "Differences waiting"
+      "pending": "Differences waiting",
+      "frozen": "Frozen"
     },
     "journal": {
       "title": "Journal",
@@ -3936,9 +3948,12 @@
       "invalid_amount": "Enter the amount counted.",
       "validation_failed": "Enter the amount counted.",
       "network": "No connection. Try again.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "store_handover_closed": "Handing cash to the store is closed for now."
     },
-    "tab": "Cash"
+    "tab": "Cash",
+    "handoverClosed": "Handing cash to the store is closed for now. Riders deposit their cash at Basata instead.",
+    "frozen": "Frozen: cash not handed in by the deadline"
   },
   "merchantFinance": {
     "nav": "Wallet",
@@ -3967,7 +3982,8 @@
     "bonusLabel": "Bonus earned",
     "amount": "EGP {amount}",
     "availableLabel": "Available to withdraw",
-    "openWallet": "This month {month} EGP · on hold {hold} EGP · open my wallet"
+    "openWallet": "This month {month} EGP · on hold {hold} EGP · open my wallet",
+    "depositAtBasata": "Deposit at Basata"
   },
   "shopifyInstalled": {
     "title": "Shiply Now",
@@ -4666,6 +4682,24 @@
             ]
           },
           {
+            "title": "Deposit your cash at Basata",
+            "steps": [
+              "Go to a Basata branch with the cash you collected and deposit it.",
+              "In the rider app tap Deposit at Basata: take a photo of the receipt, type the amount, the reference number on the receipt and when you deposited.",
+              "Tap Send the deposit. It shows Waiting for review until accounting checks it.",
+              "Hand in or deposit all your cash before the daily deadline shown on the screen (23:00 unless accounting says otherwise)."
+            ],
+            "check": [
+              "My deposits shows it as Waiting for review, then Approved.",
+              "Cash to hand in went down by the amount."
+            ],
+            "problems": [
+              "Cash still with you after the deadline is taken from you (from your office or your wallet) and your account is frozen: deposit it at Basata and call accounting; only accounting unfreezes you.",
+              "Refused: read the reason under the deposit, fix it and send it again with the right receipt.",
+              "The reference was already sent: check the number on the receipt; never send one receipt twice."
+            ]
+          },
+          {
             "title": "My wallet and withdrawals",
             "steps": [
               "You earn a fixed amount for every delivered order (shown in My wallet). A failed attempt earns nothing. There is no salary, tax or insurance.",
@@ -5102,6 +5136,23 @@
             "problems": [
               "The net position is below zero: tell the owner the same day, with the bills and payouts due.",
               "A rider keeps holding cash past the limit: open a ticket to the store manager, and ask admin to lower the store's limit if it repeats."
+            ]
+          },
+          {
+            "title": "Basata deposits, transfers and frozen riders",
+            "steps": [
+              "Cash and bank, Basata deposits opens on deposits waiting for review. Open each one: compare the receipt photo with the amount, the reference and the time, then Approve or Reject with a reason (at least 5 characters). Never decide your own.",
+              "When Basata's daily transfer reaches the bank: Record Basata transfer, choose the bank (CIB), the day and the amount that arrived, keep ticked the deposits it covers. Basata's fee is the difference and is booked as an expense.",
+              "Then match the bank line on Match the bank as usual.",
+              "Frozen riders lists riders who still held cash after the daily deadline. Follow up with the rider and their office; Unfreeze only with a written reason once it is settled."
+            ],
+            "check": [
+              "No deposit waits for review by noon.",
+              "At Basata on the cash position is only what Basata has not transferred yet."
+            ],
+            "problems": [
+              "The receipt does not match: Reject with the reason; after the deadline the cash is taken from the rider at once.",
+              "The transfer is more than the deposits ticked: a deposit is missing; find it before recording."
             ]
           },
           {
@@ -6120,7 +6171,9 @@
       "loans": "Loans",
       "costTagReport": "Costs and income by tag",
       "costTags": "Cost tags",
-      "payablesAging": "Owed to suppliers, by age"
+      "payablesAging": "Owed to suppliers, by age",
+      "basataDeposits": "Basata deposits",
+      "frozenRiders": "Frozen riders"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -7028,6 +7081,14 @@
       "expense_claim": {
         "name": "Expense claims",
         "hint": "A claim of yours was approved, paid or refused, or one of your team waits for you."
+      },
+      "basata_deposit": {
+        "name": "Basata deposits",
+        "hint": "A deposit of yours was approved or refused, or your account was frozen or unfrozen."
+      },
+      "rider_frozen": {
+        "name": "Riders frozen",
+        "hint": "A rider still held cash after the daily deadline and was frozen."
       }
     }
   },
@@ -7050,7 +7111,8 @@
         "kinds": {
           "bank": "Bank",
           "cash_box": "Cash box",
-          "store_box": "Store cash box"
+          "store_box": "Store cash box",
+          "basata": "At Basata"
         }
       },
       "riders": {
@@ -7087,6 +7149,12 @@
       "net": {
         "title": "Net position",
         "hint": "Banks and boxes plus rider cash, minus what we owe merchants and bills due this week."
+      },
+      "basata": {
+        "title": "Basata",
+        "atBasata": "At Basata, on its way to the bank ({count} deposits)",
+        "waiting": "Waiting for review ({count} deposits, still rider cash)",
+        "open": "Open Basata deposits"
       }
     },
     "petty": {
@@ -10231,7 +10299,8 @@
       "invoices": "Invoices",
       "purchaseOrders": "Purchase orders",
       "storeCash": "Store cash",
-      "expenseClaims": "Expense claims"
+      "expenseClaims": "Expense claims",
+      "basataDeposits": "Basata deposits"
     },
     "fields": {
       "merchant": "Merchant",
@@ -10284,7 +10353,12 @@
       "officeMonth": "Commission month",
       "paidOn": "Paid on",
       "approvedAt": "Approved at",
-      "paidFrom": "Paid from"
+      "paidFrom": "Paid from",
+      "depositedAt": "Deposited at",
+      "deadlineDay": "Counts for the deadline of",
+      "heldPart": "From rider cash",
+      "givenBack": "Given back",
+      "settledOn": "Reached the bank on"
     },
     "smart": {
       "merchant": "Merchant",
@@ -10356,7 +10430,8 @@
       "evidence": "Evidence",
       "riderOffice": "Rider office",
       "person": "Person",
-      "debitNotes": "Debit notes"
+      "debitNotes": "Debit notes",
+      "settlement": "Basata transfer"
     },
     "chatter": {
       "title": "Notes and history",
@@ -10415,7 +10490,8 @@
         "merchant": "Merchant",
         "supplier": "Supplier",
         "expense_claim": "Expense claim",
-        "debit_note": "Debit note"
+        "debit_note": "Debit note",
+        "basata_deposit": "Basata deposit"
       }
     }
   },
@@ -10606,7 +10682,8 @@
       "approveLeave": "Approve",
       "rejectLeave": "Refuse",
       "confirmSuggestions": "Confirm as violations",
-      "dismissSuggestions": "Dismiss"
+      "dismissSuggestions": "Dismiss",
+      "approveBasata": "Approve deposits"
     },
     "orders": {
       "exportName": "orders"
@@ -11228,6 +11305,50 @@
         "late": "Late",
         "absent": "Absent"
       }
+    },
+    "basata_deposits": {
+      "exportName": "basata-deposits",
+      "intro": "Deposits riders made at Basata branches. Check each receipt photo, then approve or reject it.",
+      "columns": {
+        "number": "Deposit",
+        "rider": "Rider",
+        "badge": "Badge",
+        "store": "Store",
+        "reference": "Basata reference",
+        "depositedAt": "Deposited at",
+        "createdAt": "Sent at",
+        "status": "Status",
+        "decidedBy": "Decided by",
+        "rejectReason": "Reason",
+        "settlement": "Transfer",
+        "amount": "Amount (EGP)"
+      },
+      "filters": {
+        "pending": "Waiting for review",
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "not_settled": "Not at the bank yet",
+        "settled": "Reached the bank",
+        "late": "Sent after the deadline"
+      },
+      "groups": {
+        "status": "Status",
+        "store": "Store",
+        "rider": "Rider",
+        "day": "Day",
+        "settlement": "Transfer"
+      },
+      "values": {
+        "store": "Store",
+        "rider": "Rider",
+        "from": "From",
+        "to": "To"
+      },
+      "statuses": {
+        "pending": "Waiting for review",
+        "approved": "Approved",
+        "rejected": "Rejected"
+      }
     }
   },
   "riderOffices": {
@@ -11544,6 +11665,138 @@
       "revalue": "Revalue",
       "revalued": "Revalued: {amount} EGP difference.",
       "close": "Close"
+    }
+  },
+  "riderBasata": {
+    "title": "Deposit at Basata",
+    "backHome": "Back to my orders",
+    "toHandIn": "Cash to hand in (EGP)",
+    "waiting": "Deposits waiting for review (EGP)",
+    "deducted": "Taken at the deadline (EGP)",
+    "deductedHint": "Deposit it at Basata and it is given back once accounting approves.",
+    "deadline": "Hand in or deposit your cash by {time}.",
+    "closed": "Basata deposits are closed for your store right now. Hand your cash to the store.",
+    "formTitle": "New deposit",
+    "photo": "Photo of the Basata receipt",
+    "amount": "Amount deposited (EGP)",
+    "max": "At most {amount} EGP.",
+    "reference": "Basata reference number",
+    "when": "Deposited at",
+    "send": "Send the deposit",
+    "sending": "Sending…",
+    "sent": "Sent. Accounting will check the receipt.",
+    "mine": "My deposits",
+    "none": "No deposits yet.",
+    "statuses": {
+      "pending": "Waiting for review",
+      "approved": "Approved",
+      "rejected": "Rejected"
+    },
+    "frozen": {
+      "title": "Your account is frozen",
+      "reasons": {
+        "deposit_deadline": "You still held cash after the daily deadline.",
+        "deposit_rejected": "A deposit was refused after the deadline."
+      },
+      "what": "You cannot take orders or ask for money until accounting unfreezes you. Deposit the cash at Basata and call accounting."
+    },
+    "errors": {
+      "receipt_required": "Take a photo of the Basata receipt first.",
+      "invalid_amount": "Enter the amount you deposited.",
+      "more_than_cash": "That is more than the cash you have to hand in.",
+      "reference_required": "Enter the reference number on the receipt.",
+      "reference_used": "This reference was already sent.",
+      "invalid_time": "Enter when you deposited.",
+      "deposit_in_future": "The time cannot be in the future.",
+      "basata_closed": "Basata deposits are closed for your store right now.",
+      "photo_too_large": "The photo is too large. Try again.",
+      "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    }
+  },
+  "basata": {
+    "title": "Basata deposits",
+    "intro": "Cash riders deposited at Basata branches. Check each receipt and approve or reject it; Basata sends the approved money to the bank once a day, less its fee.",
+    "recordTransfer": "Record Basata transfer",
+    "frozenRidersLink": "Frozen riders",
+    "approve": "Approve {amount} EGP",
+    "reject": "Reject",
+    "rejectReason": "Why is it refused?",
+    "rejectHint": "At least 5 characters. The rider sees it. After the deadline the cash is taken from the rider at once.",
+    "confirmReject": "Reject the deposit",
+    "approvedDone": "Approved.",
+    "rejectedDone": "Rejected.",
+    "receiptAlt": "Basata receipt of {number}",
+    "frozenTag": "Frozen",
+    "split": "{held} EGP from rider cash, {back} EGP given back for an earlier deadline.",
+    "fields": {
+      "amount": "Amount",
+      "reference": "Basata reference",
+      "depositedAt": "Deposited at",
+      "sentAt": "Sent at",
+      "rider": "Rider",
+      "cashHeld": "Rider cash now (EGP)",
+      "deducted": "Taken at a deadline, not given back (EGP)",
+      "office": "Rider office",
+      "decided": "Decided by",
+      "settlement": "Basata transfer"
+    },
+    "errors": {
+      "own_deposit": "You cannot decide your own deposit.",
+      "deposit_not_pending": "This deposit was already decided.",
+      "more_than_cash": "The deposit is more than the rider’s cash and what was taken from them.",
+      "reason_required": "Write a reason of at least 5 characters.",
+      "invalid_amount": "Enter the amount that reached the bank.",
+      "more_than_deposits": "The amount is more than the deposits chosen.",
+      "deposit_not_approved": "Only approved deposits can be settled.",
+      "deposit_already_settled": "A deposit chosen was already settled.",
+      "not_enough_money": "Money at Basata does not hold that much.",
+      "day_in_future": "The day cannot be in the future.",
+      "books_closed": "The books are closed for that day.",
+      "rider_not_frozen": "This rider is not frozen.",
+      "store_not_allowed": "This is outside your stores.",
+      "no_access": "You may not do this.",
+      "generic": "Something went wrong. Try again."
+    },
+    "transfer": {
+      "title": "Record Basata transfer",
+      "back": "Basata deposits",
+      "intro": "Basata sends the approved deposits to the bank once a day, less its fee. Enter what reached the bank and tick the deposits it covers; the fee is the difference. Then match the bank line on Match the bank.",
+      "bank": "Bank",
+      "day": "Day it arrived",
+      "amount": "Amount that arrived (EGP)",
+      "reference": "Bank reference",
+      "summary": "{count} deposits, {total} EGP. Basata’s fee: {fee} EGP.",
+      "deposit": "Deposit",
+      "rider": "Rider",
+      "depositedAt": "Deposited at",
+      "depositAmount": "Deposits (EGP)",
+      "none": "No approved deposits wait for a transfer.",
+      "save": "Record the transfer",
+      "done": "Recorded.",
+      "recent": "Recent transfers",
+      "noRecent": "No transfers yet.",
+      "number": "Transfer",
+      "fee": "Fee (EGP)"
+    },
+    "frozen": {
+      "title": "Frozen riders",
+      "intro": "Riders who still held cash after the daily deadline. They take no orders and cannot ask for money until accounting unfreezes them with a reason.",
+      "none": "No rider is frozen.",
+      "reasons": {
+        "deposit_deadline": "Cash held after the deadline",
+        "deposit_rejected": "Deposit refused after the deadline"
+      },
+      "office": "Office: {name}",
+      "deposits": "Their deposits",
+      "cash": "Cash to hand in (EGP)",
+      "deducted": "Taken, not given back (EGP)",
+      "pending": "Deposits waiting (EGP)",
+      "unfreeze": "Unfreeze",
+      "reason": "Why may the rider work again? (at least 5 characters)",
+      "confirm": "Unfreeze the rider",
+      "cancel": "Cancel",
+      "done": "The rider can work again."
     }
   }
 }

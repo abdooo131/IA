@@ -143,6 +143,7 @@ describe('push notifications', () => {
       'hr_update',
       'rider_wallet',
       'expense_claim',
+      'basata_deposit',
     ]);
   });
 

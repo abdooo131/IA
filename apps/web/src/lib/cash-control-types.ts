@@ -20,7 +20,7 @@ export interface CashPosition {
       code: string;
       nameEn: string;
       nameAr: string;
-      kind: 'bank' | 'cash_box' | 'store_box';
+      kind: 'bank' | 'cash_box' | 'store_box' | 'basata';
       darkStoreId: string | null;
       balancePiastres: number;
       /** A bank held in another currency: its currency and balance in its cents */
@@ -30,6 +30,13 @@ export interface CashPosition {
     bankPiastres: number;
     boxPiastres: number;
     totalPiastres: number;
+  };
+  /** Basata deposits: approved and on their way to the bank, and still waiting for review */
+  basata?: {
+    atBasataPiastres: number;
+    atBasataCount: number;
+    waitingPiastres: number;
+    waitingCount: number;
   };
   riders: {
     rows: {

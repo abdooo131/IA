@@ -788,6 +788,33 @@ export const SETTING_DEFINITIONS = {
       'Cash (piastres) a store box keeps; a petty expense that would leave less waits for finance',
     override: 'store',
   },
+  'cash.store_handover_enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'Riders may hand their cash to the store (1 open, 0 closed: the store cash screen refuses new handovers)',
+    override: 'store',
+  },
+  'cash.basata_enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'Riders may deposit their cash at a Basata branch from the rider app (1 open, 0 closed)',
+    override: 'store',
+  },
+  'cash.deposit_deadline_enabled': {
+    schema: z.number().int().min(0).max(1),
+    default: 1,
+    description:
+      'Cash a rider still holds at the daily deadline is taken from them and they are frozen (1 on, 0 off)',
+    override: 'none',
+  },
+  'cash.deposit_deadline_hour': {
+    schema: z.number().int().min(0).max(23),
+    default: 23,
+    description: 'Cairo hour (0 to 23) by which riders must hand in or deposit the day’s cash',
+    override: 'none',
+  },
   'claims.max_age_days': {
     schema: z.number().int().min(1).max(365),
     default: 60,

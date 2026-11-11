@@ -1,5 +1,7 @@
 import {
   type AccountingDoc,
+  basataDepositNumber,
+  basataSettlementNumber,
   billNumber,
   cairoDay,
   chequeLabel,
@@ -789,6 +791,90 @@ async function claimDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   });
 }
 
+// ─── Basata deposit ─────────────────────────────────────────────────────────────
+
+async function basataDoc(db: Db, id: string): Promise<DocDescriptor | null> {
+  const d = await db.basataDeposit.findUnique({
+    where: { id },
+    include: {
+      rider: {
+        select: {
+          id: true,
+          badgeCode: true,
+          userId: true,
+          frozenAt: true,
+          user: { select: { name: true } },
+        },
+      },
+      darkStore: { select: { code: true } },
+      decidedBy: { select: { name: true } },
+      entry: { select: { id: true, number: true } },
+      settlement: {
+        select: {
+          id: true,
+          number: true,
+          receivedOn: true,
+          entry: { select: { id: true, number: true } },
+        },
+      },
+    },
+  });
+  if (!d) return null;
+  const rider = `${d.rider.user.name} (${d.rider.badgeCode})`;
+  const smart: DocSmartButton[] = [
+    {
+      key: 'rider',
+      count: null,
+      value: rider,
+      href: `/finance/basata?v=rider:${d.riderId}&f=`,
+    },
+  ];
+  if (d.entry)
+    smart.push({
+      key: 'entry',
+      count: null,
+      value: entryNumber(d.entry.number),
+      href: `/finance/journal/${d.entry.id}`,
+    });
+  if (d.settlement)
+    smart.push({
+      key: 'settlement',
+      count: null,
+      value: basataSettlementNumber(d.settlement.number),
+      href: `/finance/journal/${d.settlement.entry.id}`,
+    });
+  return base('basata_deposit', d.id, {
+    number: basataDepositNumber(d.number),
+    title: rider,
+    status: d.status,
+    flow: 'basata_deposit',
+    fields: present([
+      f('rider', rider),
+      f('store', d.darkStore.code, 'ltr'),
+      f('amount', d.amountPiastres, 'money'),
+      f('reference', d.reference, 'ltr'),
+      f('depositedAt', iso(d.depositedAt), 'datetime'),
+      f('createdAt', iso(d.createdAt), 'datetime'),
+      f('deadlineDay', dbDay(d.deadlineDay), 'date'),
+      f('decidedBy', d.decidedBy?.name ?? null),
+      f('decidedAt', iso(d.decidedAt), 'datetime'),
+      f('heldPart', d.heldPiastres, 'money'),
+      f('givenBack', d.givenBackPiastres || null, 'money'),
+      f('reason', d.rejectReason, 'multiline'),
+      f('settledOn', d.settlement ? dbDay(d.settlement.receivedOn) : null, 'date'),
+    ]),
+    smart,
+    attachments: [{ photoId: d.photoId, at: d.createdAt.toISOString(), by: d.rider.user.name }],
+    actions: d.status === 'pending' ? ['approve', 'reject'] : [],
+    data: {
+      darkStoreId: d.darkStoreId,
+      riderUserId: d.rider.userId,
+      photoId: d.photoId,
+      frozen: Boolean(d.rider.frozenAt),
+    },
+  });
+}
+
 const BUILDERS: Record<AccountingDoc, (db: Db, id: string) => Promise<DocDescriptor | null>> = {
   payout: payoutDoc,
   bill: billDoc,
@@ -801,6 +887,7 @@ const BUILDERS: Record<AccountingDoc, (db: Db, id: string) => Promise<DocDescrip
   purchase_order: purchaseOrderDoc,
   cash_handover: handoverDoc,
   expense_claim: claimDoc,
+  basata_deposit: basataDoc,
 };
 
 /** The document page of one accounting record, or null when it does not exist. */

@@ -82,6 +82,7 @@ export class RiderWithdrawalsController {
         badgeCode: r.badgeCode,
         darkStore: r.darkStore,
         cashPiastres: await riderCash(this.prisma, r.id),
+        frozen: Boolean(r.frozenAt),
         wallet: totals.get(r.id)!,
       })),
     );

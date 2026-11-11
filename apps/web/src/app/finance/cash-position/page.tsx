@@ -132,6 +132,33 @@ export default async function CashPositionPage() {
         </div>
       </section>
 
+      {p.basata && (p.basata.atBasataCount > 0 || p.basata.waitingCount > 0) && (
+        <section className={`mt-6 ${card}`}>
+          <h2 className="text-h3">{t('basata.title')}</h2>
+          <dl className="mt-2 grid grid-cols-1 gap-3 text-body-sm sm:grid-cols-2">
+            <div>
+              <dt className="text-text-muted">
+                {t('basata.atBasata', { count: p.basata.atBasataCount })}
+              </dt>
+              <dd className="text-h3">
+                <Amount piastres={p.basata.atBasataPiastres} />
+              </dd>
+            </div>
+            <div>
+              <dt className="text-text-muted">
+                {t('basata.waiting', { count: p.basata.waitingCount })}
+              </dt>
+              <dd className="text-h3">
+                <Amount piastres={p.basata.waitingPiastres} />
+              </dd>
+            </div>
+          </dl>
+          <Link href="/finance/basata" className="mt-2 inline-block text-body-sm text-link">
+            {t('basata.open')}
+          </Link>
+        </section>
+      )}
+
       <section className={`mt-6 ${card}`}>
         <h2 className="text-h3">{t('riders.title')}</h2>
         <p className="text-caption text-text-muted">{t('riders.intro', { warn: p.warnHours })}</p>

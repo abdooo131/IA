@@ -350,6 +350,23 @@ Also inside the app: settings menu (top of every screen), Help.
 - The net position is below zero: tell the owner the same day, with the bills and payouts due.
 - A rider keeps holding cash past the limit: open a ticket to the store manager, and ask admin to lower the store's limit if it repeats.
 
+### Basata deposits, transfers and frozen riders
+
+1. Cash and bank, Basata deposits opens on deposits waiting for review. Open each one: compare the receipt photo with the amount, the reference and the time, then Approve or Reject with a reason (at least 5 characters). Never decide your own.
+2. When Basata's daily transfer reaches the bank: Record Basata transfer, choose the bank (CIB), the day and the amount that arrived, keep ticked the deposits it covers. Basata's fee is the difference and is booked as an expense.
+3. Then match the bank line on Match the bank as usual.
+4. Frozen riders lists riders who still held cash after the daily deadline. Follow up with the rider and their office; Unfreeze only with a written reason once it is settled.
+
+**Check it went right**
+
+- No deposit waits for review by noon.
+- At Basata on the cash position is only what Basata has not transferred yet.
+
+**If something is wrong**
+
+- The receipt does not match: Reject with the reason; after the deadline the cash is taken from the rider at once.
+- The transfer is more than the deposits ticked: a deposit is missing; find it before recording.
+
 ### Find and work your way around Accounting
 
 1. Start every day on Accounting, Dashboard: the Today strip lists what waits for someone (approvals for you, payouts due today, rider withdrawals, cash differences, bank lines, bills due, entries missing a receipt, your reminders). Tap a line to open exactly those records.
@@ -791,6 +808,23 @@ Also inside the app: settings menu (top of every screen), Help.
 
 - صافي الموقف تحت الصفر: بلّغ المالك نفس اليوم بالفواتير والدفعات المستحقة.
 - مندوب بيفضل معاه فلوس فوق الحد: افتح تذكرة لمدير الفرع، واطلب من الأدمن يقلل حد الفرع لو اتكرر.
+
+### إيداعات بساطة والتحويلات والمناديب الموقوفون
+
+1. الكاش والبنك، إيداعات بساطة بتفتح على الإيداعات المستنية مراجعة. افتح كل واحد: قارن صورة الإيصال بالمبلغ والمرجع والوقت، وبعدين اقبل أو ارفض بسبب (5 حروف على الأقل). عمرك ما تقرر إيداعك.
+2. لما تحويل بساطة اليومي يوصل البنك: تسجيل تحويل بساطة، اختار البنك (CIB) واليوم والمبلغ اللي وصل، وسيب الإيداعات اللي بيغطيها متعلّم عليها. عمولة بساطة هي الفرق وبتتسجل مصروف.
+3. وبعدين طابق سطر البنك من مطابقة البنك زي العادة.
+4. المناديب الموقوفون بتعرض المناديب اللي كان معاهم فلوس بعد الموعد اليومي. تابع مع المندوب ومكتبه؛ وألغي الإيقاف بس بسبب مكتوب بعد ما الموضوع يتسوّى.
+
+**اتأكد إنها مشيت صح**
+
+- مفيش إيداع مستني مراجعة لحد الضهر.
+- لدى بساطة في موقف النقدية هو بس اللي بساطة لسه ما حوّلتوش.
+
+**لو فيه مشكلة**
+
+- الإيصال مش مطابق: ارفض بالسبب؛ بعد الموعد الفلوس بتتخصم من المندوب فورًا.
+- التحويل أكبر من الإيداعات المتعلّم عليها: فيه إيداع ناقص؛ دوّر عليه قبل التسجيل.
 
 ### التنقل والشغل في الحسابات
 

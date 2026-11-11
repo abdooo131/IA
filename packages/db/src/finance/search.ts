@@ -1,4 +1,5 @@
 import {
+  basataDepositNumber,
   billNumber,
   chequeLabel,
   entryNumber,
@@ -17,7 +18,7 @@ import { invoiceLabel } from './invoices';
 import type { ListScope } from '../list-query';
 
 // The one search of the Accounting app: a document number (JV-, PAY-, CH-, BILL-, INV-, CN-,
-// PO-, CHQ-, PC-, RW-, BS-, EC-), an order number or a merchant (or supplier) name, each with the
+// PO-, CHQ-, PC-, RW-, BS-, EC-, BD-), an order number or a merchant (or supplier) name, each with the
 // page it opens. People limited to some stores or merchants find only theirs.
 
 const inStores = (scope: ListScope, storeId: string | null) =>
@@ -150,6 +151,20 @@ async function byNumber(db: Db, text: string, scope: ListScope): Promise<SearchH
             label: withdrawalNumber(n),
             detail: r.rider.user.name,
             href: `/finance/rider-withdrawals/${r.id}`,
+          }
+        : null;
+    }
+    case 'basata_deposit': {
+      const r = await db.basataDeposit.findUnique({
+        where: { number: n },
+        include: { rider: { select: { user: { select: { name: true } } } } },
+      });
+      return r && inStores(scope, r.darkStoreId)
+        ? {
+            kind: 'basata_deposit',
+            label: basataDepositNumber(n),
+            detail: r.rider.user.name,
+            href: `/finance/basata/${r.id}`,
           }
         : null;
     }

@@ -11,9 +11,12 @@ import {
   cashToHandIn,
   riderWallet,
   riderWalletTotals,
+  riderBasata,
+  submitBasataDeposit,
 } from '@shiplynow/db';
 import {
   type AccessTokenClaims,
+  basataDepositSchema,
   completeDeliverySchema,
   failDeliverySchema,
   riderLocationSchema,
@@ -51,15 +54,19 @@ export class RiderController {
         OR: [{ deliveredAt: { gte: since } }, { failedAt: { gte: since } }],
       },
     });
-    const [cash, wallet, pingSeconds] = await Promise.all([
+    const [cash, wallet, pingSeconds, basata] = await Promise.all([
       cashToHandIn(this.prisma, rider.id),
       riderWalletTotals(this.prisma, rider.id),
       getSetting(this.prisma, 'tracking.rider_ping_seconds', rider.darkStoreId),
+      getSetting(this.prisma, 'cash.basata_enabled', rider.darkStoreId),
     ]);
     return {
       name: rider.user.name,
       pingSeconds,
       badgeCode: rider.badgeCode,
+      // Basata deposits: a frozen rider sees a red banner with the reason.
+      frozen: rider.frozenAt ? { at: rider.frozenAt, reason: rider.frozenReason } : null,
+      basataEnabled: basata === 1,
       wallet: {
         cashPiastres: cash,
         availablePiastres: wallet.totals.availablePiastres,
@@ -87,6 +94,25 @@ export class RiderController {
   async wallet(@CurrentUser() user: AccessTokenClaims) {
     const rider = await this.riderOf(user);
     return riderWallet(this.prisma, rider.id);
+  }
+
+  /**
+   * Basata deposits: whether the channel is open for the rider's store, the most they may
+   * deposit, the next deadline, their deposits with their status, and whether they are frozen.
+   */
+  @Get('basata')
+  async basata(@CurrentUser() user: AccessTokenClaims) {
+    const rider = await this.riderOf(user);
+    return riderBasata(this.prisma, rider.id);
+  }
+
+  /** Sends a deposit made at a Basata branch (receipt photo, amount, reference, time). */
+  @Post('basata/deposits')
+  deposit(
+    @CurrentUser() user: AccessTokenClaims,
+    @Body(new ZodValidationPipe(basataDepositSchema)) body: z.infer<typeof basataDepositSchema>,
+  ) {
+    return submitBasataDeposit(this.prisma, { riderUserId: user.sub, body });
   }
 
   /** Asks for money that finished its hold (one key per tap: a retry answers the same). */

@@ -458,6 +458,25 @@ export const APP_LISTS = {
       defaultFilters: ['open'],
     },
   },
+  accounting: {
+    // Basata cash deposits (owner, 2026-11-11): waiting for review first, then by number.
+    basata_deposits: {
+      filters: {
+        pending: 'status',
+        approved: 'status',
+        rejected: 'status',
+        not_settled: 'settled',
+        settled: 'settled',
+        late: 'timing',
+        ...days,
+      },
+      values: { store: 'option', rider: 'option', from: 'day_from', to: 'day_to' },
+      groupBys: ['status', 'store', 'rider', 'day', 'settlement'],
+      sorts: ['number', 'deposited', 'created', 'amount'],
+      sums: ['amount'],
+      defaultFilters: ['pending'],
+    },
+  },
 } as const satisfies Partial<Record<AccessApp, Record<string, ListMeta>>>;
 
 export type AppListApp = keyof typeof APP_LISTS;

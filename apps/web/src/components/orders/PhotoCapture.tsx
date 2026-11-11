@@ -11,7 +11,7 @@ export function PhotoCapture({
   onUploaded,
   onError,
 }: {
-  kind: 'pack' | 'delivery';
+  kind: 'pack' | 'delivery' | 'basata_receipt';
   label: string;
   onUploaded(id: string): void;
   onError(code: string): void;

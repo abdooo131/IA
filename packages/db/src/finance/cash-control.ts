@@ -24,6 +24,7 @@ import { chartOfAccounts } from './books';
 import { attachReceipt, queueRequest, RECEIPT_KINDS } from './controls';
 import { FEE_KINDS } from './invoices';
 import { assertActiveTag, balanceOf, lockedBalance, post } from './ledger';
+import { basataPosition, pendingBasataPiastres } from './basata';
 
 type Tx = Prisma.TransactionClient;
 
@@ -37,9 +38,14 @@ type Tx = Prisma.TransactionClient;
 
 // ─── rider cash ─────────────────────────────────────────────────────────────────
 
-/** The cash a rider holds now, split by when it was collected (oldest handed in first). */
-export async function riderCashPieces(db: Db, riderId: string) {
-  const balance = await balanceOf(db, { type: 'rider_cash', riderId });
+/**
+ * The cash a rider holds now, split by when it was collected (oldest handed in first). With
+ * coveredByDeposits, Basata deposits they sent and Accounting has not decided yet count as
+ * handed in (they cover the oldest cash).
+ */
+export async function riderCashPieces(db: Db, riderId: string, coveredByDeposits = false) {
+  const covered = coveredByDeposits ? await pendingBasataPiastres(db, riderId) : 0;
+  const balance = (await balanceOf(db, { type: 'rider_cash', riderId })) - covered;
   if (balance <= 0) return { balancePiastres: Math.max(0, balance), pieces: [] as CashPiece[] };
   const lines = await db.ledgerLine.findMany({
     where: { account: { key: `rider_cash:${riderId}` }, amountPiastres: { gt: 0 } },
@@ -56,8 +62,15 @@ export async function riderCashPieces(db: Db, riderId: string) {
   };
 }
 
-/** Riders holding cash (optionally of some stores), each with what they hold and since when. */
-export async function ridersHoldingCash(db: Db, stores?: string[] | null) {
+/**
+ * Riders holding cash (optionally of some stores), each with what they hold and since when.
+ * With coveredByDeposits, pending Basata deposits count as handed in.
+ */
+export async function ridersHoldingCash(
+  db: Db,
+  stores?: string[] | null,
+  coveredByDeposits = false,
+) {
   const accounts = await db.ledgerAccount.findMany({
     where: { type: 'rider_cash', riderId: { not: null } },
     select: { id: true, riderId: true },
@@ -83,7 +96,7 @@ export async function ridersHoldingCash(db: Db, stores?: string[] | null) {
   });
   const out = [];
   for (const r of riders) {
-    const held = await riderCashPieces(db, r.id);
+    const held = await riderCashPieces(db, r.id, coveredByDeposits);
     if (held.balancePiastres <= 0) continue;
     out.push({
       riderId: r.id,
@@ -120,7 +133,12 @@ export async function checkRiderCashLimit(
   const limit = await getSetting(tx, 'finance.rider_cash_limit_piastres', input.darkStoreId);
   if (limit <= 0) return { checked: false as const };
   await tx.$queryRaw`SELECT id FROM riders WHERE id = ${input.riderId} FOR UPDATE`;
-  const cash = Math.max(0, await balanceOf(tx, { type: 'rider_cash', riderId: input.riderId }));
+  // Basata deposits waiting for review count as handed in, so the rider can keep working.
+  const cash = Math.max(
+    0,
+    (await balanceOf(tx, { type: 'rider_cash', riderId: input.riderId })) -
+      (await pendingBasataPiastres(tx, input.riderId)),
+  );
   const carried = await tx.delivery.aggregate({
     where: { riderId: input.riderId, status: { in: ['assigned', 'picked_up'] } },
     _sum: { codExpectedPiastres: true },
@@ -156,7 +174,8 @@ export async function checkRiderCashLimit(
 export async function checkRiderCashOverdue(db: Db, now: Date = new Date()) {
   const day = cairoDay(now);
   let raised = 0;
-  for (const r of await ridersHoldingCash(db)) {
+  // Cash covered by Basata deposits waiting for review is not overdue.
+  for (const r of await ridersHoldingCash(db, null, true)) {
     const maxHours = await getSetting(db, 'finance.rider_cash_max_hours', r.store.id);
     const overdue = r.pieces
       .filter((p) => now.getTime() - p.at.getTime() > maxHours * 3_600_000)
@@ -193,7 +212,7 @@ export async function storeRiderCash(db: Db, darkStoreId: string, now: Date = ne
     getSetting(db, 'finance.rider_cash_max_hours', darkStoreId),
     getSetting(db, 'finance.rider_cash_limit_piastres', darkStoreId),
   ]);
-  const riders = await ridersHoldingCash(db, [darkStoreId]);
+  const riders = await ridersHoldingCash(db, [darkStoreId], true);
   return {
     maxHours,
     limitPiastres: limit,
@@ -228,7 +247,7 @@ export async function cashPosition(
   const chart = await chartOfAccounts(db, { includeInactive: true });
   const owners = await db.ledgerAccount.findMany({
     where: { groupCode: { in: [1100, 1200] } },
-    select: { id: true, darkStoreId: true, type: true },
+    select: { id: true, darkStoreId: true, type: true, key: true },
   });
   const money = chart
     .filter((a) => a.groupCode === 1100 || a.groupCode === 1200)
@@ -242,9 +261,11 @@ export async function cashPosition(
         kind:
           a.groupCode === 1100
             ? ('bank' as const)
-            : o?.darkStoreId
-              ? ('store_box' as const)
-              : ('cash_box' as const),
+            : o?.key === 'basata_transit'
+              ? ('basata' as const)
+              : o?.darkStoreId
+                ? ('store_box' as const)
+                : ('cash_box' as const),
         darkStoreId: o?.darkStoreId ?? null,
         isActive: a.isActive,
         balancePiastres: a.balancePiastres,
@@ -376,6 +397,9 @@ export async function cashPosition(
     },
     merchants,
     bills,
+    // Basata: approved deposits on their way to the bank (also the Money at Basata line above
+    // for people who see every account) and deposits still waiting for review (rider cash).
+    basata: await basataPosition(db, input.stores),
     netPiastres:
       merchants && bills
         ? moneyTotal + riderTotal - merchants.totalPiastres - bills.totalPiastres

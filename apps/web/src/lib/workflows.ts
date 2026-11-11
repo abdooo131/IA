@@ -45,6 +45,8 @@ export const WORKFLOWS = {
     path: ['pending_manager', 'pending_accounting', 'paid'],
     side: ['rejected', 'cancelled'],
   },
+  // A rider's Basata cash deposit: Accounting checks the receipt and approves or rejects it.
+  basata_deposit: { path: ['pending', 'approved'], side: ['rejected'] },
   finance_request: { path: ['pending', 'approved'], side: ['rejected', 'cancelled'] },
   petty_cash: { path: ['pending', 'posted'], side: ['rejected', 'cancelled', 'reversed'] },
   eta: { path: ['not_sent', 'signed', 'submitted', 'valid'], side: ['invalid', 'rejected'] },

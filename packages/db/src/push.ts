@@ -324,6 +324,7 @@ export async function dispatchPush(
     payslipEvents,
     expenseClaimEvents,
     paymentReminderEvents,
+    basataEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -517,6 +518,60 @@ const alertEvents: Source = async (db, since) => {
           };
         },
       });
+    }
+    if (a.type === 'rider_frozen' && storeId) {
+      // Basata deposits: store managers and Accounting (to follow it up), and the rider.
+      const frozenVars: PushVars = {
+        rider: String(data.rider ?? ''),
+        store,
+        amount: String(data.amountEgp ?? ''),
+      };
+      const managers = () => teamWith(db, 'store', 'manage', { storeId });
+      list.push({
+        key: `alert:${a.id}:store`,
+        make: async () => ({
+          userIds: await managers(),
+          type: 'rider_frozen',
+          text: 'rider_frozen',
+          vars: frozenVars,
+          url: `/store/${storeId}/cash`,
+          tag: `rider-frozen-${String(data.riderId ?? a.id)}`,
+          urgent: true,
+        }),
+      });
+      list.push({
+        key: `alert:${a.id}:finance`,
+        make: async () => {
+          const skip = new Set(await managers());
+          return {
+            userIds: (await teamWith(db, 'accounting', 'use', { storeId })).filter(
+              (id) => !skip.has(id),
+            ),
+            type: 'rider_frozen',
+            text: 'rider_frozen',
+            vars: frozenVars,
+            url: '/finance/frozen-riders',
+            tag: `rider-frozen-${String(data.riderId ?? a.id)}`,
+          };
+        },
+      });
+      const rider =
+        typeof data.riderId === 'string'
+          ? await db.rider.findUnique({ where: { id: data.riderId }, select: { userId: true } })
+          : null;
+      if (rider)
+        list.push({
+          key: `alert:${a.id}:rider`,
+          make: async () => ({
+            userIds: [rider.userId],
+            type: 'basata_deposit',
+            text: 'rider_frozen_self',
+            vars: frozenVars,
+            url: '/rider',
+            tag: `rider-frozen-${String(data.riderId)}`,
+            urgent: true,
+          }),
+        });
     }
     if (a.type === 'merchant_signup') {
       list.push({
@@ -1002,6 +1057,83 @@ const expenseClaimEvents: Source = async (db, since) => {
     if (c.status === 'rejected' && after(c.rejectedAt))
       out.push(toPerson('expense_claim_rejected', 'rejected'));
   }
+  return out;
+};
+
+/**
+ * Basata deposits (owner, 2026-11-11): a new deposit to Accounting (people who may use
+ * accounting for its store), the decision to the rider, and an unfreeze to the rider.
+ */
+const basataEvents: Source = async (db, since) => {
+  const rows = await db.basataDeposit.findMany({
+    where: { OR: [{ createdAt: { gte: since } }, { decidedAt: { gte: since } }] },
+    select: {
+      id: true,
+      number: true,
+      status: true,
+      amountPiastres: true,
+      darkStoreId: true,
+      createdAt: true,
+      decidedAt: true,
+      rejectReason: true,
+      darkStore: { select: { nameEn: true, nameAr: true } },
+      rider: { select: { userId: true, user: { select: { name: true } } } },
+    },
+    take: 200,
+  });
+  const out: Candidate[] = [];
+  for (const d of rows) {
+    const number = `BD-${String(d.number).padStart(6, '0')}`;
+    const vars = { number, amount: egpText(d.amountPiastres), reason: d.rejectReason ?? '' };
+    const tag = `basata-${d.id}`;
+    if (d.createdAt >= since && d.status === 'pending')
+      out.push({
+        key: `basata_deposit_submitted:${d.id}`,
+        make: async () => ({
+          userIds: without(
+            await teamWith(db, 'accounting', 'use', { storeId: d.darkStoreId }),
+            d.rider.userId,
+          ),
+          type: 'finance_approval' as const,
+          text: 'basata_deposit_submitted' as const,
+          vars: { ...vars, rider: d.rider.user.name, store: named(d.darkStore) },
+          url: `/finance/basata/${d.id}`,
+          tag,
+        }),
+      });
+    if (d.decidedAt && d.decidedAt >= since && d.status !== 'pending')
+      out.push({
+        key: `basata_deposit_${d.status}:${d.id}`,
+        make: async () => ({
+          userIds: [d.rider.userId],
+          type: 'basata_deposit' as const,
+          text:
+            d.status === 'approved'
+              ? ('basata_deposit_approved' as const)
+              : ('basata_deposit_rejected' as const),
+          vars,
+          url: '/rider',
+          tag,
+        }),
+      });
+  }
+  const unfrozen = await db.riderFreeze.findMany({
+    where: { unfrozenAt: { gte: since } },
+    select: { id: true, riderId: true, rider: { select: { userId: true } } },
+    take: 100,
+  });
+  for (const f of unfrozen)
+    out.push({
+      key: `rider_unfrozen:${f.id}`,
+      make: async () => ({
+        userIds: [f.rider.userId],
+        type: 'basata_deposit' as const,
+        text: 'rider_unfrozen' as const,
+        vars: {},
+        url: '/rider',
+        tag: `rider-frozen-${f.riderId}`,
+      }),
+    });
   return out;
 };
 

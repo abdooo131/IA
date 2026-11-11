@@ -8,6 +8,7 @@ import {
   chequeLabel,
   entryNumber,
   expenseClaimNumber,
+  basataDepositNumber,
   handoverNumber,
   payoutNumber,
   pettyCashLabel,
@@ -113,6 +114,17 @@ export async function recordRef(db: Db, entityType: string, id: string): Promise
         darkStoreId: input?.darkStoreId ?? null,
         merchantId: null,
       };
+    }
+    case 'basata_deposit': {
+      const r = await db.basataDeposit.findUnique({ where: { id } });
+      return (
+        r && {
+          label: basataDepositNumber(r.number),
+          href: `/finance/basata/${id}`,
+          darkStoreId: r.darkStoreId,
+          merchantId: null,
+        }
+      );
     }
     case 'expense_claim': {
       const r = await db.expenseClaim.findUnique({ where: { id } });

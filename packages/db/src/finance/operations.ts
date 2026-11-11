@@ -9,6 +9,7 @@ import { payoutMinimumFor } from './contracts';
 import { eventTime } from './books';
 import { cairoDay } from '@shiplynow/shared';
 import { chargeShortageToRider } from './rider-wallet';
+import { getSetting } from '../settings';
 
 /** Flips a sign without producing -0. */
 const negate = (value: number) => 0 - value;
@@ -38,16 +39,28 @@ export function riderCash(db: Db, riderId: string) {
 
 /**
  * The cash a rider is expected to hand in now: their rider cash less the differences of
- * earlier handovers still waiting for finance (a shortage less, a surplus more). Such a
- * difference stays in rider cash until finance writes it off or charges the rider, so
- * counting it again would record it on two handovers. Never below zero.
+ * earlier handovers still waiting for finance (a shortage less, a surplus more) and less the
+ * Basata deposits they sent that Accounting has not decided yet. Such a difference stays in
+ * rider cash until finance writes it off or charges the rider, and a deposit until it is
+ * approved, so counting them again would record them twice. Never below zero.
  */
 export async function cashToHandIn(db: Db, riderId: string) {
-  const pending = await db.cashHandover.aggregate({
-    where: { riderId, status: 'pending' },
-    _sum: { differencePiastres: true },
-  });
-  return Math.max(0, (await riderCash(db, riderId)) - (pending._sum.differencePiastres ?? 0));
+  const [pending, deposits] = await Promise.all([
+    db.cashHandover.aggregate({
+      where: { riderId, status: 'pending' },
+      _sum: { differencePiastres: true },
+    }),
+    db.basataDeposit.aggregate({
+      where: { riderId, status: 'pending' },
+      _sum: { amountPiastres: true },
+    }),
+  ]);
+  return Math.max(
+    0,
+    (await riderCash(db, riderId)) -
+      (pending._sum.differencePiastres ?? 0) -
+      (deposits._sum.amountPiastres ?? 0),
+  );
 }
 
 /** Rider pay earned and not yet paid (held or not; see rider-wallet.ts for what is available). */
@@ -77,6 +90,9 @@ export function recordCashHandover(
       where: { idempotencyKey: input.idempotencyKey },
     });
     if (seen) return seen;
+    // The store channel can be closed for a store in case of a problem (Basata stays open).
+    if ((await getSetting(tx, 'cash.store_handover_enabled', input.darkStoreId)) !== 1)
+      throw new DomainError('store_handover_closed', 409);
     const rider = await tx.rider.findUnique({ where: { id: input.riderId } });
     if (!rider) throw new DomainError('rider_not_found', 404);
     if (rider.darkStoreId !== input.darkStoreId) throw new DomainError('rider_other_store');

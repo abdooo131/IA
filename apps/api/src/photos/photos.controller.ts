@@ -26,16 +26,17 @@ export class PhotosController {
   /** Body: the image itself (image/jpeg, image/png or image/webp), at most about 1.5 MB. */
   @Post()
   @Roles('admin', 'store_staff', 'rider', 'finance')
-  @ApiQuery({ name: 'kind', enum: ['pack', 'delivery', 'receipt'] })
+  @ApiQuery({ name: 'kind', enum: ['pack', 'delivery', 'receipt', 'basata_receipt'] })
   async upload(
     @Query('kind') kind: string,
     @Req() req: Request,
     @CurrentUser() user: AccessTokenClaims,
   ) {
     // Receipts are for accounting (use), store petty cash (store use) and expense claims
-    // (anyone with an employee file); pack and delivery proof for the store and riders.
+    // (anyone with an employee file); pack and delivery proof for the store and riders; Basata
+    // deposit receipts for riders.
     const allowed: string[] = [];
-    if (user.role === 'rider') allowed.push('pack', 'delivery');
+    if (user.role === 'rider') allowed.push('pack', 'delivery', 'basata_receipt');
     else {
       const access = await loadAccess(req as AuthedRequest, this.prisma);
       if (canDo(access, 'store', 'use') || canDo(access, 'operations', 'use'))
@@ -56,7 +57,7 @@ export class PhotosController {
     if (req.body.length > 0 && !isImage(contentType, req.body))
       throw new DomainError('photo_not_image', 400);
     return savePhoto(this.prisma, {
-      kind: kind as 'pack' | 'delivery' | 'receipt',
+      kind: kind as 'pack' | 'delivery' | 'receipt' | 'basata_receipt',
       contentType,
       data: req.body,
       actorUserId: user.sub,

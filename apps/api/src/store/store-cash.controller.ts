@@ -6,6 +6,7 @@ import {
   payWithdrawal,
   recordCashHandover,
   cashToHandIn,
+  getSetting,
   storeRiderCash,
 } from '@shiplynow/db';
 import { type AccessTokenClaims, cashHandoverSchema, withdrawalPaySchema } from '@shiplynow/shared';
@@ -39,9 +40,12 @@ export class StoreCashController {
       include: { user: { select: { name: true } } },
       orderBy: { badgeCode: 'asc' },
     });
+    const handoverOpen = await getSetting(this.prisma, 'cash.store_handover_enabled', storeId);
     return {
       maxHours: held.maxHours,
       limitPiastres: held.limitPiastres,
+      // The store channel may be closed (cash.store_handover_enabled): Basata stays open.
+      handoverEnabled: handoverOpen === 1,
       riders: await Promise.all(
         riders.map(async (r) => {
           const h = held.riders.find((x) => x.riderId === r.id);
@@ -52,6 +56,7 @@ export class StoreCashController {
             cashPiastres: await cashToHandIn(this.prisma, r.id),
             heldSince: h?.heldSince ?? null,
             overdue: h?.overdue ?? false,
+            frozen: Boolean(r.frozenAt),
             outNow: await this.prisma.delivery.count({
               where: { riderId: r.id, status: { in: ['assigned', 'picked_up'] } },
             }),

@@ -28,9 +28,12 @@ export type AppListKey =
   | 'hr/employees'
   | 'hr/leave'
   | 'hr/violations'
-  | 'hr/suggestions';
+  | 'hr/suggestions'
+  | 'accounting/basata_deposits';
 
 const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
+  // Basata cash deposits (Accounting): defined below with the rest of the file's helpers.
+  'accounting/basata_deposits': () => BASATA_COLUMNS(),
   'operations/orders': () => [
     { key: 'number', kind: 'ltr', sort: 'number', primary: true },
     { key: 'placedAt', kind: 'datetime', sort: 'placed' },
@@ -301,7 +304,23 @@ const COLUMNS: Record<AppListKey, (locale: string) => Col[]> = {
   ],
 };
 
+const BASATA_COLUMNS = (): Col[] => [
+  { key: 'number', kind: 'ltr', sort: 'number', primary: true },
+  { key: 'rider', kind: 'text' },
+  { key: 'badge', kind: 'ltr', optional: true },
+  { key: 'store', kind: 'text' },
+  { key: 'reference', kind: 'ltr' },
+  { key: 'depositedAt', kind: 'datetime', sort: 'deposited' },
+  { key: 'createdAt', kind: 'datetime', sort: 'created', optional: true },
+  { key: 'status', kind: 'status' },
+  { key: 'decidedBy', kind: 'text', optional: true },
+  { key: 'rejectReason', kind: 'text', optional: true },
+  { key: 'settlement', kind: 'ltr', optional: true },
+  { key: 'amount', kind: 'money', sort: 'amount' },
+];
+
 const HREFS: Record<AppListKey, string | undefined> = {
+  'accounting/basata_deposits': '/finance/basata/{id}',
   'operations/orders': '/admin/orders/{id}',
   'operations/alerts': '/admin/orders/{orderId}',
   'inventory/stock': '/admin/products/{skuId}',
@@ -465,6 +484,9 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
         ['daily', 'twice_weekly', 'weekly'].map((k) => [k, schedules(k)]),
       );
       break;
+    case 'accounting/basata_deposits':
+      valueLabels.status = own('statuses');
+      break;
     case 'merchants/products':
       valueLabels.state = {
         active: t('products.state.active'),
@@ -549,6 +571,13 @@ export async function appListConfig(key: AppListKey): Promise<ListViewConfig> {
       key: 'approve',
       label: t('bulk.approveTransfers'),
       endpoint: '/admin/transfers/bulk-approve',
+    });
+  // Basata deposits: approve several after checking their receipts (each checked on its own).
+  if (key === 'accounting/basata_deposits' && canDo(profile, 'accounting', 'use'))
+    bulk.push({
+      key: 'approve',
+      label: t('bulk.approveBasata'),
+      endpoint: '/finance/basata/deposits/bulk-approve',
     });
   if (key === 'inventory/counts' && canDo(profile, 'inventory', 'manage'))
     bulk.push({

@@ -15,6 +15,7 @@ import { FinanceController } from './finance.controller';
 import { RiderOfficesController } from './rider-offices.controller';
 import { RiderWithdrawalsController } from './rider-withdrawals.controller';
 import { ExpenseClaimsController } from './expense-claims.controller';
+import { BasataController } from './basata.controller';
 import { FinanceViewsController } from './views.controller';
 import { FinanceRunsController } from './runs.controller';
 import { LoansTagsFxController } from './loans-tags-fx.controller';
@@ -38,6 +39,7 @@ import { AgingController } from './aging.controller';
     RiderWithdrawalsController,
     RiderOfficesController,
     ExpenseClaimsController,
+    BasataController,
     FinanceViewsController,
     FinanceRunsController,
     LoansTagsFxController,

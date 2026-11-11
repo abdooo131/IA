@@ -28,6 +28,11 @@ export function RiderWallets({ riders }: { riders: RiderWalletRow[] }) {
           <li key={r.id} className="rounded-lg border border-line bg-surface p-4 shadow-sm">
             <p className="font-bold">
               {r.name} (<span className="ltr-iso">{r.badgeCode}</span>)
+              {r.frozen && (
+                <Link href="/finance/frozen-riders" className="ms-2 text-danger">
+                  {t('frozen')}
+                </Link>
+              )}
             </p>
             <p className="text-caption text-text-muted">{localized(r.darkStore, locale)}</p>
             <dl className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-5">

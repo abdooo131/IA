@@ -181,6 +181,8 @@ export const APPS: AppDef[] = [
           { href: '/finance/cash-position', label: 'cashPosition' },
           { href: '/finance/cash', label: 'storeCash' },
           { href: '/finance/bank', label: 'bankMatching' },
+          { href: '/finance/basata', label: 'basataDeposits' },
+          { href: '/finance/frozen-riders', label: 'frozenRiders' },
           { href: '/finance/receipts', label: 'receipts' },
           { href: '/finance/loans', label: 'loans' },
         ],

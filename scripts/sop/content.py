@@ -1699,3 +1699,61 @@ _insert_after(
    "problems": [
      "القائمة باينة فاضية: شيل شرائح التصفية؛ ممكن القائمة تفتح بفلتر افتراضي (الموافقات بتفتح على المنتظر).",
      "الموافقة الجماعية رفضت شوية سجلات: اقرا الأسباب تحت القائمة؛ ووافق عليهم واحد واحد بس لو القاعدة تسمح."]})
+
+# Basata cash deposits (owner, 2026-11-11): riders deposit at a Basata branch; finance reviews
+# the receipts, records Basata's daily transfer and unfreezes riders.
+_insert_after(
+  "rider", "Cash at the end of the shift", "الفلوس آخر الشيفت",
+  {"title": "Deposit your cash at Basata",
+   "steps": [
+     "Go to a Basata branch with the cash you collected and deposit it.",
+     "In the rider app tap Deposit at Basata: take a photo of the receipt, type the amount, the reference number on the receipt and when you deposited.",
+     "Tap Send the deposit. It shows Waiting for review until accounting checks it.",
+     "Hand in or deposit all your cash before the daily deadline shown on the screen (23:00 unless accounting says otherwise)."],
+   "check": [
+     "My deposits shows it as Waiting for review, then Approved.",
+     "Cash to hand in went down by the amount."],
+   "problems": [
+     "Cash still with you after the deadline is taken from you (from your office or your wallet) and your account is frozen: deposit it at Basata and call accounting; only accounting unfreezes you.",
+     "Refused: read the reason under the deposit, fix it and send it again with the right receipt.",
+     "The reference was already sent: check the number on the receipt; never send one receipt twice."]},
+  {"title": "إيداع الفلوس في بساطة",
+   "steps": [
+     "روح أي فرع بساطة بالفلوس اللي حصّلتها وأودعها.",
+     "في تطبيق المندوب دوس إيداع في بساطة: صوّر الإيصال، واكتب المبلغ ورقم المرجع اللي على الإيصال ووقت الإيداع.",
+     "دوس إرسال الإيداع. هيفضل في انتظار المراجعة لحد ما الحسابات تراجعه.",
+     "سلّم أو أودع كل فلوسك قبل الموعد اليومي اللي ظاهر على الشاشة (11 بالليل إلا لو الحسابات قالت غير كده)."],
+   "check": [
+     "إيداعاتي بتوريه في انتظار المراجعة، وبعدين مقبول.",
+     "النقدية المطلوب تسليمها نقصت بالمبلغ."],
+   "problems": [
+     "الفلوس اللي معاك بعد الموعد بتتخصم منك (من مكتبك أو من محفظتك) وحسابك بيتوقف: أودعها في بساطة وكلّم الحسابات؛ الحسابات بس هي اللي تلغي الإيقاف.",
+     "اترفض: اقرا السبب تحت الإيداع، صلّح وابعته تاني بالإيصال الصح.",
+     "المرجع اتبعت قبل كده: راجع الرقم اللي على الإيصال؛ عمرك ما تبعت نفس الإيصال مرتين."]})
+
+_insert_after(
+  "finance", "Cash position every morning", "موقف النقدية كل صبح",
+  {"title": "Basata deposits, transfers and frozen riders",
+   "steps": [
+     "Cash and bank, Basata deposits opens on deposits waiting for review. Open each one: compare the receipt photo with the amount, the reference and the time, then Approve or Reject with a reason (at least 5 characters). Never decide your own.",
+     "When Basata's daily transfer reaches the bank: Record Basata transfer, choose the bank (CIB), the day and the amount that arrived, keep ticked the deposits it covers. Basata's fee is the difference and is booked as an expense.",
+     "Then match the bank line on Match the bank as usual.",
+     "Frozen riders lists riders who still held cash after the daily deadline. Follow up with the rider and their office; Unfreeze only with a written reason once it is settled."],
+   "check": [
+     "No deposit waits for review by noon.",
+     "At Basata on the cash position is only what Basata has not transferred yet."],
+   "problems": [
+     "The receipt does not match: Reject with the reason; after the deadline the cash is taken from the rider at once.",
+     "The transfer is more than the deposits ticked: a deposit is missing; find it before recording."]},
+  {"title": "إيداعات بساطة والتحويلات والمناديب الموقوفون",
+   "steps": [
+     "الكاش والبنك، إيداعات بساطة بتفتح على الإيداعات المستنية مراجعة. افتح كل واحد: قارن صورة الإيصال بالمبلغ والمرجع والوقت، وبعدين اقبل أو ارفض بسبب (5 حروف على الأقل). عمرك ما تقرر إيداعك.",
+     "لما تحويل بساطة اليومي يوصل البنك: تسجيل تحويل بساطة، اختار البنك (CIB) واليوم والمبلغ اللي وصل، وسيب الإيداعات اللي بيغطيها متعلّم عليها. عمولة بساطة هي الفرق وبتتسجل مصروف.",
+     "وبعدين طابق سطر البنك من مطابقة البنك زي العادة.",
+     "المناديب الموقوفون بتعرض المناديب اللي كان معاهم فلوس بعد الموعد اليومي. تابع مع المندوب ومكتبه؛ وألغي الإيقاف بس بسبب مكتوب بعد ما الموضوع يتسوّى."],
+   "check": [
+     "مفيش إيداع مستني مراجعة لحد الضهر.",
+     "لدى بساطة في موقف النقدية هو بس اللي بساطة لسه ما حوّلتوش."],
+   "problems": [
+     "الإيصال مش مطابق: ارفض بالسبب؛ بعد الموعد الفلوس بتتخصم من المندوب فورًا.",
+     "التحويل أكبر من الإيداعات المتعلّم عليها: فيه إيداع ناقص؛ دوّر عليه قبل التسجيل."]})

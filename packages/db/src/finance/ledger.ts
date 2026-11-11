@@ -48,12 +48,15 @@ export type SystemAccountKey =
   | 'goods_received'
   | 'rider_office_commission'
   | 'rider_office_accrued'
-  | 'loan_interest_expense';
+  | 'loan_interest_expense'
+  | 'basata_transit'
+  | 'basata_fees';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
   SystemAccountKey,
-  { type: LedgerAccountType; group: number; code: string; nameEn: string; nameAr: string }
+  /** code: the preferred code; none takes the group's next free code when first used */
+  { type: LedgerAccountType; group: number; code?: string; nameEn: string; nameAr: string }
 > = {
   bank: {
     type: 'bank',
@@ -251,6 +254,21 @@ const SYSTEM_ACCOUNTS: Record<
     nameEn: 'Loan interest',
     nameAr: 'فوائد القروض',
   },
+  // Basata cash deposits: approved rider deposits wait here until Basata's daily transfer
+  // reaches the bank. A company money account like a cash box (the next free 1200 code).
+  basata_transit: {
+    type: 'cash_box',
+    group: 1200,
+    nameEn: 'Money at Basata, on its way to the bank',
+    nameAr: 'نقدية لدى بساطة في الطريق إلى البنك',
+  },
+  // What Basata keeps from each daily transfer (the company pays it; next free 5500 code).
+  basata_fees: {
+    type: 'expense',
+    group: 5500,
+    nameEn: 'Basata fees',
+    nameAr: 'عمولة بساطة',
+  },
 };
 
 /** Opening accounts every company starts with (also created by the chart of accounts migration). */
@@ -426,7 +444,9 @@ export async function nextNumber(
     | 'crm_deals'
     | 'crm_proposals'
     | 'rider_withdrawals'
-    | 'expense_claims',
+    | 'expense_claims'
+    | 'basata_deposits'
+    | 'basata_settlements',
 ) {
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'number:' + table}))`;
   const rows = await tx.$queryRawUnsafe<{ max: number | null }[]>(

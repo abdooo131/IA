@@ -17,6 +17,7 @@ export const ACCOUNTING_DOCS = [
   'purchase_order',
   'cash_handover',
   'expense_claim',
+  'basata_deposit',
 ] as const;
 export type AccountingDoc = (typeof ACCOUNTING_DOCS)[number];
 
@@ -35,6 +36,7 @@ export const DOC_PREFIXES = {
   RW: 'rider_withdrawal',
   BS: 'bank_statement',
   EC: 'expense_claim',
+  BD: 'basata_deposit',
 } as const;
 export type DocPrefix = keyof typeof DOC_PREFIXES;
 
@@ -116,6 +118,7 @@ export const DOC_LISTS: Record<AccountingDoc, { list: string; href: string }> = 
   purchase_order: { list: 'purchaseOrders', href: '/finance/purchase-orders' },
   cash_handover: { list: 'storeCash', href: '/finance/cash' },
   expense_claim: { list: 'expenseClaims', href: '/finance/expense-claims' },
+  basata_deposit: { list: 'basataDeposits', href: '/finance/basata' },
 };
 
 /** What the one search answers: a document, an order or a merchant, and where it opens. */

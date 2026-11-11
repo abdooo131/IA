@@ -268,6 +268,9 @@ export const KIND_FAMILIES: Record<string, readonly string[]> = {
     'money_transfer',
     'petty_cash',
     'petty_cash_reversal',
+    'basata_deposit',
+    'basata_deadline_charge',
+    'basata_settlement',
   ],
   payouts: ['merchant_payout', 'rider_bonus_payout', 'rider_withdrawal'],
   bills: [

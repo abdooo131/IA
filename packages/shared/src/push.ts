@@ -32,6 +32,8 @@ export const PUSH_TYPES = [
   'activity_due',
   'payslip_ready',
   'expense_claim',
+  'basata_deposit',
+  'rider_frozen',
 ] as const;
 export type PushType = (typeof PUSH_TYPES)[number];
 
@@ -61,12 +63,14 @@ export function pushTypesFor(me: MyAccess): PushType[] {
       'hr_update',
       'rider_wallet',
       'expense_claim',
+      'basata_deposit',
     ];
   const p: AccessProfile = me.profile;
   const list: PushType[] = [];
   if (canDo(p, 'store', 'use')) list.push('order_new', 'order_late', 'stock_arriving');
   if (canDo(p, 'accounting', 'use')) list.push('finance_approval', 'cash_difference');
-  if (canDo(p, 'store', 'manage') || canDo(p, 'accounting', 'use')) list.push('rider_cash_overdue');
+  if (canDo(p, 'store', 'manage') || canDo(p, 'accounting', 'use'))
+    list.push('rider_cash_overdue', 'rider_frozen');
   if (canDo(p, 'operations', 'manage')) list.push('ops_alert');
   if (canDo(p, 'merchants', 'manage')) list.push('merchant_signup');
   if (canDo(p, 'merchants', 'use')) list.push('merchant_alert');
@@ -377,6 +381,33 @@ export const PUSH_TEXT = {
   expense_claim_rejected: {
     en: ['Expense claim {number} refused', '{reason}'],
     ar: ['تم رفض الطلب {number}', '{reason}'],
+  },
+  basata_deposit_submitted: {
+    en: ['Basata deposit {number} to check', '{rider} at {store} deposited {amount} EGP.'],
+    ar: ['إيداع بساطة {number} للمراجعة', '{rider} في {store} أودع {amount} جنيه.'],
+  },
+  basata_deposit_approved: {
+    en: ['Deposit {number} approved', '{amount} EGP at Basata is accepted.'],
+    ar: ['تم قبول الإيداع {number}', 'تم قبول {amount} جنيه في بساطة.'],
+  },
+  basata_deposit_rejected: {
+    en: ['Deposit {number} refused', '{reason}'],
+    ar: ['تم رفض الإيداع {number}', '{reason}'],
+  },
+  rider_frozen: {
+    en: ['Rider frozen: {rider}', '{rider} at {store} still held {amount} EGP after the deadline.'],
+    ar: ['تم إيقاف المندوب: {rider}', '{rider} في {store} كان معه {amount} جنيه بعد الموعد.'],
+  },
+  rider_frozen_self: {
+    en: [
+      'Your account is frozen',
+      '{amount} EGP was not handed in by the deadline. Deposit it and call accounting.',
+    ],
+    ar: ['تم إيقاف حسابك', 'لم يتم تسليم {amount} جنيه في الموعد. أودعه وكلم الحسابات.'],
+  },
+  rider_unfrozen: {
+    en: ['You can work again', 'Accounting unfroze your account.'],
+    ar: ['يمكنك العمل مرة أخرى', 'الحسابات ألغت إيقاف حسابك.'],
   },
   correction_waiting_manager: {
     en: ['Attendance fix from {person}', '{day}: {problem}'],

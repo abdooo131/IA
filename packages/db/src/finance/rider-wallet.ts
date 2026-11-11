@@ -306,6 +306,12 @@ export function requestWithdrawal(
     await tx.$queryRaw`SELECT id FROM riders WHERE id = ${rider.id} FOR UPDATE`;
     const user = await tx.user.findUnique({ where: { id: input.riderUserId } });
     if (!user?.isActive) throw new DomainError('account_disabled', 403);
+    // Basata deposits: a frozen rider asks for nothing until Accounting unfreezes them.
+    const fresh = await tx.rider.findUnique({
+      where: { id: rider.id },
+      select: { frozenAt: true },
+    });
+    if (fresh?.frozenAt) throw new DomainError('rider_frozen', 409);
     const maxOpen = await getSetting(tx, 'rider.max_open_withdrawals');
     const { totals, owed, open } = await riderWalletTotals(tx, rider.id, now);
     if (open.length >= maxOpen) throw new DomainError('withdrawal_already_open', 409);

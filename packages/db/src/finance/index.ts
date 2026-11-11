@@ -336,3 +336,26 @@ export { costTagReport, createCostTag, listCostTags, updateCostTag } from './cos
 export { bothBalances, foreignBanks, fxRateMicro, revalueForeignBank } from './fx';
 export { chargeStorageDays, unitDays, unitsAtDayEnds, unitsForDays } from './storage';
 export { accountBalances } from './books';
+export {
+  approveBasataDeposit,
+  assertNotFrozen,
+  basataDepositDetail,
+  basataDepositView,
+  type BasataDepositView,
+  basataPosition,
+  deductedNotGivenBack,
+  listBasataSettlements,
+  listFrozenRiders,
+  maxBasataDeposit,
+  normalizeReference,
+  pendingBasataPiastres,
+  recordBasataSettlement,
+  rejectBasataDeposit,
+  riderBasata,
+  riderCashAtDeadline,
+  riderFreezeState,
+  runDepositDeadline,
+  submitBasataDeposit,
+  unfreezeRider,
+  unsettledBasataDeposits,
+} from './basata';

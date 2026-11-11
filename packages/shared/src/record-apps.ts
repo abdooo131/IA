@@ -56,6 +56,7 @@ export const RECORD_APPS: Record<string, readonly AccessApp[]> = {
   rider_withdrawal: ['accounting'],
   petty_cash: ['accounting'],
   expense_claim: ['accounting'],
+  basata_deposit: ['accounting'],
   // UX phase C step 4: Sales records (a rep with own_deals_only reaches only their own).
   crm_deal: ['sales'],
   crm_company: ['sales'],

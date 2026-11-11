@@ -603,6 +603,8 @@ export function handToRider(
     });
     if (!rider || !rider.user.isActive) throw new DomainError('rider_not_found', 404);
     if (rider.darkStoreId !== order.darkStoreId) throw new DomainError('rider_other_store');
+    // Basata deposits: a rider frozen for cash not handed in by the deadline takes no orders.
+    if (rider.frozenAt) throw new DomainError('rider_frozen');
     // HR step 2: with hr.riders_must_clock_in on, a rider takes orders only while clocked in.
     if (
       (await getSetting(tx, 'hr.riders_must_clock_in', order.darkStoreId)) === 1 &&
