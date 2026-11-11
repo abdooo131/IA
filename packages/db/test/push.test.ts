@@ -582,7 +582,10 @@ describe('push notifications', () => {
       where: { endpoint: 'https://push.test/owner' },
     });
     expect(owner.failures).toBe(1);
-    expect(await prisma.pushSent.count()).toBe(1);
+    // The payments due scan marks its window too (payment_due_scan:<slot>); not an event.
+    expect(
+      await prisma.pushSent.count({ where: { NOT: { key: { startsWith: 'payment_due_scan:' } } } }),
+    ).toBe(1);
   });
 
   it('sends nothing without keys or with push.enabled at 0', async () => {

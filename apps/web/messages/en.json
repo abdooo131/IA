@@ -548,7 +548,8 @@
         "cash__store_handover_enabled": "Riders may hand cash to the store (1 open, 0 closed)",
         "cash__basata_enabled": "Riders may deposit cash at Basata (1 open, 0 closed)",
         "cash__deposit_deadline_enabled": "Take cash held at the deadline and freeze the rider (1 on, 0 off)",
-        "cash__deposit_deadline_hour": "Daily cash deadline (Cairo hour, 0 to 23)"
+        "cash__deposit_deadline_hour": "Daily cash deadline (Cairo hour, 0 to 23)",
+        "finance__due_reminder_days": "Phone reminder of a payment this many days before it is due (and on the day)"
       },
       "default": "Default {value}",
       "global": "Everywhere",
@@ -3411,6 +3412,11 @@
         "payMerchants": "Pay merchants",
         "matchBank": "Match the bank",
         "closeMonth": "Close the month"
+      },
+      "due": {
+        "title": "Coming up and due",
+        "seeAll": "See the next 90 days",
+        "intro": "Payments we already know about: what is late, what falls due this week and in the next 30 days."
       }
     },
     "reportsPage": {
@@ -3927,6 +3933,45 @@
       "companyWide": "No store (company wide)",
       "vatHint": "VAT is added at the fee VAT rate of Accounting, Configuration.",
       "issue": "Issue debit note"
+    },
+    "due": {
+      "title": "Coming up and due",
+      "pageIntro": "Every payment we already know about until {until}, each linked to the screen that pays it.",
+      "howCounted": "How is this counted?",
+      "method": "Recurring expenses on their day each month until that month's request is approved; open supplier bills by due day (what is still unpaid); unpaid loan instalments; the salary run on each month's last day until it is posted, estimated from the gross of the salary packages in force (tax and insurance not taken off); taxes owed (VAT, withholding, salary tax, social insurance, martyrs fund): what was owed when this month began, less tax paid since, is due at the end of this month and the rest at the end of next month; merchant payouts on each merchant's next payout day, or from the day a draft payout was prepared. People limited to some stores see their stores' items and company wide ones, but not merchant payouts.",
+      "filterLabel": "Show",
+      "allKinds": "Everything",
+      "kinds": {
+        "recurring": "Recurring expense",
+        "bill": "Supplier bill",
+        "loan": "Loan instalment",
+        "salaries": "Salaries",
+        "tax": "Taxes",
+        "payout": "Merchant payout"
+      },
+      "groups": {
+        "overdue": "Overdue",
+        "week": "Due this week",
+        "month": "Next 30 days",
+        "later": "Later"
+      },
+      "taxes": {
+        "vat": "VAT",
+        "wht": "Withholding tax",
+        "payroll_tax": "Salary income tax",
+        "social_insurance": "Social insurance",
+        "martyrs_fund": "Martyrs fund"
+      },
+      "details": {
+        "estimate": "estimate",
+        "waiting_approval": "waiting for approval",
+        "prepared": "draft prepared"
+      },
+      "forMonth": "for {month}",
+      "today": "Today",
+      "none": "Nothing here.",
+      "noAmount": "Not known yet",
+      "more": "{count} more"
     }
   },
   "storeCash": {
@@ -6173,7 +6218,8 @@
       "costTags": "Cost tags",
       "payablesAging": "Owed to suppliers, by age",
       "basataDeposits": "Basata deposits",
-      "frozenRiders": "Frozen riders"
+      "frozenRiders": "Frozen riders",
+      "paymentsDue": "Coming up and due"
     },
     "hints": {
       "organisation": "Departments, job positions and grades",
@@ -7089,6 +7135,10 @@
       "rider_frozen": {
         "name": "Riders frozen",
         "hint": "A rider still held cash after the daily deadline and was frozen."
+      },
+      "payment_due": {
+        "name": "Payments coming up",
+        "hint": "A bill, loan instalment, tax, salary run, recurring expense or merchant payout is due soon or today."
       }
     }
   },

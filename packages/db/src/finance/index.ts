@@ -295,6 +295,7 @@ export {
 export { FINANCE_LIST_DEFS, financeListGaps, MONEY_IN_REQUESTS, queryFinanceList } from './lists';
 export { accountingDocument } from './documents';
 export { financeDashboard, type JournalCard, SPARK_DAYS, type TodayItem } from './dashboard';
+export { dueGroupOf, type PaymentDueItem, type PaymentsDue, paymentsDue } from './payments-due';
 export { financeSearch } from './search';
 export { bulkApprovePayouts, bulkDecideRequests } from './bulk';
 export {

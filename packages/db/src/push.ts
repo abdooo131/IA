@@ -2,17 +2,20 @@ import type { Prisma } from '@prisma/client';
 import {
   type AccessApp,
   type AccessLevel,
+  addDays,
   cairoDay,
   dealNumber,
   proposalNumber,
   egpText,
   merchantRightsOf,
   type MerchantRightName,
+  PAYMENT_DUE_KIND_WORDS,
   type PushLang,
   pushLangOf,
   pushText,
   type PushTextKey,
   type PushType,
+  type PushVar,
   type PushVars,
   stageWords,
   TEAM_ROLES,
@@ -20,6 +23,7 @@ import {
 import { type Db, inTransaction } from './client';
 import { getSetting } from './settings';
 import { dueActivities } from './records';
+import { type PaymentDueItem, paymentsDue } from './finance/payments-due';
 
 // Web push notifications (docs/ARCHITECTURE.md, Integrations). The API's PushSender talks to the
 // browsers' push services; everything else lives here: who receives what, in which language,
@@ -325,6 +329,7 @@ export async function dispatchPush(
     expenseClaimEvents,
     paymentReminderEvents,
     basataEvents,
+    paymentDueEvents,
   ];
   for (const source of sources) {
     const candidates = await source(db, since, now);
@@ -1934,4 +1939,87 @@ const documentReminders: Source = async (db, since) => {
       };
     },
   }));
+};
+
+// ─── Coming up and due ──────────────────────────────────────────────────────────
+
+/** How often the payments due list is read for reminders (it is not cheap to build). */
+export const PAYMENT_DUE_SCAN_MS = 10 * 60_000;
+
+const TAX_WORDS: Record<string, { en: string; ar: string }> = {
+  vat: { en: 'VAT', ar: 'ضريبة القيمة المضافة' },
+  wht: { en: 'Withholding tax', ar: 'ضريبة الخصم من المنبع' },
+  payroll_tax: { en: 'Salary income tax', ar: 'ضريبة كسب العمل' },
+  social_insurance: { en: 'Social insurance', ar: 'التأمينات الاجتماعية' },
+  martyrs_fund: { en: 'Martyrs fund', ar: 'صندوق الشهداء' },
+};
+
+/**
+ * Accounting hears about a known payment finance.due_reminder_days days before its due day and
+ * again on the day itself (overdue ones are never pushed again). Each item and send day is one
+ * key, payment_due:<kind>:<id>:<day>, so running twice sends nothing new; merchant payouts of
+ * one due day go out as one notification. Store items reach people of that store, payouts only
+ * people with all stores, the rest everyone with Accounting use. The list is read at most once
+ * per PAYMENT_DUE_SCAN_MS across instances.
+ */
+const paymentDueEvents: Source = async (db, _since, now) => {
+  const slot = Math.floor(now.getTime() / PAYMENT_DUE_SCAN_MS);
+  if (!(await claim(db, `payment_due_scan:${slot}`))) return [];
+  const today = cairoDay(now);
+  const ahead = await getSetting(db, 'finance.due_reminder_days');
+  const soon = addDays(today, ahead);
+  const due = await paymentsDue(db, now, { stores: null, days: ahead });
+  const items = due.items.filter((i) => i.dueDay === today || i.dueDay === soon);
+  const label = (i: PaymentDueItem) =>
+    i.kind === 'tax' && i.detail && TAX_WORDS[i.detail] ? TAX_WORDS[i.detail]! : i.label;
+  const list: Candidate[] = [];
+  const event = (
+    items: PaymentDueItem[],
+    vars: { label: PushVar; party: string },
+  ): Omit<PushEvent, 'key' | 'userIds'> => {
+    const first = items[0]!;
+    return {
+      type: 'payment_due',
+      text: first.dueDay === today ? 'payment_due_today' : 'payment_due_soon',
+      vars: {
+        kind: PAYMENT_DUE_KIND_WORDS[first.kind],
+        day: first.dueDay,
+        label: vars.label,
+        party: vars.party,
+        amount: egpText(items.reduce((s, i) => s + (i.amountPiastres ?? 0), 0)),
+      },
+      url: items.length === 1 ? first.href : '/finance/due',
+      tag: `payment-due-${first.key}`,
+    };
+  };
+  for (const i of items.filter((x) => x.kind !== 'payout'))
+    list.push({
+      key: `payment_due:${i.kind}:${i.id}:${today}`,
+      make: async () => ({
+        userIds: await teamWith(
+          db,
+          'accounting',
+          'use',
+          i.darkStoreId ? { storeId: i.darkStoreId } : {},
+        ),
+        ...event([i], { label: label(i), party: i.counterparty ? ` (${i.counterparty})` : '' }),
+      }),
+    });
+  for (const day of [...new Set(items.filter((x) => x.kind === 'payout').map((x) => x.dueDay))]) {
+    const payouts = items.filter((x) => x.kind === 'payout' && x.dueDay === day);
+    list.push({
+      key: `payment_due:payout:${day}:${today}`,
+      make: async () => ({
+        userIds: await teamWith(db, 'accounting', 'use', { anyStoreIds: [] }),
+        ...event(payouts, {
+          label:
+            payouts.length === 1
+              ? payouts[0]!.label
+              : { en: `${payouts.length} merchants`, ar: `${payouts.length} تجار` },
+          party: '',
+        }),
+      }),
+    });
+  }
+  return list;
 };

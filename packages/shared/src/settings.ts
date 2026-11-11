@@ -868,6 +868,13 @@ export const SETTING_DEFINITIONS = {
     description: 'The first payment reminder goes after this many days in debit',
     override: 'none',
   },
+  'finance.due_reminder_days': {
+    schema: z.number().int().min(0).max(60),
+    default: 3,
+    description:
+      'Accounting hears by phone this many days before a payment is due (bills, loans, taxes, salaries, recurring expenses, payouts) and again on its due day',
+    override: 'none',
+  },
   'receivables.reminder_every_days': {
     schema: z.number().int().min(1).max(365),
     default: 7,
