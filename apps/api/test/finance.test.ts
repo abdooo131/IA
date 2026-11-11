@@ -223,6 +223,8 @@ describe('finance', () => {
     expect(ledger.body.rows.map((r: { kind: string }) => r.kind).sort()).toEqual([
       'cod_collected',
       'order_fee',
+      // Our cost: the postal authority's share of the order fee (never the merchant's).
+      'postal_fee',
       'rider_bonus',
     ]);
   });

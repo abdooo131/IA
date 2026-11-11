@@ -9,6 +9,7 @@ export const PAYMENT_DUE_KINDS = [
   'loan',
   'salaries',
   'tax',
+  'postal',
   'payout',
 ] as const;
 export type PaymentDueKind = (typeof PAYMENT_DUE_KINDS)[number];

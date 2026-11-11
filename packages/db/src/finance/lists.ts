@@ -342,6 +342,7 @@ export const KIND_FAMILIES: Record<string, readonly string[]> = {
     'rider_bonus',
     'return_fee',
     'minimum_fee',
+    'postal_fee',
   ],
   cash: [
     'cash_handover',

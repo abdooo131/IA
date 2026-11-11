@@ -336,7 +336,7 @@ export async function cashForecast(db: Db, now: Date = new Date()) {
     db.$queryRaw<{ owed: bigint | null }[]>`
       SELECT -SUM(l.amount_piastres) AS owed FROM ledger_lines l
       JOIN ledger_accounts a ON a.id = l.account_id
-      WHERE a.key IN ('vat_payable', 'wht_payable')`,
+      WHERE a.key IN ('vat_payable', 'wht_payable', 'postal_fee_payable')`,
   ]);
   const salaryTotal = salaries;
   const taxesOwed = Math.max(0, Number(taxes[0]?.owed ?? 0));

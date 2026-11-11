@@ -36,6 +36,8 @@ import type { RecurringExpense } from './recurring';
 //               this month, the rest (this month's) at the end of next month. The codebase has
 //               no legal calendar, so this is the "end of the next month" rule for every tax
 //               (withholding is really quarterly).
+//   postal      the postal fees owed to the postal office (fee.postal_bp of our fees per
+//               shipment), paid once a month: the same rule as the taxes
 //   payout      merchants owed money on their next payout day (schedule); a prepared draft
 //               payout is due from the day it was prepared
 //
@@ -267,12 +269,18 @@ export async function paymentsDue(
     }
   }
 
-  // ─── taxes ───
-  if (kinds.has('tax')) {
+  // ─── taxes and postal fees ───
+  // What was owed when this month began, less payments since, is due at the end of this
+  // month; the rest (this month's) at the end of next month.
+  const owedTaxes: { tax: TaxKind; kind: 'tax' | 'postal' }[] = [
+    ...(kinds.has('tax') ? DUE_TAXES.map((tax) => ({ tax, kind: 'tax' as const })) : []),
+    ...(kinds.has('postal') ? [{ tax: 'postal' as const, kind: 'postal' as const }] : []),
+  ];
+  if (owedTaxes.length) {
     const monthStart = cairoDayStart(`${month}-01`);
     const thisMonthEnd = monthEnd(today);
     const nextMonthEnd = monthEnd(shiftDayByMonths(`${month}-01`, 1));
-    for (const tax of DUE_TAXES) {
+    for (const { tax, kind } of owedTaxes) {
       const ref = { type: TAXES[tax] } as const;
       const owedNow = 0 - (await balanceOf(db, ref));
       if (owedNow <= 0) continue;
@@ -290,8 +298,8 @@ export async function paymentsDue(
       const lastMonth = shiftDayByMonths(`${month}-01`, -1).slice(0, 7);
       if (dueNow > 0 && thisMonthEnd <= until)
         items.push({
-          key: `tax:${tax}:${lastMonth}`,
-          kind: 'tax',
+          key: `${kind}:${tax}:${lastMonth}`,
+          kind,
           id: `${tax}:${lastMonth}`,
           label: lastMonth,
           counterparty: null,
@@ -299,12 +307,12 @@ export async function paymentsDue(
           dueDay: thisMonthEnd,
           href: '/finance/taxes',
           darkStoreId: null,
-          detail: tax,
+          detail: kind === 'tax' ? tax : null,
         });
       if (later > 0 && nextMonthEnd <= until)
         items.push({
-          key: `tax:${tax}:${month}`,
-          kind: 'tax',
+          key: `${kind}:${tax}:${month}`,
+          kind,
           id: `${tax}:${month}`,
           label: month,
           counterparty: null,
@@ -312,7 +320,7 @@ export async function paymentsDue(
           dueDay: nextMonthEnd,
           href: '/finance/taxes',
           darkStoreId: null,
-          detail: tax,
+          detail: kind === 'tax' ? tax : null,
         });
     }
   }

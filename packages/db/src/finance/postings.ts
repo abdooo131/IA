@@ -31,12 +31,53 @@ async function feeLines(tx: Tx, merchantId: string, fee: number) {
 }
 
 /**
+ * Postal fee (owner, 2026-11-11): Egypt's postal authority takes fee.postal_bp (default 10%)
+ * of our revenue on every shipment. Per shipment it is that share of every fee we charged on
+ * it BEFORE VAT: on a delivered order the shipping fee, per product prices, order fee, COD fee
+ * and packaging charge; on a failed attempt the failed delivery fee charged for it. Storage,
+ * receiving and return fees are not shipments and carry none. It is OUR cost, never charged
+ * to the merchant (the merchant still pays our fees plus VAT, nothing more) and carries no
+ * VAT: Dr 5103 Postal fees, Cr 2307 Postal fees owed, paid to the postal office once a month
+ * from Taxes (payTax with tax postal). Tagged with the order (store and merchant follow from
+ * it in post()); nothing is booked at 0; the key makes a repeat change nothing.
+ */
+async function postPostalFee(
+  tx: Tx,
+  input: {
+    idempotencyKey: string;
+    basePiastres: number;
+    orderId: string;
+    deliveryId: string;
+    now: Date;
+    actorUserId: string | null;
+    memo: string;
+  },
+) {
+  const bp = await getSetting(tx, 'fee.postal_bp');
+  const amount = share(input.basePiastres, bp);
+  await post(tx, {
+    kind: 'postal_fee',
+    idempotencyKey: input.idempotencyKey,
+    orderId: input.orderId,
+    occurredAt: input.now,
+    createdById: input.actorUserId,
+    memo: input.memo,
+    data: { deliveryId: input.deliveryId, basePiastres: input.basePiastres, bp },
+    lines: [
+      { account: { type: 'postal_fee_expense' }, amount },
+      { account: { type: 'postal_fee_payable' }, amount: -amount },
+    ],
+  });
+}
+
+/**
  * A delivered order: the cash the rider collected now belongs to the merchant, we charge
  * at the prices of the merchant's contract (merchant contracts v2) the shipping fee, the
  * per product prices of the delivered units, the order fee (fixed plus a share of the
  * products value), the COD fee and the packaging charge (each its own entry kind, nothing
- * booked at 0), and the rider earns the delivery bonus (and their rider office, if any, its
- * commission on it). Each part has its own key, so
+ * booked at 0), books the postal fee on those fees (our cost, postPostalFee), and the rider
+ * earns the delivery bonus (and their rider office, if any, its commission on it). Each part
+ * has its own key, so
  * posting twice changes nothing.
  */
 export async function postDeliveryCompleted(
@@ -141,6 +182,17 @@ export async function postDeliveryCompleted(
     lines: await feeLines(tx, merchantId, packaging),
   });
 
+  // The postal authority's share of the five fees charged on this shipment (before VAT).
+  await postPostalFee(tx, {
+    idempotencyKey: `delivery:${delivery.id}:postal_fee`,
+    basePiastres: shippingFee + handling + orderFee + share(cash, codBp) + packaging,
+    orderId: order.id,
+    deliveryId: delivery.id,
+    now: input.now,
+    actorUserId: input.actorUserId,
+    memo: order.number,
+  });
+
   const bonus = await getSetting(tx, 'rider.bonus_per_delivery_piastres', order.darkStoreId);
   await post(tx, {
     ...base,
@@ -217,6 +269,16 @@ export async function postDeliveryFailed(
     memo: order.number,
     data: { reason: delivery.failedReason, ...detail },
     lines: await feeLines(tx, merchantId, fee),
+  });
+  // Every charged failed attempt is a shipment too: the postal share of its failed fee.
+  await postPostalFee(tx, {
+    idempotencyKey: `delivery:${delivery.id}:failed_postal_fee`,
+    basePiastres: fee,
+    orderId: delivery.orderId,
+    deliveryId: delivery.id,
+    now: input.now,
+    actorUserId: input.actorUserId,
+    memo: order.number,
   });
 }
 

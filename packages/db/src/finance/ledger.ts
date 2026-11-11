@@ -50,7 +50,9 @@ export type SystemAccountKey =
   | 'rider_office_accrued'
   | 'loan_interest_expense'
   | 'basata_transit'
-  | 'basata_fees';
+  | 'basata_fees'
+  | 'postal_fee_expense'
+  | 'postal_fee_payable';
 
 /** Accounts that exist once, with the code and name they take when first used. */
 const SYSTEM_ACCOUNTS: Record<
@@ -268,6 +270,23 @@ const SYSTEM_ACCOUNTS: Record<
     group: 5500,
     nameEn: 'Basata fees',
     nameAr: 'عمولة بساطة',
+  },
+  // Postal fee (owner, 2026-11-11): Egypt's postal authority takes fee.postal_bp of our fees
+  // (before VAT) on every shipment. Our cost, never the merchant's; owed until the monthly
+  // payment from Taxes.
+  postal_fee_expense: {
+    type: 'expense',
+    group: 5100,
+    code: '5103',
+    nameEn: 'Postal fees',
+    nameAr: 'رسوم البريد',
+  },
+  postal_fee_payable: {
+    type: 'other_liability',
+    group: 2300,
+    code: '2307',
+    nameEn: 'Postal fees owed',
+    nameAr: 'رسوم البريد المستحقة',
   },
 };
 

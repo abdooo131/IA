@@ -19,6 +19,8 @@ import { unitDays as storedUnitDays } from './storage';
 //   fees            fee income booked to the merchant (before VAT), by kind
 //   rider bonus     bonuses of the merchant's delivered orders (tagged to the merchant)
 //   rider offices   commission of rider supply offices on that pay (tagged the same way)
+//   postal fees     the postal authority's share of the fees on the merchant's shipments
+//                   (our cost, tagged with the order's merchant)
 //   rider salaries  each store's rider salaries, shared by the merchant's part of the store's
 //                   delivered orders
 //   store costs     each store's other costs (fuel, staff, supplies; rent apart), shared the
@@ -46,6 +48,7 @@ export interface MerchantMonth {
   costs: {
     riderBonusPiastres: number;
     riderOfficeCommissionPiastres: number;
+    postalFeePiastres: number;
     riderSalaryPiastres: number;
     storeCostsPiastres: number;
     storageSpacePiastres: number;
@@ -201,12 +204,14 @@ export async function merchantProfitability(
     const damage = sum((d) => d.type === 'damage_expense');
     const packaging = sum((d) => d.key === 'expense:packaging');
     const officeCommission = sum((d) => d.key === 'rider_office_commission');
+    const postal = sum((d) => d.key === 'postal_fee_expense');
     const otherDirect = sum(
       (d) =>
         d.type !== 'rider_bonus_expense' &&
         d.type !== 'damage_expense' &&
         d.key !== 'expense:packaging' &&
-        d.key !== 'rider_office_commission',
+        d.key !== 'rider_office_commission' &&
+        d.key !== 'postal_fee_expense',
     );
     const myDelivered = delivered.filter((d) => d.merchant_id === m.id);
     const storeIds = new Set([
@@ -237,6 +242,7 @@ export async function merchantProfitability(
     const costs = {
       riderBonusPiastres: riderBonus,
       riderOfficeCommissionPiastres: officeCommission,
+      postalFeePiastres: postal,
       riderSalaryPiastres: riderSalary,
       storeCostsPiastres: storeCosts,
       storageSpacePiastres: storage,

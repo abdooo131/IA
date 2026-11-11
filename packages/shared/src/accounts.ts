@@ -498,7 +498,15 @@ export const billPaymentSchema = z.object({
 
 export const taxPaymentSchema = z.object({
   attachmentIds: attachmentIdsField,
-  tax: z.enum(['vat', 'wht', 'payroll_tax', 'social_insurance', 'martyrs_fund', 'corporate_tax']),
+  tax: z.enum([
+    'vat',
+    'wht',
+    'payroll_tax',
+    'social_insurance',
+    'martyrs_fund',
+    'corporate_tax',
+    'postal',
+  ]),
   amountPiastres: piastres,
   moneyAccountId: id,
   reference,

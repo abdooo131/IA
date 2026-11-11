@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { post } from '@shiplynow/db';
 import { addDays, cairoDay } from '@shiplynow/shared';
 import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
@@ -103,6 +104,44 @@ describe('suppliers, bills, taxes and assets end to end', () => {
     expect(tax.body.status).toBe('posted');
     const suppliers = await finance.get('/finance/suppliers').expect(200);
     expect(suppliers.body[0]).toMatchObject({ owedPiastres: 0, openBills: 0 });
+  });
+
+  it('pays the postal fees owed to the postal office from Taxes, never more than owed', async () => {
+    const finance = await agent('finance@shiplynow.local');
+    const cib = await account('bank');
+    await post(prisma, {
+      kind: 'test_capital',
+      idempotencyKey: key(),
+      lines: [
+        { account: { type: 'bank' }, amount: 100_000 },
+        { account: { type: 'retained_earnings' }, amount: -100_000 },
+      ],
+    });
+    // What deliveries booked: Dr 5103 Postal fees, Cr 2307 Postal fees owed.
+    await post(prisma, {
+      kind: 'postal_fee',
+      idempotencyKey: key(),
+      lines: [
+        { account: { type: 'postal_fee_expense' }, amount: 4_630 },
+        { account: { type: 'postal_fee_payable' }, amount: -4_630 },
+      ],
+    });
+    expect((await finance.get('/finance/taxes').expect(200)).body.postalPiastres).toBe(4_630);
+    const pay = (amountPiastres: number) =>
+      finance.post('/finance/taxes/payments').send({
+        tax: 'postal',
+        amountPiastres,
+        moneyAccountId: cib.id,
+        reference: 'Post office November',
+        idempotencyKey: key(),
+      });
+    const tooMuch = await pay(4_631).expect(409);
+    expect(tooMuch.body.error).toBe('more_than_owed');
+    const paid = await pay(4_630).expect(201);
+    expect(paid.body.status).toBe('posted');
+    expect((await finance.get('/finance/taxes').expect(200)).body.postalPiastres).toBe(0);
+    const due = await finance.get('/finance/payments-due?days=90&kinds=postal').expect(200);
+    expect(due.body.items).toEqual([]);
   });
 
   it('buys equipment, prepays rent, sets a recurring expense and asks a merchant to pay', async () => {
