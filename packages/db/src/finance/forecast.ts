@@ -50,6 +50,7 @@ const SYSTEM_LINE_KEYS = new Set<string>([
   'revenue',
   'rider_bonus_expense',
   'rider_office_commission',
+  'postal_fee_expense',
   'depreciation_expense',
   'loan_interest_expense',
 ]);
@@ -230,6 +231,7 @@ export async function forecastSuggestion(
         : 0;
     put(m0, 'rider_pay_per_order', perOrder('rider_bonus_expense'));
     put(m0, 'office_commission_per_order', perOrder('rider_office_commission'));
+    put(m0, 'postal_per_order', perOrder('postal_fee_expense'));
     put(m0, 'packaging_per_order', perOrder('expense:packaging'));
     averageOf = (accountId) =>
       mulDiv(

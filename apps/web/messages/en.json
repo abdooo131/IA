@@ -437,6 +437,7 @@
         "fee__receiving_per_unit_piastres": "Receiving fee per unit (EGP)",
         "fee__storage_per_unit_month_piastres": "Storage per unit per month (EGP)",
         "fee__vat_bp": "VAT on our fees (%)",
+        "fee__postal_bp": "Postal fee (share of our fees per shipment)",
         "rider__bonus_per_delivery_piastres": "Rider pay per delivered order (EGP)",
         "delivery__max_attempts": "Delivery attempts per order",
         "delivery__retry_hold_hours": "Hours to decide after a failed attempt",
@@ -2046,7 +2047,8 @@
       "debit_note": "Debit note",
       "basata_deposit": "Basata deposit approved",
       "basata_deadline_charge": "Cash taken at the deadline",
-      "basata_settlement": "Basata transfer to the bank"
+      "basata_settlement": "Basata transfer to the bank",
+      "postal_fee": "Postal fee"
     },
     "accounts": {
       "merchant": "Merchant wallet",
@@ -2775,6 +2777,7 @@
       "vatOwedHint": "VAT charged on our fees minus VAT we paid on bills.",
       "whtOwed": "Withholding tax we owe",
       "whtOwedHint": "Kept back from supplier payments; paid every quarter.",
+      "postalOwed": "Postal fees we owe",
       "payTax": "Pay tax",
       "tax": "Tax",
       "whtName": "Withholding tax",
@@ -2846,12 +2849,14 @@
         "payroll_tax": "Salary income tax",
         "social_insurance": "Social insurance",
         "martyrs_fund": "Martyrs fund",
-        "corporate_tax": "Company income tax"
+        "corporate_tax": "Company income tax",
+        "postal": "Postal fees"
       },
       "taxHints": {
         "payroll_tax": "Taken from employees' salaries; paid monthly.",
         "social_insurance": "Employee and company shares; paid monthly to the insurance office.",
-        "martyrs_fund": "Taken from salaries; paid with the payroll tax."
+        "martyrs_fund": "Taken from salaries; paid with the payroll tax.",
+        "postal": "The postal authority's share of our fees on every shipment (never charged to merchants); paid monthly to the postal office."
       },
       "currency": "Currency",
       "rateOnBill": "EGP for 1 {currency} on the bill date",
@@ -3306,6 +3311,7 @@
       "costLines": {
         "riderBonusPiastres": "Rider bonuses",
         "riderOfficeCommissionPiastres": "Rider office commission",
+        "postalFeePiastres": "Postal fees",
         "riderSalaryPiastres": "Share of rider salaries",
         "storeCostsPiastres": "Share of store running costs",
         "storageSpacePiastres": "Storage space (rent by units)",
@@ -4026,7 +4032,7 @@
       "title": "Coming up and due",
       "pageIntro": "Every payment we already know about until {until}, each linked to the screen that pays it.",
       "howCounted": "How is this counted?",
-      "method": "Recurring expenses on their day each month until that month's request is approved; open supplier bills by due day (what is still unpaid); unpaid loan instalments; the salary run on each month's last day until it is posted, estimated from the gross of the salary packages in force (tax and insurance not taken off); taxes owed (VAT, withholding, salary tax, social insurance, martyrs fund): what was owed when this month began, less tax paid since, is due at the end of this month and the rest at the end of next month; merchant payouts on each merchant's next payout day, or from the day a draft payout was prepared. People limited to some stores see their stores' items and company wide ones, but not merchant payouts.",
+      "method": "Recurring expenses on their day each month until that month's request is approved; open supplier bills by due day (what is still unpaid); unpaid loan instalments; the salary run on each month's last day until it is posted, estimated from the gross of the salary packages in force (tax and insurance not taken off); taxes owed (VAT, withholding, salary tax, social insurance, martyrs fund) and postal fees owed to the postal office: what was owed when this month began, less what was paid since, is due at the end of this month and the rest at the end of next month; merchant payouts on each merchant's next payout day, or from the day a draft payout was prepared. People limited to some stores see their stores' items and company wide ones, but not merchant payouts.",
       "filterLabel": "Show",
       "allKinds": "Everything",
       "kinds": {
@@ -4035,6 +4041,7 @@
         "loan": "Loan instalment",
         "salaries": "Salaries",
         "tax": "Taxes",
+        "postal": "Postal fees",
         "payout": "Merchant payout"
       },
       "groups": {
@@ -12272,6 +12279,7 @@
     "lines": {
       "rider_pay": "Rider pay per delivered order",
       "office_commission": "Rider office commission",
+      "postal_fee": "Postal fees",
       "packaging": "Packaging",
       "salaries": "Salaries",
       "rent": "Rent",
@@ -12292,6 +12300,7 @@
       "vat_input": "VAT claimed back on purchases",
       "rider_pay_per_order": "Rider pay per order",
       "office_commission_per_order": "Office commission per order",
+      "postal_per_order": "Postal fee per order",
       "packaging_per_order": "Packaging per order",
       "salaries": "Salaries, total a month",
       "rent": "Rent a month",

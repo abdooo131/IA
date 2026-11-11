@@ -403,6 +403,13 @@ export const SETTING_DEFINITIONS = {
     description: 'VAT added to our fees, in basis points (1400 is 14%)',
     override: 'none',
   },
+  'fee.postal_bp': {
+    schema: basisPoints,
+    default: 1_000,
+    description:
+      "Postal fee: Egypt's postal authority takes this share of our fees (before VAT) on every delivered shipment and every charged failed attempt; our cost, never charged to the merchant (basis points; 1000 is 10%)",
+    override: 'none',
+  },
   'rider.bonus_per_delivery_piastres': {
     schema: piastres,
     default: 0,

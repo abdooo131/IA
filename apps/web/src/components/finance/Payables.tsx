@@ -47,6 +47,7 @@ const TAX_KINDS = [
   'social_insurance',
   'martyrs_fund',
   'corporate_tax',
+  'postal',
 ] as const;
 type TaxKind = (typeof TAX_KINDS)[number];
 
@@ -986,7 +987,7 @@ export function Taxes({
           </div>
         ))}
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-surface p-4">
           <p className="text-label uppercase text-text-muted">{t('vatOwed')}</p>
           <p className="mt-1 text-h2">
@@ -1000,6 +1001,13 @@ export function Taxes({
             <Amount piastres={owed.whtPiastres} />
           </p>
           <p className="text-caption text-text-muted">{t('whtOwedHint')}</p>
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-4">
+          <p className="text-label uppercase text-text-muted">{t('postalOwed')}</p>
+          <p className="mt-1 text-h2">
+            <Amount piastres={owed.postalPiastres} />
+          </p>
+          <p className="text-caption text-text-muted">{t('taxHints.postal')}</p>
         </div>
       </div>
 

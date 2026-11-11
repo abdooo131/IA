@@ -406,6 +406,8 @@ export interface TaxesOwed {
   payrollTaxPiastres: number;
   socialInsurancePiastres: number;
   martyrsFundPiastres: number;
+  corporateTaxPiastres: number;
+  postalPiastres: number;
 }
 
 export interface WhtReport {

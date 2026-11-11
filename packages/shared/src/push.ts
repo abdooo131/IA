@@ -521,7 +521,7 @@ export interface MyPush {
 
 /** The kinds of "Coming up and due" in words, for notifications. */
 export const PAYMENT_DUE_KIND_WORDS: Record<
-  'recurring' | 'bill' | 'loan' | 'salaries' | 'tax' | 'payout',
+  'recurring' | 'bill' | 'loan' | 'salaries' | 'tax' | 'postal' | 'payout',
   { en: string; ar: string }
 > = {
   recurring: { en: 'Recurring expense', ar: 'مصروف متكرر' },
@@ -529,5 +529,6 @@ export const PAYMENT_DUE_KIND_WORDS: Record<
   loan: { en: 'Loan instalment', ar: 'قسط قرض' },
   salaries: { en: 'Salaries', ar: 'المرتبات' },
   tax: { en: 'Taxes', ar: 'الضرائب' },
+  postal: { en: 'Postal fees', ar: 'رسوم البريد' },
   payout: { en: 'Merchant payouts', ar: 'مدفوعات التجار' },
 };

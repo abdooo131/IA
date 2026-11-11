@@ -14,7 +14,8 @@ import { z } from 'zod';
 //   fee lines       orders × average fee per order of each fee kind (fee:<kind>), charged
 //                   to the merchants' balances with VAT (vat_bp) on top
 //   cash orders     orders × cod_share_bp, each collecting cod_per_order for the merchant
-//   costs           orders × rider pay, office commission and packaging per order; salaries,
+//   costs           orders × rider pay, office commission, postal fee and packaging per
+//                   order (the postal fee is a share of our fees, read per order); salaries,
 //                   rent and fixed amounts per account (fixed:<account id>); depreciation
 //                   and loan interest from their schedules
 //   merchants owed  what the month added (cash collected − fees − VAT) kept for
@@ -43,6 +44,7 @@ export const FORECAST_LEVEL_DRIVERS = [
   'cod_per_order',
   'rider_pay_per_order',
   'office_commission_per_order',
+  'postal_per_order',
   'packaging_per_order',
   'salaries',
   'rent',
@@ -91,6 +93,7 @@ const isLevel = (key: string) => LEVEL_DRIVERS.has(key) || PREFIXED.test(key);
 export const FORECAST_COST_LINES = [
   'rider_pay',
   'office_commission',
+  'postal_fee',
   'packaging',
   'salaries',
   'rent',
@@ -104,6 +107,7 @@ export const FORECAST_LINE_ACCOUNT_KEYS: Record<ForecastCostLine | 'fee', string
   fee: 'revenue',
   rider_pay: 'rider_bonus_expense',
   office_commission: 'rider_office_commission',
+  postal_fee: 'postal_fee_expense',
   packaging: 'expense:packaging',
   salaries: 'expense:salaries',
   rent: 'expense:rent',
@@ -391,6 +395,7 @@ export function forecastCompute(input: ForecastInput): ForecastResult {
     for (const id of fixedIds) computed[`fixed:${id}`] = driver(`fixed:${id}`, i);
     computed.rider_pay = orders * driver('rider_pay_per_order', i);
     computed.office_commission = orders * driver('office_commission_per_order', i);
+    computed.postal_fee = orders * driver('postal_per_order', i);
     computed.packaging = orders * driver('packaging_per_order', i);
     computed.salaries = driver('salaries', i);
     computed.rent = driver('rent', i);

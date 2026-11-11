@@ -753,12 +753,15 @@ export const TAXES = {
   social_insurance: 'social_insurance_payable',
   martyrs_fund: 'martyrs_fund_payable',
   corporate_tax: 'corporate_tax_payable',
+  /** The postal authority's share of our fees per shipment (postings.ts), paid monthly */
+  postal: 'postal_fee_payable',
 } as const;
 export type TaxKind = keyof typeof TAXES;
 
 /**
  * What we owe the state now: VAT (net of VAT claimed back), withholding tax, salary income
- * tax, social insurance (both shares) and the martyrs fund.
+ * tax, social insurance (both shares), the martyrs fund, company income tax and the postal
+ * fees owed to the postal office.
  */
 export async function taxesOwed(db: Db) {
   const owed = async (tax: TaxKind) => 0 - (await balanceOf(db, { type: TAXES[tax] }));
@@ -769,6 +772,7 @@ export async function taxesOwed(db: Db) {
     socialInsurancePiastres: await owed('social_insurance'),
     martyrsFundPiastres: await owed('martyrs_fund'),
     corporateTaxPiastres: await owed('corporate_tax'),
+    postalPiastres: await owed('postal'),
   };
 }
 
@@ -779,6 +783,7 @@ const TAX_NAMES: Record<TaxKind, string> = {
   social_insurance: 'Social insurance',
   martyrs_fund: 'Martyrs fund',
   corporate_tax: 'Company income tax',
+  postal: 'Postal fees',
 };
 
 export interface TaxPaymentInput {
@@ -791,7 +796,10 @@ export interface TaxPaymentInput {
   idempotencyKey: string;
 }
 
-/** VAT or withholding tax paid to the tax authority from a bank or box. */
+/**
+ * A tax (or the postal fees) paid from a bank or box: never more than owed nor more than the
+ * bank or box holds; the second person rule applies through submitTaxPayment.
+ */
 export function payTax(db: Db, input: TaxPaymentInput) {
   if (!Number.isSafeInteger(input.amountPiastres) || input.amountPiastres <= 0)
     throw new DomainError('invalid_amount', 400);

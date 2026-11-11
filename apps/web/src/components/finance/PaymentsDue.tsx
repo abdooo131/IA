@@ -46,7 +46,9 @@ export async function PaymentsDueGroups({
   const detail = (r: PaymentDueRow) =>
     r.detail ? (r.kind === 'tax' ? t(`taxes.${r.detail}`) : t(`details.${r.detail}`)) : null;
   const label = (r: PaymentDueRow) =>
-    r.kind === 'salaries' || r.kind === 'tax' ? t('forMonth', { month: r.label }) : r.label;
+    r.kind === 'salaries' || r.kind === 'tax' || r.kind === 'postal'
+      ? t('forMonth', { month: r.label })
+      : r.label;
   return (
     <div className={`grid grid-cols-1 gap-4 ${limit ? 'lg:grid-cols-3' : ''}`}>
       {data.groups.map((g) => {

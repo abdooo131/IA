@@ -137,6 +137,7 @@ const DRIVER_ACCOUNT_KEYS = new Set([
   'revenue',
   'rider_bonus_expense',
   'rider_office_commission',
+  'postal_fee_expense',
   'expense:packaging',
   'expense:salaries',
   'expense:rent',
@@ -940,6 +941,7 @@ function driverGroups(drivers: ForecastDriverRow[]) {
       keys: [
         'rider_pay_per_order',
         'office_commission_per_order',
+        'postal_per_order',
         'packaging_per_order',
         'salaries',
         'rent',
