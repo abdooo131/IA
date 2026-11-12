@@ -1,0 +1,5 @@
+{
+  "server": "https://your-shiply-address.onrender.com",
+  "key": "snsk_paste_the_key_here",
+  "thumbprint": "PASTE_THE_CERTIFICATE_THUMBPRINT"
+}
