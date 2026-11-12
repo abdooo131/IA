@@ -1,5 +1,6 @@
 import { employeeCode } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { translatorIn } from '@/i18n/fixed-locale';
 import Link from 'next/link';
 import { Fragment } from 'react';
 import { Amount } from '@/components/finance/Amount';
@@ -29,7 +30,7 @@ export default async function MyPayslipPage({
   const lang = q.lang === 'ar' || q.lang === 'en' ? q.lang : screen;
   const [slip, t, ts] = await Promise.all([
     apiGet<MyPayslip>(`/me/payslips/${encodeURIComponent(month)}`),
-    getTranslations({ locale: lang, namespace: 'myPay' }),
+    translatorIn(lang === 'ar' ? 'ar' : 'en', 'myPay'),
     getTranslations('myPay'),
   ]);
   const name = (x: { nameEn: string; nameAr: string | null } | null | undefined) =>

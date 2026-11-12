@@ -673,8 +673,11 @@ describe('notifications', () => {
       await prisma.pushSubscription.create({
         data: { userId, endpoint: `https://push.test/${name}`, p256dh: 'k', auth: 'a', lang: 'en' },
       });
+    // Payment reminders (payment_due) depend on today's date and are tested elsewhere.
     const to = () =>
-      sent.map((s) => `${s.endpoint.replace('https://push.test/', '')}:${s.message.title}`);
+      sent
+        .filter((s) => !s.message.title.startsWith('Due on'))
+        .map((s) => `${s.endpoint.replace('https://push.test/', '')}:${s.message.title}`);
 
     await collect(20_000, new Date(Date.now() - 3600_000));
     const d = await deposit(20_000, new Date());

@@ -10,7 +10,7 @@ export async function translatorIn(locale: 'en' | 'ar', namespace: string) {
   const messages = (await import(`../../messages/${locale}.json`)).default;
   // The namespace is a runtime string, so the translator is typed loosely.
   return createTranslator({ locale, messages, namespace } as never) as unknown as {
-    (key: string): string;
+    (key: string, values?: Record<string, string | number | Date>): string;
     has: (key: string) => boolean;
   };
 }
