@@ -2383,7 +2383,7 @@
         "not_balanced": "Debits must equal credits.",
         "invalid_line": "Each line needs an account and either a debit or a credit.",
         "wallet_not_allowed": "Merchant and rider wallets are changed from their own pages.",
-        "money_account_not_allowed": "Riders' cash can't be changed by a journal entry. Use the cash handover screens.",
+        "money_account_not_allowed": "This account can't be used here. Riders' cash moves only through cash handovers and Basata, and money at Basata only through Basata's transfer.",
         "accrual_money_not_allowed": "An accrual can't include a bank or cash box, because it is reversed by itself next month.",
         "books_closed": "This date is in a closed month. Choose a later date, or ask an admin to reopen the month.",
         "approval_needed": "This payout needs a second person's approval first.",
