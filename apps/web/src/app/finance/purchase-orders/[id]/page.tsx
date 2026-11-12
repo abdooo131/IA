@@ -43,12 +43,24 @@ export default async function PurchaseOrderPage({ params }: { params: Promise<{ 
           </dd>
         </div>
         <div>
-          <dt className="text-caption text-text-muted">{t('decidedBy')}</dt>
+          {/* A rejected order was decided, not approved; closing writes its own note. */}
+          <dt className="text-caption text-text-muted">
+            {order.status === 'rejected' ? t('decidedByRejected') : t('decidedBy')}
+          </dt>
           <dd>
             {order.decidedBy?.name ?? (order.decidedAt ? t('belowLimit') : t('notYet'))}
-            {order.decisionNote ? ` · ${order.decisionNote}` : ''}
+            {order.decisionNote && !order.closedAt ? ` · ${order.decisionNote}` : ''}
           </dd>
         </div>
+        {order.closedAt && (
+          <div>
+            <dt className="text-caption text-text-muted">{t('closedReason')}</dt>
+            <dd>
+              <span className="ltr-iso">{formatCairoDateTime(order.closedAt, locale)}</span>
+              {order.decisionNote ? ` · ${order.decisionNote}` : ''}
+            </dd>
+          </div>
+        )}
         {order.note && (
           <div className="sm:col-span-2">
             <dt className="text-caption text-text-muted">{t('note')}</dt>

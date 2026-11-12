@@ -8,6 +8,7 @@ import type { PayoutControlsData } from '@/lib/finance-types';
 import { formatCairoDateTime } from '@/lib/format';
 import { Amount } from './Amount';
 import { ProofUpload } from './ProofUpload';
+import { isoToDayFirst } from '@/lib/day-first';
 
 const button =
   'h-10 rounded-md border border-line bg-surface px-3 text-body-sm font-bold disabled:opacity-50';
@@ -67,7 +68,10 @@ export function PayoutControls({
             <>
               <p className="ltr-iso font-bold">{data.soa.number}</p>
               <p className="ltr-iso text-caption text-text-muted">
-                {t('period', { from: data.soa.fromDay, to: data.soa.toDay })}
+                {t('period', {
+                  from: isoToDayFirst(data.soa.fromDay),
+                  to: isoToDayFirst(data.soa.toDay),
+                })}
               </p>
               <dl className="grid grid-cols-2 gap-1 text-body-sm">
                 <dt className="text-text-muted">{t('opening')}</dt>

@@ -104,7 +104,8 @@ async function loadPayouts(db: Db, scope: ListScope): Promise<PayoutListRow[]> {
     number: payoutNumber(p.number),
     merchantId: p.merchantId,
     merchant: p.merchant.name,
-    status: p.status,
+    // A draft a second person approved shows as Approved (the stored status stays draft).
+    status: p.status === 'draft' && p.approvedById ? 'approved' : p.status,
     cutoffDay: cairoDay(new Date(p.cutoffAt.getTime() - 1)),
     createdDay: cairoDay(p.createdAt),
     createdAt: p.createdAt.toISOString(),
@@ -123,7 +124,8 @@ async function loadPayouts(db: Db, scope: ListScope): Promise<PayoutListRow[]> {
 const payouts: ListDef<PayoutListRow> = {
   id: 'payouts',
   filters: {
-    draft: { group: 'status', test: (r) => r.status === 'draft' },
+    // Not paid yet: drafts, approved or not.
+    draft: { group: 'status', test: (r) => r.status === 'draft' || r.status === 'approved' },
     paid: { group: 'status', test: (r) => r.status === 'paid' },
     cancelled: { group: 'status', test: (r) => r.status === 'cancelled' },
     needs_approval: { group: 'approval', test: (r) => r.needsApproval },

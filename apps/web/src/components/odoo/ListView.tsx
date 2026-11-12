@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { type ReactNode, useEffect, useMemo, useRef, useState, useTransition } from 'react';
 import { DateInput } from '@/components/DateInput';
+import { StatusPill } from '@/components/StatusPill';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatCairoDateTime, formatCount, formatEgp } from '@/lib/format';
@@ -857,11 +858,7 @@ function Cell({
     case 'bool':
       return <span>{v ? t('yes') : t('no')}</span>;
     case 'status':
-      return (
-        <span className="inline-block whitespace-nowrap rounded-pill border border-line px-2.5 py-0.5 text-caption">
-          {labelOf(config, column.key, v)}
-        </span>
-      );
+      return <StatusPill status={String(v)}>{labelOf(config, column.key, v)}</StatusPill>;
     case 'ltr':
       return <span className="ltr-iso whitespace-nowrap">{labelOf(config, column.key, v)}</span>;
     default:

@@ -1,4 +1,9 @@
-import type { WalletTotals, WithdrawalDetails, WithdrawalStatus } from '@shiplynow/shared';
+import {
+  type WalletTotals,
+  type WithdrawalDetails,
+  withdrawalDetailsSchema,
+  type WithdrawalStatus,
+} from '@shiplynow/shared';
 
 // Rider pay (CLAUDE.md "Rider pay"): what the rider wallet and Accounting's withdrawals page
 // read from the API, and the small sums the screens show.
@@ -130,4 +135,32 @@ export function detailsText(d: WithdrawalDetails): string {
     case 'bank':
       return `${d.bankName} · ${d.iban} · ${d.holder}`;
   }
+}
+
+/** The detail problems the withdrawal form explains in its own words. */
+const DETAIL_PROBLEMS = ['invalid_iban', 'invalid_phone', 'invalid_instapay'] as const;
+export type DetailProblem = (typeof DETAIL_PROBLEMS)[number] | 'validation_failed';
+
+/** The first problem in a list of zod or API issue messages, else validation_failed. */
+export function problemFromIssues(messages: readonly unknown[]): DetailProblem {
+  return (
+    ((DETAIL_PROBLEMS as readonly unknown[]).find((p) => messages.includes(p)) as
+      DetailProblem | undefined) ?? 'validation_failed'
+  );
+}
+
+/**
+ * Where the money goes, checked as the API checks it, so a wrong IBAN, mobile or InstaPay
+ * address is named before the request is sent; null when the details are fine.
+ */
+export function withdrawalDetailsProblem(details: WithdrawalDetails): DetailProblem | null {
+  const checked = withdrawalDetailsSchema.safeParse(details);
+  return checked.success ? null : problemFromIssues(checked.error.issues.map((i) => i.message));
+}
+
+/** The words of a refused request: an API validation answer names its first known issue. */
+export function withdrawalError(error: string, details?: Record<string, unknown>): string {
+  if (error !== 'validation_failed') return error;
+  const issues = Array.isArray(details?.issues) ? (details.issues as { message?: unknown }[]) : [];
+  return problemFromIssues(issues.map((i) => i.message));
 }

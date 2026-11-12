@@ -7,6 +7,7 @@ import type { FinanceRequestRow, PayoutRow } from '@/lib/finance-types';
 import { formatCairoDateTime } from '@/lib/format';
 import { Amount } from './Amount';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { StatusPill } from '@/components/StatusPill';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
 const button =
@@ -155,7 +156,8 @@ export function Approvals({
             {decided.map((r) => (
               <li key={r.id} className="flex flex-wrap justify-between gap-2 px-3 py-2">
                 <span>
-                  {t(`kinds.${r.kind}`)} · {r.reference} · {t(`statuses.${r.status}`)}
+                  {t(`kinds.${r.kind}`)} · {r.reference}{' '}
+                  <StatusPill status={r.status}>{t(`statuses.${r.status}`)}</StatusPill>
                   {r.decidedBy && <> · {r.decidedBy}</>}
                   {r.decisionNote && <span className="text-text-muted"> · {r.decisionNote}</span>}
                 </span>

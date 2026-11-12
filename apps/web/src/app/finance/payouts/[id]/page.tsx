@@ -20,7 +20,7 @@ export default async function FinancePayoutPage({ params }: { params: Promise<{ 
   ]);
   const canWrite = canDo(profile, 'accounting', 'use');
   const draft =
-    doc.status === 'draft' && canWrite
+    (doc.status === 'draft' || doc.status === 'approved') && canWrite
       ? (
           await apiGet<PayoutRow[]>(
             `/finance/payouts?status=draft&merchantId=${String(doc.data.merchantId)}`,

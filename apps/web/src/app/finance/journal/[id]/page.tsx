@@ -5,6 +5,7 @@ import { apiGet } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatEgp } from '@/lib/format';
 import { PrintButton } from '@/components/finance/PrintButton';
+import { translatorIn } from '@/i18n/fixed-locale';
 
 export const dynamic = 'force-dynamic';
 
@@ -125,9 +126,10 @@ export default async function JournalEntryPage({ params }: { params: Promise<{ i
   ]);
   const kind = text(doc.fields.find((f) => f.key === 'kind')?.value);
   const kindLabel = tf.has(`kinds.${kind}`) ? tf(`kinds.${kind}`) : kind;
+  // Each PDF names the type in its own language, whatever the reader's language is.
   const [kindEn, kindAr] = await Promise.all([
-    getTranslations({ locale: 'en', namespace: 'finance' }),
-    getTranslations({ locale: 'ar', namespace: 'finance' }),
+    translatorIn('en', 'finance'),
+    translatorIn('ar', 'finance'),
   ]);
   const pdf = (lang: 'en' | 'ar') => {
     const tr = lang === 'en' ? kindEn : kindAr;

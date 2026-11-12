@@ -17,6 +17,7 @@ import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
 import { BankDetailsForm } from './BankDetailsForm';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { StatusPill } from '@/components/StatusPill';
 
 const field = 'h-10 w-full rounded-md border border-line bg-surface px-2 text-body-sm';
 const primary =
@@ -26,18 +27,9 @@ const secondary =
 const th = 'px-3 py-2 text-start text-label uppercase text-text-muted';
 const td = 'px-3 py-2';
 
-const STATUS_TONE: Record<EtaState, string> = {
-  not_sent: 'text-text-muted',
-  signed: '',
-  submitted: '',
-  valid: 'text-status-delivered font-bold',
-  invalid: 'text-danger font-bold',
-  rejected: 'text-danger font-bold',
-};
-
 export function EtaStatusText({ status }: { status: EtaState }) {
   const t = useTranslations('finance.invoices');
-  return <span className={STATUS_TONE[status]}>{t(`status.${status}`)}</span>;
+  return <StatusPill status={status}>{t(`status.${status}`)}</StatusPill>;
 }
 
 /** The invoices list: what blocks the e-invoice flow, preparing a month, every document. */

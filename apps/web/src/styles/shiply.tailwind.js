@@ -1,6 +1,10 @@
 // Shiply brand v2 preset (tailwind.config.js: presets: [require('./src/styles/shiply.tailwind.js')]).
 // Role colors read the CSS variables in shiply-tokens.css, so dark mode works automatically.
 // Brand colors (shiply.*) are fixed; use roles in page code and brand colors only for brand moments.
+/** A color variable that accepts Tailwind's opacity modifier (/15, /50). */
+const withAlpha = (name) =>
+  `color-mix(in srgb, var(${name}) calc(<alpha-value> * 100%), transparent)`;
+
 module.exports = {
   darkMode: ['class', '[data-theme="dark"]'],
   theme: {
@@ -25,13 +29,15 @@ module.exports = {
         focus: 'var(--shiply-focus)',
         danger: 'var(--shiply-danger)',
         'on-status': 'var(--shiply-on-status)',
+        // Status colors take an opacity (bg-status-delivered/15 is a 15% tint): the variable is
+        // mixed with transparent, so the tints work in both themes without rgb channels.
         status: {
-          new: 'var(--shiply-status-new)',
-          'in-progress': 'var(--shiply-status-in-progress)',
-          'heading-to-customer': 'var(--shiply-status-heading-to-customer)',
-          delivered: 'var(--shiply-status-delivered)',
-          'needs-action': 'var(--shiply-status-needs-action)',
-          returning: 'var(--shiply-status-returning)',
+          new: withAlpha('--shiply-status-new'),
+          'in-progress': withAlpha('--shiply-status-in-progress'),
+          'heading-to-customer': withAlpha('--shiply-status-heading-to-customer'),
+          delivered: withAlpha('--shiply-status-delivered'),
+          'needs-action': withAlpha('--shiply-status-needs-action'),
+          returning: withAlpha('--shiply-status-returning'),
         },
         hero: {
           DEFAULT: 'var(--shiply-hero)',

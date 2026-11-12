@@ -16,9 +16,12 @@ import {
   detailsText,
   type RiderWalletView,
   type WithdrawalView,
+  withdrawalDetailsProblem,
+  withdrawalError,
   withdrawalPreview,
   withdrawalProblem,
 } from '@/lib/rider-wallet';
+import { StatusPill as Pill } from '@/components/StatusPill';
 
 const field = 'h-11 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-body';
 const KNOWN_ERRORS = [
@@ -34,23 +37,9 @@ const KNOWN_ERRORS = [
   'network',
 ];
 
-const STATUS_TONE: Record<string, string> = {
-  requested: 'bg-status-new/15 text-status-new',
-  approved: 'bg-status-in-progress/15 text-status-in-progress',
-  paid: 'bg-status-delivered/15 text-status-delivered',
-  rejected: 'bg-status-needs-action/15 text-status-needs-action',
-  cancelled: 'bg-bg text-text-muted',
-};
-
 export function StatusPill({ status }: { status: string }) {
   const t = useTranslations('riderPay.statuses');
-  return (
-    <span
-      className={`inline-flex rounded-pill px-2 py-0.5 text-caption font-bold ${STATUS_TONE[status] ?? ''}`}
-    >
-      {t(status)}
-    </span>
-  );
+  return <Pill status={status}>{t(status)}</Pill>;
 }
 
 /** Where the money goes, in words. */
@@ -399,6 +388,9 @@ function WithdrawForm({
 
   async function submit() {
     if (problem || piastres === null) return setError(problem ?? 'invalid_amount');
+    // A wrong IBAN, mobile or InstaPay address is named, not answered with a generic error.
+    const detailsProblem = withdrawalDetailsProblem(details());
+    if (detailsProblem) return setError(detailsProblem);
     setBusy(true);
     setError(null);
     const r = await apiSend('POST', '/rider/withdrawals', {
@@ -407,7 +399,7 @@ function WithdrawForm({
       idempotencyKey: key,
     });
     setBusy(false);
-    if (!r.ok) return setError(r.error);
+    if (!r.ok) return setError(withdrawalError(r.error, r.details));
     onDone(t('requested'));
   }
 

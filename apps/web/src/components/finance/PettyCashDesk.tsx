@@ -10,16 +10,9 @@ import type { PettyCashRow, PettyCategory } from '@/lib/cash-control-types';
 import { formatCairoDateTime } from '@/lib/format';
 import { Amount } from './Amount';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { StatusPill } from '@/components/StatusPill';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
-const STATUS_TONE: Record<PettyCashRow['status'], string> = {
-  posted: 'text-status-delivered',
-  pending: 'text-status-needs-action',
-  rejected: 'text-danger',
-  cancelled: 'text-text-muted',
-  reversed: 'text-text-muted',
-};
-
 function Row({ row, canReverse }: { row: PettyCashRow; canReverse: boolean }) {
   const t = useTranslations('cashControl.petty');
   const locale = useLocale();
@@ -33,9 +26,7 @@ function Row({ row, canReverse }: { row: PettyCashRow; canReverse: boolean }) {
       <div className="flex flex-wrap items-start justify-between gap-2">
         <span>
           <span className="ltr-iso me-2 font-bold">{row.label}</span>
-          <span className={`font-semibold ${STATUS_TONE[row.status]}`}>
-            {t(`statuses.${row.status}`)}
-          </span>
+          <StatusPill status={row.status}>{t(`statuses.${row.status}`)}</StatusPill>
           <span className="block">
             {localized(row.store, locale)} · <span className="ltr-iso">{row.category.code}</span>{' '}
             {category}

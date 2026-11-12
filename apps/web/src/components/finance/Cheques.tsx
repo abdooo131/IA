@@ -18,6 +18,7 @@ import { parseEgp } from '@/lib/money';
 import { Amount } from './Amount';
 import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { StatusPill } from '@/components/StatusPill';
 
 // The cheques register: the list with its due panel, the form to register a cheque received
 // or issued, and the actions on one cheque (deposit, clear, bounce, cancel).
@@ -85,17 +86,7 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 export function ChequeStatusPill({ status }: { status: string }) {
   const t = useTranslations('finance.cheques');
-  const tone =
-    status === 'bounced' || status === 'cancelled'
-      ? 'text-danger'
-      : status === 'cleared'
-        ? 'text-success'
-        : 'text-text-muted';
-  return (
-    <span className={`rounded-pill border border-line px-2.5 py-0.5 text-caption ${tone}`}>
-      {t(`statuses.${status}`)}
-    </span>
-  );
+  return <StatusPill status={status}>{t(`statuses.${status}`)}</StatusPill>;
 }
 
 /** The register (or a part of it) as a table. */

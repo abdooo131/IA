@@ -15,6 +15,7 @@ import type {
 } from '@/lib/finance-types';
 import { Amount } from './Amount';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { StatusPill } from '@/components/StatusPill';
 
 // Rider supply offices (Accounting > Money out > Rider offices): offices supply riders and earn
 // a commission on each rider's pay per delivered order. Accounting view reads, use prepares the
@@ -550,7 +551,9 @@ export function RiderOfficeView({
                 <td className={tdEnd}>
                   <Amount piastres={b.leftPiastres} />
                 </td>
-                <td className={td}>{t(`statuses.${b.status}`)}</td>
+                <td className={td}>
+                  <StatusPill status={b.status}>{t(`statuses.${b.status}`)}</StatusPill>
+                </td>
               </tr>
             ))}
           </Table>

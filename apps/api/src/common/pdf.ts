@@ -31,12 +31,24 @@ function fontsDir() {
 /** A line's words in the order they are drawn from left to right. */
 export function visualWords(text: string, rtl: boolean): { word: string; arabic: boolean }[] {
   const words = text.split(/\s+/).filter(Boolean);
+  // Each word's direction: Arabic letters read right to left, Latin letters and numbers left
+  // to right; a word of punctuation only (":", "·", "-") is neutral.
+  const strong = words.map((w) => (LETTER_OR_DIGIT.test(w) ? ARABIC.test(w) : null));
   const runs: { arabic: boolean; words: string[] }[] = [];
-  for (const word of words) {
-    // A word of punctuation only (":", "·", "-") goes with the words around it.
-    const arabic = LETTER_OR_DIGIT.test(word)
-      ? ARABIC.test(word)
-      : (runs[runs.length - 1]?.arabic ?? rtl);
+  for (const [i, word] of words.entries()) {
+    // A neutral word takes the direction of the words on both sides when they agree, else the
+    // page's (as the Unicode bidi rules do), so "شيبلي ناو · JV-1 · صفحة" keeps one "·" on
+    // each side of the number.
+    let arabic = strong[i];
+    if (arabic === null || arabic === undefined) {
+      const before =
+        strong
+          .slice(0, i)
+          .reverse()
+          .find((s) => s !== null) ?? rtl;
+      const after = strong.slice(i + 1).find((s) => s !== null) ?? rtl;
+      arabic = before === after ? before : rtl;
+    }
     const last = runs[runs.length - 1];
     if (last && last.arabic === arabic) last.words.push(word);
     else runs.push({ arabic, words: [word] });

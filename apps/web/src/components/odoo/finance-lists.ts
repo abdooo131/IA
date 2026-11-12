@@ -3,6 +3,7 @@ import { canDo, FINANCE_LISTS, type FinanceListId, type ListMeta } from '@shiply
 import { getTranslations } from 'next-intl/server';
 import { apiGet, getMyProfile } from '@/lib/api-server';
 import type { BulkAction, ListColumn, ListData, ListViewConfig } from '@/lib/list-view';
+import { workflowStateLabel } from '@/lib/workflows';
 
 // The Accounting lists as list views: their columns, filters, groupings and bulk actions,
 // with every label in the reader's language. The filter and grouping keys come from
@@ -164,14 +165,17 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
       keys.map((k) => [k, ns?.(k) ?? (tw.has(`states.${k}`) ? tw(`states.${k}`) : k)]),
     );
   const has = (fn: { has: (k: string) => boolean }, k: string) => fn.has(k);
+  const flowState = (flow: string, k: string) => workflowStateLabel(tw, flow, k);
 
   const valueLabels: Record<string, Record<string, string>> = {};
   switch (id) {
     case 'payouts':
-      valueLabels.status = states(['draft', 'paid', 'cancelled']);
+      valueLabels.status = states(['draft', 'approved', 'paid', 'cancelled'], (k) =>
+        flowState('payout', k),
+      );
       break;
     case 'bills':
-      valueLabels.status = states(['open', 'paid', 'cancelled']);
+      valueLabels.status = states(['open', 'paid', 'cancelled'], (k) => flowState('bill', k));
       break;
     case 'suppliers':
       valueLabels.status = states(['active', 'inactive']);
@@ -228,7 +232,10 @@ export async function financeListConfig(id: FinanceListId): Promise<ListViewConf
         credit_note: ti('creditNote'),
         debit_note: ti('debitNote'),
       };
-      valueLabels.eta = states(['not_sent', 'signed', 'submitted', 'valid', 'invalid', 'rejected']);
+      valueLabels.eta = states(
+        ['not_sent', 'signed', 'submitted', 'valid', 'invalid', 'rejected'],
+        (k) => ti(`status.${k}`),
+      );
       break;
   }
 

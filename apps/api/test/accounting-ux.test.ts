@@ -225,6 +225,14 @@ describe('accounting list views, documents and the chatter', () => {
     expect((await prisma.payout.findUniqueOrThrow({ where: { id: big.id } })).approvedById).toBe(
       me,
     );
+    // An approved draft reads Approved on its page and in the list, and is still unpaid.
+    const doc = await a.get(`/finance/documents/payout/${big.id}`).expect(200);
+    expect(doc.body.status).toBe('approved');
+    const drafts = await a.get('/finance/lists/payouts?f=draft').expect(200);
+    const statuses = Object.fromEntries(
+      drafts.body.rows.map((r: { id: string; status: string }) => [r.id, r.status]),
+    );
+    expect(statuses).toMatchObject({ [big.id]: 'approved', [own.id]: 'draft' });
   });
 
   it('shows a document with smart buttons and finds it by number or merchant', async () => {

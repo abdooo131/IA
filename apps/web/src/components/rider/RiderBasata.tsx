@@ -5,10 +5,11 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { PhotoCapture } from '@/components/orders/PhotoCapture';
 import { apiSend } from '@/lib/api-client';
-import type { BasataDepositStatus, FreezeReason, RiderBasataView } from '@/lib/basata';
+import type { FreezeReason, RiderBasataView } from '@/lib/basata';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import { parseEgp } from '@/lib/money';
+import { StatusPill } from '@/components/StatusPill';
 
 const field =
   'mt-1 block h-12 w-full min-w-0 rounded-md border border-line-strong bg-surface px-3 text-body';
@@ -26,12 +27,6 @@ export function FrozenBanner({ reason }: { reason: FreezeReason | null }) {
     </div>
   );
 }
-
-const STATUS_TONE: Record<BasataDepositStatus, string> = {
-  pending: 'text-status-needs-action',
-  approved: 'text-status-delivered',
-  rejected: 'text-danger',
-};
 
 /** "Now" as the value of a datetime-local box (the phone's own time zone). */
 function localNow() {
@@ -196,9 +191,7 @@ export function RiderBasata({ view }: { view: RiderBasataView }) {
             <li key={d.id} className="px-3 py-2 text-body-sm">
               <div className="flex items-center justify-between gap-2">
                 <span className="ltr-iso font-bold">{d.number}</span>
-                <span className={`font-semibold ${STATUS_TONE[d.status]}`}>
-                  {t(`statuses.${d.status}`)}
-                </span>
+                <StatusPill status={d.status}>{t(`statuses.${d.status}`)}</StatusPill>
               </div>
               <div className="flex items-center justify-between gap-2 text-text-muted">
                 <span className="ltr-iso">{d.reference}</span>

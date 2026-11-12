@@ -2,6 +2,7 @@ import type { DocDescriptor, DocSmartButton } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
 import Link from 'next/link';
 import type { ReactNode } from 'react';
+import { StatusPill } from '@/components/StatusPill';
 import { RecordHistory } from '@/components/workflow/RecordHistory';
 import { StatusBar } from '@/components/workflow/StatusBar';
 import { getCurrentUser } from '@/lib/server-session';
@@ -130,9 +131,9 @@ export async function DocumentFrame({
               {title && <p className="mt-0.5 break-words text-body text-text-muted">{title}</p>}
             </div>
             {!flow && (
-              <span className="rounded-pill border border-line px-3 py-1 text-caption font-bold">
+              <StatusPill status={status} className="px-3 py-1">
                 {statusLabel}
-              </span>
+              </StatusPill>
             )}
           </header>
           {flow && <StatusBar flow={flow} status={status} />}

@@ -69,7 +69,7 @@ function Common({ memoRequired = false }: { memoRequired?: boolean }) {
   return (
     <>
       <label className="block text-caption">
-        {tf('amount')} (EGP)
+        {tf('amount')}
         <input name="amount" required inputMode="decimal" dir="ltr" className={field} />
       </label>
       <label className="block text-caption">

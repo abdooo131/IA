@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Amount } from '@/components/finance/Amount';
 import { apiGet } from '@/lib/api-server';
 import { formatCairoDateTime } from '@/lib/format';
+import { isoToDayFirst } from '@/lib/day-first';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,7 +40,7 @@ export default async function MerchantPayoutStatementPage({
       </h1>
       <p className="ltr-iso text-body-sm text-text-muted">
         {t('payoutLabel', { number: s.payout.number })} ·{' '}
-        {t('period', { from: s.fromDay, to: s.toDay })}
+        {t('period', { from: isoToDayFirst(s.fromDay), to: isoToDayFirst(s.toDay) })}
       </p>
       <p className="text-caption text-text-muted">
         {t('frozen')} {formatCairoDateTime(s.frozenAt, locale)}

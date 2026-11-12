@@ -1,7 +1,7 @@
 'use client';
 
 import { useTranslations } from 'next-intl';
-import { WORKFLOWS, type WorkflowName } from '@/lib/workflows';
+import { WORKFLOWS, type WorkflowName, workflowStateLabel } from '@/lib/workflows';
 
 /**
  * Where a document is on its path, like a form's status bar: done steps ticked, the current
@@ -14,7 +14,7 @@ export function StatusBar({ flow, status }: { flow: WorkflowName; status: string
   const steps = path as readonly string[];
   const off = (side as readonly string[]).includes(status);
   const at = steps.indexOf(status);
-  const label = (s: string) => (t.has(`states.${s}`) ? t(`states.${s}`) : s);
+  const label = (s: string) => workflowStateLabel(t, flow, s);
   return (
     <ol
       className="mt-3 flex max-w-full overflow-x-auto rounded-lg border border-line bg-surface text-caption"

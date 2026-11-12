@@ -9,6 +9,7 @@ import { BankSelect } from './BankSelect';
 import { AttachmentField } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 import { DateInput } from '@/components/DateInput';
+import { StatusPill } from '@/components/StatusPill';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
 const button =
@@ -42,6 +43,9 @@ function DraftCard({
             <span className="ltr-iso me-2 text-body-sm text-link">{payout.number}</span>
             {payout.merchant.name}
           </p>
+          <StatusPill status={payout.approvedBy ? 'approved' : 'draft'}>
+            {t(`statuses.${payout.approvedBy ? 'approved' : 'draft'}`)}
+          </StatusPill>
           <p className="text-caption text-text-muted">
             {t('cutoff')}{' '}
             <span className="ltr-iso">{formatCutoffDay(payout.cutoffAt, locale)}</span> ·{' '}
@@ -223,7 +227,7 @@ export function PayoutsManager({
                       <Amount piastres={p.amountPiastres} />
                     </td>
                     <td className="px-3 py-2 text-caption">
-                      {t(`statuses.${p.status}`)}
+                      <StatusPill status={p.status}>{t(`statuses.${p.status}`)}</StatusPill>
                       {p.reference && <span className="ltr-iso"> · {p.reference}</span>}
                       {p.paidBy && p.paidAt && (
                         <p className="text-text-muted">

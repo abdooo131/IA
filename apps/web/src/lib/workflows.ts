@@ -13,7 +13,8 @@ export const WORKFLOWS = {
     side: ['cancelled'],
   },
   return: { path: ['requested', 'picking', 'ready', 'collected'], side: ['cancelled'] },
-  payout: { path: ['draft', 'paid'], side: ['cancelled'] },
+  // A payout above the approval limit is approved by a second person before it is paid.
+  payout: { path: ['draft', 'approved', 'paid'], side: ['cancelled'] },
   handover: { path: ['pending', 'balanced'], side: ['written_off', 'charged_to_rider'] },
   signup: { path: ['pending', 'approved'], side: ['rejected'] },
   ticket: { path: ['open', 'answered', 'closed'], side: [] },
@@ -69,3 +70,19 @@ export const WORKFLOWS = {
 } as const;
 
 export type WorkflowName = keyof typeof WORKFLOWS;
+
+/**
+ * The words for a state on one kind of document: a document's own word when the shared one
+ * would mislead (a bill's "open" is Unpaid, not a ticket's "Waiting for answer"), else the
+ * shared word under workflow.states, else the raw state in plain words. `t` is the workflow
+ * translator.
+ */
+export function workflowStateLabel(
+  t: { has: (key: string) => boolean; (key: string): string },
+  flow: string | null | undefined,
+  state: string,
+): string {
+  if (flow && t.has(`flowStates.${flow}.${state}`)) return t(`flowStates.${flow}.${state}`);
+  if (t.has(`states.${state}`)) return t(`states.${state}`);
+  return state.replace(/_/g, ' ');
+}

@@ -14,11 +14,7 @@ export default async function FinanceJournalPage({
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
-  const [params, t, tf] = await Promise.all([
-    searchParams,
-    getTranslations('finance.journal'),
-    getTranslations('finance'),
-  ]);
+  const [params, t] = await Promise.all([searchParams, getTranslations('finance.journal')]);
   return (
     <FinanceListPage
       id="journal"
@@ -35,7 +31,7 @@ export default async function FinanceJournalPage({
           href="/api/finance/ledger/export.csv"
           className="flex h-11 items-center rounded-md border border-line bg-surface px-4 text-body-sm font-bold"
         >
-          {tf('export')} · {t('linesCsv')}
+          {t('linesCsv')}
         </a>
       }
     />

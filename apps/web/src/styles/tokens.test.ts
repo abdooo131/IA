@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tileInk } from '@/components/AppTileIcon';
@@ -123,9 +124,23 @@ describe('brand v2 tokens', () => {
       (status, ground) => {
         const fg = vars[status]!;
         expect(contrast(fg, mix(fg, vars[ground]!, 0.14))).toBeGreaterThanOrEqual(4.5);
+        // bg-status-x/15 tints (the opacity modifier the preset supports) pass too
+        expect(contrast(fg, mix(fg, vars[ground]!, 0.15))).toBeGreaterThanOrEqual(4.5);
       },
     );
   }
+
+  it('lets every status color take an opacity, so bg-status-x/15 tints are generated', () => {
+    const preset = createRequire(import.meta.url)('./shiply.tailwind.js') as {
+      theme: { extend: { colors: { status: Record<string, string> } } };
+    };
+    const status = preset.theme.extend.colors.status;
+    expect(Object.keys(status).map((k) => `status-${k}`)).toEqual(STATUSES);
+    for (const [k, v] of Object.entries(status)) {
+      expect(v).toContain('<alpha-value>');
+      expect(v).toContain(`var(--shiply-status-${k})`);
+    }
+  });
 
   it('never puts Lime text on white or Cream', () => {
     expect(contrast(light.lime!, '#ffffff')).toBeLessThan(3);

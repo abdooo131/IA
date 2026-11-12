@@ -141,7 +141,8 @@ async function payoutDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   return base('payout', p.id, {
     number,
     title: p.merchant.name,
-    status: p.status,
+    // A draft a second person approved shows as Approved (the stored status stays draft).
+    status: p.status === 'draft' && p.approvedById ? 'approved' : p.status,
     flow: 'payout',
     fields: present([
       f('merchant', p.merchant.name, 'text', `/finance/merchants/${p.merchantId}`),

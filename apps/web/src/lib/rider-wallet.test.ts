@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest';
 import {
   detailsText,
   type RiderWalletView,
+  withdrawalDetailsProblem,
+  withdrawalError,
   withdrawalPreview,
   withdrawalProblem,
 } from './rider-wallet';
@@ -55,5 +57,40 @@ describe('rider wallet display', () => {
     expect(detailsText({ method: 'bank', bankName: 'CIB', iban: 'EG00', holder: 'Ali' })).toBe(
       'CIB · EG00 · Ali',
     );
+  });
+});
+
+describe('withdrawal details problems', () => {
+  it('names a wrong IBAN, mobile or InstaPay address instead of a generic error', () => {
+    expect(
+      withdrawalDetailsProblem({ method: 'bank', bankName: 'CIB', iban: 'EG12', holder: 'Ali' }),
+    ).toBe('invalid_iban');
+    expect(
+      withdrawalDetailsProblem({
+        method: 'bank',
+        bankName: 'CIB',
+        iban: `EG${'1'.repeat(27)}`,
+        holder: 'Ali',
+      }),
+    ).toBeNull();
+    expect(
+      withdrawalDetailsProblem({
+        method: 'mobile_wallet',
+        provider: 'vodafone_cash',
+        phone: '123',
+      }),
+    ).toBe('invalid_phone');
+    expect(withdrawalDetailsProblem({ method: 'instapay', handle: 'x' })).toBe('invalid_instapay');
+    expect(withdrawalDetailsProblem({ method: 'store_cash' })).toBeNull();
+  });
+
+  it('reads the first known issue of an API validation answer', () => {
+    expect(
+      withdrawalError('validation_failed', {
+        issues: [{ path: 'details.iban', message: 'invalid_iban' }],
+      }),
+    ).toBe('invalid_iban');
+    expect(withdrawalError('validation_failed', { issues: [] })).toBe('validation_failed');
+    expect(withdrawalError('below_minimum')).toBe('below_minimum');
   });
 });

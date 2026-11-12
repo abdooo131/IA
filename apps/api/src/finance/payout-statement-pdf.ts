@@ -85,6 +85,9 @@ const TEXT = {
   },
 };
 
+/** "2026-11-01" as "01/11/2026", day first as everywhere else. */
+const dayFirst = (iso: string) => iso.slice(0, 10).split('-').reverse().join('/');
+
 export async function payoutStatementPdf(
   s: PayoutStatementData,
   lang: PdfLang,
@@ -96,8 +99,11 @@ export async function payoutStatementPdf(
   pdf.paragraph(T.title, { size: 18, bold: true, color: BRAND.navy });
   pdf.paragraph(`${s.number} · ${T.payout} ${s.payout.number}`, { bold: true });
   pdf.paragraph(`${T.merchant}: ${s.merchant.name}`);
-  pdf.paragraph(T.period(s.fromDay, s.toDay), { color: BRAND.muted });
-  pdf.paragraph(T.frozen(cairoDay(new Date(s.frozenAt))), { color: BRAND.muted, size: 9 });
+  pdf.paragraph(T.period(dayFirst(s.fromDay), dayFirst(s.toDay)), { color: BRAND.muted });
+  pdf.paragraph(T.frozen(dayFirst(cairoDay(new Date(s.frozenAt)))), {
+    color: BRAND.muted,
+    size: 9,
+  });
   pdf.y += 6;
 
   pdf.heading(T.summary);
@@ -167,7 +173,7 @@ export async function payoutStatementPdf(
   for (const l of s.other)
     pdf.row(
       [
-        { text: cairoDay(new Date(l.at)), width: V[0]! },
+        { text: dayFirst(cairoDay(new Date(l.at))), width: V[0]! },
         { text: statementKindLabel(lang, l.kind), width: V[1]! },
         { text: l.orderNumber ?? l.memo ?? '', width: V[2]! },
         { text: egpText(l.amountPiastres), width: V[3]!, align: 'end' as const },

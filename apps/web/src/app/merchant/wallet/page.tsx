@@ -11,6 +11,7 @@ import { apiGet, getMerchantRights } from '@/lib/api-server';
 import type { PayoutSchedule, Statement } from '@/lib/finance-types';
 import { formatCairoDateTime, formatCutoffDay, formatEgp } from '@/lib/format';
 import type { MerchantEmailSettings } from '@/lib/purchasing-types';
+import { StatusPill } from '@/components/StatusPill';
 
 export const dynamic = 'force-dynamic';
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -96,9 +97,10 @@ export default async function MerchantWalletPage({
               <li key={p.id} className="space-y-3 px-4 py-3 text-body-sm">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <span>
-                    <span className="font-bold">
+                    {/* Merchants see a draft, approved or not, as Being prepared. */}
+                    <StatusPill status={p.status}>
                       {p.status === 'paid' ? t('paid') : t('waiting')}
-                    </span>
+                    </StatusPill>
                     <span className="ltr-iso block text-caption text-text-muted">
                       {p.paidAt
                         ? formatCairoDateTime(p.paidAt, locale)

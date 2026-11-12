@@ -11,6 +11,7 @@ import { Amount } from './Amount';
 import { BankSelect } from './BankSelect';
 import { useAttachments } from './AttachmentField';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
+import { StatusPill } from '@/components/StatusPill';
 
 const field = 'h-10 rounded-md border border-line bg-surface px-3 text-body-sm';
 const button =
@@ -222,7 +223,7 @@ export function CashDesk({
                     <Amount piastres={0 - h.differencePiastres} />
                   </td>
                   <td className="px-3 py-2 text-caption">
-                    {t(`statuses.${h.status}`)}
+                    <StatusPill status={h.status}>{t(`statuses.${h.status}`)}</StatusPill>
                     {h.reviewNote && <p className="text-text-muted">{h.reviewNote}</p>}
                   </td>
                 </tr>

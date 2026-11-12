@@ -5,7 +5,8 @@ import type { ReactNode } from 'react';
 import { getMyProfile } from '@/lib/api-server';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatCairoDateTime, formatEgp } from '@/lib/format';
-import { WORKFLOWS, type WorkflowName } from '@/lib/workflows';
+import { WORKFLOWS, type WorkflowName, workflowStateLabel } from '@/lib/workflows';
+import { humanise } from '@/lib/history-format';
 import { DocumentFrame } from './DocumentFrame';
 
 // The Odoo style document page (form view): breadcrumbs back to the list the person came
@@ -53,24 +54,44 @@ export async function DocumentPage({
   children?: ReactNode;
   showFields?: boolean;
 }) {
-  const [t, tw, ta, tf, locale, profile] = await Promise.all([
+  const [t, tw, ta, tf, tr, locale, profile] = await Promise.all([
     getTranslations('documents'),
     getTranslations('workflow'),
     getTranslations('apps'),
     getTranslations('finance'),
+    getTranslations('riderPay'),
     getLocale(),
     getMyProfile(),
   ]);
   const list = DOC_LISTS[doc.type];
   const canWrite = canDo(profile, 'accounting', 'use');
-  const stateLabel = (s: string) => (tw.has(`states.${s}`) ? tw(`states.${s}`) : s);
+  const stateLabel = (s: string) => workflowStateLabel(tw, doc.flow, s);
   const fieldLabel = (k: string) => (t.has(`fields.${k}`) ? t(`fields.${k}`) : k);
-  const fieldValue = (f: DocField): DocField =>
-    f.key === 'kind' && typeof f.value === 'string' && tf.has(`kinds.${f.value}`)
-      ? { ...f, value: tf(`kinds.${f.value}`) }
-      : f.kind === 'status' && typeof f.value === 'string'
-        ? { ...f, value: stateLabel(f.value) }
-        : f;
+  // Stored codes in words: a request's kind (loan_in), an entry's kind, a withdrawal's method.
+  const isRequest = doc.type === 'finance_request';
+  const kindWord = (v: string) => {
+    const key = isRequest ? `approvals.kinds.${v}` : `kinds.${v}`;
+    return tf.has(key) ? tf(key) : humanise(v);
+  };
+  const fieldValue = (f: DocField): DocField => {
+    if (typeof f.value !== 'string') return f;
+    if (f.key === 'kind') return { ...f, value: kindWord(f.value) };
+    if (f.key === 'method' && tr.has(`methods.${f.value}`))
+      return { ...f, value: tr(`methods.${f.value}`) };
+    if (f.kind === 'status') return { ...f, value: stateLabel(f.value) };
+    return f;
+  };
+  const rawKind = doc.fields.find((f) => f.key === 'kind')?.value;
+  // A request without a reference is titled by its kind, in words.
+  const title = isRequest && doc.title === rawKind ? kindWord(String(rawKind)) : doc.title;
+  // A smart button showing a status (a petty expense's approval request) shows it in words.
+  const smart = doc.smart.map((s) => {
+    const v = s.value;
+    if (typeof v !== 'string' || !/^[a-z][a-z_]*$/.test(v)) return s;
+    if (s.key === 'request' && tf.has(`approvals.statuses.${v}`))
+      return { ...s, value: tf(`approvals.statuses.${v}`) };
+    return tw.has(`states.${v}`) ? { ...s, value: workflowStateLabel(tw, null, v) } : s;
+  });
   const flow = doc.flow && doc.flow in WORKFLOWS ? (doc.flow as WorkflowName) : null;
 
   return (
@@ -79,12 +100,12 @@ export async function DocumentPage({
       list={{ label: t(`lists.${list.list}`), href: list.href }}
       id={doc.id}
       number={doc.number}
-      title={doc.title}
+      title={title}
       status={doc.status}
       statusLabel={stateLabel(doc.status)}
       flow={flow}
       actions={actions}
-      smart={doc.smart}
+      smart={smart}
       attachments={doc.attachments}
       attachTarget={doc.attachTarget ?? null}
       entityType={doc.entityType}
