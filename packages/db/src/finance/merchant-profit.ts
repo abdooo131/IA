@@ -287,12 +287,37 @@ export async function merchantProfitDetail(db: Db, input: { month: string; merch
     merchantId: input.merchantId,
     at: cairoDayStart(day),
   });
+  const current = {
+    // The version's prices before any band (tiers are left out of new values).
+    shippingFeePiastres: version?.shippingFeePiastres ?? prices.shippingFeePiastres,
+    orderFixedPiastres: version?.orderFixedPiastres ?? prices.orderFixedPiastres,
+    orderPercentBp: version?.orderPercentBp ?? prices.orderPercentBp,
+    codPercentBp: version?.codPercentBp ?? prices.codPercentBp,
+    minimumPiastres: version?.minimumMonthlyFeePiastres ?? null,
+  };
+  // Each delivered order of the month, as its fees were booked (shares rounded per order).
+  const from = cairoDayStart(`${input.month}-01`);
+  const to = cairoDayStart(`${addMonths(input.month, 1)}-01`);
+  const orders = await db.$queryRaw<{ products: bigint | null; cash: bigint | null }[]>`
+    SELECT
+      (SELECT SUM(i.picked_qty * i.unit_price_piastres) FROM order_items i
+        WHERE i.order_id = o.id) AS products,
+      (SELECT SUM(d.cod_collected_piastres) FROM deliveries d
+        WHERE d.order_id = o.id AND d.status = 'delivered') AS cash
+    FROM orders o
+    WHERE o.merchant_id = ${input.merchantId} AND o.status = 'delivered'
+      AND o.delivered_at >= ${from} AND o.delivered_at < ${to}`;
   const base: WhatIfBase = {
     deliveredOrders: row.deliveredOrders,
     productsPiastres: row.productsPiastres,
     codCashPiastres: row.codCashPiastres,
     feesByKind: row.feesByKind,
     costsPiastres: row.costsPiastres,
+    orders: orders.map((o) => ({
+      productsPiastres: Number(o.products ?? 0),
+      codCashPiastres: Number(o.cash ?? 0),
+    })),
+    current,
   };
   const stores = await db.darkStore.findMany({
     where: { id: { in: row.stores.map((s) => s.darkStoreId) } },
@@ -303,14 +328,7 @@ export async function merchantProfitDetail(db: Db, input: { month: string; merch
     ...row,
     stores: row.stores.map((s) => ({ ...s, store: stores.find((x) => x.id === s.darkStoreId) })),
     base,
-    current: {
-      // The version's prices before any band (the what if leaves tiers out).
-      shippingFeePiastres: version?.shippingFeePiastres ?? prices.shippingFeePiastres,
-      orderFixedPiastres: version?.orderFixedPiastres ?? prices.orderFixedPiastres,
-      orderPercentBp: version?.orderPercentBp ?? prices.orderPercentBp,
-      codPercentBp: version?.codPercentBp ?? prices.codPercentBp,
-      minimumPiastres: version?.minimumMonthlyFeePiastres ?? null,
-    },
+    current,
     tiers:
       version?.tiers.map((t) => {
         const tier = { fromOrder: t.fromOrder } as ContractTier;

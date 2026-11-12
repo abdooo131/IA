@@ -669,6 +669,16 @@ export interface WhatIfBase {
   feesByKind: Record<string, number>;
   /** Every cost counted for the merchant in the month */
   costsPiastres: number;
+  /**
+   * Each delivered order's products value and cash: fees are booked per order, each share
+   * rounded on its own, so the what if rounds the same way (the sum of the rounded shares).
+   */
+  orders?: { productsPiastres: number; codCashPiastres: number }[];
+  /**
+   * The values in force the month was booked at: a fee whose values are left as they are
+   * stays exactly as booked (tiers, versions changed in the month and rounding included).
+   */
+  current?: WhatIfParams;
 }
 
 export interface WhatIfParams {
@@ -686,19 +696,46 @@ const VARIABLE_FEES = new Set(['shipping_fee', 'order_fee', 'cod_fee', 'minimum_
 
 /**
  * The same month again with other fee values: shipping, order and COD fees are worked out
- * afresh on the month's orders, products value and cash, the other fees (per product prices,
- * packaging, unit fees) stay, and the minimum tops the total up. Costs do not change.
+ * afresh on the month's orders, products value and cash (shares rounded per order, as they
+ * are booked), the other fees (per product prices, packaging, unit fees) stay, and the
+ * minimum tops the total up. A fee whose values equal the ones in force stays as booked, so
+ * the what if at today's prices shows exactly the booked fees. Costs do not change.
  */
 export function whatIf(base: WhatIfBase, p: WhatIfParams) {
-  const shippingFee = base.deliveredOrders * (p.shippingFeePiastres ?? 0);
-  const orderFee =
-    base.deliveredOrders * p.orderFixedPiastres + bpShare(base.productsPiastres, p.orderPercentBp);
-  const codFee = bpShare(base.codCashPiastres, p.codPercentBp);
+  const c = base.current;
+  const booked = (kind: string) => base.feesByKind[kind] ?? 0;
+  // A share worked out per order (as booked), or on the month's total without the orders.
+  const perOrder = (pick: 'productsPiastres' | 'codCashPiastres', bp: number) =>
+    base.orders
+      ? base.orders.reduce((s, o) => s + bpShare(o[pick], bp), 0)
+      : bpShare(pick === 'productsPiastres' ? base.productsPiastres : base.codCashPiastres, bp);
+  const sameShipping = !!c && (c.shippingFeePiastres ?? 0) === (p.shippingFeePiastres ?? 0);
+  const sameOrder =
+    !!c && c.orderFixedPiastres === p.orderFixedPiastres && c.orderPercentBp === p.orderPercentBp;
+  const sameCod = !!c && c.codPercentBp === p.codPercentBp;
+  const shippingFee = sameShipping
+    ? booked('shipping_fee')
+    : base.deliveredOrders * (p.shippingFeePiastres ?? 0);
+  const orderFee = sameOrder
+    ? booked('order_fee')
+    : base.deliveredOrders * p.orderFixedPiastres + perOrder('productsPiastres', p.orderPercentBp);
+  const codFee = sameCod ? booked('cod_fee') : perOrder('codCashPiastres', p.codPercentBp);
   const otherFees = Object.entries(base.feesByKind)
     .filter(([kind]) => !VARIABLE_FEES.has(kind))
     .reduce((s, [, v]) => s + v, 0);
   const beforeMinimum = shippingFee + orderFee + codFee + otherFees;
-  const minimumTopUp = p.minimumPiastres ? Math.max(0, p.minimumPiastres - beforeMinimum) : 0;
+  const unchanged =
+    !!c &&
+    sameShipping &&
+    sameOrder &&
+    sameCod &&
+    (c.minimumPiastres ?? null) === p.minimumPiastres;
+  const minimumTopUp =
+    unchanged && 'minimum_fee' in base.feesByKind
+      ? booked('minimum_fee')
+      : p.minimumPiastres
+        ? Math.max(0, p.minimumPiastres - beforeMinimum)
+        : 0;
   const fees = beforeMinimum + minimumTopUp;
   const margin = fees - base.costsPiastres;
   return {

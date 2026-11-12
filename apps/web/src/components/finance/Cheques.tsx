@@ -406,10 +406,7 @@ export function ChequeRegisterForm({ options }: { options: ChequeOptions }) {
           className={field}
         />
       </Field>
-      <div className="text-caption sm:col-span-2">
-        <span className="mb-1 block">{t('photo')}</span>
-        <AttachmentField onChange={setFiles} resetKey={round} />
-      </div>
+      <AttachmentField onChange={setFiles} resetKey={round} label={t('photo')} />
       <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
         <button type="submit" disabled={busy} className={primary}>
           {t('submit')}

@@ -111,7 +111,7 @@ function Deposit({ store }: { store: FinanceOverview['stores'][number] }) {
             dir="ltr"
             placeholder={tf('reference')}
             aria-label={tf('reference')}
-            className={`${field} min-w-0 flex-1`}
+            className={`${field} min-w-48 flex-1`}
           />
           <BankSelect value={bank} onChange={setBank} className={field} />
           <button
@@ -178,7 +178,7 @@ export function CashDesk({
 
       <section>
         <h2 className="text-h3">{t('stores')}</h2>
-        <ul className="mt-3 grid gap-3 md:grid-cols-3">
+        <ul className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
           {stores.map((s) => (
             <Deposit key={s.id} store={s} />
           ))}
@@ -203,7 +203,8 @@ export function CashDesk({
               {recent.map((h) => (
                 <tr key={h.id} className="border-b border-line last:border-0">
                   <td className="px-3 py-2">
-                    <span className="ltr-iso me-2 text-caption font-bold text-link">
+                    {/* A handover has no page of its own: the number reads as plain text. */}
+                    <span className="ltr-iso me-2 text-caption font-bold text-text-muted">
                       {h.number}
                     </span>
                     {h.rider.name}

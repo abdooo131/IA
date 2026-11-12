@@ -124,7 +124,10 @@ export function EmailOutbox({ page, status }: { page: EmailOutboxPage; status: s
                     >
                       {t('preview')}
                     </button>
-                    {row.status !== 'sent' && (
+                    {/* Send again only once a try failed: a pending email not tried yet
+                        goes out with the next run on its own. */}
+                    {(row.status === 'failed' ||
+                      (row.status === 'pending' && row.attempts > 0)) && (
                       <button
                         type="button"
                         disabled={busy}

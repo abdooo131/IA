@@ -48,6 +48,17 @@ export interface BankMatchingData {
     day: string;
     amountPiastres: number;
   }[];
+  /** Lines matched or set aside lately, newest decision first, to open again */
+  done: {
+    id: string;
+    statement: string;
+    day: string;
+    description: string;
+    amountPiastres: number;
+    status: 'matched' | 'ignored';
+    note: string | null;
+    entry: { id: string; number: string } | null;
+  }[];
 }
 
 const btn =
@@ -265,8 +276,17 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
 
       {data.lines.length === 0 ? (
         <div className="rounded-lg border border-dashed border-line bg-surface p-8 text-center">
-          <p className="text-body font-bold">{t('allMatched')}</p>
-          <p className="mt-1 text-body-sm text-text-muted">{t('allMatchedHint')}</p>
+          {data.statements.length === 0 ? (
+            <>
+              <p className="text-body font-bold">{t('noStatementYet')}</p>
+              <p className="mt-1 text-body-sm text-text-muted">{t('noStatementYetHint')}</p>
+            </>
+          ) : (
+            <>
+              <p className="text-body font-bold">{t('allMatched')}</p>
+              <p className="mt-1 text-body-sm text-text-muted">{t('allMatchedHint')}</p>
+            </>
+          )}
         </div>
       ) : (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)]">
@@ -510,6 +530,65 @@ export function BankMatching({ data, canWrite }: { data: BankMatchingData; canWr
             </section>
           )}
         </div>
+      )}
+
+      {data.done.length > 0 && (
+        <section
+          aria-labelledby="bank-done"
+          className="min-w-0 rounded-lg border border-line bg-surface"
+        >
+          <div className="border-b border-line px-3 py-2">
+            <h2 id="bank-done" className="text-body font-bold">
+              {t('doneTitle')}
+            </h2>
+            <p className="text-caption text-text-muted">{t('doneHint')}</p>
+          </div>
+          <ul className="divide-y divide-line">
+            {data.done.map((d) => (
+              <li key={d.id} className="flex flex-wrap items-center gap-3 px-3 py-2 text-body-sm">
+                <span dir="ltr" className="w-24 shrink-0">
+                  {isoToDayFirst(d.day)}
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate">{d.description}</span>
+                  <span className="block text-caption text-text-muted">
+                    {d.status === 'matched' ? t('doneMatched') : t('doneAside')}
+                    {d.entry && (
+                      <>
+                        {' · '}
+                        <Link href={`/finance/journal/${d.entry.id}`} className="text-link">
+                          <span dir="ltr">{d.entry.number}</span>
+                        </Link>
+                      </>
+                    )}
+                    {d.note && ` · ${d.note}`}
+                  </span>
+                </span>
+                <Amount piastres={d.amountPiastres} />
+                {canWrite && (
+                  <button
+                    type="button"
+                    className={btn}
+                    disabled={busy}
+                    onClick={() =>
+                      void send(`/finance/bank-lines/${d.id}/reopen`, {}, t('reopened'))
+                    }
+                  >
+                    {t('reopen')}
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {data.lines.length === 0 && message && (
+        <p
+          role="status"
+          className={`text-body-sm ${message.error ? 'text-danger' : 'text-text-muted'}`}
+        >
+          {message.text}
+        </p>
       )}
     </div>
   );

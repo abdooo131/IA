@@ -7,7 +7,7 @@ import {
   productHandlingCharge,
   shipmentCharges,
 } from '@shiplynow/shared';
-import type { Db } from '../client';
+import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { contractPricesAt, productPricesFor, standardPrices } from './contracts';
@@ -31,41 +31,52 @@ async function feeLines(tx: Tx, merchantId: string, fee: number) {
 }
 
 /**
- * Postal fee (owner, 2026-11-11): Egypt's postal authority takes fee.postal_bp (default 10%)
- * of our revenue on every shipment. Per shipment it is that share of every fee we charged on
- * it BEFORE VAT: on a delivered order the shipping fee, per product prices, order fee, COD fee
- * and packaging charge; on a failed attempt the failed delivery fee charged for it. Storage,
- * receiving and return fees are not shipments and carry none. It is OUR cost, never charged
- * to the merchant (the merchant still pays our fees plus VAT, nothing more) and carries no
- * VAT: Dr 5103 Postal fees, Cr 2307 Postal fees owed, paid to the postal office once a month
- * from Taxes (payTax with tax postal). Tagged with the order (store and merchant follow from
- * it in post()); nothing is booked at 0; the key makes a repeat change nothing.
+ * Postal fee (owner, 2026-11-11; all revenue 2026-11-12): Egypt's postal authority takes
+ * fee.postal_bp (default 10%) of ALL our fee revenue. Each fee entry books that share of the
+ * fees it charged BEFORE VAT: on a delivered order the shipping fee, per product prices,
+ * order fee, COD fee and packaging charge; on a failed attempt the failed delivery fee; the
+ * receiving fee of a closed shipment, each storage day, the return fee, a contract's monthly
+ * minimum top up and a debit note; a credit note gives back the share of the fees it
+ * returns. It is OUR cost, never charged to the merchant (the merchant still pays our fees
+ * plus VAT, nothing more) and carries no VAT: Dr 5103 Postal fees, Cr 2307 Postal fees owed,
+ * paid to the postal office once a month from Taxes (payTax with tax postal). Tagged like
+ * its fee (order, store, merchant); nothing is booked at 0; the key (the fee entry's key
+ * plus :postal_fee, or the delivery keys below) makes a repeat change nothing.
  */
-async function postPostalFee(
+export async function postPostalFee(
   tx: Tx,
   input: {
     idempotencyKey: string;
     basePiastres: number;
-    orderId: string;
-    deliveryId: string;
     now: Date;
     actorUserId: string | null;
     memo: string;
+    orderId?: string | null;
+    darkStoreId?: string | null;
+    merchantId?: string | null;
+    data?: Record<string, unknown>;
+    /** A given amount instead of the share of the base (a credit note's running total) */
+    amountPiastres?: number;
+    /** Gives the postal fee back (a credit note): the lines are turned round */
+    reverse?: boolean;
   },
 ) {
   const bp = await getSetting(tx, 'fee.postal_bp');
-  const amount = share(input.basePiastres, bp);
-  await post(tx, {
+  const amount = input.amountPiastres ?? share(input.basePiastres, bp);
+  const sign = input.reverse ? -1 : 1;
+  return post(tx, {
     kind: 'postal_fee',
     idempotencyKey: input.idempotencyKey,
-    orderId: input.orderId,
+    orderId: input.orderId ?? null,
+    darkStoreId: input.darkStoreId ?? null,
+    merchantId: input.merchantId ?? null,
     occurredAt: input.now,
     createdById: input.actorUserId,
     memo: input.memo,
-    data: { deliveryId: input.deliveryId, basePiastres: input.basePiastres, bp },
+    data: { ...input.data, basePiastres: input.basePiastres, bp },
     lines: [
-      { account: { type: 'postal_fee_expense' }, amount },
-      { account: { type: 'postal_fee_payable' }, amount: -amount },
+      { account: { type: 'postal_fee_expense' }, amount: sign * amount },
+      { account: { type: 'postal_fee_payable' }, amount: -sign * amount },
     ],
   });
 }
@@ -187,7 +198,7 @@ export async function postDeliveryCompleted(
     idempotencyKey: `delivery:${delivery.id}:postal_fee`,
     basePiastres: shippingFee + handling + orderFee + share(cash, codBp) + packaging,
     orderId: order.id,
-    deliveryId: delivery.id,
+    data: { deliveryId: delivery.id },
     now: input.now,
     actorUserId: input.actorUserId,
     memo: order.number,
@@ -275,7 +286,7 @@ export async function postDeliveryFailed(
     idempotencyKey: `delivery:${delivery.id}:failed_postal_fee`,
     basePiastres: fee,
     orderId: delivery.orderId,
-    deliveryId: delivery.id,
+    data: { deliveryId: delivery.id },
     now: input.now,
     actorUserId: input.actorUserId,
     memo: order.number,
@@ -297,15 +308,26 @@ export async function postReceivingFee(
     at: input.now,
   });
   const perUnit = prices.receivingPerUnitPiastres;
+  const key = `manifest:${manifest.id}:receiving_fee`;
   await post(tx, {
     kind: 'receiving_fee',
-    idempotencyKey: `manifest:${manifest.id}:receiving_fee`,
+    idempotencyKey: key,
     darkStoreId: manifest.darkStoreId,
     occurredAt: input.now,
     createdById: input.actorUserId,
     memo: manifest.reference,
     data: { manifestId: manifest.id, units, perUnitPiastres: perUnit },
     lines: await feeLines(tx, manifest.merchantId, units * perUnit),
+  });
+  await postPostalFee(tx, {
+    idempotencyKey: `${key}:postal_fee`,
+    basePiastres: units * perUnit,
+    darkStoreId: manifest.darkStoreId,
+    merchantId: manifest.merchantId,
+    now: input.now,
+    actorUserId: input.actorUserId,
+    memo: manifest.reference,
+    data: { manifestId: manifest.id },
   });
 }
 
@@ -321,15 +343,26 @@ export async function postReturnFee(
   const units = ret.lines.reduce((s, l) => s + l.pickedQty, 0);
   const { prices } = await contractPricesAt(tx, { merchantId: ret.merchantId, at: input.now });
   const perUnit = prices.returnPerUnitPiastres;
+  const key = `return:${ret.id}:return_fee`;
   await post(tx, {
     kind: 'return_fee',
-    idempotencyKey: `return:${ret.id}:return_fee`,
+    idempotencyKey: key,
     darkStoreId: ret.darkStoreId,
     occurredAt: input.now,
     createdById: input.actorUserId,
     memo: ret.reference,
     data: { returnId: ret.id, units, perUnitPiastres: perUnit },
     lines: await feeLines(tx, ret.merchantId, units * perUnit),
+  });
+  await postPostalFee(tx, {
+    idempotencyKey: `${key}:postal_fee`,
+    basePiastres: units * perUnit,
+    darkStoreId: ret.darkStoreId,
+    merchantId: ret.merchantId,
+    now: input.now,
+    actorUserId: input.actorUserId,
+    memo: ret.reference,
+    data: { returnId: ret.id },
   });
 }
 
@@ -387,28 +420,45 @@ export async function accrueStorage(
     const fee = Math.floor((u.units * monthly + Math.floor(daysInMonth / 2)) / daysInMonth);
     if (fee <= 0) continue;
     const vat = share(fee, await getSetting(db, 'fee.vat_bp'));
-    const entry = await postUnlessClosed(db, {
-      kind: 'storage_fee',
-      idempotencyKey: `storage:${day}:${u.darkStoreId}:${u.merchantId}`,
-      darkStoreId: u.darkStoreId,
-      occurredAt,
-      memo: day,
-      data: { day, darkStoreId: u.darkStoreId, units: u.units, monthlyPiastres: monthly },
-      lines: [
-        { account: { type: 'merchant', merchantId: u.merchantId }, amount: fee + vat },
-        { account: { type: 'revenue' }, amount: -fee },
-        { account: { type: 'vat_payable' }, amount: -vat },
-      ],
-    });
+    const key = `storage:${day}:${u.darkStoreId}:${u.merchantId}`;
+    // The storage fee and its postal share in one transaction.
+    const entry = await unlessClosed(() =>
+      inTransaction(db, async (tx) => {
+        const charge = await post(tx, {
+          kind: 'storage_fee',
+          idempotencyKey: key,
+          darkStoreId: u.darkStoreId,
+          occurredAt,
+          memo: day,
+          data: { day, darkStoreId: u.darkStoreId, units: u.units, monthlyPiastres: monthly },
+          lines: [
+            { account: { type: 'merchant', merchantId: u.merchantId }, amount: fee + vat },
+            { account: { type: 'revenue' }, amount: -fee },
+            { account: { type: 'vat_payable' }, amount: -vat },
+          ],
+        });
+        await postPostalFee(tx, {
+          idempotencyKey: `${key}:postal_fee`,
+          basePiastres: fee,
+          darkStoreId: u.darkStoreId,
+          merchantId: u.merchantId,
+          now: occurredAt,
+          actorUserId: null,
+          memo: day,
+          data: { day },
+        });
+        return charge;
+      }),
+    );
     if (entry) charged++;
   }
   return { day, charged };
 }
 
 /** A storage day already inside closed books is skipped, never retried forever. */
-async function postUnlessClosed(db: Db, input: Parameters<typeof post>[1]) {
+async function unlessClosed<T>(fn: () => Promise<T>) {
   try {
-    return await post(db, input);
+    return await fn();
   } catch (error) {
     if (error instanceof DomainError && error.code === 'books_closed') return null;
     throw error;

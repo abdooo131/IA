@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { BasataSettlementForm } from '@/components/finance/BasataSettlementForm';
 import { localized } from '@/lib/admin-types';
 import { apiGet } from '@/lib/api-server';
+import { isoToDayFirst } from '@/lib/day-first';
 import type { BasataSettlementForm as FormData } from '@/lib/basata';
 import { formatEgp } from '@/lib/format';
 
@@ -53,7 +54,7 @@ export default async function BasataTransferPage() {
                         {s.number}
                       </Link>
                     </td>
-                    <td className="ltr-iso py-2">{s.receivedOn}</td>
+                    <td className="ltr-iso py-2">{isoToDayFirst(s.receivedOn)}</td>
                     <td className="py-2">
                       {s.bank.code} ·{' '}
                       {localized(

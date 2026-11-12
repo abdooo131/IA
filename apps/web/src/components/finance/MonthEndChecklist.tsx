@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import type { MonthEndChecklist } from '@/lib/cash-control-types';
+import { closeProgress } from '@/lib/close-run';
+import { isoToDayFirst } from '@/lib/day-first';
 import { formatCairoDateTime } from '@/lib/format';
 import { ActionMessage, useFinanceAction } from './useFinanceAction';
 
@@ -163,7 +165,8 @@ export function MonthEndChecklistView({
   const router = useRouter();
   const close = useFinanceAction();
   const closed = !!list.closedThrough && list.closedThrough >= list.lastDay;
-  const done = list.items.filter((i) => i.done).length;
+  // The same count as the guided run: the items before closing the books.
+  const progress = closeProgress(list);
   return (
     <>
       <div className="mt-4 flex flex-wrap items-end gap-3">
@@ -182,7 +185,7 @@ export function MonthEndChecklistView({
           </select>
         </label>
         <p className="text-body-sm">
-          {t('progress', { done, total: list.items.length })}
+          {t('progress', { done: progress.done, total: progress.total })}
           {!list.over && <span className="ms-2 text-text-muted">{t('notOver')}</span>}
         </p>
       </div>
@@ -193,7 +196,9 @@ export function MonthEndChecklistView({
       </ol>
       <section className="mt-4 rounded-lg border border-line bg-surface p-4">
         {closed ? (
-          <p className="text-body">{t('closed', { day: list.closedThrough ?? '' })}</p>
+          <p className="text-body">
+            {t('closed', { day: isoToDayFirst(list.closedThrough ?? '') })}
+          </p>
         ) : (
           <>
             <p className="text-body-sm text-text-muted">
@@ -208,7 +213,7 @@ export function MonthEndChecklistView({
                 }
                 className="mt-3 h-11 rounded-md bg-primary px-5 font-bold text-on-primary disabled:opacity-50"
               >
-                {t('close', { day: list.lastDay })}
+                {t('close', { day: isoToDayFirst(list.lastDay) })}
               </button>
             )}
             <ActionMessage message={close.message} />

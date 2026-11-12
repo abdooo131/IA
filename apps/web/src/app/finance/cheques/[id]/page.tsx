@@ -20,7 +20,15 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
     getTranslations('finance.cheques'),
     getLocale(),
   ]);
-  const canUse = canDo(profile, 'accounting', 'use');
+  // The same states ChequeActions offers something for: none (cleared, bounced, cancelled)
+  // shows no empty action box.
+  const actionable =
+    (cheque.direction === 'received'
+      ? cheque.status === 'received' || cheque.status === 'deposited'
+      : cheque.status === 'issued') ||
+    ['awaiting_approval', 'received', 'issued'].includes(cheque.status);
+  const canUse = canDo(profile, 'accounting', 'use') && actionable;
+  const hasEntries = !!(cheque.bookEntry || cheque.clearEntry || cheque.reverseEntry);
   const banks = canUse
     ? (await apiGet<BookAccount[]>('/finance/accounts')).filter(
         (a) => a.groupCode === 1100 && a.isActive,
@@ -94,12 +102,14 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
           {row('', t('createdBy', { name: cheque.createdBy }))}
         </dl>
         <div className="space-y-4">
-          <dl className="rounded-lg border border-line bg-surface p-4 text-body-sm">
-            <h2 className="mb-2 text-h3">{t('entries')}</h2>
-            {row(t('booked'), entry(cheque.bookEntry))}
-            {row(t('clearedEntry'), entry(cheque.clearEntry))}
-            {row(t('reversed'), entry(cheque.reverseEntry))}
-          </dl>
+          {hasEntries && (
+            <dl className="rounded-lg border border-line bg-surface p-4 text-body-sm">
+              <h2 className="mb-2 text-h3">{t('entries')}</h2>
+              {row(t('booked'), entry(cheque.bookEntry))}
+              {row(t('clearedEntry'), entry(cheque.clearEntry))}
+              {row(t('reversed'), entry(cheque.reverseEntry))}
+            </dl>
+          )}
           {cheque.photoId && (
             <figure className="rounded-lg border border-line bg-surface p-4">
               <figcaption className="mb-2 text-h3">{t('photoTitle')}</figcaption>

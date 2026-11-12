@@ -1555,6 +1555,9 @@ function BudgetPanel({
   const t = useTranslations('forecast');
   const locale = useLocale();
   const existing = preview.rows.filter((r) => r.existingPiastres !== null);
+  // Only the rows replacing would change are listed; equal ones stay as they are.
+  const changing = existing.filter((r) => r.existingPiastres !== r.amountPiastres);
+  const same = existing.length - changing.length;
   const accountLabel = (r: BudgetPreview['rows'][number]) =>
     r.code ? `${r.code} ${(locale === 'ar' ? r.nameAr : r.nameEn) ?? ''}` : (r.accountKey ?? '');
   const accountsCount = new Set(preview.rows.map((r) => r.accountId ?? r.accountKey)).size;
@@ -1580,36 +1583,48 @@ function BudgetPanel({
           <p className="text-body-sm font-bold">
             {t('budgetExisting', { count: existing.length })}
           </p>
-          <div className="max-h-72 overflow-auto rounded-lg border border-line">
-            <table className="w-full text-body-sm">
-              <thead>
-                <tr>
-                  <th className="px-2 py-2 text-start text-label uppercase text-text-muted">
-                    {t('month')}
-                  </th>
-                  <th className="px-2 py-2 text-start text-label uppercase text-text-muted">
-                    {t('account')}
-                  </th>
-                  <th className={th}>{t('budgetNow')}</th>
-                  <th className={th}>{t('budgetForecast')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {existing.map((r) => (
-                  <tr key={`${r.month}${r.accountId}`} className="border-t border-line">
-                    <td className="px-2 py-1.5">{names.monthName(r.month)}</td>
-                    <td className="px-2 py-1.5">{accountLabel(r)}</td>
-                    <td className={td}>
-                      <Amount piastres={r.existingPiastres ?? 0} />
-                    </td>
-                    <td className={td}>
-                      <Amount piastres={r.amountPiastres} />
-                    </td>
+          {same > 0 && changing.length > 0 && (
+            <p className="text-body-sm text-text-muted">{t('budgetSame', { count: same })}</p>
+          )}
+          {changing.length === 0 ? (
+            <p className="text-body-sm text-text-muted">{t('budgetNoChange')}</p>
+          ) : (
+            <p className="text-body-sm font-bold">
+              {t('budgetChanging', { count: changing.length })}
+            </p>
+          )}
+          {changing.length > 0 && (
+            <div className="max-h-72 overflow-auto rounded-lg border border-line">
+              <table className="w-full text-body-sm">
+                <thead>
+                  <tr>
+                    <th className="px-2 py-2 text-start text-label uppercase text-text-muted">
+                      {t('month')}
+                    </th>
+                    <th className="px-2 py-2 text-start text-label uppercase text-text-muted">
+                      {t('account')}
+                    </th>
+                    <th className={th}>{t('budgetNow')}</th>
+                    <th className={th}>{t('budgetForecast')}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {changing.map((r) => (
+                    <tr key={`${r.month}${r.accountId}`} className="border-t border-line">
+                      <td className="px-2 py-1.5">{names.monthName(r.month)}</td>
+                      <td className="px-2 py-1.5">{accountLabel(r)}</td>
+                      <td className={td}>
+                        <Amount piastres={r.existingPiastres ?? 0} />
+                      </td>
+                      <td className={td}>
+                        <Amount piastres={r.amountPiastres} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
       <div className="flex flex-wrap gap-2">

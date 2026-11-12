@@ -275,6 +275,15 @@ describe('bank matching', () => {
     expect(after.statement).toMatchObject({ total: 1, done: 1 });
     // Both ledger lines are proven: none is left to pick from.
     expect(after.openLines).toHaveLength(0);
+    // The matched line is listed apart, with its entry, to be opened again.
+    expect(after.done).toEqual([
+      expect.objectContaining({
+        id: view.lines[0]!.id,
+        status: 'matched',
+        amountPiastres: 50_000,
+        entry: expect.objectContaining({ number: expect.stringMatching(/^JV-/) }),
+      }),
+    ]);
     // No money was created by matching: the bank holds what the books say.
     expect(await prisma.ledgerEntry.count()).toBe(2);
     // Undo frees both lines.
@@ -282,6 +291,7 @@ describe('bank matching', () => {
     expect(await prisma.bankLineMatch.count()).toBe(0);
     const reopened = await bankMatching(prisma, { accountId: cib.id });
     expect(reopened.openLines).toHaveLength(2);
+    expect(reopened.done).toHaveLength(0);
     expect(reopened.lines[0]!.suggestions[0]!.reason).toBe('sum');
   });
 });

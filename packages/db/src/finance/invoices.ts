@@ -12,7 +12,8 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { addMonths } from './assets';
-import { post } from './ledger';
+import { post, share } from './ledger';
+import { postPostalFee } from './postings';
 import { queueInvoiceEmail } from '../email';
 
 type Tx = Prisma.TransactionClient;
@@ -390,6 +391,22 @@ export async function issueCreditNote(db: Db, input: CreditNoteInput) {
           amount: -(input.amountPiastres + vat),
         },
       ],
+    });
+    // Fees given back are fee revenue no longer: the postal share comes back with them,
+    // worked out on the running total so the notes together give back the share of
+    // everything credited (like the VAT above).
+    const postalBp = await getSetting(tx, 'fee.postal_bp');
+    await postPostalFee(tx, {
+      idempotencyKey: `${key}:postal_fee`,
+      basePiastres: input.amountPiastres,
+      amountPiastres:
+        share(before.net + input.amountPiastres, postalBp) - share(before.net, postalBp),
+      reverse: true,
+      merchantId: invoice.merchantId,
+      now: entry!.occurredAt,
+      actorUserId: input.actorUserId,
+      memo: input.reason,
+      data: { invoiceId: invoice.id },
     });
     const note = await tx.taxInvoice.create({
       data: {
