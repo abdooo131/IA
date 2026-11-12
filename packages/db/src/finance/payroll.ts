@@ -492,6 +492,38 @@ export async function payslips(db: Db, month: string) {
   };
 }
 
+/**
+ * Where a month's salary run stands: paid (its entry), waiting for a second person (its
+ * request), or not run yet. The run screen shows a paid month as Paid with its entry and no
+ * pay button; paying it again would only answer the first run.
+ */
+export async function payrollRunStatus(db: Db, month: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month)) throw new DomainError('invalid_month', 400);
+  const [entry, request] = await Promise.all([
+    db.ledgerEntry.findUnique({
+      where: { idempotencyKey: `payroll:${month}` },
+      select: { id: true, number: true, occurredAt: true },
+    }),
+    db.financeRequest.findFirst({
+      where: {
+        kind: 'payroll',
+        status: 'pending',
+        payload: { path: ['input', 'month'], equals: month },
+      },
+      select: { id: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+  ]);
+  return {
+    month,
+    status: entry ? ('paid' as const) : request ? ('pending' as const) : ('open' as const),
+    entryId: entry?.id ?? null,
+    entryNumber: entry?.number ?? null,
+    paidAt: entry?.occurredAt ?? null,
+    requestId: entry ? null : (request?.id ?? null),
+  };
+}
+
 export interface BonusInput {
   userId: string;
   amountPiastres: number;

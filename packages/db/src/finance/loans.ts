@@ -11,7 +11,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { eventTime, mustHold, openAccount } from './books';
 import { submitMovement } from './controls';
-import { nextAccountCode, post } from './ledger';
+import { assertPeriodOpen, nextAccountCode, post } from './ledger';
 
 // Money the company borrowed. In Egypt companies borrow only from banks (owner, 2026-11-11):
 // new loans name their bank; the older supplier and owner lenders stay readable. Each loan has its own account under 2700 (2701, 2702...) so the balance sheet shows
@@ -167,8 +167,10 @@ export async function recordLoan(db: Db, input: LoanInput) {
 }
 
 /** A loan received: money in, so it waits for a second person (finance.approve_money_in). */
-export function submitLoan(db: Db, input: LoanInput & { receiptPhotoId?: string }) {
+export async function submitLoan(db: Db, input: LoanInput & { receiptPhotoId?: string }) {
   checkLoan(input);
+  // A day inside closed books is refused when the form is sent, not only at approval.
+  await assertPeriodOpen(db, eventTime(input.startDay));
   const { actorUserId, receiptPhotoId, ...rest } = input;
   return submitMovement(
     db,
@@ -187,6 +189,18 @@ export interface LoanPaymentInput {
   day?: string;
   actorUserId: string;
   idempotencyKey: string;
+}
+
+/**
+ * Money at Basata is cash on its way to the bank (a transit account): instalments are paid from
+ * a bank or a cash box, never from it.
+ */
+async function assertLoanMoney(db: Db, accountId: string) {
+  const account = await db.ledgerAccount.findUnique({
+    where: { id: accountId },
+    select: { key: true },
+  });
+  if (account?.key === 'basata_transit') throw new DomainError('money_account_not_allowed', 400);
 }
 
 /** Pays one instalment (the next unpaid one): principal off the loan, interest to 5904. */
@@ -212,6 +226,7 @@ export async function payLoanInstalment(db: Db, input: LoanPaymentInput) {
     }
     if (next && next.seq !== instalment.seq) throw new DomainError('pay_in_order');
     const money = await openAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    await assertLoanMoney(tx, money.id);
     await mustHold(tx, money, instalment.instalmentPiastres, at);
     const entry = await post(tx, {
       kind: 'loan_payment',
@@ -267,7 +282,8 @@ export async function submitLoanPayment(
   db: Db,
   input: Omit<LoanPaymentInput, 'seq'> & { receiptPhotoId?: string },
 ) {
-  eventTime(input.day);
+  await assertPeriodOpen(db, eventTime(input.day));
+  await assertLoanMoney(db, input.moneyAccountId);
   const next = await db.loanInstalment.findFirst({
     where: { loanId: input.loanId, paidAt: null },
     orderBy: { seq: 'asc' },

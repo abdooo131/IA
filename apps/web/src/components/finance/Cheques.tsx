@@ -211,7 +211,9 @@ export function ChequeRegisterForm({ options }: { options: ChequeOptions }) {
         attachmentIds: files,
         idempotencyKey: newActionKey(),
       },
-      () => t('registered'),
+      // A payout cheque waits for the payout checks before it pays the payout.
+      (data) =>
+        data.status === 'awaiting_checks' ? t('registeredWaitingChecks') : t('registered'),
     );
     if (done) {
       setForm((f) => ({ ...f, chequeNumber: '', amount: '', partyName: '', note: '' }));

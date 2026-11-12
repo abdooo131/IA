@@ -19,10 +19,13 @@ const primary =
 function DraftCard({
   payout,
   blockers,
+  cheque,
 }: {
   payout: PayoutRow;
   /** What still stands before the viewer can mark it paid (proof, checks); unknown when absent */
   blockers?: string[];
+  /** The cheque registered for it: paying books the cheque (no slip, bank or reference) */
+  cheque?: { number: string; chequeNumber: string } | null;
 }) {
   const t = useTranslations('finance.payouts');
   const tc = useTranslations('finance.payoutControls');
@@ -71,31 +74,46 @@ function DraftCard({
           </p>
         )
       )}
-      <AttachmentField onChange={setSlips} />
+      {!cheque && <AttachmentField onChange={setSlips} />}
       <div className="flex flex-wrap gap-2">
-        <input
-          value={reference}
-          onChange={(e) => setReference(e.target.value)}
-          dir="ltr"
-          placeholder={t('transferRefOptional')}
-          aria-label={t('transferRefOptional')}
-          className={`${field} min-w-0 flex-1`}
-        />
-        <BankSelect value={bank} onChange={setBank} className={field} />
-        <button
-          type="button"
-          className={primary}
-          disabled={action.busy || reference.trim().length === 1 || payout.needsApproval || blocked}
-          onClick={() =>
-            void action.send('POST', `/finance/payouts/${payout.id}/paid`, {
-              reference: reference.trim() || undefined,
-              bankAccountId: bank || undefined,
-              attachmentIds: slips,
-            })
-          }
-        >
-          {t('markPaid')}
-        </button>
+        {cheque ? (
+          <button
+            type="button"
+            className={primary}
+            disabled={action.busy || payout.needsApproval || blocked}
+            onClick={() => void action.send('POST', `/finance/payouts/${payout.id}/paid`, {})}
+          >
+            {t('markPaidByCheque', { cheque: `${cheque.number} ${cheque.chequeNumber}` })}
+          </button>
+        ) : (
+          <>
+            <input
+              value={reference}
+              onChange={(e) => setReference(e.target.value)}
+              dir="ltr"
+              placeholder={t('transferRefOptional')}
+              aria-label={t('transferRefOptional')}
+              className={`${field} min-w-0 flex-1`}
+            />
+            <BankSelect value={bank} onChange={setBank} className={field} />
+            <button
+              type="button"
+              className={primary}
+              disabled={
+                action.busy || reference.trim().length === 1 || payout.needsApproval || blocked
+              }
+              onClick={() =>
+                void action.send('POST', `/finance/payouts/${payout.id}/paid`, {
+                  reference: reference.trim() || undefined,
+                  bankAccountId: bank || undefined,
+                  attachmentIds: slips,
+                })
+              }
+            >
+              {t('markPaid')}
+            </button>
+          </>
+        )}
         <button type="button" className={button} onClick={() => setCancelling(!cancelling)}>
           {t('cancelPayout')}
         </button>

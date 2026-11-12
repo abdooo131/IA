@@ -2,8 +2,9 @@
 
 import { addDays, cairoDay } from '@shiplynow/shared';
 import { useLocale, useTranslations } from 'next-intl';
-import { useState } from 'react';
-import { apiSend } from '@/lib/api-client';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { apiGetClient, apiSend } from '@/lib/api-client';
 import type { BookAccount, StaffPayRow } from '@/lib/finance-types';
 import { isoToDayFirst } from '@/lib/day-first';
 import { formatEgp } from '@/lib/format';
@@ -65,6 +66,15 @@ interface PreviewRow {
   recovery: number;
   net: number;
 }
+/** GET /finance/payroll/run: where the month's salary run stands. */
+interface PayrollRunStatus {
+  month: string;
+  status: 'paid' | 'pending' | 'open';
+  entryId: string | null;
+  entryNumber: string | null;
+  paidAt: string | null;
+  requestId: string | null;
+}
 interface Preview {
   rows: PreviewRow[];
   totalNetPiastres: number;
@@ -118,6 +128,20 @@ export function Payroll({
   );
   const [preview, setPreview] = useState<Preview | null>(null);
   const [previewError, setPreviewError] = useState('');
+  // A month already paid (or waiting for a second person) is shown as such, never paid again.
+  const [run, setRun] = useState<PayrollRunStatus | null>(null);
+  const [runRound, setRunRound] = useState(0);
+  useEffect(() => {
+    let live = true;
+    setRun(null);
+    void apiGetClient<PayrollRunStatus>(`/finance/payroll/run?month=${month}`).then((r) => {
+      if (live && r.ok) setRun(r.data);
+    });
+    return () => {
+      live = false;
+    };
+  }, [month, runRound]);
+  const runOpen = run?.status === 'open';
   const blank = { userId: '', amount: '', reference: '', from: money[0]?.id ?? '' };
   const [adv, setAdv] = useState(blank);
   const [bon, setBon] = useState(blank);
@@ -363,7 +387,35 @@ export function Payroll({
             {t('payslips')}
           </a>
         </div>
-        {paid.length === 0 ? (
+        {run?.status === 'paid' && (
+          <p
+            role="status"
+            className="rounded-md border border-status-delivered px-3 py-2 text-body-sm font-bold"
+          >
+            ✓ {t('runPaid', { month })}{' '}
+            {run.paidAt && (
+              <span className="ltr-iso font-normal text-text-muted">
+                {isoToDayFirst(cairoDay(new Date(run.paidAt)))}
+              </span>
+            )}{' '}
+            {run.entryId && (
+              <Link href={`/finance/journal/${run.entryId}`} className="ltr-iso text-link">
+                {run.entryNumber}
+              </Link>
+            )}
+          </p>
+        )}
+        {run?.status === 'pending' && (
+          <p role="status" className="rounded-md border border-line px-3 py-2 text-body-sm">
+            {t('runPending', { month })}{' '}
+            {run.requestId && (
+              <Link href={`/finance/approvals/${run.requestId}`} className="font-bold text-link">
+                {t('openRequest')}
+              </Link>
+            )}
+          </p>
+        )}
+        {!runOpen ? null : paid.length === 0 ? (
           <p className="text-body-sm text-text-muted">{t('noSalaries')}</p>
         ) : (
           <div className="overflow-x-auto">
@@ -412,28 +464,30 @@ export function Payroll({
             </table>
           </div>
         )}
-        <button
-          type="button"
-          className={secondary}
-          disabled={chosen.length === 0 || !from}
-          onClick={async () => {
-            setPreviewError('');
-            const result = await apiSend<Preview>('POST', '/finance/payroll/preview', body);
-            if (result.ok) setPreview(result.data);
-            else
-              setPreviewError(
-                tf(
-                  tf.has(`merchants.errors.${result.error}`)
-                    ? `merchants.errors.${result.error}`
-                    : 'merchants.errors.generic',
-                ),
-              );
-          }}
-        >
-          {t('check')}
-        </button>
+        {runOpen && (
+          <button
+            type="button"
+            className={secondary}
+            disabled={chosen.length === 0 || !from}
+            onClick={async () => {
+              setPreviewError('');
+              const result = await apiSend<Preview>('POST', '/finance/payroll/preview', body);
+              if (result.ok) setPreview(result.data);
+              else
+                setPreviewError(
+                  tf(
+                    tf.has(`merchants.errors.${result.error}`)
+                      ? `merchants.errors.${result.error}`
+                      : 'merchants.errors.generic',
+                  ),
+                );
+            }}
+          >
+            {t('check')}
+          </button>
+        )}
         {previewError && <p className="text-body-sm text-danger">{previewError}</p>}
-        {preview && (
+        {preview && runOpen && (
           <div className="space-y-2">
             <div className="overflow-x-auto">
               <table className="w-full text-body-sm">
@@ -492,7 +546,12 @@ export function Payroll({
               type="button"
               className={primary}
               disabled={action.busy}
-              onClick={() => void action.send('POST', '/finance/payroll', body)}
+              onClick={async () => {
+                if (await action.send('POST', '/finance/payroll', body)) {
+                  setPreview(null);
+                  setRunRound((n) => n + 1);
+                }
+              }}
             >
               {t('pay', { month })}
             </button>

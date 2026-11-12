@@ -15,7 +15,9 @@ import { getSetting } from '../settings';
 import { eventTime } from './books';
 import { payoutNeedsApproval, submitMovement } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
+import { queuePayoutEmails } from '../email';
 import { assertPayoutOwed, bankAccount } from './operations';
+import { assertReadyToPay, freezePayoutStatement } from './payout-proof';
 import { payBill, withholdingFor } from './payables';
 
 type Tx = Prisma.TransactionClient;
@@ -139,6 +141,14 @@ export async function registerCheque(db: Db, input: ChequeBody & { actorUserId: 
         if (payout.status !== 'draft') throw new DomainError('payout_not_draft');
         if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
           throw new DomainError('approval_needed');
+        // One way to pay: a payout with a proof of transfer or a cheque already written keeps it.
+        if (await tx.payoutProof.findUnique({ where: { payoutId: payout.id } }))
+          throw new DomainError('payout_has_proof');
+        if (await liveChequeOf(tx, payout.id)) throw new DomainError('payout_has_cheque');
+        // Never more than the merchant is owed now (the wallet may have dropped since the draft).
+        await assertPayoutOwed(tx, payout);
+        // A draft prepared before statements existed gets its statement now.
+        await freezePayoutStatement(tx, payout.id, input.actorUserId);
         amount = payout.amountPiastres;
         link.payoutId = payout.id;
         link.merchantId = payout.merchantId;
@@ -202,15 +212,15 @@ export async function registerCheque(db: Db, input: ChequeBody & { actorUserId: 
       reference: `${chequeLabel(cheque.number)} ${cheque.chequeNumber}`,
       idempotencyKey: `cheque:${cheque.id}`,
     };
-    if (input.purpose === 'payout') {
-      const entry = await bookCheque(tx, { ...book, actorUserId: input.actorUserId });
+    if (input.purpose === 'payout')
+      // The cheque is the payout's proof: the payout checks (the second person included) are
+      // ticked on the payout, then Mark paid books the cheque and pays the payout.
       return {
-        status: 'posted' as const,
+        status: 'awaiting_checks' as const,
         cheque: await tx.cheque.findUniqueOrThrow({ where: { id: cheque.id } }),
-        entry,
+        entry: null,
         request: null,
       };
-    }
     const result = await submitMovement(
       tx,
       { kind: received ? 'cheque_in' : 'cheque_out', input: book },
@@ -291,6 +301,12 @@ export async function bookCheque(db: Db, input: ChequeBookInput & { actorUserId:
     } else if (cheque.purpose === 'payout') {
       const payout = await tx.payout.findUniqueOrThrow({ where: { id: cheque.payoutId! } });
       if (payout.status !== 'draft') throw new DomainError('payout_not_draft');
+      // From the approval limit, a second person must have approved it first.
+      if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
+        throw new DomainError('approval_needed');
+      // Like a transfer: the frozen statement and every payout check, the second person check
+      // ticked by someone other than whoever books (pays) it; the cheque is the proof.
+      await assertReadyToPay(tx, payout, input.actorUserId, { chequeId: cheque.id });
       // Never more than the merchant is owed now (the wallet may have dropped since the draft).
       await assertPayoutOwed(tx, payout);
       const now = new Date();
@@ -327,6 +343,8 @@ export async function bookCheque(db: Db, input: ChequeBookInput & { actorUserId:
         before: { status: 'draft' },
         after: { status: 'paid', reference: label, amount: payout.amountPiastres },
       });
+      // The payout notice (statement attached; the cheque is the proof, no file) and statement.
+      await queuePayoutEmails(tx, payout.id);
     } else {
       if (cheque.amountPiastres > (await depositHeldTx(tx, cheque.merchantId!)))
         throw new DomainError('more_than_deposit');
@@ -643,6 +661,13 @@ export function cancelCheque(
       after: { status: 'cancelled', note },
     });
     return { status: 'cancelled' as const };
+  });
+}
+
+/** The payout cheque registered and not yet booked (waiting for the payout checks). */
+export function liveChequeOf(tx: Tx, payoutId: string) {
+  return tx.cheque.findFirst({
+    where: { payoutId, purpose: 'payout', status: 'awaiting_approval' },
   });
 }
 

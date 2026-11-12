@@ -168,6 +168,8 @@ export async function chartOfAccounts(db: Db, options: { includeInactive?: boole
       wallet: isWallet(a),
       locked: LOCKED_KEYS.has(a.key) || isWallet(a),
       money: accountGroup(a.groupCode)?.money ?? false,
+      /** Money on its way to the bank (Money at Basata): never chosen to pay from */
+      transit: a.key === 'basata_transit',
       balancePiastres: natural(a.category, raw),
       /** EGP, or the currency of a bank account held in another one */
       currency: a.currency,

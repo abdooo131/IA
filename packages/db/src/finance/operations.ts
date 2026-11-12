@@ -7,10 +7,11 @@ import { type AccountRef, balanceOf, lockedBalance, nextNumber, post } from './l
 import { queuePayoutEmails } from '../email';
 import { payoutMinimumFor } from './contracts';
 import { eventTime } from './books';
-import { cairoDay } from '@shiplynow/shared';
+import { cairoDay, chequeLabel } from '@shiplynow/shared';
 import { chargeShortageToRider } from './rider-wallet';
 import { getSetting } from '../settings';
 import { assertReadyToPay, freezePayoutStatement } from './payout-proof';
+import { bookCheque, liveChequeOf } from './cheques';
 
 /** Flips a sign without producing -0. */
 const negate = (value: number) => 0 - value;
@@ -359,6 +360,19 @@ export function markPayoutPaid(
     // From the approval limit, a second person must have approved it first.
     if (!payout.approvedById && (await payoutNeedsApproval(tx, payout.amountPiastres)))
       throw new DomainError('approval_needed');
+    // Paid by a registered cheque: booking the cheque pays it, after the same checks (the
+    // cheque is the proof) and with the same emails; no bank moves until the cheque clears.
+    const cheque = await liveChequeOf(tx, payout.id);
+    if (cheque) {
+      await bookCheque(tx, {
+        chequeId: cheque.id,
+        amountPiastres: cheque.amountPiastres,
+        reference: `${chequeLabel(cheque.number)} ${cheque.chequeNumber}`,
+        idempotencyKey: `cheque:${cheque.id}`,
+        actorUserId: input.actorUserId,
+      });
+      return { status: 'paid' as const };
+    }
     // Proof of transfer, statement of account and the checks before paying.
     const proof = await assertReadyToPay(tx, payout, input.actorUserId);
     const reference = input.reference?.trim() || proof.reference;

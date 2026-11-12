@@ -132,12 +132,22 @@ export function PayoutControls({
                 {t('viewSlip')}
               </a>
             </>
-          ) : data.paidByCheque ? (
-            <p className="text-body-sm text-text-muted">{t('paidByCheque')}</p>
+          ) : data.cheque ? (
+            <p className="text-body-sm">
+              {t('paidByCheque')}{' '}
+              <a href={`/finance/cheques/${data.cheque.id}`} className={`${link} ltr-iso`}>
+                {data.cheque.number} · {data.cheque.chequeNumber}
+              </a>
+              {draft && (
+                <span className="mt-1 block text-caption text-text-muted">
+                  {t('chequeWaitsForChecks')}
+                </span>
+              )}
+            </p>
           ) : (
             <p className="text-body-sm text-text-muted">{t('potMissing')}</p>
           )}
-          {draft && canWrite && (
+          {draft && canWrite && !data.cheque && (
             <details className="pt-2" open={!data.pot}>
               <summary className="cursor-pointer text-body-sm font-bold text-link">
                 {data.pot ? t('replace') : t('upload')}

@@ -19,7 +19,8 @@ export default async function FinanceLoanPage({ params }: { params: Promise<{ id
   const canUse = canDo(profile, 'accounting', 'use');
   const money = canUse
     ? (await apiGet<BookAccount[]>('/finance/accounts')).filter(
-        (a) => a.money && a.isActive && (a.currency ?? 'EGP') === 'EGP',
+        // Money at Basata is on its way to the bank: instalments never come from it.
+        (a) => a.money && a.isActive && !a.transit && (a.currency ?? 'EGP') === 'EGP',
       )
     : [];
   return (

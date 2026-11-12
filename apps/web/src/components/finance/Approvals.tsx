@@ -14,7 +14,16 @@ const button =
 const primary =
   'h-10 rounded-md bg-primary px-4 font-bold text-on-primary active:bg-primary-pressed disabled:opacity-50';
 
-function RequestCard({ request, meId }: { request: FinanceRequestRow; meId: string }) {
+function RequestCard({
+  request,
+  meId,
+  canDecide,
+}: {
+  request: FinanceRequestRow;
+  meId: string;
+  /** Accounting manage: only they may approve or reject (the API refuses everyone else) */
+  canDecide: boolean;
+}) {
   const t = useTranslations('finance.approvals');
   const locale = useLocale();
   const action = useFinanceAction();
@@ -55,6 +64,8 @@ function RequestCard({ request, meId }: { request: FinanceRequestRow; meId: stri
             {t('withdraw')}
           </button>
         </div>
+      ) : !canDecide ? (
+        <p className="text-caption text-text-muted">{t('waitingForManager')}</p>
       ) : (
         <div className="flex flex-wrap gap-2">
           <button
@@ -100,11 +111,13 @@ export function Approvals({
   payouts,
   decided,
   meId,
+  canDecide,
 }: {
   requests: FinanceRequestRow[];
   payouts: PayoutRow[];
   decided: FinanceRequestRow[];
   meId: string;
+  canDecide: boolean;
 }) {
   const t = useTranslations('finance.approvals');
   const locale = useLocale();
@@ -117,7 +130,7 @@ export function Approvals({
         ) : (
           <ul className="mt-2 space-y-3">
             {requests.map((r) => (
-              <RequestCard key={r.id} request={r} meId={meId} />
+              <RequestCard key={r.id} request={r} meId={meId} canDecide={canDecide} />
             ))}
           </ul>
         )}

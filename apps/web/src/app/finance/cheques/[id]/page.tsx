@@ -50,6 +50,14 @@ export default async function FinanceChequePage({ params }: { params: Promise<{ 
       <p>
         <ChequeStatusPill status={cheque.status} />
       </p>
+      {cheque.purpose === 'payout' && cheque.status === 'awaiting_approval' && cheque.payout && (
+        <p className="mt-3 text-body-sm">
+          {t('waitingPayoutChecks')}{' '}
+          <Link href={`/finance/payouts/${cheque.payout.id}`} className="font-bold text-link">
+            {t('openPayout')}
+          </Link>
+        </p>
+      )}
       {cheque.requestId && (
         <p className="mt-3 text-body-sm">
           {t('waiting')}{' '}

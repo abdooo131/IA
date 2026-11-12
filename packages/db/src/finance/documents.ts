@@ -25,6 +25,7 @@ import { getSetting } from '../settings';
 import { invoiceLabel } from './invoices';
 import { pettyStatusOf } from './cash-control';
 import { attachmentsFor, photoAttachment } from './attachments';
+import { previewFinanceRequest } from './controls';
 
 // Document pages (Odoo form views): one descriptor per accounting document with its fields,
 // lines, smart buttons (counts linking to related records) and attachments. The web renders
@@ -37,6 +38,8 @@ const f = (key: string, value: DocField['value'], kind: DocField['kind'] = 'text
 /** Fields without a value are left out. */
 const present = (fields: DocField[]) =>
   fields.filter((x) => x.value !== null && x.value !== undefined && x.value !== '');
+/** A request's number as its page and the entries posted from it show it. */
+export const requestLabel = (id: string) => `REQ-${id.slice(-6).toUpperCase()}`;
 const journalHref = (entryIds: string[], q: string) =>
   entryIds.length === 1
     ? `/finance/journal/${entryIds[0]}`
@@ -324,6 +327,14 @@ async function sourceOf(db: Db, e: { id: string; idempotencyKey: string; orderId
     });
     if (c) return { value: expenseClaimNumber(c.number), href: `/finance/expense-claims/${c.id}` };
   }
+  if (prefix === 'accrual_reversal') {
+    // The reversal names the accrual it turns round.
+    const a = await db.ledgerEntry.findUnique({
+      where: { id: rest },
+      select: { id: true, number: true },
+    });
+    if (a) return { value: entryNumber(a.number), href: `/finance/journal/${a.id}` };
+  }
   if (prefix === 'handover') {
     const h = await db.cashHandover.findUnique({ where: { id: rest }, select: { number: true } });
     if (h) return { value: handoverNumber(h.number), href: '/finance/cash' };
@@ -350,7 +361,8 @@ async function sourceOf(db: Db, e: { id: string; idempotencyKey: string; orderId
       href: `/finance/invoices/${invoice.id}`,
     };
   if (cheque) return { value: chequeLabel(cheque.number), href: `/finance/cheques/${cheque.id}` };
-  if (request) return { value: request.kind, href: `/finance/approvals/${request.id}` };
+  // Posted through a second person: the request's number (its kind is shown as the entry's).
+  if (request) return { value: requestLabel(request.id), href: `/finance/approvals/${request.id}` };
   return null;
 }
 
@@ -402,6 +414,7 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
           requestedBy: { select: { name: true } },
           decidedBy: { select: { name: true } },
           decidedAt: true,
+          createdAt: true,
         },
         orderBy: { createdAt: 'desc' },
         take: 1,
@@ -419,13 +432,20 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
   });
   if (!e) return null;
   const number = entryNumber(e.number);
-  const [files, source, company] = await Promise.all([
+  const [files, source, company, reversal] = await Promise.all([
     receipts(db, { entryId: { in: [e.id] } }),
     sourceOf(db, e),
     db.companyProfile.findUnique({
       where: { id: 'company' },
       select: { legalNameEn: true, legalNameAr: true, taxRegistrationNumber: true },
     }),
+    // An accrual links to the entry that turned it round on the first day of the next month.
+    e.kind === 'accrual'
+      ? db.ledgerEntry.findUnique({
+          where: { idempotencyKey: `accrual_reversal:${e.id}` },
+          select: { id: true, number: true },
+        })
+      : null,
   ]);
   const request = e.requests[0] ?? null;
   const reference = (e.data as { reference?: unknown } | null)?.reference;
@@ -434,12 +454,20 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
     { key: 'receipts', count: files.length, href: '#attachments' },
   ];
   if (source) smart.push({ key: 'source', count: null, value: source.value, href: source.href });
-  if (request)
+  // The request is already the Posted for tile when nothing else is the source.
+  if (request && source?.href !== `/finance/approvals/${request.id}`)
     smart.push({
       key: 'request',
       count: null,
       value: request.decidedBy?.name ?? request.requestedBy.name,
       href: `/finance/approvals/${request.id}`,
+    });
+  if (reversal)
+    smart.push({
+      key: 'reversal',
+      count: null,
+      value: entryNumber(reversal.number),
+      href: `/finance/journal/${reversal.id}`,
     });
   if (e.order)
     smart.push({
@@ -469,7 +497,14 @@ async function entryDoc(db: Db, id: string): Promise<DocDescriptor | null> {
         e.order ? `/admin/orders/${e.order.id}` : undefined,
       ),
       f('createdBy', madeBy),
-      f('createdAt', iso(e.createdAt), 'datetime'),
+      // Prepared when it was asked for; an approved entry is posted at the approval moment.
+      f('createdAt', iso(request?.createdAt ?? e.createdAt), 'datetime'),
+      f(
+        'reversal',
+        reversal ? entryNumber(reversal.number) : null,
+        'ltr',
+        reversal ? `/finance/journal/${reversal.id}` : undefined,
+      ),
       f('approvedBy', approvedBy),
       f('approvedAt', iso(request?.decidedAt), 'datetime'),
       f('amount', total, 'money'),
@@ -663,8 +698,49 @@ async function requestDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       value: entryNumber(r.entry.number),
       href: `/finance/journal/${r.entry.id}`,
     });
+  // The lines the approval posts (or posted), so the second person sees the accounts first.
+  const preview = r.status === 'pending' ? await previewFinanceRequest(db, r.id) : null;
+  const posted = r.entry
+    ? await db.ledgerLine.findMany({
+        where: { entryId: r.entry.id },
+        include: {
+          entry: { select: { number: true } },
+          account: accountOwner,
+          darkStore: { select: { code: true } },
+          merchant: { select: { name: true } },
+          rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+        },
+        orderBy: { amountPiastres: 'desc' },
+      })
+    : [];
+  const rows = preview
+    ? preview.lines.map((l, i) => {
+        const named = (lang: 'en' | 'ar') =>
+          `${l.accountCode} ${(lang === 'ar' ? (l.accountAr ?? l.accountEn) : (l.accountEn ?? l.accountAr)) ?? l.owner ?? ''}`.trim();
+        return {
+          id: `preview-${i}`,
+          account: named('en'),
+          accountAr: named('ar'),
+          store: l.store,
+          merchant: l.merchant,
+          rider: l.rider,
+          debit: l.amountPiastres > 0 ? l.amountPiastres : null,
+          credit: l.amountPiastres < 0 ? -l.amountPiastres : null,
+        };
+      })
+    : posted.map((l) => ({
+        id: l.id,
+        account: `${l.account.code} ${accountName(l.account, 'en')}`.trim(),
+        accountAr: `${l.account.code} ${accountName(l.account, 'ar')}`.trim(),
+        store: l.darkStore?.code ?? null,
+        merchant: l.merchant?.name ?? null,
+        rider: l.rider ? `${l.rider.user.name} (${l.rider.badgeCode})` : null,
+        debit: l.amountPiastres > 0 ? l.amountPiastres : null,
+        credit: l.amountPiastres < 0 ? -l.amountPiastres : null,
+      }));
   return base('finance_request', r.id, {
-    number: r.entry ? entryNumber(r.entry.number) : `REQ-${r.id.slice(-6).toUpperCase()}`,
+    // The request keeps its own number after approval; the entry is its smart button.
+    number: requestLabel(r.id),
     title: text('reference') ?? text('reason') ?? r.kind,
     status: r.status,
     flow: 'finance_request',
@@ -680,10 +756,30 @@ async function requestDoc(db: Db, id: string): Promise<DocDescriptor | null> {
       f('decidedAt', iso(r.decidedAt), 'datetime'),
       f('decisionNote', r.decisionNote, 'multiline'),
     ]),
+    lines: rows.length
+      ? {
+          columns: [
+            { key: 'account', kind: 'text' },
+            { key: 'store', kind: 'ltr' },
+            { key: 'merchant', kind: 'text' },
+            { key: 'rider', kind: 'text' },
+            { key: 'debit', kind: 'money' },
+            { key: 'credit', kind: 'money' },
+          ],
+          rows,
+        }
+      : null,
     smart,
     attachments: files,
     attachTarget: r.entry ? { entryId: r.entry.id } : { requestId: r.id },
-    data: { requestedById: r.requestedById, darkStoreId: text('darkStoreId') },
+    data: {
+      requestedById: r.requestedById,
+      darkStoreId: text('darkStoreId'),
+      /** Pending: the lines are what approval would post now; else what was posted */
+      linesPreview: !!preview,
+      /** Pending and refused by the books now: the refusal code approval would answer */
+      previewError: preview?.error ?? null,
+    },
   });
 }
 

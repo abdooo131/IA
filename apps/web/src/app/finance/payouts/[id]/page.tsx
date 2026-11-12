@@ -33,7 +33,7 @@ export default async function FinancePayoutPage({ params }: { params: Promise<{ 
       actions={
         draft ? (
           <ul>
-            <DraftCard payout={draft} blockers={controls.blockers} />
+            <DraftCard payout={draft} blockers={controls.blockers} cheque={controls.cheque} />
           </ul>
         ) : undefined
       }

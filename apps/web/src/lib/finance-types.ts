@@ -173,6 +173,8 @@ export interface BookAccount {
   wallet: boolean;
   locked: boolean;
   money: boolean;
+  /** Money on its way to the bank (Money at Basata): never chosen to pay from */
+  transit?: boolean;
   balancePiastres: number;
   /** EGP, or the currency of a bank account held in another one */
   currency?: string;
@@ -958,6 +960,8 @@ export interface PayoutControlsData {
     uploadedBy: string;
   } | null;
   paidByCheque: boolean;
+  /** The cheque that pays it: its proof instead of a slip (awaiting_approval until paid) */
+  cheque: { id: string; number: string; chequeNumber: string; status: string } | null;
   checks: {
     id: string;
     code: string;

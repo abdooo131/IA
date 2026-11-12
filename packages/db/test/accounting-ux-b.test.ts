@@ -313,6 +313,14 @@ describe('pay merchants run', () => {
     expect(prepared.created).toHaveLength(2);
     run = await payoutRun(prisma, { userId: admin, cutoffDay });
     expect(run.current).toBe('approve');
+    // Right after preparing, only preparing (and the review: bank details are there) is done.
+    expect(run.done).toMatchObject({
+      prepare: true,
+      review: true,
+      approve: false,
+      file: false,
+      pay: false,
+    });
     const bigDraft = run.drafts.find((d) => d.merchantId === big.id)!;
     const smallDraft = run.drafts.find((d) => d.merchantId === small.id)!;
     expect(bigDraft).toMatchObject({ needsApproval: true, mine: true, ready: false });
@@ -329,6 +337,8 @@ describe('pay merchants run', () => {
     await bulkApprovePayouts(prisma, { ids: [bigDraft.id], actorUserId: other });
     run = await payoutRun(prisma, { userId: admin, cutoffDay });
     expect(run.current).toBe('file');
+    // Approved, but nothing paid yet: the bank file and mark paid are not ticked.
+    expect(run.done).toMatchObject({ approve: true, file: false, pay: false });
     expect(run.totals.readyCount).toBe(2);
     expect(run.totals.readyPiastres).toBe(250_000);
 
@@ -350,6 +360,7 @@ describe('pay merchants run', () => {
     expect(await prisma.ledgerEntry.count({ where: { kind: 'merchant_payout' } })).toBe(2);
     run = await payoutRun(prisma, { userId: admin, cutoffDay });
     expect(run.current).toBe('done');
+    expect(run.done).toMatchObject({ prepare: true, approve: true, file: true, pay: true });
     expect(run.paid).toHaveLength(2);
     expect(run.totals.paidPiastres).toBe(250_000);
     expect(run.due.every((d) => d.state === 'paid_today')).toBe(true);

@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
 import { addDays, cairoDay, cairoDayStart, debitNormal, isCalendarDay } from '@shiplynow/shared';
-import { recordAudit } from '../audit';
+import { auditAsApprover, recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
@@ -506,10 +506,14 @@ export async function decideFinanceRequest(
     if (claimed.count !== 1) throw new DomainError('request_not_pending');
     let entryId: string | null = null;
     if (input.approve) {
-      const entry = await execute(
-        tx,
-        request.payload as unknown as RequestPayload,
-        request.requestedById,
+      // The entry stays prepared by whoever asked; its history credits the approver.
+      const entry = await auditAsApprover(
+        {
+          approverId: input.actorUserId,
+          requestedById: request.requestedById,
+          requestId: request.id,
+        },
+        () => execute(tx, request.payload as unknown as RequestPayload, request.requestedById),
       );
       entryId = entry.id;
       await tx.financeRequest.update({ where: { id: request.id }, data: { entryId } });
@@ -524,6 +528,95 @@ export async function decideFinanceRequest(
     });
     return { status: input.approve ? ('approved' as const) : ('rejected' as const), entryId };
   });
+}
+
+class PreviewRollback extends Error {
+  constructor(readonly lines: PreviewLine[]) {
+    super('preview_rollback');
+  }
+}
+
+export interface PreviewLine {
+  entryNumber: number;
+  accountCode: string;
+  accountEn: string | null;
+  accountAr: string | null;
+  owner: string | null;
+  store: string | null;
+  merchant: string | null;
+  rider: string | null;
+  amountPiastres: number;
+}
+
+/**
+ * What approving a waiting request would post, line by line, without posting it: the request
+ * is run exactly as approval runs it inside a transaction that is always rolled back. Every
+ * kind is covered (journal, expense, transfers, bills, payroll, cheques...). A request the
+ * books would refuse now answers its refusal code instead of lines.
+ */
+export async function previewFinanceRequest(
+  db: Db,
+  requestId: string,
+): Promise<{ lines: PreviewLine[]; error: string | null }> {
+  if (!('$transaction' in db)) return { lines: [], error: null };
+  const request = await db.financeRequest.findUnique({ where: { id: requestId } });
+  if (!request || request.status !== 'pending') return { lines: [], error: null };
+  try {
+    await db.$transaction(
+      async (tx) => {
+        const last = await tx.ledgerEntry.aggregate({ _max: { number: true } });
+        const before = last._max.number ?? 0;
+        await execute(tx, request.payload as unknown as RequestPayload, request.requestedById);
+        const lines = await tx.ledgerLine.findMany({
+          where: { entry: { number: { gt: before } } },
+          include: {
+            entry: { select: { number: true } },
+            account: {
+              select: {
+                code: true,
+                nameEn: true,
+                nameAr: true,
+                merchant: { select: { name: true } },
+                supplier: { select: { name: true } },
+                user: { select: { name: true } },
+                rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+              },
+            },
+            darkStore: { select: { code: true } },
+            merchant: { select: { name: true } },
+            rider: { select: { badgeCode: true, user: { select: { name: true } } } },
+          },
+          orderBy: [{ entry: { number: 'asc' } }, { amountPiastres: 'desc' }],
+        });
+        throw new PreviewRollback(
+          lines.map((l) => ({
+            entryNumber: l.entry.number,
+            accountCode: l.account.code,
+            accountEn: l.account.nameEn,
+            accountAr: l.account.nameAr,
+            owner:
+              l.account.merchant?.name ??
+              l.account.supplier?.name ??
+              (l.account.rider
+                ? `${l.account.rider.user.name} (${l.account.rider.badgeCode})`
+                : null) ??
+              l.account.user?.name ??
+              null,
+            store: l.darkStore?.code ?? null,
+            merchant: l.merchant?.name ?? null,
+            rider: l.rider ? `${l.rider.user.name} (${l.rider.badgeCode})` : null,
+            amountPiastres: l.amountPiastres,
+          })),
+        );
+      },
+      { timeout: 15_000 },
+    );
+  } catch (err) {
+    if (err instanceof PreviewRollback) return { lines: err.lines, error: null };
+    if (err instanceof DomainError) return { lines: [], error: err.code };
+    throw err;
+  }
+  return { lines: [], error: null };
 }
 
 /** Whoever asked may take back a request nobody has decided yet. */

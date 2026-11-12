@@ -101,11 +101,17 @@ describe('employees and outsourced staff end to end', () => {
     });
 
     const month = addDays(cairoDay(new Date()), -35).slice(0, 7);
+    const before = await finance.get(`/finance/payroll/run?month=${month}`).expect(200);
+    expect(before.body).toMatchObject({ status: 'open', entryId: null });
     const run = await finance
       .post('/finance/payroll')
       .send({ month, moneyAccountId: cib.id, lines: [{ userId: staff.id }] })
       .expect(201);
     expect(run.body.status).toBe('posted');
+    // The run screen shows the month as paid, with its entry.
+    const after = await finance.get(`/finance/payroll/run?month=${month}`).expect(200);
+    expect(after.body).toMatchObject({ status: 'paid', requestId: null });
+    expect(after.body.entryNumber).toMatch(/^JV-/);
     const slips = await finance.get(`/finance/payslips?month=${month}`).expect(200);
     expect(slips.body.people[0]).toMatchObject({ gross: 800_000, siEmployee: 66_000 });
     const taxes = await finance.get('/finance/taxes').expect(200);

@@ -2232,7 +2232,8 @@
       "needsApproval": "This payout is above the approval limit: another person must approve it before it is paid.",
       "approve": "Approve",
       "approvedBy": "Approved by {name}",
-      "transferRefOptional": "Bank reference (empty uses the slip)"
+      "transferRefOptional": "Bank reference (empty uses the slip)",
+      "markPaidByCheque": "Mark paid by cheque {cheque}"
     },
     "merchants": {
       "title": "Merchant wallets",
@@ -2421,7 +2422,9 @@
         "pot_required": "Upload the proof of transfer first.",
         "pot_amount_mismatch": "The amount on the slip is not the payout amount.",
         "soa_mismatch": "The statement net is not the payout amount.",
-        "checks_incomplete": "Tick every payout check first."
+        "checks_incomplete": "Tick every payout check first.",
+        "payout_has_cheque": "A cheque is already registered for this payout; it is the proof.",
+        "payout_has_proof": "This payout already has a proof of transfer. Cancel it and prepare a new one to pay by cheque."
       }
     },
     "riders": {
@@ -2599,7 +2602,10 @@
         "rejected": "Rejected",
         "cancelled": "Withdrawn"
       },
-      "payoutsWaiting": "{count, plural, one {# payout waits for a second person: open it}  other {# payouts wait for a second person: open them}}"
+      "payoutsWaiting": "{count, plural, one {# payout waits for a second person: open it}  other {# payouts wait for a second person: open them}}",
+      "waitingForManager": "Waiting for an accounting manager to approve or reject it.",
+      "linesPreview": "The lines above are what approving posts now. Nothing is posted until it is approved.",
+      "previewRefused": "Approving it now would be refused: {reason}"
     },
     "close": {
       "title": "Close month",
@@ -2705,7 +2711,10 @@
       "payCommission": "Pay as bonus",
       "commission": "Sales commission",
       "withHrDeduction": "Less {amount} EGP from HR (unpaid leave, penalties)",
-      "hrDeductionLine": "HR: {label}"
+      "hrDeductionLine": "HR: {label}",
+      "runPaid": "Salaries for {month} are paid.",
+      "runPending": "Salaries for {month} are waiting for a second person.",
+      "openRequest": "Open the request"
     },
     "payables": {
       "billsTitle": "Supplier bills",
@@ -3266,7 +3275,10 @@
       "note": "Note",
       "bounced": "Bounced: {reason}",
       "cancelled": "Cancelled: {note}",
-      "photoTitle": "Cheque photo"
+      "photoTitle": "Cheque photo",
+      "registeredWaitingChecks": "Cheque registered. The payout is paid once its checks are ticked: open the payout and mark it paid.",
+      "waitingPayoutChecks": "Waiting for the payout checks, a second person included.",
+      "openPayout": "Open the payout"
     },
     "contracts": {
       "title": "Merchant contracts",
@@ -4101,7 +4113,7 @@
       "notTicked": "Not done yet",
       "secondPersonHint": "Someone other than the person who marks it paid opens the statement and the slip, then confirms them.",
       "ready": "Ready to be marked paid.",
-      "paidByCheque": "Paid by cheque: the cheque register is its proof.",
+      "paidByCheque": "By cheque: the cheque is its proof.",
       "blockers": {
         "pot_required": "Upload the proof of transfer first.",
         "pot_amount_mismatch": "The amount on the slip is not the payout amount.",
@@ -4121,8 +4133,10 @@
         "check_not_found": "This check is not active.",
         "invalid_amount": "Type the amount in EGP, for example 1250.50.",
         "validation_failed": "Check the fields.",
-        "generic": "Could not save. Try again."
-      }
+        "generic": "Could not save. Try again.",
+        "payout_has_cheque": "A cheque is already registered for this payout; it is the proof."
+      },
+      "chequeWaitsForChecks": "Tick the checks below; then Mark paid books the cheque and the payout is paid."
     },
     "payoutChecks": {
       "title": "Payout checks",
@@ -10688,7 +10702,8 @@
       "statement": "Statement of account",
       "proof": "Proof of transfer",
       "proofReference": "Reference on the slip",
-      "source": "Posted for"
+      "source": "Posted for",
+      "reversal": "Reversed by"
     },
     "smart": {
       "merchant": "Merchant",
@@ -11958,7 +11973,8 @@
       "totals": "Totals",
       "bank": "Bank",
       "otherBank": "Another bank (type its name)",
-      "otherBankName": "Bank name"
+      "otherBankName": "Bank name",
+      "booksClosed": "The books are closed before {day}. Choose {day} or later."
     },
     "tags": {
       "title": "Cost tags",
