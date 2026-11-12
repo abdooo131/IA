@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 import { DateInput } from '@/components/DateInput';
 import { FormFooter } from '@/components/workflow/FormFooter';
+import { inClosedBooks } from '@/lib/books-lock';
 import { isoToDayFirst } from '@/lib/day-first';
 import type { BookAccount } from '@/lib/finance-types';
 import { formatEgp } from '@/lib/format';
@@ -87,7 +88,14 @@ export interface LoanDetailData {
 }
 
 /** A loan received from a bank: the bank, amount, where it came in, rate, method and the schedule. */
-export function NewLoan({ money }: { money: BookAccount[] }) {
+export function NewLoan({
+  money,
+  openFrom,
+}: {
+  money: BookAccount[];
+  /** The first day the books are open (the day after they were closed through); null: all */
+  openFrom?: string | null;
+}) {
   const t = useTranslations('loansFx.loans');
   const locale = useLocale();
   const action = useFinanceAction();
@@ -128,8 +136,14 @@ export function NewLoan({ money }: { money: BookAccount[] }) {
   }
   const lenderName = (l.bank === OTHER ? l.otherBank : l.bank).trim();
   const dirty = JSON.stringify(l) !== JSON.stringify(blank);
+  // A day inside closed books would be refused: say so before sending.
+  const closedDay = inClosedBooks(l.startDay, openFrom);
   const ready =
-    !!preview && !!l.moneyAccountId && l.reference.trim().length >= 2 && lenderName.length >= 2;
+    !!preview &&
+    !closedDay &&
+    !!l.moneyAccountId &&
+    l.reference.trim().length >= 2 &&
+    lenderName.length >= 2;
 
   async function save() {
     const ok = await action.send(
@@ -256,10 +270,16 @@ export function NewLoan({ money }: { money: BookAccount[] }) {
           <DateInput
             value={l.startDay}
             max={today}
+            min={openFrom ?? undefined}
             onChange={(e) => setL({ ...l, startDay: e.target.value })}
             dir="ltr"
             className={field}
           />
+          {closedDay && (
+            <span role="alert" className="mt-1 block text-danger">
+              {t('booksClosed', { day: isoToDayFirst(openFrom!) })}
+            </span>
+          )}
         </label>
         <label className="block text-caption">
           {t('firstPaymentDay')}

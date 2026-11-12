@@ -205,12 +205,16 @@ export async function payoutRun(db: Db, input: { userId: string; cutoffDay?: str
   const toPrepare = due.filter((d) => d.state === 'ready').length;
   const toApprove = draftRows.filter((d) => d.needsApproval && !d.approved).length;
   const ready = draftRows.filter((d) => d.ready);
+  // A step is ticked once its work is done, never because it had nothing to do yet: while
+  // drafts wait to be paid, approve is ticked only when the drafts that needed a second
+  // person have one, and the bank file and mark paid only when every draft is paid.
+  const allPaid = draftRows.length === 0 && paidRows.length > 0;
   const done: Record<PayRunStep, boolean> = {
-    prepare: toPrepare === 0,
-    review: draftRows.every((d) => d.bankDetails),
-    approve: toApprove === 0,
-    file: ready.length === 0,
-    pay: ready.length === 0,
+    prepare: toPrepare === 0 && (draftRows.length > 0 || paidRows.length > 0),
+    review: draftRows.length > 0 ? draftRows.every((d) => d.bankDetails) : allPaid,
+    approve: toApprove === 0 && (allPaid || draftRows.some((d) => d.needsApproval && d.approved)),
+    file: allPaid,
+    pay: allPaid,
     done: false,
   };
   const current: PayRunStep =

@@ -11,7 +11,7 @@ import { apiSend } from '@/lib/api-client';
 // the smart button opens the only file at once or a viewer of all of them, and files can be
 // added later to the record's entry, payout or request.
 
-const fileUrl = (a: DocAttachmentView) => `/api/photos/${a.photoId}`;
+const fileUrl = (a: DocAttachmentView) => a.href ?? `/api/photos/${a.photoId}`;
 const isPdf = (a: DocAttachmentView) => a.contentType === 'application/pdf';
 
 /** One file: a thumbnail for a photo, a PDF tile with its name; opens in a new tab. */

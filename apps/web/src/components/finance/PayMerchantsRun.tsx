@@ -9,7 +9,7 @@ import { DateInput } from '@/components/DateInput';
 import { apiSend } from '@/lib/api-client';
 import { isoToDayFirst } from '@/lib/day-first';
 import type { BookAccount } from '@/lib/finance-types';
-import { formatCairoDateTime } from '@/lib/format';
+import { formatCairoDateTime, formatEgp } from '@/lib/format';
 import { PAY_STEPS, type PayRunData, type PayStep } from '@/lib/pay-run';
 import { Amount } from './Amount';
 import { ProofUpload } from './ProofUpload';
@@ -263,7 +263,7 @@ export function PayMerchantsRun({
     body = (
       <>
         <p className="text-body-sm text-text-muted">
-          {t('approveIntro', { limit: (run.limitPiastres / 100).toFixed(2) })}
+          {t('approveIntro', { limit: formatEgp(run.limitPiastres) })}
         </p>
         {toApprove.length === 0 ? (
           <p className="rounded-lg border border-dashed border-line bg-surface p-6 text-center text-body-sm text-text-muted">
@@ -497,7 +497,7 @@ export function PayMerchantsRun({
                   if (!refused.length) goStep('done');
                 }}
               >
-                {t('payButton', { count: payIds.size, amount: (total / 100).toFixed(2) })}
+                {t('payButton', { count: payIds.size, amount: formatEgp(total) })}
               </button>
             )}
           </>

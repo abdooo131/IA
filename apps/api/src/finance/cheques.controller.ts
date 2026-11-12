@@ -13,6 +13,7 @@ import {
   listContracts,
   merchantProfitability,
   merchantProfitDetail,
+  movementTarget,
   registerCheque,
   submitDeposit,
   withAttachments,
@@ -98,6 +99,11 @@ export class ChequesController {
       this.prisma,
       { ids: attachmentIds, actorUserId: user.sub },
       (db) => registerCheque(db, { ...rest, actorUserId: user.sub }),
+      // A payout cheque waits for the payout checks: its files go to the payout.
+      (r) =>
+        r.status === 'awaiting_checks' && r.cheque.payoutId
+          ? { payoutId: r.cheque.payoutId }
+          : movementTarget(r),
     );
     return {
       id: result.cheque.id,

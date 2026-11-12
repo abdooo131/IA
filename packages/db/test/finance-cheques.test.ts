@@ -2,6 +2,7 @@ import { addDays, cairoDay } from '@shiplynow/shared';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { changeSetting } from '../src/admin-ops';
 import {
+  addPayoutProof,
   balanceOf,
   bounceCheque,
   cancelCheque,
@@ -13,13 +14,17 @@ import {
   depositCheque,
   ensureDefaultAccounts,
   getCheque,
+  listPayoutChecks,
+  markPayoutCheck,
+  markPayoutPaid,
   merchantOwed,
+  payoutControls,
   post,
   recordBill,
   recordCapital,
   registerCheque,
 } from '../src/finance';
-import { createFixture, prisma, resetDatabase } from './helpers';
+import { createFixture, prisma, resetDatabase, slipPdf } from './helpers';
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
@@ -54,6 +59,12 @@ beforeEach(async () => {
 });
 
 afterAll(() => prisma.$disconnect());
+
+/** Every active payout check ticked on a payout by one person. */
+async function tickAll(payoutId: string, by: string) {
+  for (const check of await listPayoutChecks(prisma, { activeOnly: true }))
+    await markPayoutCheck(prisma, { payoutId, checkId: check.id, actorUserId: by });
+}
 
 /** The merchant owes us 500 EGP of fees. */
 async function merchantOwes(amount: number) {
@@ -312,8 +323,11 @@ describe('cheques issued', () => {
       idempotencyKey: key(),
       actorUserId: admin,
     });
-    expect(result.status).toBe('posted');
+    // The cheque is the payout's proof; it is booked once the payout checks are ticked.
+    expect(result.status).toBe('awaiting_checks');
     expect(result.cheque.amountPiastres).toBe(80_000);
+    await tickAll(payout.id, second);
+    await markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: admin });
     expect((await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } })).status).toBe(
       'paid',
     );
@@ -332,6 +346,104 @@ describe('cheques issued', () => {
     await expect(
       cancelCheque(prisma, { chequeId: result.cheque.id, note: 'again', actorUserId: admin }),
     ).rejects.toThrow('cheque_not_cancellable');
+  });
+
+  it('a payout cheque waits for the payout checks, second person included, then queues the emails', async () => {
+    await prisma.merchant.update({
+      where: { id: f.merchant.id },
+      data: { contactEmail: 'owner@merchant.eg' },
+    });
+    await post(prisma, {
+      kind: 'cod_collected',
+      idempotencyKey: key(),
+      occurredAt: new Date(Date.now() - 86_400_000 * 2),
+      lines: [
+        { account: { type: 'bank' }, amount: 80_000 },
+        { account: { type: 'merchant', merchantId: f.merchant.id }, amount: -80_000 },
+      ],
+    });
+    const payout = await createPayout(prisma, {
+      merchantId: f.merchant.id,
+      cutoffAt: new Date(),
+      actorUserId: admin,
+    });
+    const result = await registerCheque(prisma, {
+      direction: 'issued',
+      purpose: 'payout',
+      chequeNumber: '11',
+      bankAccountId: (await byKey('bank')).id,
+      issueDate: today(),
+      dueDate: today(),
+      payoutId: payout.id,
+      idempotencyKey: key(),
+      actorUserId: admin,
+    });
+    expect(result.status).toBe('awaiting_checks');
+    expect(result.cheque.status).toBe('awaiting_approval');
+    // Nothing is paid or booked yet.
+    expect((await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } })).status).toBe(
+      'draft',
+    );
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(80_000);
+    expect(await balanceOf(prisma, { type: 'cheques_payable' })).toBe(0);
+    // The cheque is the proof: no slip is asked for, and none can be added.
+    const controls = await payoutControls(prisma, payout.id, admin);
+    expect(controls.cheque).toMatchObject({ status: 'awaiting_approval' });
+    expect(controls.blockers).toEqual(['checks_incomplete']);
+    await expect(
+      addPayoutProof(prisma, {
+        payoutId: payout.id,
+        fileName: 'slip.pdf',
+        contentType: 'application/pdf',
+        data: slipPdf(),
+        amountPiastres: 80_000,
+        reference: 'TRF-1',
+        actorUserId: admin,
+      }),
+    ).rejects.toThrow('payout_has_cheque');
+    // A second cheque for the same payout is refused.
+    await expect(
+      registerCheque(prisma, {
+        direction: 'issued',
+        purpose: 'payout',
+        chequeNumber: '12',
+        bankAccountId: (await byKey('bank')).id,
+        issueDate: today(),
+        dueDate: today(),
+        payoutId: payout.id,
+        idempotencyKey: key(),
+        actorUserId: admin,
+      }),
+    ).rejects.toThrow('payout_has_cheque');
+    // Without the checks it cannot be paid.
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: admin }),
+    ).rejects.toThrow('checks_incomplete');
+    // The payer cannot be the second person.
+    await tickAll(payout.id, admin);
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: admin }),
+    ).rejects.toThrow('same_person');
+    await markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: second });
+    const paid = await prisma.payout.findUniqueOrThrow({ where: { id: payout.id } });
+    expect(paid).toMatchObject({ status: 'paid', paidById: second });
+    expect(paid.reference).toContain('CHQ-');
+    expect(
+      (await prisma.cheque.findUniqueOrThrow({ where: { id: result.cheque.id } })).status,
+    ).toBe('issued');
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(0);
+    expect(await balanceOf(prisma, { type: 'cheques_payable' })).toBe(-80_000);
+    // The same payout paid email as a transfer: the statement attached, no proof file.
+    const emails = await prisma.emailOutbox.findMany({ where: { merchantId: f.merchant.id } });
+    const notice = emails.find((e) => e.kind === 'payout_paid');
+    expect(notice).toBeDefined();
+    const refs = JSON.stringify(notice);
+    expect(refs).toContain('payout_soa_pdf');
+    expect(refs).not.toContain('payout_proof:');
+    expect(emails.some((e) => e.kind === 'statement')).toBe(true);
+    // Clearing still takes the money out of the bank.
+    await clearCheque(prisma, { chequeId: result.cheque.id, actorUserId: second });
+    expect(await balanceOf(prisma, { type: 'cheques_payable' })).toBe(0);
   });
 
   it('refuses a payout cheque for more than the merchant is owed now', async () => {

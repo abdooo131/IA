@@ -2,6 +2,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
+import { proofNumber } from '@shiplynow/shared';
 
 // Attachments chosen inside a finance form (docs/ARCHITECTURE.md "Finance attachments"): each
 // file (a phone photo shrunk by the browser, or a PDF) is uploaded first and waits unlinked;
@@ -209,6 +210,8 @@ export interface AttachmentView {
   contentType: string;
   fileName: string | null;
   kind?: string;
+  /** Where the file opens when it is not a photo row (a payout's proof of transfer) */
+  href?: string;
 }
 
 /**
@@ -246,8 +249,23 @@ export async function attachmentsFor(
     },
     orderBy: { createdAt: 'asc' },
   });
+  // A payout's proof of transfer (POT) is a file of its own table; it counts as a receipt.
+  const proofs = payoutIds.length
+    ? await db.payoutProof.findMany({
+        where: { payoutId: { in: [...new Set(payoutIds)] } },
+        select: {
+          id: true,
+          payoutId: true,
+          number: true,
+          fileName: true,
+          contentType: true,
+          createdAt: true,
+          uploadedBy: { select: { name: true } },
+        },
+      })
+    : [];
   const seen = new Set<string>();
-  return rows.flatMap((r) => {
+  const files: AttachmentView[] = rows.flatMap((r) => {
     if (seen.has(r.photoId)) return [];
     seen.add(r.photoId);
     return [
@@ -260,6 +278,16 @@ export async function attachmentsFor(
       },
     ];
   });
+  for (const p of proofs)
+    files.push({
+      photoId: `pot-${p.id}`,
+      at: p.createdAt.toISOString(),
+      by: p.uploadedBy.name,
+      contentType: p.contentType,
+      fileName: `${proofNumber(p.number)} ${p.fileName}`,
+      href: `/api/finance/payouts/${p.payoutId}/proof`,
+    });
+  return files.sort((a, b) => a.at.localeCompare(b.at));
 }
 
 /** One photo a record holds itself (petty cash, a claim, a cheque) as an attachment. */

@@ -15,6 +15,7 @@ export function DateInput({
   defaultValue,
   onChange,
   max,
+  min,
   className = '',
 }: {
   name?: string;
@@ -22,6 +23,8 @@ export function DateInput({
   defaultValue?: string;
   onChange?: (event: { target: { value: string } }) => void;
   max?: string;
+  /** The first day the calendar offers (a typed earlier day is still the form's to refuse) */
+  min?: string;
   dir?: string;
   className?: string;
 }) {
@@ -89,6 +92,7 @@ export function DateInput({
         aria-hidden="true"
         value={shown}
         max={max}
+        min={min}
         onChange={(e) => {
           set(e.target.value);
           setText(toDayFirst(e.target.value));

@@ -95,6 +95,8 @@ export interface DocAttachmentView {
   fileName?: string | null;
   /** What the photo shows (pack, delivery, door, receipt); labels under documents.chatter */
   kind?: string;
+  /** Where the file opens when it is not a photo row (a payout's proof of transfer) */
+  href?: string;
 }
 
 /** A document page's content; T is the document kind (the Accounting ones by default). */

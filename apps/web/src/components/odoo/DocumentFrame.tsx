@@ -26,6 +26,8 @@ export interface DocAttachment {
   /** application/pdf for a PDF; missing means a photo */
   contentType?: string;
   fileName?: string | null;
+  /** Where the file opens when it is not a photo row (a payout's proof of transfer) */
+  href?: string;
 }
 
 /** Smart buttons that count the record's files: they open the files themselves. */

@@ -82,6 +82,7 @@ export {
   submitCreditNote,
   submitAssetDisposal,
   queueRequest,
+  previewFinanceRequest,
 } from './controls';
 export {
   AGEING_BUCKETS,
@@ -118,6 +119,7 @@ export {
   myPayslip,
   myPayslips,
   payslips,
+  payrollRunStatus,
   payStaffBonus,
   previewPayroll,
   runPayroll,
@@ -294,7 +296,7 @@ export {
   type WithdrawalFilter,
 } from './rider-wallet';
 export { FINANCE_LIST_DEFS, financeListGaps, MONEY_IN_REQUESTS, queryFinanceList } from './lists';
-export { accountingDocument } from './documents';
+export { accountingDocument, requestLabel } from './documents';
 export { financeDashboard, type JournalCard, SPARK_DAYS, type TodayItem } from './dashboard';
 export { dueGroupOf, type PaymentDueItem, type PaymentsDue, paymentsDue } from './payments-due';
 export { financeSearch } from './search';

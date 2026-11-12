@@ -1,6 +1,7 @@
 import type { Prisma } from '@prisma/client';
 import {
   cairoDay,
+  chequeLabel,
   PAYOUT_PROOF_MAX_BYTES,
   PAYOUT_PROOF_TYPES,
   type PayoutStatementData,
@@ -36,6 +37,14 @@ async function nextControlNumber(tx: Tx, table: 'payout_statements' | 'payout_pr
     `SELECT MAX("number") AS max FROM "${table}"`,
   );
   return (rows[0]?.max ?? 0) + 1;
+}
+
+/** The payout cheque registered and not yet booked: the payout's proof instead of a slip. */
+function livePayoutCheque(tx: Db, payoutId: string) {
+  return tx.cheque.findFirst({
+    where: { payoutId, purpose: 'payout', status: 'awaiting_approval' },
+    select: { id: true, number: true, chequeNumber: true, status: true },
+  });
 }
 
 // ─── statement of account ──────────────────────────────────────────────────────
@@ -237,6 +246,8 @@ export async function addPayoutProof(
     const payout = await tx.payout.findUnique({ where: { id: input.payoutId } });
     if (!payout) throw new DomainError('payout_not_found', 404);
     if (payout.status !== 'draft') throw new DomainError('payout_not_draft');
+    // A payout paid by cheque has the cheque as its proof.
+    if (await livePayoutCheque(tx, payout.id)) throw new DomainError('payout_has_cheque');
     if (input.amountPiastres !== payout.amountPiastres)
       throw new DomainError('pot_amount_mismatch', 409, {
         amountPiastres: input.amountPiastres,
@@ -442,7 +453,9 @@ export function markPayoutCheck(
     });
     if (seen) return seen;
     if (check.code === SECOND_PERSON_CHECK) {
-      if (!payout.proof) throw new DomainError('pot_required', 409);
+      // The proof is the bank slip, or the cheque registered for the payout.
+      if (!payout.proof && !(await livePayoutCheque(tx, payout.id)))
+        throw new DomainError('pot_required', 409);
       if (!payout.statement) throw new DomainError('soa_mismatch', 409);
     }
     const mark = await tx.payoutCheckMark.create({
@@ -471,18 +484,30 @@ export function markPayoutCheck(
  * transfer (pot_required), the proof's amount equal to the payout (pot_amount_mismatch), the
  * frozen statement's net equal to it (soa_mismatch) and every active check ticked
  * (checks_incomplete), the second person check by someone other than the payer (same_person).
+ * A payout paid by cheque (chequeId) has the cheque as its proof instead of a bank slip.
  * Returns the proof's reference.
  */
 export async function assertReadyToPay(
   tx: Tx,
   payout: { id: string; amountPiastres: number },
   payerId: string,
+  options: { chequeId?: string } = {},
 ) {
   const [proof, statement, checks, marks] = await Promise.all([
-    tx.payoutProof.findUnique({
-      where: { payoutId: payout.id },
-      select: { amountPiastres: true, reference: true },
-    }),
+    options.chequeId
+      ? tx.cheque
+          .findUniqueOrThrow({
+            where: { id: options.chequeId },
+            select: { amountPiastres: true, number: true, chequeNumber: true },
+          })
+          .then((c) => ({
+            amountPiastres: c.amountPiastres,
+            reference: `${chequeLabel(c.number)} ${c.chequeNumber}`,
+          }))
+      : tx.payoutProof.findUnique({
+          where: { payoutId: payout.id },
+          select: { amountPiastres: true, reference: true },
+        }),
     tx.payoutStatement.findUnique({
       where: { payoutId: payout.id },
       select: { netPiastres: true },
@@ -526,7 +551,12 @@ export async function payoutControls(db: Db, payoutId: string, viewerId?: string
         },
       },
       checkMarks: { include: { user: { select: { id: true, name: true } } } },
-      cheques: { select: { id: true, number: true, status: true } },
+      cheques: {
+        where: { status: { notIn: ['cancelled', 'bounced'] } },
+        select: { id: true, number: true, chequeNumber: true, status: true },
+        orderBy: { number: 'desc' },
+        take: 1,
+      },
     },
   });
   if (!payout) throw new DomainError('payout_not_found', 404);
@@ -574,10 +604,21 @@ export async function payoutControls(db: Db, payoutId: string, viewerId?: string
         : null,
     };
   });
+  const chequeRow = payout.cheques[0] ?? null;
+  const cheque = chequeRow
+    ? {
+        id: chequeRow.id,
+        number: chequeLabel(chequeRow.number),
+        chequeNumber: chequeRow.chequeNumber,
+        status: chequeRow.status,
+      }
+    : null;
   const blockers: string[] = [];
   if (payout.status === 'draft') {
-    if (!pot) blockers.push('pot_required');
-    else if (pot.amountPiastres !== payout.amountPiastres) blockers.push('pot_amount_mismatch');
+    // A registered cheque is the proof; otherwise the bank slip must be uploaded.
+    if (!cheque && !pot) blockers.push('pot_required');
+    else if (pot && pot.amountPiastres !== payout.amountPiastres)
+      blockers.push('pot_amount_mismatch');
     if (!soa || soa.netPiastres !== payout.amountPiastres) blockers.push('soa_mismatch');
     if (rows.some((r) => !r.mark)) blockers.push('checks_incomplete');
     const second = rows.find((r) => r.code === SECOND_PERSON_CHECK);
@@ -589,12 +630,14 @@ export async function payoutControls(db: Db, payoutId: string, viewerId?: string
     amountPiastres: payout.amountPiastres,
     soa,
     pot,
-    paidByCheque: payout.cheques.length > 0,
+    paidByCheque: cheque !== null,
+    /** The cheque that pays it (waiting for the checks, issued or cleared), if any */
+    cheque,
     checks: rows,
     matches: payoutMatches({
       amountPiastres: payout.amountPiastres,
       soaNetPiastres: soa?.netPiastres ?? null,
-      potAmountPiastres: pot?.amountPiastres ?? null,
+      potAmountPiastres: pot?.amountPiastres ?? (cheque ? payout.amountPiastres : null),
     }),
     /** Why the viewer could not mark it paid now (empty: they can) */
     blockers,

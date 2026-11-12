@@ -6,6 +6,7 @@ import {
   listStaffPay,
   outsourcedCommissionsToPay,
   payslips,
+  payrollRunStatus,
   previewPayroll,
   submitStaffBonus,
   profitBy,
@@ -103,6 +104,15 @@ export class ProfitController {
       ...run,
       entryNumber: run.entryNumber ? entryNumber(run.entryNumber) : null,
     };
+  }
+
+  /** Where a month's salary run stands: paid (its entry), waiting for approval, or open. */
+  @Get('payroll/run')
+  @Access('accounting', 'view', { salaries: true })
+  @ApiQuery({ name: 'month', required: true })
+  async payrollRun(@Query('month') month: string) {
+    const run = await payrollRunStatus(this.prisma, month ?? '');
+    return { ...run, entryNumber: run.entryNumber ? entryNumber(run.entryNumber) : null };
   }
 
   @Post('advances')
