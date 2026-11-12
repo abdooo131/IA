@@ -92,8 +92,18 @@ function ExportMenu({
     const close = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
+    // Escape closes the menu (and gives the focus back to its button).
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setOpen(false);
+      ref.current?.querySelector('button')?.focus();
+    };
     document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', onKey);
+    };
   }, [open]);
   const item =
     'flex min-h-10 w-full items-center rounded-md px-2 text-start text-body-sm hover:bg-surface-raised';
@@ -110,12 +120,12 @@ function ExportMenu({
       {open && (
         <ul className="absolute end-0 z-40 mt-1 w-56 rounded-lg border border-line bg-surface p-2 shadow-lg">
           <li>
-            <a href={pdf('en')} className={item}>
+            <a href={pdf('en')} className={item} onClick={() => setOpen(false)}>
               {t('pdfEn')}
             </a>
           </li>
           <li>
-            <a href={pdf('ar')} className={item}>
+            <a href={pdf('ar')} className={item} onClick={() => setOpen(false)}>
               {t('pdfAr')}
             </a>
           </li>

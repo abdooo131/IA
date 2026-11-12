@@ -224,6 +224,15 @@ describe('monthly minimum', () => {
     expect(entries).toHaveLength(1);
     // 1,000 minimum less 300 booked: 700 plus 14% VAT.
     expect(before - (await merchantOwed(prisma, f.merchant.id))).toBe(70_000 + 9_800);
+    // The top up is fee revenue: the postal authority's 10% of it, our cost, once.
+    const postal = await prisma.ledgerEntry.findMany({
+      where: { kind: 'postal_fee' },
+      include: { lines: true },
+    });
+    expect(postal).toHaveLength(1);
+    expect(postal[0]!.idempotencyKey).toBe(`${entries[0]!.idempotencyKey}:postal_fee`);
+    expect(postal[0]!.data).toMatchObject({ basePiastres: 70_000 });
+    expect(postal[0]!.lines.every((l) => l.merchantId === f.merchant.id)).toBe(true);
     expect(entries[0]!.occurredAt < new Date(`${thisMonth}-01T00:00:00Z`)).toBe(true);
   });
 });

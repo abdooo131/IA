@@ -407,7 +407,7 @@ export const SETTING_DEFINITIONS = {
     schema: basisPoints,
     default: 1_000,
     description:
-      "Postal fee: Egypt's postal authority takes this share of our fees (before VAT) on every delivered shipment and every charged failed attempt; our cost, never charged to the merchant (basis points; 1000 is 10%)",
+      "Postal fee: Egypt's postal authority takes this share of all our fee revenue (before VAT): shipments, failed attempts, receiving, storage, returns, minimums and debit notes; our cost, never charged to the merchant (basis points; 1000 is 10%)",
     override: 'none',
   },
   'rider.bonus_per_delivery_piastres': {

@@ -23,13 +23,17 @@ import {
   packOrder,
   pickOrderItem,
 } from '../src/orders';
+import { accrueStorage } from '../src/finance/postings';
+import { closeManifest, createManifest, receiveOnManifest } from '../src/inbound';
 import { savePhoto } from '../src/photos';
+import { createReturn, handOverReturn, pickForReturn } from '../src/returns';
 import { receive } from '../src/stock';
 import { createFixture, prisma, resetDatabase } from './helpers';
 
-// Postal fee (owner, 2026-11-11): fee.postal_bp (10%) of our fees before VAT on every
-// delivered shipment and every charged failed attempt, our cost (Dr 5103, Cr 2307), never
-// charged to the merchant, paid monthly from Taxes.
+// Postal fee (owner, 2026-11-11; all revenue 2026-11-12): fee.postal_bp (10%) of all our
+// fee revenue before VAT (shipments, failed attempts, receiving, storage, returns, minimums,
+// debit notes; credit notes give it back), our cost (Dr 5103, Cr 2307), never charged to the
+// merchant, paid monthly from Taxes.
 
 let f: Awaited<ReturnType<typeof createFixture>>;
 let admin: string;
@@ -248,5 +252,85 @@ describe('postal fee', () => {
       kinds: ['postal'],
     });
     expect(after.items).toHaveLength(0);
+  });
+});
+
+describe('postal fee on the other fees', () => {
+  const postalOf = async (key: string) =>
+    prisma.ledgerEntry.findUnique({ where: { idempotencyKey: key }, include: { lines: true } });
+
+  it('books 10% of the receiving fee when a shipment is closed, once', async () => {
+    await set('fee.receiving_per_unit_piastres', 155);
+    const m = await createManifest(prisma, {
+      merchantId: f.merchant.id,
+      darkStoreId: f.store.id,
+      reference: 'PO-1',
+      lines: [{ skuId: f.sku.id, expectedQty: 3 }],
+      actorUserId: admin,
+    });
+    await receiveOnManifest(prisma, {
+      manifestId: m.id,
+      darkStoreId: f.store.id,
+      skuId: f.sku.id,
+      quantity: 3,
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    await closeManifest(prisma, { manifestId: m.id, darkStoreId: f.store.id, actorUserId: admin });
+    // 3 × 1.55 = 4.65 EGP of fees: 46.5 piastres round up to 47.
+    const entry = await postalOf(`manifest:${m.id}:receiving_fee:postal_fee`);
+    expect(entry).not.toBeNull();
+    expect(entry!.data).toMatchObject({ basePiastres: 465, bp: 1000 });
+    for (const l of entry!.lines) {
+      expect(l.darkStoreId).toBe(f.store.id);
+      expect(l.merchantId).toBe(f.merchant.id);
+    }
+    expect(await balanceOf(prisma, { type: 'postal_fee_expense' })).toBe(47);
+    // The merchant pays the fee plus VAT only.
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(-(465 + share(465, 1400)));
+  });
+
+  it('books 10% of each storage day with the storage fee, once', async () => {
+    // 3,100 a unit a month, 31 days in March: 100 a unit a day; 20 units: 20.00 EGP.
+    await set('fee.storage_per_unit_month_piastres', 3100);
+    await accrueStorage(prisma, '2026-03-10');
+    await accrueStorage(prisma, '2026-03-10');
+    const entries = await postalEntries();
+    expect(entries).toHaveLength(1);
+    expect(entries[0]!.idempotencyKey).toBe(
+      `storage:2026-03-10:${f.store.id}:${f.merchant.id}:postal_fee`,
+    );
+    expect(entries[0]!.occurredAt.toISOString()).toBe('2026-03-10T21:59:59.999Z');
+    expect(entries[0]!.lines.every((l) => l.merchantId === f.merchant.id)).toBe(true);
+    expect(await balanceOf(prisma, { type: 'postal_fee_expense' })).toBe(200);
+    expect(await merchantOwed(prisma, f.merchant.id)).toBe(-(2000 + share(2000, 1400)));
+  });
+
+  it('books 10% of the return fee when the parcel is handed over', async () => {
+    await set('fee.return_per_unit_piastres', 300);
+    const ret = await createReturn(prisma, {
+      merchantId: f.merchant.id,
+      darkStoreId: f.store.id,
+      lines: [{ skuId: f.sku.id, source: 'sellable', quantity: 2 }],
+      actorUserId: admin,
+    });
+    await pickForReturn(prisma, {
+      returnId: ret.id,
+      darkStoreId: f.store.id,
+      skuId: f.sku.id,
+      quantity: 2,
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+    await handOverReturn(prisma, {
+      returnId: ret.id,
+      darkStoreId: f.store.id,
+      collectedBy: 'Driver',
+      actorUserId: admin,
+    });
+    const entry = await postalOf(`return:${ret.id}:return_fee:postal_fee`);
+    expect(entry!.data).toMatchObject({ basePiastres: 600, bp: 1000 });
+    expect(await balanceOf(prisma, { type: 'postal_fee_expense' })).toBe(60);
+    expect(await balanceOf(prisma, { type: 'postal_fee_payable' })).toBe(-60);
   });
 });

@@ -247,4 +247,38 @@ describe('what if', () => {
     };
     expect(whatIf({ ...base, deliveredOrders: 0 }, none).marginPerOrderPiastres).toBeNull();
   });
+
+  it('equals the booked fees at the values in force and rounds per order like the books', () => {
+    // Three orders of 10.25 EGP: 1.5% is 15.375 piastres, booked as 15 per order (45),
+    // while 1.5% of the 30.75 EGP total would be 46. A tier made the third order cheaper.
+    const current = {
+      orderFixedPiastres: 1_000,
+      orderPercentBp: 150,
+      codPercentBp: 150,
+      minimumPiastres: null,
+    };
+    const orders = [1, 2, 3].map(() => ({ productsPiastres: 1_025, codCashPiastres: 1_025 }));
+    const booked = {
+      deliveredOrders: 3,
+      productsPiastres: 3_075,
+      codCashPiastres: 3_075,
+      feesByKind: { order_fee: 2_545, cod_fee: 45 },
+      costsPiastres: 0,
+      orders,
+      current,
+    };
+    expect(whatIf(booked, current)).toMatchObject({
+      orderFeePiastres: 2_545,
+      codFeePiastres: 45,
+      feesPiastres: 2_590,
+    });
+    // A changed value is worked out again, per order.
+    expect(whatIf(booked, { ...current, codPercentBp: 151 })).toMatchObject({
+      orderFeePiastres: 2_545,
+      codFeePiastres: 45,
+    });
+    expect(whatIf(booked, { ...current, orderPercentBp: 151 })).toMatchObject({
+      orderFeePiastres: 3_000 + 45,
+    });
+  });
 });

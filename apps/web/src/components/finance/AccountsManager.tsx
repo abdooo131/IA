@@ -23,7 +23,7 @@ const name = (a: { nameEn: string; nameAr: string }, locale: string) =>
   locale === 'ar' ? a.nameAr || a.nameEn : a.nameEn;
 
 /** Opens a new account; its code comes from the group's sequence. */
-function NewAccount({ onDone }: { onDone: () => void }) {
+function NewAccount({ onDone }: { onDone: (message?: string) => void }) {
   const t = useTranslations('finance.accounts');
   const action = useFinanceAction();
   const [group, setGroup] = useState(OPEN_GROUPS[0]!.code);
@@ -50,7 +50,8 @@ function NewAccount({ onDone }: { onDone: () => void }) {
     );
     if (result) {
       setDirty(false);
-      onDone();
+      // The form closes, so the page keeps its message.
+      onDone(t('created', { code: result.code }));
     }
   }
 
@@ -284,6 +285,7 @@ export function AccountsManager({
 }) {
   const t = useTranslations('finance.accounts');
   const [adding, setAdding] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const [filter, setFilter] = useState('');
   const q = filter.trim().toLowerCase();
   const shown = q
@@ -299,7 +301,14 @@ export function AccountsManager({
     <div className="mt-4 space-y-6">
       <div className="flex flex-wrap items-center gap-2">
         {!adding && (
-          <button type="button" className={primary} onClick={() => setAdding(true)}>
+          <button
+            type="button"
+            className={primary}
+            onClick={() => {
+              setNotice(null);
+              setAdding(true);
+            }}
+          >
             {t('new')}
           </button>
         )}
@@ -317,7 +326,20 @@ export function AccountsManager({
           {showClosed ? t('hideClosed') : t('showClosed')}
         </Link>
       </div>
-      {adding && <NewAccount onDone={() => setAdding(false)} />}
+      {notice && <ActionMessage message={{ text: notice, error: false }} />}
+      {adding && (
+        <NewAccount
+          onDone={(message) => {
+            setAdding(false);
+            setNotice(message ?? null);
+          }}
+        />
+      )}
+      {q && shown.length === 0 && (
+        <p className="rounded-lg border border-dashed border-line bg-surface p-6 text-center text-body-sm text-text-muted">
+          {t('nothingFound', { q: filter.trim() })}
+        </p>
+      )}
 
       {ACCOUNT_CATEGORIES.map((category) => {
         const groups = ACCOUNT_GROUPS.filter((g) => g.category === category);

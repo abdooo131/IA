@@ -13,6 +13,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
 import { DateInput } from '@/components/DateInput';
+import { isoToDayFirst } from '@/lib/day-first';
 import type {
   BankReconciliation,
   BankStatementRow,
@@ -89,12 +90,24 @@ function guess(rows: string[][], forced?: number): Mapping {
     );
   const cols = rows[header] ?? [];
   const find = (re: RegExp) => cols.findIndex((c) => re.test(c));
+  // The day of the movement: a column named just Date, then the transaction (posting) date,
+  // then any other date but the value date, which banks set later for cheques and transfers.
+  const firstOf = (...res: RegExp[]) => {
+    for (const re of res) {
+      const i = find(re);
+      if (i >= 0) return i;
+    }
+    return -1;
+  };
+  const date = firstOf(
+    /^\s*(date|التاريخ|تاريخ)\s*$/i,
+    /(transaction|txn|trans\.?|posting|booking|operation)\s*date|تاريخ\s*(العملية|الحركة|المعاملة|القيد)/i,
+    /^(?!.*(value|القيمة)).*(date|تاريخ)/i,
+    /date|تاريخ/i,
+  );
   return {
     header,
-    date:
-      find(/value date|تاريخ القيمة/i) >= 0
-        ? find(/value date|تاريخ القيمة/i)
-        : find(/date|تاريخ/i),
+    date,
     description: find(/desc|details|narrat|particular|بيان|وصف/i),
     reference: find(/ref|cheque|مرجع|رقم/i),
     amount: find(/^amount$|^المبلغ$/i),
@@ -672,8 +685,10 @@ export function CashFlowView({
         >
           {forecast.weeks.map((w) => (
             <tr key={w.from} className="border-t border-line">
-              <td className={`${td} ltr-iso`}>
-                {w.from} → {w.to}
+              <td className={td}>
+                <span dir="ltr">
+                  {isoToDayFirst(w.from)} → {isoToDayFirst(w.to)}
+                </span>
               </td>
               <td className={`${td} text-end`}>
                 <Amount piastres={w.openingPiastres} />

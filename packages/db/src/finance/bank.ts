@@ -556,6 +556,28 @@ export async function bankMatching(
     amountPiastres: l.amountPiastres,
   }));
   const months = [...new Set(open.map((l) => dayText(l.day).slice(0, 7)))].sort().reverse();
+  // The lines matched or set aside lately (the month chosen), newest decision first, so one
+  // can be opened again (reopenBankLine) when it was matched or set aside by mistake.
+  const done = await db.bankStatementLine.findMany({
+    where: {
+      accountId: account.id,
+      status: { in: ['matched', 'ignored'] },
+      ...(month
+        ? {
+            day: {
+              gte: new Date(`${month}-01T00:00:00Z`),
+              lt: new Date(`${addDays(`${month}-28`, 7).slice(0, 7)}-01T00:00:00Z`),
+            },
+          }
+        : {}),
+    },
+    orderBy: [{ decidedAt: { sort: 'desc', nulls: 'last' } }, { day: 'desc' }],
+    take: 30,
+    include: {
+      statement: { select: { number: true } },
+      ledgerLine: { select: { entry: { select: { id: true, number: true } } } },
+    },
+  });
   return {
     account: { id: account.id, code: account.code, nameEn: account.nameEn, nameAr: account.nameAr },
     statements: statements.map((s) => ({
@@ -585,5 +607,17 @@ export async function bankMatching(
       ) as MatchSuggestion[],
     })),
     openLines,
+    done: done.map((l) => ({
+      id: l.id,
+      statement: statementNumber(l.statement.number),
+      day: dayText(l.day),
+      description: l.description,
+      amountPiastres: l.amountPiastres,
+      status: l.status as 'matched' | 'ignored',
+      note: l.note,
+      entry: l.ledgerLine
+        ? { id: l.ledgerLine.entry.id, number: entryNumber(l.ledgerLine.entry.number) }
+        : null,
+    })),
   };
 }

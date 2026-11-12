@@ -449,6 +449,20 @@ describe('debit notes', () => {
     );
     expect(entry.lines.every((l) => l.merchantId === f.merchant.id)).toBe(true);
     expect(entry.lines.every((l) => l.darkStoreId === f.store.id)).toBe(true);
+    // Extra fees carry the postal authority's 10% (our cost, 400.1 rounds to 400).
+    const postalOf = (k: string) =>
+      prisma.ledgerEntry.findUniqueOrThrow({
+        where: { idempotencyKey: `${k}:postal_fee` },
+        include: { lines: { include: { account: true } } },
+      });
+    const dnPostal = await postalOf(entry.idempotencyKey);
+    expect(dnPostal.lines.map((l) => [l.account.key, l.amountPiastres])).toEqual(
+      expect.arrayContaining([
+        ['postal_fee_expense', 400],
+        ['postal_fee_payable', -400],
+      ]),
+    );
+    expect(dnPostal.lines.every((l) => l.darkStoreId === f.store.id)).toBe(true);
     // Fixed once issued.
     await expect(
       prisma.taxInvoice.update({ where: { id: notes[0]!.id }, data: { netPiastres: 1 } }),
@@ -461,6 +475,15 @@ describe('debit notes', () => {
       actorUserId: admin,
       idempotencyKey: key(),
     });
+    // The credit note gives back the postal share of the fees it returns.
+    const cn = await prisma.ledgerEntry.findFirstOrThrow({ where: { kind: 'credit_note' } });
+    const cnPostal = await postalOf(cn.idempotencyKey);
+    expect(cnPostal.lines.map((l) => [l.account.key, l.amountPiastres])).toEqual(
+      expect.arrayContaining([
+        ['postal_fee_expense', -1_000],
+        ['postal_fee_payable', 1_000],
+      ]),
+    );
 
     // The VAT return counts it as sales with output VAT, shown apart.
     const month = cairoDay(entry.occurredAt).slice(0, 7);

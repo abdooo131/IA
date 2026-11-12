@@ -32,7 +32,7 @@ import { eventTime } from './books';
 import { submitMovement } from './controls';
 import { balanceOf, lockedBalance, post, share } from './ledger';
 import { bankAccount, merchantOwed } from './operations';
-import { accrueStorage, lastClosedDay } from './postings';
+import { accrueStorage, lastClosedDay, postPostalFee } from './postings';
 
 type Tx = Prisma.TransactionClient;
 
@@ -1108,18 +1108,30 @@ export async function chargeMinimumFees(db: Db, now: Date = new Date()) {
     const at = new Date(to.getTime() - 1);
     if (lock && at < lock.lockedBefore) continue;
     const vat = share(topUp, await getSetting(db, 'fee.vat_bp'));
-    await post(db, {
-      kind: 'minimum_fee',
-      idempotencyKey: key,
-      occurredAt: at,
-      memo: `Minimum ${month}`,
-      merchantId: c.merchantId,
-      data: { month, minimumPiastres: minimum, feesPiastres: fees, days, daysInMonth },
-      lines: [
-        { account: { type: 'merchant', merchantId: c.merchantId }, amount: topUp + vat },
-        { account: { type: 'revenue' }, amount: negate(topUp) },
-        { account: { type: 'vat_payable' }, amount: negate(vat) },
-      ],
+    // The top up is fee revenue too: its postal share in the same transaction.
+    await inTransaction(db, async (tx) => {
+      await post(tx, {
+        kind: 'minimum_fee',
+        idempotencyKey: key,
+        occurredAt: at,
+        memo: `Minimum ${month}`,
+        merchantId: c.merchantId,
+        data: { month, minimumPiastres: minimum, feesPiastres: fees, days, daysInMonth },
+        lines: [
+          { account: { type: 'merchant', merchantId: c.merchantId }, amount: topUp + vat },
+          { account: { type: 'revenue' }, amount: negate(topUp) },
+          { account: { type: 'vat_payable' }, amount: negate(vat) },
+        ],
+      });
+      await postPostalFee(tx, {
+        idempotencyKey: `${key}:postal_fee`,
+        basePiastres: topUp,
+        merchantId: c.merchantId,
+        now: at,
+        actorUserId: null,
+        memo: `Minimum ${month}`,
+        data: { month },
+      });
     });
     charged++;
   }

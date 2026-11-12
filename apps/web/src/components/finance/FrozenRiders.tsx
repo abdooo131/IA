@@ -42,7 +42,7 @@ export function FrozenRiders({ riders, canUse }: { riders: FrozenRider[]; canUse
     router.refresh();
   }
 
-  if (riders.length === 0) return <p className="mt-4 text-body text-text-muted">{t('none')}</p>;
+  // The message stays above the empty state too: unfreezing the last rider empties the list.
   return (
     <div className="mt-4 space-y-3">
       {message && (
@@ -53,6 +53,7 @@ export function FrozenRiders({ riders, canUse }: { riders: FrozenRider[]; canUse
           {message.text}
         </p>
       )}
+      {riders.length === 0 && <p className="text-body text-text-muted">{t('none')}</p>}
       <ul className="space-y-3">
         {riders.map((r) => (
           <li key={r.riderId} className="rounded-lg border border-line bg-surface p-4">

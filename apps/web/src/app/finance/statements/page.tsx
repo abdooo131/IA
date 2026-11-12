@@ -1,8 +1,10 @@
 import { accountGroup, addDays, cairoDay, isCalendarDay } from '@shiplynow/shared';
 import { getLocale, getTranslations } from 'next-intl/server';
+import { DateInput } from '@/components/DateInput';
 import { Amount } from '@/components/finance/Amount';
 import { PrintButton } from '@/components/finance/PrintButton';
 import { apiGet } from '@/lib/api-server';
+import { isoToDayFirst as dd } from '@/lib/day-first';
 import type { ComparativeStatements } from '@/lib/finance-types';
 
 export const dynamic = 'force-dynamic';
@@ -47,11 +49,15 @@ export default async function StatementsPage({
   const head = (
     <tr className="text-label uppercase text-text-muted">
       <th className="py-2 text-start">{t('account')}</th>
-      <th className="py-2 text-end ltr-iso">
-        {s.current.from} → {s.current.to}
+      <th className="py-2 text-end">
+        <span dir="ltr">
+          {dd(s.current.from)} → {dd(s.current.to)}
+        </span>
       </th>
-      <th className="py-2 text-end ltr-iso">
-        {s.previous.from} → {s.previous.to}
+      <th className="py-2 text-end">
+        <span dir="ltr">
+          {dd(s.previous.from)} → {dd(s.previous.to)}
+        </span>
       </th>
     </tr>
   );
@@ -83,20 +89,22 @@ export default async function StatementsPage({
       <div className="flex flex-wrap items-end justify-between gap-3 print:hidden">
         <h1 className="text-h2">{t('statementsTitle')}</h1>
         <form className="flex flex-wrap items-end gap-2">
-          <input
-            type="date"
-            name="from"
-            defaultValue={from}
-            dir="ltr"
-            className="h-10 rounded-md border border-line bg-surface px-2 text-body-sm"
-          />
-          <input
-            type="date"
-            name="to"
-            defaultValue={to}
-            dir="ltr"
-            className="h-10 rounded-md border border-line bg-surface px-2 text-body-sm"
-          />
+          <label className="text-caption text-text-muted">
+            <span className="block">{t('from')}</span>
+            <DateInput
+              name="from"
+              defaultValue={from}
+              className="h-10 rounded-md border border-line bg-surface px-2 text-body-sm"
+            />
+          </label>
+          <label className="text-caption text-text-muted">
+            <span className="block">{t('to')}</span>
+            <DateInput
+              name="to"
+              defaultValue={to}
+              className="h-10 rounded-md border border-line bg-surface px-2 text-body-sm"
+            />
+          </label>
           <button className="h-10 rounded-md border border-line px-3 text-body-sm font-bold">
             {t('show')}
           </button>
@@ -135,7 +143,9 @@ export default async function StatementsPage({
           </table>
         </section>
         <section className="break-before-page">
-          <h2 className="text-h3">{t('bs', { now: s.current.to, before: s.previous.to })}</h2>
+          <h2 className="text-h3">
+            {t('bs', { now: dd(s.current.to), before: dd(s.previous.to) })}
+          </h2>
           <table className="mt-2 w-full">
             <thead>{head}</thead>
             <tbody>

@@ -6,6 +6,7 @@ import { getSetting } from '../settings';
 import { submitMovement } from './controls';
 import { FEE_KINDS, invoiceLabel, nextDocumentNumber } from './invoices';
 import { post, share } from './ledger';
+import { postPostalFee } from './postings';
 
 // Debit notes (DN-000001): the counterpart of credit notes. After a month's invoice was issued,
 // finance charges the merchant more (a fee that was missed, a correction). A debit note:
@@ -111,6 +112,17 @@ export async function issueDebitNote(db: Db, input: DebitNoteInput) {
         { account: { type: 'revenue' }, amount: -amounts.netPiastres },
         { account: { type: 'vat_payable' }, amount: -amounts.vatPiastres },
       ],
+    });
+    // Extra fees are fee revenue: the postal authority's share of them (our cost).
+    await postPostalFee(tx, {
+      idempotencyKey: `${key}:postal_fee`,
+      basePiastres: amounts.netPiastres,
+      merchantId: invoice.merchantId,
+      darkStoreId: storeId,
+      now: entry!.occurredAt,
+      actorUserId: input.actorUserId,
+      memo: reason,
+      data: { invoiceId: invoice.id },
     });
     const note = await tx.taxInvoice.create({
       data: {

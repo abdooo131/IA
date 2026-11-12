@@ -62,6 +62,7 @@ export function AttachmentField({
   required = false,
   name = 'attachmentIds',
   resetKey,
+  label,
 }: {
   onChange?: (ids: string[]) => void;
   onBusy?: (busy: boolean) => void;
@@ -69,6 +70,8 @@ export function AttachmentField({
   name?: string;
   /** Changing it empties the field (forms that are not reset natively) */
   resetKey?: unknown;
+  /** The field's own label, instead of "Receipts and documents" */
+  label?: string;
 }) {
   const t = useTranslations('attachments');
   const anchor = useRef<HTMLInputElement>(null);
@@ -172,7 +175,7 @@ export function AttachmentField({
   return (
     <div className="w-full text-caption sm:col-span-2">
       <span className="block">
-        {t('label')}
+        {label ?? t('label')}
         {required ? ' *' : ''}
       </span>
       <input
