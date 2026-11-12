@@ -34,7 +34,21 @@ refuse not_enough_money when amount &gt; min(atBalance, laterMin)</pre>
 
 <h2 id="pe-suppliers">12.3 Suppliers</h2>
 <p>A supplier has a name, a tax id, a default expense account and a withholding tax rate <code>whtBp</code> (basis points of the amount before VAT, 0 to 10,000). Its wallet is <code>2500-nnnn</code> (credit: we owe it). Rider offices are suppliers with <code>is_rider_office</code> (chapter 11).</p>
-<div class="note" data-todo="suppliers-page">To be completed after the update: the new suppliers page (list, supplier document, balances and actions) is being finished; its screens and any new supplier fields will be documented here.</div>
+<p>Suppliers have their own pages, apart from the bills. A supplier's fields (<code>supplierSchema</code> in <code>packages/shared/src/accounts.ts</code>): name, tax id (at most 30 characters), phone, email (checked when given), withholding rate <code>whtBp</code> (default 0) and an optional default expense account proposed on new bills; <code>isActive</code> can be switched off on an update. <code>createSupplier()</code> and <code>updateSupplier()</code> (<code>POST /finance/suppliers</code>, <code>PATCH /finance/suppliers/:id</code>, accounting use) are audited (<code>finance.supplier_create</code> on creation); a name already used by another supplier, in any letter case, answers <code>supplier_exists</code>, and a default expense account must be an open account of groups 5400 or 5500.</p>
+<p>The list is the Accounting list view <code>suppliers</code> (<code>loadSuppliers</code> in <code>packages/db/src/finance/lists.ts</code>, <code>GET /finance/lists/suppliers</code>). One row per supplier:</p>
+<pre class="code">kind     = rider_office      when is_rider_office
+         = staffing_company  when people not yet left are employed through it
+         = supplier          otherwise
+balance  = 0 − sum of the lines of its wallet accounts     (what we owe them; below 0 they owe us)
+openBills, people (staff not left), whtPercent = whtBp / 100, accountCode = its 2500 wallet code</pre>
+<table class="data"><thead><tr><th>Part</th><th>Values</th></tr></thead><tbody>
+<tr><td>Search</td><td>name, tax id, phone, email, wallet code</td></tr>
+<tr><td>Filters (groups joined by "and", values in a group by "or")</td><td>status: <code>active</code> (the default), <code>inactive</code>; kind: <code>rider_office</code>, <code>staffing_company</code>; tax: <code>has_tax_number</code>, <code>no_tax_number</code>; balance: <code>owes_us</code> (balance &lt; 0), <code>we_owe_them</code> (balance &gt; 0)</td></tr>
+<tr><td>Group by</td><td>kind, status</td></tr>
+<tr><td>Sort</td><td>name (default, A to Z), balance, open bills</td></tr>
+<tr><td>Totals</td><td>balance</td></tr>
+</tbody></table>
+<p>The supplier document (<code>/finance/suppliers/&lt;id&gt;</code>, <code>supplierDoc</code> in <code>packages/db/src/finance/documents.ts</code>) shows the fields (name, tax id, phone, email, withholding %, default expense account, wallet account, commission % for a rider office, people employed through it, open bills, what we owe, created on), edited on the page itself, and smart buttons: bills (the bills list searched by the supplier's name), payments (the <code>bill_payment</code> entries of its bills, opened in the journal), purchase orders, the balance (opening the ledger lines of its wallet), cheques when it has any, and the rider office page for a rider office. The document carries the chatter like every Accounting document. The bills page lists only bills; its New bill form links to New supplier. The screens are shown in the chapter Screens: Money out, section "Suppliers".</p>
 
 <h2 id="pe-bills">12.4 Supplier bills</h2>
 <p><code>recordBill()</code> in <code>packages/db/src/finance/payables.ts</code>. A bill books its cost and VAT when it arrives, and the supplier is owed until paid. Number <code>BILL-000001</code> onward (gapless). Net and VAT are entered (VAT never computed); the bill date gives the entry's time through <code>eventTime()</code>; the due date may not be before it. A bill may name a team member (an outsourced person's month, only from their own outsourcing company: <code>not_their_company</code>); the cost line then carries the person, their store and rider tags. Supplier, reference and person together are unique (<code>bill_exists</code>).</p>
@@ -142,7 +156,35 @@ refuse bill_above_order when net &gt; expected + share(expected, finance.po_bill
 <tr><td>2500 supplier wallet</td><td></td><td>net + vat</td><td></td></tr>
 </tbody></table>
 <p>Idempotency key <code>bill:po:&lt;clientKey&gt;</code>; kind <code>supplier_bill</code>. Paid like any bill; it cannot be cancelled by reversal (<code>bill_from_purchase_order</code>). Closing: cancelled when nothing came, refused while receipts are unbilled.</p>
-<div class="note" data-todo="po-asset-lines">To be completed after the update: purchase orders with asset lines (one fixed asset per unit received, depreciated from the month it arrived, its store from the line or the order) are being finished; the final rules for asset lines, their bills and their screens will be documented here.</div>
+<h3 id="pe-po-assets">Asset lines</h3>
+<p>A purchase order can buy anything the company needs: each line is exactly one of packaging (a packaging item), a cost (an expense account of groups 5400 or 5500) or an asset (equipment such as a laptop or a scale). The kind is stored on the line (<code>purchase_order_lines.kind</code>) and worked out by <code>purchaseLineKind()</code> in <code>packages/db/src/purchasing.ts</code> from what the line names: a packaging item, an expense account or an asset life. A line naming none or more than one is refused (<code>packaging_or_expense</code>).</p>
+<ul>
+<li>An asset line carries <code>assetLifeMonths</code> (1 to 600, else <code>invalid_months</code>) and may name its own store, <code>assetDarkStoreId</code> (only on asset lines; else the order's store; an unknown store answers <code>store_not_found</code>).</li>
+<li>Its unit price must be above 0 (<code>invalid_amount</code>): a free asset has nothing to depreciate.</li>
+</ul>
+<p>Receiving an asset line, in the same <code>po_receipt</code> entry as the packaging lines of that delivery:</p>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>1601 Equipment and vehicles</td><td>sum(quantity received × unit price) of asset lines</td><td></td><td>the order's store</td></tr>
+<tr><td>2401 Goods received, not billed yet</td><td></td><td>the same</td><td>the order's store</td></tr>
+</tbody></table>
+<p>Idempotency key <code>po_receipt:&lt;clientKey&gt;</code>; kind <code>po_receipt</code> (one entry per delivery with the packaging part, as above). Then, in the same transaction, one fixed asset is opened per unit received, so each can later be sold or scrapped on its own:</p>
+<pre class="code">for each asset line received, u = 1 .. quantity received:
+    fixed_assets row:
+        name          = description, or "description (u/quantity)" when several units
+        cost          = unit price
+        salvage       = 0
+        lifeMonths    = the line's assetLifeMonths
+        startMonth    = the Cairo month of the receipt entry
+        darkStoreId   = the line's assetDarkStoreId, else the order's store
+        entryId       = the po_receipt entry ; purchaseOrderLineId = the line
+    audited finance.asset_purchase</pre>
+<p>Depreciation then runs exactly as for equipment bought directly (12.12): <code>runMonthlyCharges()</code> charges each month once it is over, starting with the month the asset arrived, Dr 5601 Cr 1701, key <code>depr:&lt;assetId&gt;:&lt;YYYY-MM&gt;</code>. The receipt's <code>purchase_order_receipts.valuePiastres</code> holds packaging and asset value together.</p>
+<p>Billing an order with asset lines: packaging and asset lines were booked against 2401 when received, so the bill debits 2401 for them at the ordered price; cost lines go to their own expense accounts. The difference between the bill's net and the ordered value of what it covers never changes the assets (they keep their ordered cost); it goes to the difference account:</p>
+<pre class="code">differenceAccount = the account of the order's first cost (expense) line
+                  else 5404 Packaging and supplies, when the order has a packaging line
+                  else 5409 Other expenses (opened from the default accounts when missing)</pre>
+<div class="example"><p>An order for 3 laptops at 25,000 EGP each, life 36 months, for store ZAM, and nothing else. Received in full on 5 November: Dr 1601 7,500,000; Cr 2401 7,500,000 piastres; three fixed assets "Laptop (1/3)", "(2/3)", "(3/3)", each cost 2,500,000, start month November, store ZAM. The supplier's bill is 75,600 EGP net plus 14% VAT 10,584 EGP; tolerance 2% allows up to 76,500 EGP. Bill entry: Dr 2401 7,500,000; Dr 5409 Other expenses 60,000 (the 600 EGP difference, since the order has no cost or packaging line); Dr 2301 1,058,400; Cr 2500 supplier wallet 8,618,400. Each laptop is depreciated from November: monthlyPart(2,500,000, 36, i) = 69,444 piastres a month, and 69,460 in the 36th month.</p></div>
+<p>The purchase order document lists, under each asset line, the fixed assets it opened. The screens are shown in the chapter Screens: Money out, section "Purchase orders".</p>
 
 <h2 id="pe-packaging">12.9 Packaging stock at average cost</h2>
 <p>Packaging (bags, boxes, labels, tape) is our own stock, never <code>stock_movements</code> (<code>packages/db/src/packaging.ts</code>): <code>packaging_levels</code> keeps units and value per store and item; <code>packaging_movements</code> is append only (receive, consume, adjust, count). Each movement is written first, then the level changes with a guarded update that never lets units or value go below zero.</p>
@@ -197,7 +239,21 @@ loss        = cost − depreciated − salePrice      (negative is a gain)</pre>
 
 <h2 id="pe-accruals">12.13 Accruals</h2>
 <p>A journal entry may be an accrual (kind <code>accrual</code>, data <code>reverseOn</code> = the first day of the next month). The daily job <code>reverseAccruals()</code> posts the same lines with the signs turned and the same tags on that day at 00:00 Cairo (or the first open moment when that day is in closed books); key <code>accrual_reversal:&lt;entryId&gt;</code>; kind <code>accrual_reversal</code>. An accrual may not touch a bank or cash box (<code>accrual_money_not_allowed</code>).</p>
-<div class="note" data-todo="journal-page">To be completed after the update: the journal page (entering and reviewing journal entries, including accruals) is being reworked; its screens will be documented here.</div>
+<h3 id="pe-journal-entry">Entering a journal entry</h3>
+<p>Journal entries by hand are entered on the Journal entry tab of Money movements and sent to <code>POST /finance/journal-entries</code> (<code>journalEntrySchema</code>): 2 to 20 lines, each with an account, a debit or a credit in piastres and an optional cost tag; a reason of 5 to 300 characters (the memo); the day; <code>reverseNextMonth</code> for an accrual; the client's idempotency key; and the files chosen in the form (<code>attachmentIds</code>). <code>checkJournalEntry()</code> in <code>books.ts</code> checks the whole entry before it is posted or queued:</p>
+<table class="data"><thead><tr><th>Code</th><th>When</th></tr></thead><tbody>
+<tr><td><code>reason_required</code></td><td>The reason is shorter than 5 characters.</td></tr>
+<tr><td><code>invalid_line</code></td><td>A line has both a debit and a credit, or neither, or fewer than 2 lines remain.</td></tr>
+<tr><td><code>not_balanced</code></td><td>Debits and credits differ.</td></tr>
+<tr><td><code>account_not_found</code>, <code>account_inactive</code></td><td>An unknown or closed account.</td></tr>
+<tr><td><code>wallet_not_allowed</code></td><td>A merchant, rider, supplier or staff advance wallet (each has its own screens).</td></tr>
+<tr><td><code>money_account_not_allowed</code></td><td>A rider's cash (group 1300).</td></tr>
+<tr><td><code>accrual_money_not_allowed</code></td><td>An accrual that touches a bank or cash box.</td></tr>
+</tbody></table>
+<p><code>submitJournalEntry()</code> then posts at once (kind <code>journal</code>, or <code>accrual</code>), or queues a <code>journal</code> request when money comes into a bank or box (while <code>finance.approve_money_in</code> is 1) or leaves one from the approval limit; money never leaves a bank or box that does not hold it (chapter 5).</p>
+<h3 id="pe-journal-page">The journal entry page</h3>
+<p>Every entry opens at <code>/finance/journal/&lt;id&gt;</code>, whatever its kind, and every <code>JV-</code> number shown in Accounting links there. The page is a document page fed by <code>GET /finance/documents/ledger_entry/:id</code>: the kind in words, the Cairo day, the memo and reference, the source document the entry was posted for (bill, payout, invoice, cheque, petty cash, withdrawal, claim, handover, request) and its order; who prepared it (the requester when it went through a second person, else the poster) and who approved it and when; the amount (the sum of the debits); and the lines with the account (a wallet shows its owner: merchant, rider with badge, store, supplier or person), store, merchant, rider, debit and credit, with totals. Smart buttons open the lines, the files (one file opens directly, several open a viewer), the source document, the approval request and the order. The chatter holds notes, reminders, the files and the audit history.</p>
+<p>The entry can be printed as an A4 journal voucher (the browser's print hides the page and shows the voucher) or downloaded as a PDF in English or Arabic made on the API: <code>GET /finance/journal/:id/voucher.pdf?lang=en|ar&amp;kind=</code> (<code>apps/api/src/finance/voucher-pdf.ts</code>, <code>journalVoucherPdf()</code>; accounting view; <code>kind</code> is the entry type in words as the page shows it, printed as text only, at most 80 characters). The voucher shows the company name and tax registration number, "Journal voucher" with the number, date, type, description and what it was posted for, the lines with store, merchant or rider, debit, credit and totals ("Amounts in EGP"), and three signature boxes: Prepared by, Checked by, Approved by. The screens are shown in the chapter Screens: Reporting and Planning, section "The journal entry page", and the form in Screens: Money out, section "Money movements".</p>
 
 <h2 id="pe-fxbanks">12.14 Bank accounts in another currency</h2>
 <p><code>packages/db/src/finance/fx.ts</code>. The books stay in EGP; each line on a USD or EUR bank account carries its EGP amount plus <code>foreign_cents</code> (signed like the line) and the rate used (<code>fx_rate_micro</code>). <code>post()</code> refuses a line on such an account without its foreign amount (<code>foreign_currency_account</code>), so payouts, withdrawals and petty cash can never use one. Each account has two balances: EGP (the books) and cents (the bank).</p>
@@ -265,7 +321,23 @@ due days: the same day each month; a missing day becomes the month's last day</p
 </tbody></table>
 <p>Key <code>expense_claim:&lt;claimId&gt;</code>; kind <code>expense_claim</code>. The person is always paid the full amount; the VAT only splits the cost. The receipt photo stays with the entry.</p>
 
-<div class="note" data-todo="attachments-in-forms">To be completed after the update: attaching receipts and documents directly inside the creation forms (bills, expenses, payments) is being finished; how attachments are stored and linked to entries will be documented here.</div>
+<h2 id="pe-attachments">Attachments chosen inside the forms</h2>
+<p>Every finance form that makes a record of money chooses its receipts and documents inside the form, before saving (<code>packages/db/src/finance/attachments.ts</code>, <code>apps/api/src/finance/files.controller.ts</code>, the web field <code>AttachmentField</code>). The flow:</p>
+<ol>
+<li>Each file is uploaded on its own as soon as it is chosen: <code>POST /finance/files?name=</code>, the body is the file (accounting use or store use). <code>saveFinanceFile()</code> accepts <code>image/jpeg</code>, <code>image/png</code> and <code>image/webp</code> up to 1,500,000 bytes (the browser shrinks phone photos first) and <code>application/pdf</code> up to 5,242,880 bytes. It refuses <code>file_type_not_allowed</code>, <code>file_empty</code>, <code>file_too_large</code>, and <code>file_not_matching_type</code> when the first bytes are not those of the claimed type. The file is stored as a <code>photos</code> row of kind <code>receipt</code>, with its cleaned file name (no path, no control characters, at most 120 characters), marked <code>unlinked</code>, owned by the uploader.</li>
+<li>The form keeps the returned ids and sends them with its body as <code>attachmentIds</code> (<code>attachmentIdsField</code>: at most 10). A file removed from the form before saving is deleted at once: <code>DELETE /finance/files/:id</code>, only one's own unlinked upload (<code>attachment_not_found</code> otherwise). The save waits while uploads are still running.</li>
+<li>The controller runs the save through <code>withAttachments(db, { ids, actorUserId }, work, target)</code>: the record and the links are made in one transaction. <code>target</code> names where the files go: the posted entry, or the finance request when the movement waits for a second person (<code>movementTarget()</code>), or the payout for a payout marked paid. <code>linkAttachments()</code> claims the uploads with one guarded update (unlinked, own, kind receipt), so two saves naming the same file cannot both take it, writes one <code>finance_receipts</code> row per file (with <code>entryId</code>, <code>payoutId</code> or <code>requestId</code>) and audits <code>finance.receipt_attach</code>.</li>
+</ol>
+<table class="data"><thead><tr><th>Code</th><th>When</th></tr></thead><tbody>
+<tr><td><code>too_many_attachments</code> (400)</td><td>More than 10 distinct ids.</td></tr>
+<tr><td><code>attachment_not_found</code> (404)</td><td>An id is unknown or is not a finance file.</td></tr>
+<tr><td><code>attachment_not_yours</code> (403)</td><td>The upload was made by someone else.</td></tr>
+<tr><td><code>attachment_already_linked</code></td><td>The upload is already linked to another record.</td></tr>
+<tr><td><code>attachment_target_missing</code> (400)</td><td>The save made nothing the files can be linked to.</td></tr>
+</tbody></table>
+<p>Any refusal undoes the record as well: a movement is never saved with half its files. A save without files runs as before.</p>
+<p>Forms that take <code>attachmentIds</code>: money transfers, expenses, owner capital and drawings, other income, journal entries, supplier bills, bill payments, tax payments, prepayments, equipment purchases, bank deposits from store boxes, payouts marked paid, merchant receipts, cheques, security deposits, Basata transfers, loans and loan instalments, and petty cash (where the store's receipt photo may itself be an upload: <code>claimRecordPhoto()</code>). A request carries its files to the entry it posts when approved: <code>attachmentsFor()</code> finds the files of an entry directly, through the request it was posted from, and through the payout it pays, each file once, oldest first. Files can still be added later from the document page (the earlier "add receipt later" route).</p>
+<p>Uploads that no form saved are deleted by an hourly API job (<code>runUploadPurge</code> calling <code>purgeUnlinkedUploads()</code>): unlinked files older than 24 hours (<code>UNLINKED_UPLOAD_HOURS</code>) that nothing points to (no finance receipt, petty cash, cheque, expense claim, Basata deposit, order or delivery). It is safe to run twice. The field and the viewer are shown in the chapter Screens: Month end, Setup and common parts, section "Common part: the attachment field and viewer".</p>
 
 <h2 id="pe-code">12.18 Where the code lives</h2>
 <table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>

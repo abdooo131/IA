@@ -32,6 +32,25 @@
 <tr><td>manage plus settings manage</td><td>Owner only actions: post the opening balances, create the electronic invoice signer key, reopen closed days.</td></tr>
 </tbody>
 </table>
+<p>The routes added with the payout controls, finance files and planning follow the same levels:</p>
+<table class="data">
+<thead><tr><th>Routes</th><th>Level</th></tr></thead>
+<tbody>
+<tr><td><code>GET /finance/payouts/:id/controls</code>, <code>.../statement</code>, <code>.../statement.pdf</code>, <code>.../statement.csv</code>, <code>.../proof</code></td><td>accounting view, and the payout's merchant inside the person's merchants</td></tr>
+<tr><td><code>POST /finance/payouts/:id/proof</code>, <code>POST /finance/payouts/:id/checks/:checkId</code></td><td>accounting use (the second person check is also refused to the payer when paying)</td></tr>
+<tr><td><code>GET /finance/payout-checks</code></td><td>accounting view</td></tr>
+<tr><td><code>POST /finance/payout-checks</code>, <code>PATCH /finance/payout-checks/:id</code></td><td>accounting manage</td></tr>
+<tr><td><code>POST /finance/files</code>, <code>DELETE /finance/files/:id</code></td><td>accounting use or store use (store staff attach petty cash receipts); a person may delete only their own upload that no form saved</td></tr>
+<tr><td><code>GET /finance/journal/:id/voucher.pdf</code>, <code>GET /finance/payments-due</code>, <code>GET /finance/lists/suppliers</code>, <code>GET /finance/documents/supplier/:id</code></td><td>accounting view (payments due: a person limited to some stores sees their stores' items and company wide items, never merchant payouts)</td></tr>
+<tr><td><code>POST /finance/suppliers</code>, <code>PATCH /finance/suppliers/:id</code></td><td>accounting use</td></tr>
+<tr><td><code>GET /finance/forecasts</code>, <code>.../suggestion</code>, <code>.../compare</code>, <code>.../:id</code>, <code>.../:id/budget-preview</code></td><td>accounting view</td></tr>
+<tr><td><code>POST /finance/forecasts</code>, <code>PATCH</code> and <code>DELETE /finance/forecasts/:id</code>, <code>PUT .../:id/drivers</code>, <code>PUT .../:id/overrides</code></td><td>accounting use</td></tr>
+<tr><td><code>POST /finance/forecasts/:id/approve</code>, <code>.../reopen</code>, <code>.../to-budget</code></td><td>accounting manage</td></tr>
+<tr><td><code>GET /finance/budgets/year</code></td><td>accounting view; scope <code>all</code> or <code>company</code> needs all stores, a store id must be one of the person's stores</td></tr>
+<tr><td><code>PUT /finance/budgets/quarter</code>, <code>POST /finance/budgets/copy</code></td><td>accounting use, with the same store rule</td></tr>
+<tr><td><code>GET /merchant/finance/payouts/:id/statement</code>, <code>.../statement.pdf</code>, <code>.../statement.csv</code>, <code>.../proof</code></td><td>merchant users with the <code>money</code> right, own payouts only; the proof once the payout is paid</td></tr>
+</tbody>
+</table>
 <p>Routes that read or change salaries (payroll preview and run, staff pay, payslips, advances, bonuses, payroll tax lists) also need the <code>salaries</code> switch, declared as <code>@Access('accounting', 'use', { salaries: true })</code>.</p>
 <p>The old <code>users.finance_level</code> column (view, prepare, approve) still exists in the database but no longer decides anything; the accounting level replaced it.</p>
 
@@ -48,7 +67,7 @@
 <p>Lists and reports go further than the guard: a person limited to some stores sees only rows of their stores. List loaders receive a <code>ListScope</code> (<code>{ userId, storeIds, merchantIds }</code>, null meaning all) built by <code>scopeOf(user, access)</code>; single records outside the scope answer <code>store_not_allowed</code>. The cash position and the dashboard show such a person only their boxes, riders and handovers.</p>
 <p>The web app applies the same rules to decide what to show: each page in <code>apps/web/src/lib/apps.ts</code> names the level it needs, menus hide pages a person may not open, and opening one directly shows not found. The API remains the authority.</p>
 
-<figure class="shot" data-shot="settings-user-access"><figcaption>The access editor on the users page (<code>/admin/users</code>, Settings app): a user's job role, a level per app, all stores or chosen stores, and the switches for customer data and salaries.</figcaption></figure>
+<figure class="shot" data-shot="settings-user-access"><figcaption>An Accounting screen seen by a person with the view level: buttons that change data are hidden. Each person's levels, stores and switches are set in the access editor on the users page (<code>/admin/users</code>, Settings app).</figcaption></figure>
 
 <h2 id="ctl-second-person">The second person rule</h2>
 <div class="rule">Money said to come in, and changes to what we owe a merchant, wait for a second person while <code>finance.approve_money_in</code> is 1. Money going out waits for a second person from <code>finance.approval_threshold_piastres</code>. Nobody approves their own request or payout.</div>
@@ -121,7 +140,7 @@ return { status: 'pending' as const, request: await queueRequest(db, payload, ac
 
 <h3 id="ctl-payouts">Payouts</h3>
 <p>Payouts to merchants follow the same idea without a request row. A payout is prepared as a draft (one open draft per merchant). From the approval limit, <code>approvePayout</code> must be called by another person than the one who prepared it (<code>same_person</code>), and <code>markPayoutPaid</code> refuses an unapproved large payout with <code>approval_needed</code>. Marking paid also checks that the merchant is still owed at least the payout (<code>payout_more_than_owed</code>) and that the bank holds the money (<code>not_enough_money</code>). Bulk approval approves only payouts at or above the limit (<code>approval_not_needed</code> for the others) and never one's own.</p>
-<div class="note" data-todo="payout-soa-pot">To be completed after the update: payouts now also need a frozen Statement of Account and a Proof of Transfer, with a second person check ticked by someone else than the payer, before they can be marked paid (<code>assertReadyToPay</code>).</div>
+<p>Marking a payout paid by transfer has its own second person control on top of the approval. When the payout is prepared its statement of account (<code>SOA-000001</code>) is frozen; before it is marked paid, the bank slip is uploaded as its proof of transfer (<code>POT-000001</code>) with the amount and reference typed from it, and every active payout check is ticked. <code>assertReadyToPay()</code> in <code>packages/db/src/finance/payout-proof.ts</code>, called by <code>markPayoutPaid</code>, refuses <code>pot_required</code> (no proof), <code>pot_amount_mismatch</code> (the proof's amount is not the payout's), <code>soa_mismatch</code> (no statement, or its net is not the payout's amount), <code>checks_incomplete</code> (an active check not ticked) and <code>403 same_person</code> when the person marking it paid is the one who ticked the built in check <code>second_person_viewed</code> ("Second person viewed the statement and the proof of transfer"). That check cannot be switched off and can be ticked only once the proof and the statement exist. Replacing the proof of a draft clears every tick; once paid, the proof and the ticks are fixed by a database trigger. A payout paid by cheque uses the cheque register as its proof instead. The full flow is in Merchant money, payouts (chapter 13).</p>
 
 <h3 id="ctl-other-pairs">Other two person checks</h3>
 <p>Several flows have their own form of the rule, each refusing self decisions:</p>

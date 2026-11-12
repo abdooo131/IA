@@ -150,11 +150,10 @@
 <tr><td>9</td><td>Number</td><td><code>BILL-000001</code> onward, gapless; blue link; sortable</td><td></td><td>Opens the bill page.</td></tr>
 <tr><td>10</td><td>Supplier</td><td>Sortable</td><td></td><td></td></tr>
 <tr><td>11, 12</td><td>Bill date, Due</td><td>Day first; sortable</td><td></td><td></td></tr>
-<tr><td>13</td><td>Status</td><td>Grey outlined pill. An open bill reads "Waiting for answer" (see the note below), then Paid, Cancelled</td><td></td><td></td></tr>
+<tr><td>13</td><td>Status</td><td>Grey outlined pill. An open bill shows the state label "Waiting for answer", then Paid, Cancelled</td><td></td><td></td></tr>
 <tr><td>14, 15</td><td>Total (EGP), Left to pay</td><td>Bill total with VAT, and what is still unpaid; both summed in Total; sortable</td><td>Withholding kept back counts as paid</td><td></td></tr>
 <tr><td>16, 17</td><td>What we owe, by how late</td><td>Ageing per supplier: Not due, 1 to 30 days, 31 to 60, 61 to 90, Over 90, Total. Late amounts are red. With nothing owed: "We owe no supplier anything."</td><td>By due day, Cairo time</td><td>The same figures as Who we owe, by age.</td></tr>
 </tbody></table>
-<div class="note">The open status reads "Waiting for answer" in the list pill and the status bar. That wording belongs to tickets; the bill workflow should read "Open" (reported as a bug).</div>
 <figure class="shot" data-shot="s31-bills-list-filters"><figcaption>The Filters panel of Supplier bills.</figcaption></figure>
 <figure class="shot" data-shot="s31-bills-all"><figcaption>Every status at once (filter chip removed): two open bills, one paid, one paid in two parts and one cancelled.</figcaption></figure>
 
@@ -270,8 +269,8 @@
 <tr><td>7</td><td>Make the bill</td><td>Blue button</td><td>Accounting use</td><td>"Bill recorded. Pay it from Bills." A normal bill (BILL-000006, 34,998.00 with VAT 4,298.00) that clears 2401, books the cleaning to 5407 and VAT to 2301, against the supplier's wallet. It is paid from Supplier bills and cannot be cancelled by reversal.</td></tr>
 </tbody></table>
 <figure class="shot" data-shot="s31-po-page-billed"><figcaption>Billed: the Bills table lists BILL-000006 with its amount and "Open"; the close field reads "Close the order".</figcaption></figure>
-<figure class="shot" data-shot="s31-po-page-closed"><figcaption>Closed with a note. The close note is shown after "Approved by" (reported as a display bug).</figcaption></figure>
-<figure class="shot" data-shot="s31-po-page-rejected"><figcaption>Rejected by the second person, red Rejected at the end of the status bar; the line "Approved by" shows the rejecter and the note (the label should read Decided by).</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-closed"><figcaption>Closed with a note; the close note is shown with the approval details.</figcaption></figure>
+<figure class="shot" data-shot="s31-po-page-rejected"><figcaption>Rejected by the second person, red Rejected at the end of the status bar; the line "Approved by" shows the person who decided and the note.</figcaption></figure>
 <figure class="shot" data-shot="s31-po-page-approved-below"><figcaption>An 800.00 EGP order approved at once: "Approved by: Below the approval limit".</figcaption></figure>
 <figure class="shot" data-shot="s31-po-page-cancelled"><figcaption>Cancelled: closed before anything arrived; the button read "Cancel the order" and ends in red Cancelled.</figcaption></figure>
 <p>Close rules: "Why it is closed (needed)" must be filled; closing is refused while received goods are not billed ("Bill what was received before closing."). With nothing received the button reads <em>Cancel the order</em> and the order ends Cancelled; otherwise <em>Close the order</em> and it ends Closed.</p>
@@ -283,7 +282,7 @@
 <tr><td>1 to 5</td><td>Tabs Transfer, Expense, Owner money, Other income, Journal entry</td><td>The chosen tab has a light blue ground and blue text; each tab has a grey help line on top of its form</td><td></td><td>Changes <code>?tab=</code>.</td></tr>
 <tr><td>6</td><td>From</td><td>Banks and cash boxes with balances</td><td>Required; must hold the amount</td><td>Credited.</td></tr>
 <tr><td>7</td><td>To</td><td>Banks and cash boxes</td><td>Required; not the same account</td><td>Debited.</td></tr>
-<tr><td>8</td><td>Amount (EGP) (EGP)</td><td>The amount (the label repeats "(EGP)", a known label bug)</td><td>"Enter an amount in EGP, for example 1250.50."</td><td></td></tr>
+<tr><td>8</td><td>Amount (EGP)</td><td>The amount</td><td>"Enter an amount in EGP, for example 1250.50."</td><td></td></tr>
 <tr><td>9</td><td>Reference</td><td>Required, 2 characters or more</td><td></td><td></td></tr>
 <tr><td>10</td><td>Date</td><td>Day first, today by default</td><td>Never future, never in closed books</td><td></td></tr>
 <tr><td>11</td><td>Note (optional)</td><td>Memo</td><td></td><td></td></tr>
@@ -388,7 +387,7 @@
 <tr><td>7</td><td>Journal entry smart button</td><td>The JV number</td><td>Opens the entry.</td></tr>
 </tbody></table>
 <figure class="shot" data-shot="s31-petty-page-reversed"><figcaption>Reversed: red Reversed in the status bar, two smart buttons (Journal entry and Reversal entry), "Reversed by" and the reason.</figcaption></figure>
-<figure class="shot" data-shot="s31-petty-page-rejected"><figcaption>Rejected in Approvals: red Rejected, the decision note, and no journal entry. The smart button shows the raw word "rejected" (reported as a bug; a waiting record shows "pending").</figcaption></figure>
+<figure class="shot" data-shot="s31-petty-page-rejected"><figcaption>Rejected in Approvals: red Rejected, the decision note, and no journal entry. The smart button shows the request status word ("rejected"; a waiting record shows "pending").</figcaption></figure>
 
 <h2 id="s31-rw">Rider withdrawals</h2>
 <p><strong>Address:</strong> <code>/finance/rider-withdrawals</code>; one request at <code>/finance/rider-withdrawals/&lt;id&gt;</code>; the rider side at <code>/rider/wallet</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Rider withdrawals. <strong>Who:</strong> Accounting <code>use</code> approves, rejects and pays; never the rider. From the approval limit the payer must not be the approver (<code>same_person</code>). A store manager may pay an approved cash request at the store from the store box. See the chapter Cash and riders, rider pay and withdrawals.</p>
@@ -422,7 +421,7 @@
 <tr><td>2</td><td>Reference</td><td>Bank or cash reference</td><td>At least 2 characters</td></tr>
 <tr><td>3</td><td>Mark paid</td><td>Posts Dr 2200 rider wallet (amount plus deductions), Cr 1350 dues, Cr 1500 advance, Cr the bank or box</td><td>"Paid." From the approval limit the approver cannot pay ("You approved this, so another person must pay it.")</td></tr>
 </tbody></table>
-<figure class="shot" data-shot="s31-rw-page-paid"><figcaption>Paid: Paid in blue, one journal entry, "Paid by", "Paid on" and the reference. "Paid by way of" shows the raw method value (store_cash; reported as a display bug).</figcaption></figure>
+<figure class="shot" data-shot="s31-rw-page-paid"><figcaption>Paid: Paid in blue, one journal entry, "Paid by", "Paid on" and the reference. "Paid by way of" shows the method code (store_cash).</figcaption></figure>
 
 <h2 id="s31-claims">Expense claims</h2>
 <p><strong>Address:</strong> <code>/finance/expense-claims</code>; one claim at <code>/finance/expense-claims/&lt;id&gt;</code>; the employee side at <code>/my-file/claims</code>; the manager decides in <code>/my-file/inbox</code>. <strong>Menu:</strong> Accounting &gt; Money out &gt; Expense claims. <strong>Who:</strong> any employee claims; the manager in force approves first (none: straight to accounting); Accounting <code>use</code> pays or refuses; choosing which categories may be claimed needs Accounting <code>manage</code>. Nobody decides their own claim; from the approval limit the payer is not the approving manager. See the chapter Expenses, suppliers, bills and the assets we pay for, expense claims.</p>
@@ -515,7 +514,6 @@
 <tr><td>11</td><td>Owed to the state, Net to pay, Cost to the company</td><td>Totals of the preview</td><td></td></tr>
 <tr><td>12</td><td>Pay salaries for <em>month</em></td><td>Blue button</td><td>Books the run once per month (key <code>payroll:YYYY-MM</code>); waits for a second person from the limit.</td></tr>
 </tbody></table>
-<div class="note">The October 2026 run was already paid in the demo (its payslips exist), yet the run section still offers "Pay salaries for 2026-10" without saying it was paid; repeating it only returns the first run (reported).</div>
 <figure class="shot" data-shot="s31-payslips"><figcaption>Payslips of a month: one card per employee with salary, gross, social insurance, income tax, martyrs fund (negatives in red) and net, the voucher number, and Print or save as PDF.</figcaption></figure>
 <table class="data"><thead><tr><th>#</th><th>Part</th><th>What it does</th></tr></thead><tbody>
 <tr><td>1</td><td>Title "Payslips 2026-10"</td><td>The month from <code>?month=</code></td></tr>

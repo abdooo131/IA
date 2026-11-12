@@ -241,6 +241,7 @@ invoice net = sum(net); vat = sum(vat); total = net + vat</pre>
 <tr><td>Fees by kind</td><td>−sum of revenue lines tagged with the merchant, per entry kind (before VAT)</td></tr>
 <tr><td>Rider pay</td><td>expense lines of type <code>rider_bonus_expense</code> tagged with the merchant</td></tr>
 <tr><td>Rider office commission</td><td>lines on 5102 tagged with the merchant</td></tr>
+<tr><td>Postal fees</td><td>lines on 5103 tagged with the merchant (the postal authority's share of the fees on the merchant's shipments, chapter 10)</td></tr>
 <tr><td>Damage</td><td>lines of type <code>damage_expense</code> tagged with the merchant</td></tr>
 <tr><td>Packaging</td><td>lines on 5404 tagged with the merchant</td></tr>
 <tr><td>Other direct</td><td>any other expense line tagged with the merchant</td></tr>
@@ -258,6 +259,7 @@ marginBp        = round(margin * 10000 / fees)</pre>
 <h2 id="mm-code">13.11 Where the code lives</h2>
 <table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
 <tr><td>Wallet, payouts, receipts, adjustments</td><td><code>packages/db/src/finance/operations.ts</code>: <code>merchantOwed</code>, <code>payoutDueOn</code>, <code>createPayout</code>, <code>assertPayoutOwed</code>, <code>markPayoutPaid</code>, <code>cancelPayout</code>, <code>recordMerchantReceipt</code>, <code>recordMerchantAdjustment</code></td></tr>
+<tr><td>Statement of account, proof of transfer, payout checks</td><td><code>packages/db/src/finance/payout-proof.ts</code>: <code>buildPayoutStatement</code>, <code>freezePayoutStatement</code>, <code>getPayoutStatement</code>, <code>addPayoutProof</code>, <code>getPayoutProofFile</code>, <code>listPayoutChecks</code>, <code>createPayoutCheck</code>, <code>updatePayoutCheck</code>, <code>markPayoutCheck</code>, <code>assertReadyToPay</code>, <code>payoutControls</code>, <code>payoutStatementCsv</code>; <code>packages/shared/src/payout-proof.ts</code>: <code>soaNumber</code>, <code>proofNumber</code>, <code>payoutMatches</code>, <code>STATEMENT_KIND_ORDER</code>; <code>apps/api/src/finance/payout-proof.controller.ts</code>, <code>payout-statement-pdf.ts</code></td></tr>
 <tr><td>Payout run and bank file</td><td><code>packages/db/src/finance/payout-run.ts</code>; <code>packages/db/src/finance/tools.ts</code>: <code>payoutBankFile</code>, <code>updateMerchantBank</code></td></tr>
 <tr><td>Statements</td><td><code>packages/db/src/finance/reports.ts</code>: <code>merchantStatement</code>, <code>financeWallets</code></td></tr>
 <tr><td>Aging and reminders</td><td><code>packages/shared/src/aging.ts</code>: <code>openDebits</code>, <code>agingBand</code>, <code>reminderDue</code>; <code>packages/db/src/finance/aging.ts</code>, <code>reminders.ts</code></td></tr>

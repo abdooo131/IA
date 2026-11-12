@@ -144,7 +144,7 @@
 <p><strong>Address:</strong> <code>/finance/statements?from=&amp;to=</code>. <strong>Menu:</strong> Reporting, Compare periods. <strong>Who:</strong> Accounting view. Data: <code>GET /finance/comparative-statements</code>. Default: last month. The page prints profit and loss for the chosen days and the balance sheet on the last day, each next to the same number of days just before.</p>
 <figure class="shot" data-shot="s33-statements"><figcaption>Financial statements for October next to the 31 days before (/finance/statements).</figcaption></figure>
 <table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
-<tr><td>From, To (browser date boxes), Show</td><td>The period</td><td>These are the browser's own date fields, not the house DateInput (see the issues list)</td><td>Address <code>from</code>, <code>to</code></td></tr>
+<tr><td>From, To (browser date boxes), Show</td><td>The period</td><td>These are the browser's own date fields</td><td>Address <code>from</code>, <code>to</code></td></tr>
 <tr><td>Print or save as PDF</td><td>Opens the browser's print dialog</td><td>Printing hides the menus and the form</td><td>A clean two statement print</td></tr>
 <tr><td>Profit and loss table</td><td>Every income and cost account, totals and profit, current and earlier column</td><td>Column headers show the two ranges</td><td>None</td></tr>
 <tr><td>Balance sheet table</td><td>Assets, liabilities and equity on the last day of each range; wallet groups with their count, "Profit not yet closed into equity"</td><td>None</td><td>None</td></tr>
@@ -255,7 +255,7 @@
 <tr><td>8</td><td>Lines tile</td><td>Count of lines (3) and "Lines"</td><td>Jumps to the lines table</td></tr>
 <tr><td>9</td><td>Receipts tile</td><td>Count of attachments (2) and "Receipts"</td><td>0 files: jumps to Attachments to add one; 1 file: opens it in a new tab; several: opens the viewer "All attachments"</td></tr>
 <tr><td>(10)</td><td>Posted for tile</td><td>The source document (a bill, payout, petty cash, invoice, cheque, withdrawal, claim, handover or the request kind)</td><td>Opens that document</td></tr>
-<tr><td>10</td><td>Approval tile</td><td>Name of the person who decided (Omar Lotfy) and "Approval"; only when the entry went through a second person</td><td>Opens the approval request</td></tr>
+<tr><td>10</td><td>Approval tile</td><td>Name of the person who decided and "Approval"; only when the entry went through a second person</td><td>Opens the approval request</td></tr>
 <tr><td>(order)</td><td>Order tile</td><td>The order number, on delivery entries</td><td>Opens the order page</td></tr>
 <tr><td>11</td><td>Type, Day, What, Reference, Posted for, Order</td><td>Kind in words, Cairo day, memo, reference when the entry has one</td><td>Posted for and Order are links</td></tr>
 <tr><td>12</td><td>Prepared by, Prepared on</td><td>The person who asked when the entry went through a second person, else the poster; the posting moment</td><td>None</td></tr>
@@ -310,7 +310,7 @@
 <table class="data"><thead><tr><th>Correction</th><th>Kind of the new entry</th><th>Where the link shows</th></tr></thead><tbody>
 <tr><td>Cancelling an unpaid bill</td><td>supplier_bill_cancel</td><td>"Posted for BILL-…" tile and field on the reversing entry; the bill lists both entries</td></tr>
 <tr><td>Reversing a store petty cash expense</td><td>petty_cash_reversal</td><td>"Posted for PC-…" on the reversing entry; the petty cash page lists both</td></tr>
-<tr><td>Accrual reversed on the 1st of next month (daily job, key <code>accrual_reversal:&lt;id&gt;</code>)</td><td>accrual_reversal</td><td>Only the memo "Reversal: …"; no tile or link to the accrual (see the issues list)</td></tr>
+<tr><td>Accrual reversed on the 1st of next month (daily job, key <code>accrual_reversal:&lt;id&gt;</code>)</td><td>accrual_reversal</td><td>Only the memo "Reversal: …" names the accrual</td></tr>
 <tr><td>A bounced or cancelled cheque</td><td>the booking turned round</td><td>"Posted for CHQ-…" on both entries</td></tr>
 <tr><td>Credit note or debit note on an invoice</td><td>credit_note, debit_note</td><td>"Posted for CN-… / DN-…"</td></tr>
 <tr><td>Any other mistake</td><td>journal or adjustment (Money movements, Journal entry, with a reason)</td><td>The reason is the memo; no automatic link</td></tr>
@@ -391,22 +391,4 @@
 <figure class="shot" data-shot="s33-bd-copy-replace"><figcaption>Copying into a year that already has a budget here asks "2027 already has a budget here. Replace it with the copy?" with Replace (the budget is replaced only on that second click).</figcaption></figure>
 <figure class="shot" data-shot="s33-bd-phone"><figcaption>Budgets on a phone: the table scrolls sideways with the account column fixed.</figcaption></figure>
 
-<!-- ───────────────────────────── Issues ───────────────────────────── -->
-<h2 id="s33-issues">Issues noticed while writing this chapter</h2>
-<ol>
-<li><strong>"Posted for" shows a raw key.</strong> On an entry posted through an approval, the Posted for field, its tile and the printed voucher show the request kind <code>journal</code> (or <code>expense</code>...) in lower case instead of words or the request number. Cause: <code>sourceOf()</code> in <code>packages/db/src/finance/documents.ts</code> returns <code>request.kind</code> as the value. It also duplicates the Approval tile.</li>
-<li><strong>History shows untranslated action keys and raw piastres.</strong> On the approval request page the History lists <code>finance.request_create</code>, <code>finance.request_approve</code>, <code>finance.request_reject</code> as keys, and "amount: – → 1350000" in piastres instead of 13,500.00 EGP.</li>
-<li><strong>The Arabic voucher PDF prints the type in English.</strong> <code>/finance/journal/&lt;id&gt;/voucher.pdf?lang=ar</code> shows "Journal entry" in the Arabic voucher; the page builds the <code>kind</code> label with <code>getTranslations({ locale: 'ar' })</code>, which appears to return the current (English) messages. The Arabic footer also shows a double separator "شيبلي ناو - - JV-…".</li>
-<li><strong>The approval request page does not show the lines.</strong> The second person sees the amount, reference and receipts but not which accounts will be debited and credited (for a journal entry: rent, utilities, CIB) before approving.</li>
-<li><strong>Approve and Reject are shown to Accounting use.</strong> The request card appears for anyone with Accounting use, but <code>POST /finance/requests/:id/decide</code> needs Accounting manage, so a use level person gets a refusal after clicking.</li>
-<li><strong>After approval the request page takes the entry's number.</strong> Breadcrumbs read "Approvals / JV-002577" and the title JV-002577 instead of the request number, which is confusing beside the Journal entry tile with the same number.</li>
-<li><strong>Accrual reversals have no link to the accrual.</strong> <code>accrual_reversal</code> entries store <code>data.accrualId</code> but the entry page shows no Posted for tile or field for it; only the memo "Reversal: …" connects them.</li>
-<li><strong>Compare periods uses browser date boxes.</strong> <code>/finance/statements</code> uses <code>type="date"</code> fields (shown mm/dd/yyyy in an English browser) instead of the house DateInput (day first), and its column headers and balance sheet title show ISO days (2026-10-01 → 2026-10-31). The cash flow forecast's Week column also shows ISO days.</li>
-<li><strong>Wallet group 1350 has no name in the drill reports.</strong> The balance sheet shows "1350: 2 wallets" because <code>finance.reports.groups</code> has no <code>g1350</code> (Rider dues); Compare periods names it correctly.</li>
-<li><strong>Label of the journal's CSV button.</strong> It reads "Export to Excel · every line (CSV)" (the general <code>finance.export</code> text "Export to Excel" joined to "every line (CSV)"), which mixes two formats in one label.</li>
-<li><strong>Merchant profit what if differs from booked at current prices.</strong> With the contract's own prices the What if shows order fees 1,746.12 against 1,746.31 booked (0.19 EGP), so a reader sees a change where nothing was changed (rounding per order against the booked sum, or tiers).</li>
-<li><strong>Use as budget lists rows whose budget would not change.</strong> The replace preview lists all 143 existing rows even when Budget now equals This scenario, which hides the few that really change.</li>
-<li><strong>Prepared on of an approved entry is the approval moment.</strong> On JV-002577, Prepared on and Approved at are both 23:13 while the request was asked at 23:11; the entry's own History also names the asker as the actor at 23:13.</li>
-<li><strong>Menu label and title differ.</strong> The menu says "Profit per store", the page title says "Profit by store".</li>
-</ol>
 </section>

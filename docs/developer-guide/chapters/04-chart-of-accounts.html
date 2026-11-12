@@ -70,7 +70,7 @@
 <tr><td>1401</td><td><code>prepaid</code></td><td>Prepaid expenses</td><td>Money paid once for several months (a year's rent), released monthly.</td></tr>
 <tr><td>1402</td><td><code>packaging_stock</code></td><td>Packaging stock</td><td>Bags, boxes, labels and tape bought, at average cost, until used at packing.</td></tr>
 <tr><td><code>1500-nnnn</code></td><td><code>staff_advance:&lt;user&gt;</code></td><td>Staff advance of a person</td><td>Money advanced to a team member, recovered from salary or withdrawal.</td></tr>
-<tr><td>1601</td><td><code>fixed_assets</code></td><td>Equipment and vehicles</td><td>Equipment bought, at cost.</td></tr>
+<tr><td>1601</td><td><code>fixed_assets</code></td><td>Equipment and vehicles</td><td>Equipment bought, at cost: paid directly, or received on a purchase order asset line (one fixed asset per unit).</td></tr>
 <tr><td>1701</td><td><code>accumulated_depreciation</code></td><td>Accumulated depreciation</td><td>Straight line depreciation charged so far (credit balance).</td></tr>
 <tr><td><code>2100-nnnn</code></td><td><code>merchant:&lt;merchant&gt;</code></td><td>Merchant's wallet</td><td>What we owe the merchant: cash collected for them minus our fees and VAT, minus payouts. A debit balance means the merchant owes us.</td></tr>
 <tr><td><code>2200-nnnn</code></td><td><code>rider_bonus:&lt;rider&gt;</code></td><td>Rider's earnings</td><td>Rider pay per delivered order, until withdrawn.</td></tr>
@@ -80,6 +80,7 @@
 <tr><td>2304</td><td><code>social_insurance_payable</code></td><td>Social insurance payable</td><td>Employee and company shares of social insurance.</td></tr>
 <tr><td>2305</td><td><code>martyrs_fund_payable</code></td><td>Martyrs fund payable</td><td>The martyrs fund deduction.</td></tr>
 <tr><td>2306</td><td><code>corporate_tax_payable</code></td><td>Company income tax payable</td><td>The year's company income tax agreed with the accountant.</td></tr>
+<tr><td>2307</td><td><code>postal_fee_payable</code></td><td>Postal fees owed</td><td>The postal authority's share of our fees per shipment (<code>fee.postal_bp</code>), owed until paid once a month from Taxes (tax kind <code>postal</code>). Type <code>other_liability</code>.</td></tr>
 <tr><td>2401</td><td><code>goods_received</code></td><td>Goods received, not billed yet</td><td>Purchase order receipts until the supplier's bill arrives.</td></tr>
 <tr><td>2402</td><td><code>rider_office_accrued</code></td><td>Rider office commission accrued, not billed yet</td><td>Used by the first version of rider office commission; new commission goes straight to the office's supplier wallet.</td></tr>
 <tr><td>2451</td><td><code>cheques_payable</code></td><td>Cheques payable</td><td>Cheques we wrote that the bank has not paid yet.</td></tr>
@@ -94,6 +95,7 @@
 <tr><td>4201</td><td><code>other_income:general</code></td><td>Other income</td><td>Income that is not a fee. Finance can open more 4200 accounts.</td></tr>
 <tr><td>5101</td><td><code>rider_bonus_expense</code></td><td>Rider pay per delivered order</td><td>Rider pay, and the credit side of rider penalties.</td></tr>
 <tr><td>5102</td><td><code>rider_office_commission</code></td><td>Rider office commission</td><td>The office's commission on rider pay, at each delivery.</td></tr>
+<tr><td>5103</td><td><code>postal_fee_expense</code></td><td>Postal fees</td><td>The postal fee booked at each delivered order and each charged failed attempt: our cost, never charged to the merchant, without VAT. Type <code>expense</code>.</td></tr>
 <tr><td>5201</td><td><code>damage_expense</code></td><td>Damage paid by us</td><td>Merchant compensation for units damaged in our care.</td></tr>
 <tr><td>5301</td><td><code>cash_difference</code></td><td>Cash shortages and surpluses</td><td>Handover differences written off.</td></tr>
 <tr><td>5401 to 5409</td><td><code>expense:rent</code>, <code>expense:salaries</code>, <code>expense:fuel</code>, <code>expense:packaging</code>, <code>expense:marketing</code>, <code>expense:utilities</code>, <code>expense:maintenance</code>, <code>expense:government</code>, <code>expense:other</code></td><td>Rent; Salaries and wages; Fuel and transport; Packaging and supplies; Marketing; Utilities and internet; Maintenance; Government fees; Other expenses</td><td>Running costs. Salaries post to 5402; packaging used at packing posts to 5404. Finance can open more 5400 categories.</td></tr>

@@ -1,4 +1,4 @@
-# Copies shots/*.png into small/*.jpg: at most 1500 px wide, JPEG quality 82, white behind
+# Copies shots/*.png into small/*.jpg: at most 1400 px wide, JPEG quality 82, white behind
 # transparency. Only files that changed are redone.
 import os, sys
 from PIL import Image
@@ -19,6 +19,6 @@ for name in os.listdir(src):
         im = bg
     else:
         im = im.convert('RGB')
-    if im.width > 1500:
-        im = im.resize((1500, round(im.height * 1500 / im.width)), Image.LANCZOS)
-    im.save(out, 'JPEG', quality=74, optimize=True, progressive=True)
+    if im.width > 1400:
+        im = im.resize((1400, round(im.height * 1400 / im.width)), Image.LANCZOS)
+    im.save(out, 'JPEG', quality=68, optimize=True, progressive=True)

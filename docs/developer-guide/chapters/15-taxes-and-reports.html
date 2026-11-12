@@ -123,8 +123,10 @@ profitPerOrder  = round((income(s) − directCosts(s) − shared(s)) / orders(s)
 per entry: net = sum of its money lines in the period
 per kind : in  = sum of net over entries with net &gt; 0
            out = −sum of net over entries with net &lt; 0
-section  : asset_purchase → investing ; capital_in, capital_out → financing ; every other kind → operating</pre>
-<p>Because each entry is netted first, a move between our own money accounts (a bank deposit from a box, a handover from rider cash to a box, a transfer between banks) nets to 0 and does not appear. Loan entries are operating in the current mapping. With a store, only money lines tagged with that store count.</p>
+section  : asset_purchase, asset_disposal → investing
+           loan_received, loan_payment, capital_in, capital_out → financing
+           every other kind → operating</pre>
+<p>Because each entry is netted first, a move between our own money accounts (a bank deposit from a box, a handover from rider cash to a box, a transfer between banks) nets to 0 and does not appear. Money borrowed and repaid is financing: a whole loan instalment, interest included, counts as financing (IAS 7 allows it); buying and selling equipment is investing; owner capital in and drawings out are financing; everything else is operating (<code>SECTION</code> in <code>period.ts</code>). With a store, only money lines tagged with that store count.</p>
 
 <h2 id="tr-forecast">15.12 Four week cash forecast</h2>
 <p><code>cashForecast(db, now)</code> in <code>period.ts</code>:</p>
@@ -139,14 +141,96 @@ for week w = 0..3 (7 days from today):
                 (within its start and end months)
     salaries  = (number of month ends in the week) × gross of every package in force today
                 for active employees on our payroll
-    taxes     = week 0 only: VAT and withholding owed now (never below 0)
+    taxes     = week 0 only: VAT, withholding and postal fees owed now (never below 0)
     closing   = opening + weeklyTrading − (bills + recurring + salaries + taxes)</pre>
-<div class="note" data-todo="forecast">To be completed after the update: the Forecast screen and its rules are being reworked; the final forecast formula (and any change to the one above) will be documented here.</div>
-<div class="note" data-todo="coming-up-and-due">To be completed after the update: the "Coming up and due" view (what is due to be paid or collected in the coming days) is being finished and will be documented here.</div>
+<p>In week 0 the taxes also include the postal fees owed (2307): the query sums <code>vat_payable</code>, <code>wht_payable</code> and <code>postal_fee_payable</code>.</p>
+
+<h2 id="tr-forecast12">Forecast: 12 month scenarios</h2>
+<p>Accounting, Planning, Forecast holds named scenarios of the next 12 Cairo months, apart from the four week cash forecast above. Nothing in it posts to the ledger. Code: <code>packages/shared/src/forecast.ts</code> (the model, pure, whole piastres only, so the browser recalculates live while editing and the API gives the same numbers), <code>packages/db/src/finance/forecast.ts</code> (suggestion, storage, budget), <code>apps/api/src/finance/forecast.controller.ts</code> (<code>/finance/forecasts</code>).</p>
+<h3>Scenarios</h3>
+<p>A scenario (<code>forecasts</code>, numbers <code>FC-000001</code> onward, gapless) has a name (2 to 80 characters), a start month (the current Cairo month when it was made), the months its suggestion read, the opening balances at the start of the first month, its drivers (<code>forecast_drivers</code>: month, key, value) and its line overrides (<code>forecast_overrides</code>: month, line, amount, note, who and when). Status <code>draft</code> or <code>approved</code>. <code>createForecast()</code> starts either from the system's suggestion or as a copy of another scenario (<code>copyFromId</code>: drivers, overrides, start month and opening copied). Drafts are edited (<code>saveForecastDrivers()</code>, <code>saveForecastOverrides()</code>, one transaction each, audited <code>finance.forecast_edit</code>), renamed or deleted; an approved scenario refuses edits (<code>forecast_approved</code>) until accounting manage opens it again (<code>setForecastStatus()</code>, audited <code>finance.forecast_approve</code> and <code>finance.forecast_reopen</code>). A month outside the scenario's 12 months answers <code>month_outside_forecast</code>, an unknown key <code>invalid_driver</code> or <code>invalid_line</code>. Up to 6 scenarios can be compared side by side (<code>compareForecasts()</code>: each month's orders, revenue, costs, profit and cash at the end).</p>
+<h3>The suggestion</h3>
+<p><code>forecastSuggestion()</code> reads the last 3 complete Cairo months of the books (fewer when the books are younger, none before the first ledger line or delivered order) and writes drivers for the first month:</p>
+<pre class="code">growth_bp          = average month on month change of delivered orders (months whose previous month had orders)
+orders             = last month's delivered orders × (10000 + growth_bp) / 10000
+orders_per_new_merchant = last month's orders / merchants with orders last month
+cod_share_bp       = cash orders × 10000 / orders           cod_per_order = cash collected / cash orders
+fee:&lt;kind&gt;         = fee income of that entry kind / orders  (per delivered order, before VAT)
+rider_pay_per_order, office_commission_per_order, postal_per_order, packaging_per_order
+                   = 5101, 5102, 5103, 5404 over the months / orders
+salaries           = gross of the salary packages in force
+rent, fixed:&lt;account&gt; = monthly average of every other income and cost account
+                     (recurring expenses instead where set up; company income tax left out)
+loan_principal, loan_interest, depreciation = from the loan schedules and the asset register
+vat_bp             = fee.vat_bp            vat_input = average VAT claimed back per month
+merchant_hold_days = days of last month's net cash the merchants' balance holds (at most the month's days)</pre>
+<p>Every division is <code>mulDiv(a, b, c)</code>: a × b ÷ c rounded half away from zero, in whole numbers.</p>
+<h3>Drivers and the model</h3>
+<p>Level drivers (<code>growth_bp</code>, <code>orders_per_new_merchant</code>, <code>cod_share_bp</code>, <code>cod_per_order</code>, the four per order costs, <code>salaries</code>, <code>rent</code>, <code>vat_bp</code>, <code>vat_input</code>, <code>merchant_hold_days</code>, <code>rider_cash_end</code>, every <code>fee:&lt;kind&gt;</code> and <code>fixed:&lt;account&gt;</code>) keep their last set value in later months. Flow drivers (<code>orders</code>, <code>new_merchants</code>, <code>capital_in</code>, <code>drawings</code>, <code>loans_in</code>, <code>loan_principal</code>, <code>loan_interest</code>, <code>capex</code>, <code>depreciation</code>) count only in the month they are set. <code>forecastCompute()</code>, month by month:</p>
+<pre class="code">base        = the month's own orders value when set, else (after month 1) base × (10000 + growth_bp) / 10000
+newMerchants += new_merchants
+orders      = max(0, base + newMerchants × orders_per_new_merchant)
+codOrders   = orders × cod_share_bp / 10000 ;  codCollected = codOrders × cod_per_order
+fee:&lt;kind&gt;  = orders × driver   ; rider_pay, office_commission, postal_fee, packaging = orders × per order driver
+salaries, rent, fixed:&lt;id&gt;, depreciation, loan_interest = the driver
+each line   = its override for the month when one is set, else the computed amount
+profit      = revenue lines − cost lines ; feeIncome = sum of fee lines
+VAT         vatOutput = feeIncome × vat_bp / 10000 ; last month's VAT owed (if positive) is paid this month;
+            vatEnd = vatOwed − paid + vatOutput − vat_input   (a credit is carried, never paid back)
+merchants   net = codCollected − feeIncome − vatOutput ; merchantsEnd = net × merchant_hold_days / days in month
+            payouts = merchants opening + net − merchantsEnd
+rider cash  = rider_cash_end, else the opening rider cash
+operating   = profit + depreciation + Δmerchants + ΔVAT − Δrider cash
+investing   = −capex
+financing   = loans_in − loan_principal + capital_in − drawings
+cash        += operating + investing + financing
+balance sheet: cash, rider cash, equipment (+capex − depreciation), other assets (as opened) =
+               merchants, VAT, loans, other liabilities (as opened) + capital (+capital_in − drawings) + retained (+profit)</pre>
+<p>Warnings name the months where cash goes below 0 (<code>cash_below_zero</code>), loans below 0 (<code>loans_below_zero</code>) or merchants owe us (<code>merchants_owe_us</code>). Periods are each month, the scenario's quarters (Q1 its first three months) and the year: flows add up, balances are those of the period's last month.</p>
+<h3>Overrides</h3>
+<p>Any profit and loss line of any month (a cost line, <code>fee:&lt;kind&gt;</code> or <code>fixed:&lt;account&gt;</code>, the account an income or expense account) can be set by hand with a note; the line is then marked edited and no longer computed. Clearing the override (<code>null</code>) computes it again. Each change is audited with the line, month, before, after and note.</p>
+<h3>Use as budget</h3>
+<p><code>forecastBudgetPreview()</code> (accounting view) lists, per month and ledger account, what the scenario would write into the company wide budgets next to the budget there now: fee lines go to 4101, rider pay 5101, office commission 5102, postal fee 5103, packaging 5404, salaries 5402, rent 5401, depreciation 5601, loan interest 5904, <code>fixed:&lt;id&gt;</code> to its account. <code>forecastToBudget()</code> (accounting manage, only an approved scenario, else <code>forecast_not_approved</code>) writes them in one transaction through <code>setBudget()</code>, with <code>mode</code> <code>replace</code> (existing rows are overwritten) or <code>skip</code> (existing rows kept). A negative amount is never a budget and is skipped; system accounts not opened yet are opened. The result counts written and skipped rows; audited <code>finance.forecast_to_budget</code>. Rows written this way count as months set by hand (below). The screens are shown in the chapter Screens: Reporting and Planning, section "Forecast".</p>
+
+<h2 id="tr-due">Coming up and due</h2>
+<p><code>paymentsDue(db, now, { stores, days, kinds })</code> in <code>packages/db/src/finance/payments-due.ts</code> lists every payment the company already knows it will make, with its due Cairo day, the amount and the screen that pays it. It is read only. Served by <code>GET /finance/payments-due?days=&amp;kinds=</code> (accounting view; days 0 to 90, default 30; kinds comma separated): the dashboard card asks 30 days, the page <code>/finance/due</code> 90 days with a filter by kind.</p>
+<table class="data"><thead><tr><th>Kind</th><th>Due day and amount</th></tr></thead><tbody>
+<tr><td><code>recurring</code></td><td>Each active recurring expense on its day of each month in the window (between its start and end months), its amount. A month whose request was approved or rejected is done; one still pending is shown as waiting for approval and links to it.</td></tr>
+<tr><td><code>bill</code></td><td>Open supplier bills by due date, what is still unpaid (total − paid).</td></tr>
+<tr><td><code>loan</code></td><td>Unpaid loan instalments on their due day, the instalment.</td></tr>
+<tr><td><code>salaries</code></td><td>The salary run on each month's last day until <code>payroll:&lt;month&gt;</code> is posted; an estimate, the gross of the packages in force that day. Last month is included when it was never run, once a salary run exists at all.</td></tr>
+<tr><td><code>tax</code></td><td>VAT, withholding, salary tax, social insurance and martyrs fund, each: what was owed at the start of this month less tax payments since is due at the end of this month (never more than owed now), the rest at the end of next month. There is no legal calendar in the code, so this "end of next month" rule is used for every tax.</td></tr>
+<tr><td><code>postal</code></td><td>The postal fees owed (2307), by the same rule as the taxes.</td></tr>
+<tr><td><code>payout</code></td><td>A merchant's prepared draft payout is due from the day it was prepared; otherwise a merchant we owe money is due on their next payout day (<code>nextPayoutDay(schedule, today)</code>) with what is owed now.</td></tr>
+</tbody></table>
+<pre class="code">group(dueDay) = overdue  when dueDay &lt; today
+              = week     when dueDay ≤ today + 7
+              = month    when dueDay ≤ today + 30
+              = later    otherwise (only when the window is longer than 30 days)
+order: due day, then the larger amount first; each group has its count and total</pre>
+<p>Items with a store (bills and recurring expenses of a store) reach only people of that store; company wide items everyone with Accounting view; merchant payouts only people with all stores.</p>
+<p>Push reminders (type <code>payment_due</code>, texts <code>payment_due_soon</code> and <code>payment_due_today</code>): the push job reads the list at most once every 10 minutes (<code>PAYMENT_DUE_SCAN_MS</code>, claimed across instances) and tells people with Accounting use of items due exactly <code>finance.due_reminder_days</code> (default 3) days ahead and of items due today; overdue items are never pushed again. Each item and send day is one key, <code>payment_due:&lt;kind&gt;:&lt;id&gt;:&lt;day&gt;</code>, so a second run sends nothing; the merchant payouts of one due day go out as one notification. Store items go to that store's people, payouts to people with all stores. The screens are shown in the chapter Screens: Dashboard and Money in, section "Coming up and due".</p>
 
 <h2 id="tr-budgets">15.13 Budgets</h2>
 <p>Budgets are per income or expense account, month and store (or company wide); <code>budgetVsActual()</code> in <code>period.ts</code> shows the variance for a month (with a store: only that store's budgets and lines; without: the whole company).</p>
-<div class="note" data-todo="budgets-by-quarter">To be completed after the update: budgets by quarter (a quarter as the sum of its months unless set by hand) are being finished and will be documented here.</div>
+<h3 id="tr-budget-quarters">Planning by quarter</h3>
+<p>Budgets are planned per quarter first (Q1 January to March, Q2 April to June, Q3 July to September, Q4 October to December), then by month; rows are still stored per month, so budget against actual per month keeps working (<code>packages/shared/src/budgets.ts</code>, <code>packages/db/src/finance/budgets.ts</code>, <code>apps/api/src/finance/budgets.controller.ts</code>).</p>
+<pre class="code">splitQuarter(total) : each = floor(total / 3) ; months = [each, each, total − 2 × each]
+                      (whole piastres; the last month takes the remainder)
+setQuarterBudget(year, quarter, account, store or company wide, amount)
+    → the three months get splitQuarter(amount), manual = false
+setBudget(month, ...)  (the existing month route, PUT /finance/budgets)
+    → that month only, manual = true
+quarter amount = always the sum of its three months</pre>
+<div class="example"><p>Q1 rent of a store planned at 100,000.00 EGP (10,000,000 piastres): January 3,333,333, February 3,333,333, March 3,333,334. Changing March by hand to 4,000,000 marks it manual; the quarter now reads 10,666,666 and is shown as edited.</p></div>
+<p>The account must be an income or expense account (<code>account_not_found</code>), the year 2020 to 2100 (<code>invalid_year</code>), the quarter 1 to 4 (<code>invalid_quarter</code>), the amount a whole number of piastres not below 0. Setting a quarter is audited as <code>finance.budget_quarter_set</code> with the months before and after; a month as <code>finance.budget_set</code> with its manual flag.</p>
+<p><code>budgetYear(year, scope, groupCode?)</code> (<code>GET /finance/budgets/year?year=&amp;scope=&amp;group=</code>) gives every income and expense account (active, or holding a budget) with budget, actual, variance and percent per month, per quarter and for the year. Scope <code>all</code> is every store and the company wide part together, <code>company</code> only company wide budgets and lines with no store, or a store id. Actual leaves the <code>year_close</code> entry out. The variance is positive when better than plan: actual − budget for income, budget − actual for costs; the percent is <code>variancePercentBp(variance, budget)</code> (none without a budget). A quarter is flagged <code>edited</code> when one of its months was changed by hand and <code>uneven</code> when its months are not the equal split.</p>
+<p><code>copyBudgetYear(fromYear, toYear, scope, percentBp, replace)</code> (<code>POST /finance/budgets/copy</code>) copies a year into another, optionally raised or lowered by a percent in basis points (500 = 5%; at least −10,000):</p>
+<pre class="code">scaleBudget(amount, bp) = round half up(amount × (10000 + bp) / 10000), never below 0   (BigInt, no floats)
+per account, store and quarter of the source year:
+    no month changed by hand → splitQuarter(scaleBudget(quarter total, bp)), manual = false
+    otherwise                → each month scaleBudget(month, bp), keeping its manual flag</pre>
+<p>It refuses <code>same_year</code>, <code>budget_year_empty</code> when the source year has nothing in the scope, and <code>budget_year_not_empty</code> when the target year already has rows in the scope unless <code>replace</code> is set, which deletes them first. Audited <code>finance.budget_copy</code>. Reading needs accounting view, setting and copying accounting use; people limited to some stores must name one of their stores. The screens are shown in the chapter Screens: Reporting and Planning, section "Budgets".</p>
 
 <h2 id="tr-bank">15.14 Bank reconciliation</h2>
 <h3>Importing statements</h3>
@@ -225,10 +309,14 @@ lines    = each account: −balance ; 3401 Retained earnings: +total</pre>
 <li><code>receipts/JV-nnnnnn-k.jpg</code> (or png, webp): every receipt photo attached to an entry, its request or its payout in the period, named by voucher.</li>
 </ul>
 <p>All CSVs follow the house rules: <code>UTF-8</code> byte order mark, formula prefixes neutralised, money as EGP text from integers.</p>
-<div class="note" data-todo="journal-page">To be completed after the update: the journal page (browsing and entering entries) is being reworked; its screens and filters will be documented here.</div>
+<h3 id="tr-journal-list">The journal list and the entry page</h3>
+<p>The journal is browsed at <code>/finance/journal</code>, the Accounting list view <code>journal</code> (<code>GET /finance/lists/journal</code>, rows inside the person's stores). Search covers numbers, memos and references. Filters: dates (today and the other date presets; the default is the last 7 days), kind families (<code>deliveries</code>: the fee, COD, rider pay and postal fee kinds; <code>cash</code>; <code>payouts</code>: merchant payouts, rider bonus payouts and rider withdrawals; <code>bills</code>; <code>manual</code>: journal entries and adjustments), entries with an order, and entries without a receipt. Group by kind, day, month or who made it; sort by number, day or amount; the amount column is totalled. Every row opens <code>/finance/journal/&lt;id&gt;</code>, the entry page with its lines, source document, files and the printable voucher (chapter 12, "The journal entry page"). The screens are shown in the chapter Screens: Reporting and Planning, sections "The journal list", "Searching and filtering the journal" and "The journal entry page".</p>
 
 <h2 id="tr-code">15.18 Where the code lives</h2>
 <table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
+<tr><td>Budgets by quarter</td><td><code>packages/shared/src/budgets.ts</code>: <code>splitQuarter</code>, <code>quarterMonths</code>, <code>scaleBudget</code>, <code>variancePercentBp</code>; <code>packages/db/src/finance/budgets.ts</code>: <code>setQuarterBudget</code>, <code>budgetYear</code>, <code>copyBudgetYear</code></td></tr>
+<tr><td>Forecast</td><td><code>packages/shared/src/forecast.ts</code>: <code>forecastCompute</code>, <code>forecastPeriods</code>, <code>forecastBudgetRows</code>, <code>mulDiv</code>; <code>packages/db/src/finance/forecast.ts</code>: <code>forecastSuggestion</code>, <code>createForecast</code>, <code>saveForecastDrivers</code>, <code>saveForecastOverrides</code>, <code>setForecastStatus</code>, <code>compareForecasts</code>, <code>forecastBudgetPreview</code>, <code>forecastToBudget</code></td></tr>
+<tr><td>Coming up and due</td><td><code>packages/db/src/finance/payments-due.ts</code>: <code>paymentsDue</code>, <code>dueGroupOf</code>; <code>packages/shared/src/payments-due.ts</code>; push source <code>paymentDueEvents</code> in <code>packages/db/src/push.ts</code></td></tr>
 <tr><td>VAT report, cash flow, forecast, year close, journal export</td><td><code>packages/db/src/finance/period.ts</code>: <code>vatReport</code>, <code>cashFlow</code>, <code>cashForecast</code>, <code>closeYear</code>, <code>journalLines</code>, <code>receiptPhotos</code>, <code>budgetVsActual</code></td></tr>
 <tr><td>Tax returns</td><td><code>packages/db/src/finance/returns.ts</code>: <code>vatReturn</code>, <code>withholdingPayments</code>, <code>payrollForms</code>, <code>corporateTaxEstimate</code>, <code>bookCorporateTax</code>, <code>comparativeStatements</code></td></tr>
 <tr><td>Tax payments, withholding report</td><td><code>packages/db/src/finance/payables.ts</code>: <code>payTax</code>, <code>taxesOwed</code>, <code>whtReport</code></td></tr>

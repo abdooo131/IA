@@ -75,6 +75,7 @@
 <tr><td><code>fee.storage_per_unit_month_piastres</code></td><td>piastres per unit per month</td><td>0</td><td>storage fee (charged daily)</td></tr>
 <tr><td><code>fee.return_per_unit_piastres</code></td><td>piastres per unit returned</td><td>0</td><td>return fee</td></tr>
 <tr><td><code>fee.packaging_charge_piastres</code></td><td>piastres per delivered order</td><td>0</td><td>packaging charge (0: packaging is our own cost)</td></tr>
+<tr><td><code>fee.postal_bp</code></td><td>bp</td><td>1000 (10%)</td><td>The postal authority's share of our fees before VAT per shipment; our cost, never charged to the merchant</td></tr>
 <tr><td><code>fee.vat_bp</code></td><td>bp</td><td>0 in code; set to 1400 (14%) by the owner on 11 November 2026</td><td>VAT added on top of every fee</td></tr>
 <tr><td><code>finance.payout_minimum_piastres</code></td><td>piastres</td><td>0</td><td>minimum payout when the contract has none (chapter 13)</td></tr>
 </tbody></table>
@@ -123,6 +124,7 @@
 <ol>
 <li><code>cod_collected</code>: the cash now belongs to the merchant.</li>
 <li><code>shipping_fee</code>, <code>product_handling</code>, <code>order_fee</code>, <code>cod_fee</code>, <code>packaging_charge</code> (each skipped when 0).</li>
+<li><code>postal_fee</code>: our cost, the postal authority's share of those five fees (see Postal fee below).</li>
 <li><code>rider_bonus</code>: the rider's pay for the delivery.</li>
 <li><code>rider_office_commission</code>, only when the rider is linked to an active rider office (chapter 11).</li>
 </ol>
@@ -142,6 +144,7 @@
 <ul>
 <li>Order fee = 1,500 + share(50,000, 200) = 1,500 + 1,000 = 2,500; VAT = share(2,500, 1400) = 350.</li>
 <li>COD fee = share(55,000, 100) = 550; VAT = share(550, 1400) = 77.</li>
+<li>Postal fee = share(2,500 + 550, 1000) = 305.</li>
 <li>Office commission = share(2,500, 1000) = 250.</li>
 </ul>
 <table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
@@ -153,13 +156,32 @@
 <tr><td>2100 merchant wallet</td><td>6.27</td><td></td><td>COD fee entry</td></tr>
 <tr><td>4101 fee income</td><td></td><td>5.50</td><td></td></tr>
 <tr><td>2301 VAT payable</td><td></td><td>0.77</td><td></td></tr>
+<tr><td>5103 Postal fees</td><td>3.05</td><td></td><td>postal fee entry</td></tr>
+<tr><td>2307 Postal fees owed</td><td></td><td>3.05</td><td></td></tr>
 <tr><td>5101 rider pay</td><td>25.00</td><td></td><td>rider bonus entry</td></tr>
 <tr><td>2200 rider wallet</td><td></td><td>25.00</td><td></td></tr>
 <tr><td>5102 rider office commission</td><td>2.50</td><td></td><td>office commission entry</td></tr>
 <tr><td>2500 office supplier wallet</td><td></td><td>2.50</td><td></td></tr>
 </tbody></table>
-<p>Five separate entries (amounts in EGP). Keys: <code>delivery:D:cod</code>, <code>order:O:order_fee</code>, <code>order:O:cod_fee</code>, <code>delivery:D:bonus</code>, <code>delivery:D:office_commission</code>. The merchant's balance moves by 55,000 − 2,850 − 627 = 51,523 piastres (515.23 EGP) in their favour. The shipping fee, per product and packaging entries are not written because they are 0.</p>
+<p>Six separate entries (amounts in EGP). Keys: <code>delivery:D:cod</code>, <code>order:O:order_fee</code>, <code>order:O:cod_fee</code>, <code>delivery:D:postal_fee</code>, <code>delivery:D:bonus</code>, <code>delivery:D:office_commission</code>. The merchant's balance moves by 55,000 − 2,850 − 627 = 51,523 piastres (515.23 EGP) in their favour. The shipping fee, per product and packaging entries are not written because they are 0.</p>
 </div>
+
+<h2 id="mf-postal">Postal fee</h2>
+<div class="rule">The postal authority takes <code>fee.postal_bp</code> (default 1000 = 10%) of our fees before VAT on every shipment. It is our cost: it is never charged to the merchant and carries no VAT.</div>
+<p><code>postPostalFee()</code> in <code>packages/db/src/finance/postings.ts</code> runs in the same transaction as the event, right after the fees of that shipment:</p>
+<pre class="code">delivered order:      base = shippingFee + productHandling + orderFee + codFee + packagingCharge
+                      (the five fees just charged on the order, each before VAT)
+each charged failed attempt:  base = failedFee (before VAT)
+storage, receiving and return fees: no postal fee (they are not shipments)
+postal = share(base, fee.postal_bp)          (the same rounding helper as every fee, 10.1)</pre>
+<table class="posting"><thead><tr><th>Account</th><th>Debit</th><th>Credit</th><th>Tags</th></tr></thead><tbody>
+<tr><td>5103 Postal fees</td><td>postal</td><td></td><td>order, store, merchant (taken from the order by <code>post()</code>)</td></tr>
+<tr><td>2307 Postal fees owed</td><td></td><td>postal</td><td>same</td></tr>
+</tbody></table>
+<p>Idempotency keys: <code>delivery:&lt;deliveryId&gt;:postal_fee</code> for a delivered order and <code>delivery:&lt;deliveryId&gt;:failed_postal_fee</code> for a failed attempt; entry kind <code>postal_fee</code>; memo the order number; data holds the delivery, the base and the rate used. A base or rate of 0 writes nothing (lines of 0 are dropped), and a repeat changes nothing. The setting is global only (no store override), read at the moment of the event.</p>
+<div class="example"><p>A delivered order whose fees before VAT add up to 100.00 EGP (10,000 piastres), VAT 14%. The merchant's wallet goes down by 114.00 EGP exactly as without the postal fee (fees 100.00 to 4101, VAT 14.00 to 2301). Separately the postal entry books share(10,000, 1000) = 1,000 piastres: Dr 5103 Postal fees 10.00, Cr 2307 Postal fees owed 10.00. Our income stays 100.00; the postal authority is owed 10.00. In the example of 10.7 (order fee 2,500 and COD fee 550) the postal fee is share(3,050, 1000) = 305 piastres.</p></div>
+<p>Paying: the postal fees owed are paid once a month from Taxes as tax kind <code>postal</code> (<code>payTax()</code> in <code>packages/db/src/finance/payables.ts</code>, <code>TAXES.postal = postal_fee_payable</code>, through <code>submitTaxPayment()</code>): never more than owed (<code>more_than_owed</code>) nor more than the bank or box holds (<code>not_enough_money</code>), the second person rule from the approval limit, and files chosen in the form. The entry is kind <code>tax_payment</code> (Dr 2307, Cr bank or box), memo "Postal fees" and the reference, key <code>tax_payment:&lt;clientKey&gt;</code>. <code>taxesOwed()</code> shows the amount owed as <code>postalPiastres</code>.</p>
+<p>Where else it shows: Coming up and due lists it as kind <code>postal</code> (what was owed at the start of the month due at its end, the rest at the end of next month; chapter 15); the four week cash forecast counts it with the taxes in week 0; merchant profit shows it as a cost line of each merchant (lines on 5103 tagged with the merchant, chapter 13); the forecast suggests <code>postal_per_order</code> from the books and budgets the line to 5103 (chapter 15); the journal list puts <code>postal_fee</code> in the deliveries family. It is never part of the VAT report or VAT return, never on an invoice and never on the merchant's statement.</p>
 
 <h2 id="mf-failed">10.8 The failed delivery rule</h2>
 <p>A failed attempt is charged on every attempt (one entry per delivery row), by <code>postDeliveryFailed()</code> in <code>postings.ts</code>, inside the same transaction as the failure. The rule is <code>failedDeliveryRule(version, tier, resolvedPrices, standardPercentBp)</code> in <code>packages/shared/src/contracts.ts</code>, applied in this order:</p>
@@ -182,7 +204,7 @@ failedFee = (mode fixed)   ? fixedPiastres
 <tr><td>4101 fee income</td><td></td><td>fee</td><td></td></tr>
 <tr><td>2301 VAT payable</td><td></td><td>VAT</td><td></td></tr>
 </tbody></table>
-<p>Idempotency key: <code>delivery:&lt;deliveryId&gt;:failed_fee</code>; entry kind: <code>failed_fee</code>; data holds the reason, the mode and, for percent mode, <code>percentBp</code> and <code>shipmentPiastres</code>. A failed attempt earns the rider nothing.</p>
+<p>Idempotency key: <code>delivery:&lt;deliveryId&gt;:failed_fee</code>; entry kind: <code>failed_fee</code>; data holds the reason, the mode and, for percent mode, <code>percentBp</code> and <code>shipmentPiastres</code>. A failed attempt earns the rider nothing. Each charged attempt also books the postal fee on its failed fee (key <code>delivery:&lt;deliveryId&gt;:failed_postal_fee</code>, see Postal fee).</p>
 <div class="example">
 <p>All inclusive contract: shipping fee 60 EGP (6,000 piastres), everything else 0, failed share 100%. Shipment charges = 6,000 + 0 + 0 + share(50,000, 0) = 6,000. Failed fee = share(6,000, 10000) = 6,000; VAT = share(6,000, 1400) = 840. The merchant is charged 68.40 EGP for the attempt. With a share of 5,000 bp the fee would be 3,000 and VAT 420. With a fixed failed fee of 20 EGP set on the version (and no share), the fee is 2,000 whatever the shipment.</p>
 </div>
@@ -280,7 +302,7 @@ riderCharge  = chargeRider ? compensation : 0
 
 <h2 id="mf-code">10.17 Where the code lives</h2>
 <table class="data"><thead><tr><th>Concern</th><th>File and function</th></tr></thead><tbody>
-<tr><td>Fee postings</td><td><code>packages/db/src/finance/postings.ts</code>: <code>feeLines</code>, <code>postDeliveryCompleted</code>, <code>postDeliveryFailed</code>, <code>postReceivingFee</code>, <code>postReturnFee</code>, <code>accrueStorage</code></td></tr>
+<tr><td>Fee postings</td><td><code>packages/db/src/finance/postings.ts</code>: <code>feeLines</code>, <code>postDeliveryCompleted</code>, <code>postDeliveryFailed</code>, <code>postPostalFee</code> (not exported), <code>postReceivingFee</code>, <code>postReturnFee</code>, <code>accrueStorage</code></td></tr>
 <tr><td>Contract resolution</td><td><code>packages/db/src/finance/contracts.ts</code>: <code>standardPrices</code>, <code>versionInForce</code>, <code>contractPricesAt</code>, <code>pricesForDay</code>, <code>productPricesFor</code>, <code>activateContractVersion</code>, <code>minimumForMonth</code>, <code>chargeMinimumFees</code>, <code>assertWithinCreditLimit</code></td></tr>
 <tr><td>Pure price rules</td><td><code>packages/shared/src/contracts.ts</code>: <code>CONTRACT_PRICES</code>, <code>tierFor</code>, <code>resolvePrices</code>, <code>failedDeliveryRule</code>, <code>shipmentCharges</code>, <code>productHandlingCharge</code>, <code>bpShare</code></td></tr>
 <tr><td>Storage days</td><td><code>packages/db/src/finance/storage.ts</code>: <code>chargeStorageDays</code>, <code>unitsAtDayEnds</code>, <code>unitsForDays</code></td></tr>

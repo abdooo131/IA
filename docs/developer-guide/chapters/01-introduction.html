@@ -90,7 +90,7 @@ export function share(amount: number, basisPoints: number): number {
 </ul>
 
 <h3 id="intro-vat">VAT</h3>
-<p>VAT is added on top of our fees. Its rate is one global setting, <code>fee.vat_bp</code>, in basis points. The setting's code default is 0; the owner set it to 1400 (14%) when the finance module went live. The same rate applies to rider office bills when the office has a tax number. VAT is never stored per merchant. When a fee is charged, the merchant's balance goes down by the fee plus its VAT, the fee is booked as income and the VAT is booked as owed to the tax authority (account 2301). Fees and VAT are computed separately, each rounded to whole piastres.</p>
+<p>VAT is added on top of our fees. Its rate is one global setting, <code>fee.vat_bp</code>, in basis points. The setting's code default is 0; the owner set it to 1400 (14%) on 11 November 2026. The same rate applies to rider office bills when the office has a tax number. VAT is never stored per merchant. When a fee is charged, the merchant's balance goes down by the fee plus its VAT, the fee is booked as income and the VAT is booked as owed to the tax authority (account 2301). Fees and VAT are computed separately, each rounded to whole piastres.</p>
 
 <h3 id="intro-numbers">Document numbers</h3>
 <p>Accounting documents carry gapless serial numbers with a prefix, padded to six digits: <code>JV-000001</code> for a journal entry, <code>PAY-</code> for payouts, <code>CH-</code> for cash handovers, <code>BILL-</code>, <code>INV-</code>, <code>CN-</code>, <code>DN-</code>, <code>PO-</code>, <code>CHQ-</code>, <code>PC-</code>, <code>RW-</code>, <code>BS-</code>, <code>EC-</code>, <code>BD-</code> and others. Numbers are taken inside the transaction that creates the document, under a database lock, so there are no gaps and no duplicates.</p>
@@ -98,5 +98,13 @@ export function share(amount: number, basisPoints: number): number {
 <h3 id="intro-language">Language and wording</h3>
 <p>The interface exists in English (left to right) and Arabic (right to left). Every string goes through translation files; none is written into a component. The code and its comments use plain words. This document follows the same habit, and uses the words of the code (for example "wallet" for an account that belongs to one merchant, rider, supplier or team member).</p>
 
-<div class="note" data-todo="accounting-update-batch">To be completed after the update: a batch of accounting changes was being finished when this document was written (merchant payout Statement of Account and Proof of Transfer with a second person check, a separate Suppliers page, purchase orders with asset lines, budgets by quarter, a Forecast area, a Coming up and due card, attachments inside every money form, a journal entry page with print). These features are not described in detail here; notes like this one mark where they belong.</div>
+<h3 id="intro-latest">The latest accounting features</h3>
+<p>The last group of features added to Accounting is described in full where each belongs:</p>
+<ul>
+<li>Merchant payouts carry a statement of account (<code>SOA-</code>) frozen when they are prepared and a proof of transfer (<code>POT-</code>, the bank slip with its amount and reference) uploaded before they are paid; Accounting ticks payout checks in between, one of them by a second person who will not pay. See Merchant money (chapter 13) and Controls and access.</li>
+<li>Suppliers have their own list and document page, and purchase orders can buy assets: each unit received becomes a fixed asset depreciated from the month it arrived (chapter 12).</li>
+<li>Receipts and documents are chosen inside every money form and linked to the record in the same transaction; every journal entry has its own page with a printable voucher (chapter 12).</li>
+<li>The postal fee: the postal authority's share of our fees per shipment, our cost, paid monthly from Taxes (chapter 10).</li>
+<li>Budgets are planned per quarter, a 12 month forecast works with named scenarios, and Coming up and due lists every known payment with phone reminders (chapter 15).</li>
+</ul>
 </section>

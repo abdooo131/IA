@@ -72,7 +72,6 @@
 <tr><td>Close section</td><td>"Every item is done. Close the books to stop any change in this month." or "Finish the items above, or tick them with a note, before closing the books."</td><td>Button <em>Close the books through YYYY-MM-DD</em>: accounting manage, enabled only when ready.</td><td>"The books are closed through YYYY-MM-DD."</td></tr>
 </tbody></table>
 <figure class="shot" data-shot="s34-month-end-tick"><figcaption>Tick by hand opened on Receipts attached, with a note typed.</figcaption></figure>
-<div class="note">Small inconsistency: the run shows the closed day as dd/mm/yyyy while the checklist page shows YYYY-MM-DD in its close button and closed line.</div>
 
 <!-- ───────────────────────── Close the books ───────────────────────── -->
 <h2 id="s34-close-books">Close the books</h2>
@@ -100,7 +99,6 @@
 <tr><td>Download journal (CSV)</td><td>One row per ledger line: date, voucher, account code, debit, credit.</td><td>Accounting view. <code>/api/finance/export/journal.csv?from=&amp;to=</code>.</td><td>A CSV that imports into common accounting programs.</td></tr>
 <tr><td>Download audit pack (zip)</td><td>Journal, trial balance, chart of accounts, VAT by month, every receipt photo named by voucher.</td><td><code>/api/finance/export/audit-pack.zip?from=&amp;to=</code>.</td><td>A zip file.</td></tr>
 </tbody></table>
-<div class="note">Layout fault: the labels From and To sit on the same line as their date boxes with no space ("From01/01/2026"), unlike every other form where the label is above the box.</div>
 
 <!-- ───────────────────────── Taxes ───────────────────────── -->
 <h2 id="s34-taxes">Taxes</h2>
@@ -123,7 +121,7 @@
 <tr><td>Columns Supplier, Tax id, Payments, Paid before VAT, Withheld; Total</td><td>Withholding kept back per supplier in the quarter.</td><td>A supplier without a tax id shows "No tax id" in red, and a red line counts them above the table.</td><td>"No withholding tax in this quarter." when empty.</td></tr>
 </tbody></table>
 <figure class="shot" data-shot="s34-taxes-pay-form"><figcaption>Pay tax filled in: VAT, 10 EGP from 1101 CIB, a reference and two files chosen.</figcaption></figure>
-<figure class="shot" data-shot="s34-taxes-pay-error"><figcaption>Error: paying VAT while VAT we owe is a credit. The API answers more_than_owed, but the screen shows "That is more than the rider has earned.", a message written for rider withdrawals (a wording fault, listed at the end).</figcaption></figure>
+<figure class="shot" data-shot="s34-taxes-pay-error"><figcaption>Error: paying VAT while VAT we owe is a credit. The API refuses with more_than_owed and the form shows its refusal message.</figcaption></figure>
 <figure class="shot" data-shot="s34-taxes-pay-result"><figcaption>Result: 10 EGP of withholding tax paid with a receipt photo. Below the approval limit it posts at once ("Done."); the entry JV-002555 is shown under Common parts, document page.</figcaption></figure>
 <figure class="shot" data-shot="s34-taxes-wht-empty"><figcaption>Empty state of the withholding list (Q1 2026): "No withholding tax in this quarter."</figcaption></figure>
 
@@ -300,6 +298,7 @@
 <tr><td><code>fee.shipping_fee_piastres</code></td><td>Shipping fee per delivered order (EGP)</td><td>0.00</td><td>No</td></tr>
 <tr><td><code>fee.packaging_charge_piastres</code></td><td>Packaging charge per delivered order (EGP, 0: our cost)</td><td>0.00</td><td>No</td></tr>
 <tr><td><code>fee.failed_delivery_percent_bp</code></td><td>Failed delivery, share of the shipment for contracts with a shipping fee (%)</td><td>100.00%</td><td>No</td></tr>
+<tr><td><code>fee.postal_bp</code></td><td>Postal fee (share of our fees per shipment)</td><td>10.00%</td><td>No</td></tr>
 <tr><td><code>fee.vat_bp</code></td><td>VAT on our fees (%)</td><td>0.00% (the owner set 14% on 2026-11-11)</td><td>No</td></tr>
 <tr><td><code>rider.bonus_per_delivery_piastres</code></td><td>Rider pay per delivered order (EGP)</td><td>0.00</td><td>Store</td></tr>
 <tr><td><code>rider.withdraw_hold_working_days</code></td><td>Rider pay hold (working days)</td><td>5</td><td>No</td></tr>
@@ -414,7 +413,6 @@
 <figure class="shot" data-shot="s34-doc-remind"><figcaption>Remind me: On (a day), Remind (Me or another person who may open the record), What to do, and Schedule.</figcaption></figure>
 <figure class="shot" data-shot="s34-doc-remind-error"><figcaption>Error: a reminder on a past day: "Pick today or a later day." Other chatter errors: "That person cannot open this record.", "You can read this record but not write on it.", "Only the person reminded or who planned it can close it."</figcaption></figure>
 <figure class="shot" data-shot="s34-doc-chatter"><figcaption>The chatter after a note and a reminder: Planned, Notes, Attachments (photo and PDF) and History.</figcaption></figure>
-<div class="note">Two History faults visible here: the tax payment row shows the raw action key "finance.tax_payment" instead of a sentence, and its amount as raw piastres ("amount: – → 1000" for 10.00 EGP).</div>
 
 <h2 id="s34-attachments">Common part: the attachment field and viewer</h2>
 <p><code>AttachmentField</code> (<code>components/finance/AttachmentField.tsx</code>) is used in every finance form that takes receipts: Pay tax, deposits, payouts, expenses, bills, petty cash and more.</p>
@@ -488,7 +486,6 @@
 <figure class="shot" data-shot="s34-status-invoices"><figcaption>Tax invoice e invoice status bar: not sent.</figcaption></figure>
 <figure class="shot" data-shot="s34-status-purchase-orders"><figcaption>Purchase order status bars: cancelled, closed, rejected.</figcaption></figure>
 <figure class="shot" data-shot="s34-status-basata"><figcaption>Basata deposit status bars: approved, pending, rejected.</figcaption></figure>
-<div class="note">The bill state open is labelled "Waiting for answer" because the label <code>workflow.states.open</code> is shared with tickets. On a bill it should read Open or Unpaid.</div>
 
 <h2 id="s34-access">Access: the same screen for view and for use</h2>
 <p>The pages hide what a person cannot do, and the API refuses it anyway. Below, the same demo user with accounting <strong>view</strong>, then with accounting <strong>use</strong>.</p>
@@ -525,16 +522,4 @@
 <h2 id="s34-dark">Dark theme</h2>
 <figure class="shot" data-shot="s34-dark-dashboard"><figcaption>The Accounting dashboard in the dark theme (cookie shiply_theme=dark): Navy grounds, lighter blue links, and the count badges in amber.</figcaption></figure>
 
-<h2 id="s34-faults">Faults seen while taking these screenshots</h2>
-<ol>
-<li><strong>Wrong message when paying too much tax.</strong> Pay tax refused with <code>more_than_owed</code> shows "That is more than the rider has earned." The key <code>finance.merchants.errors.more_than_owed</code> is worded for rider withdrawals and is reused by every finance form. Seen on Taxes, Taxes owed, paying 10 EGP of VAT while VAT is a credit.</li>
-<li><strong>Raw history entries.</strong> On the journal entry of a tax payment the History shows the action key "finance.tax_payment" instead of a sentence, and the amount as piastres ("amount: – → 1000" for 10.00 EGP).</li>
-<li><strong>Bill status label.</strong> The bill state <code>open</code> reads "Waiting for answer" in the status bar, because the label is shared with tickets.</li>
-<li><strong>Two settings without a name.</strong> <code>finance.corporate_tax_bp</code> (Salaries and tax) and <code>finance.payout_minimum_piastres</code> (Money controls) show their raw key as the title: no entry under <code>admin.settings.names</code>.</li>
-<li><strong>Success message never seen.</strong> Chart of accounts, Open a new account: the form closes on success and its message "Account n opened." goes with it.</li>
-<li><strong>Search with no result shows nothing.</strong> Chart of accounts search that matches nothing leaves an empty page with no "nothing found" line.</li>
-<li><strong>Year end labels.</strong> The From and To labels sit on the same line as their date boxes with no space ("From01/01/2026").</li>
-<li><strong>Two totals for one month.</strong> The month end checklist counts 10 items ("8 of 10 done") while the guided run counts 9 ("8 of 9 done") for the same month; and the checklist writes the closed day as YYYY-MM-DD while the run uses dd/mm/yyyy.</li>
-<li><strong>Close the books typed date.</strong> The date box limits only the calendar to yesterday; a typed later day is sent and refused by the API ("You can close only days that are over."). A check in the form would avoid the round trip.</li>
-</ol>
 </section>

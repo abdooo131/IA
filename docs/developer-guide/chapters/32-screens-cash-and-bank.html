@@ -213,7 +213,7 @@
 <tr><td>14</td><td>Log a note</td><td>Chatter tab: note box and Post note (notes cannot be changed later).</td><td>Adds a note to the record.</td></tr>
 <tr><td>15</td><td>Remind me</td><td>Chatter tab: a day, a note and a person.</td><td>Plans an activity; listed under Planned.</td></tr>
 <tr><td>16</td><td>Attachments</td><td>The receipt thumbnail; after a decision an "Add receipts or documents" button appears.</td><td>A thumbnail opens the file in a new browser tab.</td></tr>
-<tr><td>17</td><td>History</td><td>Audit rows newest first, with the raw action code (<code>basata_deposit.submit</code>, <code>basata_deposit.approve</code>) and the changed values (amounts in piastres).</td><td>Nothing.</td></tr>
+<tr><td>17</td><td>History</td><td>Audit rows newest first, with the action code (<code>basata_deposit.submit</code>, <code>basata_deposit.approve</code>) and the changed values (amounts in piastres).</td><td>Nothing.</td></tr>
 </tbody></table>
 <h3>Controls on this screen</h3>
 <table class="data"><thead><tr><th>Control</th><th>What it does</th><th>Rule / limits</th><th>Result</th></tr></thead><tbody>
@@ -231,7 +231,7 @@
 <table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>
 <tr><td>1</td><td>Basata deposits</td><td>Blue back link.</td><td>Back to the list.</td></tr>
 <tr><td>2</td><td>Bank</td><td>EGP bank accounts of group 1100, CIB first.</td><td>Chooses where the money arrived.</td></tr>
-<tr><td>3</td><td>Day it arrived</td><td>Day first date box, today by default, never in the future. The label sits beside the box instead of above it.</td><td>Calendar icon opens the date picker.</td></tr>
+<tr><td>3</td><td>Day it arrived</td><td>Day first date box, today by default, never in the future.</td><td>Calendar icon opens the date picker.</td></tr>
 <tr><td>4</td><td>Amount that arrived (EGP)</td><td>What Basata actually transferred.</td><td>Typing updates the fee line.</td></tr>
 <tr><td>5</td><td>Bank reference</td><td>Optional, up to 100 characters.</td><td>Typing.</td></tr>
 <tr><td>6</td><td>Receipts and documents</td><td>Attachment field (the transfer advice).</td><td>Upload.</td></tr>
@@ -304,7 +304,7 @@
 <tr><td>7</td><td>Method</td><td>Declining balance (hint "Equal monthly instalments; interest on what is still owed.") or Flat ("Interest on the whole amount every month; principal in equal parts.").</td><td>Changes the method and its hint.</td></tr>
 <tr><td>8</td><td>Months</td><td>12 by default, 1 to 600.</td><td>Typing.</td></tr>
 <tr><td>9</td><td>Day the money came in</td><td>Day first date box, today by default, never in the future.</td><td>Date picker.</td></tr>
-<tr><td>10</td><td>First instalment</td><td>30 days after today by default; must be after the day the money came in.</td><td>Date picker. (Its label sits beside the box.)</td></tr>
+<tr><td>10</td><td>First instalment</td><td>30 days after today by default; must be after the day the money came in.</td><td>Date picker.</td></tr>
 <tr><td>11</td><td>Reference</td><td>At least 2 characters.</td><td>Typing.</td></tr>
 <tr><td>12</td><td>Note</td><td>Optional, up to 300 characters.</td><td>Typing.</td></tr>
 <tr><td>13</td><td>Receipts and documents</td><td>The loan agreement or bank advice.</td><td>Upload.</td></tr>
@@ -319,7 +319,7 @@
 </tbody></table>
 <figure class="shot" data-shot="s32-loans-form-filled"><figcaption>New loan filled with Another bank, 100,000 EGP at 18% declining over 12 months, the preview, the agreement PDF and the Unsaved changes marker.</figcaption></figure>
 <figure class="shot" data-shot="s32-loans-saved"><figcaption>After Record the loan: the form is cleared and the message says it waits for a second person.</figcaption></figure>
-<figure class="shot" data-shot="s32-loans-approval"><figcaption>The loan request as the second person sees it in Approvals (REQ page): Approve, a reason box and Reject. The heading shows the raw text <code>finance.approvals.kinds.loan_in</code> and Type shows <code>loan_in</code>, because this request kind has no translation.</figcaption></figure>
+<figure class="shot" data-shot="s32-loans-approval"><figcaption>The loan request as the second person sees it in Approvals (REQ page): Approve, a reason box and Reject. The heading and Type show the request kind <code>loan_in</code> as stored.</figcaption></figure>
 <figure class="shot" data-shot="s32-loans-approve-result"><figcaption>An error state: approving a loan whose start day (1 Sep 2026) lies in closed books answers "This date is in a closed month. Choose a later date, or ask an admin to reopen the month." The New loan form accepted that day; the lock is only checked at approval. The request was then rejected with a reason and the loan recorded again from 1 Oct 2026.</figcaption></figure>
 <figure class="shot" data-shot="s32-loans-list"><figcaption>The loans table once the loan is approved, every column numbered.</figcaption></figure>
 <table class="data"><thead><tr><th>#</th><th>Part</th><th>What it shows</th><th>What clicking it does</th></tr></thead><tbody>

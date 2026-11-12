@@ -141,7 +141,7 @@
 <table class="data">
 <thead><tr><th>Source</th><th>Kinds</th></tr></thead>
 <tbody>
-<tr><td>Deliveries (<code>postings.ts</code>)</td><td><code>cod_collected</code>, <code>shipping_fee</code>, <code>product_handling</code>, <code>order_fee</code>, <code>cod_fee</code>, <code>packaging_charge</code>, <code>rider_bonus</code>, <code>failed_fee</code>, <code>receiving_fee</code>, <code>storage_fee</code>, <code>return_fee</code></td></tr>
+<tr><td>Deliveries (<code>postings.ts</code>)</td><td><code>cod_collected</code>, <code>shipping_fee</code>, <code>product_handling</code>, <code>order_fee</code>, <code>cod_fee</code>, <code>packaging_charge</code>, <code>postal_fee</code>, <code>rider_bonus</code>, <code>failed_fee</code>, <code>receiving_fee</code>, <code>storage_fee</code>, <code>return_fee</code></td></tr>
 <tr><td>Contracts</td><td><code>minimum_fee</code>, <code>deposit_received</code>, <code>deposit_refunded</code></td></tr>
 <tr><td>Cash and payouts (<code>operations.ts</code>)</td><td><code>cash_handover</code>, <code>cash_difference</code>, <code>bank_deposit</code>, <code>merchant_payout</code>, <code>merchant_receipt</code>, <code>adjustment</code></td></tr>
 <tr><td>Riders</td><td><code>rider_withdrawal</code>, <code>rider_shortage_charge</code>, <code>rider_penalty</code>, <code>rider_office_commission</code>, <code>rider_office_shortage</code>, <code>basata_deposit</code>, <code>basata_deadline_charge</code>, <code>basata_settlement</code></td></tr>
@@ -188,11 +188,13 @@
 <tr><td><code>order_fee</code></td><td>2100 merchant</td><td>28.50</td><td></td></tr>
 <tr><td><code>order_fee</code></td><td>4101 delivery and service fees</td><td></td><td>25.00</td></tr>
 <tr><td><code>order_fee</code></td><td>2301 VAT payable</td><td></td><td>3.50</td></tr>
+<tr><td><code>postal_fee</code></td><td>5103 Postal fees</td><td>2.50</td><td></td></tr>
+<tr><td><code>postal_fee</code></td><td>2307 Postal fees owed</td><td></td><td>2.50</td></tr>
 <tr><td><code>rider_bonus</code></td><td>5101 rider pay per delivered order</td><td>20.00</td><td></td></tr>
 <tr><td><code>rider_bonus</code></td><td>2200 rider bonus (rider's wallet)</td><td></td><td>20.00</td></tr>
 </tbody>
 </table>
-<p>The order fee is <code>1500 + share(50000, 200) = 1500 + 1000 = 2500</code> piastres and its VAT is <code>share(2500, 1400) = 350</code> piastres. The COD fee, shipping fee, per product prices and packaging charge are 0 here, so their posts write nothing. Every line is tagged with the order's store and merchant; the lines of the two entries that touch a rider wallet (<code>cod_collected</code> and <code>rider_bonus</code>) are also tagged with the rider, because the tags are worked out per entry. Afterwards the merchant's wallet holds a credit of 521.50 EGP: the company owes the merchant the cash collected minus the fee and its VAT.</p>
+<p>The order fee is <code>1500 + share(50000, 200) = 1500 + 1000 = 2500</code> piastres and its VAT is <code>share(2500, 1400) = 350</code> piastres. The postal fee, our cost and never the merchant's, is <code>share(2500, fee.postal_bp = 1000) = 250</code> piastres (chapter 10). The COD fee, shipping fee, per product prices and packaging charge are 0 here, so their posts write nothing. Every line is tagged with the order's store and merchant; the lines of the two entries that touch a rider wallet (<code>cod_collected</code> and <code>rider_bonus</code>) are also tagged with the rider, because the tags are worked out per entry. Afterwards the merchant's wallet holds a credit of 521.50 EGP: the company owes the merchant the cash collected minus the fee and its VAT.</p>
 </div>
 <p>The fee lines come from one helper, so every fee kind charges VAT the same way:</p>
 <pre class="code">async function feeLines(tx: Tx, merchantId: string, fee: number) {
