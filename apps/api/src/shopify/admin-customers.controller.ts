@@ -1,8 +1,9 @@
-import { Body, Controller, Get, Param, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, ForbiddenException, Get, Param, Post, Query, Res } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import {
   customerProfile,
   customerRisk,
+  customersOfMerchants,
   customersOverview,
   districtDemand,
   DomainError,
@@ -13,8 +14,9 @@ import {
 } from '@shiplynow/db';
 import type { Response } from 'express';
 import { z } from 'zod';
-import type { AccessTokenClaims } from '@shiplynow/shared';
-import { Access, CurrentUser } from '../auth/decorators';
+import type { AccessProfile, AccessTokenClaims } from '@shiplynow/shared';
+import { assertMerchant, limitedMerchants } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { cairoStamp, csv } from '../finance/finance-csv';
 import { PrismaService } from '../prisma/prisma.service';
@@ -33,10 +35,23 @@ const mergeSchema = z.object({ mergeId: z.string().min(1).max(64) });
 export class AdminCustomersController {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Account managers (own_merchants_only) reach only people who bought from their merchants;
+   * anyone else answers 403 merchant_not_allowed.
+   */
+  private async assertCustomers(access: AccessProfile | undefined, ids: string[]) {
+    const merchants = limitedMerchants(access);
+    if (!merchants) return;
+    const mine = await customersOfMerchants(this.prisma, ids, merchants);
+    if (ids.some((id) => !mine.has(id)))
+      throw new ForbiddenException({ error: 'merchant_not_allowed' });
+  }
+
   /** Named rows (name, phone, email): customer_data too. */
   @Get()
   @Access('customers', 'view', { customerData: true })
   list(
+    @CurrentAccess() access: AccessProfile | undefined,
     @Query('q') q?: string,
     @Query('segment') segment?: string,
     @Query('governorate') governorate?: string,
@@ -49,14 +64,30 @@ export class AdminCustomersController {
       segment,
       governorate,
       merchantId,
+      merchantIds: limitedMerchants(access),
       due: due === '1' || due === 'true',
       page: Number.parseInt(page ?? '1', 10) || 1,
     });
   }
 
   @Get('overview')
-  overview() {
-    return customersOverview(this.prisma);
+  async overview(@CurrentAccess() access: AccessProfile | undefined) {
+    const all = await customersOverview(this.prisma);
+    const merchants = limitedMerchants(access);
+    if (!merchants) return all;
+    // The totals stay market wide (no names); named rows only of the person's merchants.
+    const mine = new Set(merchants);
+    const risky = await customersOfMerchants(
+      this.prisma,
+      all.riskyCustomers.map((c) => c.id),
+      merchants,
+    );
+    return {
+      ...all,
+      riskyCustomers: all.riskyCustomers.filter((c) => risky.has(c.id)),
+      orderHistory: all.orderHistory.filter((h) => mine.has(h.merchantId)),
+      sharedShoppers: all.sharedShoppers.filter((s) => mine.has(s.a.id) && mine.has(s.b.id)),
+    };
   }
 
   /**
@@ -68,12 +99,17 @@ export class AdminCustomersController {
   @Access('customers', 'view', { customerData: true })
   async export(
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
     @Res() res: Response,
     @Query('segment') segment?: string,
     @Query('marketing') marketing?: string,
   ) {
     const forMarketing = marketing === '1' || marketing === 'true';
-    const rows = await exportCustomers(this.prisma, { segment, marketing: forMarketing });
+    const rows = await exportCustomers(this.prisma, {
+      segment,
+      marketing: forMarketing,
+      merchantIds: limitedMerchants(access),
+    });
     await recordAudit(this.prisma, {
       actorUserId: user.sub,
       action: 'customer.export',
@@ -109,12 +145,16 @@ export class AdminCustomersController {
   /** The person behind one of our orders, with their cash on delivery risk (admin order page). */
   @Get('by-order/:orderId')
   @Access('customers', 'view', { customerData: true })
-  async byOrder(@Param('orderId') orderId: string) {
+  async byOrder(
+    @Param('orderId') orderId: string,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
     const order = await this.prisma.order.findUnique({
       where: { id: orderId },
-      select: { customer: { select: { id: true, name: true, phone: true } } },
+      select: { merchantId: true, customer: { select: { id: true, name: true, phone: true } } },
     });
     if (!order) throw new DomainError('order_not_found', 404);
+    assertMerchant(access, order.merchantId);
     if (!order.customer) return { customer: null };
     return {
       customer: order.customer,
@@ -125,11 +165,13 @@ export class AdminCustomersController {
   /** Joins another profile of the same person into this one (audited). */
   @Post(':id/merge')
   @Access('customers', 'manage', { customerData: true })
-  merge(
+  async merge(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(mergeSchema)) body: { mergeId: string },
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
   ) {
+    await this.assertCustomers(access, [id, body.mergeId]);
     return mergeCustomers(this.prisma, {
       keepId: id,
       mergeId: body.mergeId,
@@ -139,9 +181,14 @@ export class AdminCustomersController {
 
   @Get(':id')
   @Access('customers', 'view', { customerData: true })
-  async profile(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async profile(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
     const profile = await customerProfile(this.prisma, id);
     if (!profile) throw new DomainError('customer_not_found', 404);
+    await this.assertCustomers(access, [id]);
     await recordAudit(this.prisma, {
       actorUserId: user.sub,
       action: 'customer.view',

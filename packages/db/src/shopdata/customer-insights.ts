@@ -202,6 +202,8 @@ export async function listCustomers(
     segment?: string;
     governorate?: string;
     merchantId?: string;
+    /** Only customers who bought from one of these (an account manager's merchants) */
+    merchantIds?: string[] | null;
     /** Only repeat customers who should have ordered again by now */
     due?: boolean;
     page?: number;
@@ -228,6 +230,9 @@ export async function listCustomers(
   if (filter.merchantId)
     where.push(Prisma.sql`EXISTS (SELECT 1 FROM (${PURCHASES}) m
       WHERE m.customer_id = c.id AND m.merchant_id = ${filter.merchantId})`);
+  if (filter.merchantIds)
+    where.push(Prisma.sql`EXISTS (SELECT 1 FROM (${PURCHASES}) m
+      WHERE m.customer_id = c.id AND m.merchant_id = ANY(${filter.merchantIds}))`);
   const segment = SEGMENTS.includes(filter.segment as Segment) ? filter.segment : null;
   const rows = await db.$queryRaw<(Row & { gap: number | null })[]>`
     SELECT * FROM (
@@ -604,6 +609,22 @@ export async function customersOverview(db: Db, now: Date = new Date()) {
     })),
     newByMonth: months.map((m) => ({ month: m.month, customers: n(m.customers) })),
   };
+}
+
+/**
+ * Which of these customers bought from one of these merchants (our orders or Shopify orders):
+ * an account manager reaches only those.
+ */
+export async function customersOfMerchants(
+  db: Db,
+  customerIds: string[],
+  merchantIds: string[],
+): Promise<Set<string>> {
+  if (!customerIds.length || !merchantIds.length) return new Set();
+  const rows = await db.$queryRaw<{ customer_id: string }[]>`
+    SELECT DISTINCT m.customer_id FROM (${PURCHASES}) m
+    WHERE m.customer_id = ANY(${customerIds}) AND m.merchant_id = ANY(${merchantIds})`;
+  return new Set(rows.map((r) => r.customer_id));
 }
 
 /** Everything about one person: who, where, what they buy, from whom, when, and how they pay. */
@@ -1091,7 +1112,12 @@ export type ExportRow = {
  */
 export async function exportCustomers(
   db: Db,
-  filter: { segment?: string; marketing?: boolean },
+  filter: {
+    segment?: string;
+    marketing?: boolean;
+    /** Only customers who bought from one of these (an account manager's merchants) */
+    merchantIds?: string[] | null;
+  },
   now: Date = new Date(),
 ): Promise<ExportRow[]> {
   const r = await rules(db);
@@ -1121,6 +1147,12 @@ export async function exportCustomers(
         k.email_state, k.sms_state, t.last_at, t.spend
       FROM customers c JOIN (${TOTALS}) t ON t.id = c.id
       LEFT JOIN consent k ON k.customer_id = c.id
+      WHERE ${
+        filter.merchantIds
+          ? Prisma.sql`EXISTS (SELECT 1 FROM (${PURCHASES}) m
+              WHERE m.customer_id = c.id AND m.merchant_id = ANY(${filter.merchantIds}))`
+          : Prisma.sql`TRUE`
+      }
     ) x
     WHERE ${segment ? Prisma.sql`x.segment = ${segment}` : Prisma.sql`TRUE`}
     ORDER BY x.spend DESC, x.name`;

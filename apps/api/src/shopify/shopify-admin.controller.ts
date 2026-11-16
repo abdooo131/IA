@@ -2,9 +2,10 @@ import { Body, Controller, Get, Param, Post } from '@nestjs/common';
 import { sealToken } from './security';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { DomainError, recordAudit } from '@shiplynow/db';
-import type { AccessTokenClaims } from '@shiplynow/shared';
+import type { AccessProfile, AccessTokenClaims } from '@shiplynow/shared';
 import { z } from 'zod';
-import { Access, CurrentUser } from '../auth/decorators';
+import { assertMerchant, limitedMerchants, merchantFilter } from '../auth/access-scope';
+import { Access, CurrentAccess, CurrentUser } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { shopDomainSchema } from './security';
 
@@ -40,10 +41,24 @@ export class ShopifyAdminController {
     return this.shopify.prisma;
   }
 
+  /**
+   * Account managers (own_merchants_only) reach only their merchants' stores: the shop's
+   * merchant is checked before any :id action (an unknown id still answers its own 404).
+   */
+  private async assertShop(access: AccessProfile | undefined, id: string) {
+    const shop = await this.prisma.shopifyShop.findUnique({
+      where: { id },
+      select: { merchantId: true },
+    });
+    if (shop) assertMerchant(access, shop.merchantId);
+  }
+
   /** Every linked shop with its locations, product links, pending calls and recent log. */
   @Get()
-  async overview() {
+  async overview(@CurrentAccess() access: AccessProfile | undefined) {
+    const merchantId = merchantFilter(access);
     const shops = await this.prisma.shopifyShop.findMany({
+      where: { merchantId },
       include: {
         merchant: { select: { id: true, name: true, expressPricePiastres: true } },
         locations: {
@@ -52,7 +67,11 @@ export class ShopifyAdminController {
       },
       orderBy: { createdAt: 'asc' },
     });
+    // Limited people see only the apps of their merchants (saved by them or used by their store).
     const apps = await this.prisma.shopifyApp.findMany({
+      where: limitedMerchants(access)
+        ? { OR: [{ merchantId }, { shops: { some: { merchantId } } }] }
+        : undefined,
       orderBy: { createdAt: 'asc' },
       include: { _count: { select: { shops: true } } },
     });
@@ -129,7 +148,9 @@ export class ShopifyAdminController {
   async link(
     @Body(new ZodValidationPipe(linkSchema)) body: z.infer<typeof linkSchema>,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
   ) {
+    assertMerchant(access, body.merchantId);
     const shop = await this.setup.linkShop({
       merchantId: body.merchantId,
       shopDomain: body.shopDomain,
@@ -175,12 +196,17 @@ export class ShopifyAdminController {
   /** Removes a custom app no store uses any more. */
   @Post('apps/:appId/remove')
   @Access('merchants', 'manage')
-  async removeApp(@Param('appId') appId: string, @CurrentUser() user: AccessTokenClaims) {
+  async removeApp(
+    @Param('appId') appId: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
     const app = await this.prisma.shopifyApp.findUnique({
       where: { id: appId },
       include: { _count: { select: { shops: true } } },
     });
     if (!app) throw new DomainError('app_not_found', 404);
+    if (limitedMerchants(access)) assertMerchant(access, app.merchantId);
     if (app._count.shops > 0) throw new DomainError('app_in_use');
     await this.prisma.$transaction(async (tx) => {
       await tx.shopifyApp.delete({ where: { id: appId } });
@@ -198,45 +224,68 @@ export class ShopifyAdminController {
   /** Connects a store through its custom app's own credentials, with no merchant step. */
   @Post(':id/connect')
   @Access('merchants', 'manage')
-  connect(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async connect(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
+    await this.assertShop(access, id);
     return this.setup.connectDirect(id, user.sub);
   }
 
   /** Also refreshes the shop's webhooks, so a new public address reaches Shopify. */
   @Post(':id/register-locations')
   @Access('merchants', 'manage')
-  async registerLocations(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async registerLocations(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
+    await this.assertShop(access, id);
     await this.setup.registerWebhooks(id);
     return this.setup.registerLocations(id, user.sub);
   }
 
   @Post(':id/carrier-service')
   @Access('merchants', 'manage')
-  registerCarrierService(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async registerCarrierService(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
+    await this.assertShop(access, id);
     return this.setup.registerCarrierService(id, user.sub);
   }
 
   @Post(':id/sync-catalog')
-  syncCatalog(
+  async syncCatalog(
     @Param('id') id: string,
     @Body(new ZodValidationPipe(catalogSchema)) body: z.infer<typeof catalogSchema>,
     @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
   ) {
+    await this.assertShop(access, id);
     return this.setup.syncCatalog(id, body, user.sub);
   }
 
   /** Ends the link with this Shopify store (our locations and rate service are removed there). */
   @Post(':id/disconnect')
   @Access('merchants', 'manage')
-  disconnect(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
+  async disconnect(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile | undefined,
+  ) {
+    await this.assertShop(access, id);
     return this.setup.disconnect(id, user.sub);
   }
 
   /** Runs the sync now instead of waiting for the next timer tick. */
   @Post(':id/sync-now')
-  async syncNow(@Param('id') id: string) {
+  async syncNow(@Param('id') id: string, @CurrentAccess() access: AccessProfile | undefined) {
     const shop = await this.prisma.shopifyShop.findUnique({ where: { id } });
     if (!shop) throw new DomainError('shop_not_found', 404);
+    assertMerchant(access, shop.merchantId);
     if (shop.status !== 'active') throw new DomainError('shop_not_installed');
     return (await this.jobs.runShop(shop)) ?? { busy: true };
   }
