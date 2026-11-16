@@ -285,3 +285,35 @@ describe('manifest detail', () => {
     expect(detail!.createdBy?.name).toBe('A');
   });
 });
+
+describe('receiving and closing at the same moment', () => {
+  it('never takes a scan into a shipment after its summary was made', async () => {
+    const m = await newManifest();
+    const scan = (i: number) =>
+      receiveOnManifest(prisma, {
+        manifestId: m.id,
+        darkStoreId: f.store.id,
+        skuId: f.sku.id,
+        quantity: 1,
+        actorUserId: actor,
+        idempotencyKey: `race-${i}`,
+      });
+    await scan(0);
+    const results = await Promise.allSettled([
+      scan(1),
+      scan(2),
+      closeManifest(prisma, { manifestId: m.id, darkStoreId: f.store.id, actorUserId: actor }),
+      scan(3),
+      scan(4),
+    ]);
+    for (const r of results)
+      if (r.status === 'rejected') expect(r.reason).toMatchObject({ code: 'manifest_closed' });
+    const closed = results[2];
+    expect(closed.status).toBe('fulfilled');
+    const summary = (closed as PromiseFulfilledResult<{ lines: { receivedQty: number }[] }>).value;
+    const line = await prisma.inboundManifestLine.findFirstOrThrow({ where: { manifestId: m.id } });
+    // What the merchant was told is exactly what was received, and what sits in receiving.
+    expect(summary.lines[0]!.receivedQty).toBe(line.receivedQty);
+    expect(await binQty(f.receiving.id, f.sku.id)).toBe(line.receivedQty);
+  });
+});

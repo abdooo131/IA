@@ -11,7 +11,7 @@ import {
   type EmployeeStatusBody,
   isTeamRole,
 } from '@shiplynow/shared';
-import { assertCanDisable } from './access';
+import { assertCanDisable, assertNoOpenDeliveries } from './access';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -649,6 +649,7 @@ export function setEmployeeStatus(
     let disabled = false;
     if (status === 'left' && before.user.isActive) {
       if (isTeamRole(before.user.role)) await assertCanDisable(tx, before.userId);
+      await assertNoOpenDeliveries(tx, before.userId);
       await tx.user.update({ where: { id: before.userId }, data: { isActive: false } });
       await tx.refreshToken.updateMany({
         where: { userId: before.userId, revokedAt: null },

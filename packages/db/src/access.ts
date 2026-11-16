@@ -132,6 +132,21 @@ export async function assertCanDisable(tx: Tx, userId: string) {
   if (row?.settings === 'manage') await assertAnotherOwner(tx, userId);
 }
 
+/**
+ * Called before an account is disabled: a rider still carrying orders cannot be, or nobody
+ * could close those deliveries from the rider app (rider_has_open_deliveries). The rider row
+ * is locked, so a hand over to them waits for the disable (handToRider locks it too).
+ */
+export async function assertNoOpenDeliveries(tx: Tx, userId: string) {
+  const rider = await tx.rider.findUnique({ where: { userId }, select: { id: true } });
+  if (!rider) return;
+  await tx.$queryRaw`SELECT id FROM riders WHERE id = ${rider.id} FOR UPDATE`;
+  const open = await tx.delivery.count({
+    where: { riderId: rider.id, status: { in: ['assigned', 'picked_up'] } },
+  });
+  if (open > 0) throw new DomainError('rider_has_open_deliveries', 409, { open });
+}
+
 async function checkStores(tx: Tx, storeIds: string[]) {
   if (storeIds.length === 0) return;
   const found = await tx.darkStore.count({ where: { id: { in: storeIds } } });

@@ -66,6 +66,9 @@ export default async function AdminOrderPage({
         basePath="/admin/orders"
         apiPath={api}
         cancellable={cancellable}
+        closableForRider={
+          order.status === 'out_for_delivery' && canDo(profile, 'operations', 'manage')
+        }
         created={created === '1'}
         notes={notes}
         teamNotes

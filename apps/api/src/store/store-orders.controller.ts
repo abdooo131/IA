@@ -13,6 +13,7 @@ import {
   acceptOrder,
   addOrderNote,
   cancelOrder,
+  closeDeliveryForRider,
   decideFailedOrder,
   getOrderDetail,
   handToRider,
@@ -30,6 +31,8 @@ import {
   ACTIVE_STATUSES,
   canDo,
   cancelOrderSchema,
+  type CloseForRiderBody,
+  closeForRiderSchema,
   CLOSED_STATUSES,
   type FailedOrderDecision,
   failedOrderDecisionSchema,
@@ -233,6 +236,24 @@ export class StoreOrdersController {
       actorUserId: user.sub,
     });
     return { status: 'cancelled' };
+  }
+
+  /** The store manager closes a delivery for its rider (delivered or failed), with a reason. */
+  @Post(':orderId/close-for-rider')
+  @Access('store', 'manage')
+  async closeForRider(
+    @Param('storeId') storeId: string,
+    @Param('orderId') orderId: string,
+    @Body(new ZodValidationPipe(closeForRiderSchema)) body: CloseForRiderBody,
+    @CurrentUser() user: AccessTokenClaims,
+  ) {
+    await this.access.check(user, storeId);
+    return closeDeliveryForRider(this.prisma, {
+      orderId,
+      darkStoreId: storeId,
+      actorUserId: user.sub,
+      ...body,
+    });
   }
 
   @Post(':orderId/return')

@@ -385,7 +385,8 @@
         "crm_deal_stale": "Deal {number} ({company}) has been in one stage for {days} days",
         "hr_termination_review": "{nameEn}: {number} reached termination review",
         "zone_areas_review": "Zone areas to review: some areas were split between zones or some zones kept their drawn outline",
-        "rider_frozen": "{rider} ({badge}) frozen: held {amountEgp} EGP after the deadline of {day}"
+        "rider_frozen": "{rider} ({badge}) frozen: held {amountEgp} EGP after the deadline of {day}",
+        "exit_disable_waiting": "{name}: account not closed on the last day, still has {open} deliveries out. Close them, then the account closes on the next run."
       },
       "handledBy": "Handled by {name}",
       "typeNames": {
@@ -418,7 +419,8 @@
         "crm_deal_stale": "Deal not moving",
         "hr_termination_review": "Termination review",
         "zone_areas_review": "Zone areas to review",
-        "rider_frozen": "Rider frozen"
+        "rider_frozen": "Rider frozen",
+        "exit_disable_waiting": "Leaver still has deliveries"
       }
     },
     "settings": {
@@ -930,7 +932,7 @@
         "badge_required": "Enter the badge code.",
         "merchant_required": "Choose the merchant.",
         "cannot_deactivate_self": "You cannot disable your own account.",
-        "rider_has_open_deliveries": "This rider still has orders out. Finish them first.",
+        "rider_has_open_deliveries": "This rider still has orders out. Close those deliveries first: the rider marks them in the app, or a manager uses Close for the rider on each order.",
         "invalid_badge_code": "Badge codes use letters, numbers and dashes (3 to 20).",
         "validation_failed": "Check the fields.",
         "generic": "Something went wrong. Try again.",
@@ -6816,7 +6818,8 @@
       "document_type_not_allowed": "Only photos (JPEG, PNG, WebP) and PDF files.",
       "document_too_large": "The file is larger than 3 MB.",
       "document_not_readable": "The file does not look like a photo or a PDF.",
-      "expires_before_issued": "The document cannot run out before it was issued."
+      "expires_before_issued": "The document cannot run out before it was issued.",
+      "rider_has_open_deliveries": "This rider still has orders out. Close those deliveries first (the rider in the app, or a manager with Close for the rider on the order)."
     },
     "newHire": "New hire"
   },
@@ -10386,7 +10389,8 @@
       "document_in_order": "This document is in order.",
       "manager_is_self": "Someone cannot be their own manager.",
       "rider_office_riders_only": "A rider office supplies only riders paid per delivery.",
-      "rider_office_required": "A rider paid per delivery can only be hired through a rider office."
+      "rider_office_required": "A rider paid per delivery can only be hired through a rider office.",
+      "rider_has_open_deliveries": "This rider still has orders out. Close those deliveries first (the rider in the app, or a manager with Close for the rider on the order)."
     }
   },
   "riderPay": {
@@ -12571,5 +12575,37 @@
     "signature": "Signature",
     "taxNumber": "Tax registration number",
     "amounts": "Amounts in EGP"
+  },
+  "closeForRider": {
+    "title": "Close for the rider",
+    "action": "Close for the rider",
+    "intro": "Use this only when the rider cannot close the delivery from the app. It stays the delivery of {rider}; you are recorded as the person who closed it.",
+    "outcome": "What happened",
+    "outcomes": {
+      "delivered": "Delivered",
+      "failed": "Could not deliver"
+    },
+    "reason": "Why are you closing it for the rider?",
+    "reasonHint": "For example: the rider phone stopped working",
+    "cashExpected": "Expected: {amount} EGP",
+    "photo": "Add a photo (optional)",
+    "photoTaken": "Photo added. Take another",
+    "confirmDelivered": "Mark as delivered",
+    "confirmFailed": "Mark as failed",
+    "back": "Back",
+    "done": "The delivery was closed for the rider.",
+    "errors": {
+      "reason_short": "Write the reason (at least 5 letters).",
+      "invalid_order_state": "This order is no longer out for delivery. The screen was refreshed.",
+      "delivery_closed": "The rider already closed this delivery.",
+      "cod_required": "Enter the cash the rider collected.",
+      "photo_required": "That photo cannot be used. Take it again.",
+      "note_required": "Write what happened.",
+      "no_access": "Only a store manager or an operations manager can do this.",
+      "store_not_allowed": "You do not cover this store.",
+      "validation_failed": "Check the fields.",
+      "network": "No connection. Try again.",
+      "generic": "Something went wrong. Try again."
+    }
   }
 }

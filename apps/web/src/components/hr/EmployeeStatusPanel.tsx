@@ -18,6 +18,7 @@ const KNOWN = [
   'cannot_leave_self',
   'left_before_hire',
   'last_owner',
+  'rider_has_open_deliveries',
   'validation_failed',
 ];
 

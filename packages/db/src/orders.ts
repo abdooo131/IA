@@ -421,10 +421,12 @@ export interface PickInput {
 export function pickOrderItem(db: Db, input: PickInput) {
   return inTransaction(db, async (tx) => {
     const key = `pick:${input.idempotencyKey}`;
+    // Lock first, then look for the key: a retry with the same key that waited on the lock
+    // sees the first call's movement and changes nothing.
+    const order = await lockOrder(tx, input.orderId, input.darkStoreId);
     const seen = await tx.stockMovement.findUnique({ where: { idempotencyKey: key } });
     if (seen) return { replayed: true, bin: null as string | null };
 
-    const order = await lockOrder(tx, input.orderId, input.darkStoreId);
     if (!PICKABLE_STATES.includes(order.status)) throw new DomainError('invalid_order_state');
     const item = order.items.find((i) => i.skuId === input.skuId);
     if (!item) throw new DomainError('sku_not_on_order', 400);
@@ -443,7 +445,7 @@ export function pickOrderItem(db: Db, input: PickInput) {
         });
     if (!bin || bin.darkStoreId !== order.darkStoreId) throw new DomainError('not_on_shelf');
 
-    await pick(tx, {
+    const picked = await pick(tx, {
       skuId: input.skuId,
       binId: bin.id,
       quantity: input.quantity,
@@ -451,6 +453,7 @@ export function pickOrderItem(db: Db, input: PickInput) {
       actorUserId: input.actorUserId,
       idempotencyKey: key,
     });
+    if (picked.replayed) return { replayed: true, bin: null as string | null };
     await tx.orderItem.update({
       where: { id: item.id },
       data: { pickedQty: { increment: input.quantity } },
@@ -486,16 +489,17 @@ export function markItemMissing(
 ) {
   return inTransaction(db, async (tx) => {
     const key = `missing:${input.idempotencyKey}`;
+    // Lock first, then look for the key (a concurrent retry waits here and then replays).
+    const order = await lockOrder(tx, input.orderId, input.darkStoreId);
     if (await tx.stockMovement.findUnique({ where: { idempotencyKey: key } }))
       return { replayed: true };
 
-    const order = await lockOrder(tx, input.orderId, input.darkStoreId);
     if (!PICKABLE_STATES.includes(order.status)) throw new DomainError('invalid_order_state');
     const item = order.items.find((i) => i.skuId === input.skuId);
     if (!item) throw new DomainError('sku_not_on_order', 400);
     if (input.quantity > remainingOf(item)) throw new DomainError('over_pick', 400);
 
-    await release(tx, {
+    const released = await release(tx, {
       darkStoreId: order.darkStoreId,
       skuId: input.skuId,
       quantity: input.quantity,
@@ -504,6 +508,7 @@ export function markItemMissing(
       actorUserId: input.actorUserId,
       idempotencyKey: key,
     });
+    if (released.replayed) return { replayed: true };
     const value = input.quantity * item.unitPricePiastres;
     await tx.orderItem.update({
       where: { id: item.id },
@@ -597,11 +602,19 @@ export function handToRider(
     const now = input.now ?? new Date();
     const order = await lockOrder(tx, input.orderId, input.darkStoreId);
     if (order.status !== 'packed') throw new DomainError('invalid_order_state');
-    const rider = await tx.rider.findUnique({
+    const found = await tx.rider.findUnique({
       where: { badgeCode: input.badgeCode.trim() },
+      select: { id: true },
+    });
+    if (!found) throw new DomainError('rider_not_found', 404);
+    // The rider row is locked before reading what they carry, so two hand overs to one rider
+    // (or a disable of the account) wait for each other and the trip size is checked once.
+    await tx.$queryRaw`SELECT id FROM riders WHERE id = ${found.id} FOR UPDATE`;
+    const rider = await tx.rider.findUniqueOrThrow({
+      where: { id: found.id },
       include: { user: true },
     });
-    if (!rider || !rider.user.isActive) throw new DomainError('rider_not_found', 404);
+    if (!rider.user.isActive) throw new DomainError('rider_not_found', 404);
     if (rider.darkStoreId !== order.darkStoreId) throw new DomainError('rider_other_store');
     // Basata deposits: a rider frozen for cash not handed in by the deadline takes no orders.
     if (rider.frozenAt) throw new DomainError('rider_frozen');
@@ -670,10 +683,19 @@ export function handToRider(
 /** Cancels an order that has not left the store. Reservations are released; picked units go to the held bin. */
 export function cancelOrder(
   db: Db,
-  input: { orderId: string; reason: string; actorUserId: Actor; darkStoreId?: string },
+  input: {
+    orderId: string;
+    reason: string;
+    actorUserId: Actor;
+    darkStoreId?: string;
+    /** The caller may cancel only from these states (merchants: new or accepted), checked under the lock */
+    allowedStates?: OrderStatus[];
+  },
 ) {
   return inTransaction(db, async (tx) => {
     const order = await lockOrder(tx, input.orderId, input.darkStoreId);
+    if (input.allowedStates && !input.allowedStates.includes(order.status))
+      throw new DomainError('too_late_to_cancel');
     if (!CANCELLABLE_STATES.includes(order.status)) throw new DomainError('invalid_order_state');
     for (const item of order.items) {
       const reserved = remainingOf(item);
@@ -710,16 +732,30 @@ export function cancelOrder(
 
 // ─── riders ────────────────────────────────────────────────────────────────────
 
-async function lockDelivery(tx: Tx, deliveryId: string, riderUserId: string) {
-  const delivery = await tx.delivery.findUnique({
+/**
+ * Loads an open delivery and locks its order. `riderUserId` must be the delivery's rider;
+ * null when a manager closes it for the rider. The status is read again under the lock.
+ */
+async function lockDelivery(tx: Tx, deliveryId: string, riderUserId: string | null) {
+  const found = await tx.delivery.findUnique({
     where: { id: deliveryId },
     include: { rider: true },
   });
-  if (!delivery || delivery.rider.userId !== riderUserId)
+  if (!found || (riderUserId !== null && found.rider.userId !== riderUserId))
     throw new DomainError('delivery_not_found', 404);
+  const order = await lockOrder(tx, found.orderId);
+  const delivery = await tx.delivery.findUniqueOrThrow({
+    where: { id: deliveryId },
+    include: { rider: true },
+  });
   if (delivery.status !== 'picked_up') throw new DomainError('delivery_closed');
-  const order = await lockOrder(tx, delivery.orderId);
   return { delivery, order };
+}
+
+/** A manager closing a delivery for its rider: who, and why (kept on the event and the audit). */
+interface ClosedForRider {
+  actorUserId: string;
+  reason: string;
 }
 
 export interface CompleteDeliveryInput {
@@ -738,79 +774,89 @@ export interface CompleteDeliveryInput {
  * The rider's position is kept on the delivery and teaches the address (docs/ZONES.md §5).
  */
 export function completeDelivery(db: Db, input: CompleteDeliveryInput) {
-  return inTransaction(db, async (tx) => {
-    const now = input.now ?? new Date();
-    const { delivery, order } = await lockDelivery(tx, input.deliveryId, input.riderUserId);
-    if (!input.otp && !input.photoId) throw new DomainError('proof_required', 400);
-    const otpOk = input.otp !== undefined && input.otp === order.deliveryOtp;
-    if (input.otp !== undefined && !otpOk) throw new DomainError('wrong_otp', 400);
-    if (input.photoId) {
-      const photo = await tx.photo.findUnique({
-        where: { id: input.photoId },
-        select: { kind: true },
-      });
-      if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
-    }
-    const isCod = order.paymentMethod === 'cod' && delivery.codExpectedPiastres > 0;
-    if (isCod && input.codCollectedPiastres === undefined)
-      throw new DomainError('cod_required', 400);
-    const collected = isCod ? input.codCollectedPiastres! : null;
+  return inTransaction(db, (tx) => completeInTx(tx, input, null));
+}
 
-    await tx.delivery.update({
-      where: { id: delivery.id },
-      data: {
-        status: 'delivered',
-        deliveredAt: now,
-        otpVerified: otpOk,
-        proofPhotoId: input.photoId,
-        codCollectedPiastres: collected,
-        deliveredLat: input.position?.latitude ?? null,
-        deliveredLng: input.position?.longitude ?? null,
-      },
+async function completeInTx(
+  tx: Tx,
+  input: Omit<CompleteDeliveryInput, 'riderUserId'> & { riderUserId: string | null },
+  forRider: ClosedForRider | null,
+) {
+  const now = input.now ?? new Date();
+  const { delivery, order } = await lockDelivery(tx, input.deliveryId, input.riderUserId);
+  const actor = forRider ? forRider.actorUserId : input.riderUserId;
+  // The rider proves the hand over with the customer's code or a photo; a manager closing
+  // it for the rider gives a reason instead (the photo stays optional).
+  if (!forRider && !input.otp && !input.photoId) throw new DomainError('proof_required', 400);
+  const otpOk = !forRider && input.otp !== undefined && input.otp === order.deliveryOtp;
+  if (!forRider && input.otp !== undefined && !otpOk) throw new DomainError('wrong_otp', 400);
+  if (input.photoId) {
+    const photo = await tx.photo.findUnique({
+      where: { id: input.photoId },
+      select: { kind: true },
     });
-    if (input.position)
-      await recordDeliveredPoint(tx, {
-        orderId: order.id,
-        addressText: order.addressText,
-        point: input.position,
-      });
-    await moveStatus(
-      tx,
-      order,
-      'delivered',
-      ['out_for_delivery'],
-      input.riderUserId,
-      'delivered',
-      { deliveredAt: now, lateStage: null },
-      {
-        proof: otpOk ? 'otp' : 'photo',
-        codCollected: collected,
-        codExpected: delivery.codExpectedPiastres,
-      },
-    );
-    if (collected !== null && collected !== delivery.codExpectedPiastres) {
-      await tx.alert.create({
-        data: {
-          type: 'cod_mismatch',
-          darkStoreId: order.darkStoreId,
-          orderId: order.id,
-          data: { expected: delivery.codExpectedPiastres, collected },
-        },
-      });
-    }
-    await notifyMerchant(tx, order.merchantId, 'order_delivered', {
-      orderId: order.id,
-      number: order.number,
-    });
-    await postDeliveryCompleted(tx, {
-      deliveryId: delivery.id,
-      actorUserId: input.riderUserId,
-      now,
-    });
-    await queueShopify(tx, order, 'delivered', `order:${order.id}:delivered`, {
-      at: now.toISOString(),
-    });
+    if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
+  }
+  const isCod = order.paymentMethod === 'cod' && delivery.codExpectedPiastres > 0;
+  if (isCod && input.codCollectedPiastres === undefined) throw new DomainError('cod_required', 400);
+  const collected = isCod ? input.codCollectedPiastres! : null;
+
+  await tx.delivery.update({
+    where: { id: delivery.id },
+    data: {
+      status: 'delivered',
+      deliveredAt: now,
+      otpVerified: otpOk,
+      proofPhotoId: input.photoId,
+      codCollectedPiastres: collected,
+      deliveredLat: input.position?.latitude ?? null,
+      deliveredLng: input.position?.longitude ?? null,
+    },
   });
+  if (input.position)
+    await recordDeliveredPoint(tx, {
+      orderId: order.id,
+      addressText: order.addressText,
+      point: input.position,
+    });
+  await moveStatus(
+    tx,
+    order,
+    'delivered',
+    ['out_for_delivery'],
+    actor,
+    'delivered',
+    { deliveredAt: now, lateStage: null },
+    {
+      proof: forRider ? 'closed_for_rider' : otpOk ? 'otp' : 'photo',
+      codCollected: collected,
+      codExpected: delivery.codExpectedPiastres,
+      ...(forRider && { closedForRider: { reason: forRider.reason, riderId: delivery.riderId } }),
+    },
+  );
+  if (collected !== null && collected !== delivery.codExpectedPiastres) {
+    await tx.alert.create({
+      data: {
+        type: 'cod_mismatch',
+        darkStoreId: order.darkStoreId,
+        orderId: order.id,
+        data: { expected: delivery.codExpectedPiastres, collected },
+      },
+    });
+  }
+  await notifyMerchant(tx, order.merchantId, 'order_delivered', {
+    orderId: order.id,
+    number: order.number,
+  });
+  await postDeliveryCompleted(tx, {
+    deliveryId: delivery.id,
+    actorUserId: actor,
+    now,
+  });
+  await queueShopify(tx, order, 'delivered', `order:${order.id}:delivered`, {
+    at: now.toISOString(),
+  });
+  return { status: 'delivered' as const, deliveryId: delivery.id, riderId: delivery.riderId };
 }
 
 /** The rider called the customer from the app; counted as proof before a "no answer" report. */
@@ -845,97 +891,199 @@ export interface FailDeliveryInput {
  */
 export function failDelivery(db: Db, input: FailDeliveryInput) {
   return inTransaction(db, async (tx) => {
-    const now = input.now ?? new Date();
-    const { delivery, order } = await lockDelivery(tx, input.deliveryId, input.riderUserId);
-    if (input.reason === 'no_answer') {
-      const calls = await getSetting(tx, 'delivery.min_calls_no_answer', order.darkStoreId);
-      if (delivery.callAttempts < calls) throw new DomainError('calls_required', 400);
-      if (!input.photoId) throw new DomainError('photo_required', 400);
-    }
-    if (input.reason === 'other' && !input.note) throw new DomainError('note_required', 400);
-    if (input.photoId) {
-      const photo = await tx.photo.findUnique({
-        where: { id: input.photoId },
-        select: { kind: true },
-      });
-      if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
-    }
-    await tx.delivery.update({
-      where: { id: delivery.id },
-      data: {
-        status: 'failed',
-        failedAt: now,
-        failedReason: input.note ? `${input.reason}: ${input.note}` : input.reason,
-        failedPhotoId: input.photoId ?? null,
-      },
+    const { status, attempt, maxAttempts } = await failInTx(tx, input, null);
+    return { status, attempt, maxAttempts };
+  });
+}
+
+async function failInTx(
+  tx: Tx,
+  input: Omit<FailDeliveryInput, 'riderUserId'> & { riderUserId: string | null },
+  forRider: ClosedForRider | null,
+) {
+  const now = input.now ?? new Date();
+  const { delivery, order } = await lockDelivery(tx, input.deliveryId, input.riderUserId);
+  const actor = forRider ? forRider.actorUserId : input.riderUserId;
+  // "No answer" needs the rider's logged calls and a door photo; a manager closing it for the
+  // rider records it on the rider's word with their own reason.
+  if (input.reason === 'no_answer' && !forRider) {
+    const calls = await getSetting(tx, 'delivery.min_calls_no_answer', order.darkStoreId);
+    if (delivery.callAttempts < calls) throw new DomainError('calls_required', 400);
+    if (!input.photoId) throw new DomainError('photo_required', 400);
+  }
+  if (input.reason === 'other' && !input.note) throw new DomainError('note_required', 400);
+  if (input.photoId) {
+    const photo = await tx.photo.findUnique({
+      where: { id: input.photoId },
+      select: { kind: true },
     });
-    const attempts = await tx.delivery.count({ where: { orderId: order.id, status: 'failed' } });
-    // The merchant's contract may include more (or fewer) attempts than the store's setting.
-    const maxAttempts = await deliveryAttemptsFor(tx, {
-      merchantId: order.merchantId,
-      darkStoreId: order.darkStoreId,
-      at: order.createdAt,
-    });
-    const retry = attempts < maxAttempts && !FINAL_FAILURE_REASONS.includes(input.reason);
-    const details = {
+    if (!photo || photo.kind !== 'delivery') throw new DomainError('photo_required', 400);
+  }
+  await tx.delivery.update({
+    where: { id: delivery.id },
+    data: {
+      status: 'failed',
+      failedAt: now,
+      failedReason: input.note ? `${input.reason}: ${input.note}` : input.reason,
+      failedPhotoId: input.photoId ?? null,
+    },
+  });
+  const attempts = await tx.delivery.count({ where: { orderId: order.id, status: 'failed' } });
+  // The merchant's contract may include more (or fewer) attempts than the store's setting.
+  const maxAttempts = await deliveryAttemptsFor(tx, {
+    merchantId: order.merchantId,
+    darkStoreId: order.darkStoreId,
+    at: order.createdAt,
+  });
+  const retry = attempts < maxAttempts && !FINAL_FAILURE_REASONS.includes(input.reason);
+  const details = {
+    reason: input.reason,
+    note: input.note ?? null,
+    attempt: attempts,
+    maxAttempts,
+    ...(forRider && { closedForRider: { reason: forRider.reason, riderId: delivery.riderId } }),
+  };
+  if (retry) {
+    const holdHours = await getSetting(tx, 'delivery.retry_hold_hours', order.darkStoreId);
+    const holdUntil = new Date(now.getTime() + holdHours * 3_600_000);
+    await moveStatus(
+      tx,
+      order,
+      'attempt_failed',
+      ['out_for_delivery'],
+      actor,
+      'delivery_attempt_failed',
+      { retryHoldUntil: holdUntil, lateStage: null },
+      { ...details, holdUntil: holdUntil.toISOString() },
+    );
+    await notifyMerchant(tx, order.merchantId, 'order_attempt_failed', {
+      orderId: order.id,
+      number: order.number,
       reason: input.reason,
-      note: input.note ?? null,
       attempt: attempts,
       maxAttempts,
-    };
-    if (retry) {
-      const holdHours = await getSetting(tx, 'delivery.retry_hold_hours', order.darkStoreId);
-      const holdUntil = new Date(now.getTime() + holdHours * 3_600_000);
-      await moveStatus(
-        tx,
-        order,
-        'attempt_failed',
-        ['out_for_delivery'],
-        input.riderUserId,
-        'delivery_attempt_failed',
-        { retryHoldUntil: holdUntil, lateStage: null },
-        { ...details, holdUntil: holdUntil.toISOString() },
-      );
-      await notifyMerchant(tx, order.merchantId, 'order_attempt_failed', {
-        orderId: order.id,
-        number: order.number,
-        reason: input.reason,
-        attempt: attempts,
-        maxAttempts,
-        holdUntil: holdUntil.toISOString(),
-      });
-    } else {
-      await moveStatus(
-        tx,
-        order,
-        'failed',
-        ['out_for_delivery'],
-        input.riderUserId,
-        'delivery_failed',
-        { closedAt: now, closedReason: input.reason, lateStage: null },
-        details,
-      );
-      await notifyMerchant(tx, order.merchantId, 'order_failed', {
-        orderId: order.id,
-        number: order.number,
-        reason: input.reason,
-        attempt: attempts,
-      });
-    }
-    await tx.alert.create({
-      data: {
-        type: 'delivery_failed',
-        darkStoreId: order.darkStoreId,
-        orderId: order.id,
-        data: { reason: input.reason, attempt: attempts, final: !retry },
+      holdUntil: holdUntil.toISOString(),
+    });
+  } else {
+    await moveStatus(
+      tx,
+      order,
+      'failed',
+      ['out_for_delivery'],
+      actor,
+      'delivery_failed',
+      { closedAt: now, closedReason: input.reason, lateStage: null },
+      details,
+    );
+    await notifyMerchant(tx, order.merchantId, 'order_failed', {
+      orderId: order.id,
+      number: order.number,
+      reason: input.reason,
+      attempt: attempts,
+    });
+  }
+  await tx.alert.create({
+    data: {
+      type: 'delivery_failed',
+      darkStoreId: order.darkStoreId,
+      orderId: order.id,
+      data: { reason: input.reason, attempt: attempts, final: !retry },
+    },
+  });
+  await postDeliveryFailed(tx, { deliveryId: delivery.id, actorUserId: actor, now });
+  await queueShopify(tx, order, 'failed', `delivery:${delivery.id}:failed`, {
+    reason: input.reason,
+    at: now.toISOString(),
+  });
+  return {
+    status: retry ? ('attempt_failed' as const) : ('failed' as const),
+    attempt: attempts,
+    maxAttempts,
+    deliveryId: delivery.id,
+    riderId: delivery.riderId,
+  };
+}
+
+export interface CloseForRiderInput {
+  orderId: string;
+  /** The store the caller works for; the order must be there */
+  darkStoreId?: string;
+  actorUserId: string;
+  /** Why the manager closes it instead of the rider (kept on the event and the audit) */
+  reason: string;
+  outcome: 'delivered' | 'failed';
+  /** Delivered cash orders: the cash the rider collected */
+  codCollectedPiastres?: number;
+  photoId?: string;
+  /** Failed: the reason as the rider would give it */
+  failureReason?: FailureReason;
+  note?: string;
+  now?: Date;
+}
+
+/**
+ * Operations manage (or the order's store manager) closes a delivery that is out with a rider
+ * for that rider: delivered with the cash collected, or failed with the rider's reason. The
+ * same domain steps run (postings, fees, Shopify outbox, alerts); the rider stays on the
+ * delivery and the manager is the actor, with a required reason.
+ */
+export function closeDeliveryForRider(db: Db, input: CloseForRiderInput) {
+  return inTransaction(db, async (tx) => {
+    const reason = input.reason.trim();
+    if (reason.length < 5) throw new DomainError('reason_required', 400);
+    if (input.outcome === 'failed' && !input.failureReason)
+      throw new DomainError('failure_reason_required', 400);
+    const order = await lockOrder(tx, input.orderId, input.darkStoreId);
+    if (order.status !== 'out_for_delivery') throw new DomainError('invalid_order_state');
+    const open = await tx.delivery.findFirst({
+      where: { orderId: order.id, status: 'picked_up' },
+      orderBy: { pickedUpAt: 'desc' },
+    });
+    if (!open) throw new DomainError('delivery_closed');
+    const forRider = { actorUserId: input.actorUserId, reason };
+    const result =
+      input.outcome === 'delivered'
+        ? await completeInTx(
+            tx,
+            {
+              deliveryId: open.id,
+              riderUserId: null,
+              photoId: input.photoId,
+              codCollectedPiastres: input.codCollectedPiastres,
+              now: input.now,
+            },
+            forRider,
+          )
+        : await failInTx(
+            tx,
+            {
+              deliveryId: open.id,
+              riderUserId: null,
+              reason: input.failureReason!,
+              note: input.note,
+              photoId: input.photoId,
+              now: input.now,
+            },
+            forRider,
+          );
+    await recordAudit(tx, {
+      actorUserId: input.actorUserId,
+      action: 'order.close_for_rider',
+      entityType: 'order',
+      entityId: order.id,
+      before: { status: order.status, deliveryId: open.id, riderId: open.riderId },
+      after: {
+        status: result.status,
+        outcome: input.outcome,
+        reason,
+        riderId: open.riderId,
+        ...(input.outcome === 'failed' && { failureReason: input.failureReason }),
+        ...(input.codCollectedPiastres !== undefined && {
+          codCollectedPiastres: input.codCollectedPiastres,
+        }),
       },
     });
-    await postDeliveryFailed(tx, { deliveryId: delivery.id, actorUserId: input.riderUserId, now });
-    await queueShopify(tx, order, 'failed', `delivery:${delivery.id}:failed`, {
-      reason: input.reason,
-      at: now.toISOString(),
-    });
-    return { status: retry ? 'attempt_failed' : 'failed', attempt: attempts, maxAttempts };
+    return result;
   });
 }
 

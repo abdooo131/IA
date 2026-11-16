@@ -239,7 +239,7 @@ describe('hr phase 2', () => {
     const jobs = app.get(JobsService);
     clock.set(new Date(`${addDays(lastDay, 1)}T00:30:00+02:00`));
     const result = await jobs.runAttendanceClose(clock.now());
-    expect(result?.exits).toEqual({ disabled: 1, cancelled: 0 });
+    expect(result?.exits).toEqual({ disabled: 1, cancelled: 0, waiting: 0 });
     await request(app.getHttpServer())
       .post('/auth/login')
       .send({ email: 'rider.maadi@shiplynow.local', password: 'demo-password-1' })

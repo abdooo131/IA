@@ -13,7 +13,7 @@ import {
   type ReassignKind,
   SETTLEMENT_MONEY,
 } from '@shiplynow/shared';
-import { assertCanDisable } from './access';
+import { assertCanDisable, assertNoOpenDeliveries } from './access';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -390,6 +390,8 @@ async function disableAccount(tx: Tx, userId: string, actorUserId: string | null
   const u = await tx.user.findUnique({ where: { id: userId } });
   if (!u || !u.isActive) return false;
   if (isTeamRole(u.role)) await assertCanDisable(tx, u.id);
+  // A rider still carrying orders keeps the account until those deliveries are closed.
+  await assertNoOpenDeliveries(tx, u.id);
   await tx.user.update({ where: { id: u.id }, data: { isActive: false } });
   await tx.refreshToken.updateMany({
     where: { userId: u.id, revokedAt: null },
@@ -621,30 +623,67 @@ export async function runExitDisables(db: Db, now: Date = new Date()) {
   });
   let disabled = 0;
   let cancelled = 0;
+  let waiting = 0;
+  const errors: unknown[] = [];
+  // Each exit on its own: one that cannot close yet (a rider still carrying orders) or that
+  // fails is skipped and tried again next run, and the others still close.
   for (const { id } of due) {
-    await inTransaction(db, async (tx) => {
-      const x = await tx.employeeExit.findUnique({
-        where: { id },
-        include: { employee: { select: { status: true, userId: true } } },
-      });
-      if (!x || x.disabledAt || x.cancelledAt) return;
-      if (x.employee.status !== 'left') {
+    try {
+      await inTransaction(db, async (tx) => {
+        const x = await tx.employeeExit.findUnique({
+          where: { id },
+          include: { employee: { select: { status: true, userId: true } } },
+        });
+        if (!x || x.disabledAt || x.cancelledAt) return;
+        if (x.employee.status !== 'left') {
+          const claimed = await tx.employeeExit.updateMany({
+            where: { id, disabledAt: null, cancelledAt: null },
+            data: { cancelledAt: now },
+          });
+          cancelled += claimed.count;
+          return;
+        }
         const claimed = await tx.employeeExit.updateMany({
           where: { id, disabledAt: null, cancelledAt: null },
-          data: { cancelledAt: now },
+          data: { disabledAt: now },
         });
-        cancelled += claimed.count;
-        return;
-      }
-      const claimed = await tx.employeeExit.updateMany({
-        where: { id, disabledAt: null, cancelledAt: null },
-        data: { disabledAt: now },
+        if (claimed.count === 0) return;
+        if (await disableAccount(tx, x.employee.userId, null, id)) disabled++;
       });
-      if (claimed.count === 0) return;
-      if (await disableAccount(tx, x.employee.userId, null, id)) disabled++;
-    });
+    } catch (error) {
+      if (error instanceof DomainError && error.code === 'rider_has_open_deliveries') {
+        waiting++;
+        await raiseExitDisableWaiting(db, id, Number(error.details?.open ?? 0));
+      } else errors.push(error);
+    }
   }
-  return { disabled, cancelled };
+  // Unexpected failures still reach the job's error report, after every other exit ran.
+  if (errors.length > 0) throw errors[0];
+  return { disabled, cancelled, waiting };
+}
+
+/** One alert per exit whose account could not close because the rider still carries orders. */
+async function raiseExitDisableWaiting(db: Db, exitId: string, open: number) {
+  const x = await db.employeeExit.findUnique({
+    where: { id: exitId },
+    select: {
+      employee: {
+        select: { id: true, homeStoreId: true, user: { select: { name: true } } },
+      },
+    },
+  });
+  if (!x) return;
+  await db.alert.createMany({
+    data: [
+      {
+        type: 'exit_disable_waiting',
+        key: `exit_disable_waiting:${exitId}`,
+        darkStoreId: x.employee.homeStoreId,
+        data: { exitId, employeeId: x.employee.id, name: x.employee.user.name, open },
+      },
+    ],
+    skipDuplicates: true,
+  });
 }
 
 /** What leavers looked after that still needs a new owner, in the person's stores. */

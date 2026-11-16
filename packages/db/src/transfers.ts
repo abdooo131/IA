@@ -242,8 +242,9 @@ export interface PickTransferInput {
 export function pickForTransfer(db: Db, input: PickTransferInput) {
   return inTransaction(db, async (tx) => {
     const key = `transfer-pick:${input.idempotencyKey}`;
-    const seen = await tx.stockMovement.findUnique({ where: { idempotencyKey: key } });
+    // Lock first, then look for the key: a concurrent retry waits and then replays.
     const t = await lockTransfer(tx, input.transferId);
+    const seen = await tx.stockMovement.findUnique({ where: { idempotencyKey: key } });
     if (t.fromId !== input.darkStoreId) throw new DomainError('transfer_not_found', 404);
     if (seen) return { status: t.status, replayed: true };
     if (t.status !== 'approved' && t.status !== 'picking')
@@ -273,8 +274,9 @@ export function pickForTransfer(db: Db, input: PickTransferInput) {
       bin = candidates.find((b) => b.type === 'receiving') ?? candidates[0] ?? null;
     }
     if (!bin) throw new DomainError('not_on_shelf');
+    let dispatched;
     try {
-      await dispatch(tx, {
+      dispatched = await dispatch(tx, {
         binId: bin.id,
         skuId: input.skuId,
         quantity: input.quantity,
@@ -289,6 +291,7 @@ export function pickForTransfer(db: Db, input: PickTransferInput) {
         throw new DomainError('not_on_shelf');
       throw error;
     }
+    if (dispatched.replayed) return { status: t.status, replayed: true };
     await tx.transferLine.update({
       where: { id: line.id },
       data: { pickedQty: { increment: input.quantity } },
@@ -366,8 +369,8 @@ export interface ReceiveTransferInput {
 export function receiveTransfer(db: Db, input: ReceiveTransferInput) {
   return inTransaction(db, async (tx) => {
     const key = `transfer-receive:${input.idempotencyKey}`;
-    const seen = await tx.stockMovement.findUnique({ where: { idempotencyKey: key } });
     const t = await lockTransfer(tx, input.transferId);
+    const seen = await tx.stockMovement.findUnique({ where: { idempotencyKey: key } });
     if (t.toId !== input.darkStoreId) throw new DomainError('transfer_not_found', 404);
     if (seen) return { replayed: true };
     if (t.status !== 'in_transit') throw new DomainError('invalid_transfer_state');
@@ -379,7 +382,7 @@ export function receiveTransfer(db: Db, input: ReceiveTransferInput) {
       orderBy: { code: 'asc' },
     });
     if (!receiving) throw new DomainError('no_receiving_bin');
-    await receive(tx, {
+    const received = await receive(tx, {
       binId: receiving.id,
       skuId: input.skuId,
       quantity: input.quantity,
@@ -388,6 +391,7 @@ export function receiveTransfer(db: Db, input: ReceiveTransferInput) {
       actorUserId: input.actorUserId,
       idempotencyKey: key,
     });
+    if (received.replayed) return { replayed: true };
     await tx.transferLine.update({
       where: { id: line.id },
       data: { receivedQty: { increment: input.quantity } },

@@ -14,6 +14,7 @@ import {
   acceptOrder,
   addOrderNote,
   cancelOrder,
+  closeDeliveryForRider,
   decideFailedOrder,
   DomainError,
   getOrderDetail,
@@ -26,6 +27,8 @@ import {
 import {
   type AccessTokenClaims,
   cancelOrderSchema,
+  type CloseForRiderBody,
+  closeForRiderSchema,
   type FailedOrderDecision,
   failedOrderDecisionSchema,
   type CreateOrderBody,
@@ -207,6 +210,28 @@ export class AdminOrdersController {
   ) {
     await this.cancelOne(id, body.reason, user, access);
     return { status: 'cancelled' };
+  }
+
+  /**
+   * Close for the rider: an order out for delivery is marked delivered or failed by operations
+   * manage when its rider cannot do it, with a reason; the rider stays on the delivery.
+   */
+  @Post('orders/:id/close-for-rider')
+  @Access('operations', 'manage')
+  async closeForRider(
+    @Param('id') id: string,
+    @Body(new ZodValidationPipe(closeForRiderSchema)) body: CloseForRiderBody,
+    @CurrentUser() user: AccessTokenClaims,
+    @CurrentAccess() access: AccessProfile,
+  ) {
+    const order = await this.orderIn(id, access);
+    if (!order) throw new NotFoundException({ error: 'order_not_found' });
+    return closeDeliveryForRider(this.prisma, {
+      orderId: id,
+      darkStoreId: order.darkStoreId,
+      actorUserId: user.sub,
+      ...body,
+    });
   }
 
   private async cancelOne(

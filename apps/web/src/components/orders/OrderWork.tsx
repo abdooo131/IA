@@ -10,6 +10,7 @@ import { formatEgp } from '@/lib/format';
 import { newActionKey } from '@/lib/ids';
 import type { OrderDetail, OrderItemView } from '@/lib/order-types';
 import { title } from '@/lib/store-types';
+import { CloseForRiderPanel } from './CloseForRiderPanel';
 import { FailedAttemptPanel } from './FailedAttemptPanel';
 import { OrderStatusChip } from './OrderStatusChip';
 import { OrderTimeline } from './OrderTimeline';
@@ -58,10 +59,13 @@ export function OrderWork({
   storeId,
   initial,
   boxes = [],
+  canCloseForRider = false,
 }: {
   storeId: string;
   initial: OrderDetail;
   boxes?: BoxOption[];
+  /** Store manage: may close a delivery for its rider */
+  canCloseForRider?: boolean;
 }) {
   const t = useTranslations('orders');
   const tScan = useTranslations('scan');
@@ -82,6 +86,8 @@ export function OrderWork({
   } | null>(null);
   const [overrideReason, setOverrideReason] = useState('');
   const tc = useTranslations('cashControl.override');
+  const tClose = useTranslations('closeForRider');
+  const [closing, setClosing] = useState(false);
 
   const base = `/stores/${storeId}/orders/${order.id}`;
   const fail = (error: string) =>
@@ -395,6 +401,25 @@ export function OrderWork({
           )}
         </section>
       )}
+
+      {order.status === 'out_for_delivery' &&
+        canCloseForRider &&
+        (closing ? (
+          <CloseForRiderPanel
+            apiPath={base}
+            order={order}
+            onCancel={() => setClosing(false)}
+            onDone={() => {
+              setClosing(false);
+              action.ok(tClose('done'));
+              void refresh();
+            }}
+          />
+        ) : (
+          <button type="button" className={secondary} onClick={() => setClosing(true)}>
+            {tClose('action')}
+          </button>
+        ))}
 
       {(order.status === 'failed' || (order.status === 'attempt_failed' && !order.goodsBack)) && (
         <button

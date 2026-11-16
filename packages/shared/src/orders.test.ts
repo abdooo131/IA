@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  closeForRiderSchema,
   completeDeliverySchema,
   createOrderSchema,
   currentStageDue,
@@ -91,6 +92,22 @@ describe('order schemas', () => {
       true,
     );
     expect(completeDeliverySchema.safeParse({ photoId: 'p1', lat: 30 }).success).toBe(false);
+  });
+
+  it('closes a delivery for the rider only with a reason, and a failure reason when failed', () => {
+    const ok = (b: unknown) => closeForRiderSchema.safeParse(b).success;
+    expect(ok({ outcome: 'delivered', reason: 'Rider phone broke' })).toBe(true);
+    expect(ok({ outcome: 'delivered', reason: 'x' })).toBe(false);
+    expect(
+      ok({ outcome: 'delivered', codCollectedPiastres: 1.5, reason: 'Rider phone broke' }),
+    ).toBe(false);
+    expect(ok({ outcome: 'failed', reason: 'Rider phone broke' })).toBe(false);
+    expect(ok({ outcome: 'failed', reason: 'Rider phone broke', failureReason: 'refused' })).toBe(
+      true,
+    );
+    expect(ok({ outcome: 'failed', reason: 'Rider phone broke', failureReason: 'other' })).toBe(
+      false,
+    );
   });
 
   it('makes 4 digit codes, keeping leading zeros', () => {
