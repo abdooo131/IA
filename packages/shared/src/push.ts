@@ -492,13 +492,23 @@ const PUSH_SERVICE_HOSTS = [
 ] as const;
 const PUSH_SERVICE_SUFFIXES = ['.push.apple.com', '.notify.windows.com'] as const;
 
+/** The parts of WHATWG URL used here (the shared build has no DOM or Node types). */
+type ParsedUrl = {
+  protocol: string;
+  username: string;
+  password: string;
+  port: string;
+  hostname: string;
+};
+declare const URL: new (input: string) => ParsedUrl;
+
 /**
  * True for an https address on a known push service (Chrome and Android, Firefox, Safari,
  * Edge). Anything else would let a person make our server call any address (POST
  * /me/push/test), so it is refused.
  */
 export function isPushServiceUrl(value: string): boolean {
-  let url: URL;
+  let url: ParsedUrl;
   try {
     url = new URL(value);
   } catch {
