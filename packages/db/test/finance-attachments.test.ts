@@ -13,6 +13,7 @@ import {
   withAttachments,
 } from '../src/finance';
 import { createFixture, prisma, resetDatabase } from './helpers';
+import { DomainError } from '../src/domain-error';
 
 // Finance attachments chosen inside the form: uploads wait unlinked, the save links them in its
 // own transaction, a request carries them to its posted entry, unused uploads go after a day.
@@ -144,10 +145,11 @@ describe('linking in the same transaction', () => {
       ),
     ).rejects.toMatchObject({ code: 'attachment_already_linked' });
     expect(await prisma.ledgerEntry.count()).toBe(before);
-    // Adding it again later, even to the same entry, is refused the same way.
+    // Linking it again to the same entry by the same person (a retried save answering the
+    // first entry) is already done: no error, no second link.
     await expect(
       linkAttachments(prisma, { ids: [file.id], actorUserId: alice, target: { entryId } }),
-    ).rejects.toMatchObject({ code: 'attachment_already_linked' });
+    ).resolves.toEqual([file.id]);
     expect(await prisma.financeReceipt.count({ where: { photoId: file.id } })).toBe(1);
   });
 
@@ -171,6 +173,30 @@ describe('linking in the same transaction', () => {
     // Who made it and who approved it, for the voucher.
     expect(doc!.data).toMatchObject({ madeBy: 'Alice', approvedBy: 'Bob' });
     expect(doc!.fields.find((x) => x.key === 'approvedBy')?.value).toBe('Bob');
+  });
+
+  it('answers a retried save with its first entry, and a failed save leaves the files free', async () => {
+    const file = await upload(alice);
+    // The first try fails after its record was made: everything is undone, the file too.
+    await expect(
+      withAttachments(prisma, { ids: [file.id], actorUserId: alice }, async (db) => {
+        await submitExpense(db, await expenseInput(30_000));
+        throw new DomainError('lost_connection');
+      }),
+    ).rejects.toMatchObject({ code: 'lost_connection' });
+    expect(await prisma.financeReceipt.count({ where: { photoId: file.id } })).toBe(0);
+    // Saved again with the same file and one idempotency key, then retried (answer lost).
+    const input = await expenseInput(30_000);
+    const save = () =>
+      withAttachments(prisma, { ids: [file.id], actorUserId: alice }, (db) =>
+        submitExpense(db, input),
+      );
+    const first = (await save()) as { entry: { id: string } };
+    const entries = await prisma.ledgerEntry.count();
+    const again = (await save()) as { entry: { id: string } };
+    expect(again.entry.id).toBe(first.entry.id);
+    expect(await prisma.ledgerEntry.count()).toBe(entries);
+    expect(await prisma.financeReceipt.count({ where: { photoId: file.id } })).toBe(1);
   });
 
   it('runs without files exactly as before', async () => {

@@ -15,6 +15,7 @@ import { DomainError } from '../domain-error';
 import {
   type AccountRef,
   assertActiveTag,
+  assertNotTransit,
   assertPeriodOpen,
   balanceOf,
   CATEGORY,
@@ -385,6 +386,8 @@ export async function transferMoney(
   return inTransaction(db, async (tx) => {
     const from = await openAccount(tx, input.fromAccountId, MONEY_GROUPS, 'account_not_found');
     const to = await openAccount(tx, input.toAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(from);
+    assertNotTransit(to);
     const seen = await tx.ledgerEntry.findUnique({
       where: { idempotencyKey: `transfer:${input.idempotencyKey}` },
     });
@@ -504,6 +507,7 @@ export async function recordExpense(
       'expense_account_not_found',
     );
     const from = await openAccount(tx, input.paidFromAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(from);
     const seen = await tx.ledgerEntry.findUnique({
       where: { idempotencyKey: `expense:${input.idempotencyKey}` },
     });
@@ -557,6 +561,7 @@ export async function recordCapital(
   const at = eventTime(input.day);
   return inTransaction(db, async (tx) => {
     const money = await openAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(money);
     const equity: AccountRef = input.equityAccountId
       ? {
           id: (
@@ -609,6 +614,7 @@ export async function recordOtherIncome(
   return inTransaction(db, async (tx) => {
     const income = await openAccount(tx, input.incomeAccountId, [4200], 'income_account_not_found');
     const money = await openAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(money);
     const key = `income:${input.idempotencyKey}`;
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;

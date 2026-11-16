@@ -32,7 +32,8 @@ import { eventTime } from './books';
 import { submitMovement } from './controls';
 import { balanceOf, lockedBalance, post, share } from './ledger';
 import { bankAccount, merchantOwed } from './operations';
-import { accrueStorage, lastClosedDay, postPostalFee } from './postings';
+import { postPostalFee } from './postings';
+import { chargeStorageDays, STORAGE_JOB_LOCK } from './storage';
 
 type Tx = Prisma.TransactionClient;
 
@@ -1074,14 +1075,18 @@ export async function minimumForMonth(db: Db, merchantId: string, month: string)
  * Tops up last month's fees to the contract's minimum, once per merchant and month. Each day
  * counts the minimum of the version in force that day when its dates cover it (a minimum is
  * shared out by days); fees counted are every fee booked to the merchant for the month (before
- * VAT). A month inside closed books is skipped. On the first day after the month, the last
- * day's storage is charged first.
+ * VAT). A month inside closed books is skipped. The month's storage days (and any other day
+ * the storage job missed) are charged first, under the storage job's lock.
  */
 export async function chargeMinimumFees(db: Db, now: Date = new Date()) {
   const today = cairoDay(now);
   const month = addMonths(today.slice(0, 7), -1);
   const last = addDays(`${today.slice(0, 7)}-01`, -1);
-  if (lastClosedDay(now) === last) await accrueStorage(db, last);
+  // Every storage day of the month is charged before its fees are read (a server that slept
+  // over the month end catches up here), under the storage job's lock so the two jobs never
+  // charge the month at once.
+  await db.$executeRaw`SELECT pg_advisory_xact_lock(${STORAGE_JOB_LOCK})`;
+  await chargeStorageDays(db, now);
   const from = monthStart(month);
   const to = cairoDayStart(addDays(last, 1));
   const contracts = await db.merchantContract.findMany({

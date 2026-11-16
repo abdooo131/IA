@@ -6,12 +6,13 @@ import { payoutNeedsApproval } from './controls';
 import { type AccountRef, balanceOf, lockedBalance, nextNumber, post } from './ledger';
 import { queuePayoutEmails } from '../email';
 import { payoutMinimumFor } from './contracts';
-import { eventTime } from './books';
+import { eventTime, mustHold } from './books';
 import { cairoDay, chequeLabel } from '@shiplynow/shared';
 import { chargeShortageToRider } from './rider-wallet';
 import { getSetting } from '../settings';
 import { assertReadyToPay, freezePayoutStatement } from './payout-proof';
 import { bookCheque, liveChequeOf } from './cheques';
+import { deductedNotGivenBack, giveBackLines } from './basata';
 
 /** Flips a sign without producing -0. */
 const negate = (value: number) => 0 - value;
@@ -100,7 +101,17 @@ export function recordCashHandover(
     if (rider.darkStoreId !== input.darkStoreId) throw new DomainError('rider_other_store');
     // Lock the rider row so two handovers for one rider cannot read the same balance.
     await tx.$queryRaw`SELECT id FROM riders WHERE id = ${rider.id} FOR UPDATE`;
-    const expected = await cashToHandIn(tx, rider.id);
+    const owedBack = await cashToHandIn(tx, rider.id);
+    // Cash counted above what the rider still holds first gives back what a Basata deadline
+    // took from them (the rider or their office paid it then), as a late deposit does; only
+    // the rest is a surplus.
+    const extra = Math.max(0, input.countedPiastres - owedBack);
+    const giveBack = Math.min(extra, await deductedNotGivenBack(tx, rider.id));
+    const back = await giveBackLines(tx, rider.id, giveBack, {
+      riderId: rider.id,
+      darkStoreId: input.darkStoreId,
+    });
+    const expected = owedBack + giveBack;
     const difference = expected - input.countedPiastres;
     const handover = await tx.cashHandover.create({
       data: {
@@ -120,21 +131,37 @@ export function recordCashHandover(
       kind: 'cash_handover',
       idempotencyKey: `handover:${handover.id}`,
       createdById: input.receivedById,
-      data: { handoverId: handover.id, expected, counted: input.countedPiastres },
+      data: {
+        handoverId: handover.id,
+        expected,
+        counted: input.countedPiastres,
+        givenBackPiastres: giveBack,
+      },
       lines: [
         {
           account: { type: 'store_cash', darkStoreId: input.darkStoreId },
           amount: input.countedPiastres,
         },
-        { account: { type: 'rider_cash', riderId: rider.id }, amount: -input.countedPiastres },
+        {
+          account: { type: 'rider_cash', riderId: rider.id },
+          amount: giveBack - input.countedPiastres,
+        },
+        ...back.lines,
       ],
     });
+    await back.markGiven();
     await recordAudit(tx, {
       actorUserId: input.receivedById,
       action: 'finance.cash_handover',
       entityType: 'cash_handover',
       entityId: handover.id,
-      after: { riderId: rider.id, expected, counted: input.countedPiastres, difference },
+      after: {
+        riderId: rider.id,
+        expected,
+        counted: input.countedPiastres,
+        difference,
+        givenBack: giveBack,
+      },
     });
     return handover;
   });
@@ -378,10 +405,12 @@ export function markPayoutPaid(
     const reference = input.reference?.trim() || proof.reference;
     // The wallet may have dropped since the draft (fees, adjustments, credit notes).
     await assertPayoutOwed(tx, payout);
-    // Money never leaves a bank that does not hold it.
-    const from = await lockedBalance(tx, bank);
-    if (payout.amountPiastres > from.balance) throw new DomainError('not_enough_money');
+    // Money never leaves a bank that does not hold it, on the payment's own day (a run dated
+    // back books at that day's noon) and every moment after it.
     const now = eventTime(input.day);
+    const from = await lockedBalance(tx, bank);
+    if (!from.accountId) throw new DomainError('not_enough_money');
+    await mustHold(tx, { id: from.accountId }, payout.amountPiastres, now);
     const updated = await tx.payout.updateMany({
       where: { id: payout.id, status: 'draft' },
       data: {

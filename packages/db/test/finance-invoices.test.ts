@@ -120,6 +120,43 @@ describe('tax invoices', () => {
   });
 });
 
+describe('credit notes and the postal fee (review step 2)', () => {
+  it('give back at most the postal fee booked on the invoiced month, pro rata', async () => {
+    // The month's fees carried 5% postal (booked under an older rate), not today's 10%.
+    await post(prisma, {
+      kind: 'postal_fee',
+      idempotencyKey: key(),
+      merchantId: f.merchant.id,
+      occurredAt: new Date(cairoDayStart(`${lastMonth()}-10`).getTime() + 3600_000),
+      lines: [
+        { account: { type: 'postal_fee_expense' }, amount: 1_025 },
+        { account: { type: 'postal_fee_payable' }, amount: -1_025 },
+      ],
+    });
+    await prepareInvoices(prisma, { month: lastMonth(), actorUserId: admin });
+    const [invoice] = await listInvoices(prisma);
+    const note = async (amountPiastres: number) => {
+      const entry = await issueCreditNote(prisma, {
+        invoiceId: invoice!.id,
+        amountPiastres,
+        reason: 'Orders delivered late',
+        actorUserId: admin,
+        idempotencyKey: key(),
+      });
+      const postal = await prisma.ledgerEntry.findUnique({
+        where: { idempotencyKey: `${entry!.idempotencyKey}:postal_fee` },
+        include: { lines: { include: { account: true } } },
+      });
+      return postal?.lines.find((l) => l.account.key === 'postal_fee_expense')?.amountPiastres;
+    };
+    // 10,000 of 20,500: that part of what was booked (500), not 10% of it (1,000).
+    expect(await note(10_000)).toBe(-500);
+    // The rest of the invoice: exactly what is left, never more than was booked.
+    expect(await note(10_500)).toBe(-525);
+    expect(await balanceOf(prisma, { type: 'postal_fee_payable' })).toBe(0);
+  });
+});
+
 describe('e-invoice flow', () => {
   it('hands out documents to sign only when everything is set, then records the answers', async () => {
     await prepareInvoices(prisma, { month: lastMonth(), actorUserId: admin });

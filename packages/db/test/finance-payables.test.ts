@@ -283,3 +283,108 @@ describe('merchants who owe us', () => {
     expect((await merchantsOwingUs(prisma))[0]!.lastRequestedAt).toBeInstanceOf(Date);
   });
 });
+
+describe('money out dated back and Money at Basata (review step 2)', () => {
+  async function aBill() {
+    const rent = await byKey('expense:rent');
+    const landlord = await createSupplier(prisma, {
+      name: 'Landlord',
+      defaultExpenseAccountId: rent.id,
+      actorUserId: admin,
+    });
+    return recordBill(prisma, {
+      supplierId: landlord.id,
+      reference: 'R-9',
+      billDate: addDays(today(), -10),
+      dueDate: addDays(today(), -5),
+      netPiastres: 50_000,
+      actorUserId: admin,
+      idempotencyKey: key(),
+    });
+  }
+
+  it('needs the money in the bank on the payment’s own day', async () => {
+    const cib = await byKey('bank');
+    const bill = await aBill();
+    // The capital came in today: five days ago the bank held nothing.
+    const pay = (day?: string) =>
+      payBill(prisma, {
+        billId: bill.id,
+        amountPiastres: 50_000,
+        moneyAccountId: cib.id,
+        reference: 'T1',
+        day,
+        actorUserId: admin,
+        idempotencyKey: key(),
+      });
+    await expect(pay(addDays(today(), -5))).rejects.toThrow('not_enough_money');
+    await expect(pay()).resolves.toBeTruthy();
+    // A tax payment and a prepayment dated back are held to the same rule.
+    await post(prisma, {
+      kind: 'test_wht',
+      idempotencyKey: key(),
+      lines: [
+        { account: { type: 'wht_payable' }, amount: -1_000 },
+        { account: { type: 'retained_earnings' }, amount: 1_000 },
+      ],
+    });
+    await expect(
+      payTax(prisma, {
+        tax: 'wht',
+        amountPiastres: 1_000,
+        moneyAccountId: cib.id,
+        reference: 'Form 41',
+        day: addDays(today(), -5),
+        actorUserId: admin,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toThrow('not_enough_money');
+    await expect(
+      recordPrepayment(prisma, {
+        name: 'Insurance',
+        expenseAccountId: (await byKey('expense:rent')).id,
+        moneyAccountId: cib.id,
+        amountPiastres: 12_000,
+        months: 12,
+        startMonth: today().slice(0, 7),
+        reference: 'POL-1',
+        day: addDays(today(), -5),
+        actorUserId: admin,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toThrow('not_enough_money');
+  });
+
+  it('never pays a bill or a tax from Money at Basata', async () => {
+    await post(prisma, {
+      kind: 'test_transit',
+      idempotencyKey: key(),
+      lines: [
+        { account: { type: 'basata_transit' }, amount: 100_000 },
+        { account: { type: 'retained_earnings' }, amount: -100_000 },
+      ],
+    });
+    const transit = await byKey('basata_transit');
+    const bill = await aBill();
+    await expect(
+      payBill(prisma, {
+        billId: bill.id,
+        amountPiastres: 50_000,
+        moneyAccountId: transit.id,
+        reference: 'T1',
+        actorUserId: admin,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toThrow('money_account_not_allowed');
+    await expect(
+      payTax(prisma, {
+        tax: 'wht',
+        amountPiastres: 1,
+        moneyAccountId: transit.id,
+        reference: 'Form 41',
+        actorUserId: admin,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toThrow('money_account_not_allowed');
+  });
+});

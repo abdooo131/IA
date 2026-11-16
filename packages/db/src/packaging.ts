@@ -2,7 +2,7 @@ import type { PackagingMovementType, Prisma } from '@prisma/client';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
-import { balanceOf, ensureDefaultAccounts, post } from './finance/ledger';
+import { assertNotTransit, balanceOf, ensureDefaultAccounts, post } from './finance/ledger';
 import { getSetting } from './settings';
 
 type Tx = Prisma.TransactionClient;
@@ -290,6 +290,7 @@ export async function recordPackagingPurchase(db: Db, input: PackagingPurchaseIn
     if (!money || ![1100, 1200].includes(money.groupCode))
       throw new DomainError('account_not_found', 404);
     if (!money.isActive) throw new DomainError('account_inactive');
+    assertNotTransit(money);
     if (input.amountPiastres > (await balanceOf(tx, { id: money.id })))
       throw new DomainError('not_enough_money');
     const entry = await post(tx, {

@@ -15,7 +15,7 @@ import { managerOf } from '../hr-org';
 import { getSetting } from '../settings';
 import { mustHold } from './books';
 import { payoutNeedsApproval } from './controls';
-import { nextNumber, post } from './ledger';
+import { assertNotTransit, nextNumber, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -420,6 +420,7 @@ export function payExpenseClaim(
     if (!money || !MONEY_GROUPS.includes(money.groupCode))
       throw new DomainError('account_not_found', 404);
     if (!money.isActive) throw new DomainError('account_inactive');
+    assertNotTransit(money);
     await mustHold(tx, money, c.amountPiastres, now);
     const reference = input.reference?.trim() || null;
     const tags = { darkStoreId: c.darkStoreId, userId: c.userId };

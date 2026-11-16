@@ -13,6 +13,8 @@ import {
   listFrozenRiders,
   post,
   recordBasataSettlement,
+  recordCapital,
+  recordExpense,
   recordCashHandover,
   rejectBasataDeposit,
   requestWithdrawal,
@@ -20,6 +22,7 @@ import {
   runDepositDeadline,
   setRiderOffice,
   submitBasataDeposit,
+  transferMoney,
   trialBalance,
   unfreezeRider,
   unsettledBasataDeposits,
@@ -698,5 +701,110 @@ describe('notifications', () => {
     sent.length = 0;
     await dispatchPush(prisma, sender);
     expect(to().sort()).toEqual(['finance:Rider frozen: Rider', 'rider:Your account is frozen']);
+  });
+});
+
+describe('cash handed in at the store after a deadline charge (review step 2)', () => {
+  it('gives the deduction back to the rider’s dues instead of booking a surplus', async () => {
+    await collect(100_000, at(-300));
+    await runDepositDeadline(prisma, at(1));
+    expect(await balanceOf(prisma, { type: 'rider_dues', riderId })).toBe(100_000);
+    expect(await cashToHandIn(prisma, riderId)).toBe(0);
+    const h = await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 100_000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    expect(h).toMatchObject({
+      expectedPiastres: 100_000,
+      differencePiastres: 0,
+      status: 'balanced',
+    });
+    expect(await balanceOf(prisma, { type: 'rider_dues', riderId })).toBe(0);
+    expect(await balanceOf(prisma, { type: 'rider_cash', riderId })).toBe(0);
+    expect(await balanceOf(prisma, { type: 'store_cash', darkStoreId: f.store.id })).toBe(100_000);
+    expect((await prisma.riderCashDeduction.findFirstOrThrow()).givenBackPiastres).toBe(100_000);
+    // He stays frozen until Accounting unfreezes him.
+    expect((await rider()).frozenAt).not.toBeNull();
+    await expectBalanced();
+  });
+
+  it('gives back to the office, and only counts what is above the deduction as a surplus', async () => {
+    await link();
+    await collect(60_000, at(-300));
+    await runDepositDeadline(prisma, at(1));
+    await collect(10_000, at(60));
+    const h = await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: 75_000,
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    // 10,000 still held + 60,000 given back; 5,000 more is a surplus waiting for finance.
+    expect(h).toMatchObject({ expectedPiastres: 70_000, differencePiastres: -5000 });
+    expect(await balanceOf(prisma, { type: 'supplier', supplierId: officeId })).toBe(0);
+    // As with any surplus, rider cash shows it until finance decides on the difference.
+    expect(await balanceOf(prisma, { type: 'rider_cash', riderId })).toBe(-5000);
+    // Nothing is left to give back, so a later deposit cannot take it twice.
+    expect((await riderBasata(prisma, riderId, at(120))).maxPiastres).toBe(0);
+    await expectBalanced();
+  });
+});
+
+/** Money at Basata, made by its first posting (as an approved deposit would). */
+async function transitAccount() {
+  await post(prisma, {
+    kind: 'test_transit',
+    idempotencyKey: key(),
+    lines: [
+      { account: { type: 'basata_transit' }, amount: 100_000 },
+      { account: { type: 'rider_cash', riderId }, amount: -100_000 },
+    ],
+  });
+  return prisma.ledgerAccount.findUniqueOrThrow({ where: { key: 'basata_transit' } });
+}
+
+describe('Money at Basata as a paying account (review step 2)', () => {
+  it('is refused for transfers, expenses, owner movements and other income', async () => {
+    const transit = await transitAccount();
+    const bank = await prisma.ledgerAccount.findUniqueOrThrow({ where: { key: 'bank' } });
+    const base = { reference: 'x', actorUserId: admin, amountPiastres: 100 };
+    await expect(
+      transferMoney(prisma, {
+        ...base,
+        fromAccountId: transit.id,
+        toAccountId: bank.id,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toMatchObject({ code: 'money_account_not_allowed' });
+    await expect(
+      transferMoney(prisma, {
+        ...base,
+        fromAccountId: bank.id,
+        toAccountId: transit.id,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toMatchObject({ code: 'money_account_not_allowed' });
+    const expense = await prisma.ledgerAccount.findFirstOrThrow({ where: { groupCode: 5400 } });
+    await expect(
+      recordExpense(prisma, {
+        ...base,
+        expenseAccountId: expense.id,
+        paidFromAccountId: transit.id,
+        memo: 'Fuel',
+        idempotencyKey: key(),
+      }),
+    ).rejects.toMatchObject({ code: 'money_account_not_allowed' });
+    await expect(
+      recordCapital(prisma, {
+        ...base,
+        direction: 'out',
+        moneyAccountId: transit.id,
+        idempotencyKey: key(),
+      }),
+    ).rejects.toMatchObject({ code: 'money_account_not_allowed' });
   });
 });

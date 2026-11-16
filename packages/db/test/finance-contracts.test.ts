@@ -237,6 +237,52 @@ describe('monthly minimum', () => {
   });
 });
 
+describe('monthly minimum after a sleep over the month end (review step 2)', () => {
+  it('charges the month’s missed storage days first, then tops up only what is left', async () => {
+    await set('fee.vat_bp', 0);
+    await set('fee.postal_bp', 0);
+    await set('fee.storage_per_unit_month_piastres', 3_000);
+    const thisMonth = today().slice(0, 7);
+    const lastDay = addDays(`${thisMonth}-01`, -1);
+    const lastMonthFirst = `${lastDay.slice(0, 7)}-01`;
+    await contract({ startDate: lastMonthFirst, minimumMonthlyFeePiastres: 100_000 });
+    // The server last charged storage four days before the month ended, then slept.
+    await prisma.storageDay.create({
+      data: { day: new Date(`${addDays(lastDay, -3)}T00:00:00Z`), charged: 0 },
+    });
+    for (let i = 0; i < 3; i++)
+      await prisma.stockUnitDay.create({
+        data: {
+          darkStoreId: f.store.id,
+          merchantId: f.merchant.id,
+          day: new Date(`${addDays(lastDay, -i)}T00:00:00Z`),
+          units: 10,
+        },
+      });
+    // It wakes on the 1st: the minimum job runs first.
+    const wake = new Date(new Date(`${thisMonth}-01T10:00:00Z`).getTime());
+    await chargeMinimumFees(prisma, wake);
+    const storage = await prisma.ledgerEntry.findMany({
+      where: { kind: 'storage_fee' },
+      include: { lines: { include: { account: true } } },
+    });
+    expect(storage).toHaveLength(3);
+    const storageFees = storage
+      .flatMap((e) => e.lines)
+      .filter((l) => l.account.type === 'revenue')
+      .reduce((sum, l) => sum - l.amountPiastres, 0);
+    expect(storageFees).toBeGreaterThan(0);
+    const minimum = await prisma.ledgerEntry.findFirstOrThrow({
+      where: { kind: 'minimum_fee' },
+      include: { lines: { include: { account: true } } },
+    });
+    expect(minimum.data).toMatchObject({ feesPiastres: storageFees });
+    // Fees plus the top up make exactly the minimum: nothing is charged twice.
+    const topUp = -minimum.lines.find((l) => l.account.type === 'revenue')!.amountPiastres;
+    expect(storageFees + topUp).toBe(100_000);
+  });
+});
+
 describe('security deposit and credit limit', () => {
   it('holds a deposit in its own wallet and never pays back more than held', async () => {
     const pending = await submitDeposit(prisma, {

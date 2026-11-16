@@ -387,3 +387,19 @@ describe('pay merchants run', () => {
     expect(data.merchant.name).toBe('Other');
   });
 });
+
+describe('a payout dated back (review step 2)', () => {
+  it('needs the money in the bank on its own day', async () => {
+    await cod(5_000);
+    const payout = await draft();
+    await readyToPay(payout.id, { uploaderId: payer, viewerId: viewer });
+    // The bank's money arrived today (beforeEach): three days ago it held nothing.
+    const threeDaysAgo = new Date(Date.now() - 3 * 86_400_000).toISOString().slice(0, 10);
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, day: threeDaysAgo, actorUserId: payer }),
+    ).rejects.toMatchObject({ code: 'not_enough_money' });
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: payer }),
+    ).resolves.toMatchObject({ status: 'paid' });
+  });
+});

@@ -106,6 +106,56 @@ export async function maxBasataDeposit(db: Db, riderId: string) {
   };
 }
 
+type GiveBackTags = { riderId: string; darkStoreId: string | null };
+
+/**
+ * Cash a rider hands in (a Basata deposit or a store handover) above what they still hold
+ * gives back what a deadline took from them, oldest first: to the office's wallet it was taken
+ * from, or to their dues; what their dues no longer hold, because a withdrawal already took it,
+ * goes to their wallet. Answers the ledger lines (crediting those accounts, total -amount;
+ * the caller debits the cash) and markGiven, called once the entry is posted. The caller holds
+ * the rider's row lock and never gives more than deductedNotGivenBack.
+ */
+export async function giveBackLines(tx: Tx, riderId: string, amount: number, tags: GiveBackTags) {
+  const lines: { account: AccountRef; amount: number; tags: GiveBackTags }[] = [];
+  const given: { id: string; amount: number }[] = [];
+  let rest = amount;
+  if (rest > 0) {
+    const open = await openDeductions(tx, riderId);
+    let duesLeft = Math.max(0, await balanceOf(tx, { type: 'rider_dues', riderId }));
+    for (const x of open) {
+      if (rest <= 0) break;
+      const give = Math.min(rest, x.amountPiastres - x.givenBackPiastres);
+      rest -= give;
+      given.push({ id: x.id, amount: give });
+      if (x.supplierId) {
+        lines.push({
+          account: { type: 'supplier', supplierId: x.supplierId },
+          amount: -give,
+          tags,
+        });
+      } else {
+        const toDues = Math.min(give, duesLeft);
+        duesLeft -= toDues;
+        lines.push({ account: { type: 'rider_dues', riderId }, amount: -toDues, tags });
+        lines.push({ account: { type: 'rider_bonus', riderId }, amount: -(give - toDues), tags });
+      }
+    }
+  }
+  if (rest > 0) throw new DomainError('more_than_cash', 409);
+  return {
+    lines,
+    givenPiastres: amount,
+    async markGiven() {
+      for (const g of given)
+        await tx.riderCashDeduction.update({
+          where: { id: g.id },
+          data: { givenBackPiastres: { increment: g.amount } },
+        });
+    },
+  };
+}
+
 // ─── the deposit ─────────────────────────────────────────────────────────────────
 
 const depositInclude = {
@@ -294,38 +344,13 @@ export function approveBasataDeposit(
     if (d.amountPiastres > held + deducted)
       throw new DomainError('more_than_cash', 409, { maxPiastres: held + deducted });
     const heldPart = Math.min(d.amountPiastres, held);
-    let rest = d.amountPiastres - heldPart;
     const tags = { riderId: d.riderId, darkStoreId: d.darkStoreId };
-    const lines: { account: AccountRef; amount: number; tags: typeof tags }[] = [
+    const back = await giveBackLines(tx, d.riderId, d.amountPiastres - heldPart, tags);
+    const lines: { account: AccountRef; amount: number; tags: GiveBackTags }[] = [
       { account: { type: 'basata_transit' }, amount: d.amountPiastres, tags },
       { account: { type: 'rider_cash', riderId: d.riderId }, amount: -heldPart, tags },
+      ...back.lines,
     ];
-    // Dues the rider still owes can take back what was charged to them; the rest was already
-    // taken from a withdrawal, so it goes back to their wallet.
-    let duesLeft = Math.max(0, await balanceOf(tx, { type: 'rider_dues', riderId: d.riderId }));
-    const given: { id: string; amount: number }[] = [];
-    for (const x of open) {
-      if (rest <= 0) break;
-      const give = Math.min(rest, x.amountPiastres - x.givenBackPiastres);
-      rest -= give;
-      given.push({ id: x.id, amount: give });
-      if (x.supplierId) {
-        lines.push({
-          account: { type: 'supplier', supplierId: x.supplierId },
-          amount: -give,
-          tags,
-        });
-      } else {
-        const toDues = Math.min(give, duesLeft);
-        duesLeft -= toDues;
-        lines.push({ account: { type: 'rider_dues', riderId: d.riderId }, amount: -toDues, tags });
-        lines.push({
-          account: { type: 'rider_bonus', riderId: d.riderId },
-          amount: -(give - toDues),
-          tags,
-        });
-      }
-    }
     const label = basataDepositNumber(d.number);
     const entry = await post(tx, {
       kind: DEPOSIT_KIND,
@@ -344,11 +369,7 @@ export function approveBasataDeposit(
       },
       lines,
     });
-    for (const g of given)
-      await tx.riderCashDeduction.update({
-        where: { id: g.id },
-        data: { givenBackPiastres: { increment: g.amount } },
-      });
+    await back.markGiven();
     // The receipt photo stays with the entry.
     await tx.financeReceipt.create({
       data: { photoId: d.photoId, entryId: entry!.id, createdById: input.actorUserId },

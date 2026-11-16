@@ -8,6 +8,7 @@ import {
   chargeRiderPenalties,
   ensureDefaultAccounts,
   giveAdvance,
+  post,
   listStaffPay,
   payWithdrawal,
   previewPayroll,
@@ -575,5 +576,100 @@ describe('per delivery riders and HR', () => {
     expect(row.payrollEntryId).not.toBeNull();
     // The penalty lowers rider pay cost.
     expect(await balanceOf(prisma, { type: 'rider_bonus_expense' })).toBe(-17_500);
+  });
+});
+
+describe('a frozen rider and charges after the request (review step 2)', () => {
+  const freeze = (frozenAt: Date | null) =>
+    prisma.rider.update({
+      where: { id: riderId },
+      data: { frozenAt, frozenReason: frozenAt ? 'deposit_deadline' : null },
+    });
+
+  it('is neither approved nor paid while frozen, by Accounting or at the store', async () => {
+    await deliver(4); // 120.00 EGP earned, cash collected handed in below
+    await recordCashHandover(prisma, {
+      riderId,
+      darkStoreId: f.store.id,
+      countedPiastres: await riderCash(prisma, riderId),
+      receivedById: admin,
+      idempotencyKey: key(),
+    });
+    const later = await whenAvailable();
+    const w = await request(12_000, later, key(), { method: 'store_cash' });
+    // The deadline froze him after he asked.
+    await freeze(new Date());
+    await expect(
+      approveWithdrawal(prisma, { withdrawalId: w.id, actorUserId: admin }),
+    ).rejects.toMatchObject({ code: 'rider_frozen' });
+    await freeze(null);
+    await approveWithdrawal(prisma, { withdrawalId: w.id, actorUserId: admin });
+    await freeze(new Date());
+    await expect(
+      payWithdrawal(prisma, { withdrawalId: w.id, reference: 'x', actorUserId: other, now: later }),
+    ).rejects.toMatchObject({ code: 'rider_frozen' });
+    await expect(
+      payWithdrawal(prisma, {
+        withdrawalId: w.id,
+        reference: 'cash',
+        actorUserId: other,
+        storeId: f.store.id,
+        now: later,
+      }),
+    ).rejects.toMatchObject({ code: 'rider_frozen' });
+    expect(await prisma.ledgerEntry.count({ where: { kind: 'rider_withdrawal' } })).toBe(0);
+  });
+
+  it('takes dues charged after the request at payment, within what the wallet holds', async () => {
+    await deliver(4); // 120.00 EGP earned
+    const later = await whenAvailable();
+    const w = await request(6000, later);
+    expect(w.deductionPiastres).toBe(0);
+    // A charge after the request (damage, a shortage kept on the rider): 15.00 EGP of dues.
+    await post(prisma, {
+      kind: 'rider_shortage_charge',
+      idempotencyKey: key(),
+      lines: [
+        { account: { type: 'rider_dues', riderId }, amount: 1500 },
+        { account: { type: 'cash_difference' }, amount: -1500 },
+      ],
+    });
+    await approveWithdrawal(prisma, { withdrawalId: w.id, actorUserId: other });
+    const paid = await payWithdrawal(prisma, {
+      withdrawalId: w.id,
+      reference: 'CIB-9',
+      actorUserId: admin,
+      now: later,
+    });
+    expect(paid).toMatchObject({ deductionPiastres: 1500, deductions: { duesPiastres: 1500 } });
+    expect(await balanceOf(prisma, { type: 'rider_dues', riderId })).toBe(0);
+    expect(await balanceOf(prisma, { type: 'rider_bonus', riderId })).toBe(-(12_000 - 7500));
+  });
+
+  it('never pays from Money at Basata', async () => {
+    await deliver(4);
+    const later = await whenAvailable();
+    const w = await request(6000, later);
+    await approveWithdrawal(prisma, { withdrawalId: w.id, actorUserId: other });
+    await post(prisma, {
+      kind: 'test_transit',
+      idempotencyKey: key(),
+      lines: [
+        { account: { type: 'basata_transit' }, amount: 100_000 },
+        { account: { type: 'retained_earnings' }, amount: -100_000 },
+      ],
+    });
+    const transit = await prisma.ledgerAccount.findUniqueOrThrow({
+      where: { key: 'basata_transit' },
+    });
+    await expect(
+      payWithdrawal(prisma, {
+        withdrawalId: w.id,
+        moneyAccountId: transit.id,
+        reference: 'x',
+        actorUserId: admin,
+        now: later,
+      }),
+    ).rejects.toMatchObject({ code: 'money_account_not_allowed' });
   });
 });

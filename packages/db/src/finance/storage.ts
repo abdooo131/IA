@@ -112,6 +112,12 @@ export async function unitsForDays(db: Db, days: string[]) {
 }
 
 /**
+ * The advisory lock the storage job runs under (transaction scoped). The monthly minimum
+ * takes it too, so the two never charge one month at the same time.
+ */
+export const STORAGE_JOB_LOCK = 735_002;
+
+/**
  * The daily storage charge, catching up days the server missed (it sleeps on a free plan):
  * every Cairo day after the last one done, up to the last closed day, at most
  * storage.catch_up_days of them (older missed days stay uncharged). The last day done is the

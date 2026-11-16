@@ -10487,6 +10487,8 @@
       "withdrawal_already_paid": "This withdrawal is already paid.",
       "withdrawal_not_found": "Withdrawal not found.",
       "own_withdrawal": "You cannot decide your own withdrawal.",
+      "rider_frozen": "This rider is frozen until Accounting unfreezes them, so nothing is approved or paid.",
+      "money_account_not_allowed": "Money at Basata cannot pay anything. Choose a bank or a cash box.",
       "same_person": "You approved this, so another person must pay it.",
       "not_enough_money": "The cash box or bank does not hold that much.",
       "per_delivery_riders_only": "Only riders can be paid per delivered order.",

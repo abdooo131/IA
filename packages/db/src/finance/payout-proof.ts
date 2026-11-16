@@ -278,8 +278,9 @@ export async function addPayoutProof(
             payoutId: payout.id,
           },
         });
-    if (existing)
-      cleared = (await tx.payoutCheckMark.deleteMany({ where: { payoutId: payout.id } })).count;
+    // Every tick confirmed what was there before (another slip, or a cheque since cancelled),
+    // so a new proof is checked again.
+    cleared = (await tx.payoutCheckMark.deleteMany({ where: { payoutId: payout.id } })).count;
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: existing ? 'finance.payout_proof_replace' : 'finance.payout_proof',

@@ -114,8 +114,26 @@ export async function linkAttachments(
   const requestId = 'requestId' in input.target ? input.target.requestId : null;
   const id = (entryId ?? payoutId ?? requestId)!;
   return inTransaction(db, async (tx) => {
-    await claim(tx, ids, input.actorUserId);
-    for (const photoId of ids)
+    // A retried save (same idempotency key) answers the record its first try made: files that
+    // try already linked to it, as this person, are done (on the record itself, or on the
+    // request that posted it), not refused.
+    const done = await tx.financeReceipt.findMany({
+      where: {
+        photoId: { in: ids },
+        createdById: input.actorUserId,
+        OR: [
+          ...(entryId ? [{ entryId }, { request: { entryId } }] : []),
+          ...(payoutId ? [{ payoutId }] : []),
+          ...(requestId ? [{ requestId }] : []),
+        ],
+      },
+      select: { photoId: true },
+    });
+    const doneIds = new Set(done.map((r) => r.photoId));
+    const fresh = ids.filter((photoId) => !doneIds.has(photoId));
+    if (fresh.length === 0) return ids;
+    await claim(tx, fresh, input.actorUserId);
+    for (const photoId of fresh)
       await tx.financeReceipt.create({
         data: { photoId, entryId, payoutId, requestId, createdById: input.actorUserId },
       });
@@ -124,7 +142,7 @@ export async function linkAttachments(
       action: 'finance.receipt_attach',
       entityType: entryId ? 'ledger_entry' : payoutId ? 'payout' : 'finance_request',
       entityId: id,
-      after: { photoIds: ids, count: ids.length },
+      after: { photoIds: fresh, count: fresh.length },
     });
     return ids;
   });

@@ -4,7 +4,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { addMonths, chargeDepreciation } from './assets';
 import { eventTime } from './books';
-import { post } from './ledger';
+import { assertNotTransit, post } from './ledger';
 
 // Smaller tools on top of the books: merchants' bank details and the payout file for the
 // bank, equipment sold or scrapped, accruals reversed by themselves.
@@ -140,6 +140,7 @@ export async function disposeAsset(db: Db, input: DisposalInput) {
       const account = await tx.ledgerAccount.findUnique({ where: { id: input.moneyAccountId! } });
       if (!account || ![1100, 1200].includes(account.groupCode))
         throw new DomainError('account_not_found', 404);
+      assertNotTransit(account);
       money = account;
     }
     const loss = asset.costPiastres - depreciated - input.salePiastres;

@@ -12,7 +12,7 @@ import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
-import { eventTime } from './books';
+import { eventTime, mustHold } from './books';
 import { payoutNeedsApproval, submitMovement } from './controls';
 import { type AccountRef, balanceOf, nextNumber, post } from './ledger';
 import { queuePayoutEmails } from '../email';
@@ -452,8 +452,8 @@ export function clearCheque(
     const bank = await bankAccount(tx, bankId);
     if (cheque.direction === 'issued') {
       await tx.$queryRaw`SELECT id FROM ledger_accounts WHERE id = ${cheque.bankAccountId} FOR UPDATE`;
-      if (cheque.amountPiastres > (await balanceOf(tx, bank)))
-        throw new DomainError('not_enough_money');
+      // A clear dated back needs the money on its day and every moment after it.
+      await mustHold(tx, { id: cheque.bankAccountId! }, cheque.amountPiastres, at);
     }
     const label = chequeLabel(cheque.number);
     const amount = cheque.amountPiastres;
@@ -588,6 +588,7 @@ export function bounceCheque(
       where: { id: cheque.id },
       data: { status: 'bounced', bouncedAt: at, bounceReason: reason, reverseEntryId: entry.id },
     });
+    await clearPayoutChecks(tx, cheque, input.actorUserId);
     await tx.alert.createMany({
       data: [
         {
@@ -652,6 +653,7 @@ export function cancelCheque(
       where: { id: cheque.id },
       data: { status: 'cancelled', cancelledAt: new Date(), cancelNote: note, reverseEntryId },
     });
+    await clearPayoutChecks(tx, cheque, input.actorUserId);
     await recordAudit(tx, {
       actorUserId: input.actorUserId,
       action: 'finance.cheque_cancel',
@@ -662,6 +664,25 @@ export function cancelCheque(
     });
     return { status: 'cancelled' as const };
   });
+}
+
+/**
+ * A payout cheque that is cancelled or bounces was the proof the payout's checks confirmed, so
+ * the ticks of a payout still in draft are removed and must be given again for its next proof.
+ */
+async function clearPayoutChecks(tx: Tx, cheque: Cheque, actorUserId: string | null) {
+  if (cheque.purpose !== 'payout' || !cheque.payoutId) return;
+  const payout = await tx.payout.findUnique({ where: { id: cheque.payoutId } });
+  if (!payout || payout.status !== 'draft') return;
+  const { count } = await tx.payoutCheckMark.deleteMany({ where: { payoutId: payout.id } });
+  if (count)
+    await recordAudit(tx, {
+      actorUserId,
+      action: 'finance.payout_checks_cleared',
+      entityType: 'payout',
+      entityId: payout.id,
+      after: { cheque: chequeLabel(cheque.number), checksCleared: count },
+    });
 }
 
 /** The payout cheque registered and not yet booked (waiting for the payout checks). */
@@ -686,7 +707,8 @@ export async function dropChequeRequest(tx: Tx, request: FinanceRequest, note: s
   if (request.kind !== 'cheque_in' && request.kind !== 'cheque_out') return;
   const chequeId = (request.payload as { input?: { chequeId?: string } }).input?.chequeId;
   if (!chequeId) return;
-  await tx.cheque.updateMany({
+  const cheque = await tx.cheque.findUnique({ where: { id: chequeId } });
+  const { count } = await tx.cheque.updateMany({
     where: { id: chequeId, status: 'awaiting_approval' },
     data: {
       status: 'cancelled',
@@ -694,6 +716,7 @@ export async function dropChequeRequest(tx: Tx, request: FinanceRequest, note: s
       cancelNote: note ?? request.status,
     },
   });
+  if (count && cheque) await clearPayoutChecks(tx, cheque, request.decidedById ?? null);
 }
 
 // ─── lists ───────────────────────────────────────────────────────────────────────

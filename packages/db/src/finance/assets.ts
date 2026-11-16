@@ -3,8 +3,8 @@ import { cairoDay, cairoDayStart } from '@shiplynow/shared';
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
-import { eventTime } from './books';
-import { balanceOf, post } from './ledger';
+import { eventTime, mustHold } from './books';
+import { assertNotTransit, post } from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -93,9 +93,10 @@ export function recordPrepayment(db: Db, input: PrepaymentInput) {
       'expense_account_not_found',
     );
     const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(money);
     await checkStore(tx, input.darkStoreId);
-    if (input.amountPiastres > (await balanceOf(tx, { id: money.id })))
-      throw new DomainError('not_enough_money');
+    // Dated back, the money must be there on its day and every moment after it.
+    await mustHold(tx, money, input.amountPiastres, at);
     const entry = await post(tx, {
       kind: 'prepayment',
       idempotencyKey: key,
@@ -161,9 +162,10 @@ export function recordAssetPurchase(db: Db, input: AssetInput) {
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;
     const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(money);
     await checkStore(tx, input.darkStoreId);
-    if (input.amountPiastres > (await balanceOf(tx, { id: money.id })))
-      throw new DomainError('not_enough_money');
+    // Dated back, the money must be there on its day and every moment after it.
+    await mustHold(tx, money, input.amountPiastres, at);
     const entry = await post(tx, {
       kind: 'asset_purchase',
       idempotencyKey: key,

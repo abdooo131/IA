@@ -8,6 +8,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import {
   chargeStorageDays,
+  STORAGE_JOB_LOCK,
   applyContractSchedules,
   chargeMinimumFees,
   computeCommissions,
@@ -42,7 +43,7 @@ import { TicketsService } from '../tickets/tickets.service';
 /** Advisory lock id for the SLA check, so only one API instance runs it at a time. */
 const SLA_LOCK = 735_001;
 /** Advisory lock id for the daily storage charge. */
-const STORAGE_LOCK = 735_002;
+const STORAGE_LOCK = STORAGE_JOB_LOCK;
 /** Advisory lock id for recurring expenses, prepayments and depreciation. */
 const MONTHLY_LOCK = 735_003;
 /** Advisory lock id for the merchant contracts' monthly minimum fees. */

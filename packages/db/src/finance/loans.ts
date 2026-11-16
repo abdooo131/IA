@@ -11,7 +11,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { eventTime, mustHold, openAccount } from './books';
 import { submitMovement } from './controls';
-import { assertPeriodOpen, nextAccountCode, post } from './ledger';
+import { assertNotTransit, assertPeriodOpen, nextAccountCode, post } from './ledger';
 
 // Money the company borrowed. In Egypt companies borrow only from banks (owner, 2026-11-11):
 // new loans name their bank; the older supplier and owner lenders stay readable. Each loan has its own account under 2700 (2701, 2702...) so the balance sheet shows
@@ -200,7 +200,7 @@ async function assertLoanMoney(db: Db, accountId: string) {
     where: { id: accountId },
     select: { key: true },
   });
-  if (account?.key === 'basata_transit') throw new DomainError('money_account_not_allowed', 400);
+  if (account) assertNotTransit(account);
 }
 
 /** Pays one instalment (the next unpaid one): principal off the loan, interest to 5904. */

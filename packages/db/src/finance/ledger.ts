@@ -474,6 +474,15 @@ export async function nextNumber(
   return (rows[0]?.max ?? 0) + 1;
 }
 
+/**
+ * Money at Basata is cash on its way to the bank (a transit account): only an approved rider
+ * deposit puts money there and only Basata's daily transfer takes it out. No payment, receipt
+ * or transfer chooses it as its bank or box (money_account_not_allowed).
+ */
+export function assertNotTransit(account: { key: string | null }) {
+  if (account.key === 'basata_transit') throw new DomainError('money_account_not_allowed', 400);
+}
+
 export function accountKey(ref: AccountRef): string {
   if ('id' in ref) throw new Error('accounts given by id have no key');
   switch (ref.type) {

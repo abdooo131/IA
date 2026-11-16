@@ -13,7 +13,7 @@ import { type HrPayItem, hrPayrollItems, markHrPayrollItems } from '../hr-inbox'
 import { markCommissionsPaid, payableCommissions } from '../crm-sales';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
-import { balanceOf, post } from './ledger';
+import { assertNotTransit, balanceOf, post } from './ledger';
 import { getSetting } from '../settings';
 import { eventTime } from './books';
 
@@ -141,6 +141,7 @@ async function moneyAccount(tx: Tx, id: string) {
   if (!account || !MONEY_GROUPS.includes(account.groupCode))
     throw new DomainError('account_not_found', 404);
   if (!account.isActive) throw new DomainError('account_inactive');
+  assertNotTransit(account);
   return account;
 }
 

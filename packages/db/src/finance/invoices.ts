@@ -12,7 +12,7 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { addMonths } from './assets';
-import { post, share } from './ledger';
+import { accountKey, post, share } from './ledger';
 import { postPostalFee } from './postings';
 import { queueInvoiceEmail } from '../email';
 
@@ -347,6 +347,48 @@ export function creditNoteVat(
   return Math.max(total - before.vat, 0);
 }
 
+/**
+ * The postal fee a credit note gives back, on the running total: the share of the credited
+ * fees at today's fee.postal_bp, capped at the same part of the postal fee actually booked
+ * on the merchant's fees in the invoice's month, less what earlier notes of the invoice gave
+ * back. Never below zero.
+ */
+async function creditNotePostal(tx: Tx, invoice: TaxInvoice, creditedNet: number) {
+  if (!invoice.netPiastres) return 0;
+  const postalBp = await getSetting(tx, 'fee.postal_bp');
+  const expense = { account: { key: accountKey({ type: 'postal_fee_expense' }) } };
+  let booked = 0;
+  if (invoice.periodMonth) {
+    const sum = await tx.ledgerLine.aggregate({
+      where: {
+        ...expense,
+        merchantId: invoice.merchantId,
+        amountPiastres: { gt: 0 },
+        occurredAt: {
+          gte: cairoDayStart(`${invoice.periodMonth}-01`),
+          lt: cairoDayStart(`${addMonths(invoice.periodMonth, 1)}-01`),
+        },
+        entry: { kind: 'postal_fee' },
+      },
+      _sum: { amountPiastres: true },
+    });
+    booked = sum._sum.amountPiastres ?? 0;
+  }
+  const given = await tx.ledgerLine.aggregate({
+    where: {
+      ...expense,
+      amountPiastres: { lt: 0 },
+      entry: { kind: 'postal_fee', data: { path: ['invoiceId'], equals: invoice.id } },
+    },
+    _sum: { amountPiastres: true },
+  });
+  const givenBack = -(given._sum.amountPiastres ?? 0);
+  const net = Math.min(creditedNet, invoice.netPiastres);
+  const cap =
+    net >= invoice.netPiastres ? booked : Math.round((net * booked) / invoice.netPiastres);
+  return Math.max(0, Math.min(share(net, postalBp), cap) - givenBack);
+}
+
 export interface CreditNoteInput {
   invoiceId: string;
   /** How much of the fees (before VAT) is given back */
@@ -395,12 +437,14 @@ export async function issueCreditNote(db: Db, input: CreditNoteInput) {
     // Fees given back are fee revenue no longer: the postal share comes back with them,
     // worked out on the running total so the notes together give back the share of
     // everything credited (like the VAT above).
-    const postalBp = await getSetting(tx, 'fee.postal_bp');
+    // Never more than was booked: the notes together give back at most the invoice's share
+    // (credited / invoiced) of the postal fee booked on the merchant's fees of that month
+    // (none before the postal fee existed), less what earlier notes gave back.
+    const postal = await creditNotePostal(tx, invoice, before.net + input.amountPiastres);
     await postPostalFee(tx, {
       idempotencyKey: `${key}:postal_fee`,
       basePiastres: input.amountPiastres,
-      amountPiastres:
-        share(before.net + input.amountPiastres, postalBp) - share(before.net, postalBp),
+      amountPiastres: postal,
       reverse: true,
       merchantId: invoice.merchantId,
       now: entry!.occurredAt,

@@ -16,7 +16,15 @@ import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { getSetting } from '../settings';
 import { payoutNeedsApproval } from './controls';
-import { type AccountRef, accountKey, balanceOf, lockedBalance, nextNumber, post } from './ledger';
+import {
+  type AccountRef,
+  accountKey,
+  assertNotTransit,
+  balanceOf,
+  lockedBalance,
+  nextNumber,
+  post,
+} from './ledger';
 
 type Tx = Prisma.TransactionClient;
 
@@ -108,7 +116,7 @@ export async function riderWalletTotals(db: Db, riderId: string, now: Date = new
     riderOwed(db, riderId),
     db.riderWithdrawal.findMany({
       where: { riderId, status: { in: OPEN_WITHDRAWAL_STATUSES } },
-      select: { id: true, amountPiastres: true, deductionPiastres: true },
+      select: { id: true, amountPiastres: true, deductionPiastres: true, deductions: true },
     }),
   ]);
   const totals = walletTotals({
@@ -400,12 +408,23 @@ export function cancelWithdrawal(db: Db, input: { withdrawalId: string; riderUse
   });
 }
 
-/** Accounting approves a request (never the rider's own account). */
+/**
+ * A frozen rider (Basata deadline) is paid nothing until Accounting unfreezes them: read under
+ * the rider's row lock, so a freeze that came after the request is seen.
+ */
+async function assertRiderNotFrozen(tx: Tx, riderId: string) {
+  await tx.$queryRaw`SELECT id FROM riders WHERE id = ${riderId} FOR UPDATE`;
+  const rider = await tx.rider.findUnique({ where: { id: riderId }, select: { frozenAt: true } });
+  if (rider?.frozenAt) throw new DomainError('rider_frozen', 409);
+}
+
+/** Accounting approves a request (never the rider's own account; never while frozen). */
 export function approveWithdrawal(db: Db, input: { withdrawalId: string; actorUserId: string }) {
   return inTransaction(db, async (tx) => {
     const w = await lockWithdrawal(tx, input.withdrawalId);
     if (w.rider.user.id === input.actorUserId) throw new DomainError('own_withdrawal', 403);
     if (w.status !== 'requested') throw new DomainError('withdrawal_not_requested', 409);
+    await assertRiderNotFrozen(tx, w.riderId);
     const after = await tx.riderWithdrawal.update({
       where: { id: w.id },
       data: { status: 'approved', approvedById: input.actorUserId, approvedAt: new Date() },
@@ -451,6 +470,7 @@ async function moneyAccountFor(tx: Tx, id: string) {
   if (!account || ![1100, 1200].includes(account.groupCode))
     throw new DomainError('account_not_found', 404);
   if (!account.isActive) throw new DomainError('account_inactive');
+  assertNotTransit(account);
   return account;
 }
 
@@ -483,7 +503,7 @@ export function payWithdrawal(
     if (w.status !== 'approved') throw new DomainError('withdrawal_not_approved', 409);
     if ((await payoutNeedsApproval(tx, w.amountPiastres)) && w.approvedById === input.actorUserId)
       throw new DomainError('same_person', 403);
-    await tx.$queryRaw`SELECT id FROM riders WHERE id = ${w.riderId} FOR UPDATE`;
+    await assertRiderNotFrozen(tx, w.riderId);
 
     // Where the money comes from.
     let source: AccountRef;
@@ -506,16 +526,28 @@ export function payWithdrawal(
 
     // The wallet without this request must still cover what the rider receives.
     const { totals, owed, open } = await riderWalletTotals(tx, w.riderId, now);
-    const stored = (w.deductions ?? {}) as { duesPiastres?: number; advancePiastres?: number };
-    const dues = Math.min(stored.duesPiastres ?? 0, owed.duesPiastres);
-    const advance = Math.min(stored.advancePiastres ?? 0, owed.advancePiastres);
     // What leaves the wallet is never more than has matured and is not paid or promised to
     // another open request.
-    const others = open
-      .filter((o) => o.id !== w.id)
-      .reduce((s, o) => s + o.amountPiastres + o.deductionPiastres, 0);
+    const otherOpen = open.filter((o) => o.id !== w.id);
+    const others = otherOpen.reduce((s, o) => s + o.amountPiastres + o.deductionPiastres, 0);
     const free = totals.maturedPiastres - totals.paidPiastres - others;
-    if (w.amountPiastres + dues + advance > free) throw new DomainError('more_than_available', 409);
+    if (w.amountPiastres > free) throw new DomainError('more_than_available', 409);
+    // What the rider owes now (a charge that came after the request included), less what the
+    // other open requests set aside, dues first, then an advance; never more than the wallet
+    // still holds beside the amount paid.
+    const setAside = otherOpen.reduce(
+      (acc, o) => {
+        const d = (o.deductions ?? {}) as { duesPiastres?: number; advancePiastres?: number };
+        return {
+          dues: acc.dues + (d.duesPiastres ?? 0),
+          advance: acc.advance + (d.advancePiastres ?? 0),
+        };
+      },
+      { dues: 0, advance: 0 },
+    );
+    const room = free - w.amountPiastres;
+    const dues = Math.min(room, Math.max(0, owed.duesPiastres - setAside.dues));
+    const advance = Math.min(room - dues, Math.max(0, owed.advancePiastres - setAside.advance));
 
     const tags = { riderId: w.riderId, darkStoreId: w.darkStoreId };
     const entry = await post(tx, {

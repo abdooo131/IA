@@ -519,3 +519,78 @@ describe('cheques issued', () => {
     expect(await balanceOf(prisma, { type: 'cheques_payable' })).toBe(-2_000_000);
   });
 });
+
+describe('payout cheques and the payout checks (review step 2)', () => {
+  async function payoutWithCheque() {
+    // The merchant's cash sits in the store box, so the bank holds only today's capital.
+    await post(prisma, {
+      kind: 'cod_collected',
+      idempotencyKey: key(),
+      occurredAt: new Date(Date.now() - 86_400_000 * 2),
+      lines: [
+        { account: { type: 'store_cash', darkStoreId: f.store.id }, amount: 80_000 },
+        { account: { type: 'merchant', merchantId: f.merchant.id }, amount: -80_000 },
+      ],
+    });
+    const payout = await createPayout(prisma, {
+      merchantId: f.merchant.id,
+      cutoffAt: new Date(),
+      actorUserId: admin,
+    });
+    const result = await registerCheque(prisma, {
+      direction: 'issued',
+      purpose: 'payout',
+      chequeNumber: '77',
+      bankAccountId: (await byKey('bank')).id,
+      issueDate: today(),
+      dueDate: today(),
+      payoutId: payout.id,
+      idempotencyKey: key(),
+      actorUserId: admin,
+    });
+    return { payout, cheque: result.cheque };
+  }
+
+  it('clears the ticks when the cheque that was the proof is cancelled', async () => {
+    const { payout, cheque } = await payoutWithCheque();
+    await tickAll(payout.id, second);
+    expect(await prisma.payoutCheckMark.count({ where: { payoutId: payout.id } })).toBe(1);
+    await cancelCheque(prisma, { chequeId: cheque.id, note: 'Wrong payee', actorUserId: admin });
+    expect(await prisma.payoutCheckMark.count({ where: { payoutId: payout.id } })).toBe(0);
+    expect(
+      await prisma.auditLog.count({
+        where: { action: 'finance.payout_checks_cleared', entityId: payout.id },
+      }),
+    ).toBe(1);
+    // A transfer slip the second person never saw cannot be paid on the old tick.
+    await addPayoutProof(prisma, {
+      payoutId: payout.id,
+      fileName: 'slip.pdf',
+      contentType: 'application/pdf',
+      data: slipPdf(),
+      amountPiastres: 80_000,
+      reference: 'TRF-2',
+      actorUserId: admin,
+    });
+    await expect(
+      markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: admin }),
+    ).rejects.toMatchObject({ code: 'checks_incomplete' });
+  });
+
+  it('a cheque cleared on an earlier day needs the money in the bank on that day', async () => {
+    const { payout, cheque } = await payoutWithCheque();
+    await tickAll(payout.id, second);
+    await markPayoutPaid(prisma, { payoutId: payout.id, actorUserId: admin });
+    // The capital arrived today: two days ago the bank held nothing.
+    await expect(
+      clearCheque(prisma, {
+        chequeId: cheque.id,
+        day: addDays(today(), -2),
+        actorUserId: admin,
+      }),
+    ).rejects.toMatchObject({ code: 'not_enough_money' });
+    await expect(
+      clearCheque(prisma, { chequeId: cheque.id, actorUserId: admin }),
+    ).resolves.toMatchObject({ status: 'cleared' });
+  });
+});

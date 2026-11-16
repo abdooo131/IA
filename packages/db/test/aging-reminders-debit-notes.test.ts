@@ -168,9 +168,11 @@ describe('what we owe suppliers, by age', () => {
   it('ages open bills by their due day as they stood on the chosen day', async () => {
     const today = cairoDay(new Date());
     const bank = await byKey('bank');
+    // In the bank before the payment dated 10 days back (money out needs it on its own day).
     await post(prisma, {
       kind: 'capital_in',
       idempotencyKey: key(),
+      occurredAt: cairoDayStart(addDays(today, -200)),
       lines: [
         { account: { id: bank.id }, amount: 10_000_000 },
         { account: { id: (await byKey('equity:capital')).id }, amount: -10_000_000 },
@@ -475,15 +477,14 @@ describe('debit notes', () => {
       actorUserId: admin,
       idempotencyKey: key(),
     });
-    // The credit note gives back the postal share of the fees it returns.
+    // The credit note gives back the postal fee booked on the invoiced month's fees: here
+    // the fees were booked without one, so nothing comes back (never a postal fee not owed).
     const cn = await prisma.ledgerEntry.findFirstOrThrow({ where: { kind: 'credit_note' } });
-    const cnPostal = await postalOf(cn.idempotencyKey);
-    expect(cnPostal.lines.map((l) => [l.account.key, l.amountPiastres])).toEqual(
-      expect.arrayContaining([
-        ['postal_fee_expense', -1_000],
-        ['postal_fee_payable', 1_000],
-      ]),
-    );
+    expect(
+      await prisma.ledgerEntry.findUnique({
+        where: { idempotencyKey: `${cn.idempotencyKey}:postal_fee` },
+      }),
+    ).toBeNull();
 
     // The VAT return counts it as sales with output VAT, shown apart.
     const month = cairoDay(entry.occurredAt).slice(0, 7);

@@ -4,6 +4,7 @@ import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
 import { queueRequest, type RequestPayload } from './controls';
+import { assertNotTransit } from './ledger';
 
 // Expenses that repeat every month (rent, internet, software). Each one is entered once; on
 // its day of the month the job prepares that month's expense as a request, so a second
@@ -51,6 +52,7 @@ export function createRecurring(
     const from = await tx.ledgerAccount.findUnique({ where: { id: e.paidFromAccountId } });
     if (!from || ![1100, 1200].includes(from.groupCode) || !from.isActive)
       throw new DomainError('account_not_found', 404);
+    assertNotTransit(from);
     if (e.darkStoreId && !(await tx.darkStore.findUnique({ where: { id: e.darkStoreId } })))
       throw new DomainError('store_not_found', 404);
     const row = await tx.recurringEntry.create({

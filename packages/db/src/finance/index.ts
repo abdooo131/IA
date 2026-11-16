@@ -338,7 +338,13 @@ export {
 } from './loans';
 export { costTagReport, createCostTag, listCostTags, updateCostTag } from './cost-tags';
 export { bothBalances, foreignBanks, fxRateMicro, revalueForeignBank } from './fx';
-export { chargeStorageDays, unitDays, unitsAtDayEnds, unitsForDays } from './storage';
+export {
+  chargeStorageDays,
+  STORAGE_JOB_LOCK,
+  unitDays,
+  unitsAtDayEnds,
+  unitsForDays,
+} from './storage';
 export { accountBalances } from './books';
 export {
   approveBasataDeposit,

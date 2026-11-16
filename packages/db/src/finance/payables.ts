@@ -3,8 +3,8 @@ import { addDays, cairoDay, cairoDayStart, isCalendarDay } from '@shiplynow/shar
 import { recordAudit } from '../audit';
 import { type Db, inTransaction } from '../client';
 import { DomainError } from '../domain-error';
-import { eventTime } from './books';
-import { assertActiveTag, balanceOf, nextNumber, post } from './ledger';
+import { eventTime, mustHold } from './books';
+import { assertActiveTag, assertNotTransit, balanceOf, nextNumber, post } from './ledger';
 import { bookValueOut, impliedRateMicro } from './fx';
 
 type Tx = Prisma.TransactionClient;
@@ -471,6 +471,7 @@ export async function payBill(db: Db, input: BillPaymentInput) {
     const money = input.viaChequesPayable
       ? null
       : await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    if (money) assertNotTransit(money);
     // A bank account in the bill's own currency pays the cents straight from its balance, at
     // their book value in that account (fx.ts): the only difference left is the rate change
     // between the bill and that book value, to 5901. Withholding and advances are in EGP, so
@@ -508,8 +509,8 @@ export async function payBill(db: Db, input: BillPaymentInput) {
     }
     const cash = paid - wht - recovery - offset;
     if (cash < 0) throw new DomainError('net_below_zero', 400);
-    if (money && !fromForeign && cash > (await balanceOf(tx, { id: money.id })))
-      throw new DomainError('not_enough_money');
+    // A payment dated back needs the money on its own day and every moment after it.
+    if (money && !fromForeign) await mustHold(tx, money, cash, at);
     const entry = await post(tx, {
       kind: 'bill_payment',
       idempotencyKey: key,
@@ -810,12 +811,12 @@ export function payTax(db: Db, input: TaxPaymentInput) {
     const seen = await tx.ledgerEntry.findUnique({ where: { idempotencyKey: key } });
     if (seen) return seen;
     const money = await lockedAccount(tx, input.moneyAccountId, MONEY_GROUPS, 'account_not_found');
+    assertNotTransit(money);
     const account = { type: TAXES[input.tax] };
     await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${'tax:' + input.tax}))`;
     const owed = 0 - (await balanceOf(tx, account));
     if (input.amountPiastres > owed) throw new DomainError('more_than_owed');
-    if (input.amountPiastres > (await balanceOf(tx, { id: money.id })))
-      throw new DomainError('not_enough_money');
+    await mustHold(tx, money, input.amountPiastres, at);
     const entry = await post(tx, {
       kind: 'tax_payment',
       idempotencyKey: key,
