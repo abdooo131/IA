@@ -24,6 +24,7 @@ import {
   managerOf,
 } from './hr-org';
 import { getSetting } from './settings';
+import { expireSetupTokens } from './setup-tokens';
 
 // HR (docs/HR.md): employee files, their placement in the organisation (department, position,
 // grade, manager), status and one history per person. Documents live in hr-documents, the
@@ -647,6 +648,7 @@ export function setEmployeeStatus(
       },
     });
     let disabled = false;
+    if (status === 'left') await expireSetupTokens(tx, before.userId);
     if (status === 'left' && before.user.isActive) {
       if (isTeamRole(before.user.role)) await assertCanDisable(tx, before.userId);
       await tx.user.update({ where: { id: before.userId }, data: { isActive: false } });

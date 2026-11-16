@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
+import { Clock, SystemClock } from '../common/clock';
 import { ProposalsController } from './proposals.controller';
 import { AccountSetupController, PublicProposalController } from './public-proposal.controller';
 import { SalesNumbersController } from './sales-numbers.controller';
@@ -18,5 +19,6 @@ import { SalesController } from './sales.controller';
     PublicProposalController,
     AccountSetupController,
   ],
+  providers: [{ provide: Clock, useClass: SystemClock }],
 })
 export class SalesModule {}

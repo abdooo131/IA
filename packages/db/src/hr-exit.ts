@@ -24,6 +24,7 @@ import { assertNoManagerLoop } from './hr-org';
 import { packageInForce } from './hr-pay';
 import { finalDeductionsFor } from './hr-violations';
 import { getSetting } from './settings';
+import { expireSetupTokens } from './setup-tokens';
 import { riderWalletTotals } from './finance/rider-wallet';
 
 // HR phase 2 (docs/HR.md "Phase 2 as built"): the leaving wizard. HR picks the last working
@@ -387,6 +388,8 @@ async function applyOwner(
 
 /** Disables a leaver's account and signs them out everywhere (inside the caller's transaction). */
 async function disableAccount(tx: Tx, userId: string, actorUserId: string | null, exitId: string) {
+  // Open setup links stop working too (a hire who never chose a password is already inactive).
+  await expireSetupTokens(tx, userId);
   const u = await tx.user.findUnique({ where: { id: userId } });
   if (!u || !u.isActive) return false;
   if (isTeamRole(u.role)) await assertCanDisable(tx, u.id);
@@ -507,6 +510,9 @@ export function confirmLeaving(
         idempotencyKey: b.idempotencyKey,
       },
     });
+
+    // A leaver's open setup links stop working at once (a new one is refused while leaving).
+    await expireSetupTokens(tx, e.userId, now);
 
     // What they looked after: the chosen owner, or none and a row under Needs a new owner.
     const owned = await ownedBy(tx, e);

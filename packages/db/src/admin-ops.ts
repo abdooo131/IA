@@ -20,6 +20,7 @@ type Tx = Prisma.TransactionClient;
 import { DomainError } from './domain-error';
 import { hashPassword } from './password';
 import { setSetting } from './settings';
+import { expireSetupTokens } from './setup-tokens';
 
 type Actor = string;
 
@@ -219,6 +220,8 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
           data: { darkStoreId: darkStoreId!, badgeCode: badgeCode! },
         });
       }
+      // A disabled account's open setup links stop working, so none can open it again.
+      if (input.isActive === false) await expireSetupTokens(tx, user.id);
       // A deactivated user is signed out everywhere at once.
       if (input.isActive === false && before.isActive) {
         await tx.refreshToken.updateMany({

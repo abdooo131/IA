@@ -39,6 +39,7 @@ import { nextNumber } from './finance/ledger';
 import { setAccountManager } from './hr';
 import { hashPassword } from './password';
 import { getSetting } from './settings';
+import { setupLinkClosed } from './setup-tokens';
 
 type Tx = Prisma.TransactionClient;
 
@@ -1186,6 +1187,11 @@ export async function newOwnerSetupLink(
     });
     if (!owner) throw new DomainError('owner_not_found', 404);
     if (owner.isActive) throw new DomainError('owner_already_active');
+    // Only while the owner never chose a password: a closed account is not opened by a link.
+    const used = await tx.userSetupToken.count({
+      where: { userId: owner.id, usedAt: { not: null } },
+    });
+    if (used > 0) throw new DomainError('owner_already_active');
     const token = await issueSetupToken(tx, owner.id, actor.userId, now);
     await recordAudit(tx, {
       actorUserId: actor.userId,
@@ -1208,6 +1214,8 @@ export async function readSetupToken(db: Db, token: string, now: Date = new Date
     },
   });
   if (!row || row.usedAt || row.expiresAt <= now) throw new DomainError('setup_link_invalid', 404);
+  if (await setupLinkClosed(db, row.userId, row.createdAt))
+    throw new DomainError('setup_link_invalid', 404);
   return { name: row.user.name, email: row.user.email, merchant: row.user.merchant?.name ?? null };
 }
 
@@ -1222,6 +1230,8 @@ export async function useSetupToken(
   return inTransaction(db, async (tx) => {
     const row = await tx.userSetupToken.findUnique({ where: { tokenHash: hashToken(token) } });
     if (!row || row.usedAt || row.expiresAt <= now)
+      throw new DomainError('setup_link_invalid', 404);
+    if (await setupLinkClosed(tx, row.userId, row.createdAt))
       throw new DomainError('setup_link_invalid', 404);
     const claimed = await tx.userSetupToken.updateMany({
       where: { id: row.id, usedAt: null },
