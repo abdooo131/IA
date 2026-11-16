@@ -70,6 +70,7 @@ const REASONS = [
 ] as const;
 const KNOWN = [
   'wrong_otp',
+  'otp_locked',
   'proof_required',
   'cod_required',
   'delivery_closed',
