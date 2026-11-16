@@ -18,6 +18,7 @@ import type { Request } from 'express';
 import { z } from 'zod';
 import { clientAddress, LoginThrottleService } from '../auth/login-throttle.service';
 import { Public } from '../auth/decorators';
+import { Clock } from '../common/clock';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -81,13 +82,14 @@ export class AccountSetupController {
   constructor(
     private readonly prisma: PrismaService,
     private readonly throttle: LoginThrottleService,
+    private readonly clock: Clock,
   ) {}
 
   /** Whose account a setup link opens (valid and unused). */
   @Public()
   @Get(':token')
   setup(@Param('token') token: string) {
-    return readSetupToken(this.prisma, token);
+    return readSetupToken(this.prisma, token, this.clock.now());
   }
 
   /** The new owner chooses a password; the account opens and the link is used up. */
@@ -102,6 +104,6 @@ export class AccountSetupController {
     this.throttle.publicLink(
       clientAddress(req.headers['x-forwarded-for'], req.socket.remoteAddress),
     );
-    return useSetupToken(this.prisma, token, body.password);
+    return useSetupToken(this.prisma, token, body.password, this.clock.now());
   }
 }
