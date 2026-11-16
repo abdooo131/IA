@@ -21,3 +21,14 @@ FROM (
   HAVING COUNT(DISTINCT "merchant_id") = 1
 ) s
 WHERE s."app_id" = a."id";
+
+-- An app a merchant saved before it had a store: its shopify.app_add audit row names them.
+UPDATE "shopify_apps" a
+SET "merchant_id" = l."after"->>'merchantId'
+FROM "audit_log" l
+WHERE a."merchant_id" IS NULL
+  AND l."entity_type" = 'shopify_app'
+  AND l."entity_id" = a."id"
+  AND l."action" = 'shopify.app_add'
+  AND l."after" ? 'merchantId'
+  AND EXISTS (SELECT 1 FROM "merchants" m WHERE m."id" = l."after"->>'merchantId');
