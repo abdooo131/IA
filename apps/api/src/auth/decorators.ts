@@ -59,7 +59,12 @@ export const MERCHANT_RIGHT_KEY = 'merchantRight';
 export const MerchantRight = (right: MerchantRightName | 'owner') =>
   SetMetadata(MERCHANT_RIGHT_KEY, right);
 
-export type AuthedRequest = Request & { user?: AccessTokenClaims; access?: AccessProfile };
+export type AuthedRequest = Request & {
+  user?: AccessTokenClaims;
+  access?: AccessProfile;
+  /** users.is_active as the JWT guard read it for this request */
+  userActive?: boolean;
+};
 
 /** The caller's access profile, loaded by the AccessGuard for routes marked @Access. */
 export const CurrentAccess = createParamDecorator(
