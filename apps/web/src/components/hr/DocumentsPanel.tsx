@@ -5,7 +5,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useRef, useState } from 'react';
 import { DateInput } from '@/components/DateInput';
-import { apiSend } from '@/lib/api-client';
+import { apiFetch, apiSend } from '@/lib/api-client';
 import { isoToDayFirst } from '@/lib/day-first';
 import type {
   ChecklistItem,
@@ -535,7 +535,7 @@ function UploadForm({
     if (issuedOn) query.set('issuedOn', issuedOn);
     if (expiresOn) query.set('expiresOn', expiresOn);
     try {
-      const res = await fetch(`/api${path}?${query.toString()}`, {
+      const res = await apiFetch(`${path}?${query.toString()}`, {
         method: 'POST',
         headers: { 'content-type': body.type || 'application/pdf' },
         body,

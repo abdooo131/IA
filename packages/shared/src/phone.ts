@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { toLatinDigits } from './digits';
 
 /**
  * Egyptian mobile numbers: 11 digits locally (01X XXXX XXXX), stored as +20 followed by
@@ -7,7 +8,7 @@ import { z } from 'zod';
 const LOCAL_MOBILE = /^01[0125]\d{8}$/;
 
 export function normalizeEgyptianPhone(input: string): string | null {
-  let digits = input.replace(/[\s\-().]/g, '');
+  let digits = toLatinDigits(input).replace(/[\s\-().]/g, '');
   if (digits.startsWith('+20')) digits = '0' + digits.slice(3);
   else if (digits.startsWith('0020')) digits = '0' + digits.slice(4);
   else if (digits.startsWith('20') && digits.length === 12) digits = '0' + digits.slice(2);

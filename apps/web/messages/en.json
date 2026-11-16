@@ -21,7 +21,12 @@
     "datePlaceholder": "dd/mm/yyyy",
     "pickDate": "Pick a date",
     "myFile": "My HR",
-    "notifications": "Notifications"
+    "notifications": "Notifications",
+    "connectionLost": "Connection lost. This screen may be out of date; it keeps trying.",
+    "errorTitle": "Something went wrong",
+    "errorBody": "This page could not be shown. Try again, or go back to your home page.",
+    "tryAgain": "Try again",
+    "loading": "Loading"
   },
   "roles": {
     "admin": "Admin",

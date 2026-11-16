@@ -8,6 +8,11 @@ describe('parseEgp', () => {
     expect(parseEgp('0.05')).toBe(5);
     expect(parseEgp('0.1')).toBe(10);
   });
+  it('reads digits typed on an Arabic keyboard', () => {
+    expect(parseEgp('١٬٢٤٩٫٥')).toBe(124950);
+    expect(parseEgp('۱۰')).toBe(1000);
+    expect(parseEgp('-٥', { allowNegative: true })).toBe(-500);
+  });
   it('refuses what is not an amount', () => {
     expect(parseEgp('')).toBeNull();
     expect(parseEgp('1.234')).toBeNull();

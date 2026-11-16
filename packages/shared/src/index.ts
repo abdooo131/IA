@@ -3,6 +3,7 @@ export * from './coverage';
 export * from './hours';
 export * from './orders';
 export * from './phone';
+export * from './digits';
 export * from './roles';
 export * from './settings';
 export * from './store';

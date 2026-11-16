@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { attachmentIdsField } from './attachments';
+import { toLatinDigits } from './digits';
 import { PAYOUT_SCHEDULES } from './finance';
 import { isCalendarDay } from './hours';
 import type { SettingKey } from './settings';
@@ -334,10 +335,7 @@ export const contractProductPricesCheckSchema = z.object({
  * not a price (negative, more than two decimals, not a number, above 1,000,000 EGP).
  */
 export function egpTextToPiastres(text: string): number | null {
-  const t = text
-    .trim()
-    .replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))
-    .replace(/,/g, '');
+  const t = toLatinDigits(text.trim()).replace(/,/g, '');
   if (!/^\d{1,7}(\.\d{1,2})?$/.test(t)) return null;
   const [whole, fraction = ''] = t.split('.');
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'));

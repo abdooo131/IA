@@ -12,6 +12,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useMemo, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { DateInput } from '@/components/DateInput';
 import { isoToDayFirst } from '@/lib/day-first';
 import type {
@@ -158,7 +159,7 @@ function StatementUpload({ banks }: { banks: BookAccount[] }) {
     setError('');
     setRows(null);
     setFile(f.name);
-    const res = await fetch('/api/finance/bank-statements/read', {
+    const res = await apiFetch('/finance/bank-statements/read', {
       method: 'POST',
       headers: { 'content-type': f.type || 'application/octet-stream' },
       body: f,

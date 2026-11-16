@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { useCallback, useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { Icon } from '@/components/Icon';
 import { cairoHm, hours, type MyAttendance, type MyToday } from '@/lib/attendance-types';
 
@@ -57,7 +58,7 @@ export function ClockCard({ compact = false }: { compact?: boolean }) {
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
   const load = useCallback(async () => {
-    const res = await fetch('/api/me/attendance', { cache: 'no-store' }).catch(() => null);
+    const res = await apiFetch('/me/attendance', { cache: 'no-store' }).catch(() => null);
     if (!res || res.status === 404 || res.status === 401) return setHidden(true);
     if (res.ok) setData((await res.json()) as MyAttendance);
   }, []);
@@ -97,7 +98,7 @@ export function ClockCard({ compact = false }: { compact?: boolean }) {
     setMessage({ text: t('locating'), error: false });
     try {
       const pos = await position();
-      const res = await fetch(`/api/me/attendance/clock-${kind}`, {
+      const res = await apiFetch(`/me/attendance/clock-${kind}`, {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({

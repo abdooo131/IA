@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { useEffect, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { AttendancePill } from '@/components/hr/AttendancePill';
 import { cairoHm, hours, type MyAttendance } from '@/lib/attendance-types';
 import { isoToDayFirst } from '@/lib/day-first';
@@ -22,7 +23,7 @@ export function MyAttendanceDays() {
   useEffect(() => {
     let live = true;
     const query = month ? `?month=${month}` : '';
-    fetch(`/api/me/attendance${query}`, { cache: 'no-store' })
+    apiFetch(`/me/attendance${query}`, { cache: 'no-store' })
       .then(async (res) => {
         if (!live) return;
         if (!res.ok) return setFailed(true);

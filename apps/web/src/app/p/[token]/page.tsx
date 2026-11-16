@@ -25,10 +25,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function ProposalPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const [t, locale] = await Promise.all([getTranslations('proposalPage'), getLocale()]);
+  // An API that cannot be reached or answers nonsense shows the unavailable text, never a crash.
   const res = await fetch(`${apiUrl}/proposal/${encodeURIComponent(token)}`, {
     cache: 'no-store',
-  });
-  const p = res.ok ? ((await res.json()) as PublicProposal) : null;
+  }).catch(() => null);
+  const p = res?.ok ? ((await res.json().catch(() => null)) as PublicProposal | null) : null;
   const egp = (piastres: number) => t('egpAmount', { amount: formatEgp(piastres) });
   const pct = (bp: number) => `${bpText(bp)}%`;
   // With a shipping fee, a charge at 0 is part of it (all inclusive).
@@ -54,7 +55,7 @@ export default async function ProposalPage({ params }: { params: Promise<{ token
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pb-16 pt-2">
         {!p ? (
           <p role="alert" className="rounded-lg border border-line bg-surface p-6 text-body">
-            {res.status === 404 ? t('notFound') : t('unavailable')}
+            {res?.status === 404 ? t('notFound') : t('unavailable')}
           </p>
         ) : (
           <>

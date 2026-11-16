@@ -21,7 +21,12 @@
     "datePlaceholder": "يوم/شهر/سنة",
     "pickDate": "اختار التاريخ",
     "myFile": "ملفي",
-    "notifications": "الإشعارات"
+    "notifications": "الإشعارات",
+    "connectionLost": "الاتصال اتقطع. الشاشة دي ممكن تكون مش محدثة، وبنحاول تاني.",
+    "errorTitle": "حصلت مشكلة",
+    "errorBody": "الصفحة دي ما ظهرتش. جرب تاني، أو ارجع للصفحة الرئيسية.",
+    "tryAgain": "جرب تاني",
+    "loading": "بيحمل"
   },
   "roles": {
     "admin": "مدير",

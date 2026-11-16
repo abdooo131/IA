@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { areaOf, decideAccess, homeFor, safeNext } from './access';
+import { areaOf, decideAccess, homeFor, loginRenewal, safeNext } from './access';
 
 describe('areaOf', () => {
   it('matches an area and its sub paths only', () => {
@@ -26,6 +26,13 @@ describe('safeNext', () => {
     ['//evil.example', null],
     ['https://evil.example', null],
     ['/\\evil.example', null],
+    ['/\t/evil.example', null],
+    ['/\n/evil.example', null],
+    ['/\r//evil.example', null],
+    ['/\u0000x', null],
+    ['/%09/evil.example', '/%09/evil.example'],
+    ['/./\t/evil.example', null],
+    ['/a/../b?c=1#d', '/b?c=1#d'],
     ['', null],
     [null, null],
   ])('%s gives %s', (input, expected) => {
@@ -104,5 +111,56 @@ describe('team areas', () => {
       kind: 'redirect',
       to: '/home',
     });
+  });
+});
+
+describe('pages open to every signed in role', () => {
+  const base = { search: '', hasRefreshToken: false };
+  const pages = [
+    '/tickets',
+    '/tickets/abc',
+    '/notifications',
+    '/help',
+    '/my-file/payslips/2026-10',
+  ];
+
+  it('renew an expired access cookie instead of asking to sign in', () => {
+    for (const pathname of pages)
+      expect(decideAccess({ ...base, pathname, role: null, hasRefreshToken: true })).toEqual({
+        kind: 'refresh',
+        next: pathname,
+      });
+  });
+
+  it('ask to sign in without a refresh cookie', () => {
+    expect(decideAccess({ ...base, pathname: '/help', role: null }).kind).toBe('login');
+  });
+
+  it('are open to every role', () => {
+    for (const role of ['admin', 'finance', 'store_staff', 'rider', 'merchant'] as const)
+      for (const pathname of pages)
+        expect(decideAccess({ ...base, pathname, role }).kind).toBe('allow');
+  });
+});
+
+describe('loginRenewal', () => {
+  const base = {
+    next: null,
+    hasRefreshToken: true,
+    hasValidAccessToken: false,
+    renewFailed: false,
+  };
+
+  it('renews on the sign in page when only the refresh cookie is left', () => {
+    expect(loginRenewal(base)).toBe('/auth/refresh?next=%2Flogin');
+    expect(loginRenewal({ ...base, next: '/store?x=1' })).toBe(
+      '/auth/refresh?next=%2Fstore%3Fx%3D1',
+    );
+  });
+
+  it('shows the form otherwise, and never loops after a renewal that failed', () => {
+    expect(loginRenewal({ ...base, hasRefreshToken: false })).toBeNull();
+    expect(loginRenewal({ ...base, hasValidAccessToken: true })).toBeNull();
+    expect(loginRenewal({ ...base, renewFailed: true })).toBeNull();
   });
 });

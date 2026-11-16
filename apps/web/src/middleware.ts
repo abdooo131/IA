@@ -41,5 +41,10 @@ export const config = {
     '/merchant/:path*',
     '/finance/:path*',
     '/home',
+    // Signed in pages open to every role (AREA_ROLES), so an expired access cookie is renewed.
+    '/tickets/:path*',
+    '/notifications/:path*',
+    '/help/:path*',
+    '/my-file/:path*',
   ],
 };

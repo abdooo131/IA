@@ -4,6 +4,7 @@ import { egpTextToPiastres, PAYOUT_PROOF_MAX_BYTES, PAYOUT_PROOF_TYPES } from '@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 
 const field = 'h-10 rounded-md border border-line-strong bg-surface px-3 text-body-sm';
 const primary =
@@ -51,7 +52,7 @@ export function ProofUpload({
       amountPiastres: String(piastres),
       reference: reference.trim(),
     });
-    const res = await fetch(`/api/finance/payouts/${payoutId}/proof?${q.toString()}`, {
+    const res = await apiFetch(`/finance/payouts/${payoutId}/proof?${q.toString()}`, {
       method: 'POST',
       headers: { 'content-type': file.type },
       body: file,

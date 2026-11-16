@@ -1,11 +1,13 @@
+import { REFRESH_TOKEN_COOKIE } from '@shiplynow/shared';
 import { getTranslations } from 'next-intl/server';
+import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { BrandPanel } from '@/components/BrandPanel';
 import { Logo } from '@/components/Logo';
 import { PreferencesMenu } from '@/components/PreferencesMenu';
-import { homeFor, safeNext } from '@/lib/access';
-import { getCurrentUser, getTheme } from '@/lib/server-session';
+import { homeFor, loginRenewal, safeNext } from '@/lib/access';
+import { getClaims, getCurrentUser, getTheme } from '@/lib/server-session';
 import { LoginForm } from './LoginForm';
 
 export const dynamic = 'force-dynamic';
@@ -13,13 +15,22 @@ export const dynamic = 'force-dynamic';
 export default async function LoginPage({
   searchParams,
 }: {
-  searchParams: Promise<{ next?: string }>;
+  searchParams: Promise<{ next?: string; renew?: string }>;
 }) {
-  const next = safeNext((await searchParams).next);
+  const params = await searchParams;
+  const next = safeNext(params.next);
   // Ask the API rather than trusting the local token check, so a session the API rejects
   // (deactivated user, API down) shows the form instead of bouncing back to an area.
   const user = await getCurrentUser();
   if (user) redirect(next ?? homeFor(user.role) ?? '/');
+  // An expired access cookie with a refresh cookie: renew instead of asking for the password.
+  const renewal = loginRenewal({
+    next,
+    hasRefreshToken: (await cookies()).has(REFRESH_TOKEN_COOKIE),
+    hasValidAccessToken: (await getClaims()) !== null,
+    renewFailed: params.renew === 'failed',
+  });
+  if (renewal) redirect(renewal);
 
   const t = await getTranslations();
 

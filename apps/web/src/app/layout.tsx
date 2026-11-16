@@ -3,6 +3,7 @@ import { NextIntlClientProvider } from 'next-intl';
 import { getLocale, getTranslations } from 'next-intl/server';
 import type { ReactNode } from 'react';
 import { directionOf, toLocale } from '@/lib/preferences';
+import { LatinDigits } from '@/components/LatinDigits';
 import { PushRegistrar } from '@/components/PushRegistrar';
 import { getClaims, getTheme } from '@/lib/server-session';
 import '@/styles/globals.css';
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
       <body className="min-h-dvh">
         <NextIntlClientProvider>
           {children}
+          <LatinDigits />
           {push && <PushRegistrar signedIn={signedIn} />}
         </NextIntlClientProvider>
       </body>

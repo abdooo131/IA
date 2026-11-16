@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type PointerEvent, useEffect, useRef, useState } from 'react';
-import { apiSend } from '@/lib/api-client';
+import { apiFetch, apiSend } from '@/lib/api-client';
 import { Avatar } from './Avatar';
 
 const OUT = 512;
@@ -86,7 +86,7 @@ export function PhotoEditor({
     setError(null);
     try {
       const blob = await cropToSquare(imgRef.current, view);
-      const res = await fetch(`/api${uploadPath}`, {
+      const res = await apiFetch(uploadPath, {
         method: 'PUT',
         headers: { 'content-type': 'image/jpeg' },
         body: blob,

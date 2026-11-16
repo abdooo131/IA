@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import { ConnectionLost, useConnectionHealth } from '@/components/ConnectionLost';
 import { apiGetClient } from '@/lib/api-client';
 import { formatCairoDateTime } from '@/lib/format';
 import type { OrderSummary } from '@/lib/order-types';
@@ -22,21 +23,25 @@ export function OrdersQueue({
   const t = useTranslations('orders');
   const locale = useLocale();
   const [orders, setOrders] = useState(initial);
+  const connection = useConnectionHealth();
+  const report = connection.report;
 
   useEffect(() => {
     const refresh = async () => {
       const fresh = await apiGetClient<OrderSummary[]>(`/stores/${storeId}/orders?view=${view}`);
+      report(fresh.ok);
       if (fresh.ok) setOrders(fresh.data);
     };
     const timer = setInterval(() => void refresh(), 15_000);
     return () => clearInterval(timer);
-  }, [storeId, view]);
+  }, [storeId, view, report]);
 
   const tab = (active: boolean) =>
     `rounded-pill border px-3 py-1.5 text-body-sm font-bold ${active ? 'border-transparent bg-selected-bg text-link' : 'border-line bg-surface text-text'}`;
 
   return (
     <div className="mt-2 space-y-4">
+      <ConnectionLost show={connection.lost} />
       <div className="flex gap-2">
         <Link href={`/store/${storeId}/orders`} className={tab(view === 'active')}>
           {t('active')}

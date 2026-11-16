@@ -1,3 +1,5 @@
+import { apiFetch } from './api-client';
+
 /**
  * Shrinks a camera photo to a JPEG of at most `maxSide` pixels before upload, so proof
  * photos stay small (well under the 1.5 MB limit) even on slow mobile data.
@@ -24,7 +26,7 @@ export async function uploadPhoto(
   blob: Blob,
 ): Promise<{ ok: true; id: string } | { ok: false; error: string }> {
   try {
-    const res = await fetch(`/api/photos?kind=${kind}`, {
+    const res = await apiFetch(`/photos?kind=${kind}`, {
       method: 'POST',
       headers: { 'content-type': blob.type || 'image/jpeg' },
       body: blob,

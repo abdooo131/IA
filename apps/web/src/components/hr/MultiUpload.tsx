@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from 'next-intl';
 import { type DragEvent, useRef, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { DateInput } from '@/components/DateInput';
 import { fileSize, type UploadType } from '@/lib/hr-phase2';
 import { shrinkPhoto } from '@/lib/photo';
@@ -96,7 +97,7 @@ export function MultiUpload({
     const query = new URLSearchParams({ typeId: type.id });
     if (item.expiresOn) query.set('expiresOn', item.expiresOn);
     try {
-      const res = await fetch(`/api${uploadPath}?${query.toString()}`, {
+      const res = await apiFetch(`${uploadPath}?${query.toString()}`, {
         method: 'POST',
         headers: { 'content-type': contentType },
         body,

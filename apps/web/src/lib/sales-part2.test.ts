@@ -5,6 +5,7 @@ import {
   feeInput,
   monthNeighbours,
   parseFee,
+  parseCount,
   parsePercentBp,
   pickMonth,
   progressWidth,
@@ -31,6 +32,9 @@ describe('proposal form values', () => {
     expect(parsePercentBp('20')).toBe(2000);
     expect(parsePercentBp('0.05')).toBe(5);
     expect(parsePercentBp('١٫٥'.replace('٫', '.'))).toBe(150);
+    expect(parsePercentBp('١٫٥')).toBe(150);
+    expect(parsePercentBp('۲۰')).toBe(2000);
+    expect(parseCount('١٢٠')).toBe(120);
     expect(parsePercentBp('100.01')).toBeNull();
     expect(parsePercentBp('1.234')).toBeNull();
     expect(parsePercentBp('abc')).toBeNull();

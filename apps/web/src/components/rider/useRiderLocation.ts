@@ -8,11 +8,17 @@ export type LocationState = 'off' | 'sharing' | 'denied' | 'unsupported';
 /**
  * Shares the phone's position while the rider carries orders, at most once every
  * `pingSeconds`, so the customer can follow the rider on the tracking page. Stops as soon
- * as nothing is in hand.
+ * as nothing is in hand. `onPing` hears whether each sent position reached the server.
  */
-export function useRiderLocation(carrying: boolean, pingSeconds: number): LocationState {
+export function useRiderLocation(
+  carrying: boolean,
+  pingSeconds: number,
+  onPing?: (ok: boolean) => void,
+): LocationState {
   const [state, setState] = useState<LocationState>('off');
   const lastSent = useRef(0);
+  const pinged = useRef(onPing);
+  pinged.current = onPing;
 
   useEffect(() => {
     if (!carrying) {
@@ -32,7 +38,7 @@ export function useRiderLocation(carrying: boolean, pingSeconds: number): Locati
         void apiSend('POST', '/rider/location', {
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,
-        });
+        }).then((result) => pinged.current?.(result.ok));
       },
       (err) => setState(err.code === err.PERMISSION_DENIED ? 'denied' : 'sharing'),
       { enableHighAccuracy: true, maximumAge: 10_000, timeout: 30_000 },

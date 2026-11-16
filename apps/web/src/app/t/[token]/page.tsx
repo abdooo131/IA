@@ -20,8 +20,11 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function TrackingPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   const t = await getTranslations('tracking');
-  const res = await fetch(`${apiUrl}/track/${encodeURIComponent(token)}`, { cache: 'no-store' });
-  const view = res.ok ? ((await res.json()) as TrackingView) : null;
+  // An API that cannot be reached or answers nonsense shows the unavailable text, never a crash.
+  const res = await fetch(`${apiUrl}/track/${encodeURIComponent(token)}`, {
+    cache: 'no-store',
+  }).catch(() => null);
+  const view = res?.ok ? ((await res.json().catch(() => null)) as TrackingView | null) : null;
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
@@ -34,7 +37,7 @@ export default async function TrackingPage({ params }: { params: Promise<{ token
           <TrackingClient token={token} initial={view} />
         ) : (
           <p role="alert" className="rounded-lg border border-line bg-surface p-6 text-body">
-            {res.status === 404 ? t('notFound') : t('unavailable')}
+            {res?.status === 404 ? t('notFound') : t('unavailable')}
           </p>
         )}
       </main>

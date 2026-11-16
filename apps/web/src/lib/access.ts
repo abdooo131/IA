@@ -1,4 +1,4 @@
-import type { Role } from '@shiplynow/shared';
+import { ROLES, type Role } from '@shiplynow/shared';
 
 /** Team members: what they may open inside these areas comes from their access profile. */
 const TEAM = ['admin', 'finance', 'store_staff'] as const satisfies readonly Role[];
@@ -15,6 +15,12 @@ export const AREA_ROLES = {
   '/finance': TEAM,
   // The apps home screen (tiles).
   '/home': TEAM,
+  // Pages every signed in person may open; each page decides what it shows. They are areas
+  // so an expired access cookie is renewed instead of sending the person to sign in.
+  '/tickets': ROLES,
+  '/notifications': ROLES,
+  '/help': ROLES,
+  '/my-file': ROLES,
 } as const satisfies Record<string, readonly Role[]>;
 
 export type Area = keyof typeof AREA_ROLES;
@@ -42,10 +48,39 @@ export function areaOf(pathname: string): Area | null {
   return null;
 }
 
-/** Only same origin paths are accepted as a redirect target, to avoid open redirects. */
+/**
+ * Only same origin paths are accepted as a redirect target, to avoid open redirects.
+ * Control characters are refused (URL parsing drops tabs and new lines, so "/\t/evil.com"
+ * would become "//evil.com"), and the result is what the URL parser itself reads.
+ */
 export function safeNext(next: string | null | undefined): string | null {
-  if (!next || !next.startsWith('/') || next.startsWith('//') || next.includes('\\')) return null;
-  return next;
+  // eslint-disable-next-line no-control-regex
+  if (!next || !next.startsWith('/') || /[\u0000-\u001f\u007f\\]/.test(next)) return null;
+  let url: URL;
+  try {
+    url = new URL(next, 'http://x');
+  } catch {
+    return null;
+  }
+  if (url.origin !== 'http://x') return null;
+  const path = url.pathname + url.search + url.hash;
+  return path.startsWith('//') ? null : path;
+}
+
+/**
+ * Where the sign in page sends a visitor whose access cookie expired but who still holds a
+ * refresh cookie: the renewal, then back to `next` (or the sign in page, which sends a signed
+ * in person home). Never after a renewal that could not reach the API, so the two pages
+ * cannot send the visitor back and forth.
+ */
+export function loginRenewal(input: {
+  next: string | null;
+  hasRefreshToken: boolean;
+  hasValidAccessToken: boolean;
+  renewFailed: boolean;
+}): string | null {
+  if (!input.hasRefreshToken || input.hasValidAccessToken || input.renewFailed) return null;
+  return `/auth/refresh?next=${encodeURIComponent(input.next ?? '/login')}`;
 }
 
 export type AccessDecision =

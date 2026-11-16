@@ -4,7 +4,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { Pill } from '@/components/orders/detail/Card';
-import { apiSend } from '@/lib/api-client';
+import { apiFetch, apiSend } from '@/lib/api-client';
 import { statusTone } from '@/lib/leave';
 
 // Shared pieces of the HR phase 3 screens: one way to send an action and show its refusal, the
@@ -72,7 +72,7 @@ export function useAction() {
     setError(null);
     setDone(null);
     try {
-      const res = await fetch(`/api${path}?name=${encodeURIComponent(file.name)}`, {
+      const res = await apiFetch(`${path}?name=${encodeURIComponent(file.name)}`, {
         method: 'PUT',
         headers: { 'content-type': file.type },
         body: file,

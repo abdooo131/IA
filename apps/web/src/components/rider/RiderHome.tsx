@@ -5,10 +5,12 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { PhotoCapture } from '@/components/orders/PhotoCapture';
 import { localized } from '@/lib/admin-types';
+import { ConnectionLost, useConnectionHealth } from '@/components/ConnectionLost';
 import { apiGetClient, apiSend } from '@/lib/api-client';
 import { StatCard } from '@/components/StatCard';
 import { WalletCard } from '@/components/WalletCard';
 import { formatEgp } from '@/lib/format';
+import { digitsOnly } from '@/lib/digits';
 import { parseEgp } from '@/lib/money';
 import { title } from '@/lib/store-types';
 import type { FreezeReason } from '@/lib/basata';
@@ -91,12 +93,16 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
   const locale = useLocale();
   const [me, setMe] = useState(initialMe);
   const [deliveries, setDeliveries] = useState(initial);
+  // Polls and location pings each say when they cannot reach the server.
+  const polls = useConnectionHealth();
+  const pings = useConnectionHealth();
 
   async function refresh() {
     const [m, d] = await Promise.all([
       apiGetClient<RiderMe>('/rider/me'),
       apiGetClient<RiderDelivery[]>('/rider/deliveries'),
     ]);
+    polls.report(m.ok && d.ok);
     if (m.ok) setMe(m.data);
     if (d.ok) setDeliveries(d.data);
   }
@@ -108,10 +114,8 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
 
   const active = deliveries.filter((d) => d.status === 'assigned' || d.status === 'picked_up');
   const done = deliveries.filter((d) => d.status === 'delivered' || d.status === 'failed');
-  const location = useRiderLocation(
-    active.some((d) => d.status === 'picked_up'),
-    me.pingSeconds,
-  );
+  const carrying = active.some((d) => d.status === 'picked_up');
+  const location = useRiderLocation(carrying, me.pingSeconds, pings.report);
   const trips = new Map<string, number>();
   for (const d of active) if (d.tripId) trips.set(d.tripId, (trips.get(d.tripId) ?? 0) + 1);
 
@@ -125,6 +129,7 @@ export function RiderHome({ me: initialMe, initial }: { me: RiderMe; initial: Ri
         </p>
       </header>
 
+      <ConnectionLost show={polls.lost || (carrying && pings.lost)} />
       {me.frozen && <FrozenBanner reason={me.frozen.reason} />}
 
       <section className="space-y-3">
@@ -365,7 +370,7 @@ function DeliveryCard({
             {t('otp')}
             <input
               value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 4))}
+              onChange={(e) => setOtp(digitsOnly(e.target.value, 4))}
               inputMode="numeric"
               autoComplete="one-time-code"
               dir="ltr"

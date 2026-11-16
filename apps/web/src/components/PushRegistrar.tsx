@@ -3,6 +3,7 @@
 import { useLocale } from 'next-intl';
 import { useEffect } from 'react';
 import { pushSupported, subscriptionBody } from '@/lib/push';
+import { PUSH_SYNC_MARK } from '@/lib/sign-out';
 
 /**
  * Registers the service worker (production builds with push configured) and, for a signed in
@@ -39,7 +40,7 @@ export function PushRegistrar({ signedIn }: { signedIn: boolean }) {
   return null;
 }
 
-const KEY = 'shiplynow.push.synced';
+const KEY = PUSH_SYNC_MARK;
 function readMark() {
   try {
     return sessionStorage.getItem(KEY);

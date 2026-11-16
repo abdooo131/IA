@@ -2,6 +2,7 @@
 
 import { useTranslations } from 'next-intl';
 import { type DragEvent, useEffect, useRef, useState } from 'react';
+import { apiFetch } from '@/lib/api-client';
 import { shrinkPhoto } from '@/lib/photo';
 
 /** Most files one form takes, and the largest PDF (photos are shrunk in the browser first). */
@@ -21,7 +22,7 @@ interface Item {
 
 async function upload(blob: Blob, name: string): Promise<string | null> {
   try {
-    const res = await fetch(`/api/finance/files?name=${encodeURIComponent(name)}`, {
+    const res = await apiFetch(`/finance/files?name=${encodeURIComponent(name)}`, {
       method: 'POST',
       headers: { 'content-type': blob.type || 'application/octet-stream' },
       body: blob,
@@ -163,7 +164,7 @@ export function AttachmentField({
     if (item.preview) URL.revokeObjectURL(item.preview);
     setItems((all) => all.filter((i) => i.key !== item.key));
     // The upload is no longer wanted: delete it now (the daily job would anyway).
-    if (item.id) void fetch(`/api/finance/files/${item.id}`, { method: 'DELETE' }).catch(() => {});
+    if (item.id) void apiFetch(`/finance/files/${item.id}`, { method: 'DELETE' }).catch(() => {});
   }
 
   function drop(e: DragEvent<HTMLDivElement>) {

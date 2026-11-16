@@ -25,7 +25,10 @@ export async function GET(request: NextRequest) {
   // Only when the API answered: it clears the cookies then, so the home page cannot loop back here.
   const toSite = upstream !== null && !upstream.ok && next === '/';
   const target = new URL(upstream?.ok || toSite ? next : '/login', request.url);
-  if (!upstream?.ok && !toSite) target.searchParams.set('next', next);
+  if (!upstream?.ok && !toSite && next !== '/login') target.searchParams.set('next', next);
+  // The API could not be reached, so the cookies stay: tell the sign in page not to send the
+  // visitor straight back here.
+  if (!upstream && refreshToken) target.searchParams.set('renew', 'failed');
 
   const response = NextResponse.redirect(target);
   // Pass the new (or cleared) cookies from the API through to the browser.

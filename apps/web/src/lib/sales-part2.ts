@@ -9,6 +9,7 @@ import {
   type ProposalStatus,
   PROPOSAL_FEE_KEYS,
   shiftMonth,
+  toLatinDigits,
 } from '@shiplynow/shared';
 import { parseEgp } from './money';
 
@@ -160,7 +161,7 @@ export function bpText(bp: number) {
  * At most two decimals and never above 100%; anything else is null.
  */
 export function parsePercentBp(text: string): number | null {
-  const t = text.trim().replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)));
+  const t = toLatinDigits(text.trim());
   const m = /^(\d{1,3})(?:[.,](\d{1,2}))?$/.exec(t);
   if (!m) return null;
   const bp = Number(m[1]) * 100 + Number((m[2] ?? '').padEnd(2, '0'));
@@ -174,7 +175,7 @@ export function egpInput(piastres: number | null) {
 
 /** A whole count typed in a form, or null when empty; NaN when not a whole number. */
 export function parseCount(text: string): number | null {
-  const t = text.trim();
+  const t = toLatinDigits(text.trim());
   if (t === '') return null;
   return /^\d{1,9}$/.test(t) ? Number(t) : Number.NaN;
 }
