@@ -19,12 +19,19 @@ Set it up once, in GitHub: repository **Settings**, **Secrets and variables**, *
 
 | Secret | Value |
 |---|---|
-| `BACKUP_DATABASE_URL` | the Neon **direct** connection string (not the pooled one), ending in `?sslmode=require` |
+| `BACKUP_DATABASE_URL` | the Neon **direct** connection string (not the pooled one: its host has no `-pooler`) of the live database **`shiplynow_live`** (the database name at the end of the address must be `shiplynow_live`, not `neondb`), ending in `?sslmode=require` |
 | `BACKUP_PASSPHRASE` | a long random passphrase. Store it in your password manager too: without it no backup can be opened |
 
 Then **Actions**, **Database backup**, **Run workflow** once to check it turns green.
 
-The workflow runs from the default branch, so it starts nightly once this file is on `main`.
+GitHub runs scheduled workflows only from the repository's **default branch**. The live
+code is on `ShiplyNow`, so `ShiplyNow` must be the default branch (repository **Settings**,
+**General**, **Default branch**); otherwise the nightly backup never starts. After changing
+it, check the next morning that a **Database backup** run appeared.
+
+A backup is only proven by a restore: after setting it up, and again every few months,
+restore one copy into a throwaway Neon branch with the steps below and check it. A backup
+that was never restored must be treated as untested.
 
 ## Restoring a daily copy
 

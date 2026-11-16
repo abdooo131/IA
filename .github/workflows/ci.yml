@@ -1,19 +1,53 @@
 name: CI
 
+# Runs on every push to the working branches. A pull request from one of those branches in
+# this repository was already checked by its push, so only other pull requests run here.
 on:
   push:
     branches: [main, ShiplyNow, 'claude/**']
   pull_request:
 
+# One run per branch and event: a newer push cancels the older run of the same branch.
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.event_name }}-${{ github.head_ref || github.ref }}
   cancel-in-progress: true
 
-jobs:
-  check:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+env:
+  # Each job runs on its own machine with its own Postgres, so the suites never share a database.
+  TEST_DATABASE_URL: postgresql://shiply:shiply@localhost:5432/shiplynow_test
 
+jobs:
+  # Lint, typecheck, build and the suites that need no database (shared, web).
+  check:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      !(github.head_ref == 'main' || github.head_ref == 'ShiplyNow' ||
+        startsWith(github.head_ref, 'claude/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm --filter @shiplynow/shared --filter @shiplynow/web test
+      - run: pnpm build
+
+  # The database and API suites wipe their tables, so each has a job (and a database) of its own.
+  db-tests:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      !(github.head_ref == 'main' || github.head_ref == 'ShiplyNow' ||
+        startsWith(github.head_ref, 'claude/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
     services:
       postgres:
         image: postgis/postgis:16-3.4
@@ -25,16 +59,6 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U shiply -d shiplynow_test"
           --health-interval 5s --health-timeout 5s --health-retries 10
-      redis:
-        image: redis:7-alpine
-        ports: ['6379:6379']
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 10
-
-    env:
-      TEST_DATABASE_URL: postgresql://shiply:shiply@localhost:5432/shiplynow_test
-
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -43,7 +67,35 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: pnpm lint
-      - run: pnpm typecheck
-      - run: pnpm test
-      - run: pnpm build
+      - run: pnpm build:packages
+      - run: pnpm --filter @shiplynow/db test
+
+  api-tests:
+    if: >-
+      github.event_name == 'push' ||
+      github.event.pull_request.head.repo.full_name != github.repository ||
+      !(github.head_ref == 'main' || github.head_ref == 'ShiplyNow' ||
+        startsWith(github.head_ref, 'claude/'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgis/postgis:16-3.4
+        env:
+          POSTGRES_USER: shiply
+          POSTGRES_PASSWORD: shiply
+          POSTGRES_DB: shiplynow_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U shiply -d shiplynow_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:packages
+      - run: pnpm --filter @shiplynow/api test

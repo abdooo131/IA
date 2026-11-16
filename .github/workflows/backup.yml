@@ -2,9 +2,10 @@ name: Database backup
 
 # A daily copy of the production database, encrypted before it leaves the runner and kept
 # as a private workflow artifact for 30 days. Needs two repository secrets:
-#   BACKUP_DATABASE_URL  the Neon direct (unpooled) connection string
+#   BACKUP_DATABASE_URL  the Neon direct (unpooled) connection string of shiplynow_live
 #   BACKUP_PASSPHRASE    a long random passphrase, kept somewhere safe outside GitHub too
-# Restore steps are in docs/BACKUP.md.
+# Scheduled runs start only from the default branch, which must be ShiplyNow.
+# Restore steps (test one after setting this up) are in docs/BACKUP.md.
 
 on:
   schedule:
