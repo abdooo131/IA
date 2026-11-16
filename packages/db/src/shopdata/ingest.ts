@@ -172,7 +172,7 @@ export const isExpressCode = (code: string | null | undefined) => /^SN60:/i.test
 /** Orders with their lines. Returns how many of each were saved. */
 export async function ingestOrders(
   db: Db,
-  shop: { id: string; merchantId: string },
+  shop: { id: string; merchantId: string; shopDomain?: string },
   lines: Line[],
 ) {
   let orders = 0;
@@ -212,12 +212,16 @@ export async function ingestOrders(
       } | null;
       const createdAt = date(l.createdAt) ?? new Date(0);
       // Only when the app may read customer contact details (otherwise these are all empty).
+      // The buyer's own phone and email decide who it is (their customer record, then the
+      // order's contact); the shipping phone may be a gift's recipient, so it identifies the
+      // order only when there is nothing of the buyer's own.
+      const ownPhone = str(buyer?.defaultPhoneNumber?.phoneNumber) ?? str(l.phone);
+      const buyerName = [buyer?.firstName, buyer?.lastName].filter(Boolean).join(' ') || null;
       const customerId = await resolveCustomer(db, {
-        phone: str(l.phone) ?? str(address?.phone) ?? str(buyer?.defaultPhoneNumber?.phoneNumber),
-        email: str(l.email) ?? str(buyer?.defaultEmailAddress?.emailAddress),
-        name:
-          str(address?.name) ??
-          ([buyer?.firstName, buyer?.lastName].filter(Boolean).join(' ') || null),
+        phone: ownPhone ?? str(address?.phone),
+        phoneIsOwn: !!ownPhone,
+        email: str(buyer?.defaultEmailAddress?.emailAddress) ?? str(l.email),
+        name: buyerName ?? str(address?.name),
         governorate: address?.province,
         city: address?.city,
         address: [address?.address1, address?.address2].filter(Boolean).join(', '),
@@ -228,6 +232,7 @@ export async function ingestOrders(
       const data = {
         shopId: shop.id,
         merchantId: shop.merchantId,
+        shopDomain: shop.shopDomain,
         name: str(l.name) ?? '',
         createdAtShop: createdAt,
         processedAt: date(l.processedAt),

@@ -45,6 +45,11 @@ export interface OrderSummary {
   customerPhone: string;
   phoneFlagged: boolean;
   addressText: string;
+  /**
+   * The Shopify buyer asked to be forgotten (redact): merchants get the order with the buyer
+   * blanked; the team still sees them
+   */
+  buyerHidden?: boolean;
   paymentMethod: 'cod' | 'prepaid';
   subtotalPiastres: number;
   deliveryFeePiastres: number;

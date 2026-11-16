@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { AuthModule } from '../auth/auth.module';
 import { CoverageModule } from '../coverage/coverage.module';
 import { AdminDataController } from './admin-data.controller';
 import { AdminCustomersController } from './admin-customers.controller';
@@ -16,7 +17,7 @@ import { ShopifySyncService } from './shopify-sync.service';
 import { ShopifyService } from './shopify.service';
 
 @Module({
-  imports: [CoverageModule],
+  imports: [AuthModule, CoverageModule],
   providers: [
     { provide: ShopifyAdmin, useClass: HttpShopifyAdmin },
     ShopifyService,

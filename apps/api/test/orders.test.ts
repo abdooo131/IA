@@ -92,6 +92,27 @@ describe('orders end to end', () => {
     expect(merchantView.body.deliveryOtp).toBeUndefined();
     expect(merchantView.body.trackingToken).toBeUndefined();
     expect(merchantView.body.status).toBe('out_for_delivery');
+    expect(merchantView.body).toMatchObject({ buyerHidden: false });
+    expect(merchantView.body.customerName).not.toBe('');
+    // A buyer Shopify asked us to forget (redact) is hidden from the merchant, kept for us.
+    await prisma.order.update({
+      where: { id: created.body.id },
+      data: { buyerRedactedAt: new Date() },
+    });
+    const redacted = (await merchant.get(`/merchant/orders/${created.body.id}`).expect(200)).body;
+    expect(redacted).toMatchObject({
+      buyerHidden: true,
+      customerName: '',
+      customerPhone: '',
+      addressText: '',
+    });
+    const [listed] = (await merchant.get('/merchant/orders').expect(200)).body;
+    expect(listed).toMatchObject({ buyerHidden: true, customerName: '' });
+    expect((await admin.get(`/admin/orders/${created.body.id}`)).body.customerName).not.toBe('');
+    await prisma.order.update({
+      where: { id: created.body.id },
+      data: { buyerRedactedAt: null },
+    });
 
     const rider = await agent('rider.newcairo@shiplynow.local');
     const deliveries = await rider.get('/rider/deliveries').expect(200);

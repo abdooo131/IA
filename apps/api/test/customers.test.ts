@@ -129,6 +129,8 @@ describe('customer base (admin only)', () => {
         merchantId: merchant.id,
         shopifyId: 'gid://shopify/Customer/1',
         customerId: sara.id,
+        // Consent belongs to the address on the record that gave it.
+        email: 'sara@example.com',
         emailMarketing: 'SUBSCRIBED',
         smsMarketing: 'NOT_SUBSCRIBED',
         raw: {},

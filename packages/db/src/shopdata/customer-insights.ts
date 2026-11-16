@@ -1,7 +1,8 @@
 import { Prisma } from '@prisma/client';
 import type { Db } from '../client';
 import { getSetting } from '../settings';
-import { customerRisk, type RiskLevel, riskLevelOf } from './customers';
+import { normalizeEgyptianPhone } from '@shiplynow/shared';
+import { cleanEmail, customerRisk, type RiskLevel, riskLevelOf } from './customers';
 
 // What we know about each person across every merchant. Purchases are the merchants' Shopify
 // orders (not tests) plus our own manual delivery orders; a Shopify order we delivered is
@@ -737,19 +738,21 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       units: bigint;
       express: boolean;
       payment: string | null;
+      hidden: boolean;
     }[]
   >`
     SELECT 'shopify' AS source, so.name AS ref, so.id AS record_id, m.name AS merchant,
       so.created_at_shop AS at, (so.total_piastres - so.refunded_piastres) AS value,
       CASE WHEN so.cancelled_at IS NOT NULL THEN 'CANCELLED' ELSE COALESCE(so.fulfillment_status, '') END AS status,
-      so.units AS units, so.express AS express, so.payment_method AS payment
+      so.units AS units, so.express AS express, so.payment_method AS payment,
+      so.redacted_at IS NOT NULL AS hidden
     FROM shop_orders so JOIN merchants m ON m.id = so.merchant_id
     WHERE so.customer_id = ${id} AND NOT so.test
     UNION ALL
     SELECT 'shiply', o.number, o.id, m.name, o.placed_at,
       (o.subtotal_piastres + o.delivery_fee_piastres), o.status::text,
       (SELECT COALESCE(SUM(i.quantity), 0) FROM order_items i WHERE i.order_id = o.id),
-      TRUE, o.payment_method::text
+      TRUE, o.payment_method::text, o.buyer_redacted_at IS NOT NULL
     FROM orders o JOIN merchants m ON m.id = o.merchant_id WHERE o.customer_id = ${id}
     ORDER BY 5 DESC LIMIT 50`;
 
@@ -928,6 +931,8 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       tags: s.tags,
       locale: s.locale,
       since: s.createdAtShop,
+      /** Shopify asked us to forget the buyer (redact): hidden from the merchant, kept by us */
+      hiddenFromMerchant: s.redactedAt !== null,
     })),
     recentOrders: recent.map((o) => ({
       source: o.source,
@@ -940,6 +945,7 @@ export async function customerProfile(db: Db, id: string, now: Date = new Date()
       units: n(o.units),
       express: o.express,
       payment: o.payment,
+      hiddenFromMerchant: o.hidden,
     })),
   };
 }
@@ -1130,6 +1136,8 @@ export async function exportCustomers(
       segment: Segment;
       email_state: string | null;
       sms_state: string | null;
+      subscribed_email: string | null;
+      subscribed_phone: string | null;
       last_at: Date | null;
     }[]
   >`
@@ -1140,11 +1148,15 @@ export async function exportCustomers(
           ELSE MAX(email_marketing) END AS email_state,
         CASE WHEN bool_or(sms_marketing = 'UNSUBSCRIBED') THEN 'UNSUBSCRIBED'
           WHEN bool_or(sms_marketing = 'SUBSCRIBED') THEN 'SUBSCRIBED'
-          ELSE MAX(sms_marketing) END AS sms_state
+          ELSE MAX(sms_marketing) END AS sms_state,
+        -- The address that subscribed, from the record that holds the consent: the profile's
+        -- own phone or email may be another one of the person's, or someone joined to them.
+        MIN(email) FILTER (WHERE email_marketing = 'SUBSCRIBED') AS subscribed_email,
+        MIN(phone) FILTER (WHERE sms_marketing = 'SUBSCRIBED') AS subscribed_phone
       FROM shop_customers WHERE customer_id IS NOT NULL GROUP BY customer_id)
     SELECT * FROM (
       SELECT c.phone, c.email, c.name, ${segmentSql(r, now)} AS segment,
-        k.email_state, k.sms_state, t.last_at, t.spend
+        k.email_state, k.sms_state, k.subscribed_email, k.subscribed_phone, t.last_at, t.spend
       FROM customers c JOIN (${TOTALS}) t ON t.id = c.id
       LEFT JOIN consent k ON k.customer_id = c.id
       WHERE ${
@@ -1158,12 +1170,29 @@ export async function exportCustomers(
     ORDER BY x.spend DESC, x.name`;
   const out: ExportRow[] = [];
   for (const row of rows) {
-    const emailOk = row.email_state === 'SUBSCRIBED';
-    const smsOk = row.sms_state === 'SUBSCRIBED';
-    if (filter.marketing && !emailOk && !smsOk) continue;
+    if (!filter.marketing) {
+      out.push({
+        phone: row.phone,
+        email: row.email,
+        name: row.name,
+        segment: row.segment,
+        emailMarketing: row.email_state,
+        smsMarketing: row.sms_state,
+        lastOrderAt: row.last_at,
+      });
+      continue;
+    }
+    // For marketing: only the phone and email that subscribed, never one the person never
+    // gave that consent for.
+    const phone =
+      row.sms_state === 'SUBSCRIBED' && row.subscribed_phone
+        ? (normalizeEgyptianPhone(row.subscribed_phone) ?? row.subscribed_phone)
+        : null;
+    const email = row.email_state === 'SUBSCRIBED' ? cleanEmail(row.subscribed_email) : null;
+    if (!phone && !email) continue;
     out.push({
-      phone: filter.marketing && !smsOk ? null : row.phone,
-      email: filter.marketing && !emailOk ? null : row.email,
+      phone,
+      email,
       name: row.name,
       segment: row.segment,
       emailMarketing: row.email_state,

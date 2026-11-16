@@ -15,6 +15,12 @@ import { getSetting } from '../settings';
 export type CustomerFacts = {
   phone?: string | null;
   email?: string | null;
+  /**
+   * False when the phone is only the shipping address's (it may be someone else: a gift's
+   * recipient) while the email is the buyer's own. The email then decides who it is, and the
+   * phone is never joined to the buyer's profile (nor the email to the phone's). Default true.
+   */
+  phoneIsOwn?: boolean;
   name?: string | null;
   governorate?: string | null;
   city?: string | null;
@@ -71,7 +77,15 @@ async function ownerOf(db: Db, kind: 'phone' | 'email', value: string) {
   return alias?.customer ?? null;
 }
 
-async function resolveOnce(db: Db, phone: string | null, email: string | null, f: CustomerFacts) {
+async function resolveOnce(
+  db: Db,
+  givenPhone: string | null,
+  email: string | null,
+  f: CustomerFacts,
+) {
+  // A shipping phone that may be another person's never joins an email: the email alone
+  // identifies the buyer (the phone is used only when there is no email).
+  const phone = f.phoneIsOwn === false && email ? null : givenPhone;
   const byPhone = phone ? await ownerOf(db, 'phone', phone) : null;
   const byEmail = !byPhone && email ? await ownerOf(db, 'email', email) : null;
   const found = byPhone ?? byEmail;
@@ -130,7 +144,7 @@ export function egyptPoint(latitude: unknown, longitude: unknown) {
 /** Shopify customers export rows. Returns how many were saved. */
 export async function ingestCustomers(
   db: Db,
-  shop: { id: string; merchantId: string },
+  shop: { id: string; merchantId: string; shopDomain?: string },
   lines: Line[],
   toPiastres: (amount: string | null | undefined) => number,
 ) {
@@ -156,7 +170,9 @@ export async function ingestCustomers(
       phoneNumber?: string;
       marketingState?: string;
     } | null;
-    const phone = str(phoneRow?.phoneNumber) ?? str(l.phone) ?? str(address?.phone);
+    // The default address's phone may be someone the buyer ships to: it never joins their email.
+    const ownPhone = str(phoneRow?.phoneNumber) ?? str(l.phone);
+    const phone = ownPhone ?? str(address?.phone);
     const email = str(emailRow?.emailAddress) ?? str(l.email);
     // First seen is when the record was created; the last update only makes it the latest.
     const createdAt = date(l.createdAt);
@@ -164,6 +180,7 @@ export async function ingestCustomers(
     const point = egyptPoint(address?.latitude, address?.longitude);
     const customerId = await resolveCustomer(db, {
       phone,
+      phoneIsOwn: !!ownPhone,
       email,
       name: [firstName, lastName].filter(Boolean).join(' '),
       governorate: address?.province,
@@ -177,6 +194,7 @@ export async function ingestCustomers(
     const data = {
       shopId: shop.id,
       merchantId: shop.merchantId,
+      shopDomain: shop.shopDomain,
       customerId,
       firstName,
       lastName,
@@ -263,75 +281,165 @@ export async function linkDeliveryCustomers(db: Db, limit = 500) {
   return { looked: orders.length, linked, alerted };
 }
 
-/** Keys of a Shopify order export row that name or reach the buyer. */
-const BUYER_KEYS = ['email', 'phone', 'customer', 'shippingAddress'];
+/**
+ * The store a redact request names. Rows are found by the store's domain, so a request still
+ * finds them after a disconnect (shop row gone) or a move to another store (shop row reused);
+ * rows saved before the domain was kept fall back to the shop row that still has the domain.
+ */
+export type RedactStore = { shopDomain: string; shopId: string | null; merchantId: string | null };
 
-async function dropOrphans(db: Db, ids: (string | null)[]) {
-  const candidates = [...new Set(ids.filter((id): id is string => !!id))];
-  if (!candidates.length) return 0;
-  const { count } = await db.customer.deleteMany({
+function storeRows(store: RedactStore) {
+  return {
+    OR: [
+      { shopDomain: store.shopDomain },
+      ...(store.shopId ? [{ shopDomain: null, shopId: store.shopId }] : []),
+    ],
+  };
+}
+
+/** Marks our delivery orders of these merchants made from these Shopify orders. */
+async function hideDeliveries(
+  tx: Prisma.TransactionClient,
+  merchantIds: string[],
+  orderGids: string[],
+  at: Date,
+) {
+  if (!merchantIds.length || !orderGids.length) return 0;
+  const { count } = await tx.order.updateMany({
     where: {
-      id: { in: candidates },
-      shopCustomers: { none: {} },
-      shopOrders: { none: {} },
-      orders: { none: {} },
+      merchantId: { in: merchantIds },
+      shopifyOrderId: { in: orderGids },
+      buyerRedactedAt: null,
     },
+    data: { buyerRedactedAt: at },
   });
   return count;
 }
 
+function auditRedact(
+  tx: Prisma.TransactionClient,
+  topic: string,
+  store: RedactStore,
+  after: Record<string, unknown>,
+) {
+  // Ids and counts only: the audit log is append only and never holds the buyer's details.
+  return recordAudit(tx, {
+    actorUserId: null,
+    action: 'customer.redact',
+    entityType: 'shopify_shop',
+    entityId: store.shopId ?? store.shopDomain,
+    after: { topic, shopDomain: store.shopDomain, ...after } as Prisma.InputJsonValue,
+  });
+}
+
 /**
- * Shopify's customers/redact: forget one buyer of one shop. Their customer record and the
- * buyer details on the named orders go; order totals stay for the sales figures. The person
- * is deleted too unless another merchant or our own deliveries still know them.
+ * Shopify's customers/redact. Customer data is never deleted from our side (owner,
+ * 2026-11-16): the buyer's record and orders of that store, and our delivery orders made from
+ * them, are marked redacted, which hides the buyer from every merchant view. The company keeps
+ * everything (admin with the customer data switch). Repeats change nothing.
  */
 export async function redactShopCustomer(
   db: Db,
-  shopId: string,
+  store: RedactStore,
   customerGid: string | null,
   orderGids: string[],
+  at: Date = new Date(),
 ) {
-  const records = customerGid
-    ? await db.shopCustomer.findMany({ where: { shopId, shopifyId: customerGid } })
-    : [];
-  const orders = await db.shopOrder.findMany({
-    where: {
-      shopId,
-      OR: [
-        { shopifyId: { in: orderGids } },
-        ...(customerGid ? [{ customerShopifyId: customerGid }] : []),
-      ],
-    },
-    select: { id: true, customerId: true },
+  return inTransaction(db, async (tx) => {
+    const where = storeRows(store);
+    const records = customerGid
+      ? await tx.shopCustomer.findMany({
+          where: { AND: [where, { shopifyId: customerGid }] },
+          select: { id: true, merchantId: true, redactedAt: true },
+        })
+      : [];
+    const orders = await tx.shopOrder.findMany({
+      where: {
+        AND: [
+          where,
+          {
+            OR: [
+              { shopifyId: { in: orderGids } },
+              ...(customerGid ? [{ customerShopifyId: customerGid }] : []),
+            ],
+          },
+        ],
+      },
+      select: { id: true, shopifyId: true, merchantId: true, redactedAt: true },
+    });
+    const newRecords = records.filter((r) => !r.redactedAt).map((r) => r.id);
+    const newOrders = orders.filter((o) => !o.redactedAt).map((o) => o.id);
+    if (newRecords.length)
+      await tx.shopCustomer.updateMany({
+        where: { id: { in: newRecords } },
+        data: { redactedAt: at },
+      });
+    if (newOrders.length)
+      await tx.shopOrder.updateMany({ where: { id: { in: newOrders } }, data: { redactedAt: at } });
+    const merchantIds = new Set([...records, ...orders].map((x) => x.merchantId));
+    if (store.merchantId) merchantIds.add(store.merchantId);
+    const deliveries = await hideDeliveries(
+      tx,
+      [...merchantIds],
+      [...new Set([...orderGids, ...orders.map((o) => o.shopifyId)])],
+      at,
+    );
+    const result = { records: newRecords.length, orders: newOrders.length, deliveries };
+    if (newRecords.length || newOrders.length || deliveries)
+      await auditRedact(tx, 'customers/redact', store, {
+        customer: customerGid,
+        shopCustomerIds: newRecords,
+        shopOrderIds: newOrders,
+        deliveries,
+      });
+    return result;
   });
-  await db.shopCustomer.deleteMany({ where: { id: { in: records.map((r) => r.id) } } });
-  if (orders.length)
-    await db.$executeRaw`
-      UPDATE shop_orders SET customer_id = NULL, customer_shopify_id = NULL,
-        raw = raw - ${BUYER_KEYS}::text[]
-      WHERE id IN (${Prisma.join(orders.map((o) => o.id))})`;
-  const removed = await dropOrphans(db, [
-    ...records.map((r) => r.customerId),
-    ...orders.map((o) => o.customerId),
-  ]);
-  return { records: records.length, orders: orders.length, customersRemoved: removed };
 }
 
-/** Shopify's shop/redact (48 hours after uninstall): forget every buyer of that shop. */
-export async function redactShopCustomers(db: Db, shopId: string) {
-  const linked = await db.$queryRaw<{ customer_id: string | null }[]>`
-    SELECT customer_id FROM shop_customers WHERE shop_id = ${shopId}
-    UNION SELECT customer_id FROM shop_orders WHERE shop_id = ${shopId}`;
-  const records = await db.shopCustomer.deleteMany({ where: { shopId } });
-  const orders = await db.$executeRaw`
-    UPDATE shop_orders SET customer_id = NULL, customer_shopify_id = NULL,
-      raw = raw - ${BUYER_KEYS}::text[]
-    WHERE shop_id = ${shopId}`;
-  const removed = await dropOrphans(
-    db,
-    linked.map((l) => l.customer_id),
-  );
-  return { records: records.count, orders, customersRemoved: removed };
+/**
+ * Shopify's shop/redact (48 hours after uninstall): every buyer of that store is hidden from
+ * the merchant's views the same way; nothing is deleted. Our delivery orders are found through
+ * the store's Shopify orders and, while the merchant is still linked to this store, every
+ * delivery order of the merchant that came from Shopify.
+ */
+export async function redactShopCustomers(db: Db, store: RedactStore, at: Date = new Date()) {
+  return inTransaction(db, async (tx) => {
+    const where = storeRows(store);
+    const records = await tx.shopCustomer.updateMany({
+      where: { AND: [where, { redactedAt: null }] },
+      data: { redactedAt: at },
+    });
+    const orders = await tx.shopOrder.updateMany({
+      where: { AND: [where, { redactedAt: null }] },
+      data: { redactedAt: at },
+    });
+    const known = await tx.shopOrder.findMany({
+      where,
+      select: { shopifyId: true, merchantId: true },
+    });
+    let deliveries = await hideDeliveries(
+      tx,
+      [...new Set(known.map((o) => o.merchantId))],
+      known.map((o) => o.shopifyId),
+      at,
+    );
+    if (store.merchantId) {
+      const { count } = await tx.order.updateMany({
+        where: {
+          merchantId: store.merchantId,
+          source: 'shopify',
+          placedAt: { lte: at },
+          buyerRedactedAt: null,
+        },
+        data: { buyerRedactedAt: at },
+      });
+      deliveries += count;
+    }
+    const result = { records: records.count, orders: orders.count, deliveries };
+    if (records.count || orders.count || deliveries)
+      await auditRedact(tx, 'shop/redact', store, result);
+    return result;
+  });
 }
 
 const IN_STORE: string[] = ['new', 'accepted', 'picking', 'packed'];

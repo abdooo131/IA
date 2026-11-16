@@ -188,6 +188,8 @@ export type CustomerProfile = {
     tags: string[];
     locale: string | null;
     since: string | null;
+    /** Shopify asked us to forget the buyer: hidden from the merchant, kept by us */
+    hiddenFromMerchant: boolean;
   }[];
   recentOrders: {
     source: 'shopify' | 'shiply';
@@ -200,6 +202,7 @@ export type CustomerProfile = {
     units: number;
     express: boolean;
     payment: string | null;
+    hiddenFromMerchant: boolean;
   }[];
 };
 

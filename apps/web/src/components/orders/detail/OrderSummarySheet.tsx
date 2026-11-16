@@ -49,7 +49,11 @@ export async function OrderSummarySheet({
       <section className="grid gap-4 sm:grid-cols-2">
         <div className="text-body-sm">
           <h2 className="mb-1 text-label uppercase text-text-muted">{t('consignee.title')}</h2>
-          <p className="font-bold">{order.customerName}</p>
+          <p className="font-bold">
+            {order.buyerHidden && !order.customerName
+              ? t('consignee.buyerHidden')
+              : order.customerName}
+          </p>
           <p className="ltr-iso">{order.customerPhone}</p>
           <p>{order.addressText}</p>
           {order.area && <p className="text-text-muted">{localized(order.area, locale)}</p>}

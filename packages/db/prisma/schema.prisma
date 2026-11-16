@@ -1063,6 +1063,9 @@ model Order {
   resolvedBy                String?       @map("resolved_by")
   /// Where latitude and longitude came from: pin, shopify, geocoder, learned (null: no real point)
   locationSource            String?       @map("location_source")
+  /// The Shopify buyer asked to be forgotten (customers/redact or shop/redact): merchants no
+  /// longer see the buyer's details on this order; the company keeps them
+  buyerRedactedAt           DateTime?     @map("buyer_redacted_at")
 
   customer       Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
   geoArea        GeoArea?        @relation(fields: [geoAreaId], references: [id], onDelete: SetNull)
@@ -2317,6 +2320,10 @@ model ShopOrder {
   cancelReason      String?   @map("cancel_reason")
   /// The order's custom attributes as { key: value } (our _shiplynow_zone, _area, _pin)
   customAttributes  Json?     @map("custom_attributes")
+  /// The store the order came from (kept after a disconnect or a move to another store)
+  shopDomain        String?   @map("shop_domain")
+  /// Shopify's customers/redact or shop/redact: hidden from every merchant view, kept for us
+  redactedAt        DateTime? @map("redacted_at")
 
   lines    ShopOrderLine[]
   customer Customer?       @relation(fields: [customerId], references: [id], onDelete: SetNull)
@@ -2324,6 +2331,7 @@ model ShopOrder {
   @@index([merchantId, createdAtShop])
   @@index([customerId])
   @@index([customerShopifyId])
+  @@index([shopDomain])
   @@map("shop_orders")
 }
 
@@ -2426,11 +2434,16 @@ model ShopCustomer {
   updatedAtShop       DateTime? @map("updated_at_shop")
   raw                 Json
   syncedAt            DateTime  @default(now()) @updatedAt @map("synced_at")
+  /// The store the record came from (kept after a disconnect or a move to another store)
+  shopDomain          String?   @map("shop_domain")
+  /// Shopify's customers/redact or shop/redact: hidden from every merchant view, kept for us
+  redactedAt          DateTime? @map("redacted_at")
 
   customer Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   @@index([customerId])
   @@index([merchantId])
+  @@index([shopDomain])
   @@map("shop_customers")
 }
 

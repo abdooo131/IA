@@ -1983,7 +1983,8 @@
     "trackingLink": "Customer tracking page",
     "durationMinutes": "{m}:{ss} min",
     "durationHours": "{h} h {m} min",
-    "durationDays": "{d, plural, one {# day} other {# days}} {h} h"
+    "durationDays": "{d, plural, one {# day} other {# days}} {h} h",
+    "buyerHidden": "Customer details removed at the customer's request"
   },
   "rider": {
     "title": "My deliveries",
@@ -6452,7 +6453,8 @@
     "household": "Same address",
     "noHousehold": "Nobody else at this address.",
     "phone": "Mobile",
-    "moreInsights": "More insights: months, governorates, shared shoppers, risk and busy times"
+    "moreInsights": "More insights: months, governorates, shared shoppers, risk and busy times",
+    "hiddenFromMerchant": "Hidden from merchant"
   },
   "notFound": {
     "title": "Not found",
@@ -7861,7 +7863,9 @@
       "zone": "Zone",
       "insight": "Customer insight:",
       "insightLine": "{pct}% delivered across {attempts} attempts ({failed} failed).",
-      "insightNone": "No delivery history with us yet."
+      "insightNone": "No delivery history with us yet.",
+      "buyerHidden": "Customer details removed at the customer's request",
+      "hiddenFromMerchant": "Hidden from the merchant at the customer's request"
     },
     "shipment": {
       "title": "Shipment details",
@@ -7962,7 +7966,8 @@
       "to": "To",
       "cod": "Collect cash",
       "prepaid": "Prepaid",
-      "items": "Items"
+      "items": "Items",
+      "buyerHidden": "Customer details removed"
     },
     "reasons": {
       "no_stock": "none of the items were in stock at the store",

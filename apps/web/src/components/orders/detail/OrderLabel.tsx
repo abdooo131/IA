@@ -65,7 +65,9 @@ export function OrderLabel({ order }: { order: OrderDetail }) {
         </div>
         <div className={cell}>
           <p className="text-[10px] uppercase">{t('to')}</p>
-          <p className="text-[15px] font-bold">{order.customerName}</p>
+          <p className="text-[15px] font-bold">
+            {order.buyerHidden && !order.customerName ? t('buyerHidden') : order.customerName}
+          </p>
           <p className="ltr-iso">{order.customerPhone}</p>
           <p className="mt-1">{order.addressText}</p>
           {area && <p className="mt-1 font-bold">{area}</p>}

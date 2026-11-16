@@ -327,4 +327,35 @@ describe('segment export', () => {
       smsMarketing: 'SUBSCRIBED',
     });
   });
+
+  it('exports for marketing the address that subscribed, not the profile own one', async () => {
+    const other = await prisma.merchant.create({ data: { name: 'Second Shop' } });
+    // One person: the first store knows an email that never subscribed, the second store a
+    // different email that did.
+    await ingestCustomers(
+      prisma,
+      shop,
+      [shopCustomer(1, '01001234567', { created: ago(20), email: 'old@example.com' })],
+      toPiastres,
+    );
+    await ingestCustomers(
+      prisma,
+      { id: 'shop-b', merchantId: other.id },
+      [
+        shopCustomer(2, '01001234567', {
+          created: ago(10),
+          email: 'new@example.com',
+          emailState: 'SUBSCRIBED',
+        }),
+      ],
+      toPiastres,
+    );
+    expect(await prisma.customer.count()).toBe(1);
+    expect((await prisma.customer.findFirstOrThrow()).email).toBe('old@example.com');
+    const [row] = await exportCustomers(prisma, { marketing: true });
+    expect(row).toMatchObject({ email: 'new@example.com', phone: null });
+    // Outside marketing the profile's own details are listed.
+    const [all] = await exportCustomers(prisma, {});
+    expect(all).toMatchObject({ email: 'old@example.com', phone: '+201001234567' });
+  });
 });

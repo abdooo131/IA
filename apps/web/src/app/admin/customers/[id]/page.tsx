@@ -305,7 +305,16 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
             t('since'),
           ]}
           rows={p.shopRecords.map((s) => [
-            s.merchant,
+            s.hiddenFromMerchant ? (
+              <span key={`${s.merchant}-${s.since}`}>
+                {s.merchant}
+                <span className="block text-caption text-text-muted">
+                  {t('hiddenFromMerchant')}
+                </span>
+              </span>
+            ) : (
+              s.merchant
+            ),
             s.name || '–',
             s.ordersCount,
             formatEgp(s.amountSpentPiastres),
@@ -345,6 +354,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
                   {o.ref}
                   <span className="block text-caption font-normal text-text-muted">
                     {o.merchant} · {t('sourceShiply')}
+                    {o.hiddenFromMerchant && ` · ${t('hiddenFromMerchant')}`}
                   </span>
                 </Link>
               ) : (
@@ -352,6 +362,7 @@ export default async function CustomerProfilePage({ params }: { params: Promise<
                   {o.ref}
                   <span className="block text-caption text-text-muted">
                     {o.merchant} · {t('sourceShopify')}
+                    {o.hiddenFromMerchant && ` · ${t('hiddenFromMerchant')}`}
                   </span>
                 </span>
               ),

@@ -6,6 +6,7 @@ import {
   decideFailedOrder,
   computeKpis,
   DomainError,
+  forMerchant,
   getOrderDetail,
   getOrderMoney,
   listOrderNotes,
@@ -79,7 +80,12 @@ export class MerchantOrdersController {
     const statuses = ORDER_STATUSES.includes(status as OrderStatus)
       ? [status as OrderStatus]
       : undefined;
-    return listOrders(this.prisma, { merchantId, statuses, q: q || undefined });
+    return listOrders(this.prisma, {
+      merchantId,
+      statuses,
+      q: q || undefined,
+      merchantView: true,
+    });
   }
 
   @Get(':id')
@@ -91,8 +97,9 @@ export class MerchantOrdersController {
     const detail = await getOrderDetail(this.prisma, id);
     if (!detail || detail.merchant.id !== merchantId) throw new DomainError('order_not_found', 404);
     // Merchants see the outcome but not the customer's delivery code (nor the tracking
-    // link, which shows it), nor our own customer risk alerts.
-    const { deliveryOtp, trackingToken, ...visible } = detail;
+    // link, which shows it), nor our own customer risk alerts, nor a buyer Shopify asked us to
+    // hide from them (redact).
+    const { deliveryOtp, trackingToken, ...visible } = forMerchant(detail);
     return { ...visible, alerts: visible.alerts.filter((a) => !ADMIN_ONLY_ALERTS.has(a.type)) };
   }
 

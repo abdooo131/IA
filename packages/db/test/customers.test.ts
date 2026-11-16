@@ -1,4 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { forMerchant, getOrderDetail, listOrders } from '../src/order-views';
 import { createOrder } from '../src/orders';
 import { forgetAreaNames, loadBaseAreas } from '../src/geo';
 import {
@@ -134,28 +135,121 @@ describe('one customer across every merchant', () => {
     expect(overview.sharedShoppers[0]).toMatchObject({ customers: 1 });
   });
 
-  it('forgets a buyer of one shop but keeps the person other merchants know', async () => {
+  it('hides a redacted buyer from the merchant and keeps every record', async () => {
     const other = await prisma.merchant.create({ data: { name: 'Second Shop' } });
-    await ingestOrders(prisma, { id: 'shop-a', merchantId: f.merchant.id }, [
-      shopifyOrder(1, '01001234567', '100.00', ago(3), { email: 'mona@example.com' }),
-    ]);
-    await ingestOrders(prisma, { id: 'shop-b', merchantId: other.id }, [
-      shopifyOrder(2, '01001234567', '100.00', ago(2)),
-    ]);
-    const first = await redactShopCustomer(prisma, 'shop-a', null, ['gid://shopify/Order/1']);
-    expect(first).toMatchObject({ orders: 1, customersRemoved: 0 });
+    const a = { shopDomain: 'a.myshopify.com', shopId: 'shop-a', merchantId: f.merchant.id };
+    await ingestOrders(
+      prisma,
+      { id: 'shop-a', merchantId: f.merchant.id, shopDomain: a.shopDomain },
+      [
+        shopifyOrder(1, '01001234567', '100.00', ago(3), {
+          email: 'mona@example.com',
+          phone: '01001234567',
+          customer: { id: 'gid://shopify/Customer/9' },
+        }),
+      ],
+    );
+    await ingestOrders(
+      prisma,
+      { id: 'shop-b', merchantId: other.id, shopDomain: 'b.myshopify.com' },
+      [shopifyOrder(2, '01001234567', '100.00', ago(2))],
+    );
+    // Our own delivery order made from the first Shopify order.
+    await receive(prisma, { skuId: f.sku.id, binId: f.shelfA.id, quantity: 5 });
+    const ours = await createOrder(prisma, {
+      merchantId: f.merchant.id,
+      darkStoreId: f.store.id,
+      source: 'shopify',
+      shopifyOrderId: 'gid://shopify/Order/1',
+      customerName: 'Mona Adel',
+      customerPhone: '01001234567',
+      addressText: '5 Tahrir St, Dokki',
+      latitude: 30.04,
+      longitude: 31.21,
+      paymentMethod: 'cod',
+      deliveryFeePiastres: 0,
+      items: [{ skuId: f.sku.id, quantity: 1 }],
+    });
+
+    const first = await redactShopCustomer(prisma, a, 'gid://shopify/Customer/9', []);
+    expect(first).toEqual({ records: 0, orders: 1, deliveries: 1 });
+    // Nothing is deleted or scrubbed: the company keeps the person and the order as they were.
     expect(await prisma.customer.count()).toBe(1);
-    const scrubbed = await prisma.shopOrder.findUniqueOrThrow({
+    const kept = await prisma.shopOrder.findUniqueOrThrow({
       where: { shopifyId: 'gid://shopify/Order/1' },
     });
-    expect(scrubbed.customerId).toBeNull();
-    expect(scrubbed.raw).not.toHaveProperty('email');
-    // The second shop closes: now nobody knows the person, so the profile goes too.
-    expect(await redactShopCustomers(prisma, 'shop-b')).toMatchObject({
-      orders: 1,
-      customersRemoved: 1,
+    expect(kept.customerId).not.toBeNull();
+    expect(kept.raw).toHaveProperty('email', 'mona@example.com');
+    expect(kept.redactedAt).not.toBeNull();
+    // Only the redacted store's rows and our orders of its merchant are marked.
+    expect(
+      (await prisma.shopOrder.findUniqueOrThrow({ where: { shopifyId: 'gid://shopify/Order/2' } }))
+        .redactedAt,
+    ).toBeNull();
+    const order = await prisma.order.findUniqueOrThrow({ where: { id: ours.id } });
+    expect(order.buyerRedactedAt).not.toBeNull();
+    expect(order.customerName).toBe('Mona Adel');
+    expect(
+      await prisma.auditLog.count({ where: { action: 'customer.redact', entityId: 'shop-a' } }),
+    ).toBe(1);
+
+    // The merchant's views blank the buyer; their search no longer finds them by name or phone.
+    const [listed] = await listOrders(prisma, { merchantId: f.merchant.id, merchantView: true });
+    expect(listed).toMatchObject({ buyerHidden: true, customerName: '', customerPhone: '' });
+    expect(
+      await listOrders(prisma, { merchantId: f.merchant.id, q: 'Mona', merchantView: true }),
+    ).toHaveLength(0);
+    const detail = forMerchant((await getOrderDetail(prisma, ours.id))!);
+    expect(detail).toMatchObject({ addressText: '', latitude: null, longitude: null });
+    // The team still sees everything.
+    expect((await getOrderDetail(prisma, ours.id))!.customerName).toBe('Mona Adel');
+    const [teamRow] = await listOrders(prisma, { merchantId: f.merchant.id, q: 'Mona' });
+    expect(teamRow).toMatchObject({ buyerHidden: true, customerName: 'Mona Adel' });
+
+    // Repeats change nothing and write no second audit row.
+    expect(await redactShopCustomer(prisma, a, 'gid://shopify/Customer/9', [])).toEqual({
+      records: 0,
+      orders: 0,
+      deliveries: 0,
     });
-    expect(await prisma.customer.count()).toBe(0);
+    expect(await prisma.auditLog.count({ where: { action: 'customer.redact' } })).toBe(1);
+
+    // The second store closes after a disconnect (no shop row): found by its domain.
+    expect(
+      await redactShopCustomers(prisma, {
+        shopDomain: 'b.myshopify.com',
+        shopId: null,
+        merchantId: null,
+      }),
+    ).toEqual({ records: 0, orders: 1, deliveries: 0 });
+    expect(await prisma.customer.count()).toBe(1);
+    const profile = (await customerProfile(prisma, kept.customerId!))!;
+    expect(profile.recentOrders.every((o) => o.hiddenFromMerchant)).toBe(true);
+  });
+
+  it('never joins a gift recipient phone to the buyer email', async () => {
+    // Buyer A (email, no phone of their own) sends a gift to recipient B (shipping phone).
+    const b = (await resolveCustomer(prisma, { phone: '01001234567', seenAt: ago(30) }))!;
+    await ingestOrders(prisma, { id: 'shop-a', merchantId: f.merchant.id }, [
+      shopifyOrder(1, '01001234567', '100.00', ago(3), { email: 'buyer@example.com' }),
+    ]);
+    const order = await prisma.shopOrder.findUniqueOrThrow({
+      where: { shopifyId: 'gid://shopify/Order/1' },
+    });
+    expect(order.customerId).not.toBe(b);
+    const recipient = await prisma.customer.findUniqueOrThrow({ where: { id: b } });
+    expect(recipient.email).toBeNull();
+    const buyer = await prisma.customer.findUniqueOrThrow({ where: { id: order.customerId! } });
+    expect(buyer).toMatchObject({ email: 'buyer@example.com', phone: null });
+    // An order that names the buyer's own phone joins phone and email as before.
+    await ingestOrders(prisma, { id: 'shop-a', merchantId: f.merchant.id }, [
+      shopifyOrder(2, '01001234567', '100.00', ago(2), {
+        email: 'other@example.com',
+        phone: '01119998877',
+      }),
+    ]);
+    const own = await prisma.customer.findUniqueOrThrow({ where: { phone: '+201119998877' } });
+    expect(own.email).toBe('other@example.com');
   });
 
   it('names segments from the settings', async () => {

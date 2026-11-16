@@ -40,6 +40,8 @@ function summarize(o: ListRow, sla: Awaited<ReturnType<typeof slaFor>> | null, n
     customerPhone: o.customerPhone,
     phoneFlagged: o.phoneFlagged,
     addressText: o.addressText,
+    /** The Shopify buyer asked to be forgotten: merchants see the order without them */
+    buyerHidden: o.buyerRedactedAt !== null,
     paymentMethod: o.paymentMethod,
     subtotalPiastres: o.subtotalPiastres,
     deliveryFeePiastres: o.deliveryFeePiastres,
@@ -73,6 +75,31 @@ function summarize(o: ListRow, sla: Awaited<ReturnType<typeof slaFor>> | null, n
 
 export type OrderSummary = ReturnType<typeof summarize>;
 
+/**
+ * What a merchant may see of an order whose Shopify buyer asked to be forgotten (customers/redact
+ * or shop/redact): the order, its goods and money stay, the buyer's name, phone, address, note,
+ * point, rating comment and delivery photos are blanked. The company keeps them.
+ */
+export function forMerchant<T extends OrderSummary>(order: T): T {
+  if (!order.buyerHidden) return order;
+  const out: Record<string, unknown> = {
+    ...order,
+    customerName: '',
+    customerPhone: '',
+    addressText: '',
+  };
+  if ('customerNote' in out) out.customerNote = null;
+  if ('latitude' in out) out.latitude = null;
+  if ('longitude' in out) out.longitude = null;
+  if ('rating' in out && out.rating)
+    out.rating = { ...(out.rating as Record<string, unknown>), comment: null };
+  if ('deliveries' in out && Array.isArray(out.deliveries))
+    out.deliveries = (out.deliveries as Record<string, unknown>[]).map((d) =>
+      'proofPhotoId' in d ? { ...d, proofPhotoId: null, failedPhotoId: null } : d,
+    );
+  return out as T;
+}
+
 export interface OrderListFilter {
   /** One store, or a person's stores ({ in: [...] }) */
   darkStoreId?: string | { in: string[] };
@@ -83,6 +110,8 @@ export interface OrderListFilter {
   q?: string;
   lateOnly?: boolean;
   take?: number;
+  /** The merchant's own screens: buyers hidden by a Shopify redact are blanked (forMerchant) */
+  merchantView?: boolean;
 }
 
 /** Orders with their current SLA stage, newest first (or by promise time for active queues). */
@@ -102,8 +131,15 @@ export async function listOrders(
     ...(filter.q && {
       OR: [
         { number: { contains: filter.q, mode: 'insensitive' } },
-        { customerName: { contains: filter.q, mode: 'insensitive' } },
-        { customerPhone: { contains: filter.q } },
+        // A buyer hidden from the merchant cannot be found by their name or phone either.
+        {
+          customerName: { contains: filter.q, mode: 'insensitive' },
+          ...(filter.merchantView && { buyerRedactedAt: null }),
+        },
+        {
+          customerPhone: { contains: filter.q },
+          ...(filter.merchantView && { buyerRedactedAt: null }),
+        },
       ],
     }),
   };
@@ -120,7 +156,8 @@ export async function listOrders(
   for (const row of rows) {
     if (!slaCache.has(row.darkStoreId))
       slaCache.set(row.darkStoreId, await slaFor(db, row.darkStoreId));
-    out.push(summarize(row, slaCache.get(row.darkStoreId)!, now));
+    const summary = summarize(row, slaCache.get(row.darkStoreId)!, now);
+    out.push(filter.merchantView ? forMerchant(summary) : summary);
   }
   return out;
 }
