@@ -109,6 +109,8 @@ export interface ReceiveOnManifestInput {
  */
 export function receiveOnManifest(db: Db, input: ReceiveOnManifestInput) {
   return inTransaction(db, async (tx) => {
+    // Locked so a scan and the close never run at the same time: the loser sees the new status.
+    await lockManifest(tx, input.manifestId);
     const manifest = await tx.inboundManifest.findUnique({ where: { id: input.manifestId } });
     if (!manifest || manifest.darkStoreId !== input.darkStoreId)
       throw new DomainError('manifest_not_found', 404);
@@ -157,6 +159,7 @@ export function closeManifest(
   input: { manifestId: string; darkStoreId: string; actorUserId: string },
 ) {
   return inTransaction(db, async (tx) => {
+    await lockManifest(tx, input.manifestId);
     const manifest = await tx.inboundManifest.findUnique({
       where: { id: input.manifestId },
       include: { lines: { include: { sku: true } }, darkStore: true },
@@ -202,6 +205,11 @@ export function closeManifest(
     });
     return { lines };
   });
+}
+
+/** Row lock on the shipment (the status is read again after it). */
+async function lockManifest(tx: Prisma.TransactionClient, manifestId: string) {
+  await tx.$queryRaw`SELECT id FROM inbound_manifests WHERE id = ${manifestId} FOR UPDATE`;
 }
 
 async function receivingBin(tx: Prisma.TransactionClient, darkStoreId: string) {

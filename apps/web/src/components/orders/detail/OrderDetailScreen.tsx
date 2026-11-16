@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 import { StatusBar } from '@/components/workflow/StatusBar';
 import { apiSend } from '@/lib/api-client';
+import { CloseForRiderPanel } from '../CloseForRiderPanel';
 import { DetailsTab } from './DetailsTab';
 import { type MenuAction, OrderHeader } from './OrderHeader';
 import { TrackingTab } from './TrackingTab';
@@ -27,6 +28,8 @@ export function OrderDetailScreen({
   const tm = useTranslations('merchant.orders');
   const router = useRouter();
   const [cancelling, setCancelling] = useState(false);
+  const [closing, setClosing] = useState(false);
+  const tClose = useTranslations('closeForRider');
   const [reason, setReason] = useState<(typeof CANCEL_REASONS)[number]>('customer_request');
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -34,6 +37,7 @@ export function OrderDetailScreen({
 
   function onAction(action: MenuAction) {
     if (action === 'cancel') return setCancelling(true);
+    if (action === 'closeForRider') return setClosing(true);
     if (tab !== 'details') router.push(`?tab=details#decision`);
     else document.getElementById('decision')?.scrollIntoView({ behavior: 'smooth' });
   }
@@ -133,6 +137,18 @@ export function OrderDetailScreen({
             </button>
           </div>
         </section>
+      )}
+      {closing && props.closableForRider && (
+        <CloseForRiderPanel
+          apiPath={apiPath}
+          order={order}
+          onCancel={() => setClosing(false)}
+          onDone={() => {
+            setClosing(false);
+            setNotice(tClose('done'));
+            router.refresh();
+          }}
+        />
       )}
       {notice && (
         <p role="status" className="rounded-lg bg-selected-bg px-4 py-3 text-body-sm">

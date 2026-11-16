@@ -216,6 +216,33 @@ export const completeDeliverySchema = z
     message: 'position_incomplete',
   });
 
+/**
+ * A manager closes a delivery for its rider (the rider could not): delivered with the cash
+ * collected, or failed with the reason the rider would give. The reason why it is closed
+ * this way is always required; a proof photo is optional.
+ */
+export const closeForRiderSchema = z
+  .discriminatedUnion('outcome', [
+    z.object({
+      outcome: z.literal('delivered'),
+      reason: z.string().trim().min(5).max(300),
+      codCollectedPiastres: z.number().int().min(0).max(100_000_000).optional(),
+      photoId: id.optional(),
+    }),
+    z.object({
+      outcome: z.literal('failed'),
+      reason: z.string().trim().min(5).max(300),
+      failureReason: z.enum(FAILURE_REASONS),
+      note: z.string().trim().max(300).optional(),
+      photoId: id.optional(),
+    }),
+  ])
+  .refine(
+    (b) => b.outcome !== 'failed' || b.failureReason !== 'other' || (b.note?.length ?? 0) >= 3,
+    { message: 'note_required', path: ['note'] },
+  );
+export type CloseForRiderBody = z.infer<typeof closeForRiderSchema>;
+
 /** A 4 digit code the customer gives the rider. */
 export function newDeliveryOtp(random: () => number = Math.random): string {
   return String(Math.floor(random() * 10_000)).padStart(4, '0');

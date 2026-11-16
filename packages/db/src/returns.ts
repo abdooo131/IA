@@ -184,10 +184,11 @@ export interface PickReturnInput {
 /** Staff take units for a return off a bin. The last unit makes the return ready. */
 export function pickForReturn(db: Db, input: PickReturnInput) {
   return inTransaction(db, async (tx) => {
+    // Lock first, then look for the key: a concurrent retry waits and then replays.
+    const ret = await lockReturn(tx, input.returnId);
     const seen = await tx.stockMovement.findUnique({
       where: { idempotencyKey: `return-pick:${input.idempotencyKey}` },
     });
-    const ret = await lockReturn(tx, input.returnId);
     if (ret.darkStoreId !== input.darkStoreId) throw new DomainError('return_not_found', 404);
     if (seen) return { status: ret.status, replayed: true };
     if (ret.status !== 'requested' && ret.status !== 'picking')
@@ -222,8 +223,9 @@ export function pickForReturn(db: Db, input: PickReturnInput) {
         orderBy: { code: 'asc' },
       }));
     if (!bin) throw new DomainError('not_on_shelf');
+    let dispatched;
     try {
-      await dispatch(tx, {
+      dispatched = await dispatch(tx, {
         binId: bin.id,
         skuId: input.skuId,
         quantity: input.quantity,
@@ -237,6 +239,7 @@ export function pickForReturn(db: Db, input: PickReturnInput) {
         throw new DomainError('not_on_shelf');
       throw error;
     }
+    if (dispatched.replayed) return { status: ret.status, replayed: true };
     await tx.merchantReturnLine.update({
       where: { id: line.id },
       data: { pickedQty: { increment: input.quantity } },

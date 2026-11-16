@@ -31,7 +31,10 @@ import {
   remindDocument,
 } from '../src/hr-reminders';
 import { setSalaryPackage } from '../src/hr-pay';
+import { setEmployeeStatus } from '../src/hr';
+import { createOrder } from '../src/orders';
 import { setSetting } from '../src/settings';
+import { receive } from '../src/stock';
 import { createFixture, prisma, resetDatabase } from './helpers';
 
 // HR phase 2 (docs/HR.md "Phase 2 as built"): the new hire wizard, the leaving wizard and the
@@ -482,10 +485,14 @@ describe('leaving wizard', () => {
         expiresAt: new Date(Date.now() + 86_400_000),
       },
     });
-    expect(await runExitDisables(prisma, new Date())).toEqual({ disabled: 0, cancelled: 0 });
+    expect(await runExitDisables(prisma, new Date())).toEqual({
+      disabled: 0,
+      cancelled: 0,
+      waiting: 0,
+    });
     const after = new Date(Date.parse(`${addDays(lastDay, 1)}T00:00:00Z`) + 3_600_000);
-    expect(await runExitDisables(prisma, after)).toEqual({ disabled: 1, cancelled: 0 });
-    expect(await runExitDisables(prisma, after)).toEqual({ disabled: 0, cancelled: 0 });
+    expect(await runExitDisables(prisma, after)).toEqual({ disabled: 1, cancelled: 0, waiting: 0 });
+    expect(await runExitDisables(prisma, after)).toEqual({ disabled: 0, cancelled: 0, waiting: 0 });
     expect((await prisma.user.findUniqueOrThrow({ where: { id: leaverUser } })).isActive).toBe(
       false,
     );
@@ -660,5 +667,113 @@ describe('easier documents', () => {
         })
       ).items,
     ).toEqual([]);
+  });
+});
+
+describe('closing a leaving rider who still carries orders', () => {
+  it('skips that rider (one alert), closes the others, and closes the rider once free', async () => {
+    const leaver = async (email: string, badge: string) => {
+      const u = await prisma.user.create({
+        data: { email, name: email, role: 'rider', passwordHash: 'x', darkStoreId: f.store.id },
+      });
+      const rider = await prisma.rider.create({
+        data: { userId: u.id, darkStoreId: f.store.id, badgeCode: badge },
+      });
+      const e = await prisma.employee.create({
+        data: {
+          userId: u.id,
+          nameEn: email,
+          status: 'left',
+          leftOn: new Date(`${addDays(today, -1)}T00:00:00Z`),
+          leftReason: 'resignation',
+          homeStoreId: f.store.id,
+        },
+      });
+      await prisma.employeeExit.create({
+        data: {
+          employeeId: e.id,
+          lastDay: new Date(`${addDays(today, -1)}T00:00:00Z`),
+          reason: 'resignation',
+          noticeDays: 30,
+          settlement: {},
+          disableAt: new Date(Date.now() - 60_000),
+          createdById: owner,
+          idempotencyKey: key(),
+        },
+      });
+      return { userId: u.id, riderId: rider.id };
+    };
+    const busy = await leaver('busy@t.eg', 'RDR-B');
+    const free = await leaver('free@t.eg', 'RDR-F');
+    await receive(prisma, { skuId: f.sku.id, binId: f.shelfA.id, quantity: 1 });
+    const { id: orderId } = await createOrder(prisma, {
+      merchantId: f.merchant.id,
+      darkStoreId: f.store.id,
+      source: 'manual',
+      customerName: 'Sara',
+      customerPhone: '01012345678',
+      addressText: 'Maadi',
+      paymentMethod: 'prepaid',
+      deliveryFeePiastres: 0,
+      items: [{ skuId: f.sku.id, quantity: 1 }],
+      actorUserId: owner,
+    });
+    const delivery = await prisma.delivery.create({
+      data: { orderId, riderId: busy.riderId, status: 'picked_up', pickedUpAt: new Date() },
+    });
+
+    expect(await runExitDisables(prisma)).toEqual({ disabled: 1, cancelled: 0, waiting: 1 });
+    expect(await runExitDisables(prisma)).toEqual({ disabled: 0, cancelled: 0, waiting: 1 });
+    const isActive = async (id: string) =>
+      (await prisma.user.findUniqueOrThrow({ where: { id } })).isActive;
+    expect(await isActive(free.userId)).toBe(false);
+    expect(await isActive(busy.userId)).toBe(true);
+    expect(await prisma.alert.count({ where: { type: 'exit_disable_waiting' } })).toBe(1);
+
+    await prisma.delivery.update({
+      where: { id: delivery.id },
+      data: { status: 'delivered', deliveredAt: new Date() },
+    });
+    expect(await runExitDisables(prisma)).toEqual({ disabled: 1, cancelled: 0, waiting: 0 });
+    expect(await isActive(busy.userId)).toBe(false);
+  });
+
+  it('refuses marking a rider as left while they carry orders', async () => {
+    const u = await prisma.user.create({
+      data: { email: 'out@t.eg', name: 'Out', role: 'rider', passwordHash: 'x' },
+    });
+    const rider = await prisma.rider.create({
+      data: { userId: u.id, darkStoreId: f.store.id, badgeCode: 'RDR-O' },
+    });
+    const e = await prisma.employee.create({
+      data: { userId: u.id, nameEn: 'Out', homeStoreId: f.store.id },
+    });
+    await receive(prisma, { skuId: f.sku.id, binId: f.shelfA.id, quantity: 1 });
+    const { id: orderId } = await createOrder(prisma, {
+      merchantId: f.merchant.id,
+      darkStoreId: f.store.id,
+      source: 'manual',
+      customerName: 'Sara',
+      customerPhone: '01012345678',
+      addressText: 'Maadi',
+      paymentMethod: 'prepaid',
+      deliveryFeePiastres: 0,
+      items: [{ skuId: f.sku.id, quantity: 1 }],
+      actorUserId: owner,
+    });
+    await prisma.delivery.create({
+      data: { orderId, riderId: rider.id, status: 'picked_up', pickedUpAt: new Date() },
+    });
+    await expect(
+      setEmployeeStatus(prisma, {
+        employeeId: e.id,
+        body: { status: 'left', leftOn: today, reason: 'Resigned' },
+        actorUserId: owner,
+        scope: null,
+      }),
+    ).rejects.toMatchObject({ code: 'rider_has_open_deliveries' });
+    expect((await prisma.employee.findUniqueOrThrow({ where: { id: e.id } })).status).toBe(
+      'active',
+    );
   });
 });

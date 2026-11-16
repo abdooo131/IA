@@ -7,7 +7,7 @@ import { Icon } from '@/components/Icon';
 import { OrderStatusChip, TINT } from '../OrderStatusChip';
 import type { OrderScreenProps } from './types';
 
-export type MenuAction = 'cancel' | 'decide';
+export type MenuAction = 'cancel' | 'decide' | 'closeForRider';
 
 /** "Thursday, 6 Nov 2026, 14:05" in Cairo time, Latin digits. */
 export function longDateTime(iso: string, locale: string) {
@@ -44,8 +44,9 @@ export function OrderHeader({
   props: OrderScreenProps;
   onAction(action: MenuAction): void;
 }) {
-  const { order, viewer, basePath, cancellable, ticketHref, customer } = props;
+  const { order, viewer, basePath, cancellable, ticketHref, customer, closableForRider } = props;
   const t = useTranslations('orderDetail');
+  const tClose = useTranslations('closeForRider');
   const locale = useLocale();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -101,6 +102,22 @@ export function OrderHeader({
       >
         <Icon name="returns" size={16} />
         {t('menu.decide')}
+      </button>,
+    );
+  if (closableForRider)
+    items.push(
+      <button
+        key="closeForRider"
+        type="button"
+        role="menuitem"
+        className={item}
+        onClick={() => {
+          setOpen(false);
+          onAction('closeForRider');
+        }}
+      >
+        <Icon name="route" size={16} />
+        {tClose('action')}
       </button>,
     );
   if (viewer === 'admin' && order.trackingToken) {

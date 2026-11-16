@@ -149,12 +149,12 @@ export class MerchantOrdersController {
     const merchantId = await this.merchantIdOf(user);
     const order = await this.prisma.order.findUnique({ where: { id } });
     if (!order || order.merchantId !== merchantId) throw new DomainError('order_not_found', 404);
-    if (order.status !== 'new' && order.status !== 'accepted')
-      throw new DomainError('too_late_to_cancel');
+    // The state is checked again under the order's lock (the store may start picking meanwhile).
     await cancelOrder(this.prisma, {
       orderId: id,
       reason: 'merchant_cancelled',
       actorUserId: user.sub,
+      allowedStates: ['new', 'accepted'],
     });
     return { status: 'cancelled' };
   }

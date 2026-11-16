@@ -944,6 +944,7 @@ model Transfer {
 
   @@index([fromId, status])
   @@index([toId, status])
+  @@index([sentAt])
   @@map("transfers")
 }
 
@@ -1583,6 +1584,7 @@ model LedgerLine {
   bankMatch BankLineMatch?
 
   @@index([accountId, occurredAt])
+  @@index([entryId])
   @@index([darkStoreId, occurredAt])
   @@index([merchantId, occurredAt])
   @@index([riderId, occurredAt])
@@ -1737,6 +1739,7 @@ model Payout {
   checkMarks PayoutCheckMark[]
 
   @@index([merchantId, status])
+  @@index([paidAt])
   @@map("payouts")
 }
 
@@ -5201,6 +5204,7 @@ model ExpenseClaim {
   @@index([employeeId, status])
   @@index([status, createdAt])
   @@index([managerEmployeeId, status])
+  @@index([updatedAt])
   @@map("expense_claims")
 }
 

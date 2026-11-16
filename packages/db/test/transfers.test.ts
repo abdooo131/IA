@@ -219,3 +219,50 @@ describe('transfers', () => {
     ).toBe(1);
   });
 });
+
+describe('transfer scans retried at the same moment', () => {
+  it('applies a pick and a receive sent twice at once only once', async () => {
+    const t = await createTransfer(prisma, {
+      fromId: f.store.id,
+      toId: hub.id,
+      lines: [{ skuId: f.sku.id, quantity: 2 }],
+      actorUserId: admin,
+    });
+    const pickInput = {
+      transferId: t.id,
+      darkStoreId: f.store.id,
+      skuId: f.sku.id,
+      quantity: 1,
+      actorUserId: admin,
+      idempotencyKey: 'pick-race',
+    };
+    const picks = await Promise.all([
+      pickForTransfer(prisma, pickInput),
+      pickForTransfer(prisma, pickInput),
+    ]);
+    expect(picks.map((r) => r.replayed).sort()).toEqual([false, true]);
+    expect(
+      (await prisma.transferLine.findFirstOrThrow({ where: { transferId: t.id } })).pickedQty,
+    ).toBe(1);
+    await pick(t.id, f.store.id, 1);
+    await sendTransfer(prisma, { transferId: t.id, darkStoreId: f.store.id, actorUserId: admin });
+
+    const takeInput = {
+      transferId: t.id,
+      darkStoreId: hub.id,
+      skuId: f.sku.id,
+      quantity: 1,
+      actorUserId: admin,
+      idempotencyKey: 'receive-race',
+    };
+    const takes = await Promise.all([
+      receiveTransfer(prisma, takeInput),
+      receiveTransfer(prisma, takeInput),
+    ]);
+    expect(takes.map((r) => r.replayed).sort()).toEqual([false, true]);
+    expect(
+      (await prisma.transferLine.findFirstOrThrow({ where: { transferId: t.id } })).receivedQty,
+    ).toBe(1);
+    expect(await binQty((await hubBin('RCV-01')).id, f.sku.id)).toBe(1);
+  });
+});

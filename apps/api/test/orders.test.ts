@@ -339,4 +339,69 @@ describe('orders end to end', () => {
       'cancelled',
     );
   });
+  it('lets a manager close a delivery for the rider, and keeps merchants to new and accepted', async () => {
+    const merchant = await agent('merchant@evechantelle.example');
+    const staff = await agent('staff.newcairo@shiplynow.local');
+    const outForDelivery = async () => {
+      const created = await merchant
+        .post('/merchant/orders')
+        .send(await orderBody())
+        .expect(201);
+      const base = `/stores/${ncr}/orders/${created.body.id}`;
+      await staff.post(`${base}/accept`).expect(201);
+      const detail = await staff.get(base).expect(200);
+      for (const item of detail.body.items)
+        await staff
+          .post(`${base}/pick`)
+          .send({ skuId: item.skuId, quantity: item.quantity, idempotencyKey: randomUUID() })
+          .expect(201);
+      // Picking has started: the merchant may no longer cancel.
+      const late = await merchant.post(`/merchant/orders/${created.body.id}/cancel`).expect(409);
+      expect(late.body).toEqual({ error: 'too_late_to_cancel' });
+      const photo = await staff
+        .post('/photos?kind=pack')
+        .set('content-type', 'image/jpeg')
+        .send(JPEG)
+        .expect(201);
+      await staff.post(`${base}/pack`).send({ photoId: photo.body.id }).expect(201);
+      await staff.post(`${base}/handover`).send({ badgeCode: 'RDR-0001' }).expect(201);
+      return { id: created.body.id as string, base };
+    };
+
+    // Store staff without store manage may not; admin (operations manage) closes it as failed.
+    const first = await outForDelivery();
+    const reason = 'Rider phone stopped working';
+    await staff
+      .post(`${first.base}/close-for-rider`)
+      .send({ outcome: 'failed', reason, failureReason: 'wrong_address' })
+      .expect(403);
+    const admin = await agent('admin@test.eg', 'admin-password-1');
+    await admin
+      .post(`/admin/orders/${first.id}/close-for-rider`)
+      .send({ outcome: 'failed', reason: 'no' })
+      .expect(400);
+    const failed = await admin
+      .post(`/admin/orders/${first.id}/close-for-rider`)
+      .send({ outcome: 'failed', reason, failureReason: 'wrong_address' })
+      .expect(201);
+    expect(failed.body).toMatchObject({ status: 'attempt_failed', attempt: 1 });
+
+    // A store manager of the order's store closes the next one as delivered with the cash.
+    const second = await outForDelivery();
+    const staffUser = await prisma.user.findFirstOrThrow({
+      where: { email: 'staff.newcairo@shiplynow.local' },
+    });
+    await prisma.userAccess.update({ where: { userId: staffUser.id }, data: { store: 'manage' } });
+    const delivery = await prisma.delivery.findFirstOrThrow({ where: { orderId: second.id } });
+    const done = await staff
+      .post(`${second.base}/close-for-rider`)
+      .send({ outcome: 'delivered', reason, codCollectedPiastres: delivery.codExpectedPiastres })
+      .expect(201);
+    expect(done.body).toMatchObject({ status: 'delivered', riderId: delivery.riderId });
+    const rider = await agent('rider.newcairo@shiplynow.local');
+    await rider
+      .post(`/rider/deliveries/${delivery.id}/complete`)
+      .send({ otp: '0000', codCollectedPiastres: 0 })
+      .expect(409);
+  });
 });

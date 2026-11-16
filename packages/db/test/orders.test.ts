@@ -3,6 +3,7 @@ import {
   acceptOrder,
   cancelOrder,
   checkFailedDeliveries,
+  closeDeliveryForRider,
   completeDelivery,
   createOrder,
   decideFailedOrder,
@@ -15,6 +16,7 @@ import {
   recordDeliveryCall,
   returnToStore,
 } from '../src/orders';
+import { updateUser } from '../src/admin-ops';
 import { savePhoto } from '../src/photos';
 import { setSetting } from '../src/settings';
 import { receive } from '../src/stock';
@@ -804,5 +806,215 @@ describe('order views', () => {
     ]);
     expect(detail!.items[0]!.bins).toEqual([{ id: f.shelfB.id, code: 'A-02', quantity: 2 }]);
     expect(await listOrders(prisma, { q: fresh.number })).toHaveLength(1);
+  });
+});
+
+describe('operations fixes', () => {
+  async function accepted(qty: number) {
+    const { id } = await order([{ skuId: f.sku.id, quantity: qty }]);
+    await acceptOrder(prisma, { orderId: id, darkStoreId: f.store.id, actorUserId: staff });
+    return id;
+  }
+  async function packed(qty = 1) {
+    const id = await accepted(qty);
+    await pickAll(id);
+    await packOrder(prisma, {
+      orderId: id,
+      darkStoreId: f.store.id,
+      photoId: await packPhoto(),
+      actorUserId: staff,
+    });
+    return id;
+  }
+  async function outForDelivery() {
+    const id = await packed(2);
+    await handToRider(prisma, {
+      orderId: id,
+      darkStoreId: f.store.id,
+      badgeCode: 'RDR-1',
+      actorUserId: staff,
+    });
+    const delivery = await prisma.delivery.findFirstOrThrow({ where: { orderId: id } });
+    return { id, delivery };
+  }
+
+  it('applies a pick retried at the same moment once', async () => {
+    const id = await accepted(2);
+    const same = key();
+    const pickOne = () =>
+      pickOrderItem(prisma, {
+        orderId: id,
+        darkStoreId: f.store.id,
+        skuId: f.sku.id,
+        quantity: 1,
+        actorUserId: staff,
+        idempotencyKey: same,
+      });
+    const results = await Promise.all([pickOne(), pickOne()]);
+    expect(results.map((r) => r.replayed).sort()).toEqual([false, true]);
+    const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: id } });
+    expect(item.pickedQty).toBe(1);
+    expect(await level(f.store.id, f.sku.id)).toEqual({ onHand: 4, reserved: 1 });
+  });
+
+  it('applies a missing scan retried at the same moment once', async () => {
+    const id = await accepted(2);
+    const same = key();
+    const missing = () =>
+      markItemMissing(prisma, {
+        orderId: id,
+        darkStoreId: f.store.id,
+        skuId: f.sku.id,
+        quantity: 1,
+        actorUserId: staff,
+        idempotencyKey: same,
+      });
+    const results = await Promise.all([missing(), missing()]);
+    expect(results.map((r) => r.replayed).sort()).toEqual([false, true]);
+    const item = await prisma.orderItem.findFirstOrThrow({ where: { orderId: id } });
+    expect(item.cancelledQty).toBe(1);
+    expect(await prisma.alert.count({ where: { type: 'item_missing' } })).toBe(1);
+    expect(await level(f.store.id, f.sku.id)).toEqual({ onHand: 5, reserved: 1 });
+  });
+
+  it('never overfills a trip when two hand overs to one rider race', async () => {
+    await setSetting(prisma, {
+      key: 'delivery.max_orders_per_trip',
+      value: 1,
+      scope: f.store.id,
+      actorUserId: null,
+    });
+    const a = await packed();
+    const b = await packed();
+    const hand = (orderId: string) =>
+      handToRider(prisma, {
+        orderId,
+        darkStoreId: f.store.id,
+        badgeCode: 'RDR-1',
+        actorUserId: staff,
+      });
+    const results = await Promise.allSettled([hand(a), hand(b)]);
+    expect(results.filter((r) => r.status === 'fulfilled')).toHaveLength(1);
+    const refused = results.find((r) => r.status === 'rejected') as PromiseRejectedResult;
+    expect(refused.reason).toMatchObject({ code: 'rider_full' });
+    expect(await prisma.delivery.count()).toBe(1);
+  });
+
+  it('checks the states a caller may cancel from under the order lock', async () => {
+    const id = await accepted(1);
+    await pickAll(id);
+    await expect(
+      cancelOrder(prisma, {
+        orderId: id,
+        reason: 'merchant_cancelled',
+        actorUserId: staff,
+        allowedStates: ['new', 'accepted'],
+      }),
+    ).rejects.toMatchObject({ code: 'too_late_to_cancel' });
+    const fresh = await accepted(1);
+    await cancelOrder(prisma, {
+      orderId: fresh,
+      reason: 'merchant_cancelled',
+      actorUserId: staff,
+      allowedStates: ['new', 'accepted'],
+    });
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: fresh } })).status).toBe(
+      'cancelled',
+    );
+  });
+
+  it('lets a manager close a delivery for the rider as delivered, keeping the rider', async () => {
+    const { id, delivery } = await outForDelivery();
+    const close = (extra: Partial<Parameters<typeof closeDeliveryForRider>[1]>) =>
+      closeDeliveryForRider(prisma, {
+        orderId: id,
+        darkStoreId: f.store.id,
+        actorUserId: staff,
+        reason: 'Rider phone stopped working',
+        outcome: 'delivered',
+        ...extra,
+      });
+    await expect(close({ reason: 'no' })).rejects.toMatchObject({ code: 'reason_required' });
+    await expect(close({ darkStoreId: f.other.id })).rejects.toMatchObject({
+      code: 'order_not_found',
+    });
+    await expect(close({})).rejects.toMatchObject({ code: 'cod_required' });
+    expect(await close({ codCollectedPiastres: 4000 })).toMatchObject({ status: 'delivered' });
+
+    const d = await prisma.delivery.findUniqueOrThrow({ where: { id: delivery.id } });
+    expect(d).toMatchObject({ status: 'delivered', riderId: delivery.riderId });
+    expect(d.codCollectedPiastres).toBe(4000);
+    expect(d.otpVerified).toBe(false);
+    const event = await prisma.orderEvent.findFirstOrThrow({
+      where: { orderId: id, type: 'delivered' },
+    });
+    expect(event.actorUserId).toBe(staff);
+    expect(event.data).toMatchObject({
+      proof: 'closed_for_rider',
+      closedForRider: { reason: 'Rider phone stopped working', riderId: delivery.riderId },
+    });
+    expect(
+      await prisma.auditLog.count({ where: { action: 'order.close_for_rider', entityId: id } }),
+    ).toBe(1);
+    // The cash is on the rider, exactly as when the rider closes it.
+    const cod = await prisma.ledgerEntry.findUniqueOrThrow({
+      where: { idempotencyKey: `delivery:${delivery.id}:cod` },
+      include: { lines: true },
+    });
+    expect(cod.lines.some((l) => l.riderId === delivery.riderId)).toBe(true);
+    // The rider can no longer close it, and a second close is refused.
+    await expect(
+      completeDelivery(prisma, { deliveryId: delivery.id, riderUserId: riderUser, otp: '0000' }),
+    ).rejects.toMatchObject({ code: 'delivery_closed' });
+    await expect(close({ codCollectedPiastres: 4000 })).rejects.toMatchObject({
+      code: 'invalid_order_state',
+    });
+  });
+
+  it('lets a manager close a delivery for the rider as failed with the rider reason', async () => {
+    const { id, delivery } = await outForDelivery();
+    const close = (extra: Partial<Parameters<typeof closeDeliveryForRider>[1]>) =>
+      closeDeliveryForRider(prisma, {
+        orderId: id,
+        actorUserId: staff,
+        reason: 'Rider phone stopped working',
+        outcome: 'failed',
+        ...extra,
+      });
+    await expect(close({})).rejects.toMatchObject({ code: 'failure_reason_required' });
+    await expect(close({ failureReason: 'other' })).rejects.toMatchObject({
+      code: 'note_required',
+    });
+    // On the rider's word: no logged calls or door photo needed.
+    expect(await close({ failureReason: 'no_answer' })).toMatchObject({
+      status: 'attempt_failed',
+      attempt: 1,
+    });
+    const d = await prisma.delivery.findUniqueOrThrow({ where: { id: delivery.id } });
+    expect(d).toMatchObject({ status: 'failed', riderId: delivery.riderId });
+    const event = await prisma.orderEvent.findFirstOrThrow({
+      where: { orderId: id, type: 'delivery_attempt_failed' },
+    });
+    expect(event.actorUserId).toBe(staff);
+    expect(await prisma.alert.count({ where: { type: 'delivery_failed', orderId: id } })).toBe(1);
+  });
+
+  it('refuses to disable a rider who still carries orders', async () => {
+    const { id } = await outForDelivery();
+    await expect(
+      updateUser(prisma, { userId: riderUser, isActive: false, actorUserId: staff }),
+    ).rejects.toMatchObject({ code: 'rider_has_open_deliveries' });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: riderUser } })).isActive).toBe(true);
+    await closeDeliveryForRider(prisma, {
+      orderId: id,
+      actorUserId: staff,
+      reason: 'Rider left the company',
+      outcome: 'delivered',
+      codCollectedPiastres: 4000,
+    });
+    await updateUser(prisma, { userId: riderUser, isActive: false, actorUserId: staff });
+    expect((await prisma.user.findUniqueOrThrow({ where: { id: riderUser } })).isActive).toBe(
+      false,
+    );
   });
 });

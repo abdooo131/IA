@@ -11,7 +11,12 @@ import {
   type UpdateSkuBody,
   type UpdateUserBody,
 } from '@shiplynow/shared';
-import { assertCanDisable, createAccessFor, financeLevelOf } from './access';
+import {
+  assertCanDisable,
+  assertNoOpenDeliveries,
+  createAccessFor,
+  financeLevelOf,
+} from './access';
 import { recordAudit } from './audit';
 import { onboardNewPerson, syncEmployeeStore } from './hr';
 import { type Db, inTransaction } from './client';
@@ -163,7 +168,11 @@ export function updateUser(db: Db, input: UpdateUserBody & { userId: string; act
       if (input.userId === input.actorUserId && input.isActive === false)
         throw new DomainError('cannot_deactivate_self', 400);
       // The last active person with settings manage cannot be disabled.
-      if (input.isActive === false && before.isActive) await assertCanDisable(tx, before.id);
+      if (input.isActive === false && before.isActive) {
+        await assertCanDisable(tx, before.id);
+        // A rider carrying orders keeps the account until those deliveries are closed.
+        await assertNoOpenDeliveries(tx, before.id);
+      }
 
       const darkStoreId = input.darkStoreId !== undefined ? input.darkStoreId : before.darkStoreId;
       const merchantId = input.merchantId !== undefined ? input.merchantId : before.merchantId;

@@ -13,6 +13,8 @@ export interface OrderScreenProps {
   /** The API path of the order (/admin/orders/<id>), for cancel, decision and notes */
   apiPath: string;
   cancellable: boolean;
+  /** Admin: the order is out for delivery and the viewer may close it for the rider */
+  closableForRider?: boolean;
   created?: boolean;
   /** Notes the viewer may read; null when the notes could not be read */
   notes: OrderNote[] | null;

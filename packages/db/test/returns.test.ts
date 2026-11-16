@@ -187,3 +187,22 @@ describe('returns to the merchant', () => {
     });
   });
 });
+
+describe('return scans retried at the same moment', () => {
+  it('applies a pick sent twice at once only once', async () => {
+    const ret = await request([{ skuId: f.sku.id, source: 'sellable', quantity: 2 }]);
+    const input = {
+      returnId: ret.id,
+      darkStoreId: f.store.id,
+      skuId: f.sku.id,
+      quantity: 1,
+      actorUserId: staff,
+      idempotencyKey: 'race-tap',
+    };
+    const results = await Promise.all([pickForReturn(prisma, input), pickForReturn(prisma, input)]);
+    expect(results.map((r) => r.replayed).sort()).toEqual([false, true]);
+    const line = await prisma.merchantReturnLine.findFirstOrThrow({ where: { returnId: ret.id } });
+    expect(line.pickedQty).toBe(1);
+    expect(await binQty(f.shelfA.id, f.sku.id)).toBe(4);
+  });
+});

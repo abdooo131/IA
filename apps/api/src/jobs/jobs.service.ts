@@ -232,8 +232,10 @@ export class JobsService implements OnApplicationBootstrap, OnApplicationShutdow
         this.log.log(`Violations: ${hr.finalized} final, ${hr.suggested} suggested`);
       // HR phase 2: leavers' accounts close at the end of their last day (each exit once).
       const exits = await runExitDisables(this.prisma, now);
-      if (exits.disabled + exits.cancelled > 0)
-        this.log.log(`Leavers: ${exits.disabled} accounts disabled, ${exits.cancelled} kept`);
+      if (exits.disabled + exits.cancelled + exits.waiting > 0)
+        this.log.log(
+          `Leavers: ${exits.disabled} accounts disabled, ${exits.cancelled} kept, ${exits.waiting} waiting for open deliveries`,
+        );
       return { ...result, ...hr, exits };
     } catch (error) {
       await this.reporter.report('job: attendance close', error);
