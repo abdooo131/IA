@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery, ApiTags } from '@nestjs/swagger';
 import {
   listTickets,
@@ -8,9 +8,10 @@ import {
   ticketFor,
   ticketNumber,
 } from '@shiplynow/db';
-import type { AccessTokenClaims } from '@shiplynow/shared';
+import { type AccessTokenClaims, isTeamRole } from '@shiplynow/shared';
 import { z } from 'zod';
-import { CurrentUser, Roles } from '../auth/decorators';
+import { loadAccess } from '../auth/access.guard';
+import { type AuthedRequest, CurrentUser, Roles } from '../auth/decorators';
 import { ZodValidationPipe } from '../common/zod-validation.pipe';
 import { PrismaService } from '../prisma/prisma.service';
 import { Slack } from './slack';
@@ -38,17 +39,29 @@ export class TicketsController {
     private readonly slack: Slack,
   ) {}
 
+  /** The caller with their access profile (riders have none), for ticketFor and listTickets. */
+  private async viewer(req: AuthedRequest, user: AccessTokenClaims) {
+    const access = isTeamRole(user.role) ? await loadAccess(req, this.prisma) : null;
+    return { id: user.sub, access };
+  }
+
   @Get()
   @ApiQuery({ name: 'box', required: false, enum: ['inbox', 'sent', 'all'] })
   @ApiQuery({ name: 'status', required: false })
   async list(
     @CurrentUser() user: AccessTokenClaims,
+    @Req() req: AuthedRequest,
     @Query('box') box?: string,
     @Query('status') status?: string,
   ) {
     const which = box === 'sent' || box === 'all' ? box : 'inbox';
     const [rows, unread] = await Promise.all([
-      listTickets(this.prisma, { userId: user.sub, role: user.role, box: which, status }),
+      listTickets(this.prisma, {
+        userId: user.sub,
+        access: (await this.viewer(req, user)).access,
+        box: which,
+        status,
+      }),
       this.prisma.ticket.count({
         where: { assigneeId: user.sub, status: 'open', readAt: null },
       }),
@@ -72,10 +85,14 @@ export class TicketsController {
 
   /** Opening it as the assignee counts as reading it. */
   @Get(':id')
-  async detail(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
-    await ticketFor(this.prisma, id, { id: user.sub, role: user.role });
+  async detail(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Req() req: AuthedRequest,
+  ) {
+    await ticketFor(this.prisma, id, await this.viewer(req, user));
     await markTicketRead(this.prisma, id, user.sub);
-    const t = await ticketFor(this.prisma, id, { id: user.sub, role: user.role });
+    const t = await ticketFor(this.prisma, id, await this.viewer(req, user));
     return {
       id: t.id,
       number: ticketNumber(t.number),
@@ -113,16 +130,21 @@ export class TicketsController {
     @Param('id') id: string,
     @Body(new ZodValidationPipe(messageSchema)) body: z.infer<typeof messageSchema>,
     @CurrentUser() user: AccessTokenClaims,
+    @Req() req: AuthedRequest,
   ) {
-    const t = await ticketFor(this.prisma, id, { id: user.sub, role: user.role });
+    const t = await ticketFor(this.prisma, id, await this.viewer(req, user));
     const me = await this.prisma.user.findUniqueOrThrow({ where: { id: user.sub } });
     const { ticket } = await this.tickets.reply(t.id, { id: me.id, name: me.name }, body.body);
     return { status: ticket.status };
   }
 
   @Post(':id/close')
-  async close(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
-    await ticketFor(this.prisma, id, { id: user.sub, role: user.role });
+  async close(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Req() req: AuthedRequest,
+  ) {
+    await ticketFor(this.prisma, id, await this.viewer(req, user));
     const t = await setTicketClosed(this.prisma, {
       ticketId: id,
       closed: true,
@@ -133,8 +155,12 @@ export class TicketsController {
   }
 
   @Post(':id/reopen')
-  async reopen(@Param('id') id: string, @CurrentUser() user: AccessTokenClaims) {
-    await ticketFor(this.prisma, id, { id: user.sub, role: user.role });
+  async reopen(
+    @Param('id') id: string,
+    @CurrentUser() user: AccessTokenClaims,
+    @Req() req: AuthedRequest,
+  ) {
+    await ticketFor(this.prisma, id, await this.viewer(req, user));
     const t = await setTicketClosed(this.prisma, {
       ticketId: id,
       closed: false,

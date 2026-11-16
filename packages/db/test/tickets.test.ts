@@ -50,7 +50,7 @@ describe('tickets', () => {
     expect([a.number, b.number]).toEqual([1, 2]);
     expect(a.dueAt).toEqual(at(120));
     expect(b.dueAt).toEqual(at(20));
-    const full = await ticketFor(prisma, a.id, { id: cs.id, role: 'finance' });
+    const full = await ticketFor(prisma, a.id, { id: cs.id, access: null });
     expect(full.messages).toEqual([expect.objectContaining({ body: 'Can you call her?' })]);
   });
 
@@ -70,14 +70,12 @@ describe('tickets', () => {
 
   it('only the two people on it, and admins, can see it', async () => {
     const t = await open();
-    await expect(ticketFor(prisma, t.id, { id: other.id, role: 'merchant' })).rejects.toMatchObject(
-      {
-        code: 'ticket_not_found',
-      },
-    );
-    const inbox = await listTickets(prisma, { userId: cs.id, role: 'finance', box: 'inbox' });
+    await expect(ticketFor(prisma, t.id, { id: other.id, access: null })).rejects.toMatchObject({
+      code: 'ticket_not_found',
+    });
+    const inbox = await listTickets(prisma, { userId: cs.id, access: null, box: 'inbox' });
     expect(inbox.map((x) => x.number)).toEqual(['TCK-000001']);
-    expect(await listTickets(prisma, { userId: cs.id, role: 'finance', box: 'sent' })).toEqual([]);
+    expect(await listTickets(prisma, { userId: cs.id, access: null, box: 'sent' })).toEqual([]);
   });
 
   it('answer, follow up, close and reopen move the status the right way', async () => {

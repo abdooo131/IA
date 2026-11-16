@@ -1,4 +1,5 @@
 import type { Prisma, TicketPriority } from '@prisma/client';
+import { type AccessProfile, canDo } from '@shiplynow/shared';
 import { recordAudit } from './audit';
 import { type Db, inTransaction } from './client';
 import { DomainError } from './domain-error';
@@ -88,8 +89,20 @@ export function createTicket(
   });
 }
 
-/** Who may see a ticket: the two people on it, and admins. */
-export async function ticketFor(db: Db, ticketId: string, viewer: { id: string; role: string }) {
+/**
+ * Who reads every ticket: people with settings manage (admin powers). The JWT role "admin"
+ * no longer means that, since every team account outside stores and finance carries it.
+ */
+export function seesAllTickets(access: AccessProfile | null | undefined) {
+  return canDo(access, 'settings', 'manage');
+}
+
+/** Who may see a ticket: the two people on it, and people with admin powers. */
+export async function ticketFor(
+  db: Db,
+  ticketId: string,
+  viewer: { id: string; access: AccessProfile | null },
+) {
   const ticket = await db.ticket.findUnique({
     where: { id: ticketId },
     include: {
@@ -100,7 +113,7 @@ export async function ticketFor(db: Db, ticketId: string, viewer: { id: string; 
   });
   if (!ticket) throw new DomainError('ticket_not_found', 404);
   const onIt = ticket.createdById === viewer.id || ticket.assigneeId === viewer.id;
-  if (!onIt && viewer.role !== 'admin') throw new DomainError('ticket_not_found', 404);
+  if (!onIt && !seesAllTickets(viewer.access)) throw new DomainError('ticket_not_found', 404);
   return ticket;
 }
 
@@ -210,14 +223,19 @@ export function setTicketClosed(
 
 export async function listTickets(
   db: Db,
-  input: { userId: string; role: string; box: 'inbox' | 'sent' | 'all'; status?: string },
+  input: {
+    userId: string;
+    access: AccessProfile | null;
+    box: 'inbox' | 'sent' | 'all';
+    status?: string;
+  },
 ) {
   const where: Prisma.TicketWhereInput =
     input.box === 'inbox'
       ? { assigneeId: input.userId }
       : input.box === 'sent'
         ? { createdById: input.userId }
-        : input.role === 'admin'
+        : seesAllTickets(input.access)
           ? {}
           : { OR: [{ assigneeId: input.userId }, { createdById: input.userId }] };
   if (input.status === 'open' || input.status === 'answered' || input.status === 'closed')
